@@ -50,6 +50,18 @@ interface CapabilityAwarePluginHost extends PluginHost {
     metadata?: Record<string, unknown>
     updatedAt: number
   }
+  markCapabilityDegraded: (key: string, metadata?: Record<string, unknown>) => {
+    key: string
+    state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
+    metadata?: Record<string, unknown>
+    updatedAt: number
+  }
+  withdrawCapability: (key: string, metadata?: Record<string, unknown>) => {
+    key: string
+    state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
+    metadata?: Record<string, unknown>
+    updatedAt: number
+  }
 }
 
 interface PluginConfig {
@@ -387,11 +399,19 @@ export async function setupPluginHost(): Promise<PluginHostService> {
       )
     }
 
-    if (payload.state === 'announced') {
-      return capabilityHost.announceCapability(payload.key, payload.metadata)
+    switch (payload.state) {
+      case 'announced':
+        return capabilityHost.announceCapability(payload.key, payload.metadata)
+      case 'ready':
+        return capabilityHost.markCapabilityReady(payload.key, payload.metadata)
+      case 'degraded':
+        return capabilityHost.markCapabilityDegraded(payload.key, payload.metadata)
+      case 'withdrawn':
+        return capabilityHost.withdrawCapability(payload.key, payload.metadata)
     }
 
-    return capabilityHost.markCapabilityReady(payload.key, payload.metadata)
+    const unexpectedState: never = payload.state
+    throw new Error(`Unsupported capability state: ${unexpectedState}`)
   })
 
   // Initialize enabled plugins during module setup so startup is bound to injeca lifecycle.

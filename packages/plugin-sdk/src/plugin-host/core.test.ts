@@ -18,15 +18,24 @@ import { FileSystemLoader, PluginHost } from '.'
 import { createApis } from '../plugin/apis/client'
 import { protocolCapabilityWait, protocolProviders } from '../plugin/apis/protocol'
 
+function assertNever(value: never): never {
+  throw new Error(`Unsupported capability state: ${value}`)
+}
+
 function reportPluginCapability(
   host: PluginHost,
   payload: { key: string, state: 'announced' | 'ready', metadata?: Record<string, unknown> },
 ) {
-  if (payload.state === 'announced') {
-    return host.announceCapability(payload.key, payload.metadata)
-  }
+  switch (payload.state) {
+    case 'announced':
+      return host.announceCapability(payload.key, payload.metadata)
 
-  return host.markCapabilityReady(payload.key, payload.metadata)
+    case 'ready':
+      return host.markCapabilityReady(payload.key, payload.metadata)
+
+    default:
+      return assertNever(payload.state)
+  }
 }
 
 describe('for FileSystemPluginHost', () => {
@@ -798,5 +807,67 @@ describe('for PluginHost', () => {
     ]))
 
     await expect(invokeProviders()).resolves.toEqual([{ name: 'provider:runtime' }])
+  })
+
+  it('should isolate runtime permission grants between concurrent same-name sessions', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+    })
+    host.setResourceValue(providersCapability, [{ name: 'provider:runtime' }])
+
+    const manifest = {
+      ...testManifest,
+      permissions: {},
+    }
+
+    const firstSession = await host.load(manifest, { cwd: '' })
+    const secondSession = await host.load(manifest, { cwd: '' })
+
+    const firstInvokeProviders = defineInvoke(firstSession.channels.host, protocolProviders.listProviders)
+    const secondInvokeProviders = defineInvoke(secondSession.channels.host, protocolProviders.listProviders)
+
+    const runtimeRequest = {
+      apis: [
+        { key: providersCapability, actions: ['invoke'], reason: 'Use providers API on demand' },
+      ],
+      resources: [
+        { key: providersCapability, actions: ['read'], reason: 'Read providers resource on demand' },
+      ],
+    } satisfies ModulePermissionDeclaration
+
+    host.requestPermissions(firstSession.id, runtimeRequest)
+    host.requestPermissions(secondSession.id, runtimeRequest)
+
+    host.grantPermissions(firstSession.id, {
+      apis: [
+        { key: providersCapability, actions: ['invoke'] },
+      ],
+      resources: [
+        { key: providersCapability, actions: ['read'] },
+      ],
+    })
+
+    await expect(firstInvokeProviders()).resolves.toEqual([{ name: 'provider:runtime' }])
+    await expect(secondInvokeProviders()).rejects.toThrow(`Permission denied: apis.invoke "${providersCapability}"`)
+
+    expect(host.getSession(firstSession.id)?.permissions.granted).toEqual({
+      apis: [
+        { key: providersCapability, actions: ['invoke'], reason: 'Use providers API on demand' },
+      ],
+      resources: [
+        { key: providersCapability, actions: ['read'], reason: 'Read providers resource on demand' },
+      ],
+      capabilities: [],
+      processors: [],
+      pipelines: [],
+    })
+    expect(host.getSession(secondSession.id)?.permissions.granted).toEqual({
+      apis: [],
+      resources: [],
+      capabilities: [],
+      processors: [],
+      pipelines: [],
+    })
   })
 })

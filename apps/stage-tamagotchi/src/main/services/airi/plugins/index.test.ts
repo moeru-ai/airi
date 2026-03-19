@@ -7,7 +7,13 @@ import { basename, join, resolve } from 'node:path'
 import { defineInvoke } from '@moeru/eventa'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { electronPluginList, electronPluginLoadEnabled, electronPluginSetEnabled } from '../../../../shared/eventa'
+import {
+  electronPluginInspect,
+  electronPluginList,
+  electronPluginLoadEnabled,
+  electronPluginSetEnabled,
+  electronPluginUpdateCapability,
+} from '../../../../shared/eventa'
 import { setupPluginHost } from './index'
 
 const appMock = vi.hoisted(() => ({
@@ -249,5 +255,43 @@ describe('setupPluginHost', () => {
     finally {
       await rm(externalDir, { recursive: true, force: true })
     }
+  })
+
+  it('mirrors degraded and withdrawn capability updates into the host snapshot', async () => {
+    await setupPluginHost()
+
+    expect(contextState.lastContext).toBeDefined()
+    const invokeInspect = defineInvoke(contextState.lastContext!, electronPluginInspect)
+    const invokeUpdateCapability = defineInvoke(contextState.lastContext!, electronPluginUpdateCapability)
+
+    await invokeUpdateCapability({
+      key: 'cap:renderer-status',
+      state: 'degraded',
+      metadata: { reason: 'renderer-restarting' },
+    })
+
+    let snapshot = await invokeInspect()
+    expect(snapshot.capabilities).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        key: 'cap:renderer-status',
+        state: 'degraded',
+        metadata: { reason: 'renderer-restarting' },
+      }),
+    ]))
+
+    await invokeUpdateCapability({
+      key: 'cap:renderer-status',
+      state: 'withdrawn',
+      metadata: { reason: 'renderer-unmounted' },
+    })
+
+    snapshot = await invokeInspect()
+    expect(snapshot.capabilities).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        key: 'cap:renderer-status',
+        state: 'withdrawn',
+        metadata: { reason: 'renderer-unmounted' },
+      }),
+    ]))
   })
 })

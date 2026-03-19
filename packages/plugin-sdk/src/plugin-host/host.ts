@@ -477,6 +477,10 @@ export class PluginHost {
     this.markCapabilityReady(protocolListProvidersEventName, { source: 'plugin-host' })
   }
 
+  private getPermissionScopeKey(session: PluginHostSession) {
+    return session.id
+  }
+
   private assertPermission(
     session: PluginHostSession,
     input: {
@@ -486,7 +490,7 @@ export class PluginHost {
       reason?: string
     },
   ) {
-    const allowed = this.permissions.isAllowed(session.identity.plugin.id, input.area, input.action, input.key)
+    const allowed = this.permissions.isAllowed(this.getPermissionScopeKey(session), input.area, input.action, input.key)
     if (allowed) {
       return
     }
@@ -544,7 +548,7 @@ export class PluginHost {
     const lifecycle = createActor(pluginLifecycleMachine)
     lifecycle.start()
 
-    const permissionSnapshot = this.permissions.initialize(identity.plugin.id, manifest.permissions, {
+    const permissionSnapshot = this.permissions.initialize(id, manifest.permissions, {
       persisted: this.persistedPermissionGrants.get(identity.plugin.id),
     })
 
@@ -731,7 +735,7 @@ export class PluginHost {
         persisted: this.persistedPermissionGrants.get(session.identity.plugin.id),
       }) ?? session.permissions.requested
 
-      const grantedSnapshot = this.permissions.initialize(session.identity.plugin.id, session.permissions.requested, {
+      const grantedSnapshot = this.permissions.initialize(this.getPermissionScopeKey(session), session.permissions.requested, {
         grant: resolvedGrant,
         persisted: this.persistedPermissionGrants.get(session.identity.plugin.id),
       })
@@ -934,7 +938,7 @@ export class PluginHost {
       throw new Error(`Unable to request permissions for plugin session: ${sessionId}`)
     }
 
-    const snapshot = this.permissions.declare(session.identity.plugin.id, requested)
+    const snapshot = this.permissions.declare(this.getPermissionScopeKey(session), requested)
     session.permissions = {
       requested: snapshot.requested,
       granted: snapshot.granted,
@@ -972,7 +976,7 @@ export class PluginHost {
       throw new Error(`Unable to grant permissions for plugin session: ${sessionId}`)
     }
 
-    const snapshot = this.permissions.grant(session.identity.plugin.id, grant)
+    const snapshot = this.permissions.grant(this.getPermissionScopeKey(session), grant)
     session.permissions = {
       requested: snapshot.requested,
       granted: snapshot.granted,
