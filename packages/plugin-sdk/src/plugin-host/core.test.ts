@@ -617,6 +617,20 @@ describe('for PluginHost', () => {
     await expect(invokeTwo()).resolves.toEqual([{ name: 'provider:two' }])
   })
 
+  it('should expose provider resources through the generic resource resolver API', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+    })
+
+    host.setResourceResolver(providersCapability, () => [{ name: 'provider:generic' }])
+
+    const session = await host.load(testManifest, { cwd: '' })
+    const invokeProviders = defineInvoke(session.channels.host, protocolProviders.listProviders)
+
+    await expect(invokeProviders()).resolves.toEqual([{ name: 'provider:generic' }])
+  })
+
   it('should include active modules in registry sync when initializing another session', async () => {
     const host = new PluginHost({
       runtime: 'electron',

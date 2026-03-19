@@ -37,7 +37,7 @@ interface PluginHostService {
 }
 
 interface CapabilityAwarePluginHost extends PluginHost {
-  setProvidersListResolver: (resolver: () => Promise<Array<{ name: string }>> | Array<{ name: string }>) => void
+  setResourceResolver: <T>(key: string, resolver: () => Promise<T> | T) => void
   announceCapability: (key: string, metadata?: Record<string, unknown>) => {
     key: string
     state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
@@ -381,7 +381,10 @@ export async function setupPluginHost(): Promise<PluginHostService> {
 
   defineInvokeHandler(context, electronPluginUpdateCapability, async (payload) => {
     if (payload.key === pluginProtocolListProvidersEventName && payload.state === 'ready') {
-      capabilityHost.setProvidersListResolver(async () => await invokePluginProtocolListProviders())
+      capabilityHost.setResourceResolver(
+        pluginProtocolListProvidersEventName,
+        async () => await invokePluginProtocolListProviders(),
+      )
     }
 
     if (payload.state === 'announced') {
