@@ -2,19 +2,17 @@
 import type { OnboardingStepNextHandler, OnboardingStepPrevHandler } from './types'
 
 import { Button, Callout } from '@proj-airi/ui'
-import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { getAnalyticsPrivacyPolicyUrl } from '../../../../stores/analytics/privacy-policy'
+import { useAnalytics } from '../../../../composables/use-analytics'
 
 const props = defineProps<{
   onNext: OnboardingStepNextHandler
   onPrevious?: OnboardingStepPrevHandler
 }>()
 
-const { locale, t } = useI18n()
-
-const privacyPolicyUrl = computed(() => getAnalyticsPrivacyPolicyUrl(locale.value))
+const { t } = useI18n()
+const { privacyPolicyUrl } = useAnalytics()
 </script>
 
 <template>

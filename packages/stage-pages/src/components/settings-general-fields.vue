@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { all } from '@proj-airi/i18n'
+import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { isPosthogAvailableInBuild } from '@proj-airi/stage-ui/stores/analytics/posthog'
-import { getAnalyticsPrivacyPolicyUrl } from '@proj-airi/stage-ui/stores/analytics/privacy-policy'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { FieldCheckbox, FieldSelect, useTheme } from '@proj-airi/ui'
 import { computed } from 'vue'
@@ -22,14 +22,13 @@ const analyticsToggleValue = computed({
   set: (value: boolean) => settings.analyticsEnabled = value,
 })
 
-const { locale, t } = useI18n()
+const { t } = useI18n()
 const { isDark: dark } = useTheme()
+const { privacyPolicyUrl } = useAnalytics()
 
 const languages = computed(() => {
   return Object.entries(all).map(([value, label]) => ({ value, label }))
 })
-
-const privacyPolicyUrl = computed(() => getAnalyticsPrivacyPolicyUrl(locale.value || settings.language))
 </script>
 
 <template>

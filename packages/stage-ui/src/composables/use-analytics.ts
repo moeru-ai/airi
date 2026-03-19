@@ -1,12 +1,19 @@
 import posthog from 'posthog-js'
 
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
 import { POSTHOG_ENABLED } from '../../../../posthog.config'
 import { useSharedAnalyticsStore } from '../stores/analytics'
+import { getAnalyticsPrivacyPolicyUrl } from '../stores/analytics/privacy-policy'
 import { useSettingsGeneral } from '../stores/settings'
 
 export function useAnalytics() {
   const analyticsStore = useSharedAnalyticsStore()
   const settingsGeneral = useSettingsGeneral()
+  const { locale } = useI18n()
+
+  const privacyPolicyUrl = computed(() => getAnalyticsPrivacyPolicyUrl(locale.value || settingsGeneral.language))
 
   function isAnalyticsEnabled() {
     return POSTHOG_ENABLED && settingsGeneral.analyticsEnabled
@@ -43,6 +50,7 @@ export function useAnalytics() {
   }
 
   return {
+    privacyPolicyUrl,
     trackProviderClick,
     trackFirstMessage,
   }
