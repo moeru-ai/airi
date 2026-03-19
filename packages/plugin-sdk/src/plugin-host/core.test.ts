@@ -3,7 +3,15 @@ import type { ModulePermissionDeclaration } from './shared/types'
 import { join } from 'node:path'
 
 import { createContext, defineEventa, defineInvoke, defineInvokeHandler } from '@moeru/eventa'
-import { moduleCompatibilityResult, moduleStatus, registryModulesSync } from '@proj-airi/plugin-protocol/types'
+import {
+  moduleCompatibilityResult,
+  modulePermissionsCurrent,
+  modulePermissionsDeclare,
+  modulePermissionsGranted,
+  modulePermissionsRequest,
+  moduleStatus,
+  registryModulesSync,
+} from '@proj-airi/plugin-protocol/types'
 import { describe, expect, it, vi } from 'vitest'
 
 import { FileSystemLoader, PluginHost } from '.'
@@ -665,5 +673,130 @@ describe('for PluginHost', () => {
 
     expect(moduleNames).toContain('test-plugin-session-one')
     expect(moduleNames).toContain('test-plugin-session-two')
+  })
+
+  it('should support runtime permission requests before granting deferred scopes', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+    })
+    host.setResourceValue(providersCapability, [{ name: 'provider:runtime' }])
+
+    const session = await host.load({
+      ...testManifest,
+      permissions: {},
+    }, { cwd: '' })
+
+    const invokeProviders = defineInvoke(session.channels.host, protocolProviders.listProviders)
+    await expect(invokeProviders()).rejects.toThrow(`Permission denied: apis.invoke "${providersCapability}"`)
+
+    const declareEvents: Array<{ body?: Record<string, unknown> }> = []
+    const currentEvents: Array<{ body?: Record<string, unknown> }> = []
+    const requestEvents: Array<{ body?: Record<string, unknown> }> = []
+    const grantedEvents: Array<{ body?: Record<string, unknown> }> = []
+
+    session.channels.host.on(modulePermissionsDeclare, payload => declareEvents.push(payload as unknown as { body?: Record<string, unknown> }))
+    session.channels.host.on(modulePermissionsCurrent, payload => currentEvents.push(payload as unknown as { body?: Record<string, unknown> }))
+    session.channels.host.on(modulePermissionsRequest, payload => requestEvents.push(payload as unknown as { body?: Record<string, unknown> }))
+    session.channels.host.on(modulePermissionsGranted, payload => grantedEvents.push(payload as unknown as { body?: Record<string, unknown> }))
+
+    const runtimeRequest = {
+      apis: [
+        { key: providersCapability, actions: ['invoke'], reason: 'Use providers API on demand' },
+      ],
+      resources: [
+        { key: providersCapability, actions: ['read'], reason: 'Read providers resource on demand' },
+      ],
+    } satisfies ModulePermissionDeclaration
+
+    host.requestPermissions(session.id, runtimeRequest, 'Enable provider lookup')
+
+    expect(host.getSession(session.id)?.permissions.requested).toEqual({
+      apis: [
+        { key: providersCapability, actions: ['invoke'], reason: 'Use providers API on demand' },
+      ],
+      resources: [
+        { key: providersCapability, actions: ['read'], reason: 'Read providers resource on demand' },
+      ],
+      capabilities: [],
+      processors: [],
+      pipelines: [],
+    })
+    expect(requestEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        body: expect.objectContaining({
+          requested: expect.objectContaining({
+            apis: [
+              expect.objectContaining({ key: providersCapability, actions: ['invoke'] }),
+            ],
+            resources: [
+              expect.objectContaining({ key: providersCapability, actions: ['read'] }),
+            ],
+          }),
+          reason: 'Enable provider lookup',
+        }),
+      }),
+    ]))
+    expect(declareEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        body: expect.objectContaining({
+          source: 'runtime',
+        }),
+      }),
+    ]))
+    expect(currentEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        body: expect.objectContaining({
+          requested: expect.objectContaining({
+            apis: [
+              expect.objectContaining({ key: providersCapability, actions: ['invoke'] }),
+            ],
+          }),
+          granted: expect.objectContaining({
+            apis: [],
+            resources: [],
+          }),
+        }),
+      }),
+    ]))
+
+    await expect(invokeProviders()).rejects.toThrow(`Permission denied: apis.invoke "${providersCapability}"`)
+
+    host.grantPermissions(session.id, {
+      apis: [
+        { key: providersCapability, actions: ['invoke'] },
+      ],
+      resources: [
+        { key: providersCapability, actions: ['read'] },
+      ],
+    })
+
+    expect(host.getSession(session.id)?.permissions.granted).toEqual({
+      apis: [
+        { key: providersCapability, actions: ['invoke'], reason: 'Use providers API on demand' },
+      ],
+      resources: [
+        { key: providersCapability, actions: ['read'], reason: 'Read providers resource on demand' },
+      ],
+      capabilities: [],
+      processors: [],
+      pipelines: [],
+    })
+    expect(grantedEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        body: expect.objectContaining({
+          granted: expect.objectContaining({
+            apis: [
+              expect.objectContaining({ key: providersCapability, actions: ['invoke'] }),
+            ],
+            resources: [
+              expect.objectContaining({ key: providersCapability, actions: ['read'] }),
+            ],
+          }),
+        }),
+      }),
+    ]))
+
+    await expect(invokeProviders()).resolves.toEqual([{ name: 'provider:runtime' }])
   })
 })

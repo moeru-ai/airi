@@ -636,7 +636,7 @@ interface RegistryModulesHealthHealthyEvent {
  * Protocol expectations:
  * - this event communicates intent only and does not grant access
  * - hosts may record, display, audit, or validate this declaration before any request is approved
- * - plugins must not assume any declared permission is usable until it appears in effective grants
+ * - plugins must not assume any declared permission is usable until it appears in current grants
  * - `source` indicates whether the declaration originated from static manifest data or runtime code
  */
 interface ModulePermissionsDeclareEvent {
@@ -656,7 +656,7 @@ interface ModulePermissionsDeclareEvent {
  * - hosts may prompt the user, auto-approve, partially approve, or deny the request
  * - plugins must treat this as a request for evaluation, not as confirmation of access
  * - plugins should provide a user-facing `reason` when approval UX needs explanatory context
- * - the host response may later be expressed through granted, denied, and effective permission events
+ * - the host response may later be expressed through granted, denied, and current permission events
  */
 interface ModulePermissionsRequestEvent {
   identity: ModuleIdentity
@@ -675,7 +675,7 @@ interface ModulePermissionsRequestEvent {
  * - `granted` may be narrower than the corresponding request
  * - plugins must inspect the granted payload instead of assuming the full request was approved
  * - `revision` increments when the permission snapshot changes and may be used to invalidate cached state
- * - hosts may emit this event before or together with an updated effective snapshot
+ * - hosts may emit this event before or together with an updated current snapshot
  */
 interface ModulePermissionsGrantedEvent {
   identity: ModuleIdentity
@@ -704,7 +704,7 @@ interface ModulePermissionsDeniedEvent {
 }
 
 /**
- * Emitted with the module's reconciled effective permission snapshot.
+ * Emitted with the module's reconciled current permission snapshot.
  *
  * Typical use cases:
  * - bootstrapping plugin runtime state after startup or reload
@@ -713,10 +713,10 @@ interface ModulePermissionsDeniedEvent {
  * Protocol expectations:
  * - this is the authoritative event for "what is currently allowed"
  * - `requested` is the normalized declaration baseline known to the host
- * - `granted` is the currently effective subset that authorization checks should follow
+ * - `granted` is the currently granted subset that authorization checks should follow
  * - plugins should prefer this snapshot over local assumptions when reconciling runtime state
  */
-interface ModulePermissionsEffectiveEvent {
+interface ModulePermissionsCurrentEvent {
   identity: ModuleIdentity
   requested: ModulePermissionDeclaration
   granted: ModulePermissionGrant
@@ -1017,8 +1017,8 @@ export const modulePermissionsRequest = defineEventa<ModulePermissionsRequestEve
 export const modulePermissionsGranted = defineEventa<ModulePermissionsGrantedEvent>('module:permissions:granted')
 /** Permission denial lifecycle event. See `ModulePermissionsDeniedEvent`. */
 export const modulePermissionsDenied = defineEventa<ModulePermissionsDeniedEvent>('module:permissions:denied')
-/** Effective permission snapshot event. See `ModulePermissionsEffectiveEvent`. */
-export const modulePermissionsEffective = defineEventa<ModulePermissionsEffectiveEvent>('module:permissions:effective')
+/** Current permission snapshot event. See `ModulePermissionsCurrentEvent`. */
+export const modulePermissionsCurrent = defineEventa<ModulePermissionsCurrentEvent>('module:permissions:current')
 
 export const modulePrepared = defineEventa<ModulePreparedEvent>('module:prepared')
 export const moduleConfigurationNeeded = defineEventa<ModuleConfigurationNeededEvent>('module:configuration:needed')
@@ -1112,7 +1112,7 @@ export interface ProtocolEvents<C = undefined> {
   'module:permissions:request': ModulePermissionsRequestEvent
   'module:permissions:granted': ModulePermissionsGrantedEvent
   'module:permissions:denied': ModulePermissionsDeniedEvent
-  'module:permissions:effective': ModulePermissionsEffectiveEvent
+  'module:permissions:current': ModulePermissionsCurrentEvent
   /**
    * Broadcast to all peers when a module successfully announces.
    */

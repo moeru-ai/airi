@@ -80,6 +80,52 @@ describe('permissionService', () => {
     expect(service.isAllowed('plugin-b', 'resources', 'write', 'plugin.resource.settings')).toBe(true)
   })
 
+  it('extends the requested baseline before granting runtime-declared permissions', () => {
+    const service = new PermissionService()
+    const initialized = service.initialize('plugin-runtime', {}, {
+      grant: {},
+    })
+
+    expect(initialized.requested.apis).toEqual([])
+
+    const declared = service.declare('plugin-runtime', {
+      apis: [
+        {
+          key: 'plugin.api.runtime',
+          actions: ['invoke'],
+          reason: 'Late-bound runtime capability',
+        },
+      ],
+    })
+
+    expect(declared.requested.apis).toEqual([
+      {
+        key: 'plugin.api.runtime',
+        actions: ['invoke'],
+        reason: 'Late-bound runtime capability',
+      },
+    ])
+    expect(declared.granted.apis).toEqual([])
+
+    const granted = service.grant('plugin-runtime', {
+      apis: [
+        {
+          key: 'plugin.api.runtime',
+          actions: ['invoke'],
+        },
+      ],
+    })
+
+    expect(granted.granted.apis).toEqual([
+      {
+        key: 'plugin.api.runtime',
+        actions: ['invoke'],
+        reason: 'Late-bound runtime capability',
+      },
+    ])
+    expect(service.isAllowed('plugin-runtime', 'apis', 'invoke', 'plugin.api.runtime')).toBe(true)
+  })
+
   it('stores the narrower granted key when a wildcard request is only partially approved', () => {
     const service = new PermissionService()
     const requested: ModulePermissionDeclaration = {

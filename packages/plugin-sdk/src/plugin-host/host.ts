@@ -29,9 +29,9 @@ import {
   moduleCompatibilityResult,
   moduleConfigurationConfigured,
   moduleConfigurationNeeded,
+  modulePermissionsCurrent,
   modulePermissionsDeclare,
   modulePermissionsDenied,
-  modulePermissionsEffective,
   modulePermissionsGranted,
   modulePermissionsRequest,
   modulePrepared,
@@ -756,7 +756,7 @@ export class PluginHost {
           revision: grantedSnapshot.revision,
         })
       }
-      session.channels.host.emit(modulePermissionsEffective, {
+      session.channels.host.emit(modulePermissionsCurrent, {
         identity: session.identity,
         requested: grantedSnapshot.requested,
         granted: grantedSnapshot.granted,
@@ -934,9 +934,27 @@ export class PluginHost {
       throw new Error(`Unable to request permissions for plugin session: ${sessionId}`)
     }
 
+    const snapshot = this.permissions.declare(session.identity.plugin.id, requested)
+    session.permissions = {
+      requested: snapshot.requested,
+      granted: snapshot.granted,
+      revision: snapshot.revision,
+    }
+
+    session.channels.host.emit(modulePermissionsDeclare, {
+      identity: session.identity,
+      requested: snapshot.requested,
+      source: 'runtime',
+    })
+    session.channels.host.emit(modulePermissionsCurrent, {
+      identity: session.identity,
+      requested: snapshot.requested,
+      granted: snapshot.granted,
+      revision: snapshot.revision,
+    })
     session.channels.host.emit(modulePermissionsRequest, {
       identity: session.identity,
-      requested,
+      requested: snapshot.requested,
       reason,
     })
   }
@@ -967,7 +985,7 @@ export class PluginHost {
       granted: snapshot.granted,
       revision: snapshot.revision,
     })
-    session.channels.host.emit(modulePermissionsEffective, {
+    session.channels.host.emit(modulePermissionsCurrent, {
       identity: session.identity,
       requested: snapshot.requested,
       granted: snapshot.granted,
