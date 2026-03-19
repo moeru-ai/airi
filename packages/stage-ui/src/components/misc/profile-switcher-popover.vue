@@ -19,11 +19,12 @@ const emit = defineEmits<{
   (e: 'manage'): void
 }>()
 
+const open = defineModel<boolean>('open', { default: false })
+
 const { t } = useI18n()
 const cardStore = useAiriCardStore()
 const { cards, activeCardId, activeCard } = storeToRefs(cardStore)
 
-const open = ref(false)
 const creatingNew = ref(false)
 const newProfileName = ref('')
 const nameInputRef = ref<HTMLInputElement>()

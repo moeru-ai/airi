@@ -5,7 +5,7 @@ import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/
 import { useTheme } from '@proj-airi/ui'
 import { refDebounced, useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ControlButtonTooltip from './control-button-tooltip.vue'
@@ -41,21 +41,31 @@ const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
 const expanded = ref(false)
 const islandRef = ref<HTMLElement>()
 
-// Expose whether hearing dialog is open so parent can disable click-through
-const hearingDialogOpen = ref(false)
-defineExpose({ hearingDialogOpen })
+// Tracks open overlays/dialogs that should prevent auto-collapse (e.g. 'hearing', 'profile-picker')
+const blockingOverlays = reactive(new Set<string>())
+const isBlocked = computed(() => blockingOverlays.size > 0)
+
+function setOverlay(key: string, active: boolean) {
+  active ? blockingOverlays.add(key) : blockingOverlays.delete(key)
+}
+
+// Expose for parent (e.g. to disable click-through when a dialog is open)
+defineExpose({
+  get hearingDialogOpen() { return blockingOverlays.has('hearing') },
+  set hearingDialogOpen(v: boolean) { setOverlay('hearing', v) },
+})
 
 const { isOutside } = useElectronMouseInElement(islandRef)
 const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
 
 watch(isOutsideAfter2seconds, (outside) => {
-  if (outside && expanded.value && !hearingDialogOpen.value) {
+  if (outside && expanded.value && !isBlocked.value) {
     expanded.value = false
   }
 })
 
 useIntervalFn(() => {
-  if (expanded.value && isOutside.value && !hearingDialogOpen.value) {
+  if (expanded.value && isOutside.value && !isBlocked.value) {
     expanded.value = false
   }
 }, 1500)
@@ -130,7 +140,7 @@ function refreshWindow() {
             </ControlButtonTooltip>
 
             <ControlButtonTooltip disable-hoverable-content>
-              <ControlsIslandProfilePicker>
+              <ControlsIslandProfilePicker placement="up" :open="blockingOverlays.has('profile-picker')" @update:open="setOverlay('profile-picker', $event)">
                 <template #default="{ toggle }">
                   <ControlButton :button-style="adjustStyleClasses.button" @click="toggle">
                     <div i-solar:emoji-funny-square-broken :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
@@ -173,7 +183,7 @@ function refreshWindow() {
             </ControlButtonTooltip>
 
             <ControlButtonTooltip disable-hoverable-content>
-              <ControlsIslandHearingConfig v-model:show="hearingDialogOpen">
+              <ControlsIslandHearingConfig :show="blockingOverlays.has('hearing')" @update:show="setOverlay('hearing', $event)">
                 <div class="relative">
                   <ControlButton :button-style="adjustStyleClasses.button">
                     <Transition name="fade" mode="out-in">
