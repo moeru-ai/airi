@@ -2,7 +2,7 @@ import type { definePlugin } from '../../../../plugin'
 import type { Plugin } from '../../../../plugin/shared'
 import type { ManifestV1, PluginLoadOptions } from '../../../shared/types'
 
-import { join } from 'node:path'
+import { isAbsolute, join } from 'node:path'
 import { cwd } from 'node:process'
 
 function isPluginDefinition(value: unknown): value is ReturnType<typeof definePlugin> {
@@ -63,7 +63,7 @@ export class FileSystemLoader {
       )
     }
 
-    return join(root, entrypoint)
+    return isAbsolute(entrypoint) ? entrypoint : join(root, entrypoint)
   }
 
   async loadLazyPluginFor(manifest: ManifestV1, options?: PluginLoadOptions) {
