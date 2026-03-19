@@ -15,12 +15,10 @@ export function useAnalytics() {
 
   const privacyPolicyUrl = computed(() => getAnalyticsPrivacyPolicyUrl(locale.value || settingsGeneral.language))
 
-  function isAnalyticsEnabled() {
-    return POSTHOG_ENABLED && settingsGeneral.analyticsEnabled
-  }
+  const isAnalyticsEnabled = computed(() => POSTHOG_ENABLED && settingsGeneral.analyticsEnabled)
 
   function trackProviderClick(providerId: string, module: string) {
-    if (!isAnalyticsEnabled())
+    if (!isAnalyticsEnabled.value)
       return
 
     posthog.capture('provider_card_clicked', {
@@ -30,7 +28,7 @@ export function useAnalytics() {
   }
 
   function trackFirstMessage() {
-    if (!isAnalyticsEnabled())
+    if (!isAnalyticsEnabled.value)
       return
 
     // Only track the first message once
