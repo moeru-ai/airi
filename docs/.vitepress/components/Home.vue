@@ -5,7 +5,6 @@ import { useLocalStorage, useWindowSize } from '@vueuse/core'
 import { createAnimatable } from 'animejs'
 import { useData } from 'vitepress'
 import { computed, onMounted, shallowRef, useTemplateRef, watch, watchEffect } from 'vue'
-import { useI18n } from 'vue-i18n'
 
 import homeBackgroundChristmas20251224 from '../assets/home-cover-2025-12-24-bg.avif'
 // NOTICE: for unknown reasons, without `?no-inline`, the inlined SVG use in the SFC template
@@ -27,12 +26,7 @@ import {
 const heroRef = useTemplateRef<HTMLDivElement>('hero')
 
 const shouldReduceMotion = useLocalStorage('docs:settings/reduce-motion', false)
-const { t } = useI18n()
 const { width: innerWidth, height: innerHeight } = useWindowSize({ includeScrollbar: true })
-
-function handleClickTryLive() {
-  window.location.replace('https://airi.moeru.ai/')
-}
 
 const DURATION = 1200
 const EASE = 'outSine'
