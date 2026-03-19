@@ -15,7 +15,6 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), { placement: 'down' })
 
 const emit = defineEmits<{
-  (e: 'create'): void
   (e: 'manage'): void
 }>()
 
@@ -39,6 +38,11 @@ const cardsList = computed(() =>
   Array.from(cards.value.entries()).map(([id, card]) => ({ id, name: card.name })),
 )
 
+const isDuplicateName = computed(() => {
+  const name = newProfileName.value.trim()
+  return name !== '' && Array.from(cards.value.values()).some(c => c.name === name)
+})
+
 function activateCard(id: string) {
   activeCardId.value = id
   open.value = false
@@ -58,6 +62,9 @@ function confirmCreate() {
   if (!current || !name)
     return
 
+  if (isDuplicateName.value)
+    return
+
   const newId = cardStore.addCard({
     ...structuredClone(toRaw(current)),
     name,
@@ -66,7 +73,6 @@ function confirmCreate() {
   creatingNew.value = false
   newProfileName.value = ''
   open.value = false
-  emit('create')
 }
 
 function cancelCreate() {
@@ -139,7 +145,7 @@ function handleManage() {
           <div v-if="creatingNew" class="grid">
             <div class="overflow-hidden">
               <div class="p-2">
-                <div :class="['flex items-center gap-1.5 rounded-lg', 'border border-primary-300 dark:border-primary-700', 'bg-white dark:bg-neutral-800']">
+                <div :class="['flex items-center gap-1.5 rounded-lg', isDuplicateName ? 'border border-red-400 dark:border-red-600' : 'border border-primary-300 dark:border-primary-700', 'bg-white dark:bg-neutral-800']">
                   <input
                     ref="nameInputRef"
                     v-model="newProfileName"
@@ -154,7 +160,7 @@ function handleManage() {
                     @keydown.escape="cancelCreate"
                   >
                   <button
-                    :class="['shrink-0 p-1.5 transition', 'text-primary-500 hover:text-primary-600 dark:hover:text-primary-400', newProfileName.trim() ? '' : 'opacity-30 pointer-events-none']"
+                    :class="['shrink-0 p-1.5 transition', 'text-primary-500 hover:text-primary-600 dark:hover:text-primary-400', (newProfileName.trim() && !isDuplicateName) ? '' : 'opacity-30 pointer-events-none']"
                     type="button"
                     @click="confirmCreate"
                   >
