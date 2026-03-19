@@ -49,7 +49,7 @@ export function isIOSAudioRestricted(): boolean {
  * @see https://bugs.webkit.org/show_bug.cgi?id=237322
  * @see https://stackoverflow.com/questions/76291413/no-sound-on-ios-only-web-audio-api
  */
-export async function unlockAudioContextOnIOS(): Promise<void> {
+export async function unlockAudioContextOnIOS(contextOverride?: AudioContext): Promise<void> {
   if (!isIOSAudioRestricted())
     return
   if (isUnlocked)
@@ -57,16 +57,16 @@ export async function unlockAudioContextOnIOS(): Promise<void> {
   if (unlockPromise)
     return unlockPromise
 
-  unlockPromise = _doUnlock()
+  unlockPromise = _doUnlock(contextOverride)
   await unlockPromise
 }
 
-async function _doUnlock(): Promise<void> {
+async function _doUnlock(contextOverride?: AudioContext): Promise<void> {
   if (typeof AudioContext === 'undefined')
     return
 
   try {
-    const ctx = context ?? new AudioContext()
+    const ctx = contextOverride ?? context ?? new AudioContext()
 
     if (ctx.state === 'suspended')
       await ctx.resume()
@@ -78,7 +78,7 @@ async function _doUnlock(): Promise<void> {
     source.connect(ctx.destination)
     source.start()
 
-    if (!context) {
+    if (!context && !contextOverride) {
       // If we minted a temporary context just for unlock, discard it
       await ctx.close()
     }
@@ -95,12 +95,13 @@ async function _doUnlock(): Promise<void> {
  * On iOS Silent mode the context may report 'running' but be muted —
  * isAudioContextUnlocked() reflects the real unlock state after user gesture.
  */
-export function isAudioContextUnlocked(): boolean {
-  if (!context)
+export function isAudioContextUnlocked(contextOverride?: AudioContext): boolean {
+  const ctx = contextOverride ?? context
+  if (!ctx)
     return false
   if (!isIOSAudioRestricted())
     return true
-  return context.state !== 'suspended' || isUnlocked
+  return ctx.state !== 'suspended' || isUnlocked
 }
 
 export interface State {
