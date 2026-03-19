@@ -94,7 +94,7 @@ function handleManage() {
         type="button"
         @click="open = !open"
       >
-        <div class="i-solar:emoji-funny-square-broken size-4 text-neutral-500 dark:text-neutral-400" />
+        <div class="i-solar:emoji-funny-square-broken size-5 text-neutral-500 dark:text-neutral-400" />
         <span class="max-w-28 truncate text-neutral-700 dark:text-neutral-200">
           {{ activeCard?.name ?? t('stage.profile-switcher.no-profile') }}
         </span>
