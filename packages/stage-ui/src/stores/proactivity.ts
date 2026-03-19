@@ -381,6 +381,14 @@ export const useProactivityStore = defineStore('proactivity', () => {
       // eslint-disable-next-line no-console
       console.log(`[Proactivity] LLM Raw Response: "${rawReply}"`)
 
+      // NOTICE: `NO_REPLY` is a control sentinel for proactive heartbeats, not user-facing content.
+      // If the model returns it exactly, we must stop here so it never reaches chat history, stage
+      // replay, captions, or TTS.
+      if ((rawReply || '').trim() === 'NO_REPLY') {
+        console.log('[Proactivity] AI decided to remain silent via NO_REPLY sentinel.')
+        return
+      }
+
       const composedMessageSnapshot = toRaw(chatSession.sessionMessages[sessionId] || [])
 
       const rawStreamingContext: ChatStreamEventContext = {
