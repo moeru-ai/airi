@@ -64,6 +64,12 @@ watch(isOutsideAfter2seconds, (outside) => {
   }
 })
 
+watch(expanded, (isExpanded) => {
+  if (!isExpanded) {
+    blockingOverlays.clear()
+  }
+})
+
 useIntervalFn(() => {
   if (expanded.value && isOutside.value && !isBlocked.value) {
     expanded.value = false
