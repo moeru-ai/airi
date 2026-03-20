@@ -1,14 +1,9 @@
-const privacyPolicyLocaleRemap: Record<string, string> = {
-  'zh-CN': 'zh-Hans',
-  'zh-TW': 'zh-Hans',
-  'zh-HK': 'zh-Hans',
-  'zh-Hant': 'zh-Hans',
-}
+import { all, localeRemap } from '@proj-airi/i18n'
 
-const supportedPrivacyPolicyLocales = new Set(['en', 'ja', 'zh-Hans'])
+const supportedPrivacyPolicyLocales = new Set(Object.keys(all))
 
 export function getAnalyticsPrivacyPolicyUrl(locale?: string): string {
-  const normalizedLocale = privacyPolicyLocaleRemap[locale ?? 'en'] ?? locale ?? 'en'
+  const normalizedLocale = localeRemap[locale ?? 'en'] ?? locale ?? 'en'
   const docsLocale = supportedPrivacyPolicyLocales.has(normalizedLocale)
     ? normalizedLocale
     : 'en'
