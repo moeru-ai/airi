@@ -9,6 +9,7 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { usePluginHostInspectorStore } from '@proj-airi/stage-ui/stores/devtools/plugin-host-debug'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { clearMcpToolBridge, setMcpToolBridge } from '@proj-airi/stage-ui/stores/mcp-tool-bridge'
+import { useTextJournalStore } from '@proj-airi/stage-ui/stores/memory-text-journal'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
@@ -46,7 +47,7 @@ import {
   pluginProtocolListProvidersEventName,
 } from '../shared/eventa'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
-import { widgetsTools } from './stores/tools/builtin/widgets'
+import { builtinTools } from './stores/tools/builtin'
 
 const { isDark: dark } = useTheme()
 const i18n = useI18n()
@@ -66,9 +67,21 @@ const characterOrchestratorStore = useCharacterOrchestratorStore()
 const analyticsStore = useSharedAnalyticsStore()
 const pluginHostInspectorStore = usePluginHostInspectorStore()
 const discordStore = useDiscordStore()
+const textJournalStore = useTextJournalStore()
 usePerfTracerBridgeStore()
 
 const proactivityStore = useProactivityStore()
+
+async function seedTextJournalEntryFromWindow() {
+  await textJournalStore.load()
+  const entry = await textJournalStore.seedActiveCharacterEntry()
+  console.log('[TextJournal] Seeded entry via window.seedTextJournalEntry()', entry)
+  return entry
+}
+
+Object.assign(window as Window & typeof globalThis, {
+  seedTextJournalEntry: seedTextJournalEntryFromWindow,
+})
 
 const context = useElectronEventaContext()
 const getServerChannelConfig = useElectronEventaInvoke(electronGetServerChannelConfig)
@@ -119,12 +132,13 @@ onMounted(async () => {
   }
 
   logStep('onMounted start')
-  proactivityStore.registerTools(widgetsTools)
+  proactivityStore.registerTools(builtinTools)
   proactivityStore.startHeartbeatLoop()
 
   logStep('Initializing Analytics & Card stores')
   analyticsStore.initialize()
   cardStore.initialize()
+  await textJournalStore.load()
 
   logStep('Initializing chat session')
   await chatSessionStore.initialize()

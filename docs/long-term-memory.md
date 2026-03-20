@@ -2,6 +2,22 @@
 
 This document reframes the current `text_journal` direction as AIRI's long-term memory layer.
 
+## Status
+
+Implemented today:
+
+- real `text_journal` tool
+- `create` action
+- `search` action
+- per-character IndexedDB-backed long-term journal storage
+- real long-term memory settings page backed by stored entries
+
+Still next:
+
+- better retrieval formatting / ranking
+- semantic search beyond keywords
+- optional proactive or user-authored journal flows
+
 ## 1. Purpose
 
 Long-term memory is the durable archive.
@@ -55,7 +71,7 @@ Why:
 
 Keep the tool very small:
 
-- `write`
+- `create`
 - `search`
 
 Do not ship these in the first version:
@@ -73,6 +89,16 @@ MVP search should be:
 
 Semantic search should be deferred until there is a proper embeddings/index layer.
 
+## 5A. Current Implemented Search
+
+The current implementation is:
+
+- active-character-first keyword search
+- match against title, content, and character label
+- simple scoring and recency ordering
+
+This is intentionally basic but already useful enough to prove lookup behavior end to end.
+
 ## 6. UI Direction
 
 Long-term memory should be shown as a text-first list view.
@@ -88,6 +114,8 @@ Important:
 
 - the UI needs a per-character filter
 - the active character should be the default filter
+
+The current UI now does this with real data rather than mock entries.
 
 ## 7. Relationship to Short-Term Memory
 

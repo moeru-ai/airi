@@ -87,17 +87,22 @@ The first useful knobs for short-term memory are:
 
 That gives users meaningful control without turning memory into a huge tuning panel.
 
-## 6. Current Recommendation
+## 6. Current Implementation Snapshot
 
-Implementation order should be:
+The current implementation order ended up being:
 
-1. long-term memory first
-2. short-term memory second
+1. short-term memory rebuild and session injection
+2. long-term journal tool and archive UI
 
-That keeps the system grounded:
+That is acceptable because both layers are now real enough to validate:
 
-- long-term gives AIRI a durable archive
-- short-term can later expand beyond chat-history summaries if journal-aware or hybrid summaries prove useful
+- short-term already proves continuity injection
+- long-term already proves durable write + lookup
+
+The next useful direction is to deepen both rather than restart either:
+
+- short-term: automatic daily generation and better rollover behavior
+- long-term: richer retrieval and future semantic search
 
 ## 7. Related Docs
 

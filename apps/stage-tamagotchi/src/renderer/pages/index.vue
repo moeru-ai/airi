@@ -33,7 +33,7 @@ import ResourceStatusIsland from '../components/stage-islands/resource-status-is
 
 import { electronGetMainWindowConfig } from '../../shared/eventa'
 import { useControlsIslandStore } from '../stores/controls-island'
-import { widgetsTools } from '../stores/tools/builtin/widgets'
+import { builtinTools } from '../stores/tools/builtin'
 import { useWindowStore } from '../stores/window'
 
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
@@ -292,14 +292,14 @@ async function startAudioInteraction() {
               console.info('[Main Page] Sending transcription to chat:', text)
               console.log('[Main Page] Ingesting with tools:', {
                 model: activeChatModel.value,
-                hasTools: !!widgetsTools,
+                hasTools: !!builtinTools,
               })
 
               const { autoSendEnabled } = storeToRefs(hearingStore)
               await chatStore.ingest(text, {
                 model: activeChatModel.value,
                 chatProvider: provider as ChatProvider,
-                tools: widgetsTools,
+                tools: builtinTools,
                 skipAssistant: !autoSendEnabled.value,
               })
             }
@@ -357,14 +357,14 @@ async function startAudioInteraction() {
 
         console.log('[Main Page] Ingesting (Manual) with tools:', {
           model: activeChatModel.value,
-          hasTools: !!widgetsTools,
+          hasTools: !!builtinTools,
         })
 
         const { autoSendEnabled } = storeToRefs(hearingStore)
         await chatStore.ingest(text, {
           model: activeChatModel.value,
           chatProvider: provider as ChatProvider,
-          tools: widgetsTools,
+          tools: builtinTools,
           skipAssistant: !autoSendEnabled.value,
         })
       }

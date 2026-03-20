@@ -2,6 +2,21 @@
 
 This document defines AIRI short-term memory as a derived summary layer, not a raw journal.
 
+## Status
+
+Implemented today:
+
+- real `Rebuild from history`
+- per-character IndexedDB-backed daily summary storage
+- per-character short-term memory settings page
+- initial session injection for the active character
+
+Still next:
+
+- automatic post-midnight daily generation
+- configurable injection window actually applied from settings
+- richer compaction / rollover logic
+
 ## 1. Purpose
 
 Short-term memory exists to preload recent continuity into new or resumed chat sessions without stuffing entire recent histories into the prompt.
@@ -111,7 +126,7 @@ The first rebuild pass can be simple:
 
 - group conversations by day
 - generate one summary block per day
-- enforce the configured token budget
+- use the configured token budget as a target hint
 
 For MVP, rebuild should operate on:
 
@@ -146,3 +161,31 @@ Not in MVP:
 - hybrid chat + journal summaries
 
 That is enough to make it useful without turning it into a full-blown memory platform on day one.
+
+## 9A. Current Implemented Shape
+
+The current implementation does this now:
+
+- loads the selected character's chat history
+- groups messages by local calendar day
+- summarizes one day at a time through the active LLM stack
+- stores each finished block immediately
+- injects recent blocks into new/reset sessions for the active character
+
+Important current limitation:
+
+- `token budget per day` is still a summarization target hint, not a guaranteed provider-level token cap
+
+## 10. Future Compaction Use
+
+Short-term memory blocks are also a strong future fallback for prompt compaction.
+
+If a provider/model hits context-limit failures or requires session compaction later, the app should be able to:
+
+- preserve the latest short-term blocks for the active character
+- drop or compress older raw history
+- inject the short-term blocks back into the rebuilt system context
+
+That gives AIRI a continuity-preserving fallback instead of losing the entire recent thread.
+
+This is not part of the MVP, but the current short-term memory shape should be treated as compatible with that future use.

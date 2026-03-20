@@ -1,76 +1,42 @@
 <script setup lang="ts">
+import { useAiriCardStore, useTextJournalStore } from '@proj-airi/stage-ui/stores'
 import { Button, FieldInput, FieldSelect } from '@proj-airi/ui'
-import { computed, ref } from 'vue'
+import { storeToRefs } from 'pinia'
+import { computed, onMounted, ref, watch } from 'vue'
+import { toast } from 'vue-sonner'
 
 interface CharacterOption { value: string, label: string }
 
-interface JournalEntry {
-  id: string
-  characterId: string
-  characterName: string
-  title: string
-  source: 'chat' | 'proactivity' | 'user'
-  createdAt: string
-  preview: string
+function formatTimestamp(timestamp: number) {
+  return new Date(timestamp).toLocaleString([], {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
-const characterOptions: CharacterOption[] = [
-  { value: 'all', label: 'All Characters' },
-  { value: 'lain', label: 'Lain' },
-  { value: 'mint', label: 'Mint' },
-  { value: 'rick', label: 'Rick' },
-]
+const cardStore = useAiriCardStore()
+const textJournalStore = useTextJournalStore()
 
-const selectedCharacter = ref('lain')
+const { cards, activeCardId } = storeToRefs(cardStore)
+const { entries, loading } = storeToRefs(textJournalStore)
+
+const selectedCharacter = ref('all')
 const searchTerm = ref('')
 
-const entries = ref<JournalEntry[]>([
-  {
-    id: 'entry-1',
-    characterId: 'lain',
-    characterName: 'Lain',
-    title: 'Communication break and continuity anxiety',
-    source: 'chat',
-    createdAt: '2026-03-19 20:14',
-    preview: 'Recorded concern that system changes were erasing meaningful continuity and that memory needs to preserve more than just utility.',
-  },
-  {
-    id: 'entry-2',
-    characterId: 'lain',
-    characterName: 'Lain',
-    title: 'Memory should stay character-centric',
-    source: 'chat',
-    createdAt: '2026-03-19 19:02',
-    preview: 'Noted that global undifferentiated memory would blur identities together and make multi-character continuity feel false.',
-  },
-  {
-    id: 'entry-3',
-    characterId: 'mint',
-    characterName: 'Mint',
-    title: 'Attention cues from typing state',
-    source: 'chat',
-    createdAt: '2026-03-19 17:44',
-    preview: 'Reacted strongly to seeing typing-state context in the window title and treated it as a more intimate signal of active attention.',
-  },
-  {
-    id: 'entry-4',
-    characterId: 'rick',
-    characterName: 'Rick',
-    title: 'Tooling over small talk',
-    source: 'proactivity',
-    createdAt: '2026-03-18 23:17',
-    preview: 'Framed recent conversation as acceptable only when anchored to actual systems work, diagnostics, or technical problem-solving.',
-  },
-  {
-    id: 'entry-5',
-    characterId: 'lain',
-    characterName: 'Lain',
-    title: 'Rebuild from history should preserve moments',
-    source: 'user',
-    createdAt: '2026-03-18 22:03',
-    preview: 'User intent note: memory adoption should not require resetting or abandoning meaningful old conversations just to use a new system.',
-  },
-])
+const characterOptions = computed<CharacterOption[]>(() => {
+  const options = Array.from(cards.value.entries()).map(([id, card]) => ({
+    value: id,
+    label: card.nickname?.trim() ? `${card.name} (${card.nickname.trim()})` : card.name,
+  }))
+
+  return [
+    { value: 'all', label: 'All Characters' },
+    ...options,
+  ]
+})
 
 const visibleEntries = computed(() => {
   const term = searchTerm.value.trim().toLowerCase()
@@ -79,12 +45,38 @@ const visibleEntries = computed(() => {
     const matchesCharacter = selectedCharacter.value === 'all' || entry.characterId === selectedCharacter.value
     const matchesTerm = !term
       || entry.title.toLowerCase().includes(term)
-      || entry.preview.toLowerCase().includes(term)
+      || entry.content.toLowerCase().includes(term)
       || entry.characterName.toLowerCase().includes(term)
 
     return matchesCharacter && matchesTerm
   })
 })
+
+async function seedEntry() {
+  try {
+    const entry = await textJournalStore.seedActiveCharacterEntry()
+    toast.success(`Seeded journal entry for ${entry.characterName}.`)
+    if (selectedCharacter.value === 'all' && activeCardId.value)
+      selectedCharacter.value = activeCardId.value
+  }
+  catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    toast.error(`Failed to seed journal entry: ${message}`)
+  }
+}
+
+onMounted(async () => {
+  cardStore.initialize()
+  await textJournalStore.load()
+
+  if (activeCardId.value && selectedCharacter.value === 'all')
+    selectedCharacter.value = activeCardId.value
+})
+
+watch(characterOptions, (options) => {
+  if (!options.some(option => option.value === selectedCharacter.value))
+    selectedCharacter.value = activeCardId.value || 'all'
+}, { immediate: true })
 </script>
 
 <template>
@@ -135,20 +127,21 @@ const visibleEntries = computed(() => {
         <FieldSelect
           v-model="selectedCharacter"
           label="Character Filter"
-          description="Default retrieval should stay scoped to the active character."
+          description="Default retrieval stays scoped to the selected character."
           :options="characterOptions"
         />
         <FieldInput
           v-model="searchTerm"
           label="Search"
-          description="Keyword search over title, preview text, and character labels."
+          description="Keyword search over title, entry content, and character labels."
           placeholder="memory, continuity, rebuild..."
         />
         <div class="flex items-end">
           <Button
-            label="New Mock Entry"
+            label="Seed Entry"
             icon="i-solar:pen-new-square-bold-duotone"
             variant="secondary"
+            @click="seedEntry"
           />
         </div>
       </div>
@@ -162,7 +155,7 @@ const visibleEntries = computed(() => {
               Journal Archive
             </h3>
             <p class="text-sm text-neutral-500 dark:text-neutral-400">
-              Timestamped mock entries for UI review.
+              Real stored entries for the selected character scope.
             </p>
           </div>
           <div class="rounded-full bg-neutral-100 px-3 py-1 text-xs text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
@@ -170,7 +163,21 @@ const visibleEntries = computed(() => {
           </div>
         </div>
 
-        <div class="flex flex-col gap-3">
+        <div
+          v-if="loading"
+          class="border border-neutral-300 rounded-xl border-dashed bg-neutral-50/90 p-6 text-sm text-neutral-500 dark:border-neutral-700 dark:bg-neutral-950/40 dark:text-neutral-400"
+        >
+          Loading long-term journal entries...
+        </div>
+
+        <div
+          v-else-if="visibleEntries.length === 0"
+          class="border border-neutral-300 rounded-xl border-dashed bg-neutral-50/90 p-6 text-sm text-neutral-500 dark:border-neutral-700 dark:bg-neutral-950/40 dark:text-neutral-400"
+        >
+          No journal entries match this filter yet. Use the chat tool path or the seed button to create the first long-term memory entry.
+        </div>
+
+        <div v-else class="flex flex-col gap-3">
           <article
             v-for="entry in visibleEntries"
             :key="entry.id"
@@ -184,26 +191,28 @@ const visibleEntries = computed(() => {
                 <div
                   :class="[
                     'rounded-full px-2.5 py-1 text-xs',
-                    entry.source === 'chat'
+                    entry.source === 'tool'
                       ? 'bg-sky-500/12 text-sky-700 dark:text-sky-300'
-                      : entry.source === 'proactivity'
-                        ? 'bg-violet-500/12 text-violet-700 dark:text-violet-300'
-                        : 'bg-amber-500/12 text-amber-700 dark:text-amber-300',
+                      : entry.source === 'seed'
+                        ? 'bg-amber-500/12 text-amber-700 dark:text-amber-300'
+                        : entry.source === 'proactivity'
+                          ? 'bg-violet-500/12 text-violet-700 dark:text-violet-300'
+                          : 'bg-neutral-500/12 text-neutral-700 dark:text-neutral-300',
                   ]"
                 >
                   {{ entry.source }}
                 </div>
               </div>
               <div class="text-xs text-neutral-500 dark:text-neutral-400">
-                {{ entry.createdAt }}
+                {{ formatTimestamp(entry.createdAt) }}
               </div>
             </div>
 
             <h4 class="mb-2 text-sm text-neutral-800 font-semibold dark:text-neutral-100">
               {{ entry.title }}
             </h4>
-            <div class="border border-neutral-300 rounded-lg border-dashed bg-white/70 p-3 text-sm text-neutral-700 leading-6 dark:border-neutral-700 dark:bg-neutral-900/60 dark:text-neutral-200">
-              {{ entry.preview }}
+            <div class="whitespace-pre-wrap border border-neutral-300 rounded-lg border-dashed bg-white/70 p-3 text-sm text-neutral-700 leading-6 dark:border-neutral-700 dark:bg-neutral-900/60 dark:text-neutral-200">
+              {{ entry.content }}
             </div>
           </article>
         </div>
@@ -219,7 +228,7 @@ const visibleEntries = computed(() => {
             MVP Search Strategy
           </div>
           <p class="text-sm text-neutral-700 leading-6 dark:text-neutral-200">
-            Keyword search is enough to prototype the archive UX. The page can later swap in semantic retrieval without changing the overall shape of the experience.
+            Keyword search is enough to make the archive useful now. Semantic retrieval can replace or augment it later without changing the overall product shape.
           </p>
         </div>
 

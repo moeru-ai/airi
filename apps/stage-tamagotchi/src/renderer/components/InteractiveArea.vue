@@ -15,7 +15,7 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { widgetsTools } from '../stores/tools/builtin/widgets'
+import { builtinTools } from '../stores/tools/builtin'
 
 const messageInput = ref('')
 const attachments = ref<{ type: 'image', data: string, mimeType: string, url: string }[]>([])
@@ -67,7 +67,7 @@ async function handleSend() {
       chatProvider: await providersStore.getProviderInstance<ChatProvider>(activeProvider.value),
       providerConfig,
       attachments: attachmentsToSend,
-      tools: widgetsTools,
+      tools: builtinTools,
     })
 
     attachmentsToSend.forEach(att => URL.revokeObjectURL(att.url))
