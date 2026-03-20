@@ -64,14 +64,14 @@ controls-island:
 analytics:
   notice:
     title: Usage analytics
-    description: AIRI uses PostHog analytics in deployment builds to understand product usage and improve stability.
+    description: AIRI collects anonymous usage analytics to help us understand how the app is used and improve stability. No personal data is collected.
     privacyPrefix: Read the
     privacyLink: privacy policy
     onboardingHint: You can turn analytics off later in Settings > System > General.
-    settingsHint: You can turn analytics off below at any time.
+    settingsHint: You can turn analytics off at any time.
   toggle:
     title: Enable usage analytics
-    description: Turn this off to opt out of PostHog analytics collection on this device.
+    description: Turn this off to opt out of analytics collection.
   disabled:
     title: Analytics disabled for this development build
 live2d:
