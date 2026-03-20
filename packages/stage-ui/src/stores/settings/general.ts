@@ -1,29 +1,9 @@
 import messages from '@proj-airi/i18n/locales'
 
+import { localeRemap } from '@proj-airi/i18n'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { onMounted } from 'vue'
-
-const languageRemap: Record<string, string> = {
-  'zh-CN': 'zh-Hans',
-  'zh-TW': 'zh-Hans', // TODO: remove this when zh-Hant is supported
-  'zh-HK': 'zh-Hans', // TODO: remove this when zh-Hant is supported
-  'zh-Hant': 'zh-Hans', // TODO: remove this when zh-Hant is supported
-  'en-US': 'en',
-  'en-GB': 'en',
-  'en-AU': 'en',
-  'en': 'en',
-  'es-ES': 'es',
-  'es-MX': 'es',
-  'es-AR': 'es',
-  'es': 'es',
-  'ru': 'ru',
-  'ru-RU': 'ru',
-  'fr': 'fr',
-  'fr-FR': 'fr',
-  'ja': 'ja',
-  'ja-JP': 'ja',
-}
 
 export const useSettingsGeneral = defineStore('settings-general', () => {
   const language = useLocalStorageManualReset<string>('settings/language', '')
@@ -42,8 +22,8 @@ export const useSettingsGeneral = defineStore('settings-general', () => {
     }
 
     const languages = Object.keys(messages!)
-    if (languageRemap[language || 'en'] != null) {
-      language = languageRemap[language || 'en']
+    if (localeRemap[language || 'en'] != null) {
+      language = localeRemap[language || 'en']
     }
     if (language && languages.includes(language))
       return language
