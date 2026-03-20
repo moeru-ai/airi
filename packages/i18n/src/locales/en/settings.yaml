@@ -388,6 +388,53 @@ pages:
       token-description: Your Discord bot token
       token-placeholder: Enter your Discord bot token
       configured: Discord is properly configured!
+    messaging-qq:
+      description: Chat over QQ with official bot API or NapCat
+      title: QQ
+      web-not-supported: This action is not supported on the web page. Please use the Tamagotchi application to configure this module.
+      enable: Enable QQ Integration
+      enable-description: Allow AIRI to interact through QQ
+      method: Connection Method
+      method-description: Choose official QQ bot API or NapCat websocket
+      methods:
+        official: Official (@sliverp/qqbot)
+        napcat: NapCat (OneBot/WebSocket)
+      official-app-id: Official Bot AppID
+      official-app-id-description: AppID from the official QQ bot platform
+      official-app-id-placeholder: Enter your official QQ bot AppID
+      official-app-secret: Official Bot AppSecret
+      official-app-secret-description: AppSecret from the official QQ bot platform
+      official-app-secret-placeholder: Enter your official QQ bot AppSecret
+      napcat-ws-url: NapCat WebSocket URL
+      napcat-ws-url-description: WebSocket endpoint exposed by NapCat
+      napcat-ws-url-placeholder: Enter NapCat WebSocket URL, e.g. ws://127.0.0.1:3001
+      voice-reply-mode: Reply Send Mode
+      voice-reply-mode-description: Choose how replies are sent. Falls back to text when speech is not configured.
+      voice-reply-modes:
+        both: Send voice + text
+        voice: Send voice only
+        text: Do not send voice
+      voice-reply-slow-tip: 'Note: if voice sending is enabled, generating audio may delay message delivery.'
+      voice-reply-fallback-tip: Speech is not configured; voice sending will fall back to text. Configure provider, model and voice in Speech settings.
+      voice-settings-saving: Saving...
+      voice-settings-saved: Voice sending settings saved
+      voice-settings-save-failed: Failed to save voice sending settings
+      voice-generation-status: 'Voice generation status:'
+      voice-generation-status-values:
+        idle: Idle
+        generating: Generating
+        success: Success
+        failed: Failed
+      help-label: 'NapCat docs:'
+      connecting: QQ is connecting...
+      connection-error: QQ connection failed. Please check your configuration and logs.
+      show-logs: Show real-time logs
+      hide-logs: Hide real-time logs
+      clear-logs: Clear logs
+      runtime-logs: Runtime logs
+      runtime-logs-empty: No runtime logs yet.
+      pre-chat-tip: 'Notes: 1. On first launch, open the Settings page once before QQ gateway auto-connect can work. 2. On first launch, open AIRI built-in chat once so QQ conversations can receive replies.'
+      configured: QQ is connected successfully!
     speech:
       description: Speech synthesis
       sections:

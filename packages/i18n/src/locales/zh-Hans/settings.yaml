@@ -376,6 +376,53 @@ pages:
       token-description: 您的Discord机器人令牌
       token-placeholder: 输入您的Discord机器人令牌
       configured: Discord已正确配置！
+    messaging-qq:
+      description: 通过 QQ 对接，支持官方机器人和 NapCat
+      title: QQ
+      web-not-supported: 网页端暂不支持此操作，请使用应用程序来配置此模块 tamagotchi。
+      enable: 启用 QQ 集成
+      enable-description: 允许 AIRI 通过 QQ 进行互动
+      method: 连接方式
+      method-description: 选择官方机器人 API 或 NapCat WebSocket
+      methods:
+        official: 官方 (@sliverp/qqbot)
+        napcat: NapCat (OneBot/WebSocket)
+      official-app-id: 官方机器人 AppID
+      official-app-id-description: 官方 QQ 机器人鉴权 AppID
+      official-app-id-placeholder: 输入官方 QQ 机器人 AppID
+      official-app-secret: 官方机器人 AppSecret
+      official-app-secret-description: 官方 QQ 机器人鉴权 AppSecret
+      official-app-secret-placeholder: 输入官方 QQ 机器人 AppSecret
+      napcat-ws-url: NapCat WebSocket 地址
+      napcat-ws-url-description: NapCat 提供的 WebSocket 接入地址
+      napcat-ws-url-placeholder: 输入 NapCat WebSocket 地址，例如 ws://127.0.0.1:3001
+      voice-reply-mode: 回复发送模式
+      voice-reply-mode-description: 选择回复发送方式；未配置发声模块时会自动回退为仅文本
+      voice-reply-modes:
+        both: 语音和文本一起发送
+        voice: 只发送语音
+        text: 不发送语音
+      voice-reply-slow-tip: 注意：如果启用语音发送功能，由于需要生成音频文件，消息发送可能会有延迟，请知悉
+      voice-reply-fallback-tip: 未检测到发声模块配置，将自动回退为仅文本发送。请先在「语音合成」模块完成服务来源、模型与声线配置。
+      voice-settings-saving: 保存中...
+      voice-settings-saved: 语音发送设置已保存
+      voice-settings-save-failed: 语音发送设置保存失败
+      voice-generation-status: 语音生成状态：
+      voice-generation-status-values:
+        idle: 暂无
+        generating: 生成中
+        success: 成功
+        failed: 失败
+      help-label: NapCat 文档：
+      connecting: QQ 连接中...
+      connection-error: QQ 连接失败，请检查配置和日志。
+      show-logs: 显示实时日志
+      hide-logs: 隐藏实时日志
+      clear-logs: 清空日志
+      runtime-logs: 运行日志
+      runtime-logs-empty: 暂无运行日志。
+      pre-chat-tip: 注意事项：1. 首次启动时需要先打开一次设置页面，QQ 网关才会自动连接。2. 程序首次启动时需要先打开一次 AIRI 内置聊天界面，这样 QQ 对话才会有回复。
+      configured: QQ 连接成功！
     speech:
       description: 语音合成
       sections:
