@@ -9,6 +9,7 @@ import { client } from '../../composables/api'
 import { useLocalFirstRequest } from '../../composables/use-local-first'
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
 import { useAuthStore } from '../auth'
+import { useShortTermMemoryStore } from '../memory-short-term'
 import { useAiriCardStore } from '../modules/airi-card'
 import { useSettingsGeneral } from '../settings'
 import { mergeLoadedSessionMessages } from './session-message-merge'
@@ -17,6 +18,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   const { userId, isAuthenticated } = storeToRefs(useAuthStore())
   const { activeCardId, systemPrompt } = storeToRefs(useAiriCardStore())
   const { remoteSyncEnabled } = storeToRefs(useSettingsGeneral())
+  const shortTermMemory = useShortTermMemoryStore()
 
   const activeSessionId = ref<string>('')
   const sessionMessages = ref<Record<string, ChatHistoryItem[]>>({})
@@ -37,6 +39,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   // I know this nu uh, better than loading all language on rehypeShiki
   const codeBlockSystemPrompt = '- For any programming code block, always specify the programming language that supported on @shikijs/rehype on the rendered markdown, eg. ```python ... ```\n'
   const mathSyntaxSystemPrompt = '- For any math equation, use LaTeX format, eg: $ x^3 $, always escape dollar sign outside math equation\n'
+  const shortTermMemoryBlockLimit = 3
 
   function getCurrentUserId() {
     return userId.value || 'local'
@@ -178,8 +181,25 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     })
   }
 
-  function generateInitialMessageFromPrompt(prompt: string) {
-    const content = codeBlockSystemPrompt + mathSyntaxSystemPrompt + prompt
+  function buildShortTermMemoryContext(characterId: string) {
+    const blocks = shortTermMemory.getCharacterBlocks(characterId).slice(0, shortTermMemoryBlockLimit)
+    if (blocks.length === 0)
+      return ''
+
+    return [
+      '[Short-Term Memory]',
+      'The following daily continuity blocks were distilled from recent chat history for this active character.',
+      'Use them as hidden continuity context for the current session.',
+      ...blocks.map(block => `Date: ${block.date}\n${block.summary}`),
+    ].join('\n\n')
+  }
+
+  function generateInitialMessageFromPrompt(prompt: string, characterId = getCurrentCharacterId()) {
+    const shortTermContext = buildShortTermMemoryContext(characterId)
+    const content = [
+      codeBlockSystemPrompt + mathSyntaxSystemPrompt + prompt,
+      shortTermContext,
+    ].filter(Boolean).join('\n\n')
 
     return {
       role: 'system',
@@ -190,7 +210,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   function generateInitialMessage() {
-    return generateInitialMessageFromPrompt(systemPrompt.value)
+    return generateInitialMessageFromPrompt(systemPrompt.value, getCurrentCharacterId())
   }
 
   function ensureGeneration(sessionId: string) {
@@ -369,6 +389,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       return initializePromise
     initializing.value = true
     initializePromise = (async () => {
+      await shortTermMemory.load()
       await ensureActiveSessionForCharacter()
       ready.value = true
     })()
