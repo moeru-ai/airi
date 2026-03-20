@@ -5,6 +5,7 @@ import type { I18n } from '../libs/i18n'
 import type { ServerChannel } from '../services/airi/channel-server'
 import type { setupBeatSync } from '../windows/beat-sync'
 import type { setupCaptionWindowManager } from '../windows/caption'
+import type { SettingsWindowManager } from '../windows/settings'
 import type { WidgetsWindowManager } from '../windows/widgets'
 
 import { env } from 'node:process'
@@ -79,13 +80,15 @@ function isPositionMatch(window: BrowserWindow, targetX: number, targetY: number
 
 export function setupTray(params: {
   mainWindow: BrowserWindow
-  settingsWindow: () => Promise<BrowserWindow>
+  settingsWindow: SettingsWindowManager
   captionWindow: ReturnType<typeof setupCaptionWindowManager>
   widgetsWindow: WidgetsWindowManager
   beatSyncBgWindow: Awaited<ReturnType<typeof setupBeatSync>>
   aboutWindow: () => Promise<BrowserWindow>
   serverChannel: ServerChannel
   i18n: I18n
+  getConfig: () => any
+  updateConfig: (config: any) => void
 }): void {
   once(() => {
     const trayImage = nativeImage.createFromPath(isMacOS ? macOSTrayIcon : icon).resize({ width: 16 })
@@ -102,6 +105,10 @@ export function setupTray(params: {
       const fullWidthTarget = Math.floor(areaHeight * ASPECT_RATIO)
       const halfHeightTarget = Math.floor(areaHeight / 2)
       const halfWidthTarget = Math.floor(halfHeightTarget * ASPECT_RATIO)
+
+      const t = params.i18n.t
+      const config = params.getConfig()
+      const mainWindowConfig = config.windows?.find((w: any) => w.title === 'AIRI' && w.tag === 'main')
 
       const contextMenu = Menu.buildFromTemplate([
         { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.show'), click: () => toggleWindowShow(params.mainWindow) },
@@ -171,13 +178,83 @@ export function setupTray(params: {
             },
           ],
         },
+        {
+          label: t('tamagotchi.electron.tray.menu.labels.label.position'),
+          submenu: [
+            {
+              label: t('tamagotchi.electron.tray.menu.labels.label.lock'),
+              type: 'checkbox',
+              checked: !!mainWindowConfig?.locked,
+              click: (item) => {
+                const config = params.getConfig()
+                if (!config.windows)
+                  config.windows = []
+                let index = config.windows.findIndex((w: any) => w.title === 'AIRI' && w.tag === 'main')
+                if (index === -1) {
+                  index = config.windows.push({ title: 'AIRI', tag: 'main' }) - 1
+                }
+                config.windows[index].locked = item.checked
+                params.updateConfig(config)
+                params.mainWindow.setMovable(!item.checked)
+                params.mainWindow.setResizable(!item.checked)
+                params.mainWindow.webContents.send('eventa:event:electron:windows:main:config-changed', config.windows[index])
+                rebuildContextMenu()
+              },
+            },
+            {
+              // Snapshot the current window position as 'Home'
+              // Allows users to snap back to their favorite position after moving the window consciously (e.g. for a temporary task) without manual repositioning.
+              label: t('tamagotchi.electron.tray.menu.labels.label.snapshot'),
+              click: () => {
+                // Save the current window bounds as the "Home" position for future restoration.
+                const config = params.getConfig()
+                if (!config.windows)
+                  config.windows = []
+                let index = config.windows.findIndex((w: any) => w.title === 'AIRI' && w.tag === 'main')
+                if (index === -1) {
+                  index = config.windows.push({ title: 'AIRI', tag: 'main' }) - 1
+                }
+                const bounds = params.mainWindow.getBounds()
+                config.windows[index].snapshot = {
+                  x: bounds.x,
+                  y: bounds.y,
+                  width: bounds.width,
+                  height: bounds.height,
+                }
+                params.updateConfig(config)
+                params.mainWindow.webContents.send('eventa:event:electron:windows:main:config-changed', config.windows[index])
+                rebuildContextMenu()
+              },
+            },
+            {
+              // Restore the window to the previously saved 'Home' position.
+              label: t('tamagotchi.electron.tray.menu.labels.label.restore'),
+              enabled: !!mainWindowConfig?.snapshot,
+              click: () => {
+                // Return the window to its previously saved "Home" position.
+                const config = params.getConfig()
+                const mainWindow = config.windows?.find((w: any) => w.title === 'AIRI' && w.tag === 'main')
+                if (mainWindow?.snapshot) {
+                  params.mainWindow.setBounds(mainWindow.snapshot)
+                }
+              },
+            },
+          ],
+        },
         { type: 'separator' },
-        { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.settings'), click: () => params.settingsWindow().then(window => toggleWindowShow(window)) },
+        { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.settings'), click: () => void params.settingsWindow.openWindow('/settings') },
         { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.about'), click: () => params.aboutWindow().then(window => toggleWindowShow(window)) },
         { type: 'separator' },
         { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.open_inlay'), click: () => setupInlayWindow({ i18n: params.i18n, serverChannel: params.serverChannel }) },
         { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.open_widgets'), click: () => params.widgetsWindow.getWindow().then(window => toggleWindowShow(window)) },
-        { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.open_caption'), click: () => params.captionWindow.getWindow().then(window => toggleWindowShow(window)) },
+        {
+          label: params.i18n.t(params.captionWindow.isVisible()
+            ? 'tamagotchi.electron.tray.menu.labels.label.close_caption'
+            : 'tamagotchi.electron.tray.menu.labels.label.open_caption'),
+          click: () => {
+            void params.captionWindow.toggleVisibility().then(() => rebuildContextMenu())
+          },
+        },
         {
           type: 'submenu',
           label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.caption_overlay'),
@@ -202,6 +279,7 @@ export function setupTray(params: {
 
     params.mainWindow.on('resize', rebuildContextMenu)
     params.mainWindow.on('move', rebuildContextMenu)
+    params.captionWindow.onVisibilityChanged(rebuildContextMenu)
 
     rebuildContextMenu()
 

@@ -1,0 +1,42 @@
+﻿From dd414c25ab5cbd6164e8123c160b1ee45a441761 Mon Sep 17 00:00:00 2001
+From: liuxiaopai-ai <73659136+liuxiaopai-ai@users.noreply.github.com>
+Date: Mon, 2 Mar 2026 01:59:07 +0800
+Subject: [PATCH 1/2] fix(onboarding): allow manual model entry when list is
+ empty
+
+---
+ .../dialogs/onboarding/step-model-selection.vue        | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/packages/stage-ui/src/components/scenarios/dialogs/onboarding/step-model-selection.vue b/packages/stage-ui/src/components/scenarios/dialogs/onboarding/step-model-selection.vue
+index 75f86ecda2..ad089e6362 100644
+--- a/packages/stage-ui/src/components/scenarios/dialogs/onboarding/step-model-selection.vue
++++ b/packages/stage-ui/src/components/scenarios/dialogs/onboarding/step-model-selection.vue
+@@ -1,5 +1,5 @@
+ <script setup lang="ts">
+-import { Button } from '@proj-airi/ui'
++import { Button, FieldInput } from '@proj-airi/ui'
+ import { storeToRefs } from 'pinia'
+ import { inject } from 'vue'
+ import { useI18n } from 'vue-i18n'
+@@ -63,6 +63,14 @@ const {
+           </div>
+         </template>
+       </Alert>
++
++      <div v-if="providerModels.length === 0" class="mt-4">
++        <FieldInput
++          :model-value="activeModel || ''"
++          :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
++          @update:model-value="value => (activeModel = value || '')"
++        />
++      </div>
+     </div>
+ 
+     <!-- Action Buttons -->
+
+From 13678d4d85397d7051fed152eb45e079037afa7e Mon Sep 17 00:00:00 2001
+From: liuxiaopai-ai <73659136+liuxiaopai-ai@users.noreply.github.com>
+Date: Mon, 2 Mar 2026 02:32:30 +0800
+Subject: [PATCH 2/2] chore(ci): trigger checks
+

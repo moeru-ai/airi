@@ -1,0 +1,58 @@
+﻿From aacdd1c64e39ece47a068b8e8264e39fc575c802 Mon Sep 17 00:00:00 2001
+From: Stardust <lianghaoyu@sjtu.edu.cn>
+Date: Mon, 9 Mar 2026 23:37:54 +0800
+Subject: [PATCH 1/2] fix(llm): flatten content array for OpenAI-compatible
+ providers
+
+---
+ packages/stage-ui/src/stores/llm.ts | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/packages/stage-ui/src/stores/llm.ts b/packages/stage-ui/src/stores/llm.ts
+index 8adb6efb52..2aa86ffb40 100644
+--- a/packages/stage-ui/src/stores/llm.ts
++++ b/packages/stage-ui/src/stores/llm.ts
+@@ -34,6 +34,12 @@ function sanitizeMessages(messages: unknown[]): Message[] {
+         content: `User encountered error: ${String(m.content ?? '')}`,
+       } as Message
+     }
++    if (m && Array.isArray(m.content) && !m.content.some((p: any) => p?.type === 'image_url')) {
++      return {
++        ...m,
++        content: m.content.map((p: any) => p?.text ?? '').join(''),
++      } as Message
++    }
+     return m as Message
+   })
+ }
+
+From d4a6ab07dbe362e25237e88778c8a2f63d970fee Mon Sep 17 00:00:00 2001
+From: Stardust <lianghaoyu@sjtu.edu.cn>
+Date: Tue, 10 Mar 2026 11:44:02 +0800
+Subject: [PATCH 2/2] fix(llm): improve type safety in sanitizeMessages
+
+---
+ packages/stage-ui/src/stores/llm.ts | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/packages/stage-ui/src/stores/llm.ts b/packages/stage-ui/src/stores/llm.ts
+index 2aa86ffb40..d8616c3140 100644
+--- a/packages/stage-ui/src/stores/llm.ts
++++ b/packages/stage-ui/src/stores/llm.ts
+@@ -34,11 +34,11 @@ function sanitizeMessages(messages: unknown[]): Message[] {
+         content: `User encountered error: ${String(m.content ?? '')}`,
+       } as Message
+     }
+-    if (m && Array.isArray(m.content) && !m.content.some((p: any) => p?.type === 'image_url')) {
+-      return {
+-        ...m,
+-        content: m.content.map((p: any) => p?.text ?? '').join(''),
+-      } as Message
++    if (m && Array.isArray(m.content)) {
++      const contentParts = m.content as { type?: string, text?: string }[]
++      if (!contentParts.some(p => p?.type === 'image_url')) {
++        return { ...m, content: contentParts.map(p => p?.text ?? '').join('') } as Message
++      }
+     }
+     return m as Message
+   })

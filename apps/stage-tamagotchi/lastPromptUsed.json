@@ -1,0 +1,689 @@
+{
+  "output": {
+    "1": {
+      "inputs": {
+        "noise_type_init": "gaussian",
+        "noise_type_sde": "gaussian",
+        "noise_mode_sde": "hard",
+        "eta": 0.2,
+        "noise_seed": 2049993483,
+        "control_after_generate": "randomize",
+        "sampler_mode": "standard",
+        "sampler_name": "res_2m",
+        "implicit_sampler_name": "gauss-legendre_2s",
+        "scheduler": "beta57",
+        "steps": 25,
+        "implicit_steps": 0,
+        "denoise": 1,
+        "denoise_alt": 1,
+        "cfg": 7,
+        "extra_options": "",
+        "model": [
+          "6",
+          0
+        ],
+        "positive": [
+          "5",
+          0
+        ],
+        "negative": [
+          "4",
+          0
+        ],
+        "latent_image": [
+          "7",
+          0
+        ]
+      },
+      "class_type": "ClownsharKSampler"
+    },
+    "2": {
+      "inputs": {
+        "samples": [
+          "1",
+          0
+        ],
+        "vae": [
+          "6",
+          3
+        ]
+      },
+      "class_type": "VAEDecode"
+    },
+    "3": {
+      "inputs": {
+        "filename_prefix": 953862626,
+        "images": [
+          "2",
+          0
+        ]
+      },
+      "class_type": "SaveImage"
+    },
+    "4": {
+      "inputs": {
+        "text": "score_4, score_5, score_6, low quality, censored, 3d, render, femboy , futanari , shota , trans , lowres , pixelated , blurry , grainy ",
+        "clip": [
+          "8",
+          0
+        ]
+      },
+      "class_type": "CLIPTextEncode"
+    },
+    "5": {
+      "inputs": {
+        "text": "score_9, score_8, best quality, explicit, a cyberpunk neko girl playing a handheld game console, high detail anime style",
+        "clip": [
+          "8",
+          0
+        ]
+      },
+      "class_type": "CLIPTextEncode"
+    },
+    "6": {
+      "inputs": {
+        "ckpt_name": "ubludPony_v10.safetensors"
+      },
+      "class_type": "CachedCheckpoint"
+    },
+    "7": {
+      "inputs": {
+        "width": 1024,
+        "height": 1024,
+        "batch_size": 1
+      },
+      "class_type": "EmptyLatentImage"
+    },
+    "8": {
+      "inputs": {
+        "stop_at_clip_layer": -2,
+        "clip": [
+          "6",
+          2
+        ]
+      },
+      "class_type": "CLIPSetLastLayer"
+    }
+  },
+  "workflow": {
+    "last_node_id": 8,
+    "last_link_id": 10,
+    "nodes": [
+      {
+        "id": 1,
+        "type": "ClownsharKSampler",
+        "pos": {
+          "0": 0,
+          "1": 0,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          "5": 0,
+          "6": 0,
+          "7": 0,
+          "8": 0,
+          "9": 0
+        },
+        "size": {
+          "0": 210,
+          "1": 518
+        },
+        "flags": {},
+        "order": 5,
+        "mode": 0,
+        "inputs": [
+          {
+            "name": "model",
+            "type": 0,
+            "link": 5
+          },
+          {
+            "name": "positive",
+            "type": 0,
+            "link": 4
+          },
+          {
+            "name": "negative",
+            "type": 0,
+            "link": 3
+          },
+          {
+            "name": "sigmas",
+            "type": 0,
+            "link": null
+          },
+          {
+            "name": "latent_image",
+            "type": 0,
+            "link": 6
+          },
+          {
+            "name": "guides",
+            "type": 0,
+            "link": null
+          }
+        ],
+        "outputs": [
+          {
+            "name": "latent",
+            "type": "",
+            "links": [
+              1
+            ]
+          },
+          {
+            "name": "denoisied",
+            "type": "",
+            "links": null
+          }
+        ],
+        "title": "shark_sampler",
+        "properties": {
+          "propertyNames": [
+            "noise_type_init",
+            "noise_type_sde",
+            "noise_mode_sde",
+            "eta",
+            "noise_seed",
+            "control_after_generate",
+            "sampler_mode",
+            "sampler_name",
+            "implicit_sampler_name",
+            "scheduler",
+            "steps",
+            "implicit_steps",
+            "denoise",
+            "denoise_alt",
+            "cfg",
+            "extra_options"
+          ],
+          "propertyIndices": {
+            "noise_type_init": 0,
+            "noise_type_sde": 1,
+            "noise_mode_sde": 2,
+            "eta": 3,
+            "noise_seed": 4,
+            "control_after_generate": 5,
+            "sampler_mode": 6,
+            "sampler_name": 7,
+            "implicit_sampler_name": 8,
+            "scheduler": 9,
+            "steps": 10,
+            "implicit_steps": 11,
+            "denoise": 12,
+            "denoise_alt": 13,
+            "cfg": 14,
+            "extra_options": 15
+          }
+        },
+        "widgets_values": [
+          "gaussian",
+          "gaussian",
+          "hard",
+          0.2,
+          2049993483,
+          "randomize",
+          "standard",
+          "res_2m",
+          "gauss-legendre_2s",
+          "beta57",
+          25,
+          0,
+          1,
+          1,
+          7,
+          ""
+        ]
+      },
+      {
+        "id": 2,
+        "type": "VAEDecode",
+        "pos": {
+          "0": 300,
+          "1": 0,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          "5": 0,
+          "6": 0,
+          "7": 0,
+          "8": 0,
+          "9": 0
+        },
+        "size": {
+          "0": 140,
+          "1": 46
+        },
+        "flags": {},
+        "order": 6,
+        "mode": 0,
+        "inputs": [
+          {
+            "name": "samples",
+            "type": 0,
+            "link": 1
+          },
+          {
+            "name": "vae",
+            "type": 0,
+            "link": 7
+          }
+        ],
+        "outputs": [
+          {
+            "name": "image",
+            "type": "",
+            "links": [
+              2
+            ]
+          }
+        ],
+        "title": "vae_decode",
+        "properties": {
+          "propertyNames": [],
+          "propertyIndices": {}
+        },
+        "widgets_values": []
+      },
+      {
+        "id": 3,
+        "type": "SaveImage",
+        "pos": {
+          "0": 600,
+          "1": 0,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          "5": 0,
+          "6": 0,
+          "7": 0,
+          "8": 0,
+          "9": 0
+        },
+        "size": {
+          "0": 210,
+          "1": 58
+        },
+        "flags": {},
+        "order": 7,
+        "mode": 0,
+        "inputs": [
+          {
+            "name": "images",
+            "type": 0,
+            "link": 2
+          }
+        ],
+        "outputs": [],
+        "title": "save_image",
+        "properties": {
+          "propertyNames": [
+            "filename_prefix"
+          ],
+          "propertyIndices": {
+            "filename_prefix": 0
+          }
+        },
+        "widgets_values": [
+          953862626
+        ]
+      },
+      {
+        "id": 4,
+        "type": "CLIPTextEncode",
+        "pos": {
+          "0": 0,
+          "1": 450,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          "5": 0,
+          "6": 0,
+          "7": 0,
+          "8": 0,
+          "9": 0
+        },
+        "size": {
+          "0": 210,
+          "1": 58
+        },
+        "flags": {},
+        "order": 4,
+        "mode": 0,
+        "inputs": [
+          {
+            "name": "clip",
+            "type": 0,
+            "link": 10
+          }
+        ],
+        "outputs": [
+          {
+            "name": "negative",
+            "type": "",
+            "links": [
+              3
+            ]
+          }
+        ],
+        "title": "negative_input",
+        "properties": {
+          "propertyNames": [
+            "text"
+          ],
+          "propertyIndices": {
+            "text": 0
+          }
+        },
+        "widgets_values": [
+          "score_4, score_5, score_6, low quality, censored, 3d, render, femboy , futanari , shota , trans , lowres , pixelated , blurry , grainy "
+        ]
+      },
+      {
+        "id": 5,
+        "type": "CLIPTextEncode",
+        "pos": {
+          "0": 0,
+          "1": 900,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          "5": 0,
+          "6": 0,
+          "7": 0,
+          "8": 0,
+          "9": 0
+        },
+        "size": {
+          "0": 210,
+          "1": 58
+        },
+        "flags": {},
+        "order": 3,
+        "mode": 0,
+        "inputs": [
+          {
+            "name": "clip",
+            "type": 0,
+            "link": 9
+          }
+        ],
+        "outputs": [
+          {
+            "name": "positive",
+            "type": "",
+            "links": [
+              4
+            ]
+          }
+        ],
+        "title": "positive_input.other",
+        "properties": {
+          "propertyNames": [
+            "text"
+          ],
+          "propertyIndices": {
+            "text": 0
+          }
+        },
+        "widgets_values": [
+          "score_9, score_8, best quality, explicit, a cyberpunk neko girl playing a handheld game console, high detail anime style"
+        ]
+      },
+      {
+        "id": 6,
+        "type": "CachedCheckpoint",
+        "pos": {
+          "0": 0,
+          "1": 1350,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          "5": 0,
+          "6": 0,
+          "7": 0,
+          "8": 0,
+          "9": 0
+        },
+        "size": {
+          "0": 210,
+          "1": 118
+        },
+        "flags": {},
+        "order": 0,
+        "mode": 0,
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "model",
+            "type": "",
+            "links": [
+              5
+            ]
+          },
+          {
+            "name": "model_name",
+            "type": "",
+            "links": null
+          },
+          {
+            "name": "clip",
+            "type": "",
+            "links": [
+              8
+            ]
+          },
+          {
+            "name": "vae",
+            "type": "",
+            "links": [
+              7
+            ]
+          }
+        ],
+        "title": "model_input.safetensors",
+        "properties": {
+          "propertyNames": [
+            "ckpt_name"
+          ],
+          "propertyIndices": {
+            "ckpt_name": 0
+          }
+        },
+        "widgets_values": [
+          "ubludPony_v10.safetensors"
+        ]
+      },
+      {
+        "id": 7,
+        "type": "EmptyLatentImage",
+        "pos": {
+          "0": 0,
+          "1": 2700,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          "5": 0,
+          "6": 0,
+          "7": 0,
+          "8": 0,
+          "9": 0
+        },
+        "size": {
+          "0": 235.1999969482422,
+          "1": 106
+        },
+        "flags": {},
+        "order": 1,
+        "mode": 0,
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "latent",
+            "type": "",
+            "links": [
+              6
+            ]
+          }
+        ],
+        "title": "latent_input.chain.empty.4ch",
+        "properties": {
+          "propertyNames": [
+            "width",
+            "height",
+            "batch_size"
+          ],
+          "propertyIndices": {
+            "width": 0,
+            "height": 1,
+            "batch_size": 2
+          }
+        },
+        "widgets_values": [
+          1024,
+          1024,
+          1
+        ]
+      },
+      {
+        "id": 8,
+        "type": "CLIPSetLastLayer",
+        "pos": {
+          "0": 0,
+          "1": 3600,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          "5": 0,
+          "6": 0,
+          "7": 0,
+          "8": 0,
+          "9": 0
+        },
+        "size": {
+          "0": 210,
+          "1": 58
+        },
+        "flags": {},
+        "order": 2,
+        "mode": 0,
+        "inputs": [
+          {
+            "name": "clip",
+            "type": 0,
+            "link": 8
+          }
+        ],
+        "outputs": [
+          {
+            "name": "clip",
+            "type": "",
+            "links": [
+              9,
+              10
+            ]
+          }
+        ],
+        "title": "SD.clip_skip",
+        "properties": {
+          "propertyNames": [
+            "stop_at_clip_layer"
+          ],
+          "propertyIndices": {
+            "stop_at_clip_layer": 0
+          }
+        },
+        "widgets_values": [
+          -2
+        ]
+      }
+    ],
+    "links": [
+      [
+        1,
+        1,
+        0,
+        2,
+        0,
+        ""
+      ],
+      [
+        2,
+        2,
+        0,
+        3,
+        0,
+        ""
+      ],
+      [
+        3,
+        4,
+        0,
+        1,
+        2,
+        ""
+      ],
+      [
+        4,
+        5,
+        0,
+        1,
+        1,
+        ""
+      ],
+      [
+        5,
+        6,
+        0,
+        1,
+        0,
+        ""
+      ],
+      [
+        6,
+        7,
+        0,
+        1,
+        4,
+        ""
+      ],
+      [
+        7,
+        6,
+        3,
+        2,
+        1,
+        ""
+      ],
+      [
+        8,
+        6,
+        2,
+        8,
+        0,
+        ""
+      ],
+      [
+        9,
+        8,
+        0,
+        5,
+        0,
+        ""
+      ],
+      [
+        10,
+        8,
+        0,
+        4,
+        0,
+        ""
+      ]
+    ],
+    "groups": [],
+    "config": {},
+    "extra": {},
+    "version": 0.4
+  },
+  "key_generation_details": "ubludPony_v10..._v10[Pony] | 🌱 2049993483 | 🦶 25 | 📦 1 | 🦮 7 | guidance 3.5 | 🎤 res_2m | 🕦 beta57"
+}

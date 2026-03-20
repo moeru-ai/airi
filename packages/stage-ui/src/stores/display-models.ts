@@ -92,7 +92,8 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     }
 
     // Fallback to in-memory presets if not found in localforage
-    return displayModelsPresets.find(model => model.id === id)
+    const preset = displayModelsPresets.find(model => model.id === id)
+    return preset
   }
 
   const loadLive2DModelPreview = (file: File) => generateLive2DPreview(file)
@@ -122,11 +123,25 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
 
   async function renameDisplayModel(id: string, name: string) {
     await until(displayModelsFromIndexedDBLoading).toBe(false)
-    const displayModel = await localforage.getItem<DisplayModelFile>(id)
+    const displayModel = id.startsWith('display-model-')
+      ? await localforage.getItem<DisplayModelFile>(id)
+      : displayModels.value.find(m => m.id === id)
+
     if (!displayModel)
       return
 
     displayModel.name = name
+
+    // Update reactive state
+    const index = displayModels.value.findIndex(m => m.id === id)
+    if (index !== -1) {
+      displayModels.value[index].name = name
+    }
+
+    // Persist if it's a file-based model
+    if (id.startsWith('display-model-')) {
+      await localforage.setItem(id, displayModel)
+    }
   }
 
   async function removeDisplayModel(id: string) {

@@ -23,6 +23,7 @@ function createId(prefix: string) {
 export interface SpeechPipelineRuntime {
   openIntent: (options?: IntentOptions) => IntentHandle
   registerHost: (pipeline: ReturnType<typeof createSpeechPipeline<AudioBuffer>>) => Promise<void>
+  unregisterHost: (pipeline?: ReturnType<typeof createSpeechPipeline<AudioBuffer>>) => Promise<void>
   isHost: () => boolean
   dispose: () => Promise<void>
 }
@@ -155,6 +156,7 @@ export function createSpeechPipelineRuntime(): SpeechPipelineRuntime {
       behavior,
     })
 
+    console.log('[Speech Runtime] Creating intent', { intentId, ownerId, behavior, streamId })
     const handle: IntentHandle = {
       intentId,
       streamId,
@@ -164,6 +166,7 @@ export function createSpeechPipelineRuntime(): SpeechPipelineRuntime {
       writeLiteral(value: string) {
         if (closed)
           return
+        console.log('[Speech Intent] writeLiteral', { intentId, streamId, value: value.slice(0, 120) })
         write({ type: 'literal', value, streamId, intentId, sequence, createdAt: Date.now() })
         context.emit(speechIntentLiteralEvent, {
           originId,
@@ -176,6 +179,7 @@ export function createSpeechPipelineRuntime(): SpeechPipelineRuntime {
       writeSpecial(value: string) {
         if (closed)
           return
+        console.log('[Speech Intent] writeSpecial', { intentId, streamId, value })
         write({ type: 'special', value, streamId, intentId, sequence, createdAt: Date.now() })
         context.emit(speechIntentSpecialEvent, {
           originId,
@@ -188,6 +192,7 @@ export function createSpeechPipelineRuntime(): SpeechPipelineRuntime {
       writeFlush() {
         if (closed)
           return
+        console.log('[Speech Intent] writeFlush', { intentId, streamId })
         write({ type: 'flush', streamId, intentId, sequence, createdAt: Date.now() })
         context.emit(speechIntentFlushEvent, {
           originId,
@@ -201,6 +206,7 @@ export function createSpeechPipelineRuntime(): SpeechPipelineRuntime {
           return
         closed = true
         close()
+        console.log('[Speech Intent] end', { intentId, streamId })
         context.emit(speechIntentEndEvent, {
           originId,
           intentId,
@@ -212,6 +218,7 @@ export function createSpeechPipelineRuntime(): SpeechPipelineRuntime {
           return
         closed = true
         close()
+        console.log('[Speech Intent] cancel', { intentId, streamId, reason })
         context.emit(speechIntentCancelEvent, {
           originId,
           intentId,
@@ -227,8 +234,11 @@ export function createSpeechPipelineRuntime(): SpeechPipelineRuntime {
   async function registerHost(pipeline: ReturnType<typeof createSpeechPipeline<AudioBuffer>>) {
     await mutex.acquire()
     try {
-      if (hostPipeline)
-        return
+      if (hostPipeline && hostPipeline !== pipeline) {
+        console.log('[Speech Runtime] Replacing stale host pipeline')
+        remoteIntentMap.clear()
+      }
+
       hostPipeline = pipeline
       hostReady = true
       bindSpeechBusToHost()
@@ -238,7 +248,27 @@ export function createSpeechPipelineRuntime(): SpeechPipelineRuntime {
     }
   }
 
+  async function unregisterHost(pipeline?: ReturnType<typeof createSpeechPipeline<AudioBuffer>>) {
+    await mutex.acquire()
+    try {
+      if (!hostPipeline)
+        return
+
+      if (pipeline && hostPipeline !== pipeline)
+        return
+
+      console.log('[Speech Runtime] Unregistering host pipeline')
+      hostPipeline = null
+      hostReady = false
+      remoteIntentMap.clear()
+    }
+    finally {
+      mutex.release()
+    }
+  }
+
   function openIntent(options?: IntentOptions) {
+    console.log('[Speech Runtime] openIntent called', { options })
     if (hostPipeline)
       return hostPipeline.openIntent(options)
 
@@ -250,20 +280,13 @@ export function createSpeechPipelineRuntime(): SpeechPipelineRuntime {
   }
 
   async function dispose() {
-    await mutex.acquire()
-    try {
-      hostPipeline = null
-      hostReady = false
-      remoteIntentMap.clear()
-    }
-    finally {
-      mutex.release()
-    }
+    await unregisterHost()
   }
 
   return {
     openIntent,
     registerHost,
+    unregisterHost,
     isHost,
     dispose,
   }

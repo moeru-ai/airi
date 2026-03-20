@@ -29,7 +29,7 @@ function handleClick() {
   <div fixed left-0 top-3 w-full flex flex-col items-center>
     <TooltipProvider v-if="atLeastOneLoadingDelay10s" :delay-duration="150">
       <TooltipRoot :open="loadingProgressOpen" disable-closing-trigger @update:open="(state) => loadingProgressOpen = state">
-        <TooltipTrigger>
+        <TooltipTrigger as-child>
           <Transition name="fade">
             <div
               v-if="atLeastOneLoadingDelay5s"

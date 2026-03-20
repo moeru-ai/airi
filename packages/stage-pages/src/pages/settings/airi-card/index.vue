@@ -1,14 +1,25 @@
 <script setup lang="ts">
-import type { ccv3 } from '@proj-airi/ccc'
+import type { Card, ccv3 } from '@proj-airi/ccc'
+import type { AiriCard } from '@proj-airi/stage-ui/stores/modules/airi-card'
 
+import { loadLive2DModelPreview } from '@proj-airi/stage-ui-live2d/utils/live2d-preview'
+import { useModelStore } from '@proj-airi/stage-ui-three'
+import { loadVrmModelPreview } from '@proj-airi/stage-ui-three/utils/vrm-preview'
 import { Alert } from '@proj-airi/stage-ui/components'
+import { DisplayModelFormat, useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { useSceneStore } from '@proj-airi/stage-ui/stores/scene'
+import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
+import { AiriCardSchema } from '@proj-airi/stage-ui/types'
 import { InputFile } from '@proj-airi/ui'
 import { Select } from '@proj-airi/ui/components/form'
 import { storeToRefs } from 'pinia'
+import { safeParse } from 'valibot'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { toast } from 'vue-sonner'
 
+import cardExportFrameUrl from './card-export-frame.png?url'
 import CardCreate from './components/CardCreate.vue'
 import CardCreationDialog from './components/CardCreationDialog.vue'
 import CardDetailDialog from './components/CardDetailDialog.vue'
@@ -17,8 +28,14 @@ import DeleteCardDialog from './components/DeleteCardDialog.vue'
 
 const { t } = useI18n()
 const cardStore = useAiriCardStore()
+const displayModelsStore = useDisplayModelsStore()
 const { addCard, removeCard } = cardStore
 const { cards, activeCardId } = storeToRefs(cardStore)
+const modelStore = useModelStore()
+const stageModelStore = useSettingsStageModel()
+const sceneStore = useSceneStore()
+const { activeExpressions } = storeToRefs(modelStore)
+const { stageModelSelected } = storeToRefs(stageModelStore)
 
 // Currently selected card ID (different from active card ID)
 const selectedCardId = ref<string>('')
@@ -36,6 +53,29 @@ const sortOption = ref('nameAsc')
 
 const inputFiles = ref<File[]>([])
 
+const cardSourceLinks = [
+  {
+    name: 'JannyAI',
+    description: 'Character discovery and card sharing with SillyTavern-friendly exports in the ecosystem.',
+    url: 'https://jannyai.com',
+  },
+  {
+    name: 'JanitorAI',
+    description: 'Popular character platform. Look for exports or mirrors that provide SillyTavern / chara_card_v2 PNG or JSON.',
+    url: 'https://janitorai.com',
+  },
+  {
+    name: 'Chub AI',
+    description: 'Large character-sharing ecosystem commonly used with third-party roleplay UIs.',
+    url: 'https://chub.ai',
+  },
+  {
+    name: 'Risu Realm',
+    description: 'Community character hub tied to the Risu ecosystem, useful for portable card-style prompts.',
+    url: 'https://realm.risuai.net',
+  },
+] as const
+
 // Card list data structure
 interface CardItem {
   id: string
@@ -45,23 +85,185 @@ interface CardItem {
   customizable?: boolean
 }
 
+type ImportedCardPayload = Card | ccv3.CharacterCardV3
+const CARD_EXPORT_FRAME = {
+  width: 925,
+  height: 1436,
+  innerX: 65,
+  innerY: 79,
+  innerWidth: 831,
+  innerHeight: 1295,
+} as const
+
+function base64ToUtf8(input: string) {
+  return decodeURIComponent(escape(atob(input)))
+}
+
+function parsePngCharaPayload(buffer: ArrayBuffer): ImportedCardPayload {
+  const bytes = new Uint8Array(buffer)
+
+  for (let offset = 8; offset < bytes.length - 8;) {
+    const length = (
+      (bytes[offset] << 24)
+      | (bytes[offset + 1] << 16)
+      | (bytes[offset + 2] << 8)
+      | bytes[offset + 3]
+    ) >>> 0
+
+    const type = String.fromCharCode(
+      bytes[offset + 4],
+      bytes[offset + 5],
+      bytes[offset + 6],
+      bytes[offset + 7],
+    )
+
+    if (type === 'tEXt') {
+      const dataStart = offset + 8
+      const dataEnd = dataStart + length
+      const data = bytes.slice(dataStart, dataEnd)
+      const separator = data.indexOf(0)
+
+      if (separator > 0) {
+        const keyword = new TextDecoder().decode(data.slice(0, separator))
+        if (keyword === 'chara') {
+          const text = new TextDecoder().decode(data.slice(separator + 1))
+          const decoded = JSON.parse(base64ToUtf8(text)) as any
+          return decoded as ImportedCardPayload
+        }
+      }
+    }
+
+    offset += 12 + length
+  }
+
+  throw new Error('PNG does not contain a supported chara payload')
+}
+
+function getImportedCardName(card: ImportedCardPayload): string {
+  if ('data' in card)
+    return card.data?.name || 'Imported Card'
+
+  return card.name || 'Imported Card'
+}
+
+function withImportedCardName(card: ImportedCardPayload, name: string): ImportedCardPayload {
+  if ('data' in card) {
+    return {
+      ...card,
+      data: {
+        ...card.data,
+        name,
+      },
+    }
+  }
+
+  return {
+    ...card,
+    name,
+  }
+}
+
+function getUniqueImportedCardName(baseName: string): string {
+  const existingNames = new Set(
+    Array.from(cards.value.values()).map(card => (card.name || '').trim().toLowerCase()).filter(Boolean),
+  )
+
+  const trimmedBase = baseName.trim() || 'Imported Card'
+  if (!existingNames.has(trimmedBase.toLowerCase()))
+    return trimmedBase
+
+  let counter = 2
+  while (existingNames.has(`${trimmedBase} (${counter})`.toLowerCase()))
+    counter += 1
+
+  return `${trimmedBase} (${counter})`
+}
+
+function parseImportedCard(content: string): ImportedCardPayload {
+  const parsed = JSON.parse(content) as any
+
+  if (parsed?.format === 'airi-card' && parsed?.version === 1 && parsed?.card) {
+    return parsed.card as Card
+  }
+
+  return parsed as ImportedCardPayload
+}
+
 watch(inputFiles, async (newFiles) => {
   const file = newFiles[0]
   if (!file)
     return
 
   try {
-    const content = await file.text()
-    const cardJSON = JSON.parse(content) as ccv3.CharacterCardV3
+    let importedCard: ImportedCardPayload
+
+    if (file.name.toLowerCase().endsWith('.png')) {
+      importedCard = parsePngCharaPayload(await file.arrayBuffer())
+    }
+    else {
+      const content = await file.text()
+      try {
+        importedCard = parseImportedCard(content)
+      }
+      catch (e) {
+        toast.error('Failed to parse card JSON: Malformed file')
+        return
+      }
+    }
+
+    const normalizedForValidation = 'data' in importedCard
+      ? addCardPreviewNormalize(importedCard)
+      : importedCard
+
+    // Validate the normalized AIRI card shape
+    const validation = safeParse(AiriCardSchema, normalizedForValidation)
+    if (!validation.success) {
+      const errorMsg = validation.issues.map(i => i.message).join('\n')
+      toast.error('Card validation failed', {
+        description: errorMsg,
+      })
+      console.error('[AiriCard] Validation errors:', validation.issues)
+      return
+    }
+
+    const uniqueName = getUniqueImportedCardName(getImportedCardName(importedCard))
+    const renamedCard = withImportedCardName(importedCard, uniqueName)
 
     // Add card and select it
-    selectedCardId.value = addCard(cardJSON)
+    selectedCardId.value = addCard(renamedCard)
     isCardDialogOpen.value = true
+    toast.success('Card imported successfully')
   }
   catch (error) {
     console.error('Error processing card file:', error)
+    toast.error('Error processing card file')
   }
 })
+
+function addCardPreviewNormalize(card: ImportedCardPayload) {
+  if (!('data' in card))
+    return card
+
+  return {
+    name: card.data.name,
+    version: card.data.character_version || '1.0.0',
+    description: card.data.description ?? '',
+    notes: card.data.creator_notes ?? '',
+    personality: card.data.personality ?? '',
+    scenario: card.data.scenario ?? '',
+    systemPrompt: card.data.system_prompt ?? '',
+    postHistoryInstructions: card.data.post_history_instructions ?? '',
+    greetings: [
+      card.data.first_mes,
+      ...(card.data.alternate_greetings ?? []),
+    ].filter(Boolean),
+    messageExample: [],
+    extensions: {
+      airi: card.data.extensions?.airi,
+      ...card.data.extensions,
+    },
+  }
+}
 
 // Transform cards Map to array for display
 const cardsArray = computed<CardItem[]>(() =>
@@ -142,8 +344,331 @@ function handleCardCreationDialog() {
   isCardCreationDialogOpen.value = true
 }
 
+function exportCard(cardId: string) {
+  const card = getCardWithExportedBackground(cardId)
+  if (!card) {
+    console.error(`Card with id ${cardId} not found`)
+    return
+  }
+
+  const payload = {
+    format: 'airi-card',
+    version: 1,
+    card,
+  }
+
+  const blob = new Blob([`${JSON.stringify(payload, null, 2)}\n`], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  const safeName = (card.name || 'airi-card')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+  anchor.href = url
+  anchor.download = `${safeName || 'airi-card'}.json`
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
+  URL.revokeObjectURL(url)
+}
+
+function buildCharaCardV2(card: AiriCard) {
+  const exportedExtensions = {
+    ...card.extensions,
+    airi: {
+      ...card.extensions?.airi,
+      sillytavernCompatibilityProbe: {
+        exportedBy: 'Project AIRI',
+        probe: 'extensions-airi-ok',
+        version: 1,
+      },
+    },
+  }
+
+  return {
+    spec: 'chara_card_v2',
+    spec_version: '2.0',
+    data: {
+      name: card.name || '',
+      description: card.description || '',
+      personality: card.personality || '',
+      scenario: card.scenario || '',
+      first_mes: card.greetings?.[0] || '',
+      mes_example: Array.isArray(card.messageExample)
+        ? card.messageExample
+            .map(example => Array.isArray(example) ? example.join('\n') : String(example))
+            .join('\n<START>\n')
+        : '',
+      creator_notes: card.notes || '',
+      system_prompt: card.systemPrompt || '',
+      post_history_instructions: card.postHistoryInstructions || '',
+      alternate_greetings: card.greetings?.slice(1) || [],
+      tags: card.tags || [],
+      creator: card.creator || '',
+      character_version: card.version || '',
+      extensions: exportedExtensions,
+      x_airi_probe: 'top-level-data-ok',
+    },
+  }
+}
+
+function getCardWithExportedBackground(cardId: string): AiriCard | undefined {
+  const card = cardStore.getCard(cardId)
+  if (!card)
+    return undefined
+
+  const preferredBackgroundId = card.extensions?.airi?.modules?.preferredBackgroundId
+
+  if (!preferredBackgroundId || preferredBackgroundId === 'none')
+    return card
+
+  const linkedBackground = sceneStore.backgrounds.get(preferredBackgroundId)
+  const matchedByName = !linkedBackground && card.extensions?.airi?.modules?.preferredBackgroundName
+    ? Array.from(sceneStore.backgrounds.values()).find(background => background.name === card.extensions?.airi?.modules?.preferredBackgroundName)
+    : null
+  const exportBackground = linkedBackground ?? matchedByName ?? null
+
+  if (!exportBackground)
+    return card
+
+  return {
+    ...card,
+    extensions: {
+      ...card.extensions,
+      airi: {
+        ...card.extensions?.airi,
+        modules: {
+          ...card.extensions?.airi?.modules,
+          preferredBackgroundId,
+          preferredBackgroundName: exportBackground.name,
+          preferredBackgroundDataUrl: exportBackground.url,
+        },
+      },
+    },
+  }
+}
+
+function utf8ToBase64(input: string) {
+  return btoa(unescape(encodeURIComponent(input)))
+}
+
+function createCrc32Table() {
+  const table = new Uint32Array(256)
+  for (let i = 0; i < 256; i += 1) {
+    let c = i
+    for (let j = 0; j < 8; j += 1) {
+      c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1)
+    }
+    table[i] = c >>> 0
+  }
+  return table
+}
+
+const crc32Table = createCrc32Table()
+
+function crc32(data: Uint8Array) {
+  let crc = 0xFFFFFFFF
+  for (let i = 0; i < data.length; i += 1) {
+    crc = crc32Table[(crc ^ data[i]) & 0xFF] ^ (crc >>> 8)
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0
+}
+
+function concatUint8Arrays(parts: Uint8Array[]) {
+  const total = parts.reduce((sum, part) => sum + part.length, 0)
+  const output = new Uint8Array(total)
+  let offset = 0
+  for (const part of parts) {
+    output.set(part, offset)
+    offset += part.length
+  }
+  return output
+}
+
+function uint32ToBytes(value: number) {
+  return new Uint8Array([
+    (value >>> 24) & 0xFF,
+    (value >>> 16) & 0xFF,
+    (value >>> 8) & 0xFF,
+    value & 0xFF,
+  ])
+}
+
+function createPngTextChunk(keyword: string, text: string) {
+  const typeBytes = new TextEncoder().encode('tEXt')
+  const dataBytes = new TextEncoder().encode(`${keyword}\0${text}`)
+  const crcBytes = uint32ToBytes(crc32(concatUint8Arrays([typeBytes, dataBytes])))
+
+  return concatUint8Arrays([
+    uint32ToBytes(dataBytes.length),
+    typeBytes,
+    dataBytes,
+    crcBytes,
+  ])
+}
+
+function injectPngTextChunk(pngBytes: Uint8Array, keyword: string, text: string) {
+  const iendOffset = pngBytes.lastIndexOf(73) // 'I'
+  if (iendOffset < 12)
+    throw new Error('Invalid PNG payload')
+
+  let insertOffset = -1
+  for (let offset = 8; offset < pngBytes.length - 8;) {
+    const length = (
+      (pngBytes[offset] << 24)
+      | (pngBytes[offset + 1] << 16)
+      | (pngBytes[offset + 2] << 8)
+      | pngBytes[offset + 3]
+    ) >>> 0
+    const type = String.fromCharCode(
+      pngBytes[offset + 4],
+      pngBytes[offset + 5],
+      pngBytes[offset + 6],
+      pngBytes[offset + 7],
+    )
+    if (type === 'IEND') {
+      insertOffset = offset
+      break
+    }
+    offset += 12 + length
+  }
+
+  if (insertOffset === -1)
+    throw new Error('PNG is missing IEND chunk')
+
+  const chunk = createPngTextChunk(keyword, text)
+  return concatUint8Arrays([
+    pngBytes.slice(0, insertOffset),
+    chunk,
+    pngBytes.slice(insertOffset),
+  ])
+}
+
+function loadImageElement(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error(`Failed to load image: ${src}`))
+    image.src = src
+  })
+}
+
+async function composeCardExportPng(previewImage: string) {
+  const [preview, frame] = await Promise.all([
+    loadImageElement(previewImage),
+    loadImageElement(cardExportFrameUrl),
+  ])
+
+  const canvas = document.createElement('canvas')
+  canvas.width = CARD_EXPORT_FRAME.width
+  canvas.height = CARD_EXPORT_FRAME.height
+
+  const context = canvas.getContext('2d')
+  if (!context)
+    throw new Error('Failed to create export canvas')
+
+  // Fit the preview to the portrait window width, anchor to the top, and crop any bottom overflow.
+  const scale = CARD_EXPORT_FRAME.innerWidth / preview.naturalWidth
+  const drawWidth = CARD_EXPORT_FRAME.innerWidth
+  const drawHeight = preview.naturalHeight * scale
+
+  context.save()
+  context.beginPath()
+  context.rect(
+    CARD_EXPORT_FRAME.innerX,
+    CARD_EXPORT_FRAME.innerY,
+    CARD_EXPORT_FRAME.innerWidth,
+    CARD_EXPORT_FRAME.innerHeight,
+  )
+  context.clip()
+  context.drawImage(
+    preview,
+    CARD_EXPORT_FRAME.innerX,
+    CARD_EXPORT_FRAME.innerY,
+    drawWidth,
+    drawHeight,
+  )
+  context.restore()
+
+  context.drawImage(frame, 0, 0, CARD_EXPORT_FRAME.width, CARD_EXPORT_FRAME.height)
+
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((value) => {
+      if (value)
+        resolve(value)
+      else
+        reject(new Error('Failed to encode composed PNG'))
+    }, 'image/png')
+  })
+
+  return new Uint8Array(await blob.arrayBuffer())
+}
+
+async function exportCardPng(cardId: string) {
+  const card = getCardWithExportedBackground(cardId)
+  if (!card) {
+    console.error(`Card with id ${cardId} not found`)
+    return
+  }
+
+  const displayModelId = cardStore.getCardDisplayModelId(cardId)
+  await displayModelsStore.loadDisplayModelsFromIndexedDB()
+  const previewModel = displayModelId ? await displayModelsStore.getDisplayModel(displayModelId) : null
+  if (!previewModel)
+    return
+
+  let previewImage = previewModel.previewImage
+
+  // If this model is currently active on stage, take a "Live Snapshot" to reflect outfits/expressions
+  // We use stageModelSelected from useSettingsStageModel to check for active model
+  if (displayModelId === stageModelSelected.value) {
+    try {
+      const modelInput = previewModel.type === 'file' ? previewModel.file : (previewModel as any).url
+
+      if (previewModel.format === DisplayModelFormat.VRM) {
+        const liveSnapshot = await loadVrmModelPreview(modelInput, activeExpressions.value)
+        if (liveSnapshot)
+          previewImage = liveSnapshot
+      }
+      else if (previewModel.format === DisplayModelFormat.Live2dZip) {
+        const liveSnapshot = await loadLive2DModelPreview(modelInput, activeExpressions.value)
+        if (liveSnapshot)
+          previewImage = liveSnapshot
+      }
+    }
+    catch (err) {
+      console.warn('Failed to take live snapshot for card export, falling back to stale preview:', err)
+    }
+  }
+
+  if (!previewImage) {
+    console.error('No preview image available for card PNG export')
+    return
+  }
+
+  const pngBytes = await composeCardExportPng(previewImage)
+  const metadata = utf8ToBase64(JSON.stringify(buildCharaCardV2(card)))
+  const encodedPng = injectPngTextChunk(pngBytes, 'chara', metadata)
+
+  const blob = new Blob([encodedPng], { type: 'image/png' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  const safeName = (card.name || 'airi-card')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+  anchor.href = url
+  anchor.download = `${safeName || 'airi-card'}.png`
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
+  URL.revokeObjectURL(url)
+}
+
 // Card activation
-function activateCard(id: string) {
+async function activateCard(id: string) {
   activeCardId.value = id
 }
 
@@ -176,6 +701,11 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
   }
 
   return 'default'
+}
+
+// Get display model ID for flip preview.
+function getDisplayModelId(id: string) {
+  return cardStore.getCardDisplayModelId(id)
 }
 </script>
 
@@ -223,16 +753,16 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
       :class="{ 'grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 grid-auto-rows-[minmax(min-content,max-content)] grid-auto-flow-dense sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] sm:gap-5 md:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(250px,1fr))]': cards.size > 0 }"
     >
       <!-- Upload card -->
-      <InputFile v-model="inputFiles" accept="*.json">
+      <InputFile v-model="inputFiles" accept="*.json,*.png">
         <template #default="{ isDragging }">
           <template v-if="!isDragging">
             <div flex flex-col items-center>
               <div i-solar:upload-square-line-duotone mb-4 text-5xl text="neutral-400 dark:neutral-500" />
               <p font-medium text="neutral-600 dark:neutral-300">
-                {{ t('settings.pages.card.upload') }}
+                Import Card
               </p>
               <p text="neutral-500 dark:neutral-400" mt-2 text-sm>
-                {{ t('settings.pages.card.upload_desc') }}
+                Import AIRI JSON or SillyTavern / chara_card_v2 PNG cards
               </p>
             </div>
           </template>
@@ -263,10 +793,13 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
           :version="getVersionNumber(item.id)"
           :consciousness-model="getModuleShortName(item.id, 'consciousness')"
           :voice-model="getModuleShortName(item.id, 'voice')"
+          :display-model-id="getDisplayModelId(item.id)"
           @select="handleSelectCard(item.id)"
           @activate="activateCard(item.id)"
           @delete="confirmDelete(item.id)"
           @edit="handleEditCard(item.id)"
+          @export-json="exportCard(item.id)"
+          @export-png="exportCardPng(item.id)"
         />
       </template>
 
@@ -325,6 +858,57 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
     flex items-center justify-center
   >
     <div text="60" i-solar:emoji-funny-square-bold-duotone />
+  </div>
+
+  <div
+    :class="[
+      'mt-8 rounded-2xl border border-primary-500/10 bg-primary-500/5 p-5',
+      'flex flex-col gap-4',
+    ]"
+  >
+    <div :class="['flex items-start gap-3']">
+      <div :class="['i-solar:compass-bold-duotone text-2xl text-primary-500']" />
+      <div :class="['flex flex-col gap-1']">
+        <div :class="['text-lg font-bold']">
+          Find More Cards
+        </div>
+        <div :class="['max-w-3xl text-sm opacity-80']">
+          AIRI can import standard SillyTavern-style character cards, including `chara_card_v2` PNG exports. Imported cards are a strong starting point, but they usually will not fill in AIRI-specific fields automatically.
+        </div>
+        <div :class="['max-w-3xl text-sm opacity-70']">
+          After import, review and customize AIRI-only settings, especially the <strong>Acting</strong> tab, so expressions, speech tags, and motion cues actually line up with your current VRM or Live2D model.
+        </div>
+      </div>
+    </div>
+
+    <div :class="['grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4']">
+      <a
+        v-for="source in cardSourceLinks"
+        :key="source.name"
+        :href="source.url"
+        target="_blank"
+        rel="noopener noreferrer"
+        :class="[
+          'group rounded-xl border border-transparent bg-white/70 p-4 transition-all dark:bg-neutral-900/60',
+          'hover:border-primary-500/40 hover:shadow-md',
+          'flex flex-col gap-2',
+        ]"
+      >
+        <div :class="['flex items-center justify-between gap-2']">
+          <div :class="['font-bold group-hover:text-primary-500 transition-colors']">
+            {{ source.name }}
+          </div>
+          <div :class="['i-solar:share-circle-bold-duotone text-primary-500 opacity-70']" />
+        </div>
+        <div :class="['text-sm opacity-75']">
+          {{ source.description }}
+        </div>
+      </a>
+    </div>
+
+    <div :class="['text-xs opacity-60']">
+      Prefer exports explicitly labeled for SillyTavern, `chara_card_v2`, or ST PNG / JSON compatibility. Not every character site exports in a portable format.
+    </div>
   </div>
 </template>
 

@@ -10,6 +10,7 @@ import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref, toRaw, watch } from 'vue'
 
+import { categorizeResponse } from '../../../composables/response-categoriser'
 import { useChatOrchestratorStore } from '../../chat'
 import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME } from '../../chat/constants'
 import { useChatContextStore } from '../../chat/context-store'
@@ -36,9 +37,46 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
   const disposeHookFns = ref<Array<() => void>>([])
   let remoteStreamGuard: { sessionId: string, generation: number } | null = null
+  let remoteStreamReceivedLiteral = false
+  const isInitialized = ref(false)
+
+  function ensureRemoteReplayGuard(sessionId = chatSession.activeSessionId) {
+    if (remoteStreamGuard) {
+      if (remoteStreamGuard.sessionId !== sessionId) {
+        console.warn('[Context Bridge] Rebinding remote replay guard to incoming session', {
+          from: remoteStreamGuard.sessionId,
+          to: sessionId,
+          activeSessionId: chatSession.activeSessionId,
+        })
+      }
+      else {
+        return remoteStreamGuard
+      }
+    }
+
+    // NOTICE: remote replay must follow the source stream session, not the receiver window's
+    // current local session. Chatbox and stage windows can drift onto different session IDs
+    // after turns/forks/proactivity, and using the receiver's `activeSessionId` here causes
+    // later token-literal events to be dropped even though the sender broadcast succeeded.
+    remoteStreamGuard = {
+      sessionId,
+      generation: chatSession.getSessionGenerationValue(sessionId),
+    }
+    remoteStreamReceivedLiteral = false
+    chatOrchestrator.sending = true
+    chatStream.beginStream()
+    return remoteStreamGuard
+  }
 
   async function initialize() {
+    console.log('[Context Bridge] Initializing...')
+    if (isInitialized.value) {
+      console.log('[Context Bridge] Already initialized, skipping.')
+      return
+    }
+    console.log('[Context Bridge] Acquiring mutex...')
     await mutex.acquire()
+    console.log('[Context Bridge] Mutex acquired.')
 
     try {
       let isProcessingRemoteStream = false
@@ -153,9 +191,12 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
       disposeHookFns.value.push(
         chatOrchestrator.onBeforeMessageComposed(async (message, context) => {
-          if (isProcessingRemoteStream)
+          if (isProcessingRemoteStream) {
+            console.debug('[Context Bridge] Skipping broadcast of before-compose (remote stream in progress)')
             return
+          }
 
+          console.log('[Context Bridge] Broadcasting before-compose', { message })
           broadcastStreamEvent({ type: 'before-compose', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
         }),
         chatOrchestrator.onAfterMessageComposed(async (message, context) => {
@@ -165,9 +206,12 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           broadcastStreamEvent({ type: 'after-compose', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
         }),
         chatOrchestrator.onBeforeSend(async (message, context) => {
-          if (isProcessingRemoteStream)
+          if (isProcessingRemoteStream) {
+            console.warn('[Context Bridge] Blocked broadcast of before-send! (remote stream in progress)')
             return
+          }
 
+          console.log('[Context Bridge] Broadcasting before-send', { message })
           broadcastStreamEvent({ type: 'before-send', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
         }),
         chatOrchestrator.onAfterSend(async (message, context) => {
@@ -177,9 +221,12 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           broadcastStreamEvent({ type: 'after-send', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
         }),
         chatOrchestrator.onTokenLiteral(async (literal, context) => {
-          if (isProcessingRemoteStream)
+          if (isProcessingRemoteStream) {
+            // console.debug('[Context Bridge] Skipping broadcast of token-literal (remote stream in progress)')
             return
+          }
 
+          console.log('[Context Bridge] Broadcasting token-literal', { literal })
           broadcastStreamEvent({ type: 'token-literal', literal, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
         }),
         chatOrchestrator.onTokenSpecial(async (special, context) => {
@@ -251,6 +298,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         if (!event)
           return
 
+        console.log('[Context Bridge] Received remote stream event:', event.type)
         isProcessingRemoteStream = true
 
         try {
@@ -264,25 +312,22 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               break
             case 'before-send':
               await chatOrchestrator.emitBeforeSendHooks(event.message, event.context)
-              remoteStreamGuard = {
-                sessionId: chatSession.activeSessionId,
-                generation: chatSession.getSessionGenerationValue(),
-              }
-              chatOrchestrator.sending = true
-              chatStream.beginStream()
+              ensureRemoteReplayGuard(event.sessionId)
               break
             case 'after-send':
               await chatOrchestrator.emitAfterSendHooks(event.message, event.context)
               break
             case 'token-literal':
-              if (!remoteStreamGuard)
-                return
-              if (remoteStreamGuard.sessionId !== chatSession.activeSessionId)
-                return
-              if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
-                return
-              chatStream.appendStreamLiteral(event.literal)
-              await chatOrchestrator.emitTokenLiteralHooks(event.literal, event.context)
+              {
+                const guard = ensureRemoteReplayGuard(event.sessionId)
+                if (guard.sessionId !== event.sessionId)
+                  return
+                if (chatSession.getSessionGenerationValue(guard.sessionId) !== guard.generation)
+                  return
+                remoteStreamReceivedLiteral = true
+                chatStream.appendStreamLiteral(event.literal)
+                await chatOrchestrator.emitTokenLiteralHooks(event.literal, event.context)
+              }
               break
             case 'token-special':
               await chatOrchestrator.emitTokenSpecialHooks(event.special, event.context)
@@ -290,26 +335,44 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
             case 'stream-end':
               if (!remoteStreamGuard)
                 break
-              if (remoteStreamGuard.sessionId !== chatSession.activeSessionId)
+              if (remoteStreamGuard.sessionId !== event.sessionId)
                 break
               if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
+                break
+              if (!remoteStreamReceivedLiteral)
                 break
               await chatOrchestrator.emitStreamEndHooks(event.context)
-              chatStream.finalizeStream()
-              chatOrchestrator.sending = false
-              remoteStreamGuard = null
+              // NOTICE: `assistant-end` is the true end-of-turn signal for remote replay.
+              // If we tear down the guard here, the later `assistant-end` will reopen replay state,
+              // think no literals were received, and inject the full response as fallback speech,
+              // which causes duplicated TTS/transcript playback.
               break
             case 'assistant-end':
-              if (!remoteStreamGuard)
-                break
-              if (remoteStreamGuard.sessionId !== chatSession.activeSessionId)
-                break
-              if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
-                break
-              await chatOrchestrator.emitAssistantResponseEndHooks(event.message, event.context)
-              chatStream.finalizeStream(event.message)
-              chatOrchestrator.sending = false
-              remoteStreamGuard = null
+              {
+                const guard = ensureRemoteReplayGuard(event.sessionId)
+                if (guard.sessionId !== event.sessionId)
+                  break
+                if (chatSession.getSessionGenerationValue(guard.sessionId) !== guard.generation)
+                  break
+                // NOTICE: some remote producers can arrive here without ever forwarding token-literal events.
+                // Recover the final speech text from the completed message so UI/TTS do not leak raw ACT tokens
+                // or end up with silent turns.
+                const fallbackSpeech = !remoteStreamReceivedLiteral
+                  ? categorizeResponse(event.message, activeProvider.value).speech.trim()
+                  : ''
+
+                if (!remoteStreamReceivedLiteral && fallbackSpeech) {
+                  chatStream.appendStreamLiteral(fallbackSpeech)
+                  await chatOrchestrator.emitTokenLiteralHooks(fallbackSpeech, event.context)
+                  await chatOrchestrator.emitStreamEndHooks(event.context)
+                }
+
+                await chatOrchestrator.emitAssistantResponseEndHooks(event.message, event.context)
+                chatStream.finalizeStream(guard.sessionId)
+                chatOrchestrator.sending = false
+                remoteStreamGuard = null
+                remoteStreamReceivedLiteral = false
+              }
               break
           }
         }
@@ -318,6 +381,13 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }
       })
       disposeHookFns.value.push(stopIncomingStreamWatch)
+
+      console.log('[Context Bridge] Initialization complete. Registered hooks:', disposeHookFns.value.length)
+      isInitialized.value = true
+    }
+    catch (e) {
+      console.error('[Context Bridge] Initialization failed:', e)
+      isInitialized.value = false
     }
     finally {
       mutex.release()

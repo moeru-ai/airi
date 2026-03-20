@@ -1,31 +1,32 @@
-import type { FileLoggerHandle } from './app/file-logger'
-
 import { dirname } from 'node:path'
-import { env, platform } from 'node:process'
+import { env, platform, stderr, stdout } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import messages from '@proj-airi/i18n/locales'
 
 import { electronApp, optimizer } from '@electron-toolkit/utils'
-import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLevel, useLogg } from '@guiiai/logg'
+import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@guiiai/logg'
+import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
 import { app, ipcMain } from 'electron'
-import { noop } from 'es-toolkit'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
 import { isLinux } from 'std-env'
 
 import icon from '../../resources/icon.png?asset'
 
 import { openDebugger, setupDebugger } from './app/debugger'
-import { nullFileLoggerHandle, setupFileLogger } from './app/file-logger'
 import { createGlobalAppConfig } from './configs/global'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
 import { createI18n } from './libs/i18n'
-import { setupServerChannel } from './services/airi/channel-server'
-import { setupMcpStdioManager } from './services/airi/mcp-servers'
+import { createServerChannelService, setupServerChannel } from './services/airi/channel-server'
+import { createI18nService } from './services/airi/i18n'
+import { createMcpServersService, setupMcpStdioManager } from './services/airi/mcp-servers'
 import { setupPluginHost } from './services/airi/plugins'
+import { createMicToggleService } from './services/airi/shortcuts/mic-toggle'
 import { setupAutoUpdater } from './services/electron/auto-updater'
+import { setupSensorsService } from './services/sensors'
+import { cleanupMicToggleShortcut } from './services/shortcuts/mic-toggle'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
@@ -38,42 +39,56 @@ import { setupOnboardingWindowManager } from './windows/onboarding'
 import { setupSettingsWindowReusableFunc } from './windows/settings'
 import { setupWidgetsWindowManager } from './windows/widgets'
 
+function installStreamErrorGuards() {
+  const guard = (error: NodeJS.ErrnoException) => {
+    // Ignore broken pipe style errors from detached/closed console streams.
+    if (error?.code === 'EPIPE' || error?.code === 'ERR_STREAM_DESTROYED') {
+      return
+    }
+
+    // NOTICE: Attaching an 'error' listener marks the error as handled.
+    // Re-throw unexpected stream errors so they still surface during development and crash reporting.
+    throw error
+  }
+
+  stdout?.on('error', guard)
+  stderr?.on('error', guard)
+}
+
 // TODO: once we refactored eventa to support window-namespaced contexts,
 // we can remove the setMaxListeners call below since eventa will be able to dispatch and
 // manage events within eventa's context system.
 ipcMain.setMaxListeners(100)
 
+installStreamErrorGuards()
 setElectronMainDirname(dirname(fileURLToPath(import.meta.url)))
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
 setupDebugger()
 
 const log = useLogg('main').useGlobalConfig()
+const forceHighPerformanceGpu = env.AIRI_FORCE_HIGH_PERFORMANCE_GPU === '1'
 
-// Thanks to [@blurymind](https://github.com/blurymind),
-//
-// When running Electron on Linux, navigator.gpu.requestAdapter() fails.
-// In order to enable WebGPU and process the shaders fast enough, we need the following
-// command line switches to be set.
-//
-// https://github.com/electron/electron/issues/41763#issuecomment-2051725363
-// https://github.com/electron/electron/issues/41763#issuecomment-3143338995
 if (isLinux) {
   app.commandLine.appendSwitch('enable-features', 'SharedArrayBuffer')
   app.commandLine.appendSwitch('enable-unsafe-webgpu')
   app.commandLine.appendSwitch('enable-features', 'Vulkan')
 
-  // NOTICE: we need UseOzonePlatform, WaylandWindowDecorations for working on Wayland.
-  // Partially related to https://github.com/electron/electron/issues/41551, since X11 is deprecating now,
-  // we can safely remove the feature flags for Electron once they made it default supported.
-  // Fixes: https://github.com/moeru-ai/airi/issues/757
-  // Ref: https://github.com/mmaura/poe2linuxcompanion/blob/90664607a147ea5ccea28df6139bd95fb0ebab0e/electron/main/index.ts#L28-L46
   if (env.XDG_SESSION_TYPE === 'wayland') {
     app.commandLine.appendSwitch('enable-features', 'GlobalShortcutsPortal')
-
     app.commandLine.appendSwitch('enable-features', 'UseOzonePlatform')
     app.commandLine.appendSwitch('enable-features', 'WaylandWindowDecorations')
   }
+}
+
+if (forceHighPerformanceGpu) {
+  // NOTICE: These switches can materially change GPU selection, power draw, and
+  // driver compatibility. Keep them opt-in so default desktop behavior stays
+  // close to upstream unless the local launcher explicitly asks for them.
+  app.commandLine.appendSwitch('force-high-performance-gpu')
+  app.commandLine.appendSwitch('enable-gpu-rasterization')
+  app.commandLine.appendSwitch('ignore-gpu-blocklist')
+  console.log('[AIRI] High-performance GPU overrides enabled via AIRI_FORCE_HIGH_PERFORMANCE_GPU=1')
 }
 
 app.dock?.setIcon(icon)
@@ -81,19 +96,7 @@ electronApp.setAppUserModelId('ai.moeru.airi')
 
 initScreenCaptureForMain()
 
-let fileLogger: FileLoggerHandle = nullFileLoggerHandle
-
 app.whenReady().then(async () => {
-  // Initialize file logger and register the hook
-  fileLogger = await setupFileLogger()
-
-  // Register the global hook for file logging
-  setGlobalHookPostLog((_, formatted) => {
-    if (fileLogger.logFileFd !== null) {
-      void fileLogger.appendLog(formatted)
-    }
-  })
-
   injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
 
   const appConfig = injeca.provide('configs:app', () => createGlobalAppConfig())
@@ -119,16 +122,13 @@ app.whenReady().then(async () => {
     build: () => setupPluginHost(),
   })
 
-  // BeatSync will create a background window to capture and process audio.
   const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
-
   const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())
 
   const onboardingWindowManager = injeca.provide('windows:onboarding', {
     dependsOn: { serverChannel, i18n },
     build: ({ dependsOn }) => setupOnboardingWindowManager(dependsOn),
   })
-
   const noticeWindow = injeca.provide('windows:notice', {
     dependsOn: { i18n, serverChannel },
     build: ({ dependsOn }) => setupNoticeWindowManager(dependsOn),
@@ -155,7 +155,7 @@ app.whenReady().then(async () => {
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, mcpStdioManager, i18n, onboardingWindowManager },
+    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, mcpStdioManager, i18n, onboardingWindowManager, appConfig },
     build: async ({ dependsOn }) => setupMainWindow(dependsOn),
   })
 
@@ -165,45 +165,92 @@ app.whenReady().then(async () => {
   })
 
   const tray = injeca.provide('app:tray', {
-    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, serverChannel, beatSyncBgWindow: beatSync, aboutWindow, i18n },
-    build: async ({ dependsOn }) => setupTray(dependsOn),
+    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, serverChannel, beatSyncBgWindow: beatSync, aboutWindow, i18n, appConfig },
+    build: async ({ dependsOn }) => {
+      // Start global OS sensor hooks
+      setupSensorsService()
+
+      const configHelper = dependsOn.appConfig
+      return setupTray({
+        ...dependsOn,
+        getConfig: () => configHelper.get(),
+        updateConfig: config => configHelper.update(config),
+      })
+    },
   })
 
   injeca.invoke({
-    dependsOn: { mainWindow, tray, serverChannel, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager },
-    callback: noop,
+    dependsOn: { mainWindow, tray, serverChannel, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, appConfig, i18n },
+    callback: (deps) => {
+      const context = createContext(ipcMain).context
+      createServerChannelService({ serverChannel: deps.serverChannel })
+      createMcpServersService({ context, manager: deps.mcpStdioManager })
+      createI18nService({ context, window: deps.mainWindow, i18n: deps.i18n })
+      createMicToggleService({ context, window: deps.mainWindow })
+
+      import('./libs/bootkit/lifecycle').then((m) => {
+        m.onAppBeforeQuit(() => {
+          deps.appConfig.flush()
+        })
+      })
+
+      ipcMain.on('provider-validation-result', (_, data: { providerId: string, valid: boolean, reason: string, config: any }) => {
+        if (data.valid)
+          return
+
+        const status = 'FAIL'
+        const color = '\x1B[31m'
+        const reset = '\x1B[0m'
+        console.log(`${color}[Provider Validation]${reset} [${data.providerId}] ${status}`)
+        if (!data.valid) {
+          console.log(`  └─ Reason: ${data.reason}`)
+        }
+        if (data.config && (data.valid || !data.reason?.includes('required'))) {
+          console.log(`  └─ Config: ${JSON.stringify(data.config)}`)
+        }
+      })
+
+      ipcMain.on('llm-raw-output', (_, data: { type: 'delta' | 'full', text: string, sessionId: string }) => {
+        const reset = '\x1B[0m'
+        const cyan = '\x1B[36m'
+        // const yellow = '\x1B[33m'
+        if (data.type === 'delta') {
+          /*
+          // Log deltas in yellow, but only if they are not just whitespace (too noisy otherwise)
+          if (data.text.trim()) {
+            console.log(`${yellow}[LLM Delta]${reset} ${data.text}`)
+          }
+          */
+        }
+        else {
+          console.log(`${cyan}[LLM Final Output]${reset} Session: ${data.sessionId}`)
+          console.log(`----------------------------------------`)
+          console.log(data.text)
+          console.log(`----------------------------------------`)
+        }
+      })
+    },
   })
 
   injeca.start().catch(err => console.error(err))
 
-  // Lifecycle
   emitAppReady()
-
-  // Extra
   openDebugger()
 
-  // Default open or close DevTools by F12 in development
-  // and ignore CommandOrControl + R in production.
-  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
   app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
 }).catch((err) => {
   log.withError(err).error('Error during app initialization')
 })
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
   emitAppWindowAllClosed()
-
   if (platform !== 'darwin') {
     app.quit()
   }
 })
 
-// Clean up server and intervals when app quits
 app.on('before-quit', async () => {
   emitAppBeforeQuit()
   injeca.stop()
-  await fileLogger.close() // Ensure all logs are flushed
+  cleanupMicToggleShortcut()
 })

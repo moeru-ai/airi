@@ -8,6 +8,7 @@ import { refManualReset } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
+import { toast } from 'vue-sonner'
 
 import vadWorkletUrl from '../../workers/vad/process.worklet?worker&url'
 
@@ -65,6 +66,16 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const transcriptionModelSearchQuery = refManualReset<string>('')
   const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false)
   const autoSendDelay = useLocalStorageManualReset<number>('settings/hearing/auto-send-delay', 2000) // Default 2 seconds
+  const hearingDetectionMode = useLocalStorageManualReset<'vad' | 'manual'>('settings/hearing/detection-mode', 'vad')
+  const isTranscribing = ref(false)
+  const speechProviderSettings = useLocalStorageManualReset<Record<string, { deviceId: string, sampleRate: number }>>('settings/hearing/speech-provider-settings', {
+    'app-local-audio-speech': { deviceId: 'default', sampleRate: 16000 },
+    'browser-local-audio-speech': { deviceId: 'default', sampleRate: 16000 },
+  })
+  const transcriptionProviderSettings = useLocalStorageManualReset<Record<string, { deviceId: string, sampleRate: number }>>('settings/hearing/transcription-provider-settings', {
+    'app-local-audio-transcription': { deviceId: 'default', sampleRate: 16000 },
+    'browser-local-audio-transcription': { deviceId: 'default', sampleRate: 16000 },
+  })
 
   // Computed properties
   const availableProvidersMetadata = computed(() => allAudioTranscriptionProvidersMetadata.value)
@@ -127,6 +138,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     transcriptionModelSearchQuery.reset()
     autoSendEnabled.reset()
     autoSendDelay.reset()
+    hearingDetectionMode.reset()
   }
 
   async function transcription(
@@ -141,6 +153,13 @@ export const useHearingStore = defineStore('hearing-store', () => {
       file?: File
       inputAudioStream?: ReadableStream<ArrayBuffer>
     }
+    console.info('[Hearing Store] transcription call received', {
+      providerId,
+      model,
+      hasFile: !!normalizedInput.file,
+      fileSize: normalizedInput.file?.size,
+      hasStream: !!normalizedInput.inputAudioStream,
+    })
     const features = providersStore.getTranscriptionFeatures(providerId)
     const streamExecutor = STREAM_TRANSCRIPTION_EXECUTORS[providerId]
 
@@ -196,6 +215,10 @@ export const useHearingStore = defineStore('hearing-store', () => {
       responseFormat: format,
     })
 
+    console.info('[Hearing Store] generateTranscription response received', {
+      text: response.text?.substring(0, 50),
+    })
+
     return {
       mode: 'generate',
       ...response,
@@ -210,6 +233,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
     transcriptionModelSearchQuery,
     autoSendEnabled,
     autoSendDelay,
+    hearingDetectionMode,
+    isTranscribing,
 
     supportsModelListing,
     providerModels,
@@ -221,6 +246,9 @@ export const useHearingStore = defineStore('hearing-store', () => {
     loadModelsForProvider,
     getModelsForProvider,
     resetState,
+
+    speechProviderSettings,
+    transcriptionProviderSettings,
   }
 })
 
@@ -265,8 +293,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
   function float32ToInt16(buffer: Float32Array) {
     const output = new Int16Array(buffer.length)
     for (let i = 0; i < buffer.length; i++) {
-      const value = Math.max(-1, Math.min(1, buffer[i]))
-      output[i] = value < 0 ? value * 0x8000 : value * 0x7FFF
+      const s = Math.max(-1, Math.min(1, buffer[i]))
+      output[i] = s < 0 ? Math.round(s * 0x8000) : Math.round(s * 0x7FFF)
     }
 
     return output
@@ -433,7 +461,13 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       return
     }
 
+    if (hearingStore.isTranscribing) {
+      console.warn('[Hearing Pipeline] Transcription already in progress, skipping')
+      return
+    }
+
     error.value = undefined
+    hearingStore.isTranscribing = true
 
     try {
       const providerId = activeTranscriptionProvider.value
@@ -536,8 +570,16 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
             bumpIdle() // Bump idle timer on activity (only if enabled)
             // Call the options callback
             options?.onSentenceEnd?.(delta)
+
+            // Transcription feedback toast
+            console.debug('[Hearing Pipeline] Web Speech API delta:', delta)
+            toast.dismiss('transcription-feedback')
+            toast.info(`🎤 You said: ${delta}`, {
+              id: 'transcription-feedback',
+            })
           },
           onSpeechEnd: (text) => {
+            hearingStore.isTranscribing = false
             // Call the options callback
             options?.onSpeechEnd?.(text)
           },
@@ -695,6 +737,16 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
                 fullText += value
                 // Use captured callbacks to avoid cross-session leakage
                 sessionCallbacks.onSentenceEnd?.(value)
+
+                // Transcription feedback toast
+                // NOTICE: Silenced by user request to reduce verbosity
+                /*
+                console.debug('[Hearing Pipeline] Stream delta:', value)
+                toast.dismiss('transcription-feedback')
+                toast.info(`🎤 You said: ${value}`, {
+                  id: 'transcription-feedback',
+                })
+                */
               }
             }
           }
@@ -704,6 +756,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           finally {
             // Use captured callbacks to avoid cross-session leakage
             sessionCallbacks.onSpeechEnd?.(fullText)
+            hearingStore.isTranscribing = false
           }
         })()
       }
@@ -715,12 +768,18 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
   }
 
   async function transcribeForRecording(recording: Blob | null | undefined) {
+    if (hearingStore.isTranscribing) {
+      console.warn('[Hearing Pipeline] Transcription already in progress, skipping recording transcription')
+      return
+    }
+
     error.value = undefined
 
     if (!recording)
       return
 
     try {
+      hearingStore.isTranscribing = true
       if (recording && recording.size > 0) {
         const providerId = activeTranscriptionProvider.value
         const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
@@ -728,8 +787,12 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           throw new Error('Failed to initialize speech provider')
         }
 
-        // Get model from configuration or use default
         const model = activeTranscriptionModel.value
+        console.info('[Hearing Pipeline] Triggering hearingStore.transcription', {
+          providerId,
+          model,
+          fileName: 'recording.wav',
+        })
         const result = await hearingStore.transcription(
           providerId,
           provider,
@@ -748,6 +811,9 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     catch (err) {
       error.value = errorMessage(err)
       console.error('Error generating transcription:', error.value)
+    }
+    finally {
+      hearingStore.isTranscribing = false
     }
   }
 

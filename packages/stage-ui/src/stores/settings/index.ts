@@ -1,5 +1,6 @@
 import { defineStore, storeToRefs } from 'pinia'
 
+import { useSettingsChat } from './chat'
 import { useSettingsControlsIsland } from './controls-island'
 import { useSettingsGeneral } from './general'
 import { useSettingsLive2d } from './live2d'
@@ -8,6 +9,7 @@ import { useSettingsTheme } from './theme'
 
 // Export sub-stores
 export * from './audio-device'
+export * from './chat'
 export * from './controls-island'
 export * from './general'
 export * from './live2d'
@@ -24,6 +26,7 @@ export { DEFAULT_THEME_COLORS_HUE } from './theme'
  * This store exists only for backward compatibility and will be removed in a future version.
  */
 export const useSettings = defineStore('settings', () => {
+  const chat = useSettingsChat()
   const general = useSettingsGeneral()
   const stageModel = useSettingsStageModel()
   const live2d = useSettingsLive2d()
@@ -32,6 +35,7 @@ export const useSettings = defineStore('settings', () => {
 
   async function resetState() {
     await stageModel.resetState()
+    chat.resetState()
     general.resetState()
     live2d.resetState()
     theme.resetState()
@@ -39,6 +43,7 @@ export const useSettings = defineStore('settings', () => {
   }
 
   // Extract refs from sub-stores to maintain proper reactivity
+  const chatRefs = storeToRefs(chat)
   const generalRefs = storeToRefs(general)
   const stageModelRefs = storeToRefs(stageModel)
   const live2dRefs = storeToRefs(live2d)
@@ -50,12 +55,16 @@ export const useSettings = defineStore('settings', () => {
     disableTransitions: generalRefs.disableTransitions,
     usePageSpecificTransitions: generalRefs.usePageSpecificTransitions,
     language: generalRefs.language,
+    remoteSyncEnabled: generalRefs.remoteSyncEnabled,
     websocketSecureEnabled: generalRefs.websocketSecureEnabled,
+    sendMode: chatRefs.sendMode,
+    streamIdleTimeoutMs: chatRefs.streamIdleTimeoutMs,
 
     // Stage model settings
     stageModelRenderer: stageModelRefs.stageModelRenderer,
     stageModelSelected: stageModelRefs.stageModelSelected,
     stageModelSelectedUrl: stageModelRefs.stageModelSelectedUrl,
+    stageModelSelectedFile: stageModelRefs.stageModelSelectedFile,
     stageModelSelectedDisplayModel: stageModelRefs.stageModelSelectedDisplayModel,
     stageViewControlsEnabled: stageModelRefs.stageViewControlsEnabled,
 

@@ -129,12 +129,18 @@ catalogs:
     async-mutex:
       specifier: 0.5.0
       version: 0.5.0
+    aws4fetch:
+      specifier: ^1.0.20
+      version: 1.0.20
     better-auth:
       specifier: ^1.4.19
       version: 1.5.3
     builder-util-runtime:
       specifier: ^9.5.1
       version: 9.5.1
+    capacitor-native-settings:
+      specifier: ^8.0.0
+      version: 8.0.0
     crossws:
       specifier: ^0.4.4
       version: 0.4.4
@@ -168,6 +174,9 @@ catalogs:
     knip:
       specifier: ^5.85.0
       version: 5.85.0
+    loudness:
+      specifier: ^0.4.2
+      version: 0.4.2
     mkcert:
       specifier: ^3.2.0
       version: 3.2.0
@@ -628,9 +637,6 @@ importers:
       '@proj-airi/stage-ui-three':
         specifier: workspace:^
         version: link:../../packages/stage-ui-three
-      '@proj-airi/stage-ui-three-performance-runtime':
-        specifier: workspace:^
-        version: link:../../packages/stage-ui-three-performance-runtime
       '@proj-airi/stream-kit':
         specifier: workspace:^
         version: link:../../packages/stream-kit
@@ -688,6 +694,9 @@ importers:
       animejs:
         specifier: ^4.3.6
         version: 4.3.6
+      capacitor-native-settings:
+        specifier: 'catalog:'
+        version: 8.0.0(@capacitor/core@8.1.0)
       colorjs.io:
         specifier: ^0.6.1
         version: 0.6.1
@@ -718,9 +727,6 @@ importers:
       localforage:
         specifier: ^1.10.0
         version: 1.10.0
-      mediabunny:
-        specifier: ^1.35.0
-        version: 1.35.0
       nanoid:
         specifier: ^5.1.6
         version: 5.1.6
@@ -977,6 +983,9 @@ importers:
       '@huggingface/transformers':
         specifier: ^3.8.1
         version: 3.8.1
+      '@intlify/core':
+        specifier: 'catalog:'
+        version: 11.2.8
       '@moeru/eventa':
         specifier: ^1.0.0-beta.1
         version: 1.0.0-beta.1(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
@@ -1121,9 +1130,9 @@ importers:
       localforage:
         specifier: ^1.10.0
         version: 1.10.0
-      mediabunny:
-        specifier: ^1.35.0
-        version: 1.35.0
+      loudness:
+        specifier: 'catalog:'
+        version: 0.4.2
       node-vibrant:
         specifier: ^4.0.4
         version: 4.0.4(encoding@0.1.13)
@@ -1154,6 +1163,9 @@ importers:
       remark-rehype:
         specifier: ^11.1.2
         version: 11.1.2
+      replicate:
+        specifier: ^1.0.1
+        version: 1.4.0
       shiki:
         specifier: ^3.23.0
         version: 3.23.0
@@ -1242,9 +1254,6 @@ importers:
       '@iconify/utils':
         specifier: ^3.1.0
         version: 3.1.0
-      '@intlify/core':
-        specifier: 'catalog:'
-        version: 11.2.8
       '@intlify/unplugin-vue-i18n':
         specifier: ^11.0.7
         version: 11.0.7(@vue/compiler-dom@3.5.29)(eslint@9.39.3(jiti@2.6.1))(rollup@4.59.0)(typescript@5.9.3)(vue-i18n@11.2.8(vue@3.5.29(typescript@5.9.3)))(vue@3.5.29(typescript@5.9.3))
@@ -1446,9 +1455,6 @@ importers:
       '@proj-airi/stage-ui-three':
         specifier: workspace:^
         version: link:../../packages/stage-ui-three
-      '@proj-airi/stage-ui-three-performance-runtime':
-        specifier: workspace:^
-        version: link:../../packages/stage-ui-three-performance-runtime
       '@proj-airi/stream-kit':
         specifier: workspace:^
         version: link:../../packages/stream-kit
@@ -1542,9 +1548,6 @@ importers:
       localforage:
         specifier: ^1.10.0
         version: 1.10.0
-      mediabunny:
-        specifier: ^1.35.0
-        version: 1.35.0
       nanoid:
         specifier: ^5.1.6
         version: 5.1.6
@@ -2350,6 +2353,9 @@ importers:
       '@proj-airi/server-sdk':
         specifier: workspace:*
         version: link:../server-sdk
+      '@proj-airi/stage-shared':
+        specifier: workspace:*
+        version: link:../stage-shared
       '@proj-airi/stage-ui':
         specifier: workspace:*
         version: link:../stage-ui
@@ -2410,6 +2416,9 @@ importers:
       unspeech:
         specifier: catalog:xsai
         version: 0.1.11
+      valibot:
+        specifier: ^1.2.0
+        version: 1.2.0(typescript@5.9.3)
       vue:
         specifier: 'catalog:'
         version: 3.5.29(typescript@5.9.3)
@@ -2432,9 +2441,6 @@ importers:
       '@nekopaw/tempora':
         specifier: 'catalog:'
         version: 0.4.0-alpha.1
-      '@proj-airi/stage-shared':
-        specifier: workspace:^
-        version: link:../stage-shared
       '@types/audioworklet':
         specifier: 'catalog:'
         version: 0.0.96
@@ -2453,6 +2459,9 @@ importers:
 
   packages/stage-shared:
     dependencies:
+      '@moeru/eventa':
+        specifier: ^1.0.0-beta.1
+        version: 1.0.0-beta.1(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@vueuse/core':
         specifier: 'catalog:'
         version: 14.1.0(vue@3.5.29(typescript@5.9.3))
@@ -2466,9 +2475,6 @@ importers:
       '@electron-toolkit/preload':
         specifier: ^3.0.2
         version: 3.0.2(electron@40.8.0)
-      '@moeru/eventa':
-        specifier: ^1.0.0-beta.1
-        version: 1.0.0-beta.1(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@nekopaw/tempora':
         specifier: 'catalog:'
         version: 0.4.0-alpha.1
@@ -2508,6 +2514,9 @@ importers:
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
         version: 0.4.29(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))
+      '@proj-airi/electron-vueuse':
+        specifier: workspace:^
+        version: link:../electron-vueuse
       '@proj-airi/font-cjkfonts-allseto':
         specifier: workspace:^
         version: link:../font-cjkfonts-allseto
@@ -2601,6 +2610,9 @@ importers:
       animejs:
         specifier: ^4.3.6
         version: 4.3.6
+      aws4fetch:
+        specifier: 'catalog:'
+        version: 1.0.20
       better-auth:
         specifier: 'catalog:'
         version: 1.5.3(@better-auth/drizzle-adapter@1.5.3(@better-auth/core@1.5.3(@better-auth/utils@0.3.1)(@better-fetch/fetch@1.1.21)(better-call@1.3.2(zod@4.3.6))(jose@6.1.3)(kysely@0.28.11)(nanostores@1.1.1))(@better-auth/utils@0.3.1)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8)))(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.9)(drizzle-orm@0.45.1(@electric-sql/pglite@0.3.15)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.16.0)(better-sqlite3@12.5.0)(kysely@0.28.11)(pg@8.19.0)(postgres@3.4.8))(pg@8.19.0)(react@19.2.3)(vitest@4.0.18)(vue@3.5.29(typescript@5.9.3))
@@ -2634,9 +2646,6 @@ importers:
       localforage:
         specifier: ^1.10.0
         version: 1.10.0
-      mediabunny:
-        specifier: ^1.35.0
-        version: 1.35.0
       nanoid:
         specifier: ^5.1.6
         version: 5.1.6
@@ -2939,6 +2948,9 @@ importers:
 
   packages/stage-ui-three:
     dependencies:
+      '@moeru/eventa':
+        specifier: ^1.0.0-beta.1
+        version: 1.0.0-beta.1(electron@40.8.0)(h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.8(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@pixiv/three-vrm':
         specifier: ^3.5.0
         version: 3.5.0(three@0.183.1)
@@ -2972,6 +2984,9 @@ importers:
       es-toolkit:
         specifier: 'catalog:'
         version: 1.43.0
+      localforage:
+        specifier: ^1.10.0
+        version: 1.10.0
       pinia:
         specifier: ^3.0.4
         version: 3.0.4(typescript@5.9.3)(vue@3.5.29(typescript@5.9.3))
@@ -3232,7 +3247,7 @@ importers:
         version: 14.1.0(vue@3.5.29(typescript@5.9.3))
       '@wxt-dev/module-vue':
         specifier: ^1.0.3
-        version: 1.0.3(vite@7.3.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))(wxt@0.20.18(@types/node@24.10.14)(canvas@3.2.1)(eslint@9.39.3(jiti@2.6.1))(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+        version: 1.0.3(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))(wxt@0.20.18(@types/node@24.10.14)(canvas@3.2.1)(eslint@9.39.3(jiti@2.6.1))(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
       nanoid:
         specifier: ^5.1.6
         version: 5.1.6
@@ -8637,12 +8652,6 @@ packages:
   '@types/deep-eql@4.0.2':
     resolution: {integrity: sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw==}
 
-  '@types/dom-mediacapture-transform@0.1.11':
-    resolution: {integrity: sha512-Y2p+nGf1bF2XMttBnsVPHUWzRRZzqUoJAKmiP10b5umnO6DDrWI0BrGDJy1pOHoOULVmGSfFNkQrAlC5dcj6nQ==}
-
-  '@types/dom-webcodecs@0.1.13':
-    resolution: {integrity: sha512-O5hkiFIcjjszPIYyUSyvScyvrBoV3NOEEZx/pMlsu44TKzWNkLVBBxnxJz42in5n3QIolYOcBYFCPZZ0h8SkwQ==}
-
   '@types/draco3d@1.4.10':
     resolution: {integrity: sha512-AX22jp8Y7wwaBgAixaSvkoG4M/+PlAcm3Qs4OW8yT9DM4xUpWKeFhLueTAyZF39pviAdcDdeJoACapiAceqNcw==}
 
@@ -10377,6 +10386,11 @@ packages:
     resolution: {integrity: sha512-ej1sPFR5+0YWtaVp6S1N1FVz69TQCqmrkGeRvQxZeAB1nAIcjNTHVwrZtYtWFFBmQsF40/uDLehsW5KuYC99mg==}
     engines: {node: ^18.12.0 || >= 20.9.0}
 
+  capacitor-native-settings@8.0.0:
+    resolution: {integrity: sha512-a88bZ63dirKsTbylJIo0PBwlOEMOOQmBJyorAr14URo4TA3WqNdQaFfKMF/p1QQ+A0VbtBOi3snLtm/jEK1qzg==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
+
   ccount@2.0.1:
     resolution: {integrity: sha512-eyrF0jiFpY+3drT6383f1qhkbGsLSifNAjA61IUjZjmLCWjItY6LB9ft9YhoDgwfmclB2zhu51Lc7+95b8NRAg==}
 
@@ -11740,6 +11754,10 @@ packages:
     resolution: {integrity: sha512-CRT1WTyuQoD771GW56XEZFQ/ZoSfWid1alKGDYMmkt2yl8UXrVR4pspqWNEcqKvVIzg6PAltWjxcSSPrboA4iA==}
     engines: {node: '>=18.0.0'}
 
+  execa@4.1.0:
+    resolution: {integrity: sha512-j5W0//W7f8UxAn8hXVnwG8tLwdiUy4FJLcSupCg6maBYZDpyBvTApK7KyuI4bKj8KOh1r2YH+6ucuYtJv1bTZA==}
+    engines: {node: '>=10'}
+
   execa@5.1.1:
     resolution: {integrity: sha512-8uSpZZocAZRBAPIEINJj3Lo9HyGitllczc27Eh5YYojjMFMn8yHMDMaUHE2Jqfq05D/wucwI4JGURyXt1vchyg==}
     engines: {node: '>=10'}
@@ -12469,6 +12487,10 @@ packages:
   https-proxy-agent@7.0.6:
     resolution: {integrity: sha512-vK9P5/iUfdl95AI+JVyUuIcVtd4ofvtrOr3HNtM2yxC9bnMbEdp3x01OhQNnjb8IJYi38VlTE3mBXwcfvywuSw==}
     engines: {node: '>= 14'}
+
+  human-signals@1.1.1:
+    resolution: {integrity: sha512-SEQu7vl8KjNL2eoGBLF3+wAjpsNfA9XMlXAYj/3EdaNfAlxKthD1xjEQfGOUhllCGGJVNY34bRr6lPINhNjyZw==}
+    engines: {node: '>=8.12.0'}
 
   human-signals@2.1.0:
     resolution: {integrity: sha512-B4FFZ6q/T2jhhksgkbEW3HBvWIfDW85snkQgawt07S7J5QXTk6BkNV+0yAeZrM5QpMAdYlocGoljn0sJ/WQkFw==}
@@ -13223,6 +13245,10 @@ packages:
   longest-streak@3.1.0:
     resolution: {integrity: sha512-9Ri+o0JYgehTaVBBDoMqIl8GXtbWg711O3srftcHhZ0dqnETqLaoIK0x17fUw9rFSlK/0NlsKe0Ahhyl5pXE2g==}
 
+  loudness@0.4.2:
+    resolution: {integrity: sha512-D+1opqDjcpAdyv0JVt5KJju/4f6yLs/tqcDj8LCrtZciYMtD4I2I4brByt9nZkfU5bnnnHsLFPtBBDpv2oamkg==}
+    engines: {node: '>=10.13.0'}
+
   lowercase-keys@2.0.0:
     resolution: {integrity: sha512-tqNXrS78oMOE73NMxK4EMLQsQowWf8jKooH9g7xPavRT706R6bkQJ6DY2Te7QukaZsulxa30wQ7bk0pm4XiHmA==}
     engines: {node: '>=8'}
@@ -13381,9 +13407,6 @@ packages:
   media-typer@1.1.0:
     resolution: {integrity: sha512-aisnrDP4GNe06UcKFnV5bfMNPBUw4jsLGaWwWfnH3v02GnBuXX2MCVn5RbrWo0j3pczUilYblq7fQ7Nw2t5XKw==}
     engines: {node: '>= 0.8'}
-
-  mediabunny@1.35.0:
-    resolution: {integrity: sha512-nDCwdkK9aWDam1+L/VnK2EWzENj5WcPAAmm6HBTXQe5FZ/Mx7uSJewTKeA1JKXpkXvSsp+7UzTsx+G7HfcwOGA==}
 
   merge-descriptors@1.0.3:
     resolution: {integrity: sha512-gaNvAS7TZ897/rVaZ0nMtAyxNyi/pdbjbAwUpFQpN70GqnVfOiXpeUUMKRBmzXaSQ8DdTX4/0ms62r2K+hE6mQ==}
@@ -14826,6 +14849,10 @@ packages:
 
   remark-stringify@11.0.0:
     resolution: {integrity: sha512-1OSmLd3awB/t8qdoEOMazZkNsfVTeY4fTsgzcQFdXNq8ToTN4ZGwrMnlda4K6smTFKD+GRV6O48i6Z4iKgPPpw==}
+
+  replicate@1.4.0:
+    resolution: {integrity: sha512-1ufKejfUVz/azy+5TnzQP7U1+MHVWZ6psnQ06az8byUUnRhT+DZ/MvewzB1NQYBVMgNKR7xPDtTwlcP5nv/5+w==}
+    engines: {git: '>=2.11.0', node: '>=18.0.0', npm: '>=7.19.0', yarn: '>=1.7.0'}
 
   require-directory@2.1.1:
     resolution: {integrity: sha512-fGxEI7+wsG9xrvdjsrlmL22OMTTiHRwAMroiEeMgq8gzoLC/PQr7RsRDSTLUg/bZAZtF+TVIkHc6/4RIKrui+Q==}
@@ -22449,12 +22476,6 @@ snapshots:
 
   '@types/deep-eql@4.0.2': {}
 
-  '@types/dom-mediacapture-transform@0.1.11':
-    dependencies:
-      '@types/dom-webcodecs': 0.1.13
-
-  '@types/dom-webcodecs@0.1.13': {}
-
   '@types/draco3d@1.4.10': {}
 
   '@types/earcut@2.1.4': {}
@@ -23859,9 +23880,9 @@ snapshots:
       '@types/filesystem': 0.0.36
       '@types/har-format': 1.2.16
 
-  '@wxt-dev/module-vue@1.0.3(vite@7.3.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))(wxt@0.20.18(@types/node@24.10.14)(canvas@3.2.1)(eslint@9.39.3(jiti@2.6.1))(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))':
+  '@wxt-dev/module-vue@1.0.3(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))(wxt@0.20.18(@types/node@24.10.14)(canvas@3.2.1)(eslint@9.39.3(jiti@2.6.1))(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))':
     dependencies:
-      '@vitejs/plugin-vue': 6.0.4(vite@7.3.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))
+      '@vitejs/plugin-vue': 6.0.4(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))
       wxt: 0.20.18(@types/node@24.10.14)(canvas@3.2.1)(eslint@9.39.3(jiti@2.6.1))(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - vite
@@ -24271,8 +24292,7 @@ snapshots:
     dependencies:
       fast-glob: 3.3.3
 
-  aws4fetch@1.0.20:
-    optional: true
+  aws4fetch@1.0.20: {}
 
   b4a@1.7.3:
     optional: true
@@ -24711,6 +24731,10 @@ snapshots:
     dependencies:
       node-addon-api: 7.1.1
       prebuild-install: 7.1.3
+
+  capacitor-native-settings@8.0.0(@capacitor/core@8.1.0):
+    dependencies:
+      '@capacitor/core': 8.1.0
 
   ccount@2.0.1: {}
 
@@ -26126,6 +26150,18 @@ snapshots:
     dependencies:
       eventsource-parser: 3.0.6
 
+  execa@4.1.0:
+    dependencies:
+      cross-spawn: 7.0.6
+      get-stream: 5.2.0
+      human-signals: 1.1.1
+      is-stream: 2.0.1
+      merge-stream: 2.0.0
+      npm-run-path: 4.0.1
+      onetime: 5.1.2
+      signal-exit: 3.0.7
+      strip-final-newline: 2.0.0
+
   execa@5.1.1:
     dependencies:
       cross-spawn: 7.0.6
@@ -27136,6 +27172,8 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  human-signals@1.1.1: {}
+
   human-signals@2.1.0: {}
 
   humanize-ms@1.2.1:
@@ -27813,6 +27851,10 @@ snapshots:
 
   longest-streak@3.1.0: {}
 
+  loudness@0.4.2:
+    dependencies:
+      execa: 4.1.0
+
   lowercase-keys@2.0.0: {}
 
   lru-cache@10.4.3: {}
@@ -28066,11 +28108,6 @@ snapshots:
   media-typer@0.3.0: {}
 
   media-typer@1.1.0: {}
-
-  mediabunny@1.35.0:
-    dependencies:
-      '@types/dom-mediacapture-transform': 0.1.11
-      '@types/dom-webcodecs': 0.1.13
 
   merge-descriptors@1.0.3: {}
 
@@ -30002,6 +30039,10 @@ snapshots:
       '@types/mdast': 4.0.4
       mdast-util-to-markdown: 2.1.2
       unified: 11.0.5
+
+  replicate@1.4.0:
+    optionalDependencies:
+      readable-stream: 4.7.0
 
   require-directory@2.1.1: {}
 

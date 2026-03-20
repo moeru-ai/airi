@@ -28,6 +28,7 @@ import { useLive2d } from '../../../stores/live2d'
 const props = withDefaults(defineProps<{
   modelSrc?: string
   modelId?: string
+  modelFile?: File
 
   app?: Application
   mouthOpenSize?: number
@@ -120,9 +121,9 @@ function setScaleAndPosition() {
   if (!model.value)
     return
 
-  let offsetFactor = 2.2
+  let offsetFactor = 1.0
   if (isMobile.value) {
-    offsetFactor = 2.2
+    offsetFactor = 1.0
   }
 
   const heightScale = (props.height * 0.95 / initialModelHeight.value * offsetFactor)
@@ -137,7 +138,7 @@ function setScaleAndPosition() {
   model.value.scale.set(scale * props.scale, scale * props.scale)
 
   model.value.x = (props.width / 2) + offset.value.xOffset
-  model.value.y = props.height + offset.value.yOffset
+  model.value.y = (props.height / 2) + offset.value.yOffset
 }
 
 const live2dStore = useLive2d()
@@ -146,6 +147,10 @@ const {
   availableMotions,
   motionMap,
   modelParameters,
+  availableExpressions,
+  parameterMetadata,
+  expressionData,
+  activeExpressions,
 } = storeToRefs(live2dStore)
 
 const themeColorsHue = toRef(() => props.themeColorsHue)
@@ -217,7 +222,7 @@ async function loadModel() {
     }
 
     const live2DModel = new Live2DModel<PixiLive2DInternalModel>()
-    await Live2DFactory.setupLive2DModel(live2DModel, { url: modelSrcRef.value, id: props.modelId }, { autoInteract: false })
+    await Live2DFactory.setupLive2DModel(live2DModel, { url: modelSrcRef.value, id: props.modelId, file: props.modelFile }, { autoInteract: false })
     availableMotions.value.forEach((motion) => {
       if (motion.motionName in Emotion) {
         motionMap.value[motion.fileName] = motion.motionName
@@ -228,7 +233,6 @@ async function loadModel() {
     })
 
     // --- Scene
-
     model.value = live2DModel
     // REVIEW: pixiApp and stage are guaranteed to be valid here due to the until(...) above.
     pixiApp.value!.stage.addChild(model.value)
@@ -318,6 +322,46 @@ async function loadModel() {
     motionManagerUpdate.register(useMotionUpdatePluginIdleFocus(), 'post')
     motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(), 'post')
 
+    // Custom parameters plugin: applies toggle/slider/expression values from the store
+    motionManagerUpdate.register((ctx) => {
+      const params = ctx.modelParameters.value
+      // Only apply keys that start with "Param" and aren't the standard ones managed by other plugins
+      const standardKeys = new Set([
+        'angleX',
+        'angleY',
+        'angleZ',
+        'leftEyeOpen',
+        'rightEyeOpen',
+        'leftEyeSmile',
+        'rightEyeSmile',
+        'leftEyebrowLR',
+        'rightEyebrowLR',
+        'leftEyebrowY',
+        'rightEyebrowY',
+        'leftEyebrowAngle',
+        'rightEyebrowAngle',
+        'leftEyebrowForm',
+        'rightEyebrowForm',
+        'mouthOpen',
+        'mouthForm',
+        'cheek',
+        'bodyAngleX',
+        'bodyAngleY',
+        'bodyAngleZ',
+        'breath',
+      ])
+      for (const [key, value] of Object.entries(params)) {
+        if (!standardKeys.has(key) && key.startsWith('Param')) {
+          try {
+            ctx.model.setParameterValueById(key, value as number)
+          }
+          catch {
+            // Silently ignore if parameter doesn't exist on this model
+          }
+        }
+      }
+    }, 'post')
+
     const hookedUpdate = motionManager.update as (model: PixiLive2DInternalModel['coreModel'], now: number) => boolean
     motionManager.update = function (model: PixiLive2DInternalModel['coreModel'], now: number) {
       return motionManagerUpdate.hookUpdate(model, now, hookedUpdate)
@@ -346,20 +390,6 @@ async function loadModel() {
     })
 
     // Apply all stored parameters to the model
-    coreModel.setParameterValueById('ParamAngleX', modelParameters.value.angleX)
-    coreModel.setParameterValueById('ParamAngleY', modelParameters.value.angleY)
-    coreModel.setParameterValueById('ParamAngleZ', modelParameters.value.angleZ)
-    coreModel.setParameterValueById('ParamEyeLOpen', modelParameters.value.leftEyeOpen)
-    coreModel.setParameterValueById('ParamEyeROpen', modelParameters.value.rightEyeOpen)
-    coreModel.setParameterValueById('ParamEyeSmile', modelParameters.value.leftEyeSmile)
-    coreModel.setParameterValueById('ParamBrowLX', modelParameters.value.leftEyebrowLR)
-    coreModel.setParameterValueById('ParamBrowRX', modelParameters.value.rightEyebrowLR)
-    coreModel.setParameterValueById('ParamBrowLY', modelParameters.value.leftEyebrowY)
-    coreModel.setParameterValueById('ParamBrowRY', modelParameters.value.rightEyebrowY)
-    coreModel.setParameterValueById('ParamBrowLAngle', modelParameters.value.leftEyebrowAngle)
-    coreModel.setParameterValueById('ParamBrowRAngle', modelParameters.value.rightEyebrowAngle)
-    coreModel.setParameterValueById('ParamBrowLForm', modelParameters.value.leftEyebrowForm)
-    coreModel.setParameterValueById('ParamBrowRForm', modelParameters.value.rightEyebrowForm)
     coreModel.setParameterValueById('ParamMouthOpenY', modelParameters.value.mouthOpen)
     coreModel.setParameterValueById('ParamMouthForm', modelParameters.value.mouthForm)
     coreModel.setParameterValueById('ParamCheek', modelParameters.value.cheek)
@@ -367,6 +397,147 @@ async function loadModel() {
     coreModel.setParameterValueById('ParamBodyAngleY', modelParameters.value.bodyAngleY)
     coreModel.setParameterValueById('ParamBodyAngleZ', modelParameters.value.bodyAngleZ)
     coreModel.setParameterValueById('ParamBreath', modelParameters.value.breath)
+
+    // --- Metadata Parsing (CDI & EXP) - ALPHA DEBUG MODE
+    try {
+      const settings = internalModel.settings as any
+      const rawJson = settings?.json
+
+      const fileRefs = rawJson?.FileReferences || rawJson?.fileReferences
+
+      // 1. CDI Parsing - Priority: zip-extracted > http fetch > core model fallback
+      let cdiData = settings?._cdiData // Pre-extracted from zip loader
+
+      if (!cdiData) {
+        // Try HTTP fetch for non-zip models
+        const cdiFileName = fileRefs?.DisplayInfo || fileRefs?.Cdi
+        if (cdiFileName && props.modelSrc && !props.modelSrc.startsWith('blob:')) {
+          const baseUrl = props.modelSrc.substring(0, props.modelSrc.lastIndexOf('/') + 1)
+          try {
+            const resp = await fetch(baseUrl + encodeURIComponent(cdiFileName))
+            if (resp.ok)
+              cdiData = await resp.json()
+          }
+          catch {}
+        }
+      }
+
+      if (cdiData) {
+        const params = cdiData?.Parameters || cdiData?.parameters
+        if (params) {
+          // Initialize missing modelParameters from core model defaults BEFORE setting metadata
+          // This avoids the UI rendering sliders with undefined/NaN values
+          params.forEach((p: any) => {
+            const id = p.Id || p.id
+            if (modelParameters.value[id] === undefined) {
+              try {
+                modelParameters.value[id] = (internalModel.coreModel as any).getParameterValueById(id) || 0
+              }
+              catch {
+                modelParameters.value[id] = 0
+              }
+            }
+          })
+
+          parameterMetadata.value = params.map((p: any) => ({
+            id: p.Id || p.id,
+            name: p.Name || p.name,
+            groupId: p.GroupId || p.groupId,
+          }))
+
+          const groups = cdiData?.ParameterGroups || cdiData?.parameterGroups
+          if (groups) {
+            parameterMetadata.value.forEach((p) => {
+              const group = groups.find((g: any) => (g.Id || g.id) === p.groupId)
+              if (group)
+                p.groupName = group.Name || group.name
+            })
+          }
+          console.info('✅ Populated parameterMetadata from CDI:', parameterMetadata.value.length)
+        }
+      }
+
+      // Fallback: extract IDs directly from the core model
+      if (parameterMetadata.value.length === 0) {
+        try {
+          const core = internalModel.coreModel as any
+          // Try various known Cubism SDK structures
+          const paramIds = core?._parameterIds || core?._model?._parameterIds || []
+          if (paramIds.length > 0) {
+            parameterMetadata.value = paramIds.map((id: string) => ({ id, name: id }))
+
+            // Initialize missing modelParameters from core model defaults
+            parameterMetadata.value.forEach((p) => {
+              if (modelParameters.value[p.id] === undefined) {
+                try {
+                  modelParameters.value[p.id] = (internalModel.coreModel as any).getParameterValueById(p.id) || 0
+                }
+                catch {
+                  modelParameters.value[p.id] = 0
+                }
+              }
+            })
+          }
+        }
+        catch (e) {
+          console.warn('⚠️ Could not extract parameter IDs from core model:', e)
+        }
+      }
+
+      // 2. Expressions Parsing - Priority: zip-extracted > FileRefs > expressionManager
+      const expFiles = settings?._expFiles
+      if (expFiles && expFiles.length > 0) {
+        availableExpressions.value = expFiles.map((exp: any) => ({
+          name: exp.name,
+          fileName: exp.fileName,
+        }))
+        // Also store the full expression data so the UI can apply them
+        expressionData.value = expFiles
+        console.info('✅ Populated expressions from zip-extracted files:', expFiles.length)
+      }
+      else {
+        const expressions = fileRefs?.Expressions || fileRefs?.expressions
+        if (expressions && Array.isArray(expressions)) {
+          availableExpressions.value = expressions.map((exp: any) => ({
+            name: exp.Name || exp.name || exp.File?.split('/').pop()?.replace('.exp3.json', ''),
+            fileName: exp.File || exp.file,
+          }))
+          console.info('✅ Populated expressions from FileRefs:', availableExpressions.value.length)
+        }
+        else {
+          const expressionManager = (internalModel as any).expressionManager
+          if (expressionManager?.definitions) {
+            const defs = expressionManager.definitions
+            availableExpressions.value = Object.keys(defs).map(name => ({
+              name,
+              fileName: defs[name]?.File || defs[name]?.file || name,
+            }))
+            console.info('✅ Populated expressions from expressionManager:', availableExpressions.value.length)
+          }
+        }
+      }
+
+      // 3. Restore saved active expressions on model load
+      if (expressionData.value.length > 0 && Object.keys(activeExpressions.value).length > 0) {
+        for (const [fileName, weight] of Object.entries(activeExpressions.value)) {
+          if (weight > 0) {
+            const expEntry = expressionData.value.find((e: any) => e.fileName === fileName)
+            if (expEntry?.data?.Parameters) {
+              for (const param of expEntry.data.Parameters) {
+                const id = param.Id || param.id
+                const value = param.Value ?? param.value
+                if (id !== undefined && value !== undefined) {
+                  modelParameters.value[id] = value
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    catch (e) {
+      console.error('❌ [Live2D-Alpha] Metadata parsing failure:', e)
+    }
 
     emits('modelLoaded')
   }
@@ -398,8 +569,6 @@ async function setMotion(motionName: string, index?: number) {
   }
 }
 
-const handleResize = useDebounceFn(setScaleAndPosition, 100)
-
 const dropShadowColorComputer = ref<HTMLDivElement>()
 const dropShadowAnimationId = ref(0)
 
@@ -419,6 +588,8 @@ function updateDropShadowFilter() {
   dropShadowFilter.value.color = Number(formatHex(color)!.replace('#', '0x'))
   model.value.filters = [dropShadowFilter.value]
 }
+
+const handleResize = useDebounceFn(setScaleAndPosition, 100)
 
 watch([() => props.width, () => props.height], handleResize)
 watch(modelSrcRef, async () => await loadModel(), { immediate: true })
@@ -453,147 +624,65 @@ watch(mouthOpenSize, value => getCoreModel().setParameterValueById('ParamMouthOp
 watch(currentMotion, value => setMotion(value.group, value.index))
 watch(paused, value => value ? pixiApp.value?.stop() : pixiApp.value?.start())
 
-// Watch and apply model parameters
-watch(() => modelParameters.value.angleX, (value) => {
+// Watch and apply all model parameters dynamically
+watch(() => modelParameters.value, (params) => {
   if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamAngleX', value)
-  }
-})
+    const coreModel = model.value.internalModel.coreModel
+    // Standard parameters
+    coreModel.setParameterValueById('ParamAngleX', params.angleX)
+    coreModel.setParameterValueById('ParamAngleY', params.angleY)
+    coreModel.setParameterValueById('ParamAngleZ', params.angleZ)
+    coreModel.setParameterValueById('ParamEyeLOpen', params.leftEyeOpen)
+    coreModel.setParameterValueById('ParamEyeROpen', params.rightEyeOpen)
+    coreModel.setParameterValueById('ParamEyeSmile', params.leftEyeSmile)
+    coreModel.setParameterValueById('ParamBrowLX', params.leftEyebrowLR)
+    coreModel.setParameterValueById('ParamBrowRX', params.rightEyebrowLR)
+    coreModel.setParameterValueById('ParamBrowLY', params.leftEyebrowY)
+    coreModel.setParameterValueById('ParamBrowRY', params.rightEyebrowY)
+    coreModel.setParameterValueById('ParamBrowLAngle', params.leftEyebrowAngle)
+    coreModel.setParameterValueById('ParamBrowRAngle', params.rightEyebrowAngle)
+    coreModel.setParameterValueById('ParamBrowLForm', params.leftEyebrowForm)
+    coreModel.setParameterValueById('ParamBrowRForm', params.rightEyebrowForm)
+    coreModel.setParameterValueById('ParamMouthOpenY', params.mouthOpen)
+    coreModel.setParameterValueById('ParamMouthForm', params.mouthForm)
+    coreModel.setParameterValueById('ParamCheek', params.cheek)
+    coreModel.setParameterValueById('ParamBodyAngleX', params.bodyAngleX)
+    coreModel.setParameterValueById('ParamBodyAngleY', params.bodyAngleY)
+    coreModel.setParameterValueById('ParamBodyAngleZ', params.bodyAngleZ)
+    coreModel.setParameterValueById('ParamBreath', params.breath)
 
-watch(() => modelParameters.value.angleY, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamAngleY', value)
+    // Dynamic parameters (from CDI)
+    Object.entries(params).forEach(([key, value]) => {
+      // If it's not one of our standard keys, it's a dynamic one
+      const standardKeys = [
+        'angleX',
+        'angleY',
+        'angleZ',
+        'leftEyeOpen',
+        'rightEyeOpen',
+        'leftEyeSmile',
+        'leftEyebrowLR',
+        'rightEyebrowLR',
+        'leftEyebrowY',
+        'rightEyebrowY',
+        'leftEyebrowAngle',
+        'rightEyebrowAngle',
+        'leftEyebrowForm',
+        'rightEyebrowForm',
+        'mouthOpen',
+        'mouthForm',
+        'cheek',
+        'bodyAngleX',
+        'bodyAngleY',
+        'bodyAngleZ',
+        'breath',
+      ]
+      if (!standardKeys.includes(key)) {
+        coreModel.setParameterValueById(key, value)
+      }
+    })
   }
-})
-
-watch(() => modelParameters.value.angleZ, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamAngleZ', value)
-  }
-})
-
-watch(() => modelParameters.value.leftEyeOpen, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamEyeLOpen', value)
-  }
-})
-
-watch(() => modelParameters.value.rightEyeOpen, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamEyeROpen', value)
-  }
-})
-
-watch(() => modelParameters.value.mouthOpen, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamMouthOpenY', value)
-  }
-})
-
-watch(() => modelParameters.value.mouthForm, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamMouthForm', value)
-  }
-})
-
-watch(() => modelParameters.value.cheek, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamCheek', value)
-  }
-})
-
-watch(() => modelParameters.value.bodyAngleX, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBodyAngleX', value)
-  }
-})
-
-watch(() => modelParameters.value.bodyAngleY, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBodyAngleY', value)
-  }
-})
-
-watch(() => modelParameters.value.bodyAngleZ, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBodyAngleZ', value)
-  }
-})
-
-watch(() => modelParameters.value.breath, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBreath', value)
-  }
-})
-
-// Watch eyebrow parameters
-watch(() => modelParameters.value.leftEyebrowLR, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowLX', value)
-  }
-})
-
-watch(() => modelParameters.value.rightEyebrowLR, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowRX', value)
-  }
-})
-
-watch(() => modelParameters.value.leftEyebrowY, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowLY', value)
-  }
-})
-
-watch(() => modelParameters.value.rightEyebrowY, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowRY', value)
-  }
-})
-
-watch(() => modelParameters.value.leftEyebrowAngle, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowLAngle', value)
-  }
-})
-
-watch(() => modelParameters.value.rightEyebrowAngle, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowRAngle', value)
-  }
-})
-
-watch(() => modelParameters.value.leftEyebrowForm, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowLForm', value)
-  }
-})
-
-watch(() => modelParameters.value.rightEyebrowForm, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowRForm', value)
-  }
-})
+}, { deep: true })
 
 // Watch for idle animation setting changes and stop motions if disabled
 watch(live2dIdleAnimationEnabled, (enabled) => {

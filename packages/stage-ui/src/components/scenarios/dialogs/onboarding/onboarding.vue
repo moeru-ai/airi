@@ -39,12 +39,16 @@ const {
   activeProvider,
 } = storeToRefs(consciousnessStore)
 
-// Popular providers for first-time setup
-const popularProviders = computed(() => {
-  const popular = ['openai', 'anthropic', 'google-generative-ai', 'groq', 'nvidia', 'openrouter-ai', 'ollama', 'deepseek', 'player2', 'openai-compatible']
-  return allChatProvidersMetadata.value
-    .filter(provider => popular.includes(provider.id))
-    .sort((a, b) => popular.indexOf(a.id) - popular.indexOf(b.id))
+const availableProviders = computed(() => {
+  const preferredOrder = ['openai', 'anthropic', 'amazon-bedrock', 'google-generative-ai', 'groq', 'nvidia', 'openrouter-ai', 'ollama', 'deepseek', 'player2', 'openai-compatible']
+  const preferredProviders = allChatProvidersMetadata.value
+    .filter(provider => preferredOrder.includes(provider.id))
+    .sort((a, b) => preferredOrder.indexOf(a.id) - preferredOrder.indexOf(b.id))
+  const remainingProviders = allChatProvidersMetadata.value
+    .filter(provider => !preferredOrder.includes(provider.id))
+    .sort((a, b) => (a.localizedName || a.name || a.id).localeCompare(b.localizedName || b.name || b.id))
+
+  return [...preferredProviders, ...remainingProviders]
 })
 
 // Selected provider and form data
@@ -81,6 +85,12 @@ async function saveProviderConfiguration(data: ProviderConfigData) {
     config.baseUrl = data.baseUrl.trim()
   if (data.accountId)
     config.accountId = data.accountId.trim()
+  if (data.accessKeyId)
+    config.accessKeyId = data.accessKeyId.trim()
+  if (data.secretAccessKey)
+    config.secretAccessKey = data.secretAccessKey.trim()
+  if (data.region)
+    config.region = data.region.trim()
 
   providers.value[selectedProvider.value.id] = {
     ...providers.value[selectedProvider.value.id],
@@ -113,7 +123,7 @@ const allSteps = computed<OnboardingStep[]>(() => {
       component: StepProviderSelection,
       props: () => ({
         selectedProviderId: selectedProviderId.value,
-        popularProviders: popularProviders.value,
+        availableProviders: availableProviders.value,
         onSelectProvider: selectProvider,
       }),
     },

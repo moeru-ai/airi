@@ -30,4 +30,9 @@ viewers:
       camera: Caméra
       model:
         title: Modèle
+profile-switcher:
+  no-profile: No Profile
+  no-profiles: No profiles yet
+  save-as-new: Save as New Profile
+  manage: Manage Profiles
 waiting: En attente

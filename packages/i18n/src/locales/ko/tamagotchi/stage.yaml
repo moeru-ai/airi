@@ -21,9 +21,15 @@ docs:
   'switch-to-dark-mode': 다크 모드로 전환
   'pin-on-top': 맨 위에 고정
   'unpin-from-top': 맨 위 고정 해제
+  'switch-profile': Switch Profile
   'close': 닫기
+  'hide': 숨기기
   'expand': 확장
   'collapse': 접기
+'status-island':
+  connected: WebSocket connected
+  disconnected: WebSocket disconnected
+  'open-settings': Open WebSocket settings
 notice:
   'fade-on-hover':
     title: 호버 시 페이드

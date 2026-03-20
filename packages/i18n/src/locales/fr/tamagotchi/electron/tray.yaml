@@ -8,6 +8,10 @@ menu:
       half_height: Demi-hauteur
       full_screen: Plein écran
       align_to: Aligner sur
+      position: Position
+      lock: Verrouiller
+      snapshot: Instantanée
+      restore: Restaurer
       center: Centrer
       top_left: En haut à gauche
       top_right: En haut à droite
@@ -18,6 +22,7 @@ menu:
       open_inlay: Ouvrir l'incrustation...
       open_widgets: Ouvrir les widgets...
       open_caption: Ouvrir le sous-titrage...
+      close_caption: Close Caption...
       caption_overlay: Superposition des sous-titres
       follow_window: Suivre la fenêtre
       reset_position: Réinitialiser la position

@@ -9,7 +9,7 @@ import { useI18n } from 'vue-i18n'
 import { RadioCardDetail } from '../../../menu'
 
 interface Props {
-  popularProviders: ProviderMetadata[]
+  availableProviders: ProviderMetadata[]
   selectedProviderId: string
   onSelectProvider: (provider: ProviderMetadata) => void
   onNext: OnboardingStepNextHandler
@@ -22,7 +22,7 @@ const { t } = useI18n()
 const selectedProviderIdModel = computed({
   get: () => props.selectedProviderId,
   set: (providerId: string) => {
-    const provider = props.popularProviders.find(item => item.id === providerId)
+    const provider = props.availableProviders.find(item => item.id === providerId)
     if (provider)
       props.onSelectProvider(provider)
   },
@@ -43,7 +43,7 @@ const selectedProviderIdModel = computed({
     <div class="flex-1 overflow-y-auto">
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <RadioCardDetail
-          v-for="provider in props.popularProviders"
+          v-for="provider in props.availableProviders"
           :id="provider.id"
           :key="provider.id"
           v-model="selectedProviderIdModel"

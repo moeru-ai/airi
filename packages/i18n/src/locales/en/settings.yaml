@@ -20,8 +20,12 @@ dialogs:
     baseUrlHelp: API endpoint URL (use default if unsure)
     accountId: Account ID
     validationSuccess: Configuration validation success
+    validationPartial: Configuration partially validated
     validationFailed: Configuration validation failed
     validationError: 'Validation error: {error}'
+    testGeneration: Test Generation
+    testGenerationRunning: Testing...
+    testGenerationFailed: Generation test failed
     skipForNow: Skip for now
     saveAndContinue: Save and Continue
     next: Next
@@ -32,11 +36,30 @@ dialogs:
     no-models-help: >-
       Please return to the previous step and check your API key, or check the
       network connection.
+    permissions:
+      title: Notifications
+      description: You can allow notifications now or continue and set it up later.
+      notificationsTitle: Notifications
+      notificationsDescription: Allow reminders and important status updates.
+      notificationsAction: Request notification permission
+      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
+      openSettings: Open iOS Settings
+      optionalHint: You can continue even if notification permission is not granted.
+      stateUnknown: Not requested
+      stateRequesting: Requesting...
+      stateGranted: Granted
+      stateNotGranted: Not granted
 language:
   title: Language
   description: >
     Change the language of the AIRI interface. This will not affect the language
     of the character's responses.
+privacy:
+  remote-sync:
+    title: Enable Cloud Sync
+    description: >-
+      Off by default. When disabled, AIRI stays local-only and will not fetch a
+      remote session or sync chat history to airi-api.moeru.ai.
 controls-island:
   icon-size:
     title: Controls Island Icon Size
@@ -82,6 +105,16 @@ live2d:
 microphone: Microphone
 models: Model
 pages:
+  chat:
+    title: Chat
+    description: Tune how chat messages are sent and how long streaming can stay idle before it is cancelled.
+    send-mode:
+      title: Send Mode
+      description: Choose the key combination to send messages.
+      options:
+        enter: Enter
+        ctrl-enter: Ctrl + Enter
+        double-enter: Double Enter
   card:
     activate: Activate
     active: Active
@@ -126,11 +159,19 @@ pages:
         configuration will be used.
       use_default: Use default
       use_default_not_configured: Use default (not configured)
+      none: None (No background)
+      preferred_background: Preferred Scene/Background
       fields_info:
         subtitle: >-
           You can put here some details about the character you are creating,
           explain his history and context, and how your interactions should be
           answered.
+        identity_prompting: >-
+          These fields all help define the character, but they are not
+          separate runtime layers today. System Prompt is used in AIRI's active
+          prompt assembly. Post-History Instructions is currently kept mainly
+          for card compatibility and future prompt-pipeline work, so you can
+          fill it out now without expecting distinct live behavior yet.
         name: Is the formal name of this character.
         nickname: You can also give a nickname that will be used in priority.
         description: Description of this character.
@@ -141,8 +182,8 @@ pages:
         scenario: What are the surroundings ? What is the current situation ?
         greetings_field: Greetings
         greetings: How your character should say "hello" ?
-        systemprompt: Explain here to the AI LLM how it should answer when prompted.
-        posthistoryinstructions: Place here anything the AI LLM should read after the messages history.
+        systemprompt: The main instructions AIRI actively uses today when building this character's prompt.
+        posthistoryinstructions: Stored for card compatibility and future prompt compaction work. It is not currently applied as a distinct live prompt stage.
         version: >-
           Card version, you should increase this if you are making changes from
           a previous card.
@@ -167,6 +208,7 @@ pages:
     scenario: Scenario
     search: Search cards...
     sort_by: Sort by
+    body-model: Body / Display Model
     speech:
       provider: Speech / Provider
       model: Speech / Model
@@ -237,7 +279,42 @@ pages:
           title: VRM
           description: Configure 3D VRM models and settings
         scene: Scene
+  scene:
+    title: Scene
+    description: Customize the virtual environment for your characters.
+    beta_label: Scene Beta
+    beta_description: >-
+      Welcome to the new Scenes system! Phase 2 adds a background gallery.
+      Each character card can now specify its own preferred background from this gallery.
+    background_image:
+      title: Global Default Background
+      no_background: >-
+        No global background active. Upload a square or landscape image for best
+        results.
+      upload: Upload to Gallery
+      change: Change Background
+      clear: Clear Default
+    gallery:
+      title: Scene Gallery
+      empty: No images in gallery yet. Upload one above!
+      set_as_global: Set as Global Default
+      delete: Delete from Gallery
+      global_badge: Global Default
+      active_badge: Current Scene
+    tip:
+      label: Tip!
+      description: >-
+        Using a square image will leverage <b>cover</b> cropping in portrait
+        mode, focusing on the center of the scene.
   modules:
+    artistry:
+      description: Generate images and visual content during conversations
+      title: Artistry
+      widget-instructions:
+        label: Widget Spawning Instructions
+        description: >-
+          The instructions provided to the AI LLM to teach it how to use the
+          artistry widget system. If empty, the system default will be used.
     beat_sync:
       description: Vibe with beats from the audio source
       title: Beat Sync
@@ -296,6 +373,7 @@ pages:
           provider-model-selection:
             collapse: Collapse
             custom_model_placeholder: Enter custom model name...
+            current_model_label: 'Current model:'
             description: Select the suitable LLM provider for consciousness
             error: Error loading models
             health_check_failed: Health check failed
@@ -354,6 +432,13 @@ pages:
         section:
           provider-selection:
             description: Select the suitable speech recognition provider
+          hotkey:
+            title: Mic Toggle Hotkey
+            description: Toggle the microphone using a keyboard lock key (Scroll, Caps, or Num Lock). Your keyboard's LED will stay in sync with AIRI's mic status.
+            options:
+              scroll: Scroll Lock
+              caps: Caps Lock
+              num: Num Lock
     memory-long-term:
       description: Long-term memory specific settings and management
       title: Long-Term Memory
@@ -577,9 +662,33 @@ pages:
       browser-local-audio-speech:
         title: Browser (Local)
         description: https://github.com/moeru-ai/xsai-transformers
+      replicate:
+        title: Replicate
+        settings:
+          title: Replicate.ai User Configuration
+      comfyui:
+        title: ComfyUI
+        settings:
+          title: ComfyUI User Configuration
       alibaba-cloud-model-studio:
         description: bailian.console.aliyun.com
         title: Alibaba Cloud Model Studio
+      amazon-bedrock:
+        title: Amazon Bedrock
+        description: aws.amazon.com/bedrock
+        config:
+          access-key-id:
+            label: AWS Access Key ID
+            description: Your AWS IAM Access Key ID
+          secret-access-key:
+            label: AWS Secret Access Key
+            description: Your AWS IAM Secret Access Key
+          session-token:
+            label: Session Token (optional)
+            description: AWS temporary session token (for STS/assumed roles)
+          region:
+            label: AWS Region
+            description: AWS region where Bedrock is enabled (e.g. us-east-1, us-west-2)
       anthropic:
         description: anthropic.com
         title: Anthropic | Claude
@@ -744,6 +853,9 @@ pages:
       openai-compatible:
         description: OpenAI Compatible
         title: OpenAI Compatible
+      chatterbox:
+        description: Local Chatterbox TTS server
+        title: Chatterbox
       nvidia:
         description: build.nvidia.com
         title: NVIDIA NIM
@@ -751,6 +863,9 @@ pages:
         description: n1n.ai - High-performance AI API provider.
         title: n1n
       openrouter:
+        description: openrouter.ai
+        title: OpenRouter
+      openrouter-audio-speech:
         description: openrouter.ai
         title: OpenRouter
       perplexity:
@@ -788,6 +903,12 @@ pages:
       xai:
         description: x.ai
         title: xAI
+      xai-audio-speech:
+        description: x.ai - Grok Text-to-Speech
+        title: xAI Grok TTS
+      xai-audio-transcription:
+        description: x.ai - Grok Speech-to-Text
+        title: xAI Grok STT
       302-ai:
         description: 302.AI
         title: 302.AI
@@ -817,9 +938,6 @@ pages:
       description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
       label: WebSocket Server Address
       placeholder: ws://localhost:6121/ws
-  scene:
-    description: Configure the environment where the character lives
-    title: Scene
   system:
     color-scheme:
       description: Change the color scheme of the stage.
@@ -892,7 +1010,7 @@ pages:
                   transcripts
               performance-playground:
                 title: Performance Playground
-                description: 'Test performance runtime: VRM expressions + TTS lip sync'
+                description: 'VRM expressions + TTS lip sync playground'
         theme-presets:
           presets:
             default:
@@ -988,6 +1106,8 @@ vrm:
     from-url-placeholder: Enter VRM model URL
     title: Change Model
   title: VRM Settings
+  idle-animation:
+    title: Default Idle Animation
   scale-and-position:
     model-info-title: Model Size Information
     model-info-x: Width (X)
@@ -1030,3 +1150,21 @@ wip:
   description: >-
     This feature is currently under development and not yet publicly available.
     Check back in future updates for this functionality.
+chat:
+  send-mode:
+    title: Send Key
+    description: Choose how you want the chat input to send a message.
+    options:
+      enter: Enter to send
+      ctrl-enter: Ctrl+Enter to send
+      double-enter: Double Enter to send
+  stream-idle-timeout:
+    title: Stream Idle Timeout
+    description: Cancel a response if the model stream stops producing events for too long.
+    options:
+      10s: 10 seconds
+      15s: 15 seconds
+      30s: 30 seconds
+      45s: 45 seconds
+      60s: 60 seconds
+      120s: 2 minutes

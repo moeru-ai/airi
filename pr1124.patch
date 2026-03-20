@@ -1,0 +1,115 @@
+﻿From 99f3d57ccde585d7cb4750f4de3d585938c70611 Mon Sep 17 00:00:00 2001
+From: cat1949 <105532083+cat1949@users.noreply.github.com>
+Date: Thu, 5 Mar 2026 08:44:43 +0800
+Subject: [PATCH 1/3] fix(stage-tamagotchi): guard stdout and stderr against
+ EPIPE
+
+---
+ apps/stage-tamagotchi/src/main/index.ts | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/apps/stage-tamagotchi/src/main/index.ts b/apps/stage-tamagotchi/src/main/index.ts
+index 56d3a3e4d3..64f2aae181 100644
+--- a/apps/stage-tamagotchi/src/main/index.ts
++++ b/apps/stage-tamagotchi/src/main/index.ts
+@@ -34,11 +34,24 @@ import { setupNoticeWindowManager } from './windows/notice'
+ import { setupSettingsWindowReusableFunc } from './windows/settings'
+ import { setupWidgetsWindowManager } from './windows/widgets'
+ 
++function installStreamErrorGuards() {
++  const guard = (error: NodeJS.ErrnoException) => {
++    // Ignore broken pipe style errors from detached/closed console streams.
++    if (error?.code === 'EPIPE' || error?.code === 'ERR_STREAM_DESTROYED') {
++
++    }
++  }
++
++  process.stdout?.on('error', guard)
++  process.stderr?.on('error', guard)
++}
++
+ // TODO: once we refactored eventa to support window-namespaced contexts,
+ // we can remove the setMaxListeners call below since eventa will be able to dispatch and
+ // manage events within eventa's context system.
+ ipcMain.setMaxListeners(100)
+ 
++installStreamErrorGuards()
+ setElectronMainDirname(dirname(fileURLToPath(import.meta.url)))
+ setGlobalFormat(Format.Pretty)
+ setGlobalLogLevel(LogLevel.Log)
+
+From 27268fc2546aad2a409fec2795b011e733bf3e14 Mon Sep 17 00:00:00 2001
+From: "autofix-ci[bot]" <114827586+autofix-ci[bot]@users.noreply.github.com>
+Date: Thu, 5 Mar 2026 12:58:48 +0000
+Subject: [PATCH 2/3] [autofix.ci] apply automated fixes
+
+---
+ pnpm-lock.yaml | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index 01f688ea8d..519beeed60 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -3157,7 +3157,7 @@ importers:
+         version: 14.1.0(vue@3.5.29(typescript@5.9.3))
+       '@wxt-dev/module-vue':
+         specifier: ^1.0.3
+-        version: 1.0.3(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))(wxt@0.20.18(@types/node@24.10.14)(canvas@3.2.1)(eslint@9.39.3(jiti@2.6.1))(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
++        version: 1.0.3(vite@7.3.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))(wxt@0.20.18(@types/node@24.10.14)(canvas@3.2.1)(eslint@9.39.3(jiti@2.6.1))(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+       nanoid:
+         specifier: ^5.1.6
+         version: 5.1.6
+@@ -23334,9 +23334,9 @@ snapshots:
+       '@types/filesystem': 0.0.36
+       '@types/har-format': 1.2.16
+ 
+-  '@wxt-dev/module-vue@1.0.3(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))(wxt@0.20.18(@types/node@24.10.14)(canvas@3.2.1)(eslint@9.39.3(jiti@2.6.1))(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))':
++  '@wxt-dev/module-vue@1.0.3(vite@7.3.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))(wxt@0.20.18(@types/node@24.10.14)(canvas@3.2.1)(eslint@9.39.3(jiti@2.6.1))(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))':
+     dependencies:
+-      '@vitejs/plugin-vue': 6.0.4(vite@8.0.0-beta.15(@types/node@24.10.14)(esbuild@0.27.2)(jiti@2.6.1)(less@4.5.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))
++      '@vitejs/plugin-vue': 6.0.4(vite@7.3.1(@types/node@24.10.14)(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))
+       wxt: 0.20.18(@types/node@24.10.14)(canvas@3.2.1)(eslint@9.39.3(jiti@2.6.1))(jiti@2.6.1)(less@4.5.1)(lightningcss@1.31.1)(rollup@4.59.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+     transitivePeerDependencies:
+       - vite
+
+From ac6482b73913272dd850a16cdcc9956e82b429df Mon Sep 17 00:00:00 2001
+From: cat1949 <105532083+cat1949@users.noreply.github.com>
+Date: Sat, 7 Mar 2026 11:22:29 +0800
+Subject: [PATCH 3/3] fix(stage-tamagotchi): rethrow unexpected stream errors
+
+---
+ apps/stage-tamagotchi/src/main/index.ts | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/apps/stage-tamagotchi/src/main/index.ts b/apps/stage-tamagotchi/src/main/index.ts
+index 64f2aae181..dbafa670df 100644
+--- a/apps/stage-tamagotchi/src/main/index.ts
++++ b/apps/stage-tamagotchi/src/main/index.ts
+@@ -1,5 +1,5 @@
+ import { dirname } from 'node:path'
+-import { env, platform } from 'node:process'
++import { env, platform, stderr, stdout } from 'node:process'
+ import { fileURLToPath } from 'node:url'
+ 
+ import messages from '@proj-airi/i18n/locales'
+@@ -38,12 +38,16 @@ function installStreamErrorGuards() {
+   const guard = (error: NodeJS.ErrnoException) => {
+     // Ignore broken pipe style errors from detached/closed console streams.
+     if (error?.code === 'EPIPE' || error?.code === 'ERR_STREAM_DESTROYED') {
+-
++      return
+     }
++
++    // NOTICE: Attaching an 'error' listener marks the error as handled.
++    // Re-throw unexpected stream errors so they still surface during development and crash reporting.
++    throw error
+   }
+ 
+-  process.stdout?.on('error', guard)
+-  process.stderr?.on('error', guard)
++  stdout?.on('error', guard)
++  stderr?.on('error', guard)
+ }
+ 
+ // TODO: once we refactored eventa to support window-namespaced contexts,

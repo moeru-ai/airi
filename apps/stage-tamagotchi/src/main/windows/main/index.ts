@@ -9,6 +9,7 @@ import type { McpStdioManager } from '../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
 import type { NoticeWindowManager } from '../notice'
 import type { OnboardingWindowManager } from '../onboarding'
+import type { SettingsWindowManager } from '../settings'
 import type { WidgetsWindowManager } from '../widgets'
 
 import { dirname, resolve } from 'node:path'
@@ -28,7 +29,7 @@ import { transparentWindowConfig } from '../shared'
 import { setupMainWindowElectronInvokes } from './rpc/index.electron'
 
 export async function setupMainWindow(params: {
-  settingsWindow: () => Promise<BrowserWindow>
+  settingsWindow: SettingsWindowManager
   chatWindow: () => Promise<BrowserWindow>
   widgetsManager: WidgetsWindowManager
   noticeWindow: NoticeWindowManager
@@ -40,7 +41,7 @@ export async function setupMainWindow(params: {
   onboardingWindowManager: OnboardingWindowManager
   appConfig: Config<typeof globalAppConfigSchema>
 }) {
-  const getConfig = (): InferOutput<typeof globalAppConfigSchema> => params.appConfig.get() ?? { language: 'en', windows: [] }
+  const getConfig = (): InferOutput<typeof globalAppConfigSchema> => params.appConfig.get() ?? { language: 'en', windows: [], microphoneToggleHotkey: 'Scroll' }
   const updateConfig = (newData: InferOutput<typeof globalAppConfigSchema>) => params.appConfig.update(newData)
 
   const mainWindowConfig = getConfig().windows?.find((w: any) => w.title === 'AIRI' && w.tag === 'main')
@@ -83,8 +84,18 @@ export async function setupMainWindow(params: {
     catch {}
   }
 
+  function restoreBounds() {
+    const mainWindow = getConfig().windows?.find((w: any) => w.title === 'AIRI' && w.tag === 'main')
+    if (mainWindow?.snapshot) {
+      window.setBounds(mainWindow.snapshot)
+    }
+  }
+
   window.on('ready-to-show', () => {
+    restoreBounds()
     window.show()
+    // NOTICE: on some platforms/transparency settings, first bounds application might be ignored
+    setTimeout(() => restoreBounds(), 500)
   })
 
   window.webContents.setWindowOpenHandler((details) => {

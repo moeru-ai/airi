@@ -9,11 +9,16 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { usePluginHostInspectorStore } from '@proj-airi/stage-ui/stores/devtools/plugin-host-debug'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { clearMcpToolBridge, setMcpToolBridge } from '@proj-airi/stage-ui/stores/mcp-tool-bridge'
+import { useShortTermMemoryStore } from '@proj-airi/stage-ui/stores/memory-short-term'
+import { useTextJournalStore } from '@proj-airi/stage-ui/stores/memory-text-journal'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { useDiscordStore } from '@proj-airi/stage-ui/stores/modules/discord'
+import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { usePerfTracerBridgeStore } from '@proj-airi/stage-ui/stores/perf-tracer-bridge'
 import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from '@proj-airi/stage-ui/stores/plugin-host-capabilities'
+import { useProactivityStore } from '@proj-airi/stage-ui/stores/proactivity'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -28,6 +33,7 @@ import {
   electronGetServerChannelConfig,
   electronMcpCallTool,
   electronMcpListTools,
+  electronOpenOnboarding,
   electronOpenSettings,
   electronPluginInspect,
   electronPluginList,
@@ -42,6 +48,7 @@ import {
   pluginProtocolListProvidersEventName,
 } from '../shared/eventa'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
+import { builtinTools } from './stores/tools/builtin'
 
 const { isDark: dark } = useTheme()
 const i18n = useI18n()
@@ -50,15 +57,45 @@ const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
 const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(settingsStore)
 const serverChannelSettingsStore = useServerChannelSettingsStore()
+const onboardingStore = useOnboardingStore()
 const router = useRouter()
 const route = useRoute()
 const cardStore = useAiriCardStore()
+const { activeCard } = storeToRefs(cardStore)
 const chatSessionStore = useChatSessionStore()
 const serverChannelStore = useModsServerChannelStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
 const analyticsStore = useSharedAnalyticsStore()
 const pluginHostInspectorStore = usePluginHostInspectorStore()
+const discordStore = useDiscordStore()
+const textJournalStore = useTextJournalStore()
+const shortTermMemoryStore = useShortTermMemoryStore()
 usePerfTracerBridgeStore()
+
+const proactivityStore = useProactivityStore()
+
+async function seedTextJournalEntryFromWindow() {
+  await textJournalStore.load()
+  const entry = await textJournalStore.seedActiveCharacterEntry()
+  console.log('[TextJournal] Seeded entry via window.seedTextJournalEntry()', entry)
+  return entry
+}
+
+async function ensureYesterdayShortTermBlockForActiveCharacter() {
+  if (!cardStore.activeCardId)
+    return
+
+  try {
+    await shortTermMemoryStore.ensureYesterdayBlock(cardStore.activeCardId)
+  }
+  catch (error) {
+    console.warn('[ShortTermMemory] Failed to auto-generate yesterday block.', error)
+  }
+}
+
+Object.assign(window as Window & typeof globalThis, {
+  seedTextJournalEntry: seedTextJournalEntryFromWindow,
+})
 
 const context = useElectronEventaContext()
 const getServerChannelConfig = useElectronEventaInvoke(electronGetServerChannelConfig)
@@ -73,6 +110,7 @@ const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapab
 const listMcpTools = useElectronEventaInvoke(electronMcpListTools)
 const callMcpTool = useElectronEventaInvoke(electronMcpCallTool)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
+const openOnboarding = useElectronEventaInvoke(electronOpenOnboarding)
 
 // NOTICE: register plugin host bridge during setup to avoid race with pages using it in immediate watchers.
 pluginHostInspectorStore.setBridge({
@@ -102,20 +140,45 @@ watch(route, () => updateThemeColor(), { immediate: true })
 onMounted(() => updateThemeColor())
 
 onMounted(async () => {
+  const startupAt = performance.now()
+  const logStep = (label: string) => {
+    console.log(`[App] ${label} (+${Math.round(performance.now() - startupAt)}ms)`)
+  }
+
+  logStep('onMounted start')
+  proactivityStore.registerTools(builtinTools)
+  proactivityStore.startHeartbeatLoop()
+
+  logStep('Initializing Analytics & Card stores')
   analyticsStore.initialize()
   cardStore.initialize()
+  await textJournalStore.load()
 
+  logStep('Initializing chat session')
   await chatSessionStore.initialize()
+  logStep('Loading short-term memory')
+  await shortTermMemoryStore.load()
+  logStep('Checking yesterday short-term block')
+  await ensureYesterdayShortTermBlockForActiveCharacter()
+  logStep('Loading display models')
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
+  logStep('Initializing stage model')
   await settingsStore.initializeStageModel()
 
+  logStep('Requesting server channel config')
   const serverChannelConfig = await getServerChannelConfig()
-  serverChannelSettingsStore.websocketTlsConfig = serverChannelConfig.tlsConfig
+  logStep('Received server channel config')
+  serverChannelSettingsStore.websocketTlsConfig = serverChannelConfig.websocketTlsConfig
 
+  logStep('Initializing server channel store')
   await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
+  logStep('Initializing context bridge')
   await contextBridgeStore.initialize()
+  logStep('Initializing character orchestrator')
   characterOrchestratorStore.initialize()
+  logStep('Starting cursor tracking')
   await startTrackingCursorPoint()
+  logStep('Startup initialization complete')
 
   // Expose stage provider definitions to plugin host APIs.
   defineInvokeHandler(context.value, pluginProtocolListProviders, async () => listProvidersForPluginHost())
@@ -130,6 +193,20 @@ onMounted(async () => {
     })
   }
 
+  // Broadcast Discord configuration if enabled
+  if (discordStore.enabled) {
+    discordStore.saveSettings()
+  }
+
+  // Listen for new modules joining and push config to Discord bot if it joins
+  serverChannelStore.onEvent('registry:modules:sync', (event) => {
+    const hasDiscord = event.data.modules.some(m => m.name === 'discord')
+    if (hasDiscord && discordStore.enabled) {
+      console.log('[App] Discord bot detected in registry, pushing configuration...')
+      discordStore.saveSettings()
+    }
+  })
+
   // Listen for open-settings IPC message from main process
   defineInvokeHandler(context.value, electronOpenSettings, () => router.push('/settings'))
 })
@@ -142,9 +219,76 @@ watch(themeColorsHueDynamic, () => {
   document.documentElement.classList.toggle('dynamic-hue', themeColorsHueDynamic.value)
 }, { immediate: true })
 
+watch(
+  () => cardStore.activeCardId,
+  async (nextCardId, previousCardId) => {
+    if (!nextCardId || nextCardId === previousCardId)
+      return
+
+    await ensureYesterdayShortTermBlockForActiveCharacter()
+  },
+)
+
+watch(
+  () => [route.path, route.meta.titleKey, route.meta.title],
+  () => {
+    if (!route.path.startsWith('/settings'))
+      return
+
+    const titleKey = typeof route.meta.titleKey === 'string' ? route.meta.titleKey : undefined
+    const rawTitle = typeof route.meta.title === 'string' ? route.meta.title : undefined
+    const resolvedTitle = titleKey ? i18n.t(titleKey) : rawTitle
+    const parts = ['AIRI', 'Settings']
+
+    if (resolvedTitle && resolvedTitle !== i18n.t('settings.title'))
+      parts.push(resolvedTitle)
+
+    const nextTitle = parts.join(' - ')
+
+    if (document.title !== nextTitle) {
+      console.log('[AppTitle] Updating settings title', {
+        from: document.title,
+        to: nextTitle,
+        route: route.path,
+      })
+      document.title = nextTitle
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => [route.path, activeCard.value?.name],
+  () => {
+    if (route.path.startsWith('/settings') || route.path === '/chat')
+      return
+
+    const activeCharacterLabel = activeCard.value?.name?.trim() || 'AIRI'
+    const nextTitle = `AIRI - Looking at ${activeCharacterLabel}`
+
+    if (document.title !== nextTitle) {
+      console.log('[AppTitle] Updating main title', {
+        from: document.title,
+        to: nextTitle,
+        route: route.path,
+        activeCharacterLabel,
+      })
+      document.title = nextTitle
+    }
+  },
+  { immediate: true },
+)
+
+watch(() => onboardingStore.needsOnboarding, () => {
+  if (onboardingStore.needsOnboarding) {
+    openOnboarding()
+  }
+}, { immediate: true })
+
 onUnmounted(() => {
   contextBridgeStore.dispose()
   clearMcpToolBridge()
+  proactivityStore.stopHeartbeatLoop()
 })
 </script>
 

@@ -9,11 +9,12 @@ import type { EmotionPayload } from '../../constants/emotions'
 
 import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
 import { getImportUrlBundles } from '@proj-airi/drizzle-duckdb-wasm/bundles/import-url-browser'
+import { useElectronWindowResizeStateEvent } from '@proj-airi/electron-vueuse'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeechPipeline } from '@proj-airi/pipelines-audio'
 import { Live2DScene, useLive2d } from '@proj-airi/stage-ui-live2d'
-import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
+import { ThreeScene, useCustomVrmAnimationsStore, useModelStore } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
 import { createQueue } from '@proj-airi/stream-kit'
 import { useBroadcastChannel } from '@vueuse/core'
@@ -24,14 +25,18 @@ import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
-import { useDelayMessageQueue, useEmotionsMessageQueue } from '../../composables/queues'
+import { useSpecialTokenQueue } from '../../composables/queues'
+import { categorizeResponse } from '../../composables/response-categoriser'
 import { llmInferenceEndToken } from '../../constants'
 import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useChatOrchestratorStore } from '../../stores/chat'
+import { useModsServerChannelStore } from '../../stores/mods/api/channel-server'
 import { useAiriCardStore } from '../../stores/modules'
+import { useConsciousnessStore } from '../../stores/modules/consciousness'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
+import { useSceneStore } from '../../stores/scene'
 import { useSettings } from '../../stores/settings'
 import { useSpeechRuntimeStore } from '../../stores/speech-runtime'
 
@@ -57,6 +62,7 @@ const {
   stageViewControlsEnabled,
   live2dDisableFocus,
   stageModelSelectedUrl,
+  stageModelSelectedFile,
   stageModelSelected,
   themeColorsHue,
   themeColorsHueDynamic,
@@ -77,10 +83,10 @@ const chatHookCleanups: Array<() => void> = []
 //             cross-window broadcast wiring.
 
 const providersStore = useProvidersStore()
+const consciousnessStore = useConsciousnessStore()
 const live2dStore = useLive2d()
 const vrmStore = useModelStore()
-
-const showStage = ref(true)
+const customVrmAnimationsStore = useCustomVrmAnimationsStore()
 const viewUpdateCleanups: Array<() => void> = []
 
 // Caption + Presentation broadcast channels
@@ -95,20 +101,12 @@ type PresentEvent
     | { type: 'assistant-append', text: string }
 const { post: postPresent } = useBroadcastChannel<PresentEvent, PresentEvent>({ name: 'airi-chat-present' })
 
-viewUpdateCleanups.push(live2dStore.onShouldUpdateView(async () => {
-  showStage.value = false
-  await settingsStore.updateStageModel()
-  setTimeout(() => {
-    showStage.value = true
-  }, 100)
+viewUpdateCleanups.push(live2dStore.onShouldUpdateView(() => {
+  // Live2D models already handle their own reload path inside the scene package.
 }))
 
-viewUpdateCleanups.push(vrmStore.onShouldUpdateView(async () => {
-  showStage.value = false
-  await settingsStore.updateStageModel()
-  setTimeout(() => {
-    showStage.value = true
-  }, 100)
+viewUpdateCleanups.push(vrmStore.onShouldUpdateView(() => {
+  // VRM reloads are driven by modelSrc changes after updateStageModel().
 }))
 
 const audioAnalyser = ref<AnalyserNode>()
@@ -121,47 +119,198 @@ const live2dLipSyncOptions: Live2DLipSyncOptions = { mouthUpdateIntervalMs: 50, 
 const { activeCard } = storeToRefs(useAiriCardStore())
 const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
+const { activeProvider: activeChatProvider } = storeToRefs(consciousnessStore)
 const activeCardId = computed(() => activeCard.value?.name ?? 'default')
 const speechRuntimeStore = useSpeechRuntimeStore()
+const sceneStore = useSceneStore()
 
-const { currentMotion } = storeToRefs(useLive2d())
+const { activeBackgroundUrl } = storeToRefs(sceneStore)
+const resizeStateEventName = useElectronWindowResizeStateEvent()
+const isWindowResizing = ref(false)
+const reducedRenderScale = computed(() => {
+  const nextScale = Math.min(vrmStore.renderScale, 0.75)
+  return Math.max(0.5, nextScale)
+})
+function handleResizeStateChange(event: Event) {
+  const customEvent = event as CustomEvent<{ active?: boolean }>
+  isWindowResizing.value = !!customEvent.detail?.active
+}
+
+const { currentMotion, availableExpressions: live2dExpressions, expressionData: live2dExpressionData, activeExpressions: live2dActiveExpressions, modelParameters: live2dModelParameters } = storeToRefs(live2dStore)
+
+const temporaryVrma = ref<string | null>(null)
+let temporaryVrmaTimeout: ReturnType<typeof setTimeout> | null = null
+
+const vrmActiveAnimation = computed(() => {
+  const vrmaKey = temporaryVrma.value || vrmStore.vrmIdleAnimation
+  return customVrmAnimationsStore.resolveAnimationUrl(vrmaKey)
+})
 
 const emotionsQueue = createQueue<EmotionPayload>({
   handlers: [
     async (ctx) => {
       if (stageModelRenderer.value === 'vrm') {
-        // console.debug('VRM emotion anime: ', ctx.data)
-        const value = EMOTION_VRMExpressionName_value[ctx.data.name]
+        const emotionName = ctx.data.name
+        const isVrma = emotionName in animations
+
+        if (isVrma) {
+          temporaryVrma.value = emotionName
+        }
+
+        const value = (EMOTION_VRMExpressionName_value as any)[emotionName] ?? emotionName
+
         if (!value)
           return
 
-        await vrmViewerRef.value!.setExpression(value, ctx.data.intensity)
+        if (vrmViewerRef.value) {
+          // Only trigger expression if it's a known mapping or a valid raw expression.
+          // This prevents warnings and interference for motion-only tokens.
+          const isExpression = emotionName in EMOTION_VRMExpressionName_value || vrmViewerRef.value.listExpressions().includes(value)
+
+          if (isExpression) {
+            vrmViewerRef.value.setExpression(value, ctx.data.intensity, 2000)
+          }
+        }
+        else {
+          console.warn('[Stage] vrmViewerRef is NULL')
+        }
       }
       else if (stageModelRenderer.value === 'live2d') {
-        currentMotion.value = { group: EMOTION_EmotionMotionName_value[ctx.data.name] }
+        const emotionName = ctx.data.name
+        // eslint-disable-next-line no-console
+        console.log('[Stage] Live2D emotion processing:', { name: emotionName, intensity: ctx.data.intensity })
+
+        // Case-insensitive match against available Live2D expressions
+        const matchedExp = live2dExpressions.value.find(
+          e => e.name.toLowerCase() === emotionName.toLowerCase(),
+        )
+
+        if (matchedExp) {
+          // eslint-disable-next-line no-console
+          console.log('[Stage] Live2D expression matched:', matchedExp.name, matchedExp.fileName)
+
+          // Apply the expression parameters
+          const expEntry = live2dExpressionData.value.find((e: any) => e.fileName === matchedExp.fileName)
+          if (expEntry?.data?.Parameters) {
+            // Store original values so we can restore them
+            const originalValues: Record<string, number> = {}
+            for (const param of expEntry.data.Parameters) {
+              const id = param.Id || param.id
+              const value = param.Value ?? param.value
+              if (id !== undefined && value !== undefined) {
+                originalValues[id] = live2dModelParameters.value[id] ?? 0
+                live2dModelParameters.value[id] = value
+              }
+            }
+            // Mark as active
+            live2dActiveExpressions.value = { ...live2dActiveExpressions.value, [matchedExp.fileName]: 1 }
+
+            // Auto-reset after 2 seconds (like VRM)
+            setTimeout(() => {
+              for (const [id, origValue] of Object.entries(originalValues)) {
+                live2dModelParameters.value[id] = origValue
+              }
+              live2dActiveExpressions.value = { ...live2dActiveExpressions.value, [matchedExp.fileName]: 0 }
+              // eslint-disable-next-line no-console
+              console.log('[Stage] Live2D expression auto-reset:', matchedExp.name)
+            }, 2000)
+          }
+        }
+        else {
+          // Fallback: try motion mapping
+          const motionGroup = (EMOTION_EmotionMotionName_value as any)[emotionName]
+          if (motionGroup) {
+            currentMotion.value = { group: motionGroup }
+          }
+          else {
+            console.warn('[Stage] No Live2D expression or motion found for:', emotionName)
+          }
+        }
       }
     },
   ],
 })
 
-const emotionMessageContentQueue = useEmotionsMessageQueue(emotionsQueue)
-emotionMessageContentQueue.onHandlerEvent('emotion', (emotion) => {
+const specialTokenQueue = useSpecialTokenQueue(emotionsQueue)
+specialTokenQueue.onHandlerEvent('emotion', (emotion) => {
   // eslint-disable-next-line no-console
-  console.debug('emotion detected', emotion)
+  console.log('[Stage] Emotion token detected:', emotion)
 })
-
-const delaysQueue = useDelayMessageQueue()
-delaysQueue.onHandlerEvent('delay', (delay) => {
+specialTokenQueue.onHandlerEvent('delay', (delay) => {
   // eslint-disable-next-line no-console
-  console.debug('delay detected', delay)
+  console.log('[Stage] Delay token detected:', delay)
 })
 
 // Play special token: delay or emotion
 function playSpecialToken(special: string) {
-  delaysQueue.enqueue(special)
-  emotionMessageContentQueue.enqueue(special)
+  // eslint-disable-next-line no-console
+  console.log('[Stage] Enqueueing special token:', special)
+  specialTokenQueue.enqueue(special)
 }
+
+const modsServer = useModsServerChannelStore()
+
+function processMarkers(content: string) {
+  const markers = content.match(/<\|(?:ACT|DELAY)[^\r\n]*?(?:\|>|>)/gi)
+  if (markers) {
+    // eslint-disable-next-line no-console
+    console.debug('[Stage] Markers detected:', markers)
+    for (const marker of markers) {
+      playSpecialToken(marker)
+    }
+  }
+}
+
+modsServer.onEvent('output:gen-ai:chat:message', (event) => {
+  // eslint-disable-next-line no-console
+  console.debug('[Stage] Received external message:', event.data)
+  if (typeof event.data?.message?.content === 'string') {
+    processMarkers(event.data.message.content)
+  }
+})
+
+modsServer.onEvent('input:text', (event) => {
+  // eslint-disable-next-line no-console
+  console.debug('[Stage] Received external input:', event.data)
+  if (event.data?.text) {
+    processMarkers(event.data.text)
+  }
+})
+
 const lipSyncNode = ref<AudioNode>()
+
+if (typeof window !== 'undefined') {
+  (window as any).testEmotion = (emotion: string) => {
+    // eslint-disable-next-line no-console
+    console.log('[DEBUG] Manually triggering emotion:', emotion)
+    processMarkers(`<|ACT:{"emotion":"${emotion}"}|>`)
+  }
+
+  (window as any).listExpressions = () => {
+    const expressions = vrmViewerRef.value?.listExpressions?.()
+    // eslint-disable-next-line no-console
+    console.log('[DEBUG] Available Expressions:', expressions)
+    return expressions
+  }
+
+  (window as any).setRawExpression = (name: string, value: number) => {
+    // eslint-disable-next-line no-console
+    console.log('[DEBUG] Setting raw expression (3s reset):', name, value)
+    vrmViewerRef.value?.setExpression(name, value, 3000)
+  }
+
+  (window as any).setPersistentExpression = (name: string, value: number) => {
+    // eslint-disable-next-line no-console
+    console.log('[DEBUG] Setting persistent expression (NO reset):', name, value)
+    vrmViewerRef.value?.setExpression(name, value)
+  }
+
+  (window as any).stopAnimations = () => {
+    // eslint-disable-next-line no-console
+    console.log('[DEBUG] Stopping all animations')
+    vrmViewerRef.value?.stopAnimations()
+  }
+}
 
 async function playFunction(item: Parameters<Parameters<typeof createPlaybackManager<AudioBuffer>>[0]['play']>[0], signal: AbortSignal): Promise<void> {
   if (!audioContext || !item.audio)
@@ -181,9 +330,16 @@ async function playFunction(item: Parameters<Parameters<typeof createPlaybackMan
   currentAudioSource.value = source
   source.buffer = item.audio
 
+  // Ensure connections are robust
   source.connect(audioContext.destination)
   if (audioAnalyser.value)
     source.connect(audioAnalyser.value)
+
+  // Explicitly ensure lip-sync setup is called if not already started
+  if (!lipSyncStarted.value) {
+    await setupLipSync()
+  }
+
   if (lipSyncNode.value)
     source.connect(lipSyncNode.value)
 
@@ -263,40 +419,35 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
     let voice = activeSpeechVoice.value
 
     if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
-      // Always prefer provider config for OpenAI Compatible (user configured it there)
-      if (providerConfig?.model) {
-        model = providerConfig.model as string
-      }
-      else {
-        // Fallback to default if not in provider config
-        model = 'tts-1'
-        console.warn('[Speech Pipeline] OpenAI Compatible: No model in provider config, using default', { providerConfig })
+      // Prioritize global selections, then provider settings, then defaults
+      model = model || providerConfig?.model as string || 'tts-1'
+
+      if (!voice) {
+        if (providerConfig?.voice) {
+          voice = {
+            id: providerConfig.voice as string,
+            name: providerConfig.voice as string,
+            description: providerConfig.voice as string,
+            previewURL: '',
+            languages: [{ code: 'en', title: 'English' }],
+            provider: activeSpeechProvider.value,
+            gender: 'neutral',
+          }
+        }
+        else {
+          voice = {
+            id: 'alloy',
+            name: 'alloy',
+            description: 'alloy',
+            previewURL: '',
+            languages: [{ code: 'en', title: 'English' }],
+            provider: activeSpeechProvider.value,
+            gender: 'neutral',
+          }
+        }
       }
 
-      if (providerConfig?.voice) {
-        voice = {
-          id: providerConfig.voice as string,
-          name: providerConfig.voice as string,
-          description: providerConfig.voice as string,
-          previewURL: '',
-          languages: [{ code: 'en', title: 'English' }],
-          provider: activeSpeechProvider.value,
-          gender: 'neutral',
-        }
-      }
-      else {
-        // Fallback to default if not in provider config
-        voice = {
-          id: 'alloy',
-          name: 'alloy',
-          description: 'alloy',
-          previewURL: '',
-          languages: [{ code: 'en', title: 'English' }],
-          provider: activeSpeechProvider.value,
-          gender: 'neutral',
-        }
-        console.warn('[Speech Pipeline] OpenAI Compatible: No voice in provider config, using default', { providerConfig })
-      }
+      console.info('[Speech Pipeline] Resolved OpenAI Compatible Stats', { model, voice: voice?.id })
     }
 
     if (!model || !voice)
@@ -326,6 +477,9 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
   playback: playbackManager,
 })
 
+// NOTICE: the speech runtime host must follow the Stage lifecycle. If a previous Stage instance
+// keeps the host registration after unmount, chat text can continue rendering while TTS writes
+// into a stale pipeline owned by the dead component.
 void speechRuntimeStore.registerHost(speechPipeline)
 
 speechPipeline.on('onSpecial', (segment) => {
@@ -403,9 +557,29 @@ function setupAnalyser() {
 }
 
 let currentChatIntent: ReturnType<typeof speechRuntimeStore.openIntent> | null = null
+const currentChatIntentReceivedLiteral = ref(false)
+
+function ensureSpeechIntent() {
+  if (currentChatIntent)
+    return currentChatIntent
+
+  console.log('[Stage] Opening speech intent', { ownerId: activeCardId.value })
+  currentChatIntent = speechRuntimeStore.openIntent({
+    ownerId: activeCardId.value,
+    priority: 'normal',
+    behavior: 'interrupt',
+  })
+  console.log('[Stage] Speech intent opened', { intentId: currentChatIntent.intentId, streamId: currentChatIntent.streamId })
+
+  return currentChatIntent
+}
 
 chatHookCleanups.push(onBeforeMessageComposed(async () => {
-  playbackManager.stopAll('new-message')
+  // NOTICE: chat and proactivity share the same speech lane. Stopping playback alone is not
+  // enough if a previous turn left an active or queued intent inside the speech pipeline.
+  // Reset the entire host pipeline on each new assistant turn so later chat TTS cannot inherit
+  // stale proactivity/chat intent state.
+  speechPipeline.stopAll('new-message')
 
   setupAnalyser()
   await setupLipSync()
@@ -427,15 +601,13 @@ chatHookCleanups.push(onBeforeMessageComposed(async () => {
   }
 
   if (currentChatIntent) {
+    console.log('[Stage] Cancelling existing speech intent for new message', { intentId: currentChatIntent.intentId })
     currentChatIntent.cancel('new-message')
     currentChatIntent = null
   }
 
-  currentChatIntent = speechRuntimeStore.openIntent({
-    ownerId: activeCardId.value,
-    priority: 'normal',
-    behavior: 'queue',
-  })
+  currentChatIntentReceivedLiteral.value = false
+  ensureSpeechIntent()
 }))
 
 chatHookCleanups.push(onBeforeSend(async () => {
@@ -443,22 +615,66 @@ chatHookCleanups.push(onBeforeSend(async () => {
 }))
 
 chatHookCleanups.push(onTokenLiteral(async (literal) => {
-  currentChatIntent?.writeLiteral(literal)
+  const intent = ensureSpeechIntent()
+  if (!intent)
+    return
+  currentChatIntentReceivedLiteral.value = true
+  console.log('[Stage] onTokenLiteral -> forwarding to speech', {
+    intentId: intent.intentId,
+    length: literal.length,
+    preview: literal.slice(0, 120),
+  })
+  intent.writeLiteral(literal)
 }))
 
 chatHookCleanups.push(onTokenSpecial(async (special) => {
+  const intent = ensureSpeechIntent()
+  if (!intent)
+    return
   // console.debug('Stage received special token:', special)
-  currentChatIntent?.writeSpecial(special)
+  console.log('[Stage] onTokenSpecial -> forwarding', { intentId: intent.intentId, special })
+  intent.writeSpecial(special)
 }))
 
 chatHookCleanups.push(onStreamEnd(async () => {
-  delaysQueue.enqueue(llmInferenceEndToken)
-  currentChatIntent?.writeFlush()
+  specialTokenQueue.enqueue(llmInferenceEndToken)
+  const intent = ensureSpeechIntent()
+  if (intent)
+    console.log('[Stage] onStreamEnd -> flush intent', { intentId: intent.intentId })
+  intent?.writeFlush()
 }))
 
-chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
+chatHookCleanups.push(onAssistantResponseEnd(async (message) => {
+  if (!currentChatIntentReceivedLiteral.value) {
+    const fallbackSpeech = categorizeResponse(message, activeChatProvider.value).speech.trim()
+    if (fallbackSpeech) {
+      const intent = ensureSpeechIntent()
+      console.log('[Stage] onAssistantResponseEnd -> fallback speech literal', {
+        intentId: intent.intentId,
+        length: fallbackSpeech.length,
+      })
+      intent.writeLiteral(fallbackSpeech)
+      intent.writeFlush()
+    }
+  }
+
+  if (currentChatIntent)
+    console.log('[Stage] onAssistantResponseEnd -> ending intent', { intentId: currentChatIntent.intentId })
   currentChatIntent?.end()
   currentChatIntent = null
+  currentChatIntentReceivedLiteral.value = false
+
+  // Restore VRM expressions and animations to user-configured defaults after speech ends
+  if (stageModelRenderer.value === 'vrm') {
+    vrmViewerRef.value?.restoreDefaultExpressions()
+
+    // Reset to idle animation when the entire turn ends
+    if (temporaryVrmaTimeout) {
+      clearTimeout(temporaryVrmaTimeout)
+      temporaryVrmaTimeout = null
+    }
+    temporaryVrma.value = null
+  }
   // const res = await embed({
   //   ...transformersProvider.embed('Xenova/nomic-embed-text-v1'),
   //   input: message,
@@ -466,6 +682,27 @@ chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
 
   // await db.value?.execute(`INSERT INTO memory_test (vec) VALUES (${JSON.stringify(res.embedding)});`)
 }))
+
+function handleAnimationFinished() {
+  if (stageModelRenderer.value !== 'vrm')
+    return
+
+  // Resume idle from ACT performance
+  if (temporaryVrma.value) {
+    temporaryVrma.value = null
+  }
+
+  // Cycle if enabled
+  if (vrmStore.vrmIdleCycleEnabled) {
+    const keys = customVrmAnimationsStore.animationKeys
+    const currentKey = vrmStore.vrmIdleAnimation
+    const otherKeys = keys.filter(key => key !== currentKey)
+    const randomKey = otherKeys[Math.floor(Math.random() * otherKeys.length)]
+    if (randomKey) {
+      vrmStore.vrmIdleAnimation = randomKey
+    }
+  }
+}
 
 onUnmounted(() => {
   lipSyncStarted.value = false
@@ -488,6 +725,7 @@ if (typeof window !== 'undefined') {
   events.forEach((event) => {
     window.addEventListener(event, resumeAudioContextOnInteraction, { once: true, passive: true })
   })
+  window.addEventListener(resizeStateEventName, handleResizeStateChange as EventListener)
 }
 
 onMounted(async () => {
@@ -518,6 +756,10 @@ onUnmounted(() => {
 
   chatHookCleanups.forEach(dispose => dispose?.())
   viewUpdateCleanups.forEach(dispose => dispose?.())
+  void speechRuntimeStore.unregisterHost(speechPipeline)
+  if (typeof window !== 'undefined') {
+    window.removeEventListener(resizeStateEventName, handleResizeStateChange as EventListener)
+  }
 })
 
 defineExpose({
@@ -527,16 +769,31 @@ defineExpose({
 </script>
 
 <template>
-  <div relative>
-    <div h-full w-full>
+  <div :class="['relative h-full w-full']">
+    <!-- Scene Background Layer -->
+    <div
+      v-if="activeBackgroundUrl"
+      :class="[
+        'absolute left-0 top-0 z-0 h-full w-full',
+        'transition-opacity duration-500',
+      ]"
+      :style="{
+        backgroundImage: `url(${activeBackgroundUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }"
+    />
+
+    <div :class="['relative h-full w-full']">
       <Live2DScene
-        v-if="stageModelRenderer === 'live2d' && showStage"
+        v-if="stageModelRenderer === 'live2d'"
         ref="live2dSceneRef"
         v-model:state="componentState"
-        min-w="50% <lg:full" min-h="100 sm:100"
-        h-full w-full flex-1
+        :class="['min-w-50% <lg:full min-h-100 sm:100', 'h-full w-full flex-1']"
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
+        :model-file="stageModelSelectedFile"
         :focus-at="focusAt"
         :mouth-open-size="mouthOpenSize"
         :paused="paused"
@@ -553,16 +810,19 @@ defineExpose({
         :live2d-max-fps="live2dMaxFps"
       />
       <ThreeScene
-        v-if="stageModelRenderer === 'vrm' && showStage"
+        v-if="stageModelRenderer === 'vrm'"
         ref="vrmViewerRef"
         v-model:state="componentState"
         :model-src="stageModelSelectedUrl"
-        :idle-animation="animations.idleLoop.toString()"
-        min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
+        :model-identity="stageModelSelected"
+        :idle-animation="vrmActiveAnimation"
+        :render-scale-override="isWindowResizing ? reducedRenderScale : undefined"
+        :class="['min-w-50% <lg:full min-h-100 sm:100', 'h-full w-full flex-1']"
         :paused="paused"
         :show-axes="stageViewControlsEnabled"
         :current-audio-source="currentAudioSource"
         @error="console.error"
+        @finished="handleAnimationFinished"
       />
     </div>
   </div>

@@ -11,6 +11,7 @@ import { defineStore, storeToRefs } from 'pinia'
 import { ref, toRaw } from 'vue'
 
 import { useAnalytics } from '../composables'
+import { createLlmJsonInterceptor } from '../composables/llm-json-interceptor'
 import { useLlmmarkerParser } from '../composables/llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from '../composables/response-categoriser'
 import { createDatetimeContext } from './chat/context-providers'
@@ -19,7 +20,10 @@ import { createChatHooks } from './chat/hooks'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { useLLM } from './llm'
+import { useAiriCardStore } from './modules/airi-card'
 import { useConsciousnessStore } from './modules/consciousness'
+import { useProactivityStore } from './proactivity'
+import { useSettingsChat } from './settings/chat'
 
 interface SendOptions {
   model: string
@@ -28,6 +32,11 @@ interface SendOptions {
   attachments?: { type: 'image', data: string, mimeType: string }[]
   tools?: StreamOptions['tools']
   input?: WebSocketEventInputs
+  /**
+   * If true, the orchestrator will only ingest the user message into the session
+   * and skip triggering the assistant's response.
+   */
+  skipAssistant?: boolean
 }
 
 interface ForkOptions {
@@ -52,7 +61,10 @@ interface QueuedSend {
 export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const llmStore = useLLM()
   const consciousnessStore = useConsciousnessStore()
+  const airiCardStore = useAiriCardStore()
+  const settingsChat = useSettingsChat()
   const { activeProvider } = storeToRefs(consciousnessStore)
+  const { activeCard } = storeToRefs(airiCardStore)
   const { trackFirstMessage } = useAnalytics()
 
   const chatSession = useChatSessionStore()
@@ -103,6 +115,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     generation: number,
     sessionId: string,
   ) {
+    console.log('[ChatDebug] performSend starting with message:', sendingMessage)
+
     if (!sendingMessage && !options.attachments?.length)
       return
 
@@ -131,6 +145,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     const buildingMessage: StreamingAssistantMessage = { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now(), id: nanoid() }
 
     const updateUI = () => {
+      console.log('[ChatDebug] updateUI triggered')
       if (isForegroundSession()) {
         streamingMessage.value = JSON.parse(JSON.stringify(buildingMessage))
       }
@@ -138,6 +153,10 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
     updateUI()
     trackFirstMessage()
+
+    const proactivityStore = useProactivityStore()
+    proactivityStore.incrementMetric('chat')
+    let streamIdleTimeout: ReturnType<typeof setTimeout> | undefined
 
     try {
       await hooks.emitBeforeMessageComposedHooks(sendingMessage, streamingMessageContext)
@@ -170,25 +189,27 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       if (shouldAbort())
         return
 
-      const sessionMessagesForSend = chatSession.sessionMessages[sessionId]
-      if (!sessionMessagesForSend) {
-        throw new Error('Session messages not found')
+      const sessionMessagesForSend = chatSession.getSessionMessages(sessionId)
+      const nextMessages = [...sessionMessagesForSend, { role: 'user' as const, content: finalContent, createdAt: sendingCreatedAt, id: nanoid() }]
+      chatSession.setSessionMessages(sessionId, nextMessages)
+
+      if (options.skipAssistant) {
+        console.log('[ChatDebug] skipAssistant is true, ending ingest.')
+        return
       }
-      sessionMessagesForSend.push({ role: 'user', content: finalContent, createdAt: sendingCreatedAt, id: nanoid() })
-      chatSession.persistSessionMessages(sessionId)
 
       const categorizer = createStreamingCategorizer(activeProvider.value)
       let streamPosition = 0
 
-      const parser = useLlmmarkerParser({
-        onLiteral: async (literal) => {
+      const literalInterceptor = createLlmJsonInterceptor({
+        onText: async (text) => {
           if (shouldAbort())
             return
 
-          categorizer.consume(literal)
+          categorizer.consume(text)
 
-          const speechOnly = categorizer.filterToSpeech(literal, streamPosition)
-          streamPosition += literal.length
+          const speechOnly = categorizer.filterToSpeech(text, streamPosition)
+          streamPosition += text.length
 
           if (speechOnly.trim()) {
             buildingMessage.content += speechOnly
@@ -208,13 +229,31 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
             updateUI()
           }
         },
+        onJson: async (json) => {
+          if (shouldAbort())
+            return
+
+          await hooks.emitWidgetHooks(json, streamingMessageContext)
+        },
+      })
+
+      const parser = useLlmmarkerParser({
+        onLiteral: async (text) => {
+          console.log('[ChatDebug] onLiteral:', text)
+          if (shouldAbort())
+            return
+
+          await literalInterceptor.consume(text)
+        },
         onSpecial: async (special) => {
+          console.log('[ChatDebug] onSpecial:', special)
           if (shouldAbort())
             return
 
           await hooks.emitTokenSpecialHooks(special, streamingMessageContext)
         },
         onEnd: async (fullText) => {
+          console.log('[ChatDebug] parser.onEnd triggered with fullText length:', fullText.length)
           if (isStaleGeneration())
             return
 
@@ -222,8 +261,18 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
           buildingMessage.categorization = {
             speech: finalCategorization.speech,
-            reasoning: finalCategorization.reasoning,
+            reasoning: (buildingMessage.categorization?.reasoning ?? '') + (finalCategorization.reasoning ? `\n\n${finalCategorization.reasoning}` : ''),
           }
+
+          // [ChatDebug] Sync check
+          if (buildingMessage.content !== finalCategorization.speech) {
+            console.log('[ChatDebug] onEnd sync difference found:', {
+              building: (buildingMessage.content ?? '').length,
+              final: finalCategorization.speech.length,
+            })
+            buildingMessage.content = finalCategorization.speech
+          }
+
           updateUI()
         },
         minLiteralEmitLength: 24,
@@ -248,7 +297,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         ],
       })
 
-      let newMessages = sessionMessagesForSend.map((msg) => {
+      let newMessages = nextMessages.map((msg) => {
         const { context: _context, id: _id, createdAt: _createdAt, ...withoutContext } = msg
         const rawMessage = toRaw(withoutContext)
 
@@ -289,17 +338,41 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
       let fullText = ''
       const headers = (options.providerConfig?.headers || {}) as Record<string, string>
+      const generationConfig = activeCard.value?.extensions?.airi?.generation
+      const generationKnown = generationConfig?.enabled ? generationConfig.known : undefined
+      const abortController = new AbortController()
+
+      const clearStreamIdleTimeout = () => {
+        if (streamIdleTimeout)
+          clearTimeout(streamIdleTimeout)
+      }
+
+      const resetStreamIdleTimeout = () => {
+        clearStreamIdleTimeout()
+        streamIdleTimeout = setTimeout(() => {
+          abortController.abort(new Error('Stream idle timeout exceeded'))
+        }, settingsChat.streamIdleTimeoutMs)
+      }
 
       if (shouldAbort())
         return
 
+      resetStreamIdleTimeout()
+
       await llmStore.stream(options.model, options.chatProvider, newMessages as Message[], {
         headers,
         tools: options.tools,
+        temperature: generationKnown?.temperature,
+        top_p: generationKnown?.topP,
+        max_tokens: generationKnown?.maxTokens,
+        requestOverrides: generationConfig?.enabled ? generationConfig.advanced : undefined,
+        abortSignal: abortController.signal,
         // NOTICE: xsai stream may emit `finish` before tool steps continue, so keep waiting until
         // the final non-tool finish to avoid ending the chat turn with no assistant reply.
         waitForTools: true,
         onStreamEvent: async (event: StreamEvent) => {
+          console.log('[ChatDebug] Stream event in orchestrator:', event)
+          resetStreamIdleTimeout()
           switch (event.type) {
             case 'tool-call':
               toolCallQueue.enqueue({
@@ -318,9 +391,28 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
               break
             case 'text-delta':
               fullText += event.text
+              // Log raw delta to main process
+              ;(window as any).electron.ipcRenderer.send('llm-raw-output', {
+                type: 'delta',
+                text: event.text,
+                sessionId,
+              })
               await parser.consume(event.text)
               break
+            case 'reasoning-delta':
+              if (!buildingMessage.categorization) {
+                buildingMessage.categorization = { speech: '', reasoning: '' }
+              }
+              buildingMessage.categorization.reasoning += event.text
+              updateUI()
+              break
             case 'finish':
+              // Log final full text to main process
+              ;(window as any).electron.ipcRenderer.send('llm-raw-output', {
+                type: 'full',
+                text: fullText,
+                sessionId,
+              })
               break
             case 'error':
               throw event.error ?? new Error('Stream error')
@@ -328,11 +420,13 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         },
       })
 
+      clearStreamIdleTimeout()
+
       await parser.end()
 
       if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
-        sessionMessagesForSend.push(toRaw(buildingMessage))
-        chatSession.persistSessionMessages(sessionId)
+        const currentMessages = chatSession.getSessionMessages(sessionId)
+        chatSession.setSessionMessages(sessionId, [...currentMessages, toRaw(buildingMessage)])
       }
 
       await hooks.emitStreamEndHooks(streamingMessageContext)
@@ -355,6 +449,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       throw error
     }
     finally {
+      if (streamIdleTimeout)
+        clearTimeout(streamIdleTimeout)
       sending.value = false
     }
   }
@@ -365,6 +461,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     targetSessionId?: string,
   ) {
     const sessionId = targetSessionId || activeSessionId.value
+    console.log('[ChatDebug] Ingesting message:', { sendingMessage, sessionId, sending: sending.value })
     const generation = chatSession.getSessionGeneration(sessionId)
 
     return new Promise<void>((resolve, reject) => {
@@ -413,8 +510,6 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   return {
     sending,
 
-    discoverToolsCompatibility: llmStore.discoverToolsCompatibility,
-
     ingest,
     ingestOnFork,
     cancelPendingSends,
@@ -442,5 +537,6 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     onAssistantResponseEnd: hooks.onAssistantResponseEnd,
     onAssistantMessage: hooks.onAssistantMessage,
     onChatTurnComplete: hooks.onChatTurnComplete,
+    onWidget: hooks.onWidget,
   }
 })

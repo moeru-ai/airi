@@ -216,7 +216,7 @@ function skipTTSSetup() {
 
     <!-- Variant 16: Stacked Cards -->
     <Variant title="16. Stacked Cards">
-      <div class="h-48 w-full flex perspective-1000 items-center justify-center p-6">
+      <div class="perspective-1000 h-48 w-full flex items-center justify-center p-6">
         <div class="relative h-28 w-48">
           <!-- Calculate relative position and apply dynamic styles for stacking -->
           <template v-for="step in stepper16.steps" :key="step.id">
@@ -244,7 +244,7 @@ function skipTTSSetup() {
                   filter,
                 };
               })()"
-              class="absolute h-full w-full flex flex-col preserve-3d cursor-pointer justify-between border border-2 rounded-lg p-3 shadow-lg transition-all duration-500 ease-out"
+              class="preserve-3d absolute h-full w-full flex flex-col cursor-pointer justify-between border border-2 rounded-lg p-3 shadow-lg transition-all duration-500 ease-out"
               :class="[
                 // Simplified classes: Active vs Inactive styling
                 (stepper16.currentStep.value === step.id)

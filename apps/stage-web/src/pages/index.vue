@@ -52,6 +52,16 @@ const providersStore = useProvidersStore()
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
 const chatStore = useChatOrchestratorStore()
+const llmStore = useLLM()
+
+watch([activeChatProvider, activeChatModel], async () => {
+  if (activeChatProvider.value && activeChatModel.value) {
+    const provider = await providersStore.getProviderInstance<ChatProvider>(activeChatProvider.value)
+    if (provider) {
+      await llmStore.discoverToolsCompatibility(activeChatModel.value, provider, [])
+    }
+  }
+}, { immediate: true })
 
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 

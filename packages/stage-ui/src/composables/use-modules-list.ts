@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n'
 
 import factorioIcon from '../assets/factorio-simple.png'
 
+import { useArtistryStore } from '../stores/modules/artistry'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useDiscordStore } from '../stores/modules/discord'
 import { useFactorioStore } from '../stores/modules/gaming-factorio'
@@ -37,6 +38,7 @@ export function useModulesList() {
   const twitterStore = useTwitterStore()
   const minecraftStore = useMinecraftStore()
   const factorioStore = useFactorioStore()
+  const artistryStore = useArtistryStore()
   const beatSyncState = ref<BeatSyncDetectorState>()
 
   const modulesList = computed<Module[]>(() => [
@@ -56,6 +58,15 @@ export function useModulesList() {
       icon: 'i-solar:user-speak-rounded-bold-duotone',
       to: '/settings/modules/speech',
       configured: speechStore.configured,
+      category: 'essential',
+    },
+    {
+      id: 'artistry',
+      name: t('settings.pages.modules.artistry.title'),
+      description: t('settings.pages.modules.artistry.description'),
+      icon: 'i-iconify-heroicons:photo',
+      to: '/settings/modules/artistry',
+      configured: artistryStore.configured,
       category: 'essential',
     },
     {

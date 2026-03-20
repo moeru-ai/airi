@@ -1,13 +1,9 @@
 <script setup lang="ts">
-import type { EmotionPayload } from '@proj-airi/stage-ui/constants/emotions'
 import type { ChatProvider, SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import { createPlaybackManager, createSpeechPipeline } from '@proj-airi/pipelines-audio'
 import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
-import { useDelayMessageQueue, useEmotionsMessageQueue } from '@proj-airi/stage-ui/composables/queues'
-import { llmInferenceEndToken } from '@proj-airi/stage-ui/constants'
-import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '@proj-airi/stage-ui/constants/emotions'
 import { useAudioContext, useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
@@ -16,12 +12,10 @@ import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consci
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { createQueue } from '@proj-airi/stream-kit'
 import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
-const sceneRef = ref<InstanceType<typeof ThreeScene>>()
 const currentAudioSource = ref<AudioBufferSourceNode>()
 
 const { audioContext } = useAudioContext()
@@ -48,30 +42,6 @@ const speechStore = useSpeechStore()
 const { activeSpeechProvider, activeSpeechVoice, activeSpeechModel, ssmlEnabled, pitch } = storeToRefs(speechStore)
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
-
-const delaysQueue = useDelayMessageQueue()
-const currentMotion = ref<{ group: string }>({ group: EmotionThinkMotionName })
-const emotionsQueue = createQueue<EmotionPayload>({
-  handlers: [
-    async (ctx) => {
-      const motion = EMOTION_EmotionMotionName_value[ctx.data.name]
-      const expression = EMOTION_VRMExpressionName_value[ctx.data.name]
-      if (motion)
-        currentMotion.value = { group: motion }
-      if (expression)
-        sceneRef.value?.setExpression(expression, ctx.data.intensity)
-    },
-  ],
-})
-const emotionMessageQueue = useEmotionsMessageQueue(emotionsQueue)
-
-emotionMessageQueue.on('enqueue', (token) => {
-  log(`    - special 入队：${token}`)
-})
-
-emotionMessageQueue.on('dequeue', (token) => {
-  log(`special 出队处理：${token}`)
-})
 
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const nowSpeaking = ref(false)
@@ -176,11 +146,6 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
   playback: playbackManager,
 })
 
-speechPipeline.on('onSpecial', (segment) => {
-  if (segment.special)
-    emotionMessageQueue.enqueue(segment.special)
-})
-
 playbackManager.onStart(({ item }) => {
   nowSpeaking.value = true
   log(`播放开始：${item.text}`)
@@ -238,7 +203,7 @@ chatHookCleanups.push(onBeforeMessageComposed(async () => {
 }))
 
 chatHookCleanups.push(onBeforeSend(async () => {
-  currentMotion.value = { group: EmotionThinkMotionName }
+  // empty
 }))
 
 chatHookCleanups.push(onTokenLiteral(async (literal) => {
@@ -250,7 +215,6 @@ chatHookCleanups.push(onTokenSpecial(async (special) => {
 }))
 
 chatHookCleanups.push(onStreamEnd(async () => {
-  delaysQueue.enqueue(llmInferenceEndToken)
   currentIntent?.writeFlush()
 }))
 
@@ -274,7 +238,6 @@ onUnmounted(() => {
       <div border="1 solid neutral-300/40 dark:neutral-700/40" h-100 min-h-80 overflow-hidden rounded-2xl>
         <ThreeScene
           v-if="stageModelRenderer === 'vrm'"
-          ref="sceneRef"
           :model-src="stageModelSelectedUrl"
           :idle-animation="animations.idleLoop.toString()"
           :current-audio-source="currentAudioSource"

@@ -8,7 +8,7 @@ export const useSettingsControlsIsland = defineStore('settings-controls-island',
 
   function resetState() {
     allowVisibleOnAllWorkspaces.reset()
-    alwaysOnTop.reset()
+    alwaysOnTop.value = true
     controlsIslandIconSize.reset()
   }
 

@@ -1,3 +1,5 @@
+/// <reference lib="dom" />
+
 function quoteField(field: unknown): string {
   return `"${String(field).replace(/"/g, '""')}"`
 }

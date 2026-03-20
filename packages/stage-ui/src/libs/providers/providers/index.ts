@@ -1,3 +1,4 @@
+import './amazon-bedrock'
 import './openai'
 import './aihubmix'
 import './lm-studio'

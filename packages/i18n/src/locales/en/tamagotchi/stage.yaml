@@ -21,9 +21,16 @@ docs:
   'switch-to-dark-mode': Switch to dark mode
   'pin-on-top': Pin on top
   'unpin-from-top': Unpin from top
+  'switch-profile': Switch Profile
   'close': Close
+  'hide': Hide
   'expand': Expand
   'collapse': Collapse
+  'cycle-animation': Cycle Animation
+'status-island':
+  connected: WebSocket connected
+  disconnected: WebSocket disconnected
+  'open-settings': Open WebSocket settings
 
 notice:
   'fade-on-hover':

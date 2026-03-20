@@ -2,6 +2,7 @@ import type { Tool } from '@xsai/shared-chat'
 
 import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
+import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { tool } from '@xsai/tool'
 import { z } from 'zod'
 
@@ -108,6 +109,31 @@ export function normalizeComponentProps(raw?: string | Record<string, any>) {
   return {}
 }
 
+function getArtistryConfig() {
+  try {
+    const store = useArtistryStore()
+    return {
+      provider: store.activeProvider,
+      model: store.activeModel,
+      promptPrefix: store.defaultPromptPrefix,
+      options: store.providerOptions,
+      Globals: {
+        comfyuiWslBackendPath: store.comfyuiWslBackendPath,
+        comfyuiWslNodePath: store.comfyuiWslNodePath,
+        comfyuiHostUrl: store.comfyuiHostUrl,
+        comfyuiDefaultCheckpoint: store.comfyuiDefaultCheckpoint,
+        replicateApiKey: store.replicateApiKey,
+        replicateDefaultModel: store.replicateDefaultModel,
+        replicateAspectRatio: store.replicateAspectRatio,
+        replicateInferenceSteps: store.replicateInferenceSteps,
+      },
+    }
+  }
+  catch (e) {
+    return {}
+  }
+}
+
 export async function executeWidgetAction(input: WidgetActionInput, deps?: { invokers?: WidgetInvokers }) {
   const invokers = resolveInvokers(deps?.invokers)
   const normalizedId = input.id?.trim() || undefined
@@ -117,7 +143,12 @@ export async function executeWidgetAction(input: WidgetActionInput, deps?: { inv
       if (!input.componentName?.trim())
         throw new Error('componentName is required to spawn a widget.')
 
-      const componentProps = normalizeComponentProps(input.componentProps)
+      const rawProps = normalizeComponentProps(input.componentProps)
+      if ((input.componentName === 'comfy' || input.componentName === 'artistry') && !rawProps.status) {
+        rawProps.status = 'generating'
+      }
+
+      const componentProps = { ...rawProps, _artistryConfig: getArtistryConfig() }
       const ttlMs = input.ttlSeconds ? Math.floor(input.ttlSeconds * 1000) : 0
       const id = await invokers.addWidget({
         id: normalizedId,
@@ -133,7 +164,16 @@ export async function executeWidgetAction(input: WidgetActionInput, deps?: { inv
       if (!normalizedId)
         throw new Error('id is required to update a widget.')
 
-      const componentProps = normalizeComponentProps(input.componentProps)
+      const componentProps = { ...normalizeComponentProps(input.componentProps), _artistryConfig: getArtistryConfig() }
+      const looksLikeArtistryGeneration = componentProps.prompt
+        || componentProps.remixId
+        || componentProps.payload?.prompt
+        || componentProps.payload?.remixId
+
+      if ((input.componentName === 'comfy' || input.componentName === 'artistry' || looksLikeArtistryGeneration) && !componentProps.status) {
+        componentProps.status = 'generating'
+      }
+
       await invokers.updateWidget({
         id: normalizedId,
         componentProps,

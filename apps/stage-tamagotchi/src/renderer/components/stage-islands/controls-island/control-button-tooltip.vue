@@ -12,7 +12,7 @@ const { side = 'top' } = defineProps<{
     :skip-delay-duration="0"
   >
     <TooltipRoot>
-      <TooltipTrigger>
+      <TooltipTrigger as-child>
         <slot />
       </TooltipTrigger>
       <Transition name="fade">

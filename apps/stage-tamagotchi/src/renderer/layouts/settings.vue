@@ -2,7 +2,7 @@
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { PageHeader } from '@proj-airi/stage-ui/components'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { computed, ref } from 'vue'
+import { computed, ref, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute } from 'vue-router'
 
@@ -63,6 +63,30 @@ const routeHeaderMetadata = computed(() => {
   }
 
   return undefined
+})
+
+function updateSettingsWindowTitle() {
+  const parts = ['AIRI', 'Settings']
+  const activeTitle = routeHeaderMetadata.value?.title?.trim()
+
+  if (activeTitle)
+    parts.push(activeTitle)
+
+  const nextTitle = parts.join(' - ')
+
+  if (document.title !== nextTitle) {
+    console.log('[SettingsTitle] Updating document.title', {
+      from: document.title,
+      to: nextTitle,
+      route: route.path,
+      activeTitle,
+    })
+    document.title = nextTitle
+  }
+}
+
+watchEffect(() => {
+  updateSettingsWindowTitle()
 })
 </script>
 
