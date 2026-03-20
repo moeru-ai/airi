@@ -9,11 +9,16 @@ import { client } from '../../composables/api'
 import { useLocalFirstRequest } from '../../composables/use-local-first'
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
 import { useAuthStore } from '../auth'
+import { useShortTermMemoryStore } from '../memory-short-term'
 import { useAiriCardStore } from '../modules/airi-card'
+import { useSettingsGeneral } from '../settings'
+import { mergeLoadedSessionMessages } from './session-message-merge'
 
 export const useChatSessionStore = defineStore('chat-session', () => {
   const { userId, isAuthenticated } = storeToRefs(useAuthStore())
   const { activeCardId, systemPrompt } = storeToRefs(useAiriCardStore())
+  const { remoteSyncEnabled } = storeToRefs(useSettingsGeneral())
+  const shortTermMemory = useShortTermMemoryStore()
 
   const activeSessionId = ref<string>('')
   const sessionMessages = ref<Record<string, ChatHistoryItem[]>>({})
@@ -34,6 +39,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   // I know this nu uh, better than loading all language on rehypeShiki
   const codeBlockSystemPrompt = '- For any programming code block, always specify the programming language that supported on @shikijs/rehype on the rendered markdown, eg. ```python ... ```\n'
   const mathSyntaxSystemPrompt = '- For any math equation, use LaTeX format, eg: $ x^3 $, always escape dollar sign outside math equation\n'
+  const shortTermMemoryBlockLimit = 3
 
   function getCurrentUserId() {
     return userId.value || 'local'
@@ -154,7 +160,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
           throw new Error('Failed to sync chat session')
         return cachedRecord
       },
-      allowRemote: () => isAuthenticated.value,
+      allowRemote: () => remoteSyncEnabled.value && isAuthenticated.value,
       lazy: true,
     })
 
@@ -162,6 +168,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   function scheduleSync(sessionId: string) {
+    if (!remoteSyncEnabled.value)
+      return
+
     void enqueueSync(async () => {
       try {
         await syncSessionToRemote(sessionId)
@@ -172,8 +181,25 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     })
   }
 
-  function generateInitialMessageFromPrompt(prompt: string) {
-    const content = codeBlockSystemPrompt + mathSyntaxSystemPrompt + prompt
+  function buildShortTermMemoryContext(characterId: string) {
+    const blocks = shortTermMemory.getCharacterBlocks(characterId).slice(0, shortTermMemoryBlockLimit)
+    if (blocks.length === 0)
+      return ''
+
+    return [
+      '[Short-Term Memory]',
+      'The following daily continuity blocks were distilled from recent chat history for this active character.',
+      'Use them as hidden continuity context for the current session.',
+      ...blocks.map(block => `Date: ${block.date}\n${block.summary}`),
+    ].join('\n\n')
+  }
+
+  function generateInitialMessageFromPrompt(prompt: string, characterId = getCurrentCharacterId()) {
+    const shortTermContext = buildShortTermMemoryContext(characterId)
+    const content = [
+      codeBlockSystemPrompt + mathSyntaxSystemPrompt + prompt,
+      shortTermContext,
+    ].filter(Boolean).join('\n\n')
 
     return {
       role: 'system',
@@ -184,7 +210,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   function generateInitialMessage() {
-    return generateInitialMessageFromPrompt(systemPrompt.value)
+    return generateInitialMessageFromPrompt(systemPrompt.value, getCurrentCharacterId())
   }
 
   function ensureGeneration(sessionId: string) {
@@ -259,9 +285,15 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const loadPromise = (async () => {
       const stored = await chatSessionsRepo.getSession(sessionId)
       if (stored) {
+        const currentMessages = sessionMessages.value[sessionId] ?? []
+        const mergedMessages = mergeLoadedSessionMessages(stored.messages, currentMessages)
+
         sessionMetas.value[sessionId] = stored.meta
-        sessionMessages.value[sessionId] = stored.messages
+        sessionMessages.value[sessionId] = mergedMessages
         ensureGeneration(sessionId)
+
+        if (mergedMessages !== stored.messages)
+          await persistSession(sessionId)
       }
       loadedSessions.add(sessionId)
     })()
@@ -317,16 +349,24 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const currentUserId = getCurrentUserId()
     const characterId = getCurrentCharacterId()
 
+    console.info('[ChatSession] ensureActiveSessionForCharacter:start', {
+      currentUserId,
+      characterId,
+      activeSessionId: activeSessionId.value,
+    })
+
     if (!index.value || index.value.userId !== currentUserId)
       await loadIndexForUser(currentUserId)
 
     const characterIndex = getCharacterIndex(characterId)
     if (!characterIndex) {
+      console.info('[ChatSession] no character index, creating session', { characterId })
       await createSession(characterId)
       return
     }
 
     if (!characterIndex.activeSessionId) {
+      console.info('[ChatSession] character has no active session, creating session', { characterId })
       await createSession(characterId)
       return
     }
@@ -334,6 +374,12 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     activeSessionId.value = characterIndex.activeSessionId
     await loadSession(characterIndex.activeSessionId)
     ensureSession(characterIndex.activeSessionId)
+
+    console.info('[ChatSession] ensureActiveSessionForCharacter:resolved', {
+      characterId,
+      activeSessionId: activeSessionId.value,
+      messageCount: sessionMessages.value[activeSessionId.value]?.length ?? 0,
+    })
   }
 
   async function initialize() {
@@ -343,6 +389,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       return initializePromise
     initializing.value = true
     initializePromise = (async () => {
+      await shortTermMemory.load()
       await ensureActiveSessionForCharacter()
       ready.value = true
     })()
@@ -382,6 +429,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   })
 
   function setActiveSession(sessionId: string) {
+    console.info('[ChatSession] setActiveSession', {
+      from: activeSessionId.value,
+      to: sessionId,
+      characterId: getCurrentCharacterId(),
+    })
     activeSessionId.value = sessionId
     ensureSession(sessionId)
 
@@ -523,9 +575,16 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     await ensureActiveSessionForCharacter()
   }
 
-  watch([userId, activeCardId], () => {
+  watch([userId, activeCardId], ([nextUserId, nextCardId], [prevUserId, prevCardId]) => {
     if (!ready.value)
       return
+    console.info('[ChatSession] watcher:userId+activeCardId', {
+      prevUserId,
+      nextUserId,
+      prevCardId,
+      nextCardId,
+      activeSessionId: activeSessionId.value,
+    })
     void ensureActiveSessionForCharacter()
   })
 

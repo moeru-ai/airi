@@ -15,11 +15,9 @@ import type { Vec3 } from '../stores/model-store'
 
 import { Screen } from '@proj-airi/ui'
 import { TresCanvas } from '@tresjs/core'
-import { EffectComposerPmndrs, HueSaturationPmndrs } from '@tresjs/post-processing'
 import { useElementBounding } from '@vueuse/core'
 import { formatHex } from 'culori'
 import { storeToRefs } from 'pinia'
-import { BlendFunction } from 'postprocessing'
 import {
   ACESFilmicToneMapping,
   Euler,
@@ -27,7 +25,7 @@ import {
   PerspectiveCamera,
   Vector3,
 } from 'three'
-import { onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 
 // From stage-ui-three package
 import { useRenderTargetRegionAtClientPoint } from '../composables/render-target'
@@ -40,10 +38,12 @@ import { VRMModel } from './Model'
 const props = withDefaults(defineProps<{
   currentAudioSource?: AudioBufferSourceNode
   modelSrc?: string
+  modelIdentity?: string
   skyBoxSrc?: string
   showAxes?: boolean
   idleAnimation?: string
   paused?: boolean
+  renderScaleOverride?: number
 }>(), {
   showAxes: false,
   idleAnimation: new URL('../assets/vrm/animations/idle_loop.vrma', import.meta.url).href,
@@ -53,6 +53,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   (e: 'loadModelProgress', value: number): void
   (e: 'error', value: unknown): void
+  (e: 'finished'): void
 }>()
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
@@ -62,6 +63,7 @@ const { width, height } = useElementBounding(sceneContainerRef)
 const modelStore = useModelStore()
 const {
   lastModelSrc,
+  lastModelIdentity,
 
   modelSize,
   modelOrigin,
@@ -92,7 +94,6 @@ const {
   skyBoxSrc,
   skyBoxIntensity,
   renderScale,
-  multisampling,
 } = storeToRefs(modelStore)
 
 const modelRef = ref<InstanceType<typeof VRMModel>>()
@@ -175,8 +176,9 @@ function onVRMModelLookAtTarget(value: Vec3) {
   lookAtTarget.value.y = value.y
   lookAtTarget.value.z = value.z
 }
-function onVRMModelLoaded(value: string) {
-  lastModelSrc.value = value
+function onVRMModelLoaded(value: { modelIdentity?: string, modelSrc: string }) {
+  lastModelSrc.value = value.modelSrc
+  lastModelIdentity.value = value.modelIdentity ?? value.modelSrc
   modelLoaded.value = true
   controlEnable.value = true
 }
@@ -207,13 +209,9 @@ onUnmounted(() => {
   disposeRenderTarget()
 })
 
-const effectProps = {
-  saturation: 0.3,
-  hue: 0,
-  blendFunction: BlendFunction.SRC,
-}
-
 const vrmFrameHook = shallowRef<((vrm: VRM, delta: number) => void) | undefined>(undefined)
+const effectiveRenderScale = computed(() => props.renderScaleOverride ?? renderScale.value)
+
 function applyVrmFrameHook() {
   modelRef.value?.setVrmFrameHook(vrmFrameHook.value)
 }
@@ -254,6 +252,9 @@ watch([sceneReady, modelLoaded], ([ready, loaded]) => {
   else if (loaded) {
     componentState.value = 'loading'
   }
+  else {
+    componentState.value = 'pending'
+  }
 }, { immediate: true })
 
 function updateDirLightTarget(newRotation: { x: number, y: number, z: number }) {
@@ -292,12 +293,15 @@ watch(directionalLightRotation, (newRotation) => {
 }, { deep: true })
 
 defineExpose({
-  setExpression: (expression: string, intensity = 1) => {
-    modelRef.value?.setExpression(expression, intensity)
+  setExpression: (expression: string, intensity = 1, resetMs?: number) => {
+    modelRef.value?.setExpression(expression, intensity, resetMs)
   },
   setVrmFrameHook: (hook?: (vrm: VRM, delta: number) => void) => {
     vrmFrameHook.value = hook
     applyVrmFrameHook()
+  },
+  listExpressions: () => {
+    return modelRef.value?.listExpressions() || []
   },
   canvasElement: () => {
     return tresCanvasRef.value?.renderer.instance.domElement
@@ -305,6 +309,12 @@ defineExpose({
   camera: () => camera.value,
   renderer: () => tresCanvasRef.value?.renderer.instance,
   scene: () => modelRef.value?.scene,
+  stopAnimations: () => {
+    modelRef.value?.stopAnimations()
+  },
+  restoreDefaultExpressions: () => {
+    modelRef.value?.restoreDefaultExpressions()
+  },
   readRenderTargetRegionAtClientPoint,
 })
 </script>
@@ -315,13 +325,15 @@ defineExpose({
       <TresCanvas
         v-show="true"
         :camera="camera"
+        :alpha="true"
         :antialias="true"
-        :dpr="renderScale"
+        :dpr="effectiveRenderScale"
         :width="width"
         :height="height"
         :tone-mapping="ACESFilmicToneMapping"
         :tone-mapping-exposure="1"
         :clear-alpha="0"
+        power-preference="high-performance"
         @ready="onTresReady"
       >
         <OrbitControls
@@ -363,17 +375,19 @@ defineExpose({
           :intensity="directionalLightIntensity"
           cast-shadow
         />
-        <Suspense>
+        <!-- <Suspense v-if="(tresCanvasRef as any)?.renderer">
           <EffectComposerPmndrs :multisampling="multisampling">
             <HueSaturationPmndrs v-bind="effectProps" />
           </EffectComposerPmndrs>
-        </Suspense>
+        </Suspense> -->
         <VRMModel
           ref="modelRef"
 
           :current-audio-source="props.currentAudioSource"
           :model-src="props.modelSrc"
+          :model-identity="props.modelIdentity"
           :last-model-src="lastModelSrc"
+          :last-model-identity="lastModelIdentity"
           :idle-animation="props.idleAnimation"
           :paused="props.paused"
           :env-select="envSelect"
@@ -397,6 +411,7 @@ defineExpose({
           @look-at-target="onVRMModelLookAtTarget"
           @error="(err: unknown) => emit('error', err)"
           @loaded="onVRMModelLoaded"
+          @finished="emit('finished')"
         />
         <TresAxesHelper v-if="props.showAxes" :size="1" />
       </TresCanvas>

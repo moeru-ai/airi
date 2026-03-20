@@ -1,16 +1,17 @@
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { CommonContentPart, CompletionToolCall, Message, Tool } from '@xsai/shared-chat'
 
+import { useLocalStorage } from '@vueuse/core'
+import { generateText } from '@xsai/generate-text'
 import { listModels } from '@xsai/model'
-import { XSAIError } from '@xsai/shared'
 import { streamText } from '@xsai/stream-text'
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
 
-import { debug, mcp } from '../tools'
+import { mcp } from '../tools'
 
 export type StreamEvent
   = | { type: 'text-delta', text: string }
+    | { type: 'reasoning-delta', text: string }
     | ({ type: 'finish' } & any)
     | ({ type: 'tool-call' } & CompletionToolCall)
     | { type: 'tool-result', toolCallId: string, result?: string | CommonContentPart[] }
@@ -19,10 +20,33 @@ export type StreamEvent
 export interface StreamOptions {
   headers?: Record<string, string>
   onStreamEvent?: (event: StreamEvent) => void | Promise<void>
-  toolsCompatibility?: Map<string, boolean>
+  toolsCompatibility?: Record<string, boolean>
   supportsTools?: boolean
   waitForTools?: boolean // when true,won't resolve on finishReason=='tool_calls';
   tools?: Tool[] | (() => Promise<Tool[] | undefined>)
+  abortSignal?: AbortSignal
+  temperature?: number
+  top_p?: number
+  max_tokens?: number
+  requestOverrides?: Record<string, unknown>
+}
+
+function sanitizeRequestOverrides(overrides?: Record<string, unknown>) {
+  if (!overrides)
+    return {}
+
+  const reservedKeys = new Set([
+    'messages',
+    'headers',
+    'tools',
+    'onEvent',
+    'abortSignal',
+    'maxSteps',
+  ])
+
+  return Object.fromEntries(
+    Object.entries(overrides).filter(([key]) => !reservedKeys.has(key)),
+  )
 }
 
 // TODO: proper format for other error messages.
@@ -34,12 +58,22 @@ function sanitizeMessages(messages: unknown[]): Message[] {
         content: `User encountered error: ${String(m.content ?? '')}`,
       } as Message
     }
+    // NOTICE: This block is critical for backward compatibility with LLM providers (e.g., DeepSeek)
+    // that expect message content to be a string, not an array of content parts.
+    // Failure to flatten array content (when no image_url is present) can lead to
+    // deserialization errors like "invalid type: sequence, expected a string".
+    if (m && Array.isArray(m.content)) {
+      const contentParts = m.content as { type?: string, text?: string }[]
+      if (!contentParts.some(p => p?.type === 'image_url')) {
+        return { ...m, content: contentParts.map(p => p?.text ?? '').join('') } as Message
+      }
+    }
     return m as Message
   })
 }
 
 function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProvider, _: Message[], options?: StreamOptions): boolean {
-  return !!(options?.supportsTools || options?.toolsCompatibility?.get(`${chatProvider.chat(model).baseURL}-${model}`))
+  return !!(options?.supportsTools || options?.toolsCompatibility?.[`${chatProvider.chat(model).baseURL}-${model}`])
 }
 
 async function streamFrom(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
@@ -47,6 +81,7 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
   const chatConfig = chatProvider.chat(model)
 
   const sanitized = sanitizeMessages(messages as unknown[])
+  const requestOverrides = sanitizeRequestOverrides(options?.requestOverrides)
   const resolveTools = async () => {
     const tools = typeof options?.tools === 'function'
       ? await options.tools()
@@ -58,10 +93,16 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
   const tools = supportedTools
     ? [
         ...await mcp(),
-        ...await debug(),
         ...await resolveTools(),
       ]
     : undefined
+
+  if (tools && tools.length > 0) {
+    console.log('Calling LLM with tools', tools.map((t: any) => t.function?.name || t.name))
+  }
+  else {
+    console.log('Calling LLM with NO tools available')
+  }
 
   return new Promise<void>((resolve, reject) => {
     let settled = false
@@ -99,12 +140,17 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
     try {
       streamText({
         ...chatConfig,
+        ...requestOverrides,
         maxSteps: 10,
         messages: sanitized,
         headers,
+        temperature: options?.temperature,
+        top_p: options?.top_p,
+        max_tokens: options?.max_tokens,
         // TODO: we need Automatic tools discovery
         tools,
         onEvent,
+        abortSignal: options?.abortSignal,
       })
     }
     catch (err) {
@@ -113,32 +159,68 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
   })
 }
 
+async function generateFrom(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
+  const headers = options?.headers
+  const chatConfig = chatProvider.chat(model)
+  const sanitized = sanitizeMessages(messages as unknown[])
+  const requestOverrides = sanitizeRequestOverrides(options?.requestOverrides)
+
+  const resolveTools = async () => {
+    const tools = typeof options?.tools === 'function'
+      ? await options.tools()
+      : options?.tools
+    return tools ?? []
+  }
+
+  const supportedTools = streamOptionsToolsCompatibilityOk(model, chatProvider, messages, options)
+  const tools = supportedTools
+    ? [
+        ...await mcp(),
+        ...await resolveTools(),
+      ]
+    : undefined
+
+  if (tools && tools.length > 0) {
+    console.log('Calling LLM with tools', tools.map((t: any) => t.function?.name || t.name))
+  }
+  else {
+    console.log('Calling LLM with NO tools available')
+  }
+
+  return await generateText({
+    ...chatConfig,
+    ...requestOverrides,
+    maxSteps: 10,
+    messages: sanitized,
+    headers,
+    temperature: options?.temperature,
+    top_p: options?.top_p,
+    max_tokens: options?.max_tokens,
+    tools,
+  })
+}
+
 export async function attemptForToolsCompatibilityDiscovery(model: string, chatProvider: ChatProvider, _: Message[], options?: Omit<StreamOptions, 'supportsTools'>): Promise<boolean> {
   async function attempt(enable: boolean) {
+    let toolsError = false
     try {
-      await streamFrom(model, chatProvider, [{ role: 'user', content: 'Hello, world!' }], { ...options, supportsTools: enable })
-      return true
+      await streamFrom(model, chatProvider, [{ role: 'user', content: 'Hello, world!' }], {
+        ...options,
+        supportsTools: enable,
+        onStreamEvent: (event) => {
+          if (event.type === 'error') {
+            const errStr = String(event.error)
+            if (errStr.includes('does not support tools') || errStr.includes('No endpoints found that support tool use.')) {
+              toolsError = true
+            }
+          }
+        },
+      })
+      return !toolsError
     }
     catch (err) {
-      if (err instanceof Error && err.name === new XSAIError('').name) {
-        // TODO: if you encountered many more errors like these, please, add them here.
-
-        // Ollama
-        /**
-         * {"error":{"message":"registry.ollama.ai/<scope>/<model> does not support tools","type":"api_error","param":null,"code":null}}
-         */
-        if (String(err).includes('does not support tools')) {
-          return false
-        }
-        // OpenRouter
-        /**
-         * {"error":{"message":"No endpoints found that support tool use. To learn more about provider routing, visit: https://openrouter.ai/docs/provider-routing","code":404}}
-         */
-        if (String(err).includes('No endpoints found that support tool use.')) {
-          return false
-        }
-      }
-
+      if (toolsError)
+        return false
       throw err
     }
   }
@@ -184,20 +266,27 @@ export async function attemptForToolsCompatibilityDiscovery(model: string, chatP
 }
 
 export const useLLM = defineStore('llm', () => {
-  const toolsCompatibility = ref<Map<string, boolean>>(new Map())
+  const toolsCompatibility = useLocalStorage<Record<string, boolean>>('settings/llm/tools-compatibility-v3', {})
+
+  function stream(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
+    // Disable automatic discovery to save user credits.
+    // Tools will be attempted blindly or skip discovery entirely.
+    return streamFrom(model, chatProvider, messages, { ...options, toolsCompatibility: toolsCompatibility.value })
+  }
+
+  function generate(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
+    return generateFrom(model, chatProvider, messages, { ...options, toolsCompatibility: toolsCompatibility.value })
+  }
 
   async function discoverToolsCompatibility(model: string, chatProvider: ChatProvider, _: Message[], options?: Omit<StreamOptions, 'supportsTools'>) {
     // Cached, no need to discover again
-    if (toolsCompatibility.value.has(`${chatProvider.chat(model).baseURL}-${model}`)) {
+    const key = `${chatProvider.chat(model).baseURL}-${model}`
+    if (key in toolsCompatibility.value) {
       return
     }
 
     const res = await attemptForToolsCompatibilityDiscovery(model, chatProvider, _, { ...options, toolsCompatibility: toolsCompatibility.value })
-    toolsCompatibility.value.set(`${chatProvider.chat(model).baseURL}-${model}`, res)
-  }
-
-  function stream(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
-    return streamFrom(model, chatProvider, messages, { ...options, toolsCompatibility: toolsCompatibility.value })
+    toolsCompatibility.value[key] = res
   }
 
   async function models(apiUrl: string, apiKey: string) {
@@ -223,6 +312,7 @@ export const useLLM = defineStore('llm', () => {
   return {
     models,
     stream,
+    generate,
     discoverToolsCompatibility,
   }
 })

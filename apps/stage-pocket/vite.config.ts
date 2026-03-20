@@ -20,7 +20,6 @@ import VueMacros from 'vue-macros/vite'
 
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
-import { templateCompilerOptions } from '@tresjs/core'
 import { defineConfig } from 'vite'
 
 // import { isEnvTruthy } from '@proj-airi/stage-shared'
@@ -72,6 +71,9 @@ export default defineConfig({
     },
   },
   server: {
+    fs: {
+      strict: false,
+    },
     host: '0.0.0.0',
     port: 5273,
     warmup: {
@@ -110,7 +112,6 @@ export default defineConfig({
       plugins: {
         vue: Vue({
           include: [/\.vue$/, /\.md$/],
-          ...templateCompilerOptions,
         }),
         vueJsx: false,
       },

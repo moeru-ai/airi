@@ -1,5 +1,6 @@
 import type { ModelInfo, ProviderMetadata } from '../providers'
 
+import { generateSpeech } from '@xsai/generate-speech'
 import { generateText } from '@xsai/generate-text'
 import { listModels } from '@xsai/model'
 import { message } from '@xsai/utils-chat'
@@ -151,7 +152,7 @@ export function buildOpenAICompatibleProvider(
       const hasApiKey = Boolean(apiKey)
       // Prepare model auto-detection promise for checks that need it
       const modelPromise = (async () => {
-        let detected = 'test'
+        let detected = (resolvedCategory === 'speech') ? 'tts-1' : 'test'
         if (!hasApiKey)
           return detected
         try {
@@ -160,12 +161,20 @@ export function buildOpenAICompatibleProvider(
             baseURL: baseUrl,
             headers: additionalHeaders,
           })
-            .then(models => models.filter(model =>
-              [
+            .then(models => models.filter((model) => {
+              const modelId = model.id.toLowerCase()
+              if (resolvedCategory === 'speech') {
+                return modelId.includes('tts') || modelId.includes('speech') || modelId.includes('audio') || modelId.includes('kokoro')
+              }
+              return [
                 'embed',
                 'tts',
+                'audio',
+                'speech',
+                'whisper',
                 'models/gemini-2.5-pro',
-              ].every(str => !model.id.includes(str)),
+              ].every(str => !modelId.includes(str))
+            },
             ))
           if (models.length > 0)
             detected = models[0].id
@@ -189,20 +198,32 @@ export function buildOpenAICompatibleProvider(
         return detected
       })()
 
-      // Health check = try generating text (was: fetch(`${baseUrl}chat/completions`))
+      // Health check = try generating content based on category
       const asyncChecks: Promise<Error | null>[] = []
       if (validationChecks.includes('health') && hasApiKey) {
         asyncChecks.push((async () => {
           try {
             const model = await modelPromise
-            await generateText({
-              apiKey,
-              baseURL: baseUrl,
-              headers: additionalHeaders,
-              model,
-              messages: message.messages(message.user('ping')),
-              max_tokens: 1,
-            })
+            if (resolvedCategory === 'speech') {
+              await generateSpeech({
+                apiKey,
+                baseURL: baseUrl,
+                headers: additionalHeaders,
+                model,
+                input: 'ping',
+                voice: 'alloy',
+              })
+            }
+            else {
+              await generateText({
+                apiKey,
+                baseURL: baseUrl,
+                headers: additionalHeaders,
+                model,
+                messages: message.messages(message.user('ping')),
+                max_tokens: 1,
+              })
+            }
             return null
           }
           catch (e) {

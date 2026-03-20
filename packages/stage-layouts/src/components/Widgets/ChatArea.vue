@@ -9,7 +9,7 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useSettings, useSettingsAudioDevice, useSettingsChat } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea, FieldSelect } from '@proj-airi/ui'
 import { until } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -19,20 +19,25 @@ import { useI18n } from 'vue-i18n'
 
 import IndicatorMicVolume from './IndicatorMicVolume.vue'
 
+// Transcription listening state (separate from microphone enabled)
+
+const props = defineProps<{
+  tools?: any[]
+}>()
 const messageInput = ref('')
 const hearingPopoverOpen = ref(false)
 const isComposing = ref(false)
-const isListening = ref(false) // Transcription listening state (separate from microphone enabled)
-
+const isListening = ref(false)
 const providersStore = useProvidersStore()
 const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
+const settingsChat = useSettingsChat()
 
 const { askPermission, startStream } = useSettingsAudioDevice()
 const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(useSettingsAudioDevice())
 const chatOrchestrator = useChatOrchestratorStore()
 const chatSession = useChatSessionStore()
-const { ingest, onAfterMessageComposed, discoverToolsCompatibility } = chatOrchestrator
+const { ingest, onAfterMessageComposed } = chatOrchestrator
 const { messages } = storeToRefs(chatSession)
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
@@ -88,6 +93,7 @@ async function debouncedAutoSend(text: string) {
           chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
           model: activeModel.value,
           providerConfig,
+          tools: props.tools,
         })
         // Clear the message input after sending
         messageInput.value = ''
@@ -116,6 +122,7 @@ async function handleSend() {
       chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
       model: activeModel.value,
       providerConfig,
+      tools: props.tools,
     })
   }
   catch (error) {
@@ -131,12 +138,6 @@ async function handleSend() {
 watch(hearingPopoverOpen, async (value) => {
   if (value) {
     await askPermission()
-  }
-})
-
-watch([activeProvider, activeModel], async () => {
-  if (activeProvider.value && activeModel.value) {
-    await discoverToolsCompatibility(activeModel.value, await providersStore.getProviderInstance<ChatProvider>(activeProvider.value), [])
   }
 })
 
@@ -305,7 +306,41 @@ async function startListening() {
             }
           }
         },
-        // Omit onSpeechEnd to avoid re-adding user-deleted text; use sentence deltas only.
+        onSpeechEnd: (text) => {
+          console.info('[ChatArea] Speech ended, final text:', text)
+          if (!text || !text.trim()) {
+            return
+          }
+
+          // Cancel any pending debounced auto-sends since we are handling the final text here
+          clearPendingAutoSend()
+
+          // We ALWAYS "inscribe" the final text into the chat history so it's not lost.
+          // The auto-send setting now ONLY controls whether the AI assistant triggers a reply.
+          void (async () => {
+            try {
+              const provider = await providersStore.getProviderInstance(activeProvider.value)
+              if (!provider || !activeModel.value)
+                return
+
+              console.info('[ChatArea] Inscribing message:', { text, autoSend: autoSendEnabled.value })
+              await ingest(text, {
+                chatProvider: provider as ChatProvider,
+                model: activeModel.value,
+                skipAssistant: !autoSendEnabled.value,
+                tools: props.tools,
+              })
+
+              // Clear the message input if it matches the transcribed text (standard behavior)
+              if (messageInput.value.trim() === text.trim()) {
+                messageInput.value = ''
+              }
+            }
+            catch (err) {
+              console.error('[ChatArea] Inscription error:', err)
+            }
+          })()
+        },
       })
 
       // Only set listening to true if transcription started successfully
@@ -345,6 +380,7 @@ async function stopListening() {
           chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
           model: activeModel.value,
           providerConfig,
+          tools: props.tools,
         })
         messageInput.value = ''
       }
@@ -408,6 +444,7 @@ watch(autoSendEnabled, (enabled) => {
     >
       <BasicTextarea
         v-model="messageInput"
+        :send-mode="settingsChat.sendMode"
         :placeholder="t('stage.message')"
         text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
         bg="transparent"

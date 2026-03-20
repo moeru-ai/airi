@@ -11,7 +11,7 @@ declare global {
   }
 }
 
-export class OPFSCache {
+export class OPFSCacheV2 {
   static async clearAll(): Promise<void> {
     try {
       const root = await navigator.storage.getDirectory()
@@ -40,7 +40,7 @@ export class OPFSCache {
       }
       else if (entry.kind === 'directory') {
         const newPrefix = `${pathPrefix + entry.name}/`
-        const subFiles = await OPFSCache.readDirectoryRecursive(entry as FileSystemDirectoryHandle, newPrefix)
+        const subFiles = await OPFSCacheV2.readDirectoryRecursive(entry as FileSystemDirectoryHandle, newPrefix)
         files.push(...subFiles)
       }
     }
@@ -64,7 +64,7 @@ export class OPFSCache {
     const fileName = parts.pop()!
     const dirPath = parts.join('/')
 
-    const dirHandle = await OPFSCache.resolveDirectory(root, dirPath)
+    const dirHandle = await OPFSCacheV2.resolveDirectory(root, dirPath)
     const fileHandle = await dirHandle.getFileHandle(fileName, { create: true })
     const writable = await fileHandle.createWritable()
     await writable.write(content)
@@ -90,7 +90,7 @@ export class OPFSCache {
       // eslint-disable-next-line no-console
       console.debug(`[OPFS] Cache hit for ${key}`)
 
-      const meta = await OPFSCache.readMeta(dirHandle)
+      const meta = await OPFSCacheV2.readMeta(dirHandle)
       if (meta?.sourceUrl && meta.sourceUrl !== sourceUrl) {
         // NOTICE: Skip cache when the requested URL changes while the key stays the same.
         // This avoids serving a stale model when ids are reused or props are out of sync.
@@ -99,7 +99,7 @@ export class OPFSCache {
         return null
       }
 
-      const files = await OPFSCache.readDirectoryRecursive(dirHandle, '')
+      const files = await OPFSCacheV2.readDirectoryRecursive(dirHandle, '')
 
       if (files.length > 0) {
         return files
@@ -123,7 +123,7 @@ export class OPFSCache {
 
       for (const file of files) {
         const relativePath = file.webkitRelativePath || file.name
-        writePromises.push(OPFSCache.writeFile(dirHandle, relativePath, file))
+        writePromises.push(OPFSCacheV2.writeFile(dirHandle, relativePath, file))
       }
 
       const settingsFile = files.find(f => f.name.endsWith('.model.json') || f.name.endsWith('.model3.json'))
@@ -137,13 +137,13 @@ export class OPFSCache {
           const settingsJson = JSON.stringify(settings.json)
           const settingsFileName = settings.url || 'model.model3.json'
 
-          writePromises.push(OPFSCache.writeFile(dirHandle, settingsFileName, settingsJson))
+          writePromises.push(OPFSCacheV2.writeFile(dirHandle, settingsFileName, settingsJson))
         }
       }
 
       await Promise.all(writePromises)
       if (sourceUrl) {
-        await OPFSCache.writeFile(dirHandle, '__meta.json', JSON.stringify({ sourceUrl }))
+        await OPFSCacheV2.writeFile(dirHandle, '__meta.json', JSON.stringify({ sourceUrl }))
       }
       // eslint-disable-next-line no-console
       console.debug(`[OPFS] Saved to cache`)
@@ -154,12 +154,12 @@ export class OPFSCache {
   }
 
   // Runs before ZipLoader to check if the file is already cached
-  static checkMiddleware: Middleware<OPFSContext> = async (context, next) => {
+  static checkMiddlewareV2: Middleware<OPFSContext> = async (context, next) => {
     const source = context.source
     let key: string | undefined
     let blobUrl: string | undefined
 
-    // In Model.vue, we pass {id, url} to the loader, extract them here
+    // In Model.vue, we pass {id, url, file} to the loader, extract them here
     if (
       typeof source === 'object'
       && source !== null
@@ -168,18 +168,29 @@ export class OPFSCache {
     ) {
       key = source.id
       blobUrl = source.url
+
+      // If we have the original file object, use it directly as the source
+      // Use a more robust check instead of instanceof File which can fail across contexts
+      const hasFile = 'file' in source && source.file && (typeof source.file === 'object') && ('size' in (source as any).file)
+
+      if (hasFile) {
+        context.source = [source.file as unknown as File]
+        return next()
+      }
     }
-    else {
+
+    // NOTICE: Perform robust checks to avoid "undefined" property access runtime errors.
+    const isBlob = !!blobUrl && blobUrl.startsWith('blob:')
+    const isLocalVite = !!blobUrl && blobUrl.startsWith('http://localhost') && blobUrl.includes('/@fs/')
+    const shouldFetchManually = isBlob || isLocalVite
+
+    if (!key || !blobUrl || !shouldFetchManually) {
+      if (typeof blobUrl === 'string')
+        context.source = blobUrl
       return next()
     }
 
-    // check if url is blob or zip, pass through if not
-    if (!key || !blobUrl || (!blobUrl.startsWith('blob:') && !blobUrl.endsWith('.zip'))) {
-      context.source = blobUrl
-      return next()
-    }
-
-    const files = await OPFSCache.get(key, blobUrl)
+    const files = await OPFSCacheV2.get(key, blobUrl)
 
     if (files) {
       // cache hit
@@ -189,18 +200,24 @@ export class OPFSCache {
 
     // cache miss
     // eslint-disable-next-line no-console
-    console.debug(`[OPFS] Cache miss for ${key}`)
+    console.debug(`[OPFS] Cache miss for ${key}${isLocalVite ? ' (local vite)' : ''}`)
     context.opfsKey = key
     context.opfsUrl = blobUrl
 
     try {
+      // NOTICE: Always fetch as a blob and wrap in a File to bypass XHRLoader's strict 206/Status 0 checks
+      // and let pixi-live2d-display handle it as a local file array if possible.
       const res = await fetch(blobUrl)
+      if (!res.ok) {
+        throw new Error(`Failed to fetch source: ${res.statusText} (${res.status})`)
+      }
+
       const blob = await res.blob()
       const fileName = `${key}.zip`
       context.source = [new File([blob], fileName)]
     }
     catch (e) {
-      console.error(`[OPFS] Failed to fetch blob for ${key}`, e)
+      console.error(`[OPFS] Failed to fetch source for ${key}`, e)
       throw e
     }
 
@@ -208,7 +225,7 @@ export class OPFSCache {
   }
 
   // Runs after ZipLoader to cache the files
-  static saveMiddleware: Middleware<OPFSContext> = async (context, next) => {
+  static saveMiddlewareV2: Middleware<OPFSContext> = async (context, next) => {
     if (!context.opfsKey || !Array.isArray(context.source)) {
       return next()
     }
@@ -219,7 +236,7 @@ export class OPFSCache {
       return next()
     }
 
-    await OPFSCache.save(context.opfsKey, files, context.opfsUrl)
+    await OPFSCacheV2.save(context.opfsKey, files, context.opfsUrl)
 
     return next()
   }

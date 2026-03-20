@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/memory-pgvector",
   "type": "module",
-  "version": "0.9.0-alpha.13",
+  "version": "0.9.0-alpha.15",
   "private": true,
   "description": "",
   "author": {

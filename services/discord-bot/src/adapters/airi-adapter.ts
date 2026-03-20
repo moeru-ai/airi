@@ -86,16 +86,31 @@ export class DiscordAdapter {
       ],
       token: config.airiToken,
       url: config.airiUrl,
+      onError: (err) => {
+        log.withError(err).error('AIRI connection error')
+      },
+      onClose: () => {
+        log.warn('Disconnected from AIRI server')
+      },
     })
 
     this.voiceManager = new VoiceManager(this.discordClient, this.airiClient)
-
-    this.setupEventHandlers()
   }
 
   private setupEventHandlers(): void {
+    // Handle AIRI connection events
+    this.airiClient.onEvent('module:authenticated', async (event) => {
+      if (event.data.authenticated) {
+        log.log('Successfully authenticated with AIRI server.')
+      }
+      else {
+        log.error('Failed to authenticate with AIRI server.')
+      }
+    })
+
     // Handle configuration from UI
     this.airiClient.onEvent('module:configure', async (event) => {
+      log.log('Received module:configure event from AIRI server')
       if (this.isReconnecting) {
         log.warn('A reconnect is already in progress, skipping this configuration event.')
         return
@@ -149,6 +164,10 @@ export class DiscordAdapter {
       }
     })
 
+    this.airiClient.onEvent('registry:modules:sync', (event) => {
+      log.log('Module registry synced. Active modules:', event.data.modules.map(m => m.name).join(', '))
+    })
+
     // Handle input from AIRI system
     this.airiClient.onEvent('input:text', async (event) => {
       log.log('Received input from AIRI system:', event.data.text)
@@ -158,13 +177,20 @@ export class DiscordAdapter {
 
     // Handle output from AIRI system (IA response)
     this.airiClient.onEvent('output:gen-ai:chat:message', async (event) => {
+      log.log('Received response from AIRI server')
       try {
-        const message = (event.data as { message?: { content: string } }).message
-        const discordContext = (event.data)['gen-ai:chat'].input.data.discord
+        const data = event.data as any
+        const message = data.message
+
+        // Robustly look for discord context.
+        // It could be in ['gen-ai:chat'].input.data.discord (nested generator output)
+        // or directly in data.discord (merged input metadata)
+        const discordContext = data['gen-ai:chat']?.input?.data?.discord || data.discord
 
         if (message?.content && discordContext?.channelId) {
+          log.log(`Forwarding response to Discord channel ${discordContext.channelId}: "${message.content.slice(0, 100)}${message.content.length > 100 ? '...' : ''}"`)
           const channel = await this.discordClient.channels.fetch(discordContext.channelId)
-          if (channel?.isTextBased() && 'send' in channel && typeof channel.send === 'function') {
+          if (channel?.isTextBased() && 'send' in channel && typeof (channel as any).send === 'function') {
             const content = message.content
             if (content.length <= 2000) {
               await channel.send(content)
@@ -204,7 +230,15 @@ export class DiscordAdapter {
     this.discordClient.once(Events.ClientReady, async (readyClient) => {
       log.log(`Discord bot ready! User: ${readyClient.user.tag}`)
       // Register commands dynamically using the authenticated client's ID and token
-      await registerCommands(this.discordToken, readyClient.user.id)
+      const guildId = env.DISCORD_GUILD_ID
+      if (guildId) {
+        log.log(`Registering commands for guild: ${guildId}`)
+        await registerCommands(this.discordToken, readyClient.user.id, guildId)
+      }
+      else {
+        log.log('Registering global commands. Note: This may take up to an hour to propagate.')
+        await registerCommands(this.discordToken, readyClient.user.id)
+      }
     })
 
     // Handle text messages from Discord
@@ -259,6 +293,8 @@ export class DiscordAdapter {
           ? `The input is coming from Discord channel ${normalizedDiscord.channelId} (Guild: ${normalizedDiscord.guildId ?? 'unknown'}).`
           : undefined
 
+        log.log('Sending message to AIRI:', { content, targetSessionId })
+
         this.airiClient.send({
           type: 'input:text',
           data: {
@@ -287,10 +323,13 @@ export class DiscordAdapter {
     })
 
     this.discordClient.on(Events.InteractionCreate, async (interaction: Interaction) => {
-      if (!interaction.isChatInputCommand())
+      log.log(`Interaction received. Type: ${interaction.type}`)
+      if (!interaction.isChatInputCommand()) {
+        log.log('Interaction is not a chat input command')
         return
+      }
 
-      log.log(`Interaction received: /${interaction.commandName} from ${interaction.user.tag}`)
+      log.log(`Interaction received: /${interaction.commandName} from ${interaction.user.tag} in Guild: ${interaction.guildId}, Channel: ${interaction.channelId}`)
 
       switch (interaction.commandName) {
         case 'ping':
@@ -299,6 +338,11 @@ export class DiscordAdapter {
         case 'summon':
           await this.voiceManager.handleJoinChannelCommand(interaction)
           break
+        case 'leave':
+          await this.voiceManager.handleLeaveChannelCommand(interaction)
+          break
+        default:
+          log.warn(`Unknown command interaction: ${interaction.commandName}`)
       }
     })
   }
@@ -306,14 +350,18 @@ export class DiscordAdapter {
   async start(): Promise<void> {
     log.log('Starting Discord adapter...')
 
+    this.setupEventHandlers()
+    await this.airiClient.connect()
+
     try {
       // Log in to Discord if token is available
       if (this.discordToken) {
+        log.log('Using token from environment variables to login...')
         await this.discordClient.login(this.discordToken)
         log.log('Discord adapter started successfully')
       }
       else {
-        log.warn('Discord token not provided. Waiting for configuration from UI.')
+        log.warn('Discord token not provided. Waiting for AIRI UI configuration. Open Settings -> Discord in AIRI and click Save to push the token to this bot process.')
       }
     }
     catch (error) {

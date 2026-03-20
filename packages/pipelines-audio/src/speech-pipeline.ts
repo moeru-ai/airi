@@ -104,7 +104,22 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
         context.emit(speechPipelineEventMap.onSegment, value)
 
         if (value.text === '' && value.special) {
-          context.emit(speechPipelineEventMap.onSpecial, value)
+          // Schedule a no-audio playback item so the special token
+          // fires in sequence with audio playback (via the onEnd handler).
+          // Previously this emitted onSpecial immediately, causing emotions
+          // to fire before the preceding audio finished playing.
+          options.playback.schedule({
+            id: createId('playback'),
+            streamId: value.streamId,
+            intentId: value.intentId,
+            segmentId: value.segmentId,
+            ownerId: intent.ownerId,
+            priority: intent.priority,
+            text: '',
+            special: value.special,
+            audio: null as unknown as TAudio,
+            createdAt: Date.now(),
+          })
           continue
         }
 

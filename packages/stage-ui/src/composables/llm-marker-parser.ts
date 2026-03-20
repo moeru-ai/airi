@@ -1,5 +1,6 @@
 const TAG_OPEN = '<|'
 const TAG_CLOSE = '|>'
+const LEGACY_TAG_CLOSE = '>'
 const ESCAPED_TAG_OPEN = '<{\'|\'}'
 const ESCAPED_TAG_CLOSE = '{\'|\'}>'
 
@@ -75,6 +76,36 @@ function createLlmMarkerParser(options?: MarkerParserOptions) {
   let buffer = ''
   let inTag = false
 
+  function normalizeSpecialToken(token: string) {
+    if (!token.startsWith(TAG_OPEN))
+      return token
+    if (token.endsWith(TAG_CLOSE))
+      return token
+    if (token.endsWith(LEGACY_TAG_CLOSE))
+      return `${token.slice(0, -1)}${TAG_CLOSE}`
+    return token
+  }
+
+  function findLegacyCloseTagIndex() {
+    const legacyCloseTagIndex = buffer.indexOf(LEGACY_TAG_CLOSE)
+    if (legacyCloseTagIndex < 0)
+      return -1
+
+    if (legacyCloseTagIndex > 0 && buffer[legacyCloseTagIndex - 1] === '|')
+      return -1
+
+    const upperPrefix = buffer.slice(0, 16).toUpperCase()
+    if (
+      upperPrefix.startsWith('<|ACT')
+      || upperPrefix.startsWith('<|DELAY')
+      || upperPrefix.startsWith('<|LLM_')
+    ) {
+      return legacyCloseTagIndex
+    }
+
+    return -1
+  }
+
   return {
     async consume(textPart: string, onLiteral: (value: string) => Promise<void> | void, onSpecial: (value: string) => Promise<void> | void) {
       buffer += textPart
@@ -103,11 +134,16 @@ function createLlmMarkerParser(options?: MarkerParserOptions) {
         }
         else {
           const closeTagIndex = buffer.indexOf(TAG_CLOSE)
-          if (closeTagIndex < 0)
+          const legacyCloseTagIndex = closeTagIndex < 0 ? findLegacyCloseTagIndex() : -1
+          if (closeTagIndex < 0 && legacyCloseTagIndex < 0)
             break
 
-          const emit = buffer.slice(0, closeTagIndex + TAG_CLOSE.length)
-          buffer = buffer.slice(closeTagIndex + TAG_CLOSE.length)
+          const endIndex = closeTagIndex >= 0
+            ? closeTagIndex + TAG_CLOSE.length
+            : legacyCloseTagIndex + LEGACY_TAG_CLOSE.length
+
+          const emit = normalizeSpecialToken(buffer.slice(0, endIndex))
+          buffer = buffer.slice(endIndex)
           await onSpecial(emit)
           inTag = false
         }

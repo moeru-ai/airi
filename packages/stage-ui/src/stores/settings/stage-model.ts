@@ -3,31 +3,65 @@ import type { DisplayModel } from '../display-models'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset, useEventListener } from '@vueuse/core'
 import { defineStore } from 'pinia'
+import { computed, watch } from 'vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
 
+export type StageModelRenderer = 'live2d' | 'vrm' | 'disabled' | undefined
+
 export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const displayModelsStore = useDisplayModelsStore()
+  let stageModelUpdateSequence = 0
+  const stageModelStorageKey = 'settings/stage/model'
 
-  const stageModelSelected = useLocalStorageManualReset<string>('settings/stage/model', 'preset-live2d-1')
+  const stageModelSelectedState = useLocalStorageManualReset<string>(stageModelStorageKey, 'preset-live2d-1')
+  const stageModelSelected = computed<string>({
+    get: () => stageModelSelectedState.value,
+    set: (value) => {
+      stageModelSelectedState.value = value
+    },
+  })
   const stageModelSelectedDisplayModel = refManualReset<DisplayModel | undefined>(undefined)
   const stageModelSelectedUrl = refManualReset<string | undefined>(undefined)
-  const stageModelRenderer = refManualReset<'live2d' | 'vrm' | 'disabled' | undefined>(undefined)
+  const stageModelSelectedFile = refManualReset<File | undefined>(undefined)
+  const stageModelRenderer = refManualReset<StageModelRenderer>(undefined)
 
   const stageViewControlsEnabled = refManualReset<boolean>(false)
 
+  function revokeStageModelUrl(url?: string) {
+    if (url?.startsWith('blob:'))
+      URL.revokeObjectURL(url)
+  }
+
+  function replaceStageModelUrl(nextUrl?: string) {
+    if (stageModelSelectedUrl.value === nextUrl)
+      return
+
+    revokeStageModelUrl(stageModelSelectedUrl.value)
+    stageModelSelectedUrl.value = nextUrl
+  }
+
   async function updateStageModel() {
-    if (!stageModelSelected.value) {
-      stageModelSelectedUrl.value = undefined
+    const requestId = ++stageModelUpdateSequence
+    const selectedModelId = stageModelSelectedState.value
+
+    if (!selectedModelId) {
+      replaceStageModelUrl(undefined)
       stageModelSelectedDisplayModel.value = undefined
+      stageModelSelectedFile.value = undefined
       stageModelRenderer.value = 'disabled'
       return
     }
 
-    const model = await displayModelsStore.getDisplayModel(stageModelSelected.value)
+    const model = await displayModelsStore.getDisplayModel(selectedModelId)
+
+    if (requestId !== stageModelUpdateSequence)
+      return
+
     if (!model) {
-      stageModelSelectedUrl.value = undefined
+      replaceStageModelUrl(undefined)
       stageModelSelectedDisplayModel.value = undefined
+      stageModelSelectedFile.value = undefined
       stageModelRenderer.value = 'disabled'
       return
     }
@@ -45,14 +79,18 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     }
 
     if (model.type === 'file') {
-      if (stageModelSelectedUrl.value) {
-        URL.revokeObjectURL(stageModelSelectedUrl.value)
+      const nextUrl = URL.createObjectURL(model.file)
+      if (requestId !== stageModelUpdateSequence) {
+        URL.revokeObjectURL(nextUrl)
+        return
       }
 
-      stageModelSelectedUrl.value = URL.createObjectURL(model.file)
+      replaceStageModelUrl(nextUrl)
+      stageModelSelectedFile.value = model.file
     }
     else {
-      stageModelSelectedUrl.value = model.url
+      replaceStageModelUrl(model.url)
+      stageModelSelectedFile.value = undefined
     }
 
     stageModelSelectedDisplayModel.value = model
@@ -63,18 +101,20 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   }
 
   useEventListener('unload', () => {
-    if (stageModelSelectedUrl.value) {
-      URL.revokeObjectURL(stageModelSelectedUrl.value)
-    }
+    revokeStageModelUrl(stageModelSelectedUrl.value)
+  })
+
+  watch(stageModelSelectedState, (_newValue, _oldValue) => {
+    void updateStageModel()
   })
 
   async function resetState() {
-    if (stageModelSelectedUrl.value)
-      URL.revokeObjectURL(stageModelSelectedUrl.value)
+    revokeStageModelUrl(stageModelSelectedUrl.value)
 
-    stageModelSelected.reset()
+    stageModelSelectedState.reset()
     stageModelSelectedDisplayModel.reset()
     stageModelSelectedUrl.reset()
+    stageModelSelectedFile.reset()
     stageModelRenderer.reset()
     stageViewControlsEnabled.reset()
 
@@ -85,6 +125,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     stageModelRenderer,
     stageModelSelected,
     stageModelSelectedUrl,
+    stageModelSelectedFile,
     stageModelSelectedDisplayModel,
     stageViewControlsEnabled,
 

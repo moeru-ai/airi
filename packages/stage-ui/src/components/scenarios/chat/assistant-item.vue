@@ -18,19 +18,81 @@ const props = withDefaults(defineProps<{
   variant: 'desktop',
 })
 
+interface DisplaySegment {
+  type: 'text' | 'act'
+  content: string
+}
+
+const ACT_MARKER_RE = /<\|ACT:[\s\S]*?(?:\|>|>)/gi
+
+function parseAssistantDisplayText(text: string): DisplaySegment[] {
+  const segments: DisplaySegment[] = []
+  let lastIndex = 0
+
+  for (const match of text.matchAll(ACT_MARKER_RE)) {
+    const start = match.index ?? 0
+    const raw = match[0]
+
+    if (start > lastIndex) {
+      segments.push({
+        type: 'text',
+        content: text.slice(lastIndex, start),
+      })
+    }
+
+    segments.push({
+      type: 'act',
+      content: raw,
+    })
+
+    lastIndex = start + raw.length
+  }
+
+  if (lastIndex < text.length) {
+    segments.push({
+      type: 'text',
+      content: text.slice(lastIndex),
+    })
+  }
+
+  return segments
+}
+
+function sanitizeAssistantTextForDisplay(text: string) {
+  return parseAssistantDisplayText(text)
+    .filter(segment => segment.type === 'text')
+    .map(segment => segment.content)
+    .join('')
+    .replace(/^\s*\n/, '')
+}
+
 const resolvedSlices = computed<ChatSlices[]>(() => {
   if (props.message.slices?.length) {
-    return props.message.slices
+    return props.message.slices.reduce<ChatSlices[]>((acc, slice) => {
+      if (slice.type !== 'text')
+        return [...acc, slice]
+
+      const cleaned = sanitizeAssistantTextForDisplay(slice.text)
+      if (!cleaned.trim())
+        return acc
+
+      return [...acc, { ...slice, text: cleaned } satisfies ChatSlicesText]
+    }, [])
   }
 
   if (typeof props.message.content === 'string' && props.message.content.trim()) {
-    return [{ type: 'text', text: props.message.content } satisfies ChatSlicesText]
+    const cleaned = sanitizeAssistantTextForDisplay(props.message.content)
+    if (cleaned.trim())
+      return [{ type: 'text', text: cleaned } satisfies ChatSlicesText]
   }
 
   if (Array.isArray(props.message.content)) {
     const textPart = props.message.content.find(part => 'type' in part && part.type === 'text') as { text?: string } | undefined
-    if (textPart?.text)
-      return [{ type: 'text', text: textPart.text } satisfies ChatSlicesText]
+    if (textPart?.text) {
+      const cleaned = sanitizeAssistantTextForDisplay(textPart.text)
+      if (cleaned.trim())
+        return [{ type: 'text', text: cleaned } satisfies ChatSlicesText]
+    }
   }
 
   return []

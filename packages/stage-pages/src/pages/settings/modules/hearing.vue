@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
+import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { electronGetMicToggleHotkey, electronSetMicToggleHotkey } from '@proj-airi/stage-shared/shortcuts'
 import { Alert, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
 import { useAnalytics, useAudioAnalyzer, useAudioRecorder } from '@proj-airi/stage-ui/composables'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
@@ -28,6 +30,7 @@ const {
   activeCustomModelName,
   autoSendEnabled,
   autoSendDelay,
+  hearingDetectionMode,
 } = storeToRefs(hearingStore)
 const providersStore = useProvidersStore()
 const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
@@ -77,6 +80,41 @@ const testStreamWasStarted = ref(false) // Track if we started the stream for te
 const useVADThreshold = ref(0.6) // 0.1 - 0.9
 const useVADModel = ref(true) // Toggle between VAD and volume-based detection
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
+
+const isElectron = typeof window !== 'undefined' && !!(window as any).electron
+const getMicToggleHotkeyInvoke = isElectron ? useElectronEventaInvoke(electronGetMicToggleHotkey) : null
+const setMicToggleHotkeyInvoke = isElectron ? useElectronEventaInvoke(electronSetMicToggleHotkey) : null
+
+const selectedHotkey = ref<MicToggleHotkey>('Scroll')
+const instanceId = Math.random().toString(36).slice(2, 9)
+const isFetched = ref(false)
+
+onMounted(async () => {
+  if (isElectron) {
+    console.log('[Hearing Page] Mounting, fetching hotkey from main process...')
+    const hotkey = await getMicToggleHotkeyInvoke?.()
+    console.log('[Hearing Page] Fetched hotkey from main:', hotkey)
+    if (hotkey) {
+      selectedHotkey.value = hotkey as MicToggleHotkey
+    }
+    isFetched.value = true
+  }
+  else {
+    isFetched.value = true
+  }
+})
+
+watch(selectedHotkey, async (newHotkey, oldHotkey) => {
+  console.log('[Hearing Page] selectedHotkey watch triggered:', oldHotkey, '->', newHotkey)
+  // Only save if we've already performed the initial fetch and it's a real change
+  if (isElectron && isFetched.value && newHotkey !== oldHotkey) {
+    console.log('[Hearing Page] User changed hotkey, saving to main process:', newHotkey)
+    await setMicToggleHotkeyInvoke?.(newHotkey)
+  }
+  else {
+    console.log('[Hearing Page] Watch skipped save (initialization or no change)')
+  }
+})
 
 async function handleSpeechStart() {
   if (shouldUseStreamInput.value && stream.value) {
@@ -585,14 +623,14 @@ onUnmounted(() => {
               <h2 class="text-lg md:text-2xl">
                 {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.title') }}
               </h2>
-              <div text="neutral-400 dark:neutral-400">
-                <!-- Show different description based on whether provider supports model listing and has models -->
+              <div class="flex flex-col items-start gap-1 text-neutral-400 md:flex-row md:items-center md:justify-between dark:text-neutral-400">
                 <span v-if="supportsModelListing && providerModels.length > 0">
                   {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}
                 </span>
                 <span v-else>
                   Enter the transcription model to use (e.g., 'whisper-1', 'gpt-4o-transcribe')
                 </span>
+                <span v-if="activeTranscriptionModel" class="text-sm text-neutral-400 font-medium dark:text-neutral-400">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.current_model_label') }} {{ activeTranscriptionModel }}</span>
               </div>
             </div>
 
@@ -605,11 +643,20 @@ onUnmounted(() => {
             </div>
 
             <!-- Error state -->
-            <ErrorContainer
-              v-else-if="activeProviderModelError && supportsModelListing"
-              :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
-              :error="activeProviderModelError"
-            />
+            <template v-else-if="activeProviderModelError && supportsModelListing">
+              <ErrorContainer
+                :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
+                :error="activeProviderModelError"
+              />
+
+              <div v-if="activeTranscriptionProvider === 'openai-compatible-audio-transcription'" class="mt-2">
+                <FieldInput
+                  :model-value="activeTranscriptionModel || activeCustomModelName || ''"
+                  placeholder="whisper-1"
+                  @update:model-value="updateCustomModelName"
+                />
+              </div>
+            </template>
 
             <!-- Manual input for providers without model listing or when no models are available -->
             <div
@@ -683,6 +730,37 @@ onUnmounted(() => {
               :max="10000"
               :step="100"
               :format-value="value => value === 0 ? 'Immediate' : `${(value / 1000).toFixed(1)}s`"
+            />
+          </div>
+        </div>
+
+        <!-- Detection Mode -->
+        <div class="border-t border-neutral-200 pt-4 dark:border-neutral-700">
+          <div class="mb-4">
+            <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
+              Detection Mode
+            </h2>
+            <div text="neutral-400 dark:neutral-400">
+              Choose how to detect speech and trigger recordings
+            </div>
+          </div>
+
+          <div flex="~ row gap-4">
+            <RadioCardSimple
+              id="detection-mode-vad"
+              v-model="hearingDetectionMode"
+              name="detection-mode"
+              value="vad"
+              title="VAD (Default)"
+              description="AI-powered speech detection to automatically start and stop recordings."
+            />
+            <RadioCardSimple
+              id="detection-mode-manual"
+              v-model="hearingDetectionMode"
+              name="detection-mode"
+              value="manual"
+              title="Manual (Pure Mic)"
+              description="No automatic detection. Toggle the microphone manually to record."
             />
           </div>
         </div>
@@ -820,6 +898,40 @@ onUnmounted(() => {
               />
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Mic Toggle Hotkey (Desktop Only) -->
+      <div v-if="isElectron" w-full rounded-xl bg="neutral-50 dark:[rgba(0,0,0,0.3)]" p-4 flex="~ col gap-4">
+        <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
+          {{ t('settings.pages.modules.hearing.sections.section.hotkey.title') }}
+        </h2>
+        <div text="sm neutral-400 dark:neutral-500" mb-2>
+          {{ t('settings.pages.modules.hearing.sections.section.hotkey.description') }}
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <RadioCardSimple
+            id="Scroll"
+            v-model="selectedHotkey"
+            :name="`mic-toggle-hotkey-${instanceId}`"
+            value="Scroll"
+            :title="t('settings.pages.modules.hearing.sections.section.hotkey.options.scroll')"
+          />
+          <RadioCardSimple
+            id="Caps"
+            v-model="selectedHotkey"
+            :name="`mic-toggle-hotkey-${instanceId}`"
+            value="Caps"
+            :title="t('settings.pages.modules.hearing.sections.section.hotkey.options.caps')"
+          />
+          <RadioCardSimple
+            id="Num"
+            v-model="selectedHotkey"
+            :name="`mic-toggle-hotkey-${instanceId}`"
+            value="Num"
+            :title="t('settings.pages.modules.hearing.sections.section.hotkey.options.num')"
+          />
         </div>
       </div>
 

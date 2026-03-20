@@ -73,14 +73,23 @@ export async function transcribe(pcmBuffer: Buffer) {
 export async function openaiTranscribe(wavBuffer: Buffer) {
   const log = useLogg('Remote:Transcribe').useGlobalConfig()
 
-  log.log('Transcribing audio...')
+  const apiKey = env.OPENAI_STT_API_KEY
+  const baseUrl = env.OPENAI_STT_API_BASE_URL
+  const model = env.OPENAI_STT_MODEL
+
+  if (!baseUrl) {
+    log.error('OPENAI_STT_API_BASE_URL is not set. Transcription failed.')
+    return ''
+  }
+
+  log.log(`Transcribing audio using model: ${model || 'default'} at ${baseUrl}...`)
 
   const wavFile = new Blob([wavBuffer], { type: 'audio/wav' })
-  const openai = createOpenAI(env.OPENAI_STT_API_KEY, env.OPENAI_STT_API_BASE_URL)
+  const openai = createOpenAI(apiKey, baseUrl)
 
   try {
     const result = await generateTranscription({
-      ...openai.transcription(env.OPENAI_STT_MODEL),
+      ...openai.transcription(model || 'whisper-1'),
       file: wavFile,
     })
 

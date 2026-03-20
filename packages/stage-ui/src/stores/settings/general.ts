@@ -30,6 +30,7 @@ export const useSettingsGeneral = defineStore('settings-general', () => {
 
   const disableTransitions = useLocalStorageManualReset<boolean>('settings/disable-transitions', true)
   const usePageSpecificTransitions = useLocalStorageManualReset<boolean>('settings/use-page-specific-transitions', true)
+  const remoteSyncEnabled = useLocalStorageManualReset<boolean>('settings/privacy/remote-sync-enabled', false)
 
   const websocketSecureEnabled = useLocalStorageManualReset<boolean>('settings/websocket/secure-enabled', false)
 
@@ -55,6 +56,7 @@ export const useSettingsGeneral = defineStore('settings-general', () => {
     language.reset()
     disableTransitions.reset()
     usePageSpecificTransitions.reset()
+    remoteSyncEnabled.reset()
     websocketSecureEnabled.reset()
   }
 
@@ -64,6 +66,7 @@ export const useSettingsGeneral = defineStore('settings-general', () => {
     language,
     disableTransitions,
     usePageSpecificTransitions,
+    remoteSyncEnabled,
     websocketSecureEnabled,
     getLanguage,
     resetState,

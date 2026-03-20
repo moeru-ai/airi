@@ -259,7 +259,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
         sendRegistrySync(peer)
       }
 
-      logger.withFields({ peer: peer.id, activePeers: peers.size }).log('connected')
+      logger.withFields({ peer: peer.id, activePeers: peers.size }).log('[TESTING] connected')
     },
     message: (peer, message) => {
       const authenticatedPeer = peers.get(peer.id)
@@ -294,12 +294,22 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
         return
       }
 
-      logger.withFields({
-        peer: peer.id,
-        peerAuthenticated: authenticatedPeer?.authenticated,
-        peerModule: authenticatedPeer?.name,
-        peerModuleIndex: authenticatedPeer?.index,
-      }).debug('received event')
+      if (event.type !== 'output:gen-ai:chat:complete') {
+        logger.withFields({
+          peer: peer.id,
+          peerAuthenticated: authenticatedPeer?.authenticated,
+          peerModule: authenticatedPeer?.name,
+          peerModuleIndex: authenticatedPeer?.index,
+        }).log('received event', { type: event.type })
+      }
+      else {
+        logger.withFields({
+          peer: peer.id,
+          peerAuthenticated: authenticatedPeer?.authenticated,
+          peerModule: authenticatedPeer?.name,
+          peerModuleIndex: authenticatedPeer?.index,
+        }).debug('received event', { type: event.type })
+      }
 
       if (authenticatedPeer) {
         authenticatedPeer.lastHeartbeatAt = Date.now()
@@ -486,7 +496,14 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       const targetIds = decision?.type === 'targets' ? decision.targetIds : undefined
       const shouldBroadcast = decision?.type === 'broadcast' || !targetIds
 
-      logger.withFields({ peer: peer.id, peerName: p.name, event }).debug('broadcasting event to peers')
+      /*
+      if (event.type !== 'output:gen-ai:chat:complete') {
+        logger.withFields({ peer: peer.id, peerName: p.name, event }).log('broadcasting event to peers')
+      }
+      else {
+        logger.withFields({ peer: peer.id, peerName: p.name, event }).debug('broadcasting event to peers')
+      }
+      */
 
       for (const [id, other] of peers.entries()) {
         if (id === peer.id) {
@@ -523,7 +540,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       if (p)
         unregisterModulePeer(p, 'connection closed')
 
-      logger.withFields({ peer: peer.id, peerRemote: peer.remoteAddress, details, activePeers: peers.size }).log('closed')
+      logger.withFields({ peer: peer.id, peerRemote: peer.remoteAddress, details, activePeers: peers.size }).log('[TESTING] closed')
       peers.delete(peer.id)
     },
   }))

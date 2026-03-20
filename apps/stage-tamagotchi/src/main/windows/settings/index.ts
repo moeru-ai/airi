@@ -12,9 +12,16 @@ import { BrowserWindow, shell } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
 
+import { electronSettingsNavigate } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
+import { toggleWindowShow } from '../shared'
 import { setupSettingsWindowInvokes } from './rpc/index.electron'
+
+export interface SettingsWindowManager {
+  getWindow: () => Promise<BrowserWindow>
+  openWindow: (route?: string) => Promise<void>
+}
 
 export function setupSettingsWindowReusableFunc(params: {
   widgetsManager: WidgetsWindowManager
@@ -24,10 +31,15 @@ export function setupSettingsWindowReusableFunc(params: {
   serverChannel: ServerChannel
   mcpStdioManager: McpStdioManager
   i18n: I18n
-}) {
-  return createReusableWindow(async () => {
+}): SettingsWindowManager {
+  const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
+  const defaultRoute = '/settings'
+  let currentRoute = defaultRoute
+  let settingsContext: Awaited<ReturnType<typeof setupSettingsWindowInvokes>> | undefined
+
+  const reusable = createReusableWindow(async () => {
     const window = new BrowserWindow({
-      title: 'Settings',
+      title: 'AIRI - Settings',
       width: 600.0,
       height: 800.0,
       show: false,
@@ -48,8 +60,8 @@ export function setupSettingsWindowReusableFunc(params: {
       return { action: 'deny' }
     })
 
-    await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/settings'))
-    await setupSettingsWindowInvokes({
+    await load(window, withHashRoute(rendererBase, currentRoute))
+    settingsContext = await setupSettingsWindowInvokes({
       settingsWindow: window,
       widgetsManager: params.widgetsManager,
       autoUpdater: params.autoUpdater,
@@ -59,8 +71,32 @@ export function setupSettingsWindowReusableFunc(params: {
       i18n: params.i18n,
     })
 
+    window.on('closed', () => {
+      if (settingsContext)
+        settingsContext = undefined
+    })
+
     initScreenCaptureForWindow(window)
 
     return window
-  }).getWindow
+  })
+
+  async function openWindow(route?: string) {
+    if (route) {
+      currentRoute = route
+    }
+
+    const window = await reusable.getWindow()
+
+    if (route && settingsContext) {
+      settingsContext.emit(electronSettingsNavigate, { route })
+    }
+
+    toggleWindowShow(window)
+  }
+
+  return {
+    getWindow: reusable.getWindow,
+    openWindow,
+  }
 }

@@ -1,7 +1,6 @@
 import type { VRM, VRMCore } from '@pixiv/three-vrm'
 import type { Mesh, Object3D, Scene } from 'three'
 
-import { VRMUtils } from '@pixiv/three-vrm'
 import { VRMLookAtQuaternionProxy } from '@pixiv/three-vrm-animation'
 import { Box3, Group, Quaternion, Vector3 } from 'three'
 
@@ -33,8 +32,21 @@ export async function loadVrm(model: string, options?: {
   const _vrm = userData.vrm
 
   // calling these functions greatly improves the performance
-  VRMUtils.removeUnnecessaryVertices(_vrm.scene)
-  VRMUtils.combineSkeletons(_vrm.scene)
+  // VRMUtils.removeUnnecessaryVertices(_vrm.scene)
+  // VRMUtils.combineSkeletons(_vrm.scene)
+
+  // Zero out all expression weights on load.
+  // Some VRM models (e.g. Satoimo) ship with non-zero default weights
+  // for custom expressions (hearts, glasses, music overlays), causing
+  // everything to render simultaneously ("megazord" state).
+  // This runs at load time so both static preview and animated views start clean.
+  if (_vrm.expressionManager) {
+    const expressionNames = Object.keys(_vrm.expressionManager.expressionMap)
+    for (const name of expressionNames) {
+      _vrm.expressionManager.setValue(name, 0)
+    }
+    _vrm.expressionManager.update()
+  }
 
   // Disable frustum culling
   _vrm.scene.traverse((object: Object3D) => {
@@ -111,7 +123,19 @@ export async function loadVrm(model: string, options?: {
   const modelCenter = new Vector3()
   box.getSize(modelSize)
   box.getCenter(modelCenter)
-  modelCenter.y += modelSize.y / 5 // Adjust pivot to align chest with the origin
+
+  // CRITICAL: Try to find the head bone for precise centering.
+  // Bounding boxes can be skewed by invisible scene objects or large accessories.
+  const headBone = _vrm.humanoid?.getRawBoneNode('head')
+  if (headBone) {
+    headBone.getWorldPosition(modelCenter)
+    // Adjust focus slightly down to include the upper chest in the "headshot"
+    modelCenter.y -= modelSize.y / 20
+  }
+  else {
+    // Fallback to bounding box pivot if no humanoid head is found
+    modelCenter.y += modelSize.y / 5
+  }
 
   // Compute the initial camera position (once per loaded model)
   // In order to see the up-2/3 part fo the model, z = (y/3) / tan(fov/2)

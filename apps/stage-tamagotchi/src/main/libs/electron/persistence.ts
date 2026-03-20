@@ -57,6 +57,7 @@ export interface Config<TSchema extends PersistedSchema> {
   setup: () => ConfigDiagnostics<InferOutput<TSchema>>
   get: () => InferOutput<TSchema> | undefined
   update: (newData: InferOutput<TSchema>) => void
+  flush: () => void
   getDiagnostics: () => ConfigDiagnostics<InferOutput<TSchema>> | undefined
 }
 
@@ -76,17 +77,27 @@ export function createConfig<TSchema extends PersistedSchema>(
     return diagnostics
   }
 
-  const save = throttle(async () => {
+  let queuedSave = Promise.resolve()
+  let saveSequence = 0
+
+  const persistToDisk = async () => {
     try {
       const path = configPath()
       await ensureConfigDirectory(path)
-      const tmpPath = `${path}.tmp`
+      const sequence = ++saveSequence
+      const tmpPath = `${path}.${process.pid}.${sequence}.tmp`
       await writeFile(tmpPath, JSON.stringify(persistenceMap.get(key)))
       await rename(tmpPath, path)
     }
     catch (error) {
       console.error('Failed to save config', error)
     }
+  }
+
+  const save = throttle(() => {
+    queuedSave = queuedSave
+      .catch(() => {})
+      .then(async () => persistToDisk())
   }, 250)
 
   const writeHealingConfig = async (value: InferOutput<TSchema>) => {
@@ -169,6 +180,19 @@ export function createConfig<TSchema extends PersistedSchema>(
     save()
   }
 
+  const flush = () => {
+    try {
+      const data = persistenceMap.get(key)
+      if (data !== undefined) {
+        const { writeFileSync: writeFileSyncSync } = require('node:fs')
+        writeFileSyncSync(configPath(), JSON.stringify(data))
+      }
+    }
+    catch (error) {
+      console.error('Failed to flush config', error)
+    }
+  }
+
   const get = () => persistenceMap.get(key) as InferOutput<TSchema> | undefined
 
   const getDiagnostics = () => diagnosticsMap.get(key) as ConfigDiagnostics<InferOutput<TSchema>> | undefined
@@ -177,6 +201,7 @@ export function createConfig<TSchema extends PersistedSchema>(
     setup,
     get,
     update,
+    flush,
     getDiagnostics,
   }
 }

@@ -13,6 +13,10 @@ export const useSpeechRuntimeStore = defineStore('speech-runtime', () => {
     await runtime.registerHost(pipeline)
   }
 
+  async function unregisterHost(pipeline?: Parameters<typeof runtime.unregisterHost>[0]) {
+    await runtime.unregisterHost(pipeline)
+  }
+
   function isHost() {
     return runtime.isHost()
   }
@@ -24,6 +28,7 @@ export const useSpeechRuntimeStore = defineStore('speech-runtime', () => {
   return {
     openIntent,
     registerHost,
+    unregisterHost,
     isHost,
     dispose,
   }

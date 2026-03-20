@@ -6,23 +6,35 @@ import type { McpStdioManager } from '../../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../../services/electron/auto-updater'
 import type { NoticeWindowManager } from '../../notice'
 import type { OnboardingWindowManager } from '../../onboarding'
+import type { SettingsWindowManager } from '../../settings'
 import type { WidgetsWindowManager } from '../../widgets'
+
+import clickDragPlugin from 'electron-click-drag-plugin'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
+import { isLinux } from 'std-env'
 
-import { electronOpenChat, electronOpenMainDevtools, electronOpenSettings, noticeWindowEventa } from '../../../../shared/eventa'
+import {
+  electronGetMainWindowConfig,
+  electronOpenChat,
+  electronOpenMainDevtools,
+  electronOpenSettings,
+  electronStartDraggingWindow,
+  noticeWindowEventa,
+} from '../../../../shared/eventa'
 import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { createOnboardingService } from '../../../services/airi/onboarding'
 import { createWidgetsService } from '../../../services/airi/widgets'
 import { createAutoUpdaterService } from '../../../services/electron'
+import { createDockModeService } from '../../../services/electron/dock-mode'
 import { toggleWindowShow } from '../../shared'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
 export async function setupMainWindowElectronInvokes(params: {
   window: BrowserWindow
-  settingsWindow: () => Promise<BrowserWindow>
+  settingsWindow: SettingsWindowManager
   chatWindow: () => Promise<BrowserWindow>
   widgetsManager: WidgetsWindowManager
   noticeWindow: NoticeWindowManager
@@ -44,9 +56,30 @@ export async function setupMainWindowElectronInvokes(params: {
   createAutoUpdaterService({ context, window: params.window, service: params.autoUpdater })
   createMcpServersService({ context, manager: params.mcpStdioManager })
   createOnboardingService({ context, onboardingWindowManager: params.onboardingWindowManager })
+  createDockModeService({ context, window: params.window })
 
   defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))
-  defineInvokeHandler(context, electronOpenSettings, async () => toggleWindowShow(await params.settingsWindow()))
+  defineInvokeHandler(context, electronOpenSettings, async payload => params.settingsWindow.openWindow(payload?.route))
   defineInvokeHandler(context, electronOpenChat, async () => toggleWindowShow(await params.chatWindow()))
   defineInvokeHandler(context, noticeWindowEventa.openWindow, payload => params.noticeWindow.open(payload))
+
+  defineInvokeHandler(context, electronGetMainWindowConfig, () => {
+    return (params.window as any).__airi_config
+  })
+
+  if (!isLinux) {
+    defineInvokeHandler(context, electronStartDraggingWindow, () => {
+      try {
+        const windowId = params.window.getNativeWindowHandle()
+        clickDragPlugin.startDrag(windowId)
+      }
+      catch (error) {
+        console.error(error)
+      }
+    })
+  }
+
+  ipcMain.on('main-window-config-updated', (_event, config) => {
+    params.window.webContents.send('eventa:event:electron:windows:main:config-changed', config)
+  })
 }

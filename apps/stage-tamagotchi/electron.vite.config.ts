@@ -13,7 +13,6 @@ import VueMacros from 'vue-macros/vite'
 
 import { Download } from '@proj-airi/unplugin-fetch'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
-import { templateCompilerOptions } from '@tresjs/core'
 import { defineConfig } from 'electron-vite'
 
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
@@ -69,6 +68,7 @@ export default defineConfig({
     resolve: {
       alias: {
         '@proj-airi/i18n': resolve(join(import.meta.dirname, '..', '..', 'packages', 'i18n', 'src')),
+        '@proj-airi/server-runtime': resolve(join(import.meta.dirname, '..', '..', 'packages', 'server-runtime', 'src')),
       },
     },
   },
@@ -103,7 +103,10 @@ export default defineConfig({
     optimizeDeps: {
       exclude: [
         // Internal Packages
+        '@proj-airi/stage-ui',
         '@proj-airi/stage-ui/*',
+        '@proj-airi/stage-ui-three',
+        '@proj-airi/stage-ui-three/*',
         '@proj-airi/drizzle-duckdb-wasm',
         '@proj-airi/drizzle-duckdb-wasm/*',
         '@proj-airi/electron-screen-capture',
@@ -134,12 +137,17 @@ export default defineConfig({
         '@proj-airi/server-sdk': resolve(join(import.meta.dirname, '..', '..', 'packages', 'server-sdk', 'src')),
         '@proj-airi/i18n': resolve(join(import.meta.dirname, '..', '..', 'packages', 'i18n', 'src')),
         '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src')),
+        '@proj-airi/stage-ui-three': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui-three', 'src')),
         '@proj-airi/stage-pages': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src')),
         '@proj-airi/stage-shared': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-shared', 'src')),
+        '@proj-airi/electron-vueuse': resolve(join(import.meta.dirname, '..', '..', 'packages', 'electron-vueuse', 'src')),
       },
     },
 
     server: {
+      fs: {
+        strict: true,
+      },
       warmup: {
         clientFiles: [
           `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src'))}/*.vue`,
@@ -185,7 +193,6 @@ export default defineConfig({
         plugins: {
           vue: Vue({
             include: [/\.vue$/, /\.md$/],
-            ...templateCompilerOptions,
           }),
           vueJsx: false,
         },
@@ -199,6 +206,7 @@ export default defineConfig({
             src: resolve(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src', 'pages'),
             exclude: base => [
               ...base,
+              '**/settings/connection/index.vue',
               '**/settings/system/general.vue',
               '**/settings/modules/mcp.vue',
             ],

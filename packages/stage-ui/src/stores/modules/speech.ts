@@ -10,6 +10,7 @@ import { computed, onMounted, watch } from 'vue'
 import { toXml } from 'xast-util-to-xml'
 import { x } from 'xastscript'
 
+import { useProactivityStore } from '../proactivity'
 import { useProvidersStore } from '../providers'
 
 export function toSignedPercent(value: number): string {
@@ -131,11 +132,16 @@ export const useSpeechStore = defineStore('speech', () => {
   watch(
     () => providersStore.configuredSpeechProvidersMetadata.map(provider => provider.id),
     (configuredProviderIds) => {
-      if (!activeSpeechProvider.value)
+      if (!activeSpeechProvider.value || activeSpeechProvider.value === 'speech-noop')
         return
 
-      // NOTICE: clear stale selection when the currently selected speech provider
-      // is no longer configured to avoid implicit fallback behavior from persisted state.
+      // NOTICE: only reset when the provider has actually been validated and found unconfigured.
+      // Skip reset if validation hasn't run yet (validatedCredentialHash is undefined)
+      // to avoid a race condition where immediate watcher fires before async validation completes.
+      const runtimeState = providersStore.providerRuntimeState[activeSpeechProvider.value]
+      if (runtimeState && runtimeState.validatedCredentialHash === undefined)
+        return
+
       if (!configuredProviderIds.includes(activeSpeechProvider.value)) {
         activeSpeechProvider.value = 'speech-noop'
         activeSpeechModel.value = ''
@@ -143,8 +149,6 @@ export const useSpeechStore = defineStore('speech', () => {
         activeSpeechVoice.value = undefined
       }
     },
-
-    { immediate: true },
   )
 
   onMounted(() => {
@@ -157,17 +161,22 @@ export const useSpeechStore = defineStore('speech', () => {
 
   watch([activeSpeechVoiceId, availableVoices], ([voiceId, voices]) => {
     if (voiceId) {
-      // For OpenAI Compatible, create a custom voice object (no voices available from API)
+      // For OpenAI Compatible, create a custom voice object if no voices were discovered
       if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
-        // Always update to match voiceId (in case it changed)
-        activeSpeechVoice.value = {
-          id: voiceId,
-          name: voiceId,
-          description: voiceId,
-          previewURL: '',
-          languages: [{ code: 'en', title: 'English' }],
-          provider: activeSpeechProvider.value,
-          gender: 'neutral',
+        const foundVoice = voices[activeSpeechProvider.value]?.find(voice => voice.id === voiceId)
+        if (foundVoice) {
+          activeSpeechVoice.value = foundVoice
+        }
+        else {
+          activeSpeechVoice.value = {
+            id: voiceId,
+            name: voiceId,
+            description: voiceId,
+            previewURL: '',
+            languages: [{ code: 'en', title: 'English' }],
+            provider: activeSpeechProvider.value,
+            gender: 'neutral',
+          }
         }
       }
       else {
@@ -208,6 +217,9 @@ export const useSpeechStore = defineStore('speech', () => {
       input,
       voice,
     })
+
+    const proactivityStore = useProactivityStore()
+    proactivityStore.incrementMetric('tts')
 
     return response
   }

@@ -8,7 +8,7 @@ import { Live2DFactory, Live2DModel } from 'pixi-live2d-display/cubism4'
 /**
  * Render a Live2D zip/file to an offscreen canvas and return a padded preview data URL.
  */
-export async function loadLive2DModelPreview(file: File) {
+export async function loadLive2DModelPreview(input: File | string, parameters?: Record<string, number>) {
   Live2DModel.registerTicker(Ticker)
   extensions.add(TickerPlugin)
 
@@ -43,19 +43,23 @@ export async function loadLive2DModelPreview(file: File) {
   app.ticker.stop()
 
   const modelInstance = new Live2DModel()
-  const objUrl = URL.createObjectURL(file)
-  const res = await fetch(objUrl)
-  const blob = await res.blob()
+  const objUrl = typeof input === 'string' ? input : URL.createObjectURL(input)
 
   const cleanup = () => {
     app.destroy()
     if (offscreenCanvas.isConnected)
       document.body.removeChild(offscreenCanvas)
-    URL.revokeObjectURL(objUrl)
+    if (typeof input !== 'string') {
+      URL.revokeObjectURL(objUrl)
+    }
   }
 
   try {
-    await Live2DFactory.setupLive2DModel(modelInstance, [new File([blob], file.name)], { autoInteract: false })
+    const res = await fetch(objUrl)
+    const blob = await res.blob()
+    const fileName = typeof input === 'string' ? input.split('/').pop() || 'model.zip' : input.name
+
+    await Live2DFactory.setupLive2DModel(modelInstance, [new File([blob], fileName)], { autoInteract: false })
     app.stage.addChild(modelInstance)
 
     modelInstance.x = 275
@@ -64,6 +68,13 @@ export async function loadLive2DModelPreview(file: File) {
     modelInstance.height = previewHeight
     modelInstance.scale.set(0.1, 0.1)
     modelInstance.anchor.set(0.5, 0.5)
+
+    // Apply active parameters if provided
+    if (parameters) {
+      for (const [name, value] of Object.entries(parameters)) {
+        (modelInstance.internalModel.coreModel as any).setParameterValueById?.(name, value)
+      }
+    }
 
     await new Promise(resolve => setTimeout(resolve, 500))
     app.renderer.render(app.stage)
@@ -84,7 +95,7 @@ export async function loadLive2DModelPreview(file: File) {
     return paddingDataUrl
   }
   catch (error) {
-    console.error(error)
+    console.error('Error during Live2D capture:', error)
     cleanup()
   }
 }

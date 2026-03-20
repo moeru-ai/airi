@@ -1,14 +1,13 @@
 import type { VRM } from '@pixiv/three-vrm'
 
-import { AmbientLight, AnimationMixer, DirectionalLight, PerspectiveCamera, Scene, WebGLRenderer } from 'three'
+import { AmbientLight, DirectionalLight, PerspectiveCamera, Scene, WebGLRenderer } from 'three'
 
-import { animations } from '../assets/vrm'
-import { clipFromVRMAnimation, loadVrm, loadVRMAnimation, reAnchorRootPositionTrack } from '../composables/vrm'
+import { loadVrm } from '../composables/vrm'
 
 /**
  * Render a VRM file to an offscreen canvas and return a preview data URL.
  */
-export async function loadVrmModelPreview(file: File) {
+export async function loadVrmModelPreview(input: File | string, expressions?: Record<string, number>) {
   const offscreenCanvas = document.createElement('canvas')
   offscreenCanvas.width = 1440
   offscreenCanvas.height = 2560
@@ -37,7 +36,7 @@ export async function loadVrmModelPreview(file: File) {
   directionalLight.position.set(1, 1, 1)
   scene.add(ambientLight, directionalLight)
 
-  const objUrl = URL.createObjectURL(file)
+  const objUrl = typeof input === 'string' ? input : URL.createObjectURL(input)
   let vrmInstance: VRM | undefined
 
   try {
@@ -48,29 +47,39 @@ export async function loadVrmModelPreview(file: File) {
     vrmInstance = vrmData._vrm
     const { modelCenter, initialCameraOffset } = vrmData
 
+    // Use core.ts's precomputed offset to frame the model perfectly from the front
     camera.position.copy(modelCenter).add(initialCameraOffset)
     camera.lookAt(modelCenter)
     camera.updateProjectionMatrix()
 
-    try {
-      const animation = await loadVRMAnimation(animations.idleLoop.toString())
-      const clip = await clipFromVRMAnimation(vrmData._vrm, animation)
-      if (clip) {
-        reAnchorRootPositionTrack(clip, vrmData._vrm)
-        const mixer = new AnimationMixer(vrmData._vrm.scene)
-        const action = mixer.clipAction(clip)
-        action.play()
-        mixer.update(0.1)
+    // Apply active expressions if provided
+    if (expressions && vrmInstance.expressionManager) {
+      for (const [name, weight] of Object.entries(expressions)) {
+        vrmInstance.expressionManager.setValue(name, weight)
       }
     }
-    catch (err) {
-      console.warn('Failed to load VRM animation for preview:', err)
+
+    // VRM ExpressionManager needs an update to process the setValue calls
+    if (vrmInstance.expressionManager) {
+      vrmInstance.expressionManager.update()
     }
 
+    // Force a few frames of update to ensure springbones and material offsets stabilize
+    if (vrmInstance && vrmInstance.update) {
+      vrmInstance.update(0.1)
+      vrmInstance.update(0)
+    }
+
+    // Small delay to let textures/materials settle after updates
+    await new Promise(resolve => setTimeout(resolve, 200))
     renderer.render(scene, camera)
 
     const dataUrl = offscreenCanvas.toDataURL()
+
     return dataUrl
+  }
+  catch (error) {
+    console.error('Error during VRM capture:', error)
   }
   finally {
     renderer.dispose()
@@ -90,7 +99,9 @@ export async function loadVrmModelPreview(file: File) {
         }
       })
     }
-    URL.revokeObjectURL(objUrl)
+    if (typeof input !== 'string') {
+      URL.revokeObjectURL(objUrl)
+    }
     if (offscreenCanvas.isConnected)
       document.body.removeChild(offscreenCanvas)
   }

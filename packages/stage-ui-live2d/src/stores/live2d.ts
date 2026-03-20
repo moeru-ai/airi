@@ -7,7 +7,7 @@ type BroadcastChannelEvents
   = | BroadcastChannelEventShouldUpdateView
 
 interface BroadcastChannelEventShouldUpdateView {
-  type: 'should-update-view'
+  type: 'live2d-should-update-view'
 }
 
 export const defaultModelParameters = {
@@ -36,7 +36,7 @@ export const defaultModelParameters = {
 }
 
 export const useLive2d = defineStore('live2d', () => {
-  const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({ name: 'airi-stores-live2d' })
+  const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({ name: 'airi-stores-stage-ui-live2d' })
   const shouldUpdateViewHooks = ref(new Set<() => void>())
 
   const onShouldUpdateView = (hook: () => void) => {
@@ -47,12 +47,12 @@ export const useLive2d = defineStore('live2d', () => {
   }
 
   function shouldUpdateView() {
-    post({ type: 'should-update-view' })
+    post({ type: 'live2d-should-update-view' })
     shouldUpdateViewHooks.value.forEach(hook => hook())
   }
 
   watch(data, (event) => {
-    if (event.type === 'should-update-view') {
+    if (event?.type === 'live2d-should-update-view') {
       shouldUpdateViewHooks.value.forEach(hook => hook())
     }
   })
@@ -67,6 +67,13 @@ export const useLive2d = defineStore('live2d', () => {
   const motionMap = useLocalStorageManualReset<Record<string, string>>('settings/live2d/motion-map', {})
   const scale = useLocalStorageManualReset('settings/live2d/scale', 1)
 
+  // Meta information from CDI and EXP files
+  const availableExpressions = useLocalStorageManualReset<{ name: string, fileName: string }[]>('settings/live2d/available-expressions', () => [])
+  const parameterMetadata = useLocalStorageManualReset<{ id: string, name: string, groupId?: string, groupName?: string }[]>('settings/live2d/parameter-metadata', () => [])
+  const emotionMappings = useLocalStorageManualReset<Record<string, string>>('settings/live2d/emotion-mappings', {})
+  const activeExpressions = useLocalStorageManualReset<Record<string, number>>('settings/live2d/active-expressions', {})
+  const expressionData = ref<Array<{ name: string, fileName: string, data: any }>>([])
+
   // Live2D model parameters
   const modelParameters = useLocalStorageManualReset<Record<string, number>>('settings/live2d/parameters', defaultModelParameters)
 
@@ -76,6 +83,10 @@ export const useLive2d = defineStore('live2d', () => {
     availableMotions.reset()
     motionMap.reset()
     scale.reset()
+    availableExpressions.reset()
+    parameterMetadata.reset()
+    emotionMappings.reset()
+    activeExpressions.reset()
     modelParameters.reset()
     shouldUpdateView()
   }
@@ -87,6 +98,11 @@ export const useLive2d = defineStore('live2d', () => {
     availableMotions,
     motionMap,
     scale,
+    availableExpressions,
+    parameterMetadata,
+    emotionMappings,
+    activeExpressions,
+    expressionData,
     modelParameters,
 
     onShouldUpdateView,

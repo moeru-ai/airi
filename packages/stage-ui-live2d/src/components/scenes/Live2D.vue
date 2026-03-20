@@ -14,6 +14,7 @@ import '../../utils/live2d-opfs-registration'
 withDefaults(defineProps<{
   modelSrc?: string
   modelId?: string
+  modelFile?: File
 
   paused?: boolean
   mouthOpenSize?: number
@@ -48,7 +49,7 @@ const componentStateModel = defineModel<'pending' | 'loading' | 'mounted'>('mode
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 
 const live2d = useLive2d()
-const { position } = storeToRefs(live2d)
+const { positionInPercentageString } = storeToRefs(live2d)
 
 watch([componentStateModel, componentStateCanvas], () => {
   componentState.value = (componentStateModel.value === 'mounted' && componentStateCanvas.value === 'mounted')
@@ -79,14 +80,15 @@ defineExpose({
         v-model:state="componentStateModel"
         :model-src="modelSrc"
         :model-id="modelId"
+        :model-file="modelFile"
         :app="app"
         :mouth-open-size="mouthOpenSize"
         :width="width"
         :height="height"
         :paused="paused"
         :focus-at="focusAt"
-        :x-offset="position.x"
-        :y-offset="position.y"
+        :x-offset="positionInPercentageString.x"
+        :y-offset="positionInPercentageString.y"
         :scale="scale"
         :disable-focus-at="disableFocusAt"
         :theme-colors-hue="themeColorsHue"

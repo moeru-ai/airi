@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { defaultModelParameters, useLive2d } from '@proj-airi/stage-ui-live2d'
-import { OPFSCache } from '@proj-airi/stage-ui-live2d/utils/opfs-loader'
+import { OPFSCacheV2 } from '@proj-airi/stage-ui-live2d/utils/opfs-loader'
 import { Button, Checkbox, FieldRange, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+import Live2DCustomization from './live2d-customization.vue'
 
 import { useSettings } from '../../../../stores/settings'
 import { Section } from '../../../layouts'
@@ -87,7 +89,7 @@ const clearingCache = ref(false)
 async function clearModelCache() {
   clearingCache.value = true
   try {
-    await OPFSCache.clearAll()
+    await OPFSCacheV2.clearAll()
   }
   finally {
     clearingCache.value = false
@@ -199,7 +201,7 @@ onUnmounted(() => {
         </div>
       </template>
     </FieldRange>
-    <FieldRange v-model="position.x" as="div" :min="-3000" :max="3000" :step="1" :label="t('settings.live2d.scale-and-position.x')">
+    <FieldRange v-model="position.x" as="div" :min="-100" :max="100" :step="1" :label="t('settings.live2d.scale-and-position.x')">
       <template #label>
         <div flex items-center>
           <div>{{ t('settings.live2d.scale-and-position.x') }}</div>
@@ -209,7 +211,7 @@ onUnmounted(() => {
         </div>
       </template>
     </FieldRange>
-    <FieldRange v-model="position.y" as="div" :min="-3000" :max="3000" :step="1" :label="t('settings.live2d.scale-and-position.y')">
+    <FieldRange v-model="position.y" as="div" :min="-100" :max="100" :step="1" :label="t('settings.live2d.scale-and-position.y')">
       <template #label>
         <div flex items-center>
           <div>{{ t('settings.live2d.scale-and-position.y') }}</div>
@@ -292,6 +294,20 @@ onUnmounted(() => {
       v-model="live2dDisableFocus"
       :label="t('settings.live2d.focus.button-disable.title')"
     />
+  </Section>
+
+  <Section
+    title="Customization"
+    icon="i-solar:magic-stick-bold-duotone"
+    :class="[
+      'rounded-xl',
+      'bg-white/80  dark:bg-black/75',
+      'backdrop-blur-lg',
+    ]"
+    size="sm"
+    :expand="true"
+  >
+    <Live2DCustomization />
   </Section>
   <Section
     title="Parameters"

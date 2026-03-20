@@ -1,3 +1,5 @@
+/// <reference lib="dom" />
+
 import type { ElectronAPI } from '@electron-toolkit/preload'
 
 import { isStageTamagotchi } from './environment'

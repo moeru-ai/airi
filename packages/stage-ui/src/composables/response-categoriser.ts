@@ -179,7 +179,7 @@ export function categorizeResponse(
         speechParts.push(text)
       }
     }
-    lastEnd = segment.endIndex
+    lastEnd = Math.max(lastEnd, segment.endIndex)
   }
 
   // Add remaining text after last segment
@@ -199,10 +199,18 @@ export function categorizeResponse(
   // Speech is everything outside tags
   const speech = speechParts.join(' ').trim()
 
+  // NOTICE: strip LLM markers <|...|> from the final output as they are handled
+  //         separately by the stage/orchestrator system and should not appear in UI.
+  const stripMarkers = (text: string) => text
+    .replace(/<\|[\s\S]*?\|>/g, '')
+    // NOTICE: older AIRI card prompt text accidentally taught some models to close ACT tags
+    // with plain `>` instead of `|>`. Strip those legacy markers too so they never leak into UI/TTS.
+    .replace(/<\|(?:ACT|DELAY|llm_[\w:-])[^\r\n>]*>/gi, '')
+
   return {
     segments,
-    speech: speech || '',
-    reasoning,
+    speech: stripMarkers(speech || ''),
+    reasoning: stripMarkers(reasoning || ''),
     raw: response,
   }
 }
@@ -227,6 +235,24 @@ export function createStreamingCategorizer(
 
   // Fallback for filterToSpeech - uses rehype for robust incomplete tag detection
   function checkIncompleteTag(): boolean {
+    // Basic heuristic: if we don't have a '<', we're definitely not at a tag start
+    if (!buffer.includes('<'))
+      return false
+
+    const lastOpen = buffer.lastIndexOf('<')
+    const lastClose = buffer.lastIndexOf('>')
+
+    // If there's a '<' after the last '>', it might be an opening tag
+    if (lastOpen > lastClose) {
+      const tagContent = buffer.slice(lastOpen + 1)
+      // If it's just a '<' or some generic text like '< 5', don't stall unless it looks like a tag name
+      // Tag names start with a letter.
+      if (tagContent.length > 0 && !/^[a-z/]/i.test(tagContent)) {
+        return false
+      }
+      return true
+    }
+
     try {
       const tree = unified().use(rehypeParse, { fragment: true }).parse(buffer) as Root
       const stringified = unified().use(rehypeStringify).stringify(tree).toString()

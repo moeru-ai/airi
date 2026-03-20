@@ -1,5 +1,4 @@
 import type { Locale } from '@intlify/core'
-import type { ServerOptions } from '@proj-airi/server-runtime/server'
 
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
@@ -7,13 +6,18 @@ export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke
 export const electronStartDraggingWindow = defineInvokeEventa('eventa:invoke:electron:start-dragging-window')
 
 export const electronOpenMainDevtools = defineInvokeEventa('eventa:invoke:electron:windows:main:devtools:open')
-export const electronOpenSettings = defineInvokeEventa('eventa:invoke:electron:windows:settings:open')
+export const electronOpenSettings = defineInvokeEventa<void, { route?: string }>('eventa:invoke:electron:windows:settings:open')
+export const electronSettingsNavigate = defineEventa<{ route: string }>('eventa:event:electron:windows:settings:navigate')
 export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windows:chat:open')
 export const electronOpenSettingsDevtools = defineInvokeEventa('eventa:invoke:electron:windows:settings:devtools:open')
 export const electronOpenDevtoolsWindow = defineInvokeEventa<void, { route?: string }>('eventa:invoke:electron:windows:devtools:open')
 
+export interface ElectronServerChannelTlsConfig {
+  [key: string]: unknown
+}
+
 export interface ElectronServerChannelConfig {
-  tlsConfig?: ServerOptions['tlsConfig'] | null
+  websocketTlsConfig: ElectronServerChannelTlsConfig | null
 }
 export const electronGetServerChannelConfig = defineInvokeEventa<ElectronServerChannelConfig>('eventa:invoke:electron:server-channel:get-config')
 export const electronApplyServerChannelConfig = defineInvokeEventa<ElectronServerChannelConfig, Partial<ElectronServerChannelConfig>>('eventa:invoke:electron:server-channel:apply-config')
@@ -192,10 +196,48 @@ export const widgetsClear = defineInvokeEventa('eventa:invoke:electron:windows:w
 export const widgetsUpdate = defineInvokeEventa<void, { id: string, componentProps?: Record<string, any> }>('eventa:invoke:electron:windows:widgets:update')
 export const widgetsFetch = defineInvokeEventa<WidgetSnapshot | void, { id: string }>('eventa:invoke:electron:windows:widgets:fetch')
 export const widgetsPrepareWindow = defineInvokeEventa<string | undefined, { id?: string }>('eventa:invoke:electron:windows:widgets:prepare')
+export const widgetsHideWindow = defineInvokeEventa<void, { id?: string }>('eventa:invoke:electron:windows:widgets:hide')
 
 export const electronWindowClose = defineInvokeEventa<void>('eventa:invoke:electron:window:close')
 export const electronWindowSetAlwaysOnTop = defineInvokeEventa<void, boolean>('eventa:invoke:electron:window:set-always-on-top')
 export const electronAppQuit = defineInvokeEventa<void>('eventa:invoke:electron:app:quit')
+
+export interface ElectronWindowLifecycleState {
+  focused: boolean
+  minimized: boolean
+  reason: string
+  updatedAt: number
+  visible: boolean
+}
+
+export const electronGetWindowLifecycleState = defineInvokeEventa<ElectronWindowLifecycleState>('eventa:invoke:electron:windows:lifecycle:get')
+export const electronWindowLifecycleChanged = defineEventa<ElectronWindowLifecycleState>('eventa:event:electron:windows:lifecycle:changed')
+
+export type StageThreeRuntimeTraceEnvelope
+  = | { type: 'three-render-info', payload: any }
+    | { type: 'three-hit-test-read', payload: any }
+    | { type: 'vrm-update-frame', payload: any }
+    | { type: 'vrm-load-start', payload: any }
+    | { type: 'vrm-load-end', payload: any }
+    | { type: 'vrm-load-error', payload: any }
+    | { type: 'vrm-dispose-start', payload: any }
+    | { type: 'vrm-dispose-end', payload: any }
+
+export interface StageThreeRuntimeTraceForwardedPayload {
+  envelope: StageThreeRuntimeTraceEnvelope
+  origin: string
+}
+
+export interface StageThreeRuntimeTraceRemoteControlPayload {
+  origin: string
+}
+
+export const stageThreeRuntimeTraceForwardedEvent = defineEventa<StageThreeRuntimeTraceForwardedPayload>('eventa:event:stage-three-runtime-trace:forwarded')
+export const stageThreeRuntimeTraceRemoteEnableEvent = defineEventa<StageThreeRuntimeTraceRemoteControlPayload>('eventa:event:stage-three-runtime-trace:remote-enable')
+export const stageThreeRuntimeTraceRemoteDisableEvent = defineEventa<StageThreeRuntimeTraceRemoteControlPayload>('eventa:event:stage-three-runtime-trace:remote-disable')
+
+export const electronGetMainWindowConfig = defineInvokeEventa<any>('eventa:invoke:electron:windows:main:get-config')
+export const electronMainWindowConfigChanged = defineEventa<any>('eventa:event:electron:windows:main:config-changed')
 
 // Internal event from main -> widgets renderer when a widget should render
 export const widgetsRenderEvent = defineEventa<WidgetSnapshot>('eventa:event:electron:windows:widgets:render')
@@ -205,10 +247,14 @@ export const widgetsUpdateEvent = defineEventa<{ id: string, componentProps?: Re
 
 // Onboarding window events
 export const electronOnboardingClose = defineInvokeEventa('eventa:invoke:electron:windows:onboarding:close')
+export const electronOnboardingCompleted = defineInvokeEventa('eventa:invoke:electron:windows:onboarding:completed')
+export const electronOnboardingSkipped = defineInvokeEventa('eventa:invoke:electron:windows:onboarding:skipped')
 export const electronOpenOnboarding = defineInvokeEventa('eventa:invoke:electron:windows:onboarding:open')
 
 export const i18nSetLocale = defineInvokeEventa<void, Locale>('eventa:invoke:electron:i18n:set-locale')
 export const i18nGetLocale = defineInvokeEventa<Locale>('eventa:invoke:electron:i18n:get-locale')
 
 export { electron } from '@proj-airi/electron-eventa'
+
 export * from '@proj-airi/electron-eventa/electron-updater'
+export * from '@proj-airi/stage-shared/shortcuts'

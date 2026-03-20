@@ -8,6 +8,7 @@ import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/c
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
+import { useProactivityStore } from '@proj-airi/stage-ui/stores/proactivity'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
@@ -32,10 +33,11 @@ const onboardingStore = useOnboardingStore()
 const chatSessionStore = useChatSessionStore()
 const serverChannelStore = useModsServerChannelStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
-const { shouldShowSetup } = storeToRefs(onboardingStore)
+const { showingSetup } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
 const cardStore = useAiriCardStore()
 const analyticsStore = useSharedAnalyticsStore()
+const proactivityStore = useProactivityStore()
 
 const primaryColor = computed(() => {
   return isDark.value
@@ -73,22 +75,35 @@ watch(settings.themeColorsHueDynamic, () => {
 
 // Initialize first-time setup check when app mounts
 onMounted(async () => {
+  console.log('[App] onMounted start')
+  proactivityStore.startHeartbeatLoop()
+
+  console.log('[App] Initializing Analytics & Card stores...')
   analyticsStore.initialize()
   cardStore.initialize()
 
-  onboardingStore.initializeSetupCheck()
+  if (onboardingStore.needsOnboarding) {
+    onboardingStore.showingSetup = true
+  }
 
+  console.log('[App] Initializing Chat Session...')
   await chatSessionStore.initialize()
+  console.log('[App] Initializing Server Channel...')
   await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
+  console.log('[App] Initializing Context Bridge...')
   await contextBridgeStore.initialize()
+  console.log('[App] Initializing Character Orchestrator...')
   characterOrchestratorStore.initialize()
 
+  console.log('[App] Loading models...')
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
+  console.log('[App] onMounted complete')
 })
 
 onUnmounted(() => {
   contextBridgeStore.dispose()
+  proactivityStore.stopHeartbeatLoop()
 })
 
 // Handle first-time setup events
@@ -112,9 +127,7 @@ function handleSetupSkipped() {
     :use-page-specific-transitions="settings.usePageSpecificTransitions.value"
   >
     <RouterView v-slot="{ Component }">
-      <KeepAlive :include="['IndexScenePage', 'StageScenePage']">
-        <component :is="Component" />
-      </KeepAlive>
+      <component :is="Component" />
     </RouterView>
   </StageTransitionGroup>
 
@@ -124,7 +137,7 @@ function handleSetupSkipped() {
 
   <!-- First Time Setup Dialog -->
   <OnboardingDialog
-    v-model="shouldShowSetup"
+    v-model="showingSetup"
     @configured="handleSetupConfigured"
     @skipped="handleSetupSkipped"
   />

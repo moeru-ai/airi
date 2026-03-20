@@ -1,5 +1,8 @@
+export * from './assets/vrm/animations'
 export { default as ThreeScene } from './components/ThreeScene.vue'
 export * from './composables/hit-test'
 export * from './composables/render-target'
+export { useCustomVrmAnimationsStore } from './stores/custom-vrm-animations'
 export { useModelStore } from './stores/model-store'
+export * from './trace'
 export * from './utils/vrm-preview'

@@ -14,7 +14,6 @@ import VueMacros from 'vue-macros/vite'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
 import { createS3Provider, WarpDrivePlugin } from '@proj-airi/vite-plugin-warpdrive'
-import { templateCompilerOptions } from '@tresjs/core'
 import { LFS, SpaceCard } from 'hfup/vite'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -58,9 +57,13 @@ export default defineConfig({
       '@proj-airi/stage-pages': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src')),
       '@proj-airi/stage-shared': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-shared', 'src')),
       '@proj-airi/stage-layouts': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-layouts', 'src')),
+      '@proj-airi/electron-vueuse': resolve(join(import.meta.dirname, '..', '..', 'packages', 'electron-vueuse', 'src')),
     },
   },
   server: {
+    fs: {
+      strict: false,
+    },
     warmup: {
       clientFiles: [
         `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src'))}/*.vue`,
@@ -89,7 +92,6 @@ export default defineConfig({
       plugins: {
         vue: Vue({
           include: [/\.vue$/, /\.md$/],
-          ...templateCompilerOptions,
         }),
         vueJsx: false,
       },

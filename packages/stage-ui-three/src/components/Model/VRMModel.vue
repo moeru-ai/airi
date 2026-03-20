@@ -11,9 +11,7 @@ import type {
   Group,
   Object3D,
   PerspectiveCamera,
-  ShaderMaterial,
   SphericalHarmonics3,
-  Texture,
 } from 'three'
 import type { Ref, WatchStopHandle } from 'vue'
 
@@ -24,14 +22,11 @@ import { useLoop, useTresContext } from '@tresjs/core'
 import { until, useMouse } from '@vueuse/core'
 import {
   AnimationMixer,
+  LoopOnce,
+  LoopRepeat,
   MathUtils,
-  Mesh,
-  MeshPhysicalMaterial,
-  MeshStandardMaterial,
   Plane,
   Raycaster,
-
-  SRGBColorSpace,
   Vector2,
   Vector3,
 } from 'three'
@@ -40,17 +35,13 @@ import {
   onMounted,
   onUnmounted,
   ref,
-
   shallowRef,
-
   toRefs,
   watch,
-
 } from 'vue'
 
 import {
   createIblProbeController,
-  injectDiffuseIBL,
   normalizeEnvMode,
   updateNprShaderSetting,
 } from '../../composables/shader/ibl'
@@ -65,6 +56,7 @@ import {
 import { loadVrm } from '../../composables/vrm/core'
 import { useVRMEmote } from '../../composables/vrm/expression'
 import { useVRMLipSync } from '../../composables/vrm/lip-sync'
+import { useModelStore } from '../../stores/model-store'
 
 /*
   * Props:
@@ -80,7 +72,9 @@ import { useVRMLipSync } from '../../composables/vrm/lip-sync'
 const props = withDefaults(defineProps<{
   currentAudioSource?: AudioBufferSourceNode
   modelSrc?: string
+  modelIdentity?: string
   lastModelSrc?: string
+  lastModelIdentity?: string
   idleAnimation: string
   // loadAnimations?: string[]
   paused?: boolean
@@ -118,13 +112,16 @@ const emit = defineEmits<{
   (e: 'lookAtTarget', value: Vec3): void
 
   (e: 'error', value: unknown): void
-  (e: 'loaded', value: string): void
+  (e: 'loaded', value: { modelIdentity?: string, modelSrc: string }): void
+  (e: 'finished'): void
 }>()
 
 const {
   currentAudioSource,
   modelSrc,
+  modelIdentity,
   lastModelSrc,
+  lastModelIdentity,
   idleAnimation,
   // loadAnimations, // TBC
   paused,
@@ -145,9 +142,10 @@ const {
 
 // Model and scene ref
 const { scene } = useTresContext()
-const vrm = shallowRef<VRM>()
+const vrm = shallowRef<VRM | null>(null)
 const vrmGroup = shallowRef<Group>()
 const modelLoaded = ref<boolean>(false)
+const initialHipWorldPosition = shallowRef<Vector3 | null>(null)
 // for eye tracking modes
 const { x: mouseX, y: mouseY } = useMouse()
 const raycaster = new Raycaster()
@@ -155,6 +153,9 @@ const mouse = new Vector2()
 const mouseTarget = shallowRef<Vec3>()
 let stopMouseWatch: WatchStopHandle | undefined
 let stopCameraWatch: WatchStopHandle | undefined
+
+let isUnmounted = false
+let currentLoadId = 0
 
 // Animation related ref
 const vrmAnimationMixer = ref<AnimationMixer>()
@@ -168,6 +169,7 @@ let disposeBeforeRenderLoop: (() => void | undefined)
 const blink = useBlink()
 const idleEyeSaccades = useIdleEyeSaccades()
 const vrmEmote = ref<ReturnType<typeof useVRMEmote>>()
+const modelStore = useModelStore()
 const vrmLipSync = useVRMLipSync(currentAudioSource)
 
 // For sky box update
@@ -215,6 +217,13 @@ function componentCleanUp() {
   // clear IBL probe
   airiIblProbe?.dispose()
   airiIblProbe = null
+  initialHipWorldPosition.value = null
+
+  vrmAnimationMixer.value?.removeEventListener('finished', onAnimationFinished)
+}
+
+function onAnimationFinished() {
+  emit('finished')
 }
 
 // look at mouse
@@ -258,15 +267,24 @@ async function loadModel() {
       console.warn('Scene is not ready, cannot load VRM model.')
       return
     }
-    if (vrmGroup.value) {
+
+    // console.log('[VRMModel] Loading:', modelSrc.value)
+
+    const loadId = ++currentLoadId
+
+    if (vrmGroup.value || scene.value) {
       componentCleanUp()
     }
+
     if (!modelSrc.value) {
       console.warn('NO model src, cannot load VRM model.')
       return
     }
-    // First load or not? if yes then reset the pinia store
-    const isFirstLoad = modelSrc.value !== lastModelSrc.value
+    // Local file models are loaded through blob URLs, so a stable model identity
+    // is required to avoid resetting the camera on every app restart.
+    const currentModelIdentity = modelIdentity.value || modelSrc.value
+    const previousModelIdentity = lastModelIdentity.value || lastModelSrc.value
+    const isFirstLoad = currentModelIdentity !== previousModelIdentity
 
     try {
       emit('loadStart')
@@ -291,6 +309,14 @@ async function loadModel() {
         modelSize: vrmModelSize,
         initialCameraOffset: vrmInitialCameraOffset,
       } = _vrmInfo
+
+      // ASYNC GUARD: If we unmounted or a new load started, dispose this model immediately
+      if (isUnmounted || loadId !== currentLoadId) {
+        console.warn('[VRMModel] Discarding model from stale/unmounted load:', loadId)
+        VRMUtils.deepDispose(_vrm.scene as unknown as Object3D)
+        _vrmGroup.removeFromParent()
+        return
+      }
 
       /*
         * Model setting
@@ -323,6 +349,23 @@ async function loadModel() {
         emit('modelRotationY', 0)
       }
 
+      // Populate available expressions for the settings UI
+      if (_vrm.expressionManager) {
+        const expressions = Object.keys(_vrm.expressionManager.expressionMap).sort()
+        modelStore.availableExpressions = expressions
+      }
+
+      const hipNode = _vrm.humanoid?.getNormalizedBoneNode('hips')
+      if (hipNode) {
+        hipNode.updateMatrixWorld(true)
+        const hipWorldPosition = new Vector3()
+        hipNode.getWorldPosition(hipWorldPosition)
+        initialHipWorldPosition.value = hipWorldPosition
+      }
+      else {
+        initialHipWorldPosition.value = null
+      }
+
       /*
         * Animation setting
       */
@@ -333,11 +376,31 @@ async function loadModel() {
         return
       }
       // Re-anchor the root position track to the model origin
-      reAnchorRootPositionTrack(clip, _vrm)
+      reAnchorRootPositionTrack(clip, _vrm, initialHipWorldPosition.value ?? undefined)
+
+      // Strip expression/blendShape tracks from the idle animation.
+      // The idle loop should only drive bone transforms, not facial expressions.
+      // Without this, the animation overrides our expression system each frame.
+      const originalCount = clip.tracks.length
+      clip.tracks = clip.tracks.filter((track) => {
+        const isExpression = track.name.includes('blendShapes') || track.name.includes('expressions')
+        return !isExpression
+      })
+      if (clip.tracks.length !== originalCount) {
+        // eslint-disable-next-line no-console
+        console.log(`[VRMModel] Stripped ${originalCount - clip.tracks.length} expression tracks from idle animation`)
+      }
 
       // play animation
       vrmAnimationMixer.value = new AnimationMixer(_vrm.scene)
-      vrmAnimationMixer.value.clipAction(clip).play()
+      vrmAnimationMixer.value.addEventListener('finished', onAnimationFinished)
+
+      const action = vrmAnimationMixer.value.clipAction(clip)
+      if (modelStore.vrmIdleCycleEnabled) {
+        action.setLoop(LoopOnce, 1)
+        action.clampWhenFinished = true
+      }
+      action.play()
 
       vrmEmote.value = useVRMEmote(_vrm)
 
@@ -345,18 +408,13 @@ async function loadModel() {
         * Shader setting
       */
       // material selection
-      function isMToon(mat: any): boolean {
-        return !!(mat?.isShaderMaterial && mat.userData?.vrmMaterialType === 'MToon'
-        )
-      }
-      const isShaderMat = (m: any): m is ShaderMaterial => !!m?.isShaderMaterial
-
       // refactoring
       // MToon material sky box lightProbe setting
       if (!airiIblProbe && scene.value)
         airiIblProbe = createIblProbeController(scene.value)
 
-      // Material traverse setting
+      // Material traverse setting (CLEANSED IN V10)
+      /*
       _vrm.scene.traverse((child) => {
         if (child instanceof Mesh && child.material) {
           const material = Array.isArray(child.material) ? child.material : [child.material]
@@ -378,10 +436,10 @@ async function loadModel() {
               // console.debug("Mat: ", mat)
               // TODO: stylised shader injection
               // Lilia: I plan to replace all injected shader code to be my own, so that it can always avoid double injection and unknown user upload VRM injected shader behaviour...
-              if ('toneMapped' in mat)
-                mat.toneMapped = false
-              if ('envMap' in mat && mat.envMap)
-                mat.envMap = null
+              // if ('toneMapped' in mat)
+              //   mat.toneMapped = false
+              // if ('envMap' in mat && mat.envMap)
+              //   mat.envMap = null
               // NPR materials usually use sRGB textures
               const tex = (mat as any).map as Texture | undefined
               if (tex && (tex as any).colorSpace !== undefined) {
@@ -392,11 +450,12 @@ async function loadModel() {
                   console.warn('Failed to set colorSpace on texture:', e)
                 }
               }
-              injectDiffuseIBL(mat)
+              // injectDiffuseIBL(mat)
             }
           })
         }
       })
+      */
 
       /*
         * Eye tracking setting
@@ -417,31 +476,38 @@ async function loadModel() {
         }
       }
 
-      // Clean up & animation setting
+      // Standard VRM Update Loop
       disposeBeforeRenderLoop = onBeforeRender(({ delta }) => {
         vrmAnimationMixer.value?.update(delta)
         const activeVrm = vrm.value
-        if (activeVrm && vrmFrameHook.value) {
-          try {
-            vrmFrameHook.value(activeVrm, delta)
-          }
-          catch (err) {
-            console.error(err)
-            emit('error', err)
-          }
-        }
-        activeVrm?.humanoid.update()
-        activeVrm?.lookAt?.update?.(delta)
+        if (!activeVrm)
+          return
+
+        // 1. Core update (humanoid, springbone, expressions)
+        activeVrm.update(delta)
+
+        // 2. Plugin updates
         blink.update(activeVrm, delta)
         idleEyeSaccades.update(activeVrm, lookAtTarget, delta)
         vrmEmote.value?.update(delta)
         vrmLipSync.update(activeVrm, delta)
-        activeVrm?.expressionManager?.update()
-        activeVrm?.springBoneManager?.update(delta)
       }).off
 
+      // ASYNC GUARD: Check again after animation loading
+      if (isUnmounted || loadId !== currentLoadId) {
+        console.warn('[VRMModel] Discarding model after animation load - stale/unmounted:', loadId)
+        componentCleanUp() // This will use the latest vrm.value, but we should be careful
+        // Better: dispose the specific ones we just loaded if they aren't assigned yet
+        VRMUtils.deepDispose(_vrm.scene as unknown as Object3D)
+        _vrmGroup.removeFromParent()
+        return
+      }
+
       // update the 'last model src'
-      emit('loaded', modelSrc.value)
+      emit('loaded', {
+        modelIdentity: modelIdentity.value,
+        modelSrc: modelSrc.value,
+      })
       modelLoaded.value = true
     }
     catch (err) {
@@ -559,11 +625,76 @@ onMounted(async () => {
     }
   }, { immediate: true })
   watch(lookAtTarget, (newTarget) => {
-    idleEyeSaccades.instantUpdate(vrm.value, newTarget)
+    if (vrm.value) {
+      idleEyeSaccades.instantUpdate(vrm.value, newTarget)
+    }
   }, { deep: true })
+
+  // watch for cycle toggle
+  watch(() => modelStore.vrmIdleCycleEnabled, (enabled) => {
+    if (!vrmAnimationMixer.value)
+      return
+
+    const activeActions = (vrmAnimationMixer.value as any)._actions || []
+    const currentAction = activeActions.find((a: any) => a.isRunning())
+    if (currentAction) {
+      if (enabled) {
+        currentAction.setLoop(LoopOnce, 1)
+        currentAction.clampWhenFinished = true
+      }
+      else {
+        currentAction.setLoop(LoopRepeat, Infinity)
+        currentAction.clampWhenFinished = false
+      }
+    }
+  })
+
+  // watch if the idle animation should be updated
+  watch(() => props.idleAnimation, async (newAnimUrl) => {
+    if (!vrm.value || !vrmAnimationMixer.value || !newAnimUrl)
+      return
+
+    try {
+      const animation = await loadVRMAnimation(newAnimUrl)
+      const clip = await clipFromVRMAnimation(vrm.value, animation)
+      if (!clip)
+        return
+
+      // NOTICE: Re-anchor against the model's initial hips position captured at load time.
+      // Recomputing from the currently animated pose causes cumulative upward drift when
+      // users switch idle loops repeatedly.
+      reAnchorRootPositionTrack(clip, vrm.value, initialHipWorldPosition.value ?? undefined)
+      clip.tracks = clip.tracks.filter(track => !track.name.includes('blendShapes') && !track.name.includes('expressions'))
+
+      const newAction = vrmAnimationMixer.value.clipAction(clip)
+      if (modelStore.vrmIdleCycleEnabled) {
+        newAction.setLoop(LoopOnce, 1)
+        newAction.clampWhenFinished = true
+      }
+
+      // Find the currently playing action
+      const activeActions = (vrmAnimationMixer.value as any)._actions || []
+      const currentAction = activeActions.find((a: any) => a.isRunning())
+
+      if (currentAction && currentAction !== newAction) {
+        newAction.reset()
+        newAction.play()
+        currentAction.crossFadeTo(newAction, 0.5, true)
+      }
+      else {
+        newAction.play()
+      }
+    }
+    catch (err) {
+      console.error('[VRMModel] Failed to switch idle animation:', err)
+    }
+  })
 })
 
-onUnmounted(() => componentCleanUp())
+onUnmounted(() => {
+  isUnmounted = true
+  componentCleanUp()
+})
 
 if (import.meta.hot) {
   // Ensure cleanup on HMR
@@ -573,17 +704,85 @@ if (import.meta.hot) {
 }
 
 defineExpose({
-  setExpression(expression: string, intensity = 1) {
-    vrmEmote.value?.setEmotionWithResetAfter(expression, 3000, intensity)
+  listExpressions() {
+    return Object.keys(vrm.value?.expressionManager?.expressionMap || {})
+  },
+  setExpression(expression: string, intensity = 1, resetMs?: number) {
+    if (resetMs !== undefined) {
+      vrmEmote.value?.setEmotionWithResetAfter(expression, resetMs, intensity)
+    }
+    else {
+      vrmEmote.value?.setEmotion(expression, intensity)
+    }
   },
   setVrmFrameHook(hook?: VrmFrameHook) {
     vrmFrameHook.value = hook
   },
   scene: computed(() => vrm.value?.scene),
   lookAtUpdate(target: Vec3) {
-    idleEyeSaccades.instantUpdate(vrm.value, target)
+    if (vrm.value) {
+      idleEyeSaccades.instantUpdate(vrm.value, target)
+    }
+  },
+  stopAnimations() {
+    vrmAnimationMixer.value?.stopAllAction()
+  },
+  restoreDefaultExpressions() {
+    if (!vrm.value?.expressionManager)
+      return
+    for (const name of modelStore.availableExpressions) {
+      const weight = modelStore.activeExpressions[name] || 0
+      vrm.value.expressionManager.setValue(name, weight)
+    }
+    vrm.value.expressionManager.update()
   },
 })
+
+// === Manual Expression Sync ===
+// Applies weights from the settings panel (activeExpressions in store)
+// directly to the VRM model, bypassing the ACT emotion system.
+// Watches both activeExpressions AND modelLoaded so it fires:
+//   - When the user toggles an expression (change in activeExpressions)
+//   - When the model finishes loading (modelLoaded becomes true)
+watch([() => modelStore.activeExpressions, modelLoaded], ([active, loaded]) => {
+  if (!loaded || !vrm.value?.expressionManager)
+    return
+
+  for (const name of modelStore.availableExpressions) {
+    const weight = active[name] || 0
+    vrm.value.expressionManager.setValue(name, weight)
+  }
+  vrm.value.expressionManager.update()
+}, { deep: true })
+
+// === ACT Emotion Mapping Sync ===
+// Injects user-configured VRM expression → ACT emotion mappings
+// into the emote system (Layer 3: ACT Mapping).
+// Also watches modelLoaded so mappings are applied on boot.
+watch([() => modelStore.emotionMappings, modelLoaded], ([mappings, loaded]) => {
+  if (!loaded || !vrmEmote.value || !vrm.value?.expressionManager)
+    return
+
+  // For each mapping: emotionMappings[vrmExpressionName] = actEmotionSlot
+  // e.g., { "anger": "angry" } means the ACT "angry" emotion should fire VRM "anger"
+  // We invert the map: for each ACT slot, collect the VRM expressions mapped to it
+  const actToVrm = new Map<string, { name: string, value: number }[]>()
+  for (const [vrmName, actSlot] of Object.entries(mappings)) {
+    if (!actSlot)
+      continue
+    if (!actToVrm.has(actSlot))
+      actToVrm.set(actSlot, [])
+    actToVrm.get(actSlot)!.push({ name: vrmName, value: 1.0 })
+  }
+
+  // Register/update each ACT emotion with the user's mapped expressions
+  for (const [actSlot, expressions] of actToVrm) {
+    vrmEmote.value.addEmotionState(actSlot, {
+      expression: expressions,
+      blendDuration: 0.3,
+    })
+  }
+}, { deep: true })
 </script>
 
 <template>

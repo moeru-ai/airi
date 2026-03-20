@@ -1,11 +1,13 @@
 import type { Session, User } from 'better-auth'
 
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { fetchSession } from '../libs/auth'
+import { useSettingsGeneral } from './settings'
 
 export const useAuthStore = defineStore('auth', () => {
+  const settings = useSettingsGeneral()
   const user = ref<User>()
   const session = ref<Session>()
   const isAuthenticated = computed(() => !!user.value && !!session.value)
@@ -19,10 +21,21 @@ export const useAuthStore = defineStore('auth', () => {
     if (initialized.value)
       return
 
-    fetchSession().catch(() => {})
+    if (settings.remoteSyncEnabled)
+      fetchSession().catch(() => {})
 
     initialized.value = true
   }
+
+  watch(() => settings.remoteSyncEnabled, (enabled) => {
+    if (!enabled) {
+      user.value = undefined
+      session.value = undefined
+      return
+    }
+
+    fetchSession().catch(() => {})
+  })
 
   initialize()
 

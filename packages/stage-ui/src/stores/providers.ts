@@ -21,30 +21,45 @@ import type {
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 
 import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
-import { computedAsync, useIntervalFn, useLocalStorage } from '@vueuse/core'
+import { computedAsync, useLocalStorage } from '@vueuse/core'
 import {
+  createCerebras,
+  createFireworks,
+  createMistral,
+  createMoonshotai,
+  createNovitaAi,
+  createOllama,
   createOpenAI,
+  createPerplexity,
+  createTogetherAI,
+  createXai,
 } from '@xsai-ext/providers/create'
-import { createPlayer2 } from '@xsai-ext/providers/special/create'
 import {
+  createAzure,
+  createPlayer2,
+  createWorkersAI,
+} from '@xsai-ext/providers/special/create'
+import {
+  createChatProvider,
   createModelProvider,
   createSpeechProvider,
   createTranscriptionProvider,
   merge,
 } from '@xsai-ext/providers/utils'
 import { listModels } from '@xsai/model'
+import { debounce, uniqBy } from 'es-toolkit'
 import { isWebGPUSupported } from 'gpuu/webgpu'
 import { defineStore } from 'pinia'
 import {
   createUnAlibabaCloud,
   createUnDeepgram,
-  createUnElevenLabs,
   createUnMicrosoft,
   createUnVolcengine,
   listVoices,
 } from 'unspeech'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { toast } from 'vue-sonner'
 
 import { listProviders as listDefinedProviders } from '../libs/providers'
 import { getProviderValidationIntervalMs } from '../libs/providers/validators/run'
@@ -53,8 +68,40 @@ import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '.
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 import { convertProviderDefinitionsToMetadata } from './providers/converters'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
+import { createNativeElevenLabsProvider } from './providers/elevenlabs/native'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 import { createWebSpeechAPIProvider } from './providers/web-speech-api'
+
+function logWarn(...args: unknown[]) {
+  try {
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('airi:debug') === '1') {
+      console.warn(...args)
+    }
+  }
+  catch {
+    // Ignore
+  }
+}
+
+function normalizeProviderBaseUrl(value: unknown): string {
+  const trimmed = typeof value === 'string' ? value.trim() : ''
+  if (!trimmed)
+    return ''
+
+  return trimmed.endsWith('/') ? trimmed : `${trimmed}/`
+}
+
+function toV1SpeechBaseUrl(value: unknown): string {
+  const normalized = normalizeProviderBaseUrl(value)
+  if (!normalized)
+    return ''
+
+  return normalized.endsWith('/v1/') ? normalized : `${normalized}v1/`
+}
+
+function toProviderRootBaseUrl(value: unknown): string {
+  return toV1SpeechBaseUrl(value).replace(/\/v1\/$/, '/')
+}
 
 const ALIYUN_NLS_REGIONS = [
   'cn-shanghai',
@@ -134,10 +181,20 @@ export interface ProviderMetadata {
   capabilities: {
     listModels?: (config: Record<string, unknown>) => Promise<ModelInfo[]>
     listVoices?: (config: Record<string, unknown>) => Promise<VoiceInfo[]>
+    getSpeechCapabilities?: (config: Record<string, unknown>) => Promise<SpeechCapabilitiesInfo | null>
     loadModel?: (config: Record<string, unknown>, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
   }
   validators: {
     validateProviderConfig: (config: Record<string, unknown>) => Promise<{
+      errors: unknown[]
+      reason: string
+      valid: boolean
+    }> | {
+      errors: unknown[]
+      reason: string
+      valid: boolean
+    }
+    runManualValidation?: (config: Record<string, unknown>) => Promise<{
       errors: unknown[]
       reason: string
       valid: boolean
@@ -177,6 +234,26 @@ export interface VoiceInfo {
     code: string
     title: string
   }[]
+}
+
+export interface SpeechExpressionTagInfo {
+  category: string
+  tag: string
+  description?: string
+}
+
+export interface SpeechMannerismInfo {
+  id: string
+  label: string
+  description?: string
+}
+
+export interface SpeechCapabilitiesInfo {
+  supportsPresets?: boolean
+  supportsExpressionTags?: boolean
+  supportsMannerisms?: boolean
+  expressionTags?: SpeechExpressionTagInfo[]
+  mannerisms?: SpeechMannerismInfo[]
 }
 
 export interface ProviderRuntimeState {
@@ -571,8 +648,49 @@ export const useProvidersStore = defineStore('providers', () => {
       category: 'speech',
       tasks: ['text-to-speech'],
       capabilities: {
-        listVoices: async () => {
-          return []
+        listVoices: async (config: Record<string, unknown>) => {
+          const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+          let baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
+
+          if (!baseUrl.endsWith('/'))
+            baseUrl += '/'
+
+          if (!baseUrl) {
+            return []
+          }
+
+          // Attempt to fetch voices from /v1/voices or /voices
+          // Try /v1/voices first
+          const tryFetchVoices = async (url: string) => {
+            try {
+              const response = await fetch(url, {
+                headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+              })
+              if (response.ok) {
+                const data = await response.json()
+                // Standard un-speech / openai-like voices response
+                const voices = data.voices || data.data || (Array.isArray(data) ? data : null)
+                if (Array.isArray(voices)) {
+                  return voices.map((v: any) => ({
+                    id: v.id || v.voice_id || v.name,
+                    name: v.name || v.id,
+                    provider: 'openai-compatible-audio-speech',
+                    previewURL: v.preview_url || v.preview_audio_url,
+                    languages: v.languages || [],
+                    gender: v.gender || v.labels?.gender,
+                  }))
+                }
+              }
+            }
+            catch (e) {
+              logWarn(`Failed to fetch voices from ${url}:`, e)
+            }
+            return null
+          }
+
+          const voices = await tryFetchVoices(`${baseUrl}voices`) || await tryFetchVoices(`${baseUrl.replace(/\/v1\/$/, '/')}/voices`)
+
+          return voices || []
         },
         listModels: async (config: Record<string, unknown>) => {
           // Filter models to only include TTS models
@@ -596,12 +714,12 @@ export const useProvidersStore = defineStore('providers', () => {
             baseURL: baseUrl,
           })
 
-          // Filter for TTS models - look for models with "tts" in the ID
+          // Filter for TTS/Speech/Audio models
           return models
             .filter((model: any) => {
               const modelId = model.id.toLowerCase()
-              // Include models that contain "tts" in their ID
-              return modelId.includes('tts')
+              // Include models that contain "tts", "speech", "audio", or "kokoro" in their ID
+              return modelId.includes('tts') || modelId.includes('speech') || modelId.includes('audio') || modelId.includes('kokoro')
             })
             .map((model: any) => {
               return {
@@ -613,6 +731,174 @@ export const useProvidersStore = defineStore('providers', () => {
                 deprecated: false,
               } satisfies ModelInfo
             })
+        },
+      },
+      creator: createOpenAI,
+    }),
+    'chatterbox': buildOpenAICompatibleProvider({
+      id: 'chatterbox',
+      name: 'Chatterbox',
+      nameKey: 'settings.pages.providers.provider.chatterbox.title',
+      descriptionKey: 'settings.pages.providers.provider.chatterbox.description',
+      icon: 'i-solar:microphone-3-bold-duotone',
+      description: 'Local Chatterbox TTS server with preset-aware voice management.',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      defaultBaseUrl: 'http://127.0.0.1:8090/v1/',
+      capabilities: {
+        listVoices: async (config: Record<string, unknown>) => {
+          const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+          const apiBaseUrl = toV1SpeechBaseUrl(config.baseUrl)
+          if (!apiBaseUrl)
+            return []
+
+          try {
+            const response = await fetch(`${apiBaseUrl}voices`, {
+              headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+            })
+            if (!response.ok)
+              return []
+
+            const data = await response.json()
+            const voices = Array.isArray(data?.voices) ? data.voices : []
+            return voices.map((voice: any) => ({
+              id: voice.voice_id || voice.id || voice.name,
+              name: voice.name || voice.voice_id || voice.id,
+              provider: 'chatterbox',
+              description: voice.type === 'virtual' ? 'Preset voice' : 'Native voice',
+              previewURL: voice.preview_url || voice.preview_audio_url,
+              languages: [{ code: 'en', title: 'English' }],
+              gender: voice.gender || voice.labels?.gender,
+            }) satisfies VoiceInfo)
+          }
+          catch (error) {
+            logWarn('Failed to fetch Chatterbox voices:', error)
+            return []
+          }
+        },
+        listModels: async (config: Record<string, unknown>) => {
+          const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+          const apiBaseUrl = toV1SpeechBaseUrl(config.baseUrl)
+          if (!apiBaseUrl) {
+            return [{
+              id: 'chatterbox',
+              name: 'Chatterbox',
+              provider: 'chatterbox',
+              description: 'Chatterbox speech generation',
+              contextLength: 0,
+              deprecated: false,
+            }]
+          }
+
+          try {
+            const response = await fetch(`${apiBaseUrl}models`, {
+              headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+            })
+            if (!response.ok)
+              throw new Error(`HTTP ${response.status}`)
+
+            const data = await response.json()
+            const models = Array.isArray(data?.data) ? data.data : []
+            if (models.length > 0) {
+              return models.map((model: any) => ({
+                id: model.id,
+                name: model.name || model.display_name || model.id,
+                provider: 'chatterbox',
+                description: model.description || 'Chatterbox speech generation',
+                contextLength: model.context_length || 0,
+                deprecated: false,
+              }) satisfies ModelInfo)
+            }
+          }
+          catch (error) {
+            logWarn('Failed to fetch Chatterbox models:', error)
+          }
+
+          return [{
+            id: 'chatterbox',
+            name: 'Chatterbox',
+            provider: 'chatterbox',
+            description: 'Chatterbox speech generation',
+            contextLength: 0,
+            deprecated: false,
+          }]
+        },
+        getSpeechCapabilities: async (config: Record<string, unknown>) => {
+          const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+          const rootBaseUrl = toProviderRootBaseUrl(config.baseUrl)
+          if (!rootBaseUrl)
+            return null
+
+          try {
+            const response = await fetch(`${rootBaseUrl}chatterbox/capabilities`, {
+              headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+            })
+            if (!response.ok)
+              return null
+
+            const data = await response.json()
+            const speech = data?.speech
+            if (!speech)
+              return null
+
+            return {
+              supportsPresets: speech.supportsPresets ?? true,
+              supportsExpressionTags: speech.supportsExpressionTags ?? false,
+              supportsMannerisms: speech.supportsMannerisms ?? false,
+              expressionTags: Array.isArray(speech.expressionTags) ? speech.expressionTags : [],
+              mannerisms: Array.isArray(speech.mannerisms) ? speech.mannerisms : [],
+            } satisfies SpeechCapabilitiesInfo
+          }
+          catch (error) {
+            logWarn('Failed to fetch Chatterbox speech capabilities:', error)
+            return null
+          }
+        },
+      },
+      validators: {
+        validateProviderConfig: async (config: Record<string, unknown>) => {
+          const errors: Error[] = []
+          const baseUrl = toV1SpeechBaseUrl(config.baseUrl)
+          const rootBaseUrl = toProviderRootBaseUrl(config.baseUrl)
+          const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+
+          if (!baseUrl) {
+            errors.push(new Error('Base URL is required'))
+          }
+          else if (!isUrl(baseUrl)) {
+            errors.push(new Error('Base URL is invalid. It must be an absolute URL.'))
+          }
+
+          if (errors.length > 0) {
+            return {
+              errors,
+              reason: errors.map(error => error.message).join(', '),
+              valid: false,
+            }
+          }
+
+          try {
+            const response = await fetch(`${rootBaseUrl}chatterbox/capabilities`, {
+              headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+            })
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}`)
+            }
+          }
+          catch (error) {
+            const connectivityError = new Error(`Capabilities check failed: ${(error as Error).message}`)
+            return {
+              errors: [connectivityError],
+              reason: connectivityError.message,
+              valid: false,
+            }
+          }
+
+          return {
+            errors: [],
+            reason: '',
+            valid: true,
+          }
         },
       },
       creator: createOpenAI,
@@ -707,11 +993,44 @@ export const useProvidersStore = defineStore('providers', () => {
       tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
       creator: createOpenAI,
       capabilities: {
-        // Override listModels to return empty array - transcription models cannot be fetched from /v1/models
-        // Users must manually enter transcription model names (e.g., whisper-1, gpt-4o-transcribe)
-        // The /v1/models endpoint only returns chat models, not transcription models
-        listModels: async () => {
-          return []
+        listModels: async (config: Record<string, unknown>) => {
+          const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+          let baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
+
+          if (!baseUrl.endsWith('/'))
+            baseUrl += '/'
+
+          if (!apiKey || !baseUrl) {
+            return []
+          }
+
+          try {
+            const models = await listModels({
+              apiKey,
+              baseURL: baseUrl,
+            })
+
+            // Filter for transcription models (whisper, stt, asr, transcription)
+            return models
+              .filter((model: any) => {
+                const modelId = model.id.toLowerCase()
+                return modelId.includes('whisper') || modelId.includes('stt') || modelId.includes('asr') || modelId.includes('transcription')
+              })
+              .map((model: any) => {
+                return {
+                  id: model.id,
+                  name: model.name || model.display_name || model.id,
+                  provider: 'openai-compatible-audio-transcription',
+                  description: model.description || '',
+                  contextLength: 0,
+                  deprecated: false,
+                } satisfies ModelInfo
+              })
+          }
+          catch (e) {
+            logWarn('Failed to list transcription models:', e)
+            return []
+          }
         },
       },
     }),
@@ -890,13 +1209,23 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'elevenlabs.io',
       icon: 'i-simple-icons:elevenlabs',
       defaultOptions: () => ({
-        baseUrl: 'https://unspeech.hyp3r.link/v1/',
+        baseUrl: 'https://api.elevenlabs.io/v1/',
         voiceSettings: {
           similarityBoost: 0.75,
           stability: 0.5,
         },
       }),
-      createProvider: async config => createUnElevenLabs((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>,
+      createProvider: async (config) => {
+        const apiKey = (config.apiKey as string).trim()
+        const baseUrl = (config.baseUrl as string).trim().replace(/\/$/, '')
+        const voiceSettings = (config as any).voiceSettings ?? { similarityBoost: 0.75, stability: 0.5 }
+
+        // We bypass the unspeech proxy and call ElevenLabs' native API directly across
+        // all platforms. Previously this was Desktop-only due to CORS issues, but
+        // ElevenLabs now returns 'Access-Control-Allow-Origin: *'. This avoids the
+        // HTTP 401 errors caused by many users sharing the public unspeech proxy IP.
+        return createNativeElevenLabsProvider(apiKey, baseUrl, voiceSettings) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
+      },
       capabilities: {
         listModels: async () => {
           return elevenLabsModels.map((model) => {
@@ -911,42 +1240,40 @@ export const useProvidersStore = defineStore('providers', () => {
           })
         },
         listVoices: async (config) => {
-          const provider = createUnElevenLabs((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnElevenLabsOptions>
+          const apiKey = (config.apiKey as string).trim()
+          const baseUrl = (config.baseUrl as string).trim().replace(/\/$/, '')
 
-          const voices = await listVoices({
-            ...provider.voice(),
-          })
+          // Fetch ElevenLabs native GET /v1/voices directly.
+          // The unspeech SDK's listVoices() constructs {baseURL}/api/voices?provider=elevenlabs
+          // which does not exist on api.elevenlabs.io. We bypass it and call the real endpoint.
+          const res = await fetch(`${baseUrl}/voices`, { headers: { 'xi-api-key': apiKey } })
+          if (!res.ok)
+            throw new Error(`ElevenLabs voices: ${res.status} ${res.statusText}`)
+
+          const { voices: raw } = await res.json() as { voices: { voice_id: string, name: string, preview_url?: string, labels?: Record<string, string>, fine_tuning?: { language?: string } }[] }
+          const voices = (raw ?? []).map(v => ({
+            id: v.voice_id,
+            name: v.name,
+            provider: 'elevenlabs' as const,
+            previewURL: v.preview_url,
+            languages: v.fine_tuning?.language ? [{ code: v.fine_tuning.language, title: v.fine_tuning.language }] : [],
+            gender: v.labels?.gender,
+          }))
 
           if (!voices || !Array.isArray(voices)) {
             return []
           }
 
-          // Find indices of Aria and Bill
-          const ariaIndex = voices.findIndex(voice => voice.name.includes('Aria'))
-          const billIndex = voices.findIndex(voice => voice.name.includes('Bill'))
-
-          // Determine the range to move (ensure valid indices and proper order)
-          const startIndex = ariaIndex !== -1 ? ariaIndex : 0
-          const endIndex = billIndex !== -1 ? billIndex : voices.length - 1
-          const lowerIndex = Math.min(startIndex, endIndex)
-          const higherIndex = Math.max(startIndex, endIndex)
-
-          // Rearrange voices: voices outside the range first, then voices within the range
-          const rearrangedVoices = [
-            ...voices.slice(0, lowerIndex),
-            ...voices.slice(higherIndex + 1),
-            ...voices.slice(lowerIndex, higherIndex + 1),
-          ]
-
-          return rearrangedVoices.map((voice) => {
-            return {
-              id: voice.id,
-              name: voice.name,
-              provider: 'elevenlabs',
-              previewURL: voice.preview_audio_url,
-              languages: voice.languages,
-            }
-          })
+          // Rearrange — move Aria & Bill range to the end
+          const lo = Math.min(...['Aria', 'Bill'].map((n) => {
+            const i = voices.findIndex(v => v.name.includes(n))
+            return i !== -1 ? i : voices.length - 1
+          }))
+          const hi = Math.max(...['Aria', 'Bill'].map((n) => {
+            const i = voices.findIndex(v => v.name.includes(n))
+            return i !== -1 ? i : 0
+          }))
+          return [...voices.slice(0, lo), ...voices.slice(hi + 1), ...voices.slice(lo, hi + 1)]
         },
       },
       validators: {
@@ -1349,6 +1676,212 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'openrouter-audio-speech': {
+      id: 'openrouter-audio-speech',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      nameKey: 'settings.pages.providers.provider.openrouter-audio-speech.title',
+      name: 'OpenRouter',
+      descriptionKey: 'settings.pages.providers.provider.openrouter-audio-speech.description',
+      description: 'openrouter.ai',
+      icon: 'i-lobe-icons:openrouter',
+      defaultOptions: () => ({
+        baseUrl: 'https://openrouter.ai/api/v1/',
+      }),
+      createProvider: async (config) => {
+        const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+        let baseUrl = (typeof config.baseUrl === 'string' && config.baseUrl.trim()) || 'https://openrouter.ai/api/v1/'
+        if (!baseUrl.endsWith('/'))
+          baseUrl += '/'
+
+        const provider: SpeechProvider = {
+          speech: (model?: string) => ({
+            baseURL: baseUrl,
+            model: model || 'openai/gpt-audio-mini',
+            fetch: async (_input: RequestInfo | URL, init?: RequestInit) => {
+              if (!init?.body || typeof init.body !== 'string')
+                throw new Error('Invalid request body')
+
+              const body = JSON.parse(init.body)
+              const text = body.input
+              const voice = body.voice
+
+              const sseResponse = await globalThis.fetch(new URL('chat/completions', baseUrl), {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${apiKey}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  model: model || 'openai/gpt-audio-mini',
+                  messages: [
+                    { role: 'user', content: `Read this text aloud exactly as written, without any commentary or extra words:\n\n${text}` },
+                  ],
+                  modalities: ['text', 'audio'],
+                  audio: { voice, format: 'pcm16' },
+                  stream: true,
+                }),
+              })
+
+              if (!sseResponse.ok) {
+                const errorText = await sseResponse.text()
+                throw new Error(`OpenRouter audio request failed: ${sseResponse.status} ${errorText}`)
+              }
+
+              const reader = sseResponse.body!.getReader()
+              const decoder = new TextDecoder()
+              const audioDataChunks: string[] = []
+              let buffer = ''
+
+              while (true) {
+                const { done, value } = await reader.read()
+                if (done)
+                  break
+
+                buffer += decoder.decode(value, { stream: true })
+                const lines = buffer.split('\n')
+                buffer = lines.pop()!
+
+                for (const line of lines) {
+                  if (!line.startsWith('data: '))
+                    continue
+                  const data = line.slice('data: '.length).trim()
+                  if (data === '[DONE]')
+                    break
+
+                  try {
+                    const chunk = JSON.parse(data)
+                    const audio = chunk.choices?.[0]?.delta?.audio
+                    if (audio?.data)
+                      audioDataChunks.push(audio.data)
+                  }
+                  catch (e) {
+                    // skip malformed chunks, but log them for debugging
+                    console.warn('Skipping malformed SSE chunk from OpenRouter audio stream:', data, e)
+                  }
+                }
+              }
+
+              // Decode base64 PCM16 data
+              const fullBase64 = audioDataChunks.join('')
+              const binaryString = atob(fullBase64)
+              const pcmBytes = new Uint8Array(binaryString.length)
+              for (let i = 0; i < binaryString.length; i++)
+                pcmBytes[i] = binaryString.charCodeAt(i)
+
+              // Wrap raw PCM16 in a WAV header so the browser can play it
+              const sampleRate = 24000
+              const numChannels = 1
+              const bitsPerSample = 16
+              const byteRate = sampleRate * numChannels * (bitsPerSample / 8)
+              const blockAlign = numChannels * (bitsPerSample / 8)
+              const wavHeader = new ArrayBuffer(44)
+              const view = new DataView(wavHeader)
+              const writeStr = (offset: number, str: string) => {
+                for (let i = 0; i < str.length; i++)
+                  view.setUint8(offset + i, str.charCodeAt(i))
+              }
+
+              // RIFF chunk descriptor
+              writeStr(0, 'RIFF') // ChunkID
+              view.setUint32(4, 36 + pcmBytes.length, true) // ChunkSize
+              writeStr(8, 'WAVE') // Format
+
+              // "fmt " sub-chunk
+              writeStr(12, 'fmt ') // Subchunk1ID
+              view.setUint32(16, 16, true) // Subchunk1Size (16 for PCM)
+              view.setUint16(20, 1, true) // AudioFormat (1 for PCM)
+              view.setUint16(22, numChannels, true) // NumChannels
+              view.setUint32(24, sampleRate, true) // SampleRate
+              view.setUint32(28, byteRate, true) // ByteRate
+              view.setUint16(32, blockAlign, true) // BlockAlign
+              view.setUint16(34, bitsPerSample, true) // BitsPerSample
+
+              // "data" sub-chunk
+              writeStr(36, 'data') // Subchunk2ID
+              view.setUint32(40, pcmBytes.length, true) // Subchunk2Size
+
+              const wavBytes = new Uint8Array(44 + pcmBytes.length)
+              wavBytes.set(new Uint8Array(wavHeader), 0)
+              wavBytes.set(pcmBytes, 44)
+
+              return new Response(wavBytes.buffer, {
+                status: 200,
+                headers: { 'Content-Type': 'audio/wav' },
+              })
+            },
+          }),
+        }
+        return provider
+      },
+      capabilities: {
+        listModels: async (config: Record<string, unknown>) => {
+          let baseUrl = (typeof config.baseUrl === 'string' && config.baseUrl.trim()) || 'https://openrouter.ai/api/v1/'
+          if (!baseUrl.endsWith('/'))
+            baseUrl += '/'
+
+          try {
+            const res = await fetch(`${baseUrl}models?output_modality=audio`)
+            if (!res.ok)
+              return []
+
+            const json = await res.json()
+            const models = json.data || []
+            return models.map((m: any) => ({
+              id: m.id,
+              name: m.name || m.id,
+              provider: 'openrouter-audio-speech',
+              description: m.description || '',
+              contextLength: m.context_length || 0,
+              deprecated: false,
+            } satisfies ModelInfo))
+          }
+          catch {
+            return []
+          }
+        },
+        listVoices: async () => {
+          // OpenRouter audio models support standard OpenAI voices
+          return [
+            'alloy',
+            'ash',
+            'ballad',
+            'coral',
+            'echo',
+            'fable',
+            'onyx',
+            'nova',
+            'sage',
+            'shimmer',
+            'verse',
+          ].map(id => ({
+            id,
+            name: id.charAt(0).toUpperCase() + id.slice(1),
+            provider: 'openrouter-audio-speech',
+            languages: [],
+          } satisfies VoiceInfo))
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          const errors: Error[] = []
+          if (!config.apiKey)
+            errors.push(new Error('API Key is required.'))
+
+          if (config.baseUrl) {
+            const res = baseUrlValidator.value(config.baseUrl)
+            if (res)
+              return res
+          }
+
+          return {
+            errors,
+            reason: errors.map(e => e.message).join(', '),
+            valid: errors.length === 0,
+          }
+        },
+      },
+    },
     'comet-api-speech': buildOpenAICompatibleProvider({
       id: 'comet-api-speech',
       name: 'CometAPI Speech',
@@ -1381,6 +1914,527 @@ export const useProvidersStore = defineStore('providers', () => {
       ),
       validation: ['model_list'],
     }),
+
+    'cerebras-ai': buildOpenAICompatibleProvider({
+      id: 'cerebras-ai',
+      name: 'Cerebras',
+      nameKey: 'settings.pages.providers.provider.cerebras.title',
+      descriptionKey: 'settings.pages.providers.provider.cerebras.description',
+      icon: 'i-lobe-icons:cerebras',
+      description: 'cerebras.ai',
+      defaultBaseUrl: 'https://api.cerebras.ai/v1/',
+      creator: createCerebras,
+      validation: ['health', 'model_list'],
+      iconColor: 'i-lobe-icons:cerebras-color',
+    }),
+    'together-ai': buildOpenAICompatibleProvider({
+      id: 'together-ai',
+      name: 'Together.ai',
+      nameKey: 'settings.pages.providers.provider.together.title',
+      descriptionKey: 'settings.pages.providers.provider.together.description',
+      icon: 'i-lobe-icons:together',
+      description: 'together.ai',
+      defaultBaseUrl: 'https://api.together.xyz/v1/',
+      creator: createTogetherAI,
+      validation: ['health', 'model_list'],
+      iconColor: 'i-lobe-icons:together',
+    }),
+    'azure-ai-foundry': {
+      id: 'azure-ai-foundry',
+      category: 'chat',
+      tasks: ['text-generation'],
+      nameKey: 'settings.pages.providers.provider.azure-ai-foundry.title',
+      name: 'Azure AI Foundry',
+      descriptionKey: 'settings.pages.providers.provider.azure-ai-foundry.description',
+      description: 'azure.com',
+      icon: 'i-lobe-icons:microsoft',
+      defaultOptions: () => ({}),
+      createProvider: async (config) => {
+        return await createAzure({
+          apiKey: async () => (config.apiKey as string).trim(),
+          resourceName: config.resourceName as string,
+          apiVersion: config.apiVersion as string,
+        })
+      },
+      capabilities: {
+        listModels: async (config) => {
+          return [{ id: config.modelId }].map((model) => {
+            return {
+              id: model.id as string,
+              name: model.id as string,
+              provider: 'azure-ai-foundry',
+              description: '',
+              contextLength: 0,
+              deprecated: false,
+            } satisfies ModelInfo
+          })
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          // return !!config.apiKey && !!config.resourceName && !!config.modelId
+
+          const errors = [
+            !config.apiKey && new Error('API key is required'),
+            !config.resourceName && new Error('Resource name is required'),
+            !config.modelId && new Error('Model ID is required'),
+          ]
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.resourceName && !!config.modelId,
+          }
+        },
+      },
+    },
+    'xai': buildOpenAICompatibleProvider({
+      id: 'xai',
+      name: 'xAI',
+      nameKey: 'settings.pages.providers.provider.xai.title',
+      descriptionKey: 'settings.pages.providers.provider.xai.description',
+      icon: 'i-lobe-icons:xai',
+      description: 'x.ai',
+      defaultBaseUrl: 'https://api.x.ai/v1/',
+      creator: createXai,
+      validation: ['health', 'model_list'],
+    }),
+    'xai-audio-speech': buildOpenAICompatibleProvider({
+      id: 'xai-audio-speech',
+      name: 'xAI',
+      nameKey: 'settings.pages.providers.provider.xai-audio-speech.title',
+      descriptionKey: 'settings.pages.providers.provider.xai-audio-speech.description',
+      icon: 'i-lobe-icons:xai',
+      description: 'x.ai',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      defaultBaseUrl: 'https://api.x.ai/v1/',
+      creator: (apiKey, baseURL = 'https://api.x.ai/v1/') => merge(
+        createModelProvider({ apiKey, baseURL }),
+        createSpeechProvider({ apiKey, baseURL }),
+      ),
+      validation: ['health'],
+      capabilities: {
+        // xAI provides 6 voices for TTS
+        // Per https://docs.x.ai/docs/guides/voice documentation
+        listVoices: async (_config: Record<string, unknown>) => {
+          return [
+            {
+              id: 'Ara',
+              name: 'Ara',
+              provider: 'xai-audio-speech',
+              description: 'Female voice (default)',
+              gender: 'female',
+              languages: [],
+            },
+            {
+              id: 'Rex',
+              name: 'Rex',
+              provider: 'xai-audio-speech',
+              description: 'Male voice',
+              gender: 'male',
+              languages: [],
+            },
+            {
+              id: 'Sal',
+              name: 'Sal',
+              provider: 'xai-audio-speech',
+              description: 'Voice',
+              languages: [],
+            },
+            {
+              id: 'Eve',
+              name: 'Eve',
+              provider: 'xai-audio-speech',
+              description: 'Female voice',
+              gender: 'female',
+              languages: [],
+            },
+            {
+              id: 'Una',
+              name: 'Una',
+              provider: 'xai-audio-speech',
+              description: 'Female voice',
+              gender: 'female',
+              languages: [],
+            },
+            {
+              id: 'Leo',
+              name: 'Leo',
+              provider: 'xai-audio-speech',
+              description: 'Male voice',
+              gender: 'male',
+              languages: [],
+            },
+          ] satisfies VoiceInfo[]
+        },
+        listModels: async () => {
+          // xAI uses a single TTS endpoint without specific model selection
+          return [
+            {
+              id: 'grok-2-tts',
+              name: 'Grok 2 TTS',
+              provider: 'xai-audio-speech',
+              description: 'xAI Grok text-to-speech model',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          const errors = [
+            !config.apiKey && new Error('API Key is required'),
+            !config.baseUrl && new Error('Base URL is required. Default to https://api.x.ai/v1/ for xAI API.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
+        },
+      },
+    }),
+    'xai-audio-transcription': buildOpenAICompatibleProvider({
+      id: 'xai-audio-transcription',
+      name: 'xAI',
+      nameKey: 'settings.pages.providers.provider.xai-audio-transcription.title',
+      descriptionKey: 'settings.pages.providers.provider.xai-audio-transcription.description',
+      icon: 'i-lobe-icons:xai',
+      description: 'x.ai',
+      category: 'transcription',
+      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+      defaultBaseUrl: 'https://api.x.ai/v1/',
+      creator: (apiKey, baseURL = 'https://api.x.ai/v1/') => merge(
+        createModelProvider({ apiKey, baseURL }),
+        createTranscriptionProvider({ apiKey, baseURL }),
+      ),
+      validation: ['health'],
+      transcriptionFeatures: {
+        supportsGenerate: true,
+        supportsStreamOutput: false,
+        supportsStreamInput: false,
+      },
+      capabilities: {
+        listModels: async () => {
+          // xAI uses a single transcription endpoint
+          return [
+            {
+              id: 'grok-2-transcribe',
+              name: 'Grok 2 Transcribe',
+              provider: 'xai-audio-transcription',
+              description: 'xAI Grok speech-to-text model',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          const errors = [
+            !config.apiKey && new Error('API Key is required'),
+            !config.baseUrl && new Error('Base URL is required. Default to https://api.x.ai/v1/ for xAI API.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
+        },
+      },
+    }),
+    'vllm': {
+      id: 'vllm',
+      category: 'chat',
+      tasks: ['text-generation'],
+      nameKey: 'settings.pages.providers.provider.vllm.title',
+      name: 'vLLM',
+      descriptionKey: 'settings.pages.providers.provider.vllm.description',
+      description: 'vllm.ai',
+      iconColor: 'i-lobe-icons:vllm',
+      createProvider: async config => createOllama((config.baseUrl as string).trim()),
+      capabilities: {
+        listModels: async () => {
+          return [
+            {
+              id: 'llama-2-7b',
+              name: 'Llama 2 (7B)',
+              provider: 'vllm',
+              description: 'Meta\'s Llama 2 7B parameter model',
+              contextLength: 4096,
+            },
+            {
+              id: 'llama-2-13b',
+              name: 'Llama 2 (13B)',
+              provider: 'vllm',
+              description: 'Meta\'s Llama 2 13B parameter model',
+              contextLength: 4096,
+            },
+            {
+              id: 'llama-2-70b',
+              name: 'Llama 2 (70B)',
+              provider: 'vllm',
+              description: 'Meta\'s Llama 2 70B parameter model',
+              contextLength: 4096,
+            },
+            {
+              id: 'mistral-7b',
+              name: 'Mistral (7B)',
+              provider: 'vllm',
+              description: 'Mistral AI\'s 7B parameter model',
+              contextLength: 8192,
+            },
+            {
+              id: 'mixtral-8x7b',
+              name: 'Mixtral (8x7B)',
+              provider: 'vllm',
+              description: 'Mistral AI\'s Mixtral 8x7B MoE model',
+              contextLength: 32768,
+            },
+            {
+              id: 'custom',
+              name: 'Custom Model',
+              provider: 'vllm',
+              description: 'Specify a custom model name',
+              contextLength: 0,
+            },
+          ]
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          if (!config.baseUrl) {
+            return {
+              errors: [new Error('Base URL is required.')],
+              reason: 'Base URL is required. Default to http://localhost:8000/v1/ for vLLM.',
+              valid: false,
+            }
+          }
+
+          const res = baseUrlValidator.value(config.baseUrl)
+          if (res) {
+            return res
+          }
+
+          // Check if the vLLM is reachable
+          return fetch(`${(config.baseUrl as string).trim()}models`, { headers: (config.headers as HeadersInit) || undefined })
+            .then((response) => {
+              const errors = [
+                !response.ok && new Error(`vLLM returned non-ok status code: ${response.statusText}`),
+              ].filter(Boolean)
+
+              return {
+                errors,
+                reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+                valid: response.ok,
+              }
+            })
+            .catch((err) => {
+              return {
+                errors: [err],
+                reason: `Failed to reach vLLM, error: ${String(err)} occurred.`,
+                valid: false,
+              }
+            })
+        },
+      },
+    },
+    'novita-ai': buildOpenAICompatibleProvider({
+      id: 'novita-ai',
+      name: 'Novita',
+      nameKey: 'settings.pages.providers.provider.novita.title',
+      descriptionKey: 'settings.pages.providers.provider.novita.description',
+      icon: 'i-lobe-icons:novita',
+      description: 'novita.ai',
+      defaultBaseUrl: 'https://api.novita.ai/openai/',
+      creator: createNovitaAi,
+      validation: ['health', 'model_list'],
+      iconColor: 'i-lobe-icons:novita',
+    }),
+    'fireworks-ai': buildOpenAICompatibleProvider({
+      id: 'fireworks-ai',
+      name: 'Fireworks.ai',
+      nameKey: 'settings.pages.providers.provider.fireworks.title',
+      descriptionKey: 'settings.pages.providers.provider.fireworks.description',
+      icon: 'i-lobe-icons:fireworks',
+      description: 'fireworks.ai',
+      defaultBaseUrl: 'https://api.fireworks.ai/inference/v1/',
+      creator: createFireworks,
+      validation: ['health', 'model_list'],
+    }),
+    'featherless-ai': buildOpenAICompatibleProvider({
+      id: 'featherless-ai',
+      name: 'Featherless.ai',
+      nameKey: 'settings.pages.providers.provider.featherless.title',
+      descriptionKey: 'settings.pages.providers.provider.featherless.description',
+      icon: 'i-lobe-icons:featherless-ai',
+      description: 'featherless.ai',
+      defaultBaseUrl: 'https://api.featherless.ai/v1/',
+      creator: createOpenAI,
+      validation: ['health', 'model_list'],
+    }),
+    'cloudflare-workers-ai': {
+      id: 'cloudflare-workers-ai',
+      category: 'chat',
+      tasks: ['text-generation'],
+      nameKey: 'settings.pages.providers.provider.cloudflare-workers-ai.title',
+      name: 'Cloudflare Workers AI',
+      descriptionKey: 'settings.pages.providers.provider.cloudflare-workers-ai.description',
+      description: 'cloudflare.com',
+      iconColor: 'i-lobe-icons:cloudflare',
+      createProvider: async config => createWorkersAI((config.apiKey as string).trim(), config.accountId as string),
+      capabilities: {
+        listModels: async () => {
+          return []
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          const errors = [
+            !config.apiKey && new Error('API key is required.'),
+            !config.accountId && new Error('Account ID is required.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: !!config.apiKey && !!config.accountId,
+          }
+        },
+      },
+    },
+    'comet-api': buildOpenAICompatibleProvider({
+      id: 'comet-api',
+      name: 'CometAPI',
+      nameKey: 'settings.pages.providers.provider.comet-api.title',
+      descriptionKey: 'settings.pages.providers.provider.comet-api.description',
+      icon: 'i-lobe-icons:cometapi',
+      description: 'cometapi.com',
+      defaultBaseUrl: 'https://api.cometapi.com/v1/',
+      creator: (apiKey, baseURL = 'https://api.cometapi.com/v1/') => merge(
+        createChatProvider({ apiKey, baseURL }),
+        createModelProvider({ apiKey, baseURL }),
+      ),
+      validation: ['model_list'],
+    }),
+    'perplexity-ai': buildOpenAICompatibleProvider({
+      id: 'perplexity-ai',
+      name: 'Perplexity',
+      nameKey: 'settings.pages.providers.provider.perplexity.title',
+      descriptionKey: 'settings.pages.providers.provider.perplexity.description',
+      icon: 'i-lobe-icons:perplexity',
+      description: 'perplexity.ai',
+      defaultBaseUrl: 'https://api.perplexity.ai/',
+      creator: createPerplexity,
+      validation: ['health', 'model_list'],
+    }),
+    'mistral-ai': buildOpenAICompatibleProvider({
+      id: 'mistral-ai',
+      name: 'Mistral',
+      nameKey: 'settings.pages.providers.provider.mistral.title',
+      descriptionKey: 'settings.pages.providers.provider.mistral.description',
+      icon: 'i-lobe-icons:mistral',
+      description: 'mistral.ai',
+      defaultBaseUrl: 'https://api.mistral.ai/v1/',
+      creator: createMistral,
+      validation: ['health', 'model_list'],
+      iconColor: 'i-lobe-icons:mistral',
+    }),
+    'moonshot-ai': buildOpenAICompatibleProvider({
+      id: 'moonshot-ai',
+      name: 'Moonshot AI',
+      nameKey: 'settings.pages.providers.provider.moonshot.title',
+      descriptionKey: 'settings.pages.providers.provider.moonshot.description',
+      icon: 'i-lobe-icons:moonshot',
+      description: 'moonshot.ai',
+      defaultBaseUrl: 'https://api.moonshot.ai/v1/',
+      creator: createMoonshotai,
+      validation: ['health', 'model_list'],
+    }),
+    'modelscope': buildOpenAICompatibleProvider({
+      id: 'modelscope',
+      name: 'ModelScope',
+      nameKey: 'settings.pages.providers.provider.modelscope.title',
+      descriptionKey: 'settings.pages.providers.provider.modelscope.description',
+      icon: 'i-lobe-icons:modelscope',
+      description: 'modelscope',
+      defaultBaseUrl: 'https://api-inference.modelscope.cn/v1/',
+      creator: createOpenAI,
+      validation: ['health', 'model_list'],
+      iconColor: 'i-lobe-icons:modelscope',
+    }),
+    'player2': {
+      id: 'player2',
+      category: 'chat',
+      tasks: ['text-generation'],
+      nameKey: 'settings.pages.providers.provider.player2.title',
+      name: 'Player2',
+      descriptionKey: 'settings.pages.providers.provider.player2.description',
+      description: 'player2.game',
+      icon: 'i-lobe-icons:player2',
+      defaultOptions: () => ({
+        baseUrl: 'http://localhost:4315/v1/',
+      }),
+      createProvider: (config) => {
+        return createPlayer2((config.baseUrl as string).trim())
+      },
+      capabilities: {
+        listModels: async () => [
+          {
+            id: 'player2-model',
+            name: 'Player2 Model',
+            provider: 'player2',
+          },
+        ],
+      },
+      validators: {
+        validateProviderConfig: async (config) => {
+          if (!config.baseUrl) {
+            return {
+              errors: [new Error('Base URL is required.')],
+              reason: 'Base URL is required. Default to http://localhost:4315/v1/',
+              valid: false,
+            }
+          }
+
+          const res = baseUrlValidator.value(config.baseUrl)
+          if (res) {
+            return res
+          }
+
+          // Check if the local running Player 2 is reachable
+          return await fetch(`${config.baseUrl}health`, {
+            method: 'GET',
+            headers: {
+              'player2-game-key': 'airi',
+            },
+          })
+            .then((response) => {
+              const errors = [
+                !response.ok && new Error(`Player 2 returned non-ok status code: ${response.statusText}`),
+              ].filter(Boolean)
+
+              return {
+                errors,
+                reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+                valid: response.ok,
+              }
+            })
+            .catch((err) => {
+              return {
+                errors: [err],
+                reason: `Failed to reach Player 2, error: ${String(err)} occurred. If you do not have Player 2 running, please start it and try again.`,
+                valid: false,
+              }
+            })
+        },
+      },
+    },
+
     'player2-speech': {
       id: 'player2-speech',
       category: 'speech',
@@ -1732,7 +2786,6 @@ export const useProvidersStore = defineStore('providers', () => {
   // const validatedCredentials = ref<Record<string, string>>({})
   const providerRuntimeState = ref<Record<string, ProviderRuntimeState>>({})
   const providerValidationInFlight = new Map<string, Promise<boolean>>()
-  const providerRevalidationLoops = new Map<string, { resume: () => void }>()
 
   const configuredProviders = computed(() => {
     const result: Record<string, boolean> = {}
@@ -1757,11 +2810,8 @@ export const useProvidersStore = defineStore('providers', () => {
     if (!metadata)
       return false
 
-    // Web Speech API doesn't require credentials - use empty config if not present
-    if (providerId === 'browser-web-speech-api') {
-      if (!providerCredentials.value[providerId]) {
-        providerCredentials.value[providerId] = getDefaultProviderConfig(providerId)
-      }
+    if (providerId === 'browser-web-speech-api' && !providerCredentials.value[providerId]) {
+      providerCredentials.value[providerId] = getDefaultProviderConfig(providerId)
     }
 
     const config = providerCredentials.value[providerId]
@@ -1785,6 +2835,42 @@ export const useProvidersStore = defineStore('providers', () => {
 
     const runValidation = async () => {
       const validationResult = await metadata.validators.validateProviderConfig(config || {})
+
+      // Suppress logging and toasts for unconfigured providers unless forced
+      const configObj = (config || {}) as Record<string, any>
+      const hasKey = !!configObj.apiKey?.trim()
+      const defaultUrl = (metadata.defaultOptions?.() as any)?.baseUrl || ''
+      const hasCustomUrl = !!configObj.baseUrl?.trim() && configObj.baseUrl !== defaultUrl
+      const isConfigured = hasKey || hasCustomUrl
+      const isUnconfigured = !validationResult.valid && !isConfigured
+
+      if ((window as any).electron?.ipcRenderer) {
+        // Only send results to the main process if it's NOT unconfigured.
+        // Even if forced (periodic check), we don't want terminal spam for things that aren't set up.
+        if (!isUnconfigured) {
+          try {
+            // Use safe cloning to prevent "object could not be cloned" errors with Vue/Pinia Proxies
+            const safeConfig = config ? JSON.parse(JSON.stringify({ ...config, apiKey: config.apiKey ? '***' : undefined })) : undefined
+
+            ;(window as any).electron.ipcRenderer.send('provider-validation-result', {
+              providerId,
+              valid: validationResult.valid,
+              reason: validationResult.reason,
+              config: safeConfig,
+            })
+          }
+          catch (e) {
+            console.error('[Provider Validation] IPC send failed:', e)
+          }
+        }
+      }
+
+      if (!validationResult.valid && options.force && !isUnconfigured) {
+        const localizedName = t(metadata.nameKey, metadata.name)
+        toast.error(`Provider "${localizedName}" validation failed`, {
+          description: validationResult.reason || 'Check your configuration in Settings > Providers.',
+        })
+      }
 
       if (providerRuntimeState.value[providerId]) {
         providerRuntimeState.value[providerId].isConfigured = validationResult.valid
@@ -1835,28 +2921,10 @@ export const useProvidersStore = defineStore('providers', () => {
     }
   }
 
-  // Initialize all providers
-  Object.keys(providerMetadata).forEach(initializeProvider)
-
-  function startPeriodicRuntimeValidation() {
-    for (const [providerId, intervalMs] of providerValidationIntervalMsById.entries()) {
-      if (!providerMetadata[providerId] || intervalMs <= 0)
-        continue
-
-      if (providerRevalidationLoops.has(providerId)) {
-        continue
-      }
-
-      const loop = useIntervalFn(() => {
-        void validateProvider(providerId, { force: true })
-      }, intervalMs, { immediate: false, immediateCallback: false })
-      loop.resume()
-      providerRevalidationLoops.set(providerId, loop)
-    }
-  }
+  // Object.keys(providerMetadata).forEach(initializeProvider)
 
   // Update configuration status for all configured providers
-  async function updateConfigurationStatus() {
+  const updateConfigurationStatus = debounce(async () => {
     await Promise.all(Object.entries(providerMetadata)
       // TODO: ignore un-configured provider
       // .filter(([_, provider]) => provider.configured)
@@ -1873,11 +2941,16 @@ export const useProvidersStore = defineStore('providers', () => {
           }
         }
       }))
-  }
+  }, 250)
 
   // Call initially and watch for changes
-  watch(providerCredentials, updateConfigurationStatus, { deep: true, immediate: true })
-  startPeriodicRuntimeValidation()
+  watch(providerCredentials, updateConfigurationStatus, { deep: true, immediate: false })
+
+  // Initialize all providers
+  Object.keys(providerMetadata).forEach(initializeProvider)
+
+  // Initial validation run
+  void updateConfigurationStatus()
 
   // Available providers (only those that are properly configured)
   const availableProviders = computed(() => Object.keys(providerMetadata).filter(providerId => providerRuntimeState.value[providerId]?.isConfigured))
@@ -1955,14 +3028,15 @@ export const useProvidersStore = defineStore('providers', () => {
 
       // Transform and store the models
       if (runtimeState) {
-        runtimeState.models = models.map(model => ({
-          id: model.id,
-          name: model.name,
-          description: model.description,
-          contextLength: model.contextLength,
-          deprecated: model.deprecated,
-          provider: providerId,
-        }))
+        runtimeState.models = uniqBy(models.filter(model => !!model.id), m => m.id)
+          .map(model => ({
+            id: model.id,
+            name: model.name,
+            description: model.description,
+            contextLength: model.contextLength,
+            deprecated: model.deprecated,
+            provider: providerId,
+          }))
         return runtimeState.models
       }
       return []
@@ -2143,15 +3217,15 @@ export const useProvidersStore = defineStore('providers', () => {
   })
 
   const configuredChatProvidersMetadata = computed(() => {
-    return allChatProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
+    return allChatProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id] || shouldListProvider(metadata.id))
   })
 
   const configuredSpeechProvidersMetadata = computed(() => {
-    return allAudioSpeechProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
+    return allAudioSpeechProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id] || shouldListProvider(metadata.id))
   })
 
   const configuredTranscriptionProvidersMetadata = computed(() => {
-    return allAudioTranscriptionProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id])
+    return allAudioTranscriptionProvidersMetadata.value.filter(metadata => configuredProviders.value[metadata.id] || shouldListProvider(metadata.id))
   })
 
   function isProviderConfigDirty(providerId: string) {
@@ -2184,7 +3258,13 @@ export const useProvidersStore = defineStore('providers', () => {
   })
 
   function getProviderConfig(providerId: string) {
-    return providerCredentials.value[providerId]
+    const metadata = providerMetadata[providerId]
+    const defaults = metadata?.defaultOptions?.() || {}
+    const persisted = providerCredentials.value[providerId] || {}
+    return {
+      ...defaults,
+      ...persisted,
+    }
   }
 
   return {
@@ -2196,6 +3276,7 @@ export const useProvidersStore = defineStore('providers', () => {
     deleteProvider,
     availableProviders,
     configuredProviders,
+    providerRuntimeState,
     providerMetadata,
     getProviderMetadata,
     getTranscriptionFeatures,

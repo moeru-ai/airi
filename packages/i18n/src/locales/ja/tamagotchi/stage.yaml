@@ -19,8 +19,9 @@ docs:
   'drag-to-move-window': ウィンドウをドラッグして移動
   'switch-to-light-mode': ライトモードに切り替え
   'switch-to-dark-mode': ダークモードに切り替え
-  'pin-on-top': Pin on top
-  'unpin-from-top': Unpin from top
+  'pin-on-top': 最前面にピン留め
+  'unpin-from-top': ピン留めを解除
+  'switch-profile': プロファイルを切替
   'close': Close
   'expand': Expand
   'collapse': Collapse

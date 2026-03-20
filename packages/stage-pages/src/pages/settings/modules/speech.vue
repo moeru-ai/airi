@@ -335,8 +335,9 @@ function handleDeleteProvider(providerId: string) {
                 <h2 class="text-lg md:text-2xl">
                   {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.title') }}
                 </h2>
-                <div text="neutral-400 dark:neutral-400">
+                <div class="flex flex-col items-start gap-1 text-neutral-400 md:flex-row md:items-center md:justify-between dark:text-neutral-400">
                   <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}</span>
+                  <span v-if="activeSpeechModel" class="text-sm text-neutral-400 font-medium dark:text-neutral-400">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.current_model_label') }} {{ activeSpeechModel }}</span>
                 </div>
               </div>
 
@@ -458,7 +459,7 @@ function handleDeleteProvider(providerId: string) {
           <!-- Error state -->
           <!-- Voice selection with RadioCardManySelect (skip for OpenAI Compatible) -->
           <div
-            v-else-if="activeSpeechProvider !== 'openai-compatible-audio-speech' && availableVoices[activeSpeechProvider] && availableVoices[activeSpeechProvider].length > 0"
+            v-else-if="availableVoices[activeSpeechProvider] && availableVoices[activeSpeechProvider].length > 0"
             class="space-y-6"
           >
             <VoiceCardManySelect
@@ -536,7 +537,7 @@ function handleDeleteProvider(providerId: string) {
 
           <!-- Manual voice input when no voices are available or for OpenAI Compatible -->
           <div
-            v-if="activeSpeechProvider === 'openai-compatible-audio-speech' || !availableVoices[activeSpeechProvider] || availableVoices[activeSpeechProvider].length === 0"
+            v-if="!availableVoices[activeSpeechProvider] || availableVoices[activeSpeechProvider].length === 0"
             class="mt-2 space-y-6"
           >
             <FieldInput

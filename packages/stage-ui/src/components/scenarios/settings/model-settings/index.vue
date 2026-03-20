@@ -6,7 +6,7 @@ import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
 import { Button, Callout } from '@proj-airi/ui'
 import { useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 
 import Live2D from './live2d.vue'
 import VRM from './vrm.vue'
@@ -27,15 +27,16 @@ defineEmits<{
   (e: 'extractColorsFromModel'): void
 }>()
 
-const selectedModel = ref<DisplayModel | undefined>()
-
+const modelSelectorOpen = ref(false)
 const positionCursor = useMouse()
 const settingsStore = useSettings()
 const { scale: live2dScale } = storeToRefs(useLive2d())
 const {
   live2dDisableFocus,
   stageModelSelectedUrl,
+  stageModelSelectedFile,
   stageModelSelected,
+  stageModelSelectedDisplayModel,
   stageModelRenderer,
   themeColorsHue,
   themeColorsHueDynamic,
@@ -46,21 +47,17 @@ const {
   live2dMaxFps,
 } = storeToRefs(settingsStore)
 
-watch(selectedModel, async () => {
-  stageModelSelected.value = selectedModel.value?.id ?? ''
+const currentSelectedDisplayModel = computed<DisplayModel | undefined>(() => stageModelSelectedDisplayModel.value)
+
+async function handleModelPick(selectedModel: DisplayModel | undefined) {
+  stageModelSelected.value = selectedModel?.id ?? ''
   await settingsStore.updateStageModel()
 
-  if (selectedModel.value) {
-    switch (selectedModel.value.format) {
-      case DisplayModelFormat.Live2dZip:
-        useLive2d().shouldUpdateView()
-        break
-      case DisplayModelFormat.VRM:
-        useModelStore().shouldUpdateView()
-        break
-    }
-  }
-}, { deep: true })
+  if (selectedModel?.format === DisplayModelFormat.Live2dZip)
+    useLive2d().shouldUpdateView()
+  else if (selectedModel?.format === DisplayModelFormat.VRM)
+    useModelStore().shouldUpdateView()
+}
 </script>
 
 <template>
@@ -82,11 +79,13 @@ watch(selectedModel, async () => {
         uses 3D model that is driven by VRM / MMD open formats.
       </p>
     </Callout>
-    <ModelSelectorDialog v-model="selectedModel">
-      <Button variant="secondary">
-        Select Model
-      </Button>
-    </ModelSelectorDialog>
+    <div :class="['flex flex-wrap gap-2']">
+      <ModelSelectorDialog v-model:show="modelSelectorOpen" :selected-model="currentSelectedDisplayModel" @pick="handleModelPick">
+        <Button variant="secondary">
+          Select Model
+        </Button>
+      </ModelSelectorDialog>
+    </div>
     <Live2D
       v-if="stageModelRenderer === 'live2d'"
       :palette="palette"
@@ -105,6 +104,7 @@ watch(selectedModel, async () => {
         :focus-at="{ x: positionCursor.x.value, y: positionCursor.y.value }"
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
+        :model-file="stageModelSelectedFile"
         :disable-focus-at="live2dDisableFocus"
         :scale="live2dScale"
         :theme-colors-hue="themeColorsHue"
@@ -120,7 +120,7 @@ watch(selectedModel, async () => {
   <!-- VRM component for 3D stage view -->
   <template v-if="stageModelRenderer === 'vrm'">
     <div :class="[...(props.vrmSceneClass ? (typeof props.vrmSceneClass === 'string' ? [props.vrmSceneClass] : props.vrmSceneClass) : [])]">
-      <ThreeScene :model-src="stageModelSelectedUrl" />
+      <ThreeScene :model-src="stageModelSelectedUrl" :model-identity="stageModelSelected" />
     </div>
   </template>
 </template>

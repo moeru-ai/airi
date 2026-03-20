@@ -20,13 +20,27 @@ export function createScreenService(params: { context: ReturnType<typeof createC
 
   onAppWindowAllClosed(() => stop())
   onAppBeforeQuit(() => stop())
+  const cleanup = () => stop()
+  params.window.on('close', cleanup)
+  params.window.on('closed', cleanup)
+
   defineInvokeHandler(params.context, startLoopGetCursorScreenPoint, () => start())
 
   defineInvokeHandler(params.context, electron.screen.getAllDisplays, () => screen.getAllDisplays())
   defineInvokeHandler(params.context, electron.screen.getPrimaryDisplay, () => screen.getPrimaryDisplay())
   defineInvokeHandler(params.context, electron.screen.dipToScreenPoint, point => point ? screen.dipToScreenPoint(point) : screen.getCursorScreenPoint())
-  defineInvokeHandler(params.context, electron.screen.dipToScreenRect, rect => rect ? screen.dipToScreenRect(params.window, rect) : params.window.getBounds())
+  defineInvokeHandler(params.context, electron.screen.dipToScreenRect, (rect) => {
+    if (params.window.isDestroyed())
+      return { x: 0, y: 0, width: 0, height: 0 }
+    return rect ? screen.dipToScreenRect(params.window, rect) : params.window.getBounds()
+  })
   defineInvokeHandler(params.context, electron.screen.screenToDipPoint, point => point ? screen.screenToDipPoint(point) : screen.getCursorScreenPoint())
-  defineInvokeHandler(params.context, electron.screen.screenToDipRect, rect => rect ? screen.screenToDipRect(params.window, rect) : params.window.getBounds())
+  defineInvokeHandler(params.context, electron.screen.screenToDipRect, (rect) => {
+    if (params.window.isDestroyed())
+      return { x: 0, y: 0, width: 0, height: 0 }
+    return rect ? screen.screenToDipRect(params.window, rect) : params.window.getBounds()
+  })
   defineInvokeHandler(params.context, electron.screen.getCursorScreenPoint, () => screen.getCursorScreenPoint())
+
+  return cleanup
 }

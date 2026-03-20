@@ -9,12 +9,13 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useSettingsChat } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { widgetsTools } from '../stores/tools/builtin/widgets'
+import { builtinTools } from '../stores/tools/builtin'
 
 const messageInput = ref('')
 const attachments = ref<{ type: 'image', data: string, mimeType: string, url: string }[]>([])
@@ -23,14 +24,25 @@ const chatOrchestrator = useChatOrchestratorStore()
 const chatSession = useChatSessionStore()
 const chatStream = useChatStreamStore()
 const { cleanupMessages } = useChatMaintenanceStore()
-const { ingest, onAfterMessageComposed, discoverToolsCompatibility } = chatOrchestrator
+const { ingest, onAfterMessageComposed } = chatOrchestrator
 const { messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
 const { sending } = storeToRefs(chatOrchestrator)
 const { t } = useI18n()
 const providersStore = useProvidersStore()
 const { activeModel, activeProvider } = storeToRefs(useConsciousnessStore())
+const settingsChat = useSettingsChat()
 const isComposing = ref(false)
+const CHAT_WINDOW_TITLE = 'AIRI - Chat Window'
+
+function updateWindowTitle() {
+  const nextTitle = messageInput.value.trim()
+    ? `${CHAT_WINDOW_TITLE} - User Typing...`
+    : CHAT_WINDOW_TITLE
+
+  if (document.title !== nextTitle)
+    document.title = nextTitle
+}
 
 async function handleSend() {
   if (isComposing.value) {
@@ -55,7 +67,7 @@ async function handleSend() {
       chatProvider: await providersStore.getProviderInstance<ChatProvider>(activeProvider.value),
       providerConfig,
       attachments: attachmentsToSend,
-      tools: widgetsTools,
+      tools: builtinTools,
     })
 
     attachmentsToSend.forEach(att => URL.revokeObjectURL(att.url))
@@ -103,12 +115,6 @@ function removeAttachment(index: number) {
   }
 }
 
-watch([activeProvider, activeModel], async () => {
-  if (activeProvider.value && activeModel.value) {
-    await discoverToolsCompatibility(activeModel.value, await providersStore.getProviderInstance<ChatProvider>(activeProvider.value), [])
-  }
-}, { immediate: true })
-
 onAfterMessageComposed(async () => {
   messageInput.value = ''
   attachments.value.forEach(att => URL.revokeObjectURL(att.url))
@@ -116,6 +122,14 @@ onAfterMessageComposed(async () => {
 })
 
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
+
+onMounted(() => {
+  updateWindowTitle()
+})
+
+watch(messageInput, () => {
+  updateWindowTitle()
+})
 </script>
 
 <template>
@@ -150,6 +164,7 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
     </div>
     <BasicTextarea
       v-model="messageInput"
+      :send-mode="settingsChat.sendMode"
       :placeholder="t('stage.message')"
       class="ph-no-capture"
       text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
@@ -158,9 +173,9 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
       max-h="[10lh]" min-h="[1lh]"
       w-full shrink-0 resize-none overflow-y-scroll rounded-xl p-2 font-medium outline-none
       transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
+      @submit="handleSend"
       @compositionstart="isComposing = true"
       @compositionend="isComposing = false"
-      @keydown.enter.exact.prevent="handleSend"
       @paste-file="handleFilePaste"
     />
   </div>

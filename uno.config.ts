@@ -166,6 +166,14 @@ export function sharedUnoConfig() {
     // By default, `.ts` and `.js` files are NOT extracted.
     // If you want to extract them, use the following configuration.
     // It's necessary to add the following configuration if you use shadcn-vue or shadcn-svelte.
+    shortcuts: [
+      {
+        'preserve-3d': '[transform-style:preserve-3d]',
+        'backface-hidden': '[backface-visibility:hidden]',
+        'perspective-1000': '[perspective:1000px]',
+        'rotate-y-180': '[transform:rotateY(180deg)]',
+      },
+    ],
     content: {
       pipeline: {
         include: [
