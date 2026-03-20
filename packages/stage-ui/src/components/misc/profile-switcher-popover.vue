@@ -1,18 +1,18 @@
 <script setup lang="ts">
 import { onClickOutside } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, ref, toRaw } from 'vue'
+import { computed, nextTick, ref, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useAiriCardStore } from '../../stores/modules/airi-card'
 
-interface Props {
+export interface Props {
   // 'down': opens below the trigger (for elements near the top, e.g. header)
   // 'up': opens above the trigger (for elements near the bottom, e.g. floating island)
   placement?: 'down' | 'up'
 }
 
-const props = withDefaults(defineProps<Props>(), { placement: 'down' })
+withDefaults(defineProps<Props>(), { placement: 'down' })
 
 const emit = defineEmits<{
   (e: 'manage'): void
@@ -31,7 +31,11 @@ const popoverRef = ref<HTMLElement>()
 
 onClickOutside(popoverRef, () => {
   open.value = false
-  cancelCreate()
+})
+
+watch(open, (isOpen) => {
+  if (!isOpen)
+    cancelCreate()
 })
 
 const cardsList = computed(() =>
