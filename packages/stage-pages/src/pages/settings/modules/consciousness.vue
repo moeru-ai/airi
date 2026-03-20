@@ -160,23 +160,23 @@ function handleDeleteProvider(providerId: string) {
         </div>
 
         <!-- Error state -->
-        <ErrorContainer
-          v-else-if="activeProviderModelError"
-          :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
-          :error="activeProviderModelError"
-        />
-
-        <!-- Manual model input fallback when model list fails to load -->
-        <div v-if="activeProviderModelError" class="mt-2">
-          <label class="mb-1 block text-sm font-medium">
-            {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_name') }}
-          </label>
-          <input
-            v-model="activeModel" type="text"
-            class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
-            :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
-          >
-        </div>
+        <template v-else-if="activeProviderModelError">
+          <ErrorContainer
+            :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
+            :error="activeProviderModelError"
+          />
+          <!-- Manual model input fallback when model list fails to load -->
+          <div class="mt-2">
+            <label class="mb-1 block text-sm font-medium">
+              {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_name') }}
+            </label>
+            <input
+              v-model="activeModel" type="text"
+              class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+              :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+            >
+          </div>
+        </template>
 
         <!-- No models available - Allow custom model input via search -->
         <!-- Only show when there are truly no models (not when fetch error occurred) to avoid competing UIs -->
