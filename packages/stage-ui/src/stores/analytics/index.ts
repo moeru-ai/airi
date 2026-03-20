@@ -29,11 +29,13 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
 
     const shouldCapture = syncPosthogCapture(enabled)
     if (shouldCapture) {
-      // Invalidate appStartTime when analytics is enabled mid-session so
-      // trackFirstMessage sends time_to_first_message_ms: null instead of
-      // a misleading duration measured from the original app launch.
-      if (!previousEnabled)
+      // When analytics is enabled mid-session, invalidate appStartTime and
+      // mark first message as already tracked to avoid backfilling a stale
+      // event with a misleading duration or timing.
+      if (!previousEnabled && !firstMessageTracked.value) {
         appStartTime.value = null
+        markFirstMessageTracked()
+      }
 
       registerPosthogBuildInfo(buildInfo.value)
     }
