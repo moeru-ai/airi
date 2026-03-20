@@ -167,11 +167,13 @@ CPU Load (1/5/15): 0.5 | 0.72 | 0.61
 GPU Load (Avg): 0.45
 Volume Level: 85%
 Current Local Time: 14:30
+Active Character Default Background: cozy-tea-corner-in-pastel-hues.png
 
 [Usage Metrics (Last Hr)]
 TTS (Last Hr): 5
 STT (Last Hr): 0
 Chat (Last Hr): 2
+Journal Entries (Last Hr): 1
 Turn Count: 498 (Next Target: 500)`
 
 const consciousnessProviderOptions = computed(() => {

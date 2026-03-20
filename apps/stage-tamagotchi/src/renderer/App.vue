@@ -9,6 +9,7 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { usePluginHostInspectorStore } from '@proj-airi/stage-ui/stores/devtools/plugin-host-debug'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { clearMcpToolBridge, setMcpToolBridge } from '@proj-airi/stage-ui/stores/mcp-tool-bridge'
+import { useShortTermMemoryStore } from '@proj-airi/stage-ui/stores/memory-short-term'
 import { useTextJournalStore } from '@proj-airi/stage-ui/stores/memory-text-journal'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
@@ -68,6 +69,7 @@ const analyticsStore = useSharedAnalyticsStore()
 const pluginHostInspectorStore = usePluginHostInspectorStore()
 const discordStore = useDiscordStore()
 const textJournalStore = useTextJournalStore()
+const shortTermMemoryStore = useShortTermMemoryStore()
 usePerfTracerBridgeStore()
 
 const proactivityStore = useProactivityStore()
@@ -77,6 +79,18 @@ async function seedTextJournalEntryFromWindow() {
   const entry = await textJournalStore.seedActiveCharacterEntry()
   console.log('[TextJournal] Seeded entry via window.seedTextJournalEntry()', entry)
   return entry
+}
+
+async function ensureYesterdayShortTermBlockForActiveCharacter() {
+  if (!cardStore.activeCardId)
+    return
+
+  try {
+    await shortTermMemoryStore.ensureYesterdayBlock(cardStore.activeCardId)
+  }
+  catch (error) {
+    console.warn('[ShortTermMemory] Failed to auto-generate yesterday block.', error)
+  }
 }
 
 Object.assign(window as Window & typeof globalThis, {
@@ -142,6 +156,10 @@ onMounted(async () => {
 
   logStep('Initializing chat session')
   await chatSessionStore.initialize()
+  logStep('Loading short-term memory')
+  await shortTermMemoryStore.load()
+  logStep('Checking yesterday short-term block')
+  await ensureYesterdayShortTermBlockForActiveCharacter()
   logStep('Loading display models')
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   logStep('Initializing stage model')
@@ -200,6 +218,16 @@ watch(themeColorsHue, () => {
 watch(themeColorsHueDynamic, () => {
   document.documentElement.classList.toggle('dynamic-hue', themeColorsHueDynamic.value)
 }, { immediate: true })
+
+watch(
+  () => cardStore.activeCardId,
+  async (nextCardId, previousCardId) => {
+    if (!nextCardId || nextCardId === previousCardId)
+      return
+
+    await ensureYesterdayShortTermBlockForActiveCharacter()
+  },
+)
 
 watch(
   () => [route.path, route.meta.titleKey, route.meta.title],

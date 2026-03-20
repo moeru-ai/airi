@@ -20,6 +20,16 @@ This document tracks the current development state of the AIRI project, specific
 
 ## Recent Changes (in `airi-rebase-scratch`)
 
+### 2026-03-20 - Memory Milestone: Short-Term + Long-Term Foundations
+- **Short-Term Memory Rebuild Prototype**: Implemented per-character rebuild-from-history that groups chat logs by local day, generates one summary block per day, stores those blocks durably, and injects recent blocks into new/reset sessions for continuity.
+- **Long-Term Memory / `text_journal`**: Implemented a first-class append-only journal tool with:
+  - `create`
+  - `search`
+  Both are scoped to the active character and backed by IndexedDB-style local storage.
+- **Real Long-Term Memory UI**: Replaced the mock long-term memory page with a real archive view that reads stored entries, supports per-character filtering, and supports keyword search.
+- **Toolchain Alignment Across Pipelines**: Confirmed and documented that typed chat, STT-triggered chat, and proactivity in Tamagotchi now all consume the shared `builtinTools` surface, so new builtin tools like `text_journal` do not need to be manually re-wired into each pipeline.
+- **Chat Presentation Polish for Journal Writes**: Added a custom presentation layer for `text_journal` create calls so journal saves render as a formatted memory card in chat rather than raw JSON tool arguments.
+
 ### 2026-03-17 - Live2D Fixes, Churn Suppression & Tool-Aware Proactivity
 - **Live2D 206 Fix**: Resolved critical `206 Partial Content` loading failure in `opfs-loader.ts` by normalizing responses into full `200` blobs.
 - **Character Switcher Churn Fix**: Implemented **Identity Guards** in `index.vue` and the `airi-card` store. Redundant model reloads and "You selected..." toasts are now suppressed when character metadata updates without an actual model switch.
@@ -61,3 +71,4 @@ This document tracks the current development state of the AIRI project, specific
 - **Journal-Friendly Titles / Filenames**: The LLM should provide both a `title` and a `prompt` when creating a new image. The app should then sanitize, slugify, dedupe, and persist the filename automatically. This avoids UUID-centric interactions and gives AIRI a path toward richer future references based on human-readable labels.
 - **AIRI Image Journal / Character Picture Books**: Move image history ownership out of the widget lifecycle and into a persistent journal system. The long-term direction is for generated images to survive widget/window turnover, be associated with characters/cards, and support a per-character "picture book" feel. `localStorage` is not appropriate for this; a durable metadata store plus real file/blob storage is the intended direction.
 - **CUIPP MVP Extraction Scope**: Do not frame the future CUIPP work as "port the whole app." The more realistic goal is to extract a narrow standalone generation worker with a stable CLI or local API contract: prompt in, optional remix/source id, progress/status events out, final asset out. `remix` should be treated as a CUIPP-first capability that can later expand to other providers (for example via image-to-image style flows) rather than a day-one universal requirement.
+- **Long-Term Memory Semantic Search**: Current long-term memory search is intentionally keyword-first. A promising future direction is to use a QMD CLI-backed manager layer for embeddings and semantic retrieval while keeping AIRI responsible for storage, tooling, and per-character scoping. That would let users explicitly own the install/runtime burden for the semantic engine instead of AIRI fully absorbing that operational complexity.

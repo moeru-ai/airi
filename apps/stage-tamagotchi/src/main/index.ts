@@ -67,6 +67,7 @@ setGlobalLogLevel(LogLevel.Log)
 setupDebugger()
 
 const log = useLogg('main').useGlobalConfig()
+const forceHighPerformanceGpu = env.AIRI_FORCE_HIGH_PERFORMANCE_GPU === '1'
 
 if (isLinux) {
   app.commandLine.appendSwitch('enable-features', 'SharedArrayBuffer')
@@ -80,9 +81,15 @@ if (isLinux) {
   }
 }
 
-app.commandLine.appendSwitch('force-high-performance-gpu')
-app.commandLine.appendSwitch('enable-gpu-rasterization')
-app.commandLine.appendSwitch('ignore-gpu-blocklist')
+if (forceHighPerformanceGpu) {
+  // NOTICE: These switches can materially change GPU selection, power draw, and
+  // driver compatibility. Keep them opt-in so default desktop behavior stays
+  // close to upstream unless the local launcher explicitly asks for them.
+  app.commandLine.appendSwitch('force-high-performance-gpu')
+  app.commandLine.appendSwitch('enable-gpu-rasterization')
+  app.commandLine.appendSwitch('ignore-gpu-blocklist')
+  console.log('[AIRI] High-performance GPU overrides enabled via AIRI_FORCE_HIGH_PERFORMANCE_GPU=1')
+}
 
 app.dock?.setIcon(icon)
 electronApp.setAppUserModelId('ai.moeru.airi')

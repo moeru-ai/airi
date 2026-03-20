@@ -125,6 +125,12 @@ function buildSummarizerMessages(
   ]
 }
 
+function getYesterdayLocalDayKey() {
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+  return formatLocalDayKey(yesterday.getTime())
+}
+
 export const useShortTermMemoryStore = defineStore('short-term-memory', () => {
   const { userId } = storeToRefs(useAuthStore())
   const { cards, activeCardId } = storeToRefs(useAiriCardStore())
@@ -149,6 +155,43 @@ export const useShortTermMemoryStore = defineStore('short-term-memory', () => {
 
   function getCharacterBlocks(characterId: string) {
     return sortedBlocks.value.filter(block => block.characterId === characterId)
+  }
+
+  function searchBlocks(input: {
+    query: string
+    limit?: number
+    characterId?: string
+  }) {
+    const normalizedQuery = input.query.trim().toLowerCase()
+    if (!normalizedQuery)
+      return []
+
+    const targetCharacterId = input.characterId ?? activeCardId.value ?? ''
+    const scopedBlocks = sortedBlocks.value.filter(block => !targetCharacterId || block.characterId === targetCharacterId)
+
+    return scopedBlocks
+      .map((block) => {
+        const summary = block.summary.toLowerCase()
+        const characterName = block.characterName.toLowerCase()
+        const date = block.date.toLowerCase()
+
+        let score = 0
+        if (summary.includes(normalizedQuery))
+          score += 3
+        if (characterName.includes(normalizedQuery))
+          score += 1
+        if (date.includes(normalizedQuery))
+          score += 1
+
+        return {
+          block,
+          score,
+        }
+      })
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score || b.block.date.localeCompare(a.block.date) || b.block.updatedAt - a.block.updatedAt)
+      .slice(0, Math.max(1, Math.min(input.limit ?? 5, 10)))
+      .map(item => item.block)
   }
 
   async function load() {
@@ -193,18 +236,99 @@ export const useShortTermMemoryStore = defineStore('short-term-memory', () => {
     }
   }
 
+  async function collectCharacterDayBuckets(characterId: string) {
+    const currentUserId = getCurrentUserId()
+    const index = await chatSessionsRepo.getIndex(currentUserId) as ChatSessionsIndex | null
+    const characterIndex = index?.characters?.[characterId]
+    if (!characterIndex)
+      return []
+
+    const buckets = new Map<string, DayBucket>()
+    const sessionIds = Object.keys(characterIndex.sessions)
+
+    for (const sessionId of sessionIds) {
+      const record = await chatSessionsRepo.getSession(sessionId)
+      if (!record)
+        continue
+
+      for (const message of record.messages) {
+        if ((message.role !== 'user' && message.role !== 'assistant') || !message.createdAt)
+          continue
+
+        const content = extractMessageText(message)
+        if (!content)
+          continue
+
+        const card = cards.value.get(characterId)
+        const roleLabel = message.role === 'user' ? 'User' : card?.name || 'Assistant'
+        const date = formatLocalDayKey(message.createdAt)
+        const bucket = buckets.get(date) ?? {
+          date,
+          lines: [],
+          messageCount: 0,
+          sessionIds: new Set<string>(),
+        }
+
+        bucket.lines.push(`${roleLabel}: ${content}`)
+        bucket.messageCount += 1
+        bucket.sessionIds.add(sessionId)
+        buckets.set(date, bucket)
+      }
+    }
+
+    return [...buckets.values()].sort((a, b) => a.date.localeCompare(b.date))
+  }
+
+  async function summarizeBucket(
+    characterId: string,
+    card: AiriCard,
+    provider: ChatProvider,
+    modelId: string,
+    bucket: DayBucket,
+    source: ShortTermMemoryBlock['source'],
+    options?: { tokenBudgetPerDay?: number },
+  ) {
+    const transcript = bucket.lines.join('\n').slice(0, MAX_SOURCE_CHARS_PER_DAY)
+    if (!transcript.trim())
+      return null
+
+    const response = await llmStore.generate(modelId, provider, buildSummarizerMessages(
+      card,
+      bucket.date,
+      transcript,
+      options?.tokenBudgetPerDay ?? 1000,
+    ))
+
+    const summary = (response.text || '').trim()
+    if (!summary)
+      return null
+
+    const currentUserId = getCurrentUserId()
+    const existingBlock = blocks.value.find(block => block.userId === currentUserId && block.characterId === characterId && block.date === bucket.date)
+    const now = Date.now()
+
+    return {
+      id: existingBlock?.id ?? nanoid(),
+      userId: currentUserId,
+      characterId,
+      characterName: card.name,
+      date: bucket.date,
+      source,
+      summary,
+      estimatedTokens: estimateTokens(summary),
+      messageCount: bucket.messageCount,
+      sessionCount: bucket.sessionIds.size,
+      createdAt: existingBlock?.createdAt ?? now,
+      updatedAt: now,
+    } satisfies ShortTermMemoryBlock
+  }
+
   async function rebuildFromHistory(characterId: string, options?: { tokenBudgetPerDay?: number }) {
     await load()
 
     const card = cards.value.get(characterId)
     if (!card)
       throw new Error('Selected character could not be resolved for short-term rebuild.')
-
-    const currentUserId = getCurrentUserId()
-    const index = await chatSessionsRepo.getIndex(currentUserId) as ChatSessionsIndex | null
-    const characterIndex = index?.characters?.[characterId]
-    if (!characterIndex)
-      return { created: 0, updated: 0, skipped: 0 } satisfies RebuildResult
 
     const providerId = card.extensions?.airi?.modules?.consciousness?.provider || activeProvider.value
     const modelId = card.extensions?.airi?.modules?.consciousness?.model || activeModel.value
@@ -220,40 +344,8 @@ export const useShortTermMemoryStore = defineStore('short-term-memory', () => {
     rebuildProgress.value = 'Loading chat history...'
 
     try {
-      const buckets = new Map<string, DayBucket>()
-      const sessionIds = Object.keys(characterIndex.sessions)
-
-      for (const sessionId of sessionIds) {
-        const record = await chatSessionsRepo.getSession(sessionId)
-        if (!record)
-          continue
-
-        for (const message of record.messages) {
-          if ((message.role !== 'user' && message.role !== 'assistant') || !message.createdAt)
-            continue
-
-          const content = extractMessageText(message)
-          if (!content)
-            continue
-
-          const date = formatLocalDayKey(message.createdAt)
-          const roleLabel = message.role === 'user' ? 'User' : card.name || 'Assistant'
-          const bucket = buckets.get(date) ?? {
-            date,
-            lines: [],
-            messageCount: 0,
-            sessionIds: new Set<string>(),
-          }
-
-          bucket.lines.push(`${roleLabel}: ${content}`)
-          bucket.messageCount += 1
-          bucket.sessionIds.add(sessionId)
-          buckets.set(date, bucket)
-        }
-      }
-
-      const days = [...buckets.values()]
-        .sort((a, b) => a.date.localeCompare(b.date))
+      const currentUserId = getCurrentUserId()
+      const days = await collectCharacterDayBuckets(characterId)
 
       if (days.length === 0)
         return { created: 0, updated: 0, skipped: 0 } satisfies RebuildResult
@@ -268,41 +360,13 @@ export const useShortTermMemoryStore = defineStore('short-term-memory', () => {
 
         // NOTICE: rebuild is deliberately capped per day to prevent one pathological chat day
         // from exploding prompt size and stalling the whole recovery pass.
-        const transcript = bucket.lines.join('\n').slice(0, MAX_SOURCE_CHARS_PER_DAY)
-        if (!transcript.trim()) {
-          skipped += 1
-          continue
-        }
-
-        const response = await llmStore.generate(modelId, provider, buildSummarizerMessages(
-          card,
-          bucket.date,
-          transcript,
-          options?.tokenBudgetPerDay ?? 1000,
-        ))
-
-        const summary = (response.text || '').trim()
-        if (!summary) {
+        const nextBlock = await summarizeBucket(characterId, card, provider, modelId, bucket, 'rebuilt', options)
+        if (!nextBlock) {
           skipped += 1
           continue
         }
 
         const existingIndex = nextBlocks.findIndex(block => block.userId === currentUserId && block.characterId === characterId && block.date === bucket.date)
-        const now = Date.now()
-        const nextBlock: ShortTermMemoryBlock = {
-          id: existingIndex >= 0 ? nextBlocks[existingIndex].id : nanoid(),
-          userId: currentUserId,
-          characterId,
-          characterName: card.name,
-          date: bucket.date,
-          source: 'rebuilt',
-          summary,
-          estimatedTokens: estimateTokens(summary),
-          messageCount: bucket.messageCount,
-          sessionCount: bucket.sessionIds.size,
-          createdAt: existingIndex >= 0 ? nextBlocks[existingIndex].createdAt : now,
-          updatedAt: now,
-        }
 
         if (existingIndex >= 0) {
           nextBlocks.splice(existingIndex, 1, nextBlock)
@@ -329,6 +393,39 @@ export const useShortTermMemoryStore = defineStore('short-term-memory', () => {
     }
   }
 
+  async function ensureYesterdayBlock(characterId: string, options?: { tokenBudgetPerDay?: number }) {
+    await load()
+
+    const card = cards.value.get(characterId)
+    if (!card)
+      return false
+
+    const targetDate = getYesterdayLocalDayKey()
+    const existingBlock = blocks.value.find(block => block.characterId === characterId && block.date === targetDate)
+    if (existingBlock)
+      return false
+
+    const providerId = card.extensions?.airi?.modules?.consciousness?.provider || activeProvider.value
+    const modelId = card.extensions?.airi?.modules?.consciousness?.model || activeModel.value
+    if (!providerId || !modelId)
+      return false
+
+    const provider = await providersStore.getProviderInstance<ChatProvider>(providerId)
+    if (!provider)
+      return false
+
+    const dayBucket = (await collectCharacterDayBuckets(characterId)).find(bucket => bucket.date === targetDate)
+    if (!dayBucket)
+      return false
+
+    const nextBlock = await summarizeBucket(characterId, card, provider, modelId, dayBucket, 'automatic', options)
+    if (!nextBlock)
+      return false
+
+    await persist([...blocks.value, nextBlock])
+    return true
+  }
+
   return {
     activeCardId,
     blocks: sortedBlocks,
@@ -338,6 +435,8 @@ export const useShortTermMemoryStore = defineStore('short-term-memory', () => {
     error,
     load,
     getCharacterBlocks,
+    searchBlocks,
     rebuildFromHistory,
+    ensureYesterdayBlock,
   }
 })

@@ -15,19 +15,23 @@ import { useChatOrchestratorStore } from './chat'
 import { useChatContextStore } from './chat/context-store'
 import { useChatSessionStore } from './chat/session-store'
 import { useLLM } from './llm'
+import { useTextJournalStore } from './memory-text-journal'
 import { useAiriCardStore } from './modules/airi-card'
 import { useConsciousnessStore } from './modules/consciousness'
 import { useProvidersStore } from './providers'
+import { useSceneStore } from './scene'
 
 export const useProactivityStore = defineStore('proactivity', () => {
   const airiCardStore = useAiriCardStore()
-  const { activeCard } = storeToRefs(airiCardStore)
+  const { activeCard, activeCardId } = storeToRefs(airiCardStore)
   const chatSession = useChatSessionStore()
   const chatOrchestrator = useChatOrchestratorStore()
   const chatContext = useChatContextStore()
   const llmStore = useLLM()
+  const textJournalStore = useTextJournalStore()
   const consciousnessStore = useConsciousnessStore()
   const providersStore = useProvidersStore()
+  const sceneStore = useSceneStore()
 
   // eslint-disable-next-line no-console
   console.log('[Proactivity] Proactivity Store initialized.')
@@ -84,6 +88,8 @@ export const useProactivityStore = defineStore('proactivity', () => {
       return
 
     try {
+      await textJournalStore.load()
+
       if (getIdleTimeInvoke) {
         const idleMs = await getIdleTimeInvoke()
         idleTimeSec.value = idleMs !== undefined ? Math.floor(idleMs / 1000) : undefined
@@ -123,6 +129,16 @@ export const useProactivityStore = defineStore('proactivity', () => {
 
   const sensorPayload = computed(() => {
     const config = activeCard.value?.extensions?.airi?.heartbeats
+    const preferredBackgroundId = activeCard.value?.extensions?.airi?.modules?.preferredBackgroundId
+    const preferredBackgroundName = activeCard.value?.extensions?.airi?.modules?.preferredBackgroundName
+    const resolvedDefaultBackgroundName = preferredBackgroundId && preferredBackgroundId !== 'none'
+      ? (sceneStore.backgrounds.get(preferredBackgroundId)?.name ?? preferredBackgroundName ?? 'unknown')
+      : (preferredBackgroundId === 'none' ? 'none' : (preferredBackgroundName ?? 'none'))
+    const oneHourAgo = Date.now() - 3600000
+    const recentJournalEntryCount = textJournalStore.entries.filter((entry) => {
+      return entry.characterId === activeCardId.value && entry.createdAt > oneHourAgo
+    }).length
+
     let payload = '[Sensor Data]\n'
 
     payload += `User Idle: ${idleTimeSec.value !== undefined ? `${idleTimeSec.value}s` : 'unknown'}\n`
@@ -166,9 +182,9 @@ export const useProactivityStore = defineStore('proactivity', () => {
     const volStr = volLevel.value !== undefined ? `${volLevel.value}%` : 'unknown'
     payload += `Volume Level: ${volStr}\n`
     payload += `Current Local Time: ${locTime.value || 'unknown'}\n`
+    payload += `Active Character Default Background: ${resolvedDefaultBackgroundName}\n`
 
     if (config?.contextOptions?.usageMetrics !== false) {
-      const oneHourAgo = Date.now() - 3600000
       const recentMessages = chatSession.messages.filter(m => (m.createdAt || 0) > oneHourAgo)
 
       const ttsCount = recentMessages.filter(m => m.role === 'assistant').length
@@ -180,6 +196,7 @@ export const useProactivityStore = defineStore('proactivity', () => {
       payload += `TTS (Last Hr): ${ttsCount}\n`
       payload += `STT (Last Hr): ${sttCount}\n`
       payload += `Chat (Last Hr): ${chatCount}\n`
+      payload += `Journal Entries (Last Hr): ${recentJournalEntryCount}\n`
       payload += `Turn Count: ${turnCount} (Next Target: ${nextMilestone.value})\n`
     }
     else {

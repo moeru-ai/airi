@@ -60,6 +60,16 @@ The card editor has been expanded into a multi-tab configuration surface instead
 
 **Proactivity** is one of the most important additions in this fork. Instead of treating AIRI as a thing that only answers when spoken to, this tab lets you define when and how the character should decide to speak on her own. The system can inject real context like window history, system load, volume state, and usage metrics into heartbeat evaluations, and the prompt can be tuned so AIRI knows when to remain silent versus when to comment. The goal is not random interruptions; it is to give the character a believable sense of timing, awareness, and restraint.
 
+### Memory Is No Longer Just A Placeholder
+
+This fork now has the beginning of a real character-centric memory system instead of a generic future promise. Memory is scoped per character, so one card's continuity is not silently mixed into another's.
+
+**Short-term memory** now supports rebuilding daily continuity blocks from existing chat history. Those blocks are stored durably and injected back into new or reset sessions so a character can recover recent continuity without replaying the full raw logs. The current implementation is intentionally simple: rebuild from chat history first, store one summary block per day, and keep the prompt-side injection bounded and understandable.
+
+**Long-term memory** now has a working append-only journal path through the new `text_journal` tool. Characters can create journal entries and search them later by keyword, and the Memory settings area now has a real long-term archive view instead of a `WIP` shell. This is designed as a lightweight memory layer that is useful right now, without requiring a separate memory server or a heavyweight external stack just to get durable recall.
+
+The broader plan for semantic retrieval, short-term automation, and future compaction is documented in [`docs/memory-architecture.md`](./docs/memory-architecture.md), [`docs/short-term-memory.md`](./docs/short-term-memory.md), and [`docs/long-term-memory.md`](./docs/long-term-memory.md).
+
 ### Scene System Is New In This Fork
 
 The Scene Manager is a real feature added here, not a minor tweak. Upstream did not have this broader character-aware background workflow in the same way.
@@ -278,8 +288,12 @@ Capable of
   - [x] Play [Factorio](https://www.factorio.com) (WIP, but [PoC and demo available](https://github.com/moeru-ai/airi-factorio))
   - [x] Chat in [Telegram](https://telegram.org)
   - [x] Chat in [Discord](https://discord.com)
-  - [ ] Memory
+  - [x] Memory
     - [x] Pure in-browser database support (DuckDB WASM | `pglite`)
+    - [x] Short-term memory rebuild from per-character chat history
+    - [x] Short-term continuity injection into new/reset sessions
+    - [x] Long-term `text_journal` create/search tools
+    - [x] Long-term per-character journal archive UI
     - [ ] Memory Alaya (WIP)
   - [ ] Pure in-browser local (WebGPU) inference
 - [x] Ears

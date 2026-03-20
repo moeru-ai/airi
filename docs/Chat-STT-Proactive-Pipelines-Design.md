@@ -41,7 +41,9 @@ If any one of those layers is stale, detached, or writing to the wrong owner, yo
 ## 1. Chat UI Pipeline
 - **Surface**: `packages/stage-layouts/src/components/Widgets/ChatArea.vue`
 - **Trigger**: Direct text input by the user through the chat box.
-- **Tools**: `widgetsTools` (passed via props/orchestrator).
+- **Tools**:
+  - `ChatArea.vue` itself is tool-agnostic and only forwards whatever `tools` prop it receives.
+  - In Tamagotchi, the active chat entry surfaces now pass `builtinTools`, which currently includes both `stage_widgets` and `text_journal`.
 - **Execution**: Calls `chatStore.ingest(text, options)`.
 - **Inscription**: Handled by `performSend` in `chatStore.ts` which adds the message to the current session history and triggers the assistant response (unless `skipAssistant: true`).
 - **Speech Handoff**: Assistant output is not spoken directly from the chat widget. `performSend` emits hook events which `Stage.vue` consumes and forwards into the speech runtime.
@@ -53,17 +55,38 @@ If any one of those layers is stale, detached, or writing to the wrong owner, yo
   1. `hearingPipeline.transcribeForMediaStream` processes audio.
   2. `onSentenceEnd(delta)` callback receives the transcription.
   3. Transcription is posted to the caption overlay broadcast channel.
-  4. Calls `chatStore.ingest(text, { tools: widgetsTools, ... })`.
-- **Tools**: Specifically registered `widgetsTools` in both desktop and web VAD handlers.
+  4. Calls `chatStore.ingest(text, { tools: builtinTools, ... })` in Tamagotchi.
+- **Tools**:
+  - In Tamagotchi, the STT pipeline now forwards `builtinTools`, so it inherits the same registered builtin toolchain as typed chat.
+  - That means STT-triggered assistant turns can use `stage_widgets`, `text_journal`, and future builtin tools without extra per-tool wiring.
+  - `ChatArea.vue` remains generic; if another surface wants tool access, it must still pass a tools resolver explicitly.
 - **Note**: Both the main page and the `ChatArea` component can listen for speech events. Coordination is needed to avoid duplicate ingestion.
 
 ## 3. Proactivity Pipeline (Heartbeat -> LLM)
 - **Surface**: `packages/stage-ui/src/stores/proactivity.ts`
 - **Trigger**: Periodic heartbeat check (based on idle time or sensor changes).
-- **Tools**: Dynamic registration via `proactivityStore.registerTools(tools)`. Built-in tools are registered in `App.vue` (Tamagotchi).
+- **Tools**:
+  - Dynamic registration via `proactivityStore.registerTools(tools)`.
+  - In Tamagotchi, `App.vue` now registers `builtinTools`, not just `widgetsTools`.
+  - That means heartbeat/proactivity turns currently receive the same builtin toolchain as normal chat and STT-triggered chat.
 - **Execution**: Direct call to `llmStore.generate(model, provider, messages, { tools, supportsTools: true })`.
 - **Context**: Injected sensor data (location, time, computer metrics) into the prompt to evaluate if the agent should proactively interact.
 - **Multi-step**: Supported via `maxSteps: 10` in `llmStore.generate` to allow complex tool-use logic during heartbeats.
+
+## Current Toolchain Reality
+
+For the Tamagotchi renderer today:
+
+- typed chat uses `builtinTools`
+- STT-triggered chat uses `builtinTools`
+- proactivity registers `builtinTools`
+
+So those three pipelines are aligned and do not currently require per-tool micro-management when a new builtin tool is added.
+
+The important nuance is:
+
+- this guarantee applies to surfaces that explicitly use `builtinTools`
+- generic chat surfaces like `ChatArea.vue` are still caller-driven and do not auto-discover tools on their own
 
 ## Speech Runtime Notes
 

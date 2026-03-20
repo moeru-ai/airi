@@ -10,10 +10,10 @@ Implemented today:
 - per-character IndexedDB-backed daily summary storage
 - per-character short-term memory settings page
 - initial session injection for the active character
+- automatic "yesterday" generation on first eligible run for the active character
 
 Still next:
 
-- automatic post-midnight daily generation
 - configurable injection window actually applied from settings
 - richer compaction / rollover logic
 
@@ -82,6 +82,14 @@ There are two distinct generation modes:
 2. post-midnight summary generation
    - automatic
    - used to keep recent daily blocks up to date going forward
+
+The intended automatic shape is:
+
+- only summarize **yesterday**, never "today"
+- treat the block as immutable once generated
+- run on the first eligible app session after local midnight
+- gate per character so each character only gets one generated block for that date
+- skip days that already have a block unless the user explicitly rebuilds
 
 ## 5. Settings / Knobs
 
@@ -171,6 +179,7 @@ The current implementation does this now:
 - summarizes one day at a time through the active LLM stack
 - stores each finished block immediately
 - injects recent blocks into new/reset sessions for the active character
+- opportunistically generates one automatic block for yesterday on the first eligible run for the active character
 
 Important current limitation:
 

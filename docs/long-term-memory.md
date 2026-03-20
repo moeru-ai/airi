@@ -11,12 +11,17 @@ Implemented today:
 - `search` action
 - per-character IndexedDB-backed long-term journal storage
 - real long-term memory settings page backed by stored entries
+- unified search fallback into short-term memory blocks when long-term has no journal hit
 
 Still next:
 
 - better retrieval formatting / ranking
 - semantic search beyond keywords
 - optional proactive or user-authored journal flows
+
+Potential future direction:
+
+- QMD CLI-backed semantic retrieval as an external/local dependency boundary
 
 ## 1. Purpose
 
@@ -89,6 +94,17 @@ MVP search should be:
 
 Semantic search should be deferred until there is a proper embeddings/index layer.
 
+One promising future direction is to treat semantic search as an external retrieval engine rather than something AIRI fully owns in-process.
+
+Potential shape:
+
+- keep AIRI responsible for journal storage, per-character scoping, and tool/UI behavior
+- use a QMD CLI-backed manager layer for embeddings / semantic indexing / retrieval
+- let the user install and maintain that dependency explicitly
+- avoid baking vector infra, embedding model management, and retrieval tuning directly into AIRI core
+
+That would be a deliberate departure from a pure in-repo implementation, but it could drastically reduce maintenance complexity inside AIRI itself while still enabling proper semantic lookup later.
+
 ## 5A. Current Implemented Search
 
 The current implementation is:
@@ -96,8 +112,25 @@ The current implementation is:
 - active-character-first keyword search
 - match against title, content, and character label
 - simple scoring and recency ordering
+- if long-term has no hit, fall back to short-term memory blocks for that same character
 
 This is intentionally basic but already useful enough to prove lookup behavior end to end.
+
+## 5B. Planned Unified Lookup
+
+The next useful retrieval step is not "semantic search first." It is a cleaner **memory lookup path**:
+
+- search the active character's long-term journal first
+- if no meaningful long-term hit exists, search that same character's short-term memory blocks
+- return whichever layer actually contains the best available memory
+
+Why this matters:
+
+- after a few days, not every useful short-term block will still be injected into prompt context
+- a character should still be able to recall recent continuity even when it has rolled out of the live injected window
+- this gives AIRI a more seamless memory story without forcing the model to know which storage layer it should ask for
+
+In other words, the retrieval surface should feel unified even if the storage layers remain distinct.
 
 ## 6. UI Direction
 

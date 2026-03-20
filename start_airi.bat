@@ -10,5 +10,6 @@ call pnpm run build
 
 echo [2/2] Starting Tamagotchi on Port %PORT_NUM%...
 set AIRI_RENDERER_PORT=%PORT_NUM%
+set AIRI_FORCE_HIGH_PERFORMANCE_GPU=1
 :: Note: This uses the local config shim that is gitignored to force the renderer port.
 call pnpm -F @proj-airi/stage-tamagotchi exec electron-vite dev --config electron.vite.config.local.ts

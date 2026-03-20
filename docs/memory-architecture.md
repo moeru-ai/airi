@@ -101,10 +101,28 @@ That is acceptable because both layers are now real enough to validate:
 
 The next useful direction is to deepen both rather than restart either:
 
-- short-term: automatic daily generation and better rollover behavior
-- long-term: richer retrieval and future semantic search
+- short-term: better rollover behavior and settings-driven injection window
+- long-term: better ranking and semantic search after unified lookup
 
-## 7. Related Docs
+## 7. Immediate Next Hooks
+
+Two hooks now matter more than broad new memory ideas:
+
+1. `Yesterday` short-term generation
+   - after local midnight, generate one immutable summary block for yesterday
+   - do it on the first eligible run rather than constantly rewriting memory
+   - keep it per character
+   - status: implemented for the active character path
+
+2. unified memory lookup
+   - treat long-term journal search as the first layer
+   - if long-term has no useful hit, fall back to short-term blocks for that same character
+   - make retrieval feel like one memory system even though storage remains split
+   - status: implemented as the current `text_journal.search` behavior
+
+This is a better next step than jumping straight to semantic search, because it improves recall coverage immediately using the layers AIRI already has.
+
+## 8. Related Docs
 
 - `docs/long-term-memory.md`
 - `docs/short-term-memory.md`

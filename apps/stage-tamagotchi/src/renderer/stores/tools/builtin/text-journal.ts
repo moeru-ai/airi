@@ -1,6 +1,6 @@
 import type { Tool } from '@xsai/shared-chat'
 
-import { useTextJournalStore } from '@proj-airi/stage-ui/stores'
+import { useShortTermMemoryStore, useTextJournalStore } from '@proj-airi/stage-ui/stores'
 import { tool } from '@xsai/tool'
 import { z } from 'zod'
 
@@ -30,21 +30,42 @@ async function executeSearchTextJournalEntries(params: { query?: string, limit?:
   if (!params.query?.trim())
     throw new Error('query is required for text_journal.search')
 
-  const store = useTextJournalStore()
-  const entries = await store.searchEntries({
+  const longTermStore = useTextJournalStore()
+  await longTermStore.load()
+
+  const entries = await longTermStore.searchEntries({
     query: params.query,
     limit: params.limit,
   })
 
-  if (entries.length === 0)
-    return `No text journal entries found for query "${params.query}".`
+  if (entries.length > 0) {
+    return entries.map((entry, index) => [
+      `Result ${index + 1}:`,
+      'Layer: long-term',
+      `Title: ${entry.title}`,
+      `Character: ${entry.characterName}`,
+      `Created At: ${new Date(entry.createdAt).toISOString()}`,
+      `Content: ${entry.content}`,
+    ].join('\n')).join('\n\n')
+  }
 
-  return entries.map((entry, index) => [
+  const shortTermStore = useShortTermMemoryStore()
+  await shortTermStore.load()
+  const shortTermBlocks = shortTermStore.searchBlocks({
+    query: params.query,
+    limit: params.limit,
+  })
+
+  if (shortTermBlocks.length === 0)
+    return `No memory entries found for query "${params.query}" in long-term or short-term memory.`
+
+  return shortTermBlocks.map((block, index) => [
     `Result ${index + 1}:`,
-    `Title: ${entry.title}`,
-    `Character: ${entry.characterName}`,
-    `Created At: ${new Date(entry.createdAt).toISOString()}`,
-    `Content: ${entry.content}`,
+    'Layer: short-term',
+    `Date: ${block.date}`,
+    `Character: ${block.characterName}`,
+    `Created At: ${new Date(block.createdAt).toISOString()}`,
+    `Content: ${block.summary}`,
   ].join('\n')).join('\n\n')
 }
 
