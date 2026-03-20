@@ -49,10 +49,12 @@ export const providerOpenRouterAI = defineProvider<OpenRouterConfig>({
       ...base,
       chat: (model: string) => ({
         ...base.chat(model),
-        fetch: (input: RequestInfo | URL, init?: RequestInit) => globalThis.fetch(input, {
-          ...init,
-          headers: { ...init?.headers as Record<string, string>, ...OPENROUTER_ATTRIBUTION_HEADERS },
-        }),
+        fetch: (input: RequestInfo | URL, init?: RequestInit) => {
+          const headers = new Headers(init?.headers)
+          for (const [k, v] of Object.entries(OPENROUTER_ATTRIBUTION_HEADERS))
+            headers.set(k, v)
+          return globalThis.fetch(input, { ...init, headers })
+        },
       }),
     }
   },
