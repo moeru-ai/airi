@@ -35,3 +35,15 @@ export const localeRemap: Record<string, string> = {
   'vi': 'vi',
   'vi-VN': 'vi',
 }
+
+export function resolveSupportedLocale(
+  locale: string | null | undefined,
+  supportedLocales: readonly string[],
+  fallbackLocale = 'en',
+): string {
+  const normalizedLocale = localeRemap[locale ?? fallbackLocale] ?? locale ?? fallbackLocale
+
+  return supportedLocales.includes(normalizedLocale)
+    ? normalizedLocale
+    : fallbackLocale
+}

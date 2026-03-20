@@ -1,6 +1,6 @@
 import messages from '@proj-airi/i18n/locales'
 
-import { localeRemap } from '@proj-airi/i18n'
+import { resolveSupportedLocale } from '@proj-airi/i18n'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { onMounted } from 'vue'
@@ -21,14 +21,7 @@ export const useSettingsGeneral = defineStore('settings-general', () => {
       language = navigator.language || 'en'
     }
 
-    const languages = Object.keys(messages!)
-    if (localeRemap[language || 'en'] != null) {
-      language = localeRemap[language || 'en']
-    }
-    if (language && languages.includes(language))
-      return language
-
-    return 'en'
+    return resolveSupportedLocale(language, Object.keys(messages!))
   }
 
   function resetState() {
