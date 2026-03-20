@@ -278,7 +278,7 @@ pages:
               label: Envelope filter frequency
             highpass_filter_frequency:
               description: >-
-                Frequency for the highpass filter applied to reduce low frequencies like sub-bass noises.
+                Frecuencia para el filtro de paso alto aplicado para reducir frecuencias bajas como ruidos sub bajos.
               label: Highpass filter frequency
             lowpass_filter_frequency:
               description: >-
@@ -738,6 +738,9 @@ pages:
         description: n1n.ai - High-performance AI API provider.
         title: n1n
       openrouter:
+        description: openrouter.ai
+        title: OpenRouter
+      openrouter-audio-speech:
         description: openrouter.ai
         title: OpenRouter
       perplexity:

@@ -7,7 +7,13 @@ import { basename, join, resolve } from 'node:path'
 import { defineInvoke } from '@moeru/eventa'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { electronPluginList, electronPluginLoadEnabled, electronPluginSetEnabled } from '../../../../shared/eventa'
+import {
+  electronPluginInspect,
+  electronPluginList,
+  electronPluginLoadEnabled,
+  electronPluginSetEnabled,
+  electronPluginUpdateCapability,
+} from '../../../../shared/eventa'
 import { setupPluginHost } from './index'
 
 const appMock = vi.hoisted(() => ({
@@ -48,6 +54,11 @@ const testDataRoot = resolve(
   'plugin-host',
   'testdata',
 )
+const samplePluginRoot = resolve(
+  import.meta.dirname,
+  'examples',
+  'devtools-sample-plugin',
+)
 
 async function writeManifest(params: { dir: string, name: string, entrypoint: string }) {
   const manifest = {
@@ -83,6 +94,12 @@ async function copyEntrypoint(params: { dir: string, path: string }) {
   const contents = await readFile(params.path, 'utf-8')
   await writeFile(destination, contents)
   return file
+}
+
+async function writeEntrypoint(params: { dir: string, name: string, contents: string }) {
+  const destination = join(params.dir, params.name)
+  await writeFile(destination, params.contents)
+  return destination
 }
 
 describe('setupPluginHost', () => {
@@ -167,14 +184,21 @@ describe('setupPluginHost', () => {
   })
 
   it('loads enabled plugins and keeps failed plugins unloaded', async () => {
-    const normalEntrypoint = join(testDataRoot, 'test-normal-plugin.ts')
     const errorEntrypoint = join(testDataRoot, 'test-error-plugin.ts')
 
-    await writeManifestInPluginDir({
-      rootDir: pluginsDir,
-      pluginDirName: 'test-normal',
-      pluginName: 'test-normal',
-      entrypointPath: normalEntrypoint,
+    const successPluginDir = join(pluginsDir, 'test-normal')
+    await mkdir(successPluginDir, { recursive: true })
+    await writeEntrypoint({
+      dir: successPluginDir,
+      name: 'test-normal-plugin.ts',
+      contents: [
+        'export async function init() {}',
+      ].join('\n'),
+    })
+    await writeManifest({
+      dir: successPluginDir,
+      name: 'test-normal',
+      entrypoint: './test-normal-plugin.ts',
     })
     await writeManifestInPluginDir({
       rootDir: pluginsDir,
@@ -199,5 +223,106 @@ describe('setupPluginHost', () => {
 
     expect(normal).toEqual(expect.objectContaining({ enabled: true, loaded: true }))
     expect(error).toEqual(expect.objectContaining({ enabled: true, loaded: false }))
+  })
+
+  it('loads enabled plugins with absolute manifest entrypoints outside the plugin directory', async () => {
+    const externalDir = await mkdtemp(join(tmpdir(), 'airi-plugin-external-'))
+
+    try {
+      const pluginDir = join(pluginsDir, 'test-absolute-entrypoint')
+      await mkdir(pluginDir, { recursive: true })
+      const externalEntrypoint = await writeEntrypoint({
+        dir: externalDir,
+        name: 'test-absolute-plugin.ts',
+        contents: [
+          'export async function init() {}',
+        ].join('\n'),
+      })
+      await writeManifest({
+        dir: pluginDir,
+        name: 'test-absolute-entrypoint',
+        entrypoint: externalEntrypoint,
+      })
+
+      await setupPluginHost()
+
+      expect(contextState.lastContext).toBeDefined()
+      const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
+      const invokeLoadEnabled = defineInvoke(contextState.lastContext!, electronPluginLoadEnabled)
+
+      await invokeSetEnabled({ name: 'test-absolute-entrypoint', enabled: true })
+
+      const snapshot = await invokeLoadEnabled()
+      const plugin = snapshot.plugins.find(item => item.name === 'test-absolute-entrypoint')
+
+      expect(plugin).toEqual(expect.objectContaining({ enabled: true, loaded: true }))
+    }
+    finally {
+      await rm(externalDir, { recursive: true, force: true })
+    }
+  })
+
+  it('loads the devtools sample plugin with its declared protocol permissions', async () => {
+    const pluginDir = join(pluginsDir, 'devtools-sample-plugin')
+    await mkdir(pluginDir, { recursive: true })
+    await writeFile(
+      join(pluginDir, 'devtools-sample-plugin.json'),
+      await readFile(join(samplePluginRoot, 'devtools-sample-plugin.json'), 'utf-8'),
+    )
+    await writeFile(
+      join(pluginDir, 'devtools-sample-plugin.mjs'),
+      await readFile(join(samplePluginRoot, 'devtools-sample-plugin.mjs'), 'utf-8'),
+    )
+
+    await setupPluginHost()
+
+    expect(contextState.lastContext).toBeDefined()
+    const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
+    const invokeLoadEnabled = defineInvoke(contextState.lastContext!, electronPluginLoadEnabled)
+
+    await invokeSetEnabled({ name: 'devtools-sample-plugin', enabled: true })
+
+    const snapshot = await invokeLoadEnabled()
+    const plugin = snapshot.plugins.find(item => item.name === 'devtools-sample-plugin')
+
+    expect(plugin).toEqual(expect.objectContaining({ enabled: true, loaded: true }))
+  })
+
+  it('mirrors degraded and withdrawn capability updates into the host snapshot', async () => {
+    await setupPluginHost()
+
+    expect(contextState.lastContext).toBeDefined()
+    const invokeInspect = defineInvoke(contextState.lastContext!, electronPluginInspect)
+    const invokeUpdateCapability = defineInvoke(contextState.lastContext!, electronPluginUpdateCapability)
+
+    await invokeUpdateCapability({
+      key: 'cap:renderer-status',
+      state: 'degraded',
+      metadata: { reason: 'renderer-restarting' },
+    })
+
+    let snapshot = await invokeInspect()
+    expect(snapshot.capabilities).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        key: 'cap:renderer-status',
+        state: 'degraded',
+        metadata: { reason: 'renderer-restarting' },
+      }),
+    ]))
+
+    await invokeUpdateCapability({
+      key: 'cap:renderer-status',
+      state: 'withdrawn',
+      metadata: { reason: 'renderer-unmounted' },
+    })
+
+    snapshot = await invokeInspect()
+    expect(snapshot.capabilities).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        key: 'cap:renderer-status',
+        state: 'withdrawn',
+        metadata: { reason: 'renderer-unmounted' },
+      }),
+    ]))
   })
 })
