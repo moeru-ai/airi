@@ -19,8 +19,12 @@ dialogs:
     baseUrlHelp: Địa chỉ API đầu cuối (dùng mặc định nếu không chắc)
     accountId: ID tài khoản
     validationSuccess: Xác thực cấu hình thành công
+    validationPartial: Configuration partially validated
     validationFailed: Xác thực cấu hình thất bại
     validationError: 'Lỗi xác thực: {error}'
+    testGeneration: Test Generation
+    testGenerationRunning: Testing...
+    testGenerationFailed: Generation test failed
     skipForNow: Bỏ qua
     saveAndContinue: Lưu và tiếp tục
     next: Tiếp
@@ -752,6 +756,9 @@ pages:
         description: n1n.ai - Cung cấp API AI hiệu năng cao.
         title: n1n
       openrouter:
+        description: openrouter.ai
+        title: OpenRouter
+      openrouter-audio-speech:
         description: openrouter.ai
         title: OpenRouter
       perplexity:

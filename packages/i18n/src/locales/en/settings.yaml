@@ -20,8 +20,12 @@ dialogs:
     baseUrlHelp: API endpoint URL (use default if unsure)
     accountId: Account ID
     validationSuccess: Configuration validation success
+    validationPartial: Configuration partially validated
     validationFailed: Configuration validation failed
     validationError: 'Validation error: {error}'
+    testGeneration: Test Generation
+    testGenerationRunning: Testing...
+    testGenerationFailed: Generation test failed
     skipForNow: Skip for now
     saveAndContinue: Save and Continue
     next: Next
@@ -784,6 +788,9 @@ pages:
         description: n1n.ai - High-performance AI API provider.
         title: n1n
       openrouter:
+        description: openrouter.ai
+        title: OpenRouter
+      openrouter-audio-speech:
         description: openrouter.ai
         title: OpenRouter
       perplexity:

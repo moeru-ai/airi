@@ -5,12 +5,13 @@ export default defineConfig({
     projects: [
       'apps/server',
       'apps/stage-tamagotchi',
-      'packages/stage-ui',
-      'packages/plugin-sdk',
-      'packages/cap-vite',
-      'packages/vite-plugin-warpdrive',
       'packages/audio-pipelines-transcribe',
+      'packages/cap-vite',
+      'packages/plugin-sdk',
       'packages/server-runtime',
+      'packages/server-sdk',
+      'packages/stage-ui',
+      'packages/vite-plugin-warpdrive',
     ],
   },
 })

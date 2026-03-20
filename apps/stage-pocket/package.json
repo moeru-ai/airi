@@ -16,9 +16,11 @@
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
     "dev:web": "vite",
-    "dev:ios": "cap-vite -- ios"
+    "dev:ios": "cap-vite -- ios",
+    "dev:android": "cap-vite -- android"
   },
   "dependencies": {
+    "@capacitor/android": "catalog:",
     "@capacitor/core": "catalog:",
     "@capacitor/ios": "catalog:",
     "@capacitor/local-notifications": "catalog:",
@@ -61,6 +63,7 @@
     "capacitor-native-settings": "catalog:",
     "colorjs.io": "^0.6.1",
     "culori": "^4.0.2",
+    "d3": "catalog:",
     "date-fns": "^4.1.0",
     "dompurify": "^3.3.1",
     "driver.js": "^1.4.0",

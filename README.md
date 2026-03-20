@@ -32,7 +32,7 @@
 
 <p float="left" align="center">
   <!-- readme-section:release-binary-windows -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.14/AIRI-0.9.0-alpha.14-windows-x64-setup.exe">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.18/AIRI-0.9.0-alpha.18-windows-x64-setup.exe">
     <picture>
       <source
         width="33%"
@@ -48,7 +48,7 @@
     </picture>
   </a>
   <!-- readme-section:release-binary-macos -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.14/AIRI-0.9.0-alpha.14-darwin-arm64.dmg">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.18/AIRI-0.9.0-alpha.18-darwin-arm64.dmg">
     <picture>
       <source
         width="33%"
@@ -79,7 +79,23 @@
     </picture>
   </a>
 </p>
+
 <p float="left" align="center">
+  <a href="https://airi.moeru.ai">
+    <picture>
+      <source
+        width="33%"
+        srcset="./docs/content/public/assets/QR%20code%20button/section.cards.qrcode.dark.en-US.png"
+        media="(prefers-color-scheme: dark)"
+      />
+      <source
+        width="33%"
+        srcset="./docs/content/public/assets/QR%20code%20button/section.cards.qrcode.light.en-US.png"
+        media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
+      />
+      <img width="33%" src="./docs/content/public/assets/QR%20code%20button/section.cards.qrcode.light.en-US.png" />
+    </picture>
+  </a>
   <a href="https://airi.moeru.ai">
     <picture>
       <source
@@ -99,18 +115,25 @@
     <picture>
       <source
         width="33%"
-        srcset="./docs/content/public/assets/download-buttons/download-buttons.browser.dark.en-US.avif"
+        srcset="./docs/content/public/assets/download-buttons/download-buttons.browser.dark.en-US.png"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./docs/content/public/assets/download-buttons/download-buttons.browser.light.en-US.avif"
+        srcset="./docs/content/public/assets/download-buttons/download-buttons.browser.light.en-US.png"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.browser.light.en-US.avif" />
+      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.browser.light.en-US.png" />
     </picture>
   </a>
 </p>
+
+<p align="center">
+  <a href="https://www.producthunt.com/products/airi?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-airi" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=993524&theme=neutral&t=1752696535380" alt="AIRI - A&#0032;container&#0032;of&#0032;cyber&#0032;living&#0032;souls&#0044;&#0032;re&#0045;creation&#0032;of&#0032;Neuro&#0045;sama | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
+  <a href="https://trendshift.io/repositories/14636" target="_blank"><img src="https://trendshift.io/api/badge/repositories/14636" alt="moeru-ai%2Fairi | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+</p>
+
+> Heavily inspired by [Neuro-sama](https://www.youtube.com/@Neurosama)
 
 > [!TIP]
 > On Windows, you can also install AIRI with [Scoop](https://scoop.sh/):
@@ -119,13 +142,6 @@
 > scoop bucket add airi https://github.com/moeru-ai/airi
 > scoop install airi/airi
 > ```
-
-<p align="center">
-  <a href="https://www.producthunt.com/products/airi?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-airi" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=993524&theme=neutral&t=1752696535380" alt="AIRI - A&#0032;container&#0032;of&#0032;cyber&#0032;living&#0032;souls&#0044;&#0032;re&#0045;creation&#0032;of&#0032;Neuro&#0045;sama | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
-  <a href="https://trendshift.io/repositories/14636" target="_blank"><img src="https://trendshift.io/api/badge/repositories/14636" alt="moeru-ai%2Fairi | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
-</p>
-
-> Heavily inspired by [Neuro-sama](https://www.youtube.com/@Neurosama)
 
 > [!WARNING]
 > **Attention:** We **do not** have any officially minted cryptocurrency or token associated with this project. Please check the information and proceed with caution.
@@ -152,6 +168,7 @@ Therefore, this project, AIRI, offers another possibility here: **let you own yo
 
 ## DevLogs We Posted & Recent Updates
 
+- [DevLog @ 2026.03.14](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.14/) on March 14, 2026
 - [DevLog @ 2026.02.16](https://airi.moeru.ai/docs/en/blog/DevLog-2026.02.16/) on February 16, 2026
 - [DevLog @ 2026.01.01](https://airi.moeru.ai/docs/en/blog/DevLog-2026.01.01/) on January 1, 2026
 - [DevLog @ 2025.10.20](https://airi.moeru.ai/docs/en/blog/DevLog-2025.10.20/) on October 20, 2025
@@ -204,6 +221,8 @@ Capable of
 - [x] Brain
   - [x] Play [Minecraft](https://www.minecraft.net)
   - [x] Play [Factorio](https://www.factorio.com) (WIP, but [PoC and demo available](https://github.com/moeru-ai/airi-factorio))
+  - [x] Play [Kerbal Space Program](https://www.kerbalspaceprogram.com/) (announcement TBD)
+  - [ ] Co-play [Helldivers 2](https://www.playstation.com/en-hk/games/helldivers-2/pc/) (WIP)
   - [x] Chat in [Telegram](https://telegram.org)
   - [x] Chat in [Discord](https://discord.com)
   - [ ] Memory
@@ -277,7 +296,7 @@ pnpm dev:tamagotchi
 Start the development server for the capacitor:
 
 ```shell
-pnpm dev:pocket:ios <DEVICE_ID_OR_SIMULATOR_NAME>
+pnpm dev:pocket:ios --target <DEVICE_ID_OR_SIMULATOR_NAME>
 # Or
 CAPACITOR_DEVICE_ID=<DEVICE_ID_OR_SIMULATOR_NAME> pnpm dev:pocket:ios
 ```
@@ -290,7 +309,7 @@ If you need to connect server channel on pocket in wireless mode, you need to st
 sudo pnpm dev:tamagotchi
 ```
 
-Then enable secure websocket in tamagotchi `settings/system/general`.
+Then enable secure websocket in tamagotchi `settings/connections`.
 
 ### Documentation Site
 
@@ -484,6 +503,30 @@ flowchart TD
 - [mallorbc/whisper_mic](https://github.com/mallorbc/whisper_mic)
 - [`xsai`](https://github.com/moeru-ai/xsai): Implemented a decent amount of packages to interact with LLMs and models, like [Vercel AI SDK](https://sdk.vercel.ai/) but way small.
 
+## Supporters
+
+<p align="center">
+  <strong>Thank you for supporting Project AIRI through OpenCollective, Patreon, and Ko-fi.</strong>
+</p>
+
+<p align="center">
+  <img src="./docs/content/public/assets/sponsors/sponsors.svg" alt="Project AIRI supporters" />
+</p>
+
+## Special Thanks
+
+Special thanks to all contributors for their contributions to Project AIRI ❤️
+
+<a href="https://github.com/moeru-ai/airi/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=moeru-ai/airi" />
+</a>
+
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date)](https://www.star-history.com/#moeru-ai/airi&Date)
+<a href="https://star-history.com/#moeru-ai/airi&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date" />
+  </picture>
+</a>

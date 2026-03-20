@@ -19,8 +19,12 @@ dialogs:
     baseUrlHelp: APIエンドポイントURL（不明な場合はデフォルトを使用）
     accountId: アカウントID
     validationSuccess: 設定検証に成功
+    validationPartial: Configuration partially validated
     validationFailed: 設定検証に失敗
     validationError: '検証エラー: {error}'
+    testGeneration: Test Generation
+    testGenerationRunning: Testing...
+    testGenerationFailed: Generation test failed
     skipForNow: 今はスキップ
     saveAndContinue: 保存して続行
     next: 次へ
@@ -752,6 +756,9 @@ pages:
         description: n1n.ai - 高性能なAI APIプロバイダー。
         title: n1n
       openrouter:
+        description: openrouter.ai
+        title: OpenRouter
+      openrouter-audio-speech:
         description: openrouter.ai
         title: OpenRouter
       perplexity:
