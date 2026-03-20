@@ -31,6 +31,7 @@
     "./stores/analytics/posthog": "./src/stores/analytics/posthog.ts",
     "./stores/analytics/privacy-policy": "./src/stores/analytics/privacy-policy.ts",
     "./stores/character": "./src/stores/character/index.ts",
+    "./stores/settings/analytics": "./src/stores/settings/analytics.ts",
     "./stores/settings": "./src/stores/settings/index.ts",
     "./stores/*": "./src/stores/*.ts",
     "./stores": "./src/stores/index.ts",

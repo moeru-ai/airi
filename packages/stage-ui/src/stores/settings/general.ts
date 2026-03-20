@@ -27,7 +27,6 @@ const languageRemap: Record<string, string> = {
 
 export const useSettingsGeneral = defineStore('settings-general', () => {
   const language = useLocalStorageManualReset<string>('settings/language', '')
-  const analyticsEnabled = useLocalStorageManualReset<boolean>('settings/analytics/enabled', true)
 
   const disableTransitions = useLocalStorageManualReset<boolean>('settings/disable-transitions', true)
   const usePageSpecificTransitions = useLocalStorageManualReset<boolean>('settings/use-page-specific-transitions', true)
@@ -54,7 +53,6 @@ export const useSettingsGeneral = defineStore('settings-general', () => {
 
   function resetState() {
     language.reset()
-    analyticsEnabled.reset()
     disableTransitions.reset()
     usePageSpecificTransitions.reset()
     websocketSecureEnabled.reset()
@@ -64,7 +62,6 @@ export const useSettingsGeneral = defineStore('settings-general', () => {
 
   return {
     language,
-    analyticsEnabled,
     disableTransitions,
     usePageSpecificTransitions,
     websocketSecureEnabled,

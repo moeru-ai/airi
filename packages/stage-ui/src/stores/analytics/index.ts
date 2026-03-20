@@ -4,7 +4,7 @@ import { defineStore, storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 
 import { useBuildInfo } from '../../composables/use-build-info'
-import { useSettingsGeneral } from '../settings/general'
+import { useSettingsAnalytics } from '../settings/analytics'
 import {
   isPosthogAvailableInBuild,
   registerPosthogBuildInfo,
@@ -13,8 +13,8 @@ import {
 
 export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
   const buildInfo = ref<AboutBuildInfo>(useBuildInfo())
-  const settingsGeneral = useSettingsGeneral()
-  const { analyticsEnabled } = storeToRefs(settingsGeneral)
+  const settingsAnalytics = useSettingsAnalytics()
+  const { analyticsEnabled } = storeToRefs(settingsAnalytics)
   const isInitialized = ref(false)
 
   const appStartTime = ref<number | null>(null)

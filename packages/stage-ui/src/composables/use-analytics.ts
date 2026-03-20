@@ -6,16 +6,18 @@ import { useI18n } from 'vue-i18n'
 import { POSTHOG_ENABLED } from '../../../../posthog.config'
 import { useSharedAnalyticsStore } from '../stores/analytics'
 import { getAnalyticsPrivacyPolicyUrl } from '../stores/analytics/privacy-policy'
+import { useSettingsAnalytics } from '../stores/settings/analytics'
 import { useSettingsGeneral } from '../stores/settings/general'
 
 export function useAnalytics() {
   const analyticsStore = useSharedAnalyticsStore()
+  const settingsAnalytics = useSettingsAnalytics()
   const settingsGeneral = useSettingsGeneral()
   const { locale } = useI18n()
 
   const privacyPolicyUrl = computed(() => getAnalyticsPrivacyPolicyUrl(locale.value || settingsGeneral.language))
 
-  const isAnalyticsEnabled = computed(() => POSTHOG_ENABLED && settingsGeneral.analyticsEnabled)
+  const isAnalyticsEnabled = computed(() => POSTHOG_ENABLED && settingsAnalytics.analyticsEnabled)
 
   function trackProviderClick(providerId: string, module: string) {
     if (!isAnalyticsEnabled.value)
