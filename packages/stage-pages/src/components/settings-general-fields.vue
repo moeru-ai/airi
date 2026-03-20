@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { all } from '@proj-airi/i18n'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
-import { isPosthogAvailableInBuild } from '@proj-airi/stage-ui/stores/analytics/posthog'
+import { isPosthogAvailableInBuild } from '@proj-airi/stage-ui/stores/analytics'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { FieldCheckbox, FieldSelect, useTheme } from '@proj-airi/ui'
 import { computed } from 'vue'

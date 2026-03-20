@@ -11,6 +11,9 @@ import {
   syncPosthogCapture,
 } from './posthog'
 
+export * from './posthog'
+export * from './privacy-policy'
+
 export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
   const buildInfo = ref<AboutBuildInfo>(useBuildInfo())
   const settingsAnalytics = useSettingsAnalytics()

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { OnboardingScreen, OnboardingStepAnalyticsNotice } from '@proj-airi/stage-ui/components'
-import { isPosthogAvailableInBuild } from '@proj-airi/stage-ui/stores/analytics/posthog'
+import { isPosthogAvailableInBuild } from '@proj-airi/stage-ui/stores/analytics'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useTheme } from '@proj-airi/ui'
 import { computed } from 'vue'
