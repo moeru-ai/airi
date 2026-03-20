@@ -24,8 +24,8 @@ jobs:
     name: Build Debuggable Android APK
     runs-on: ubuntu-latest
     env:
-      # If release or artifact by manual build, return true; otherwise, return false
-      VITE_ENABLE_POSTHOG: ${{ (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && !inputs.build_only)) && 'true' || 'false' }}
+      # Every current trigger path produces an installable APK artifact, so ship the analytics-enabled build consistently.
+      VITE_ENABLE_POSTHOG: 'true'
     steps:
       - uses: actions/checkout@v6
 
