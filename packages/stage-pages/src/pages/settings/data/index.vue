@@ -180,77 +180,6 @@ async function handleImport(event: Event) {
       </div>
     </div>
 
-    <div class="border-2 border-neutral-200/50 rounded-xl bg-white/70 p-4 shadow-sm dark:border-neutral-800/60 dark:bg-neutral-900/60">
-      <div class="flex flex-col gap-3">
-        <div>
-          <div class="text-lg text-red-600 font-semibold dark:text-red-300">
-            {{ t('settings.pages.data.sections.danger.title') }}
-          </div>
-          <p class="text-sm text-red-600/80 dark:text-red-200/80">
-            {{ t('settings.pages.data.sections.danger.description') }}
-          </p>
-        </div>
-
-        <div class="flex flex-col gap-3">
-          <div class="grid gap-3 md:grid-cols-2">
-            <div class="rounded-lg bg-white/70 p-3 dark:bg-red-950/40">
-              <div class="grid grid-cols-1 items-start gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
-                <div class="flex flex-col gap-1 md:max-w-[560px]">
-                  <div class="text-sm text-red-700 font-medium dark:text-red-200">
-                    {{ t('settings.pages.data.sections.providers.title') }}
-                  </div>
-                  <p class="text-xs text-red-700/80 dark:text-red-200/80">
-                    {{ t('settings.pages.data.sections.providers.description') }}
-                  </p>
-                </div>
-                <div class="flex flex-col items-start gap-2">
-                  <DoubleCheckButton
-                    variant="danger"
-                    @confirm="runAction(resetProvidersSettings, 'settings.pages.data.status.providers_reset')"
-                  >
-                    {{ t('settings.pages.data.sections.providers.reset') }}
-                    <template #confirm>
-                      {{ t('settings.pages.data.confirmations.yes') }}
-                    </template>
-                    <template #cancel>
-                      {{ t('settings.pages.card.cancel') }}
-                    </template>
-                  </DoubleCheckButton>
-                </div>
-              </div>
-            </div>
-
-            <div class="rounded-lg bg-white/70 p-3 dark:bg-red-950/40">
-              <div class="grid grid-cols-1 items-start gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
-                <div class="flex flex-col gap-1 md:max-w-[560px]">
-                  <div class="text-sm text-red-700 font-medium dark:text-red-200">
-                    {{ t('settings.pages.data.sections.all.title') }}
-                  </div>
-                  <p class="text-xs text-red-700/80 dark:text-red-200/80">
-                    {{ t('settings.pages.data.sections.all.description') }}
-                  </p>
-                </div>
-                <div class="flex flex-col items-start gap-2">
-                  <DoubleCheckButton
-                    variant="danger"
-                    @confirm="runAction(deleteAllData, 'settings.pages.data.status.all_deleted')"
-                  >
-                    {{ t('settings.pages.data.sections.all.delete') }}
-                    <template #confirm>
-                      {{ t('settings.pages.data.confirmations.yes') }}
-                    </template>
-                    <template #cancel>
-                      {{ t('settings.pages.card.cancel') }}
-                    </template>
-                  </DoubleCheckButton>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <div
       v-if="isDesktop"
       class="border-2 border-amber-300/80 rounded-xl bg-amber-50/80 p-4 shadow-sm dark:border-amber-500/60 dark:bg-amber-500/10"
@@ -277,6 +206,73 @@ async function handleImport(event: Event) {
               {{ t('settings.pages.card.cancel') }}
             </template>
           </DoubleCheckButton>
+        </div>
+      </div>
+    </div>
+
+    <div class="border-2 border-red-300/80 rounded-xl bg-red-50/80 p-4 shadow-sm dark:border-red-500/60 dark:bg-red-500/10">
+      <div class="flex flex-col gap-3">
+        <div>
+          <div class="text-lg text-red-600 font-semibold dark:text-red-300">
+            {{ t('settings.pages.data.sections.danger.title') }}
+          </div>
+          <p class="text-sm text-red-600/80 dark:text-red-200/80">
+            {{ t('settings.pages.data.sections.danger.description') }}
+          </p>
+        </div>
+
+        <div class="flex flex-col gap-3">
+          <div class="grid gap-3 md:grid-cols-2">
+            <div class="grid grid-cols-1 items-start gap-2 p-3 md:grid-cols-[minmax(0,1fr)_auto]">
+              <div class="flex flex-col gap-1 md:max-w-[560px]">
+                <div class="text-sm text-red-700 font-medium dark:text-red-200">
+                  {{ t('settings.pages.data.sections.providers.title') }}
+                </div>
+                <p class="text-xs text-red-700/80 dark:text-red-200/80">
+                  {{ t('settings.pages.data.sections.providers.description') }}
+                </p>
+              </div>
+              <div class="flex flex-col items-start gap-2">
+                <DoubleCheckButton
+                  variant="danger"
+                  @confirm="runAction(resetProvidersSettings, 'settings.pages.data.status.providers_reset')"
+                >
+                  {{ t('settings.pages.data.sections.providers.reset') }}
+                  <template #confirm>
+                    {{ t('settings.pages.data.confirmations.yes') }}
+                  </template>
+                  <template #cancel>
+                    {{ t('settings.pages.card.cancel') }}
+                  </template>
+                </DoubleCheckButton>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 items-start gap-2 p-3 md:grid-cols-[minmax(0,1fr)_auto]">
+              <div class="flex flex-col gap-1 md:max-w-[560px]">
+                <div class="text-sm text-red-700 font-medium dark:text-red-200">
+                  {{ t('settings.pages.data.sections.all.title') }}
+                </div>
+                <p class="text-xs text-red-700/80 dark:text-red-200/80">
+                  {{ t('settings.pages.data.sections.all.description') }}
+                </p>
+              </div>
+              <div class="flex flex-col items-start gap-2">
+                <DoubleCheckButton
+                  variant="danger"
+                  @confirm="runAction(deleteAllData, 'settings.pages.data.status.all_deleted')"
+                >
+                  {{ t('settings.pages.data.sections.all.delete') }}
+                  <template #confirm>
+                    {{ t('settings.pages.data.confirmations.yes') }}
+                  </template>
+                  <template #cancel>
+                    {{ t('settings.pages.card.cancel') }}
+                  </template>
+                </DoubleCheckButton>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
