@@ -407,6 +407,7 @@ export type RouteTargetExpression
 
 export interface RouteConfig {
   destinations?: Array<string | RouteTargetExpression>
+  strategy?: 'broadcast' | 'anycast'
   bypass?: boolean
 }
 

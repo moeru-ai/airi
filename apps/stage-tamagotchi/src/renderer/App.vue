@@ -11,7 +11,9 @@ import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models
 import { clearMcpToolBridge, setMcpToolBridge } from '@proj-airi/stage-ui/stores/mcp-tool-bridge'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
+import { clearModuleRuntimePrepareHandler, setModuleRuntimeFetchLogsHandler, setModuleRuntimePrepareHandler } from '@proj-airi/stage-ui/stores/module-runtime-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { useQQStore } from '@proj-airi/stage-ui/stores/modules/qq'
 import { usePerfTracerBridgeStore } from '@proj-airi/stage-ui/stores/perf-tracer-bridge'
 import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from '@proj-airi/stage-ui/stores/plugin-host-capabilities'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
@@ -25,6 +27,8 @@ import { toast, Toaster } from 'vue-sonner'
 import ResizeHandler from './components/ResizeHandler.vue'
 
 import {
+  electronEnsureQqOfficialRuntime,
+  electronGetQqOfficialRuntimeLogs,
   electronGetServerChannelConfig,
   electronMcpCallTool,
   electronMcpListTools,
@@ -59,6 +63,7 @@ const chatSessionStore = useChatSessionStore()
 const serverChannelStore = useModsServerChannelStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
 const analyticsStore = useSharedAnalyticsStore()
+const qqStore = useQQStore()
 const pluginHostInspectorStore = usePluginHostInspectorStore()
 const stageWindowLifecycleStore = useStageWindowLifecycleStore()
 const context = useElectronEventaContext()
@@ -66,6 +71,8 @@ usePerfTracerBridgeStore()
 initializeStageThreeRuntimeTraceBridge()
 void stageWindowLifecycleStore.initializeWindowLifecycleBridge()
 const getServerChannelConfig = useElectronEventaInvoke(electronGetServerChannelConfig)
+const ensureQqOfficialRuntime = useElectronEventaInvoke(electronEnsureQqOfficialRuntime)
+const getQqOfficialRuntimeLogs = useElectronEventaInvoke(electronGetQqOfficialRuntimeLogs)
 const listPlugins = useElectronEventaInvoke(electronPluginList)
 const setPluginEnabled = useElectronEventaInvoke(electronPluginSetEnabled)
 const loadEnabledPlugins = useElectronEventaInvoke(electronPluginLoadEnabled)
@@ -128,6 +135,9 @@ onMounted(async () => {
   serverChannelSettingsStore.websocketTlsConfig = serverChannelConfig.tlsConfig
 
   await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
+  void qqStore.initializeAutoConnect().catch((error) => {
+    console.error('Failed to initialize QQ auto-connect in App.vue:', error)
+  })
   await contextBridgeStore.initialize()
   characterOrchestratorStore.initialize()
   await startTrackingCursorPoint()
@@ -146,6 +156,45 @@ onMounted(async () => {
   }
 })
 
+setModuleRuntimePrepareHandler(async ({ moduleName, config }) => {
+  if (moduleName !== 'qq')
+    return
+
+  if (config.enabled === false || config.method !== 'official')
+    return
+
+  const runtimeState = await ensureQqOfficialRuntime({
+    enabled: config.enabled === true,
+    method: 'official',
+    officialToken: typeof config.officialToken === 'string' ? config.officialToken : '',
+  })
+
+  if (!runtimeState.running)
+    throw new Error(runtimeState.error || 'Failed to start QQ official runtime')
+
+  if (runtimeState.airiUrl)
+    serverChannelStore.websocketUrl = runtimeState.airiUrl
+
+  return {
+    websocketUrl: runtimeState.airiUrl,
+    running: runtimeState.running,
+    ready: runtimeState.ready,
+    error: runtimeState.error,
+  }
+})
+
+setModuleRuntimeFetchLogsHandler(async ({ moduleName, afterId, limit }) => {
+  if (moduleName !== 'qq')
+    return
+
+  const result = await getQqOfficialRuntimeLogs({ afterId, limit })
+  return {
+    logs: result.logs,
+    running: result.running,
+    pid: result.pid,
+  }
+})
+
 watch(themeColorsHue, () => {
   document.documentElement.style.setProperty('--chromatic-hue', themeColorsHue.value.toString())
 }, { immediate: true })
@@ -157,6 +206,7 @@ watch(themeColorsHueDynamic, () => {
 onUnmounted(() => {
   contextBridgeStore.dispose()
   clearMcpToolBridge()
+  clearModuleRuntimePrepareHandler()
 })
 </script>
 

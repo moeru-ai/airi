@@ -6,6 +6,7 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { UnElevenLabsOptions } from 'unspeech'
 
 import type { EmotionPayload } from '../../constants/emotions'
+import type { ChatStreamEventContext } from '../../types/chat'
 
 import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
 import { getImportUrlBundles } from '@proj-airi/drizzle-duckdb-wasm/bundles/import-url-browser'
@@ -436,8 +437,37 @@ function setupAnalyser() {
 
 let currentChatIntent: ReturnType<typeof speechRuntimeStore.openIntent> | null = null
 
-chatHookCleanups.push(onBeforeMessageComposed(async () => {
+function isQqSourceTurn(context: Pick<ChatStreamEventContext, 'input'> | Omit<ChatStreamEventContext, 'composedMessage'> | undefined): boolean {
+  const data = context?.input?.data
+  if (!data || typeof data !== 'object')
+    return false
+
+  const payload = data as {
+    sourceTags?: unknown
+    qq?: unknown
+    overrides?: { sessionId?: unknown }
+  }
+
+  if (Array.isArray(payload.sourceTags) && payload.sourceTags.includes('qq'))
+    return true
+
+  if (payload.qq && typeof payload.qq === 'object')
+    return true
+
+  const sessionId = payload.overrides?.sessionId
+  return typeof sessionId === 'string' && sessionId.startsWith('qq-')
+}
+
+chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   playbackManager.stopAll('new-message')
+
+  if (isQqSourceTurn(context)) {
+    if (currentChatIntent) {
+      currentChatIntent.cancel('qq-source-message')
+      currentChatIntent = null
+    }
+    return
+  }
 
   setupAnalyser()
   await setupLipSync()

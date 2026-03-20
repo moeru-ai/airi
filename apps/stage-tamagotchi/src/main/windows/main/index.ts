@@ -4,6 +4,7 @@ import type { InferOutput } from 'valibot'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { McpStdioManager } from '../../services/airi/mcp-servers'
+import type { QqRuntimeManager } from '../../services/airi/qq-runtime'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
 import type { NoticeWindowManager } from '../notice'
 import type { OnboardingWindowManager } from '../onboarding'
@@ -55,6 +56,7 @@ export async function setupMainWindow(params: {
   onWindowCreated?: (window: BrowserWindow) => void
   serverChannel: ServerChannel
   mcpStdioManager: McpStdioManager
+  qqRuntimeManager: QqRuntimeManager
   i18n: I18n
   onboardingWindowManager: OnboardingWindowManager
 }) {
@@ -169,6 +171,7 @@ export async function setupMainWindow(params: {
     autoUpdater: params.autoUpdater,
     serverChannel: params.serverChannel,
     mcpStdioManager: params.mcpStdioManager,
+    qqRuntimeManager: params.qqRuntimeManager,
     i18n: params.i18n,
     onboardingWindowManager: params.onboardingWindowManager,
   })

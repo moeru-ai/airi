@@ -122,6 +122,18 @@ describe('route middleware', () => {
     expect(matchesDestinations(['label:env=dev'], peer)).toBe(false)
   })
 
+  it('matches destinations by namespaced plugin id', () => {
+    const peer = createPeer({
+      id: 'peer-2',
+      name: 'stage-web',
+      plugin: 'proj-airi:stage-web',
+      instanceId: 'stage-web-1',
+    })
+
+    expect(matchesDestinations(['plugin:proj-airi:stage-web'], peer)).toBe(true)
+    expect(matchesDestinations(['plugin:proj-airi:stage-tamagotchi'], peer)).toBe(false)
+  })
+
   it('policy middleware filters targets', () => {
     const peers = new Map<string, AuthenticatedPeer>([
       ['peer-1', createPeer({ id: 'peer-1', name: 'telegram', plugin: 'telegram-bot', instanceId: 'telegram-1', labels: { env: 'prod' } })],

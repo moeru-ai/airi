@@ -201,6 +201,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
 
   return {
     connected,
+    websocketUrl,
     ensureConnected,
 
     initialize,

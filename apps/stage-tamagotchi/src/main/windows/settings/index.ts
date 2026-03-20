@@ -1,6 +1,7 @@
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { McpStdioManager } from '../../services/airi/mcp-servers'
+import type { QqRuntimeManager } from '../../services/airi/qq-runtime'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
 import type { DevtoolsWindowManager } from '../devtools'
 import type { WidgetsWindowManager } from '../widgets'
@@ -30,6 +31,7 @@ export function setupSettingsWindowReusableFunc(params: {
   onWindowCreated?: (window: BrowserWindow) => void
   serverChannel: ServerChannel
   mcpStdioManager: McpStdioManager
+  qqRuntimeManager: QqRuntimeManager
   i18n: I18n
 }): SettingsWindowManager {
   const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
@@ -68,6 +70,7 @@ export function setupSettingsWindowReusableFunc(params: {
       devtoolsMarkdownStressWindow: params.devtoolsMarkdownStressWindow,
       serverChannel: params.serverChannel,
       mcpStdioManager: params.mcpStdioManager,
+      qqRuntimeManager: params.qqRuntimeManager,
       i18n: params.i18n,
     })
 

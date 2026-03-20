@@ -23,6 +23,7 @@ import {
   isDevtoolsPeer,
   matchesDestinations,
 } from './middlewares'
+import { createAnycastMiddleware } from './middlewares/anycast'
 
 function createServerEventMetadata(serverInstanceId: string, parentId?: string): { source: MetadataEventSource, event: { id: string, parentId?: string } } {
   return {
@@ -124,6 +125,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
   const heartbeatTtlMs = options?.heartbeat?.readTimeout ?? DEFAULT_HEARTBEAT_TTL_MS
   const heartbeatMessage = options?.heartbeat?.message ?? MessageHeartbeat.Pong
   const routingMiddleware = [
+    createAnycastMiddleware(),
     ...(options?.routing?.policy ? [createPolicyMiddleware(options.routing.policy)] : []),
     ...(options?.routing?.middleware ?? []),
   ]

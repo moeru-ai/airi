@@ -13,6 +13,7 @@ import { useDiscordStore } from '../stores/modules/discord'
 import { useFactorioStore } from '../stores/modules/gaming-factorio'
 import { useMinecraftStore } from '../stores/modules/gaming-minecraft'
 import { useHearingStore } from '../stores/modules/hearing'
+import { useQQStore } from '../stores/modules/qq'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
 import { useOnboardingStore } from '../stores/onboarding'
@@ -32,6 +33,7 @@ export function useDataMaintenance() {
   const consciousnessStore = useConsciousnessStore()
   const twitterStore = useTwitterStore()
   const discordStore = useDiscordStore()
+  const qqStore = useQQStore()
   const factorioStore = useFactorioStore()
   const minecraftStore = useMinecraftStore()
   const mcpStore = useMcpStore()
@@ -54,6 +56,7 @@ export function useDataMaintenance() {
     consciousnessStore.resetState()
     twitterStore.resetState()
     discordStore.resetState()
+    qqStore.resetState()
     factorioStore.resetState()
     minecraftStore.resetState()
   }

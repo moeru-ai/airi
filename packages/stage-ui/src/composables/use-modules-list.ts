@@ -11,6 +11,7 @@ import { useDiscordStore } from '../stores/modules/discord'
 import { useFactorioStore } from '../stores/modules/gaming-factorio'
 import { useMinecraftStore } from '../stores/modules/gaming-minecraft'
 import { useHearingStore } from '../stores/modules/hearing'
+import { useQQStore } from '../stores/modules/qq'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
 import { useVisionStore } from '../stores/modules/vision'
@@ -36,6 +37,7 @@ export function useModulesList() {
   const hearingStore = useHearingStore()
   const visionStore = useVisionStore()
   const discordStore = useDiscordStore()
+  const qqStore = useQQStore()
   const twitterStore = useTwitterStore()
   const minecraftStore = useMinecraftStore()
   const factorioStore = useFactorioStore()
@@ -103,6 +105,15 @@ export function useModulesList() {
       icon: 'i-simple-icons:discord',
       to: '/settings/modules/messaging-discord',
       configured: discordStore.configured,
+      category: 'messaging',
+    },
+    {
+      id: 'messaging-qq',
+      name: t('settings.pages.modules.messaging-qq.title'),
+      description: t('settings.pages.modules.messaging-qq.description'),
+      icon: 'i-simple-icons:tencentqq',
+      to: '/settings/modules/messaging-qq',
+      configured: qqStore.enabled,
       category: 'messaging',
     },
     {
