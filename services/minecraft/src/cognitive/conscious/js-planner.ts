@@ -107,11 +107,21 @@ interface DescribeGlobalsOptions {
   includeBuiltins?: boolean
 }
 
+const SANDBOX_LOCKDOWN_SOURCE = `
+Object.setPrototypeOf(globalThis, null)
+`
+
 export function extractJavaScriptCandidate(input: string): string {
   const trimmed = input.trim()
-  const fenced = trimmed.match(/^```(?:js|javascript|ts|typescript)?[^\S\r\n]*\r?\n?([\s\S]*?)\r?\n?```$/i)
-  if (fenced?.[1])
-    return fenced[1].trim()
+  if (trimmed.startsWith('```') && trimmed.endsWith('```')) {
+    const firstNewline = trimmed.indexOf('\n')
+    if (firstNewline >= 0) {
+      const fenceHeader = trimmed.slice(3, firstNewline).trim().toLowerCase()
+      const isJavaScriptFence = fenceHeader.length === 0 || ['js', 'javascript', 'ts', 'typescript'].includes(fenceHeader)
+      if (isJavaScriptFence)
+        return trimmed.slice(firstNewline + 1, -3).trim()
+    }
+  }
 
   return trimmed
 }
@@ -119,6 +129,7 @@ export function extractJavaScriptCandidate(input: string): string {
 export class JavaScriptPlanner {
   private readonly context: vm.Context
   private activeRun: ActivePlannerRun | null = null
+  private readonly installedActionToolNames = new Set<string>()
   private readonly maxActionsPerTurn: number
   private readonly sandbox: Record<string, unknown>
   private readonly timeoutMs: number
@@ -126,8 +137,14 @@ export class JavaScriptPlanner {
   constructor(options: JavaScriptPlannerOptions = {}) {
     this.timeoutMs = options.timeoutMs ?? 750
     this.maxActionsPerTurn = options.maxActionsPerTurn ?? 5
-    this.sandbox = {}
-    this.context = vm.createContext(this.sandbox)
+    this.sandbox = Object.create(null) as Record<string, unknown>
+    this.context = vm.createContext(this.sandbox, {
+      codeGeneration: {
+        strings: false,
+        wasm: false,
+      },
+    })
+    this.lockDownSandbox()
     this.installBuiltins()
   }
 
@@ -426,14 +443,14 @@ export class JavaScriptPlanner {
 
   private installActionTools(availableActions: Action[]): void {
     for (const action of availableActions) {
-      const existing = Object.getOwnPropertyDescriptor(this.sandbox, action.name)
-      if (existing && existing.configurable === false)
+      if (this.installedActionToolNames.has(action.name))
         continue
 
-      this.defineUpdatableGlobal(action.name, async (...args: unknown[]) => {
-        const params = this.mapArgsToParams(action, args)
+      this.defineGlobalTool(action.name, async (...args: unknown[]) => {
+        const params = this.mapArgsToParams(action.name, args)
         return this.runAction(action.name, params)
       })
+      this.installedActionToolNames.add(action.name)
     }
   }
 
@@ -484,7 +501,11 @@ export class JavaScriptPlanner {
     }
   }
 
-  private mapArgsToParams(action: Action, args: unknown[]): Record<string, unknown> {
+  private mapArgsToParams(toolName: string, args: unknown[]): Record<string, unknown> {
+    const action = this.activeRun?.actionsByName.get(toolName)
+    if (!action)
+      return {}
+
     const shape = action.schema.shape as Record<string, unknown>
     const keys = Object.keys(shape)
 
@@ -614,18 +635,6 @@ export class JavaScriptPlanner {
     })
   }
 
-  // NOTICE: Action tools must be updatable because the set of available actions
-  // can change at runtime. Unlike builtins (which are immutable), action tool
-  // globals use configurable: true so they can be redefined on each evaluate().
-  private defineUpdatableGlobal(name: string, value: unknown): void {
-    Object.defineProperty(this.sandbox, name, {
-      value,
-      configurable: true,
-      enumerable: true,
-      writable: false,
-    })
-  }
-
   private previewValue(value: unknown): string {
     if (value === null)
       return 'null'
@@ -636,5 +645,14 @@ export class JavaScriptPlanner {
 
     const rendered = inspect(value, { depth: 1, breakLength: 120 })
     return rendered.length > 120 ? `${rendered.slice(0, 117)}...` : rendered
+  }
+
+  private lockDownSandbox(): void {
+    // NOTICE: The planner context intentionally disables runtime code generation
+    // and severs the global object's prototype chain to block common vm escapes
+    // such as `globalThis.constructor.constructor("return process")()`.
+    new vm.Script(SANDBOX_LOCKDOWN_SOURCE).runInContext(this.context, {
+      timeout: this.timeoutMs,
+    })
   }
 }

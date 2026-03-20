@@ -235,6 +235,36 @@ describe('javaScriptPlanner', () => {
     await expect(planner.evaluate('while (true) {}', actions, globals, executeAction)).rejects.toThrow(/Script execution timed out/i)
   })
 
+  it('blocks vm escape attempts through the sandbox global constructor chain', async () => {
+    const planner = new JavaScriptPlanner()
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+
+    const planned = await planner.evaluate('return globalThis.constructor?.constructor?.("return process")()?.version ?? "blocked"', actions, globals, executeAction)
+    expect(planned.returnValue).toBe(`'blocked'`)
+    expect(planned.actions).toHaveLength(0)
+  })
+
+  it('blocks eval and Function constructor code generation inside the sandbox', async () => {
+    const planner = new JavaScriptPlanner()
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+
+    await expect(planner.evaluate('return eval("1 + 1")', actions, globals, executeAction)).rejects.toThrow(/Code generation from strings disallowed/i)
+    await expect(planner.evaluate('return Function("return 1")()', actions, globals, executeAction)).rejects.toThrow(/Code generation from strings disallowed/i)
+  })
+
+  it('keeps action tool bindings immutable inside the sandbox', async () => {
+    const planner = new JavaScriptPlanner()
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+
+    const planned = await planner.evaluate(`
+      chat = async () => ({ ok: true, result: "shadowed" })
+      await chat("hello")
+    `, actions, globals, executeAction)
+
+    expect(executeAction).toHaveBeenCalledOnce()
+    expect(planned.actions[0]?.action).toEqual({ tool: 'chat', params: { message: 'hello' } })
+  })
+
   it('supports expectation guardrails on structured action telemetry', async () => {
     const planner = new JavaScriptPlanner()
     const executeAction = vi.fn(async () => ({
