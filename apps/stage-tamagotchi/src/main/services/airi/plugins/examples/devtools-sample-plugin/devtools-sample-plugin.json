@@ -2,6 +2,30 @@
   "apiVersion": "v1",
   "kind": "manifest.plugin.airi.moeru.ai",
   "name": "devtools-sample-plugin",
+  "permissions": {
+    "apis": [
+      {
+        "key": "proj-airi:plugin-sdk:apis:protocol:capabilities:wait",
+        "actions": ["invoke"]
+      },
+      {
+        "key": "proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers",
+        "actions": ["invoke"]
+      }
+    ],
+    "resources": [
+      {
+        "key": "proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers",
+        "actions": ["read"]
+      }
+    ],
+    "capabilities": [
+      {
+        "key": "proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers",
+        "actions": ["wait"]
+      }
+    ]
+  },
   "entrypoints": {
     "electron": "./devtools-sample-plugin.mjs"
   }

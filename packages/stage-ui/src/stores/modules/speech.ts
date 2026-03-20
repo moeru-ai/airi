@@ -131,7 +131,14 @@ export const useSpeechStore = defineStore('speech', () => {
   watch(
     () => providersStore.configuredSpeechProvidersMetadata.map(provider => provider.id),
     (configuredProviderIds) => {
-      if (!activeSpeechProvider.value)
+      if (!activeSpeechProvider.value || activeSpeechProvider.value === 'speech-noop')
+        return
+
+      // NOTICE: only reset when the provider has actually been validated and found unconfigured.
+      // Skip reset if validation hasn't run yet (validatedCredentialHash is undefined)
+      // to avoid a race condition where immediate watcher fires before async validation completes.
+      const runtimeState = providersStore.providerRuntimeState[activeSpeechProvider.value]
+      if (runtimeState && runtimeState.validatedCredentialHash === undefined)
         return
 
       // NOTICE: clear stale selection when the currently selected speech provider
