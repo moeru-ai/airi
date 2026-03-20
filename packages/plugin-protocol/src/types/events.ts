@@ -343,6 +343,57 @@ export interface ModuleCapability {
   metadata?: Record<string, unknown>
 }
 
+export type ModulePermissionArea = 'apis' | 'resources' | 'capabilities' | 'processors' | 'pipelines'
+
+export interface ModulePermissionSpec<
+  Area extends ModulePermissionArea = ModulePermissionArea,
+  Action extends string = string,
+> {
+  key: string
+  actions: Action[]
+  /**
+   * Human-facing explanation for consent/permission UI.
+   * Prefer i18n key form over raw strings for localization.
+   */
+  reason?: Localizable
+  /**
+   * Optional short display label for permission prompts.
+   * Prefer i18n key form over raw strings for localization.
+   */
+  label?: Localizable
+  required?: boolean
+  metadata?: Record<string, unknown>
+  area?: Area
+}
+
+export interface ModulePermissionDeclaration {
+  apis?: ModulePermissionSpec<'apis', 'invoke' | 'emit'>[]
+  resources?: ModulePermissionSpec<'resources', 'read' | 'write' | 'subscribe'>[]
+  capabilities?: ModulePermissionSpec<'capabilities', 'wait' | 'snapshot'>[]
+  processors?: ModulePermissionSpec<'processors', 'register' | 'execute' | 'manage'>[]
+  pipelines?: ModulePermissionSpec<'pipelines', 'hook' | 'process' | 'emit' | 'manage'>[]
+}
+
+export type ModulePermissionGrant = ModulePermissionDeclaration
+
+/**
+ * Describes a single authorization failure produced by host-side permission checks.
+ *
+ * Protocol expectations:
+ * - `area`, `action`, and `key` identify the denied operation
+ * - `reason` is intended for user-facing or diagnostic context and may be localized
+ * - `recoverable` indicates whether the caller may reasonably retry after obtaining consent,
+ *   reconfiguration, or a state change
+ * - plugins should not treat `reason` as a stable machine-readable code
+ */
+export interface ModulePermissionError {
+  area: ModulePermissionArea
+  action: string
+  key: string
+  reason?: Localizable
+  recoverable?: boolean
+}
+
 export type RouteTargetExpression
   = | { type: 'and', all: RouteTargetExpression[] }
     | { type: 'or', any: RouteTargetExpression[] }
@@ -535,14 +586,19 @@ interface ErrorEvent {
   message: string
 }
 
+interface ErrorPermissionEvent {
+  identity?: ModuleIdentity
+  error: ModulePermissionError
+}
+
 interface ModuleAnnounceEvent<C = undefined> {
   name: string
   identity: ModuleIdentity
   possibleEvents: Array<(keyof ProtocolEvents<C>)>
+  permissions?: ModulePermissionDeclaration
   configSchema?: ModuleConfigSchema
   dependencies?: ModuleDependency[]
 }
-
 interface ModuleAnnouncedEvent {
   name: string
   index?: number
@@ -567,6 +623,104 @@ interface RegistryModulesHealthHealthyEvent {
   name: string
   index?: number
   identity: ModuleIdentity
+
+}
+
+/**
+ * Emitted when a module declares the permissions it may need.
+ *
+ * Typical use cases:
+ * - manifest-time declaration for installation, review, and audit surfaces
+ * - runtime declaration when a module can only discover optional integrations later
+ *
+ * Protocol expectations:
+ * - this event communicates intent only and does not grant access
+ * - hosts may record, display, audit, or validate this declaration before any request is approved
+ * - plugins must not assume any declared permission is usable until it appears in current grants
+ * - `source` indicates whether the declaration originated from static manifest data or runtime code
+ */
+interface ModulePermissionsDeclareEvent {
+  identity: ModuleIdentity
+  requested: ModulePermissionDeclaration
+  source: 'manifest' | 'runtime'
+}
+
+/**
+ * Emitted when a module actively asks the host to approve some or all declared permissions.
+ *
+ * Typical use cases:
+ * - deferred consent before first use of a sensitive API or resource
+ * - requesting optional capabilities only when a feature is enabled by the user
+ *
+ * Protocol expectations:
+ * - hosts may prompt the user, auto-approve, partially approve, or deny the request
+ * - plugins must treat this as a request for evaluation, not as confirmation of access
+ * - plugins should provide a user-facing `reason` when approval UX needs explanatory context
+ * - the host response may later be expressed through granted, denied, and current permission events
+ */
+interface ModulePermissionsRequestEvent {
+  identity: ModuleIdentity
+  requested: ModulePermissionDeclaration
+  reason?: string
+}
+
+/**
+ * Emitted after the host approves additional permissions for a module.
+ *
+ * Typical use cases:
+ * - notifying the runtime that a previous permission request succeeded
+ * - allowing plugin code to resume or unlock gated features
+ *
+ * Protocol expectations:
+ * - `granted` may be narrower than the corresponding request
+ * - plugins must inspect the granted payload instead of assuming the full request was approved
+ * - `revision` increments when the permission snapshot changes and may be used to invalidate cached state
+ * - hosts may emit this event before or together with an updated current snapshot
+ */
+interface ModulePermissionsGrantedEvent {
+  identity: ModuleIdentity
+  granted: ModulePermissionGrant
+  revision: number
+}
+
+/**
+ * Emitted when some requested permissions are rejected or remain unavailable.
+ *
+ * Typical use cases:
+ * - surfacing partial denials after a consent flow
+ * - explaining why a feature must stay disabled or degraded
+ *
+ * Protocol expectations:
+ * - `denied` describes the requested permissions that are not available after evaluation
+ * - plugins must handle denial gracefully and should provide fallback behavior when feasible
+ * - `reason` is intended for diagnostics or UX context and should not be treated as a stable machine-readable code
+ * - `revision` identifies the permission-state version associated with this denial result
+ */
+interface ModulePermissionsDeniedEvent {
+  identity: ModuleIdentity
+  denied: ModulePermissionDeclaration
+  reason?: string
+  revision: number
+}
+
+/**
+ * Emitted with the module's reconciled current permission snapshot.
+ *
+ * Typical use cases:
+ * - bootstrapping plugin runtime state after startup or reload
+ * - synchronizing UI/debug tools with the final requested vs granted view
+ *
+ * Protocol expectations:
+ * - this is the authoritative event for "what is currently allowed"
+ * - `requested` is the normalized declaration baseline known to the host
+ * - `granted` is the currently granted subset that authorization checks should follow
+ * - plugins should prefer this snapshot over local assumptions when reconciling runtime state
+ */
+interface ModulePermissionsCurrentEvent {
+  identity: ModuleIdentity
+  requested: ModulePermissionDeclaration
+  granted: ModulePermissionGrant
+  revision: number
 }
 
 interface ModulePreparedEvent {
@@ -848,10 +1002,24 @@ export const registryModulesHealthUnhealthy = defineEventa<RegistryModulesHealth
 export const registryModulesHealthHealthy = defineEventa<RegistryModulesHealthHealthyEvent>('registry:modules:health:healthy')
 
 export const error = defineEventa<ErrorEvent>('error')
+/** Permission-check failure event. See `ModulePermissionError`. */
+export const errorPermission = defineEventa<ErrorPermissionEvent>('error:permission')
 
 export const moduleAnnounce = defineEventa<ModuleAnnounceEvent>('module:announce')
 export const moduleAnnounced = defineEventa<ModuleAnnouncedEvent>('module:announced')
 export const moduleDeAnnounced = defineEventa<ModuleDeAnnouncedEvent>('module:de-announced')
+
+/** Permission declaration lifecycle event. See `ModulePermissionsDeclareEvent`. */
+export const modulePermissionsDeclare = defineEventa<ModulePermissionsDeclareEvent>('module:permissions:declare')
+/** Permission request lifecycle event. See `ModulePermissionsRequestEvent`. */
+export const modulePermissionsRequest = defineEventa<ModulePermissionsRequestEvent>('module:permissions:request')
+/** Permission grant lifecycle event. See `ModulePermissionsGrantedEvent`. */
+export const modulePermissionsGranted = defineEventa<ModulePermissionsGrantedEvent>('module:permissions:granted')
+/** Permission denial lifecycle event. See `ModulePermissionsDeniedEvent`. */
+export const modulePermissionsDenied = defineEventa<ModulePermissionsDeniedEvent>('module:permissions:denied')
+/** Current permission snapshot event. See `ModulePermissionsCurrentEvent`. */
+export const modulePermissionsCurrent = defineEventa<ModulePermissionsCurrentEvent>('module:permissions:current')
+
 export const modulePrepared = defineEventa<ModulePreparedEvent>('module:prepared')
 export const moduleConfigurationNeeded = defineEventa<ModuleConfigurationNeededEvent>('module:configuration:needed')
 export const moduleStatus = defineEventa<ModuleStatusEvent>('module:status')
@@ -906,6 +1074,7 @@ export const contextUpdate = defineEventa<ContextUpdateEvent>('context:update')
 // https://www.reddit.com/r/typescript/comments/1064ibt/a_little_hack_for_creating_extensible/
 export interface ProtocolEvents<C = undefined> {
   'error': ErrorEvent
+  'error:permission': ErrorPermissionEvent
 
   'module:authenticate': ModuleAuthenticateEvent
   'module:authenticated': ModuleAuthenticatedEvent
@@ -940,6 +1109,11 @@ export interface ProtocolEvents<C = undefined> {
    * module:announced or module:de-announced, or registry:modules:sync and registry:modules:health:* events for more reliable discovery and tracking.
    */
   'module:announce': ModuleAnnounceEvent<C>
+  'module:permissions:declare': ModulePermissionsDeclareEvent
+  'module:permissions:request': ModulePermissionsRequestEvent
+  'module:permissions:granted': ModulePermissionsGrantedEvent
+  'module:permissions:denied': ModulePermissionsDeniedEvent
+  'module:permissions:current': ModulePermissionsCurrentEvent
   /**
    * Broadcast to all peers when a module successfully announces.
    */

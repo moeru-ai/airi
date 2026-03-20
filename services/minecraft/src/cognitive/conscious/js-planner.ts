@@ -109,6 +109,7 @@ interface DescribeGlobalsOptions {
 
 export function extractJavaScriptCandidate(input: string): string {
   const trimmed = input.trim()
+  // eslint-disable-next-line regexp/no-super-linear-backtracking
   const fenced = trimmed.match(/^```(?:js|javascript|ts|typescript)?[^\S\r\n]*\r?\n?([\s\S]*?)\r?\n?```$/i)
   if (fenced?.[1])
     return fenced[1].trim()

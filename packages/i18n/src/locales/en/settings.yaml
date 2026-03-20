@@ -785,6 +785,9 @@ pages:
       openrouter:
         description: openrouter.ai
         title: OpenRouter
+      openrouter-audio-speech:
+        description: openrouter.ai
+        title: OpenRouter
       perplexity:
         description: perplexity.ai
         title: Perplexity

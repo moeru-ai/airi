@@ -17,6 +17,7 @@ lerna-debug.log*
 .idea
 .temp
 **/temp/
+.claude/worktrees/
 
 # Anything .local, especially for .env.local
 *.local

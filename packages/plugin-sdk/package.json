@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/plugin-sdk",
   "type": "module",
-  "version": "0.9.0-alpha.16",
+  "version": "0.9.0-alpha.18",
   "private": true,
   "description": "Plugin SDK for Project AIRI",
   "author": {
@@ -43,6 +43,7 @@
     "@moeru/eventa": "catalog:",
     "@proj-airi/plugin-protocol": "workspace:*",
     "@proj-airi/server-shared": "workspace:*",
+    "nanoid": "catalog:",
     "valibot": "^1.2.0",
     "xstate": "^5.28.0"
   }

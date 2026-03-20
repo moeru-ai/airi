@@ -114,6 +114,7 @@ So the loading pipeline now carries a request sequence:
 ```ts
 const requestId = invalidatePendingLoads()
 if (!isLoadRequestCurrent(requestId))
+  // eslint-disable-next-line no-useless-return
   return
 ```
 
