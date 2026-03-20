@@ -1,6 +1,12 @@
-import { all, localeRemap } from '@proj-airi/i18n'
+import { localeRemap } from '@proj-airi/i18n'
 
-const supportedPrivacyPolicyLocales = new Set(Object.keys(all))
+// TODO: Replace this with docs-owned metadata so app links cannot drift from
+// the actual locales published under docs/content/*/about/privacy.md.
+const supportedPrivacyPolicyLocales = new Set([
+  'en',
+  'ja',
+  'zh-Hans',
+])
 
 export function getAnalyticsPrivacyPolicyUrl(locale?: string): string {
   const normalizedLocale = localeRemap[locale ?? 'en'] ?? locale ?? 'en'
