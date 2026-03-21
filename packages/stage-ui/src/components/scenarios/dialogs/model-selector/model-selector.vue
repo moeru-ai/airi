@@ -30,7 +30,7 @@ const highlightDisplayModelCard = ref<string | undefined>(props.selectedModel?.i
 const isListView = ref(false)
 const searchQuery = ref('')
 const currentPage = ref(1)
-const itemsPerPage = 4 // 每页显示数量，可根据需要调整
+const itemsPerPage = 4 // 每页显示数量
 
 // 搜索过滤逻辑
 const filteredModels = computed(() => {
@@ -48,7 +48,7 @@ const paginatedModels = computed(() => {
   return filteredModels.value.slice(start, start + itemsPerPage)
 })
 
-// 当搜索内容改变时，自动重置回第一页
+// 当搜索内容改变时，自动重置回第一页 (修复 AI 提到的 P2 问题)
 watch(searchQuery, () => {
   currentPage.value = 1
 })
@@ -135,13 +135,19 @@ vrmDialog.onChange(handleAddVRMModel)
               align="end" side="bottom" :side-offset="8"
             >
               <DropdownMenuItem
-                :class="['relative flex cursor-pointer select-none items-center rounded-md px-3 py-2 leading-none outline-none text-base sm:text-sm data-[highlighted]:bg-primary-300/20 dark:data-[highlighted]:bg-primary-100/20']"
+                :class="[
+                  'relative flex cursor-pointer select-none items-center rounded-md px-3 py-2 leading-none outline-none text-base sm:text-sm transition-colors duration-200',
+                  'data-[highlighted]:bg-primary-300/20 dark:data-[highlighted]:bg-primary-100/20 data-[highlighted]:text-primary-400 dark:data-[highlighted]:text-primary-200'
+                ]"
                 @click="live2dDialog.open()"
               >
                 Live2D
               </DropdownMenuItem>
               <DropdownMenuItem
-                :class="['relative flex cursor-pointer select-none items-center rounded-md px-3 py-2 leading-none outline-none text-base sm:text-sm data-[highlighted]:bg-primary-300/20 dark:data-[highlighted]:bg-primary-100/20']"
+                :class="[
+                  'relative flex cursor-pointer select-none items-center rounded-md px-3 py-2 leading-none outline-none text-base sm:text-sm transition-colors duration-200',
+                  'data-[highlighted]:bg-primary-300/20 dark:data-[highlighted]:bg-primary-100/20 data-[highlighted]:text-primary-400 dark:data-[highlighted]:text-primary-200'
+                ]"
                 @click="vrmDialog.open()"
               >
                 VRM
@@ -190,7 +196,7 @@ vrmDialog.onChange(handleAddVRMModel)
             highlightDisplayModelCard === model.id ? 'border-primary-400 bg-primary-400/5' : 'border-transparent',
             isListView ? 'flex flex-row items-center p-2 min-h-16' : 'block h-full w-full md:flex md:flex-row',
           ]"
-          @click="() => highlightDisplayModelCard = model.id"
+          @click="isListView ? handlePick(model) : (highlightDisplayModelCard = model.id)"
         >
           <template v-if="isListView">
             <div class="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-neutral-100 dark:bg-neutral-900">
@@ -225,8 +231,8 @@ vrmDialog.onChange(handleAddVRMModel)
                     align="start" side="bottom" :side-offset="4"
                   >
                     <DropdownMenuItem
-                      class="relative flex cursor-pointer select-none items-center rounded-md px-3 py-2 text-sm text-white outline-none hover:text-red-200"
-                      @click="handleRemoveModel(model)"
+                      class="relative flex cursor-pointer select-none items-center rounded-md px-3 py-2 text-sm text-white outline-none transition-colors duration-200 data-[highlighted]:bg-red-900/20 dark:data-[highlighted]:bg-red-100/20 data-[highlighted]:text-red-200"
+                      @click.stop="handleRemoveModel(model)"
                     >
                       <div i-solar:trash-bin-minimalistic-bold-duotone class="mr-1" />
                       <div>Remove</div>
@@ -270,7 +276,7 @@ vrmDialog.onChange(handleAddVRMModel)
                   <div>{{ mapFormatRenderer[model.format] }}</div>
                 </div>
               </div>
-              <Button class="hidden md:block" variant="secondary" @click="handlePick(model)">
+              <Button class="hidden md:block" variant="secondary" @click.stop="handlePick(model)">
                 Pick
               </Button>
             </div>
