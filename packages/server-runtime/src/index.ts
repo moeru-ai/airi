@@ -1,17 +1,4 @@
 import type { MetadataEventSource, WebSocketEvent } from '@proj-airi/server-shared/types'
-import { timingSafeEqual } from 'node:crypto'
-
-/** Constant-time string comparison that prevents timing attacks (CWE-208). */
-function timingSafeCompare(a: string, b: string): boolean {
-  const bufA = Buffer.from(a)
-  const bufB = Buffer.from(b)
-  if (bufA.length !== bufB.length) {
-    // Compare against itself to keep constant time, then return false
-    timingSafeEqual(bufA, bufA)
-    return false
-  }
-  return timingSafeEqual(bufA, bufB)
-}
 
 import type {
   RouteContext,
@@ -20,6 +7,8 @@ import type {
   RoutingPolicy,
 } from './middlewares'
 import type { AuthenticatedPeer, Peer } from './types'
+
+import { timingSafeEqual } from 'node:crypto'
 
 import { availableLogLevelStrings, Format, LogLevelString, logLevelStringToLogLevelMap, useLogg } from '@guiiai/logg'
 import {
@@ -40,6 +29,18 @@ import {
   isDevtoolsPeer,
   matchesDestinations,
 } from './middlewares'
+
+/** Constant-time string comparison that prevents timing attacks (CWE-208). */
+function timingSafeCompare(a: string, b: string): boolean {
+  const bufA = Buffer.from(a)
+  const bufB = Buffer.from(b)
+  if (bufA.length !== bufB.length) {
+    // Compare against itself to keep constant time, then return false
+    timingSafeEqual(bufA, bufA)
+    return false
+  }
+  return timingSafeEqual(bufA, bufB)
+}
 
 function createServerEventMetadata(serverInstanceId: string, parentId?: string): { source: MetadataEventSource, event: { id: string, parentId?: string } } {
   return {
