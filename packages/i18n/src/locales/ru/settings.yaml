@@ -49,8 +49,7 @@ dialogs:
       stateNotGranted: Not granted
 language:
   title: Language
-  description: >
-    Change the language of the AIRI interface. This will not affect the language of the character's responses.
+  description: UI language
 controls-island:
   icon-size:
     title: Controls Island Icon Size

@@ -49,8 +49,7 @@ dialogs:
       stateNotGranted: Not granted
 language:
   title: 語言
-  description: >
-    切換顯示介面的語言
+  description: UI language
 controls-island:
   icon-size:
     title: 控制島嶼圖示大小
