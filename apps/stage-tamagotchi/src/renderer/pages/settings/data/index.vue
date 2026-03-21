@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import ChatsSection from './chats-section.vue'
-import DangerSection from './danger-section.vue'
-import ModelsModulesSection from './models-modules-section.vue'
-import StatusBanner from './status-banner.vue'
+import ChatsSection from '@proj-airi/stage-pages/pages/settings/data/chats-section.vue'
+import DangerSection from '@proj-airi/stage-pages/pages/settings/data/danger-section.vue'
+import ModelsModulesSection from '@proj-airi/stage-pages/pages/settings/data/models-modules-section.vue'
+import StatusBanner from '@proj-airi/stage-pages/pages/settings/data/status-banner.vue'
 
-import { createDataSettingsStatusState } from './status'
+import { createDataSettingsStatusState } from '@proj-airi/stage-pages/pages/settings/data/status'
+
+import DesktopFolderSection from './desktop-folder-section.vue'
+import DesktopResetSection from './desktop-reset-section.vue'
 
 const { statusMessage, statusTone, handleStatus } = createDataSettingsStatusState()
 </script>
@@ -14,6 +17,8 @@ const { statusMessage, statusTone, handleStatus } = createDataSettingsStatusStat
     <StatusBanner v-if="statusMessage" :message="statusMessage" :tone="statusTone" />
     <ChatsSection @status="handleStatus" />
     <ModelsModulesSection @status="handleStatus" />
+    <DesktopFolderSection @status="handleStatus" />
+    <DesktopResetSection @status="handleStatus" />
     <DangerSection @status="handleStatus" />
   </div>
 </template>
