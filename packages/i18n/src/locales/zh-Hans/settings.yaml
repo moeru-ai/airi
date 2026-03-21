@@ -49,8 +49,7 @@ dialogs:
       stateNotGranted: Not granted
 language:
   title: 语言
-  description: >
-    切换显示界面的语言
+  description: UI language
 controls-island:
   icon-size:
     title: 控制岛图标大小
@@ -385,7 +384,7 @@ pages:
               stop:
                 label: 停止
             select-voice:
-              loading: 正在加载模型...
+              loading: 正在加载模型……
               required: 请选择声线
           provider-voice-selection:
             custom_model_placeholder: 输入指定模型名称...
