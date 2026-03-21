@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DataSettingsStatusTone } from './status'
+import type { DataSettingsStatusTone } from '../status'
 
 interface Props {
   message: string

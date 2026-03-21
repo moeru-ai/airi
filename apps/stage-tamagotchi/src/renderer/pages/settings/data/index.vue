@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import ChatsSection from '@proj-airi/stage-pages/pages/settings/data/chats-section.vue'
-import DangerSection from '@proj-airi/stage-pages/pages/settings/data/danger-section.vue'
-import ModelsModulesSection from '@proj-airi/stage-pages/pages/settings/data/models-modules-section.vue'
-import StatusBanner from '@proj-airi/stage-pages/pages/settings/data/status-banner.vue'
+import ChatsSection from '@proj-airi/stage-pages/pages/settings/data/components/chats-section.vue'
+import DangerSection from '@proj-airi/stage-pages/pages/settings/data/components/danger-section.vue'
+import ModelsModulesSection from '@proj-airi/stage-pages/pages/settings/data/components/models-modules-section.vue'
+import StatusBanner from '@proj-airi/stage-pages/pages/settings/data/components/status-banner.vue'
 
 import { createDataSettingsStatusState } from '@proj-airi/stage-pages/pages/settings/data/status'
 
-import DesktopFolderSection from './desktop-folder-section.vue'
-import DesktopResetSection from './desktop-reset-section.vue'
+import DesktopFolderSection from './components/desktop-folder-section.vue'
+import DesktopResetSection from './components/desktop-reset-section.vue'
 
 const { statusMessage, statusTone, handleStatus } = createDataSettingsStatusState()
 </script>

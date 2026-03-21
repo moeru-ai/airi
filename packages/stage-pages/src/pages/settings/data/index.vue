@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import ChatsSection from './chats-section.vue'
-import DangerSection from './danger-section.vue'
-import ModelsModulesSection from './models-modules-section.vue'
-import StatusBanner from './status-banner.vue'
+import ChatsSection from './components/chats-section.vue'
+import DangerSection from './components/danger-section.vue'
+import ModelsModulesSection from './components/models-modules-section.vue'
+import StatusBanner from './components/status-banner.vue'
 
 import { createDataSettingsStatusState } from './status'
 

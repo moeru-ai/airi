@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { DataSettingsStatusEmits } from './status'
+import type { DataSettingsStatusEmits } from '../status'
 
 import { useDataMaintenance } from '@proj-airi/stage-ui/composables/use-data-maintenance'
 import { Button, DoubleCheckButton } from '@proj-airi/ui'
 import { shallowRef, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { createDataSettingsStatusHelpers } from './status'
+import { createDataSettingsStatusHelpers } from '../status'
 
 const emit = defineEmits<DataSettingsStatusEmits>()
 const { t } = useI18n()

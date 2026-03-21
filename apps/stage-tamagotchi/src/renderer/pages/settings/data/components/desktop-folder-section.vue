@@ -8,7 +8,7 @@ import { isElectronWindow } from '@proj-airi/stage-shared'
 import { Button } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
 
-import { electronAppOpenUserDataFolder } from '../../../../shared/eventa'
+import { electronAppOpenUserDataFolder } from '../../../../../shared/eventa'
 
 const emit = defineEmits<DataSettingsStatusEmits>()
 const { t } = useI18n()
