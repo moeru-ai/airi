@@ -217,6 +217,10 @@ pages:
         title: 删除所有数据
         description: 清除每个本地设置、提供商配置和模型。
         delete: 删除所有数据
+      desktop-folder:
+        title: 打开应用数据文件夹
+        description: 在文件管理器中打开 AIRI 的数据文件夹。
+        open: 打开文件夹
       desktop:
         title: 重置桌面设置和状态
         description: 清除 AIRI 桌面设置和运行状态。
