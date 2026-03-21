@@ -49,8 +49,7 @@ dialogs:
       stateNotGranted: Not granted
 language:
   title: Ngôn ngữ
-  description: >
-    Thay đổi ngôn ngữ giao diện AIRI. Điều này sẽ không ảnh hưởng đến ngôn ngữ phản hồi của nhân vật.
+  description: UI language
 controls-island:
   icon-size:
     title: Kích thước biểu tượng đảo

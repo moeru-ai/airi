@@ -49,8 +49,7 @@ dialogs:
       stateNotGranted: Non accordée
 language:
   title: Langage
-  description: >
-    Modifier le langage de l'inteface d'AIRI. Cela n'affectera pas le langage des réponses du personnage.
+  description: UI language
 controls-island:
   icon-size:
     title: Taille des icônes de l'îlot de contrôle

@@ -49,8 +49,7 @@ dialogs:
       stateNotGranted: Not granted
 language:
   title: 언어
-  description: >
-    AIRI 인터페이스의 언어를 바꿉니다. 다만 캐릭터의 응답 언어는 변경되지 않습니다.
+  description: UI language
 controls-island:
   icon-size:
     title: 아일랜드 아이콘 크기 조정

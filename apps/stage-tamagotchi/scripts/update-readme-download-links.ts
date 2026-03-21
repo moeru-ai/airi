@@ -45,8 +45,8 @@ async function main() {
     return content
       .replace(GITHUB_WINDOWS_RE, `https://github.com/moeru-ai/airi/releases/download/v${cleanVersion}/${windowsExe}`)
       .replace(GITHUB_MACOS_RE, `https://github.com/moeru-ai/airi/releases/download/v${cleanVersion}/${macosDmg}`)
-      .replace(OSS_WINDOWS_RE, `https://static-cn-proj-airi.oss-cn-shanghai.aliyuncs.com/artifacts/apps/desktop/versions/v${cleanVersion}/${windowsExe}`)
-      .replace(OSS_MACOS_RE, `https://static-cn-proj-airi.oss-cn-shanghai.aliyuncs.com/artifacts/apps/desktop/versions/v${cleanVersion}/${macosDmg}`)
+      .replace(OSS_WINDOWS_RE, `https://github.com/moeru-ai/airi/releases/download/v${cleanVersion}/${windowsExe}`)
+      .replace(OSS_MACOS_RE, `https://github.com/moeru-ai/airi/releases/download/v${cleanVersion}/${macosDmg}`)
   }
 
   const readmeFiles: string[] = [
