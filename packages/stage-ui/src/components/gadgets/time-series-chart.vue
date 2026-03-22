@@ -166,7 +166,7 @@ function downsampleSeries(values: readonly number[], maxPoints: number) {
   }
 
   // Ensure the last value remains the most recent value (avoid averaging it away)
-  result[result.length - 1] = values[values.length - 1]
+  result[result.length - 1] = values.at(-1)
   return result
 }
 

@@ -77,7 +77,7 @@ function removeKeyValue(index: number, headers: { key: string, value: string }[]
 }
 
 watch(headers, (headers) => {
-  if (headers.length > 0 && (headers[headers.length - 1].key !== '' || headers[headers.length - 1].value !== '')) {
+  if (headers.length > 0 && (headers.at(-1).key !== '' || headers.at(-1).value !== '')) {
     headers.push({ key: '', value: '' })
   }
   if (!providers.value[providerId])
