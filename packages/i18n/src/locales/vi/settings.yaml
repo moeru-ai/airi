@@ -217,6 +217,10 @@ pages:
         title: Xóa tất cả dữ liệu
         description: Xóa sạch toàn bộ thiết lập cục bộ, cấu hình nhà cung cấp và mô hình.
         delete: Xóa sạch dữ liệu
+      desktop-folder:
+        title: Open app data folder
+        description: Open AIRI's data folder in your file manager.
+        open: Open folder
       desktop:
         title: Đặt lại thiết lập máy tính
         description: Xóa các cài đặt và trạng thái thực thi của AIRI trên máy tính.
