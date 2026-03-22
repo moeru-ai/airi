@@ -217,6 +217,10 @@ pages:
         title: Delete all data
         description: Wipe every local setting, provider config, and model.
         delete: Delete all data
+      desktop-folder:
+        title: Open app data folder
+        description: Open AIRI's data folder in your file manager.
+        open: Open folder
       desktop:
         title: Reset desktop settings & states
         description: Clear AIRI desktop settings and runtime state.
