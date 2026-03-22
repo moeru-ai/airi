@@ -188,6 +188,24 @@ pages:
   memory:
     description: 기억이 저장되고 정리된 곳
     title: 메모리
+  chat:
+    title: 채팅
+    description: 채팅 동작, 입력 및 스트리밍 설정
+    enter-to-send:
+      title: 메시지 전송 단축키
+      description: 메시지를 보내는 키보드 단축키를 선택합니다.
+    stream-idle-timeout:
+      title: 스트림 유휴 시간 초과
+      description: 지정된 시간 내에 데이터를 수신하지 못하면 요청을 중단합니다. 공급자가 응답하지 않을 때 무한 로딩을 방지합니다.
+      options:
+        '30000': 30초
+        '60000': 1분
+        '120000': 2분
+        '300000': 5분
+        '-1': 제한 없음
+    max-tool-steps:
+      title: 턴당 최대 도구 호출 횟수
+      description: AI가 한 번의 채팅 턴에서 연속으로 호출할 수 있는 도구(MCP 등)의 최대 횟수.
   data:
     title: 데이터
     description: 저장된 AIRI 데이터, 내보낸 항목, 초기화된 항목 관리

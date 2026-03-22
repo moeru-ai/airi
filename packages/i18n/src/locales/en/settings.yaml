@@ -195,6 +195,24 @@ pages:
   memory:
     description: Where memories got stored, and organized
     title: Memory
+  chat:
+    title: Chat
+    description: Chat behavior, input, and streaming settings
+    enter-to-send:
+      title: Send message shortcut
+      description: Choose the keyboard shortcut to send a message.
+    stream-idle-timeout:
+      title: Stream idle timeout
+      description: Abort the request if no data is received within this duration. Prevents the reply box from loading forever when a provider is unresponsive.
+      options:
+        '30000': 30 seconds
+        '60000': 1 minute
+        '120000': 2 minutes
+        '300000': 5 minutes
+        '-1': No limit
+    max-tool-steps:
+      title: Max tool steps per turn
+      description: Maximum number of sequential tool calls (MCP, etc.) the AI can make in a single chat turn.
   data:
     title: Data
     description: Manage stored AIRI data, exports, and resets

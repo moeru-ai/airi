@@ -8,6 +8,7 @@ import { useSettingsTheme } from './theme'
 
 // Export sub-stores
 export * from './audio-device'
+export * from './chat'
 export * from './controls-island'
 export * from './general'
 export * from './live2d'
