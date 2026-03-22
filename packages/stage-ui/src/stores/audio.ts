@@ -2,6 +2,32 @@ import { useDevicesList, useUserMedia } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, nextTick, ref, shallowRef, watch } from 'vue'
 
+// Detect iOS device
+function isIOS(): boolean {
+  return typeof navigator !== 'undefined'
+    && /iPad|iPhone|iPod/.test(navigator.userAgent)
+    && !(window as unknown as { MSStream?: unknown }).MSStream
+}
+
+// Configure iOS Audio Session to bypass Silent mode
+async function configureIOSAudioSession(audioContext: AudioContext): Promise<void> {
+  // On iOS 15+, we can configure the audio session
+  const audioSession = (audioContext as unknown as { audioSession?: { configure: (options: { category: string; mode?: string; options?: string[] }) => Promise<void> } }).audioSession
+  if (audioSession) {
+    try {
+      // Use playback category to bypass Silent mode
+      await audioSession.configure({
+        category: 'playback',
+        mode: 'default',
+        options: ['allowAirPlay', 'allowBluetooth', 'allowBluetoothA2DP'],
+      })
+    }
+    catch (error) {
+      console.warn('Failed to configure iOS audio session:', error)
+    }
+  }
+}
+
 function calculateVolumeWithLinearNormalize(analyser: AnalyserNode) {
   const dataBuffer = new Uint8Array(analyser.frequencyBinCount)
   analyser.getByteFrequencyData(dataBuffer)
@@ -65,8 +91,20 @@ function calculateVolume(analyser: AnalyserNode, mode: 'linear' | 'minmax' = 'li
   }
 }
 
+// Create AudioContext with iOS Silent mode fix
+function createAudioContext(): AudioContext {
+  const ctx = new AudioContext()
+
+  // On iOS, configure the audio session to bypass Silent mode
+  if (isIOS()) {
+    configureIOSAudioSession(ctx).catch(console.error)
+  }
+
+  return ctx
+}
+
 export const useAudioContext = defineStore('audio-context', () => {
-  const audioContext = shallowRef<AudioContext>(new AudioContext())
+  const audioContext = shallowRef<AudioContext>(createAudioContext())
 
   return {
     audioContext,
