@@ -2240,3 +2240,34 @@ export const useProvidersStore = defineStore('providers', () => {
     persistedTranscriptionProvidersMetadata,
   }
 })
+
+// Export/Import provider configurations
+export function exportProviderConfigs(): string {
+  const config: Record<string, Record<string, unknown>> = {}
+  const store = useProvidersStore()
+  
+  // Export all provider configs
+  const providerIds = store.configuredChatProviders.map(p => p.id)
+  providerIds.forEach(id => {
+    config[id] = store.getProviderConfig(id) || {}
+  })
+  
+  return JSON.stringify(config, null, 2)
+}
+
+export function importProviderConfigs(jsonString: string): boolean {
+  try {
+    const config = JSON.parse(jsonString) as Record<string, Record<string, unknown>>
+    const store = useProvidersStore()
+    
+    Object.entries(config).forEach(([providerId, providerConfig]) => {
+      store.setProviderConfig(providerId, providerConfig)
+    })
+    
+    return true
+  }
+  catch (error) {
+    console.error('Failed to import provider configs:', error)
+    return false
+  }
+}
