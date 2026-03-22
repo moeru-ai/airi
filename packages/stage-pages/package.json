@@ -15,7 +15,8 @@
     "directory": "packages/stage-pages"
   },
   "exports": {
-    "./*": "./src/*"
+    "./*.vue": "./src/*.vue",
+    "./*": "./src/*.ts"
   },
   "scripts": {
     "typecheck": "vue-tsc --noEmit"
