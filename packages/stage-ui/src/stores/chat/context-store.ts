@@ -43,6 +43,16 @@ export const useChatContextStore = defineStore('chat-context', () => {
     contextHistory.value = []
   }
 
+  function clearContextsBySource(sourceKey: string) {
+    if (!sourceKey || !activeContexts.value[sourceKey]) {
+      return
+    }
+
+    const next = { ...activeContexts.value }
+    delete next[sourceKey]
+    activeContexts.value = next
+  }
+
   function getContextsSnapshot() {
     return toRaw(activeContexts.value)
   }
@@ -50,6 +60,7 @@ export const useChatContextStore = defineStore('chat-context', () => {
   return {
     ingestContextMessage,
     resetContexts,
+    clearContextsBySource,
     getContextsSnapshot,
     activeContexts,
     contextHistory,

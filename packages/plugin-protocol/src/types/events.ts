@@ -991,6 +991,205 @@ interface TransportConnectionHeartbeatEvent {
   at?: number
 }
 
+export type MemoryKind
+  = | 'working'
+    | 'episodic'
+    | 'semantic'
+    | 'preference'
+    | 'relationship'
+    | 'goal'
+    | 'task'
+    | 'fact'
+    | 'reflection'
+
+export interface MemoryScope {
+  userId?: string
+  characterId?: string
+  chatId?: string
+  sessionId?: string
+  module?: string
+  namespace?: string
+}
+
+export interface MemorySourceDescriptor {
+  kind: 'chat-turn' | 'manual' | 'reflection' | 'system' | 'import' | 'external'
+  module?: string
+  actor?: 'user' | 'assistant' | 'system' | 'module'
+  messageId?: string
+  externalId?: string
+}
+
+export interface MemoryRecord {
+  id: string
+  scope: MemoryScope
+  kind: MemoryKind
+  content: string
+  summary?: string
+  tags: string[]
+  importance: number
+  confidence: number
+  emotionalIntensity: number
+  source: MemorySourceDescriptor
+  metadata?: Record<string, unknown>
+  embeddingModel?: string
+  embedding?: number[]
+  createdAt: number
+  updatedAt: number
+  lastAccessedAt: number
+  accessCount: number
+  archived?: boolean
+}
+
+export interface MemoryUpsertInput {
+  id?: string
+  scope: MemoryScope
+  kind: MemoryKind
+  content: string
+  summary?: string
+  tags?: string[]
+  importance?: number
+  confidence?: number
+  emotionalIntensity?: number
+  source?: Partial<MemorySourceDescriptor> & Pick<MemorySourceDescriptor, 'kind'>
+  metadata?: Record<string, unknown>
+  archived?: boolean
+}
+
+export interface MemorySearchFilters {
+  scope?: Partial<MemoryScope>
+  kinds?: MemoryKind[]
+  tags?: string[]
+  archived?: boolean
+  minImportance?: number
+  sourceKinds?: MemorySourceDescriptor['kind'][]
+}
+
+export interface MemorySearchRequestContextOptions {
+  strategy?: ContextUpdateStrategy
+  lane?: string
+  title?: string
+  destinations?: string[]
+  minScore?: number
+  topK?: number
+}
+
+export interface MemorySearchRequestEvent {
+  requestId: string
+  query: string
+  filters?: MemorySearchFilters
+  strategy?: 'semantic' | 'lexical' | 'hybrid'
+  limit?: number
+  offset?: number
+  minScore?: number
+  includeEmbedding?: boolean
+  emitContext?: MemorySearchRequestContextOptions
+}
+
+export interface MemoryScoreBreakdown {
+  kind: 'semantic' | 'lexical' | 'importance' | 'recency' | 'tag' | 'scope'
+  value: number
+}
+
+export interface MemorySearchResult {
+  item: MemoryRecord
+  score: number
+  reasons: MemoryScoreBreakdown[]
+}
+
+export interface MemorySearchResponseEvent {
+  requestId: string
+  query: string
+  results: MemorySearchResult[]
+  total: number
+  tookMs: number
+}
+
+export interface MemoryUpsertEvent {
+  requestId?: string
+  items: MemoryUpsertInput[]
+}
+
+export interface MemoryUpsertResultEvent {
+  requestId?: string
+  created: MemoryRecord[]
+  updated: MemoryRecord[]
+  merged: MemoryRecord[]
+}
+
+export interface MemoryDeleteEvent {
+  requestId?: string
+  ids?: string[]
+  filters?: MemorySearchFilters
+  hardDelete?: boolean
+}
+
+export interface MemoryDeleteResultEvent {
+  requestId?: string
+  deleted: number
+  archived: number
+  ids: string[]
+}
+
+export interface MemoryIngestChatTurnEvent {
+  requestId?: string
+  scope: MemoryScope
+  userMessage?: string
+  assistantMessage?: string
+  explicit?: boolean
+  tags?: string[]
+  metadata?: Record<string, unknown>
+}
+
+export interface MemoryIngestChatTurnResultEvent {
+  requestId?: string
+  created: MemoryRecord[]
+  updated: MemoryRecord[]
+  merged: MemoryRecord[]
+}
+
+export interface MemoryStatsRequestEvent {
+  requestId: string
+  filters?: MemorySearchFilters
+}
+
+export interface MemoryStatsSnapshot {
+  total: number
+  archived: number
+  byKind: Partial<Record<MemoryKind, number>>
+  scopes: {
+    users: number
+    characters: number
+    chats: number
+    sessions: number
+    modules: number
+    namespaces: number
+  }
+}
+
+export interface MemoryStatsResponseEvent {
+  requestId: string
+  stats: MemoryStatsSnapshot
+}
+
+export interface MemoryConsolidateRequestEvent {
+  requestId: string
+  filters?: MemorySearchFilters
+  dryRun?: boolean
+  archiveEpisodic?: boolean
+  maxSourceItems?: number
+}
+
+export interface MemoryConsolidateResultEvent {
+  requestId: string
+  analyzed: number
+  touchedScopes: number
+  created: MemoryRecord[]
+  updated: MemoryRecord[]
+  merged: MemoryRecord[]
+  archivedIds: string[]
+  summaries: string[]
+}
+
 type ContextUpdateEvent = ContextUpdate
 
 export const moduleAuthenticate = defineEventa<ModuleAuthenticateEvent>('module:authenticate')
@@ -1067,6 +1266,18 @@ export const sparkCommand = defineEventa<SparkCommandEvent>('spark:command')
 
 export const transportConnectionHeartbeat = defineEventa<TransportConnectionHeartbeatEvent>('transport:connection:heartbeat')
 export const contextUpdate = defineEventa<ContextUpdateEvent>('context:update')
+export const memoryUpsert = defineEventa<MemoryUpsertEvent>('memory:upsert')
+export const memoryUpsertResult = defineEventa<MemoryUpsertResultEvent>('memory:upsert:result')
+export const memorySearchRequest = defineEventa<MemorySearchRequestEvent>('memory:search:request')
+export const memorySearchResponse = defineEventa<MemorySearchResponseEvent>('memory:search:response')
+export const memoryDelete = defineEventa<MemoryDeleteEvent>('memory:delete')
+export const memoryDeleteResult = defineEventa<MemoryDeleteResultEvent>('memory:delete:result')
+export const memoryIngestChatTurn = defineEventa<MemoryIngestChatTurnEvent>('memory:ingest:chat-turn')
+export const memoryIngestChatTurnResult = defineEventa<MemoryIngestChatTurnResultEvent>('memory:ingest:chat-turn:result')
+export const memoryStatsRequest = defineEventa<MemoryStatsRequestEvent>('memory:stats:request')
+export const memoryStatsResponse = defineEventa<MemoryStatsResponseEvent>('memory:stats:response')
+export const memoryConsolidateRequest = defineEventa<MemoryConsolidateRequestEvent>('memory:consolidate:request')
+export const memoryConsolidateResult = defineEventa<MemoryConsolidateResultEvent>('memory:consolidate:result')
 
 // Thanks to:
 //
@@ -1264,6 +1475,18 @@ export interface ProtocolEvents<C = undefined> {
   'transport:connection:heartbeat': TransportConnectionHeartbeatEvent
 
   'context:update': ContextUpdateEvent
+  'memory:upsert': MemoryUpsertEvent
+  'memory:upsert:result': MemoryUpsertResultEvent
+  'memory:search:request': MemorySearchRequestEvent
+  'memory:search:response': MemorySearchResponseEvent
+  'memory:delete': MemoryDeleteEvent
+  'memory:delete:result': MemoryDeleteResultEvent
+  'memory:ingest:chat-turn': MemoryIngestChatTurnEvent
+  'memory:ingest:chat-turn:result': MemoryIngestChatTurnResultEvent
+  'memory:stats:request': MemoryStatsRequestEvent
+  'memory:stats:response': MemoryStatsResponseEvent
+  'memory:consolidate:request': MemoryConsolidateRequestEvent
+  'memory:consolidate:result': MemoryConsolidateResultEvent
 }
 
 export type ProtocolEventOf<E, C = undefined> = E extends keyof ProtocolEvents<C>
