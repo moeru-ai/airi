@@ -1,4 +1,4 @@
-import { type MaybeRefOrGetter } from 'vue'
+import type { MaybeRefOrGetter } from 'vue'
 
 import { until } from '@vueuse/core'
 import { shallowRef, toRef } from 'vue'
@@ -13,7 +13,7 @@ function isIOS(): boolean {
 // Configure iOS Audio Session to bypass Silent mode
 async function configureIOSAudioSession(audioContext: AudioContext): Promise<void> {
   // On iOS 15+, we can configure the audio session
-  const audioSession = (audioContext as unknown as { audioSession?: { configure: (options: { category: string; mode?: string; options?: string[] }) => Promise<void> } }).audioSession
+  const audioSession = (audioContext as unknown as { audioSession?: { configure: (options: { category: string, mode?: string, options?: string[] }) => Promise<void> } }).audioSession
   if (audioSession) {
     try {
       // Use playback category to bypass Silent mode
