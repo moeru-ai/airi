@@ -91,6 +91,7 @@ catalog:
   nano-staged: ^0.9.0
   nanoid: 5.1.6
   ofetch: ^1.5.1
+  oxc-minify: ^0.121.0
   pinia: ^3.0.4
   posthog-js: 1.306.1
   splitpanes: ^4.0.4
