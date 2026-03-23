@@ -84,49 +84,83 @@ function stepBack() {
 </script>
 
 <template>
-  <div flex="~ col items-center justify-start gap-1" bg="primary/5" min-h-80 w-full rounded-lg p-2>
-    <div flex="~ row items-stretch gap-2 grow" bg="primary/5" w-full rounded-lg p-2>
-      <div flex="~ col items-center justify-start gap-1" py-2>
+  <div
+    :class="[
+      'flex flex-col items-center justify-start gap-1',
+      'min-h-80 w-full rounded-lg bg-primary/5 p-2',
+    ]"
+  >
+    <div
+      :class="[
+        'flex grow flex-row items-stretch gap-2',
+        'w-full rounded-lg bg-primary/5 p-2',
+      ]"
+    >
+      <div
+        :class="[
+          'flex flex-col items-center justify-start gap-1',
+          'py-2',
+        ]"
+      >
         <div
-          flex="~ row items-center"
-          rounded-lg p="2"
-          bg="hover:primary/10"
-          transition="~ all duration-150 ease-out"
-          cursor="pointer"
+          :class="[
+            'transition-all duration-150 ease-out',
+            'flex flex-row items-center',
+            'cursor-pointer rounded-lg p-2 hover:bg-primary/10',
+          ]"
           @click="isPlaying = !isPlaying"
         >
-          <div v-if="!isPlaying" i-lucide:play cursor="pointer" />
-          <div v-else i-lucide:pause cursor="pointer" />
+          <div
+            v-if="!isPlaying"
+            :class="[
+              'i-lucide:play cursor-pointer',
+            ]"
+          />
+          <div
+            v-else
+            :class="[
+              'i-lucide:pause cursor-pointer',
+            ]"
+          />
         </div>
 
         <div
-          flex="~ row items-center"
-          rounded-lg p="2"
-          bg="hover:primary/10"
-          transition="~ all duration-150 ease-out"
-          cursor="pointer"
+          :class="[
+            'flex flex-row items-center',
+            'cursor-pointer rounded-lg p-2 hover:bg-primary/10',
+            'transition-all duration-150 ease-out',
+          ]"
           @click="stepForward"
         >
-          <div i-lucide:step-forward />
+          <div
+            :class="[
+              'i-lucide:step-forward',
+            ]"
+          />
         </div>
 
         <div
-          flex="~ row items-center"
-          rounded-lg p="2"
-          bg="hover:primary/10"
-          transition="~ all duration-150 ease-out"
-          cursor="pointer"
+          :class="[
+            'flex flex-row items-center',
+            'cursor-pointer rounded-lg p-2 hover:bg-primary/10',
+            'transition-all duration-150 ease-out',
+          ]"
           @click="stepBack"
         >
-          <div i-lucide:step-back />
+          <div
+            :class="[
+              'i-lucide:step-back',
+            ]"
+          />
         </div>
       </div>
 
       <div
-        flex="~ row items-start gap-1 grow"
-        transition="~ all duration-150 ease-out"
-        overflow="x-scroll"
-        bg="primary/5" w-full rounded-lg p-2
+        :class="[
+          'flex grow flex-row items-start gap-1',
+          'w-full overflow-x-scroll rounded-lg bg-primary/5 p-2',
+          'transition-all duration-150 ease-out',
+        ]"
       >
         <TransitionGroup
           :css="false"
@@ -144,32 +178,43 @@ function stepBack() {
       </div>
     </div>
 
-    <div flex="~ row items-center justify-center gap-1 wrap" py-2 text-xs>
-      <div font-semibold w="full md:auto" text="center md:unset">
+    <div
+      :class="[
+        'flex flex-row flex-wrap items-center justify-center gap-1',
+        'py-2 text-xs',
+      ]"
+    >
+      <div
+        :class="[
+          'w-full text-center font-semibold md:w-auto md:text-unset',
+        ]"
+      >
         {{ lang === 'zh-Hans' ? '图例' : 'Legend' }}
       </div>
       <div
-        b="~ 2 dotted primary/20"
-        rounded-lg px-2
-        flex="~ items-center justify-center shrink-0"
-        transition="~ all duration-150 ease-out"
+        :class="[
+          'flex shrink-0 items-center justify-center',
+          'rounded-lg border-2 border-dotted border-primary/20 px-2',
+          'transition-all duration-150 ease-out',
+        ]"
       >
         {{ lang === 'zh-Hans' ? '字符' : 'Character' }}
       </div>
       <div
-        b="~ 2 dashed primary/20"
-        rounded-lg px-2
-        flex="~ items-center justify-center shrink-0"
-        transition="~ all duration-150 ease-out"
+        :class="[
+          'flex shrink-0 items-center justify-center',
+          'rounded-lg border-2 border-dashed border-primary/20 px-2',
+          'transition-all duration-150 ease-out',
+        ]"
       >
         {{ lang === 'zh-Hans' ? '不完整字素簇' : 'Incomplete cluster' }}
       </div>
       <div
-        b="~ 2 solid primary/50"
-        bg="primary/10"
-        rounded-lg px-2
-        flex="~ items-center justify-center shrink-0"
-        transition="~ all duration-150 ease-out"
+        :class="[
+          'flex shrink-0 items-center justify-center',
+          'rounded-lg border-2 border-solid border-primary/50 bg-primary/10 px-2',
+          'transition-all duration-150 ease-out',
+        ]"
       >
         {{ lang === 'zh-Hans' ? '完整字素簇' : 'Complete cluster' }}
       </div>
