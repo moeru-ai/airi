@@ -275,7 +275,7 @@ overrides:
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 
-packageExtensionsChecksum: sha256-IN+tid6KSQ4g0xsKE9LfWOFHY7VffRXA5pNaiV4aMFg=
+packageExtensionsChecksum: sha256-lLxz4me6BFXSsuohDen54RU9DmiItse34Xa+IWGtSzU=
 
 patchedDependencies:
   '@mediapipe/tasks-vision':
@@ -1914,7 +1914,7 @@ importers:
         version: 4.0.1(@nuxt/kit@3.20.2(magicast@0.5.2))(esbuild@0.27.2)(rolldown@1.0.0-rc.9)(rollup@4.60.0)(vite@8.0.1(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.3))
       vitepress:
         specifier: ^2.0.0-alpha.17
-        version: 2.0.0-alpha.17(@types/node@24.12.0)(change-case@5.4.4)(fuse.js@7.1.0)(idb-keyval@6.2.2)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(nprogress@0.2.0)(postcss@8.5.8)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
+        version: 2.0.0-alpha.17(change-case@5.4.4)(fuse.js@7.1.0)(idb-keyval@6.2.2)(nprogress@0.2.0)(postcss@8.5.8)(vite@8.0.1(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.30(typescript@5.9.3))
       vue-tsc:
         specifier: ^3.2.6
         version: 3.2.6(typescript@5.9.3)
@@ -16598,6 +16598,8 @@ packages:
       markdown-it-mathjax3: ^4
       oxc-minify: '*'
       postcss: ^8
+      vite: '*'
+      vue: '*'
     peerDependenciesMeta:
       markdown-it-mathjax3:
         optional: true
@@ -22869,12 +22871,6 @@ snapshots:
     dependencies:
       '@rolldown/pluginutils': 1.0.0-rc.2
       vite: 6.4.1(@types/node@24.12.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.3)
-      vue: 3.5.30(typescript@5.9.3)
-
-  '@vitejs/plugin-vue@6.0.5(vite@7.3.1(@types/node@24.12.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.30(typescript@5.9.3))':
-    dependencies:
-      '@rolldown/pluginutils': 1.0.0-rc.2
-      vite: 7.3.1(@types/node@24.12.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.3)
       vue: 3.5.30(typescript@5.9.3)
 
   '@vitejs/plugin-vue@6.0.5(vite@8.0.1(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.30(typescript@5.9.3))':
@@ -31713,7 +31709,7 @@ snapshots:
       tsx: 4.21.0
       yaml: 2.8.3
 
-  vitepress@2.0.0-alpha.17(@types/node@24.12.0)(change-case@5.4.4)(fuse.js@7.1.0)(idb-keyval@6.2.2)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(nprogress@0.2.0)(postcss@8.5.8)(terser@5.46.0)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3):
+  vitepress@2.0.0-alpha.17(change-case@5.4.4)(fuse.js@7.1.0)(idb-keyval@6.2.2)(nprogress@0.2.0)(postcss@8.5.8)(vite@8.0.1(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.30(typescript@5.9.3)):
     dependencies:
       '@docsearch/css': 4.6.0
       '@docsearch/js': 4.6.0
@@ -31723,7 +31719,7 @@ snapshots:
       '@shikijs/transformers': 3.23.0
       '@shikijs/types': 3.23.0
       '@types/markdown-it': 14.1.2
-      '@vitejs/plugin-vue': 6.0.5(vite@7.3.1(@types/node@24.12.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.30(typescript@5.9.3))
+      '@vitejs/plugin-vue': 6.0.5(vite@8.0.1(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.30(typescript@5.9.3))
       '@vue/devtools-api': 8.1.0
       '@vue/shared': 3.5.30
       '@vueuse/core': 14.2.1(vue@3.5.30(typescript@5.9.3))
@@ -31732,34 +31728,22 @@ snapshots:
       mark.js: 8.11.1
       minisearch: 7.2.0
       shiki: 3.23.0
-      vite: 7.3.1(@types/node@24.12.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.3)
+      vite: 8.0.1(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.3)
       vue: 3.5.30(typescript@5.9.3)
     optionalDependencies:
       postcss: 8.5.8
     transitivePeerDependencies:
-      - '@types/node'
       - async-validator
       - axios
       - change-case
       - drauu
       - fuse.js
       - idb-keyval
-      - jiti
       - jwt-decode
-      - less
-      - lightningcss
       - nprogress
       - qrcode
-      - sass
-      - sass-embedded
       - sortablejs
-      - stylus
-      - sugarss
-      - terser
-      - tsx
-      - typescript
       - universal-cookie
-      - yaml
 
   vitest@4.1.0(@opentelemetry/api@1.9.0)(@types/node@24.12.0)(@vitest/browser-playwright@4.1.0)(jsdom@27.4.0(bufferutil@4.1.0)(canvas@3.2.2)(utf-8-validate@5.0.10))(vite@8.0.1(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.3)):
     dependencies:
