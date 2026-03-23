@@ -642,13 +642,13 @@ class ConversationPanel {
 
   handleUpdate(data) {
     if (data.sessionBoundary) {
-      const cur = this.sessions[this.sessions.length - 1]
+      const cur = this.sessions.at(-1)
       if (cur)
         cur.greyed = true
       this.sessions.push(this._mkSession())
     }
     else {
-      const cur = this.sessions[this.sessions.length - 1]
+      const cur = this.sessions.at(-1)
       if (cur) {
         cur.messages = data.messages || []
         cur.activeContext = data.activeContext || null

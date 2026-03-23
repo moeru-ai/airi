@@ -217,6 +217,10 @@ pages:
         title: すべてのデータを削除
         description: すべてのローカルの設定、プロバイダーの設定、モデルを消去します。
         delete: すべてのデータを削除
+      desktop-folder:
+        title: Open app data folder
+        description: Open AIRI's data folder in your file manager.
+        open: Open folder
       desktop:
         title: デスクトップの設定と状態をリセット
         description: AIRIデスクトップの設定と実行時の状態を消去します。

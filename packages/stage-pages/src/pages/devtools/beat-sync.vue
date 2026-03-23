@@ -165,7 +165,7 @@ function drawXY() {
   })
   ctx.stroke()
 
-  const head = trail.value[trail.value.length - 1]
+  const head = trail.value.at(-1)
   if (head) {
     ctx.beginPath()
     ctx.arc(centerX + head.x * scale.value, centerY - head.y * scale.value, 5, 0, Math.PI * 2)

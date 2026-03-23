@@ -49,7 +49,7 @@ dialogs:
       stateNotGranted: Non accordée
 language:
   title: Langage
-  description: UI language
+  description: Langue de l'interface utilisateur
 controls-island:
   icon-size:
     title: Taille des icônes de l'îlot de contrôle
@@ -217,6 +217,10 @@ pages:
         title: Supprimer toutes les données
         description: Effacer tous les réglages, configurations de fournisseurs et modèles locaux.
         delete: Supprimer toutes les données
+      desktop-folder:
+        title: Ouvrir le dossier de données de l'application
+        description: Ouvrir le dossier de données d'AIRI dans votre gestionnaire de fichiers.
+        open: Ouvrir le dossier
       desktop:
         title: Réinitialiser les paramètres et états du bureau
         description: Effacer les paramètres du bureau AIRI et l'état d'exécution.

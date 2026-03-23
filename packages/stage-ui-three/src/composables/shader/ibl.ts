@@ -122,7 +122,7 @@ export function injectDiffuseIBL(mat: THREE.ShaderMaterial) {
     }
 
     // uniforms
-    const emptySH = Array.from({ length: 9 }, () => new THREE.Vector3())
+    const emptySH = Array.from({ length: 9 }).fill(new THREE.Vector3())
     shader.uniforms.uNprEnvMode ||= { value: 0 }
     shader.uniforms.uEnvIntensity ||= { value: 0.0 }
     shader.uniforms.uSHCoeffs ||= { value: emptySH };

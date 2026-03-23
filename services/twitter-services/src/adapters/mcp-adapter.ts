@@ -474,7 +474,7 @@ export class MCPAdapter {
 
         // Simple handling - send to most recent transport
         // Note: In production, should use session ID to route to correct transport
-        const transport = this.activeTransports[this.activeTransports.length - 1]
+        const transport = this.activeTransports.at(-1)
 
         // Manually handle POST message, as H3 is not Express-compatible
         const response = await transport.handleMessage(body)
