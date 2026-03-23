@@ -119,7 +119,7 @@ catalogs:
   xsai:
     unspeech: ^0.1.11
 
-enableGlobalVirtualStore: true
+# enableGlobalVirtualStore: true
 
 ignoredBuiltDependencies:
   - '@prisma/client'
