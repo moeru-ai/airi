@@ -28,5 +28,5 @@ export function randomSaccadeInterval(): number {
       return EYE_SACCADE_INT_P[i][1] + Math.random() * EYE_SACCADE_INT_STEP
     }
   }
-  return EYE_SACCADE_INT_P.at(-1)[1] + Math.random() * EYE_SACCADE_INT_STEP
+  return EYE_SACCADE_INT_P.at(-1)![1] + Math.random() * EYE_SACCADE_INT_STEP
 }
