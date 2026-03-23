@@ -199,7 +199,7 @@ All measurements were taken on a Samsung A34 under equivalent conditions. A lowe
 ![Unity Android Renderer Live2D](./assets/Live2D-android-renderer.png)
 
 **Three.js — VRM (baseline):**
-![Original VRM Module from AIRI](./assets/VRM-AIRI.png)
+![Original VRM Module from AIRI](./assets/VRM-airi.png)
 
 **Unity WebGL — VRM:**
 ![Unity WebGL VRM](./assets/VRM-webgl.png)
