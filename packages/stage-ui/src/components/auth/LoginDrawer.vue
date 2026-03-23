@@ -7,7 +7,7 @@ import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot } 
 import { ref } from 'vue'
 import { toast } from 'vue-sonner'
 
-import { signIn } from '../../libs/auth'
+import { fetchSession, signIn } from '../../libs/auth'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -22,7 +22,10 @@ const loading = ref<Record<OAuthProvider, boolean>>({
 async function handleSignIn(provider: OAuthProvider) {
   loading.value[provider] = true
   try {
-    await signIn(provider)
+    await Promise.all([
+      () => signIn(provider),
+      fetchSession,
+    ])
   }
   catch (error) {
     toast.error(error instanceof Error ? error.message : 'An unknown error occurred')
