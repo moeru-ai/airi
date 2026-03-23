@@ -53,6 +53,9 @@ export function useModelSettingsRuntimeSnapshot() {
     }
 
     if (event.type === 'owner-gone') {
+      if (runtimeSnapshot.value.ownerInstanceId !== event.ownerInstanceId)
+        return
+
       runtimeSnapshot.value = createEmptyModelSettingsRuntimeSnapshot()
     }
   })
