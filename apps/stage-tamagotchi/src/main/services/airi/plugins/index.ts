@@ -1,3 +1,5 @@
+import type { Dirent } from 'node:fs'
+
 import type { ManifestV1 } from '@proj-airi/plugin-sdk/plugin-host'
 
 import type {
@@ -35,7 +37,7 @@ interface PluginHostService {
 }
 
 interface CapabilityAwarePluginHost extends PluginHost {
-  setProvidersListResolver: (resolver: () => Promise<Array<{ name: string }>> | Array<{ name: string }>) => void
+  setResourceResolver: <T>(key: string, resolver: () => Promise<T> | T) => void
   announceCapability: (key: string, metadata?: Record<string, unknown>) => {
     key: string
     state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
@@ -43,6 +45,18 @@ interface CapabilityAwarePluginHost extends PluginHost {
     updatedAt: number
   }
   markCapabilityReady: (key: string, metadata?: Record<string, unknown>) => {
+    key: string
+    state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
+    metadata?: Record<string, unknown>
+    updatedAt: number
+  }
+  markCapabilityDegraded: (key: string, metadata?: Record<string, unknown>) => {
+    key: string
+    state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
+    metadata?: Record<string, unknown>
+    updatedAt: number
+  }
+  withdrawCapability: (key: string, metadata?: Record<string, unknown>) => {
     key: string
     state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
     metadata?: Record<string, unknown>
@@ -71,6 +85,26 @@ function isManifestV1(value: unknown): value is ManifestV1 {
   return safeParse(manifestV1Schema, value).success
 }
 
+async function realPathOf(entry: Dirent<string>, options?: { cwd?: string }): Promise<{ resolved: false, path?: string, error?: unknown } | { resolved: true, path: string, error?: unknown }> {
+  if (!entry.isSymbolicLink()) {
+    return { resolved: false }
+  }
+
+  try {
+    const resolvedPath = await realpath(join(options?.cwd ?? '', entry.name))
+
+    const stats = await stat(resolvedPath)
+    if (stats.isFile() || stats.isDirectory()) {
+      return { resolved: true, path: resolvedPath }
+    }
+
+    return { resolved: false }
+  }
+  catch (error) {
+    return { resolved: false, error }
+  }
+}
+
 async function loadManifestsFrom(dir: string, log: ReturnType<typeof useLogg>): Promise<ManifestEntry[]> {
   await mkdir(dir, { recursive: true })
   const entries = await readdir(dir, { withFileTypes: true })
@@ -78,10 +112,35 @@ async function loadManifestsFrom(dir: string, log: ReturnType<typeof useLogg>): 
   const manifestPaths: string[] = []
 
   for (const entry of entries) {
-    if (!entry.isDirectory())
-      continue
+    if (!entry.isDirectory()) {
+      if (entry.isSymbolicLink()) {
+        const { resolved, error } = await realPathOf(entry, { cwd: dir })
+        if (error) {
+          log.withError(error).withFields({ name: entry.name }).warn('failed to resolve plugin manifest path, skipping')
+          continue
+        }
+        if (!resolved) {
+          log.withFields({ name: entry.name }).warn('found symlink that does not resolve to a file, skipping')
+          continue
+        }
+      }
+      else {
+        continue
+      }
+    }
 
-    const pluginDir = join(dir, entry.name)
+    let pluginDir = join(dir, entry.name)
+    if (entry.isSymbolicLink()) {
+      const { path, resolved } = await realPathOf(entry, { cwd: dir })
+      if (resolved) {
+        pluginDir = path
+      }
+      else {
+        log.withFields({ name: entry.name }).warn('found symlink that does not resolve to a file, skipping')
+        continue
+      }
+    }
+
     const pluginEntries = await readdir(pluginDir, { withFileTypes: true })
     for (const pluginEntry of pluginEntries) {
       if (pluginEntry.isSymbolicLink()) {
@@ -334,14 +393,26 @@ export async function setupPluginHost(): Promise<PluginHostService> {
 
   defineInvokeHandler(context, electronPluginUpdateCapability, async (payload) => {
     if (payload.key === pluginProtocolListProvidersEventName && payload.state === 'ready') {
-      capabilityHost.setProvidersListResolver(async () => await invokePluginProtocolListProviders())
+      capabilityHost.setResourceResolver(
+        pluginProtocolListProvidersEventName,
+        async () => await invokePluginProtocolListProviders(),
+      )
     }
 
-    if (payload.state === 'announced') {
-      return capabilityHost.announceCapability(payload.key, payload.metadata)
+    switch (payload.state) {
+      case 'announced':
+        return capabilityHost.announceCapability(payload.key, payload.metadata)
+      case 'ready':
+        return capabilityHost.markCapabilityReady(payload.key, payload.metadata)
+      case 'degraded':
+        return capabilityHost.markCapabilityDegraded(payload.key, payload.metadata)
+      case 'withdrawn':
+        return capabilityHost.withdrawCapability(payload.key, payload.metadata)
+      default: {
+        const unexpectedState: never = payload.state
+        throw new Error(`Unsupported capability state: ${unexpectedState}`)
+      }
     }
-
-    return capabilityHost.markCapabilityReady(payload.key, payload.metadata)
   })
 
   // Initialize enabled plugins during module setup so startup is bound to injeca lifecycle.

@@ -13,6 +13,7 @@ const helpText = [
   'Notes:',
   '  Arguments before `--` are forwarded to Vite.',
   '  Arguments after `--` are forwarded to `cap run`.',
+  '  After the dev server starts, press `R` to re-run `cap run`.',
 ].join('\n')
 
 export interface ParsedCapViteCliArgs {

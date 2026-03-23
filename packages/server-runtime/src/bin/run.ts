@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 
-import { env, exit } from 'node:process'
+import { env, exit, on } from 'node:process'
 
 import { createServer } from '../server'
 
@@ -18,7 +18,7 @@ async function shutdown() {
   exit(0)
 }
 
-process.on('SIGINT', shutdown)
-process.on('SIGTERM', shutdown)
+on('SIGINT', shutdown)
+on('SIGTERM', shutdown)
 
 server.start()

@@ -49,8 +49,7 @@ dialogs:
       stateNotGranted: Not granted
 language:
   title: Idioma
-  description: >
-    Cambia el idioma de la interfaz de AIRI. Esto no afectará el idioma de las respuestas del personaje.
+  description: UI language
 controls-island:
   icon-size:
     title: Tamaño de icono de la isla de controles
@@ -218,6 +217,10 @@ pages:
         title: Eliminar todos los datos
         description: Limpia cada configuración local, configuración del proveedor y del modelo.
         delete: Eliminar todos los datos
+      desktop-folder:
+        title: Open app data folder
+        description: Open AIRI's data folder in your file manager.
+        open: Open folder
       desktop:
         title: Restablecer ajustes de escritorio y estados
         description: Limpiar ajustes de escritorio y estado de ejecución de AIRI.
@@ -738,6 +741,9 @@ pages:
         description: n1n.ai - High-performance AI API provider.
         title: n1n
       openrouter:
+        description: openrouter.ai
+        title: OpenRouter
+      openrouter-audio-speech:
         description: openrouter.ai
         title: OpenRouter
       perplexity:

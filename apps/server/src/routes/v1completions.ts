@@ -132,7 +132,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
           let usage: UsageInfo = {}
           try {
             const lines = tailBuffer.split('\n').filter(l => l.startsWith('data: ') && !l.includes('[DONE]'))
-            const lastDataLine = lines[lines.length - 1]
+            const lastDataLine = lines.at(-1)
             if (lastDataLine) {
               const json = JSON.parse(lastDataLine.slice(6))
               usage = extractUsageFromBody(json)

@@ -25,30 +25,30 @@ pages:
       sections:
         section:
           use-window-mouse:
-            title: useWindowMouse Tool
-            description: Test the Electron window cursor position
+            title: Инструмент useWindowMouse
+            description: Тест положения курсора окна Electron
 devtools:
-  title: Developer
+  title: Разработчик
   pages:
     context-flow:
-      title: Context Flow
+      title: Контекст потока
     lag-visualizer:
-      title: Lag Visualizer
+      title: Лаг визуализатор
     performance-visualizer:
-      title: Performance Visualizer
-      description: Toggle FPS/long task/memory overlay
+      title: Производительность визуализации
+      description: Вкл/выкл FPS/долгую Задачу / оверлей памяти
     markdown-stress:
-      title: Markdown Stress
-      description: Stress markdown parsing and rendering with heavy chat payloads
+      title: Нагрузочное тестирование обработки Markdown
+      description: Напряжение парсинг и рендеринга с тяжелыми чатами
     widgets-calling:
-      title: Widget Calling
+      title: Вызов виджета
 screen-capture:
   permissions-prompt:
-    title: Screen Capture
-    description: To capture screens or windows, screen and system audio recording permissions are required.
-    open-preferences: Open System Preferences
-    dismiss: Dismiss
+    title: Захват экрана
+    description: Для захвата экранов или окон, требуется разрешение на запись с экрана и системы.
+    open-preferences: Открыть «Системные настройки»
+    dismiss: Отменить
     instructions:
-      step-1: Open "System Preferences", select "Privacy & Security" from the sidebar.
-      step-2: In the "Screen & System Audio Recording" and "System Audio Recording Only" sections, turn on the switches for AIRI.
-      step-2-note: If AIRI is not listed, please add it manually by clicking the "+" button and selecting AIRI from the Applications folder.
+      step-1: Откройте «Системные настройки», выберите «Конфиденциальность и безопасность» в боковой панели.
+      step-2: В разделах "Запись аудио и экрана в системе" и "Только для системной аудиозаписи" включите переключатель для AIRI.
+      step-2-note: Если AIRI отсутствует в списке, пожалуйста, добавьте его вручную, нажав кнопку "+" и выбрав AIRI из папки "Приложения".

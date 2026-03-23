@@ -12,7 +12,7 @@ interface Props {
   placement?: 'down' | 'up'
 }
 
-const props = withDefaults(defineProps<Props>(), { placement: 'down' })
+withDefaults(defineProps<Props>(), { placement: 'down' })
 
 const emit = defineEmits<{
   (e: 'create'): void

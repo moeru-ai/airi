@@ -54,8 +54,7 @@ dialogs:
       stateNotGranted: Not granted
 language:
   title: 语言
-  description: >
-    切换显示界面的语言
+  description: UI language
 controls-island:
   icon-size:
     title: 控制岛图标大小
@@ -223,6 +222,10 @@ pages:
         title: 删除所有数据
         description: 清除每个本地设置、提供商配置和模型。
         delete: 删除所有数据
+      desktop-folder:
+        title: Open app data folder
+        description: Open AIRI's data folder in your file manager.
+        open: Open folder
       desktop:
         title: 重置桌面设置和状态
         description: 清除 AIRI 桌面设置和运行状态。
@@ -390,7 +393,7 @@ pages:
               stop:
                 label: 停止
             select-voice:
-              loading: 正在加载模型...
+              loading: 正在加载模型……
               required: 请选择声线
           provider-voice-selection:
             custom_model_placeholder: 输入指定模型名称...
@@ -775,6 +778,9 @@ pages:
         title: n1n
       openrouter:
         description: OpenRouter.ai
+        title: OpenRouter
+      openrouter-audio-speech:
+        description: openrouter.ai
         title: OpenRouter
       perplexity:
         description: perplexity.ai

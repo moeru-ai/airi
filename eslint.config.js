@@ -27,6 +27,7 @@ export default defineConfig({
     'crates/**',
     '**/drizzle/**',
     '**/.astro/**',
+    '.agents/**',
     'CLAUDE.md', // Skip the symbolic link
   ],
 }, {
