@@ -17,6 +17,9 @@ export interface VisionInferenceInput {
   promptOverride?: string
 }
 
+// TODO: this should be configurable
+const VISION_INFERENCE_TIMEOUT_MS = 60_000
+
 function parseDataUrl(dataUrl: string) {
   if (!dataUrl.startsWith('data:'))
     return { mimeType: 'image/png', base64: dataUrl, url: dataUrl }
@@ -74,13 +77,32 @@ export function useVisionInference() {
     ]
 
     let buffer = ''
-    await llmStore.stream(activeModel.value, visionProvider, messages, {
-      onStreamEvent: (event) => {
-        if (event.type === 'text-delta') {
-          buffer += event.text
-        }
-      },
-    })
+    const abortController = new AbortController()
+    const timeoutHandle = setTimeout(() => {
+      abortController.abort(new Error(`Vision inference timed out after ${VISION_INFERENCE_TIMEOUT_MS}ms`))
+    }, VISION_INFERENCE_TIMEOUT_MS)
+
+    try {
+      await llmStore.stream(activeModel.value, visionProvider, messages, {
+        abortSignal: abortController.signal,
+        onStreamEvent: (event) => {
+          if (event.type === 'text-delta') {
+            buffer += event.text
+          }
+        },
+      })
+    }
+    catch (error) {
+      if (abortController.signal.aborted) {
+        throw abortController.signal.reason instanceof Error
+          ? abortController.signal.reason
+          : new Error(`Vision inference timed out after ${VISION_INFERENCE_TIMEOUT_MS}ms`)
+      }
+      throw error
+    }
+    finally {
+      clearTimeout(timeoutHandle)
+    }
 
     lastText.value = buffer.trim()
     return lastText.value
