@@ -8,7 +8,7 @@ excerpt: |
 
 Hi, this is [@PurCHES5](https://github.com/PurCHES5).
 
-I've recently joined AIRI's team and will be working on AIRI's mobile development. With limited knowledge with this project and open-source workflows in general, my first task is to review the possibilities for integrating game engines or other technical solutions to improve the mobile build performance.
+I've recently joined AIRI's team and will be working on AIRI's mobile development. With limited knowledge of this project and open-source workflows in general, my first task is to review the possibilities for integrating game engines or other technical solutions to improve the mobile build performance.
 
 The current issue with AIRI's mobile integration is primarily related to performance. The latest mobile version [`stage-pocket`](https://github.com/moeru-ai/airi/tree/e952fe779e64494e778e44956eb1caf3338c61a7/apps/stage-pocket), is essentially a direct copy of the main Vue.js application packaged using Capacitor.
 
@@ -63,7 +63,7 @@ GPU
 ### WebView Limitations
 
 - Memory allocation is significantly lower than native apps
-- Garbage collection behaviour is less predictable
+- Garbage collection behavior is less predictable
 - GPU memory pressure can terminate the process
 
 ### Device-Specific Constraints
@@ -161,7 +161,7 @@ Three prototype configurations were built using Unity 3D, with compression appli
 **Android Renderer — VRM:**
 ![Android Renderer VRM prototype](./assets/Screenshot-AIRI-VRM.png)
 
-The same Vue.js front-end is consistently applied to all prototyp builds to ensure consistency. For Unity WebGL export, the original contents in WebView are directly subsituted with Unity WebGL using [`unity-webgl`](https://github.com/Marinerer/unity-webgl). For Unity Android Renderer, the original view containing Three.js and VRM modules is removed entirely, and Unity renders as a background layer while the Vue.js UI is rendered over it.
+The same Vue.js front-end is consistently applied to all prototype builds to ensure consistency. For Unity WebGL export, the original contents in WebView are directly substituted with Unity WebGL using [`unity-webgl`](https://github.com/Marinerer/unity-webgl). For Unity Android Renderer, the original view containing Three.js and VRM modules is removed entirely, and Unity renders as a background layer while the Vue.js UI is rendered over it.
 
 ---
 
@@ -251,9 +251,9 @@ Investigate [Capacitor-Unity-Ar](https://github.com/keyvank/capacitor-unity-ars)
 
 Since iOS is the most restrictive environment regarding WebView memory, the next prototype must be validated on an iPhone to ensure the Unity Native layer bypasses the "Total Safari Memory" limit.
 
-### 3. Build Size Optimisation
+### 3. Build Size Optimization
 
-Explore Unity’s asset managing system, keeping the initial install size minimal.
+Explore Unity’s asset management system, keeping the initial install size minimal.
 
 ### 4. Community / Contributor Outreach
 
