@@ -18,46 +18,45 @@ dialogs:
     baseUrl: Базовый URL
     baseUrlHelp: URL конечной точки API (оставьте по умолчанию, если не уверены)
     accountId: ID аккаунта
-    validationSuccess: Configuration validation success
-    validationPartial: Configuration partially validated
+    validationSuccess: Успешная проверка конфигурации
+    validationPartial: Конфигурация частично проверена
     validationFailed: Проверка конфигурации не удалась
     validationError: 'Ошибка проверки: {error}'
-    testGeneration: Test Generation
-    testGenerationRunning: Testing...
-    testGenerationFailed: Generation test failed
+    testGeneration: Генерация тестов
+    testGenerationRunning: Тестирование...
+    testGenerationFailed: Сбой при генерации теста
     skipForNow: Пропустить на сейчас
     saveAndContinue: Сохранить и продолжить
     next: Далее
-    retry: Retry
+    retry: Повторить
     start: Поехали!
     select-model: Выберите модель
     no-models: Нет доступных моделей
     no-models-help: >-
       Вернитесь на предыдущий шаг и проверьте API-ключ или подключение к сети.
     permissions:
-      title: Notifications
-      description: You can allow notifications now or continue and set it up later.
-      notificationsTitle: Notifications
-      notificationsDescription: Allow reminders and important status updates.
-      notificationsAction: Request notification permission
-      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
-      openSettings: Open iOS Settings
-      optionalHint: You can continue even if notification permission is not granted.
-      stateUnknown: Not requested
-      stateRequesting: Requesting...
-      stateGranted: Granted
-      stateNotGranted: Not granted
+      title: Оповещения
+      description: Вы можете разрешить уведомления сейчас или продолжить и настроить их позже.
+      notificationsTitle: Оповещения
+      notificationsDescription: Разрешить напоминания и важные обновления статуса.
+      notificationsAction: Запросить разрешение на уведомление
+      notificationsNotGrantedHint: Если отказано, вы можете включить уведомления позже в настройках iOS.
+      openSettings: Открыть настройки iOS
+      optionalHint: Вы можете продолжить, даже если разрешение на уведомление не предоставлено.
+      stateUnknown: Не запрошены
+      stateRequesting: Запрашивается...
+      stateGranted: Предоставлено
+      stateNotGranted: Не предоставлено
 language:
-  title: Language
-  description: >
-    Change the language of the AIRI interface. This will not affect the language of the character's responses.
+  title: Язык
+  description: Язык пользовательского интерфейса
 controls-island:
   icon-size:
-    title: Controls Island Icon Size
-    description: Adjust the size of the controls island icons
-    auto: Auto (responsive)
-    large: Large (default)
-    small: Small
+    title: Размер значка Управления островом
+    description: Отрегулируйте размер значков управления островом
+    auto: Автоматически (отвечает)
+    large: Большой (по умолчанию)
+    small: Маленький
 live2d:
   change-model:
     from-file: Загрузить из файла
@@ -90,9 +89,9 @@ live2d:
       title: Отключить
   fps:
     title: ФПС
-    description: Limit rendering frame rate
+    description: Ограничить скорость рендеринга кадров
     options:
-      unlimited: No Limit
+      unlimited: Без ограничений
 microphone: Микрофон
 models: Модель
 pages:
@@ -100,13 +99,13 @@ pages:
     activate: Активировать
     active: Активно
     active_badge: Текущая
-    cancel: Cancel action
-    save: Save changes
+    cancel: Отменить действие
+    save: Сохранить изменения
     card_not_found: Карта не найдена
     character: Персонаж
     close: Закрыть
     chat:
-      provider: Chat / Provider
+      provider: Чат / провайдеры
     consciousness:
       model: Сознание / Модель
     created_by: создано
@@ -118,7 +117,7 @@ pages:
     description_label: Описание
     drop_here: Перетащите сюда для загрузки
     create_card: Создать новую карту
-    edit_card: Edit Card
+    edit_card: Редактировать карточку
     creation:
       identity: Личность
       name: Имя
@@ -136,9 +135,9 @@ pages:
         systemprompt: Вы будете получать сообщения, отвечайте на них как настоящий человек.
         posthistoryinstructions: Не забывайте подражать человеку.
       modules_info: >-
-        Configure modules for this character card. If not set, default module configuration will be used.
-      use_default: Use default
-      use_default_not_configured: Use default (not configured)
+        Настроить модули для этой карты символов. Если не установлено, будет использоваться конфигурация модулей по умолчанию.
+      use_default: Использовать по умолчанию
+      use_default_not_configured: Использовать по умолчанию (не настроено)
       fields_info:
         subtitle: >-
           Здесь можно указать детали о создаваемом персонаже, описать его историю, контекст и то, как он должен отвечать на взаимодействия.
@@ -155,8 +154,8 @@ pages:
         posthistoryinstructions: Укажите, что AI должен учитывать после истории сообщений.
         version: >-
           Версия карты. Увеличьте число, если изменяете предыдущую карту.
-        consciousness_model: Select the consciousness model (AI model) for this character.
-        speech_model: Select the speech synthesis model and voice for this character.
+        consciousness_model: Выберите сознательную модель (AI модель) для этого персонажа.
+        speech_model: Выберите модель синтеза речи и голос для этого персонажа.
       errors:
         name: Имя должно быть корректным и непустым.
         version: 'Ошибка: неверная версия!'
@@ -176,9 +175,9 @@ pages:
     scenario: Сценарий
     search: Искать карточки...
     sort_by: Сортировать по
-    body-model: Body / Display Model
+    body-model: Тело / Модель отображения
     speech:
-      provider: Speech / Provider
+      provider: Речь / Поставщик
       model: Речь / Модель
       voice: Речь / Голос
     systemprompt: Системный промпт
@@ -190,51 +189,55 @@ pages:
     description: Хранилище и организация воспоминаний
     title: Память
   data:
-    title: Data
-    description: Manage stored AIRI data, exports, and resets
+    title: Данные
+    description: Управление сохраненными данными AIRI, экспортом и сбросами
     sections:
       chats:
-        title: Chat sessions
+        title: Чат сеансов
         description: Export or import saved chat sessions.
-        export: Export chats
-        import: Import chats
-        delete: Delete all chat sessions
+        export: Экспорт чатов
+        import: Импорт чатов
+        delete: Удалить все сеансы чата
       models:
-        title: Models
-        description: Remove imported Live2D/VRM models.
-        delete: Delete all models
+        title: Модели
+        description: Удалить импортированные модели Live2D/VRM.
+        delete: Удалить все модели
       modules:
-        title: Modules
-        description: Reset module preferences and credentials.
-        reset: Reset module settings
+        title: Модули
+        description: Сбросить настройки модулей и учетные данные.
+        reset: Сбросить настройки модуля
       providers:
-        title: Providers
-        description: Reset all provider settings and credentials.
-        reset: Reset provider settings
+        title: Провайдеры
+        description: Сброс всех настроек провайдера и учетных данных.
+        reset: Сбросить настройки провайдеров
       danger:
-        title: Danger zone
-        description: Irreversible actions. Export what you need before continuing.
+        title: Опасная зона
+        description: Необратимые действия. Выберите, что вам нужно для продолжения.
       all:
-        title: Delete all data
-        description: Wipe every local setting, provider config, and model.
-        delete: Delete all data
+        title: Удалить все данные
+        description: Очистка всех локальных настроек, конфигурации провайдера и модели.
+        delete: Удалить все данные
+      desktop-folder:
+        title: Открыть папку данных приложений
+        description: Откройте папку данных AIRI в вашем файловом менеджере.
+        open: Открыть папку
       desktop:
-        title: Reset desktop settings & states
-        description: Clear AIRI desktop settings and runtime state.
-        reset: Reset desktop data
+        title: Сбросить настройки и состояния рабочего стола
+        description: Очистить настройки AIRI рабочего стола и состояние рабочего времени.
+        reset: Сбросить данные для рабочего стола
     confirmations:
-      tooltip: Are you sure?
-      'yes': 'Yes'
+      tooltip: Вы уверены?
+      'yes': 'Да'
     status:
-      exported: Chat sessions exported.
-      imported: Chat sessions imported.
-      import_error: Failed to import chat sessions. Please check the file format.
-      chats_deleted: Chat sessions deleted.
-      models_deleted: Models deleted.
-      modules_reset: Module settings reset.
-      providers_reset: Provider settings reset.
-      all_deleted: All local data deleted.
-      desktop_reset: Desktop data reset.
+      exported: Чат сеансов экспортирован.
+      imported: Чат сеансов импортирован.
+      import_error: Не удалось импортировать чаты. Проверьте формат файла.
+      chats_deleted: Чат сеансы удалены.
+      models_deleted: Модели удалены.
+      modules_reset: Настройки модуля сброшены.
+      providers_reset: Настройки провайдера сброшены.
+      all_deleted: Все локальные данные удалены.
+      desktop_reset: Данные рабочего стола сброшены.
   models:
     description: Live2D, VRM и др.
     title: Модели
@@ -250,51 +253,51 @@ pages:
   modules:
     beat_sync:
       description: Vibe with beats from the audio source
-      title: Beat Sync
+      title: Синхронизировать Beat Sync
       sections:
         audio_source:
           actions:
-            start_screen_capture: Start screen capture
-            stop: Stop
-          description: Select an audio source to detect beats from.
-          title: Audio source
+            start_screen_capture: Запуск захвата экрана
+            stop: Остановить
+          description: Выберите источник звука, из которого будут обнаружены.
+          title: Источник звука
         beat_visualizer:
-          title: Beat visualizer
+          title: Эквалайзер
         parameters:
-          advanced_parameters: Advanced Parameters
-          description: Tweak the beat detection parameters.
-          title: Parameters
+          advanced_parameters: Расширенные параметры
+          description: Настройте параметры определения ударов.
+          title: Параметры
           parameters:
             adaptive_threshold:
               description: >-
-                Whether to apply adaptive thresholds based on signal variance over time.
-              label: Adaptive threshold
+                Применить ли адаптивные пороговые значения, основанные на отклонении сигнала с течением времени.
+              label: Адаптивный порог
             buffer_duration:
-              description: Duration of the internal analysis buffer.
-              label: Buffer duration
+              description: Продолжительность буфера внутреннего анализа.
+              label: Длительность буфера
             envelope_filter_frequency:
               description: >-
-                Frequency for the envelope filter applied to smooth energy changes.
-              label: Envelope filter frequency
+                Частота фильтра конверта, применяемого для плавных изменений энергии.
+              label: Частота фильтрации конвертов
             highpass_filter_frequency:
               description: >-
-                Frequency for the highpass filter applied to reduce low frequencies like sub-bass noises.
-              label: Highpass filter frequency
+                Частота фильтра нижнего прохода, применяемая для снижения высоких частот, таких как вокал.
+              label: Частота фильтра низкого уровня
             lowpass_filter_frequency:
               description: >-
-                Frequency for the lowpass filter applied to reduce high frequencies like vocals.
-              label: Lowpass filter frequency
+                Частота фильтра нижнего прохода, применяемая для снижения высоких частот, таких как вокал.
+              label: Частота фильтра низкого уровня
             min_beat_interval:
-              description: Maximum BPM or minimum interval between detected beats.
-              label: Max BPM / Min beat interval
+              description: Максимальный BPM или минимальный интервал между обнаруженными битами.
+              label: Макс. BPM / мин промежуток бита
             sensitivity:
-              label: Sensitivity
+              label: Чувствительность
             spectral_flux:
-              description: Whether to enable spectral flux-based onset detection.
-              label: Spectral flux
+              description: Включить ли обнаружение спектральных потоков на основе потока.
+              label: Спектральный поток
             warmup:
-              description: Whether to warm up before detecting beats for better accuracy.
-              label: Warmup
+              description: Прогреть ли перед обнаружением ударов для лучшей точности.
+              label: Разминка
     consciousness:
       description: Личность, модель сознания и др.
       sections:
@@ -302,12 +305,12 @@ pages:
           provider-model-selection:
             collapse: Свернуть
             custom_model_placeholder: Введите название кастомной модели...
-            current_model_label: 'Current model:'
+            current_model_label: 'Текущая модель:'
             description: Выберите подходящего LLM-провайдера для сознания
             error: Ошибка загрузки моделей
-            health_check_failed: Health check failed
-            no_providers_configured_title: No Providers Configured
-            no_providers_configured_description: Click here to set up your LLM providers
+            health_check_failed: Сбой проверки здоровья
+            no_providers_configured_title: Провайдеры не настроены
+            no_providers_configured_description: Нажмите здесь, чтобы настроить провайдеры LLM
             expand: Развернуть
             loading: Загрузка доступных моделей...
             manual_model_name: Название модели
@@ -322,7 +325,7 @@ pages:
             search_results: Найдено {count} из {total} моделей
             show_less: Показать меньше
             show_more: Показать больше
-            subtitle: Select a default model from the provider
+            subtitle: Выберите модель у провайдера
             title: Модель
       title: Сознание
     description: Мыслительный процесс, зрение, синтез речи, игры и т. д.
@@ -360,7 +363,7 @@ pages:
       sections:
         section:
           provider-selection:
-            description: Select the suitable speech recognition provider
+            description: Выберите подходящего провайдера синтеза речи
     memory-long-term:
       description: Настройки долговременной памяти
       title: Долговременная память
@@ -385,7 +388,7 @@ pages:
               stop:
                 label: Стоп
             select-voice:
-              loading: Loading model...
+              loading: Загрузка моделей...
               required: Выберите голос
           provider-voice-selection:
             custom_model_placeholder: Введите название кастомной модели...
@@ -395,16 +398,16 @@ pages:
             no_models_description: Модели не найдены
             no_voices: Голосов нет
             no_voices_description: Голоса не найдены
-            no_voices_hint: You can enter a custom voice name below.
+            no_voices_hint: Ниже вы можете ввести голосовое имя пользователя.
             pause: Пауза
             play_sample: Воспроизвести пример
             search_models_placeholder: Поиск моделей...
             search_models_results: Найдено {count} из {total} моделей
             search_voices_placeholder: Поиск голосов...
             search_voices_results: Найдено {count} из {total} голосов
-            unsupported_voice_warning_title: No supported voices
+            unsupported_voice_warning_title: Нет поддерживаемых голосов
             unsupported_voice_warning_content: >-
-              Try a different model or provider. We are working on supporting all the voice for this model as quickly as possible. If you need it urgently, please let us know on GitHub at https://github.com/moeru-ai/airi/issues.
+              Попробуйте другую модель или провайдер. Мы работаем над поддержкой всего голоса для этой модели как можно скорее. Если вам это необходимо, пожалуйста, сообщите нам на GitHub по адресу https://github.com/moeru-ai/airi/issues.
             show_less: Показать меньше
             show_more: Показать больше
             title: Провайдер
@@ -440,15 +443,15 @@ pages:
     mcp-server:
       description: Подключение и управление MCP-сервером и инструментами
       title: MCP-сервер
-      config-path: Config file path
-      runtime-title: Runtime status
+      config-path: Путь к файлу конфигурации
+      runtime-title: Статус рабочего времени
       actions:
-        open-config: Open mcp.json
-        apply-and-restart: Save and restart stdio MCP
+        open-config: Открыть mcp.json
+        apply-and-restart: Сохранить и перезапустить MCP
       messages:
-        opened: Config file opened at {path}
+        opened: Файл конфигурации открыт {path}
         restarted: >-
-          MCP servers restarted. Started {started}, failed {failed}, skipped {skipped}
+          MCP серверы перезапущены. Запущен {started}, не удалось {failed}, пропущено {skipped}
   providers:
     explained:
       chat: Провайдеры текстогенерации, напр. OpenRouter, OpenAI, Ollama.
@@ -461,78 +464,78 @@ pages:
         AIRI требует как минимум одного {chat}-провайдера для корректной работы. Можно считать его "мозгом" персонажей в системе AIRI.
     catalog:
       edit:
-        config-id-not-found: Provider configuration not found.
-        definition-id-not-found: Provider definition not found.
+        config-id-not-found: Конфигурация провайдера не найдена.
+        definition-id-not-found: Определение провайдера не найдено.
         actions:
-          more-options: More options
-          delete: Delete
+          more-options: Дополнительные параметры
+          delete: Удалить
         validation:
           failed:
-            title: Please check your provider settings, validation failed.
+            title: Пожалуйста, проверьте настройки провайдера, проверка не удалась.
             description: >-
-              You can still save the current configuration if you want to proceed.
-            action: Save anyway
+              Вы можете сохранить текущую конфигурацию, если хотите продолжить.
+            action: Сохранить в любом случае
         config:
           common:
             fields:
               field:
                 api-key:
-                  label: API Key
-                  description: API Key used to authorize requests to this provider
-                  placeholder: sk-...
+                  label: API-ключ
+                  description: Ключ API, используемый для авторизации запросов для этого провайдера
+                  placeholder: Sk-....
                 base-url:
-                  label: Base URL
+                  label: Базовый URL
                   description: >-
-                    The base url used to connect to remote service. Often looks like http://localhost:11434/v1 or https://example.com/v1.
+                    Базовый url, используемый для подключения к удаленному сервису. Часто выглядит как http://localhost:11434/v1 или https://example.com/v1.
                   placeholder: Base url...
                 headers:
-                  label: Custom HTTP Headers
-                  description: Add custom HTTP headers
+                  label: Добавить кастомные HTTP-заголовки
+                  description: Добавить кастомные HTTP-заголовки
                   key:
-                    placeholder: Key
+                    placeholder: Ключ
                   value:
-                    placeholder: Value
+                    placeholder: Ценность
                 thinking-mode:
-                  label: Thinking Mode
+                  label: Режим мышления
                   description: >
-                    Controls Ollama thinking behavior. GPT-OSS only supports low/medium/high levels.
+                    Контролирует поведение мышления Ollama. GPT-OSS поддерживает только низкие/средние/высокие уровни.
                   options:
-                    auto: Auto (provider default)
-                    disable: Disable
-                    enable: Enable
-                    low: Low
-                    medium: Medium
-                    high: High
+                    auto: Авто (по умолчанию провайдера)
+                    disable: Отключить
+                    enable: Включить
+                    low: Низкая
+                    medium: Средний
+                    high: Высокая
         validators:
           actions:
-            validate: Validate
-          empty: No validation steps available.
+            validate: Подтвердить
+          empty: Нет доступных шагов подтверждения.
           openai-compatible:
             check-config:
-              title: Configuration
+              title: Конфигурация
             check-connectivity:
-              title: Connectivity
+              title: Подключение
             check-supports-model-listing:
-              title: List Models
+              title: Загрузить модели
             check-supports-chat-completion:
-              title: Chat Completion
+              title: Завершение чата
           status:
-            validating: Validating...
-            valid: Passed
-            invalid: Errored
-          title: Checks
+            validating: Проверка...
+            valid: Успешно
+            invalid: Ошибка
+          title: Проверки
         providers:
           provider:
             ollama:
               troubleshooting:
                 validators:
                   openai-compatible-check-connectivity:
-                    label: Extra configuration needed for Ollama
+                    label: Дополнительные настройки необходимы Ollama
                     content: >-
-                      Sorry to hear that Connectivity check failed for Ollama. Don't worry, for Ollama instances, extra configuration is needed for making it pass for Ollama. You need to set <code>OLLAMA_HOST</code> explicitly when start the Ollama application or Ollama CLI server, for detailed information, check <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama integration guide</a>.
+                      К сожалению, произошла проверка соединения для Ollama. Не волнуйтесь, для копий Ollama требуется дополнительная конфигурация для передачи Ollama. Необходимо установить <code>OLLAMA_HOST</code> явно при запуске приложения Ollama или Ollama CLI сервера, для получения подробной информации смотрите руководство по интеграции <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama</a>.
     common:
       continueAnyway: Продолжить всё равно
-      goToModelSelection: 'Select Model →'
+      goToModelSelection: 'Выберите модель →'
       fields:
         field:
           api-key:
@@ -569,10 +572,10 @@ pages:
         title: Браузер (локально)
         description: https://github.com/moeru-ai/xsai-transformers
       alibaba-cloud-model-studio:
-        description: bailian.console.aliyun.com
+        description: Bailian.console.aliyun.com
         title: Alibaba Cloud Model Studio
       anthropic:
-        description: anthropic.com
+        description: Anthropic.com
         title: Anthropic | Claude
         helpinfo:
           title: Перед началом
@@ -587,20 +590,20 @@ pages:
               Если провайдер необходим, нужен выделенный прокси-бэкенд (например, Serverless Function)
             part6: или сервисы обхода CORS для снятия ограничений CORS.
       cloudflare-workers-ai:
-        description: cloudflare.com
+        description: Cloudflare.com
         fields:
           field:
             account-id:
               description: ID аккаунта Cloudflare
-              label: Account ID
+              label: ID аккаунта
               placeholder: Ваш Cloudflare Account ID
             api-key:
               placeholder: Введите Cloudflare API Key
         title: Cloudflare Workers AI
       common:
         status:
-          validating: Validating
-          valid: Configuration seems to be valid.
+          validating: Проверка
+          valid: Конфигурация выглядит корректной.
         fields:
           field:
             pitch:
@@ -613,30 +616,30 @@ pages:
               description: Регулировка громкости речи
               label: Громкость
       deepgram-tts:
-        description: deepgram.com
-        title: Deepgram
+        description: Deepgram.com
+        title: Глупо грамма
       speech-noop:
-        title: None
-        description: No speech output.
+        title: Отсутствует
+        description: Вывод речи отсутствует.
       deepseek:
-        description: deepseek.com
+        description: Deepseek.com
         title: DeepSeek
       elevenlabs:
-        description: elevenlabs.io
+        description: Elevenlabs.io
         fields:
           field:
             simularity-boost:
               description: Степень сохранения сходства голоса
-              label: Similarity Boost
+              label: Сходство усиления
             speaker-boost:
               description: Усиление схожести с диктором
-              label: Speaker Boost
+              label: Ускорение динамиков
             speed:
               description: Скорость генерации речи
-              label: Speed
+              label: Скорость
             stability:
               description: Стабильность/случайность голоса
-              label: Stability
+              label: Стабильность
             style:
               description: Выразительность/стиль голоса
               label: Style
@@ -661,32 +664,32 @@ pages:
             error-missing-api-key: Введите API-ключ, чтобы протестировать голос.
         title: ElevenLabs
       kokoro-local:
-        description: Local text-to-speech using Kokoro-82M.
+        description: Локальный синтезатор речи с помощью Kokoro-82M.
         fields:
           field:
             model:
-              label: Model Selection
-              description: Smaller models load faster but may have slightly lower quality.
+              label: Выбор модели
+              description: Маленькие модели загружаются быстрее, но могут иметь немного более низкое качество.
         models:
           fp32-webgpu:
             description: >-
-              Full precision model using WebGPU - Recommended for supported devices
+              Полная точная модель с использованием WebGPU - рекомендуется для поддерживаемых устройств
           fp32:
-            description: Full precision model
+            description: Полная точная модель
           fp16:
-            description: Half precision
+            description: Половина точности
           q8:
-            description: 8-bit quantized
+            description: 8-битный квантованный
           q4:
-            description: 4-bit quantized
+            description: 4-битный квантованный
           q4f16:
-            description: 4-bit with FP16
+            description: 4-битный  FP16
         playground:
-          default-text: Hello! This is a test of the Kokoro text-to-speech system.
-          title: Voice Playground
+          default-text: Привет! Это тест-системы синтеза речи.
+          title: Голосовая платформа
         title: Kokoro TTS (Local)
       fireworks:
-        description: fireworks.ai
+        description: Fireworks.ai
         title: Fireworks.ai
       microsoft-speech:
         description: speech.microsoft.com
@@ -699,28 +702,28 @@ pages:
       index-tts-vllm:
         description: https://index-tts.github.io/
         title: Bilibili / IndexTTS
-        callout_indextts2_unavailable_title: Limited Support
-        callout_indextts2_unavailable: Support for IndexTTS2 is currently unavailable. Please use IndexTTS.
+        callout_indextts2_unavailable_title: Ограниченная поддержка
+        callout_indextts2_unavailable: Поддержка IndexTTS2 в настоящее время недоступна. Пожалуйста, используйте IndexTTS.
       azure-ai-foundry:
         description: Azure AI Foundry
         title: Azure AI Foundry
       minimax:
-        description: minimaxi.com
+        description: Minimaxi.com
         title: MiniMax
       minimax-global:
-        description: minimax.io
-        title: MiniMax Global
+        description: Minimax.io
+        title: MiniMax Глобальный
       mistral:
-        description: mistral.ai
+        description: Mistral.ai
         title: Mistral
       moonshot:
-        description: moonshot.ai
+        description: Moonshot.ai
         title: Moonshot AI
       modelscope:
-        description: modelscope.cn
-        title: ModelScope
+        description: Modelscope.cn
+        title: Область Модели
       novita:
-        description: novita.ai
+        description: Novita.ai
         title: Novita
       ollama:
         description: ollama.ai
@@ -732,13 +735,13 @@ pages:
         description: Совместимый с OpenAI
         title: OpenAI Compatible
       nvidia:
-        description: build.nvidia.com
+        description: Build.nvidia.com
         title: NVIDIA NIM
       n1n:
-        description: n1n.ai - High-performance AI API provider.
+        description: n1n.ai - Высокая производительность AI API провайдера.
         title: n1n
       openrouter:
-        description: openrouter.ai
+        description: Openrouter.ai
         title: OpenRouter
       openrouter-audio-speech:
         description: openrouter.ai
@@ -747,7 +750,7 @@ pages:
         description: perplexity.ai
         title: Perplexity
       player2:
-        description: player2.game
+        description: Player2.game
         title: Player2
       together:
         description: together.ai
@@ -756,24 +759,24 @@ pages:
         description: gemini.google.com
         title: Google Gemini
       groq:
-        description: groq.com
+        description: Groq.com
         title: Groq
       featherless:
-        description: featherless.ai
+        description: Featherless.ai
         title: Featherless AI
       lm-studio:
-        description: lmstudio.ai
+        description: Lmstudio.ai
         title: LM Studio
       vllm:
         description: vllm.ai
         title: vLLM
       volcengine:
-        description: volcengine.com
+        description: Volcengine.com
         fields:
           field:
             appId:
               description: App ID проекта (получается в Console)
-              label: App ID
+              label: Идентификатор приложения (App ID)
         title: Volcano Engine
       xai:
         description: x.ai
@@ -785,28 +788,28 @@ pages:
         description: CometAPI.com
         title: Comet API
       cerebras:
-        description: cerebras.ai
+        description: Cerebras.ai
         title: Cerebras
       aliyun-nls:
         description: Aliyun NLS
         title: Aliyun NLS
       browser-web-speech-api:
-        description: Browser-native STT (requires Chrome/Edge/Safari)
+        description: Браузер  STT (требует Chrome/Edge/Safari)
         title: Web Speech API
       transcriptions:
         playground:
           title: Песочница транскрипции
       aihubmix:
         title: AIHubMix
-        description: https://aihubmix.com (10% off)
+        description: https://aihubmix.com (скидка 10%)
     title: Провайдеры
   connection:
-    description: Configure WebSocket server connection
-    title: Connection
+    description: Настроить соединение сервера WebSocket
+    title: Подключение
     websocket-url:
-      description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
-      label: WebSocket Server Address
-      placeholder: ws://localhost:6121/ws
+      description: Полный адрес сервера WebSocket (например, ws://localhost:6121/ws)
+      label: Адрес сервера WebSocket
+      placeholder: Ws://localhost:6121/ws
   scene:
     description: Настройте окружение, в котором живёт персонаж
     title: Сцена
@@ -836,126 +839,126 @@ pages:
           sections:
             section:
               performance-visualizer:
-                title: Performance Visualizer
-                description: Toggle FPS/long task/memory overlay
+                title: Визуализатор производительности
+                description: Переключить FPS/долгую задачу/оверлей памяти
               markdown-stress:
-                title: Markdown Stress
-                description: Stress markdown parsing and rendering with heavy chat payloads
+                title: Нагрузочное тестирование обработки Markdown
+                description: Напряжение парсинг и рендеринга с тяжелыми чатами
               use-magic-keys:
                 title: useMagicKeys Tool
-                description: Test shortcuts
+                description: Тестировать ярлыки
               audio-record:
-                title: Audio Record
-                description: Test Audio related composables
+                title: Запись аудио
+                description: Тест композиций, связанных с аудио
               background-gradient-blending:
-                title: Background Theme color blending
-                description: Test blending & theme
+                title: Смешивание цвета фоновой темы
+                description: Тестовое смешивание & тема
               background-removal:
-                title: Background removal (WebGPU required)
-                description: Utility for background removal
+                title: Удаление фона (требуется WebGPU)
+                description: Утилита для удаления фонового изображения
               chat:
-                title: Chat
-                description: Chat
+                title: Чат
+                description: Чат
               gesture-circle:
-                title: Gesture Circle (Desktop only)
-                description: Test gesture recognition
+                title: Круг жестов (только для рабочего стола)
+                description: Проверить распознавание жестов
               image:
-                title: Image
-                description: Image
+                title: Изображение
+                description: Изображение
               polaroid:
                 title: Polaroid
-                description: Utility for taking shots of models
+                description: Утилита для съемки моделей
               context-flow:
                 description: >-
-                  Inspect incoming context updates and outgoing chat stream events
+                  Проверять обновления контекста входящих и исходящих событий в чате
               websocket-inspector:
-                title: WebSocket Inspector
-                description: Inspect raw WebSocket traffic
+                title: Инспектор WebSocket
+                description: Проверять трафик необработанных WebSocket
               vibrant:
-                title: Color extract
-                description: Test color extraction
+                title: Извлечь цвет
+                description: Извлечение цвета теста
               providers-transcription-realtime-aliyun-nls:
-                title: Aliyun Real-time Transcriber
+                title: Транскрибирую в реальном времени
                 description: >-
-                  Stream microphone audio to Aliyun NLS and inspect live transcripts
+                  Трансляция микрофона на Aliyun NLS и проверка текущих субтитров
               performance-playground:
-                title: Performance Playground
-                description: 'VRM expressions + TTS lip sync playground'
+                title: Игровая площадка производительности
+                description: 'Выражения VRM + Проводка TTS lip синхронизации'
         theme-presets:
           presets:
             default:
               colors:
-                color-1: AIRI Green
-              description: The default greenish theme color, brought by AIRI to you!
-              title: Default Color
+                color-1: AIRI Зеленый
+              description: Стандартный зелёный оттенок AIRI
+              title: Цвет по умолчанию
             morandi:
               colors:
-                color-1: Taupe
-                color-2: Beige
-                color-3: Ash Grey
-                color-4: Light Taupe
-                color-5: Ivory
-                color-6: Olive Grey
-                color-7: Sand
-                color-8: Warm Grey
-              description: Soft, muted tones inspired by Giorgio Morandi's paintings
-              title: Morandi Colors
+                color-1: Серо-коричневый
+                color-2: Бежевый
+                color-3: Пепельно-серый
+                color-4: Легкий Таус
+                color-5: Слоновая кость
+                color-6: Оливковый серый
+                color-7: Песок
+                color-8: Теплый серый
+              description: Приглушённые тона в стиле Джорджо Моранди
+              title: Цвета Моне
             monet:
               colors:
-                color-1: Sky Blue
-                color-2: Mist
-                color-3: Sand
-                color-4: Moss Green
-                color-5: Water Lily
-                color-6: Wheat
-                color-7: Slate Blue
-                color-8: Sage
-              description: Impressionist palette inspired by Claude Monet's works
-              title: Monet Colors
+                color-1: Небесный
+                color-2: Туман
+                color-3: Песок
+                color-4: Зеленый мох
+                color-5: Кувшинка
+                color-6: Пшеница
+                color-7: Серовато-Синий
+                color-8: Мудрец
+              description: Палитра импрессионизма, вдохновлённая Моне
+              title: Цвета Моне
             japanese:
               colors:
-                color-1: Tan
+                color-1: Бронзовый
                 color-2: Warm Taupe
-                color-3: Umber
-                color-4: Coffee
-                color-5: Bronze
-                color-6: Gold
-                color-7: Mustard
-                color-8: Amber
-              description: Traditional Japanese color palette
-              title: Japanese Colors
+                color-3: Умбра
+                color-4: Кофе
+                color-5: Бронза
+                color-6: Золото
+                color-7: Горчичный
+                color-8: Янтарный
+              description: Традиционная японская цветовая палитра
+              title: Японские цвета
             nordic:
               colors:
-                color-1: Nordic Blue
-                color-2: Ice
+                color-1: Скандинавский синий
+                color-2: Лёд
                 color-3: Fjord
-                color-4: Steel
-                color-5: Glacier
-                color-6: Slate
-                color-7: Cloud
-                color-8: Stone
-              description: Scandinavian minimalist color scheme
-              title: Nordic Colors
+                color-4: Сталь
+                color-5: Ледниковый
+                color-6: Сланец
+                color-7: Облако
+                color-8: Камень
+              description: Скандинавская минималистичная схема
+              title: Скандинавские цвета
             chinese:
               colors:
                 color-1: Rosy Dawn
                 color-2: Chinese Red
                 color-3: Smoky Brown
                 color-4: Bamboo Green
-                color-5: Dark Purple
-                color-6: Golden Yellow
-                color-7: Azure Blue
+                color-5: Темно-фиолетовый
+                color-6: Золотисто-Желтый
+                color-7: Лазурно-голубой
                 color-8: Ochre
               description: >-
-                Traditional Chinese colors, derived from ancient textiles, porcelain and paintings
-              title: Chinese Traditional Colors
+                Традиционные китайские цвета, вдохновлённые текстилем, фарфором и живописью
+              title: Китайские традиционные цвета
           title: Наборы цветовых схем
     title: Внешний вид
   page:
     developers:
       open-devtools:
-        title: Open Developer Tools
-        button: Open
+        title: Открыть инструменты разработчика
+        button: Открыть
 sections:
   section:
     general:
@@ -1004,13 +1007,13 @@ vrm:
     button-extract:
       title: Извлечь
   skybox:
-    skybox-intensity: SkyBox Intensity
-    skybox-specular-mix: Specular Mix
+    skybox-intensity: Интенсивность SkyBox
+    skybox-specular-mix: Причудливый микс
 websocket-secure-enabled:
   title: Включить безопасный WebSocket (WSS)
   description: >-
     Включите WSS (WebSocket Secure), чтобы разрешить HTTPS-подключения для мобильных устройств (pocket) в режиме разработки. Это автоматически сгенерирует самоподписанный сертификат.
 wip:
-  title: Work in Progress
+  title: В разработке
   description: >-
-    This feature is currently under development and not yet publicly available. Check back in future updates for this functionality.
+    Эта функция в настоящее время находится в разработке и еще не доступна публично. Проверьте её в будущих обновлениях.

@@ -13,6 +13,12 @@
     "useDefineForClassFields": true,
     "baseUrl": "./src/renderer",
     "paths": {
+      "@proj-airi/stage-pages/*.vue": [
+        "../../packages/stage-pages/src/*.vue"
+      ],
+      "@proj-airi/stage-pages/*": [
+        "../../packages/stage-pages/src/*.ts"
+      ],
       "@proj-airi/stage-ui/*": [
         "../../packages/stage-ui/src/*"
       ],
