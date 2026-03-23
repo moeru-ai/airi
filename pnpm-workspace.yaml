@@ -9,6 +9,7 @@ packages:
   - docs/**
   - apps/**
   - '!**/dist/**'
+
 overrides:
   array-flatten: npm:@nolyfill/array-flatten@^1.0.44
   axios: npm:feaxios@^0.0.23
@@ -19,12 +20,14 @@ overrides:
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
+
 patchedDependencies:
   '@mediapipe/tasks-vision': patches/@mediapipe__tasks-vision.patch
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
   mineflayer@4.33.0: patches/mineflayer@4.33.0.patch
   pixi-live2d-display: patches/pixi-live2d-display.patch
   srvx: patches/srvx.patch
+
 catalog:
   '@capacitor/android': ^8.2.0
   '@capacitor/cli': ^8.2.0
@@ -114,6 +117,7 @@ catalogs:
     vitest: ^4.1.0
   xsai:
     unspeech: ^0.1.11
+
 enableGlobalVirtualStore: true
 
 ignoredBuiltDependencies:
@@ -172,6 +176,10 @@ packageExtensions:
   '@unocss/eslint-plugin':
     peerDependencies:
       '@typescript-eslint/types': '*'
+  'vitepress':
+    peerDependencies:
+      vite: '*'
+      vue: '*'
   'vue-sonner':
     peerDependencies:
       vue: '^3.2.0'
