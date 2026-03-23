@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto'
-import { createReadStream } from 'node:fs'
-import { readFile, stat, writeFile } from 'node:fs/promises'
-import { basename, resolve } from 'node:path'
-import { exit } from 'node:process'
+import { createReadStream, existsSync } from 'node:fs'
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { basename, dirname, resolve } from 'node:path'
+import { cwd, exit } from 'node:process'
 
+import { findWorkspaceDir } from '@pnpm/find-workspace-dir'
 import { cac } from 'cac'
 
 import * as yaml from 'yaml'
@@ -24,7 +25,7 @@ interface WindowsUpdateInfo {
   [key: string]: unknown
 }
 
-async function hashFile(filePath: string): Promise<{ sha512: string, sha256: string }> {
+export async function hashFile(filePath: string): Promise<{ sha512: string, sha256: string }> {
   return await new Promise((resolveHash, reject) => {
     const sha512 = createHash('sha512')
     const sha256 = createHash('sha256')
@@ -44,7 +45,7 @@ async function hashFile(filePath: string): Promise<{ sha512: string, sha256: str
   })
 }
 
-async function readExistingUpdateInfo(filePath: string): Promise<Partial<WindowsUpdateInfo>> {
+export async function readExistingUpdateInfo(filePath: string): Promise<Partial<WindowsUpdateInfo>> {
   try {
     const raw = await readFile(filePath, 'utf8')
     return (yaml.parse(raw) ?? {}) as Partial<WindowsUpdateInfo>
@@ -54,19 +55,35 @@ async function readExistingUpdateInfo(filePath: string): Promise<Partial<Windows
   }
 }
 
-async function main() {
-  const cli = cac('regenerate-windows-latest')
-    .option('--input <path>', 'Signed Windows installer path', { type: [String] })
-    .option('--output <path>', 'Output latest.yml path', { default: 'bundle/latest.yml' })
-    .option('--version <version>', 'Version to write into latest.yml', { type: [String] })
-    .option('--release-date <date>', 'Release date to write into latest.yml', { type: [String] })
+export async function resolveFromWorkspace(inputPath: string): Promise<string> {
+  const resolved = resolve(inputPath)
+  if (existsSync(resolved)) {
+    return resolved
+  }
 
-  const args = cli.parse()
+  const workspaceRoot = await findWorkspaceDir(cwd())
+  if (workspaceRoot) {
+    const workspaceResolved = resolve(workspaceRoot, inputPath)
+    if (existsSync(workspaceResolved)) {
+      return workspaceResolved
+    }
+  }
 
-  const input = String(args.options.input?.[0] || '').trim()
-  const output = String(args.options.output || '').trim()
-  const version = String(args.options.version?.[0] || '').trim()
-  const releaseDate = String(args.options.releaseDate?.[0] || '').trim()
+  return resolved
+}
+
+export interface RegenerateWindowsLatestOptions {
+  input: string
+  output: string
+  version: string
+  releaseDate?: string
+}
+
+export async function regenerateWindowsLatest(options: RegenerateWindowsLatestOptions): Promise<WindowsUpdateInfo> {
+  const input = String(options.input || '').trim()
+  const output = String(options.output || '').trim()
+  const version = String(options.version || '').trim()
+  const releaseDate = String(options.releaseDate || '').trim()
 
   if (!input) {
     throw new Error('--input is required')
@@ -78,8 +95,8 @@ async function main() {
     throw new Error('--version is required')
   }
 
-  const inputPath = resolve(input)
-  const outputPath = resolve(output)
+  const inputPath = await resolveFromWorkspace(input)
+  const outputPath = await resolveFromWorkspace(output)
   const fileStats = await stat(inputPath)
   const { sha512, sha256 } = await hashFile(inputPath)
   const existing = await readExistingUpdateInfo(outputPath)
@@ -101,10 +118,37 @@ async function main() {
     releaseDate: releaseDate || existing.releaseDate || new Date().toISOString(),
   }
 
+  await mkdir(dirname(outputPath), { recursive: true })
   await writeFile(outputPath, yaml.stringify(nextUpdateInfo), 'utf8')
+
+  return nextUpdateInfo
 }
 
-main().catch((error) => {
-  console.error(error)
-  exit(1)
-})
+async function main() {
+  const cli = cac('regenerate-windows-latest')
+    .option('--input <path>', 'Signed Windows installer path', { type: [String] })
+    .option('--output <path>', 'Output latest.yml path', { default: 'bundle/latest.yml' })
+    .option('--version <version>', 'Version to write into latest.yml', { type: [String] })
+    .option('--release-date <date>', 'Release date to write into latest.yml', { type: [String] })
+
+  const args = cli.parse()
+
+  const input = String(args.options.input?.[0] || '').trim()
+  const output = String(args.options.output || '').trim()
+  const version = String(args.options.version?.[0] || '').trim()
+  const releaseDate = String(args.options.releaseDate?.[0] || '').trim()
+
+  await regenerateWindowsLatest({
+    input,
+    output,
+    version,
+    releaseDate,
+  })
+}
+
+if (import.meta.main) {
+  main().catch((error) => {
+    console.error(error)
+    exit(1)
+  })
+}
