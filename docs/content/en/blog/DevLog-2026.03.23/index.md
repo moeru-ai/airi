@@ -245,7 +245,7 @@ For future prototypes and any engine decision, the following metrics should be m
 
 ### 1. Evaluate Bridge Complexity
 
-Investigate [Capacitor-Unity-Ar](https://github.com/keyvank/capacitor-unity-ars) or similar plugins to facilitate two-way communication (e.g., sending chat-triggered expressions from Vue to Unity).
+Investigate [Unity as a Library integration](https://github.com/Unity-Technologies/uaal-example) or similar plugins to facilitate two-way communication (e.g., sending chat-triggered expressions from Vue to Unity).
 
 ### 2. iOS-Specific Prototyping
 
