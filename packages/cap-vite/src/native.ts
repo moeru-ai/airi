@@ -91,14 +91,15 @@ export function resolveCapRunArgs(capArgs: string[], env: NodeJS.ProcessEnv = pr
 
   const [platformArg, ...rest] = capArgs
   const platform = parseCapacitorPlatform(platformArg)
-  const target = platform === 'ios'
-    ? env.CAPACITOR_DEVICE_ID_IOS
-    : platform === 'android'
-      ? env.CAPACITOR_DEVICE_ID_ANDROID
-      : undefined
+  let target: string | undefined;
+  if (platform === 'ios') {
+    target = env.CAPACITOR_DEVICE_ID_IOS;
+  } else if (platform === 'android') {
+    target = env.CAPACITOR_DEVICE_ID_ANDROID;
+  }
 
   if (!target) {
-    return capArgs
+    return capArgs;
   }
 
   return [platformArg, '--target', target, ...rest]
