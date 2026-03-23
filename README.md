@@ -298,7 +298,7 @@ Start the development server for the capacitor:
 ```shell
 pnpm dev:pocket:ios --target <DEVICE_ID_OR_SIMULATOR_NAME>
 # Or
-CAPACITOR_DEVICE_ID=<DEVICE_ID_OR_SIMULATOR_NAME> pnpm dev:pocket:ios
+CAPACITOR_DEVICE_ID_IOS=<DEVICE_ID_OR_SIMULATOR_NAME> pnpm dev:pocket:ios
 ```
 
 You can see the list of available devices and simulators by running `pnpm exec cap run ios --list`.

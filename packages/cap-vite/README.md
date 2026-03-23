@@ -13,13 +13,13 @@ Examples:
 ```bash
 pnpm exec cap-vite -- ios --target <DEVICE_ID_OR_SIMULATOR_NAME>
 pnpm exec cap-vite -- --host 0.0.0.0 --port 5173 -- android --target <DEVICE_ID_OR_SIMULATOR_NAME> --flavor release
-CAPACITOR_DEVICE_ID=<DEVICE_ID_OR_SIMULATOR_NAME> pnpm exec cap-vite -- ios
+CAPACITOR_DEVICE_ID_IOS=<DEVICE_ID_OR_SIMULATOR_NAME> pnpm exec cap-vite -- ios
 pnpm -F @proj-airi/stage-pocket run dev:ios -- --target <DEVICE_ID_OR_SIMULATOR_NAME>
 ```
 
 - Arguments before `--` are forwarded to `vite`.
 - Arguments after `--` are forwarded to `cap run`.
-- If `CAPACITOR_DEVICE_ID` is set and `cap run` args do not contain `--target`, `cap-vite` injects `--target <CAPACITOR_DEVICE_ID>` automatically.
+- If the platform-specific env is set (`CAPACITOR_DEVICE_ID_IOS` or `CAPACITOR_DEVICE_ID_ANDROID`) and `cap run` args do not contain `--target`, `cap-vite` injects `--target` with that value automatically.
 - `cap-vite` always launches the Vite dev server. Do not pass `vite dev` or `vite serve` as extra args.
 - After the dev server starts, press `R` in the terminal to re-run `cap run` without restarting Vite.
 
