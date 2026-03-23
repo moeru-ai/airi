@@ -221,9 +221,7 @@ async function handleLoopStep(ctx: BotContext, chatCtx: ChatContext, incomingMes
       ctx.lastInteractedNChatIds = ctx.lastInteractedNChatIds.slice(-5)
     }
 
-    if (chatCtx.messages == null) {
-      chatCtx.messages = []
-    }
+    chatCtx.messages ??= []
     if (chatCtx.messages.length > 20) {
       const length = chatCtx.messages.length
       // pick the latest 5
@@ -231,9 +229,7 @@ async function handleLoopStep(ctx: BotContext, chatCtx: ChatContext, incomingMes
       chatCtx.messages.push(message.user(`AIRI System: Approaching to system context limit, reducing... memory..., reduced from ${length} to ${chatCtx.messages.length}, history may lost.`))
     }
 
-    if (chatCtx.actions == null) {
-      chatCtx.actions = []
-    }
+    chatCtx.actions ??= []
     if (chatCtx.actions.length > 50) {
       const length = chatCtx.actions.length
       // pick the latest 20

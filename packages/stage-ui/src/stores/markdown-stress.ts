@@ -247,7 +247,7 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
   function buildForFlood() {
     const line = 'for for for for for'
     // 800 lines * 5 words = 4000 tokens
-    return Array.from({ length: 800 }, () => line).join('\n')
+    return Array.from({ length: 800 }).fill(line).join('\n')
   }
 
   function generateScenario(): DevtoolsChatScenario {

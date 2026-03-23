@@ -160,7 +160,7 @@ function normalizeHeaderRows(headers: Record<string, string>) {
   if (rows.length === 0) {
     rows.push({ key: '', value: '' })
   }
-  else if (rows[rows.length - 1].key !== '' || rows[rows.length - 1].value !== '') {
+  else if (rows.at(-1)!.key !== '' || rows.at(-1)!.value !== '') {
     rows.push({ key: '', value: '' })
   }
   return rows
@@ -178,7 +178,7 @@ watch(providerConfigEdit, (config) => {
 watch(headerRows, (rows) => {
   if (isSyncingHeaders.value)
     return
-  const lastRow = rows[rows.length - 1]
+  const lastRow = rows.at(-1)
   if (!lastRow || lastRow.key.trim().length > 0 || lastRow.value.trim().length > 0) {
     headerRows.value = [...rows, { key: '', value: '' }]
     return

@@ -27,11 +27,11 @@
   "dependencies": {
     "@vueuse/core": "^14.2.1",
     "floating-vue": "^5.2.2",
-    "reka-ui": "^2.8.2",
+    "reka-ui": "^2.9.2",
     "vue": "catalog:"
   },
   "devDependencies": {
     "@vue-macros/volar": "3.0.0-beta.8",
-    "vue-tsc": "^3.1.8"
+    "vue-tsc": "^3.2.6"
   }
 }

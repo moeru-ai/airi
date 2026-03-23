@@ -1828,7 +1828,7 @@ export const useProvidersStore = defineStore('providers', () => {
     const defaultOptions = metadata?.defaultOptions?.() || {}
     return {
       ...defaultOptions,
-      ...(Object.prototype.hasOwnProperty.call(defaultOptions, 'baseUrl') ? {} : { baseUrl: '' }),
+      ...(Object.hasOwn(defaultOptions, 'baseUrl') ? {} : { baseUrl: '' }),
     }
   }
 

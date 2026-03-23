@@ -28,7 +28,7 @@ watch(() => props.text, async (text) => {
   if (!text)
     return
   if (typeof text === 'string') {
-    targets.value = [...segmenter.segment(text)].map(seg => seg.segment)
+    targets.value = Array.from(segmenter.segment(text), seg => seg.segment)
   }
   else {
     abortController.value?.abort()

@@ -1,6 +1,6 @@
 download-buttons:
   latest-stable: Последний стабильный релиз
-  latest-prerelease: Последний пре-релиз
+  latest-prerelease: Последний предварительный релиз
   latest-nightly: Последняя ночная сборка
   download: Скачать
   view-release: Посмотреть релиз
@@ -12,7 +12,7 @@ download-buttons:
   prerelease-use-case-3: Пользователи с удобными случаями
 releases-list:
   stable: Стабильный
-  prerelease: Пре-релиз
+  prerelease: Предварительный релиз
   nightly: Ночной
   released-on: Выпущен
   built-on: Сборка от

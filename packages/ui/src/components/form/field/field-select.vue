@@ -21,22 +21,21 @@ const modelValue = defineModel<string>({ required: false })
     <div
       :class="[
         'items-center',
-        'justify-center',
-        props.layout === 'horizontal' ? 'grid grid-cols-3 gap-2' : 'grid grid-cols-2 gap-2',
+        props.layout === 'horizontal' ? 'grid grid-rows-2 gap-2' : 'grid grid-cols-2 gap-2',
       ]"
     >
       <div
         :class="[
           'w-full',
-          props.layout === 'horizontal' ? 'col-span-2' : 'row-span-1',
+          props.layout === 'horizontal' ? 'col-span-1' : 'row-span-2',
         ]"
       >
-        <div :class="['flex', 'items-center', 'gap-1', 'break-words', 'text-sm', 'font-medium']">
+        <div :class="['flex', 'items-center', 'gap-1', 'break-words', 'text-sm', 'font-medium', 'text-left']">
           <slot name="label">
             {{ props.label }}
           </slot>
         </div>
-        <div :class="['break-words', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
+        <div :class="['break-words', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400', 'text-left']">
           <slot name="description">
             {{ props.description }}
           </slot>
