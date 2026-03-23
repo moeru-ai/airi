@@ -74,7 +74,7 @@ const routePoints = computed(() => {
     return [resolvedOrigin.value, resolvedDestination.value]
 
   const first = points[0]
-  const last = points.at(-1)
+  const last = points.at(-1)!
   if (first.x !== resolvedOrigin.value.x || first.y !== resolvedOrigin.value.y)
     points.unshift(resolvedOrigin.value)
   if (last.x !== resolvedDestination.value.x || last.y !== resolvedDestination.value.y)

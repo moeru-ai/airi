@@ -73,7 +73,7 @@ const sortedValues = computed(() => {
 
 const sliderStyle = computed(() => {
   const sliderOffset = valueToPercent(sortedValues.value[0], props.min, props.max)
-  const sliderLeap = valueToPercent(sortedValues.value.at(-1), props.min, props.max) - sliderOffset
+  const sliderLeap = valueToPercent(sortedValues.value.at(-1)!, props.min, props.max) - sliderOffset
   return {
     left: `${sliderOffset}%`,
     width: `${sliderLeap}%`,
