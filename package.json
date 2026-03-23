@@ -61,6 +61,7 @@
     "eslint-plugin-oxlint": "^1.56.0",
     "knip": "catalog:",
     "nano-staged": "catalog:",
+    "oxc-minify": "catalog:",
     "oxlint": "^1.56.0",
     "posthog-js": "catalog:",
     "publint": "^0.3.18",
