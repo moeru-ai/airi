@@ -160,7 +160,7 @@ function normalizeHeaderRows(headers: Record<string, string>) {
   if (rows.length === 0) {
     rows.push({ key: '', value: '' })
   }
-  else if (rows.at(-1).key !== '' || rows.at(-1).value !== '') {
+  else if (rows.at(-1)!.key !== '' || rows.at(-1)!.value !== '') {
     rows.push({ key: '', value: '' })
   }
   return rows
