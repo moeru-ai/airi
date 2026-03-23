@@ -51,4 +51,5 @@ export interface EmotionPayload {
   intensity: number
   force?: boolean
   holdMs?: number
+  params?: Record<string, number>
 }

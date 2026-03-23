@@ -24,6 +24,44 @@ const hearingTooltipOpen = ref(false)
 const isComposing = ref(false)
 const isListening = ref(false) // Transcription listening state (separate from microphone enabled)
 
+const attachments = ref<{ type: 'image', data: string, mimeType: string, name: string }[]>([])
+const fileInput = ref<HTMLInputElement>()
+
+function handleFileClick() {
+  fileInput.value?.click()
+}
+
+function handleFileChange(event: Event) {
+  const target = event.target as HTMLInputElement
+  if (!target.files?.length)
+    return
+
+  for (const file of Array.from(target.files)) {
+    if (!file.type.startsWith('image/'))
+      continue
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const result = e.target?.result as string
+      const [mimePart, data] = result.split(';base64,')
+      const mimeType = mimePart.split(':')[1]
+
+      attachments.value.push({
+        type: 'image',
+        data,
+        mimeType,
+        name: file.name,
+      })
+    }
+    reader.readAsDataURL(file)
+  }
+  target.value = ''
+}
+
+function removeAttachment(index: number) {
+  attachments.value.splice(index, 1)
+}
+
 const providersStore = useProvidersStore()
 const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
@@ -107,11 +145,14 @@ async function debouncedAutoSend(text: string) {
 
 async function handleSend() {
   if (!messageInput.value.trim() || isComposing.value) {
-    return
+    if (attachments.value.length === 0)
+      return
   }
 
   const textToSend = messageInput.value
   messageInput.value = ''
+  const sendingAttachments = [...attachments.value]
+  attachments.value = []
 
   try {
     const providerConfig = providersStore.getProviderConfig(activeProvider.value)
@@ -120,10 +161,12 @@ async function handleSend() {
       chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
       model: activeModel.value,
       providerConfig,
+      attachments: sendingAttachments.map(({ type, data, mimeType }) => ({ type, data, mimeType })),
     })
   }
   catch (error) {
     messageInput.value = textToSend
+    attachments.value = sendingAttachments
     messages.value.pop()
     messages.value.push({
       role: 'error',
@@ -412,6 +455,19 @@ watch(autoSendEnabled, (enabled) => {
         'bg-primary-200/20 dark:bg-primary-400/20',
       ]"
     >
+      <!-- Attachments Preview -->
+      <div v-if="attachments.length > 0" class="flex gap-2 px-4 pt-4 overflow-x-auto pb-2">
+        <div v-for="(att, idx) in attachments" :key="idx" class="relative group shrink-0">
+          <img :src="`data:${att.mimeType};base64,${att.data}`" class="h-16 w-16 object-cover rounded-md border border-neutral-200 dark:border-neutral-700 shadow-sm" />
+          <button
+            class="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600"
+            @click="removeAttachment(idx)"
+          >
+            <div class="i-ph:x w-3 h-3" />
+          </button>
+        </div>
+      </div>
+
       <BasicTextarea
         v-model="messageInput"
         :placeholder="t('stage.message')"
@@ -432,6 +488,17 @@ watch(autoSendEnabled, (enabled) => {
       <div
         absolute bottom-2 left-2 z-10 flex items-center gap-2
       >
+        <!-- File Button -->
+        <input ref="fileInput" type="file" multiple accept="image/*" class="hidden" @change="handleFileChange" />
+        <button
+          class="h-8 w-8 flex items-center justify-center rounded-md outline-none transition-all duration-200 active:scale-95 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+          text="lg neutral-500 dark:neutral-400"
+          title="Attach image"
+          @click="handleFileClick"
+        >
+          <div class="i-ph:paperclip h-5 w-5" />
+        </button>
+
         <!-- Microphone icon button -->
         <TooltipProvider :delay-duration="0" :skip-delay-duration="0">
           <TooltipRoot v-model:open="hearingTooltipOpen">

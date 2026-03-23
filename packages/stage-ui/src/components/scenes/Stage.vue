@@ -313,7 +313,7 @@ function applyLive2DMotionByEmotion(emotion: EmotionPayload) {
   if (nextMotion) {
     currentMotion.value = nextMotion
   }
-  if (emotion.force !== true)
+  if (emotion.force !== true && !emotion.params)
     return
 
   clearForceMotionTimer()
@@ -323,7 +323,11 @@ function applyLive2DMotionByEmotion(emotion: EmotionPayload) {
   live2dIdleAnimationEnabled.value = false
   enableMotionLock('force-motion')
   const holdMs = emotion.holdMs ?? 1800
-  setExpression(expressionTargetsForEmotion(emotion.name), holdMs)
+  const targetExpression = {
+    ...expressionTargetsForEmotion(emotion.name),
+    ...emotion.params,
+  }
+  setExpression(targetExpression, holdMs)
   forceMotionTimer.value = window.setTimeout(() => {
     live2dIdleAnimationEnabled.value = commandOnlyMotionMode
       ? false
@@ -404,19 +408,20 @@ function setExpression(target: Partial<typeof defaultModelParameters>, holdMs: n
     const holding = timestamp < endAt
     const falling = holding ? 1 : Math.max(0, 1 - (timestamp - endAt) / expressionReleaseMs)
     const intensity = Math.min(rising, falling)
-    modelParameters.value = {
-      ...modelParameters.value,
-      leftEyeSmile: base.leftEyeSmile + (target.leftEyeSmile ?? base.leftEyeSmile) * intensity,
-      rightEyeSmile: base.rightEyeSmile + (target.rightEyeSmile ?? base.rightEyeSmile) * intensity,
-      leftEyebrowY: base.leftEyebrowY + (target.leftEyebrowY ?? base.leftEyebrowY) * intensity,
-      rightEyebrowY: base.rightEyebrowY + (target.rightEyebrowY ?? base.rightEyebrowY) * intensity,
-      leftEyebrowAngle: base.leftEyebrowAngle + (target.leftEyebrowAngle ?? base.leftEyebrowAngle) * intensity,
-      rightEyebrowAngle: base.rightEyebrowAngle + (target.rightEyebrowAngle ?? base.rightEyebrowAngle) * intensity,
-      leftEyebrowForm: base.leftEyebrowForm + (target.leftEyebrowForm ?? base.leftEyebrowForm) * intensity,
-      rightEyebrowForm: base.rightEyebrowForm + (target.rightEyebrowForm ?? base.rightEyebrowForm) * intensity,
-      mouthForm: base.mouthForm + (target.mouthForm ?? base.mouthForm) * intensity,
-      cheek: base.cheek + (target.cheek ?? base.cheek) * intensity,
+
+    const nextParams = { ...modelParameters.value }
+    const keys = Object.keys(target) as Array<keyof typeof defaultModelParameters>
+    
+    for (const key of keys) {
+      const targetVal = target[key]
+      const baseVal = base[key]
+      if (typeof targetVal === 'number' && typeof baseVal === 'number') {
+        nextParams[key] = baseVal + (targetVal - baseVal) * intensity
+      }
     }
+    
+    modelParameters.value = nextParams
+
     if (intensity > 0) {
       expressionAnimationId.value = requestAnimationFrame(step)
       return
@@ -426,7 +431,6 @@ function setExpression(target: Partial<typeof defaultModelParameters>, holdMs: n
   }
   expressionAnimationId.value = requestAnimationFrame(step)
 }
-
 function expressionTargetsForEmotion(name: EmotionPayload['name']) {
   switch (name) {
     case Emotion.Happy:
@@ -549,6 +553,7 @@ function startIdleHeadWave() {
   const base = {
     x: modelParameters.value.angleX,
     y: modelParameters.value.angleY,
+    z: modelParameters.value.angleZ,
   }
   const start = performance.now()
   const step = (timestamp: number) => {
@@ -557,10 +562,19 @@ function startIdleHeadWave() {
       idleHeadWaveId.value = requestAnimationFrame(step)
       return
     }
+    
+    // Natural breathing rhythm (approx 4s cycle)
+    const breathCycle = (Math.sin(elapsed / 2000) + 1) * 0.5
+
     modelParameters.value = {
       ...modelParameters.value,
-      angleX: base.x + Math.sin(elapsed / 420) * 6,
-      angleY: base.y + Math.cos(elapsed / 520) * 4,
+      // Smoother, layered head movement
+      angleX: base.x + Math.sin(elapsed / 2300) * 3 + Math.sin(elapsed / 800) * 1,
+      angleY: base.y + Math.cos(elapsed / 2700) * 3,
+      angleZ: base.z + Math.sin(elapsed / 3500) * 2,
+      // Body sways slightly with breath
+      bodyAngleX: Math.sin(elapsed / 2000) * 1.5,
+      breath: breathCycle,
     }
     idleHeadWaveId.value = requestAnimationFrame(step)
   }
