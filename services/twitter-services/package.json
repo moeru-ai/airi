@@ -16,7 +16,7 @@
     "@modelcontextprotocol/sdk": "^1.27.1",
     "@moeru/std": "catalog:",
     "@proj-airi/server-sdk": "workspace:*",
-    "h3": "^2.0.1-rc.18",
+    "h3": "^2.0.1-rc.19",
     "playwright": "^1.58.2",
     "zod": "^4.3.6"
   }

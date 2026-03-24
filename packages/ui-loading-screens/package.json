@@ -28,7 +28,7 @@
   },
   "dependencies": {
     "@proj-airi/font-departure-mono": "workspace:^",
-    "@rive-app/canvas-lite": "^2.35.3",
+    "@rive-app/canvas-lite": "^2.35.4",
     "@vueuse/core": "^14.2.1",
     "@vueuse/motion": "^3.0.3",
     "vue": "catalog:"

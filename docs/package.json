@@ -25,7 +25,7 @@
     "date-fns": "^4.1.0",
     "embla-carousel-vue": "catalog:",
     "mark.js": "^8.11.1",
-    "motion-v": "^2.1.0",
+    "motion-v": "^2.2.0",
     "pathe": "^2.0.3",
     "posthog-js": "catalog:",
     "reka-ui": "^2.9.2",

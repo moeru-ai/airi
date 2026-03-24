@@ -43,9 +43,9 @@
     "@moeru/std": "catalog:",
     "@proj-airi/server-shared": "workspace:^",
     "crossws": "^0.4.4",
-    "h3": "^2.0.1-rc.18",
+    "h3": "^2.0.1-rc.19",
     "nanoid": "catalog:",
-    "srvx": "^0.11.12",
+    "srvx": "^0.11.13",
     "superjson": "catalog:"
   }
 }

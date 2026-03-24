@@ -22,7 +22,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@dotenvx/dotenvx": "^1.57.1",
+    "@dotenvx/dotenvx": "^1.57.2",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@grammyjs/files": "^1.2.0",
     "@guiiai/logg": "catalog:",
