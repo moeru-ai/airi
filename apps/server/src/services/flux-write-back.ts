@@ -1,7 +1,7 @@
 import type { Database } from '../libs/db'
 
 import { useLogger } from '@guiiai/logg'
-import { and, eq, lte, sql } from 'drizzle-orm'
+import { and, eq, inArray, lte, sql } from 'drizzle-orm'
 
 import * as fluxSchema from '../schemas/flux'
 import * as auditSchema from '../schemas/flux-audit-log'
@@ -12,6 +12,9 @@ import * as logSchema from '../schemas/llm-request-log'
  * This write-back service only syncs the DB — it does NOT touch Redis.
  * It periodically aggregates unsettled request logs and batch-updates the DB's user_flux table
  * so that the persistent balance stays consistent with the Redis cache.
+ *
+ * Multi-instance safe: uses CTE with FOR UPDATE SKIP LOCKED
+ * to atomically claim unsettled rows, preventing double-deduction.
  */
 export function createFluxWriteBack(db: Database) {
   const logger = useLogger('flux-write-back').useGlobalConfig()
@@ -20,35 +23,46 @@ export function createFluxWriteBack(db: Database) {
   async function flush() {
     const snapshotTime = new Date()
 
-    // 1. Aggregate unsettled logs inserted before (or at) this tick
-    const totals = await db
-      .select({
-        userId: logSchema.llmRequestLog.userId,
-        total: sql<number>`SUM(${logSchema.llmRequestLog.fluxConsumed})`.as('total'),
-      })
-      .from(logSchema.llmRequestLog)
-      .where(and(eq(logSchema.llmRequestLog.settled, false), lte(logSchema.llmRequestLog.createdAt, snapshotTime)))
-      .groupBy(logSchema.llmRequestLog.userId)
-
-    if (totals.length === 0)
-      return
-
-    // Fetch individual entries for audit detail
-    const unsettledLogs = await db
-      .select({
-        userId: logSchema.llmRequestLog.userId,
-        model: logSchema.llmRequestLog.model,
-        fluxConsumed: logSchema.llmRequestLog.fluxConsumed,
-        promptTokens: logSchema.llmRequestLog.promptTokens,
-        completionTokens: logSchema.llmRequestLog.completionTokens,
-        createdAt: logSchema.llmRequestLog.createdAt,
-      })
-      .from(logSchema.llmRequestLog)
-      .where(and(eq(logSchema.llmRequestLog.settled, false), lte(logSchema.llmRequestLog.createdAt, snapshotTime)))
-
-    // 2. Batch update in transaction
     await db.transaction(async (tx) => {
-      for (const { userId, total } of totals) {
+      // 1. Atomically claim unsettled logs via CTE with FOR UPDATE SKIP LOCKED.
+      //    The CTE locks rows so other instances skip them, then the UPDATE
+      //    marks them settled and returns the data — all in one statement.
+      const claimedCte = tx.$with('claimed').as(
+        tx
+          .select({ id: logSchema.llmRequestLog.id })
+          .from(logSchema.llmRequestLog)
+          .where(and(
+            eq(logSchema.llmRequestLog.settled, false),
+            lte(logSchema.llmRequestLog.createdAt, snapshotTime),
+          ))
+          .for('update', { skipLocked: true }),
+      )
+
+      const claimed = await tx
+        .with(claimedCte)
+        .update(logSchema.llmRequestLog)
+        .set({ settled: true })
+        .where(inArray(logSchema.llmRequestLog.id, tx.select({ id: claimedCte.id }).from(claimedCte)))
+        .returning({
+          userId: logSchema.llmRequestLog.userId,
+          model: logSchema.llmRequestLog.model,
+          fluxConsumed: logSchema.llmRequestLog.fluxConsumed,
+          promptTokens: logSchema.llmRequestLog.promptTokens,
+          completionTokens: logSchema.llmRequestLog.completionTokens,
+          createdAt: logSchema.llmRequestLog.createdAt,
+        })
+
+      if (claimed.length === 0)
+        return
+
+      // 2. Aggregate flux per user in-memory
+      const userTotals = new Map<string, number>()
+      for (const row of claimed) {
+        userTotals.set(row.userId, (userTotals.get(row.userId) ?? 0) + row.fluxConsumed)
+      }
+
+      // 3. Deduct flux per user
+      for (const [userId, total] of userTotals) {
         await tx.update(fluxSchema.userFlux)
           .set({
             flux: sql`${fluxSchema.userFlux.flux} - ${total}`,
@@ -57,12 +71,8 @@ export function createFluxWriteBack(db: Database) {
           .where(eq(fluxSchema.userFlux.userId, userId))
       }
 
-      await tx.update(logSchema.llmRequestLog)
-        .set({ settled: true })
-        .where(and(eq(logSchema.llmRequestLog.settled, false), lte(logSchema.llmRequestLog.createdAt, snapshotTime)))
-
-      // Batch-insert audit entries for each consumption
-      const auditEntries = unsettledLogs.map(log => ({
+      // 4. Batch-insert audit entries
+      const auditEntries = claimed.map(log => ({
         userId: log.userId,
         type: 'consumption' as const,
         amount: -log.fluxConsumed,
@@ -74,12 +84,10 @@ export function createFluxWriteBack(db: Database) {
         createdAt: log.createdAt,
       }))
 
-      if (auditEntries.length > 0) {
-        await tx.insert(auditSchema.fluxAuditLog).values(auditEntries)
-      }
-    })
+      await tx.insert(auditSchema.fluxAuditLog).values(auditEntries)
 
-    logger.withFields({ userCount: totals.length }).log('Write-back completed')
+      logger.withFields({ userCount: userTotals.size, logCount: claimed.length }).log('Write-back completed')
+    })
   }
 
   return {

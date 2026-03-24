@@ -1,5 +1,6 @@
 import type Redis from 'ioredis'
 
+import type { Database } from '../../libs/db'
 import type { createConfigKVService } from '../config-kv'
 
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -41,7 +42,7 @@ function createMockRedis(): Redis {
 }
 
 describe('fluxService (Redis-backed)', () => {
-  let db: any
+  let db: Database
   let redis: Redis
   let service: ReturnType<typeof createFluxService>
   let fluxAuditService: ReturnType<typeof createFluxAuditService>

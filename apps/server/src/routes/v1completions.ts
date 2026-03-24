@@ -150,9 +150,11 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
           span.end()
           recordMetrics({ model: requestModel, status: response.status, type: 'chat', durationMs, fluxConsumed, ...usage })
 
-          // Best-effort billing — don't throw on insufficient flux during streaming
+          // Best-effort billing — only log the actual charged amount
+          let actualCharged = 0
           try {
             await fluxService.consumeFlux(user.id, fluxConsumed)
+            actualCharged = fluxConsumed
           }
           catch (err) { logger.withError(err).withFields({ userId: user.id, fluxConsumed }).warn('Failed to consume flux after streaming') }
 
@@ -161,7 +163,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
             model: requestModel,
             status: response.status,
             durationMs,
-            fluxConsumed,
+            fluxConsumed: actualCharged,
             promptTokens: usage.promptTokens,
             completionTokens: usage.completionTokens,
           }).catch(err => logger.withError(err).warn('Failed to log streaming request'))
@@ -187,10 +189,11 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
     span.end()
     recordMetrics({ model: requestModel, status: response.status, type: 'chat', durationMs, fluxConsumed, ...usage })
 
-    // Best-effort billing — gateway already processed the request,
-    // don't return 402 after work is done
+    // Best-effort billing — only log the actual charged amount
+    let actualCharged = 0
     try {
       await fluxService.consumeFlux(user.id, fluxConsumed)
+      actualCharged = fluxConsumed
     }
     catch (err) { logger.withError(err).withFields({ userId: user.id, fluxConsumed }).warn('Failed to consume flux') }
 
@@ -199,7 +202,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
       model: requestModel,
       status: response.status,
       durationMs,
-      fluxConsumed,
+      fluxConsumed: actualCharged,
       promptTokens: usage.promptTokens,
       completionTokens: usage.completionTokens,
     }).catch(err => logger.withError(err).warn('Failed to log request'))

@@ -57,20 +57,24 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
     },
 
     async consumeFlux(userId: string, amount: number) {
-      // Ensure Redis key exists before DECRBY
-      // (DECRBY on a nonexistent key creates it at 0, giving wrong balance)
+      // Ensure Redis key exists before atomic deduction
       await this.getFlux(userId)
 
-      // Atomic decrement — check result.
-      // Note: there is a small race window between DECRBY returning negative
-      // and INCRBY rolling back, during which another concurrent request could
-      // see the negative balance and also attempt rollback. We accept this
-      // trade-off — the initial balance check is the real guard, and this
-      // DECRBY+rollback is a safety net, not a guarantee.
-      const newBalance = await redis.decrby(redisKey(userId), amount)
-      if (newBalance < 0) {
-        await redis.incrby(redisKey(userId), amount)
-        logger.withFields({ userId, amount }).warn('Insufficient flux, rolled back')
+      // Atomic deduct-or-reject via Lua: no window for negative-balance observation
+      const newBalance = await redis.eval(
+        `local bal = redis.call('DECRBY', KEYS[1], ARGV[1])
+         if bal < 0 then
+           redis.call('INCRBY', KEYS[1], ARGV[1])
+           return -1
+         end
+         return bal`,
+        1,
+        redisKey(userId),
+        amount,
+      ) as number
+
+      if (newBalance === -1) {
+        logger.withFields({ userId, amount }).warn('Insufficient flux')
         metrics?.fluxInsufficientBalance.add(1)
         throw createPaymentRequiredError('Insufficient flux')
       }

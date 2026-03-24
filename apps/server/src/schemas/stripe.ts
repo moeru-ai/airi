@@ -1,7 +1,7 @@
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 
 import { relations } from 'drizzle-orm'
-import { integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
+import { boolean, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
 import { user } from './accounts'
@@ -36,6 +36,7 @@ export const stripeCheckoutSession = pgTable('stripe_checkout_session', {
   cancelUrl: text('cancel_url'),
   stripePaymentIntentId: text('stripe_payment_intent_id'),
   stripeSubscriptionId: text('stripe_subscription_id'),
+  fluxCredited: boolean('flux_credited').notNull().default(false),
   metadata: text('metadata'), // JSON stringified
   expiresAt: timestamp('expires_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -80,6 +81,7 @@ export const stripeInvoice = pgTable('stripe_invoice', {
   periodStart: timestamp('period_start'),
   periodEnd: timestamp('period_end'),
   paidAt: timestamp('paid_at'),
+  fluxCredited: boolean('flux_credited').notNull().default(false),
   metadata: text('metadata'), // JSON stringified
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

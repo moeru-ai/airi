@@ -1,3 +1,4 @@
+import type { Database } from '../../libs/db'
 import type { HonoEnv } from '../../types/hono'
 
 import { Hono } from 'hono'
@@ -11,7 +12,7 @@ import { createProviderRoutes } from '../providers'
 import * as schema from '../../schemas'
 
 describe('providerRoutes', () => {
-  let db: any
+  let db: Database
   let providerService: any
   let app: Hono<HonoEnv>
   let testUser: any

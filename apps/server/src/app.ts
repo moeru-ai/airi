@@ -1,5 +1,6 @@
 import type Redis from 'ioredis'
 
+import type { Database } from './libs/db'
 import type { Env } from './libs/env'
 import type { OtelInstance } from './libs/otel'
 import type { HonoEnv } from './types/hono'
@@ -52,6 +53,7 @@ type StripeDBService = ReturnType<typeof createStripeService>
 type FluxAuditService = ReturnType<typeof createFluxAuditService>
 
 interface AppDeps {
+  db: Database
   auth: AuthService
   characterService: CharacterService
   chatService: ChatService
@@ -67,6 +69,7 @@ interface AppDeps {
 }
 
 function buildApp({
+  db,
   auth,
   characterService,
   chatService,
@@ -175,7 +178,7 @@ function buildApp({
     /**
      * Stripe routes.
      */
-    .route('/api/stripe', createStripeRoutes(fluxService, stripeService, configKV, env, otel?.revenue))
+    .route('/api/stripe', createStripeRoutes(db, fluxService, stripeService, configKV, env, otel?.revenue))
 
   return { app: builtApp, injectWebSocket }
 }
@@ -283,6 +286,7 @@ async function createApp() {
 
   await injeca.start()
   const resolved = await injeca.resolve({
+    db,
     auth,
     characterService,
     chatService,
@@ -298,6 +302,7 @@ async function createApp() {
     fluxWriteBack,
   })
   const { app, injectWebSocket } = buildApp({
+    db: resolved.db,
     auth: resolved.auth,
     characterService: resolved.characterService,
     chatService: resolved.chatService,
