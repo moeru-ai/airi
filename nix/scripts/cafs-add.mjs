@@ -15,7 +15,7 @@
 
 import { execSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { closeSync, constants, copyFileSync, mkdirSync, mkdtempSync, openSync, readdirSync, readSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -37,8 +37,9 @@ if (integrityArg && integrityArg.startsWith('sha512-')) {
   integrityB64 = integrityArg.slice('sha512-'.length)
 }
 else {
-  const tarContent = readFileSync(tarballPath)
-  integrityB64 = createHash('sha512').update(tarContent).digest('base64')
+  // Stream-hash via openssl to avoid loading the whole tarball into memory
+  const result = execSync(`openssl dgst -sha512 -binary ${JSON.stringify(tarballPath)}`)
+  integrityB64 = result.toString('base64')
 }
 const integrityHex = Buffer.from(integrityB64, 'base64').toString('hex')
 
@@ -47,6 +48,29 @@ const indexName = pkgName.replace('/', '+')
 const indexDir = join(outputDir, 'index', integrityHex.slice(0, 2))
 const indexFilename = `${integrityHex.slice(2, 64)}-${indexName}@${pkgVersion}.json`
 const indexPath = join(indexDir, indexFilename)
+
+/**
+ * Compute the SHA512 hash of a file via 256 KB chunked reads.
+ * Avoids loading the entire file into memory at once (important for large
+ * binary packages like app-builder-bin, electron, etc.)
+ */
+const CHUNK = Buffer.allocUnsafe(256 * 1024)
+function hashFile(filePath) {
+  const hash = createHash('sha512')
+  const fd = openSync(filePath, 'r')
+  try {
+    let n
+    do {
+      n = readSync(fd, CHUNK, 0, CHUNK.byteLength, null)
+      if (n > 0)
+        hash.update(n === CHUNK.byteLength ? CHUNK : CHUNK.subarray(0, n))
+    } while (n === CHUNK.byteLength)
+  }
+  finally {
+    closeSync(fd)
+  }
+  return hash.digest()
+}
 
 // Extract tarball to a temp directory
 const tmpDir = mkdtempSync(join(tmpdir(), 'cafs-add-'))
@@ -86,11 +110,10 @@ try {
         walk(fullPath, relPath)
       }
       else if (entry.isFile()) {
-        const content = readFileSync(fullPath)
         const stat = statSync(fullPath)
 
-        // Compute SHA512 of file content
-        const fileHash = createHash('sha512').update(content).digest()
+        // Compute SHA512 via chunked reads — avoids holding the whole file in memory
+        const fileHash = hashFile(fullPath)
         const fileHex = fileHash.toString('hex')
         const fileB64 = fileHash.toString('base64')
 
@@ -98,9 +121,9 @@ try {
         const destDir = join(outputDir, 'files', fileHex.slice(0, 2))
         const destPath = join(destDir, fileHex.slice(2))
         mkdirSync(destDir, { recursive: true })
-        // Skip if already written (content-addressed, same hash = same file)
+        // Copy without loading into memory; COPYFILE_EXCL = fail if dest exists (CAFS: same hash = same file)
         try {
-          writeFileSync(destPath, content, { flag: 'wx' })
+          copyFileSync(fullPath, destPath, constants.COPYFILE_EXCL)
         }
         catch (e) {
           if (e.code !== 'EEXIST')
@@ -120,7 +143,7 @@ try {
           checkedAt: 1,
           integrity: `sha512-${fileB64}`,
           mode,
-          size: content.length,
+          size: stat.size,
         }
       }
       // Symlinks are intentionally skipped — pnpm CAFS does not store symlinks
@@ -131,12 +154,14 @@ try {
 
   // Write index file
   mkdirSync(indexDir, { recursive: true })
-  writeFileSync(indexPath, JSON.stringify({
-    name: pkgName,
-    version: pkgVersion,
-    requiresBuild: false,
-    files: filesIndex,
-  }))
+  execSync(`cat > ${JSON.stringify(indexPath)}`, {
+    input: JSON.stringify({
+      name: pkgName,
+      version: pkgVersion,
+      requiresBuild: false,
+      files: filesIndex,
+    }),
+  })
 }
 finally {
   execSync(`rm -rf ${JSON.stringify(tmpDir)}`)
