@@ -134,7 +134,7 @@ watch([activeProvider, activeModel], async () => {
   if (activeProvider.value && activeModel.value) {
     await discoverToolsCompatibility(activeModel.value, await providersStore.getProviderInstance<ChatProvider>(activeProvider.value), [])
   }
-})
+}, { immediate: true })
 
 onUnmounted(() => {
   teardownAnalyzer()
