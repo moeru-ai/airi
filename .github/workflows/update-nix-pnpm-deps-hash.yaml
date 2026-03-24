@@ -1,4 +1,4 @@
-name: Update Nix pnpmDeps Hash
+name: Update Nix pnpm Package Derivations
 
 on:
   workflow_dispatch:
@@ -18,28 +18,26 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      # Why?
-      #
-      # failed to
-      # $ nix build .#airi-pnpm-deps
-      # > airi-pnpm-deps> Running phase: fixupPhase
-      # > error: writing to file: No space left on device
-      - name: Free Disk Space
-        uses: jlumbroso/free-disk-space@main
-
       - uses: actions/checkout@v6
 
-      - uses: cachix/install-nix-action@v31
-        with:
-          extra_nix_config: experimental-features = nix-command flakes
+      - uses: pnpm/action-setup@v4
 
-      - name: Update Hash
-        run: nix/update-pnpm-deps-hash.sh
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Regenerate Nix package derivations
+        run: pnpm run nix:gen
 
       - name: Pull with rebase
         run: git pull --rebase --autostash
 
       - uses: stefanzweifel/git-auto-commit-action@v7
         with:
-          commit_message: 'chore(nix): update pnpmDeps hash'
+          commit_message: 'chore(nix): regenerate pnpm package derivations'
           commit_author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
+          file_pattern: 'nix/pnpm-packages.nix nix/pnpm-store.nix'

@@ -2,6 +2,8 @@
   lib,
   stdenvNoCC,
 
+  callPackage,
+
   pnpm,
 
   cacert,
@@ -24,11 +26,7 @@ stdenvNoCC.mkDerivation (final: {
       !isEditorMetadataDirectory;
   };
 
-  pnpmDeps = pnpm.fetchDeps {
-    inherit (final) pname version src;
-    fetcherVersion = 2;
-    hash = builtins.readFile ./pnpm-deps-hash.txt;
-  };
+  pnpmDeps = callPackage ./pnpm-store.nix { };
 
   # Cache of assets downloaded during vite build
   assets = stdenvNoCC.mkDerivation {

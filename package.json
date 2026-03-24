@@ -44,7 +44,8 @@
     "up": "taze -w -r -I && pnpm prune && pnpm dedupe",
     "nolyfill": "pnpm dlx nolyfill",
     "open:ios": "pnpm -rF @proj-airi/stage-pocket run open:ios",
-    "knip": "knip"
+    "knip": "knip",
+    "nix:gen": "tsx nix/scripts/gen-pnpm-packages.ts"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^8.2.0",
