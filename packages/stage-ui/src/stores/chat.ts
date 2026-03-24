@@ -413,8 +413,6 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   return {
     sending,
 
-    discoverToolsCompatibility: llmStore.discoverToolsCompatibility,
-
     ingest,
     ingestOnFork,
     cancelPendingSends,
