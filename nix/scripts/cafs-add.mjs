@@ -51,7 +51,11 @@ const indexPath = join(indexDir, indexFilename)
 // Extract tarball to a temp directory
 const tmpDir = mkdtempSync(join(tmpdir(), 'cafs-add-'))
 try {
-  execSync(`tar -xzf ${JSON.stringify(tarballPath)} -C ${JSON.stringify(tmpDir)}`, { stdio: 'pipe' })
+  // NOTICE: --no-same-permissions forces tar to use the current umask (0755 for dirs,
+  // 0644 for files) instead of tarball-stored permissions. Some npm tarballs (e.g. pngjs)
+  // store the top-level "package/" directory as mode 0555; without this flag tar creates
+  // it read-only then immediately fails to write subsequent files into it.
+  execSync(`tar -xzf ${JSON.stringify(tarballPath)} -C ${JSON.stringify(tmpDir)} --no-same-permissions`, { stdio: 'pipe' })
 
   // npm tarballs always have a single top-level "package/" directory; strip it
   const topLevel = readdirSync(tmpDir)
@@ -126,9 +130,5 @@ try {
   }))
 }
 finally {
-  // NOTICE: some npm tarballs (e.g. pngjs) extract directories with mode 0555
-  // (no write bit). `rm -rf` requires write permission on the parent directory
-  // to unlink its children, so it fails with EACCES even as the file owner.
-  // `chmod -R u+rwX` restores write permission before removal.
-  execSync(`chmod -R u+rwX ${JSON.stringify(tmpDir)} && rm -rf ${JSON.stringify(tmpDir)}`)
+  execSync(`rm -rf ${JSON.stringify(tmpDir)}`)
 }
