@@ -8,9 +8,9 @@ interface HomePageConfig {
   buttons: ButtonItem[]
 }
 
-export type ButtonItem = {
+export interface ButtonItem extends Link {
   primary?: boolean
-} & Link
+}
 
 export interface Link {
   text?: string
