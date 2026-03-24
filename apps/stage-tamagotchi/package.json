@@ -130,6 +130,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@anthropic-ai/claude-agent-sdk": "catalog:",
     "@electron-toolkit/tsconfig": "^2.0.0",
     "@electron/notarize": "catalog:",
     "@iconify-json/carbon": "^1.2.18",

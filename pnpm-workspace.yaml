@@ -26,8 +26,8 @@ patchedDependencies:
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
   mineflayer@4.33.0: patches/mineflayer@4.33.0.patch
   srvx@0.9.8: patches/srvx@0.9.8.patch
-
 catalog:
+  '@anthropic-ai/claude-agent-sdk': ^0.2.81
   '@capacitor/cli': ^8.1.0
   '@capacitor/core': ^8.1.0
   '@capacitor/ios': ^8.1.0

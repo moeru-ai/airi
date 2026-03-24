@@ -26,7 +26,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { useDelayMessageQueue, useEmotionsMessageQueue } from '../../composables/queues'
 import { llmInferenceEndToken } from '../../constants'
-import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, Emotion } from '../../constants/emotions'
+import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value } from '../../constants/emotions'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useChatOrchestratorStore } from '../../stores/chat'
 import { useAiriCardStore } from '../../stores/modules'
@@ -68,7 +68,13 @@ const {
   live2dMaxFps,
   live2dDebugControlsEnabled,
   live2dEmotionMotionMap,
+  responsiveScaleFactor,
 } = storeToRefs(settingsStore)
+
+// Merge the user-configured scale with the global responsive scaling factor
+const computedScale = computed(() => {
+  return (props.scale || 1) * (responsiveScaleFactor.value || 1)
+})
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const { audioContext } = useAudioContext()
 const currentAudioSource = ref<AudioBufferSourceNode>()
@@ -411,7 +417,7 @@ function setExpression(target: Partial<typeof defaultModelParameters>, holdMs: n
 
     const nextParams = { ...modelParameters.value }
     const keys = Object.keys(target) as Array<keyof typeof defaultModelParameters>
-    
+
     for (const key of keys) {
       const targetVal = target[key]
       const baseVal = base[key]
@@ -419,7 +425,7 @@ function setExpression(target: Partial<typeof defaultModelParameters>, holdMs: n
         nextParams[key] = baseVal + (targetVal - baseVal) * intensity
       }
     }
-    
+
     modelParameters.value = nextParams
 
     if (intensity > 0) {
@@ -562,7 +568,7 @@ function startIdleHeadWave() {
       idleHeadWaveId.value = requestAnimationFrame(step)
       return
     }
-    
+
     // Natural breathing rhythm (approx 4s cycle)
     const breathCycle = (Math.sin(elapsed / 2000) + 1) * 0.5
 
@@ -1084,7 +1090,7 @@ defineExpose({
 
 <template>
   <div relative>
-    <div v-if="live2dDebugControlsEnabled" left-3 top-3 z-60 flex flex-wrap gap-2 rounded-lg bg="black/45" p-2 backdrop-blur absolute>
+    <div v-if="live2dDebugControlsEnabled" bg="black/45" absolute left-3 top-3 z-60 flex flex-wrap gap-2 rounded-lg p-2 backdrop-blur>
       <div v-if="lastEmotionTriggerLabel" rounded-md border="1 white/20" px-2 py-1 text-xs text="white/80">
         触发: {{ lastEmotionTriggerLabel }}
       </div>
@@ -1126,7 +1132,7 @@ defineExpose({
         :paused="paused"
         :x-offset="xOffset"
         :y-offset="yOffset"
-        :scale="scale"
+        :scale="computedScale"
         :disable-focus-at="live2dDisableFocus"
         :theme-colors-hue="themeColorsHue"
         :theme-colors-hue-dynamic="themeColorsHueDynamic"
