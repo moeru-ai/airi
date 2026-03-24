@@ -34,5 +34,6 @@ profile-switcher:
   no-profile: Aucun profil
   no-profiles: Aucuns profils pour l'instant
   save-as-new: Enregistrer comme Nouveau Profil
+  new-profile-name: Nom du profil
   manage: Gérer les Profils
 waiting: En attente
