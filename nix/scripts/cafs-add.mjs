@@ -126,8 +126,9 @@ try {
   }))
 }
 finally {
-  // NOTICE: rmSync with force:true only suppresses ENOENT, not EACCES.
-  // npm tarballs may contain read-only files (e.g. mode 0444); use `rm -rf`
-  // which can remove them regardless of permissions within the Nix sandbox.
-  execSync(`rm -rf ${JSON.stringify(tmpDir)}`)
+  // NOTICE: some npm tarballs (e.g. pngjs) extract directories with mode 0555
+  // (no write bit). `rm -rf` requires write permission on the parent directory
+  // to unlink its children, so it fails with EACCES even as the file owner.
+  // `chmod -R u+rwX` restores write permission before removal.
+  execSync(`chmod -R u+rwX ${JSON.stringify(tmpDir)} && rm -rf ${JSON.stringify(tmpDir)}`)
 }
