@@ -30,15 +30,25 @@ import {
   matchesDestinations,
 } from './middlewares'
 
-/** Constant-time string comparison that prevents timing attacks (CWE-208). */
+/**
+ * Constant-time string comparison that prevents timing attacks (CWE-208).
+ *
+ * @param {string} a - the first string to compare
+ * @param {string} b - the expected value (e.g., the real secret)
+ * @returns {boolean} `true` if the strings are equal, `false` otherwise
+ */
 function timingSafeCompare(a: string, b: string): boolean {
   const bufA = Buffer.from(a)
   const bufB = Buffer.from(b)
   if (bufA.length !== bufB.length) {
     // Compare against itself to keep constant time, then return false
     timingSafeEqual(bufA, bufA)
+    // To prevent leaking length information, we perform a dummy comparison on the
+    // expected value, making the execution time dependent on its length.
+    timingSafeEqual(bufB, bufB)
     return false
   }
+
   return timingSafeEqual(bufA, bufB)
 }
 
