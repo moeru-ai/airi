@@ -118,7 +118,7 @@ export function collapseOldestContexts(
     label: `(collapsed: ${labels})`,
     summary: `Collapsed ${toCollapse.length} earlier contexts (${totalTurns} turns, ${totalMessages} messages). Topics: ${labels}.`,
     startTurnId: toCollapse[0].startTurnId,
-    endTurnId: toCollapse[toCollapse.length - 1].endTurnId,
+    endTurnId: toCollapse.at(-1).endTurnId,
     messageCount: totalMessages,
     archivedAt: Date.now(),
   }

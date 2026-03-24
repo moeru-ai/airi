@@ -103,7 +103,7 @@ If you haven't clone this repository, skip this section.
 Make sure your local repository is up to date with the upstream repository:
 
 ```shell
-git fetch -all
+git fetch --all
 git checkout main
 git pull upstream main --rebase
 ```

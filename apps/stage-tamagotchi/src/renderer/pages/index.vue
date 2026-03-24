@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import type { ModelSettingsRuntimeSnapshot } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
+
+import type { ModelSettingsRuntimeChannelEvent } from '../../shared/model-settings-runtime'
 
 import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
@@ -11,7 +14,11 @@ import {
   useElectronMouseInWindow,
   useElectronRelativeMouse,
 } from '@proj-airi/electron-vueuse'
-import { useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
+import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
+import {
+  createEmptyModelSettingsRuntimeSnapshot,
+  resolveComponentStateToRuntimePhase,
+} from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
 import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
@@ -32,6 +39,9 @@ import ResourceStatusIsland from '../components/stage-islands/resource-status-is
 import StatusIsland from '../components/stage-islands/status-island/index.vue'
 
 import { electronOpenOnboarding } from '../../shared/eventa'
+import {
+  modelSettingsRuntimeSnapshotChannelName,
+} from '../../shared/model-settings-runtime'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
 import { useWindowStore } from '../stores/window'
@@ -42,8 +52,8 @@ const statusIslandRef = ref<InstanceType<typeof StatusIsland>>()
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
 const stageCanvas = toRef(() => widgetStageRef.value?.canvasElement())
 const componentStateStage = ref<'pending' | 'loading' | 'mounted'>('pending')
-
-const isLoading = ref(true)
+const stageMounted = computed(() => componentStateStage.value === 'mounted')
+const isLoading = computed(() => !stageMounted.value)
 
 const isIgnoringMouseEvents = ref(false)
 const shouldFadeOnCursorWithin = ref(false)
@@ -73,9 +83,19 @@ const isTransparentByThree = useThreeSceneIsTransparentAtPoint(
   { regionRadius: 25 },
 )
 
-const { stageModelRenderer } = storeToRefs(useSettings())
+const settingsStore = useSettings()
+const { stageModelRenderer, stageModelSelectedUrl } = storeToRefs(settingsStore)
+const modelStore = useModelStore()
+const { sceneMutationLocked, scenePhase } = storeToRefs(modelStore)
 const { stagePaused } = storeToRefs(useStageWindowLifecycleStore())
 const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
+const modelSettingsRuntimeOwnerInstanceId = `tamagotchi-main-stage:${Math.random().toString(36).slice(2, 10)}`
+const {
+  data: modelSettingsRuntimeChannelEvent,
+  post: postModelSettingsRuntimeChannelEvent,
+} = useBroadcastChannel<ModelSettingsRuntimeChannelEvent, ModelSettingsRuntimeChannelEvent>({
+  name: modelSettingsRuntimeSnapshotChannelName,
+})
 const shouldUseThreeTransparencyHitTest = computed(() => shouldSampleStageTransparency({
   componentState: componentStateStage.value,
   fadeOnHoverEnabled: fadeOnHoverEnabled.value,
@@ -104,13 +124,48 @@ const live2dStore = useLive2d()
 const { scale, positionInPercentageString } = storeToRefs(live2dStore)
 const { live2dLookAtX, live2dLookAtY } = storeToRefs(useWindowStore())
 
-watch(componentStateStage, () => isLoading.value = componentStateStage.value !== 'mounted', { immediate: true })
-
 const { pause, resume } = watch(isTransparent, (transparent) => {
   shouldFadeOnCursorWithin.value = fadeOnHoverEnabled.value && !transparent
 }, { immediate: true })
 
 const hearingDialogOpen = computed(() => controlsIslandRef.value?.hearingDialogOpen ?? false)
+
+const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() => {
+  const hasModel = !!stageModelSelectedUrl.value
+
+  if (stageModelRenderer.value === 'live2d') {
+    const phase = resolveComponentStateToRuntimePhase(componentStateStage.value, { hasModel })
+
+    return createEmptyModelSettingsRuntimeSnapshot({
+      ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
+      renderer: 'live2d',
+      phase,
+      controlsLocked: hasModel ? phase !== 'mounted' : false,
+      previewAvailable: hasModel,
+      canCapturePreview: false,
+      updatedAt: Date.now(),
+    })
+  }
+
+  if (stageModelRenderer.value === 'vrm') {
+    return createEmptyModelSettingsRuntimeSnapshot({
+      ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
+      renderer: 'vrm',
+      phase: hasModel ? scenePhase.value : 'no-model',
+      controlsLocked: hasModel
+        ? (!stageMounted.value || sceneMutationLocked.value)
+        : false,
+      previewAvailable: hasModel,
+      canCapturePreview: false,
+      updatedAt: Date.now(),
+    })
+  }
+
+  return createEmptyModelSettingsRuntimeSnapshot({
+    ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
+    updatedAt: Date.now(),
+  })
+})
 
 watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen, fadeOnHoverEnabled, stagePaused], () => {
   if (stagePaused.value) {
@@ -151,6 +206,16 @@ watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor
     else
       pause()
   }
+})
+// Emit runtime snapshot on change and on request from settings panel
+watch(modelSettingsRuntimeSnapshot, (snapshot) => {
+  postModelSettingsRuntimeChannelEvent({ type: 'snapshot', snapshot })
+}, { immediate: true })
+watch(modelSettingsRuntimeChannelEvent, (event) => {
+  if (event?.type !== 'request-current')
+    return
+
+  postModelSettingsRuntimeChannelEvent({ type: 'snapshot', snapshot: modelSettingsRuntimeSnapshot.value })
 })
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
@@ -333,6 +398,10 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  postModelSettingsRuntimeChannelEvent({
+    type: 'owner-gone',
+    ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
+  })
   stopAudioInteraction()
 })
 

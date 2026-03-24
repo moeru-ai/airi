@@ -8,7 +8,13 @@ import type {
 } from './middlewares'
 import type { AuthenticatedPeer, Peer } from './types'
 
+import { timingSafeEqual } from 'node:crypto'
+
 import { availableLogLevelStrings, Format, LogLevelString, logLevelStringToLogLevelMap, useLogg } from '@guiiai/logg'
+import {
+  createInvalidJsonServerErrorMessage,
+  ServerErrorMessages,
+} from '@proj-airi/server-shared'
 import { MessageHeartbeat, MessageHeartbeatKind, WebSocketEventSource } from '@proj-airi/server-shared/types'
 import { defineWebSocketHandler, H3 } from 'h3'
 import { nanoid } from 'nanoid'
@@ -23,6 +29,28 @@ import {
   isDevtoolsPeer,
   matchesDestinations,
 } from './middlewares'
+
+/**
+ * Constant-time string comparison that prevents timing attacks (CWE-208).
+ *
+ * @param {string} a - the first string to compare
+ * @param {string} b - the expected value (e.g., the real secret)
+ * @returns {boolean} `true` if the strings are equal, `false` otherwise
+ */
+function timingSafeCompare(a: string, b: string): boolean {
+  const bufA = Buffer.from(a)
+  const bufB = Buffer.from(b)
+  if (bufA.length !== bufB.length) {
+    // Compare against itself to keep constant time, then return false
+    timingSafeEqual(bufA, bufA)
+    // To prevent leaking length information, we perform a dummy comparison on the
+    // expected value, making the execution time dependent on its length.
+    timingSafeEqual(bufB, bufB)
+    return false
+  }
+
+  return timingSafeEqual(bufA, bufB)
+}
 
 function createServerEventMetadata(serverInstanceId: string, parentId?: string): { source: MetadataEventSource, event: { id: string, parentId?: string } } {
   return {
@@ -50,7 +78,7 @@ const RESPONSES = {
   }),
   notAuthenticated: (serverInstanceId: string, parentId?: string) => ({
     type: 'error',
-    data: { message: 'not authenticated' },
+    data: { message: ServerErrorMessages.notAuthenticated },
     metadata: createServerEventMetadata(serverInstanceId, parentId),
   }),
   error: (message: string, serverInstanceId: string, parentId?: string) => ({
@@ -281,7 +309,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
           : JSON.parse(text)
 
         if (!potentialEvent || typeof potentialEvent !== 'object' || !('type' in potentialEvent)) {
-          send(peer, RESPONSES.error('invalid event format', instanceId))
+          send(peer, RESPONSES.error(ServerErrorMessages.invalidEventFormat, instanceId))
           return
         }
 
@@ -289,7 +317,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       }
       catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err)
-        send(peer, RESPONSES.error(`invalid JSON, error: ${errorMessage}`, instanceId))
+        send(peer, RESPONSES.error(createInvalidJsonServerErrorMessage(errorMessage), instanceId))
 
         return
       }
@@ -335,9 +363,10 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
         }
 
         case 'module:authenticate': {
-          if (authToken && event.data.token !== authToken) {
+          const clientToken = typeof event.data.token === 'string' ? event.data.token : ''
+          if (authToken && !timingSafeCompare(clientToken, authToken)) {
             logger.withFields({ peer: peer.id, peerRemote: peer.remoteAddress, peerRequest: peer.request.url }).log('authentication failed')
-            send(peer, RESPONSES.error('invalid token', instanceId, event.metadata?.event.id))
+            send(peer, RESPONSES.error(ServerErrorMessages.invalidToken, instanceId, event.metadata?.event.id))
 
             return
           }
@@ -364,24 +393,24 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
           // verify
           const { name, index, identity } = event.data as { name: string, index?: number, identity?: MetadataEventSource }
           if (!name || typeof name !== 'string') {
-            send(peer, RESPONSES.error('the field \'name\' must be a non-empty string for event \'module:announce\'', instanceId))
+            send(peer, RESPONSES.error(ServerErrorMessages.moduleAnnounceNameInvalid, instanceId))
 
             return
           }
           if (typeof index !== 'undefined') {
             if (!Number.isInteger(index) || index < 0) {
-              send(peer, RESPONSES.error('the field \'index\' must be a non-negative integer for event \'module:announce\'', instanceId))
+              send(peer, RESPONSES.error(ServerErrorMessages.moduleAnnounceIndexInvalid, instanceId))
 
               return
             }
           }
           if (!identity || identity.kind !== 'plugin' || !identity.plugin?.id) {
-            send(peer, RESPONSES.error('module identity must include kind=plugin and a plugin id for event \'module:announce\'', instanceId))
+            send(peer, RESPONSES.error(ServerErrorMessages.moduleAnnounceIdentityInvalid, instanceId))
 
             return
           }
           if (authToken && !p.authenticated) {
-            send(peer, RESPONSES.error('must authenticate before announcing', instanceId))
+            send(peer, RESPONSES.error(ServerErrorMessages.mustAuthenticateBeforeAnnouncing, instanceId))
 
             return
           }
@@ -420,13 +449,13 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
           const config = data.config
 
           if (moduleName === '') {
-            send(peer, RESPONSES.error('the field \'moduleName\' can\'t be empty for event \'ui:configure\'', instanceId))
+            send(peer, RESPONSES.error(ServerErrorMessages.uiConfigureModuleNameInvalid, instanceId))
 
             return
           }
           if (typeof moduleIndex !== 'undefined') {
             if (!Number.isInteger(moduleIndex) || moduleIndex < 0) {
-              send(peer, RESPONSES.error('the field \'moduleIndex\' must be a non-negative integer for event \'ui:configure\'', instanceId))
+              send(peer, RESPONSES.error(ServerErrorMessages.uiConfigureModuleIndexInvalid, instanceId))
 
               return
             }
@@ -442,7 +471,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
             })
           }
           else {
-            send(peer, RESPONSES.error('module not found, it hasn\'t announced itself or the name is incorrect', instanceId))
+            send(peer, RESPONSES.error(ServerErrorMessages.moduleNotFound, instanceId))
           }
 
           return

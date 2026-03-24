@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { OnboardingDialog, ToasterRoot } from '@proj-airi/stage-ui/components'
-import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
+import { OnboardingDialog, OnboardingStepAnalyticsNotice, ToasterRoot } from '@proj-airi/stage-ui/components'
+import { isPosthogAvailableInBuild, useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
@@ -57,6 +57,12 @@ const tertiaryColor = computed(() => {
 
 const colors = computed(() => {
   return [primaryColor.value, secondaryColor.value, tertiaryColor.value, isDark.value ? '#121212' : '#FFFFFF']
+})
+
+const onboardingExtraSteps = computed(() => {
+  return isPosthogAvailableInBuild()
+    ? [{ id: 'analytics-notice', component: OnboardingStepAnalyticsNotice }]
+    : []
 })
 
 watch(settings.language, () => {
@@ -125,6 +131,7 @@ function handleSetupSkipped() {
   <!-- First Time Setup Dialog -->
   <OnboardingDialog
     v-model="showingSetup"
+    :extra-steps="onboardingExtraSteps"
     @configured="handleSetupConfigured"
     @skipped="handleSetupSkipped"
   />

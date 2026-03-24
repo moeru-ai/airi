@@ -288,7 +288,7 @@ export function hasActiveLink(
 }
 
 function addBase(items: SidebarItem[], _base?: string): SidebarItem[] {
-  return [...items].map((_item) => {
+  return Array.from(items, (_item) => {
     const item = { ..._item }
     const base = item.base || _base
     if (base && item.link)

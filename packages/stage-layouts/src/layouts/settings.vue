@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { PageHeader } from '@proj-airi/stage-ui/components'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useTheme } from '@proj-airi/ui'
@@ -81,6 +82,7 @@ onMounted(() => updateThemeColor())
   >
     <!-- Header -->
     <div
+      v-if="!isStageTamagotchi()"
       class="px-0 py-1 hidden sm:block md:px-3 md:py-3"
       w-full gap-2
       bg="$bg-color"
@@ -92,7 +94,7 @@ onMounted(() => updateThemeColor())
       <PageHeader
         :title="routeHeaderMetadata?.title || ''"
         :subtitle="routeHeaderMetadata?.subtitle"
-        :disable-back-button="route.path === '/settings'"
+        :disable-back-button="isStageTamagotchi() && route.path === '/settings'"
       />
       <div id="settings-scroll-container" relative min-h-0 flex-1 overflow-y-auto scrollbar-none>
         <RouterView />

@@ -170,7 +170,7 @@ function downloadAllImages() {
 
   doneItems.forEach((_, i) => {
     const index = imageItems.value.indexOf(doneItems[i])
-    setTimeout(() => downloadImage(index), i * 100)
+    setTimeout(downloadImage, i * 100, index)
   })
 }
 

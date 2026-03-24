@@ -213,7 +213,7 @@ export function patchedGoto(
       settled = true
       cleanup()
       // Resolve on next tick to let pathfinder clean up
-      setTimeout(() => resolve(result), 0)
+      setTimeout(resolve, 0, result)
     }
 
     function resetTimeout() {

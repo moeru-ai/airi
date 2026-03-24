@@ -55,6 +55,7 @@ import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './prov
 import { convertProviderDefinitionsToMetadata } from './providers/converters'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
+import { buildOpenRouterAudioSpeechProvider } from './providers/openrouter/audio-speech'
 import { createWebSpeechAPIProvider } from './providers/web-speech-api'
 
 const ALIYUN_NLS_REGIONS = [
@@ -1359,6 +1360,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'openrouter-audio-speech': buildOpenRouterAudioSpeechProvider(v => baseUrlValidator.value(v)),
     'comet-api-speech': buildOpenAICompatibleProvider({
       id: 'comet-api-speech',
       name: 'CometAPI Speech',
@@ -1826,7 +1828,7 @@ export const useProvidersStore = defineStore('providers', () => {
     const defaultOptions = metadata?.defaultOptions?.() || {}
     return {
       ...defaultOptions,
-      ...(Object.prototype.hasOwnProperty.call(defaultOptions, 'baseUrl') ? {} : { baseUrl: '' }),
+      ...(Object.hasOwn(defaultOptions, 'baseUrl') ? {} : { baseUrl: '' }),
     }
   }
 
@@ -2207,6 +2209,7 @@ export const useProvidersStore = defineStore('providers', () => {
     deleteProvider,
     availableProviders,
     configuredProviders,
+    providerRuntimeState,
     providerMetadata,
     getProviderMetadata,
     getTranscriptionFeatures,

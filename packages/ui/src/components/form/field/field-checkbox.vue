@@ -4,6 +4,7 @@ import { Checkbox } from '../checkbox'
 const props = defineProps<{
   label?: string
   description?: string
+  disabled?: boolean
 }>()
 
 const modelValue = defineModel<boolean>({ required: true })
@@ -24,7 +25,7 @@ const modelValue = defineModel<boolean>({ required: true })
           </slot>
         </div>
       </div>
-      <Checkbox v-model="modelValue" />
+      <Checkbox v-model="modelValue" :disabled="props.disabled" />
     </div>
   </label>
 </template>

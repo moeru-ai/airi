@@ -50,7 +50,7 @@ function getBarColor(_index: number, barLevel: number): string {
     }
   }
 
-  return thresholds[thresholds.length - 1]?.color || 'bg-green-500'
+  return thresholds.at(-1)?.color || 'bg-green-500'
 }
 </script>
 

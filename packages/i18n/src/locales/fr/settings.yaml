@@ -19,12 +19,12 @@ dialogs:
     baseUrlHelp: URL de l'endpoint API (utilisez la valeur par défaut si vous n’êtes pas sûr)
     accountId: ID du compte
     validationSuccess: Validation de la configuration réussie
-    validationPartial: Configuration partially validated
+    validationPartial: Configuration partiellement validée
     validationFailed: La validation de la configuration a échouée.
     validationError: 'Erreur de validation: {error}'
-    testGeneration: Test Generation
-    testGenerationRunning: Testing...
-    testGenerationFailed: Generation test failed
+    testGeneration: Génération du test
+    testGenerationRunning: Essai en cours...
+    testGenerationFailed: Échec de la génération du test
     skipForNow: Passer pour l'instant
     saveAndContinue: Sauvegarder et Continuer
     next: Suivant
@@ -49,8 +49,7 @@ dialogs:
       stateNotGranted: Non accordée
 language:
   title: Langage
-  description: >
-    Modifier le langage de l'inteface d'AIRI. Cela n'affectera pas le langage des réponses du personnage.
+  description: Langue de l'interface utilisateur
 controls-island:
   icon-size:
     title: Taille des icônes de l'îlot de contrôle
@@ -218,6 +217,10 @@ pages:
         title: Supprimer toutes les données
         description: Effacer tous les réglages, configurations de fournisseurs et modèles locaux.
         delete: Supprimer toutes les données
+      desktop-folder:
+        title: Ouvrir le dossier de données de l'application
+        description: Ouvrir le dossier de données d'AIRI dans votre gestionnaire de fichiers.
+        open: Ouvrir le dossier
       desktop:
         title: Réinitialiser les paramètres et états du bureau
         description: Effacer les paramètres du bureau AIRI et l'état d'exécution.
@@ -738,6 +741,9 @@ pages:
         description: n1n.ai - Fournisseur d'API d'IA haute performance.
         title: n1n
       openrouter:
+        description: openrouter.ai
+        title: OpenRouter
+      openrouter-audio-speech:
         description: openrouter.ai
         title: OpenRouter
       perplexity:
