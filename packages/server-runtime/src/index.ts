@@ -8,6 +8,8 @@ import type {
 } from './middlewares'
 import type { AuthenticatedPeer, Peer } from './types'
 
+import { timingSafeEqual } from 'node:crypto'
+
 import { availableLogLevelStrings, Format, LogLevelString, logLevelStringToLogLevelMap, useLogg } from '@guiiai/logg'
 import {
   createInvalidJsonServerErrorMessage,
@@ -27,6 +29,28 @@ import {
   isDevtoolsPeer,
   matchesDestinations,
 } from './middlewares'
+
+/**
+ * Constant-time string comparison that prevents timing attacks (CWE-208).
+ *
+ * @param {string} a - the first string to compare
+ * @param {string} b - the expected value (e.g., the real secret)
+ * @returns {boolean} `true` if the strings are equal, `false` otherwise
+ */
+function timingSafeCompare(a: string, b: string): boolean {
+  const bufA = Buffer.from(a)
+  const bufB = Buffer.from(b)
+  if (bufA.length !== bufB.length) {
+    // Compare against itself to keep constant time, then return false
+    timingSafeEqual(bufA, bufA)
+    // To prevent leaking length information, we perform a dummy comparison on the
+    // expected value, making the execution time dependent on its length.
+    timingSafeEqual(bufB, bufB)
+    return false
+  }
+
+  return timingSafeEqual(bufA, bufB)
+}
 
 function createServerEventMetadata(serverInstanceId: string, parentId?: string): { source: MetadataEventSource, event: { id: string, parentId?: string } } {
   return {
@@ -339,7 +363,8 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
         }
 
         case 'module:authenticate': {
-          if (authToken && event.data.token !== authToken) {
+          const clientToken = typeof event.data.token === 'string' ? event.data.token : ''
+          if (authToken && !timingSafeCompare(clientToken, authToken)) {
             logger.withFields({ peer: peer.id, peerRemote: peer.remoteAddress, peerRequest: peer.request.url }).log('authentication failed')
             send(peer, RESPONSES.error(ServerErrorMessages.invalidToken, instanceId, event.metadata?.event.id))
 
