@@ -214,6 +214,7 @@ export default defineConfig<ThemeConfig>({
               link: webLive,
               primary: true,
               target: '_self',
+              sameOriginExternal: true,
             },
             {
               text: 'Download',
@@ -355,6 +356,7 @@ export default defineConfig<ThemeConfig>({
               link: webLive,
               primary: true,
               target: '_self',
+              sameOriginExternal: true,
             },
             {
               text: '下载',
@@ -496,6 +498,7 @@ export default defineConfig<ThemeConfig>({
               link: webLive,
               primary: true,
               target: '_self',
+              sameOriginExternal: true,
             },
             {
               text: 'ダウンロード',
