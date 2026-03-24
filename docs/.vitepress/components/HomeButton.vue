@@ -8,6 +8,7 @@ defineProps<{
 
 <template>
   <a
+    :target="item.target"
     :href="item.link"
     :class="[
       'rounded-xl px-3 py-2 lg:px-5 lg:py-3 font-extrabold outline-none backdrop-blur-md active:scale-95 focus:outline-none text-nowrap text-sm md:text-base',
