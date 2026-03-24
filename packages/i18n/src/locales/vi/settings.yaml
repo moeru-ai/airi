@@ -49,8 +49,7 @@ dialogs:
       stateNotGranted: Not granted
 language:
   title: Ngôn ngữ
-  description: >
-    Thay đổi ngôn ngữ giao diện AIRI. Điều này sẽ không ảnh hưởng đến ngôn ngữ phản hồi của nhân vật.
+  description: UI language
 controls-island:
   icon-size:
     title: Kích thước biểu tượng đảo
@@ -218,6 +217,10 @@ pages:
         title: Xóa tất cả dữ liệu
         description: Xóa sạch toàn bộ thiết lập cục bộ, cấu hình nhà cung cấp và mô hình.
         delete: Xóa sạch dữ liệu
+      desktop-folder:
+        title: Open app data folder
+        description: Open AIRI's data folder in your file manager.
+        open: Open folder
       desktop:
         title: Đặt lại thiết lập máy tính
         description: Xóa các cài đặt và trạng thái thực thi của AIRI trên máy tính.
@@ -738,6 +741,9 @@ pages:
         description: n1n.ai - Cung cấp API AI hiệu năng cao.
         title: n1n
       openrouter:
+        description: openrouter.ai
+        title: OpenRouter
+      openrouter-audio-speech:
         description: openrouter.ai
         title: OpenRouter
       perplexity:

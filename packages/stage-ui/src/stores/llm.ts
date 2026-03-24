@@ -17,6 +17,7 @@ export type StreamEvent
     | { type: 'error', error: any }
 
 export interface StreamOptions {
+  abortSignal?: AbortSignal
   headers?: Record<string, string>
   onStreamEvent?: (event: StreamEvent) => void | Promise<void>
   toolsCompatibility?: Map<string, boolean>
@@ -107,14 +108,34 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
     }
 
     try {
-      streamText({
+      const streamResult = streamText({
         ...chatConfig,
+        abortSignal: options?.abortSignal,
         maxSteps: 10,
         messages: sanitized,
         headers,
         // TODO: we need Automatic tools discovery
         tools,
         onEvent,
+      })
+
+      // NOTICE: @xsai/stream-text rejects its result promises when the SSE parser
+      // encounters provider-side errors such as `{"error":{"message":"failed to process image"}}`.
+      // This wrapper resolves/rejects via `onEvent`, so we must also consume the
+      // underlying promises to prevent those internal rejections from surfacing as
+      // unhandled promise errors and leaving the app in a faulted state.
+      void streamResult.steps.catch((err) => {
+        rejectOnce(err)
+        console.error('Stream steps error:', err)
+      })
+      void streamResult.messages.catch((err) => {
+        console.error('Stream messages error:', err)
+      })
+      void streamResult.usage.catch((err) => {
+        console.error('Stream usage error:', err)
+      })
+      void streamResult.totalUsage.catch((err) => {
+        console.error('Stream totalUsage error:', err)
       })
     }
     catch (err) {

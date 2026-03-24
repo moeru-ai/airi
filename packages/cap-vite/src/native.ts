@@ -89,14 +89,21 @@ export function resolveCapRunArgs(capArgs: string[], env: NodeJS.ProcessEnv = pr
     return capArgs
   }
 
-  const target = env.CAPACITOR_DEVICE_ID
+  const [platformArg, ...rest] = capArgs
+  const platform = parseCapacitorPlatform(platformArg)
+  let target: string | undefined
+  if (platform === 'ios') {
+    target = env.CAPACITOR_DEVICE_ID_IOS
+  }
+  else if (platform === 'android') {
+    target = env.CAPACITOR_DEVICE_ID_ANDROID
+  }
+
   if (!target) {
     return capArgs
   }
 
-  const [platform, ...rest] = capArgs
-
-  return [platform, '--target', target, ...rest]
+  return [platformArg, '--target', target, ...rest]
 }
 
 export function pickServerUrl(server: Pick<ViteDevServer, 'resolvedUrls'>): URL {

@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/server-sdk",
   "type": "module",
-  "version": "0.9.0-alpha.17",
+  "version": "0.9.0-alpha.21",
   "description": "Client-side SDK implementation for connecting to AIRI server components and runtimes",
   "author": {
     "name": "Moeru AI Project AIRI Team",
@@ -37,11 +37,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@moeru/std": "catalog:",
     "@proj-airi/server-shared": "workspace:^",
     "crossws": "^0.4.4",
     "superjson": "catalog:"
-  },
-  "devDependencies": {
-    "@moeru/std": "catalog:"
   }
 }

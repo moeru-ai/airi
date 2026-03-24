@@ -23,5 +23,5 @@ menu:
       follow_window: ウィンドウをフォロー
       reset_position: 位置リセット
       devtools: 開発ツール
-      troubleshoot_beatsync: Troubleshoot BeatSync...
-      quit: Quit
+      troubleshoot_beatsync: BeatSyncのトラブルシューティング…
+      quit: 終了

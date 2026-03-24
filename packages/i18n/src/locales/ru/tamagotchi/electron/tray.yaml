@@ -4,24 +4,24 @@ menu:
       show: Показать
       adjust_sizes: Отрегулировать размеры
       recommended_size: Рекомендуется (450x600)
-      full_height:
-      half_height: Half Height
+      full_height: Полная высота
+      half_height: Половина высоты
       full_screen: Во весь экран
-      align_to: Align to
-      center: Center
-      top_left: Top Left
-      top_right: Top Right
-      bottom_left: Bottom Left
-      bottom_right: Bottom Right
-      settings: Settings...
-      about: About...
-      open_inlay: Open Inlay...
-      open_widgets: Open Widgets...
-      open_caption: Open Caption...
-      close_caption: Close Caption...
-      caption_overlay: Caption Overlay
-      follow_window: Follow window
-      reset_position: Reset position
-      devtools: DevTools
-      troubleshoot_beatsync: Troubleshoot BeatSync...
-      quit: Quit
+      align_to: Выравнивание по умолчанию
+      center: Выравнивание элементов по центру
+      top_left: Сверху слева
+      top_right: Сверху справа
+      bottom_left: Снизу слева
+      bottom_right: Снизу справа
+      settings: Настройки
+      about: О программе
+      open_inlay: Открыть Входы
+      open_widgets: Открыть виджеты
+      open_caption: Открыть субтитры
+      close_caption: Закрыть субтитры
+      caption_overlay: Наложение субтитров
+      follow_window: Перейти в окно
+      reset_position: Сбросить положение
+      devtools: Инструменты разработчика
+      troubleshoot_beatsync: Синхронизация неполадок
+      quit: Выход

@@ -31,9 +31,9 @@ viewers:
       model:
         title: モデル
 profile-switcher:
-  no-profile: No Profile
-  no-profiles: No profiles yet
-  save-as-new: Save as New Profile
+  no-profile: プロファイルがありません
+  no-profiles: まだプロファイルがありません
+  save-as-new: 新規プロファイルとして保存
   new-profile-name: Profile name
-  manage: Manage Profiles
+  manage: プロファイルを管理
 waiting: 待機中
