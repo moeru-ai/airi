@@ -83,9 +83,9 @@
     "unplugin-raw": "^0.6.4",
     "unplugin-unused": "^0.5.7",
     "unplugin-vue": "^7.1.1",
-    "vite": "^8.0.1",
+    "vite": "^8.0.2",
     "vite-plugin-inspect": "^11.3.3",
-    "vitest": "^4.1.0",
+    "vitest": "^4.1.1",
     "yaml": "^2.8.3"
   },
   "workspaces": [

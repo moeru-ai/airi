@@ -39,7 +39,7 @@
     "@vitejs/plugin-vue": "^6.0.5",
     "unplugin-vue-router": "^0.19.2",
     "vite": "catalog:",
-    "vite-plugin-vue-devtools": "^8.1.0",
+    "vite-plugin-vue-devtools": "^8.1.1",
     "vue-router": "^5.0.4",
     "vue-tsc": "^3.2.6"
   }
