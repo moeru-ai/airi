@@ -17,10 +17,10 @@ export interface Link {
   link?: string
 
   /**
-   * VitePress在SPA内部处理导航时会劫持<a>标签的点击事件，导致外部链接被Vue Router识别为内部路由，产生路由错误。<br/>
-   * 可以通过给<a>标签增加target属性让浏览器原生处理跳转的方式避免此问题。
+   * VitePress intercepts `<a>` tag clicks for SPA navigation, which can cause routing errors for external links.<br/>
+   * Adding a `target` attribute allows the browser to handle the navigation natively, avoiding this problem.
    *
-   * 参见：<br/>
+   * See:<br/>
    * https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/a#target<br/>
    * https://stackoverflow.com/questions/79348337/redirect-main-title-link-in-vitepress-to-my-personal-website/79386388#79386388
    */
