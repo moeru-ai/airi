@@ -51,17 +51,20 @@ const indexPath = join(indexDir, indexFilename)
 // Extract tarball to a temp directory
 const tmpDir = mkdtempSync(join(tmpdir(), 'cafs-add-'))
 try {
-  // NOTICE: --no-same-permissions forces tar to use the current umask instead of
-  // tarball-stored permissions. Some npm tarballs (e.g. pngjs) store the top-level
-  // "package/" directory as mode 0555; without this flag tar creates it read-only
-  // then immediately fails to write subsequent files into it.
-  execSync(`tar -xzf ${JSON.stringify(tarballPath)} -C ${JSON.stringify(tmpDir)} --no-same-permissions`, { stdio: 'pipe' })
-
-  // NOTICE: even with --no-same-permissions, the umask only removes bits from 0777;
-  // it cannot ADD the user-write bit if the archive stored 0555 for a directory.
-  // chmod -R u+rwX ensures all extracted files/dirs are user-readable and writable
-  // so the walk below can read them and the finally block can remove them.
+  // NOTICE: some npm tarballs (e.g. pngjs) store directories with mode 0666
+  // (rw-rw-rw-, no execute bit). GNU tar applies the process umask (0022) to get
+  // 0644 — still no execute. Without execute, tar cannot traverse into a directory
+  // to write sub-files, so extraction partially fails.
+  //
+  // Two-pass workaround:
+  //   1. First extraction — partially succeeds (files directly in non-exec dirs fail)
+  //   2. chmod -R u+rwX — adds execute to all directories
+  //   3. Second extraction with --no-overwrite-dir — keeps our fixed permissions and
+  //      writes the previously-skipped files
+  try { execSync(`tar -xzf ${JSON.stringify(tarballPath)} -C ${JSON.stringify(tmpDir)} --no-same-permissions`, { stdio: 'pipe' }) }
+  catch (_) { /* partial extraction — chmod + retry below */ }
   execSync(`chmod -R u+rwX ${JSON.stringify(tmpDir)}`)
+  execSync(`tar -xzf ${JSON.stringify(tarballPath)} -C ${JSON.stringify(tmpDir)} --no-same-permissions --no-overwrite-dir`, { stdio: 'pipe' })
 
   // npm tarballs always have a single top-level "package/" directory; strip it
   const topLevel = readdirSync(tmpDir)
