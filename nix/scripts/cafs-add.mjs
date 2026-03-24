@@ -15,7 +15,7 @@
 
 import { execSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -126,5 +126,8 @@ try {
   }))
 }
 finally {
-  rmSync(tmpDir, { recursive: true, force: true })
+  // NOTICE: rmSync with force:true only suppresses ENOENT, not EACCES.
+  // npm tarballs may contain read-only files (e.g. mode 0444); use `rm -rf`
+  // which can remove them regardless of permissions within the Nix sandbox.
+  execSync(`rm -rf ${JSON.stringify(tmpDir)}`)
 }
