@@ -85,10 +85,22 @@ try {
   //   2. chmod -R u+rwX — adds execute to all directories
   //   3. Second extraction with --no-overwrite-dir — keeps our fixed permissions and
   //      writes the previously-skipped files
-  try { execSync(`tar -xzf ${JSON.stringify(tarballPath)} -C ${JSON.stringify(tmpDir)} --no-same-permissions`, { stdio: 'pipe' }) }
-  catch (_) { /* partial extraction — chmod + retry below */ }
-  execSync(`chmod -R u+rwX ${JSON.stringify(tmpDir)}`)
-  execSync(`tar -xzf ${JSON.stringify(tarballPath)} -C ${JSON.stringify(tmpDir)} --no-same-permissions --no-overwrite-dir`, { stdio: 'pipe' })
+  // NOTICE: some npm tarballs have NESTED directories with no-execute mode (e.g.
+  // pixi-live2d-display has package/cubism/.vscode/ where both cubism/ and .vscode/
+  // are stored as 0644). A single two-pass is not enough: pass 1 creates cubism/
+  // as 0644, chmod fixes it, pass 2 creates .vscode/ as 0644, chmod fixes it,
+  // pass 3 finally writes the files. We loop until tar exits 0 or give up at 10.
+  for (let pass = 0; pass < 10; pass++) {
+    try {
+      execSync(`tar -xzf ${JSON.stringify(tarballPath)} -C ${JSON.stringify(tmpDir)} --no-same-permissions --no-overwrite-dir`, { stdio: 'pipe' })
+      break // success
+    }
+    catch (e) {
+      if (pass === 9)
+        throw e
+      execSync(`chmod -R u+rwX ${JSON.stringify(tmpDir)}`)
+    }
+  }
 
   // npm tarballs always have a single top-level "package/" directory; strip it
   const topLevel = readdirSync(tmpDir)
