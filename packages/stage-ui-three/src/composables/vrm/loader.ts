@@ -1,4 +1,4 @@
-import { MToonMaterialLoaderPlugin, VRMLoaderPlugin } from '@pixiv/three-vrm'
+import { VRMLoaderPlugin } from '@pixiv/three-vrm'
 import { VRMAnimationLoaderPlugin } from '@pixiv/three-vrm-animation'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 
@@ -12,15 +12,7 @@ export function useVRMLoader() {
   loader = new GLTFLoader()
 
   loader.crossOrigin = 'anonymous'
-  loader.register((parser) => {
-    const mtoonMaterialPlugin = new MToonMaterialLoaderPlugin(parser, {
-      v0CompatShade: true,
-    })
-
-    return new VRMLoaderPlugin(parser, {
-      mtoonMaterialPlugin,
-    })
-  })
+  loader.register(parser => new VRMLoaderPlugin(parser))
   // loader.register(parser => new VRMCoreLoaderPlugin(parser))
   loader.register(parser => new VRMAnimationLoaderPlugin(parser))
 
