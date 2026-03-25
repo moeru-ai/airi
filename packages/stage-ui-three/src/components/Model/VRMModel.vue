@@ -9,6 +9,7 @@
 import type { VRM } from '@pixiv/three-vrm'
 import type {
   Group,
+  Material,
   Object3D,
   PerspectiveCamera,
   ShaderMaterial,
@@ -180,6 +181,11 @@ type VrmFrameHook = (vrm: VRM, delta: number) => void
 const vrmFrameHook = shallowRef<VrmFrameHook>()
 let disposeBeforeRenderLoop: (() => void | undefined) | undefined
 
+// material type with optional update function for per-frame update, used for three-vrm's MToon material and custom shader materials with IBL injection
+type UpdatableMaterial = Material & {
+  update?: (delta: number) => void
+}
+
 // Expressions
 const blink = useBlink()
 const idleEyeSaccades = useIdleEyeSaccades()
@@ -324,6 +330,15 @@ function shouldStashVrmResources(reason: VrmLifecycleReason) {
   return reason === 'component-unmount'
 }
 
+function updateManagedVrmMaterials(activeVrm: VRM | undefined, delta: number) {
+  // NOTICE: three-vrm drives MToon per-frame uniforms, including alphaTest used by MASK cutout,
+  // through material.update(delta). Our render loop updates VRM subsystems manually instead of
+  // calling vrm.update(delta), so material updates must be forwarded here as well.
+  activeVrm?.materials?.forEach((material) => {
+    (material as UpdatableMaterial).update?.(delta)
+  })
+}
+
 function bindManagedVrmInstanceRenderLoop() {
   disposeBeforeRenderLoop?.()
 
@@ -335,6 +350,7 @@ function bindManagedVrmInstanceRenderLoop() {
       vrmAnimationMixer.value?.update(delta)
     })
     const activeVrm = vrm.value
+    updateManagedVrmMaterials(activeVrm, delta)
     const vrmFrameHookMs = measureFrameStep(tracingEnabled, () => {
       if (activeVrm && vrmFrameHook.value) {
         try {
@@ -686,12 +702,27 @@ async function loadModel() {
     /*
       * Shader setting
     */
-    // material selection
-    function isMToon(mat: any): boolean {
-      return !!(mat?.isShaderMaterial && mat.userData?.vrmMaterialType === 'MToon'
-      )
-    }
     const isShaderMat = (m: any): m is ShaderMaterial => !!m?.isShaderMaterial
+
+    function configureInjectedShaderMaterial(mat: ShaderMaterial) {
+      if ('toneMapped' in mat)
+        mat.toneMapped = false
+      if ('envMap' in mat && mat.envMap)
+        mat.envMap = null
+
+      // NPR materials usually use sRGB textures.
+      const tex = (mat as any).map as Texture | undefined
+      if (tex && (tex as any).colorSpace !== undefined) {
+        try {
+          (tex as any).colorSpace = SRGBColorSpace
+        }
+        catch (e) {
+          console.warn('Failed to set colorSpace on texture:', e)
+        }
+      }
+
+      injectDiffuseIBL(mat)
+    }
 
     // MToon material sky box lightProbe setting
     if (!airiIblProbe && scene.value)
@@ -707,31 +738,16 @@ async function loadModel() {
             mat.envMapIntensity = 1.0
             mat.needsUpdate = true
           }
-          else if (isMToon(mat)) {
-            // --- MToon material, add IBL lightProbe only ---
-            // close tone mapping for NPR materials
-            if ('toneMapped' in mat)
-              mat.toneMapped = false
+          else if (mat?.isMToonMaterial) {
+            // --- MToon material ---
+            // MToon is also shader-based and should receive the custom IBL injection.
+            configureInjectedShaderMaterial(mat)
           }
           else if (isShaderMat(mat)) {
             // --- Shader material, further IBL injection needed ---
             // TODO: stylised shader injection
             // Lilia: I plan to replace all injected shader code to be my own, so that it can always avoid double injection and unknown user upload VRM injected shader behaviour...
-            if ('toneMapped' in mat)
-              mat.toneMapped = false
-            if ('envMap' in mat && mat.envMap)
-              mat.envMap = null
-            // NPR materials usually use sRGB textures
-            const tex = (mat as any).map as Texture | undefined
-            if (tex && (tex as any).colorSpace !== undefined) {
-              try {
-                (tex as any).colorSpace = SRGBColorSpace
-              }
-              catch (e) {
-                console.warn('Failed to set colorSpace on texture:', e)
-              }
-            }
-            injectDiffuseIBL(mat)
+            configureInjectedShaderMaterial(mat)
           }
         })
       }
