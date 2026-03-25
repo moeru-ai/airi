@@ -75,6 +75,11 @@ onMounted(() => {
     :style="{
       'transform': transformStyle,
       '--effect-intensity': intensity,
+      '--card-position-x': gradientPosition.split(' ')[0],
+      '--card-position-y': gradientPosition.split(' ')[1],
+      '--sparkle-position-x': sparklePosition.split(' ')[0],
+      '--sparkle-position-y': sparklePosition.split(' ')[1],
+      '--sparkle-opacity': sparkleOpacity,
     }"
     @mousemove="handleMouseMove"
     @mouseleave="resetCard"
