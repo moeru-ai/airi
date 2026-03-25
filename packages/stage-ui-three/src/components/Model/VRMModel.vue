@@ -343,6 +343,10 @@ function bindManagedVrmInstanceRenderLoop() {
   disposeBeforeRenderLoop?.()
 
   disposeBeforeRenderLoop = onBeforeRender(({ delta }) => {
+    // Manually update VRM components in the render loop because we manage the render loop on our own.
+    // See:
+    // 1. https://github.com/pixiv/three-vrm/blob/2c4aac612467216e0c8e7dc4500c2fa309208cc7/packages/three-vrm-core/src/VRMCore.ts#L72-L82
+    // 2. https://github.com/pixiv/three-vrm/blob/2c4aac612467216e0c8e7dc4500c2fa309208cc7/packages/three-vrm/src/VRM.ts#L49-L67
     const traceStart = isStageThreeRuntimeTraceEnabled() ? performance.now() : 0
     const tracingEnabled = traceStart > 0
 
@@ -381,6 +385,9 @@ function bindManagedVrmInstanceRenderLoop() {
     const expressionMs = measureFrameStep(tracingEnabled, () => {
       activeVrm?.expressionManager?.update()
     })
+    const nodeConstraintMs = measureFrameStep(tracingEnabled, () => {
+      activeVrm?.nodeConstraintManager?.update()
+    })
     const springBoneMs = measureFrameStep(tracingEnabled, () => {
       activeVrm?.springBoneManager?.update(delta)
     })
@@ -396,6 +403,7 @@ function bindManagedVrmInstanceRenderLoop() {
         humanoidMs,
         lipSyncMs,
         lookAtMs,
+        nodeConstraintMs,
         springBoneMs,
         ts: traceStart,
         vrmFrameHookMs,
