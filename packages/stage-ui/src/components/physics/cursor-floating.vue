@@ -13,8 +13,10 @@ const props = withDefaults(defineProps<Props>(), {
 
 const cardRef = ref<HTMLElement | null>(null)
 const transformStyle = ref('')
-const gradientPosition = ref('50% 50%')
-const sparklePosition = ref('50% 50%')
+const cardPositionX = ref('50%')
+const cardPositionY = ref('50%')
+const sparklePositionX = ref('50%')
+const sparklePositionY = ref('50%')
 const sparkleOpacity = ref(0.5)
 
 function handleMouseMove(event: MouseEvent) {
@@ -50,15 +52,19 @@ function handleMouseMove(event: MouseEvent) {
 
   // Update style values
   transformStyle.value = `perspective(1200px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(${1 + 0.015 * props.intensity}, ${1 + 0.015 * props.intensity}, ${1 + 0.015 * props.intensity})`
-  gradientPosition.value = `${leftPos}% ${topPos}%`
-  sparklePosition.value = `${sparkleX}% ${sparkleY}%`
+  cardPositionX.value = `${leftPos}%`
+  cardPositionY.value = `${topPos}%`
+  sparklePositionX.value = `${sparkleX}%`
+  sparklePositionY.value = `${sparkleY}%`
   sparkleOpacity.value = opacity
 }
 
 function resetCard() {
   transformStyle.value = 'perspective(1200px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)'
-  gradientPosition.value = '50% 50%'
-  sparklePosition.value = '50% 50%'
+  cardPositionX.value = '50%'
+  cardPositionY.value = '50%'
+  sparklePositionX.value = '50%'
+  sparklePositionY.value = '50%'
   sparkleOpacity.value = 0.5
 }
 
@@ -75,6 +81,11 @@ onMounted(() => {
     :style="{
       'transform': transformStyle,
       '--effect-intensity': intensity,
+      '--card-position-x': cardPositionX,
+      '--card-position-y': cardPositionY,
+      '--sparkle-position-x': sparklePositionX,
+      '--sparkle-position-y': sparklePositionY,
+      '--sparkle-opacity': sparkleOpacity,
     }"
     @mousemove="handleMouseMove"
     @mouseleave="resetCard"
