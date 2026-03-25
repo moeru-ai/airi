@@ -34,6 +34,6 @@ profile-switcher:
   no-profile: 缺少角色
   no-profiles: 还没有角色
   save-as-new: 存为新角色
-  new-profile-name: 角色名称
+  new-profile-name: Profile name
   manage: 管理角色卡
 waiting: 等待中
