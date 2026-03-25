@@ -742,7 +742,6 @@ async function loadModel() {
             // --- MToon material ---
             // MToon is also shader-based and should receive the custom IBL injection.
             configureInjectedShaderMaterial(mat)
-            mat.needsUpdate = true
           }
           else if (isShaderMat(mat)) {
             // --- Shader material, further IBL injection needed ---
