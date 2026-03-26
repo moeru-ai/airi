@@ -43,3 +43,5 @@ CREATE UNIQUE INDEX "outbox_events_event_id_idx" ON "outbox_events" USING btree 
 CREATE INDEX "outbox_events_publish_scan_idx" ON "outbox_events" USING btree ("published_at","available_at","claim_expires_at","created_at");--> statement-breakpoint
 CREATE INDEX "outbox_events_claimed_by_idx" ON "outbox_events" USING btree ("claimed_by");--> statement-breakpoint
 ALTER TABLE "llm_request_log" DROP COLUMN "settled";
+--> statement-breakpoint
+ALTER TABLE "stripe_subscription" ALTER COLUMN "cancel_at_period_end" SET DATA TYPE boolean;
