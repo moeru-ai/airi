@@ -95,4 +95,4 @@ of tokens for running AIRI.
 
 For guides that help you understand how to contribute to this project, please refer to [Contributing](../contributing/) page.
 
-For references Contributing help you design and improve the UI of Project AIRI, please refer to [Design Guidelines](../contributing/design-guidelines/resources) page.
+For references to help you design and improve the UI of Project AIRI, please refer to [Design Guidelines](../contributing/design-guidelines/resources) page.
