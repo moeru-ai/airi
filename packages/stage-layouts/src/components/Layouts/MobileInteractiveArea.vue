@@ -204,7 +204,6 @@ onMounted(() => {
           <!-- <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Model">
             <div i-solar:face-scan-circle-outline size-5 text="neutral-500 dark:neutral-400" />
           </button> -->
-          <ActionViewControls v-model="viewControlsActiveMode" @reset="() => viewControlsInputsRef?.resetOnMode()" />
           <button
             border="2 solid neutral-100/60 dark:neutral-800/30"
             bg="neutral-50/70 dark:neutral-800/70"
@@ -214,6 +213,7 @@ onMounted(() => {
           >
             <div class="i-solar:trash-bin-2-bold-duotone" />
           </button>
+          <ActionViewControls v-model="viewControlsActiveMode" @reset="() => viewControlsInputsRef?.resetOnMode()" />
         </div>
       </div>
       <div bg="white dark:neutral-800" max-h-100dvh max-w-100dvw w-full flex gap-1 overflow-auto px-3 pt-2 :style="{ paddingBottom: `${Math.max(Number.parseFloat(screenSafeArea.bottom.value.replace('px', '')), 12)}px` }">
