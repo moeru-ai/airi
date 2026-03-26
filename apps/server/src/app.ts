@@ -18,6 +18,7 @@ import { createLoggLogger, injeca, lifecycle } from 'injeca'
 import { createAuth } from './libs/auth'
 import { createDrizzle, migrateDatabase } from './libs/db'
 import { parsedEnv } from './libs/env'
+import { initializeExternalDependency } from './libs/external-dependency'
 import { initOtel } from './libs/otel'
 import { createRedis } from './libs/redis'
 import { sessionMiddleware } from './middlewares/auth'
@@ -213,11 +214,25 @@ export async function createApp() {
   const db = injeca.provide('datastore:db', {
     dependsOn: { env: parsedEnv, lifecycle },
     build: async ({ dependsOn }) => {
-      const { db: dbInstance, pool } = createDrizzle(dependsOn.env.DATABASE_URL)
-      await dbInstance.execute('SELECT 1')
-      logger.log('Connected to database')
-      await migrateDatabase(dbInstance)
-      logger.log('Applied schema')
+      const { db: dbInstance, pool } = await initializeExternalDependency(
+        'Database',
+        logger,
+        async (attempt) => {
+          const connection = createDrizzle(dependsOn.env.DATABASE_URL)
+
+          try {
+            await connection.db.execute('SELECT 1')
+            logger.log(`Connected to database on attempt ${attempt}`)
+            await migrateDatabase(connection.db)
+            logger.log(`Applied schema on attempt ${attempt}`)
+            return connection
+          }
+          catch (error) {
+            await connection.pool.end()
+            throw error
+          }
+        },
+      )
 
       dependsOn.lifecycle.appHooks.onStop(() => pool.end())
       return dbInstance
@@ -225,11 +240,29 @@ export async function createApp() {
   })
 
   const redis = injeca.provide('datastore:redis', {
-    dependsOn: { env: parsedEnv },
+    dependsOn: { env: parsedEnv, lifecycle },
     build: async ({ dependsOn }) => {
-      const redisInstance = createRedis(dependsOn.env.REDIS_URL)
-      await redisInstance.connect()
-      logger.log('Connected to Redis')
+      const redisInstance = await initializeExternalDependency(
+        'Redis',
+        logger,
+        async (attempt) => {
+          const instance = createRedis(dependsOn.env.REDIS_URL)
+
+          try {
+            await instance.connect()
+            logger.log(`Connected to Redis on attempt ${attempt}`)
+            return instance
+          }
+          catch (error) {
+            instance.disconnect()
+            throw error
+          }
+        },
+      )
+
+      dependsOn.lifecycle.appHooks.onStop(async () => {
+        await redisInstance.quit()
+      })
       return redisInstance
     },
   })

@@ -5,6 +5,7 @@ import process, { pid } from 'node:process'
 import { initLogger, LoggerFormat, LoggerLevel, useLogger } from '@guiiai/logg'
 
 import { parseEnv } from '../libs/env'
+import { initializeExternalDependency } from '../libs/external-dependency'
 import { createRedis } from '../libs/redis'
 import { createBillingMqService } from '../services/billing-mq'
 import { createBillingMqWorker } from '../services/billing-mq-worker'
@@ -30,9 +31,23 @@ export async function runBillingEventsConsumer(options: RunBillingEventsConsumer
 
   const env = parseEnv(process.env)
   const logger = useLogger(options.loggerName).useGlobalConfig()
-  const redis = createRedis(env.REDIS_URL)
+  const redis = await initializeExternalDependency(
+    'Redis',
+    logger,
+    async (attempt) => {
+      const instance = createRedis(env.REDIS_URL)
 
-  await redis.connect()
+      try {
+        await instance.connect()
+        logger.log(`Connected to Redis on attempt ${attempt}`)
+        return instance
+      }
+      catch (error) {
+        instance.disconnect()
+        throw error
+      }
+    },
+  )
 
   const abortController = new AbortController()
   const consumer = env.BILLING_EVENTS_CONSUMER_NAME ?? `${options.group}-${pid}`
