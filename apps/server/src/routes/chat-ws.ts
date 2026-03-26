@@ -1,6 +1,6 @@
-import type { EventContext } from '@moeru/eventa'
 import type Redis from 'ioredis'
 
+import type { HonoWsInvocableEventContext } from '../libs/eventa-hono-adapter'
 import type { EngagementMetrics } from '../libs/otel'
 import type { ChatService } from '../services/chats'
 
@@ -18,9 +18,9 @@ const CHANNEL_PREFIX = 'chat:broadcast:'
 // Local connection registry (per-process)
 // ---------------------------------------------------------------------------
 
-const userConnections = new Map<string, Set<EventContext>>()
+const userConnections = new Map<string, Set<HonoWsInvocableEventContext>>()
 
-function addConnection(userId: string, ctx: EventContext) {
+function addConnection(userId: string, ctx: HonoWsInvocableEventContext) {
   let conns = userConnections.get(userId)
   if (!conns) {
     conns = new Set()
@@ -29,7 +29,7 @@ function addConnection(userId: string, ctx: EventContext) {
   conns.add(ctx)
 }
 
-function removeConnection(userId: string, ctx: EventContext) {
+function removeConnection(userId: string, ctx: HonoWsInvocableEventContext) {
   const conns = userConnections.get(userId)
   if (conns) {
     conns.delete(ctx)
@@ -38,7 +38,7 @@ function removeConnection(userId: string, ctx: EventContext) {
   }
 }
 
-function broadcastToLocalDevices(userId: string, excludeCtx: EventContext | null, event: any, payload: any) {
+function broadcastToLocalDevices(userId: string, excludeCtx: HonoWsInvocableEventContext | null, event: any, payload: any) {
   const conns = userConnections.get(userId)
   if (!conns)
     return

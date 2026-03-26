@@ -1,3 +1,4 @@
+import type { StripeCheckoutSession, StripeInvoice } from '../../schemas/stripe'
 import type { BillingService } from '../../services/billing-service'
 import type { ConfigKVService } from '../../services/config-kv'
 import type { FluxService } from '../../services/flux'
@@ -68,6 +69,54 @@ const testEnv = {
 } as any
 
 const testUser = { id: 'user-1', name: 'Test User', email: 'test@example.com' }
+
+function createCheckoutSession(overrides: Partial<StripeCheckoutSession> = {}): StripeCheckoutSession {
+  return {
+    id: 'checkout-1',
+    userId: 'user-1',
+    stripeSessionId: 'cs_1',
+    stripeCustomerId: null,
+    mode: 'payment',
+    status: 'open',
+    paymentStatus: null,
+    amountTotal: 500,
+    currency: 'usd',
+    successUrl: 'http://localhost/success',
+    cancelUrl: 'http://localhost/cancel',
+    stripePaymentIntentId: null,
+    stripeSubscriptionId: null,
+    fluxCredited: false,
+    metadata: null,
+    expiresAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  }
+}
+
+function createInvoice(overrides: Partial<StripeInvoice> = {}): StripeInvoice {
+  return {
+    id: 'invoice-1',
+    userId: 'user-1',
+    stripeInvoiceId: 'inv_1',
+    stripeCustomerId: null,
+    stripeSubscriptionId: null,
+    status: 'paid',
+    amountDue: 500,
+    amountPaid: 500,
+    currency: 'usd',
+    invoiceUrl: null,
+    invoicePdf: null,
+    periodStart: null,
+    periodEnd: null,
+    paidAt: null,
+    fluxCredited: false,
+    metadata: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  }
+}
 
 function createTestApp(
   fluxService: FluxService,
@@ -274,8 +323,8 @@ describe('stripeRoutes', () => {
 
     it('returns checkout sessions for the authenticated user', async () => {
       const mockSessions = [
-        { id: '1', stripeSessionId: 'cs_1', status: 'complete' },
-        { id: '2', stripeSessionId: 'cs_2', status: 'open' },
+        createCheckoutSession({ id: '1', stripeSessionId: 'cs_1', status: 'complete' }),
+        createCheckoutSession({ id: '2', stripeSessionId: 'cs_2', status: 'open' }),
       ]
       const stripeService = createMockStripeService({
         getCheckoutSessionsByUserId: vi.fn(async () => mockSessions),
@@ -313,7 +362,7 @@ describe('stripeRoutes', () => {
     })
 
     it('returns invoices for the authenticated user', async () => {
-      const mockInvoices = [{ id: '1', stripeInvoiceId: 'inv_1', status: 'paid' }]
+      const mockInvoices = [createInvoice({ id: '1', stripeInvoiceId: 'inv_1', status: 'paid' })]
       const stripeService = createMockStripeService({
         getInvoicesByUserId: vi.fn(async () => mockInvoices),
       })
