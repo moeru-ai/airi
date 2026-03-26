@@ -166,6 +166,24 @@ npm i -g @antfu/ni
 你无需费心选择包管理器， `ni` 会自动适配。
 :::
 
+::: warning Visual Studio 2026 兼容提示
+
+如果你使用的 Visual Studio 为 2026 版，安装依赖时可能会报错
+
+```shell
+gyp ERR! stack Error: Could not find any Visual Studio installation to use
+gyp ERR! stack Error: Could not find any Visual Studio installation to use
+```
+
+这是因为编译工具链使用的 node-gyp 暂未兼容新版 Visual Studio 2026。在 Powershell 中按如下操作强制指定新版 node-gyp 即可通过编译
+
+```shell
+npm i -g "node-gyp@>=12.2.0"
+$env:npm_config_node_gyp = (Join-Path (npm root -g) "node-gyp\bin\node-gyp.js")
+```
+
+:::
+
 ## 提交代码（Commit）
 
 ### 提交前请检查
