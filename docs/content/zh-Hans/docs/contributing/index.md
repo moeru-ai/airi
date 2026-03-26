@@ -176,8 +176,6 @@ gyp ERR! stack Error: Could not find any Visual Studio installation to use
 npm i -g "node-gyp@>=12.2.0"
 $env:npm_config_node_gyp = (Join-Path (npm root -g) "node-gyp\bin\node-gyp.js")
 ```
-
-
 :::
 
 ## 提交代码（Commit）
