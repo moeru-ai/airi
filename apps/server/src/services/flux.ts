@@ -14,7 +14,7 @@ import * as schema from '../schemas/flux'
 
 const logger = useLogger('flux-service')
 
-function redisKey(userId: string): string {
+export function fluxRedisKey(userId: string): string {
   return `flux:${userId}`
 }
 
@@ -22,7 +22,7 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
   return {
     async getFlux(userId: string) {
       // 1. Try Redis cache
-      const cached = await redis.get(redisKey(userId))
+      const cached = await redis.get(fluxRedisKey(userId))
       if (cached !== null) {
         return { userId, flux: Number.parseInt(cached, 10) }
       }
@@ -51,7 +51,7 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
       }
 
       // 3. Populate Redis cache
-      await redis.set(redisKey(userId), String(record.flux))
+      await redis.set(fluxRedisKey(userId), String(record.flux))
 
       return record
     },
@@ -69,7 +69,7 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
          end
          return bal`,
         1,
-        redisKey(userId),
+        fluxRedisKey(userId),
         amount,
       ) as number
 
@@ -96,7 +96,7 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
         .where(eq(schema.userFlux.userId, userId))
 
       // Sync Redis cache
-      const newBalance = await redis.incrby(redisKey(userId), amount)
+      const newBalance = await redis.incrby(fluxRedisKey(userId), amount)
 
       logger.withFields({ userId, amount, newBalance, description }).log('Added flux')
 

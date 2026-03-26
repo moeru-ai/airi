@@ -30,12 +30,14 @@ import { createFluxRoutes } from './routes/flux'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
 import { createV1CompletionsRoutes } from './routes/v1completions'
+import { createBillingService } from './services/billing-service'
 import { createCharacterService } from './services/characters'
 import { createChatService } from './services/chats'
 import { createConfigKVService } from './services/config-kv'
 import { createFluxService } from './services/flux'
 import { createFluxAuditService } from './services/flux-audit'
 import { createFluxWriteBack } from './services/flux-write-back'
+import { createOutboxService } from './services/outbox-service'
 import { createProviderService } from './services/providers'
 import { createRequestLogService } from './services/request-log'
 import { createStripeService } from './services/stripe'
@@ -51,6 +53,7 @@ type ConfigKVService = ReturnType<typeof createConfigKVService>
 type RequestLogService = ReturnType<typeof createRequestLogService>
 type StripeDBService = ReturnType<typeof createStripeService>
 type FluxAuditService = ReturnType<typeof createFluxAuditService>
+type BillingService = ReturnType<typeof createBillingService>
 
 interface AppDeps {
   db: Database
@@ -62,6 +65,7 @@ interface AppDeps {
   fluxAuditService: FluxAuditService
   requestLogService: RequestLogService
   stripeService: StripeDBService
+  billingService: BillingService
   configKV: ConfigKVService
   redis: Redis
   env: Env
@@ -78,6 +82,7 @@ function buildApp({
   fluxAuditService,
   requestLogService,
   stripeService,
+  billingService,
   configKV,
   redis,
   env,
@@ -178,14 +183,14 @@ function buildApp({
     /**
      * Stripe routes.
      */
-    .route('/api/stripe', createStripeRoutes(db, fluxService, stripeService, configKV, env, otel?.revenue))
+    .route('/api/stripe', createStripeRoutes(db, fluxService, stripeService, billingService, configKV, env, otel?.revenue))
 
   return { app: builtApp, injectWebSocket }
 }
 
 export type AppType = ReturnType<typeof buildApp>['app']
 
-async function createApp() {
+export async function createApp() {
   initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
   injeca.setLogger(createLoggLogger(useLogger('injeca').useGlobalConfig()))
   const logger = useLogger('app').useGlobalConfig()
@@ -231,6 +236,11 @@ async function createApp() {
     build: ({ dependsOn }) => createConfigKVService(dependsOn.redis),
   })
 
+  const outboxService = injeca.provide('services:outbox', {
+    dependsOn: { db },
+    build: ({ dependsOn }) => createOutboxService(dependsOn.db),
+  })
+
   const auth = injeca.provide('services:auth', {
     dependsOn: { db, env: parsedEnv, otel },
     build: ({ dependsOn }) => createAuth(dependsOn.db, dependsOn.env, dependsOn.otel?.auth),
@@ -271,6 +281,11 @@ async function createApp() {
     build: ({ dependsOn }) => createRequestLogService(dependsOn.db),
   })
 
+  const billingService = injeca.provide('services:billing', {
+    dependsOn: { db, outboxService },
+    build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.outboxService),
+  })
+
   const fluxWriteBack = injeca.provide('services:fluxWriteBack', {
     dependsOn: { db, lifecycle },
     build: ({ dependsOn }) => {
@@ -295,6 +310,7 @@ async function createApp() {
     fluxAuditService,
     requestLogService,
     stripeService,
+    billingService,
     configKV,
     redis,
     env: parsedEnv,
@@ -311,6 +327,7 @@ async function createApp() {
     fluxAuditService: resolved.fluxAuditService,
     requestLogService: resolved.requestLogService,
     stripeService: resolved.stripeService,
+    billingService: resolved.billingService,
     configKV: resolved.configKV,
     redis: resolved.redis,
     env: resolved.env,
@@ -327,14 +344,20 @@ async function createApp() {
   }
 }
 
-// eslint-disable-next-line antfu/no-top-level-await
-const { app: honoApp, injectWebSocket, port, hostname } = await createApp()
-const server = serve({ fetch: honoApp.fetch, port, hostname })
-injectWebSocket(server)
-
-function handleError(error: unknown, type: string) {
+function handleProcessError(error: unknown, type: string) {
   useLogger().withError(error).error(type)
 }
 
-process.on('uncaughtException', error => handleError(error, 'Uncaught exception'))
-process.on('unhandledRejection', error => handleError(error, 'Unhandled rejection'))
+export async function runApiServer(): Promise<void> {
+  const { app: honoApp, injectWebSocket, port, hostname } = await createApp()
+  const server = serve({ fetch: honoApp.fetch, port, hostname })
+  injectWebSocket(server)
+
+  process.on('uncaughtException', error => handleProcessError(error, 'Uncaught exception'))
+  process.on('unhandledRejection', error => handleProcessError(error, 'Unhandled rejection'))
+
+  await new Promise<void>((resolve, reject) => {
+    server.once('close', () => resolve())
+    server.once('error', error => reject(error))
+  })
+}

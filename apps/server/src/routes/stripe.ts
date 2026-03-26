@@ -1,6 +1,7 @@
 import type { Database } from '../libs/db'
 import type { Env } from '../libs/env'
 import type { RevenueMetrics } from '../libs/otel'
+import type { BillingService } from '../services/billing-service'
 import type { ConfigKVService } from '../services/config-kv'
 import type { FluxService } from '../services/flux'
 import type { StripeService } from '../services/stripe'
@@ -25,7 +26,15 @@ const CheckoutBodySchema = object({
   amount: pipe(number(), integer(), minValue(1)),
 })
 
-export function createStripeRoutes(db: Database, fluxService: FluxService, stripeService: StripeService, configKV: ConfigKVService, env: Env, metrics?: RevenueMetrics | null) {
+export function createStripeRoutes(
+  db: Database,
+  fluxService: FluxService,
+  stripeService: StripeService,
+  billingService: BillingService,
+  configKV: ConfigKVService,
+  env: Env,
+  metrics?: RevenueMetrics | null,
+) {
   const stripe = env.STRIPE_SECRET_KEY ? new Stripe(env.STRIPE_SECRET_KEY) : null
 
   const fluxConfigGuard = configGuard(configKV, ['FLUX_PER_CENT'], 'Top-up is not available yet')
@@ -155,7 +164,7 @@ export function createStripeRoutes(db: Database, fluxService: FluxService, strip
 
       switch (event.type) {
         case 'checkout.session.completed': {
-          await handleCheckoutSessionCompleted(db, event.data.object, fluxService, stripeService, configKV)
+          await handleCheckoutSessionCompleted(event.id, event.data.object, fluxService, stripeService, billingService, configKV)
           metrics?.stripeCheckoutCompleted.add(1)
           break
         }
@@ -190,10 +199,11 @@ export function createStripeRoutes(db: Database, fluxService: FluxService, strip
 // ---- Webhook handlers ----
 
 async function handleCheckoutSessionCompleted(
-  database: Database,
+  stripeEventId: string,
   session: Stripe.Checkout.Session,
   fluxService: FluxService,
   stripeService: StripeService,
+  billingService: BillingService,
   configKV: ConfigKVService,
 ) {
   const userId = session.metadata?.userId
@@ -239,23 +249,23 @@ async function handleCheckoutSessionCompleted(
     const fluxPerCent = await configKV.getOrThrow('FLUX_PER_CENT')
     const fluxAmount = session.amount_total * fluxPerCent
 
-    await database.transaction(async (tx) => {
-      const record = await tx.query.stripeCheckoutSession.findFirst({
-        where: eq(stripeSchema.stripeCheckoutSession.stripeSessionId, session.id),
-      })
-      if (!record || record.fluxCredited) {
-        logger.withFields({ sessionId: session.id, alreadyCredited: record?.fluxCredited }).log('Skipping flux credit (idempotent)')
-        return
-      }
-
-      await tx.update(stripeSchema.stripeCheckoutSession)
-        .set({ fluxCredited: true, updatedAt: new Date() })
-        .where(eq(stripeSchema.stripeCheckoutSession.stripeSessionId, session.id))
-
-      await fluxService.addFlux(userId, fluxAmount, `Stripe payment ${session.currency?.toUpperCase()} ${(session.amount_total! / 100).toFixed(2)}`)
+    const result = await billingService.creditFluxFromStripeCheckout({
+      stripeEventId,
+      userId,
+      stripeSessionId: session.id,
+      amountTotal: session.amount_total,
+      currency: session.currency,
+      fluxAmount,
     })
 
-    logger.withFields({ userId, fluxAmount, fluxPerCent, amountTotal: session.amount_total }).log('Flux credited for one-time payment')
+    logger.withFields({
+      userId,
+      fluxAmount,
+      fluxPerCent,
+      amountTotal: session.amount_total,
+      applied: result.applied,
+      balanceAfter: result.balanceAfter,
+    }).log('Processed flux credit for one-time payment')
   }
 }
 

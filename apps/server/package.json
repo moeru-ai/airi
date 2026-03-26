@@ -6,8 +6,9 @@
   "scripts": {
     "apply:env": "dotenvx run -f .env -f .env.local --overload --ignore=MISSING_ENV_FILE",
     "auth:generate": "pnpm run apply:env -- better-auth generate --config src/scripts/auth.ts --output src/schemas/accounts.ts -y",
-    "dev": "pnpm run apply:env -- tsx --watch src/app.ts",
-    "start": "tsx src/app.ts",
+    "dev": "pnpm run apply:env -- tsx --watch src/bin/run.ts api",
+    "start": "pnpm run apply:env -- tsx src/bin/run.ts api",
+    "server": "pnpm run apply:env -- tsx src/bin/run.ts",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:push": "pnpm run apply:env -- drizzle-kit push"

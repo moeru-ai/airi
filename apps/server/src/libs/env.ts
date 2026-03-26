@@ -24,6 +24,17 @@ const EnvSchema = object({
   STRIPE_SECRET_KEY: optional(string()),
   STRIPE_WEBHOOK_SECRET: optional(string()),
 
+  BILLING_EVENTS_STREAM: optional(string(), 'billing-events'),
+  BILLING_EVENTS_CONSUMER_NAME: optional(string()),
+  BILLING_EVENTS_BATCH_SIZE: optional(string(), '10'),
+  BILLING_EVENTS_BLOCK_MS: optional(string(), '5000'),
+  BILLING_EVENTS_MIN_IDLE_MS: optional(string(), '30000'),
+
+  OUTBOX_DISPATCHER_NAME: optional(string()),
+  OUTBOX_DISPATCHER_BATCH_SIZE: optional(string(), '10'),
+  OUTBOX_DISPATCHER_CLAIM_TTL_MS: optional(string(), '30000'),
+  OUTBOX_DISPATCHER_POLL_MS: optional(string(), '1000'),
+
   // OpenTelemetry
   OTEL_SERVICE_NAMESPACE: optional(string(), 'airi'),
   OTEL_SERVICE_NAME: optional(string(), 'server'),
