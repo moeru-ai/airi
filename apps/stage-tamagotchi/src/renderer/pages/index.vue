@@ -6,6 +6,7 @@ import type { ModelSettingsRuntimeChannelEvent } from '../../shared/model-settin
 
 import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
+import { tryCatch } from '@moeru/std'
 import { electron } from '@proj-airi/electron-eventa'
 import {
   useElectronEventaInvoke,
@@ -90,12 +91,7 @@ const { sceneMutationLocked, scenePhase } = storeToRefs(modelStore)
 const { stagePaused } = storeToRefs(useStageWindowLifecycleStore())
 const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
 const modelSettingsRuntimeOwnerInstanceId = `tamagotchi-main-stage:${Math.random().toString(36).slice(2, 10)}`
-const {
-  data: modelSettingsRuntimeChannelEvent,
-  post: postModelSettingsRuntimeChannelEvent,
-} = useBroadcastChannel<ModelSettingsRuntimeChannelEvent, ModelSettingsRuntimeChannelEvent>({
-  name: modelSettingsRuntimeSnapshotChannelName,
-})
+const { data: modelSettingsRuntimeChannelEvent, post: postModelSettingsRuntimeChannelEvent } = useBroadcastChannel<ModelSettingsRuntimeChannelEvent, ModelSettingsRuntimeChannelEvent>({ name: modelSettingsRuntimeSnapshotChannelName })
 const shouldUseThreeTransparencyHitTest = computed(() => shouldSampleStageTransparency({
   componentState: componentStateStage.value,
   fadeOnHoverEnabled: fadeOnHoverEnabled.value,
@@ -207,10 +203,12 @@ watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor
       pause()
   }
 })
+
 // Emit runtime snapshot on change and on request from settings panel
 watch(modelSettingsRuntimeSnapshot, (snapshot) => {
   postModelSettingsRuntimeChannelEvent({ type: 'snapshot', snapshot })
 }, { immediate: true })
+
 watch(modelSettingsRuntimeChannelEvent, (event) => {
   if (event?.type !== 'request-current')
     return
@@ -223,11 +221,7 @@ const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
 const { askPermission } = settingsAudioDeviceStore
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
-const {
-  transcribeForRecording,
-  transcribeForMediaStream,
-  stopStreamingTranscription,
-} = hearingPipeline
+const { transcribeForRecording, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const providersStore = useProvidersStore()
 const consciousnessStore = useConsciousnessStore()
@@ -235,12 +229,7 @@ const { activeProvider: activeChatProvider, activeModel: activeChatModel } = sto
 const chatStore = useChatOrchestratorStore()
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
-const {
-  init: initVAD,
-  dispose: disposeVAD,
-  start: startVAD,
-  loaded: vadLoaded,
-} = useVAD(workletUrl, {
+const { init: initVAD, dispose: disposeVAD, start: startVAD, loaded: vadLoaded } = useVAD(workletUrl, {
   threshold: ref(0.6),
   onSpeechStart: () => {
     void handleSpeechStart()
@@ -281,8 +270,10 @@ async function startAudioInteraction() {
     console.info('[Main Page] Starting audio interaction...')
 
     initVAD().then(() => {
-      if (stream.value)
+      if (stream.value) {
+        console.info('[Main Page] VAD initialized successfully, starting with stream input')
         return startVAD(stream.value)
+      }
     }).catch((err) => {
       console.warn('[Main Page] VAD initialization failed (non-critical for Web Speech API):', err)
     })
@@ -371,16 +362,15 @@ async function startAudioInteraction() {
 }
 
 function stopAudioInteraction() {
-  try {
+  tryCatch(() => {
     stopOnStopRecord?.()
     stopOnStopRecord = undefined
     void stopStreamingTranscription(true)
     disposeVAD()
-  }
-  catch {}
+  })
 }
 
-watch(enabled, async (val) => {
+watch([enabled, stream], async ([val]) => {
   console.info('[Main Page] Audio enabled changed:', val, 'stream available:', !!stream.value)
   if (val) {
     await askPermission()
