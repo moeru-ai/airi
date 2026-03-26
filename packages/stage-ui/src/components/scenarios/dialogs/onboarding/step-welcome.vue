@@ -75,7 +75,7 @@ function handleLocalSetup() {
         :enter="{ opacity: 1, y: 0 }"
         :duration="500"
         :delay="150"
-        :class="['mx-auto', 'mt-6', 'w-full', 'max-w-sm', 'rounded-2xl', 'bg-neutral-100/80', 'backdrop-blur-sm', 'dark:bg-neutral-800/80', 'p-4']"
+        :class="['mx-auto', 'mt-6', 'w-full', 'max-w-sm', 'rounded-2xl', 'bg-neutral-100/80', 'p-4', 'backdrop-blur-sm', 'dark:bg-neutral-800/80']"
       >
         <FieldCombobox
           v-model="language"

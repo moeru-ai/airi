@@ -61,6 +61,15 @@ function calculateFluxFromUsage(usage: UsageInfo, fluxPer1kTokens: number, fallb
   return fallbackRate
 }
 
+function buildFluxAuditMetadata(usage: UsageInfo): Record<string, number> | undefined {
+  const metadata: Record<string, number> = {}
+  if (usage.promptTokens != null)
+    metadata.promptTokens = usage.promptTokens
+  if (usage.completionTokens != null)
+    metadata.completionTokens = usage.completionTokens
+  return Object.keys(metadata).length > 0 ? metadata : undefined
+}
+
 export function createV1CompletionsRoutes(fluxService: FluxService, configKV: ConfigKVService, requestLogService: RequestLogService, otel: OtelMetrics | null) {
   const logger = useLogger('v1-completions').useGlobalConfig()
 
@@ -173,7 +182,10 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
 
           // Best-effort billing — don't throw on insufficient flux during streaming
           try {
-            await fluxService.consumeFlux(user.id, fluxConsumed)
+            await fluxService.consumeFlux(user.id, fluxConsumed, {
+              description: requestModel,
+              metadata: buildFluxAuditMetadata(usage),
+            })
           }
           catch (err) { logger.withError(err).withFields({ userId: user.id, fluxConsumed }).warn('Failed to consume flux after streaming') }
 
@@ -211,7 +223,10 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
     // Best-effort billing — gateway already processed the request,
     // don't return 402 after work is done
     try {
-      await fluxService.consumeFlux(user.id, fluxConsumed)
+      await fluxService.consumeFlux(user.id, fluxConsumed, {
+        description: requestModel,
+        metadata: buildFluxAuditMetadata(usage),
+      })
     }
     catch (err) { logger.withError(err).withFields({ userId: user.id, fluxConsumed }).warn('Failed to consume flux') }
 

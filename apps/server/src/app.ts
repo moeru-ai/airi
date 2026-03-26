@@ -28,7 +28,7 @@ import { createCharacterService } from './services/characters'
 import { createChatService } from './services/chats'
 import { createConfigKVService } from './services/config-kv'
 import { createFluxService } from './services/flux'
-import { createFluxWriteBack } from './services/flux-write-back'
+import { createFluxAuditService } from './services/flux-audit'
 import { createProviderService } from './services/providers'
 import { createRequestLogService } from './services/request-log'
 import { createStripeService } from './services/stripe'
@@ -41,6 +41,7 @@ type ChatService = ReturnType<typeof createChatService>
 type ProviderService = ReturnType<typeof createProviderService>
 type FluxService = ReturnType<typeof createFluxService>
 type ConfigKVService = ReturnType<typeof createConfigKVService>
+type FluxAuditService = ReturnType<typeof createFluxAuditService>
 type RequestLogService = ReturnType<typeof createRequestLogService>
 type StripeDBService = ReturnType<typeof createStripeService>
 
@@ -52,6 +53,7 @@ interface AppDeps {
   chatService: ChatService
   providerService: ProviderService
   fluxService: FluxService
+  fluxAuditService: FluxAuditService
   requestLogService: RequestLogService
   stripeService: StripeDBService
   configKV: ConfigKVService
@@ -65,6 +67,7 @@ function buildApp({
   chatService,
   providerService,
   fluxService,
+  fluxAuditService,
   requestLogService,
   stripeService,
   configKV,
@@ -143,7 +146,7 @@ function buildApp({
     /**
      * Flux routes.
      */
-    .route('/api/flux', createFluxRoutes(fluxService))
+    .route('/api/flux', createFluxRoutes(fluxService, fluxAuditService))
 
     /**
      * Stripe routes.
@@ -224,27 +227,19 @@ async function createApp() {
     build: ({ dependsOn }) => createStripeService(dependsOn.db),
   })
 
+  const fluxAuditService = injeca.provide('services:fluxAudit', {
+    dependsOn: { db },
+    build: ({ dependsOn }) => createFluxAuditService(dependsOn.db),
+  })
+
   const fluxService = injeca.provide('services:flux', {
-    dependsOn: { db, redis, configKV },
-    build: ({ dependsOn }) => createFluxService(dependsOn.db, dependsOn.redis, dependsOn.configKV),
+    dependsOn: { db, redis, configKV, fluxAuditService },
+    build: ({ dependsOn }) => createFluxService(dependsOn.db, dependsOn.redis, dependsOn.configKV, dependsOn.fluxAuditService),
   })
 
   const requestLogService = injeca.provide('services:requestLog', {
     dependsOn: { db },
     build: ({ dependsOn }) => createRequestLogService(dependsOn.db),
-  })
-
-  const fluxWriteBack = injeca.provide('services:fluxWriteBack', {
-    dependsOn: { db, lifecycle },
-    build: ({ dependsOn }) => {
-      const wb = createFluxWriteBack(dependsOn.db)
-      wb.start()
-      dependsOn.lifecycle.appHooks.onStop(async () => {
-        wb.stop()
-        await wb.flush()
-      })
-      return wb
-    },
   })
 
   await injeca.start()
@@ -254,12 +249,12 @@ async function createApp() {
     chatService,
     providerService,
     fluxService,
+    fluxAuditService,
     requestLogService,
     stripeService,
     configKV,
     env: parsedEnv,
     otel,
-    fluxWriteBack,
   })
   const app = buildApp({
     auth: resolved.auth,
@@ -267,6 +262,7 @@ async function createApp() {
     chatService: resolved.chatService,
     providerService: resolved.providerService,
     fluxService: resolved.fluxService,
+    fluxAuditService: resolved.fluxAuditService,
     requestLogService: resolved.requestLogService,
     stripeService: resolved.stripeService,
     configKV: resolved.configKV,
