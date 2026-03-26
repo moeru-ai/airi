@@ -4,17 +4,8 @@
     "lib": [
       "ESNext"
     ],
-    "baseUrl": ".",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "paths": {
-      "@proj-airi/server-protocol": [
-        "../server-protocol/src/index.ts"
-      ],
-      "@proj-airi/server-protocol/*": [
-        "../server-protocol/src/*"
-      ]
-    },
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,

@@ -38,7 +38,6 @@ export interface AuthMetrics {
 }
 
 export interface EngagementMetrics {
-  chatSync: Counter
   chatMessages: Counter
   characterCreated: Counter
   characterDeleted: Counter
@@ -200,11 +199,8 @@ export function initOtel(env: Env): OtelInstance | undefined {
 
   // Engagement metrics
   const engagement: EngagementMetrics = {
-    chatSync: meter.createCounter('chat.sync', {
-      description: 'Number of chat sync operations',
-    }),
     chatMessages: meter.createCounter('chat.messages', {
-      description: 'Number of chat messages synced',
+      description: 'Number of chat messages written or pulled',
     }),
     characterCreated: meter.createCounter('character.created', {
       description: 'Number of characters created',

@@ -1,4 +1,4 @@
-import type { WebSocketEvents } from '@proj-airi/server-sdk'
+import type { WebSocketEvents } from '@proj-airi/server-protocol'
 
 import type { FlowEntry, PreviewItem } from '../context-flow-types'
 

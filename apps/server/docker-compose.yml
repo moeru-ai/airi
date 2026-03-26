@@ -30,10 +30,11 @@ services:
       timeout: 5s
       retries: 10
 
-  server:
+  api:
     build:
       context: ../..
       dockerfile: apps/server/Dockerfile
+    command: ['pnpm', '-F', '@proj-airi/server', 'run', 'server', 'api']
     depends_on:
       db:
         condition: service_healthy
@@ -51,6 +52,40 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  outbox-dispatcher:
+    build:
+      context: ../..
+      dockerfile: apps/server/Dockerfile
+    command: ['pnpm', '-F', '@proj-airi/server', 'run', 'server', 'outbox-dispatcher']
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+      - path: .env.local
+        required: false
+    restart: unless-stopped
+
+  cache-sync-consumer:
+    build:
+      context: ../..
+      dockerfile: apps/server/Dockerfile
+    command: ['pnpm', '-F', '@proj-airi/server', 'run', 'server', 'cache-sync-consumer']
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+      - path: .env.local
+        required: false
+    restart: unless-stopped
 
 volumes:
   db_data:

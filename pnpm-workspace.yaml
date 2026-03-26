@@ -20,14 +20,12 @@ overrides:
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
-
 patchedDependencies:
   '@mediapipe/tasks-vision': patches/@mediapipe__tasks-vision.patch
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
   mineflayer@4.33.0: patches/mineflayer@4.33.0.patch
   pixi-live2d-display: patches/pixi-live2d-display.patch
   srvx: patches/srvx.patch
-
 catalog:
   '@better-auth/drizzle-adapter': ^1.5.6
   '@capacitor/android': ^8.2.0
@@ -78,6 +76,7 @@ catalog:
   async-mutex: 0.5.0
   better-auth: ^1.5.6
   builder-util-runtime: ^9.5.1
+  cac: ^7.0.0
   capacitor-native-settings: ^8.1.0
   crossws: ^0.4.4
   d3: 7.9.0
@@ -155,6 +154,7 @@ onlyBuiltDependencies:
   - spawn-sync
   - utf-8-validate
   - vue-demi
+
 packageExtensions:
   '@formkit/auto-animate':
     peerDependencies:

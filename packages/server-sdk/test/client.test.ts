@@ -1,4 +1,4 @@
-import type { WebSocketEvent } from '@proj-airi/server-shared/types'
+import type { WebSocketEvent } from '@proj-airi/server-protocol'
 
 import superjson from 'superjson'
 

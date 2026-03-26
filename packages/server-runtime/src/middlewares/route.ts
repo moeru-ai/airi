@@ -1,4 +1,4 @@
-import type { RouteTargetExpression, WebSocketEvent } from '@proj-airi/server-shared/types'
+import type { RouteTargetExpression, WebSocketEvent } from '@proj-airi/server-protocol'
 
 import type { AuthenticatedPeer } from '../types'
 

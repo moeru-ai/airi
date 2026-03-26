@@ -1,4 +1,4 @@
-import type { MessageRole, WireMessage } from '@proj-airi/server-sdk'
+import type { MessageRole, WireMessage } from '@proj-airi/server-protocol'
 
 import type { Database } from '../libs/db'
 import type { EngagementMetrics } from '../libs/otel'
@@ -281,7 +281,6 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
         }
       })
 
-      metrics?.chatSync.add(1)
       if (result.totalCount > 0) {
         metrics?.chatMessages.add(result.totalCount)
       }
