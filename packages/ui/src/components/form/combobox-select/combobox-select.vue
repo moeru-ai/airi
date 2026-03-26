@@ -9,6 +9,8 @@ const props = defineProps<{
   disabled?: boolean
   title?: string
   layout?: 'horizontal' | 'vertical'
+  contentMinWidth?: string | number
+  contentWidth?: string | number
 }>()
 
 const show = ref(false)
@@ -27,5 +29,11 @@ provide('hide', handleHide)
 </script>
 
 <template>
-  <Combobox v-model="modelValue" :default-value="modelValue" :options="[{ groupLabel: '', children: props.options }]" />
+  <Combobox
+    v-model="modelValue"
+    :default-value="modelValue"
+    :options="[{ groupLabel: '', children: props.options }]"
+    :content-min-width="props.contentMinWidth"
+    :content-width="props.contentWidth"
+  />
 </template>

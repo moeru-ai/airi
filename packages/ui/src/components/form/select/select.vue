@@ -36,10 +36,16 @@ const props = withDefaults(defineProps<{
   placeholder?: string
   disabled?: boolean
   by?: string | ((a: T, b: T) => boolean)
+  contentMinWidth?: string | number
+  contentWidth?: string | number
+  variant?: 'blurry' | 'default'
 }>(), {
   placeholder: 'Select an option',
   disabled: false,
   by: undefined,
+  contentMinWidth: 160,
+  contentWidth: undefined,
+  variant: 'default',
 })
 
 const modelValue = defineModel<T>({ required: false })
@@ -61,6 +67,38 @@ const normalizedOptions = computed<SelectOptionGroupItem<T>[]>(() => {
 
   return props.options as SelectOptionGroupItem<T>[]
 })
+
+const flattenedOptions = computed<SelectOptionItem<T>[]>(() =>
+  normalizedOptions.value.flatMap(group => group.children ?? []),
+)
+
+const selectedOption = computed<SelectOptionItem<T> | undefined>(() =>
+  flattenedOptions.value.find(option => isSelectedOption(option.value, modelValue.value)),
+)
+
+function isSelectedOption(a: T, b: T | undefined): boolean {
+  if (b == null) {
+    return false
+  }
+
+  if (typeof props.by === 'function') {
+    return props.by(a, b)
+  }
+
+  if (typeof props.by === 'string') {
+    return (a as Record<string, unknown> | null)?.[props.by] === (b as Record<string, unknown> | null)?.[props.by]
+  }
+
+  return a === b
+}
+
+function toCssSize(value?: string | number): string | undefined {
+  if (value == null) {
+    return undefined
+  }
+
+  return typeof value === 'number' ? `${value}px` : value
+}
 </script>
 
 <template>
@@ -72,17 +110,42 @@ const normalizedOptions = computed<SelectOptionGroupItem<T>[]>(() => {
     <SelectTrigger
       :class="[
         'group',
-        'w-full inline-flex items-center justify-between rounded-xl border px-3 leading-none h-9 gap-[5px] outline-none',
+        'w-full inline-flex items-center justify-between rounded-xl border px-3 leading-none h-fit gap-[5px] outline-none',
         'text-sm text-neutral-700 dark:text-neutral-200 data-[placeholder]:text-neutral-400 dark:data-[placeholder]:text-neutral-500',
-        'bg-white dark:bg-neutral-900 disabled:bg-neutral-100 hover:bg-neutral-50 dark:disabled:bg-neutral-900 dark:hover:bg-neutral-700',
-        'border-neutral-200 dark:border-neutral-800 border-solid border-2 focus:border-primary-300 dark:focus:border-primary-400/50',
+        props.variant === 'default' ? 'bg-white dark:bg-neutral-900 disabled:bg-neutral-100 hover:bg-neutral-50 dark:disabled:bg-neutral-900 dark:hover:bg-neutral-700' : '',
+        props.variant === 'blurry' ? 'bg-neutral-50/70 dark:bg-neutral-800/70 disabled:bg-neutral-100 hover:bg-neutral-50 dark:disabled:bg-neutral-900 dark:hover:bg-neutral-700' : '',
+        props.variant === 'blurry' ? 'backdrop-blur-md' : '',
+        'border-2 border-solid focus:border-primary-300 dark:focus:border-primary-400/50',
+        props.variant === 'default' ? 'border-neutral-200 dark:border-neutral-800' : '',
+        props.variant === 'blurry' ? 'border-neutral-100/60 dark:border-neutral-800/30' : '',
         'shadow-sm focus:shadow-[0_0_0_2px] focus:shadow-black/10 dark:focus:shadow-black/30',
         'transition-colors duration-200 ease-in-out',
         props.disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
       ]"
     >
-      <SelectValue :placeholder="props.placeholder" />
-
+      <div :class="['min-w-0 flex-1 text-left']">
+        <slot
+          v-if="$slots.value"
+          name="value"
+          v-bind="{ option: selectedOption, value: modelValue, placeholder: props.placeholder }"
+        >
+          <span
+            :class="[
+              'block truncate',
+              selectedOption
+                ? 'text-neutral-700 dark:text-neutral-200'
+                : 'text-neutral-400 dark:text-neutral-500',
+            ]"
+          >
+            {{ selectedOption?.label ?? props.placeholder }}
+          </span>
+        </slot>
+        <SelectValue
+          v-else
+          v-model="modelValue"
+          :placeholder="props.placeholder"
+        />
+      </div>
       <SelectIcon as-child>
         <div
           i-solar:alt-arrow-down-linear
@@ -109,12 +172,15 @@ const normalizedOptions = computed<SelectOptionGroupItem<T>[]>(() => {
           // Dialog/Drawer are not hidden behind the overlay or dismissed unexpectedly.
           // Read more at: https://github.com/moeru-ai/airi/issues/1136
           'z-[10010]',
-          'min-w-[160px] overflow-hidden rounded-xl shadow-sm border will-change-[opacity,transform]',
+          'overflow-hidden rounded-xl shadow-sm border will-change-[opacity,transform]',
           'data-[side=top]:animate-slideDownAndFade data-[side=right]:animate-slideLeftAndFade data-[side=bottom]:animate-slideUpAndFade data-[side=left]:animate-slideRightAndFade',
           'bg-white dark:bg-neutral-900',
           'border-neutral-200 dark:border-neutral-800 border-solid border-2',
         ]"
-        :style="{ width: 'var(--reka-select-trigger-width)' }"
+        :style="{
+          width: toCssSize(props.contentWidth) ?? 'var(--reka-select-trigger-width)',
+          minWidth: toCssSize(props.contentMinWidth),
+        }"
       >
         <SelectViewport
           :class="[

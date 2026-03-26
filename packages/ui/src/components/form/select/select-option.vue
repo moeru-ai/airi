@@ -26,7 +26,7 @@ const props = defineProps<{
     :disabled="props.option.disabled"
     :text-value="props.option.label"
     :class="[
-      'leading-normal rounded-lg grid grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-2 min-h-8 pr-2 pl-2 relative select-none data-[disabled]:pointer-events-none data-[highlighted]:outline-none',
+      'leading-normal rounded-lg grid grid-cols-[1rem_minmax(0,1fr)] items-center gap-2 min-h-8 px-2 relative select-none data-[disabled]:pointer-events-none data-[highlighted]:outline-none',
       'data-[highlighted]:bg-neutral-100 dark:data-[highlighted]:bg-neutral-800',
       'text-sm text-neutral-700 dark:text-neutral-200 data-[disabled]:text-neutral-400 dark:data-[disabled]:text-neutral-600',
       'transition-colors duration-200 ease-in-out',

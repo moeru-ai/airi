@@ -20,6 +20,8 @@ import {
 const props = defineProps<{
   options: { groupLabel: string, children?: { label: string, value: T }[] }[]
   placeholder?: string
+  contentMinWidth?: string | number
+  contentWidth?: string | number
 }>()
 
 const modelValue = defineModel<T>({ required: false })
@@ -27,6 +29,14 @@ const modelValue = defineModel<T>({ required: false })
 function toDisplayValue(value: T): string {
   const option = props.options.flatMap(group => group.children).find(option => option?.value === value)
   return option ? option.label : props.placeholder || ''
+}
+
+function toCssSize(value?: string | number): string | undefined {
+  if (value == null) {
+    return undefined
+  }
+
+  return typeof value === 'number' ? `${value}px` : value
 }
 </script>
 
@@ -76,12 +86,15 @@ function toDisplayValue(value: T): string {
           // Dialog/Drawer are not hidden behind the overlay or dismissed unexpectedly.
           // Read more at: https://github.com/moeru-ai/airi/issues/1136
           'z-[10010]',
-          'w-full min-w-[160px] overflow-hidden rounded-xl shadow-sm border will-change-[opacity,transform]',
+          'w-full overflow-hidden rounded-xl shadow-sm border will-change-[opacity,transform]',
           'data-[side=top]:animate-slideDownAndFade data-[side=right]:animate-slideLeftAndFade data-[side=bottom]:animate-slideUpAndFade data-[side=left]:animate-slideRightAndFade',
           'bg-white dark:bg-neutral-900',
           'border-neutral-200 dark:border-neutral-800 border-solid border-2 focus:border-neutral-300 dark:focus:border-neutral-600',
         ]"
-        :style="{ width: 'var(--reka-combobox-trigger-width)' }"
+        :style="{
+          width: toCssSize(props.contentWidth) ?? 'var(--reka-combobox-trigger-width)',
+          minWidth: toCssSize(props.contentMinWidth) ?? '160px',
+        }"
       >
         <ComboboxViewport :class="['p-[2px]', 'max-h-50dvh', 'overflow-y-auto']">
           <ComboboxEmpty
