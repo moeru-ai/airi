@@ -24,7 +24,10 @@ function createMockRedis(): Redis {
   const store = new Map<string, string>()
   return {
     get: vi.fn(async (key: string) => store.get(key) ?? null),
-    set: vi.fn(async (key: string, value: string) => { store.set(key, value); return 'OK' }),
+    set: vi.fn(async (key: string, value: string) => {
+      store.set(key, value)
+      return 'OK'
+    }),
     decrby: vi.fn(async (key: string, amount: number) => {
       const current = Number.parseInt(store.get(key) ?? '0', 10)
       const next = current - amount
@@ -76,6 +79,21 @@ describe('fluxService (Redis-backed)', () => {
     expect(redis.get).toHaveBeenCalledTimes(2)
   })
 
+  it('getFlux should create an initial audit entry for a new user', async () => {
+    const [user] = await db.insert(schema.user).values({
+      id: 'user-audit-initial',
+      name: 'Audit Initial',
+      email: 'audit-initial@example.com',
+    }).returning()
+
+    await service.getFlux(user.id)
+
+    const { records } = await fluxAuditService.getHistory(user.id, 10, 0)
+    expect(records).toHaveLength(1)
+    expect(records[0].type).toBe('initial')
+    expect(records[0].amount).toBe(100)
+  })
+
   it('consumeFlux should deduct via Redis DECRBY', async () => {
     await service.getFlux(testUser.id)
     const result = await service.consumeFlux(testUser.id, 10)
@@ -92,10 +110,61 @@ describe('fluxService (Redis-backed)', () => {
   })
 
   it('addFlux should update both DB and Redis', async () => {
-    await service.getFlux(testUser.id)
-    const result = await service.addFlux(testUser.id, 50)
+    const [user] = await db.insert(schema.user).values({
+      id: 'user-add',
+      name: 'Add User',
+      email: 'add@example.com',
+    }).returning()
+    await service.getFlux(user.id)
+    const result = await service.addFlux(user.id, 50)
     expect(result.flux).toBe(150)
-    expect(redis.incrby).toHaveBeenCalledWith(`flux:${testUser.id}`, 50)
+    expect(redis.incrby).toHaveBeenCalledWith(`flux:${user.id}`, 50)
+  })
+
+  it('consumeFlux should write a consumption audit entry with metadata', async () => {
+    const [user] = await db.insert(schema.user).values({
+      id: 'user-audit-consume',
+      name: 'Audit Consume',
+      email: 'audit-consume@example.com',
+    }).returning()
+
+    await service.getFlux(user.id)
+    await service.consumeFlux(user.id, 10, {
+      description: 'openai/gpt-5-mini',
+      metadata: {
+        promptTokens: 12,
+        completionTokens: 34,
+      },
+    })
+
+    const { records } = await fluxAuditService.getHistory(user.id, 10, 0)
+    expect(records).toHaveLength(2)
+    const consumptionRecord = records.find(record => record.type === 'consumption')
+    expect(consumptionRecord).toBeDefined()
+    expect(consumptionRecord!.amount).toBe(-10)
+    expect(consumptionRecord!.description).toBe('openai/gpt-5-mini')
+    expect(consumptionRecord!.metadata).toEqual({
+      promptTokens: 12,
+      completionTokens: 34,
+    })
+  })
+
+  it('addFlux should write an addition audit entry', async () => {
+    const [user] = await db.insert(schema.user).values({
+      id: 'user-audit-add',
+      name: 'Audit Add',
+      email: 'audit-add@example.com',
+    }).returning()
+
+    await service.getFlux(user.id)
+    await service.addFlux(user.id, 50, 'Stripe payment USD 0.50')
+
+    const { records } = await fluxAuditService.getHistory(user.id, 10, 0)
+    expect(records).toHaveLength(2)
+    const additionRecord = records.find(record => record.type === 'addition')
+    expect(additionRecord).toBeDefined()
+    expect(additionRecord!.amount).toBe(50)
+    expect(additionRecord!.description).toBe('Stripe payment USD 0.50')
   })
 
   it('consumeFlux should lazy-load cache if not preloaded', async () => {
@@ -134,7 +203,7 @@ describe('fluxService (Redis-backed)', () => {
     }).returning()
     await service.getFlux(user3.id)
     const results = await Promise.allSettled(
-      Array.from({ length: 10 }, () => service.consumeFlux(user3.id, 10)),
+      Array.from({ length: 10 }).fill(service.consumeFlux(user3.id, 10)),
     )
     const fulfilled = results.filter(r => r.status === 'fulfilled')
     const rejected = results.filter(r => r.status === 'rejected')
@@ -154,7 +223,7 @@ describe('fluxService (Redis-backed)', () => {
     }).returning()
     await service.getFlux(user4.id)
     await Promise.all(
-      Array.from({ length: 10 }, () => service.addFlux(user4.id, 5)),
+      Array.from({ length: 10 }).fill(service.addFlux(user4.id, 5)),
     )
     const final = await service.getFlux(user4.id)
     expect(final.flux).toBe(150)
