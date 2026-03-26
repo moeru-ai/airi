@@ -415,9 +415,6 @@ importers:
       unplugin-unused:
         specifier: ^0.5.7
         version: 0.5.7
-      unplugin-vue:
-        specifier: ^7.1.1
-        version: 7.1.1(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.0)(tsx@4.21.0)(vue@3.5.30(typescript@5.9.3))(yaml@2.8.3)
       vite:
         specifier: ^8.0.2
         version: 8.0.2(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.3)
@@ -16395,12 +16392,6 @@ packages:
       vue-router:
         optional: true
 
-  unplugin-vue@7.1.1:
-    resolution: {integrity: sha512-0171rToKyJtoz+faE9CSGtAhCF7//t8sJueyyfZujf4RcKtoHLU/wqcsnuH5aq3tDB+I/Tg6IXiWgPvI+TK/zw==}
-    engines: {node: '>=20.19.0'}
-    peerDependencies:
-      vue: ^3.2.25
-
   unplugin-yaml@4.0.1:
     resolution: {integrity: sha512-7O9HW+01vQ4RS9uDnI6HqXULoA35Xye3bHYnryxRs0UzUoXNZ5HLrdJwO2Rml6/rgSDAOSHJF0/comN4z1MQiA==}
     engines: {node: '>=20'}
@@ -31653,29 +31644,6 @@ snapshots:
       vue-router: 5.0.4(@vue/compiler-sfc@3.5.30)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.30(typescript@5.9.3)))(vue@3.5.30(typescript@5.9.3))
     transitivePeerDependencies:
       - vue
-
-  unplugin-vue@7.1.1(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.0)(tsx@4.21.0)(vue@3.5.30(typescript@5.9.3))(yaml@2.8.3):
-    dependencies:
-      '@jridgewell/gen-mapping': 0.3.13
-      '@jridgewell/trace-mapping': 0.3.31
-      '@vue/reactivity': 3.5.30
-      obug: 2.1.1
-      unplugin: 3.0.0
-      vite: 8.0.2(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.3)
-      vue: 3.5.30(typescript@5.9.3)
-    transitivePeerDependencies:
-      - '@types/node'
-      - '@vitejs/devtools'
-      - esbuild
-      - jiti
-      - less
-      - sass
-      - sass-embedded
-      - stylus
-      - sugarss
-      - terser
-      - tsx
-      - yaml
 
   unplugin-yaml@4.0.1(@nuxt/kit@3.20.2(magicast@0.5.2))(esbuild@0.27.2)(rolldown@1.0.0-rc.9)(rollup@4.60.0)(vite@8.0.2(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.3)):
     dependencies:

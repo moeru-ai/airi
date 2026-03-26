@@ -82,7 +82,6 @@
     "unplugin-lightningcss": "^0.4.5",
     "unplugin-raw": "^0.6.4",
     "unplugin-unused": "^0.5.7",
-    "unplugin-vue": "^7.1.1",
     "vite": "^8.0.2",
     "vite-plugin-inspect": "^11.3.3",
     "vitest": "^4.1.1",
