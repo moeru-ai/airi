@@ -1,4 +1,4 @@
-import { pid } from 'node:process'
+import process, { pid } from 'node:process'
 
 import { initLogger, LoggerFormat, LoggerLevel, useLogger } from '@guiiai/logg'
 
@@ -21,7 +21,7 @@ function parsePositiveInteger(rawValue: string, envKey: string): number {
 export async function runOutboxDispatcher(): Promise<void> {
   initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
 
-  const env = parseEnv(globalThis.process.env)
+  const env = parseEnv(process.env)
   const logger = useLogger('outbox-dispatcher').useGlobalConfig()
   const { db, pool } = createDrizzle(env.DATABASE_URL)
   const redis = createRedis(env.REDIS_URL)
@@ -42,8 +42,8 @@ export async function runOutboxDispatcher(): Promise<void> {
     abortController.abort()
   }
 
-  globalThis.process.once('SIGINT', () => shutdown('SIGINT'))
-  globalThis.process.once('SIGTERM', () => shutdown('SIGTERM'))
+  process.once('SIGINT', () => shutdown('SIGINT'))
+  process.once('SIGTERM', () => shutdown('SIGTERM'))
 
   try {
     const outboxService = createOutboxService(db)
