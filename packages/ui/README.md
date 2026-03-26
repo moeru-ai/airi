@@ -58,6 +58,7 @@ import { Button } from '@proj-airi/ui'
     * [TransitionVertical](src/components/Animations/TransitionVertical.vue)
 * [Form](src/components/Form)
     * [Checkbox](src/components/Form/Checkbox)
+    * [Select](src/components/Form/Select)
     * [Field](src/components/Form/Field)
     * [Input](src/components/Form/Input)
     * [Radio](src/components/Form/Radio)
