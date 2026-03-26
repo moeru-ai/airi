@@ -115,7 +115,6 @@ catalogs:
     vitest: ^4.1.0
   xsai:
     unspeech: ^0.1.11
-enableGlobalVirtualStore: true
 
 ignoredBuiltDependencies:
   - '@prisma/client'
