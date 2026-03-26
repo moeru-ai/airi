@@ -37,7 +37,6 @@ const { providers, allChatProvidersMetadata } = storeToRefs(providersStore)
 const consciousnessStore = useConsciousnessStore()
 const {
   activeProvider,
-  activeModel,
 } = storeToRefs(consciousnessStore)
 
 // Popular providers for first-time setup
@@ -82,8 +81,6 @@ async function saveProviderConfiguration(data: ProviderConfigData) {
     config.baseUrl = data.baseUrl.trim()
   if (data.accountId)
     config.accountId = data.accountId.trim()
-  if (data.manualModels)
-    config.manualModels = data.manualModels.trim()
 
   providers.value[selectedProvider.value.id] = {
     ...providers.value[selectedProvider.value.id],
@@ -91,14 +88,6 @@ async function saveProviderConfiguration(data: ProviderConfigData) {
   }
 
   activeProvider.value = selectedProvider.value.id
-
-  const firstManualModel = (data.manualModels || '')
-    .split(',')
-    .map((item: string) => item.trim())
-    .find(Boolean)
-  if (firstManualModel) {
-    activeModel.value = firstManualModel
-  }
 
   await nextTick()
 

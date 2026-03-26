@@ -24,7 +24,6 @@ const providersStore = useProvidersStore()
 const apiKey = ref('')
 const baseUrl = ref('')
 const accountId = ref('')
-const manualModels = ref('')
 
 const validation = ref<'unchecked' | 'pending' | 'succeed' | 'failed'>('unchecked')
 const validationError = ref<any>()
@@ -39,7 +38,6 @@ function initializeForm() {
   baseUrl.value = ('baseUrl' in defaultOptions ? String(defaultOptions.baseUrl) : '') || ''
   apiKey.value = ''
   accountId.value = ''
-  manualModels.value = ('manualModels' in defaultOptions ? String(defaultOptions.manualModels) : '') || ''
 
   // Reset validation
   validation.value = 'unchecked'
@@ -49,14 +47,12 @@ function initializeForm() {
 // Watch for provider changes
 watch(() => props.selectedProvider?.id, initializeForm)
 
-watch([apiKey, baseUrl, accountId, manualModels], () => {
+watch([apiKey, baseUrl, accountId], () => {
   if (validation.value === 'failed' || validation.value === 'succeed') {
     validation.value = 'unchecked'
     validationError.value = undefined
   }
 })
-
-const isAzureOpenAI = computed(() => props.selectedProvider?.id === 'azure-openai')
 
 // Computed properties
 const needsApiKey = computed(() => {
@@ -104,8 +100,6 @@ async function validateConfiguration() {
       config.baseUrl = baseUrl.value.trim()
     if (props.selectedProvider.id === 'cloudflare-workers-ai')
       config.accountId = accountId.value.trim()
-    if (isAzureOpenAI.value && manualModels.value.trim())
-      config.manualModels = manualModels.value.trim()
 
     // Validate using provider's validator
     const metadata = providersStore.getProviderMetadata(props.selectedProvider.id)
@@ -130,7 +124,6 @@ async function handleNext() {
       apiKey: apiKey.value,
       baseUrl: baseUrl.value,
       accountId: accountId.value,
-      manualModels: manualModels.value,
     })
   }
 }
@@ -143,7 +136,6 @@ async function handleContinueAnyway() {
     apiKey: apiKey.value,
     baseUrl: baseUrl.value,
     accountId: accountId.value,
-    manualModels: manualModels.value,
   })
   providersStore.forceProviderConfigured(props.selectedProvider.id)
 }
@@ -225,16 +217,6 @@ initializeForm()
             type="text"
             label="Base URL"
             description="Enter the base URL for the provider's API."
-          />
-        </div>
-
-        <div v-if="isAzureOpenAI">
-          <FieldInput
-            v-model="manualModels"
-            placeholder="gpt-4.1, gpt-5.2-chat"
-            type="text"
-            label="Deployment / Model"
-            description="Optional but recommended. Comma-separated deployment/model names. The first one will be pre-selected in the next step."
           />
         </div>
 

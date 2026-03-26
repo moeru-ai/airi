@@ -7,7 +7,6 @@ export interface ProviderConfigData {
   apiKey: string
   baseUrl: string
   accountId: string
-  manualModels?: string
 }
 
 export type OnboardingStepNextHandler = (configData?: ProviderConfigData) => Promise<void> | void

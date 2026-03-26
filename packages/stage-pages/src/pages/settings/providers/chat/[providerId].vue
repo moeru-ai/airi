@@ -10,7 +10,6 @@ import {
   ProviderSettingsLayout,
   ProviderValidationAlerts,
 } from '@proj-airi/stage-ui/components'
-import { FieldInput } from '@proj-airi/ui'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { getDefinedProvider } from '@proj-airi/stage-ui/libs'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
@@ -44,17 +43,6 @@ const baseUrl = computed({
     providers.value[providerId].baseUrl = value
   },
 })
-
-const manualModels = computed({
-  get: () => providers.value[providerId]?.manualModels || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].manualModels = value
-  },
-})
-
-const isAzureOpenAI = computed(() => providerId === 'azure-openai')
 
 // Use the composable to get validation logic and state
 const {
@@ -119,15 +107,6 @@ function goToModelSelection() {
           v-model="baseUrl"
           :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || 'Base URL of your provider'"
         />
-
-        <div v-if="isAzureOpenAI" class="mt-4">
-          <FieldInput
-            v-model="manualModels"
-            label="Deployment / Model"
-            description="Comma-separated model/deployment names. Keep this in sync with onboarding input."
-            placeholder="gpt-4.1, gpt-5.2-chat"
-          />
-        </div>
       </ProviderAdvancedSettings>
 
       <!-- Validation Status -->
