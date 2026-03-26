@@ -19,15 +19,16 @@ docs:
   'drag-to-move-window': ウィンドウをドラッグして移動
   'switch-to-light-mode': ライトモードに切り替え
   'switch-to-dark-mode': ダークモードに切り替え
-  'pin-on-top': Pin on top
-  'unpin-from-top': Unpin from top
-  'close': Close
-  'expand': Expand
-  'collapse': Collapse
+  'pin-on-top': ピン留め
+  'unpin-from-top': ピン留めを外す
+  'switch-profile': プロファイルを切り替え
+  'close': 閉じる
+  'expand': 展開
+  'collapse': 折りたたむ
 'status-island':
-  connected: WebSocket connected
-  disconnected: WebSocket disconnected
-  'open-settings': Open WebSocket settings
+  connected: WebSocket が接続されました
+  disconnected: WebSocket が切断されました
+  'open-settings': WebSocketの設定を開く
 notice:
   'fade-on-hover':
     title: ホバー時にフェード

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Callout, FieldSelect } from '@proj-airi/ui'
+import { Callout, FieldCombobox } from '@proj-airi/ui'
 import { computed } from 'vue'
 
 const props = withDefaults(defineProps<{
@@ -72,7 +72,7 @@ const ringEnabledClass = computed(() => enabled.value
 
     <!-- Always-visible device selector -->
     <div class="mt-3 w-full">
-      <FieldSelect
+      <FieldCombobox
         v-model="selectedAudioInput"
         label="Input device"
         description="Select the microphone you want to use."

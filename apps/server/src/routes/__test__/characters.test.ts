@@ -78,7 +78,7 @@ describe('characterRoutes', () => {
     }), { user: testUser } as any)
 
     expect(res.status).toBe(201)
-    const data = await res.json()
+    const data = await res.json() as any
     expect(data.id).toBeDefined()
 
     const char = await characterService.findById(data.id)
@@ -88,7 +88,7 @@ describe('characterRoutes', () => {
   it('get / should return created character', async () => {
     const res = await app.fetch(new Request('http://localhost/'), { user: testUser } as any)
     expect(res.status).toBe(200)
-    const data = await res.json()
+    const data = await res.json() as any
     expect(data.length).toBe(1)
     expect(data[0].i18n[0].name).toBe('Aster')
   })
@@ -102,7 +102,7 @@ describe('characterRoutes', () => {
     expect(await res.json()).toEqual({ liked: true })
 
     const res2 = await app.fetch(new Request('http://localhost/'), { user: testUser } as any)
-    const data = await res2.json()
+    const data = await res2.json() as any
     expect(data[0].likesCount).toBe(1)
   })
 

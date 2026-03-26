@@ -17,6 +17,10 @@ function redisKey(userId: string): string {
   return `flux:${userId}`
 }
 
+function buildAuditMetadata(metadata?: Record<string, unknown>) {
+  return metadata && Object.keys(metadata).length > 0 ? metadata : undefined
+}
+
 export function createFluxService(db: Database, redis: Redis, configKV: ConfigKVService, fluxAuditService: FluxAuditService) {
   return {
     async getFlux(userId: string) {
@@ -55,7 +59,7 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
       return record
     },
 
-    async consumeFlux(userId: string, amount: number) {
+    async consumeFlux(userId: string, amount: number, options?: { description?: string, metadata?: Record<string, unknown> }) {
       // Ensure Redis key exists before DECRBY
       // (DECRBY on a nonexistent key creates it at 0, giving wrong balance)
       await this.getFlux(userId)
@@ -71,6 +75,32 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
         await redis.incrby(redisKey(userId), amount)
         logger.withFields({ userId, amount }).warn('Insufficient flux, rolled back')
         throw createPaymentRequiredError('Insufficient flux')
+      }
+
+      try {
+        const [updated] = await db.update(schema.userFlux)
+          .set({
+            flux: sql`${schema.userFlux.flux} - ${amount}`,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.userFlux.userId, userId))
+          .returning()
+
+        if (!updated) {
+          throw new Error(`Flux record missing for user ${userId}`)
+        }
+
+        await fluxAuditService.log({
+          userId,
+          type: 'consumption',
+          amount: -amount,
+          description: options?.description ?? 'Usage',
+          metadata: buildAuditMetadata(options?.metadata),
+        })
+      }
+      catch (error) {
+        await redis.incrby(redisKey(userId), amount)
+        throw error
       }
 
       logger.withFields({ userId, amount, newBalance }).log('Consumed flux')

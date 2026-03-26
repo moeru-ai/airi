@@ -1,25 +1,58 @@
+import type { ModulePermissionDeclaration } from './shared/types'
+
 import { join } from 'node:path'
 
 import { createContext, defineEventa, defineInvoke, defineInvokeHandler } from '@moeru/eventa'
-import { moduleCompatibilityResult, moduleStatus, registryModulesSync } from '@proj-airi/plugin-protocol/types'
+import {
+  moduleCompatibilityResult,
+  modulePermissionsCurrent,
+  modulePermissionsDeclare,
+  modulePermissionsDenied,
+  modulePermissionsGranted,
+  modulePermissionsRequest,
+  moduleStatus,
+  registryModulesSync,
+} from '@proj-airi/plugin-protocol/types'
 import { describe, expect, it, vi } from 'vitest'
 
 import { FileSystemLoader, PluginHost } from '.'
 import { createApis } from '../plugin/apis/client'
 import { protocolCapabilityWait, protocolProviders } from '../plugin/apis/protocol'
 
+function assertNever(value: never): never {
+  throw new Error(`Unsupported capability state: ${value}`)
+}
+
 function reportPluginCapability(
   host: PluginHost,
   payload: { key: string, state: 'announced' | 'ready', metadata?: Record<string, unknown> },
 ) {
-  if (payload.state === 'announced') {
-    return host.announceCapability(payload.key, payload.metadata)
-  }
+  switch (payload.state) {
+    case 'announced':
+      return host.announceCapability(payload.key, payload.metadata)
 
-  return host.markCapabilityReady(payload.key, payload.metadata)
+    case 'ready':
+      return host.markCapabilityReady(payload.key, payload.metadata)
+
+    default:
+      return assertNever(payload.state)
+  }
 }
 
 describe('for FileSystemPluginHost', () => {
+  const testPermissions: ModulePermissionDeclaration = {
+    apis: [
+      { key: 'proj-airi:plugin-sdk:apis:protocol:capabilities:wait', actions: ['invoke'] },
+      { key: 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers', actions: ['invoke'] },
+    ],
+    resources: [
+      { key: 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers', actions: ['read'] },
+    ],
+    capabilities: [
+      { key: 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers', actions: ['wait'] },
+    ],
+  }
+
   it('should load test-normal-plugin from manifest', async () => {
     const host = new FileSystemLoader()
 
@@ -27,6 +60,7 @@ describe('for FileSystemPluginHost', () => {
       apiVersion: 'v1',
       kind: 'manifest.plugin.airi.moeru.ai',
       name: 'test-plugin',
+      permissions: testPermissions,
       entrypoints: {
         electron: join(import.meta.dirname, 'testdata', 'test-normal-plugin.ts'),
       },
@@ -48,6 +82,7 @@ describe('for FileSystemPluginHost', () => {
       apiVersion: 'v1',
       kind: 'manifest.plugin.airi.moeru.ai',
       name: 'test-plugin',
+      permissions: testPermissions,
       entrypoints: {
         node: join(import.meta.dirname, 'testdata', 'test-normal-plugin.ts'),
       },
@@ -64,6 +99,7 @@ describe('for FileSystemPluginHost', () => {
       apiVersion: 'v1',
       kind: 'manifest.plugin.airi.moeru.ai',
       name: 'test-plugin',
+      permissions: testPermissions,
       entrypoints: {
         electron: join(import.meta.dirname, 'testdata', 'test-error-plugin.ts'),
       },
@@ -76,6 +112,7 @@ describe('for FileSystemPluginHost', () => {
       apiVersion: 'v1' as const,
       kind: 'manifest.plugin.airi.moeru.ai' as const,
       name: 'test-plugin',
+      permissions: testPermissions,
     }
 
     const runtimeEntryManifest = {
@@ -116,6 +153,23 @@ describe('for FileSystemPluginHost', () => {
     })).toBe('/tmp/plugin/electron-entry.ts')
   })
 
+  it('should preserve absolute runtime entrypoints', () => {
+    const host = new FileSystemLoader()
+
+    expect(host.resolveEntrypointFor({
+      apiVersion: 'v1',
+      kind: 'manifest.plugin.airi.moeru.ai',
+      name: 'test-plugin',
+      permissions: testPermissions,
+      entrypoints: {
+        node: '/opt/plugins/entry.ts',
+      },
+    }, {
+      cwd: '/tmp/plugin',
+      runtime: 'node',
+    })).toBe('/opt/plugins/entry.ts')
+  })
+
   it('should throw deterministic error when no runtime entrypoint exists', () => {
     const host = new FileSystemLoader()
 
@@ -123,6 +177,7 @@ describe('for FileSystemPluginHost', () => {
       apiVersion: 'v1',
       kind: 'manifest.plugin.airi.moeru.ai',
       name: 'test-plugin',
+      permissions: testPermissions,
       entrypoints: {},
     }, { runtime: 'node' })).toThrow('Plugin entrypoint is required for runtime `node`.')
   })
@@ -134,6 +189,18 @@ describe('for PluginHost', () => {
     apiVersion: 'v1' as const,
     kind: 'manifest.plugin.airi.moeru.ai' as const,
     name: 'test-plugin',
+    permissions: {
+      apis: [
+        { key: 'proj-airi:plugin-sdk:apis:protocol:capabilities:wait', actions: ['invoke'] },
+        { key: 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers', actions: ['invoke'] },
+      ],
+      resources: [
+        { key: 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers', actions: ['read'] },
+      ],
+      capabilities: [
+        { key: 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers', actions: ['wait'] },
+      ],
+    } satisfies ModulePermissionDeclaration,
     entrypoints: {
       electron: join(import.meta.dirname, 'testdata', 'test-normal-plugin.ts'),
     },
@@ -180,6 +247,7 @@ describe('for PluginHost', () => {
       apiVersion: 'v1',
       kind: 'manifest.plugin.airi.moeru.ai',
       name: 'test-plugin-no-connect',
+      permissions: testManifest.permissions,
       entrypoints: {
         electron: join(import.meta.dirname, 'testdata', 'test-no-connect-plugin.ts'),
       },
@@ -207,6 +275,7 @@ describe('for PluginHost', () => {
       apiVersion: 'v1',
       kind: 'manifest.plugin.airi.moeru.ai',
       name: 'test-plugin',
+      permissions: testManifest.permissions,
       entrypoints: {
         electron: join(import.meta.dirname, 'testdata', 'test-normal-plugin.ts'),
       },
@@ -400,6 +469,7 @@ describe('for PluginHost', () => {
       apiVersion: 'v1',
       kind: 'manifest.plugin.airi.moeru.ai',
       name: 'test-reload-relative-entrypoint',
+      permissions: testManifest.permissions,
       entrypoints: {
         electron: './test-normal-plugin.ts',
       },
@@ -565,6 +635,20 @@ describe('for PluginHost', () => {
     await expect(invokeTwo()).resolves.toEqual([{ name: 'provider:two' }])
   })
 
+  it('should expose provider resources through the generic resource resolver API', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+    })
+
+    host.setResourceResolver(providersCapability, () => [{ name: 'provider:generic' }])
+
+    const session = await host.load(testManifest, { cwd: '' })
+    const invokeProviders = defineInvoke(session.channels.host, protocolProviders.listProviders)
+
+    await expect(invokeProviders()).resolves.toEqual([{ name: 'provider:generic' }])
+  })
+
   it('should include active modules in registry sync when initializing another session', async () => {
     const host = new PluginHost({
       runtime: 'electron',
@@ -599,5 +683,284 @@ describe('for PluginHost', () => {
 
     expect(moduleNames).toContain('test-plugin-session-one')
     expect(moduleNames).toContain('test-plugin-session-two')
+  })
+
+  it('should support runtime permission requests before granting deferred scopes', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+    })
+    host.setResourceValue(providersCapability, [{ name: 'provider:runtime' }])
+
+    const session = await host.load({
+      ...testManifest,
+      permissions: {},
+    }, { cwd: '' })
+
+    const invokeProviders = defineInvoke(session.channels.host, protocolProviders.listProviders)
+    await expect(invokeProviders()).rejects.toThrow(`Permission denied: apis.invoke "${providersCapability}"`)
+
+    const declareEvents: Array<{ body?: Record<string, unknown> }> = []
+    const currentEvents: Array<{ body?: Record<string, unknown> }> = []
+    const requestEvents: Array<{ body?: Record<string, unknown> }> = []
+    const grantedEvents: Array<{ body?: Record<string, unknown> }> = []
+
+    session.channels.host.on(modulePermissionsDeclare, payload => declareEvents.push(payload as unknown as { body?: Record<string, unknown> }))
+    session.channels.host.on(modulePermissionsCurrent, payload => currentEvents.push(payload as unknown as { body?: Record<string, unknown> }))
+    session.channels.host.on(modulePermissionsRequest, payload => requestEvents.push(payload as unknown as { body?: Record<string, unknown> }))
+    session.channels.host.on(modulePermissionsGranted, payload => grantedEvents.push(payload as unknown as { body?: Record<string, unknown> }))
+
+    const runtimeRequest = {
+      apis: [
+        { key: providersCapability, actions: ['invoke'], reason: 'Use providers API on demand' },
+      ],
+      resources: [
+        { key: providersCapability, actions: ['read'], reason: 'Read providers resource on demand' },
+      ],
+    } satisfies ModulePermissionDeclaration
+
+    host.requestPermissions(session.id, runtimeRequest, 'Enable provider lookup')
+
+    expect(host.getSession(session.id)?.permissions.requested).toEqual({
+      apis: [
+        { key: providersCapability, actions: ['invoke'], reason: 'Use providers API on demand' },
+      ],
+      resources: [
+        { key: providersCapability, actions: ['read'], reason: 'Read providers resource on demand' },
+      ],
+      capabilities: [],
+      processors: [],
+      pipelines: [],
+    })
+    expect(requestEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        body: expect.objectContaining({
+          requested: expect.objectContaining({
+            apis: [
+              expect.objectContaining({ key: providersCapability, actions: ['invoke'] }),
+            ],
+            resources: [
+              expect.objectContaining({ key: providersCapability, actions: ['read'] }),
+            ],
+          }),
+          reason: 'Enable provider lookup',
+        }),
+      }),
+    ]))
+    expect(declareEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        body: expect.objectContaining({
+          source: 'runtime',
+        }),
+      }),
+    ]))
+    expect(currentEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        body: expect.objectContaining({
+          requested: expect.objectContaining({
+            apis: [
+              expect.objectContaining({ key: providersCapability, actions: ['invoke'] }),
+            ],
+          }),
+          granted: expect.objectContaining({
+            apis: [],
+            resources: [],
+          }),
+        }),
+      }),
+    ]))
+
+    await expect(invokeProviders()).rejects.toThrow(`Permission denied: apis.invoke "${providersCapability}"`)
+
+    host.grantPermissions(session.id, {
+      apis: [
+        { key: providersCapability, actions: ['invoke'] },
+      ],
+      resources: [
+        { key: providersCapability, actions: ['read'] },
+      ],
+    })
+
+    expect(host.getSession(session.id)?.permissions.granted).toEqual({
+      apis: [
+        { key: providersCapability, actions: ['invoke'], reason: 'Use providers API on demand' },
+      ],
+      resources: [
+        { key: providersCapability, actions: ['read'], reason: 'Read providers resource on demand' },
+      ],
+      capabilities: [],
+      processors: [],
+      pipelines: [],
+    })
+    expect(grantedEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        body: expect.objectContaining({
+          granted: expect.objectContaining({
+            apis: [
+              expect.objectContaining({ key: providersCapability, actions: ['invoke'] }),
+            ],
+            resources: [
+              expect.objectContaining({ key: providersCapability, actions: ['read'] }),
+            ],
+          }),
+        }),
+      }),
+    ]))
+
+    await expect(invokeProviders()).resolves.toEqual([{ name: 'provider:runtime' }])
+  })
+
+  it('should only emit denied scopes that remain precisely representable after partial approval', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+      permissionResolver: ({ requested }) => ({
+        apis: [
+          ...(requested.apis ?? []).filter(spec => spec.key.startsWith('proj-airi:plugin-sdk:')),
+          { key: 'plugin.api.users', actions: ['invoke'] },
+        ],
+        resources: [
+          ...(requested.resources ?? []).filter(spec => spec.key.startsWith('proj-airi:plugin-sdk:')),
+          { key: 'plugin.resource.settings', actions: ['read'] },
+        ],
+        capabilities: requested.capabilities,
+      }),
+    })
+
+    const manifest = {
+      apiVersion: 'v1' as const,
+      kind: 'manifest.plugin.airi.moeru.ai' as const,
+      name: 'test-plugin-denied-partial',
+      permissions: {
+        apis: [
+          ...(testManifest.permissions.apis ?? []),
+          { key: 'plugin.api.users', actions: ['invoke', 'emit'], reason: 'Use selected user API actions' },
+        ],
+        resources: [
+          ...(testManifest.permissions.resources ?? []),
+          { key: 'plugin.resource.*', actions: ['read'], reason: 'Read plugin resources' },
+        ],
+        capabilities: testManifest.permissions.capabilities,
+      } satisfies ModulePermissionDeclaration,
+      entrypoints: {
+        electron: join(import.meta.dirname, 'testdata', 'test-normal-plugin.ts'),
+      },
+    }
+
+    const session = await host.load(manifest, { cwd: '' })
+    const deniedEvents: Array<{ body?: Record<string, unknown> }> = []
+    const currentEvents: Array<{ body?: Record<string, unknown> }> = []
+    session.channels.host.on(modulePermissionsDenied, payload => deniedEvents.push(payload as unknown as { body?: Record<string, unknown> }))
+    session.channels.host.on(modulePermissionsCurrent, payload => currentEvents.push(payload as unknown as { body?: Record<string, unknown> }))
+
+    await host.init(session.id)
+
+    expect(session.permissions.granted).toEqual({
+      apis: [
+        ...(testManifest.permissions.apis ?? []),
+        { key: 'plugin.api.users', actions: ['invoke'], reason: 'Use selected user API actions' },
+      ],
+      resources: [
+        ...(testManifest.permissions.resources ?? []),
+        { key: 'plugin.resource.settings', actions: ['read'], reason: 'Read plugin resources' },
+      ],
+      capabilities: testManifest.permissions.capabilities ?? [],
+      processors: [],
+      pipelines: [],
+    })
+
+    expect(deniedEvents).toEqual([
+      expect.objectContaining({
+        body: expect.objectContaining({
+          denied: {
+            apis: [
+              { key: 'plugin.api.users', actions: ['emit'], reason: 'Use selected user API actions' },
+            ],
+          },
+        }),
+      }),
+    ])
+    expect(deniedEvents[0]?.body?.denied).not.toHaveProperty('resources')
+    expect(currentEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        body: expect.objectContaining({
+          granted: {
+            apis: [
+              ...(testManifest.permissions.apis ?? []),
+              { key: 'plugin.api.users', actions: ['invoke'], reason: 'Use selected user API actions' },
+            ],
+            resources: [
+              ...(testManifest.permissions.resources ?? []),
+              { key: 'plugin.resource.settings', actions: ['read'], reason: 'Read plugin resources' },
+            ],
+            capabilities: testManifest.permissions.capabilities ?? [],
+            processors: [],
+            pipelines: [],
+          },
+        }),
+      }),
+    ]))
+  })
+
+  it('should isolate runtime permission grants between concurrent same-name sessions', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+    })
+    host.setResourceValue(providersCapability, [{ name: 'provider:runtime' }])
+
+    const manifest = {
+      ...testManifest,
+      permissions: {},
+    }
+
+    const firstSession = await host.load(manifest, { cwd: '' })
+    const secondSession = await host.load(manifest, { cwd: '' })
+
+    const firstInvokeProviders = defineInvoke(firstSession.channels.host, protocolProviders.listProviders)
+    const secondInvokeProviders = defineInvoke(secondSession.channels.host, protocolProviders.listProviders)
+
+    const runtimeRequest = {
+      apis: [
+        { key: providersCapability, actions: ['invoke'], reason: 'Use providers API on demand' },
+      ],
+      resources: [
+        { key: providersCapability, actions: ['read'], reason: 'Read providers resource on demand' },
+      ],
+    } satisfies ModulePermissionDeclaration
+
+    host.requestPermissions(firstSession.id, runtimeRequest)
+    host.requestPermissions(secondSession.id, runtimeRequest)
+
+    host.grantPermissions(firstSession.id, {
+      apis: [
+        { key: providersCapability, actions: ['invoke'] },
+      ],
+      resources: [
+        { key: providersCapability, actions: ['read'] },
+      ],
+    })
+
+    await expect(firstInvokeProviders()).resolves.toEqual([{ name: 'provider:runtime' }])
+    await expect(secondInvokeProviders()).rejects.toThrow(`Permission denied: apis.invoke "${providersCapability}"`)
+
+    expect(host.getSession(firstSession.id)?.permissions.granted).toEqual({
+      apis: [
+        { key: providersCapability, actions: ['invoke'], reason: 'Use providers API on demand' },
+      ],
+      resources: [
+        { key: providersCapability, actions: ['read'], reason: 'Read providers resource on demand' },
+      ],
+      capabilities: [],
+      processors: [],
+      pipelines: [],
+    })
+    expect(host.getSession(secondSession.id)?.permissions.granted).toEqual({
+      apis: [],
+      resources: [],
+      capabilities: [],
+      processors: [],
+      pipelines: [],
+    })
   })
 })

@@ -2,7 +2,6 @@ import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { CommonContentPart, CompletionToolCall, Message, Tool } from '@xsai/shared-chat'
 
 import { listModels } from '@xsai/model'
-import { XSAIError } from '@xsai/shared'
 import { streamText } from '@xsai/stream-text'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
@@ -17,15 +16,15 @@ export type StreamEvent
     | { type: 'error', error: any }
 
 export interface StreamOptions {
+  abortSignal?: AbortSignal
   headers?: Record<string, string>
   onStreamEvent?: (event: StreamEvent) => void | Promise<void>
   toolsCompatibility?: Map<string, boolean>
   supportsTools?: boolean
-  waitForTools?: boolean // when true,won't resolve on finishReason=='tool_calls';
+  waitForTools?: boolean
   tools?: Tool[] | (() => Promise<Tool[] | undefined>)
 }
 
-// TODO: proper format for other error messages.
 function sanitizeMessages(messages: unknown[]): Message[] {
   return messages.map((m: any) => {
     if (m && m.role === 'error') {
@@ -34,19 +33,29 @@ function sanitizeMessages(messages: unknown[]): Message[] {
         content: `User encountered error: ${String(m.content ?? '')}`,
       } as Message
     }
+    // NOTICE: Flatten array content for providers (e.g. DeepSeek) that expect string,
+    // not content-part arrays. Skipped when image_url parts are present.
+    if (m && Array.isArray(m.content)) {
+      const contentParts = m.content as { type?: string, text?: string }[]
+      if (!contentParts.some(p => p?.type === 'image_url')) {
+        return { ...m, content: contentParts.map(p => p?.text ?? '').join('') } as Message
+      }
+    }
     return m as Message
   })
 }
 
 function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProvider, _: Message[], options?: StreamOptions): boolean {
-  return !!(options?.supportsTools || options?.toolsCompatibility?.get(`${chatProvider.chat(model).baseURL}-${model}`))
+  if (options?.supportsTools)
+    return true
+  const key = `${chatProvider.chat(model).baseURL}-${model}`
+  return options?.toolsCompatibility?.get(key) !== false
 }
 
 async function streamFrom(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
-  const headers = options?.headers
   const chatConfig = chatProvider.chat(model)
-
   const sanitized = sanitizeMessages(messages as unknown[])
+
   const resolveTools = async () => {
     const tools = typeof options?.tools === 'function'
       ? await options.tools()
@@ -87,8 +96,7 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
             resolveOnce()
         }
         else if (event && (event as StreamEvent).type === 'error') {
-          const error = (event as any).error ?? new Error('Stream error')
-          rejectOnce(error)
+          rejectOnce((event as any).error ?? new Error('Stream error'))
         }
       }
       catch (err) {
@@ -97,15 +105,25 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
     }
 
     try {
-      streamText({
+      const streamResult = streamText({
         ...chatConfig,
+        abortSignal: options?.abortSignal,
         maxSteps: 10,
         messages: sanitized,
-        headers,
-        // TODO: we need Automatic tools discovery
+        headers: options?.headers,
         tools,
         onEvent,
       })
+
+      // NOTICE: Consume underlying promises to prevent unhandled rejections from
+      // @xsai/stream-text's SSE parser surfacing as faulted app state.
+      void streamResult.steps.catch((err) => {
+        rejectOnce(err)
+        console.error('Stream steps error:', err)
+      })
+      void streamResult.messages.catch(err => console.error('Stream messages error:', err))
+      void streamResult.usage.catch(err => console.error('Stream usage error:', err))
+      void streamResult.totalUsage.catch(err => console.error('Stream totalUsage error:', err))
     }
     catch (err) {
       rejectOnce(err)
@@ -113,97 +131,49 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
   })
 }
 
-export async function attemptForToolsCompatibilityDiscovery(model: string, chatProvider: ChatProvider, _: Message[], options?: Omit<StreamOptions, 'supportsTools'>): Promise<boolean> {
-  async function attempt(enable: boolean) {
-    try {
-      await streamFrom(model, chatProvider, [{ role: 'user', content: 'Hello, world!' }], { ...options, supportsTools: enable })
-      return true
-    }
-    catch (err) {
-      if (err instanceof Error && err.name === new XSAIError('').name) {
-        // TODO: if you encountered many more errors like these, please, add them here.
+// Runtime auto-degrade: patterns that indicate the model/provider does not support tool calling.
+const TOOLS_RELATED_ERROR_PATTERNS: RegExp[] = [
+  /does not support tools/i, // Ollama
+  /no endpoints found that support tool use/i, // OpenRouter
+  /invalid schema for function/i, // OpenAI-compatible
+  /invalid.?function.?parameters/i, // OpenAI-compatible
+  /functions are not supported/i, // Azure AI Foundry
+  /unrecognized request argument.+tools/i, // Azure AI Foundry
+  /tool use with function calling is unsupported/i, // Google Generative AI
+  /tool_use_failed/i, // Groq
+  /does not support function.?calling/i, // Anthropic
+  /tools?\s+(is|are)\s+not\s+supported/i, // Cloudflare Workers AI
+]
 
-        // Ollama
-        /**
-         * {"error":{"message":"registry.ollama.ai/<scope>/<model> does not support tools","type":"api_error","param":null,"code":null}}
-         */
-        if (String(err).includes('does not support tools')) {
-          return false
-        }
-        // OpenRouter
-        /**
-         * {"error":{"message":"No endpoints found that support tool use. To learn more about provider routing, visit: https://openrouter.ai/docs/provider-routing","code":404}}
-         */
-        if (String(err).includes('No endpoints found that support tool use.')) {
-          return false
-        }
-      }
-
-      throw err
-    }
-  }
-
-  function promiseAllWithInterval<T>(promises: (() => Promise<T>)[], interval: number): Promise<{ result?: T, error?: any }[]> {
-    return new Promise((resolve) => {
-      const results: { result?: T, error?: any }[] = []
-      let completed = 0
-
-      promises.forEach((promiseFn, index) => {
-        setTimeout(() => {
-          promiseFn()
-            .then((result) => {
-              results[index] = { result }
-            })
-            .catch((err) => {
-              results[index] = { error: err }
-            })
-            .finally(() => {
-              completed++
-              if (completed === promises.length) {
-                resolve(results)
-              }
-            })
-        }, index * interval)
-      })
-    })
-  }
-
-  const attempts = [
-    () => attempt(true),
-    () => attempt(false),
-  ]
-
-  const attemptsResults = await promiseAllWithInterval<boolean | undefined>(attempts, 1000)
-  if (attemptsResults.some(res => res.error)) {
-    const err = new Error(`Error during tools compatibility discovery for model: ${model}. Errors: ${attemptsResults.map(res => res.error).filter(Boolean).join(', ')}`)
-    err.cause = attemptsResults.map(res => res.error).filter(Boolean)
-    throw err
-  }
-
-  return attemptsResults[0].result === true && attemptsResults[1].result === true
+export function isToolRelatedError(err: unknown): boolean {
+  const msg = String(err)
+  return TOOLS_RELATED_ERROR_PATTERNS.some(p => p.test(msg))
 }
 
 export const useLLM = defineStore('llm', () => {
   const toolsCompatibility = ref<Map<string, boolean>>(new Map())
 
-  async function discoverToolsCompatibility(model: string, chatProvider: ChatProvider, _: Message[], options?: Omit<StreamOptions, 'supportsTools'>) {
-    // Cached, no need to discover again
-    if (toolsCompatibility.value.has(`${chatProvider.chat(model).baseURL}-${model}`)) {
-      return
-    }
-
-    const res = await attemptForToolsCompatibilityDiscovery(model, chatProvider, _, { ...options, toolsCompatibility: toolsCompatibility.value })
-    toolsCompatibility.value.set(`${chatProvider.chat(model).baseURL}-${model}`, res)
+  function modelKey(model: string, chatProvider: ChatProvider): string {
+    return `${chatProvider.chat(model).baseURL}-${model}`
   }
 
-  function stream(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
-    return streamFrom(model, chatProvider, messages, { ...options, toolsCompatibility: toolsCompatibility.value })
+  async function stream(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
+    const key = modelKey(model, chatProvider)
+    try {
+      await streamFrom(model, chatProvider, messages, { ...options, toolsCompatibility: toolsCompatibility.value })
+    }
+    catch (err) {
+      if (isToolRelatedError(err)) {
+        console.warn(`[llm] Auto-disabling tools for "${key}" due to tool-related error`)
+        toolsCompatibility.value.set(key, false)
+      }
+      throw err
+    }
   }
 
   async function models(apiUrl: string, apiKey: string) {
-    if (apiUrl === '') {
+    if (apiUrl === '')
       return []
-    }
 
     try {
       return await listModels({
@@ -212,10 +182,8 @@ export const useLLM = defineStore('llm', () => {
       })
     }
     catch (err) {
-      if (String(err).includes(`Failed to construct 'URL': Invalid URL`)) {
+      if (String(err).includes(`Failed to construct 'URL': Invalid URL`))
         return []
-      }
-
       throw err
     }
   }
@@ -223,6 +191,5 @@ export const useLLM = defineStore('llm', () => {
   return {
     models,
     stream,
-    discoverToolsCompatibility,
   }
 })

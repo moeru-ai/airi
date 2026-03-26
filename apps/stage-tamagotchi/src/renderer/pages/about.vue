@@ -2,7 +2,7 @@
 import { useElectronAutoUpdater } from '@proj-airi/electron-vueuse'
 import { AboutContent, MarkdownRenderer } from '@proj-airi/stage-ui/components'
 import { useBreakpoints } from '@proj-airi/stage-ui/composables'
-import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics/index'
+import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { Button, DoubleCheckButton, Progress } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'

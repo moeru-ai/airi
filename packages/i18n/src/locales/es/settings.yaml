@@ -19,8 +19,12 @@ dialogs:
     baseUrlHelp: URL del endpoint de la API (usa el predeterminado si no estás seguro)
     accountId: ID de Cuenta
     validationSuccess: La validación de la configuración fue exitosa
+    validationPartial: Configuración parcialmente Validada
     validationFailed: La validación de la configuración falló
     validationError: 'Error de validación: {error}'
+    testGeneration: Generación de pruebas
+    testGenerationRunning: Probando...
+    testGenerationFailed: Falló generación de prueba
     skipForNow: Omitir por ahora
     saveAndContinue: Guardar y Continuar
     next: Siguiente
@@ -31,22 +35,21 @@ dialogs:
     no-models-help: >-
       Por favor vuelva al paso anterior y compruebe su clave de API o su conexión de red.
     permissions:
-      title: Notifications
-      description: You can allow notifications now or continue and set it up later.
-      notificationsTitle: Notifications
-      notificationsDescription: Allow reminders and important status updates.
-      notificationsAction: Request notification permission
-      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
-      openSettings: Open iOS Settings
-      optionalHint: You can continue even if notification permission is not granted.
-      stateUnknown: Not requested
-      stateRequesting: Requesting...
-      stateGranted: Granted
-      stateNotGranted: Not granted
+      title: Notificaciones
+      description: Puedes permitir las notificaciones ahora o continuar y configurarlo más tarde.
+      notificationsTitle: Notificaciones
+      notificationsDescription: Permitir recordatorios y actualizaciones de estado importantes.
+      notificationsAction: Solicitar permiso de notificación
+      notificationsNotGrantedHint: Si es denegado, puedes habilitar las notificaciones más tarde desde la Configuración iOS.
+      openSettings: Abrir configuración de iOS
+      optionalHint: Puedes continuar incluso si el permiso de notificaciones no es concedido.
+      stateUnknown: No requerido
+      stateRequesting: Solicitando...
+      stateGranted: Concedido
+      stateNotGranted: No concedido
 language:
   title: Idioma
-  description: >
-    Cambia el idioma de la interfaz de AIRI. Esto no afectará el idioma de las respuestas del personaje.
+  description: Lenguaje de Interfaz
 controls-island:
   icon-size:
     title: Tamaño de icono de la isla de controles
@@ -54,6 +57,19 @@ controls-island:
     auto: Automático (adaptativo)
     large: Grande (predeterminado)
     small: Pequeño
+analytics:
+  notice:
+    title: Estadísticas de uso
+    description: AIRI recopila estadísticas de uno anónimas para ayudarnos a comprender cómo es usada la aplicación y mejorar la estabilidad. No se recopilan datos personales.
+    privacyPrefix: Leer el
+    privacyLink: Política de privacidad
+    onboardingHint: Puedes desactivar el análisis más tarde en Configuración > Sistema > General.
+    settingsHint: You can turn analytics off at any time.
+  toggle:
+    title: Habilitar estadísticas de uso
+    description: Desactiva esta opción para desactivar la recolección de datos analíticos.
+  disabled:
+    title: Analítica desactivada para esta versión de desarrollo
 live2d:
   change-model:
     from-file: Cargar desde Archivo
@@ -172,6 +188,7 @@ pages:
     scenario: Escenario
     search: Buscar tarjetas...
     sort_by: Ordenar por
+    body-model: Cuerpo / Modelo Mostrado
     speech:
       provider: Voz / Proveedor
       model: Habla / Modelo
@@ -213,6 +230,10 @@ pages:
         title: Eliminar todos los datos
         description: Limpia cada configuración local, configuración del proveedor y del modelo.
         delete: Eliminar todos los datos
+      desktop-folder:
+        title: Abrir carpeta de datos de la aplicación
+        description: Abrir carpeta de datos de AIRI en tu explorador de archivos.
+        open: Abrir carpeta
       desktop:
         title: Restablecer ajustes de escritorio y estados
         description: Limpiar ajustes de escritorio y estado de ejecución de AIRI.
@@ -273,7 +294,7 @@ pages:
               label: Envelope filter frequency
             highpass_filter_frequency:
               description: >-
-                Frequency for the highpass filter applied to reduce low frequencies like sub-bass noises.
+                Frecuencia para el filtro de paso alto aplicado para reducir frecuencias bajas como ruidos sub bajos.
               label: Highpass filter frequency
             lowpass_filter_frequency:
               description: >-
@@ -317,7 +338,7 @@ pages:
             search_results: Encontrados {count} de {total} modelos
             show_less: Mostrar menos
             show_more: Mostrar más
-            subtitle: Select a default model from the provider
+            subtitle: Seleccionar un modelo por defecto del proveedor
             title: Modelo
       title: Consciencia
     description: Pensamiento, visión, síntesis de voz, juegos, etc.
@@ -735,6 +756,9 @@ pages:
       openrouter:
         description: openrouter.ai
         title: OpenRouter
+      openrouter-audio-speech:
+        description: openrouter.ai
+        title: OpenRouter
       perplexity:
         description: perplexity.ai
         title: Perplexity
@@ -770,6 +794,9 @@ pages:
       xai:
         description: x.ai
         title: xAI
+      zai:
+        description: z.ai
+        title: Z.ai
       302-ai:
         description: 302.AI
         title: 302.AI

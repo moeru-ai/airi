@@ -17,7 +17,7 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
 import { useProviderCatalogStore } from '@proj-airi/stage-ui/stores/provider-catalog'
-import { Button, Callout, FieldInput, FieldKeyValues, FieldSelect } from '@proj-airi/ui'
+import { Button, Callout, FieldCombobox, FieldInput, FieldKeyValues } from '@proj-airi/ui'
 import { useCloned, useDebounceFn } from '@vueuse/core'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -160,7 +160,7 @@ function normalizeHeaderRows(headers: Record<string, string>) {
   if (rows.length === 0) {
     rows.push({ key: '', value: '' })
   }
-  else if (rows[rows.length - 1].key !== '' || rows[rows.length - 1].value !== '') {
+  else if (rows.at(-1)!.key !== '' || rows.at(-1)!.value !== '') {
     rows.push({ key: '', value: '' })
   }
   return rows
@@ -178,7 +178,7 @@ watch(providerConfigEdit, (config) => {
 watch(headerRows, (rows) => {
   if (isSyncingHeaders.value)
     return
-  const lastRow = rows[rows.length - 1]
+  const lastRow = rows.at(-1)
   if (!lastRow || lastRow.key.trim().length > 0 || lastRow.value.trim().length > 0) {
     headerRows.value = [...rows, { key: '', value: '' }]
     return
@@ -455,7 +455,7 @@ function handleDeleteProvider() {
                   :placeholder="field.placeholder"
                   :required="field.required"
                 />
-                <FieldSelect
+                <FieldCombobox
                   v-else-if="field.type === 'select'"
                   v-model="providerConfigEdit.config[field.key]"
                   :label="field.label"

@@ -1,5 +1,4 @@
 catalogMode: prefer
-
 shellEmulator: true
 packages:
   - packages/**
@@ -10,112 +9,128 @@ packages:
   - docs/**
   - apps/**
   - '!**/dist/**'
+
 overrides:
   array-flatten: npm:@nolyfill/array-flatten@^1.0.44
   axios: npm:feaxios@^0.0.23
   is-core-module: npm:@nolyfill/is-core-module@^1.0.39
   isarray: npm:@nolyfill/isarray@^1.0.44
-  onnxruntime-web: npm:onnxruntime-web@^1.24.2
+  onnxruntime-web: npm:onnxruntime-web@^1.24.3
   safe-buffer: npm:@nolyfill/safe-buffer@^1.0.44
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 
 patchedDependencies:
+  '@mediapipe/tasks-vision': patches/@mediapipe__tasks-vision.patch
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
   mineflayer@4.33.0: patches/mineflayer@4.33.0.patch
   pixi-live2d-display: patches/pixi-live2d-display.patch
   srvx: patches/srvx.patch
+
 catalog:
-  '@capacitor/cli': ^8.1.0
-  '@capacitor/core': ^8.1.0
-  '@capacitor/ios': ^8.1.0
-  '@capacitor/local-notifications': ^8.0.1
-  '@electric-sql/pglite': ^0.3.15
+  '@better-auth/drizzle-adapter': ^1.5.6
+  '@capacitor/android': ^8.2.0
+  '@capacitor/cli': ^8.2.0
+  '@capacitor/core': ^8.2.0
+  '@capacitor/ios': ^8.2.0
+  '@capacitor/local-notifications': ^8.0.2
+  '@electric-sql/pglite': ^0.4.1
   '@electron-toolkit/preload': ^3.0.2
   '@electron/notarize': ^3.1.1
   '@guiiai/logg': ^1.2.11
   '@histoire/plugin-vue': 1.0.0-beta.1
   '@iconify-json/logos': ^1.2.10
-  '@iconify-json/tabler': ^1.2.27
-  '@intlify/core': ^11.2.8
+  '@iconify-json/tabler': ^1.2.32
+  '@intlify/core': ^11.3.0
   '@modelcontextprotocol/sdk': ^1.27.1
   '@moeru/eslint-config': 0.1.0-beta.15
-  '@moeru/eventa': 1.0.0-alpha.14
+  '@moeru/eventa': 1.0.0-beta.2
   '@moeru/std': 0.1.0-beta.17
   '@nekopaw/tempora': 0.4.0-alpha.1
   '@pinia/testing': ^1.0.3
   '@proj-airi/drizzle-duckdb-wasm': ^0.4.29
+  '@proj-airi/drizzle-orm-browser-migrator': ^0.1.6
   '@proj-airi/iconify-meteocons': ^0.1.4
+  '@proj-airi/unplugin-drizzle-orm-migrations': ^0.1.6
   '@proj-airi/unplugin-fetch': ^0.2.2
   '@shopify/draggable': ^1.2.1
-  '@types/audioworklet': ^0.0.96
+  '@types/audioworklet': ^0.0.97
+  '@types/d3': ^7.4.3
   '@types/hast': ^3.0.4
   '@types/splitpanes': ^2.2.6
   '@types/unist': ^3.0.3
   '@types/ws': ^8.18.1
   '@vueuse/core': 14.1.0
-  '@xsai-ext/providers': ^0.4.3
-  '@xsai/embed': ^0.4.3
+  '@xsai-ext/providers': ^0.4.4
+  '@xsai/embed': ^0.4.4
   '@xsai/generate-speech': 0.4.0-beta.13
-  '@xsai/generate-text': ^0.4.3
-  '@xsai/generate-transcription': ^0.4.3
-  '@xsai/model': ^0.4.3
+  '@xsai/generate-text': ^0.4.4
+  '@xsai/generate-transcription': ^0.4.4
+  '@xsai/model': ^0.4.4
   '@xsai/shared': 0.4.0-beta.13
   '@xsai/shared-chat': 0.4.0-beta.13
-  '@xsai/stream-text': ^0.4.3
-  '@xsai/tool': ^0.4.3
+  '@xsai/stream-text': ^0.4.4
+  '@xsai/tool': ^0.4.4
   '@xsai/utils-chat': 0.4.0-beta.13
   alien-signals: ^3.1.2
   async-mutex: 0.5.0
-  better-auth: ^1.4.19
+  better-auth: ^1.5.6
   builder-util-runtime: ^9.5.1
-  capacitor-native-settings: ^8.0.0
+  capacitor-native-settings: ^8.1.0
   crossws: ^0.4.4
+  d3: 7.9.0
+  drizzle-kit: ^0.31.10
+  drizzle-orm: ^0.45.1
   drizzle-valibot: ^0.4.2
-  electron: ^40.8.0
+  electron: ^41.0.3
   embla-carousel-vue: ^9.0.0-rc01
   es-toolkit: 1.43.0
   histoire: 1.0.0-beta.1
   hono: 4.11.3
   idb-keyval: ^6.2.2
   injeca: ^0.1.8
-  is-network-error: ^1.3.0
-  knip: ^5.85.0
+  is-network-error: ^1.3.1
+  knip: ^6.0.4
   mkcert: ^3.2.0
   nano-staged: ^0.9.0
   nanoid: 5.1.6
   ofetch: ^1.5.1
+  oxc-minify: ^0.121.0
   pinia: ^3.0.4
   posthog-js: 1.306.1
   splitpanes: ^4.0.4
-  std-env: ^4.0.0-rc.1
+  std-env: ^4.0.0
+  stripe: ^20.3.0
   superjson: ^2.2.6
-  tsdown: ^0.20.3
+  tsdown: ^0.21.4
   tsx: ^4.21.0
   uncrypto: ^0.1.3
   unplugin-info: ^1.2.4
   unstorage: ^1.17.4
   valibot: 1.2.0
-  vite: ^8.0.0-beta.15
+  vite: ^8.0.2
   vite-plugin-mkcert: ^1.17.10
-  vue: ^3.5.25
+  vue: ^3.5.30
   vue-sonner: 2.0.9
-  ws: ^8.19.0
+  ws: ^8.20.0
   xsschema: 0.4.0-beta.13
-  yaml: ^2.8.2
+  yaml: ^2.8.3
   zod: ^4.3.6
 catalogs:
   vitest:
-    '@vitest/browser-playwright': ^4.0.18
-    '@vitest/coverage-v8': ^4.0.18
-    vitest: ^4.0.18
+    '@vitest/browser-playwright': ^4.1.1
+    '@vitest/coverage-v8': ^4.1.1
+    vitest: ^4.1.1
   xsai:
     unspeech: ^0.1.11
+
+# enableGlobalVirtualStore: true
 
 ignoredBuiltDependencies:
   - '@prisma/client'
   - better-sqlite3
+  - simple-git-hooks # [workaround] postinstall script bundled in simple-git-hooks fails to execute with `enableGlobalVirtualStore: true`. Using local postinstall script to run `npx simple-git-hooks` instead.
 
 onlyBuiltDependencies:
   - '@discordjs/opus'
@@ -137,7 +152,41 @@ onlyBuiltDependencies:
   - onnxruntime-node
   - protobufjs
   - sharp
-  - simple-git-hooks
   - spawn-sync
   - utf-8-validate
   - vue-demi
+packageExtensions:
+  '@formkit/auto-animate':
+    peerDependencies:
+      vue: '*'
+  '@huggingface/transformers':
+    optionalDependencies:
+      'onnxruntime-common': '*'
+  '@intlify/unplugin-vue-i18n':
+    peerDependencies:
+      vite: '*'
+  '@masknet/eslint-plugin':
+    peerDependencies:
+      typescript: '*'
+  '@pixiv/three-vrm-animation':
+    peerDependencies:
+      '@types/three': '*'
+  '@pixiv/three-vrm-core':
+    peerDependencies:
+      '@types/three': '*'
+  '@pmndrs/pointer-events':
+    peerDependencies:
+      three: '*'
+  '@tresjs/core':
+    peerDependencies:
+      '@types/three': '*'
+  '@unocss/eslint-plugin':
+    peerDependencies:
+      '@typescript-eslint/types': '*'
+  'vitepress':
+    peerDependencies:
+      vite: '*'
+      vue: '*'
+  'vue-sonner':
+    peerDependencies:
+      vue: '^3.2.0'

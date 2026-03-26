@@ -477,6 +477,9 @@ export function createAliyunNLSProvider(
                     await extraOptions?.onSessionTerminated?.(error)
                     controller.enqueue(encodeSSE({ delta: '', type: 'transcript.text.done' }))
                   }
+                  catch (error) {
+                    console.error('error in onSessionTerminated hook:', error)
+                  }
                   finally {
                     if (error)
                       controller.error(error instanceof Error ? error : new Error(String(error)))

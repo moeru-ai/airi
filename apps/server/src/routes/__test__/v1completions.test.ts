@@ -146,11 +146,14 @@ describe('v1CompletionsRoutes', () => {
       )
 
       expect(res.status).toBe(200)
-      const data = await res.json()
+      const data = await res.json() as any
       expect(data.id).toBe('chatcmpl-1')
 
       // Verify flux was consumed
-      expect(fluxService.consumeFlux).toHaveBeenCalledWith('user-1', 1)
+      expect(fluxService.consumeFlux).toHaveBeenCalledWith('user-1', 1, {
+        description: 'openai/gpt-5-mini',
+        metadata: undefined,
+      })
 
       // Verify upstream was called with correct URL and resolved model
       expect(globalThis.fetch).toHaveBeenCalledWith(

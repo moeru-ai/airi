@@ -3,7 +3,7 @@ import type { BeatSyncStyleName } from '@proj-airi/stage-ui-live2d'
 
 import { createBeatSyncController } from '@proj-airi/stage-ui-live2d'
 import { Section } from '@proj-airi/stage-ui/components'
-import { Button, Callout, FieldCheckbox, FieldRange, FieldSelect } from '@proj-airi/ui'
+import { Button, Callout, FieldCheckbox, FieldCombobox, FieldRange } from '@proj-airi/ui'
 import { useRafFn } from '@vueuse/core'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 
@@ -165,7 +165,7 @@ function drawXY() {
   })
   ctx.stroke()
 
-  const head = trail.value[trail.value.length - 1]
+  const head = trail.value.at(-1)
   if (head) {
     ctx.beginPath()
     ctx.arc(centerX + head.x * scale.value, centerY - head.y * scale.value, 5, 0, Math.PI * 2)
@@ -233,7 +233,7 @@ function hitVSequence() {
       </div>
 
       <div class="grid gap-4 md:grid-cols-2">
-        <FieldSelect
+        <FieldCombobox
           v-model="style"
           label="Style"
           description="Choose how head motion is sculpted between beats"

@@ -24,9 +24,14 @@ const SYSTEM_STATE_MARKER = 'The following blackboard provides you with informat
 // =============================================================================
 
 function escapeHtml(text) {
-  const div = document.createElement('div')
-  div.textContent = text
-  return div.innerHTML
+  if (text == null)
+    return ''
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 function formatSystemMessageContent(content) {
@@ -182,7 +187,7 @@ class DebugClient {
 
   scheduleReconnect() {
     if (this.reconnectAttempts >= CONFIG.RECONNECT_MAX_ATTEMPTS) {
-      console.log('Max reconnect attempts reached')
+      console.warn('Max reconnect attempts reached')
       return
     }
 
@@ -637,13 +642,13 @@ class ConversationPanel {
 
   handleUpdate(data) {
     if (data.sessionBoundary) {
-      const cur = this.sessions[this.sessions.length - 1]
+      const cur = this.sessions.at(-1)
       if (cur)
         cur.greyed = true
       this.sessions.push(this._mkSession())
     }
     else {
-      const cur = this.sessions[this.sessions.length - 1]
+      const cur = this.sessions.at(-1)
       if (cur) {
         cur.messages = data.messages || []
         cur.activeContext = data.activeContext || null
@@ -818,6 +823,7 @@ class ConversationPanel {
 
     // FEEDBACK: "toolName: Success/Failed. details"
     if (section.tag === 'FEEDBACK') {
+      // eslint-disable-next-line regexp/no-super-linear-backtracking
       const fbMatch = text.match(/^(\w+):\s*(Success|Failed)\.?\s*(.*)$/s)
       if (fbMatch) {
         const detail = fbMatch[3].slice(0, 50)
@@ -1009,6 +1015,7 @@ class ToolsPanel {
   }
 
   requestTools() {
+    // eslint-disable-next-line no-console
     console.log('[ToolsPanel] Requesting tools...')
     // Check if we already have tools to avoid re-rendering on reconnect if not needed
     // But re-requesting ensures we are in sync with server capabilities
