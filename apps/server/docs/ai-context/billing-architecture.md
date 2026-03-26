@@ -8,6 +8,7 @@
 
 - **`user_flux`** — 用户余额快照（单行/用户）
 - **`flux_ledger`** — append-only 账务流水（type: credit/debit/initial, amount, balanceBefore, balanceAfter, requestId）
+  - 含 partial unique index `(userId, requestId) WHERE requestId IS NOT NULL`，DB 层幂等防重
 - **`outbox_events`** — 事件暂存，claim-lease 模式分发
 - **`flux_audit_log`** — 用户可见的历史记录
 
@@ -25,7 +26,7 @@
 ### 异步链路（已实现）
 
 - **outbox-dispatcher** — 轮询 `outbox_events`，发布到 Redis Stream `billing-events`
-- **billing-consumer / cache-sync-consumer** — 消费 Stream 事件
+- **cache-sync-consumer** — 消费 Stream 事件，同步 Redis 缓存（处理 `flux.debited` 和 `flux.credited`）
 
 ### 事件模型
 
@@ -44,8 +45,7 @@ Stream: `billing-events`
 
 - `api` — HTTP 服务
 - `outbox-dispatcher` — outbox → Redis Stream
-- `billing-consumer` — 账务派生消费
-- `cache-sync-consumer` — Redis 缓存同步
+- `cache-sync-consumer` — Redis 缓存同步（处理 `flux.debited` + `flux.credited`）
 
 ## 关键服务
 
@@ -82,32 +82,30 @@ Redis **不是**余额真相源，仅用于：
 | 2. Outbox 事件 | ✅ 已完成 | 所有余额变化产生 outbox 事件，debit + credit 均覆盖 |
 | 3. Redis Streams | ✅ 已完成 | MQ、dispatcher、worker 全部就位 |
 | 4. Stripe 幂等 | ✅ 已完成 | checkout + invoice 事务内幂等检查 |
-| 5. LLM 计费重构 | ⚠️ 部分 | 已有 `requestId` 和 DB 事务扣费，但仍是 post-response 模式 |
-| 6. 部署拆分 | ✅ 已完成 | `bin/run.ts` 四角色启动 |
+| 5. LLM 计费优化 | ⚠️ 部分 | 已有 `requestId` 和 DB 事务扣费，待加 tiktoken fallback |
+| 6. 部署拆分 | ✅ 已完成 | `bin/run.ts` 三角色启动（api / outbox-dispatcher / cache-sync-consumer） |
+| 7. 幂等防重 | ✅ 已完成 | `flux_ledger` partial unique index on `(userId, requestId)` |
+| 8. Cache-sync 适配 | ✅ 已完成 | 同时处理 `flux.debited` 和 `flux.credited` 事件 |
 
 ### 已删除
 
 - `flux-write-back.ts` — 定时回写补偿机制，不再需要
 - `FluxService.consumeFlux()` / `addFlux()` — 写操作已移至 BillingService
+- `llm_request_log.settled` — 无消费者，已移除
+- `billing-consumer` 进程角色 — 空壳（仅 log），已移除；需要账务分析时重新添加
 
 ## 剩余 TODO
 
-### Phase 5 完善：LLM 预扣模式
+### Phase 5 完善：LLM 计费精度
 
-当前 LLM 扣费是 post-response（响应后扣费，失败静默吞掉），需改为预扣：
+当前 LLM 扣费在 gateway 未返回 token 用量时使用固定 fallback rate，不精确：
 
-- [ ] **预扣模式** — 请求前 `debitFlux()`，余额不足直接 402 拒绝
-- [ ] **结算差额** — 响应成功后按实际 token 用量调整（退还多扣或补扣不足）
-- [ ] **消除静默失败** — 移除 `try/catch` 吞错，预扣失败 = 请求拒绝
-
-### 其他
-
-- [ ] `llm_request_log.settled` 字段可废弃（已无消费者）
-- [ ] cache-sync consumer 适配 `flux.debited` 事件处理
-- [ ] 考虑 `flux_ledger.requestId` 加 partial unique index 做应用层幂等
+- [ ] **tiktoken fallback** — gateway 未返回 usage 时，用 tiktoken 从 request messages + response body 自行计算 token 数
+- [x] **消除静默失败** — non-streaming: debit 失败直接抛错阻断响应；streaming: 已发送无法撤回，改为 error 级别日志+记录 requestId 便于追查
 
 ## 明确不做
 
 - 不引入 Kafka / RabbitMQ
 - 不拆成多个独立 repo
+- 不做预扣模式（无法准确估算 LLM 响应 token 数）
 - 中期如角色扩容策略差异大，再考虑拆为 `server-api` / `server-workers` / `server-webhooks`

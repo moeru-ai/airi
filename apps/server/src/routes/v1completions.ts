@@ -153,6 +153,8 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
           recordMetrics({ model: requestModel, status: response.status, type: 'chat', durationMs, fluxConsumed, ...usage })
 
           // Debit flux via DB transaction (source of truth)
+          // NOTICE: streaming response is already sent, so we cannot reject on failure.
+          // Log at error level so unpaid usage is visible in monitoring/alerts.
           const requestId = nanoid()
           let actualCharged = 0
           try {
@@ -164,7 +166,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
             })
             actualCharged = fluxConsumed
           }
-          catch (err) { logger.withError(err).withFields({ userId: user.id, fluxConsumed }).warn('Failed to consume flux after streaming') }
+          catch (err) { logger.withError(err).withFields({ userId: user.id, fluxConsumed, requestId }).error('Failed to debit flux after streaming — unpaid usage') }
 
           requestLogService.logRequest({
             userId: user.id,
@@ -198,25 +200,21 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
     recordMetrics({ model: requestModel, status: response.status, type: 'chat', durationMs, fluxConsumed, ...usage })
 
     // Debit flux via DB transaction (source of truth)
+    // NOTICE: no try/catch — debit failure (e.g. insufficient balance) must block the response
     const requestId = nanoid()
-    let actualCharged = 0
-    try {
-      await billingService.debitFlux({
-        userId: user.id,
-        amount: fluxConsumed,
-        requestId,
-        description: requestModel,
-      })
-      actualCharged = fluxConsumed
-    }
-    catch (err) { logger.withError(err).withFields({ userId: user.id, fluxConsumed }).warn('Failed to consume flux') }
+    await billingService.debitFlux({
+      userId: user.id,
+      amount: fluxConsumed,
+      requestId,
+      description: requestModel,
+    })
 
     requestLogService.logRequest({
       userId: user.id,
       model: requestModel,
       status: response.status,
       durationMs,
-      fluxConsumed: actualCharged,
+      fluxConsumed,
       promptTokens: usage.promptTokens,
       completionTokens: usage.completionTokens,
     }).catch(err => logger.withError(err).warn('Failed to log request'))

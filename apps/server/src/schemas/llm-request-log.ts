@@ -1,4 +1,4 @@
-import { boolean, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
+import { integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
 
@@ -11,6 +11,5 @@ export const llmRequestLog = pgTable('llm_request_log', {
   fluxConsumed: integer('flux_consumed').notNull(),
   promptTokens: integer('prompt_tokens'),
   completionTokens: integer('completion_tokens'),
-  settled: boolean('settled').notNull().default(false),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })

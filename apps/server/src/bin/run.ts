@@ -8,7 +8,7 @@ import { runApiServer } from '../app'
 import { handleCacheSyncMessage, runBillingEventsConsumer } from './run-billing-events-consumer'
 import { runOutboxDispatcher } from './run-outbox-dispatcher'
 
-const serverRoles = ['api', 'billing-consumer', 'cache-sync-consumer', 'outbox-dispatcher'] as const
+const serverRoles = ['api', 'cache-sync-consumer', 'outbox-dispatcher'] as const
 
 type ServerRole = typeof serverRoles[number]
 
@@ -18,7 +18,6 @@ export function getServerCliHelpText(): string {
     '',
     'Roles:',
     '  api                 Start the HTTP/WebSocket API process',
-    '  billing-consumer    Start the billing Redis Streams consumer',
     '  cache-sync-consumer Start the cache-sync Redis Streams consumer',
     '  outbox-dispatcher   Publish DB outbox events to Redis Streams',
   ].join('\n')
@@ -37,12 +36,6 @@ async function runServerRole(role: ServerRole): Promise<void> {
   switch (role) {
     case 'api':
       await runApiServer()
-      return
-    case 'billing-consumer':
-      await runBillingEventsConsumer({
-        group: 'billing',
-        loggerName: 'billing-consumer',
-      })
       return
     case 'cache-sync-consumer':
       await runBillingEventsConsumer({

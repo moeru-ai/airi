@@ -1,4 +1,5 @@
-import { index, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
+import { index, integer, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
 import { user } from './accounts'
@@ -16,4 +17,7 @@ export const fluxLedger = pgTable('flux_ledger', {
 }, table => [
   index('flux_ledger_user_id_idx').on(table.userId),
   index('flux_ledger_created_at_idx').on(table.createdAt),
+  uniqueIndex('flux_ledger_user_request_uniq')
+    .on(table.userId, table.requestId)
+    .where(sql`request_id IS NOT NULL`),
 ])
