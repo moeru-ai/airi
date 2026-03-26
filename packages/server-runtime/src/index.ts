@@ -1,4 +1,4 @@
-import type { MetadataEventSource, WebSocketEvent } from '@proj-airi/server-protocol'
+import type { MetadataEventSource, WebSocketEvent } from '@proj-airi/server-shared/types'
 
 import type {
   RouteContext,
@@ -11,11 +11,11 @@ import type { AuthenticatedPeer, Peer } from './types'
 import { timingSafeEqual } from 'node:crypto'
 
 import { availableLogLevelStrings, Format, LogLevelString, logLevelStringToLogLevelMap, useLogg } from '@guiiai/logg'
-import { MessageHeartbeat, MessageHeartbeatKind, WebSocketEventSource } from '@proj-airi/server-protocol'
 import {
   createInvalidJsonServerErrorMessage,
   ServerErrorMessages,
 } from '@proj-airi/server-shared'
+import { MessageHeartbeat, MessageHeartbeatKind, WebSocketEventSource } from '@proj-airi/server-shared/types'
 import { defineWebSocketHandler, H3 } from 'h3'
 import { nanoid } from 'nanoid'
 import { parse, stringify } from 'superjson'

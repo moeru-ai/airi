@@ -12,11 +12,11 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "paths": {
-      "@proj-airi/server-protocol": [
-        "../../packages/server-protocol/src/index.ts"
+      "@proj-airi/server-sdk-shared": [
+        "../../packages/server-sdk-shared/src/index.ts"
       ],
-      "@proj-airi/server-protocol/*": [
-        "../../packages/server-protocol/src/*"
+      "@proj-airi/server-sdk-shared/*": [
+        "../../packages/server-sdk-shared/src/*"
       ]
     },
     "resolveJsonModule": true,
@@ -29,7 +29,7 @@
     "skipLibCheck": true
   },
   "include": [
-    "../../packages/server-protocol/src/**/*.ts",
+    "../../packages/server-sdk-shared/src/**/*.ts",
     "src/**/*.ts",
     "src/**/*.d.ts"
   ]

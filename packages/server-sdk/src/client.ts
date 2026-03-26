@@ -6,14 +6,14 @@ import type {
   WebSocketEvent,
   WebSocketEventOptionalSource,
   WebSocketEvents,
-} from '@proj-airi/server-protocol'
+} from '@proj-airi/server-shared/types'
 
 import WebSocket from 'crossws/websocket'
 import superjson from 'superjson'
 
 import { errorMessageFrom, sleep } from '@moeru/std'
-import { MessageHeartbeat, MessageHeartbeatKind } from '@proj-airi/server-protocol'
 import { isTerminalAuthenticationServerErrorMessage, parseServerErrorMessage } from '@proj-airi/server-shared'
+import { MessageHeartbeat, MessageHeartbeatKind } from '@proj-airi/server-shared/types'
 
 export type ClientStatus
   = | 'idle'

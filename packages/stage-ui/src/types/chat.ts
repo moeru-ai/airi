@@ -1,4 +1,4 @@
-import type { ContextUpdate, MetadataEventSource, WebSocketEventInputs } from '@proj-airi/server-protocol'
+import type { ContextUpdate, MetadataEventSource, WebSocketEventInputs } from '@proj-airi/server-shared/types'
 import type { AssistantMessage, CommonContentPart, CompletionToolCall, Message, SystemMessage, ToolMessage, UserMessage } from '@xsai/shared-chat'
 
 export interface ChatSlicesText {

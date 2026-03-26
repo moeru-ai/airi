@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { WebSocketBaseEvent, WebSocketEventOf, WebSocketEvents } from '@proj-airi/server-protocol'
+import type { WebSocketBaseEvent, WebSocketEventOf, WebSocketEvents } from '@proj-airi/server-shared/types'
 import type { ChatStreamEvent, ContextMessage } from '@proj-airi/stage-ui/types/chat'
 
 import type { FlowDirection, FlowEntry, SparkNotifyEntryState } from './context-flow-types'
 
 import { errorMessageFrom } from '@moeru/std'
-import { ContextUpdateStrategy } from '@proj-airi/server-protocol'
+import { ContextUpdateStrategy } from '@proj-airi/server-shared/types'
 import { useCharacterOrchestratorStore, useCharacterStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME } from '@proj-airi/stage-ui/stores/chat/constants'
