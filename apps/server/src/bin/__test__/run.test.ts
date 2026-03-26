@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { getServerCliHelpText, parseServerRole } from '../run'
+import { createServerCli, parseServerRole } from '../run'
 
 describe('server cli', () => {
   it('parses supported roles', () => {
@@ -14,10 +14,13 @@ describe('server cli', () => {
     expect(parseServerRole(['unknown'])).toBeNull()
   })
 
-  it('returns help text that lists all supported roles', () => {
-    expect(getServerCliHelpText()).toContain('Usage: server <role>')
-    expect(getServerCliHelpText()).toContain('api')
-    expect(getServerCliHelpText()).toContain('cache-sync-consumer')
-    expect(getServerCliHelpText()).toContain('outbox-dispatcher')
+  it('registers all supported roles with cac', () => {
+    const cli = createServerCli()
+
+    expect(cli.commands.map(command => command.name)).toEqual(expect.arrayContaining([
+      'api',
+      'cache-sync-consumer',
+      'outbox-dispatcher',
+    ]))
   })
 })

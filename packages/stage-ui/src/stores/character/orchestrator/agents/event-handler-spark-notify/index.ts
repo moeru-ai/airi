@@ -1,4 +1,4 @@
-import type { WebSocketEventOf, WebSocketEvents } from '@proj-airi/server-sdk'
+import type { WebSocketEventOf, WebSocketEvents } from '@proj-airi/server-protocol'
 import type { ChatProvider, ChatProviderWithExtraOptions, EmbedProvider, EmbedProviderWithExtraOptions, SpeechProvider, SpeechProviderWithExtraOptions, TranscriptionProvider, TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
 

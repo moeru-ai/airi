@@ -1,4 +1,4 @@
-import type { WebSocketEvent } from '@proj-airi/server-sdk'
+import type { WebSocketEvent } from '@proj-airi/server-protocol'
 
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'

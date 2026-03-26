@@ -2,8 +2,8 @@ import type { Readable } from 'node:stream'
 
 import type { AudioPlayer, VoiceConnection, VoiceConnectionState } from '@discordjs/voice'
 import type { Logg } from '@guiiai/logg'
+import type { Discord } from '@proj-airi/server-protocol'
 import type { Client as AiriClient } from '@proj-airi/server-sdk'
-import type { Discord } from '@proj-airi/server-shared/types'
 import type {
   BaseGuildVoiceChannel,
   CacheType,
