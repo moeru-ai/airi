@@ -748,8 +748,10 @@ async function loadModel() {
           }
           else if (mat?.isMToonMaterial) {
             // --- MToon material ---
-            // MToon is also shader-based and should receive the custom IBL injection.
-            configureInjectedShaderMaterial(mat)
+            // NOTICE: three-vrm MToon already consumes scene LightProbe irradiance.
+            // Keep it on a single IBL path to avoid double-applying diffuse IBL.
+            if ('toneMapped' in mat)
+              mat.toneMapped = false
           }
           else if (isShaderMat(mat)) {
             // --- Shader material, further IBL injection needed ---
