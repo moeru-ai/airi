@@ -2068,6 +2068,9 @@ importers:
       '@electron-toolkit/preload':
         specifier: 'catalog:'
         version: 3.0.2(electron@39.7.0)
+      '@moeru/eventa':
+        specifier: 'catalog:'
+        version: 1.0.0-beta.2(electron@39.7.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -20035,6 +20038,13 @@ snapshots:
     optionalDependencies:
       electron: 41.0.3
       h3: 2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d)))
+
+  '@moeru/eventa@1.0.0-beta.2(electron@39.7.0)':
+    dependencies:
+      nanoid: 5.1.7
+      picomatch: 4.0.3
+    optionalDependencies:
+      electron: 39.7.0
 
   '@moeru/eventa@1.0.0-beta.2(electron@40.8.3)':
     dependencies:
