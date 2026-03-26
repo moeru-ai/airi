@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { HearingTranscriptionResult } from '../../../stores/modules/hearing'
 
-import { Button, FieldRange, FieldSelect } from '@proj-airi/ui'
+import { Button, FieldCombobox, FieldRange } from '@proj-airi/ui'
 import { until } from '@vueuse/core'
 import { computed, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -173,7 +173,7 @@ onUnmounted(() => {
 
     <!-- Audio Input Selection -->
     <div mb-2>
-      <FieldSelect
+      <FieldCombobox
         v-model="selectedAudioInput"
         label="Audio Input Device"
         description="Select the audio input device for your hearing module."

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Select } from '@proj-airi/ui'
+import { ComboboxSelect } from '@proj-airi/ui'
 import { ref } from 'vue'
 
 const singleValue = ref('option1')
@@ -15,7 +15,7 @@ const options = [
 
 <template>
   <Story
-    title="Select"
+    title="Combobox Select"
     group="form"
     :layout="{ type: 'grid', width: '100%' }"
   >
@@ -25,10 +25,10 @@ const options = [
 
     <Variant
       id="basic"
-      title="Basic Select"
+      title="Basic Combobox Select"
     >
       <div>
-        <Select
+        <ComboboxSelect
           v-model="singleValue"
           :options="options"
           placeholder="Choose an option..."
@@ -38,10 +38,10 @@ const options = [
 
     <Variant
       id="disabled"
-      title="Disabled Select"
+      title="Disabled Combobox Select"
     >
       <div>
-        <Select
+        <ComboboxSelect
           v-model="disabledValue"
           :options="options"
           placeholder="Disabled select"
@@ -55,7 +55,7 @@ const options = [
       title="Custom Width"
     >
       <div class="w-[300px]">
-        <Select
+        <ComboboxSelect
           v-model="singleValue"
           :options="options"
           placeholder="Choose an option..."

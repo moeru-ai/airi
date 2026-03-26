@@ -62,7 +62,7 @@ import { Button } from '@proj-airi/ui'
     * [Input](src/components/Form/Input)
     * [Radio](src/components/Form/Radio)
     * [Range](src/components/Form/Range)
-    * [Select](src/components/Form/Select)
+    * [ComboboxSelect](src/components/Form/Select)
     * [Textarea](src/components/Form/Textarea)
 
 ## License

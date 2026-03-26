@@ -2,7 +2,7 @@
 import type { OnboardingStepNextHandler } from './types'
 
 import { all } from '@proj-airi/i18n'
-import { Button, FieldSelect } from '@proj-airi/ui'
+import { Button, FieldCombobox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -64,7 +64,7 @@ const languages = computed(() => {
         :delay="150"
         :class="['mx-auto', 'mt-6', 'w-full', 'max-w-sm', 'rounded-2xl', 'bg-neutral-100/80', 'backdrop-blur-sm', 'dark:bg-neutral-800/80', 'p-4']"
       >
-        <FieldSelect
+        <FieldCombobox
           v-model="language"
           :class="['w-full']"
           :label="t('settings.language.title')"

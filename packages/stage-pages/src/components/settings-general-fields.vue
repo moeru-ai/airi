@@ -3,7 +3,7 @@ import { all } from '@proj-airi/i18n'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { isPosthogAvailableInBuild } from '@proj-airi/stage-ui/stores/analytics'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { FieldCheckbox, FieldSelect, useTheme } from '@proj-airi/ui'
+import { FieldCheckbox, FieldCombobox, useTheme } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -45,7 +45,7 @@ const languages = computed(() => {
       :description="t('settings.theme.description')"
     />
 
-    <FieldSelect
+    <FieldCombobox
       v-model="settings.language"
       v-motion
       :initial="{ opacity: 0, y: 10 }"
@@ -58,7 +58,7 @@ const languages = computed(() => {
       :options="languages"
     />
 
-    <FieldSelect
+    <FieldCombobox
       v-if="showControlsIsland"
       v-model="settings.controlsIslandIconSize"
       v-motion

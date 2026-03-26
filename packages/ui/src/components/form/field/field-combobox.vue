@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Select } from '../select'
+import { ComboboxSelect } from '../select'
 
 const props = withDefaults(defineProps<{
   label: string
@@ -42,7 +42,7 @@ const modelValue = defineModel<string>({ required: false })
         </div>
       </div>
       <slot>
-        <Select
+        <ComboboxSelect
           v-model="modelValue"
           :options="props.options?.filter(option => option.label && option.value) || []"
           :placeholder="props.placeholder"
@@ -58,7 +58,7 @@ const modelValue = defineModel<string>({ required: false })
           <template #default="{ value }">
             {{ props.options?.find(option => option.value === value)?.label || props.placeholder }}
           </template>
-        </Select>
+        </ComboboxSelect>
       </slot>
     </div>
   </label>

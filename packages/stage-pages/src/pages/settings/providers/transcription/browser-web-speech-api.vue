@@ -11,7 +11,7 @@ import {
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { streamWebSpeechAPITranscription } from '@proj-airi/stage-ui/stores/providers/web-speech-api'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { Button, FieldSelect } from '@proj-airi/ui'
+import { Button, FieldCombobox } from '@proj-airi/ui'
 import { until } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
@@ -333,7 +333,7 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <FieldSelect
+            <FieldCombobox
               v-model="language"
               label="Recognition Language"
               description="Select the language for speech recognition"
@@ -392,7 +392,7 @@ onUnmounted(() => {
           <div v-else class="flex flex-col gap-4">
             <!-- Audio Input Device Selector - Always visible when Web Speech API is available -->
             <div class="flex items-center gap-2">
-              <FieldSelect
+              <FieldCombobox
                 v-model="selectedAudioInput"
                 label="Audio Input Device"
                 description="Select the audio input device for testing"

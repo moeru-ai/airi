@@ -11,7 +11,7 @@ import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { Button, FieldInput, FieldValues } from '@proj-airi/ui'
-import { Select } from '@proj-airi/ui/components/form'
+import { ComboboxSelect } from '@proj-airi/ui/components/form'
 import { storeToRefs } from 'pinia'
 import {
   DialogContent,
@@ -456,7 +456,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   <div i-lucide:brain />
                   {{ t('settings.pages.card.chat.provider') }}
                 </label>
-                <Select
+                <ComboboxSelect
                   v-model="selectedConsciousnessProvider"
                   :options="consciousnessProviderOptions"
                   :placeholder="getDefaultPlaceholder(consciousnessProvider)"
@@ -470,7 +470,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   <div i-lucide:ghost />
                   {{ t('settings.pages.card.consciousness.model') }}
                 </label>
-                <Select
+                <ComboboxSelect
                   v-model="selectedConsciousnessModel"
                   :options="consciousnessModelOptions"
                   :placeholder="getDefaultPlaceholder(defaultConsciousnessModel)"
@@ -485,7 +485,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   <div i-lucide:radio />
                   {{ t('settings.pages.card.speech.provider') }}
                 </label>
-                <Select
+                <ComboboxSelect
                   v-model="selectedSpeechProvider"
                   :options="speechProviderOptions"
                   :placeholder="getDefaultPlaceholder(speechProvider)"
@@ -499,7 +499,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   <div i-lucide:mic />
                   {{ t('settings.pages.card.speech.model') }}
                 </label>
-                <Select
+                <ComboboxSelect
                   v-model="selectedSpeechModel"
                   :options="speechModelOptions"
                   :placeholder="getDefaultPlaceholder(defaultSpeechModel)"
@@ -514,7 +514,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   <div i-lucide:music />
                   {{ t('settings.pages.card.speech.voice') }}
                 </label>
-                <Select
+                <ComboboxSelect
                   v-model="selectedSpeechVoiceId"
                   :options="speechVoiceOptions"
                   :placeholder="getDefaultPlaceholder(defaultSpeechVoiceId)"
@@ -529,7 +529,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   <div i-solar:ghost-bold-duotone />
                   {{ t('settings.pages.card.body-model') }}
                 </label>
-                <Select
+                <ComboboxSelect
                   v-model="selectedDisplayModelId"
                   :options="displayModelOptions"
                   :placeholder="getDefaultPlaceholder(defaultDisplayModelId)"

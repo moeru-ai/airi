@@ -3,7 +3,7 @@ import type { BackgroundMaterialType, VibrancyType } from '@proj-airi/electron-e
 
 import { electron } from '@proj-airi/electron-eventa'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { FieldSelect } from '@proj-airi/ui'
+import { FieldCombobox } from '@proj-airi/ui'
 import { ref, watch } from 'vue'
 
 const setVibrancy = useElectronEventaInvoke(electron.window.setVibrancy)
@@ -40,7 +40,7 @@ watch(
     </div>
 
     <div class="space-y-2">
-      <FieldSelect
+      <FieldCombobox
         v-model="vibrancy"
         label="Vibrancy"
         description="Set the vibrancy effect of the window."
@@ -62,7 +62,7 @@ watch(
         ]"
       />
 
-      <FieldSelect
+      <FieldCombobox
         v-model="backgroundMaterial"
         label="Background Material"
         description="Set the background material of the window."

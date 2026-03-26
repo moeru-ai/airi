@@ -10,7 +10,7 @@ import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consci
 import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { BasicTextarea, FieldSelect } from '@proj-airi/ui'
+import { BasicTextarea, FieldCombobox } from '@proj-airi/ui'
 import { until } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { PopoverContent, PopoverRoot, PopoverTrigger } from 'reka-ui'
@@ -475,7 +475,7 @@ watch(autoSendEnabled, (enabled) => {
               </p>
             </div>
 
-            <FieldSelect
+            <FieldCombobox
               v-model="selectedAudioInput"
               label="Input device"
               description="Select the microphone you want to use."
