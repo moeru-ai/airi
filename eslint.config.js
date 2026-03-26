@@ -36,7 +36,6 @@ export default defineConfig({
     'pnpm/json-enforce-catalog': 'off',
     'pnpm/yaml-enforce-settings': 'off',
     'antfu/import-dedupe': 'error',
-    'ts/no-deprecated': 'warn',
     // TODO: remove this
     'depend/ban-dependencies': 'warn',
     'import/order': 'off',
