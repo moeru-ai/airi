@@ -1,4 +1,6 @@
 import type { Env } from '../libs/env'
+import type { RevenueMetrics } from '../libs/otel'
+import type { BillingService } from '../services/billing-service'
 import type { ConfigKVService } from '../services/config-kv'
 import type { FluxService } from '../services/flux'
 import type { StripeService } from '../services/stripe'
@@ -7,20 +9,32 @@ import type { HonoEnv } from '../types/hono'
 import Stripe from 'stripe'
 
 import { useLogger } from '@guiiai/logg'
+import { errorMessageFrom } from '@moeru/std'
 import { Hono } from 'hono'
-import { integer, minValue, number, object, pipe, safeParse } from 'valibot'
+import { integer, maxValue, minValue, number, object, pipe, safeParse } from 'valibot'
 
 import { authGuard } from '../middlewares/auth'
 import { configGuard } from '../middlewares/config-guard'
+import { rateLimiter } from '../middlewares/rate-limit'
 import { createBadRequestError, createServiceUnavailableError } from '../utils/error'
 
 const logger = useLogger('stripe')
 
+// Max checkout amount: $10,000 (1,000,000 cents)
+const MAX_CHECKOUT_AMOUNT = 1_000_000
+
 const CheckoutBodySchema = object({
-  amount: pipe(number(), integer(), minValue(1)),
+  amount: pipe(number(), integer(), minValue(1), maxValue(MAX_CHECKOUT_AMOUNT)),
 })
 
-export function createStripeRoutes(fluxService: FluxService, stripeService: StripeService, configKV: ConfigKVService, env: Env) {
+export function createStripeRoutes(
+  fluxService: FluxService,
+  stripeService: StripeService,
+  billingService: BillingService,
+  configKV: ConfigKVService,
+  env: Env,
+  metrics?: RevenueMetrics | null,
+) {
   const stripe = env.STRIPE_SECRET_KEY ? new Stripe(env.STRIPE_SECRET_KEY) : null
 
   const fluxConfigGuard = configGuard(configKV, ['FLUX_PER_CENT'], 'Top-up is not available yet')
@@ -30,7 +44,7 @@ export function createStripeRoutes(fluxService: FluxService, stripeService: Stri
       const packages = await configKV.getOptional('FLUX_PACKAGES')
       return c.json(packages ?? [])
     })
-    .post('/checkout', authGuard, fluxConfigGuard, async (c) => {
+    .post('/checkout', authGuard, rateLimiter({ max: 10, windowSec: 60 }), fluxConfigGuard, async (c) => {
       if (!stripe)
         throw createServiceUnavailableError('Stripe is not configured', 'STRIPE_NOT_CONFIGURED')
 
@@ -89,6 +103,8 @@ export function createStripeRoutes(fluxService: FluxService, stripeService: Stri
         expiresAt: session.expires_at ? new Date(session.expires_at * 1000) : null,
       })
 
+      metrics?.stripeCheckoutCreated.add(1)
+
       return c.json({ url: session.url })
     })
 
@@ -139,15 +155,16 @@ export function createStripeRoutes(fluxService: FluxService, stripeService: Stri
         event = stripe.webhooks.constructEvent(body, sig, env.STRIPE_WEBHOOK_SECRET)
       }
       catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unknown error'
-        throw createBadRequestError(`Webhook Error: ${message}`, 'WEBHOOK_ERROR')
+        throw createBadRequestError(`Webhook Error: ${errorMessageFrom(err) ?? 'Unknown error'}`, 'WEBHOOK_ERROR')
       }
 
       logger.withFields({ type: event.type, id: event.id }).log('Webhook event received')
+      metrics?.stripeEvents.add(1, { event_type: event.type })
 
       switch (event.type) {
         case 'checkout.session.completed': {
-          await handleCheckoutSessionCompleted(event.data.object, fluxService, stripeService, configKV)
+          await handleCheckoutSessionCompleted(event.id, event.data.object, fluxService, stripeService, billingService, configKV)
+          metrics?.stripeCheckoutCompleted.add(1)
           break
         }
         case 'customer.created':
@@ -159,13 +176,17 @@ export function createStripeRoutes(fluxService: FluxService, stripeService: Stri
         case 'customer.subscription.updated':
         case 'customer.subscription.deleted': {
           await handleSubscriptionEvent(event.data.object, stripeService)
+          metrics?.stripeSubscriptionEvent.add(1, { event_type: event.type.replace('customer.subscription.', '') })
           break
         }
         case 'invoice.created':
         case 'invoice.updated':
         case 'invoice.paid':
         case 'invoice.payment_failed': {
-          await handleInvoiceEvent(event.data.object, fluxService, stripeService, configKV)
+          await handleInvoiceEvent(event.id, event.data.object, stripeService, billingService, configKV)
+          if (event.type === 'invoice.payment_failed') {
+            metrics?.stripePaymentFailed.add(1)
+          }
           break
         }
       }
@@ -177,9 +198,11 @@ export function createStripeRoutes(fluxService: FluxService, stripeService: Stri
 // ---- Webhook handlers ----
 
 async function handleCheckoutSessionCompleted(
+  stripeEventId: string,
   session: Stripe.Checkout.Session,
   fluxService: FluxService,
   stripeService: StripeService,
+  billingService: BillingService,
   configKV: ConfigKVService,
 ) {
   const userId = session.metadata?.userId
@@ -198,7 +221,6 @@ async function handleCheckoutSessionCompleted(
       stripeCustomerId,
       email: session.customer_email ?? undefined,
     })
-    // Keep the legacy field in sync
     await fluxService.updateStripeCustomerId(userId, stripeCustomerId)
   }
 
@@ -220,12 +242,29 @@ async function handleCheckoutSessionCompleted(
     expiresAt: session.expires_at ? new Date(session.expires_at * 1000) : null,
   })
 
-  // Add flux for one-time payments
+  // Idempotent flux credit: use fluxCredited flag inside a transaction
+  // to prevent double-crediting on webhook replay
   if (session.mode === 'payment' && session.amount_total) {
     const fluxPerCent = await configKV.getOrThrow('FLUX_PER_CENT')
     const fluxAmount = session.amount_total * fluxPerCent
-    logger.withFields({ userId, fluxAmount, fluxPerCent, amountTotal: session.amount_total }).log('Adding flux for one-time payment')
-    await fluxService.addFlux(userId, fluxAmount, `Stripe payment ${session.currency?.toUpperCase()} ${(session.amount_total / 100).toFixed(2)}`)
+
+    const result = await billingService.creditFluxFromStripeCheckout({
+      stripeEventId,
+      userId,
+      stripeSessionId: session.id,
+      amountTotal: session.amount_total,
+      currency: session.currency,
+      fluxAmount,
+    })
+
+    logger.withFields({
+      userId,
+      fluxAmount,
+      fluxPerCent,
+      amountTotal: session.amount_total,
+      applied: result.applied,
+      balanceAfter: result.balanceAfter,
+    }).log('Processed flux credit for one-time payment')
   }
 }
 
@@ -268,7 +307,7 @@ async function handleSubscriptionEvent(
     status: subscription.status,
     currentPeriodStart: firstItem?.current_period_start ? new Date(firstItem.current_period_start * 1000) : null,
     currentPeriodEnd: firstItem?.current_period_end ? new Date(firstItem.current_period_end * 1000) : null,
-    cancelAtPeriodEnd: String(subscription.cancel_at_period_end),
+    cancelAtPeriodEnd: subscription.cancel_at_period_end,
     canceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1000) : null,
     endedAt: subscription.ended_at ? new Date(subscription.ended_at * 1000) : null,
     metadata: subscription.metadata ? JSON.stringify(subscription.metadata) : null,
@@ -276,9 +315,10 @@ async function handleSubscriptionEvent(
 }
 
 async function handleInvoiceEvent(
+  stripeEventId: string,
   invoice: Stripe.Invoice,
-  fluxService: FluxService,
   stripeService: StripeService,
+  billingService: BillingService,
   configKV: ConfigKVService,
 ) {
   const stripeCustomerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id
@@ -312,11 +352,20 @@ async function handleInvoiceEvent(
     metadata: invoice.metadata ? JSON.stringify(invoice.metadata) : null,
   })
 
-  // Add flux when a subscription invoice is paid
+  // Idempotent flux credit for subscription invoice payments
   if (invoice.status === 'paid' && invoice.amount_paid && subscriptionId) {
     const fluxPerCent = await configKV.getOrThrow('FLUX_PER_CENT')
     const fluxAmount = invoice.amount_paid * fluxPerCent
-    logger.withFields({ userId: customer.userId, fluxAmount, invoiceId: invoice.id }).log('Adding flux for subscription invoice')
-    await fluxService.addFlux(customer.userId, fluxAmount, `Subscription invoice ${invoice.currency?.toUpperCase()} ${(invoice.amount_paid / 100).toFixed(2)}`)
+
+    const result = await billingService.creditFluxFromInvoice({
+      stripeEventId,
+      userId: customer.userId,
+      stripeInvoiceId: invoice.id,
+      amountPaid: invoice.amount_paid,
+      currency: invoice.currency ?? 'unknown',
+      fluxAmount,
+    })
+
+    logger.withFields({ userId: customer.userId, fluxAmount, invoiceId: invoice.id, applied: result.applied }).log('Processed flux credit for subscription invoice')
   }
 }

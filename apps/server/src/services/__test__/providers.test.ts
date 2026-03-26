@@ -1,3 +1,5 @@
+import type { Database } from '../../libs/db'
+
 import { beforeAll, describe, expect, it } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
@@ -6,7 +8,7 @@ import { createProviderService } from '../providers'
 import * as schema from '../../schemas'
 
 describe('providerService', () => {
-  let db: any
+  let db: Database
   let service: ReturnType<typeof createProviderService>
   let testUser: any
 

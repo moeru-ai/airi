@@ -41,7 +41,6 @@ export function createCharacterRoutes(characterService: CharacterService) {
         throw createBadRequestError('Invalid Request', 'INVALID_REQUEST', result.issues)
       }
 
-      // @ts-expect-error - TODO: Fix this
       const character = await characterService.create({
         ...result.output,
         character: {
@@ -49,7 +48,7 @@ export function createCharacterRoutes(characterService: CharacterService) {
           ownerId: user.id,
           creatorId: user.id,
         },
-      })
+      } as Parameters<typeof characterService.create>[0])
 
       return c.json(character, 201)
     })

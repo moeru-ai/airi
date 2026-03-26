@@ -1,6 +1,10 @@
+/* eslint-disable unused-imports/no-unused-vars */
+
 import type { Context } from 'hono'
 
-import type { initOtel } from '../libs/otel'
+import type { LlmMetrics } from '../libs/otel'
+import type { UsageInfo } from '../services/billing'
+import type { BillingService } from '../services/billing-service'
 import type { ConfigKVService } from '../services/config-kv'
 import type { FluxService } from '../services/flux'
 import type { RequestLogService } from '../services/request-log'
@@ -12,9 +16,11 @@ import { Hono } from 'hono'
 
 import { authGuard } from '../middlewares/auth'
 import { configGuard } from '../middlewares/config-guard'
+import { rateLimiter } from '../middlewares/rate-limit'
+import { calculateFluxFromUsage, extractUsageFromBody } from '../services/billing'
 import { createPaymentRequiredError } from '../utils/error'
+import { nanoid } from '../utils/id'
 
-type OtelMetrics = ReturnType<typeof initOtel>
 const tracer = trace.getTracer('v1-completions')
 
 const SAFE_RESPONSE_HEADERS = new Set([
@@ -26,10 +32,10 @@ const SAFE_RESPONSE_HEADERS = new Set([
 
 function buildSafeResponseHeaders(response: Response): Headers {
   const headers = new Headers()
-  response.headers.forEach((value, key) => {
+  for (const [key, value] of response.headers) {
     if (SAFE_RESPONSE_HEADERS.has(key.toLowerCase()))
       headers.set(key, value)
-  })
+  }
   return headers
 }
 
@@ -37,55 +43,28 @@ function normalizeBaseUrl(gatewayBaseUrl: string): string {
   return gatewayBaseUrl.endsWith('/') ? gatewayBaseUrl : `${gatewayBaseUrl}/`
 }
 
-interface UsageInfo {
-  promptTokens?: number
-  completionTokens?: number
-}
-
-function extractUsageFromBody(body: any): UsageInfo {
-  const usage = body?.usage
-  if (!usage)
-    return {}
-  return {
-    promptTokens: usage.prompt_tokens ?? undefined,
-    completionTokens: usage.completion_tokens ?? undefined,
-  }
-}
-
-function calculateFluxFromUsage(usage: UsageInfo, fluxPer1kTokens: number, fallbackRate: number): number {
-  const { promptTokens, completionTokens } = usage
-  if (promptTokens != null && completionTokens != null) {
-    const totalTokens = promptTokens + completionTokens
-    return Math.max(1, Math.ceil(totalTokens / 1000 * fluxPer1kTokens))
-  }
-  return fallbackRate
-}
-
-function buildFluxAuditMetadata(usage: UsageInfo): Record<string, number> | undefined {
-  const metadata: Record<string, number> = {}
-  if (usage.promptTokens != null)
-    metadata.promptTokens = usage.promptTokens
-  if (usage.completionTokens != null)
-    metadata.completionTokens = usage.completionTokens
-  return Object.keys(metadata).length > 0 ? metadata : undefined
-}
-
-export function createV1CompletionsRoutes(fluxService: FluxService, configKV: ConfigKVService, requestLogService: RequestLogService, otel: OtelMetrics | null) {
+export function createV1CompletionsRoutes(fluxService: FluxService, billingService: BillingService, configKV: ConfigKVService, requestLogService: RequestLogService, llm: LlmMetrics | null) {
   const logger = useLogger('v1-completions').useGlobalConfig()
 
   function recordMetrics(opts: { model: string, status: number, type: string, durationMs: number, fluxConsumed: number, promptTokens?: number, completionTokens?: number }) {
-    if (!otel)
+    if (!llm)
       return
     const attrs = { model: opts.model, type: opts.type, status: opts.status }
-    otel.llmRequestCount.add(1, attrs)
-    otel.llmRequestDuration.record(opts.durationMs, attrs)
-    otel.fluxConsumed.add(opts.fluxConsumed, { model: opts.model, type: opts.type })
+    llm.requestCount.add(1, attrs)
+    llm.requestDuration.record(opts.durationMs, attrs)
+    llm.fluxConsumed.add(opts.fluxConsumed, { model: opts.model, type: opts.type })
     if (opts.promptTokens != null)
-      otel.llmTokensPrompt.add(opts.promptTokens, { model: opts.model })
+      llm.tokensPrompt.add(opts.promptTokens, { model: opts.model })
     if (opts.completionTokens != null)
-      otel.llmTokensCompletion.add(opts.completionTokens, { model: opts.model })
+      llm.tokensCompletion.add(opts.completionTokens, { model: opts.model })
   }
 
+  // NOTICE: Billing is best-effort — flux is debited AFTER the LLM response is sent.
+  // This is a deliberate tradeoff: users get lower latency and uninterrupted streaming,
+  // at the cost of a small revenue leak when debit fails (e.g. DB timeout).
+  // Failed debits are logged at error level for monitoring/alerting.
+  // A pre-debit model would require holding the response until billing confirms,
+  // which adds latency and complicates streaming. We accept the leak for now.
   async function handleCompletion(c: Context<HonoEnv>) {
     const user = c.get('user')!
     const flux = await fluxService.getFlux(user.id)
@@ -180,21 +159,28 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
           span.end()
           recordMetrics({ model: requestModel, status: response.status, type: 'chat', durationMs, fluxConsumed, ...usage })
 
-          // Best-effort billing — don't throw on insufficient flux during streaming
+          // Debit flux via DB transaction (source of truth)
+          // NOTICE: streaming response is already sent, so we cannot reject on failure.
+          // Log at error level so unpaid usage is visible in monitoring/alerts.
+          const requestId = nanoid()
+          let actualCharged = 0
           try {
-            await fluxService.consumeFlux(user.id, fluxConsumed, {
+            await billingService.debitFlux({
+              userId: user.id,
+              amount: fluxConsumed,
+              requestId,
               description: requestModel,
-              metadata: buildFluxAuditMetadata(usage),
             })
+            actualCharged = fluxConsumed
           }
-          catch (err) { logger.withError(err).withFields({ userId: user.id, fluxConsumed }).warn('Failed to consume flux after streaming') }
+          catch (err) { logger.withError(err).withFields({ userId: user.id, fluxConsumed, requestId }).error('Failed to debit flux after streaming — unpaid usage') }
 
           requestLogService.logRequest({
             userId: user.id,
             model: requestModel,
             status: response.status,
             durationMs,
-            fluxConsumed,
+            fluxConsumed: actualCharged,
             promptTokens: usage.promptTokens,
             completionTokens: usage.completionTokens,
           }).catch(err => logger.withError(err).warn('Failed to log streaming request'))
@@ -220,15 +206,15 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
     span.end()
     recordMetrics({ model: requestModel, status: response.status, type: 'chat', durationMs, fluxConsumed, ...usage })
 
-    // Best-effort billing — gateway already processed the request,
-    // don't return 402 after work is done
-    try {
-      await fluxService.consumeFlux(user.id, fluxConsumed, {
-        description: requestModel,
-        metadata: buildFluxAuditMetadata(usage),
-      })
-    }
-    catch (err) { logger.withError(err).withFields({ userId: user.id, fluxConsumed }).warn('Failed to consume flux') }
+    // Debit flux via DB transaction (source of truth)
+    // NOTICE: no try/catch — debit failure (e.g. insufficient balance) must block the response
+    const requestId = nanoid()
+    await billingService.debitFlux({
+      userId: user.id,
+      amount: fluxConsumed,
+      requestId,
+      description: requestModel,
+    })
 
     requestLogService.logRequest({
       userId: user.id,
@@ -243,14 +229,146 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
     return c.json(responseBody)
   }
 
-  // TODO: TTS and ASR handlers are implemented but routes are disabled until ready
-  // async function handleTTS(c: Context<HonoEnv>) { ... }
-  // async function handleTranscription(c: Context<HonoEnv>) { ... }
+  async function handleTTS(c: Context<HonoEnv>) {
+    const user = c.get('user')!
+    const flux = await fluxService.getFlux(user.id)
+    if (flux.flux <= 0) {
+      throw createPaymentRequiredError('Insufficient flux')
+    }
+
+    const body = await c.req.json()
+    const gatewayBaseUrl = await configKV.getOrThrow('GATEWAY_BASE_URL')
+    const baseUrl = normalizeBaseUrl(gatewayBaseUrl)
+    const requestModel = body.model || 'auto'
+
+    const span = tracer.startSpan('llm.gateway.tts', {
+      attributes: { 'llm.model': requestModel },
+    })
+
+    const startedAt = Date.now()
+
+    const response = await context.with(trace.setSpan(context.active(), span), () =>
+      fetch(`${baseUrl}audio/speech`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }))
+
+    const durationMs = Date.now() - startedAt
+    span.setAttribute('http.response.status_code', response.status)
+
+    if (!response.ok) {
+      span.setStatus({ code: SpanStatusCode.ERROR, message: `Gateway ${response.status}` })
+      span.end()
+      recordMetrics({ model: requestModel, status: response.status, type: 'tts', durationMs, fluxConsumed: 0 })
+      return new Response(response.body, {
+        status: response.status,
+        headers: buildSafeResponseHeaders(response),
+      })
+    }
+
+    const fluxPerRequest = await configKV.getOrThrow('FLUX_PER_REQUEST_TTS')
+    await billingService.debitFlux({
+      userId: user.id,
+      amount: fluxPerRequest,
+      requestId: nanoid(),
+      description: `tts:${requestModel}`,
+    })
+
+    span.setAttribute('llm.flux_consumed', fluxPerRequest)
+    span.end()
+    recordMetrics({ model: requestModel, status: response.status, type: 'tts', durationMs, fluxConsumed: fluxPerRequest })
+
+    requestLogService.logRequest({
+      userId: user.id,
+      model: requestModel,
+      status: response.status,
+      durationMs,
+      fluxConsumed: fluxPerRequest,
+    }).catch(err => logger.withError(err).warn('Failed to log TTS request'))
+
+    return new Response(response.body, {
+      status: response.status,
+      headers: buildSafeResponseHeaders(response),
+    })
+  }
+
+  async function handleTranscription(c: Context<HonoEnv>) {
+    const user = c.get('user')!
+    const flux = await fluxService.getFlux(user.id)
+    if (flux.flux <= 0) {
+      throw createPaymentRequiredError('Insufficient flux')
+    }
+
+    const gatewayBaseUrl = await configKV.getOrThrow('GATEWAY_BASE_URL')
+    const baseUrl = normalizeBaseUrl(gatewayBaseUrl)
+
+    const span = tracer.startSpan('llm.gateway.asr', {
+      attributes: { 'llm.model': 'auto' },
+    })
+
+    const startedAt = Date.now()
+
+    const rawBody = await c.req.arrayBuffer()
+    const contentType = c.req.header('content-type') || 'multipart/form-data'
+
+    const response = await context.with(trace.setSpan(context.active(), span), () =>
+      fetch(`${baseUrl}audio/transcriptions`, {
+        method: 'POST',
+        headers: { 'Content-Type': contentType },
+        body: rawBody,
+      }))
+
+    const durationMs = Date.now() - startedAt
+    span.setAttribute('http.response.status_code', response.status)
+
+    if (!response.ok) {
+      span.setStatus({ code: SpanStatusCode.ERROR, message: `Gateway ${response.status}` })
+      span.end()
+      recordMetrics({ model: 'auto', status: response.status, type: 'asr', durationMs, fluxConsumed: 0 })
+      return new Response(response.body, {
+        status: response.status,
+        headers: buildSafeResponseHeaders(response),
+      })
+    }
+
+    const fluxPerRequest = await configKV.getOrThrow('FLUX_PER_REQUEST_ASR')
+    await billingService.debitFlux({
+      userId: user.id,
+      amount: fluxPerRequest,
+      requestId: nanoid(),
+      description: `asr:auto`,
+    })
+
+    span.setAttribute('llm.flux_consumed', fluxPerRequest)
+    span.end()
+    recordMetrics({ model: 'auto', status: response.status, type: 'asr', durationMs, fluxConsumed: fluxPerRequest })
+
+    requestLogService.logRequest({
+      userId: user.id,
+      model: 'auto',
+      status: response.status,
+      durationMs,
+      fluxConsumed: fluxPerRequest,
+    }).catch(err => logger.withError(err).warn('Failed to log ASR request'))
+
+    return new Response(response.body, {
+      status: response.status,
+      headers: buildSafeResponseHeaders(response),
+    })
+  }
 
   const chatGuard = configGuard(configKV, ['FLUX_PER_REQUEST', 'GATEWAY_BASE_URL', 'DEFAULT_CHAT_MODEL'], 'Service is not available yet')
+  const ttsGuard = configGuard(configKV, ['FLUX_PER_REQUEST_TTS', 'GATEWAY_BASE_URL'], 'TTS service is not available yet')
+  const asrGuard = configGuard(configKV, ['FLUX_PER_REQUEST_ASR', 'GATEWAY_BASE_URL'], 'ASR service is not available yet')
+
+  // 60 requests per minute per user for LLM completions
+  const completionsRateLimit = rateLimiter({ max: 60, windowSec: 60 })
 
   return new Hono<HonoEnv>()
     .use('*', authGuard)
-    .post('/chat/completions', chatGuard, handleCompletion)
-    .post('/chat/completion', chatGuard, handleCompletion)
+    .post('/chat/completions', completionsRateLimit, chatGuard, handleCompletion)
+    .post('/chat/completion', completionsRateLimit, chatGuard, handleCompletion)
+    // .post('/audio/speech', ttsGuard, handleTTS)
+    // .post('/audio/transcriptions', bodyLimit({ maxSize: 25 * 1024 * 1024 }), asrGuard, handleTranscription)
 }
