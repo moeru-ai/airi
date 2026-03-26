@@ -1,4 +1,5 @@
 import type { Database } from '../libs/db'
+import type { EngagementMetrics } from '../libs/otel'
 
 import { useLogger } from '@guiiai/logg'
 import { and, eq, isNull, sql } from 'drizzle-orm'
@@ -8,7 +9,7 @@ import * as userCharacterSchema from '../schemas/user-character'
 
 const logger = useLogger('characters')
 
-export function createCharacterService(db: Database) {
+export function createCharacterService(db: Database, metrics?: EngagementMetrics | null) {
   return {
     async findById(id: string) {
       return await db.query.character.findFirst({
@@ -58,7 +59,7 @@ export function createCharacterService(db: Database) {
     },
 
     async like(userId: string, characterId: string) {
-      return await db.transaction(async (tx) => {
+      const result = await db.transaction(async (tx) => {
         const existing = await tx.query.characterLikes.findFirst({
           where: and(
             eq(userCharacterSchema.characterLikes.userId, userId),
@@ -93,10 +94,13 @@ export function createCharacterService(db: Database) {
           return { liked: true }
         }
       })
+
+      metrics?.characterEngagement.add(1, { action: result.liked ? 'like' : 'unlike' })
+      return result
     },
 
     async bookmark(userId: string, characterId: string) {
-      return await db.transaction(async (tx) => {
+      const result = await db.transaction(async (tx) => {
         const existing = await tx.query.characterBookmarks.findFirst({
           where: and(
             eq(userCharacterSchema.characterBookmarks.userId, userId),
@@ -131,6 +135,9 @@ export function createCharacterService(db: Database) {
           return { bookmarked: true }
         }
       })
+
+      metrics?.characterEngagement.add(1, { action: result.bookmarked ? 'bookmark' : 'unbookmark' })
+      return result
     },
 
     async create(data: {
@@ -141,7 +148,7 @@ export function createCharacterService(db: Database) {
       i18n?: Omit<schema.NewCharacterI18n, 'characterId'>[]
       prompts?: Omit<schema.NewCharacterPrompt, 'characterId'>[]
     }) {
-      return await db.transaction(async (tx) => {
+      const inserted = await db.transaction(async (tx) => {
         const [inserted] = await tx.insert(schema.character).values(data.character).returning()
         logger.withFields({ id: inserted.id, ownerId: data.character.ownerId }).log('Created character')
 
@@ -178,6 +185,9 @@ export function createCharacterService(db: Database) {
 
         return inserted
       })
+
+      metrics?.characterCreated.add(1)
+      return inserted
     },
 
     async update(id: string, data: Partial<schema.NewCharacter>) {
@@ -200,7 +210,11 @@ export function createCharacterService(db: Database) {
           isNull(schema.character.deletedAt),
         ))
         .returning()
-      logger.withFields({ id }).log('Deleted character')
+
+      if (result.length > 0) {
+        logger.withFields({ id }).log('Deleted character')
+        metrics?.characterDeleted.add(1)
+      }
       return result
     },
   }

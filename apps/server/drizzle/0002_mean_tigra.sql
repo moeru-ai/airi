@@ -60,7 +60,7 @@ CREATE TABLE "stripe_subscription" (
 	"status" text NOT NULL,
 	"current_period_start" timestamp,
 	"current_period_end" timestamp,
-	"cancel_at_period_end" text,
+	"cancel_at_period_end" boolean,
 	"canceled_at" timestamp,
 	"ended_at" timestamp,
 	"metadata" text,

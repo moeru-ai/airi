@@ -2,7 +2,7 @@
 import type { OnboardingStepNextHandler } from './types'
 
 import { all } from '@proj-airi/i18n'
-import { Button, FieldCombobox } from '@proj-airi/ui'
+import { Button, FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -75,9 +75,9 @@ function handleLocalSetup() {
         :enter="{ opacity: 1, y: 0 }"
         :duration="500"
         :delay="150"
-        :class="['mx-auto', 'mt-6', 'w-full', 'max-w-sm', 'rounded-2xl', 'bg-neutral-100/80', 'p-4', 'backdrop-blur-sm', 'dark:bg-neutral-800/80']"
+        :class="['mx-auto', 'mt-6', 'w-full', 'max-w-sm', 'rounded-2xl', 'bg-neutral-100/80', 'backdrop-blur-sm', 'dark:bg-neutral-800/80', 'p-4']"
       >
-        <FieldCombobox
+        <FieldSelect
           v-model="language"
           :class="['w-full']"
           :label="t('settings.language.title')"
@@ -87,7 +87,7 @@ function handleLocalSetup() {
         />
       </div>
     </div>
-    <div flex="~ gap-3" class="flex-col md:flex-row">
+    <div :class="['flex', 'flex-col', 'gap-3', 'md:flex-row']">
       <Button
         v-motion
         :initial="{ opacity: 0 }"
@@ -95,7 +95,7 @@ function handleLocalSetup() {
         :duration="500"
         :delay="200"
         :label="t('settings.dialogs.onboarding.loginAction')"
-        class="flex-1"
+        :class="['flex-1']"
         @click="handleLogin"
       />
       <Button
@@ -106,7 +106,7 @@ function handleLocalSetup() {
         :delay="250"
         variant="secondary"
         :label="t('settings.dialogs.onboarding.localSetup')"
-        class="flex-1"
+        :class="['flex-1']"
         @click="handleLocalSetup"
       />
     </div>
