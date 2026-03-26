@@ -165,7 +165,7 @@
     "cac": "^7.0.0",
     "crossws": "^0.4.4",
     "csstype": "^3.2.3",
-    "drizzle-orm": "^0.45.1",
+    "drizzle-orm": "catalog:",
     "electron": "catalog:",
     "electron-builder": "^26.8.1",
     "electron-updater": "^6.8.3",
