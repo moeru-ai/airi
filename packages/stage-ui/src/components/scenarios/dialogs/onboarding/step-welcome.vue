@@ -86,7 +86,7 @@ function handleLocalSetup() {
       <Button
         v-motion
         :initial="{ opacity: 0 }"
-        :visible="{ opacity: 1 }"
+        :enter="{ opacity: 1 }"
         :duration="500"
         :delay="200"
         :label="t('settings.dialogs.onboarding.loginAction')"
@@ -96,7 +96,7 @@ function handleLocalSetup() {
       <Button
         v-motion
         :initial="{ opacity: 0 }"
-        :visible="{ opacity: 1 }"
+        :enter="{ opacity: 1 }"
         :duration="500"
         :delay="250"
         variant="secondary"
