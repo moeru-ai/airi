@@ -4,6 +4,7 @@ import { initLogger, LoggerFormat, LoggerLevel, useLogger } from '@guiiai/logg'
 
 import { createDrizzle, migrateDatabase } from '../libs/db'
 import { parseEnv } from '../libs/env'
+import { initializeExternalDependency } from '../libs/external-dependency'
 import { createRedis } from '../libs/redis'
 import { createBillingMqService } from '../services/billing-mq'
 import { createOutboxDispatcher } from '../services/outbox-dispatcher'
@@ -23,12 +24,42 @@ export async function runOutboxDispatcher(): Promise<void> {
 
   const env = parseEnv(process.env)
   const logger = useLogger('outbox-dispatcher').useGlobalConfig()
-  const { db, pool } = createDrizzle(env.DATABASE_URL)
-  const redis = createRedis(env.REDIS_URL)
+  const { db, pool } = await initializeExternalDependency(
+    'Database',
+    logger,
+    async (attempt) => {
+      const connection = createDrizzle(env.DATABASE_URL)
 
-  await db.execute('SELECT 1')
-  await migrateDatabase(db)
-  await redis.connect()
+      try {
+        await connection.db.execute('SELECT 1')
+        logger.log(`Connected to database on attempt ${attempt}`)
+        await migrateDatabase(connection.db)
+        logger.log(`Applied schema on attempt ${attempt}`)
+        return connection
+      }
+      catch (error) {
+        await connection.pool.end()
+        throw error
+      }
+    },
+  )
+  const redis = await initializeExternalDependency(
+    'Redis',
+    logger,
+    async (attempt) => {
+      const instance = createRedis(env.REDIS_URL)
+
+      try {
+        await instance.connect()
+        logger.log(`Connected to Redis on attempt ${attempt}`)
+        return instance
+      }
+      catch (error) {
+        instance.disconnect()
+        throw error
+      }
+    },
+  )
 
   const abortController = new AbortController()
   const claimedBy = env.OUTBOX_DISPATCHER_NAME ?? `outbox-dispatcher-${pid}`
