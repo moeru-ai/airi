@@ -25,6 +25,7 @@ const hearingPopoverOpen = ref(false)
 const isComposing = ref(false)
 const isListening = ref(false) // Transcription listening state (separate from microphone enabled)
 const DOUBLE_ENTER_INTERVAL_MS = 300
+const TRAILING_NEWLINES_REGEX = /[\r\n]+$/
 const SEND_MODES = ['enter', 'ctrl-enter', 'double-enter'] as const
 type SendMode = (typeof SEND_MODES)[number]
 const sendMode = useLocalStorage<SendMode>('ui/chat/settings/send-mode', 'enter')
@@ -142,8 +143,7 @@ async function handleSend() {
 }
 
 function sendFromKeyboard() {
-  // eslint-disable-next-line e18e/prefer-static-regex
-  messageInput.value = messageInput.value.replace(/[\r\n]+$/, '')
+  messageInput.value = messageInput.value.replace(TRAILING_NEWLINES_REGEX, '')
   void handleSend()
 }
 
@@ -525,7 +525,10 @@ watch(sendMode, () => {
         <PopoverRoot v-model:open="hearingPopoverOpen">
           <PopoverTrigger as-child>
             <button
-              class="h-8 w-8 flex items-center justify-center rounded-md outline-none transition-all duration-200 active:scale-95"
+              :class="[
+                'h-8 w-8 flex items-center justify-center rounded-md outline-none',
+                'transition-all duration-200 active:scale-95',
+              ]"
               text="lg neutral-500 dark:neutral-400"
               :title="t('settings.hearing.title')"
             >

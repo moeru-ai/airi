@@ -35,6 +35,7 @@ const providersStore = useProvidersStore()
 const { activeModel, activeProvider } = storeToRefs(useConsciousnessStore())
 const isComposing = ref(false)
 const DOUBLE_ENTER_INTERVAL_MS = 300
+const TRAILING_NEWLINES_REGEX = /[\r\n]+$/
 const SEND_MODES = ['enter', 'ctrl-enter', 'double-enter'] as const
 type SendMode = (typeof SEND_MODES)[number]
 const sendMode = useLocalStorage<SendMode>('ui/chat/settings/send-mode', 'enter')
@@ -91,8 +92,7 @@ async function handleSend() {
 }
 
 function sendFromKeyboard() {
-  // eslint-disable-next-line e18e/prefer-static-regex
-  messageInput.value = messageInput.value.replace(/[\r\n]+$/, '')
+  messageInput.value = messageInput.value.replace(TRAILING_NEWLINES_REGEX, '')
   void handleSend()
 }
 
@@ -181,15 +181,26 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
         :streaming-message="streamingMessage"
       />
     </div>
-    <div v-if="attachments.length > 0" class="flex flex-wrap gap-2 border-t border-primary-100 p-2">
+    <div
+      v-if="attachments.length > 0"
+      :class="[
+        'flex flex-wrap gap-2 border-t border-primary-100 p-2',
+      ]"
+    >
       <div v-for="(attachment, index) in attachments" :key="index" class="relative">
-        <img :src="attachment.url" class="h-20 w-20 rounded-md object-cover">
-        <button class="absolute right-1 top-1 h-5 w-5 flex items-center justify-center rounded-full bg-red-500 text-xs text-white" @click="removeAttachment(index)">
+        <img :src="attachment.url" :class="['h-20 w-20 rounded-md object-cover']">
+        <button
+          :class="[
+            'absolute right-1 top-1 h-5 w-5 flex items-center justify-center rounded-full',
+            'bg-red-500 text-xs text-white',
+          ]"
+          @click="removeAttachment(index)"
+        >
           &times;
         </button>
       </div>
     </div>
-    <div class="flex items-center justify-end gap-2 py-1">
+    <div :class="['flex items-center justify-end gap-2 py-1']">
       <DropdownMenuRoot>
         <DropdownMenuTrigger as-child>
           <button
@@ -235,7 +246,9 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
       </DropdownMenuRoot>
 
       <button
-        class="max-h-[10lh] min-h-[1lh]"
+        :class="[
+          'max-h-[10lh] min-h-[1lh]',
+        ]"
         bg="neutral-100 dark:neutral-800"
         text="lg neutral-500 dark:neutral-400"
         hover:text="red-500 dark:red-400"
