@@ -3,8 +3,8 @@ import type { Plugin } from 'vite'
 import { join, resolve } from 'node:path'
 import { env } from 'node:process'
 
+import Vue from '@vitejs/plugin-vue'
 import Unocss from 'unocss/vite'
-import Vue from 'unplugin-vue/vite'
 import Yaml from 'unplugin-yaml/vite'
 import Inspect from 'vite-plugin-inspect'
 

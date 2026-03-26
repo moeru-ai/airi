@@ -35,7 +35,7 @@
     "@iconify-json/svg-spinners": "^1.2.4",
     "@types/xast": "^2.0.4",
     "@unocss/reset": "^66.6.7",
-    "unplugin-vue": "catalog:",
+    "@vitejs/plugin-vue": "^6.0.5",
     "unplugin-vue-router": "^0.19.2",
     "vite": "catalog:",
     "vue-router": "^5.0.4",
