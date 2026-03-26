@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ComboboxSelect } from '../select'
+import { ComboboxSelect } from '../combobox-select'
 
 const props = withDefaults(defineProps<{
   label: string
