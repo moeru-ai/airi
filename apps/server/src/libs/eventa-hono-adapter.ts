@@ -1,4 +1,4 @@
-import type { EventContext } from '@moeru/eventa'
+import type { EventContext, InvocableEventContext } from '@moeru/eventa'
 import type { WSContext, WSEvents } from 'hono/ws'
 
 import { and, createContext, defineEventa, defineInboundEventa, defineOutboundEventa, EventaFlowDirection, matchBy } from '@moeru/eventa'
@@ -35,13 +35,25 @@ export const wsConnectedEvent = defineEventa('eventa:adapters:hono-ws:connected'
 export const wsDisconnectedEvent = defineEventa('eventa:adapters:hono-ws:disconnected')
 export const wsErrorEvent = defineEventa('eventa:adapters:hono-ws:error')
 
+interface HonoWsRawEventOptions {
+  raw?: {
+    error?: Event
+    message?: HonoWsMessageEvent
+  }
+}
+
+type HonoWsMessageEvent = Parameters<NonNullable<WSEvents['onMessage']>>[0]
+
+export type HonoWsEventContext = EventContext<any, HonoWsRawEventOptions>
+export type HonoWsInvocableEventContext = InvocableEventContext<any, HonoWsRawEventOptions>
+
 // ---------------------------------------------------------------------------
 // Per-peer adapter
 // ---------------------------------------------------------------------------
 
 export interface CreatePeerHooksOptions {
   /** Called when a new peer connects and its EventContext is ready. */
-  onContext?: (ctx: EventContext) => void
+  onContext?: (ctx: HonoWsInvocableEventContext) => void
 }
 
 export interface PeerHooksResult {
@@ -57,12 +69,12 @@ export interface PeerHooksResult {
  * routed into the context as inbound events.
  */
 export function createPeerHooks(options: CreatePeerHooksOptions = {}): PeerHooksResult {
-  let ctx: EventContext | undefined
+  let ctx: HonoWsInvocableEventContext | undefined
   let cleanup: (() => void) | undefined
 
   const hooks: WSEvents = {
     onOpen(_event, ws) {
-      ctx = createContext()
+      ctx = createContext<any, HonoWsRawEventOptions>()
 
       // Intercept outbound events and forward them over the WebSocket.
       // This mirrors the H3 adapter's pattern exactly.
@@ -91,7 +103,7 @@ export function createPeerHooks(options: CreatePeerHooksOptions = {}): PeerHooks
       options.onContext?.(ctx)
     },
 
-    onMessage(_event, ws, message) {
+    onMessage(message) {
       if (!ctx)
         return
 
@@ -106,7 +118,7 @@ export function createPeerHooks(options: CreatePeerHooksOptions = {}): PeerHooks
       }
     },
 
-    onClose(_event, _ws) {
+    onClose() {
       if (!ctx)
         return
 
@@ -133,7 +145,7 @@ export function createPeerHooks(options: CreatePeerHooksOptions = {}): PeerHooks
 
 export interface GlobalHooksResult {
   hooks: WSEvents
-  context: EventContext
+  context: HonoWsEventContext
 }
 
 /**
@@ -142,7 +154,7 @@ export interface GlobalHooksResult {
  * `createGlobalContext`.
  */
 export function createGlobalHooks(): GlobalHooksResult {
-  const ctx = createContext()
+  const ctx = createContext<any, HonoWsRawEventOptions>()
   const peers = new Set<WSContext>()
 
   // Broadcast outbound events to all connected peers.
@@ -170,7 +182,7 @@ export function createGlobalHooks(): GlobalHooksResult {
       ctx.emit(wsConnectedEvent, {}, { raw: {} })
     },
 
-    onMessage(_event, _ws, message) {
+    onMessage(message) {
       try {
         const raw = typeof message.data === 'string' ? message.data : String(message.data)
         const { type, payload } = parseWebsocketPayload(raw)

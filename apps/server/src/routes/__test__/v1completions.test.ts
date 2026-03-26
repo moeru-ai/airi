@@ -160,7 +160,7 @@ describe('v1CompletionsRoutes', () => {
       )
 
       expect(res.status).toBe(200)
-      const data = await res.json()
+      const data = await res.json() as { id: string }
       expect(data.id).toBe('chatcmpl-1')
 
       // Verify flux was debited via billingService

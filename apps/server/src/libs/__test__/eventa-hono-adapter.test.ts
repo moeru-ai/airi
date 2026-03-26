@@ -18,6 +18,8 @@ function createMockWSContext(): WSContext & { sentMessages: string[] } {
   } as any
 }
 
+type HonoWsMessageEvent = Parameters<NonNullable<import('hono/ws').WSEvents['onMessage']>>[0]
+
 describe('eventa Hono adapter', () => {
   it('creates peer context on open and cleans up on close', () => {
     let contextReceived = false
@@ -59,8 +61,8 @@ describe('eventa Hono adapter', () => {
       timestamp: Date.now(),
     })
 
-    const messageEvent = { data: payload } as any
-    hooks.onMessage!({} as any, ws, messageEvent)
+    const messageEvent = { data: payload } as HonoWsMessageEvent
+    hooks.onMessage!(messageEvent, ws)
 
     await new Promise(r => setTimeout(r, 100))
 
