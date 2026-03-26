@@ -151,6 +151,7 @@ function toggleOpen() {
 
 <template>
   <div ref="containerRef" :class="['relative inline-flex flex-col items-end gap-2']">
+    <!-- Electron -->
     <div
       v-if="$slots.default"
       :class="['profile-switcher-select-overlay', 'relative inline-flex']"
@@ -163,18 +164,21 @@ function toggleOpen() {
         :options="selectOptions"
         :placeholder="t('stage.profile-switcher.no-profile')"
         :content-min-width="224"
-        variant="blurry"
       >
         <template #value="{ option, placeholder }">
           <div :class="['min-w-0', 'flex', 'items-center', 'gap-2', 'p-1']">
+            <div
+              :class="[
+                'size-6 shrink-0',
+                option?.value === activeCardId ? 'i-solar:check-circle-bold-duotone text-primary-500' : option?.icon ?? 'i-solar:emoji-funny-square-broken text-neutral-400',
+              ]"
+            />
             <span
               :class="[
                 'block truncate',
-                'text-lg',
+                'text-sm',
                 'select-none',
-                option
-                  ? 'text-neutral-700 dark:text-neutral-200'
-                  : 'text-neutral-400 dark:text-neutral-500',
+                option ? 'text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 dark:text-neutral-500',
               ]"
             >
               {{ option?.label ?? placeholder }}
@@ -183,14 +187,21 @@ function toggleOpen() {
         </template>
         <template #option="{ option }">
           <div :class="['min-w-0', 'flex', 'flex-1', 'items-center', 'gap-2.5', 'py-1']">
+            <div
+              v-if="option.icon"
+              :class="[
+                'size-5 shrink-0',
+                option.value === activeCardId ? 'text-primary-500' : 'text-neutral-400',
+                option.icon,
+              ]"
+            />
             <span
               :class="[
+                'inline-block w-full flex-1',
                 'truncate',
                 'text-sm',
                 'select-none',
-                option.value === activeCardId
-                  ? 'text-primary-700 dark:text-primary-300'
-                  : '',
+                option.value === activeCardId ? 'text-primary-700 dark:text-primary-300' : '',
               ]"
             >
               {{ option.label }}
@@ -200,6 +211,7 @@ function toggleOpen() {
       </Select>
     </div>
 
+    <!-- Web -->
     <Select
       v-else
       v-model="selectedProfile"
@@ -208,25 +220,22 @@ function toggleOpen() {
       :placeholder="t('stage.profile-switcher.no-profile')"
       :content-min-width="224"
       variant="blurry"
+      shape="rounded"
     >
       <template #value="{ option, placeholder }">
-        <div :class="['min-w-0', 'flex', 'items-center', 'gap-2', 'p-1']">
+        <div :class="['min-w-0', 'flex', 'items-center', 'gap-2', 'px-1 py-1.5']">
           <div
             :class="[
-              'size-4 shrink-0',
-              option?.value === activeCardId
-                ? 'i-solar:check-circle-bold-duotone text-primary-500'
-                : option?.icon ?? 'i-solar:emoji-funny-square-broken text-neutral-400',
+              'size-6 shrink-0',
+              option?.value === activeCardId ? 'i-solar:check-circle-bold-duotone text-primary-500' : option?.icon ?? 'i-solar:emoji-funny-square-broken text-neutral-400',
             ]"
           />
           <span
             :class="[
-              'block truncate',
-              'text-lg',
+              'inline-block w-full flex-1',
+              'text-sm',
               'select-none',
-              option
-                ? 'text-neutral-700 dark:text-neutral-200'
-                : 'text-neutral-400 dark:text-neutral-500',
+              option ? 'text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 dark:text-neutral-500',
             ]"
           >
             {{ option?.label ?? placeholder }}
@@ -239,20 +248,17 @@ function toggleOpen() {
             v-if="option.icon"
             :class="[
               'size-5 shrink-0',
-              option.value === activeCardId
-                ? 'text-primary-500'
-                : 'text-neutral-400',
+              option.value === activeCardId ? 'text-primary-500' : 'text-neutral-400',
               option.icon,
             ]"
           />
           <span
             :class="[
+              'inline-block w-full flex-1',
               'truncate',
               'text-sm',
               'select-none',
-              option.value === activeCardId
-                ? 'text-primary-700 dark:text-primary-300'
-                : '',
+              option.value === activeCardId ? 'text-primary-700 dark:text-primary-300' : '',
             ]"
           >
             {{ option.label }}
