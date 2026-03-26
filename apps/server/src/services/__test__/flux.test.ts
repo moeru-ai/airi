@@ -131,7 +131,7 @@ describe('fluxService (Redis-backed)', () => {
     }).returning()
     await service.getFlux(user3.id)
     const results = await Promise.allSettled(
-      Array.from({ length: 10 }, () => service.consumeFlux(user3.id, 10)),
+      Array.from({ length: 10 }).fill(service.consumeFlux(user3.id, 10)),
     )
     const fulfilled = results.filter(r => r.status === 'fulfilled')
     const rejected = results.filter(r => r.status === 'rejected')
@@ -151,7 +151,7 @@ describe('fluxService (Redis-backed)', () => {
     }).returning()
     await service.getFlux(user4.id)
     await Promise.all(
-      Array.from({ length: 10 }, () => service.addFlux(user4.id, 5)),
+      Array.from({ length: 10 }).fill(service.addFlux(user4.id, 5)),
     )
     const final = await service.getFlux(user4.id)
     expect(final.flux).toBe(150)

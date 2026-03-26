@@ -78,7 +78,7 @@ describe('providerRoutes', () => {
     }), { user: testUser } as any)
 
     expect(res.status).toBe(201)
-    const data = await res.json()
+    const data = await res.json() as any
     expect(data.id).toBeDefined()
     expect(data.name).toBe('My OpenAI')
   })
@@ -94,7 +94,7 @@ describe('providerRoutes', () => {
 
     const res = await app.fetch(new Request('http://localhost/'), { user: testUser } as any)
     expect(res.status).toBe(200)
-    const data = await res.json()
+    const data = await res.json() as any
     expect(data.length).toBe(2)
     expect(data.some((p: any) => p.isSystem === true)).toBe(true)
     expect(data.some((p: any) => p.isSystem === false)).toBe(true)
@@ -106,14 +106,14 @@ describe('providerRoutes', () => {
 
     const res = await app.fetch(new Request(`http://localhost/${providerId}`), { user: testUser } as any)
     expect(res.status).toBe(200)
-    const data = await res.json()
+    const data = await res.json() as any
     expect(data.id).toBe(providerId)
     expect(data.isSystem).toBe(false)
 
     // Test system config access
     const resSys = await app.fetch(new Request('http://localhost/sys-1'), { user: testUser } as any)
     expect(resSys.status).toBe(200)
-    const dataSys = await resSys.json()
+    const dataSys = await resSys.json() as any
     expect(dataSys.id).toBe('sys-1')
     expect(dataSys.isSystem).toBe(true)
   })

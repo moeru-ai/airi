@@ -578,9 +578,18 @@ importers:
       injeca:
         specifier: 'catalog:'
         version: 0.1.8(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.7)
+      ioredis:
+        specifier: ^5.10.0
+        version: 5.10.1
       pg:
         specifier: ^8.20.0
         version: 8.20.0
+      postgres:
+        specifier: ^3.4.8
+        version: 3.4.8
+      stripe:
+        specifier: ^20.4.0
+        version: 20.4.1(@types/node@24.12.0)
       tsx:
         specifier: ^4.21.0
         version: 4.21.0
@@ -2068,6 +2077,9 @@ importers:
       '@electron-toolkit/preload':
         specifier: 'catalog:'
         version: 3.0.2(electron@39.7.0)
+      '@moeru/eventa':
+        specifier: 'catalog:'
+        version: 1.0.0-beta.2(electron@39.7.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2739,7 +2751,7 @@ importers:
         version: 0.1.11
       unstorage:
         specifier: 'catalog:'
-        version: 1.17.4(aws4fetch@1.0.20)(idb-keyval@6.2.2)
+        version: 1.17.4(aws4fetch@1.0.20)(idb-keyval@6.2.2)(ioredis@5.10.1)
       uuid:
         specifier: ^13.0.0
         version: 13.0.0
@@ -5913,6 +5925,9 @@ packages:
   '@ionic/utils-terminal@2.3.5':
     resolution: {integrity: sha512-3cKScz9Jx2/Pr9ijj1OzGlBDfcmx7OMVBt4+P1uRR0SSW4cm1/y3Mo4OY3lfkuaYifMNBW8Wz6lQHbs1bihr7A==}
     engines: {node: '>=16.0.0'}
+
+  '@ioredis/commands@1.5.1':
+    resolution: {integrity: sha512-JH8ZL/ywcJyR9MmJ5BNqZllXNZQqQbnVZOqpPQqE1vHiFgAw4NHbvE0FOduNU8IX9babitBT46571OnPTT0Zcw==}
 
   '@isaacs/cliui@8.0.2':
     resolution: {integrity: sha512-O8jcjabXaleOG9DQ0+ARXWZBTfnP4WNAqzuiJK7ll44AmxGKv/J2M4TPjxjY3znBCfvBXFzucm1twdyFybFqEA==}
@@ -10687,6 +10702,10 @@ packages:
     resolution: {integrity: sha512-JQHZ2QMW6l3aH/j6xCqQThY/9OH4D/9ls34cgkUBiEeocRTU04tHfKPBsUK1PqZCUQM7GiA0IIXJSuXHI64Kbg==}
     engines: {node: '>=0.8'}
 
+  cluster-key-slot@1.1.2:
+    resolution: {integrity: sha512-RMr0FhtfXemyinomL4hrWcYJxmX6deFdCxpJzhDttxgO1+bcCnkk+9drydLVDmAMG7NE6aN/fl4F7ucU/90gAA==}
+    engines: {node: '>=0.10.0'}
+
   clustr@1.0.2:
     resolution: {integrity: sha512-Zvxo5inxwvoGMI0R+cXV+5nVbl/Gw7zYV1Msn9mn7loC6CK941CjvsBplgClJV83T4UXID+SXhtfVulfaBat5w==}
     engines: {node: '>=22.10.0'}
@@ -11185,6 +11204,10 @@ packages:
   delayed-stream@1.0.0:
     resolution: {integrity: sha512-ZySD7Nf91aLB0RxL4KGrKHBXl7Eds1DAmEdcoVawXnLD7SDhpNgtuII2aAkg7a7QS41jxPSZ17p4VdGnMHk3MQ==}
     engines: {node: '>=0.4.0'}
+
+  denque@2.1.0:
+    resolution: {integrity: sha512-HVQE3AAb/pxF8fQAoiqpvg9i3evqug3hoiwakOyZAwJm+6vZehbkYXZ0l4JxS+I3QxM97v5aaRNhj8v5oBhekw==}
+    engines: {node: '>=0.10'}
 
   depd@2.0.0:
     resolution: {integrity: sha512-g7nH6P6dyDioJogAAGprGpCtVImJhpPk/roCzdb3fIh61/s/nPsfR6onyMwkCAR/OlC3yBC0lESvUoQEAssIrw==}
@@ -12922,6 +12945,10 @@ packages:
     resolution: {integrity: sha512-5Hh7Y1wQbvY5ooGgPbDaL5iYLAPzMTUrjMulskHLH6wnv/A+1q5rgEaiuqEjB+oxGXIVZs1FF+R/KPN3ZSQYYg==}
     engines: {node: '>=12'}
 
+  ioredis@5.10.1:
+    resolution: {integrity: sha512-HuEDBTI70aYdx1v6U97SbNx9F1+svQKBDo30o0b9fw055LMepzpOOd0Ccg9Q6tbqmBSJaMuY0fB7yw9/vjBYCA==}
+    engines: {node: '>=12.22.0'}
+
   ip-address@10.0.1:
     resolution: {integrity: sha512-NWv9YLW4PoW2B7xtzaS3NCot75m6nK7Icdv0o3lfMceJVRfSoQwqD4wEH5rLwoKJwUiZ/rfpiVBhnaF0FK4HoA==}
     engines: {node: '>= 12'}
@@ -13487,11 +13514,17 @@ packages:
   lodash.debounce@4.0.8:
     resolution: {integrity: sha512-FT1yDzDYEoYWhnSGnpE/4Kj1fLZkDFyqRb7fNt6FdYOSxlUWAtp42Eh6Wb0rGIv/m9Bgo7x4GhQbm5Ys4SG5ow==}
 
+  lodash.defaults@4.2.0:
+    resolution: {integrity: sha512-qjxPLHd3r5DnsdGacqOMU6pb/avJzdh9tFX2ymgoZE27BmjXrNy/y4LoaiTeAb+O3gL8AfpJGtqfX/ae2leYYQ==}
+
   lodash.escaperegexp@4.1.2:
     resolution: {integrity: sha512-TM9YBvyC84ZxE3rgfefxUWiQKLilstD6k7PTGt6wfbtXF8ixIJLOL3VYyV/z+ZiPLsVxAsKAFVwWlWeb2Y8Yyw==}
 
   lodash.includes@4.3.0:
     resolution: {integrity: sha512-W3Bx6mdkRTGtlJISOvVD/lbqjTlPPUDTMnlXZFnVwi9NKJ6tiAk6LVdlhZMm17VZisqhKcgzpO5Wz91PCt5b0w==}
+
+  lodash.isarguments@3.1.0:
+    resolution: {integrity: sha512-chi4NHZlZqZD18a0imDHnZPrDeBbTtVN7GXMwuGdRH9qotxAjYs3aVLKc7zNOG9eddR5Ksd8rvFEBc9SsggPpg==}
 
   lodash.isboolean@3.0.3:
     resolution: {integrity: sha512-Bz5mupy2SVbPHURB98VAcw+aHh4vRV5IPNhILUCsOzRmsTmSQ17jIuqopAentWoehktxGd9e/hbIXq980/1QJg==}
@@ -15042,6 +15075,14 @@ packages:
     resolution: {integrity: sha512-57frrGM/OCTLqLOAh0mhVA9VBMHd+9U7Zb2THMGdBUoZVOtGbJzjxsYGDJ3A9AYYCP4hn6y1TVbaOfzWtm5GFg==}
     engines: {node: '>= 12.13.0'}
 
+  redis-errors@1.2.0:
+    resolution: {integrity: sha512-1qny3OExCf0UvUV/5wpYKf2YwPcOqXzkwKKSmKHiE6ZMQs5heeE/c8eXK+PNllPvmjgAbfnsbpkGZWy8cBpn9w==}
+    engines: {node: '>=4'}
+
+  redis-parser@3.0.0:
+    resolution: {integrity: sha512-DJnGAeenTdpMEH6uAJRK/uiyEIH9WVsUmoLwzudwGJUwZPp80PDBWPHXSAGNPwNvIXAbe7MSUB1zQFugFml66A==}
+    engines: {node: '>=4'}
+
   reduce-flatten@1.0.1:
     resolution: {integrity: sha512-j5WfFJfc9CoXv/WbwVLHq74i/hdTUpy+iNC534LxczMRP67vJeK3V9JOdnL0N1cIRbn9mYhE2yVjvvKXDxvNXQ==}
     engines: {node: '>=0.10.0'}
@@ -15638,6 +15679,9 @@ packages:
   stackframe@1.3.4:
     resolution: {integrity: sha512-oeVtt7eWQS+Na6F//S4kJ2K2VbRlS9D43mAlMyVpVWovy9o+jfgH8O9agzANzaiLjclA0oYzUXEM4PurhSUChw==}
 
+  standard-as-callback@2.1.0:
+    resolution: {integrity: sha512-qoRRSyROncaz1z0mvYqIE4lCd9p2R90i6GxW3uZv5ucSu8tU7B5HXUP1gG8pVZsYNVaXjk8ClXHPttLyxAL48A==}
+
   stat-mode@1.0.0:
     resolution: {integrity: sha512-jH9EhtKIjuXZ2cWxmXS8ZP80XyC3iasQxMDV8jzhNJpfDb7VbQLVW4Wvsxz9QZvzV+G4YoSfBUVKDOyxLzi/sg==}
     engines: {node: '>= 6'}
@@ -15750,6 +15794,15 @@ packages:
   strip-outer@1.0.1:
     resolution: {integrity: sha512-k55yxKHwaXnpYGsOzg4Vl8+tDrWylxDEpknGjhTiZB8dFRU5rTo9CAzeycivxV3s+zlTKwrs6WxMxR95n26kwg==}
     engines: {node: '>=0.10.0'}
+
+  stripe@20.4.1:
+    resolution: {integrity: sha512-axCguHItc8Sxt0HC6aSkdVRPffjYPV7EQqZRb2GkIa8FzWDycE7nHJM19C6xAIynH1Qp1/BHiopSi96jGBxT0w==}
+    engines: {node: '>=16'}
+    peerDependencies:
+      '@types/node': '>=16'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
 
   strtok3@6.3.0:
     resolution: {integrity: sha512-fZtbhtvI9I48xDSywd/somNqgUHl2L2cstmXCCif0itOf96jeW18MBSyrLuNicYQVkvpOxkZtkzujiTJ9LW5Jw==}
@@ -19797,6 +19850,8 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@ioredis/commands@1.5.1': {}
+
   '@isaacs/cliui@8.0.2':
     dependencies:
       string-width: 5.1.2
@@ -20035,6 +20090,13 @@ snapshots:
     optionalDependencies:
       electron: 41.0.3
       h3: 2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d)))
+
+  '@moeru/eventa@1.0.0-beta.2(electron@39.7.0)':
+    dependencies:
+      nanoid: 5.1.7
+      picomatch: 4.0.3
+    optionalDependencies:
+      electron: 39.7.0
 
   '@moeru/eventa@1.0.0-beta.2(electron@40.8.3)':
     dependencies:
@@ -24787,6 +24849,8 @@ snapshots:
 
   clone@1.0.4: {}
 
+  cluster-key-slot@1.1.2: {}
+
   clustr@1.0.2: {}
 
   color-convert@2.0.1:
@@ -25266,6 +25330,8 @@ snapshots:
       robust-predicates: 3.0.2
 
   delayed-stream@1.0.0: {}
+
+  denque@2.1.0: {}
 
   depd@2.0.0: {}
 
@@ -27371,6 +27437,20 @@ snapshots:
 
   internmap@2.0.3: {}
 
+  ioredis@5.10.1:
+    dependencies:
+      '@ioredis/commands': 1.5.1
+      cluster-key-slot: 1.1.2
+      debug: 4.4.3
+      denque: 2.1.0
+      lodash.defaults: 4.2.0
+      lodash.isarguments: 3.1.0
+      redis-errors: 1.2.0
+      redis-parser: 3.0.0
+      standard-as-callback: 2.1.0
+    transitivePeerDependencies:
+      - supports-color
+
   ip-address@10.0.1: {}
 
   ip-address@10.1.0: {}
@@ -27894,9 +27974,13 @@ snapshots:
 
   lodash.debounce@4.0.8: {}
 
+  lodash.defaults@4.2.0: {}
+
   lodash.escaperegexp@4.1.2: {}
 
   lodash.includes@4.3.0: {}
+
+  lodash.isarguments@3.1.0: {}
 
   lodash.isboolean@3.0.3: {}
 
@@ -29948,6 +30032,12 @@ snapshots:
 
   real-require@0.2.0: {}
 
+  redis-errors@1.2.0: {}
+
+  redis-parser@3.0.0:
+    dependencies:
+      redis-errors: 1.2.0
+
   reduce-flatten@1.0.1: {}
 
   refa@0.12.1:
@@ -30778,6 +30868,8 @@ snapshots:
 
   stackframe@1.3.4: {}
 
+  standard-as-callback@2.1.0: {}
+
   stat-mode@1.0.0: {}
 
   stats-gl@2.4.2(@types/three@0.183.1)(three@0.183.2):
@@ -30876,6 +30968,10 @@ snapshots:
   strip-outer@1.0.1:
     dependencies:
       escape-string-regexp: 1.0.5
+
+  stripe@20.4.1(@types/node@24.12.0):
+    optionalDependencies:
+      '@types/node': 24.12.0
 
   strtok3@6.3.0:
     dependencies:
@@ -31687,7 +31783,7 @@ snapshots:
       '@xsai-ext/providers': 0.4.4
       '@xsai/shared': 0.4.4
 
-  unstorage@1.17.4(aws4fetch@1.0.20)(idb-keyval@6.2.2):
+  unstorage@1.17.4(aws4fetch@1.0.20)(idb-keyval@6.2.2)(ioredis@5.10.1):
     dependencies:
       anymatch: 3.1.3
       chokidar: 5.0.0
@@ -31700,6 +31796,7 @@ snapshots:
     optionalDependencies:
       aws4fetch: 1.0.20
       idb-keyval: 6.2.2
+      ioredis: 5.10.1
 
   untildify@4.0.0: {}
 
