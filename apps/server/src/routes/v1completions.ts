@@ -1,5 +1,3 @@
-/* eslint-disable unused-imports/no-unused-vars */
-
 import type { Context } from 'hono'
 
 import type { LlmMetrics } from '../libs/otel'
@@ -13,6 +11,7 @@ import type { HonoEnv } from '../types/hono'
 import { useLogger } from '@guiiai/logg'
 import { context, SpanStatusCode, trace } from '@opentelemetry/api'
 import { Hono } from 'hono'
+import { bodyLimit } from 'hono/body-limit'
 
 import { authGuard } from '../middlewares/auth'
 import { configGuard } from '../middlewares/config-guard'
@@ -369,6 +368,6 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
     .use('*', authGuard)
     .post('/chat/completions', completionsRateLimit, chatGuard, handleCompletion)
     .post('/chat/completion', completionsRateLimit, chatGuard, handleCompletion)
-    // .post('/audio/speech', ttsGuard, handleTTS)
-    // .post('/audio/transcriptions', bodyLimit({ maxSize: 25 * 1024 * 1024 }), asrGuard, handleTranscription)
+    .post('/audio/speech', ttsGuard, handleTTS)
+    .post('/audio/transcriptions', bodyLimit({ maxSize: 25 * 1024 * 1024 }), asrGuard, handleTranscription)
 }
