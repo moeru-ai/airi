@@ -1,6 +1,5 @@
 import type Redis from 'ioredis'
 
-import type { Database } from './libs/db'
 import type { Env } from './libs/env'
 import type { OtelInstance } from './libs/otel'
 import type { HonoEnv } from './types/hono'
@@ -36,7 +35,6 @@ import { createChatService } from './services/chats'
 import { createConfigKVService } from './services/config-kv'
 import { createFluxService } from './services/flux'
 import { createFluxAuditService } from './services/flux-audit'
-import { createFluxWriteBack } from './services/flux-write-back'
 import { createOutboxService } from './services/outbox-service'
 import { createProviderService } from './services/providers'
 import { createRequestLogService } from './services/request-log'
@@ -56,7 +54,6 @@ type FluxAuditService = ReturnType<typeof createFluxAuditService>
 type BillingService = ReturnType<typeof createBillingService>
 
 interface AppDeps {
-  db: Database
   auth: AuthService
   characterService: CharacterService
   chatService: ChatService
@@ -73,7 +70,6 @@ interface AppDeps {
 }
 
 function buildApp({
-  db,
   auth,
   characterService,
   chatService,
@@ -173,7 +169,7 @@ function buildApp({
     /**
      * V1 routes for official provider.
      */
-    .route('/api/v1', createV1CompletionsRoutes(fluxService, configKV, requestLogService, otel?.llm ?? null))
+    .route('/api/v1', createV1CompletionsRoutes(fluxService, billingService, configKV, requestLogService, otel?.llm ?? null))
 
     /**
      * Flux routes.
@@ -183,7 +179,7 @@ function buildApp({
     /**
      * Stripe routes.
      */
-    .route('/api/stripe', createStripeRoutes(db, fluxService, stripeService, billingService, configKV, env, otel?.revenue))
+    .route('/api/stripe', createStripeRoutes(fluxService, stripeService, billingService, configKV, env, otel?.revenue))
 
   return { app: builtApp, injectWebSocket }
 }
@@ -272,8 +268,8 @@ export async function createApp() {
   })
 
   const fluxService = injeca.provide('services:flux', {
-    dependsOn: { db, redis, configKV, fluxAuditService, otel },
-    build: ({ dependsOn }) => createFluxService(dependsOn.db, dependsOn.redis, dependsOn.configKV, dependsOn.fluxAuditService, dependsOn.otel?.revenue),
+    dependsOn: { db, redis, configKV },
+    build: ({ dependsOn }) => createFluxService(dependsOn.db, dependsOn.redis, dependsOn.configKV),
   })
 
   const requestLogService = injeca.provide('services:requestLog', {
@@ -282,21 +278,8 @@ export async function createApp() {
   })
 
   const billingService = injeca.provide('services:billing', {
-    dependsOn: { db, outboxService },
-    build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.outboxService),
-  })
-
-  const fluxWriteBack = injeca.provide('services:fluxWriteBack', {
-    dependsOn: { db, lifecycle },
-    build: ({ dependsOn }) => {
-      const wb = createFluxWriteBack(dependsOn.db)
-      wb.start()
-      dependsOn.lifecycle.appHooks.onStop(async () => {
-        wb.stop()
-        await wb.flush()
-      })
-      return wb
-    },
+    dependsOn: { db, redis, outboxService, configKV, otel },
+    build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.outboxService, dependsOn.configKV, dependsOn.otel?.revenue),
   })
 
   await injeca.start()
@@ -315,10 +298,8 @@ export async function createApp() {
     redis,
     env: parsedEnv,
     otel,
-    fluxWriteBack,
   })
   const { app, injectWebSocket } = buildApp({
-    db: resolved.db,
     auth: resolved.auth,
     characterService: resolved.characterService,
     chatService: resolved.chatService,

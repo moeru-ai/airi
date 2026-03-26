@@ -1,3 +1,4 @@
+import type { BillingService } from '../../services/billing-service'
 import type { ConfigKVService } from '../../services/config-kv'
 import type { FluxService } from '../../services/flux'
 import type { RequestLogService } from '../../services/request-log'
@@ -14,9 +15,20 @@ import { createV1CompletionsRoutes } from '../v1completions'
 function createMockFluxService(flux = 100): FluxService {
   return {
     getFlux: vi.fn(async () => ({ userId: 'user-1', flux })),
-    consumeFlux: vi.fn(async (_userId: string, amount: number) => ({ userId: 'user-1', flux: flux - amount })),
-    addFlux: vi.fn(async (_userId: string, amount: number) => ({ userId: 'user-1', flux: flux + amount })),
     updateStripeCustomerId: vi.fn(),
+  } as any
+}
+
+function createMockBillingService(flux = 100): BillingService {
+  let balance = flux
+  return {
+    debitFlux: vi.fn(async (input: { userId: string, amount: number }) => {
+      balance -= input.amount
+      return { userId: input.userId, flux: balance }
+    }),
+    creditFlux: vi.fn(),
+    creditFluxFromStripeCheckout: vi.fn(),
+    creditFluxFromInvoice: vi.fn(),
   } as any
 }
 
@@ -51,8 +63,9 @@ function createTestApp(
   fluxService: FluxService,
   configKV: ConfigKVService,
   requestLogService: RequestLogService,
+  billingService?: BillingService,
 ) {
-  const routes = createV1CompletionsRoutes(fluxService, configKV, requestLogService, null)
+  const routes = createV1CompletionsRoutes(fluxService, billingService ?? createMockBillingService(), configKV, requestLogService, null)
   const app = new Hono<HonoEnv>()
 
   app.onError((err, c) => {
@@ -132,9 +145,10 @@ describe('v1CompletionsRoutes', () => {
       }))
 
       const fluxService = createMockFluxService(100)
+      const billingService = createMockBillingService(100)
       const configKV = createMockConfigKV({ GATEWAY_BASE_URL: 'http://mock-gateway/' })
       const requestLogService = createMockRequestLogService()
-      const app = createTestApp(fluxService, configKV, requestLogService)
+      const app = createTestApp(fluxService, configKV, requestLogService, billingService)
 
       const res = await app.fetch(
         new Request('http://localhost/api/v1/chat/completions', {
@@ -149,8 +163,10 @@ describe('v1CompletionsRoutes', () => {
       const data = await res.json()
       expect(data.id).toBe('chatcmpl-1')
 
-      // Verify flux was consumed
-      expect(fluxService.consumeFlux).toHaveBeenCalledWith('user-1', 1)
+      // Verify flux was debited via billingService
+      expect(billingService.debitFlux).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 'user-1', amount: 1 }),
+      )
 
       // Verify upstream was called with correct URL and resolved model
       expect(globalThis.fetch).toHaveBeenCalledWith(
@@ -222,8 +238,8 @@ describe('v1CompletionsRoutes', () => {
         headers: { 'Content-Type': 'application/json' },
       }))
 
-      const fluxService = createMockFluxService(100)
-      const app = createTestApp(fluxService, createMockConfigKV(), createMockRequestLogService())
+      const billingService = createMockBillingService(100)
+      const app = createTestApp(createMockFluxService(100), createMockConfigKV(), createMockRequestLogService(), billingService)
 
       const res = await app.fetch(
         new Request('http://localhost/api/v1/chat/completions', {
@@ -235,9 +251,8 @@ describe('v1CompletionsRoutes', () => {
       )
 
       expect(res.status).toBe(500)
-      // Post-billing: no charge on failed requests, no refund needed
-      expect(fluxService.consumeFlux).not.toHaveBeenCalled()
-      expect(fluxService.addFlux).not.toHaveBeenCalled()
+      // Post-billing: no charge on failed requests
+      expect(billingService.debitFlux).not.toHaveBeenCalled()
     })
 
     it('should return 503 when config keys are missing', async () => {

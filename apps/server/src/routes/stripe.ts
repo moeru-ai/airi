@@ -1,4 +1,3 @@
-import type { Database } from '../libs/db'
 import type { Env } from '../libs/env'
 import type { RevenueMetrics } from '../libs/otel'
 import type { BillingService } from '../services/billing-service'
@@ -10,15 +9,12 @@ import type { HonoEnv } from '../types/hono'
 import Stripe from 'stripe'
 
 import { useLogger } from '@guiiai/logg'
-import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { integer, minValue, number, object, pipe, safeParse } from 'valibot'
 
 import { authGuard } from '../middlewares/auth'
 import { configGuard } from '../middlewares/config-guard'
 import { createBadRequestError, createServiceUnavailableError } from '../utils/error'
-
-import * as stripeSchema from '../schemas/stripe'
 
 const logger = useLogger('stripe')
 
@@ -27,7 +23,6 @@ const CheckoutBodySchema = object({
 })
 
 export function createStripeRoutes(
-  db: Database,
   fluxService: FluxService,
   stripeService: StripeService,
   billingService: BillingService,
@@ -184,7 +179,7 @@ export function createStripeRoutes(
         case 'invoice.updated':
         case 'invoice.paid':
         case 'invoice.payment_failed': {
-          await handleInvoiceEvent(db, event.data.object, fluxService, stripeService, configKV)
+          await handleInvoiceEvent(event.id, event.data.object, stripeService, billingService, configKV)
           if (event.type === 'invoice.payment_failed') {
             metrics?.stripePaymentFailed.add(1)
           }
@@ -316,10 +311,10 @@ async function handleSubscriptionEvent(
 }
 
 async function handleInvoiceEvent(
-  database: Database,
+  stripeEventId: string,
   invoice: Stripe.Invoice,
-  fluxService: FluxService,
   stripeService: StripeService,
+  billingService: BillingService,
   configKV: ConfigKVService,
 ) {
   const stripeCustomerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id
@@ -358,22 +353,15 @@ async function handleInvoiceEvent(
     const fluxPerCent = await configKV.getOrThrow('FLUX_PER_CENT')
     const fluxAmount = invoice.amount_paid * fluxPerCent
 
-    await database.transaction(async (tx) => {
-      const record = await tx.query.stripeInvoice.findFirst({
-        where: eq(stripeSchema.stripeInvoice.stripeInvoiceId, invoice.id),
-      })
-      if (!record || record.fluxCredited) {
-        logger.withFields({ invoiceId: invoice.id, alreadyCredited: record?.fluxCredited }).log('Skipping invoice flux credit (idempotent)')
-        return
-      }
-
-      await tx.update(stripeSchema.stripeInvoice)
-        .set({ fluxCredited: true, updatedAt: new Date() })
-        .where(eq(stripeSchema.stripeInvoice.stripeInvoiceId, invoice.id))
-
-      await fluxService.addFlux(customer.userId, fluxAmount, `Subscription invoice ${invoice.currency?.toUpperCase()} ${(invoice.amount_paid / 100).toFixed(2)}`)
+    const result = await billingService.creditFluxFromInvoice({
+      stripeEventId,
+      userId: customer.userId,
+      stripeInvoiceId: invoice.id,
+      amountPaid: invoice.amount_paid,
+      currency: invoice.currency ?? 'unknown',
+      fluxAmount,
     })
 
-    logger.withFields({ userId: customer.userId, fluxAmount, invoiceId: invoice.id }).log('Flux credited for subscription invoice')
+    logger.withFields({ userId: customer.userId, fluxAmount, invoiceId: invoice.id, applied: result.applied }).log('Processed flux credit for subscription invoice')
   }
 }

@@ -4,6 +4,7 @@ import type { Context } from 'hono'
 
 import type { LlmMetrics } from '../libs/otel'
 import type { UsageInfo } from '../services/billing'
+import type { BillingService } from '../services/billing-service'
 import type { ConfigKVService } from '../services/config-kv'
 import type { FluxService } from '../services/flux'
 import type { RequestLogService } from '../services/request-log'
@@ -17,6 +18,7 @@ import { authGuard } from '../middlewares/auth'
 import { configGuard } from '../middlewares/config-guard'
 import { calculateFluxFromUsage, extractUsageFromBody } from '../services/billing'
 import { createPaymentRequiredError } from '../utils/error'
+import { nanoid } from '../utils/id'
 
 const tracer = trace.getTracer('v1-completions')
 
@@ -40,7 +42,7 @@ function normalizeBaseUrl(gatewayBaseUrl: string): string {
   return gatewayBaseUrl.endsWith('/') ? gatewayBaseUrl : `${gatewayBaseUrl}/`
 }
 
-export function createV1CompletionsRoutes(fluxService: FluxService, configKV: ConfigKVService, requestLogService: RequestLogService, llm: LlmMetrics | null) {
+export function createV1CompletionsRoutes(fluxService: FluxService, billingService: BillingService, configKV: ConfigKVService, requestLogService: RequestLogService, llm: LlmMetrics | null) {
   const logger = useLogger('v1-completions').useGlobalConfig()
 
   function recordMetrics(opts: { model: string, status: number, type: string, durationMs: number, fluxConsumed: number, promptTokens?: number, completionTokens?: number }) {
@@ -150,10 +152,16 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
           span.end()
           recordMetrics({ model: requestModel, status: response.status, type: 'chat', durationMs, fluxConsumed, ...usage })
 
-          // Best-effort billing — only log the actual charged amount
+          // Debit flux via DB transaction (source of truth)
+          const requestId = nanoid()
           let actualCharged = 0
           try {
-            await fluxService.consumeFlux(user.id, fluxConsumed)
+            await billingService.debitFlux({
+              userId: user.id,
+              amount: fluxConsumed,
+              requestId,
+              description: requestModel,
+            })
             actualCharged = fluxConsumed
           }
           catch (err) { logger.withError(err).withFields({ userId: user.id, fluxConsumed }).warn('Failed to consume flux after streaming') }
@@ -189,10 +197,16 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
     span.end()
     recordMetrics({ model: requestModel, status: response.status, type: 'chat', durationMs, fluxConsumed, ...usage })
 
-    // Best-effort billing — only log the actual charged amount
+    // Debit flux via DB transaction (source of truth)
+    const requestId = nanoid()
     let actualCharged = 0
     try {
-      await fluxService.consumeFlux(user.id, fluxConsumed)
+      await billingService.debitFlux({
+        userId: user.id,
+        amount: fluxConsumed,
+        requestId,
+        description: requestModel,
+      })
       actualCharged = fluxConsumed
     }
     catch (err) { logger.withError(err).withFields({ userId: user.id, fluxConsumed }).warn('Failed to consume flux') }
@@ -249,7 +263,12 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
     }
 
     const fluxPerRequest = await configKV.getOrThrow('FLUX_PER_REQUEST_TTS')
-    await fluxService.consumeFlux(user.id, fluxPerRequest)
+    await billingService.debitFlux({
+      userId: user.id,
+      amount: fluxPerRequest,
+      requestId: nanoid(),
+      description: `tts:${requestModel}`,
+    })
 
     span.setAttribute('llm.flux_consumed', fluxPerRequest)
     span.end()
@@ -309,7 +328,12 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
     }
 
     const fluxPerRequest = await configKV.getOrThrow('FLUX_PER_REQUEST_ASR')
-    await fluxService.consumeFlux(user.id, fluxPerRequest)
+    await billingService.debitFlux({
+      userId: user.id,
+      amount: fluxPerRequest,
+      requestId: nanoid(),
+      description: `asr:auto`,
+    })
 
     span.setAttribute('llm.flux_consumed', fluxPerRequest)
     span.end()
