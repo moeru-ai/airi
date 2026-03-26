@@ -1,6 +1,6 @@
 import type { BillingStreamMessage } from '../services/billing-mq'
 
-import { pid } from 'node:process'
+import process, { pid } from 'node:process'
 
 import { initLogger, LoggerFormat, LoggerLevel, useLogger } from '@guiiai/logg'
 
@@ -28,7 +28,7 @@ export interface RunBillingEventsConsumerOptions {
 export async function runBillingEventsConsumer(options: RunBillingEventsConsumerOptions): Promise<void> {
   initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
 
-  const env = parseEnv(globalThis.process.env)
+  const env = parseEnv(process.env)
   const logger = useLogger(options.loggerName).useGlobalConfig()
   const redis = createRedis(env.REDIS_URL)
 
@@ -46,10 +46,10 @@ export async function runBillingEventsConsumer(options: RunBillingEventsConsumer
     abortController.abort()
   }
 
-  globalThis.process.once('SIGINT', () => {
+  process.once('SIGINT', () => {
     void shutdown('SIGINT')
   })
-  globalThis.process.once('SIGTERM', () => {
+  process.once('SIGTERM', () => {
     void shutdown('SIGTERM')
   })
 
