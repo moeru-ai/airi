@@ -6,9 +6,9 @@ import { until } from '@vueuse/core'
 import { computed, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { useAudioDevice } from '../../../composables/audio'
 import { useAudioAnalyzer } from '../../../composables/audio/audio-analyzer'
 import { useAudioRecorder } from '../../../composables/audio/audio-recorder'
-import { useAudioDevice } from '../../../composables/audio/device'
 import { LevelMeter, TestDummyMarker, ThresholdMeter } from '../../gadgets'
 
 const props = defineProps<{
