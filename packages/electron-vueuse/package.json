@@ -36,7 +36,7 @@
     "vue": ">=3"
   },
   "dependencies": {
-    "@moeru/eventa": "^1.0.0-beta.1",
+    "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
     "@vueuse/core": "catalog:",
     "es-toolkit": "catalog:",

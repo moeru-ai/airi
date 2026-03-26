@@ -48,7 +48,7 @@
     "@guiiai/logg": "catalog:",
     "@huggingface/transformers": "^3.8.1",
     "@intlify/core": "catalog:",
-    "@moeru/eventa": "^1.0.0-beta.1",
+    "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/audio": "workspace:^",
     "@proj-airi/ccc": "workspace:^",

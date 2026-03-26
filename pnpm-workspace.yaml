@@ -45,7 +45,7 @@ catalog:
   '@intlify/core': ^11.3.0
   '@modelcontextprotocol/sdk': ^1.27.1
   '@moeru/eslint-config': 0.1.0-beta.15
-  '@moeru/eventa': 1.0.0-alpha.14
+  '@moeru/eventa': 1.0.0-beta.2
   '@moeru/std': 0.1.0-beta.17
   '@nekopaw/tempora': 0.4.0-alpha.1
   '@pinia/testing': ^1.0.3

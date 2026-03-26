@@ -31,7 +31,7 @@
     "electron": ">=39 <41"
   },
   "dependencies": {
-    "@moeru/eventa": "^1.0.0-beta.1",
+    "@moeru/eventa": "catalog:",
     "builder-util-runtime": "catalog:"
   }
 }

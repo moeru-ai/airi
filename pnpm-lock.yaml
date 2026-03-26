@@ -55,8 +55,8 @@ catalogs:
       specifier: 0.1.0-beta.15
       version: 0.1.0-beta.15
     '@moeru/eventa':
-      specifier: 1.0.0-alpha.14
-      version: 1.0.0-alpha.14
+      specifier: 1.0.0-beta.2
+      version: 1.0.0-beta.2
     '@moeru/std':
       specifier: 0.1.0-beta.17
       version: 0.1.0-beta.17
@@ -622,8 +622,8 @@ importers:
         specifier: ^3.8.1
         version: 3.8.1
       '@moeru/eventa':
-        specifier: ^1.0.0-beta.1
-        version: 1.0.0-beta.1(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        specifier: 'catalog:'
+        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -1019,8 +1019,8 @@ importers:
         specifier: 'catalog:'
         version: 11.3.0
       '@moeru/eventa':
-        specifier: ^1.0.0-beta.1
-        version: 1.0.0-beta.1(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        specifier: 'catalog:'
+        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -1443,8 +1443,8 @@ importers:
         specifier: ^3.8.1
         version: 3.8.1
       '@moeru/eventa':
-        specifier: ^1.0.0-beta.1
-        version: 1.0.0-beta.1(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        specifier: 'catalog:'
+        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2041,8 +2041,8 @@ importers:
   packages/electron-eventa:
     dependencies:
       '@moeru/eventa':
-        specifier: ^1.0.0-beta.1
-        version: 1.0.0-beta.1(electron@40.8.3)
+        specifier: 'catalog:'
+        version: 1.0.0-beta.2(electron@40.8.3)
       builder-util-runtime:
         specifier: 'catalog:'
         version: 9.5.1
@@ -2068,9 +2068,6 @@ importers:
       '@electron-toolkit/preload':
         specifier: 'catalog:'
         version: 3.0.2(electron@39.7.0)
-      '@moeru/eventa':
-        specifier: 'catalog:'
-        version: 1.0.0-alpha.14(electron@39.7.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2087,8 +2084,8 @@ importers:
   packages/electron-vueuse:
     dependencies:
       '@moeru/eventa':
-        specifier: ^1.0.0-beta.1
-        version: 1.0.0-beta.1(electron@40.8.3)
+        specifier: 'catalog:'
+        version: 1.0.0-beta.2(electron@40.8.3)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2180,8 +2177,8 @@ importers:
   packages/pipelines-audio:
     dependencies:
       '@moeru/eventa':
-        specifier: ^1.0.0-beta.1
-        version: 1.0.0-beta.1(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        specifier: 'catalog:'
+        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2193,7 +2190,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-alpha.14(electron@41.0.3)
+        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
@@ -2202,7 +2199,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-alpha.14(electron@41.0.3)
+        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@proj-airi/plugin-protocol':
         specifier: workspace:*
         version: link:../plugin-protocol
@@ -2276,8 +2273,8 @@ importers:
   packages/stage-layouts:
     dependencies:
       '@moeru/eventa':
-        specifier: ^1.0.0-beta.1
-        version: 1.0.0-beta.1(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        specifier: 'catalog:'
+        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2379,8 +2376,8 @@ importers:
   packages/stage-pages:
     dependencies:
       '@moeru/eventa':
-        specifier: ^1.0.0-beta.1
-        version: 1.0.0-beta.1(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        specifier: 'catalog:'
+        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2513,8 +2510,8 @@ importers:
         specifier: ^3.0.2
         version: 3.0.2(electron@41.0.3)
       '@moeru/eventa':
-        specifier: ^1.0.0-beta.1
-        version: 1.0.0-beta.1(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        specifier: 'catalog:'
+        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@nekopaw/tempora':
         specifier: 'catalog:'
         version: 0.4.0-alpha.1
@@ -2537,8 +2534,8 @@ importers:
         specifier: ^3.8.1
         version: 3.8.1
       '@moeru/eventa':
-        specifier: ^1.0.0-beta.1
-        version: 1.0.0-beta.1(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        specifier: 'catalog:'
+        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../audio
@@ -2995,8 +2992,8 @@ importers:
   packages/stage-ui-three:
     dependencies:
       '@moeru/eventa':
-        specifier: ^1.0.0-beta.1
-        version: 1.0.0-beta.1(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        specifier: 'catalog:'
+        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@pixiv/three-vrm':
         specifier: ^3.5.1
         version: 3.5.1(@types/three@0.183.1)(three@0.183.2)
@@ -3265,8 +3262,8 @@ importers:
         specifier: ^1.2.4
         version: 1.2.4
       '@moeru/eventa':
-        specifier: ^1.0.0-beta.1
-        version: 1.0.0-beta.1(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        specifier: 'catalog:'
+        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../../packages/server-sdk
@@ -6103,22 +6100,8 @@ packages:
       web-worker:
         optional: true
 
-  '@moeru/eventa@1.0.0-alpha.14':
-    resolution: {integrity: sha512-VMz75aYTJO85yXj0jj/M8ImakOYr6OUZnV/I5gmseVrMFcqBc8UC6Pk2LTwoMQw/EWaU59557a1lpnUqeyTMQw==}
-    peerDependencies:
-      electron: '>=30'
-      h3: 2.0.0-beta.1
-      web-worker: ^1.5.0
-    peerDependenciesMeta:
-      electron:
-        optional: true
-      h3:
-        optional: true
-      web-worker:
-        optional: true
-
-  '@moeru/eventa@1.0.0-beta.1':
-    resolution: {integrity: sha512-4VPs+FlTdIMtlNdBvERvF+e9pnSbz+PN7dgztADtaETCQsSDk9ptHJuzajRBhOlr364k4TotroZa9rrIoVelRQ==}
+  '@moeru/eventa@1.0.0-beta.2':
+    resolution: {integrity: sha512-Sr4GMRaFNURj72coeK3ZoPz8bvOTSJopTmRcHiVjaae2U3bzrz1gNZXcaN3dRSvd+3Vxm7VPrsUGFHkcPZ2c0w==}
     peerDependencies:
       electron: '>=30'
       h3: 2.0.0-beta.1
@@ -20053,28 +20036,14 @@ snapshots:
       electron: 41.0.3
       h3: 2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d)))
 
-  '@moeru/eventa@1.0.0-alpha.14(electron@39.7.0)':
-    dependencies:
-      nanoid: 5.1.7
-      picomatch: 4.0.3
-    optionalDependencies:
-      electron: 39.7.0
-
-  '@moeru/eventa@1.0.0-alpha.14(electron@41.0.3)':
-    dependencies:
-      nanoid: 5.1.7
-      picomatch: 4.0.3
-    optionalDependencies:
-      electron: 41.0.3
-
-  '@moeru/eventa@1.0.0-beta.1(electron@40.8.3)':
+  '@moeru/eventa@1.0.0-beta.2(electron@40.8.3)':
     dependencies:
       nanoid: 5.1.7
       picomatch: 4.0.3
     optionalDependencies:
       electron: 40.8.3
 
-  '@moeru/eventa@1.0.0-beta.1(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))':
+  '@moeru/eventa@1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))':
     dependencies:
       nanoid: 5.1.7
       picomatch: 4.0.3
