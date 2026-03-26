@@ -7,7 +7,10 @@ import { bearer } from 'better-auth/plugins'
 
 import * as authSchema from '../schemas/accounts'
 
-export function createAuth(db: Database, env: Env) {
+// NOTICE: return type uses `any` to avoid TS2742 — betterAuth's inferred type
+// references internal pnpm paths (@better-auth/core) that aren't directly accessible
+
+export function createAuth(db: Database, env: Env): any {
   return betterAuth({
     database: drizzleAdapter(db, {
       provider: 'pg',

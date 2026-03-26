@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import type { OnboardingStepNextHandler } from './types'
+
 import { all } from '@proj-airi/i18n'
 import { Button, FieldCombobox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, inject } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import onboardingLogo from '../../../../assets/onboarding.avif'
@@ -10,10 +12,13 @@ import onboardingLogo from '../../../../assets/onboarding.avif'
 import { useAuthStore } from '../../../../stores/auth'
 import { useOnboardingStore } from '../../../../stores/onboarding'
 import { useSettingsGeneral } from '../../../../stores/settings'
-import { OnboardingContextKey } from './utils'
 
+interface Props {
+  onNext: OnboardingStepNextHandler
+}
+
+const props = defineProps<Props>()
 const { t } = useI18n()
-const context = inject(OnboardingContextKey)!
 const authStore = useAuthStore()
 const onboardingStore = useOnboardingStore()
 const settingsStore = useSettingsGeneral()
@@ -29,7 +34,7 @@ function handleLogin() {
 }
 
 function handleLocalSetup() {
-  context.handleNextStep()
+  props.onNext()
 }
 </script>
 
