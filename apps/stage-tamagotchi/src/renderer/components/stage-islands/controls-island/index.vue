@@ -189,22 +189,6 @@ function refreshWindow() {
             </ControlButtonTooltip>
 
             <ControlButtonTooltip disable-hoverable-content>
-              <ControlsIslandHearingConfig :show="blockingOverlays.has('hearing')" @update:show="setOverlay('hearing', $event)">
-                <div class="relative">
-                  <ControlButton :button-style="adjustStyleClasses.button">
-                    <Transition name="fade" mode="out-in">
-                      <IndicatorMicVolume v-if="enabled" :class="adjustStyleClasses.icon" />
-                      <div v-else i-ph:microphone-slash :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
-                    </Transition>
-                  </ControlButton>
-                </div>
-              </ControlsIslandHearingConfig>
-              <template #tooltip>
-                {{ t('tamagotchi.stage.controls-island.open-hearing-controls') }}
-              </template>
-            </ControlButtonTooltip>
-
-            <ControlButtonTooltip disable-hoverable-content>
               <ControlButton :button-style="adjustStyleClasses.button" @click="toggleAlwaysOnTop()">
                 <div v-if="alwaysOnTop" i-solar:pin-bold :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
                 <div v-else i-solar:pin-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300 opacity-50" />
@@ -233,15 +217,29 @@ function refreshWindow() {
         <ControlButtonTooltip side="left">
           <ControlButton :button-style="adjustStyleClasses.button" @click="expanded = !expanded">
             <div
-
               :class="[adjustStyleClasses.icon, expanded ? 'rotate-180' : 'rotate-0']"
-
               i-solar:alt-arrow-up-line-duotone scale-110 transition-all duration-300
               text="neutral-800 dark:neutral-300"
             />
           </ControlButton>
           <template #tooltip>
             {{ expanded ? t('tamagotchi.stage.controls-island.collapse') : t('tamagotchi.stage.controls-island.expand') }}
+          </template>
+        </ControlButtonTooltip>
+
+        <ControlButtonTooltip side="left">
+          <ControlsIslandHearingConfig :show="blockingOverlays.has('hearing')" @update:show="setOverlay('hearing', $event)">
+            <div class="relative">
+              <ControlButton :button-style="adjustStyleClasses.button">
+                <Transition name="fade" mode="out-in">
+                  <IndicatorMicVolume v-if="enabled" :class="adjustStyleClasses.icon" />
+                  <div v-else i-ph:microphone-slash :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                </Transition>
+              </ControlButton>
+            </div>
+          </ControlsIslandHearingConfig>
+          <template #tooltip>
+            {{ t('tamagotchi.stage.controls-island.open-hearing-controls') }}
           </template>
         </ControlButtonTooltip>
 
