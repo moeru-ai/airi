@@ -1,5 +1,5 @@
 <template>
   <div>
-    Dashboard
+    <!-- Editor -->
   </div>
 </template>

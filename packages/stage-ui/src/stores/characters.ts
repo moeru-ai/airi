@@ -10,6 +10,7 @@ import { useLocalFirstRequest } from '../composables/use-local-first'
 import { charactersRepo } from '../database/repos/characters.repo'
 import { CharacterWithRelationsSchema } from '../types/character'
 import { useAuthStore } from './auth'
+import { defaultCharacterCardPresets, displayModelPresets } from './display-models'
 
 function buildLocalCharacter(userId: string, payload: CreateCharacterPayload) {
   const id = payload.character.id ?? nanoid()
@@ -72,6 +73,88 @@ function buildLocalCharacter(userId: string, payload: CreateCharacterPayload) {
   })
 }
 
+function buildDefaultCharacters(userId: string): Character[] {
+  const now = new Date()
+
+  return defaultCharacterCardPresets.map((preset) => {
+    const displayModel = displayModelPresets.find(model => model.id === preset.displayModelId && model.type === 'url')
+    const avatarModelConfig = preset.avatarModelType === 'live2d'
+      ? { live2d: { urls: displayModel ? [displayModel.url] : [] } }
+      : { vrm: { urls: displayModel ? [displayModel.url] : [] } }
+
+    return parse(CharacterWithRelationsSchema, {
+      id: preset.id,
+      version: '1.0.0',
+      coverUrl: preset.coverUrl,
+      avatarUrl: undefined,
+      characterAvatarUrl: preset.characterAvatarUrl,
+      coverBackgroundUrl: preset.coverBackgroundUrl,
+      creatorRole: 'system',
+      priceCredit: '0',
+      likesCount: 0,
+      bookmarksCount: 0,
+      interactionsCount: 0,
+      forksCount: 0,
+      creatorId: userId,
+      ownerId: userId,
+      characterId: preset.characterId,
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: undefined,
+      capabilities: [],
+      avatarModels: [
+        {
+          id: `avatar-model-${preset.id}`,
+          characterId: preset.id,
+          name: displayModel?.name || preset.name,
+          type: preset.avatarModelType,
+          description: `${preset.name} default avatar model`,
+          config: avatarModelConfig,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+      i18n: [
+        {
+          id: `i18n-${preset.id}`,
+          characterId: preset.id,
+          language: 'en',
+          name: preset.name,
+          tagline: preset.tagline,
+          description: preset.description,
+          tags: ['default', preset.avatarModelType],
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+      prompts: [],
+      likes: [],
+      bookmarks: [],
+    })
+  })
+}
+
+async function hydrateCharactersWithDefaults(userId: string) {
+  const cached = await charactersRepo.getAll()
+  const merged = new Map<string, Character>(cached.map(char => [char.id, char]))
+  const defaults = buildDefaultCharacters(userId)
+  let changed = cached.length === 0
+
+  for (const presetCharacter of defaults) {
+    if (!merged.has(presetCharacter.id)) {
+      merged.set(presetCharacter.id, presetCharacter)
+      changed = true
+    }
+  }
+
+  const nextCharacters = [...merged.values()]
+  if (changed) {
+    await charactersRepo.saveAll(nextCharacters)
+  }
+
+  return nextCharacters
+}
+
 export const useCharacterStore = defineStore('characters', () => {
   const characters = ref<Map<string, Character>>(new Map())
   const auth = useAuthStore()
@@ -79,12 +162,11 @@ export const useCharacterStore = defineStore('characters', () => {
   async function fetchList(all: boolean = false) {
     return useLocalFirstRequest({
       local: async () => {
-        const cached = await charactersRepo.getAll()
-        if (cached.length > 0) {
-          characters.value.clear()
-          for (const char of cached) {
-            characters.value.set(char.id, char)
-          }
+        const cached = await hydrateCharactersWithDefaults(auth.userId)
+
+        characters.value.clear()
+        for (const char of cached) {
+          characters.value.set(char.id, char)
         }
       },
       remote: async () => {
@@ -96,16 +178,37 @@ export const useCharacterStore = defineStore('characters', () => {
         }
         const data = await res.json()
 
-        characters.value.clear()
         const parsedData: Character[] = []
         for (const char of data) {
           const parsed = parse(CharacterWithRelationsSchema, char)
-          characters.value.set(char.id, parsed)
           parsedData.push(parsed)
         }
-        await charactersRepo.saveAll(parsedData)
+
+        const merged = new Map<string, Character>(parsedData.map(char => [char.id, char]))
+        for (const presetCharacter of buildDefaultCharacters(auth.userId)) {
+          if (!merged.has(presetCharacter.id)) {
+            merged.set(presetCharacter.id, presetCharacter)
+          }
+        }
+
+        const mergedData = [...merged.values()]
+        characters.value.clear()
+        for (const char of mergedData) {
+          characters.value.set(char.id, char)
+        }
+
+        await charactersRepo.saveAll(mergedData)
       },
     })
+  }
+
+  async function ensureDefaultCharacters() {
+    const cached = await hydrateCharactersWithDefaults(auth.userId)
+
+    characters.value.clear()
+    for (const char of cached) {
+      characters.value.set(char.id, char)
+    }
   }
 
   async function fetchById(id: string) {
@@ -290,6 +393,7 @@ export const useCharacterStore = defineStore('characters', () => {
   return {
     characters,
 
+    ensureDefaultCharacters,
     fetchList,
     fetchById,
     create,

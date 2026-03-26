@@ -6,7 +6,7 @@ export interface PluginHostProviderSummary {
   name: string
 }
 
-export function listProvidersForPluginHost(): PluginHostProviderSummary[] {
+export function listProvidersForPluginHost(_options?: unknown): PluginHostProviderSummary[] {
   return listProviders().map(provider => ({ name: provider.name }))
 }
 
