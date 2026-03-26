@@ -8,11 +8,11 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "paths": {
-      "@proj-airi/server-protocol": [
-        "../server-protocol/src/index.ts"
+      "@proj-airi/server-shared": [
+        "../server-shared/src/index.ts"
       ],
-      "@proj-airi/server-protocol/*": [
-        "../server-protocol/src/*"
+      "@proj-airi/server-shared/*": [
+        "../server-shared/src/*"
       ]
     },
     "esModuleInterop": true,

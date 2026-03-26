@@ -1,8 +1,8 @@
 {
-  "name": "@proj-airi/server-protocol",
+  "name": "@proj-airi/server-sdk-shared",
   "type": "module",
   "version": "0.9.0-alpha.22",
-  "description": "Shared protocol types for AIRI server clients, frontends, and runtimes",
+  "description": "Shared event contracts and types consumed by AIRI server-sdk clients and server-side handlers",
   "author": {
     "name": "Moeru AI Project AIRI Team",
     "email": "airi@moeru.ai",
@@ -12,16 +12,12 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/moeru-ai/airi.git",
-    "directory": "packages/server-protocol"
+    "directory": "packages/server-sdk-shared"
   },
   "exports": {
     ".": {
       "types": "./dist/index.d.mts",
       "default": "./dist/index.mjs"
-    },
-    "./types": {
-      "types": "./dist/types/index.d.mts",
-      "default": "./dist/types/index.mjs"
     }
   },
   "main": "./dist/index.mjs",
@@ -37,7 +33,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@moeru/eventa": "catalog:",
-    "@proj-airi/plugin-protocol": "workspace:*"
+    "@moeru/eventa": "catalog:"
   }
 }

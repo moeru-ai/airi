@@ -1,1 +1,1 @@
-export * from '@proj-airi/server-protocol'
+export * from '@proj-airi/server-sdk-shared'

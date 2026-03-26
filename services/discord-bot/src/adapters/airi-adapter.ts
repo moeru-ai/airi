@@ -1,11 +1,11 @@
-import type { Discord } from '@proj-airi/server-protocol'
+import type { Discord } from '@proj-airi/server-shared/types'
 import type { Interaction } from 'discord.js'
 
 import { env } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
-import { ContextUpdateStrategy } from '@proj-airi/server-protocol'
 import { Client as ServerChannel } from '@proj-airi/server-sdk'
+import { ContextUpdateStrategy } from '@proj-airi/server-shared/types'
 import { Client, Events, GatewayIntentBits, Partials } from 'discord.js'
 
 import { handlePing, registerCommands, VoiceManager } from '../bots/discord/commands'

@@ -572,12 +572,12 @@ importers:
       '@proj-airi/drizzle-orm-browser-migrator':
         specifier: ^0.1.6
         version: 0.1.6(drizzle-orm@0.45.1(@electric-sql/pglite@0.4.1)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.8))
-      '@proj-airi/server-protocol':
-        specifier: workspace:*
-        version: link:../../packages/server-protocol
       '@proj-airi/server-schema':
         specifier: workspace:*
         version: link:../../packages/server-schema
+      '@proj-airi/server-sdk-shared':
+        specifier: workspace:*
+        version: link:../../packages/server-sdk-shared
       better-auth:
         specifier: ^1.5.6
         version: 1.5.6(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.10)(drizzle-orm@0.45.1(@electric-sql/pglite@0.4.1)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.8))(pg@8.20.0)(react@19.2.3)(vitest@4.1.1)(vue@3.5.30(typescript@5.9.3))
@@ -2243,15 +2243,6 @@ importers:
         specifier: ^5.28.0
         version: 5.28.0
 
-  packages/server-protocol:
-    dependencies:
-      '@moeru/eventa':
-        specifier: 'catalog:'
-        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
-      '@proj-airi/plugin-protocol':
-        specifier: workspace:*
-        version: link:../plugin-protocol
-
   packages/server-runtime:
     dependencies:
       '@guiiai/logg':
@@ -2260,9 +2251,6 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
-      '@proj-airi/server-protocol':
-        specifier: workspace:^
-        version: link:../server-protocol
       '@proj-airi/server-shared':
         specifier: workspace:^
         version: link:../server-shared
@@ -2296,9 +2284,9 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
-      '@proj-airi/server-protocol':
+      '@proj-airi/server-sdk-shared':
         specifier: workspace:^
-        version: link:../server-protocol
+        version: link:../server-sdk-shared
       '@proj-airi/server-shared':
         specifier: workspace:^
         version: link:../server-shared
@@ -2309,7 +2297,17 @@ importers:
         specifier: 'catalog:'
         version: 2.2.6
 
-  packages/server-shared: {}
+  packages/server-sdk-shared:
+    dependencies:
+      '@moeru/eventa':
+        specifier: 'catalog:'
+        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+
+  packages/server-shared:
+    dependencies:
+      '@proj-airi/plugin-protocol':
+        specifier: workspace:*
+        version: link:../plugin-protocol
 
   packages/stage-layouts:
     dependencies:
@@ -2428,12 +2426,12 @@ importers:
       '@proj-airi/i18n':
         specifier: workspace:*
         version: link:../i18n
-      '@proj-airi/server-protocol':
-        specifier: workspace:*
-        version: link:../server-protocol
       '@proj-airi/server-sdk':
         specifier: workspace:*
         version: link:../server-sdk
+      '@proj-airi/server-shared':
+        specifier: workspace:*
+        version: link:../server-shared
       '@proj-airi/stage-ui':
         specifier: workspace:*
         version: link:../stage-ui
@@ -2610,12 +2608,12 @@ importers:
       '@proj-airi/pipelines-audio':
         specifier: workspace:^
         version: link:../pipelines-audio
-      '@proj-airi/server-protocol':
-        specifier: workspace:^
-        version: link:../server-protocol
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../server-sdk
+      '@proj-airi/server-shared':
+        specifier: workspace:^
+        version: link:../server-shared
       '@proj-airi/stage-shared':
         specifier: workspace:^
         version: link:../stage-shared
@@ -3353,12 +3351,12 @@ importers:
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../../packages/audio
-      '@proj-airi/server-protocol':
-        specifier: workspace:^
-        version: link:../../packages/server-protocol
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../../packages/server-sdk
+      '@proj-airi/server-shared':
+        specifier: workspace:^
+        version: link:../../packages/server-shared
       '@snazzah/davey':
         specifier: ^0.1.10
         version: 0.1.10

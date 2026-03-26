@@ -39,7 +39,7 @@
   "dependencies": {
     "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
-    "@proj-airi/server-protocol": "workspace:^",
+    "@proj-airi/server-sdk-shared": "workspace:^",
     "@proj-airi/server-shared": "workspace:^",
     "crossws": "^0.4.4",
     "superjson": "catalog:"

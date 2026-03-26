@@ -1,4 +1,4 @@
-import type { MetadataEventSource } from '@proj-airi/server-protocol'
+import type { MetadataEventSource } from '@proj-airi/server-shared/types'
 
 interface EventSourcePayload {
   source?: string

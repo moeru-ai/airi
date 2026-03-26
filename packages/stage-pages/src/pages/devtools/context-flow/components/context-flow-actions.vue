@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ContextUpdateStrategy } from '@proj-airi/server-protocol'
+import { ContextUpdateStrategy } from '@proj-airi/server-shared/types'
 import { Section } from '@proj-airi/stage-ui/components'
 import { Button, FieldInput, FieldTextArea, SelectTab } from '@proj-airi/ui'
 

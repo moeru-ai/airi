@@ -1,4 +1,4 @@
-import type { MessageRole, WireMessage } from '@proj-airi/server-protocol'
+import type { MessageRole, WireMessage } from '@proj-airi/server-sdk-shared'
 
 import type { Database } from '../libs/db'
 import type { EngagementMetrics } from '../libs/otel'

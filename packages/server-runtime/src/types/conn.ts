@@ -1,4 +1,4 @@
-import type { MetadataEventSource } from '@proj-airi/server-protocol'
+import type { MetadataEventSource } from '@proj-airi/server-shared/types'
 
 export interface Peer {
   /**

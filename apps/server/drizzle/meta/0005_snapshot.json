@@ -1,5 +1,5 @@
 {
-  "id": "a5a18f1d-badd-401b-8f55-a4745aade80c",
+  "id": "22b43247-dc0b-4bde-8869-955460dbd3e2",
   "prevId": "45bc0dad-65f5-4695-9115-3d7d376b6440",
   "version": "7",
   "dialect": "postgresql",
@@ -2294,7 +2294,7 @@
         },
         "cancel_at_period_end": {
           "name": "cancel_at_period_end",
-          "type": "text",
+          "type": "boolean",
           "primaryKey": false,
           "notNull": false
         },
