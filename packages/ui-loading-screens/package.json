@@ -36,7 +36,7 @@
   "devDependencies": {
     "@proj-airi/ui": "workspace:^",
     "@unocss/reset": "^66.6.7",
-    "@vitejs/plugin-vue": "^6.0.5",
+    "unplugin-vue": "catalog:",
     "unplugin-vue-router": "^0.19.2",
     "vite": "catalog:",
     "vite-plugin-vue-devtools": "^8.1.1",
