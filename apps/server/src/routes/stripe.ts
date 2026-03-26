@@ -9,6 +9,7 @@ import type { HonoEnv } from '../types/hono'
 import Stripe from 'stripe'
 
 import { useLogger } from '@guiiai/logg'
+import { errorMessageFrom } from '@moeru/std'
 import { Hono } from 'hono'
 import { integer, minValue, number, object, pipe, safeParse } from 'valibot'
 
@@ -150,8 +151,7 @@ export function createStripeRoutes(
         event = stripe.webhooks.constructEvent(body, sig, env.STRIPE_WEBHOOK_SECRET)
       }
       catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unknown error'
-        throw createBadRequestError(`Webhook Error: ${message}`, 'WEBHOOK_ERROR')
+        throw createBadRequestError(`Webhook Error: ${errorMessageFrom(err) ?? 'Unknown error'}`, 'WEBHOOK_ERROR')
       }
 
       logger.withFields({ type: event.type, id: event.id }).log('Webhook event received')

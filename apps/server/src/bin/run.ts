@@ -4,6 +4,8 @@ import process from 'node:process'
 
 import { pathToFileURL } from 'node:url'
 
+import { errorMessageFrom } from '@moeru/std'
+
 import { runApiServer } from '../app'
 import { handleCacheSyncMessage, runBillingEventsConsumer } from './run-billing-events-consumer'
 import { runOutboxDispatcher } from './run-outbox-dispatcher'
@@ -70,8 +72,8 @@ function isExecutedAsMainModule(): boolean {
 }
 
 if (isExecutedAsMainModule()) {
-  void main().catch((error) => {
-    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`)
+  void main().catch((error: unknown) => {
+    process.stderr.write(`${errorMessageFrom(error) ?? 'Unknown error'}\n`)
     process.exit(1)
   })
 }

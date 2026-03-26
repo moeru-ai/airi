@@ -2,7 +2,7 @@ import type { Database } from '../libs/db'
 import type { NewStripeCheckoutSession, NewStripeCustomer, NewStripeInvoice, NewStripeSubscription } from '../schemas/stripe'
 
 import { useLogger } from '@guiiai/logg'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 
 import * as schema from '../schemas/stripe'
 
@@ -13,24 +13,15 @@ export function createStripeService(db: Database) {
     // ---- Customer ----
 
     async upsertCustomer(data: NewStripeCustomer) {
-      const existing = await db.query.stripeCustomer.findFirst({
-        where: eq(schema.stripeCustomer.stripeCustomerId, data.stripeCustomerId),
-      })
-
-      if (existing) {
-        const [updated] = await db.update(schema.stripeCustomer)
-          .set({ ...data, updatedAt: new Date() })
-          .where(eq(schema.stripeCustomer.stripeCustomerId, data.stripeCustomerId))
-          .returning()
-        logger.withFields({ userId: data.userId, stripeCustomerId: data.stripeCustomerId }).log('Updated Stripe customer')
-        return updated
-      }
-
-      const [created] = await db.insert(schema.stripeCustomer)
+      const [row] = await db.insert(schema.stripeCustomer)
         .values(data)
+        .onConflictDoUpdate({
+          target: schema.stripeCustomer.stripeCustomerId,
+          set: { ...data, updatedAt: new Date() },
+        })
         .returning()
-      logger.withFields({ userId: data.userId, stripeCustomerId: data.stripeCustomerId }).log('Created Stripe customer')
-      return created
+      logger.withFields({ userId: data.userId, stripeCustomerId: data.stripeCustomerId }).log('Upserted Stripe customer')
+      return row
     },
 
     async getCustomerByUserId(userId: string) {
@@ -48,24 +39,15 @@ export function createStripeService(db: Database) {
     // ---- Checkout Session ----
 
     async upsertCheckoutSession(data: NewStripeCheckoutSession) {
-      const existing = await db.query.stripeCheckoutSession.findFirst({
-        where: eq(schema.stripeCheckoutSession.stripeSessionId, data.stripeSessionId),
-      })
-
-      if (existing) {
-        const [updated] = await db.update(schema.stripeCheckoutSession)
-          .set({ ...data, updatedAt: new Date() })
-          .where(eq(schema.stripeCheckoutSession.stripeSessionId, data.stripeSessionId))
-          .returning()
-        logger.withFields({ userId: data.userId, sessionId: data.stripeSessionId, status: data.status }).log('Updated checkout session')
-        return updated
-      }
-
-      const [created] = await db.insert(schema.stripeCheckoutSession)
+      const [row] = await db.insert(schema.stripeCheckoutSession)
         .values(data)
+        .onConflictDoUpdate({
+          target: schema.stripeCheckoutSession.stripeSessionId,
+          set: { ...data, updatedAt: new Date() },
+        })
         .returning()
-      logger.withFields({ userId: data.userId, sessionId: data.stripeSessionId, status: data.status }).log('Created checkout session')
-      return created
+      logger.withFields({ userId: data.userId, sessionId: data.stripeSessionId, status: data.status }).log('Upserted checkout session')
+      return row
     },
 
     async getCheckoutSessionsByUserId(userId: string) {
@@ -78,29 +60,23 @@ export function createStripeService(db: Database) {
     // ---- Subscription ----
 
     async upsertSubscription(data: NewStripeSubscription) {
-      const existing = await db.query.stripeSubscription.findFirst({
-        where: eq(schema.stripeSubscription.stripeSubscriptionId, data.stripeSubscriptionId),
-      })
-
-      if (existing) {
-        const [updated] = await db.update(schema.stripeSubscription)
-          .set({ ...data, updatedAt: new Date() })
-          .where(eq(schema.stripeSubscription.stripeSubscriptionId, data.stripeSubscriptionId))
-          .returning()
-        logger.withFields({ userId: data.userId, subscriptionId: data.stripeSubscriptionId, status: data.status }).log('Updated subscription')
-        return updated
-      }
-
-      const [created] = await db.insert(schema.stripeSubscription)
+      const [row] = await db.insert(schema.stripeSubscription)
         .values(data)
+        .onConflictDoUpdate({
+          target: schema.stripeSubscription.stripeSubscriptionId,
+          set: { ...data, updatedAt: new Date() },
+        })
         .returning()
-      logger.withFields({ userId: data.userId, subscriptionId: data.stripeSubscriptionId, status: data.status }).log('Created subscription')
-      return created
+      logger.withFields({ userId: data.userId, subscriptionId: data.stripeSubscriptionId, status: data.status }).log('Upserted subscription')
+      return row
     },
 
     async getActiveSubscription(userId: string) {
       return db.query.stripeSubscription.findFirst({
-        where: eq(schema.stripeSubscription.userId, userId),
+        where: and(
+          eq(schema.stripeSubscription.userId, userId),
+          eq(schema.stripeSubscription.status, 'active'),
+        ),
         orderBy: (t, { desc }) => [desc(t.createdAt)],
       })
     },
@@ -108,24 +84,15 @@ export function createStripeService(db: Database) {
     // ---- Invoice ----
 
     async upsertInvoice(data: NewStripeInvoice) {
-      const existing = await db.query.stripeInvoice.findFirst({
-        where: eq(schema.stripeInvoice.stripeInvoiceId, data.stripeInvoiceId),
-      })
-
-      if (existing) {
-        const [updated] = await db.update(schema.stripeInvoice)
-          .set({ ...data, updatedAt: new Date() })
-          .where(eq(schema.stripeInvoice.stripeInvoiceId, data.stripeInvoiceId))
-          .returning()
-        logger.withFields({ userId: data.userId, invoiceId: data.stripeInvoiceId, status: data.status }).log('Updated invoice')
-        return updated
-      }
-
-      const [created] = await db.insert(schema.stripeInvoice)
+      const [row] = await db.insert(schema.stripeInvoice)
         .values(data)
+        .onConflictDoUpdate({
+          target: schema.stripeInvoice.stripeInvoiceId,
+          set: { ...data, updatedAt: new Date() },
+        })
         .returning()
-      logger.withFields({ userId: data.userId, invoiceId: data.stripeInvoiceId, status: data.status }).log('Created invoice')
-      return created
+      logger.withFields({ userId: data.userId, invoiceId: data.stripeInvoiceId, status: data.status }).log('Upserted invoice')
+      return row
     },
 
     async getInvoicesByUserId(userId: string) {

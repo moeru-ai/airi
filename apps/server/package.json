@@ -21,6 +21,7 @@
     "@hono/node-server": "^1.19.11",
     "@hono/node-ws": "catalog:",
     "@moeru/eventa": "catalog:",
+    "@moeru/std": "catalog:",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/exporter-logs-otlp-proto": "^0.214.0",
     "@opentelemetry/exporter-metrics-otlp-proto": "^0.214.0",
