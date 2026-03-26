@@ -38,6 +38,7 @@ const props = withDefaults(defineProps<{
   by?: string | ((a: T, b: T) => boolean)
   contentMinWidth?: string | number
   contentWidth?: string | number
+  shape?: 'rounded' | 'default'
   variant?: 'blurry' | 'default'
 }>(), {
   placeholder: 'Select an option',
@@ -45,6 +46,7 @@ const props = withDefaults(defineProps<{
   by: undefined,
   contentMinWidth: 160,
   contentWidth: undefined,
+  shape: 'default',
   variant: 'default',
 })
 
@@ -110,10 +112,11 @@ function toCssSize(value?: string | number): string | undefined {
     <SelectTrigger
       :class="[
         'group',
-        'w-full inline-flex items-center justify-between rounded-xl border px-3 leading-none h-fit gap-[5px] outline-none',
+        'w-full inline-flex items-center justify-between border px-1 leading-none h-fit gap-[5px] outline-none',
+        props.shape === 'rounded' ? 'rounded-full' : 'rounded-lg',
         'text-sm text-neutral-700 dark:text-neutral-200 data-[placeholder]:text-neutral-400 dark:data-[placeholder]:text-neutral-500',
         props.variant === 'default' ? 'bg-white dark:bg-neutral-900 disabled:bg-neutral-100 hover:bg-neutral-50 dark:disabled:bg-neutral-900 dark:hover:bg-neutral-700' : '',
-        props.variant === 'blurry' ? 'bg-neutral-50/70 dark:bg-neutral-800/70 disabled:bg-neutral-100 hover:bg-neutral-50 dark:disabled:bg-neutral-900 dark:hover:bg-neutral-700' : '',
+        props.variant === 'blurry' ? 'bg-neutral-50/70 dark:bg-neutral-800/70 disabled:bg-neutral-100 hover:bg-neutral-100 dark:disabled:bg-neutral-900 dark:hover:bg-neutral-800' : '',
         props.variant === 'blurry' ? 'backdrop-blur-md' : '',
         'border-2 border-solid focus:border-primary-300 dark:focus:border-primary-400/50',
         props.variant === 'default' ? 'border-neutral-200 dark:border-neutral-800' : '',
@@ -132,9 +135,7 @@ function toCssSize(value?: string | number): string | undefined {
           <span
             :class="[
               'block truncate',
-              selectedOption
-                ? 'text-neutral-700 dark:text-neutral-200'
-                : 'text-neutral-400 dark:text-neutral-500',
+              selectedOption ? 'text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 dark:text-neutral-500',
             ]"
           >
             {{ selectedOption?.label ?? props.placeholder }}

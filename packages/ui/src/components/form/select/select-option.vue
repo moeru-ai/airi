@@ -37,7 +37,7 @@ const props = defineProps<{
       :class="[
         'col-start-1 row-start-1',
         'inline-flex items-center justify-center',
-        'w-[1.25rem]',
+        'w-[1rem]',
         'opacity-30',
         'text-current',
       ]"
