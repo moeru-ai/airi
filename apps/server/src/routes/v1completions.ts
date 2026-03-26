@@ -1,5 +1,3 @@
-/* eslint-disable unused-imports/no-unused-vars */
-
 import type { Context } from 'hono'
 
 import type { initOtel } from '../libs/otel'
@@ -28,10 +26,10 @@ const SAFE_RESPONSE_HEADERS = new Set([
 
 function buildSafeResponseHeaders(response: Response): Headers {
   const headers = new Headers()
-  for (const [key, value] of response.headers) {
+  response.headers.forEach((value, key) => {
     if (SAFE_RESPONSE_HEADERS.has(key.toLowerCase()))
       headers.set(key, value)
-  }
+  })
   return headers
 }
 
@@ -155,7 +153,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
           let usage: UsageInfo = {}
           try {
             const lines = tailBuffer.split('\n').filter(l => l.startsWith('data: ') && !l.includes('[DONE]'))
-            const lastDataLine = lines[lines.length - 1]
+            const lastDataLine = lines.at(-1)
             if (lastDataLine) {
               const json = JSON.parse(lastDataLine.slice(6))
               usage = extractUsageFromBody(json)
@@ -230,133 +228,14 @@ export function createV1CompletionsRoutes(fluxService: FluxService, configKV: Co
     return c.json(responseBody)
   }
 
-  async function handleTTS(c: Context<HonoEnv>) {
-    const user = c.get('user')!
-    const flux = await fluxService.getFlux(user.id)
-    if (flux.flux <= 0) {
-      throw createPaymentRequiredError('Insufficient flux')
-    }
-
-    const body = await c.req.json()
-    const gatewayBaseUrl = await configKV.getOrThrow('GATEWAY_BASE_URL')
-    const baseUrl = normalizeBaseUrl(gatewayBaseUrl)
-    const requestModel = body.model || 'auto'
-
-    const span = tracer.startSpan('llm.gateway.tts', {
-      attributes: { 'llm.model': requestModel },
-    })
-
-    const startedAt = Date.now()
-
-    const response = await context.with(trace.setSpan(context.active(), span), () =>
-      fetch(`${baseUrl}audio/speech`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      }))
-
-    const durationMs = Date.now() - startedAt
-    span.setAttribute('http.response.status_code', response.status)
-
-    if (!response.ok) {
-      span.setStatus({ code: SpanStatusCode.ERROR, message: `Gateway ${response.status}` })
-      span.end()
-      recordMetrics({ model: requestModel, status: response.status, type: 'tts', durationMs, fluxConsumed: 0 })
-      return new Response(response.body, {
-        status: response.status,
-        headers: buildSafeResponseHeaders(response),
-      })
-    }
-
-    const fluxPerRequest = await configKV.getOrThrow('FLUX_PER_REQUEST_TTS')
-    await fluxService.consumeFlux(user.id, fluxPerRequest)
-
-    span.setAttribute('llm.flux_consumed', fluxPerRequest)
-    span.end()
-    recordMetrics({ model: requestModel, status: response.status, type: 'tts', durationMs, fluxConsumed: fluxPerRequest })
-
-    requestLogService.logRequest({
-      userId: user.id,
-      model: requestModel,
-      status: response.status,
-      durationMs,
-      fluxConsumed: fluxPerRequest,
-    }).catch(err => logger.withError(err).warn('Failed to log TTS request'))
-
-    return new Response(response.body, {
-      status: response.status,
-      headers: buildSafeResponseHeaders(response),
-    })
-  }
-
-  async function handleTranscription(c: Context<HonoEnv>) {
-    const user = c.get('user')!
-    const flux = await fluxService.getFlux(user.id)
-    if (flux.flux <= 0) {
-      throw createPaymentRequiredError('Insufficient flux')
-    }
-
-    const gatewayBaseUrl = await configKV.getOrThrow('GATEWAY_BASE_URL')
-    const baseUrl = normalizeBaseUrl(gatewayBaseUrl)
-
-    const span = tracer.startSpan('llm.gateway.asr', {
-      attributes: { 'llm.model': 'auto' },
-    })
-
-    const startedAt = Date.now()
-
-    const rawBody = await c.req.arrayBuffer()
-    const contentType = c.req.header('content-type') || 'multipart/form-data'
-
-    const response = await context.with(trace.setSpan(context.active(), span), () =>
-      fetch(`${baseUrl}audio/transcriptions`, {
-        method: 'POST',
-        headers: { 'Content-Type': contentType },
-        body: rawBody,
-      }))
-
-    const durationMs = Date.now() - startedAt
-    span.setAttribute('http.response.status_code', response.status)
-
-    if (!response.ok) {
-      span.setStatus({ code: SpanStatusCode.ERROR, message: `Gateway ${response.status}` })
-      span.end()
-      recordMetrics({ model: 'auto', status: response.status, type: 'asr', durationMs, fluxConsumed: 0 })
-      return new Response(response.body, {
-        status: response.status,
-        headers: buildSafeResponseHeaders(response),
-      })
-    }
-
-    const fluxPerRequest = await configKV.getOrThrow('FLUX_PER_REQUEST_ASR')
-    await fluxService.consumeFlux(user.id, fluxPerRequest)
-
-    span.setAttribute('llm.flux_consumed', fluxPerRequest)
-    span.end()
-    recordMetrics({ model: 'auto', status: response.status, type: 'asr', durationMs, fluxConsumed: fluxPerRequest })
-
-    requestLogService.logRequest({
-      userId: user.id,
-      model: 'auto',
-      status: response.status,
-      durationMs,
-      fluxConsumed: fluxPerRequest,
-    }).catch(err => logger.withError(err).warn('Failed to log ASR request'))
-
-    return new Response(response.body, {
-      status: response.status,
-      headers: buildSafeResponseHeaders(response),
-    })
-  }
+  // TODO: TTS and ASR handlers are implemented but routes are disabled until ready
+  // async function handleTTS(c: Context<HonoEnv>) { ... }
+  // async function handleTranscription(c: Context<HonoEnv>) { ... }
 
   const chatGuard = configGuard(configKV, ['FLUX_PER_REQUEST', 'GATEWAY_BASE_URL', 'DEFAULT_CHAT_MODEL'], 'Service is not available yet')
-  const ttsGuard = configGuard(configKV, ['FLUX_PER_REQUEST_TTS', 'GATEWAY_BASE_URL'], 'TTS service is not available yet')
-  const asrGuard = configGuard(configKV, ['FLUX_PER_REQUEST_ASR', 'GATEWAY_BASE_URL'], 'ASR service is not available yet')
 
   return new Hono<HonoEnv>()
     .use('*', authGuard)
     .post('/chat/completions', chatGuard, handleCompletion)
     .post('/chat/completion', chatGuard, handleCompletion)
-    // .post('/audio/speech', ttsGuard, handleTTS)
-    // .post('/audio/transcriptions', bodyLimit({ maxSize: 25 * 1024 * 1024 }), asrGuard, handleTranscription)
 }
