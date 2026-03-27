@@ -2,16 +2,16 @@
 import type { RemovableRef } from '@vueuse/core'
 
 import {
-  Alert,
   ProviderAdvancedSettings,
   ProviderBaseUrlInput,
   ProviderBasicSettings,
   ProviderSettingsContainer,
   ProviderSettingsLayout,
+  ProviderValidationAlerts,
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { FieldKeyValues, FieldSelect } from '@proj-airi/ui'
+import { FieldCombobox, FieldKeyValues } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 
@@ -39,6 +39,11 @@ const {
   validationMessage,
   handleResetSettings,
   forceValid,
+  hasManualValidators,
+  isManualTesting,
+  manualTestPassed,
+  manualTestMessage,
+  runManualTest,
 } = useProviderValidation(providerId)
 
 const headers = ref<{ key: string, value: string }[]>(Object.entries(providers.value[providerId]?.headers || {}).map(([key, value]) => ({ key, value } as { key: string, value: string })) || [{ key: '', value: '' }])
@@ -72,7 +77,7 @@ function removeKeyValue(index: number, headers: { key: string, value: string }[]
 }
 
 watch(headers, (headers) => {
-  if (headers.length > 0 && (headers[headers.length - 1].key !== '' || headers[headers.length - 1].value !== '')) {
+  if (headers.length > 0 && (headers.at(-1)!.key !== '' || headers.at(-1)!.value !== '')) {
     headers.push({ key: '', value: '' })
   }
   if (!providers.value[providerId])
@@ -150,7 +155,7 @@ onMounted(() => {
       </ProviderBasicSettings>
 
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
-        <FieldSelect
+        <FieldCombobox
           v-model="thinkingMode"
           :label="t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.label')"
           :description="t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.description')"
@@ -176,30 +181,18 @@ onMounted(() => {
       </ProviderAdvancedSettings>
 
       <!-- Validation Status -->
-      <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
-        <template #title>
-          <div class="w-full flex items-center justify-between">
-            <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
-            <button
-              type="button"
-              class="ml-2 rounded bg-red-100 px-2 py-0.5 text-xs text-red-600 font-medium transition-colors dark:bg-red-800/30 hover:bg-red-200 dark:text-red-300 dark:hover:bg-red-700/40"
-              @click="forceValid"
-            >
-              {{ t('settings.pages.providers.common.continueAnyway') }}
-            </button>
-          </div>
-        </template>
-        <template v-if="validationMessage" #content>
-          <div class="whitespace-pre-wrap break-all">
-            {{ validationMessage }}
-          </div>
-        </template>
-      </Alert>
-      <Alert v-if="isValid && isValidating === 0" type="success">
-        <template #title>
-          {{ t('settings.dialogs.onboarding.validationSuccess') }}
-        </template>
-      </Alert>
+      <ProviderValidationAlerts
+        :is-valid="isValid"
+        :is-validating="isValidating"
+        :validation-message="validationMessage"
+        :has-manual-validators="hasManualValidators"
+        :is-manual-testing="isManualTesting"
+        :manual-test-passed="manualTestPassed"
+        :manual-test-message="manualTestMessage"
+        :on-run-test="runManualTest"
+        :on-force-valid="forceValid"
+        :on-go-to-model-selection="() => router.push('/settings/modules/consciousness')"
+      />
     </ProviderSettingsContainer>
   </ProviderSettingsLayout>
 </template>

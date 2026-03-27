@@ -5,21 +5,22 @@ import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/
 import { useTheme } from '@proj-airi/ui'
 import { refDebounced, useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ControlButtonTooltip from './control-button-tooltip.vue'
 import ControlButton from './control-button.vue'
 import ControlsIslandFadeOnHover from './controls-island-fade-on-hover.vue'
 import ControlsIslandHearingConfig from './controls-island-hearing-config.vue'
+import ControlsIslandProfilePicker from './controls-island-profile-picker.vue'
 import IndicatorMicVolume from './indicator-mic-volume.vue'
 
 import {
   electron,
+  electronAppQuit,
   electronOpenChat,
   electronOpenSettings,
   electronStartDraggingWindow,
-  electronWindowClose,
   electronWindowSetAlwaysOnTop,
 } from '../../../../shared/eventa'
 
@@ -34,27 +35,43 @@ const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const openChat = useElectronEventaInvoke(electronOpenChat)
 const isLinux = useElectronEventaInvoke(electron.app.isLinux)
-const closeWindow = useElectronEventaInvoke(electronWindowClose)
+const closeWindow = useElectronEventaInvoke(electronAppQuit)
 const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
 
 const expanded = ref(false)
 const islandRef = ref<HTMLElement>()
 
-// Expose whether hearing dialog is open so parent can disable click-through
-const hearingDialogOpen = ref(false)
-defineExpose({ hearingDialogOpen })
+// Tracks open overlays/dialogs that should prevent auto-collapse (e.g. 'hearing', 'profile-picker')
+const blockingOverlays = reactive(new Set<string>())
+const isBlocked = computed(() => blockingOverlays.size > 0)
+
+function setOverlay(key: string, active: boolean) {
+  active ? blockingOverlays.add(key) : blockingOverlays.delete(key)
+}
+
+// Expose for parent (e.g. to disable click-through when a dialog is open)
+defineExpose({
+  get hearingDialogOpen() { return blockingOverlays.has('hearing') },
+  set hearingDialogOpen(v: boolean) { setOverlay('hearing', v) },
+})
 
 const { isOutside } = useElectronMouseInElement(islandRef)
 const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
 
 watch(isOutsideAfter2seconds, (outside) => {
-  if (outside && expanded.value && !hearingDialogOpen.value) {
+  if (outside && expanded.value && !isBlocked.value) {
     expanded.value = false
   }
 })
 
+watch(expanded, (isExpanded) => {
+  if (!isExpanded) {
+    blockingOverlays.clear()
+  }
+})
+
 useIntervalFn(() => {
-  if (expanded.value && isOutside.value && !hearingDialogOpen.value) {
+  if (expanded.value && isOutside.value && !isBlocked.value) {
     expanded.value = false
   }
 }, 1500)
@@ -120,11 +137,24 @@ function refreshWindow() {
         <div v-if="expanded" border="1 neutral-200 dark:neutral-800" mb-2 flex flex-col gap-1 rounded-2xl p-2 backdrop-blur-xl class="bg-neutral-100/80 shadow-2xl shadow-black/20 dark:bg-neutral-900/80">
           <div grid grid-cols-3 gap-2>
             <ControlButtonTooltip disable-hoverable-content>
-              <ControlButton :button-style="adjustStyleClasses.button" @click="openSettings">
+              <ControlButton :button-style="adjustStyleClasses.button" @click="openSettings({ route: '/settings' })">
                 <div i-solar:settings-minimalistic-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
               </ControlButton>
               <template #tooltip>
                 {{ t('tamagotchi.stage.controls-island.open-settings') }}
+              </template>
+            </ControlButtonTooltip>
+
+            <ControlButtonTooltip disable-hoverable-content>
+              <ControlsIslandProfilePicker placement="up" :open="blockingOverlays.has('profile-picker')" @update:open="setOverlay('profile-picker', $event)">
+                <template #default="{ toggle }">
+                  <ControlButton :button-style="adjustStyleClasses.button" @click="toggle">
+                    <div i-solar:emoji-funny-square-broken :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                  </ControlButton>
+                </template>
+              </ControlsIslandProfilePicker>
+              <template #tooltip>
+                {{ t('tamagotchi.stage.controls-island.switch-profile') }}
               </template>
             </ControlButtonTooltip>
 
@@ -159,22 +189,6 @@ function refreshWindow() {
             </ControlButtonTooltip>
 
             <ControlButtonTooltip disable-hoverable-content>
-              <ControlsIslandHearingConfig v-model:show="hearingDialogOpen">
-                <div class="relative">
-                  <ControlButton :button-style="adjustStyleClasses.button">
-                    <Transition name="fade" mode="out-in">
-                      <IndicatorMicVolume v-if="enabled" :class="adjustStyleClasses.icon" />
-                      <div v-else i-ph:microphone-slash :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
-                    </Transition>
-                  </ControlButton>
-                </div>
-              </ControlsIslandHearingConfig>
-              <template #tooltip>
-                {{ t('tamagotchi.stage.controls-island.open-hearing-controls') }}
-              </template>
-            </ControlButtonTooltip>
-
-            <ControlButtonTooltip disable-hoverable-content>
               <ControlButton :button-style="adjustStyleClasses.button" @click="toggleAlwaysOnTop()">
                 <div v-if="alwaysOnTop" i-solar:pin-bold :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
                 <div v-else i-solar:pin-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300 opacity-50" />
@@ -203,15 +217,29 @@ function refreshWindow() {
         <ControlButtonTooltip side="left">
           <ControlButton :button-style="adjustStyleClasses.button" @click="expanded = !expanded">
             <div
-
               :class="[adjustStyleClasses.icon, expanded ? 'rotate-180' : 'rotate-0']"
-
               i-solar:alt-arrow-up-line-duotone scale-110 transition-all duration-300
               text="neutral-800 dark:neutral-300"
             />
           </ControlButton>
           <template #tooltip>
             {{ expanded ? t('tamagotchi.stage.controls-island.collapse') : t('tamagotchi.stage.controls-island.expand') }}
+          </template>
+        </ControlButtonTooltip>
+
+        <ControlButtonTooltip side="left">
+          <ControlsIslandHearingConfig :show="blockingOverlays.has('hearing')" @update:show="setOverlay('hearing', $event)">
+            <div class="relative">
+              <ControlButton :button-style="adjustStyleClasses.button">
+                <Transition name="fade" mode="out-in">
+                  <IndicatorMicVolume v-if="enabled" :class="adjustStyleClasses.icon" />
+                  <div v-else i-ph:microphone-slash :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                </Transition>
+              </ControlButton>
+            </div>
+          </ControlsIslandHearingConfig>
+          <template #tooltip>
+            {{ t('tamagotchi.stage.controls-island.open-hearing-controls') }}
           </template>
         </ControlButtonTooltip>
 

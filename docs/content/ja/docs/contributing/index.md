@@ -103,7 +103,7 @@ description: Project AIRI への貢献
 ローカルリポジトリがアップストリームリポジトリと最新の状態であることを確認してください：
 
 ```shell
-git fetch -all
+git fetch --all
 git checkout main
 git pull upstream main --rebase
 ```

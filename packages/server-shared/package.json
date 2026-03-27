@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/server-shared",
   "type": "module",
-  "version": "0.9.0-alpha.14",
+  "version": "0.9.0-alpha.27",
   "description": "Server shared types, utilities for AIRI server components and runtimes",
   "author": {
     "name": "Moeru AI Project AIRI Team",
@@ -15,13 +15,17 @@
     "directory": "packages/server-shared"
   },
   "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
     "./types": {
       "types": "./dist/types/index.d.mts",
       "default": "./dist/types/index.mjs"
     }
   },
-  "main": "./dist/types/index.mjs",
-  "types": "./dist/types/index.d.mts",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "files": [
     "README.md",
     "dist",

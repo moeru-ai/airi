@@ -18,5 +18,14 @@ export function createDatetimeContext(): ContextMessage {
     strategy: ContextUpdateStrategy.ReplaceSelf,
     text: `Current datetime: ${now.toISOString()} (${now.toLocaleString()})`,
     createdAt: Date.now(),
+    metadata: {
+      source: {
+        id: DATETIME_CONTEXT_ID,
+        kind: 'plugin',
+        plugin: {
+          id: 'airi:system:datetime',
+        },
+      },
+    },
   }
 }

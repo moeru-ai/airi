@@ -19,8 +19,12 @@ dialogs:
     baseUrlHelp: URL de l'endpoint API (utilisez la valeur par défaut si vous n’êtes pas sûr)
     accountId: ID du compte
     validationSuccess: Validation de la configuration réussie
+    validationPartial: Configuration partiellement validée
     validationFailed: La validation de la configuration a échouée.
     validationError: 'Erreur de validation: {error}'
+    testGeneration: Génération du test
+    testGenerationRunning: Essai en cours...
+    testGenerationFailed: Échec de la génération du test
     skipForNow: Passer pour l'instant
     saveAndContinue: Sauvegarder et Continuer
     next: Suivant
@@ -30,10 +34,22 @@ dialogs:
     no-models: Pas de modèle disponible
     no-models-help: >-
       Veuillez revenir à l’étape précédente et vérifier votre clé API, ou bien vérifier la connexion réseau.
+    permissions:
+      title: Notifications
+      description: Vous pouvez autoriser les notifications maintenant ou continuer et les configurer plus tard.
+      notificationsTitle: Notifications
+      notificationsDescription: Autorisez les rappels et les mises à jour de statut importantes.
+      notificationsAction: Demander l'autorisation de notification
+      notificationsNotGrantedHint: En cas de refus, vous pourrez activer les notifications plus tard dans les Réglages iOS.
+      openSettings: Ouvrir les Réglages iOS
+      optionalHint: Vous pouvez continuer même si l'autorisation de notification n'est pas accordée.
+      stateUnknown: Non demandé
+      stateRequesting: Demande en cours...
+      stateGranted: Accordée
+      stateNotGranted: Non accordée
 language:
   title: Langage
-  description: >
-    Modifier le langage de l'inteface d'AIRI. Cela n'affectera pas le langage des réponses du personnage.
+  description: Langue de l'interface utilisateur
 controls-island:
   icon-size:
     title: Taille des icônes de l'îlot de contrôle
@@ -41,6 +57,19 @@ controls-island:
     auto: Auto (réactif)
     large: Grande (défaut)
     small: Petite
+analytics:
+  notice:
+    title: Usage analytics
+    description: AIRI collects anonymous usage analytics to help us understand how the app is used and improve stability. No personal data is collected.
+    privacyPrefix: Read the
+    privacyLink: privacy policy
+    onboardingHint: You can turn analytics off later in Settings > System > General.
+    settingsHint: You can turn analytics off at any time.
+  toggle:
+    title: Enable usage analytics
+    description: Turn this off to opt out of analytics collection.
+  disabled:
+    title: Analytics disabled for this development build
 live2d:
   change-model:
     from-file: Charger depuis un Fichier
@@ -159,6 +188,7 @@ pages:
     scenario: Scénario
     search: Rechercher des cartes...
     sort_by: Trier par
+    body-model: Corps / Modèle d'affichage
     speech:
       provider: Parole / Fournisseur
       model: Parole / Modèle
@@ -200,6 +230,10 @@ pages:
         title: Supprimer toutes les données
         description: Effacer tous les réglages, configurations de fournisseurs et modèles locaux.
         delete: Supprimer toutes les données
+      desktop-folder:
+        title: Ouvrir le dossier de données de l'application
+        description: Ouvrir le dossier de données d'AIRI dans votre gestionnaire de fichiers.
+        open: Ouvrir le dossier
       desktop:
         title: Réinitialiser les paramètres et états du bureau
         description: Effacer les paramètres du bureau AIRI et l'état d'exécution.
@@ -284,7 +318,7 @@ pages:
           provider-model-selection:
             collapse: Réduire
             custom_model_placeholder: Entrez le nom du modèle personnalisé...
-            current_model_label: 'Current model:'
+            current_model_label: 'Modèle actuel :'
             description: Sélectionnez le fournisseur LLM approprié pour la conscience
             error: Erreur lors du chargement des modèles
             health_check_failed: Échec de la vérification de l'état de santé
@@ -710,6 +744,9 @@ pages:
       openai:
         description: openai.com
         title: OpenAI
+      azure-openai:
+        description: Azure OpenAI API
+        title: Azure OpenAI
       openai-compatible:
         description: Compatible avec OpenAI
         title: Compatible avec OpenAI
@@ -720,6 +757,9 @@ pages:
         description: n1n.ai - Fournisseur d'API d'IA haute performance.
         title: n1n
       openrouter:
+        description: openrouter.ai
+        title: OpenRouter
+      openrouter-audio-speech:
         description: openrouter.ai
         title: OpenRouter
       perplexity:
@@ -757,6 +797,9 @@ pages:
       xai:
         description: x.ai
         title: xAI
+      zai:
+        description: z.ai
+        title: Z.ai
       302-ai:
         description: 302.AI
         title: 302.AI
@@ -859,7 +902,7 @@ pages:
                   Diffuser l'audio du microphone vers Aliyun NLS et inspecter les transcriptions en direct
               performance-playground:
                 title: Zone d'essai de performance
-                description: 'VRM expressions + TTS lip sync playground'
+                description: 'Expressions VRM + synchro labiale TTS'
         theme-presets:
           presets:
             default:

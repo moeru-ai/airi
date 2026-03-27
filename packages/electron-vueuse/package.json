@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/electron-vueuse",
   "type": "module",
-  "version": "0.9.0-alpha.14",
+  "version": "0.9.0-alpha.27",
   "private": true,
   "description": "VueUse-like composables and helpers for Electron apps",
   "author": {
@@ -36,7 +36,7 @@
     "vue": ">=3"
   },
   "dependencies": {
-    "@moeru/eventa": "^1.0.0-beta.1",
+    "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
     "@vueuse/core": "catalog:",
     "es-toolkit": "catalog:",

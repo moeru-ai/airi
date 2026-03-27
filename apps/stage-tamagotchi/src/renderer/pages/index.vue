@@ -1,8 +1,12 @@
 <script setup lang="ts">
+import type { ModelSettingsRuntimeSnapshot } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
+
+import type { ModelSettingsRuntimeChannelEvent } from '../../shared/model-settings-runtime'
 
 import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
+import { tryCatch } from '@moeru/std'
 import { electron } from '@proj-airi/electron-eventa'
 import {
   useElectronEventaInvoke,
@@ -11,7 +15,11 @@ import {
   useElectronMouseInWindow,
   useElectronRelativeMouse,
 } from '@proj-airi/electron-vueuse'
-import { useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
+import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
+import {
+  createEmptyModelSettingsRuntimeSnapshot,
+  resolveComponentStateToRuntimePhase,
+} from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
 import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
@@ -29,19 +37,24 @@ import { computed, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
 
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
+import StatusIsland from '../components/stage-islands/status-island/index.vue'
 
 import { electronOpenOnboarding } from '../../shared/eventa'
+import {
+  modelSettingsRuntimeSnapshotChannelName,
+} from '../../shared/model-settings-runtime'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
 import { useWindowStore } from '../stores/window'
 import { shouldSampleStageTransparency } from '../utils/stage-three-transparency'
 
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
+const statusIslandRef = ref<InstanceType<typeof StatusIsland>>()
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
 const stageCanvas = toRef(() => widgetStageRef.value?.canvasElement())
 const componentStateStage = ref<'pending' | 'loading' | 'mounted'>('pending')
-
-const isLoading = ref(true)
+const stageMounted = computed(() => componentStateStage.value === 'mounted')
+const isLoading = computed(() => !stageMounted.value)
 
 const isIgnoringMouseEvents = ref(false)
 const shouldFadeOnCursorWithin = ref(false)
@@ -51,7 +64,9 @@ const openOnboarding = useElectronEventaInvoke(electronOpenOnboarding)
 
 const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
 const { isOutside } = useElectronMouseInElement(controlsIslandRef)
+const { isOutside: isOutsideStatusIsland } = useElectronMouseInElement(statusIslandRef)
 const isOutsideFor250Ms = refDebounced(isOutside, 250)
+const isOutsideStatusIslandFor250Ms = refDebounced(isOutsideStatusIsland, 250)
 const { x: relativeMouseX, y: relativeMouseY } = useElectronRelativeMouse()
 // NOTICE: In real-world use cases of Fade on Hover feature, the cursor may move around the edge of the
 // model rapidly, causing flickering effects when checking pixel transparency strictly.
@@ -69,9 +84,14 @@ const isTransparentByThree = useThreeSceneIsTransparentAtPoint(
   { regionRadius: 25 },
 )
 
-const { stageModelRenderer } = storeToRefs(useSettings())
+const settingsStore = useSettings()
+const { stageModelRenderer, stageModelSelectedUrl } = storeToRefs(settingsStore)
+const modelStore = useModelStore()
+const { sceneMutationLocked, scenePhase } = storeToRefs(modelStore)
 const { stagePaused } = storeToRefs(useStageWindowLifecycleStore())
 const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
+const modelSettingsRuntimeOwnerInstanceId = `tamagotchi-main-stage:${Math.random().toString(36).slice(2, 10)}`
+const { data: modelSettingsRuntimeChannelEvent, post: postModelSettingsRuntimeChannelEvent } = useBroadcastChannel<ModelSettingsRuntimeChannelEvent, ModelSettingsRuntimeChannelEvent>({ name: modelSettingsRuntimeSnapshotChannelName })
 const shouldUseThreeTransparencyHitTest = computed(() => shouldSampleStageTransparency({
   componentState: componentStateStage.value,
   fadeOnHoverEnabled: fadeOnHoverEnabled.value,
@@ -100,15 +120,50 @@ const live2dStore = useLive2d()
 const { scale, positionInPercentageString } = storeToRefs(live2dStore)
 const { live2dLookAtX, live2dLookAtY } = storeToRefs(useWindowStore())
 
-watch(componentStateStage, () => isLoading.value = componentStateStage.value !== 'mounted', { immediate: true })
-
 const { pause, resume } = watch(isTransparent, (transparent) => {
   shouldFadeOnCursorWithin.value = fadeOnHoverEnabled.value && !transparent
 }, { immediate: true })
 
 const hearingDialogOpen = computed(() => controlsIslandRef.value?.hearingDialogOpen ?? false)
 
-watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen, fadeOnHoverEnabled, stagePaused], () => {
+const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() => {
+  const hasModel = !!stageModelSelectedUrl.value
+
+  if (stageModelRenderer.value === 'live2d') {
+    const phase = resolveComponentStateToRuntimePhase(componentStateStage.value, { hasModel })
+
+    return createEmptyModelSettingsRuntimeSnapshot({
+      ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
+      renderer: 'live2d',
+      phase,
+      controlsLocked: hasModel ? phase !== 'mounted' : false,
+      previewAvailable: hasModel,
+      canCapturePreview: false,
+      updatedAt: Date.now(),
+    })
+  }
+
+  if (stageModelRenderer.value === 'vrm') {
+    return createEmptyModelSettingsRuntimeSnapshot({
+      ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
+      renderer: 'vrm',
+      phase: hasModel ? scenePhase.value : 'no-model',
+      controlsLocked: hasModel
+        ? (!stageMounted.value || sceneMutationLocked.value)
+        : false,
+      previewAvailable: hasModel,
+      canCapturePreview: false,
+      updatedAt: Date.now(),
+    })
+  }
+
+  return createEmptyModelSettingsRuntimeSnapshot({
+    ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
+    updatedAt: Date.now(),
+  })
+})
+
+watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen, fadeOnHoverEnabled, stagePaused], () => {
   if (stagePaused.value) {
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
@@ -126,7 +181,7 @@ watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTrans
     return
   }
 
-  const insideControls = !isOutsideFor250Ms.value
+  const insideControls = !isOutsideFor250Ms.value || !isOutsideStatusIslandFor250Ms.value
   const nearBorder = isAroundWindowBorderFor250Ms.value
 
   if (insideControls || nearBorder) {
@@ -149,16 +204,24 @@ watch([isOutsideFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTrans
   }
 })
 
+// Emit runtime snapshot on change and on request from settings panel
+watch(modelSettingsRuntimeSnapshot, (snapshot) => {
+  postModelSettingsRuntimeChannelEvent({ type: 'snapshot', snapshot })
+}, { immediate: true })
+
+watch(modelSettingsRuntimeChannelEvent, (event) => {
+  if (event?.type !== 'request-current')
+    return
+
+  postModelSettingsRuntimeChannelEvent({ type: 'snapshot', snapshot: modelSettingsRuntimeSnapshot.value })
+})
+
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
 const { askPermission } = settingsAudioDeviceStore
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
-const {
-  transcribeForRecording,
-  transcribeForMediaStream,
-  stopStreamingTranscription,
-} = hearingPipeline
+const { transcribeForRecording, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const providersStore = useProvidersStore()
 const consciousnessStore = useConsciousnessStore()
@@ -166,12 +229,7 @@ const { activeProvider: activeChatProvider, activeModel: activeChatModel } = sto
 const chatStore = useChatOrchestratorStore()
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
-const {
-  init: initVAD,
-  dispose: disposeVAD,
-  start: startVAD,
-  loaded: vadLoaded,
-} = useVAD(workletUrl, {
+const { init: initVAD, dispose: disposeVAD, start: startVAD, loaded: vadLoaded } = useVAD(workletUrl, {
   threshold: ref(0.6),
   onSpeechStart: () => {
     void handleSpeechStart()
@@ -212,8 +270,10 @@ async function startAudioInteraction() {
     console.info('[Main Page] Starting audio interaction...')
 
     initVAD().then(() => {
-      if (stream.value)
+      if (stream.value) {
+        console.info('[Main Page] VAD initialized successfully, starting with stream input')
         return startVAD(stream.value)
+      }
     }).catch((err) => {
       console.warn('[Main Page] VAD initialization failed (non-critical for Web Speech API):', err)
     })
@@ -302,16 +362,15 @@ async function startAudioInteraction() {
 }
 
 function stopAudioInteraction() {
-  try {
+  tryCatch(() => {
     stopOnStopRecord?.()
     stopOnStopRecord = undefined
     void stopStreamingTranscription(true)
     disposeVAD()
-  }
-  catch {}
+  })
 }
 
-watch(enabled, async (val) => {
+watch([enabled, stream], async ([val]) => {
   console.info('[Main Page] Audio enabled changed:', val, 'stream available:', !!stream.value)
   if (val) {
     await askPermission()
@@ -329,6 +388,10 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  postModelSettingsRuntimeChannelEvent({
+    type: 'owner-gone',
+    ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
+  })
   stopAudioInteraction()
 })
 
@@ -371,6 +434,7 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
           'transition-opacity duration-250 ease-in-out',
         ]"
       >
+        <StatusIsland ref="statusIslandRef" />
         <ResourceStatusIsland />
         <WidgetStage
           ref="widgetStageRef"

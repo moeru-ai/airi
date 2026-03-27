@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/airi-plugin-claude-code",
   "type": "module",
-  "version": "0.9.0-alpha.14",
+  "version": "0.9.0-alpha.27",
   "private": true,
   "description": "manifest.json description",
   "bin": {
@@ -15,14 +15,14 @@
   "dependencies": {
     "@guiiai/logg": "catalog:",
     "@proj-airi/server-sdk": "workspace:*",
-    "cac": "^6.7.14",
+    "cac": "^7.0.0",
     "debug": "^4.4.3",
     "destr": "^2.0.5",
     "vue": "catalog:"
   },
   "devDependencies": {
-    "@anthropic-ai/claude-code": "^2.1.59",
+    "@anthropic-ai/claude-code": "^2.1.81",
     "tsx": "^4.21.0",
-    "vue-tsc": "^3.1.8"
+    "vue-tsc": "^3.2.6"
   }
 }

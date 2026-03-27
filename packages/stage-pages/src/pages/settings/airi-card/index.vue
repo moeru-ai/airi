@@ -4,7 +4,7 @@ import type { ccv3 } from '@proj-airi/ccc'
 import { Alert } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { InputFile } from '@proj-airi/ui'
-import { Select } from '@proj-airi/ui/components/form'
+import { ComboboxSelect } from '@proj-airi/ui/components/form'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -204,7 +204,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
         <div class="top-[-32px] whitespace-nowrap text-sm text-neutral-500 leading-10 lg:absolute dark:text-neutral-400">
           {{ t('settings.pages.card.sort_by') }}:
         </div>
-        <Select
+        <ComboboxSelect
           v-model="sortOption"
           :options="[
             { value: 'nameAsc', label: t('settings.pages.card.name_asc') },

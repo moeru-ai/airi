@@ -19,8 +19,12 @@ dialogs:
     baseUrlHelp: APIエンドポイントURL（不明な場合はデフォルトを使用）
     accountId: アカウントID
     validationSuccess: 設定検証に成功
+    validationPartial: 構成が部分的に検証されました
     validationFailed: 設定検証に失敗
     validationError: '検証エラー: {error}'
+    testGeneration: テスト生成
+    testGenerationRunning: テストしています…
+    testGenerationFailed: テスト生成に失敗しました
     skipForNow: 今はスキップ
     saveAndContinue: 保存して続行
     next: 次へ
@@ -30,10 +34,22 @@ dialogs:
     no-models: 利用可能なモデルがありません
     no-models-help: >-
       前のステップに戻ってAPIキーを確認するか、ネットワーク接続を確認してください。
+    permissions:
+      title: 通知
+      description: 今すぐ通知を許可するか、続行して後で設定できます。
+      notificationsTitle: 通知
+      notificationsDescription: リマインダーと重要なステータス更新を許可する。
+      notificationsAction: 通知権限を要求
+      notificationsNotGrantedHint: 通知を拒否した場合は、iOS の設定から後で通知を有効にできます。
+      openSettings: iOSの設定を開く
+      optionalHint: 通知権限を許可しない場合でも続行できます。
+      stateUnknown: リクエストされていません
+      stateRequesting: リクエスト中…
+      stateGranted: 許可済み
+      stateNotGranted: 許可されていません
 language:
   title: 言語
-  description: >
-    AIRIインターフェースの言語を変更します。これはキャラクターの応答言語には影響しません。
+  description: UI language
 controls-island:
   icon-size:
     title: アイランドアイコンのサイズを制御
@@ -41,6 +57,19 @@ controls-island:
     auto: 自動 (レスポンシブ)
     large: 大 (デフォルト)
     small: 小
+analytics:
+  notice:
+    title: Usage analytics
+    description: AIRI collects anonymous usage analytics to help us understand how the app is used and improve stability. No personal data is collected.
+    privacyPrefix: Read the
+    privacyLink: privacy policy
+    onboardingHint: You can turn analytics off later in Settings > System > General.
+    settingsHint: You can turn analytics off at any time.
+  toggle:
+    title: Enable usage analytics
+    description: Turn this off to opt out of analytics collection.
+  disabled:
+    title: Analytics disabled for this development build
 live2d:
   change-model:
     from-file: ファイルから読み込む
@@ -159,6 +188,7 @@ pages:
     scenario: 背景
     search: カードを検索…
     sort_by: 並び替え
+    body-model: 本体 / 表示モデル
     speech:
       provider: 音声/プロバイダー
       model: 発話/モデル
@@ -200,6 +230,10 @@ pages:
         title: すべてのデータを削除
         description: すべてのローカルの設定、プロバイダーの設定、モデルを消去します。
         delete: すべてのデータを削除
+      desktop-folder:
+        title: Open app data folder
+        description: Open AIRI's data folder in your file manager.
+        open: Open folder
       desktop:
         title: デスクトップの設定と状態をリセット
         description: AIRIデスクトップの設定と実行時の状態を消去します。
@@ -284,7 +318,7 @@ pages:
           provider-model-selection:
             collapse: 折りたたむ
             custom_model_placeholder: カスタムモデル名を入力…
-            current_model_label: 'Current model:'
+            current_model_label: '現在のモデル：'
             description: 意識に適したLLMプロバイダーを選択
             error: モデルの読み込みエラー
             health_check_failed: ヘルスチェックに失敗しました
@@ -422,15 +456,15 @@ pages:
     mcp-server:
       description: MCPサーバーとツールの接続と管理
       title: MCPサーバー
-      config-path: Config file path
-      runtime-title: Runtime status
+      config-path: 設定ファイルのパス
+      runtime-title: ランタイムの状態
       actions:
-        open-config: Open mcp.json
-        apply-and-restart: Save and restart stdio MCP
+        open-config: mcp.json を開く
+        apply-and-restart: 保存して stdio MCP を再起動
       messages:
-        opened: Config file opened at {path}
+        opened: '{path} にある設定ファイルを開きました'
         restarted: >-
-          MCP servers restarted. Started {started}, failed {failed}, skipped {skipped}
+          MCPサーバーが再起動しました。成功: {started}, 失敗: {failed}, スキップ: {skipped}
   providers:
     explained:
       chat: テキスト生成モデルプロバイダー。例： OpenRouter, OpenAI, Ollama。
@@ -475,16 +509,16 @@ pages:
                   value:
                     placeholder: 値
                 thinking-mode:
-                  label: Thinking Mode
+                  label: 思考モード
                   description: >
-                    Controls Ollama thinking behavior. GPT-OSS only supports low/medium/high levels.
+                    Ollamaの思考動作を制御します。GPT-OSSでは低/中/高レベルのみをサポートします。
                   options:
-                    auto: Auto (provider default)
-                    disable: Disable
-                    enable: Enable
-                    low: Low
-                    medium: Medium
-                    high: High
+                    auto: 自動（プロバイダのデフォルト）
+                    disable: 無効
+                    enable: 有効
+                    low: 低
+                    medium: 中
+                    high: 高
         validators:
           actions:
             validate: 検証
@@ -514,7 +548,7 @@ pages:
                       残念ながら、Ollamaの接続チェックが失敗したようです。Ollamaインスタンスの場合、正常に動作させるためには追加の設定が必要です。OllamaアプリケーションまたはOllama CLIサーバーを起動する際には、<code>OLLAMA_HOST</code>環境変数を明示的に設定する必要があります。詳細な手順については、<a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama統合ガイド</a>をご参照ください。
     common:
       continueAnyway: 続行する
-      goToModelSelection: 'Select Model →'
+      goToModelSelection: 'モデルを選択 →'
       fields:
         field:
           api-key:
@@ -598,8 +632,8 @@ pages:
         description: deepgram.com
         title: Deepgram
       speech-noop:
-        title: None
-        description: No speech output.
+        title: 無し
+        description: 音声出力がありません。
       deepseek:
         description: deepseek.com
         title: DeepSeek
@@ -710,6 +744,9 @@ pages:
       openai:
         description: openai.com
         title: OpenAI
+      azure-openai:
+        description: Azure OpenAI API
+        title: Azure OpenAI
       openai-compatible:
         description: OpenAI互換
         title: OpenAI互換
@@ -720,6 +757,9 @@ pages:
         description: n1n.ai - 高性能なAI APIプロバイダー。
         title: n1n
       openrouter:
+        description: openrouter.ai
+        title: OpenRouter
+      openrouter-audio-speech:
         description: openrouter.ai
         title: OpenRouter
       perplexity:
@@ -757,6 +797,9 @@ pages:
       xai:
         description: x.ai
         title: xAI
+      zai:
+        description: z.ai
+        title: Z.ai
       302-ai:
         description: 302.AI
         title: 302.AI
@@ -821,7 +864,7 @@ pages:
                 title: Markdown ストレス
                 description: 大量のチャットデータを含むMarkdownの解析とレンダリング負荷のテスト
               use-magic-keys:
-                title: useMagicKeys Tool
+                title: マジックキー ツールを使用
                 description: ショートカットをテスト
               audio-record:
                 title: オーディオ録音
@@ -859,7 +902,7 @@ pages:
                   マイクの音声をAliyun NLSにストリーミングし、リアルタイムの文字起こしを確認する
               performance-playground:
                 title: 機能実験場
-                description: 'VRM expressions + TTS lip sync playground'
+                description: 'VRM表情 + TTSリップシンク プレイグラウンド'
         theme-presets:
           presets:
             default:

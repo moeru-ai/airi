@@ -8,9 +8,11 @@ const props = withDefaults(defineProps<{
   subtitle?: string
   showBackButton?: boolean
   disableBackButton?: boolean
+  fallbackRoute?: string
 }>(), {
   showBackButton: true,
   disableBackButton: false,
+  fallbackRoute: '/settings',
 })
 
 const router = useRouter()
@@ -26,6 +28,20 @@ const { apply } = useMotion(pageHeaderRef, {
   enter: { opacity: 1, x: 0, transition: { duration: 250 } },
   leave: { opacity: 0, x: -5, transition: { duration: 25 } },
 })
+
+function handleBack() {
+  // If there's history to go back to, use router.back().
+  // The check for `window` handles non-browser environments (e.g., SSR).
+  if (typeof window !== 'undefined' && window.history.length > 1) {
+    router.back()
+  }
+  else {
+    // Otherwise, navigate to the fallback route. This covers cases where:
+    // - The page was opened directly (no history).
+    // - The code is running in a non-browser environment.
+    router.push(props.fallbackRoute)
+  }
+}
 
 onMounted(async () => {
   await apply('initial')
@@ -63,7 +79,7 @@ watch([() => props.title, () => props.subtitle, route], async () => {
     flex="~ row items-center gap-2"
     bg="$bg-color"
   >
-    <button @click="router.back()">
+    <button @click="handleBack">
       <div
         v-if="!finalizedDisableBackButton"
         i-solar:alt-arrow-left-line-duotone text-2xl
