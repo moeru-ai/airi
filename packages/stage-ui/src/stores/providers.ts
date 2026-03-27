@@ -1294,6 +1294,81 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'fish-audio': {
+      id: 'fish-audio',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      nameKey: 'settings.pages.providers.provider.fish-audio.title',
+      name: 'Fish Audio',
+      descriptionKey: 'settings.pages.providers.provider.fish-audio.description',
+      description: 'fish.audio',
+      icon: 'i-simple-icons:fish',
+      defaultOptions: () => ({
+        baseUrl: 'https://api.fish.audio/',
+        model: 's2-pro',
+        format: 'mp3',
+      }),
+      createProvider: async (config) => {
+        const { createFishAudioProvider } = await import('./providers/fish-audio')
+        return createFishAudioProvider({
+          apiKey: ((config.apiKey as string) || '').trim(),
+          baseUrl: ((config.baseUrl as string) || '').trim(),
+          model: config.model as string,
+          referenceId: config.referenceId as string,
+          format: config.format as 'wav' | 'pcm' | 'mp3' | 'opus',
+          sampleRate: config.sampleRate as number,
+          temperature: config.temperature as number,
+          topP: config.topP as number,
+        })
+      },
+      capabilities: {
+        listModels: async () => {
+          return [
+            {
+              id: 's2-pro',
+              name: 'S2 Pro',
+              provider: 'fish-audio',
+              description: 'Fish Audio S2 Pro - Best quality model',
+              contextLength: 0,
+              deprecated: false,
+            },
+            {
+              id: 's1',
+              name: 'S1',
+              provider: 'fish-audio',
+              description: 'Fish Audio S1 - Legacy model',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
+        },
+        listVoices: async (config) => {
+          const { listFishAudioVoices } = await import('./providers/fish-audio')
+          const voices = await listFishAudioVoices(((config.apiKey as string) || '').trim(), (config.baseUrl as string)?.trim())
+
+          return voices.map(voice => ({
+            id: voice.id,
+            name: voice.title,
+            provider: 'fish-audio',
+            description: voice.description,
+            languages: (voice.languages || []).map(l => ({ code: l, title: l })),
+          }))
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          const errors = [
+            !config.apiKey && new Error('API key is required.'),
+          ].filter(Boolean)
+
+          return {
+            errors,
+            reason: errors.map(e => e.message).join(', ') || '',
+            valid: !!config.apiKey,
+          }
+        },
+      },
+    },
     'volcengine': {
       id: 'volcengine',
       category: 'speech',
