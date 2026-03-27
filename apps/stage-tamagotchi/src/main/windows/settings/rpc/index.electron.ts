@@ -3,6 +3,8 @@ import type { BrowserWindow } from 'electron'
 import type { I18n } from '../../../libs/i18n'
 import type { ServerChannel } from '../../../services/airi/channel-server'
 import type { McpStdioManager } from '../../../services/airi/mcp-servers'
+import type { QqRuntimeManager } from '../../../services/airi/qq-runtime'
+import type { WeChatRuntimeManager } from '../../../services/airi/wechat-runtime'
 import type { AutoUpdater } from '../../../services/electron/auto-updater'
 import type { DevtoolsWindowManager } from '../../devtools'
 import type { WidgetsWindowManager } from '../../widgets'
@@ -13,6 +15,8 @@ import { ipcMain } from 'electron'
 
 import { electronOpenDevtoolsWindow, electronOpenSettingsDevtools } from '../../../../shared/eventa'
 import { createMcpServersService } from '../../../services/airi/mcp-servers'
+import { createQqRuntimeService } from '../../../services/airi/qq-runtime'
+import { createWeChatRuntimeService } from '../../../services/airi/wechat-runtime'
 import { createWidgetsService } from '../../../services/airi/widgets'
 import { createAutoUpdaterService } from '../../../services/electron'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
@@ -24,6 +28,8 @@ export async function setupSettingsWindowInvokes(params: {
   devtoolsMarkdownStressWindow: DevtoolsWindowManager
   serverChannel: ServerChannel
   mcpStdioManager: McpStdioManager
+  qqRuntimeManager: QqRuntimeManager
+  wechatRuntimeManager: WeChatRuntimeManager
   i18n: I18n
 }) {
   // TODO: once we refactored eventa to support window-namespaced contexts,
@@ -38,6 +44,8 @@ export async function setupSettingsWindowInvokes(params: {
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.settingsWindow })
   createAutoUpdaterService({ context, window: params.settingsWindow, service: params.autoUpdater })
   createMcpServersService({ context, manager: params.mcpStdioManager })
+  createQqRuntimeService({ context, manager: params.qqRuntimeManager })
+  createWeChatRuntimeService({ context, manager: params.wechatRuntimeManager })
 
   defineInvokeHandler(context, electronOpenSettingsDevtools, async () => params.settingsWindow.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenDevtoolsWindow, async (payload) => {

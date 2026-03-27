@@ -36,6 +36,8 @@ export function useModulesList() {
   const hearingStore = useHearingStore()
   const visionStore = useVisionStore()
   const discordStore = useDiscordStore()
+  const qqStore = useQQStore()
+  const wechatStore = useWeChatStore()
   const twitterStore = useTwitterStore()
   const minecraftStore = useMinecraftStore()
   const factorioStore = useFactorioStore()
@@ -103,6 +105,24 @@ export function useModulesList() {
       icon: 'i-simple-icons:discord',
       to: '/settings/modules/messaging-discord',
       configured: discordStore.configured,
+      category: 'messaging',
+    },
+    {
+      id: 'messaging-qq',
+      name: t('settings.pages.modules.messaging-qq.title'),
+      description: t('settings.pages.modules.messaging-qq.description'),
+      icon: 'i-simple-icons:tencentqq',
+      to: '/settings/modules/messaging-qq',
+      configured: qqStore.configured,
+      category: 'messaging',
+    },
+    {
+      id: 'messaging-wechat',
+      name: t('settings.pages.modules.messaging-wechat.title'),
+      description: t('settings.pages.modules.messaging-wechat.description'),
+      icon: 'i-simple-icons:wechat',
+      to: '/settings/modules/messaging-wechat',
+      configured: wechatStore.configured,
       category: 'messaging',
     },
     {

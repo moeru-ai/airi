@@ -29,6 +29,50 @@ export interface ElectronServerChannelConfig {
 export const electronGetServerChannelConfig = defineInvokeEventa<ElectronServerChannelConfig>('eventa:invoke:electron:server-channel:get-config')
 export const electronApplyServerChannelConfig = defineInvokeEventa<ElectronServerChannelConfig, Partial<ElectronServerChannelConfig>>('eventa:invoke:electron:server-channel:apply-config')
 
+export interface ElectronEnsureQqOfficialRuntimeResult {
+  running: boolean
+  ready: boolean
+  pid: number | null
+  airiUrl: string
+  error?: string
+}
+export interface ElectronEnsureQqOfficialRuntimePayload {
+  enabled?: boolean
+  method?: 'official' | 'napcat'
+  officialToken?: string
+}
+export const electronEnsureQqOfficialRuntime = defineInvokeEventa<ElectronEnsureQqOfficialRuntimeResult, ElectronEnsureQqOfficialRuntimePayload>('eventa:invoke:electron:qq:official:ensure-runtime')
+
+export interface ElectronEnsureWeChatRuntimeResult {
+  running: boolean
+  ready: boolean
+  pid: number | null
+  airiUrl: string
+  error?: string
+}
+export interface ElectronEnsureWeChatRuntimePayload {
+  enabled?: boolean
+}
+export const electronEnsureWeChatRuntime = defineInvokeEventa<ElectronEnsureWeChatRuntimeResult, ElectronEnsureWeChatRuntimePayload>('eventa:invoke:electron:wechat:ensure-runtime')
+
+export interface ElectronQqRuntimeLogEntry {
+  id: number
+  at: string
+  level: 'info' | 'warn' | 'error'
+  source: 'manager' | 'qq-bot:stdout' | 'qq-bot:stderr'
+  message: string
+}
+export interface ElectronGetQqOfficialRuntimeLogsPayload {
+  afterId?: number
+  limit?: number
+}
+export interface ElectronGetQqOfficialRuntimeLogsResult {
+  logs: ElectronQqRuntimeLogEntry[]
+  running: boolean
+  pid: number | null
+}
+export const electronGetQqOfficialRuntimeLogs = defineInvokeEventa<ElectronGetQqOfficialRuntimeLogsResult, ElectronGetQqOfficialRuntimeLogsPayload>('eventa:invoke:electron:qq:official:get-runtime-logs')
+
 export const electronPluginList = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:list')
 export const electronPluginSetEnabled = defineInvokeEventa<PluginRegistrySnapshot, { name: string, enabled: boolean, path?: string }>('eventa:invoke:electron:plugins:set-enabled')
 export const electronPluginLoadEnabled = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:load-enabled')

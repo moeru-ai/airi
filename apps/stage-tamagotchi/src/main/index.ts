@@ -26,6 +26,8 @@ import { createI18n } from './libs/i18n'
 import { setupServerChannel } from './services/airi/channel-server'
 import { setupMcpStdioManager } from './services/airi/mcp-servers'
 import { setupPluginHost } from './services/airi/plugins'
+import { createQqRuntimeManager } from './services/airi/qq-runtime'
+import { createWeChatRuntimeManager } from './services/airi/wechat-runtime'
 import { setupAutoUpdater } from './services/electron/auto-updater'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
@@ -116,6 +118,16 @@ app.whenReady().then(async () => {
     build: async () => setupMcpStdioManager(),
   })
 
+  const qqRuntimeManager = injeca.provide('modules:qq-runtime-manager', {
+    dependsOn: { serverChannel },
+    build: ({ dependsOn }) => createQqRuntimeManager(dependsOn),
+  })
+
+  const wechatRuntimeManager = injeca.provide('modules:wechat-runtime-manager', {
+    dependsOn: { serverChannel },
+    build: ({ dependsOn }) => createWeChatRuntimeManager(dependsOn),
+  })
+
   const pluginHost = injeca.provide('modules:plugin-host', {
     dependsOn: { serverChannel },
     build: () => setupPluginHost(),
@@ -147,17 +159,17 @@ app.whenReady().then(async () => {
   })
 
   const chatWindow = injeca.provide('windows:chat', {
-    dependsOn: { widgetsManager, serverChannel, mcpStdioManager, i18n },
+    dependsOn: { widgetsManager, serverChannel, mcpStdioManager, qqRuntimeManager, wechatRuntimeManager, i18n },
     build: ({ dependsOn }) => setupChatWindowReusableFunc(dependsOn),
   })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsMarkdownStressWindow, serverChannel, mcpStdioManager, i18n },
+    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsMarkdownStressWindow, serverChannel, mcpStdioManager, qqRuntimeManager, wechatRuntimeManager, i18n },
     build: async ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, mcpStdioManager, i18n, onboardingWindowManager },
+    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, mcpStdioManager, qqRuntimeManager, wechatRuntimeManager, i18n, onboardingWindowManager },
     build: async ({ dependsOn }) => setupMainWindow(dependsOn),
   })
 

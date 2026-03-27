@@ -4,6 +4,8 @@ import type { InferOutput } from 'valibot'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { McpStdioManager } from '../../services/airi/mcp-servers'
+import type { QqRuntimeManager } from '../../services/airi/qq-runtime'
+import type { WeChatRuntimeManager } from '../../services/airi/wechat-runtime'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
 import type { NoticeWindowManager } from '../notice'
 import type { OnboardingWindowManager } from '../onboarding'
@@ -31,6 +33,7 @@ import { electronStartDraggingWindow } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { transparentWindowConfig } from '../shared'
+import { setupTranscriptionConsoleForward } from '../shared/transcription-console-forward'
 import { setupMainWindowElectronInvokes } from './rpc/index.electron'
 
 const appConfigSchema = object({
@@ -55,6 +58,8 @@ export async function setupMainWindow(params: {
   onWindowCreated?: (window: BrowserWindow) => void
   serverChannel: ServerChannel
   mcpStdioManager: McpStdioManager
+  qqRuntimeManager: QqRuntimeManager
+  wechatRuntimeManager: WeChatRuntimeManager
   i18n: I18n
   onboardingWindowManager: OnboardingWindowManager
 }) {
@@ -157,6 +162,7 @@ export async function setupMainWindow(params: {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
+  setupTranscriptionConsoleForward(window, 'main')
 
   await load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')))
 
@@ -169,6 +175,8 @@ export async function setupMainWindow(params: {
     autoUpdater: params.autoUpdater,
     serverChannel: params.serverChannel,
     mcpStdioManager: params.mcpStdioManager,
+    qqRuntimeManager: params.qqRuntimeManager,
+    wechatRuntimeManager: params.wechatRuntimeManager,
     i18n: params.i18n,
     onboardingWindowManager: params.onboardingWindowManager,
   })

@@ -1,0 +1,33 @@
+{
+  "name": "@proj-airi/qq-bot",
+  "type": "module",
+  "private": true,
+  "description": "Official QQ bot adapter for AIRI",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "services/qq-bot"
+  },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@guiiai/logg": "catalog:",
+    "@proj-airi/server-sdk": "workspace:^",
+    "@proj-airi/server-shared": "workspace:^",
+    "@sliverp/qqbot": "latest",
+    "@xsai-ext/providers": "catalog:",
+    "@xsai/generate-speech": "catalog:",
+    "@xsai/generate-transcription": "catalog:",
+    "tsx": "catalog:",
+    "unspeech": "catalog:xsai",
+    "ws": "catalog:"
+  }
+}

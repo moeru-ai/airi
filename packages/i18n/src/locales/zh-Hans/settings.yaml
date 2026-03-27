@@ -383,6 +383,161 @@ pages:
     memory-short-term:
       description: 短期记忆
       title: 短期记忆
+    messaging-qq:
+      description: 通过 QQ 对接，支持官方机器人和 NapCat
+      title: QQ
+      web-not-supported: 网页端暂不支持此操作，请使用应用程序来配置此模块 tamagotchi。
+      enable: 启用 QQ 集成
+      enable-description: 允许 AIRI 通过 QQ 进行互动
+      method: 连接方式
+      method-description: 选择官方机器人 API 或 NapCat WebSocket
+      methods:
+        official: 官方 (@sliverp/qqbot)
+        napcat: NapCat (OneBot/WebSocket)
+      official-app-id: 官方机器人 AppID
+      official-app-id-description: 官方 QQ 机器人鉴权 AppID
+      official-app-id-placeholder: 输入官方 QQ 机器人 AppID
+      official-app-secret: 官方机器人 AppSecret
+      official-app-secret-description: 官方 QQ 机器人鉴权 AppSecret
+      official-app-secret-placeholder: 输入官方 QQ 机器人 AppSecret
+      napcat-ws-url: NapCat WebSocket 地址
+      napcat-ws-url-description: NapCat 提供的 WebSocket 接入地址
+      napcat-ws-url-placeholder: 输入 NapCat WebSocket 地址，例如 ws://127.0.0.1:3001
+      napcat-ws-token: NapCat WebSocket Token（可选）
+      napcat-ws-token-description: 若 NapCat WS 需要鉴权，可填写 Token。若 URL 内已含 token 参数可留空。
+      napcat-ws-token-placeholder: 请输入 WebSocket Token
+      napcat-http-api-url: NapCat HTTP API 地址
+      napcat-http-api-url-description: 用于发送文本、图片、语音等接口地址，例如 http://127.0.0.1:3000
+      napcat-http-api-url-placeholder: 输入 NapCat HTTP API 地址
+      napcat-http-api-token: NapCat HTTP API Token（可选）
+      napcat-http-api-token-description: 如 HTTP API 开启了鉴权，请填写 Bearer Token。
+      napcat-http-api-token-placeholder: 可留空
+      napcat-group-only-reply-at: NapCat 群聊仅回复 @
+      napcat-group-only-reply-at-description: 默认开启。关闭后会响应群内普通消息。
+      section-connection-title: 连接配置
+      section-connection-description: 先选择连接方式，再填写对应参数。NapCat 需要同时配置 WS 与 HTTP API 地址。
+      section-voice-title: 语音回复
+      section-voice-description: 语音能力跟随全局语音配置，当前仅官方 QQ 模式可用。
+      section-proactive-title: 主账号绑定与主动消息
+      section-proactive-description: '绑定命令固定为 #绑定此账号。提醒能力常驻开启，主动早晚安与随机主动消息仅在已绑定并开启 AI 女友后生效。'
+      section-meme-title: 表情包状态映射
+      section-meme-description: 先创建一个情绪文件夹，然后在此文件夹内放表情包图片，如果一个文件夹下有多个图片则随机发送一张图片。会向大模型AI提交发送表情包的skill，然后由AI根据当前状态来选择应该发送哪种情绪的表情包。
+      bound-account-drawer-label: 绑定账号管理（{count}）
+      bound-userids-label: 当前绑定 userId：
+      ai-girlfriend-label: 开启 AI 女友模式
+      ai-girlfriend-description: 开启后会启用早晚安与随机时段主动消息。AI 将完全自主决定消息的回复形式（文本、语音或表情包），原有语音和表情包概率设置将失效。
+      clear-bound-userids-button: 清空绑定 userId
+      clear-bound-userids-loading: 清空中...
+      clear-bound-userids-success: 已清空当前连接方式的绑定账号。
+      clear-bound-userids-failed: 清空绑定账号失败
+      no-bound-userids-tip-prefix: 暂无绑定账号。请在 QQ 中发送
+      no-bound-userids-tip-suffix: 完成绑定。
+      meme-probability-label: 表情包发送概率（0-1）
+      meme-probability-description: 当模型调用 qq.send_meme skill 时，按该概率尝试发送图片，建议 0.3-0.7。
+      meme-probability-placeholder: 0.5
+      meme-library-shared-label: 与微信共享表情包库
+      meme-library-shared-description: 开启后，QQ 与微信共用一套状态/图片表情包库；关闭后，两边表情包配置互不影响。
+      add-meme-state-button: 新增状态
+      remove-meme-state-button: 删除状态
+      meme-empty-tip: 暂无状态映射，建议先新增一个状态并上传图片。
+      meme-state-label: 状态名（文件夹名）
+      meme-state-description: 例如：开心、生气、害羞、无语。
+      meme-state-placeholder: 开心
+      meme-state-unnamed: 未命名状态
+      meme-upload-label: 上传该状态图片
+      meme-upload-button: 上传状态图片
+      meme-upload-hint: 支持多选图片，上传后将自动加入当前状态文件夹。
+      meme-preview-count: 当前状态共 {count} 张图片
+      meme-preview-empty: 当前状态还没有图片，请先上传。
+      meme-preview-expand: 显示全部
+      meme-preview-collapse: 收起预览
+      remove-meme-image-button: 删除
+      meme-upload-success: 已上传 {count} 张表情包
+      meme-upload-failed: 上传表情包失败
+      voice-reply-mode: 回复发送模式
+      voice-reply-mode-description: 选择回复发送方式；未配置发声模块时会自动回退为仅文本
+      voice-reply-modes:
+        both: 语音和文本一起发送
+        voice: 只发送语音
+        text: 不发送语音
+      voice-reply-slow-tip: 注意：如果启用语音发送功能，由于需要生成音频文件，消息发送可能会有延迟，请知悉
+      voice-reply-fallback-tip: 未检测到发声模块配置，将自动回退为仅文本发送。请先在「语音合成」模块完成服务来源、模型与声线配置。
+      voice-settings-saving: 保存中...
+      voice-settings-saved: 语音发送设置已保存
+      voice-settings-save-failed: 语音发送设置保存失败
+      voice-generation-status: 语音生成状态：
+      voice-generation-status-values:
+        idle: 暂无
+        generating: 生成中
+        success: 成功
+        failed: 失败
+      help-label: NapCat 文档：
+      connecting: QQ 连接中...
+      connection-error: QQ 连接失败，请检查配置和日志。
+      show-logs: 显示实时日志
+      hide-logs: 隐藏实时日志
+      clear-logs: 清空日志
+      runtime-logs: 运行日志
+      runtime-logs-empty: 暂无运行日志。
+      pre-chat-tip: 注意事项：1. 首次启动时需要先打开一次设置页面，QQ 网关才会自动连接。2. 程序首次启动时需要先打开一次 AIRI 内置聊天界面，这样 QQ 对话才会有回复。
+      configured: QQ 连接成功！
+    messaging-wechat:
+      description: 通过微信进行聊天和互动
+      title: 微信
+      web-not-supported: 网页端暂不支持此操作，请使用应用程序来配置此模块 tamagotchi。
+      enable: 启用微信集成
+      enable-description: 允许 AIRI 通过微信进行互动
+      section-connection-title: 连接配置
+      section-connection-description: 启用微信后扫码登录即可开始收发消息。
+      section-voice-title: 语音回复
+      section-voice-description: 语音能力跟随全局语音配置。
+      section-proactive-title: 主账号与主动消息
+      section-proactive-description: 微信单次登录默认只有一个 userId。登录成功后会自动绑定为主账号。
+      section-meme-title: 表情包状态映射
+      section-meme-description: 可配置情绪状态与图片，回复时可发送表情包图片。
+      main-account-label: 主账号（自动绑定）
+      main-account-empty-tip: 正在等待微信登录完成并同步用户 ID。
+      main-account-auto-bind-tip: 该账号由系统自动绑定，无法在界面手动删除或修改。
+      ai-girlfriend-label: 开启 AI 女友模式
+      ai-girlfriend-description: 开启后会对主账号触发早晚安与随机主动消息，AI 可自主决定文本/语音/表情包回复形式。
+      meme-probability-label: 表情包发送概率（0-1）
+      meme-probability-description: 非 AI 女友模式下按该概率发送表情包图片，建议 0.3-0.7。
+      meme-probability-placeholder: 0.5
+      meme-library-shared-label: 与 QQ 共享表情包库
+      meme-library-shared-description: 开启后，微信与 QQ 共用一套状态/图片表情包库；关闭后，两边表情包配置互不影响。
+      meme-states-title: 状态列表
+      add-meme-state-button: 新增状态
+      remove-meme-state-button: 删除状态
+      meme-empty-tip: 暂无状态映射，建议先新增一个状态并上传图片。
+      meme-state-label: 状态名（文件夹名）
+      meme-state-description: 例如：开心、生气、害羞、无语。
+      meme-state-placeholder: 开心
+      meme-state-unnamed: 未命名状态
+      meme-upload-button: 上传状态图片
+      meme-upload-hint: 支持多选图片，上传后将自动加入当前状态文件夹。
+      meme-preview-count: 当前状态共 {count} 张图片
+      meme-preview-empty: 当前状态还没有图片，请先上传。
+      meme-preview-expand: 显示全部
+      meme-preview-collapse: 收起预览
+      remove-meme-image-button: 删除
+      meme-upload-success: 已上传 {count} 张表情包
+      meme-upload-failed: 上传表情包失败
+      voice-reply-modes:
+        both: 语音和文本一起发送
+        voice: 只发送语音
+        text: 不发送语音
+      voice-reply-slow-tip: 注意：如果启用语音发送，由于需要生成音频文件，消息发送可能会有延迟。
+      voice-reply-fallback-tip: 未检测到发声模块配置，将自动回退为仅文本发送。请先在「语音合成」模块完成服务来源、模型与声线配置。
+      voice-playback-official-fix-tip: 当前微信已可发送语音，上传返回字段也正常；但微信页面暂时可能无法播放语音，这不是 AIRI 侧问题，请等待微信官方修复。
+      memory-activation-tip: 您需要先打开一次 AIRI 内置聊天界面，以激活记忆系统；否则可能无法记录上下文。
+      voice-settings-saving: 保存中...
+      voice-settings-saved: 语音发送设置已保存
+      voice-settings-save-failed: 语音发送设置保存失败
+      status:
+        connecting: 正在连接...
+        connected: 已连接
+        error: 连接失败
+      scan-tip: 请使用微信扫描上方二维码登录
     messaging-discord:
       description: Discord 发消息和语音聊天
       title: Discord

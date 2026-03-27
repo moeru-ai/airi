@@ -394,6 +394,161 @@ pages:
     memory-short-term:
       description: Short-term memory specific settings and management
       title: Short-Term Memory
+    messaging-qq:
+      description: Chat over QQ with official bot API or NapCat
+      title: QQ
+      web-not-supported: This action is not supported on the web page. Please use the Tamagotchi application to configure this module.
+      enable: Enable QQ Integration
+      enable-description: Allow AIRI to interact through QQ
+      method: Connection Method
+      method-description: Choose official QQ bot API or NapCat websocket
+      methods:
+        official: Official (@sliverp/qqbot)
+        napcat: NapCat (OneBot/WebSocket)
+      official-app-id: Official Bot AppID
+      official-app-id-description: AppID from the official QQ bot platform
+      official-app-id-placeholder: Enter your official QQ bot AppID
+      official-app-secret: Official Bot AppSecret
+      official-app-secret-description: AppSecret from the official QQ bot platform
+      official-app-secret-placeholder: Enter your official QQ bot AppSecret
+      napcat-ws-url: NapCat WebSocket URL
+      napcat-ws-url-description: WebSocket endpoint exposed by NapCat
+      napcat-ws-url-placeholder: Enter NapCat WebSocket URL, e.g. ws://127.0.0.1:3001
+      napcat-ws-token: NapCat WebSocket Token (Optional)
+      napcat-ws-token-description: Fill this when NapCat WS authentication is enabled. Leave empty if token already exists in URL query.
+      napcat-ws-token-placeholder: Enter WebSocket token
+      napcat-http-api-url: NapCat HTTP API URL
+      napcat-http-api-url-description: API endpoint used for sending text, images, and voice, e.g. http://127.0.0.1:3000
+      napcat-http-api-url-placeholder: Enter NapCat HTTP API URL
+      napcat-http-api-token: NapCat HTTP API Token (Optional)
+      napcat-http-api-token-description: Fill Bearer token when HTTP API authentication is enabled.
+      napcat-http-api-token-placeholder: Optional
+      napcat-group-only-reply-at: NapCat group replies only when @mentioned
+      napcat-group-only-reply-at-description: Enabled by default. Disable to reply to normal group messages.
+      section-connection-title: Connection Setup
+      section-connection-description: Select connection method first, then fill required fields. NapCat requires both WS and HTTP API URL.
+      section-voice-title: Voice Reply
+      section-voice-description: Voice follows global speech settings. Currently available in official QQ mode only.
+      section-proactive-title: Primary Account & Proactive Messages
+      section-proactive-description: 'Bind command is fixed to #绑定此账号. Reminder capability is always enabled. Proactive greeting/random outreach requires a bound account and AI girlfriend mode enabled.'
+      section-meme-title: Meme State Mapping
+      section-meme-description: Add a state folder first (state name), then upload images into that state. The model decides whether to send via qq.send_meme skill.
+      bound-account-drawer-label: Bound Accounts ({count})
+      bound-userids-label: 'Bound userIds:'
+      ai-girlfriend-label: Enable AI Girlfriend Mode
+      ai-girlfriend-description: When enabled, proactive greetings and random messages will be triggered. The AI will autonomously decide the reply format (text, voice, or meme), and previous voice/meme probability settings will be overridden.
+      clear-bound-userids-button: Clear Bound User IDs
+      clear-bound-userids-loading: Clearing...
+      clear-bound-userids-success: Cleared bound accounts for current connection method.
+      clear-bound-userids-failed: Failed to clear bound accounts
+      no-bound-userids-tip-prefix: No bound account yet. Send
+      no-bound-userids-tip-suffix: in QQ to bind.
+      meme-probability-label: Meme send probability (0-1)
+      meme-probability-description: When model invokes qq.send_meme skill, image sending follows this probability. Recommended 0.3-0.7.
+      meme-probability-placeholder: 0.5
+      meme-library-shared-label: Share meme library with WeChat
+      meme-library-shared-description: When enabled, QQ and WeChat use one shared meme state/image library. When disabled, each module keeps its own meme library.
+      add-meme-state-button: Add state
+      remove-meme-state-button: Remove state
+      meme-empty-tip: No state mapping yet. Add a state and upload images first.
+      meme-state-label: State name (folder)
+      meme-state-description: 'For example: happy, angry, shy, speechless.'
+      meme-state-placeholder: happy
+      meme-state-unnamed: Untitled state
+      meme-upload-label: Upload images for this state
+      meme-upload-button: Upload state images
+      meme-upload-hint: Supports multi-select. Uploaded images are appended to current state folder.
+      meme-preview-count: '{count} images in current state'
+      meme-preview-empty: No images in current state yet.
+      meme-preview-expand: Show all
+      meme-preview-collapse: Collapse
+      remove-meme-image-button: Remove
+      meme-upload-success: Uploaded {count} meme images
+      meme-upload-failed: Failed to upload meme images
+      voice-reply-mode: Reply Send Mode
+      voice-reply-mode-description: Choose how replies are sent. Falls back to text when speech is not configured.
+      voice-reply-modes:
+        both: Send voice + text
+        voice: Send voice only
+        text: Do not send voice
+      voice-reply-slow-tip: 'Note: if voice sending is enabled, generating audio may delay message delivery.'
+      voice-reply-fallback-tip: Speech is not configured; voice sending will fall back to text. Configure provider, model and voice in Speech settings.
+      voice-playback-official-fix-tip: Voice sending and upload response fields are currently normal, but WeChat may not play voice messages in the chat page. This is not an AIRI-side issue, please wait for an official WeChat fix.
+      memory-activation-tip: Open AIRI built-in chat page at least once to activate the memory system; otherwise context may not be recorded.
+      voice-settings-saving: Saving...
+      voice-settings-saved: Voice sending settings saved
+      voice-settings-save-failed: Failed to save voice sending settings
+      voice-generation-status: 'Voice generation status:'
+      voice-generation-status-values:
+        idle: Idle
+        generating: Generating
+        success: Success
+        failed: Failed
+      help-label: 'NapCat docs:'
+      connecting: QQ is connecting...
+      connection-error: QQ connection failed. Please check your configuration and logs.
+      show-logs: Show real-time logs
+      hide-logs: Hide real-time logs
+      clear-logs: Clear logs
+      runtime-logs: Runtime logs
+      runtime-logs-empty: No runtime logs yet.
+      pre-chat-tip: 'Notes: 1. On first launch, open the Settings page once before QQ gateway auto-connect can work. 2. On first launch, open AIRI built-in chat once so QQ conversations can receive replies.'
+      configured: QQ is connected successfully!
+    messaging-wechat:
+      description: Chat and interact over WeChat
+      title: WeChat
+      web-not-supported: This action is not supported on the web page. Please use the Tamagotchi application to configure this module.
+      enable: Enable WeChat Integration
+      enable-description: Allow AIRI to interact through WeChat
+      section-connection-title: Connection Setup
+      section-connection-description: Enable WeChat first, then scan QR code to login.
+      section-voice-title: Voice Reply
+      section-voice-description: Voice follows global speech settings.
+      section-proactive-title: Primary Account & Proactive Messages
+      section-proactive-description: WeChat has only one active user ID per login session. AIRI auto-binds it as primary account after login.
+      section-meme-title: Meme State Mapping
+      section-meme-description: Add emotion states and upload images. AIRI can send meme images in replies.
+      main-account-label: Primary Account (Auto Bound)
+      main-account-empty-tip: Waiting for WeChat login to complete and sync user ID.
+      main-account-auto-bind-tip: This account is bound automatically and cannot be edited or removed from UI.
+      ai-girlfriend-label: Enable AI Girlfriend Mode
+      ai-girlfriend-description: When enabled, proactive greetings and random messages are triggered for the primary account. AI can decide text/voice/meme format autonomously.
+      meme-probability-label: Meme send probability (0-1)
+      meme-probability-description: In non-AI-girlfriend mode, meme image sending follows this probability. Recommended 0.3-0.7.
+      meme-probability-placeholder: 0.5
+      meme-library-shared-label: Share meme library with QQ
+      meme-library-shared-description: When enabled, WeChat and QQ use one shared meme state/image library. When disabled, each module keeps its own meme library.
+      meme-states-title: State list
+      add-meme-state-button: Add state
+      remove-meme-state-button: Remove state
+      meme-empty-tip: No state mapping yet. Add a state and upload images first.
+      meme-state-label: State name (folder)
+      meme-state-description: 'For example: happy, angry, shy, speechless.'
+      meme-state-placeholder: happy
+      meme-state-unnamed: Untitled state
+      meme-upload-button: Upload state images
+      meme-upload-hint: Supports multi-select. Uploaded images are appended to current state folder.
+      meme-preview-count: '{count} images in current state'
+      meme-preview-empty: No images in current state yet.
+      meme-preview-expand: Show all
+      meme-preview-collapse: Collapse
+      remove-meme-image-button: Remove
+      meme-upload-success: Uploaded {count} meme images
+      meme-upload-failed: Failed to upload meme images
+      voice-reply-modes:
+        both: Send voice + text
+        voice: Send voice only
+        text: Do not send voice
+      voice-reply-slow-tip: 'Note: if voice sending is enabled, generating audio may delay message delivery.'
+      voice-reply-fallback-tip: Speech is not configured; voice sending will fall back to text. Configure provider, model and voice in Speech settings.
+      voice-settings-saving: Saving...
+      voice-settings-saved: Voice sending settings saved
+      voice-settings-save-failed: Failed to save voice sending settings
+      status:
+        connecting: Connecting...
+        connected: Connected
+        error: Connection Error
+      scan-tip: Please scan the QR code above with WeChat to login
     messaging-discord:
       description: Chat & voice chat over Discord
       title: Discord

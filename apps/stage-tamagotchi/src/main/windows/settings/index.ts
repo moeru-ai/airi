@@ -1,6 +1,8 @@
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { McpStdioManager } from '../../services/airi/mcp-servers'
+import type { QqRuntimeManager } from '../../services/airi/qq-runtime'
+import type { WeChatRuntimeManager } from '../../services/airi/wechat-runtime'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
 import type { DevtoolsWindowManager } from '../devtools'
 import type { WidgetsWindowManager } from '../widgets'
@@ -16,6 +18,7 @@ import { electronSettingsNavigate } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { toggleWindowShow } from '../shared'
+import { setupTranscriptionConsoleForward } from '../shared/transcription-console-forward'
 import { setupSettingsWindowInvokes } from './rpc/index.electron'
 
 export interface SettingsWindowManager {
@@ -30,6 +33,8 @@ export function setupSettingsWindowReusableFunc(params: {
   onWindowCreated?: (window: BrowserWindow) => void
   serverChannel: ServerChannel
   mcpStdioManager: McpStdioManager
+  qqRuntimeManager: QqRuntimeManager
+  wechatRuntimeManager: WeChatRuntimeManager
   i18n: I18n
 }): SettingsWindowManager {
   const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
@@ -59,6 +64,7 @@ export function setupSettingsWindowReusableFunc(params: {
       shell.openExternal(details.url)
       return { action: 'deny' }
     })
+    setupTranscriptionConsoleForward(window, 'settings')
 
     await load(window, withHashRoute(rendererBase, currentRoute))
     settingsContext = await setupSettingsWindowInvokes({
@@ -68,6 +74,8 @@ export function setupSettingsWindowReusableFunc(params: {
       devtoolsMarkdownStressWindow: params.devtoolsMarkdownStressWindow,
       serverChannel: params.serverChannel,
       mcpStdioManager: params.mcpStdioManager,
+      qqRuntimeManager: params.qqRuntimeManager,
+      wechatRuntimeManager: params.wechatRuntimeManager,
       i18n: params.i18n,
     })
 

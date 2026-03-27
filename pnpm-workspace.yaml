@@ -58,6 +58,7 @@ catalog:
   '@types/audioworklet': ^0.0.97
   '@types/d3': ^7.4.3
   '@types/hast': ^3.0.4
+  '@types/qrcode': ^1.5.5
   '@types/splitpanes': ^2.2.6
   '@types/unist': ^3.0.3
   '@types/ws': ^8.18.1
@@ -99,6 +100,7 @@ catalog:
   oxc-minify: ^0.121.0
   pinia: ^3.0.4
   posthog-js: 1.306.1
+  qrcode: ^1.5.4
   splitpanes: ^4.0.4
   std-env: ^4.0.0
   superjson: ^2.2.6

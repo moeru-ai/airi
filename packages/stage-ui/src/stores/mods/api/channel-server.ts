@@ -209,5 +209,6 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     onContextUpdate,
     onEvent,
     dispose,
+    websocketUrl,
   }
 })

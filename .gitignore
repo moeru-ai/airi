@@ -106,6 +106,8 @@ web-ext.config.ts
 # Data
 .postgres
 twitter-session.json
+.airi/
+**/.airi/
 
 # Symlinks created by nix build
 result*

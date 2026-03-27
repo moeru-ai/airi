@@ -1,0 +1,35 @@
+{
+  "name": "@proj-airi/wechat-bot",
+  "type": "module",
+  "private": true,
+  "description": "WeChat bot adapter for AIRI",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "services/wechat-bot"
+  },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@guiiai/logg": "catalog:",
+    "@proj-airi/server-sdk": "workspace:^",
+    "@proj-airi/server-shared": "workspace:^",
+    "@types/qrcode": "catalog:",
+    "@xsai-ext/providers": "catalog:",
+    "@xsai/generate-speech": "catalog:",
+    "@xsai/generate-transcription": "catalog:",
+    "openilink-sdk-node": "git+https://github.com/openilink/openilink-sdk-node.git",
+    "qrcode": "catalog:",
+    "tsx": "catalog:",
+    "unspeech": "catalog:xsai",
+    "ws": "catalog:"
+  }
+}
