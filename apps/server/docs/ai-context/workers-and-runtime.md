@@ -6,12 +6,10 @@
 
 - `api`
   - 启动 Hono HTTP + WebSocket 服务
-- `cache-sync-consumer`
-  - 消费 Redis Streams 中的计费事件，回写 Flux Redis 缓存
-- `outbox-dispatcher`
-  - 从 Postgres `outbox_events` 拉取未发布事件，投递到 Redis Streams
+- `billing-consumer`
+  - 消费 Redis Stream `billing-events`，异步将 ledger、audit log、LLM 请求日志写入 DB
 
-这三个角色已经是当前服务端部署拆分的基本单位。
+这两个角色是当前服务端部署拆分的基本单位。
 
 ## API 角色
 
@@ -32,61 +30,21 @@
 - 启动 HTTP server
 - 注入 WebSocket
 
-## Outbox Dispatcher
+## Billing Consumer
 
 实现位置：
 
-- 入口：`src/bin/run-outbox-dispatcher.ts`
-- 服务：`src/services/outbox-dispatcher.ts`
-- 存储：`src/services/outbox-service.ts`
-- MQ：`src/services/billing-mq.ts`
-
-工作流程：
-
-1. 从 `outbox_events` claim 一批未发布事件
-2. 逐条发布到 Redis Stream
-3. 发布成功后写 `publishedAt` 和 `streamMessageId`
-4. 失败则释放 claim，等待下一轮处理
-
-关键机制：
-
-- 支持多实例并发 dispatcher
-- claim 通过 TTL 失效，避免 worker 崩掉后永久锁死
-
-相关环境变量：
-
-- `OUTBOX_DISPATCHER_NAME`
-- `OUTBOX_DISPATCHER_BATCH_SIZE`
-- `OUTBOX_DISPATCHER_CLAIM_TTL_MS`
-- `OUTBOX_DISPATCHER_POLL_MS`
-- `BILLING_EVENTS_STREAM`
-
-## Billing Events Consumer
-
-实现位置：
-
-- 入口：`src/bin/run-billing-events-consumer.ts`
+- 入口：`src/bin/run-billing-consumer.ts`
 - worker：`src/services/billing-mq-worker.ts`
 - stream adapter：`src/services/billing-mq.ts`
 
-当前默认 handler：
+工作流程：
 
-- `handleCacheSyncMessage()`
-
-它只处理：
-
-- `flux.credited`
-- `flux.debited`
-
-并把 `payload.balanceAfter` 写回 Redis：
-
-- key: `flux:<userId>`
-
-这说明当前 consumer 的目标非常克制：
-
-- 不是账务真相处理器
-- 不是分析流水处理器
-- 只是缓存一致性补偿器
+1. 以 consumer group 模式消费 Redis Stream `billing-events`
+2. 根据事件类型分发处理：
+   - `flux.debited` — 写 `flux_ledger` 和 `flux_audit_log`
+   - `llm.request.log` — 写 `llm_request_log`
+3. 处理成功后 ACK；handler 抛错时不 ACK，消息保持 pending 等待重试
 
 相关环境变量：
 
@@ -172,17 +130,13 @@
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
 
-### Billing MQ / Outbox
+### Billing MQ
 
 - `BILLING_EVENTS_STREAM`
 - `BILLING_EVENTS_CONSUMER_NAME`
 - `BILLING_EVENTS_BATCH_SIZE`
 - `BILLING_EVENTS_BLOCK_MS`
 - `BILLING_EVENTS_MIN_IDLE_MS`
-- `OUTBOX_DISPATCHER_NAME`
-- `OUTBOX_DISPATCHER_BATCH_SIZE`
-- `OUTBOX_DISPATCHER_CLAIM_TTL_MS`
-- `OUTBOX_DISPATCHER_POLL_MS`
 
 ### OTel
 
@@ -200,7 +154,7 @@
 - 新增 worker
   - 先看 `run.ts` 的角色模型和 `billing-mq-worker.ts`
 - 改事件分发
-  - 先看 outbox，而不是直接在业务事务里调用 Redis Streams
+  - 先看 billing-consumer handler，在 `billing-mq-worker.ts` 中增加新的事件处理分支
 - 改聊天同步
   - 先区分“持久化消息”与“广播通知”两层
 - 改部署限流

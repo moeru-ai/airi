@@ -1,7 +1,7 @@
+import type { BillingMqService } from '../../services/billing-mq'
 import type { BillingService } from '../../services/billing-service'
 import type { ConfigKVService } from '../../services/config-kv'
 import type { FluxService } from '../../services/flux'
-import type { RequestLogService } from '../../services/request-log'
 import type { HonoEnv } from '../../types/hono'
 
 import { Hono } from 'hono'
@@ -53,19 +53,24 @@ function createMockConfigKV(overrides: Record<string, any> = {}): ConfigKVServic
   } as any
 }
 
-function createMockRequestLogService(): RequestLogService {
+function createMockBillingMq(): BillingMqService {
   return {
-    logRequest: vi.fn(async () => {}),
+    stream: 'billing-events',
+    publish: vi.fn(async () => '1-0'),
+    ensureConsumerGroup: vi.fn(async () => true),
+    consume: vi.fn(async () => []),
+    claimIdleMessages: vi.fn(async () => []),
+    ack: vi.fn(async () => 1),
   } as any
 }
 
 function createTestApp(
   fluxService: FluxService,
   configKV: ConfigKVService,
-  requestLogService: RequestLogService,
   billingService?: BillingService,
+  billingMq?: BillingMqService,
 ) {
-  const routes = createV1CompletionsRoutes(fluxService, billingService ?? createMockBillingService(), configKV, requestLogService, null)
+  const routes = createV1CompletionsRoutes(fluxService, billingService ?? createMockBillingService(), configKV, billingMq ?? createMockBillingMq(), null)
   const app = new Hono<HonoEnv>()
 
   app.onError((err, c) => {
@@ -108,7 +113,6 @@ describe('v1CompletionsRoutes', () => {
       const app = createTestApp(
         createMockFluxService(),
         createMockConfigKV(),
-        createMockRequestLogService(),
       )
 
       const res = await app.request('/api/v1/chat/completions', {
@@ -123,7 +127,6 @@ describe('v1CompletionsRoutes', () => {
       const app = createTestApp(
         createMockFluxService(0),
         createMockConfigKV(),
-        createMockRequestLogService(),
       )
 
       const res = await app.fetch(
@@ -147,8 +150,7 @@ describe('v1CompletionsRoutes', () => {
       const fluxService = createMockFluxService(100)
       const billingService = createMockBillingService(100)
       const configKV = createMockConfigKV({ GATEWAY_BASE_URL: 'http://mock-gateway/' })
-      const requestLogService = createMockRequestLogService()
-      const app = createTestApp(fluxService, configKV, requestLogService, billingService)
+      const app = createTestApp(fluxService, configKV, billingService)
 
       const res = await app.fetch(
         new Request('http://localhost/api/v1/chat/completions', {
@@ -187,7 +189,6 @@ describe('v1CompletionsRoutes', () => {
       const app = createTestApp(
         createMockFluxService(),
         createMockConfigKV({ DEFAULT_CHAT_MODEL: 'anthropic/claude-sonnet' }),
-        createMockRequestLogService(),
       )
 
       await app.fetch(
@@ -213,7 +214,7 @@ describe('v1CompletionsRoutes', () => {
         headers: { 'Content-Type': 'application/json' },
       }))
 
-      const app = createTestApp(createMockFluxService(), createMockConfigKV(), createMockRequestLogService())
+      const app = createTestApp(createMockFluxService(), createMockConfigKV())
 
       await app.fetch(
         new Request('http://localhost/api/v1/chat/completions', {
@@ -239,7 +240,7 @@ describe('v1CompletionsRoutes', () => {
       }))
 
       const billingService = createMockBillingService(100)
-      const app = createTestApp(createMockFluxService(100), createMockConfigKV(), createMockRequestLogService(), billingService)
+      const app = createTestApp(createMockFluxService(100), createMockConfigKV(), billingService)
 
       const res = await app.fetch(
         new Request('http://localhost/api/v1/chat/completions', {
@@ -260,7 +261,7 @@ describe('v1CompletionsRoutes', () => {
       // Override getOptional to return null for required keys
       configKV.getOptional = vi.fn(async () => null)
 
-      const app = createTestApp(createMockFluxService(), configKV, createMockRequestLogService())
+      const app = createTestApp(createMockFluxService(), configKV)
 
       const res = await app.fetch(
         new Request('http://localhost/api/v1/chat/completions', {
@@ -273,14 +274,14 @@ describe('v1CompletionsRoutes', () => {
       expect(res.status).toBe(503)
     })
 
-    it('should log the request', async () => {
+    it('should publish request log event via billingMq', async () => {
       globalThis.fetch = vi.fn(async () => new Response('{}', {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       }))
 
-      const requestLogService = createMockRequestLogService()
-      const app = createTestApp(createMockFluxService(), createMockConfigKV(), requestLogService)
+      const billingMq = createMockBillingMq()
+      const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, billingMq)
 
       await app.fetch(
         new Request('http://localhost/api/v1/chat/completions', {
@@ -291,12 +292,16 @@ describe('v1CompletionsRoutes', () => {
         { user: testUser } as any,
       )
 
-      expect(requestLogService.logRequest).toHaveBeenCalledWith(
+      expect(billingMq.publish).toHaveBeenCalledWith(
         expect.objectContaining({
+          eventType: 'llm.request.log',
+          aggregateId: 'user-1',
           userId: 'user-1',
-          model: 'gpt-4',
-          status: 200,
-          fluxConsumed: 1,
+          payload: expect.objectContaining({
+            model: 'gpt-4',
+            status: 200,
+            fluxConsumed: 1,
+          }),
         }),
       )
     })
@@ -310,7 +315,7 @@ describe('v1CompletionsRoutes', () => {
         headers: { 'Content-Type': 'audio/mpeg' },
       }))
 
-      const app = createTestApp(createMockFluxService(), createMockConfigKV(), createMockRequestLogService())
+      const app = createTestApp(createMockFluxService(), createMockConfigKV())
 
       const res = await app.fetch(
         new Request('http://localhost/api/v1/audio/speech', {
@@ -336,7 +341,7 @@ describe('v1CompletionsRoutes', () => {
         headers: { 'Content-Type': 'application/json' },
       }))
 
-      const app = createTestApp(createMockFluxService(), createMockConfigKV(), createMockRequestLogService())
+      const app = createTestApp(createMockFluxService(), createMockConfigKV())
 
       const formData = new FormData()
       formData.append('file', new Blob(['audio']), 'test.wav')
@@ -360,7 +365,7 @@ describe('v1CompletionsRoutes', () => {
 
   describe('route matching', () => {
     it('gET /api/v1/chat/completions should return 404', async () => {
-      const app = createTestApp(createMockFluxService(), createMockConfigKV(), createMockRequestLogService())
+      const app = createTestApp(createMockFluxService(), createMockConfigKV())
 
       const res = await app.fetch(
         new Request('http://localhost/api/v1/chat/completions', { method: 'GET' }),
@@ -375,7 +380,7 @@ describe('v1CompletionsRoutes', () => {
         headers: { 'Content-Type': 'application/json' },
       }))
 
-      const app = createTestApp(createMockFluxService(), createMockConfigKV(), createMockRequestLogService())
+      const app = createTestApp(createMockFluxService(), createMockConfigKV())
 
       const res = await app.fetch(
         new Request('http://localhost/api/v1/chat/completion', {

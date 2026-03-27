@@ -2,6 +2,15 @@ import type Redis from 'ioredis'
 
 import type { Env } from './libs/env'
 import type { OtelInstance } from './libs/otel'
+import type { BillingMqService } from './services/billing-mq'
+import type { BillingService } from './services/billing-service'
+import type { CharacterService } from './services/characters'
+import type { ChatService } from './services/chats'
+import type { ConfigKVService } from './services/config-kv'
+import type { FluxService } from './services/flux'
+import type { FluxAuditService } from './services/flux-audit'
+import type { ProviderService } from './services/providers'
+import type { StripeService } from './services/stripe'
 import type { HonoEnv } from './types/hono'
 
 import process from 'node:process'
@@ -31,61 +40,36 @@ import { createFluxRoutes } from './routes/flux'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
 import { createV1CompletionsRoutes } from './routes/v1completions'
+import { createBillingMqService } from './services/billing-mq'
 import { createBillingService } from './services/billing-service'
 import { createCharacterService } from './services/characters'
 import { createChatService } from './services/chats'
 import { createConfigKVService } from './services/config-kv'
 import { createFluxService } from './services/flux'
 import { createFluxAuditService } from './services/flux-audit'
-import { createOutboxService } from './services/outbox-service'
 import { createProviderService } from './services/providers'
 import { createRequestLogService } from './services/request-log'
 import { createStripeService } from './services/stripe'
 import { ApiError, createInternalError, createUnauthorizedError } from './utils/error'
 import { getTrustedOrigin } from './utils/origin'
 
-type AuthService = ReturnType<typeof createAuth>
-type CharacterService = ReturnType<typeof createCharacterService>
-type ChatService = ReturnType<typeof createChatService>
-type ProviderService = ReturnType<typeof createProviderService>
-type FluxService = ReturnType<typeof createFluxService>
-type ConfigKVService = ReturnType<typeof createConfigKVService>
-type RequestLogService = ReturnType<typeof createRequestLogService>
-type StripeDBService = ReturnType<typeof createStripeService>
-type FluxAuditService = ReturnType<typeof createFluxAuditService>
-type BillingService = ReturnType<typeof createBillingService>
-
 interface AppDeps {
-  auth: AuthService
+  auth: ReturnType<typeof createAuth>
   characterService: CharacterService
   chatService: ChatService
   providerService: ProviderService
   fluxService: FluxService
   fluxAuditService: FluxAuditService
-  requestLogService: RequestLogService
-  stripeService: StripeDBService
+  stripeService: StripeService
   billingService: BillingService
+  billingMqService: BillingMqService
   configKV: ConfigKVService
   redis: Redis
   env: Env
   otel: OtelInstance | null
 }
 
-function buildApp({
-  auth,
-  characterService,
-  chatService,
-  providerService,
-  fluxService,
-  fluxAuditService,
-  requestLogService,
-  stripeService,
-  billingService,
-  configKV,
-  redis,
-  env,
-  otel,
-}: AppDeps) {
+function buildApp(deps: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
 
   const app = new Hono<HonoEnv>()
@@ -98,20 +82,20 @@ function buildApp({
     )
     .use(honoLogger())
 
-  if (otel) {
-    app.use('*', otelMiddleware(otel.http))
+  if (deps.otel) {
+    app.use('*', otelMiddleware(deps.otel.http))
   }
 
   // WebSocket setup — must be registered BEFORE bodyLimit middleware
   const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app })
-  const chatWsSetup = createChatWsHandlers(chatService, redis, otel?.engagement ?? null)
+  const chatWsSetup = createChatWsHandlers(deps.chatService, deps.redis, deps.otel?.engagement ?? null)
 
   app.get('/ws/chat', upgradeWebSocket(async (c) => {
     const token = c.req.query('token')
     if (!token) {
       throw createUnauthorizedError('Missing token')
     }
-    const session = await auth.api.getSession({
+    const session = await deps.auth.api.getSession({
       headers: new Headers({ Authorization: `Bearer ${token}` }),
     })
     if (!session?.user) {
@@ -121,7 +105,7 @@ function buildApp({
   }))
 
   const builtApp = app
-    .use('*', sessionMiddleware(auth))
+    .use('*', sessionMiddleware(deps.auth))
     .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
     .onError((err, c) => {
       if (err instanceof ApiError) {
@@ -157,37 +141,37 @@ function buildApp({
       windowSec: 60,
       keyGenerator: c => c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'unknown',
     }))
-    .on(['POST', 'GET'], '/api/auth/*', c => auth.handler(c.req.raw))
+    .on(['POST', 'GET'], '/api/auth/*', c => deps.auth.handler(c.req.raw))
 
     /**
      * Character routes are handled by the character service.
      */
-    .route('/api/characters', createCharacterRoutes(characterService))
+    .route('/api/characters', createCharacterRoutes(deps.characterService))
 
     /**
      * Provider routes are handled by the provider service.
      */
-    .route('/api/providers', createProviderRoutes(providerService))
+    .route('/api/providers', createProviderRoutes(deps.providerService))
 
     /**
      * Chat routes are handled by the chat service.
      */
-    .route('/api/chats', createChatRoutes(chatService))
+    .route('/api/chats', createChatRoutes(deps.chatService))
 
     /**
      * V1 routes for official provider.
      */
-    .route('/api/v1', createV1CompletionsRoutes(fluxService, billingService, configKV, requestLogService, otel?.llm ?? null))
+    .route('/api/v1', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.billingMqService, deps.otel?.llm))
 
     /**
      * Flux routes.
      */
-    .route('/api/flux', createFluxRoutes(fluxService, fluxAuditService))
+    .route('/api/flux', createFluxRoutes(deps.fluxService, deps.fluxAuditService))
 
     /**
      * Stripe routes.
      */
-    .route('/api/stripe', createStripeRoutes(fluxService, stripeService, billingService, configKV, env, otel?.revenue))
+    .route('/api/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.otel?.revenue))
 
   return { app: builtApp, injectWebSocket }
 }
@@ -272,9 +256,11 @@ export async function createApp() {
     build: ({ dependsOn }) => createConfigKVService(dependsOn.redis),
   })
 
-  const outboxService = injeca.provide('services:outbox', {
-    dependsOn: { db },
-    build: ({ dependsOn }) => createOutboxService(dependsOn.db),
+  const billingMqService = injeca.provide('services:billingMq', {
+    dependsOn: { redis, env: parsedEnv },
+    build: ({ dependsOn }) => createBillingMqService(dependsOn.redis, {
+      stream: dependsOn.env.BILLING_EVENTS_STREAM,
+    }),
   })
 
   const auth = injeca.provide('services:auth', {
@@ -318,8 +304,8 @@ export async function createApp() {
   })
 
   const billingService = injeca.provide('services:billing', {
-    dependsOn: { db, redis, outboxService, configKV, otel },
-    build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.outboxService, dependsOn.configKV, dependsOn.otel?.revenue),
+    dependsOn: { db, redis, billingMqService, configKV, otel },
+    build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.billingMqService, dependsOn.configKV, dependsOn.otel?.revenue),
   })
 
   await injeca.start()
@@ -334,6 +320,7 @@ export async function createApp() {
     requestLogService,
     stripeService,
     billingService,
+    billingMqService,
     configKV,
     redis,
     env: parsedEnv,
@@ -346,9 +333,9 @@ export async function createApp() {
     providerService: resolved.providerService,
     fluxService: resolved.fluxService,
     fluxAuditService: resolved.fluxAuditService,
-    requestLogService: resolved.requestLogService,
     stripeService: resolved.stripeService,
     billingService: resolved.billingService,
+    billingMqService: resolved.billingMqService,
     configKV: resolved.configKV,
     redis: resolved.redis,
     env: resolved.env,

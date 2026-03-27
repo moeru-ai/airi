@@ -27,11 +27,10 @@
   - 注入 WebSocket
   - 绑定 `uncaughtException` / `unhandledRejection`
 
-CLI 入口在 `src/bin/run.ts`，支持三种角色：
+CLI 入口在 `src/bin/run.ts`，支持两种角色：
 
 - `api`
-- `cache-sync-consumer`
-- `outbox-dispatcher`
+- `billing-consumer`
 
 ## 依赖注入结构
 
@@ -44,7 +43,6 @@ CLI 入口在 `src/bin/run.ts`，支持三种角色：
   - `redis`
   - `configKV`
 - 服务
-  - `outboxService`
   - `auth`
   - `characterService`
   - `providerService`
@@ -57,7 +55,7 @@ CLI 入口在 `src/bin/run.ts`，支持三种角色：
 
 这个装配顺序说明了几个事实：
 
-- `billingService` 依赖 `db + redis + outboxService`
+- `billingService` 依赖 `db + redis`
 - `fluxService` 只读余额，不承担余额写入职责
 - `auth` 直接绑定数据库 schema，不是外部独立服务
 
@@ -82,7 +80,6 @@ CLI 入口在 `src/bin/run.ts`，支持三种角色：
 - `flux.ts`
 - `billing-service.ts`
 - `stripe.ts`
-- `outbox-service.ts`
 
 这里是主要改动面。大多数业务改动都不应该直接写进 route handler。
 
@@ -92,7 +89,7 @@ CLI 入口在 `src/bin/run.ts`，支持三种角色：
 
 - Drizzle schema 基本覆盖了所有核心表
 - 数据迁移由 `@proj-airi/server-schema` 提供
-- `app.ts` 和 `run-outbox-dispatcher.ts` 启动时都会执行迁移
+- `app.ts` 启动时会执行迁移
 
 ## 中间件与通用约束
 
@@ -134,7 +131,7 @@ CLI 入口在 `src/bin/run.ts`，支持三种角色：
   - 新用户首次读取时初始化余额
 - `BillingService`
   - 面向写入
-  - 事务内更新余额、流水、审计、outbox
+  - debitFlux：事务内更新余额，事务后 XADD Redis Stream；credit 方法：事务内同步写流水和审计
 
 这是服务端最重要的边界之一，尽量不要把写余额逻辑重新塞回 `flux.ts`。
 

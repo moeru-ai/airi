@@ -20,6 +20,7 @@ const BillingEventTypeSchema = union([
   literal('flux.credited'),
   literal('stripe.checkout.completed'),
   literal('llm.request.completed'),
+  literal('llm.request.log'),
 ])
 
 const BalanceChangePayloadSchema = object({
@@ -43,6 +44,15 @@ const LlmRequestCompletedPayloadSchema = object({
   completionTokens: optional(number()),
 })
 
+const LlmRequestLogPayloadSchema = object({
+  model: pipe(string(), nonEmpty()),
+  status: number(),
+  durationMs: number(),
+  fluxConsumed: number(),
+  promptTokens: optional(number()),
+  completionTokens: optional(number()),
+})
+
 const BillingEventEnvelopeSchema = object({
   eventId: pipe(string(), nonEmpty()),
   eventType: BillingEventTypeSchema,
@@ -60,6 +70,7 @@ type BillingEventEnvelope = InferOutput<typeof BillingEventEnvelopeSchema>
 type BalanceChangePayload = InferOutput<typeof BalanceChangePayloadSchema>
 type StripeCheckoutCompletedPayload = InferOutput<typeof StripeCheckoutCompletedPayloadSchema>
 type LlmRequestCompletedPayload = InferOutput<typeof LlmRequestCompletedPayloadSchema>
+type LlmRequestLogPayload = InferOutput<typeof LlmRequestLogPayloadSchema>
 
 export type FluxDebitedEvent = BillingEventEnvelope & {
   eventType: 'flux.debited'
@@ -81,11 +92,17 @@ export type LlmRequestCompletedEvent = BillingEventEnvelope & {
   payload: LlmRequestCompletedPayload
 }
 
+export type LlmRequestLogEvent = BillingEventEnvelope & {
+  eventType: 'llm.request.log'
+  payload: LlmRequestLogPayload
+}
+
 export type BillingEvent
   = | FluxDebitedEvent
     | FluxCreditedEvent
     | StripeCheckoutCompletedEvent
     | LlmRequestCompletedEvent
+    | LlmRequestLogEvent
 
 export interface SerializedBillingEventFields extends Record<string, string | undefined> {
   event_id: string
@@ -152,6 +169,12 @@ export function parseBillingEvent(fields: Record<string, string | undefined>): B
         ...parsedEnvelope,
         eventType: 'llm.request.completed',
         payload: parse(LlmRequestCompletedPayloadSchema, parsedEnvelope.payload),
+      }
+    case 'llm.request.log':
+      return {
+        ...parsedEnvelope,
+        eventType: 'llm.request.log',
+        payload: parse(LlmRequestLogPayloadSchema, parsedEnvelope.payload),
       }
   }
 }

@@ -5,8 +5,7 @@ import { createServerCli, parseServerRole } from '../run'
 describe('server cli', () => {
   it('parses supported roles', () => {
     expect(parseServerRole(['api'])).toBe('api')
-    expect(parseServerRole(['cache-sync-consumer'])).toBe('cache-sync-consumer')
-    expect(parseServerRole(['outbox-dispatcher'])).toBe('outbox-dispatcher')
+    expect(parseServerRole(['billing-consumer'])).toBe('billing-consumer')
   })
 
   it('returns null for unsupported or missing roles', () => {
@@ -19,8 +18,7 @@ describe('server cli', () => {
 
     expect(cli.commands.map(command => command.name)).toEqual(expect.arrayContaining([
       'api',
-      'cache-sync-consumer',
-      'outbox-dispatcher',
+      'billing-consumer',
     ]))
   })
 })

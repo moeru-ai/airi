@@ -6,9 +6,9 @@ import { createDrizzle, migrateDatabase } from '../libs/db'
 import { parseEnv } from '../libs/env'
 import { initializeExternalDependency } from '../libs/external-dependency'
 import { createRedis } from '../libs/redis'
+import { createBillingConsumerHandler } from '../services/billing-consumer-handler'
 import { createBillingMqService } from '../services/billing-mq'
-import { createOutboxDispatcher } from '../services/outbox-dispatcher'
-import { createOutboxService } from '../services/outbox-service'
+import { createBillingMqWorker } from '../services/billing-mq-worker'
 
 function parsePositiveInteger(rawValue: string, envKey: string): number {
   const parsed = Number(rawValue)
@@ -19,11 +19,11 @@ function parsePositiveInteger(rawValue: string, envKey: string): number {
   return parsed
 }
 
-export async function runOutboxDispatcher(): Promise<void> {
+export async function runBillingConsumer(): Promise<void> {
   initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
 
   const env = parseEnv(process.env)
-  const logger = useLogger('outbox-dispatcher').useGlobalConfig()
+  const logger = useLogger('billing-consumer').useGlobalConfig()
   const { db, pool } = await initializeExternalDependency(
     'Database',
     logger,
@@ -62,14 +62,14 @@ export async function runOutboxDispatcher(): Promise<void> {
   )
 
   const abortController = new AbortController()
-  const claimedBy = env.OUTBOX_DISPATCHER_NAME ?? `outbox-dispatcher-${pid}`
+  const consumer = env.BILLING_EVENTS_CONSUMER_NAME ?? `billing-consumer-${pid}`
 
   const shutdown = (signalName: string) => {
     if (abortController.signal.aborted) {
       return
     }
 
-    logger.withFields({ signalName }).log('Stopping outbox dispatcher')
+    logger.withFields({ signalName }).log('Stopping billing consumer')
     abortController.abort()
   }
 
@@ -77,18 +77,21 @@ export async function runOutboxDispatcher(): Promise<void> {
   process.once('SIGTERM', () => shutdown('SIGTERM'))
 
   try {
-    const outboxService = createOutboxService(db)
-    const billingMqService = createBillingMqService(redis, {
+    const mq = createBillingMqService(redis, {
       stream: env.BILLING_EVENTS_STREAM,
     })
-    const dispatcher = createOutboxDispatcher(outboxService, billingMqService)
 
-    await dispatcher.run({
-      claimedBy,
+    const handler = createBillingConsumerHandler(db)
+    const worker = createBillingMqWorker(mq)
+
+    await worker.run({
+      group: 'billing-consumer',
+      consumer,
       signal: abortController.signal,
-      batchSize: parsePositiveInteger(env.OUTBOX_DISPATCHER_BATCH_SIZE, 'OUTBOX_DISPATCHER_BATCH_SIZE'),
-      claimTtlMs: parsePositiveInteger(env.OUTBOX_DISPATCHER_CLAIM_TTL_MS, 'OUTBOX_DISPATCHER_CLAIM_TTL_MS'),
-      pollIntervalMs: parsePositiveInteger(env.OUTBOX_DISPATCHER_POLL_MS, 'OUTBOX_DISPATCHER_POLL_MS'),
+      batchSize: parsePositiveInteger(env.BILLING_EVENTS_BATCH_SIZE, 'BILLING_EVENTS_BATCH_SIZE'),
+      blockMs: parsePositiveInteger(env.BILLING_EVENTS_BLOCK_MS, 'BILLING_EVENTS_BLOCK_MS'),
+      minIdleTimeMs: parsePositiveInteger(env.BILLING_EVENTS_MIN_IDLE_MS, 'BILLING_EVENTS_MIN_IDLE_MS'),
+      onMessage: message => handler.handleMessage(message),
     })
   }
   finally {

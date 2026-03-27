@@ -2,10 +2,10 @@ import type { Context } from 'hono'
 
 import type { LlmMetrics } from '../libs/otel'
 import type { UsageInfo } from '../services/billing'
+import type { BillingMqService } from '../services/billing-mq'
 import type { BillingService } from '../services/billing-service'
 import type { ConfigKVService } from '../services/config-kv'
 import type { FluxService } from '../services/flux'
-import type { RequestLogService } from '../services/request-log'
 import type { HonoEnv } from '../types/hono'
 
 import { useLogger } from '@guiiai/logg'
@@ -42,7 +42,7 @@ function normalizeBaseUrl(gatewayBaseUrl: string): string {
   return gatewayBaseUrl.endsWith('/') ? gatewayBaseUrl : `${gatewayBaseUrl}/`
 }
 
-export function createV1CompletionsRoutes(fluxService: FluxService, billingService: BillingService, configKV: ConfigKVService, requestLogService: RequestLogService, llm: LlmMetrics | null) {
+export function createV1CompletionsRoutes(fluxService: FluxService, billingService: BillingService, configKV: ConfigKVService, billingMq: BillingMqService, llm?: LlmMetrics | null) {
   const logger = useLogger('v1-completions').useGlobalConfig()
 
   function recordMetrics(opts: { model: string, status: number, type: string, durationMs: number, fluxConsumed: number, promptTokens?: number, completionTokens?: number }) {
@@ -56,6 +56,25 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
       llm.tokensPrompt.add(opts.promptTokens, { model: opts.model })
     if (opts.completionTokens != null)
       llm.tokensCompletion.add(opts.completionTokens, { model: opts.model })
+  }
+
+  function publishRequestLog(entry: { userId: string, model: string, status: number, durationMs: number, fluxConsumed: number, promptTokens?: number, completionTokens?: number }) {
+    billingMq.publish({
+      eventId: nanoid(),
+      eventType: 'llm.request.log' as const,
+      aggregateId: entry.userId,
+      userId: entry.userId,
+      occurredAt: new Date().toISOString(),
+      schemaVersion: 1,
+      payload: {
+        model: entry.model,
+        status: entry.status,
+        durationMs: entry.durationMs,
+        fluxConsumed: entry.fluxConsumed,
+        promptTokens: entry.promptTokens,
+        completionTokens: entry.completionTokens,
+      },
+    }).catch(err => logger.withError(err).warn('Failed to publish request log event'))
   }
 
   // NOTICE: Billing is best-effort — flux is debited AFTER the LLM response is sent.
@@ -174,7 +193,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
           }
           catch (err) { logger.withError(err).withFields({ userId: user.id, fluxConsumed, requestId }).error('Failed to debit flux after streaming — unpaid usage') }
 
-          requestLogService.logRequest({
+          publishRequestLog({
             userId: user.id,
             model: requestModel,
             status: response.status,
@@ -182,7 +201,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
             fluxConsumed: actualCharged,
             promptTokens: usage.promptTokens,
             completionTokens: usage.completionTokens,
-          }).catch(err => logger.withError(err).warn('Failed to log streaming request'))
+          })
         }
       })()
 
@@ -215,7 +234,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
       description: requestModel,
     })
 
-    requestLogService.logRequest({
+    publishRequestLog({
       userId: user.id,
       model: requestModel,
       status: response.status,
@@ -223,7 +242,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
       fluxConsumed,
       promptTokens: usage.promptTokens,
       completionTokens: usage.completionTokens,
-    }).catch(err => logger.withError(err).warn('Failed to log request'))
+    })
 
     return c.json(responseBody)
   }
@@ -278,13 +297,13 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
     span.end()
     recordMetrics({ model: requestModel, status: response.status, type: 'tts', durationMs, fluxConsumed: fluxPerRequest })
 
-    requestLogService.logRequest({
+    publishRequestLog({
       userId: user.id,
       model: requestModel,
       status: response.status,
       durationMs,
       fluxConsumed: fluxPerRequest,
-    }).catch(err => logger.withError(err).warn('Failed to log TTS request'))
+    })
 
     return new Response(response.body, {
       status: response.status,
@@ -343,13 +362,13 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
     span.end()
     recordMetrics({ model: 'auto', status: response.status, type: 'asr', durationMs, fluxConsumed: fluxPerRequest })
 
-    requestLogService.logRequest({
+    publishRequestLog({
       userId: user.id,
       model: 'auto',
       status: response.status,
       durationMs,
       fluxConsumed: fluxPerRequest,
-    }).catch(err => logger.withError(err).warn('Failed to log ASR request'))
+    })
 
     return new Response(response.body, {
       status: response.status,

@@ -1,6 +1,7 @@
 import type Redis from 'ioredis'
 
 import type { Database } from '../../libs/db'
+import type { BillingMqService } from '../billing-mq'
 import type { createConfigKVService } from '../config-kv'
 
 import { eq } from 'drizzle-orm'
@@ -8,7 +9,6 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
 import { createBillingService } from '../billing-service'
-import { createOutboxService } from '../outbox-service'
 
 import * as schema from '../../schemas'
 
@@ -30,15 +30,25 @@ function createMockRedis(): Redis {
   } as unknown as Redis
 }
 
+function createMockBillingMq(): BillingMqService {
+  return {
+    stream: 'billing-events',
+    publish: vi.fn(async () => '1-0'),
+    ensureConsumerGroup: vi.fn(async () => true),
+    consume: vi.fn(async () => []),
+    claimIdleMessages: vi.fn(async () => []),
+    ack: vi.fn(async () => 1),
+  } as any
+}
+
 describe('billingService', () => {
   let db: Database
   let redis: Redis
-  let outboxService: ReturnType<typeof createOutboxService>
+  let billingMq: BillingMqService
   let billingService: ReturnType<typeof createBillingService>
 
   beforeAll(async () => {
     db = await mockDB(schema)
-    outboxService = createOutboxService(db)
 
     await db.insert(schema.user).values({
       id: 'user-billing-1',
@@ -49,9 +59,9 @@ describe('billingService', () => {
 
   beforeEach(async () => {
     redis = createMockRedis()
-    billingService = createBillingService(db, redis, outboxService, createMockConfigKV())
+    billingMq = createMockBillingMq()
+    billingService = createBillingService(db, redis, billingMq, createMockConfigKV())
 
-    await db.delete(schema.outboxEvents)
     await db.delete(schema.fluxAuditLog)
     await db.delete(schema.fluxLedger)
     await db.delete(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
@@ -98,10 +108,10 @@ describe('billingService', () => {
       expect(auditRecords).toHaveLength(1)
       expect(auditRecords[0]?.amount).toBe(50)
 
-      // Verify outbox events
-      const outboxRecords = await db.select().from(schema.outboxEvents).orderBy(schema.outboxEvents.createdAt)
-      expect(outboxRecords).toHaveLength(2)
-      expect(outboxRecords.map(record => record.eventType)).toEqual(['flux.credited', 'stripe.checkout.completed'])
+      // Verify billing events published to stream
+      expect(billingMq.publish).toHaveBeenCalledTimes(2)
+      expect(billingMq.publish).toHaveBeenCalledWith(expect.objectContaining({ eventType: 'flux.credited' }))
+      expect(billingMq.publish).toHaveBeenCalledWith(expect.objectContaining({ eventType: 'stripe.checkout.completed' }))
 
       // Verify stripe session marked as credited
       const [sessionRecord] = await db.select().from(schema.stripeCheckoutSession).where(eq(schema.stripeCheckoutSession.stripeSessionId, 'sess-billing-1'))
@@ -132,13 +142,13 @@ describe('billingService', () => {
 
       expect(second).toEqual({ applied: false })
 
-      const outboxRecords = await db.select().from(schema.outboxEvents)
-      expect(outboxRecords).toHaveLength(2)
+      // Only 2 publish calls from the first invocation
+      expect(billingMq.publish).toHaveBeenCalledTimes(2)
     })
   })
 
   describe('debitFlux', () => {
-    it('deducts balance, writes ledger + audit + outbox, updates Redis', async () => {
+    it('deducts balance, publishes flux.debited event, updates Redis', async () => {
       // Setup: give user some flux first
       await db.insert(schema.userFlux).values({ userId: 'user-billing-1', flux: 100 })
 
@@ -155,26 +165,16 @@ describe('billingService', () => {
       const [fluxRecord] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
       expect(fluxRecord?.flux).toBe(70)
 
-      // Verify ledger
-      const ledgerRecords = await db.select().from(schema.fluxLedger).where(eq(schema.fluxLedger.userId, 'user-billing-1'))
-      expect(ledgerRecords).toHaveLength(1)
-      expect(ledgerRecords[0]).toMatchObject({
-        type: 'debit',
-        amount: 30,
-        balanceBefore: 100,
-        balanceAfter: 70,
-        requestId: 'req-1',
-      })
-
-      // Verify audit log
-      const auditRecords = await db.select().from(schema.fluxAuditLog).where(eq(schema.fluxAuditLog.userId, 'user-billing-1'))
-      expect(auditRecords).toHaveLength(1)
-      expect(auditRecords[0]?.amount).toBe(-30)
-
-      // Verify outbox event
-      const outboxRecords = await db.select().from(schema.outboxEvents)
-      expect(outboxRecords).toHaveLength(1)
-      expect(outboxRecords[0]?.eventType).toBe('flux.debited')
+      // Verify flux.debited event published to stream (ledger + audit written by consumer)
+      expect(billingMq.publish).toHaveBeenCalledTimes(1)
+      expect(billingMq.publish).toHaveBeenCalledWith(expect.objectContaining({
+        eventType: 'flux.debited',
+        userId: 'user-billing-1',
+        payload: expect.objectContaining({
+          amount: 30,
+          balanceAfter: 70,
+        }),
+      }))
 
       // Verify Redis cache updated
       expect(redis.set).toHaveBeenCalledWith('flux:user-billing-1', '70')
@@ -195,8 +195,8 @@ describe('billingService', () => {
       const ledgerRecords = await db.select().from(schema.fluxLedger)
       expect(ledgerRecords).toHaveLength(0)
 
-      const outboxRecords = await db.select().from(schema.outboxEvents)
-      expect(outboxRecords).toHaveLength(0)
+      // Verify no event was published
+      expect(billingMq.publish).not.toHaveBeenCalled()
     })
   })
 
@@ -222,10 +222,9 @@ describe('billingService', () => {
         balanceAfter: 50,
       })
 
-      // Verify outbox
-      const outboxRecords = await db.select().from(schema.outboxEvents)
-      expect(outboxRecords).toHaveLength(1)
-      expect(outboxRecords[0]?.eventType).toBe('flux.credited')
+      // Verify billing event published to stream
+      expect(billingMq.publish).toHaveBeenCalledTimes(1)
+      expect(billingMq.publish).toHaveBeenCalledWith(expect.objectContaining({ eventType: 'flux.credited' }))
     })
   })
 })

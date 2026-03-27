@@ -8,10 +8,9 @@ import { errorMessageFrom } from '@moeru/std'
 import { cac } from 'cac'
 
 import { runApiServer } from '../app'
-import { handleCacheSyncMessage, runBillingEventsConsumer } from './run-billing-events-consumer'
-import { runOutboxDispatcher } from './run-outbox-dispatcher'
+import { runBillingConsumer } from './run-billing-consumer'
 
-const serverRoles = ['api', 'cache-sync-consumer', 'outbox-dispatcher'] as const
+const serverRoles = ['api', 'billing-consumer'] as const
 
 type ServerRole = typeof serverRoles[number]
 
@@ -20,15 +19,8 @@ async function runServerRole(role: ServerRole): Promise<void> {
     case 'api':
       await runApiServer()
       return
-    case 'cache-sync-consumer':
-      await runBillingEventsConsumer({
-        group: 'cache-sync',
-        loggerName: 'cache-sync-consumer',
-        handleMessage: handleCacheSyncMessage,
-      })
-      return
-    case 'outbox-dispatcher':
-      await runOutboxDispatcher()
+    case 'billing-consumer':
+      await runBillingConsumer()
   }
 }
 
@@ -41,12 +33,8 @@ export function createServerCli() {
     .action(() => runServerRole('api'))
 
   cli
-    .command('cache-sync-consumer', 'Start the cache-sync Redis Streams consumer')
-    .action(() => runServerRole('cache-sync-consumer'))
-
-  cli
-    .command('outbox-dispatcher', 'Publish DB outbox events to Redis Streams')
-    .action(() => runServerRole('outbox-dispatcher'))
+    .command('billing-consumer', 'Start the billing events consumer (ledger, audit, request logs)')
+    .action(() => runServerRole('billing-consumer'))
 
   cli.help()
 
