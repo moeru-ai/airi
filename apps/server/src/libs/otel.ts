@@ -7,7 +7,8 @@ import type { Env } from './env'
 import { env as processEnv } from 'node:process'
 
 import { useLogger } from '@guiiai/logg'
-import { diag, DiagConsoleLogger, DiagLogLevel, metrics } from '@opentelemetry/api'
+import { diag, DiagConsoleLogger, DiagLogLevel, metrics, trace } from '@opentelemetry/api'
+import { logs, SeverityNumber } from '@opentelemetry/api-logs'
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-proto'
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-proto'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto'
@@ -297,4 +298,40 @@ export function initOtel(env: Env): OtelInstance | undefined {
     db,
     shutdown,
   }
+}
+
+const severityMap: Record<string, SeverityNumber> = {
+  debug: SeverityNumber.DEBUG,
+  verbose: SeverityNumber.TRACE,
+  log: SeverityNumber.INFO,
+  info: SeverityNumber.INFO,
+  warn: SeverityNumber.WARN,
+  error: SeverityNumber.ERROR,
+}
+
+/**
+ * Emit a log record to OpenTelemetry.
+ * Automatically attaches the active span's traceId/spanId when available.
+ */
+export function emitOtelLog(
+  level: string,
+  context: string,
+  message: string,
+  attributes?: Record<string, string | number | boolean>,
+): void {
+  const otelLogger = logs.getLogger(context)
+  const spanContext = trace.getActiveSpan()?.spanContext()
+
+  otelLogger.emit({
+    severityNumber: severityMap[level.toLowerCase()] ?? SeverityNumber.INFO,
+    severityText: level.toUpperCase(),
+    body: message,
+    attributes: {
+      ...attributes,
+      ...(spanContext && {
+        trace_id: spanContext.traceId,
+        span_id: spanContext.spanId,
+      }),
+    },
+  })
 }

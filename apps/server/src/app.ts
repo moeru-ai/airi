@@ -16,7 +16,7 @@ import type { HonoEnv } from './types/hono'
 
 import process from 'node:process'
 
-import { initLogger, LoggerFormat, LoggerLevel, useLogger } from '@guiiai/logg'
+import { initLogger, LoggerFormat, LoggerLevel, setGlobalHookPostLog, useLogger } from '@guiiai/logg'
 import { serve } from '@hono/node-server'
 import { createNodeWebSocket } from '@hono/node-ws'
 import { Hono } from 'hono'
@@ -29,7 +29,7 @@ import { createAuth } from './libs/auth'
 import { createDrizzle, migrateDatabase } from './libs/db'
 import { parsedEnv } from './libs/env'
 import { initializeExternalDependency } from './libs/external-dependency'
-import { initOtel } from './libs/otel'
+import { emitOtelLog, initOtel } from './libs/otel'
 import { createRedis } from './libs/redis'
 import { sessionMiddleware } from './middlewares/auth'
 import { otelMiddleware } from './middlewares/otel'
@@ -189,6 +189,11 @@ export async function createApp() {
   initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
   injeca.setLogger(createLoggLogger(useLogger('injeca').useGlobalConfig()))
   const logger = useLogger('app').useGlobalConfig()
+
+  // Forward logg output to OpenTelemetry log exporter
+  setGlobalHookPostLog((log) => {
+    emitOtelLog(log.level, log.context, log.message, log.fields as Record<string, string | number | boolean>)
+  })
 
   const otel = injeca.provide('libs:otel', {
     dependsOn: { env: parsedEnv, lifecycle },
