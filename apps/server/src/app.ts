@@ -1,8 +1,9 @@
 import type Redis from 'ioredis'
 
 import type { Env } from './libs/env'
+import type { MqService } from './libs/mq'
 import type { OtelInstance } from './libs/otel'
-import type { BillingMqService } from './services/billing/billing-mq'
+import type { BillingEvent } from './services/billing/billing-events'
 import type { BillingService } from './services/billing/billing-service'
 import type { CharacterService } from './services/characters'
 import type { ChatService } from './services/chats'
@@ -40,7 +41,7 @@ import { createFluxRoutes } from './routes/flux'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
 import { createV1CompletionsRoutes } from './routes/v1completions'
-import { createBillingMqService } from './services/billing/billing-mq'
+import { createBillingMq } from './services/billing/billing-events'
 import { createBillingService } from './services/billing/billing-service'
 import { createCharacterService } from './services/characters'
 import { createChatService } from './services/chats'
@@ -62,7 +63,7 @@ interface AppDeps {
   fluxAuditService: FluxAuditService
   stripeService: StripeService
   billingService: BillingService
-  billingMqService: BillingMqService
+  billingMq: MqService<BillingEvent>
   configKV: ConfigKVService
   redis: Redis
   env: Env
@@ -161,7 +162,7 @@ function buildApp(deps: AppDeps) {
     /**
      * V1 routes for official provider.
      */
-    .route('/api/v1', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.billingMqService, deps.otel?.llm))
+    .route('/api/v1', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.billingMq, deps.otel?.llm))
 
     /**
      * Flux routes.
@@ -256,9 +257,9 @@ export async function createApp() {
     build: ({ dependsOn }) => createConfigKVService(dependsOn.redis),
   })
 
-  const billingMqService = injeca.provide('services:billingMq', {
+  const billingMq = injeca.provide('services:billingMq', {
     dependsOn: { redis, env: parsedEnv },
-    build: ({ dependsOn }) => createBillingMqService(dependsOn.redis, {
+    build: ({ dependsOn }) => createBillingMq(dependsOn.redis, {
       stream: dependsOn.env.BILLING_EVENTS_STREAM,
     }),
   })
@@ -304,8 +305,8 @@ export async function createApp() {
   })
 
   const billingService = injeca.provide('services:billing', {
-    dependsOn: { db, redis, billingMqService, configKV, otel },
-    build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.billingMqService, dependsOn.configKV, dependsOn.otel?.revenue),
+    dependsOn: { db, redis, billingMq, configKV, otel },
+    build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.billingMq, dependsOn.configKV, dependsOn.otel?.revenue),
   })
 
   await injeca.start()
@@ -320,7 +321,7 @@ export async function createApp() {
     requestLogService,
     stripeService,
     billingService,
-    billingMqService,
+    billingMq,
     configKV,
     redis,
     env: parsedEnv,
@@ -335,7 +336,7 @@ export async function createApp() {
     fluxAuditService: resolved.fluxAuditService,
     stripeService: resolved.stripeService,
     billingService: resolved.billingService,
-    billingMqService: resolved.billingMqService,
+    billingMq: resolved.billingMq,
     configKV: resolved.configKV,
     redis: resolved.redis,
     env: resolved.env,

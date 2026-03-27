@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createBillingMqWorker } from '../billing-mq-worker'
+import { createMqWorker } from '../worker'
 
 function createMessage() {
   return {
@@ -22,7 +22,7 @@ function createMessage() {
   }
 }
 
-describe('billingMqWorker', () => {
+describe('mqWorker', () => {
   it('reclaims pending messages before reading new ones and acks after handling', async () => {
     const controller = new AbortController()
     const message = createMessage()
@@ -34,7 +34,7 @@ describe('billingMqWorker', () => {
       ack: vi.fn(async () => 1),
     }
 
-    const worker = createBillingMqWorker(mq as any)
+    const worker = createMqWorker(mq as any)
     const handled: string[] = []
 
     await worker.run({
@@ -70,7 +70,7 @@ describe('billingMqWorker', () => {
       ack: vi.fn(async () => 1),
     }
 
-    const worker = createBillingMqWorker(mq as any)
+    const worker = createMqWorker(mq as any)
 
     await worker.run({
       group: 'billing',
@@ -102,7 +102,7 @@ describe('billingMqWorker', () => {
       ack: vi.fn(async () => 1),
     }
 
-    const worker = createBillingMqWorker(mq as any)
+    const worker = createMqWorker(mq as any)
 
     await worker.run({
       group: 'billing',

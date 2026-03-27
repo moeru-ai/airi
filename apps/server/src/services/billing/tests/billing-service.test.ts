@@ -1,8 +1,9 @@
 import type Redis from 'ioredis'
 
 import type { Database } from '../../../libs/db'
+import type { MqService } from '../../../libs/mq'
 import type { createConfigKVService } from '../../config-kv'
-import type { BillingMqService } from '../billing-mq'
+import type { BillingEvent } from '../billing-events'
 
 import { eq } from 'drizzle-orm'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -26,11 +27,14 @@ function createMockRedis(): Redis {
   const store = new Map<string, string>()
   return {
     get: vi.fn(async (key: string) => store.get(key) ?? null),
-    set: vi.fn(async (key: string, value: string) => { store.set(key, value); return 'OK' }),
+    set: vi.fn(async (key: string, value: string) => {
+      store.set(key, value)
+      return 'OK'
+    }),
   } as unknown as Redis
 }
 
-function createMockBillingMq(): BillingMqService {
+function createMockBillingMq(): MqService<BillingEvent> {
   return {
     stream: 'billing-events',
     publish: vi.fn(async () => '1-0'),
@@ -44,7 +48,7 @@ function createMockBillingMq(): BillingMqService {
 describe('billingService', () => {
   let db: Database
   let redis: Redis
-  let billingMq: BillingMqService
+  let billingMq: MqService<BillingEvent>
   let billingService: ReturnType<typeof createBillingService>
 
   beforeAll(async () => {
