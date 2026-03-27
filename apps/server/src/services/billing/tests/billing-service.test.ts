@@ -153,16 +153,18 @@ describe('billingService', () => {
     })
   })
 
-  describe('debitFlux', () => {
+  describe('consumeFluxForLLM', () => {
     it('deducts balance, publishes flux.debited event, updates Redis', async () => {
       // Setup: give user some flux first
       await db.insert(schema.userFlux).values({ userId: 'user-billing-1', flux: 100 })
 
-      const result = await billingService.debitFlux({
+      const result = await billingService.consumeFluxForLLM({
         userId: 'user-billing-1',
         amount: 30,
         requestId: 'req-1',
         description: 'gpt-4',
+        promptTokens: 120,
+        completionTokens: 80,
       })
 
       expect(result).toEqual({ userId: 'user-billing-1', flux: 70 })
@@ -179,6 +181,8 @@ describe('billingService', () => {
         payload: expect.objectContaining({
           amount: 30,
           balanceAfter: 70,
+          description: 'gpt-4',
+          metadata: { promptTokens: 120, completionTokens: 80 },
         }),
       }))
 
@@ -189,7 +193,7 @@ describe('billingService', () => {
     it('throws 402 when balance is insufficient', async () => {
       await db.insert(schema.userFlux).values({ userId: 'user-billing-1', flux: 5 })
 
-      await expect(billingService.debitFlux({
+      await expect(billingService.consumeFluxForLLM({
         userId: 'user-billing-1',
         amount: 10,
       })).rejects.toThrow('Insufficient flux')

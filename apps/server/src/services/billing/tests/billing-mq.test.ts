@@ -16,6 +16,8 @@ function createEvent() {
       amount: 5,
       balanceAfter: 95,
       source: 'llm',
+      description: 'gpt-5',
+      metadata: { promptTokens: 100, completionTokens: 200 },
     },
   }
 }
@@ -58,6 +60,8 @@ describe('billingMqService', () => {
         amount: 5,
         balanceAfter: 95,
         source: 'llm',
+        description: 'gpt-5',
+        metadata: { promptTokens: 100, completionTokens: 200 },
       }),
     )
   })
@@ -124,6 +128,8 @@ describe('billingMqService', () => {
               amount: 5,
               balanceAfter: 95,
               source: 'llm',
+              description: 'gpt-5',
+              metadata: { promptTokens: 100, completionTokens: 200 },
             }),
           ],
         ]],
@@ -189,6 +195,8 @@ describe('billingMqService', () => {
               amount: 5,
               balanceAfter: 95,
               source: 'llm',
+              description: 'gpt-5',
+              metadata: { promptTokens: 100, completionTokens: 200 },
             }),
           ],
         ]],

@@ -30,6 +30,8 @@ const BalanceChangePayloadSchema = object({
   amount: number(),
   balanceAfter: optional(number()),
   source: optional(pipe(string(), nonEmpty())),
+  description: optional(pipe(string(), nonEmpty())),
+  metadata: optional(unknown()),
 })
 
 const StripeCheckoutCompletedPayloadSchema = object({

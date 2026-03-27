@@ -16,6 +16,8 @@ describe('billingEvents', () => {
         amount: 12,
         balanceAfter: 88,
         source: 'llm',
+        description: 'gpt-5',
+        metadata: { promptTokens: 100, completionTokens: 200 },
       },
     }
 
@@ -32,6 +34,8 @@ describe('billingEvents', () => {
         amount: 12,
         balanceAfter: 88,
         source: 'llm',
+        description: 'gpt-5',
+        metadata: { promptTokens: 100, completionTokens: 200 },
       }),
     })
 
