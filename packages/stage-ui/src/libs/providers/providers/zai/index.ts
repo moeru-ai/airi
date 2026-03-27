@@ -1,7 +1,8 @@
 import { createZai } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
-import { createOpenAICompatibleValidators } from '../../validators/openai-compatible'
+import { ProviderValidationCheck } from '../../types'
+import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
 
 const zaiConfigSchema = z.object({
@@ -46,7 +47,7 @@ export const providerZai = defineProvider<ZaiConfig>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: ['connectivity', 'model_list'],
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList],
     }),
   },
 })

@@ -70,7 +70,7 @@ const needsBaseUrl = computed(() => {
 })
 
 const showChatCheckOption = computed(() => {
-  return !(props.selectedProvider?.validators.chatPingCheckDisabled ?? true)
+  return !props.selectedProvider?.validators.chatPingCheckDisabled
 })
 
 const canProceed = computed(() => {
