@@ -9,6 +9,7 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { newMessages, pullMessages, sendMessages } from '@proj-airi/server-sdk-shared'
 
 import { createPeerHooks, wsDisconnectedEvent } from '../libs/eventa-hono-adapter'
+import { createChatBroadcastMessage, parseChatBroadcastMessage } from '../utils/chat-broadcast'
 import { userChatBroadcastRedisKey } from '../utils/redis-keys'
 
 const log = useLogger('chat-ws').useGlobalConfig()
@@ -48,20 +49,6 @@ function broadcastToLocalDevices(userId: string, excludeCtx: HonoWsInvocableEven
   }
 }
 
-// ---------------------------------------------------------------------------
-// Redis pub/sub for cross-instance broadcast
-// ---------------------------------------------------------------------------
-
-interface BroadcastMessage {
-  userId: string
-  payload: {
-    chatId: string
-    messages: any[]
-    fromSeq: number
-    toSeq: number
-  }
-}
-
 export function createChatWsHandlers(
   chatService: ChatService,
   redis: Redis,
@@ -72,7 +59,7 @@ export function createChatWsHandlers(
 
   sub.on('message', (_channel: string, message: string) => {
     try {
-      const data: BroadcastMessage = JSON.parse(message)
+      const data = parseChatBroadcastMessage(message)
       // Deliver to all local connections of this user (no excludeCtx since the
       // sender is on a different instance)
       broadcastToLocalDevices(data.userId, null, newMessages, data.payload)
@@ -101,9 +88,9 @@ export function createChatWsHandlers(
   }
 
   /** Publish a broadcast message so other instances can deliver it. */
-  function publishBroadcast(userId: string, payload: BroadcastMessage['payload']) {
+  function publishBroadcast(userId: string, payload: Parameters<typeof createChatBroadcastMessage>[1]) {
     const channel = userChatBroadcastRedisKey(userId)
-    const message: BroadcastMessage = { userId, payload }
+    const message = createChatBroadcastMessage(userId, payload)
     redis.publish(channel, JSON.stringify(message)).catch((err) => {
       log.withError(err).error('Failed to publish broadcast message')
     })
