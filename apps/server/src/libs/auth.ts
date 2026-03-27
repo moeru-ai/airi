@@ -43,6 +43,15 @@ export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null)
       },
     },
 
+    // NOTICE: Store OAuth state in the database instead of cookies to avoid
+    // state_mismatch errors on mobile browsers (iOS Safari/Chrome) where
+    // cross-site cookies are blocked by system-level privacy restrictions.
+    // https://github.com/better-auth/better-auth/issues/5892
+    // https://github.com/better-auth/better-auth/issues/6207
+    account: {
+      storeStateStrategy: 'database',
+    },
+
     socialProviders: {
       google: {
         clientId: env.AUTH_GOOGLE_CLIENT_ID,
