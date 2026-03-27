@@ -7,6 +7,8 @@ This sample plugin is for validating plugin host behavior in the **Plugin Host I
 - `devtools-sample-plugin.json`: plugin manifest (`ManifestV1`)
 - `devtools-sample-plugin.mjs`: plugin implementation
 
+The manifest declares the protocol permissions required by `apis.providers.listProviders()`: invoke `capabilities:wait`, invoke `resources:providers:list-providers`, read the provider resource, and wait for the provider-list capability.
+
 ## How to use
 
 1. Open `/devtools/plugin-host` in Stage Tamagotchi.

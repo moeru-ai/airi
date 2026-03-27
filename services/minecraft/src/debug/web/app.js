@@ -24,9 +24,14 @@ const SYSTEM_STATE_MARKER = 'The following blackboard provides you with informat
 // =============================================================================
 
 function escapeHtml(text) {
-  const div = document.createElement('div')
-  div.textContent = text
-  return div.innerHTML
+  if (text == null)
+    return ''
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 function formatSystemMessageContent(content) {
@@ -182,7 +187,7 @@ class DebugClient {
 
   scheduleReconnect() {
     if (this.reconnectAttempts >= CONFIG.RECONNECT_MAX_ATTEMPTS) {
-      console.log('Max reconnect attempts reached')
+      console.warn('Max reconnect attempts reached')
       return
     }
 
@@ -637,13 +642,13 @@ class ConversationPanel {
 
   handleUpdate(data) {
     if (data.sessionBoundary) {
-      const cur = this.sessions[this.sessions.length - 1]
+      const cur = this.sessions.at(-1)
       if (cur)
         cur.greyed = true
       this.sessions.push(this._mkSession())
     }
     else {
-      const cur = this.sessions[this.sessions.length - 1]
+      const cur = this.sessions.at(-1)
       if (cur) {
         cur.messages = data.messages || []
         cur.activeContext = data.activeContext || null
@@ -818,6 +823,7 @@ class ConversationPanel {
 
     // FEEDBACK: "toolName: Success/Failed. details"
     if (section.tag === 'FEEDBACK') {
+      // eslint-disable-next-line regexp/no-super-linear-backtracking
       const fbMatch = text.match(/^(\w+):\s*(Success|Failed)\.?\s*(.*)$/s)
       if (fbMatch) {
         const detail = fbMatch[3].slice(0, 50)
@@ -1009,6 +1015,7 @@ class ToolsPanel {
   }
 
   requestTools() {
+    // eslint-disable-next-line no-console
     console.log('[ToolsPanel] Requesting tools...')
     // Check if we already have tools to avoid re-rendering on reconnect if not needed
     // But re-requesting ensures we are in sync with server capabilities
@@ -1086,18 +1093,38 @@ class ToolsPanel {
         ${tool.params.map(param => `
           <div class="param-group">
             <label class="param-label">${escapeHtml(param.name)} (${param.type})</label>
-            <input
-              type="${param.type === 'number' ? 'number' : 'text'}"
-              class="param-input"
-              data-param="${param.name}"
-              ${param.min !== undefined ? `min="${param.min}"` : ''}
-              ${param.max !== undefined ? `max="${param.max}"` : ''}
-              ${param.default !== undefined ? `value="${param.default}"` : ''}
-              placeholder="${escapeHtml(param.description || '')}"
-            />
+            ${this.renderParamInput(param)}
           </div>
         `).join('')}
       </div>
+    `
+  }
+
+  renderParamInput(param) {
+    if (param.type === 'boolean') {
+      const defaultValue = param.default === true ? 'true' : 'false'
+      return `
+        <select
+          class="param-input"
+          data-param="${param.name}"
+        >
+          <option value="false" ${defaultValue === 'false' ? 'selected' : ''}>false</option>
+          <option value="true" ${defaultValue === 'true' ? 'selected' : ''}>true</option>
+        </select>
+      `
+    }
+
+    const defaultValue = param.default !== undefined ? `value="${escapeHtml(String(param.default))}"` : ''
+    return `
+      <input
+        type="${param.type === 'number' ? 'number' : 'text'}"
+        class="param-input"
+        data-param="${param.name}"
+        ${param.min !== undefined ? `min="${param.min}"` : ''}
+        ${param.max !== undefined ? `max="${param.max}"` : ''}
+        ${defaultValue}
+        placeholder="${escapeHtml(param.description || '')}"
+      />
     `
   }
 
@@ -1119,19 +1146,34 @@ class ToolsPanel {
       if (paramDef) {
         if (paramDef.type === 'number') {
           if (value === '') {
-            // Handle empty number input if needed?
+            continue
+          }
+
+          value = Number.parseFloat(value)
+          if (Number.isNaN(value)) {
+            this.showResult(tool.name, { error: `Invalid number for ${paramName}` }, true)
+            return
+          }
+        }
+        else if (paramDef.type === 'boolean') {
+          if (value === '') {
+            continue
+          }
+
+          const normalized = value.trim().toLowerCase()
+          if (normalized === 'true') {
+            value = true
+          }
+          else if (normalized === 'false') {
+            value = false
           }
           else {
-            value = Number.parseFloat(value)
-            if (isNaN(value)) {
-              this.showResult(tool.name, { error: `Invalid number for ${paramName}` }, true)
-              return
-            }
+            this.showResult(tool.name, { error: `Invalid boolean for ${paramName}` }, true)
+            return
           }
         }
       }
 
-      // Simple type conversion could be improved but sufficient for now
       params[paramName] = value
     }
 
@@ -1151,7 +1193,7 @@ class ToolsPanel {
   }
 
   handleResult(data) {
-    const { toolName, result, error } = data
+    const { toolName, error } = data
 
     this.executingTools.delete(toolName)
     this.updateCardState(toolName, error ? 'error' : 'success')

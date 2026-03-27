@@ -100,7 +100,7 @@ const menu = computed(() => [
   },
   {
     title: 'Performance Playground',
-    description: 'Test performance runtime: VRM expressions + TTS lip sync',
+    description: 'VRM expressions + TTS lip sync playground',
     icon: 'i-solar:sledgehammer-bold-duotone',
     to: '/devtools/performance-playground',
   },

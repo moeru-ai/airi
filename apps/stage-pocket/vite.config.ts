@@ -1,6 +1,14 @@
+/// <reference types="./vite.config-env.d.ts" />
+
+import type { PluginOption } from 'vite'
+
+import process from 'node:process'
+
+import { execSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
+import templateCompilerOptions from '@tresjs/core/template-compiler-options'
 import Vue from '@vitejs/plugin-vue'
 import Unocss from 'unocss/vite'
 import Info from 'unplugin-info/vite'
@@ -13,8 +21,14 @@ import VueMacros from 'vue-macros/vite'
 
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
-import { templateCompilerOptions } from '@tresjs/core'
 import { defineConfig } from 'vite'
+
+// import { isEnvTruthy } from '@proj-airi/stage-shared'
+function isEnvTruthy(value: string | undefined | null): boolean {
+  if (value == null)
+    return false
+  return /^(?:1|true|t|yes|y|on)$/i.test(value.trim())
+}
 
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
@@ -60,6 +74,13 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5273,
+    fs: {
+      // To mute errors like:
+      //   The request id ".../node_modules/@fontsource/sniglet/files/sniglet-latin-400-normal.woff" is outside of Vite serving allow list.
+      //
+      // See: https://vite.dev/config/server-options#server-fs-strict
+      strict: false,
+    },
     warmup: {
       clientFiles: [
         `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src'))}/*.vue`,
@@ -81,7 +102,18 @@ export default defineConfig({
   },
 
   plugins: [
-    mkcert(),
+    ...isEnvTruthy(process.env.VITE_SKIP_MKCERT ?? '')
+      ? []
+      : [mkcert((() => {
+          // Workaround: plugin's bundled downloader has a feaxios bug, prefer system mkcert
+          const command = process.platform === 'win32' ? 'where' : 'which'
+          try {
+            return { mkcertPath: execSync(`${command} mkcert`, { stdio: 'pipe' }).toString().trim().split(/\r?\n/)[0] }
+          }
+          catch {
+            return {}
+          }
+        })())],
 
     Info(),
 
@@ -137,6 +169,20 @@ export default defineConfig({
     Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
     Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-A/AvatarSample_A.vrm', 'AvatarSample_A.vrm', 'vrm/models/AvatarSample-A', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
     Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm', 'AvatarSample_B.vrm', 'vrm/models/AvatarSample-B', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
+
+    ...isEnvTruthy(process.env.VITE_CAP_SYNC_IOS_AFTER_BUILD ?? '')
+      ? [{
+          name: 'proj-airi:capacitor-sync',
+          closeBundle: {
+            sequential: true,
+            handler() {
+              if (this.meta.watchMode) {
+                execSync('cap sync ios', { stdio: 'inherit' })
+              }
+            },
+          },
+        } as PluginOption]
+      : [],
 
     {
       name: 'proj-airi:defines',

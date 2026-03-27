@@ -33,45 +33,48 @@ export function useVRMEmote(vrm: VRMCore) {
     return Math.min(1, Math.max(0, value))
   }
 
-  // Emotion states definition
+  // Emotion states definition — values are the "full weight" targets;
+  // actual applied weight is value × clamped intensity.
+  // Using slightly lower values (0.7–0.8) for primary expressions to
+  // prevent the "too raw / smiles too much" problem reported in #590.
   const emotionStates = new Map<string, EmotionState>([
     ['happy', {
       expression: [
-        { name: 'happy', value: 1.0, duration: 0.3 },
-        { name: 'aa', value: 0.3 },
+        { name: 'happy', value: 0.7, duration: 0.3 },
+        { name: 'aa', value: 0.2 },
       ],
-      blendDuration: 0.3,
+      blendDuration: 0.4,
     }],
     ['sad', {
       expression: [
-        { name: 'sad', value: 1.0 },
-        { name: 'oh', value: 0.2 },
+        { name: 'sad', value: 0.7 },
+        { name: 'oh', value: 0.15 },
       ],
-      blendDuration: 0.3,
+      blendDuration: 0.4,
     }],
     ['angry', {
       expression: [
-        { name: 'angry', value: 1.0 },
-        { name: 'ee', value: 0.4 },
+        { name: 'angry', value: 0.7 },
+        { name: 'ee', value: 0.3 },
       ],
-      blendDuration: 0.2,
+      blendDuration: 0.3,
     }],
     ['surprised', {
       expression: [
-        { name: 'surprised', value: 1.0 },
-        { name: 'oh', value: 0.6 },
+        { name: 'surprised', value: 0.8 },
+        { name: 'oh', value: 0.4 },
       ],
-      blendDuration: 0.1,
+      blendDuration: 0.15,
     }],
     ['neutral', {
       expression: [
         { name: 'neutral', value: 1.0 },
       ],
-      blendDuration: 0.5,
+      blendDuration: 0.6,
     }],
     ['think', {
       expression: [
-        { name: 'think', value: 1.0 },
+        { name: 'think', value: 0.7 },
       ],
       blendDuration: 0.5,
     }],
@@ -97,25 +100,27 @@ export function useVRMEmote(vrm: VRMCore) {
     isTransitioning.value = true
     transitionProgress.value = 0
 
-    // Reset all existing expressions to 0 first
-    if (vrm.expressionManager) {
-      // Get all expression names from the VRM model
-      const expressionNames = Object.keys(vrm.expressionManager.expressionMap)
-      for (const name of expressionNames) {
-        vrm.expressionManager.setValue(name, 0)
-      }
-    }
-
-    // Store current expression values as starting point
+    // Store current expression values as starting point BEFORE resetting,
+    // so the lerp transition starts from the actual displayed values
+    // instead of snapping to 0 first (fixes #590).
     currentExpressionValues.value.clear()
     targetExpressionValues.value.clear()
 
     const normalizedIntensity = clampIntensity(intensity)
 
-    // Store all current expression values
+    if (vrm.expressionManager) {
+      // Capture current values for all expressions we'll be transitioning
+      const expressionNames = Object.keys(vrm.expressionManager.expressionMap)
+      for (const name of expressionNames) {
+        const currentValue = vrm.expressionManager.getValue(name) || 0
+        currentExpressionValues.value.set(name, currentValue)
+        // Default target is 0 for expressions not in the target emotion
+        targetExpressionValues.value.set(name, 0)
+      }
+    }
+
+    // Override target values for specified expressions in the emotion state
     for (const expr of emotionState.expression || []) {
-      const currentValue = vrm.expressionManager?.getValue(expr.name) || 0
-      currentExpressionValues.value.set(expr.name, currentValue)
       targetExpressionValues.value.set(expr.name, expr.value * normalizedIntensity)
     }
   }

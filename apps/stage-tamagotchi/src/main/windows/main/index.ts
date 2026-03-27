@@ -1,8 +1,13 @@
 import type { Rectangle } from 'electron'
 import type { InferOutput } from 'valibot'
 
+import type { I18n } from '../../libs/i18n'
+import type { ServerChannel } from '../../services/airi/channel-server'
+import type { McpStdioManager } from '../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
 import type { NoticeWindowManager } from '../notice'
+import type { OnboardingWindowManager } from '../onboarding'
+import type { SettingsWindowManager } from '../settings'
 import type { WidgetsWindowManager } from '../widgets'
 
 import { dirname, join, resolve } from 'node:path'
@@ -42,12 +47,16 @@ const appConfigSchema = object({
 type AppConfig = InferOutput<typeof appConfigSchema>
 
 export async function setupMainWindow(params: {
-  settingsWindow: () => Promise<BrowserWindow>
+  settingsWindow: SettingsWindowManager
   chatWindow: () => Promise<BrowserWindow>
   widgetsManager: WidgetsWindowManager
   noticeWindow: NoticeWindowManager
   autoUpdater: AutoUpdater
   onWindowCreated?: (window: BrowserWindow) => void
+  serverChannel: ServerChannel
+  mcpStdioManager: McpStdioManager
+  i18n: I18n
+  onboardingWindowManager: OnboardingWindowManager
 }) {
   const {
     setup: setupConfig,
@@ -151,13 +160,17 @@ export async function setupMainWindow(params: {
 
   await load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')))
 
-  setupMainWindowElectronInvokes({
+  await setupMainWindowElectronInvokes({
     window,
     settingsWindow: params.settingsWindow,
     chatWindow: params.chatWindow,
     widgetsManager: params.widgetsManager,
     noticeWindow: params.noticeWindow,
     autoUpdater: params.autoUpdater,
+    serverChannel: params.serverChannel,
+    mcpStdioManager: params.mcpStdioManager,
+    i18n: params.i18n,
+    onboardingWindowManager: params.onboardingWindowManager,
   })
 
   /**

@@ -1,41 +1,47 @@
 import type { ActionResult } from '../capabilities/definition'
 import type { BotContext, ChatContext } from './types'
 
+import * as v from 'valibot'
+
 import { globalRegistry } from '../capabilities/registry'
+import { ActionSchema } from './types'
 
 export async function dispatchAction(
   ctx: BotContext,
   chatCtx: ChatContext,
-  actionPayload: any,
+  actionPayload: unknown,
   abortController: AbortController,
 ): Promise<ActionResult> {
   const log = ctx.logger.useGlobalConfig()
 
-  if (!actionPayload || !actionPayload.action) {
+  const parseResult = v.safeParse(ActionSchema, actionPayload)
+
+  if (!parseResult.success) {
     return {
       success: false,
       shouldContinue: true,
-      result: 'System Error: No valid action name provided in JSON.',
+      result: `System Error: Invalid action payload: ${parseResult.issues.map(i => i.message).join(', ')}`,
     }
   }
 
-  const handler = globalRegistry.get(actionPayload.action)
+  const validatedAction = parseResult.output
+  const handler = globalRegistry.get(validatedAction.action)
 
   if (!handler) {
     return {
       success: false,
       shouldContinue: true,
-      result: `System Error: Action "${actionPayload.action}" is not implemented.`,
+      result: `System Error: Action "${validatedAction.action}" is not implemented.`,
     }
   }
 
   try {
-    log.withField('action', actionPayload.action).debug('Executing action')
+    log.withField('action', validatedAction.action).debug('Executing action')
 
-    const result = await handler.execute(ctx, chatCtx, actionPayload, abortController.signal)
+    const result = await handler.execute(ctx, chatCtx, validatedAction, abortController.signal)
 
     chatCtx.actions.push({
-      action: actionPayload,
+      action: validatedAction,
       result: result.result,
     })
 

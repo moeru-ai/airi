@@ -62,11 +62,12 @@ useScrollToHash(() => route.hash, {
   behavior: 'smooth', // smooth scroll animation
   maxRetries: 15, // retry if target element isn't ready
   retryDelay: 150, // wait between retries
+  scrollContainer: '#settings-scroll-container',
 })
 </script>
 
 <template>
-  <div mb-6 flex flex-col gap-5>
+  <div :class="['mb-6', 'flex', 'flex-col', 'gap-5', 'pb-10']">
     <div bg="primary-500/10 dark:primary-800/25" rounded-lg p-4>
       <div mb-2 text-xl font-normal text="primary-800 dark:primary-100">
         {{ $t('settings.pages.providers.helpinfo.title') }}

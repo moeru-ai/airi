@@ -2,6 +2,7 @@ import { join, resolve } from 'node:path'
 import { cwd, env } from 'node:process'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
+import templateCompilerOptions from '@tresjs/core/template-compiler-options'
 import Vue from '@vitejs/plugin-vue'
 import Unocss from 'unocss/vite'
 import Info from 'unplugin-info/vite'
@@ -14,7 +15,6 @@ import VueMacros from 'vue-macros/vite'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
 import { createS3Provider, WarpDrivePlugin } from '@proj-airi/vite-plugin-warpdrive'
-import { templateCompilerOptions } from '@tresjs/core'
 import { LFS, SpaceCard } from 'hfup/vite'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -61,6 +61,13 @@ export default defineConfig({
     },
   },
   server: {
+    fs: {
+      // To mute errors like:
+      //   The request id ".../node_modules/@fontsource/sniglet/files/sniglet-latin-400-normal.woff" is outside of Vite serving allow list.
+      //
+      // See: https://vite.dev/config/server-options#server-fs-strict
+      strict: false,
+    },
     warmup: {
       clientFiles: [
         `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src'))}/*.vue`,

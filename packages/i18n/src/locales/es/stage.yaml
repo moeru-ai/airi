@@ -4,7 +4,7 @@ chat:
       airi: AIRI
       core-system: Sistema Central
       you: Tu
-  reasoning: Reasoning
+  reasoning: Razonamiento
 message: Dile algo...
 operations:
   load-models: Cargar Modelos
@@ -30,4 +30,10 @@ viewers:
       camera: Cámara
       model:
         title: Modelo
+profile-switcher:
+  no-profile: Sin Perfil
+  no-profiles: Aún no hay perfiles
+  save-as-new: Guardar como Nuevo Perfil
+  new-profile-name: Nombre del perfil
+  manage: Administrar Perfiles
 waiting: Esperando...

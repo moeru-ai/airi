@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { Button, FieldInput, FieldSelect, FieldTextArea } from '@proj-airi/ui'
+import { Button, FieldCombobox, FieldInput, FieldTextArea } from '@proj-airi/ui'
 import { computed, reactive, ref } from 'vue'
 
 import { widgetsAdd, widgetsClear, widgetsOpenWindow, widgetsPrepareWindow, widgetsRemove, widgetsUpdate } from '../../../shared/eventa'
@@ -291,7 +291,7 @@ function applyMapPreset() {
     </div>
 
     <div class="grid gap-4 md:grid-cols-3">
-      <FieldSelect
+      <FieldCombobox
         v-model="form.sizePreset"
         label="Size Preset"
         description="Choose a preset or opt into custom spans."

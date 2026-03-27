@@ -10,7 +10,7 @@ const websocketUrl = useLocalStorageManualReset('settings/connection/websocket-u
 </script>
 
 <template>
-  <div :class="['rounded-lg', 'bg-neutral-50', 'p-4', 'dark:bg-neutral-800', 'flex', '~', 'col', 'gap-4']">
+  <div :class="['rounded-lg', 'bg-neutral-50', 'p-4', 'dark:bg-neutral-800', 'flex flex-col', 'gap-4']">
     <!-- // TODO: Make this array, support to connect to multiple WebSocket server -->
     <FieldInput
       v-model="websocketUrl"

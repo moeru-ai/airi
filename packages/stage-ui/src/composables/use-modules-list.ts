@@ -4,6 +4,8 @@ import { getBeatSyncState, listenBeatSyncStateChange } from '@proj-airi/stage-sh
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import factorioIcon from '../assets/factorio-simple.png'
+
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useDiscordStore } from '../stores/modules/discord'
 import { useFactorioStore } from '../stores/modules/gaming-factorio'
@@ -11,6 +13,7 @@ import { useMinecraftStore } from '../stores/modules/gaming-minecraft'
 import { useHearingStore } from '../stores/modules/hearing'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
+import { useVisionStore } from '../stores/modules/vision'
 
 export interface Module {
   id: string
@@ -31,6 +34,7 @@ export function useModulesList() {
   const consciousnessStore = useConsciousnessStore()
   const speechStore = useSpeechStore()
   const hearingStore = useHearingStore()
+  const visionStore = useVisionStore()
   const discordStore = useDiscordStore()
   const twitterStore = useTwitterStore()
   const minecraftStore = useMinecraftStore()
@@ -71,7 +75,7 @@ export function useModulesList() {
       description: t('settings.pages.modules.vision.description'),
       icon: 'i-solar:eye-closed-bold-duotone',
       to: '/settings/modules/vision',
-      configured: false,
+      configured: visionStore.configured,
       category: 'essential',
     },
     {
@@ -123,6 +127,7 @@ export function useModulesList() {
       id: 'gaming-factorio',
       name: t('settings.pages.modules.gaming-factorio.title'),
       description: t('settings.pages.modules.gaming-factorio.description'),
+      iconImage: factorioIcon,
       to: '/settings/modules/gaming-factorio',
       configured: factorioStore.configured,
       category: 'gaming',

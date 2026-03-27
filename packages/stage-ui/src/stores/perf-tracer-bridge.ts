@@ -32,6 +32,7 @@ type PerfTracerMessage = PerfTracerMessageEnable | PerfTracerMessageDisable | Pe
 const PERF_TRACER_CHANNEL = 'airi-perf-tracer'
 const RELAY_META_KEY = '__perfTracerRelayedFrom'
 const BRIDGE_TOKEN = 'perf-bridge'
+const FORWARDED_TRACERS = new Set(['chat', 'markdown'])
 
 export const usePerfTracerBridgeStore = defineStore('perfTracerBridge', () => {
   const instanceId = Math.random().toString(36).slice(2, 10)
@@ -56,7 +57,7 @@ export const usePerfTracerBridgeStore = defineStore('perfTracerBridge', () => {
     if (unsubscribe)
       return
     unsubscribe = defaultPerfTracer.subscribeSafe((event) => {
-      if (event.tracerId !== 'markdown' && event.tracerId !== 'chat')
+      if (!FORWARDED_TRACERS.has(event.tracerId))
         return
       if (event.meta?.[RELAY_META_KEY])
         return

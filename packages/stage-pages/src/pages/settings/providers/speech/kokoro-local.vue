@@ -8,7 +8,7 @@ import {
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { getDefaultKokoroModel } from '@proj-airi/stage-ui/workers/kokoro/constants'
-import { Callout, Select } from '@proj-airi/ui'
+import { Callout, ComboboxSelect } from '@proj-airi/ui'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -173,7 +173,7 @@ watch(model, async (newValue) => {
           </div>
         </Callout>
         <div>
-          <Select
+          <ComboboxSelect
             v-model="model"
             :options="modelOptions"
             :disabled="modelsLoading"

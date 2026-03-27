@@ -1,7 +1,48 @@
 import type { Logg } from '@guiiai/logg'
-import type { Message as LLMMessage } from '@xsai/shared-chat'
 
 import type { SatoriEvent } from '../adapter/satori/types'
+
+import * as v from 'valibot'
+
+// Action schemas
+export const ContinueActionSchema = v.object({
+  action: v.literal('continue'),
+})
+
+export const BreakActionSchema = v.object({
+  action: v.literal('break'),
+})
+
+export const SleepActionSchema = v.object({
+  action: v.literal('sleep'),
+  duration: v.optional(v.number()),
+})
+
+export const ListChannelsActionSchema = v.object({
+  action: v.literal('list_channels'),
+})
+
+export const SendMessageActionSchema = v.object({
+  action: v.literal('send_message'),
+  content: v.string(),
+  channelId: v.string(),
+})
+
+export const ReadUnreadMessagesActionSchema = v.object({
+  action: v.literal('read_unread_messages'),
+  channelId: v.string(),
+})
+
+export const ActionSchema = v.union([
+  ContinueActionSchema,
+  BreakActionSchema,
+  SleepActionSchema,
+  ListChannelsActionSchema,
+  SendMessageActionSchema,
+  ReadUnreadMessagesActionSchema,
+])
+
+export type Action = v.InferOutput<typeof ActionSchema>
 
 export interface CancellablePromise<T> {
   promise: Promise<T>
@@ -23,16 +64,21 @@ export function cancellable<T>(promise: Promise<T>): CancellablePromise<T> {
 }
 
 export interface PendingEvent {
+  id: string
   event: SatoriEvent
   status: 'pending' | 'ready'
+}
+
+export interface StoredUnreadEvent {
+  id: string
+  event: SatoriEvent
 }
 
 export interface BotContext {
   logger: Logg
   eventQueue: PendingEvent[]
-  unreadEvents: Record<string, SatoriEvent[]> // channelId -> events
+  unreadEvents: Record<string, StoredUnreadEvent[]> // channelId -> events
   processedIds: Set<string>
-  processing: boolean
   lastInteractedChannelIds: string[]
   currentProcessingStartTime?: number
   chats: Map<string, ChatContext>
@@ -42,47 +88,10 @@ export interface ChatContext {
   channelId: string
   platform: string
   selfId: string
+  isProcessing: boolean
 
   currentTask?: CancellablePromise<void>
   currentAbortController?: AbortController
 
-  messages: LLMMessage[]
   actions: { action: Action, result: unknown }[]
 }
-
-// Action types
-export interface ContinueAction {
-  action: 'continue'
-}
-
-export interface BreakAction {
-  action: 'break'
-}
-
-export interface SleepAction {
-  action: 'sleep'
-  seconds?: number
-}
-
-export interface ListChannelsAction {
-  action: 'list_channels'
-}
-
-export interface SendMessageAction {
-  action: 'send_message'
-  content: string
-  channelId: string
-}
-
-export interface ReadUnreadMessagesAction {
-  action: 'read_unread_messages'
-  channelId: string
-}
-
-export type Action
-  = | ContinueAction
-    | BreakAction
-    | SleepAction
-    | ListChannelsAction
-    | SendMessageAction
-    | ReadUnreadMessagesAction

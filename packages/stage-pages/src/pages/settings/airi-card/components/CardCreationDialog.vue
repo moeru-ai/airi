@@ -4,12 +4,14 @@ import type { AiriExtension } from '@proj-airi/stage-ui/stores/modules/airi-card
 
 import kebabcase from '@stdlib/string-base-kebabcase'
 
+import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { Button, FieldInput, FieldValues } from '@proj-airi/ui'
-import { Select } from '@proj-airi/ui/components/form'
+import { ComboboxSelect } from '@proj-airi/ui/components/form'
 import { storeToRefs } from 'pinia'
 import {
   DialogContent,
@@ -38,9 +40,13 @@ const cardStore = useAiriCardStore()
 const consciousnessStore = useConsciousnessStore()
 const speechStore = useSpeechStore()
 const providersStore = useProvidersStore()
+const displayModelsStore = useDisplayModelsStore()
+const stageModelStore = useSettingsStageModel()
 
 const { activeProvider: consciousnessProvider, activeModel: defaultConsciousnessModel } = storeToRefs(consciousnessStore)
 const { activeSpeechProvider: speechProvider, activeSpeechModel: defaultSpeechModel, activeSpeechVoiceId: defaultSpeechVoiceId } = storeToRefs(speechStore)
+const { displayModels } = storeToRefs(displayModelsStore)
+const { stageModelSelected: defaultDisplayModelId } = storeToRefs(stageModelStore)
 
 // Determine if we're in edit mode
 const isEditMode = computed(() => !!props.cardId)
@@ -51,6 +57,15 @@ const selectedConsciousnessModel = ref<string>('')
 const selectedSpeechProvider = ref<string>('')
 const selectedSpeechModel = ref<string>('')
 const selectedSpeechVoiceId = ref<string>('')
+const selectedDisplayModelId = ref<string>('')
+
+// Computed: available display model options
+const displayModelOptions = computed(() =>
+  displayModels.value.map(model => ({
+    value: model.id,
+    label: model.name,
+  })),
+)
 
 // Computed: available consciousness provider options
 const consciousnessProviderOptions = computed(() => {
@@ -176,7 +191,7 @@ const tabs: Tab[] = [
 const activeTab = computed({
   get: () => {
     // If current active tab is not in available tabs, reset to first tab
-    if (!tabs.find(tab => tab.id === activeTabId.value))
+    if (!tabs.some(tab => tab.id === activeTabId.value))
       return tabs[0]?.id || ''
     return activeTabId.value
   },
@@ -194,7 +209,7 @@ function saveCard(card: Card): boolean {
   // Before saving, let's validate what the user entered :
   const rawCard: Card = toRaw(card)
 
-  if (!(rawCard.name!.length > 0)) { // ! is used, since a default value is provided, and computed values passed to v-model should never be undefined
+  if (!((rawCard.name?.length ?? 0) > 0)) {
     // No name
     showError.value = true
     errorMessage.value = t('settings.pages.card.creation.errors.name')
@@ -206,31 +221,31 @@ function saveCard(card: Card): boolean {
     errorMessage.value = t('settings.pages.card.creation.errors.version')
     return false
   }
-  else if (!(rawCard.description!.length > 0)) {
+  else if (!((rawCard.description?.length ?? 0) > 0)) {
     // No description
     showError.value = true
     errorMessage.value = t('settings.pages.card.creation.errors.description')
     return false
   }
-  else if (!(rawCard.personality!.length > 0)) {
+  else if (!((rawCard.personality?.length ?? 0) > 0)) {
     // No personality
     showError.value = true
     errorMessage.value = t('settings.pages.card.creation.errors.personality')
     return false
   }
-  else if (!(rawCard.scenario!.length > 0)) {
+  else if (!((rawCard.scenario?.length ?? 0) > 0)) {
     // No Scenario
     showError.value = true
     errorMessage.value = t('settings.pages.card.creation.errors.scenario')
     return false
   }
-  else if (!(rawCard.systemPrompt!.length > 0)) {
+  else if (!((rawCard.systemPrompt?.length ?? 0) > 0)) {
     // No sys prompt
     showError.value = true
     errorMessage.value = t('settings.pages.card.creation.errors.systemprompt')
     return false
   }
-  else if (!(rawCard.postHistoryInstructions!.length > 0)) {
+  else if (!((rawCard.postHistoryInstructions?.length ?? 0) > 0)) {
     // No post history prompt
     showError.value = true
     errorMessage.value = t('settings.pages.card.creation.errors.posthistoryinstructions')
@@ -254,6 +269,7 @@ function saveCard(card: Card): boolean {
             model: selectedSpeechModel.value || defaultSpeechModel.value,
             voice_id: selectedSpeechVoiceId.value || defaultSpeechVoiceId.value,
           },
+          displayModelId: selectedDisplayModelId.value || defaultDisplayModelId.value,
         },
         agents: {},
       } as AiriExtension,
@@ -287,6 +303,7 @@ function initializeCard(): Card {
   selectedSpeechProvider.value = airiExt?.modules?.speech?.provider || speechProvider.value
   selectedSpeechModel.value = airiExt?.modules?.speech?.model || defaultSpeechModel.value
   selectedSpeechVoiceId.value = airiExt?.modules?.speech?.voice_id || defaultSpeechVoiceId.value
+  selectedDisplayModelId.value = airiExt?.modules?.displayModelId || defaultDisplayModelId.value
 
   // Return existing card data or defaults
   if (existingCard) {
@@ -367,7 +384,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
   <DialogRoot :open="modelValue" @update:open="emit('update:modelValue', $event)">
     <DialogPortal>
       <DialogOverlay class="fixed inset-0 z-100 bg-black/50 backdrop-blur-sm data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn" />
-      <DialogContent class="fixed left-1/2 top-1/2 z-100 m-0 max-h-[90vh] max-w-6xl w-[92vw] flex flex-col overflow-auto border border-neutral-200 rounded-xl bg-white p-5 shadow-xl 2xl:w-[60vw] lg:w-[80vw] md:w-[85vw] xl:w-[70vw] -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:border-neutral-700 dark:bg-neutral-800 sm:p-6">
+      <DialogContent class="fixed left-1/2 top-1/2 z-100 m-0 max-h-[90vh] max-w-6xl w-[92vw] flex flex-col overflow-auto border border-neutral-200 rounded-xl bg-white p-5 shadow-xl 2xl:w-[60vw] lg:w-[80vw] md:w-[85vw] xl:w-[70vw] -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:border-neutral-700 dark:bg-neutral-800 sm:p-6" @interact-outside.prevent>
         <div class="w-full flex flex-col gap-5">
           <DialogTitle text-2xl font-normal class="from-primary-500 to-primary-400 bg-gradient-to-r bg-clip-text text-transparent">
             {{ isEditMode ? t("settings.pages.card.edit_card") : t("settings.pages.card.create_card") }}
@@ -439,7 +456,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   <div i-lucide:brain />
                   {{ t('settings.pages.card.chat.provider') }}
                 </label>
-                <Select
+                <ComboboxSelect
                   v-model="selectedConsciousnessProvider"
                   :options="consciousnessProviderOptions"
                   :placeholder="getDefaultPlaceholder(consciousnessProvider)"
@@ -453,7 +470,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   <div i-lucide:ghost />
                   {{ t('settings.pages.card.consciousness.model') }}
                 </label>
-                <Select
+                <ComboboxSelect
                   v-model="selectedConsciousnessModel"
                   :options="consciousnessModelOptions"
                   :placeholder="getDefaultPlaceholder(defaultConsciousnessModel)"
@@ -468,7 +485,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   <div i-lucide:radio />
                   {{ t('settings.pages.card.speech.provider') }}
                 </label>
-                <Select
+                <ComboboxSelect
                   v-model="selectedSpeechProvider"
                   :options="speechProviderOptions"
                   :placeholder="getDefaultPlaceholder(speechProvider)"
@@ -482,7 +499,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   <div i-lucide:mic />
                   {{ t('settings.pages.card.speech.model') }}
                 </label>
-                <Select
+                <ComboboxSelect
                   v-model="selectedSpeechModel"
                   :options="speechModelOptions"
                   :placeholder="getDefaultPlaceholder(defaultSpeechModel)"
@@ -497,11 +514,25 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   <div i-lucide:music />
                   {{ t('settings.pages.card.speech.voice') }}
                 </label>
-                <Select
+                <ComboboxSelect
                   v-model="selectedSpeechVoiceId"
                   :options="speechVoiceOptions"
                   :placeholder="getDefaultPlaceholder(defaultSpeechVoiceId)"
                   :disabled="!selectedSpeechProvider && !speechProvider"
+                  class="w-full"
+                />
+              </div>
+
+              <!-- Display Model (Body) -->
+              <div :class="['flex', 'flex-col', 'gap-2', 'sm:col-span-2']">
+                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
+                  <div i-solar:ghost-bold-duotone />
+                  {{ t('settings.pages.card.body-model') }}
+                </label>
+                <ComboboxSelect
+                  v-model="selectedDisplayModelId"
+                  :options="displayModelOptions"
+                  :placeholder="getDefaultPlaceholder(defaultDisplayModelId)"
                   class="w-full"
                 />
               </div>

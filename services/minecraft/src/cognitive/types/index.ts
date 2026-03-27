@@ -20,6 +20,7 @@ export interface BotEventSource {
   reply?: (message: string) => void
 }
 
+// FIXME unsafe type
 export interface BotEvent<T = any> {
   type: EventCategory
   payload: T

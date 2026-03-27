@@ -1,128 +1,64 @@
-import type { ElectronServerChannelTlsConfig } from '../../../../shared/eventa'
+import type { Server, ServerOptions } from '@proj-airi/server-runtime/server'
+import type { Lifecycle } from 'injeca'
 
 import { X509Certificate } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { isIP } from 'node:net'
-import { networkInterfaces } from 'node:os'
 import { join } from 'node:path'
 import { env, platform } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
+import { createServer, getLocalIPs } from '@proj-airi/server-runtime/server'
+import { Mutex } from 'async-mutex'
 import { app, ipcMain } from 'electron'
 import { createCA, createCert } from 'mkcert'
 import { x } from 'tinyexec'
-import { nullable, object, record, string, unknown } from 'valibot'
+import { nullable, object, optional, string } from 'valibot'
 import { z } from 'zod'
 
 import {
   electronApplyServerChannelConfig,
   electronGetServerChannelConfig,
-  electronRestartWebSocketServer,
-
-  electronStartWebSocketServer,
 } from '../../../../shared/eventa'
-import { onAppBeforeQuit, onAppReady } from '../../../libs/bootkit/lifecycle'
 import { createConfig } from '../../../libs/electron/persistence'
 
-let serverInstance: { close: (closeActiveConnections?: boolean) => Promise<void> } | null = null
-let isServerQuitHookRegistered = false
-
 const channelServerConfigSchema = object({
-  websocketTlsConfig: nullable(record(string(), unknown())),
+  tlsConfig: optional(nullable(object({
+    cert: optional(string()),
+    key: optional(string()),
+    passphrase: optional(string()),
+  }))),
 })
 
 const channelServerInvokeConfigSchema = z.object({
-  websocketTlsConfig: z.record(z.string(), z.unknown()).nullable().optional(),
+  tlsConfig: z.object({ }).nullable().optional(),
 }).strict()
 
 const channelServerConfigStore = createConfig('server-channel', 'config.json', channelServerConfigSchema, {
   default: {
-    websocketTlsConfig: null,
+    tlsConfig: null,
   },
   autoHeal: true,
 })
 
-function getChannelServerConfig() {
-  return channelServerConfigStore.get() ?? { websocketTlsConfig: null }
+async function getChannelServerConfig(): Promise<ServerOptions> {
+  return channelServerConfigStore.get() || { tlsConfig: null }
 }
 
-function normalizeChannelServerOptions(
-  payload: unknown,
-  fallback = getChannelServerConfig(),
-) {
+async function normalizeChannelServerOptions(payload: unknown, fallback?: ServerOptions) {
+  if (!fallback) {
+    fallback = await getChannelServerConfig()
+  }
+
   const parsed = channelServerInvokeConfigSchema.safeParse(payload)
   if (!parsed.success) {
     return fallback
   }
 
   return {
-    websocketTlsConfig: parsed.data.websocketTlsConfig ?? fallback.websocketTlsConfig,
+    tlsConfig: typeof parsed.data.tlsConfig === 'undefined' ? null : parsed.data.tlsConfig,
   }
-}
-
-function registerServerQuitHook() {
-  if (isServerQuitHookRegistered)
-    return
-
-  isServerQuitHookRegistered = true
-
-  onAppBeforeQuit(async () => {
-    const log = useLogg('main/server-runtime').useGlobalConfig()
-    if (serverInstance && typeof serverInstance.close === 'function') {
-      try {
-        await serverInstance.close()
-        log.log('WebSocket server closed')
-      }
-      catch (error) {
-        const nodejsError = error as NodeJS.ErrnoException
-        if ('code' in nodejsError && nodejsError.code === 'ERR_SERVER_NOT_RUNNING') {
-          return
-        }
-
-        log.withError(error).error('Error closing WebSocket server')
-      }
-    }
-  })
-}
-
-function getLocalIPs(): string[] {
-  const interfaces = networkInterfaces()
-  const addresses: string[] = []
-
-  const VIRTUAL_INTERFACE_PREFIXES = [
-    'vboxnet',
-    'vmnet',
-    'docker',
-    'br-',
-    'veth',
-    'utun',
-    'wg',
-    'tap',
-    'tun',
-  ]
-  const isVirtualInterface = (name: string) =>
-    VIRTUAL_INTERFACE_PREFIXES.some(prefix => name.startsWith(prefix))
-
-  for (const [name, entries] of Object.entries(interfaces)) {
-    if (!entries)
-      continue
-    if (isVirtualInterface(name))
-      continue
-
-    for (const entry of entries) {
-      const rawAddress = entry.address
-      if (!rawAddress)
-        continue
-
-      const address = rawAddress.includes('%') ? rawAddress.split('%')[0] : rawAddress
-      if (isIP(address))
-        addresses.push(address)
-    }
-  }
-
-  return addresses
 }
 
 function getCertificateDomains(): string[] {
@@ -260,136 +196,134 @@ async function getOrCreateCertificate() {
   return { cert, key }
 }
 
-export async function setupServerChannel(options?: { websocketTlsConfig?: ElectronServerChannelTlsConfig | null }) {
-  const log = useLogg('main/server-runtime').useGlobalConfig()
-
-  const secureEnabled = options?.websocketTlsConfig != null
-
-  try {
-    const serverRuntime = await import('@proj-airi/server-runtime')
-    const { plugin: ws } = await import('crossws/server')
-    const { serve } = await import('h3')
-
-    const h3App = serverRuntime.setupApp()
-
-    const port = env.PORT ? Number(env.PORT) : 6121
-    const hostname = env.SERVER_RUNTIME_HOSTNAME || '0.0.0.0'
-
-    // FIXME: should prompt user to grant permission to save certificate files on macOS
-    const tls = secureEnabled ? await getOrCreateCertificate() : undefined
-
-    const instance = serve(h3App.app, {
-      // @ts-expect-error - the .crossws property wasn't extended in types
-      plugins: [ws({ resolve: async req => (await h3App.app.fetch(req)).crossws })],
-      port,
-      hostname,
-      tls,
-      reusePort: true,
-      silent: true,
-      manual: true,
-      gracefulShutdown: {
-        forceTimeout: 0.5,
-        gracefulTimeout: 0.5,
-      },
-    })
-
-    serverInstance = {
-      close: async (closeActiveConnections = false) => {
-        log.log('closing all peers')
-        h3App.closeAllPeers()
-        log.log('closing server instance')
-        await instance.close(closeActiveConnections)
-        log.log('server instance closed')
-      },
-    }
-
-    const servePromise = instance.serve()
-    if (servePromise instanceof Promise) {
-      servePromise.catch((error) => {
-        const nodejsError = error as NodeJS.ErrnoException
-        if ('code' in nodejsError && nodejsError.code === 'EADDRINUSE') {
-          log.withError(error).warn('Port already in use, assuming server is already running')
-          return
-        }
-
-        log.withError(error).error('Error serving WebSocket server')
-      })
-    }
-
-    const protocol = secureEnabled ? 'wss' : 'ws'
-    if (hostname === '0.0.0.0') {
-      const ips = getLocalIPs().filter(ip => ip !== '127.0.0.1' && ip !== '::1')
-      const targets = ips.length > 0 ? ips.join(', ') : 'localhost'
-      log.log(`@proj-airi/server-runtime started on ${protocol}://0.0.0.0:${port} (reachable via: ${targets})`)
-    }
-    else {
-      log.log(`@proj-airi/server-runtime started on ${protocol}://${hostname}:${port}`)
-    }
-  }
-  catch (error) {
-    log.withError(error).error('failed to start WebSocket server')
-  }
-}
-
-export async function restartServerChannel(options?: { websocketTlsConfig?: ElectronServerChannelTlsConfig | null }) {
-  const log = useLogg('main/server-runtime').useGlobalConfig()
-  log.log('restarting server channel', { options })
-
-  if (serverInstance && typeof serverInstance.close === 'function') {
-    try {
-      log.log('closing existing server instance')
-      await serverInstance.close(true)
-      log.log('existing server instance closed')
-    }
-    catch {
-      // Ignore errors when closing
-    }
-  }
-
-  serverInstance = null
-  await setupServerChannel(options)
-}
-
-export function setupServerChannelHandlers() {
-  const { context } = createContext(ipcMain)
+export async function setupServerChannel(params: { lifecycle: Lifecycle }): Promise<Server> {
   channelServerConfigStore.setup()
-  registerServerQuitHook()
+
+  const storedConfig = await getChannelServerConfig()
+
+  const serverChannel = createServer({
+    ...storedConfig,
+    port: env.PORT ? Number.parseInt(env.PORT) : 6121,
+    hostname: env.SERVER_RUNTIME_HOSTNAME || '0.0.0.0',
+    tlsConfig: storedConfig.tlsConfig ? await getOrCreateCertificate() : null,
+  })
+
+  const mutex = new Mutex()
+
+  params.lifecycle.appHooks.onStart(async () => {
+    const release = await mutex.acquire()
+
+    const log = useLogg('main/server-runtime').useGlobalConfig()
+
+    try {
+      await serverChannel.start()
+      log.log('WebSocket server started')
+    }
+    catch (error) {
+      log.withError(error).error('Error starting WebSocket server')
+    }
+    finally {
+      release()
+    }
+  })
+  params.lifecycle.appHooks.onStop(async () => {
+    const release = await mutex.acquire()
+
+    const log = useLogg('main/server-runtime').useGlobalConfig()
+    if (!serverChannel) {
+      return
+    }
+
+    try {
+      await serverChannel.stop()
+      log.log('WebSocket server closed')
+    }
+    catch (error) {
+      log.withError(error).error('Error closing WebSocket server')
+    }
+    finally {
+      release()
+    }
+  })
+
+  return {
+    getConnectionHost() {
+      return serverChannel.getConnectionHost()
+    },
+    async start() {
+      const release = await mutex.acquire()
+      try {
+        await serverChannel.start()
+      }
+      finally {
+        release()
+      }
+    },
+    async restart() {
+      const release = await mutex.acquire()
+      try {
+        await serverChannel.stop()
+        await serverChannel.start()
+      }
+      finally {
+        release()
+      }
+    },
+    async stop() {
+      const release = await mutex.acquire()
+      try {
+        await serverChannel.stop()
+      }
+      finally {
+        release()
+      }
+    },
+    async updateConfig(config) {
+      const release = await mutex.acquire()
+      try {
+        await serverChannel.updateConfig(config)
+      }
+      finally {
+        release()
+      }
+    },
+  }
+}
+
+export async function createServerChannelService(params: { serverChannel: Server }) {
+  const { context } = createContext(ipcMain)
 
   defineInvokeHandler(context, electronGetServerChannelConfig, async () => {
-    return getChannelServerConfig()
+    return await getChannelServerConfig()
   })
 
   defineInvokeHandler(context, electronApplyServerChannelConfig, async (req) => {
-    const current = getChannelServerConfig()
-    const next = normalizeChannelServerOptions(req, current)
-    const changed = JSON.stringify(next.websocketTlsConfig) !== JSON.stringify(current.websocketTlsConfig)
+    try {
+      const current = await getChannelServerConfig()
+      const next = await normalizeChannelServerOptions(req, current)
+      const changed = JSON.stringify(next.tlsConfig) !== JSON.stringify(current.tlsConfig)
 
-    channelServerConfigStore.update(next)
+      channelServerConfigStore.update(next)
 
-    if (changed) {
-      await restartServerChannel(next)
+      if (changed) {
+        await params.serverChannel.stop()
+        await params.serverChannel.updateConfig({
+          port: env.PORT ? Number.parseInt(env.PORT) : 6121,
+          hostname: env.SERVER_RUNTIME_HOSTNAME || '0.0.0.0',
+          tlsConfig: next.tlsConfig ? await getOrCreateCertificate() : null,
+        })
+        await params.serverChannel.start()
+      }
+      else {
+        await params.serverChannel.start()
+      }
+
+      return next
     }
-    else if (!serverInstance) {
-      await setupServerChannel(next)
+    catch (error) {
+      useLogg('main/server-runtime').withError(error).error('Failed to apply server channel configuration')
     }
-
-    return next
-  })
-
-  defineInvokeHandler(context, electronStartWebSocketServer, async (req) => {
-    const options = normalizeChannelServerOptions(req)
-    await setupServerChannel(options)
-  })
-
-  defineInvokeHandler(context, electronRestartWebSocketServer, async (req) => {
-    const current = getChannelServerConfig()
-    const options = normalizeChannelServerOptions(req, current)
-    channelServerConfigStore.update(options)
-    await restartServerChannel(options)
-  })
-
-  onAppReady(async () => {
-    const options = getChannelServerConfig()
-    await setupServerChannel(options)
   })
 }
+
+export type { Server as ServerChannel }

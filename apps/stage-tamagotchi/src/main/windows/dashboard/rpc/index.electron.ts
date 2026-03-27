@@ -1,6 +1,9 @@
 import type { BrowserWindow } from 'electron'
 
+import type { I18n } from '../../../libs/i18n'
+import type { ServerChannel } from '../../../services/airi/channel-server'
 import type { NoticeWindowManager } from '../../notice'
+import type { SettingsWindowManager } from '../../settings'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
@@ -10,11 +13,13 @@ import { electronOpenChat, electronOpenMainDevtools, electronOpenSettings, notic
 import { toggleWindowShow } from '../../shared'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
-export function setupDashboardWindowElectronInvokes(params: {
+export async function setupDashboardWindowElectronInvokes(params: {
   window: BrowserWindow
-  settingsWindow: () => Promise<BrowserWindow>
+  settingsWindow: SettingsWindowManager
   chatWindow: () => Promise<BrowserWindow>
   noticeWindow: NoticeWindowManager
+  i18n: I18n
+  serverChannel: ServerChannel
 }) {
   // TODO: once we refactored eventa to support window-namespaced contexts,
   // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -23,10 +28,10 @@ export function setupDashboardWindowElectronInvokes(params: {
 
   const { context } = createContext(ipcMain, params.window)
 
-  setupBaseWindowElectronInvokes({ context, window: params.window })
+  await setupBaseWindowElectronInvokes({ context, window: params.window, serverChannel: params.serverChannel, i18n: params.i18n })
 
   defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))
-  defineInvokeHandler(context, electronOpenSettings, async () => toggleWindowShow(await params.settingsWindow()))
+  defineInvokeHandler(context, electronOpenSettings, payload => params.settingsWindow.openWindow(payload?.route))
   defineInvokeHandler(context, electronOpenChat, async () => toggleWindowShow(await params.chatWindow()))
   defineInvokeHandler(context, noticeWindowEventa.openWindow, payload => params.noticeWindow.open(payload))
 }

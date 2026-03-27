@@ -1,10 +1,15 @@
 import type { BrowserWindow } from 'electron'
 
 import type { createRequestWindowEventa, RequestWindowPayload } from '../../../shared/eventa'
+import type { I18n } from '../../libs/i18n'
+import type { ServerChannel } from '../../services/airi/channel-server'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
+import { safeClose } from '@proj-airi/electron-vueuse/main'
 import { ipcMain } from 'electron'
+
+import { setupBaseWindowElectronInvokes } from './window'
 
 export interface ReferencedWindowHandle {
   id: string
@@ -25,12 +30,14 @@ export interface ReferencedWindowManager<Payload extends RequestWindowPayload = 
  */
 export function createReferencedWindowManager<Payload extends RequestWindowPayload = RequestWindowPayload>(params: {
   eventa: ReturnType<typeof createRequestWindowEventa>
+  i18n: I18n
+  serverChannel: ServerChannel
   createWindow: (id: string) => BrowserWindow
   loadRoute: (window: BrowserWindow, payload: Payload & { id: string }) => Promise<void>
 }): ReferencedWindowManager<Payload> {
   const windows = new Map<string, { window: BrowserWindow, context: ReturnType<typeof createContext>['context'] }>()
 
-  function bindContext(id: string, payload: Payload, win: BrowserWindow) {
+  async function bindContext(id: string, payload: Payload, win: BrowserWindow) {
     // TODO: once we refactored eventa to support window-namespaced contexts,
     // we can remove the setMaxListeners call below since eventa will be able to dispatch and
     // manage events within eventa's context system.
@@ -49,6 +56,8 @@ export function createReferencedWindowManager<Payload extends RequestWindowPaylo
       windows.delete(id)
     })
 
+    await setupBaseWindowElectronInvokes({ context, window: win, i18n: params.i18n, serverChannel: params.serverChannel })
+
     win.on('closed', () => windows.delete(id))
 
     return { window: win, context }
@@ -60,7 +69,7 @@ export function createReferencedWindowManager<Payload extends RequestWindowPaylo
 
     if (!ctx || ctx.window.isDestroyed()) {
       const win = params.createWindow(id)
-      ctx = bindContext(id, payload, win)
+      ctx = await bindContext(id, payload, win)
       windows.set(id, ctx)
     }
 
@@ -82,8 +91,8 @@ export function createReferencedWindowManager<Payload extends RequestWindowPaylo
     const ctx = windows.get(id)
     if (!ctx)
       return
-    if (!ctx.window.isDestroyed())
-      ctx.window.close()
+
+    safeClose(ctx.window)
     windows.delete(id)
   }
 

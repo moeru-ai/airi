@@ -11,11 +11,22 @@ for (const group of BLOCK_ALIAS_GROUPS) {
     aliasLookup.set(name, groupSet)
 }
 
+const ORE_BASE_TYPES = new Set([
+  'coal',
+  'diamond',
+  'emerald',
+  'iron',
+  'gold',
+  'lapis_lazuli',
+  'redstone',
+  'copper',
+])
+
 function normalize(name: string): string {
   return name.trim().toLowerCase()
 }
 
-export function expandBlockAliases(name: string): string[] {
+function expandStrictBlockAliases(name: string): string[] {
   if (typeof name !== 'string')
     return []
 
@@ -23,15 +34,46 @@ export function expandBlockAliases(name: string): string[] {
   if (!normalized)
     return []
 
-  const aliases = aliasLookup.get(normalized)
-  if (!aliases)
-    return [normalized]
+  const result = new Set<string>()
 
-  return [...aliases]
+  const aliases = aliasLookup.get(normalized)
+  if (aliases) {
+    for (const a of aliases)
+      result.add(a)
+  }
+  else {
+    result.add(normalized)
+  }
+
+  return [...result]
+}
+
+export function expandCollectibleBlockAliases(name: string): string[] {
+  const strictAliases = expandStrictBlockAliases(name)
+  if (strictAliases.length === 0)
+    return []
+
+  const normalized = normalize(name)
+  const result = new Set(strictAliases)
+
+  if (ORE_BASE_TYPES.has(normalized)) {
+    result.add(`${normalized}_ore`)
+    result.add(`deepslate_${normalized}_ore`)
+  }
+
+  if (normalized.endsWith('_ore') && !normalized.startsWith('deepslate_')) {
+    result.add(`deepslate_${normalized}`)
+  }
+
+  if (normalized === 'dirt') {
+    result.add('grass_block')
+  }
+
+  return [...result]
 }
 
 export function matchesBlockAlias(expected: string, actual: string): boolean {
-  const expectedAliases = expandBlockAliases(expected)
+  const expectedAliases = expandStrictBlockAliases(expected)
   if (expectedAliases.length === 0)
     return false
 

@@ -1,0 +1,16 @@
+# Database Persistence (DO NOT COMMIT)
+data/
+data/pglite-db/
+data/db.json
+
+# Environment Secrets
+.env
+.env.local
+
+# Node.js
+node_modules/
+dist/
+*.log
+
+# OS Files
+.DS_Store

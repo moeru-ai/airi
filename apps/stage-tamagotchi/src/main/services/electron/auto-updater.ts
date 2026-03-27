@@ -9,7 +9,7 @@ import electronUpdater from 'electron-updater'
 import { is } from '@electron-toolkit/utils'
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
-import { errorMessageFrom } from '@moeru/std'
+import { errorMessageFrom, tryCatch } from '@moeru/std'
 import { committerDate } from '~build/git'
 import { app } from 'electron'
 import { Semaphore } from 'es-toolkit'
@@ -146,10 +146,7 @@ export function createAutoUpdaterService(params: { context: MainContext, window:
     if (window.isDestroyed())
       return
 
-    try {
-      context.emit(electronAutoUpdaterStateChanged, state)
-    }
-    catch {}
+    tryCatch(() => context.emit(electronAutoUpdaterStateChanged, state))
   })
 
   const cleanups: Array<() => void> = [unsubscribe]

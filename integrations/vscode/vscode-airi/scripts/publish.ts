@@ -28,7 +28,7 @@ async function publish() {
   await writeFile(pkgPath, JSON.stringify(pkg, null, 2), 'utf-8')
 
   await rm(join(root, 'LICENSE'), { force: true }).catch(() => {})
-  await copyFile(join(root, '..', '..', 'LICENSE'), join(root, 'LICENSE'))
+  await copyFile(join(root, '..', '..', '..', 'LICENSE'), join(root, 'LICENSE'))
 
   try {
     {

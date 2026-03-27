@@ -1,3 +1,4 @@
+import { isEnvTruthy } from '@proj-airi/stage-shared'
 import { ToasterPWAUpdateReady } from '@proj-airi/stage-ui/components'
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import { nanoid } from 'nanoid'
@@ -14,7 +15,7 @@ export const usePWAStore = defineStore('pwa', () => {
     if (import.meta.env.SSR) {
       return
     }
-    if (import.meta.env.VITE_APP_TARGET_HUGGINGFACE_SPACE) {
+    if (isEnvTruthy(import.meta.env.VITE_APP_TARGET_HUGGINGFACE_SPACE)) {
       return
     }
 

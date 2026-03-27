@@ -2,22 +2,13 @@
  * Rules module exports
  */
 
-// Accumulator (pure functions)
-export {
-  advanceSlots,
-  calculateSlotDelta,
-  calculateWindowSlots,
-  createAccumulatorState,
-  DEFAULT_SLOT_MS,
-  incrementCount,
-  parseWindowDuration,
-  processEvent,
-  resetAfterFire,
-} from './accumulator'
 // Engine
 export { createRuleEngine, RuleEngine } from './engine'
-
-export type { RuleEngineConfig } from './engine'
+export type {
+  DetectorDecision,
+  DetectorDecisionSnapshot,
+  RuleEngineConfig,
+} from './engine'
 
 // Loader
 export {
@@ -38,10 +29,23 @@ export {
   renderTemplate,
 } from './matcher'
 
+// Detector (pure functions)
+export {
+  advanceSlots,
+  calculateSlotDelta,
+  calculateWindowSlots,
+  createDetectorState,
+  DEFAULT_SLOT_MS,
+  incrementCount,
+  parseWindowDuration,
+  processEvent,
+  resetAfterFire,
+} from './temporal-detector'
+
 // Types
 export type {
-  AccumulatorsState,
-  AccumulatorState,
+  DetectorsState,
+  DetectorState,
   ParsedRule,
   Rule,
   RuleMatchResult,

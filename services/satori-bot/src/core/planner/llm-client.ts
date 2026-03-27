@@ -2,23 +2,25 @@ import type { GenerateTextOptions } from '@xsai/generate-text'
 import type { Message as LLMMessage } from '@xsai/shared-chat'
 
 import type { SatoriEvent } from '../../adapter/satori/types'
-import type { Action } from '../types'
-
-import { env } from 'node:process'
+import type { Action, StoredUnreadEvent } from '../types'
 
 import { useLogg } from '@guiiai/logg'
 import { generateText } from '@xsai/generate-text'
 import { message } from '@xsai/utils-chat'
 import { parse } from 'best-effort-json-parser'
 
-import { personality, systemPrompt } from './prompts'
+import * as v from 'valibot'
+
+import { config } from '../../config'
+import { ActionSchema } from '../types'
+import { personality, systemPrompt } from './prompts/index'
 
 export async function imagineAnAction(
   currentAbortController: AbortController | undefined,
   messages: LLMMessage[],
   actions: { action: Action, result: unknown }[],
   globalStates: {
-    unreadEvents: Record<string, SatoriEvent[]>
+    unreadEvents: Record<string, StoredUnreadEvent[]>
     incomingEvents?: SatoriEvent[]
   },
 ): Promise<Action | undefined> {
@@ -54,26 +56,15 @@ export async function imagineAnAction(
   )
 
   try {
-    // Validate API configuration
-    if (!env.LLM_API_KEY) {
-      throw new Error('LLM_API_KEY is not configured. Please set it in your .env.local file.')
-    }
-    if (!env.LLM_API_BASE_URL) {
-      throw new Error('LLM_API_BASE_URL is not configured. Please set it in your .env.local file.')
-    }
-    if (!env.LLM_MODEL) {
-      throw new Error('LLM_MODEL is not configured. Please set it in your .env.local file.')
-    }
-
     const req = {
-      apiKey: env.LLM_API_KEY,
-      baseURL: env.LLM_API_BASE_URL,
-      model: env.LLM_MODEL,
+      apiKey: config.llm.apiKey,
+      baseURL: config.llm.baseUrl,
+      model: config.llm.model,
       messages: requestMessages,
       abortSignal: currentAbortController?.signal,
     } satisfies GenerateTextOptions
 
-    if (env.LLM_OLLAMA_DISABLE_THINK) {
+    if (config.llm.ollamaDisableThink) {
       (req as Record<string, unknown>).think = false
     }
 
@@ -98,16 +89,23 @@ export async function imagineAnAction(
       .replace(/\s*```\s*$/m, '')
       .trim()
 
-    const parsed = parse(responseText) as any
+    const parsed = parse(responseText)
 
-    // 如果 LLM 返回的 JSON 有 parameters 包装层，需要展开
+    // Validate using valibot
+    // Handle the case where LLM might wrap parameters
+    let actionToValidate = parsed
     if (parsed.parameters && typeof parsed.parameters === 'object') {
       const { parameters, ...rest } = parsed
-      const action = { ...rest, ...parameters } as Action
-      return action
+
+      if (parameters.channelId !== undefined) {
+        parameters.channelId = String(parameters.channelId)
+      }
+
+      actionToValidate = { ...rest, ...parameters }
     }
 
-    return parsed as Action
+    const validated = v.parse(ActionSchema, actionToValidate)
+    return validated
   }
   catch (err) {
     const error = err as Error
@@ -115,8 +113,8 @@ export async function imagineAnAction(
     // Check for API key errors
     if (error.message?.includes('API Key') || error.message?.includes('API key')) {
       logger.error('❌ LLM API Key Error: Please check your .env.local file and ensure LLM_API_KEY is set correctly.')
-      logger.error(`   Current LLM_API_BASE_URL: ${env.LLM_API_BASE_URL}`)
-      logger.error(`   Current LLM_MODEL: ${env.LLM_MODEL}`)
+      logger.error(`   Current LLM_API_BASE_URL: ${config.llm.baseUrl}`)
+      logger.error(`   Current LLM_MODEL: ${config.llm.model}`)
     }
     else if (error.message?.includes('LLM_')) {
       // Configuration error

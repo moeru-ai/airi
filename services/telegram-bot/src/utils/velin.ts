@@ -16,12 +16,13 @@ export function importVelin(module: string, base: string): VelinModule {
   return {
     render: async (data) => {
       const content = (await readFile(relativeOf(module, base))).toString('utf-8')
-
-      if (isMarkdown(module)) {
-        return renderMarkdownString(content, data)
-      }
-
-      return renderSFCString(content, data)
+      const result = isMarkdown(module)
+        ? await renderMarkdownString(content, data)
+        : await renderSFCString(content, data)
+      // renderMarkdownString returns { rendered, props } instead of a plain string
+      if (result && typeof result === 'object' && 'rendered' in result)
+        return (result as { rendered: string }).rendered
+      return result
     },
   }
 }

@@ -5,7 +5,7 @@ trigger:
   modality: system
   kind: system_message
 
-accumulator:
+detector:
   threshold: 1
   window: 1s
 

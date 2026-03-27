@@ -1,4 +1,5 @@
-import type { ContextUpdate, WebSocketBaseEvent, WebSocketEvent, WebSocketEventOptionalSource, WebSocketEvents } from '@proj-airi/server-sdk'
+import type { ContextUpdate, InputContextUpdate, WebSocketBaseEvent, WebSocketEvent, WebSocketEventOptionalSource, WebSocketEvents } from '@proj-airi/server-sdk'
+import type { CommonContentPart } from '@xsai/shared-chat'
 
 import { Client, WebSocketEventSource } from '@proj-airi/server-sdk'
 import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
@@ -143,7 +144,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     }
   }
 
-  function onContextUpdate(callback: (event: WebSocketBaseEvent<'context:update', ContextUpdate>) => void | Promise<void>) {
+  function onContextUpdate(callback: (event: WebSocketBaseEvent<'context:update', ContextUpdate<Record<string, unknown>, string | CommonContentPart[]>>) => void | Promise<void>) {
     if (!client.value && !initializing.value)
       void initialize()
 
@@ -168,9 +169,12 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     }
   }
 
-  function sendContextUpdate(message: Omit<ContextUpdate, 'id' | 'contextId'> & Partial<Pick<ContextUpdate, 'id' | 'contextId'>>) {
+  function sendContextUpdate(message: InputContextUpdate) {
     const id = nanoid()
-    send({ type: 'context:update', data: { id, contextId: id, ...message } })
+    send({
+      type: 'context:update',
+      data: { id, contextId: id, ...message },
+    } as WebSocketEventOptionalSource<string | CommonContentPart[]>)
   }
 
   function dispose() {

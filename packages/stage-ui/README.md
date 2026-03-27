@@ -6,7 +6,7 @@ Shared core for stage
 
 https://histoire.dev/
 
-```
+```shell
 pnpm -F @proj-airi/stage-ui run story:dev
 ```
 

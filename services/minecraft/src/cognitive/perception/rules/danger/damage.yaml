@@ -5,7 +5,7 @@ trigger:
   modality: felt
   kind: damage_taken
 
-accumulator:
+detector:
   threshold: 1
   window: 500ms
 

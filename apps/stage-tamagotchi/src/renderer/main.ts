@@ -15,9 +15,6 @@ import App from './App.vue'
 
 import { i18n } from './modules/i18n'
 
-import './modules/posthog'
-
-// eslint-disable-next-line perfectionist/sort-imports
 import '@unocss/reset/tailwind.css'
 import 'splitpanes/dist/splitpanes.css'
 import 'vue-sonner/style.css'

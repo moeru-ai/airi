@@ -6,6 +6,8 @@ import type { PerceptionSignal } from '../perception/types/signals'
 import type { MineflayerWithAgents } from '../types'
 import type { ReflexContextState } from './context'
 
+import { computed, effect, signal } from 'alien-signals'
+
 import { DebugService } from '../../debug'
 import { idleGazeBehavior } from './behaviors/idle-gaze'
 import { ReflexRuntime } from './runtime'
@@ -15,7 +17,9 @@ export class ReflexManager {
   private readonly runtime: ReflexRuntime
   private unsubscribe: (() => void) | null = null
   private unsubscribeTaskExecutor: (() => void) | null = null
-  private inFlightActionsCount = 0
+  private readonly botSignal = signal<MineflayerWithAgents | null>(null)
+  private readonly inFlightActionsCount = signal(0)
+  private readonly isWorking = computed(() => this.inFlightActionsCount() > 0)
 
   constructor(
     private readonly deps: {
@@ -26,30 +30,45 @@ export class ReflexManager {
   ) {
     this.runtime = new ReflexRuntime({
       logger: this.deps.logger,
-      onBehaviorEnd: () => this.emitReflexState(),
-      onModeChange: () => this.emitReflexState(),
     })
 
     this.runtime.registerBehavior(idleGazeBehavior)
+
+    effect(() => {
+      const bot = this.botSignal()
+      if (!bot)
+        return
+
+      this.runtime.transitionMode(this.isWorking() ? 'work' : 'idle', bot)
+    })
+
+    effect(() => {
+      if (!this.botSignal())
+        return
+
+      DebugService.getInstance().emitReflexState({
+        mode: this.runtime.getMode(),
+        activeBehaviorId: this.runtime.getActiveBehaviorId(),
+        context: this.runtime.getContext().getSnapshot(),
+      })
+    })
   }
 
   public init(bot: MineflayerWithAgents): void {
     this.bot = bot
+    this.botSignal(bot)
+    this.runtime.setActiveBot(bot)
     // Subscribe to all signals produced by the perception rules
     this.unsubscribe = this.deps.eventBus.subscribe('signal:*', (event) => {
       this.onSignal(event as TracedEvent<PerceptionSignal>)
     })
 
     const onStarted = () => {
-      if (this.inFlightActionsCount === 0)
-        this.runtime.transitionMode('work', this.bot)
-      this.inFlightActionsCount++
+      this.inFlightActionsCount(this.inFlightActionsCount() + 1)
     }
 
     const onEnded = () => {
-      this.inFlightActionsCount = Math.max(0, this.inFlightActionsCount - 1)
-      if (this.inFlightActionsCount === 0)
-        this.runtime.transitionMode('idle', this.bot)
+      this.inFlightActionsCount(Math.max(0, this.inFlightActionsCount() - 1))
     }
 
     this.deps.taskExecutor.on('action:started', onStarted)
@@ -79,7 +98,9 @@ export class ReflexManager {
       this.unsubscribeTaskExecutor()
       this.unsubscribeTaskExecutor = null
     }
-    this.inFlightActionsCount = 0
+    this.inFlightActionsCount(0)
+    this.runtime.setActiveBot(null)
+    this.botSignal(null)
     this.bot = null
   }
 
@@ -97,12 +118,10 @@ export class ReflexManager {
 
   public setFollowTarget(playerName: string, followDistance = 2): void {
     this.runtime.setAutoFollowTarget(playerName, followDistance)
-    this.emitReflexState()
   }
 
   public clearFollowTarget(): void {
     this.runtime.clearAutoFollowTarget(this.bot)
-    this.emitReflexState()
   }
 
   public refreshFromBotState(): void {
@@ -110,7 +129,6 @@ export class ReflexManager {
       return
 
     this.runtime.tick(this.bot, 0)
-    this.emitReflexState()
   }
 
   private onSignal(event: TracedEvent<PerceptionSignal>): void {
@@ -167,21 +185,11 @@ export class ReflexManager {
         source: { component: 'reflex', id: 'reflexManager' },
       })
     }
-
-    this.emitReflexState()
   }
 
   private shouldForwardToConscious(signal: PerceptionSignal): boolean {
     // Keep conscious layer focused on higher-level / decision-relevant signals.
     // entity_attention (e.g. movement/punch attention) is handled by Reflex behaviors.
     return signal.type !== 'entity_attention'
-  }
-
-  private emitReflexState(): void {
-    DebugService.getInstance().emitReflexState({
-      mode: this.runtime.getMode(),
-      activeBehaviorId: this.runtime.getActiveBehaviorId(),
-      context: this.runtime.getContext().getSnapshot(),
-    })
   }
 }

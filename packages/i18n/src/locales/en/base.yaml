@@ -1,3 +1,7 @@
+edition:
+  desktop: Desktop ver.
+  mobile: Mobile ver.
+  web: Web ver.
 prompt:
   prefix: >
     (from Neko Ayaka) Good morning! You are finally awake.

@@ -1,3 +1,5 @@
+import type { Dirent } from 'node:fs'
+
 import type { ManifestV1 } from '@proj-airi/plugin-sdk/plugin-host'
 
 import type {
@@ -6,7 +8,7 @@ import type {
   PluginRegistrySnapshot,
 } from '../../../../shared/eventa'
 
-import { mkdir, readdir, readFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, realpath, stat } from 'node:fs/promises'
 import { dirname, extname, join } from 'node:path'
 
 import { useLogg } from '@guiiai/logg'
@@ -27,7 +29,6 @@ import {
   pluginProtocolListProviders,
   pluginProtocolListProvidersEventName,
 } from '../../../../shared/eventa'
-import { onAppReady } from '../../../libs/bootkit/lifecycle'
 import { createConfig } from '../../../libs/electron/persistence'
 
 interface PluginHostService {
@@ -36,16 +37,28 @@ interface PluginHostService {
 }
 
 interface CapabilityAwarePluginHost extends PluginHost {
-  setProvidersListResolver: (resolver: () => Promise<Array<{ name: string }>> | Array<{ name: string }>) => void
+  setResourceResolver: <T>(key: string, resolver: () => Promise<T> | T) => void
   announceCapability: (key: string, metadata?: Record<string, unknown>) => {
     key: string
-    state: 'announced' | 'ready'
+    state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
     metadata?: Record<string, unknown>
     updatedAt: number
   }
   markCapabilityReady: (key: string, metadata?: Record<string, unknown>) => {
     key: string
-    state: 'announced' | 'ready'
+    state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
+    metadata?: Record<string, unknown>
+    updatedAt: number
+  }
+  markCapabilityDegraded: (key: string, metadata?: Record<string, unknown>) => {
+    key: string
+    state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
+    metadata?: Record<string, unknown>
+    updatedAt: number
+  }
+  withdrawCapability: (key: string, metadata?: Record<string, unknown>) => {
+    key: string
+    state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
     metadata?: Record<string, unknown>
     updatedAt: number
   }
@@ -72,6 +85,26 @@ function isManifestV1(value: unknown): value is ManifestV1 {
   return safeParse(manifestV1Schema, value).success
 }
 
+async function realPathOf(entry: Dirent<string>, options?: { cwd?: string }): Promise<{ resolved: false, path?: string, error?: unknown } | { resolved: true, path: string, error?: unknown }> {
+  if (!entry.isSymbolicLink()) {
+    return { resolved: false }
+  }
+
+  try {
+    const resolvedPath = await realpath(join(options?.cwd ?? '', entry.name))
+
+    const stats = await stat(resolvedPath)
+    if (stats.isFile() || stats.isDirectory()) {
+      return { resolved: true, path: resolvedPath }
+    }
+
+    return { resolved: false }
+  }
+  catch (error) {
+    return { resolved: false, error }
+  }
+}
+
 async function loadManifestsFrom(dir: string, log: ReturnType<typeof useLogg>): Promise<ManifestEntry[]> {
   await mkdir(dir, { recursive: true })
   const entries = await readdir(dir, { withFileTypes: true })
@@ -79,18 +112,62 @@ async function loadManifestsFrom(dir: string, log: ReturnType<typeof useLogg>): 
   const manifestPaths: string[] = []
 
   for (const entry of entries) {
-    if (!entry.isDirectory())
-      continue
+    if (!entry.isDirectory()) {
+      if (entry.isSymbolicLink()) {
+        const { resolved, error } = await realPathOf(entry, { cwd: dir })
+        if (error) {
+          log.withError(error).withFields({ name: entry.name }).warn('failed to resolve plugin manifest path, skipping')
+          continue
+        }
+        if (!resolved) {
+          log.withFields({ name: entry.name }).warn('found symlink that does not resolve to a file, skipping')
+          continue
+        }
+      }
+      else {
+        continue
+      }
+    }
 
-    const pluginDir = join(dir, entry.name)
+    let pluginDir = join(dir, entry.name)
+    if (entry.isSymbolicLink()) {
+      const { path, resolved } = await realPathOf(entry, { cwd: dir })
+      if (resolved) {
+        pluginDir = path
+      }
+      else {
+        log.withFields({ name: entry.name }).warn('found symlink that does not resolve to a file, skipping')
+        continue
+      }
+    }
+
     const pluginEntries = await readdir(pluginDir, { withFileTypes: true })
     for (const pluginEntry of pluginEntries) {
-      if (!pluginEntry.isFile())
-        continue
-      if (extname(pluginEntry.name) !== '.json')
-        continue
+      if (pluginEntry.isSymbolicLink()) {
+        try {
+          const resolvedPath = await realpath(join(pluginDir, pluginEntry.name))
 
-      manifestPaths.push(join(pluginDir, pluginEntry.name))
+          const stats = await stat(resolvedPath)
+          if (!stats.isFile()) {
+            continue
+          }
+          if (extname(resolvedPath) !== '.json') {
+            continue
+          }
+        }
+        catch (error) {
+          log.withError(error).withFields({ name: pluginEntry.name }).warn('failed to resolve symlink, skipping')
+
+          continue
+        }
+
+        manifestPaths.push(join(pluginDir, pluginEntry.name))
+      }
+      if (pluginEntry.isFile() && extname(pluginEntry.name) === '.json') {
+        manifestPaths.push(join(pluginDir, pluginEntry.name))
+      }
+
+      continue
     }
   }
 
@@ -157,11 +234,21 @@ export async function setupPluginHost(): Promise<PluginHostService> {
   pluginConfig.setup()
 
   const host = new PluginHost({ runtime: 'electron' })
+
   // NOTICE: stage-tamagotchi currently typechecks against package exports while plugin-sdk changes
   // are source-local in this workspace. Cast keeps the bridge typed until package dist is regenerated.
   const capabilityHost = host as CapabilityAwarePluginHost
+  log.withFields({ pluginsRoot }).log('loading plugin manifests')
+
   let entries = await loadManifestsFrom(pluginsRoot, log)
-  let manifests = entries.map(entry => entry.manifest)
+  log.withFields({ count: entries.length }).log('plugin manifests loaded')
+
+  let manifests = entries.map((entry) => {
+    log.withFields({ name: entry.manifest.name, path: entry.path }).log('plugin manifest found')
+
+    return entry.manifest
+  })
+
   const loaded = new Set<string>()
   const loadedSessionIds = new Map<string, string>()
 
@@ -306,20 +393,31 @@ export async function setupPluginHost(): Promise<PluginHostService> {
 
   defineInvokeHandler(context, electronPluginUpdateCapability, async (payload) => {
     if (payload.key === pluginProtocolListProvidersEventName && payload.state === 'ready') {
-      capabilityHost.setProvidersListResolver(async () => await invokePluginProtocolListProviders())
+      capabilityHost.setResourceResolver(
+        pluginProtocolListProvidersEventName,
+        async () => await invokePluginProtocolListProviders(),
+      )
     }
 
-    if (payload.state === 'announced') {
-      return capabilityHost.announceCapability(payload.key, payload.metadata)
+    switch (payload.state) {
+      case 'announced':
+        return capabilityHost.announceCapability(payload.key, payload.metadata)
+      case 'ready':
+        return capabilityHost.markCapabilityReady(payload.key, payload.metadata)
+      case 'degraded':
+        return capabilityHost.markCapabilityDegraded(payload.key, payload.metadata)
+      case 'withdrawn':
+        return capabilityHost.withdrawCapability(payload.key, payload.metadata)
+      default: {
+        const unexpectedState: never = payload.state
+        throw new Error(`Unsupported capability state: ${unexpectedState}`)
+      }
     }
-
-    return capabilityHost.markCapabilityReady(payload.key, payload.metadata)
   })
 
-  onAppReady(async () => {
-    await refreshManifests()
-    await loadEnabled()
-  })
+  // Initialize enabled plugins during module setup so startup is bound to injeca lifecycle.
+  await refreshManifests()
+  await loadEnabled()
 
   return { host, manifests }
 }

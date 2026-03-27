@@ -153,7 +153,8 @@ export function shouldRetryError(err: unknown, remainingAttempts: number): Retry
  */
 export function extractJsonCandidate(input: string): string {
   const trimmed = input.trim()
-  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i)
+  // eslint-disable-next-line regexp/no-super-linear-backtracking
+  const fenced = trimmed.match(/^```(?:json)?[^\S\r\n]*\r?\n?([\s\S]*?)\r?\n?```$/i)
   if (fenced?.[1])
     return fenced[1].trim()
 

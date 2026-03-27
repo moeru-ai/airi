@@ -1,7 +1,10 @@
 import type { Rectangle } from 'electron'
 import type { InferOutput } from 'valibot'
 
+import type { I18n } from '../../libs/i18n'
+import type { ServerChannel } from '../../services/airi/channel-server'
 import type { NoticeWindowManager } from '../notice'
+import type { SettingsWindowManager } from '../settings'
 
 import { dirname, join, resolve } from 'node:path'
 import { env } from 'node:process'
@@ -39,10 +42,12 @@ const appConfigSchema = object({
 type AppConfig = InferOutput<typeof appConfigSchema>
 
 export async function setupDashboardWindow(params: {
-  settingsWindow: () => Promise<BrowserWindow>
+  settingsWindow: SettingsWindowManager
   chatWindow: () => Promise<BrowserWindow>
   noticeWindow: NoticeWindowManager
   onWindowCreated?: (window: BrowserWindow) => void
+  serverChannel: ServerChannel
+  i18n: I18n
 }) {
   const {
     setup: setupConfig,
@@ -129,11 +134,13 @@ export async function setupDashboardWindow(params: {
 
   await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/dashboard'))
 
-  setupDashboardWindowElectronInvokes({
+  await setupDashboardWindowElectronInvokes({
     window,
     settingsWindow: params.settingsWindow,
     chatWindow: params.chatWindow,
     noticeWindow: params.noticeWindow,
+    i18n: params.i18n,
+    serverChannel: params.serverChannel,
   })
 
   /**

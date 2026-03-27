@@ -9,7 +9,7 @@ trigger:
     distance:
       lt: 10
 
-accumulator:
+detector:
   threshold: 5
   window: 2s
   mode: sliding

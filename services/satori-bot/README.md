@@ -72,5 +72,5 @@ pnpm --filter @proj-airi/satori-bot start
 ## Key Locations
 
 * **Persona & System Prompts**: `src/core/planner/prompts/*.velin.md`
-* **Database (JSON)**: `data/db.json` (See *PERSISTENCE.md* for limitations)
+* **Database (PGlite)**: `data/pglite-db` (See *PERSISTENCE.md* for architecture)
 * **Action Logic**: `src/capabilities/actions/`

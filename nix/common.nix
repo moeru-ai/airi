@@ -13,7 +13,16 @@ stdenvNoCC.mkDerivation (final: {
   pname = "airi";
   version = (builtins.fromJSON (builtins.readFile ../package.json)).version;
 
-  src = ../.;
+  src = lib.cleanSourceWith {
+    src = ../.;
+    filter =
+      path: type:
+      let
+        baseName = baseNameOf (toString path);
+        isEditorMetadataDirectory = type == "directory" && (baseName == ".vscode" || baseName == ".zed");
+      in
+      !isEditorMetadataDirectory;
+  };
 
   pnpmDeps = pnpm.fetchDeps {
     inherit (final) pname version src;
@@ -53,6 +62,7 @@ stdenvNoCC.mkDerivation (final: {
     '';
 
     outputHashMode = "recursive";
+    outputHashAlgo = "sha256";
     outputHash = builtins.readFile ./assets-hash.txt;
   };
 

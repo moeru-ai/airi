@@ -188,6 +188,10 @@ pnpm dev
 > nr dev
 > ```
 
+### UI Storyboard
+
+Browse the live UI component storyboard at [airi.moeru.ai/ui](https://airi.moeru.ai/ui/).
+
 ### Documentation site
 
 ```shell

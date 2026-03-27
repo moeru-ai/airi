@@ -2,19 +2,23 @@ import type { Logg } from '@guiiai/logg'
 
 import type { BotContext, ChatContext } from '../types'
 
-import { listChannels } from '../../lib/db'
+import { listChannels, loadEventQueue, loadUnreadEvents } from '../../lib/db'
 
 /**
  * Create a new bot context
  * Initializes all required data structures for the bot
  */
-export function createBotContext(logger: Logg): BotContext {
+export async function createBotContext(logger: Logg): Promise<BotContext> {
+  const [eventQueue, unreadEvents] = await Promise.all([
+    loadEventQueue(),
+    loadUnreadEvents(),
+  ])
+
   const botSelf: BotContext = {
-    eventQueue: [],
-    unreadEvents: {},
+    eventQueue,
+    unreadEvents,
     processedIds: new Set(),
     logger,
-    processing: false,
     lastInteractedChannelIds: [],
     chats: new Map<string, ChatContext>(),
   }
@@ -47,9 +51,9 @@ export async function ensureChatContext(botCtx: BotContext, channelId: string): 
     channelId,
     platform: channelInfo?.platform || '',
     selfId: channelInfo?.selfId || '',
+    isProcessing: false,
     currentTask: undefined,
     currentAbortController: undefined,
-    messages: [],
     actions: [],
   }
 

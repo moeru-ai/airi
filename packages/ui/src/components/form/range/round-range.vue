@@ -56,7 +56,8 @@ function handleInput(e: Event) {
     :min="scaledMin"
     :max="scaledMax"
     :step="scaledStep"
-    class="slider-progress form_input-round-range"
+    :disabled="props.disabled"
+    :class="['slider-progress', 'form_input-round-range', props.disabled ? 'opacity-60 pointer-events-none' : '']"
     @input="handleInput"
   >
 </template>
@@ -113,6 +114,20 @@ https://toughengineer.github.io/demo/slider-styler*/
 
 .form_input-round-range:focus {
   outline: none;
+}
+
+.form_input-round-range:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.form_input-round-range:disabled::-webkit-slider-thumb,
+.form_input-round-range:disabled::-webkit-slider-runnable-track,
+.form_input-round-range:disabled::-moz-range-thumb,
+.form_input-round-range:disabled::-moz-range-track,
+.form_input-round-range:disabled::-ms-thumb,
+.form_input-round-range:disabled::-ms-track {
+  cursor: not-allowed;
 }
 
 /*webkit*/

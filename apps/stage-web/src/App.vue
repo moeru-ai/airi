@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { OnboardingDialog, ToasterRoot } from '@proj-airi/stage-ui/components'
-import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
+import { OnboardingDialog, OnboardingStepAnalyticsNotice, ToasterRoot } from '@proj-airi/stage-ui/components'
+import { isPosthogAvailableInBuild, useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
@@ -8,7 +8,7 @@ import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/c
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
-import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
 import { storeToRefs } from 'pinia'
@@ -32,7 +32,8 @@ const onboardingStore = useOnboardingStore()
 const chatSessionStore = useChatSessionStore()
 const serverChannelStore = useModsServerChannelStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
-const { shouldShowSetup } = storeToRefs(onboardingStore)
+const settingsAudioDeviceStore = useSettingsAudioDevice()
+const { showingSetup } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
 const cardStore = useAiriCardStore()
 const analyticsStore = useSharedAnalyticsStore()
@@ -59,6 +60,12 @@ const colors = computed(() => {
   return [primaryColor.value, secondaryColor.value, tertiaryColor.value, isDark.value ? '#121212' : '#FFFFFF']
 })
 
+const onboardingExtraSteps = computed(() => {
+  return isPosthogAvailableInBuild()
+    ? [{ id: 'analytics-notice', component: OnboardingStepAnalyticsNotice }]
+    : []
+})
+
 watch(settings.language, () => {
   i18n.locale.value = settings.language.value
 })
@@ -76,7 +83,9 @@ onMounted(async () => {
   analyticsStore.initialize()
   cardStore.initialize()
 
-  onboardingStore.initializeSetupCheck()
+  if (onboardingStore.needsOnboarding) {
+    onboardingStore.showingSetup = true
+  }
 
   await chatSessionStore.initialize()
   await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
@@ -85,6 +94,7 @@ onMounted(async () => {
 
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
+  await settingsAudioDeviceStore.initialize()
 })
 
 onUnmounted(() => {
@@ -112,9 +122,7 @@ function handleSetupSkipped() {
     :use-page-specific-transitions="settings.usePageSpecificTransitions.value"
   >
     <RouterView v-slot="{ Component }">
-      <KeepAlive :include="['IndexScenePage', 'StageScenePage']">
-        <component :is="Component" />
-      </KeepAlive>
+      <component :is="Component" />
     </RouterView>
   </StageTransitionGroup>
 
@@ -124,7 +132,8 @@ function handleSetupSkipped() {
 
   <!-- First Time Setup Dialog -->
   <OnboardingDialog
-    v-model="shouldShowSetup"
+    v-model="showingSetup"
+    :extra-steps="onboardingExtraSteps"
     @configured="handleSetupConfigured"
     @skipped="handleSetupSkipped"
   />

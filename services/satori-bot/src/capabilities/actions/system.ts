@@ -19,7 +19,6 @@ export const continueAction: ActionHandler = {
 export const breakAction: ActionHandler = {
   name: 'break',
   execute: async (_ctx, chatCtx): Promise<ActionResult> => {
-    chatCtx.messages = []
     chatCtx.actions = []
     return {
       success: true,
@@ -33,6 +32,13 @@ export const breakAction: ActionHandler = {
 export const sleepAction: ActionHandler = {
   name: 'sleep',
   execute: async (_ctx, _chatCtx, args): Promise<ActionResult> => {
+    if (args.action !== 'sleep') {
+      return {
+        success: false,
+        shouldContinue: true,
+        result: 'System Error: Action mismatch for sleep.',
+      }
+    }
     const duration = args.duration || SLEEP_DURATION_MS
     await new Promise(resolve => setTimeout(resolve, duration))
     return {

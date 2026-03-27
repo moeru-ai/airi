@@ -3,6 +3,10 @@ import Capacitor
 import WebKit
 
 class DevBridgeViewController: CAPBridgeViewController {
+    override func capacitorDidLoad() {
+        super.capacitorDidLoad()
+        webView?.allowsBackForwardNavigationGestures = true
+    }
 
     #if DEBUG
     override func viewDidLoad() {

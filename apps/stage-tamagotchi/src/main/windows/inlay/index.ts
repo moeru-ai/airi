@@ -1,3 +1,6 @@
+import type { I18n } from '../../libs/i18n'
+import type { ServerChannel } from '../../services/airi/channel-server'
+
 import { join, resolve } from 'node:path'
 
 import { BrowserWindow, shell } from 'electron'
@@ -10,7 +13,10 @@ import { currentDisplayBounds, mapForBreakpoints, resolutionBreakpoints, widthFr
 import { spotlightLikeWindowConfig } from '../shared/window'
 import { setupInlayWindowInvokes } from './rpc/index.electron'
 
-export async function setupInlayWindow() {
+export async function setupInlayWindow(params: {
+  serverChannel: ServerChannel
+  i18n: I18n
+}) {
   const window = new BrowserWindow({
     title: 'Inlay',
     width: 450,
@@ -18,7 +24,7 @@ export async function setupInlayWindow() {
     show: false,
     icon,
     webPreferences: {
-      preload: join(__dirname, '../preload/index.mjs'),
+      preload: join(getElectronMainDirname(), '../preload/index.mjs'),
       sandbox: false,
     },
     ...spotlightLikeWindowConfig(),
@@ -63,7 +69,7 @@ export async function setupInlayWindow() {
 
   await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/inlay'))
 
-  setupInlayWindowInvokes({ inlayWindow: window })
+  await setupInlayWindowInvokes({ inlayWindow: window, serverChannel: params.serverChannel, i18n: params.i18n })
 
   return window
 }

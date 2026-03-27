@@ -38,7 +38,7 @@ function createAnthropic(apiKey: string, baseURL: string = 'https://api.anthropi
 
 export const providerAnthropic = defineProvider<AnthropicConfig>({
   id: 'anthropic',
-  order: 5,
+  order: 6,
   name: 'Anthropic',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.anthropic.title'),
   description: 'anthropic.com',

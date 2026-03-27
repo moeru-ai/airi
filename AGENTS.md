@@ -90,6 +90,7 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - Prefer functional patterns + DI (`injeca`) for testability.
 - Use Valibot for schema validation; keep schemas close to their consumers.
 - Use Eventa (`@moeru/eventa`) for structured IPC/RPC contracts where needed.
+- Use `errorMessageFrom(error)` from `@moeru/std` to extract error messages instead of manual patterns like `error instanceof Error ? error.message : String(error)`. Pair with `?? 'fallback'` when a default is needed.
 - Do not add backward-compatibility guards. If extended support is required, write refactor docs and spin up another Codex or Claude Code instance via shell command to complete the implementation with clear instructions and the expected post-refactor shape.
 - If the refactor scope is small, do a progressive refactor step by step.
 - When modifying code, always check for opportunities to do small, minimal progressive refactors alongside the change.

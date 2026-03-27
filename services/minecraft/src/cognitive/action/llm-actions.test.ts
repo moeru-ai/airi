@@ -49,6 +49,19 @@ describe('llm-actions mineBlockAt', () => {
     expect(breakBlockAt).not.toHaveBeenCalled()
   })
 
+  it('rejects collection-only aliases for exact block validation', async () => {
+    const mineBlockAtAction = getMineBlockAtAction()
+    const mineflayer = {
+      bot: {
+        blockAt: vi.fn(() => ({ name: 'grass_block' })),
+      },
+    } as any
+
+    const perform = mineBlockAtAction.perform(mineflayer)
+    await expect(perform(1, 2, 3, 'dirt')).rejects.toThrow(/Block type mismatch/i)
+    expect(breakBlockAt).not.toHaveBeenCalled()
+  })
+
   it('exposes skip tool with stable return value', async () => {
     const skipAction = actionsList.find(item => item.name === 'skip')
     expect(skipAction).toBeDefined()

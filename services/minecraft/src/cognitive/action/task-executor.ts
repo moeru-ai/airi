@@ -46,7 +46,7 @@ export class TaskExecutor extends EventEmitter {
     try {
       await this.executeActionWithResult(action, cancellationToken)
     }
-    catch (error) {
+    catch {
       // Errors handled in runSingleAction event emission
     }
   }

@@ -4,13 +4,13 @@ import type { Interaction } from 'discord.js'
 import { env } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
-import { Client as AiriClient } from '@proj-airi/server-sdk'
+import { Client as ServerChannel } from '@proj-airi/server-sdk'
 import { ContextUpdateStrategy } from '@proj-airi/server-shared/types'
 import { Client, Events, GatewayIntentBits, Partials } from 'discord.js'
 
 import { handlePing, registerCommands, VoiceManager } from '../bots/discord/commands'
 
-const log = useLogg('DiscordAdapter')
+const log = useLogg('DiscordAdapter').useGlobalConfig()
 
 export interface DiscordAdapterConfig {
   discordToken?: string
@@ -53,7 +53,7 @@ function normalizeDiscordMetadata(discord?: Discord): Discord | undefined {
 }
 
 export class DiscordAdapter {
-  private airiClient: AiriClient
+  private airiClient: ServerChannel
   private discordClient: Client
   private discordToken: string
   private voiceManager: VoiceManager
@@ -75,7 +75,7 @@ export class DiscordAdapter {
     })
 
     // Initialize AIRI client
-    this.airiClient = new AiriClient({
+    this.airiClient = new ServerChannel({
       name: 'discord',
       possibleEvents: [
         'input:text',
@@ -161,6 +161,7 @@ export class DiscordAdapter {
       try {
         const message = (event.data as { message?: { content: string } }).message
         const discordContext = (event.data)['gen-ai:chat'].input.data.discord
+
         if (message?.content && discordContext?.channelId) {
           const channel = await this.discordClient.channels.fetch(discordContext.channelId)
           if (channel?.isTextBased() && 'send' in channel && typeof channel.send === 'function') {

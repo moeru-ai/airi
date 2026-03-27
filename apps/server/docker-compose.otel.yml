@@ -1,0 +1,122 @@
+name: proj-airi-otel
+
+services:
+  # ============================================================
+  # OpenTelemetry Collector
+  # Receives traces, metrics, and logs from the application
+  # and exports them to the appropriate backends.
+  # ============================================================
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.120.0
+    command: ['--config=/etc/otelcol/otel-collector.yaml']
+    volumes:
+      - ./otel/collector/otel-collector.yaml:/etc/otelcol/otel-collector.yaml:ro
+    ports:
+      - '4317:4317' # OTLP gRPC
+      - '4318:4318' # OTLP HTTP
+    depends_on:
+      loki:
+        condition: service_started
+      tempo:
+        condition: service_started
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:13133/']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ============================================================
+  # Prometheus - Metrics storage and querying
+  # ============================================================
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yaml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+      - --web.enable-remote-write-receiver
+      - --enable-feature=exemplar-storage
+      - --enable-feature=native-histograms
+    volumes:
+      - ./otel/prometheus/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+      - prometheus_data:/prometheus
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:9090/-/healthy']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ============================================================
+  # Loki - Log aggregation
+  # ============================================================
+  loki:
+    image: grafana/loki:3.4.3
+    command: -config.file=/etc/loki/loki.yaml
+    volumes:
+      - ./otel/loki/loki.yaml:/etc/loki/loki.yaml:ro
+      - loki_data:/loki
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:3100/ready']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ============================================================
+  # Tempo - Distributed tracing backend
+  # ============================================================
+  tempo:
+    image: grafana/tempo:2.7.2
+    command: ['-config.file=/etc/tempo/tempo.yaml']
+    volumes:
+      - ./otel/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo_data:/var/tempo
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:3200/ready']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ============================================================
+  # Grafana - Visualization and dashboards
+  # ============================================================
+  grafana:
+    image: grafana/grafana:11.5.2
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor tempoSearch tempoServiceGraph
+    volumes:
+      - ./otel/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./otel/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - '3001:3000'
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+      tempo:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:3000/api/health']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  prometheus_data:
+    driver: local
+  loki_data:
+    driver: local
+  tempo_data:
+    driver: local
+  grafana_data:
+    driver: local

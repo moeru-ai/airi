@@ -8,6 +8,7 @@ import { useI18n } from 'vue-i18n'
 
 import SystemPromptV2 from '../../constants/prompts/system-v2'
 
+import { useSettingsStageModel } from '../settings/stage-model'
 import { useConsciousnessStore } from './consciousness'
 import { useSpeechStore } from './speech'
 
@@ -40,6 +41,9 @@ export interface AiriExtension {
       file?: string // Example: "live2d/model.json"
       url?: string // Example: "https://example.com/live2d/model.json"
     }
+
+    // ID from display-models store (e.g. 'preset-live2d-1', 'display-model-<nanoid>')
+    displayModelId?: string
   }
 
   agents: {
@@ -66,6 +70,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
   const consciousnessStore = useConsciousnessStore()
   const speechStore = useSpeechStore()
+  const stageModelStore = useSettingsStageModel()
 
   const {
     activeProvider: activeConsciousnessProvider,
@@ -123,6 +128,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         model: activeSpeechModel.value,
         voice_id: activeSpeechVoiceId.value,
       },
+      displayModelId: stageModelStore.stageModelSelected,
     }
 
     // Return default if no extension exists
@@ -151,6 +157,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         },
         vrm: existingExtension.modules?.vrm,
         live2d: existingExtension.modules?.live2d,
+        displayModelId: existingExtension.modules?.displayModelId ?? defaultModules.displayModelId,
       },
       agents: existingExtension.agents ?? {},
     }
@@ -223,7 +230,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     if (!newCard)
       return
 
-    // TODO: live2d, vrm
     // TODO: Minecraft Agent, etc
     const extension = resolveAiriExtension(newCard)
     if (!extension)
@@ -235,6 +241,13 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     activeSpeechProvider.value = extension?.modules?.speech?.provider
     activeSpeechModel.value = extension?.modules?.speech?.model
     activeSpeechVoiceId.value = extension?.modules?.speech?.voice_id
+
+    // Apply body model if the card has a display model configured.
+    // NOTICE: must set via store property directly (not storeToRefs .value) so Pinia's
+    // proxy correctly calls the writable computed setter → stageModelSelectedState → updateStageModel().
+    if (extension.modules?.displayModelId) {
+      stageModelStore.stageModelSelected = extension.modules.displayModelId
+    }
   })
 
   function resetState() {
@@ -264,6 +277,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
           model: activeSpeechModel.value,
           voice_id: activeSpeechVoiceId.value,
         },
+        displayModelId: stageModelStore.stageModelSelected,
       } satisfies AiriExtension['modules']
     }),
 

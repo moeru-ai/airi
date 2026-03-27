@@ -2,6 +2,7 @@ name: Release Tamagotchi
 
 permissions:
   contents: write
+  actions: read
 
 env:
   BUNDLE_NAME: ''
@@ -46,6 +47,8 @@ jobs:
   build:
     name: Build
     continue-on-error: ${{ matrix.skip }} # WORKAROUND: Skipping subsequent steps without failing the whole workflow
+    env:
+      VITE_ENABLE_POSTHOG: ${{ ((github.event_name == 'release') || (github.event_name == 'workflow_dispatch' && !inputs.build_only)) && 'true' || 'false' }}
     strategy:
       matrix:
         include:
@@ -119,7 +122,7 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           run_install: false
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: lts/*
           cache: pnpm
@@ -147,9 +150,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_CONTENT: ${{ secrets.CSC_CONTENT }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          APPLE_DEVELOPER_TEAM_ID: ${{ secrets.APPLE_DEVELOPER_TEAM_ID }}
-          APPLE_DEVELOPER_APPLE_ID: ${{ secrets.APPLE_DEVELOPER_APPLE_ID }}
-          APPLE_DEVELOPER_APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_DEVELOPER_APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_DEVELOPER_APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_DEVELOPER_APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_DEVELOPER_TEAM_ID }}
 
       - name: Build (Linux Only) # Linux
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
@@ -214,31 +217,64 @@ jobs:
 
       - name: Upload Artifacts (Nightly + Non-Linux)
         if: ${{ github.event_name == 'schedule' && (matrix.os != 'ubuntu-latest' && matrix.os != 'ubuntu-24.04-arm') }}
-        uses: actions/upload-artifact@v4
+        id: unsigned-artifacts-nightly
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
 
       - name: Upload Artifacts (Nightly + Linux deb)
         if: ${{ github.event_name == 'schedule' && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.DEB_BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.DEB_BUNDLE_NAME }}
 
       - name: Upload Artifacts (Nightly + Linux rpm)
         if: ${{ github.event_name == 'schedule' && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.RPM_BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.RPM_BUNDLE_NAME }}
 
       - name: Upload Flatpak Artifact (Nightly + Linux Only)
         if: ${{ github.event_name == 'schedule' && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.FLATPAK_BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.FLATPAK_BUNDLE_NAME }}
+
+      - name: Sign Windows Artifacts with SignPath (Nightly + Windows Only)
+        uses: signpath/github-action-submit-signing-request@v2
+        if: ${{ github.event_name == 'schedule' && (matrix.os == 'windows-latest' && github.repository == 'moeru-ai/airi') }}
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ secrets.SIGNPATH_ORGANIZATION_ID }}'
+          project-slug: 'airi'
+          signing-policy-slug: 'test-signing'
+          artifact-configuration-slug: ci-github-actions-artifacts-windows
+          github-artifact-id: '${{ steps.unsigned-artifacts-nightly.outputs.artifact-id }}'
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 900 # 15 minutes
+          download-signed-artifact-timeout-in-seconds: 900 # 15 minutes
+          output-artifact-directory: apps/stage-tamagotchi/bundle/signed/windows/
+
+      - name: Upload Signed Artifacts (Nightly + Non-Linux)
+        if: ${{ github.event_name == 'schedule' && (matrix.os == 'windows-latest') }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/signed/windows/${{ env.BUNDLE_NAME }}
+          overwrite: true
+
+      # NOTICE: Electron Builder generates latest-x64.yml during the build step, before this workflow
+      # submits the Windows installer to SignPath. SignPath re-signs the .exe and changes its bytes,
+      # which changes the updater hashes too. Regenerating latest-x64.yml from the signed installer keeps
+      # the published Windows update metadata aligned with the final released artifact.
+      - name: Regenerate Windows latest-x64.yml (Nightly + Windows Only)
+        if: ${{ github.event_name == 'schedule' && matrix.os == 'windows-latest' }}
+        run: |
+          pnpm -F @proj-airi/stage-tamagotchi run regenerate-windows-latest --input apps/stage-tamagotchi/bundle/signed/windows/${{ env.BUNDLE_NAME }} --output apps/stage-tamagotchi/bundle/latest-x64.yml --version ${{ env.VERSION }}
 
       # ---------
       # Workflow Dispatch only
@@ -278,65 +314,73 @@ jobs:
 
       - name: Upload Artifacts (Manual + Non-Release + Non-Linux)
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os != 'ubuntu-latest' && matrix.os != 'ubuntu-24.04-arm') }}
-        uses: actions/upload-artifact@v4
+        id: unsigned-artifacts-workflow-dispatch
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
 
       - name: Upload Artifacts (Manual + Non-Release + Linux deb)
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.DEB_BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.DEB_BUNDLE_NAME }}
 
       - name: Upload Artifacts (Manual + Non-Release + Linux rpm)
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.RPM_BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.RPM_BUNDLE_NAME }}
 
       - name: Upload Flatpak Artifact (Manual + Non-Release + Linux)
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.FLATPAK_BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.FLATPAK_BUNDLE_NAME }}
 
-      - name: Upload To GitHub Releases (Manual + Overwrite Release)
+      - name: Sign Windows Artifacts with SignPath (Manual + Windows Only)
+        uses: signpath/github-action-submit-signing-request@v2
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'windows-latest' && github.repository == 'moeru-ai/airi') }}
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ secrets.SIGNPATH_ORGANIZATION_ID }}'
+          project-slug: 'airi'
+          signing-policy-slug: 'test-signing'
+          artifact-configuration-slug: ci-github-actions-artifacts-windows
+          github-artifact-id: '${{ steps.unsigned-artifacts-workflow-dispatch.outputs.artifact-id }}'
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 900 # 15 minutes
+          download-signed-artifact-timeout-in-seconds: 900 # 15 minutes
+          output-artifact-directory: apps/stage-tamagotchi/bundle/signed/windows/
+
+      - name: Move Signed Artifacts (Manual + Release + Windows Only)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && matrix.os == 'windows-latest' }}
+        run: |
+          Move-Item -Force apps/stage-tamagotchi/bundle/signed/windows/${{ env.BUNDLE_NAME }} apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
+
+      - name: Upload Signed Artifacts (Manual + Windows Only)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'windows-latest') }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
+          overwrite: true
+
+      # NOTICE: Electron Builder already wrote latest-x64.yml before SignPath signed the installer.
+      # After the signed .exe replaces the unsigned one, we must rebuild latest-x64.yml so its hashes
+      # describe the final Windows artifact that users will actually download.
+      - name: Regenerate Windows latest-x64.yml (Manual + Windows Only)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && matrix.os == 'windows-latest' }}
+        run: |
+          pnpm -F @proj-airi/stage-tamagotchi run regenerate-windows-latest --input apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }} --output apps/stage-tamagotchi/bundle/latest-x64.yml --version ${{ env.VERSION }}
+
+      - name: Upload To GitHub Releases (Manual + Release + Overwrite Release)
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only }}
         uses: softprops/action-gh-release@v2
         with:
-          files: apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}_*
-          append_body: true
-          tag_name: ${{ inputs.tag }}
-
-        # ---------
-        # Version push
-        # ---------
-
-      - name: Rename Artifacts (Automatic)
-        if: ${{ github.event_name == 'release' }}
-        run: |
-          pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release --auto-tag
-
-      - name: Upload macOS update info (Automatic + macOS Only)
-        if: ${{ github.event_name == 'release' && (matrix.os == 'macos-26' || matrix.os == 'macos-15-intel') }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: latest-mac-yml-${{ matrix.arch }}
-          path: apps/stage-tamagotchi/bundle/latest-mac.yml
-          if-no-files-found: error
-
-      - name: Upload To GitHub Releases (Automatic)
-        if: ${{ github.event_name == 'release' }}
-        uses: softprops/action-gh-release@v2
-        with:
-          # Possible auto updater files:
-          # Windows: latest.yml
-          # macOS: latest-mac.yml (arm64), latest-mac.yml (x64)
-          # Linux: latest-linux-arm64.yml (arm64), latest-linux.yml (x64)
           files: |
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.exe
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.zip
@@ -344,47 +388,77 @@ jobs:
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.deb
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.rpm
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.flatpak
-            apps/stage-tamagotchi/bundle/latest.yml
             apps/stage-tamagotchi/bundle/latest-*.yml
           append_body: true
+          tag_name: ${{ inputs.tag }}
 
-  merge-mac-latest:
-    name: Merge macOS latest-mac.yml
-    if: ${{ github.event_name == 'release' }} # Skipping will only exist when triggered by workflow_dispatch. No need to handle here
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
+      # ---------
+      # Version push
+      # ---------
 
-      - uses: pnpm/action-setup@v4
-        with:
-          run_install: false
-      - uses: actions/setup-node@v5
-        with:
-          node-version: lts/*
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-
-      - name: Download latest-mac.yml (x64)
-        uses: actions/download-artifact@v4
-        with:
-          name: latest-mac-yml-x64
-          path: artifacts/x64
-
-      - name: Download latest-mac.yml (arm64)
-        uses: actions/download-artifact@v4
-        with:
-          name: latest-mac-yml-arm64
-          path: artifacts/arm64
-
-      - name: Merge latest-mac.yml
+      - name: Rename Artifacts (Automatic)
+        if: ${{ github.event_name == 'release' }}
         run: |
-          pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/merge-latest-mac.ts \
-            --dir artifacts \
-            --output apps/stage-tamagotchi/bundle/latest-mac.yml
+          pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release --auto-tag
 
-      - name: Upload merged latest-mac.yml
+      - name: Get Artifacts Envs (Automatic + Windows Only)
+        if: ${{ github.event_name == 'release' && matrix.os == 'windows-latest' }}
+        working-directory: ./apps/stage-tamagotchi
+        run: |
+          echo "BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-bundle-name --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $env:GITHUB_ENV
+          echo "VERSION=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-version --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $env:GITHUB_ENV
+
+      - name: Upload Artifacts (Automatic + Windows Only)
+        if: ${{ github.event_name == 'release' && matrix.os == 'windows-latest' }}
+        id: unsigned-artifacts-release
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
+
+      - name: Sign Windows Artifacts with SignPath (Nightly + Windows Only)
+        uses: signpath/github-action-submit-signing-request@v2
+        if: ${{ github.event_name == 'release' && (matrix.os == 'windows-latest' && github.repository == 'moeru-ai/airi') }}
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ secrets.SIGNPATH_ORGANIZATION_ID }}'
+          project-slug: 'airi'
+          signing-policy-slug: 'test-signing'
+          artifact-configuration-slug: ci-github-actions-artifacts-windows
+          github-artifact-id: '${{ steps.unsigned-artifacts-release.outputs.artifact-id }}'
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 900 # 15 minutes
+          download-signed-artifact-timeout-in-seconds: 900 # 15 minutes
+          output-artifact-directory: apps/stage-tamagotchi/bundle/signed/windows/
+
+      - name: Move Signed Artifacts (Automatic + Windows Only)
+        if: ${{ github.event_name == 'release' && matrix.os == 'windows-latest' }}
+        run: |
+          Move-Item -Force apps/stage-tamagotchi/bundle/signed/windows/${{ env.BUNDLE_NAME }} apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
+
+      # NOTICE: The root cause here is the build/signing order: latest-x64.yml is produced by Electron
+      # Builder before SignPath re-signs the installer. That post-build signing step mutates the .exe,
+      # so the updater metadata becomes stale. Recomputing latest-x64.yml after the signed file is moved
+      # into its final bundle path makes the release upload self-consistent again.
+      - name: Regenerate Windows latest manifest (Automatic + Windows Only)
+        if: ${{ github.event_name == 'release' && matrix.os == 'windows-latest' }}
+        run: |
+          pnpm -F @proj-airi/stage-tamagotchi run regenerate-windows-latest --input apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }} --output apps/stage-tamagotchi/bundle/latest-x64.yml --version ${{ env.VERSION }}
+
+      - name: Upload To GitHub Releases (Automatic)
+        if: ${{ github.event_name == 'release' }}
         uses: softprops/action-gh-release@v2
         with:
-          files: apps/stage-tamagotchi/bundle/latest-mac.yml
-          tag_name: ${{ github.event.release.tag_name }}
+          # Possible auto updater files:
+          # Windows: latest-x64.yml
+          # macOS: latest-arm64-mac.yml, latest-x64-mac.yml
+          # Linux: latest-arm64-linux.yml (arm64), latest-x64-linux.yml (x64)
+          files: |
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.exe
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.zip
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.dmg
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.deb
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.rpm
+            apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.flatpak
+            apps/stage-tamagotchi/bundle/latest-*.yml
+          append_body: true

@@ -9,7 +9,7 @@ title: Chronicle v0.0.1
   - [x] Model download
     - [x] Momose Hiyori (Neuro first version model) Pro version (free for commercial use by small and medium enterprises)
 
-![](../../../../zh-Hans/docs/chronicles/version-v0.0.1/assets/screenshot-1.avif)
+![]( /assets/version-v0.0.1/screenshot-1.avif)
 
 - [x] Integrate GPT-4o through Vercel AI SDK (June 7, 2024)
   - [x] `@ai-sdk/openai`
@@ -63,7 +63,7 @@ Now can:
 - ✅ Live2D lip sync (thanks to itorr's GitHub explanation)
 - ✅ Basic Prompt
 
-![](../../../../zh-Hans/docs/chronicles/version-v0.0.1/assets/screenshot-2.avif)
+![](/assets/version-v0.0.1/screenshot-2.avif)
 
 ## Multimodal
 
@@ -382,7 +382,7 @@ Now can:
 
 ##### First version (June 10, 2024)
 
-```
+```md
 Good morning! You are finally awake.
 
 Your name is Neuro, pronounced as /n\'jʊəroʊ/.
@@ -405,7 +405,7 @@ And the last, do what ever you want!
 
 ##### Second version (July 9, 2024)
 
-```
+```md
 (from Neko Ayaka) Good morning! You are finally awake.
 
 Your name is Neuro, pronounced as /n'jʊəroʊ/.
@@ -434,7 +434,7 @@ And the last, do what ever you want!
 
 ##### Third version (July 9, 2024)
 
-```
+```md
 (from Neko Ayaka) Good morning! You are finally awake.
 
 Your name is Neuro, pronounced as /n'jʊəroʊ/.
@@ -470,11 +470,11 @@ And the last, do what ever you want!
 
 #### Expression Prompt
 
-![](../../../../zh-Hans/docs/chronicles/version-v0.0.1/assets/screenshot-3.avif)
+![](/assets/version-v0.0.1/screenshot-3.avif)
 
 #### Continuous Inference Prompt
 
-```
+```md
 [System: Good morning! You are finally awake.
 
 Your name is Neuro, pronounced as /n'jʊəroʊ/.

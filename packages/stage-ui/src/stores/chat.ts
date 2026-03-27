@@ -171,8 +171,15 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         return
 
       const sessionMessagesForSend = chatSession.getSessionMessages(sessionId)
-      sessionMessagesForSend.push({ role: 'user', content: finalContent, createdAt: sendingCreatedAt, id: nanoid() })
-      chatSession.persistSessionMessages(sessionId)
+      if (!sessionMessagesForSend) {
+        throw new Error('Session messages not found')
+      }
+      chatSession.appendSessionMessage(sessionId, {
+        role: 'user',
+        content: finalContent,
+        createdAt: sendingCreatedAt,
+        id: nanoid(),
+      })
 
       const categorizer = createStreamingCategorizer(activeProvider.value)
       let streamPosition = 0
@@ -246,15 +253,12 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       })
 
       let newMessages = sessionMessagesForSend.map((msg) => {
-        const { context: _context, id: _id, ...withoutContext } = msg
+        const { context: _context, id: _id, createdAt: _createdAt, ...withoutContext } = msg
         const rawMessage = toRaw(withoutContext)
 
         if (rawMessage.role === 'assistant') {
-          const { slices: _slices, tool_results, categorization: _categorization, ...rest } = rawMessage as ChatAssistantMessage
-          return {
-            ...toRaw(rest),
-            tool_results: toRaw(tool_results),
-          }
+          const { slices: _slices, tool_results: _toolResults, categorization: _categorization, ...rest } = rawMessage as ChatAssistantMessage
+          return toRaw(rest)
         }
 
         return rawMessage
@@ -296,6 +300,9 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       await llmStore.stream(options.model, options.chatProvider, newMessages as Message[], {
         headers,
         tools: options.tools,
+        // NOTICE: xsai stream may emit `finish` before tool steps continue, so keep waiting until
+        // the final non-tool finish to avoid ending the chat turn with no assistant reply.
+        waitForTools: true,
         onStreamEvent: async (event: StreamEvent) => {
           switch (event.type) {
             case 'tool-call':
@@ -328,8 +335,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       await parser.end()
 
       if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
-        sessionMessagesForSend.push(toRaw(buildingMessage))
-        chatSession.persistSessionMessages(sessionId)
+        chatSession.appendSessionMessage(sessionId, toRaw(buildingMessage))
       }
 
       await hooks.emitStreamEndHooks(streamingMessageContext)
@@ -409,8 +415,6 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
   return {
     sending,
-
-    discoverToolsCompatibility: llmStore.discoverToolsCompatibility,
 
     ingest,
     ingestOnFork,

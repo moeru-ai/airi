@@ -1,46 +1,47 @@
 ## **Architecture Status Report: Memory & Persistence**
 
-**Date:** February 9, 2026 (Refactored)
-**Component:** State Management Layer
+**Date:** March 6, 2026 (Refactored)
+**Component:** State Management Layer (Drizzle + PGlite)
 
 ### **1. Memory Architecture (RAM)**
 
-The bot utilizes a **Memory-First** strategy, where the active state is fully resident in the Node.js heap.
+The bot utilizes a **Memory-First** strategy for active chat sessions, while persisting critical queue and message data to disk.
 
-* **Storage Mechanism**: All chat contexts are stored in a native `Map<string, ChatContext>` within the `BotContext` object (`src/core/types.ts`).
+* **Storage Mechanism**: Active chat contexts are stored in a native `Map<string, ChatContext>` within the `BotContext` object (`src/core/types.ts`).
 * **Lifecycle Management**:
     * **Creation**: Contexts are lazy-loaded via `ensureChatContext` in `src/core/session/context.ts` upon receiving a message.
-    * **Retention**: There is currently **no garbage collection (GC)** mechanism. Once a channel is loaded, its context remains in memory indefinitely until the process terminates.
+    * **Retention**: Currently, contexts remain in memory until process termination. History is trimmed during the loop.
 * **Context Trimming**:
     * Executed within `handleLoopStep` in `src/core/loop/scheduler.ts`.
-    * Individual channels enforce a strict limit on history length (Default: 20 messages, 50 actions) to prevent single-channel bloat.
-    * **Risk**: The architecture is susceptible to memory leaks (OOM) as the number of unique channels increases over time.
+    * Individual channels enforce strict limits: `MAX_ACTIONS_IN_CONTEXT = 50`, `ACTIONS_KEEP_ON_TRIM = 20`.
+    * Message history is dynamically fetched from the database (last 10 messages) to keep the LLM context lean.
 
-### **2. Persistence Architecture (Disk)**
+### **2. Persistence Architecture (Database)**
 
-The bot uses a file-based logging system primarily for archival purposes and basic metadata recovery upon restart, rather than for active state management.
+The bot has migrated from `lowdb` (JSON) to **PGlite** (PostgreSQL in WASM/Node) with **Drizzle ORM** for robust state management and high-performance I/O.
 
-* **Technology**: `lowdb` with a JSON file adapter.
-* **Location**: `src/lib/db.ts` -> `data/db.json`.
-* **Data Structure**:
-    * `channels`: Stores metadata like Channel ID, Platform, and SelfID.
-    * `messages`: A global, flattened array of messages.
-* **Write Strategy**: **Synchronous full-file serialization**. Every new message triggers a complete rewrite of the JSON file to disk.
-* **Retention Policy**: A global hard limit of **1000 messages** is enforced. When the limit is reached, the oldest messages are discarded regardless of which channel they belong to.
-* **Recovery Logic**: Upon restart, `ensureChatContext` queries `db.channels` to restore the channel's `platform` and `selfId`, but it **does not** load historical messages into the in-memory context.
+* **Technology**: [PGlite](https://pglite.dev/) + [Drizzle ORM](https://orm.drizzle.team/).
+* **Location**: `data/` directory (configured via `DB_PATH` in `.env.local`).
+* **Schema (`src/lib/schema.ts`)**:
+    * `channels`: Metadata for discovered channels (ID, name, platform, self_id).
+    * `messages`: Persistent message log with indexing on `channel_id` and `timestamp`.
+    * `event_queue`: Persistent queue for incoming Satori events awaiting processing.
+    * `unread_events`: Persistent store for events marked as unread for each channel.
+* **Optimized I/O Strategy**:
+    * **Incremental Updates**: Unlike the previous "full-rewrite" approach, the bot now uses targeted SQL operations.
+    * **Queue Management**: Individual items are added (`pushToEventQueue`) and removed (`removeFromEventQueue`) by ID.
+    * **Unread Tracking**: Unread messages are persisted incrementally (`pushToUnreadEvents`) and cleared per channel (`clearUnreadEventsForChannel`).
+* **Migrations**: Managed via `drizzle-kit`. Migrations are automatically applied on startup in `src/lib/db.ts`.
 
-### **3. State Consistency**
+### **3. State Consistency & Recovery**
 
-There is a significant desynchronization between the ephemeral memory state and the persistent disk state.
+The gap between ephemeral memory and persistent disk state has been significantly narrowed.
 
-* **In-Memory State (Rich)**: Contains the full "Chain of Thought" (System prompts, reasoning steps, `AbortController` handles, pending Promises, `Action History`).
-* **On-Disk State (Flat)**: Contains only raw user content and final bot responses.
-* **Impact**: A process restart results in a **Hard Context Reset**. The bot loses all active "trains of thought" and task states, falling back to a state driven solely by new incoming messages.
+* **Durable Queue**: The `eventQueue` and `unreadEvents` are fully persisted. If the bot crashes, it resumes processing the queue from where it left off.
+* **Message History**: The LLM's conversation history is reconstructed from the indexed `messages` table in the database, ensuring continuity across restarts.
+* **Hard Reset Mitigation**: While `AbortController` handles are still lost on restart, the core task queue and conversation context remain intact.
 
-### **4. Future Roadmap (WIP)**
+### **4. Configuration**
 
-We are planning to implement a "Small Memory" storage scheme to improve robustness, featuring:
-
-1.  **Indiscriminate Event Storage**: Storing all events without preemptive filtering.
-2.  **Event Activation Query**: Triggering queries based on specific event activation signals.
-3.  **Dynamic Context Filtering**: Reconstructing same-group contexts via query-time filtering rather than pre-computed buckets.
+Database settings are managed through `src/config.ts`:
+* `DB_PATH`: Path to the PGlite data directory (default: `data/pglite-db`).

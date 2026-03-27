@@ -2,15 +2,16 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug Main Process",
+      "name": "Debug Electron",
       "type": "node",
       "request": "launch",
-      "cwd": "${workspaceRoot}/apps/stage-tamagotchi",
-      "runtimeExecutable": "${workspaceRoot}/apps/stage-tamagotchi/node_modules/.bin/electron-vite",
-      "windows": {
-        "runtimeExecutable": "${workspaceRoot}/apps/stage-tamagotchi/node_modules/.bin/electron-vite.cmd"
-      },
-      "runtimeArgs": ["--sourcemap"],
+      // Where to run the command
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["-F", "@proj-airi/stage-tamagotchi", "exec", "electron-vite", "--sourcemap"],
+      // Open terminal when debugging starts (Optional)
+      // Useful to see console.logs
+      // "console": "integratedTerminal",
+      // "internalConsoleOptions": "neverOpen",
       "env": {
         "REMOTE_DEBUGGING_PORT": "9222"
       }
@@ -19,11 +20,19 @@
       "name": "Debug Minecraft Service",
       "type": "node",
       "request": "launch",
-      "cwd": "${workspaceFolder}/services/minecraft",
-      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/tsx",
+      // Where to run the command
+      // Where to run the command
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["-F", "@proj-airi/minecraft-bot", "exec", "tsx"],
       "args": ["--env-file=.env", "--env-file-if-exists=.env.local", "src/main.ts"],
       "envFile": "${workspaceFolder}/services/minecraft/.env",
-      "skipFiles": ["<node_internals>/**"]
+      // Open terminal when debugging starts (Optional)
+      // Useful to see console.logs
+      // "console": "integratedTerminal",
+      // "internalConsoleOptions": "neverOpen",
+      "skipFiles": [
+        "<node_internals>/**"
+      ]
     },
     {
       "name": "Debug Renderer Process",
@@ -51,7 +60,7 @@
   "compounds": [
     {
       "name": "Debug All",
-      "configurations": ["Debug Main Process", "Debug Renderer Process"],
+      "configurations": ["Debug Electron", "Debug Renderer Process"],
       "presentation": {
         "order": 1
       }

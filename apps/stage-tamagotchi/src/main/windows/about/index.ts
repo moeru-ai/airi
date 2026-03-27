@@ -1,3 +1,5 @@
+import type { I18n } from '../../libs/i18n'
+import type { ServerChannel } from '../../services/airi/channel-server'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
 
 import { join, resolve } from 'node:path'
@@ -10,7 +12,11 @@ import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { setupAboutWindowElectronInvokes } from './rpc/index.electron'
 
-export function setupAboutWindowReusable(params: { autoUpdater: AutoUpdater }) {
+export function setupAboutWindowReusable(params: {
+  autoUpdater: AutoUpdater
+  i18n: I18n
+  serverChannel: ServerChannel
+}) {
   return createReusableWindow(async () => {
     const window = new BrowserWindow({
       title: 'About AIRI',
@@ -22,7 +28,7 @@ export function setupAboutWindowReusable(params: { autoUpdater: AutoUpdater }) {
       minimizable: false,
       icon,
       webPreferences: {
-        preload: join(__dirname, '../preload/index.mjs'),
+        preload: join(getElectronMainDirname(), '../preload/index.mjs'),
         sandbox: false,
       },
     })
@@ -35,7 +41,12 @@ export function setupAboutWindowReusable(params: { autoUpdater: AutoUpdater }) {
 
     await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/about'))
 
-    setupAboutWindowElectronInvokes({ window, autoUpdater: params.autoUpdater })
+    await setupAboutWindowElectronInvokes({
+      window,
+      autoUpdater: params.autoUpdater,
+      i18n: params.i18n,
+      serverChannel: params.serverChannel,
+    })
 
     return window
   }).getWindow

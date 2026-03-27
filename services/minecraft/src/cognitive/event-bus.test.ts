@@ -161,6 +161,32 @@ describe('eventBus', () => {
       })
       expect(handler).toHaveBeenCalledTimes(1)
     })
+
+    it('should report subscriber errors while keeping dispatch resilient', () => {
+      const onSubscriberError = vi.fn()
+      const bus = createEventBus({ onSubscriberError })
+      const healthyHandler = vi.fn()
+      const subscriberError = new Error('subscriber failed')
+
+      bus.subscribe('test:event', () => {
+        throw subscriberError
+      })
+      bus.subscribe('test:event', healthyHandler)
+
+      const emittedEvent = bus.emit({
+        type: 'test:event',
+        payload: { value: 1 },
+        source: { component: 'test' },
+      })
+
+      expect(healthyHandler).toHaveBeenCalledTimes(1)
+      expect(onSubscriberError).toHaveBeenCalledTimes(1)
+      expect(onSubscriberError).toHaveBeenCalledWith({
+        event: emittedEvent,
+        pattern: 'test:event',
+        error: subscriberError,
+      })
+    })
   })
 
   describe('trace context propagation', () => {

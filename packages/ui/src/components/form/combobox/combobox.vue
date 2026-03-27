@@ -20,6 +20,8 @@ import {
 const props = defineProps<{
   options: { groupLabel: string, children?: { label: string, value: T }[] }[]
   placeholder?: string
+  contentMinWidth?: string | number
+  contentWidth?: string | number
 }>()
 
 const modelValue = defineModel<T>({ required: false })
@@ -28,13 +30,21 @@ function toDisplayValue(value: T): string {
   const option = props.options.flatMap(group => group.children).find(option => option?.value === value)
   return option ? option.label : props.placeholder || ''
 }
+
+function toCssSize(value?: string | number): string | undefined {
+  if (value == null) {
+    return undefined
+  }
+
+  return typeof value === 'number' ? `${value}px` : value
+}
 </script>
 
 <template>
-  <ComboboxRoot v-model="modelValue" :class="['relative', 'w-full']">
+  <ComboboxRoot v-model="modelValue" :class="['relative', 'w-full', 'h-fit']">
     <ComboboxAnchor
       :class="[
-        'w-full inline-flex items-center justify-between rounded-xl border px-3 leading-none h-10 gap-[5px] outline-none',
+        'w-full inline-flex items-center justify-between rounded-xl border px-3 leading-none h-9 gap-[5px] outline-none',
         'text-sm text-neutral-700 dark:text-neutral-200 data-[placeholder]:text-neutral-200',
         'bg-white dark:bg-neutral-900 disabled:bg-neutral-100 hover:bg-neutral-50 dark:disabled:bg-neutral-900 dark:hover:bg-neutral-700',
         'border-neutral-200 dark:border-neutral-800 border-solid border-2 focus:border-primary-300 dark:focus:border-primary-400/50',
@@ -71,15 +81,20 @@ function toDisplayValue(value: T): string {
         :side-offset="4"
         :avoid-collisions="true"
         :class="[
-          // NOTICE: DrawerContent is z-[1000], here we choose `1010`
-          // Read more at: https://github.com/moeru-ai/airi/blob/0fddd043f2b213f441f3998c52dca1d24acb8405/packages/stage-ui/src/components/scenarios/dialogs/audio-input/hearing-config-dialog.vue#L62C8-L62C21
-          'z-[1010]',
-          'w-full min-w-[160px] overflow-hidden rounded-xl shadow-sm border will-change-[opacity,transform]',
+          // NOTICE: DialogContent/DialogOverlay use z-[9999], and DrawerContent uses z-[1000].
+          // ComboboxContent must render above these layers so that dropdowns inside
+          // Dialog/Drawer are not hidden behind the overlay or dismissed unexpectedly.
+          // Read more at: https://github.com/moeru-ai/airi/issues/1136
+          'z-[10010]',
+          'w-full overflow-hidden rounded-xl shadow-sm border will-change-[opacity,transform]',
           'data-[side=top]:animate-slideDownAndFade data-[side=right]:animate-slideLeftAndFade data-[side=bottom]:animate-slideUpAndFade data-[side=left]:animate-slideRightAndFade',
           'bg-white dark:bg-neutral-900',
           'border-neutral-200 dark:border-neutral-800 border-solid border-2 focus:border-neutral-300 dark:focus:border-neutral-600',
         ]"
-        :style="{ width: 'var(--reka-combobox-trigger-width)' }"
+        :style="{
+          width: toCssSize(props.contentWidth) ?? 'var(--reka-combobox-trigger-width)',
+          minWidth: toCssSize(props.contentMinWidth) ?? '160px',
+        }"
       >
         <ComboboxViewport :class="['p-[2px]', 'max-h-50dvh', 'overflow-y-auto']">
           <ComboboxEmpty

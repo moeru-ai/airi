@@ -1,19 +1,13 @@
 <script setup lang="ts">
-import type { Live2DCanvas } from '@proj-airi/stage-ui/components/scenes'
-
 import { ModelSettings } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings'
 import { Vibrant } from 'node-vibrant/browser'
 import { ref } from 'vue'
 
-const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
-
+const modelSettingsRef = ref<{ capturePreviewFrame: () => Promise<Blob | undefined> }>()
 const palette = ref<string[]>([])
 
 async function extractColorsFromModel() {
-  if (!live2dCanvasRef.value)
-    return
-
-  const frame = await live2dCanvasRef.value.captureFrame()
+  const frame = await modelSettingsRef.value?.capturePreviewFrame()
   if (!frame) {
     console.error('No frame captured')
     return
@@ -35,6 +29,7 @@ async function extractColorsFromModel() {
 <template>
   <div flex class="relative h-full flex-col-reverse md:flex-row">
     <ModelSettings
+      ref="modelSettingsRef"
       settings-class="w-100% md:w-40% lg:w-40% xl:w-25% 2xl:w-30% h-fit sm:max-h-80dvh overflow-y-scroll relative"
       live-2d-scene-class="absolute max-h-[calc(100dvh-100px-56px)] w-full h-full"
       vrm-scene-class="absolute max-h-[calc(100dvh-100px-56px)] w-full h-full"

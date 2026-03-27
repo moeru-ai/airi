@@ -21,7 +21,7 @@ The bot operates on a **Event-Driven + Autonomous Loop** hybrid model:
 3.  **Deduplication**: The system checks the `processedIds` set (key: `channelId-messageId`) to prevent double-processing.
 4.  **Enqueuing**:
     * The raw `event` is wrapped into a `{ event, status: 'ready' }` object.
-    * It is pushed into `botContext.eventQueue`.
+    * It is pushed into `botContext.eventQueue` and persisted to the database via `pushToEventQueue`.
     * **Key Data**: `event.message.content`, `event.user.id`, `event.channel.id`.
 
 ### Phase 2: Consumption & Anchoring
@@ -34,10 +34,10 @@ When the system processing lock is free, it consumes events from the `eventQueue
     * Calls `ensureChatContext` (in `src/core/session/context.ts`) to load or create the in-memory `ChatContext` for that channel.
     * **Anchor**: The `event.channel.id` is the primary key for all context.
 2.  **Filtering**:
-    * Checks `selfId`. If the sender is the bot itself, the event is discarded (not counted as unread) to prevent infinite loops.
+    * Checks `selfId`. If the sender is the bot itself, the event is removed from the queue and discarded (not counted as unread).
 3.  **State Update (The "Unread Pool")**:
-    * The event is pushed into `botContext.unreadEvents[channelId]`.
-    * *Note:* This step does **not** just store the message; it marks the event as a "pending observation object".
+    * The event is pushed into `botContext.unreadEvents[channelId]` and persisted to the database via `pushToUnreadEvents`.
+    * The event is then removed from the database queue via `removeFromEventQueue`.
 4.  **Loop Trigger**:
     * Immediately calls `loopIterationForChannel`, waking up the Agent Loop for this specific channel.
 
@@ -76,4 +76,5 @@ The system looks up the corresponding Handler in `globalRegistry` based on the J
 
 * `dispatchAction` returns an `ActionResult` containing a `shouldContinue` flag.
 * If `shouldContinue` is true (e.g., usually true after reading messages, as a reply is expected), the scheduler waits for `LOOP_CONTINUE_DELAY_MS` (default 2.5s) and then recursively calls `handleLoopStep`.
-* **Termination**: The loop stops only when the LLM selects the `continue` action (Wait/Stop) or the `break` action.
+* **Hard Limit**: To prevent infinite loops caused by LLM hallucinations or API abuse, each loop is capped at `MAX_LOOP_ITERATIONS = 5`. Reaching this limit will force the loop to break.
+* **Termination**: The loop stops when the LLM selects a terminal action, the iteration limit is reached, or the `shouldContinue` flag becomes false.
