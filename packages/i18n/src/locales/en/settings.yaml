@@ -30,6 +30,18 @@ dialogs:
     saveAndContinue: Save and Continue
     next: Next
     retry: Retry
+    credentialsSafeLabel: Keep your API keys and credentials safe!
+    credentialsSafeLocal: >-
+      AIRI is running pure locally in your PC, and we will never steal
+      your credentials for AI / LLM providers. But keep in mind that your API
+      keys are sensitive information. Make sure to keep them safe and do not
+      share them with anyone.
+    credentialsSafeOpenSource: >-
+      AIRI is open sourced at {github}, if you want to check how we handle
+      your credentials, feel free to inspect our code.
+    enableChatCheck: >-
+      Allow airi to send a "ping" message to the first available chat model to
+      check availability
     start: Let's do it!
     select-model: Choose model
     no-models: No available models

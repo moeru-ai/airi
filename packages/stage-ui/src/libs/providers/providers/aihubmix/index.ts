@@ -1,7 +1,8 @@
 import { createChatProvider, createEmbedProvider, createModelProvider, merge } from '@xsai-ext/providers/utils'
 import { z } from 'zod'
 
-import { createOpenAICompatibleValidators } from '../../validators/openai-compatible'
+import { ProviderValidationCheck } from '../../types'
+import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
 
 const aihubmixConfigSchema = z.object({
@@ -52,7 +53,7 @@ export const providerAIHubMix = defineProvider<AIHubMixConfig>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: ['model_list'],
+      checks: [ProviderValidationCheck.ModelList],
     }),
   },
 })

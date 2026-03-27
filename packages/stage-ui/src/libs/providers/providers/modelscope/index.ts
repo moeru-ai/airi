@@ -1,7 +1,8 @@
 import { createOpenAI } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
-import { createOpenAICompatibleValidators } from '../../validators/openai-compatible'
+import { ProviderValidationCheck } from '../../types'
+import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
 
 const modelscopeConfigSchema = z.object({
@@ -47,7 +48,7 @@ export const providerModelScope = defineProvider<ModelscopeConfig>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: ['connectivity', 'model_list'],
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList],
     }),
   },
 })

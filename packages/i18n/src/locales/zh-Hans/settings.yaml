@@ -29,6 +29,13 @@ dialogs:
     saveAndContinue: 保存并继续
     next: 下一步
     retry: 重试
+    credentialsSafeLabel: 请妥善保管你的 API 密钥和凭据！
+    credentialsSafeLocal: >-
+      AIRI 完全在你的计算机中本地运行，我们绝不会窃取你的 AI / LLM
+      服务商凭据。但请注意，你的 API 密钥是敏感信息，请妥善保管，不要与任何人分享。
+    credentialsSafeOpenSource: >-
+      AIRI 已在 {github} 开源，如果你想了解我们如何处理你的凭据，欢迎查阅我们的代码。
+    enableChatCheck: 允许 airi 向第一个可用的聊天模型发送 "ping" 消息来检查可用性
     start: 开始吧！
     select-model: 选择模型
     no-models: 找不到可用模型

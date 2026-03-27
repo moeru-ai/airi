@@ -1,7 +1,8 @@
 import { createOpenAI } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
-import { createOpenAICompatibleValidators } from '../../validators/openai-compatible'
+import { ProviderValidationCheck } from '../../types'
+import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
 
 const groqConfigSchema = z.object({
@@ -46,7 +47,7 @@ export const providerGroq = defineProvider<GroqConfig>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: ['model_list'],
+      checks: [ProviderValidationCheck.ModelList],
     }),
   },
 })

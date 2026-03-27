@@ -3,7 +3,8 @@ import type { ModelInfo } from '../../types'
 import { createMinimax, createMinimaxCn } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
-import { createOpenAICompatibleValidators } from '../../validators/openai-compatible'
+import { ProviderValidationCheck } from '../../types'
+import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
 
 const minimaxCnConfigSchema = z.object({
@@ -114,7 +115,7 @@ export const providerMinimax = defineProvider<MinimaxCnConfig>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: ['connectivity'],
+      checks: [ProviderValidationCheck.Connectivity],
     }),
   },
 })
@@ -154,7 +155,7 @@ export const providerMinimaxGlobal = defineProvider<MinimaxGlobalConfig>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: ['connectivity'],
+      checks: [ProviderValidationCheck.Connectivity],
     }),
   },
 })

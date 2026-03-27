@@ -3,7 +3,8 @@ import type { ModelInfo } from '../../types'
 import { createPerplexity } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
-import { createOpenAICompatibleValidators } from '../../validators/openai-compatible'
+import { ProviderValidationCheck } from '../../types'
+import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
 
 const perplexityConfigSchema = z.object({
@@ -83,7 +84,7 @@ export const providerPerplexityAI = defineProvider<PerplexityConfig>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: ['connectivity'],
+      checks: [ProviderValidationCheck.Connectivity],
     }),
   },
 })

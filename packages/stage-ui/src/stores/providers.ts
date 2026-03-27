@@ -47,8 +47,7 @@ import {
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { listProviders as listDefinedProviders } from '../libs/providers'
-import { getProviderValidationIntervalMs } from '../libs/providers/validators/run'
+import { getProviderValidationIntervalMs, listProviders as listDefinedProviders, ProviderValidationCheck } from '../libs/providers'
 import { getKokoroWorker } from '../workers/kokoro'
 import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '../workers/kokoro/constants'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
@@ -139,7 +138,7 @@ export interface ProviderMetadata {
     loadModel?: (config: Record<string, unknown>, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
   }
   validators: {
-    validateProviderConfig: (config: Record<string, unknown>) => Promise<{
+    validateProviderConfig: (config: Record<string, unknown>, options?: { skipChatPingCheck?: boolean }) => Promise<{
       errors: unknown[]
       reason: string
       valid: boolean
@@ -148,6 +147,7 @@ export interface ProviderMetadata {
       reason: string
       valid: boolean
     }
+    chatPingCheckDisabled: boolean
     /**
      * Run only the manual-only validators. Returns validation result.
      * Only available when the provider has manual validators.
@@ -270,6 +270,7 @@ export const useProvidersStore = defineStore('providers', () => {
         listVoices: async () => [],
       },
       validators: {
+        chatPingCheckDisabled: true,
         validateProviderConfig: () => ({
           errors: [],
           reason: '',
@@ -290,6 +291,7 @@ export const useProvidersStore = defineStore('providers', () => {
       creator: createOpenAI,
       validation: [],
       validators: {
+        chatPingCheckDisabled: true,
         validateProviderConfig: (config) => {
           if (!config.baseUrl) {
             return {
@@ -320,6 +322,7 @@ export const useProvidersStore = defineStore('providers', () => {
       creator: createOpenAI,
       validation: [],
       validators: {
+        chatPingCheckDisabled: true,
         validateProviderConfig: (config) => {
           if (!config.baseUrl) {
             return {
@@ -350,6 +353,7 @@ export const useProvidersStore = defineStore('providers', () => {
       creator: createOpenAI,
       validation: [],
       validators: {
+        chatPingCheckDisabled: true,
         validateProviderConfig: (config) => {
           if (!config.baseUrl) {
             return {
@@ -380,6 +384,7 @@ export const useProvidersStore = defineStore('providers', () => {
       creator: createOpenAI,
       validation: [],
       validators: {
+        chatPingCheckDisabled: true,
         validateProviderConfig: (config) => {
           if (!config.baseUrl) {
             return {
@@ -408,7 +413,7 @@ export const useProvidersStore = defineStore('providers', () => {
       tasks: ['text-to-speech'],
       defaultBaseUrl: 'https://api.openai.com/v1/',
       creator: createOpenAI,
-      validation: ['health'],
+      validation: [ProviderValidationCheck.Health],
       capabilities: {
         // NOTE: OpenAI does not provide an API endpoint to retrieve available voices.
         // Voices are hardcoded here - this is a provider limitation, not an application limitation.
@@ -553,6 +558,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckDisabled: true,
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API Key is required'),
@@ -639,7 +645,7 @@ export const useProvidersStore = defineStore('providers', () => {
       tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
       defaultBaseUrl: 'https://api.openai.com/v1/',
       creator: createOpenAI,
-      validation: ['health'],
+      validation: [ProviderValidationCheck.Health],
       capabilities: {
         listModels: async () => {
           // OpenAI transcription models are hardcoded (no API endpoint to list them)
@@ -688,6 +694,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckDisabled: true,
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API Key is required'),
@@ -789,6 +796,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckDisabled: true,
         validateProviderConfig: (config) => {
           const errors: Error[] = []
           const toString = (value: unknown) => typeof value === 'string' ? value.trim() : ''
@@ -868,6 +876,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckDisabled: true,
         validateProviderConfig: () => {
           // Web Speech API requires no configuration, just browser support
           // Always return valid if browser supports it, so it auto-configures
@@ -961,6 +970,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckDisabled: true,
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API key is required.'),
@@ -1045,6 +1055,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckDisabled: true,
         validateProviderConfig: (config) => {
           const errors: Error[] = []
           if (!config.apiKey) {
@@ -1110,6 +1121,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckDisabled: true,
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API key is required.'),
@@ -1186,6 +1198,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckDisabled: true,
         validateProviderConfig: async (config) => {
           const errors = [
             !config.baseUrl && new Error('Base URL is required. Default to http://localhost:11996/tts/ for Index-TTS.'),
@@ -1275,6 +1288,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckDisabled: true,
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API key is required.'),
@@ -1340,6 +1354,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckDisabled: true,
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API key is required.'),
@@ -1375,7 +1390,7 @@ export const useProvidersStore = defineStore('providers', () => {
         createModelProvider({ apiKey, baseURL }),
         createSpeechProvider({ apiKey, baseURL }),
       ),
-      validation: ['model_list'],
+      validation: [ProviderValidationCheck.ModelList],
     }),
     'comet-api-transcription': buildOpenAICompatibleProvider({
       id: 'comet-api-transcription',
@@ -1391,7 +1406,7 @@ export const useProvidersStore = defineStore('providers', () => {
         createModelProvider({ apiKey, baseURL }),
         createTranscriptionProvider({ apiKey, baseURL }),
       ),
-      validation: ['model_list'],
+      validation: [ProviderValidationCheck.ModelList],
     }),
     'player2-speech': {
       id: 'player2-speech',
@@ -1474,6 +1489,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckDisabled: true,
         validateProviderConfig: async (config) => {
           const errors = [
             !config.baseUrl && new Error('Base URL is required. Default to http://localhost:4315/v1/'),
@@ -1674,6 +1690,7 @@ export const useProvidersStore = defineStore('providers', () => {
       },
 
       validators: {
+        chatPingCheckDisabled: true,
         validateProviderConfig: async (config: any) => {
           const model = config.model as string
 

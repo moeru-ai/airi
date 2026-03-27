@@ -1,7 +1,6 @@
 import type { ComposerTranslation } from 'vue-i18n'
 
-import type { ProviderDefinition } from '../../libs/providers/types'
-import type { ProviderValidationPlan } from '../../libs/providers/validators/run'
+import type { ProviderDefinition, ProviderValidationPlan } from '../../libs'
 import type { ProviderMetadata } from '../providers'
 
 import { listModels } from '@xsai/model'
@@ -186,13 +185,20 @@ export function convertProviderDefinitionToMetadata(
         : undefined,
     },
     validators: {
-      validateProviderConfig: async (config) => {
+      chatPingCheckDisabled: !(definition.validators?.validateProvider || [])
+        .some(creator => creator({ t }).id.includes('check-chat-completions')),
+      validateProviderConfig: async (config, options) => {
         const plan = getValidatorsOfProvider({
           definition,
           config,
           schemaDefaults,
           contextOptions: { t },
         })
+
+        if (options?.skipChatPingCheck) {
+          plan.providerValidators = plan.providerValidators.filter(v => !v.id.includes('check-chat-completions'))
+          plan.steps = plan.steps.filter(s => !s.id.includes('check-chat-completions'))
+        }
 
         // Run full validation pipeline (config + provider validators) only when required.
         // This preserves strict config checks while avoiding unnecessary network checks.

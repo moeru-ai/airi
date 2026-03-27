@@ -1,7 +1,8 @@
 import { createChatProvider, createModelProvider, merge } from '@xsai-ext/providers/utils'
 import { z } from 'zod'
 
-import { createOpenAICompatibleValidators } from '../../validators/openai-compatible'
+import { ProviderValidationCheck } from '../../types'
+import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
 
 const cometApiConfigSchema = z.object({
@@ -50,7 +51,7 @@ export const providerCometAPI = defineProvider<CometApiConfig>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: ['model_list'],
+      checks: [ProviderValidationCheck.ModelList],
     }),
   },
 })

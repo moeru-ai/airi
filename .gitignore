@@ -123,3 +123,4 @@ plugins-development
 
 apps/stage-pocket/ios/buildServer.json
 .ghfs/
+apps/stage-tamagotchi/electron.vite.config.*.mjs
