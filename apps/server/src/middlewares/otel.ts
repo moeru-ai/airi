@@ -3,8 +3,9 @@ import type { MiddlewareHandler } from 'hono'
 import type { HttpMetrics } from '../libs/otel'
 import type { HonoEnv } from '../types/hono'
 
-import { errorMessageFrom } from '@moeru/std'
 import { context, SpanStatusCode, trace } from '@opentelemetry/api'
+
+import { errorMessageFromUnknown } from '../utils/error-message'
 
 const tracer = trace.getTracer('airi-server-hono')
 
@@ -45,8 +46,9 @@ export function otelMiddleware(http: HttpMetrics): MiddlewareHandler<HonoEnv> {
       })
     }
     catch (err) {
-      span.setStatus({ code: SpanStatusCode.ERROR, message: errorMessageFrom(err) ?? 'Unknown error' })
-      span.recordException(err instanceof Error ? err : new Error(errorMessageFrom(err) ?? 'Unknown error'))
+      const errorMessage = errorMessageFromUnknown(err)
+      span.setStatus({ code: SpanStatusCode.ERROR, message: errorMessage })
+      span.recordException(err instanceof Error ? err : new Error(errorMessage))
       throw err
     }
     finally {
