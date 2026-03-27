@@ -49,7 +49,7 @@ async function fetchAuditHistory(loadMore = false) {
   auditLoading.value = true
   try {
     const offset = loadMore ? auditOffset.value : 0
-    const res = await client.api.flux.history.$get({
+    const res = await client.api.v1.flux.history.$get({
       query: { limit: String(AUDIT_PAGE_SIZE), offset: String(offset) },
     })
     if (res.ok) {
@@ -78,7 +78,7 @@ function formatDate(iso: string): string {
 
 async function fetchPackages() {
   try {
-    const res = await client.api.stripe.packages.$get()
+    const res = await client.api.v1.stripe.packages.$get()
     if (res.ok)
       packages.value = await res.json() as { amount: number, label: string, price: string }[]
   }
@@ -104,7 +104,7 @@ async function handleBuy(amount: number) {
   loadingAmount.value = amount
   message.value = null
   try {
-    const res = await client.api.stripe.checkout.$post({ json: { amount } })
+    const res = await client.api.v1.stripe.checkout.$post({ json: { amount } })
     if (!res.ok) {
       const data = await res.json() as { error?: string, message?: string }
       message.value = { type: 'error', text: data.message || t('settings.pages.flux.checkout.error') }

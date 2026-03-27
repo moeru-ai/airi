@@ -56,68 +56,99 @@ export function createBillingService(
     }
   }
 
+  /**
+   * Debit flux from a user's balance within a DB transaction.
+   * The transaction ONLY locks the row and updates the balance.
+   * Ledger + audit entries are written by the billing-mq consumer
+   * after it processes the flux.debited event published post-commit.
+   *
+   * Private — call domain-specific wrappers (e.g. consumeFluxForLLM) instead.
+   */
+  async function debitFlux(input: {
+    userId: string
+    amount: number
+    requestId?: string
+    description?: string
+    source: string
+    metadata?: Record<string, unknown>
+  }): Promise<{ userId: string, flux: number }> {
+    const result = await db.transaction(async (tx) => {
+      // 1. Lock the row and read current balance
+      const [row] = await tx
+        .select({ flux: fluxSchema.userFlux.flux })
+        .from(fluxSchema.userFlux)
+        .where(eq(fluxSchema.userFlux.userId, input.userId))
+        .for('update')
+
+      if (!row) {
+        throw new Error(`No flux record for user ${input.userId}`)
+      }
+
+      const balanceBefore = row.flux
+      if (balanceBefore < input.amount) {
+        metrics?.fluxInsufficientBalance.add(1)
+        throw createPaymentRequiredError('Insufficient flux')
+      }
+
+      const balanceAfter = balanceBefore - input.amount
+
+      // 2. Update balance
+      await tx.update(fluxSchema.userFlux)
+        .set({ flux: balanceAfter, updatedAt: new Date() })
+        .where(eq(fluxSchema.userFlux.userId, input.userId))
+
+      return { userId: input.userId, flux: balanceAfter, balanceBefore }
+    })
+
+    // 3. Update Redis cache after commit (best-effort)
+    await updateRedisCache(input.userId, result.flux)
+
+    // 4. Publish flux.debited event to stream; ledger + audit written by consumer
+    await publishEvent({
+      eventId: nanoid(),
+      eventType: 'flux.debited',
+      aggregateId: input.userId,
+      userId: input.userId,
+      requestId: input.requestId,
+      occurredAt: new Date().toISOString(),
+      schemaVersion: 1,
+      payload: {
+        amount: input.amount,
+        balanceAfter: result.flux,
+        source: input.source,
+        description: input.description,
+        metadata: input.metadata,
+      },
+    })
+
+    logger.withFields({ userId: input.userId, amount: input.amount, balance: result.flux }).log('Debited flux')
+    return { userId: result.userId, flux: result.flux }
+  }
+
   return {
     /**
-     * Debit flux from a user's balance within a DB transaction.
-     * The transaction ONLY locks the row and updates the balance.
-     * Ledger + audit entries are written by the billing-mq consumer
-     * after it processes the flux.debited event published post-commit.
+     * Debit flux for an LLM API request (chat, TTS, ASR).
+     * Passes token usage as opaque metadata carried through the flux.debited event
+     * so the billing-mq consumer can write it to the ledger.
      */
-    async debitFlux(input: {
+    async consumeFluxForLLM(input: {
       userId: string
       amount: number
       requestId?: string
       description?: string
+      promptTokens?: number
+      completionTokens?: number
     }): Promise<{ userId: string, flux: number }> {
-      const result = await db.transaction(async (tx) => {
-        // 1. Lock the row and read current balance
-        const [row] = await tx
-          .select({ flux: fluxSchema.userFlux.flux })
-          .from(fluxSchema.userFlux)
-          .where(eq(fluxSchema.userFlux.userId, input.userId))
-          .for('update')
-
-        if (!row) {
-          throw new Error(`No flux record for user ${input.userId}`)
-        }
-
-        const balanceBefore = row.flux
-        if (balanceBefore < input.amount) {
-          metrics?.fluxInsufficientBalance.add(1)
-          throw createPaymentRequiredError('Insufficient flux')
-        }
-
-        const balanceAfter = balanceBefore - input.amount
-
-        // 2. Update balance
-        await tx.update(fluxSchema.userFlux)
-          .set({ flux: balanceAfter, updatedAt: new Date() })
-          .where(eq(fluxSchema.userFlux.userId, input.userId))
-
-        return { userId: input.userId, flux: balanceAfter, balanceBefore }
-      })
-
-      // 3. Update Redis cache after commit (best-effort)
-      await updateRedisCache(input.userId, result.flux)
-
-      // 4. Publish flux.debited event to stream; ledger + audit written by consumer
-      await publishEvent({
-        eventId: nanoid(),
-        eventType: 'flux.debited',
-        aggregateId: input.userId,
+      return debitFlux({
         userId: input.userId,
+        amount: input.amount,
         requestId: input.requestId,
-        occurredAt: new Date().toISOString(),
-        schemaVersion: 1,
-        payload: {
-          amount: input.amount,
-          balanceAfter: result.flux,
-          source: 'llm.request',
-        },
+        description: input.description,
+        source: 'llm.request',
+        metadata: input.promptTokens != null || input.completionTokens != null
+          ? { promptTokens: input.promptTokens, completionTokens: input.completionTokens }
+          : undefined,
       })
-
-      logger.withFields({ userId: input.userId, amount: input.amount, balance: result.flux }).log('Debited flux')
-      return { userId: result.userId, flux: result.flux }
     },
 
     /**

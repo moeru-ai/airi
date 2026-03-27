@@ -29,7 +29,13 @@ export function createBillingConsumerHandler(db: Database) {
             balanceBefore,
             balanceAfter: event.payload.balanceAfter ?? balanceBefore - event.payload.amount,
             requestId: event.requestId,
-            description: event.payload.source ?? 'LLM request',
+            description: event.payload.description ?? event.payload.source ?? 'LLM request',
+            metadata: event.payload.metadata != null || event.payload.source != null
+              ? {
+                  ...(event.payload.metadata as Record<string, unknown>),
+                  source: event.payload.source,
+                }
+              : undefined,
           }).onConflictDoNothing()
 
           logger.withFields({

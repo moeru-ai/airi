@@ -246,11 +246,13 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
             const requestId = nanoid()
             let actualCharged = 0
             try {
-              await billingService.debitFlux({
+              await billingService.consumeFluxForLLM({
                 userId: user.id,
                 amount: fluxConsumed,
                 requestId,
                 description: requestModel,
+                promptTokens: usage.promptTokens,
+                completionTokens: usage.completionTokens,
               })
               actualCharged = fluxConsumed
             }
@@ -291,11 +293,13 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
     // Debit flux via DB transaction (source of truth)
     // NOTICE: no try/catch — debit failure (e.g. insufficient balance) must block the response
     const requestId = nanoid()
-    await billingService.debitFlux({
+    await billingService.consumeFluxForLLM({
       userId: user.id,
       amount: fluxConsumed,
       requestId,
       description: requestModel,
+      promptTokens: usage.promptTokens,
+      completionTokens: usage.completionTokens,
     })
 
     publishRequestLog({
@@ -355,7 +359,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
     }
 
     const fluxPerRequest = await configKV.getOrThrow('FLUX_PER_REQUEST_TTS')
-    await billingService.debitFlux({
+    await billingService.consumeFluxForLLM({
       userId: user.id,
       amount: fluxPerRequest,
       requestId: nanoid(),
@@ -425,7 +429,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
     }
 
     const fluxPerRequest = await configKV.getOrThrow('FLUX_PER_REQUEST_ASR')
-    await billingService.debitFlux({
+    await billingService.consumeFluxForLLM({
       userId: user.id,
       amount: fluxPerRequest,
       requestId: nanoid(),

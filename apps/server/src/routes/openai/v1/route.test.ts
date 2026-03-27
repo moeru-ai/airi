@@ -24,7 +24,7 @@ function createMockFluxService(flux = 100): FluxService {
 function createMockBillingService(flux = 100): BillingService {
   let balance = flux
   return {
-    debitFlux: vi.fn(async (input: { userId: string, amount: number }) => {
+    consumeFluxForLLM: vi.fn(async (input: { userId: string, amount: number }) => {
       balance -= input.amount
       return { userId: input.userId, flux: balance }
     }),
@@ -168,7 +168,7 @@ describe('v1CompletionsRoutes', () => {
       expect(data.id).toBe('chatcmpl-1')
 
       // Verify flux was debited via billingService
-      expect(billingService.debitFlux).toHaveBeenCalledWith(
+      expect(billingService.consumeFluxForLLM).toHaveBeenCalledWith(
         expect.objectContaining({ userId: 'user-1', amount: 1 }),
       )
 
@@ -255,7 +255,7 @@ describe('v1CompletionsRoutes', () => {
 
       expect(res.status).toBe(500)
       // Post-billing: no charge on failed requests
-      expect(billingService.debitFlux).not.toHaveBeenCalled()
+      expect(billingService.consumeFluxForLLM).not.toHaveBeenCalled()
     })
 
     it('should return 503 when config keys are missing', async () => {
@@ -345,7 +345,7 @@ describe('v1CompletionsRoutes', () => {
 
       await Promise.resolve()
 
-      expect(billingService.debitFlux).not.toHaveBeenCalled()
+      expect(billingService.consumeFluxForLLM).not.toHaveBeenCalled()
       expect(billingMq.publish).not.toHaveBeenCalled()
     })
   })
