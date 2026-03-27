@@ -39,7 +39,7 @@ export function otelMiddleware(http: HttpMetrics): MiddlewareHandler<HonoEnv> {
         span.setStatus({ code: SpanStatusCode.ERROR, message: `HTTP ${status}` })
       }
 
-      http.requestDuration.record(performance.now() - startTime, {
+      http.requestDuration.record((performance.now() - startTime) / 1000, {
         'http.request.method': method,
         'http.route': path,
         'http.response.status_code': status,

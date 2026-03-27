@@ -1,7 +1,7 @@
 import type { Context } from 'hono'
 
 import type { MqService } from '../../../libs/mq'
-import type { LlmMetrics } from '../../../libs/otel'
+import type { GenAiMetrics } from '../../../libs/otel'
 import type { UsageInfo } from '../../../services/billing/billing'
 import type { BillingEvent } from '../../../services/billing/billing-events'
 import type { BillingService } from '../../../services/billing/billing-service'
@@ -69,22 +69,22 @@ function getLlmMetricAttributes(opts: { model: string, type: string, status: num
   }
 }
 
-export function createV1CompletionsRoutes(fluxService: FluxService, billingService: BillingService, configKV: ConfigKVService, billingMq: MqService<BillingEvent>, llm?: LlmMetrics | null) {
+export function createV1CompletionsRoutes(fluxService: FluxService, billingService: BillingService, configKV: ConfigKVService, billingMq: MqService<BillingEvent>, genAi?: GenAiMetrics | null) {
   const logger = useLogger('v1-completions').useGlobalConfig()
   // TODO: Extract this compat route into smaller facades/modules.
   // It currently mixes auth, rate limiting, proxying, billing, telemetry, and event publishing in one transport layer entrypoint.
 
   function recordMetrics(opts: { model: string, status: number, type: string, durationMs: number, fluxConsumed: number, promptTokens?: number, completionTokens?: number }) {
-    if (!llm)
+    if (!genAi)
       return
     const attrs = getLlmMetricAttributes(opts)
-    llm.requestCount.add(1, attrs)
-    llm.requestDuration.record(opts.durationMs, attrs)
-    llm.fluxConsumed.add(opts.fluxConsumed, attrs)
+    genAi.operationCount.add(1, attrs)
+    genAi.operationDuration.record(opts.durationMs / 1000, attrs)
+    genAi.fluxConsumed.add(opts.fluxConsumed, attrs)
     if (opts.promptTokens != null)
-      llm.tokensPrompt.add(opts.promptTokens, attrs)
+      genAi.tokenUsageInput.add(opts.promptTokens, attrs)
     if (opts.completionTokens != null)
-      llm.tokensCompletion.add(opts.completionTokens, attrs)
+      genAi.tokenUsageOutput.add(opts.completionTokens, attrs)
   }
 
   function publishRequestLog(entry: { userId: string, model: string, status: number, durationMs: number, fluxConsumed: number, promptTokens?: number, completionTokens?: number }) {

@@ -168,7 +168,7 @@ async function buildApp(deps: AppDeps) {
     /**
      * V1 routes for official provider.
      */
-    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.billingMq, deps.otel?.llm))
+    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.billingMq, deps.otel?.genAi))
 
     /**
      * Flux routes.

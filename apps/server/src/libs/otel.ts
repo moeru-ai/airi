@@ -23,6 +23,34 @@ import { NodeSDK } from '@opentelemetry/sdk-node'
 import { BatchSpanProcessor, ParentBasedSampler, TraceIdRatioBasedSampler } from '@opentelemetry/sdk-trace-node'
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions'
 
+import {
+  METRIC_AUTH_ATTEMPTS,
+  METRIC_AUTH_FAILURES,
+  METRIC_CHARACTER_CREATED,
+  METRIC_CHARACTER_DELETED,
+  METRIC_CHARACTER_ENGAGEMENT,
+  METRIC_CHAT_MESSAGES,
+  METRIC_FLUX_CONSUMED,
+  METRIC_FLUX_INSUFFICIENT_BALANCE,
+  METRIC_GEN_AI_CLIENT_OPERATION_COUNT,
+  METRIC_GEN_AI_CLIENT_OPERATION_DURATION,
+  METRIC_GEN_AI_CLIENT_TOKEN_USAGE_INPUT,
+  METRIC_GEN_AI_CLIENT_TOKEN_USAGE_OUTPUT,
+  METRIC_HTTP_SERVER_ACTIVE_REQUESTS,
+  METRIC_HTTP_SERVER_REQUEST_DURATION,
+  METRIC_STRIPE_CHECKOUT_COMPLETED,
+  METRIC_STRIPE_CHECKOUT_CREATED,
+  METRIC_STRIPE_EVENTS,
+  METRIC_STRIPE_PAYMENT_FAILED,
+  METRIC_STRIPE_SUBSCRIPTION_EVENT,
+  METRIC_USER_ACTIVE_SESSIONS,
+  METRIC_USER_LOGIN,
+  METRIC_USER_REGISTERED,
+  METRIC_WS_CONNECTIONS_ACTIVE,
+  METRIC_WS_MESSAGES_RECEIVED,
+  METRIC_WS_MESSAGES_SENT,
+} from '../utils/observability'
+
 const logger = useLogger('otel')
 
 export interface HttpMetrics {
@@ -57,18 +85,18 @@ export interface RevenueMetrics {
   fluxInsufficientBalance: Counter
 }
 
-export interface LlmMetrics {
-  requestDuration: Histogram
-  requestCount: Counter
-  tokensPrompt: Counter
-  tokensCompletion: Counter
+export interface GenAiMetrics {
+  operationDuration: Histogram
+  operationCount: Counter
+  tokenUsageInput: Counter
+  tokenUsageOutput: Counter
   fluxConsumed: Counter
 }
 
-export interface DbMetrics {
-  queryDuration: Histogram
-  redisCommandDuration: Histogram
-}
+// NOTICE: Database metrics (db.client.operation.duration, redis.client.command.duration) were
+// intentionally removed. PgInstrumentation and IORedisInstrumentation already generate spans
+// with timing for every query/command. To surface these as metrics in Grafana, configure the
+// OTel Collector's spanmetrics connector to derive metrics from those spans.
 
 export interface OtelInstance {
   sdk: NodeSDK
@@ -76,8 +104,7 @@ export interface OtelInstance {
   auth: AuthMetrics
   engagement: EngagementMetrics
   revenue: RevenueMetrics
-  llm: LlmMetrics
-  db: DbMetrics
+  genAi: GenAiMetrics
   shutdown: () => Promise<void>
 }
 
@@ -168,112 +195,100 @@ export function initOtel(env: Env): OtelInstance | undefined {
 
   const meter = metrics.getMeter(serviceName)
 
-  // HTTP metrics
+  // HTTP metrics (semconv: unit MUST be seconds)
   const http: HttpMetrics = {
-    requestDuration: meter.createHistogram('http.server.request.duration', {
-      description: 'HTTP server request duration in milliseconds',
-      unit: 'ms',
+    requestDuration: meter.createHistogram(METRIC_HTTP_SERVER_REQUEST_DURATION, {
+      description: 'HTTP server request duration',
+      unit: 's',
     }),
-    activeRequests: meter.createUpDownCounter('http.server.active_requests', {
+    activeRequests: meter.createUpDownCounter(METRIC_HTTP_SERVER_ACTIVE_REQUESTS, {
       description: 'Number of active HTTP requests',
     }),
   }
 
   // Auth & User metrics
   const auth: AuthMetrics = {
-    attempts: meter.createCounter('auth.attempts', {
+    attempts: meter.createCounter(METRIC_AUTH_ATTEMPTS, {
       description: 'Number of authentication attempts',
     }),
-    failures: meter.createCounter('auth.failures', {
+    failures: meter.createCounter(METRIC_AUTH_FAILURES, {
       description: 'Number of failed authentication attempts',
     }),
-    userRegistered: meter.createCounter('user.registered', {
+    userRegistered: meter.createCounter(METRIC_USER_REGISTERED, {
       description: 'Number of new user registrations',
     }),
-    userLogin: meter.createCounter('user.login', {
+    userLogin: meter.createCounter(METRIC_USER_LOGIN, {
       description: 'Number of user logins',
     }),
-    activeSessions: meter.createUpDownCounter('user.active_sessions', {
+    activeSessions: meter.createUpDownCounter(METRIC_USER_ACTIVE_SESSIONS, {
       description: 'Number of active user sessions',
     }),
   }
 
   // Engagement metrics
   const engagement: EngagementMetrics = {
-    chatMessages: meter.createCounter('chat.messages', {
+    chatMessages: meter.createCounter(METRIC_CHAT_MESSAGES, {
       description: 'Number of chat messages written or pulled',
     }),
-    characterCreated: meter.createCounter('character.created', {
+    characterCreated: meter.createCounter(METRIC_CHARACTER_CREATED, {
       description: 'Number of characters created',
     }),
-    characterDeleted: meter.createCounter('character.deleted', {
+    characterDeleted: meter.createCounter(METRIC_CHARACTER_DELETED, {
       description: 'Number of characters deleted',
     }),
-    characterEngagement: meter.createCounter('character.engagement', {
+    characterEngagement: meter.createCounter(METRIC_CHARACTER_ENGAGEMENT, {
       description: 'Number of character engagement actions (like/bookmark)',
     }),
-    wsConnectionsActive: meter.createUpDownCounter('ws.connections.active', {
+    wsConnectionsActive: meter.createUpDownCounter(METRIC_WS_CONNECTIONS_ACTIVE, {
       description: 'Active WebSocket connections',
     }),
-    wsMessagesSent: meter.createCounter('ws.messages.sent', {
+    wsMessagesSent: meter.createCounter(METRIC_WS_MESSAGES_SENT, {
       description: 'Messages sent via WebSocket',
     }),
-    wsMessagesReceived: meter.createCounter('ws.messages.received', {
+    wsMessagesReceived: meter.createCounter(METRIC_WS_MESSAGES_RECEIVED, {
       description: 'Messages received via WebSocket',
     }),
   }
 
   // Revenue metrics
   const revenue: RevenueMetrics = {
-    stripeCheckoutCreated: meter.createCounter('stripe.checkout.created', {
+    stripeCheckoutCreated: meter.createCounter(METRIC_STRIPE_CHECKOUT_CREATED, {
       description: 'Number of Stripe checkout sessions created',
     }),
-    stripeCheckoutCompleted: meter.createCounter('stripe.checkout.completed', {
+    stripeCheckoutCompleted: meter.createCounter(METRIC_STRIPE_CHECKOUT_COMPLETED, {
       description: 'Number of Stripe checkout sessions completed',
     }),
-    stripePaymentFailed: meter.createCounter('stripe.payment.failed', {
+    stripePaymentFailed: meter.createCounter(METRIC_STRIPE_PAYMENT_FAILED, {
       description: 'Number of failed Stripe payments',
     }),
-    stripeSubscriptionEvent: meter.createCounter('stripe.subscription.event', {
+    stripeSubscriptionEvent: meter.createCounter(METRIC_STRIPE_SUBSCRIPTION_EVENT, {
       description: 'Number of Stripe subscription lifecycle events',
     }),
-    stripeEvents: meter.createCounter('stripe.events', {
+    stripeEvents: meter.createCounter(METRIC_STRIPE_EVENTS, {
       description: 'Number of Stripe webhook events processed',
     }),
-    fluxInsufficientBalance: meter.createCounter('flux.insufficient_balance', {
+    fluxInsufficientBalance: meter.createCounter(METRIC_FLUX_INSUFFICIENT_BALANCE, {
       description: 'Number of insufficient flux balance errors',
     }),
   }
 
-  // LLM / Gateway metrics
-  const llm: LlmMetrics = {
-    requestDuration: meter.createHistogram('llm.request.duration', {
-      description: 'LLM gateway request duration in milliseconds',
-      unit: 'ms',
+  // GenAI metrics (semconv: gen_ai.client.*)
+  const genAi: GenAiMetrics = {
+    operationDuration: meter.createHistogram(METRIC_GEN_AI_CLIENT_OPERATION_DURATION, {
+      description: 'GenAI client operation duration',
+      unit: 's',
     }),
-    requestCount: meter.createCounter('llm.request.count', {
-      description: 'Number of LLM gateway requests',
+    operationCount: meter.createCounter(METRIC_GEN_AI_CLIENT_OPERATION_COUNT, {
+      description: 'Number of GenAI client operations',
     }),
-    tokensPrompt: meter.createCounter('llm.tokens.prompt', {
-      description: 'Total prompt tokens consumed',
+    tokenUsageInput: meter.createCounter(METRIC_GEN_AI_CLIENT_TOKEN_USAGE_INPUT, {
+      description: 'Total input (prompt) tokens consumed',
     }),
-    tokensCompletion: meter.createCounter('llm.tokens.completion', {
-      description: 'Total completion tokens consumed',
+    tokenUsageOutput: meter.createCounter(METRIC_GEN_AI_CLIENT_TOKEN_USAGE_OUTPUT, {
+      description: 'Total output (completion) tokens consumed',
     }),
-    fluxConsumed: meter.createCounter('flux.consumed', {
+    fluxConsumed: meter.createCounter(METRIC_FLUX_CONSUMED, {
       description: 'Total flux consumed',
-    }),
-  }
-
-  // Database metrics
-  const db: DbMetrics = {
-    queryDuration: meter.createHistogram('db.client.operation.duration', {
-      description: 'Database operation duration in milliseconds',
-      unit: 'ms',
-    }),
-    redisCommandDuration: meter.createHistogram('redis.client.command.duration', {
-      description: 'Redis command duration in milliseconds',
-      unit: 'ms',
     }),
   }
 
@@ -294,8 +309,7 @@ export function initOtel(env: Env): OtelInstance | undefined {
     auth,
     engagement,
     revenue,
-    llm,
-    db,
+    genAi,
     shutdown,
   }
 }

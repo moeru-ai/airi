@@ -4,6 +4,7 @@ import type { AuthMetrics } from './otel'
 
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
+import { createAuthMiddleware } from 'better-auth/api'
 import { bearer } from 'better-auth/plugins'
 
 import { getAuthTrustedOrigins } from '../utils/origin'
@@ -51,6 +52,32 @@ export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null)
         clientId: env.AUTH_GITHUB_CLIENT_ID,
         clientSecret: env.AUTH_GITHUB_CLIENT_SECRET,
       },
+    },
+
+    hooks: {
+      before: createAuthMiddleware(async (ctx) => {
+        const isAuthAttempt = ctx.path.includes('/sign-in') || ctx.path.includes('/sign-up')
+        if (isAuthAttempt) {
+          metrics?.attempts.add(1, { 'auth.method': ctx.path.split('/').pop() ?? 'unknown' })
+        }
+      }),
+      after: createAuthMiddleware(async (ctx) => {
+        // Track auth failures via otel
+        const isAuthAttempt = ctx.path.includes('/sign-in') || ctx.path.includes('/sign-up')
+        if (isAuthAttempt && ctx.context.returned && typeof ctx.context.returned === 'object' && 'error' in ctx.context.returned) {
+          metrics?.failures.add(1, { 'auth.method': ctx.path.split('/').pop() ?? 'unknown' })
+        }
+
+        // On OAuth callback errors, redirect back to the referer instead of returning API JSON
+        if (ctx.path.startsWith('/callback') && ctx.context.returned && typeof ctx.context.returned === 'object' && 'error' in ctx.context.returned) {
+          const referer = ctx.getHeader('referer')
+          if (referer) {
+            const url = new URL(referer)
+            url.searchParams.set('error', 'auth_failed')
+            throw ctx.redirect(url.toString())
+          }
+        }
+      }),
     },
 
     databaseHooks: {

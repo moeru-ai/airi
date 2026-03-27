@@ -48,7 +48,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "sum(rate(http_server_request_duration_milliseconds_count{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+          "expr": "sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
           "legendFormat": "req/s"
         }
       ]
@@ -80,7 +80,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "sum(rate(http_server_request_duration_milliseconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_status_code=~\"5..\"}[$__rate_interval])) / sum(rate(http_server_request_duration_milliseconds_count{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+          "expr": "sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_status_code=~\"5..\"}[$__rate_interval])) / sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
           "legendFormat": "error rate"
         }
       ]
@@ -94,11 +94,11 @@
             "mode": "absolute",
             "steps": [
               { "color": "green", "value": null },
-              { "color": "yellow", "value": 200 },
-              { "color": "red", "value": 1000 }
+              { "color": "yellow", "value": 0.2 },
+              { "color": "red", "value": 1.0 }
             ]
           },
-          "unit": "ms"
+          "unit": "s"
         }
       },
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 1 },
@@ -108,11 +108,11 @@
         "colorMode": "value",
         "graphMode": "area"
       },
-      "title": "P95 Latency",
+      "title": "P95 Latency (excl. LLM)",
       "type": "stat",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_request_duration_milliseconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_request_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\", http_route!~\"/api/v1/openai/.*\"}[$__rate_interval])) by (le))",
           "legendFormat": "p95"
         }
       ]
@@ -136,7 +136,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum by (http_route) (rate(http_server_request_duration_milliseconds_count{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+          "expr": "sum by (http_route) (rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
           "legendFormat": "{{http_route}}"
         }
       ]
@@ -150,7 +150,7 @@
             "lineInterpolation": "smooth",
             "fillOpacity": 20
           },
-          "unit": "ms"
+          "unit": "s"
         }
       },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
@@ -159,7 +159,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le, http_route) (rate(http_server_request_duration_milliseconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le, http_route) (rate(http_server_request_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval])))",
           "legendFormat": "{{http_route}}"
         }
       ]
@@ -182,7 +182,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum by (http_status_code) (rate(http_server_request_duration_milliseconds_count{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+          "expr": "sum by (http_status_code) (rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
           "legendFormat": "{{http_status_code}}"
         }
       ]
@@ -318,7 +318,7 @@
             "lineInterpolation": "smooth",
             "fillOpacity": 20
           },
-          "unit": "ms"
+          "unit": "s"
         }
       },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 43 },
@@ -327,7 +327,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le, db_operation) (rate(db_client_operation_duration_milliseconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le, db_operation) (rate(db_client_operation_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval])))",
           "legendFormat": "{{db_operation}}"
         }
       ]
@@ -350,7 +350,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum by (db_operation) (rate(db_client_operation_duration_milliseconds_count{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+          "expr": "sum by (db_operation) (rate(db_client_operation_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
           "legendFormat": "{{db_operation}}"
         }
       ]
@@ -402,7 +402,7 @@
             "lineInterpolation": "smooth",
             "fillOpacity": 20
           },
-          "unit": "ms"
+          "unit": "s"
         }
       },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 60 },
@@ -411,7 +411,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le, db_operation) (rate(db_client_operation_duration_milliseconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\", db_system=\"redis\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le, db_operation) (rate(db_client_operation_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\", db_system=\"redis\"}[$__rate_interval])))",
           "legendFormat": "{{db_operation}}"
         }
       ]
@@ -434,7 +434,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum by (db_operation) (rate(db_client_operation_duration_milliseconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", db_system=\"redis\"}[$__rate_interval]))",
+          "expr": "sum by (db_operation) (rate(db_client_operation_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", db_system=\"redis\"}[$__rate_interval]))",
           "legendFormat": "{{db_operation}}"
         }
       ]
@@ -473,7 +473,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "sum(rate(llm_request_count_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+          "expr": "sum(rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
           "legendFormat": "req/s"
         }
       ]
@@ -487,11 +487,11 @@
             "mode": "absolute",
             "steps": [
               { "color": "green", "value": null },
-              { "color": "yellow", "value": 500 },
-              { "color": "red", "value": 2000 }
+              { "color": "yellow", "value": 0.5 },
+              { "color": "red", "value": 2.0 }
             ]
           },
-          "unit": "ms"
+          "unit": "s"
         }
       },
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 69 },
@@ -505,7 +505,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(llm_request_duration_milliseconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(gen_ai_client_operation_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval])) by (le))",
           "legendFormat": "p95"
         }
       ]
@@ -537,7 +537,7 @@
       "type": "stat",
       "targets": [
         {
-          "expr": "sum(rate(flux_consumed_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+          "expr": "sum(rate(airi_billing_flux_consumed_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
           "legendFormat": "flux/s"
         }
       ]
@@ -561,7 +561,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum by (gen_ai_request_model) (rate(llm_request_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_request_model!=\"\"}[$__rate_interval]))",
+          "expr": "sum by (gen_ai_request_model) (rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_request_model!=\"\"}[$__rate_interval]))",
           "legendFormat": "{{gen_ai_request_model}}"
         }
       ]
@@ -584,11 +584,11 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum by (gen_ai_operation_name) (rate(llm_request_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_operation_name!=\"\"}[$__rate_interval]))",
+          "expr": "sum by (gen_ai_operation_name) (rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_operation_name!=\"\"}[$__rate_interval]))",
           "legendFormat": "{{gen_ai_operation_name}}"
         },
         {
-          "expr": "sum by (airi_gen_ai_operation_kind) (rate(llm_request_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", airi_gen_ai_operation_kind!=\"\"}[$__rate_interval]))",
+          "expr": "sum by (airi_gen_ai_operation_kind) (rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", airi_gen_ai_operation_kind!=\"\"}[$__rate_interval]))",
           "legendFormat": "{{airi_gen_ai_operation_kind}}"
         }
       ]
@@ -602,7 +602,7 @@
             "lineInterpolation": "smooth",
             "fillOpacity": 20
           },
-          "unit": "ms"
+          "unit": "s"
         }
       },
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 85 },
@@ -611,7 +611,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le, gen_ai_request_model) (rate(llm_request_duration_milliseconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_request_model!=\"\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le, gen_ai_request_model) (rate(gen_ai_client_operation_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_request_model!=\"\"}[$__rate_interval])))",
           "legendFormat": "{{gen_ai_request_model}}"
         }
       ]
@@ -634,7 +634,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum by (gen_ai_request_model) (rate(flux_consumed_total{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_request_model!=\"\"}[$__rate_interval]))",
+          "expr": "sum by (gen_ai_request_model) (rate(airi_billing_flux_consumed_total{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_request_model!=\"\"}[$__rate_interval]))",
           "legendFormat": "{{gen_ai_request_model}}"
         }
       ]
@@ -657,7 +657,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum by (gen_ai_request_model) (rate(llm_tokens_prompt_total{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_request_model!=\"\"}[$__rate_interval]))",
+          "expr": "sum by (gen_ai_request_model) (rate(gen_ai_client_token_usage_input_total{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_request_model!=\"\"}[$__rate_interval]))",
           "legendFormat": "{{gen_ai_request_model}}"
         }
       ]
@@ -680,7 +680,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum by (gen_ai_request_model) (rate(llm_tokens_completion_total{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_request_model!=\"\"}[$__rate_interval]))",
+          "expr": "sum by (gen_ai_request_model) (rate(gen_ai_client_token_usage_output_total{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_request_model!=\"\"}[$__rate_interval]))",
           "legendFormat": "{{gen_ai_request_model}}"
         }
       ]
@@ -722,24 +722,24 @@
       {
         "current": { "selected": false, "text": "production", "value": "production" },
         "datasource": { "type": "prometheus", "uid": "grafanacloud-projairi-prom" },
-        "definition": "label_values(http_server_request_duration_milliseconds_count, deployment_environment)",
+        "definition": "label_values(http_server_request_duration_seconds_count, deployment_environment)",
         "hide": 0,
         "includeAll": true,
         "multi": false,
         "name": "env",
-        "query": "label_values(http_server_request_duration_milliseconds_count, deployment_environment)",
+        "query": "label_values(http_server_request_duration_seconds_count, deployment_environment)",
         "refresh": 2,
         "type": "query"
       },
       {
         "current": { "selected": false, "text": "server", "value": "server" },
         "datasource": { "type": "prometheus", "uid": "grafanacloud-projairi-prom" },
-        "definition": "label_values(http_server_request_duration_milliseconds_count{deployment_environment=~\"$env\"}, service_name)",
+        "definition": "label_values(http_server_request_duration_seconds_count{deployment_environment=~\"$env\"}, service_name)",
         "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "service",
-        "query": "label_values(http_server_request_duration_milliseconds_count{deployment_environment=~\"$env\"}, service_name)",
+        "query": "label_values(http_server_request_duration_seconds_count{deployment_environment=~\"$env\"}, service_name)",
         "refresh": 2,
         "type": "query"
       }
