@@ -1,3 +1,5 @@
+import type { Env } from './env'
+
 import { useLogger } from '@guiiai/logg'
 import { migrate } from '@proj-airi/drizzle-orm-browser-migrator/pg'
 import { migrations } from '@proj-airi/server-schema'
@@ -10,14 +12,16 @@ const logger = useLogger('db')
 
 export type Database = ReturnType<typeof createDrizzle>['db']
 
-export function createDrizzle(dsn: string) {
+type DrizzleEnv = Pick<Env, 'DATABASE_URL' | 'DB_POOL_MAX' | 'DB_POOL_IDLE_TIMEOUT_MS' | 'DB_POOL_CONNECTION_TIMEOUT_MS' | 'DB_POOL_KEEPALIVE_INITIAL_DELAY_MS'>
+
+export function createDrizzle(env: DrizzleEnv) {
   const pool = new Pool({
-    connectionString: dsn,
-    max: 20,
-    idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 5_000,
+    connectionString: env.DATABASE_URL,
+    max: env.DB_POOL_MAX,
+    idleTimeoutMillis: env.DB_POOL_IDLE_TIMEOUT_MS,
+    connectionTimeoutMillis: env.DB_POOL_CONNECTION_TIMEOUT_MS,
     keepAlive: true,
-    keepAliveInitialDelayMillis: 10_000,
+    keepAliveInitialDelayMillis: env.DB_POOL_KEEPALIVE_INITIAL_DELAY_MS,
   })
 
   pool.on('error', (err) => {

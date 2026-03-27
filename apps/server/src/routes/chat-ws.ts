@@ -142,11 +142,19 @@ export function createChatWsHandlers(
             toSeq: result.toSeq,
           }
 
-          // Local broadcast (other connections on this instance, exclude sender)
-          broadcastToLocalDevices(userId, ctx, newMessages, broadcastPayload)
+          // Broadcast to all chat members (not just the sender)
+          const members = await chatService.getMembers(req!.chatId)
+          const memberUserIds = members
+            .filter(m => m.memberType === 'user' && m.userId != null)
+            .map(m => m.userId!)
 
-          // Cross-instance broadcast via Redis pub/sub
-          publishBroadcast(userId, broadcastPayload)
+          for (const memberUserId of memberUserIds) {
+            // For the sender, exclude the current connection
+            const excludeCtx = memberUserId === userId ? ctx : null
+            broadcastToLocalDevices(memberUserId, excludeCtx, newMessages, broadcastPayload)
+            // Cross-instance broadcast via Redis pub/sub
+            publishBroadcast(memberUserId, broadcastPayload)
+          }
 
           metrics?.wsMessagesSent.add(wireMessages.messages.length)
           return { seq: result.seq }

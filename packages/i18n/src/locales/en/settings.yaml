@@ -27,8 +27,8 @@ dialogs:
     next: Next
     retry: Retry
     start: Let's do it!
-    loginPrompt: Login to use the official AIRI provider for the best experience.
-    loginAction: Login
+    loginPrompt: Sign in to use the official AIRI provider for the best experience.
+    loginAction: Sign in
     localSetup: Configure Local Provider
     flux: Flux
     buyFlux: Charge Flux
@@ -62,6 +62,19 @@ controls-island:
     auto: Auto (responsive)
     large: Large (default)
     small: Small
+analytics:
+  notice:
+    title: Usage analytics
+    description: AIRI collects anonymous usage analytics to help us understand how the app is used and improve stability. No personal data is collected.
+    privacyPrefix: Read the
+    privacyLink: privacy policy
+    onboardingHint: You can turn analytics off later in Settings > System > General.
+    settingsHint: You can turn analytics off at any time.
+  toggle:
+    title: Enable usage analytics
+    description: Turn this off to opt out of analytics collection.
+  disabled:
+    title: Analytics disabled for this development build
 live2d:
   change-model:
     from-file: Load from File
@@ -490,15 +503,6 @@ pages:
       title: Flux Packages
       buy: Charge
       description: Flux packages to choose from.
-      amount_500:
-        label: 500 Flux
-        price: '$5'
-      amount_1000:
-        label: 1000 Flux
-        price: '$10'
-      amount_5000:
-        label: 5000 Flux
-        price: '$45'
   providers:
     explained:
       chat: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
@@ -841,6 +845,9 @@ pages:
       xai:
         description: x.ai
         title: xAI
+      zai:
+        description: z.ai
+        title: Z.ai
       302-ai:
         description: 302.AI
         title: 302.AI

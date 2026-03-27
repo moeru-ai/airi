@@ -22,10 +22,8 @@ const loading = ref<Record<OAuthProvider, boolean>>({
 async function handleSignIn(provider: OAuthProvider) {
   loading.value[provider] = true
   try {
-    await Promise.all([
-      () => signIn(provider),
-      fetchSession,
-    ])
+    await signIn(provider)
+    await fetchSession()
   }
   catch (error) {
     toast.error(error instanceof Error ? error.message : 'An unknown error occurred')

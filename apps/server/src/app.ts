@@ -107,7 +107,13 @@ function buildApp(deps: AppDeps) {
 
   const builtApp = app
     .use('*', sessionMiddleware(deps.auth))
-    .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
+    .use('*', async (c, next) => {
+      // Skip global body limit for ASR transcription route (has its own 25MB limit)
+      if (c.req.path === '/api/v1/audio/transcriptions') {
+        return next()
+      }
+      return bodyLimit({ maxSize: 1024 * 1024 })(c, next)
+    })
     .onError((err, c) => {
       if (err instanceof ApiError) {
         logger.withError(err).warn('API error occurred')
@@ -203,7 +209,7 @@ export async function createApp() {
         'Database',
         logger,
         async (attempt) => {
-          const connection = createDrizzle(dependsOn.env.DATABASE_URL)
+          const connection = createDrizzle(dependsOn.env)
 
           try {
             await connection.db.execute('SELECT 1')
@@ -348,7 +354,7 @@ export async function createApp() {
   return {
     app,
     injectWebSocket,
-    port: Number(resolved.env.PORT),
+    port: resolved.env.PORT,
     hostname: resolved.env.HOST,
   }
 }

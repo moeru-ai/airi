@@ -6,21 +6,9 @@ import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { bearer } from 'better-auth/plugins'
 
-import * as authSchema from '../schemas/accounts'
+import { getAuthTrustedOrigins } from '../utils/origin'
 
-function extractOrigins(env: Env): string[] {
-  const origins = new Set<string>()
-  for (const url of [env.CLIENT_URL, env.API_SERVER_URL]) {
-    try {
-      const { origin } = new URL(url)
-      origins.add(origin)
-    }
-    catch {
-      // skip malformed URLs
-    }
-  }
-  return [...origins]
-}
+import * as authSchema from '../schemas/accounts'
 
 // NOTICE: return type uses `any` to avoid TS2742 — betterAuth's inferred type
 // references internal pnpm paths (@better-auth/core) that aren't directly accessible
@@ -43,7 +31,7 @@ export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null)
     },
 
     baseURL: env.API_SERVER_URL,
-    trustedOrigins: extractOrigins(env),
+    trustedOrigins: request => getAuthTrustedOrigins(env, request),
 
     // To skip state-mismatch errors
     // https://github.com/better-auth/better-auth/issues/4969#issuecomment-3397804378
