@@ -32,7 +32,7 @@
 
 <p float="left" align="center">
   <!-- readme-section:release-binary-windows -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.18/AIRI-0.9.0-alpha.18-windows-x64-setup.exe">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.24/AIRI-0.9.0-alpha.24-windows-x64-setup.exe">
     <picture>
       <source
         width="33%"
@@ -48,7 +48,7 @@
     </picture>
   </a>
   <!-- readme-section:release-binary-macos -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.18/AIRI-0.9.0-alpha.18-darwin-arm64.dmg">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.24/AIRI-0.9.0-alpha.24-darwin-arm64.dmg">
     <picture>
       <source
         width="33%"
@@ -298,7 +298,7 @@ Start the development server for the capacitor:
 ```shell
 pnpm dev:pocket:ios --target <DEVICE_ID_OR_SIMULATOR_NAME>
 # Or
-CAPACITOR_DEVICE_ID=<DEVICE_ID_OR_SIMULATOR_NAME> pnpm dev:pocket:ios
+CAPACITOR_DEVICE_ID_IOS=<DEVICE_ID_OR_SIMULATOR_NAME> pnpm dev:pocket:ios
 ```
 
 You can see the list of available devices and simulators by running `pnpm exec cap run ios --list`.
@@ -334,7 +334,7 @@ npx bumpp --no-commit --no-tag
 - [x] [Ollama](https://github.com/ollama/ollama)
 - [x] [302.AI (sponsored)](https://share.302.ai/514k2v)
 - [x] [OpenAI](https://platform.openai.com/docs/guides/gpt/chat-completions-api)
-  - [ ] [Azure OpenAI API](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference) (PR welcome)
+  - [x] [Azure OpenAI API](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference)
 - [x] [Anthropic Claude](https://anthropic.com)
   - [ ] [AWS Claude](https://docs.anthropic.com/en/api/claude-on-amazon-bedrock) (PR welcome)
 - [x] [DeepSeek](https://www.deepseek.com/)

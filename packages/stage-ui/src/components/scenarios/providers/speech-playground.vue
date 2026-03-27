@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { VoiceInfo } from '../../../stores/providers'
 
-import { FieldCheckbox, FieldSelect } from '@proj-airi/ui'
+import { FieldCheckbox, FieldCombobox } from '@proj-airi/ui'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -163,7 +163,7 @@ defineExpose({
         />
       </template>
 
-      <FieldSelect
+      <FieldCombobox
         v-model="selectedVoice"
         :options="voiceOptions"
         :label="t('settings.pages.providers.provider.elevenlabs.playground.fields.field.voice.label')"

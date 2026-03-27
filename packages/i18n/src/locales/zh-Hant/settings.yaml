@@ -49,8 +49,7 @@ dialogs:
       stateNotGranted: Not granted
 language:
   title: 語言
-  description: >
-    切換顯示介面的語言
+  description: UI language
 controls-island:
   icon-size:
     title: 控制島嶼圖示大小
@@ -58,6 +57,19 @@ controls-island:
     auto: 自動（回應式）
     large: 大(默認)
     small: 小
+analytics:
+  notice:
+    title: Usage analytics
+    description: AIRI collects anonymous usage analytics to help us understand how the app is used and improve stability. No personal data is collected.
+    privacyPrefix: Read the
+    privacyLink: privacy policy
+    onboardingHint: You can turn analytics off later in Settings > System > General.
+    settingsHint: You can turn analytics off at any time.
+  toggle:
+    title: Enable usage analytics
+    description: Turn this off to opt out of analytics collection.
+  disabled:
+    title: Analytics disabled for this development build
 live2d:
   change-model:
     from-file: 從檔案載入
@@ -218,6 +230,10 @@ pages:
         title: 刪除所有資料
         description: 清除所有本機設定、服務提供者設定與模型。
         delete: 刪除所有資料
+      desktop-folder:
+        title: Open app data folder
+        description: Open AIRI's data folder in your file manager.
+        open: Open folder
       desktop:
         title: 重設桌面設定與狀態
         description: 清除 AIRI 桌面設定與執行階段狀態
@@ -728,6 +744,9 @@ pages:
       openai:
         description: OpenAi.com
         title: OpenAI
+      azure-openai:
+        description: Azure OpenAI API
+        title: Azure OpenAI
       openai-compatible:
         description: OpenAI 相容
         title: OpenAI 兼容性
@@ -778,6 +797,9 @@ pages:
       xai:
         description: X.AI
         title: xAI
+      zai:
+        description: z.ai
+        title: Z.ai
       302-ai:
         description: 302.AI
         title: 302.AI

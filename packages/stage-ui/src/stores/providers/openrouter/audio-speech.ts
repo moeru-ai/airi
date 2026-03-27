@@ -2,6 +2,8 @@ import type { SpeechProvider } from '@xsai-ext/providers/utils'
 
 import type { ModelInfo, ProviderMetadata, VoiceInfo } from '../../providers'
 
+import { OPENROUTER_ATTRIBUTION_HEADERS } from '../../../libs/providers/providers/openrouter-ai'
+
 const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1/'
 const DEFAULT_MODEL = 'openai/gpt-audio-mini'
 const PROVIDER_ID = 'openrouter-audio-speech'
@@ -145,6 +147,7 @@ function createAudioFetch(apiKey: string, baseUrl: string, model: string) {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
+        ...OPENROUTER_ATTRIBUTION_HEADERS,
       },
       body: JSON.stringify({
         model,
@@ -187,7 +190,9 @@ function createSpeechProvider(apiKey: string, baseUrl: string): SpeechProvider {
 }
 
 async function listModels(baseUrl: string): Promise<ModelInfo[]> {
-  const res = await fetch(`${baseUrl}models?output_modality=audio`)
+  const res = await fetch(`${baseUrl}models?output_modality=audio`, {
+    headers: OPENROUTER_ATTRIBUTION_HEADERS,
+  })
   if (!res.ok)
     return []
 

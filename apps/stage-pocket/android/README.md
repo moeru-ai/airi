@@ -38,7 +38,7 @@ Open the project in Android Studio:
 ```bash
 pnpm dev:android -- target <CAPACITOR_DEVICE_ID>
 # Or
-CAPACITOR_DEVICE_ID=<CAPACITOR_DEVICE_ID> pnpm dev:android
+CAPACITOR_DEVICE_ID_ANDROID=<CAPACITOR_DEVICE_ID> pnpm dev:android
 ```
 
 

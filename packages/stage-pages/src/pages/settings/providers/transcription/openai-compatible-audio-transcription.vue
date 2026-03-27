@@ -16,7 +16,7 @@ import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provi
 import { getDefinedProvider } from '@proj-airi/stage-ui/libs'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { FieldInput, FieldSelect } from '@proj-airi/ui'
+import { FieldCombobox, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
 
@@ -214,7 +214,7 @@ watch(model, () => {
             :placeholder="apiKeyPlaceholder"
           />
           <!-- Model selection: Use dropdown if models are available, otherwise use text input -->
-          <FieldSelect
+          <FieldCombobox
             v-if="providerModels.length > 0"
             v-model="model"
             label="Model"

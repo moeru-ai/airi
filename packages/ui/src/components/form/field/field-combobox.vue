@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Select } from '../select'
+import { ComboboxSelect } from '../combobox-select'
 
 const props = withDefaults(defineProps<{
   label: string
@@ -21,29 +21,28 @@ const modelValue = defineModel<string>({ required: false })
     <div
       :class="[
         'items-center',
-        'justify-center',
-        props.layout === 'horizontal' ? 'grid grid-cols-3 gap-2' : 'grid grid-cols-2 gap-2',
+        props.layout === 'horizontal' ? 'grid grid-rows-2 gap-2' : 'grid grid-cols-2 gap-2',
       ]"
     >
       <div
         :class="[
           'w-full',
-          props.layout === 'horizontal' ? 'col-span-2' : 'row-span-1',
+          props.layout === 'horizontal' ? 'col-span-1' : 'row-span-2',
         ]"
       >
-        <div :class="['flex', 'items-center', 'gap-1', 'break-words', 'text-sm', 'font-medium']">
+        <div :class="['flex', 'items-center', 'gap-1', 'break-words', 'text-sm', 'font-medium', 'text-left']">
           <slot name="label">
             {{ props.label }}
           </slot>
         </div>
-        <div :class="['break-words', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
+        <div :class="['break-words', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400', 'text-left']">
           <slot name="description">
             {{ props.description }}
           </slot>
         </div>
       </div>
       <slot>
-        <Select
+        <ComboboxSelect
           v-model="modelValue"
           :options="props.options?.filter(option => option.label && option.value) || []"
           :placeholder="props.placeholder"
@@ -59,7 +58,7 @@ const modelValue = defineModel<string>({ required: false })
           <template #default="{ value }">
             {{ props.options?.find(option => option.value === value)?.label || props.placeholder }}
           </template>
-        </Select>
+        </ComboboxSelect>
       </slot>
     </div>
   </label>

@@ -25,9 +25,9 @@ uniform vec3  uSHCoeffs[9];
 varying vec3  vWorldNormal;
 
 // 3rd-order SH constants
-const float C0=0.2820947918; 
+const float C0=0.2820947918;
 const float C1=0.4886025119;
-const float C2=1.0925484306; 
+const float C2=1.0925484306;
 const float C3=0.3153915653;
 const float C4=0.5462742153;
 
@@ -62,7 +62,6 @@ export type EnvMode = 'off' | 'skyBox' | 'hemisphere'
 
 export const isShaderMat = (m: any): m is THREE.ShaderMaterial => !!m?.isShaderMaterial
 export const isRawShader = (m: any): m is THREE.RawShaderMaterial => !!m?.isRawShaderMaterial
-export const isMToon = (mat: any) => !!(mat?.isShaderMaterial && mat.userData?.vrmMaterialType === 'MToon')
 
 export function normalizeEnvMode(v?: string | null): EnvMode {
   if (v === 'skyBox')
@@ -122,7 +121,7 @@ export function injectDiffuseIBL(mat: THREE.ShaderMaterial) {
     }
 
     // uniforms
-    const emptySH = Array.from({ length: 9 }, () => new THREE.Vector3())
+    const emptySH = Array.from({ length: 9 }).fill(new THREE.Vector3())
     shader.uniforms.uNprEnvMode ||= { value: 0 }
     shader.uniforms.uEnvIntensity ||= { value: 0.0 }
     shader.uniforms.uSHCoeffs ||= { value: emptySH };

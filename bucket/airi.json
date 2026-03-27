@@ -1,12 +1,12 @@
 {
-  "version": "0.9.0-alpha.12",
+  "version": "0.9.0-alpha.18",
   "description": "A self-hosted AI companion desktop app with voice chat and game integrations",
   "homepage": "https://airi.moeru.ai/",
   "license": "MIT",
   "architecture": {
     "64bit": {
-      "url": "https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.12/AIRI-0.9.0-alpha.12-windows-x64-setup.exe#/dl.7z",
-      "hash": "cf4698c7c483ce58e81e05b08a5015a753243e79c54aa2e4baec81c92041e5a7"
+      "url": "https://github.com/moeru-ai/airi/releases/download/v0.9.0-alpha.18/AIRI-0.9.0-alpha.18-windows-x64-setup.exe#/dl.7z",
+      "hash": "42a3b620322bcc30d6a5af7920e9bec734d4835d7dc7183321dacc5948c8dde6"
     }
   },
   "pre_install": [

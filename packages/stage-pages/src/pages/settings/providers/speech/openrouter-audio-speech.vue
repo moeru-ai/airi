@@ -7,7 +7,7 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { FieldSelect } from '@proj-airi/ui'
+import { FieldCombobox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted } from 'vue'
 
@@ -62,7 +62,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 <template>
   <SpeechProviderSettings :provider-id="providerId" :default-model="defaultModel">
     <template #voice-settings>
-      <FieldSelect
+      <FieldCombobox
         v-model="model"
         label="Model"
         description="Select the audio-capable model to use for speech generation"

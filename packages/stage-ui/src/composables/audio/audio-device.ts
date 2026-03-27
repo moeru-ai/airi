@@ -1,13 +1,13 @@
 import { useDevicesList, useUserMedia } from '@vueuse/core'
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 
-export function useAudioDevice() {
-  const devices = useDevicesList({ constraints: { audio: true }, requestPermissions: true })
+export function useAudioDevice(requestPermission: boolean = false) {
+  const devices = useDevicesList({ constraints: { audio: true }, requestPermissions: requestPermission })
   const audioInputs = computed(() => devices.audioInputs.value)
-  const selectedAudioInput = ref<string>(devices.audioInputs.value[0]?.deviceId || '')
+  const selectedAudioInput = ref<string>(devices.audioInputs.value.find(device => device.deviceId === 'default')?.deviceId || '')
   const deviceConstraints = computed<MediaStreamConstraints>(() => ({
     audio: {
-      ...(selectedAudioInput.value ? { deviceId: { exact: selectedAudioInput.value } } : {}),
+      deviceId: { exact: selectedAudioInput.value },
       autoGainControl: true,
       echoCancellation: true,
       noiseSuppression: true,
@@ -17,13 +17,12 @@ export function useAudioDevice() {
 
   watch(audioInputs, () => {
     if (!selectedAudioInput.value && audioInputs.value.length > 0) {
-      selectedAudioInput.value = audioInputs.value[0]?.deviceId
+      selectedAudioInput.value = audioInputs.value.find(input => input.deviceId === 'default')?.deviceId || audioInputs.value[0].deviceId
     }
   })
 
-  // Lifecycle
-  onMounted(() => {
-    devices.ensurePermissions()
+  function askPermission() {
+    return devices.ensurePermissions()
       .then(() => nextTick())
       .then(() => {
         if (audioInputs.value.length > 0 && !selectedAudioInput.value) {
@@ -32,15 +31,18 @@ export function useAudioDevice() {
       })
       .catch((error) => {
         console.error('Error ensuring permissions:', error)
+        throw error // Re-throw so callers can handle the error
       })
-  })
+  }
 
   return {
     audioInputs,
     selectedAudioInput,
     stream,
-    stopStream,
-    startStream,
     deviceConstraints,
+
+    askPermission,
+    startStream,
+    stopStream,
   }
 }

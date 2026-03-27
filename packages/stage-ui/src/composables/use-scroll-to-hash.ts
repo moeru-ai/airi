@@ -106,7 +106,7 @@ export function useScrollToHash(
 
       // Retry if element not yet found
       if (attempt < maxRetries) {
-        retryTimer = window.setTimeout(() => scrollToHash(hash, attempt + 1), retryDelay)
+        retryTimer = window.setTimeout(scrollToHash, retryDelay, hash, attempt + 1)
       }
     })
   }

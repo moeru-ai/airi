@@ -7,6 +7,8 @@ import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute } from 'vue-router'
 
+import HeaderLink from '../components/Layouts/HeaderLink.vue'
+
 import { themeColorFromValue, useThemeColor } from '../composables/theme-color'
 
 const route = useRoute()
@@ -76,10 +78,19 @@ onMounted(() => updateThemeColor())
       paddingRight: 'env(safe-area-inset-right, 0px)',
       paddingLeft: 'env(safe-area-inset-left, 0px)',
     }"
-    h-full w-full
+    h-full w-full flex="~ col"
   >
+    <!-- Header -->
+    <div
+      v-if="!isStageTamagotchi()"
+      class="px-0 py-1 hidden sm:block md:px-3 md:py-3"
+      w-full gap-2
+      bg="$bg-color"
+    >
+      <HeaderLink />
+    </div>
     <!-- Content -->
-    <div class="max-h-full px-3 py-0 2xl:max-w-screen-2xl md:py-0 xl:px-4" flex="~ col" mx-auto h-full min-h-0>
+    <div class="px-3 py-0 2xl:max-w-screen-2xl md:py-0 xl:px-4" flex="~ col" mx-auto min-h-0 w-full flex-1>
       <PageHeader
         :title="routeHeaderMetadata?.title || ''"
         :subtitle="routeHeaderMetadata?.subtitle"

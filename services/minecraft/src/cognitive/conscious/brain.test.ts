@@ -285,19 +285,22 @@ inv;
     expect(enqueueSpy).not.toHaveBeenCalled()
   })
 
-  it('does not pass a timeout to llmAgent calls', async () => {
+  it('uses attempt timeout guard so hanging llm call cannot stall processEvent', async () => {
     const deps: any = createDeps('await chat("hi")')
-    deps.llmAgent.callLLM = vi.fn(async () => ({
-      text: 'await chat("hi")',
-      usage: {},
-    }))
+    deps.llmAgent.callLLM = vi.fn(async () => await new Promise(() => {}))
     const brain: any = new Brain(deps)
+    brain.llmAttemptTimeoutMs = 25
+    brain.llmTurnDeadlineMs = 80
 
-    await brain.processEvent({} as any, createPerceptionEvent())
+    const outcome = await Promise.race([
+      brain.processEvent({} as any, createPerceptionEvent()).then(() => 'done'),
+      new Promise(resolve => setTimeout(resolve, 350, 'timeout')),
+    ])
 
+    expect(outcome).toBe('done')
     expect(deps.llmAgent.callLLM).toHaveBeenCalledTimes(1)
     const llmCallOptions = deps.llmAgent.callLLM.mock.calls[0]?.[0]
-    expect(llmCallOptions?.timeoutMs).toBeUndefined()
+    expect(typeof llmCallOptions?.timeoutMs).toBe('number')
     expect(llmCallOptions?.abortSignal).toBeInstanceOf(AbortSignal)
   })
 
@@ -316,6 +319,8 @@ inv;
       })
     })
     const brain: any = new Brain(deps)
+    brain.llmAttemptTimeoutMs = 2000
+    brain.llmTurnDeadlineMs = 2000
 
     const processing = brain.processEvent({} as any, createPerceptionEvent()).then(() => 'done')
     await started
@@ -323,7 +328,7 @@ inv;
 
     const outcome = await Promise.race([
       processing,
-      new Promise(resolve => setTimeout(() => resolve('timeout'), 500)),
+      new Promise(resolve => setTimeout(resolve, 500, 'timeout')),
     ])
 
     expect(outcome).toBe('done')
@@ -528,11 +533,11 @@ describe('brain queue coalescing', () => {
 
     const droppedResolver = vi.fn()
     brain.queue = [
-      ...Array.from({ length: 256 }, () => ({
+      ...Array.from({ length: 256 }).fill({
         event: createPerceptionEvent(),
         resolve: vi.fn(),
         reject: vi.fn(),
-      })),
+      }),
       {
         event: createNoActionFollowupEvent(),
         resolve: droppedResolver,
@@ -552,11 +557,11 @@ describe('brain queue coalescing', () => {
     const feedbackResolver = vi.fn()
 
     brain.queue = [
-      ...Array.from({ length: 256 }, () => ({
+      ...Array.from({ length: 256 }).fill({
         event: createPerceptionEvent(),
         resolve: vi.fn(),
         reject: vi.fn(),
-      })),
+      }),
       {
         event: createFeedbackEvent(),
         resolve: feedbackResolver,
@@ -607,7 +612,7 @@ describe('brain control action queue', () => {
     const brain: any = new Brain(deps)
     const outcome = await Promise.race([
       brain.processEvent({} as any, createPerceptionEvent()).then(() => 'done'),
-      new Promise(resolve => setTimeout(() => resolve('timeout'), 80)),
+      new Promise(resolve => setTimeout(resolve, 250, 'timeout')),
     ])
 
     expect(outcome).toBe('done')

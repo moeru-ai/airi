@@ -17,8 +17,8 @@ function handleNavigation() {
   <header mb-1 w-full flex items-center justify-between gap-2>
     <HeaderLink />
     <div flex items-center gap-2>
-      <ProfileSwitcherPopover @create="handleNavigation" @manage="handleNavigation" />
       <ActionAbout />
+      <ProfileSwitcherPopover @manage="handleNavigation" />
       <HeaderAvatar />
     </div>
   </header>

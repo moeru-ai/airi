@@ -3,7 +3,6 @@ import type { MetadataEventSource } from '@proj-airi/server-sdk'
 interface EventSourcePayload {
   source?: string
   metadata?: { source?: MetadataEventSource }
-  eventMetadata?: { source?: MetadataEventSource }
 }
 
 function formatMetadataSource(source?: MetadataEventSource) {
@@ -18,8 +17,7 @@ function formatMetadataSource(source?: MetadataEventSource) {
 
 export function getEventSourceKey(event: EventSourcePayload, fallback = 'unknown') {
   return (
-    formatMetadataSource(event.eventMetadata?.source)
-    ?? formatMetadataSource(event.metadata?.source)
+    formatMetadataSource(event.metadata?.source)
     ?? event.source
     ?? fallback
   )

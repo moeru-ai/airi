@@ -194,8 +194,7 @@ export function isHostile(mob: Entity): boolean {
 }
 
 function levenshteinDistance(a: string, b: string): number {
-  const matrix: number[][] = Array.from({ length: a.length + 1 }, () =>
-    Array.from({ length: b.length + 1 }, () => 0))
+  const matrix: number[][] = Array.from({ length: a.length + 1 }, () => Array.from({ length: b.length + 1 }, () => 0))
 
   for (let i = 0; i <= a.length; i++)
     matrix[i][0] = i

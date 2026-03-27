@@ -91,11 +91,11 @@ async function handleListSessions() {
         <img
           v-if="userAvatar"
           :src="userAvatar"
-          class="h-8 w-8 rounded-full object-cover ring-2 ring-white dark:ring-neutral-900"
+          class="h-7 w-7 rounded-full object-cover"
         >
         <div
           v-else
-          class="h-8 w-8 flex items-center justify-center rounded-full bg-neutral-200 text-neutral-500 ring-2 ring-white dark:bg-neutral-700 dark:text-neutral-400 dark:ring-neutral-900"
+          class="h-7 w-7 flex items-center justify-center rounded-full bg-neutral-200 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-400"
         >
           <div class="i-solar:user-bold-duotone text-lg" />
         </div>
@@ -109,7 +109,7 @@ async function handleListSessions() {
         />
       </button>
 
-      <transition
+      <Transition
         enter-active-class="transition duration-200 ease-out"
         enter-from-class="translate-y-1 opacity-0"
         enter-to-class="translate-y-0 opacity-100"
@@ -159,7 +159,7 @@ async function handleListSessions() {
             </button>
           </div>
         </div>
-      </transition>
+      </Transition>
     </div>
   </div>
 </template>

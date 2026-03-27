@@ -1,37 +1,49 @@
-import { env } from 'node:process'
-
-import { createOpenRouter } from '@xsai-ext/providers/create'
 import { describe, expect, it } from 'vitest'
 
-import { attemptForToolsCompatibilityDiscovery } from './llm'
+import { isToolRelatedError } from './llm'
 
-function doesHaveOpenRouterApiKey() {
-  const apiKey = env.LLM_API_OPENROUTER_API_KEY
-  if (!apiKey) {
-    console.warn('Skipping llm store tests, because LLM_API_OPENROUTER_API_KEY is not set')
+describe('isToolRelatedError', () => {
+  const positives: [provider: string, msg: string][] = [
+    ['ollama', 'llama3 does not support tools'],
+    ['ollama', 'phi does not support tools'],
+    ['openrouter', 'No endpoints found that support tool use'],
+    ['openai-compatible', 'Invalid schema for function \'myFunc\': \'dict\' is not valid under any of the given schemas'],
+    ['openai-compatible', 'invalid_function_parameters'],
+    ['openai-compatible', 'invalid function parameters'],
+    ['azure', 'Functions are not supported at this time'],
+    ['azure', 'Unrecognized request argument supplied: tools'],
+    ['azure', 'Unrecognized request arguments supplied: tool_choice, tools'],
+    ['google', 'Tool use with function calling is unsupported'],
+    ['groq', 'tool_use_failed'],
+    ['groq', 'Error code: tool_use_failed - Failed to call a function'],
+    ['anthropic', 'This model does not support function calling'],
+    ['anthropic', 'does not support function_calling'],
+    ['cloudflare', 'tools is not supported'],
+    ['cloudflare', 'tool is not supported for this model'],
+    ['cloudflare', 'tools are not supported'],
+  ]
+
+  const negatives = [
+    'network error',
+    'timeout',
+    'rate limit exceeded',
+    'invalid api key',
+    'model not found',
+    'context length exceeded',
+    '',
+  ]
+
+  for (const [provider, msg] of positives) {
+    it(`matches [${provider}]: "${msg}"`, () => {
+      expect(isToolRelatedError(msg)).toBe(true)
+      expect(isToolRelatedError(new Error(msg))).toBe(true)
+    })
   }
 
-  return !!apiKey
-}
-
-const hasOpenRouterApiKey = doesHaveOpenRouterApiKey()
-
-describe.skipIf(!hasOpenRouterApiKey)('llm store', { timeout: 60000 }, async () => {
-  it('should be false for phi-4', async () => {
-    // TODO: base url should not be hardcoded, wait for https://github.com/moeru-ai/xsai/pull/194
-    const res1 = await attemptForToolsCompatibilityDiscovery('microsoft/phi-4', createOpenRouter(env.LLM_API_OPENROUTER_API_KEY!, 'https://openrouter.ai/api/v1/'), [])
-    expect(res1).toBe(false)
-  })
-
-  it('should be false for gpt-4o-mini', async () => {
-    // TODO: base url should not be hardcoded, wait for https://github.com/moeru-ai/xsai/pull/194
-    const res1 = await attemptForToolsCompatibilityDiscovery('openai/gpt-4o-mini', createOpenRouter(env.LLM_API_OPENROUTER_API_KEY!, 'https://openrouter.ai/api/v1/'), [])
-    expect(res1).toBe(false)
-  })
-
-  it('should be true for gpt-4o', async () => {
-    // TODO: base url should not be hardcoded, wait for https://github.com/moeru-ai/xsai/pull/194
-    const res2 = await attemptForToolsCompatibilityDiscovery('openai/gpt-4o', createOpenRouter(env.LLM_API_OPENROUTER_API_KEY!, 'https://openrouter.ai/api/v1/'), [])
-    expect(res2).toBe(true)
-  })
+  for (const msg of negatives) {
+    it(`rejects: "${msg}"`, () => {
+      expect(isToolRelatedError(msg)).toBe(false)
+      expect(isToolRelatedError(new Error(msg))).toBe(false)
+    })
+  }
 })
