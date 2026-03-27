@@ -85,6 +85,8 @@
 - 真正补齐消息还是靠 `pullMessages`
 - 广播只是为了降低拉取延迟，不代表存在旧式 `sync` 端点
 
+如果要改 Redis key / channel 构造、Pub/Sub payload 或 Streams 边界，先看 `redis-boundaries-and-pubsub.md`。
+
 ## OpenTelemetry
 
 初始化在 `src/libs/otel.ts`。
