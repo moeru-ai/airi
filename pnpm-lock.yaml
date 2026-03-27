@@ -169,8 +169,8 @@ catalogs:
       specifier: ^0.4.2
       version: 0.4.2
     electron:
-      specifier: ^41.0.3
-      version: 41.0.3
+      specifier: ^40.8.3
+      version: 40.8.3
     embla-carousel-vue:
       specifier: ^9.0.0-rc01
       version: 9.0.0-rc01
@@ -623,7 +623,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 1.0.0-beta.2(electron@41.0.3)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -692,7 +692,7 @@ importers:
         version: 0.4.4
       '@xsai-transformers/embed':
         specifier: ^0.0.11
-        version: 0.0.11(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 0.0.11(electron@41.0.3)
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
@@ -1020,7 +1020,7 @@ importers:
         version: 11.3.0
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 1.0.0-beta.2(electron@40.8.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -1089,10 +1089,10 @@ importers:
         version: 0.4.4
       '@xsai-transformers/embed':
         specifier: ^0.0.11
-        version: 0.0.11(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 0.0.11(electron@40.8.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@xsai-transformers/transcription':
         specifier: ^0.0.11
-        version: 0.0.11(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 0.0.11(electron@40.8.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
@@ -1246,13 +1246,13 @@ importers:
     devDependencies:
       '@electron-toolkit/preload':
         specifier: ^3.0.2
-        version: 3.0.2(electron@41.0.3)
+        version: 3.0.2(electron@40.8.3)
       '@electron-toolkit/tsconfig':
         specifier: ^2.0.0
         version: 2.0.0(@types/node@24.12.0)
       '@electron-toolkit/utils':
         specifier: ^4.0.0
-        version: 4.0.0(electron@41.0.3)
+        version: 4.0.0(electron@40.8.3)
       '@electron/notarize':
         specifier: 'catalog:'
         version: 3.1.1
@@ -1369,7 +1369,7 @@ importers:
         version: 0.45.1(@electric-sql/pglite@0.4.1)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.8)
       electron:
         specifier: 'catalog:'
-        version: 41.0.3
+        version: 40.8.3
       electron-builder:
         specifier: ^26.8.1
         version: 26.8.1(electron-builder-squirrel-windows@26.8.1)
@@ -1444,7 +1444,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 1.0.0-beta.2(electron@41.0.3)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -1516,7 +1516,7 @@ importers:
         version: 0.4.4
       '@xsai-transformers/embed':
         specifier: ^0.0.11
-        version: 0.0.11(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 0.0.11(electron@41.0.3)
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
@@ -2042,7 +2042,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.2(electron@40.8.3)
+        version: 1.0.0-beta.2(electron@40.8.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       builder-util-runtime:
         specifier: 'catalog:'
         version: 9.5.1
@@ -2088,7 +2088,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.2(electron@40.8.3)
+        version: 1.0.0-beta.2(electron@40.8.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2181,7 +2181,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 1.0.0-beta.2(electron@41.0.3)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2193,7 +2193,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 1.0.0-beta.2(electron@41.0.3)
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.4.0-beta.13
@@ -2202,7 +2202,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 1.0.0-beta.2(electron@41.0.3)
       '@proj-airi/plugin-protocol':
         specifier: workspace:*
         version: link:../plugin-protocol
@@ -2277,7 +2277,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 1.0.0-beta.2(electron@41.0.3)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2380,7 +2380,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 1.0.0-beta.2(electron@41.0.3)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2514,7 +2514,7 @@ importers:
         version: 3.0.2(electron@41.0.3)
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 1.0.0-beta.2(electron@41.0.3)
       '@nekopaw/tempora':
         specifier: 'catalog:'
         version: 0.4.0-alpha.1
@@ -2538,7 +2538,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 1.0.0-beta.2(electron@41.0.3)
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../audio
@@ -2607,10 +2607,10 @@ importers:
         version: 0.4.4
       '@xsai-transformers/embed':
         specifier: ^0.0.11
-        version: 0.0.11(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 0.0.11(electron@41.0.3)
       '@xsai-transformers/shared':
         specifier: ^0.0.11
-        version: 0.0.11(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 0.0.11(electron@41.0.3)
       '@xsai/embed':
         specifier: 'catalog:'
         version: 0.4.4
@@ -2996,7 +2996,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 1.0.0-beta.2(electron@41.0.3)
       '@pixiv/three-vrm':
         specifier: ^3.5.1
         version: 3.5.1(@types/three@0.183.1)(three@0.183.2)
@@ -3266,7 +3266,7 @@ importers:
         version: 1.2.4
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+        version: 1.0.0-beta.2(electron@41.0.3)
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../../packages/server-sdk
@@ -18748,6 +18748,10 @@ snapshots:
     dependencies:
       electron: 39.7.0
 
+  '@electron-toolkit/preload@3.0.2(electron@40.8.3)':
+    dependencies:
+      electron: 40.8.3
+
   '@electron-toolkit/preload@3.0.2(electron@41.0.3)':
     dependencies:
       electron: 41.0.3
@@ -18756,9 +18760,9 @@ snapshots:
     dependencies:
       '@types/node': 24.12.0
 
-  '@electron-toolkit/utils@4.0.0(electron@41.0.3)':
+  '@electron-toolkit/utils@4.0.0(electron@40.8.3)':
     dependencies:
-      electron: 41.0.3
+      electron: 40.8.3
 
   '@electron/asar@3.4.1':
     dependencies:
@@ -20032,13 +20036,20 @@ snapshots:
       - supports-color
       - typescript
 
-  '@moeru/eventa@0.3.0(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))':
+  '@moeru/eventa@0.3.0(electron@40.8.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))':
+    dependencies:
+      nanoid: 5.1.7
+      picomatch: 4.0.3
+    optionalDependencies:
+      electron: 40.8.3
+      h3: 2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d)))
+
+  '@moeru/eventa@0.3.0(electron@41.0.3)':
     dependencies:
       nanoid: 5.1.7
       picomatch: 4.0.3
     optionalDependencies:
       electron: 41.0.3
-      h3: 2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d)))
 
   '@moeru/eventa@1.0.0-beta.2(electron@39.7.0)':
     dependencies:
@@ -20047,20 +20058,20 @@ snapshots:
     optionalDependencies:
       electron: 39.7.0
 
-  '@moeru/eventa@1.0.0-beta.2(electron@40.8.3)':
+  '@moeru/eventa@1.0.0-beta.2(electron@40.8.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))':
     dependencies:
       nanoid: 5.1.7
       picomatch: 4.0.3
     optionalDependencies:
       electron: 40.8.3
+      h3: 2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d)))
 
-  '@moeru/eventa@1.0.0-beta.2(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))':
+  '@moeru/eventa@1.0.0-beta.2(electron@41.0.3)':
     dependencies:
       nanoid: 5.1.7
       picomatch: 4.0.3
     optionalDependencies:
       electron: 41.0.3
-      h3: 2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d)))
 
   '@moeru/std@0.1.0-beta.1': {}
 
@@ -23927,13 +23938,13 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.4.4
 
-  '@xsai-transformers/embed@0.0.11(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))':
+  '@xsai-transformers/embed@0.0.11(electron@40.8.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))':
     dependencies:
       '@huggingface/transformers': 3.8.1
-      '@moeru/eventa': 0.3.0(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+      '@moeru/eventa': 0.3.0(electron@40.8.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@moeru/std': 0.1.0-beta.17
       '@xsai-ext/shared-providers': 0.4.0-beta.12
-      '@xsai-transformers/shared': 0.0.11(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+      '@xsai-transformers/shared': 0.0.11(electron@40.8.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@xsai/embed': 0.4.4
       '@xsai/shared': 0.4.4
       gpuu: 1.0.6
@@ -23941,10 +23952,24 @@ snapshots:
       - electron
       - h3
 
-  '@xsai-transformers/shared@0.0.11(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))':
+  '@xsai-transformers/embed@0.0.11(electron@41.0.3)':
     dependencies:
       '@huggingface/transformers': 3.8.1
-      '@moeru/eventa': 0.3.0(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+      '@moeru/eventa': 0.3.0(electron@41.0.3)
+      '@moeru/std': 0.1.0-beta.17
+      '@xsai-ext/shared-providers': 0.4.0-beta.12
+      '@xsai-transformers/shared': 0.0.11(electron@41.0.3)
+      '@xsai/embed': 0.4.4
+      '@xsai/shared': 0.4.4
+      gpuu: 1.0.6
+    transitivePeerDependencies:
+      - electron
+      - h3
+
+  '@xsai-transformers/shared@0.0.11(electron@40.8.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))':
+    dependencies:
+      '@huggingface/transformers': 3.8.1
+      '@moeru/eventa': 0.3.0(electron@40.8.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@moeru/std': 0.1.0-beta.17
       '@xsai-ext/shared-providers': 0.4.0-beta.12
       '@xsai/shared': 0.4.4
@@ -23954,13 +23979,26 @@ snapshots:
       - h3
       - web-worker
 
-  '@xsai-transformers/transcription@0.0.11(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))':
+  '@xsai-transformers/shared@0.0.11(electron@41.0.3)':
     dependencies:
       '@huggingface/transformers': 3.8.1
-      '@moeru/eventa': 0.3.0(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+      '@moeru/eventa': 0.3.0(electron@41.0.3)
       '@moeru/std': 0.1.0-beta.17
       '@xsai-ext/shared-providers': 0.4.0-beta.12
-      '@xsai-transformers/shared': 0.0.11(electron@41.0.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+      '@xsai/shared': 0.4.4
+      onnxruntime-common: 1.24.3
+    transitivePeerDependencies:
+      - electron
+      - h3
+      - web-worker
+
+  '@xsai-transformers/transcription@0.0.11(electron@40.8.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))':
+    dependencies:
+      '@huggingface/transformers': 3.8.1
+      '@moeru/eventa': 0.3.0(electron@40.8.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
+      '@moeru/std': 0.1.0-beta.17
+      '@xsai-ext/shared-providers': 0.4.0-beta.12
+      '@xsai-transformers/shared': 0.0.11(electron@40.8.3)(h3@2.0.1-rc.19(crossws@0.4.4(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@xsai/embed': 0.4.4
       '@xsai/generate-transcription': 0.4.4
       '@xsai/shared': 0.4.4
