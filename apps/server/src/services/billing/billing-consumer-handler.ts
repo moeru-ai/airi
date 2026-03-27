@@ -3,7 +3,6 @@ import type { BillingStreamMessage } from './billing-mq'
 
 import { useLogger } from '@guiiai/logg'
 
-import * as fluxAuditSchema from '../../schemas/flux-audit-log'
 import * as fluxLedgerSchema from '../../schemas/flux-ledger'
 import * as llmRequestLogSchema from '../../schemas/llm-request-log'
 
@@ -27,13 +26,6 @@ export function createBillingConsumerHandler(db: Database) {
             balanceBefore,
             balanceAfter: event.payload.balanceAfter ?? balanceBefore - event.payload.amount,
             requestId: event.requestId,
-            description: event.payload.source ?? 'LLM request',
-          })
-
-          await db.insert(fluxAuditSchema.fluxAuditLog).values({
-            userId: event.userId,
-            type: 'consumption',
-            amount: -event.payload.amount,
             description: event.payload.source ?? 'LLM request',
           })
 

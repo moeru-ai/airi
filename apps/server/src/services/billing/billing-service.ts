@@ -14,7 +14,6 @@ import { nanoid } from '../../utils/id'
 import { fluxRedisKey } from '../flux'
 
 import * as fluxSchema from '../../schemas/flux'
-import * as fluxAuditSchema from '../../schemas/flux-audit-log'
 import * as fluxLedgerSchema from '../../schemas/flux-ledger'
 import * as stripeSchema from '../../schemas/stripe'
 
@@ -164,14 +163,6 @@ export function createBillingService(
           balanceAfter,
           requestId: input.requestId,
           description: input.description,
-        })
-
-        // Audit log
-        await tx.insert(fluxAuditSchema.fluxAuditLog).values({
-          userId: input.userId,
-          type: 'addition',
-          amount: input.amount,
-          description: input.description,
           metadata: input.auditMetadata,
         })
 
@@ -257,14 +248,6 @@ export function createBillingService(
           balanceBefore,
           balanceAfter,
           requestId: input.stripeEventId,
-          description,
-        })
-
-        // Audit log
-        await tx.insert(fluxAuditSchema.fluxAuditLog).values({
-          userId: input.userId,
-          type: 'addition',
-          amount: input.fluxAmount,
           description,
           metadata: {
             stripeEventId: input.stripeEventId,
@@ -373,14 +356,6 @@ export function createBillingService(
           balanceBefore,
           balanceAfter,
           requestId: input.stripeEventId,
-          description,
-        })
-
-        // Audit log
-        await tx.insert(fluxAuditSchema.fluxAuditLog).values({
-          userId: input.userId,
-          type: 'addition',
-          amount: input.fluxAmount,
           description,
           metadata: {
             stripeEventId: input.stripeEventId,

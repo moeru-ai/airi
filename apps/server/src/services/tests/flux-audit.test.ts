@@ -19,25 +19,27 @@ describe('fluxAuditService', () => {
     service = createFluxAuditService(db)
   })
 
-  it('log should insert a single audit entry', async () => {
+  it('log should insert a single ledger entry', async () => {
     await service.log({
       userId: 'user-audit',
-      type: 'addition',
+      type: 'credit',
       amount: 500,
+      balanceBefore: 0,
+      balanceAfter: 500,
       description: 'Stripe payment',
       metadata: { stripeSessionId: 'sess_123' },
     })
 
     const { records } = await service.getHistory('user-audit', 10, 0)
     expect(records).toHaveLength(1)
-    expect(records[0].type).toBe('addition')
+    expect(records[0].type).toBe('credit')
     expect(records[0].amount).toBe(500)
   })
 
   it('logBatch should insert multiple entries', async () => {
     await service.logBatch([
-      { userId: 'user-audit', type: 'consumption', amount: -10, description: 'gpt-4o' },
-      { userId: 'user-audit', type: 'consumption', amount: -5, description: 'gpt-4o-mini' },
+      { userId: 'user-audit', type: 'debit', amount: 10, balanceBefore: 500, balanceAfter: 490, description: 'gpt-4o' },
+      { userId: 'user-audit', type: 'debit', amount: 5, balanceBefore: 490, balanceAfter: 485, description: 'gpt-4o-mini' },
     ])
 
     const { records } = await service.getHistory('user-audit', 10, 0)
