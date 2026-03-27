@@ -4,10 +4,10 @@ import process from 'node:process'
 
 import { pathToFileURL } from 'node:url'
 
-import { errorMessageFrom } from '@moeru/std'
 import { cac } from 'cac'
 
 import { runApiServer } from '../app'
+import { errorMessageFromUnknown } from '../utils/error-message'
 import { runBillingConsumer } from './run-billing-consumer'
 
 const serverRoles = ['api', 'billing-consumer'] as const
@@ -77,7 +77,7 @@ function isExecutedAsMainModule(): boolean {
 
 if (isExecutedAsMainModule()) {
   void main().catch((error: unknown) => {
-    process.stderr.write(`${errorMessageFrom(error) ?? 'Unknown error'}\n`)
+    process.stderr.write(`${errorMessageFromUnknown(error)}\n`)
     process.exit(1)
   })
 }

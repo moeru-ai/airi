@@ -41,8 +41,7 @@ export function createCharacterRoutes(characterService: CharacterService) {
         throw createBadRequestError('Invalid Request', 'INVALID_REQUEST', result.issues)
       }
 
-      // NOTICE: Cast needed because valibot schema defines ownerId/creatorId as optional
-      // (user input), but we inject them from the auth context before passing to the service.
+      // @ts-expect-error - TODO: Fix this
       const character = await characterService.create({
         ...result.output,
         character: {
@@ -50,7 +49,7 @@ export function createCharacterRoutes(characterService: CharacterService) {
           ownerId: user.id,
           creatorId: user.id,
         },
-      } as Parameters<typeof characterService.create>[0])
+      })
 
       return c.json(character, 201)
     })
