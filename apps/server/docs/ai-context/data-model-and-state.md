@@ -10,7 +10,6 @@
   - Flux 余额与账本
   - Stripe 业务镜像
   - LLM 请求日志
-  - outbox 事件
 - `Redis`
   - Flux 余额缓存
   - 服务配置 KV
@@ -150,19 +149,6 @@
 - 只做追加写入
 - 明确不加 user 外键，以避免高并发写入的额外约束成本
 
-### Outbox
-
-- `outbox_events`
-
-来源文件：
-
-- `src/schemas/outbox-events.ts`
-
-说明：
-
-- 本质上是 DB 内事件暂存区
-- 通过 `claimedBy + claimExpiresAt + publishedAt` 实现 lease/claim 分发
-
 ## 服务与状态写入边界
 
 ### `createFluxService()`
@@ -177,7 +163,7 @@
 
 - 扣费
 - 充值
-- ledger / audit / outbox 写入
+- ledger / audit 写入
 
 ### `createBillingService()`
 
@@ -185,8 +171,9 @@
 
 - 所有余额写操作
 - DB 事务
-- ledger / audit / outbox 联动
-- 事务完成后 best-effort 更新 Redis
+- debitFlux：事务内仅更新余额；事务后 XADD Redis Stream，ledger/audit 由 billing-consumer 异步写入
+- credit 方法：事务内同步写 ledger / audit
+- 事务提交后 best-effort `redis.set` 更新 Flux 余额缓存
 
 这是所有 Flux 写路径应收敛到的中心。
 
@@ -212,8 +199,7 @@
 写入来源：
 
 - `fluxService.getFlux()` cache miss 后回填
-- `billingService` 余额事务成功后 best-effort 更新
-- `cache-sync-consumer` 消费 `flux.debited` / `flux.credited` 后同步
+- `billingService` 余额事务提交后 best-effort `redis.set` 直接更新（API 进程内同步）
 
 ### 配置 KV
 
@@ -241,8 +227,8 @@
 
 1. `SELECT user_flux FOR UPDATE`
 2. 计算新余额
-3. 写余额
-4. 写 ledger / audit / outbox
+3. 写余额（debitFlux 事务内仅此一步；credit 方法同步写 ledger / audit）
+4. 事务提交后 XADD Redis Stream（debitFlux）或直接返回（credit）
 
 这保证同一用户余额更新是串行化的。
 
@@ -253,15 +239,6 @@
 - `stripe_checkout_session.fluxCredited`
 - `stripe_invoice.fluxCredited`
 - `flux_ledger(userId, requestId)` 唯一约束
-
-### outbox 并发
-
-`outbox-service.ts` 使用：
-
-- `FOR UPDATE SKIP LOCKED`
-- `claimExpiresAt`
-
-这允许多个 dispatcher 并行拉取待发布事件。
 
 ## 现有代码中的结构信号
 

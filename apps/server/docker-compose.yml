@@ -53,28 +53,11 @@ services:
       timeout: 5s
       retries: 5
 
-  outbox-dispatcher:
+  billing-consumer:
     build:
       context: ../..
       dockerfile: apps/server/Dockerfile
-    command: ['pnpm', '-F', '@proj-airi/server', 'run', 'server', 'outbox-dispatcher']
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    env_file:
-      - path: .env
-        required: false
-      - path: .env.local
-        required: false
-    restart: unless-stopped
-
-  cache-sync-consumer:
-    build:
-      context: ../..
-      dockerfile: apps/server/Dockerfile
-    command: ['pnpm', '-F', '@proj-airi/server', 'run', 'server', 'cache-sync-consumer']
+    command: ['pnpm', '-F', '@proj-airi/server', 'run', 'server', 'billing-consumer']
     depends_on:
       db:
         condition: service_healthy

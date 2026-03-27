@@ -2,8 +2,9 @@ import type Redis from 'ioredis'
 
 import type { Database } from '../libs/db'
 import type { RevenueMetrics } from '../libs/otel'
+import type { BillingEvent } from './billing-events'
+import type { BillingMqService } from './billing-mq'
 import type { ConfigKVService } from './config-kv'
-import type { OutboxService } from './outbox-service'
 
 import { useLogger } from '@guiiai/logg'
 import { eq } from 'drizzle-orm'
@@ -22,7 +23,7 @@ const logger = useLogger('billing-service')
 export function createBillingService(
   db: Database,
   redis: Redis,
-  outboxService: OutboxService,
+  billingMq: BillingMqService,
   _configKV: ConfigKVService,
   metrics?: RevenueMetrics | null,
 ) {
@@ -39,10 +40,29 @@ export function createBillingService(
     }
   }
 
+  /**
+   * Publish a billing event to the Redis Stream.
+   * Best-effort: failures are logged but not re-thrown so callers are not blocked.
+   */
+  async function publishEvent(event: BillingEvent): Promise<void> {
+    try {
+      await billingMq.publish(event)
+    }
+    catch (error) {
+      logger.withError(error).withFields({
+        eventId: event.eventId,
+        eventType: event.eventType,
+        userId: event.userId,
+      }).error('Failed to publish billing event to stream')
+    }
+  }
+
   return {
     /**
      * Debit flux from a user's balance within a DB transaction.
-     * Writes flux_ledger + flux_audit_log + outbox event atomically.
+     * The transaction ONLY locks the row and updates the balance.
+     * Ledger + audit entries are written by the billing-mq consumer
+     * after it processes the flux.debited event published post-commit.
      */
     async debitFlux(input: {
       userId: string
@@ -75,54 +95,36 @@ export function createBillingService(
           .set({ flux: balanceAfter, updatedAt: new Date() })
           .where(eq(fluxSchema.userFlux.userId, input.userId))
 
-        // 3. Append ledger entry
-        await tx.insert(fluxLedgerSchema.fluxLedger).values({
-          userId: input.userId,
-          type: 'debit',
-          amount: input.amount,
-          balanceBefore,
-          balanceAfter,
-          requestId: input.requestId,
-          description: input.description ?? 'LLM request',
-        })
-
-        // 4. Append audit log (user-facing history)
-        await tx.insert(fluxAuditSchema.fluxAuditLog).values({
-          userId: input.userId,
-          type: 'consumption',
-          amount: -input.amount,
-          description: input.description ?? 'LLM request',
-        })
-
-        // 5. Enqueue outbox event
-        await outboxService.enqueue(tx, {
-          eventId: nanoid(),
-          eventType: 'flux.debited',
-          aggregateId: input.userId,
-          userId: input.userId,
-          requestId: input.requestId,
-          occurredAt: new Date().toISOString(),
-          schemaVersion: 1,
-          payload: {
-            amount: input.amount,
-            balanceAfter,
-            source: 'llm.request',
-          },
-        })
-
-        return { userId: input.userId, flux: balanceAfter }
+        return { userId: input.userId, flux: balanceAfter, balanceBefore }
       })
 
-      // 6. Update Redis cache after commit (best-effort)
+      // 3. Update Redis cache after commit (best-effort)
       await updateRedisCache(input.userId, result.flux)
 
+      // 4. Publish flux.debited event to stream; ledger + audit written by consumer
+      await publishEvent({
+        eventId: nanoid(),
+        eventType: 'flux.debited',
+        aggregateId: input.userId,
+        userId: input.userId,
+        requestId: input.requestId,
+        occurredAt: new Date().toISOString(),
+        schemaVersion: 1,
+        payload: {
+          amount: input.amount,
+          balanceAfter: result.flux,
+          source: 'llm.request',
+        },
+      })
+
       logger.withFields({ userId: input.userId, amount: input.amount, balance: result.flux }).log('Debited flux')
-      return result
+      return { userId: result.userId, flux: result.flux }
     },
 
     /**
      * Credit flux to a user's balance within a DB transaction.
      * Generic credit method for non-Stripe flows (e.g. admin grants).
+     * Ledger + audit entries are written inside the transaction for immediate visibility.
      */
     async creditFlux(input: {
       userId: string
@@ -173,26 +175,26 @@ export function createBillingService(
           metadata: input.auditMetadata,
         })
 
-        // Outbox event
-        await outboxService.enqueue(tx, {
-          eventId: nanoid(),
-          eventType: 'flux.credited',
-          aggregateId: input.userId,
-          userId: input.userId,
-          requestId: input.requestId,
-          occurredAt: new Date().toISOString(),
-          schemaVersion: 1,
-          payload: {
-            amount: input.amount,
-            balanceAfter,
-            source: input.source,
-          },
-        })
-
         return { balanceBefore, balanceAfter }
       })
 
       await updateRedisCache(input.userId, result.balanceAfter)
+
+      // Publish flux.credited event after commit
+      await publishEvent({
+        eventId: nanoid(),
+        eventType: 'flux.credited',
+        aggregateId: input.userId,
+        userId: input.userId,
+        requestId: input.requestId,
+        occurredAt: new Date().toISOString(),
+        schemaVersion: 1,
+        payload: {
+          amount: input.amount,
+          balanceAfter: result.balanceAfter,
+          source: input.source,
+        },
+      })
 
       logger.withFields({ userId: input.userId, amount: input.amount, balance: result.balanceAfter }).log('Credited flux')
       return result
@@ -201,6 +203,7 @@ export function createBillingService(
     /**
      * Credit flux from a Stripe checkout session (one-time payment).
      * Idempotent: checks fluxCredited flag before applying.
+     * Ledger + audit entries are written inside the transaction for immediate visibility.
      */
     async creditFluxFromStripeCheckout(input: {
       stripeEventId: string
@@ -270,9 +273,15 @@ export function createBillingService(
           },
         })
 
-        // Outbox events
+        return { applied: true, balanceAfter }
+      })
+
+      if (txResult.applied && txResult.balanceAfter != null) {
+        await updateRedisCache(input.userId, txResult.balanceAfter)
+
+        // Publish both events after commit
         const occurredAt = new Date().toISOString()
-        await outboxService.enqueue(tx, {
+        await publishEvent({
           eventId: nanoid(),
           eventType: 'flux.credited',
           aggregateId: input.userId,
@@ -282,12 +291,12 @@ export function createBillingService(
           schemaVersion: 1,
           payload: {
             amount: input.fluxAmount,
-            balanceAfter,
+            balanceAfter: txResult.balanceAfter,
             source: 'stripe.checkout.completed',
           },
         })
 
-        await outboxService.enqueue(tx, {
+        await publishEvent({
           eventId: nanoid(),
           eventType: 'stripe.checkout.completed',
           aggregateId: input.stripeSessionId,
@@ -302,12 +311,6 @@ export function createBillingService(
             currency: input.currency ?? 'unknown',
           },
         })
-
-        return { applied: true, balanceAfter }
-      })
-
-      if (txResult.applied && txResult.balanceAfter != null) {
-        await updateRedisCache(input.userId, txResult.balanceAfter)
       }
 
       return txResult
@@ -316,6 +319,7 @@ export function createBillingService(
     /**
      * Credit flux from a Stripe invoice payment (subscription).
      * Idempotent: checks fluxCredited flag on the invoice record.
+     * Ledger + audit entries are written inside the transaction for immediate visibility.
      */
     async creditFluxFromInvoice(input: {
       stripeEventId: string
@@ -385,8 +389,14 @@ export function createBillingService(
           },
         })
 
-        // Outbox event
-        await outboxService.enqueue(tx, {
+        return { applied: true, balanceAfter }
+      })
+
+      if (txResult.applied && txResult.balanceAfter != null) {
+        await updateRedisCache(input.userId, txResult.balanceAfter)
+
+        // Publish flux.credited event after commit
+        await publishEvent({
           eventId: nanoid(),
           eventType: 'flux.credited',
           aggregateId: input.userId,
@@ -396,16 +406,10 @@ export function createBillingService(
           schemaVersion: 1,
           payload: {
             amount: input.fluxAmount,
-            balanceAfter,
+            balanceAfter: txResult.balanceAfter,
             source: 'invoice.paid',
           },
         })
-
-        return { applied: true, balanceAfter }
-      })
-
-      if (txResult.applied && txResult.balanceAfter != null) {
-        await updateRedisCache(input.userId, txResult.balanceAfter)
       }
 
       return txResult
