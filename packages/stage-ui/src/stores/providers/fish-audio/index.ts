@@ -47,7 +47,7 @@ export interface FishAudioSearchResult {
 }
 
 export function createFishAudioProvider(config: FishAudioConfig): SpeechProvider {
-  const baseUrl = config.baseUrl?.endsWith('/') ? config.baseUrl : config.baseUrl ? `${config.baseUrl}/` : FISH_AUDIO_BASE_URL
+  const baseUrl = resolveBaseUrl(config.baseUrl)
 
   return {
     speech: () => ({
