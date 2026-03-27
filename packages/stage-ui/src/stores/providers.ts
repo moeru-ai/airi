@@ -1301,8 +1301,8 @@ export const useProvidersStore = defineStore('providers', () => {
       createProvider: async (config) => {
         const { createFishAudioProvider } = await import('./providers/fish-audio')
         return createFishAudioProvider({
-          apiKey: (config.apiKey as string).trim(),
-          baseUrl: (config.baseUrl as string).trim(),
+          apiKey: ((config.apiKey as string) || '').trim(),
+          baseUrl: ((config.baseUrl as string) || '').trim(),
           model: config.model as string,
           referenceId: config.referenceId as string,
           format: config.format as 'wav' | 'pcm' | 'mp3' | 'opus',
