@@ -744,6 +744,9 @@ pages:
       openai:
         description: openai.com
         title: OpenAI
+      azure-openai:
+        description: Azure OpenAI API
+        title: Azure OpenAI
       openai-compatible:
         description: Tương thích OpenAI
         title: Tương thích OpenAI
