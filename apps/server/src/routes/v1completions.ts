@@ -1,8 +1,9 @@
 import type { Context } from 'hono'
 
+import type { MqService } from '../libs/mq'
 import type { LlmMetrics } from '../libs/otel'
 import type { UsageInfo } from '../services/billing/billing'
-import type { BillingMqService } from '../services/billing/billing-mq'
+import type { BillingEvent } from '../services/billing/billing-events'
 import type { BillingService } from '../services/billing/billing-service'
 import type { ConfigKVService } from '../services/config-kv'
 import type { FluxService } from '../services/flux'
@@ -42,7 +43,7 @@ function normalizeBaseUrl(gatewayBaseUrl: string): string {
   return gatewayBaseUrl.endsWith('/') ? gatewayBaseUrl : `${gatewayBaseUrl}/`
 }
 
-export function createV1CompletionsRoutes(fluxService: FluxService, billingService: BillingService, configKV: ConfigKVService, billingMq: BillingMqService, llm?: LlmMetrics | null) {
+export function createV1CompletionsRoutes(fluxService: FluxService, billingService: BillingService, configKV: ConfigKVService, billingMq: MqService<BillingEvent>, llm?: LlmMetrics | null) {
   const logger = useLogger('v1-completions').useGlobalConfig()
 
   function recordMetrics(opts: { model: string, status: number, type: string, durationMs: number, fluxConsumed: number, promptTokens?: number, completionTokens?: number }) {
@@ -153,7 +154,12 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
           }
         }
         finally {
-          await writer.close()
+          try {
+            await writer.close()
+          }
+          catch (err) {
+            logger.withError(err).warn('Failed to close stream writer')
+          }
 
           // Extract usage from final SSE data lines
           let usage: UsageInfo = {}

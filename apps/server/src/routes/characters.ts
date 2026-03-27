@@ -41,6 +41,8 @@ export function createCharacterRoutes(characterService: CharacterService) {
         throw createBadRequestError('Invalid Request', 'INVALID_REQUEST', result.issues)
       }
 
+      // NOTICE: Cast needed because valibot schema defines ownerId/creatorId as optional
+      // (user input), but we inject them from the auth context before passing to the service.
       const character = await characterService.create({
         ...result.output,
         character: {

@@ -129,7 +129,7 @@ export function initOtel(env: Env): OtelInstance | undefined {
 
   // Head-based sampling ratio: 1.0 = 100% (default), 0.1 = 10%, etc.
   // Metrics are always 100% accurate regardless of this setting.
-  const samplingRatio = Number.parseFloat(env.OTEL_TRACES_SAMPLING_RATIO)
+  const samplingRatio = env.OTEL_TRACES_SAMPLING_RATIO
   const sampler = new ParentBasedSampler({
     root: new TraceIdRatioBasedSampler(samplingRatio),
   })

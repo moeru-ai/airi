@@ -17,6 +17,7 @@ import { authGuard } from '../middlewares/auth'
 import { configGuard } from '../middlewares/config-guard'
 import { rateLimiter } from '../middlewares/rate-limit'
 import { createBadRequestError, createServiceUnavailableError } from '../utils/error'
+import { resolveTrustedRequestOrigin } from '../utils/origin'
 
 const logger = useLogger('stripe')
 
@@ -61,6 +62,11 @@ export function createStripeRoutes(
       const customer = await stripeService.getCustomerByUserId(user.id)
       const stripeCustomerId = customer?.stripeCustomerId
 
+      const redirectBase = resolveTrustedRequestOrigin(c.req.raw)
+      if (!redirectBase) {
+        throw createBadRequestError('Missing trusted request origin', 'INVALID_ORIGIN')
+      }
+
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         line_items: [
@@ -76,8 +82,8 @@ export function createStripeRoutes(
           },
         ],
         mode: 'payment',
-        success_url: `${env.CLIENT_URL}/settings/flux?success=true`,
-        cancel_url: `${env.CLIENT_URL}/settings/flux?canceled=true`,
+        success_url: `${redirectBase}/settings/flux?success=true`,
+        cancel_url: `${redirectBase}/settings/flux?canceled=true`,
         customer: stripeCustomerId,
         customer_email: stripeCustomerId ? undefined : user.email,
         metadata: {
@@ -132,9 +138,14 @@ export function createStripeRoutes(
       if (!customer)
         throw createBadRequestError('No billing account found', 'NO_CUSTOMER')
 
+      const portalReturnBase = resolveTrustedRequestOrigin(c.req.raw)
+      if (!portalReturnBase) {
+        throw createBadRequestError('Missing trusted request origin', 'INVALID_ORIGIN')
+      }
+
       const portalSession = await stripe.billingPortal.sessions.create({
         customer: customer.stripeCustomerId,
-        return_url: `${env.CLIENT_URL}/settings/flux`,
+        return_url: `${portalReturnBase}/settings/flux`,
       })
 
       return c.json({ url: portalSession.url })

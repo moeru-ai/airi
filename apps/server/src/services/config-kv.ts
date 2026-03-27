@@ -40,9 +40,31 @@ const KEY_PREFIX = 'config:'
 function parseValue<K extends keyof ConfigDefinitions>(key: K, raw: string): ConfigDefinitions[K] {
   if (key === 'FLUX_PACKAGES')
     return JSON.parse(raw) as ConfigDefinitions[K]
-  if (NUMERIC_KEYS.has(key))
-    return Number(raw) as ConfigDefinitions[K]
+  if (NUMERIC_KEYS.has(key)) {
+    const num = Number(raw)
+    if (!Number.isFinite(num))
+      throw new Error(`Config key ${key} has non-finite numeric value: ${raw}`)
+    return num as ConfigDefinitions[K]
+  }
   return raw as ConfigDefinitions[K]
+}
+
+function serializeValue<K extends keyof ConfigDefinitions>(key: K, value: ConfigDefinitions[K]): string {
+  if (key === 'FLUX_PACKAGES') {
+    const packages = parse(array(object({ amount: number(), label: string(), price: string() })), value)
+    return JSON.stringify(packages)
+  }
+
+  if (NUMERIC_KEYS.has(key)) {
+    if (typeof value !== 'number' || !Number.isFinite(value))
+      throw new Error(`Config key ${key} must be a finite number`)
+    return String(value)
+  }
+
+  if (typeof value !== 'string')
+    throw new Error(`Config key ${key} must be a string`)
+
+  return value
 }
 
 /**
@@ -85,7 +107,7 @@ export function createConfigKVService(redis: Redis) {
     },
 
     async set<K extends keyof ConfigDefinitions>(key: K, value: ConfigDefinitions[K]): Promise<void> {
-      const serialized = key === 'FLUX_PACKAGES' ? JSON.stringify(value) : String(value)
+      const serialized = serializeValue(key, value)
       await redis.set(`${KEY_PREFIX}${key}`, serialized)
     },
   }

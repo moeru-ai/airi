@@ -37,7 +37,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/server-sdk-shared": "workspace:^",
     "@proj-airi/server-shared": "workspace:^",

@@ -25,7 +25,7 @@ describe('configKVService', () => {
   it('get should throw 503 when key is not set', async () => {
     await expect(service.getOrThrow('FLUX_PER_CENT'))
       .rejects
-      .toThrow('Config key "FLUX_PER_CENT" is not set in Redis')
+      .toThrow('Service configuration is incomplete')
   })
 
   it('get should return numeric value when key is set', async () => {
@@ -63,6 +63,12 @@ describe('configKVService', () => {
 
     expect(redis.set).toHaveBeenCalledWith('config:FLUX_PER_CENT', '10')
     expect(redis._store.get('config:FLUX_PER_CENT')).toBe('10')
+  })
+
+  it('set should reject non-string values for string config keys', async () => {
+    await expect(service.set('GATEWAY_BASE_URL', { url: 'https://example.com' } as any))
+      .rejects
+      .toThrow('Config key GATEWAY_BASE_URL must be a string')
   })
 
   it('set then get should round-trip correctly', async () => {

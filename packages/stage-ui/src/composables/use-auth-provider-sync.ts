@@ -75,5 +75,29 @@ export function useAuthProviderSync() {
     for (const { id } of AUTH_ACTIVATED_PROVIDERS) {
       providersStore.setProviderUnconfigured(id)
     }
+
+    // Reset active provider/model if they belong to an auth-activated provider
+    for (const { id, module } of AUTH_ACTIVATED_PROVIDERS) {
+      switch (module) {
+        case 'consciousness':
+          if (consciousnessStore.activeProvider === id) {
+            consciousnessStore.activeProvider = ''
+            consciousnessStore.activeModel = ''
+          }
+          break
+        case 'speech':
+          if (speechStore.activeSpeechProvider === id) {
+            speechStore.activeSpeechProvider = ''
+            speechStore.activeSpeechModel = ''
+          }
+          break
+        case 'hearing':
+          if (hearingStore.activeTranscriptionProvider === id) {
+            hearingStore.activeTranscriptionProvider = ''
+            hearingStore.activeTranscriptionModel = ''
+          }
+          break
+      }
+    }
   })
 }

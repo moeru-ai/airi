@@ -42,6 +42,7 @@ export const providerOfficialChat = defineProvider({
   },
 })
 
+// TODO: STT / TTS
 // TTS and ASR official providers — uncomment to re-enable:
 //
 // export const providerOfficialSpeech = defineProvider({

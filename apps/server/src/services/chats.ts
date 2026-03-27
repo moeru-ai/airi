@@ -173,6 +173,14 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
     },
 
     async addMember(userId: string, chatId: string, member: { type: ChatMemberType, userId?: string, characterId?: string }) {
+      // Validate that user-type members have a userId and non-user members have a characterId
+      if (member.type === 'user' && !member.userId) {
+        throw new Error('userId is required for user-type members')
+      }
+      if (member.type !== 'user' && !member.characterId) {
+        throw new Error('characterId is required for non-user-type members')
+      }
+
       return db.transaction(async (tx) => {
         await verifyMembership(tx, chatId, userId)
 
@@ -184,6 +192,12 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
         }).returning()
 
         return added
+      })
+    },
+
+    async getMembers(chatId: string) {
+      return db.query.chatMembers.findMany({
+        where: eq(schema.chatMembers.chatId, chatId),
       })
     },
 
@@ -260,11 +274,12 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
           await tx.insert(schema.messages).values(values)
         }
 
-        // Update existing messages (content + updatedAt only)
+        // Update existing messages (content + updatedAt + seq bump)
         for (const m of updateMsgs) {
+          currentSeq++
           await tx.update(schema.messages)
-            .set({ content: m.content, updatedAt: now })
-            .where(eq(schema.messages.id, m.id))
+            .set({ content: m.content, seq: currentSeq, updatedAt: now })
+            .where(and(eq(schema.messages.id, m.id), eq(schema.messages.chatId, chatId)))
         }
 
         // Update chat updatedAt

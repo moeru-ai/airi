@@ -22,13 +22,16 @@ export function initializeAuth() {
 
 export async function fetchSession() {
   const { data } = await authClient.getSession()
+  const authStore = useAuthStore()
   if (data) {
-    const authStore = useAuthStore()
     authStore.user = data.user
     authStore.session = data.session
     return true
   }
 
+  // Session expired or invalid — clear stale auth state from localStorage
+  authStore.user = null
+  authStore.session = null
   return false
 }
 
