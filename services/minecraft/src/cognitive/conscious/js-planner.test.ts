@@ -358,6 +358,37 @@ describe('javaScriptPlanner', () => {
     expect(planned.actions).toHaveLength(0)
   })
 
+  it('bridges AIRI notification callbacks through the isolate', async () => {
+    const planner = new JavaScriptPlanner()
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+    const notifyAiri = vi.fn()
+    const updateAiriContext = vi.fn()
+
+    const planned = await planner.evaluate(`
+      notifyAiri('Need help', 'Low health', 'immediate')
+      updateAiriContext('Shelter built', ['shelter', 'spawn'], 'memory')
+      return 'ok'
+    `, actions, {
+      ...globals,
+      notifyAiri,
+      updateAiriContext,
+    } as any, executeAction)
+
+    expect(planned.returnValue).toBe('\'ok\'')
+    expect(notifyAiri).toHaveBeenCalledWith('Need help', 'Low health', 'immediate')
+    expect(updateAiriContext).toHaveBeenCalledWith('Shelter built', ['shelter', 'spawn'], 'memory')
+  })
+
+  it('does not expose host process globals inside the isolate', async () => {
+    const planner = new JavaScriptPlanner()
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+    const planned = await planner.evaluate('return { process: typeof process, require: typeof require, escaped: Function("return typeof process")() }', actions, globals, executeAction)
+
+    expect(planned.returnValue).toContain('process: \'undefined\'')
+    expect(planned.returnValue).toContain('require: \'undefined\'')
+    expect(planned.returnValue).toContain('escaped: \'undefined\'')
+  })
+
   it('renders nested return objects without [Object] truncation', async () => {
     const planner = new JavaScriptPlanner()
     const executeAction = vi.fn(async action => `ok:${action.tool}`)
