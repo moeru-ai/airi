@@ -4863,7 +4863,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-ipc-audio-transcription-ort"
-version = "0.9.0-alpha.26"
+version = "0.9.0-alpha.27"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -4885,7 +4885,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-ipc-audio-vad-ort"
-version = "0.9.0-alpha.26"
+version = "0.9.0-alpha.27"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -4909,7 +4909,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-mcp"
-version = "0.9.0-alpha.26"
+version = "0.9.0-alpha.27"
 dependencies = [
  "anyhow",
  "log",
@@ -4923,7 +4923,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-rdev"
-version = "0.9.0-alpha.26"
+version = "0.9.0-alpha.27"
 dependencies = [
  "anyhow",
  "log",
@@ -4937,7 +4937,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-window-pass-through-on-hover"
-version = "0.9.0-alpha.26"
+version = "0.9.0-alpha.27"
 dependencies = [
  "anyhow",
  "log",
@@ -4956,7 +4956,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-window-router-link"
-version = "0.9.0-alpha.26"
+version = "0.9.0-alpha.27"
 dependencies = [
  "anyhow",
  "log",
