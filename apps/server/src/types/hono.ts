@@ -1,8 +1,7 @@
-import type auth from '../scripts/auth'
+import type { AuthUser } from '../libs/auth'
 
 export interface HonoEnv {
   Variables: {
-    user: typeof auth.$Infer.Session.user | null
-    session: typeof auth.$Infer.Session.session | null
+    user: AuthUser | null
   }
 }

@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from 'hono'
 
-import type { createAuth } from '../libs/auth'
+import type { AuthInstance } from '../libs/auth'
 import type { HonoEnv } from '../types/hono'
 
 import { useLogger } from '@guiiai/logg'
@@ -9,24 +9,35 @@ import { createUnauthorizedError } from '../utils/error'
 
 const logger = useLogger('auth')
 
-type AuthInstance = ReturnType<typeof createAuth>
-
 /**
- * Session middleware injects the user and session into the Hono context.
+ * Session middleware extracts the JWT access token from the Authorization header
+ * and injects the user into the Hono context.
  * It does not block unauthorized requests.
  */
 export function sessionMiddleware(auth: AuthInstance): MiddlewareHandler<HonoEnv> {
   return async (c, next) => {
-    const session = await auth.api.getSession({ headers: c.req.raw.headers })
+    const authHeader = c.req.header('Authorization')
 
-    if (!session) {
+    if (!authHeader?.startsWith('Bearer ')) {
       c.set('user', null)
-      c.set('session', null)
       return await next()
     }
 
-    c.set('user', session.user)
-    c.set('session', session.session)
+    const token = authHeader.slice(7)
+    const payload = await auth.verifyAccessToken(token)
+
+    if (!payload) {
+      c.set('user', null)
+      return await next()
+    }
+
+    const user = await auth.getUserById(payload.sub)
+    if (!user) {
+      c.set('user', null)
+      return await next()
+    }
+
+    c.set('user', user)
     await next()
   }
 }

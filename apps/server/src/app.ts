@@ -34,6 +34,7 @@ import { createRedis } from './libs/redis'
 import { sessionMiddleware } from './middlewares/auth'
 import { otelMiddleware } from './middlewares/otel'
 import { rateLimiter } from './middlewares/rate-limit'
+import { createAuthRoutes } from './routes/auth'
 import { createCharacterRoutes } from './routes/characters'
 import { createChatWsHandlers } from './routes/chat-ws'
 import { createChatRoutes } from './routes/chats'
@@ -96,13 +97,11 @@ async function buildApp(deps: AppDeps) {
     if (!token) {
       throw createUnauthorizedError('Missing token')
     }
-    const session = await deps.auth.api.getSession({
-      headers: new Headers({ Authorization: `Bearer ${token}` }),
-    })
-    if (!session?.user) {
+    const payload = await deps.auth.verifyAccessToken(token)
+    if (!payload) {
       throw createUnauthorizedError('Invalid token')
     }
-    return chatWsSetup(session.user.id)
+    return chatWsSetup(payload.sub)
   }))
 
   const builtApp = app
@@ -139,8 +138,7 @@ async function buildApp(deps: AppDeps) {
     .on('GET', '/health', c => c.json({ status: 'ok' }))
 
     /**
-     * Auth routes are handled by the auth instance directly,
-     * Powered by better-auth.
+     * Auth routes handle OAuth login, JWT token management, and session endpoints.
      * Rate limited by IP: 20 requests per minute.
      */
     .use('/api/auth/*', rateLimiter({
@@ -148,7 +146,7 @@ async function buildApp(deps: AppDeps) {
       windowSec: await deps.configKV.getOrThrow('AUTH_RATE_LIMIT_WINDOW_SEC'),
       keyGenerator: c => c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'unknown',
     }))
-    .on(['POST', 'GET'], '/api/auth/*', c => deps.auth.handler(c.req.raw))
+    .route('/api/auth', createAuthRoutes(deps.auth))
 
     /**
      * Character routes are handled by the character service.

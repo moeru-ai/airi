@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "apply:env": "dotenvx run -f .env.local --overload --ignore=MISSING_ENV_FILE",
-    "auth:generate": "pnpm run apply:env -- better-auth generate --config src/scripts/auth.ts --output src/schemas/accounts.ts -y",
+    "auth:generate": "echo 'Auth schema is manually managed in src/schemas/accounts.ts'",
     "dev": "pnpm run apply:env -- tsx --watch src/bin/run.ts api",
     "start": "pnpm run apply:env -- tsx src/bin/run.ts api",
     "server": "pnpm run apply:env -- tsx src/bin/run.ts",
@@ -15,7 +15,6 @@
     "db:push": "pnpm run apply:env -- drizzle-kit push"
   },
   "dependencies": {
-    "@better-auth/drizzle-adapter": "^1.5.6",
     "@dotenvx/dotenvx": "^1.57.2",
     "@electric-sql/pglite": "catalog:",
     "@guiiai/logg": "catalog:",
@@ -41,7 +40,7 @@
     "@proj-airi/drizzle-orm-browser-migrator": "^0.1.6",
     "@proj-airi/server-schema": "workspace:*",
     "@proj-airi/server-sdk-shared": "workspace:*",
-    "better-auth": "catalog:",
+    "arctic": "^3.7.0",
     "cac": "catalog:",
     "drizzle-orm": "catalog:",
     "drizzle-valibot": "catalog:",
@@ -49,13 +48,13 @@
     "hono-rate-limiter": "catalog:",
     "injeca": "catalog:",
     "ioredis": "^5.10.1",
+    "jose": "^6.2.2",
     "pg": "^8.20.0",
     "stripe": "^21.0.0",
     "tsx": "^4.21.0",
     "valibot": "catalog:"
   },
   "devDependencies": {
-    "@better-auth/cli": "^1.4.21",
     "@types/pg": "^8.20.0",
     "drizzle-kit": "catalog:"
   }

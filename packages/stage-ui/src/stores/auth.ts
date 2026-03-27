@@ -1,11 +1,19 @@
-import type { Session, User } from 'better-auth'
-
 import { StorageSerializers, useLocalStorage, whenever } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
 import { client } from '../composables/api'
 import { useBreakpoints } from '../composables/use-breakpoints'
+
+export interface AuthUser {
+  id: string
+  name: string
+  email: string
+  emailVerified: boolean
+  image: string | null
+  createdAt: string
+  updatedAt: string
+}
 
 /**
  * Auth store — holds identity state and credits.
@@ -14,12 +22,11 @@ import { useBreakpoints } from '../composables/use-breakpoints'
  * `providers` to safely depend on it without creating a circular import.
  */
 export const useAuthStore = defineStore('auth', () => {
-  const user = useLocalStorage<User | null>('auth/v1/user', null, {
+  const user = useLocalStorage<AuthUser | null>('auth/v1/user', null, {
     // Why: https://github.com/vueuse/vueuse/pull/614#issuecomment-875450160
     serializer: StorageSerializers.object,
   })
-  const session = useLocalStorage<Session | null>('auth/v1/session', null, { serializer: StorageSerializers.object })
-  const isAuthenticated = computed(() => !!user.value && !!session.value)
+  const isAuthenticated = computed(() => !!user.value)
   const userId = computed(() => user.value?.id ?? 'local')
 
   const credits = useLocalStorage<number>('user/v1/flux', 0)
@@ -72,14 +79,22 @@ export const useAuthStore = defineStore('auth', () => {
   watch(isAuthenticated, async (val, oldVal) => {
     if (val && !oldVal) {
       for (const hook of authenticatedHooks) {
-        try { await hook() }
-        catch (e) { console.error('auth hook error', e) }
+        try {
+          await hook()
+        }
+        catch (e) {
+          console.error('auth hook error', e)
+        }
       }
     }
     if (!val && oldVal) {
       for (const hook of logoutHooks) {
-        try { await hook() }
-        catch (e) { console.error('logout hook error', e) }
+        try {
+          await hook()
+        }
+        catch (e) {
+          console.error('logout hook error', e)
+        }
       }
     }
   })
@@ -108,7 +123,6 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     user,
     userId,
-    session,
     isAuthenticated,
     credits,
     updateCredits,

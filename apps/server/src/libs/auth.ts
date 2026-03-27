@@ -2,114 +2,312 @@ import type { Database } from './db'
 import type { Env } from './env'
 import type { AuthMetrics } from './otel'
 
-import { betterAuth } from 'better-auth'
-import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { createAuthMiddleware } from 'better-auth/api'
-import { bearer } from 'better-auth/plugins'
+import { generateCodeVerifier, generateState, GitHub, Google } from 'arctic'
+import { and, eq } from 'drizzle-orm'
+import { jwtVerify, SignJWT } from 'jose'
 
-import { getAuthTrustedOrigins } from '../utils/origin'
+import { nanoid } from '../utils/id'
 
-import * as authSchema from '../schemas/accounts'
+import * as schema from '../schemas/accounts'
 
-// NOTICE: return type uses `any` to avoid TS2742 — betterAuth's inferred type
-// references internal pnpm paths (@better-auth/core) that aren't directly accessible
+export interface JwtPayload {
+  sub: string
+  email: string
+  name: string
+  image?: string | null
+}
 
-export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null): any {
-  return betterAuth({
-    database: drizzleAdapter(db, {
-      provider: 'pg',
-      schema: {
-        ...authSchema,
-      },
-    }),
+export interface AuthUser {
+  id: string
+  name: string
+  email: string
+  emailVerified: boolean
+  image: string | null
+  createdAt: Date
+  updatedAt: Date
+}
 
-    plugins: [
-      bearer(),
-    ],
+export interface AuthSession {
+  id: string
+  userId: string
+  expiresAt: Date
+  createdAt: Date
+}
 
-    emailAndPassword: {
-      enabled: true,
-    },
+export interface AuthInstance {
+  google: Google
+  github: GitHub
 
-    baseURL: env.API_SERVER_URL,
-    trustedOrigins: request => getAuthTrustedOrigins(env, request),
+  /** Generate a JWT access token for a user (short-lived, 1 hour) */
+  createAccessToken: (user: AuthUser) => Promise<string>
 
-    // To skip state-mismatch errors
-    // https://github.com/better-auth/better-auth/issues/4969#issuecomment-3397804378
-    advanced: {
-      defaultCookieAttributes: {
-        sameSite: 'None', // this enables cross-site cookies
-        secure: true, // required for SameSite=None
-      },
-    },
+  /** Generate a JWT refresh token (long-lived, 30 days) */
+  createRefreshToken: (user: AuthUser) => Promise<string>
 
-    // NOTICE: Store OAuth state in the database instead of cookies to avoid
-    // state_mismatch errors on mobile browsers (iOS Safari/Chrome) where
-    // cross-site cookies are blocked by system-level privacy restrictions.
-    // https://github.com/better-auth/better-auth/issues/5892
-    // https://github.com/better-auth/better-auth/issues/6207
-    account: {
-      storeStateStrategy: 'database',
-    },
+  /** Verify and decode an access token */
+  verifyAccessToken: (token: string) => Promise<JwtPayload | null>
 
-    socialProviders: {
-      google: {
-        clientId: env.AUTH_GOOGLE_CLIENT_ID,
-        clientSecret: env.AUTH_GOOGLE_CLIENT_SECRET,
-      },
-      github: {
-        clientId: env.AUTH_GITHUB_CLIENT_ID,
-        clientSecret: env.AUTH_GITHUB_CLIENT_SECRET,
-      },
-    },
+  /** Verify and decode a refresh token */
+  verifyRefreshToken: (token: string) => Promise<JwtPayload | null>
 
-    hooks: {
-      before: createAuthMiddleware(async (ctx) => {
-        const isAuthAttempt = ctx.path.includes('/sign-in') || ctx.path.includes('/sign-up')
-        if (isAuthAttempt) {
-          metrics?.attempts.add(1, { 'auth.method': ctx.path.split('/').pop() ?? 'unknown' })
+  /** Find or create a user from OAuth profile, return the user */
+  findOrCreateOAuthUser: (profile: {
+    provider: string
+    providerAccountId: string
+    email: string
+    name: string
+    image?: string | null
+  }) => Promise<AuthUser>
+
+  /** Store a refresh token in the session table */
+  storeSession: (userId: string, refreshToken: string, ipAddress?: string, userAgent?: string) => Promise<void>
+
+  /** Revoke a session (sign out) by refresh token */
+  revokeSession: (refreshToken: string) => Promise<void>
+
+  /** Revoke all sessions for a user */
+  revokeAllSessions: (userId: string) => Promise<void>
+
+  /** Get user by ID */
+  getUserById: (id: string) => Promise<AuthUser | null>
+
+  /** List active sessions for a user */
+  listUserSessions: (userId: string) => Promise<AuthSession[]>
+
+  /** Generate OAuth state and store it for verification */
+  createOAuthState: () => { state: string, codeVerifier: string }
+
+  metrics?: AuthMetrics | null
+}
+
+const ACCESS_TOKEN_EXPIRY = '1h'
+const REFRESH_TOKEN_EXPIRY = '30d'
+
+export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null): AuthInstance {
+  const jwtSecret = new TextEncoder().encode(env.JWT_SECRET)
+  const callbackBase = `${env.API_SERVER_URL}/api/auth/callback`
+
+  const google = new Google(
+    env.AUTH_GOOGLE_CLIENT_ID,
+    env.AUTH_GOOGLE_CLIENT_SECRET,
+    `${callbackBase}/google`,
+  )
+
+  const github = new GitHub(
+    env.AUTH_GITHUB_CLIENT_ID,
+    env.AUTH_GITHUB_CLIENT_SECRET,
+    `${callbackBase}/github`,
+  )
+
+  async function createAccessToken(user: AuthUser): Promise<string> {
+    return new SignJWT({
+      sub: user.id,
+      email: user.email,
+      name: user.name,
+      image: user.image,
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime(ACCESS_TOKEN_EXPIRY)
+      .setIssuer('airi')
+      .sign(jwtSecret)
+  }
+
+  async function createRefreshToken(user: AuthUser): Promise<string> {
+    return new SignJWT({
+      sub: user.id,
+      email: user.email,
+      name: user.name,
+      image: user.image,
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime(REFRESH_TOKEN_EXPIRY)
+      .setIssuer('airi')
+      .setJti(nanoid())
+      .sign(jwtSecret)
+  }
+
+  async function verifyAccessToken(token: string): Promise<JwtPayload | null> {
+    try {
+      const { payload } = await jwtVerify(token, jwtSecret, { issuer: 'airi' })
+      return {
+        sub: payload.sub!,
+        email: payload.email as string,
+        name: payload.name as string,
+        image: (payload.image as string | null) ?? null,
+      }
+    }
+    catch {
+      return null
+    }
+  }
+
+  async function verifyRefreshToken(token: string): Promise<JwtPayload | null> {
+    try {
+      const { payload } = await jwtVerify(token, jwtSecret, { issuer: 'airi' })
+      return {
+        sub: payload.sub!,
+        email: payload.email as string,
+        name: payload.name as string,
+        image: (payload.image as string | null) ?? null,
+      }
+    }
+    catch {
+      return null
+    }
+  }
+
+  async function findOrCreateOAuthUser(profile: {
+    provider: string
+    providerAccountId: string
+    email: string
+    name: string
+    image?: string | null
+  }): Promise<AuthUser> {
+    // Check if account exists for this provider
+    const existingAccounts = await db
+      .select()
+      .from(schema.account)
+      .where(
+        and(
+          eq(schema.account.providerId, profile.provider),
+          eq(schema.account.accountId, profile.providerAccountId),
+        ),
+      )
+      .limit(1)
+
+    if (existingAccounts.length > 0) {
+      const acc = existingAccounts[0]
+      const users = await db
+        .select()
+        .from(schema.user)
+        .where(eq(schema.user.id, acc.userId))
+        .limit(1)
+
+      if (users.length > 0) {
+        // Update user profile from OAuth if changed
+        const existingUser = users[0]
+        if (existingUser.name !== profile.name || existingUser.image !== profile.image) {
+          await db
+            .update(schema.user)
+            .set({ name: profile.name, image: profile.image ?? null })
+            .where(eq(schema.user.id, existingUser.id))
         }
-      }),
-      after: createAuthMiddleware(async (ctx) => {
-        // Track auth failures via otel
-        const isAuthAttempt = ctx.path.includes('/sign-in') || ctx.path.includes('/sign-up')
-        if (isAuthAttempt && ctx.context.returned && typeof ctx.context.returned === 'object' && 'error' in ctx.context.returned) {
-          metrics?.failures.add(1, { 'auth.method': ctx.path.split('/').pop() ?? 'unknown' })
-        }
 
-        // On OAuth callback errors, redirect back to the referer instead of returning API JSON
-        if (ctx.path.startsWith('/callback') && ctx.context.returned && typeof ctx.context.returned === 'object' && 'error' in ctx.context.returned) {
-          const referer = ctx.getHeader('referer')
-          if (referer) {
-            const url = new URL(referer)
-            url.searchParams.set('error', 'auth_failed')
-            throw ctx.redirect(url.toString())
-          }
-        }
-      }),
-    },
+        metrics?.userLogin.add(1)
+        return { ...existingUser, name: profile.name, image: profile.image ?? null }
+      }
+    }
 
-    databaseHooks: {
-      user: {
-        create: {
-          after: async () => {
-            metrics?.userRegistered.add(1)
-          },
-        },
-      },
-      session: {
-        create: {
-          after: async () => {
-            metrics?.userLogin.add(1)
-            metrics?.activeSessions.add(1)
-          },
-        },
-        delete: {
-          after: async () => {
-            metrics?.activeSessions.add(-1)
-          },
-        },
-      },
-    },
-  })
+    // Check if user exists by email
+    const existingUsers = await db
+      .select()
+      .from(schema.user)
+      .where(eq(schema.user.email, profile.email))
+      .limit(1)
+
+    let userId: string
+
+    if (existingUsers.length > 0) {
+      userId = existingUsers[0].id
+      // Link account to existing user
+      metrics?.userLogin.add(1)
+    }
+    else {
+      // Create new user
+      userId = nanoid()
+      await db.insert(schema.user).values({
+        id: userId,
+        name: profile.name,
+        email: profile.email,
+        emailVerified: true,
+        image: profile.image ?? null,
+      })
+      metrics?.userRegistered.add(1)
+    }
+
+    // Create account link
+    await db.insert(schema.account).values({
+      id: nanoid(),
+      accountId: profile.providerAccountId,
+      providerId: profile.provider,
+      userId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+
+    const finalUsers = await db
+      .select()
+      .from(schema.user)
+      .where(eq(schema.user.id, userId))
+      .limit(1)
+
+    return finalUsers[0]
+  }
+
+  async function storeSession(userId: string, refreshToken: string, ipAddress?: string, userAgent?: string): Promise<void> {
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+    await db.insert(schema.session).values({
+      id: nanoid(),
+      token: refreshToken,
+      userId,
+      expiresAt,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ipAddress: ipAddress ?? null,
+      userAgent: userAgent ?? null,
+    })
+    metrics?.activeSessions.add(1)
+  }
+
+  async function revokeSession(refreshToken: string): Promise<void> {
+    await db.delete(schema.session).where(eq(schema.session.token, refreshToken))
+    metrics?.activeSessions.add(-1)
+  }
+
+  async function revokeAllSessions(userId: string): Promise<void> {
+    await db.delete(schema.session).where(eq(schema.session.userId, userId))
+  }
+
+  async function getUserById(id: string): Promise<AuthUser | null> {
+    const users = await db
+      .select()
+      .from(schema.user)
+      .where(eq(schema.user.id, id))
+      .limit(1)
+    return users[0] ?? null
+  }
+
+  async function listUserSessions(userId: string): Promise<AuthSession[]> {
+    const sessions = await db
+      .select()
+      .from(schema.session)
+      .where(eq(schema.session.userId, userId))
+    return sessions
+  }
+
+  function createOAuthState() {
+    return {
+      state: generateState(),
+      codeVerifier: generateCodeVerifier(),
+    }
+  }
+
+  return {
+    google,
+    github,
+    createAccessToken,
+    createRefreshToken,
+    verifyAccessToken,
+    verifyRefreshToken,
+    findOrCreateOAuthUser,
+    storeSession,
+    revokeSession,
+    revokeAllSessions,
+    getUserById,
+    listUserSessions,
+    createOAuthState,
+    metrics,
+  }
 }
