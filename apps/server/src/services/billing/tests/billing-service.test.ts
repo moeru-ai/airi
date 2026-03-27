@@ -62,7 +62,6 @@ describe('billingService', () => {
     billingMq = createMockBillingMq()
     billingService = createBillingService(db, redis, billingMq, createMockConfigKV())
 
-    await db.delete(schema.fluxAuditLog)
     await db.delete(schema.fluxLedger)
     await db.delete(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
     await db.delete(schema.stripeCheckoutSession).where(eq(schema.stripeCheckoutSession.stripeSessionId, 'sess-billing-1'))
@@ -103,10 +102,12 @@ describe('billingService', () => {
       expect(ledgerRecords[0]?.balanceBefore).toBe(0)
       expect(ledgerRecords[0]?.balanceAfter).toBe(50)
 
-      // Verify audit log
-      const auditRecords = await db.select().from(schema.fluxAuditLog).where(eq(schema.fluxAuditLog.userId, 'user-billing-1'))
-      expect(auditRecords).toHaveLength(1)
-      expect(auditRecords[0]?.amount).toBe(50)
+      // Verify metadata on ledger entry
+      expect(ledgerRecords[0]?.metadata).toMatchObject({
+        stripeEventId: 'stripe-evt-1',
+        stripeSessionId: 'sess-billing-1',
+        source: 'stripe.checkout.completed',
+      })
 
       // Verify billing events published to stream
       expect(billingMq.publish).toHaveBeenCalledTimes(2)

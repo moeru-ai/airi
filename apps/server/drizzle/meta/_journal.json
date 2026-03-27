@@ -43,6 +43,13 @@
       "when": 1774582846222,
       "tag": "0005_tough_living_tribunal",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1774584037626,
+      "tag": "0006_overconfident_susan_delgado",
+      "breakpoints": true
     }
   ]
 }

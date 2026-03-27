@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { index, integer, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
+import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
 import { user } from './accounts'
@@ -13,6 +13,7 @@ export const fluxLedger = pgTable('flux_ledger', {
   balanceAfter: integer('balance_after').notNull(),
   requestId: text('request_id'), // nullable; used for idempotency on debit/credit
   description: text('description').notNull(),
+  metadata: jsonb('metadata'), // { promptTokens, completionTokens, stripeSessionId, ... }
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, table => [
   index('flux_ledger_user_id_idx').on(table.userId),
