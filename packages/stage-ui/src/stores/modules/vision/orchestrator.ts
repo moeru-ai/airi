@@ -2,7 +2,7 @@ import type { CommonContentPart } from '@xsai/shared-chat'
 
 import type { VisionWorkloadId } from '../../../composables/vision/use-vision-workloads'
 
-import { ContextUpdateStrategy } from '@proj-airi/server-shared/types'
+import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
 

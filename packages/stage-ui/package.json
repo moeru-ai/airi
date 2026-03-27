@@ -70,7 +70,6 @@
     "@proj-airi/model-driver-lipsync": "workspace:^",
     "@proj-airi/pipelines-audio": "workspace:^",
     "@proj-airi/server-sdk": "workspace:^",
-    "@proj-airi/server-shared": "workspace:^",
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/stage-ui-live2d": "workspace:^",
     "@proj-airi/stage-ui-three": "workspace:^",

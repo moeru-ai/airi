@@ -4,20 +4,8 @@
     "lib": [
       "ESNext"
     ],
-    "baseUrl": ".",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "paths": {
-      "@proj-airi/server-shared": [
-        "../server-shared/src/index.ts"
-      ],
-      "@proj-airi/server-shared/*": [
-        "../server-shared/src/*"
-      ],
-      "@proj-airi/server-sdk-shared": [
-        "../server-sdk-shared/src/index.ts"
-      ]
-    },
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
@@ -25,8 +13,6 @@
     "skipLibCheck": true
   },
   "include": [
-    "../server-shared/src/**/*.ts",
-    "../server-sdk-shared/src/**/*.ts",
     "src/**/*.ts"
   ]
 }

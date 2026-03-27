@@ -1,8 +1,7 @@
-import type { ContextUpdate, InputContextUpdate, WebSocketBaseEvent, WebSocketEvent, WebSocketEventOptionalSource, WebSocketEvents } from '@proj-airi/server-shared/types'
+import type { ContextUpdate, InputContextUpdate, WebSocketBaseEvent, WebSocketEvent, WebSocketEventOptionalSource, WebSocketEvents } from '@proj-airi/server-sdk'
 import type { CommonContentPart } from '@xsai/shared-chat'
 
-import { Client } from '@proj-airi/server-sdk'
-import { WebSocketEventSource } from '@proj-airi/server-shared/types'
+import { Client, WebSocketEventSource } from '@proj-airi/server-sdk'
 import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
 import { useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid'

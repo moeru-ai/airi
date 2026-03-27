@@ -1,4 +1,4 @@
-import type { WebSocketEvents } from '@proj-airi/server-shared/types'
+import type { WebSocketEvents } from '@proj-airi/server-sdk'
 
 type Optional<T> = T | undefined
 

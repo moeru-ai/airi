@@ -23,6 +23,7 @@ export function initializeAuth() {
 export async function fetchSession() {
   const { data } = await authClient.getSession()
   const authStore = useAuthStore()
+
   if (data) {
     authStore.user = data.user
     authStore.session = data.session
