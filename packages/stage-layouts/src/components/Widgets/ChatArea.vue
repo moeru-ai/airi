@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
+import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
@@ -120,11 +121,13 @@ async function handleSend() {
   }
   catch (error) {
     messageInput.value = textToSend
-    messages.value.pop()
-    messages.value.push({
-      role: 'error',
-      content: (error as Error).message,
-    })
+    chatSession.setSessionMessages(chatSession.activeSessionId, [
+      ...messages.value.slice(0, -1),
+      {
+        role: 'error',
+        content: errorMessageFrom(error) ?? 'Failed to send message',
+      },
+    ])
   }
 }
 

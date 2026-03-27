@@ -30,10 +30,8 @@ export const useChatStreamStore = defineStore('chat-stream', () => {
 
   function finalizeStream(fullText?: string) {
     const sessionId = chatSession.activeSessionId
-    const sessionMessagesForSend = chatSession.getSessionMessages(sessionId)
     if (streamingMessage.value.slices.length > 0)
-      sessionMessagesForSend.push(streamingMessage.value)
-    chatSession.persistSessionMessages(sessionId)
+      chatSession.appendSessionMessage(sessionId, streamingMessage.value)
     streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
     if (fullText)
       streamingMessage.value.content = fullText
