@@ -48,6 +48,17 @@ export interface ProviderValidationResult {
   valid: boolean
 }
 
+export enum ProviderValidationCheck {
+  /** Lightweight GET to /models endpoint to check reachability (definition system) */
+  Connectivity = 'connectivity',
+  /** Fetch model list and verify non-empty */
+  ModelList = 'model_list',
+  /** Send generateText ping with fine-grained error handling and caching (definition system) */
+  ChatCompletions = 'chat_completions',
+  /** Send generateText ping with simple pass/fail, fallback to 'test' model (builder system) */
+  Health = 'health',
+}
+
 export interface ProviderValidatorSchedule {
   mode: 'once' | 'interval'
   intervalMs?: number

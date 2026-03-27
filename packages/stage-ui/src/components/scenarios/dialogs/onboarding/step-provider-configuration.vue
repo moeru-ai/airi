@@ -24,6 +24,7 @@ const providersStore = useProvidersStore()
 const apiKey = ref('')
 const baseUrl = ref('')
 const accountId = ref('')
+const enableChatCheck = ref(true)
 
 const validation = ref<'unchecked' | 'pending' | 'succeed' | 'failed'>('unchecked')
 const validationError = ref<any>()
@@ -39,9 +40,10 @@ function initializeForm() {
   apiKey.value = ''
   accountId.value = ''
 
-  // Reset validation
+  // Reset validation and chat check
   validation.value = 'unchecked'
   validationError.value = undefined
+  enableChatCheck.value = true
 }
 
 // Watch for provider changes
@@ -65,6 +67,10 @@ const needsBaseUrl = computed(() => {
   if (!props.selectedProvider)
     return false
   return props.selectedProvider.id !== 'cloudflare-workers-ai'
+})
+
+const showChatCheckOption = computed(() => {
+  return !(props.selectedProvider?.validators.chatPingCheckDisabled ?? true)
 })
 
 const canProceed = computed(() => {
@@ -103,7 +109,9 @@ async function validateConfiguration() {
 
     // Validate using provider's validator
     const metadata = providersStore.getProviderMetadata(props.selectedProvider.id)
-    const validationResult = await metadata.validators.validateProviderConfig(config)
+    const validationResult = await metadata.validators.validateProviderConfig(config, {
+      skipChatPingCheck: !enableChatCheck.value,
+    })
     validation.value = validationResult.valid ? 'succeed' : 'failed'
     if (validation.value === 'failed') {
       validationError.value = validationResult.reason
@@ -116,7 +124,6 @@ async function validateConfiguration() {
     })
   }
 }
-
 async function handleNext() {
   await validateConfiguration()
   if (validation.value === 'succeed') {
@@ -184,15 +191,19 @@ initializeForm()
       <div h-5 w-5 />
     </div>
     <div v-if="props.selectedProvider" flex-1 overflow-y-auto space-y-4>
-      <Callout label="Keep your API keys and credentials safe!" theme="violet">
+      <Callout :label="t('settings.dialogs.onboarding.credentialsSafeLabel')" theme="violet">
         <div>
           <div>
-            AIRI is running pure locally in your browser, and we will never steal your credentials for AI / LLM providers. But keep in mind that your API keys are sensitive information. Make sure to keep them safe and do not share them with anyone.
+            {{ t('settings.dialogs.onboarding.credentialsSafeLocal') }}
           </div>
           <div>
-            AIRI is open sourced at <div inline-flex translate-y-1 items-center gap-1>
-              <div i-simple-icons:github inline-block /><a decoration-underline decoration-dashed href="https://github.com/moeru-ai/airi" target="_blank" rel="noopener noreferrer">GitHub</a>
-            </div>, if you want to check how we handle your credentials, feel free to inspect our code.
+            <i18n-t keypath="settings.dialogs.onboarding.credentialsSafeOpenSource" tag="span">
+              <template #github>
+                <span inline-flex translate-y-1 items-center gap-1>
+                  <span i-simple-icons:github inline-block /><a decoration-underline decoration-dashed href="https://github.com/moeru-ai/airi" target="_blank" rel="noopener noreferrer">GitHub</a>
+                </span>
+              </template>
+            </i18n-t>
           </div>
         </div>
       </Callout>
@@ -225,6 +236,18 @@ initializeForm()
           <ProviderAccountIdInput v-model="accountId" />
         </div>
       </div>
+
+      <!-- Chat Ping Check Option -->
+      <label v-if="showChatCheckOption" class="flex cursor-pointer items-center gap-2">
+        <input
+          v-model="enableChatCheck"
+          type="checkbox"
+          :class="['h-4 w-4 rounded border-gray-300 accent-violet-500']"
+        >
+        <span :class="['text-sm text-neutral-600 dark:text-neutral-400']">
+          {{ t('settings.dialogs.onboarding.enableChatCheck') }}
+        </span>
+      </label>
 
       <!-- Validation Status -->
       <Alert v-if="validation === 'failed'" type="error">
