@@ -47,4 +47,44 @@ describe('mergeLoadedSessionMessages', () => {
 
     assert.equal(mergeLoadedSessionMessages(storedMessages, currentMessages), storedMessages)
   })
+
+  it('keeps a system message when storage is empty and current has in-flight user messages', () => {
+    const storedMessages: ChatHistoryItem[] = []
+    const currentMessages: ChatHistoryItem[] = [
+      { role: 'system', content: 'system from memory', createdAt: 1, id: 'system-current' },
+      { role: 'user', content: 'in-flight prompt', createdAt: 2, id: 'user-1' },
+    ]
+
+    assert.deepEqual(mergeLoadedSessionMessages(storedMessages, currentMessages), [
+      currentMessages[0],
+      currentMessages[1],
+    ])
+  })
+
+  it('uses flattened array text for deduplication fingerprints', () => {
+    const storedMessages: ChatHistoryItem[] = [
+      { role: 'system', content: 'system', createdAt: 1, id: 'system' },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'hello' },
+          { type: 'text', text: ' world' },
+        ],
+        createdAt: 5,
+      },
+    ]
+
+    const currentMessages: ChatHistoryItem[] = [
+      { role: 'system', content: 'system', createdAt: 2, id: 'system-memory' },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'hello world' },
+        ],
+        createdAt: 5,
+      },
+    ]
+
+    assert.equal(mergeLoadedSessionMessages(storedMessages, currentMessages), storedMessages)
+  })
 })
