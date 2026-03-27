@@ -8,17 +8,8 @@
       "ESNext"
     ],
     "useDefineForClassFields": true,
-    "baseUrl": ".",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "paths": {
-      "@proj-airi/server-sdk-shared": [
-        "../../packages/server-sdk-shared/src/index.ts"
-      ],
-      "@proj-airi/server-sdk-shared/*": [
-        "../../packages/server-sdk-shared/src/*"
-      ]
-    },
     "resolveJsonModule": true,
     "types": [
       "vitest",
@@ -29,7 +20,6 @@
     "skipLibCheck": true
   },
   "include": [
-    "../../packages/server-sdk-shared/src/**/*.ts",
     "src/**/*.ts",
     "src/**/*.d.ts"
   ]

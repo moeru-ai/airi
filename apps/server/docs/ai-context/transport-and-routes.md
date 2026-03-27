@@ -10,7 +10,7 @@
 - `/api/providers`
 - `/api/chats`
 - `/api/v1`
-- `/api/flux`
+- `/api/users/me/flux`
 - `/api/stripe`
 - `GET /ws/chat`
 
@@ -135,6 +135,12 @@
 - 同实例：内存 `Map<userId, Set<EventContext>>`
 - 跨实例：Redis Pub/Sub，channel 前缀 `chat:broadcast:`
 
+实现约束：
+
+- Redis Pub/Sub 只承担通知职责，不承担持久化和重放职责
+- key / channel 与 payload 边界应集中收口，不要在调用点散落模板字符串和裸 `JSON.parse`
+- 具体规范见 `redis-boundaries-and-pubsub.md`
+
 ### `/api/v1`
 
 实现位置：
@@ -150,11 +156,8 @@
 
 - `POST /api/v1/chat/completions`
 - `POST /api/v1/chat/completion`
-
-已实现但暂未挂载：
-
-- `handleTTS`
-- `handleTranscription`
+- `POST /api/v1/audio/speech`
+- `POST /api/v1/audio/transcriptions`
 
 请求流程：
 
@@ -178,7 +181,7 @@
   - 流结束后再 best-effort 扣费
   - 扣费失败只打 error log，不回滚给客户端
 
-### `/api/flux`
+### `/api/users/me/flux`
 
 实现位置：
 
@@ -189,9 +192,9 @@
 
 主要能力：
 
-- `GET /api/flux`
+- `GET /api/users/me/flux`
   - 读取当前用户余额
-- `GET /api/flux/history`
+- `GET /api/users/me/flux/history`
   - 读取用户可见流水
 
 ### `/api/stripe`

@@ -17,8 +17,14 @@
   - 主要表、状态归属、缓存与事件模型
 - `workers-and-runtime.md`
   - CLI 角色、outbox dispatcher、Redis Streams consumer、运行时约束
+- `redis-boundaries-and-pubsub.md`
+  - Redis key / channel 收口、Pub/Sub / Streams 边界、运行时校验约束
+- `config-and-naming-conventions.md`
+  - `configKV` 默认值来源、Redis key 命名、HTTP route 命名、后续收敛 TODO
 - `billing-architecture.md`
   - 计费链路专项说明，重点看 Flux / Stripe / outbox / Redis Streams
+- `observability-conventions.md`
+  - traces / metrics 命名规则，标准 OTel 字段与 `airi.*` 自定义字段边界
 
 ## 快速结论
 
@@ -35,4 +41,7 @@
 - 改某个接口行为：先看 `transport-and-routes.md`
 - 改表结构、缓存或幂等：先看 `data-model-and-state.md`
 - 改 worker、部署角色、事件处理：先看 `workers-and-runtime.md`
+- 改 Redis key、Pub/Sub、Streams 边界：先看 `redis-boundaries-and-pubsub.md`
+- 改配置默认值、Redis key 命名、HTTP route 命名：先看 `config-and-naming-conventions.md`
 - 改扣费、充值、Stripe：先看 `billing-architecture.md`
+- 改 trace / metric attributes、OTel 命名：先看 `observability-conventions.md`
