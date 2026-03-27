@@ -17,13 +17,26 @@ const loadingAmount = ref<number | null>(null)
 const message = ref<{ type: 'success' | 'error', text: string } | null>(null)
 const packages = ref<{ amount: number, label: string, price: string }[]>([])
 
+// NOTICE: Manual interface instead of hono InferResponseType because hono client
+// type instantiation hits TS recursion limits ("excessively deep and possibly infinite").
+// Keep in sync with the route response shape in apps/server/src/routes/flux.ts
 interface AuditRecord {
   id: string
-  type: 'consumption' | 'addition' | 'initial'
+  type: string
   amount: number
   description: string
-  metadata: { promptTokens?: number, completionTokens?: number } | null
+  metadata: Record<string, unknown> | null
   createdAt: string
+}
+
+/** Display amount with sign: debit is negative, credit/initial are positive */
+function displayAmount(record: AuditRecord): string {
+  const signed = record.type === 'debit' ? -record.amount : record.amount
+  return signed >= 0 ? `+${signed}` : String(signed)
+}
+
+function isPositive(record: AuditRecord): boolean {
+  return record.type !== 'debit'
 }
 
 const auditRecords = ref<AuditRecord[]>([])
@@ -204,13 +217,13 @@ async function handleBuy(amount: number) {
               <td px-4 py-3>
                 <span
                   inline-block rounded-full px-2 py-0.5 text-xs font-medium
-                  :class="record.type === 'consumption'
+                  :class="record.type === 'debit'
                     ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
                     : 'bg-green-500/10 text-green-600 dark:text-green-400'"
                 >
-                  {{ record.type === 'consumption'
+                  {{ record.type === 'debit'
                     ? t('settings.pages.flux.audit.typeConsumption')
-                    : record.type === 'addition'
+                    : record.type === 'credit'
                       ? t('settings.pages.flux.audit.typeAddition')
                       : t('settings.pages.flux.audit.typeInitial') }}
                 </span>
@@ -225,8 +238,8 @@ async function handleBuy(amount: number) {
                 </span>
               </td>
               <td px-4 py-3 text-right font-mono>
-                <span :class="record.amount >= 0 ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'">
-                  {{ record.amount >= 0 ? `+${record.amount}` : record.amount }}
+                <span :class="isPositive(record) ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'">
+                  {{ displayAmount(record) }}
                 </span>
               </td>
             </tr>
@@ -244,18 +257,18 @@ async function handleBuy(amount: number) {
           <div flex="~ items-center justify-between">
             <span
               inline-block rounded-full px-2 py-0.5 text-xs font-medium
-              :class="record.type === 'consumption'
+              :class="record.type === 'debit'
                 ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
                 : 'bg-green-500/10 text-green-600 dark:text-green-400'"
             >
-              {{ record.type === 'consumption'
+              {{ record.type === 'debit'
                 ? t('settings.pages.flux.audit.typeConsumption')
-                : record.type === 'addition'
+                : record.type === 'credit'
                   ? t('settings.pages.flux.audit.typeAddition')
                   : t('settings.pages.flux.audit.typeInitial') }}
             </span>
-            <span text-sm font-semibold font-mono :class="record.amount >= 0 ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'">
-              {{ record.amount >= 0 ? `+${record.amount}` : record.amount }}
+            <span text-sm font-semibold font-mono :class="isPositive(record) ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'">
+              {{ displayAmount(record) }}
             </span>
           </div>
           <div text="sm neutral-600 dark:neutral-300" truncate>
