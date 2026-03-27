@@ -2233,6 +2233,9 @@ importers:
       '@proj-airi/plugin-protocol':
         specifier: workspace:*
         version: link:../plugin-protocol
+      '@proj-airi/server-shared':
+        specifier: workspace:*
+        version: link:../server-shared
       nanoid:
         specifier: 'catalog:'
         version: 5.1.6
@@ -2281,9 +2284,6 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
-      '@proj-airi/server-sdk-shared':
-        specifier: workspace:^
-        version: link:../server-sdk-shared
       '@proj-airi/server-shared':
         specifier: workspace:^
         version: link:../server-shared
@@ -2426,9 +2426,6 @@ importers:
       '@proj-airi/server-sdk':
         specifier: workspace:*
         version: link:../server-sdk
-      '@proj-airi/server-shared':
-        specifier: workspace:*
-        version: link:../server-shared
       '@proj-airi/stage-ui':
         specifier: workspace:*
         version: link:../stage-ui
@@ -2608,9 +2605,6 @@ importers:
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../server-sdk
-      '@proj-airi/server-shared':
-        specifier: workspace:^
-        version: link:../server-shared
       '@proj-airi/stage-shared':
         specifier: workspace:^
         version: link:../stage-shared

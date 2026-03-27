@@ -1,7 +1,7 @@
 /* eslint-disable style/indent-binary-ops */
 /* eslint-disable style/operator-linebreak */
 
-import type { WebSocketEventOf } from '@proj-airi/server-shared/types'
+import type { WebSocketEventOf } from '@proj-airi/server-sdk'
 import type { Store, StoreDefinition } from 'pinia'
 import type { Mock } from 'vitest'
 import type { UnwrapRef } from 'vue'
