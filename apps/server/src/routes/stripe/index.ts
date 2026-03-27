@@ -1,29 +1,26 @@
-import type { Env } from '../libs/env'
-import type { RevenueMetrics } from '../libs/otel'
-import type { BillingService } from '../services/billing/billing-service'
-import type { ConfigKVService } from '../services/config-kv'
-import type { FluxService } from '../services/flux'
-import type { StripeService } from '../services/stripe'
-import type { HonoEnv } from '../types/hono'
+import type { Env } from '../../libs/env'
+import type { RevenueMetrics } from '../../libs/otel'
+import type { BillingService } from '../../services/billing/billing-service'
+import type { ConfigKVService } from '../../services/config-kv'
+import type { FluxService } from '../../services/flux'
+import type { StripeService } from '../../services/stripe'
+import type { HonoEnv } from '../../types/hono'
 
 import Stripe from 'stripe'
 
 import { useLogger } from '@guiiai/logg'
 import { Hono } from 'hono'
-import { integer, minValue, number, object, pipe, safeParse } from 'valibot'
+import { safeParse } from 'valibot'
 
-import { authGuard } from '../middlewares/auth'
-import { configGuard } from '../middlewares/config-guard'
-import { rateLimiter } from '../middlewares/rate-limit'
-import { createBadRequestError, createServiceUnavailableError } from '../utils/error'
-import { errorMessageFromUnknown } from '../utils/error-message'
-import { resolveTrustedRequestOrigin } from '../utils/origin'
+import { authGuard } from '../../middlewares/auth'
+import { configGuard } from '../../middlewares/config-guard'
+import { rateLimiter } from '../../middlewares/rate-limit'
+import { createBadRequestError, createServiceUnavailableError } from '../../utils/error'
+import { errorMessageFromUnknown } from '../../utils/error-message'
+import { resolveTrustedRequestOrigin } from '../../utils/origin'
+import { CheckoutBodySchema } from './schema'
 
 const logger = useLogger('stripe')
-
-const CheckoutBodySchema = object({
-  amount: pipe(number(), integer(), minValue(1)),
-})
 
 export function createStripeRoutes(
   fluxService: FluxService,

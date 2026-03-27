@@ -38,9 +38,9 @@ import { createCharacterRoutes } from './routes/characters'
 import { createChatWsHandlers } from './routes/chat-ws'
 import { createChatRoutes } from './routes/chats'
 import { createFluxRoutes } from './routes/flux'
+import { createV1CompletionsRoutes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
-import { createV1CompletionsRoutes } from './routes/v1completions'
 import { createBillingMq } from './services/billing/billing-events'
 import { createBillingService } from './services/billing/billing-service'
 import { createCharacterService } from './services/characters'
@@ -109,7 +109,7 @@ function buildApp(deps: AppDeps) {
     .use('*', sessionMiddleware(deps.auth))
     .use('*', async (c, next) => {
       // Skip global body limit for ASR transcription route (has its own 25MB limit)
-      if (c.req.path === '/api/v1/audio/transcriptions') {
+      if (c.req.path === '/api/v1/openai/audio/transcriptions') {
         return next()
       }
       return bodyLimit({ maxSize: 1024 * 1024 })(c, next)
@@ -153,32 +153,32 @@ function buildApp(deps: AppDeps) {
     /**
      * Character routes are handled by the character service.
      */
-    .route('/api/characters', createCharacterRoutes(deps.characterService))
+    .route('/api/v1/characters', createCharacterRoutes(deps.characterService))
 
     /**
      * Provider routes are handled by the provider service.
      */
-    .route('/api/providers', createProviderRoutes(deps.providerService))
+    .route('/api/v1/providers', createProviderRoutes(deps.providerService))
 
     /**
      * Chat routes are handled by the chat service.
      */
-    .route('/api/chats', createChatRoutes(deps.chatService))
+    .route('/api/v1/chats', createChatRoutes(deps.chatService))
 
     /**
      * V1 routes for official provider.
      */
-    .route('/api/v1', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.billingMq, deps.otel?.llm))
+    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.billingMq, deps.otel?.llm))
 
     /**
      * Flux routes.
      */
-    .route('/api/flux', createFluxRoutes(deps.fluxService, deps.fluxAuditService))
+    .route('/api/v1/flux', createFluxRoutes(deps.fluxService, deps.fluxAuditService))
 
     /**
      * Stripe routes.
      */
-    .route('/api/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.otel?.revenue))
+    .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.otel?.revenue))
 
   return { app: builtApp, injectWebSocket }
 }

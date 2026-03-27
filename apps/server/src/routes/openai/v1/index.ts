@@ -1,25 +1,25 @@
 import type { Context } from 'hono'
 
-import type { MqService } from '../libs/mq'
-import type { LlmMetrics } from '../libs/otel'
-import type { UsageInfo } from '../services/billing/billing'
-import type { BillingEvent } from '../services/billing/billing-events'
-import type { BillingService } from '../services/billing/billing-service'
-import type { ConfigKVService } from '../services/config-kv'
-import type { FluxService } from '../services/flux'
-import type { HonoEnv } from '../types/hono'
+import type { MqService } from '../../../libs/mq'
+import type { LlmMetrics } from '../../../libs/otel'
+import type { UsageInfo } from '../../../services/billing/billing'
+import type { BillingEvent } from '../../../services/billing/billing-events'
+import type { BillingService } from '../../../services/billing/billing-service'
+import type { ConfigKVService } from '../../../services/config-kv'
+import type { FluxService } from '../../../services/flux'
+import type { HonoEnv } from '../../../types/hono'
 
 import { useLogger } from '@guiiai/logg'
 import { context, SpanStatusCode, trace } from '@opentelemetry/api'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 
-import { authGuard } from '../middlewares/auth'
-import { configGuard } from '../middlewares/config-guard'
-import { rateLimiter } from '../middlewares/rate-limit'
-import { calculateFluxFromUsage, extractUsageFromBody } from '../services/billing/billing'
-import { createPaymentRequiredError } from '../utils/error'
-import { nanoid } from '../utils/id'
+import { authGuard } from '../../../middlewares/auth'
+import { configGuard } from '../../../middlewares/config-guard'
+import { rateLimiter } from '../../../middlewares/rate-limit'
+import { calculateFluxFromUsage, extractUsageFromBody } from '../../../services/billing/billing'
+import { createPaymentRequiredError } from '../../../utils/error'
+import { nanoid } from '../../../utils/id'
 import {
   AIRI_ATTR_BILLING_FLUX_CONSUMED,
   AIRI_ATTR_GEN_AI_OPERATION_KIND,
@@ -30,7 +30,7 @@ import {
   GEN_AI_ATTR_USAGE_INPUT_TOKENS,
   GEN_AI_ATTR_USAGE_OUTPUT_TOKENS,
   getServerConnectionAttributes,
-} from '../utils/observability'
+} from '../../../utils/observability'
 
 const tracer = trace.getTracer('v1-completions')
 
@@ -72,6 +72,8 @@ function getLlmMetricAttributes(opts: { model: string, type: string, status: num
 
 export function createV1CompletionsRoutes(fluxService: FluxService, billingService: BillingService, configKV: ConfigKVService, billingMq: MqService<BillingEvent>, llm?: LlmMetrics | null) {
   const logger = useLogger('v1-completions').useGlobalConfig()
+  // TODO: Extract this compat route into smaller facades/modules.
+  // It currently mixes auth, rate limiting, proxying, billing, telemetry, and event publishing in one transport layer entrypoint.
 
   function recordMetrics(opts: { model: string, status: number, type: string, durationMs: number, fluxConsumed: number, promptTokens?: number, completionTokens?: number }) {
     if (!llm)

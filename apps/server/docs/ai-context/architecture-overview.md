@@ -137,7 +137,7 @@ CLI 入口在 `src/bin/run.ts`，支持两种角色：
 
 ### LLM 网关代理而不是本地 provider 编排
 
-`/api/v1` 并不直接调具体模型 provider，而是转发到 `config: GATEWAY_BASE_URL`。因此：
+`/api/v1/openai` 并不直接调具体模型 provider，而是转发到 `config: GATEWAY_BASE_URL`。因此：
 
 - 服务端关心的是鉴权、限流、计费、日志、观测
 - 具体模型执行和 usage 返回格式由 gateway 决定
@@ -157,4 +157,4 @@ Redis 在这里同时承担：
 
 - `src/services/request-log.ts` 和 `src/services/llm-request-log.ts` 职责重复，当前实际注入的是前者。
 - `src/schemas/accounts.ts` 和 `src/schemas/auth.ts` 内容重复，`createAuth()` 使用的是 `accounts.ts`。
-- `v1completions.ts` 已实现 `handleTTS` / `handleTranscription`，但路由仍被注释掉，当前只开放 chat completions。
+- `src/routes/openai/v1/index.ts` 已实现 `handleTTS` / `handleTranscription`，但路由仍被注释掉，当前只开放 chat completions。

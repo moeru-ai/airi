@@ -130,8 +130,8 @@ lock:{domain}:{id}
 推荐：
 
 ```txt
-/api/users/me/flux
-/api/users/me/flux/history
+/api/v1/flux
+/api/v1/flux/history
 ```
 
 不推荐：
@@ -147,15 +147,20 @@ lock:{domain}:{id}
 
 ```txt
 /api/v1/...
-/api/openai/v1/...
+/api/v1/openai/...
 ```
 
 不要让“部分资源版本化、部分资源裸挂”长期并存而没有说明。
 
 ## TODO
 
+- Replace DB-derived HTTP request schemas for characters/providers/chats with explicit DTO schemas.
+- Move ownership and membership authorization rules behind actor-aware service APIs instead of splitting them across routes and services.
+- Stabilize HTTP response shapes so services no longer leak raw Drizzle returning arrays to routes.
+- Encode chat member invariants in schema validation and map those failures to 4xx API errors.
+- Split the OpenAI compat route and chat WebSocket handler into smaller modules so transport code stops owning orchestration complexity.
 - 把 `apps/server` 中现有 Redis key / channel 继续向 helper 收口，避免业务代码里散落模板字符串。
 - 统一把旧式 key 命名迁移到分段命名风格，优先处理 Flux cache、chat broadcast、lock key。
 - 给 `configKV` 增补一份“哪些配置属于 infra、哪些属于运营策略”的清单，避免继续模糊放置位置。
 - 把所有 `configKV.getOptional(...) ?? defaultValue` 模式清理掉，默认值统一回到 `ConfigEntrySchemas`。
-- 评估是否把 `/api/v1` 收口为兼容层 API，并明确业务资源是否也需要统一版本化。
+- 评估是否继续沿用统一 `/api/v1/*` 版本树，还是为兼容 API 与业务 API 引入更明确的子域分隔。

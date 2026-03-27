@@ -1,12 +1,12 @@
-import type { ChatService } from '../services/chats'
-import type { HonoEnv } from '../types/hono'
+import type { ChatService } from '../../services/chats'
+import type { HonoEnv } from '../../types/hono'
 
 import { Hono } from 'hono'
 import { safeParse } from 'valibot'
 
-import { AddMemberSchema, CreateChatSchema, UpdateChatSchema } from '../api/chats.schema'
-import { authGuard } from '../middlewares/auth'
-import { createBadRequestError } from '../utils/error'
+import { authGuard } from '../../middlewares/auth'
+import { createBadRequestError } from '../../utils/error'
+import { AddMemberSchema, CreateChatSchema, UpdateChatSchema } from './schema'
 
 export function createChatRoutes(chatService: ChatService) {
   return new Hono<HonoEnv>()

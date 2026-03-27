@@ -8,8 +8,8 @@ import type { HonoEnv } from '../../types/hono'
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
 
+import { createStripeRoutes } from '.'
 import { ApiError } from '../../utils/error'
-import { createStripeRoutes } from '../stripe'
 
 // --- Mock helpers ---
 
@@ -148,14 +148,14 @@ function createTestApp(
     await next()
   })
 
-  app.route('/api/stripe', routes)
+  app.route('/api/v1/stripe', routes)
   return app
 }
 
 // --- Tests ---
 
 describe('stripeRoutes', () => {
-  describe('gET /api/stripe/packages', () => {
+  describe('gET /api/v1/stripe/packages', () => {
     it('returns configured packages', async () => {
       const app = createTestApp(
         createMockFluxService(),
@@ -164,7 +164,7 @@ describe('stripeRoutes', () => {
         createMockConfigKV(),
       )
 
-      const res = await app.request('/api/stripe/packages')
+      const res = await app.request('/api/v1/stripe/packages')
       expect(res.status).toBe(200)
 
       const data = await res.json()
@@ -180,13 +180,13 @@ describe('stripeRoutes', () => {
         configKV,
       )
 
-      const res = await app.request('/api/stripe/packages')
+      const res = await app.request('/api/v1/stripe/packages')
       expect(res.status).toBe(200)
       expect(await res.json()).toEqual([])
     })
   })
 
-  describe('pOST /api/stripe/checkout', () => {
+  describe('pOST /api/v1/stripe/checkout', () => {
     it('returns 401 when unauthenticated', async () => {
       const app = createTestApp(
         createMockFluxService(),
@@ -195,7 +195,7 @@ describe('stripeRoutes', () => {
         createMockConfigKV(),
       )
 
-      const res = await app.request('/api/stripe/checkout', {
+      const res = await app.request('/api/v1/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: 500 }),
@@ -212,7 +212,7 @@ describe('stripeRoutes', () => {
       )
 
       const res = await app.fetch(
-        new Request('http://localhost/api/stripe/checkout', {
+        new Request('http://localhost/api/v1/stripe/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ amount: 0 }),
@@ -231,7 +231,7 @@ describe('stripeRoutes', () => {
       )
 
       const res = await app.fetch(
-        new Request('http://localhost/api/stripe/checkout', {
+        new Request('http://localhost/api/v1/stripe/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ amount: -100 }),
@@ -250,7 +250,7 @@ describe('stripeRoutes', () => {
       )
 
       const res = await app.fetch(
-        new Request('http://localhost/api/stripe/checkout', {
+        new Request('http://localhost/api/v1/stripe/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ amount: 1_000_001 }),
@@ -269,7 +269,7 @@ describe('stripeRoutes', () => {
       )
 
       const res = await app.fetch(
-        new Request('http://localhost/api/stripe/checkout', {
+        new Request('http://localhost/api/v1/stripe/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ amount: 501 }),
@@ -289,7 +289,7 @@ describe('stripeRoutes', () => {
       )
 
       const res = await app.fetch(
-        new Request('http://localhost/api/stripe/checkout', {
+        new Request('http://localhost/api/v1/stripe/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ amount: 9.99 }),
@@ -317,9 +317,9 @@ describe('stripeRoutes', () => {
         c.set('user', testUser as any)
         await next()
       })
-      app.route('/api/stripe', routes)
+      app.route('/api/v1/stripe', routes)
 
-      const res = await app.request('/api/stripe/checkout', {
+      const res = await app.request('/api/v1/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: 500 }),
@@ -328,7 +328,7 @@ describe('stripeRoutes', () => {
     })
   })
 
-  describe('gET /api/stripe/orders', () => {
+  describe('gET /api/v1/stripe/orders', () => {
     it('returns 401 when unauthenticated', async () => {
       const app = createTestApp(
         createMockFluxService(),
@@ -337,7 +337,7 @@ describe('stripeRoutes', () => {
         createMockConfigKV(),
       )
 
-      const res = await app.request('/api/stripe/orders')
+      const res = await app.request('/api/v1/stripe/orders')
       expect(res.status).toBe(401)
     })
 
@@ -357,7 +357,7 @@ describe('stripeRoutes', () => {
       )
 
       const res = await app.fetch(
-        new Request('http://localhost/api/stripe/orders'),
+        new Request('http://localhost/api/v1/stripe/orders'),
         { user: testUser } as any,
       )
       expect(res.status).toBe(200)
@@ -368,7 +368,7 @@ describe('stripeRoutes', () => {
     })
   })
 
-  describe('gET /api/stripe/invoices', () => {
+  describe('gET /api/v1/stripe/invoices', () => {
     it('returns 401 when unauthenticated', async () => {
       const app = createTestApp(
         createMockFluxService(),
@@ -377,7 +377,7 @@ describe('stripeRoutes', () => {
         createMockConfigKV(),
       )
 
-      const res = await app.request('/api/stripe/invoices')
+      const res = await app.request('/api/v1/stripe/invoices')
       expect(res.status).toBe(401)
     })
 
@@ -394,7 +394,7 @@ describe('stripeRoutes', () => {
       )
 
       const res = await app.fetch(
-        new Request('http://localhost/api/stripe/invoices'),
+        new Request('http://localhost/api/v1/stripe/invoices'),
         { user: testUser } as any,
       )
       expect(res.status).toBe(200)
@@ -405,7 +405,7 @@ describe('stripeRoutes', () => {
     })
   })
 
-  describe('pOST /api/stripe/portal', () => {
+  describe('pOST /api/v1/stripe/portal', () => {
     it('returns 401 when unauthenticated', async () => {
       const app = createTestApp(
         createMockFluxService(),
@@ -414,7 +414,7 @@ describe('stripeRoutes', () => {
         createMockConfigKV(),
       )
 
-      const res = await app.request('/api/stripe/portal', { method: 'POST' })
+      const res = await app.request('/api/v1/stripe/portal', { method: 'POST' })
       expect(res.status).toBe(401)
     })
 
@@ -430,7 +430,7 @@ describe('stripeRoutes', () => {
       )
 
       const res = await app.fetch(
-        new Request('http://localhost/api/stripe/portal', { method: 'POST' }),
+        new Request('http://localhost/api/v1/stripe/portal', { method: 'POST' }),
         { user: testUser } as any,
       )
       expect(res.status).toBe(400)
@@ -440,7 +440,7 @@ describe('stripeRoutes', () => {
     })
   })
 
-  describe('pOST /api/stripe/webhook', () => {
+  describe('pOST /api/v1/stripe/webhook', () => {
     it('returns 400 when signature is missing', async () => {
       const app = createTestApp(
         createMockFluxService(),
@@ -449,7 +449,7 @@ describe('stripeRoutes', () => {
         createMockConfigKV(),
       )
 
-      const res = await app.request('/api/stripe/webhook', {
+      const res = await app.request('/api/v1/stripe/webhook', {
         method: 'POST',
         body: '{}',
       })
@@ -467,7 +467,7 @@ describe('stripeRoutes', () => {
         createMockConfigKV(),
       )
 
-      const res = await app.request('/api/stripe/webhook', {
+      const res = await app.request('/api/v1/stripe/webhook', {
         method: 'POST',
         headers: { 'stripe-signature': 'invalid_sig' },
         body: '{}',
@@ -492,9 +492,9 @@ describe('stripeRoutes', () => {
           return c.json({ error: err.errorCode }, err.statusCode)
         return c.json({ error: 'Internal Server Error' }, 500)
       })
-      app.route('/api/stripe', routes)
+      app.route('/api/v1/stripe', routes)
 
-      const res = await app.request('/api/stripe/webhook', {
+      const res = await app.request('/api/v1/stripe/webhook', {
         method: 'POST',
         headers: { 'stripe-signature': 'test_sig' },
         body: '{}',

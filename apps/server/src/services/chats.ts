@@ -173,6 +173,7 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
     },
 
     async addMember(userId: string, chatId: string, member: { type: ChatMemberType, userId?: string, characterId?: string }) {
+      // TODO: Push these invariants up into the HTTP schema and convert failures to API errors instead of generic Error.
       // Validate that user-type members have a userId and non-user members have a characterId
       if (member.type === 'user' && !member.userId) {
         throw new Error('userId is required for user-type members')
