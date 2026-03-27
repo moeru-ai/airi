@@ -10,6 +10,7 @@ import { plugin as MineflayerPVP } from 'mineflayer-pvp'
 import { plugin as MineflayerTool } from 'mineflayer-tool'
 
 import { MinecraftServiceShell } from './airi/service-shell'
+import { startAiriClientConnection } from './airi/start-background-client'
 import { CognitiveEngine } from './cognitive'
 import { config, initEnv } from './composables/config'
 import { MinecraftRuntimeConfigManager } from './composables/runtime-config'
@@ -24,6 +25,7 @@ import { initLogger, useLogger } from './utils/logger'
 async function main() {
   initLogger() // todo: save logs to file
   initEnv()
+  const logger = useLogger()
 
   const runtimeConfigManager = new MinecraftRuntimeConfigManager()
   const configManager = {
@@ -48,7 +50,7 @@ async function main() {
   configManager.load()
 
   if (config.debug.server || config.debug.viewer || config.debug.mcp) {
-    useLogger().warn(
+    logger.warn(
       [
         '==============================================================================',
         'SECURITY NOTICE:',
@@ -69,12 +71,19 @@ async function main() {
   }
 
   // Connect airi server
+  let airiConnectionLifecycle: ReturnType<typeof startAiriClientConnection> | null = null
   const airiClient = new Client({
     name: config.airi.clientName,
     url: config.airi.wsBaseUrl,
     possibleEvents: ['module:configure', 'spark:command', 'context:update'],
+    autoConnect: false,
+    onError: error => airiConnectionLifecycle?.reportUnavailable(error),
+    onClose: () => airiConnectionLifecycle?.reportDisconnected(),
   })
-  await airiClient.connect()
+  airiConnectionLifecycle = startAiriClientConnection(airiClient, {
+    logger,
+    url: config.airi.wsBaseUrl,
+  })
 
   let activeRuntime: MinecraftBotRuntime | null = null
   let viewerInitialized = false
@@ -135,7 +144,7 @@ async function main() {
   process.on('SIGINT', () => {
     Promise.resolve(activeRuntime?.stop())
       .catch((err: Error) => {
-        useLogger().errorWithError('Failed to stop Minecraft runtime cleanly', err)
+        logger.errorWithError('Failed to stop Minecraft runtime cleanly', err)
       })
       .finally(() => {
         // TODO: Add an explicit AIRI-side deregistration path on shutdown instead of relying on
