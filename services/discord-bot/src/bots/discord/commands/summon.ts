@@ -79,6 +79,9 @@ export class VoiceManager extends EventEmitter {
     { channel: BaseGuildVoiceChannel, monitor: AudioMonitor }
   > = new Map()
 
+  // Track the text channel where the summon command was called, per guild.
+  private textChannels: Map<string, string> = new Map()
+
   // Track event listeners for cleanup
   private connectionListeners: Map<string, {
     stateChange: (oldState: any, newState: any) => Promise<void>
@@ -197,6 +200,11 @@ export class VoiceManager extends EventEmitter {
       // Log connection success
       this.logger.withField('state', connection.state.status).log('Voice connection established in state')
       await interaction.reply(`Joined: ${channel.name}.`)
+
+      // Store the text channel context for this guild
+      if (interaction.guildId) {
+        this.textChannels.set(interaction.guildId, interaction.channelId)
+      }
 
       // Set up ongoing state change monitoring
       connection.on('stateChange', this.handleVoiceConnectionStateChange(channel, connection))
@@ -471,11 +479,18 @@ export class VoiceManager extends EventEmitter {
       if (transcriptionText && isValidTranscription(transcriptionText)) {
         state.transcriptionText += transcriptionText
 
+        // Use the text channel where /summon was called, fallback to current channelId (likely voice)
+        const targetChannelId = (guildId && this.textChannels.has(guildId))
+          ? this.textChannels.get(guildId)!
+          : channelId
+
         const discordContext = {
-          channelId,
+          channelId: targetChannelId,
           guildId,
           guildMember: member,
         } satisfies Discord
+
+        this.logger.log(`Sending transcription to AIRI: "${transcriptionText}" (Target Channel: ${targetChannelId})`)
 
         this.airiClient.send({
           type: 'input:text:voice',

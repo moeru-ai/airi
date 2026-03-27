@@ -73,14 +73,27 @@ export async function transcribe(pcmBuffer: Buffer) {
 export async function openaiTranscribe(wavBuffer: Buffer) {
   const log = useLogg('Remote:Transcribe').useGlobalConfig()
 
-  log.log('Transcribing audio...')
+  const apiKey = env.OPENAI_STT_API_KEY
+  const apiBaseUrl = env.OPENAI_STT_API_BASE_URL
+  const model = env.OPENAI_STT_MODEL || 'whisper-1'
 
-  const wavFile = new Blob([wavBuffer], { type: 'audio/wav' })
-  const openai = createOpenAI(env.OPENAI_STT_API_KEY, env.OPENAI_STT_API_BASE_URL)
+  if (!apiBaseUrl) {
+    log.error('OPENAI_STT_API_BASE_URL is not set')
+    return ''
+  }
+
+  if (!apiKey) {
+    log.warn('OPENAI_STT_API_KEY is not set')
+  }
+
+  log.log(`Transcribing audio using ${model} at ${apiBaseUrl}...`)
 
   try {
+    const wavFile = new Blob([wavBuffer], { type: 'audio/wav' })
+    const openai = createOpenAI(apiKey || 'sk-none', apiBaseUrl)
+
     const result = await generateTranscription({
-      ...openai.transcription(env.OPENAI_STT_MODEL),
+      ...openai.transcription(model),
       file: wavFile,
     })
 
@@ -89,6 +102,9 @@ export async function openaiTranscribe(wavBuffer: Buffer) {
   }
   catch (err) {
     log.withError(err).error('Failed to transcribe audio')
+    if (err instanceof TypeError && err.message.includes('Invalid URL')) {
+      log.error(`The provided URL "${apiBaseUrl}" is invalid. Please check your .env or .env.local file.`)
+    }
   }
 
   return ''

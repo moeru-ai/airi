@@ -10,6 +10,18 @@ const log = useLogg('Bot').useGlobalConfig()
 
 // Create a new client instance
 async function main() {
+  log.log('Discord Bot starting up...')
+  if (env.DISCORD_GUILD_ID) {
+    log.log(`Development Guild ID enabled: ${env.DISCORD_GUILD_ID}`)
+  }
+  else {
+    log.log('No Guild ID provided. Slash commands will be registered globally.')
+  }
+
+  if (env.DISCORD_TOKEN) {
+    log.log('Bot token found in environment variables.')
+  }
+
   // Create Discord adapter with configuration
   const adapter = new DiscordAdapter({
     discordToken: env.DISCORD_TOKEN || '', // Fallback to env, but will be updated via WebSocket

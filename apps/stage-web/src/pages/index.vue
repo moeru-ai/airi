@@ -16,7 +16,7 @@ import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
@@ -44,6 +44,7 @@ onMounted(() => syncBackgroundTheme())
 // Audio + transcription pipeline (mirrors stage-tamagotchi)
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
+const { hearingDetectionMode } = storeToRefs(useHearingStore())
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
 const { transcribeForRecording } = hearingPipeline
@@ -62,17 +63,25 @@ const {
   loaded: vadLoaded,
 } = useVAD(workletUrl, {
   threshold: ref(0.6),
-  onSpeechStart: () => handleSpeechStart(),
-  onSpeechEnd: () => handleSpeechEnd(),
+  onSpeechStart: () => {
+    if (hearingDetectionMode.value === 'vad')
+      void handleSpeechStart()
+  },
+  onSpeechEnd: () => {
+    if (hearingDetectionMode.value === 'vad')
+      void handleSpeechEnd()
+  },
 })
 
 let stopOnStopRecord: (() => void) | undefined
 
 async function startAudioInteraction() {
   try {
-    await initVAD()
-    if (stream.value)
-      await startVAD(stream.value)
+    if (hearingDetectionMode.value === 'vad') {
+      await initVAD()
+      if (stream.value)
+        await startVAD(stream.value)
+    }
 
     // Hook once
     stopOnStopRecord = onStopRecord(async (recording) => {
