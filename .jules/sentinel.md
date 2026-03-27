@@ -1,4 +1,0 @@
-## 2025-02-17 - [Fix XSS in Provider Definition]
-**Vulnerability:** The provider definition troubleshooting content, even when sourced from i18n functions like `t()`, was being directly injected into the DOM using `v-html=""`. This presents an XSS risk.
-**Learning:** We must treat all dynamic content injected via `v-html` as potentially untrusted, regardless of its immediate source (even if it's i18n translations). Furthermore, we should actively question if `v-html` is strictly necessary. Often, plain text interpolation (`{{ content }}`) is sufficient and inherently secure against XSS.
-**Prevention:** Avoid `v-html` wherever possible, preferring `{{ }}` text interpolation for dynamic strings like provider definitions and translations. Only use `v-html` when rich HTML output is strictly required by product design, and in those cases, *always* sanitize the output using `DOMPurify.sanitize()` wrapped in a `computed` property.
