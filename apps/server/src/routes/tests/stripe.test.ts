@@ -1,5 +1,5 @@
 import type { StripeCheckoutSession, StripeInvoice } from '../../schemas/stripe'
-import type { BillingService } from '../../services/billing-service'
+import type { BillingService } from '../../services/billing/billing-service'
 import type { ConfigKVService } from '../../services/config-kv'
 import type { FluxService } from '../../services/flux'
 import type { StripeService } from '../../services/stripe'
