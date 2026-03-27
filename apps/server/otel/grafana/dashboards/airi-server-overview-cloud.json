@@ -561,8 +561,8 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum by (model) (rate(llm_request_count_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
-          "legendFormat": "{{model}}"
+          "expr": "sum by (gen_ai_request_model) (rate(llm_request_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_request_model!=\"\"}[$__rate_interval]))",
+          "legendFormat": "{{gen_ai_request_model}}"
         }
       ]
     },
@@ -584,8 +584,12 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum by (type) (rate(llm_request_count_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
-          "legendFormat": "{{type}}"
+          "expr": "sum by (gen_ai_operation_name) (rate(llm_request_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_operation_name!=\"\"}[$__rate_interval]))",
+          "legendFormat": "{{gen_ai_operation_name}}"
+        },
+        {
+          "expr": "sum by (airi_gen_ai_operation_kind) (rate(llm_request_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", airi_gen_ai_operation_kind!=\"\"}[$__rate_interval]))",
+          "legendFormat": "{{airi_gen_ai_operation_kind}}"
         }
       ]
     },
@@ -607,8 +611,8 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le, model) (rate(llm_request_duration_milliseconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval])))",
-          "legendFormat": "{{model}}"
+          "expr": "histogram_quantile(0.95, sum by (le, gen_ai_request_model) (rate(llm_request_duration_milliseconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_request_model!=\"\"}[$__rate_interval])))",
+          "legendFormat": "{{gen_ai_request_model}}"
         }
       ]
     },
@@ -630,8 +634,8 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum by (model) (rate(flux_consumed_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
-          "legendFormat": "{{model}}"
+          "expr": "sum by (gen_ai_request_model) (rate(flux_consumed_total{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_request_model!=\"\"}[$__rate_interval]))",
+          "legendFormat": "{{gen_ai_request_model}}"
         }
       ]
     },
@@ -653,8 +657,8 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum by (model) (rate(llm_tokens_prompt_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
-          "legendFormat": "{{model}}"
+          "expr": "sum by (gen_ai_request_model) (rate(llm_tokens_prompt_total{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_request_model!=\"\"}[$__rate_interval]))",
+          "legendFormat": "{{gen_ai_request_model}}"
         }
       ]
     },
@@ -676,8 +680,8 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum by (model) (rate(llm_tokens_completion_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
-          "legendFormat": "{{model}}"
+          "expr": "sum by (gen_ai_request_model) (rate(llm_tokens_completion_total{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_request_model!=\"\"}[$__rate_interval]))",
+          "legendFormat": "{{gen_ai_request_model}}"
         }
       ]
     },
