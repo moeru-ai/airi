@@ -30,7 +30,16 @@ export function useAuthProviderSync() {
   const speechStore = useSpeechStore()
   const hearingStore = useHearingStore()
 
+  // Track whether the sync has already fired in this session to avoid
+  // re-running on every page navigation (onAuthenticated fires immediately
+  // if already logged in when the hook is registered).
+  let hasSynced = false
+
   authStore.onAuthenticated(async () => {
+    if (hasSynced)
+      return
+    hasSynced = true
+
     const toActivate = AUTH_ACTIVATED_PROVIDERS.filter(
       p => providersStore.getProviderMetadata(p.id) != null,
     )
@@ -39,19 +48,27 @@ export function useAuthProviderSync() {
       providersStore.forceProviderConfigured(id)
     }
 
+    // Only set official provider as active when the user hasn't configured
+    // any provider for that module yet.
     for (const { id, module } of toActivate) {
       switch (module) {
         case 'consciousness':
-          consciousnessStore.activeProvider = id
-          consciousnessStore.activeModel = 'auto'
+          if (!consciousnessStore.activeProvider) {
+            consciousnessStore.activeProvider = id
+            consciousnessStore.activeModel = 'auto'
+          }
           break
         case 'speech':
-          speechStore.activeSpeechProvider = id
-          speechStore.activeSpeechModel = 'auto'
+          if (!speechStore.activeSpeechProvider) {
+            speechStore.activeSpeechProvider = id
+            speechStore.activeSpeechModel = 'auto'
+          }
           break
         case 'hearing':
-          hearingStore.activeTranscriptionProvider = id
-          hearingStore.activeTranscriptionModel = 'auto'
+          if (!hearingStore.activeTranscriptionProvider) {
+            hearingStore.activeTranscriptionProvider = id
+            hearingStore.activeTranscriptionModel = 'auto'
+          }
           break
       }
     }
@@ -72,6 +89,8 @@ export function useAuthProviderSync() {
   })
 
   authStore.onLogout(() => {
+    hasSynced = false
+
     for (const { id } of AUTH_ACTIVATED_PROVIDERS) {
       providersStore.setProviderUnconfigured(id)
     }
