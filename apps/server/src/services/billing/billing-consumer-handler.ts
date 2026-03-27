@@ -1,11 +1,11 @@
-import type { Database } from '../libs/db'
+import type { Database } from '../../libs/db'
 import type { BillingStreamMessage } from './billing-mq'
 
 import { useLogger } from '@guiiai/logg'
 
-import * as fluxAuditSchema from '../schemas/flux-audit-log'
-import * as fluxLedgerSchema from '../schemas/flux-ledger'
-import * as llmRequestLogSchema from '../schemas/llm-request-log'
+import * as fluxAuditSchema from '../../schemas/flux-audit-log'
+import * as fluxLedgerSchema from '../../schemas/flux-ledger'
+import * as llmRequestLogSchema from '../../schemas/llm-request-log'
 
 const logger = useLogger('billing-consumer-handler').useGlobalConfig()
 

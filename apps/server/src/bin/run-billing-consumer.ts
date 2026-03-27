@@ -6,9 +6,9 @@ import { createDrizzle, migrateDatabase } from '../libs/db'
 import { parseEnv } from '../libs/env'
 import { initializeExternalDependency } from '../libs/external-dependency'
 import { createRedis } from '../libs/redis'
-import { createBillingConsumerHandler } from '../services/billing-consumer-handler'
-import { createBillingMqService } from '../services/billing-mq'
-import { createBillingMqWorker } from '../services/billing-mq-worker'
+import { createBillingConsumerHandler } from '../services/billing/billing-consumer-handler'
+import { createBillingMqService } from '../services/billing/billing-mq'
+import { createBillingMqWorker } from '../services/billing/billing-mq-worker'
 
 function parsePositiveInteger(rawValue: string, envKey: string): number {
   const parsed = Number(rawValue)

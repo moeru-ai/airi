@@ -1,6 +1,6 @@
 import type { Env } from '../libs/env'
 import type { RevenueMetrics } from '../libs/otel'
-import type { BillingService } from '../services/billing-service'
+import type { BillingService } from '../services/billing/billing-service'
 import type { ConfigKVService } from '../services/config-kv'
 import type { FluxService } from '../services/flux'
 import type { StripeService } from '../services/stripe'

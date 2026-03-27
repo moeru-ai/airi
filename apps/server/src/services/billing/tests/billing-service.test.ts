@@ -1,16 +1,16 @@
 import type Redis from 'ioredis'
 
-import type { Database } from '../../libs/db'
+import type { Database } from '../../../libs/db'
+import type { createConfigKVService } from '../../config-kv'
 import type { BillingMqService } from '../billing-mq'
-import type { createConfigKVService } from '../config-kv'
 
 import { eq } from 'drizzle-orm'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { mockDB } from '../../libs/mock-db'
+import { mockDB } from '../../../libs/mock-db'
 import { createBillingService } from '../billing-service'
 
-import * as schema from '../../schemas'
+import * as schema from '../../../schemas'
 
 function createMockConfigKV(overrides: Record<string, number> = {}): ReturnType<typeof createConfigKVService> {
   const defaults: Record<string, number> = { INITIAL_USER_FLUX: 100, FLUX_PER_CENT: 1, FLUX_PER_REQUEST: 1, ...overrides }

@@ -1,22 +1,22 @@
 import type Redis from 'ioredis'
 
-import type { Database } from '../libs/db'
-import type { RevenueMetrics } from '../libs/otel'
+import type { Database } from '../../libs/db'
+import type { RevenueMetrics } from '../../libs/otel'
+import type { ConfigKVService } from '../config-kv'
 import type { BillingEvent } from './billing-events'
 import type { BillingMqService } from './billing-mq'
-import type { ConfigKVService } from './config-kv'
 
 import { useLogger } from '@guiiai/logg'
 import { eq } from 'drizzle-orm'
 
-import { createPaymentRequiredError } from '../utils/error'
-import { nanoid } from '../utils/id'
-import { fluxRedisKey } from './flux'
+import { createPaymentRequiredError } from '../../utils/error'
+import { nanoid } from '../../utils/id'
+import { fluxRedisKey } from '../flux'
 
-import * as fluxSchema from '../schemas/flux'
-import * as fluxAuditSchema from '../schemas/flux-audit-log'
-import * as fluxLedgerSchema from '../schemas/flux-ledger'
-import * as stripeSchema from '../schemas/stripe'
+import * as fluxSchema from '../../schemas/flux'
+import * as fluxAuditSchema from '../../schemas/flux-audit-log'
+import * as fluxLedgerSchema from '../../schemas/flux-ledger'
+import * as stripeSchema from '../../schemas/stripe'
 
 const logger = useLogger('billing-service')
 

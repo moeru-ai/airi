@@ -1,5 +1,5 @@
-import type { BillingMqService } from '../../services/billing-mq'
-import type { BillingService } from '../../services/billing-service'
+import type { BillingMqService } from '../../services/billing/billing-mq'
+import type { BillingService } from '../../services/billing/billing-service'
 import type { ConfigKVService } from '../../services/config-kv'
 import type { FluxService } from '../../services/flux'
 import type { HonoEnv } from '../../types/hono'
