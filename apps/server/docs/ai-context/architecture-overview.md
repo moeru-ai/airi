@@ -48,7 +48,7 @@ CLI 入口在 `src/bin/run.ts`，支持两种角色：
   - `providerService`
   - `chatService`
   - `stripeService`
-  - `fluxAuditService`
+  - `fluxTransactionService`
   - `fluxService`
   - `requestLogService`
   - `billingService`

@@ -94,29 +94,29 @@
 ### Flux / 账本 / 审计
 
 - `user_flux`
-- `flux_ledger`
-- `flux_audit_log`
+- `flux_transaction`
+- `flux_transaction`
 
 来源文件：
 
 - `src/schemas/flux.ts`
-- `src/schemas/flux-ledger.ts`
-- `src/schemas/flux-audit-log.ts`
+- `src/schemas/flux-transaction.ts`
+- `src/schemas/flux-transaction.ts`
 
 职责边界：
 
 - `user_flux`
   - 当前余额快照
-- `flux_ledger`
+- `flux_transaction`
   - append-only 账本流水
   - 偏系统真相源
-- `flux_audit_log`
+- `flux_transaction`
   - 用户可见历史
   - 偏产品展示
 
 关键约束：
 
-- `flux_ledger` 对 `(userId, requestId)` 有部分唯一索引
+- `flux_transaction` 对 `(userId, requestId)` 有部分唯一索引
 - 用来做扣费 / 充值幂等
 
 ### Stripe 业务镜像
@@ -133,7 +133,7 @@
 说明：
 
 - 这些表是 Stripe 状态的本地镜像
-- 真正的余额变化仍由 `billingService` 写入 `user_flux + flux_ledger`
+- 真正的余额变化仍由 `billingService` 写入 `user_flux + flux_transaction`
 - `fluxCredited` 字段用于避免重复入账
 
 ### LLM 请求日志
@@ -163,7 +163,7 @@
 
 - 扣费
 - 充值
-- ledger / audit 写入
+- transaction 写入
 
 ### `createBillingService()`
 
@@ -171,8 +171,8 @@
 
 - 所有余额写操作
 - DB 事务
-- debitFlux：事务内仅更新余额；事务后 XADD Redis Stream，ledger/audit 由 billing-consumer 异步写入
-- credit 方法：事务内同步写 ledger / audit
+- debitFlux：事务内仅更新余额；事务后 XADD Redis Stream，transaction log 由 billing-consumer 异步写入
+- credit 方法：事务内同步写 transaction
 - 事务提交后 best-effort `redis.set` 更新 Flux 余额缓存
 
 这是所有 Flux 写路径应收敛到的中心。
@@ -227,7 +227,7 @@
 
 1. `SELECT user_flux FOR UPDATE`
 2. 计算新余额
-3. 写余额（debitFlux 事务内仅此一步；credit 方法同步写 ledger / audit）
+3. 写余额（debitFlux 事务内仅此一步；credit 方法同步写 transaction）
 4. 事务提交后 XADD Redis Stream（debitFlux）或直接返回（credit）
 
 这保证同一用户余额更新是串行化的。
@@ -238,7 +238,7 @@
 
 - `stripe_checkout_session.fluxCredited`
 - `stripe_invoice.fluxCredited`
-- `flux_ledger(userId, requestId)` 唯一约束
+- `flux_transaction(userId, requestId)` 唯一约束
 
 ## 现有代码中的结构信号
 

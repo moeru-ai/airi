@@ -33,7 +33,7 @@ export function createServerCli() {
     .action(() => runServerRole('api'))
 
   cli
-    .command('billing-consumer', 'Start the billing events consumer (ledger, audit, request logs)')
+    .command('billing-consumer', 'Start the billing events consumer (transactions, audit, request logs)')
     .action(() => runServerRole('billing-consumer'))
 
   cli.help()

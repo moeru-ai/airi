@@ -2,14 +2,14 @@
 
 ## 架构概述
 
-`apps/server` 的计费链采用 **Postgres 作为唯一账本真相源**，Redis 仅作缓存。余额变化路径分两类：`debitFlux` 在 DB 事务内只做 `UPDATE user_flux`，ledger/audit/请求日志通过 Redis Stream 异步写入；credit 方法仍在事务内同步写入 ledger 和 audit。
+`apps/server` 的计费链采用 **Postgres 作为唯一账本真相源**，Redis 仅作缓存。余额变化路径分两类：`debitFlux` 在 DB 事务内只做 `UPDATE user_flux`，transaction/请求日志通过 Redis Stream 异步写入；credit 方法仍在事务内同步写入 transaction log。
 
 ### 数据模型
 
 - **`user_flux`** — 用户余额快照（单行/用户）
-- **`flux_ledger`** — append-only 账务流水（type: credit/debit/initial, amount, balanceBefore, balanceAfter, requestId）
+- **`flux_transaction`** — append-only 账务流水（type: credit/debit/initial, amount, balanceBefore, balanceAfter, requestId）
   - 含 partial unique index `(userId, requestId) WHERE requestId IS NOT NULL`，DB 层幂等防重
-- **`flux_audit_log`** — 用户可见的历史记录
+- **`flux_transaction`** — 用户可见的历史记录
 
 ### debitFlux 链路（已实现）
 
@@ -21,15 +21,15 @@ DB 事务内仅做：
 4. 事务提交后 XADD Redis Stream（`billing-events`），携带扣费金额、余额快照、requestId 等
 5. 事务提交后 best-effort `redis.set` 更新 Flux 余额缓存
 
-ledger / audit / llm_request_log 的写入均由 **billing-consumer** 异步完成。
+transaction log / audit / llm_request_log 的写入均由 **billing-consumer** 异步完成。
 
 ### credit 方法链路（已实现）
 
-credit 方法（`creditFlux` / `creditFluxFromStripeCheckout` / `creditFluxFromInvoice`）仍在 DB 事务内同步写入 `flux_ledger` 和 `flux_audit_log`。
+credit 方法（`creditFlux` / `creditFluxFromStripeCheckout` / `creditFluxFromInvoice`）仍在 DB 事务内同步写入 `flux_transaction` 和 `flux_transaction`。
 
 ### 异步链路（已实现）
 
-- **billing-consumer** — 消费 Redis Stream `billing-events`，将 ledger、audit log、LLM 请求日志异步写入 DB
+- **billing-consumer** — 消费 Redis Stream `billing-events`，将 transaction log、LLM 请求日志异步写入 DB
 
 ### 事件模型
 
@@ -47,7 +47,7 @@ Stream: `billing-events`
 通过 `src/bin/run.ts` 分角色启动：
 
 - `api` — HTTP 服务
-- `billing-consumer` — 消费 Redis Stream，异步写入 ledger、audit log、LLM 请求日志到 DB
+- `billing-consumer` — 消费 Redis Stream，异步写入 transaction log、LLM 请求日志到 DB
 
 ## 关键服务
 
@@ -55,7 +55,7 @@ Stream: `billing-events`
 
 所有余额写操作的唯一入口：
 
-- **`debitFlux()`** — 扣费（LLM 请求），事务内：锁行 → 检余额(402) → 更新余额；事务提交后 XADD `flux.debited` 到 Redis Stream，ledger/audit 由 billing-consumer 异步写入
+- **`debitFlux()`** — 扣费（LLM 请求），事务内：锁行 → 检余额(402) → 更新余额；事务提交后 XADD `flux.debited` 到 Redis Stream，transaction 由 billing-consumer 异步写入
 - **`creditFlux()`** — 通用充值
 - **`creditFluxFromStripeCheckout()`** — Stripe 一次性支付充值，幂等(`fluxCredited` 标志)
 - **`creditFluxFromInvoice()`** — Stripe 订阅发票充值，幂等
@@ -64,7 +64,7 @@ Stream: `billing-events`
 
 只负责读操作：
 
-- **`getFlux()`** — Redis cache-aside 读（miss → DB → 填充 Redis），新用户自动初始化 + 写 ledger(type=initial)
+- **`getFlux()`** — Redis cache-aside 读（miss → DB → 填充 Redis），新用户自动初始化 + 写 transaction log(type=initial)
 - **`updateStripeCustomerId()`**
 
 ### Redis 职责边界
@@ -80,12 +80,12 @@ Redis **不是**余额真相源，仅用于：
 
 | Phase | 状态 | 关键点 |
 |-------|------|--------|
-| 1. DB-first 账本 | ✅ 已完成 | `flux_ledger` 表，`SELECT FOR UPDATE` 原子扣减，Redis 降为缓存 |
-| 2. Redis Streams 异步写入 | ✅ 已完成 | debitFlux 事务后 XADD，billing-consumer 异步写 ledger/audit/请求日志 |
+| 1. DB-first 账本 | ✅ 已完成 | `flux_transaction` 表，`SELECT FOR UPDATE` 原子扣减，Redis 降为缓存 |
+| 2. Redis Streams 异步写入 | ✅ 已完成 | debitFlux 事务后 XADD，billing-consumer 异步写 transaction/请求日志 |
 | 3. Stripe 幂等 | ✅ 已完成 | checkout + invoice 事务内幂等检查 |
 | 4. LLM 计费优化 | ⚠️ 部分 | 已有 `requestId` 和 DB 事务扣费，待加 tiktoken fallback |
 | 5. 部署拆分 | ✅ 已完成 | `bin/run.ts` 两角色启动（api / billing-consumer） |
-| 6. 幂等防重 | ✅ 已完成 | `flux_ledger` partial unique index on `(userId, requestId)` |
+| 6. 幂等防重 | ✅ 已完成 | `flux_transaction` partial unique index on `(userId, requestId)` |
 
 ### 已删除
 

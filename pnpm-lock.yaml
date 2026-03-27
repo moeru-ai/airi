@@ -579,13 +579,13 @@ importers:
         specifier: workspace:*
         version: link:../../packages/server-sdk-shared
       better-auth:
-        specifier: ^1.5.6
+        specifier: 'catalog:'
         version: 1.5.6(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.10)(drizzle-orm@0.45.1(@electric-sql/pglite@0.4.1)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.8))(pg@8.20.0)(react@19.2.3)(vitest@4.1.1)(vue@3.5.30(typescript@5.9.3))
       cac:
         specifier: 'catalog:'
         version: 7.0.0
       drizzle-orm:
-        specifier: ^0.45.1
+        specifier: 'catalog:'
         version: 0.45.1(@electric-sql/pglite@0.4.1)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.8)
       drizzle-valibot:
         specifier: 'catalog:'
@@ -622,7 +622,7 @@ importers:
         specifier: ^8.20.0
         version: 8.20.0
       drizzle-kit:
-        specifier: ^0.31.10
+        specifier: 'catalog:'
         version: 0.31.10
 
   apps/stage-pocket:

@@ -1,5 +1,5 @@
 import type { FluxService } from '../../services/flux'
-import type { FluxAuditService } from '../../services/flux-audit'
+import type { FluxTransactionService } from '../../services/flux-transaction'
 import type { HonoEnv } from '../../types/hono'
 
 import { Hono } from 'hono'
@@ -8,7 +8,10 @@ import { parse } from 'valibot'
 import { authGuard } from '../../middlewares/auth'
 import { LimitOffsetPaginationQuerySchema } from '../../utils/http-query'
 
-export function createFluxRoutes(fluxService: FluxService, fluxAuditService: FluxAuditService) {
+export function createFluxRoutes(
+  fluxService: FluxService,
+  fluxTransactionService: FluxTransactionService,
+) {
   return new Hono<HonoEnv>()
     .use('*', authGuard)
     .get('/', async (c) => {
@@ -23,7 +26,7 @@ export function createFluxRoutes(fluxService: FluxService, fluxAuditService: Flu
         offset: c.req.query('offset'),
       })
 
-      const { records, hasMore } = await fluxAuditService.getHistory(user.id, limit, offset)
+      const { records, hasMore } = await fluxTransactionService.getHistory(user.id, limit, offset)
 
       return c.json({
         records: records.map(r => ({

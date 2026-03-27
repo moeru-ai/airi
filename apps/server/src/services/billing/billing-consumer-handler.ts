@@ -4,7 +4,7 @@ import type { BillingEvent } from './billing-events'
 
 import { useLogger } from '@guiiai/logg'
 
-import * as fluxLedgerSchema from '../../schemas/flux-ledger'
+import * as fluxTxSchema from '../../schemas/flux-transaction'
 import * as llmRequestLogSchema from '../../schemas/llm-request-log'
 
 const logger = useLogger('billing-consumer-handler').useGlobalConfig()
@@ -21,8 +21,8 @@ export function createBillingConsumerHandler(db: Database) {
             : 0
 
           // NOTICE: onConflictDoNothing handles redelivery after crash —
-          // the unique index (userId, requestId) prevents duplicate ledger entries.
-          await db.insert(fluxLedgerSchema.fluxLedger).values({
+          // the unique index (userId, requestId) prevents duplicate transaction entries.
+          await db.insert(fluxTxSchema.fluxTransaction).values({
             userId: event.userId,
             type: 'debit',
             amount: event.payload.amount,
@@ -42,7 +42,7 @@ export function createBillingConsumerHandler(db: Database) {
             eventId: event.eventId,
             userId: event.userId,
             amount: event.payload.amount,
-          }).log('Wrote debit ledger + audit')
+          }).log('Wrote debit transaction')
           break
         }
 

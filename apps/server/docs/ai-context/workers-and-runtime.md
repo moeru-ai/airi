@@ -42,7 +42,7 @@
 
 1. 以 consumer group 模式消费 Redis Stream `billing-events`
 2. 根据事件类型分发处理：
-   - `flux.debited` — 写 `flux_ledger` 和 `flux_audit_log`
+   - `flux.debited` — 写 `flux_transaction` 和 `flux_transaction`
    - `llm.request.log` — 写 `llm_request_log`
 3. 处理成功后 ACK；handler 抛错时不 ACK，消息保持 pending 等待重试
 

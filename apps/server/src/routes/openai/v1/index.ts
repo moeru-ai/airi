@@ -249,7 +249,8 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
                 userId: user.id,
                 amount: fluxConsumed,
                 requestId,
-                description: requestModel,
+                description: 'llm_request',
+                model: requestModel,
                 promptTokens: usage.promptTokens,
                 completionTokens: usage.completionTokens,
               })
@@ -296,7 +297,8 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
       userId: user.id,
       amount: fluxConsumed,
       requestId,
-      description: requestModel,
+      description: 'llm_request',
+      model: requestModel,
       promptTokens: usage.promptTokens,
       completionTokens: usage.completionTokens,
     })

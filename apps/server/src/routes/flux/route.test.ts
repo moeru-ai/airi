@@ -1,5 +1,5 @@
 import type { FluxService } from '../../services/flux'
-import type { FluxAuditService } from '../../services/flux-audit'
+import type { FluxTransactionService } from '../../services/flux-transaction'
 import type { HonoEnv } from '../../types/hono'
 
 import { Hono } from 'hono'
@@ -15,14 +15,14 @@ function createMockFluxService(): FluxService {
   } as any
 }
 
-function createMockFluxAuditService(): FluxAuditService {
+function createMockFluxTransactionService(): FluxTransactionService {
   return {
     createEntry: vi.fn(),
     createEntries: vi.fn(),
     getHistory: vi.fn(async (_userId: string, limit: number, offset: number) => ({
       records: [
         {
-          id: 'ledger-1',
+          id: 'tx-1',
           type: 'credit',
           amount: 5,
           description: 'Top up',
@@ -35,8 +35,8 @@ function createMockFluxAuditService(): FluxAuditService {
   } as any
 }
 
-function createTestApp(fluxService: FluxService, fluxAuditService: FluxAuditService) {
-  const routes = createFluxRoutes(fluxService, fluxAuditService)
+function createTestApp(fluxService: FluxService, fluxTransactionService: FluxTransactionService) {
+  const routes = createFluxRoutes(fluxService, fluxTransactionService)
   const app = new Hono<HonoEnv>()
 
   app.onError((err, c) => {
@@ -68,7 +68,7 @@ const testUser = { id: 'user-1', name: 'Test User', email: 'test@example.com' }
 describe('fluxRoutes', () => {
   it('get /api/v1/flux should return the current user balance', async () => {
     const fluxService = createMockFluxService()
-    const app = createTestApp(fluxService, createMockFluxAuditService())
+    const app = createTestApp(fluxService, createMockFluxTransactionService())
 
     const res = await app.fetch(
       new Request('http://localhost/api/v1/flux'),
@@ -81,8 +81,8 @@ describe('fluxRoutes', () => {
   })
 
   it('get /api/v1/flux/history should clamp pagination query values', async () => {
-    const fluxAuditService = createMockFluxAuditService()
-    const app = createTestApp(createMockFluxService(), fluxAuditService)
+    const fluxTransactionService = createMockFluxTransactionService()
+    const app = createTestApp(createMockFluxService(), fluxTransactionService)
 
     const res = await app.fetch(
       new Request('http://localhost/api/v1/flux/history?limit=999&offset=-12'),
@@ -90,11 +90,11 @@ describe('fluxRoutes', () => {
     )
 
     expect(res.status).toBe(200)
-    expect(fluxAuditService.getHistory).toHaveBeenCalledWith('user-1', 100, 0)
+    expect(fluxTransactionService.getHistory).toHaveBeenCalledWith('user-1', 100, 0)
     expect(await res.json()).toEqual({
       records: [
         {
-          id: 'ledger-1',
+          id: 'tx-1',
           type: 'credit',
           amount: 5,
           description: 'Top up',
