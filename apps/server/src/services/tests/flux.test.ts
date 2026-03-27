@@ -7,6 +7,7 @@ import { eq } from 'drizzle-orm'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
+import { userFluxRedisKey } from '../../utils/redis-keys'
 import { createFluxService } from '../flux'
 
 import * as schema from '../../schemas'
@@ -61,7 +62,7 @@ describe('fluxService (DB-backed)', () => {
   it('getFlux should initialize new user with INITIAL_USER_FLUX and populate Redis', async () => {
     const record = await service.getFlux(testUser.id)
     expect(record.flux).toBe(100)
-    expect(redis.set).toHaveBeenCalledWith(`flux:${testUser.id}`, '100')
+    expect(redis.set).toHaveBeenCalledWith(userFluxRedisKey(testUser.id), '100')
   })
 
   it('getFlux should write a ledger entry on initialization', async () => {
@@ -90,7 +91,7 @@ describe('fluxService (DB-backed)', () => {
 
     const record = await service.getFlux(testUser.id)
     expect(record.flux).toBe(42)
-    expect(redis.set).toHaveBeenCalledWith(`flux:${testUser.id}`, '42')
+    expect(redis.set).toHaveBeenCalledWith(userFluxRedisKey(testUser.id), '42')
   })
 
   it('updateStripeCustomerId should update DB only', async () => {

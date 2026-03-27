@@ -16,8 +16,7 @@ import {
 } from 'valibot'
 
 import { createMqService } from '../../libs/mq'
-
-export const DEFAULT_BILLING_EVENTS_STREAM = 'billing-events'
+import { DEFAULT_BILLING_EVENTS_STREAM } from '../../utils/redis-keys'
 
 const BillingEventTypeSchema = union([
   literal('flux.debited'),

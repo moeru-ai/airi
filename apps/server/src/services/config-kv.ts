@@ -4,6 +4,7 @@ import type { InferOutput } from 'valibot'
 import { array, number, object, optional, parse, string } from 'valibot'
 
 import { createServiceUnavailableError } from '../utils/error'
+import { configRedisKey } from '../utils/redis-keys'
 
 export interface FluxPackage {
   /** Amount in cents sent to Stripe */
@@ -14,71 +15,52 @@ export interface FluxPackage {
   price: string
 }
 
+const FluxPackageSchema = object({ amount: number(), label: string(), price: string() })
+
 /**
- * Config schema with valibot defaults.
- * Keys with `optional(..., defaultValue)` will fall back when Redis returns null.
- * Keys without a default will throw via `getOrThrow` if not set.
+ * Config entry schemas are the single source of truth for:
+ * - runtime validation
+ * - default values
+ * - Redis serialization/deserialization shape
  */
-const ConfigSchema = object({
+const ConfigEntrySchemas = {
   FLUX_PER_CENT: optional(number(), 10),
   FLUX_PER_REQUEST: optional(number(), 5),
   FLUX_PER_REQUEST_TTS: number(),
   FLUX_PER_REQUEST_ASR: number(),
   INITIAL_USER_FLUX: optional(number(), 0),
-  FLUX_PACKAGES: optional(array(object({ amount: number(), label: string(), price: string() })), []),
+  FLUX_PACKAGES: optional(array(FluxPackageSchema), []),
   FLUX_PER_1K_TOKENS: optional(number(), 1),
+  MAX_CHECKOUT_AMOUNT_CENTS: optional(number(), 1_000_000),
   GATEWAY_BASE_URL: string(),
   DEFAULT_CHAT_MODEL: string(),
-})
+} as const
 
-type ConfigDefinitions = InferOutput<typeof ConfigSchema>
-
-const NUMERIC_KEYS = new Set<keyof ConfigDefinitions>(['FLUX_PER_CENT', 'FLUX_PER_REQUEST', 'FLUX_PER_REQUEST_TTS', 'FLUX_PER_REQUEST_ASR', 'INITIAL_USER_FLUX', 'FLUX_PER_1K_TOKENS'])
-
-const KEY_PREFIX = 'config:'
-
-function parseValue<K extends keyof ConfigDefinitions>(key: K, raw: string): ConfigDefinitions[K] {
-  if (key === 'FLUX_PACKAGES')
-    return JSON.parse(raw) as ConfigDefinitions[K]
-  if (NUMERIC_KEYS.has(key)) {
-    const num = Number(raw)
-    if (!Number.isFinite(num))
-      throw new Error(`Config key ${key} has non-finite numeric value: ${raw}`)
-    return num as ConfigDefinitions[K]
-  }
-  return raw as ConfigDefinitions[K]
+type ConfigDefinitions = {
+  [K in keyof typeof ConfigEntrySchemas]: InferOutput<(typeof ConfigEntrySchemas)[K]>
 }
 
-function serializeValue<K extends keyof ConfigDefinitions>(key: K, value: ConfigDefinitions[K]): string {
-  if (key === 'FLUX_PACKAGES') {
-    const packages = parse(array(object({ amount: number(), label: string(), price: string() })), value)
-    return JSON.stringify(packages)
-  }
+type ConfigKey = keyof ConfigDefinitions
 
-  if (NUMERIC_KEYS.has(key)) {
-    if (typeof value !== 'number' || !Number.isFinite(value))
-      throw new Error(`Config key ${key} must be a finite number`)
-    return String(value)
-  }
+function parseValue<K extends ConfigKey>(key: K, raw: string): ConfigDefinitions[K] {
+  return parse(ConfigEntrySchemas[key], JSON.parse(raw)) as ConfigDefinitions[K]
+}
 
-  if (typeof value !== 'string')
-    throw new Error(`Config key ${key} must be a string`)
-
-  return value
+function serializeValue<K extends ConfigKey>(key: K, value: ConfigDefinitions[K]): string {
+  return JSON.stringify(parse(ConfigEntrySchemas[key], value))
 }
 
 /**
  * Resolve a config value: read from Redis, then apply valibot default if missing.
  * Returns `undefined` if both Redis and schema have no value (required key, not set).
  */
-function resolveWithDefault<K extends keyof ConfigDefinitions>(key: K, raw: string | null): ConfigDefinitions[K] | undefined {
+function resolveWithDefault<K extends ConfigKey>(key: K, raw: string | null): ConfigDefinitions[K] | undefined {
   if (raw !== null)
     return parseValue(key, raw)
 
-  // Use valibot parse with `undefined` to trigger the schema default
+  // Use the per-key schema with `undefined` to trigger the key default
   try {
-    const result = parse(ConfigSchema, { [key]: undefined })
-    return result[key] as ConfigDefinitions[K]
+    return parse(ConfigEntrySchemas[key], undefined) as ConfigDefinitions[K]
   }
   catch {
     return undefined
@@ -87,14 +69,14 @@ function resolveWithDefault<K extends keyof ConfigDefinitions>(key: K, raw: stri
 
 export function createConfigKVService(redis: Redis) {
   return {
-    async getOptional<K extends keyof ConfigDefinitions>(key: K): Promise<ConfigDefinitions[K] | null> {
-      const raw = await redis.get(`${KEY_PREFIX}${key}`)
+    async getOptional<K extends ConfigKey>(key: K): Promise<ConfigDefinitions[K] | null> {
+      const raw = await redis.get(configRedisKey(key))
       const value = resolveWithDefault(key, raw)
       return value ?? null
     },
 
-    async getOrThrow<K extends keyof ConfigDefinitions>(key: K): Promise<ConfigDefinitions[K]> {
-      const raw = await redis.get(`${KEY_PREFIX}${key}`)
+    async getOrThrow<K extends ConfigKey>(key: K): Promise<ConfigDefinitions[K]> {
+      const raw = await redis.get(configRedisKey(key))
       const value = resolveWithDefault(key, raw)
       if (value === undefined)
         throw createServiceUnavailableError('Service configuration is incomplete', 'CONFIG_NOT_SET')
@@ -102,13 +84,13 @@ export function createConfigKVService(redis: Redis) {
       return value
     },
 
-    async get<K extends keyof ConfigDefinitions>(key: K): Promise<ConfigDefinitions[K]> {
+    async get<K extends ConfigKey>(key: K): Promise<ConfigDefinitions[K]> {
       return this.getOrThrow(key)
     },
 
-    async set<K extends keyof ConfigDefinitions>(key: K, value: ConfigDefinitions[K]): Promise<void> {
+    async set<K extends ConfigKey>(key: K, value: ConfigDefinitions[K]): Promise<void> {
       const serialized = serializeValue(key, value)
-      await redis.set(`${KEY_PREFIX}${key}`, serialized)
+      await redis.set(configRedisKey(key), serialized)
     },
   }
 }

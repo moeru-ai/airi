@@ -11,7 +11,7 @@ import { and, eq } from 'drizzle-orm'
 
 import { createPaymentRequiredError } from '../../utils/error'
 import { nanoid } from '../../utils/id'
-import { fluxRedisKey } from '../flux'
+import { userFluxRedisKey } from '../../utils/redis-keys'
 
 import * as fluxSchema from '../../schemas/flux'
 import * as fluxLedgerSchema from '../../schemas/flux-ledger'
@@ -32,7 +32,7 @@ export function createBillingService(
    */
   async function updateRedisCache(userId: string, balance: number): Promise<void> {
     try {
-      await redis.set(fluxRedisKey(userId), String(balance))
+      await redis.set(userFluxRedisKey(userId), String(balance))
     }
     catch {
       logger.withFields({ userId }).warn('Failed to update Redis cache after balance change')
@@ -205,6 +205,11 @@ export function createBillingService(
       fluxAmount: number
     }): Promise<{ applied: boolean, balanceAfter?: number }> {
       const txResult = await db.transaction(async (tx) => {
+        // NOTICE: Webhook idempotency is enforced at the business-object level, not by a
+        // dedicated processed-events table keyed on Stripe `event.id`. We claim the
+        // checkout session row exactly once via `fluxCredited = false -> true`, which
+        // covers both Stripe retries of the same event and distinct Event objects that
+        // still refer to the same checkout session.
         // Atomic claim: set fluxCredited = true only if currently false
         const [claimed] = await tx.update(stripeSchema.stripeCheckoutSession)
           .set({ fluxCredited: true, updatedAt: new Date() })
@@ -313,6 +318,10 @@ export function createBillingService(
       fluxAmount: number
     }): Promise<{ applied: boolean, balanceAfter?: number }> {
       const txResult = await db.transaction(async (tx) => {
+        // NOTICE: Invoice webhook idempotency follows the same object-level claim model
+        // as checkout sessions. We intentionally dedupe on the invoice record instead of
+        // only on Stripe `event.id`, because Stripe may emit multiple events that map to
+        // the same paid invoice while the balance must only be credited once.
         // Atomic claim: set fluxCredited = true only if currently false
         const [claimed] = await tx.update(stripeSchema.stripeInvoice)
           .set({ fluxCredited: true, updatedAt: new Date() })

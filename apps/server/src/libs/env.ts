@@ -6,6 +6,8 @@ import { useLogger } from '@guiiai/logg'
 import { injeca } from 'injeca'
 import { integer, maxValue, minValue, nonEmpty, object, optional, parse, pipe, string, transform } from 'valibot'
 
+import { DEFAULT_BILLING_EVENTS_STREAM } from '../utils/redis-keys'
+
 function optionalIntegerFromString(defaultValue: number, envKey: string, minimum: number) {
   return optional(
     pipe(
@@ -49,7 +51,7 @@ const EnvSchema = object({
   STRIPE_SECRET_KEY: optional(string()),
   STRIPE_WEBHOOK_SECRET: optional(string()),
 
-  BILLING_EVENTS_STREAM: optional(string(), 'billing-events'),
+  BILLING_EVENTS_STREAM: optional(string(), DEFAULT_BILLING_EVENTS_STREAM),
   BILLING_EVENTS_CONSUMER_NAME: optional(string()),
   BILLING_EVENTS_BATCH_SIZE: optionalIntegerFromString(10, 'BILLING_EVENTS_BATCH_SIZE', 1),
   BILLING_EVENTS_BLOCK_MS: optionalIntegerFromString(5000, 'BILLING_EVENTS_BLOCK_MS', 1),

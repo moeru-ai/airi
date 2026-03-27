@@ -10,7 +10,7 @@ import Stripe from 'stripe'
 
 import { useLogger } from '@guiiai/logg'
 import { Hono } from 'hono'
-import { integer, maxValue, minValue, number, object, pipe, safeParse } from 'valibot'
+import { integer, minValue, number, object, pipe, safeParse } from 'valibot'
 
 import { authGuard } from '../middlewares/auth'
 import { configGuard } from '../middlewares/config-guard'
@@ -21,11 +21,8 @@ import { resolveTrustedRequestOrigin } from '../utils/origin'
 
 const logger = useLogger('stripe')
 
-// Max checkout amount: $10,000 (1,000,000 cents)
-const MAX_CHECKOUT_AMOUNT = 1_000_000
-
 const CheckoutBodySchema = object({
-  amount: pipe(number(), integer(), minValue(1), maxValue(MAX_CHECKOUT_AMOUNT)),
+  amount: pipe(number(), integer(), minValue(1)),
 })
 
 export function createStripeRoutes(
@@ -42,8 +39,8 @@ export function createStripeRoutes(
 
   return new Hono<HonoEnv>()
     .get('/packages', async (c) => {
-      const packages = await configKV.getOptional('FLUX_PACKAGES')
-      return c.json(packages ?? [])
+      const packages = await configKV.get('FLUX_PACKAGES')
+      return c.json(packages)
     })
     .post('/checkout', authGuard, rateLimiter({ max: 10, windowSec: 60 }), fluxConfigGuard, async (c) => {
       if (!stripe)
@@ -51,12 +48,19 @@ export function createStripeRoutes(
 
       const user = c.get('user')!
       const body = await c.req.json()
+      const maxCheckoutAmount = await configKV.get('MAX_CHECKOUT_AMOUNT_CENTS')
 
       const result = safeParse(CheckoutBodySchema, body)
       if (!result.success)
         throw createBadRequestError('Invalid checkout amount', 'INVALID_REQUEST', result.issues)
 
       const { amount } = result.output
+      if (amount > maxCheckoutAmount) {
+        throw createBadRequestError('Invalid checkout amount', 'INVALID_REQUEST', {
+          amount,
+          maxCheckoutAmount,
+        })
+      }
 
       // Reuse existing stripe customer if available
       const customer = await stripeService.getCustomerByUserId(user.id)
