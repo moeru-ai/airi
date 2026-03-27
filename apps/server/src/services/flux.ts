@@ -6,20 +6,18 @@ import type { ConfigKVService } from './config-kv'
 import { useLogger } from '@guiiai/logg'
 import { eq } from 'drizzle-orm'
 
+import { userFluxRedisKey } from '../utils/redis-keys'
+
 import * as schema from '../schemas/flux'
 import * as fluxLedgerSchema from '../schemas/flux-ledger'
 
 const logger = useLogger('flux-service')
 
-export function fluxRedisKey(userId: string): string {
-  return `flux:${userId}`
-}
-
 export function createFluxService(db: Database, redis: Redis, configKV: ConfigKVService) {
   return {
     async getFlux(userId: string) {
       // 1. Try Redis cache
-      const cached = await redis.get(fluxRedisKey(userId))
+      const cached = await redis.get(userFluxRedisKey(userId))
       if (cached !== null) {
         return { userId, flux: Number.parseInt(cached, 10) }
       }
@@ -65,7 +63,7 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
       }
 
       // 3. Populate Redis cache
-      await redis.set(fluxRedisKey(userId), String(record.flux))
+      await redis.set(userFluxRedisKey(userId), String(record.flux))
 
       return record
     },

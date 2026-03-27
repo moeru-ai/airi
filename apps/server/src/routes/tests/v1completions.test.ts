@@ -9,6 +9,7 @@ import { Hono } from 'hono'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '../../utils/error'
+import { DEFAULT_BILLING_EVENTS_STREAM } from '../../utils/redis-keys'
 import { createV1CompletionsRoutes } from '../v1completions'
 
 // --- Mock helpers ---
@@ -56,7 +57,7 @@ function createMockConfigKV(overrides: Record<string, any> = {}): ConfigKVServic
 
 function createMockBillingMq(): MqService<BillingEvent> {
   return {
-    stream: 'billing-events',
+    stream: DEFAULT_BILLING_EVENTS_STREAM,
     publish: vi.fn(async () => '1-0'),
     ensureConsumerGroup: vi.fn(async () => true),
     consume: vi.fn(async () => []),
@@ -305,6 +306,47 @@ describe('v1CompletionsRoutes', () => {
           }),
         }),
       )
+    })
+
+    it('should abort downstream stream and skip billing when upstream stream fails mid-response', async () => {
+      const streamFailure = new Error('upstream stream failed')
+      let chunkSent = false
+
+      globalThis.fetch = vi.fn(async () => new Response(new ReadableStream<Uint8Array>({
+        pull(controller) {
+          if (!chunkSent) {
+            chunkSent = true
+            controller.enqueue(new TextEncoder().encode('data: {"choices":[{"delta":{"content":"hel"}}]}\n\n'))
+            return
+          }
+
+          throw streamFailure
+        },
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'text/event-stream' },
+      }))
+
+      const billingService = createMockBillingService(100)
+      const billingMq = createMockBillingMq()
+      const app = createTestApp(createMockFluxService(100), createMockConfigKV(), billingService, billingMq)
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', stream: true, messages: [{ role: 'user', content: 'hi' }] }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(200)
+      await expect(res.text()).rejects.toThrow('upstream stream failed')
+
+      await Promise.resolve()
+
+      expect(billingService.debitFlux).not.toHaveBeenCalled()
+      expect(billingMq.publish).not.toHaveBeenCalled()
     })
   })
 

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
+import { DEFAULT_BILLING_EVENTS_STREAM } from '../../../utils/redis-keys'
 import { createBillingMq } from '../billing-events'
 
 function createEvent() {
@@ -100,7 +101,7 @@ describe('billingMqService', () => {
   it('consumes stream entries from a consumer group', async () => {
     const mq = createBillingMq({
       call: vi.fn(async () => [[
-        'billing-events',
+        DEFAULT_BILLING_EVENTS_STREAM,
         [[
           '1740000000000-0',
           [
@@ -224,7 +225,7 @@ describe('billingMqService', () => {
 
     const mq = createBillingMq(redis)
     await expect(mq.ack('billing', ['1-0', '2-0'])).resolves.toBe(2)
-    expect(redis.call).toHaveBeenCalledWith('XACK', 'billing-events', 'billing', '1-0', '2-0')
+    expect(redis.call).toHaveBeenCalledWith('XACK', DEFAULT_BILLING_EVENTS_STREAM, 'billing', '1-0', '2-0')
   })
 
   it('returns zero when ack receives an empty message id list', async () => {

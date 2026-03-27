@@ -48,6 +48,7 @@ function createMockConfigKV(overrides: Record<string, any> = {}): ConfigKVServic
   const defaults: Record<string, any> = {
     FLUX_PER_CENT: 1,
     FLUX_PACKAGES: [{ amount: 500, label: '$5' }],
+    MAX_CHECKOUT_AMOUNT_CENTS: 1_000_000,
     ...overrides,
   }
   return {
@@ -171,8 +172,7 @@ describe('stripeRoutes', () => {
     })
 
     it('returns empty array when no packages configured', async () => {
-      const configKV = createMockConfigKV()
-      configKV.getOptional = vi.fn(async () => null)
+      const configKV = createMockConfigKV({ FLUX_PACKAGES: [] })
       const app = createTestApp(
         createMockFluxService(),
         createMockStripeService(),
@@ -257,6 +257,26 @@ describe('stripeRoutes', () => {
         }),
         { user: testUser } as any,
       )
+      expect(res.status).toBe(400)
+    })
+
+    it('respects configured max checkout amount', async () => {
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockStripeService(),
+        createMockBillingService(),
+        createMockConfigKV({ MAX_CHECKOUT_AMOUNT_CENTS: 500 }),
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/stripe/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: 501 }),
+        }),
+        { user: testUser } as any,
+      )
+
       expect(res.status).toBe(400)
     })
 

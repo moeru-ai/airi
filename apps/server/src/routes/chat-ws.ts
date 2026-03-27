@@ -9,10 +9,9 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { newMessages, pullMessages, sendMessages } from '@proj-airi/server-sdk-shared'
 
 import { createPeerHooks, wsDisconnectedEvent } from '../libs/eventa-hono-adapter'
+import { userChatBroadcastRedisKey } from '../utils/redis-keys'
 
 const log = useLogger('chat-ws').useGlobalConfig()
-
-const CHANNEL_PREFIX = 'chat:broadcast:'
 
 // ---------------------------------------------------------------------------
 // Local connection registry (per-process)
@@ -71,10 +70,7 @@ export function createChatWsHandlers(
   // Dedicated subscriber connection (ioredis requires a separate connection for subscribe mode)
   const sub = redis.duplicate()
 
-  sub.on('message', (channel: string, message: string) => {
-    if (!channel.startsWith(CHANNEL_PREFIX))
-      return
-
+  sub.on('message', (_channel: string, message: string) => {
     try {
       const data: BroadcastMessage = JSON.parse(message)
       // Deliver to all local connections of this user (no excludeCtx since the
@@ -88,7 +84,7 @@ export function createChatWsHandlers(
 
   /** Subscribe to a user's broadcast channel when they first connect on this instance. */
   function ensureSubscribed(userId: string) {
-    const channel = `${CHANNEL_PREFIX}${userId}`
+    const channel = userChatBroadcastRedisKey(userId)
     sub.subscribe(channel).catch((err) => {
       log.withError(err).error('Failed to subscribe to broadcast channel')
     })
@@ -97,7 +93,7 @@ export function createChatWsHandlers(
   /** Unsubscribe when the user has no more connections on this instance. */
   function maybeUnsubscribe(userId: string) {
     if (!userConnections.has(userId)) {
-      const channel = `${CHANNEL_PREFIX}${userId}`
+      const channel = userChatBroadcastRedisKey(userId)
       sub.unsubscribe(channel).catch((err) => {
         log.withError(err).error('Failed to unsubscribe from broadcast channel')
       })
@@ -106,7 +102,7 @@ export function createChatWsHandlers(
 
   /** Publish a broadcast message so other instances can deliver it. */
   function publishBroadcast(userId: string, payload: BroadcastMessage['payload']) {
-    const channel = `${CHANNEL_PREFIX}${userId}`
+    const channel = userChatBroadcastRedisKey(userId)
     const message: BroadcastMessage = { userId, payload }
     redis.publish(channel, JSON.stringify(message)).catch((err) => {
       log.withError(err).error('Failed to publish broadcast message')

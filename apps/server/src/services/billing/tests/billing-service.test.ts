@@ -9,6 +9,7 @@ import { eq } from 'drizzle-orm'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../../libs/mock-db'
+import { DEFAULT_BILLING_EVENTS_STREAM, userFluxRedisKey } from '../../../utils/redis-keys'
 import { createBillingService } from '../billing-service'
 
 import * as schema from '../../../schemas'
@@ -36,7 +37,7 @@ function createMockRedis(): Redis {
 
 function createMockBillingMq(): MqService<BillingEvent> {
   return {
-    stream: 'billing-events',
+    stream: DEFAULT_BILLING_EVENTS_STREAM,
     publish: vi.fn(async () => '1-0'),
     ensureConsumerGroup: vi.fn(async () => true),
     consume: vi.fn(async () => []),
@@ -123,7 +124,7 @@ describe('billingService', () => {
       expect(sessionRecord?.fluxCredited).toBe(true)
 
       // Verify Redis cache updated
-      expect(redis.set).toHaveBeenCalledWith('flux:user-billing-1', '50')
+      expect(redis.set).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'), '50')
     })
 
     it('is idempotent when the checkout session was already credited', async () => {
@@ -182,7 +183,7 @@ describe('billingService', () => {
       }))
 
       // Verify Redis cache updated
-      expect(redis.set).toHaveBeenCalledWith('flux:user-billing-1', '70')
+      expect(redis.set).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'), '70')
     })
 
     it('throws 402 when balance is insufficient', async () => {
