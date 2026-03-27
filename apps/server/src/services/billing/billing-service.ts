@@ -1,13 +1,13 @@
 import type Redis from 'ioredis'
 
 import type { Database } from '../../libs/db'
+import type { MqService } from '../../libs/mq'
 import type { RevenueMetrics } from '../../libs/otel'
 import type { ConfigKVService } from '../config-kv'
 import type { BillingEvent } from './billing-events'
-import type { BillingMqService } from './billing-mq'
 
 import { useLogger } from '@guiiai/logg'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 
 import { createPaymentRequiredError } from '../../utils/error'
 import { nanoid } from '../../utils/id'
@@ -22,7 +22,7 @@ const logger = useLogger('billing-service')
 export function createBillingService(
   db: Database,
   redis: Redis,
-  billingMq: BillingMqService,
+  billingMq: MqService<BillingEvent>,
   _configKV: ConfigKVService,
   metrics?: RevenueMetrics | null,
 ) {
@@ -205,11 +205,16 @@ export function createBillingService(
       fluxAmount: number
     }): Promise<{ applied: boolean, balanceAfter?: number }> {
       const txResult = await db.transaction(async (tx) => {
-        const record = await tx.query.stripeCheckoutSession.findFirst({
-          where: (table, { eq }) => eq(table.stripeSessionId, input.stripeSessionId),
-        })
+        // Atomic claim: set fluxCredited = true only if currently false
+        const [claimed] = await tx.update(stripeSchema.stripeCheckoutSession)
+          .set({ fluxCredited: true, updatedAt: new Date() })
+          .where(and(
+            eq(stripeSchema.stripeCheckoutSession.stripeSessionId, input.stripeSessionId),
+            eq(stripeSchema.stripeCheckoutSession.fluxCredited, false),
+          ))
+          .returning()
 
-        if (!record || record.fluxCredited) {
+        if (!claimed) {
           return { applied: false }
         }
 
@@ -232,11 +237,6 @@ export function createBillingService(
         await tx.update(fluxSchema.userFlux)
           .set({ flux: balanceAfter, updatedAt: new Date() })
           .where(eq(fluxSchema.userFlux.userId, input.userId))
-
-        // Mark checkout session as credited
-        await tx.update(stripeSchema.stripeCheckoutSession)
-          .set({ fluxCredited: true, updatedAt: new Date() })
-          .where(eq(stripeSchema.stripeCheckoutSession.stripeSessionId, input.stripeSessionId))
 
         const description = `Stripe payment ${input.currency?.toUpperCase() ?? 'UNKNOWN'} ${(input.amountTotal / 100).toFixed(2)}`
 
@@ -313,11 +313,16 @@ export function createBillingService(
       fluxAmount: number
     }): Promise<{ applied: boolean, balanceAfter?: number }> {
       const txResult = await db.transaction(async (tx) => {
-        const record = await tx.query.stripeInvoice.findFirst({
-          where: (table, { eq }) => eq(table.stripeInvoiceId, input.stripeInvoiceId),
-        })
+        // Atomic claim: set fluxCredited = true only if currently false
+        const [claimed] = await tx.update(stripeSchema.stripeInvoice)
+          .set({ fluxCredited: true, updatedAt: new Date() })
+          .where(and(
+            eq(stripeSchema.stripeInvoice.stripeInvoiceId, input.stripeInvoiceId),
+            eq(stripeSchema.stripeInvoice.fluxCredited, false),
+          ))
+          .returning()
 
-        if (!record || record.fluxCredited) {
+        if (!claimed) {
           return { applied: false }
         }
 
@@ -340,11 +345,6 @@ export function createBillingService(
         await tx.update(fluxSchema.userFlux)
           .set({ flux: balanceAfter, updatedAt: new Date() })
           .where(eq(fluxSchema.userFlux.userId, input.userId))
-
-        // Mark invoice as credited
-        await tx.update(stripeSchema.stripeInvoice)
-          .set({ fluxCredited: true, updatedAt: new Date() })
-          .where(eq(stripeSchema.stripeInvoice.stripeInvoiceId, input.stripeInvoiceId))
 
         const description = `Subscription invoice ${input.currency.toUpperCase()} ${(input.amountPaid / 100).toFixed(2)}`
 

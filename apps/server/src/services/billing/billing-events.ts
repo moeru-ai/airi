@@ -1,5 +1,7 @@
 import type { InferOutput } from 'valibot'
 
+import type { RedisCommandClient } from '../../libs/mq'
+
 import {
   literal,
   nonEmpty,
@@ -12,6 +14,8 @@ import {
   union,
   unknown,
 } from 'valibot'
+
+import { createMqService } from '../../libs/mq'
 
 export const DEFAULT_BILLING_EVENTS_STREAM = 'billing-events'
 
@@ -126,6 +130,18 @@ export function serializeBillingEvent(event: BillingEvent): SerializedBillingEve
     schema_version: String(event.schemaVersion),
     payload: JSON.stringify(event.payload),
   }
+}
+
+/**
+ * Create a Redis Stream MQ service pre-configured for billing events.
+ */
+export function createBillingMq(redis: RedisCommandClient, options: { stream?: string, maxLength?: number } = {}) {
+  return createMqService<BillingEvent>(redis, {
+    stream: options.stream ?? DEFAULT_BILLING_EVENTS_STREAM,
+    maxLength: options.maxLength,
+    serialize: serializeBillingEvent,
+    deserialize: parseBillingEvent,
+  })
 }
 
 export function parseBillingEvent(fields: Record<string, string | undefined>): BillingEvent {

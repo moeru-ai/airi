@@ -5,19 +5,10 @@ import { initLogger, LoggerFormat, LoggerLevel, useLogger } from '@guiiai/logg'
 import { createDrizzle, migrateDatabase } from '../libs/db'
 import { parseEnv } from '../libs/env'
 import { initializeExternalDependency } from '../libs/external-dependency'
+import { createMqWorker } from '../libs/mq'
 import { createRedis } from '../libs/redis'
 import { createBillingConsumerHandler } from '../services/billing/billing-consumer-handler'
-import { createBillingMqService } from '../services/billing/billing-mq'
-import { createBillingMqWorker } from '../services/billing/billing-mq-worker'
-
-function parsePositiveInteger(rawValue: string, envKey: string): number {
-  const parsed = Number(rawValue)
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new Error(`${envKey} must be a positive integer`)
-  }
-
-  return parsed
-}
+import { createBillingMq } from '../services/billing/billing-events'
 
 export async function runBillingConsumer(): Promise<void> {
   initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
@@ -28,7 +19,7 @@ export async function runBillingConsumer(): Promise<void> {
     'Database',
     logger,
     async (attempt) => {
-      const connection = createDrizzle(env.DATABASE_URL)
+      const connection = createDrizzle(env)
 
       try {
         await connection.db.execute('SELECT 1')
@@ -77,20 +68,20 @@ export async function runBillingConsumer(): Promise<void> {
   process.once('SIGTERM', () => shutdown('SIGTERM'))
 
   try {
-    const mq = createBillingMqService(redis, {
+    const mq = createBillingMq(redis, {
       stream: env.BILLING_EVENTS_STREAM,
     })
 
     const handler = createBillingConsumerHandler(db)
-    const worker = createBillingMqWorker(mq)
+    const worker = createMqWorker(mq)
 
     await worker.run({
       group: 'billing-consumer',
       consumer,
       signal: abortController.signal,
-      batchSize: parsePositiveInteger(env.BILLING_EVENTS_BATCH_SIZE, 'BILLING_EVENTS_BATCH_SIZE'),
-      blockMs: parsePositiveInteger(env.BILLING_EVENTS_BLOCK_MS, 'BILLING_EVENTS_BLOCK_MS'),
-      minIdleTimeMs: parsePositiveInteger(env.BILLING_EVENTS_MIN_IDLE_MS, 'BILLING_EVENTS_MIN_IDLE_MS'),
+      batchSize: env.BILLING_EVENTS_BATCH_SIZE,
+      blockMs: env.BILLING_EVENTS_BLOCK_MS,
+      minIdleTimeMs: env.BILLING_EVENTS_MIN_IDLE_MS,
       onMessage: message => handler.handleMessage(message),
     })
   }

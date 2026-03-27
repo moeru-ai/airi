@@ -1,22 +1,20 @@
-import type { BillingMqService, BillingStreamMessage } from './billing-mq'
+import type { MqService } from './stream'
+import type { StreamMessage, WorkerOptions } from './types'
 
 import { useLogger } from '@guiiai/logg'
 
-export interface RunBillingMqWorkerOptions {
-  group: string
-  consumer: string
-  signal: AbortSignal
-  batchSize?: number
-  blockMs?: number
-  minIdleTimeMs?: number
-  onMessage: (message: BillingStreamMessage) => Promise<void>
-}
+const logger = useLogger('mq-worker').useGlobalConfig()
 
-const logger = useLogger('billing-mq-worker').useGlobalConfig()
-
-export function createBillingMqWorker(mq: BillingMqService) {
+/**
+ * Create a consumer worker that processes messages from a Redis Stream.
+ *
+ * The loop first reclaims idle (possibly stalled) messages, then falls
+ * back to consuming new ones. Each message is passed to `onMessage`;
+ * on success it is acknowledged, on failure it stays pending for retry.
+ */
+export function createMqWorker<TEvent>(mq: MqService<TEvent>) {
   return {
-    async run(options: RunBillingMqWorkerOptions): Promise<void> {
+    async run(options: WorkerOptions<TEvent>): Promise<void> {
       await mq.ensureConsumerGroup(options.group)
 
       while (!options.signal.aborted) {
@@ -27,7 +25,7 @@ export function createBillingMqWorker(mq: BillingMqService) {
           count: options.batchSize ?? 10,
         })
 
-        const messages = reclaimedMessages.length > 0
+        const messages: StreamMessage<TEvent>[] = reclaimedMessages.length > 0
           ? reclaimedMessages
           : await mq.consume({
               group: options.group,
@@ -49,9 +47,8 @@ export function createBillingMqWorker(mq: BillingMqService) {
             logger.withError(error).withFields({
               group: options.group,
               consumer: options.consumer,
-              eventId: message.event.eventId,
               streamMessageId: message.streamMessageId,
-            }).error('Billing MQ handler failed; leaving message pending')
+            }).error('MQ handler failed; leaving message pending')
           }
         }
       }
@@ -59,4 +56,4 @@ export function createBillingMqWorker(mq: BillingMqService) {
   }
 }
 
-export type BillingMqWorker = ReturnType<typeof createBillingMqWorker>
+export type MqWorker<TEvent> = ReturnType<typeof createMqWorker<TEvent>>

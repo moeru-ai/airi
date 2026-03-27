@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createBillingMqService } from '../billing-mq'
+import { createBillingMq } from '../billing-events'
 
 function createEvent() {
   return {
@@ -25,7 +25,7 @@ describe('billingMqService', () => {
       call: vi.fn(async () => '1740000000000-0'),
     }
 
-    const mq = createBillingMqService(redis, {
+    const mq = createBillingMq(redis, {
       stream: 'billing-events-test',
       maxLength: 1_000,
     })
@@ -62,7 +62,7 @@ describe('billingMqService', () => {
   })
 
   it('throws when publish does not return a stream message id', async () => {
-    const mq = createBillingMqService({
+    const mq = createBillingMq({
       call: vi.fn(async () => 123),
     })
 
@@ -70,7 +70,7 @@ describe('billingMqService', () => {
   })
 
   it('creates a consumer group and returns true when the group is new', async () => {
-    const mq = createBillingMqService({
+    const mq = createBillingMq({
       call: vi.fn(async () => 'OK'),
     })
 
@@ -78,7 +78,7 @@ describe('billingMqService', () => {
   })
 
   it('returns false when the consumer group already exists', async () => {
-    const mq = createBillingMqService({
+    const mq = createBillingMq({
       call: vi.fn(async () => {
         throw new Error('BUSYGROUP Consumer Group name already exists')
       }),
@@ -88,7 +88,7 @@ describe('billingMqService', () => {
   })
 
   it('rethrows non-BUSYGROUP errors when creating a consumer group', async () => {
-    const mq = createBillingMqService({
+    const mq = createBillingMq({
       call: vi.fn(async () => {
         throw new Error('NOAUTH')
       }),
@@ -98,7 +98,7 @@ describe('billingMqService', () => {
   })
 
   it('consumes stream entries from a consumer group', async () => {
-    const mq = createBillingMqService({
+    const mq = createBillingMq({
       call: vi.fn(async () => [[
         'billing-events',
         [[
@@ -141,7 +141,7 @@ describe('billingMqService', () => {
   })
 
   it('returns an empty array when no messages are available', async () => {
-    const mq = createBillingMqService({
+    const mq = createBillingMq({
       call: vi.fn(async () => null),
     })
 
@@ -152,7 +152,7 @@ describe('billingMqService', () => {
   })
 
   it('throws when xreadgroup returns an invalid payload', async () => {
-    const mq = createBillingMqService({
+    const mq = createBillingMq({
       call: vi.fn(async () => ['not-an-array-entry']),
     })
 
@@ -163,7 +163,7 @@ describe('billingMqService', () => {
   })
 
   it('claims idle pending messages', async () => {
-    const mq = createBillingMqService({
+    const mq = createBillingMq({
       call: vi.fn(async () => [
         '1740000000001-0',
         [[
@@ -206,7 +206,7 @@ describe('billingMqService', () => {
   })
 
   it('throws when xautoclaim returns an invalid payload', async () => {
-    const mq = createBillingMqService({
+    const mq = createBillingMq({
       call: vi.fn(async () => ['1740000000001-0']),
     })
 
@@ -222,7 +222,7 @@ describe('billingMqService', () => {
       call: vi.fn(async () => 2),
     }
 
-    const mq = createBillingMqService(redis)
+    const mq = createBillingMq(redis)
     await expect(mq.ack('billing', ['1-0', '2-0'])).resolves.toBe(2)
     expect(redis.call).toHaveBeenCalledWith('XACK', 'billing-events', 'billing', '1-0', '2-0')
   })
@@ -232,13 +232,13 @@ describe('billingMqService', () => {
       call: vi.fn(),
     }
 
-    const mq = createBillingMqService(redis)
+    const mq = createBillingMq(redis)
     await expect(mq.ack('billing', [])).resolves.toBe(0)
     expect(redis.call).not.toHaveBeenCalled()
   })
 
   it('throws when ack does not return a number', async () => {
-    const mq = createBillingMqService({
+    const mq = createBillingMq({
       call: vi.fn(async () => '2'),
     })
 

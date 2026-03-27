@@ -1,5 +1,6 @@
 import type { Database } from '../../libs/db'
-import type { BillingStreamMessage } from './billing-mq'
+import type { StreamMessage } from '../../libs/mq'
+import type { BillingEvent } from './billing-events'
 
 import { useLogger } from '@guiiai/logg'
 
@@ -10,7 +11,7 @@ const logger = useLogger('billing-consumer-handler').useGlobalConfig()
 
 export function createBillingConsumerHandler(db: Database) {
   return {
-    async handleMessage(message: BillingStreamMessage): Promise<void> {
+    async handleMessage(message: StreamMessage<BillingEvent>): Promise<void> {
       const { event } = message
 
       switch (event.eventType) {
@@ -19,6 +20,8 @@ export function createBillingConsumerHandler(db: Database) {
             ? event.payload.balanceAfter + event.payload.amount
             : 0
 
+          // NOTICE: onConflictDoNothing handles redelivery after crash —
+          // the unique index (userId, requestId) prevents duplicate ledger entries.
           await db.insert(fluxLedgerSchema.fluxLedger).values({
             userId: event.userId,
             type: 'debit',
@@ -27,7 +30,7 @@ export function createBillingConsumerHandler(db: Database) {
             balanceAfter: event.payload.balanceAfter ?? balanceBefore - event.payload.amount,
             requestId: event.requestId,
             description: event.payload.source ?? 'LLM request',
-          })
+          }).onConflictDoNothing()
 
           logger.withFields({
             eventId: event.eventId,
@@ -38,7 +41,9 @@ export function createBillingConsumerHandler(db: Database) {
         }
 
         case 'llm.request.log': {
+          // NOTICE: Use eventId as PK to make redelivery idempotent.
           await db.insert(llmRequestLogSchema.llmRequestLog).values({
+            id: event.eventId,
             userId: event.userId,
             model: event.payload.model,
             status: event.payload.status,
@@ -46,7 +51,7 @@ export function createBillingConsumerHandler(db: Database) {
             fluxConsumed: event.payload.fluxConsumed,
             promptTokens: event.payload.promptTokens,
             completionTokens: event.payload.completionTokens,
-          })
+          }).onConflictDoNothing()
 
           logger.withFields({
             eventId: event.eventId,

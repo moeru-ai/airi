@@ -1,4 +1,5 @@
-import type { BillingMqService } from '../../services/billing/billing-mq'
+import type { MqService } from '../../libs/mq'
+import type { BillingEvent } from '../../services/billing/billing-events'
 import type { BillingService } from '../../services/billing/billing-service'
 import type { ConfigKVService } from '../../services/config-kv'
 import type { FluxService } from '../../services/flux'
@@ -53,7 +54,7 @@ function createMockConfigKV(overrides: Record<string, any> = {}): ConfigKVServic
   } as any
 }
 
-function createMockBillingMq(): BillingMqService {
+function createMockBillingMq(): MqService<BillingEvent> {
   return {
     stream: 'billing-events',
     publish: vi.fn(async () => '1-0'),
@@ -68,7 +69,7 @@ function createTestApp(
   fluxService: FluxService,
   configKV: ConfigKVService,
   billingService?: BillingService,
-  billingMq?: BillingMqService,
+  billingMq?: MqService<BillingEvent>,
 ) {
   const routes = createV1CompletionsRoutes(fluxService, billingService ?? createMockBillingService(), configKV, billingMq ?? createMockBillingMq(), null)
   const app = new Hono<HonoEnv>()
