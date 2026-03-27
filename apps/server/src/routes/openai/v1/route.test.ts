@@ -1,16 +1,16 @@
-import type { MqService } from '../../libs/mq'
-import type { BillingEvent } from '../../services/billing/billing-events'
-import type { BillingService } from '../../services/billing/billing-service'
-import type { ConfigKVService } from '../../services/config-kv'
-import type { FluxService } from '../../services/flux'
-import type { HonoEnv } from '../../types/hono'
+import type { MqService } from '../../../libs/mq'
+import type { BillingEvent } from '../../../services/billing/billing-events'
+import type { BillingService } from '../../../services/billing/billing-service'
+import type { ConfigKVService } from '../../../services/config-kv'
+import type { FluxService } from '../../../services/flux'
+import type { HonoEnv } from '../../../types/hono'
 
 import { Hono } from 'hono'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 
-import { ApiError } from '../../utils/error'
-import { DEFAULT_BILLING_EVENTS_STREAM } from '../../utils/redis-keys'
-import { createV1CompletionsRoutes } from '../v1completions'
+import { createV1CompletionsRoutes } from '.'
+import { ApiError } from '../../../utils/error'
+import { DEFAULT_BILLING_EVENTS_STREAM } from '../../../utils/redis-keys'
 
 // --- Mock helpers ---
 
@@ -95,7 +95,7 @@ function createTestApp(
     await next()
   })
 
-  app.route('/api/v1', routes)
+  app.route('/api/v1/openai', routes)
   return app
 }
 
@@ -110,14 +110,14 @@ describe('v1CompletionsRoutes', () => {
     globalThis.fetch = originalFetch
   })
 
-  describe('pOST /api/v1/chat/completions', () => {
+  describe('pOST /api/v1/openai/chat/completions', () => {
     it('should return 401 when unauthenticated', async () => {
       const app = createTestApp(
         createMockFluxService(),
         createMockConfigKV(),
       )
 
-      const res = await app.request('/api/v1/chat/completions', {
+      const res = await app.request('/api/v1/openai/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: 'auto', messages: [{ role: 'user', content: 'hi' }] }),
@@ -132,7 +132,7 @@ describe('v1CompletionsRoutes', () => {
       )
 
       const res = await app.fetch(
-        new Request('http://localhost/api/v1/chat/completions', {
+        new Request('http://localhost/api/v1/openai/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: 'auto', messages: [{ role: 'user', content: 'hi' }] }),
@@ -155,7 +155,7 @@ describe('v1CompletionsRoutes', () => {
       const app = createTestApp(fluxService, configKV, billingService)
 
       const res = await app.fetch(
-        new Request('http://localhost/api/v1/chat/completions', {
+        new Request('http://localhost/api/v1/openai/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: 'auto', messages: [{ role: 'user', content: 'hi' }] }),
@@ -194,7 +194,7 @@ describe('v1CompletionsRoutes', () => {
       )
 
       await app.fetch(
-        new Request('http://localhost/api/v1/chat/completions', {
+        new Request('http://localhost/api/v1/openai/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: 'auto', messages: [] }),
@@ -219,7 +219,7 @@ describe('v1CompletionsRoutes', () => {
       const app = createTestApp(createMockFluxService(), createMockConfigKV())
 
       await app.fetch(
-        new Request('http://localhost/api/v1/chat/completions', {
+        new Request('http://localhost/api/v1/openai/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: 'openai/gpt-5-mini', messages: [] }),
@@ -245,7 +245,7 @@ describe('v1CompletionsRoutes', () => {
       const app = createTestApp(createMockFluxService(100), createMockConfigKV(), billingService)
 
       const res = await app.fetch(
-        new Request('http://localhost/api/v1/chat/completions', {
+        new Request('http://localhost/api/v1/openai/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: 'auto', messages: [] }),
@@ -266,7 +266,7 @@ describe('v1CompletionsRoutes', () => {
       const app = createTestApp(createMockFluxService(), configKV)
 
       const res = await app.fetch(
-        new Request('http://localhost/api/v1/chat/completions', {
+        new Request('http://localhost/api/v1/openai/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: 'auto', messages: [] }),
@@ -286,7 +286,7 @@ describe('v1CompletionsRoutes', () => {
       const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, billingMq)
 
       await app.fetch(
-        new Request('http://localhost/api/v1/chat/completions', {
+        new Request('http://localhost/api/v1/openai/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: 'gpt-4', messages: [] }),
@@ -332,7 +332,7 @@ describe('v1CompletionsRoutes', () => {
       const app = createTestApp(createMockFluxService(100), createMockConfigKV(), billingService, billingMq)
 
       const res = await app.fetch(
-        new Request('http://localhost/api/v1/chat/completions', {
+        new Request('http://localhost/api/v1/openai/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: 'auto', stream: true, messages: [{ role: 'user', content: 'hi' }] }),
@@ -350,7 +350,7 @@ describe('v1CompletionsRoutes', () => {
     })
   })
 
-  describe.skip('pOST /api/v1/audio/speech', () => {
+  describe.skip('pOST /api/v1/openai/audio/speech', () => {
     it('should proxy TTS request to upstream', async () => {
       const audioData = new Uint8Array([1, 2, 3, 4])
       globalThis.fetch = vi.fn(async () => new Response(audioData, {
@@ -361,7 +361,7 @@ describe('v1CompletionsRoutes', () => {
       const app = createTestApp(createMockFluxService(), createMockConfigKV())
 
       const res = await app.fetch(
-        new Request('http://localhost/api/v1/audio/speech', {
+        new Request('http://localhost/api/v1/openai/audio/speech', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: 'tts-1', input: 'hello', voice: 'alloy' }),
@@ -377,7 +377,7 @@ describe('v1CompletionsRoutes', () => {
     })
   })
 
-  describe.skip('pOST /api/v1/audio/transcriptions', () => {
+  describe.skip('pOST /api/v1/openai/audio/transcriptions', () => {
     it('should proxy transcription request to upstream', async () => {
       globalThis.fetch = vi.fn(async () => new Response('{"text":"hello"}', {
         status: 200,
@@ -391,7 +391,7 @@ describe('v1CompletionsRoutes', () => {
       formData.append('model', 'whisper-1')
 
       const res = await app.fetch(
-        new Request('http://localhost/api/v1/audio/transcriptions', {
+        new Request('http://localhost/api/v1/openai/audio/transcriptions', {
           method: 'POST',
           body: formData,
         }),
@@ -407,17 +407,17 @@ describe('v1CompletionsRoutes', () => {
   })
 
   describe('route matching', () => {
-    it('gET /api/v1/chat/completions should return 404', async () => {
+    it('gET /api/v1/openai/chat/completions should return 404', async () => {
       const app = createTestApp(createMockFluxService(), createMockConfigKV())
 
       const res = await app.fetch(
-        new Request('http://localhost/api/v1/chat/completions', { method: 'GET' }),
+        new Request('http://localhost/api/v1/openai/chat/completions', { method: 'GET' }),
         { user: testUser } as any,
       )
       expect(res.status).toBe(404)
     })
 
-    it('pOST /api/v1/chat/completion (singular) should also work', async () => {
+    it('pOST /api/v1/openai/chat/completion (singular) should also work', async () => {
       globalThis.fetch = vi.fn(async () => new Response('{}', {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -426,7 +426,7 @@ describe('v1CompletionsRoutes', () => {
       const app = createTestApp(createMockFluxService(), createMockConfigKV())
 
       const res = await app.fetch(
-        new Request('http://localhost/api/v1/chat/completion', {
+        new Request('http://localhost/api/v1/openai/chat/completion', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: 'auto', messages: [] }),

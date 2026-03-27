@@ -1,7 +1,7 @@
 import { createInsertSchema, createSelectSchema } from 'drizzle-valibot'
 import { array, literal, number, object, optional, pipe, string, transform, union } from 'valibot'
 
-import * as schema from '../schemas/characters'
+import * as schema from '../../schemas/characters'
 
 export const AvatarModelConfigSchema = object({
   vrm: optional(object({
@@ -69,6 +69,8 @@ const DateSchema = pipe(
 )
 
 export const CreateCharacterSchema = object({
+  // TODO: Replace createInsertSchema-derived request bodies with explicit HTTP DTO schemas.
+  // The current shape still leaks persistence fields such as ownerId/creatorId into the API boundary.
   character: createInsertSchema(schema.character, {
     creatorId: optional(string()),
     ownerId: optional(string()),
@@ -98,6 +100,8 @@ export const CreateCharacterSchema = object({
   }))),
 })
 
+// TODO: Split update request schema from DB insert schema.
+// This route should reject server-managed fields like id/ownerId/creatorId/timestamps instead of allowing them here.
 export const UpdateCharacterSchema = createInsertSchema(schema.character, {
   id: optional(string()),
   version: optional(string()),

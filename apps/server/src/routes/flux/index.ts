@@ -1,12 +1,12 @@
-import type { FluxService } from '../services/flux'
-import type { FluxAuditService } from '../services/flux-audit'
-import type { HonoEnv } from '../types/hono'
+import type { FluxService } from '../../services/flux'
+import type { FluxAuditService } from '../../services/flux-audit'
+import type { HonoEnv } from '../../types/hono'
 
 import { Hono } from 'hono'
 import { parse } from 'valibot'
 
-import { authGuard } from '../middlewares/auth'
-import { LimitOffsetPaginationQuerySchema } from '../utils/http-query'
+import { authGuard } from '../../middlewares/auth'
+import { LimitOffsetPaginationQuerySchema } from '../../utils/http-query'
 
 export function createFluxRoutes(fluxService: FluxService, fluxAuditService: FluxAuditService) {
   return new Hono<HonoEnv>()

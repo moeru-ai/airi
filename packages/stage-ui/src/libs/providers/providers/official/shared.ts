@@ -14,5 +14,5 @@ export function withCredentials() {
 }
 
 export function createOfficialOpenAIProvider() {
-  return createOpenAI('', `${SERVER_URL}/api/v1/`)
+  return createOpenAI('', `${SERVER_URL}/api/v1/openai/`)
 }

@@ -191,6 +191,8 @@ export function createCharacterService(db: Database, metrics?: EngagementMetrics
     },
 
     async update(id: string, data: Partial<schema.NewCharacter>) {
+      // TODO: Return a stable single-object response shape for HTTP callers.
+      // leaking Drizzle returning() arrays across the service boundary makes route contracts drift.
       const result = await db.update(schema.character)
         .set({ ...data, updatedAt: new Date() })
         .where(and(

@@ -87,7 +87,7 @@ export const useAuthStore = defineStore('auth', () => {
   const updateCredits = async () => {
     if (!isAuthenticated.value)
       return
-    const res = await client.api.flux.$get()
+    const res = await client.api.v1.flux.$get()
     if (res.ok) {
       const data = await res.json()
       credits.value = data.flux

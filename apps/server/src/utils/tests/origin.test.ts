@@ -12,7 +12,7 @@ describe('origin utils', () => {
   })
 
   it('prefers a trusted referer origin', () => {
-    const request = new Request('http://localhost/api/stripe/checkout', {
+    const request = new Request('http://localhost/api/v1/stripe/checkout', {
       headers: {
         referer: 'https://airi.moeru.ai/settings/flux',
         origin: 'https://example.com',
@@ -23,7 +23,7 @@ describe('origin utils', () => {
   })
 
   it('falls back to a trusted origin header when referer is missing', () => {
-    const request = new Request('http://localhost/api/stripe/checkout', {
+    const request = new Request('http://localhost/api/v1/stripe/checkout', {
       headers: {
         origin: 'http://localhost:5173',
       },

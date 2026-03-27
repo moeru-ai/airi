@@ -1,12 +1,12 @@
-import type { CharacterService } from '../services/characters'
-import type { HonoEnv } from '../types/hono'
+import type { CharacterService } from '../../services/characters'
+import type { HonoEnv } from '../../types/hono'
 
 import { Hono } from 'hono'
 import { safeParse } from 'valibot'
 
-import { CreateCharacterSchema, UpdateCharacterSchema } from '../api/characters.schema'
-import { authGuard } from '../middlewares/auth'
-import { createBadRequestError, createForbiddenError, createNotFoundError } from '../utils/error'
+import { authGuard } from '../../middlewares/auth'
+import { createBadRequestError, createForbiddenError, createNotFoundError } from '../../utils/error'
+import { CreateCharacterSchema, UpdateCharacterSchema } from './schema'
 
 export function createCharacterRoutes(characterService: CharacterService) {
   return new Hono<HonoEnv>()
@@ -65,6 +65,7 @@ export function createCharacterRoutes(characterService: CharacterService) {
         throw createBadRequestError('Invalid Request', 'INVALID_REQUEST', result.issues)
       }
 
+      // TODO: Move ownership checks into the service layer with an actor-aware API such as updateByOwner(user.id, id, input).
       const existing = await characterService.findById(id)
       if (!existing)
         throw createNotFoundError()
@@ -79,6 +80,7 @@ export function createCharacterRoutes(characterService: CharacterService) {
       const user = c.get('user')!
 
       const id = c.req.param('id')
+      // TODO: Move ownership checks into the service layer with an actor-aware API such as deleteByOwner(user.id, id).
       const existing = await characterService.findById(id)
       if (!existing)
         throw createNotFoundError()

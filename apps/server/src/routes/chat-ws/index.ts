@@ -1,16 +1,16 @@
 import type Redis from 'ioredis'
 
-import type { HonoWsInvocableEventContext } from '../libs/eventa-hono-adapter'
-import type { EngagementMetrics } from '../libs/otel'
-import type { ChatService } from '../services/chats'
+import type { HonoWsInvocableEventContext } from '../../libs/eventa-hono-adapter'
+import type { EngagementMetrics } from '../../libs/otel'
+import type { ChatService } from '../../services/chats'
 
 import { useLogger } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { newMessages, pullMessages, sendMessages } from '@proj-airi/server-sdk-shared'
 
-import { createPeerHooks, wsDisconnectedEvent } from '../libs/eventa-hono-adapter'
-import { createChatBroadcastMessage, parseChatBroadcastMessage } from '../utils/chat-broadcast'
-import { userChatBroadcastRedisKey } from '../utils/redis-keys'
+import { createPeerHooks, wsDisconnectedEvent } from '../../libs/eventa-hono-adapter'
+import { createChatBroadcastMessage, parseChatBroadcastMessage } from '../../utils/chat-broadcast'
+import { userChatBroadcastRedisKey } from '../../utils/redis-keys'
 
 const log = useLogger('chat-ws').useGlobalConfig()
 
@@ -54,6 +54,8 @@ export function createChatWsHandlers(
   redis: Redis,
   metrics?: EngagementMetrics | null,
 ) {
+  // TODO: Separate connection lifecycle, cross-instance broadcast, and RPC orchestration into smaller modules.
+  // This file is still acting as both transport adapter and chat delivery coordinator.
   // Dedicated subscriber connection (ioredis requires a separate connection for subscribe mode)
   const sub = redis.duplicate()
 

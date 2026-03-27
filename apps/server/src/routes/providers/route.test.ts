@@ -4,10 +4,10 @@ import type { HonoEnv } from '../../types/hono'
 import { Hono } from 'hono'
 import { beforeAll, describe, expect, it } from 'vitest'
 
+import { createProviderRoutes } from '.'
 import { mockDB } from '../../libs/mock-db'
 import { createProviderService } from '../../services/providers'
 import { ApiError } from '../../utils/error'
-import { createProviderRoutes } from '../providers'
 
 import * as schema from '../../schemas'
 

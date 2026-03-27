@@ -6,12 +6,12 @@
 
 - `GET /health`
 - `/api/auth/*`
-- `/api/characters`
-- `/api/providers`
-- `/api/chats`
-- `/api/v1`
-- `/api/users/me/flux`
-- `/api/stripe`
+- `/api/v1/characters`
+- `/api/v1/providers`
+- `/api/v1/chats`
+- `/api/v1/openai`
+- `/api/v1/flux`
+- `/api/v1/stripe`
 - `GET /ws/chat`
 
 ## 鉴权链路
@@ -52,11 +52,11 @@
 - Bearer plugin 已启用
 - `/api/auth/*` 有独立 IP 限流，每分钟 20 次
 
-### `/api/characters`
+### `/api/v1/characters`
 
 实现位置：
 
-- route: `src/routes/characters.ts`
+- route: `src/routes/characters/index.ts`
 - service: `src/services/characters.ts`
 
 主要能力：
@@ -77,11 +77,11 @@
 - 更新和删除会额外校验 `ownerId === user.id`
 - 点赞和收藏是 toggle 语义
 
-### `/api/providers`
+### `/api/v1/providers`
 
 实现位置：
 
-- route: `src/routes/providers.ts`
+- route: `src/routes/providers/index.ts`
 - service: `src/services/providers.ts`
 
 主要能力：
@@ -96,11 +96,11 @@
 - `findAll(ownerId)` 通过 `unionAll` 合并系统配置和用户配置
 - 用户只能改自己的 user config，不能改 system config
 
-### `/api/chats`
+### `/api/v1/chats`
 
 实现位置：
 
-- route: `src/routes/chats.ts`
+- route: `src/routes/chats/index.ts`
 - service: `src/services/chats.ts`
 
 主要能力：
@@ -119,7 +119,7 @@
 实现位置：
 
 - route 注册：`src/app.ts`
-- handler factory: `src/routes/chat-ws.ts`
+- handler factory: `src/routes/chat-ws/index.ts`
 - 底层事件适配：`src/libs/eventa-hono-adapter.ts`
 
 主要 RPC：
@@ -141,11 +141,11 @@
 - key / channel 与 payload 边界应集中收口，不要在调用点散落模板字符串和裸 `JSON.parse`
 - 具体规范见 `redis-boundaries-and-pubsub.md`
 
-### `/api/v1`
+### `/api/v1/openai`
 
 实现位置：
 
-- route: `src/routes/v1completions.ts`
+- route: `src/routes/openai/v1/index.ts`
 - 依赖服务：
   - `fluxService`
   - `billingService`
@@ -154,10 +154,10 @@
 
 当前已开放：
 
-- `POST /api/v1/chat/completions`
-- `POST /api/v1/chat/completion`
-- `POST /api/v1/audio/speech`
-- `POST /api/v1/audio/transcriptions`
+- `POST /api/v1/openai/chat/completions`
+- `POST /api/v1/openai/chat/completion`
+- `POST /api/v1/openai/audio/speech`
+- `POST /api/v1/openai/audio/transcriptions`
 
 请求流程：
 
@@ -181,27 +181,27 @@
   - 流结束后再 best-effort 扣费
   - 扣费失败只打 error log，不回滚给客户端
 
-### `/api/users/me/flux`
+### `/api/v1/flux`
 
 实现位置：
 
-- route: `src/routes/flux.ts`
+- route: `src/routes/flux/index.ts`
 - services:
   - `fluxService`
   - `fluxAuditService`
 
 主要能力：
 
-- `GET /api/users/me/flux`
+- `GET /api/v1/flux`
   - 读取当前用户余额
-- `GET /api/users/me/flux/history`
+- `GET /api/v1/flux/history`
   - 读取用户可见流水
 
-### `/api/stripe`
+### `/api/v1/stripe`
 
 实现位置：
 
-- route: `src/routes/stripe.ts`
+- route: `src/routes/stripe/index.ts`
 - services:
   - `fluxService`
   - `stripeService`
@@ -226,7 +226,7 @@
 
 ## 参数校验方式
 
-输入 schema 位于 `src/api/*.schema.ts`：
+输入 schema 位于各资源路由目录下的 `schema.ts`：
 
 - `characters.schema.ts`
 - `chats.schema.ts`

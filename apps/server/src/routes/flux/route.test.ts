@@ -5,8 +5,8 @@ import type { HonoEnv } from '../../types/hono'
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
 
+import { createFluxRoutes } from '.'
 import { ApiError } from '../../utils/error'
-import { createFluxRoutes } from '../flux'
 
 function createMockFluxService(): FluxService {
   return {
@@ -59,19 +59,19 @@ function createTestApp(fluxService: FluxService, fluxAuditService: FluxAuditServ
     await next()
   })
 
-  app.route('/api/users/me/flux', routes)
+  app.route('/api/v1/flux', routes)
   return app
 }
 
 const testUser = { id: 'user-1', name: 'Test User', email: 'test@example.com' }
 
 describe('fluxRoutes', () => {
-  it('get /api/users/me/flux should return the current user balance', async () => {
+  it('get /api/v1/flux should return the current user balance', async () => {
     const fluxService = createMockFluxService()
     const app = createTestApp(fluxService, createMockFluxAuditService())
 
     const res = await app.fetch(
-      new Request('http://localhost/api/users/me/flux'),
+      new Request('http://localhost/api/v1/flux'),
       { user: testUser } as any,
     )
 
@@ -80,12 +80,12 @@ describe('fluxRoutes', () => {
     expect(fluxService.getFlux).toHaveBeenCalledWith('user-1')
   })
 
-  it('get /api/users/me/flux/history should clamp pagination query values', async () => {
+  it('get /api/v1/flux/history should clamp pagination query values', async () => {
     const fluxAuditService = createMockFluxAuditService()
     const app = createTestApp(createMockFluxService(), fluxAuditService)
 
     const res = await app.fetch(
-      new Request('http://localhost/api/users/me/flux/history?limit=999&offset=-12'),
+      new Request('http://localhost/api/v1/flux/history?limit=999&offset=-12'),
       { user: testUser } as any,
     )
 

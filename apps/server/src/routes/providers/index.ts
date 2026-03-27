@@ -1,12 +1,12 @@
-import type { ProviderService } from '../services/providers'
-import type { HonoEnv } from '../types/hono'
+import type { ProviderService } from '../../services/providers'
+import type { HonoEnv } from '../../types/hono'
 
 import { Hono } from 'hono'
 import { safeParse } from 'valibot'
 
-import { CreateProviderConfigSchema, UpdateProviderConfigSchema } from '../api/providers.schema'
-import { authGuard } from '../middlewares/auth'
-import { createBadRequestError, createForbiddenError, createNotFoundError } from '../utils/error'
+import { authGuard } from '../../middlewares/auth'
+import { createBadRequestError, createForbiddenError, createNotFoundError } from '../../utils/error'
+import { CreateProviderConfigSchema, UpdateProviderConfigSchema } from './schema'
 
 export function createProviderRoutes(providerService: ProviderService) {
   return new Hono<HonoEnv>()
@@ -55,6 +55,7 @@ export function createProviderRoutes(providerService: ProviderService) {
         throw createBadRequestError('Invalid Request', 'INVALID_REQUEST', result.issues)
       }
 
+      // TODO: Move ownership checks into the service layer with an actor-aware API such as updateUserConfigByOwner(user.id, id, input).
       const existing = await providerService.findUserConfigById(id)
       if (!existing)
         throw createNotFoundError()
@@ -69,6 +70,7 @@ export function createProviderRoutes(providerService: ProviderService) {
       const user = c.get('user')!
       const id = c.req.param('id')
 
+      // TODO: Move ownership checks into the service layer with an actor-aware API such as deleteUserConfigByOwner(user.id, id).
       const existing = await providerService.findUserConfigById(id)
       if (!existing)
         throw createNotFoundError()
