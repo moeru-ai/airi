@@ -267,14 +267,14 @@ jobs:
           path: apps/stage-tamagotchi/bundle/signed/windows/${{ env.BUNDLE_NAME }}
           overwrite: true
 
-      # NOTICE: Electron Builder generates latest.yml during the build step, before this workflow
+      # NOTICE: Electron Builder generates latest-x64.yml during the build step, before this workflow
       # submits the Windows installer to SignPath. SignPath re-signs the .exe and changes its bytes,
-      # which changes the updater hashes too. Regenerating latest.yml from the signed installer keeps
+      # which changes the updater hashes too. Regenerating latest-x64.yml from the signed installer keeps
       # the published Windows update metadata aligned with the final released artifact.
-      - name: Regenerate Windows latest.yml (Nightly + Windows Only)
+      - name: Regenerate Windows latest-x64.yml (Nightly + Windows Only)
         if: ${{ github.event_name == 'schedule' && matrix.os == 'windows-latest' }}
         run: |
-          pnpm -F @proj-airi/stage-tamagotchi run regenerate-windows-latest --input apps/stage-tamagotchi/bundle/signed/windows/${{ env.BUNDLE_NAME }} --output apps/stage-tamagotchi/bundle/latest.yml --version ${{ env.VERSION }}
+          pnpm -F @proj-airi/stage-tamagotchi run regenerate-windows-latest --input apps/stage-tamagotchi/bundle/signed/windows/${{ env.BUNDLE_NAME }} --output apps/stage-tamagotchi/bundle/latest-x64.yml --version ${{ env.VERSION }}
 
       # ---------
       # Workflow Dispatch only
@@ -303,22 +303,6 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
           pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }}
-
-      # NOTICE: electron-builder emits `latest-mac.yml` per macOS architecture, but GitHub Releases can only keep one asset with that exact name.
-      # NOTICE: publishing both matrix outputs under the generic name causes the last upload to win, which can leave auto-update metadata pinned to a single architecture instead of the merged manifest.
-      # NOTICE: rename the per-arch manifests before upload so the follow-up merge job can publish the only generic `latest-mac.yml`, whose `files` list contains both arm64 and x64 ZIPs for electron-updater to choose from.
-      - name: Rename macOS update info (Manual + Release + macOS Only)
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only && (matrix.os == 'macos-26' || matrix.os == 'macos-15-intel') }}
-        run: |
-          mv apps/stage-tamagotchi/bundle/latest-mac.yml apps/stage-tamagotchi/bundle/latest-mac-${{ matrix.arch }}.yml
-
-      - name: Upload macOS update info (Manual + Release + macOS Only)
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only && (matrix.os == 'macos-26' || matrix.os == 'macos-15-intel') }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: latest-mac-yml-${{ matrix.arch }}
-          path: apps/stage-tamagotchi/bundle/latest-mac-${{ matrix.arch }}.yml
-          if-no-files-found: error
 
       - name: Get Linux Artifact Names (Manual + Non-Release + Linux Only)
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
@@ -385,13 +369,13 @@ jobs:
           path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
           overwrite: true
 
-      # NOTICE: Electron Builder already wrote latest.yml before SignPath signed the installer.
-      # After the signed .exe replaces the unsigned one, we must rebuild latest.yml so its hashes
+      # NOTICE: Electron Builder already wrote latest-x64.yml before SignPath signed the installer.
+      # After the signed .exe replaces the unsigned one, we must rebuild latest-x64.yml so its hashes
       # describe the final Windows artifact that users will actually download.
-      - name: Regenerate Windows latest.yml (Manual + Windows Only)
+      - name: Regenerate Windows latest-x64.yml (Manual + Windows Only)
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && matrix.os == 'windows-latest' }}
         run: |
-          pnpm -F @proj-airi/stage-tamagotchi run regenerate-windows-latest --input apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }} --output apps/stage-tamagotchi/bundle/latest.yml --version ${{ env.VERSION }}
+          pnpm -F @proj-airi/stage-tamagotchi run regenerate-windows-latest --input apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }} --output apps/stage-tamagotchi/bundle/latest-x64.yml --version ${{ env.VERSION }}
 
       - name: Upload To GitHub Releases (Manual + Release + Overwrite Release)
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only }}
@@ -404,9 +388,7 @@ jobs:
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.deb
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.rpm
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.flatpak
-            apps/stage-tamagotchi/bundle/latest.yml
-            apps/stage-tamagotchi/bundle/latest-linux*.yml
-            apps/stage-tamagotchi/bundle/latest-mac-*.yml
+            apps/stage-tamagotchi/bundle/latest-*.yml
           append_body: true
           tag_name: ${{ inputs.tag }}
 
@@ -418,22 +400,6 @@ jobs:
         if: ${{ github.event_name == 'release' }}
         run: |
           pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release --auto-tag
-
-      # NOTICE: electron-builder emits `latest-mac.yml` per macOS architecture, but GitHub Releases can only keep one asset with that exact name.
-      # NOTICE: publishing both matrix outputs under the generic name causes the last upload to win, which can leave auto-update metadata pinned to a single architecture instead of the merged manifest.
-      # NOTICE: rename the per-arch manifests before upload so the follow-up merge job can publish the only generic `latest-mac.yml`, whose `files` list contains both arm64 and x64 ZIPs for electron-updater to choose from.
-      - name: Rename macOS update info (Automatic + macOS Only)
-        if: ${{ github.event_name == 'release' && (matrix.os == 'macos-26' || matrix.os == 'macos-15-intel') }}
-        run: |
-          mv apps/stage-tamagotchi/bundle/latest-mac.yml apps/stage-tamagotchi/bundle/latest-mac-${{ matrix.arch }}.yml
-
-      - name: Upload macOS update info (Automatic + macOS Only)
-        if: ${{ github.event_name == 'release' && (matrix.os == 'macos-26' || matrix.os == 'macos-15-intel') }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: latest-mac-yml-${{ matrix.arch }}
-          path: apps/stage-tamagotchi/bundle/latest-mac-${{ matrix.arch }}.yml
-          if-no-files-found: error
 
       - name: Get Artifacts Envs (Automatic + Windows Only)
         if: ${{ github.event_name == 'release' && matrix.os == 'windows-latest' }}
@@ -470,23 +436,23 @@ jobs:
         run: |
           Move-Item -Force apps/stage-tamagotchi/bundle/signed/windows/${{ env.BUNDLE_NAME }} apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
 
-      # NOTICE: The root cause here is the build/signing order: latest.yml is produced by Electron
+      # NOTICE: The root cause here is the build/signing order: latest-x64.yml is produced by Electron
       # Builder before SignPath re-signs the installer. That post-build signing step mutates the .exe,
-      # so the updater metadata becomes stale. Recomputing latest.yml after the signed file is moved
+      # so the updater metadata becomes stale. Recomputing latest-x64.yml after the signed file is moved
       # into its final bundle path makes the release upload self-consistent again.
-      - name: Regenerate Windows latest.yml (Automatic + Windows Only)
+      - name: Regenerate Windows latest manifest (Automatic + Windows Only)
         if: ${{ github.event_name == 'release' && matrix.os == 'windows-latest' }}
         run: |
-          pnpm -F @proj-airi/stage-tamagotchi run regenerate-windows-latest --input apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }} --output apps/stage-tamagotchi/bundle/latest.yml --version ${{ env.VERSION }}
+          pnpm -F @proj-airi/stage-tamagotchi run regenerate-windows-latest --input apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }} --output apps/stage-tamagotchi/bundle/latest-x64.yml --version ${{ env.VERSION }}
 
       - name: Upload To GitHub Releases (Automatic)
         if: ${{ github.event_name == 'release' }}
         uses: softprops/action-gh-release@v2
         with:
           # Possible auto updater files:
-          # Windows: latest.yml
-          # macOS: latest-mac-arm64.yml, latest-mac-x64.yml, latest-mac.yml (merged in follow-up job)
-          # Linux: latest-linux-arm64.yml (arm64), latest-linux.yml (x64)
+          # Windows: latest-x64.yml
+          # macOS: latest-arm64-mac.yml, latest-x64-mac.yml
+          # Linux: latest-arm64-linux.yml (arm64), latest-x64-linux.yml (x64)
           files: |
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.exe
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.zip
@@ -494,50 +460,5 @@ jobs:
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.deb
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.rpm
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.flatpak
-            apps/stage-tamagotchi/bundle/latest.yml
-            apps/stage-tamagotchi/bundle/latest-linux*.yml
-            apps/stage-tamagotchi/bundle/latest-mac-*.yml
+            apps/stage-tamagotchi/bundle/latest-*.yml
           append_body: true
-
-  merge-mac-latest:
-    name: Merge macOS latest-mac.yml
-    if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only) }}
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: pnpm/action-setup@v4
-        with:
-          run_install: false
-      - uses: actions/setup-node@v6
-        with:
-          node-version: lts/*
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-
-      - name: Download latest-mac.yml (x64)
-        uses: actions/download-artifact@v8
-        with:
-          name: latest-mac-yml-x64
-          path: artifacts/x64
-
-      - name: Download latest-mac.yml (arm64)
-        uses: actions/download-artifact@v8
-        with:
-          name: latest-mac-yml-arm64
-          path: artifacts/arm64
-
-      # NOTICE: the merged `latest-mac.yml` must be the only generic macOS update manifest published to the release.
-      # NOTICE: electron-updater resolves the correct macOS ZIP from the merged `files` list; if we skip this merge or publish a single-arch file as `latest-mac.yml`, Apple Silicon users can be routed to the wrong build.
-      - name: Merge latest-mac.yml
-        run: |
-          pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/merge-latest-mac.ts \
-            --dir artifacts \
-            --output apps/stage-tamagotchi/bundle/latest-mac.yml
-
-      - name: Upload merged latest-mac.yml
-        uses: softprops/action-gh-release@v2
-        with:
-          files: apps/stage-tamagotchi/bundle/latest-mac.yml
-          tag_name: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}

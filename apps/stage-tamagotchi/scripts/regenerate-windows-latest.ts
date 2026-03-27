@@ -127,9 +127,9 @@ export async function regenerateWindowsLatest(options: RegenerateWindowsLatestOp
 async function main() {
   const cli = cac('regenerate-windows-latest')
     .option('--input <path>', 'Signed Windows installer path', { type: [String] })
-    .option('--output <path>', 'Output latest.yml path', { default: 'bundle/latest.yml' })
-    .option('--version <version>', 'Version to write into latest.yml', { type: [String] })
-    .option('--release-date <date>', 'Release date to write into latest.yml', { type: [String] })
+    .option('--output <path>', 'Output latest-x64.yml path', { default: 'bundle/latest-x64.yml' })
+    .option('--version <version>', 'Version to write into latest-x64.yml', { type: [String] })
+    .option('--release-date <date>', 'Release date to write into latest-x64.yml', { type: [String] })
 
   const args = cli.parse()
 
