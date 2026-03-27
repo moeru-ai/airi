@@ -289,7 +289,6 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
       id: 'openai-compatible:check-chat-completions',
       name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-supports-chat-completion.title'),
       schedule: options?.schedule,
-      manualOnly: true,
       validator: async (config, provider, providerExtra, contextOptions) => {
         const errors: Array<{ error: unknown }> = []
         const result = await getChatCheckResult(

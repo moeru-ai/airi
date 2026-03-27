@@ -2,13 +2,13 @@
 import type { RemovableRef } from '@vueuse/core'
 
 import {
+  Alert,
   ProviderAdvancedSettings,
   ProviderApiKeyInput,
   ProviderBaseUrlInput,
   ProviderBasicSettings,
   ProviderSettingsContainer,
   ProviderSettingsLayout,
-  ProviderValidationAlerts,
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { getDefinedProvider } from '@proj-airi/stage-ui/libs'
@@ -54,11 +54,6 @@ const {
   validationMessage,
   handleResetSettings,
   forceValid,
-  hasManualValidators,
-  isManualTesting,
-  manualTestPassed,
-  manualTestMessage,
-  runManualTest,
 } = useProviderValidation(providerId)
 
 const apiKeyPlaceholder = computed(() => {
@@ -110,18 +105,39 @@ function goToModelSelection() {
       </ProviderAdvancedSettings>
 
       <!-- Validation Status -->
-      <ProviderValidationAlerts
-        :is-valid="isValid"
-        :is-validating="isValidating"
-        :validation-message="validationMessage"
-        :has-manual-validators="hasManualValidators"
-        :is-manual-testing="isManualTesting"
-        :manual-test-passed="manualTestPassed"
-        :manual-test-message="manualTestMessage"
-        :on-run-test="runManualTest"
-        :on-force-valid="forceValid"
-        :on-go-to-model-selection="goToModelSelection"
-      />
+      <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
+        <template #title>
+          <div :class="['w-full flex items-center justify-between']">
+            <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
+            <button
+              type="button"
+              :class="['ml-2 rounded px-2 py-0.5 text-xs font-medium transition-colors', 'bg-red-100 text-red-600 hover:bg-red-200', 'dark:bg-red-800/30 dark:text-red-300 dark:hover:bg-red-700/40']"
+              @click="forceValid"
+            >
+              {{ t('settings.pages.providers.common.continueAnyway') }}
+            </button>
+          </div>
+        </template>
+        <template v-if="validationMessage" #content>
+          <div :class="['whitespace-pre-wrap break-all']">
+            {{ validationMessage }}
+          </div>
+        </template>
+      </Alert>
+      <Alert v-if="isValid && isValidating === 0" type="success">
+        <template #title>
+          <div :class="['w-full flex items-center justify-between']">
+            <span>{{ t('settings.dialogs.onboarding.validationSuccess') }}</span>
+            <button
+              type="button"
+              :class="['ml-2 rounded px-2 py-0.5 text-xs font-medium transition-colors', 'bg-green-100 text-green-600 hover:bg-green-200', 'dark:bg-green-800/30 dark:text-green-300 dark:hover:bg-green-700/40']"
+              @click="goToModelSelection"
+            >
+              {{ t('settings.pages.providers.common.goToModelSelection') }}
+            </button>
+          </div>
+        </template>
+      </Alert>
     </ProviderSettingsContainer>
   </ProviderSettingsLayout>
 </template>

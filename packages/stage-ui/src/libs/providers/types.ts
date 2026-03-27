@@ -76,12 +76,6 @@ export interface ProviderRuntimeValidator<TConfig> {
   name: string
   validator: (config: TConfig, provider: ProviderInstance, providerExtra: ProviderExtraMethods<TConfig>, contextOptions: { t: ComposerTranslation }) => MaybePromise<ProviderValidationResult>
   schedule?: ProviderValidatorSchedule
-  /**
-   * When true the validator is excluded from automatic validation runs.
-   * It must be triggered explicitly by the user (e.g. a "Test Generation" button).
-   * This is used for costly checks like chat-completion probes that bill per request.
-   */
-  manualOnly?: boolean
 }
 
 export interface ModelInfo {

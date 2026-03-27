@@ -53,11 +53,6 @@ export function useProviderValidation(providerId: string) {
   const isValid = ref(false)
   const validationMessage = ref('')
 
-  const hasManualValidators = computed(() => !!providerMetadata.value?.validators.runManualValidation)
-  const isManualTesting = ref(false)
-  const manualTestPassed = ref(false)
-  const manualTestMessage = ref('')
-
   async function validateConfiguration() {
     if (!providerMetadata.value)
       return
@@ -126,38 +121,7 @@ export function useProviderValidation(providerId: string) {
 
   watch(credentials, () => {
     debouncedValidateConfiguration()
-    // Reset manual test state when credentials change
-    manualTestPassed.value = false
-    manualTestMessage.value = ''
   }, { deep: true })
-
-  async function runManualTest() {
-    if (!providerMetadata.value?.validators.runManualValidation)
-      return
-
-    isManualTesting.value = true
-    manualTestMessage.value = ''
-
-    try {
-      const config = { ...credentials.value }
-      if (config?.apiKey)
-        config.apiKey = config.apiKey.trim()
-      if (config?.baseUrl)
-        config.baseUrl = config.baseUrl.trim()
-
-      const result = await providerMetadata.value.validators.runManualValidation(config)
-      manualTestPassed.value = result.valid
-      if (!result.valid)
-        manualTestMessage.value = result.reason
-    }
-    catch (error) {
-      manualTestPassed.value = false
-      manualTestMessage.value = errorMessageFrom(error) ?? 'Unknown error'
-    }
-    finally {
-      isManualTesting.value = false
-    }
-  }
 
   function handleResetSettings() {
     const defaultOptions = providerMetadata.value?.defaultOptions ? providerMetadata.value.defaultOptions() : {}
@@ -165,15 +129,11 @@ export function useProviderValidation(providerId: string) {
     isValid.value = false
     validationMessage.value = ''
     isValidating.value = 0
-    manualTestPassed.value = false
-    manualTestMessage.value = ''
   }
 
   function forceValid() {
     isValid.value = true
     validationMessage.value = ''
-    manualTestPassed.value = true
-    manualTestMessage.value = ''
     providersStore.forceProviderConfigured(providerId)
   }
 
@@ -189,11 +149,5 @@ export function useProviderValidation(providerId: string) {
     validationMessage,
     handleResetSettings,
     forceValid,
-    // Manual test generation
-    hasManualValidators,
-    isManualTesting,
-    manualTestPassed,
-    manualTestMessage,
-    runManualTest,
   }
 }
