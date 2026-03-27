@@ -19,17 +19,18 @@ dialogs:
     baseUrlHelp: Địa chỉ API đầu cuối (dùng mặc định nếu không chắc)
     accountId: ID tài khoản
     validationSuccess: Xác thực cấu hình thành công
-    validationPartial: Configuration partially validated
     validationFailed: Xác thực cấu hình thất bại
     validationError: 'Lỗi xác thực: {error}'
-    testGeneration: Test Generation
-    testGenerationRunning: Testing...
-    testGenerationFailed: Generation test failed
     skipForNow: Bỏ qua
     saveAndContinue: Lưu và tiếp tục
     next: Tiếp
     retry: Thử lại
     start: Bắt đầu thôi!
+    loginPrompt: Sign in to use the official AIRI provider for the best experience.
+    loginAction: Sign in
+    localSetup: Configure Local Provider
+    flux: Flux
+    buyFlux: Charge Flux
     select-model: Chọn mô hình
     no-models: Không có mô hình khả dụng
     no-models-help: >-
@@ -49,7 +50,8 @@ dialogs:
       stateNotGranted: Not granted
 language:
   title: Ngôn ngữ
-  description: UI language
+  description: >
+    Change the language of the AIRI interface. This will not affect the language of the character's responses.
 controls-island:
   icon-size:
     title: Kích thước biểu tượng đảo
@@ -230,10 +232,6 @@ pages:
         title: Xóa tất cả dữ liệu
         description: Xóa sạch toàn bộ thiết lập cục bộ, cấu hình nhà cung cấp và mô hình.
         delete: Xóa sạch dữ liệu
-      desktop-folder:
-        title: Open app data folder
-        description: Open AIRI's data folder in your file manager.
-        open: Open folder
       desktop:
         title: Đặt lại thiết lập máy tính
         description: Xóa các cài đặt và trạng thái thực thi của AIRI trên máy tính.
@@ -463,8 +461,33 @@ pages:
         apply-and-restart: Lưu và khởi động lại MCP
       messages:
         opened: Tệp cấu hình đã mở tại {path}
-        restarted: >-
-          Đã khởi động lại MCP. Thành công: {started}, Thất bại: {failed}, Bỏ qua: {skipped}
+        restarted: 'Đã khởi động lại MCP. Thành công: {started}, Thất bại: {failed}, Bỏ qua: {skipped}'
+  flux:
+    title: Flux
+    buy: Charge
+    description: Current Flux
+    packagesError: Failed to load packages. Please try again later.
+    checkout:
+      success: Payment successful! Your Flux has been topped up.
+      canceled: Payment was canceled.
+      error: Something went wrong. Please try again later.
+    audit:
+      title: Transaction History
+      time: Time
+      type: Type
+      detail: Detail
+      amount: Amount
+      typeAddition: Top-up
+      typeConsumption: Usage
+      typeInitial: Initial Grant
+      loading: Loading history...
+      empty: No transaction records yet.
+      loadMore: Load More
+      delayHint: Usage records may be delayed by up to 1 minute
+    packages:
+      title: Flux Packages
+      buy: Charge
+      description: Flux packages to choose from.
   providers:
     explained:
       chat: 'Nhà cung cấp mô hình tạo văn bản. Ví dụ: OpenRouter, OpenAI, Ollama.'
@@ -744,9 +767,6 @@ pages:
       openai:
         description: openai.com
         title: OpenAI
-      azure-openai:
-        description: Azure OpenAI API
-        title: Azure OpenAI
       openai-compatible:
         description: Tương thích OpenAI
         title: Tương thích OpenAI
@@ -757,9 +777,6 @@ pages:
         description: n1n.ai - Cung cấp API AI hiệu năng cao.
         title: n1n
       openrouter:
-        description: openrouter.ai
-        title: OpenRouter
-      openrouter-audio-speech:
         description: openrouter.ai
         title: OpenRouter
       perplexity:
@@ -815,6 +832,13 @@ pages:
       browser-web-speech-api:
         description: STT gốc trình duyệt (yêu cầu Chrome/Edge/Safari)
         title: Web Speech API
+      official:
+        title: Official Provider
+        description: Official AI provider by AIRI.
+        speech-title: Official Speech Provider
+        speech-description: Official text-to-speech provider by AIRI.
+        transcription-title: Official Transcription Provider
+        transcription-description: Official speech-to-text provider by AIRI.
       transcriptions:
         playground:
           title: Thử nghiệm chuyển văn bản
@@ -978,6 +1002,8 @@ pages:
       open-devtools:
         title: Mở Công cụ nhà phát triển
         button: Mở
+  credits:
+    buy: Buy
 sections:
   section:
     general:
