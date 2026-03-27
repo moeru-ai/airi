@@ -379,6 +379,33 @@ describe('javaScriptPlanner', () => {
     expect(updateAiriContext).toHaveBeenCalledWith('Shelter built', ['shelter', 'spawn'], 'memory')
   })
 
+  it('does not leak sandbox bridge handles into user scope', async () => {
+    const planner = new JavaScriptPlanner()
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+    const planned = await planner.evaluate(`
+      return {
+        bridge: typeof __plannerBridge,
+        bridgeRef: typeof __plannerBridgeRef,
+        availability: typeof __plannerAvailability,
+        logRef: typeof __plannerLogRef,
+        queryMap: typeof __plannerQueryMap,
+      }
+    `, actions, globals, executeAction)
+
+    expect(planned.returnValue).toContain('bridge: \'undefined\'')
+    expect(planned.returnValue).toContain('bridgeRef: \'undefined\'')
+    expect(planned.returnValue).toContain('availability: \'undefined\'')
+    expect(planned.returnValue).toContain('logRef: \'undefined\'')
+    expect(planned.returnValue).toContain('queryMap: \'undefined\'')
+  })
+
+  it('fails closed when a host bridge call never resolves', async () => {
+    const planner = new JavaScriptPlanner({ bridgeTimeoutMs: 40 })
+    const executeAction = vi.fn(async () => await new Promise(() => {}))
+
+    await expect(planner.evaluate('await chat("hello")', actions, globals, executeAction)).rejects.toThrow(/Sandbox bridge timed out/i)
+  })
+
   it('does not expose host process globals inside the isolate', async () => {
     const planner = new JavaScriptPlanner()
     const executeAction = vi.fn(async action => `ok:${action.tool}`)

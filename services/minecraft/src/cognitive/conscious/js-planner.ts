@@ -2,27 +2,28 @@ import type { Action } from '../../libs/mineflayer/action'
 import type { Mineflayer } from '../../libs/mineflayer/core'
 import type { ActionInstruction } from '../action/types'
 import type { BotEvent } from '../types'
+import type {
+  ActionRuntimeResult,
+  QuerySeed,
+  RuntimeSnapshot,
+  SandboxWorkerRequest,
+  SandboxWorkerState,
+} from './js-planner-sandbox-protocol'
 import type { PatternRuntime } from './patterns/types'
 
 import { inspect } from 'node:util'
 
-import ivm from 'isolated-vm'
-
 import { errorMessageFrom } from '@moeru/std'
 
+import { executeSandboxWorker } from './js-planner-sandbox-runner'
 import { createQueryRuntime } from './query-dsl'
 
 interface JavaScriptPlannerOptions {
+  bridgeTimeoutMs?: number
   timeoutMs?: number
   maxActionsPerTurn?: number
+  maxBridgeCalls?: number
   memoryLimitMb?: number
-}
-
-interface ActionRuntimeResult {
-  action: ActionInstruction
-  ok: boolean
-  result?: unknown
-  error?: string
 }
 
 interface ActivePlannerRun {
@@ -37,34 +38,6 @@ interface ActivePlannerRun {
 interface ValidationResult {
   action?: ActionInstruction
   error?: string
-}
-
-interface QuerySeed {
-  blocks: Array<Record<string, unknown>>
-  craftable: string[]
-  entities: Array<Record<string, unknown>>
-  gaze: unknown[]
-  inventory: Array<Record<string, unknown>>
-  self: Record<string, unknown> | null
-}
-
-interface HistorySeed {
-  conversationHistory: Array<{ role: string, content: string }>
-  currentTurn: number
-  llmLogEntries: Array<Record<string, unknown>>
-}
-
-interface RuntimeSnapshot {
-  actionQueue: unknown
-  currentInput: unknown
-  errorBurstGuard: unknown
-  event: BotEvent
-  historySeed: HistorySeed
-  llmInput: RuntimeGlobals['llmInput']
-  llmLogEntries: Array<Record<string, unknown>>
-  noActionBudget: unknown
-  querySeed: QuerySeed | null
-  snapshot: Record<string, unknown>
 }
 
 const QUERY_BOOTSTRAP = String.raw`
@@ -558,13 +531,6 @@ function copyForIsolate<T>(value: T): T {
   return deepFreeze(cloneStructured(value))
 }
 
-function toExternalCopy(value: unknown): unknown {
-  if (typeof value === 'undefined')
-    return undefined
-
-  return new ivm.ExternalCopy(value).copyInto()
-}
-
 export function extractJavaScriptCandidate(input: string): string {
   const trimmed = input.trim()
   // eslint-disable-next-line regexp/no-super-linear-backtracking
@@ -577,7 +543,9 @@ export function extractJavaScriptCandidate(input: string): string {
 
 export class JavaScriptPlanner {
   private activeRun: ActivePlannerRun | null = null
+  private readonly bridgeTimeoutMs: number
   private readonly maxActionsPerTurn: number
+  private readonly maxBridgeCalls: number
   private persistedLastAction: ActionRuntimeResult | null = null
   private persistedLastRun: { actions: ActionRuntimeResult[], logs: string[], returnRaw?: unknown } | null = null
   private persistedMem: Record<string, unknown> = {}
@@ -585,6 +553,8 @@ export class JavaScriptPlanner {
   private readonly memoryLimitMb: number
 
   constructor(options: JavaScriptPlannerOptions = {}) {
+    this.bridgeTimeoutMs = options.bridgeTimeoutMs ?? 30_000
+    this.maxBridgeCalls = options.maxBridgeCalls ?? 64
     this.timeoutMs = options.timeoutMs ?? 750
     this.maxActionsPerTurn = options.maxActionsPerTurn ?? 5
     this.memoryLimitMb = options.memoryLimitMb ?? 32
@@ -606,40 +576,26 @@ export class JavaScriptPlanner {
       sawSkip: false,
     }
 
-    const runtime = this.buildRuntimeSnapshot(globals)
-    const isolate = new ivm.Isolate({ memoryLimit: this.memoryLimitMb })
-    const context = isolate.createContextSync()
-    const globalRef = context.global
-    const actionBridge = new ivm.Reference(
-      async (tool: string, args: unknown[]) => JSON.stringify(await this.runActionFromSandbox(tool, args)),
-    )
-
     this.activeRun = run
     let result: unknown
+    let state: SandboxWorkerState = { logs: [], mem: this.persistedMem }
 
     try {
-      globalRef.setSync('globalThis', globalRef.derefInto())
-      globalRef.setSync('global', globalRef.derefInto())
-
-      this.bindDataGlobals(globalRef, runtime)
-      this.bindHostCallbacks(globalRef, globals)
-      globalRef.setSync('__plannerActionBridge', actionBridge)
-      this.setGlobalValue(globalRef, '__plannerBootstrapActionNames', availableActions.map(action => action.name))
-
-      context.evalSync(this.buildBootstrapScript(), { timeout: this.timeoutMs })
-
-      result = await context.evalClosure(
-        `return (async () => {\n${script}\n})()`,
-        [],
+      const workerResult = await executeSandboxWorker(
+        this.buildSandboxWorkerRequest(script, availableActions, globals),
         {
-          timeout: this.timeoutMs,
-          result: { copy: true, promise: true },
+          bridgeTimeoutMs: this.bridgeTimeoutMs,
+          maxBridgeCalls: this.maxBridgeCalls,
+          onBridgeRequest: (method, args) => this.handleBridgeRequest(method, args, globals),
         },
       )
+      state = { logs: workerResult.logs, mem: workerResult.mem }
+      result = workerResult.returnRaw
+      run.logs = workerResult.logs
 
       return {
         actions: run.executed,
-        logs: run.logs,
+        logs: workerResult.logs,
         returnValue: typeof result === 'undefined'
           ? undefined
           : inspect(result, {
@@ -650,20 +606,125 @@ export class JavaScriptPlanner {
             }),
       }
     }
+    catch (error) {
+      if (isRecord(error) && 'state' in error && isRecord(error.state)) {
+        const errorState = error.state as Partial<SandboxWorkerState>
+        state = {
+          logs: Array.isArray(errorState.logs) ? cloneStructured(errorState.logs) : [],
+          mem: isRecord(errorState.mem) ? cloneStructured(errorState.mem) : {},
+        }
+        run.logs = state.logs
+      }
+      throw error
+    }
     finally {
-      this.persistedMem = this.readMemSnapshot(context)
+      this.persistedMem = cloneStructured(state.mem)
       this.persistedLastRun = {
         actions: cloneStructured(run.executed),
-        logs: cloneStructured(run.logs),
+        logs: cloneStructured(state.logs),
         returnRaw: typeof result === 'undefined' ? undefined : cloneStructured(result),
       }
       this.persistedLastAction = run.executed.at(-1)
         ? cloneStructured(run.executed.at(-1) as ActionRuntimeResult)
         : null
       this.activeRun = null
-      actionBridge.release()
-      context.release()
-      isolate.dispose()
+    }
+  }
+
+  private buildSandboxWorkerRequest(
+    script: string,
+    availableActions: Action[],
+    globals: RuntimeGlobals,
+  ): SandboxWorkerRequest {
+    return {
+      bootstrapScript: this.buildBootstrapScript(),
+      bridgeAvailability: {
+        forgetConversation: Boolean(globals.forgetConversation),
+        getNoActionBudget: Boolean(globals.getNoActionBudget),
+        notifyAiri: Boolean(globals.notifyAiri),
+        patternFind: Boolean(globals.patterns?.find),
+        patternGet: Boolean(globals.patterns?.get),
+        patternIds: Boolean(globals.patterns?.ids),
+        patternList: Boolean(globals.patterns?.list),
+        queryBlockAt: Boolean(globals.mineflayer),
+        queryMap: Boolean(globals.mineflayer),
+        setNoActionBudget: Boolean(globals.setNoActionBudget),
+        updateAiriContext: Boolean(globals.updateAiriContext),
+      },
+      memoryLimitMb: this.memoryLimitMb,
+      runtime: this.buildRuntimeSnapshot(globals),
+      script,
+      timeoutMs: this.timeoutMs,
+      toolNames: availableActions.map(action => action.name),
+    }
+  }
+
+  private async handleBridgeRequest(method: string, args: unknown[], globals: RuntimeGlobals): Promise<unknown> {
+    switch (method) {
+      case 'tool': {
+        const [tool, toolArgs] = args
+        if (typeof tool !== 'string' || !Array.isArray(toolArgs))
+          throw new Error('Sandbox tool bridge received invalid arguments')
+        return await this.runActionFromSandbox(tool, toolArgs)
+      }
+
+      case 'query.blockAt': {
+        if (!globals.mineflayer)
+          return null
+        const [position] = args
+        return cloneStructured(createQueryRuntime(globals.mineflayer).blockAt(position as { x: number, y: number, z: number }))
+      }
+
+      case 'query.map': {
+        if (!globals.mineflayer)
+          return null
+        const [options] = args
+        return cloneStructured(createQueryRuntime(globals.mineflayer).map(options as {
+          radius?: number
+          showElevation?: boolean
+          showEntities?: boolean
+          view?: 'top-down' | 'cross-section'
+          yLevel?: number
+        }))
+      }
+
+      case 'patterns.get':
+        return cloneStructured(globals.patterns?.get?.(args[0] as string) ?? null)
+
+      case 'patterns.find':
+        return cloneStructured(globals.patterns?.find?.(args[0] as string, args[1] as number | undefined) ?? [])
+
+      case 'patterns.ids':
+        return cloneStructured(globals.patterns?.ids?.() ?? [])
+
+      case 'patterns.list':
+        return cloneStructured(globals.patterns?.list?.(args[0] as number | undefined) ?? [])
+
+      case 'setNoActionBudget':
+        return cloneStructured(globals.setNoActionBudget?.(args[0] as number) ?? null)
+
+      case 'getNoActionBudget':
+        return cloneStructured(globals.getNoActionBudget?.() ?? null)
+
+      case 'forgetConversation':
+        return cloneStructured(globals.forgetConversation?.() ?? null)
+
+      case 'notifyAiri':
+        return cloneStructured(globals.notifyAiri?.(
+          args[0] as string,
+          args[1] as string | undefined,
+          args[2] as 'immediate' | 'soon' | 'later' | undefined,
+        ) ?? null)
+
+      case 'updateAiriContext':
+        return cloneStructured(globals.updateAiriContext?.(
+          args[0] as string,
+          args[1] as string[] | undefined,
+          args[2] as string | undefined,
+        ) ?? null)
+
+      default:
+        throw new Error(`Unknown sandbox bridge method: ${method}`)
     }
   }
 
@@ -843,9 +904,12 @@ export class JavaScriptPlanner {
         currentTurn: this.readCurrentTurn(globals.history),
         llmLogEntries,
       },
+      lastAction: copyForIsolate(this.persistedLastAction),
       llmInput,
       llmLogEntries,
+      mem: copyForIsolate(this.persistedMem),
       noActionBudget: copyForIsolate(globals.noActionBudget ?? null),
+      prevRun: copyForIsolate(this.persistedLastRun),
       querySeed: this.buildQuerySeedSafely(globals.mineflayer ?? null),
       snapshot: copyForIsolate(globals.snapshot),
     }
@@ -921,111 +985,41 @@ export class JavaScriptPlanner {
     })
   }
 
-  private setGlobalValue(globalRef: ivm.Reference<Record<string, unknown>>, name: string, value: unknown): void {
-    globalRef.setSync(name, toExternalCopy(value) as ivm.Transferable)
-  }
-
-  private bindDataGlobals(globalRef: ivm.Reference<Record<string, unknown>>, runtime: RuntimeSnapshot): void {
-    const currentRun = {
-      actions: [] as ActionRuntimeResult[],
-      logs: [] as string[],
-      returnRaw: undefined,
-    }
-
-    this.setGlobalValue(globalRef, 'snapshot', runtime.snapshot)
-    this.setGlobalValue(globalRef, 'event', runtime.event)
-    globalRef.setSync('now', Date.now())
-    this.setGlobalValue(globalRef, 'self', runtime.snapshot.self ?? null)
-    this.setGlobalValue(globalRef, 'environment', runtime.snapshot.environment ?? null)
-    this.setGlobalValue(globalRef, 'social', runtime.snapshot.social ?? null)
-    this.setGlobalValue(globalRef, 'threat', runtime.snapshot.threat ?? null)
-    this.setGlobalValue(globalRef, 'attention', runtime.snapshot.attention ?? null)
-    this.setGlobalValue(globalRef, 'autonomy', runtime.snapshot.autonomy ?? null)
-    this.setGlobalValue(globalRef, 'llmInput', runtime.llmInput)
-    this.setGlobalValue(globalRef, 'currentInput', runtime.currentInput)
-    this.setGlobalValue(globalRef, 'llmLogSeed', runtime.llmLogEntries)
-    this.setGlobalValue(globalRef, 'historySeed', runtime.historySeed)
-    this.setGlobalValue(globalRef, 'actionQueue', runtime.actionQueue)
-    this.setGlobalValue(globalRef, 'noActionBudget', runtime.noActionBudget)
-    this.setGlobalValue(globalRef, 'errorBurstGuard', runtime.errorBurstGuard)
-    this.setGlobalValue(globalRef, 'llmMessages', runtime.llmInput?.messages ?? [])
-    globalRef.setSync('llmSystemPrompt', runtime.llmInput?.systemPrompt ?? '')
-    globalRef.setSync('llmUserMessage', runtime.llmInput?.userMessage ?? '')
-    this.setGlobalValue(globalRef, 'llmConversationHistory', runtime.llmInput?.conversationHistory ?? [])
-    this.setGlobalValue(globalRef, 'querySeed', runtime.querySeed)
-    globalRef.setSync('query', undefined)
-    globalRef.setSync('llmLog', null)
-    globalRef.setSync('history', null)
-    globalRef.setSync('patterns', null)
-    globalRef.setSync('bot', null)
-    globalRef.setSync('mineflayer', null)
-    this.setGlobalValue(globalRef, 'mem', this.persistedMem)
-    this.setGlobalValue(globalRef, 'prevRun', this.persistedLastRun)
-    this.setGlobalValue(globalRef, 'lastRun', currentRun)
-    this.setGlobalValue(globalRef, 'lastAction', this.persistedLastAction)
-  }
-
-  private bindHostCallbacks(globalRef: ivm.Reference<Record<string, unknown>>, globals: RuntimeGlobals): void {
-    globalRef.setSync('__plannerLog', new ivm.Callback((...args: unknown[]) => this.appendLog(args)))
-    globalRef.setSync('__plannerQueryBlockAt', globals.mineflayer
-      ? new ivm.Callback((position: { x: number, y: number, z: number }) => cloneStructured(createQueryRuntime(globals.mineflayer!).blockAt(position)))
-      : null)
-    globalRef.setSync('__plannerQueryMap', globals.mineflayer
-      ? new ivm.Callback((options?: { radius?: number, view?: 'top-down' | 'cross-section', showEntities?: boolean, showElevation?: boolean, yLevel?: number }) => cloneStructured(createQueryRuntime(globals.mineflayer!).map(options)))
-      : null)
-    globalRef.setSync('__plannerSetNoActionBudget', globals.setNoActionBudget
-      ? new ivm.Callback((value: number) => cloneStructured(globals.setNoActionBudget?.(value)))
-      : null)
-    globalRef.setSync('__plannerGetNoActionBudget', globals.getNoActionBudget
-      ? new ivm.Callback(() => cloneStructured(globals.getNoActionBudget?.()))
-      : null)
-    globalRef.setSync('__plannerForgetConversation', globals.forgetConversation
-      ? new ivm.Callback(() => cloneStructured(globals.forgetConversation?.()))
-      : null)
-    globalRef.setSync('__plannerPatternGet', globals.patterns?.get
-      ? new ivm.Callback((id: string) => cloneStructured(globals.patterns?.get?.(id) ?? null))
-      : null)
-    globalRef.setSync('__plannerPatternFind', globals.patterns?.find
-      ? new ivm.Callback((query: string, limit?: number) => cloneStructured(globals.patterns?.find?.(query, limit) ?? []))
-      : null)
-    globalRef.setSync('__plannerPatternIds', globals.patterns?.ids
-      ? new ivm.Callback(() => cloneStructured(globals.patterns?.ids?.() ?? []))
-      : null)
-    globalRef.setSync('__plannerPatternList', globals.patterns?.list
-      ? new ivm.Callback((limit?: number) => cloneStructured(globals.patterns?.list?.(limit) ?? []))
-      : null)
-    globalRef.setSync('__plannerNotifyAiri', globals.notifyAiri
-      ? new ivm.Callback((headline: string, note?: string, urgency?: 'immediate' | 'soon' | 'later') => globals.notifyAiri?.(headline, note, urgency))
-      : null)
-    globalRef.setSync('__plannerUpdateAiriContext', globals.updateAiriContext
-      ? new ivm.Callback((text: string, hints?: string[], lane?: string) => globals.updateAiriContext?.(text, hints, lane))
-      : null)
-  }
-
   private buildBootstrapScript(): string {
-    return `${QUERY_BOOTSTRAP}
-const __plannerActionBridgeRef = __plannerActionBridge
+    return `;(() => {
+${QUERY_BOOTSTRAP}
+const __plannerBridgeRef = __plannerBridge
 const __plannerActionNames = __plannerBootstrapActionNames
+const __plannerAvailability = __plannerBridgeAvailability
 const __plannerLogRef = __plannerLog
-const __plannerPatternGetRef = __plannerPatternGet
-const __plannerPatternFindRef = __plannerPatternFind
-const __plannerPatternIdsRef = __plannerPatternIds
-const __plannerPatternListRef = __plannerPatternList
-const __plannerSetNoActionBudgetRef = __plannerSetNoActionBudget
-const __plannerGetNoActionBudgetRef = __plannerGetNoActionBudget
-const __plannerForgetConversationRef = __plannerForgetConversation
-const __plannerNotifyAiriRef = __plannerNotifyAiri
-const __plannerUpdateAiriContextRef = __plannerUpdateAiriContext
+const __plannerReadBridgeValue = payload => {
+  const parsed = JSON.parse(payload)
+  return parsed?.isUndefined ? undefined : parsed?.value
+}
+const __plannerCallBridge = (method, args = []) =>
+  __plannerReadBridgeValue(__plannerBridgeRef.applySyncPromise(undefined, [method, args], {
+    arguments: { copy: true },
+  }))
+const __plannerQueryBlockAt = __plannerAvailability.queryBlockAt
+  ? position => __plannerCallBridge('query.blockAt', [position])
+  : null
+const __plannerQueryMap = __plannerAvailability.queryMap
+  ? options => __plannerCallBridge('query.map', [options])
+  : null
+const __plannerPatternsAvailable = __plannerAvailability.patternGet
+  || __plannerAvailability.patternFind
+  || __plannerAvailability.patternIds
+  || __plannerAvailability.patternList
 
 globalThis.llmLog = __plannerCreateLlmLogRuntime(globalThis.llmLogSeed)
 globalThis.history = __plannerCreateHistoryRuntime(globalThis.historySeed)
 globalThis.query = __plannerCreateQueryRuntime(globalThis.querySeed)
-globalThis.patterns = __plannerPatternGetRef
+globalThis.patterns = __plannerPatternsAvailable
   ? {
-      get: id => __plannerPatternGetRef(id),
-      find: (query, limit = 10) => __plannerPatternFindRef(query, limit),
-      ids: () => __plannerPatternIdsRef(),
-      list: (limit = 10) => __plannerPatternListRef(limit),
+      get: id => __plannerCallBridge('patterns.get', [id]),
+      find: (query, limit = 10) => __plannerCallBridge('patterns.find', [query, limit]),
+      ids: () => __plannerCallBridge('patterns.ids', []),
+      list: (limit = 10) => __plannerCallBridge('patterns.list', [limit]),
     }
   : null
 
@@ -1113,7 +1107,7 @@ globalThis.use = (toolName, params = {}) => {
     throw new Error('use(toolName, params) requires a non-empty string toolName')
 
   const invocationArgs = params && typeof params === 'object' && !Array.isArray(params) ? [params] : [{}]
-  const runtimeResult = JSON.parse(__plannerActionBridgeRef.applySyncPromise(undefined, [toolName, invocationArgs], { arguments: { copy: true } }))
+  const runtimeResult = __plannerCallBridge('tool', [toolName, invocationArgs])
   globalThis.lastAction = runtimeResult
   globalThis.lastRun.actions.push(runtimeResult)
   return runtimeResult
@@ -1126,54 +1120,38 @@ for (const toolName of __plannerActionNames) {
     continue
 
   globalThis[toolName] = (...args) => {
-    const runtimeResult = JSON.parse(__plannerActionBridgeRef.applySyncPromise(undefined, [toolName, args], { arguments: { copy: true } }))
+    const runtimeResult = __plannerCallBridge('tool', [toolName, args])
     globalThis.lastAction = runtimeResult
     globalThis.lastRun.actions.push(runtimeResult)
     return runtimeResult
   }
 }
 
-globalThis.setNoActionBudget = __plannerSetNoActionBudgetRef ? value => __plannerSetNoActionBudgetRef(value) : null
-globalThis.getNoActionBudget = __plannerGetNoActionBudgetRef ? () => __plannerGetNoActionBudgetRef() : null
-globalThis.forget_conversation = __plannerForgetConversationRef ? () => __plannerForgetConversationRef() : null
-globalThis.notifyAiri = __plannerNotifyAiriRef ? (headline, note, urgency) => __plannerNotifyAiriRef(headline, note, urgency) : null
-globalThis.updateAiriContext = __plannerUpdateAiriContextRef ? (text, hints, lane) => __plannerUpdateAiriContextRef(text, hints, lane) : null
+globalThis.setNoActionBudget = __plannerAvailability.setNoActionBudget
+  ? value => __plannerCallBridge('setNoActionBudget', [value])
+  : null
+globalThis.getNoActionBudget = __plannerAvailability.getNoActionBudget
+  ? () => __plannerCallBridge('getNoActionBudget', [])
+  : null
+globalThis.forget_conversation = __plannerAvailability.forgetConversation
+  ? () => __plannerCallBridge('forgetConversation', [])
+  : null
+globalThis.notifyAiri = __plannerAvailability.notifyAiri
+  ? (headline, note, urgency) => __plannerCallBridge('notifyAiri', [headline, note, urgency])
+  : null
+globalThis.updateAiriContext = __plannerAvailability.updateAiriContext
+  ? (text, hints, lane) => __plannerCallBridge('updateAiriContext', [text, hints, lane])
+  : null
 
 delete globalThis.querySeed
 delete globalThis.llmLogSeed
 delete globalThis.historySeed
-delete globalThis.__plannerActionBridge
+delete globalThis.__plannerBridge
+delete globalThis.__plannerBridgeAvailability
 delete globalThis.__plannerBootstrapActionNames
 delete globalThis.__plannerLog
-delete globalThis.__plannerPatternGet
-delete globalThis.__plannerPatternFind
-delete globalThis.__plannerPatternIds
-delete globalThis.__plannerPatternList
-delete globalThis.__plannerSetNoActionBudget
-delete globalThis.__plannerGetNoActionBudget
-delete globalThis.__plannerForgetConversation
-delete globalThis.__plannerNotifyAiri
-delete globalThis.__plannerUpdateAiriContext
+})()
 `
-  }
-
-  private readMemSnapshot(context: ivm.Context): Record<string, unknown> {
-    try {
-      const mem = context.evalSync('mem', { timeout: this.timeoutMs, copy: true })
-      return isRecord(mem) ? cloneStructured(mem) : {}
-    }
-    catch {
-      return {}
-    }
-  }
-
-  private appendLog(args: unknown[]): string {
-    if (!this.activeRun)
-      throw new Error('log() is only allowed during REPL evaluation')
-
-    const rendered = args.map(arg => inspect(arg, { depth: 4, breakLength: 120 })).join(' ')
-    this.activeRun.logs.push(rendered)
-    return rendered
   }
 
   private mapToolArgs(tool: string, args: unknown[]): Record<string, unknown> {
