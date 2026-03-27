@@ -55,7 +55,12 @@ export enum ProviderValidationCheck {
   ModelList = 'model_list',
   /** Send generateText ping with fine-grained error handling and caching (definition system) */
   ChatCompletions = 'chat_completions',
-  /** Send generateText ping with simple pass/fail, fallback to 'test' model (builder system) */
+  /**
+   * @Deprecated
+   * Being used in builder system (a deprecated provider creation protocol),
+   * currently used by only OpenAI TTS && OpenAI Transcription.
+   * Send generateText ping with simple pass/fail, fallback to 'test' model (builder system)
+   */
   Health = 'health',
 }
 
