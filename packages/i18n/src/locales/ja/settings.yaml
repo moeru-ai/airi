@@ -19,17 +19,18 @@ dialogs:
     baseUrlHelp: APIエンドポイントURL（不明な場合はデフォルトを使用）
     accountId: アカウントID
     validationSuccess: 設定検証に成功
-    validationPartial: 構成が部分的に検証されました
     validationFailed: 設定検証に失敗
     validationError: '検証エラー: {error}'
-    testGeneration: テスト生成
-    testGenerationRunning: テストしています…
-    testGenerationFailed: テスト生成に失敗しました
     skipForNow: 今はスキップ
     saveAndContinue: 保存して続行
     next: 次へ
     retry: 再試行
     start: 始めましょう！
+    loginPrompt: Sign in to use the official AIRI provider for the best experience.
+    loginAction: Sign in
+    localSetup: Configure Local Provider
+    flux: Flux
+    buyFlux: Charge Flux
     select-model: モデルを選択
     no-models: 利用可能なモデルがありません
     no-models-help: >-
@@ -49,7 +50,8 @@ dialogs:
       stateNotGranted: 許可されていません
 language:
   title: 言語
-  description: UI language
+  description: >
+    Change the language of the AIRI interface. This will not affect the language of the character's responses.
 controls-island:
   icon-size:
     title: アイランドアイコンのサイズを制御
@@ -57,6 +59,19 @@ controls-island:
     auto: 自動 (レスポンシブ)
     large: 大 (デフォルト)
     small: 小
+analytics:
+  notice:
+    title: Usage analytics
+    description: AIRI collects anonymous usage analytics to help us understand how the app is used and improve stability. No personal data is collected.
+    privacyPrefix: Read the
+    privacyLink: privacy policy
+    onboardingHint: You can turn analytics off later in Settings > System > General.
+    settingsHint: You can turn analytics off at any time.
+  toggle:
+    title: Enable usage analytics
+    description: Turn this off to opt out of analytics collection.
+  disabled:
+    title: Analytics disabled for this development build
 live2d:
   change-model:
     from-file: ファイルから読み込む
@@ -217,10 +232,6 @@ pages:
         title: すべてのデータを削除
         description: すべてのローカルの設定、プロバイダーの設定、モデルを消去します。
         delete: すべてのデータを削除
-      desktop-folder:
-        title: Open app data folder
-        description: Open AIRI's data folder in your file manager.
-        open: Open folder
       desktop:
         title: デスクトップの設定と状態をリセット
         description: AIRIデスクトップの設定と実行時の状態を消去します。
@@ -450,8 +461,33 @@ pages:
         apply-and-restart: 保存して stdio MCP を再起動
       messages:
         opened: '{path} にある設定ファイルを開きました'
-        restarted: >-
-          MCPサーバーが再起動しました。成功: {started}, 失敗: {failed}, スキップ: {skipped}
+        restarted: 'MCPサーバーが再起動しました。成功: {started}, 失敗: {failed}, スキップ: {skipped}'
+  flux:
+    title: Flux
+    buy: Charge
+    description: Current Flux
+    packagesError: Failed to load packages. Please try again later.
+    checkout:
+      success: Payment successful! Your Flux has been topped up.
+      canceled: Payment was canceled.
+      error: Something went wrong. Please try again later.
+    audit:
+      title: Transaction History
+      time: Time
+      type: Type
+      detail: Detail
+      amount: Amount
+      typeAddition: Top-up
+      typeConsumption: Usage
+      typeInitial: Initial Grant
+      loading: Loading history...
+      empty: No transaction records yet.
+      loadMore: Load More
+      delayHint: Usage records may be delayed by up to 1 minute
+    packages:
+      title: Flux Packages
+      buy: Charge
+      description: Flux packages to choose from.
   providers:
     explained:
       chat: テキスト生成モデルプロバイダー。例： OpenRouter, OpenAI, Ollama。
@@ -743,9 +779,6 @@ pages:
       openrouter:
         description: openrouter.ai
         title: OpenRouter
-      openrouter-audio-speech:
-        description: openrouter.ai
-        title: OpenRouter
       perplexity:
         description: perplexity.ai
         title: Perplexity
@@ -781,6 +814,9 @@ pages:
       xai:
         description: x.ai
         title: xAI
+      zai:
+        description: z.ai
+        title: Z.ai
       302-ai:
         description: 302.AI
         title: 302.AI
@@ -796,6 +832,13 @@ pages:
       browser-web-speech-api:
         description: ブラウザネイティブSTT (Chrome/Edge/Safariが必要)
         title: Web Speech API
+      official:
+        title: Official Provider
+        description: Official AI provider by AIRI.
+        speech-title: Official Speech Provider
+        speech-description: Official text-to-speech provider by AIRI.
+        transcription-title: Official Transcription Provider
+        transcription-description: Official speech-to-text provider by AIRI.
       transcriptions:
         playground:
           title: 文字起こし実験場
@@ -959,6 +1002,8 @@ pages:
       open-devtools:
         title: 開発者ツールを開く
         button: 開く
+  credits:
+    buy: Buy
 sections:
   section:
     general:

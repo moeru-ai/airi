@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { useElectronAutoUpdater } from '@proj-airi/electron-vueuse'
 import { AboutContent, MarkdownRenderer } from '@proj-airi/stage-ui/components'
-import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics/index'
+import { useBreakpoints } from '@proj-airi/stage-ui/composables'
+import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { Button, DoubleCheckButton, Progress } from '@proj-airi/ui'
-import { useMediaQuery } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { DrawerContent, DrawerDescription, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTitle } from 'vaul-vue'
@@ -31,7 +31,7 @@ const links = [
 ]
 
 const showChangelog = ref(false)
-const isDesktop = useMediaQuery('(min-width: 768px)')
+const { isDesktop } = useBreakpoints()
 
 function handleDownloadClick() {
   if (updateState.value.info?.releaseNotes)

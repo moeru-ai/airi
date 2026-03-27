@@ -19,20 +19,20 @@ docs:
   'drag-to-move-window': 拖动以移动窗口
   'switch-to-light-mode': 切换到亮色模式
   'switch-to-dark-mode': 切换到暗色模式
-  'pin-on-top': 置顶显示
+  'pin-on-top': 置顶窗口
   'unpin-from-top': 取消置顶
   'switch-profile': 切换角色
   'close': 关闭
   'expand': 展开
   'collapse': 折叠
 'status-island':
-  connected: WebSocket已连接
-  disconnected: WebSocket已断开
-  'open-settings': 打开WebSocket设置
+  connected: WebSocket 已连接
+  disconnected: WebSocket 已断开
+  'open-settings': 打开 WebSocket 设置
 notice:
   'fade-on-hover':
     title: 悬停淡出
-    intro: 当光标靠近时自动让角色变淡，减少干扰又保持可见。
+    intro: 当光标靠近时自动让角色透明度变淡，减少干扰又保持可见。
     opacity: 开启后，当光标靠近时， {targets} 的不透明度会降到 {value}。
     toggle: 可以通过将光标移动到 {controls} 区域，再次点击 {icon} 来关闭此功能。
     controls-label: 控制岛

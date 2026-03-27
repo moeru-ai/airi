@@ -19,17 +19,18 @@ dialogs:
     baseUrlHelp: API 엔드포인트 URL(확실하지 않은 경우 기본값 사용)
     accountId: 계정 ID
     validationSuccess: 구성 검증 성공
-    validationPartial: Configuration partially validated
     validationFailed: 구성 검증 실패
     validationError: '검증 오류: {error}'
-    testGeneration: Test Generation
-    testGenerationRunning: Testing...
-    testGenerationFailed: Generation test failed
     skipForNow: 지금은 건너뛰기
     saveAndContinue: 저장 및 계속
     next: 다음
     retry: 다시 시도
     start: 그럼 시작합시다!
+    loginPrompt: Sign in to use the official AIRI provider for the best experience.
+    loginAction: Sign in
+    localSetup: Configure Local Provider
+    flux: Flux
+    buyFlux: Charge Flux
     select-model: 모델 선택
     no-models: 사용 가능한 모델 없음
     no-models-help: >-
@@ -49,7 +50,8 @@ dialogs:
       stateNotGranted: Not granted
 language:
   title: 언어
-  description: UI language
+  description: >
+    Change the language of the AIRI interface. This will not affect the language of the character's responses.
 controls-island:
   icon-size:
     title: 아일랜드 아이콘 크기 조정
@@ -57,6 +59,19 @@ controls-island:
     auto: 자동 (능동적)
     large: 크게 (기본값)
     small: 작게
+analytics:
+  notice:
+    title: Usage analytics
+    description: AIRI collects anonymous usage analytics to help us understand how the app is used and improve stability. No personal data is collected.
+    privacyPrefix: Read the
+    privacyLink: privacy policy
+    onboardingHint: You can turn analytics off later in Settings > System > General.
+    settingsHint: You can turn analytics off at any time.
+  toggle:
+    title: Enable usage analytics
+    description: Turn this off to opt out of analytics collection.
+  disabled:
+    title: Analytics disabled for this development build
 live2d:
   change-model:
     from-file: 파일로부터 불러오기
@@ -217,10 +232,6 @@ pages:
         title: 모든 데이터 삭제
         description: 로컬 설정, 제공자 설정 및 모델을 전부 삭제합니다.
         delete: 모든 데이터 삭제
-      desktop-folder:
-        title: Open app data folder
-        description: Open AIRI's data folder in your file manager.
-        open: Open folder
       desktop:
         title: 데스크탑 설정 및 상태 초기화
         description: AIRI 데스크탑 설정 및 런타임 상태를 전부 지웁니다.
@@ -450,8 +461,33 @@ pages:
         apply-and-restart: 표준 입출력 MCP 저장 후 재시작
       messages:
         opened: '{path}에서 설정 파일 열림'
-        restarted: >-
-          MCP 서버 재시작 완료. 시작: {started}, 실패: {failed}, 건너뜀: {skipped}
+        restarted: 'MCP 서버 재시작 완료. 시작: {started}, 실패: {failed}, 건너뜀: {skipped}'
+  flux:
+    title: Flux
+    buy: Charge
+    description: Current Flux
+    packagesError: Failed to load packages. Please try again later.
+    checkout:
+      success: Payment successful! Your Flux has been topped up.
+      canceled: Payment was canceled.
+      error: Something went wrong. Please try again later.
+    audit:
+      title: Transaction History
+      time: Time
+      type: Type
+      detail: Detail
+      amount: Amount
+      typeAddition: Top-up
+      typeConsumption: Usage
+      typeInitial: Initial Grant
+      loading: Loading history...
+      empty: No transaction records yet.
+      loadMore: Load More
+      delayHint: Usage records may be delayed by up to 1 minute
+    packages:
+      title: Flux Packages
+      buy: Charge
+      description: Flux packages to choose from.
   providers:
     explained:
       chat: '텍스트 생성 모델 제공자를 구성합니다. (예시: OpenRouter, OpenAI, Ollama)'
@@ -743,9 +779,6 @@ pages:
       openrouter:
         description: openrouter.ai
         title: OpenRouter
-      openrouter-audio-speech:
-        description: openrouter.ai
-        title: OpenRouter
       perplexity:
         description: perplexity.ai
         title: Perplexity
@@ -781,6 +814,9 @@ pages:
       xai:
         description: x.ai
         title: xAI
+      zai:
+        description: z.ai
+        title: Z.ai
       302-ai:
         description: 302.AI
         title: 302.AI
@@ -796,6 +832,13 @@ pages:
       browser-web-speech-api:
         description: 브라우저 기반 STT(Chrome/Edge/Safari 필요)
         title: 웹 음성 API
+      official:
+        title: Official Provider
+        description: Official AI provider by AIRI.
+        speech-title: Official Speech Provider
+        speech-description: Official text-to-speech provider by AIRI.
+        transcription-title: Official Transcription Provider
+        transcription-description: Official speech-to-text provider by AIRI.
       transcriptions:
         playground:
           title: 전사 놀이터
@@ -959,6 +1002,8 @@ pages:
       open-devtools:
         title: 개발자 도구 열기
         button: 열기
+  credits:
+    buy: Buy
 sections:
   section:
     general:

@@ -213,6 +213,7 @@ export default defineConfig<ThemeConfig>({
               text: 'Try Live',
               link: webLive,
               primary: true,
+              target: '_self',
             },
             {
               text: 'Download',
@@ -353,6 +354,7 @@ export default defineConfig<ThemeConfig>({
               text: '网页版',
               link: webLive,
               primary: true,
+              target: '_self',
             },
             {
               text: '下载',
@@ -493,6 +495,7 @@ export default defineConfig<ThemeConfig>({
               text: 'ライブ版を試す',
               link: webLive,
               primary: true,
+              target: '_self',
             },
             {
               text: 'ダウンロード',
@@ -513,7 +516,6 @@ export default defineConfig<ThemeConfig>({
       { icon: 'discord', link: discord },
       { icon: 'github', link: github },
     ],
-
     search: {
       provider: 'local',
     },

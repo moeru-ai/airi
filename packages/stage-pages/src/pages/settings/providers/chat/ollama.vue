@@ -11,7 +11,7 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { FieldKeyValues, FieldSelect } from '@proj-airi/ui'
+import { FieldCombobox, FieldKeyValues } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 
@@ -77,7 +77,7 @@ function removeKeyValue(index: number, headers: { key: string, value: string }[]
 }
 
 watch(headers, (headers) => {
-  if (headers.length > 0 && (headers[headers.length - 1].key !== '' || headers[headers.length - 1].value !== '')) {
+  if (headers.length > 0 && (headers.at(-1)!.key !== '' || headers.at(-1)!.value !== '')) {
     headers.push({ key: '', value: '' })
   }
   if (!providers.value[providerId])
@@ -155,7 +155,7 @@ onMounted(() => {
       </ProviderBasicSettings>
 
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
-        <FieldSelect
+        <FieldCombobox
           v-model="thinkingMode"
           :label="t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.label')"
           :description="t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.description')"

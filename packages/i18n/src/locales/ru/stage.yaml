@@ -4,7 +4,7 @@ chat:
       airi: AIRI
       core-system: Core система
       you: Ты
-  reasoning: Reasoning
+  reasoning: Причина
 message: Спроси что-нибудь
 operations:
   load-models: Загрузить модели
@@ -31,8 +31,9 @@ viewers:
       model:
         title: Модель
 profile-switcher:
-  no-profile: No Profile
-  no-profiles: No profiles yet
-  save-as-new: Save as New Profile
-  manage: Manage Profiles
+  no-profile: Профиль отсутствует
+  no-profiles: Нет профилей
+  save-as-new: Сохранить как Новый Профиль
+  new-profile-name: Profile name
+  manage: Управление профилями
 waiting: Ожидание

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ModelSettingsRuntimeSnapshot } from './runtime'
+
 import { defaultModelParameters, useLive2d } from '@proj-airi/stage-ui-live2d'
 import { OPFSCache } from '@proj-airi/stage-ui-live2d/utils/opfs-loader'
 import { Button, Checkbox, FieldRange, SelectTab } from '@proj-airi/ui'
@@ -10,9 +12,13 @@ import { useSettings } from '../../../../stores/settings'
 import { Section } from '../../../layouts'
 import { ColorPalette } from '../../../widgets'
 
-defineProps<{
+const props = withDefaults(defineProps<{
   palette: string[]
-}>()
+  allowExtractColors?: boolean
+  runtimeSnapshot: ModelSettingsRuntimeSnapshot
+}>(), {
+  allowExtractColors: true,
+})
 defineEmits<{
   (e: 'extractColorsFromModel'): void
 }>()
@@ -41,6 +47,7 @@ const selectedRuntimeMotion = ref<string>('')
 const selectedRuntimeMotionName = ref<string>('')
 const runtimeMotions = ref<Array<{ name: string, fullPath: string, displayPath: string, group: string, index: number }>>([])
 const showMotionSelector = ref(false)
+const canExtractColors = computed(() => props.runtimeSnapshot.canCapturePreview)
 const fpsOptions = computed(() => [
   { value: 0, label: t('settings.live2d.fps.options.unlimited') },
   { value: 60, label: '60' },
@@ -221,6 +228,7 @@ onUnmounted(() => {
     </FieldRange>
   </Section>
   <Section
+    v-if="allowExtractColors"
     :title="t('settings.live2d.theme-color-from-model.title')"
     icon="i-solar:magic-stick-3-bold-duotone"
     inner-class="text-sm"
@@ -233,7 +241,7 @@ onUnmounted(() => {
     :expand="false"
   >
     <ColorPalette class="mb-4 mt-2" :colors="palette.map(hex => ({ hex, name: hex }))" mx-auto />
-    <Button variant="secondary" @click="$emit('extractColorsFromModel')">
+    <Button variant="secondary" :disabled="!canExtractColors" @click="$emit('extractColorsFromModel')">
       {{ t('settings.live2d.theme-color-from-model.button-extract.title') }}
     </Button>
   </Section>

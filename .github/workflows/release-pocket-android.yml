@@ -23,6 +23,9 @@ jobs:
     # TODO: build release APK
     name: Build Debuggable Android APK
     runs-on: ubuntu-latest
+    env:
+      # Every current trigger path produces an installable APK artifact, so ship the analytics-enabled build consistently.
+      VITE_ENABLE_POSTHOG: 'true'
     steps:
       - uses: actions/checkout@v6
 

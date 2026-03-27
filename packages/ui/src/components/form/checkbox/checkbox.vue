@@ -1,12 +1,17 @@
 <script setup lang="ts">
 import { SwitchRoot, SwitchThumb } from 'reka-ui'
 
+const props = defineProps<{
+  disabled?: boolean
+}>()
+
 const modelValue = defineModel<boolean>({ required: true })
 </script>
 
 <template>
   <SwitchRoot
     v-model="modelValue"
+    :disabled="props.disabled"
     :class="[
       'duration-250 ease-in-out',
       'focus-within:outline-none',
@@ -16,6 +21,7 @@ const modelValue = defineModel<boolean>({ required: true })
       'data-[state=checked]:bg-primary-400 data-[state=unchecked]:bg-neutral-300 data-[state=checked]:dark:bg-primary-400/80 dark:data-[state=unchecked]:bg-neutral-800',
       'relative h-7 w-12.5 rounded-full',
       'shadow-sm focus-within:shadow-none',
+      props.disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
     ]"
   >
     <SwitchThumb

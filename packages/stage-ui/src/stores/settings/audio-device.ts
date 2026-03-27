@@ -1,8 +1,8 @@
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
-import { onMounted, watch } from 'vue'
+import { watch } from 'vue'
 
-import { useAudioDevice } from '../audio'
+import { useAudioDevice } from '../../composables/audio'
 
 export const useSettingsAudioDevice = defineStore('settings-audio-devices', () => {
   const { audioInputs, deviceConstraints, selectedAudioInput: selectedAudioInputNonPersist, startStream, stopStream, stream, askPermission } = useAudioDevice()
@@ -23,7 +23,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     }
   })
 
-  onMounted(() => {
+  function initialize() {
     const hasSelectedInput = selectedAudioInputPersist.value
       && audioInputs.value.some(device => device.deviceId === selectedAudioInputPersist.value)
 
@@ -33,7 +33,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     if (selectedAudioInputNonPersist.value && !selectedAudioInputEnabledPersist.value) {
       selectedAudioInputPersist.value = selectedAudioInputNonPersist.value
     }
-  })
+  }
 
   function resetState() {
     selectedAudioInputPersist.reset()
@@ -49,6 +49,8 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     enabled: selectedAudioInputEnabledPersist,
 
     stream,
+
+    initialize,
 
     askPermission,
     startStream,

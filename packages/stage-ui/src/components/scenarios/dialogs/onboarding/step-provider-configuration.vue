@@ -34,8 +34,8 @@ function initializeForm() {
   if (!provider)
     return
 
-  const defaultOptions = provider.defaultOptions?.() || {}
-  baseUrl.value = (defaultOptions as any)?.baseUrl || ''
+  const defaultOptions = provider.defaultOptions?.() ?? {}
+  baseUrl.value = ('baseUrl' in defaultOptions ? String(defaultOptions.baseUrl) : '') || ''
   apiKey.value = ''
   accountId.value = ''
 
@@ -144,6 +144,7 @@ async function handleContinueAnyway() {
 function getApiKeyPlaceholder(providerId: string): string {
   const placeholders: Record<string, string> = {
     'openai': 'sk-...',
+    'azure-openai': 'Azure OpenAI API Key',
     'anthropic': 'sk-ant-...',
     'google-generative-ai': 'AI...',
     'openrouter-ai': 'sk-or-...',

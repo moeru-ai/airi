@@ -294,7 +294,7 @@ inv;
 
     const outcome = await Promise.race([
       brain.processEvent({} as any, createPerceptionEvent()).then(() => 'done'),
-      new Promise(resolve => setTimeout(() => resolve('timeout'), 350)),
+      new Promise(resolve => setTimeout(resolve, 350, 'timeout')),
     ])
 
     expect(outcome).toBe('done')
@@ -328,7 +328,7 @@ inv;
 
     const outcome = await Promise.race([
       processing,
-      new Promise(resolve => setTimeout(() => resolve('timeout'), 500)),
+      new Promise(resolve => setTimeout(resolve, 500, 'timeout')),
     ])
 
     expect(outcome).toBe('done')
@@ -533,11 +533,11 @@ describe('brain queue coalescing', () => {
 
     const droppedResolver = vi.fn()
     brain.queue = [
-      ...Array.from({ length: 256 }, () => ({
+      ...Array.from({ length: 256 }).fill({
         event: createPerceptionEvent(),
         resolve: vi.fn(),
         reject: vi.fn(),
-      })),
+      }),
       {
         event: createNoActionFollowupEvent(),
         resolve: droppedResolver,
@@ -557,11 +557,11 @@ describe('brain queue coalescing', () => {
     const feedbackResolver = vi.fn()
 
     brain.queue = [
-      ...Array.from({ length: 256 }, () => ({
+      ...Array.from({ length: 256 }).fill({
         event: createPerceptionEvent(),
         resolve: vi.fn(),
         reject: vi.fn(),
-      })),
+      }),
       {
         event: createFeedbackEvent(),
         resolve: feedbackResolver,
@@ -612,7 +612,7 @@ describe('brain control action queue', () => {
     const brain: any = new Brain(deps)
     const outcome = await Promise.race([
       brain.processEvent({} as any, createPerceptionEvent()).then(() => 'done'),
-      new Promise(resolve => setTimeout(() => resolve('timeout'), 80)),
+      new Promise(resolve => setTimeout(resolve, 80, 'timeout')),
     ])
 
     expect(outcome).toBe('done')

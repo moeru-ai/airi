@@ -34,5 +34,6 @@ profile-switcher:
   no-profile: プロファイルがありません
   no-profiles: まだプロファイルがありません
   save-as-new: 新規プロファイルとして保存
+  new-profile-name: Profile name
   manage: プロファイルを管理
 waiting: 待機中

@@ -604,7 +604,7 @@ export class JavaScriptPlanner {
   }
 
   private defineGlobalValue(name: string, value: unknown): void {
-    if (Object.prototype.hasOwnProperty.call(this.sandbox, name))
+    if (Object.hasOwn(this.sandbox, name))
       return
 
     Object.defineProperty(this.sandbox, name, {
