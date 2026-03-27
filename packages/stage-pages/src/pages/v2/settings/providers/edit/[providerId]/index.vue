@@ -15,6 +15,8 @@ import {
   ProviderSettingsLayout,
   ProviderValidationDetailsDialog,
 } from '@proj-airi/stage-ui/components'
+import DOMPurify from 'dompurify'
+
 import { getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
 import { useProviderCatalogStore } from '@proj-airi/stage-ui/stores/provider-catalog'
 import { Button, Callout, FieldCombobox, FieldInput, FieldKeyValues } from '@proj-airi/ui'
@@ -68,6 +70,10 @@ const hasValidationFailures = computed(() => validationSteps.value.some(step => 
 const isOllamaProvider = computed(() => providerDefinition.value?.id === 'ollama')
 const shouldShowTroubleshootingOllamaConnectivity = computed(() => {
   return isOllamaProvider.value && validationSteps.value.some(step => step.id === 'openai-compatible:check-connectivity' && step.status === 'invalid')
+})
+const safeOllamaConnectivityTroubleshootingHtml = computed(() => {
+  const content = providerDefinition.value?.business?.({ t }).troubleshooting?.validators?.openaiCompatibleCheckConnectivity?.content
+  return DOMPurify.sanitize(content || '')
 })
 
 function getSchemaShape(schema: $ZodType): Record<string, ZodType> {
@@ -481,7 +487,7 @@ function handleDeleteProvider() {
               v-if="shouldShowTroubleshootingOllamaConnectivity && providerDefinition.business?.({ t }).troubleshooting?.validators?.openaiCompatibleCheckConnectivity"
               :label="providerDefinition.business?.({ t }).troubleshooting?.validators?.openaiCompatibleCheckConnectivity?.label"
             >
-              <div>{{ providerDefinition.business?.({ t }).troubleshooting?.validators?.openaiCompatibleCheckConnectivity?.content }}</div>
+              <div v-html="safeOllamaConnectivityTroubleshootingHtml" />
             </Callout>
 
             <div :class="['flex', 'items-center', 'justify-between']">
