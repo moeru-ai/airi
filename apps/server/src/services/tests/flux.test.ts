@@ -55,7 +55,7 @@ describe('fluxService (DB-backed)', () => {
     service = createFluxService(db, redis, createMockConfigKV())
 
     // Clean up flux-related tables
-    await db.delete(schema.fluxLedger).where(eq(schema.fluxLedger.userId, testUser.id))
+    await db.delete(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, testUser.id))
     await db.delete(schema.userFlux).where(eq(schema.userFlux.userId, testUser.id))
   })
 
@@ -65,12 +65,12 @@ describe('fluxService (DB-backed)', () => {
     expect(redis.set).toHaveBeenCalledWith(userFluxRedisKey(testUser.id), '100')
   })
 
-  it('getFlux should write a ledger entry on initialization', async () => {
+  it('getFlux should write a transaction entry on initialization', async () => {
     await service.getFlux(testUser.id)
 
-    const ledgerRecords = await db.select().from(schema.fluxLedger).where(eq(schema.fluxLedger.userId, testUser.id))
-    expect(ledgerRecords).toHaveLength(1)
-    expect(ledgerRecords[0]).toMatchObject({
+    const txRecords = await db.select().from(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, testUser.id))
+    expect(txRecords).toHaveLength(1)
+    expect(txRecords[0]).toMatchObject({
       type: 'initial',
       amount: 100,
       balanceBefore: 0,

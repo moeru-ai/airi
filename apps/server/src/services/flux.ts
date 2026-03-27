@@ -9,7 +9,7 @@ import { eq } from 'drizzle-orm'
 import { userFluxRedisKey } from '../utils/redis-keys'
 
 import * as schema from '../schemas/flux'
-import * as fluxLedgerSchema from '../schemas/flux-ledger'
+import * as fluxTxSchema from '../schemas/flux-transaction'
 
 const logger = useLogger('flux-service')
 
@@ -30,16 +30,16 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
       if (!record) {
         const initialFlux = await configKV.getOrThrow('INITIAL_USER_FLUX')
 
-        // Transaction: create user_flux + flux_ledger atomically
+        // Transaction: create user_flux + flux_transaction atomically
         await db.transaction(async (tx) => {
           const [inserted] = await tx.insert(schema.userFlux)
             .values({ userId, flux: initialFlux })
             .onConflictDoNothing({ target: schema.userFlux.userId })
             .returning()
 
-          // Only write ledger if we actually created the record (not a conflict)
+          // Only write transaction if we actually created the record (not a conflict)
           if (inserted) {
-            await tx.insert(fluxLedgerSchema.fluxLedger).values({
+            await tx.insert(fluxTxSchema.fluxTransaction).values({
               userId,
               type: 'initial',
               amount: initialFlux,

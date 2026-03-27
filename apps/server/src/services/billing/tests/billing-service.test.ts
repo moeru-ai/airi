@@ -67,7 +67,7 @@ describe('billingService', () => {
     billingMq = createMockBillingMq()
     billingService = createBillingService(db, redis, billingMq, createMockConfigKV())
 
-    await db.delete(schema.fluxLedger)
+    await db.delete(schema.fluxTransaction)
     await db.delete(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
     await db.delete(schema.stripeCheckoutSession).where(eq(schema.stripeCheckoutSession.stripeSessionId, 'sess-billing-1'))
 
@@ -84,7 +84,7 @@ describe('billingService', () => {
   })
 
   describe('creditFluxFromStripeCheckout', () => {
-    it('credits flux, records ledger + audit, and enqueues outbox events in one transaction', async () => {
+    it('credits flux, records transaction, and enqueues outbox events in one transaction', async () => {
       const result = await billingService.creditFluxFromStripeCheckout({
         stripeEventId: 'stripe-evt-1',
         userId: 'user-billing-1',
@@ -99,16 +99,16 @@ describe('billingService', () => {
       const [fluxRecord] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
       expect(fluxRecord?.flux).toBe(50)
 
-      // Verify ledger entry
-      const ledgerRecords = await db.select().from(schema.fluxLedger).where(eq(schema.fluxLedger.userId, 'user-billing-1'))
-      expect(ledgerRecords).toHaveLength(1)
-      expect(ledgerRecords[0]?.type).toBe('credit')
-      expect(ledgerRecords[0]?.amount).toBe(50)
-      expect(ledgerRecords[0]?.balanceBefore).toBe(0)
-      expect(ledgerRecords[0]?.balanceAfter).toBe(50)
+      // Verify transaction entry
+      const txRecords = await db.select().from(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-billing-1'))
+      expect(txRecords).toHaveLength(1)
+      expect(txRecords[0]?.type).toBe('credit')
+      expect(txRecords[0]?.amount).toBe(50)
+      expect(txRecords[0]?.balanceBefore).toBe(0)
+      expect(txRecords[0]?.balanceAfter).toBe(50)
 
-      // Verify metadata on ledger entry
-      expect(ledgerRecords[0]?.metadata).toMatchObject({
+      // Verify metadata on transaction entry
+      expect(txRecords[0]?.metadata).toMatchObject({
         stripeEventId: 'stripe-evt-1',
         stripeSessionId: 'sess-billing-1',
         source: 'stripe.checkout.completed',
@@ -173,7 +173,7 @@ describe('billingService', () => {
       const [fluxRecord] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
       expect(fluxRecord?.flux).toBe(70)
 
-      // Verify flux.debited event published to stream (ledger + audit written by consumer)
+      // Verify flux.debited event published to stream (transaction written by consumer)
       expect(billingMq.publish).toHaveBeenCalledTimes(1)
       expect(billingMq.publish).toHaveBeenCalledWith(expect.objectContaining({
         eventType: 'flux.debited',
@@ -202,8 +202,8 @@ describe('billingService', () => {
       const [fluxRecord] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
       expect(fluxRecord?.flux).toBe(5)
 
-      const ledgerRecords = await db.select().from(schema.fluxLedger)
-      expect(ledgerRecords).toHaveLength(0)
+      const txRecords = await db.select().from(schema.fluxTransaction)
+      expect(txRecords).toHaveLength(0)
 
       // Verify no event was published
       expect(billingMq.publish).not.toHaveBeenCalled()
@@ -211,7 +211,7 @@ describe('billingService', () => {
   })
 
   describe('creditFlux', () => {
-    it('credits balance with ledger + audit + outbox', async () => {
+    it('credits balance with transaction + outbox', async () => {
       const result = await billingService.creditFlux({
         userId: 'user-billing-1',
         amount: 50,
@@ -222,10 +222,10 @@ describe('billingService', () => {
       expect(result.balanceAfter).toBe(50)
       expect(result.balanceBefore).toBe(0)
 
-      // Verify ledger
-      const ledgerRecords = await db.select().from(schema.fluxLedger).where(eq(schema.fluxLedger.userId, 'user-billing-1'))
-      expect(ledgerRecords).toHaveLength(1)
-      expect(ledgerRecords[0]).toMatchObject({
+      // Verify transaction
+      const txRecords = await db.select().from(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-billing-1'))
+      expect(txRecords).toHaveLength(1)
+      expect(txRecords[0]).toMatchObject({
         type: 'credit',
         amount: 50,
         balanceBefore: 0,

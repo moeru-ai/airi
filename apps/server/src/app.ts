@@ -9,7 +9,7 @@ import type { CharacterService } from './services/characters'
 import type { ChatService } from './services/chats'
 import type { ConfigKVService } from './services/config-kv'
 import type { FluxService } from './services/flux'
-import type { FluxAuditService } from './services/flux-audit'
+import type { FluxTransactionService } from './services/flux-transaction'
 import type { ProviderService } from './services/providers'
 import type { StripeService } from './services/stripe'
 import type { HonoEnv } from './types/hono'
@@ -47,7 +47,7 @@ import { createCharacterService } from './services/characters'
 import { createChatService } from './services/chats'
 import { createConfigKVService } from './services/config-kv'
 import { createFluxService } from './services/flux'
-import { createFluxAuditService } from './services/flux-audit'
+import { createFluxTransactionService } from './services/flux-transaction'
 import { createProviderService } from './services/providers'
 import { createRequestLogService } from './services/request-log'
 import { createStripeService } from './services/stripe'
@@ -60,7 +60,7 @@ interface AppDeps {
   chatService: ChatService
   providerService: ProviderService
   fluxService: FluxService
-  fluxAuditService: FluxAuditService
+  fluxTransactionService: FluxTransactionService
   stripeService: StripeService
   billingService: BillingService
   billingMq: MqService<BillingEvent>
@@ -70,7 +70,7 @@ interface AppDeps {
   otel: OtelInstance | null
 }
 
-function buildApp(deps: AppDeps) {
+async function buildApp(deps: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
 
   const app = new Hono<HonoEnv>()
@@ -144,8 +144,8 @@ function buildApp(deps: AppDeps) {
      * Rate limited by IP: 20 requests per minute.
      */
     .use('/api/auth/*', rateLimiter({
-      max: 20,
-      windowSec: 60,
+      max: await deps.configKV.getOrThrow('AUTH_RATE_LIMIT_MAX'),
+      windowSec: await deps.configKV.getOrThrow('AUTH_RATE_LIMIT_WINDOW_SEC'),
       keyGenerator: c => c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'unknown',
     }))
     .on(['POST', 'GET'], '/api/auth/*', c => deps.auth.handler(c.req.raw))
@@ -173,7 +173,7 @@ function buildApp(deps: AppDeps) {
     /**
      * Flux routes.
      */
-    .route('/api/v1/flux', createFluxRoutes(deps.fluxService, deps.fluxAuditService))
+    .route('/api/v1/flux', createFluxRoutes(deps.fluxService, deps.fluxTransactionService))
 
     /**
      * Stripe routes.
@@ -183,7 +183,7 @@ function buildApp(deps: AppDeps) {
   return { app: builtApp, injectWebSocket }
 }
 
-export type AppType = ReturnType<typeof buildApp>['app']
+export type AppType = Awaited<ReturnType<typeof buildApp>>['app']
 
 export async function createApp() {
   initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
@@ -295,9 +295,9 @@ export async function createApp() {
     build: ({ dependsOn }) => createStripeService(dependsOn.db),
   })
 
-  const fluxAuditService = injeca.provide('services:fluxAudit', {
+  const fluxTransactionService = injeca.provide('services:fluxTransaction', {
     dependsOn: { db },
-    build: ({ dependsOn }) => createFluxAuditService(dependsOn.db),
+    build: ({ dependsOn }) => createFluxTransactionService(dependsOn.db),
   })
 
   const fluxService = injeca.provide('services:flux', {
@@ -323,7 +323,7 @@ export async function createApp() {
     chatService,
     providerService,
     fluxService,
-    fluxAuditService,
+    fluxTransactionService,
     requestLogService,
     stripeService,
     billingService,
@@ -333,13 +333,13 @@ export async function createApp() {
     env: parsedEnv,
     otel,
   })
-  const { app, injectWebSocket } = buildApp({
+  const { app, injectWebSocket } = await buildApp({
     auth: resolved.auth,
     characterService: resolved.characterService,
     chatService: resolved.chatService,
     providerService: resolved.providerService,
     fluxService: resolved.fluxService,
-    fluxAuditService: resolved.fluxAuditService,
+    fluxTransactionService: resolved.fluxTransactionService,
     stripeService: resolved.stripeService,
     billingService: resolved.billingService,
     billingMq: resolved.billingMq,

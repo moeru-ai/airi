@@ -34,6 +34,8 @@ const ConfigEntrySchemas = {
   MAX_CHECKOUT_AMOUNT_CENTS: optional(number(), 1_000_000),
   GATEWAY_BASE_URL: string(),
   DEFAULT_CHAT_MODEL: string(),
+  AUTH_RATE_LIMIT_MAX: optional(number(), 20),
+  AUTH_RATE_LIMIT_WINDOW_SEC: optional(number(), 60),
 } as const
 
 type ConfigDefinitions = {

@@ -188,7 +188,7 @@
 - route: `src/routes/flux/index.ts`
 - services:
   - `fluxService`
-  - `fluxAuditService`
+  - `fluxTransactionService`
 
 主要能力：
 

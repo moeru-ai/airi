@@ -22,10 +22,10 @@ describe('billingConsumerHandler', () => {
   })
 
   beforeEach(async () => {
-    await db.delete(schema.fluxLedger).where(eq(schema.fluxLedger.userId, 'user-billing-handler-1'))
+    await db.delete(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-billing-handler-1'))
   })
 
-  it('writes debit ledger metadata so token usage can be shown in the UI', async () => {
+  it('writes debit transaction metadata so token usage can be shown in the UI', async () => {
     const handler = createBillingConsumerHandler(db)
 
     await handler.handleMessage({
@@ -48,9 +48,9 @@ describe('billingConsumerHandler', () => {
       },
     })
 
-    const [ledgerRecord] = await db.select().from(schema.fluxLedger).where(eq(schema.fluxLedger.requestId, 'req-1'))
+    const [txRecord] = await db.select().from(schema.fluxTransaction).where(eq(schema.fluxTransaction.requestId, 'req-1'))
 
-    expect(ledgerRecord).toMatchObject({
+    expect(txRecord).toMatchObject({
       userId: 'user-billing-handler-1',
       type: 'debit',
       amount: 3,

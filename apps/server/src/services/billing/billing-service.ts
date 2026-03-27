@@ -14,7 +14,7 @@ import { nanoid } from '../../utils/id'
 import { userFluxRedisKey } from '../../utils/redis-keys'
 
 import * as fluxSchema from '../../schemas/flux'
-import * as fluxLedgerSchema from '../../schemas/flux-ledger'
+import * as fluxTxSchema from '../../schemas/flux-transaction'
 import * as stripeSchema from '../../schemas/stripe'
 
 const logger = useLogger('billing-service')
@@ -59,7 +59,7 @@ export function createBillingService(
   /**
    * Debit flux from a user's balance within a DB transaction.
    * The transaction ONLY locks the row and updates the balance.
-   * Ledger + audit entries are written by the billing-mq consumer
+   * Transaction entries are written by the billing-mq consumer
    * after it processes the flux.debited event published post-commit.
    *
    * Private — call domain-specific wrappers (e.g. consumeFluxForLLM) instead.
@@ -103,7 +103,7 @@ export function createBillingService(
     // 3. Update Redis cache after commit (best-effort)
     await updateRedisCache(input.userId, result.flux)
 
-    // 4. Publish flux.debited event to stream; ledger + audit written by consumer
+    // 4. Publish flux.debited event to stream; transaction + audit written by consumer
     await publishEvent({
       eventId: nanoid(),
       eventType: 'flux.debited',
@@ -129,13 +129,14 @@ export function createBillingService(
     /**
      * Debit flux for an LLM API request (chat, TTS, ASR).
      * Passes token usage as opaque metadata carried through the flux.debited event
-     * so the billing-mq consumer can write it to the ledger.
+     * so the billing-mq consumer can write it to the transaction log.
      */
     async consumeFluxForLLM(input: {
       userId: string
       amount: number
       requestId?: string
       description?: string
+      model?: string
       promptTokens?: number
       completionTokens?: number
     }): Promise<{ userId: string, flux: number }> {
@@ -145,16 +146,18 @@ export function createBillingService(
         requestId: input.requestId,
         description: input.description,
         source: 'llm.request',
-        metadata: input.promptTokens != null || input.completionTokens != null
-          ? { promptTokens: input.promptTokens, completionTokens: input.completionTokens }
-          : undefined,
+        metadata: {
+          ...(input.model != null && { model: input.model }),
+          ...(input.promptTokens != null && { promptTokens: input.promptTokens }),
+          ...(input.completionTokens != null && { completionTokens: input.completionTokens }),
+        },
       })
     },
 
     /**
      * Credit flux to a user's balance within a DB transaction.
      * Generic credit method for non-Stripe flows (e.g. admin grants).
-     * Ledger + audit entries are written inside the transaction for immediate visibility.
+     * Transaction entries are written inside the transaction for immediate visibility.
      */
     async creditFlux(input: {
       userId: string
@@ -185,8 +188,8 @@ export function createBillingService(
           .set({ flux: balanceAfter, updatedAt: new Date() })
           .where(eq(fluxSchema.userFlux.userId, input.userId))
 
-        // Ledger entry
-        await tx.insert(fluxLedgerSchema.fluxLedger).values({
+        // Transaction entry
+        await tx.insert(fluxTxSchema.fluxTransaction).values({
           userId: input.userId,
           type: 'credit',
           amount: input.amount,
@@ -225,7 +228,7 @@ export function createBillingService(
     /**
      * Credit flux from a Stripe checkout session (one-time payment).
      * Idempotent: checks fluxCredited flag before applying.
-     * Ledger + audit entries are written inside the transaction for immediate visibility.
+     * Transaction entries are written inside the transaction for immediate visibility.
      */
     async creditFluxFromStripeCheckout(input: {
       stripeEventId: string
@@ -276,8 +279,8 @@ export function createBillingService(
 
         const description = `Stripe payment ${input.currency?.toUpperCase() ?? 'UNKNOWN'} ${(input.amountTotal / 100).toFixed(2)}`
 
-        // Ledger entry
-        await tx.insert(fluxLedgerSchema.fluxLedger).values({
+        // Transaction entry
+        await tx.insert(fluxTxSchema.fluxTransaction).values({
           userId: input.userId,
           type: 'credit',
           amount: input.fluxAmount,
@@ -338,7 +341,7 @@ export function createBillingService(
     /**
      * Credit flux from a Stripe invoice payment (subscription).
      * Idempotent: checks fluxCredited flag on the invoice record.
-     * Ledger + audit entries are written inside the transaction for immediate visibility.
+     * Transaction entries are written inside the transaction for immediate visibility.
      */
     async creditFluxFromInvoice(input: {
       stripeEventId: string
@@ -388,8 +391,8 @@ export function createBillingService(
 
         const description = `Subscription invoice ${input.currency.toUpperCase()} ${(input.amountPaid / 100).toFixed(2)}`
 
-        // Ledger entry
-        await tx.insert(fluxLedgerSchema.fluxLedger).values({
+        // Transaction entry
+        await tx.insert(fluxTxSchema.fluxTransaction).values({
           userId: input.userId,
           type: 'credit',
           amount: input.fluxAmount,
