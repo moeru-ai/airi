@@ -83,7 +83,7 @@ catalog:
   drizzle-kit: ^0.31.10
   drizzle-orm: ^0.45.1
   drizzle-valibot: ^0.4.2
-  electron: ^41.0.3
+  electron: ^40.8.3
   embla-carousel-vue: ^9.0.0-rc01
   es-toolkit: 1.43.0
   histoire: 1.0.0-beta.1
