@@ -232,12 +232,8 @@ export async function breakBlockAt(
   const feetPos = new Vec3(Math.floor(botPos.x), Math.floor(botPos.y - 1), Math.floor(botPos.z))
   logger.log(`Actual block under feet: ${feetPos}`)
   
-  // If the provided position is not the actual feet position, use the actual feet position
+  // Use the provided position directly
   let targetPos = blockPos
-  if (targetPos.x !== feetPos.x || targetPos.y !== feetPos.y || targetPos.z !== feetPos.z) {
-    logger.log(`Correcting target position from ${targetPos} to ${feetPos}`)
-    targetPos = feetPos
-  }
   
   const block = mineflayer.bot.blockAt(targetPos)
   if (!block) {
