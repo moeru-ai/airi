@@ -1,5 +1,5 @@
 import type { Result } from 'tinyexec'
-import type { Logger, Plugin } from 'vite'
+import type { Plugin } from 'vite'
 
 import type { CapacitorPlatform } from './native'
 
@@ -33,10 +33,6 @@ async function stopCapProcess(current: Result | undefined) {
 }
 
 function startCapProcess(cwd: string, capArgs: string[], url: URL) {
-  console.info('\n----------------------\n')
-  console.info('Running cap run', ...capArgs)
-  console.info('[cap-vite] Press R to restart cap run. Press Ctrl+C to exit.')
-
   return x('cap', ['run', ...capArgs], {
     throwOnError: false,
     nodeOptions: {
@@ -52,7 +48,6 @@ function startCapProcess(cwd: string, capArgs: string[], url: URL) {
 }
 
 function bindCapViteShortcuts(
-  logger: Logger,
   onRestart: () => void,
   onShutdown: () => Promise<void>,
 ) {
@@ -95,7 +90,6 @@ function bindCapViteShortcuts(
   }
 
   process.stdin.on('keypress', onKeyPress)
-  logger.info('[cap-vite] Terminal shortcuts enabled: R restarts cap run.')
 
   return () => {
     process.stdin.off('keypress', onKeyPress)
@@ -133,6 +127,9 @@ export function capVitePlugin(options: CapVitePluginOptions): Plugin {
       function launchCapProcess() {
         const url = pickServerUrl(server)
         currentCapProcess = startCapProcess(cwd, resolvedCapArgs, url)
+        currentCapProcess.then(() => {
+          logger.info(`[cap-vite] Ran "cap run ${resolvedCapArgs.join(' ')}". Press R to re-run. Press Ctrl+C to exit.`)
+        })
       }
 
       function requestRestart(reason: string) {
@@ -156,7 +153,7 @@ export function capVitePlugin(options: CapVitePluginOptions): Plugin {
               return
             }
 
-            logger.info(`[cap-vite] ${activeReason}. Re-running cap run ${resolvedPlatform}.`)
+            logger.info(`[cap-vite] ${activeReason}. Re-running "cap run ${resolvedCapArgs.join(' ')}".`)
             const previous = currentCapProcess
             currentCapProcess = undefined
             await stopCapProcess(previous)
@@ -215,7 +212,7 @@ export function capVitePlugin(options: CapVitePluginOptions): Plugin {
 
       server.httpServer?.once('listening', () => {
         launchCapProcess()
-        disposeShortcut = bindCapViteShortcuts(logger, () => requestRestart('manual restart requested'), shutdown)
+        disposeShortcut = bindCapViteShortcuts(() => requestRestart('manual restart requested'), shutdown)
       })
       server.httpServer?.once('close', handleShutdownRequest)
       process.once('SIGINT', handleShutdownRequest)
