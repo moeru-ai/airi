@@ -46,8 +46,7 @@ function createMockBillingService(): BillingService {
 
 function createMockConfigKV(overrides: Record<string, any> = {}): ConfigKVService {
   const defaults: Record<string, any> = {
-    FLUX_PER_CENT: 1,
-    FLUX_PACKAGES: [{ amount: 500, label: '$5' }],
+    FLUX_PACKAGES: [{ amount: 500, fluxAmount: 5000, label: '5000 Flux', price: '$5' }],
     MAX_CHECKOUT_AMOUNT_CENTS: 1_000_000,
     ...overrides,
   }
@@ -168,7 +167,7 @@ describe('stripeRoutes', () => {
       expect(res.status).toBe(200)
 
       const data = await res.json()
-      expect(data).toEqual([{ amount: 500, label: '$5' }])
+      expect(data).toEqual([{ amount: 500, fluxAmount: 5000, label: '5000 Flux', price: '$5' }])
     })
 
     it('returns empty array when no packages configured', async () => {

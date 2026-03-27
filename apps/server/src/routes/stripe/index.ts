@@ -32,7 +32,7 @@ export function createStripeRoutes(
 ) {
   const stripe = env.STRIPE_SECRET_KEY ? new Stripe(env.STRIPE_SECRET_KEY) : null
 
-  const fluxConfigGuard = configGuard(configKV, ['FLUX_PER_CENT'], 'Top-up is not available yet')
+  const fluxConfigGuard = configGuard(configKV, ['FLUX_PACKAGES'], 'Top-up is not available yet')
 
   return new Hono<HonoEnv>()
     .get('/packages', async (c) => {
@@ -59,6 +59,13 @@ export function createStripeRoutes(
         })
       }
 
+      // Match amount to a configured package so we know the fluxAmount
+      const packages = await configKV.get('FLUX_PACKAGES')
+      const pkg = packages.find(p => p.amount === amount)
+      if (!pkg) {
+        throw createBadRequestError('No matching package for the given amount', 'INVALID_PACKAGE', { amount })
+      }
+
       // Reuse existing stripe customer if available
       const customer = await stripeService.getCustomerByUserId(user.id)
       const stripeCustomerId = customer?.stripeCustomerId
@@ -83,12 +90,14 @@ export function createStripeRoutes(
           },
         ],
         mode: 'payment',
+        allow_promotion_codes: true,
         success_url: `${redirectBase}/settings/flux?success=true`,
         cancel_url: `${redirectBase}/settings/flux?canceled=true`,
         customer: stripeCustomerId,
         customer_email: stripeCustomerId ? undefined : user.email,
         metadata: {
           userId: user.id,
+          fluxAmount: String(pkg.fluxAmount),
         },
       })
 
@@ -175,7 +184,7 @@ export function createStripeRoutes(
 
       switch (event.type) {
         case 'checkout.session.completed': {
-          await handleCheckoutSessionCompleted(event.id, event.data.object, fluxService, stripeService, billingService, configKV)
+          await handleCheckoutSessionCompleted(event.id, event.data.object, fluxService, stripeService, billingService)
           metrics?.stripeCheckoutCompleted.add(1)
           break
         }
@@ -195,7 +204,7 @@ export function createStripeRoutes(
         case 'invoice.updated':
         case 'invoice.paid':
         case 'invoice.payment_failed': {
-          await handleInvoiceEvent(event.id, event.data.object, stripeService, billingService, configKV)
+          await handleInvoiceEvent(event.data.object, stripeService)
           if (event.type === 'invoice.payment_failed') {
             metrics?.stripePaymentFailed.add(1)
           }
@@ -215,7 +224,6 @@ async function handleCheckoutSessionCompleted(
   fluxService: FluxService,
   stripeService: StripeService,
   billingService: BillingService,
-  configKV: ConfigKVService,
 ) {
   const userId = session.metadata?.userId
   if (!userId) {
@@ -256,9 +264,13 @@ async function handleCheckoutSessionCompleted(
 
   // Idempotent flux credit: use fluxCredited flag inside a transaction
   // to prevent double-crediting on webhook replay
-  if (session.mode === 'payment' && session.amount_total) {
-    const fluxPerCent = await configKV.getOrThrow('FLUX_PER_CENT')
-    const fluxAmount = session.amount_total * fluxPerCent
+  const metadataFlux = session.metadata?.fluxAmount
+  if (session.mode === 'payment' && session.amount_total && metadataFlux) {
+    const fluxAmount = Number(metadataFlux)
+    if (!Number.isFinite(fluxAmount) || fluxAmount <= 0) {
+      logger.withFields({ userId, sessionId: session.id, metadataFlux }).warn('Invalid fluxAmount in session metadata, skipping credit')
+      return
+    }
 
     const result = await billingService.creditFluxFromStripeCheckout({
       stripeEventId,
@@ -272,7 +284,6 @@ async function handleCheckoutSessionCompleted(
     logger.withFields({
       userId,
       fluxAmount,
-      fluxPerCent,
       amountTotal: session.amount_total,
       applied: result.applied,
       balanceAfter: result.balanceAfter,
@@ -327,11 +338,8 @@ async function handleSubscriptionEvent(
 }
 
 async function handleInvoiceEvent(
-  stripeEventId: string,
   invoice: Stripe.Invoice,
   stripeService: StripeService,
-  billingService: BillingService,
-  configKV: ConfigKVService,
 ) {
   const stripeCustomerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id
   if (!stripeCustomerId)
@@ -364,20 +372,8 @@ async function handleInvoiceEvent(
     metadata: invoice.metadata ? JSON.stringify(invoice.metadata) : null,
   })
 
-  // Idempotent flux credit for subscription invoice payments
+  // TODO: implement subscription-based flux crediting when subscriptions are enabled
   if (invoice.status === 'paid' && invoice.amount_paid && subscriptionId) {
-    const fluxPerCent = await configKV.getOrThrow('FLUX_PER_CENT')
-    const fluxAmount = invoice.amount_paid * fluxPerCent
-
-    const result = await billingService.creditFluxFromInvoice({
-      stripeEventId,
-      userId: customer.userId,
-      stripeInvoiceId: invoice.id,
-      amountPaid: invoice.amount_paid,
-      currency: invoice.currency ?? 'unknown',
-      fluxAmount,
-    })
-
-    logger.withFields({ userId: customer.userId, fluxAmount, invoiceId: invoice.id, applied: result.applied }).log('Processed flux credit for subscription invoice')
+    logger.withFields({ userId: customer.userId, invoiceId: invoice.id, amountPaid: invoice.amount_paid }).warn('Subscription invoice paid but flux crediting for subscriptions is not yet implemented')
   }
 }

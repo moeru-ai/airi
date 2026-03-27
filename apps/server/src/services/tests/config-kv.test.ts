@@ -30,9 +30,9 @@ describe('configKVService', () => {
   })
 
   it('get should return numeric value when key is set', async () => {
-    redis._store.set(configRedisKey('FLUX_PER_CENT'), '5')
+    redis._store.set(configRedisKey('FLUX_PER_REQUEST'), '5')
 
-    const value = await service.getOrThrow('FLUX_PER_CENT')
+    const value = await service.getOrThrow('FLUX_PER_REQUEST')
     expect(value).toBe(5)
   })
 
@@ -46,8 +46,8 @@ describe('configKVService', () => {
   // --- getOptional ---
 
   it('getOptional should return schema default when key has one', async () => {
-    const value = await service.getOptional('FLUX_PER_CENT')
-    expect(value).toBe(10)
+    const value = await service.getOptional('FLUX_PER_REQUEST')
+    expect(value).toBe(5)
   })
 
   it('getOptional should return null when required key is not set', async () => {
@@ -65,10 +65,10 @@ describe('configKVService', () => {
   // --- set ---
 
   it('set should write value to Redis with prefix', async () => {
-    await service.set('FLUX_PER_CENT', 10)
+    await service.set('FLUX_PER_REQUEST', 10)
 
-    expect(redis.set).toHaveBeenCalledWith(configRedisKey('FLUX_PER_CENT'), '10')
-    expect(redis._store.get(configRedisKey('FLUX_PER_CENT'))).toBe('10')
+    expect(redis.set).toHaveBeenCalledWith(configRedisKey('FLUX_PER_REQUEST'), '10')
+    expect(redis._store.get(configRedisKey('FLUX_PER_REQUEST'))).toBe('10')
   })
 
   it('set should reject invalid values for string config keys', async () => {
@@ -88,8 +88,8 @@ describe('configKVService', () => {
 
   it('get FLUX_PACKAGES should parse JSON array', async () => {
     const packages = [
-      { amount: 500, label: '500 Flux', price: '$5' },
-      { amount: 1000, label: '1000 Flux', price: '$10' },
+      { amount: 500, fluxAmount: 5000, label: '5000 Flux', price: '$5' },
+      { amount: 1000, fluxAmount: 12000, label: '12000 Flux', price: '$10' },
     ]
     redis._store.set(configRedisKey('FLUX_PACKAGES'), JSON.stringify(packages))
 
@@ -98,7 +98,7 @@ describe('configKVService', () => {
   })
 
   it('set FLUX_PACKAGES should serialize as JSON', async () => {
-    const packages = [{ amount: 500, label: '500 Flux', price: '$5' }]
+    const packages = [{ amount: 500, fluxAmount: 5000, label: '5000 Flux', price: '$5' }]
     await service.set('FLUX_PACKAGES', packages)
 
     const stored = redis._store.get(configRedisKey('FLUX_PACKAGES'))
@@ -107,9 +107,9 @@ describe('configKVService', () => {
 
   it('fLUX_PACKAGES round-trip should preserve structure', async () => {
     const packages = [
-      { amount: 500, label: '500 Flux', price: '$5' },
-      { amount: 1000, label: '1000 Flux', price: '$10' },
-      { amount: 5000, label: '5000 Flux', price: '$45' },
+      { amount: 500, fluxAmount: 5000, label: '5000 Flux', price: '$5' },
+      { amount: 1000, fluxAmount: 12000, label: '12000 Flux', price: '$10' },
+      { amount: 5000, fluxAmount: 75000, label: '75000 Flux', price: '$50' },
     ]
     await service.set('FLUX_PACKAGES', packages)
 

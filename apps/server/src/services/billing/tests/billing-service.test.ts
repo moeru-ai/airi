@@ -15,7 +15,7 @@ import { createBillingService } from '../billing-service'
 import * as schema from '../../../schemas'
 
 function createMockConfigKV(overrides: Record<string, number> = {}): ReturnType<typeof createConfigKVService> {
-  const defaults: Record<string, number> = { INITIAL_USER_FLUX: 100, FLUX_PER_CENT: 1, FLUX_PER_REQUEST: 1, ...overrides }
+  const defaults: Record<string, number> = { INITIAL_USER_FLUX: 100, FLUX_PER_REQUEST: 1, ...overrides }
   return {
     get: vi.fn(async (key: string) => defaults[key]),
     getOrThrow: vi.fn(async (key: string) => defaults[key]),

@@ -9,13 +9,15 @@ import { configRedisKey } from '../utils/redis-keys'
 export interface FluxPackage {
   /** Amount in cents sent to Stripe */
   amount: number
+  /** How much Flux the buyer receives for this package */
+  fluxAmount: number
   /** Display label, e.g. "500 Flux" */
   label: string
   /** Display price, e.g. "$5" */
   price: string
 }
 
-const FluxPackageSchema = object({ amount: number(), label: string(), price: string() })
+const FluxPackageSchema = object({ amount: number(), fluxAmount: number(), label: string(), price: string() })
 
 /**
  * Config entry schemas are the single source of truth for:
@@ -24,7 +26,6 @@ const FluxPackageSchema = object({ amount: number(), label: string(), price: str
  * - Redis serialization/deserialization shape
  */
 const ConfigEntrySchemas = {
-  FLUX_PER_CENT: optional(number(), 10),
   FLUX_PER_REQUEST: optional(number(), 5),
   FLUX_PER_REQUEST_TTS: number(),
   FLUX_PER_REQUEST_ASR: number(),
