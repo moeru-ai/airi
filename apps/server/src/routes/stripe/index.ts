@@ -265,7 +265,7 @@ async function handleCheckoutSessionCompleted(
   // Idempotent flux credit: use fluxCredited flag inside a transaction
   // to prevent double-crediting on webhook replay
   const metadataFlux = session.metadata?.fluxAmount
-  if (session.mode === 'payment' && session.amount_total && metadataFlux) {
+  if (session.mode === 'payment' && session.amount_total != null && metadataFlux) {
     const fluxAmount = Number(metadataFlux)
     if (!Number.isFinite(fluxAmount) || fluxAmount <= 0) {
       logger.withFields({ userId, sessionId: session.id, metadataFlux }).warn('Invalid fluxAmount in session metadata, skipping credit')
