@@ -20,6 +20,17 @@ import { rateLimiter } from '../middlewares/rate-limit'
 import { calculateFluxFromUsage, extractUsageFromBody } from '../services/billing/billing'
 import { createPaymentRequiredError } from '../utils/error'
 import { nanoid } from '../utils/id'
+import {
+  AIRI_ATTR_BILLING_FLUX_CONSUMED,
+  AIRI_ATTR_GEN_AI_OPERATION_KIND,
+  AIRI_ATTR_GEN_AI_STREAM,
+  AIRI_ATTR_GEN_AI_STREAM_INTERRUPTED,
+  GEN_AI_ATTR_OPERATION_NAME,
+  GEN_AI_ATTR_REQUEST_MODEL,
+  GEN_AI_ATTR_USAGE_INPUT_TOKENS,
+  GEN_AI_ATTR_USAGE_OUTPUT_TOKENS,
+  getServerConnectionAttributes,
+} from '../utils/observability'
 
 const tracer = trace.getTracer('v1-completions')
 
@@ -32,15 +43,31 @@ const SAFE_RESPONSE_HEADERS = new Set([
 
 function buildSafeResponseHeaders(response: Response): Headers {
   const headers = new Headers()
-  for (const [key, value] of response.headers) {
+  response.headers.forEach((value, key) => {
     if (SAFE_RESPONSE_HEADERS.has(key.toLowerCase()))
       headers.set(key, value)
-  }
+  })
   return headers
 }
 
 function normalizeBaseUrl(gatewayBaseUrl: string): string {
   return gatewayBaseUrl.endsWith('/') ? gatewayBaseUrl : `${gatewayBaseUrl}/`
+}
+
+function getLlmMetricAttributes(opts: { model: string, type: string, status: number }): Record<string, string | number> {
+  if (opts.type === 'chat') {
+    return {
+      [GEN_AI_ATTR_REQUEST_MODEL]: opts.model,
+      [GEN_AI_ATTR_OPERATION_NAME]: 'chat',
+      'http.response.status_code': opts.status,
+    }
+  }
+
+  return {
+    [GEN_AI_ATTR_REQUEST_MODEL]: opts.model,
+    [AIRI_ATTR_GEN_AI_OPERATION_KIND]: opts.type,
+    'http.response.status_code': opts.status,
+  }
 }
 
 export function createV1CompletionsRoutes(fluxService: FluxService, billingService: BillingService, configKV: ConfigKVService, billingMq: MqService<BillingEvent>, llm?: LlmMetrics | null) {
@@ -49,14 +76,14 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
   function recordMetrics(opts: { model: string, status: number, type: string, durationMs: number, fluxConsumed: number, promptTokens?: number, completionTokens?: number }) {
     if (!llm)
       return
-    const attrs = { model: opts.model, type: opts.type, status: opts.status }
+    const attrs = getLlmMetricAttributes(opts)
     llm.requestCount.add(1, attrs)
     llm.requestDuration.record(opts.durationMs, attrs)
-    llm.fluxConsumed.add(opts.fluxConsumed, { model: opts.model, type: opts.type })
+    llm.fluxConsumed.add(opts.fluxConsumed, attrs)
     if (opts.promptTokens != null)
-      llm.tokensPrompt.add(opts.promptTokens, { model: opts.model })
+      llm.tokensPrompt.add(opts.promptTokens, attrs)
     if (opts.completionTokens != null)
-      llm.tokensCompletion.add(opts.completionTokens, { model: opts.model })
+      llm.tokensCompletion.add(opts.completionTokens, attrs)
   }
 
   function publishRequestLog(entry: { userId: string, model: string, status: number, durationMs: number, fluxConsumed: number, promptTokens?: number, completionTokens?: number }) {
@@ -94,6 +121,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
     const body = await c.req.json()
     const gatewayBaseUrl = await configKV.getOrThrow('GATEWAY_BASE_URL')
     const baseUrl = normalizeBaseUrl(gatewayBaseUrl)
+    const serverAttributes = getServerConnectionAttributes(baseUrl)
     let requestModel = body.model || 'auto'
 
     if (requestModel === 'auto') {
@@ -102,8 +130,10 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
 
     const span = tracer.startSpan('llm.gateway.chat', {
       attributes: {
-        'llm.model': requestModel,
-        'llm.stream': !!body.stream,
+        [GEN_AI_ATTR_OPERATION_NAME]: 'chat',
+        [GEN_AI_ATTR_REQUEST_MODEL]: requestModel,
+        [AIRI_ATTR_GEN_AI_STREAM]: !!body.stream,
+        ...serverAttributes,
       },
     })
 
@@ -131,83 +161,109 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
 
     // Post-billing: parse usage and charge after successful response
     const fallbackRate = await configKV.getOrThrow('FLUX_PER_REQUEST')
-    const fluxPer1kTokens = (await configKV.getOptional('FLUX_PER_1K_TOKENS')) ?? 1
+    const fluxPer1kTokens = await configKV.get('FLUX_PER_1K_TOKENS')
 
     if (body.stream) {
       // Streaming: return response immediately, bill after stream ends
       const { readable, writable } = new TransformStream()
       const reader = response.body!.getReader()
       const writer = writable.getWriter()
+      const decoder = new TextDecoder()
       // Buffer last 2KB to handle chunk boundary splits for usage extraction
       let tailBuffer = ''
+      let streamCompleted = false
+      let streamInterrupted = false
 
       // Process stream in background
       ;(async () => {
         try {
           while (true) {
             const { done, value } = await reader.read()
-            if (done)
+            if (done) {
+              streamCompleted = true
               break
+            }
             await writer.write(value)
-            const text = new TextDecoder().decode(value)
+            const text = decoder.decode(value, { stream: true })
             tailBuffer = (tailBuffer + text).slice(-2048)
           }
         }
+        catch (err) {
+          streamInterrupted = true
+          span.setStatus({ code: SpanStatusCode.ERROR, message: 'Gateway stream interrupted' })
+          span.setAttribute(AIRI_ATTR_GEN_AI_STREAM_INTERRUPTED, true)
+
+          try {
+            await writer.abort(err)
+          }
+          catch (abortErr) {
+            logger.withError(abortErr).warn('Failed to abort stream writer after upstream interruption')
+          }
+
+          logger.withError(err).warn('Upstream stream interrupted before completion')
+          return
+        }
         finally {
-          try {
-            await writer.close()
+          if (streamInterrupted) {
+            span.end()
+            recordMetrics({ model: requestModel, status: response.status, type: 'chat', durationMs, fluxConsumed: 0 })
           }
-          catch (err) {
-            logger.withError(err).warn('Failed to close stream writer')
-          }
-
-          // Extract usage from final SSE data lines
-          let usage: UsageInfo = {}
-          try {
-            const lines = tailBuffer.split('\n').filter(l => l.startsWith('data: ') && !l.includes('[DONE]'))
-            const lastDataLine = lines.at(-1)
-            if (lastDataLine) {
-              const json = JSON.parse(lastDataLine.slice(6))
-              usage = extractUsageFromBody(json)
+          else if (streamCompleted) {
+            try {
+              await writer.close()
             }
-          }
-          catch (err) { logger.withError(err).warn('Failed to extract usage from stream, falling back to flat rate') }
+            catch (err) {
+              logger.withError(err).warn('Failed to close stream writer')
+            }
 
-          const fluxConsumed = calculateFluxFromUsage(usage, fluxPer1kTokens, fallbackRate)
+            // Extract usage from final SSE data lines
+            let usage: UsageInfo = {}
+            try {
+              const lines = tailBuffer.split('\n').filter(l => l.startsWith('data: ') && !l.includes('[DONE]'))
+              const lastDataLine = lines.at(-1)
+              if (lastDataLine) {
+                const json = JSON.parse(lastDataLine.slice(6))
+                usage = extractUsageFromBody(json)
+              }
+            }
+            catch (err) { logger.withError(err).warn('Failed to extract usage from stream, falling back to flat rate') }
 
-          span.setAttributes({
-            'llm.tokens.prompt': usage.promptTokens ?? 0,
-            'llm.tokens.completion': usage.completionTokens ?? 0,
-            'llm.flux_consumed': fluxConsumed,
-          })
-          span.end()
-          recordMetrics({ model: requestModel, status: response.status, type: 'chat', durationMs, fluxConsumed, ...usage })
+            const fluxConsumed = calculateFluxFromUsage(usage, fluxPer1kTokens, fallbackRate)
 
-          // Debit flux via DB transaction (source of truth)
-          // NOTICE: streaming response is already sent, so we cannot reject on failure.
-          // Log at error level so unpaid usage is visible in monitoring/alerts.
-          const requestId = nanoid()
-          let actualCharged = 0
-          try {
-            await billingService.debitFlux({
-              userId: user.id,
-              amount: fluxConsumed,
-              requestId,
-              description: requestModel,
+            span.setAttributes({
+              [GEN_AI_ATTR_USAGE_INPUT_TOKENS]: usage.promptTokens ?? 0,
+              [GEN_AI_ATTR_USAGE_OUTPUT_TOKENS]: usage.completionTokens ?? 0,
+              [AIRI_ATTR_BILLING_FLUX_CONSUMED]: fluxConsumed,
             })
-            actualCharged = fluxConsumed
-          }
-          catch (err) { logger.withError(err).withFields({ userId: user.id, fluxConsumed, requestId }).error('Failed to debit flux after streaming — unpaid usage') }
+            span.end()
+            recordMetrics({ model: requestModel, status: response.status, type: 'chat', durationMs, fluxConsumed, ...usage })
 
-          publishRequestLog({
-            userId: user.id,
-            model: requestModel,
-            status: response.status,
-            durationMs,
-            fluxConsumed: actualCharged,
-            promptTokens: usage.promptTokens,
-            completionTokens: usage.completionTokens,
-          })
+            // Debit flux via DB transaction (source of truth)
+            // NOTICE: streaming response is already sent, so we cannot reject on failure.
+            // Log at error level so unpaid usage is visible in monitoring/alerts.
+            const requestId = nanoid()
+            let actualCharged = 0
+            try {
+              await billingService.debitFlux({
+                userId: user.id,
+                amount: fluxConsumed,
+                requestId,
+                description: requestModel,
+              })
+              actualCharged = fluxConsumed
+            }
+            catch (err) { logger.withError(err).withFields({ userId: user.id, fluxConsumed, requestId }).error('Failed to debit flux after streaming — unpaid usage') }
+
+            publishRequestLog({
+              userId: user.id,
+              model: requestModel,
+              status: response.status,
+              durationMs,
+              fluxConsumed: actualCharged,
+              promptTokens: usage.promptTokens,
+              completionTokens: usage.completionTokens,
+            })
+          }
         }
       })()
 
@@ -223,9 +279,9 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
     const fluxConsumed = calculateFluxFromUsage(usage, fluxPer1kTokens, fallbackRate)
 
     span.setAttributes({
-      'llm.tokens.prompt': usage.promptTokens ?? 0,
-      'llm.tokens.completion': usage.completionTokens ?? 0,
-      'llm.flux_consumed': fluxConsumed,
+      [GEN_AI_ATTR_USAGE_INPUT_TOKENS]: usage.promptTokens ?? 0,
+      [GEN_AI_ATTR_USAGE_OUTPUT_TOKENS]: usage.completionTokens ?? 0,
+      [AIRI_ATTR_BILLING_FLUX_CONSUMED]: fluxConsumed,
     })
     span.end()
     recordMetrics({ model: requestModel, status: response.status, type: 'chat', durationMs, fluxConsumed, ...usage })
@@ -263,10 +319,15 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
     const body = await c.req.json()
     const gatewayBaseUrl = await configKV.getOrThrow('GATEWAY_BASE_URL')
     const baseUrl = normalizeBaseUrl(gatewayBaseUrl)
+    const serverAttributes = getServerConnectionAttributes(baseUrl)
     const requestModel = body.model || 'auto'
 
     const span = tracer.startSpan('llm.gateway.tts', {
-      attributes: { 'llm.model': requestModel },
+      attributes: {
+        [GEN_AI_ATTR_REQUEST_MODEL]: requestModel,
+        [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'text_to_speech',
+        ...serverAttributes,
+      },
     })
 
     const startedAt = Date.now()
@@ -299,7 +360,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
       description: `tts:${requestModel}`,
     })
 
-    span.setAttribute('llm.flux_consumed', fluxPerRequest)
+    span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxPerRequest)
     span.end()
     recordMetrics({ model: requestModel, status: response.status, type: 'tts', durationMs, fluxConsumed: fluxPerRequest })
 
@@ -326,9 +387,14 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
 
     const gatewayBaseUrl = await configKV.getOrThrow('GATEWAY_BASE_URL')
     const baseUrl = normalizeBaseUrl(gatewayBaseUrl)
+    const serverAttributes = getServerConnectionAttributes(baseUrl)
 
     const span = tracer.startSpan('llm.gateway.asr', {
-      attributes: { 'llm.model': 'auto' },
+      attributes: {
+        [GEN_AI_ATTR_REQUEST_MODEL]: 'auto',
+        [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'speech_to_text',
+        ...serverAttributes,
+      },
     })
 
     const startedAt = Date.now()
@@ -364,7 +430,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
       description: `asr:auto`,
     })
 
-    span.setAttribute('llm.flux_consumed', fluxPerRequest)
+    span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxPerRequest)
     span.end()
     recordMetrics({ model: 'auto', status: response.status, type: 'asr', durationMs, fluxConsumed: fluxPerRequest })
 
