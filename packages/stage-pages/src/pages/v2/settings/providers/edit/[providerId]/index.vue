@@ -3,6 +3,8 @@ import type { ProviderValidationStep } from '@proj-airi/stage-ui/libs'
 import type { ZodType } from 'zod'
 import type { $ZodType } from 'zod/v4/core'
 
+import DOMPurify from 'dompurify'
+
 import { merge } from '@moeru/std'
 import {
   Alert,
@@ -15,8 +17,6 @@ import {
   ProviderSettingsLayout,
   ProviderValidationDetailsDialog,
 } from '@proj-airi/stage-ui/components'
-import DOMPurify from 'dompurify'
-
 import { getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
 import { useProviderCatalogStore } from '@proj-airi/stage-ui/stores/provider-catalog'
 import { Button, Callout, FieldCombobox, FieldInput, FieldKeyValues } from '@proj-airi/ui'
