@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { pickAvailableAudioInputId } from './device'
+import { pickAvailableAudioInputId } from './audio-device'
 
 function createAudioInput(deviceId: string, label: string): MediaDeviceInfo {
   return {

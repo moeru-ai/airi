@@ -1,10 +1,24 @@
 import { useDevicesList, useUserMedia } from '@vueuse/core'
 import { computed, nextTick, ref, watch } from 'vue'
 
+export function pickAvailableAudioInputId(inputs: MediaDeviceInfo[], preferredDeviceId: string): string {
+  if (inputs.length === 0)
+    return ''
+
+  const preferred = preferredDeviceId.trim()
+  if (preferred && inputs.some(input => input.deviceId === preferred))
+    return preferred
+
+  if (inputs.some(input => input.deviceId === 'default'))
+    return 'default'
+
+  return inputs[0]?.deviceId ?? ''
+}
+
 export function useAudioDevice(requestPermission: boolean = false) {
   const devices = useDevicesList({ constraints: { audio: true }, requestPermissions: requestPermission })
   const audioInputs = computed(() => devices.audioInputs.value)
-  const selectedAudioInput = ref<string>(devices.audioInputs.value.find(device => device.deviceId === 'default')?.deviceId || '')
+  const selectedAudioInput = ref<string>(pickAvailableAudioInputId(devices.audioInputs.value, 'default'))
   const deviceConstraints = computed<MediaStreamConstraints>(() => ({
     audio: {
       deviceId: { exact: selectedAudioInput.value },
@@ -16,18 +30,14 @@ export function useAudioDevice(requestPermission: boolean = false) {
   const { stream, stop: stopStream, start: startStream } = useUserMedia({ constraints: deviceConstraints, enabled: false, autoSwitch: true })
 
   watch(audioInputs, () => {
-    if (!selectedAudioInput.value && audioInputs.value.length > 0) {
-      selectedAudioInput.value = audioInputs.value.find(input => input.deviceId === 'default')?.deviceId || audioInputs.value[0].deviceId
-    }
+    selectedAudioInput.value = pickAvailableAudioInputId(audioInputs.value, selectedAudioInput.value)
   })
 
   function askPermission() {
     return devices.ensurePermissions()
       .then(() => nextTick())
       .then(() => {
-        if (audioInputs.value.length > 0 && !selectedAudioInput.value) {
-          selectedAudioInput.value = audioInputs.value.find(input => input.deviceId === 'default')?.deviceId || audioInputs.value[0].deviceId
-        }
+        selectedAudioInput.value = pickAvailableAudioInputId(audioInputs.value, selectedAudioInput.value)
       })
       .catch((error) => {
         console.error('Error ensuring permissions:', error)

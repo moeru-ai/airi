@@ -167,6 +167,10 @@ export const useWeChatStore = defineStore('wechat', () => {
       && activeSpeechVoiceId.value.trim() !== ''
   })
 
+  const configured = computed(() => {
+    return enabled.value && connectionStatus.value === 'connected'
+  })
+
   function buildTtsConfigPayload(): WeChatTtsConfigPayload | null {
     const providerId = activeSpeechProvider.value
     const providerConfig = providersStore.getProviderConfig(providerId) ?? {}
@@ -488,6 +492,7 @@ export const useWeChatStore = defineStore('wechat', () => {
 
   return {
     enabled,
+    configured,
     voiceReplyMode,
     aiGirlfriendEnabled,
     memeProbability,
