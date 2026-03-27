@@ -11,7 +11,10 @@ import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models
 import { clearMcpToolBridge, setMcpToolBridge } from '@proj-airi/stage-ui/stores/mcp-tool-bridge'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
+import { clearModuleRuntimePrepareHandler, setModuleRuntimeFetchLogsHandler, setModuleRuntimePrepareHandler } from '@proj-airi/stage-ui/stores/module-runtime-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { useQQStore } from '@proj-airi/stage-ui/stores/modules/qq'
+import { useWeChatStore } from '@proj-airi/stage-ui/stores/modules/wechat'
 import { usePerfTracerBridgeStore } from '@proj-airi/stage-ui/stores/perf-tracer-bridge'
 import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from '@proj-airi/stage-ui/stores/plugin-host-capabilities'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -25,6 +28,9 @@ import { toast, Toaster } from 'vue-sonner'
 import ResizeHandler from './components/ResizeHandler.vue'
 
 import {
+  electronEnsureQqOfficialRuntime,
+  electronEnsureWeChatRuntime,
+  electronGetQqOfficialRuntimeLogs,
   electronGetServerChannelConfig,
   electronMcpCallTool,
   electronMcpListTools,
@@ -78,6 +84,9 @@ const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapab
 const listMcpTools = useElectronEventaInvoke(electronMcpListTools)
 const callMcpTool = useElectronEventaInvoke(electronMcpCallTool)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
+const ensureQqOfficialRuntime = useElectronEventaInvoke(electronEnsureQqOfficialRuntime)
+const getQqOfficialRuntimeLogs = useElectronEventaInvoke(electronGetQqOfficialRuntimeLogs)
+const ensureWeChatRuntime = useElectronEventaInvoke(electronEnsureWeChatRuntime)
 
 // NOTICE: register plugin host bridge during setup to avoid race with pages using it in immediate watchers.
 pluginHostInspectorStore.setBridge({
@@ -94,6 +103,45 @@ pluginHostInspectorStore.setBridge({
 setMcpToolBridge({
   listTools: () => listMcpTools(),
   callTool: payload => callMcpTool(payload),
+})
+
+setModuleRuntimePrepareHandler(async (input) => {
+  if (input.moduleName === 'qq') {
+    const config = input.config ?? {}
+    const result = await ensureQqOfficialRuntime({
+      enabled: typeof config.enabled === 'boolean' ? config.enabled : undefined,
+      method: config.method === 'official' || config.method === 'napcat' ? config.method : undefined,
+      officialToken: typeof config.officialToken === 'string' ? config.officialToken : undefined,
+    })
+    return {
+      websocketUrl: result.airiUrl,
+      running: result.running,
+      ready: result.ready,
+      error: result.error,
+    }
+  }
+
+  if (input.moduleName === 'wechat') {
+    const config = input.config ?? {}
+    const result = await ensureWeChatRuntime({
+      enabled: typeof config.enabled === 'boolean' ? config.enabled : undefined,
+    })
+    return {
+      websocketUrl: result.airiUrl,
+      running: result.running,
+      ready: result.ready,
+      error: result.error,
+    }
+  }
+})
+
+setModuleRuntimeFetchLogsHandler(async (input) => {
+  if (input.moduleName === 'qq') {
+    return await getQqOfficialRuntimeLogs({
+      afterId: typeof input.afterId === 'number' ? input.afterId : undefined,
+      limit: typeof input.limit === 'number' ? input.limit : undefined,
+    })
+  }
 })
 
 watch(language, () => {
@@ -134,6 +182,11 @@ onMounted(async () => {
   characterOrchestratorStore.initialize()
   await startTrackingCursorPoint()
 
+  const qqStore = useQQStore()
+  const wechatStore = useWeChatStore()
+  await qqStore.initializeAutoConnect()
+  await wechatStore.initializeAutoConnect()
+
   // Expose stage provider definitions to plugin host APIs.
   defineInvokeHandler(context.value, pluginProtocolListProviders, async () => listProvidersForPluginHost())
 
@@ -159,6 +212,7 @@ watch(themeColorsHueDynamic, () => {
 onUnmounted(() => {
   contextBridgeStore.dispose()
   clearMcpToolBridge()
+  clearModuleRuntimePrepareHandler()
 })
 </script>
 

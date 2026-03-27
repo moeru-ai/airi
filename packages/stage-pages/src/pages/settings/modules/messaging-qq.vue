@@ -21,7 +21,7 @@ const isWeb = computed(() => isStageWeb())
       {{ t('settings.pages.modules.messaging-qq.web-not-supported') }}
     </p>
   </div>
-  <MessagingQQ />
+  <MessagingQQ v-else />
 </template>
 
 <route lang="yaml">

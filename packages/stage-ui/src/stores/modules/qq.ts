@@ -31,11 +31,29 @@ export interface QQEmotionMemePackConfig {
   images: QQMemeImageConfig[]
 }
 
-function normalizeEmotionMemePacks(packs: QQEmotionMemePackConfig[]): QQEmotionMemePackConfig[] {
-  return packs.map(pack => ({
-    state: pack.state,
-    images: pack.images.map(image => ({ ...image })),
-  }))
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function normalizeEmotionMemePacks(packs: unknown): QQEmotionMemePackConfig[] {
+  if (!Array.isArray(packs))
+    return []
+
+  return packs.map((pack) => {
+    const record = isRecord(pack) ? pack : {}
+    const state = typeof record.state === 'string' ? record.state : ''
+    const rawImages = Array.isArray(record.images) ? record.images : []
+    const images = rawImages
+      .map((image) => {
+        if (!isRecord(image))
+          return null
+        if (typeof image.id !== 'string' || typeof image.name !== 'string' || typeof image.mimeType !== 'string' || typeof image.dataBase64 !== 'string')
+          return null
+        return { id: image.id, name: image.name, mimeType: image.mimeType, dataBase64: image.dataBase64 }
+      })
+      .filter((value): value is QQMemeImageConfig => value !== null)
+    return { state, images }
+  })
 }
 
 function mergeEmotionMemePacks(sources: QQEmotionMemePackConfig[][]): QQEmotionMemePackConfig[] {
@@ -43,7 +61,7 @@ function mergeEmotionMemePacks(sources: QQEmotionMemePackConfig[][]): QQEmotionM
   let unnamedIndex = 0
 
   for (const source of sources) {
-    for (const pack of source) {
+    for (const pack of normalizeEmotionMemePacks(source)) {
       const normalizedState = pack.state.trim().toLowerCase()
       const stateKey = normalizedState || `__unnamed__${unnamedIndex++}`
       const existing = mergedByState.get(stateKey)
