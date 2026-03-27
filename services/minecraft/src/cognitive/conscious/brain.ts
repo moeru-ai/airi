@@ -239,8 +239,6 @@ const NO_ACTION_STAGNATION_REPEAT_LIMIT = 2
 const ERROR_BURST_GUARD_SOURCE_ID = 'brain:error_burst_guard'
 const ERROR_BURST_THRESHOLD = 3
 const ERROR_BURST_WINDOW_TURNS = 5
-const DEFAULT_LLM_ATTEMPT_TIMEOUT_MS = 15_000
-const DEFAULT_LLM_TURN_DEADLINE_MS = 45_000
 const MAX_EVENT_QUEUE_LENGTH = 256
 const MAX_CONSECUTIVE_HIGH_PRIORITY_TURNS = 8
 const PAUSE_ABORT_ERROR_NAME = 'AbortError'
@@ -284,8 +282,6 @@ export class Brain {
   private llmTraceIdCounter = 0
   private turnCounter = 0
   private currentInputEnvelope: RuntimeInputEnvelope | null = null
-  private llmAttemptTimeoutMs = DEFAULT_LLM_ATTEMPT_TIMEOUT_MS
-  private llmTurnDeadlineMs = DEFAULT_LLM_TURN_DEADLINE_MS
   private readonly llmLogRuntime = createLlmLogRuntime(() => this.llmLogEntries)
   private readonly patternRuntime = createPatternRuntime(PATTERN_CATALOG)
 
@@ -553,34 +549,17 @@ export class Brain {
     this.currentLlmAbortController = null
   }
 
-  private async callLLMWithTimeout(messages: Message[], attemptTimeoutMs: number): Promise<LLMResult> {
+  private async callLLM(messages: Message[]): Promise<LLMResult> {
     const abortController = new AbortController()
-    const timeoutError = Object.assign(
-      new Error(`LLM call timeout after ${attemptTimeoutMs}ms`),
-      { name: 'TimeoutError' },
-    )
 
     this.currentLlmAbortController = abortController
-    let timeoutHandle: ReturnType<typeof setTimeout> | undefined
     try {
-      const llmCallPromise = this.deps.llmAgent.callLLM({
+      return await this.deps.llmAgent.callLLM({
         messages,
         abortSignal: abortController.signal,
-        timeoutMs: attemptTimeoutMs,
       })
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        timeoutHandle = setTimeout(() => {
-          if (!abortController.signal.aborted)
-            abortController.abort(timeoutError)
-          reject(timeoutError)
-        }, attemptTimeoutMs)
-      })
-
-      return await Promise.race([llmCallPromise, timeoutPromise])
     }
     finally {
-      if (timeoutHandle)
-        clearTimeout(timeoutHandle)
       if (this.currentLlmAbortController === abortController)
         this.currentLlmAbortController = null
     }
@@ -2089,8 +2068,6 @@ export class Brain {
     let result: string | null = null
     let capturedReasoning: string | undefined
     let lastError: unknown
-    const llmTurnDeadlineAt = Date.now() + this.llmTurnDeadlineMs
-
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       // Check pause at start of each retry attempt
       if (this.paused) {
@@ -2108,17 +2085,6 @@ export class Brain {
       }
 
       try {
-        const remainingTurnMs = llmTurnDeadlineAt - Date.now()
-        if (remainingTurnMs <= 0) {
-          lastError = Object.assign(
-            new Error(`LLM turn deadline exceeded after ${this.llmTurnDeadlineMs}ms`),
-            { name: 'TimeoutError' },
-          )
-          this.deps.logger.withError(lastError as Error).warn('Brain: LLM turn deadline exceeded, skipping turn')
-          break
-        }
-        const attemptTimeoutMs = Math.max(1, Math.min(this.llmAttemptTimeoutMs, remainingTurnMs))
-
         // Auto-trim active context if it exceeds the safety limit
         this.autoTrimActiveContext()
 
@@ -2155,14 +2121,12 @@ export class Brain {
             attempt,
             maxAttempts,
             messageCount: messages.length,
-            timeoutMs: attemptTimeoutMs,
-            remainingTurnMs,
           },
         })
 
         const traceStart = Date.now()
 
-        const llmResult = await this.callLLMWithTimeout(messages, attemptTimeoutMs)
+        const llmResult = await this.callLLM(messages)
 
         const content = llmResult.text
         const reasoning = llmResult.reasoning
