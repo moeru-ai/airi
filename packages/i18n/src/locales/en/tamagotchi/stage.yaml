@@ -25,6 +25,8 @@ docs:
   'close': Close
   'expand': Expand
   'collapse': Collapse
+  'login': Sign in
+  'logout': Sign out
 'status-island':
   connected: WebSocket connected
   disconnected: WebSocket disconnected
