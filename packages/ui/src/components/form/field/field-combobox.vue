@@ -21,13 +21,13 @@ const modelValue = defineModel<string>({ required: false })
     <div
       :class="[
         'items-center',
-        props.layout === 'horizontal' ? 'grid grid-rows-2 gap-2' : 'grid grid-cols-2 gap-2',
+        props.layout === 'horizontal' ? 'grid grid-cols-4 gap-2' : 'grid grid-rows-2 gap-2',
       ]"
     >
       <div
         :class="[
           'w-full',
-          props.layout === 'horizontal' ? 'col-span-1' : 'row-span-2',
+          props.layout === 'horizontal' ? 'col-span-3' : 'row-span-2',
         ]"
       >
         <div :class="['flex', 'items-center', 'gap-1', 'break-words', 'text-sm', 'font-medium', 'text-left']">
