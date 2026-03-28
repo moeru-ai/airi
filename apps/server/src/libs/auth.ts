@@ -5,11 +5,89 @@ import type { AuthMetrics } from './otel'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { createAuthMiddleware } from 'better-auth/api'
-import { bearer } from 'better-auth/plugins'
+import { bearer, jwt, oidcProvider } from 'better-auth/plugins'
 
 import { getAuthTrustedOrigins } from '../utils/origin'
 
 import * as authSchema from '../schemas/accounts'
+
+interface TrustedClient {
+  clientId: string
+  clientSecret: string
+  name: string
+  type: 'web' | 'native'
+  redirectUrls: string[]
+  disabled: boolean
+  skipConsent: boolean
+  metadata: Record<string, any> | null
+}
+
+/**
+ * Build the list of trusted OIDC clients for first-party applications.
+ * Trusted clients bypass DB lookups and skip consent screens.
+ */
+function buildTrustedClients(env: Env) {
+  const clients: TrustedClient[] = []
+
+  // Web app (production + dev)
+  if (env.OIDC_CLIENT_ID_WEB && env.OIDC_CLIENT_SECRET_WEB) {
+    clients.push({
+      clientId: env.OIDC_CLIENT_ID_WEB,
+      clientSecret: env.OIDC_CLIENT_SECRET_WEB,
+      name: 'AIRI Stage Web',
+      type: 'web' as const,
+      redirectUrls: [
+        'https://airi.moeru.ai/auth/callback',
+        // Development
+        'http://localhost:5173/auth/callback',
+        'http://localhost:4173/auth/callback',
+      ],
+      disabled: false,
+      skipConsent: true,
+      metadata: null,
+    })
+  }
+
+  // Electron desktop app
+  if (env.OIDC_CLIENT_ID_ELECTRON && env.OIDC_CLIENT_SECRET_ELECTRON) {
+    clients.push({
+      clientId: env.OIDC_CLIENT_ID_ELECTRON,
+      clientSecret: env.OIDC_CLIENT_SECRET_ELECTRON,
+      name: 'AIRI Stage Desktop',
+      type: 'native' as const,
+      redirectUrls: [
+        // Loopback redirect (RFC 8252 S7.3) — fixed ports because
+        // better-auth validates redirect_uri via exact string match.
+        'http://127.0.0.1:19721/callback',
+        'http://127.0.0.1:19722/callback',
+        'http://127.0.0.1:19723/callback',
+        'http://127.0.0.1:19724/callback',
+        'http://127.0.0.1:19725/callback',
+      ],
+      disabled: false,
+      skipConsent: true,
+      metadata: null,
+    })
+  }
+
+  // Capacitor mobile app
+  if (env.OIDC_CLIENT_ID_POCKET && env.OIDC_CLIENT_SECRET_POCKET) {
+    clients.push({
+      clientId: env.OIDC_CLIENT_ID_POCKET,
+      clientSecret: env.OIDC_CLIENT_SECRET_POCKET,
+      name: 'AIRI Stage Mobile',
+      type: 'native' as const,
+      redirectUrls: [
+        'capacitor://localhost/auth/callback',
+      ],
+      disabled: false,
+      skipConsent: true,
+      metadata: null,
+    })
+  }
+
+  return clients
+}
 
 // NOTICE: return type uses `any` to avoid TS2742 — betterAuth's inferred type
 // references internal pnpm paths (@better-auth/core) that aren't directly accessible
@@ -25,6 +103,14 @@ export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null)
 
     plugins: [
       bearer(),
+      jwt(),
+      oidcProvider({
+        loginPage: '/sign-in',
+        consentPage: '/oauth/authorize',
+        requirePKCE: true,
+        allowPlainCodeChallengeMethod: false,
+        trustedClients: buildTrustedClients(env),
+      }),
     ],
 
     emailAndPassword: {
