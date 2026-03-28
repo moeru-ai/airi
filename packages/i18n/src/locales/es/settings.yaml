@@ -28,7 +28,7 @@ dialogs:
     start: '¡Hagámoslo!'
     loginPrompt: Sign in to use the official AIRI provider for the best experience.
     loginAction: Sign in
-    localSetup: Configure Local Provider
+    setupWithoutSigningIn: Setup with your provider
     flux: Flux
     buyFlux: Charge Flux
     select-model: Elegir modelo
@@ -51,7 +51,7 @@ dialogs:
 language:
   title: Idioma
   description: >
-    Change the language of the AIRI interface. This will not affect the language of the character's responses.
+    UI language. You can set characters' language later.
 controls-island:
   icon-size:
     title: Tamaño de icono de la isla de controles
@@ -106,7 +106,7 @@ live2d:
     title: FPS
     description: Limitar velocidad de fotogramas
     options:
-      unlimited: Sin límite
+      unlimited: ∞
 microphone: Micrófono
 models: Modelo
 pages:

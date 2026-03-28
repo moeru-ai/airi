@@ -28,7 +28,7 @@ dialogs:
     start: Поехали!
     loginPrompt: Sign in to use the official AIRI provider for the best experience.
     loginAction: Sign in
-    localSetup: Configure Local Provider
+    setupWithoutSigningIn: Setup with your provider
     flux: Flux
     buyFlux: Charge Flux
     select-model: Выберите модель
@@ -51,7 +51,7 @@ dialogs:
 language:
   title: Язык
   description: >
-    Change the language of the AIRI interface. This will not affect the language of the character's responses.
+    UI language. You can set characters' language later.
 controls-island:
   icon-size:
     title: Размер значка Управления островом
@@ -106,7 +106,7 @@ live2d:
     title: ФПС
     description: Ограничить скорость рендеринга кадров
     options:
-      unlimited: Без ограничений
+      unlimited: ∞
 microphone: Микрофон
 models: Модель
 pages:

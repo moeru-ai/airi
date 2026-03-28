@@ -28,7 +28,7 @@ dialogs:
     start: 그럼 시작합시다!
     loginPrompt: Sign in to use the official AIRI provider for the best experience.
     loginAction: Sign in
-    localSetup: Configure Local Provider
+    setupWithoutSigningIn: Setup with your provider
     flux: Flux
     buyFlux: Charge Flux
     select-model: 모델 선택
@@ -51,7 +51,7 @@ dialogs:
 language:
   title: 언어
   description: >
-    Change the language of the AIRI interface. This will not affect the language of the character's responses.
+    UI language. You can set characters' language later.
 controls-island:
   icon-size:
     title: 아일랜드 아이콘 크기 조정
@@ -106,7 +106,7 @@ live2d:
     title: FPS (초당 프레임)
     description: 렌더링 주사율 제한
     options:
-      unlimited: 무제한
+      unlimited: ∞
 microphone: 마이크
 models: 모델
 pages:

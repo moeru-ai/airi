@@ -59,7 +59,7 @@ function createWaiter(timeoutMs: number, abortSignal?: AbortSignal) {
   }
 }
 
-const DEFAULT_SESSION_OPTIONS: Pick<EventStartTranscription['payload'], 'format' | 'sample_rate'> = {
+const DEFAULT_SESSION_OPTIONS: EventStartTranscription['payload'] = {
   format: 'pcm',
   sample_rate: 16000,
 }
@@ -337,8 +337,6 @@ async function startRealtimeSession(options: InternalRealtimeOptions): Promise<A
     await tryCatch(() => hooks?.onWebSocketOpen?.())
 
     session.start(websocket!, {
-      enable_intermediate_result: true,
-      enable_punctuation_prediction: true,
       ...DEFAULT_SESSION_OPTIONS,
       ...sessionOptions,
     })
