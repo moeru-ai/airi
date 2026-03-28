@@ -53,6 +53,7 @@ import { createRequestLogService } from './services/request-log'
 import { createStripeService } from './services/stripe'
 import { ApiError, createInternalError, createUnauthorizedError } from './utils/error'
 import { getTrustedOrigin } from './utils/origin'
+import { renderSignInPage } from './utils/sign-in-page'
 
 interface AppDeps {
   auth: ReturnType<typeof createAuth>
@@ -139,6 +140,26 @@ async function buildApp(deps: AppDeps) {
     .on('GET', '/health', c => c.json({ status: 'ok' }))
 
     /**
+     * Minimal login page for the OIDC Provider flow.
+     * When an unauthenticated user hits /api/auth/oauth2/authorize,
+     * better-auth redirects here. After the user signs in via a social
+     * provider, the oidcProvider after-hook auto-continues the OIDC flow.
+     *
+     * If a `provider` query parameter is present (e.g. `?provider=github`),
+     * skip the picker page and redirect directly to the social provider.
+     */
+    .on('GET', '/sign-in', (c) => {
+      const provider = c.req.query('provider')
+      if (provider === 'google' || provider === 'github') {
+        const socialUrl = `${deps.env.API_SERVER_URL}/api/auth/sign-in/social?provider=${provider}&callbackURL=${encodeURIComponent('/')}`
+        return c.redirect(socialUrl)
+      }
+
+      // Fallback: show the sign-in picker page (e.g. direct browser visit)
+      return c.html(renderSignInPage(deps.env.API_SERVER_URL))
+    })
+
+    /**
      * Auth routes are handled by the auth instance directly,
      * Powered by better-auth.
      * Rate limited by IP: 20 requests per minute.
@@ -149,36 +170,7 @@ async function buildApp(deps: AppDeps) {
       keyGenerator: c => c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'unknown',
     }))
     .on(['POST', 'GET'], '/api/auth/*', async (c) => {
-      const response: Response = await deps.auth.handler(c.req.raw)
-
-      // NOTICE: On OAuth callback redirects, the bearer plugin adds the session
-      // token to the `set-auth-token` header. But browsers don't expose headers
-      // from 302 redirects to JS. We append the token to the Location URL's
-      // fragment (#) so the client can extract it. Fragments are never sent to
-      // the server, so they won't leak into CDN/proxy logs or Referer headers.
-      if (response.status === 302) {
-        const token = response.headers.get('set-auth-token')
-        const location = response.headers.get('location')
-        if (token && location) {
-          try {
-            const url = new URL(location)
-            url.hash = `auth_token=${encodeURIComponent(token)}`
-            const headers = new Headers(response.headers)
-            headers.set('location', url.toString())
-            return new Response(response.body, {
-              status: response.status,
-              statusText: response.statusText,
-              headers,
-            })
-          }
-          catch (error) {
-            // If URL parsing fails, return the original response
-            logger.withError(error).warn('Failed to parse redirect URL, cannot append auth_token', { location })
-          }
-        }
-      }
-
-      return response
+      return deps.auth.handler(c.req.raw) as Promise<Response>
     })
 
     /**
