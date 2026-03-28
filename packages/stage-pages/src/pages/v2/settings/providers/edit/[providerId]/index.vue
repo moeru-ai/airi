@@ -3,6 +3,7 @@ import type { ProviderValidationStep } from '@proj-airi/stage-ui/libs'
 import type { ZodType } from 'zod'
 import type { $ZodType } from 'zod/v4/core'
 
+// TODO: https://developer.mozilla.org/en-US/docs/Web/API/HTML_Sanitizer_API
 import DOMPurify from 'dompurify'
 
 import { merge } from '@moeru/std'
