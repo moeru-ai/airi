@@ -2,7 +2,7 @@ common:
   save: 保存
 animations:
   stage-transitions:
-    title: 是否开启舞台动画
+    title: 是否开启舞台切换动画
   use-page-specific-transitions:
     description: >-
       某些页面会有自己的过场动画，这将覆盖舞台过场动画
@@ -19,57 +19,59 @@ dialogs:
     baseUrlHelp: API 端点 URL（如果不确定请使用默认值）
     accountId: 账户 ID
     validationSuccess: 配置验证成功
-    validationPartial: Configuration partially validated
     validationFailed: 配置验证失败
     validationError: '验证错误：{error}'
-    testGeneration: Test Generation
-    testGenerationRunning: Testing...
-    testGenerationFailed: Generation test failed
     skipForNow: 暂时跳过
     saveAndContinue: 保存并继续
     next: 下一步
     retry: 重试
     start: 开始吧！
+    loginPrompt: Sign in to use the official AIRI provider for the best experience.
+    loginAction: Sign in
+    localSetup: Configure Local Provider
+    flux: Flux
+    buyFlux: Charge Flux
     select-model: 选择模型
     no-models: 找不到可用模型
     no-models-help: >-
       请返回上一步并检查您的 API Key，或检查网络连接。
     permissions:
-      title: Notifications
-      description: You can allow notifications now or continue and set it up later.
-      notificationsTitle: Notifications
-      notificationsDescription: Allow reminders and important status updates.
-      notificationsAction: Request notification permission
-      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
-      openSettings: Open iOS Settings
-      optionalHint: You can continue even if notification permission is not granted.
-      stateUnknown: Not requested
-      stateRequesting: Requesting...
-      stateGranted: Granted
-      stateNotGranted: Not granted
+      title: 通知
+      description: 您现在可以允许通知或者继续并稍后设置。
+      notificationsTitle: 通知
+      notificationsDescription: 允许提醒以及重要的状态更新。
+      notificationsAction: 需要获取消息通知权限
+      notificationsNotGrantedHint: 如果拒绝，您可以稍后从 iOS 设置中启用通知。
+      openSettings: 打开系统/偏好设置
+      optionalHint: 即使没有授予通知权限，您也可以继续。
+      stateUnknown: 未请求
+      stateRequesting: 正在获取...
+      stateGranted: 已授权
+      stateNotGranted: 未授权
 language:
   title: 语言
-  description: UI language
+  description: >
+    Change the language of the AIRI interface. This will not affect the language of the character's responses.
 controls-island:
   icon-size:
     title: 控制岛图标大小
-    description: 调整控制岛屿图标的大小
-    auto: 自动(响应式)
-    large: 大(默认)
+    description: 调整控制岛图标的大小
+    auto: 自动（响应式）
+    large: 大（默认）
     small: 小
 analytics:
   notice:
-    title: Usage analytics
-    description: AIRI collects anonymous usage analytics to help us understand how the app is used and improve stability. No personal data is collected.
-    privacyPrefix: Read the
-    privacyLink: privacy policy
-    onboardingHint: You can turn analytics off later in Settings > System > General.
-    settingsHint: You can turn analytics off at any time.
+    title: 使用数据及崩溃分析
+    description: AIRI 开发者将会收集脱敏的匿名使用数据，以及崩溃及错误细节，以帮助我们了解应用程序是如何使用和提高稳定性的，不会收集任何个人数据。
+    privacyPrefix: 阅读
+    privacyLink: 隐私政策
+    onboardingHint: 您可以稍后在「设置」>「系统」>「通用」中关闭使用数据及崩溃分析。
+    settingsHint: 您可以随时关闭使用数据及崩溃分析。
   toggle:
-    title: Enable usage analytics
-    description: Turn this off to opt out of analytics collection.
+    title: 允许收集使用数据及崩溃分析
+    description: 关闭任何非必要使用数据及崩溃分析的采集与上传
   disabled:
-    title: Analytics disabled for this development build
+    title: 此开发版本的使用数据及崩溃分析功能已禁用
 live2d:
   change-model:
     from-file: 从文件加载
@@ -104,7 +106,7 @@ live2d:
     title: 帧率
     description: 限制渲染帧率
     options:
-      unlimited: 无限制
+      unlimited: '∞'
 microphone: 麦克风
 models: 模型
 pages:
@@ -188,7 +190,7 @@ pages:
     scenario: 场景
     search: 搜索角色卡...
     sort_by: 排序方式
-    body-model: Body / Display Model
+    body-model: 身体 / 显示模型
     speech:
       provider: 语音 / 提供商
       model: 声音 / 模型
@@ -230,10 +232,6 @@ pages:
         title: 删除所有数据
         description: 清除每个本地设置、提供商配置和模型。
         delete: 删除所有数据
-      desktop-folder:
-        title: Open app data folder
-        description: Open AIRI's data folder in your file manager.
-        open: Open folder
       desktop:
         title: 重置桌面设置和状态
         description: 清除 AIRI 桌面设置和运行状态。
@@ -318,7 +316,7 @@ pages:
           provider-model-selection:
             collapse: 折叠
             custom_model_placeholder: 输入自订模型名称
-            current_model_label: 'Current model:'
+            current_model_label: '当前模型：'
             description: 为意识选择合适的 LLM 服务来源
             error: 获取出错啦
             health_check_failed: 健康检查失败
@@ -460,11 +458,36 @@ pages:
       runtime-title: 运行状态
       actions:
         open-config: 打开 mcp.json
-        apply-and-restart: 保存并重启 stdio MCP
+        apply-and-restart: 保存并重启 Stdio 协议的 MCP
       messages:
-        opened: 配置文件已于{path}打开
-        restarted: >-
-          MCP 服务已重新启动，启动了{started}，未启动{failed}，跳过{skipped}
+        opened: 配置文件已于 {path} 打开
+        restarted: MCP 服务已重新启动，启动了 {started}，未启动 {failed}，跳过 {skipped}
+  flux:
+    title: Flux
+    buy: Charge
+    description: Current Flux
+    packagesError: Failed to load packages. Please try again later.
+    checkout:
+      success: Payment successful! Your Flux has been topped up.
+      canceled: Payment was canceled.
+      error: Something went wrong. Please try again later.
+    audit:
+      title: Transaction History
+      time: Time
+      type: Type
+      detail: Detail
+      amount: Amount
+      typeAddition: Top-up
+      typeConsumption: Usage
+      typeInitial: Initial Grant
+      loading: Loading history...
+      empty: No transaction records yet.
+      loadMore: Load More
+      delayHint: Usage records may be delayed by up to 1 minute
+    packages:
+      title: Flux Packages
+      buy: Charge
+      description: Flux packages to choose from.
   providers:
     explained:
       chat: 文本生成模型服务来源，例如 OpenRouter, OpenAI, Ollama
@@ -509,9 +532,9 @@ pages:
                   value:
                     placeholder: 请求头数值
                 thinking-mode:
-                  label: 思考模式
+                  label: 深度思考模式
                   description: >
-                    Controls Ollama thinking behavior. GPT-OSS only supports low/medium/high levels.
+                    控制 Olama 深度思考的开关。GPT-OSS 只支持低/中/高水平。
                   options:
                     auto: 自动（默认服务来源）
                     disable: 禁用
@@ -744,9 +767,6 @@ pages:
       openai:
         description: OpenAi.com
         title: OpenAI
-      azure-openai:
-        description: Azure OpenAI API
-        title: Azure OpenAI
       openai-compatible:
         description: OpenAI 兼容 API
         title: OpenAI 兼容 API
@@ -758,9 +778,6 @@ pages:
         title: n1n
       openrouter:
         description: OpenRouter.ai
-        title: OpenRouter
-      openrouter-audio-speech:
-        description: openrouter.ai
         title: OpenRouter
       perplexity:
         description: perplexity.ai
@@ -798,7 +815,7 @@ pages:
         description: X.AI
         title: xAI
       zai:
-        description: z.ai
+        description: 智谱大模型
         title: Z.ai
       302-ai:
         description: 302.AI
@@ -815,12 +832,19 @@ pages:
       browser-web-speech-api:
         description: 浏览器原生STT (需要 Chrome/Edge/Safari)
         title: Web 语音API
+      official:
+        title: Official Provider
+        description: Official AI provider by AIRI.
+        speech-title: Official Speech Provider
+        speech-description: Official text-to-speech provider by AIRI.
+        transcription-title: Official Transcription Provider
+        transcription-description: Official speech-to-text provider by AIRI.
       transcriptions:
         playground:
           title: 实验平台
       aihubmix:
         title: AIHubMix
-        description: https://aihubmix.com (10% off)
+        description: https://aihubmix.com (九折优惠)
     title: 服务来源
   connection:
     description: 配置 WebSocket 服务器连接
@@ -864,7 +888,7 @@ pages:
                 title: Markdown Stress
                 description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
               use-magic-keys:
-                title: 使用MagicKeys工具
+                title: useMagicKeys 工具
                 description: 测试快捷键
               audio-record:
                 title: 音频录制
@@ -902,7 +926,7 @@ pages:
                   将麦克风音频流式传输到阿里云 NLS 并检查实时转写
               performance-playground:
                 title: 性能测试场地
-                description: 'VRM expressions + TTS lip sync playground'
+                description: 'VRM 表情 + TTS lip sync 实验平台'
         theme-presets:
           presets:
             default:
@@ -972,12 +996,14 @@ pages:
                 中国传统色彩，源自古代纺织品、瓷器和绘画
               title: 中国传统颜色
           title: 预设
-    title: 外观
+    title: 系统
   page:
     developers:
       open-devtools:
         title: 打开开发者工具
         button: 打开
+  credits:
+    buy: Buy
 sections:
   section:
     general:
@@ -1029,9 +1055,9 @@ vrm:
     skybox-intensity: 天空盒光照强度
     skybox-specular-mix: 漫反射/镜面反射混合系数
 websocket-secure-enabled:
-  title: 启用安全 WebSocket (WSS)
+  title: 启用安全WebSocket (WSS)
   description: >-
-    启用 WSS（WebSocket Secure）以允许开发模式下移动端（pocket）的 HTTPS 连接。这将自动生成自签名证书。
+    启用 WSS (WebSocket Secure) 以便在开发模式下允许移动设备(Pocket) 连接HTTPS 。这将自动生成一个自签名证书。
 wip:
   title: 正在开发中
   description: >-

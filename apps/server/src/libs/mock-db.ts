@@ -11,7 +11,7 @@ import { vi } from 'vitest'
  *
  * @see https://github.com/drizzle-team/drizzle-orm/issues/4205#issuecomment-2747745901
  */
-export async function mockDB(schema: Record<string, any>): Promise<Database<typeof schema>> {
+export async function mockDB(schema: Record<string, any>): Promise<Database> {
   // Hack: dynamic require to bypass ESM/CJS issues with drizzle-kit in Vitest
   const { createRequire } = await vi.importActual<typeof import('node:module')>('node:module')
   const require = createRequire(import.meta.url)
@@ -23,7 +23,7 @@ export async function mockDB(schema: Record<string, any>): Promise<Database<type
   })
 
   // Create Drizzle instance without running full migrations
-  const db = drizzle(client, { schema }) as unknown as Database<typeof schema>
+  const db = drizzle(client, { schema }) as unknown as Database
 
   // Enable pgvector type in this in-memory database before applying schema
   // This mirrors the production pglite initialization which runs:

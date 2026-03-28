@@ -9,6 +9,8 @@ import { useI18n } from 'vue-i18n'
 
 import onboardingLogo from '../../../../assets/onboarding.avif'
 
+import { useAuthStore } from '../../../../stores/auth'
+import { useOnboardingStore } from '../../../../stores/onboarding'
 import { useSettingsGeneral } from '../../../../stores/settings'
 
 interface Props {
@@ -17,12 +19,23 @@ interface Props {
 
 const props = defineProps<Props>()
 const { t } = useI18n()
+const authStore = useAuthStore()
+const onboardingStore = useOnboardingStore()
 const settingsStore = useSettingsGeneral()
 const { language } = storeToRefs(settingsStore)
 
 const languages = computed(() => {
   return Object.entries(all).map(([value, label]) => ({ value, label }))
 })
+
+function handleLogin() {
+  onboardingStore.showingSetup = false
+  authStore.needsLogin = true
+}
+
+function handleLocalSetup() {
+  props.onNext()
+}
 </script>
 
 <template>
@@ -74,14 +87,28 @@ const languages = computed(() => {
         />
       </div>
     </div>
-    <Button
-      v-motion
-      :initial="{ opacity: 0 }"
-      :enter="{ opacity: 1 }"
-      :duration="500"
-      :delay="200"
-      :label="t('settings.dialogs.onboarding.start')"
-      @click="props.onNext"
-    />
+    <div :class="['flex', 'flex-col', 'gap-3', 'md:flex-row']">
+      <Button
+        v-motion
+        :initial="{ opacity: 0 }"
+        :enter="{ opacity: 1 }"
+        :duration="500"
+        :delay="200"
+        :label="t('settings.dialogs.onboarding.loginAction')"
+        :class="['flex-1']"
+        @click="handleLogin"
+      />
+      <Button
+        v-motion
+        :initial="{ opacity: 0 }"
+        :enter="{ opacity: 1 }"
+        :duration="500"
+        :delay="250"
+        variant="secondary"
+        :label="t('settings.dialogs.onboarding.localSetup')"
+        :class="['flex-1']"
+        @click="handleLocalSetup"
+      />
+    </div>
   </div>
 </template>

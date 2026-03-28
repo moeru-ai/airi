@@ -1,0 +1,85 @@
+name: Cloudflare Workers (server-dev)
+
+on:
+  push:
+    branches:
+      - 'server-dev'
+
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy - stage-web (server-dev)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+
+    environment:
+      name: ServerDev
+      url: ${{ steps.preview-urls.outputs.preview_url }}
+
+    steps:
+      - uses: actions/checkout@v6
+      # Turborepo
+      - name: Cache turbo build setup
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+      - run: pnpm i -g wrangler@4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:packages
+      - name: Build stage-web
+        run: |
+          pnpm -F @proj-airi/stage-web run build
+
+          pnpm -F @proj-airi/docs run build:base
+          mv ./docs/.vitepress/dist ./apps/stage-web/dist/docs
+          cp ./apps/stage-web/dist/docs/sitemap.xml ./apps/stage-web/dist/sitemap.xml
+
+          pnpm -F @proj-airi/stage-ui run story:build
+          mv ./packages/stage-ui/.histoire/dist ./apps/stage-web/dist/ui
+        env:
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_REGION: ${{ secrets.S3_REGION }}
+          WARP_DRIVE_PUBLIC_BASE: ${{ secrets.WARP_DRIVE_PUBLIC_BASE }}
+          VITE_SERVER_URL: 'https://airi-server-dev.up.railway.app'
+
+      - name: Wrangler Upload
+        id: wrangler-versions-upload
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: versions upload -c ./apps/stage-web/wrangler.toml --preview-alias server-dev --message "GitHub Actions uploaded server-dev branch preview" --tag v0.0.1-server-dev
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare preview URL
+        id: preview-urls
+        run: |
+          deployment_url="${{ steps.wrangler-versions-upload.outputs.deployment-url }}"
+          if [ -z "$deployment_url" ]; then
+            echo "Deployment URL from wrangler upload is empty." >&2
+            exit 1
+          fi
+
+          host_without_scheme="${deployment_url#https://}"
+          host_without_scheme="${host_without_scheme#http://}"
+          preview_url="https://server-dev-${host_without_scheme#*-}"
+
+          echo "preview_url=$preview_url" >> "$GITHUB_OUTPUT"
+          echo "Preview URL: $preview_url"
