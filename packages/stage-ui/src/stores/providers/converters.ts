@@ -183,9 +183,36 @@ export function convertProviderDefinitionToMetadata(
         : undefined,
     },
     validators: {
-      chatPingCheckDisabled: !(definition.validators?.validateProvider || [])
-        .some(creator => creator({ t }).id.includes('check-chat-completions')),
+      chatPingCheckAvailable: !definition.disableChatPingCheckUI
+        && (definition.validators?.validateProvider || [])
+          .some(creator => creator({ t }).id.includes('check-chat-completions')),
       validateProviderConfig: async (config, options) => {
+        // onlyChatPingCheck: skip all validators except chat completions.
+        // Used by the manual "Test Generation" button on settings pages.
+        if (options?.onlyChatPingCheck) {
+          const plan = getValidatorsOfProvider({
+            definition,
+            config,
+            schemaDefaults,
+            contextOptions: { t },
+          })
+          plan.configValidators = []
+          plan.providerValidators = plan.providerValidators.filter(v => v.id.includes('check-chat-completions'))
+          plan.steps = plan.steps.filter(s => s.id.includes('check-chat-completions'))
+
+          if (plan.providerValidators.length === 0) {
+            return { errors: [], reason: '', valid: true }
+          }
+
+          await validateProvider(plan, { t })
+          const invalidSteps = plan.steps.filter(step => step.status === 'invalid')
+          return {
+            errors: invalidSteps.map(step => new Error(step.reason || `${step.id} is invalid`)),
+            reason: invalidSteps.map(step => step.reason).filter(Boolean).join('; '),
+            valid: invalidSteps.length === 0,
+          }
+        }
+
         const plan = getValidatorsOfProvider({
           definition,
           config,

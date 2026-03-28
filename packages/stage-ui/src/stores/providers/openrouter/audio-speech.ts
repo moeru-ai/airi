@@ -250,7 +250,7 @@ export function buildOpenRouterAudioSpeechProvider(
       listVoices: async () => listVoices(),
     },
     validators: {
-      chatPingCheckDisabled: true,
+      chatPingCheckAvailable: false,
       validateProviderConfig: (config) => {
         const errors: Error[] = []
         if (!config.apiKey)

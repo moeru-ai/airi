@@ -2,7 +2,8 @@
 import type { ProviderMetadata } from '../../../../stores/providers'
 import type { OnboardingStepNextHandler, OnboardingStepPrevHandler } from './types'
 
-import { Button, Callout, FieldInput } from '@proj-airi/ui'
+import { errorMessageFrom } from '@moeru/std'
+import { Button, Callout, FieldCheckbox, FieldInput } from '@proj-airi/ui'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -70,7 +71,7 @@ const needsBaseUrl = computed(() => {
 })
 
 const showChatCheckOption = computed(() => {
-  return !props.selectedProvider?.validators.chatPingCheckDisabled
+  return props.selectedProvider?.validators.chatPingCheckAvailable
 })
 
 const canProceed = computed(() => {
@@ -120,7 +121,7 @@ async function validateConfiguration() {
   catch (error) {
     validation.value = 'failed'
     validationError.value = t('settings.dialogs.onboarding.validationError', {
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMessageFrom(error) ?? 'Unknown error',
     })
   }
 }
@@ -238,16 +239,12 @@ initializeForm()
       </div>
 
       <!-- Chat Ping Check Option -->
-      <label v-if="showChatCheckOption" class="flex cursor-pointer items-center gap-2">
-        <input
-          v-model="enableChatCheck"
-          type="checkbox"
-          :class="['h-4 w-4 rounded border-gray-300 accent-violet-500']"
-        >
-        <span :class="['text-sm text-neutral-600 dark:text-neutral-400']">
-          {{ t('settings.dialogs.onboarding.enableChatCheck') }}
-        </span>
-      </label>
+      <FieldCheckbox
+        v-if="showChatCheckOption"
+        v-model="enableChatCheck"
+        :label="t('settings.dialogs.onboarding.enableChatCheck')"
+        placement="left"
+      />
 
       <!-- Validation Status -->
       <Alert v-if="validation === 'failed'" type="error">

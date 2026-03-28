@@ -139,7 +139,7 @@ export interface ProviderMetadata {
     loadModel?: (config: Record<string, unknown>, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
   }
   validators: {
-    validateProviderConfig: (config: Record<string, unknown>, options?: { skipChatPingCheck?: boolean }) => Promise<{
+    validateProviderConfig: (config: Record<string, unknown>, options?: { skipChatPingCheck?: boolean, onlyChatPingCheck?: boolean }) => Promise<{
       errors: unknown[]
       reason: string
       valid: boolean
@@ -148,7 +148,13 @@ export interface ProviderMetadata {
       reason: string
       valid: boolean
     }
-    chatPingCheckDisabled: boolean
+    /**
+     * Whether the "skip chat ping check" checkbox should be shown in the UI.
+     *
+     * Automatically derived: `true` when the provider has a ChatCompletions
+     * runtime validator AND `disableChatPingCheckUI` is not set on the definition.
+     */
+    chatPingCheckAvailable: boolean
   }
   /**
    * If true, the provider does not require user-provided credentials (e.g. API keys).
@@ -268,7 +274,7 @@ export const useProvidersStore = defineStore('providers', () => {
         listVoices: async () => [],
       },
       validators: {
-        chatPingCheckDisabled: true,
+        chatPingCheckAvailable: false,
         validateProviderConfig: () => ({
           errors: [],
           reason: '',
@@ -289,7 +295,7 @@ export const useProvidersStore = defineStore('providers', () => {
       creator: createOpenAI,
       validation: [],
       validators: {
-        chatPingCheckDisabled: true,
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           if (!config.baseUrl) {
             return {
@@ -320,7 +326,7 @@ export const useProvidersStore = defineStore('providers', () => {
       creator: createOpenAI,
       validation: [],
       validators: {
-        chatPingCheckDisabled: true,
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           if (!config.baseUrl) {
             return {
@@ -351,7 +357,7 @@ export const useProvidersStore = defineStore('providers', () => {
       creator: createOpenAI,
       validation: [],
       validators: {
-        chatPingCheckDisabled: true,
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           if (!config.baseUrl) {
             return {
@@ -382,7 +388,7 @@ export const useProvidersStore = defineStore('providers', () => {
       creator: createOpenAI,
       validation: [],
       validators: {
-        chatPingCheckDisabled: true,
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           if (!config.baseUrl) {
             return {
@@ -556,7 +562,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
-        chatPingCheckDisabled: true,
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API Key is required'),
@@ -692,7 +698,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
-        chatPingCheckDisabled: true,
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API Key is required'),
@@ -794,7 +800,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
-        chatPingCheckDisabled: true,
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors: Error[] = []
           const toString = (value: unknown) => typeof value === 'string' ? value.trim() : ''
@@ -874,7 +880,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
-        chatPingCheckDisabled: true,
+        chatPingCheckAvailable: false,
         validateProviderConfig: () => {
           // Web Speech API requires no configuration, just browser support
           // Always return valid if browser supports it, so it auto-configures
@@ -968,7 +974,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
-        chatPingCheckDisabled: true,
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API key is required.'),
@@ -1053,7 +1059,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
-        chatPingCheckDisabled: true,
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors: Error[] = []
           if (!config.apiKey) {
@@ -1119,7 +1125,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
-        chatPingCheckDisabled: true,
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API key is required.'),
@@ -1196,7 +1202,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
-        chatPingCheckDisabled: true,
+        chatPingCheckAvailable: false,
         validateProviderConfig: async (config) => {
           const errors = [
             !config.baseUrl && new Error('Base URL is required. Default to http://localhost:11996/tts/ for Index-TTS.'),
@@ -1286,7 +1292,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
-        chatPingCheckDisabled: true,
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API key is required.'),
@@ -1352,7 +1358,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
-        chatPingCheckDisabled: true,
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API key is required.'),
@@ -1487,7 +1493,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
-        chatPingCheckDisabled: true,
+        chatPingCheckAvailable: false,
         validateProviderConfig: async (config) => {
           const errors = [
             !config.baseUrl && new Error('Base URL is required. Default to http://localhost:4315/v1/'),
@@ -1688,7 +1694,7 @@ export const useProvidersStore = defineStore('providers', () => {
       },
 
       validators: {
-        chatPingCheckDisabled: true,
+        chatPingCheckAvailable: false,
         validateProviderConfig: async (config: any) => {
           const model = config.model as string
 

@@ -19,9 +19,15 @@ dialogs:
     baseUrl: Base URL
     baseUrlHelp: API endpoint URL (use default if unsure)
     accountId: Account ID
+    validationRunning: Running basic tests
     validationSuccess: Configuration validation success
+    validationPartial: Configuration partially validated
     validationFailed: Configuration validation failed
     validationError: 'Validation error: {error}'
+    testGeneration: Ping API
+    testGenerationRunning: Ping...
+    testGenerationFailed: Ping test failed
+    retryPingCheck: Retry
     skipForNow: Skip for now
     saveAndContinue: Save and Continue
     next: Next

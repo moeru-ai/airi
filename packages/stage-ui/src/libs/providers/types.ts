@@ -56,7 +56,7 @@ export enum ProviderValidationCheck {
   /** Send generateText ping with fine-grained error handling and caching (definition system) */
   ChatCompletions = 'chat_completions',
   /**
-   * @Deprecated
+   * @deprecated
    * Being used in builder system (a deprecated provider creation protocol),
    * currently used by only OpenAI TTS && OpenAI Transcription.
    * Send generateText ping with simple pass/fail, fallback to 'test' model (builder system)
@@ -173,6 +173,16 @@ export interface ProviderDefinition<TConfig extends any = any> {
       streamInput: boolean
     }
   }
+  /**
+   * When true, hides the "skip chat ping check" checkbox in the UI even
+   * when the provider defines a ChatCompletions validator.
+   *
+   * By default, the checkbox is shown automatically whenever a provider
+   * includes a ChatCompletions runtime validator. Set this to `true` for
+   * providers where skipping that check is not meaningful or has not been
+   * verified yet.
+   */
+  disableChatPingCheckUI?: boolean
   business?: (contextOptions: { t: ComposerTranslation }) => {
     troubleshooting?: {
       validators?: {

@@ -116,7 +116,7 @@ export function buildOpenAICompatibleProvider(
   }
 
   const finalValidators = validators || {
-    chatPingCheckDisabled: true,
+    chatPingCheckAvailable: false,
     validateProviderConfig: async (config: Record<string, unknown>) => {
       const errors: Error[] = []
       let baseUrl = normalizeString(config.baseUrl)

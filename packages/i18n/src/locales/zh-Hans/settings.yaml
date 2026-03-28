@@ -18,9 +18,15 @@ dialogs:
     baseUrl: 基础 URL
     baseUrlHelp: API 端点 URL（如果不确定请使用默认值）
     accountId: 账户 ID
+    validationRunning: 正在验证配置
     validationSuccess: 配置验证成功
+    validationPartial: 配置部分验证通过
     validationFailed: 配置验证失败
     validationError: '验证错误：{error}'
+    testGeneration: Ping API
+    testGenerationRunning: Ping...
+    testGenerationFailed: Ping 测试失败
+    retryPingCheck: 再试一次
     skipForNow: 暂时跳过
     saveAndContinue: 保存并继续
     next: 下一步
