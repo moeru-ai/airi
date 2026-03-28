@@ -52,24 +52,26 @@ export function initializeAuth() {
 }
 
 /**
- * After OAuth callback, the server appends `?auth_token=<token>` to the
- * redirect URL. Extract it, persist to the auth store, and clean the URL.
+ * After OAuth callback, the server appends `#auth_token=<token>` to the
+ * redirect URL. Fragments are never sent to the server, avoiding leakage
+ * into CDN/proxy logs or Referer headers. Extract it, persist, and clean.
  */
 function extractTokenFromURL() {
-  const params = new URLSearchParams(window.location.search)
+  const hash = window.location.hash.slice(1) // remove leading '#'
+  if (!hash)
+    return
+
+  const params = new URLSearchParams(hash)
   const token = params.get('auth_token')
   if (!token)
     return
 
   // Persist immediately via raw localStorage so getAuthToken() picks it up
   // before the Pinia store is hydrated.
-  localStorage.setItem('auth/v1/token', token)
+  localStorage.setItem('auth/v1/token', decodeURIComponent(token))
 
-  // Clean the token from the URL to avoid leaking it in browser history
-  params.delete('auth_token')
-  const cleaned = params.toString()
-  const newURL = `${window.location.pathname}${cleaned ? `?${cleaned}` : ''}${window.location.hash}`
-  window.history.replaceState(null, '', newURL)
+  // Clean the fragment from the URL to avoid leaking it in browser history
+  window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
 }
 
 export async function fetchSession() {

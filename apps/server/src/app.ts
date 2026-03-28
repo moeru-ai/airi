@@ -153,15 +153,16 @@ async function buildApp(deps: AppDeps) {
 
       // NOTICE: On OAuth callback redirects, the bearer plugin adds the session
       // token to the `set-auth-token` header. But browsers don't expose headers
-      // from 302 redirects to JS. So we append the token to the Location URL,
-      // allowing the client to extract and store it for Bearer auth.
+      // from 302 redirects to JS. We append the token to the Location URL's
+      // fragment (#) so the client can extract it. Fragments are never sent to
+      // the server, so they won't leak into CDN/proxy logs or Referer headers.
       if (response.status === 302) {
         const token = response.headers.get('set-auth-token')
         const location = response.headers.get('location')
         if (token && location) {
           try {
             const url = new URL(location)
-            url.searchParams.set('auth_token', token)
+            url.hash = `auth_token=${encodeURIComponent(token)}`
             const headers = new Headers(response.headers)
             headers.set('location', url.toString())
             return new Response(response.body, {
@@ -170,8 +171,9 @@ async function buildApp(deps: AppDeps) {
               headers,
             })
           }
-          catch {
+          catch (error) {
             // If URL parsing fails, return the original response
+            logger.withError(error).warn('Failed to parse redirect URL, cannot append auth_token', { location })
           }
         }
       }
