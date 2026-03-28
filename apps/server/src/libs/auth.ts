@@ -37,6 +37,7 @@ export interface AuthSession {
 export interface AuthInstance {
   google: Google
   github: GitHub
+  googleClientId: string
 
   /** Generate a JWT access token for a user (short-lived, 1 hour) */
   createAccessToken: (user: AuthUser) => Promise<string>
@@ -128,15 +129,27 @@ export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null)
       .sign(jwtSecret)
   }
 
+  /**
+   * Extract and validate required claims from a verified JWT payload.
+   * Returns null if any required claim is missing or has the wrong type.
+   */
+  function extractClaims(payload: Record<string, unknown>): JwtPayload | null {
+    const { sub, email, name, image } = payload
+    if (typeof sub !== 'string' || typeof email !== 'string' || typeof name !== 'string') {
+      return null
+    }
+    return {
+      sub,
+      email,
+      name,
+      image: typeof image === 'string' ? image : null,
+    }
+  }
+
   async function verifyAccessToken(token: string): Promise<JwtPayload | null> {
     try {
       const { payload } = await jwtVerify(token, jwtSecret, { issuer: 'airi' })
-      return {
-        sub: payload.sub!,
-        email: payload.email as string,
-        name: payload.name as string,
-        image: (payload.image as string | null) ?? null,
-      }
+      return extractClaims(payload)
     }
     catch {
       return null
@@ -146,12 +159,7 @@ export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null)
   async function verifyRefreshToken(token: string): Promise<JwtPayload | null> {
     try {
       const { payload } = await jwtVerify(token, jwtSecret, { issuer: 'airi' })
-      return {
-        sub: payload.sub!,
-        email: payload.email as string,
-        name: payload.name as string,
-        image: (payload.image as string | null) ?? null,
-      }
+      return extractClaims(payload)
     }
     catch {
       return null
@@ -297,6 +305,7 @@ export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null)
   return {
     google,
     github,
+    googleClientId: env.AUTH_GOOGLE_CLIENT_ID,
     createAccessToken,
     createRefreshToken,
     verifyAccessToken,

@@ -3,9 +3,16 @@ import type { HonoEnv } from '../types/hono'
 
 import { Hono } from 'hono'
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie'
+import { createRemoteJWKSet, jwtVerify } from 'jose'
 
 import { createBadRequestError, createUnauthorizedError } from '../utils/error'
 import { getTrustedOrigin } from '../utils/origin'
+
+/**
+ * Google's JWKS endpoint for verifying ID token signatures.
+ * Cached by jose internally; avoids re-fetching on every request.
+ */
+const googleJWKS = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'))
 
 /**
  * Auth routes handle OAuth login flows and JWT token management.
@@ -100,14 +107,23 @@ export function createAuthRoutes(auth: AuthInstance): Hono<HonoEnv> {
           }
           const tokens = await auth.google.validateAuthorizationCode(code, codeVerifier)
           const idToken = tokens.idToken()
-          // Decode Google ID token to get user info
-          const claims = decodeJwtPayload(idToken)
+
+          // Verify Google ID token signature and validate audience/issuer
+          const { payload: claims } = await jwtVerify(idToken, googleJWKS, {
+            issuer: ['https://accounts.google.com', 'accounts.google.com'],
+            audience: auth.googleClientId,
+          })
+
+          if (typeof claims.sub !== 'string' || typeof claims.email !== 'string') {
+            throw createBadRequestError('Invalid Google ID token: missing required claims')
+          }
+
           profile = {
             provider: 'google',
-            providerAccountId: claims.sub as string,
-            email: claims.email as string,
-            name: (claims.name as string) ?? (claims.email as string),
-            image: (claims.picture as string) ?? null,
+            providerAccountId: claims.sub,
+            email: claims.email,
+            name: (typeof claims.name === 'string' ? claims.name : claims.email),
+            image: (typeof claims.picture === 'string' ? claims.picture : null),
           }
           break
         }
@@ -128,8 +144,10 @@ export function createAuthRoutes(auth: AuthInstance): Hono<HonoEnv> {
               headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
             })
             const emails = await emailRes.json() as Array<{ email: string, primary: boolean, verified: boolean }>
-            const primaryEmail = emails.find(e => e.primary && e.verified)
-            email = primaryEmail?.email ?? emails[0]?.email ?? null
+            // Only consider verified emails to prevent account takeover via unverified email
+            const verifiedEmails = emails.filter(e => e.verified)
+            const primaryEmail = verifiedEmails.find(e => e.primary)
+            email = primaryEmail?.email ?? verifiedEmails[0]?.email ?? null
           }
 
           if (!email) {
@@ -277,23 +295,6 @@ export function createAuthRoutes(auth: AuthInstance): Hono<HonoEnv> {
   })
 
   return app
-}
-
-const BASE64_DASH = /-/g
-const BASE64_UNDERSCORE = /_/g
-
-/**
- * Decode JWT payload without verification (for reading ID token claims).
- * The token has already been validated by the OAuth provider.
- */
-function decodeJwtPayload(token: string): Record<string, unknown> {
-  const parts = token.split('.')
-  if (parts.length !== 3) {
-    throw new Error('Invalid JWT format')
-  }
-  const payload = parts[1]
-  const decoded = atob(payload.replace(BASE64_DASH, '+').replace(BASE64_UNDERSCORE, '/'))
-  return JSON.parse(decoded)
 }
 
 /**
