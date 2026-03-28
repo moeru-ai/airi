@@ -96,7 +96,7 @@ export function useProviderValidation(providerId: string) {
     catch (error) {
       isValid.value = false
       finalValidationMessage = t('settings.dialogs.onboarding.validationError', {
-        error: errorMessageFrom(error) ?? 'Unknown error',
+        error: errorMessageFrom(error) ?? 'Generic error (993b5ad7)',
       })
     }
     finally {
