@@ -75,7 +75,7 @@ async function main() {
   const airiClient = new Client({
     name: config.airi.clientName,
     url: config.airi.wsBaseUrl,
-    possibleEvents: ['module:configure', 'spark:command', 'context:update'],
+    possibleEvents: ['module:configure', 'module:announced', 'spark:command', 'context:update'],
     autoConnect: false,
     onError: error => airiConnectionLifecycle?.reportUnavailable(error),
     onClose: () => airiConnectionLifecycle?.reportDisconnected(),

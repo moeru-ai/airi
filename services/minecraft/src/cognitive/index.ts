@@ -23,9 +23,11 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
       const reflexManager = container.resolve('reflexManager')
       const taskExecutor = container.resolve('taskExecutor')
       const airiBridge = container.resolve('airiBridge')
+      const minecraftContextService = container.resolve('minecraftContextService')
       const debugService = DebugService.getInstance()
 
       airiBridge.init()
+      minecraftContextService.init()
 
       if (config.debug.mcp) {
         mcpReplServer = new McpReplServer(brain)
@@ -149,6 +151,9 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
       }
 
       if (container) {
+        const minecraftContextService = container.resolve('minecraftContextService')
+        minecraftContextService.destroy()
+
         const airiBridge = container.resolve('airiBridge')
         airiBridge.destroy()
 

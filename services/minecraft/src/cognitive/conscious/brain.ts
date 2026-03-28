@@ -2,6 +2,7 @@ import type { Logg } from '@guiiai/logg'
 import type { Message } from '@xsai/shared-chat'
 
 import type { AiriBridge } from '../../airi/airi-bridge'
+import type { MinecraftContextService } from '../../airi/minecraft-context-service'
 import type { ConversationUpdateEvent } from '../../debug/types'
 import type { Action } from '../../libs/mineflayer/action'
 import type { TaskExecutor } from '../action/task-executor'
@@ -42,6 +43,7 @@ interface BrainDeps {
   taskExecutor: TaskExecutor
   reflexManager: ReflexManager
   airiBridge: AiriBridge
+  minecraftContextService: MinecraftContextService
 }
 
 interface QueuedEvent {
@@ -390,26 +392,11 @@ export class Brain {
 
     this.deps.logger.log('INFO', 'Brain: Online.')
 
-    // Report bot startup state to AIRI
-    const pos = bot.bot.entity?.position
-    const posStr = pos ? `x: ${pos.x.toFixed(1)}, y: ${pos.y.toFixed(1)}, z: ${pos.z.toFixed(1)}` : 'unknown'
-    const health = bot.bot.health ?? 20
-    const gameMode = bot.bot.game?.gameMode ?? 'unknown'
-    const otherPlayers = Object.keys(bot.bot.players ?? {}).filter(n => n !== bot.username)
-    const playersStr = otherPlayers.length > 0 ? otherPlayers.join(', ') : 'none'
-    this.deps.airiBridge.sendContextUpdate(
-      [
-        `Bot online: ${bot.username}`,
-        `Server: ${config.bot.host}:${config.bot.port}`,
-        `Position: ${posStr}`,
-        `Health: ${health}/20, Mode: ${gameMode}`,
-        `Other players online: ${playersStr}`,
-      ].join('\n'),
-      ['startup', bot.username],
-    )
+    this.deps.minecraftContextService.bindBot(bot)
   }
 
   public destroy(): void {
+    this.deps.minecraftContextService.unbindBot()
     if (this.unsubscribeEventBus) {
       this.unsubscribeEventBus()
       this.unsubscribeEventBus = null
