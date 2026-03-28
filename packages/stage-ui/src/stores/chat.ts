@@ -170,16 +170,13 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       if (shouldAbort())
         return
 
-      const sessionMessagesForSend = chatSession.getSessionMessages(sessionId)
-      if (!sessionMessagesForSend) {
-        throw new Error('Session messages not found')
-      }
       chatSession.appendSessionMessage(sessionId, {
         role: 'user',
         content: finalContent,
         createdAt: sendingCreatedAt,
         id: nanoid(),
       })
+      const sessionMessagesForSend = chatSession.getSessionMessages(sessionId)
 
       const categorizer = createStreamingCategorizer(activeProvider.value)
       let streamPosition = 0
