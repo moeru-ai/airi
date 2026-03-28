@@ -9,7 +9,6 @@ packages:
   - docs/**
   - apps/**
   - '!**/dist/**'
-
 overrides:
   array-flatten: npm:@nolyfill/array-flatten@^1.0.44
   axios: npm:feaxios@^0.0.23
@@ -20,6 +19,7 @@ overrides:
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
+
 patchedDependencies:
   '@mediapipe/tasks-vision': patches/@mediapipe__tasks-vision.patch
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
@@ -54,6 +54,7 @@ catalog:
   '@proj-airi/unplugin-drizzle-orm-migrations': ^0.1.6
   '@proj-airi/unplugin-fetch': ^0.2.2
   '@shopify/draggable': ^1.2.1
+  '@takumi-rs/image-response': 1.0.0-beta.20
   '@types/audioworklet': ^0.0.97
   '@types/d3': ^7.4.3
   '@types/hast': ^3.0.4
