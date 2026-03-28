@@ -108,7 +108,7 @@ live2d:
     title: FPS
     description: Limit rendering frame rate
     options:
-      unlimited: No Limit
+      unlimited: ∞
 microphone: Microphone
 models: Model
 pages:

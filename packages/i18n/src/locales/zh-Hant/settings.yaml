@@ -106,7 +106,7 @@ live2d:
     title: FPS
     description: 限制渲染幀率
     options:
-      unlimited: 無限制
+      unlimited: ∞
 microphone: 麥克風
 models: 模型
 pages:

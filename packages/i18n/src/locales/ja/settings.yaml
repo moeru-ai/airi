@@ -106,7 +106,7 @@ live2d:
     title: FPS
     description: レンダリングフレームレートを制限
     options:
-      unlimited: 制限なし
+      unlimited: ∞
 microphone: マイク
 models: モデル
 pages:

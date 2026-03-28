@@ -106,7 +106,7 @@ live2d:
     title: ФПС
     description: Ограничить скорость рендеринга кадров
     options:
-      unlimited: Без ограничений
+      unlimited: ∞
 microphone: Микрофон
 models: Модель
 pages:

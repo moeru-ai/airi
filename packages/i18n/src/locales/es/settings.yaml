@@ -106,7 +106,7 @@ live2d:
     title: FPS
     description: Limitar velocidad de fotogramas
     options:
-      unlimited: Sin límite
+      unlimited: ∞
 microphone: Micrófono
 models: Modelo
 pages:

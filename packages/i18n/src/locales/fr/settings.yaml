@@ -106,7 +106,7 @@ live2d:
     title: FPS
     description: Limiter la fréquence d'image du rendu
     options:
-      unlimited: Aucune Limite
+      unlimited: ∞
 microphone: Microphone
 models: Modèle
 pages:

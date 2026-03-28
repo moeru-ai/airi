@@ -106,7 +106,7 @@ live2d:
     title: FPS
     description: Giới hạn tốc độ khung hình hiển thị
     options:
-      unlimited: Không giới hạn
+      unlimited: ∞
 microphone: Micro
 models: Mô hình
 pages:

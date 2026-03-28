@@ -7,7 +7,7 @@ import { ref, toValue, watch } from 'vue'
 export interface Versioned<T> { version?: string, data?: T }
 export interface UseVersionedStorageOptions<T> {
   defaultVersion?: string
-  satisfiesVersionBy?: (version: string) => boolean
+  satisfiesVersionBy?: (beforeVersion: string, afterVersion: string) => boolean
   onVersionMismatch?: (value: Versioned<T>) => OnVersionMismatchActions<T>
 }
 
@@ -27,7 +27,7 @@ export function useVersionedLocalStorage<T>(
   watch(rawValue, (value) => {
     try {
       if ('version' in rawValue.value && rawValue.value.version != null) {
-        if (options?.satisfiesVersionBy != null && !options.satisfiesVersionBy(rawValue.value.version)) {
+        if (options?.satisfiesVersionBy != null && !options.satisfiesVersionBy(rawValue.value.version, defaultVersion)) {
           if (options.onVersionMismatch != null) {
             const action = options.onVersionMismatch(rawValue.value)
             if (action.action === 'reset') {
@@ -36,7 +36,7 @@ export function useVersionedLocalStorage<T>(
             }
           }
           else {
-            console.warn(`version ${rawValue.value.version} doesn't satisfy the version ${options.defaultVersion} for key ${key}, will reset the value to default value ${toValue(initialValue)}`)
+            console.warn(`version ${rawValue.value.version} doesn't satisfy the version ${defaultVersion} for key ${key}, will reset the value to default value ${toValue(initialValue)}`)
             rawValue.value = { version: defaultVersion, data: toValue(initialValue) }
             data.value = toValue(initialValue)
           }
