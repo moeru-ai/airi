@@ -148,7 +148,36 @@ async function buildApp(deps: AppDeps) {
       windowSec: await deps.configKV.getOrThrow('AUTH_RATE_LIMIT_WINDOW_SEC'),
       keyGenerator: c => c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'unknown',
     }))
-    .on(['POST', 'GET'], '/api/auth/*', c => deps.auth.handler(c.req.raw))
+    .on(['POST', 'GET'], '/api/auth/*', async (c) => {
+      const response: Response = await deps.auth.handler(c.req.raw)
+
+      // NOTICE: On OAuth callback redirects, the bearer plugin adds the session
+      // token to the `set-auth-token` header. But browsers don't expose headers
+      // from 302 redirects to JS. So we append the token to the Location URL,
+      // allowing the client to extract and store it for Bearer auth.
+      if (response.status === 302) {
+        const token = response.headers.get('set-auth-token')
+        const location = response.headers.get('location')
+        if (token && location) {
+          try {
+            const url = new URL(location)
+            url.searchParams.set('auth_token', token)
+            const headers = new Headers(response.headers)
+            headers.set('location', url.toString())
+            return new Response(response.body, {
+              status: response.status,
+              statusText: response.statusText,
+              headers,
+            })
+          }
+          catch {
+            // If URL parsing fails, return the original response
+          }
+        }
+      }
+
+      return response
+    })
 
     /**
      * Character routes are handled by the character service.

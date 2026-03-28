@@ -34,14 +34,7 @@ export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null)
     baseURL: env.API_SERVER_URL,
     trustedOrigins: request => getAuthTrustedOrigins(env, request),
 
-    // To skip state-mismatch errors
-    // https://github.com/better-auth/better-auth/issues/4969#issuecomment-3397804378
-    advanced: {
-      defaultCookieAttributes: {
-        sameSite: 'None', // this enables cross-site cookies
-        secure: true, // required for SameSite=None
-      },
-    },
+    advanced: {},
 
     // NOTICE: skipStateCookieCheck required for Capacitor mobile apps.
     // Default state strategy is 'database' (we have a DB), but better-auth
