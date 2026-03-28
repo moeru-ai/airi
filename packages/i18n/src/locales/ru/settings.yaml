@@ -22,9 +22,9 @@ dialogs:
     validationPartial: Конфигурация частично проверена
     validationFailed: Проверка конфигурации не удалась
     validationError: 'Ошибка проверки: {error}'
-    testGeneration: Тест генерации
-    testGenerationRunning: Тестирование...
-    testGenerationFailed: Тест генерации не удался
+    testGeneration: Ping API
+    testGenerationRunning: Ping...
+    testGenerationFailed: Ping не удался
     skipForNow: Пропустить на сейчас
     saveAndContinue: Сохранить и продолжить
     next: Далее

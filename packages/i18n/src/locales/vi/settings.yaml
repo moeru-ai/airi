@@ -22,9 +22,9 @@ dialogs:
     validationPartial: Cấu hình được xác thực một phần
     validationFailed: Xác thực cấu hình thất bại
     validationError: 'Lỗi xác thực: {error}'
-    testGeneration: Kiểm tra tạo
-    testGenerationRunning: Đang kiểm tra...
-    testGenerationFailed: Kiểm tra tạo thất bại
+    testGeneration: Ping API
+    testGenerationRunning: Ping...
+    testGenerationFailed: Ping thất bại
     skipForNow: Bỏ qua
     saveAndContinue: Lưu và tiếp tục
     next: Tiếp

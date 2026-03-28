@@ -22,9 +22,9 @@ dialogs:
     validationPartial: 設定部分驗證通過
     validationFailed: 設定驗證失敗
     validationError: '驗證錯誤：{error}'
-    testGeneration: 測試生成
-    testGenerationRunning: 測試中...
-    testGenerationFailed: 生成測試失敗
+    testGeneration: Ping API
+    testGenerationRunning: Ping...
+    testGenerationFailed: Ping 測試失敗
     skipForNow: 先略過
     saveAndContinue: 儲存並繼續
     next: 下一步

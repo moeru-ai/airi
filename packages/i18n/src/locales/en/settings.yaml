@@ -19,7 +19,7 @@ dialogs:
     baseUrl: Base URL
     baseUrlHelp: API endpoint URL (use default if unsure)
     accountId: Account ID
-    validationRunning: Running basic tests
+    validationRunning: Running tests
     validationSuccess: Configuration validation success
     validationPartial: Configuration partially validated
     validationFailed: Configuration validation failed
