@@ -28,7 +28,7 @@ dialogs:
     start: Commençons !
     loginPrompt: Sign in to use the official AIRI provider for the best experience.
     loginAction: Sign in
-    localSetup: Configure Local Provider
+    setupWithoutSigningIn: Setup with your provider
     flux: Flux
     buyFlux: Charge Flux
     select-model: Choisissez un modèle
@@ -51,7 +51,7 @@ dialogs:
 language:
   title: Langage
   description: >
-    Change the language of the AIRI interface. This will not affect the language of the character's responses.
+    UI language. You can set characters' language later.
 controls-island:
   icon-size:
     title: Taille des icônes de l'îlot de contrôle
