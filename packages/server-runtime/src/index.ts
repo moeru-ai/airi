@@ -426,7 +426,10 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
 
           // broadcast module:announced to all authenticated peers
           for (const other of peers.values()) {
-            if (other.authenticated) {
+            // only send to
+            // 1. authenticated peers
+            // 2. other peers except the announcing peer itself
+            if (other.authenticated && !(other.peer.id === peer.id)) {
               send(other.peer, {
                 type: 'module:announced',
                 data: { name, index, identity },

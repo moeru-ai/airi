@@ -574,7 +574,7 @@ interface ModuleCompatibilityResultEvent {
   reason?: string
 }
 
-interface RegistryModulesSyncEvent {
+export interface RegistryModulesSyncEvent {
   modules: Array<{
     name: string
     index?: number
@@ -599,7 +599,7 @@ interface ModuleAnnounceEvent<C = undefined> {
   configSchema?: ModuleConfigSchema
   dependencies?: ModuleDependency[]
 }
-interface ModuleAnnouncedEvent {
+export interface ModuleAnnouncedEvent {
   name: string
   index?: number
   identity: ModuleIdentity
