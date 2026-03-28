@@ -7,7 +7,7 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { FieldSelect } from '@proj-airi/ui'
+import { FieldCombobox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
 
@@ -82,7 +82,7 @@ watch(model, async () => {
   >
     <template #basic-settings>
       <!-- Model selection -->
-      <FieldSelect
+      <FieldCombobox
         v-model="model"
         label="Model"
         description="Select the transcription model to use"

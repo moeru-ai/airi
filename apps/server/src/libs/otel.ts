@@ -1,11 +1,14 @@
 import type { IncomingMessage } from 'node:http'
 
+import type { Counter, Histogram, UpDownCounter } from '@opentelemetry/api'
+
 import type { Env } from './env'
 
 import { env as processEnv } from 'node:process'
 
 import { useLogger } from '@guiiai/logg'
-import { diag, DiagConsoleLogger, DiagLogLevel, metrics } from '@opentelemetry/api'
+import { diag, DiagConsoleLogger, DiagLogLevel, metrics, trace } from '@opentelemetry/api'
+import { logs, SeverityNumber } from '@opentelemetry/api-logs'
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-proto'
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-proto'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto'
@@ -20,9 +23,92 @@ import { NodeSDK } from '@opentelemetry/sdk-node'
 import { BatchSpanProcessor, ParentBasedSampler, TraceIdRatioBasedSampler } from '@opentelemetry/sdk-trace-node'
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions'
 
+import {
+  METRIC_AUTH_ATTEMPTS,
+  METRIC_AUTH_FAILURES,
+  METRIC_CHARACTER_CREATED,
+  METRIC_CHARACTER_DELETED,
+  METRIC_CHARACTER_ENGAGEMENT,
+  METRIC_CHAT_MESSAGES,
+  METRIC_FLUX_CONSUMED,
+  METRIC_FLUX_INSUFFICIENT_BALANCE,
+  METRIC_GEN_AI_CLIENT_OPERATION_COUNT,
+  METRIC_GEN_AI_CLIENT_OPERATION_DURATION,
+  METRIC_GEN_AI_CLIENT_TOKEN_USAGE_INPUT,
+  METRIC_GEN_AI_CLIENT_TOKEN_USAGE_OUTPUT,
+  METRIC_HTTP_SERVER_ACTIVE_REQUESTS,
+  METRIC_HTTP_SERVER_REQUEST_DURATION,
+  METRIC_STRIPE_CHECKOUT_COMPLETED,
+  METRIC_STRIPE_CHECKOUT_CREATED,
+  METRIC_STRIPE_EVENTS,
+  METRIC_STRIPE_PAYMENT_FAILED,
+  METRIC_STRIPE_SUBSCRIPTION_EVENT,
+  METRIC_USER_ACTIVE_SESSIONS,
+  METRIC_USER_LOGIN,
+  METRIC_USER_REGISTERED,
+  METRIC_WS_CONNECTIONS_ACTIVE,
+  METRIC_WS_MESSAGES_RECEIVED,
+  METRIC_WS_MESSAGES_SENT,
+} from '../utils/observability'
+
 const logger = useLogger('otel')
 
-export function initOtel(env: Env) {
+export interface HttpMetrics {
+  requestDuration: Histogram
+  activeRequests: UpDownCounter
+}
+
+export interface AuthMetrics {
+  attempts: Counter
+  failures: Counter
+  userRegistered: Counter
+  userLogin: Counter
+  activeSessions: UpDownCounter
+}
+
+export interface EngagementMetrics {
+  chatMessages: Counter
+  characterCreated: Counter
+  characterDeleted: Counter
+  characterEngagement: Counter
+  wsConnectionsActive: UpDownCounter
+  wsMessagesSent: Counter
+  wsMessagesReceived: Counter
+}
+
+export interface RevenueMetrics {
+  stripeCheckoutCreated: Counter
+  stripeCheckoutCompleted: Counter
+  stripePaymentFailed: Counter
+  stripeSubscriptionEvent: Counter
+  stripeEvents: Counter
+  fluxInsufficientBalance: Counter
+}
+
+export interface GenAiMetrics {
+  operationDuration: Histogram
+  operationCount: Counter
+  tokenUsageInput: Counter
+  tokenUsageOutput: Counter
+  fluxConsumed: Counter
+}
+
+// NOTICE: Database metrics (db.client.operation.duration, redis.client.command.duration) were
+// intentionally removed. PgInstrumentation and IORedisInstrumentation already generate spans
+// with timing for every query/command. To surface these as metrics in Grafana, configure the
+// OTel Collector's spanmetrics connector to derive metrics from those spans.
+
+export interface OtelInstance {
+  sdk: NodeSDK
+  http: HttpMetrics
+  auth: AuthMetrics
+  engagement: EngagementMetrics
+  revenue: RevenueMetrics
+  genAi: GenAiMetrics
+  shutdown: () => Promise<void>
+}
+
+export function initOtel(env: Env): OtelInstance | undefined {
   const otlpEndpoint = env.OTEL_EXPORTER_OTLP_ENDPOINT
   const serviceName = env.OTEL_SERVICE_NAME
 
@@ -71,7 +157,7 @@ export function initOtel(env: Env) {
 
   // Head-based sampling ratio: 1.0 = 100% (default), 0.1 = 10%, etc.
   // Metrics are always 100% accurate regardless of this setting.
-  const samplingRatio = Number.parseFloat(env.OTEL_TRACES_SAMPLING_RATIO)
+  const samplingRatio = env.OTEL_TRACES_SAMPLING_RATIO
   const sampler = new ParentBasedSampler({
     root: new TraceIdRatioBasedSampler(samplingRatio),
   })
@@ -109,37 +195,102 @@ export function initOtel(env: Env) {
 
   const meter = metrics.getMeter(serviceName)
 
-  // Custom application metrics
-  const httpRequestDuration = meter.createHistogram('http.server.request.duration', {
-    description: 'HTTP server request duration in milliseconds',
-    unit: 'ms',
-  })
+  // HTTP metrics (semconv: unit MUST be seconds)
+  const http: HttpMetrics = {
+    requestDuration: meter.createHistogram(METRIC_HTTP_SERVER_REQUEST_DURATION, {
+      description: 'HTTP server request duration',
+      unit: 's',
+    }),
+    activeRequests: meter.createUpDownCounter(METRIC_HTTP_SERVER_ACTIVE_REQUESTS, {
+      description: 'Number of active HTTP requests',
+    }),
+  }
 
-  const httpActiveRequests = meter.createUpDownCounter('http.server.active_requests', {
-    description: 'Number of active HTTP requests',
-  })
+  // Auth & User metrics
+  const auth: AuthMetrics = {
+    attempts: meter.createCounter(METRIC_AUTH_ATTEMPTS, {
+      description: 'Number of authentication attempts',
+    }),
+    failures: meter.createCounter(METRIC_AUTH_FAILURES, {
+      description: 'Number of failed authentication attempts',
+    }),
+    userRegistered: meter.createCounter(METRIC_USER_REGISTERED, {
+      description: 'Number of new user registrations',
+    }),
+    userLogin: meter.createCounter(METRIC_USER_LOGIN, {
+      description: 'Number of user logins',
+    }),
+    activeSessions: meter.createUpDownCounter(METRIC_USER_ACTIVE_SESSIONS, {
+      description: 'Number of active user sessions',
+    }),
+  }
 
-  const dbQueryDuration = meter.createHistogram('db.client.operation.duration', {
-    description: 'Database operation duration in milliseconds',
-    unit: 'ms',
-  })
+  // Engagement metrics
+  const engagement: EngagementMetrics = {
+    chatMessages: meter.createCounter(METRIC_CHAT_MESSAGES, {
+      description: 'Number of chat messages written or pulled',
+    }),
+    characterCreated: meter.createCounter(METRIC_CHARACTER_CREATED, {
+      description: 'Number of characters created',
+    }),
+    characterDeleted: meter.createCounter(METRIC_CHARACTER_DELETED, {
+      description: 'Number of characters deleted',
+    }),
+    characterEngagement: meter.createCounter(METRIC_CHARACTER_ENGAGEMENT, {
+      description: 'Number of character engagement actions (like/bookmark)',
+    }),
+    wsConnectionsActive: meter.createUpDownCounter(METRIC_WS_CONNECTIONS_ACTIVE, {
+      description: 'Active WebSocket connections',
+    }),
+    wsMessagesSent: meter.createCounter(METRIC_WS_MESSAGES_SENT, {
+      description: 'Messages sent via WebSocket',
+    }),
+    wsMessagesReceived: meter.createCounter(METRIC_WS_MESSAGES_RECEIVED, {
+      description: 'Messages received via WebSocket',
+    }),
+  }
 
-  const redisCommandDuration = meter.createHistogram('redis.client.command.duration', {
-    description: 'Redis command duration in milliseconds',
-    unit: 'ms',
-  })
+  // Revenue metrics
+  const revenue: RevenueMetrics = {
+    stripeCheckoutCreated: meter.createCounter(METRIC_STRIPE_CHECKOUT_CREATED, {
+      description: 'Number of Stripe checkout sessions created',
+    }),
+    stripeCheckoutCompleted: meter.createCounter(METRIC_STRIPE_CHECKOUT_COMPLETED, {
+      description: 'Number of Stripe checkout sessions completed',
+    }),
+    stripePaymentFailed: meter.createCounter(METRIC_STRIPE_PAYMENT_FAILED, {
+      description: 'Number of failed Stripe payments',
+    }),
+    stripeSubscriptionEvent: meter.createCounter(METRIC_STRIPE_SUBSCRIPTION_EVENT, {
+      description: 'Number of Stripe subscription lifecycle events',
+    }),
+    stripeEvents: meter.createCounter(METRIC_STRIPE_EVENTS, {
+      description: 'Number of Stripe webhook events processed',
+    }),
+    fluxInsufficientBalance: meter.createCounter(METRIC_FLUX_INSUFFICIENT_BALANCE, {
+      description: 'Number of insufficient flux balance errors',
+    }),
+  }
 
-  const authAttempts = meter.createCounter('auth.attempts', {
-    description: 'Number of authentication attempts',
-  })
-
-  const authFailures = meter.createCounter('auth.failures', {
-    description: 'Number of failed authentication attempts',
-  })
-
-  const stripeEvents = meter.createCounter('stripe.events', {
-    description: 'Number of Stripe webhook events processed',
-  })
+  // GenAI metrics (semconv: gen_ai.client.*)
+  const genAi: GenAiMetrics = {
+    operationDuration: meter.createHistogram(METRIC_GEN_AI_CLIENT_OPERATION_DURATION, {
+      description: 'GenAI client operation duration',
+      unit: 's',
+    }),
+    operationCount: meter.createCounter(METRIC_GEN_AI_CLIENT_OPERATION_COUNT, {
+      description: 'Number of GenAI client operations',
+    }),
+    tokenUsageInput: meter.createCounter(METRIC_GEN_AI_CLIENT_TOKEN_USAGE_INPUT, {
+      description: 'Total input (prompt) tokens consumed',
+    }),
+    tokenUsageOutput: meter.createCounter(METRIC_GEN_AI_CLIENT_TOKEN_USAGE_OUTPUT, {
+      description: 'Total output (completion) tokens consumed',
+    }),
+    fluxConsumed: meter.createCounter(METRIC_FLUX_CONSUMED, {
+      description: 'Total flux consumed',
+    }),
+  }
 
   // Graceful shutdown
   const shutdown = async () => {
@@ -154,15 +305,47 @@ export function initOtel(env: Env) {
 
   return {
     sdk,
-    meter,
-    httpRequestDuration,
-    httpActiveRequests,
-    dbQueryDuration,
-    redisCommandDuration,
-    authAttempts,
-    authFailures,
-    stripeEvents,
-
+    http,
+    auth,
+    engagement,
+    revenue,
+    genAi,
     shutdown,
   }
+}
+
+const severityMap: Record<string, SeverityNumber> = {
+  debug: SeverityNumber.DEBUG,
+  verbose: SeverityNumber.TRACE,
+  log: SeverityNumber.INFO,
+  info: SeverityNumber.INFO,
+  warn: SeverityNumber.WARN,
+  error: SeverityNumber.ERROR,
+}
+
+/**
+ * Emit a log record to OpenTelemetry.
+ * Automatically attaches the active span's traceId/spanId when available.
+ */
+export function emitOtelLog(
+  level: string,
+  context: string,
+  message: string,
+  attributes?: Record<string, string | number | boolean>,
+): void {
+  const otelLogger = logs.getLogger(context)
+  const spanContext = trace.getActiveSpan()?.spanContext()
+
+  otelLogger.emit({
+    severityNumber: severityMap[level.toLowerCase()] ?? SeverityNumber.INFO,
+    severityText: level.toUpperCase(),
+    body: message,
+    attributes: {
+      ...attributes,
+      ...(spanContext && {
+        trace_id: spanContext.traceId,
+        span_id: spanContext.spanId,
+      }),
+    },
+  })
 }

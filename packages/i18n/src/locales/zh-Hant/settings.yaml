@@ -19,17 +19,18 @@ dialogs:
     baseUrlHelp: API 端點 URL（如果不確定請使用預設值）
     accountId: 帳號 ID
     validationSuccess: 設定驗證成功
-    validationPartial: Configuration partially validated
     validationFailed: 設定驗證失敗
     validationError: '驗證錯誤：{error}'
-    testGeneration: Test Generation
-    testGenerationRunning: Testing...
-    testGenerationFailed: Generation test failed
     skipForNow: 先略過
     saveAndContinue: 儲存並繼續
     next: 下一步
     retry: 重試
     start: 開始吧！
+    loginPrompt: Sign in to use the official AIRI provider for the best experience.
+    loginAction: Sign in
+    setupWithoutSigningIn: Setup with your provider
+    flux: Flux
+    buyFlux: Charge Flux
     select-model: 選擇模型
     no-models: 找不到可用的模型
     no-models-help: >-
@@ -49,7 +50,8 @@ dialogs:
       stateNotGranted: Not granted
 language:
   title: 語言
-  description: UI language
+  description: >
+    UI language. You can set characters' language later.
 controls-island:
   icon-size:
     title: 控制島嶼圖示大小
@@ -57,6 +59,19 @@ controls-island:
     auto: 自動（回應式）
     large: 大(默認)
     small: 小
+analytics:
+  notice:
+    title: Usage analytics
+    description: AIRI collects anonymous usage analytics to help us understand how the app is used and improve stability. No personal data is collected.
+    privacyPrefix: Read the
+    privacyLink: privacy policy
+    onboardingHint: You can turn analytics off later in Settings > System > General.
+    settingsHint: You can turn analytics off at any time.
+  toggle:
+    title: Enable usage analytics
+    description: Turn this off to opt out of analytics collection.
+  disabled:
+    title: Analytics disabled for this development build
 live2d:
   change-model:
     from-file: 從檔案載入
@@ -217,10 +232,6 @@ pages:
         title: 刪除所有資料
         description: 清除所有本機設定、服務提供者設定與模型。
         delete: 刪除所有資料
-      desktop-folder:
-        title: Open app data folder
-        description: Open AIRI's data folder in your file manager.
-        open: Open folder
       desktop:
         title: 重設桌面設定與狀態
         description: 清除 AIRI 桌面設定與執行階段狀態
@@ -450,8 +461,33 @@ pages:
         apply-and-restart: 儲存並重新啟動 stdio MCP
       messages:
         opened: 已於 {path} 開啟設定檔
-        restarted: >-
-          MCP 伺服器已重新啟動。已啟動：{started}，已失敗：{failed}，已略過：{skipped}
+        restarted: MCP 伺服器已重新啟動。已啟動：{started}，已失敗：{failed}，已略過：{skipped}
+  flux:
+    title: Flux
+    buy: Charge
+    description: Current Flux
+    packagesError: Failed to load packages. Please try again later.
+    checkout:
+      success: Payment successful! Your Flux has been topped up.
+      canceled: Payment was canceled.
+      error: Something went wrong. Please try again later.
+    audit:
+      title: Transaction History
+      time: Time
+      type: Type
+      detail: Detail
+      amount: Amount
+      typeAddition: Top-up
+      typeConsumption: Usage
+      typeInitial: Initial Grant
+      loading: Loading history...
+      empty: No transaction records yet.
+      loadMore: Load More
+      delayHint: Usage records may be delayed by up to 1 minute
+    packages:
+      title: Flux Packages
+      buy: Charge
+      description: Flux packages to choose from.
   providers:
     explained:
       chat: 文字生成模型服務來源，例如 OpenRouter、OpenAI、Ollama
@@ -743,9 +779,6 @@ pages:
       openrouter:
         description: OpenRouter.ai
         title: OpenRouter
-      openrouter-audio-speech:
-        description: openrouter.ai
-        title: OpenRouter
       perplexity:
         description: perplexity.ai
         title: Perplexity
@@ -781,6 +814,9 @@ pages:
       xai:
         description: X.AI
         title: xAI
+      zai:
+        description: z.ai
+        title: Z.ai
       302-ai:
         description: 302.AI
         title: 302.AI
@@ -796,6 +832,13 @@ pages:
       browser-web-speech-api:
         description: 瀏覽器原生 STT（需要 Chrome/Edge/Safari）
         title: 網頁語音 API
+      official:
+        title: Official Provider
+        description: Official AI provider by AIRI.
+        speech-title: Official Speech Provider
+        speech-description: Official text-to-speech provider by AIRI.
+        transcription-title: Official Transcription Provider
+        transcription-description: Official speech-to-text provider by AIRI.
       transcriptions:
         playground:
           title: 實驗平台
@@ -959,6 +1002,8 @@ pages:
       open-devtools:
         title: 開放開發者工具
         button: 開放
+  credits:
+    buy: Buy
 sections:
   section:
     general:

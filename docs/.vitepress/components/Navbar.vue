@@ -41,9 +41,11 @@ function isNavLinkActive(link: string, path: string) {
       <a
         v-if="nav.link"
         :href="nav.link"
-        class="mx-3 h-full inline-flex items-center py-2 text-nowrap text-sm text-muted-foreground font-semibold hover:text-foreground"
-        transition-colors duration-200 ease-in-out
-        :class="{ '!text-primary': isNavLinkActive(nav.link, path) }"
+        :class="[
+          'mx-3 h-full inline-flex items-center py-2 text-nowrap text-sm text-muted-foreground font-semibold hover:text-foreground',
+          'transition-colors duration-200 ease-in-out',
+          isNavLinkActive(nav.link, path) ? '!text-primary' : '',
+        ]"
       >
         {{ nav.text }}
       </a>
@@ -79,8 +81,12 @@ function isNavLinkActive(link: string, path: string) {
       :href="link.link"
       :aria-label="link.icon"
       target="_blank"
-      class="h-9 w-9 flex flex-shrink-0 items-center justify-center rounded-lg bg-transparent text-xl text-muted-foreground hover:bg-muted hover:text-foreground"
-      transition="colors duration-200 ease-in-out"
+      :class="[
+        'h-9 w-9',
+        'flex flex-shrink-0 items-center justify-center rounded-lg',
+        'bg-transparent text-xl text-muted-foreground hover:bg-muted hover:text-foreground',
+        'transition-colors duration-200 ease-in-out',
+      ]"
     >
       <Icon :icon="`simple-icons:${link.icon}`" />
     </a>
@@ -100,8 +106,8 @@ function isNavLinkActive(link: string, path: string) {
           class="will-change-[transform,opacity] z-10 w-[180px] border rounded-xl p-2 shadow-md backdrop-blur-md data-[state=open]:data-[side=bottom]:animate-slideUpAndFade"
           :class="[
             'bg-white/70 dark:border-white/5 dark:bg-black/70',
+            'transition-colors duration-200 ease-in-out',
           ]"
-          transition="colors duration-200 ease-in-out"
         >
           <nav class="flex flex-col">
             <template
@@ -112,8 +118,10 @@ function isNavLinkActive(link: string, path: string) {
                 v-if="nav.link"
                 as="a"
                 :href="nav.link"
-                class="h-full inline-flex items-center rounded-lg p-2 text-sm text-muted-foreground font-semibold hover:bg-primary/10 hover:text-primary"
-                transition="colors duration-200 ease-in-out"
+                :class="[
+                  'h-full inline-flex items-center rounded-lg p-2 text-sm text-muted-foreground font-semibold hover:bg-primary/10 hover:text-primary',
+                  'transition-colors duration-200 ease-in-out',
+                ]"
               >
                 {{ nav.text }}
               </DropdownMenuItem>
@@ -206,8 +214,10 @@ function isNavLinkActive(link: string, path: string) {
                 :href="link.link"
                 :aria-label="link.icon"
                 target="_blank"
-                class="h-9 w-9 flex items-center justify-center rounded-lg bg-transparent text-xl text-muted-foreground hover:bg-muted hover:text-foreground"
-                transition="colors duration-200 ease-in-out"
+                :class="[
+                  'h-9 w-9 flex items-center justify-center rounded-lg bg-transparent text-xl text-muted-foreground hover:bg-muted hover:text-foreground',
+                  'transition-colors duration-200 ease-in-out',
+                ]"
               >
                 <Icon :icon="`simple-icons:${link.icon}`" />
               </DropdownMenuItem>

@@ -1,6 +1,7 @@
 import './openai'
 import './aihubmix'
 import './lm-studio'
+import './azure-openai'
 import './openai-compatible'
 import './n1n'
 import './openrouter-ai'
@@ -13,6 +14,7 @@ import './302-ai'
 import './cerebras-ai'
 import './together-ai'
 import './xai'
+import './zai'
 import './novita-ai'
 import './fireworks-ai'
 import './featherless-ai'
@@ -25,6 +27,7 @@ import './modelscope'
 import './ollama'
 import './cloudflare-workers-ai'
 import './azure-ai-foundry'
+import './official'
 
 export {
   getDefinedProvider,

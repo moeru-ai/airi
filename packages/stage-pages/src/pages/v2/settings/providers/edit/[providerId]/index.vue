@@ -17,7 +17,7 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
 import { useProviderCatalogStore } from '@proj-airi/stage-ui/stores/provider-catalog'
-import { Button, Callout, FieldInput, FieldKeyValues, FieldSelect } from '@proj-airi/ui'
+import { Button, Callout, FieldCombobox, FieldInput, FieldKeyValues } from '@proj-airi/ui'
 import { useCloned, useDebounceFn } from '@vueuse/core'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -455,7 +455,7 @@ function handleDeleteProvider() {
                   :placeholder="field.placeholder"
                   :required="field.required"
                 />
-                <FieldSelect
+                <FieldCombobox
                   v-else-if="field.type === 'select'"
                   v-model="providerConfigEdit.config[field.key]"
                   :label="field.label"

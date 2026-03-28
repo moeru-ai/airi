@@ -1,3 +1,14 @@
+import type { Env } from '../libs/env'
+
+function getOriginFromUrl(url: string): string | undefined {
+  try {
+    return new URL(url).origin
+  }
+  catch {
+    return undefined
+  }
+}
+
 export function getTrustedOrigin(origin: string): string {
   // 1. Allow Dev (Localhost with any port)
   if (!origin || origin.startsWith('http://localhost:')) {
@@ -17,4 +28,39 @@ export function getTrustedOrigin(origin: string): string {
 
   // Default: Block
   return ''
+}
+
+export function resolveTrustedRequestOrigin(request: Request): string | undefined {
+  const refererOrigin = getOriginFromUrl(request.headers.get('referer') ?? '')
+  if (refererOrigin) {
+    const trustedRefererOrigin = getTrustedOrigin(refererOrigin)
+    if (trustedRefererOrigin) {
+      return trustedRefererOrigin
+    }
+  }
+
+  const requestOrigin = request.headers.get('origin') ?? ''
+  const trustedRequestOrigin = getTrustedOrigin(requestOrigin)
+  if (trustedRequestOrigin) {
+    return trustedRequestOrigin
+  }
+
+  return undefined
+}
+
+export function getAuthTrustedOrigins(env: Pick<Env, 'API_SERVER_URL'>, request?: Request): string[] {
+  const origins = new Set<string>()
+  const apiServerOrigin = getOriginFromUrl(env.API_SERVER_URL)
+  if (apiServerOrigin) {
+    origins.add(apiServerOrigin)
+  }
+
+  if (request) {
+    const requestOrigin = resolveTrustedRequestOrigin(request)
+    if (requestOrigin) {
+      origins.add(requestOrigin)
+    }
+  }
+
+  return [...origins]
 }

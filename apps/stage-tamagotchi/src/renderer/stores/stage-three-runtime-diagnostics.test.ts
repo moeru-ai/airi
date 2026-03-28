@@ -44,6 +44,7 @@ describe('stage three runtime diagnostics helpers', () => {
       lipSyncMs: 6,
       lookAtMs: 7,
       springBoneMs: 8,
+      nodeConstraintMs: 16.7,
       ts: 20,
       vrmFrameHookMs: 9,
     })

@@ -30,17 +30,14 @@
     "@xsai/shared-chat": "catalog:",
     "@xsai/utils-chat": "catalog:",
     "best-effort-json-parser": "^1.4.0",
-    "drizzle-orm": "^0.45.1",
+    "drizzle-orm": "catalog:",
     "es-toolkit": "^1.45.1",
     "nanoid": "^5.1.7",
     "valibot": "^1.3.1",
     "ws": "^8.20.0"
   },
   "devDependencies": {
-    "@types/node": "^22.19.15",
     "@types/ws": "^8.18.1",
-    "drizzle-kit": "^0.31.10",
-    "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "drizzle-kit": "catalog:"
   }
 }

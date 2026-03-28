@@ -6,7 +6,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { ProcessingMeter } from '@proj-airi/stage-ui/components'
 import { VISION_WORKLOADS } from '@proj-airi/stage-ui/composables'
 import { useVisionOrchestratorStore, useVisionProcessingStore, useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
-import { Button, FieldCheckbox, FieldRange, FieldSelect, SelectTab } from '@proj-airi/ui'
+import { Button, FieldCheckbox, FieldCombobox, FieldRange, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, ref } from 'vue'
 
@@ -498,7 +498,7 @@ onBeforeUnmount(() => {
                   Vision input max size: {{ captureInputBounds.maxWidth }} × {{ captureInputBounds.maxHeight }}
                 </div>
 
-                <FieldSelect
+                <FieldCombobox
                   v-model="selectedWorkload"
                   label="Vision workload"
                   description="Select how the model should interpret the screen."
