@@ -15,7 +15,7 @@ defineProps<{
     title="Next Prompt Projection"
     icon="i-solar:document-text-bold-duotone"
     inner-class="gap-3"
-    :expand="false"
+    :expand="true"
   >
     <div
       :class="[

@@ -55,7 +55,7 @@ function isAged(timestamp?: number) {
     title="Active Context State"
     icon="i-solar:database-bold-duotone"
     inner-class="gap-3"
-    :expand="false"
+    :expand="true"
   >
     <div :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
       {{ filteredBuckets.length }} source bucket(s) currently retained in `chat-context`.

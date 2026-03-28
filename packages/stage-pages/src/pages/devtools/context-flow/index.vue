@@ -628,7 +628,7 @@ onUnmounted(() => {
           :filter-text="filterText"
         />
 
-        <Section title="Raw Event Stream" icon="i-solar:inbox-line-bold-duotone" inner-class="gap-3" :expand="false">
+        <Section title="Raw Event Stream" icon="i-solar:inbox-line-bold-duotone" inner-class="gap-3" :expand="true">
           <ContextFlowStream
             v-model:filter-text="filterText"
             :entries="filteredEntries"
