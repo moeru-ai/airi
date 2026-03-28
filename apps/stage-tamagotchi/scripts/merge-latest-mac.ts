@@ -25,6 +25,8 @@ interface UpdateInfo {
 
 type Platform = 'x64' | 'arm64' | 'both' | 'none'
 
+const regexpIsLatestMacMetadata = /^latest(?:-[^-]+)?-mac\.yml$/i
+
 function getUrls(updateInfo: UpdateInfo): string[] {
   const urls: string[] = []
 
@@ -160,7 +162,7 @@ function collectLatestMacFiles(rootDir: string): string[] {
       results.push(...collectLatestMacFiles(fullPath))
       continue
     }
-    if (entry.isFile() && entry.name.startsWith('latest-mac') && entry.name.endsWith('.yml')) {
+    if (entry.isFile() && regexpIsLatestMacMetadata.test(entry.name)) {
       results.push(fullPath)
     }
   }

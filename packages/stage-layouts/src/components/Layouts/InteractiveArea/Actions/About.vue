@@ -28,7 +28,7 @@ const edition = isStageTamagotchi()
     title="About"
     :class="[
       'w-fit p-2',
-      'flex items-center justify-center',
+      'flex justify-center md:items-center self-end',
       'border-2 border-solid border-neutral-100/60 dark:border-neutral-800/30',
       'bg-neutral-50/70 dark:bg-neutral-800/70',
       'backdrop-blur-md',

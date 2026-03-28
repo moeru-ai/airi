@@ -19,17 +19,18 @@ dialogs:
     baseUrlHelp: URL del endpoint de la API (usa el predeterminado si no estás seguro)
     accountId: ID de Cuenta
     validationSuccess: La validación de la configuración fue exitosa
-    validationPartial: Configuración parcialmente Validada
     validationFailed: La validación de la configuración falló
     validationError: 'Error de validación: {error}'
-    testGeneration: Generación de pruebas
-    testGenerationRunning: Probando...
-    testGenerationFailed: Falló generación de prueba
     skipForNow: Omitir por ahora
     saveAndContinue: Guardar y Continuar
     next: Siguiente
     retry: Volver a intentar
     start: '¡Hagámoslo!'
+    loginPrompt: Sign in to use the official AIRI provider for the best experience.
+    loginAction: Sign in
+    setupWithoutSigningIn: Setup with your provider
+    flux: Flux
+    buyFlux: Charge Flux
     select-model: Elegir modelo
     no-models: Ningún modelo disponible
     no-models-help: >-
@@ -49,7 +50,8 @@ dialogs:
       stateNotGranted: No concedido
 language:
   title: Idioma
-  description: Lenguaje de Interfaz
+  description: >
+    UI language. You can set characters' language later.
 controls-island:
   icon-size:
     title: Tamaño de icono de la isla de controles
@@ -104,7 +106,7 @@ live2d:
     title: FPS
     description: Limitar velocidad de fotogramas
     options:
-      unlimited: Sin límite
+      unlimited: ∞
 microphone: Micrófono
 models: Modelo
 pages:
@@ -230,10 +232,6 @@ pages:
         title: Eliminar todos los datos
         description: Limpia cada configuración local, configuración del proveedor y del modelo.
         delete: Eliminar todos los datos
-      desktop-folder:
-        title: Abrir carpeta de datos de la aplicación
-        description: Abrir carpeta de datos de AIRI en tu explorador de archivos.
-        open: Abrir carpeta
       desktop:
         title: Restablecer ajustes de escritorio y estados
         description: Limpiar ajustes de escritorio y estado de ejecución de AIRI.
@@ -463,8 +461,33 @@ pages:
         apply-and-restart: Save and restart stdio MCP
       messages:
         opened: Config file opened at {path}
-        restarted: >-
-          MCP servers restarted. Started {started}, failed {failed}, skipped {skipped}
+        restarted: MCP servers restarted. Started {started}, failed {failed}, skipped {skipped}
+  flux:
+    title: Flux
+    buy: Charge
+    description: Current Flux
+    packagesError: Failed to load packages. Please try again later.
+    checkout:
+      success: Payment successful! Your Flux has been topped up.
+      canceled: Payment was canceled.
+      error: Something went wrong. Please try again later.
+    audit:
+      title: Transaction History
+      time: Time
+      type: Type
+      detail: Detail
+      amount: Amount
+      typeAddition: Top-up
+      typeConsumption: Usage
+      typeInitial: Initial Grant
+      loading: Loading history...
+      empty: No transaction records yet.
+      loadMore: Load More
+      delayHint: Usage records may be delayed by up to 1 minute
+    packages:
+      title: Flux Packages
+      buy: Charge
+      description: Flux packages to choose from.
   providers:
     explained:
       chat: Proveedores de modelos de generación de texto. ej. OpenRouter, OpenAI, Ollama.
@@ -744,9 +767,6 @@ pages:
       openai:
         description: openai.com
         title: OpenAI
-      azure-openai:
-        description: Azure OpenAI API
-        title: Azure OpenAI
       openai-compatible:
         description: OpenAI Compatible
         title: OpenAI Compatible
@@ -757,9 +777,6 @@ pages:
         description: n1n.ai - High-performance AI API provider.
         title: n1n
       openrouter:
-        description: openrouter.ai
-        title: OpenRouter
-      openrouter-audio-speech:
         description: openrouter.ai
         title: OpenRouter
       perplexity:
@@ -815,6 +832,13 @@ pages:
       browser-web-speech-api:
         description: Browser-native STT (requires Chrome/Edge/Safari)
         title: Web Speech API
+      official:
+        title: Official Provider
+        description: Official AI provider by AIRI.
+        speech-title: Official Speech Provider
+        speech-description: Official text-to-speech provider by AIRI.
+        transcription-title: Official Transcription Provider
+        transcription-description: Official speech-to-text provider by AIRI.
       transcriptions:
         playground:
           title: Playground de Transcripción
@@ -978,6 +1002,8 @@ pages:
       open-devtools:
         title: Open Developer Tools
         button: Open
+  credits:
+    buy: Buy
 sections:
   section:
     general:

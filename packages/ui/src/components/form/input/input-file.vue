@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import { useSlots } from 'vue'
+
 import BasicInputFile from './basic-input-file.vue'
 
 defineProps<{
   accept?: string
   multiple?: boolean
 }>()
+
+const slots = useSlots()
 </script>
 
 <template>
@@ -28,7 +32,9 @@ defineProps<{
     :multiple="multiple"
   >
     <template #default="{ isDragging }">
+      <slot v-if="slots.default" :is-dragging="isDragging" />
       <div
+        v-else
         class="flex flex-col items-center"
         :class="[
           isDragging ? 'text-primary-500 dark:text-primary-400' : 'text-neutral-400 dark:text-neutral-500',

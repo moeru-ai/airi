@@ -240,12 +240,44 @@ const { init: initVAD, dispose: disposeVAD, start: startVAD, loaded: vadLoaded }
 })
 
 let stopOnStopRecord: (() => void) | undefined
+const audioInteractionStarting = ref(false)
 
 // Caption overlay broadcast channel
 type CaptionChannelEvent
   = | { type: 'caption-speaker', text: string }
     | { type: 'caption-assistant', text: string }
 const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
+
+function handleStreamingSentenceEnd(delta: string) {
+  console.info('[Main Page] Received transcription delta:', delta)
+  const finalText = delta
+  if (!finalText || !finalText.trim()) {
+    return
+  }
+
+  postCaption({ type: 'caption-speaker', text: finalText })
+
+  void (async () => {
+    try {
+      const provider = await providersStore.getProviderInstance(activeChatProvider.value)
+      if (!provider || !activeChatModel.value) {
+        console.warn('[Main Page] No provider or model available, skipping chat send')
+        return
+      }
+
+      console.info('[Main Page] Sending transcription to chat:', finalText)
+      await chatStore.ingest(finalText, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+    }
+    catch (err) {
+      console.error('[Main Page] Failed to send chat from voice:', err)
+    }
+  })()
+}
+
+function handleStreamingSpeechEnd(text: string) {
+  console.info('[Main Page] Speech ended, final text:', text)
+  postCaption({ type: 'caption-speaker', text })
+}
 
 async function handleSpeechStart() {
   if (shouldUseStreamInput.value) {
@@ -266,6 +298,19 @@ async function handleSpeechEnd() {
 }
 
 async function startAudioInteraction() {
+  if (audioInteractionStarting.value)
+    return
+
+  // NOTICE: `stopOnStopRecord` only tracks whether the non-stream recording hook was registered.
+  //
+  // It does NOT guarantee that the current realtime transcription session is still attached to the
+  // latest `MediaStream`. We previously used it as a generic "already started" guard, which broke
+  // the hearing-config retoggle path: the mic stream was recreated, VAD restarted on the new stream,
+  // but `transcribeForMediaStream()` never reattached so speech was detected without any transcript.
+  //
+  // Keep the startup guard scoped to "startup in progress" only, and let stream changes restart the
+  // transcription binding when a new stream arrives.
+  audioInteractionStarting.value = true
   try {
     console.info('[Main Page] Starting audio interaction...')
 
@@ -291,35 +336,8 @@ async function startAudioInteraction() {
 
       // Use sentence deltas for live captions and speech end for final text.
       await transcribeForMediaStream(stream.value, {
-        onSentenceEnd: (delta) => {
-          console.info('[Main Page] Received transcription delta:', delta)
-          const finalText = delta
-          if (!finalText || !finalText.trim()) {
-            return
-          }
-
-          postCaption({ type: 'caption-speaker', text: finalText })
-
-          void (async () => {
-            try {
-              const provider = await providersStore.getProviderInstance(activeChatProvider.value)
-              if (!provider || !activeChatModel.value) {
-                console.warn('[Main Page] No provider or model available, skipping chat send')
-                return
-              }
-
-              console.info('[Main Page] Sending transcription to chat:', finalText)
-              await chatStore.ingest(finalText, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
-            }
-            catch (err) {
-              console.error('[Main Page] Failed to send chat from voice:', err)
-            }
-          })()
-        },
-        onSpeechEnd: (text) => {
-          console.info('[Main Page] Speech ended, final text:', text)
-          postCaption({ type: 'caption-speaker', text })
-        },
+        onSentenceEnd: handleStreamingSentenceEnd,
+        onSpeechEnd: handleStreamingSpeechEnd,
       })
 
       console.info('[Main Page] Streaming transcription started successfully')
@@ -332,32 +350,44 @@ async function startAudioInteraction() {
       })
     }
 
-    // Hook once
-    stopOnStopRecord = onStopRecord(async (recording) => {
-      if (shouldUseStreamInput.value)
-        return
-
-      const text = await transcribeForRecording(recording)
-      if (!text || !text.trim())
-        return
-
-      // Update caption overlay speaker text via BroadcastChannel
-      postCaption({ type: 'caption-speaker', text })
-
-      try {
-        const provider = await providersStore.getProviderInstance(activeChatProvider.value)
-        if (!provider || !activeChatModel.value)
+    // NOTICE: This hook is only for record-then-transcribe providers.
+    //
+    // Streaming providers use the active `MediaStream` directly, so this callback must not be treated
+    // as proof that a realtime session is alive. Future refactors should keep recorder-hook bookkeeping
+    // separate from stream transcription state, otherwise mic/device re-toggles can leave VAD active
+    // but transcription detached.
+    //
+    // Hook once for non-streaming providers.
+    if (!stopOnStopRecord) {
+      stopOnStopRecord = onStopRecord(async (recording) => {
+        if (shouldUseStreamInput.value)
           return
 
-        await chatStore.ingest(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
-      }
-      catch (err) {
-        console.error('Failed to send chat from voice:', err)
-      }
-    })
+        const text = await transcribeForRecording(recording)
+        if (!text || !text.trim())
+          return
+
+        // Update caption overlay speaker text via BroadcastChannel
+        postCaption({ type: 'caption-speaker', text })
+
+        try {
+          const provider = await providersStore.getProviderInstance(activeChatProvider.value)
+          if (!provider || !activeChatModel.value)
+            return
+
+          await chatStore.ingest(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+        }
+        catch (err) {
+          console.error('Failed to send chat from voice:', err)
+        }
+      })
+    }
   }
   catch (e) {
     console.error('Audio interaction init failed:', e)
+  }
+  finally {
+    audioInteractionStarting.value = false
   }
 }
 
@@ -365,12 +395,13 @@ function stopAudioInteraction() {
   tryCatch(() => {
     stopOnStopRecord?.()
     stopOnStopRecord = undefined
+    audioInteractionStarting.value = false
     void stopStreamingTranscription(true)
     disposeVAD()
   })
 }
 
-watch([enabled, stream], async ([val]) => {
+watch(enabled, async (val) => {
   console.info('[Main Page] Audio enabled changed:', val, 'stream available:', !!stream.value)
   if (val) {
     await askPermission()
@@ -393,6 +424,18 @@ onUnmounted(() => {
     ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
   })
   stopAudioInteraction()
+})
+
+watch(stream, async (currentStream) => {
+  if (!enabled.value || !currentStream || audioInteractionStarting.value)
+    return
+
+  // NOTICE: The controls-island mic toggle and device changes can replace the underlying MediaStream
+  // without reloading the page. When that happens, VAD may successfully restart against the new stream,
+  // but any existing transcription transport is still bound to the old one. Always allow the page to
+  // re-run `startAudioInteraction()` for a newly available stream unless startup is already underway.
+  console.info('[Main Page] Stream became available, ensuring audio interaction is started')
+  await startAudioInteraction()
 })
 
 watch([stream, () => vadLoaded.value], async ([s, loaded]) => {

@@ -19,17 +19,18 @@ dialogs:
     baseUrlHelp: URL de l'endpoint API (utilisez la valeur par défaut si vous n’êtes pas sûr)
     accountId: ID du compte
     validationSuccess: Validation de la configuration réussie
-    validationPartial: Configuration partiellement validée
     validationFailed: La validation de la configuration a échouée.
     validationError: 'Erreur de validation: {error}'
-    testGeneration: Génération du test
-    testGenerationRunning: Essai en cours...
-    testGenerationFailed: Échec de la génération du test
     skipForNow: Passer pour l'instant
     saveAndContinue: Sauvegarder et Continuer
     next: Suivant
     retry: Réessayer
     start: Commençons !
+    loginPrompt: Sign in to use the official AIRI provider for the best experience.
+    loginAction: Sign in
+    setupWithoutSigningIn: Setup with your provider
+    flux: Flux
+    buyFlux: Charge Flux
     select-model: Choisissez un modèle
     no-models: Pas de modèle disponible
     no-models-help: >-
@@ -49,7 +50,8 @@ dialogs:
       stateNotGranted: Non accordée
 language:
   title: Langage
-  description: Langue de l'interface utilisateur
+  description: >
+    UI language. You can set characters' language later.
 controls-island:
   icon-size:
     title: Taille des icônes de l'îlot de contrôle
@@ -104,7 +106,7 @@ live2d:
     title: FPS
     description: Limiter la fréquence d'image du rendu
     options:
-      unlimited: Aucune Limite
+      unlimited: ∞
 microphone: Microphone
 models: Modèle
 pages:
@@ -230,10 +232,6 @@ pages:
         title: Supprimer toutes les données
         description: Effacer tous les réglages, configurations de fournisseurs et modèles locaux.
         delete: Supprimer toutes les données
-      desktop-folder:
-        title: Ouvrir le dossier de données de l'application
-        description: Ouvrir le dossier de données d'AIRI dans votre gestionnaire de fichiers.
-        open: Ouvrir le dossier
       desktop:
         title: Réinitialiser les paramètres et états du bureau
         description: Effacer les paramètres du bureau AIRI et l'état d'exécution.
@@ -463,8 +461,33 @@ pages:
         apply-and-restart: Enregistrer et redémarrer stdio MCP
       messages:
         opened: 'Fichier de configuration ouvert à : {path}'
-        restarted: >-
-          Serveurs MCP redémarrés. Lancés : {started}, en échec : {failed}, ignorés : {skipped}
+        restarted: 'Serveurs MCP redémarrés. Lancés : {started}, en échec : {failed}, ignorés : {skipped}'
+  flux:
+    title: Flux
+    buy: Charge
+    description: Current Flux
+    packagesError: Failed to load packages. Please try again later.
+    checkout:
+      success: Payment successful! Your Flux has been topped up.
+      canceled: Payment was canceled.
+      error: Something went wrong. Please try again later.
+    audit:
+      title: Transaction History
+      time: Time
+      type: Type
+      detail: Detail
+      amount: Amount
+      typeAddition: Top-up
+      typeConsumption: Usage
+      typeInitial: Initial Grant
+      loading: Loading history...
+      empty: No transaction records yet.
+      loadMore: Load More
+      delayHint: Usage records may be delayed by up to 1 minute
+    packages:
+      title: Flux Packages
+      buy: Charge
+      description: Flux packages to choose from.
   providers:
     explained:
       chat: Fournisseurs de modèles de génération de texte, par ex. OpenRouter, OpenAI, Ollama.
@@ -744,9 +767,6 @@ pages:
       openai:
         description: openai.com
         title: OpenAI
-      azure-openai:
-        description: Azure OpenAI API
-        title: Azure OpenAI
       openai-compatible:
         description: Compatible avec OpenAI
         title: Compatible avec OpenAI
@@ -757,9 +777,6 @@ pages:
         description: n1n.ai - Fournisseur d'API d'IA haute performance.
         title: n1n
       openrouter:
-        description: openrouter.ai
-        title: OpenRouter
-      openrouter-audio-speech:
         description: openrouter.ai
         title: OpenRouter
       perplexity:
@@ -815,6 +832,13 @@ pages:
       browser-web-speech-api:
         description: STT natif du navigateur (requiert Chrome/Edge/Safari)
         title: Web Speech API
+      official:
+        title: Official Provider
+        description: Official AI provider by AIRI.
+        speech-title: Official Speech Provider
+        speech-description: Official text-to-speech provider by AIRI.
+        transcription-title: Official Transcription Provider
+        transcription-description: Official speech-to-text provider by AIRI.
       transcriptions:
         playground:
           title: Terrain de test de transcription
@@ -978,6 +1002,8 @@ pages:
       open-devtools:
         title: Ouvrir les Outils de Développement
         button: Ouvrir
+  credits:
+    buy: Buy
 sections:
   section:
     general:

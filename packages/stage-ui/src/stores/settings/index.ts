@@ -10,6 +10,7 @@ import { useSettingsTheme } from './theme'
 export * from './analytics'
 // Export sub-stores
 export * from './audio-device'
+export * from './beat-sync'
 export * from './controls-island'
 export * from './general'
 export * from './live2d'

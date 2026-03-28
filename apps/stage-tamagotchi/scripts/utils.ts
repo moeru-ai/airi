@@ -122,14 +122,14 @@ export function mapArchFor(
 function getLatestUpdateFilename(target: string): string | null {
   switch (target) {
     case 'x86_64-pc-windows-msvc':
-      return 'latest.yml'
+      return `latest-${mapArchFor(target, 'yml')}.yml`
     case 'x86_64-unknown-linux-gnu':
-      return 'latest-linux.yml'
+      return `latest-${mapArchFor(target, 'yml')}-linux.yml`
     case 'aarch64-unknown-linux-gnu':
-      return 'latest-linux-arm64.yml'
+      return `latest-${mapArchFor(target, 'yml')}-linux-${mapArchFor(target, 'yml')}.yml`
     case 'aarch64-apple-darwin':
     case 'x86_64-apple-darwin':
-      return 'latest-mac.yml'
+      return `latest-${mapArchFor(target, 'yml')}-mac.yml`
     default:
       return null
   }
@@ -178,9 +178,9 @@ export async function getFilenames(target: string, options: { release: boolean, 
         },
         {
           target: 'x86_64-pc-windows-msvc',
-          extension: 'latest.yml',
-          outputFilename: 'latest.yml',
-          releaseArtifactFilename: 'latest.yml',
+          extension: getLatestUpdateFilename(target)!,
+          outputFilename: getLatestUpdateFilename(target)!,
+          releaseArtifactFilename: getLatestUpdateFilename(target)!,
           productName,
           version,
           optional: true,
@@ -422,9 +422,9 @@ export async function getFilenames(target: string, options: { release: boolean, 
         },
         {
           target: 'aarch64-apple-darwin',
-          extension: 'latest-mac.yml',
-          outputFilename: 'latest-mac.yml',
-          releaseArtifactFilename: 'latest-mac.yml',
+          extension: getLatestUpdateFilename(target)!,
+          outputFilename: getLatestUpdateFilename(target)!,
+          releaseArtifactFilename: getLatestUpdateFilename(target)!,
           productName,
           version,
           optional: true,
@@ -469,9 +469,9 @@ export async function getFilenames(target: string, options: { release: boolean, 
         },
         {
           target: 'x86_64-apple-darwin',
-          extension: 'latest-mac.yml',
-          outputFilename: 'latest-mac.yml',
-          releaseArtifactFilename: 'latest-mac.yml',
+          extension: getLatestUpdateFilename(target)!,
+          outputFilename: getLatestUpdateFilename(target)!,
+          releaseArtifactFilename: getLatestUpdateFilename(target)!,
           productName,
           version,
           optional: true,

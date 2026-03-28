@@ -309,7 +309,10 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
                 break
               await chatOrchestrator.emitStreamEndHooks(event.context)
-              chatStream.finalizeStream()
+              // NOTICE: Remote stream events are mirrored across renderer windows for UI feedback only.
+              // Persisting them here would append assistant messages into the receiver's local session
+              // without the corresponding user message, corrupting IndexedDB history across windows.
+              chatStream.resetStream()
               chatOrchestrator.sending = false
               remoteStreamGuard = null
               break
@@ -321,7 +324,10 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
                 break
               await chatOrchestrator.emitAssistantResponseEndHooks(event.message, event.context)
-              chatStream.finalizeStream(event.message)
+              // NOTICE: The originating renderer already persists the final assistant message.
+              // Receiver windows must not write it again, or they can overwrite the same session
+              // with assistant-only history when their local session state is stale.
+              chatStream.resetStream()
               chatOrchestrator.sending = false
               remoteStreamGuard = null
               break
