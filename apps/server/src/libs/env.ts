@@ -48,6 +48,15 @@ const EnvSchema = object({
   AUTH_GITHUB_CLIENT_ID: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_ID is required')),
   AUTH_GITHUB_CLIENT_SECRET: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_SECRET is required')),
 
+  // OIDC Provider — trusted client credentials for first-party apps.
+  // Each pair is optional; clients without credentials are simply not registered.
+  OIDC_CLIENT_ID_WEB: optional(string()),
+  OIDC_CLIENT_SECRET_WEB: optional(string()),
+  OIDC_CLIENT_ID_ELECTRON: optional(string()),
+  OIDC_CLIENT_SECRET_ELECTRON: optional(string()),
+  OIDC_CLIENT_ID_POCKET: optional(string()),
+  OIDC_CLIENT_SECRET_POCKET: optional(string()),
+
   STRIPE_SECRET_KEY: optional(string()),
   STRIPE_WEBHOOK_SECRET: optional(string()),
 
