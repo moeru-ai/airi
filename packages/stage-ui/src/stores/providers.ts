@@ -1824,9 +1824,9 @@ export const useProvidersStore = defineStore('providers', () => {
     }
 
     const runValidation = async () => {
-      // NOTICE: Always skip chat ping check during automatic/background validation.
-      // Chat completions probes consume API tokens and should only be triggered
-      // by explicit user action (e.g. "Ping API" button on settings pages).
+      // PITFALL: Please consider skip chat ping check during automatic/background validation,
+      // since this can consume API tokens and may only be triggered
+      // by user action (e.g. "Ping API" button on settings pages) or other user intentions.
       const validationResult = await metadata.validators.validateProviderConfig(config || {}, {
         skipChatPingCheck: true,
       })
