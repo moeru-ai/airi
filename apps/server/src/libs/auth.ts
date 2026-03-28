@@ -43,13 +43,14 @@ export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null)
       },
     },
 
-    // NOTICE: Store OAuth state in the database instead of cookies to avoid
-    // state_mismatch errors on mobile browsers (iOS Safari/Chrome) where
-    // cross-site cookies are blocked by system-level privacy restrictions.
+    // NOTICE: skipStateCookieCheck required for Capacitor mobile apps.
+    // Default state strategy is 'database' (we have a DB), but better-auth
+    // still validates a signed state cookie (state.mjs L89-94). In Capacitor,
+    // OAuth opens a system browser with a separate cookie jar from the WebView,
+    // so the signed cookie is always missing → state_security_mismatch.
     // https://github.com/better-auth/better-auth/issues/5892
-    // https://github.com/better-auth/better-auth/issues/6207
     account: {
-      storeStateStrategy: 'database',
+      skipStateCookieCheck: true,
     },
 
     socialProviders: {
