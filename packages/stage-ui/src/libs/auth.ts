@@ -32,7 +32,7 @@ export const authClient = createAuthClient({
     onResponse(context) {
       const token = context.response.headers.get('set-auth-token')
       if (token) {
-        localStorage.setItem('auth/v1/token', token)
+        useAuthStore().token = token
       }
     },
   },
@@ -66,9 +66,12 @@ function extractTokenFromURL() {
   if (!token)
     return
 
-  // Persist immediately via raw localStorage so getAuthToken() picks it up
-  // before the Pinia store is hydrated.
-  localStorage.setItem('auth/v1/token', decodeURIComponent(token))
+  // Persist through the Pinia store ref so reactive consumers (e.g.
+  // needsOnboarding) observe the change immediately. Writing to the
+  // useLocalStorage ref updates both the Vue reactivity system and
+  // the underlying localStorage entry in one step.
+  const authStore = useAuthStore()
+  authStore.token = decodeURIComponent(token)
 
   // Clean the fragment from the URL to avoid leaking it in browser history
   window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
