@@ -7,12 +7,16 @@ import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot } 
 import { ref } from 'vue'
 import { toast } from 'vue-sonner'
 
-import { fetchSession, signIn } from '../../libs/auth'
+import { signInOIDC } from '../../libs/auth'
 
 const open = defineModel<boolean>('open', { required: true })
 
 const screenSafeArea = useScreenSafeArea()
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
+
+// OIDC client configuration sourced from environment variables
+const OIDC_CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID || 'airi-stage-web'
+const OIDC_REDIRECT_URI = `${window.location.origin}/auth/callback`
 
 const loading = ref<Record<OAuthProvider, boolean>>({
   google: false,
@@ -22,8 +26,11 @@ const loading = ref<Record<OAuthProvider, boolean>>({
 async function handleSignIn(provider: OAuthProvider) {
   loading.value[provider] = true
   try {
-    await signIn(provider)
-    await fetchSession()
+    await signInOIDC({
+      clientId: OIDC_CLIENT_ID,
+      redirectUri: OIDC_REDIRECT_URI,
+      provider,
+    })
   }
   catch (error) {
     toast.error(error instanceof Error ? error.message : 'An unknown error occurred')

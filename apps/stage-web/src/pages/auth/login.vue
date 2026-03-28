@@ -3,7 +3,7 @@ import type { OAuthProvider } from '@proj-airi/stage-ui/libs/auth'
 
 import { LoginDrawer } from '@proj-airi/stage-ui/components/auth'
 import { useBreakpoints } from '@proj-airi/stage-ui/composables'
-import { fetchSession, signIn } from '@proj-airi/stage-ui/libs/auth'
+import { fetchSession, signInOIDC } from '@proj-airi/stage-ui/libs/auth'
 import { Button } from '@proj-airi/ui'
 import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -13,6 +13,10 @@ const router = useRouter()
 
 const { isDesktop } = useBreakpoints()
 
+// OIDC client configuration for the web app
+const OIDC_CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID || 'airi-stage-web'
+const OIDC_REDIRECT_URI = `${window.location.origin}/auth/callback`
+
 const loading = ref<Record<OAuthProvider, boolean>>({
   google: false,
   github: false,
@@ -21,7 +25,11 @@ const loading = ref<Record<OAuthProvider, boolean>>({
 async function handleSignIn(provider: OAuthProvider) {
   loading.value[provider] = true
   try {
-    await signIn(provider)
+    await signInOIDC({
+      clientId: OIDC_CLIENT_ID,
+      redirectUri: OIDC_REDIRECT_URI,
+      provider,
+    })
   }
   catch (error) {
     toast.error(error instanceof Error ? error.message : 'An unknown error occurred')
@@ -32,6 +40,15 @@ async function handleSignIn(provider: OAuthProvider) {
 }
 
 onMounted(() => {
+  // Check URL for error from failed OAuth callback
+  const url = new URL(window.location.href)
+  const error = url.searchParams.get('error')
+  if (error) {
+    toast.error(error === 'auth_failed' ? 'Authentication failed. Please try again.' : error)
+    url.searchParams.delete('error')
+    window.history.replaceState(null, '', url.pathname)
+  }
+
   fetchSession()
     .then((authenticated) => {
       if (authenticated || !isDesktop.value) {
