@@ -143,7 +143,7 @@ export interface ProviderDefinition<TConfig extends any = any> {
 
   /**
    * If false, the provider does not require user-provided credentials (e.g. API keys).
-   * Used for built-in providers that authenticate via session cookies.
+   * Used for built-in providers that authenticate via JWT Bearer tokens.
    */
   requiresCredentials?: boolean
 
