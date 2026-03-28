@@ -130,7 +130,7 @@ export function useProviderValidation(providerId: string) {
     }
     catch (error) {
       manualTestPassed.value = false
-      manualTestMessage.value = errorMessageFrom(error) ?? 'Unknown error'
+      manualTestMessage.value = errorMessageFrom(error) ?? 'Generic error (e56ae24f)'
     }
     finally {
       isManualTesting.value = false

@@ -139,6 +139,13 @@ export interface ProviderMetadata {
     loadModel?: (config: Record<string, unknown>, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
   }
   validators: {
+    /**
+     * Validate a provider's configuration.
+     *
+     * PITFALL: When `skipChatPingCheck` is not set, the ChatCompletions validator
+     * (if present) may send a real `generateText("ping")` request that consumes
+     * API tokens. All automatic/background callers may consider pass `skipChatPingCheck: true`.
+     */
     validateProviderConfig: (config: Record<string, unknown>, options?: { skipChatPingCheck?: boolean, onlyChatPingCheck?: boolean }) => Promise<{
       errors: unknown[]
       reason: string
@@ -1817,7 +1824,12 @@ export const useProvidersStore = defineStore('providers', () => {
     }
 
     const runValidation = async () => {
-      const validationResult = await metadata.validators.validateProviderConfig(config || {})
+      // NOTICE: Always skip chat ping check during automatic/background validation.
+      // Chat completions probes consume API tokens and should only be triggered
+      // by explicit user action (e.g. "Ping API" button on settings pages).
+      const validationResult = await metadata.validators.validateProviderConfig(config || {}, {
+        skipChatPingCheck: true,
+      })
 
       if (providerRuntimeState.value[providerId]) {
         providerRuntimeState.value[providerId].isConfigured = validationResult.valid

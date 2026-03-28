@@ -48,6 +48,13 @@ export interface ProviderValidationResult {
   valid: boolean
 }
 
+/**
+ * Validator ID fragment for the chat completions probe.
+ * Matched via `.includes()` against validator instance ids
+ * (e.g. `openai-compatible:check-chat-completions`).
+ */
+export const CHAT_COMPLETIONS_VALIDATOR_ID = 'check-chat-completions'
+
 export enum ProviderValidationCheck {
   /** Lightweight GET to /models endpoint to check reachability (definition system) */
   Connectivity = 'connectivity',

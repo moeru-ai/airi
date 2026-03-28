@@ -5,7 +5,7 @@ import type { ProviderMetadata } from '../providers'
 
 import { listModels } from '@xsai/model'
 
-import { isModelProvider } from '../../libs/providers/types'
+import { CHAT_COMPLETIONS_VALIDATOR_ID, isModelProvider } from '../../libs/providers/types'
 import { getValidatorsOfProvider, validateProvider } from '../../libs/providers/validators/run'
 
 function getCategoryFromTasks(tasks: string[]): ProviderMetadata['category'] {
@@ -185,7 +185,7 @@ export function convertProviderDefinitionToMetadata(
     validators: {
       chatPingCheckAvailable: !definition.disableChatPingCheckUI
         && (definition.validators?.validateProvider || [])
-          .some(creator => creator({ t }).id.includes('check-chat-completions')),
+          .some(creator => creator({ t }).id.includes(CHAT_COMPLETIONS_VALIDATOR_ID)),
       validateProviderConfig: async (config, options) => {
         // onlyChatPingCheck: skip all validators except chat completions.
         // Used by the manual "Test Generation" button on settings pages.
@@ -197,8 +197,8 @@ export function convertProviderDefinitionToMetadata(
             contextOptions: { t },
           })
           plan.configValidators = []
-          plan.providerValidators = plan.providerValidators.filter(v => v.id.includes('check-chat-completions'))
-          plan.steps = plan.steps.filter(s => s.id.includes('check-chat-completions'))
+          plan.providerValidators = plan.providerValidators.filter(v => v.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
+          plan.steps = plan.steps.filter(s => s.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
 
           if (plan.providerValidators.length === 0) {
             return { errors: [], reason: '', valid: true }
@@ -221,8 +221,8 @@ export function convertProviderDefinitionToMetadata(
         })
 
         if (options?.skipChatPingCheck) {
-          plan.providerValidators = plan.providerValidators.filter(v => !v.id.includes('check-chat-completions'))
-          plan.steps = plan.steps.filter(s => !s.id.includes('check-chat-completions'))
+          plan.providerValidators = plan.providerValidators.filter(v => !v.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
+          plan.steps = plan.steps.filter(s => !s.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
         }
 
         // Run full validation pipeline (config + provider validators) only when required.
