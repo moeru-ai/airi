@@ -84,7 +84,7 @@ function handleLocalSetup() {
           :label="t('settings.language.title')"
           :description="t('settings.language.description')"
           :options="languages"
-          layout="vertical"
+          layout="horizontal"
         />
       </div>
     </div>
