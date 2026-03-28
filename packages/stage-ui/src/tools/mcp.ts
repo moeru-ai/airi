@@ -13,7 +13,7 @@ const tools = [
       }
       catch (error) {
         console.warn('[mcp_list_tools] failed to list tools:', error)
-        return []
+        return ''
       }
     },
     parameters: z.object({}).strict(),
