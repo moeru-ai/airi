@@ -1,5 +1,6 @@
 import type { Session, User } from 'better-auth'
 
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { StorageSerializers, useLocalStorage, whenever } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
@@ -20,6 +21,7 @@ export const useAuthStore = defineStore('auth', () => {
   })
   const session = useLocalStorage<Session | null>('auth/v1/session', null, { serializer: StorageSerializers.object })
   const token = useLocalStorage<string | null>('auth/v1/token', null)
+  const refreshToken = useLocalStorage<string | null>('auth/v1/refresh-token', null)
   const isAuthenticated = computed(() => !!user.value && !!session.value)
   const userId = computed(() => user.value?.id ?? 'local')
 
@@ -30,10 +32,16 @@ export const useAuthStore = defineStore('auth', () => {
   const { isMobile } = useBreakpoints()
 
   whenever(needsLogin, () => {
-    if (isMobile.value) {
+    // On mobile, LoginDrawer handles it via v-model
+    if (isMobile.value)
       return
-    }
 
+    // On Electron, auth is triggered via IPC from controls-island-auth-button.
+    // Setting needsLogin is a no-op in Electron — the button listens directly.
+    if (isStageTamagotchi())
+      return
+
+    // On web desktop, redirect to login page
     // TODO: type safe, import `useRouter` from router.ts
     window.location.href = '/auth/login'
   })
@@ -111,6 +119,7 @@ export const useAuthStore = defineStore('auth', () => {
     userId,
     session,
     token,
+    refreshToken,
     isAuthenticated,
     credits,
     updateCredits,
