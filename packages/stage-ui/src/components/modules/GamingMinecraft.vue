@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Callout, FieldCheckbox } from '@proj-airi/ui'
+import { Callout } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useMinecraftStore } from '../../stores/modules/gaming-minecraft'
@@ -10,7 +10,6 @@ const minecraftStore = useMinecraftStore()
 const { t } = useI18n()
 
 const {
-  integrationEnabled,
   serviceName,
   serviceConnected,
   latestRuntimeContextText,
@@ -53,10 +52,6 @@ function formatTrafficPayload(payload: unknown) {
 onMounted(() => {
   minecraftStore.initialize()
 })
-
-onUnmounted(() => {
-  minecraftStore.dispose()
-})
 </script>
 
 <template>
@@ -71,14 +66,6 @@ onUnmounted(() => {
         </div>
       </div>
     </Callout>
-
-    <div :class="['rounded-2xl border border-neutral-200 bg-neutral-50/80 p-4 dark:border-neutral-800 dark:bg-neutral-900/50']">
-      <FieldCheckbox
-        v-model="integrationEnabled"
-        :label="t('settings.pages.modules.gaming-minecraft.enable')"
-        :description="t('settings.pages.modules.gaming-minecraft.enable-description')"
-      />
-    </div>
 
     <div :class="['rounded-2xl border border-neutral-200 bg-neutral-50/80 p-4 dark:border-neutral-800 dark:bg-neutral-900/50']">
       <div :class="['mb-3 text-sm font-medium text-neutral-900 dark:text-neutral-100']">

@@ -1,6 +1,5 @@
 import type { WebSocketBaseEvent, WebSocketEvents } from '@proj-airi/server-sdk'
 
-import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
@@ -56,8 +55,6 @@ function isMinecraftModuleIdentity(value: { name?: string, identity?: { plugin?:
 export const useMinecraftStore = defineStore('minecraft', () => {
   const serverChannelStore = useModsServerChannelStore()
 
-  const integrationEnabled = useLocalStorageManualReset<boolean>('settings/minecraft/integration-enabled', false)
-
   const serviceName = ref('')
   const latestRuntimeContextText = ref('')
   const lastRuntimeContextAt = ref(0)
@@ -77,13 +74,16 @@ export const useMinecraftStore = defineStore('minecraft', () => {
   let trafficSequence = 0
 
   const serviceConnected = computed(() => servicePresent.value && serviceHealthy.value)
+  const hasObservedRuntime = computed(() => {
+    return servicePresent.value || lastRuntimeContextAt.value > 0
+  })
   const runtimeContextAgeMs = computed(() => {
     if (!lastRuntimeContextAt.value)
       return 0
 
     return Math.max(0, now.value - lastRuntimeContextAt.value)
   })
-  const configured = computed(() => integrationEnabled.value)
+  const configured = computed(() => hasObservedRuntime.value)
 
   function pushTrafficEntry(entry: Omit<MinecraftTrafficEntry, 'id'>) {
     trafficSequence += 1
@@ -229,12 +229,10 @@ export const useMinecraftStore = defineStore('minecraft', () => {
   }
 
   function resetState() {
-    integrationEnabled.reset()
     clearRuntimeState()
   }
 
   return {
-    integrationEnabled,
     serviceName,
     latestRuntimeContextText,
     lastRuntimeContextAt,

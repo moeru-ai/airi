@@ -11,7 +11,7 @@ export function createMinecraftContext(): ContextMessage | null {
   const minecraftStore = useMinecraftStore()
   minecraftStore.initialize()
 
-  if (!minecraftStore.integrationEnabled)
+  if (!minecraftStore.configured)
     return null
 
   const serviceStatus = minecraftStore.serviceConnected ? 'online' : 'offline'
@@ -22,7 +22,7 @@ export function createMinecraftContext(): ContextMessage | null {
     contextId: MINECRAFT_CONTEXT_ID,
     strategy: ContextUpdateStrategy.ReplaceSelf,
     text: [
-      'Minecraft integration is enabled.',
+      'Minecraft integration is active because AIRI has observed a Minecraft service.',
       'AIRI can oversee a connected Minecraft bot through AIRI server events.',
       'Minecraft can send status and context upward, and AIRI can send high-level guidance back down.',
       'Minecraft context updates are side context for the next turn and do not automatically trigger a new LLM response.',

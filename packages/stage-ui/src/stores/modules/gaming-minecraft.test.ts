@@ -37,7 +37,6 @@ describe('useMinecraftStore', () => {
     })
 
     store.initialize()
-    store.integrationEnabled = true
 
     contextHandler?.({
       data: {
@@ -53,7 +52,6 @@ describe('useMinecraftStore', () => {
       },
     })
 
-    expect(store.integrationEnabled).toBe(true)
     expect(store.configured).toBe(true)
     expect(store.serviceConnected).toBe(false)
     expect(store.latestRuntimeContextText).toContain('Bot online: airi-bot')
