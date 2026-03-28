@@ -6,51 +6,15 @@ export type OAuthProvider = 'google' | 'github'
 const BASE64_DASH = /-/g
 const BASE64_UNDERSCORE = /_/g
 
-const TOKEN_STORAGE_KEY = 'auth/v1/tokens'
-
-interface StoredTokens {
-  accessToken: string
-  refreshToken: string
-}
-
-/**
- * Get stored JWT tokens from localStorage.
- */
-export function getStoredTokens(): StoredTokens | null {
-  try {
-    const raw = localStorage.getItem(TOKEN_STORAGE_KEY)
-    if (!raw)
-      return null
-    return JSON.parse(raw) as StoredTokens
-  }
-  catch {
-    return null
-  }
-}
-
-/**
- * Store JWT tokens in localStorage.
- */
-export function storeTokens(tokens: StoredTokens): void {
-  localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(tokens))
-}
-
-/**
- * Clear stored JWT tokens.
- */
-export function clearTokens(): void {
-  localStorage.removeItem(TOKEN_STORAGE_KEY)
-}
-
 /**
  * Get the current access token, refreshing if needed.
  */
 export async function getAccessToken(): Promise<string | null> {
-  const tokens = getStoredTokens()
+  const authStore = useAuthStore()
+  const tokens = authStore.tokens
   if (!tokens)
     return null
 
-  // Check if access token is expired by decoding it
   if (!isTokenExpired(tokens.accessToken)) {
     return tokens.accessToken
   }
@@ -58,12 +22,12 @@ export async function getAccessToken(): Promise<string | null> {
   // Try to refresh
   const newAccessToken = await refreshAccessToken(tokens.refreshToken)
   if (newAccessToken) {
-    storeTokens({ accessToken: newAccessToken, refreshToken: tokens.refreshToken })
+    authStore.tokens = { accessToken: newAccessToken, refreshToken: tokens.refreshToken }
     return newAccessToken
   }
 
   // Refresh failed, clear tokens
-  clearTokens()
+  authStore.tokens = null
   return null
 }
 
@@ -122,8 +86,9 @@ export function initializeAuth() {
 
 /**
  * Handle OAuth callback by extracting tokens from URL params.
+ * Returns true if tokens were found and stored.
  */
-function handleOAuthCallback(): void {
+export function handleOAuthCallback(): boolean {
   const url = new URL(window.location.href)
   const accessToken = url.searchParams.get('access_token')
   const refreshToken = url.searchParams.get('refresh_token')
@@ -134,17 +99,21 @@ function handleOAuthCallback(): void {
     url.searchParams.delete('error')
     url.searchParams.delete('reason')
     window.history.replaceState({}, '', url.pathname + url.search)
-    return
+    return false
   }
 
   if (accessToken && refreshToken) {
-    storeTokens({ accessToken, refreshToken })
+    const authStore = useAuthStore()
+    authStore.tokens = { accessToken, refreshToken }
 
     // Clean up URL params
     url.searchParams.delete('access_token')
     url.searchParams.delete('refresh_token')
     window.history.replaceState({}, '', url.pathname + url.search)
+    return true
   }
+
+  return false
 }
 
 /**
@@ -166,7 +135,7 @@ export async function fetchSession(): Promise<boolean> {
 
     if (!res.ok) {
       authStore.user = null
-      clearTokens()
+      authStore.tokens = null
       return false
     }
 
@@ -206,7 +175,8 @@ export async function listSessions() {
  * Sign out — revoke the refresh token and clear local state.
  */
 export async function signOut() {
-  const tokens = getStoredTokens()
+  const authStore = useAuthStore()
+  const tokens = authStore.tokens
 
   if (tokens?.refreshToken) {
     try {
@@ -221,8 +191,7 @@ export async function signOut() {
     }
   }
 
-  clearTokens()
-  const authStore = useAuthStore()
+  authStore.tokens = null
   authStore.user = null
 }
 

@@ -15,8 +15,13 @@ export interface AuthUser {
   updatedAt: string
 }
 
+export interface StoredTokens {
+  accessToken: string
+  refreshToken: string
+}
+
 /**
- * Auth store — holds identity state and credits.
+ * Auth store — holds identity state, JWT tokens, and credits.
  *
  * This store has no dependency on `stores/providers`, which allows
  * `providers` to safely depend on it without creating a circular import.
@@ -24,6 +29,9 @@ export interface AuthUser {
 export const useAuthStore = defineStore('auth', () => {
   const user = useLocalStorage<AuthUser | null>('auth/v1/user', null, {
     // Why: https://github.com/vueuse/vueuse/pull/614#issuecomment-875450160
+    serializer: StorageSerializers.object,
+  })
+  const tokens = useLocalStorage<StoredTokens | null>('auth/v1/tokens', null, {
     serializer: StorageSerializers.object,
   })
   const isAuthenticated = computed(() => !!user.value)
@@ -122,6 +130,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     user,
+    tokens,
     userId,
     isAuthenticated,
     credits,

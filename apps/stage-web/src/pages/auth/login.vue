@@ -3,7 +3,7 @@ import type { OAuthProvider } from '@proj-airi/stage-ui/libs/auth'
 
 import { LoginDrawer } from '@proj-airi/stage-ui/components/auth'
 import { useBreakpoints } from '@proj-airi/stage-ui/composables'
-import { fetchSession, signIn } from '@proj-airi/stage-ui/libs/auth'
+import { fetchSession, handleOAuthCallback, signIn } from '@proj-airi/stage-ui/libs/auth'
 import { Button } from '@proj-airi/ui'
 import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -31,14 +31,23 @@ async function handleSignIn(provider: OAuthProvider) {
   }
 }
 
-onMounted(() => {
-  fetchSession()
-    .then((authenticated) => {
-      if (authenticated || !isDesktop.value) {
-        router.replace('/')
-      }
-    })
-    .catch(() => {})
+onMounted(async () => {
+  // Handle OAuth callback tokens from URL params
+  const hadTokens = handleOAuthCallback()
+
+  if (hadTokens) {
+    const authenticated = await fetchSession()
+    if (authenticated) {
+      router.replace('/')
+      return
+    }
+  }
+
+  // Check existing session
+  const authenticated = await fetchSession()
+  if (authenticated || !isDesktop.value) {
+    router.replace('/')
+  }
 })
 
 watch(isDesktop, (val) => {
