@@ -286,22 +286,6 @@ onUnmounted(() => {
     </a>
   </Section> -->
   <Section
-    :title="t('settings.live2d.focus.title')"
-    icon="i-solar:eye-scan-bold-duotone"
-    :class="[
-      'rounded-xl',
-      'bg-white/80  dark:bg-black/75',
-      'backdrop-blur-lg',
-    ]"
-    size="sm"
-    :expand="false"
-  >
-    <Checkbox
-      v-model="live2dDisableFocus"
-      :label="t('settings.live2d.focus.button-disable.title')"
-    />
-  </Section>
-  <Section
     title="Parameters"
     icon="i-solar:settings-bold-duotone"
     :class="[
@@ -312,6 +296,13 @@ onUnmounted(() => {
     size="sm"
     :expand="false"
   >
+    <div :class="['flex', 'items-center', 'justify-between']">
+      <span :class="['text-sm', 'text-neutral-600', 'dark:text-neutral-400']">
+        {{ t('settings.live2d.focus.button-disable.title') }}
+      </span>
+      <Checkbox v-model="live2dDisableFocus" />
+    </div>
+
     <div flex items-center justify-between>
       <span text-sm text-neutral-600 dark:text-neutral-400>Idle Animation</span>
       <div data-motion-selector relative flex flex-col items-end gap-1>

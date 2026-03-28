@@ -101,7 +101,7 @@ live2d:
   focus:
     title: Desactivar seguimiento del ratón del modelo
     button-disable:
-      title: Desactivar
+      title: Desactivar seguimiento del ratón del modelo
   fps:
     title: FPS
     description: Limitar velocidad de fotogramas

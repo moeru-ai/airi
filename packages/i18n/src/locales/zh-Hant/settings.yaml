@@ -101,7 +101,7 @@ live2d:
   focus:
     title: 停用模型滑鼠追蹤
     button-disable:
-      title: 停用
+      title: 停用模型滑鼠追蹤
   fps:
     title: FPS
     description: 限制渲染幀率

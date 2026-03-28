@@ -101,7 +101,7 @@ live2d:
   focus:
     title: 마우스 포인터 추적 비활성화
     button-disable:
-      title: 비활성화
+      title: 마우스 포인터 추적 비활성화
   fps:
     title: FPS (초당 프레임)
     description: 렌더링 주사율 제한

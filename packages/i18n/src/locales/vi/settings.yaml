@@ -101,7 +101,7 @@ live2d:
   focus:
     title: Tắt theo dõi chuột cho mô hình
     button-disable:
-      title: Tắt
+      title: Tắt theo dõi chuột cho mô hình
   fps:
     title: FPS
     description: Giới hạn tốc độ khung hình hiển thị

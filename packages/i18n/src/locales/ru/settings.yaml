@@ -101,7 +101,7 @@ live2d:
   focus:
     title: Отключить слежение за мышью
     button-disable:
-      title: Отключить
+      title: Отключить слежение за мышью
   fps:
     title: ФПС
     description: Ограничить скорость рендеринга кадров

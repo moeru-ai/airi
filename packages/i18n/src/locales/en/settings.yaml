@@ -103,7 +103,7 @@ live2d:
   focus:
     title: Disable model mouse tracking
     button-disable:
-      title: Disable
+      title: Disable model mouse tracking
   fps:
     title: FPS
     description: Limit rendering frame rate

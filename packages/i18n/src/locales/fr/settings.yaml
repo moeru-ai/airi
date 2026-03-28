@@ -101,7 +101,7 @@ live2d:
   focus:
     title: Désactiver le suivi du modèle par la souris
     button-disable:
-      title: Désactiver
+      title: Désactiver le suivi du modèle par la souris
   fps:
     title: FPS
     description: Limiter la fréquence d'image du rendu
