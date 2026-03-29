@@ -19,16 +19,16 @@ docs:
   'drag-to-move-window': Arrastra para mover la ventana
   'switch-to-light-mode': Cambiar a modo claro
   'switch-to-dark-mode': Cambiar a modo oscuro
-  'pin-on-top': Pin on top
-  'unpin-from-top': Unpin from top
-  'switch-profile': Switch Profile
-  'close': Close
-  'expand': Expand
-  'collapse': Collapse
+  'pin-on-top': Anclar Arriba
+  'unpin-from-top': Desanclar de la parte superior
+  'switch-profile': Cambiar Perfil
+  'close': Cerrar
+  'expand': Expandir
+  'collapse': Contraer
 'status-island':
-  connected: WebSocket connected
-  disconnected: WebSocket disconnected
-  'open-settings': Open WebSocket settings
+  connected: WebSocket conectado
+  disconnected: WebSocket desconectado
+  'open-settings': Abrir ajustes de WebSocket
 notice:
   'fade-on-hover':
     title: Desvanecer al pasar el cursor

@@ -19,8 +19,12 @@ dialogs:
     baseUrlHelp: URL de l'endpoint API (utilisez la valeur par défaut si vous n’êtes pas sûr)
     accountId: ID du compte
     validationSuccess: Validation de la configuration réussie
+    validationPartial: Configuration partiellement validée
     validationFailed: La validation de la configuration a échouée.
     validationError: 'Erreur de validation: {error}'
+    testGeneration: Ping API
+    testGenerationRunning: Ping...
+    testGenerationFailed: Ping échoué
     skipForNow: Passer pour l'instant
     saveAndContinue: Sauvegarder et Continuer
     next: Suivant
@@ -28,7 +32,7 @@ dialogs:
     start: Commençons !
     loginPrompt: Sign in to use the official AIRI provider for the best experience.
     loginAction: Sign in
-    localSetup: Configure Local Provider
+    setupWithoutSigningIn: Setup with your provider
     flux: Flux
     buyFlux: Charge Flux
     select-model: Choisissez un modèle
@@ -51,7 +55,7 @@ dialogs:
 language:
   title: Langage
   description: >
-    Change the language of the AIRI interface. This will not affect the language of the character's responses.
+    UI language. You can set characters' language later.
 controls-island:
   icon-size:
     title: Taille des icônes de l'îlot de contrôle
@@ -101,12 +105,12 @@ live2d:
   focus:
     title: Désactiver le suivi du modèle par la souris
     button-disable:
-      title: Désactiver
+      title: Disable model mouse tracking
   fps:
     title: FPS
     description: Limiter la fréquence d'image du rendu
     options:
-      unlimited: Aucune Limite
+      unlimited: '∞'
 microphone: Microphone
 models: Modèle
 pages:

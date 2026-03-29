@@ -6,6 +6,11 @@ chat:
       you: Ты
   reasoning: Причина
 message: Спроси что-нибудь
+send-mode:
+  title: Send key
+  enter: Enter
+  ctrl-enter: Ctrl + Enter
+  double-enter: Double Enter
 operations:
   load-models: Загрузить модели
   load-models-status:

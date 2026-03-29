@@ -18,17 +18,30 @@ dialogs:
     baseUrl: 基础 URL
     baseUrlHelp: API 端点 URL（如果不确定请使用默认值）
     accountId: 账户 ID
+    validationRunning: 正在验证配置
     validationSuccess: 配置验证成功
+    validationPartial: 配置部分验证通过
     validationFailed: 配置验证失败
     validationError: '验证错误：{error}'
+    testGeneration: Ping API
+    testGenerationRunning: Ping...
+    testGenerationFailed: Ping 测试失败
+    retryPingCheck: 再试一次
     skipForNow: 暂时跳过
     saveAndContinue: 保存并继续
     next: 下一步
     retry: 重试
+    credentialsSafeLabel: 请妥善保管你的 API 密钥和凭据！
+    credentialsSafeLocal: >-
+      AIRI 完全在你的计算机中本地运行，我们绝不会窃取你的 AI / LLM
+      服务商凭据。但请注意，你的 API 密钥是敏感信息，请妥善保管，不要与任何人分享。
+    credentialsSafeOpenSource: >-
+      AIRI 已在 {github} 开源，如果你想了解我们如何处理你的凭据，欢迎查阅我们的代码。
+    enableChatCheck: 允许 airi 向第一个可用的聊天模型发送 "ping" 消息来检查可用性
     start: 开始吧！
     loginPrompt: Sign in to use the official AIRI provider for the best experience.
     loginAction: Sign in
-    localSetup: Configure Local Provider
+    setupWithoutSigningIn: Setup with your provider
     flux: Flux
     buyFlux: Charge Flux
     select-model: 选择模型
@@ -51,7 +64,7 @@ dialogs:
 language:
   title: 语言
   description: >
-    Change the language of the AIRI interface. This will not affect the language of the character's responses.
+    UI language. You can set characters' language later.
 controls-island:
   icon-size:
     title: 控制岛图标大小
@@ -101,7 +114,7 @@ live2d:
   focus:
     title: 禁用模型鼠标跟踪
     button-disable:
-      title: 禁用
+      title: Disable model mouse tracking
   fps:
     title: 帧率
     description: 限制渲染帧率
@@ -375,6 +388,12 @@ pages:
         section:
           provider-selection:
             description: 选择合适的语音转文本的服务来源
+          confidence-threshold:
+            title: 置信度阈值
+            description: 过滤低置信度的转录结果，避免 Whisper 幻觉噪音。值越接近 0 越严格，拖到最左为禁用。仅对支持 Whisper API 的服务商有效（如 OpenAI、Groq）。
+            disabled: 已禁用
+            verbose-json-note: 注意：如果你的服务商不支持 verbose_json 响应，此设置将不会生效。
+            verbose-json-unsupported: 你的服务商未返回 verbose_json 片段，上次转录的置信度过滤未生效。
     memory-long-term:
       description: 长期记忆
       title: 长期记忆

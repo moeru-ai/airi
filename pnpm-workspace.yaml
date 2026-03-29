@@ -9,7 +9,6 @@ packages:
   - docs/**
   - apps/**
   - '!**/dist/**'
-
 overrides:
   array-flatten: npm:@nolyfill/array-flatten@^1.0.44
   axios: npm:feaxios@^0.0.23
@@ -20,6 +19,7 @@ overrides:
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
+
 patchedDependencies:
   '@mediapipe/tasks-vision': patches/@mediapipe__tasks-vision.patch
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
@@ -27,7 +27,6 @@ patchedDependencies:
   pixi-live2d-display: patches/pixi-live2d-display.patch
   srvx: patches/srvx.patch
 catalog:
-  '@better-auth/drizzle-adapter': ^1.5.6
   '@capacitor/android': ^8.2.0
   '@capacitor/cli': ^8.2.0
   '@capacitor/core': ^8.2.0
@@ -44,16 +43,16 @@ catalog:
   '@intlify/core': ^11.3.0
   '@modelcontextprotocol/sdk': ^1.27.1
   '@moeru/eslint-config': 0.1.0-beta.15
-  '@moeru/eventa': 1.0.0-beta.2
+  '@moeru/eventa': 1.0.0-beta.3
   '@moeru/std': 0.1.0-beta.17
   '@nekopaw/tempora': 0.4.0-alpha.1
   '@pinia/testing': ^1.0.3
   '@proj-airi/drizzle-duckdb-wasm': ^0.4.29
-  '@proj-airi/drizzle-orm-browser-migrator': ^0.1.6
   '@proj-airi/iconify-meteocons': ^0.1.4
   '@proj-airi/unplugin-drizzle-orm-migrations': ^0.1.6
   '@proj-airi/unplugin-fetch': ^0.2.2
   '@shopify/draggable': ^1.2.1
+  '@takumi-rs/image-response': 1.0.0-beta.20
   '@types/audioworklet': ^0.0.97
   '@types/d3': ^7.4.3
   '@types/hast': ^3.0.4
@@ -102,7 +101,6 @@ catalog:
   posthog-js: 1.306.1
   splitpanes: ^4.0.4
   std-env: ^4.0.0
-  stripe: ^20.3.0
   superjson: ^2.2.6
   tsdown: ^0.21.4
   tsx: ^4.21.0
@@ -111,6 +109,7 @@ catalog:
   unstorage: ^1.17.4
   valibot: 1.2.0
   vite: ^8.0.2
+  vite-plugin-inspect: ^11.3.3
   vite-plugin-mkcert: ^1.17.10
   vue: ^3.5.30
   vue-sonner: 2.0.9
@@ -154,7 +153,6 @@ onlyBuiltDependencies:
   - spawn-sync
   - utf-8-validate
   - vue-demi
-
 packageExtensions:
   '@formkit/auto-animate':
     peerDependencies:

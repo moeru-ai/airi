@@ -11,6 +11,7 @@ import type { WidgetsWindowManager } from '../windows/widgets'
 import { env } from 'node:process'
 
 import { is } from '@electron-toolkit/utils'
+import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
 import { effect } from 'alien-signals'
 import { app, Menu, nativeImage, screen, Tray } from 'electron'
 import { debounce, once } from 'es-toolkit'
@@ -96,6 +97,10 @@ export function setupTray(params: {
     onAppBeforeQuit(() => appTray.destroy())
 
     const rebuildContextMenu = debounce((): void => {
+      if (isRendererUnavailable(params.mainWindow)) {
+        return
+      }
+
       const { x: areaX, y: areaY, width: areaWidth, height: areaHeight } = screen.getPrimaryDisplay().workArea
       const { width: windowWidth, height: windowHeight } = params.mainWindow.getBounds()
 

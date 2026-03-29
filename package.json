@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/root",
   "type": "module",
-  "version": "0.9.0-alpha.29",
+  "version": "0.9.0-alpha.34",
   "private": true,
   "packageManager": "pnpm@10.32.1",
   "description": "LLM powered virtual character",
@@ -83,7 +83,7 @@
     "unplugin-raw": "^0.6.4",
     "unplugin-unused": "^0.5.7",
     "vite": "^8.0.2",
-    "vite-plugin-inspect": "^11.3.3",
+    "vite-plugin-inspect": "catalog:",
     "vitest": "^4.1.1",
     "yaml": "^2.8.3"
   },

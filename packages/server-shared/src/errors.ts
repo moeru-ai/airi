@@ -5,7 +5,9 @@ export const ServerErrorMessages = {
   moduleAnnounceIdentityInvalid: 'module identity must include kind=plugin and a plugin id for event \'module:announce\'',
   moduleAnnounceIndexInvalid: 'the field \'index\' must be a non-negative integer for event \'module:announce\'',
   moduleAnnounceNameInvalid: 'the field \'name\' must be a non-empty string for event \'module:announce\'',
+  moduleConsumerEventInvalid: 'the field \'event\' must be a non-empty string for event consumer registration',
   moduleNotFound: 'module not found, it hasn\'t announced itself or the name is incorrect',
+  noConsumerRegistered: 'no consumer registered for requested event delivery',
   notAuthenticated: 'not authenticated',
   uiConfigureModuleIndexInvalid: 'the field \'moduleIndex\' must be a non-negative integer for event \'ui:configure\'',
   uiConfigureModuleNameInvalid: 'the field \'moduleName\' can\'t be empty for event \'ui:configure\'',
@@ -18,8 +20,10 @@ export type ServerErrorCode
     | 'module-announce-identity-invalid'
     | 'module-announce-index-invalid'
     | 'module-announce-name-invalid'
+    | 'module-consumer-event-invalid'
     | 'module-not-found'
     | 'must-authenticate-before-announcing'
+    | 'no-consumer-registered'
     | 'not-authenticated'
     | 'ui-configure-module-index-invalid'
     | 'ui-configure-module-name-invalid'
@@ -124,6 +128,26 @@ export function parseServerErrorMessage(message: string): ParsedServerErrorMessa
       code: 'module-not-found',
       message,
       recoverable: false,
+      terminal: false,
+    }
+  }
+
+  if (message === ServerErrorMessages.moduleConsumerEventInvalid) {
+    return {
+      authentication: false,
+      code: 'module-consumer-event-invalid',
+      message,
+      recoverable: false,
+      terminal: false,
+    }
+  }
+
+  if (message === ServerErrorMessages.noConsumerRegistered) {
+    return {
+      authentication: false,
+      code: 'no-consumer-registered',
+      message,
+      recoverable: true,
       terminal: false,
     }
   }

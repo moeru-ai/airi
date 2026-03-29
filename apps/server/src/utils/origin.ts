@@ -15,12 +15,17 @@ export function getTrustedOrigin(origin: string): string {
     return origin
   }
 
-  // 2. Allow Production (Exact Match)
+  // 2. Allow Capacitor mobile app origins (iOS: capacitor://, Android: http://localhost)
+  if (origin === 'capacitor://localhost') {
+    return origin
+  }
+
+  // 3. Allow Production (Exact Match)
   if (origin === 'https://airi.moeru.ai') {
     return origin
   }
 
-  // 3. Allow Dynamic Subdomains (Strict Regex)
+  // 4. Allow Dynamic Subdomains (Strict Regex)
   // Matches: https://foo.kwaa.workers.dev
   if (/^https:\/\/.*\.kwaa\.workers\.dev$/.test(origin)) {
     return origin

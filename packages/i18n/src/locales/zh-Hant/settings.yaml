@@ -19,8 +19,12 @@ dialogs:
     baseUrlHelp: API 端點 URL（如果不確定請使用預設值）
     accountId: 帳號 ID
     validationSuccess: 設定驗證成功
+    validationPartial: 設定部分驗證通過
     validationFailed: 設定驗證失敗
     validationError: '驗證錯誤：{error}'
+    testGeneration: Ping API
+    testGenerationRunning: Ping...
+    testGenerationFailed: Ping 測試失敗
     skipForNow: 先略過
     saveAndContinue: 儲存並繼續
     next: 下一步
@@ -28,7 +32,7 @@ dialogs:
     start: 開始吧！
     loginPrompt: Sign in to use the official AIRI provider for the best experience.
     loginAction: Sign in
-    localSetup: Configure Local Provider
+    setupWithoutSigningIn: Setup with your provider
     flux: Flux
     buyFlux: Charge Flux
     select-model: 選擇模型
@@ -51,7 +55,7 @@ dialogs:
 language:
   title: 語言
   description: >
-    Change the language of the AIRI interface. This will not affect the language of the character's responses.
+    UI language. You can set characters' language later.
 controls-island:
   icon-size:
     title: 控制島嶼圖示大小
@@ -101,12 +105,12 @@ live2d:
   focus:
     title: 停用模型滑鼠追蹤
     button-disable:
-      title: 停用
+      title: Disable model mouse tracking
   fps:
     title: FPS
     description: 限制渲染幀率
     options:
-      unlimited: 無限制
+      unlimited: '∞'
 microphone: 麥克風
 models: 模型
 pages:
@@ -375,6 +379,12 @@ pages:
         section:
           provider-selection:
             description: 選擇合適的語音辨識提供者
+          confidence-threshold:
+            title: 置信度閾值
+            description: 過濾低置信度的轉錄結果，避免 Whisper 幻覺噪音。值越接近 0 越嚴格，拖到最左為禁用。僅對支援 Whisper API 的服務商有效（如 OpenAI、Groq）。
+            disabled: 已停用
+            verbose-json-note: 注意：如果你的服務商不支援 verbose_json 響應，此設定將不會生效。
+            verbose-json-unsupported: 你的服務商未返回 verbose_json 片段，上次轉錄的置信度過濾未生效。
     memory-long-term:
       description: 長期記憶
       title: 長期記憶

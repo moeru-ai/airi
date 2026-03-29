@@ -3,9 +3,9 @@ import type { ModelSettingsRuntimeSnapshot } from './runtime'
 
 import { defaultModelParameters, useLive2d } from '@proj-airi/stage-ui-live2d'
 import { OPFSCache } from '@proj-airi/stage-ui-live2d/utils/opfs-loader'
-import { Button, Checkbox, FieldRange, SelectTab } from '@proj-airi/ui'
+import { Button, Checkbox, FieldCheckbox, FieldCombobox, FieldRange, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useSettings } from '../../../../stores/settings'
@@ -44,44 +44,36 @@ const {
 } = storeToRefs(live2d)
 
 const selectedRuntimeMotion = ref<string>('')
-const selectedRuntimeMotionName = ref<string>('')
-const runtimeMotions = ref<Array<{ name: string, fullPath: string, displayPath: string, group: string, index: number }>>([])
-const showMotionSelector = ref(false)
+const runtimeMotions = ref<Array<{ name: string, displayPath: string, group: string, index: number }>>([])
 const canExtractColors = computed(() => props.runtimeSnapshot.canCapturePreview)
+const runtimeMotionOptions = computed(() => runtimeMotions.value.map(motion => ({
+  label: motion.name,
+  value: motion.displayPath,
+  description: motion.displayPath,
+})))
 const fpsOptions = computed(() => [
   { value: 0, label: t('settings.live2d.fps.options.unlimited') },
   { value: 60, label: '60' },
   { value: 30, label: '30' },
 ])
 
-// Get available runtime motions from the model
+watch(() => live2d.availableMotions, (motions) => {
+  runtimeMotions.value = motions.map(m => ({
+    name: m.fileName.split('/').pop() || m.fileName,
+    displayPath: m.fileName,
+    group: m.motionName,
+    index: m.motionIndex,
+  }))
+
+  console.info('Available motions:', runtimeMotions.value)
+}, { immediate: true })
+
 onMounted(() => {
-  // Listen for available motions updates
-  watch(() => live2d.availableMotions, (motions) => {
-    // Show all motions with their full paths
-    runtimeMotions.value = motions.map(m => ({
-      name: m.fileName.split('/').pop() || m.fileName,
-      fullPath: m.fileName, // Full path like "hiyori_free_zh/runtime/motions/idle.motion3.json"
-      displayPath: m.fileName, // Show full path for clarity
-      group: m.motionName,
-      index: m.motionIndex,
-    }))
-
-    console.info('Available motions:', runtimeMotions.value)
-  }, { immediate: true })
-
   // Restore selected motion
   const savedPath = localStorage.getItem('selected-runtime-motion')
-  const savedName = localStorage.getItem('selected-runtime-motion-name')
   if (savedPath) {
     selectedRuntimeMotion.value = savedPath
   }
-  if (savedName) {
-    selectedRuntimeMotionName.value = savedName
-  }
-
-  // Add click outside handler
-  document.addEventListener('click', handleClickOutside)
 })
 
 // Function to reset all parameters to default values
@@ -101,12 +93,17 @@ async function clearModelCache() {
   }
 }
 
-// Runtime motion selection handlers
-function handleMotionSelect(motion: any) {
-  selectedRuntimeMotion.value = motion.displayPath // Store full path
-  selectedRuntimeMotionName.value = motion.name // Store just the filename for display
+function handleMotionSelect(selectedMotionPath: string | number | undefined) {
+  if (typeof selectedMotionPath !== 'string') {
+    return
+  }
+
+  const motion = runtimeMotions.value.find(item => item.displayPath === selectedMotionPath)
+  if (!motion) {
+    return
+  }
+
   localStorage.setItem('selected-runtime-motion', motion.displayPath)
-  localStorage.setItem('selected-runtime-motion-name', motion.name)
   localStorage.setItem('selected-runtime-motion-group', motion.group)
   localStorage.setItem('selected-runtime-motion-index', motion.index.toString())
 
@@ -116,28 +113,10 @@ function handleMotionSelect(motion: any) {
   // Set the current motion to the selected runtime motion
   currentMotion.value = { group: motion.group, index: motion.index }
 
-  showMotionSelector.value = false
-
-  console.info('✅ Selected runtime motion:', motion.name)
+  console.info('Selected runtime motion:', motion.name)
   console.info('Full path:', motion.displayPath)
   console.info('Group:', motion.group, 'Index:', motion.index)
 }
-
-function toggleMotionSelector() {
-  showMotionSelector.value = !showMotionSelector.value
-}
-
-// Close dropdown when clicking outside
-function handleClickOutside(event: MouseEvent) {
-  const target = event.target as HTMLElement
-  if (!target.closest('[data-motion-selector]')) {
-    showMotionSelector.value = false
-  }
-}
-
-onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
-})
 
 // async function patchMotionMap(source: File, motionMap: Record<string, string>): Promise<File> {
 //   if (!Object.keys(motionMap).length)
@@ -286,22 +265,6 @@ onUnmounted(() => {
     </a>
   </Section> -->
   <Section
-    :title="t('settings.live2d.focus.title')"
-    icon="i-solar:eye-scan-bold-duotone"
-    :class="[
-      'rounded-xl',
-      'bg-white/80  dark:bg-black/75',
-      'backdrop-blur-lg',
-    ]"
-    size="sm"
-    :expand="false"
-  >
-    <Checkbox
-      v-model="live2dDisableFocus"
-      :label="t('settings.live2d.focus.button-disable.title')"
-    />
-  </Section>
-  <Section
     title="Parameters"
     icon="i-solar:settings-bold-duotone"
     :class="[
@@ -312,54 +275,25 @@ onUnmounted(() => {
     size="sm"
     :expand="false"
   >
-    <div flex items-center justify-between>
-      <span text-sm text-neutral-600 dark:text-neutral-400>Idle Animation</span>
-      <div data-motion-selector relative flex flex-col items-end gap-1>
-        <button
+    <FieldCheckbox
+      v-model="live2dDisableFocus"
+      :label="t('settings.live2d.focus.button-disable.title')"
+      placement="right"
+    />
 
-          :title="selectedRuntimeMotion"
-          flex items-center gap-2 border rounded bg-neutral-100 px-4 py-2 text-sm text-neutral-700 font-medium transition-colors dark:border-neutral-700 dark:bg-neutral-800 hover:bg-neutral-200 dark:text-neutral-300 dark:hover:bg-neutral-700
-          @click="toggleMotionSelector"
-        >
-          <span max-w-32 truncate>{{ selectedRuntimeMotionName || 'Select Motion' }}</span>
-          <div
-            :class="showMotionSelector ? 'i-solar:alt-arrow-up-line-duotone' : 'i-solar:alt-arrow-down-line-duotone'"
-            text-xs transition-transform
-          />
-        </button>
-
-        <!-- Dropdown menu -->
-        <div
-          v-if="showMotionSelector"
-
-          bg="white dark:neutral-800"
-          border="1 neutral-200 dark:neutral-700"
-          absolute right-0 top-10 z-50 max-h-80 min-w-64 overflow-y-auto rounded-lg shadow-lg
-        >
-          <div v-if="runtimeMotions.length === 0" p-4 text-sm text-neutral-500 dark:text-neutral-400>
-            No motions available
-          </div>
-          <button
-            v-for="motion in runtimeMotions"
-            :key="motion.fullPath"
-            w-full px-4 py-2.5 text-left
-            hover:bg="neutral-100 dark:neutral-700"
-            transition-colors
-            :class="{
-              'bg-neutral-100 dark:bg-neutral-700': selectedRuntimeMotion === motion.displayPath,
-            }"
-            @click="handleMotionSelect(motion)"
-          >
-            <div text-sm text-neutral-900 font-medium dark:text-neutral-100>
-              {{ motion.name }}
-            </div>
-            <div truncate text-xs text-neutral-500 dark:text-neutral-400>
-              {{ motion.displayPath }}
-            </div>
-          </button>
-        </div>
-      </div>
-    </div>
+    <FieldCombobox
+      v-model="selectedRuntimeMotion"
+      label="Idle Animation"
+      :options="runtimeMotionOptions"
+      placeholder="Select Motion"
+      :select-class="['w-full']"
+      :content-min-width="256"
+      @update:model-value="handleMotionSelect"
+    >
+      <template #empty>
+        No motions available
+      </template>
+    </FieldCombobox>
 
     <div :class="['mt-4', 'flex', 'items-center', 'justify-between']">
       <div :class="['flex', 'flex-col', 'gap-1']">
@@ -388,21 +322,23 @@ onUnmounted(() => {
       <Checkbox v-model="live2dShadowEnabled" />
     </div>
 
-    <button
-
-      mt-4 w-full border rounded bg-neutral-100 px-4 py-2 text-sm text-neutral-700 font-medium transition-colors dark:border-neutral-700 dark:bg-neutral-800 hover:bg-neutral-200 dark:text-neutral-300 dark:hover:bg-neutral-700
+    <Button
+      variant="secondary"
+      class="mt-4 w-full"
       @click="resetToDefaultParameters"
     >
       Reset To Default Parameters
-    </button>
+    </Button>
 
-    <button
-      mt-2 w-full border rounded bg-neutral-100 px-4 py-2 text-sm text-neutral-700 font-medium transition-colors dark:border-neutral-700 dark:bg-neutral-800 hover:bg-neutral-200 dark:text-neutral-300 dark:hover:bg-neutral-700
+    <Button
+      variant="secondary"
+      class="mt-2 w-full"
       :disabled="clearingCache"
+      :loading="clearingCache"
       @click="clearModelCache"
     >
-      {{ clearingCache ? 'Clearing...' : 'Clear Model Cache' }}
-    </button>
+      Clear Model Cache
+    </Button>
 
     <!-- Head Rotation -->
     <div mb-2 mt-4 text-xs text-neutral-500 font-semibold dark:text-neutral-400>

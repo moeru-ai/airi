@@ -47,8 +47,7 @@ import {
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { listProviders as listDefinedProviders } from '../libs/providers'
-import { getProviderValidationIntervalMs } from '../libs/providers/validators/run'
+import { getProviderValidationIntervalMs, listProviders as listDefinedProviders, ProviderValidationCheck } from '../libs/providers'
 import { getKokoroWorker } from '../workers/kokoro'
 import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '../workers/kokoro/constants'
 import { useAuthStore } from './auth'
@@ -140,7 +139,14 @@ export interface ProviderMetadata {
     loadModel?: (config: Record<string, unknown>, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
   }
   validators: {
-    validateProviderConfig: (config: Record<string, unknown>) => Promise<{
+    /**
+     * Validate a provider's configuration.
+     *
+     * PITFALL: When `skipChatPingCheck` is not set, the ChatCompletions validator
+     * (if present) may send a real `generateText("ping")` request that consumes
+     * API tokens. All automatic/background callers may consider pass `skipChatPingCheck: true`.
+     */
+    validateProviderConfig: (config: Record<string, unknown>, options?: { skipChatPingCheck?: boolean, onlyChatPingCheck?: boolean }) => Promise<{
       errors: unknown[]
       reason: string
       valid: boolean
@@ -150,14 +156,12 @@ export interface ProviderMetadata {
       valid: boolean
     }
     /**
-     * Run only the manual-only validators. Returns validation result.
-     * Only available when the provider has manual validators.
+     * Whether the "skip chat ping check" checkbox should be shown in the UI.
+     *
+     * Automatically derived: `true` when the provider has a ChatCompletions
+     * runtime validator AND `disableChatPingCheckUI` is not set on the definition.
      */
-    runManualValidation?: (config: Record<string, unknown>) => Promise<{
-      errors: unknown[]
-      reason: string
-      valid: boolean
-    }>
+    chatPingCheckAvailable: boolean
   }
   /**
    * If true, the provider does not require user-provided credentials (e.g. API keys).
@@ -277,6 +281,7 @@ export const useProvidersStore = defineStore('providers', () => {
         listVoices: async () => [],
       },
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: () => ({
           errors: [],
           reason: '',
@@ -297,6 +302,7 @@ export const useProvidersStore = defineStore('providers', () => {
       creator: createOpenAI,
       validation: [],
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           if (!config.baseUrl) {
             return {
@@ -327,6 +333,7 @@ export const useProvidersStore = defineStore('providers', () => {
       creator: createOpenAI,
       validation: [],
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           if (!config.baseUrl) {
             return {
@@ -357,6 +364,7 @@ export const useProvidersStore = defineStore('providers', () => {
       creator: createOpenAI,
       validation: [],
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           if (!config.baseUrl) {
             return {
@@ -387,6 +395,7 @@ export const useProvidersStore = defineStore('providers', () => {
       creator: createOpenAI,
       validation: [],
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           if (!config.baseUrl) {
             return {
@@ -415,7 +424,7 @@ export const useProvidersStore = defineStore('providers', () => {
       tasks: ['text-to-speech'],
       defaultBaseUrl: 'https://api.openai.com/v1/',
       creator: createOpenAI,
-      validation: ['health'],
+      validation: [ProviderValidationCheck.Health],
       capabilities: {
         // NOTE: OpenAI does not provide an API endpoint to retrieve available voices.
         // Voices are hardcoded here - this is a provider limitation, not an application limitation.
@@ -560,6 +569,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API Key is required'),
@@ -646,7 +656,7 @@ export const useProvidersStore = defineStore('providers', () => {
       tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
       defaultBaseUrl: 'https://api.openai.com/v1/',
       creator: createOpenAI,
-      validation: ['health'],
+      validation: [ProviderValidationCheck.Health],
       capabilities: {
         listModels: async () => {
           // OpenAI transcription models are hardcoded (no API endpoint to list them)
@@ -695,6 +705,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API Key is required'),
@@ -796,6 +807,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors: Error[] = []
           const toString = (value: unknown) => typeof value === 'string' ? value.trim() : ''
@@ -875,6 +887,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: () => {
           // Web Speech API requires no configuration, just browser support
           // Always return valid if browser supports it, so it auto-configures
@@ -968,6 +981,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API key is required.'),
@@ -1052,6 +1066,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors: Error[] = []
           if (!config.apiKey) {
@@ -1117,6 +1132,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API key is required.'),
@@ -1193,6 +1209,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: async (config) => {
           const errors = [
             !config.baseUrl && new Error('Base URL is required. Default to http://localhost:11996/tts/ for Index-TTS.'),
@@ -1282,6 +1299,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API key is required.'),
@@ -1347,6 +1365,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API key is required.'),
@@ -1382,7 +1401,7 @@ export const useProvidersStore = defineStore('providers', () => {
         createModelProvider({ apiKey, baseURL }),
         createSpeechProvider({ apiKey, baseURL }),
       ),
-      validation: ['model_list'],
+      validation: [ProviderValidationCheck.ModelList],
     }),
     'comet-api-transcription': buildOpenAICompatibleProvider({
       id: 'comet-api-transcription',
@@ -1398,7 +1417,7 @@ export const useProvidersStore = defineStore('providers', () => {
         createModelProvider({ apiKey, baseURL }),
         createTranscriptionProvider({ apiKey, baseURL }),
       ),
-      validation: ['model_list'],
+      validation: [ProviderValidationCheck.ModelList],
     }),
     'player2-speech': {
       id: 'player2-speech',
@@ -1481,6 +1500,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: async (config) => {
           const errors = [
             !config.baseUrl && new Error('Base URL is required. Default to http://localhost:4315/v1/'),
@@ -1681,6 +1701,7 @@ export const useProvidersStore = defineStore('providers', () => {
       },
 
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: async (config: any) => {
           const model = config.model as string
 
@@ -1803,7 +1824,12 @@ export const useProvidersStore = defineStore('providers', () => {
     }
 
     const runValidation = async () => {
-      const validationResult = await metadata.validators.validateProviderConfig(config || {})
+      // PITFALL: Please consider skip chat ping check during automatic/background validation,
+      // since this can consume API tokens and may only be triggered
+      // by user action (e.g. "Ping API" button on settings pages) or other user intentions.
+      const validationResult = await metadata.validators.validateProviderConfig(config || {}, {
+        skipChatPingCheck: true,
+      })
 
       if (providerRuntimeState.value[providerId]) {
         providerRuntimeState.value[providerId].isConfigured = validationResult.valid

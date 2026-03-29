@@ -19,8 +19,12 @@ dialogs:
     baseUrlHelp: APIエンドポイントURL（不明な場合はデフォルトを使用）
     accountId: アカウントID
     validationSuccess: 設定検証に成功
+    validationPartial: 設定が部分的に検証されました
     validationFailed: 設定検証に失敗
     validationError: '検証エラー: {error}'
+    testGeneration: Ping API
+    testGenerationRunning: Ping...
+    testGenerationFailed: Ping テストに失敗
     skipForNow: 今はスキップ
     saveAndContinue: 保存して続行
     next: 次へ
@@ -28,7 +32,7 @@ dialogs:
     start: 始めましょう！
     loginPrompt: Sign in to use the official AIRI provider for the best experience.
     loginAction: Sign in
-    localSetup: Configure Local Provider
+    setupWithoutSigningIn: Setup with your provider
     flux: Flux
     buyFlux: Charge Flux
     select-model: モデルを選択
@@ -51,7 +55,7 @@ dialogs:
 language:
   title: 言語
   description: >
-    Change the language of the AIRI interface. This will not affect the language of the character's responses.
+    UI language. You can set characters' language later.
 controls-island:
   icon-size:
     title: アイランドアイコンのサイズを制御
@@ -101,12 +105,12 @@ live2d:
   focus:
     title: モデルのマウストラッキングを無効にする
     button-disable:
-      title: 無効
+      title: Disable model mouse tracking
   fps:
     title: FPS
     description: レンダリングフレームレートを制限
     options:
-      unlimited: 制限なし
+      unlimited: '∞'
 microphone: マイク
 models: モデル
 pages:
@@ -597,16 +601,16 @@ pages:
     provider:
       app-local-audio-transcription:
         title: アプリ (ローカル)
-        description: https://github.com/moeru-ai/xsai-transforers
+        description: https://github.com/moeru-ai/xsai-transformers
       app-local-audio-speech:
         title: アプリ (ローカル)
-        description: https://github.com/moeru-ai/xsai-transforers
+        description: https://github.com/moeru-ai/xsai-transformers
       browser-local-audio-transcription:
         title: ブラウザ (ローカル)
-        description: https://github.com/moeru-ai/xsai-transforers
+        description: https://github.com/moeru-ai/xsai-transformers
       browser-local-audio-speech:
         title: ブラウザ (ローカル)
-        description: https://github.com/moeru-ai/xsai-transforers
+        description: https://github.com/moeru-ai/xsai-transformers
       alibaba-cloud-model-studio:
         description: bailian.console.aliyun.com
         title: Alibaba Cloud Model Studio

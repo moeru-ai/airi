@@ -1,7 +1,8 @@
 import { createChatProvider, createEmbedProvider, createModelProvider, merge } from '@xsai-ext/providers/utils'
 import { z } from 'zod'
 
-import { createOpenAICompatibleValidators } from '../../validators/openai-compatible'
+import { ProviderValidationCheck } from '../../types'
+import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
 
 const lmStudioConfigSchema = z.object({
@@ -53,7 +54,7 @@ export const providerLmStudio = defineProvider<LMStudioConfig>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: ['connectivity', 'model_list'],
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList],
       skipApiKeyCheck: true,
       schedule: {
         mode: 'interval',
