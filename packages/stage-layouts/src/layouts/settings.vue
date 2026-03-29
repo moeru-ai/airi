@@ -78,25 +78,30 @@ onMounted(() => updateThemeColor())
       paddingRight: 'env(safe-area-inset-right, 0px)',
       paddingLeft: 'env(safe-area-inset-left, 0px)',
     }"
-    h-full w-full flex="~ col"
+    :class="['h-full w-full', 'flex flex-col']"
   >
     <!-- Header -->
     <div
       v-if="!isStageTamagotchi()"
-      class="px-0 py-1 hidden sm:block md:px-3 md:py-3"
-      w-full gap-2
-      bg="$bg-color"
+      :class="['px-0 py-1 hidden sm:block', 'md:px-3 md:py-3', 'w-full gap-2', 'bg-$bg-color']"
     >
       <HeaderLink />
     </div>
     <!-- Content -->
-    <div class="px-3 py-0 2xl:max-w-screen-2xl md:py-0 xl:px-4" flex="~ col" mx-auto min-h-0 w-full flex-1>
+    <div
+      :class="[
+        'px-3 py-0 md:py-0 xl:px-4',
+        '2xl:max-w-screen-2xl',
+        'flex flex-col',
+        'mx-auto min-h-0 w-full flex-1',
+      ]"
+    >
       <PageHeader
         :title="routeHeaderMetadata?.title || ''"
         :subtitle="routeHeaderMetadata?.subtitle"
         :disable-back-button="isStageTamagotchi() && route.path === '/settings'"
       />
-      <div id="settings-scroll-container" relative min-h-0 flex-1 overflow-y-auto scrollbar-none>
+      <div id="settings-scroll-container" :class="['relative', 'min-h-0', 'flex-1', 'overflow-y-auto', 'scrollbar-none']">
         <RouterView />
       </div>
     </div>
