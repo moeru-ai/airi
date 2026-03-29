@@ -5,7 +5,7 @@ date: 2026-03-23
 excerpt: |
   Initial investigation into improving AIRI mobile performance
 preview-cover:
-  light: "@assets('./assets/cover-light.avif')"
+  light: "@assets('./assets/cover-light.jpg')"
   dark: "@assets('./assets/cover-dark.avif')"
 ---
 
