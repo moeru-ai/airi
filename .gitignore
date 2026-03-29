@@ -56,6 +56,7 @@ dist
 .nuxt
 # vite-plugin-inspect
 .vite-inspect
+.vite-inspect*
 
 # auto import & auto fs based router
 components.d.ts
