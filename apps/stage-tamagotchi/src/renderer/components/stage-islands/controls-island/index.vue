@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
-import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useSettings, useSettingsAudioDevice, useSettingsControlsIsland } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { refDebounced, useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -29,9 +29,11 @@ const { t } = useI18n()
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const settingsStore = useSettings()
+const settingsControlsIslandStore = useSettingsControlsIsland()
 const context = useElectronEventaContext()
 const { enabled } = storeToRefs(settingsAudioDeviceStore)
 const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
+const { autoHideControlsIsland, autoHideDelay, autoShowDelay } = storeToRefs(settingsControlsIslandStore)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const openChat = useElectronEventaInvoke(electronOpenChat)
 const isLinux = useElectronEventaInvoke(electron.app.isLinux)
@@ -46,7 +48,10 @@ const blockingOverlays = reactive(new Set<string>())
 const isBlocked = computed(() => blockingOverlays.size > 0)
 
 function setOverlay(key: string, active: boolean) {
-  active ? blockingOverlays.add(key) : blockingOverlays.delete(key)
+  if (active)
+    blockingOverlays.add(key)
+  else
+    blockingOverlays.delete(key)
 }
 
 // Expose for parent (e.g. to disable click-through when a dialog is open)
@@ -56,9 +61,42 @@ defineExpose({
 })
 
 const { isOutside } = useElectronMouseInElement(islandRef)
-const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
 
-watch(isOutsideAfter2seconds, (outside) => {
+// Auto-hide logic with configurable delays
+const autoHideDelayMs = computed(() => autoHideDelay.value * 1000)
+const autoShowDelayMs = computed(() => autoShowDelay.value * 1000)
+
+// Debounced outside state for hide delay
+const isOutsideForHide = refDebounced(isOutside, () => autoHideDelayMs.value || 5000)
+
+// Debounced inside state for show delay
+const isInsideForShow = refDebounced(computed(() => !isOutside.value), () => autoShowDelayMs.value || 0)
+
+// Auto-hide: hide controls island when mouse leaves after delay
+// Auto-show: show controls island when mouse enters after delay
+const isHidden = computed(() => {
+  if (!autoHideControlsIsland.value)
+    return false
+
+  // Don't hide if there's a blocking overlay or expanded panel should stay
+  if (isBlocked.value || expanded.value)
+    return false
+
+  // When mouse is inside, always show immediately
+  if (!isOutside.value)
+    return false
+
+  // When autoShowDelay > 0, wait for mouse to be inside for the configured delay before showing
+  if (autoShowDelay.value > 0) {
+    // Hide if not yet inside for show delay
+    return !isInsideForShow.value
+  }
+
+  // Default: hide when mouse has been outside for the configured delay
+  return isOutsideForHide.value
+})
+
+watch(isOutsideForHide, (outside) => {
   if (outside && expanded.value && !isBlocked.value) {
     expanded.value = false
   }
@@ -74,7 +112,7 @@ useIntervalFn(() => {
   if (expanded.value && isOutside.value && !isBlocked.value) {
     expanded.value = false
   }
-}, 1500)
+}, () => autoHideDelayMs.value || 5000)
 
 // Apply alwaysOnTop on mount and when it changes
 watch(alwaysOnTop, (val) => {
@@ -125,7 +163,14 @@ function refreshWindow() {
 </script>
 
 <template>
-  <div ref="islandRef" fixed bottom-2 right-2>
+  <div
+    ref="islandRef"
+    fixed bottom-2 right-2
+    :class="[
+      autoHideControlsIsland ? 'transition-opacity duration-300' : '',
+      isHidden ? 'opacity-0' : 'opacity-100',
+    ]"
+  >
     <div flex flex-col items-end gap-1>
       <!-- iOS Style Drawer Panel -->
       <Transition
