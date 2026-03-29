@@ -1,6 +1,7 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { BrowserWindow } from 'electron'
 import type { UpdateInfo } from 'electron-updater'
+import process from 'node:process'
 
 import type { AutoUpdaterState } from '../../../shared/eventa'
 
@@ -21,6 +22,7 @@ import {
 import { MockAutoUpdater } from './mock-auto-updater'
 
 export interface AppUpdaterLike {
+  channel?: string
   on: (event: string, listener: (...args: any[]) => void) => any
   checkForUpdates: () => Promise<any>
   downloadUpdate: () => Promise<any>
@@ -58,6 +60,10 @@ export function setupAutoUpdater(): AutoUpdater {
 
   let state: AutoUpdaterState = { status: 'idle' }
   const hooks = new Set<(state: AutoUpdaterState) => void>()
+
+  // Fix: explicitly map base channel to architecture to resolve 404 targets.
+  // electron-updater natively appends OS suffixes (-mac.yml, -linux.yml) automatically.
+  autoUpdater.channel = process.arch === 'arm64' ? 'latest-arm64' : 'latest-x64'
 
   function broadcast(next: AutoUpdaterState) {
     state = next
