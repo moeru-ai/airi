@@ -19,8 +19,12 @@ dialogs:
     baseUrlHelp: API 엔드포인트 URL(확실하지 않은 경우 기본값 사용)
     accountId: 계정 ID
     validationSuccess: 구성 검증 성공
+    validationPartial: 구성이 부분적으로 검증됨
     validationFailed: 구성 검증 실패
     validationError: '검증 오류: {error}'
+    testGeneration: Ping API
+    testGenerationRunning: Ping...
+    testGenerationFailed: Ping 테스트 실패
     skipForNow: 지금은 건너뛰기
     saveAndContinue: 저장 및 계속
     next: 다음
@@ -101,12 +105,12 @@ live2d:
   focus:
     title: 마우스 포인터 추적 비활성화
     button-disable:
-      title: 비활성화
+      title: Disable model mouse tracking
   fps:
     title: FPS (초당 프레임)
     description: 렌더링 주사율 제한
     options:
-      unlimited: ∞
+      unlimited: '∞'
 microphone: 마이크
 models: 모델
 pages:

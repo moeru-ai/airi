@@ -26,6 +26,8 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     'error',
     'module:announce',
     'module:configure',
+    'module:consumer:register',
+    'module:consumer:unregister',
     'module:authenticated',
     'spark:notify',
     'spark:emit',

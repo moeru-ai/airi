@@ -19,13 +19,31 @@ dialogs:
     baseUrl: Base URL
     baseUrlHelp: API endpoint URL (use default if unsure)
     accountId: Account ID
+    validationRunning: Running tests
     validationSuccess: Configuration validation success
+    validationPartial: Configuration partially validated
     validationFailed: Configuration validation failed
     validationError: 'Validation error: {error}'
+    testGeneration: Ping API
+    testGenerationRunning: Ping...
+    testGenerationFailed: Ping test failed
+    retryPingCheck: Retry
     skipForNow: Skip for now
     saveAndContinue: Save and Continue
     next: Next
     retry: Retry
+    credentialsSafeLabel: Keep your API keys and credentials safe!
+    credentialsSafeLocal: >-
+      AIRI is running pure locally in your PC, and we will never steal
+      your credentials for AI / LLM providers. But keep in mind that your API
+      keys are sensitive information. Make sure to keep them safe and do not
+      share them with anyone.
+    credentialsSafeOpenSource: >-
+      AIRI is open sourced at {github}, if you want to check how we handle
+      your credentials, feel free to inspect our code.
+    enableChatCheck: >-
+      Allow airi to send a "ping" message to the first available chat model to
+      check availability
     start: Let's do it!
     loginPrompt: Sign in to use the official AIRI provider for the best experience.
     loginAction: Sign in
@@ -103,7 +121,7 @@ live2d:
   focus:
     title: Disable model mouse tracking
     button-disable:
-      title: Disable
+      title: Disable model mouse tracking
   fps:
     title: FPS
     description: Limit rendering frame rate
@@ -389,6 +407,14 @@ pages:
         section:
           provider-selection:
             description: Select the suitable speech recognition provider
+          confidence-threshold:
+            title: Confidence Threshold
+            description: Filter out low-confidence transcriptions to reduce Whisper hallucinations. Values closer to 0 are more strict; drag to the leftmost to disable. Only effective for providers supporting Whisper API (e.g., OpenAI, Groq).
+            disabled: Disabled
+            verbose-json-note: >-
+              Note: If your provider does not support verbose_json responses, this setting will have no effect.
+            verbose-json-unsupported: >-
+              Your provider did not return verbose_json segments. Confidence filtering had no effect on the last transcription.
     memory-long-term:
       description: Long-term memory specific settings and management
       title: Long-Term Memory

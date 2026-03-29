@@ -6,6 +6,11 @@ chat:
       you: 你
   reasoning: 思考
 message: 说点什么...
+send-mode:
+  title: Send key
+  enter: Enter
+  ctrl-enter: Ctrl + Enter
+  double-enter: Double Enter
 operations:
   load-models: 加载模型
   load-models-status:
