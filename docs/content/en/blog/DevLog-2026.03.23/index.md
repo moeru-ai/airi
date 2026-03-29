@@ -4,6 +4,9 @@ category: DevLog
 date: 2026-03-23
 excerpt: |
   Initial investigation into improving AIRI mobile performance
+preview-cover:
+  light: "@assets('./assets/cover-light.avif')"
+  dark: "@assets('./assets/cover-dark.avif')"
 ---
 
 Hi, this is [@PurCHES5](https://github.com/PurCHES5).
