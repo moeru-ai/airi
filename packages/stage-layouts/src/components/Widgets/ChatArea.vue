@@ -84,18 +84,21 @@ async function debouncedAutoSend(text: string) {
     const textToSend = pendingAutoSendText.value.trim()
     if (textToSend && autoSendEnabled.value) {
       try {
+        // `ingest()` resolves only after the full assistant turn finishes; clear UI/buffer now so
+        // the next SentenceEnd during streaming does not append to the message we already committed.
+        messageInput.value = ''
+        pendingAutoSendText.value = ''
         const providerConfig = providersStore.getProviderConfig(activeProvider.value)
         await ingest(textToSend, {
           chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
           model: activeModel.value,
           providerConfig,
         })
-        // Clear the message input after sending
-        messageInput.value = ''
-        pendingAutoSendText.value = ''
       }
       catch (err) {
         console.error('[ChatArea] Auto-send error:', err)
+        messageInput.value = textToSend
+        pendingAutoSendText.value = textToSend
       }
     }
     autoSendTimeout = undefined
