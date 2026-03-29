@@ -3,6 +3,7 @@
  * Creates and connects singing service components.
  */
 import { InMemoryQueue, resolveRuntimeEnv } from '@proj-airi/singing'
+
 import { createSingingService } from '../../services/singing/singing-service'
 import { createSingingStorage } from '../../services/singing/singing-storage'
 

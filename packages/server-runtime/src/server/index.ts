@@ -88,7 +88,7 @@ function killProcessOnPort(port: number): boolean {
       const lines = result.split('\n').filter(l => l.trim())
       for (const line of lines) {
         const parts = line.trim().split(/\s+/)
-        const pid = parts[parts.length - 1]
+        const pid = parts.at(-1)
         if (pid && /^\d+$/.test(pid) && pid !== '0') {
           try {
             execSync(`taskkill /T /F /PID ${pid}`, { windowsHide: true })
@@ -103,7 +103,8 @@ function killProcessOnPort(port: number): boolean {
       if (result) {
         const pids = result.split('\n').filter(p => p.trim())
         for (const pid of pids) {
-          try { execSync(`kill -9 ${pid}`) } catch {}
+          try { execSync(`kill -9 ${pid}`) }
+          catch {}
         }
         return true
       }
