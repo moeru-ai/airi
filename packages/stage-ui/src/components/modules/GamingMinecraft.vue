@@ -10,7 +10,6 @@ const minecraftStore = useMinecraftStore()
 const { t } = useI18n()
 
 const {
-  serviceName,
   serviceConnected,
   latestRuntimeContextText,
   lastRuntimeContextAt,
@@ -59,9 +58,6 @@ onMounted(() => {
     <Callout :theme="statusTheme" :label="statusLabel">
       <div :class="['flex flex-col gap-2 text-sm']">
         <div>
-          {{ t('settings.pages.modules.gaming-minecraft.status.service-name', { service: serviceName || 'minecraft-bot' }) }}
-        </div>
-        <div>
           {{ lastRuntimeUpdate }}
         </div>
       </div>
@@ -83,12 +79,6 @@ onMounted(() => {
         {{ t('settings.pages.modules.gaming-minecraft.runtime.title') }}
       </div>
       <div :class="['grid gap-3 text-sm text-neutral-600 dark:text-neutral-300']">
-        <div>
-          <div :class="['text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400']">
-            {{ t('settings.pages.modules.gaming-minecraft.runtime.service') }}
-          </div>
-          <div>{{ serviceName || 'minecraft-bot' }}</div>
-        </div>
         <div>
           <div :class="['text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400']">
             {{ t('settings.pages.modules.gaming-minecraft.runtime.connection') }}

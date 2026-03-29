@@ -399,7 +399,6 @@ pages:
         step-3: Start `pnpm dev` in `services/minecraft`, then return here to confirm service registry connectivity and passive Minecraft traffic.
       runtime:
         title: Observed runtime
-        service: Service
         connection: Connection
         latest-context: Latest bot context
         waiting: Waiting for a fresh bot-originated context push.
@@ -411,7 +410,6 @@ pages:
       status:
         service-online: Service online
         service-offline: Service offline
-        service-name: 'Service: {service}'
         no-runtime-context: 'No bot context observed yet'
         last-context-seconds: 'Last bot context: {seconds}s ago'
         last-context-stale: 'Last bot context: Stale'

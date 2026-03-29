@@ -16,7 +16,7 @@ export interface MinecraftTrafficEntry {
 
 const RUNTIME_CONTEXT_TICK_MS = 1_000
 const MAX_TRAFFIC_ENTRIES = 50
-const DEFAULT_SERVICE_NAME = 'minecraft-bot'
+const MINECRAFT_SERVICE_NAME = 'minecraft-bot'
 
 function getEventSourceLabel(event: { metadata?: { source?: { plugin?: { id?: string }, id?: string } } }) {
   return event.metadata?.source?.plugin?.id
@@ -24,12 +24,11 @@ function getEventSourceLabel(event: { metadata?: { source?: { plugin?: { id?: st
     ?? 'unknown'
 }
 
-function isMinecraftSource(event: { metadata?: { source?: { plugin?: { id?: string }, id?: string } } }, serviceName?: string) {
+function isMinecraftSource(event: { metadata?: { source?: { plugin?: { id?: string }, id?: string } } }) {
   const sourcePluginId = event.metadata?.source?.plugin?.id
   const sourceId = event.metadata?.source?.id
-  const knownServiceNames = [DEFAULT_SERVICE_NAME, serviceName].filter(Boolean)
 
-  return knownServiceNames.some(name => name === sourcePluginId || name === sourceId)
+  return sourcePluginId === MINECRAFT_SERVICE_NAME || sourceId === MINECRAFT_SERVICE_NAME
 }
 
 function summarizeContextUpdate(event: WebSocketBaseEvent<'context:update', WebSocketEvents['context:update']>) {
@@ -47,15 +46,13 @@ function summarizeSparkCommand(event: WebSocketBaseEvent<'spark:command', WebSoc
   return `${event.data.intent} -> ${destinations}`
 }
 
-function isMinecraftModuleIdentity(value: { name?: string, identity?: { plugin?: { id?: string } } }, serviceName?: string) {
-  const knownServiceNames = new Set([DEFAULT_SERVICE_NAME, serviceName].filter(Boolean))
-  return knownServiceNames.has(value.name ?? '') || knownServiceNames.has(value.identity?.plugin?.id ?? '')
+function isMinecraftModuleIdentity(value: { name?: string, identity?: { plugin?: { id?: string } } }) {
+  return value.name === MINECRAFT_SERVICE_NAME || value.identity?.plugin?.id === MINECRAFT_SERVICE_NAME
 }
 
 export const useMinecraftStore = defineStore('minecraft', () => {
   const serverChannelStore = useModsServerChannelStore()
 
-  const serviceName = ref('')
   const latestRuntimeContextText = ref('')
   const lastRuntimeContextAt = ref(0)
   const trafficEntries = ref<MinecraftTrafficEntry[]>([])
@@ -98,15 +95,12 @@ export const useMinecraftStore = defineStore('minecraft', () => {
   }
 
   function handleRuntimeContextUpdate(event: WebSocketBaseEvent<'context:update', WebSocketEvents['context:update']>) {
-    if (!isMinecraftSource(event, serviceName.value))
+    if (!isMinecraftSource(event))
       return
 
     if (event.data.lane === 'minecraft:status')
       return
 
-    serviceName.value = event.metadata?.source?.plugin?.id
-      ?? serviceName.value
-      ?? DEFAULT_SERVICE_NAME
     latestRuntimeContextText.value = event.data.text ?? ''
     lastRuntimeContextAt.value = Date.now()
 
@@ -120,7 +114,7 @@ export const useMinecraftStore = defineStore('minecraft', () => {
   }
 
   function handleRegistrySync(event: WebSocketBaseEvent<'registry:modules:sync', WebSocketEvents['registry:modules:sync']>) {
-    const moduleEntry = event.data.modules.find(module => isMinecraftModuleIdentity(module, serviceName.value))
+    const moduleEntry = event.data.modules.find(isMinecraftModuleIdentity)
     const wasPresent = servicePresent.value
     servicePresent.value = !!moduleEntry
 
@@ -129,44 +123,37 @@ export const useMinecraftStore = defineStore('minecraft', () => {
       return
     }
 
-    if (moduleEntry.name)
-      serviceName.value = moduleEntry.name
-
     if (!wasPresent)
       serviceHealthy.value = true
   }
 
   function handleRegistryHealthy(event: WebSocketBaseEvent<'registry:modules:health:healthy', WebSocketEvents['registry:modules:health:healthy']>) {
-    if (!isMinecraftModuleIdentity(event.data, serviceName.value))
+    if (!isMinecraftModuleIdentity(event.data))
       return
 
     servicePresent.value = true
     serviceHealthy.value = true
-    serviceName.value = event.data.name ?? serviceName.value ?? DEFAULT_SERVICE_NAME
   }
 
   function handleRegistryUnhealthy(event: WebSocketBaseEvent<'registry:modules:health:unhealthy', WebSocketEvents['registry:modules:health:unhealthy']>) {
-    if (!isMinecraftModuleIdentity(event.data, serviceName.value))
+    if (!isMinecraftModuleIdentity(event.data))
       return
 
     servicePresent.value = true
     serviceHealthy.value = false
-    serviceName.value = event.data.name ?? serviceName.value ?? DEFAULT_SERVICE_NAME
   }
 
   function handleModuleDeAnnounced(event: WebSocketBaseEvent<'module:de-announced', WebSocketEvents['module:de-announced']>) {
-    if (!isMinecraftModuleIdentity(event.data, serviceName.value))
+    if (!isMinecraftModuleIdentity(event.data))
       return
 
     servicePresent.value = false
     serviceHealthy.value = false
-    serviceName.value = event.data.name ?? serviceName.value ?? DEFAULT_SERVICE_NAME
   }
 
   function handleSparkCommand(event: WebSocketBaseEvent<'spark:command', WebSocketEvents['spark:command']>) {
     const destinations = Array.isArray(event.data.destinations) ? event.data.destinations : []
-    const knownServiceNames = new Set([DEFAULT_SERVICE_NAME, serviceName.value].filter(Boolean))
-    const isMinecraftTraffic = destinations.some(destination => knownServiceNames.has(destination))
+    const isMinecraftTraffic = destinations.includes(MINECRAFT_SERVICE_NAME)
 
     if (!isMinecraftTraffic)
       return
@@ -219,7 +206,6 @@ export const useMinecraftStore = defineStore('minecraft', () => {
   }
 
   function clearRuntimeState() {
-    serviceName.value = ''
     latestRuntimeContextText.value = ''
     lastRuntimeContextAt.value = 0
     servicePresent.value = false
@@ -233,7 +219,6 @@ export const useMinecraftStore = defineStore('minecraft', () => {
   }
 
   return {
-    serviceName,
     latestRuntimeContextText,
     lastRuntimeContextAt,
     trafficEntries,
