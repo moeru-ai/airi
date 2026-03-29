@@ -1,9 +1,10 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { BrowserWindow } from 'electron'
 import type { UpdateInfo } from 'electron-updater'
-import process from 'node:process'
 
 import type { AutoUpdaterState } from '../../../shared/eventa'
+
+import process from 'node:process'
 
 import electronUpdater from 'electron-updater'
 
