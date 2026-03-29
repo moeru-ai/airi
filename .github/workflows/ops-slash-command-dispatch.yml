@@ -12,6 +12,7 @@ jobs:
       pull-requests: read
       issues: read
     steps:
+      - uses: actions/checkout@v6
 
       # Advanced JSON configuration from file
       # (These commands do not do anything and are just a reference example)
