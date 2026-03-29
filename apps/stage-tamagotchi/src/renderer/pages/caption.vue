@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import type { CSSProperties } from 'vue'
+
 import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronMouseAroundWindowBorder, useElectronMouseInWindow } from '@proj-airi/electron-vueuse'
+import { useSettingsGeneral } from '@proj-airi/stage-ui/stores/settings/general'
 import { refDebounced, useBroadcastChannel } from '@vueuse/core'
 import { computed, onMounted, ref, watch } from 'vue'
 
@@ -9,6 +12,7 @@ import { captionGetIsFollowingWindow, captionIsFollowingWindowChanged } from '..
 const attached = ref(true)
 const speakerText = ref('')
 const assistantText = ref('')
+const assistantTranslationText = ref('')
 const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
 const isOutsideWindowFor250Ms = refDebounced(isOutsideWindow, 250)
 const shouldFadeOnCursorWithin = computed(() => !isOutsideWindowFor250Ms.value)
@@ -19,6 +23,7 @@ const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 type CaptionChannelEvent
   = | { type: 'caption-speaker', text: string }
     | { type: 'caption-assistant', text: string }
+    | { type: 'caption-translation', text: string }
 const { data } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
 
 const context = useElectronEventaContext()
@@ -49,10 +54,28 @@ onMounted(async () => {
       else if (event.type === 'caption-assistant') {
         assistantText.value = event.text
       }
+      else if (event.type === 'caption-translation') {
+        assistantTranslationText.value = event.text
+      }
     }, { immediate: true })
   }
-  catch {}
+  catch (error) {
+    console.warn('Failed to watch caption data (channel may be closed):', error)
+  }
 })
+
+const settingsGeneral = useSettingsGeneral()
+
+const dynamicColorStyles = computed(() => ({
+  '--cp-speaker-fill': settingsGeneral.captionSpeakerColor || '#ffffff',
+  '--cp-speaker-stroke': settingsGeneral.captionSpeakerStrokeColor || '#171717',
+
+  '--cp-asst-fill': settingsGeneral.captionAssistantColor || '#eff6ff',
+  '--cp-asst-stroke': settingsGeneral.captionAssistantStrokeColor || '#93c5fd',
+
+  '--cp-trans-fill': settingsGeneral.captionTranslationColor || '#dbeafe',
+  '--cp-trans-stroke': settingsGeneral.captionTranslationStrokeColor || '#1e40af',
+} as CSSProperties))
 </script>
 
 <template>
@@ -63,6 +86,7 @@ onMounted(async () => {
         'pointer-events-auto relative select-none rounded-xl px-3 py-2',
         'transition-opacity duration-250 ease-in-out',
       ]"
+      :style="dynamicColorStyles"
     >
       <div
         v-show="!attached"
@@ -75,16 +99,43 @@ onMounted(async () => {
       <div class="max-w-[80vw] flex flex-col gap-1">
         <div
           v-if="speakerText"
-          class="rounded-md px-2 py-1 text-[1.1rem] text-neutral-50 font-medium text-shadow-lg text-shadow-color-neutral-900/60"
+          :class="[
+            'rounded-md', 'px-2', 'py-1',
+            'text-[1.1rem]', 'font-medium',
+            'text-[var(--cp-speaker-fill)]',
+            // 为用户字幕也加上描边，使其与 AI 字幕风格统一
+            'text-stroke-2', 'text-stroke-[var(--cp-speaker-stroke)]/80',
+            'text-shadow-lg', 'text-shadow-color-[var(--cp-speaker-stroke)]/80',
+          ]"
+          :style="{ paintOrder: 'stroke fill' }"
         >
           {{ speakerText }}
         </div>
         <div
           v-if="assistantText"
-          class="rounded-md px-2 py-1 text-[1.35rem] text-primary-50 font-semibold text-stroke-4 text-stroke-primary-300/50 text-shadow-lg text-shadow-color-primary-700/50"
+          :class="[
+            'rounded-md', 'px-2', 'py-1',
+            'text-[1.35rem]', 'font-semibold',
+            'text-[var(--cp-asst-fill)]',
+            'text-stroke-4', 'text-stroke-[var(--cp-asst-stroke)]/80',
+            'text-shadow-lg', 'text-shadow-color-[var(--cp-asst-stroke)]/60',
+          ]"
           :style="{ paintOrder: 'stroke fill' }"
         >
           {{ assistantText }}
+        </div>
+        <div
+          v-if="assistantTranslationText"
+          :class="[
+            'rounded-md', 'px-2', 'py-1',
+            'text-[1.15rem]', 'font-medium',
+            'text-[var(--cp-trans-fill)]',
+            'text-stroke-3', 'text-stroke-[var(--cp-trans-stroke)]/80',
+            'text-shadow-md', 'text-shadow-color-[var(--cp-trans-stroke)]/60',
+          ]"
+          :style="{ paintOrder: 'stroke fill' }"
+        >
+          {{ assistantTranslationText }}
         </div>
       </div>
     </div>

@@ -72,7 +72,7 @@ const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const { audioContext } = useAudioContext()
 const currentAudioSource = ref<AudioBufferSourceNode>()
 
-const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatOrchestratorStore()
+const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd, onTokenTranslation } = useChatOrchestratorStore()
 const chatHookCleanups: Array<() => void> = []
 // WORKAROUND: clear previous handlers on unmount to avoid duplicate calls when this component remounts.
 //             We keep per-hook disposers instead of wiping the global chat hooks to play nicely with
@@ -88,8 +88,10 @@ const viewUpdateCleanups: Array<() => void> = []
 type CaptionChannelEvent
   = | { type: 'caption-speaker', text: string }
     | { type: 'caption-assistant', text: string }
+    | { type: 'caption-translation', text: string }
 const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
 const assistantCaption = ref('')
+const assistantTranslationCaption = ref('')
 
 type PresentEvent
   = | { type: 'assistant-reset' }
@@ -445,8 +447,10 @@ chatHookCleanups.push(onBeforeMessageComposed(async () => {
   await setupLipSync()
   // Reset assistant caption for a new message
   assistantCaption.value = ''
+  assistantTranslationCaption.value = ''
   try {
     postCaption({ type: 'caption-assistant', text: '' })
+    postCaption({ type: 'caption-translation', text: '' })
   }
   catch (error) {
     // BroadcastChannel may be closed if user navigated away - don't break flow
@@ -476,13 +480,23 @@ chatHookCleanups.push(onBeforeSend(async () => {
   currentMotion.value = { group: EmotionThinkMotionName }
 }))
 
-chatHookCleanups.push(onTokenLiteral(async (literal) => {
+chatHookCleanups.push(onTokenLiteral(async (literal: string) => {
   currentChatIntent?.writeLiteral(literal)
 }))
 
-chatHookCleanups.push(onTokenSpecial(async (special) => {
+chatHookCleanups.push(onTokenSpecial(async (special: string) => {
   // console.debug('Stage received special token:', special)
   currentChatIntent?.writeSpecial(special)
+}))
+
+chatHookCleanups.push(onTokenTranslation(async (translation: string) => {
+  assistantTranslationCaption.value += translation
+  try {
+    postCaption({ type: 'caption-translation', text: assistantTranslationCaption.value })
+  }
+  catch (error) {
+    console.warn('Failed to post translation caption (channel may be closed):', error)
+  }
 }))
 
 chatHookCleanups.push(onStreamEnd(async () => {
@@ -490,7 +504,7 @@ chatHookCleanups.push(onStreamEnd(async () => {
   currentChatIntent?.writeFlush()
 }))
 
-chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
+chatHookCleanups.push(onAssistantResponseEnd(async (_message: string) => {
   currentChatIntent?.end()
   currentChatIntent = null
   // const res = await embed({

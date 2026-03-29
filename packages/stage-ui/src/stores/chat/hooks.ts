@@ -9,6 +9,7 @@ export interface ChatHookRegistry {
   onAfterSend: (cb: (message: string, context: ChatStreamEventContext) => Promise<void>) => () => void
   onTokenLiteral: (cb: (literal: string, context: ChatStreamEventContext) => Promise<void>) => () => void
   onTokenSpecial: (cb: (special: string, context: ChatStreamEventContext) => Promise<void>) => () => void
+  onTokenTranslation: (cb: (translation: string, context: ChatStreamEventContext) => Promise<void>) => () => void
   onStreamEnd: (cb: (context: ChatStreamEventContext) => Promise<void>) => () => void
   onAssistantResponseEnd: (cb: (message: string, context: ChatStreamEventContext) => Promise<void>) => () => void
   onAssistantMessage: (cb: (message: StreamingAssistantMessage, messageText: string, context: ChatStreamEventContext) => Promise<void>) => () => void
@@ -19,6 +20,7 @@ export interface ChatHookRegistry {
   emitAfterSendHooks: (message: string, context: ChatStreamEventContext) => Promise<void>
   emitTokenLiteralHooks: (literal: string, context: ChatStreamEventContext) => Promise<void>
   emitTokenSpecialHooks: (special: string, context: ChatStreamEventContext) => Promise<void>
+  emitTokenTranslationHooks: (translation: string, context: ChatStreamEventContext) => Promise<void>
   emitStreamEndHooks: (context: ChatStreamEventContext) => Promise<void>
   emitAssistantResponseEndHooks: (message: string, context: ChatStreamEventContext) => Promise<void>
   emitAssistantMessageHooks: (message: StreamingAssistantMessage, messageText: string, context: ChatStreamEventContext) => Promise<void>
@@ -33,6 +35,7 @@ export function createChatHooks(): ChatHookRegistry {
   const onAfterSendHooks: Array<(message: string, context: ChatStreamEventContext) => Promise<void>> = []
   const onTokenLiteralHooks: Array<(literal: string, context: ChatStreamEventContext) => Promise<void>> = []
   const onTokenSpecialHooks: Array<(special: string, context: ChatStreamEventContext) => Promise<void>> = []
+  const onTokenTranslationHooks: Array<(translation: string, context: ChatStreamEventContext) => Promise<void>> = []
   const onStreamEndHooks: Array<(context: ChatStreamEventContext) => Promise<void>> = []
   const onAssistantResponseEndHooks: Array<(message: string, context: ChatStreamEventContext) => Promise<void>> = []
   const onAssistantMessageHooks: Array<(message: StreamingAssistantMessage, messageText: string, context: ChatStreamEventContext) => Promise<void>> = []
@@ -92,6 +95,15 @@ export function createChatHooks(): ChatHookRegistry {
     }
   }
 
+  function onTokenTranslation(cb: (translation: string, context: ChatStreamEventContext) => Promise<void>) {
+    onTokenTranslationHooks.push(cb)
+    return () => {
+      const index = onTokenTranslationHooks.indexOf(cb)
+      if (index >= 0)
+        onTokenTranslationHooks.splice(index, 1)
+    }
+  }
+
   function onStreamEnd(cb: (context: ChatStreamEventContext) => Promise<void>) {
     onStreamEndHooks.push(cb)
     return () => {
@@ -135,6 +147,7 @@ export function createChatHooks(): ChatHookRegistry {
     onAfterSendHooks.length = 0
     onTokenLiteralHooks.length = 0
     onTokenSpecialHooks.length = 0
+    onTokenTranslationHooks.length = 0
     onStreamEndHooks.length = 0
     onAssistantResponseEndHooks.length = 0
     onAssistantMessageHooks.length = 0
@@ -171,6 +184,11 @@ export function createChatHooks(): ChatHookRegistry {
       await hook(special, context)
   }
 
+  async function emitTokenTranslationHooks(translation: string, context: ChatStreamEventContext) {
+    for (const hook of onTokenTranslationHooks)
+      await hook(translation, context)
+  }
+
   async function emitStreamEndHooks(context: ChatStreamEventContext) {
     for (const hook of onStreamEndHooks)
       await hook(context)
@@ -198,6 +216,7 @@ export function createChatHooks(): ChatHookRegistry {
     onAfterSend,
     onTokenLiteral,
     onTokenSpecial,
+    onTokenTranslation,
     onStreamEnd,
     onAssistantResponseEnd,
     onAssistantMessage,
@@ -208,6 +227,7 @@ export function createChatHooks(): ChatHookRegistry {
     emitAfterSendHooks,
     emitTokenLiteralHooks,
     emitTokenSpecialHooks,
+    emitTokenTranslationHooks,
     emitStreamEndHooks,
     emitAssistantResponseEndHooks,
     emitAssistantMessageHooks,

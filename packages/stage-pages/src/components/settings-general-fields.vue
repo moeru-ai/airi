@@ -2,7 +2,7 @@
 import { all } from '@proj-airi/i18n'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { isPosthogAvailableInBuild } from '@proj-airi/stage-ui/stores/analytics'
-import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { useSettings, useSettingsGeneral } from '@proj-airi/stage-ui/stores/settings'
 import { FieldCheckbox, FieldCombobox, useTheme } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -14,6 +14,7 @@ const props = withDefaults(defineProps<{
 })
 
 const settings = useSettings()
+const settingsGeneral = useSettingsGeneral()
 
 const showControlsIsland = computed(() => props.needsControlsIslandIconSizeSetting)
 const showAnalyticsSettings = computed(() => isPosthogAvailableInBuild())
@@ -107,6 +108,89 @@ const languages = computed(() => {
         </div>
       </template>
     </FieldCheckbox>
+
+    <FieldCheckbox
+      v-model="settingsGeneral.translationSubtitleEnabled"
+      v-motion
+      :initial="{ opacity: 0, y: 10 }"
+      :enter="{ opacity: 1, y: 0 }"
+      :duration="250 + (6 * 10)"
+      :delay="6 * 50"
+      :class="['mb-2']"
+      :label="t('settings.translation-subtitle.title')"
+      :description="t('settings.translation-subtitle.description')"
+    />
+
+    <FieldCombobox
+      v-if="settingsGeneral.translationSubtitleEnabled"
+      v-model="settingsGeneral.translationLanguage"
+      v-motion
+      :initial="{ opacity: 0, y: -10 }"
+      :enter="{ opacity: 1, y: 0 }"
+      :duration="200"
+      :class="['mb-2', 'ml-8', 'transition-all', 'ease-in-out']"
+      :label="t('settings.translation-subtitle.language.title')"
+      :description="t('settings.translation-subtitle.language.description')"
+      layout="horizontal"
+      :options="languages"
+    />
+
+    <div v-motion :initial="{ opacity: 0, y: 10 }" :enter="{ opacity: 1, y: 0 }" :delay="7 * 50" class="mb-2 flex flex-col gap-3">
+      <div class="text-[0.9rem] text-neutral-800 font-medium dark:text-neutral-200">
+        {{ t('settings.caption-colors.title') }}
+      </div>
+
+      <div class="flex flex-col overflow-hidden border border-neutral-200 rounded-lg bg-white dark:border-neutral-800 dark:bg-neutral-900">
+        <div class="flex items-center justify-between p-3">
+          <span class="text-sm text-neutral-600 dark:text-neutral-400">{{ t('settings.caption-colors.speaker') }}</span>
+          <input v-model="settingsGeneral.captionSpeakerColor" type="color" class="h-8 w-12 cursor-pointer border-0 rounded bg-transparent p-0">
+        </div>
+        <details class="group border-t border-neutral-100 dark:border-neutral-800">
+          <summary class="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-xs text-neutral-500 hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
+            <span>{{ t('settings.caption-colors.stroke') }}</span>
+            <div class="i-solar:alt-arrow-down-linear transition-transform duration-200 group-open:rotate-180" />
+          </summary>
+          <div class="flex items-center justify-between border-t border-neutral-100 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-800/30">
+            <span class="text-sm text-neutral-600 dark:text-neutral-400">{{ t('settings.caption-colors.stroke') }}</span>
+            <input v-model="settingsGeneral.captionSpeakerStrokeColor" type="color" class="h-8 w-12 cursor-pointer border-0 rounded bg-transparent p-0">
+          </div>
+        </details>
+      </div>
+
+      <div class="flex flex-col overflow-hidden border border-neutral-200 rounded-lg bg-white dark:border-neutral-800 dark:bg-neutral-900">
+        <div class="flex items-center justify-between p-3">
+          <span class="text-sm text-neutral-600 dark:text-neutral-400">{{ t('settings.caption-colors.assistant') }}</span>
+          <input v-model="settingsGeneral.captionAssistantColor" type="color" class="h-8 w-12 cursor-pointer border-0 rounded bg-transparent p-0">
+        </div>
+        <details class="group border-t border-neutral-100 dark:border-neutral-800">
+          <summary class="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-xs text-neutral-500 hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
+            <span>{{ t('settings.caption-colors.stroke') }}</span>
+            <div class="i-solar:alt-arrow-down-linear transition-transform duration-200 group-open:rotate-180" />
+          </summary>
+          <div class="flex items-center justify-between border-t border-neutral-100 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-800/30">
+            <span class="text-sm text-neutral-600 dark:text-neutral-400">{{ t('settings.caption-colors.stroke') }}</span>
+            <input v-model="settingsGeneral.captionAssistantStrokeColor" type="color" class="h-8 w-12 cursor-pointer border-0 rounded bg-transparent p-0">
+          </div>
+        </details>
+      </div>
+
+      <div class="flex flex-col overflow-hidden border border-neutral-200 rounded-lg bg-white dark:border-neutral-800 dark:bg-neutral-900">
+        <div class="flex items-center justify-between p-3">
+          <span class="text-sm text-neutral-600 dark:text-neutral-400">{{ t('settings.caption-colors.translation') }}</span>
+          <input v-model="settingsGeneral.captionTranslationColor" type="color" class="h-8 w-12 cursor-pointer border-0 rounded bg-transparent p-0">
+        </div>
+        <details class="group border-t border-neutral-100 dark:border-neutral-800">
+          <summary class="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-xs text-neutral-500 hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
+            <span>{{ t('settings.caption-colors.stroke') }}</span>
+            <div class="i-solar:alt-arrow-down-linear transition-transform duration-200 group-open:rotate-180" />
+          </summary>
+          <div class="flex items-center justify-between border-t border-neutral-100 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-800/30">
+            <span class="text-sm text-neutral-600 dark:text-neutral-400">{{ t('settings.caption-colors.stroke') }}</span>
+            <input v-model="settingsGeneral.captionTranslationStrokeColor" type="color" class="h-8 w-12 cursor-pointer border-0 rounded bg-transparent p-0">
+          </div>
+        </details>
+      </div>
+    </div>
 
     <slot name="additional-fields" />
 
