@@ -97,8 +97,9 @@ async function debouncedAutoSend(text: string) {
       }
       catch (err) {
         console.error('[ChatArea] Auto-send error:', err)
-        messageInput.value = textToSend
-        pendingAutoSendText.value = textToSend
+        // Preserve any transcription that arrived while ingest was in flight (see PR review).
+        messageInput.value = [textToSend, messageInput.value.trim()].filter(Boolean).join(' ')
+        pendingAutoSendText.value = [textToSend, pendingAutoSendText.value.trim()].filter(Boolean).join(' ')
       }
     }
     autoSendTimeout = undefined
