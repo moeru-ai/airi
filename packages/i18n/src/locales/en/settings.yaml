@@ -394,9 +394,7 @@ pages:
         description: Stage currently exposes Minecraft as a passive shell. Runtime status and traffic are visible here, but service configuration stays in the Minecraft service files.
       setup:
         title: Setup
-        step-1: Configure the Minecraft service in `services/minecraft/data/minecraft-config.json` for the normal editable layer.
-        step-2: Use `services/minecraft/.env.local` only for operator overrides. Values there take precedence over the saved config file.
-        step-3: Start `pnpm dev` in `services/minecraft`, then return here to confirm service registry connectivity and passive Minecraft traffic.
+        description: You can find the instructions for setting up the bot in the following file
       runtime:
         title: Observed runtime
         connection: Connection
