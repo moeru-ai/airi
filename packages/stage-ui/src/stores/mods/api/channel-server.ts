@@ -43,6 +43,8 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     'module:announced',
     'module:configure',
     'module:de-announced',
+    'module:consumer:register',
+    'module:consumer:unregister',
     'module:authenticated',
     'registry:modules:health:healthy',
     'registry:modules:health:unhealthy',

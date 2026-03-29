@@ -36,6 +36,11 @@ export function normalizeContextSnapshot<C extends Pick<ChatStreamEventContext, 
 }
 
 export const useContextBridgeStore = defineStore('mods:api:context-bridge', () => {
+  const consumerRegistrationEvents = [
+    'input:text',
+    'input:text:voice',
+    'input:voice',
+  ] as const
   const mutex = new Mutex()
 
   const chatOrchestrator = useChatOrchestratorStore()
@@ -58,6 +63,19 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     await mutex.acquire()
 
     try {
+      await serverChannelStore.ensureConnected()
+
+      for (const consumerEvent of consumerRegistrationEvents) {
+        serverChannelStore.send({
+          type: 'module:consumer:register',
+          data: {
+            event: consumerEvent,
+            mode: 'consumer-group',
+            group: 'chat-ingestion',
+          },
+        })
+      }
+
       let isProcessingRemoteStream = false
 
       const { stop } = watch(incomingContext, (event) => {
@@ -459,6 +477,17 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     await mutex.acquire()
 
     try {
+      for (const consumerEvent of consumerRegistrationEvents) {
+        serverChannelStore.send({
+          type: 'module:consumer:unregister',
+          data: {
+            event: consumerEvent,
+            mode: 'consumer-group',
+            group: 'chat-ingestion',
+          },
+        })
+      }
+
       for (const fn of disposeHookFns.value) {
         fn()
       }
