@@ -601,16 +601,16 @@ pages:
     provider:
       app-local-audio-transcription:
         title: アプリ (ローカル)
-        description: https://github.com/moeru-ai/xsai-transforers
+        description: https://github.com/moeru-ai/xsai-transformers
       app-local-audio-speech:
         title: アプリ (ローカル)
-        description: https://github.com/moeru-ai/xsai-transforers
+        description: https://github.com/moeru-ai/xsai-transformers
       browser-local-audio-transcription:
         title: ブラウザ (ローカル)
-        description: https://github.com/moeru-ai/xsai-transforers
+        description: https://github.com/moeru-ai/xsai-transformers
       browser-local-audio-speech:
         title: ブラウザ (ローカル)
-        description: https://github.com/moeru-ai/xsai-transforers
+        description: https://github.com/moeru-ai/xsai-transformers
       alibaba-cloud-model-studio:
         description: bailian.console.aliyun.com
         title: Alibaba Cloud Model Studio
