@@ -14,8 +14,8 @@ jobs:
         with:
           script: |
             github.rest.issues.removeLabel({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              name: 'pr-reviews/hold'
+              owner: '${{ github.event.client_payload.github.payload.repository.owner.login }}',
+              repo: '${{ github.event.client_payload.github.payload.repository.name }}',
+              issue_number: ${{ github.event.client_payload.github.pull_request.number }},
+              name: 'pr-review/hold'
             })
