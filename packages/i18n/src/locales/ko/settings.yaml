@@ -101,12 +101,12 @@ live2d:
   focus:
     title: 마우스 포인터 추적 비활성화
     button-disable:
-      title: 마우스 포인터 추적 비활성화
+      title: Disable model mouse tracking
   fps:
     title: FPS (초당 프레임)
     description: 렌더링 주사율 제한
     options:
-      unlimited: ∞
+      unlimited: '∞'
 microphone: 마이크
 models: 모델
 pages:

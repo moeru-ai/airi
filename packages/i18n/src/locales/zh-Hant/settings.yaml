@@ -101,12 +101,12 @@ live2d:
   focus:
     title: 停用模型滑鼠追蹤
     button-disable:
-      title: 停用模型滑鼠追蹤
+      title: Disable model mouse tracking
   fps:
     title: FPS
     description: 限制渲染幀率
     options:
-      unlimited: ∞
+      unlimited: '∞'
 microphone: 麥克風
 models: 模型
 pages:

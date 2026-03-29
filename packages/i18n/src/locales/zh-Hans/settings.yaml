@@ -101,7 +101,7 @@ live2d:
   focus:
     title: 禁用模型鼠标跟踪
     button-disable:
-      title: 禁用模型鼠标跟踪
+      title: Disable model mouse tracking
   fps:
     title: 帧率
     description: 限制渲染帧率

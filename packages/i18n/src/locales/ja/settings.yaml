@@ -101,12 +101,12 @@ live2d:
   focus:
     title: モデルのマウストラッキングを無効にする
     button-disable:
-      title: モデルのマウストラッキングを無効にする
+      title: Disable model mouse tracking
   fps:
     title: FPS
     description: レンダリングフレームレートを制限
     options:
-      unlimited: ∞
+      unlimited: '∞'
 microphone: マイク
 models: モデル
 pages:
