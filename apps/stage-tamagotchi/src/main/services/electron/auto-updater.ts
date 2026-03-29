@@ -4,7 +4,7 @@ import type { UpdateInfo } from 'electron-updater'
 
 import type { AutoUpdaterState } from '../../../shared/eventa'
 
-import process from 'node:process'
+import { arch } from 'node:process'
 
 import electronUpdater from 'electron-updater'
 
@@ -64,7 +64,7 @@ export function setupAutoUpdater(): AutoUpdater {
 
   // Fix: explicitly map base channel to architecture to resolve 404 targets.
   // electron-updater natively appends OS suffixes (-mac.yml, -linux.yml) automatically.
-  autoUpdater.channel = process.arch === 'arm64' ? 'latest-arm64' : 'latest-x64'
+  autoUpdater.channel = arch === 'arm64' ? 'latest-arm64' : 'latest-x64'
 
   function broadcast(next: AutoUpdaterState) {
     state = next
