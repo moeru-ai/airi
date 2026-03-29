@@ -1,5 +1,9 @@
-import { randomUUID } from 'node:crypto'
+import type { Buffer } from 'node:buffer'
+
+import process from 'node:process'
+
 import { execFile, execSync, spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { createWriteStream, existsSync, realpathSync, statSync } from 'node:fs'
 import { mkdir, readdir, readFile, rename, rm, unlink, writeFile } from 'node:fs/promises'
 import { get as httpGet } from 'node:http'
@@ -8,15 +12,13 @@ import { createServer } from 'node:net'
 import { dirname, join, resolve } from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { promisify } from 'node:util'
-import process from 'node:process'
-
-import { serve } from '@hono/node-server'
-import { Hono } from 'hono'
-import { cors } from 'hono/cors'
-import { bodyLimit } from 'hono/body-limit'
 
 import { useLogger } from '@guiiai/logg'
+import { serve } from '@hono/node-server'
 import { PipelineStage } from '@proj-airi/singing'
+import { Hono } from 'hono'
+import { bodyLimit } from 'hono/body-limit'
+import { cors } from 'hono/cors'
 
 const log = useLogger('singing-server')
 const execFileAsync = promisify(execFile)
@@ -24,6 +26,13 @@ const execFileAsync = promisify(execFile)
 const DEFAULT_PORT = 26121
 const BODY_LIMIT = 1024 * 1024 * 1024
 const TRAIN_BODY_LIMIT = 1024 * 1024 * 1024
+const DOWNLOAD_SIZE_REGEX = /\d+\.\d+\s*(?:mb|gb|kb)/i
+const FFMPEG_BINARY_SUFFIX_REGEX = /ffmpeg$/
+const LINE_SPLIT_REGEX = /[\r\n]+/
+const CUDA_VERSION_REGEX = /CUDA Version:\s*(\d+)\.(\d+)/
+const PTH_SUFFIX_REGEX = /\.pth$/
+const WHITESPACE_REGEX = /\s+/
+const PID_REGEX = /^\d+$/
 
 // ─── FFmpeg download sources per platform ────────────────────────────────
 const FFMPEG_URLS: Record<string, string> = {
@@ -394,7 +403,8 @@ async function downloadFFmpeg(dataDir: string): Promise<string> {
   if (process.platform === 'win32') {
     appendLog(id, 'info', 'Running Expand-Archive (PowerShell)...')
     await execFileAsync('powershell', [
-      '-NoProfile', '-Command',
+      '-NoProfile',
+      '-Command',
       `Expand-Archive -Path '${downloadPath}' -DestinationPath '${extractDir}' -Force`,
     ], { timeout: 120_000 })
 
@@ -427,7 +437,7 @@ async function downloadFFmpeg(dataDir: string): Promise<string> {
     await execFileAsync('chmod', ['+x', destFFmpeg])
     appendLog(id, 'success', `Installed: ${destFFmpeg}`)
 
-    const ffprobeSource = entries.replace(/ffmpeg$/, 'ffprobe')
+    const ffprobeSource = entries.replace(FFMPEG_BINARY_SUFFIX_REGEX, 'ffprobe')
     if (existsSync(ffprobeSource)) {
       const destFFprobe = join(binDir, 'ffprobe')
       await rename(ffprobeSource, destFFprobe)
@@ -554,9 +564,12 @@ async function setupPythonVenv(singingPkgRoot: string): Promise<string> {
   const hasScipy = venvExists && await checkPkgInstalled(venvPython, 'scipy')
 
   const steps: string[] = []
-  if (!hasTorch) steps.push('torch')
-  if (!hasLibrosa || !hasScipy) steps.push('librosa')
-  if (!hasRvc || !hasCrepe || !hasMelband || !hasFairseq || !hasFaiss) steps.push('pipeline')
+  if (!hasTorch)
+    steps.push('torch')
+  if (!hasLibrosa || !hasScipy)
+    steps.push('librosa')
+  if (!hasRvc || !hasCrepe || !hasMelband || !hasFairseq || !hasFaiss)
+    steps.push('pipeline')
   steps.push('verify')
 
   if (steps.length === 1) {
@@ -581,8 +594,11 @@ async function setupPythonVenv(singingPkgRoot: string): Promise<string> {
     appendLog(id, 'info', `[${stepIdx + 1}/${totalSteps}] Installing PyTorch (${variant.label})...`)
     appendLog(id, 'info', `Index URL: ${variant.indexUrl}`)
     await spawnAsync(pipCmd.cmd, [
-      ...pipCmd.prefix, 'torch', 'torchaudio',
-      '--extra-index-url', variant.indexUrl,
+      ...pipCmd.prefix,
+      'torch',
+      'torchaudio',
+      '--extra-index-url',
+      variant.indexUrl,
     ], pythonDir, id, stepPercent(0), stepPercent(0.9))
     appendLog(id, 'success', 'PyTorch installed')
     stepIdx++
@@ -621,11 +637,16 @@ async function setupPythonVenv(singingPkgRoot: string): Promise<string> {
   if (steps.includes('pipeline')) {
     updateProgress(id, { step: 'pipeline', percent: stepPercent(0) })
     const needed: string[] = []
-    if (!hasRvc) needed.push('rvc-python')
-    if (!hasCrepe) needed.push('torchcrepe')
-    if (!hasMelband) needed.push('melband-roformer-infer')
-    if (!hasFairseq) needed.push('fairseq')
-    if (!hasFaiss) needed.push('faiss-cpu')
+    if (!hasRvc)
+      needed.push('rvc-python')
+    if (!hasCrepe)
+      needed.push('torchcrepe')
+    if (!hasMelband)
+      needed.push('melband-roformer-infer')
+    if (!hasFairseq)
+      needed.push('fairseq')
+    if (!hasFaiss)
+      needed.push('faiss-cpu')
     // Evaluation dependencies for model QA and auto-calibration
     needed.push('speechbrain', 'faster-whisper', 'pyloudnorm', 'jiwer')
 
@@ -751,13 +772,15 @@ function spawnAsync(
     let lastProgressMsg = ''
 
     function processLine(line: string, isStderr: boolean) {
-      if (!line) return
+      if (!line)
+        return
 
       const lower = line.toLowerCase()
       const isBenign = lower.includes('failed to hardlink')
         || lower.includes('falling back to full copy')
         || lower.startsWith('warning: failed to hardlink')
-      if (isBenign) return
+      if (isBenign)
+        return
 
       output.push(line)
       const now = Date.now()
@@ -769,7 +792,7 @@ function spawnAsync(
         || lower.includes('kib/s')
         || lower.includes('mib/s')
         || lower.includes('eta')
-        || /\d+\.\d+\s*(mb|gb|kb)/i.test(line)
+        || DOWNLOAD_SIZE_REGEX.test(line)
 
       if (isDownloadProgress || !isStderr) {
         const frac = Math.min(output.length / 50, 0.95)
@@ -800,11 +823,11 @@ function spawnAsync(
     }
 
     child.stdout?.on('data', (data: Buffer) => {
-      for (const raw of data.toString().split(/[\r\n]+/))
+      for (const raw of data.toString().split(LINE_SPLIT_REGEX))
         processLine(raw.trim(), false)
     })
     child.stderr?.on('data', (data: Buffer) => {
-      for (const raw of data.toString().split(/[\r\n]+/))
+      for (const raw of data.toString().split(LINE_SPLIT_REGEX))
         processLine(raw.trim(), true)
     })
     child.on('close', (code) => {
@@ -829,7 +852,7 @@ async function detectTorchVariant(): Promise<TorchVariant> {
       windowsHide: true,
       shell: process.platform === 'win32',
     })
-    const match = stdout.match(/CUDA Version:\s*(\d+)\.(\d+)/)
+    const match = stdout.match(CUDA_VERSION_REGEX)
     if (!match)
       return { label: 'CPU-only', indexUrl: 'https://download.pytorch.org/whl/cpu' }
 
@@ -1025,7 +1048,7 @@ function buildApp(dataDir: string) {
       const pthFiles = flatFiles.filter(f => f.endsWith('.pth') && !baseModelNames.has(f))
 
       for (const pthFile of pthFiles) {
-        const voiceId = pthFile.replace(/\.pth$/, '')
+        const voiceId = pthFile.replace(PTH_SUFFIX_REGEX, '')
         const destDir = join(voiceModelsPath, voiceId)
         if (existsSync(join(destDir, `${voiceId}.pth`)))
           continue
@@ -1070,25 +1093,37 @@ function buildApp(dataDir: string) {
     ): Promise<Record<string, unknown> | null> {
       return new Promise((resolveP) => {
         const proc = spawn(env.pythonPath, [
-          '-m', 'airi_singing_worker.calibration',
+          '-m',
+          'airi_singing_worker.calibration',
           'adjust',
-          '--params', JSON.stringify(currentParams),
-          '--gate-result', JSON.stringify(gateResult),
-          '--attempt', String(attempt),
+          '--params',
+          JSON.stringify(currentParams),
+          '--gate-result',
+          JSON.stringify(gateResult),
+          '--attempt',
+          String(attempt),
         ], {
           env: { ...process.env, PYTHONPATH: env.pythonSrcDir },
           shell: process.platform === 'win32',
           windowsHide: true,
         })
         let stdout = ''
-        proc.stdout?.on('data', (d: Buffer) => { stdout += d.toString() })
+        proc.stdout?.on('data', (d: Buffer) => {
+          stdout += d.toString()
+        })
         proc.stderr?.on('data', () => {})
         proc.on('close', (code) => {
           if (code === 0 && stdout.trim()) {
-            try { resolveP(JSON.parse(stdout.trim())) }
-            catch { resolveP(null) }
+            try {
+              resolveP(JSON.parse(stdout.trim()))
+            }
+            catch {
+              resolveP(null)
+            }
           }
-          else { resolveP(null) }
+          else {
+            resolveP(null)
+          }
         })
         proc.on('error', () => resolveP(null))
       })
@@ -1230,7 +1265,12 @@ function buildApp(dataDir: string) {
         }
         else {
           childProc.kill('SIGTERM')
-          setTimeout(() => { try { childProc.kill('SIGKILL') } catch {} }, 3000)
+          setTimeout(() => {
+            try {
+              childProc.kill('SIGKILL')
+            }
+            catch {}
+          }, 3000)
         }
       }
       catch (err) {
@@ -1257,12 +1297,18 @@ function buildApp(dataDir: string) {
         await mkdir(trainOutputDir, { recursive: true })
 
         const args = [
-          '-m', 'airi_singing_worker.pipelines.training_pipeline',
-          '--voice-id', voiceId,
-          '--dataset', datasetPath,
-          '--output-dir', trainOutputDir,
-          '--epochs', String(trainEpochs),
-          '--batch-size', String(trainBatchSize),
+          '-m',
+          'airi_singing_worker.pipelines.training_pipeline',
+          '--voice-id',
+          voiceId,
+          '--dataset',
+          datasetPath,
+          '--output-dir',
+          trainOutputDir,
+          '--epochs',
+          String(trainEpochs),
+          '--batch-size',
+          String(trainBatchSize),
         ]
 
         const trainEnv: Record<string, string> = {
@@ -1350,8 +1396,12 @@ function buildApp(dataDir: string) {
             catch { /* file not ready or malformed, skip */ }
           }, 2000)
 
-          proc.stdout?.on('data', (d: Buffer) => { stdout += d.toString() })
-          proc.stderr?.on('data', (d: Buffer) => { stderr += d.toString() })
+          proc.stdout?.on('data', (d: Buffer) => {
+            stdout += d.toString()
+          })
+          proc.stderr?.on('data', (d: Buffer) => {
+            stderr += d.toString()
+          })
           proc.on('close', (code) => {
             clearInterval(progressPoller)
             activeTrainingProcs.delete(voiceId)
@@ -1376,7 +1426,8 @@ function buildApp(dataDir: string) {
         await mkdir(voiceModelDir, { recursive: true })
 
         async function moveFile(src: string, dest: string) {
-          if (!existsSync(src)) return
+          if (!existsSync(src))
+            return
           await rename(src, dest).catch(async () => {
             const data = await readFile(src)
             await writeFile(dest, data)
@@ -1415,8 +1466,14 @@ function buildApp(dataDir: string) {
       }
     }
     process.on('exit', cleanupAllTrainingProcesses)
-    process.on('SIGINT', () => { cleanupAllTrainingProcesses(); process.exit(0) })
-    process.on('SIGTERM', () => { cleanupAllTrainingProcesses(); process.exit(0) })
+    process.on('SIGINT', () => {
+      cleanupAllTrainingProcesses()
+      process.exit(0)
+    })
+    process.on('SIGTERM', () => {
+      cleanupAllTrainingProcesses()
+      process.exit(0)
+    })
 
     pipelineService = {
       async createCover(request: any) {
@@ -1931,11 +1988,15 @@ function buildApp(dataDir: string) {
 
         const pythonSrcDir = resolve(singingPkgRoot, 'python', 'src')
         const args = [
-          '-m', 'airi_singing_worker.evaluation',
+          '-m',
+          'airi_singing_worker.evaluation',
           'evaluate',
-          '--ref', body.refPath || body.audioPath,
-          '--synth', body.audioPath,
-          '--voice-id', body.voiceId,
+          '--ref',
+          body.refPath || body.audioPath,
+          '--synth',
+          body.audioPath,
+          '--voice-id',
+          body.voiceId,
         ]
 
         const result = await new Promise<string>((res, rej) => {
@@ -1945,8 +2006,10 @@ function buildApp(dataDir: string) {
             shell: process.platform === 'win32',
             windowsHide: true,
           })
-          proc.stdout?.on('data', (d: Buffer) => { stdout += d.toString() })
-          proc.on('close', (code) => code === 0 ? res(stdout) : rej(new Error(`exit ${code}`)))
+          proc.stdout?.on('data', (d: Buffer) => {
+            stdout += d.toString()
+          })
+          proc.on('close', code => code === 0 ? res(stdout) : rej(new Error(`exit ${code}`)))
           proc.on('error', rej)
         })
 
@@ -1985,10 +2048,13 @@ function buildApp(dataDir: string) {
 
         const pythonSrcDir = resolve(singingPkgRoot, 'python', 'src')
         const args = [
-          '-m', 'airi_singing_worker.calibration',
+          '-m',
+          'airi_singing_worker.calibration',
           'predict',
-          '--vocal', body.vocalPath,
-          '--voice-profile', profilePath,
+          '--vocal',
+          body.vocalPath,
+          '--voice-profile',
+          profilePath,
         ]
 
         const result = await new Promise<string>((res, rej) => {
@@ -1998,8 +2064,10 @@ function buildApp(dataDir: string) {
             shell: process.platform === 'win32',
             windowsHide: true,
           })
-          proc.stdout?.on('data', (d: Buffer) => { stdout += d.toString() })
-          proc.on('close', (code) => code === 0 ? res(stdout) : rej(new Error(`exit ${code}`)))
+          proc.stdout?.on('data', (d: Buffer) => {
+            stdout += d.toString()
+          })
+          proc.on('close', code => code === 0 ? res(stdout) : rej(new Error(`exit ${code}`)))
           proc.on('error', rej)
         })
 
@@ -2042,10 +2110,13 @@ function killProcessOnPort(port: number): boolean {
       const result = execSync(`netstat -ano | findstr ":${port}" | findstr "LISTENING"`, { encoding: 'utf-8', windowsHide: true }).trim()
       const lines = result.split('\n').filter(l => l.trim())
       for (const line of lines) {
-        const parts = line.trim().split(/\s+/)
-        const pid = parts[parts.length - 1]
-        if (pid && /^\d+$/.test(pid) && pid !== '0') {
-          try { execSync(`taskkill /T /F /PID ${pid}`, { windowsHide: true }) } catch {}
+        const parts = line.trim().split(WHITESPACE_REGEX)
+        const pid = parts.at(-1)
+        if (pid && PID_REGEX.test(pid) && pid !== '0') {
+          try {
+            execSync(`taskkill /T /F /PID ${pid}`, { windowsHide: true })
+          }
+          catch {}
         }
       }
       return lines.length > 0
@@ -2054,7 +2125,10 @@ function killProcessOnPort(port: number): boolean {
       const result = execSync(`lsof -ti :${port}`, { encoding: 'utf-8' }).trim()
       if (result) {
         for (const pid of result.split('\n').filter(p => p.trim())) {
-          try { execSync(`kill -9 ${pid}`) } catch {}
+          try {
+            execSync(`kill -9 ${pid}`)
+          }
+          catch {}
         }
         return true
       }
@@ -2103,7 +2177,7 @@ export async function setupSingingLocalServer(config: SingingServerConfig): Prom
       if (httpServer && typeof httpServer.on === 'function') {
         httpServer.once('error', (err: Error) => reject(err))
         httpServer.once('listening', () => resolve(s))
-        setTimeout(() => resolve(s), 500)
+        setTimeout(resolve, 500, s)
       }
       else {
         resolve(s)

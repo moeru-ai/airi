@@ -47,6 +47,9 @@ class RVCTrainingDataset(Dataset):
         f0_dir = self.exp_dir / "2a_f0"
         f0nsf_dir = self.exp_dir / "2b_f0nsf"
 
+        min_wav_samples = config.segment_size + config.hop_length
+        skipped_short = 0
+
         self.samples: list[dict[str, Path]] = []
         for wav_path in sorted(gt_dir.glob("*.wav")):
             stem = wav_path.stem
@@ -54,18 +57,34 @@ class RVCTrainingDataset(Dataset):
             f0_path = f0_dir / f"{stem}.wav.npy"
             f0nsf_path = f0nsf_dir / f"{stem}.wav.npy"
 
-            if feat_path.exists() and f0_path.exists() and f0nsf_path.exists():
-                self.samples.append({
-                    "wav": wav_path,
-                    "feat": feat_path,
-                    "f0": f0_path,
-                    "f0nsf": f0nsf_path,
-                })
+            if not (feat_path.exists() and f0_path.exists() and f0nsf_path.exists()):
+                continue
+
+            info = sf.info(str(wav_path))
+            if info.frames < min_wav_samples:
+                skipped_short += 1
+                continue
+
+            self.samples.append({
+                "wav": wav_path,
+                "feat": feat_path,
+                "f0": f0_path,
+                "f0nsf": f0nsf_path,
+            })
+
+        if skipped_short > 0:
+            print(
+                f"  Skipped {skipped_short} segments shorter than "
+                f"{min_wav_samples} samples ({min_wav_samples / config.sampling_rate:.2f}s)",
+                flush=True,
+            )
 
         if not self.samples:
             raise RuntimeError(
                 f"No valid training samples found in {exp_dir}. "
-                "Ensure preprocessing completed successfully."
+                f"All segments may be shorter than the required "
+                f"{min_wav_samples / config.sampling_rate:.2f}s minimum. "
+                "Try using a longer audio file or reducing segment_size."
             )
 
     def __len__(self) -> int:
@@ -124,11 +143,16 @@ class RVCTrainingDataset(Dataset):
                 )
 
         n_frames = min(spec.shape[1], phone.shape[0], pitch.shape[0], pitchf.shape[0])
+        n_frames = max(n_frames, self.cfg.segment_frames + 1)
         spec = spec[:, :n_frames]
-        phone = phone[:n_frames]
-        pitch = pitch[:n_frames]
-        pitchf = pitchf[:n_frames]
+        phone = phone[:n_frames] if phone.shape[0] >= n_frames else torch.nn.functional.pad(phone, (0, 0, 0, n_frames - phone.shape[0]))
+        pitch = pitch[:n_frames] if pitch.shape[0] >= n_frames else torch.nn.functional.pad(pitch, (0, n_frames - pitch.shape[0]))
+        pitchf = pitchf[:n_frames] if pitchf.shape[0] >= n_frames else torch.nn.functional.pad(pitchf, (0, n_frames - pitchf.shape[0]))
+        if spec.shape[1] < n_frames:
+            spec = torch.nn.functional.pad(spec, (0, n_frames - spec.shape[1]))
         wav = wav[: n_frames * self.cfg.hop_length]
+        if wav.shape[0] < n_frames * self.cfg.hop_length:
+            wav = torch.nn.functional.pad(wav, (0, n_frames * self.cfg.hop_length - wav.shape[0]))
 
         return {
             "phone": phone,

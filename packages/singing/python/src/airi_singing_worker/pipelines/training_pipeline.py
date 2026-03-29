@@ -257,6 +257,8 @@ def _preprocess_dataset(
     tail = per + overlap
     max_amp = 0.9
     alpha = 0.75
+    min_segment_samples = 13200  # segment_size(12800) + hop_length(400)
+    skipped_short = 0
 
     idx1 = 0
     for chunk in slicer.slice(audio):
@@ -269,8 +271,14 @@ def _preprocess_dataset(
             else:
                 segment = chunk[start:]
 
+            if len(segment) < min_segment_samples:
+                skipped_short += 1
+                if len(chunk[start:]) <= tail * sr:
+                    break
+                continue
+
             tmp_max = np.abs(segment).max()
-            if tmp_max > 2.5:
+            if tmp_max > 2.5 or tmp_max < 1e-6:
                 if len(chunk[start:]) <= tail * sr:
                     break
                 idx1 += 1
@@ -294,6 +302,9 @@ def _preprocess_dataset(
 
             if len(chunk[start:]) <= tail * sr:
                 break
+
+    if skipped_short > 0:
+        print(f"  Skipped {skipped_short} segments shorter than {min_segment_samples / sr:.2f}s", flush=True)
 
     if idx1 == 0:
         raise SingingWorkerError(
