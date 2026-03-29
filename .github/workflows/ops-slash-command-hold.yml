@@ -16,6 +16,6 @@ jobs:
             github.rest.issues.addLabels({
               owner: '${{ github.event.client_payload.github.payload.repository.owner.login }}',
               repo: '${{ github.event.client_payload.github.payload.repository.name }}',
-              issue_number: ${{ github.event.client_payload.github.pull_request.number }},
+              issue_number: ${{ github.event.client_payload.github.payload.issue.number }},
               labels: ['pr-review/hold']
             })
