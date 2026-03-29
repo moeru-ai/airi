@@ -19,18 +19,37 @@ dialogs:
     baseUrl: Base URL
     baseUrlHelp: API endpoint URL (use default if unsure)
     accountId: Account ID
+    validationRunning: Running tests
     validationSuccess: Configuration validation success
     validationPartial: Configuration partially validated
     validationFailed: Configuration validation failed
     validationError: 'Validation error: {error}'
-    testGeneration: Test Generation
-    testGenerationRunning: Testing...
-    testGenerationFailed: Generation test failed
+    testGeneration: Ping API
+    testGenerationRunning: Ping...
+    testGenerationFailed: Ping test failed
+    retryPingCheck: Retry
     skipForNow: Skip for now
     saveAndContinue: Save and Continue
     next: Next
     retry: Retry
+    credentialsSafeLabel: Keep your API keys and credentials safe!
+    credentialsSafeLocal: >-
+      AIRI is running pure locally in your PC, and we will never steal
+      your credentials for AI / LLM providers. But keep in mind that your API
+      keys are sensitive information. Make sure to keep them safe and do not
+      share them with anyone.
+    credentialsSafeOpenSource: >-
+      AIRI is open sourced at {github}, if you want to check how we handle
+      your credentials, feel free to inspect our code.
+    enableChatCheck: >-
+      Allow airi to send a "ping" message to the first available chat model to
+      check availability
     start: Let's do it!
+    loginPrompt: Sign in to use the official AIRI provider for the best experience.
+    loginAction: Sign in
+    setupWithoutSigningIn: Setup with your provider
+    flux: Flux
+    buyFlux: Charge Flux
     select-model: Choose model
     no-models: No available models
     no-models-help: >-
@@ -51,7 +70,8 @@ dialogs:
       stateNotGranted: Not granted
 language:
   title: Language
-  description: UI language
+  description: >
+    UI language. You can set characters' language later.
 controls-island:
   icon-size:
     title: Controls Island Icon Size
@@ -101,12 +121,12 @@ live2d:
   focus:
     title: Disable model mouse tracking
     button-disable:
-      title: Disable
+      title: Disable model mouse tracking
   fps:
     title: FPS
     description: Limit rendering frame rate
     options:
-      unlimited: No Limit
+      unlimited: ∞
 microphone: Microphone
 models: Model
 pages:
@@ -237,10 +257,6 @@ pages:
         title: Delete all data
         description: Wipe every local setting, provider config, and model.
         delete: Delete all data
-      desktop-folder:
-        title: Open app data folder
-        description: Open AIRI's data folder in your file manager.
-        open: Open folder
       desktop:
         title: Reset desktop settings & states
         description: Clear AIRI desktop settings and runtime state.
@@ -495,9 +511,33 @@ pages:
         apply-and-restart: Save and restart stdio MCP
       messages:
         opened: Config file opened at {path}
-        restarted: >-
-          MCP servers restarted. Started {started}, failed {failed}, skipped
-          {skipped}
+        restarted: MCP servers restarted. Started {started}, failed {failed}, skipped {skipped}
+  flux:
+    title: Flux
+    buy: Charge
+    description: Current Flux
+    packagesError: Failed to load packages. Please try again later.
+    checkout:
+      success: Payment successful! Your Flux has been topped up.
+      canceled: Payment was canceled.
+      error: Something went wrong. Please try again later.
+    audit:
+      title: Transaction History
+      time: Time
+      type: Type
+      detail: Detail
+      amount: Amount
+      typeAddition: Top-up
+      typeConsumption: Usage
+      typeInitial: Initial Grant
+      loading: Loading history...
+      empty: No transaction records yet.
+      loadMore: Load More
+      delayHint: Usage records may be delayed by up to 1 minute
+    packages:
+      title: Flux Packages
+      buy: Charge
+      description: Flux packages to choose from.
   providers:
     explained:
       chat: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
@@ -793,9 +833,6 @@ pages:
       openai:
         description: openai.com
         title: OpenAI
-      azure-openai:
-        description: Azure OpenAI API
-        title: Azure OpenAI
       openai-compatible:
         description: OpenAI Compatible
         title: OpenAI Compatible
@@ -806,9 +843,6 @@ pages:
         description: n1n.ai - High-performance AI API provider.
         title: n1n
       openrouter:
-        description: openrouter.ai
-        title: OpenRouter
-      openrouter-audio-speech:
         description: openrouter.ai
         title: OpenRouter
       perplexity:
@@ -864,6 +898,13 @@ pages:
       browser-web-speech-api:
         description: Browser-native STT (requires Chrome/Edge/Safari)
         title: Web Speech API
+      official:
+        title: Official Provider
+        description: Official AI provider by AIRI.
+        speech-title: Official Speech Provider
+        speech-description: Official text-to-speech provider by AIRI.
+        transcription-title: Official Transcription Provider
+        transcription-description: Official speech-to-text provider by AIRI.
       transcriptions:
         playground:
           title: Transcription Playground
@@ -1030,6 +1071,8 @@ pages:
       open-devtools:
         title: Open Developer Tools
         button: Open
+  credits:
+    buy: Buy
 sections:
   section:
     general:

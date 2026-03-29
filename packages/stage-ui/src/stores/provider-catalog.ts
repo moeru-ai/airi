@@ -22,7 +22,7 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
         }
       },
       remote: async () => {
-        const res = await client.api.providers.$get()
+        const res = await client.api.v1.providers.$get()
         if (!res.ok) {
           throw new Error('Failed to fetch providers')
         }
@@ -68,7 +68,7 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
         return provider
       },
       remote: async () => {
-        const res = await client.api.providers.$post({
+        const res = await client.api.v1.providers.$post({
           json: {
             id,
             definitionId,
@@ -109,7 +109,7 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
         await providersRepo.remove(providerId)
       },
       remote: async () => {
-        const res = await client.api.providers[':id'].$delete({
+        const res = await client.api.v1.providers[':id'].$delete({
           param: { id: providerId },
         })
         if (!res.ok) {
@@ -134,7 +134,7 @@ export const useProviderCatalogStore = defineStore('provider-catalog', () => {
         return provider
       },
       remote: async () => {
-        const res = await client.api.providers[':id'].$patch({
+        const res = await client.api.v1.providers[':id'].$patch({
           param: { id: providerId },
           // @ts-expect-error hono client typing misses json option for this route
           json: {

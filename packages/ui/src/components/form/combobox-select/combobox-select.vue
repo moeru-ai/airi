@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { provide, ref } from 'vue'
-
 import { Combobox } from '../combobox'
 
 const props = defineProps<{
-  options?: { label: string, value: string | number }[]
+  options?: {
+    label: string
+    value: string | number
+    description?: string
+    disabled?: boolean
+    icon?: string
+  }[]
   placeholder?: string
   disabled?: boolean
   title?: string
@@ -13,27 +17,33 @@ const props = defineProps<{
   contentWidth?: string | number
 }>()
 
-const show = ref(false)
 const modelValue = defineModel<string | number>({ required: false })
-
-function selectOption(value: string | number) {
-  modelValue.value = value
-}
-
-function handleHide() {
-  show.value = false
-}
-
-provide('selectOption', selectOption)
-provide('hide', handleHide)
 </script>
 
 <template>
   <Combobox
     v-model="modelValue"
-    :default-value="modelValue"
     :options="[{ groupLabel: '', children: props.options }]"
+    :disabled="props.disabled"
     :content-min-width="props.contentMinWidth"
     :content-width="props.contentWidth"
-  />
+    :placeholder="props.placeholder"
+  >
+    <template
+      v-if="$slots.option"
+      #option="{ option }"
+    >
+      <slot
+        name="option"
+        v-bind="{ option }"
+      />
+    </template>
+
+    <template
+      v-if="$slots.empty"
+      #empty
+    >
+      <slot name="empty" />
+    </template>
+  </Combobox>
 </template>

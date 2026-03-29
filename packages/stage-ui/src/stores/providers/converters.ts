@@ -1,13 +1,12 @@
 import type { ComposerTranslation } from 'vue-i18n'
 
-import type { ProviderDefinition } from '../../libs/providers/types'
-import type { ProviderValidationPlan } from '../../libs/providers/validators/run'
+import type { ProviderDefinition, ProviderValidationPlan } from '../../libs'
 import type { ProviderMetadata } from '../providers'
 
 import { listModels } from '@xsai/model'
 
-import { isModelProvider } from '../../libs/providers/types'
-import { getValidatorsOfProvider, validateProvider, validateProviderManual } from '../../libs/providers/validators/run'
+import { CHAT_COMPLETIONS_VALIDATOR_ID, isModelProvider } from '../../libs/providers/types'
+import { getValidatorsOfProvider, validateProvider } from '../../libs/providers/validators/run'
 
 function getCategoryFromTasks(tasks: string[]): ProviderMetadata['category'] {
   if (tasks.some(task => ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'].includes(task.toLowerCase()))) {
@@ -100,9 +99,6 @@ export function convertProviderDefinitionToMetadata(
   const keyExtractor = (input: string): string => input
   const category = getCategoryFromTasks(definition.tasks)
   const schemaDefaults = extractSchemaDefaults(definition, t)
-  const allValidators = (definition.validators?.validateProvider || []).map(creator => creator({ t }))
-  const hasManualValidators = allValidators.some(v => v.manualOnly)
-
   return {
     id: definition.id,
     order: definition.order,
@@ -116,6 +112,7 @@ export function convertProviderDefinitionToMetadata(
     iconColor: definition.iconColor,
     iconImage: definition.iconImage,
     isAvailableBy: definition.isAvailableBy,
+    requiresCredentials: definition.requiresCredentials,
     defaultOptions: () => {
       if (Object.keys(schemaDefaults).length > 0) {
         return { ...schemaDefaults }
@@ -186,7 +183,36 @@ export function convertProviderDefinitionToMetadata(
         : undefined,
     },
     validators: {
-      validateProviderConfig: async (config) => {
+      chatPingCheckAvailable: !definition.disableChatPingCheckUI
+        && (definition.validators?.validateProvider || [])
+          .some(creator => creator({ t }).id.includes(CHAT_COMPLETIONS_VALIDATOR_ID)),
+      validateProviderConfig: async (config, options) => {
+        // onlyChatPingCheck: skip all validators except chat completions.
+        // Used by the manual "Test Generation" button on settings pages.
+        if (options?.onlyChatPingCheck) {
+          const plan = getValidatorsOfProvider({
+            definition,
+            config,
+            schemaDefaults,
+            contextOptions: { t },
+          })
+          plan.configValidators = []
+          plan.providerValidators = plan.providerValidators.filter(v => v.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
+          plan.steps = plan.steps.filter(s => s.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
+
+          if (plan.providerValidators.length === 0) {
+            return { errors: [], reason: '', valid: true }
+          }
+
+          await validateProvider(plan, { t })
+          const invalidSteps = plan.steps.filter(step => step.status === 'invalid')
+          return {
+            errors: invalidSteps.map(step => new Error(step.reason || `${step.id} is invalid`)),
+            reason: invalidSteps.map(step => step.reason).filter(Boolean).join('; '),
+            valid: invalidSteps.length === 0,
+          }
+        }
+
         const plan = getValidatorsOfProvider({
           definition,
           config,
@@ -194,10 +220,13 @@ export function convertProviderDefinitionToMetadata(
           contextOptions: { t },
         })
 
+        if (options?.skipChatPingCheck) {
+          plan.providerValidators = plan.providerValidators.filter(v => !v.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
+          plan.steps = plan.steps.filter(s => !s.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
+        }
+
         // Run full validation pipeline (config + provider validators) only when required.
         // This preserves strict config checks while avoiding unnecessary network checks.
-        // NOTICE: manualOnly validators (e.g. chat completion probes) are already excluded
-        // from the plan's providerValidators by getValidatorsOfProvider.
         if (plan.shouldValidate) {
           await validateProvider(plan, { t })
           const invalidSteps = plan.steps.filter(step => step.status === 'invalid')
@@ -234,26 +263,6 @@ export function convertProviderDefinitionToMetadata(
         await validateProvider(plan, { t })
         return buildConfigValidationResult(plan)
       },
-      runManualValidation: hasManualValidators
-        ? async (config) => {
-          const plan = getValidatorsOfProvider({
-            definition,
-            config,
-            schemaDefaults,
-            contextOptions: { t },
-          })
-          const steps = await validateProviderManual(plan, { t })
-          const invalidSteps = steps.filter(step => step.status === 'invalid')
-          if (invalidSteps.length === 0) {
-            return { errors: [], reason: '', valid: true }
-          }
-          return {
-            errors: invalidSteps.map(step => new Error(step.reason || `${step.id} is invalid`)),
-            reason: invalidSteps.map(step => step.reason).filter(Boolean).join('; '),
-            valid: false,
-          }
-        }
-        : undefined,
     },
     transcriptionFeatures: definition.capabilities?.transcription
       ? {

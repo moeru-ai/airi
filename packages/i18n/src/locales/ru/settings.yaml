@@ -22,14 +22,19 @@ dialogs:
     validationPartial: Конфигурация частично проверена
     validationFailed: Проверка конфигурации не удалась
     validationError: 'Ошибка проверки: {error}'
-    testGeneration: Генерация тестов
-    testGenerationRunning: Тестирование...
-    testGenerationFailed: Сбой при генерации теста
+    testGeneration: Ping API
+    testGenerationRunning: Ping...
+    testGenerationFailed: Ping не удался
     skipForNow: Пропустить на сейчас
     saveAndContinue: Сохранить и продолжить
     next: Далее
     retry: Повторить
     start: Поехали!
+    loginPrompt: Sign in to use the official AIRI provider for the best experience.
+    loginAction: Sign in
+    setupWithoutSigningIn: Setup with your provider
+    flux: Flux
+    buyFlux: Charge Flux
     select-model: Выберите модель
     no-models: Нет доступных моделей
     no-models-help: >-
@@ -49,7 +54,8 @@ dialogs:
       stateNotGranted: Не предоставлено
 language:
   title: Язык
-  description: Язык пользовательского интерфейса
+  description: >
+    UI language. You can set characters' language later.
 controls-island:
   icon-size:
     title: Размер значка Управления островом
@@ -99,12 +105,12 @@ live2d:
   focus:
     title: Отключить слежение за мышью
     button-disable:
-      title: Отключить
+      title: Disable model mouse tracking
   fps:
     title: ФПС
     description: Ограничить скорость рендеринга кадров
     options:
-      unlimited: Без ограничений
+      unlimited: '∞'
 microphone: Микрофон
 models: Модель
 pages:
@@ -230,10 +236,6 @@ pages:
         title: Удалить все данные
         description: Очистка всех локальных настроек, конфигурации провайдера и модели.
         delete: Удалить все данные
-      desktop-folder:
-        title: Открыть папку данных приложений
-        description: Откройте папку данных AIRI в вашем файловом менеджере.
-        open: Открыть папку
       desktop:
         title: Сбросить настройки и состояния рабочего стола
         description: Очистить настройки AIRI рабочего стола и состояние рабочего времени.
@@ -463,8 +465,33 @@ pages:
         apply-and-restart: Сохранить и перезапустить MCP
       messages:
         opened: Файл конфигурации открыт {path}
-        restarted: >-
-          MCP серверы перезапущены. Запущен {started}, не удалось {failed}, пропущено {skipped}
+        restarted: MCP серверы перезапущены. Запущен {started}, не удалось {failed}, пропущено {skipped}
+  flux:
+    title: Flux
+    buy: Charge
+    description: Current Flux
+    packagesError: Failed to load packages. Please try again later.
+    checkout:
+      success: Payment successful! Your Flux has been topped up.
+      canceled: Payment was canceled.
+      error: Something went wrong. Please try again later.
+    audit:
+      title: Transaction History
+      time: Time
+      type: Type
+      detail: Detail
+      amount: Amount
+      typeAddition: Top-up
+      typeConsumption: Usage
+      typeInitial: Initial Grant
+      loading: Loading history...
+      empty: No transaction records yet.
+      loadMore: Load More
+      delayHint: Usage records may be delayed by up to 1 minute
+    packages:
+      title: Flux Packages
+      buy: Charge
+      description: Flux packages to choose from.
   providers:
     explained:
       chat: Провайдеры текстогенерации, напр. OpenRouter, OpenAI, Ollama.
@@ -744,9 +771,6 @@ pages:
       openai:
         description: openai.com
         title: OpenAI
-      azure-openai:
-        description: Azure OpenAI API
-        title: Azure OpenAI
       openai-compatible:
         description: Совместимый с OpenAI
         title: OpenAI Compatible
@@ -758,9 +782,6 @@ pages:
         title: n1n
       openrouter:
         description: Openrouter.ai
-        title: OpenRouter
-      openrouter-audio-speech:
-        description: openrouter.ai
         title: OpenRouter
       perplexity:
         description: perplexity.ai
@@ -815,6 +836,13 @@ pages:
       browser-web-speech-api:
         description: Браузер  STT (требует Chrome/Edge/Safari)
         title: Web Speech API
+      official:
+        title: Official Provider
+        description: Official AI provider by AIRI.
+        speech-title: Official Speech Provider
+        speech-description: Official text-to-speech provider by AIRI.
+        transcription-title: Official Transcription Provider
+        transcription-description: Official speech-to-text provider by AIRI.
       transcriptions:
         playground:
           title: Песочница транскрипции
@@ -978,6 +1006,8 @@ pages:
       open-devtools:
         title: Открыть инструменты разработчика
         button: Открыть
+  credits:
+    buy: Buy
 sections:
   section:
     general:

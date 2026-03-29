@@ -18,12 +18,27 @@ services:
       timeout: 5s
       retries: 10
 
-  server:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
     build:
       context: ../..
       dockerfile: apps/server/Dockerfile
+    command: ['pnpm', '-F', '@proj-airi/server', 'run', 'server', 'api']
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     env_file:
       - path: .env
@@ -38,6 +53,25 @@ services:
       timeout: 5s
       retries: 5
 
+  billing-consumer:
+    build:
+      context: ../..
+      dockerfile: apps/server/Dockerfile
+    command: ['pnpm', '-F', '@proj-airi/server', 'run', 'server', 'billing-consumer']
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+      - path: .env.local
+        required: false
+    restart: unless-stopped
+
 volumes:
   db_data:
+    driver: local
+  redis_data:
     driver: local

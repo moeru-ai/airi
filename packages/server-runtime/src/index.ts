@@ -8,6 +8,7 @@ import type {
 } from './middlewares'
 import type { AuthenticatedPeer, Peer } from './types'
 
+import { Buffer } from 'node:buffer'
 import { timingSafeEqual } from 'node:crypto'
 
 import { availableLogLevelStrings, Format, LogLevelString, logLevelStringToLogLevelMap, useLogg } from '@guiiai/logg'
