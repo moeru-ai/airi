@@ -1,0 +1,21 @@
+name: Handle /hold command
+
+on:
+  repository_dispatch:
+    types: [hold-command]
+
+jobs:
+  handle:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['pr-reviews/hold']
+            })
