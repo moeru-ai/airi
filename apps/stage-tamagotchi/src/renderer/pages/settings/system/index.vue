@@ -25,6 +25,12 @@ const settings = computed(() => [
     to: '/settings/system/window-shortcuts',
   },
   {
+    title: t('tamagotchi.settings.pages.system.dock-mode.title'),
+    description: t('tamagotchi.settings.pages.system.dock-mode.description'),
+    icon: 'i-solar:magnet-bold-duotone',
+    to: '/settings/system/dock-mode',
+  },
+  {
     title: t('settings.pages.system.developer.title'),
     description: t('settings.pages.system.developer.description'),
     icon: 'i-solar:code-bold-duotone',
