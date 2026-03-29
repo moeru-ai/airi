@@ -2,20 +2,24 @@
 import { all } from '@proj-airi/i18n'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { isPosthogAvailableInBuild } from '@proj-airi/stage-ui/stores/analytics'
-import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { FieldCheckbox, FieldCombobox, useTheme } from '@proj-airi/ui'
+import { useSettings, useSettingsControlsIsland } from '@proj-airi/stage-ui/stores/settings'
+import { FieldCheckbox, FieldCombobox, FieldInput, useTheme } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const props = withDefaults(defineProps<{
   needsControlsIslandIconSizeSetting?: boolean
+  needsAutoHideControlsIslandSetting?: boolean
 }>(), {
   needsControlsIslandIconSizeSetting: import.meta.env.RUNTIME_ENVIRONMENT === 'electron',
+  needsAutoHideControlsIslandSetting: import.meta.env.RUNTIME_ENVIRONMENT === 'electron',
 })
 
 const settings = useSettings()
+const settingsControlsIsland = useSettingsControlsIsland()
 
 const showControlsIsland = computed(() => props.needsControlsIslandIconSizeSetting)
+const showAutoHideControlsIsland = computed(() => props.needsAutoHideControlsIslandSetting)
 const showAnalyticsSettings = computed(() => isPosthogAvailableInBuild())
 const analyticsToggleValue = computed({
   get: () => showAnalyticsSettings.value ? settings.analyticsEnabled : false,
@@ -76,6 +80,46 @@ const languages = computed(() => {
         { value: 'small', label: t('settings.controls-island.icon-size.small') },
       ]"
     />
+
+    <FieldCheckbox
+      v-if="showAutoHideControlsIsland"
+      v-model="settingsControlsIsland.autoHideControlsIsland"
+      v-motion
+      :initial="{ opacity: 0, y: 10 }"
+      :enter="{ opacity: 1, y: 0 }"
+      :duration="250 + (5 * 10)"
+      :delay="5 * 50"
+      label="Auto-hide controls island"
+      description="Hide controls island after mouse leaves, show after mouse enters"
+    />
+
+    <template v-if="showAutoHideControlsIsland && settingsControlsIsland.autoHideControlsIsland">
+      <FieldInput
+        v-model.number="settingsControlsIsland.autoHideDelay"
+        v-motion
+        :initial="{ opacity: 0, y: 10 }"
+        :enter="{ opacity: 1, y: 0 }"
+        :duration="250 + (6 * 10)"
+        :delay="6 * 50"
+        type="number"
+        :min="0"
+        :max="60"
+        label="Hide delay (seconds)"
+      />
+
+      <FieldInput
+        v-model.number="settingsControlsIsland.autoShowDelay"
+        v-motion
+        :initial="{ opacity: 0, y: 10 }"
+        :enter="{ opacity: 1, y: 0 }"
+        :duration="250 + (7 * 10)"
+        :delay="7 * 50"
+        type="number"
+        :min="0"
+        :max="5"
+        label="Show delay (seconds)"
+      />
+    </template>
 
     <FieldCheckbox
       v-model="analyticsToggleValue"
