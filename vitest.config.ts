@@ -10,6 +10,7 @@ export default defineConfig({
       'packages/plugin-sdk',
       'packages/server-runtime',
       'packages/server-sdk',
+      'packages/singing',
       'packages/stage-ui',
       'packages/vite-plugin-warpdrive',
     ],

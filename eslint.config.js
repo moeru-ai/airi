@@ -29,6 +29,11 @@ export default defineConfig({
     '**/.astro/**',
     '.agents/**',
     'CLAUDE.md', // Skip the symbolic link
+    '**/.singing-tmp/**',
+    '**/.venv/**',
+    '**/python/.venv/**',
+    '**/models/voice_models/**',
+    '**/models/separation/**',
   ],
 }, {
   rules: {

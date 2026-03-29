@@ -12,6 +12,8 @@ import type { FluxService } from './services/flux'
 import type { FluxTransactionService } from './services/flux-transaction'
 import type { ProviderService } from './services/providers'
 import type { StripeService } from './services/stripe'
+// --- [singing] import (type) ---
+import type { SingingService } from './services/singing/singing-service'
 import type { HonoEnv } from './types/hono'
 
 import process from 'node:process'
@@ -41,6 +43,8 @@ import { createFluxRoutes } from './routes/flux'
 import { createV1CompletionsRoutes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
+// --- [singing] import (route factory) ---
+import { createSingingRoutes } from './routes/singing'
 import { createBillingMq } from './services/billing/billing-events'
 import { createBillingService } from './services/billing/billing-service'
 import { createCharacterService } from './services/characters'
@@ -51,6 +55,8 @@ import { createFluxTransactionService } from './services/flux-transaction'
 import { createProviderService } from './services/providers'
 import { createRequestLogService } from './services/request-log'
 import { createStripeService } from './services/stripe'
+// --- [singing] import (deps factory) ---
+import { createSingingDeps } from './libs/singing/deps'
 import { ApiError, createInternalError, createUnauthorizedError } from './utils/error'
 import { getTrustedOrigin } from './utils/origin'
 
@@ -68,6 +74,8 @@ interface AppDeps {
   redis: Redis
   env: Env
   otel: OtelInstance | null
+  // --- [singing] dep ---
+  singingService: SingingService
 }
 
 async function buildApp(deps: AppDeps) {
@@ -179,6 +187,9 @@ async function buildApp(deps: AppDeps) {
      * Stripe routes.
      */
     .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.otel?.revenue))
+
+    // --- [singing] route mount ---
+    .route('/api/v1/singing', createSingingRoutes(deps.singingService))
 
   return { app: builtApp, injectWebSocket }
 }
@@ -315,6 +326,12 @@ export async function createApp() {
     build: ({ dependsOn }) => createRequestLogService(dependsOn.db),
   })
 
+  // --- [singing] injeca registration ---
+  const singingService = injeca.provide('services:singing', {
+    dependsOn: {},
+    build: () => createSingingDeps().service,
+  })
+
   const billingService = injeca.provide('services:billing', {
     dependsOn: { db, redis, billingMq, configKV, otel },
     build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.billingMq, dependsOn.configKV, dependsOn.otel?.revenue),
@@ -337,6 +354,8 @@ export async function createApp() {
     redis,
     env: parsedEnv,
     otel,
+    // --- [singing] resolve ---
+    singingService,
   })
   const { app, injectWebSocket } = await buildApp({
     auth: resolved.auth,
@@ -352,6 +371,8 @@ export async function createApp() {
     redis: resolved.redis,
     env: resolved.env,
     otel: resolved.otel,
+    // --- [singing] dep ---
+    singingService: resolved.singingService,
   })
 
   logger.withFields({ hostname: resolved.env.HOST, port: resolved.env.PORT }).log('Server started')
