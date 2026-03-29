@@ -147,11 +147,11 @@ Before this refactor, the dependencies between `ThreeScene`, `TresCanvas`, `Orbi
 
 This was how messy it looked before:
 
-![ThreeScene lifecycle before](./assets/ThreeScene-before.png)
+![ThreeScene lifecycle before](./assets/ThreeScene-before.avif)
 
 And this is how it moves phase by phase now:
 
-![ThreeScene lifecycle after](./assets/ThreeScene-after.png)
+![ThreeScene lifecycle after](./assets/ThreeScene-after.avif)
 
 The redesign introduced a few key ideas:
 
