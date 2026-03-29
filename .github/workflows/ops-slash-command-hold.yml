@@ -10,6 +10,10 @@ jobs:
     permissions:
       pull-requests: write
     steps:
+      - name: Dump the client payload context
+        env:
+          PAYLOAD_CONTEXT: ${{ toJson(github.event.client_payload) }}
+        run: echo "$PAYLOAD_CONTEXT"
       - uses: actions/github-script@v8
         with:
           script: |
