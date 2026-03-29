@@ -3,7 +3,7 @@ import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { useSettings, useSettingsAudioDevice, useSettingsControlsIsland } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
-import { refDebounced, useIntervalFn } from '@vueuse/core'
+import { useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -66,11 +66,27 @@ const { isOutside } = useElectronMouseInElement(islandRef)
 const autoHideDelayMs = computed(() => autoHideDelay.value * 1000)
 const autoShowDelayMs = computed(() => autoShowDelay.value * 1000)
 
-// Debounced outside state for hide delay
-const isOutsideForHide = refDebounced(isOutside, () => autoHideDelayMs.value || 5000)
+// Track time since mouse left/entered
+const timeSinceOutside = ref(0)
+const timeSinceInside = ref(0)
 
-// Debounced inside state for show delay
-const isInsideForShow = refDebounced(computed(() => !isOutside.value), () => autoShowDelayMs.value || 0)
+let lastUpdateTime = Date.now()
+
+// Update time tracking
+useIntervalFn(() => {
+  const now = Date.now()
+  const delta = now - lastUpdateTime
+  lastUpdateTime = now
+
+  if (isOutside.value) {
+    timeSinceOutside.value += delta
+    timeSinceInside.value = 0
+  }
+  else {
+    timeSinceInside.value += delta
+    timeSinceOutside.value = 0
+  }
+}, 100)
 
 // Auto-hide: hide controls island when mouse leaves after delay
 // Auto-show: show controls island when mouse enters after delay
@@ -82,21 +98,24 @@ const isHidden = computed(() => {
   if (isBlocked.value || expanded.value)
     return false
 
-  // When mouse is inside, always show immediately
-  if (!isOutside.value)
+  // When mouse is inside, always show immediately (unless show delay is set)
+  if (!isOutside.value) {
+    if (autoShowDelay.value > 0) {
+      // Wait for mouse to be inside for the configured delay before showing
+      return timeSinceInside.value < autoShowDelayMs.value
+    }
     return false
-
-  // When autoShowDelay > 0, wait for mouse to be inside for the configured delay before showing
-  if (autoShowDelay.value > 0) {
-    // Hide if not yet inside for show delay
-    return !isInsideForShow.value
   }
 
-  // Default: hide when mouse has been outside for the configured delay
-  return isOutsideForHide.value
+  // When mouse is outside, hide after delay
+  return timeSinceOutside.value >= autoHideDelayMs.value
 })
 
-watch(isOutsideForHide, (outside) => {
+watch(isOutside, (outside) => {
+  lastUpdateTime = Date.now()
+  timeSinceOutside.value = 0
+  timeSinceInside.value = 0
+
   if (outside && expanded.value && !isBlocked.value) {
     expanded.value = false
   }
