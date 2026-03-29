@@ -1,0 +1,22 @@
+# Override root .gitignore for LFS-tracked test fixtures
+!test/fixtures/*.wav
+!test/fixtures/*.mp3
+
+# Python runtime artifacts
+python/__pycache__/
+python/**/__pycache__/
+python/.venv/
+python/.pytest_cache/
+python/.ruff_cache/
+python/*.egg-info/
+python/dist/
+python/0.10
+
+# Model weights (downloaded at runtime, not committed)
+models/
+
+# Runtime data (uploads, job artifacts, temp files)
+.singing-tmp/
+.turbo/
+dist/
+node_modules/
