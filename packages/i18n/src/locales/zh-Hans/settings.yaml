@@ -262,6 +262,9 @@ pages:
           description: 配置 3D VRM 模型
         scene: 场景
   modules:
+    singing:
+      title: AI 翻唱
+      description: AI 声音转换管线，用于翻唱生成
     beat_sync:
       description: 随音源节拍律动
       title: 同步音律

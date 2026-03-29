@@ -269,6 +269,9 @@ pages:
           description: Configure 3D VRM models and settings
         scene: Scene
   modules:
+    singing:
+      title: AI Singing
+      description: AI voice conversion pipeline for cover generation
     beat_sync:
       description: Vibe with beats from the audio source
       title: Beat Sync
