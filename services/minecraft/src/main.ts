@@ -9,7 +9,6 @@ import { pathfinder as MineflayerPathfinder } from 'mineflayer-pathfinder'
 import { plugin as MineflayerPVP } from 'mineflayer-pvp'
 import { plugin as MineflayerTool } from 'mineflayer-tool'
 
-import { MinecraftServiceShell } from './airi/service-shell'
 import { startAiriClientConnection } from './airi/start-background-client'
 import { CognitiveEngine } from './cognitive'
 import { config, initEnv } from './composables/config'
@@ -47,7 +46,7 @@ async function main() {
     },
   }
 
-  configManager.load()
+  let runtimeSnapshot = configManager.load()
 
   if (config.debug.server || config.debug.viewer || config.debug.mcp) {
     logger.warn(
@@ -89,7 +88,7 @@ async function main() {
   let viewerInitialized = false
 
   async function createManagedBot(botConfig: typeof config.bot) {
-    activeRuntime = new MinecraftBotRuntime({
+    const runtime = new MinecraftBotRuntime({
       initialConfig: botConfig,
       createBot: async (nextBotConfig) => {
         config.bot = {
@@ -128,18 +127,51 @@ async function main() {
       },
     })
 
-    await activeRuntime.initialize()
+    await runtime.initialize()
+    activeRuntime = runtime
 
-    return activeRuntime
+    return runtime
   }
 
-  const shell = new MinecraftServiceShell({
-    airiClient,
-    configManager,
-    createBot: createManagedBot,
-    serviceName: config.airi.clientName,
+  async function ensureManagedBot() {
+    if (activeRuntime)
+      return
+
+    await createManagedBot(runtimeSnapshot.effectiveBotConfig)
+  }
+
+  async function applyConfiguredRuntime(nextConfig: unknown) {
+    runtimeSnapshot = configManager.save(nextConfig as Parameters<MinecraftRuntimeConfigManager['save']>[0])
+
+    if (!runtimeSnapshot.editableConfig.enabled) {
+      if (activeRuntime) {
+        await activeRuntime.stop()
+        activeRuntime = null
+      }
+      return
+    }
+
+    if (!activeRuntime) {
+      await ensureManagedBot()
+      return
+    }
+
+    await activeRuntime.updateBotConfig(runtimeSnapshot.effectiveBotConfig)
+  }
+
+  airiClient.onEvent('module:configure', async (event) => {
+    try {
+      await applyConfiguredRuntime(event.data.config)
+    }
+    catch {
+      // Keep failures local to the service process. Stage learns only from registry liveness
+      // and explicit bot-originated context pushes, not automated configure updates.
+    }
   })
-  await shell.initialize()
+
+  if (runtimeSnapshot.editableConfig.enabled) {
+    await ensureManagedBot()
+  }
 
   process.on('SIGINT', () => {
     Promise.resolve(activeRuntime?.stop())
