@@ -101,12 +101,12 @@ live2d:
   focus:
     title: Tắt theo dõi chuột cho mô hình
     button-disable:
-      title: Tắt theo dõi chuột cho mô hình
+      title: Disable model mouse tracking
   fps:
     title: FPS
     description: Giới hạn tốc độ khung hình hiển thị
     options:
-      unlimited: ∞
+      unlimited: '∞'
 microphone: Micro
 models: Mô hình
 pages:

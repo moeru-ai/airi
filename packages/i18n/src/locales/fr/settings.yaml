@@ -101,12 +101,12 @@ live2d:
   focus:
     title: Désactiver le suivi du modèle par la souris
     button-disable:
-      title: Désactiver le suivi du modèle par la souris
+      title: Disable model mouse tracking
   fps:
     title: FPS
     description: Limiter la fréquence d'image du rendu
     options:
-      unlimited: ∞
+      unlimited: '∞'
 microphone: Microphone
 models: Modèle
 pages:

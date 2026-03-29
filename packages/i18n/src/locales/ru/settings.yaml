@@ -101,12 +101,12 @@ live2d:
   focus:
     title: Отключить слежение за мышью
     button-disable:
-      title: Отключить слежение за мышью
+      title: Disable model mouse tracking
   fps:
     title: ФПС
     description: Ограничить скорость рендеринга кадров
     options:
-      unlimited: ∞
+      unlimited: '∞'
 microphone: Микрофон
 models: Модель
 pages:
