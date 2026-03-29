@@ -4,9 +4,9 @@ import type { SingingService } from '../../services/singing/singing-service'
 import type { HonoEnv } from '../../types/hono'
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 
-import { resolveRuntimeEnv, SingingError, SingingErrorCode } from '@proj-airi/singing'
+import { buildJobDir, resolveContainedPath, resolveRuntimeEnv, SingingError, SingingErrorCode } from '@proj-airi/singing'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { safeParse } from 'valibot'
@@ -32,12 +32,15 @@ function singingErrorToStatus(code: SingingErrorCode): number {
   }
 }
 
-async function checkBinaryExists(bin: string): Promise<boolean> {
+async function checkBinaryExists(bin: string, args: string[] = ['--version']): Promise<boolean> {
   const { execFile } = await import('node:child_process')
   const { promisify } = await import('node:util')
   const execFileAsync = promisify(execFile)
   try {
-    await execFileAsync(bin, ['-version'], { timeout: 5000 })
+    await execFileAsync(bin, args, {
+      timeout: 5000,
+      windowsHide: true,
+    })
     return true
   }
   catch {
@@ -54,8 +57,8 @@ export function createSingingRoutes(singingService: SingingService) {
   app.get('/health', async (c) => {
     const env = resolveRuntimeEnv()
     const [ffmpegOk, pythonOk] = await Promise.all([
-      checkBinaryExists(env.ffmpegPath),
-      checkBinaryExists(env.pythonPath),
+      checkBinaryExists(env.ffmpegPath, ['-version']),
+      checkBinaryExists(env.pythonPath, ['--version']),
     ])
     return c.json({
       status: ffmpegOk && pythonOk ? 'ready' : 'degraded',
@@ -219,9 +222,9 @@ export function createSingingRoutes(singingService: SingingService) {
     const artifactPath = c.req.param('path')
     try {
       const env = resolveRuntimeEnv()
-      const baseJobDir = resolve(join(env.tempDir, 'jobs', jobId))
-      const fullPath = resolve(join(baseJobDir, artifactPath))
-      if (!fullPath.startsWith(baseJobDir))
+      const baseJobDir = buildJobDir(env.tempDir, jobId)
+      const fullPath = resolveContainedPath(baseJobDir, artifactPath)
+      if (!fullPath)
         return c.json({ error: 'Invalid artifact path' }, 400)
 
       const data = await readFile(fullPath)

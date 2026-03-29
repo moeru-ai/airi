@@ -1,3 +1,5 @@
+import { resolve } from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
 import { InMemoryQueue } from '../src/adapters/queue/in-memory-queue'
@@ -7,6 +9,7 @@ import { SingingError, SingingErrorCode } from '../src/contracts/error'
 import { createPipelineContext } from '../src/pipeline/context'
 import { executePipeline } from '../src/pipeline/pipeline'
 import { hashString } from '../src/utils/hash'
+import { resolveContainedPath } from '../src/utils/path'
 
 describe('inMemoryQueue', () => {
   it('enqueue and dequeue in FIFO order', async () => {
@@ -110,6 +113,16 @@ describe('hashString', () => {
 
   it('different inputs produce different hashes', () => {
     expect(hashString('abc')).not.toBe(hashString('xyz'))
+  })
+})
+
+describe('resolveContainedPath', () => {
+  it('returns the resolved artifact path when it stays inside the base directory', () => {
+    expect(resolveContainedPath('/tmp/jobs/job-1', 'mix/final.wav')).toBe(resolve('/tmp/jobs/job-1', 'mix/final.wav'))
+  })
+
+  it('rejects sibling traversal that only shares the directory prefix', () => {
+    expect(resolveContainedPath('/tmp/jobs/job-1', '../job-12/secret.wav')).toBeNull()
   })
 })
 

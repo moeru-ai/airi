@@ -4,6 +4,7 @@ import type { CreateCoverRequest, CreateTrainRequest } from '@proj-airi/singing/
 import { unlink } from 'node:fs/promises'
 import { sep } from 'node:path'
 
+import { errorMessageFrom } from '@moeru/std'
 import {
   buildJobDir,
   cancelCoverJob,
@@ -76,8 +77,22 @@ async function progressUpdate(queue: JobQueue, jobId: string, update: Partial<Re
     await queue.updateJob(jobId, update)
   }
   catch (err) {
-    console.warn(`[singing] Failed to update job ${jobId} progress:`, err instanceof Error ? err.message : err)
+    console.warn(`[singing] Failed to update job ${jobId} progress:`, errorMessageFrom(err) ?? 'Unknown error')
   }
+}
+
+function warnTerminalUpdateFailure(jobId: string, status: 'cancelled' | 'failed', error: unknown): void {
+  console.warn(
+    `[singing] Failed to update job ${jobId} terminal status to ${status}:`,
+    errorMessageFrom(error) ?? 'Unknown error',
+  )
+}
+
+function logDetachedJobFailure(jobId: string, kind: 'cover' | 'training', error: unknown): void {
+  console.error(
+    `[singing] Detached ${kind} job ${jobId} crashed unexpectedly:`,
+    errorMessageFrom(error) ?? 'Unknown error',
+  )
 }
 
 /**
@@ -207,9 +222,9 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
       const status = ac.signal.aborted ? 'cancelled' : 'failed'
       await queue.updateJob(jobId, {
         status,
-        error: err instanceof Error ? err.message : String(err),
+        error: errorMessageFrom(err) ?? String(err),
         updatedAt: new Date().toISOString(),
-      }).catch(() => {})
+      }).catch(updateErr => warnTerminalUpdateFailure(jobId, status, updateErr))
     }
     finally {
       activeJobs.delete(jobId)
@@ -257,9 +272,9 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
       const status = ac.signal.aborted ? 'cancelled' : 'failed'
       await queue.updateJob(jobId, {
         status,
-        error: err instanceof Error ? err.message : String(err),
+        error: errorMessageFrom(err) ?? String(err),
         updatedAt: new Date().toISOString(),
-      }).catch(() => {})
+      }).catch(updateErr => warnTerminalUpdateFailure(jobId, status, updateErr))
     }
     finally {
       activeJobs.delete(jobId)
@@ -270,13 +285,13 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
   return {
     async createCover(request) {
       const result = await createCoverJob(request, { queue })
-      executePipelineAsync(result.jobId, request).catch(() => {})
+      void executePipelineAsync(result.jobId, request).catch(err => logDetachedJobFailure(result.jobId, 'cover', err))
       return result
     },
 
     async createCoverReference(request) {
       const result = await createCoverJob(request, { queue })
-      executePipelineAsync(result.jobId, request).catch(() => {})
+      void executePipelineAsync(result.jobId, request).catch(err => logDetachedJobFailure(result.jobId, 'cover', err))
       return result
     },
 
@@ -301,7 +316,7 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
       }
 
       const result = await createTrainJob(request, { queue })
-      executeTrainingAsync(result.jobId, request).catch(() => {})
+      void executeTrainingAsync(result.jobId, request).catch(err => logDetachedJobFailure(result.jobId, 'training', err))
       return result
     },
   }

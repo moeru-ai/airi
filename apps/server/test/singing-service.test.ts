@@ -1,4 +1,4 @@
-import type { CoverPipelineResult } from '@proj-airi/singing'
+import type { CoverPipelineResult, JobQueue } from '@proj-airi/singing'
 import type { CreateCoverRequest, CreateTrainRequest } from '@proj-airi/singing/types'
 
 import { InMemoryQueue, SingingError } from '@proj-airi/singing'
@@ -113,6 +113,36 @@ function gatePassedResult(): CoverPipelineResult {
   }
 }
 
+function createQueueThatFailsTerminalUpdate(): JobQueue {
+  const jobs = new Map<string, any>()
+  let updateCount = 0
+
+  return {
+    async enqueue(job) {
+      jobs.set(job.id, job)
+    },
+    async dequeue() {
+      return null
+    },
+    async getJob(jobId) {
+      return jobs.get(jobId) ?? null
+    },
+    async updateJob(jobId, update) {
+      updateCount++
+      if (updateCount >= 2)
+        throw new Error('queue persistence unavailable')
+
+      const job = jobs.get(jobId)
+      if (job)
+        jobs.set(jobId, { ...job, ...update })
+    },
+    async listJobs(status) {
+      const list = [...jobs.values()]
+      return status ? list.filter(job => job.status === status) : list
+    },
+  }
+}
+
 async function waitForJobStatus(
   queue: InMemoryQueue,
   jobId: string,
@@ -181,6 +211,21 @@ describe('createSingingService - cover lifecycle', () => {
 
     const status = await waitForJobStatus(queue, jobId, TERMINAL_STATES)
     expect(status).toBe('failed')
+  })
+  it('logs a warning if persisting failed cover status also fails', async () => {
+    const queue = createQueueThatFailsTerminalUpdate()
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    mockRunCoverPipeline.mockRejectedValue(new Error('crash'))
+
+    const svc = createSingingService({ queue })
+    const { jobId } = await svc.createCover(makeCoverRequest())
+
+    await vi.waitFor(() => {
+      expect(warnSpy).toHaveBeenCalledWith(
+        `[singing] Failed to update job ${jobId} terminal status to failed:`,
+        'queue persistence unavailable',
+      )
+    })
   })
 })
 
@@ -381,5 +426,21 @@ describe('createSingingService - training lifecycle', () => {
 
     const status = await waitForJobStatus(queue, jobId, TERMINAL_STATES)
     expect(status).toBe('cancelled')
+  })
+
+  it('logs a warning if persisting failed training status also fails', async () => {
+    const queue = createQueueThatFailsTerminalUpdate()
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    mockRunTrainingPipeline.mockRejectedValue(new Error('GPU OOM'))
+
+    const svc = createSingingService({ queue })
+    const { jobId } = await svc.createTrain(makeTrainRequest())
+
+    await vi.waitFor(() => {
+      expect(warnSpy).toHaveBeenCalledWith(
+        `[singing] Failed to update job ${jobId} terminal status to failed:`,
+        'queue persistence unavailable',
+      )
+    })
   })
 })

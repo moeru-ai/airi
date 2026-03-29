@@ -15,7 +15,7 @@ import { promisify } from 'node:util'
 
 import { useLogger } from '@guiiai/logg'
 import { serve } from '@hono/node-server'
-import { PipelineStage } from '@proj-airi/singing'
+import { PipelineStage, resolveContainedPath } from '@proj-airi/singing'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
@@ -1896,8 +1896,8 @@ function buildApp(dataDir: string) {
       const artifactPath = c.req.param('path')
       try {
         const baseJobDir = resolve(join(tempDir, 'jobs', jobId))
-        const fullPath = resolve(join(baseJobDir, artifactPath))
-        if (!fullPath.startsWith(baseJobDir))
+        const fullPath = resolveContainedPath(baseJobDir, artifactPath)
+        if (!fullPath)
           return c.json({ error: 'Invalid artifact path' }, 400)
         const data = await readFile(fullPath)
         const ext = artifactPath.split('.').pop() ?? ''

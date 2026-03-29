@@ -2,7 +2,7 @@
  * Path utilities for the singing pipeline.
  */
 
-import { join } from 'node:path'
+import { isAbsolute, join, relative, resolve } from 'node:path'
 
 /**
  * Build the job directory path: <baseDir>/jobs/<jobId>
@@ -17,6 +17,20 @@ export function buildJobDir(baseDir: string, jobId: string): string {
  */
 export function buildUploadsDir(baseDir: string): string {
   return join(baseDir, 'uploads')
+}
+
+/**
+ * Resolve a user-supplied artifact path and reject paths that escape the base directory.
+ */
+export function resolveContainedPath(baseDir: string, artifactPath: string): string | null {
+  const resolvedBaseDir = resolve(baseDir)
+  const resolvedArtifactPath = resolve(resolvedBaseDir, artifactPath)
+  const relativePath = relative(resolvedBaseDir, resolvedArtifactPath)
+
+  if (relativePath.startsWith('..') || isAbsolute(relativePath))
+    return null
+
+  return resolvedArtifactPath
 }
 
 /**
