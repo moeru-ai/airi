@@ -88,7 +88,7 @@ export const useCharacterStore = defineStore('characters', () => {
         }
       },
       remote: async () => {
-        const res = await client.api.characters.$get({
+        const res = await client.api.v1.characters.$get({
           query: { all: String(all) },
         })
         if (!res.ok) {
@@ -118,7 +118,7 @@ export const useCharacterStore = defineStore('characters', () => {
         return cached
       },
       remote: async () => {
-        const res = await client.api.characters[':id'].$get({
+        const res = await client.api.v1.characters[':id'].$get({
           param: { id },
         })
         if (!res.ok) {
@@ -144,7 +144,7 @@ export const useCharacterStore = defineStore('characters', () => {
         return localCharacter
       },
       remote: async () => {
-        const res = await client.api.characters.$post({
+        const res = await client.api.v1.characters.$post({
           json: payload,
         })
         if (!res.ok) {
@@ -182,7 +182,7 @@ export const useCharacterStore = defineStore('characters', () => {
         return character
       },
       remote: async () => {
-        const res = await (client.api.characters[':id'].$patch)({
+        const res = await (client.api.v1.characters[':id'].$patch)({
           param: { id },
           // @ts-expect-error FIXME: hono client typing misses json option for this route
           json: payload,
@@ -207,7 +207,7 @@ export const useCharacterStore = defineStore('characters', () => {
         await charactersRepo.remove(id)
       },
       remote: async () => {
-        const res = await client.api.characters[':id'].$delete({
+        const res = await client.api.v1.characters[':id'].$delete({
           param: { id },
         })
         if (!res.ok) {
@@ -235,7 +235,7 @@ export const useCharacterStore = defineStore('characters', () => {
         }
       },
       remote: async () => {
-        const res = await client.api.characters[':id'].like.$post({
+        const res = await client.api.v1.characters[':id'].like.$post({
           param: { id },
         })
         if (!res.ok) {
@@ -268,7 +268,7 @@ export const useCharacterStore = defineStore('characters', () => {
         }
       },
       remote: async () => {
-        const res = await client.api.characters[':id'].bookmark.$post({
+        const res = await client.api.v1.characters[':id'].bookmark.$post({
           param: { id },
         })
         if (!res.ok) {

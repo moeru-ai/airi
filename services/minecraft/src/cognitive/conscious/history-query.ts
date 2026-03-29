@@ -150,6 +150,7 @@ export function createHistoryRuntime(deps: HistoryQueryDeps) {
         const msg = history[i]
         if (msg.role !== 'user' || typeof msg.content !== 'string')
           continue
+        // eslint-disable-next-line regexp/no-super-linear-backtracking
         const match = msg.content.match(/\[EVENT\]\s*([^:\n]+:[^\n]+)/)
         if (match?.[1] && !match[1].startsWith('Perception Signal:')) {
           chats.unshift(match[1])

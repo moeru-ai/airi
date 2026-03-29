@@ -66,7 +66,14 @@ const ignoredPathPrefixesByPlatform: Record<CapacitorPlatform, string[][]> = {
   ios: [
     ['App', 'CapApp-SPM'],
   ],
-  android: [],
+  android: [
+    ['app', 'src', 'main', 'assets', 'public'],
+    ['app', 'src', 'main', 'assets', 'capacitor.plugins.json'],
+    ['app', 'src', 'main', 'res', 'xml', 'config.xml'],
+    ['app', 'capacitor.build.gradle'],
+    ['capacitor-cordova-android-plugins'],
+    ['capacitor.settings.gradle'],
+  ],
 }
 
 export function parseCapacitorPlatform(value: string | undefined): CapacitorPlatform | null {
@@ -82,14 +89,21 @@ export function resolveCapRunArgs(capArgs: string[], env: NodeJS.ProcessEnv = pr
     return capArgs
   }
 
-  const target = env.CAPACITOR_DEVICE_ID
+  const [platformArg, ...rest] = capArgs
+  const platform = parseCapacitorPlatform(platformArg)
+  let target: string | undefined
+  if (platform === 'ios') {
+    target = env.CAPACITOR_DEVICE_ID_IOS
+  }
+  else if (platform === 'android') {
+    target = env.CAPACITOR_DEVICE_ID_ANDROID
+  }
+
   if (!target) {
     return capArgs
   }
 
-  const [platform, ...rest] = capArgs
-
-  return [platform, '--target', target, ...rest]
+  return [platformArg, '--target', target, ...rest]
 }
 
 export function pickServerUrl(server: Pick<ViteDevServer, 'resolvedUrls'>): URL {
@@ -128,7 +142,8 @@ export function shouldRestartForNativeChange(file: string, platform: CapacitorPl
     prefix.every((segment, index) => relativeSegments[index] === segment),
   )) {
     // NOTICE: Capacitor regenerates ios/App/CapApp-SPM/Package.swift during `cap run`.
-    // Treating that generated tree as a native source change causes an infinite restart loop.
+    // It also rewrites several generated Android files and plugin trees during `cap update`.
+    // Treating those generated outputs as native source changes causes an infinite restart loop.
     return false
   }
 

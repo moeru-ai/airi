@@ -46,22 +46,36 @@ describe('resolveCapRunArgs', () => {
   it('keeps an explicit --target argument untouched', () => {
     expect(resolveCapRunArgs(
       ['ios', '--target', 'iPhone 16 Pro', '--scheme', 'AIRI'],
-      { CAPACITOR_DEVICE_ID: 'ignored-device' },
+      { CAPACITOR_DEVICE_ID_IOS: 'ignored-device' },
     )).toEqual(['ios', '--target', 'iPhone 16 Pro', '--scheme', 'AIRI'])
   })
 
-  it('injects --target from CAPACITOR_DEVICE_ID when it is missing', () => {
+  it('injects --target from CAPACITOR_DEVICE_ID_ANDROID when it is missing', () => {
     expect(resolveCapRunArgs(
       ['android', '--flavor', 'release'],
-      { CAPACITOR_DEVICE_ID: 'emulator-5554' },
+      { CAPACITOR_DEVICE_ID_ANDROID: 'emulator-5554' },
     )).toEqual(['android', '--target', 'emulator-5554', '--flavor', 'release'])
+  })
+
+  it('injects --target from CAPACITOR_DEVICE_ID_IOS when it is missing', () => {
+    expect(resolveCapRunArgs(
+      ['ios', '--scheme', 'AIRI'],
+      { CAPACITOR_DEVICE_ID_IOS: 'iPhone 16 Pro' },
+    )).toEqual(['ios', '--target', 'iPhone 16 Pro', '--scheme', 'AIRI'])
+  })
+
+  it('does not use the other platform device id', () => {
+    expect(resolveCapRunArgs(
+      ['ios'],
+      { CAPACITOR_DEVICE_ID_ANDROID: 'emulator-5554' },
+    )).toEqual(['ios'])
   })
 
   it('supports the --target=value form when checking existing args', () => {
     expect(hasCapacitorTargetArg(['android', '--target=emulator-5554'])).toBe(true)
     expect(resolveCapRunArgs(
       ['android', '--target=emulator-5554', '--flavor', 'release'],
-      { CAPACITOR_DEVICE_ID: 'ignored-device' },
+      { CAPACITOR_DEVICE_ID_ANDROID: 'ignored-device' },
     )).toEqual(['android', '--target=emulator-5554', '--flavor', 'release'])
   })
 })
@@ -76,6 +90,12 @@ describe('shouldRestartForNativeChange', () => {
     expect(shouldRestartForNativeChange('/repo/app/src/main.ts', 'ios', '/repo/app')).toBe(false)
     expect(shouldRestartForNativeChange('/repo/app/ios/App/CapApp-SPM/Package.swift', 'ios', '/repo/app')).toBe(false)
     expect(shouldRestartForNativeChange('/repo/app/android/build/generated/file.kt', 'android', '/repo/app')).toBe(false)
+    expect(shouldRestartForNativeChange('/repo/app/android/capacitor-cordova-android-plugins/src/main/AndroidManifest.xml', 'android', '/repo/app')).toBe(false)
+    expect(shouldRestartForNativeChange('/repo/app/android/capacitor.settings.gradle', 'android', '/repo/app')).toBe(false)
+    expect(shouldRestartForNativeChange('/repo/app/android/app/capacitor.build.gradle', 'android', '/repo/app')).toBe(false)
+    expect(shouldRestartForNativeChange('/repo/app/android/app/src/main/assets/public/index.html', 'android', '/repo/app')).toBe(false)
+    expect(shouldRestartForNativeChange('/repo/app/android/app/src/main/assets/capacitor.plugins.json', 'android', '/repo/app')).toBe(false)
+    expect(shouldRestartForNativeChange('/repo/app/android/app/src/main/res/xml/config.xml', 'android', '/repo/app')).toBe(false)
   })
 
   it('ignores capacitor config json updates', () => {

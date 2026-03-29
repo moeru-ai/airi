@@ -15,7 +15,7 @@ import {
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { Button, FieldInput, FieldSelect } from '@proj-airi/ui'
+import { Button, FieldCombobox, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, reactive, ref, shallowRef } from 'vue'
 
@@ -388,7 +388,7 @@ onBeforeUnmount(async () => {
             placeholder="请输入 AppKey"
           />
 
-          <FieldSelect
+          <FieldCombobox
             v-model="credentials.region"
             label="Region"
             :options="regionOptions"

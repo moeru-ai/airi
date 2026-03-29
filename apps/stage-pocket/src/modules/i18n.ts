@@ -2,6 +2,7 @@ import messages from '@proj-airi/i18n/locales'
 
 import { createI18n } from 'vue-i18n'
 
+// TODO: Align this bootstrap locale normalization with `@proj-airi/i18n`.
 const languageRemap: Record<string, string> = {
   'zh-CN': 'zh-Hans',
   'zh-TW': 'zh-Hant',

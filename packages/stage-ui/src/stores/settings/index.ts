@@ -1,13 +1,16 @@
 import { defineStore, storeToRefs } from 'pinia'
 
+import { useSettingsAnalytics } from './analytics'
 import { useSettingsControlsIsland } from './controls-island'
 import { useSettingsGeneral } from './general'
 import { useSettingsLive2d } from './live2d'
 import { useSettingsStageModel } from './stage-model'
 import { useSettingsTheme } from './theme'
 
+export * from './analytics'
 // Export sub-stores
 export * from './audio-device'
+export * from './beat-sync'
 export * from './controls-island'
 export * from './general'
 export * from './live2d'
@@ -25,6 +28,7 @@ export { DEFAULT_THEME_COLORS_HUE } from './theme'
  */
 export const useSettings = defineStore('settings', () => {
   const general = useSettingsGeneral()
+  const analytics = useSettingsAnalytics()
   const stageModel = useSettingsStageModel()
   const live2d = useSettingsLive2d()
   const theme = useSettingsTheme()
@@ -32,6 +36,7 @@ export const useSettings = defineStore('settings', () => {
 
   async function resetState() {
     await stageModel.resetState()
+    analytics.resetState()
     general.resetState()
     live2d.resetState()
     theme.resetState()
@@ -40,6 +45,7 @@ export const useSettings = defineStore('settings', () => {
 
   // Extract refs from sub-stores to maintain proper reactivity
   const generalRefs = storeToRefs(general)
+  const analyticsRefs = storeToRefs(analytics)
   const stageModelRefs = storeToRefs(stageModel)
   const live2dRefs = storeToRefs(live2d)
   const themeRefs = storeToRefs(theme)
@@ -50,6 +56,7 @@ export const useSettings = defineStore('settings', () => {
     disableTransitions: generalRefs.disableTransitions,
     usePageSpecificTransitions: generalRefs.usePageSpecificTransitions,
     language: generalRefs.language,
+    analyticsEnabled: analyticsRefs.analyticsEnabled,
     websocketSecureEnabled: generalRefs.websocketSecureEnabled,
 
     // Stage model settings

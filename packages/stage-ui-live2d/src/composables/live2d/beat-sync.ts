@@ -137,10 +137,8 @@ export function createBeatSyncController(options: CreateBeatSyncControllerOption
       currentZ = baseAngles.value.z
     }
 
-    if (currentY == null)
-      currentY = baseAngles.value.y
-    if (currentZ == null)
-      currentZ = baseAngles.value.z
+    currentY ??= baseAngles.value.y
+    currentZ ??= baseAngles.value.z
 
     while (segments.value.length) {
       const segment = segments.value[0]

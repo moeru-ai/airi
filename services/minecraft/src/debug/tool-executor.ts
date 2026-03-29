@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import type { ZodObject, ZodType } from 'zod'
 
 import type { Mineflayer } from '../libs/mineflayer'
@@ -67,7 +68,7 @@ export class ToolExecutor {
       const args: any[] = []
       const shape = (action.schema as any).shape
       for (const key in shape) {
-        if (Object.prototype.hasOwnProperty.call(validated, key)) {
+        if (Object.hasOwn(validated, key)) {
           args.push((validated as any)[key])
         }
       }
@@ -125,7 +126,6 @@ export class ToolExecutor {
   // Helper to extract metadata from Zod types
   private getZodDef(zodType: ZodType<any>): { typeName: 'string' | 'number' | 'boolean', description?: string, min?: number, max?: number, defaultValue?: any } {
     let typeName: 'string' | 'number' | 'boolean' = 'string'
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let curr: any = zodType
     const description = curr.description
 
@@ -167,7 +167,6 @@ export class ToolExecutor {
     else if (typeId === 'ZodNumber') {
       typeName = 'number'
       // Try to extract min/max from checks
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if (curr._def.checks) {
         for (const check of (curr as any)._def.checks) {
           if (check.kind === 'min')

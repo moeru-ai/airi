@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { OnboardingDialog, ToasterRoot } from '@proj-airi/stage-ui/components'
-import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
+import { OnboardingDialog, OnboardingStepAnalyticsNotice, ToasterRoot } from '@proj-airi/stage-ui/components'
+import { isPosthogAvailableInBuild, useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
@@ -8,7 +8,7 @@ import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/c
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
-import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
 import { storeToRefs } from 'pinia'
@@ -32,6 +32,7 @@ const onboardingStore = useOnboardingStore()
 const chatSessionStore = useChatSessionStore()
 const serverChannelStore = useModsServerChannelStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
+const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { showingSetup } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
 const cardStore = useAiriCardStore()
@@ -57,6 +58,12 @@ const tertiaryColor = computed(() => {
 
 const colors = computed(() => {
   return [primaryColor.value, secondaryColor.value, tertiaryColor.value, isDark.value ? '#121212' : '#FFFFFF']
+})
+
+const onboardingExtraSteps = computed(() => {
+  return isPosthogAvailableInBuild()
+    ? [{ id: 'analytics-notice', component: OnboardingStepAnalyticsNotice }]
+    : []
 })
 
 watch(settings.language, () => {
@@ -87,6 +94,7 @@ onMounted(async () => {
 
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
+  await settingsAudioDeviceStore.initialize()
 })
 
 onUnmounted(() => {
@@ -125,6 +133,7 @@ function handleSetupSkipped() {
   <!-- First Time Setup Dialog -->
   <OnboardingDialog
     v-model="showingSetup"
+    :extra-steps="onboardingExtraSteps"
     @configured="handleSetupConfigured"
     @skipped="handleSetupSkipped"
   />

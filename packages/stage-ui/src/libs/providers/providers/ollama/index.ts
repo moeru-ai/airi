@@ -1,6 +1,7 @@
 import { createOllama } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
+import { ProviderValidationCheck } from '../../types'
 import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
 
@@ -166,7 +167,7 @@ export const providerOllama = defineProvider<OllamaConfig>({
       }),
     ],
     validateProvider: createOpenAICompatibleValidators({
-      checks: ['connectivity', 'model_list'],
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList],
       schedule: {
         mode: 'interval',
         intervalMs: 15_000,

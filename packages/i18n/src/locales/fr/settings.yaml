@@ -19,34 +19,43 @@ dialogs:
     baseUrlHelp: URL de l'endpoint API (utilisez la valeur par défaut si vous n’êtes pas sûr)
     accountId: ID du compte
     validationSuccess: Validation de la configuration réussie
+    validationPartial: Configuration partiellement validée
     validationFailed: La validation de la configuration a échouée.
     validationError: 'Erreur de validation: {error}'
+    testGeneration: Ping API
+    testGenerationRunning: Ping...
+    testGenerationFailed: Ping échoué
     skipForNow: Passer pour l'instant
     saveAndContinue: Sauvegarder et Continuer
     next: Suivant
     retry: Réessayer
     start: Commençons !
+    loginPrompt: Sign in to use the official AIRI provider for the best experience.
+    loginAction: Sign in
+    setupWithoutSigningIn: Setup with your provider
+    flux: Flux
+    buyFlux: Charge Flux
     select-model: Choisissez un modèle
     no-models: Pas de modèle disponible
     no-models-help: >-
       Veuillez revenir à l’étape précédente et vérifier votre clé API, ou bien vérifier la connexion réseau.
     permissions:
       title: Notifications
-      description: You can allow notifications now or continue and set it up later.
+      description: Vous pouvez autoriser les notifications maintenant ou continuer et les configurer plus tard.
       notificationsTitle: Notifications
-      notificationsDescription: Allow reminders and important status updates.
-      notificationsAction: Request notification permission
-      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
-      openSettings: Open iOS Settings
-      optionalHint: You can continue even if notification permission is not granted.
-      stateUnknown: Not requested
-      stateRequesting: Requesting...
-      stateGranted: Granted
-      stateNotGranted: Not granted
+      notificationsDescription: Autorisez les rappels et les mises à jour de statut importantes.
+      notificationsAction: Demander l'autorisation de notification
+      notificationsNotGrantedHint: En cas de refus, vous pourrez activer les notifications plus tard dans les Réglages iOS.
+      openSettings: Ouvrir les Réglages iOS
+      optionalHint: Vous pouvez continuer même si l'autorisation de notification n'est pas accordée.
+      stateUnknown: Non demandé
+      stateRequesting: Demande en cours...
+      stateGranted: Accordée
+      stateNotGranted: Non accordée
 language:
   title: Langage
   description: >
-    Modifier le langage de l'inteface d'AIRI. Cela n'affectera pas le langage des réponses du personnage.
+    UI language. You can set characters' language later.
 controls-island:
   icon-size:
     title: Taille des icônes de l'îlot de contrôle
@@ -54,6 +63,19 @@ controls-island:
     auto: Auto (réactif)
     large: Grande (défaut)
     small: Petite
+analytics:
+  notice:
+    title: Usage analytics
+    description: AIRI collects anonymous usage analytics to help us understand how the app is used and improve stability. No personal data is collected.
+    privacyPrefix: Read the
+    privacyLink: privacy policy
+    onboardingHint: You can turn analytics off later in Settings > System > General.
+    settingsHint: You can turn analytics off at any time.
+  toggle:
+    title: Enable usage analytics
+    description: Turn this off to opt out of analytics collection.
+  disabled:
+    title: Analytics disabled for this development build
 live2d:
   change-model:
     from-file: Charger depuis un Fichier
@@ -83,12 +105,12 @@ live2d:
   focus:
     title: Désactiver le suivi du modèle par la souris
     button-disable:
-      title: Désactiver
+      title: Disable model mouse tracking
   fps:
     title: FPS
     description: Limiter la fréquence d'image du rendu
     options:
-      unlimited: Aucune Limite
+      unlimited: '∞'
 microphone: Microphone
 models: Modèle
 pages:
@@ -172,7 +194,7 @@ pages:
     scenario: Scénario
     search: Rechercher des cartes...
     sort_by: Trier par
-    body-model: Body / Display Model
+    body-model: Corps / Modèle d'affichage
     speech:
       provider: Parole / Fournisseur
       model: Parole / Modèle
@@ -443,8 +465,33 @@ pages:
         apply-and-restart: Enregistrer et redémarrer stdio MCP
       messages:
         opened: 'Fichier de configuration ouvert à : {path}'
-        restarted: >-
-          Serveurs MCP redémarrés. Lancés : {started}, en échec : {failed}, ignorés : {skipped}
+        restarted: 'Serveurs MCP redémarrés. Lancés : {started}, en échec : {failed}, ignorés : {skipped}'
+  flux:
+    title: Flux
+    buy: Charge
+    description: Current Flux
+    packagesError: Failed to load packages. Please try again later.
+    checkout:
+      success: Payment successful! Your Flux has been topped up.
+      canceled: Payment was canceled.
+      error: Something went wrong. Please try again later.
+    audit:
+      title: Transaction History
+      time: Time
+      type: Type
+      detail: Detail
+      amount: Amount
+      typeAddition: Top-up
+      typeConsumption: Usage
+      typeInitial: Initial Grant
+      loading: Loading history...
+      empty: No transaction records yet.
+      loadMore: Load More
+      delayHint: Usage records may be delayed by up to 1 minute
+    packages:
+      title: Flux Packages
+      buy: Charge
+      description: Flux packages to choose from.
   providers:
     explained:
       chat: Fournisseurs de modèles de génération de texte, par ex. OpenRouter, OpenAI, Ollama.
@@ -771,6 +818,9 @@ pages:
       xai:
         description: x.ai
         title: xAI
+      zai:
+        description: z.ai
+        title: Z.ai
       302-ai:
         description: 302.AI
         title: 302.AI
@@ -786,6 +836,13 @@ pages:
       browser-web-speech-api:
         description: STT natif du navigateur (requiert Chrome/Edge/Safari)
         title: Web Speech API
+      official:
+        title: Official Provider
+        description: Official AI provider by AIRI.
+        speech-title: Official Speech Provider
+        speech-description: Official text-to-speech provider by AIRI.
+        transcription-title: Official Transcription Provider
+        transcription-description: Official speech-to-text provider by AIRI.
       transcriptions:
         playground:
           title: Terrain de test de transcription
@@ -949,6 +1006,8 @@ pages:
       open-devtools:
         title: Ouvrir les Outils de Développement
         button: Ouvrir
+  credits:
+    buy: Buy
 sections:
   section:
     general:

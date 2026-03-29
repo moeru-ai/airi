@@ -109,6 +109,7 @@ interface DescribeGlobalsOptions {
 
 export function extractJavaScriptCandidate(input: string): string {
   const trimmed = input.trim()
+  // eslint-disable-next-line regexp/no-super-linear-backtracking
   const fenced = trimmed.match(/^```(?:js|javascript|ts|typescript)?[^\S\r\n]*\r?\n?([\s\S]*?)\r?\n?```$/i)
   if (fenced?.[1])
     return fenced[1].trim()
@@ -603,7 +604,7 @@ export class JavaScriptPlanner {
   }
 
   private defineGlobalValue(name: string, value: unknown): void {
-    if (Object.prototype.hasOwnProperty.call(this.sandbox, name))
+    if (Object.hasOwn(this.sandbox, name))
       return
 
     Object.defineProperty(this.sandbox, name, {

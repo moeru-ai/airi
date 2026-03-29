@@ -195,7 +195,7 @@ export function setupWidgetsWindowManager(params: {
     const record: WidgetRecord = { ...snapshot }
 
     if (snapshot.ttlMs > 0) {
-      record.timer = setTimeout(() => removeWidgetInternal(snapshot.id), snapshot.ttlMs)
+      record.timer = setTimeout(removeWidgetInternal, snapshot.ttlMs, snapshot.id)
     }
 
     widgetRecords.set(snapshot.id, record)

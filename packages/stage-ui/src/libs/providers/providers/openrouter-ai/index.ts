@@ -1,8 +1,14 @@
 import { createOpenRouter } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
-import { createOpenAICompatibleValidators } from '../../validators/openai-compatible'
+import { ProviderValidationCheck } from '../../types'
+import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
+
+export const OPENROUTER_ATTRIBUTION_HEADERS: Record<string, string> = {
+  'HTTP-Referer': 'https://airi.moeru.ai/',
+  'X-OpenRouter-Title': 'Project AIRI',
+}
 
 const openRouterConfigSchema = z.object({
   apiKey: z
@@ -39,7 +45,19 @@ export const providerOpenRouterAI = defineProvider<OpenRouterConfig>({
     }),
   }),
   createProvider(config) {
-    return createOpenRouter(config.apiKey, config.baseUrl)
+    const base = createOpenRouter(config.apiKey, config.baseUrl)
+    return {
+      ...base,
+      chat: (model: string) => ({
+        ...base.chat(model),
+        fetch: (input: RequestInfo | URL, init?: RequestInit) => {
+          const headers = new Headers(init?.headers)
+          for (const [k, v] of Object.entries(OPENROUTER_ATTRIBUTION_HEADERS))
+            headers.set(k, v)
+          return globalThis.fetch(input, { ...init, headers })
+        },
+      }),
+    }
   },
 
   validationRequiredWhen(config) {
@@ -47,7 +65,8 @@ export const providerOpenRouterAI = defineProvider<OpenRouterConfig>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: ['connectivity', 'model_list'],
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList],
+      additionalHeaders: OPENROUTER_ATTRIBUTION_HEADERS,
     }),
   },
 })

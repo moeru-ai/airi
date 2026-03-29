@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { useMediaQuery, useResizeObserver, useScreenSafeArea } from '@vueuse/core'
+import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, DialogTrigger, VisuallyHidden } from 'reka-ui'
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTrigger } from 'vaul-vue'
 import { onMounted } from 'vue'
 
 import HearingConfig from './hearing-config.vue'
+
+import { useBreakpoints } from '../../../../composables/use-breakpoints'
 
 const props = defineProps<{
   overlayDim?: boolean
@@ -18,7 +20,7 @@ const showDialog = defineModel('show', { type: Boolean, default: false, required
 const selectedAudioInput = defineModel<string>('selectedAudioInput')
 const enabled = defineModel<boolean>('enabled', { default: false })
 
-const isDesktop = useMediaQuery('(min-width: 768px)')
+const { isDesktop } = useBreakpoints()
 const screenSafeArea = useScreenSafeArea()
 
 useResizeObserver(document.documentElement, () => screenSafeArea.update())

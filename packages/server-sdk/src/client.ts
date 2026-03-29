@@ -11,31 +11,68 @@ import type {
 import WebSocket from 'crossws/websocket'
 import superjson from 'superjson'
 
-import { sleep } from '@moeru/std'
-import {
-  MessageHeartbeat,
-  MessageHeartbeatKind,
-} from '@proj-airi/server-shared/types'
+import { errorMessageFrom, sleep } from '@moeru/std'
+import { isTerminalAuthenticationServerErrorMessage, parseServerErrorMessage } from '@proj-airi/server-shared'
+import { MessageHeartbeat, MessageHeartbeatKind } from '@proj-airi/server-shared/types'
+
+export type ClientStatus
+  = | 'idle'
+    | 'connecting'
+    | 'authenticating'
+    | 'announcing'
+    | 'ready'
+    | 'reconnecting'
+    | 'closing'
+    | 'closed'
+    | 'failed'
+
+export interface ClientHeartbeatOptions {
+  pingInterval?: number
+  readTimeout?: number
+  message?: MessageHeartbeat | string
+}
+
+export interface ClientStateChangeContext {
+  previousStatus: ClientStatus
+  status: ClientStatus
+}
+
+export interface ConnectOptions {
+  abortSignal?: AbortSignal
+  timeout?: number
+}
 
 export interface ClientOptions<C = undefined> {
   url?: string
   name: string
-  possibleEvents?: Array<keyof WebSocketEvents<C>>
   token?: string
+
+  possibleEvents?: Array<keyof WebSocketEvents<C>>
   identity?: MetadataEventSource
   dependencies?: ModuleDependency[]
   configSchema?: ModuleConfigSchema
-  heartbeat?: {
-    readTimeout?: number
-    message?: MessageHeartbeat | string
-  }
-  onError?: (error: unknown) => void
-  onClose?: () => void
+  heartbeat?: ClientHeartbeatOptions
+
   autoConnect?: boolean
   autoReconnect?: boolean
   maxReconnectAttempts?: number
+
+  onError?: (error: unknown) => void
+  onClose?: () => void
+  onReady?: () => void
+  onStateChange?: (context: ClientStateChangeContext) => void
+
   onAnyMessage?: (data: WebSocketEvent<C>) => void
   onAnySend?: (data: WebSocketEvent<C>) => void
+}
+
+interface ConnectionAttempt {
+  announced: boolean
+  authenticated: boolean
+  promise: Promise<void>
+  reject: (error: Error) => void
+  resolve: () => void
+  socket: WebSocket
 }
 
 function createInstanceId() {
@@ -46,21 +83,54 @@ function createEventId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 }
 
+function createDeferredPromise() {
+  let resolve!: () => void
+  let reject!: (error: Error) => void
+
+  const promise = new Promise<void>((innerResolve, innerReject) => {
+    resolve = innerResolve
+    reject = innerReject
+  })
+
+  return { promise, reject, resolve }
+}
+
+function normalizeHeartbeatOptions(heartbeat?: ClientHeartbeatOptions): Required<ClientHeartbeatOptions> {
+  const readTimeout = heartbeat?.readTimeout ?? 30_000
+  const pingInterval = heartbeat?.pingInterval ?? Math.max(1_000, Math.floor(readTimeout / 2))
+
+  return {
+    readTimeout,
+    pingInterval: Math.min(pingInterval, readTimeout),
+    message: heartbeat?.message ?? MessageHeartbeat.Ping,
+  }
+}
+
 export class Client<C = undefined> {
-  private connected = false
-  private connecting = false
   private websocket?: WebSocket
   private shouldClose = false
-  private connectAttempt?: Promise<void>
   private connectTask?: Promise<void>
   private heartbeatTimer?: ReturnType<typeof setInterval>
+  private lastPingAt = 0
+  private lastReadAt = 0
+  private reconnectAttempts = 0
+  private pendingReconnect = false
+  private connectionAttempt?: ConnectionAttempt
+  private failureReason?: Error
+  private status: ClientStatus = 'idle'
   private readonly identity: MetadataEventSource
+  private readonly heartbeat: Required<ClientHeartbeatOptions>
 
-  private readonly opts: Required<Omit<ClientOptions<C>, 'token'>> & Pick<ClientOptions<C>, 'token'>
+  private readonly opts: Required<Omit<ClientOptions<C>, 'token' | 'heartbeat'>> & Pick<ClientOptions<C>, 'token'> & {
+    heartbeat: Required<ClientHeartbeatOptions>
+  }
+
   private readonly eventListeners = new Map<
     keyof WebSocketEvents<C>,
     Set<(data: WebSocketBaseEvent<any, any>) => void | Promise<void>>
   >()
+
+  private readonly stateListeners = new Set<(context: ClientStateChangeContext) => void>()
 
   constructor(options: ClientOptions<C>) {
     const identity = options.identity ?? {
@@ -68,6 +138,8 @@ export class Client<C = undefined> {
       plugin: { id: options.name },
       id: createInstanceId(),
     }
+
+    const heartbeat = normalizeHeartbeatOptions(options.heartbeat)
 
     this.opts = {
       url: 'ws://localhost:6121/ws',
@@ -78,259 +150,96 @@ export class Client<C = undefined> {
       configSchema: undefined,
       onError: () => {},
       onClose: () => {},
+      onReady: () => {},
+      onStateChange: () => {},
       autoConnect: true,
       autoReconnect: true,
       maxReconnectAttempts: -1,
-      heartbeat: {
-        readTimeout: 30_000,
-        message: MessageHeartbeat.Ping,
-      },
       ...options,
+      heartbeat,
       identity,
     }
 
     this.identity = identity
-
-    // Authentication listener is registered once only
-    this.onEvent('module:authenticated', async (event) => {
-      if (event.data.authenticated) {
-        this.tryAnnounce()
-      }
-      else {
-        await this.retryWithExponentialBackoff(() => this.tryAuthenticate())
-      }
-    })
-
-    this.onEvent('error', async (event) => {
-      if (event.data.message === 'not authenticated') {
-        await this._reconnectDueToUnauthorized()
-      }
-    })
-
-    this.onEvent('transport:connection:heartbeat', (event) => {
-      if (event.data.kind === MessageHeartbeatKind.Ping) {
-        this.sendHeartbeatPong()
-      }
-    })
+    this.heartbeat = heartbeat
 
     if (this.opts.autoConnect) {
       void this.connect()
     }
   }
 
-  private async retryWithExponentialBackoff(fn: () => void | Promise<void>) {
-    const { maxReconnectAttempts } = this.opts
-    let attempts = 0
-
-    // Loop until attempts exceed maxReconnectAttempts, or unlimited if -1
-    while (true) {
-      if (maxReconnectAttempts !== -1 && attempts >= maxReconnectAttempts) {
-        console.error(`Maximum retry attempts (${maxReconnectAttempts}) reached`)
-        return
-      }
-
-      try {
-        await fn()
-        return
-      }
-      catch (err) {
-        this.opts.onError?.(err)
-        const delay = Math.min(2 ** attempts * 1000, 30_000) // capped exponential backoff
-        await sleep(delay)
-        attempts++
-      }
-    }
+  get connectionStatus() {
+    return this.status
   }
 
-  private async tryReconnectWithExponentialBackoff() {
+  get isReady() {
+    return this.status === 'ready'
+  }
+
+  get isSocketOpen() {
+    return this.websocket?.readyState === WebSocket.OPEN
+  }
+
+  get lastError() {
+    return this.failureReason
+  }
+
+  async connect(options?: ConnectOptions) {
     if (this.shouldClose) {
       throw new Error('Client is closed')
     }
 
-    await this.retryWithExponentialBackoff(() => this._connect())
-  }
-
-  private _connect(): Promise<void> {
-    if (this.shouldClose || this.connected) {
-      return Promise.resolve()
-    }
-    if (this.connecting) {
-      return this.connectAttempt ?? Promise.resolve()
-    }
-
-    this.connectAttempt = new Promise((resolve, reject) => {
-      this.connecting = true
-      let settled = false
-
-      const settle = (fn: () => void) => {
-        if (settled)
-          return
-
-        settled = true
-        this.connecting = false
-        this.connectAttempt = undefined
-        fn()
-      }
-
-      const ws = new WebSocket(this.opts.url)
-      this.websocket = ws
-      const isCurrentSocket = () => this.websocket === ws
-
-      ws.onmessage = (event: MessageEvent) => {
-        if (!isCurrentSocket()) {
-          return
-        }
-
-        this.handleMessageBound(event)
-      }
-      ws.onerror = (event: any) => {
-        if (!isCurrentSocket()) {
-          return
-        }
-
-        settle(() => {
-          this.websocket = undefined
-          this.connected = false
-
-          this.opts.onError?.(event)
-          reject(event?.error ?? new Error('WebSocket error'))
-        })
-      }
-      ws.onclose = () => {
-        if (!isCurrentSocket()) {
-          return
-        }
-
-        this.websocket = undefined
-
-        if (!settled && !this.connected) {
-          settle(() => {
-            reject(new Error('WebSocket closed before open'))
-          })
-          return
-        }
-
-        if (this.connected) {
-          this.connected = false
-          this.stopHeartbeat()
-          this.opts.onClose?.()
-        }
-        if (this.opts.autoReconnect && !this.shouldClose) {
-          void this.tryReconnectWithExponentialBackoff()
-        }
-      }
-      ws.onopen = () => {
-        if (!isCurrentSocket()) {
-          return
-        }
-
-        settle(() => {
-          this.connected = true
-
-          this.startHeartbeat()
-
-          if (this.opts.token)
-            this.tryAuthenticate()
-          else
-            this.tryAnnounce()
-
-          resolve()
-        })
-      }
-    })
-
-    return this.connectAttempt
-  }
-
-  async connect() {
-    if (this.connected) {
+    if (this.status === 'ready') {
       return
     }
+
     if (this.connectTask) {
-      return this.connectTask
+      return this.waitForConnection(this.connectTask, options)
     }
 
-    this.connectTask = this.tryReconnectWithExponentialBackoff().finally(() => (this.connectTask = undefined))
-
-    return this.connectTask
-  }
-
-  private tryAnnounce() {
-    this.send({
-      type: 'module:announce',
-      data: {
-        name: this.opts.name,
-        identity: this.identity,
-        possibleEvents: this.opts.possibleEvents,
-        dependencies: this.opts.dependencies,
-        configSchema: this.opts.configSchema,
-      },
+    this.connectTask = this.runConnectLoop().finally(() => {
+      this.connectTask = undefined
     })
+
+    return this.waitForConnection(this.connectTask, options)
   }
 
-  private tryAuthenticate() {
-    if (this.opts.token) {
-      this.send({
-        type: 'module:authenticate',
-        data: { token: this.opts.token },
-      })
-    }
+  ready(options?: ConnectOptions) {
+    return this.connect(options)
   }
 
-  // bound reference avoids new closure allocation on every connect
-  private readonly handleMessageBound = (event: MessageEvent) => {
-    void this.handleMessage(event)
+  ensureConnected(options?: ConnectOptions) {
+    return this.connect(options)
   }
 
-  private async handleMessage(event: MessageEvent) {
-    try {
-      // Try superjson first (used by SDK clients), fall back to plain JSON
-      // for external clients that send standard JSON-encoded messages.
-      const raw = event.data as string
-      const parsed = superjson.parse<WebSocketEvent<C> | undefined>(raw)
-      const data = (parsed && typeof parsed === 'object' && 'type' in parsed)
-        ? parsed
-        : JSON.parse(raw) as WebSocketEvent<C>
-      if (!data || typeof data !== 'object' || !('type' in data)) {
-        console.warn('Received empty message')
-        return
-      }
+  onConnectionStateChange(callback: (context: ClientStateChangeContext) => void): () => void {
+    this.stateListeners.add(callback)
 
-      this.opts.onAnyMessage?.(data)
-      const listeners = this.eventListeners.get(data.type)
-      if (!listeners?.size) {
-        return
-      }
-
-      // Execute all listeners concurrently
-      const executions: Promise<void>[] = []
-      for (const listener of listeners) {
-        executions.push(Promise.resolve(listener(data as any)))
-      }
-
-      await Promise.allSettled(executions)
-    }
-    catch (err) {
-      console.error('Failed to parse message:', err)
-      this.opts.onError?.(err)
+    return () => {
+      this.stateListeners.delete(callback)
     }
   }
 
   onEvent<E extends keyof WebSocketEvents<C>>(
     event: E,
     callback: (data: WebSocketBaseEvent<E, WebSocketEvents<C>[E]>) => void | Promise<void>,
-  ): void {
+  ): () => void {
     let listeners = this.eventListeners.get(event)
     if (!listeners) {
       listeners = new Set()
       this.eventListeners.set(event, listeners)
     }
+
     listeners.add(callback as any)
+
+    return () => {
+      this.offEvent(event, callback)
+    }
   }
 
   offEvent<E extends keyof WebSocketEvents<C>>(
     event: E,
-    callback?: (data: WebSocketBaseEvent<E, WebSocketEvents<C>[E]>) => void,
+    callback?: (data: WebSocketBaseEvent<E, WebSocketEvents<C>[E]>) => void | Promise<void>,
   ): void {
     const listeners = this.eventListeners.get(event)
     if (!listeners) {
@@ -348,61 +257,501 @@ export class Client<C = undefined> {
     }
   }
 
-  send(data: WebSocketEventOptionalSource<C>): void {
-    if (this.websocket && this.connected) {
-      const payload = {
-        ...data,
-        metadata: {
-          ...data?.metadata,
-          source: data?.metadata?.source ?? this.identity,
-          event: {
-            id: data?.metadata?.event?.id ?? createEventId(),
-            ...data?.metadata?.event,
-          },
-        },
-      } as WebSocketEvent<C>
+  send(data: WebSocketEventOptionalSource<C>): boolean {
+    if (!this.isSocketOpen || !this.websocket) {
+      return false
+    }
 
-      this.opts.onAnySend?.(payload)
+    const payload = this.createPayload(data)
+    this.opts.onAnySend?.(payload)
+    this.websocket.send(superjson.stringify(payload))
 
-      this.websocket.send(superjson.stringify(payload))
+    return true
+  }
+
+  sendOrThrow(data: WebSocketEventOptionalSource<C>): void {
+    if (!this.send(data)) {
+      throw new Error(`Client is not connected, current status: ${this.status}`)
     }
   }
 
-  sendRaw(data: string | ArrayBufferLike | ArrayBufferView): void {
-    if (this.websocket && this.connected) {
-      this.websocket.send(data)
+  sendRaw(data: string | ArrayBufferLike | ArrayBufferView): boolean {
+    if (!this.isSocketOpen || !this.websocket) {
+      return false
     }
+
+    this.websocket.send(data)
+    return true
   }
 
   close(): void {
     this.shouldClose = true
+    this.pendingReconnect = false
+    this.transitionTo('closing')
     this.stopHeartbeat()
+    this.rejectAttempt(new Error('Client closed'))
+
     const websocket = this.websocket
     this.websocket = undefined
-    if (websocket) {
+
+    if (websocket && websocket.readyState !== WebSocket.CLOSED && websocket.readyState !== WebSocket.CLOSING) {
       websocket.close()
-      this.connected = false
     }
+
+    this.transitionTo('closed')
   }
 
-  private startHeartbeat() {
-    if (!this.opts.heartbeat?.readTimeout) {
+  private async runConnectLoop() {
+    this.pendingReconnect = false
+
+    while (!this.shouldClose) {
+      const reconnecting = this.reconnectAttempts > 0
+      this.transitionTo(reconnecting ? 'reconnecting' : 'connecting')
+
+      try {
+        await this.connectOnce()
+        this.reconnectAttempts = 0
+        return
+      }
+      catch (error) {
+        const normalizedError = error instanceof Error ? error : new Error(errorMessageFrom(error) ?? 'Failed to connect websocket client')
+        this.failureReason = normalizedError
+        this.opts.onError?.(normalizedError)
+
+        if (this.shouldClose) {
+          throw normalizedError
+        }
+
+        if (isTerminalAuthenticationServerErrorMessage(normalizedError.message)) {
+          this.transitionTo('failed')
+          throw normalizedError
+        }
+
+        if (!this.opts.autoReconnect && reconnecting) {
+          this.transitionTo('failed')
+          throw normalizedError
+        }
+
+        if (!this.canRetry()) {
+          this.transitionTo('failed')
+          throw normalizedError
+        }
+
+        const delay = this.getReconnectDelay(this.reconnectAttempts)
+        this.reconnectAttempts += 1
+        await sleep(delay)
+      }
+    }
+
+    throw new Error('Client is closed')
+  }
+
+  private connectOnce(): Promise<void> {
+    const ws = new WebSocket(this.opts.url)
+    this.websocket = ws
+    this.lastReadAt = Date.now()
+    this.lastPingAt = 0
+
+    const deferred = createDeferredPromise()
+    const attempt: ConnectionAttempt = {
+      announced: false,
+      authenticated: !this.opts.token,
+      promise: deferred.promise,
+      reject: deferred.reject,
+      resolve: deferred.resolve,
+      socket: ws,
+    }
+
+    this.connectionAttempt = attempt
+
+    const isCurrentSocket = () => this.websocket === ws
+
+    ws.onmessage = (event: MessageEvent) => {
+      if (!isCurrentSocket()) {
+        return
+      }
+
+      void this.handleMessage(event)
+    }
+
+    ws.onerror = (event: any) => {
+      if (!isCurrentSocket()) {
+        return
+      }
+
+      const error = event?.error instanceof Error ? event.error : new Error('WebSocket error')
+      if (this.connectionAttempt) {
+        this.handleSocketFailure(error, ws)
+      }
+      else {
+        this.opts.onError?.(error)
+        void this.reconnectAfterProtocolError(error)
+      }
+    }
+
+    ws.onclose = () => {
+      if (!isCurrentSocket()) {
+        return
+      }
+
+      const wasReady = this.status === 'ready'
+      this.cleanupSocket(ws)
+      this.opts.onClose?.()
+
+      if (this.shouldClose) {
+        return
+      }
+
+      if (wasReady && this.opts.autoReconnect) {
+        this.pendingReconnect = true
+        void this.connect()
+        return
+      }
+
+      this.rejectAttempt(new Error('WebSocket closed'))
+    }
+
+    ws.onopen = () => {
+      if (!isCurrentSocket()) {
+        return
+      }
+
+      this.startHeartbeat()
+
+      if (this.opts.token) {
+        attempt.authenticated = false
+        this.transitionTo('authenticating')
+        this.tryAuthenticate()
+      }
+      else {
+        attempt.authenticated = true
+        this.transitionTo('announcing')
+        this.tryAnnounce()
+      }
+    }
+
+    return attempt.promise
+  }
+
+  private handleSocketFailure(error: Error, socket?: WebSocket) {
+    if (socket && this.websocket !== socket) {
+      return
+    }
+
+    const currentSocket = socket ?? this.websocket
+    this.cleanupSocket(socket)
+
+    if (currentSocket && currentSocket.readyState !== WebSocket.CLOSED && currentSocket.readyState !== WebSocket.CLOSING) {
+      currentSocket.close()
+    }
+
+    this.rejectAttempt(error)
+  }
+
+  private cleanupSocket(socket?: WebSocket) {
+    if (socket && this.websocket !== socket) {
       return
     }
 
     this.stopHeartbeat()
 
-    const ping = () => this.sendHeartbeatPing()
+    if (!socket || this.websocket === socket) {
+      this.websocket = undefined
+    }
+  }
 
-    ping()
-    this.heartbeatTimer = setInterval(ping, this.opts.heartbeat.readTimeout)
+  private rejectAttempt(error: Error) {
+    if (!this.connectionAttempt) {
+      return
+    }
+
+    const attempt = this.connectionAttempt
+    this.connectionAttempt = undefined
+    attempt.reject(error)
+  }
+
+  private resolveAttempt() {
+    if (!this.connectionAttempt) {
+      return
+    }
+
+    const attempt = this.connectionAttempt
+    this.connectionAttempt = undefined
+    attempt.resolve()
+  }
+
+  private canRetry() {
+    return this.opts.maxReconnectAttempts === -1 || this.reconnectAttempts < this.opts.maxReconnectAttempts
+  }
+
+  private getReconnectDelay(attempts: number) {
+    return Math.min(2 ** attempts * 1_000, 30_000)
+  }
+
+  private transitionTo(status: ClientStatus) {
+    if (this.status === status) {
+      return
+    }
+
+    const previousStatus = this.status
+    this.status = status
+    const context = { previousStatus, status }
+
+    this.opts.onStateChange?.(context)
+
+    for (const listener of this.stateListeners) {
+      listener(context)
+    }
+  }
+
+  private async waitForConnection(connectPromise: Promise<void>, options?: ConnectOptions) {
+    if (!options?.timeout && !options?.abortSignal) {
+      return connectPromise
+    }
+
+    const timeout = options?.timeout
+    if (typeof timeout !== 'undefined' && timeout <= 0) {
+      throw new Error(`Connection timed out after ${timeout}ms`)
+    }
+
+    const abortSignal = options?.abortSignal
+    if (abortSignal?.aborted) {
+      throw new Error('Connection aborted')
+    }
+
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined
+    let removeAbortListener: (() => void) | undefined
+
+    try {
+      await Promise.race([
+        connectPromise,
+        new Promise<void>((_, reject) => {
+          if (typeof timeout !== 'undefined') {
+            timeoutHandle = setTimeout(() => {
+              reject(new Error(`Connection timed out after ${timeout}ms`))
+            }, timeout)
+          }
+
+          if (abortSignal) {
+            const onAbort = () => {
+              reject(new Error('Connection aborted'))
+            }
+
+            abortSignal.addEventListener('abort', onAbort, { once: true })
+            removeAbortListener = () => abortSignal.removeEventListener('abort', onAbort)
+          }
+        }),
+      ])
+    }
+    finally {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle)
+      }
+
+      removeAbortListener?.()
+    }
+  }
+
+  private tryAnnounce() {
+    this.sendOrThrow({
+      type: 'module:announce',
+      data: {
+        name: this.opts.name,
+        identity: this.identity,
+        possibleEvents: this.opts.possibleEvents,
+        dependencies: this.opts.dependencies,
+        configSchema: this.opts.configSchema,
+      },
+    })
+  }
+
+  private tryAuthenticate() {
+    if (!this.opts.token) {
+      return
+    }
+
+    this.sendOrThrow({
+      type: 'module:authenticate',
+      data: { token: this.opts.token },
+    })
+  }
+
+  private async handleMessage(event: MessageEvent) {
+    this.lastReadAt = Date.now()
+
+    try {
+      const data = this.parseMessage(event.data as string)
+      this.opts.onAnyMessage?.(data)
+
+      await this.handleControlMessage(data)
+      await this.dispatchMessage(data)
+    }
+    catch (error) {
+      const normalizedError = error instanceof Error ? error : new Error(errorMessageFrom(error) ?? 'Failed to handle websocket message')
+      this.opts.onError?.(normalizedError)
+
+      if (this.connectionAttempt && this.status !== 'ready') {
+        this.handleSocketFailure(normalizedError)
+      }
+    }
+  }
+
+  private parseMessage(raw: string): WebSocketEvent<C> {
+    try {
+      const parsed = superjson.parse<WebSocketEvent<C> | undefined>(raw)
+      if (parsed && typeof parsed === 'object' && 'type' in parsed) {
+        return parsed
+      }
+    }
+    catch {
+      // Try standard JSON next.
+    }
+
+    const parsed = JSON.parse(raw) as WebSocketEvent<C>
+    if (!parsed || typeof parsed !== 'object' || !('type' in parsed)) {
+      throw new Error('Received invalid websocket message')
+    }
+
+    return parsed
+  }
+
+  private async handleControlMessage(data: WebSocketEvent<C>) {
+    switch (data.type) {
+      case 'error': {
+        const message = data.data?.message
+        if (!message || typeof message !== 'string') {
+          return
+        }
+
+        const parsedServerError = parseServerErrorMessage(message)
+        if (parsedServerError.authentication) {
+          const error = new Error(message)
+          if (parsedServerError.terminal) {
+            this.shouldClose = true
+            this.handleSocketFailure(error)
+            this.transitionTo('failed')
+            return
+          }
+
+          await this.reconnectAfterProtocolError(error)
+          return
+        }
+
+        if (parsedServerError.code !== 'unknown') {
+          throw new Error(parsedServerError.message)
+        }
+
+        throw new Error(message)
+      }
+
+      case 'module:authenticated': {
+        if (data.data.authenticated) {
+          if (!this.connectionAttempt || this.connectionAttempt.authenticated) {
+            return
+          }
+
+          this.connectionAttempt.authenticated = true
+          this.transitionTo('announcing')
+          this.tryAnnounce()
+          return
+        }
+
+        throw new Error('Authentication failed')
+      }
+
+      case 'module:announced': {
+        if (!this.isSelfAnnouncement(data)) {
+          return
+        }
+
+        if (this.connectionAttempt) {
+          this.connectionAttempt.announced = true
+        }
+
+        this.reconnectAttempts = 0
+        this.transitionTo('ready')
+        this.resolveAttempt()
+        this.opts.onReady?.()
+        return
+      }
+
+      case 'transport:connection:heartbeat': {
+        if (data.data.kind === MessageHeartbeatKind.Ping) {
+          this.sendHeartbeatPong()
+        }
+      }
+    }
+  }
+
+  private isSelfAnnouncement(event: WebSocketBaseEvent<'module:announced', WebSocketEvents<C>['module:announced']>) {
+    return event.data.name === this.opts.name && event.data.identity?.id === this.identity.id
+  }
+
+  private async dispatchMessage(data: WebSocketEvent<C>) {
+    const listeners = this.eventListeners.get(data.type)
+    if (!listeners?.size) {
+      return
+    }
+
+    const results = await Promise.allSettled(
+      Array.from(listeners).map(listener => Promise.resolve(listener(data as any))),
+    )
+
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        this.opts.onError?.(result.reason)
+      }
+    }
+  }
+
+  private createPayload(data: WebSocketEventOptionalSource<C>) {
+    return {
+      ...data,
+      metadata: {
+        ...data?.metadata,
+        source: data?.metadata?.source ?? this.identity,
+        event: {
+          id: data?.metadata?.event?.id ?? createEventId(),
+          ...data?.metadata?.event,
+        },
+      },
+    } as WebSocketEvent<C>
+  }
+
+  private startHeartbeat() {
+    if (!this.heartbeat.readTimeout || !this.heartbeat.pingInterval) {
+      return
+    }
+
+    this.stopHeartbeat()
+    this.lastReadAt = Date.now()
+    this.lastPingAt = 0
+
+    const interval = Math.max(1_000, Math.min(this.heartbeat.pingInterval, Math.floor(this.heartbeat.readTimeout / 2)))
+    this.heartbeatTimer = setInterval(() => {
+      if (!this.isSocketOpen) {
+        return
+      }
+
+      const now = Date.now()
+      if (now - this.lastReadAt > this.heartbeat.readTimeout) {
+        void this.reconnectAfterProtocolError(new Error(`Read timeout after ${this.heartbeat.readTimeout}ms`))
+        return
+      }
+
+      if (now - this.lastPingAt >= this.heartbeat.pingInterval) {
+        this.sendHeartbeatPing()
+      }
+    }, interval)
   }
 
   private stopHeartbeat() {
-    if (this.heartbeatTimer) {
-      clearInterval(this.heartbeatTimer)
-      this.heartbeatTimer = undefined
+    if (!this.heartbeatTimer) {
+      return
     }
+
+    clearInterval(this.heartbeatTimer)
+    this.heartbeatTimer = undefined
   }
 
   private sendNativeHeartbeat(kind: 'ping' | 'pong') {
@@ -420,11 +769,12 @@ export class Client<C = undefined> {
   }
 
   private sendHeartbeatPing() {
+    this.lastPingAt = Date.now()
     this.send({
       type: 'transport:connection:heartbeat',
       data: {
         kind: MessageHeartbeatKind.Ping,
-        message: this.opts.heartbeat?.message ?? MessageHeartbeat.Ping,
+        message: this.heartbeat.message,
         at: Date.now(),
       },
     })
@@ -443,17 +793,35 @@ export class Client<C = undefined> {
     this.sendNativeHeartbeat('pong')
   }
 
-  private async _reconnectDueToUnauthorized() {
-    if (this.shouldClose)
+  private async reconnectAfterProtocolError(error: Error) {
+    if (this.shouldClose || this.pendingReconnect) {
       return
-
-    const ws = this.websocket
-    this.connected = false
-    this.websocket = undefined
-    if (ws && ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING) {
-      ws.close()
     }
 
-    await this.connect()
+    this.pendingReconnect = true
+    const hadSocket = !!this.websocket
+
+    if (!this.connectionAttempt || this.status === 'ready') {
+      this.opts.onError?.(error)
+    }
+
+    const websocket = this.websocket
+    this.cleanupSocket(websocket)
+    this.rejectAttempt(error)
+
+    if (websocket && websocket.readyState !== WebSocket.CLOSED && websocket.readyState !== WebSocket.CLOSING) {
+      websocket.close()
+    }
+
+    if (hadSocket) {
+      this.opts.onClose?.()
+    }
+
+    if (!this.opts.autoReconnect) {
+      this.transitionTo('failed')
+      return
+    }
+
+    void this.connect()
   }
 }

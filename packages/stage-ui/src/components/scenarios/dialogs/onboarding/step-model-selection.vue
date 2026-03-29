@@ -23,6 +23,7 @@ const {
   modelSearchQuery,
   providerModels,
   isLoadingActiveProviderModels,
+  activeProviderModelError,
 } = storeToRefs(consciousnessStore)
 
 const sortedProviderModels = computed(() => {
@@ -82,6 +83,17 @@ const sortedProviderModels = computed(() => {
           :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
           list-class="max-h-[calc(100dvh-20rem)] sm:max-h-100 overflow-y-auto"
         />
+        
+        <Alert v-if="activeProviderModelError" type="error">
+          <template #title>
+            {{ t('settings.dialogs.onboarding.validationFailed') }}
+          </template>
+          <template #content>
+            <div class="whitespace-pre-wrap break-all">
+              {{ activeProviderModelError }}
+            </div>
+          </template>
+        </Alert>
       </div>
     </div>
 
