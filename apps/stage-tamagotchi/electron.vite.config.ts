@@ -26,9 +26,6 @@ export default defineConfig({
         include: [
           'electron-click-drag-plugin',
         ],
-        exclude: [
-          'vue',
-        ],
       },
     },
     plugins: [
