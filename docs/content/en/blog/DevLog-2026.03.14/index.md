@@ -4,6 +4,9 @@ category: DevLog
 date: 2026-03-14
 excerpt: |
   A story about PR #1194: debugging AIRI's VRM 3D stage, redesigning its lifecycle, introducing a window-local cache, and laying the first foundation for ThreeScene observability.
+preview-cover:
+  light: "@assets('./assets/cover-light.avif')"
+  dark: "@assets('./assets/cover-dark.avif')"
 ---
 
 Hi, this is [@Lilia-Chen](https://github.com/Lilia-Chen).
