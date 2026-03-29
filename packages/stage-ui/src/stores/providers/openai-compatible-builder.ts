@@ -4,6 +4,8 @@ import { generateText } from '@xsai/generate-text'
 import { listModels } from '@xsai/model'
 import { message } from '@xsai/utils-chat'
 
+import { ProviderValidationCheck } from '../../libs/providers'
+
 type ProviderCreator = (apiKey: string, baseUrl: string) => any
 
 // Lightweight normalization utilities and conditional logging
@@ -47,7 +49,7 @@ export function buildOpenAICompatibleProvider(
     creator: ProviderCreator
     capabilities?: ProviderMetadata['capabilities']
     validators?: ProviderMetadata['validators']
-    validation?: ('health' | 'model_list' | 'chat_completions')[]
+    validation?: ProviderValidationCheck[]
     additionalHeaders?: Record<string, string>
     transcriptionFeatures?: ProviderMetadata['transcriptionFeatures']
   },
@@ -114,6 +116,7 @@ export function buildOpenAICompatibleProvider(
   }
 
   const finalValidators = validators || {
+    chatPingCheckAvailable: false,
     validateProviderConfig: async (config: Record<string, unknown>) => {
       const errors: Error[] = []
       let baseUrl = normalizeString(config.baseUrl)
@@ -191,7 +194,7 @@ export function buildOpenAICompatibleProvider(
 
       // Health check = try generating text (was: fetch(`${baseUrl}chat/completions`))
       const asyncChecks: Promise<Error | null>[] = []
-      if (validationChecks.includes('health') && hasApiKey) {
+      if (validationChecks.includes(ProviderValidationCheck.Health) && hasApiKey) {
         asyncChecks.push((async () => {
           try {
             const model = await modelPromise
@@ -212,7 +215,7 @@ export function buildOpenAICompatibleProvider(
       }
 
       // Model list validation (was: fetch(`${baseUrl}models`))
-      if (validationChecks.includes('model_list') && hasApiKey) {
+      if (validationChecks.includes(ProviderValidationCheck.ModelList) && hasApiKey) {
         asyncChecks.push((async () => {
           try {
             const models = await listModels({
