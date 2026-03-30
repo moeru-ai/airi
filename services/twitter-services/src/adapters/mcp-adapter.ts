@@ -437,6 +437,17 @@ export class MCPAdapter {
 
     // SSE endpoint
     router.get('/sse', defineEventHandler(async (event) => {
+      const authToken = process.env.MCP_AUTH_TOKEN
+      if (authToken) {
+        const authHeader = event.node.req.headers['authorization']
+        if (!authHeader || authHeader !== `Bearer ${authToken}`) {
+          logger.mcp.warn('Unauthorized MCP SSE connection attempt rejected')
+          event.node.res.statusCode = 401
+          event.node.res.end(JSON.stringify({ error: 'Unauthorized' }))
+          return
+        }
+      }
+
       const { req, res } = event.node
 
       res.setHeader('Content-Type', 'text/event-stream')
@@ -461,6 +472,16 @@ export class MCPAdapter {
 
     // Messages endpoint - receive client requests
     router.post('/messages', defineEventHandler(async (event) => {
+      const authToken = process.env.MCP_AUTH_TOKEN
+      if (authToken) {
+        const authHeader = event.node.req.headers['authorization']
+        if (!authHeader || authHeader !== `Bearer ${authToken}`) {
+          logger.mcp.warn('Unauthorized MCP message request rejected')
+          event.node.res.statusCode = 401
+          return { error: 'Unauthorized' }
+        }
+      }
+
       if (this.activeTransports.length === 0) {
         logger.mcp.warn('Received message request but no active SSE connections')
         event.node.res.statusCode = 503
@@ -492,7 +513,17 @@ export class MCPAdapter {
     }))
 
     // Root path - provide service info
-    router.get('/', defineEventHandler(() => {
+    router.get('/', defineEventHandler((event) => {
+      const authToken = process.env.MCP_AUTH_TOKEN
+      if (authToken) {
+        const authHeader = event.node.req.headers['authorization']
+        if (!authHeader || authHeader !== `Bearer ${authToken}`) {
+          logger.mcp.warn('Unauthorized MCP root request rejected')
+          event.node.res.statusCode = 401
+          return { error: 'Unauthorized' }
+        }
+      }
+
       return {
         name: 'Twitter MCP Service',
         version: '1.0.0',
