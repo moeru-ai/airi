@@ -27,7 +27,7 @@ def _get_classifier():
             run_opts={"device": "cpu"},
         )
         return _classifier
-    except ImportError:
+    except Exception:
         return None
 
 
@@ -55,22 +55,23 @@ def extract_embedding(audio_path: str) -> np.ndarray:
     """
     classifier = _get_classifier()
     if classifier is not None:
-        import torch
-        waveform = _load_audio_16k(audio_path)
-        tensor = torch.from_numpy(waveform).unsqueeze(0)
-        embedding = classifier.encode_batch(tensor)
-        return embedding.squeeze().cpu().numpy()
+        try:
+            import torch
+            waveform = _load_audio_16k(audio_path)
+            tensor = torch.from_numpy(waveform).unsqueeze(0)
+            embedding = classifier.encode_batch(tensor)
+            return embedding.squeeze().cpu().numpy()
+        except Exception:
+            pass
 
-    # Fallback: MFCC-based embedding when speechbrain is unavailable
     try:
         import librosa
         data = _load_audio_16k(audio_path)
         mfcc = librosa.feature.mfcc(y=data, sr=_SAMPLE_RATE, n_mfcc=13)
         return mfcc.mean(axis=1).astype(np.float32)
-    except ImportError:
+    except Exception:
         pass
 
-    # Last resort: FFT-based spectral centroid when librosa is also unavailable
     data = _load_audio_16k(audio_path)
     n_fft = 2048
     hop = 512

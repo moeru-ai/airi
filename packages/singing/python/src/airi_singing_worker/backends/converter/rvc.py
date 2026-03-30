@@ -27,6 +27,47 @@ patch_torch_load()
 MODEL_TARGET_SR = 40000
 PIPELINE_SR = 44100
 
+
+def _patched_load_audio(file: str, sr: int) -> np.ndarray:
+    """Drop-in replacement for rvc_python.lib.audio.load_audio.
+
+    The bundled load_audio is broken on modern PyAV (av >= 12) because
+    ``ostream.channels`` became read-only. We bypass av entirely.
+    """
+    import subprocess
+
+    try:
+        out = subprocess.run(
+            ["ffmpeg", "-nostdin", "-loglevel", "error",
+             "-i", file,
+             "-f", "f32le", "-acodec", "pcm_f32le", "-ac", "1", "-ar", str(sr), "-"],
+            capture_output=True, check=True, timeout=300,
+        )
+        return np.frombuffer(out.stdout, np.float32).flatten()
+    except Exception:
+        data, orig_sr = sf.read(file, dtype="float32")
+        if data.ndim > 1:
+            data = data.mean(axis=1)
+        if orig_sr != sr:
+            import librosa
+            data = librosa.resample(data, orig_sr=orig_sr, target_sr=sr)
+        return data
+
+
+def _apply_load_audio_patch() -> None:
+    """Monkey-patch rvc_python.lib.audio.load_audio so vc_single works."""
+    try:
+        import rvc_python.lib.audio as _rvc_audio
+        _rvc_audio.load_audio = _patched_load_audio
+    except Exception:
+        pass
+
+    try:
+        import rvc_python.modules.vc.modules as _rvc_vc
+        _rvc_vc.load_audio = _patched_load_audio
+    except Exception:
+        pass
+
 # Standard RVC v2 40kHz f0 model architecture config.
 # These are the 18 constructor args for SynthesizerTrnMs768NSFsid:
 #   spec_channels, segment_size, inter_channels, hidden_channels,
@@ -185,6 +226,8 @@ def convert(
             "RVC library is not installed. "
             "Install with: pip install rvc-python"
         )
+
+    _apply_load_audio_patch()
 
     input_path = str(kwargs.get("input", vocals_path) or vocals_path)
     out = str(kwargs.get("output_dir", output_dir) or output_dir)

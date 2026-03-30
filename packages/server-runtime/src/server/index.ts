@@ -1,9 +1,7 @@
 import type { AppOptions } from '..'
 
-import { execSync } from 'node:child_process'
 import { createServer as createNetServer, isIP } from 'node:net'
 import { networkInterfaces } from 'node:os'
-import { platform } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
 import { merge } from '@moeru/std'
@@ -81,58 +79,12 @@ function checkPortAvailable(port: number, hostname: string): Promise<boolean> {
   })
 }
 
-function killProcessOnPort(port: number): boolean {
-  try {
-    if (platform === 'win32') {
-      const result = execSync(`netstat -ano | findstr ":${port}" | findstr "LISTENING"`, { encoding: 'utf-8', windowsHide: true }).trim()
-      const lines = result.split('\n').filter(l => l.trim())
-      for (const line of lines) {
-        const parts = line.trim().split(/\s+/)
-        const pid = parts.at(-1)
-        if (pid && /^\d+$/.test(pid) && pid !== '0') {
-          try {
-            execSync(`taskkill /T /F /PID ${pid}`, { windowsHide: true })
-          }
-          catch {}
-        }
-      }
-      return lines.length > 0
-    }
-    else {
-      const result = execSync(`lsof -ti :${port}`, { encoding: 'utf-8' }).trim()
-      if (result) {
-        const pids = result.split('\n').filter(p => p.trim())
-        for (const pid of pids) {
-          try { execSync(`kill -9 ${pid}`) }
-          catch {}
-        }
-        return true
-      }
-    }
-  }
-  catch {}
-  return false
-}
-
-async function ensurePortAvailable(port: number, hostname: string, log: ReturnType<typeof useLogg>): Promise<void> {
+async function ensurePortAvailable(port: number, hostname: string): Promise<void> {
   const checkHost = hostname === '0.0.0.0' ? '127.0.0.1' : hostname
   if (await checkPortAvailable(port, checkHost))
     return
 
-  log.withFields({ port }).warn('Port is occupied by a stale process, attempting to kill it...')
-  const killed = killProcessOnPort(port)
-
-  if (killed) {
-    // Wait briefly for the OS to reclaim the port
-    await new Promise(resolve => setTimeout(resolve, 1500))
-  }
-
-  if (!await checkPortAvailable(port, checkHost)) {
-    log.withFields({ port }).warn('Port still not available after kill attempt')
-  }
-  else {
-    log.withFields({ port }).log('Port freed successfully')
-  }
+  throw new Error(`Port ${port} is already in use by another process`)
 }
 
 export function createServer(opts?: ServerOptions): Server {
@@ -184,7 +136,7 @@ export function createServer(opts?: ServerOptions): Server {
       const port = options.port ?? 6121
       const hostname = options.hostname ?? '0.0.0.0'
 
-      await ensurePortAvailable(port, hostname, log)
+      await ensurePortAvailable(port, hostname)
 
       const instance = serve(h3App.app, {
         // @ts-expect-error - the .crossws property wasn't extended in types

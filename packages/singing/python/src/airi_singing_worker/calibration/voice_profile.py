@@ -14,6 +14,8 @@ from typing import Any
 import numpy as np
 import soundfile as sf
 
+from ..errors.base import SingingWorkerError
+
 logger = logging.getLogger(__name__)
 
 
@@ -53,7 +55,10 @@ def build_voice_profile(
     profile = VoiceProfile(voice_id=voice_id, sample_count=len(audio_paths))
 
     if not audio_paths:
-        return profile
+        raise SingingWorkerError(
+            f'No training segments were available to build the voice profile for "{voice_id}"',
+            code='VOICE_PROFILE_INVALID',
+        )
 
     # Speaker embedding centroid
     embeddings = []
@@ -63,14 +68,12 @@ def build_voice_profile(
             embeddings.append(emb)
         except Exception as e:
             logger.warning("Failed to extract embedding from %s: %s", p, e)
-    if embeddings:
-        centroid = np.mean(embeddings, axis=0)
-        profile.embedding_centroid = centroid.tolist()
-    else:
-        logger.warning(
-            "No speaker embeddings were extracted while building voice profile for %s",
-            voice_id,
-        )
+
+    profile.embedding_centroid = _compute_profile_centroid(
+        embeddings=embeddings,
+        voice_id=voice_id,
+        sample_count=len(audio_paths),
+    )
 
     # F0 distribution
     all_f0 = []
@@ -139,6 +142,34 @@ def build_voice_profile(
         profile.spectral_flatness = float(np.mean(all_spectral_flatness))
 
     return profile
+
+
+def _compute_profile_centroid(
+    embeddings: list[np.ndarray],
+    voice_id: str,
+    sample_count: int,
+) -> list[float]:
+    """Build a validated speaker centroid for downstream calibration/evaluation.
+
+    Training-generated voice profiles must never persist an empty or malformed
+    centroid. If embedding extraction failed for every segment, the training
+    pipeline should surface that as a quality-assessment failure instead of
+    silently writing an unusable profile that later collapses identity scoring.
+    """
+    if not embeddings:
+        raise SingingWorkerError(
+            f'Failed to extract any speaker embeddings while building the voice profile for "{voice_id}" ({sample_count} segment(s))',
+            code='VOICE_PROFILE_INVALID',
+        )
+
+    centroid = np.asarray(np.mean(embeddings, axis=0), dtype=np.float32).flatten()
+    if centroid.size == 0 or not np.all(np.isfinite(centroid)):
+        raise SingingWorkerError(
+            f'Computed an invalid speaker centroid while building the voice profile for "{voice_id}"',
+            code='VOICE_PROFILE_INVALID',
+        )
+
+    return centroid.tolist()
 
 
 def save_voice_profile(profile: VoiceProfile, path: str) -> None:

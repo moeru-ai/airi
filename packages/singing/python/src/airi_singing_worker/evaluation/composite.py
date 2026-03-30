@@ -195,12 +195,10 @@ def _resolve_identity_reference_embedding(
 ) -> np.ndarray:
     """Choose the best available reference embedding for identity scoring.
 
-    The training/evaluation flow prefers a cached voice-profile centroid so that
-    similarity reflects the whole dataset rather than a single segment. However,
-    malformed profiles can legitimately contain an empty centroid list (for
-    example when embedding extraction failed during profile generation). In that
-    case we must fall back to the reference audio embedding instead of feeding a
-    zero-length vector into cosine similarity, which collapses identity to 0.
+    The training pipeline now rejects empty training-generated centroids at the
+    source. This fallback remains as a defensive guard for malformed legacy or
+    externally supplied profile files so we do not collapse identity scoring to
+    zero when reading corrupted metadata.
     """
     centroid_values = None
     if voice_profile_data:

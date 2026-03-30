@@ -12,6 +12,7 @@ import pytest
 import soundfile as sf
 
 from airi_singing_worker.backends.converter import rvc as rvc_backend
+from airi_singing_worker.calibration.voice_profile import build_voice_profile
 from airi_singing_worker.evaluation import (
     composite,
     content_preservation,
@@ -133,7 +134,7 @@ class TestEvaluationIdentityFallback:
         monkeypatch.setattr(composite, "_compute_tearing_score", lambda *_args: 0.05)
         monkeypatch.setattr(composite, "_compute_hnr", lambda *_args: 18.0)
 
-    def test_run_evaluation_falls_back_to_reference_embedding_when_centroid_is_empty(self, monkeypatch):
+    def test_run_evaluation_falls_back_to_reference_embedding_for_malformed_external_profile(self, monkeypatch):
         self._patch_non_identity_axes(monkeypatch)
 
         ref_emb = np.array([1.0, 0.0], dtype=np.float32)
@@ -153,7 +154,7 @@ class TestEvaluationIdentityFallback:
         card = composite.run_evaluation(
             ref_audio="ref.wav",
             synth_audio="synth.wav",
-            voice_profile_data={"embedding_centroid": []},
+            voice_profile_data={"embedding_centroid": [1.0]},
             voice_id="test_voice",
         )
 
@@ -191,6 +192,21 @@ class TestEvaluationIdentityFallback:
         assert len(similarity_inputs) == 1
         assert np.array_equal(similarity_inputs[0][0], centroid)
         assert np.array_equal(similarity_inputs[0][1], synth_emb)
+
+
+class TestVoiceProfileValidation:
+    def test_build_voice_profile_rejects_missing_training_segments(self):
+        with pytest.raises(Exception, match="No training segments"):
+            build_voice_profile([], "test_voice")
+
+    def test_build_voice_profile_rejects_empty_embedding_centroid(self, monkeypatch):
+        monkeypatch.setattr(
+            "airi_singing_worker.evaluation.speaker_similarity.extract_embedding",
+            lambda _path: (_ for _ in ()).throw(RuntimeError("embedding failed")),
+        )
+
+        with pytest.raises(Exception, match="speaker embeddings"):
+            build_voice_profile(["seg_a.wav", "seg_b.wav"], "test_voice")
 
 
 class TestRvcBackendCompatibility:

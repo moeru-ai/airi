@@ -2,7 +2,7 @@ import type { Buffer } from 'node:buffer'
 
 import process from 'node:process'
 
-import { execFile, execSync, spawn } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { createWriteStream, existsSync, realpathSync, statSync } from 'node:fs'
 import { mkdir, readdir, readFile, rename, rm, unlink, writeFile } from 'node:fs/promises'
@@ -43,8 +43,6 @@ const FFMPEG_BINARY_SUFFIX_REGEX = /ffmpeg$/
 const LINE_SPLIT_REGEX = /[\r\n]+/
 const CUDA_VERSION_REGEX = /CUDA Version:\s*(\d+)\.(\d+)/
 const PTH_SUFFIX_REGEX = /\.pth$/
-const WHITESPACE_REGEX = /\s+/
-const PID_REGEX = /^\d+$/
 
 // ─── FFmpeg download sources per platform ────────────────────────────────
 const FFMPEG_URLS: Record<string, string> = {
@@ -113,7 +111,7 @@ async function checkBinaryExists(bin: string, args: string[] = ['--version']): P
 
 function getTrustedLocalSingingOrigin(origin: string): string {
   if (!origin || origin === 'null')
-    return origin
+    return ''
 
   try {
     const url = new URL(origin)
@@ -1199,6 +1197,7 @@ function buildApp(dataDir: string) {
     }
 
     const activeTrainingProcs = new Map<string, { proc: ReturnType<typeof spawn>, pid: number }>()
+    const activeTrainingVoices = new Set<string>()
 
     function killTrainingProcess(voiceId: string) {
       const entry = activeTrainingProcs.get(voiceId)
@@ -1230,7 +1229,6 @@ function buildApp(dataDir: string) {
       const ac = new AbortController()
       activeJobs.set(jobId, ac)
       ac.signal.addEventListener('abort', () => killTrainingProcess(voiceId), { once: true })
-      killTrainingProcess(voiceId)
       let uploadCleaned = false
 
       async function finalizeUploadCleanup(): Promise<void> {
@@ -1440,6 +1438,7 @@ function buildApp(dataDir: string) {
       }
       finally {
         activeJobs.delete(jobId)
+        activeTrainingVoices.delete(voiceId)
         await finalizeUploadCleanup()
       }
     }
@@ -1475,7 +1474,18 @@ function buildApp(dataDir: string) {
         return mod!.cancelCoverJob(jobId, { queue })
       },
       async createTrain(request: any, datasetPath: string) {
-        const result = await mod!.createTrainJob(request, { queue })
+        if (activeTrainingVoices.has(request.voiceId))
+          throw new Error(`Voice "${request.voiceId}" already has a training job running — wait for it to complete or cancel it first`)
+
+        activeTrainingVoices.add(request.voiceId)
+        let result
+        try {
+          result = await mod!.createTrainJob(request, { queue })
+        }
+        catch (err) {
+          activeTrainingVoices.delete(request.voiceId)
+          throw err
+        }
         void executeTrainingAsync(result.jobId, datasetPath, request.voiceId, request.epochs ?? 200, request.batchSize ?? 8)
           .catch(err => logDetachedJobFailure(result.jobId, 'training', err))
         return result
@@ -1925,7 +1935,9 @@ function buildApp(dataDir: string) {
         if (existsSync(trainingDir)) {
           const trainDirs = await readdir(trainingDir)
           for (const d of trainDirs) {
-            candidates.push(join(trainingDir, d, 'voice_profile.json'))
+            const trainingRunDir = join(trainingDir, d)
+            if (existsSync(join(trainingRunDir, `${voiceId}_meta.json`)))
+              candidates.push(join(trainingRunDir, 'voice_profile.json'))
           }
         }
 
@@ -1959,7 +1971,9 @@ function buildApp(dataDir: string) {
         if (existsSync(trainingDir)) {
           const trainDirs = await readdir(trainingDir)
           for (const d of trainDirs) {
-            candidates.push(join(trainingDir, d, 'validation_report.json'))
+            const trainingRunDir = join(trainingDir, d)
+            if (existsSync(join(trainingRunDir, `${voiceId}_meta.json`)))
+              candidates.push(join(trainingRunDir, 'validation_report.json'))
           }
         }
 
@@ -2111,54 +2125,11 @@ function checkPortAvailable(port: number, host: string): Promise<boolean> {
   })
 }
 
-function killProcessOnPort(port: number): boolean {
-  try {
-    if (process.platform === 'win32') {
-      const result = execSync(`netstat -ano | findstr ":${port}" | findstr "LISTENING"`, { encoding: 'utf-8', windowsHide: true }).trim()
-      const lines = result.split('\n').filter(l => l.trim())
-      for (const line of lines) {
-        const parts = line.trim().split(WHITESPACE_REGEX)
-        const pid = parts.at(-1)
-        if (pid && PID_REGEX.test(pid) && pid !== '0') {
-          try {
-            execSync(`taskkill /T /F /PID ${pid}`, { windowsHide: true })
-          }
-          catch {}
-        }
-      }
-      return lines.length > 0
-    }
-    else {
-      const result = execSync(`lsof -ti :${port}`, { encoding: 'utf-8' }).trim()
-      if (result) {
-        for (const pid of result.split('\n').filter(p => p.trim())) {
-          try {
-            execSync(`kill -9 ${pid}`)
-          }
-          catch {}
-        }
-        return true
-      }
-    }
-  }
-  catch {}
-  return false
-}
-
-async function ensurePortFree(port: number): Promise<void> {
+async function ensurePortAvailable(port: number): Promise<void> {
   if (await checkPortAvailable(port, '127.0.0.1'))
     return
 
-  log.withFields({ port }).log('Port occupied by stale process, killing...')
-  killProcessOnPort(port)
-  await new Promise(resolve => setTimeout(resolve, 1500))
-
-  if (await checkPortAvailable(port, '127.0.0.1')) {
-    log.withFields({ port }).log('Port freed successfully')
-  }
-  else {
-    log.withFields({ port }).warn('Port still occupied after kill attempt')
-  }
+  throw new Error(`Port ${port} is already in use by another process`)
 }
 
 export async function setupSingingLocalServer(config: SingingServerConfig): Promise<SingingLocalServer> {
@@ -2169,7 +2140,7 @@ export async function setupSingingLocalServer(config: SingingServerConfig): Prom
 
   try {
     const port = preferredPort
-    await ensurePortFree(port)
+    await ensurePortAvailable(port)
 
     const app = buildApp(dataDir)
 

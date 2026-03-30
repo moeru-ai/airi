@@ -866,6 +866,8 @@ def run_training_pipeline(
                     f.write(report.to_json())
                 validation_report_data = report.to_dict()
                 print(f"Validation report saved: {report_path} (grade: {report.overall_grade})", flush=True)
+    except SingingWorkerError:
+        raise
     except Exception as e:
         print(f"Warning: Post-training QA failed (non-fatal): {e}", flush=True)
 
