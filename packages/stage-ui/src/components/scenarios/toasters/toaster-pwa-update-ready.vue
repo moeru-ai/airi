@@ -25,12 +25,25 @@ function handleNotNow() {
 
 <template>
   <div
-    w-full flex flex-col gap-1 rounded-xl
+    :class="[
+      'px-4 py-3',
+      'backdrop-blur-md shadow-md',
+      'bg-neutral-100/80 dark:bg-neutral-800/80',
+      'w-full flex flex-col gap-1 rounded-2xl',
+    ]"
   >
-    <div mb-1 text-nowrap>
+    <div
+      :class="[
+        'mb-1 text-nowrap',
+      ]"
+    >
       {{ t('base.toaster.pwaUpdateReady.message') }}
     </div>
-    <div w-full flex items-center gap-2>
+    <div
+      :class="[
+        'w-full flex items-center gap-2',
+      ]"
+    >
       <Button w-full size="sm" variant="secondary" @click="() => handleNotNow()">
         <div i-solar:close-circle-line-duotone />
         <div text-nowrap>
