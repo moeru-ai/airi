@@ -4,7 +4,10 @@ import type { UpdateInfo } from 'electron-updater'
 
 import type { AutoUpdaterState } from '../../../shared/eventa'
 
-import { arch } from 'node:process'
+import { arch, env, platform } from 'node:process'
+import { rm } from 'node:fs/promises'
+import { join } from 'node:path'
+import { homedir } from 'node:os'
 
 import electronUpdater from 'electron-updater'
 
@@ -53,18 +56,34 @@ export interface AutoUpdater {
   subscribe: (callback: (state: AutoUpdaterState) => void) => () => void
 }
 
+function getAppCacheDir(): string {
+  const home = homedir()
+  if (platform === 'win32') {
+    return env.LOCALAPPDATA || join(home, 'AppData', 'Local')
+  } else if (platform === 'darwin') {
+    return join(home, 'Library', 'Caches')
+  } else {
+    return env.XDG_CACHE_HOME || join(home, '.cache')
+  }
+}
+
 export function setupAutoUpdater(): AutoUpdater {
   const semaphore = new Semaphore(1)
 
   const log = useLogg('auto-updater').useGlobalConfig()
   const autoUpdater = fromImported()
 
+  // Clean up any stray installation files left over in the update cache directory
+  try {
+    const cacheDir = getAppCacheDir()
+    if (cacheDir) {
+      rm(join(cacheDir, 'ai.moeru.airi-updater'), { recursive: true, force: true }).catch(() => {})
+    }
+  } catch {}
+
   let state: AutoUpdaterState = { status: 'idle' }
   const hooks = new Set<(state: AutoUpdaterState) => void>()
 
-  // Fix: explicitly map base channel to architecture to resolve 404 targets.
-  // electron-updater natively appends OS suffixes (-mac.yml, -linux.yml) automatically.
-  autoUpdater.channel = arch === 'arm64' ? 'latest-arm64' : 'latest-x64'
 
   function broadcast(next: AutoUpdaterState) {
     state = next
