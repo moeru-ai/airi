@@ -1,0 +1,124 @@
+import type { SingingService } from '../src/services/singing/singing-service'
+import type { HonoEnv } from '../src/types/hono'
+
+import { existsSync } from 'node:fs'
+import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { join, resolve } from 'node:path'
+
+import { Hono } from 'hono'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { createSingingRoutes } from '../src/routes/singing'
+
+const testUser = { id: 'user-1', name: 'Test User', email: 'test@example.com' }
+const listVoicesMock = vi.hoisted(() => vi.fn())
+const runtimeEnv = vi.hoisted(() => ({
+  ffmpegPath: 'ffmpeg',
+  pythonPath: 'python',
+  workerModulePath: '/fake/worker',
+  pythonSrcDir: '/fake/src',
+  modelsDir: '',
+  voiceModelsDir: '',
+  tempDir: '',
+}))
+
+vi.mock('@proj-airi/singing', async (importOriginal) => {
+  const actual: Record<string, unknown> = await importOriginal()
+
+  return {
+    ...actual,
+    listVoices: listVoicesMock,
+    resolveRuntimeEnv: vi.fn(() => runtimeEnv),
+  }
+})
+
+function createMockSingingService(): SingingService {
+  return {
+    createCover: vi.fn(async () => ({ jobId: 'cover-job', status: 'pending' })),
+    createCoverReference: vi.fn(async () => ({ jobId: 'cover-ref-job', status: 'pending' })),
+    getJob: vi.fn(async () => ({ job: { id: 'job-1', status: 'pending' } })),
+    cancelJob: vi.fn(async () => ({ cancelled: true })),
+    createTrain: vi.fn(async () => ({ jobId: 'train-job', status: 'pending' })),
+  }
+}
+
+function createTestApp(singingService: SingingService) {
+  const routes = createSingingRoutes(singingService)
+  const app = new Hono<HonoEnv>()
+
+  app.use('*', async (c, next) => {
+    const user = (c.env as { user?: typeof testUser } | undefined)?.user
+    if (user)
+      c.set('user', user)
+    await next()
+  })
+
+  app.route('/', routes)
+  return app
+}
+
+describe('singingRoutes', () => {
+  beforeEach(async () => {
+    const testRoot = resolve(process.cwd(), '.tmp-singing-routes-test')
+    runtimeEnv.modelsDir = join(testRoot, 'models')
+    runtimeEnv.voiceModelsDir = join(runtimeEnv.modelsDir, 'voice_models')
+    runtimeEnv.tempDir = join(testRoot, 'temp')
+
+    listVoicesMock.mockReset()
+    listVoicesMock.mockResolvedValue({
+      voices: [{ id: 'voice-a', name: 'voice-a', hasRvcModel: true }],
+    })
+
+    await rm(testRoot, { recursive: true, force: true })
+  })
+
+  afterEach(async () => {
+    await rm(resolve(process.cwd(), '.tmp-singing-routes-test'), { recursive: true, force: true })
+  })
+
+  it('accepts multipart training uploads and passes a server-resolved datasetUri to the service', async () => {
+    const singingService = createMockSingingService()
+    const app = createTestApp(singingService)
+
+    const formData = new FormData()
+    formData.append('file', new File([new Uint8Array([1, 2, 3])], 'dataset.wav', { type: 'audio/wav' }))
+    formData.append('params', JSON.stringify({
+      voiceId: 'voice-a',
+      epochs: 12,
+      batchSize: 4,
+    }))
+
+    const res = await app.fetch(
+      new Request('http://localhost/train', {
+        method: 'POST',
+        body: formData,
+      }),
+      { user: testUser } as any,
+    )
+
+    expect(res.status).toBe(201)
+    expect(singingService.createTrain).toHaveBeenCalledTimes(1)
+
+    const request = vi.mocked(singingService.createTrain).mock.calls[0][0] as Record<string, unknown>
+    expect(request.voiceId).toBe('voice-a')
+    expect(request.epochs).toBe(12)
+    expect(request.batchSize).toBe(4)
+    expect(typeof request.datasetUri).toBe('string')
+    expect(String(request.datasetUri)).toContain(join(runtimeEnv.tempDir, 'training-uploads'))
+    expect(existsSync(String(request.datasetUri))).toBe(true)
+  })
+
+  it('returns voiceModels alongside the raw voices payload for the shared UI contract', async () => {
+    await mkdir(join(runtimeEnv.modelsDir, 'voice_models', 'voice-a'), { recursive: true })
+    await writeFile(join(runtimeEnv.modelsDir, 'voice_models', 'voice-a', 'voice-a.index'), 'index')
+
+    const app = createTestApp(createMockSingingService())
+    const res = await app.request('/models')
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      voices: [{ id: 'voice-a', name: 'voice-a', hasRvcModel: true }],
+      voiceModels: [{ name: 'voice-a', hasIndex: true }],
+    })
+  })
+})

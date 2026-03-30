@@ -110,8 +110,14 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
 
   async function cleanupUploadFile(inputUri: string): Promise<void> {
     try {
-      if (inputUri.includes(`${sep}uploads${sep}`) || inputUri.includes('/uploads/'))
+      if (
+        inputUri.includes(`${sep}uploads${sep}`)
+        || inputUri.includes('/uploads/')
+        || inputUri.includes(`${sep}training-uploads${sep}`)
+        || inputUri.includes('/training-uploads/')
+      ) {
         await unlink(inputUri)
+      }
     }
     catch { /* upload file may already be removed */ }
   }
@@ -279,6 +285,7 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
     finally {
       activeJobs.delete(jobId)
       activeTrainingVoices.delete(request.voiceId)
+      await cleanupUploadFile(request.datasetUri)
     }
   }
 

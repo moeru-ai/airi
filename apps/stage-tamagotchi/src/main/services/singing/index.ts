@@ -15,7 +15,7 @@ import { promisify } from 'node:util'
 
 import { useLogger } from '@guiiai/logg'
 import { serve } from '@hono/node-server'
-import { PipelineStage, resolveContainedPath } from '@proj-airi/singing'
+import { getSafeUploadExtension, PipelineStage, resolveContainedPath } from '@proj-airi/singing'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
@@ -97,6 +97,38 @@ async function checkBinaryExists(bin: string, args: string[] = ['--version']): P
   catch {
     return false
   }
+}
+
+function getTrustedLocalSingingOrigin(origin: string): string {
+  if (!origin || origin === 'null')
+    return origin
+
+  try {
+    const url = new URL(origin)
+    if (url.protocol === 'file:' || url.protocol === 'app:')
+      return origin
+    if (url.protocol === 'http:' && (url.hostname === 'localhost' || url.hostname === '127.0.0.1'))
+      return origin
+  }
+  catch {}
+
+  return ''
+}
+
+function buildSafeUploadPath(uploadsDir: string, uploadId: string, fileName: string): string {
+  const safeExtension = getSafeUploadExtension(fileName)
+  const savedPath = resolveContainedPath(uploadsDir, `${uploadId}.${safeExtension}`)
+  if (!savedPath)
+    throw new Error('Failed to allocate a contained upload path')
+  return savedPath
+}
+
+function logTerminalUpdateFailure(jobId: string, status: 'cancelled' | 'failed', error: unknown) {
+  log.withFields({ jobId, status }).withError(error).warn('Failed to update terminal singing job status')
+}
+
+function logDetachedJobFailure(jobId: string, kind: 'cover' | 'training', error: unknown) {
+  log.withFields({ jobId, kind }).withError(error).error('Detached singing job crashed unexpectedly')
 }
 
 async function findFFmpeg(dataDir: string): Promise<string | null> {
@@ -1132,23 +1164,23 @@ function buildApp(dataDir: string) {
     async function executePipelineAsync(jobId: string, request: any) {
       const ac = new AbortController()
       activeJobs.set(jobId, ac)
-
-      const jobDir = mod!.buildJobDir(outputBaseDir, jobId)
-      const task = mod!.mapRequestToCoverTask(jobId, request, jobDir)
-      await queue.updateJob(jobId, { status: 'running', updatedAt: new Date().toISOString() })
       const stageTiming: Record<string, number> = {}
 
-      const stageCallbacks = {
-        async onStageStart(stage: PipelineStage) {
-          await queue.updateJob(jobId, { currentStage: stage, updatedAt: new Date().toISOString() })
-        },
-        async onStageComplete(stage: PipelineStage, result: { durationMs: number }) {
-          stageTiming[stage] = result.durationMs
-          await queue.updateJob(jobId, { stageTiming: { ...stageTiming }, updatedAt: new Date().toISOString() })
-        },
-      }
-
       try {
+        const jobDir = mod!.buildJobDir(outputBaseDir, jobId)
+        const task = mod!.mapRequestToCoverTask(jobId, request, jobDir)
+        await queue.updateJob(jobId, { status: 'running', updatedAt: new Date().toISOString() })
+
+        const stageCallbacks = {
+          async onStageStart(stage: PipelineStage) {
+            await queue.updateJob(jobId, { currentStage: stage, updatedAt: new Date().toISOString() })
+          },
+          async onStageComplete(stage: PipelineStage, result: { durationMs: number }) {
+            stageTiming[stage] = result.durationMs
+            await queue.updateJob(jobId, { stageTiming: { ...stageTiming }, updatedAt: new Date().toISOString() })
+          },
+        }
+
         const pipelineOutput = await mod!.runCoverPipeline(task, ac.signal, stageCallbacks) as any
 
         if (ac.signal.aborted) {
@@ -1243,7 +1275,7 @@ function buildApp(dataDir: string) {
           status,
           error: err instanceof Error ? err.message : String(err),
           updatedAt: new Date().toISOString(),
-        }).catch(() => {})
+        }).catch(updateErr => logTerminalUpdateFailure(jobId, status, updateErr))
       }
       finally {
         activeJobs.delete(jobId)
@@ -1279,18 +1311,21 @@ function buildApp(dataDir: string) {
     }
 
     async function executeTrainingAsync(jobId: string, datasetPath: string, voiceId: string, trainEpochs: number, trainBatchSize: number) {
+      const ac = new AbortController()
+      activeJobs.set(jobId, ac)
+      ac.signal.addEventListener('abort', () => killTrainingProcess(voiceId), { once: true })
       killTrainingProcess(voiceId)
-
-      await queue.updateJob(jobId, {
-        status: 'running',
-        currentStage: PipelineStage.PrepareSource,
-        trainingPct: 0,
-        trainingStep: 0,
-        trainingStepTotal: 8,
-        trainingStepName: 'Initializing',
-        updatedAt: new Date().toISOString(),
-      })
       try {
+        await queue.updateJob(jobId, {
+          status: 'running',
+          currentStage: PipelineStage.PrepareSource,
+          trainingPct: 0,
+          trainingStep: 0,
+          trainingStepTotal: 8,
+          trainingStepName: 'Initializing',
+          updatedAt: new Date().toISOString(),
+        })
+
         const pythonPath = env.pythonPath
         const pythonSrcDir = env.pythonSrcDir
         const trainOutputDir = join(env.tempDir, 'training', jobId)
@@ -1421,6 +1456,14 @@ function buildApp(dataDir: string) {
           throw new Error(`Training failed (exit ${result.exitCode}):\n${stderrTail}`)
         }
 
+        if (ac.signal.aborted) {
+          await queue.updateJob(jobId, {
+            status: 'cancelled',
+            updatedAt: new Date().toISOString(),
+          })
+          return
+        }
+
         // Save all model artifacts into voice_models/{voiceId}/
         const voiceModelDir = join(modelsDir, 'voice_models', voiceId)
         await mkdir(voiceModelDir, { recursive: true })
@@ -1451,12 +1494,21 @@ function buildApp(dataDir: string) {
         })
       }
       catch (err) {
-        killTrainingProcess(voiceId)
-        await queue.updateJob(jobId, {
-          status: 'failed',
-          error: err instanceof Error ? err.message : String(err),
-          updatedAt: new Date().toISOString(),
-        })
+        if (!ac.signal.aborted)
+          killTrainingProcess(voiceId)
+        await queue.updateJob(jobId, ac.signal.aborted
+          ? {
+              status: 'cancelled',
+              updatedAt: new Date().toISOString(),
+            }
+          : {
+              status: 'failed',
+              error: err instanceof Error ? err.message : String(err),
+              updatedAt: new Date().toISOString(),
+            })
+      }
+      finally {
+        activeJobs.delete(jobId)
       }
     }
 
@@ -1478,7 +1530,7 @@ function buildApp(dataDir: string) {
     pipelineService = {
       async createCover(request: any) {
         const result = await mod!.createCoverJob(request, { queue })
-        executePipelineAsync(result.jobId, request)
+        void executePipelineAsync(result.jobId, request).catch(err => logDetachedJobFailure(result.jobId, 'cover', err))
         return result
       },
       async getJob(jobId: string) {
@@ -1498,7 +1550,8 @@ function buildApp(dataDir: string) {
       },
       async createTrain(request: any, datasetPath: string) {
         const result = await mod!.createTrainJob(request, { queue })
-        executeTrainingAsync(result.jobId, datasetPath, request.voiceId, request.epochs ?? 200, request.batchSize ?? 8)
+        void executeTrainingAsync(result.jobId, datasetPath, request.voiceId, request.epochs ?? 200, request.batchSize ?? 8)
+          .catch(err => logDetachedJobFailure(result.jobId, 'training', err))
         return result
       },
     }
@@ -1506,7 +1559,7 @@ function buildApp(dataDir: string) {
   }
 
   const app = new Hono()
-    .use('*', cors({ origin: '*' }))
+    .use('*', cors({ origin: getTrustedLocalSingingOrigin }))
 
     // ── Health & environment ────────────────────────────────────
     .get('/health', async (c) => {
@@ -1783,8 +1836,7 @@ function buildApp(dataDir: string) {
           const uploadsDir = join(tempDir, 'uploads')
           await mkdir(uploadsDir, { recursive: true })
           const uploadId = randomUUID()
-          const ext = file.name.split('.').pop() ?? 'wav'
-          const savedPath = join(uploadsDir, `${uploadId}.${ext}`)
+          const savedPath = buildSafeUploadPath(uploadsDir, uploadId, file.name)
           const arrayBuffer = await file.arrayBuffer()
           await writeFile(savedPath, new Uint8Array(arrayBuffer))
 
@@ -1858,8 +1910,7 @@ function buildApp(dataDir: string) {
           const uploadsDir = join(tempDir, 'training-uploads')
           await mkdir(uploadsDir, { recursive: true })
           const uploadId = randomUUID()
-          const ext = file.name.split('.').pop() ?? 'wav'
-          datasetPath = join(uploadsDir, `${uploadId}.${ext}`)
+          datasetPath = buildSafeUploadPath(uploadsDir, uploadId, file.name)
           const arrayBuffer = await file.arrayBuffer()
           await writeFile(datasetPath, new Uint8Array(arrayBuffer))
           log.withFields({ datasetPath, sizeMB: (file.size / 1024 / 1024).toFixed(1) }).log('Training dataset saved')

@@ -59,6 +59,7 @@ import { createRequestLogService } from './services/request-log'
 import { createStripeService } from './services/stripe'
 import { ApiError, createInternalError, createUnauthorizedError } from './utils/error'
 import { getTrustedOrigin } from './utils/origin'
+import { shouldBypassGlobalBodyLimit } from './utils/request-body-limit'
 
 interface AppDeps {
   auth: ReturnType<typeof createAuth>
@@ -116,8 +117,8 @@ async function buildApp(deps: AppDeps) {
   const builtApp = app
     .use('*', sessionMiddleware(deps.auth))
     .use('*', async (c, next) => {
-      // Skip global body limit for ASR transcription route (has its own 25MB limit)
-      if (c.req.path === '/api/v1/openai/audio/transcriptions') {
+      // Skip the global 1MB cap for endpoints that apply their own route-level limits.
+      if (shouldBypassGlobalBodyLimit(c.req.path)) {
         return next()
       }
       return bodyLimit({ maxSize: 1024 * 1024 })(c, next)

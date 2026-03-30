@@ -9,7 +9,7 @@ import { SingingError, SingingErrorCode } from '../src/contracts/error'
 import { createPipelineContext } from '../src/pipeline/context'
 import { executePipeline } from '../src/pipeline/pipeline'
 import { hashString } from '../src/utils/hash'
-import { resolveContainedPath } from '../src/utils/path'
+import { getSafeUploadExtension, resolveContainedPath } from '../src/utils/path'
 
 describe('inMemoryQueue', () => {
   it('enqueue and dequeue in FIFO order', async () => {
@@ -123,6 +123,16 @@ describe('resolveContainedPath', () => {
 
   it('rejects sibling traversal that only shares the directory prefix', () => {
     expect(resolveContainedPath('/tmp/jobs/job-1', '../job-12/secret.wav')).toBeNull()
+  })
+})
+
+describe('getSafeUploadExtension', () => {
+  it('keeps a known extension for normal uploads', () => {
+    expect(getSafeUploadExtension('dataset.wav')).toBe('wav')
+  })
+
+  it('falls back when the multipart filename tries to smuggle path separators into the extension', () => {
+    expect(getSafeUploadExtension('x.y/../../target')).toBe('wav')
   })
 })
 

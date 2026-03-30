@@ -1,19 +1,20 @@
-import type { CreateCoverRequest } from '@proj-airi/singing/types'
+import type { CreateCoverRequest, CreateTrainRequest } from '@proj-airi/singing/types'
 
 import type { SingingService } from '../../services/singing/singing-service'
 import type { HonoEnv } from '../../types/hono'
 
+import { existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { buildJobDir, resolveContainedPath, resolveRuntimeEnv, SingingError, SingingErrorCode } from '@proj-airi/singing'
+import { buildJobDir, buildUploadsDir, getSafeUploadExtension, resolveContainedPath, resolveRuntimeEnv, SingingError, SingingErrorCode } from '@proj-airi/singing'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { safeParse } from 'valibot'
 
 import { authGuard } from '../../middlewares/auth'
 import { createBadRequestError } from '../../utils/error'
-import { CreateCoverJsonSchema, CreateCoverMultipartSchema, CreateCoverReferenceSchema, CreateTrainSchema } from './schema'
+import { CreateCoverJsonSchema, CreateCoverMultipartSchema, CreateCoverReferenceSchema, CreateTrainMultipartSchema, CreateTrainSchema } from './schema'
 
 const SINGING_BODY_LIMIT = 100 * 1024 * 1024
 
@@ -48,6 +49,23 @@ async function checkBinaryExists(bin: string, args: string[] = ['--version']): P
   }
 }
 
+function parseMultipartParams(paramsRaw: string | null): Record<string, unknown> {
+  try {
+    return paramsRaw ? JSON.parse(paramsRaw) : {}
+  }
+  catch {
+    throw createBadRequestError('Invalid JSON in params field', 'INVALID_JSON')
+  }
+}
+
+function buildSafeUploadPath(uploadsDir: string, uploadId: string, fileName: string): string {
+  const safeExtension = getSafeUploadExtension(fileName)
+  const savedPath = resolveContainedPath(uploadsDir, `${uploadId}.${safeExtension}`)
+  if (!savedPath)
+    throw new Error('Failed to allocate a contained upload path')
+  return savedPath
+}
+
 /**
  * [singing] Routes for the AI singing voice conversion module.
  */
@@ -72,7 +90,14 @@ export function createSingingRoutes(singingService: SingingService) {
     const env = resolveRuntimeEnv()
     const { listVoices } = await import('@proj-airi/singing')
     const result = await listVoices({ modelsDir: env.modelsDir })
-    return c.json(result)
+    const voiceModels = result.voices.map(voice => ({
+      name: voice.name,
+      hasIndex: existsSync(join(env.modelsDir, 'voice_models', voice.name, `${voice.name}.index`)),
+    }))
+    return c.json({
+      ...result,
+      voiceModels,
+    })
   })
 
   const authed = new Hono<HonoEnv>()
@@ -93,28 +118,20 @@ export function createSingingRoutes(singingService: SingingService) {
         if (!file)
           throw createBadRequestError('Missing file in multipart upload', 'MISSING_FILE')
 
-        let params: Record<string, unknown>
-        try {
-          params = paramsRaw ? JSON.parse(paramsRaw) : {}
-        }
-        catch {
-          throw createBadRequestError('Invalid JSON in params field', 'INVALID_JSON')
-        }
+        const params = parseMultipartParams(paramsRaw)
 
         const result = safeParse(CreateCoverMultipartSchema, params)
         if (!result.success)
           throw createBadRequestError('Invalid cover request', 'INVALID_REQUEST', result.issues)
 
-        const { buildUploadsDir, resolveRuntimeEnv: resolveEnv } = await import('@proj-airi/singing')
-        const runtimeEnv = resolveEnv()
         const { randomUUID } = await import('node:crypto')
 
-        const uploadsDir = buildUploadsDir(runtimeEnv.tempDir)
+        const env = resolveRuntimeEnv()
+        const uploadsDir = buildUploadsDir(env.tempDir)
         await mkdir(uploadsDir, { recursive: true })
 
         const uploadId = randomUUID()
-        const ext = file.name.split('.').pop() ?? 'wav'
-        const savedPath = join(uploadsDir, `${uploadId}.${ext}`)
+        const savedPath = buildSafeUploadPath(uploadsDir, uploadId, file.name)
         const arrayBuffer = await file.arrayBuffer()
         await writeFile(savedPath, new Uint8Array(arrayBuffer))
 
@@ -201,12 +218,47 @@ export function createSingingRoutes(singingService: SingingService) {
 
   authed.post('/train', async (c) => {
     try {
-      const body = await c.req.json()
-      const result = safeParse(CreateTrainSchema, body)
-      if (!result.success)
-        throw createBadRequestError('Invalid train request', 'INVALID_REQUEST', result.issues)
+      const contentType = c.req.header('content-type') ?? ''
+      let request: CreateTrainRequest
 
-      const response = await singingService.createTrain(result.output)
+      if (contentType.includes('multipart/form-data')) {
+        const formData = await c.req.formData()
+        const file = formData.get('file') as File | null
+        const paramsRaw = formData.get('params') as string | null
+
+        if (!file)
+          throw createBadRequestError('Missing dataset file in multipart upload', 'MISSING_FILE')
+
+        const params = parseMultipartParams(paramsRaw)
+        const result = safeParse(CreateTrainMultipartSchema, params)
+        if (!result.success)
+          throw createBadRequestError('Invalid train request', 'INVALID_REQUEST', result.issues)
+
+        const { randomUUID } = await import('node:crypto')
+        const env = resolveRuntimeEnv()
+        const uploadsDir = join(env.tempDir, 'training-uploads')
+        await mkdir(uploadsDir, { recursive: true })
+
+        const uploadId = randomUUID()
+        const datasetUri = buildSafeUploadPath(uploadsDir, uploadId, file.name)
+        const arrayBuffer = await file.arrayBuffer()
+        await writeFile(datasetUri, new Uint8Array(arrayBuffer))
+
+        request = {
+          ...result.output,
+          datasetUri,
+        }
+      }
+      else {
+        const body = await c.req.json()
+        const result = safeParse(CreateTrainSchema, body)
+        if (!result.success)
+          throw createBadRequestError('Invalid train request', 'INVALID_REQUEST', result.issues)
+
+        request = result.output
+      }
+
+      const response = await singingService.createTrain(request)
       return c.json(response, 201)
     }
     catch (err) {

@@ -2,7 +2,27 @@
  * Path utilities for the singing pipeline.
  */
 
-import { isAbsolute, join, relative, resolve } from 'node:path'
+import { basename, isAbsolute, join, relative, resolve } from 'node:path'
+
+import { AudioFormat } from '../constants/file-formats'
+
+const SAFE_UPLOAD_EXTENSIONS = new Set([
+  AudioFormat.WAV,
+  AudioFormat.MP3,
+  AudioFormat.FLAC,
+  AudioFormat.OGG,
+  'aac',
+  'aiff',
+  'avi',
+  'm4a',
+  'm4v',
+  'mkv',
+  'mov',
+  'mp4',
+  'webm',
+  'wma',
+])
+const NON_ALPHANUMERIC_REGEX = /[^a-z0-9]/g
 
 /**
  * Build the job directory path: <baseDir>/jobs/<jobId>
@@ -31,6 +51,17 @@ export function resolveContainedPath(baseDir: string, artifactPath: string): str
     return null
 
   return resolvedArtifactPath
+}
+
+/**
+ * Derive a safe extension from user-controlled upload filenames.
+ */
+export function getSafeUploadExtension(fileName: string, fallback: string = AudioFormat.WAV): string {
+  const normalizedFileName = basename(fileName).toLowerCase()
+  const rawExtension = normalizedFileName.split('.').pop() ?? ''
+  const safeExtension = rawExtension.replaceAll(NON_ALPHANUMERIC_REGEX, '')
+
+  return SAFE_UPLOAD_EXTENSIONS.has(safeExtension) ? safeExtension : fallback
 }
 
 /**

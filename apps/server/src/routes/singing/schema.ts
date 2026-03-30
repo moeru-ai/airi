@@ -77,3 +77,9 @@ export const CreateTrainSchema = object({
   epochs: optional(number()),
   batchSize: optional(number()),
 })
+
+export const CreateTrainMultipartSchema = object({
+  voiceId: string(),
+  epochs: optional(number()),
+  batchSize: optional(number()),
+})
