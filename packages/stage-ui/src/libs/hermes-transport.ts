@@ -1,8 +1,14 @@
-import type { HermesReplyRequest, HermesReplyResponse } from '@proj-airi/server-sdk-shared'
+import type {
+  HermesImagePromptRequest,
+  HermesImagePromptResponse,
+  HermesReplyRequest,
+  HermesReplyResponse,
+} from '@proj-airi/server-sdk-shared'
 
 import { HERMES_URL } from './server'
 
 export type HermesReplyTransport = (request: HermesReplyRequest) => Promise<HermesReplyResponse>
+export type HermesImagePromptTransport = (request: HermesImagePromptRequest) => Promise<HermesImagePromptResponse>
 
 export function createStubHermesReply(request: HermesReplyRequest): HermesReplyResponse {
   const userMessage = request.message.content.trim()
@@ -84,5 +90,41 @@ export function createHttpHermesTransport(baseUrl: string = HERMES_URL): HermesR
     }
 
     return await response.json() as HermesReplyResponse
+  }
+}
+
+export async function generateHermesImagePromptViaTransport(
+  request: HermesImagePromptRequest,
+  transport?: HermesImagePromptTransport,
+): Promise<HermesImagePromptResponse> {
+  if (!transport) {
+    return {
+      requestId: request.requestId,
+      route: request.route,
+      prompt: request.prompt,
+      negativePrompt: '',
+      tags: [],
+      sceneType: request.route === 'nsfw' ? 'nsfw' : request.character.relationshipMode,
+    }
+  }
+
+  return await transport(request)
+}
+
+export function createHttpHermesImagePromptTransport(baseUrl: string = HERMES_URL): HermesImagePromptTransport {
+  return async (request) => {
+    const response = await fetch(new URL('/v1/airi/generate-image-prompt', baseUrl), {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Hermes image prompt transport failed with status ${response.status}`)
+    }
+
+    return await response.json() as HermesImagePromptResponse
   }
 }

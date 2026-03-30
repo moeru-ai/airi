@@ -44,6 +44,18 @@ export interface HermesReplyRequest {
   message: HermesConversationMessage
 }
 
+export interface HermesImagePromptRequest {
+  requestId: string
+  route: 'normal' | 'nsfw'
+  user: HermesUserContext
+  character: HermesCharacterContext
+  prompt: string
+  style?: string
+  mood?: string
+  framing?: string
+  aspectRatio?: string
+}
+
 export interface HermesReplyResponse {
   requestId: string
   route: 'normal' | 'nsfw'
@@ -62,6 +74,15 @@ export interface HermesReplyResponse {
     score: number | null
     flags: string[]
   }
+  sceneType?: 'general' | 'romance' | 'roleplay' | 'nsfw' | 'support'
+}
+
+export interface HermesImagePromptResponse {
+  requestId: string
+  route: 'normal' | 'nsfw'
+  prompt: string
+  negativePrompt: string
+  tags: string[]
   sceneType?: 'general' | 'romance' | 'roleplay' | 'nsfw' | 'support'
 }
 
@@ -109,3 +130,4 @@ export const sendMessages = defineInvokeEventa<SendMessagesResponse, SendMessage
 export const pullMessages = defineInvokeEventa<PullMessagesResponse, PullMessagesRequest>('chat:pull-messages')
 export const newMessages = defineOutboundEventa<NewMessagesPayload>('chat:new-messages')
 export const generateHermesReply = defineInvokeEventa<HermesReplyResponse, HermesReplyRequest>('hermes:generate-reply')
+export const generateHermesImagePrompt = defineInvokeEventa<HermesImagePromptResponse, HermesImagePromptRequest>('hermes:generate-image-prompt')

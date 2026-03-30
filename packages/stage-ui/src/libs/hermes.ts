@@ -1,6 +1,7 @@
 import type {
   HermesCharacterContext,
   HermesConversationMessage,
+  HermesImagePromptRequest,
   HermesReplyRequest,
   HermesUserContext,
 } from '@proj-airi/server-sdk-shared'
@@ -73,6 +74,18 @@ export interface BuildHermesReplyRequestOptions {
   message: ChatHistoryItem
 }
 
+export interface BuildHermesImagePromptRequestOptions {
+  route?: HermesImagePromptRequest['route']
+  requestId?: string
+  user: Partial<HermesUserContext> & Pick<HermesUserContext, 'id'>
+  character: Character
+  prompt: string
+  style?: string
+  mood?: string
+  framing?: string
+  aspectRatio?: string
+}
+
 export function buildHermesReplyRequest(options: BuildHermesReplyRequestOptions): HermesReplyRequest {
   return {
     requestId: options.requestId ?? nanoid(),
@@ -90,5 +103,25 @@ export function buildHermesReplyRequest(options: BuildHermesReplyRequestOptions)
       recentMessages: options.recentMessages.map(toHermesConversationMessage),
     },
     message: toHermesConversationMessage(options.message),
+  }
+}
+
+export function buildHermesImagePromptRequest(options: BuildHermesImagePromptRequestOptions): HermesImagePromptRequest {
+  return {
+    requestId: options.requestId ?? nanoid(),
+    route: options.route ?? (options.character.nsfwEnabled && options.character.nsfwLevel !== 'none' ? 'nsfw' : 'normal'),
+    user: {
+      id: options.user.id,
+      adultVerified: options.user.adultVerified ?? false,
+      allowSensitiveContent: options.user.allowSensitiveContent ?? false,
+      subscriptionTier: options.user.subscriptionTier ?? 'free',
+      contentTier: options.user.contentTier ?? 'standard',
+    },
+    character: toHermesCharacterContext(options.character),
+    prompt: options.prompt,
+    style: options.style,
+    mood: options.mood,
+    framing: options.framing,
+    aspectRatio: options.aspectRatio,
   }
 }

@@ -188,5 +188,7 @@ Role:
   - stack decisions and model strategy
 - `docs/content/en/nsfw-companion-todo.md`
   - implementation checklist
+- `docs/content/en/nsfw-memory-schema.md`
+  - memory ownership split for Hermes, ClawMem, and AIRI
 - `docs/content/en/nsfw-companion-index.md`
   - this file index

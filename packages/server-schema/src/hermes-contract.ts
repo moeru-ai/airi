@@ -115,6 +115,18 @@ export const HermesReplyRequestSchema = object({
   message: HermesConversationMessageSchema,
 })
 
+export const HermesImagePromptRequestSchema = object({
+  requestId: string(),
+  route: HermesRouteSchema,
+  user: HermesUserContextSchema,
+  character: HermesCharacterContextSchema,
+  prompt: string(),
+  style: optional(string()),
+  mood: optional(string()),
+  framing: optional(string()),
+  aspectRatio: optional(string()),
+})
+
 export const HermesRuntimeSelectionSchema = object({
   replyModel: string(),
   routerModel: string(),
@@ -142,6 +154,15 @@ export const HermesReplyResponseSchema = object({
   sceneType: optional(HermesSceneTypeSchema),
 })
 
+export const HermesImagePromptResponseSchema = object({
+  requestId: string(),
+  route: HermesRouteSchema,
+  prompt: string(),
+  negativePrompt: string(),
+  tags: array(string()),
+  sceneType: optional(HermesSceneTypeSchema),
+})
+
 export type HermesRoute = InferOutput<typeof HermesRouteSchema>
 export type HermesSubscriptionTier = InferOutput<typeof HermesSubscriptionTierSchema>
 export type HermesContentTier = InferOutput<typeof HermesContentTierSchema>
@@ -151,7 +172,9 @@ export type HermesCharacterContext = InferOutput<typeof HermesCharacterContextSc
 export type HermesConversationMessage = InferOutput<typeof HermesConversationMessageSchema>
 export type HermesConversationContext = InferOutput<typeof HermesConversationContextSchema>
 export type HermesReplyRequest = InferOutput<typeof HermesReplyRequestSchema>
+export type HermesImagePromptRequest = InferOutput<typeof HermesImagePromptRequestSchema>
 export type HermesRuntimeSelection = InferOutput<typeof HermesRuntimeSelectionSchema>
 export type HermesMemoryUpdates = InferOutput<typeof HermesMemoryUpdatesSchema>
 export type HermesJudgeResult = InferOutput<typeof HermesJudgeResultSchema>
 export type HermesReplyResponse = InferOutput<typeof HermesReplyResponseSchema>
+export type HermesImagePromptResponse = InferOutput<typeof HermesImagePromptResponseSchema>
