@@ -45,6 +45,14 @@ const starterMessages = computed(() => character.value?.personaProfile?.starterM
 const boundaries = computed(() => character.value?.personaProfile?.boundaries || [])
 const liked = computed(() => !!character.value?.likes?.some(item => item.userId === authStore.user?.id))
 const bookmarked = computed(() => !!character.value?.bookmarks?.some(item => item.userId === authStore.user?.id))
+
+async function enterStage() {
+  if (!character.value)
+    return
+
+  await characterStore.activateCharacter(character.value.id)
+  router.push('/')
+}
 </script>
 
 <template>
@@ -128,7 +136,7 @@ const bookmarked = computed(() => !!character.value?.bookmarks?.some(item => ite
             </div>
 
             <div class="flex flex-wrap gap-3">
-              <Button @click="router.push('/')">
+              <Button @click="enterStage">
                 Enter Stage
               </Button>
               <Button variant="ghost" class="bg-white/10 text-white hover:bg-white/15" @click="router.push('/settings/characters')">

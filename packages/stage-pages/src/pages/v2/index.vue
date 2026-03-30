@@ -41,6 +41,11 @@ onMounted(() => {
   characterStore.fetchList(true)
 })
 
+async function openCharacter(id: string) {
+  await characterStore.activateCharacter(id)
+  router.push(`/v2/${id}`)
+}
+
 const characters = computed(() => Array.from(characterStore.characters.values())
   .filter((char) => {
     if (activeFilter.value === 'all')
@@ -284,7 +289,7 @@ const filters = [
                         'pl-1.5 pr-2 py-1 rounded-full',
                         'bg-neutral-900/50',
                       ]"
-                      @click="router.push(`/v2/${character.id}`)"
+                      @click="openCharacter(character.id)"
                     >
                       <div :class="['i-solar:chat-square-bold text-xs inline-block text-neutral-100 dark:text-neutral-900']" />
                       <span :class="['text-xs', 'text-neutral-100 dark:text-neutral-900']">Open</span>

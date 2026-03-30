@@ -1,15 +1,18 @@
+import type { Card } from '@proj-airi/ccc'
 import type { Character, CreateCharacterPayload, UpdateCharacterPayload } from '../types/character'
 
+import { useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
 import { parse } from 'valibot'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import { client } from '../composables/api'
 import { useLocalFirstRequest } from '../composables/use-local-first'
 import { charactersRepo } from '../database/repos/characters.repo'
 import { CharacterWithRelationsSchema } from '../types/character'
 import { useAuthStore } from './auth'
+import { useAiriCardStore } from './modules/airi-card'
 
 function buildLocalCharacter(userId: string, payload: CreateCharacterPayload) {
   const id = payload.character.id ?? nanoid()
@@ -80,6 +83,108 @@ function buildLocalCharacter(userId: string, payload: CreateCharacterPayload) {
 export const useCharacterStore = defineStore('characters', () => {
   const characters = ref<Map<string, Character>>(new Map())
   const auth = useAuthStore()
+  const cardStore = useAiriCardStore()
+  const runtimeCardLinks = useLocalStorage<Record<string, string>>('characters/v1/runtime-card-links', {})
+
+  function getCharacterDisplayInfo(character: Character) {
+    const i18n = character.i18n?.find(item => item.language === 'en') || character.i18n?.[0]
+    return {
+      name: i18n?.name || character.characterId,
+      description: i18n?.description || '',
+      tags: i18n?.tags || [],
+    }
+  }
+
+  function buildRuntimeCard(character: Character): Card {
+    const info = getCharacterDisplayInfo(character)
+    const llmCapability = character.capabilities?.find(capability => capability.type === 'llm')
+    const ttsCapability = character.capabilities?.find(capability => capability.type === 'tts')
+    const greetings = character.personaProfile?.starterMessages?.length
+      ? character.personaProfile.starterMessages
+      : character.prompts
+          ?.filter(prompt => prompt.type === 'greetings')
+          .map(prompt => prompt.content)
+          .filter(Boolean)
+
+    return {
+      name: info.name,
+      version: character.version,
+      creator: character.creatorRole || 'AIRI Character',
+      description: info.description,
+      personality: character.personaProfile?.personality || info.description,
+      scenario: character.personaProfile?.scenario,
+      systemPrompt: character.prompts?.find(prompt => prompt.type === 'system')?.content,
+      greetings,
+      tags: [
+        ...info.tags,
+        character.relationshipMode,
+        ...(character.nsfwEnabled ? [character.nsfwLevel] : []),
+      ].filter(Boolean),
+      metadata: {
+        source: 'character-store',
+        sourceCharacterId: character.id,
+      },
+      extensions: {
+        airi: {
+          modules: {
+            consciousness: {
+              provider: cardStore.currentModels.consciousness.provider,
+              model: llmCapability?.config.llm?.model || cardStore.currentModels.consciousness.model,
+            },
+            speech: {
+              provider: cardStore.currentModels.speech.provider,
+              model: cardStore.currentModels.speech.model,
+              voice_id: ttsCapability?.config.tts?.voiceId || cardStore.currentModels.speech.voice_id,
+              pitch: ttsCapability?.config.tts?.pitch,
+              rate: ttsCapability?.config.tts?.speed,
+              ssml: !!ttsCapability?.config.tts?.ssml,
+            },
+            displayModelId: cardStore.currentModels.displayModelId,
+          },
+          agents: {},
+        },
+      },
+    }
+  }
+
+  function ensureRuntimeCard(character: Character) {
+    const existingCardId = runtimeCardLinks.value[character.id]
+    const runtimeCard = buildRuntimeCard(character)
+
+    if (existingCardId && cardStore.getCard(existingCardId)) {
+      cardStore.updateCard(existingCardId, runtimeCard)
+      return existingCardId
+    }
+
+    const newCardId = cardStore.addCard(runtimeCard)
+    runtimeCardLinks.value = {
+      ...runtimeCardLinks.value,
+      [character.id]: newCardId,
+    }
+    return newCardId
+  }
+
+  async function activateCharacter(id: string) {
+    let character = characters.value.get(id)
+    if (!character)
+      character = await fetchById(id)
+
+    if (!character)
+      throw new Error('Character not found')
+
+    const runtimeCardId = ensureRuntimeCard(character)
+    cardStore.activeCardId = runtimeCardId
+    return runtimeCardId
+  }
+
+  function isCharacterActive(id: string) {
+    return runtimeCardLinks.value[id] != null && runtimeCardLinks.value[id] === cardStore.activeCardId
+  }
+
+  const activeCharacterId = computed(() => {
+    const entry = Object.entries(runtimeCardLinks.value).find(([, cardId]) => cardId === cardStore.activeCardId)
+    return entry?.[0] || null
+  })
 
   async function fetchList(all: boolean = false) {
     return useLocalFirstRequest({
@@ -194,6 +299,8 @@ export const useCharacterStore = defineStore('characters', () => {
         character.updatedAt = new Date()
         characters.value.set(character.id, character)
         await charactersRepo.upsert(character)
+        if (isCharacterActive(character.id))
+          ensureRuntimeCard(character)
         return character
       },
       remote: async () => {
@@ -210,6 +317,8 @@ export const useCharacterStore = defineStore('characters', () => {
 
         characters.value.set(character.id, character)
         await charactersRepo.upsert(character)
+        if (isCharacterActive(character.id))
+          ensureRuntimeCard(character)
         return character
       },
     })
@@ -304,6 +413,7 @@ export const useCharacterStore = defineStore('characters', () => {
 
   return {
     characters,
+    activeCharacterId,
 
     fetchList,
     fetchById,
@@ -312,6 +422,8 @@ export const useCharacterStore = defineStore('characters', () => {
     remove,
     like,
     bookmark,
+    activateCharacter,
+    isCharacterActive,
     getCharacter,
   }
 })

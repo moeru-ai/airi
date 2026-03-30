@@ -13,6 +13,7 @@ import {
 } from 'reka-ui'
 import { safeParse } from 'valibot'
 import { computed, reactive, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 
 interface Props {
   modelValue: boolean
@@ -33,8 +34,6 @@ const form = reactive({
   version: '1.0.0',
   coverUrl: '',
   visibility: 'private' as 'private' | 'public' | 'unlisted',
-  nsfwEnabled: false,
-  nsfwLevel: 'none' as 'none' | 'suggestive' | 'explicit',
   relationshipMode: 'companion' as 'companion' | 'romance' | 'roleplay',
   name: '',
   description: '',
@@ -64,8 +63,6 @@ watch(() => props.character, (char) => {
     form.version = char.version
     form.coverUrl = char.coverUrl
     form.visibility = char.visibility
-    form.nsfwEnabled = char.nsfwEnabled
-    form.nsfwLevel = char.nsfwLevel
     form.relationshipMode = char.relationshipMode
     form.name = i18n?.name || ''
     form.description = i18n?.description || ''
@@ -87,8 +84,6 @@ watch(() => props.character, (char) => {
     form.version = '1.0.0'
     form.coverUrl = ''
     form.visibility = 'private'
-    form.nsfwEnabled = false
-    form.nsfwLevel = 'none'
     form.relationshipMode = 'companion'
     form.name = ''
     form.description = ''
@@ -118,8 +113,6 @@ async function handleSubmit() {
       version: form.version,
       coverUrl: form.coverUrl,
       visibility: form.visibility,
-      nsfwEnabled: form.nsfwEnabled,
-      nsfwLevel: form.nsfwLevel,
       relationshipMode: form.relationshipMode,
       personaProfile: {
         personality: form.personality || undefined,
@@ -197,8 +190,6 @@ async function handleSubmit() {
         version: form.version,
         coverUrl: form.coverUrl,
         visibility: form.visibility,
-        nsfwEnabled: form.nsfwEnabled,
-        nsfwLevel: form.nsfwLevel,
         relationshipMode: form.relationshipMode,
         personaProfile: {
           personality: form.personality || undefined,
@@ -330,26 +321,12 @@ const isOpen = computed({
                   </div>
                 </div>
 
-                <div class="grid grid-cols-[auto,1fr] items-center gap-4 rounded-xl bg-neutral-50 px-4 py-3 dark:bg-neutral-800/60">
-                  <label class="text-sm text-neutral-700 font-medium dark:text-neutral-300">Enable NSFW</label>
-                  <div class="flex items-center justify-end">
-                    <input v-model="form.nsfwEnabled" type="checkbox" class="h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500">
-                  </div>
-                </div>
-
-                <div class="flex flex-col gap-1.5">
-                  <label class="text-sm text-neutral-700 font-medium dark:text-neutral-300">NSFW Level</label>
-                  <select v-model="form.nsfwLevel" :disabled="!form.nsfwEnabled" class="w-full border border-neutral-200 rounded-lg bg-white px-3 py-2 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 focus:border-primary-500 dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20">
-                    <option value="none">
-                      None
-                    </option>
-                    <option value="suggestive">
-                      Suggestive
-                    </option>
-                    <option value="explicit">
-                      Explicit
-                    </option>
-                  </select>
+                <div class="rounded-xl bg-neutral-50 px-4 py-3 text-sm text-neutral-600 leading-6 dark:bg-neutral-800/60 dark:text-neutral-300">
+                  NSFW-specific settings live in the separate
+                  <RouterLink to="/nsfw" class="text-primary-600 font-medium underline decoration-dotted dark:text-primary-400">
+                    NSFW workspace
+                  </RouterLink>
+                  so your normal character flow stays clean.
                 </div>
               </div>
 
