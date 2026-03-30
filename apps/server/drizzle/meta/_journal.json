@@ -64,6 +64,13 @@
       "when": 1774800000000,
       "tag": "0008_lazy_wallflower",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1774803600000,
+      "tag": "0009_nsfw_user_gating",
+      "breakpoints": true
     }
   ]
 }

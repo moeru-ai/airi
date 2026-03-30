@@ -1,5 +1,7 @@
 export * from './audio/manager'
 export * from './color-from-element'
+export * from './hermes'
+export * from './hermes-transport'
 export * from './providers'
 export * from './workers/types'
 export * from './workers/worker'

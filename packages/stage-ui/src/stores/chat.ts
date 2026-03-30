@@ -1,3 +1,4 @@
+import type { HermesReplyRequest, HermesReplyResponse } from '@proj-airi/server-sdk-shared'
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { CommonContentPart, Message, ToolMessage } from '@xsai/shared-chat'
@@ -11,11 +12,17 @@ import { defineStore, storeToRefs } from 'pinia'
 import { ref, toRaw } from 'vue'
 
 import { useAnalytics } from '../composables'
+import { buildHermesReplyRequest } from '../libs/hermes'
+import { createHttpHermesTransport, generateHermesReplyViaTransport } from '../libs/hermes-transport'
+import { USE_HERMES_CHAT } from '../libs/server'
 import { useLlmmarkerParser } from '../composables/llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from '../composables/response-categoriser'
+import { useAuthStore } from './auth'
+import { useCharacterStore } from './characters'
 import { createDatetimeContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { createChatHooks } from './chat/hooks'
+import { useHermesMemoryStore } from './chat/hermes-memory-store'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { useLLM } from './llm'
@@ -28,6 +35,8 @@ interface SendOptions {
   attachments?: { type: 'image', data: string, mimeType: string }[]
   tools?: StreamOptions['tools']
   input?: WebSocketEventInputs
+  useHermes?: boolean
+  hermesRoute?: HermesReplyRequest['route']
 }
 
 interface ForkOptions {
@@ -54,10 +63,13 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const consciousnessStore = useConsciousnessStore()
   const { activeProvider } = storeToRefs(consciousnessStore)
   const { trackFirstMessage } = useAnalytics()
+  const authStore = useAuthStore()
+  const characterStore = useCharacterStore()
 
   const chatSession = useChatSessionStore()
   const chatStream = useChatStreamStore()
   const chatContext = useChatContextStore()
+  const hermesMemoryStore = useHermesMemoryStore()
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
 
@@ -288,6 +300,55 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       await hooks.emitAfterMessageComposedHooks(sendingMessage, streamingMessageContext)
       await hooks.emitBeforeSendHooks(sendingMessage, streamingMessageContext)
 
+      if (options.useHermes || USE_HERMES_CHAT) {
+        const hermesResponse = await generateHermesReplyForSession(sendingMessage, {
+          sessionId,
+          route: options.hermesRoute,
+          transport: createHttpHermesTransport(),
+        })
+
+        if (!hermesResponse)
+          throw new Error('Failed to generate Hermes reply request')
+
+        if (shouldAbort())
+          return
+
+        hermesMemoryStore.applyResponse(sessionId, hermesResponse)
+        const memoryContext = hermesMemoryStore.createContextMessage(sessionId)
+        if (memoryContext)
+          chatContext.ingestContextMessage(memoryContext)
+
+        buildingMessage.content = hermesResponse.reply.content
+        buildingMessage.slices = hermesResponse.reply.content
+          ? [{
+              type: 'text',
+              text: hermesResponse.reply.content,
+            }]
+          : []
+
+        updateUI()
+
+        if (!isStaleGeneration()) {
+          chatSession.appendSessionMessage(sessionId, toRaw(buildingMessage))
+        }
+
+        await hooks.emitStreamEndHooks(streamingMessageContext)
+        await hooks.emitAssistantResponseEndHooks(hermesResponse.reply.content, streamingMessageContext)
+        await hooks.emitAfterSendHooks(sendingMessage, streamingMessageContext)
+        await hooks.emitAssistantMessageHooks({ ...buildingMessage }, hermesResponse.reply.content, streamingMessageContext)
+        await hooks.emitChatTurnCompleteHooks({
+          output: { ...buildingMessage },
+          outputText: hermesResponse.reply.content,
+          toolCalls: [],
+        }, streamingMessageContext)
+
+        if (isForegroundSession()) {
+          streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
+        }
+
+        return
+      }
+
       let fullText = ''
       const headers = (options.providerConfig?.headers || {}) as Record<string, string>
 
@@ -410,11 +471,90 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       : []
   }
 
+  function buildHermesRequestForSession(
+    sendingMessage: string,
+    options: {
+      sessionId?: string
+      route?: HermesReplyRequest['route']
+      adultVerified?: boolean
+      allowSensitiveContent?: boolean
+      subscriptionTier?: HermesReplyRequest['user']['subscriptionTier']
+    } = {},
+  ) {
+    const sessionId = options.sessionId ?? activeSessionId.value
+    if (!sessionId)
+      return null
+
+    const activeCharacterId = characterStore.activeCharacterId
+    if (!activeCharacterId)
+      return null
+
+    const character = characterStore.getCharacter(activeCharacterId)
+    if (!character)
+      return null
+
+    const sessionMessages = chatSession.getSessionMessages(sessionId)
+    const lastMessage = sessionMessages.at(-1)
+    const recentMessages = lastMessage?.role === 'user' && typeof lastMessage.content === 'string' && lastMessage.content === sendingMessage
+      ? sessionMessages.slice(0, -1)
+      : sessionMessages
+
+    return buildHermesReplyRequest({
+      route: options.route,
+      user: {
+        id: authStore.userId,
+        adultVerified: options.adultVerified ?? authStore.adultVerified,
+        allowSensitiveContent: options.allowSensitiveContent ?? authStore.allowSensitiveContent,
+        subscriptionTier: options.subscriptionTier,
+        contentTier: authStore.contentTier,
+      },
+      character,
+      conversationId: sessionId,
+      recentMessages,
+      message: {
+        role: 'user',
+        content: sendingMessage,
+      },
+    })
+  }
+
+  async function generateHermesReplyForSession(
+    sendingMessage: string,
+    options: {
+      sessionId?: string
+      route?: HermesReplyRequest['route']
+      adultVerified?: boolean
+      allowSensitiveContent?: boolean
+      subscriptionTier?: HermesReplyRequest['user']['subscriptionTier']
+      transport?: (request: HermesReplyRequest) => Promise<HermesReplyResponse>
+    } = {},
+  ) {
+    const request = buildHermesRequestForSession(sendingMessage, options)
+    if (!request)
+      return null
+
+    return await generateHermesReplyViaTransport(request, options.transport)
+  }
+
+  async function ingestViaHermes(
+    sendingMessage: string,
+    options: Omit<SendOptions, 'useHermes'>,
+    targetSessionId?: string,
+  ) {
+    return await ingest(sendingMessage, {
+      ...options,
+      useHermes: true,
+    }, targetSessionId)
+  }
+
   return {
     sending,
 
     ingest,
+    ingestViaHermes,
     ingestOnFork,
+    buildHermesRequestForSession,
+    generateHermesReplyForSession,
     cancelPendingSends,
 
     clearHooks: hooks.clearHooks,

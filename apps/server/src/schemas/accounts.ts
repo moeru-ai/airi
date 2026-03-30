@@ -1,11 +1,16 @@
 import { relations } from 'drizzle-orm'
 import { boolean, index, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 
+const contentTierEnum = ['standard', 'sensitive', 'explicit'] as const
+
 export const user = pgTable('user', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
   emailVerified: boolean('email_verified').default(false).notNull(),
+  adultVerified: boolean('adult_verified').default(false).notNull(),
+  allowSensitiveContent: boolean('allow_sensitive_content').default(false).notNull(),
+  contentTier: text('content_tier', { enum: contentTierEnum }).default('standard').notNull(),
   image: text('image'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at')

@@ -10,6 +10,7 @@ import type { ChatService } from './services/chats'
 import type { ConfigKVService } from './services/config-kv'
 import type { FluxService } from './services/flux'
 import type { FluxTransactionService } from './services/flux-transaction'
+import type { Database } from './libs/db'
 import type { ProviderService } from './services/providers'
 import type { StripeService } from './services/stripe'
 import type { HonoEnv } from './types/hono'
@@ -41,6 +42,7 @@ import { createFluxRoutes } from './routes/flux'
 import { createV1CompletionsRoutes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
+import { createUserRoutes } from './routes/users'
 import { createBillingMq } from './services/billing/billing-events'
 import { createBillingService } from './services/billing/billing-service'
 import { createCharacterService } from './services/characters'
@@ -55,6 +57,7 @@ import { ApiError, createInternalError, createUnauthorizedError } from './utils/
 import { getTrustedOrigin } from './utils/origin'
 
 interface AppDeps {
+  db: Database
   auth: ReturnType<typeof createAuth>
   characterService: CharacterService
   chatService: ChatService
@@ -190,6 +193,11 @@ async function buildApp(deps: AppDeps) {
      * Provider routes are handled by the provider service.
      */
     .route('/api/v1/providers', createProviderRoutes(deps.providerService))
+
+    /**
+     * Current user settings routes.
+     */
+    .route('/api/v1/users', createUserRoutes(deps.db))
 
     /**
      * Chat routes are handled by the chat service.
@@ -370,6 +378,7 @@ export async function createApp() {
     otel,
   })
   const { app, injectWebSocket } = await buildApp({
+    db: resolved.db,
     auth: resolved.auth,
     characterService: resolved.characterService,
     chatService: resolved.chatService,

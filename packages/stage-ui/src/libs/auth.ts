@@ -84,6 +84,10 @@ export async function fetchSession() {
   if (data) {
     authStore.user = data.user
     authStore.session = data.session
+    try {
+      await authStore.fetchProfile()
+    }
+    catch {}
     return true
   }
 

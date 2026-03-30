@@ -22,6 +22,15 @@ export const useAuthStore = defineStore('auth', () => {
   const token = useLocalStorage<string | null>('auth/v1/token', null)
   const isAuthenticated = computed(() => !!user.value && !!session.value)
   const userId = computed(() => user.value?.id ?? 'local')
+  const profile = computed(() => (user.value ?? {}) as User & {
+    adultVerified?: boolean
+    allowSensitiveContent?: boolean
+    contentTier?: 'standard' | 'sensitive' | 'explicit'
+  })
+  const adultVerified = computed(() => profile.value.adultVerified ?? false)
+  const allowSensitiveContent = computed(() => profile.value.allowSensitiveContent ?? false)
+  const contentTier = computed<'standard' | 'sensitive' | 'explicit'>(() => profile.value.contentTier ?? 'standard')
+  const canAccessNsfw = computed(() => adultVerified.value && allowSensitiveContent.value && contentTier.value !== 'standard')
 
   const credits = useLocalStorage<number>('user/v1/flux', 0)
 
@@ -95,6 +104,44 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  const fetchProfile = async () => {
+    if (!isAuthenticated.value)
+      return null
+
+    const res = await client.api.v1.users.me.$get()
+    if (!res.ok)
+      throw new Error('Failed to fetch user profile')
+
+    const data = await res.json()
+    user.value = {
+      ...(user.value ?? {}),
+      ...data,
+    } as User
+    return user.value
+  }
+
+  const updateProfile = async (input: {
+    adultVerified: boolean
+    allowSensitiveContent: boolean
+    contentTier: 'standard' | 'sensitive' | 'explicit'
+  }) => {
+    if (!isAuthenticated.value)
+      throw new Error('Not authenticated')
+
+    const res = await client.api.v1.users.me.$patch({
+      json: input,
+    })
+    if (!res.ok)
+      throw new Error('Failed to update user profile')
+
+    const data = await res.json()
+    user.value = {
+      ...(user.value ?? {}),
+      ...data,
+    } as User
+    return user.value
+  }
+
   watch(isAuthenticated, async (val) => {
     if (val) {
       updateCredits()
@@ -109,11 +156,18 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     user,
     userId,
+    profile,
     session,
     token,
     isAuthenticated,
+    adultVerified,
+    allowSensitiveContent,
+    contentTier,
+    canAccessNsfw,
     credits,
     updateCredits,
+    fetchProfile,
+    updateProfile,
     needsLogin,
     onAuthenticated,
     onLogout,
