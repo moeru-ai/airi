@@ -32,8 +32,17 @@ const form = reactive({
   characterId: '',
   version: '1.0.0',
   coverUrl: '',
+  visibility: 'private' as 'private' | 'public' | 'unlisted',
+  nsfwEnabled: false,
+  nsfwLevel: 'none' as 'none' | 'suggestive' | 'explicit',
+  relationshipMode: 'companion' as 'companion' | 'romance' | 'roleplay',
   name: '',
   description: '',
+  personality: '',
+  scenario: '',
+  speakingStyle: '',
+  starterMessages: '',
+  boundaries: '',
 
   // Capability: LLM
   llmModel: '',
@@ -54,8 +63,17 @@ watch(() => props.character, (char) => {
     form.characterId = char.characterId
     form.version = char.version
     form.coverUrl = char.coverUrl
+    form.visibility = char.visibility
+    form.nsfwEnabled = char.nsfwEnabled
+    form.nsfwLevel = char.nsfwLevel
+    form.relationshipMode = char.relationshipMode
     form.name = i18n?.name || ''
     form.description = i18n?.description || ''
+    form.personality = char.personaProfile?.personality || ''
+    form.scenario = char.personaProfile?.scenario || ''
+    form.speakingStyle = char.personaProfile?.speakingStyle || ''
+    form.starterMessages = char.personaProfile?.starterMessages?.join('\n') || ''
+    form.boundaries = char.personaProfile?.boundaries?.join('\n') || ''
 
     form.llmModel = llm?.config.llm?.model || ''
     form.llmTemperature = llm?.config.llm?.temperature || 0.7
@@ -68,8 +86,17 @@ watch(() => props.character, (char) => {
     form.characterId = ''
     form.version = '1.0.0'
     form.coverUrl = ''
+    form.visibility = 'private'
+    form.nsfwEnabled = false
+    form.nsfwLevel = 'none'
+    form.relationshipMode = 'companion'
     form.name = ''
     form.description = ''
+    form.personality = ''
+    form.scenario = ''
+    form.speakingStyle = ''
+    form.starterMessages = ''
+    form.boundaries = ''
     form.llmModel = 'gpt-4o-mini'
     form.llmTemperature = 0.7
     form.ttsVoiceId = ''
@@ -90,6 +117,24 @@ async function handleSubmit() {
       characterId: form.characterId,
       version: form.version,
       coverUrl: form.coverUrl,
+      visibility: form.visibility,
+      nsfwEnabled: form.nsfwEnabled,
+      nsfwLevel: form.nsfwLevel,
+      relationshipMode: form.relationshipMode,
+      personaProfile: {
+        personality: form.personality || undefined,
+        scenario: form.scenario || undefined,
+        speakingStyle: form.speakingStyle || undefined,
+        starterMessages: form.starterMessages
+          .split('\n')
+          .map(item => item.trim())
+          .filter(Boolean),
+        boundaries: form.boundaries
+          .split('\n')
+          .map(item => item.trim())
+          .filter(Boolean),
+        memoryProfile: form.relationshipMode === 'romance' ? 'deep' : 'standard',
+      },
     },
     i18n: [{
       language: 'en',
@@ -151,6 +196,24 @@ async function handleSubmit() {
         characterId: form.characterId,
         version: form.version,
         coverUrl: form.coverUrl,
+        visibility: form.visibility,
+        nsfwEnabled: form.nsfwEnabled,
+        nsfwLevel: form.nsfwLevel,
+        relationshipMode: form.relationshipMode,
+        personaProfile: {
+          personality: form.personality || undefined,
+          scenario: form.scenario || undefined,
+          speakingStyle: form.speakingStyle || undefined,
+          starterMessages: form.starterMessages
+            .split('\n')
+            .map(item => item.trim())
+            .filter(Boolean),
+          boundaries: form.boundaries
+            .split('\n')
+            .map(item => item.trim())
+            .filter(Boolean),
+          memoryProfile: form.relationshipMode === 'romance' ? 'deep' : 'standard',
+        },
       })
       // Capabilities/I18n update not supported in simple UpdateCharacterSchema yet?
       // Checking types/character.ts: UpdateCharacterSchema only has version, coverUrl, characterId.
@@ -179,6 +242,7 @@ async function handleSubmit() {
 const activeTab = ref('identity')
 const tabs = [
   { id: 'identity', label: 'Identity', icon: 'i-solar:user-id-bold-duotone' },
+  { id: 'persona', label: 'Persona', icon: 'i-solar:mask-happly-bold-duotone' },
   { id: 'capabilities', label: 'Capabilities', icon: 'i-solar:cpu-bolt-bold-duotone' },
   // { id: 'models', label: 'Models', icon: 'i-solar:box-minimalistic-bold-duotone' },
 ]
@@ -233,6 +297,68 @@ const isOpen = computed({
                 <FieldInput v-model="form.name" label="Name (EN)" placeholder="Character Name" required />
                 <FieldInput v-model="form.description" label="Description" type="textarea" placeholder="Short description..." />
                 <FieldInput v-model="form.coverUrl" label="Cover URL" placeholder="https://..." />
+
+                <div class="grid grid-cols-2 gap-4">
+                  <div class="flex flex-col gap-1.5">
+                    <label class="text-sm text-neutral-700 font-medium dark:text-neutral-300">Visibility</label>
+                    <select v-model="form.visibility" class="w-full border border-neutral-200 rounded-lg bg-white px-3 py-2 text-sm outline-none dark:border-neutral-700 focus:border-primary-500 dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20">
+                      <option value="private">
+                        Private
+                      </option>
+                      <option value="unlisted">
+                        Unlisted
+                      </option>
+                      <option value="public">
+                        Public
+                      </option>
+                    </select>
+                  </div>
+
+                  <div class="flex flex-col gap-1.5">
+                    <label class="text-sm text-neutral-700 font-medium dark:text-neutral-300">Relationship Mode</label>
+                    <select v-model="form.relationshipMode" class="w-full border border-neutral-200 rounded-lg bg-white px-3 py-2 text-sm outline-none dark:border-neutral-700 focus:border-primary-500 dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20">
+                      <option value="companion">
+                        Companion
+                      </option>
+                      <option value="romance">
+                        Romance
+                      </option>
+                      <option value="roleplay">
+                        Roleplay
+                      </option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-[auto,1fr] items-center gap-4 rounded-xl bg-neutral-50 px-4 py-3 dark:bg-neutral-800/60">
+                  <label class="text-sm text-neutral-700 font-medium dark:text-neutral-300">Enable NSFW</label>
+                  <div class="flex items-center justify-end">
+                    <input v-model="form.nsfwEnabled" type="checkbox" class="h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500">
+                  </div>
+                </div>
+
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-sm text-neutral-700 font-medium dark:text-neutral-300">NSFW Level</label>
+                  <select v-model="form.nsfwLevel" :disabled="!form.nsfwEnabled" class="w-full border border-neutral-200 rounded-lg bg-white px-3 py-2 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 focus:border-primary-500 dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20">
+                    <option value="none">
+                      None
+                    </option>
+                    <option value="suggestive">
+                      Suggestive
+                    </option>
+                    <option value="explicit">
+                      Explicit
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              <div v-show="activeTab === 'persona'" class="space-y-4">
+                <FieldInput v-model="form.personality" label="Personality" type="textarea" placeholder="Playful, affectionate, teasing, confident..." />
+                <FieldInput v-model="form.scenario" label="Scenario" type="textarea" placeholder="What world or dynamic does this companion live in?" />
+                <FieldInput v-model="form.speakingStyle" label="Speaking Style" placeholder="Warm, direct, bratty, elegant..." />
+                <FieldInput v-model="form.starterMessages" label="Starter Messages" type="textarea" placeholder="One per line. These will seed the first interaction." />
+                <FieldInput v-model="form.boundaries" label="Boundaries" type="textarea" placeholder="One per line. Use this to set hard stops or no-go zones." />
               </div>
 
               <!-- Capabilities Tab -->

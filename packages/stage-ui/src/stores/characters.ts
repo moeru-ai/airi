@@ -24,10 +24,15 @@ function buildLocalCharacter(userId: string, payload: CreateCharacterPayload) {
     coverBackgroundUrl: undefined,
     creatorRole: undefined,
     priceCredit: '0',
+    visibility: payload.character.visibility ?? 'private',
+    nsfwEnabled: payload.character.nsfwEnabled ?? false,
+    nsfwLevel: payload.character.nsfwLevel ?? 'none',
+    relationshipMode: payload.character.relationshipMode ?? 'companion',
     likesCount: 0,
     bookmarksCount: 0,
     interactionsCount: 0,
     forksCount: 0,
+    personaProfile: payload.character.personaProfile ?? {},
     creatorId: userId,
     ownerId: userId,
     characterId: payload.character.characterId,
@@ -176,6 +181,16 @@ export const useCharacterStore = defineStore('characters', () => {
           character.coverUrl = payload.coverUrl
         if (payload.characterId !== undefined)
           character.characterId = payload.characterId
+        if (payload.visibility !== undefined)
+          character.visibility = payload.visibility
+        if (payload.nsfwEnabled !== undefined)
+          character.nsfwEnabled = payload.nsfwEnabled
+        if (payload.nsfwLevel !== undefined)
+          character.nsfwLevel = payload.nsfwLevel
+        if (payload.relationshipMode !== undefined)
+          character.relationshipMode = payload.relationshipMode
+        if (payload.personaProfile !== undefined)
+          character.personaProfile = payload.personaProfile
         character.updatedAt = new Date()
         characters.value.set(character.id, character)
         await charactersRepo.upsert(character)

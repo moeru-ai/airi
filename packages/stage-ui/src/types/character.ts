@@ -1,6 +1,6 @@
 import type { InferOutput } from 'valibot'
 
-import { array, date, literal, number, object, optional, pipe, string, transform, union } from 'valibot'
+import { array, boolean, date, literal, number, object, optional, pipe, string, transform, union } from 'valibot'
 
 // --- Enums & Configs ---
 
@@ -52,6 +52,30 @@ const PromptTypeSchema = union([
   literal('greetings'),
 ])
 
+const CharacterVisibilitySchema = union([
+  literal('private'),
+  literal('public'),
+  literal('unlisted'),
+])
+
+const CharacterNsfwLevelSchema = union([
+  literal('none'),
+  literal('suggestive'),
+  literal('explicit'),
+])
+
+const CharacterRelationshipModeSchema = union([
+  literal('companion'),
+  literal('romance'),
+  literal('roleplay'),
+])
+
+const CharacterMemoryProfileSchema = union([
+  literal('light'),
+  literal('standard'),
+  literal('deep'),
+])
+
 const DateSchema = pipe(
   union([string(), date()]),
   transform(v => new Date(v)),
@@ -68,10 +92,23 @@ export const CharacterBaseSchema = object({
   coverBackgroundUrl: optional(string()),
   creatorRole: optional(string()),
   priceCredit: string(),
+  visibility: CharacterVisibilitySchema,
+  nsfwEnabled: boolean(),
+  nsfwLevel: CharacterNsfwLevelSchema,
+  relationshipMode: CharacterRelationshipModeSchema,
   likesCount: number(),
   bookmarksCount: number(),
   interactionsCount: number(),
   forksCount: number(),
+  personaProfile: object({
+    personality: optional(string()),
+    scenario: optional(string()),
+    speakingStyle: optional(string()),
+    traits: optional(array(string())),
+    boundaries: optional(array(string())),
+    starterMessages: optional(array(string())),
+    memoryProfile: optional(CharacterMemoryProfileSchema),
+  }),
   creatorId: string(),
   ownerId: string(),
   characterId: string(),
@@ -138,6 +175,19 @@ export const CreateCharacterSchema = object({
     version: string(),
     coverUrl: string(),
     characterId: string(),
+    visibility: optional(CharacterVisibilitySchema),
+    nsfwEnabled: optional(boolean()),
+    nsfwLevel: optional(CharacterNsfwLevelSchema),
+    relationshipMode: optional(CharacterRelationshipModeSchema),
+    personaProfile: optional(object({
+      personality: optional(string()),
+      scenario: optional(string()),
+      speakingStyle: optional(string()),
+      traits: optional(array(string())),
+      boundaries: optional(array(string())),
+      starterMessages: optional(array(string())),
+      memoryProfile: optional(CharacterMemoryProfileSchema),
+    })),
     // creatorId & ownerId are handled by server
   }),
   capabilities: optional(array(object({
@@ -167,6 +217,19 @@ export const UpdateCharacterSchema = object({
   version: optional(string()),
   coverUrl: optional(string()),
   characterId: optional(string()),
+  visibility: optional(CharacterVisibilitySchema),
+  nsfwEnabled: optional(boolean()),
+  nsfwLevel: optional(CharacterNsfwLevelSchema),
+  relationshipMode: optional(CharacterRelationshipModeSchema),
+  personaProfile: optional(object({
+    personality: optional(string()),
+    scenario: optional(string()),
+    speakingStyle: optional(string()),
+    traits: optional(array(string())),
+    boundaries: optional(array(string())),
+    starterMessages: optional(array(string())),
+    memoryProfile: optional(CharacterMemoryProfileSchema),
+  })),
 })
 
 // --- Type Exports ---

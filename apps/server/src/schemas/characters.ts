@@ -4,7 +4,7 @@ import type { AvatarModelConfig } from '../types/character-avatar-model'
 import type { CharacterCapabilityConfig } from '../types/character-capability'
 
 import { relations } from 'drizzle-orm'
-import { integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
+import { boolean, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
 import { user } from './accounts'
@@ -25,6 +25,11 @@ export const character = pgTable(
     avatarUrl: text('avatar_url'),
     creatorRole: text('creator_role'),
     priceCredit: text('price_credit').default('0').notNull(),
+    visibility: text('visibility').$type<CharacterVisibility>().default('private').notNull(),
+    nsfwEnabled: boolean('nsfw_enabled').default(false).notNull(),
+    nsfwLevel: text('nsfw_level').$type<CharacterNsfwLevel>().default('none').notNull(),
+    relationshipMode: text('relationship_mode').$type<CharacterRelationshipMode>().default('companion').notNull(),
+    personaProfile: jsonb('persona_profile').$type<CharacterPersonaProfile>().default({}).notNull(),
 
     likesCount: integer('likes_count').default(0).notNull(),
     bookmarksCount: integer('bookmarks_count').default(0).notNull(),
@@ -39,6 +44,21 @@ export const character = pgTable(
 
 export type Character = InferSelectModel<typeof character>
 export type NewCharacter = InferInsertModel<typeof character>
+
+export type CharacterVisibility = 'private' | 'public' | 'unlisted'
+export type CharacterNsfwLevel = 'none' | 'suggestive' | 'explicit'
+export type CharacterRelationshipMode = 'companion' | 'romance' | 'roleplay'
+export type CharacterMemoryProfile = 'light' | 'standard' | 'deep'
+
+export interface CharacterPersonaProfile {
+  personality?: string
+  scenario?: string
+  speakingStyle?: string
+  traits?: string[]
+  boundaries?: string[]
+  starterMessages?: string[]
+  memoryProfile?: CharacterMemoryProfile
+}
 
 export const characterCovers = pgTable(
   'character_covers',
