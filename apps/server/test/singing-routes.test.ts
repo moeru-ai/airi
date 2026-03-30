@@ -172,6 +172,41 @@ describe('singingRoutes', () => {
 
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toBe('audio/wav')
+    expect(res.headers.get('accept-ranges')).toBe('bytes')
+    expect(res.headers.get('content-length')).toBe(String('artifact-bytes'.length))
     expect(await res.text()).toBe('artifact-bytes')
+  })
+
+  it('returns 404 for missing artifact files before opening a broken stream', async () => {
+    const app = createTestApp(createMockSingingService())
+
+    const res = await app.fetch(
+      new Request('http://localhost/artifacts/job-1/05_mix/missing.wav'),
+      { user: testUser } as any,
+    )
+
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual({ error: 'Artifact not found' })
+  })
+
+  it('supports range requests for artifact audio playback metadata and seeking', async () => {
+    const app = createTestApp(createMockSingingService())
+    const artifactDir = join(runtimeEnv.tempDir, 'jobs', 'job-1', '05_mix')
+    const artifactPath = join(artifactDir, 'final_cover.wav')
+
+    await mkdir(artifactDir, { recursive: true })
+    await writeFile(artifactPath, 'artifact-bytes')
+
+    const res = await app.fetch(
+      new Request('http://localhost/artifacts/job-1/05_mix/final_cover.wav', {
+        headers: { Range: 'bytes=0-6' },
+      }),
+      { user: testUser } as any,
+    )
+
+    expect(res.status).toBe(206)
+    expect(res.headers.get('content-range')).toBe('bytes 0-6/14')
+    expect(res.headers.get('content-length')).toBe('7')
+    expect(await res.text()).toBe('artifac')
   })
 })

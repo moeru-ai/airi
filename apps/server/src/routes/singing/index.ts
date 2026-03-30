@@ -10,7 +10,7 @@ import type { HonoEnv } from '../../types/hono'
 
 import process from 'node:process'
 
-import { createReadStream, existsSync } from 'node:fs'
+import { createReadStream, existsSync, statSync } from 'node:fs'
 import { mkdir, unlink } from 'node:fs/promises'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
@@ -36,6 +36,7 @@ import { createBadRequestError } from '../../utils/error'
 import { CreateCoverJsonSchema, CreateCoverMultipartSchema, CreateCoverReferenceSchema, CreateTrainMultipartSchema, CreateTrainSchema } from './schema'
 
 const SINGING_BODY_LIMIT = 100 * 1024 * 1024
+const RANGE_HEADER_REGEX = /bytes=(\d*)-(\d*)/i
 
 function singingErrorToStatus(code: SingingErrorCode): number {
   switch (code) {
@@ -83,6 +84,62 @@ function buildSafeUploadPath(uploadsDir: string, uploadId: string, fileName: str
   if (!savedPath)
     throw new Error('Failed to allocate a contained upload path')
   return savedPath
+}
+
+function createArtifactResponse(fullPath: string, ext: string, rangeHeader: string | undefined): Response {
+  const mimeMap: Record<string, string> = {
+    wav: 'audio/wav',
+    mp3: 'audio/mpeg',
+    json: 'application/json',
+    npy: 'application/octet-stream',
+  }
+  const contentType = mimeMap[ext] ?? 'application/octet-stream'
+  const stats = statSync(fullPath)
+  const baseHeaders = {
+    'Accept-Ranges': 'bytes',
+    'Content-Type': contentType,
+  }
+
+  if (!rangeHeader) {
+    return new Response(Readable.toWeb(createReadStream(fullPath)) as unknown as ReadableStream<Uint8Array>, {
+      headers: {
+        ...baseHeaders,
+        'Content-Length': String(stats.size),
+      },
+    })
+  }
+
+  const match = rangeHeader.match(RANGE_HEADER_REGEX)
+  if (!match) {
+    return new Response(Readable.toWeb(createReadStream(fullPath)) as unknown as ReadableStream<Uint8Array>, {
+      headers: {
+        ...baseHeaders,
+        'Content-Length': String(stats.size),
+      },
+    })
+  }
+
+  const start = match[1] ? Number(match[1]) : 0
+  const end = match[2] ? Number(match[2]) : stats.size - 1
+
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end < start || end >= stats.size) {
+    return new Response(null, {
+      status: 416,
+      headers: {
+        ...baseHeaders,
+        'Content-Range': `bytes */${stats.size}`,
+      },
+    })
+  }
+
+  return new Response(Readable.toWeb(createReadStream(fullPath, { start, end })) as unknown as ReadableStream<Uint8Array>, {
+    status: 206,
+    headers: {
+      ...baseHeaders,
+      'Content-Length': String(end - start + 1),
+      'Content-Range': `bytes ${start}-${end}/${stats.size}`,
+    },
+  })
 }
 
 /**
@@ -331,17 +388,11 @@ export function createSingingRoutes(singingService: SingingService) {
       const fullPath = resolveContainedPath(baseJobDir, artifactPath)
       if (!fullPath)
         return c.json({ error: 'Invalid artifact path' }, 400)
+      if (!existsSync(fullPath) || !statSync(fullPath).isFile())
+        return c.json({ error: 'Artifact not found' }, 404)
 
       const ext = artifactPath.split('.').pop() ?? ''
-      const mimeMap: Record<string, string> = {
-        wav: 'audio/wav',
-        mp3: 'audio/mpeg',
-        json: 'application/json',
-        npy: 'application/octet-stream',
-      }
-      return new Response(Readable.toWeb(createReadStream(fullPath)) as unknown as ReadableStream<Uint8Array>, {
-        headers: { 'Content-Type': mimeMap[ext] ?? 'application/octet-stream' },
-      })
+      return createArtifactResponse(fullPath, ext, c.req.header('range'))
     }
     catch {
       return c.json({ error: 'Artifact not found' }, 404)

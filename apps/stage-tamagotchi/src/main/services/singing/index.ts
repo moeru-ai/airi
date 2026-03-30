@@ -44,6 +44,7 @@ const FFMPEG_BINARY_SUFFIX_REGEX = /ffmpeg$/
 const LINE_SPLIT_REGEX = /[\r\n]+/
 const CUDA_VERSION_REGEX = /CUDA Version:\s*(\d+)\.(\d+)/
 const PTH_SUFFIX_REGEX = /\.pth$/
+const RANGE_HEADER_REGEX = /bytes=(\d*)-(\d*)/i
 
 // ─── FFmpeg download sources per platform ────────────────────────────────
 const FFMPEG_URLS: Record<string, string> = {
@@ -111,8 +112,15 @@ async function checkBinaryExists(bin: string, args: string[] = ['--version']): P
 }
 
 function getTrustedLocalSingingOrigin(origin: string): string {
-  if (!origin || origin === 'null')
+  if (!origin)
     return ''
+
+  // NOTICE: the packaged Electron renderer is served from `file://`, which Chromium
+  // serializes as the opaque `null` origin for cross-origin localhost fetches.
+  // Rejecting `null` breaks desktop singing in production builds before requests
+  // can even reach `/health`, `/cover`, or `/train`.
+  if (origin === 'null')
+    return origin
 
   try {
     const url = new URL(origin)
@@ -124,6 +132,62 @@ function getTrustedLocalSingingOrigin(origin: string): string {
   catch {}
 
   return ''
+}
+
+function createArtifactResponse(fullPath: string, ext: string, rangeHeader: string | undefined): Response {
+  const mimeMap: Record<string, string> = {
+    wav: 'audio/wav',
+    mp3: 'audio/mpeg',
+    json: 'application/json',
+    npy: 'application/octet-stream',
+  }
+  const contentType = mimeMap[ext] ?? 'application/octet-stream'
+  const stats = statSync(fullPath)
+  const baseHeaders = {
+    'Accept-Ranges': 'bytes',
+    'Content-Type': contentType,
+  }
+
+  if (!rangeHeader) {
+    return new Response(Readable.toWeb(createReadStream(fullPath)) as unknown as ReadableStream<Uint8Array>, {
+      headers: {
+        ...baseHeaders,
+        'Content-Length': String(stats.size),
+      },
+    })
+  }
+
+  const match = rangeHeader.match(RANGE_HEADER_REGEX)
+  if (!match) {
+    return new Response(Readable.toWeb(createReadStream(fullPath)) as unknown as ReadableStream<Uint8Array>, {
+      headers: {
+        ...baseHeaders,
+        'Content-Length': String(stats.size),
+      },
+    })
+  }
+
+  const start = match[1] ? Number(match[1]) : 0
+  const end = match[2] ? Number(match[2]) : stats.size - 1
+
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end < start || end >= stats.size) {
+    return new Response(null, {
+      status: 416,
+      headers: {
+        ...baseHeaders,
+        'Content-Range': `bytes */${stats.size}`,
+      },
+    })
+  }
+
+  return new Response(Readable.toWeb(createReadStream(fullPath, { start, end })) as unknown as ReadableStream<Uint8Array>, {
+    status: 206,
+    headers: {
+      ...baseHeaders,
+      'Content-Length': String(end - start + 1),
+      'Content-Range': `bytes ${start}-${end}/${stats.size}`,
+    },
+  })
 }
 
 function buildSafeUploadPath(uploadsDir: string, uploadId: string, fileName: string): string {
@@ -1910,16 +1974,11 @@ function buildApp(dataDir: string) {
         const fullPath = resolveContainedPath(baseJobDir, artifactPath)
         if (!fullPath)
           return c.json({ error: 'Invalid artifact path' }, 400)
+        if (!existsSync(fullPath) || !statSync(fullPath).isFile())
+          return c.json({ error: 'Artifact not found' }, 404)
+
         const ext = artifactPath.split('.').pop() ?? ''
-        const mimeMap: Record<string, string> = {
-          wav: 'audio/wav',
-          mp3: 'audio/mpeg',
-          json: 'application/json',
-          npy: 'application/octet-stream',
-        }
-        return new Response(Readable.toWeb(createReadStream(fullPath)) as unknown as ReadableStream<Uint8Array>, {
-          headers: { 'Content-Type': mimeMap[ext] ?? 'application/octet-stream' },
-        })
+        return createArtifactResponse(fullPath, ext, c.req.header('range'))
       }
       catch {
         return c.json({ error: 'Artifact not found' }, 404)
