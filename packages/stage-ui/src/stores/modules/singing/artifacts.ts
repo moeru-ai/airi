@@ -1,18 +1,28 @@
+import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
 
 /**
  * [singing] Store for managing singing job artifacts (audio files).
+ * Persisted so completed results remain visible after reopening the settings
+ * window while the same renderer session is alive.
  */
 export const useSingingArtifactsStore = defineStore('singing-artifacts', () => {
-  /** URL to the final cover audio */
-  const finalCoverUrl = ref<string | null>(null)
-  /** URL to the separated vocals */
-  const vocalsUrl = ref<string | null>(null)
-  /** URL to the instrumental track */
-  const instrumentalUrl = ref<string | null>(null)
-  /** URL to the converted vocals (before remixing) */
-  const convertedVocalsUrl = ref<string | null>(null)
+  const finalCoverUrl = useLocalStorage<string | null>('singing/artifacts/final-cover-url', null)
+  const vocalsUrl = useLocalStorage<string | null>('singing/artifacts/vocals-url', null)
+  const instrumentalUrl = useLocalStorage<string | null>('singing/artifacts/instrumental-url', null)
+  const convertedVocalsUrl = useLocalStorage<string | null>('singing/artifacts/converted-vocals-url', null)
+
+  function setArtifacts(nextArtifacts: {
+    finalCoverUrl?: string | null
+    vocalsUrl?: string | null
+    instrumentalUrl?: string | null
+    convertedVocalsUrl?: string | null
+  }) {
+    finalCoverUrl.value = nextArtifacts.finalCoverUrl ?? null
+    vocalsUrl.value = nextArtifacts.vocalsUrl ?? null
+    instrumentalUrl.value = nextArtifacts.instrumentalUrl ?? null
+    convertedVocalsUrl.value = nextArtifacts.convertedVocalsUrl ?? null
+  }
 
   function reset() {
     finalCoverUrl.value = null
@@ -26,6 +36,7 @@ export const useSingingArtifactsStore = defineStore('singing-artifacts', () => {
     vocalsUrl,
     instrumentalUrl,
     convertedVocalsUrl,
+    setArtifacts,
     reset,
   }
 })

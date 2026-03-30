@@ -1,13 +1,29 @@
-import type { CreateCoverRequest, CreateTrainRequest } from '@proj-airi/singing/types'
+import type {
+  CreateCoverRequest,
+  CreateTrainRequest,
+  SingingHealthResponse,
+  SingingModelsResponse,
+} from '@proj-airi/singing/types'
 
 import type { SingingService } from '../../services/singing/singing-service'
 import type { HonoEnv } from '../../types/hono'
+
+import process from 'node:process'
 
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { buildJobDir, buildUploadsDir, getSafeUploadExtension, resolveContainedPath, resolveRuntimeEnv, SingingError, SingingErrorCode } from '@proj-airi/singing'
+import {
+  buildJobDir,
+  buildUploadsDir,
+  checkBaseModels,
+  getSafeUploadExtension,
+  resolveContainedPath,
+  resolveRuntimeEnv,
+  SingingError,
+  SingingErrorCode,
+} from '@proj-airi/singing'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { safeParse } from 'valibot'
@@ -74,16 +90,36 @@ export function createSingingRoutes(singingService: SingingService) {
 
   app.get('/health', async (c) => {
     const env = resolveRuntimeEnv()
+    const baseModels = checkBaseModels(env.modelsDir)
+    const baseModelsReady = baseModels.every(model => model.exists)
     const [ffmpegOk, pythonOk] = await Promise.all([
       checkBinaryExists(env.ffmpegPath, ['-version']),
       checkBinaryExists(env.pythonPath, ['--version']),
     ])
-    return c.json({
-      status: ffmpegOk && pythonOk ? 'ready' : 'degraded',
+    const response: SingingHealthResponse = {
+      status: ffmpegOk && pythonOk
+        ? (baseModelsReady ? 'ready' : 'models_needed')
+        : 'setup_required',
+      setupSupported: false,
       ffmpeg: ffmpegOk,
+      ffmpegPath: env.ffmpegPath,
       python: pythonOk,
+      pythonPath: env.pythonPath,
+      pythonVenv: pythonOk,
+      pythonVenvExists: pythonOk,
+      pythonPackagesInstalled: pythonOk,
+      pythonPackagesMissing: pythonOk ? [] : ['python runtime unavailable'],
+      uvAvailable: false,
+      venvExists: pythonOk,
       modelsDir: env.modelsDir,
-    })
+      singingPkgRoot: null,
+      moduleLoaded: true,
+      platform: process.platform,
+      arch: process.arch,
+      baseModels,
+      baseModelsReady,
+    }
+    return c.json(response)
   })
 
   app.get('/models', async (c) => {
@@ -94,10 +130,12 @@ export function createSingingRoutes(singingService: SingingService) {
       name: voice.name,
       hasIndex: existsSync(join(env.modelsDir, 'voice_models', voice.name, `${voice.name}.index`)),
     }))
-    return c.json({
+    const response: SingingModelsResponse = {
       ...result,
       voiceModels,
-    })
+      baseModels: checkBaseModels(env.modelsDir),
+    }
+    return c.json(response)
   })
 
   const authed = new Hono<HonoEnv>()

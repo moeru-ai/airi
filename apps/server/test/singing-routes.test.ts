@@ -114,11 +114,12 @@ describe('singingRoutes', () => {
 
     const app = createTestApp(createMockSingingService())
     const res = await app.request('/models')
+    const data = await res.json()
 
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({
-      voices: [{ id: 'voice-a', name: 'voice-a', hasRvcModel: true }],
-      voiceModels: [{ name: 'voice-a', hasIndex: true }],
-    })
+    expect(data.voices).toEqual([{ id: 'voice-a', name: 'voice-a', hasRvcModel: true }])
+    expect(data.voiceModels).toEqual([{ name: 'voice-a', hasIndex: true }])
+    expect(Array.isArray(data.baseModels)).toBe(true)
+    expect(data.baseModels.length).toBeGreaterThan(0)
   })
 })

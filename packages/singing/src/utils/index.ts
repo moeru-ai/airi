@@ -1,3 +1,4 @@
+export * from './base-models'
 export * from './hash'
 export * from './path'
 export * from './temp'

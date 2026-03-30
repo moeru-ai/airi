@@ -1,11 +1,19 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useNow } from '@vueuse/core'
+import { computed } from 'vue'
 
 const props = defineProps<{
+  jobId?: string | null
   status: string
   currentStage: string | null
   progress: number
   error: string | null
+  startedAt?: number | null
+  canCancel?: boolean
+}>()
+
+const emit = defineEmits<{
+  cancel: []
 }>()
 
 interface StageInfo {
@@ -27,6 +35,8 @@ const stages: StageInfo[] = [
   { id: 'finalize', label: 'Finalize', description: 'Writing manifest and organizing output artifacts', icon: 'i-solar:check-circle-bold-duotone' },
 ]
 
+const now = useNow({ interval: 1000 })
+
 const currentStageIndex = computed(() => {
   if (!props.currentStage)
     return -1
@@ -38,6 +48,15 @@ const activeStage = computed(() => {
     return null
   return stages[currentStageIndex.value]
 })
+
+const elapsed = computed(() => {
+  if (!props.startedAt)
+    return 0
+
+  return Math.max(0, Math.round((now.value.getTime() - props.startedAt) / 1000))
+})
+
+const showCancelButton = computed(() => !!props.canCancel && (props.status === 'pending' || props.status === 'running'))
 
 function stageState(index: number): 'completed' | 'active' | 'pending' {
   if (props.status === 'completed')
@@ -56,25 +75,10 @@ const statusLabel = computed(() => {
     case 'running': return 'Pipeline Running'
     case 'completed': return 'Processing Complete'
     case 'failed': return 'Pipeline Failed'
+    case 'cancelled': return 'Pipeline Cancelled'
     case 'pending': return 'Queued'
     default: return props.status
   }
-})
-
-const startTime = ref(Date.now())
-const elapsed = ref(0)
-let timer: ReturnType<typeof setInterval> | null = null
-
-onMounted(() => {
-  startTime.value = Date.now()
-  timer = setInterval(() => {
-    elapsed.value = Math.round((Date.now() - startTime.value) / 1000)
-  }, 1000)
-})
-
-onUnmounted(() => {
-  if (timer)
-    clearInterval(timer)
 })
 
 function formatTime(s: number): string {
@@ -87,42 +91,48 @@ function formatTime(s: number): string {
 
 <template>
   <div class="border border-neutral-200 rounded-xl p-4 dark:border-neutral-700">
-    <!-- Header -->
-    <div class="mb-3 flex items-center justify-between">
+    <div class="mb-3 flex items-center justify-between gap-3">
       <div class="flex items-center gap-2">
         <div v-if="status === 'running'" class="i-solar:rewind-forward-bold-duotone animate-pulse text-lg text-primary-500" />
         <div v-else-if="status === 'completed'" class="i-solar:check-circle-bold-duotone text-lg text-green-500" />
+        <div v-else-if="status === 'cancelled'" class="i-solar:close-circle-bold-duotone text-lg text-amber-500" />
         <div v-else-if="status === 'failed'" class="i-solar:danger-triangle-bold-duotone text-lg text-red-500" />
         <div v-else class="i-solar:clock-circle-bold-duotone text-lg text-neutral-400" />
         <span class="text-sm text-neutral-800 font-medium dark:text-neutral-200">{{ statusLabel }}</span>
       </div>
       <div class="flex items-center gap-3">
-        <span class="text-xs text-neutral-400 font-mono tabular-nums">{{ formatTime(elapsed) }}</span>
+        <button
+          v-if="showCancelButton"
+          type="button"
+          class="flex items-center gap-1 rounded-lg bg-amber-100 px-2 py-1 text-xs text-amber-700 font-medium transition-colors dark:bg-amber-900/40 hover:bg-amber-200 dark:text-amber-400 dark:hover:bg-amber-900/60"
+          @click="emit('cancel')"
+        >
+          <div class="i-solar:stop-circle-bold-duotone text-sm" />
+          <span>Cancel</span>
+        </button>
+        <span v-if="elapsed > 0" class="text-xs text-neutral-400 font-mono tabular-nums">{{ formatTime(elapsed) }}</span>
         <span class="text-sm text-neutral-500 font-mono tabular-nums">{{ progress }}%</span>
       </div>
     </div>
 
-    <!-- Overall Progress Bar -->
     <div class="mb-1 h-2 w-full overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
       <div
         class="h-full rounded-full transition-all duration-500 ease-out"
         :class="{
-          'bg-primary-500': status === 'running',
+          'bg-primary-500': status === 'running' || status === 'pending',
           'bg-green-500': status === 'completed',
           'bg-red-500': status === 'failed',
-          'bg-neutral-400': status === 'pending',
+          'bg-amber-500': status === 'cancelled',
         }"
         :style="{ width: `${progress}%` }"
       />
     </div>
 
-    <!-- Active stage description -->
     <div v-if="activeStage && status === 'running'" class="mb-3 mt-2 flex items-center gap-2 rounded-lg bg-primary-50 px-3 py-2 dark:bg-primary-900/15">
       <div class="i-svg-spinners:ring-resize text-xs text-primary-500" />
       <span class="text-xs text-primary-700 dark:text-primary-400">{{ activeStage.description }}</span>
     </div>
 
-    <!-- Stage Steps -->
     <div class="grid mt-3 gap-0.5">
       <div
         v-for="(stage, i) in stages" :key="stage.id"
@@ -132,14 +142,12 @@ function formatTime(s: number): string {
           'opacity-35': stageState(i) === 'pending',
         }"
       >
-        <!-- Icon -->
         <div class="relative mt-0.5 flex shrink-0 items-center justify-center">
           <div v-if="stageState(i) === 'completed'" class="i-solar:check-circle-bold-duotone text-base text-green-500" />
           <div v-else-if="stageState(i) === 'active'" class="text-base text-primary-500" :class="stage.icon" />
           <div v-else class="size-4 border-2 border-neutral-300 rounded-full dark:border-neutral-600" />
         </div>
 
-        <!-- Content -->
         <div class="min-w-0 flex-1">
           <div class="flex items-center gap-2">
             <span
@@ -163,12 +171,10 @@ function formatTime(s: number): string {
           </p>
         </div>
 
-        <!-- Step number -->
         <span class="mt-0.5 shrink-0 text-xs text-neutral-300 font-mono dark:text-neutral-700">{{ i + 1 }}/{{ stages.length }}</span>
       </div>
     </div>
 
-    <!-- Error -->
     <div v-if="error" class="mt-3 flex items-start gap-2 border border-red-200 rounded-lg bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
       <div class="i-solar:danger-triangle-bold-duotone mt-0.5 text-base text-red-500" />
       <div class="flex-1 text-xs text-red-600 dark:text-red-400">

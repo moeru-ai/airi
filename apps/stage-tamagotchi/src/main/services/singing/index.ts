@@ -15,7 +15,13 @@ import { promisify } from 'node:util'
 
 import { useLogger } from '@guiiai/logg'
 import { serve } from '@hono/node-server'
-import { getSafeUploadExtension, PipelineStage, resolveContainedPath } from '@proj-airi/singing'
+import {
+  BASE_MODELS,
+  checkBaseModels,
+  getSafeUploadExtension,
+  PipelineStage,
+  resolveContainedPath,
+} from '@proj-airi/singing'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
@@ -927,112 +933,6 @@ async function getSingingModule(): Promise<SingingModule | null> {
 }
 
 // ─── Base models inventory ───────────────────────────────────────────────
-interface BaseModelDef {
-  id: string
-  name: string
-  url: string
-  filename: string
-  subdir?: string
-  sizeBytes: number
-  category: 'pitch' | 'encoder' | 'separation' | 'pretrained'
-  description: string
-}
-
-const BASE_MODELS: BaseModelDef[] = [
-  {
-    id: 'rmvpe',
-    name: 'RMVPE',
-    url: 'https://hf-mirror.com/lj1995/VoiceConversionWebUI/resolve/main/rmvpe.pt',
-    filename: 'rmvpe.pt',
-    sizeBytes: 181_184_272,
-    category: 'pitch',
-    description: 'Pitch extraction (F0) for voice conversion',
-  },
-  {
-    id: 'hubert_base',
-    name: 'HuBERT Base',
-    url: 'https://hf-mirror.com/lj1995/VoiceConversionWebUI/resolve/main/hubert_base.pt',
-    filename: 'hubert_base.pt',
-    sizeBytes: 189_507_909,
-    category: 'encoder',
-    description: 'Content feature encoder for RVC',
-  },
-  {
-    id: 'melband_roformer_ckpt',
-    name: 'MelBand-RoFormer (weights)',
-    url: 'https://hf-mirror.com/KimberleyJSN/melbandroformer/resolve/main/MelBandRoformer.ckpt',
-    filename: 'MelBandRoformer.ckpt',
-    subdir: 'separation',
-    sizeBytes: 913_106_900,
-    category: 'separation',
-    description: 'Vocal / instrumental separation model weights',
-  },
-  {
-    id: 'melband_roformer_config',
-    name: 'MelBand-RoFormer (config)',
-    url: 'https://raw.githubusercontent.com/ZFTurbo/Music-Source-Separation-Training/main/configs/KimberleyJensen/config_vocals_mel_band_roformer_kj.yaml',
-    filename: 'config_vocals_mel_band_roformer_kj.yaml',
-    subdir: 'separation',
-    sizeBytes: 1_721,
-    category: 'separation',
-    description: 'Architecture configuration matching the separation weights',
-  },
-  {
-    id: 'rvc_pretrained_g',
-    name: 'RVC v2 Generator (f0, 40kHz)',
-    url: 'https://hf-mirror.com/lj1995/VoiceConversionWebUI/resolve/main/pretrained_v2/f0G40k.pth',
-    filename: 'f0G40k.pth',
-    subdir: 'pretrained_v2',
-    sizeBytes: 73_106_273,
-    category: 'pretrained',
-    description: 'Pretrained generator for training new voice models',
-  },
-  {
-    id: 'rvc_pretrained_d',
-    name: 'RVC v2 Discriminator (f0, 40kHz)',
-    url: 'https://hf-mirror.com/lj1995/VoiceConversionWebUI/resolve/main/pretrained_v2/f0D40k.pth',
-    filename: 'f0D40k.pth',
-    subdir: 'pretrained_v2',
-    sizeBytes: 142_875_703,
-    category: 'pretrained',
-    description: 'Pretrained discriminator for training new voice models',
-  },
-]
-
-interface BaseModelStatus {
-  id: string
-  name: string
-  category: string
-  description: string
-  exists: boolean
-  sizeBytes: number
-  actualSize: number
-}
-
-function checkBaseModels(modelsDir: string): BaseModelStatus[] {
-  return BASE_MODELS.map((m) => {
-    const dir = m.subdir ? join(modelsDir, m.subdir) : modelsDir
-    const filepath = join(dir, m.filename)
-    let fileExists = false
-    let actualSize = 0
-    if (existsSync(filepath)) {
-      actualSize = statSync(filepath).size
-      fileExists = m.sizeBytes < 10_000
-        ? actualSize > 0
-        : actualSize >= m.sizeBytes * 0.9
-    }
-    return {
-      id: m.id,
-      name: m.name,
-      category: m.category,
-      description: m.description,
-      exists: fileExists,
-      sizeBytes: m.sizeBytes,
-      actualSize,
-    }
-  })
-}
-
 // ─── Hono app ────────────────────────────────────────────────────────────
 function buildApp(dataDir: string) {
   const singingPkgRoot = findSingingPackageRoot()
@@ -1534,13 +1434,7 @@ function buildApp(dataDir: string) {
         return result
       },
       async getJob(jobId: string) {
-        const job = await queue.getJob(jobId)
-        if (!job) {
-          const err = new Error(`Job ${jobId} not found`) as any
-          err.code = 'JOB_NOT_FOUND'
-          throw err
-        }
-        return { job }
+        return mod!.getCoverJob(jobId, { queue })
       },
       async cancelJob(jobId: string) {
         const ac = activeJobs.get(jobId)
@@ -1597,6 +1491,7 @@ function buildApp(dataDir: string) {
 
       return c.json({
         status: sysReady ? (allBaseReady ? 'ready' : 'models_needed') : 'setup_required',
+        setupSupported: true,
         ffmpeg: !!ffmpegPath,
         ffmpegPath,
         python: !!pythonInfo,
@@ -1634,11 +1529,16 @@ function buildApp(dataDir: string) {
         }
 
         const baseModels = checkBaseModels(modelsDir)
+        const voices = voiceModels.map(({ name }) => ({
+          id: name,
+          name,
+          hasRvcModel: true,
+        }))
 
-        return c.json({ voiceModels, baseModels })
+        return c.json({ voices, voiceModels, baseModels })
       }
       catch {
-        return c.json({ voiceModels: [], baseModels: checkBaseModels(modelsDir) })
+        return c.json({ voices: [], voiceModels: [], baseModels: checkBaseModels(modelsDir) })
       }
     })
 
@@ -1727,7 +1627,7 @@ function buildApp(dataDir: string) {
         appendLog(id, 'info', `Models directory: ${modelsDir}`)
         appendLog(id, 'info', `Source: hf-mirror.com (HuggingFace mirror)`)
 
-        const needed: BaseModelDef[] = []
+        const needed: Array<(typeof BASE_MODELS)[number]> = []
         let totalDownloadBytes = 0
         for (const m of BASE_MODELS) {
           const dir = m.subdir ? join(modelsDir, m.subdir) : modelsDir

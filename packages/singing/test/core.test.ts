@@ -1,3 +1,4 @@
+import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
@@ -8,6 +9,7 @@ import { PipelineStage } from '../src/constants/pipeline-stage'
 import { SingingError, SingingErrorCode } from '../src/contracts/error'
 import { createPipelineContext } from '../src/pipeline/context'
 import { executePipeline } from '../src/pipeline/pipeline'
+import { checkBaseModels } from '../src/utils/base-models'
 import { hashString } from '../src/utils/hash'
 import { getSafeUploadExtension, resolveContainedPath } from '../src/utils/path'
 
@@ -133,6 +135,31 @@ describe('getSafeUploadExtension', () => {
 
   it('falls back when the multipart filename tries to smuggle path separators into the extension', () => {
     expect(getSafeUploadExtension('x.y/../../target')).toBe('wav')
+  })
+})
+
+describe('checkBaseModels', () => {
+  it('reports missing models when the inventory has not been provisioned yet', () => {
+    const models = checkBaseModels(resolve('/tmp/nonexistent-singing-models'))
+    expect(models.length).toBeGreaterThan(0)
+    expect(models.every(model => model.exists === false)).toBe(true)
+  })
+
+  it('marks the tiny config model as present when the file exists', async () => {
+    const root = resolve(process.cwd(), '.tmp-base-model-check')
+    const configDir = resolve(root, 'separation')
+
+    await rm(root, { recursive: true, force: true })
+    await mkdir(configDir, { recursive: true })
+    await writeFile(resolve(configDir, 'config_vocals_mel_band_roformer_kj.yaml'), 'config: ok')
+
+    const models = checkBaseModels(root)
+    const configModel = models.find(model => model.id === 'melband_roformer_config')
+
+    expect(configModel?.exists).toBe(true)
+    expect(configModel?.actualSize).toBeGreaterThan(0)
+
+    await rm(root, { recursive: true, force: true })
   })
 })
 

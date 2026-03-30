@@ -88,6 +88,43 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck
 
+  singing:
+    name: Singing Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: ${{ !(github.event_name == 'pull_request' && startsWith(github.event.pull_request.head.label, 'moeru-ai:i18n/')) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -F @proj-airi/singing build
+      - run: pnpm -F @proj-airi/singing test
+      - run: pnpm -F @proj-airi/server typecheck
+      - run: pnpm -F @proj-airi/stage-tamagotchi typecheck
+      - run: pnpm -F @proj-airi/stage-ui typecheck
+      - run: pnpm exec vitest run packages/stage-ui/src/composables/use-singing-cover-runtime.test.ts packages/stage-ui/src/composables/use-singing-training-runtime.test.ts
+      - run: pnpm -F @proj-airi/server exec vitest run test/singing-service.test.ts test/singing-routes.test.ts test/request-body-limit.test.ts
+      - run: uv sync --extra dev --frozen
+        working-directory: ./packages/singing/python
+      - run: uv run pytest -q
+        working-directory: ./packages/singing/python
+      - run: pnpm -F @proj-airi/singing validate
+
   check-provenance:
     name: Check Provenance
     runs-on: ubuntu-latest

@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import type {
+  SingingBaseModelInfo,
+  SingingHealthResponse,
+  SingingModelsResponse,
+  SingingVoiceModelInfo,
+} from '../../../types/singing'
+
+import { errorMessageFrom } from '@moeru/std'
+import { useLocalStorage } from '@vueuse/core'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import ArtifactPlayer from './artifact-player.vue'
 import CoverForm from './cover-form.vue'
@@ -7,72 +16,53 @@ import JobProgress from './job-progress.vue'
 import TrainingPanel from './training-panel.vue'
 
 import { useSingingApi } from '../../../composables/use-singing-api'
+import { useSingingCoverRuntime } from '../../../composables/use-singing-cover-runtime'
+import { useSingingTrainingRuntime } from '../../../composables/use-singing-training-runtime'
 import { useSingingArtifactsStore } from '../../../stores/modules/singing/artifacts'
 import { useSingingCoverStore } from '../../../stores/modules/singing/cover'
+import { useSingingTrainingStore } from '../../../stores/modules/singing/training'
 
-const activeTab = ref<'cover' | 'training'>('cover')
+const activeTab = useLocalStorage<'cover' | 'training'>('singing/ui/active-tab', 'cover')
 
 const coverStore = useSingingCoverStore()
+const trainingStore = useSingingTrainingStore()
 const artifactsStore = useSingingArtifactsStore()
+const coverRuntime = useSingingCoverRuntime()
+const trainingRuntime = useSingingTrainingRuntime()
 const { singingFetch } = useSingingApi()
 
-interface BaseModelInfo {
-  id: string
-  name: string
-  category: string
-  description: string
-  exists: boolean
-  sizeBytes: number
-  actualSize: number
-}
-
-interface VoiceModelInfo {
-  name: string
-  hasIndex: boolean
-  grade?: string
-}
-
-interface HealthStatus {
+type HealthState = SingingHealthResponse & {
   loaded: boolean
   serverReachable: boolean
-  ffmpeg: boolean
-  ffmpegPath: string | null
-  python: boolean
-  pythonPath: string | null
-  pythonVenv: boolean
-  pythonVenvExists: boolean
-  pythonPackagesInstalled: boolean
-  pythonPackagesMissing: string[]
-  uvAvailable: boolean
-  venvExists: boolean
-  modelsDir: string | null
-  singingPkgRoot: string | null
-  moduleLoaded: boolean
-  baseModels: BaseModelInfo[]
-  baseModelsReady: boolean
   error: string | null
 }
 
-const health = ref<HealthStatus>({
-  loaded: false,
-  serverReachable: false,
-  ffmpeg: false,
-  ffmpegPath: null,
-  python: false,
-  pythonPath: null,
-  pythonVenv: false,
-  pythonVenvExists: false,
-  pythonPackagesInstalled: false,
-  pythonPackagesMissing: [],
-  uvAvailable: false,
-  venvExists: false,
-  modelsDir: null,
-  singingPkgRoot: null,
-  moduleLoaded: false,
-  baseModels: [],
-  baseModelsReady: false,
-  error: null,
-})
+function createEmptyHealthState(): HealthState {
+  return {
+    loaded: false,
+    serverReachable: false,
+    error: null,
+    status: 'setup_required',
+    setupSupported: false,
+    ffmpeg: false,
+    ffmpegPath: null,
+    python: false,
+    pythonPath: null,
+    pythonVenv: false,
+    pythonVenvExists: false,
+    pythonPackagesInstalled: false,
+    pythonPackagesMissing: [],
+    uvAvailable: false,
+    venvExists: false,
+    modelsDir: null,
+    singingPkgRoot: null,
+    moduleLoaded: false,
+    baseModels: [],
+    baseModelsReady: false,
+  }
+}
+
+const health = ref<HealthState>(createEmptyHealthState())
 
 interface LogEntry { ts: number, level: string, text: string }
 interface SetupTask {
@@ -92,8 +82,9 @@ const setupFFmpeg = ref<SetupTask>(emptyTask())
 const setupPython = ref<SetupTask>(emptyTask())
 const setupModels = ref<SetupTask>(emptyTask())
 
-const voiceModels = ref<VoiceModelInfo[]>([])
+const voiceModels = ref<SingingVoiceModelInfo[]>([])
 const modelsLoading = ref(false)
+const setupPollTimers = new Map<'ffmpeg' | 'python' | 'models', ReturnType<typeof setTimeout>>()
 
 const ffmpegLogEl = ref<HTMLElement>()
 const pythonLogEl = ref<HTMLElement>()
@@ -109,19 +100,41 @@ const envReady = computed(() =>
 const allReady = computed(() =>
   envReady.value && health.value.baseModelsReady,
 )
+const selfSetupSupported = computed(() => health.value.setupSupported)
 
 const needsEnvSetup = computed(() =>
   health.value.loaded
   && health.value.serverReachable
+  && selfSetupSupported.value
   && (!health.value.ffmpeg || !health.value.pythonVenv),
 )
 
 const needsBaseModels = computed(() =>
-  envReady.value && !health.value.baseModelsReady,
+  envReady.value && selfSetupSupported.value && !health.value.baseModelsReady,
 )
 
+const needsManagedProvisioning = computed(() =>
+  health.value.loaded
+  && health.value.serverReachable
+  && !selfSetupSupported.value
+  && !allReady.value,
+)
+
+const managedProvisioningIssues = computed(() => {
+  const issues: string[] = []
+
+  if (!health.value.ffmpeg)
+    issues.push('FFmpeg is not available on the server singing runtime.')
+  if (!health.value.pythonVenv)
+    issues.push('Python runtime or required packages are not ready on the server singing runtime.')
+  if (!health.value.baseModelsReady)
+    issues.push('Required base models are missing from the server singing runtime.')
+
+  return issues
+})
+
 const baseModelsByCategory = computed(() => {
-  const groups: Record<string, { label: string, models: BaseModelInfo[] }> = {}
+  const groups: Record<string, { label: string, models: SingingBaseModelInfo[] }> = {}
   const categoryLabels: Record<string, string> = {
     pitch: 'Pitch Extraction',
     encoder: 'Content Encoder',
@@ -145,15 +158,31 @@ const baseModelsSummary = computed(() => {
 })
 
 onMounted(async () => {
+  await Promise.all([
+    coverRuntime.resumeActiveJob(),
+    trainingRuntime.resumeActiveJob(),
+  ])
+
   await checkHealth()
   if (envReady.value)
     await loadModels()
+
+  if (!health.value.setupSupported)
+    return
 
   const resumed = await resumeRunningSetups()
   if (!resumed && health.value.serverReachable && !allReady.value) {
     await startOneClickSetup()
   }
 })
+
+watch(
+  () => trainingStore.status,
+  async (status, previousStatus) => {
+    if (status === 'completed' && previousStatus !== 'completed' && envReady.value)
+      await loadModels()
+  },
+)
 
 async function resumeRunningSetups(): Promise<boolean> {
   let anyResumed = false
@@ -183,16 +212,19 @@ async function resumeRunningSetups(): Promise<boolean> {
   return anyResumed
 }
 
-onUnmounted(() => {})
+onUnmounted(() => {
+  for (const timer of setupPollTimers.values())
+    clearTimeout(timer)
+  setupPollTimers.clear()
+})
 
 async function checkHealth() {
   try {
     const res = await singingFetch('/health')
     if (res.ok) {
-      const data = await res.json() as Record<string, any>
+      const data = await res.json() as Partial<SingingHealthResponse>
       health.value = {
-        loaded: true,
-        serverReachable: true,
+        ...createEmptyHealthState(),
         ffmpeg: !!data.ffmpeg,
         ffmpegPath: data.ffmpegPath ?? null,
         python: !!data.python,
@@ -208,6 +240,12 @@ async function checkHealth() {
         moduleLoaded: !!data.moduleLoaded,
         baseModels: Array.isArray(data.baseModels) ? data.baseModels : [],
         baseModelsReady: !!data.baseModelsReady,
+        status: data.status ?? 'degraded',
+        setupSupported: !!data.setupSupported,
+        platform: data.platform,
+        arch: data.arch,
+        loaded: true,
+        serverReachable: true,
         error: null,
       }
     }
@@ -216,7 +254,7 @@ async function checkHealth() {
     }
   }
   catch (e) {
-    health.value = { ...health.value, loaded: true, serverReachable: false, error: e instanceof Error ? e.message : 'Cannot reach singing service' }
+    health.value = { ...health.value, loaded: true, serverReachable: false, error: errorMessageFrom(e) ?? 'Cannot reach singing service' }
   }
 }
 
@@ -225,10 +263,9 @@ async function loadModels() {
   try {
     const res = await singingFetch('/models')
     if (res.ok) {
-      const data = await res.json() as { voiceModels?: VoiceModelInfo[], baseModels?: BaseModelInfo[] }
-      voiceModels.value = data.voiceModels ?? []
-      if (data.baseModels)
-        health.value.baseModels = data.baseModels
+      const data = await res.json() as SingingModelsResponse
+      voiceModels.value = data.voiceModels
+      health.value.baseModels = data.baseModels
 
       // Fetch quality grades for each voice model
       for (const vm of voiceModels.value) {
@@ -253,6 +290,14 @@ async function startSetup(type: 'ffmpeg' | 'python' | 'models') {
   if (task.value.running)
     return
 
+  if (!health.value.setupSupported) {
+    task.value = {
+      ...emptyTask(),
+      error: 'This singing runtime is managed by the server and cannot run setup from the current UI.',
+    }
+    return
+  }
+
   task.value = { running: true, error: null, progress: { step: 'init', percent: 0, message: 'Starting...' }, logs: [], startedAt: Date.now(), completedOnce: false }
 
   startPollingSetupStatus(type)
@@ -268,7 +313,7 @@ async function startSetup(type: 'ffmpeg' | 'python' | 'models') {
   catch (err) {
     if (!task.value.progress || task.value.progress.step === 'init') {
       task.value.running = false
-      task.value.error = err instanceof Error ? err.message : String(err)
+      task.value.error = errorMessageFrom(err) ?? 'Failed to start setup task'
     }
   }
 }
@@ -279,11 +324,24 @@ function startPollingSetupStatus(type: 'ffmpeg' | 'python' | 'models') {
   const task = type === 'ffmpeg' ? setupFFmpeg : type === 'python' ? setupPython : setupModels
   const logEl = type === 'ffmpeg' ? ffmpegLogEl : type === 'python' ? pythonLogEl : modelsLogEl
 
-  const poll = async () => {
+  const scheduleNextPoll = (delayMs: number) => {
+    const existingTimer = setupPollTimers.get(type)
+    if (existingTimer)
+      clearTimeout(existingTimer)
+
+    const nextTimer = setTimeout(() => {
+      void poll()
+    }, delayMs)
+    setupPollTimers.set(type, nextTimer)
+  }
+
+  async function poll() {
     try {
       const res = await singingFetch('/setup/status')
-      if (!res.ok)
+      if (!res.ok) {
+        scheduleNextPoll(2500)
         return
+      }
       const data = await res.json() as Record<string, any>
       const status = data[type]
       if (status) {
@@ -303,11 +361,19 @@ function startPollingSetupStatus(type: 'ffmpeg' | 'python' | 'models') {
           task.value.error = status.error
           task.value.running = false
           autoSetupRunning.value = false
+          const existingTimer = setupPollTimers.get(type)
+          if (existingTimer)
+            clearTimeout(existingTimer)
+          setupPollTimers.delete(type)
           return
         }
         if (status.completed) {
           task.value.running = false
           task.value.completedOnce = true
+          const existingTimer = setupPollTimers.get(type)
+          if (existingTimer)
+            clearTimeout(existingTimer)
+          setupPollTimers.delete(type)
           await checkHealth()
           if (envReady.value)
             await loadModels()
@@ -316,10 +382,13 @@ function startPollingSetupStatus(type: 'ffmpeg' | 'python' | 'models') {
           return
         }
       }
-      setTimeout(poll, 1000)
+      scheduleNextPoll(1000)
     }
-    catch { setTimeout(poll, 2500) }
+    catch {
+      scheduleNextPoll(2500)
+    }
   }
+
   poll()
 }
 
@@ -330,11 +399,15 @@ async function continueAutoSetup() {
     autoSetupRunning.value = false
     return
   }
+  if (!h.setupSupported) {
+    autoSetupRunning.value = false
+    return
+  }
   if (!h.ffmpeg && !setupFFmpeg.value.running && !setupFFmpeg.value.completedOnce) {
     await startSetup('ffmpeg')
     return
   }
-  // Trust completedOnce flag — avoid re-triggering if health cache hasn't caught up
+  // Trust completedOnce flag 鈥?avoid re-triggering if health cache hasn't caught up
   if (!h.pythonVenv && !setupPython.value.running && !setupPython.value.completedOnce) {
     if (!h.python && !h.uvAvailable) {
       autoSetupRunning.value = false
@@ -414,6 +487,30 @@ async function retrySetup() {
       >
         <div class="i-solar:refresh-bold text-sm" />
         Retry Connection
+      </button>
+    </div>
+
+    <!-- Server-managed runtime -->
+    <div v-else-if="needsManagedProvisioning" class="border border-amber-200 rounded-xl bg-amber-50/80 p-5 dark:border-amber-800 dark:bg-amber-900/20">
+      <div class="mb-3 flex items-center gap-2">
+        <div class="i-solar:server-bold-duotone text-xl text-amber-500" />
+        <span class="text-sm text-amber-700 font-semibold dark:text-amber-400">Server Provisioning Required</span>
+      </div>
+      <p class="text-xs text-amber-700 leading-relaxed dark:text-amber-300/90">
+        This singing runtime is managed outside the current UI. The server environment needs to be provisioned before cover generation and voice training can run.
+      </p>
+      <ul v-if="managedProvisioningIssues.length > 0" class="mt-3 flex flex-col gap-1 text-xs text-amber-700 dark:text-amber-300/90">
+        <li v-for="issue in managedProvisioningIssues" :key="issue" class="flex items-start gap-2">
+          <div class="i-solar:danger-circle-bold-duotone mt-0.5 shrink-0 text-sm text-amber-500" />
+          <span>{{ issue }}</span>
+        </li>
+      </ul>
+      <button
+        class="mt-4 flex items-center gap-1.5 rounded-lg bg-amber-100 px-3 py-1.5 text-xs text-amber-700 font-medium transition-colors dark:bg-amber-900/40 hover:bg-amber-200 dark:text-amber-400 dark:hover:bg-amber-900/60"
+        @click="retrySetup"
+      >
+        <div class="i-solar:refresh-bold text-sm" />
+        Refresh Runtime Status
       </button>
     </div>
 
@@ -719,16 +816,32 @@ async function retrySetup() {
       </div>
 
       <!-- Cover -->
-      <template v-if="activeTab === 'cover'">
-        <CoverForm />
-        <JobProgress v-if="coverStore.status !== 'idle'" :status="coverStore.status" :current-stage="coverStore.currentStage" :progress="coverStore.progress" :error="coverStore.error" />
-        <ArtifactPlayer v-if="coverStore.isCompleted" :final-cover-url="artifactsStore.finalCoverUrl" :vocals-url="artifactsStore.vocalsUrl" :instrumental-url="artifactsStore.instrumentalUrl" :converted-vocals-url="artifactsStore.convertedVocalsUrl" />
-      </template>
+      <div v-show="activeTab === 'cover'" class="flex flex-col gap-5">
+        <CoverForm :voice-models="voiceModels" :models-loading="modelsLoading" @refresh-models="loadModels" />
+        <JobProgress
+          v-if="coverStore.status !== 'idle'"
+          :job-id="coverStore.currentJobId"
+          :status="coverStore.status"
+          :current-stage="coverStore.currentStage"
+          :progress="coverStore.progress"
+          :error="coverStore.error"
+          :started-at="coverStore.startedAt"
+          :can-cancel="coverStore.canCancel"
+          @cancel="() => void coverRuntime.cancelActiveJob()"
+        />
+        <ArtifactPlayer
+          v-if="coverStore.isCompleted"
+          :final-cover-url="artifactsStore.finalCoverUrl"
+          :vocals-url="artifactsStore.vocalsUrl"
+          :instrumental-url="artifactsStore.instrumentalUrl"
+          :converted-vocals-url="artifactsStore.convertedVocalsUrl"
+        />
+      </div>
 
       <!-- Training -->
-      <template v-if="activeTab === 'training'">
+      <div v-show="activeTab === 'training'" class="flex flex-col gap-5">
         <TrainingPanel />
-      </template>
+      </div>
     </template>
   </div>
 </template>
