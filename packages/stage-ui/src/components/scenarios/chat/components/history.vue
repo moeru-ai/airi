@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import type { ChatAssistantMessage, ChatHistoryItem, ContextMessage } from '../../../types/chat'
+import type { ChatAssistantMessage, ChatHistoryItem, ContextMessage } from '../../../../types/chat'
 
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, provide, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ChatAssistantItem from './assistant-item.vue'
 import ChatErrorItem from './error-item.vue'
 import ChatUserItem from './user-item.vue'
 
-import { getChatHistoryItemKey } from './message-key'
+import { chatScrollContainerKey } from '../constants'
+import { getChatHistoryItemKey } from '../utils'
 
 const props = withDefaults(defineProps<{
   messages: ChatHistoryItem[]
@@ -23,7 +24,13 @@ const props = withDefaults(defineProps<{
   variant: 'desktop',
 })
 
+const emit = defineEmits<{
+  (e: 'copyMessage', payload: { message: ChatHistoryItem, index: number, key: string | number }): void
+  (e: 'deleteMessage', payload: { message: ChatHistoryItem, index: number, key: string | number }): void
+}>()
+
 const chatHistoryRef = ref<HTMLDivElement>()
+provide(chatScrollContainerKey, chatHistoryRef)
 
 const { t } = useI18n()
 const labels = computed(() => ({
@@ -71,6 +78,22 @@ const renderMessages = computed<ChatHistoryItem[]>(() => {
 
   return [...props.messages, streaming.value]
 })
+
+function emitCopyMessage(message: ChatHistoryItem, index: number) {
+  emit('copyMessage', {
+    message,
+    index,
+    key: getChatHistoryItemKey(message, index),
+  })
+}
+
+function emitDeleteMessage(message: ChatHistoryItem, index: number) {
+  emit('deleteMessage', {
+    message,
+    index,
+    key: getChatHistoryItemKey(message, index),
+  })
+}
 </script>
 
 <template>
@@ -82,6 +105,8 @@ const renderMessages = computed<ChatHistoryItem[]>(() => {
           :label="labels.error"
           :show-placeholder="sending && index === renderMessages.length - 1"
           :variant="variant"
+          @copy="emitCopyMessage(message, index)"
+          @delete="emitDeleteMessage(message, index)"
         />
       </div>
 
@@ -91,6 +116,8 @@ const renderMessages = computed<ChatHistoryItem[]>(() => {
           :label="labels.assistant"
           :show-placeholder="shouldShowPlaceholder(message) && showStreamingPlaceholder"
           :variant="variant"
+          @copy="emitCopyMessage(message, index)"
+          @delete="emitDeleteMessage(message, index)"
         />
       </div>
 
@@ -99,6 +126,8 @@ const renderMessages = computed<ChatHistoryItem[]>(() => {
           :message="message"
           :label="labels.user"
           :variant="variant"
+          @copy="emitCopyMessage(message, index)"
+          @delete="emitDeleteMessage(message, index)"
         />
       </div>
     </template>

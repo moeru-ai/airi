@@ -31,6 +31,15 @@ export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null)
       enabled: true,
     },
 
+    session: {
+      // NOTICE: keep a short-lived signed session cache cookie so follow-up
+      // session reads avoid hitting the database on every request.
+      cookieCache: {
+        enabled: true,
+        maxAge: 60 * 5,
+      },
+    },
+
     baseURL: env.API_SERVER_URL,
     trustedOrigins: request => getAuthTrustedOrigins(env, request),
 
