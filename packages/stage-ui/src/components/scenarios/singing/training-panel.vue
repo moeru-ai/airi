@@ -293,7 +293,7 @@ async function handleCancelTraining() {
           <span :class="trainingStore.status === 'completed' ? 'text-green-600 dark:text-green-400/80' : trainingStore.status === 'cancelled' ? 'text-amber-600 dark:text-amber-400/80' : 'text-blue-600 dark:text-blue-400/80'">
             <template v-if="trainingStore.trainingStepTotal > 0">
               Step {{ trainingStore.trainingStep }} / {{ trainingStore.trainingStepTotal }}
-              <span v-if="trainingStore.trainingStepName" class="ml-1 text-neutral-400">路 {{ trainingStore.trainingStepName }}</span>
+              <span v-if="trainingStore.trainingStepName" class="ml-1 text-neutral-400">- {{ trainingStore.trainingStepName }}</span>
             </template>
             <template v-else>
               Epoch {{ trainingStore.currentEpoch }} / {{ trainingStore.totalEpochs }}
