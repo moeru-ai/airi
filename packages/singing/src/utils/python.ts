@@ -7,7 +7,12 @@ const execFileAsync = promisify(execFile)
 const PYTHON_PACKAGE_CACHE_TTL_MS = 60_000
 const LINE_BREAK_REGEX = /\r?\n/g
 
-const REQUIRED_PYTHON_RUNTIME_IMPORTS = [
+export interface PythonRuntimeImportCheck {
+  id: string
+  stmt: string
+}
+
+export const REQUIRED_PYTHON_RUNTIME_IMPORTS: readonly PythonRuntimeImportCheck[] = [
   { id: 'airi_singing_worker', stmt: 'import airi_singing_worker' },
   { id: 'torch', stmt: 'import torch' },
   { id: 'rvc_python', stmt: 'from rvc_python.lib.audio import load_audio' },
@@ -17,6 +22,10 @@ const REQUIRED_PYTHON_RUNTIME_IMPORTS = [
   { id: 'faiss', stmt: 'import faiss' },
   { id: 'scipy', stmt: 'import scipy' },
   { id: 'librosa', stmt: 'import librosa' },
+  { id: 'speechbrain', stmt: 'from speechbrain.inference.speaker import EncoderClassifier' },
+  { id: 'faster_whisper', stmt: 'from faster_whisper import WhisperModel' },
+  { id: 'pyloudnorm', stmt: 'import pyloudnorm' },
+  { id: 'jiwer', stmt: 'import jiwer' },
 ] as const
 
 interface PythonRuntimePackageCacheEntry {

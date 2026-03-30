@@ -18,10 +18,12 @@ import { serve } from '@hono/node-server'
 import {
   BASE_MODELS,
   checkBaseModels,
+  checkPythonRuntimePackages,
   getSafeUploadExtension,
   isContainedPath,
   isSafePathSegment,
   PipelineStage,
+  REQUIRED_PYTHON_RUNTIME_IMPORTS,
   resolveContainedPath,
   resolveVoiceModelDir,
   writeMultipartFileToDisk,
@@ -253,53 +255,25 @@ async function checkPythonPackages(singingPkgRoot: string, forceRecheck = false)
     return _pkgCheckCache
   }
 
-  // Single Python process to check all packages at once
-  const checkScript = join(resolve(singingPkgRoot, 'python'), '_check_pkgs.py')
-  const requiredPackages = ['torch', 'rvc_python', 'torchcrepe', 'mel_band_roformer', 'fairseq', 'faiss', 'scipy', 'librosa']
-  const deepImports: Record<string, string> = {
-    rvc_python: 'from rvc_python.lib.audio import load_audio',
-    fairseq: 'from fairseq import checkpoint_utils',
-    faiss: 'import faiss',
-  }
-  const missing: string[] = []
+  const pythonSrcDir = resolve(singingPkgRoot, 'python', 'src')
 
   try {
-    const scriptContent = requiredPackages.map((p) => {
-      const importLine = deepImports[p] ?? `import ${p}`
-      return `try:\n    ${importLine}\nexcept ImportError:\n    print("MISSING:${p}")\nexcept Exception:\n    pass`
-    }).join('\n')
-    await writeFile(checkScript, scriptContent)
-    const { stdout } = await execFileAsync(venvPython, [checkScript], {
-      timeout: 60_000,
-      windowsHide: true,
-      shell: false,
-    })
-    for (const pkg of requiredPackages) {
-      if (stdout.includes(`MISSING:${pkg}`))
-        missing.push(pkg)
+    const result = await checkPythonRuntimePackages(venvPython, pythonSrcDir, forceRecheck)
+    _pkgCheckCache = {
+      installed: result.installed,
+      missing: [...result.missing],
+      checkedAt: Date.now(),
     }
-    await unlink(checkScript).catch(() => {})
-  }
-  catch {
-    await unlink(checkScript).catch(() => {})
-    // If the check script itself fails, check if venv at least has the files
-    const sitePackages = process.platform === 'win32'
-      ? resolve(singingPkgRoot, 'python', '.venv', 'Lib', 'site-packages')
-      : resolve(singingPkgRoot, 'python', '.venv', 'lib')
-    if (existsSync(sitePackages)) {
-      // Optimistic: if venv exists with site-packages, trust the setup completed flag
-      const pythonProgress = setupProgress.get('python')
-      if (pythonProgress?.completed && !pythonProgress.error) {
-        _pkgCheckCache = { installed: true, missing: [], checkedAt: Date.now() }
-        return _pkgCheckCache
-      }
-    }
-    _pkgCheckCache = { installed: false, missing: requiredPackages, checkedAt: Date.now() }
     return _pkgCheckCache
   }
-
-  _pkgCheckCache = { installed: missing.length === 0, missing, checkedAt: Date.now() }
-  return _pkgCheckCache
+  catch {
+    _pkgCheckCache = {
+      installed: false,
+      missing: REQUIRED_PYTHON_RUNTIME_IMPORTS.map(pkg => pkg.id),
+      checkedAt: Date.now(),
+    }
+    return _pkgCheckCache
+  }
 }
 
 // ─── Singing package root detection ──────────────────────────────────────
@@ -611,13 +585,17 @@ async function setupPythonVenv(singingPkgRoot: string): Promise<string> {
   const hasFairseq = venvExists && await checkPkgInstalled(venvPython, 'fairseq')
   const hasFaiss = venvExists && await checkPkgInstalled(venvPython, 'faiss')
   const hasScipy = venvExists && await checkPkgInstalled(venvPython, 'scipy')
+  const hasSpeechbrain = venvExists && await checkPkgInstalled(venvPython, 'speechbrain')
+  const hasFasterWhisper = venvExists && await checkPkgInstalled(venvPython, 'faster_whisper')
+  const hasPyloudnorm = venvExists && await checkPkgInstalled(venvPython, 'pyloudnorm')
+  const hasJiwer = venvExists && await checkPkgInstalled(venvPython, 'jiwer')
 
   const steps: string[] = []
   if (!hasTorch)
     steps.push('torch')
   if (!hasLibrosa || !hasScipy)
     steps.push('librosa')
-  if (!hasRvc || !hasCrepe || !hasMelband || !hasFairseq || !hasFaiss)
+  if (!hasRvc || !hasCrepe || !hasMelband || !hasFairseq || !hasFaiss || !hasSpeechbrain || !hasFasterWhisper || !hasPyloudnorm || !hasJiwer)
     steps.push('pipeline')
   steps.push('verify')
 
@@ -696,8 +674,14 @@ async function setupPythonVenv(singingPkgRoot: string): Promise<string> {
       needed.push('fairseq')
     if (!hasFaiss)
       needed.push('faiss-cpu')
-    // Evaluation dependencies for model QA and auto-calibration
-    needed.push('speechbrain', 'faster-whisper', 'pyloudnorm', 'jiwer')
+    if (!hasSpeechbrain)
+      needed.push('speechbrain')
+    if (!hasFasterWhisper)
+      needed.push('faster-whisper')
+    if (!hasPyloudnorm)
+      needed.push('pyloudnorm')
+    if (!hasJiwer)
+      needed.push('jiwer')
 
     appendLog(id, 'info', `[${stepIdx + 1}/${totalSteps}] Installing pipeline packages: ${needed.join(', ')}...`)
     try {
@@ -725,15 +709,7 @@ async function setupPythonVenv(singingPkgRoot: string): Promise<string> {
     'results = []',
     '',
     'checks = {',
-    '    "torch": "import torch",',
-    '    "rvc_python": "from rvc_python.lib.audio import load_audio",',
-    '    "torchcrepe": "import torchcrepe",',
-    '    "mel_band_roformer": "import mel_band_roformer",',
-    '    "fairseq": "from fairseq import checkpoint_utils",',
-    '    "faiss": "import faiss",',
-    '    "scipy": "import scipy",',
-    '    "librosa": "import librosa",',
-    '    "soundfile": "import soundfile",',
+    ...REQUIRED_PYTHON_RUNTIME_IMPORTS.map(pkg => `    ${JSON.stringify(pkg.id)}: ${JSON.stringify(pkg.stmt)},`),
     '}',
     '',
     'for name, stmt in checks.items():',
@@ -771,6 +747,10 @@ async function setupPythonVenv(singingPkgRoot: string): Promise<string> {
       windowsHide: true,
       shell: false,
       cwd: pythonDir,
+      env: {
+        ...process.env,
+        PYTHONPATH: resolve(singingPkgRoot, 'python', 'src'),
+      },
     })
     const output = stdout.toString().trim()
     for (const line of output.split('\n'))
@@ -783,17 +763,22 @@ async function setupPythonVenv(singingPkgRoot: string): Promise<string> {
     else {
       const failedPkgs = output.split('\n').filter(l => l.includes('FAILED')).map(l => l.split(':')[0].trim())
       _pkgCheckCache = { installed: false, missing: failedPkgs, checkedAt: Date.now() }
-      appendLog(id, 'warn', `Some packages failed verification: ${failedPkgs.join(', ')}`)
+      throw new Error(`Python environment verification failed: ${failedPkgs.join(', ')}`)
     }
     await unlink(verifyScriptPath).catch(() => {})
   }
   catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    appendLog(id, 'warn', `Verification script error: ${msg}`)
-    // Trust setup completed if we got here without install errors
-    _pkgCheckCache = { installed: true, missing: [], checkedAt: Date.now() }
-    appendLog(id, 'info', 'Marking packages as installed (setup completed without errors)')
+    if (!_pkgCheckCache || _pkgCheckCache.installed) {
+      _pkgCheckCache = {
+        installed: false,
+        missing: REQUIRED_PYTHON_RUNTIME_IMPORTS.map(pkg => pkg.id),
+        checkedAt: Date.now(),
+      }
+    }
+    appendLog(id, 'error', `Verification script error: ${msg}`)
     await unlink(verifyScriptPath).catch(() => {})
+    throw err
   }
 
   appendLog(id, 'success', `Python environment ready: ${venvPython}`)

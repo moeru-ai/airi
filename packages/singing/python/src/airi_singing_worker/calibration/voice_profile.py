@@ -66,6 +66,11 @@ def build_voice_profile(
     if embeddings:
         centroid = np.mean(embeddings, axis=0)
         profile.embedding_centroid = centroid.tolist()
+    else:
+        logger.warning(
+            "No speaker embeddings were extracted while building voice profile for %s",
+            voice_id,
+        )
 
     # F0 distribution
     all_f0 = []

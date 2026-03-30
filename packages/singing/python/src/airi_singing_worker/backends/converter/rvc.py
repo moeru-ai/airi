@@ -10,6 +10,8 @@ Environment variables (set by the TypeScript adapter):
 
 import json
 import os
+import inspect
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -113,6 +115,49 @@ def _find_index(voice_id: str, models_dir: str | None = None) -> str | None:
     return None
 
 
+def _link_or_copy(src_path: str, dst_path: str) -> None:
+    """Materialize a model artifact under the requested registry layout."""
+    try:
+        os.link(src_path, dst_path)
+    except OSError:
+        shutil.copy2(src_path, dst_path)
+
+
+def _prepare_model_registry(
+    model_path: str,
+    index_path: str,
+    voice_id: str,
+) -> tuple[str, str, str | None]:
+    """Prepare a models_dir/model_name pair for newer rvc_python APIs.
+
+    Newer `rvc_python` releases load models by registry name rather than by
+    direct checkpoint path. Reuse the existing `voice_models/<voiceId>/`
+    directory layout when possible; otherwise stage a temporary registry bundle.
+    """
+    model_file = Path(model_path).resolve()
+    model_name = voice_id or model_file.stem
+
+    if (
+        model_file.parent.name == model_name
+        and model_file.name == f"{model_name}.pth"
+    ):
+        registry_root = model_file.parent.parent
+        return str(registry_root), model_name, None
+
+    staged_root = Path(tempfile.mkdtemp(prefix="airi-rvc-model-"))
+    staged_model_dir = staged_root / model_name
+    staged_model_dir.mkdir(parents=True, exist_ok=True)
+
+    staged_model_path = staged_model_dir / f"{model_name}.pth"
+    _link_or_copy(str(model_file), str(staged_model_path))
+
+    if index_path and Path(index_path).exists():
+        staged_index_path = staged_model_dir / f"{model_name}.index"
+        _link_or_copy(index_path, str(staged_index_path))
+
+    return str(staged_root), model_name, str(staged_root)
+
+
 def convert(
     vocals_path: str = "",
     output_dir: str = "",
@@ -167,6 +212,7 @@ def convert(
     actual_rms_mix_rate = float(kwargs.get("rms_mix_rate", rms_mix_rate))
     actual_protect = float(kwargs.get("protect", protect))
     actual_f0_file = str(kwargs.get("f0_file", f0_file or "")) or ""
+    staged_registry_root = None
 
     tmp_input = None
     try:
@@ -180,8 +226,20 @@ def convert(
             rvc_input = tmp_input.name
             print(f"Pre-aligned: {src_info.samplerate}Hz -> {MODEL_TARGET_SR}Hz", flush=True)
 
-        rvc = RVCInference(device=device)
-        rvc.load_model(model_path, index_path=idx_path)
+        load_model_params = inspect.signature(RVCInference.load_model).parameters
+        if "index_path" in load_model_params:
+            rvc = RVCInference(device=device)
+            rvc.load_model(model_path, index_path=idx_path)
+            resolved_index_path = idx_path
+        else:
+            models_root, model_name, staged_registry_root = _prepare_model_registry(
+                model_path=model_path,
+                index_path=idx_path,
+                voice_id=vid,
+            )
+            rvc = RVCInference(models_dir=models_root, device=device)
+            rvc.load_model(model_name)
+            resolved_index_path = str(rvc.models.get(model_name, {}).get("index") or "")
 
         rvc.set_params(
             f0method=f0_method,
@@ -199,7 +257,7 @@ def convert(
                 input_audio_path=rvc_input,
                 f0_up_key=actual_f0_up_key,
                 f0_method=f0_method,
-                file_index=idx_path,
+                file_index=resolved_index_path,
                 index_rate=actual_index_rate,
                 filter_radius=actual_filter_radius,
                 resample_sr=rvc.resample_sr,
@@ -222,6 +280,8 @@ def convert(
     finally:
         if tmp_input and os.path.exists(tmp_input.name):
             os.unlink(tmp_input.name)
+        if staged_registry_root and os.path.exists(staged_registry_root):
+            shutil.rmtree(staged_registry_root, ignore_errors=True)
 
     return output_path
 

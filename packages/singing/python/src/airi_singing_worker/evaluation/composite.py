@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import soundfile as sf
 
 from . import speaker_similarity, content_preservation, melody_accuracy, naturalness
 
@@ -131,12 +132,12 @@ def run_evaluation(
     # Axis 1: Singer Identity
     try:
         synth_emb = speaker_similarity.extract_embedding(synth_audio)
-        if voice_profile_data and "embedding_centroid" in voice_profile_data:
-            centroid = np.array(voice_profile_data["embedding_centroid"], dtype=np.float32)
-            card.singer_similarity = speaker_similarity.compute_similarity(centroid, synth_emb)
-        else:
-            ref_emb = speaker_similarity.extract_embedding(ref_audio)
-            card.singer_similarity = speaker_similarity.compute_similarity(ref_emb, synth_emb)
+        ref_emb = _resolve_identity_reference_embedding(
+            ref_audio=ref_audio,
+            synth_emb=synth_emb,
+            voice_profile_data=voice_profile_data,
+        )
+        card.singer_similarity = speaker_similarity.compute_similarity(ref_emb, synth_emb)
     except Exception as e:
         logger.warning("Singer identity evaluation failed: %s", e)
 
@@ -185,6 +186,48 @@ def run_evaluation(
 
     card.overall_grade = compute_overall_grade(card)
     return card
+
+
+def _resolve_identity_reference_embedding(
+    ref_audio: str,
+    synth_emb: np.ndarray,
+    voice_profile_data: dict | None = None,
+) -> np.ndarray:
+    """Choose the best available reference embedding for identity scoring.
+
+    The training/evaluation flow prefers a cached voice-profile centroid so that
+    similarity reflects the whole dataset rather than a single segment. However,
+    malformed profiles can legitimately contain an empty centroid list (for
+    example when embedding extraction failed during profile generation). In that
+    case we must fall back to the reference audio embedding instead of feeding a
+    zero-length vector into cosine similarity, which collapses identity to 0.
+    """
+    centroid_values = None
+    if voice_profile_data:
+        centroid_values = voice_profile_data.get("embedding_centroid")
+
+    if centroid_values is not None:
+        try:
+            centroid = np.asarray(centroid_values, dtype=np.float32).flatten()
+            if centroid.size == 0:
+                logger.warning(
+                    "Voice profile centroid is empty for identity scoring; falling back to reference audio embedding",
+                )
+            elif centroid.shape != synth_emb.shape:
+                logger.warning(
+                    "Voice profile centroid shape %s does not match synthesized embedding shape %s; falling back to reference audio embedding",
+                    centroid.shape,
+                    synth_emb.shape,
+                )
+            else:
+                return centroid
+        except Exception as e:
+            logger.warning(
+                "Voice profile centroid is invalid for identity scoring (%s); falling back to reference audio embedding",
+                e,
+            )
+
+    return speaker_similarity.extract_embedding(ref_audio)
 
 
 def run_evaluation_batch(
