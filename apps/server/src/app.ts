@@ -74,6 +74,16 @@ async function buildApp(deps: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
 
   const app = new Hono<HonoEnv>()
+    .use('*', async (c, next) => {
+      await next()
+
+      // NOTICE: All API responses should be non-cacheable. Auth responses can
+      // carry session state through redirects, and stale API payloads are not
+      // safe to serve from edge caches after user/account mutations.
+      c.res.headers.set('Cache-Control', 'no-store, no-cache, private, max-age=0')
+      c.res.headers.set('Pragma', 'no-cache')
+      c.res.headers.set('Expires', '0')
+    })
     .use(
       '/api/*',
       cors({
