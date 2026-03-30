@@ -259,7 +259,7 @@ async function saveToGallery() {
                   class="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 font-mono text-xs outline-none dark:border-neutral-700 dark:bg-neutral-800"
                 />
                 <p class="text-xs text-neutral-500 leading-5 dark:text-neutral-400">
-                  Optional, but required for actual ComfyUI execution. Paste a real API-format workflow object here if you want the queued job to run instead of only being planned and stored.
+                  Optional override. If left empty, AIRI now builds a default API-format ComfyUI workflow from the planned prompt, negative prompt, aspect ratio, and server checkpoint setting.
                 </p>
               </div>
 

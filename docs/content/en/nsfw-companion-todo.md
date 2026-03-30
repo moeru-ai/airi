@@ -12,7 +12,8 @@ This is the implementation checklist for the AIRI + Hermes companion stack.
 - [x] Add a Redis-backed NSFW image queue and worker entrypoint in the AIRI server.
 - [x] Publish NSFW image jobs into the queue from `POST /api/v1/nsfw/jobs`.
 - [x] Add a ComfyUI submit/reconcile consumer path that treats AIRI as the source of truth.
-- [ ] Attach a real ComfyUI API workflow payload to `params.workflow` during NSFW image job creation.
+- [x] Add a default ComfyUI API workflow builder for NSFW image jobs.
+- [ ] Tune the default ComfyUI workflow against the exact checkpoints and node set installed on this machine.
 - [ ] Persist ComfyUI execution metadata more explicitly than the current `params.comfy` blob if recovery needs become more complex.
 
 ## AIRI

@@ -141,6 +141,8 @@ Role:
   - Redis Stream envelope for durable NSFW image execution requests
 - `apps/server/src/services/nsfw-image-consumer-handler.ts`
   - ComfyUI submission and `/history/{prompt_id}` reconciliation logic
+- `apps/server/src/services/nsfw-image-workflow.ts`
+  - builds a default API-format ComfyUI workflow from prompt, negative prompt, aspect ratio, and checkpoint config
 - `apps/server/src/bin/run-nsfw-image-consumer.ts`
   - standalone worker entrypoint for NSFW image execution
 - `apps/server/docker-compose.yml`
@@ -215,13 +217,14 @@ Role:
 - server-backed NSFW image job and gallery records
 - Redis-backed NSFW image execution queue
 - ComfyUI submit/reconcile worker path
+- default API-format ComfyUI workflow generation for NSFW jobs
 
 ### Still Open
 
 - server-side long-term memory
 - quality judge beyond simple heuristic flags
 - premium gating for NSFW media actions
-- a default real ComfyUI API workflow mapping for generated NSFW prompts
+- tuning the default ComfyUI workflow against the exact locally installed checkpoints
 - actual model wiring to `Hermes-4.3-36B`, `Grok 4.20`, and `GPT-5 mini`
 - build, typecheck, and tests once dependencies are installed
 

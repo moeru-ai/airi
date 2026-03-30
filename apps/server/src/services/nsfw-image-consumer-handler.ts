@@ -4,6 +4,8 @@ import type { NsfwImageEvent } from './nsfw-image-events'
 
 import { useLogger } from '@guiiai/logg'
 
+import { buildDefaultComfyWorkflow } from './nsfw-image-workflow'
+
 const logger = useLogger('nsfw-image-consumer').useGlobalConfig()
 
 interface ComfyUiPromptSubmission {
@@ -124,18 +126,13 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
         return
       }
 
-      const workflow = extractWorkflow(job.params)
-      if (!workflow) {
-        await mediaService.updateImageJobStatus(jobId, 'failed', {
-          errorMessage: 'No ComfyUI API workflow was attached to this job. Add params.workflow before enqueueing execution.',
-        })
-        return
-      }
+      const workflow = extractWorkflow(job.params) ?? buildDefaultComfyWorkflow(job, env)
 
       await mediaService.updateImageJobStatus(jobId, 'submitting', {
         errorMessage: null,
         params: {
           ...job.params,
+          workflow,
           comfy: {
             ...comfyMeta,
             promptId,
