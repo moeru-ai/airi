@@ -143,6 +143,7 @@ Role:
   - ComfyUI submission and `/history/{prompt_id}` reconciliation logic
 - `apps/server/src/services/nsfw-image-workflow.ts`
   - builds a default API-format ComfyUI workflow from prompt, negative prompt, aspect ratio, and checkpoint config
+  - currently targets the locally present `ponyDiffusionV6.safetensors` checkpoint by default
 - `apps/server/src/bin/run-nsfw-image-consumer.ts`
   - standalone worker entrypoint for NSFW image execution
 - `apps/server/docker-compose.yml`

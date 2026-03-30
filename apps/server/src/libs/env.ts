@@ -63,7 +63,7 @@ const EnvSchema = object({
   NSFW_IMAGE_EVENTS_BLOCK_MS: optionalIntegerFromString(5000, 'NSFW_IMAGE_EVENTS_BLOCK_MS', 1),
   NSFW_IMAGE_EVENTS_MIN_IDLE_MS: optionalIntegerFromString(30000, 'NSFW_IMAGE_EVENTS_MIN_IDLE_MS', 1),
   COMFYUI_BASE_URL: optional(string(), 'http://127.0.0.1:8188'),
-  COMFYUI_DEFAULT_CHECKPOINT: optional(string(), 'v1-5-pruned-emaonly.safetensors'),
+  COMFYUI_DEFAULT_CHECKPOINT: optional(string(), 'ponyDiffusionV6.safetensors'),
 
   // Database pool
   DB_POOL_MAX: optionalIntegerFromString(20, 'DB_POOL_MAX', 1),
