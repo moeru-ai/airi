@@ -12,6 +12,7 @@ import pytest
 import soundfile as sf
 
 from airi_singing_worker.backends.converter import rvc as rvc_backend
+from airi_singing_worker.backends.postprocessor import vocal_postprocess
 from airi_singing_worker.calibration.voice_profile import build_voice_profile
 from airi_singing_worker.evaluation import (
     composite,
@@ -20,6 +21,7 @@ from airi_singing_worker.evaluation import (
     naturalness,
     speaker_similarity,
 )
+from airi_singing_worker.pipelines import training_pipeline
 from airi_singing_worker.evaluation.speaker_similarity import (
     compute_similarity,
 )
@@ -275,3 +277,52 @@ class TestRvcBackendCompatibility:
         assert len(instances) == 1
         assert instances[0].current_model == "test_voice"
         assert Path(instances[0].models_dir) == tmp_path / "voice_models"
+
+
+class TestTrainingQaSelection:
+    def test_prepare_holdout_eval_clips_caps_and_materializes_representative_subset(self, tmp_path):
+        holdout_dir = tmp_path / "holdout"
+        eval_dir = tmp_path / "eval"
+        holdout_dir.mkdir()
+        eval_dir.mkdir()
+
+        manifest = []
+        sr = 40000
+        for index in range(12):
+            path = holdout_dir / f"0_{index}.wav"
+            tone = np.sin(np.linspace(0, np.pi * 16, sr * 3, dtype=np.float32)) * 0.2
+            sf.write(path, tone, sr)
+            manifest.append({
+                "filename": path.name,
+                "path": str(path),
+                "tag": ["low", "mid", "high"][index % 3],
+                "duration_sec": 3.0,
+                "rms_db": -14.0,
+            })
+
+        clips = training_pipeline._prepare_holdout_eval_clips(manifest, str(eval_dir))
+
+        assert 3 <= len(clips) <= 6
+        for clip in clips:
+            assert Path(clip["path"]).exists()
+            assert clip["tag"] in {"low", "mid", "high", "mixed"}
+
+
+class TestVocalPostprocess:
+    def test_spectral_denoise_reduces_high_frequency_noise_energy(self):
+        sr = 44100
+        duration = 2.0
+        t = np.linspace(0, duration, int(sr * duration), endpoint=False, dtype=np.float32)
+        clean = 0.2 * np.sin(2 * np.pi * 220 * t)
+        hiss = 0.05 * np.sin(2 * np.pi * 9000 * t)
+        noisy = clean + hiss
+
+        processed = vocal_postprocess.spectral_denoise(noisy, sr)
+
+        def hf_energy(data: np.ndarray) -> float:
+            spec = np.abs(np.fft.rfft(data[:2048] * np.hanning(2048)))
+            freqs = np.fft.rfftfreq(2048, d=1.0 / sr)
+            mask = freqs >= 6000
+            return float(np.mean(spec[mask] ** 2))
+
+        assert hf_energy(processed) < hf_energy(noisy)

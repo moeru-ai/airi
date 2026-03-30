@@ -4,12 +4,13 @@ import process from 'node:process'
 
 import { execFile, spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { createWriteStream, existsSync, realpathSync, statSync } from 'node:fs'
+import { createReadStream, createWriteStream, existsSync, realpathSync, statSync } from 'node:fs'
 import { mkdir, readdir, readFile, rename, rm, unlink, writeFile } from 'node:fs/promises'
 import { get as httpGet } from 'node:http'
 import { get as httpsGet } from 'node:https'
 import { createServer } from 'node:net'
 import { dirname, join, resolve } from 'node:path'
+import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { promisify } from 'node:util'
 
@@ -1524,9 +1525,8 @@ function buildApp(dataDir: string) {
         pkgCheck = { installed: false, missing: [] }
       }
       const pythonReady = !!pythonInfo?.isVenv && pkgCheck.installed
-
       const moduleOk = !!(await getSingingModule())
-      const sysReady = !!ffmpegPath && pythonReady
+      const sysReady = !!ffmpegPath && pythonReady && moduleOk
 
       const baseModels = checkBaseModels(modelsDir)
       const allBaseReady = baseModels.every((m: { exists: boolean }) => m.exists)
@@ -1900,7 +1900,6 @@ function buildApp(dataDir: string) {
         const fullPath = resolveContainedPath(baseJobDir, artifactPath)
         if (!fullPath)
           return c.json({ error: 'Invalid artifact path' }, 400)
-        const data = await readFile(fullPath)
         const ext = artifactPath.split('.').pop() ?? ''
         const mimeMap: Record<string, string> = {
           wav: 'audio/wav',
@@ -1908,7 +1907,7 @@ function buildApp(dataDir: string) {
           json: 'application/json',
           npy: 'application/octet-stream',
         }
-        return new Response(data, {
+        return new Response(Readable.toWeb(createReadStream(fullPath)) as unknown as ReadableStream<Uint8Array>, {
           headers: { 'Content-Type': mimeMap[ext] ?? 'application/octet-stream' },
         })
       }

@@ -93,6 +93,7 @@ const modelsLogEl = ref<HTMLElement>()
 const envReady = computed(() =>
   health.value.loaded
   && health.value.serverReachable
+  && health.value.moduleLoaded
   && health.value.ffmpeg
   && health.value.pythonVenv
   && health.value.pythonPackagesInstalled,
@@ -128,6 +129,8 @@ const managedProvisioningIssues = computed(() => {
     issues.push('FFmpeg is not available on the server singing runtime.')
   if (!health.value.pythonVenv)
     issues.push('Python runtime or required packages are not ready on the server singing runtime.')
+  if (!health.value.moduleLoaded)
+    issues.push('The singing module could not be loaded by the runtime service.')
   if (!health.value.baseModelsReady)
     issues.push('Required base models are missing from the server singing runtime.')
 

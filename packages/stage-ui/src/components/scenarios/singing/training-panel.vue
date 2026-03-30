@@ -56,7 +56,7 @@ watch(
 function handleFileDrop(e: DragEvent) {
   isDragOver.value = false
   const file = e.dataTransfer?.files?.[0]
-  if (file && (file.type.startsWith('audio/') || file.name.endsWith('.zip')))
+  if (file && file.type.startsWith('audio/'))
     datasetFile.value = file
 }
 
@@ -154,11 +154,11 @@ async function handleCancelTraining() {
             {{ isDragOver ? 'Drop file here' : 'Click or drag training audio file here' }}
           </div>
           <div class="text-xs text-neutral-400 dark:text-neutral-500">
-            Clean vocal recordings, 10+ minutes recommended. Supports audio files and .zip archives.
+            Clean vocal recordings, 10+ minutes recommended. Supports audio files only.
           </div>
         </div>
       </div>
-      <input ref="datasetInput" type="file" accept="audio/*,.zip" class="hidden" @change="handleFileSelect">
+      <input ref="datasetInput" type="file" accept="audio/*" class="hidden" @change="handleFileSelect">
 
       <div v-if="datasetFile" class="flex items-center gap-3 border border-green-200 rounded-xl bg-green-50 p-3 dark:border-green-800 dark:bg-green-900/20">
         <div class="i-solar:database-bold-duotone text-xl text-green-600 dark:text-green-400" />

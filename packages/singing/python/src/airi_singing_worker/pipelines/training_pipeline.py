@@ -27,6 +27,13 @@ from ..io.files import ensure_dir
 
 patch_torch_load()
 
+_HOLDOUT_SEGMENT_RATIO = 0.20
+_MIN_QA_SEGMENTS = 3
+_MAX_QA_SEGMENTS = 6
+_MAX_QA_SEGMENTS_PER_BUCKET = 2
+_MIN_QA_RMS_DB = -32.0
+_QA_TARGET_GROUP_DURATION_SEC = 8.0
+
 
 def _release_gpu(label: str = "") -> None:
     """Run GC and release CUDA cached memory after a GPU-heavy step."""
@@ -217,7 +224,7 @@ def _preprocess_dataset(
     dataset_path: str,
     exp_dir: str,
     sr: int = 40000,
-    holdout_ratio: float = 0.20,
+    holdout_ratio: float = _HOLDOUT_SEGMENT_RATIO,
 ) -> tuple[str, str, str]:
     """Slice and resample dataset audio into training and holdout segments.
 
@@ -328,10 +335,13 @@ def _preprocess_dataset(
 
             # Tag by F0 bucket (low/mid/high) using basic analysis
             tag = _tag_f0_bucket(str(seg_path), sr)
+            segment_summary = _summarize_segment(str(seg_path))
             holdout_manifest.append({
                 "filename": seg_path.name,
                 "path": dest,
                 "tag": tag,
+                "duration_sec": round(segment_summary["duration_sec"], 3),
+                "rms_db": round(segment_summary["rms_db"], 3),
             })
 
     manifest_path = os.path.join(exp_dir, "holdout_manifest.json")
@@ -362,6 +372,163 @@ def _tag_f0_bucket(wav_path: str, sr: int = 40000) -> str:
             return "high"
     except Exception:
         return "mid"
+
+
+def _summarize_segment(wav_path: str) -> dict[str, float]:
+    """Return cheap per-segment stats used to build a representative QA subset."""
+    data, sr = sf.read(wav_path, dtype="float32")
+    if data.ndim > 1:
+        data = data.mean(axis=1)
+
+    duration_sec = len(data) / max(sr, 1)
+    rms = np.sqrt(np.mean(data ** 2)) if len(data) > 0 else 0.0
+    rms_db = 20.0 * np.log10(max(float(rms), 1e-8))
+
+    return {
+        "duration_sec": float(duration_sec),
+        "rms_db": float(rms_db),
+    }
+
+
+def _segment_sort_key(entry: dict[str, object]) -> tuple[float, float, str]:
+    """Prefer voiced, audible holdout segments for QA."""
+    rms_db = float(entry.get("rms_db", -120.0))
+    duration_sec = float(entry.get("duration_sec", 0.0))
+    filename = str(entry.get("filename", ""))
+    return (-max(rms_db, -120.0), -duration_sec, filename)
+
+
+def _segment_sequence_index(entry: dict[str, object]) -> int:
+    filename = Path(str(entry.get("filename", ""))).stem
+    raw_index = filename.split("_")[-1]
+    try:
+        return int(raw_index)
+    except ValueError:
+        return 0
+
+
+def _chunk_holdout_entries(
+    entries: list[dict[str, object]],
+    target_duration_sec: float = _QA_TARGET_GROUP_DURATION_SEC,
+) -> list[list[dict[str, object]]]:
+    """Concatenate a few representative short slices into longer QA clips.
+
+    Training slices are intentionally short for GAN stability, but report-card QA
+    becomes both slower and noisier if we transcribe/evaluate every 3-second
+    slice independently. Building a few longer clips produces more stable ASR
+    and melody metrics while dramatically reducing the number of conversions.
+    """
+    if not entries:
+        return []
+
+    entries = sorted(entries, key=_segment_sequence_index)
+    groups: list[list[dict[str, object]]] = []
+    current: list[dict[str, object]] = []
+    current_duration = 0.0
+
+    for entry in entries:
+        duration_sec = float(entry.get("duration_sec", 0.0))
+        if current and current_duration >= target_duration_sec:
+            groups.append(current)
+            current = []
+            current_duration = 0.0
+
+        current.append(entry)
+        current_duration += duration_sec
+
+        if len(current) >= 3:
+            groups.append(current)
+            current = []
+            current_duration = 0.0
+
+    if current:
+        groups.append(current)
+
+    return groups
+
+
+def _write_eval_clip(segment_paths: list[str], output_path: str) -> str:
+    """Concatenate selected slices into one evaluation reference clip."""
+    if len(segment_paths) == 1:
+        import shutil as _shutil
+
+        _shutil.copy2(segment_paths[0], output_path)
+        return output_path
+
+    merged: list[np.ndarray] = []
+    sample_rate = 0
+
+    for segment_path in segment_paths:
+        data, sr = sf.read(segment_path, dtype="float32")
+        if data.ndim > 1:
+            data = data.mean(axis=1)
+        if sample_rate == 0:
+            sample_rate = sr
+        elif sr != sample_rate:
+            raise SingingWorkerError(
+                f"Mixed sample rates in holdout evaluation clip assembly: {sample_rate} vs {sr}",
+                code="PREPROCESSING_FAILED",
+            )
+        merged.append(data.astype(np.float32))
+
+    eval_clip = np.concatenate(merged, axis=0)
+    sf.write(output_path, eval_clip, sample_rate, subtype="PCM_16")
+    return output_path
+
+
+def _prepare_holdout_eval_clips(
+    holdout_manifest: list[dict[str, object]],
+    eval_output_dir: str,
+    max_groups: int = _MAX_QA_SEGMENTS,
+    max_groups_per_bucket: int = _MAX_QA_SEGMENTS_PER_BUCKET,
+) -> list[dict[str, str]]:
+    """Select and materialize a compact, representative QA evaluation set."""
+    bucketed: dict[str, list[dict[str, object]]] = {"low": [], "mid": [], "high": []}
+    fallback_candidates: list[dict[str, object]] = []
+
+    for entry in holdout_manifest:
+        rms_db = float(entry.get("rms_db", -120.0))
+        if rms_db < _MIN_QA_RMS_DB:
+            continue
+
+        tag = str(entry.get("tag", "mid"))
+        fallback_candidates.append(entry)
+        if tag in bucketed:
+            bucketed[tag].append(entry)
+
+    for tag in bucketed:
+        bucketed[tag].sort(key=_segment_sort_key)
+    fallback_candidates.sort(key=_segment_sort_key)
+
+    selected_groups: list[dict[str, str]] = []
+    used_paths: set[str] = set()
+
+    def append_groups(entries: list[dict[str, object]], tag: str, limit: int) -> None:
+        nonlocal selected_groups
+        filtered = [entry for entry in entries if str(entry.get("path", "")) not in used_paths]
+        filtered = sorted(filtered, key=_segment_sort_key)[:max(limit * 3, limit)]
+        for group in _chunk_holdout_entries(filtered)[:limit]:
+            segment_paths = [str(entry["path"]) for entry in group]
+            for segment_path in segment_paths:
+                used_paths.add(segment_path)
+
+            output_path = os.path.join(eval_output_dir, f"eval_ref_{tag}_{len(selected_groups)}.wav")
+            _write_eval_clip(segment_paths, output_path)
+            selected_groups.append({
+                "path": output_path,
+                "tag": tag,
+            })
+
+    for tag in ("low", "mid", "high"):
+        append_groups(bucketed[tag], tag, max_groups_per_bucket)
+
+    if len(selected_groups) < _MIN_QA_SEGMENTS:
+        append_groups(fallback_candidates, "mixed", _MIN_QA_SEGMENTS - len(selected_groups))
+
+    if len(selected_groups) < max_groups:
+        append_groups(fallback_candidates, "mixed", max_groups - len(selected_groups))
+
+    return selected_groups[:max_groups]
 
 
 def _load_hubert(hubert_path: str, device: str):
@@ -807,6 +974,8 @@ def run_training_pipeline(
     voice_profile_data = None
     validation_report_data = None
     try:
+        from ..calibration.param_predictor import predict_params
+        from ..calibration.source_analyzer import analyze_source_features
         from ..calibration.voice_profile import build_voice_profile, save_voice_profile
         from ..evaluation.composite import run_evaluation_batch
 
@@ -828,15 +997,32 @@ def run_training_pipeline(
                 eval_output_dir = os.path.join(exp_dir, "holdout_eval")
                 os.makedirs(eval_output_dir, exist_ok=True)
 
+                selected_eval_refs = _prepare_holdout_eval_clips(holdout_manifest, eval_output_dir)
+                if not selected_eval_refs:
+                    raise SingingWorkerError(
+                        "No representative holdout clips were suitable for quality assessment",
+                        code="VOICE_PROFILE_INVALID",
+                    )
+
                 pairs = []
-                n_holdout = len(holdout_manifest)
-                for hi, entry in enumerate(holdout_manifest):
+                n_holdout = len(selected_eval_refs)
+                print(
+                    f"  Quality assessment will evaluate {n_holdout} representative holdout clip(s) "
+                    f"(capped from {len(holdout_manifest)} raw holdout segment(s))",
+                    flush=True,
+                )
+
+                for hi, entry in enumerate(selected_eval_refs):
                     ref_path = entry["path"]
                     tag = entry.get("tag", "unknown")
                     synth_path = ref_path  # fallback if inference fails
 
                     try:
                         from ..backends.converter.rvc import convert
+                        predicted = predict_params(
+                            analyze_source_features(ref_path, include_quality_estimate=False),
+                            profile,
+                        )
                         seg_output_dir = os.path.join(eval_output_dir, f"seg_{hi}")
                         os.makedirs(seg_output_dir, exist_ok=True)
                         converted = convert(
@@ -844,10 +1030,11 @@ def run_training_pipeline(
                             output_dir=seg_output_dir,
                             model_path=model_output,
                             index_file=index_output,
-                            f0_up_key=0,
-                            index_rate=0.75,
-                            protect=0.33,
-                            rms_mix_rate=0.25,
+                            f0_up_key=predicted.pitch_shift,
+                            index_rate=predicted.index_rate,
+                            protect=predicted.protect,
+                            rms_mix_rate=predicted.rms_mix_rate,
+                            filter_radius=predicted.filter_radius,
                         )
                         synth_path = converted
                     except Exception as conv_err:

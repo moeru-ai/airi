@@ -60,11 +60,13 @@ function adjustParamsFromGateResult(
         conv.indexRate = clamp((conv.indexRate ?? 0.75) + 0.10, 0.10, 0.95)
         break
       case 'source_leakage':
-        conv.indexRate = clamp((conv.indexRate ?? 0.75) - 0.10, 0.10, 0.95)
+        conv.indexRate = clamp((conv.indexRate ?? 0.75) + 0.10, 0.10, 0.95)
         break
+      case 'tearing':
       case 'tearing_risk':
         conv.protect = clamp((conv.protect ?? 0.33) - 0.08, 0.05, 0.50)
         conv.filterRadius = clamp((conv.filterRadius ?? 3) + 1, 1, 7)
+        conv.rmsMixRate = clamp((conv.rmsMixRate ?? 0.25) - 0.05, 0.05, 0.80)
         break
     }
   }

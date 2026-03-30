@@ -109,7 +109,7 @@ def run_validation_gate(
         failed.append("f0_corr")
     if result.source_leakage > t.get("source_leakage_max", 0.40):
         failed.append("source_leakage")
-    if result.tearing_risk > 0.5:
+    if result.tearing_risk > 0.35:
         failed.append("tearing")
 
     result.failed_metrics = failed

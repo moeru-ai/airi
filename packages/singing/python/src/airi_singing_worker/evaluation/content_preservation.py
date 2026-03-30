@@ -6,7 +6,30 @@ Falls back to a no-op scorer if faster-whisper is unavailable.
 
 from __future__ import annotations
 
+import logging
+
 _whisper_model = None
+logger = logging.getLogger(__name__)
+
+
+def _resolve_whisper_runtime() -> tuple[str, str]:
+    """Pick the fastest stable runtime that is available on this host.
+
+    The faster-whisper maintainers document a large speedup on GPU FP16 / INT8
+    compared with CPU inference and also recommend batched or VAD-filtered
+    transcription for throughput-sensitive workloads. We keep the model size
+    modest (`base`) but move to GPU when present so post-training QA does not
+    spend most of its time inside ASR.
+    """
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            return "cuda", "float16"
+    except Exception:
+        pass
+
+    return "cpu", "int8"
 
 
 def _get_whisper():
@@ -16,9 +39,19 @@ def _get_whisper():
         return _whisper_model
     try:
         from faster_whisper import WhisperModel
-        _whisper_model = WhisperModel("base", device="cpu", compute_type="int8")
+        device, compute_type = _resolve_whisper_runtime()
+        try:
+            _whisper_model = WhisperModel("base", device=device, compute_type=compute_type)
+        except ValueError:
+            # NOTICE: Some Windows CUDA environments only support int8_float16
+            # with the locally installed CTranslate2/CUDA combination.
+            fallback_type = "int8_float16" if device == "cuda" else "int8"
+            _whisper_model = WhisperModel("base", device=device, compute_type=fallback_type)
         return _whisper_model
     except ImportError:
+        return None
+    except Exception as exc:
+        logger.warning("Failed to initialize faster-whisper: %s", exc)
         return None
 
 
@@ -35,7 +68,16 @@ def transcribe_audio(audio_path: str, language: str | None = None) -> str:
     if language:
         kwargs["language"] = language
 
-    segments, _info = model.transcribe(audio_path, beam_size=5, **kwargs)
+    # NOTICE: For report-card QA we favor stable throughput over exhaustive
+    # decoding. The official faster-whisper guidance shows beam size heavily
+    # influences runtime, and VAD-filtered transcription helps skip silence.
+    segments, _info = model.transcribe(
+        audio_path,
+        beam_size=1,
+        condition_on_previous_text=False,
+        vad_filter=True,
+        **kwargs,
+    )
     return " ".join(seg.text.strip() for seg in segments)
 
 

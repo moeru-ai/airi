@@ -39,6 +39,14 @@ def analyze_source(vocal_path: str) -> SourceFeatures:
     Returns:
         SourceFeatures populated with all available metrics.
     """
+    return analyze_source_features(vocal_path)
+
+
+def analyze_source_features(
+    vocal_path: str,
+    include_quality_estimate: bool = True,
+) -> SourceFeatures:
+    """Analyze a source vocal, optionally skipping slower quality estimators."""
     feats = SourceFeatures()
 
     try:
@@ -103,12 +111,13 @@ def analyze_source(vocal_path: str) -> SourceFeatures:
     except (ImportError, Exception) as e:
         logger.warning("Spectral flatness failed: %s", e)
 
-    # Source quality estimate via MOS
-    try:
-        from ..evaluation.naturalness import predict_mos
-        feats.source_quality = predict_mos(vocal_path)
-    except Exception as e:
-        logger.warning("Source quality estimation failed: %s", e)
+    if include_quality_estimate:
+        # Source quality estimate via MOS
+        try:
+            from ..evaluation.naturalness import predict_mos
+            feats.source_quality = predict_mos(vocal_path)
+        except Exception as e:
+            logger.warning("Source quality estimation failed: %s", e)
 
     return feats
 

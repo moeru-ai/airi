@@ -155,4 +155,23 @@ describe('singingRoutes', () => {
     expect(data.pythonPackagesInstalled).toBe(false)
     expect(data.pythonPackagesMissing).toEqual(['torch', 'librosa'])
   })
+
+  it('streams artifact files without buffering the entire payload in route code', async () => {
+    const singingService = createMockSingingService()
+    const app = createTestApp(singingService)
+    const artifactDir = join(runtimeEnv.tempDir, 'jobs', 'job-1', '05_mix')
+    const artifactPath = join(artifactDir, 'final_cover.wav')
+
+    await mkdir(artifactDir, { recursive: true })
+    await writeFile(artifactPath, 'artifact-bytes')
+
+    const res = await app.fetch(
+      new Request('http://localhost/artifacts/job-1/05_mix/final_cover.wav'),
+      { user: testUser } as any,
+    )
+
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('audio/wav')
+    expect(await res.text()).toBe('artifact-bytes')
+  })
 })

@@ -115,13 +115,10 @@ def predict_index_rate(
 ) -> float:
     """Predict optimal index rate based on embedding mismatch, quality gap, and content risk.
 
-    index_rate = clamp(
-        0.35 + 0.30 * mismatch - 0.25 * quality_gap + 0.10 * leakage_risk - 0.20 * content_risk,
-        0.10, 0.90
-    )
-
-    When content_risk is high (previous inference had low content score),
-    reduce index_rate to let more source phonetic information pass through.
+    RVC's own CLI docs note that higher index_rate strengthens accent/timbre
+    transfer but also increases artifact risk when pushed too far. We therefore
+    bias the predictor slightly lower than the original prototype and further
+    suppress retrieval when the source already looks sibilant/flat/noisy.
     """
     mismatch = 0.5
     if source.speaker_embedding and profile.embedding_centroid:
@@ -137,13 +134,15 @@ def predict_index_rate(
     leakage_risk = 0.0
 
     rate = (
-        0.35
-        + 0.30 * mismatch
-        - 0.25 * quality_gap
-        + 0.10 * leakage_risk
+        0.30
+        + 0.24 * mismatch
+        - 0.22 * quality_gap
+        + 0.08 * leakage_risk
         - 0.20 * content_risk
+        - 0.10 * source.sibilance_score
+        - 0.08 * source.spectral_flatness
     )
-    return _clamp(rate, 0.10, 0.90)
+    return _clamp(rate, 0.10, 0.82)
 
 
 def predict_protect(
@@ -161,10 +160,10 @@ def predict_protect(
     Lower protect = stronger consonant/breath protection = less electronic tearing.
     """
     val = (
-        0.45
-        - 0.20 * source.unvoiced_ratio
-        - 0.15 * source.sibilance_score
-        - 0.10 * tearing_risk
+        0.42
+        - 0.22 * source.unvoiced_ratio
+        - 0.18 * source.sibilance_score
+        - 0.14 * tearing_risk
         - 0.10 * source.spectral_flatness
     )
     return _clamp(val, 0.10, 0.50)

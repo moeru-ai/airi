@@ -15,6 +15,18 @@ _classifier = None
 _SAMPLE_RATE = 16000
 
 
+def _get_speechbrain_device() -> str:
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            return "cuda"
+    except Exception:
+        pass
+
+    return "cpu"
+
+
 def _get_classifier():
     """Lazy-load the speechbrain ECAPA-TDNN classifier."""
     global _classifier
@@ -22,9 +34,10 @@ def _get_classifier():
         return _classifier
     try:
         from speechbrain.inference.speaker import EncoderClassifier
+        device = _get_speechbrain_device()
         _classifier = EncoderClassifier.from_hparams(
             source="speechbrain/spkrec-ecapa-voxceleb",
-            run_opts={"device": "cpu"},
+            run_opts={"device": device},
         )
         return _classifier
     except Exception:
@@ -58,7 +71,7 @@ def extract_embedding(audio_path: str) -> np.ndarray:
         try:
             import torch
             waveform = _load_audio_16k(audio_path)
-            tensor = torch.from_numpy(waveform).unsqueeze(0)
+            tensor = torch.from_numpy(waveform).unsqueeze(0).to(_get_speechbrain_device())
             embedding = classifier.encode_batch(tensor)
             return embedding.squeeze().cpu().numpy()
         except Exception:

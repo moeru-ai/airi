@@ -10,9 +10,10 @@ import type { HonoEnv } from '../../types/hono'
 
 import process from 'node:process'
 
-import { existsSync } from 'node:fs'
-import { mkdir, readFile, unlink } from 'node:fs/promises'
+import { createReadStream, existsSync } from 'node:fs'
+import { mkdir, unlink } from 'node:fs/promises'
 import { join } from 'node:path'
+import { Readable } from 'node:stream'
 
 import {
   buildJobDir,
@@ -331,7 +332,6 @@ export function createSingingRoutes(singingService: SingingService) {
       if (!fullPath)
         return c.json({ error: 'Invalid artifact path' }, 400)
 
-      const data = await readFile(fullPath)
       const ext = artifactPath.split('.').pop() ?? ''
       const mimeMap: Record<string, string> = {
         wav: 'audio/wav',
@@ -339,7 +339,7 @@ export function createSingingRoutes(singingService: SingingService) {
         json: 'application/json',
         npy: 'application/octet-stream',
       }
-      return new Response(data, {
+      return new Response(Readable.toWeb(createReadStream(fullPath)) as unknown as ReadableStream<Uint8Array>, {
         headers: { 'Content-Type': mimeMap[ext] ?? 'application/octet-stream' },
       })
     }
