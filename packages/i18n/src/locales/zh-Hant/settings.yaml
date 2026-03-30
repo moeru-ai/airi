@@ -18,17 +18,26 @@ dialogs:
     baseUrl: 基礎 URL
     baseUrlHelp: API 端點 URL（如果不確定請使用預設值）
     accountId: 帳號 ID
+    validationRunning: Running tests
     validationSuccess: 設定驗證成功
-    validationPartial: 設定部分驗證通過
+    validationPartial: Configuration partially validated
     validationFailed: 設定驗證失敗
     validationError: '驗證錯誤：{error}'
     testGeneration: Ping API
     testGenerationRunning: Ping...
-    testGenerationFailed: Ping 測試失敗
+    testGenerationFailed: Ping test failed
+    retryPingCheck: Retry
     skipForNow: 先略過
     saveAndContinue: 儲存並繼續
     next: 下一步
     retry: 重試
+    credentialsSafeLabel: Keep your API keys and credentials safe!
+    credentialsSafeLocal: >-
+      AIRI is running pure locally in your PC, and we will never steal your credentials for AI / LLM providers. But keep in mind that your API keys are sensitive information. Make sure to keep them safe and do not share them with anyone.
+    credentialsSafeOpenSource: >-
+      AIRI is open sourced at {github}, if you want to check how we handle your credentials, feel free to inspect our code.
+    enableChatCheck: >-
+      Allow airi to send a "ping" message to the first available chat model to check availability
     start: 開始吧！
     loginPrompt: Sign in to use the official AIRI provider for the best experience.
     loginAction: Sign in
@@ -379,6 +388,14 @@ pages:
         section:
           provider-selection:
             description: 選擇合適的語音辨識提供者
+          confidence-threshold:
+            title: Confidence Threshold
+            description: Filter out low-confidence transcriptions to reduce Whisper hallucinations. Values closer to 0 are more strict; drag to the leftmost to disable. Only effective for providers supporting Whisper API (e.g., OpenAI, Groq).
+            disabled: Disabled
+            verbose-json-note: >-
+              Note: If your provider does not support verbose_json responses, this setting will have no effect.
+            verbose-json-unsupported: >-
+              Your provider did not return verbose_json segments. Confidence filtering had no effect on the last transcription.
     memory-long-term:
       description: 長期記憶
       title: 長期記憶

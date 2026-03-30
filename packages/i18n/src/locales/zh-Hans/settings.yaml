@@ -18,32 +18,32 @@ dialogs:
     baseUrl: 基础 URL
     baseUrlHelp: API 端点 URL（如果不确定请使用默认值）
     accountId: 账户 ID
-    validationRunning: 正在验证配置
+    validationRunning: Running tests
     validationSuccess: 配置验证成功
-    validationPartial: 配置部分验证通过
+    validationPartial: Configuration partially validated
     validationFailed: 配置验证失败
     validationError: '验证错误：{error}'
     testGeneration: Ping API
     testGenerationRunning: Ping...
-    testGenerationFailed: Ping 测试失败
-    retryPingCheck: 再试一次
+    testGenerationFailed: Ping test failed
+    retryPingCheck: Retry
     skipForNow: 暂时跳过
     saveAndContinue: 保存并继续
     next: 下一步
     retry: 重试
-    credentialsSafeLabel: 请妥善保管你的 API 密钥和凭据！
+    credentialsSafeLabel: Keep your API keys and credentials safe!
     credentialsSafeLocal: >-
-      AIRI 完全在你的计算机中本地运行，我们绝不会窃取你的 AI / LLM
-      服务商凭据。但请注意，你的 API 密钥是敏感信息，请妥善保管，不要与任何人分享。
+      AIRI is running pure locally in your PC, and we will never steal your credentials for AI / LLM providers. But keep in mind that your API keys are sensitive information. Make sure to keep them safe and do not share them with anyone.
     credentialsSafeOpenSource: >-
-      AIRI 已在 {github} 开源，如果你想了解我们如何处理你的凭据，欢迎查阅我们的代码。
-    enableChatCheck: 允许 airi 向第一个可用的聊天模型发送 "ping" 消息来检查可用性
+      AIRI is open sourced at {github}, if you want to check how we handle your credentials, feel free to inspect our code.
+    enableChatCheck: >-
+      Allow airi to send a "ping" message to the first available chat model to check availability
     start: 开始吧！
-    loginPrompt: Sign in to use the official AIRI provider for the best experience.
-    loginAction: Sign in
+    loginPrompt: 登录并使用AIRI官方提供商以获得最佳体验。
+    loginAction: 登录
     setupWithoutSigningIn: Setup with your provider
     flux: Flux
-    buyFlux: Charge Flux
+    buyFlux: Flux充值
     select-model: 选择模型
     no-models: 找不到可用模型
     no-models-help: >-
@@ -64,7 +64,7 @@ dialogs:
 language:
   title: 语言
   description: >
-    UI language. You can set characters' language later.
+    界面语言。你也可以稍后再设置角色语言。
 controls-island:
   icon-size:
     title: 控制岛图标大小
@@ -114,7 +114,7 @@ live2d:
   focus:
     title: 禁用模型鼠标跟踪
     button-disable:
-      title: Disable model mouse tracking
+      title: 禁用live2D模型鼠标追踪
   fps:
     title: 帧率
     description: 限制渲染帧率
@@ -388,6 +388,14 @@ pages:
         section:
           provider-selection:
             description: 选择合适的语音转文本的服务来源
+          confidence-threshold:
+            title: Confidence Threshold
+            description: Filter out low-confidence transcriptions to reduce Whisper hallucinations. Values closer to 0 are more strict; drag to the leftmost to disable. Only effective for providers supporting Whisper API (e.g., OpenAI, Groq).
+            disabled: Disabled
+            verbose-json-note: >-
+              Note: If your provider does not support verbose_json responses, this setting will have no effect.
+            verbose-json-unsupported: >-
+              Your provider did not return verbose_json segments. Confidence filtering had no effect on the last transcription.
     memory-long-term:
       description: 长期记忆
       title: 长期记忆
@@ -477,29 +485,29 @@ pages:
         restarted: MCP 服务已重新启动，启动了 {started}，未启动 {failed}，跳过 {skipped}
   flux:
     title: Flux
-    buy: Charge
-    description: Current Flux
+    buy: 充值
+    description: 充值Flux
     packagesError: Failed to load packages. Please try again later.
     checkout:
       success: Payment successful! Your Flux has been topped up.
-      canceled: Payment was canceled.
-      error: Something went wrong. Please try again later.
+      canceled: 支付被取消
+      error: 哎呀，出错了
     audit:
-      title: Transaction History
-      time: Time
-      type: Type
-      detail: Detail
-      amount: Amount
+      title: 交易流水
+      time: 时间
+      type: 类型
+      detail: 明细
+      amount: 金额
       typeAddition: Top-up
-      typeConsumption: Usage
-      typeInitial: Initial Grant
-      loading: Loading history...
+      typeConsumption: 用量
+      typeInitial: 初始额度
+      loading: 加载历史...
       empty: No transaction records yet.
-      loadMore: Load More
+      loadMore: 更多信息
       delayHint: Usage records may be delayed by up to 1 minute
     packages:
       title: Flux Packages
-      buy: Charge
+      buy: 充值
       description: Flux packages to choose from.
   providers:
     explained:
@@ -846,10 +854,10 @@ pages:
         description: 浏览器原生STT (需要 Chrome/Edge/Safari)
         title: Web 语音API
       official:
-        title: Official Provider
-        description: Official AI provider by AIRI.
-        speech-title: Official Speech Provider
-        speech-description: Official text-to-speech provider by AIRI.
+        title: AIRI官方提供商
+        description: AIRI官方AI提供商
+        speech-title: AIRI官方语音提供商
+        speech-description: AIRI官方TTS提供商
         transcription-title: Official Transcription Provider
         transcription-description: Official speech-to-text provider by AIRI.
       transcriptions:
@@ -1016,7 +1024,7 @@ pages:
         title: 打开开发者工具
         button: 打开
   credits:
-    buy: Buy
+    buy: 购买
 sections:
   section:
     general:
