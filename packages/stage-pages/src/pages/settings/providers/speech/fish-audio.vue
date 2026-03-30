@@ -7,6 +7,7 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
 
@@ -45,12 +46,16 @@ async function tryLoadVoices() {
   }
 }
 
+// Debounced so rapid keystrokes while editing API key / base URL don't fire
+// repeated requests with partial/invalid credentials.
+const debouncedLoadVoices = useDebounceFn(tryLoadVoices, 800)
+
 onMounted(tryLoadVoices)
 
 // Reload voices whenever the API key or base URL changes
 watch(
   () => [providers.value[providerId]?.apiKey, providers.value[providerId]?.baseUrl],
-  tryLoadVoices,
+  debouncedLoadVoices,
 )
 </script>
 

@@ -1563,7 +1563,12 @@ export const useProvidersStore = defineStore('providers', () => {
         // appears same-origin and is never blocked. Custom base URLs (e.g. a user's own
         // proxy) bypass this logic and are used as-is.
         // See apps/stage-web/vite.config.ts for the matching server.proxy entry.
-        const effectiveBase = (import.meta.env.DEV && baseUrl === 'https://api.fish.audio')
+        //
+        // NOTICE: The proxy only exists in the stage-web Vite dev server.
+        // Electron's renderer dev server has no matching proxy route, so we must
+        // skip the rewrite when running inside Electron to avoid 404s.
+        const isElectron = typeof navigator !== 'undefined' && navigator.userAgent.includes('Electron')
+        const effectiveBase = (import.meta.env.DEV && !isElectron && baseUrl === 'https://api.fish.audio')
           ? '/fish-audio-api'
           : baseUrl
         const provider: SpeechProvider = {
@@ -1590,6 +1595,9 @@ export const useProvidersStore = defineStore('providers', () => {
               }
               return fetch(`${effectiveBase}/v1/tts`, {
                 method: 'POST',
+                // Forward the AbortSignal so the HTTP request is cancelled when
+                // the TTS pipeline is aborted (e.g. user interrupts playback).
+                signal: init?.signal,
                 headers: {
                   'Authorization': `Bearer ${apiKey}`,
                   'Content-Type': 'application/json',
@@ -1623,7 +1631,8 @@ export const useProvidersStore = defineStore('providers', () => {
         listVoices: async (config) => {
           const { listFishAudioVoices } = await import('./providers/fish-audio/list-voices')
           const rawBase = ((config.baseUrl as string) || 'https://api.fish.audio').replace(TRAILING_SLASH_RE, '')
-          const effectiveVoiceBase = (import.meta.env.DEV && rawBase === 'https://api.fish.audio')
+          const isElectronRenderer = typeof navigator !== 'undefined' && navigator.userAgent.includes('Electron')
+          const effectiveVoiceBase = (import.meta.env.DEV && !isElectronRenderer && rawBase === 'https://api.fish.audio')
             ? '/fish-audio-api'
             : rawBase
           return listFishAudioVoices(
