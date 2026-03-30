@@ -22,8 +22,22 @@ export interface TrainingProgress {
 export interface TrainingPipelineOptions {
   epochs?: number
   batchSize?: number
+  timeoutMs?: number
   signal?: AbortSignal
   onProgress?: (progress: TrainingProgress) => void
+}
+
+function resolveTrainingTimeoutMs(options?: TrainingPipelineOptions): number | undefined {
+  if (options?.timeoutMs != null) {
+    return options.timeoutMs > 0 ? options.timeoutMs : undefined
+  }
+
+  const rawTimeout = process.env.AIRI_SINGING_TRAIN_TIMEOUT_MS?.trim()
+  if (!rawTimeout)
+    return undefined
+
+  const parsedTimeout = Number(rawTimeout)
+  return Number.isFinite(parsedTimeout) && parsedTimeout > 0 ? parsedTimeout : undefined
 }
 
 /**
@@ -51,6 +65,8 @@ export async function runTrainingPipeline(
     throw new Error('Training aborted before start')
   }
 
+  const timeoutMs = resolveTrainingTimeoutMs(options)
+
   const args = [
     '-m',
     'airi_singing_worker.pipelines.training_pipeline',
@@ -72,6 +88,7 @@ export async function runTrainingPipeline(
     PYTHONPATH: env.pythonSrcDir,
     PYTHONIOENCODING: 'utf-8',
     PYTHONUNBUFFERED: '1',
+    PYTHONDONTWRITEBYTECODE: '1',
     RMVPE_MODEL_PATH: join(env.modelsDir, 'rmvpe.pt'),
     HUBERT_MODEL_PATH: join(env.modelsDir, 'hubert_base.pt'),
     RVC_PRETRAINED_G_PATH: join(env.modelsDir, 'pretrained_v2', 'f0G40k.pth'),
@@ -100,6 +117,12 @@ export async function runTrainingPipeline(
         }
         else {
           child.kill('SIGTERM')
+          setTimeout(() => {
+            try {
+              child.kill('SIGKILL')
+            }
+            catch { /* already exited */ }
+          }, 3000)
         }
       }
       catch { /* best effort */ }
@@ -155,16 +178,20 @@ export async function runTrainingPipeline(
       stderrChunks.push(chunk)
     })
 
-    const timeoutId = setTimeout(() => {
-      if (!settled) {
-        settled = true
-        killChild()
-        reject(new Error('Training timed out after 1 hour'))
-      }
-    }, 3_600_000)
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+    if (timeoutMs) {
+      timeoutId = setTimeout(() => {
+        if (!settled) {
+          settled = true
+          killChild()
+          reject(new Error(`Training timed out after ${timeoutMs} ms`))
+        }
+      }, timeoutMs)
+    }
 
     child.on('error', (err) => {
-      clearTimeout(timeoutId)
+      if (timeoutId)
+        clearTimeout(timeoutId)
       if (!settled) {
         settled = true
         reject(err)
@@ -172,7 +199,8 @@ export async function runTrainingPipeline(
     })
 
     child.on('close', (code) => {
-      clearTimeout(timeoutId)
+      if (timeoutId)
+        clearTimeout(timeoutId)
       if (settled)
         return
       settled = true
