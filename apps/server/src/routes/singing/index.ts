@@ -11,18 +11,20 @@ import type { HonoEnv } from '../../types/hono'
 import process from 'node:process'
 
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, unlink } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import {
   buildJobDir,
   buildUploadsDir,
   checkBaseModels,
+  checkPythonRuntimePackages,
   getSafeUploadExtension,
   resolveContainedPath,
   resolveRuntimeEnv,
   SingingError,
   SingingErrorCode,
+  writeMultipartFileToDisk,
 } from '@proj-airi/singing'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
@@ -96,8 +98,12 @@ export function createSingingRoutes(singingService: SingingService) {
       checkBinaryExists(env.ffmpegPath, ['-version']),
       checkBinaryExists(env.pythonPath, ['--version']),
     ])
+    const pkgCheck = pythonOk
+      ? await checkPythonRuntimePackages(env.pythonPath, env.pythonSrcDir)
+      : { installed: false, missing: ['python runtime unavailable'] }
+    const pythonReady = pythonOk && pkgCheck.installed
     const response: SingingHealthResponse = {
-      status: ffmpegOk && pythonOk
+      status: ffmpegOk && pythonReady
         ? (baseModelsReady ? 'ready' : 'models_needed')
         : 'setup_required',
       setupSupported: false,
@@ -105,10 +111,10 @@ export function createSingingRoutes(singingService: SingingService) {
       ffmpegPath: env.ffmpegPath,
       python: pythonOk,
       pythonPath: env.pythonPath,
-      pythonVenv: pythonOk,
+      pythonVenv: pythonReady,
       pythonVenvExists: pythonOk,
-      pythonPackagesInstalled: pythonOk,
-      pythonPackagesMissing: pythonOk ? [] : ['python runtime unavailable'],
+      pythonPackagesInstalled: pkgCheck.installed,
+      pythonPackagesMissing: pkgCheck.missing,
       uvAvailable: false,
       venvExists: pythonOk,
       modelsDir: env.modelsDir,
@@ -143,6 +149,7 @@ export function createSingingRoutes(singingService: SingingService) {
     .use('*', bodyLimit({ maxSize: SINGING_BODY_LIMIT }))
 
   authed.post('/cover', async (c) => {
+    let uploadedInputUri: string | null = null
     try {
       const contentType = c.req.header('content-type') ?? ''
 
@@ -170,8 +177,8 @@ export function createSingingRoutes(singingService: SingingService) {
 
         const uploadId = randomUUID()
         const savedPath = buildSafeUploadPath(uploadsDir, uploadId, file.name)
-        const arrayBuffer = await file.arrayBuffer()
-        await writeFile(savedPath, new Uint8Array(arrayBuffer))
+        await writeMultipartFileToDisk(file, savedPath)
+        uploadedInputUri = savedPath
 
         request = {
           ...(result.output as CreateCoverRequest),
@@ -192,6 +199,9 @@ export function createSingingRoutes(singingService: SingingService) {
       return c.json(response, 201)
     }
     catch (err) {
+      if (uploadedInputUri)
+        await unlink(uploadedInputUri).catch(() => {})
+
       if (err instanceof SingingError)
         return c.json({ error: err.message, code: err.code }, singingErrorToStatus(err.code) as any)
 
@@ -255,6 +265,7 @@ export function createSingingRoutes(singingService: SingingService) {
   })
 
   authed.post('/train', async (c) => {
+    let uploadedDatasetUri: string | null = null
     try {
       const contentType = c.req.header('content-type') ?? ''
       let request: CreateTrainRequest
@@ -279,8 +290,8 @@ export function createSingingRoutes(singingService: SingingService) {
 
         const uploadId = randomUUID()
         const datasetUri = buildSafeUploadPath(uploadsDir, uploadId, file.name)
-        const arrayBuffer = await file.arrayBuffer()
-        await writeFile(datasetUri, new Uint8Array(arrayBuffer))
+        await writeMultipartFileToDisk(file, datasetUri)
+        uploadedDatasetUri = datasetUri
 
         request = {
           ...result.output,
@@ -300,6 +311,9 @@ export function createSingingRoutes(singingService: SingingService) {
       return c.json(response, 201)
     }
     catch (err) {
+      if (uploadedDatasetUri)
+        await unlink(uploadedDatasetUri).catch(() => {})
+
       if (err instanceof SingingError)
         return c.json({ error: err.message, code: err.code }, singingErrorToStatus(err.code) as any)
 

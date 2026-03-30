@@ -2,16 +2,18 @@ import type { JobQueue, PipelineCallbacks, ValidationGateResult } from '@proj-ai
 import type { CreateCoverRequest, CreateTrainRequest } from '@proj-airi/singing/types'
 
 import { unlink } from 'node:fs/promises'
-import { sep } from 'node:path'
+import { join } from 'node:path'
 
 import { errorMessageFrom } from '@moeru/std'
 import {
   buildJobDir,
+  buildUploadsDir,
   cancelCoverJob,
   createCoverJob,
   createTrainJob,
   getCoverJob,
   InMemoryQueue,
+  isContainedPath,
   mapRequestToCoverTask,
   rerunConversionStages,
   resolveRuntimeEnv,
@@ -102,6 +104,8 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
   const queue = deps?.queue ?? new InMemoryQueue()
   const env = resolveRuntimeEnv()
   const outputBaseDir = env.tempDir
+  const coverUploadsDir = buildUploadsDir(env.tempDir)
+  const trainingUploadsDir = join(env.tempDir, 'training-uploads')
 
   /** AbortControllers keyed by jobId — enables true task cancellation */
   const activeJobs = new Map<string, AbortController>()
@@ -110,12 +114,7 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
 
   async function cleanupUploadFile(inputUri: string): Promise<void> {
     try {
-      if (
-        inputUri.includes(`${sep}uploads${sep}`)
-        || inputUri.includes('/uploads/')
-        || inputUri.includes(`${sep}training-uploads${sep}`)
-        || inputUri.includes('/training-uploads/')
-      ) {
+      if (isContainedPath(coverUploadsDir, inputUri) || isContainedPath(trainingUploadsDir, inputUri)) {
         await unlink(inputUri)
       }
     }
@@ -126,6 +125,15 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
     const ac = new AbortController()
     activeJobs.set(jobId, ac)
     const stageTiming: Record<string, number> = {}
+    let uploadCleaned = false
+
+    async function finalizeUploadCleanup(): Promise<void> {
+      if (uploadCleaned)
+        return
+
+      uploadCleaned = true
+      await cleanupUploadFile(request.inputUri)
+    }
 
     try {
       const jobDir = buildJobDir(outputBaseDir, jobId)
@@ -155,12 +163,14 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
       let pipelineResult = await runCoverPipeline(task, ac.signal, callbacks)
 
       if (ac.signal.aborted) {
+        await finalizeUploadCleanup()
         await queue.updateJob(jobId, { status: 'cancelled', updatedAt: new Date().toISOString() })
         return
       }
 
       const failed = pipelineResult.results.find(r => !r.success)
       if (failed) {
+        await finalizeUploadCleanup()
         await queue.updateJob(jobId, {
           status: 'failed',
           error: failed.error,
@@ -188,12 +198,14 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
         pipelineResult = await rerunConversionStages(task, ac.signal, callbacks)
 
         if (ac.signal.aborted) {
+          await finalizeUploadCleanup()
           await queue.updateJob(jobId, { status: 'cancelled', updatedAt: new Date().toISOString() })
           return
         }
 
         const retryFailed = pipelineResult.results.find(r => !r.success)
         if (retryFailed) {
+          await finalizeUploadCleanup()
           await queue.updateJob(jobId, {
             status: 'failed',
             error: retryFailed.error,
@@ -207,6 +219,7 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
 
       if (pipelineResult.gateResult && !pipelineResult.gateResult.passed) {
         const failedMetrics = pipelineResult.gateResult.failed_metrics.join(', ')
+        await finalizeUploadCleanup()
         await queue.updateJob(jobId, {
           status: 'failed',
           error: `Quality gate still failed after ${retryCount} retries: ${failedMetrics}`,
@@ -217,6 +230,7 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
         return
       }
 
+      await finalizeUploadCleanup()
       await queue.updateJob(jobId, {
         status: 'completed',
         retryCount,
@@ -226,6 +240,7 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
     }
     catch (err) {
       const status = ac.signal.aborted ? 'cancelled' : 'failed'
+      await finalizeUploadCleanup()
       await queue.updateJob(jobId, {
         status,
         error: errorMessageFrom(err) ?? String(err),
@@ -234,7 +249,7 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
     }
     finally {
       activeJobs.delete(jobId)
-      await cleanupUploadFile(request.inputUri)
+      await finalizeUploadCleanup()
     }
   }
 
@@ -242,6 +257,15 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
     const ac = new AbortController()
     activeJobs.set(jobId, ac)
     activeTrainingVoices.add(request.voiceId)
+    let uploadCleaned = false
+
+    async function finalizeUploadCleanup(): Promise<void> {
+      if (uploadCleaned)
+        return
+
+      uploadCleaned = true
+      await cleanupUploadFile(request.datasetUri)
+    }
 
     try {
       await queue.updateJob(jobId, {
@@ -268,6 +292,7 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
         },
       })
 
+      await finalizeUploadCleanup()
       await queue.updateJob(jobId, {
         status: 'completed',
         trainingPct: 100,
@@ -276,6 +301,7 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
     }
     catch (err) {
       const status = ac.signal.aborted ? 'cancelled' : 'failed'
+      await finalizeUploadCleanup()
       await queue.updateJob(jobId, {
         status,
         error: errorMessageFrom(err) ?? String(err),
@@ -285,7 +311,7 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
     finally {
       activeJobs.delete(jobId)
       activeTrainingVoices.delete(request.voiceId)
-      await cleanupUploadFile(request.datasetUri)
+      await finalizeUploadCleanup()
     }
   }
 

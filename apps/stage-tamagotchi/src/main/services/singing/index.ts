@@ -19,8 +19,12 @@ import {
   BASE_MODELS,
   checkBaseModels,
   getSafeUploadExtension,
+  isContainedPath,
+  isSafePathSegment,
   PipelineStage,
   resolveContainedPath,
+  resolveVoiceModelDir,
+  writeMultipartFileToDisk,
 } from '@proj-airi/singing'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
@@ -96,7 +100,7 @@ async function checkBinaryExists(bin: string, args: string[] = ['--version']): P
     await execFileAsync(bin, args, {
       timeout: 10_000,
       windowsHide: true,
-      shell: process.platform === 'win32',
+      shell: false,
     })
     return true
   }
@@ -127,6 +131,13 @@ function buildSafeUploadPath(uploadsDir: string, uploadId: string, fileName: str
   if (!savedPath)
     throw new Error('Failed to allocate a contained upload path')
   return savedPath
+}
+
+async function cleanupManagedUploadFile(rootDir: string, filePath: string): Promise<void> {
+  if (!filePath || !isContainedPath(rootDir, filePath))
+    return
+
+  await unlink(filePath).catch(() => {})
 }
 
 function logTerminalUpdateFailure(jobId: string, status: 'cancelled' | 'failed', error: unknown) {
@@ -261,7 +272,7 @@ async function checkPythonPackages(singingPkgRoot: string, forceRecheck = false)
     const { stdout } = await execFileAsync(venvPython, [checkScript], {
       timeout: 60_000,
       windowsHide: true,
-      shell: process.platform === 'win32',
+      shell: false,
     })
     for (const pkg of requiredPackages) {
       if (stdout.includes(`MISSING:${pkg}`))
@@ -524,7 +535,7 @@ async function checkPkgInstalled(pythonBin: string, pkg: string): Promise<boolea
     await execFileAsync(pythonBin, [tmpScript], {
       timeout: 60_000,
       windowsHide: true,
-      shell: process.platform === 'win32',
+      shell: false,
     })
     await unlink(tmpScript).catch(() => {})
     return true
@@ -580,7 +591,7 @@ async function setupPythonVenv(singingPkgRoot: string): Promise<string> {
       appendLog(id, 'info', 'Step 1: Creating virtual environment (python -m venv)...')
       await execFileAsync(sysPython.path, ['-m', 'venv', venvDir], {
         timeout: 60_000,
-        shell: process.platform === 'win32',
+        shell: false,
       })
     }
     appendLog(id, 'success', 'Virtual environment created')
@@ -758,7 +769,7 @@ async function setupPythonVenv(singingPkgRoot: string): Promise<string> {
     const { stdout } = await execFileAsync(venvPython, [verifyScriptPath], {
       timeout: 120_000,
       windowsHide: true,
-      shell: process.platform === 'win32',
+      shell: false,
       cwd: pythonDir,
     })
     const output = stdout.toString().trim()
@@ -802,7 +813,7 @@ function spawnAsync(
     const child = spawn(cmd, args, {
       cwd,
       stdio: 'pipe',
-      shell: process.platform === 'win32',
+      shell: false,
       windowsHide: true,
     })
     const output: string[] = []
@@ -888,7 +899,7 @@ async function detectTorchVariant(): Promise<TorchVariant> {
     const { stdout } = await execFileAsync('nvidia-smi', [], {
       timeout: 10_000,
       windowsHide: true,
-      shell: process.platform === 'win32',
+      shell: false,
     })
     const match = stdout.match(CUDA_VERSION_REGEX)
     if (!match)
@@ -981,7 +992,11 @@ function buildApp(dataDir: string) {
 
       for (const pthFile of pthFiles) {
         const voiceId = pthFile.replace(PTH_SUFFIX_REGEX, '')
-        const destDir = join(voiceModelsPath, voiceId)
+        const destDir = resolveVoiceModelDir(voiceModelsPath, voiceId)
+        if (!destDir) {
+          log.withFields({ voiceId }).warn('Skipping legacy voice model migration with invalid voiceId')
+          continue
+        }
         if (existsSync(join(destDir, `${voiceId}.pth`)))
           continue
 
@@ -1036,7 +1051,7 @@ function buildApp(dataDir: string) {
           String(attempt),
         ], {
           env: { ...process.env, PYTHONPATH: env.pythonSrcDir },
-          shell: process.platform === 'win32',
+          shell: false,
           windowsHide: true,
         })
         let stdout = ''
@@ -1065,6 +1080,15 @@ function buildApp(dataDir: string) {
       const ac = new AbortController()
       activeJobs.set(jobId, ac)
       const stageTiming: Record<string, number> = {}
+      let uploadCleaned = false
+
+      async function finalizeUploadCleanup(): Promise<void> {
+        if (uploadCleaned)
+          return
+
+        uploadCleaned = true
+        await cleanupManagedUploadFile(join(tempDir, 'uploads'), request.inputUri)
+      }
 
       try {
         const jobDir = mod!.buildJobDir(outputBaseDir, jobId)
@@ -1084,6 +1108,7 @@ function buildApp(dataDir: string) {
         const pipelineOutput = await mod!.runCoverPipeline(task, ac.signal, stageCallbacks) as any
 
         if (ac.signal.aborted) {
+          await finalizeUploadCleanup()
           await queue.updateJob(jobId, { status: 'cancelled', updatedAt: new Date().toISOString() })
           return
         }
@@ -1092,6 +1117,7 @@ function buildApp(dataDir: string) {
         const failed = (results as any[]).find((r: any) => !r.success)
 
         if (failed) {
+          await finalizeUploadCleanup()
           await queue.updateJob(jobId, {
             status: 'failed',
             error: failed.error,
@@ -1135,6 +1161,7 @@ function buildApp(dataDir: string) {
             const retryOutput = await rerunFn(task, ac.signal, stageCallbacks) as any
 
             if (ac.signal.aborted) {
+              await finalizeUploadCleanup()
               await queue.updateJob(jobId, { status: 'cancelled', updatedAt: new Date().toISOString() })
               return
             }
@@ -1158,10 +1185,12 @@ function buildApp(dataDir: string) {
         }
 
         if (ac.signal.aborted) {
+          await finalizeUploadCleanup()
           await queue.updateJob(jobId, { status: 'cancelled', updatedAt: new Date().toISOString() })
           return
         }
 
+        await finalizeUploadCleanup()
         await queue.updateJob(jobId, {
           status: 'completed',
           stageTiming: { ...stageTiming },
@@ -1171,14 +1200,16 @@ function buildApp(dataDir: string) {
       }
       catch (err) {
         const status = ac.signal.aborted ? 'cancelled' : 'failed'
+        await finalizeUploadCleanup()
         await queue.updateJob(jobId, {
           status,
           error: err instanceof Error ? err.message : String(err),
           updatedAt: new Date().toISOString(),
-        }).catch(updateErr => logTerminalUpdateFailure(jobId, status, updateErr))
+        }).catch((updateErr: unknown) => logTerminalUpdateFailure(jobId, status, updateErr))
       }
       finally {
         activeJobs.delete(jobId)
+        await finalizeUploadCleanup()
       }
     }
 
@@ -1193,7 +1224,7 @@ function buildApp(dataDir: string) {
       log.withFields({ voiceId, pid }).log('Killing training process')
       try {
         if (process.platform === 'win32') {
-          spawn('taskkill', ['/T', '/F', '/PID', String(pid)], { shell: true, windowsHide: true })
+          spawn('taskkill', ['/T', '/F', '/PID', String(pid)], { shell: false, windowsHide: true })
         }
         else {
           childProc.kill('SIGTERM')
@@ -1215,6 +1246,16 @@ function buildApp(dataDir: string) {
       activeJobs.set(jobId, ac)
       ac.signal.addEventListener('abort', () => killTrainingProcess(voiceId), { once: true })
       killTrainingProcess(voiceId)
+      let uploadCleaned = false
+
+      async function finalizeUploadCleanup(): Promise<void> {
+        if (uploadCleaned)
+          return
+
+        uploadCleaned = true
+        await cleanupManagedUploadFile(join(tempDir, 'training-uploads'), datasetPath)
+      }
+
       try {
         await queue.updateJob(jobId, {
           status: 'running',
@@ -1357,6 +1398,7 @@ function buildApp(dataDir: string) {
         }
 
         if (ac.signal.aborted) {
+          await finalizeUploadCleanup()
           await queue.updateJob(jobId, {
             status: 'cancelled',
             updatedAt: new Date().toISOString(),
@@ -1365,7 +1407,9 @@ function buildApp(dataDir: string) {
         }
 
         // Save all model artifacts into voice_models/{voiceId}/
-        const voiceModelDir = join(modelsDir, 'voice_models', voiceId)
+        const voiceModelDir = resolveVoiceModelDir(join(modelsDir, 'voice_models'), voiceId)
+        if (!voiceModelDir)
+          throw new Error(`Invalid voiceId for training artifact path: ${voiceId}`)
         await mkdir(voiceModelDir, { recursive: true })
 
         async function moveFile(src: string, dest: string) {
@@ -1387,6 +1431,7 @@ function buildApp(dataDir: string) {
         await moveFile(join(trainOutputDir, 'validation_report.json'), join(voiceModelDir, 'validation_report.json'))
         await moveFile(join(trainOutputDir, `${voiceId}_meta.json`), join(voiceModelDir, 'meta.json'))
 
+        await finalizeUploadCleanup()
         await queue.updateJob(jobId, {
           status: 'completed',
           currentStage: PipelineStage.Finalize,
@@ -1396,6 +1441,7 @@ function buildApp(dataDir: string) {
       catch (err) {
         if (!ac.signal.aborted)
           killTrainingProcess(voiceId)
+        await finalizeUploadCleanup()
         await queue.updateJob(jobId, ac.signal.aborted
           ? {
               status: 'cancelled',
@@ -1409,6 +1455,7 @@ function buildApp(dataDir: string) {
       }
       finally {
         activeJobs.delete(jobId)
+        await finalizeUploadCleanup()
       }
     }
 
@@ -1487,7 +1534,7 @@ function buildApp(dataDir: string) {
       const sysReady = !!ffmpegPath && pythonReady
 
       const baseModels = checkBaseModels(modelsDir)
-      const allBaseReady = baseModels.every(m => m.exists)
+      const allBaseReady = baseModels.every((m: { exists: boolean }) => m.exists)
 
       return c.json({
         status: sysReady ? (allBaseReady ? 'ready' : 'models_needed') : 'setup_required',
@@ -1714,6 +1761,7 @@ function buildApp(dataDir: string) {
       if (!svc)
         return c.json({ error: 'Singing pipeline not ready. Please complete setup first.' }, 503)
 
+      let uploadedInputUri: string | null = null
       try {
         const contentType = c.req.header('content-type') ?? ''
         let request: any
@@ -1737,8 +1785,8 @@ function buildApp(dataDir: string) {
           await mkdir(uploadsDir, { recursive: true })
           const uploadId = randomUUID()
           const savedPath = buildSafeUploadPath(uploadsDir, uploadId, file.name)
-          const arrayBuffer = await file.arrayBuffer()
-          await writeFile(savedPath, new Uint8Array(arrayBuffer))
+          await writeMultipartFileToDisk(file, savedPath)
+          uploadedInputUri = savedPath
 
           request = { ...params, inputUri: savedPath, originalFileName: file.name }
         }
@@ -1750,6 +1798,9 @@ function buildApp(dataDir: string) {
         return c.json(response, 201)
       }
       catch (err: any) {
+        if (uploadedInputUri)
+          await cleanupManagedUploadFile(join(tempDir, 'uploads'), uploadedInputUri)
+
         log.withError(err).error('Cover creation failed')
         return c.json({ error: err?.message ?? 'Internal error' }, 500)
       }
@@ -1787,6 +1838,7 @@ function buildApp(dataDir: string) {
       if (!svc)
         return c.json({ error: 'Pipeline not ready. Please complete environment setup first.' }, 503)
 
+      let uploadedDatasetPath: string | null = null
       try {
         const contentType = c.req.header('content-type') ?? ''
         let params: Record<string, unknown> = {}
@@ -1811,8 +1863,8 @@ function buildApp(dataDir: string) {
           await mkdir(uploadsDir, { recursive: true })
           const uploadId = randomUUID()
           datasetPath = buildSafeUploadPath(uploadsDir, uploadId, file.name)
-          const arrayBuffer = await file.arrayBuffer()
-          await writeFile(datasetPath, new Uint8Array(arrayBuffer))
+          await writeMultipartFileToDisk(file, datasetPath)
+          uploadedDatasetPath = datasetPath
           log.withFields({ datasetPath, sizeMB: (file.size / 1024 / 1024).toFixed(1) }).log('Training dataset saved')
         }
         else {
@@ -1837,6 +1889,9 @@ function buildApp(dataDir: string) {
         return c.json(result, 201)
       }
       catch (err: any) {
+        if (uploadedDatasetPath)
+          await cleanupManagedUploadFile(join(tempDir, 'training-uploads'), uploadedDatasetPath)
+
         return c.json({ error: err?.message ?? 'Internal error' }, 500)
       }
     })
@@ -1870,12 +1925,17 @@ function buildApp(dataDir: string) {
     // ── Voice Profile & Report API ───────────────────────────────
     .get('/models/:voiceId/profile', async (c) => {
       const voiceId = c.req.param('voiceId')
+      if (!isSafePathSegment(voiceId))
+        return c.json({ error: 'Invalid voiceId' }, 400)
+
       try {
+        const modelDir = resolveVoiceModelDir(join(modelsDir, 'voice_models'), voiceId)
         const candidates = [
-          join(modelsDir, 'voice_models', voiceId, 'voice_profile.json'),
           join(modelsDir, `${voiceId}_profile.json`),
           join(tempDir, 'training', voiceId, 'voice_profile.json'),
         ]
+        if (modelDir)
+          candidates.unshift(join(modelDir, 'voice_profile.json'))
         const trainingDir = join(tempDir, 'training')
         if (existsSync(trainingDir)) {
           const trainDirs = await readdir(trainingDir)
@@ -1899,12 +1959,17 @@ function buildApp(dataDir: string) {
 
     .get('/models/:voiceId/report', async (c) => {
       const voiceId = c.req.param('voiceId')
+      if (!isSafePathSegment(voiceId))
+        return c.json({ error: 'Invalid voiceId' }, 400)
+
       try {
+        const modelDir = resolveVoiceModelDir(join(modelsDir, 'voice_models'), voiceId)
         const candidates = [
-          join(modelsDir, 'voice_models', voiceId, 'validation_report.json'),
           join(modelsDir, `${voiceId}_report.json`),
           join(tempDir, 'training', voiceId, 'validation_report.json'),
         ]
+        if (modelDir)
+          candidates.unshift(join(modelDir, 'validation_report.json'))
         const trainingDir = join(tempDir, 'training')
         if (existsSync(trainingDir)) {
           const trainDirs = await readdir(trainingDir)
@@ -1933,6 +1998,9 @@ function buildApp(dataDir: string) {
 
       try {
         const body = await c.req.json() as { audioPath: string, voiceId: string, refPath?: string }
+        if (!isSafePathSegment(body.voiceId))
+          return c.json({ error: 'Invalid voiceId' }, 400)
+
         const pythonInfo = await findPython(singingPkgRoot)
         if (!pythonInfo)
           return c.json({ error: 'Python not available' }, 503)
@@ -1954,7 +2022,7 @@ function buildApp(dataDir: string) {
           let stdout = ''
           const proc = spawn(pythonInfo.path, args, {
             env: { ...process.env as Record<string, string>, PYTHONPATH: pythonSrcDir },
-            shell: process.platform === 'win32',
+            shell: false,
             windowsHide: true,
           })
           proc.stdout?.on('data', (d: Buffer) => {
@@ -1978,6 +2046,9 @@ function buildApp(dataDir: string) {
 
       try {
         const body = await c.req.json() as { vocalPath: string, voiceId: string }
+        if (!isSafePathSegment(body.voiceId))
+          return c.json({ error: 'Invalid voiceId' }, 400)
+
         const pythonInfo = await findPython(singingPkgRoot)
         if (!pythonInfo)
           return c.json({ error: 'Python not available' }, 503)
@@ -2012,7 +2083,7 @@ function buildApp(dataDir: string) {
           let stdout = ''
           const proc = spawn(pythonInfo.path, args, {
             env: { ...process.env as Record<string, string>, PYTHONPATH: pythonSrcDir },
-            shell: process.platform === 'win32',
+            shell: false,
             windowsHide: true,
           })
           proc.stdout?.on('data', (d: Buffer) => {

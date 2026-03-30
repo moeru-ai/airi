@@ -94,7 +94,8 @@ const envReady = computed(() =>
   health.value.loaded
   && health.value.serverReachable
   && health.value.ffmpeg
-  && health.value.pythonVenv,
+  && health.value.pythonVenv
+  && health.value.pythonPackagesInstalled,
 )
 
 const allReady = computed(() =>

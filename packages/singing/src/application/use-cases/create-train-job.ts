@@ -4,6 +4,8 @@ import type { CreateJobResponse } from '../../types/response'
 
 import { randomUUID } from 'node:crypto'
 
+import { validateTrainRequest } from '../../pipeline/guards/input-guard'
+
 /**
  * Use case: create a new RVC voice training job.
  */
@@ -15,9 +17,7 @@ export async function createTrainJob(
   request: CreateTrainRequest,
   deps: CreateTrainJobDeps,
 ): Promise<CreateJobResponse> {
-  if (!request.voiceId || !request.datasetUri) {
-    throw new Error('voiceId and datasetUri are required for training')
-  }
+  validateTrainRequest(request)
 
   const jobId = randomUUID()
   const now = new Date().toISOString()

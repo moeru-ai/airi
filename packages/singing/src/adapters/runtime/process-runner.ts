@@ -33,7 +33,7 @@ export async function runProcess(
       env: options?.env ? { ...process.env, ...options.env } : undefined,
       stdio: ['pipe', 'pipe', 'pipe'],
       signal: options?.signal,
-      shell: process.platform === 'win32',
+      shell: false,
       windowsHide: true,
     })
 

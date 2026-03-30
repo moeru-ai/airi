@@ -6,6 +6,7 @@ import { mkdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { resolveRuntimeEnv } from '../../adapters/runtime/env-resolver'
+import { resolveVoiceModelDir } from '../../utils/path'
 
 export interface TrainingProgress {
   pct: number
@@ -40,7 +41,10 @@ export async function runTrainingPipeline(
   options?: TrainingPipelineOptions,
 ): Promise<void> {
   const env = resolveRuntimeEnv()
-  const voiceOutputDir = join(env.voiceModelsDir, voiceId)
+  const voiceOutputDir = resolveVoiceModelDir(env.voiceModelsDir, voiceId)
+  if (!voiceOutputDir)
+    throw new Error(`Invalid voiceId for training output path: ${voiceId}`)
+
   await mkdir(voiceOutputDir, { recursive: true })
 
   if (options?.signal?.aborted) {
@@ -77,7 +81,7 @@ export async function runTrainingPipeline(
   return new Promise((resolve, reject) => {
     const child = spawn(env.pythonPath, args, {
       env: childEnv,
-      shell: process.platform === 'win32',
+      shell: false,
       windowsHide: true,
       stdio: ['ignore', 'pipe', 'pipe'],
     })

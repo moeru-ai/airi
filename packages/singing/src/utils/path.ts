@@ -22,6 +22,7 @@ const SAFE_UPLOAD_EXTENSIONS = new Set([
   'webm',
   'wma',
 ])
+const INVALID_PATH_SEGMENT_CHARS = new Set(['<', '>', ':', '"', '/', '\\', '|', '?', '*'])
 const NON_ALPHANUMERIC_REGEX = /[^a-z0-9]/g
 
 /**
@@ -51,6 +52,45 @@ export function resolveContainedPath(baseDir: string, artifactPath: string): str
     return null
 
   return resolvedArtifactPath
+}
+
+/**
+ * Check whether an already-resolved path stays inside the given base directory.
+ */
+export function isContainedPath(baseDir: string, targetPath: string): boolean {
+  const resolvedBaseDir = resolve(baseDir)
+  const resolvedTargetPath = resolve(targetPath)
+  const relativePath = relative(resolvedBaseDir, resolvedTargetPath)
+
+  return !relativePath.startsWith('..') && !isAbsolute(relativePath)
+}
+
+/**
+ * Validate a user-controlled filesystem segment that will be reused as both
+ * a directory name and a filename stem.
+ */
+export function isSafePathSegment(segment: string): boolean {
+  const normalizedSegment = segment.trim()
+  if (!normalizedSegment || normalizedSegment === '.' || normalizedSegment === '..')
+    return false
+
+  if (segment !== normalizedSegment)
+    return false
+
+  if ([...normalizedSegment].some(char => INVALID_PATH_SEGMENT_CHARS.has(char) || char.charCodeAt(0) < 32))
+    return false
+
+  return normalizedSegment === basename(normalizedSegment)
+}
+
+/**
+ * Resolve a voice model directory under the configured voice model root.
+ */
+export function resolveVoiceModelDir(voiceModelsDir: string, voiceId: string): string | null {
+  if (!isSafePathSegment(voiceId))
+    return null
+
+  return resolveContainedPath(voiceModelsDir, voiceId)
 }
 
 /**

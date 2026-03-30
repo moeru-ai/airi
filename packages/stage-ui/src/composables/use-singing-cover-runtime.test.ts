@@ -23,6 +23,7 @@ describe('useSingingCoverRuntime', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
     localStorage.clear()
@@ -74,5 +75,32 @@ describe('useSingingCoverRuntime', () => {
       'https://api.airi.build/api/v1/singing/jobs/cover-job',
       expect.objectContaining({ credentials: 'include' }),
     )
+  })
+
+  it('keeps polling after a transient non-2xx job response', async () => {
+    vi.useFakeTimers()
+
+    const coverStore = useSingingCoverStore()
+    coverStore.beginJob('cover-job', 'running')
+
+    const fetchMock = vi.mocked(fetch)
+    fetchMock
+      .mockResolvedValueOnce(new Response('busy', { status: 503 }))
+      .mockResolvedValueOnce(createJsonResponse({
+        job: {
+          id: 'cover-job',
+          status: 'completed',
+          createdAt: '2026-03-30T00:00:00.000Z',
+          updatedAt: '2026-03-30T00:00:10.000Z',
+        },
+      }))
+
+    const runtime = useSingingCoverRuntime()
+    await runtime.resumeActiveJob()
+    await vi.advanceTimersByTimeAsync(5_000)
+
+    await vi.waitFor(() => {
+      expect(coverStore.status).toBe('completed')
+    })
   })
 })

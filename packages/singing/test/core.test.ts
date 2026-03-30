@@ -5,13 +5,14 @@ import { describe, expect, it } from 'vitest'
 
 import { InMemoryQueue } from '../src/adapters/queue/in-memory-queue'
 import { cancelCoverJob } from '../src/application/use-cases/cancel-cover-job'
+import { createTrainJob } from '../src/application/use-cases/create-train-job'
 import { PipelineStage } from '../src/constants/pipeline-stage'
 import { SingingError, SingingErrorCode } from '../src/contracts/error'
 import { createPipelineContext } from '../src/pipeline/context'
 import { executePipeline } from '../src/pipeline/pipeline'
 import { checkBaseModels } from '../src/utils/base-models'
 import { hashString } from '../src/utils/hash'
-import { getSafeUploadExtension, resolveContainedPath } from '../src/utils/path'
+import { getSafeUploadExtension, isContainedPath, isSafePathSegment, resolveContainedPath, resolveVoiceModelDir } from '../src/utils/path'
 
 describe('inMemoryQueue', () => {
   it('enqueue and dequeue in FIFO order', async () => {
@@ -128,6 +129,38 @@ describe('resolveContainedPath', () => {
   })
 })
 
+describe('isContainedPath', () => {
+  it('returns true for absolute paths inside the base directory', () => {
+    expect(isContainedPath('/tmp/jobs/job-1', '/tmp/jobs/job-1/final.wav')).toBe(true)
+  })
+
+  it('returns false for absolute paths outside the base directory', () => {
+    expect(isContainedPath('/tmp/jobs/job-1', '/tmp/jobs/job-12/final.wav')).toBe(false)
+  })
+})
+
+describe('resolveVoiceModelDir', () => {
+  it('resolves a normal voice model directory inside the voice model root', () => {
+    expect(resolveVoiceModelDir('/tmp/models/voice_models', 'voice-a')).toBe(resolve('/tmp/models/voice_models', 'voice-a'))
+  })
+
+  it('rejects traversal attempts in voice model ids', () => {
+    expect(resolveVoiceModelDir('/tmp/models/voice_models', '../escape')).toBeNull()
+  })
+})
+
+describe('isSafePathSegment', () => {
+  it('accepts a plain filesystem-safe segment', () => {
+    expect(isSafePathSegment('voice alpha')).toBe(true)
+  })
+
+  it('rejects separators and traversal tokens', () => {
+    expect(isSafePathSegment('../voice')).toBe(false)
+    expect(isSafePathSegment('voice/name')).toBe(false)
+    expect(isSafePathSegment('..')).toBe(false)
+  })
+})
+
 describe('getSafeUploadExtension', () => {
   it('keeps a known extension for normal uploads', () => {
     expect(getSafeUploadExtension('dataset.wav')).toBe('wav')
@@ -219,6 +252,25 @@ describe('cancelCoverJob', () => {
     const q = new InMemoryQueue()
 
     await expect(cancelCoverJob('ghost', { queue: q })).rejects.toThrow(SingingError)
+  })
+})
+
+describe('createTrainJob', () => {
+  it('rejects a training request whose voiceId attempts filesystem traversal', async () => {
+    const q = new InMemoryQueue()
+    const root = resolve(process.cwd(), '.tmp-train-job-validation')
+    const datasetPath = resolve(root, 'dataset.wav')
+
+    await rm(root, { recursive: true, force: true })
+    await mkdir(root, { recursive: true })
+    await writeFile(datasetPath, 'audio')
+
+    await expect(createTrainJob({
+      voiceId: '../escape',
+      datasetUri: datasetPath,
+    }, { queue: q })).rejects.toThrow(SingingError)
+
+    await rm(root, { recursive: true, force: true })
   })
 })
 

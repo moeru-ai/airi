@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { createAudioPath } from '../../domain/value-objects/audio-path'
+import { resolveVoiceModelDir } from '../../utils/path'
 import { resolveRuntimeEnv } from '../runtime/env-resolver'
 import { runProcess } from '../runtime/process-runner'
 
@@ -24,8 +25,11 @@ export class RvcAdapter implements ConverterBackend {
     const env = resolveRuntimeEnv()
     const voiceId = params.voiceId ? String(params.voiceId) : ''
     const voiceModelDir = voiceId
-      ? join(env.voiceModelsDir, voiceId)
-      : ''
+      ? resolveVoiceModelDir(env.voiceModelsDir, voiceId)
+      : null
+
+    if (voiceId && !voiceModelDir)
+      throw new Error(`Invalid voiceId for voice model lookup: ${voiceId}`)
     const args = [
       '-m',
       'airi_singing_worker.backends.converter.rvc',

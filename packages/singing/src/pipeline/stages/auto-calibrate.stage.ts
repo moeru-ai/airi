@@ -12,6 +12,7 @@ import { join } from 'node:path'
 
 import { PipelineStage } from '../../constants/pipeline-stage'
 import { ARTIFACT_NAMES, STAGE_DIRS } from '../../manifests/artifact-layout'
+import { resolveVoiceModelDir } from '../../utils/path'
 import { resolveRuntimeEnv } from '../../utils/resolve-env'
 
 /**
@@ -56,7 +57,13 @@ export async function autoCalibrateStage(
     if (!voiceId)
       return { stage: PipelineStage.AutoCalibrate, success: true, durationMs: 0, artifacts: [] }
 
-    const voiceModelDir = join(env.voiceModelsDir, voiceId)
+    const voiceModelDir = resolveVoiceModelDir(env.voiceModelsDir, voiceId)
+    if (!voiceModelDir) {
+      ctx.metadata.set('auto_calibrated', false)
+      ctx.metadata.set('auto_calibrate_error', `Invalid voiceId: ${voiceId}`)
+      return { stage: PipelineStage.AutoCalibrate, success: true, durationMs: 0, artifacts: [] }
+    }
+
     const primaryProfilePath = join(voiceModelDir, 'voice_profile.json')
     const legacyProfilePath = join(env.modelsDir, `${voiceId}_profile.json`)
     const voiceProfilePath = existsSync(primaryProfilePath)
@@ -125,7 +132,7 @@ async function runPythonPredict(
       voiceProfilePath,
     ], {
       env: { ...process.env, PYTHONPATH: pythonSrcDir },
-      shell: process.platform === 'win32',
+      shell: false,
       windowsHide: true,
     })
 

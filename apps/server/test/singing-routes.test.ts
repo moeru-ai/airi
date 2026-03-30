@@ -1,6 +1,8 @@
 import type { SingingService } from '../src/services/singing/singing-service'
 import type { HonoEnv } from '../src/types/hono'
 
+import process from 'node:process'
+
 import { existsSync } from 'node:fs'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
@@ -12,6 +14,7 @@ import { createSingingRoutes } from '../src/routes/singing'
 
 const testUser = { id: 'user-1', name: 'Test User', email: 'test@example.com' }
 const listVoicesMock = vi.hoisted(() => vi.fn())
+const checkPythonRuntimePackagesMock = vi.hoisted(() => vi.fn())
 const runtimeEnv = vi.hoisted(() => ({
   ffmpegPath: 'ffmpeg',
   pythonPath: 'python',
@@ -27,8 +30,13 @@ vi.mock('@proj-airi/singing', async (importOriginal) => {
 
   return {
     ...actual,
+    checkPythonRuntimePackages: checkPythonRuntimePackagesMock,
     listVoices: listVoicesMock,
     resolveRuntimeEnv: vi.fn(() => runtimeEnv),
+    writeMultipartFileToDisk: vi.fn(async (file: File, destinationPath: string) => {
+      const arrayBuffer = await file.arrayBuffer()
+      await writeFile(destinationPath, new Uint8Array(arrayBuffer))
+    }),
   }
 })
 
@@ -67,6 +75,11 @@ describe('singingRoutes', () => {
     listVoicesMock.mockReset()
     listVoicesMock.mockResolvedValue({
       voices: [{ id: 'voice-a', name: 'voice-a', hasRvcModel: true }],
+    })
+    checkPythonRuntimePackagesMock.mockReset()
+    checkPythonRuntimePackagesMock.mockResolvedValue({
+      installed: true,
+      missing: [],
     })
 
     await rm(testRoot, { recursive: true, force: true })
@@ -121,5 +134,25 @@ describe('singingRoutes', () => {
     expect(data.voiceModels).toEqual([{ name: 'voice-a', hasIndex: true }])
     expect(Array.isArray(data.baseModels)).toBe(true)
     expect(data.baseModels.length).toBeGreaterThan(0)
+  })
+
+  it('reports setup_required when Python packages are missing even if the binary exists', async () => {
+    runtimeEnv.ffmpegPath = 'git'
+    runtimeEnv.pythonPath = process.execPath
+    checkPythonRuntimePackagesMock.mockResolvedValueOnce({
+      installed: false,
+      missing: ['torch', 'librosa'],
+    })
+
+    const app = createTestApp(createMockSingingService())
+    const res = await app.request('/health')
+    const data = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(data.status).toBe('setup_required')
+    expect(data.python).toBe(true)
+    expect(data.pythonVenv).toBe(false)
+    expect(data.pythonPackagesInstalled).toBe(false)
+    expect(data.pythonPackagesMissing).toEqual(['torch', 'librosa'])
   })
 })

@@ -1,10 +1,24 @@
 import type { CoverPipelineResult, JobQueue } from '@proj-airi/singing'
 import type { CreateCoverRequest, CreateTrainRequest } from '@proj-airi/singing/types'
 
+import { existsSync } from 'node:fs'
+import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { join, resolve } from 'node:path'
+
 import { InMemoryQueue, SingingError } from '@proj-airi/singing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createSingingService } from '../src/services/singing/singing-service'
+
+const runtimeEnv = vi.hoisted(() => ({
+  ffmpegPath: 'ffmpeg',
+  pythonPath: 'python',
+  workerModulePath: '/fake/worker',
+  pythonSrcDir: '/fake/src',
+  modelsDir: '',
+  voiceModelsDir: '',
+  tempDir: '',
+}))
 
 vi.mock('@proj-airi/singing', async (importOriginal) => {
   const actual: Record<string, unknown> = await importOriginal()
@@ -12,15 +26,7 @@ vi.mock('@proj-airi/singing', async (importOriginal) => {
 
   return {
     ...actual,
-    resolveRuntimeEnv: vi.fn(() => ({
-      ffmpegPath: 'ffmpeg',
-      pythonPath: 'python',
-      workerModulePath: '/fake/worker',
-      pythonSrcDir: '/fake/src',
-      modelsDir: '/fake/models',
-      voiceModelsDir: '/fake/voice_models',
-      tempDir: '/tmp/singing-test',
-    })),
+    resolveRuntimeEnv: vi.fn(() => runtimeEnv),
     createCoverJob: vi.fn(async (request: unknown, deps: { queue: InMemoryQueue }) => {
       const jobId = randomUUID()
       const now = new Date().toISOString()
@@ -170,10 +176,22 @@ beforeEach(async () => {
   mockRunCoverPipeline = mod.runCoverPipeline as ReturnType<typeof vi.fn>
   mockRerunConversionStages = mod.rerunConversionStages as ReturnType<typeof vi.fn>
   mockRunTrainingPipeline = mod.runTrainingPipeline as ReturnType<typeof vi.fn>
+
+  const testRoot = resolve(process.cwd(), '.tmp-singing-service-test')
+  runtimeEnv.modelsDir = join(testRoot, 'models')
+  runtimeEnv.voiceModelsDir = join(runtimeEnv.modelsDir, 'voice_models')
+  runtimeEnv.tempDir = join(testRoot, 'temp')
+
+  await rm(testRoot, { recursive: true, force: true })
+  await mkdir(runtimeEnv.tempDir, { recursive: true })
 })
 
 afterEach(() => {
   vi.restoreAllMocks()
+})
+
+afterEach(async () => {
+  await rm(resolve(process.cwd(), '.tmp-singing-service-test'), { recursive: true, force: true })
 })
 
 describe('createSingingService - cover lifecycle', () => {
@@ -442,5 +460,43 @@ describe('createSingingService - training lifecycle', () => {
         'queue persistence unavailable',
       )
     })
+  })
+})
+
+describe('createSingingService - managed upload cleanup', () => {
+  it('removes a completed cover upload from the managed uploads directory', async () => {
+    const queue = new InMemoryQueue()
+    mockRunCoverPipeline.mockResolvedValue(successResult())
+
+    const uploadsDir = join(runtimeEnv.tempDir, 'uploads')
+    const uploadPath = join(uploadsDir, 'managed-input.wav')
+    await mkdir(uploadsDir, { recursive: true })
+    await writeFile(uploadPath, 'audio')
+
+    const svc = createSingingService({ queue })
+    const { jobId } = await svc.createCover(makeCoverRequest({ inputUri: uploadPath }))
+
+    await waitForJobStatus(queue, jobId, TERMINAL_STATES)
+    await vi.waitFor(() => {
+      expect(existsSync(uploadPath)).toBe(false)
+    })
+  })
+
+  it('does not delete arbitrary paths that merely contain an uploads segment', async () => {
+    const queue = new InMemoryQueue()
+    mockRunCoverPipeline.mockResolvedValue(successResult())
+
+    const outsidePath = join(resolve(process.cwd(), '.tmp-singing-service-test-outside'), 'uploads', 'keep.wav')
+    await rm(resolve(process.cwd(), '.tmp-singing-service-test-outside'), { recursive: true, force: true })
+    await mkdir(join(resolve(process.cwd(), '.tmp-singing-service-test-outside'), 'uploads'), { recursive: true })
+    await writeFile(outsidePath, 'audio')
+
+    const svc = createSingingService({ queue })
+    const { jobId } = await svc.createCover(makeCoverRequest({ inputUri: outsidePath }))
+
+    await waitForJobStatus(queue, jobId, TERMINAL_STATES)
+    expect(existsSync(outsidePath)).toBe(true)
+
+    await rm(resolve(process.cwd(), '.tmp-singing-service-test-outside'), { recursive: true, force: true })
   })
 })

@@ -1,9 +1,10 @@
-import type { CreateCoverRequest } from '../../types/request'
+import type { CreateCoverRequest, CreateTrainRequest } from '../../types/request'
 
 import { existsSync } from 'node:fs'
 
 import { ConverterBackendId, SeparatorBackendId } from '../../constants/model-backends'
 import { SingingError, SingingErrorCode } from '../../contracts/error'
+import { isSafePathSegment } from '../../utils/path'
 
 /**
  * Guard: validates a cover request before pipeline execution.
@@ -54,5 +55,38 @@ export function validateCoverRequest(request: CreateCoverRequest): void {
         'voiceId is required for RVC mode',
       )
     }
+
+    if (!isSafePathSegment(request.converter.voiceId)) {
+      throw new SingingError(
+        SingingErrorCode.InvalidInput,
+        `voiceId contains unsupported path characters: ${request.converter.voiceId}`,
+      )
+    }
+  }
+}
+
+/**
+ * Guard: validates a training request before a training job is created.
+ */
+export function validateTrainRequest(request: CreateTrainRequest): void {
+  if (!request.voiceId || !request.datasetUri) {
+    throw new SingingError(
+      SingingErrorCode.InvalidInput,
+      'voiceId and datasetUri are required for training',
+    )
+  }
+
+  if (!existsSync(request.datasetUri)) {
+    throw new SingingError(
+      SingingErrorCode.InvalidInput,
+      `Training dataset does not exist: ${request.datasetUri}`,
+    )
+  }
+
+  if (!isSafePathSegment(request.voiceId)) {
+    throw new SingingError(
+      SingingErrorCode.InvalidInput,
+      `voiceId contains unsupported path characters: ${request.voiceId}`,
+    )
   }
 }
