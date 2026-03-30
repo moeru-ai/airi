@@ -10,6 +10,10 @@ interface HermesSessionMemoryRecord {
   sessionId: string
   summary: string
   facts: string[]
+  lastRoute: HermesReplyResponse['route'] | null
+  lastSceneType: HermesReplyResponse['sceneType'] | null
+  judgeScore: HermesReplyResponse['judge']['score']
+  judgeFlags: string[]
   updatedAt: number
 }
 
@@ -31,6 +35,10 @@ export const useHermesMemoryStore = defineStore('chat-hermes-memory', () => {
       sessionId,
       summary: '',
       facts: [],
+      lastRoute: null,
+      lastSceneType: null,
+      judgeScore: null,
+      judgeFlags: [],
       updatedAt: 0,
     }
 
@@ -49,6 +57,10 @@ export const useHermesMemoryStore = defineStore('chat-hermes-memory', () => {
         sessionId,
         summary,
         facts,
+        lastRoute: response.route,
+        lastSceneType: response.sceneType ?? null,
+        judgeScore: response.judge.score ?? null,
+        judgeFlags: dedupeFacts(response.judge.flags),
         updatedAt: Date.now(),
       },
     }
@@ -60,6 +72,9 @@ export const useHermesMemoryStore = defineStore('chat-hermes-memory', () => {
       return null
 
     const textParts = [
+      record.lastRoute ? `Route: ${record.lastRoute}` : '',
+      record.lastSceneType ? `Scene: ${record.lastSceneType}` : '',
+      record.judgeFlags.length ? `Quality flags:\n- ${record.judgeFlags.join('\n- ')}` : '',
       record.summary ? `Summary:\n${record.summary}` : '',
       record.facts.length ? `Facts:\n- ${record.facts.join('\n- ')}` : '',
     ].filter(Boolean)

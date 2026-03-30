@@ -51,10 +51,12 @@ Role:
   - `USE_HERMES_CHAT`
 - `packages/stage-ui/src/stores/chat.ts`
   - builds Hermes payloads from active sessions
+  - resolves `normal` vs `nsfw` Hermes routes from character and user gating
   - sends chat turns through Hermes when enabled
   - applies Hermes memory updates
 - `packages/stage-ui/src/stores/chat/hermes-memory-store.ts`
   - per-session local persistence for summaries and facts
+  - stores route, scene type, judge score, and judge flags
 
 ### Auth and User Gating
 
@@ -168,6 +170,7 @@ Role:
 - Hermes context assembly
 - Hermes deterministic reply assembly
 - Hermes memory delta return path into AIRI
+- AIRI-side route resolution for normal vs NSFW Hermes turns
 
 ### Still Open
 

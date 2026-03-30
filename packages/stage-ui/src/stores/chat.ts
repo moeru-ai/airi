@@ -4,6 +4,7 @@ import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { CommonContentPart, Message, ToolMessage } from '@xsai/shared-chat'
 
 import type { ChatAssistantMessage, ChatSlices, ChatStreamEventContext, StreamingAssistantMessage } from '../types/chat'
+import type { Character } from '../types/character'
 import type { StreamEvent, StreamOptions } from './llm'
 
 import { createQueue } from '@proj-airi/stream-kit'
@@ -37,6 +38,25 @@ interface SendOptions {
   input?: WebSocketEventInputs
   useHermes?: boolean
   hermesRoute?: HermesReplyRequest['route']
+}
+
+function resolveHermesRoute(
+  route: HermesReplyRequest['route'] | undefined,
+  character: Character | null | undefined,
+  canAccessNsfw: boolean,
+): HermesReplyRequest['route'] {
+  if (route)
+    return route
+
+  if (
+    character?.nsfwEnabled
+    && character.nsfwLevel !== 'none'
+    && canAccessNsfw
+  ) {
+    return 'nsfw'
+  }
+
+  return 'normal'
 }
 
 interface ForkOptions {
@@ -493,6 +513,12 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     if (!character)
       return null
 
+    const route = resolveHermesRoute(
+      options.route,
+      character,
+      authStore.canAccessNsfw,
+    )
+
     const sessionMessages = chatSession.getSessionMessages(sessionId)
     const lastMessage = sessionMessages.at(-1)
     const recentMessages = lastMessage?.role === 'user' && typeof lastMessage.content === 'string' && lastMessage.content === sendingMessage
@@ -500,7 +526,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       : sessionMessages
 
     return buildHermesReplyRequest({
-      route: options.route,
+      route,
       user: {
         id: authStore.userId,
         adultVerified: options.adultVerified ?? authStore.adultVerified,
@@ -541,9 +567,17 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     options: Omit<SendOptions, 'useHermes'>,
     targetSessionId?: string,
   ) {
+    const activeCharacterId = characterStore.activeCharacterId
+    const character = activeCharacterId ? characterStore.getCharacter(activeCharacterId) : null
+
     return await ingest(sendingMessage, {
       ...options,
       useHermes: true,
+      hermesRoute: resolveHermesRoute(
+        options.hermesRoute,
+        character,
+        authStore.canAccessNsfw,
+      ),
     }, targetSessionId)
   }
 

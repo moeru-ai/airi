@@ -22,7 +22,7 @@ This is the implementation checklist for the AIRI + Hermes companion stack.
 
 ### Chat
 
-- [ ] Route `normal` and `nsfw` chat turns separately.
+- [x] Route `normal` and `nsfw` chat turns separately.
 - [x] Send Hermes request payloads from the active session.
 - [x] Persist Hermes memory deltas after each turn.
 - [ ] Add judge feedback handling for low-quality replies.
