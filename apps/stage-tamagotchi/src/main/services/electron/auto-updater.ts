@@ -4,8 +4,8 @@ import type { UpdateInfo } from 'electron-updater'
 
 import type { AutoUpdaterState } from '../../../shared/eventa'
 
-import { arch, env, platform } from 'node:process'
-import { rm } from 'node:fs/promises'
+import { env, platform } from 'node:process'
+import { rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 
@@ -77,9 +77,11 @@ export function setupAutoUpdater(): AutoUpdater {
   try {
     const cacheDir = getAppCacheDir()
     if (cacheDir) {
-      rm(join(cacheDir, 'ai.moeru.airi-updater'), { recursive: true, force: true }).catch(() => {})
+      rmSync(join(cacheDir, 'ai.moeru.airi-updater'), { recursive: true, force: true })
     }
-  } catch {}
+  } catch (error) {
+    log.withError(error).warn('Failed to clean up updater cache')
+  }
 
   let state: AutoUpdaterState = { status: 'idle' }
   const hooks = new Set<(state: AutoUpdaterState) => void>()

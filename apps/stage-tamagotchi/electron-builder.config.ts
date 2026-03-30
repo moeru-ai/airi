@@ -148,11 +148,8 @@ export default {
   },
   npmRebuild: false,
   publish: {
-    provider: 'github',
-    owner: 'moeru-ai',
-    repo: 'airi',
-    // NOTICE: `channel: 'latest-${arch}'` matters because electron-builder expands
-    // `${arch}` before it writes any publish metadata, and electron-updater later
+    provider: 'generic',
+    url: 'https://github.com/moeru-ai/airi/releases/latest/download/',
     // reuses that expanded channel string when deciding which `*.yml` file to fetch.
     //
     // Without this, the updater would look for `latest-mac.yml` for both x64 and arm64 macOS builds,
