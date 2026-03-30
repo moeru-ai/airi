@@ -8,7 +8,7 @@ exposeWithCustomAPI({
       url: string | null
       port: number | null
       ready: boolean
-      error?: string
+      error?: string | null
     }>,
   },
 })

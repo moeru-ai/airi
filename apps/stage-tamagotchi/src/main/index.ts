@@ -9,6 +9,7 @@ import messages from '@proj-airi/i18n/locales'
 
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLevel, useLogg } from '@guiiai/logg'
+import { errorMessageFrom } from '@moeru/std'
 import { initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
 import { app, ipcMain } from 'electron'
 import { noop } from 'es-toolkit'
@@ -53,6 +54,15 @@ setGlobalLogLevel(LogLevel.Log)
 setupDebugger()
 
 const log = useLogg('main').useGlobalConfig()
+
+function toSingingLocalServerSnapshot(server: Awaited<ReturnType<typeof setupSingingLocalServer>> | null) {
+  return {
+    url: server?.url ?? null,
+    port: server?.port ?? null,
+    ready: !!server?.ready,
+    error: server?.error ?? null,
+  }
+}
 
 // Thanks to [@blurymind](https://github.com/blurymind),
 //
@@ -149,10 +159,10 @@ app.whenReady().then(async () => {
   ipcMain.removeHandler(SINGING_LOCAL_SERVER_INFO_CHANNEL)
   ipcMain.handle(SINGING_LOCAL_SERVER_INFO_CHANNEL, async () => {
     if (singingServerState.current)
-      return singingServerState.current
+      return toSingingLocalServerSnapshot(singingServerState.current)
 
     if (singingServerState.pending)
-      return await singingServerState.pending
+      return toSingingLocalServerSnapshot(await singingServerState.pending)
 
     return {
       url: null,
@@ -230,7 +240,7 @@ app.whenReady().then(async () => {
   // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
   app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
 }).catch((err) => {
-  log.withError(err).error('Error during app initialization')
+  log.withError(err).error(errorMessageFrom(err) ?? 'Error during app initialization')
 })
 
 // Quit when all windows are closed, except on macOS. There, it's common

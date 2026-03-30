@@ -788,6 +788,9 @@ pages:
       openai:
         description: OpenAi.com
         title: OpenAI
+      azure-openai:
+        description: Azure OpenAI 服務
+        title: Azure OpenAI
       openai-compatible:
         description: OpenAI 相容
         title: OpenAI 兼容性

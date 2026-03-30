@@ -162,7 +162,7 @@ const baseModelsSummary = computed(() => {
 })
 
 onMounted(async () => {
-  await Promise.all([
+  await Promise.allSettled([
     coverRuntime.resumeActiveJob(),
     trainingRuntime.resumeActiveJob(),
   ])
