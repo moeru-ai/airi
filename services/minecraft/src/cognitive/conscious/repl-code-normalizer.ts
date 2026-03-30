@@ -76,7 +76,7 @@ export function normalizeReplScript(code: string): string {
 
   const hasTopLevelReturn = sourceFile.statements.some(statement => ts.isReturnStatement(statement))
   if (!hasTopLevelReturn && sourceFile.statements.length > 0) {
-    const lastStatement = sourceFile.statements[sourceFile.statements.length - 1]
+    const lastStatement = sourceFile.statements.at(-1)
     if (ts.isExpressionStatement(lastStatement)) {
       const expressionText = getNodeText(sourceFile, lastStatement.expression)
       replacements.push({

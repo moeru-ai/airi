@@ -85,6 +85,7 @@ function goToModelSelection() {
 <template>
   <ProviderSettingsLayout
     :provider-name="providerMetadata?.localizedName"
+    :provider-icon="providerMetadata?.icon"
     :provider-icon-color="providerMetadata?.iconColor"
     :on-back="() => router.back()"
   >
@@ -108,7 +109,6 @@ function goToModelSelection() {
         />
       </ProviderAdvancedSettings>
 
-      <!-- Validation Status -->
       <ProviderValidationAlerts
         :is-valid="isValid"
         :is-validating="isValidating"

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { OnboardingScreen } from '@proj-airi/stage-ui/components'
+import { OnboardingScreen, OnboardingStepAnalyticsNotice } from '@proj-airi/stage-ui/components'
+import { isPosthogAvailableInBuild } from '@proj-airi/stage-ui/stores/analytics'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useTheme } from '@proj-airi/ui'
 import { computed } from 'vue'
@@ -11,6 +12,11 @@ const onboardingStore = useOnboardingStore()
 const { isDark } = useTheme()
 
 const bgClass = computed(() => isDark.value ? 'bg-[#0f0f0f]' : 'bg-white')
+const extraSteps = computed(() => {
+  return isPosthogAvailableInBuild()
+    ? [{ id: 'analytics-notice', component: OnboardingStepAnalyticsNotice }]
+    : []
+})
 
 const closeWindow = useElectronEventaInvoke(electronOnboardingClose)
 
@@ -30,7 +36,7 @@ async function handleConfigured() {
     <div :class="bgClass" w="100dvw" min-h="12" w-full flex-shrink-0 select-none data-tauri-drag-region />
     <div class="onboarding-scroll" w-full flex-1 px-3>
       <div class="onboarding-content" h-full>
-        <OnboardingScreen @skipped="handleSkipped" @configured="handleConfigured" />
+        <OnboardingScreen :extra-steps="extraSteps" @skipped="handleSkipped" @configured="handleConfigured" />
       </div>
     </div>
   </div>

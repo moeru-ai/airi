@@ -2,12 +2,12 @@ import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/
 import type { WithUnknown } from '@xsai/shared'
 import type { StreamTranscriptionResult, StreamTranscriptionOptions as XSAIStreamTranscriptionOptions } from '@xsai/stream-transcription'
 
-import { tryCatch } from '@moeru/std'
+import { errorMessageFrom, tryCatch } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, ref, shallowRef } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 
 import vadWorkletUrl from '../../workers/vad/process.worklet?worker&url'
 
@@ -16,12 +16,39 @@ import { streamAliyunTranscription } from '../providers/aliyun/stream-transcript
 import { streamWebSpeechAPITranscription } from '../providers/web-speech-api'
 
 function errorMessage(err: unknown): string {
-  const msg = err instanceof Error ? err.message : String(err)
+  const msg = errorMessageFrom(err) ?? String(err)
   // Browsers hide the real reason (CORS, timeout, DNS, …) behind this generic string.
   if (msg === 'Failed to fetch' || msg === 'Load failed') {
     return `${msg} — check the browser console (Network tab) for the exact reason (e.g. CORS, network timeout, DNS failure).`
   }
   return msg
+}
+
+// NOTICE: Realtime transcription intentionally uses `AbortError` as a control-flow signal when the
+// current stream session is being stopped on purpose.
+//
+// This happens in `stopStreamingTranscription()`,
+// which aborts the session with one of the DOMException messages below when the user disables the mic,
+// the page tears down audio interaction, callbacks are intentionally rebound, or the idle timeout closes
+// an inactive stream. Those cases should not be surfaced as provider failures because the session was
+// explicitly asked to stop. If a future abort is noisy or unexpected, inspect the abort source first:
+// `stopStreamingTranscription()` in this file is the primary origin, and provider-specific teardown
+// bridges such as `packages/stage-ui/src/stores/providers/aliyun/stream-transcription.ts` propagate the
+// same reason through the transport. Only treat an abort as "expected" if it is one of these known
+// shutdown paths; any other `AbortError` should still be investigated as a real lifecycle bug or a
+// provider/runtime failure.
+function isExpectedStreamStopError(err: unknown): boolean {
+  return err instanceof DOMException
+    && err.name === 'AbortError'
+    && (err.message === 'Stopped' || err.message === 'Aborted' || err.message === 'Closed' || err.message === 'Idle timeout')
+}
+
+function haveStreamingCallbacksChanged(
+  previous: { onSentenceEnd?: (delta: string) => void, onSpeechEnd?: (text: string) => void } | undefined,
+  next: { onSentenceEnd?: (delta: string) => void, onSpeechEnd?: (text: string) => void },
+): boolean {
+  return (next.onSentenceEnd !== undefined && next.onSentenceEnd !== previous?.onSentenceEnd)
+    || (next.onSpeechEnd !== undefined && next.onSpeechEnd !== previous?.onSpeechEnd)
 }
 
 export interface StreamTranscriptionFileInputOptions extends Omit<XSAIStreamTranscriptionOptions, 'file' | 'fileName'> {
@@ -49,6 +76,19 @@ interface HearingTranscriptionInvokeOptions {
   providerOptions?: Record<string, unknown>
 }
 
+export const CONFIDENCE_THRESHOLD_DISABLED = -3
+
+export function filterTranscriptionByConfidence(
+  segments: Array<{ text?: string, avg_logprob?: number }>,
+  threshold: number,
+): string {
+  if (!segments.some(s => s?.avg_logprob != null && s?.text != null)) {
+    return ''
+  }
+
+  return segments.filter(s => (s?.avg_logprob ?? -Infinity) >= threshold).map(s => s?.text ?? '').join('').trim()
+}
+
 const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
   'aliyun-nls-transcription': streamAliyunTranscription,
   // Web Speech API is handled specially in transcribeForMediaStream since it works directly with MediaStream
@@ -65,6 +105,12 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const transcriptionModelSearchQuery = refManualReset<string>('')
   const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false)
   const autoSendDelay = useLocalStorageManualReset<number>('settings/hearing/auto-send-delay', 2000) // Default 2 seconds
+  const confidenceThreshold = useLocalStorageManualReset<number>('settings/hearing/confidence-threshold', CONFIDENCE_THRESHOLD_DISABLED)
+  const verboseJsonNotSupported = ref(false)
+
+  watch(activeTranscriptionProvider, () => {
+    verboseJsonNotSupported.value = false
+  })
 
   // Computed properties
   const availableProvidersMetadata = computed(() => allAudioTranscriptionProvidersMetadata.value)
@@ -127,6 +173,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     transcriptionModelSearchQuery.reset()
     autoSendEnabled.reset()
     autoSendDelay.reset()
+    confidenceThreshold.reset()
   }
 
   async function transcription(
@@ -190,11 +237,27 @@ export const useHearingStore = defineStore('hearing-store', () => {
       throw new Error('File input is required for transcription.')
     }
 
+    const useVerboseJson = !format && confidenceThreshold.value > CONFIDENCE_THRESHOLD_DISABLED
     const response = await generateTranscription({
       ...provider.transcription(model, options?.providerOptions),
       file: normalizedInput.file,
-      responseFormat: format,
+      responseFormat: useVerboseJson ? 'verbose_json' : format,
     })
+
+    if (useVerboseJson) {
+      if (response.segments) {
+        verboseJsonNotSupported.value = false
+        return {
+          mode: 'generate',
+          ...response,
+          text: filterTranscriptionByConfidence(response.segments, confidenceThreshold.value),
+        }
+      }
+      else {
+        verboseJsonNotSupported.value = true
+        console.warn('[Hearing] Confidence filter is enabled but the provider did not return verbose_json segments. Filtering has no effect.')
+      }
+    }
 
     return {
       mode: 'generate',
@@ -210,6 +273,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
     transcriptionModelSearchQuery,
     autoSendEnabled,
     autoSendDelay,
+    confidenceThreshold,
+    verboseJsonNotSupported,
 
     supportsModelListing,
     providerModels,
@@ -357,6 +422,9 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           return text
         }
         catch (err) {
+          if (isExpectedStreamStopError(err))
+            return
+
           error.value = errorMessage(err)
           console.error('Error getting transcription result:', error.value)
         }
@@ -402,6 +470,9 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
         return text
       }
       catch (err) {
+        if (isExpectedStreamStopError(err))
+          return
+
         error.value = errorMessage(err)
         console.error('Error generating transcription:', error.value)
       }
@@ -460,15 +531,15 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
         // Check if session already exists and reuse it
         const existingSession = streamingSession.value
         if (existingSession && existingSession.providerId === 'browser-web-speech-api') {
+          const nextCallbacks = {
+            onSentenceEnd: options?.onSentenceEnd,
+            onSpeechEnd: options?.onSpeechEnd,
+          }
           // For Web Speech API, if callbacks are provided and different, we need to restart
           // because recognition instance callbacks are set once and can't be changed
-          // However, if no new callbacks are provided, we can just reuse the session
-          const hasNewCallbacks = !!(options?.onSentenceEnd || options?.onSpeechEnd)
+          const hasNewCallbacks = haveStreamingCallbacksChanged(existingSession.callbacks, nextCallbacks)
 
           if (hasNewCallbacks) {
-            // We need to restart to use new callbacks, but only if they're actually different
-            // Since we can't compare functions, we'll just always restart if new callbacks are provided
-            // This ensures callbacks are always up-to-date
             console.info('Web Speech API: New callbacks provided, restarting session to use them')
             await stopStreamingTranscription(false, existingSession.providerId)
             // Continue to create new session below
@@ -580,7 +651,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
               }
             }
             catch (err) {
-              console.error('Error reading text stream:', err)
+              if (!isExpectedStreamStopError(err))
+                console.error('Error reading text stream:', err)
             }
           })()
         }
@@ -600,9 +672,10 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       // require restarting the session to create a new reader.
       const existingSession = streamingSession.value
       if (existingSession) {
-        const hasNewCallbacks
-          = options?.onSentenceEnd !== undefined
-            || options?.onSpeechEnd !== undefined
+        const hasNewCallbacks = haveStreamingCallbacksChanged(existingSession.callbacks, {
+          onSentenceEnd: options?.onSentenceEnd,
+          onSpeechEnd: options?.onSpeechEnd,
+        })
 
         if (hasNewCallbacks) {
           console.info('[Hearing Pipeline] New callbacks provided, restarting session')
@@ -699,7 +772,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
             }
           }
           catch (err) {
-            console.error('Error reading text stream:', err)
+            if (!isExpectedStreamStopError(err))
+              console.error('Error reading text stream:', err)
           }
           finally {
             // Use captured callbacks to avoid cross-session leakage
@@ -709,6 +783,9 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       }
     }
     catch (err) {
+      if (isExpectedStreamStopError(err))
+        return
+
       error.value = errorMessage(err)
       console.error('Error generating transcription:', error.value)
     }

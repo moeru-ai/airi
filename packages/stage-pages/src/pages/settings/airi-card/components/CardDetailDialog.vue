@@ -165,7 +165,7 @@ const tabs = computed<Tab[]>(() => {
 const activeTab = computed({
   get: () => {
     // If current active tab is not in available tabs, reset to first tab
-    if (!tabs.value.find(tab => tab.id === activeTabId.value))
+    if (!tabs.value.some(tab => tab.id === activeTabId.value))
       return tabs.value[0]?.id || ''
     return activeTabId.value
   },

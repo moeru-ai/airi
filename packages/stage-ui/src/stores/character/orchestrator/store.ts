@@ -75,7 +75,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   }
 
   function enqueueSparkNotify(event: WebSocketEventOf<'spark:notify'>, options?: { reason?: string, nextRunAt?: number, maxAttempts?: number }) {
-    if (!pendingNotifies.value.find(item => item.data.id === event.data.id)) {
+    if (!pendingNotifies.value.some(item => item.data.id === event.data.id)) {
       pendingNotifies.value = [...pendingNotifies.value, event]
     }
 

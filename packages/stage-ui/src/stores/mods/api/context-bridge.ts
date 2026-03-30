@@ -1,7 +1,7 @@
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { UserMessage } from '@xsai/shared-chat'
 
-import type { ChatStreamEvent, ContextMessage } from '../../../types/chat'
+import type { ChatStreamEvent, ChatStreamEventContext, ContextMessage } from '../../../types/chat'
 
 import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
 import { useBroadcastChannel } from '@vueuse/core'
@@ -19,7 +19,26 @@ import { useConsciousnessStore } from '../../modules/consciousness'
 import { useProvidersStore } from '../../providers'
 import { useModsServerChannelStore } from './channel-server'
 
+export function normalizeContextSnapshot<C extends Pick<ChatStreamEventContext, 'contexts'>>(contexts: C): C {
+  return {
+    ...contexts,
+    contexts: Object.fromEntries(
+      Object
+        .entries(toRaw(contexts.contexts))
+        .map(([key, ctx]) => [
+          key,
+          ctx.map(c => toRaw(c)),
+        ]),
+    ),
+  }
+}
+
 export const useContextBridgeStore = defineStore('mods:api:context-bridge', () => {
+  const consumerRegistrationEvents = [
+    'input:text',
+    'input:text:voice',
+    'input:voice',
+  ] as const
   const mutex = new Mutex()
 
   const chatOrchestrator = useChatOrchestratorStore()
@@ -41,6 +60,19 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     await mutex.acquire()
 
     try {
+      await serverChannelStore.ensureConnected()
+
+      for (const consumerEvent of consumerRegistrationEvents) {
+        serverChannelStore.send({
+          type: 'module:consumer:register',
+          data: {
+            event: consumerEvent,
+            mode: 'consumer-group',
+            group: 'chat-ingestion',
+          },
+        })
+      }
+
       let isProcessingRemoteStream = false
 
       const { stop } = watch(incomingContext, (event) => {
@@ -156,49 +188,49 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'before-compose', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
+          broadcastStreamEvent({ type: 'before-compose', message, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onAfterMessageComposed(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'after-compose', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
+          broadcastStreamEvent({ type: 'after-compose', message, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onBeforeSend(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'before-send', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
+          broadcastStreamEvent({ type: 'before-send', message, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onAfterSend(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'after-send', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
+          broadcastStreamEvent({ type: 'after-send', message, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onTokenLiteral(async (literal, context) => {
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'token-literal', literal, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
+          broadcastStreamEvent({ type: 'token-literal', literal, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onTokenSpecial(async (special, context) => {
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'token-special', special, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
+          broadcastStreamEvent({ type: 'token-special', special, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onStreamEnd(async (context) => {
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'stream-end', sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
+          broadcastStreamEvent({ type: 'stream-end', sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onAssistantResponseEnd(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'assistant-end', message, sessionId: chatSession.activeSessionId, context: structuredClone(toRaw(context)) })
+          broadcastStreamEvent({ type: 'assistant-end', message, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
 
         chatOrchestrator.onAssistantMessage(async (message, _messageText, context) => {
@@ -295,7 +327,10 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
                 break
               await chatOrchestrator.emitStreamEndHooks(event.context)
-              chatStream.finalizeStream()
+              // NOTICE: Remote stream events are mirrored across renderer windows for UI feedback only.
+              // Persisting them here would append assistant messages into the receiver's local session
+              // without the corresponding user message, corrupting IndexedDB history across windows.
+              chatStream.resetStream()
               chatOrchestrator.sending = false
               remoteStreamGuard = null
               break
@@ -307,7 +342,10 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
                 break
               await chatOrchestrator.emitAssistantResponseEndHooks(event.message, event.context)
-              chatStream.finalizeStream(event.message)
+              // NOTICE: The originating renderer already persists the final assistant message.
+              // Receiver windows must not write it again, or they can overwrite the same session
+              // with assistant-only history when their local session state is stale.
+              chatStream.resetStream()
               chatOrchestrator.sending = false
               remoteStreamGuard = null
               break
@@ -328,6 +366,17 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     await mutex.acquire()
 
     try {
+      for (const consumerEvent of consumerRegistrationEvents) {
+        serverChannelStore.send({
+          type: 'module:consumer:unregister',
+          data: {
+            event: consumerEvent,
+            mode: 'consumer-group',
+            group: 'chat-ingestion',
+          },
+        })
+      }
+
       for (const fn of disposeHookFns.value) {
         fn()
       }

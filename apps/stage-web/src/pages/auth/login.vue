@@ -2,16 +2,16 @@
 import type { OAuthProvider } from '@proj-airi/stage-ui/libs/auth'
 
 import { LoginDrawer } from '@proj-airi/stage-ui/components/auth'
+import { useBreakpoints } from '@proj-airi/stage-ui/composables'
 import { fetchSession, signIn } from '@proj-airi/stage-ui/libs/auth'
 import { Button } from '@proj-airi/ui'
-import { useMediaQuery } from '@vueuse/core'
 import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
 const router = useRouter()
 
-const isDesktop = useMediaQuery('(min-width: 768px)')
+const { isDesktop } = useBreakpoints()
 
 const loading = ref<Record<OAuthProvider, boolean>>({
   google: false,
@@ -51,28 +51,28 @@ watch(isDesktop, (val) => {
 <template>
   <div v-if="isDesktop" class="min-h-screen flex flex-col items-center justify-center">
     <div class="mb-8 text-3xl font-bold">
-      Sign in to AIRI Stage
+      Sign in
     </div>
     <div class="max-w-xs w-full flex flex-col gap-3">
       <Button
         :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']"
+        icon="i-simple-icons-google"
         :loading="loading.google"
         @click="handleSignIn('google')"
       >
-        <div v-if="!loading.google" class="i-simple-icons-google" />
         <span>Google</span>
       </Button>
       <Button
         :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']"
+        icon="i-simple-icons-github"
         :loading="loading.github"
         @click="handleSignIn('github')"
       >
-        <div v-if="!loading.github" class="i-simple-icons-github" />
         <span>GitHub</span>
       </Button>
     </div>
     <div class="mt-8 text-xs text-gray-400">
-      By continuing, you agree to our <a href="#" class="underline">Terms</a> and <a href="#" class="underline">Privacy Policy</a>.
+      By continuing, you agree to our <a href="https://airi.moeru.ai/docs/en/about/terms" class="underline">Terms</a> and <a href="https://airi.moeru.ai/docs/en/about/privacy" class="underline">Privacy Policy</a>.
     </div>
   </div>
 
@@ -80,7 +80,7 @@ watch(isDesktop, (val) => {
     <div class="mb-12 flex flex-col items-center gap-4">
       <img src="../../assets/logo.svg" class="h-24 w-24 rounded-3xl shadow-lg">
       <div class="text-3xl font-bold">
-        AIRI Stage
+        AIRI
       </div>
     </div>
 

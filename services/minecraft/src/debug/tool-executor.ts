@@ -68,7 +68,7 @@ export class ToolExecutor {
       const args: any[] = []
       const shape = (action.schema as any).shape
       for (const key in shape) {
-        if (Object.prototype.hasOwnProperty.call(validated, key)) {
+        if (Object.hasOwn(validated, key)) {
           args.push((validated as any)[key])
         }
       }

@@ -6,6 +6,11 @@ chat:
       you: Bạn
   reasoning: Suy nghĩ
 message: Nói gì đó...
+send-mode:
+  title: Send key
+  enter: Enter
+  ctrl-enter: Ctrl + Enter
+  double-enter: Double Enter
 operations:
   load-models: Tải mô hình
   load-models-status:
@@ -34,5 +39,6 @@ profile-switcher:
   no-profile: No Profile
   no-profiles: No profiles yet
   save-as-new: Save as New Profile
+  new-profile-name: Profile name
   manage: Manage Profiles
 waiting: Đang chờ

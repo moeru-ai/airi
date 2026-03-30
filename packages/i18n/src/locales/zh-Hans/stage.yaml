@@ -6,6 +6,11 @@ chat:
       you: 你
   reasoning: 思考
 message: 说点什么...
+send-mode:
+  title: Send key
+  enter: Enter
+  ctrl-enter: Ctrl + Enter
+  double-enter: Double Enter
 operations:
   load-models: 加载模型
   load-models-status:
@@ -34,5 +39,6 @@ profile-switcher:
   no-profile: 缺少角色
   no-profiles: 还没有角色
   save-as-new: 存为新角色
+  new-profile-name: 角色卡名称
   manage: 管理角色卡
 waiting: 等待中

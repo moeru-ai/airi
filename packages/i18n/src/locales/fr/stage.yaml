@@ -6,6 +6,11 @@ chat:
       you: Vous
   reasoning: Raisonnement
 message: Dites quelque chose...
+send-mode:
+  title: Send key
+  enter: Enter
+  ctrl-enter: Ctrl + Enter
+  double-enter: Double Enter
 operations:
   load-models: Charger les modèles
   load-models-status:
@@ -34,5 +39,6 @@ profile-switcher:
   no-profile: Aucun profil
   no-profiles: Aucuns profils pour l'instant
   save-as-new: Enregistrer comme Nouveau Profil
+  new-profile-name: Nom du profil
   manage: Gérer les Profils
 waiting: En attente

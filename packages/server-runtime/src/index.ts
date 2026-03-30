@@ -1,4 +1,8 @@
-import type { MetadataEventSource, WebSocketEvent } from '@proj-airi/server-shared/types'
+import type {
+  DeliveryConfig,
+  MetadataEventSource,
+  WebSocketEvent,
+} from '@proj-airi/server-shared/types'
 
 import type {
   RouteContext,
@@ -8,12 +12,20 @@ import type {
 } from './middlewares'
 import type { AuthenticatedPeer, Peer } from './types'
 
+import { Buffer } from 'node:buffer'
+import { timingSafeEqual } from 'node:crypto'
+
 import { availableLogLevelStrings, Format, LogLevelString, logLevelStringToLogLevelMap, useLogg } from '@guiiai/logg'
 import {
   createInvalidJsonServerErrorMessage,
   ServerErrorMessages,
 } from '@proj-airi/server-shared'
-import { MessageHeartbeat, MessageHeartbeatKind, WebSocketEventSource } from '@proj-airi/server-shared/types'
+import {
+  getProtocolEventMetadata,
+  MessageHeartbeat,
+  MessageHeartbeatKind,
+  WebSocketEventSource,
+} from '@proj-airi/server-shared/types'
 import { defineWebSocketHandler, H3 } from 'h3'
 import { nanoid } from 'nanoid'
 import { parse, stringify } from 'superjson'
@@ -27,6 +39,28 @@ import {
   isDevtoolsPeer,
   matchesDestinations,
 } from './middlewares'
+
+/**
+ * Constant-time string comparison that prevents timing attacks (CWE-208).
+ *
+ * @param {string} a - the first string to compare
+ * @param {string} b - the expected value (e.g., the real secret)
+ * @returns {boolean} `true` if the strings are equal, `false` otherwise
+ */
+function timingSafeCompare(a: string, b: string): boolean {
+  const bufA = Buffer.from(a)
+  const bufB = Buffer.from(b)
+  if (bufA.length !== bufB.length) {
+    // Compare against itself to keep constant time, then return false
+    timingSafeEqual(bufA, bufA)
+    // To prevent leaking length information, we perform a dummy comparison on the
+    // expected value, making the execution time dependent on its length.
+    timingSafeEqual(bufB, bufB)
+    return false
+  }
+
+  return timingSafeEqual(bufA, bufB)
+}
 
 function createServerEventMetadata(serverInstanceId: string, parentId?: string): { source: MetadataEventSource, event: { id: string, parentId?: string } } {
   return {
@@ -70,10 +104,115 @@ const RESPONSES = {
 } satisfies Record<string, (...args: unknown[]) => WebSocketEvent<Record<string, unknown>>>
 
 const DEFAULT_HEARTBEAT_TTL_MS = 60_000
+const DEFAULT_CONSUMER_GROUP = 'default'
+
+interface ConsumerRegistration {
+  event: string
+  group: string
+  peerId: string
+  priority: number
+  registeredAt: number
+}
+
+export interface ConsumerSelectionCandidate {
+  peerId: string
+  priority: number
+  registeredAt: number
+  authenticated: boolean
+  healthy?: boolean
+}
 
 // helper send function
 function send(peer: Peer, event: WebSocketEvent<Record<string, unknown>> | string) {
   peer.send(typeof event === 'string' ? event : stringify(event))
+}
+
+export function resolveDeliveryConfig(event: WebSocketEvent): DeliveryConfig | undefined {
+  const eventMetadata = getProtocolEventMetadata(event.type)
+  const defaultDelivery = eventMetadata?.delivery
+  const routeDelivery = event.route?.delivery
+
+  if (!defaultDelivery && !routeDelivery) {
+    return undefined
+  }
+
+  return {
+    ...defaultDelivery,
+    ...routeDelivery,
+  }
+}
+
+function getConsumerRegistryKey(event: string, group: string) {
+  return `${event}::${group}`
+}
+
+function normalizeConsumerGroup(mode: DeliveryConfig['mode'], group?: string) {
+  if (mode === 'consumer') {
+    return DEFAULT_CONSUMER_GROUP
+  }
+
+  return group || DEFAULT_CONSUMER_GROUP
+}
+
+function sortConsumers(entries: Array<Pick<ConsumerSelectionCandidate, 'peerId' | 'priority' | 'registeredAt'>>) {
+  return [...entries].sort((left, right) => {
+    if (right.priority !== left.priority) {
+      return right.priority - left.priority
+    }
+
+    return left.registeredAt - right.registeredAt
+  })
+}
+
+export function selectConsumerPeerId(options: {
+  eventType: string
+  fromPeerId: string
+  delivery?: DeliveryConfig
+  candidates: ConsumerSelectionCandidate[]
+  roundRobinCursor?: Map<string, number>
+  stickyAssignments?: Map<string, string>
+}) {
+  const { candidates, delivery, eventType, fromPeerId } = options
+  if (!delivery || (delivery.mode !== 'consumer' && delivery.mode !== 'consumer-group')) {
+    return
+  }
+
+  const normalizedGroup = normalizeConsumerGroup(delivery.mode, delivery.group)
+  const registryKey = getConsumerRegistryKey(eventType, normalizedGroup)
+  const availableEntries = sortConsumers(
+    candidates
+      .filter(entry => entry.peerId !== fromPeerId)
+      .filter(entry => entry.authenticated && entry.healthy !== false),
+  )
+
+  if (availableEntries.length === 0) {
+    return
+  }
+
+  const selection = delivery.selection ?? 'first'
+  if (selection === 'sticky' && delivery.stickyKey) {
+    const stickyRegistryKey = `${registryKey}::${delivery.stickyKey}`
+    const stickyPeerId = options.stickyAssignments?.get(stickyRegistryKey)
+    if (stickyPeerId && stickyPeerId !== fromPeerId) {
+      const stickyCandidate = availableEntries.find(entry => entry.peerId === stickyPeerId)
+      if (stickyCandidate) {
+        return stickyPeerId
+      }
+    }
+
+    const selected = availableEntries[0]
+    options.stickyAssignments?.set(stickyRegistryKey, selected.peerId)
+    return selected.peerId
+  }
+
+  if (selection === 'round-robin') {
+    const cursor = options.roundRobinCursor?.get(registryKey) ?? 0
+    const selected = availableEntries[cursor % availableEntries.length]
+    options.roundRobinCursor?.set(registryKey, (cursor + 1) % availableEntries.length)
+    return selected.peerId
+  }
+
+  return availableEntries[0].peerId
 }
 
 export interface AppOptions {
@@ -125,6 +264,10 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
 
   const peers = new Map<string, AuthenticatedPeer>()
   const peersByModule = new Map<string, Map<number | undefined, AuthenticatedPeer>>()
+  const consumerRegistry = new Map<string, Map<string, Map<string, ConsumerRegistration>>>()
+  const consumerKeysByPeer = new Map<string, Set<string>>()
+  const deliveryRoundRobinCursor = new Map<string, number>()
+  const stickyAssignments = new Map<string, string>()
   const heartbeatTtlMs = options?.heartbeat?.readTimeout ?? DEFAULT_HEARTBEAT_TTL_MS
   const heartbeatMessage = options?.heartbeat?.message ?? MessageHeartbeat.Pong
   const routingMiddleware = [
@@ -144,7 +287,6 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       }
 
       const elapsed = now - peerInfo.lastHeartbeatAt
-
       if (elapsed > healthCheckIntervalMs) {
         peerInfo.missedHeartbeats = (peerInfo.missedHeartbeats ?? 0) + 1
       }
@@ -161,6 +303,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
         catch (error) {
           logger.withFields({ peer: id, peerName: peerInfo.name }).withError(error as Error).debug('failed to close expired peer')
         }
+
         peers.delete(id)
         unregisterModulePeer(peerInfo, 'heartbeat expired')
       }
@@ -193,7 +336,133 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
     broadcastRegistrySync()
   }
 
+  function registerConsumer(peerId: string, event: string, mode: DeliveryConfig['mode'], group?: string, priority?: number) {
+    const normalizedGroup = normalizeConsumerGroup(mode, group)
+    const registryKey = getConsumerRegistryKey(event, normalizedGroup)
+    let groups = consumerRegistry.get(event)
+    if (!groups) {
+      groups = new Map()
+      consumerRegistry.set(event, groups)
+    }
+
+    let peersForGroup = groups.get(normalizedGroup)
+    if (!peersForGroup) {
+      peersForGroup = new Map()
+      groups.set(normalizedGroup, peersForGroup)
+    }
+
+    peersForGroup.set(peerId, {
+      event,
+      group: normalizedGroup,
+      peerId,
+      priority: priority ?? 0,
+      registeredAt: Date.now(),
+    })
+
+    let registrations = consumerKeysByPeer.get(peerId)
+    if (!registrations) {
+      registrations = new Set()
+      consumerKeysByPeer.set(peerId, registrations)
+    }
+    registrations.add(registryKey)
+  }
+
+  function unregisterConsumer(peerId: string, event: string, mode: DeliveryConfig['mode'], group?: string) {
+    const normalizedGroup = normalizeConsumerGroup(mode, group)
+    const registryKey = getConsumerRegistryKey(event, normalizedGroup)
+    const groups = consumerRegistry.get(event)
+    const peersForGroup = groups?.get(normalizedGroup)
+
+    peersForGroup?.delete(peerId)
+    if (peersForGroup?.size === 0) {
+      groups?.delete(normalizedGroup)
+      deliveryRoundRobinCursor.delete(registryKey)
+    }
+    if (groups?.size === 0) {
+      consumerRegistry.delete(event)
+    }
+
+    const registrations = consumerKeysByPeer.get(peerId)
+    registrations?.delete(registryKey)
+    if (registrations?.size === 0) {
+      consumerKeysByPeer.delete(peerId)
+    }
+
+    for (const [stickyKey, stickyPeerId] of stickyAssignments.entries()) {
+      if (stickyPeerId === peerId && stickyKey.startsWith(`${registryKey}::`)) {
+        stickyAssignments.delete(stickyKey)
+      }
+    }
+  }
+
+  function unregisterPeerConsumers(peerId: string) {
+    const registrations = consumerKeysByPeer.get(peerId)
+    if (!registrations?.size) {
+      return
+    }
+
+    for (const registration of registrations) {
+      const [event, group] = registration.split('::', 2)
+      const groups = consumerRegistry.get(event)
+      const peersForGroup = groups?.get(group)
+      peersForGroup?.delete(peerId)
+      if (peersForGroup?.size === 0) {
+        groups?.delete(group)
+        deliveryRoundRobinCursor.delete(registration)
+      }
+      if (groups?.size === 0) {
+        consumerRegistry.delete(event)
+      }
+    }
+
+    for (const [stickyKey, stickyPeerId] of stickyAssignments.entries()) {
+      if (stickyPeerId === peerId) {
+        stickyAssignments.delete(stickyKey)
+      }
+    }
+
+    consumerKeysByPeer.delete(peerId)
+  }
+
+  function isEligibleConsumer(peerId: string) {
+    const candidate = peers.get(peerId)
+    return Boolean(
+      candidate
+      && candidate.authenticated
+      && candidate.healthy !== false,
+    )
+  }
+
+  function selectConsumer(event: WebSocketEvent, fromPeerId: string, delivery?: DeliveryConfig) {
+    const entries = consumerRegistry
+      .get(event.type)
+      ?.get(normalizeConsumerGroup(delivery?.mode, delivery?.group))
+
+    const selectedPeerId = selectConsumerPeerId({
+      eventType: event.type,
+      fromPeerId,
+      delivery,
+      candidates: Array.from(entries?.values() ?? [], entry => ({
+        peerId: entry.peerId,
+        priority: entry.priority,
+        registeredAt: entry.registeredAt,
+        authenticated: Boolean(peers.get(entry.peerId)?.authenticated),
+        healthy: peers.get(entry.peerId)?.healthy,
+      })),
+      roundRobinCursor: deliveryRoundRobinCursor,
+      stickyAssignments,
+    })
+
+    if (!selectedPeerId || !isEligibleConsumer(selectedPeerId)) {
+      return
+    }
+
+    return peers.get(selectedPeerId)
+  }
+
   function unregisterModulePeer(p: AuthenticatedPeer, reason?: string) {
+    unregisterPeerConsumers(p.peer.id)
+
     if (!p.name)
       return
 
@@ -339,7 +608,8 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
         }
 
         case 'module:authenticate': {
-          if (authToken && event.data.token !== authToken) {
+          const clientToken = typeof event.data.token === 'string' ? event.data.token : ''
+          if (authToken && !timingSafeCompare(clientToken, authToken)) {
             logger.withFields({ peer: peer.id, peerRemote: peer.remoteAddress, peerRequest: peer.request.url }).log('authentication failed')
             send(peer, RESPONSES.error(ServerErrorMessages.invalidToken, instanceId, event.metadata?.event.id))
 
@@ -400,7 +670,10 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
 
           // broadcast module:announced to all authenticated peers
           for (const other of peers.values()) {
-            if (other.authenticated) {
+            // only send to
+            // 1. authenticated peers
+            // 2. other peers except the announcing peer itself
+            if (other.authenticated && !(other.peer.id === peer.id)) {
               send(other.peer, {
                 type: 'module:announced',
                 data: { name, index, identity },
@@ -451,6 +724,51 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
 
           return
         }
+
+        case 'module:consumer:register': {
+          const p = peers.get(peer.id)
+          if (!p?.authenticated) {
+            send(peer, RESPONSES.notAuthenticated(instanceId, event.metadata?.event.id))
+            return
+          }
+
+          const data = event.data as {
+            event?: string
+            mode?: 'consumer' | 'consumer-group'
+            group?: string
+            priority?: number
+          }
+
+          if (!data.event || typeof data.event !== 'string') {
+            send(peer, RESPONSES.error(ServerErrorMessages.moduleConsumerEventInvalid, instanceId, event.metadata?.event.id))
+            return
+          }
+
+          registerConsumer(peer.id, data.event, data.mode ?? (data.group ? 'consumer-group' : 'consumer'), data.group, data.priority)
+          return
+        }
+
+        case 'module:consumer:unregister': {
+          const p = peers.get(peer.id)
+          if (!p?.authenticated) {
+            send(peer, RESPONSES.notAuthenticated(instanceId, event.metadata?.event.id))
+            return
+          }
+
+          const data = event.data as {
+            event?: string
+            mode?: 'consumer' | 'consumer-group'
+            group?: string
+          }
+
+          if (!data.event || typeof data.event !== 'string') {
+            send(peer, RESPONSES.error(ServerErrorMessages.moduleConsumerEventInvalid, instanceId, event.metadata?.event.id))
+            return
+          }
+
+          unregisterConsumer(peer.id, data.event, data.mode ?? (data.group ? 'consumer-group' : 'consumer'), data.group)
+          return
+        }
       }
 
       // default case
@@ -466,6 +784,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       const allowBypass = options?.routing?.allowBypass !== false
       const shouldBypass = Boolean(event.route?.bypass && allowBypass && isDevtoolsPeer(p))
       const destinations = shouldBypass ? undefined : collectDestinations(event)
+      const delivery = shouldBypass ? undefined : resolveDeliveryConfig(event)
       const routingContext: RouteContext = {
         event,
         fromPeer: p,
@@ -484,6 +803,44 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
 
       if (decision?.type === 'drop') {
         logger.withFields({ peer: peer.id, peerName: p.name, event }).debug('routing dropped event')
+        return
+      }
+
+      const selectedConsumer = selectConsumer(event, peer.id, delivery)
+      if (delivery && (delivery.mode === 'consumer' || delivery.mode === 'consumer-group')) {
+        if (!selectedConsumer) {
+          logger.withFields({ peer: peer.id, peerName: p.name, event, delivery }).warn('no consumer registered for event delivery')
+          if (delivery.required) {
+            send(peer, RESPONSES.error(ServerErrorMessages.noConsumerRegistered, instanceId, event.metadata?.event.id))
+          }
+          return
+        }
+
+        try {
+          logger.withFields({
+            fromPeer: peer.id,
+            fromPeerName: p.name,
+            toPeer: selectedConsumer.peer.id,
+            toPeerName: selectedConsumer.name,
+            event,
+            delivery,
+          }).debug('sending event to selected consumer')
+
+          selectedConsumer.peer.send(payload)
+        }
+        catch (err) {
+          logger.withFields({
+            fromPeer: peer.id,
+            fromPeerName: p.name,
+            toPeer: selectedConsumer.peer.id,
+            toPeerName: selectedConsumer.name,
+            event,
+            delivery,
+          }).withError(err).error('failed to send event to selected consumer, removing peer')
+
+          peers.delete(selectedConsumer.peer.id)
+          unregisterModulePeer(selectedConsumer, 'consumer send failed')
+        }
         return
       }
 
@@ -511,7 +868,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
           other.peer.send(payload)
         }
         catch (err) {
-          logger.withFields({ fromPeer: peer.id, fromPeerName: p.name, toPeer: other.peer.id, toPeerName: other.name, event }).withError(err as Error).error('failed to send event to peer, removing peer')
+          logger.withFields({ fromPeer: peer.id, fromPeerName: p.name, toPeer: other.peer.id, toPeerName: other.name, event }).withError(err).error('failed to send event to peer, removing peer')
           logger.withFields({ peer: peer.id, peerName: other.name }).debug('removing closed peer')
           peers.delete(id)
 

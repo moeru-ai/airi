@@ -7,25 +7,20 @@ import { mcp } from './mcp'
 describe('tools mcp schema', () => {
   it('emits strict parameter objects', async () => {
     const tools = await mcp()
-    const toolNames = [
-      'mcp_list_tools',
-      'mcp_call_tool',
-    ]
-
-    for (const name of toolNames) {
-      const tool = tools.find(entry => entry.function.name === name)
-      expect(tool, `missing tool: ${name}`).toBeDefined()
-      expect(tool?.function.parameters.additionalProperties).toBe(false)
+    for (const name of ['mcp_list_tools', 'mcp_call_tool']) {
+      const t = tools.find(entry => entry.function.name === name)
+      expect(t, `missing tool: ${name}`).toBeDefined()
+      expect(t?.function.parameters.additionalProperties).toBe(false)
     }
   })
 
-  it('keeps mcp_call_tool parameters items strict', async () => {
+  it('mcp_call_tool uses flat name+arguments schema', async () => {
     const tools = await mcp()
     const callTool = tools.find(entry => entry.function.name === 'mcp_call_tool')
-
     expect(callTool).toBeDefined()
-    const items = ((callTool!.function.parameters as JsonSchema).properties?.parameters as JsonSchema)?.items as JsonSchema
-    expect(items).toBeDefined()
-    expect(items.additionalProperties).toBe(false)
+
+    const props = (callTool!.function.parameters as JsonSchema).properties!
+    expect((props.name as JsonSchema).type).toBe('string')
+    expect((props.arguments as JsonSchema).type).toBe('string')
   })
 })

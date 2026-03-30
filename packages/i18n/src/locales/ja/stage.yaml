@@ -6,6 +6,11 @@ chat:
       you: あなた
   reasoning: 推論
 message: 何か話しかけてみましょう…
+send-mode:
+  title: Send key
+  enter: Enter
+  ctrl-enter: Ctrl + Enter
+  double-enter: Double Enter
 operations:
   load-models: モデルの読み込み
   load-models-status:
@@ -34,5 +39,6 @@ profile-switcher:
   no-profile: プロファイルがありません
   no-profiles: まだプロファイルがありません
   save-as-new: 新規プロファイルとして保存
+  new-profile-name: Profile name
   manage: プロファイルを管理
 waiting: 待機中

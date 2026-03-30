@@ -2,7 +2,8 @@ import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { createOpenAI } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
-import { createOpenAICompatibleValidators } from '../../validators/openai-compatible'
+import { ProviderValidationCheck } from '../../types'
+import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
 
 const nvidiaConfigSchema = z.object({
@@ -48,7 +49,7 @@ export const providerNvidia = defineProvider<NvidiaConfig>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: ['connectivity', 'model_list'],
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList],
     }),
   },
 })
