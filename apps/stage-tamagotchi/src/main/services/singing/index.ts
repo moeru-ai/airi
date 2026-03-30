@@ -50,6 +50,7 @@ const RANGE_HEADER_REGEX = /bytes=(\d*)-(\d*)/i
 const FFMPEG_URLS: Record<string, string> = {
   'win32-x64': 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip',
   'linux-x64': 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz',
+  'linux-arm64': 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linuxarm64-gpl.tar.xz',
   'darwin-x64': 'https://evermeet.cx/ffmpeg/getrelease/zip',
   'darwin-arm64': 'https://evermeet.cx/ffmpeg/getrelease/zip',
 }
@@ -271,6 +272,23 @@ async function findPython(singingPkgRoot: string): Promise<{ path: string, isVen
         return { path: p, isVenv: false }
     }
   }
+  else {
+    const posixCandidates = [
+      join(process.env.HOME || '', '.local', 'bin', 'python3'),
+      join(process.env.HOME || '', '.local', 'bin', 'python'),
+      join(process.env.HOME || '', '.pyenv', 'shims', 'python3'),
+      join(process.env.HOME || '', '.pyenv', 'shims', 'python'),
+      '/opt/homebrew/bin/python3',
+      '/opt/homebrew/bin/python',
+      '/usr/local/bin/python3',
+      '/usr/local/bin/python',
+      '/usr/bin/python3',
+    ]
+    for (const p of posixCandidates) {
+      if (p && existsSync(p) && await checkBinaryExists(p, ['--version']))
+        return { path: p, isVenv: false }
+    }
+  }
 
   return null
 }
@@ -286,6 +304,18 @@ async function findUv(): Promise<string | null> {
     ]
     for (const p of candidates) {
       if (existsSync(p) && await checkBinaryExists(p, ['--version']))
+        return p
+    }
+  }
+  else {
+    const candidates = [
+      join(process.env.HOME || '', '.local', 'bin', 'uv'),
+      join(process.env.HOME || '', '.cargo', 'bin', 'uv'),
+      '/opt/homebrew/bin/uv',
+      '/usr/local/bin/uv',
+    ]
+    for (const p of candidates) {
+      if (p && existsSync(p) && await checkBinaryExists(p, ['--version']))
         return p
     }
   }
@@ -510,6 +540,33 @@ async function downloadFFmpeg(dataDir: string): Promise<string> {
       appendLog(id, 'success', `Installed: ${destProbe}`)
     }
   }
+  else if (isZip) {
+    appendLog(id, 'info', 'Extracting ZIP archive...')
+
+    if (process.platform === 'darwin') {
+      await execFileAsync('ditto', ['-x', '-k', downloadPath, extractDir], { timeout: 120_000 })
+    }
+    else {
+      await execFileAsync('unzip', ['-o', downloadPath, '-d', extractDir], { timeout: 120_000 })
+    }
+
+    const entries = await findFileRecursive(extractDir, 'ffmpeg')
+    if (!entries)
+      throw new Error('ffmpeg not found in downloaded archive')
+
+    const destFFmpeg = join(binDir, 'ffmpeg')
+    await rename(entries, destFFmpeg)
+    await execFileAsync('chmod', ['+x', destFFmpeg])
+    appendLog(id, 'success', `Installed: ${destFFmpeg}`)
+
+    const ffprobeSource = entries.replace(FFMPEG_BINARY_SUFFIX_REGEX, 'ffprobe')
+    if (existsSync(ffprobeSource)) {
+      const destFFprobe = join(binDir, 'ffprobe')
+      await rename(ffprobeSource, destFFprobe)
+      await execFileAsync('chmod', ['+x', destFFprobe])
+      appendLog(id, 'success', `Installed: ${destFFprobe}`)
+    }
+  }
   else {
     appendLog(id, 'info', 'Extracting with tar...')
     await execFileAsync('tar', ['xf', downloadPath, '-C', extractDir], { timeout: 120_000 })
@@ -648,7 +705,7 @@ async function setupPythonVenv(singingPkgRoot: string): Promise<string> {
   const hasFairseq = venvExists && await checkPkgInstalled(venvPython, 'fairseq')
   const hasFaiss = venvExists && await checkPkgInstalled(venvPython, 'faiss')
   const hasScipy = venvExists && await checkPkgInstalled(venvPython, 'scipy')
-  const hasSpeechbrain = venvExists && await checkPkgInstalled(venvPython, 'speechbrain')
+  const hasResemblyzer = venvExists && await checkPkgInstalled(venvPython, 'resemblyzer')
   const hasFasterWhisper = venvExists && await checkPkgInstalled(venvPython, 'faster_whisper')
   const hasPyloudnorm = venvExists && await checkPkgInstalled(venvPython, 'pyloudnorm')
   const hasJiwer = venvExists && await checkPkgInstalled(venvPython, 'jiwer')
@@ -658,7 +715,7 @@ async function setupPythonVenv(singingPkgRoot: string): Promise<string> {
     steps.push('torch')
   if (!hasLibrosa || !hasScipy)
     steps.push('librosa')
-  if (!hasRvc || !hasCrepe || !hasMelband || !hasFairseq || !hasFaiss || !hasSpeechbrain || !hasFasterWhisper || !hasPyloudnorm || !hasJiwer)
+  if (!hasRvc || !hasCrepe || !hasMelband || !hasFairseq || !hasFaiss || !hasResemblyzer || !hasFasterWhisper || !hasPyloudnorm || !hasJiwer)
     steps.push('pipeline')
   steps.push('verify')
 
@@ -682,14 +739,15 @@ async function setupPythonVenv(singingPkgRoot: string): Promise<string> {
   if (steps.includes('torch')) {
     updateProgress(id, { step: 'torch', percent: stepPercent(0) })
     appendLog(id, 'info', `[${stepIdx + 1}/${totalSteps}] Installing PyTorch (${variant.label})...`)
-    appendLog(id, 'info', `Index URL: ${variant.indexUrl}`)
-    await spawnAsync(pipCmd.cmd, [
-      ...pipCmd.prefix,
-      'torch',
-      'torchaudio',
-      '--extra-index-url',
-      variant.indexUrl,
-    ], pythonDir, id, stepPercent(0), stepPercent(0.9))
+    const torchArgs = [...pipCmd.prefix, 'torch', 'torchaudio']
+    if (variant.indexUrl) {
+      appendLog(id, 'info', `Index URL: ${variant.indexUrl}`)
+      torchArgs.push('--extra-index-url', variant.indexUrl)
+    }
+    else {
+      appendLog(id, 'info', 'Using default PyPI index (includes MPS support on macOS)')
+    }
+    await spawnAsync(pipCmd.cmd, torchArgs, pythonDir, id, stepPercent(0), stepPercent(0.9))
     appendLog(id, 'success', 'PyTorch installed')
     stepIdx++
   }
@@ -737,8 +795,8 @@ async function setupPythonVenv(singingPkgRoot: string): Promise<string> {
       needed.push('fairseq')
     if (!hasFaiss)
       needed.push('faiss-cpu')
-    if (!hasSpeechbrain)
-      needed.push('speechbrain')
+    if (!hasResemblyzer)
+      needed.push('resemblyzer')
     if (!hasFasterWhisper)
       needed.push('faster-whisper')
     if (!hasPyloudnorm)
@@ -790,6 +848,8 @@ async function setupPythonVenv(singingPkgRoot: string): Promise<string> {
     '    cuda_info = f"CUDA available: {torch.cuda.is_available()}"',
     '    if torch.cuda.is_available():',
     '        cuda_info += f", device: {torch.cuda.get_device_name(0)}"',
+    '    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():',
+    '        cuda_info += ", MPS available: True"',
     '    results.append(cuda_info)',
     'except: pass',
     '',
@@ -943,6 +1003,11 @@ function spawnAsync(
 interface TorchVariant { label: string, indexUrl: string }
 
 async function detectTorchVariant(): Promise<TorchVariant> {
+  // macOS: default PyPI PyTorch already includes MPS (Metal) support.
+  // Using the CPU wheel index may lack arm64 wheels entirely.
+  if (process.platform === 'darwin')
+    return { label: 'MPS (Metal)', indexUrl: '' }
+
   try {
     const { stdout } = await execFileAsync('nvidia-smi', [], {
       timeout: 10_000,
@@ -957,8 +1022,6 @@ async function detectTorchVariant(): Promise<TorchVariant> {
     const minor = Number.parseInt(match[2], 10)
     const cudaVer = `${match[1]}.${match[2]}`
 
-    // PyTorch 2.7.0 stable wheel indices (https://pytorch.org/)
-    // Pick the highest available wheel that the driver supports
     if (major > 12 || (major === 12 && minor >= 8))
       return { label: `CUDA ${cudaVer} → cu128`, indexUrl: 'https://download.pytorch.org/whl/cu128' }
     if (major === 12 && minor >= 6)
@@ -1079,7 +1142,7 @@ function buildApp(dataDir: string) {
     const env = mod.resolveRuntimeEnv()
     const outputBaseDir = env.tempDir
 
-    const MAX_RETRY_ATTEMPTS = 3
+    const MAX_RETRY_ATTEMPTS = 8
 
     async function adjustParamsViaCli(
       currentParams: Record<string, unknown>,
@@ -1180,7 +1243,18 @@ function buildApp(dataDir: string) {
         let retryCount = 0
         let currentParams = pipelineOutput.metadata?.predicted_params as Record<string, unknown> | undefined
 
+        function computeGateScore(gate: any): number {
+          const sim = gate?.singer_similarity ?? 0
+          const f0 = gate?.f0_corr ?? 0
+          const leakage = gate?.source_leakage ?? 1
+          return 0.4 * sim + 0.3 * f0 + 0.3 * (1 - leakage)
+        }
+
         if (useAutoCalibrate && gateResult && !gateResult.passed && currentParams) {
+          let bestScore = computeGateScore(gateResult)
+          let bestParams = { ...currentParams }
+          let bestAttempt = 0
+
           for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
             if (ac.signal.aborted)
               break
@@ -1225,9 +1299,36 @@ function buildApp(dataDir: string) {
             gateResult = retryOutput.gateResult
             currentParams = adjusted
 
+            const score = computeGateScore(gateResult)
+            if (score > bestScore) {
+              bestScore = score
+              bestParams = { ...adjusted }
+              bestAttempt = attempt
+            }
+
             if (gateResult?.passed) {
               log.withFields({ jobId, attempt }).log('Gate passed after retry')
               break
+            }
+          }
+
+          if (!gateResult?.passed && bestAttempt !== retryCount && !ac.signal.aborted) {
+            log.withFields({ jobId, bestAttempt, bestScore }).log('Re-running with best params from earlier attempt')
+            if (task.request.converter.backend === 'rvc') {
+              const conv = task.request.converter as any
+              conv.f0UpKey = bestParams.pitch_shift ?? conv.f0UpKey
+              conv.indexRate = bestParams.index_rate ?? conv.indexRate
+              conv.protect = bestParams.protect ?? conv.protect
+              conv.rmsMixRate = bestParams.rms_mix_rate ?? conv.rmsMixRate
+            }
+            const rerunFn = (mod as any).rerunConversionStages
+            if (rerunFn) {
+              const finalOutput = await rerunFn(task, ac.signal, stageCallbacks) as any
+              const finalResults = finalOutput.results ?? finalOutput
+              const finalFailed = (finalResults as any[]).find((r: any) => !r.success)
+              if (!finalFailed) {
+                gateResult = finalOutput.gateResult
+              }
             }
           }
         }
@@ -1349,6 +1450,7 @@ function buildApp(dataDir: string) {
           PYTHONPATH: pythonSrcDir,
           PYTHONIOENCODING: 'utf-8',
           PYTHONUNBUFFERED: '1',
+          PYTHONDONTWRITEBYTECODE: '1',
           RMVPE_MODEL_PATH: join(modelsDir, 'rmvpe.pt'),
           HUBERT_MODEL_PATH: join(modelsDir, 'hubert_base.pt'),
           RVC_PRETRAINED_G_PATH: join(modelsDir, 'pretrained_v2', 'f0G40k.pth'),
@@ -1367,6 +1469,12 @@ function buildApp(dataDir: string) {
         }
 
         const progressFilePath = join(trainOutputDir, 'progress.json')
+
+        if (ac.signal.aborted) {
+          await finalizeUploadCleanup()
+          await queue.updateJob(jobId, { status: 'cancelled', updatedAt: new Date().toISOString() })
+          return
+        }
 
         const result = await new Promise<{ exitCode: number, stdout: string, stderr: string }>((res) => {
           let stdout = ''
@@ -1884,7 +1992,8 @@ function buildApp(dataDir: string) {
         return c.json(await svc.getJob(c.req.param('id')))
       }
       catch (err: any) {
-        return c.json({ error: err?.message ?? 'Internal error' }, err?.code === 'JOB_NOT_FOUND' ? 404 : 500)
+        const isNotFound = err?.code === 'SINGING_JOB_NOT_FOUND' || err?.code === 'JOB_NOT_FOUND'
+        return c.json({ error: err?.message ?? 'Internal error' }, isNotFound ? 404 : 500)
       }
     })
 
