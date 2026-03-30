@@ -1,54 +1,68 @@
-name: Singing Review Validate
+name: Singing Review
 
 on:
-  workflow_run:
-    workflows:
-      - Singing Review Prepare
+  pull_request_target:
+    branches:
+      - main
     types:
-      - completed
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+    paths:
+      - .github/workflows/ci.yml
+      - .github/workflows/singing-review.yml
+      - apps/server/src/routes/singing/**
+      - apps/server/src/services/singing/**
+      - apps/server/test/request-body-limit.test.ts
+      - apps/server/test/singing-routes.test.ts
+      - apps/server/test/singing-service.test.ts
+      - apps/stage-tamagotchi/src/main/services/singing/**
+      - packages/i18n/locales/*/settings.json
+      - packages/singing/**
+      - packages/stage-ui/src/components/scenarios/singing/**
+      - packages/stage-ui/src/composables/use-singing-*.test.ts
+      - packages/stage-ui/src/composables/use-singing-*.ts
+      - packages/stage-ui/src/stores/modules/singing/**
+      - packages/stage-ui/src/types/singing.ts
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: singing-review-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  ask-for-approval:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+  request-approval:
+    # NOTICE: This job intentionally avoids checking out pull request code.
+    # `pull_request_target` runs in the base repository context and is only used
+    # here to request maintainer approval from forked pull requests.
+    if: ${{ github.event_name != 'pull_request_target' || !github.event.pull_request.draft }}
     name: Ask for approval to run singing review validation
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
       contents: read
+      pull-requests: write
 
     steps:
-      - name: Download artifact - metadata
-        uses: dawidd6/action-download-artifact@v19
-        with:
-          workflow_conclusion: success
-          run_id: ${{ github.event.workflow_run.id }}
-          name: singing-review-meta
-          path: singing-review-meta
-          allow_forks: true
-
-      - name: Parse metadata
-        id: meta
-        run: |
-          source singing-review-meta/singing_review_meta
-          echo "PR_NUM=$PR_NUM" >> "$GITHUB_OUTPUT"
-          echo "REPO_FULL_NAME=$REPO_FULL_NAME" >> "$GITHUB_OUTPUT"
-          echo "HEAD_REF=$HEAD_REF" >> "$GITHUB_OUTPUT"
-          echo "HEAD_SHA=$HEAD_SHA" >> "$GITHUB_OUTPUT"
-
       - name: Find Comment
-        if: ${{ always() }}
+        if: ${{ github.event_name == 'pull_request_target' }}
         uses: peter-evans/find-comment@v4
         id: fc
         with:
-          issue-number: ${{ steps.meta.outputs.PR_NUM }}
+          issue-number: ${{ github.event.pull_request.number }}
           comment-author: 'github-actions[bot]'
           body-includes: for the singing module review workflow
 
       - name: Comment on require approval
+        if: ${{ github.event_name == 'pull_request_target' }}
         uses: peter-evans/create-or-update-comment@v5
         with:
           comment-id: ${{ steps.fc.outputs.comment-id }}
-          issue-number: ${{ steps.meta.outputs.PR_NUM }}
+          issue-number: ${{ github.event.pull_request.number }}
           edit-mode: replace
           body: |
             ## Approval required for the singing module review workflow.
@@ -60,39 +74,24 @@ jobs:
             Hey, @nekomeowww, @sumimakito, @luoling8192, @LemonNekoGH, kindly review and approve this singing validation run when you are available. Thank you.
 
   validate:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # NOTICE: Keep the `Singing Review` environment secretless. This job validates
+    # untrusted pull request code after an explicit maintainer approval gate.
+    if: ${{ github.event_name != 'pull_request_target' || !github.event.pull_request.draft }}
     name: Run singing review validation
+    needs:
+      - request-approval
     runs-on: ubuntu-latest
     timeout-minutes: 60
     environment: Singing Review
     permissions:
       contents: read
-      pull-requests: write
 
     steps:
-      - name: Download artifact - metadata
-        uses: dawidd6/action-download-artifact@v19
-        with:
-          workflow_conclusion: success
-          run_id: ${{ github.event.workflow_run.id }}
-          name: singing-review-meta
-          path: singing-review-meta
-          allow_forks: true
-
-      - name: Parse metadata
-        id: meta
-        run: |
-          source singing-review-meta/singing_review_meta
-          echo "PR_NUM=$PR_NUM" >> "$GITHUB_OUTPUT"
-          echo "REPO_FULL_NAME=$REPO_FULL_NAME" >> "$GITHUB_OUTPUT"
-          echo "HEAD_REF=$HEAD_REF" >> "$GITHUB_OUTPUT"
-          echo "HEAD_SHA=$HEAD_SHA" >> "$GITHUB_OUTPUT"
-
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
-          repository: ${{ steps.meta.outputs.REPO_FULL_NAME }}
-          ref: ${{ steps.meta.outputs.HEAD_SHA }}
+          repository: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
           persist-credentials: false
 
@@ -122,7 +121,6 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run singing validation suite
-        id: validate
         run: |
           pnpm -F @proj-airi/singing build
           pnpm -F @proj-airi/singing test
@@ -137,21 +135,33 @@ jobs:
           cd ../..
           pnpm -F @proj-airi/singing validate
 
+  report:
+    if: ${{ always() && (github.event_name != 'pull_request_target' || !github.event.pull_request.draft) }}
+    name: Report singing review result
+    needs:
+      - request-approval
+      - validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
       - name: Find Comment
-        if: ${{ always() }}
+        if: ${{ github.event_name == 'pull_request_target' }}
         uses: peter-evans/find-comment@v4
         id: fc
         with:
-          issue-number: ${{ steps.meta.outputs.PR_NUM }}
+          issue-number: ${{ github.event.pull_request.number }}
           comment-author: 'github-actions[bot]'
           body-includes: for the singing module review workflow
 
       - name: Comment on validation success
-        if: ${{ success() }}
+        if: ${{ github.event_name == 'pull_request_target' && needs.validate.result == 'success' }}
         uses: peter-evans/create-or-update-comment@v5
         with:
           comment-id: ${{ steps.fc.outputs.comment-id }}
-          issue-number: ${{ steps.meta.outputs.PR_NUM }}
+          issue-number: ${{ github.event.pull_request.number }}
           edit-mode: replace
           body: |
             ## Singing module review workflow passed.
@@ -163,11 +173,11 @@ jobs:
             The gated singing validation suite completed successfully and the branch is ready for maintainer review.
 
       - name: Comment on validation failure
-        if: ${{ failure() }}
+        if: ${{ github.event_name == 'pull_request_target' && contains(fromJSON('["failure","cancelled","timed_out"]'), needs.validate.result) }}
         uses: peter-evans/create-or-update-comment@v5
         with:
           comment-id: ${{ steps.fc.outputs.comment-id }}
-          issue-number: ${{ steps.meta.outputs.PR_NUM }}
+          issue-number: ${{ github.event.pull_request.number }}
           edit-mode: replace
           body: |
             ## Singing module review workflow failed.
@@ -176,4 +186,4 @@ jobs:
             |:-----|:-----|
             | Latest validation log | https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} |
 
-            The gated singing validation suite reported a failure. Please inspect the linked workflow log before requesting approval again.
+            The gated singing validation suite did not complete successfully. Please inspect the linked workflow log before requesting approval again.
