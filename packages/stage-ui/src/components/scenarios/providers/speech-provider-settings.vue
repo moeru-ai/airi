@@ -33,6 +33,7 @@ defineSlots<{
   'advanced-settings': (props: any) => any
   'playground': (props: any) => any
 }>()
+
 const { t } = useI18n()
 const router = useRouter()
 const providersStore = useProvidersStore()

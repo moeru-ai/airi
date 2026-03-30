@@ -745,6 +745,9 @@ pages:
           default-text: '¡Hola! Esta es una prueba del sistema de texto a voz de Kokoro.'
           title: Campo de voz
         title: TTS de Kokoro (local)
+      fish-audio:
+        description: fish.audio
+        title: Fish Audio
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai

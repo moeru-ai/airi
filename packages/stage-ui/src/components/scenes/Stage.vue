@@ -312,7 +312,13 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
       const audioBuffer = await audioContext.decodeAudioData(res)
       return audioBuffer
     }
-    catch {
+    catch (error) {
+      console.error('[Speech Pipeline] TTS failed:', {
+        provider: activeSpeechProvider.value,
+        model: activeSpeechModel.value,
+        voice: activeSpeechVoice.value?.id,
+        error,
+      })
       return null
     }
   },

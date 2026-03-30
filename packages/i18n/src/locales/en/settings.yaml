@@ -780,6 +780,9 @@ pages:
           default-text: Hello! This is a test of the Kokoro text-to-speech system.
           title: Voice Playground
         title: Kokoro TTS (Local)
+      fish-audio:
+        description: fish.audio
+        title: Fish Audio
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai
