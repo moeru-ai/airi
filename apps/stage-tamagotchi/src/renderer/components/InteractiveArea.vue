@@ -170,6 +170,10 @@ watch(sendMode, () => {
 })
 
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
+
+function handleDeleteMessage(index: number) {
+  messages.value = messages.value.filter((_, messageIndex) => messageIndex !== index)
+}
 </script>
 
 <template>
@@ -179,6 +183,7 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
         :messages="historyMessages"
         :sending="sending"
         :streaming-message="streamingMessage"
+        @delete-message="handleDeleteMessage($event.index)"
       />
     </div>
     <div

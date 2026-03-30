@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 
 import { describe, it } from 'vitest'
 
-import { getChatHistoryItemKey } from './message-key'
+import { getChatHistoryItemKey } from './utils'
 
 describe('getChatHistoryItemKey', () => {
   it('prefers stable message ids when available', () => {
