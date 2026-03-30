@@ -1,46 +1,47 @@
 """Axis 1 — Singer Identity: speaker embedding cosine similarity.
 
-Uses speechbrain ECAPA-TDNN (spkrec-ecapa-voxceleb) for embedding extraction.
-Falls back to a simpler MFCC centroid approach if speechbrain is unavailable.
+Primary: resemblyzer d-vector (256-dim, L2-normalized).
+Fallback: MFCC centroid (13-dim) when resemblyzer is unavailable.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
+import logging
 
 import numpy as np
 import soundfile as sf
 
-_classifier = None
+logger = logging.getLogger(__name__)
+
+_encoder = None
 _SAMPLE_RATE = 16000
 
 
-def _get_speechbrain_device() -> str:
+def _get_device() -> str:
     try:
         import torch
-
         if torch.cuda.is_available():
             return "cuda"
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            return "cpu"  # resemblyzer uses numpy internally; MPS offers no speedup here
     except Exception:
         pass
-
     return "cpu"
 
 
-def _get_classifier():
-    """Lazy-load the speechbrain ECAPA-TDNN classifier."""
-    global _classifier
-    if _classifier is not None:
-        return _classifier
+def _get_encoder():
+    """Lazy-load the resemblyzer VoiceEncoder (d-vector, 256-dim)."""
+    global _encoder
+    if _encoder is not None:
+        return _encoder
     try:
-        from speechbrain.inference.speaker import EncoderClassifier
-        device = _get_speechbrain_device()
-        _classifier = EncoderClassifier.from_hparams(
-            source="speechbrain/spkrec-ecapa-voxceleb",
-            run_opts={"device": device},
-        )
-        return _classifier
-    except Exception:
+        from resemblyzer import VoiceEncoder
+        device = _get_device()
+        _encoder = VoiceEncoder(device=device)
+        logger.info("resemblyzer VoiceEncoder loaded on %s", device)
+        return _encoder
+    except Exception as exc:
+        logger.warning("resemblyzer unavailable: %s", exc)
         return None
 
 
@@ -64,26 +65,31 @@ def _load_audio_16k(audio_path: str) -> np.ndarray:
 def extract_embedding(audio_path: str) -> np.ndarray:
     """Extract a fixed-length speaker embedding vector.
 
-    Returns a 1-D numpy array (192-dim for ECAPA-TDNN, 13-dim MFCC fallback).
+    Returns a 1-D numpy array (256-dim for resemblyzer, 13-dim MFCC fallback).
+    Guarantees a non-zero, finite vector so downstream cosine similarity
+    never collapses to 0 due to a degenerate embedding.
     """
-    classifier = _get_classifier()
-    if classifier is not None:
+    encoder = _get_encoder()
+    if encoder is not None:
         try:
-            import torch
-            waveform = _load_audio_16k(audio_path)
-            tensor = torch.from_numpy(waveform).unsqueeze(0).to(_get_speechbrain_device())
-            embedding = classifier.encode_batch(tensor)
-            return embedding.squeeze().cpu().numpy()
-        except Exception:
-            pass
+            wav = _load_audio_16k(audio_path)
+            emb = encoder.embed_utterance(wav)
+            if _is_valid_embedding(emb):
+                return emb
+            logger.warning("resemblyzer returned degenerate embedding for %s", audio_path)
+        except Exception as exc:
+            logger.warning("resemblyzer inference failed for %s: %s", audio_path, exc)
 
     try:
         import librosa
         data = _load_audio_16k(audio_path)
         mfcc = librosa.feature.mfcc(y=data, sr=_SAMPLE_RATE, n_mfcc=13)
-        return mfcc.mean(axis=1).astype(np.float32)
-    except Exception:
-        pass
+        emb = mfcc.mean(axis=1).astype(np.float32)
+        if _is_valid_embedding(emb):
+            return emb
+        logger.warning("MFCC embedding degenerate for %s", audio_path)
+    except Exception as exc:
+        logger.warning("MFCC extraction failed for %s: %s", audio_path, exc)
 
     data = _load_audio_16k(audio_path)
     n_fft = 2048
@@ -99,10 +105,27 @@ def extract_embedding(audio_path: str) -> np.ndarray:
     return features
 
 
+def _is_valid_embedding(emb: np.ndarray) -> bool:
+    """Return True when the embedding is non-empty, non-zero, and finite."""
+    if emb.size == 0:
+        return False
+    if not np.all(np.isfinite(emb)):
+        return False
+    if np.linalg.norm(emb) < 1e-9:
+        return False
+    return True
+
+
 def compute_similarity(emb_a: np.ndarray, emb_b: np.ndarray) -> float:
     """Cosine similarity between two embedding vectors. Returns 0.0-1.0."""
     a = emb_a.flatten().astype(np.float64)
     b = emb_b.flatten().astype(np.float64)
+    if a.shape != b.shape:
+        logger.warning(
+            "Embedding dimension mismatch (%d vs %d) — cannot compute similarity",
+            a.shape[0], b.shape[0],
+        )
+        return 0.0
     norm_a = np.linalg.norm(a)
     norm_b = np.linalg.norm(b)
     if norm_a < 1e-9 or norm_b < 1e-9:

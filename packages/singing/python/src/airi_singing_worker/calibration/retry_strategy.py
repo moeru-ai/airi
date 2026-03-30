@@ -14,7 +14,7 @@ from .validation_gate import GateResult
 
 logger = logging.getLogger(__name__)
 
-MAX_RETRIES = 3
+MAX_RETRIES = 8
 
 # Per-metric adjustment deltas
 ADJUSTMENTS = {

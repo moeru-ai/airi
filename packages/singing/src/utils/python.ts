@@ -22,7 +22,7 @@ export const REQUIRED_PYTHON_RUNTIME_IMPORTS: readonly PythonRuntimeImportCheck[
   { id: 'faiss', stmt: 'import faiss' },
   { id: 'scipy', stmt: 'import scipy' },
   { id: 'librosa', stmt: 'import librosa' },
-  { id: 'speechbrain', stmt: 'from speechbrain.inference.speaker import EncoderClassifier' },
+  { id: 'resemblyzer', stmt: 'from resemblyzer import VoiceEncoder' },
   { id: 'faster_whisper', stmt: 'from faster_whisper import WhisperModel' },
   { id: 'pyloudnorm', stmt: 'import pyloudnorm' },
   { id: 'jiwer', stmt: 'import jiwer' },

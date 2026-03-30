@@ -25,7 +25,7 @@ pitch-pyworld = [ "pyworld>=0.3", ]
 separator = [ "melband-roformer-infer>=0.1", ]
 rvc = [ "rvc-python>=0.1", ]
 eval = [
-  "speechbrain>=1.0",
+  "resemblyzer>=0.1",
   "faster-whisper>=1.0",
   "pyloudnorm>=0.1",
   "jiwer>=3.0",

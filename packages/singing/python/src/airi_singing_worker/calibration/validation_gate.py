@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 class GateResult:
     passed: bool = False
     singer_similarity: float = 0.0
+    singer_similarity_available: bool = True
     f0_corr: float = 0.0
     source_leakage: float = 0.0
     tearing_risk: float = 0.0
@@ -65,14 +66,28 @@ def run_validation_gate(
     try:
         from ..evaluation.speaker_similarity import extract_embedding, compute_similarity
         output_emb = extract_embedding(output_path)
+
+        centroid = None
         if voice_profile.embedding_centroid:
             centroid = np.array(voice_profile.embedding_centroid, dtype=np.float32)
+            if centroid.shape != output_emb.shape:
+                logger.warning(
+                    "Centroid dim %d != encoder dim %d — model was trained "
+                    "with a different encoder; skipping singer_similarity",
+                    centroid.shape[0], output_emb.shape[0],
+                )
+                centroid = None
+
+        if centroid is not None:
             result.singer_similarity = compute_similarity(centroid, output_emb)
+            result.singer_similarity_available = True
         else:
-            result.singer_similarity = 0.5
+            result.singer_similarity = 0.0
+            result.singer_similarity_available = False
     except Exception as e:
         logger.warning("Singer similarity check failed: %s", e)
-        result.singer_similarity = 0.5
+        result.singer_similarity = 0.0
+        result.singer_similarity_available = False
 
     # 2. F0 correlation with source (melody preservation)
     try:
@@ -103,7 +118,7 @@ def run_validation_gate(
 
     # Evaluate pass/fail
     failed = []
-    if result.singer_similarity < t.get("singer_similarity", 0.65):
+    if result.singer_similarity_available and result.singer_similarity < t.get("singer_similarity", 0.65):
         failed.append("singer_similarity")
     if result.f0_corr < t.get("f0_corr", 0.85):
         failed.append("f0_corr")

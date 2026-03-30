@@ -338,7 +338,7 @@ describe('createSingingService - retry with parameter adjustment', () => {
 
     const job = await queue.getJob(jobId)
     expect((job as any).error).toContain('Quality gate still failed')
-    expect((job as any).retryCount).toBe(3)
+    expect((job as any).retryCount).toBe(8)
   })
 })
 

@@ -23,7 +23,7 @@ import {
   SingingErrorCode,
 } from '@proj-airi/singing'
 
-const MAX_RETRY_ATTEMPTS = 3
+const MAX_RETRY_ATTEMPTS = 8
 
 /**
  * [singing] Application service for the singing voice conversion module.
@@ -44,9 +44,19 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, v))
 }
 
+function computeGateScore(gate: ValidationGateResult | undefined): number {
+  if (!gate)
+    return 0
+  const sim = gate.singer_similarity ?? 0
+  const f0 = gate.f0_corr ?? 0
+  const leakage = gate.source_leakage ?? 1
+  return 0.4 * sim + 0.3 * f0 + 0.3 * (1 - leakage)
+}
+
 function adjustParamsFromGateResult(
   request: CreateCoverRequest,
   gate: ValidationGateResult,
+  retryCount: number = 1,
 ): void {
   if (request.mode !== 'rvc')
     return
@@ -62,6 +72,11 @@ function adjustParamsFromGateResult(
       case 'source_leakage':
         conv.indexRate = clamp((conv.indexRate ?? 0.75) + 0.10, 0.10, 0.95)
         break
+      case 'f0_corr': {
+        const direction = retryCount % 2 === 1 ? 1 : -1
+        conv.f0UpKey = (conv.f0UpKey ?? 0) + direction
+        break
+      }
       case 'tearing':
       case 'tearing_risk':
         conv.protect = clamp((conv.protect ?? 0.33) - 0.08, 0.05, 0.50)
@@ -195,6 +210,10 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
       }
 
       let retryCount = 0
+      let bestScore = computeGateScore(pipelineResult.gateResult)
+      let bestRetry = 0
+      const savedRequest = JSON.parse(JSON.stringify(request))
+
       while (
         pipelineResult.gateResult
         && !pipelineResult.gateResult.passed
@@ -202,7 +221,7 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
         && !ac.signal.aborted
       ) {
         retryCount++
-        adjustParamsFromGateResult(request, pipelineResult.gateResult)
+        adjustParamsFromGateResult(request, pipelineResult.gateResult, retryCount)
 
         await progressUpdate(queue, jobId, {
           retryCount,
@@ -229,19 +248,46 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
           })
           return
         }
+
+        const score = computeGateScore(pipelineResult.gateResult)
+        if (score > bestScore) {
+          bestScore = score
+          bestRetry = retryCount
+          Object.assign(savedRequest, JSON.parse(JSON.stringify(request)))
+        }
       }
 
       if (pipelineResult.gateResult && !pipelineResult.gateResult.passed) {
-        const failedMetrics = pipelineResult.gateResult.failed_metrics.join(', ')
-        await finalizeUploadCleanup()
-        await queue.updateJob(jobId, {
-          status: 'failed',
-          error: `Quality gate still failed after ${retryCount} retries: ${failedMetrics}`,
-          retryCount,
-          stageTiming: { ...stageTiming },
-          updatedAt: new Date().toISOString(),
-        })
-        return
+        if (bestRetry !== retryCount && !ac.signal.aborted) {
+          Object.assign(request, savedRequest)
+          task.request = request
+          pipelineResult = await rerunConversionStages(task, ac.signal, callbacks)
+          const finalFailed = pipelineResult.results.find(r => !r.success)
+          if (finalFailed) {
+            await finalizeUploadCleanup()
+            await queue.updateJob(jobId, {
+              status: 'failed',
+              error: finalFailed.error,
+              retryCount,
+              stageTiming: { ...stageTiming },
+              updatedAt: new Date().toISOString(),
+            })
+            return
+          }
+        }
+
+        if (!pipelineResult.gateResult?.passed) {
+          const failedMetrics = pipelineResult.gateResult?.failed_metrics?.join(', ') ?? 'unknown'
+          await finalizeUploadCleanup()
+          await queue.updateJob(jobId, {
+            status: 'failed',
+            error: `Quality gate still failed after ${retryCount} retries: ${failedMetrics}`,
+            retryCount,
+            stageTiming: { ...stageTiming },
+            updatedAt: new Date().toISOString(),
+          })
+          return
+        }
       }
 
       await finalizeUploadCleanup()

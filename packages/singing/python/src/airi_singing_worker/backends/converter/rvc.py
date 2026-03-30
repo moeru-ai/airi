@@ -35,10 +35,11 @@ def _patched_load_audio(file: str, sr: int) -> np.ndarray:
     ``ostream.channels`` became read-only. We bypass av entirely.
     """
     import subprocess
+    from ...io.ffmpeg import _get_ffmpeg_bin
 
     try:
         out = subprocess.run(
-            ["ffmpeg", "-nostdin", "-loglevel", "error",
+            [_get_ffmpeg_bin(), "-nostdin", "-loglevel", "error",
              "-i", file,
              "-f", "f32le", "-acodec", "pcm_f32le", "-ac", "1", "-ar", str(sr), "-"],
             capture_output=True, check=True, timeout=300,
@@ -243,7 +244,7 @@ def convert(
         raise ConversionError("No RVC model file found. Provide a model_path or valid voice_id.")
 
     model_path = _ensure_inference_format(model_path)
-    device = "cuda:0" if _cuda_available() else "cpu"
+    device = _get_inference_device()
 
     idx_path = str(kwargs.get("index_file", index_file or "")) or ""
     if not idx_path and vid:
@@ -269,11 +270,30 @@ def convert(
             rvc_input = tmp_input.name
             print(f"Pre-aligned: {src_info.samplerate}Hz -> {MODEL_TARGET_SR}Hz", flush=True)
 
-        load_model_params = inspect.signature(RVCInference.load_model).parameters
-        if "index_path" in load_model_params:
-            rvc = RVCInference(device=device)
-            rvc.load_model(model_path, index_path=idx_path)
-            resolved_index_path = idx_path
+        def _try_direct_load() -> bool:
+            """Attempt the legacy load_model(path, index_path=...) API."""
+            try:
+                params = inspect.signature(RVCInference.load_model).parameters
+                if "index_path" not in params:
+                    return False
+            except (ValueError, TypeError):
+                return False
+            return True
+
+        if _try_direct_load():
+            try:
+                rvc = RVCInference(device=device)
+                rvc.load_model(model_path, index_path=idx_path)
+                resolved_index_path = idx_path
+            except TypeError:
+                models_root, model_name, staged_registry_root = _prepare_model_registry(
+                    model_path=model_path,
+                    index_path=idx_path,
+                    voice_id=vid,
+                )
+                rvc = RVCInference(models_dir=models_root, device=device)
+                rvc.load_model(model_name)
+                resolved_index_path = str(rvc.models.get(model_name, {}).get("index") or "")
         else:
             models_root, model_name, staged_registry_root = _prepare_model_registry(
                 model_path=model_path,
@@ -341,12 +361,17 @@ def _resample_wav(src_path: str, dst_path: str, target_sr: int) -> None:
     sf.write(dst_path, resampled, target_sr, subtype="PCM_16")
 
 
-def _cuda_available() -> bool:
+def _get_inference_device() -> str:
+    """Select the best available device for RVC inference."""
     try:
         import torch
-        return torch.cuda.is_available()
+        if torch.cuda.is_available():
+            return "cuda:0"
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            return "mps"
     except ImportError:
-        return False
+        pass
+    return "cpu"
 
 
 if __name__ == "__main__":

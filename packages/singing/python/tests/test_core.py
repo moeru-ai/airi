@@ -225,7 +225,7 @@ class TestRvcBackendCompatibility:
         sf.write(input_path, np.zeros(4000, dtype=np.float32), 40000)
 
         monkeypatch.setattr(rvc_backend, "_ensure_inference_format", lambda path: path)
-        monkeypatch.setattr(rvc_backend, "_cuda_available", lambda: False)
+        monkeypatch.setattr(rvc_backend, "_get_inference_device", lambda: "cpu")
 
         instances = []
 

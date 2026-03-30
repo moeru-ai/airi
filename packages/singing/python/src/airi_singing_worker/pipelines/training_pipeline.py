@@ -63,10 +63,20 @@ def _check_rvc_python() -> None:
 
 
 def _get_device() -> str:
+    """Select training device.  MPS is intentionally excluded because RVC's
+    infer_pack models use ops (e.g. complex conv, fused weight_norm) that
+    PyTorch's MPS backend does not yet support.  Apple-Silicon users will
+    train on CPU until MPS op coverage improves.
+    """
     try:
         import torch
         if torch.cuda.is_available():
             return "cuda:0"
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            import logging
+            logging.getLogger(__name__).info(
+                "MPS (Metal) detected but RVC training requires CUDA; falling back to CPU"
+            )
     except ImportError:
         pass
     return "cpu"
@@ -75,9 +85,10 @@ def _get_device() -> str:
 def _fallback_load_audio(file: str, sr: int) -> np.ndarray:
     """Load audio file and resample to target sr — pure soundfile/scipy fallback."""
     import subprocess
+    from ..io.ffmpeg import _get_ffmpeg_bin
     try:
         out = subprocess.run(
-            ["ffmpeg", "-nostdin", "-i", file,
+            [_get_ffmpeg_bin(), "-nostdin", "-i", file,
              "-f", "f32le", "-acodec", "pcm_f32le", "-ac", "1", "-ar", str(sr), "-"],
             capture_output=True, check=True, timeout=300,
         )
@@ -1012,10 +1023,11 @@ def run_training_pipeline(
                     flush=True,
                 )
 
+                inference_failures = 0
                 for hi, entry in enumerate(selected_eval_refs):
                     ref_path = entry["path"]
                     tag = entry.get("tag", "unknown")
-                    synth_path = ref_path  # fallback if inference fails
+                    synth_path: str | None = None
 
                     try:
                         from ..backends.converter.rvc import convert
@@ -1038,21 +1050,33 @@ def run_training_pipeline(
                         )
                         synth_path = converted
                     except Exception as conv_err:
+                        inference_failures += 1
                         print(f"  Holdout inference failed for {Path(ref_path).name}: {conv_err}", flush=True)
 
-                    pairs.append((ref_path, synth_path, tag))
+                    if synth_path is not None:
+                        pairs.append((ref_path, synth_path, tag))
 
                     if (hi + 1) % 5 == 0 or hi + 1 == n_holdout:
                         pct = 95 + int(4 * (hi + 1) / n_holdout)
                         _emit_progress(7, TOTAL_STEPS, "quality_assessment", min(pct, 99))
                         print(f"  Holdout evaluation: {hi + 1}/{n_holdout}", flush=True)
 
-                report = run_evaluation_batch(pairs, voice_profile_data, voice_id)
-                report_path = os.path.join(output_dir, "validation_report.json")
-                with open(report_path, "w") as f:
-                    f.write(report.to_json())
-                validation_report_data = report.to_dict()
-                print(f"Validation report saved: {report_path} (grade: {report.overall_grade})", flush=True)
+                if inference_failures > 0:
+                    print(
+                        f"  Warning: {inference_failures}/{n_holdout} holdout inference(s) failed "
+                        f"and were excluded from evaluation",
+                        flush=True,
+                    )
+
+                if not pairs:
+                    print("  All holdout inferences failed — skipping quality assessment", flush=True)
+                else:
+                    report = run_evaluation_batch(pairs, voice_profile_data, voice_id)
+                    report_path = os.path.join(output_dir, "validation_report.json")
+                    with open(report_path, "w") as f:
+                        f.write(report.to_json())
+                    validation_report_data = report.to_dict()
+                    print(f"Validation report saved: {report_path} (grade: {report.overall_grade})", flush=True)
     except SingingWorkerError:
         raise
     except Exception as e:

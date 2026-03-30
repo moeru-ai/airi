@@ -176,7 +176,7 @@ Required (core):
 - `numpy`, `soundfile`, `librosa`
 
 Optional (for full accuracy):
-- `speechbrain` — ECAPA-TDNN speaker embeddings
+- `resemblyzer` — d-vector speaker embeddings (256-dim, GPU-accelerated)
 - `faster-whisper` — ASR for CER/WER
 - `jiwer` — WER/CER calculation
 - `pyloudnorm` — ITU-R BS.1770 loudness

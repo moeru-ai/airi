@@ -30,7 +30,12 @@ export async function runProcess(
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: options?.cwd,
-      env: options?.env ? { ...process.env, ...options.env } : undefined,
+      env: {
+        ...process.env,
+        PYTHONDONTWRITEBYTECODE: '1',
+        PYTHONIOENCODING: 'utf-8',
+        ...options?.env,
+      },
       stdio: ['pipe', 'pipe', 'pipe'],
       signal: options?.signal,
       shell: false,

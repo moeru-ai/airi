@@ -129,6 +129,8 @@ function downloadTrack() {
         :key="activeUrl"
         :src="activeUrl"
         controls
+        preload="metadata"
+        crossorigin="anonymous"
         class="w-full rounded-lg"
       />
       <div class="flex justify-end">
