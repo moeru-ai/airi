@@ -34,6 +34,7 @@ const canSubmit = computed(() =>
   && !isSubmitting.value
   && !trainingStore.isBusy,
 )
+const reportCard = computed(() => trainingStore.reportCard)
 
 const elapsed = computed(() => {
   if (!trainingStore.startedAt)
@@ -326,7 +327,7 @@ async function handleCancelTraining() {
       </div>
     </div>
 
-    <div v-if="trainingStore.reportCard" class="overflow-hidden border border-green-200 rounded-xl dark:border-green-800">
+    <div v-if="reportCard" class="overflow-hidden border border-green-200 rounded-xl dark:border-green-800">
       <div class="flex items-center justify-between bg-green-50 p-4 dark:bg-green-900/20">
         <div class="flex items-center gap-2">
           <div class="i-solar:diploma-verified-bold-duotone text-base text-green-500" />
@@ -335,14 +336,14 @@ async function handleCancelTraining() {
         <span
           class="rounded-lg px-2.5 py-1 text-lg font-bold"
           :class="{
-            'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400': trainingStore.reportCard.overall_grade === 'A',
-            'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400': trainingStore.reportCard.overall_grade === 'B',
-            'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400': trainingStore.reportCard.overall_grade === 'C',
-            'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400': trainingStore.reportCard.overall_grade === 'D',
-            'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400': trainingStore.reportCard.overall_grade === 'F',
+            'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400': reportCard.overall_grade === 'A',
+            'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400': reportCard.overall_grade === 'B',
+            'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400': reportCard.overall_grade === 'C',
+            'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400': reportCard.overall_grade === 'D',
+            'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400': reportCard.overall_grade === 'F',
           }"
         >
-          {{ trainingStore.reportCard.overall_grade }}
+          {{ reportCard.overall_grade }}
         </span>
       </div>
       <div class="grid grid-cols-2 gap-3 p-4 md:grid-cols-4">
@@ -350,41 +351,41 @@ async function handleCancelTraining() {
           <div class="text-xs text-neutral-400 dark:text-neutral-500">
             Identity
           </div>
-          <div class="text-lg font-bold" :class="trainingStore.reportCard.singer_similarity >= 0.6 ? 'text-green-600' : 'text-amber-600'">
-            {{ (trainingStore.reportCard.singer_similarity * 100).toFixed(0) }}%
+          <div class="text-lg font-bold" :class="reportCard.singer_similarity >= 0.6 ? 'text-green-600' : 'text-amber-600'">
+            {{ (reportCard.singer_similarity * 100).toFixed(0) }}%
           </div>
         </div>
         <div class="rounded-lg bg-neutral-50 p-2.5 text-center dark:bg-neutral-800/50">
           <div class="text-xs text-neutral-400 dark:text-neutral-500">
             Content
           </div>
-          <div class="text-lg font-bold" :class="trainingStore.reportCard.content_score >= 0.5 ? 'text-green-600' : 'text-amber-600'">
-            {{ (trainingStore.reportCard.content_score * 100).toFixed(0) }}%
+          <div class="text-lg font-bold" :class="reportCard.content_score >= 0.5 ? 'text-green-600' : 'text-amber-600'">
+            {{ (reportCard.content_score * 100).toFixed(0) }}%
           </div>
         </div>
         <div class="rounded-lg bg-neutral-50 p-2.5 text-center dark:bg-neutral-800/50">
           <div class="text-xs text-neutral-400 dark:text-neutral-500">
             Melody
           </div>
-          <div class="text-lg font-bold" :class="trainingStore.reportCard.f0_corr >= 0.7 ? 'text-green-600' : 'text-amber-600'">
-            {{ (trainingStore.reportCard.f0_corr * 100).toFixed(0) }}%
+          <div class="text-lg font-bold" :class="reportCard.f0_corr >= 0.7 ? 'text-green-600' : 'text-amber-600'">
+            {{ (reportCard.f0_corr * 100).toFixed(0) }}%
           </div>
         </div>
         <div class="rounded-lg bg-neutral-50 p-2.5 text-center dark:bg-neutral-800/50">
           <div class="text-xs text-neutral-400 dark:text-neutral-500">
             MOS
           </div>
-          <div class="text-lg font-bold" :class="trainingStore.reportCard.naturalness_mos >= 3.0 ? 'text-green-600' : 'text-amber-600'">
-            {{ trainingStore.reportCard.naturalness_mos.toFixed(1) }}
+          <div class="text-lg font-bold" :class="reportCard.naturalness_mos >= 3.0 ? 'text-green-600' : 'text-amber-600'">
+            {{ reportCard.naturalness_mos.toFixed(1) }}
           </div>
         </div>
       </div>
-      <div v-if="trainingStore.reportCard.worst_samples.length > 0" class="border-t border-neutral-100 px-4 py-2.5 dark:border-neutral-800">
+      <div v-if="reportCard.worst_samples.length > 0" class="border-t border-neutral-100 px-4 py-2.5 dark:border-neutral-800">
         <div class="mb-1.5 text-xs text-neutral-500 font-medium dark:text-neutral-400">
           Areas for Improvement
         </div>
         <div class="space-y-1">
-          <div v-for="(ws, i) in trainingStore.reportCard.worst_samples.slice(0, 3)" :key="i" class="flex items-center gap-2 text-xs">
+          <div v-for="(ws, i) in reportCard.worst_samples.slice(0, 3)" :key="i" class="flex items-center gap-2 text-xs">
             <div class="i-solar:danger-circle-bold-duotone text-xs text-amber-500" />
             <span class="text-neutral-500 dark:text-neutral-400">{{ ws.failure_reason }}</span>
           </div>

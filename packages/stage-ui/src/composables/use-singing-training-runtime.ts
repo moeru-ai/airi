@@ -61,12 +61,14 @@ export function useSingingTrainingRuntime() {
     if (!trainingStore.voiceId)
       return
 
-    const reportCard = await fetchReportCard(trainingStore.voiceId)
-    if (!reportCard)
+    const nextReportCard = await fetchReportCard(trainingStore.voiceId)
+    if (!nextReportCard)
       return
 
-    trainingStore.setReportCard(reportCard)
-    trainingStore.appendLog(`Quality grade: ${reportCard.overall_grade}`)
+    trainingStore.setReportCard(nextReportCard)
+
+    if (trainingStore.reportCard)
+      trainingStore.appendLog(`Quality grade: ${trainingStore.reportCard.overall_grade}`)
   }
 
   async function applyJobSnapshot(jobId: string, snapshot: GetJobResponse) {

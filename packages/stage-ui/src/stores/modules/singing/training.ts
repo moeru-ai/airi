@@ -2,9 +2,11 @@ import type { JobStatus, SingingJob } from '@proj-airi/singing/types'
 
 import type { SingingTrainingReportCard } from '../../../types/singing'
 
-import { useLocalStorage } from '@vueuse/core'
+import { StorageSerializers, useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
+
+import { normalizeSingingTrainingReportCard } from '../../../types/singing'
 
 const MAX_PERSISTED_TRAINING_LOGS = 200
 
@@ -30,7 +32,20 @@ export const useSingingTrainingStore = defineStore('singing-training', () => {
   const startedAt = useLocalStorage<number | null>('singing/training/started-at', null)
   const updatedAt = useLocalStorage<number | null>('singing/training/updated-at', null)
   const logs = useLocalStorage<string[]>('singing/training/logs', [])
-  const reportCard = useLocalStorage<SingingTrainingReportCard | null>('singing/training/report-card', null)
+  const persistedReportCard = useLocalStorage<SingingTrainingReportCard | Record<string, unknown> | null>(
+    'singing/training/report-card',
+    null,
+    { serializer: StorageSerializers.object },
+  )
+
+  persistedReportCard.value = normalizeSingingTrainingReportCard(persistedReportCard.value)
+
+  const reportCard = computed<SingingTrainingReportCard | null>({
+    get: () => normalizeSingingTrainingReportCard(persistedReportCard.value),
+    set: (nextReportCard) => {
+      persistedReportCard.value = normalizeSingingTrainingReportCard(nextReportCard)
+    },
+  })
 
   const progress = computed(() => {
     if (trainingPct.value > 0)
