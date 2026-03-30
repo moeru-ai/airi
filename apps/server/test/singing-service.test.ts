@@ -343,6 +343,37 @@ describe('createSingingService - retry with parameter adjustment', () => {
 })
 
 describe('createSingingService - training mutex', () => {
+  it('locks a voice before awaiting job creation', async () => {
+    const queue = new InMemoryQueue()
+    const mod = await import('@proj-airi/singing')
+    const createTrainJobMock = mod.createTrainJob as ReturnType<typeof vi.fn>
+    let releaseCreateTrainJob!: () => void
+    const createTrainJobBlocked = new Promise<void>((resolve) => {
+      releaseCreateTrainJob = resolve
+    })
+
+    createTrainJobMock.mockImplementation(async (request: unknown, deps: { queue: InMemoryQueue }) => {
+      await createTrainJobBlocked
+      const jobId = 'locked-train-job'
+      const now = new Date().toISOString()
+      await deps.queue.enqueue({ id: jobId, status: 'pending', createdAt: now, updatedAt: now, payload: request })
+      return { jobId, status: 'pending' }
+    })
+    mockRunTrainingPipeline.mockResolvedValue(undefined)
+
+    const svc = createSingingService({ queue })
+    const firstCreate = svc.createTrain(makeTrainRequest({ voiceId: 'race_voice' }))
+
+    await Promise.resolve()
+
+    await expect(
+      svc.createTrain(makeTrainRequest({ voiceId: 'race_voice' })),
+    ).rejects.toThrow(SingingError)
+
+    releaseCreateTrainJob()
+    await firstCreate
+  })
+
   it('rejects concurrent training for the same voiceId', async () => {
     const queue = new InMemoryQueue()
     let resolveTraining!: () => void

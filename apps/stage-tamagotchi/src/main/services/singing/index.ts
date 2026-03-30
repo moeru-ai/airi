@@ -1230,7 +1230,9 @@ function buildApp(dataDir: string) {
       const ac = new AbortController()
       activeJobs.set(jobId, ac)
       ac.signal.addEventListener('abort', () => killTrainingProcess(voiceId), { once: true })
+      const trainOutputDir = join(env.tempDir, 'training', jobId)
       let uploadCleaned = false
+      let workspaceCleaned = false
 
       async function finalizeUploadCleanup(): Promise<void> {
         if (uploadCleaned)
@@ -1238,6 +1240,14 @@ function buildApp(dataDir: string) {
 
         uploadCleaned = true
         await cleanupManagedUploadFile(join(tempDir, 'training-uploads'), datasetPath)
+      }
+
+      async function finalizeTrainingWorkspaceCleanup(): Promise<void> {
+        if (workspaceCleaned)
+          return
+
+        workspaceCleaned = true
+        await rm(trainOutputDir, { recursive: true, force: true })
       }
 
       try {
@@ -1253,7 +1263,6 @@ function buildApp(dataDir: string) {
 
         const pythonPath = env.pythonPath
         const pythonSrcDir = env.pythonSrcDir
-        const trainOutputDir = join(env.tempDir, 'training', jobId)
         await mkdir(trainOutputDir, { recursive: true })
 
         const args = [
@@ -1441,6 +1450,7 @@ function buildApp(dataDir: string) {
         activeJobs.delete(jobId)
         activeTrainingVoices.delete(voiceId)
         await finalizeUploadCleanup()
+        await finalizeTrainingWorkspaceCleanup()
       }
     }
 
@@ -2103,8 +2113,10 @@ function buildApp(dataDir: string) {
 
 // ─── Public API ──────────────────────────────────────────────────────────
 export interface SingingLocalServer {
-  url: string
-  port: number
+  url: string | null
+  port: number | null
+  ready: boolean
+  error?: string
   stop: () => void
 }
 
@@ -2164,11 +2176,16 @@ export async function setupSingingLocalServer(config: SingingServerConfig): Prom
     const url = `http://127.0.0.1:${port}`
     log.withFields({ url, dataDir }).log('Local singing server started')
 
-    return { url, port, stop: () => server.close() }
+    return { url, port, ready: true, stop: () => server.close() }
   }
   catch (err) {
     log.withError(err).error('Failed to start singing server')
-    const fallbackPort = preferredPort
-    return { url: `http://127.0.0.1:${fallbackPort}`, port: fallbackPort, stop: () => {} }
+    return {
+      url: null,
+      port: null,
+      ready: false,
+      error: err instanceof Error ? err.message : String(err),
+      stop: () => {},
+    }
   }
 }

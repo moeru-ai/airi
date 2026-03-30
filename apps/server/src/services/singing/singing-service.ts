@@ -114,6 +114,18 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
   /** voiceIds that currently have a training job running — prevents concurrent overwrites */
   const activeTrainingVoices = new Set<string>()
 
+  function acquireTrainingVoiceLock(voiceId: string): boolean {
+    if (activeTrainingVoices.has(voiceId))
+      return false
+
+    activeTrainingVoices.add(voiceId)
+    return true
+  }
+
+  function releaseTrainingVoiceLock(voiceId: string): void {
+    activeTrainingVoices.delete(voiceId)
+  }
+
   async function cleanupUploadFile(inputUri: string): Promise<void> {
     try {
       if (isContainedPath(coverUploadsDir, inputUri) || isContainedPath(trainingUploadsDir, inputUri)) {
@@ -258,7 +270,6 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
   async function executeTrainingAsync(jobId: string, request: CreateTrainRequest) {
     const ac = new AbortController()
     activeJobs.set(jobId, ac)
-    activeTrainingVoices.add(request.voiceId)
     let uploadCleaned = false
 
     async function finalizeUploadCleanup(): Promise<void> {
@@ -312,7 +323,7 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
     }
     finally {
       activeJobs.delete(jobId)
-      activeTrainingVoices.delete(request.voiceId)
+      releaseTrainingVoiceLock(request.voiceId)
       await finalizeUploadCleanup()
     }
   }
@@ -343,14 +354,22 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
     },
 
     async createTrain(request) {
-      if (activeTrainingVoices.has(request.voiceId)) {
+      if (!acquireTrainingVoiceLock(request.voiceId)) {
         throw new SingingError(
           SingingErrorCode.InvalidInput,
           `Voice "${request.voiceId}" already has a training job running — wait for it to complete or cancel it first`,
         )
       }
 
-      const result = await createTrainJob(request, { queue })
+      let result
+      try {
+        result = await createTrainJob(request, { queue })
+      }
+      catch (error) {
+        releaseTrainingVoiceLock(request.voiceId)
+        throw error
+      }
+
       void executeTrainingAsync(result.jobId, request).catch(err => logDetachedJobFailure(result.jobId, 'training', err))
       return result
     },

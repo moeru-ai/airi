@@ -40,6 +40,8 @@ import { setupOnboardingWindowManager } from './windows/onboarding'
 import { setupSettingsWindowReusableFunc } from './windows/settings'
 import { setupWidgetsWindowManager } from './windows/widgets'
 
+const SINGING_LOCAL_SERVER_INFO_CHANNEL = 'airi:singing:get-local-server-info'
+
 // TODO: once we refactored eventa to support window-namespaced contexts,
 // we can remove the setMaxListeners call below since eventa will be able to dispatch and
 // manage events within eventa's context system.
@@ -122,10 +124,42 @@ app.whenReady().then(async () => {
     build: () => setupPluginHost(),
   })
 
+  const singingServerState: {
+    current: Awaited<ReturnType<typeof setupSingingLocalServer>> | null
+    pending: Promise<Awaited<ReturnType<typeof setupSingingLocalServer>>> | null
+  } = {
+    current: null,
+    pending: null,
+  }
+
   const singingServer = injeca.provide('services:singing-local-server', {
-    build: () => setupSingingLocalServer({
-      dataDir: join(app.getPath('userData'), 'airi-singing'),
-    }),
+    build: () => {
+      const pending = setupSingingLocalServer({
+        dataDir: join(app.getPath('userData'), 'airi-singing'),
+      }).then((server) => {
+        singingServerState.current = server
+        return server
+      })
+
+      singingServerState.pending = pending
+      return pending
+    },
+  })
+
+  ipcMain.removeHandler(SINGING_LOCAL_SERVER_INFO_CHANNEL)
+  ipcMain.handle(SINGING_LOCAL_SERVER_INFO_CHANNEL, async () => {
+    if (singingServerState.current)
+      return singingServerState.current
+
+    if (singingServerState.pending)
+      return await singingServerState.pending
+
+    return {
+      url: null,
+      port: null,
+      ready: false,
+      error: 'Local singing server is still initializing',
+    }
   })
 
   // BeatSync will create a background window to capture and process audio.
