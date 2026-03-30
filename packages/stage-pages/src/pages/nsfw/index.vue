@@ -277,6 +277,12 @@ async function saveSelectedCharacter() {
             <Button @click="router.push('/v2')">
               Open Normal Explore
             </Button>
+            <Button variant="ghost" @click="router.push('/nsfw/generate')">
+              Open Generate
+            </Button>
+            <Button variant="ghost" @click="router.push('/nsfw/gallery')">
+              Open Gallery
+            </Button>
             <Button variant="ghost" @click="router.push('/settings/characters')">
               Edit Character Flags
             </Button>
@@ -448,6 +454,9 @@ async function saveSelectedCharacter() {
             <div class="mt-6 flex flex-wrap gap-3">
               <Button @click="openCharacter(featuredCharacter.id)">
                 Open Profile
+              </Button>
+              <Button variant="ghost" class="bg-white/10 text-white hover:bg-white/15" @click="router.push('/nsfw/generate')">
+                Generate Prompt
               </Button>
               <Button variant="ghost" class="bg-white/10 text-white hover:bg-white/15" @click="characterStore.activateCharacter(featuredCharacter.id)">
                 Activate Only

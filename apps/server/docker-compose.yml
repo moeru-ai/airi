@@ -70,6 +70,23 @@ services:
         required: false
     restart: unless-stopped
 
+  nsfw-image-consumer:
+    build:
+      context: ../..
+      dockerfile: apps/server/Dockerfile
+    command: ['pnpm', '-F', '@proj-airi/server', 'run', 'server', 'nsfw-image-consumer']
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+      - path: .env.local
+        required: false
+    restart: unless-stopped
+
 volumes:
   db_data:
     driver: local

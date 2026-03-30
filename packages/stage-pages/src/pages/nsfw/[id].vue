@@ -144,6 +144,12 @@ async function enterStage() {
               <Button @click="enterStage">
                 Enter Stage
               </Button>
+              <Button variant="ghost" @click="router.push('/nsfw/generate')">
+                Generate Prompt
+              </Button>
+              <Button variant="ghost" @click="router.push('/nsfw/gallery')">
+                Open Gallery
+              </Button>
               <Button variant="ghost" class="bg-white/10 text-white hover:bg-white/15" @click="router.push('/settings/characters')">
                 Manage Character
               </Button>

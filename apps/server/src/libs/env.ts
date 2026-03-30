@@ -6,7 +6,7 @@ import { useLogger } from '@guiiai/logg'
 import { injeca } from 'injeca'
 import { integer, maxValue, minValue, nonEmpty, object, optional, parse, pipe, string, transform } from 'valibot'
 
-import { DEFAULT_BILLING_EVENTS_STREAM } from '../utils/redis-keys'
+import { DEFAULT_BILLING_EVENTS_STREAM, DEFAULT_NSFW_IMAGE_EVENTS_STREAM } from '../utils/redis-keys'
 
 function optionalIntegerFromString(defaultValue: number, envKey: string, minimum: number) {
   return optional(
@@ -56,6 +56,13 @@ const EnvSchema = object({
   BILLING_EVENTS_BATCH_SIZE: optionalIntegerFromString(10, 'BILLING_EVENTS_BATCH_SIZE', 1),
   BILLING_EVENTS_BLOCK_MS: optionalIntegerFromString(5000, 'BILLING_EVENTS_BLOCK_MS', 1),
   BILLING_EVENTS_MIN_IDLE_MS: optionalIntegerFromString(30000, 'BILLING_EVENTS_MIN_IDLE_MS', 1),
+
+  NSFW_IMAGE_EVENTS_STREAM: optional(string(), DEFAULT_NSFW_IMAGE_EVENTS_STREAM),
+  NSFW_IMAGE_EVENTS_CONSUMER_NAME: optional(string()),
+  NSFW_IMAGE_EVENTS_BATCH_SIZE: optionalIntegerFromString(10, 'NSFW_IMAGE_EVENTS_BATCH_SIZE', 1),
+  NSFW_IMAGE_EVENTS_BLOCK_MS: optionalIntegerFromString(5000, 'NSFW_IMAGE_EVENTS_BLOCK_MS', 1),
+  NSFW_IMAGE_EVENTS_MIN_IDLE_MS: optionalIntegerFromString(30000, 'NSFW_IMAGE_EVENTS_MIN_IDLE_MS', 1),
+  COMFYUI_BASE_URL: optional(string(), 'http://127.0.0.1:8188'),
 
   // Database pool
   DB_POOL_MAX: optionalIntegerFromString(20, 'DB_POOL_MAX', 1),

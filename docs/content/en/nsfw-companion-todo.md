@@ -9,6 +9,11 @@ This is the implementation checklist for the AIRI + Hermes companion stack.
 - [x] Add AIRI request builders for Hermes payloads.
 - [x] Add a real transport bridge from AIRI to Hermes.
 - [x] Add a Hermes `generate-reply` handler using the shared contract shape.
+- [x] Add a Redis-backed NSFW image queue and worker entrypoint in the AIRI server.
+- [x] Publish NSFW image jobs into the queue from `POST /api/v1/nsfw/jobs`.
+- [x] Add a ComfyUI submit/reconcile consumer path that treats AIRI as the source of truth.
+- [ ] Attach a real ComfyUI API workflow payload to `params.workflow` during NSFW image job creation.
+- [ ] Persist ComfyUI execution metadata more explicitly than the current `params.comfy` blob if recovery needs become more complex.
 
 ## AIRI
 
@@ -16,8 +21,8 @@ This is the implementation checklist for the AIRI + Hermes companion stack.
 
 - [x] Finish `/nsfw` as a real management surface, not only discovery.
 - [ ] Add NSFW profile actions and access states.
-- [ ] Add `/nsfw/gallery`.
-- [ ] Add `/nsfw/generate`.
+- [x] Add `/nsfw/gallery`.
+- [x] Add `/nsfw/generate`.
 - [ ] Add premium gating for NSFW actions.
 
 ### Chat
@@ -50,7 +55,7 @@ This is the implementation checklist for the AIRI + Hermes companion stack.
 - [x] Add `context_assembler`.
 - [x] Add `reply_service`.
 - [ ] Add `quality_judge`.
-- [ ] Add `image_prompt_service`.
+- [x] Add `image_prompt_service`.
 - [ ] Add creator/admin copilot flows for AIRI characters.
 
 ## Models
@@ -69,9 +74,9 @@ This is the implementation checklist for the AIRI + Hermes companion stack.
 
 ## Media
 
-- [ ] Add image prompt generation.
-- [ ] Add image job queue.
-- [ ] Add gallery record storage.
+- [x] Add image prompt generation.
+- [x] Add image job queue.
+- [x] Add gallery record storage.
 - [ ] Separate normal and NSFW media policy.
 
 ## Verification

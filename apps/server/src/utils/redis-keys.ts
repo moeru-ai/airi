@@ -16,6 +16,7 @@ export function createRedisKey(...parts: RedisKeyPart[]): string {
 }
 
 export const DEFAULT_BILLING_EVENTS_STREAM = createRedisKey('billing', 'events')
+export const DEFAULT_NSFW_IMAGE_EVENTS_STREAM = createRedisKey('nsfw', 'image', 'events')
 
 export function configRedisKey(key: string): string {
   return createRedisKey('config', key)

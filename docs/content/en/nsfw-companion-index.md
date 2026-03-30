@@ -38,14 +38,16 @@ Role:
 - `packages/server-schema/src/index.ts`
   - schema exports
 - `packages/server-sdk-shared/src/index.ts`
-  - shared invoke contract name `hermes:generate-reply`
+  - shared invoke contract names `hermes:generate-reply` and `hermes:generate-image-prompt`
 
 ### Chat and Hermes Transport
 
 - `packages/stage-ui/src/libs/hermes.ts`
   - converts AIRI session data into Hermes request payloads
+  - builds NSFW image prompt requests
 - `packages/stage-ui/src/libs/hermes-transport.ts`
   - HTTP transport helper and local stub fallback
+  - includes NSFW image prompt transport
 - `packages/stage-ui/src/libs/server.ts`
   - `HERMES_URL`
   - `USE_HERMES_CHAT`
@@ -57,6 +59,9 @@ Role:
 - `packages/stage-ui/src/stores/chat/hermes-memory-store.ts`
   - per-session local persistence for summaries and facts
   - stores route, scene type, judge score, and judge flags
+- `packages/stage-ui/src/stores/nsfw-media.ts`
+  - calls `/api/v1/nsfw/jobs` and `/api/v1/nsfw/gallery`
+  - stores server-backed NSFW image job and gallery records
 
 ### Auth and User Gating
 
@@ -110,10 +115,40 @@ Role:
   - includes character-level NSFW editor
 - `packages/stage-pages/src/pages/nsfw/[id].vue`
   - separate NSFW detail page
+- `packages/stage-pages/src/pages/nsfw/generate.vue`
+  - plans NSFW image prompts through Hermes and writes server-backed jobs/gallery items
+  - accepts an optional real ComfyUI API workflow JSON payload for actual execution
+- `packages/stage-pages/src/pages/nsfw/gallery.vue`
+  - displays server-backed NSFW gallery records
 - `apps/stage-web/src/pages/settings/characters/components/CharacterDialog.vue`
   - general creator dialog without direct NSFW clutter
 - `apps/stage-web/src/pages/settings/characters/components/CharacterItem.vue`
   - richer card metadata
+
+### Server-backed NSFW Media
+
+- `apps/server/src/schemas/nsfw-media.ts`
+  - `image_jobs`
+  - `gallery_items`
+- `apps/server/src/services/nsfw-media.ts`
+  - create/list image jobs
+  - create/list gallery items
+  - update image jobs and gallery items during execution lifecycle
+- `apps/server/src/routes/nsfw-media/schema.ts`
+  - request validation for NSFW jobs and gallery items
+- `apps/server/src/routes/nsfw-media/index.ts`
+- `apps/server/src/services/nsfw-image-events.ts`
+  - Redis Stream envelope for durable NSFW image execution requests
+- `apps/server/src/services/nsfw-image-consumer-handler.ts`
+  - ComfyUI submission and `/history/{prompt_id}` reconciliation logic
+- `apps/server/src/bin/run-nsfw-image-consumer.ts`
+  - standalone worker entrypoint for NSFW image execution
+- `apps/server/docker-compose.yml`
+  - now includes `nsfw-image-consumer` alongside `api` and `billing-consumer`
+- `GET/POST /api/v1/nsfw/jobs`
+- `GET/POST /api/v1/nsfw/gallery`
+- `apps/server/drizzle/0010_nsfw_media.sql`
+  - migration for server-backed NSFW media records
 
 ## Hermes Agent File Index
 
@@ -149,12 +184,17 @@ Role:
   - builds persona-aware deterministic replies
   - references scenario, speaking style, starter messages, boundaries, memory, and assembled context
   - returns judge flags for thin or mirrored responses
+- `agent/airi_image_prompt_service.py`
+  - plans NSFW image prompts, negative prompts, and tags
+  - enforces user and character gating for image planning
 
 ### HTTP Bridge
 
 - `agent/airi_http_service.py`
   - `GET /health`
   - `POST /v1/airi/generate-reply`
+- `POST /v1/airi/generate-image-prompt`
+- AIRI server now also owns a Redis-backed `nsfw-image-consumer` path for durable ComfyUI execution.
 
 ## Current State
 
@@ -171,14 +211,17 @@ Role:
 - Hermes deterministic reply assembly
 - Hermes memory delta return path into AIRI
 - AIRI-side route resolution for normal vs NSFW Hermes turns
+- Hermes-backed NSFW image prompt planning
+- server-backed NSFW image job and gallery records
+- Redis-backed NSFW image execution queue
+- ComfyUI submit/reconcile worker path
 
 ### Still Open
 
 - server-side long-term memory
 - quality judge beyond simple heuristic flags
-- image prompt generation
-- gallery and generate routes
 - premium gating for NSFW media actions
+- a default real ComfyUI API workflow mapping for generated NSFW prompts
 - actual model wiring to `Hermes-4.3-36B`, `Grok 4.20`, and `GPT-5 mini`
 - build, typecheck, and tests once dependencies are installed
 
