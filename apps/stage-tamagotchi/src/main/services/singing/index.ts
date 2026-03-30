@@ -322,6 +322,15 @@ async function findUv(): Promise<string | null> {
   return null
 }
 
+async function findHomebrew(): Promise<string | null> {
+  for (const candidate of ['brew', '/opt/homebrew/bin/brew', '/usr/local/bin/brew']) {
+    if ((candidate.includes('/') ? existsSync(candidate) : true) && await checkBinaryExists(candidate, ['--version']))
+      return candidate
+  }
+
+  return null
+}
+
 let _pkgCheckCache: { installed: boolean, missing: string[], checkedAt: number } | null = null
 
 function invalidatePkgCheckCache() {
@@ -493,6 +502,29 @@ async function downloadFFmpeg(dataDir: string): Promise<string> {
   const url = FFMPEG_URLS[platformKey]
   if (!url)
     throw new Error(`No FFmpeg build available for ${platformKey}`)
+
+  if (process.platform === 'darwin') {
+    const brewPath = await findHomebrew()
+    if (brewPath) {
+      appendLog(id, 'info', `Platform: ${platformKey}`)
+      appendLog(id, 'info', `Using Homebrew: ${brewPath}`)
+      appendLog(id, 'info', 'Installing FFmpeg via Homebrew...')
+      updateProgress(id, { step: 'brew_install', percent: 10 })
+      await spawnAsync(brewPath, ['install', 'ffmpeg'], process.env.HOME || dataDir, id, 10, 92)
+
+      const installed = await findFFmpeg(dataDir)
+      if (!installed)
+        throw new Error('Homebrew finished but FFmpeg could not be found on PATH')
+
+      updateProgress(id, { step: 'done', percent: 100, message: 'FFmpeg installed successfully', completed: true })
+      appendLog(id, 'success', `FFmpeg ready at ${installed}`)
+      return installed
+    }
+
+    if (process.arch === 'arm64') {
+      throw new Error('Automatic FFmpeg download is unavailable for native Apple Silicon. Please install FFmpeg with Homebrew (`brew install ffmpeg`) and try again.')
+    }
+  }
 
   const binDir = join(dataDir, 'bin')
   await mkdir(binDir, { recursive: true })
