@@ -278,7 +278,7 @@ pnpm dev:docs
 
 ### 发布
 
-运行 `bumpp` 后，请记得在 `Cargo.toml` 中更新版本号：
+运行 `bumpp` 来更新 monorepo 版本：
 
 ```shell
 npx bumpp --no-commit --no-tag
@@ -327,7 +327,6 @@ npx bumpp --no-commit --no-tag
 - [WebAI: Realtime Voice Chat](https://github.com/proj-airi/webai-realtime-voice-chat)：从零实现 ChatGPT 实时语音（VAD + STT + LLM + TTS）的完整示例
 - [`@proj-airi/drizzle-duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/drizzle-duckdb-wasm/README.md)：DuckDB WASM 的 Drizzle ORM 驱动
 - [`@proj-airi/duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/duckdb-wasm/README.md)：好用的 `@duckdb/duckdb-wasm` 封装
-- [`tauri-plugin-mcp`](https://github.com/moeru-ai/airi/blob/main/crates/tauri-plugin-mcp/README.md)：与 MCP servers 交互的 Tauri 插件
 - [AIRI Factorio](https://github.com/moeru-ai/airi-factorio): 让 AIRI 玩 Factorio
 - [Factorio RCON API](https://github.com/nekomeowww/factorio-rcon-api): Factorio 无头服务器控制台的 RESTful API 封装
 - [`autorio`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/autorio): Factorio 自动化库
@@ -408,7 +407,6 @@ flowchart TD
   XSAI --> F_AGENT
   XSAI --> MC_AGENT
 
-  Core --> TauriMCP("@proj-airi/tauri-plugin-mcp")
   Memory_PGVector("@proj-airi/memory-pgvector") --> Memory
 
   style Core fill:#f9d4d4,stroke:#333,stroke-width:1px
