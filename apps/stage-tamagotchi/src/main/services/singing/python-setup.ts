@@ -1,8 +1,37 @@
 export type DesktopSingingVenvSetupMode = 'create' | 'recreate' | 'reuse'
 
+// NOTICE: the current singing runtime dependency stack includes `fairseq`,
+// `rvc-python`, and transitive native packages that are still significantly
+// more reliable on Python 3.10-3.12 than on 3.13+ in packaged desktop setups.
+// The setup flow should therefore prefer these interpreter minors and rebuild
+// incompatible virtual environments instead of blindly reusing them.
+export const DESKTOP_SINGING_SUPPORTED_PYTHON_MINORS = ['3.10', '3.11', '3.12'] as const
+
 export interface DesktopSingingRuntimeImportCheck {
   id: string
   stmt: string
+}
+
+export function isDesktopSingingSupportedPythonVersion(version: string | null | undefined): boolean {
+  if (!version)
+    return false
+
+  const [majorRaw, minorRaw] = version.split('.', 3)
+  const major = Number(majorRaw)
+  const minor = Number(minorRaw)
+
+  return major === 3 && minor >= 10 && minor <= 12
+}
+
+export function resolvePreferredDesktopSingingPythonMinor(
+  availableVersions: readonly string[],
+): (typeof DESKTOP_SINGING_SUPPORTED_PYTHON_MINORS)[number] | null {
+  for (const version of DESKTOP_SINGING_SUPPORTED_PYTHON_MINORS) {
+    if (availableVersions.some(candidate => candidate === version || candidate.startsWith(`${version}.`)))
+      return version
+  }
+
+  return null
 }
 
 /**
@@ -12,11 +41,12 @@ export interface DesktopSingingRuntimeImportCheck {
 export function resolveDesktopSingingVenvSetupMode(
   venvDirExists: boolean,
   venvInterpreterExists: boolean,
+  venvInterpreterSupported = true,
 ): DesktopSingingVenvSetupMode {
   if (!venvDirExists)
     return 'create'
 
-  return venvInterpreterExists ? 'reuse' : 'recreate'
+  return venvInterpreterExists && venvInterpreterSupported ? 'reuse' : 'recreate'
 }
 
 /**

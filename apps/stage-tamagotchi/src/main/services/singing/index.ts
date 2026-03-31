@@ -35,7 +35,10 @@ import { cors } from 'hono/cors'
 
 import {
   buildDesktopSingingVerifyScriptLines,
+  DESKTOP_SINGING_SUPPORTED_PYTHON_MINORS,
+  isDesktopSingingSupportedPythonVersion,
   resolveDesktopSingingVenvSetupMode,
+  resolvePreferredDesktopSingingPythonMinor,
 } from './python-setup'
 import {
   ensureDesktopPythonRuntimeSources,
@@ -55,6 +58,7 @@ const LINE_SPLIT_REGEX = /[\r\n]+/
 const CUDA_VERSION_REGEX = /CUDA Version:\s*(\d+)\.(\d+)/
 const PTH_SUFFIX_REGEX = /\.pth$/
 const RANGE_HEADER_REGEX = /bytes=(\d*)-(\d*)/i
+const PYTHON_VERSION_INFO_SCRIPT = 'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}")'
 
 // ─── FFmpeg download sources per platform ────────────────────────────────
 const FFMPEG_URLS: Record<string, string> = {
@@ -256,9 +260,106 @@ async function findFFmpeg(dataDir: string): Promise<string | null> {
   return null
 }
 
+async function getPythonVersion(pythonPath: string): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync(pythonPath, ['-c', PYTHON_VERSION_INFO_SCRIPT], {
+      timeout: 30_000,
+      windowsHide: true,
+      shell: false,
+    })
+    const version = stdout.toString().trim()
+    return version || null
+  }
+  catch {
+    return null
+  }
+}
+
+async function findUvManagedPython(uvPath: string, versionSpec: string): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync(uvPath, ['python', 'find', versionSpec], {
+      timeout: 30_000,
+      windowsHide: true,
+      shell: false,
+    })
+    const pythonPath = stdout.toString().trim()
+    return pythonPath || null
+  }
+  catch {
+    return null
+  }
+}
+
+async function findPyLauncherPython(versionSpec: string): Promise<string | null> {
+  if (process.platform !== 'win32')
+    return null
+
+  try {
+    const { stdout } = await execFileAsync('py', [`-${versionSpec}`, '-c', 'import sys; print(sys.executable)'], {
+      timeout: 30_000,
+      windowsHide: true,
+      shell: false,
+    })
+    const pythonPath = stdout.toString().trim()
+    return pythonPath || null
+  }
+  catch {
+    return null
+  }
+}
+
+async function findCompatiblePython(
+  runtimePaths: ReturnType<typeof resolveDesktopSingingRuntimePaths>,
+  uvPath: string | null,
+): Promise<{ path: string, isVenv: boolean, version: string } | null> {
+  if (existsSync(runtimePaths.venvPython)) {
+    const version = await getPythonVersion(runtimePaths.venvPython)
+    if (isDesktopSingingSupportedPythonVersion(version))
+      return { path: runtimePaths.venvPython, isVenv: true, version: version! }
+  }
+
+  if (uvPath) {
+    for (const versionSpec of DESKTOP_SINGING_SUPPORTED_PYTHON_MINORS) {
+      const pythonPath = await findUvManagedPython(uvPath, versionSpec)
+      if (!pythonPath)
+        continue
+
+      const version = await getPythonVersion(pythonPath)
+      if (isDesktopSingingSupportedPythonVersion(version))
+        return { path: pythonPath, isVenv: false, version: version! }
+    }
+  }
+
+  if (process.platform === 'win32') {
+    for (const versionSpec of DESKTOP_SINGING_SUPPORTED_PYTHON_MINORS) {
+      const pythonPath = await findPyLauncherPython(versionSpec)
+      if (!pythonPath)
+        continue
+
+      const version = await getPythonVersion(pythonPath)
+      if (isDesktopSingingSupportedPythonVersion(version))
+        return { path: pythonPath, isVenv: false, version: version! }
+    }
+  }
+
+  for (const py of ['python3.10', 'python3.11', 'python3.12', 'python3', 'python']) {
+    if (!await checkBinaryExists(py, ['--version']))
+      continue
+
+    const version = await getPythonVersion(py)
+    if (isDesktopSingingSupportedPythonVersion(version))
+      return { path: py, isVenv: false, version: version! }
+  }
+
+  return null
+}
+
 async function findPython(runtimePaths: ReturnType<typeof resolveDesktopSingingRuntimePaths>): Promise<{ path: string, isVenv: boolean } | null> {
-  if (existsSync(runtimePaths.venvPython))
-    return { path: runtimePaths.venvPython, isVenv: true }
+  if (existsSync(runtimePaths.venvPython)) {
+    const version = await getPythonVersion(runtimePaths.venvPython)
+    if (isDesktopSingingSupportedPythonVersion(version))
+      return { path: runtimePaths.venvPython, isVenv: true }
+  }
 
   for (const py of ['python3', 'python']) {
     if (await checkBinaryExists(py, ['--version']))
@@ -705,7 +806,12 @@ async function setupPythonVenv(runtimePaths: ReturnType<typeof resolveDesktopSin
   const variant = await detectTorchVariant()
   const venvExists = existsSync(venvDir)
   const venvInterpreterExists = existsSync(runtimePaths.venvPython)
-  const venvSetupMode = resolveDesktopSingingVenvSetupMode(venvExists, venvInterpreterExists)
+  const venvInterpreterVersion = venvInterpreterExists ? await getPythonVersion(runtimePaths.venvPython) : null
+  const venvSetupMode = resolveDesktopSingingVenvSetupMode(
+    venvExists,
+    venvInterpreterExists,
+    isDesktopSingingSupportedPythonVersion(venvInterpreterVersion),
+  )
 
   const venvPython = runtimePaths.venvPython
 
@@ -716,16 +822,39 @@ async function setupPythonVenv(runtimePaths: ReturnType<typeof resolveDesktopSin
   }
   else {
     if (venvSetupMode === 'recreate') {
-      appendLog(id, 'warn', 'Existing virtual environment is incomplete, rebuilding it')
+      const reason = venvInterpreterExists && !isDesktopSingingSupportedPythonVersion(venvInterpreterVersion)
+        ? `Existing virtual environment uses unsupported Python ${venvInterpreterVersion}, rebuilding it`
+        : 'Existing virtual environment is incomplete, rebuilding it'
+      appendLog(id, 'warn', reason)
       await rm(venvDir, { recursive: true, force: true }).catch(() => {})
       invalidatePkgCheckCache()
     }
 
     updateProgress(id, { step: 'venv', percent: 5 })
+
+    let compatiblePython = await findCompatiblePython(runtimePaths, uvPath)
+    if (!compatiblePython && uvPath) {
+      const preferredVersion = resolvePreferredDesktopSingingPythonMinor([...DESKTOP_SINGING_SUPPORTED_PYTHON_MINORS])
+        ?? DESKTOP_SINGING_SUPPORTED_PYTHON_MINORS[0]
+      appendLog(id, 'info', `No compatible Python 3.10-3.12 found, installing Python ${preferredVersion} via uv...`)
+      await execFileAsync(uvPath, ['python', 'install', preferredVersion], {
+        cwd: runtimeDir,
+        timeout: 600_000,
+        shell: false,
+        windowsHide: true,
+      })
+      compatiblePython = await findCompatiblePython(runtimePaths, uvPath)
+    }
+
+    if (!compatiblePython)
+      throw new Error('No compatible Python 3.10-3.12 interpreter found. Install uv or Python 3.10-3.12 and retry.')
+
+    appendLog(id, 'info', `Using Python ${compatiblePython.version} from ${compatiblePython.path}`)
+
     if (uvPath) {
       appendLog(id, 'success', `Found uv: ${uvPath}`)
       appendLog(id, 'info', 'Step 1: Creating virtual environment (uv venv)...')
-      await execFileAsync(uvPath, ['venv', venvDir], {
+      await execFileAsync(uvPath, ['venv', '--python', compatiblePython.path, venvDir], {
         cwd: runtimeDir,
         timeout: 120_000,
         shell: false,
@@ -733,12 +862,9 @@ async function setupPythonVenv(runtimePaths: ReturnType<typeof resolveDesktopSin
       })
     }
     else {
-      const sysPython = await findPython(runtimePaths)
-      if (!sysPython)
-        throw new Error('Neither uv nor Python found. Please install Python 3.10+ or uv first.')
-      appendLog(id, 'success', `Found Python: ${sysPython.path}`)
+      appendLog(id, 'success', `Found Python: ${compatiblePython.path}`)
       appendLog(id, 'info', 'Step 1: Creating virtual environment (python -m venv)...')
-      await execFileAsync(sysPython.path, ['-m', 'venv', venvDir], {
+      await execFileAsync(compatiblePython.path, ['-m', 'venv', venvDir], {
         timeout: 60_000,
         shell: false,
         windowsHide: true,
