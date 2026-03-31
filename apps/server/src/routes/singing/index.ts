@@ -119,8 +119,40 @@ function createArtifactResponse(fullPath: string, ext: string, rangeHeader: stri
     })
   }
 
-  const start = match[1] ? Number(match[1]) : 0
-  const end = match[2] ? Number(match[2]) : stats.size - 1
+  const hasExplicitStart = match[1] !== ''
+  const hasExplicitEnd = match[2] !== ''
+
+  let start = 0
+  let end = stats.size - 1
+
+  if (!hasExplicitStart && !hasExplicitEnd) {
+    return new Response(null, {
+      status: 416,
+      headers: {
+        ...baseHeaders,
+        'Content-Range': `bytes */${stats.size}`,
+      },
+    })
+  }
+
+  if (!hasExplicitStart) {
+    const suffixLength = Number(match[2])
+    if (!Number.isFinite(suffixLength) || suffixLength <= 0) {
+      return new Response(null, {
+        status: 416,
+        headers: {
+          ...baseHeaders,
+          'Content-Range': `bytes */${stats.size}`,
+        },
+      })
+    }
+
+    start = Math.max(stats.size - suffixLength, 0)
+  }
+  else {
+    start = Number(match[1])
+    end = hasExplicitEnd ? Number(match[2]) : stats.size - 1
+  }
 
   if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end < start || end >= stats.size) {
     return new Response(null, {

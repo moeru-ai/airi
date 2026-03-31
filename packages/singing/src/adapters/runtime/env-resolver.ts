@@ -1,5 +1,6 @@
 import process from 'node:process'
 
+import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 
@@ -74,7 +75,21 @@ function resolveVenvPython(packageRoot: string): string {
   if (existsSync(venvPython))
     return venvPython
 
-  return 'python'
+  const systemCandidates = process.platform === 'win32'
+    ? ['python']
+    : ['python3', 'python']
+
+  for (const candidate of systemCandidates) {
+    const result = spawnSync(candidate, ['--version'], {
+      stdio: 'ignore',
+      shell: false,
+      windowsHide: true,
+    })
+    if (!result.error && result.status === 0)
+      return candidate
+  }
+
+  return process.platform === 'win32' ? 'python' : 'python3'
 }
 
 /**

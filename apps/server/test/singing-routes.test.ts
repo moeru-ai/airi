@@ -209,4 +209,25 @@ describe('singingRoutes', () => {
     expect(res.headers.get('content-length')).toBe('7')
     expect(await res.text()).toBe('artifac')
   })
+
+  it('supports suffix range requests for artifact playback probes', async () => {
+    const app = createTestApp(createMockSingingService())
+    const artifactDir = join(runtimeEnv.tempDir, 'jobs', 'job-1', '05_mix')
+    const artifactPath = join(artifactDir, 'final_cover.wav')
+
+    await mkdir(artifactDir, { recursive: true })
+    await writeFile(artifactPath, 'artifact-bytes')
+
+    const res = await app.fetch(
+      new Request('http://localhost/artifacts/job-1/05_mix/final_cover.wav', {
+        headers: { Range: 'bytes=-4' },
+      }),
+      { user: testUser } as any,
+    )
+
+    expect(res.status).toBe(206)
+    expect(res.headers.get('content-range')).toBe('bytes 10-13/14')
+    expect(res.headers.get('content-length')).toBe('4')
+    expect(await res.text()).toBe('ytes')
+  })
 })

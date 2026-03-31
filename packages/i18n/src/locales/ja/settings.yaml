@@ -245,6 +245,10 @@ pages:
         title: すべてのデータを削除
         description: すべてのローカルの設定、プロバイダーの設定、モデルを消去します。
         delete: すべてのデータを削除
+      desktop-folder:
+        title: Open app data folder
+        description: Open AIRI's data folder in your file manager.
+        open: Open folder
       desktop:
         title: デスクトップの設定と状態をリセット
         description: AIRIデスクトップの設定と実行時の状態を消去します。
@@ -618,16 +622,16 @@ pages:
     provider:
       app-local-audio-transcription:
         title: アプリ (ローカル)
-        description: https://github.com/moeru-ai/xsai-transforers
+        description: https://github.com/moeru-ai/xsai-transformers
       app-local-audio-speech:
         title: アプリ (ローカル)
-        description: https://github.com/moeru-ai/xsai-transforers
+        description: https://github.com/moeru-ai/xsai-transformers
       browser-local-audio-transcription:
         title: ブラウザ (ローカル)
-        description: https://github.com/moeru-ai/xsai-transforers
+        description: https://github.com/moeru-ai/xsai-transformers
       browser-local-audio-speech:
         title: ブラウザ (ローカル)
-        description: https://github.com/moeru-ai/xsai-transforers
+        description: https://github.com/moeru-ai/xsai-transformers
       alibaba-cloud-model-studio:
         description: bailian.console.aliyun.com
         title: Alibaba Cloud Model Studio
@@ -788,6 +792,9 @@ pages:
       openai:
         description: openai.com
         title: OpenAI
+      azure-openai:
+        description: Azure OpenAI API
+        title: Azure OpenAI
       openai-compatible:
         description: OpenAI互換
         title: OpenAI互換
@@ -798,6 +805,9 @@ pages:
         description: n1n.ai - 高性能なAI APIプロバイダー。
         title: n1n
       openrouter:
+        description: openrouter.ai
+        title: OpenRouter
+      openrouter-audio-speech:
         description: openrouter.ai
         title: OpenRouter
       perplexity:
