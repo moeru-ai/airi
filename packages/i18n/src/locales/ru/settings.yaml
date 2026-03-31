@@ -245,6 +245,10 @@ pages:
         title: Удалить все данные
         description: Очистка всех локальных настроек, конфигурации провайдера и модели.
         delete: Удалить все данные
+      desktop-folder:
+        title: Open app data folder
+        description: Open AIRI's data folder in your file manager.
+        open: Open folder
       desktop:
         title: Сбросить настройки и состояния рабочего стола
         description: Очистить настройки AIRI рабочего стола и состояние рабочего времени.
@@ -788,6 +792,9 @@ pages:
       openai:
         description: openai.com
         title: OpenAI
+      azure-openai:
+        description: Azure OpenAI API
+        title: Azure OpenAI
       openai-compatible:
         description: Совместимый с OpenAI
         title: OpenAI Compatible
@@ -799,6 +806,9 @@ pages:
         title: n1n
       openrouter:
         description: Openrouter.ai
+        title: OpenRouter
+      openrouter-audio-speech:
+        description: openrouter.ai
         title: OpenRouter
       perplexity:
         description: perplexity.ai
