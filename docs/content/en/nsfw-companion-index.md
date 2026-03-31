@@ -243,6 +243,9 @@ Role:
   - `COMFYUI_DEFAULT_STEPS`
   - `COMFYUI_DEFAULT_CFG`
   - `COMFYUI_MAX_DIMENSION`
+- Stuck ComfyUI jobs can now fail cleanly through:
+  - `COMFYUI_SUBMIT_TIMEOUT_MS`
+  - `COMFYUI_RUNNING_TIMEOUT_MS`
 
 ### Still Open
 

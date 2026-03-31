@@ -81,6 +81,33 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
     return comfy as Record<string, unknown>
   }
 
+  function parseIsoTimestamp(value: unknown) {
+    if (typeof value !== 'string') {
+      return null
+    }
+
+    const timestamp = Date.parse(value)
+    return Number.isFinite(timestamp) ? timestamp : null
+  }
+
+  function isTimedOut(jobStatus: string, comfyMeta: Record<string, unknown>) {
+    const now = Date.now()
+    const submittedAt = parseIsoTimestamp(comfyMeta.submittedAt)
+    if (submittedAt !== null) {
+      const timeoutMs = jobStatus === 'submitting'
+        ? env.COMFYUI_SUBMIT_TIMEOUT_MS
+        : env.COMFYUI_RUNNING_TIMEOUT_MS
+      return now - submittedAt >= timeoutMs
+    }
+
+    const startedAt = parseIsoTimestamp(comfyMeta.startedAt)
+    if (startedAt !== null) {
+      return now - startedAt >= env.COMFYUI_RUNNING_TIMEOUT_MS
+    }
+
+    return false
+  }
+
   return {
     async handleMessage(event: NsfwImageEvent) {
       const jobId = event.payload.jobId
@@ -101,6 +128,26 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
       if (job.status === 'running' || job.status === 'submitting') {
         const history = await fetchComfyHistory(promptId)
         if (!history) {
+          if (isTimedOut(job.status, comfyMeta)) {
+            const timeoutMs = job.status === 'submitting'
+              ? env.COMFYUI_SUBMIT_TIMEOUT_MS
+              : env.COMFYUI_RUNNING_TIMEOUT_MS
+
+            await mediaService.updateImageJobStatus(jobId, 'failed', {
+              errorMessage: `ComfyUI job ${promptId} timed out after ${timeoutMs}ms without producing history`,
+              params: {
+                ...job.params,
+                comfy: {
+                  ...comfyMeta,
+                  promptId,
+                  clientId,
+                  timedOutAt: new Date().toISOString(),
+                },
+              },
+            })
+            return
+          }
+
           throw new JobStillRunningError(`ComfyUI job ${promptId} has not produced history yet`)
         }
 
@@ -171,6 +218,7 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
             queueNumber: submission.number,
             nodeErrors: submission.node_errors,
             submittedAt: new Date().toISOString(),
+            startedAt: new Date().toISOString(),
           },
         },
       })
