@@ -63,11 +63,10 @@ defineExpose({
 const { isOutside } = useElectronMouseInElement(islandRef)
 
 // Auto-hide logic with configurable delays
-const autoHideDelayMs = computed(() => autoHideDelay.value * 1000)
+const autoHideDelayMs = computed(() => autoHideControlsIsland.value ? autoHideDelay.value * 1000 : 1500)
 const autoShowDelayMs = computed(() => autoShowDelay.value * 1000)
-
 // Use refDebounced for auto-hide: isOutside becomes true after autoHideDelay
-const isOutsideDelayed = refDebounced(isOutside, computed(() => autoHideControlsIsland.value ? autoHideDelayMs.value : 1500))
+const isOutsideDelayed = refDebounced(isOutside, autoHideDelayMs)
 
 // Use refDebounced for auto-show: isOutside becomes false after autoShowDelay
 const isInsideDelayed = refDebounced(computed(() => !isOutside.value), autoShowDelayMs)
@@ -145,7 +144,7 @@ function refreshWindow() {
 <template>
   <div
     ref="islandRef"
-    fixed bottom-2 right-2
+    fixed bottom-2 right-2 bg-red
     :style="autoHideControlsIsland ? { opacity: isHidden ? hiddenOpacity : 1 } : {}"
     :class="[
       autoHideControlsIsland ? 'transition-opacity duration-300' : '',
