@@ -69,6 +69,19 @@ export function isTerminalSingingStatus(status: SingingJobDisplayStatus | JobSta
   return status === 'completed' || status === 'failed' || status === 'cancelled'
 }
 
+type SingingEnvironmentHealthLike = Pick<
+  import('@proj-airi/singing/types').SingingHealthResponse,
+  'ffmpeg' | 'pythonVenv' | 'pythonPackagesInstalled'
+>
+
+export function needsSingingPythonProvisioning(health: SingingEnvironmentHealthLike): boolean {
+  return !health.pythonVenv || !health.pythonPackagesInstalled
+}
+
+export function needsSingingEnvironmentProvisioning(health: SingingEnvironmentHealthLike): boolean {
+  return !health.ffmpeg || needsSingingPythonProvisioning(health)
+}
+
 export function getSingingElapsedSeconds(
   startedAt: number | null | undefined,
   updatedAt: number | null | undefined,

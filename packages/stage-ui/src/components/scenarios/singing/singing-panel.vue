@@ -21,6 +21,10 @@ import { useSingingTrainingRuntime } from '../../../composables/use-singing-trai
 import { useSingingArtifactsStore } from '../../../stores/modules/singing/artifacts'
 import { useSingingCoverStore } from '../../../stores/modules/singing/cover'
 import { useSingingTrainingStore } from '../../../stores/modules/singing/training'
+import {
+  needsSingingEnvironmentProvisioning,
+  needsSingingPythonProvisioning,
+} from '../../../types/singing'
 
 const activeTab = useLocalStorage<'cover' | 'training'>('singing/ui/active-tab', 'cover')
 
@@ -108,7 +112,7 @@ const needsEnvSetup = computed(() =>
   health.value.loaded
   && health.value.serverReachable
   && selfSetupSupported.value
-  && (!health.value.ffmpeg || !health.value.pythonVenv),
+  && needsSingingEnvironmentProvisioning(health.value),
 )
 
 const needsBaseModels = computed(() =>
@@ -127,8 +131,12 @@ const managedProvisioningIssues = computed(() => {
 
   if (!health.value.ffmpeg)
     issues.push('FFmpeg is not available on the server singing runtime.')
-  if (!health.value.pythonVenv)
-    issues.push('Python runtime or required packages are not ready on the server singing runtime.')
+  if (needsSingingPythonProvisioning(health.value)) {
+    const packageSuffix = health.value.pythonPackagesMissing.length > 0
+      ? ` Missing packages: ${health.value.pythonPackagesMissing.join(', ')}.`
+      : ''
+    issues.push(`Python runtime or required packages are not ready on the server singing runtime.${packageSuffix}`)
+  }
   if (!health.value.moduleLoaded)
     issues.push('The singing module could not be loaded by the runtime service.')
   if (!health.value.baseModelsReady)
@@ -412,7 +420,7 @@ async function continueAutoSetup() {
     return
   }
   // Trust completedOnce flag 鈥?avoid re-triggering if health cache hasn't caught up
-  if (!h.pythonVenv && !setupPython.value.running && !setupPython.value.completedOnce) {
+  if (needsSingingPythonProvisioning(h) && !setupPython.value.running && !setupPython.value.completedOnce) {
     if (!h.python && !h.uvAvailable) {
       autoSetupRunning.value = false
       return

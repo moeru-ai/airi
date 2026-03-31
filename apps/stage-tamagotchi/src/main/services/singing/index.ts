@@ -34,6 +34,10 @@ import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
 
 import {
+  buildDesktopSingingVerifyScriptLines,
+  resolveDesktopSingingVenvSetupMode,
+} from './python-setup'
+import {
   ensureDesktopPythonRuntimeSources,
   resolveDesktopSingingRuntimePaths,
 } from './runtime-paths'
@@ -350,6 +354,11 @@ async function checkPythonPackages(
     // If marked as missing, allow recheck after 60s to avoid spam
     if (age < 60_000)
       return _pkgCheckCache
+  }
+
+  if (existsSync(runtimePaths.venvDir) && !existsSync(runtimePaths.venvPython)) {
+    _pkgCheckCache = { installed: false, missing: ['venv interpreter missing'], checkedAt: Date.now() }
+    return _pkgCheckCache
   }
 
   if (!existsSync(runtimePaths.venvPython)) {
@@ -694,15 +703,23 @@ async function setupPythonVenv(runtimePaths: ReturnType<typeof resolveDesktopSin
   const uvPath = await findUv()
   const variant = await detectTorchVariant()
   const venvExists = existsSync(venvDir)
+  const venvInterpreterExists = existsSync(runtimePaths.venvPython)
+  const venvSetupMode = resolveDesktopSingingVenvSetupMode(venvExists, venvInterpreterExists)
 
   const venvPython = runtimePaths.venvPython
 
   // ── Step 1: Create venv (skip if exists) ──
-  if (venvExists) {
+  if (venvSetupMode === 'reuse') {
     appendLog(id, 'success', 'Virtual environment already exists, reusing')
     updateProgress(id, { step: 'venv', percent: 10 })
   }
   else {
+    if (venvSetupMode === 'recreate') {
+      appendLog(id, 'warn', 'Existing virtual environment is incomplete, rebuilding it')
+      await rm(venvDir, { recursive: true, force: true }).catch(() => {})
+      invalidatePkgCheckCache()
+    }
+
     updateProgress(id, { step: 'venv', percent: 5 })
     if (uvPath) {
       appendLog(id, 'success', `Found uv: ${uvPath}`)
@@ -729,6 +746,23 @@ async function setupPythonVenv(runtimePaths: ReturnType<typeof resolveDesktopSin
     appendLog(id, 'success', 'Virtual environment created')
   }
 
+  try {
+    await execFileAsync(venvPython, ['-m', 'pip', '--version'], {
+      timeout: 30_000,
+      shell: false,
+      windowsHide: true,
+    })
+  }
+  catch {
+    appendLog(id, 'warn', 'pip is missing from the virtual environment, bootstrapping it with ensurepip')
+    await execFileAsync(venvPython, ['-m', 'ensurepip', '--upgrade'], {
+      timeout: 60_000,
+      shell: false,
+      windowsHide: true,
+      cwd: runtimeDir,
+    })
+  }
+
   const pipCmd = { cmd: venvPython, prefix: ['-m', 'pip', 'install'] }
 
   appendLog(id, 'info', `GPU detection: ${variant.label}`)
@@ -737,18 +771,19 @@ async function setupPythonVenv(runtimePaths: ReturnType<typeof resolveDesktopSin
   updateProgress(id, { step: 'check', percent: 12, message: 'Checking installed packages...' })
   appendLog(id, 'info', 'Checking which packages are already installed...')
 
-  const hasTorch = venvExists && await checkPkgInstalled(venvPython, 'torch')
-  const hasRvc = venvExists && await checkPkgInstalled(venvPython, 'rvc_python')
-  const hasCrepe = venvExists && await checkPkgInstalled(venvPython, 'torchcrepe')
-  const hasLibrosa = venvExists && await checkPkgInstalled(venvPython, 'librosa')
-  const hasMelband = venvExists && await checkPkgInstalled(venvPython, 'mel_band_roformer')
-  const hasFairseq = venvExists && await checkPkgInstalled(venvPython, 'fairseq')
-  const hasFaiss = venvExists && await checkPkgInstalled(venvPython, 'faiss')
-  const hasScipy = venvExists && await checkPkgInstalled(venvPython, 'scipy')
-  const hasResemblyzer = venvExists && await checkPkgInstalled(venvPython, 'resemblyzer')
-  const hasFasterWhisper = venvExists && await checkPkgInstalled(venvPython, 'faster_whisper')
-  const hasPyloudnorm = venvExists && await checkPkgInstalled(venvPython, 'pyloudnorm')
-  const hasJiwer = venvExists && await checkPkgInstalled(venvPython, 'jiwer')
+  const canProbeExistingPackages = venvSetupMode === 'reuse'
+  const hasTorch = canProbeExistingPackages && await checkPkgInstalled(venvPython, 'torch')
+  const hasRvc = canProbeExistingPackages && await checkPkgInstalled(venvPython, 'rvc_python')
+  const hasCrepe = canProbeExistingPackages && await checkPkgInstalled(venvPython, 'torchcrepe')
+  const hasLibrosa = canProbeExistingPackages && await checkPkgInstalled(venvPython, 'librosa')
+  const hasMelband = canProbeExistingPackages && await checkPkgInstalled(venvPython, 'mel_band_roformer')
+  const hasFairseq = canProbeExistingPackages && await checkPkgInstalled(venvPython, 'fairseq')
+  const hasFaiss = canProbeExistingPackages && await checkPkgInstalled(venvPython, 'faiss')
+  const hasScipy = canProbeExistingPackages && await checkPkgInstalled(venvPython, 'scipy')
+  const hasResemblyzer = canProbeExistingPackages && await checkPkgInstalled(venvPython, 'resemblyzer')
+  const hasFasterWhisper = canProbeExistingPackages && await checkPkgInstalled(venvPython, 'faster_whisper')
+  const hasPyloudnorm = canProbeExistingPackages && await checkPkgInstalled(venvPython, 'pyloudnorm')
+  const hasJiwer = canProbeExistingPackages && await checkPkgInstalled(venvPython, 'jiwer')
 
   const steps: string[] = []
   if (!hasTorch)
@@ -864,44 +899,7 @@ async function setupPythonVenv(runtimePaths: ReturnType<typeof resolveDesktopSin
   appendLog(id, 'info', `[${totalSteps}/${totalSteps}] Verifying installation (torch, rvc, torchcrepe)...`)
 
   const verifyScriptPath = join(runtimeDir, '_verify_env.py')
-  const verifyLines = [
-    'import sys',
-    'ok = True',
-    'results = []',
-    '',
-    'checks = {',
-    ...REQUIRED_PYTHON_RUNTIME_IMPORTS.map(pkg => `    ${JSON.stringify(pkg.id)}: ${JSON.stringify(pkg.stmt)},`),
-    '}',
-    '',
-    'for name, stmt in checks.items():',
-    '    try:',
-    '        exec(stmt)',
-    '        results.append(f"{name}: ok")',
-    '    except ImportError as e:',
-    '        results.append(f"{name}: FAILED ({e})")',
-    '        ok = False',
-    '    except Exception:',
-    '        results.append(f"{name}: ok (non-import warning ignored)")',
-    '',
-    'try:',
-    '    import torch',
-    '    cuda_info = f"CUDA available: {torch.cuda.is_available()}"',
-    '    if torch.cuda.is_available():',
-    '        cuda_info += f", device: {torch.cuda.get_device_name(0)}"',
-    '    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():',
-    '        cuda_info += ", MPS available: True"',
-    '    results.append(cuda_info)',
-    'except: pass',
-    '',
-    'for r in results:',
-    '    print(r)',
-    '',
-    'if ok:',
-    '    print("ALL_PACKAGES_OK")',
-    'else:',
-    '    print("SOME_PACKAGES_MISSING")',
-    '    sys.exit(1)',
-  ]
+  const verifyLines = buildDesktopSingingVerifyScriptLines(REQUIRED_PYTHON_RUNTIME_IMPORTS)
 
   try {
     await writeFile(verifyScriptPath, verifyLines.join('\n'))
