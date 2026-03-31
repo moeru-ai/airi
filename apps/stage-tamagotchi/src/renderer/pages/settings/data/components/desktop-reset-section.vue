@@ -23,7 +23,7 @@ async function resetDesktopState() {
 </script>
 
 <template>
-  <div :class="['border-2 border-amber-300/80 rounded-xl bg-amber-50/80 p-4 shadow-sm', 'dark:border-amber-500/60 dark:bg-amber-500/10']">
+  <div :class="['border-2 border-amber-300/10 rounded-xl bg-amber-50/80 p-4 shadow-sm', 'dark:border-amber-500/10 dark:bg-amber-500/10']">
     <div :class="['grid grid-cols-1 items-start gap-3 md:grid-cols-[minmax(0,1fr)_auto]']">
       <div :class="['flex flex-col gap-1 md:max-w-[560px]']">
         <div :class="['text-lg text-amber-700 font-medium dark:text-amber-200']">

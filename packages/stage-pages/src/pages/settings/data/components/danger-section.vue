@@ -34,7 +34,7 @@ async function deleteAll() {
 </script>
 
 <template>
-  <div :class="['border-2 border-red-300/80 rounded-xl bg-red-50/80 p-4 shadow-sm', 'dark:border-red-500/60 dark:bg-red-500/10']">
+  <div :class="['border-2 border-red-300/10 rounded-xl bg-red-50/80 p-4 shadow-sm', 'dark:border-red-500/10 dark:bg-red-500/10']">
     <div :class="['flex flex-col gap-3']">
       <div>
         <div :class="['text-lg text-red-600 font-semibold dark:text-red-300']">
@@ -45,9 +45,9 @@ async function deleteAll() {
         </p>
       </div>
 
-      <div :class="['flex flex-col gap-3']">
-        <div :class="['grid gap-3 md:grid-cols-2']">
-          <div :class="['grid grid-cols-1 items-start gap-2 p-3 md:grid-cols-[minmax(0,1fr)_auto]']">
+      <div :class="['flex flex-col gap-5']">
+        <div :class="['grid gap-5']">
+          <div :class="['grid grid-cols-1 items-start gap-2 md:grid-cols-[minmax(0,1fr)_auto]']">
             <div :class="['flex flex-col gap-1 md:max-w-[560px]']">
               <div :class="['text-sm text-red-700 font-medium dark:text-red-200']">
                 {{ t('settings.pages.data.sections.providers.title') }}
@@ -69,7 +69,7 @@ async function deleteAll() {
             </div>
           </div>
 
-          <div :class="['grid grid-cols-1 items-start gap-2 p-3 md:grid-cols-[minmax(0,1fr)_auto]']">
+          <div :class="['grid grid-cols-1 items-start gap-2 md:grid-cols-[minmax(0,1fr)_auto]']">
             <div :class="['flex flex-col gap-1 md:max-w-[560px]']">
               <div :class="['text-sm text-red-700 font-medium dark:text-red-200']">
                 {{ t('settings.pages.data.sections.all.title') }}
