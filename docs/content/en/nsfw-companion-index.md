@@ -227,13 +227,18 @@ Role:
 - Local Postgres and Redis now run through `apps/server/docker-compose.yml`
 - `nsfw-image-consumer` now connects to local Postgres and Redis and applies migrations successfully
 - A real runtime test job was accepted by ComfyUI and appears in `queue_running`
+- A second ultra-light CPU smoke test was also accepted with:
+  - `sd_turbo.safetensors`
+  - `4` steps
+  - `512x512`
+  - no LoRA chain
 - Current end-to-end runtime path is proven through:
   - AIRI job record
   - Redis event
   - worker pickup
   - ComfyUI prompt submission
   - ComfyUI queue visibility
-- Final image completion is still slow in the current `--cpu` ComfyUI run, so completion timing is not yet representative of the intended GPU path
+- Final image completion is still slow in the current `--cpu` ComfyUI run, so completion timing and gallery reconciliation are not yet representative of the intended GPU path
 - The default workflow now supports env-level smoke-test tuning through:
   - `COMFYUI_DEFAULT_STEPS`
   - `COMFYUI_DEFAULT_CFG`
