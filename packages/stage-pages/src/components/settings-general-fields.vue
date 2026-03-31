@@ -8,17 +8,14 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const props = withDefaults(defineProps<{
-  needsControlsIslandIconSizeSetting?: boolean
   needsAutoHideControlsIslandSetting?: boolean
 }>(), {
-  needsControlsIslandIconSizeSetting: import.meta.env.RUNTIME_ENVIRONMENT === 'electron',
   needsAutoHideControlsIslandSetting: import.meta.env.RUNTIME_ENVIRONMENT === 'electron',
 })
 
 const settings = useSettings()
 const settingsControlsIsland = useSettingsControlsIsland()
 
-const showControlsIsland = computed(() => props.needsControlsIslandIconSizeSetting)
 const showAutoHideControlsIsland = computed(() => props.needsAutoHideControlsIslandSetting)
 const showAnalyticsSettings = computed(() => isPosthogAvailableInBuild())
 const analyticsToggleValue = computed({
@@ -61,24 +58,6 @@ const languages = computed(() => {
       :description="t('settings.language.description')"
       layout="horizontal"
       :options="languages"
-    />
-
-    <FieldCombobox
-      v-if="showControlsIsland"
-      v-model="settings.controlsIslandIconSize"
-      v-motion
-      :initial="{ opacity: 0, y: 10 }"
-      :enter="{ opacity: 1, y: 0 }"
-      :duration="250 + (4 * 10)"
-      :delay="4 * 50"
-      :class="['transition-all', 'ease-in-out', 'duration-250']"
-      :label="t('settings.controls-island.icon-size.title')"
-      :description="t('settings.controls-island.icon-size.description')"
-      :options="[
-        { value: 'auto', label: t('settings.controls-island.icon-size.auto') },
-        { value: 'large', label: t('settings.controls-island.icon-size.large') },
-        { value: 'small', label: t('settings.controls-island.icon-size.small') },
-      ]"
     />
 
     <FieldCheckbox
