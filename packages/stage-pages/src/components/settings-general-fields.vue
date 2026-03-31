@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { all } from '@proj-airi/i18n'
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { isPosthogAvailableInBuild } from '@proj-airi/stage-ui/stores/analytics'
 import { useSettings, useSettingsControlsIsland } from '@proj-airi/stage-ui/stores/settings'
@@ -10,7 +11,7 @@ import { useI18n } from 'vue-i18n'
 const props = withDefaults(defineProps<{
   needsAutoHideControlsIslandSetting?: boolean
 }>(), {
-  needsAutoHideControlsIslandSetting: import.meta.env.RUNTIME_ENVIRONMENT === 'electron',
+  needsAutoHideControlsIslandSetting: isStageTamagotchi(),
 })
 
 const settings = useSettings()
