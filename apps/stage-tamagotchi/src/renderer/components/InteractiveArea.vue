@@ -64,6 +64,7 @@ async function handleSend() {
 
   try {
     const providerConfig = providersStore.getProviderConfig(activeProvider.value)
+
     await ingest(textToSend, {
       model: activeModel.value,
       chatProvider: await providersStore.getProviderInstance<ChatProvider>(activeProvider.value),

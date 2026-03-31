@@ -30,7 +30,9 @@
   ],
   "scripts": {
     "build": "tsdown",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "test:run": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
     "@moeru/eventa": "catalog:",
