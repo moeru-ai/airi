@@ -1,10 +1,10 @@
-<script setup lang="ts">
+<script setup lang="ts" generic="T extends string | number">
 import { RadioGroupItem, RadioGroupRoot } from 'reka-ui'
 import { computed } from 'vue'
 
 interface SelectTabOption {
   label: string
-  value: string | number
+  value: T
   description?: string
   icon?: string
 }
@@ -20,7 +20,7 @@ const props = withDefaults(defineProps<{
   size: 'md',
 })
 
-const modelValue = defineModel<string | number>({ required: true })
+const modelValue = defineModel<T>({ required: true })
 
 const activeIndex = computed(() => props.options.findIndex(option => option.value === modelValue.value))
 const itemCount = computed(() => props.options.length || 1)
