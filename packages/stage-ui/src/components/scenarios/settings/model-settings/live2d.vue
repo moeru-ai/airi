@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
 
-import { defaultModelParameters, useLive2d } from '@proj-airi/stage-ui-live2d'
+import { defaultModelParameters, useExpressionStore, useLive2d } from '@proj-airi/stage-ui-live2d'
 import { OPFSCache } from '@proj-airi/stage-ui-live2d/utils/opfs-loader'
 import { Button, Checkbox, FieldCheckbox, FieldCombobox, FieldRange, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -31,6 +31,7 @@ const {
   live2dIdleAnimationEnabled,
   live2dAutoBlinkEnabled,
   live2dForceAutoBlinkEnabled,
+  live2dExpressionEnabled,
   live2dShadowEnabled,
   live2dMaxFps,
 } = storeToRefs(settings)
@@ -42,6 +43,23 @@ const {
   modelParameters,
   currentMotion,
 } = storeToRefs(live2d)
+
+const expressionStore = useExpressionStore()
+const { expressions, expressionGroups } = storeToRefs(expressionStore)
+
+/**
+ * Check if an expression group is currently active.
+ * Only considers non-zero exp3 params (zero-valued params are "reset" instructions).
+ * A group is active when at least one of its activation params matches the exp3 value.
+ */
+function isGroupActive(group: { parameters: { parameterId: string, value: number }[] }): boolean {
+  return group.parameters.some((p) => {
+    if (p.value === 0)
+      return false // Skip reset params
+    const entry = expressions.value.get(p.parameterId)
+    return entry != null && entry.currentValue === p.value
+  })
+}
 
 const selectedRuntimeMotion = ref<string>('')
 const runtimeMotions = ref<Array<{ name: string, displayPath: string, group: string, index: number }>>([])
@@ -68,6 +86,13 @@ watch(() => live2d.availableMotions, (motions) => {
   console.info('Available motions:', runtimeMotions.value)
 }, { immediate: true })
 
+const llmModeOptions = [
+  { value: 'none', label: 'None' },
+  { value: 'all', label: 'All' },
+  { value: 'custom', label: 'Custom' },
+]
+
+// Get available runtime motions from the model
 onMounted(() => {
   // Restore selected motion
   const savedPath = localStorage.getItem('selected-runtime-motion')
@@ -295,17 +320,23 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
       </template>
     </FieldCombobox>
 
-    <div :class="['mt-4', 'flex', 'items-center', 'justify-between']">
-      <div :class="['flex', 'flex-col', 'gap-1']">
-        <span :class="['text-sm', 'text-neutral-600', 'dark:text-neutral-400']">
-          {{ t('settings.live2d.fps.title') }}
-        </span>
-        <span :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
-          {{ t('settings.live2d.fps.description') }}
-        </span>
+    <label class="flex flex-col gap-4">
+      <div :class="['flex items-center gap-2', 'flex-row']">
+        <div class="flex-1">
+          <div class="flex items-center gap-1 text-sm font-medium">
+            <slot name="label">
+              {{ t('settings.live2d.fps.title') }}
+            </slot>
+          </div>
+          <div class="text-xs text-neutral-500 dark:text-neutral-400">
+            <slot name="description">
+              {{ t('settings.live2d.fps.description') }}
+            </slot>
+          </div>
+        </div>
+        <SelectTab v-model="live2dMaxFps" :options="fpsOptions" size="sm" :class="['shrink-0']" />
       </div>
-      <SelectTab v-model="live2dMaxFps" :options="fpsOptions" size="sm" :class="['w-48', 'shrink-0']" />
-    </div>
+    </label>
 
     <div mt-4 flex items-center justify-between>
       <span text-sm text-neutral-600 dark:text-neutral-400>Auto Blink</span>
@@ -589,5 +620,83 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
         </div>
       </template>
     </FieldRange>
+  </Section>
+  <Section
+    title="Expressions"
+    icon="i-solar:face-scan-circle-bold-duotone"
+    :class="[
+      'rounded-xl',
+      'bg-white/80  dark:bg-black/75',
+      'backdrop-blur-lg',
+    ]"
+    size="sm"
+    :expand="false"
+  >
+    <div flex items-center justify-between>
+      <span text-sm text-neutral-600 dark:text-neutral-400>Expression System</span>
+      <Checkbox v-model="live2dExpressionEnabled" />
+    </div>
+    <div v-if="!live2dExpressionEnabled" py-2 text-xs text-neutral-500 dark:text-neutral-400>
+      SDK expression manager and eye blink are preserved when disabled.
+    </div>
+    <template v-else-if="expressionGroups.size === 0">
+      <div py-2 text-sm text-neutral-500 dark:text-neutral-400>
+        No expressions available for this model.
+      </div>
+    </template>
+    <template v-else>
+      <!-- Expression preview toggles -->
+      <div flex flex-col gap-2>
+        <div
+          v-for="[groupName, group] in expressionGroups"
+          :key="groupName"
+          flex items-center justify-between
+        >
+          <span text-sm text-neutral-700 dark:text-neutral-300>{{ groupName }}</span>
+          <Checkbox
+            :model-value="isGroupActive(group)"
+            @update:model-value="expressionStore.toggle(groupName)"
+          />
+        </div>
+      </div>
+
+      <div mt-4 flex items-center gap-3>
+        <span whitespace-nowrap text-sm text-neutral-600 dark:text-neutral-400>Expose to LLM</span>
+        <SelectTab
+          :model-value="expressionStore.llmMode"
+          :options="llmModeOptions"
+          size="sm"
+          @update:model-value="(v: string) => expressionStore.setLlmMode(v as 'all' | 'none' | 'custom')"
+        />
+      </div>
+      <span v-if="expressionStore.llmMode !== 'none'" text-xs text-neutral-500 dark:text-neutral-400>
+        LLM tool integration is not yet wired up.
+      </span>
+
+      <!-- Custom per-expression LLM toggles (only when mode = 'custom') -->
+      <div v-if="expressionStore.llmMode === 'custom'" mt-2 flex flex-col gap-2 border-l-2 border-neutral-200 pl-3 dark:border-neutral-700>
+        <div
+          v-for="[groupName] in expressionGroups"
+          :key="`llm-${groupName}`"
+          flex items-center justify-between
+        >
+          <span text-xs text-neutral-600 dark:text-neutral-400>{{ groupName }}</span>
+          <Checkbox
+            :model-value="expressionStore.llmExposed.get(groupName) ?? false"
+            @update:model-value="(v: boolean) => expressionStore.setLlmExposed(groupName, v)"
+          />
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div mt-4 flex gap-2>
+        <Button variant="secondary" @click="expressionStore.saveDefaults()">
+          Save Expression Defaults
+        </Button>
+        <Button variant="secondary" @click="expressionStore.resetAll()">
+          Reset All Expressions
+        </Button>
+      </div>
+    </template>
   </Section>
 </template>
