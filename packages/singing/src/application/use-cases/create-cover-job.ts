@@ -11,6 +11,7 @@ import { validateCoverRequest } from '../../pipeline/guards/input-guard'
  */
 export interface CreateCoverJobDeps {
   queue: JobQueue
+  ownerId?: string
 }
 
 export async function createCoverJob(
@@ -24,6 +25,7 @@ export async function createCoverJob(
 
   await deps.queue.enqueue({
     id: jobId,
+    ownerId: deps.ownerId,
     status: 'pending',
     createdAt: now,
     updatedAt: now,

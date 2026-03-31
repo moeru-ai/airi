@@ -33,6 +33,7 @@ export async function retryCoverJob(
 
   await deps.queue.enqueue({
     id: newId,
+    ownerId: job.ownerId,
     status: 'pending',
     createdAt: now,
     updatedAt: now,

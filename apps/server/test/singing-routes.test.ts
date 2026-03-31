@@ -7,6 +7,7 @@ import { existsSync } from 'node:fs'
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 
+import { SingingError, SingingErrorCode } from '@proj-airi/singing'
 import { Hono } from 'hono'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -112,7 +113,9 @@ describe('singingRoutes', () => {
     expect(res.status).toBe(201)
     expect(singingService.createTrain).toHaveBeenCalledTimes(1)
 
-    const request = vi.mocked(singingService.createTrain).mock.calls[0][0] as Record<string, unknown>
+    expect(singingService.createTrain).toHaveBeenCalledWith(testUser.id, expect.any(Object))
+
+    const request = vi.mocked(singingService.createTrain).mock.calls[0][1] as Record<string, unknown>
     expect(request.voiceId).toBe('voice-a')
     expect(request.epochs).toBe(12)
     expect(request.batchSize).toBe(4)
@@ -229,5 +232,39 @@ describe('singingRoutes', () => {
     expect(res.headers.get('content-range')).toBe('bytes 10-13/14')
     expect(res.headers.get('content-length')).toBe('4')
     expect(await res.text()).toBe('ytes')
+  })
+
+  it('returns 404 when the authenticated user does not own the requested job', async () => {
+    const singingService = createMockSingingService()
+    vi.mocked(singingService.getJob).mockRejectedValueOnce(
+      new SingingError(SingingErrorCode.JobNotFound, 'Job hidden from other users'),
+    )
+    const app = createTestApp(singingService)
+
+    const res = await app.fetch(
+      new Request('http://localhost/jobs/foreign-job'),
+      { user: testUser } as any,
+    )
+
+    expect(res.status).toBe(404)
+    expect(singingService.getJob).toHaveBeenCalledWith(testUser.id, 'foreign-job')
+  })
+
+  it('checks job ownership before serving artifacts', async () => {
+    const singingService = createMockSingingService()
+    const app = createTestApp(singingService)
+    const artifactDir = join(runtimeEnv.tempDir, 'jobs', 'job-1', '05_mix')
+    const artifactPath = join(artifactDir, 'final_cover.wav')
+
+    await mkdir(artifactDir, { recursive: true })
+    await writeFile(artifactPath, 'artifact-bytes')
+
+    const res = await app.fetch(
+      new Request('http://localhost/artifacts/job-1/05_mix/final_cover.wav'),
+      { user: testUser } as any,
+    )
+
+    expect(res.status).toBe(200)
+    expect(singingService.getJob).toHaveBeenCalledWith(testUser.id, 'job-1')
   })
 })

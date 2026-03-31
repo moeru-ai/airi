@@ -29,11 +29,11 @@ const MAX_RETRY_ATTEMPTS = 8
  * [singing] Application service for the singing voice conversion module.
  */
 export interface SingingService {
-  createCover: (request: CreateCoverRequest) => Promise<{ jobId: string, status: string }>
-  createCoverReference: (request: CreateCoverRequest) => Promise<{ jobId: string, status: string }>
-  getJob: (jobId: string) => Promise<unknown>
-  cancelJob: (jobId: string) => Promise<{ cancelled: boolean }>
-  createTrain: (request: CreateTrainRequest) => Promise<{ jobId: string, status: string }>
+  createCover: (userId: string, request: CreateCoverRequest) => Promise<{ jobId: string, status: string }>
+  createCoverReference: (userId: string, request: CreateCoverRequest) => Promise<{ jobId: string, status: string }>
+  getJob: (userId: string, jobId: string) => Promise<unknown>
+  cancelJob: (userId: string, jobId: string) => Promise<{ cancelled: boolean }>
+  createTrain: (userId: string, request: CreateTrainRequest) => Promise<{ jobId: string, status: string }>
 }
 
 export interface SingingServiceDeps {
@@ -139,6 +139,15 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
 
   function releaseTrainingVoiceLock(voiceId: string): void {
     activeTrainingVoices.delete(voiceId)
+  }
+
+  async function getOwnedJobOrThrow(userId: string, jobId: string) {
+    const job = await queue.getJob(jobId)
+    if (!job || job.ownerId !== userId) {
+      throw new SingingError(SingingErrorCode.JobNotFound, `Job ${jobId} not found`)
+    }
+
+    return job
   }
 
   async function cleanupUploadFile(inputUri: string): Promise<void> {
@@ -375,23 +384,25 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
   }
 
   return {
-    async createCover(request) {
-      const result = await createCoverJob(request, { queue })
+    async createCover(userId, request) {
+      const result = await createCoverJob(request, { queue, ownerId: userId })
       void executePipelineAsync(result.jobId, request).catch(err => logDetachedJobFailure(result.jobId, 'cover', err))
       return result
     },
 
-    async createCoverReference(request) {
-      const result = await createCoverJob(request, { queue })
+    async createCoverReference(userId, request) {
+      const result = await createCoverJob(request, { queue, ownerId: userId })
       void executePipelineAsync(result.jobId, request).catch(err => logDetachedJobFailure(result.jobId, 'cover', err))
       return result
     },
 
-    async getJob(jobId) {
+    async getJob(userId, jobId) {
+      await getOwnedJobOrThrow(userId, jobId)
       return getCoverJob(jobId, { queue })
     },
 
-    async cancelJob(jobId) {
+    async cancelJob(userId, jobId) {
+      await getOwnedJobOrThrow(userId, jobId)
       const ac = activeJobs.get(jobId)
       if (ac) {
         ac.abort()
@@ -399,7 +410,7 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
       return cancelCoverJob(jobId, { queue })
     },
 
-    async createTrain(request) {
+    async createTrain(userId, request) {
       if (!acquireTrainingVoiceLock(request.voiceId)) {
         throw new SingingError(
           SingingErrorCode.InvalidInput,
@@ -409,7 +420,7 @@ export function createSingingService(deps?: SingingServiceDeps): SingingService 
 
       let result
       try {
-        result = await createTrainJob(request, { queue })
+        result = await createTrainJob(request, { queue, ownerId: userId })
       }
       catch (error) {
         releaseTrainingVoiceLock(request.voiceId)

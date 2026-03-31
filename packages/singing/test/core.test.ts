@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 import { InMemoryQueue } from '../src/adapters/queue/in-memory-queue'
 import { cancelCoverJob } from '../src/application/use-cases/cancel-cover-job'
+import { createCoverJob } from '../src/application/use-cases/create-cover-job'
 import { createTrainJob } from '../src/application/use-cases/create-train-job'
 import { PipelineStage } from '../src/constants/pipeline-stage'
 import { SingingError, SingingErrorCode } from '../src/contracts/error'
@@ -256,6 +257,29 @@ describe('cancelCoverJob', () => {
 })
 
 describe('createTrainJob', () => {
+  it('persists ownerId metadata on newly created jobs', async () => {
+    const q = new InMemoryQueue()
+    const root = resolve(process.cwd(), '.tmp-cover-job-owner')
+    const inputPath = resolve(root, 'input.wav')
+
+    await rm(root, { recursive: true, force: true })
+    await mkdir(root, { recursive: true })
+    await writeFile(inputPath, 'audio')
+
+    const { jobId } = await createCoverJob({
+      inputUri: inputPath,
+      mode: 'rvc',
+      separator: { backend: 'melband' as any },
+      pitch: { backend: 'rmvpe' as any },
+      converter: { backend: 'rvc', voiceId: 'owner-test' } as any,
+    }, { queue: q, ownerId: 'owner-1' })
+
+    const job = await q.getJob(jobId)
+    expect(job?.ownerId).toBe('owner-1')
+
+    await rm(root, { recursive: true, force: true })
+  })
+
   it('rejects a training request whose voiceId attempts filesystem traversal', async () => {
     const q = new InMemoryQueue()
     const root = resolve(process.cwd(), '.tmp-train-job-validation')

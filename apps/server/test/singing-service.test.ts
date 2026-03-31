@@ -19,6 +19,9 @@ const runtimeEnv = vi.hoisted(() => ({
   voiceModelsDir: '',
   tempDir: '',
 }))
+const TEST_USER_ID = 'user-1'
+const OTHER_USER_ID = 'user-2'
+interface MockCreateJobDeps { queue: InMemoryQueue, ownerId?: string }
 
 vi.mock('@proj-airi/singing', async (importOriginal) => {
   const actual: Record<string, unknown> = await importOriginal()
@@ -27,16 +30,16 @@ vi.mock('@proj-airi/singing', async (importOriginal) => {
   return {
     ...actual,
     resolveRuntimeEnv: vi.fn(() => runtimeEnv),
-    createCoverJob: vi.fn(async (request: unknown, deps: { queue: InMemoryQueue }) => {
+    createCoverJob: vi.fn(async (request: unknown, deps: MockCreateJobDeps) => {
       const jobId = randomUUID()
       const now = new Date().toISOString()
-      await deps.queue.enqueue({ id: jobId, status: 'pending', createdAt: now, updatedAt: now, payload: request })
+      await deps.queue.enqueue({ id: jobId, ownerId: deps.ownerId, status: 'pending', createdAt: now, updatedAt: now, payload: request })
       return { jobId, status: 'pending' }
     }),
-    createTrainJob: vi.fn(async (request: unknown, deps: { queue: InMemoryQueue }) => {
+    createTrainJob: vi.fn(async (request: unknown, deps: MockCreateJobDeps) => {
       const jobId = randomUUID()
       const now = new Date().toISOString()
-      await deps.queue.enqueue({ id: jobId, status: 'pending', createdAt: now, updatedAt: now, payload: request })
+      await deps.queue.enqueue({ id: jobId, ownerId: deps.ownerId, status: 'pending', createdAt: now, updatedAt: now, payload: request })
       return { jobId, status: 'pending' }
     }),
     runCoverPipeline: vi.fn(),
@@ -200,7 +203,7 @@ describe('createSingingService - cover lifecycle', () => {
     mockRunCoverPipeline.mockResolvedValue(successResult())
 
     const svc = createSingingService({ queue })
-    const { jobId } = await svc.createCover(makeCoverRequest())
+    const { jobId } = await svc.createCover(TEST_USER_ID, makeCoverRequest())
 
     const status = await waitForJobStatus(queue, jobId, TERMINAL_STATES)
     expect(status).toBe('completed')
@@ -211,7 +214,7 @@ describe('createSingingService - cover lifecycle', () => {
     mockRunCoverPipeline.mockResolvedValue(failedResult('bad audio'))
 
     const svc = createSingingService({ queue })
-    const { jobId } = await svc.createCover(makeCoverRequest())
+    const { jobId } = await svc.createCover(TEST_USER_ID, makeCoverRequest())
 
     const status = await waitForJobStatus(queue, jobId, TERMINAL_STATES)
     expect(status).toBe('failed')
@@ -225,7 +228,7 @@ describe('createSingingService - cover lifecycle', () => {
     mockRunCoverPipeline.mockRejectedValue(new Error('crash'))
 
     const svc = createSingingService({ queue })
-    const { jobId } = await svc.createCover(makeCoverRequest())
+    const { jobId } = await svc.createCover(TEST_USER_ID, makeCoverRequest())
 
     const status = await waitForJobStatus(queue, jobId, TERMINAL_STATES)
     expect(status).toBe('failed')
@@ -236,7 +239,7 @@ describe('createSingingService - cover lifecycle', () => {
     mockRunCoverPipeline.mockRejectedValue(new Error('crash'))
 
     const svc = createSingingService({ queue })
-    const { jobId } = await svc.createCover(makeCoverRequest())
+    const { jobId } = await svc.createCover(TEST_USER_ID, makeCoverRequest())
 
     await vi.waitFor(() => {
       expect(warnSpy).toHaveBeenCalledWith(
@@ -244,6 +247,29 @@ describe('createSingingService - cover lifecycle', () => {
         'queue persistence unavailable',
       )
     })
+  })
+
+  it('persists the creating user as the singing job owner', async () => {
+    const queue = new InMemoryQueue()
+    mockRunCoverPipeline.mockResolvedValue(successResult())
+
+    const svc = createSingingService({ queue })
+    const { jobId } = await svc.createCover(TEST_USER_ID, makeCoverRequest())
+
+    await waitForJobStatus(queue, jobId, TERMINAL_STATES)
+
+    const job = await queue.getJob(jobId)
+    expect(job?.ownerId).toBe(TEST_USER_ID)
+  })
+
+  it('hides another user`s job state behind JobNotFound', async () => {
+    const queue = new InMemoryQueue()
+    mockRunCoverPipeline.mockResolvedValue(successResult())
+
+    const svc = createSingingService({ queue })
+    const { jobId } = await svc.createCover(TEST_USER_ID, makeCoverRequest())
+
+    await expect(svc.getJob(OTHER_USER_ID, jobId)).rejects.toThrow(SingingError)
   })
 })
 
@@ -264,11 +290,11 @@ describe('createSingingService - cancel semantics', () => {
     })
 
     const svc = createSingingService({ queue })
-    const { jobId } = await svc.createCover(makeCoverRequest())
+    const { jobId } = await svc.createCover(TEST_USER_ID, makeCoverRequest())
 
     await waitForJobStatus(queue, jobId, new Set(['running']), 2000)
 
-    await svc.cancelJob(jobId)
+    await svc.cancelJob(TEST_USER_ID, jobId)
     resolveBlock()
 
     const status = await waitForJobStatus(queue, jobId, TERMINAL_STATES)
@@ -290,17 +316,27 @@ describe('createSingingService - cancel semantics', () => {
     })
 
     const svc = createSingingService({ queue })
-    const { jobId } = await svc.createCover(makeCoverRequest())
+    const { jobId } = await svc.createCover(TEST_USER_ID, makeCoverRequest())
 
     await waitForJobStatus(queue, jobId, new Set(['running']), 2000)
     expect(receivedSignal).toBeInstanceOf(AbortSignal)
     expect(receivedSignal!.aborted).toBe(false)
 
-    await svc.cancelJob(jobId)
+    await svc.cancelJob(TEST_USER_ID, jobId)
     expect(receivedSignal!.aborted).toBe(true)
 
     resolveBlock()
     await waitForJobStatus(queue, jobId, TERMINAL_STATES)
+  })
+
+  it('refuses to cancel another user`s job', async () => {
+    const queue = new InMemoryQueue()
+    mockRunCoverPipeline.mockResolvedValue(successResult())
+
+    const svc = createSingingService({ queue })
+    const { jobId } = await svc.createCover(TEST_USER_ID, makeCoverRequest())
+
+    await expect(svc.cancelJob(OTHER_USER_ID, jobId)).rejects.toThrow(SingingError)
   })
 })
 
@@ -313,7 +349,7 @@ describe('createSingingService - retry with parameter adjustment', () => {
     mockRerunConversionStages.mockResolvedValue(gatePassedResult())
 
     const svc = createSingingService({ queue })
-    const { jobId } = await svc.createCover(request)
+    const { jobId } = await svc.createCover(TEST_USER_ID, request)
 
     const status = await waitForJobStatus(queue, jobId, TERMINAL_STATES)
     expect(status).toBe('completed')
@@ -331,7 +367,7 @@ describe('createSingingService - retry with parameter adjustment', () => {
     mockRerunConversionStages.mockResolvedValue(gateFailedResult(['tearing_risk']))
 
     const svc = createSingingService({ queue })
-    const { jobId } = await svc.createCover(request)
+    const { jobId } = await svc.createCover(TEST_USER_ID, request)
 
     const status = await waitForJobStatus(queue, jobId, TERMINAL_STATES)
     expect(status).toBe('failed')
@@ -352,22 +388,22 @@ describe('createSingingService - training mutex', () => {
       releaseCreateTrainJob = resolve
     })
 
-    createTrainJobMock.mockImplementation(async (request: unknown, deps: { queue: InMemoryQueue }) => {
+    createTrainJobMock.mockImplementationOnce(async (request: unknown, deps: MockCreateJobDeps) => {
       await createTrainJobBlocked
       const jobId = 'locked-train-job'
       const now = new Date().toISOString()
-      await deps.queue.enqueue({ id: jobId, status: 'pending', createdAt: now, updatedAt: now, payload: request })
+      await deps.queue.enqueue({ id: jobId, ownerId: deps.ownerId, status: 'pending', createdAt: now, updatedAt: now, payload: request })
       return { jobId, status: 'pending' }
     })
     mockRunTrainingPipeline.mockResolvedValue(undefined)
 
     const svc = createSingingService({ queue })
-    const firstCreate = svc.createTrain(makeTrainRequest({ voiceId: 'race_voice' }))
+    const firstCreate = svc.createTrain(TEST_USER_ID, makeTrainRequest({ voiceId: 'race_voice' }))
 
     await Promise.resolve()
 
     await expect(
-      svc.createTrain(makeTrainRequest({ voiceId: 'race_voice' })),
+      svc.createTrain(TEST_USER_ID, makeTrainRequest({ voiceId: 'race_voice' })),
     ).rejects.toThrow(SingingError)
 
     releaseCreateTrainJob()
@@ -386,10 +422,10 @@ describe('createSingingService - training mutex', () => {
     })
 
     const svc = createSingingService({ queue })
-    await svc.createTrain(makeTrainRequest({ voiceId: 'shared_voice' }))
+    await svc.createTrain(TEST_USER_ID, makeTrainRequest({ voiceId: 'shared_voice' }))
 
     await expect(
-      svc.createTrain(makeTrainRequest({ voiceId: 'shared_voice' })),
+      svc.createTrain(TEST_USER_ID, makeTrainRequest({ voiceId: 'shared_voice' })),
     ).rejects.toThrow(SingingError)
 
     resolveTraining()
@@ -407,9 +443,9 @@ describe('createSingingService - training mutex', () => {
     })
 
     const svc = createSingingService({ queue })
-    await svc.createTrain(makeTrainRequest({ voiceId: 'voice_a' }))
+    await svc.createTrain(TEST_USER_ID, makeTrainRequest({ voiceId: 'voice_a' }))
 
-    const result = await svc.createTrain(makeTrainRequest({ voiceId: 'voice_b' }))
+    const result = await svc.createTrain(TEST_USER_ID, makeTrainRequest({ voiceId: 'voice_b' }))
     expect(result.jobId).toBeDefined()
 
     resolveTraining()
@@ -420,11 +456,11 @@ describe('createSingingService - training mutex', () => {
     mockRunTrainingPipeline.mockResolvedValue(undefined)
 
     const svc = createSingingService({ queue })
-    const { jobId } = await svc.createTrain(makeTrainRequest({ voiceId: 'reuse_voice' }))
+    const { jobId } = await svc.createTrain(TEST_USER_ID, makeTrainRequest({ voiceId: 'reuse_voice' }))
 
     await waitForJobStatus(queue, jobId, TERMINAL_STATES)
 
-    const result2 = await svc.createTrain(makeTrainRequest({ voiceId: 'reuse_voice' }))
+    const result2 = await svc.createTrain(TEST_USER_ID, makeTrainRequest({ voiceId: 'reuse_voice' }))
     expect(result2.jobId).toBeDefined()
   })
 })
@@ -435,7 +471,7 @@ describe('createSingingService - training lifecycle', () => {
     mockRunTrainingPipeline.mockResolvedValue(undefined)
 
     const svc = createSingingService({ queue })
-    const { jobId } = await svc.createTrain(makeTrainRequest())
+    const { jobId } = await svc.createTrain(TEST_USER_ID, makeTrainRequest())
 
     const status = await waitForJobStatus(queue, jobId, TERMINAL_STATES)
     expect(status).toBe('completed')
@@ -446,7 +482,7 @@ describe('createSingingService - training lifecycle', () => {
     mockRunTrainingPipeline.mockRejectedValue(new Error('GPU OOM'))
 
     const svc = createSingingService({ queue })
-    const { jobId } = await svc.createTrain(makeTrainRequest())
+    const { jobId } = await svc.createTrain(TEST_USER_ID, makeTrainRequest())
 
     const status = await waitForJobStatus(queue, jobId, TERMINAL_STATES)
     expect(status).toBe('failed')
@@ -466,11 +502,11 @@ describe('createSingingService - training lifecycle', () => {
     })
 
     const svc = createSingingService({ queue })
-    const { jobId } = await svc.createTrain(makeTrainRequest())
+    const { jobId } = await svc.createTrain(TEST_USER_ID, makeTrainRequest())
 
     await waitForJobStatus(queue, jobId, new Set(['running']), 2000)
 
-    await svc.cancelJob(jobId)
+    await svc.cancelJob(TEST_USER_ID, jobId)
     resolveTraining()
 
     const status = await waitForJobStatus(queue, jobId, TERMINAL_STATES)
@@ -483,7 +519,7 @@ describe('createSingingService - training lifecycle', () => {
     mockRunTrainingPipeline.mockRejectedValue(new Error('GPU OOM'))
 
     const svc = createSingingService({ queue })
-    const { jobId } = await svc.createTrain(makeTrainRequest())
+    const { jobId } = await svc.createTrain(TEST_USER_ID, makeTrainRequest())
 
     await vi.waitFor(() => {
       expect(warnSpy).toHaveBeenCalledWith(
@@ -505,7 +541,7 @@ describe('createSingingService - managed upload cleanup', () => {
     await writeFile(uploadPath, 'audio')
 
     const svc = createSingingService({ queue })
-    const { jobId } = await svc.createCover(makeCoverRequest({ inputUri: uploadPath }))
+    const { jobId } = await svc.createCover(TEST_USER_ID, makeCoverRequest({ inputUri: uploadPath }))
 
     await waitForJobStatus(queue, jobId, TERMINAL_STATES)
     await vi.waitFor(() => {
@@ -523,7 +559,7 @@ describe('createSingingService - managed upload cleanup', () => {
     await writeFile(outsidePath, 'audio')
 
     const svc = createSingingService({ queue })
-    const { jobId } = await svc.createCover(makeCoverRequest({ inputUri: outsidePath }))
+    const { jobId } = await svc.createCover(TEST_USER_ID, makeCoverRequest({ inputUri: outsidePath }))
 
     await waitForJobStatus(queue, jobId, TERMINAL_STATES)
     expect(existsSync(outsidePath)).toBe(true)

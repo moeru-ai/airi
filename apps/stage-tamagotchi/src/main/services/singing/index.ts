@@ -41,6 +41,7 @@ import {
   ensureDesktopPythonRuntimeSources,
   resolveDesktopSingingRuntimePaths,
 } from './runtime-paths'
+import { createSerializedOptionalInitializer } from './serialized-optional-initializer'
 
 const log = useLogger('singing-server')
 const execFileAsync = promisify(execFile)
@@ -1107,10 +1108,9 @@ function buildApp(dataDir: string) {
     cancelJob: (id: string) => Promise<any>
     createTrain: (req: any, datasetPath: string) => Promise<any>
   } | null = null
+  let trainingCleanupHandlersRegistered = false
 
-  async function ensurePipelineService() {
-    if (pipelineService)
-      return pipelineService
+  const ensurePipelineService = createSerializedOptionalInitializer(async () => {
     const mod = await getSingingModule()
     if (!mod)
       return null
@@ -1675,15 +1675,18 @@ function buildApp(dataDir: string) {
         killTrainingProcess(vid)
       }
     }
-    process.on('exit', cleanupAllTrainingProcesses)
-    process.on('SIGINT', () => {
-      cleanupAllTrainingProcesses()
-      process.exit(0)
-    })
-    process.on('SIGTERM', () => {
-      cleanupAllTrainingProcesses()
-      process.exit(0)
-    })
+    if (!trainingCleanupHandlersRegistered) {
+      process.on('exit', cleanupAllTrainingProcesses)
+      process.on('SIGINT', () => {
+        cleanupAllTrainingProcesses()
+        process.exit(0)
+      })
+      process.on('SIGTERM', () => {
+        cleanupAllTrainingProcesses()
+        process.exit(0)
+      })
+      trainingCleanupHandlersRegistered = true
+    }
 
     pipelineService = {
       async createCover(request: any) {
@@ -1719,7 +1722,7 @@ function buildApp(dataDir: string) {
       },
     }
     return pipelineService
-  }
+  })
 
   const app = new Hono()
     .use('*', cors({ origin: getTrustedLocalSingingOrigin }))

@@ -241,6 +241,7 @@ export function createSingingRoutes(singingService: SingingService) {
   authed.post('/cover', async (c) => {
     let uploadedInputUri: string | null = null
     try {
+      const user = c.get('user')!
       const contentType = c.req.header('content-type') ?? ''
 
       let request: CreateCoverRequest
@@ -285,7 +286,7 @@ export function createSingingRoutes(singingService: SingingService) {
         request = result.output as CreateCoverRequest
       }
 
-      const response = await singingService.createCover(request)
+      const response = await singingService.createCover(user.id, request)
       return c.json(response, 201)
     }
     catch (err) {
@@ -301,6 +302,7 @@ export function createSingingRoutes(singingService: SingingService) {
 
   authed.post('/cover-reference', async (c) => {
     try {
+      const user = c.get('user')!
       const body = await c.req.json()
       const result = safeParse(CreateCoverReferenceSchema, body)
       if (!result.success)
@@ -315,7 +317,7 @@ export function createSingingRoutes(singingService: SingingService) {
         converter: output.converter as CreateCoverRequest['converter'],
         mix: output.mix as CreateCoverRequest['mix'],
       }
-      const response = await singingService.createCoverReference(request)
+      const response = await singingService.createCoverReference(user.id, request)
       return c.json(response, 201)
     }
     catch (err) {
@@ -328,8 +330,9 @@ export function createSingingRoutes(singingService: SingingService) {
 
   authed.get('/jobs/:id', async (c) => {
     try {
+      const user = c.get('user')!
       const jobId = c.req.param('id')
-      const response = await singingService.getJob(jobId)
+      const response = await singingService.getJob(user.id, jobId)
       return c.json(response)
     }
     catch (err) {
@@ -342,8 +345,9 @@ export function createSingingRoutes(singingService: SingingService) {
 
   authed.post('/jobs/:id/cancel', async (c) => {
     try {
+      const user = c.get('user')!
       const jobId = c.req.param('id')
-      const response = await singingService.cancelJob(jobId)
+      const response = await singingService.cancelJob(user.id, jobId)
       return c.json(response)
     }
     catch (err) {
@@ -357,6 +361,7 @@ export function createSingingRoutes(singingService: SingingService) {
   authed.post('/train', async (c) => {
     let uploadedDatasetUri: string | null = null
     try {
+      const user = c.get('user')!
       const contentType = c.req.header('content-type') ?? ''
       let request: CreateTrainRequest
 
@@ -397,7 +402,7 @@ export function createSingingRoutes(singingService: SingingService) {
         request = result.output
       }
 
-      const response = await singingService.createTrain(request)
+      const response = await singingService.createTrain(user.id, request)
       return c.json(response, 201)
     }
     catch (err) {
@@ -415,6 +420,8 @@ export function createSingingRoutes(singingService: SingingService) {
     const jobId = c.req.param('jobId')
     const artifactPath = c.req.param('path')
     try {
+      const user = c.get('user')!
+      await singingService.getJob(user.id, jobId)
       const env = resolveRuntimeEnv()
       const baseJobDir = buildJobDir(env.tempDir, jobId)
       const fullPath = resolveContainedPath(baseJobDir, artifactPath)

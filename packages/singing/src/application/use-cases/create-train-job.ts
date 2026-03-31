@@ -11,6 +11,7 @@ import { validateTrainRequest } from '../../pipeline/guards/input-guard'
  */
 export interface CreateTrainJobDeps {
   queue: JobQueue
+  ownerId?: string
 }
 
 export async function createTrainJob(
@@ -24,6 +25,7 @@ export async function createTrainJob(
 
   await deps.queue.enqueue({
     id: jobId,
+    ownerId: deps.ownerId,
     status: 'pending',
     createdAt: now,
     updatedAt: now,

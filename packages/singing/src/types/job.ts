@@ -11,6 +11,8 @@ export type JobStatus
 /** Core job record stored by the orchestrator */
 export interface SingingJob {
   readonly id: string
+  /** Authenticated user who owns the job, when applicable */
+  ownerId?: string
   status: JobStatus
   /** Which pipeline stage is currently executing */
   currentStage?: PipelineStage
