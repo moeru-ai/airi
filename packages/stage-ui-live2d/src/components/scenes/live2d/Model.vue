@@ -736,18 +736,21 @@ watch(live2dExpressionEnabled, (enabled) => {
   const im = model.value.internalModel
   const mm = im.motionManager
   if (enabled) {
-    if (mm.expressionManager)
-    ;(mm as any).expressionManager = null
-    if (im.eyeBlink)
-    ;(im as any).eyeBlink = null
+    if (mm.expressionManager) {
+      (mm as any).expressionManager = null
+    }
+    if (im.eyeBlink) {
+      (im as any).eyeBlink = null
+    }
+
     internalModelRef.value = im
     initExpressionController(im).catch((err) => {
       console.warn('[Model.vue] Expression controller initialisation failed:', err)
     })
   }
   else {
-    ;(mm as any).expressionManager = savedExpressionManager.value
-    ;(im as any).eyeBlink = savedEyeBlink.value
+    mm.expressionManager = savedExpressionManager.value
+    im.eyeBlink = savedEyeBlink.value
     expressionController.dispose()
     internalModelRef.value = undefined
   }
