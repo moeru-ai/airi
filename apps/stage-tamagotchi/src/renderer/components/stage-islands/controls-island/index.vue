@@ -32,7 +32,7 @@ const settingsStore = useSettings()
 const settingsControlsIslandStore = useSettingsControlsIsland()
 const context = useElectronEventaContext()
 const { enabled } = storeToRefs(settingsAudioDeviceStore)
-const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
+const { alwaysOnTop } = storeToRefs(settingsStore)
 const { autoHideControlsIsland, autoHideDelay, autoShowDelay, autoHideOpacity } = storeToRefs(settingsControlsIslandStore)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const openChat = useElectronEventaInvoke(electronOpenChat)
@@ -145,31 +145,13 @@ function toggleAlwaysOnTop() {
   alwaysOnTop.value = !alwaysOnTop.value
 }
 
-// Grouped classes for icon / border / padding and combined style class
-const adjustStyleClasses = computed(() => {
-  let isLarge: boolean
-
-  // Determine size based on setting
-  switch (controlsIslandIconSize.value) {
-    case 'large':
-      isLarge = true
-      break
-    case 'small':
-      isLarge = false
-      break
-    case 'auto':
-    default:
-      // Fixed to large for better visibility in the new layout,
-      // can be changed to windowHeight based check if absolutely needed.
-      isLarge = true
-      break
-  }
-
-  const icon = isLarge ? 'size-5' : 'size-3'
-  const border = isLarge ? 'border-2' : 'border-0'
-  const padding = isLarge ? 'p-2' : 'p-0.5'
-  return { icon, border, padding, button: `${border} ${padding}` }
-})
+// Static style classes for icon / border / padding
+const adjustStyleClasses = {
+  icon: 'size-5',
+  border: 'border-2',
+  padding: 'p-2',
+  button: 'border-2 p-2',
+}
 
 /**
  * This is a know issue (or expected behavior maybe) to Electron.
