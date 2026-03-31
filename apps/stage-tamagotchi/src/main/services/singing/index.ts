@@ -33,6 +33,11 @@ import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
 
+import {
+  ensureDesktopPythonRuntimeSources,
+  resolveDesktopSingingRuntimePaths,
+} from './runtime-paths'
+
 const log = useLogger('singing-server')
 const execFileAsync = promisify(execFile)
 
@@ -246,13 +251,9 @@ async function findFFmpeg(dataDir: string): Promise<string | null> {
   return null
 }
 
-async function findPython(singingPkgRoot: string): Promise<{ path: string, isVenv: boolean } | null> {
-  const venvPython = process.platform === 'win32'
-    ? resolve(singingPkgRoot, 'python', '.venv', 'Scripts', 'python.exe')
-    : resolve(singingPkgRoot, 'python', '.venv', 'bin', 'python')
-
-  if (existsSync(venvPython))
-    return { path: venvPython, isVenv: true }
+async function findPython(runtimePaths: ReturnType<typeof resolveDesktopSingingRuntimePaths>): Promise<{ path: string, isVenv: boolean } | null> {
+  if (existsSync(runtimePaths.venvPython))
+    return { path: runtimePaths.venvPython, isVenv: true }
 
   for (const py of ['python3', 'python']) {
     if (await checkBinaryExists(py, ['--version']))
@@ -337,7 +338,10 @@ function invalidatePkgCheckCache() {
   _pkgCheckCache = null
 }
 
-async function checkPythonPackages(singingPkgRoot: string, forceRecheck = false): Promise<{ installed: boolean, missing: string[] }> {
+async function checkPythonPackages(
+  runtimePaths: ReturnType<typeof resolveDesktopSingingRuntimePaths>,
+  forceRecheck = false,
+): Promise<{ installed: boolean, missing: string[] }> {
   if (_pkgCheckCache && !forceRecheck) {
     const age = Date.now() - _pkgCheckCache.checkedAt
     // If marked as installed, trust forever until invalidated
@@ -348,19 +352,18 @@ async function checkPythonPackages(singingPkgRoot: string, forceRecheck = false)
       return _pkgCheckCache
   }
 
-  const venvPython = process.platform === 'win32'
-    ? resolve(singingPkgRoot, 'python', '.venv', 'Scripts', 'python.exe')
-    : resolve(singingPkgRoot, 'python', '.venv', 'bin', 'python')
-
-  if (!existsSync(venvPython)) {
+  if (!existsSync(runtimePaths.venvPython)) {
     _pkgCheckCache = { installed: false, missing: ['venv not found'], checkedAt: Date.now() }
     return _pkgCheckCache
   }
 
-  const pythonSrcDir = resolve(singingPkgRoot, 'python', 'src')
-
   try {
-    const result = await checkPythonRuntimePackages(venvPython, pythonSrcDir, forceRecheck)
+    await ensureDesktopPythonRuntimeSources(runtimePaths)
+    const result = await checkPythonRuntimePackages(
+      runtimePaths.venvPython,
+      runtimePaths.pythonSrcDir ?? undefined,
+      forceRecheck,
+    )
     _pkgCheckCache = {
       installed: result.installed,
       missing: [...result.missing],
@@ -672,15 +675,19 @@ async function checkPkgInstalled(pythonBin: string, pkg: string): Promise<boolea
   }
 }
 
-async function setupPythonVenv(singingPkgRoot: string): Promise<string> {
+async function setupPythonVenv(runtimePaths: ReturnType<typeof resolveDesktopSingingRuntimePaths>): Promise<string> {
   const id = 'python'
-  const pythonDir = resolve(singingPkgRoot, 'python')
-  const venvDir = resolve(pythonDir, '.venv')
+  const pythonDir = runtimePaths.pythonProjectDir
+  const venvDir = runtimePaths.venvDir
+  const runtimeDir = runtimePaths.pythonRuntimeDir
 
-  if (!existsSync(pythonDir))
+  if (!pythonDir || !existsSync(pythonDir))
     throw new Error(`Python source directory not found: ${pythonDir}`)
 
-  appendLog(id, 'info', `Working directory: ${pythonDir}`)
+  await mkdir(runtimeDir, { recursive: true })
+  await ensureDesktopPythonRuntimeSources(runtimePaths)
+  appendLog(id, 'info', `Python source directory: ${pythonDir}`)
+  appendLog(id, 'info', `Python runtime directory: ${runtimeDir}`)
   updateProgress(id, { step: 'detect', percent: 2 })
   appendLog(id, 'info', 'Detecting available Python tools...')
 
@@ -688,14 +695,7 @@ async function setupPythonVenv(singingPkgRoot: string): Promise<string> {
   const variant = await detectTorchVariant()
   const venvExists = existsSync(venvDir)
 
-  const venvPython = process.platform === 'win32'
-    ? resolve(venvDir, 'Scripts', 'python.exe')
-    : resolve(venvDir, 'bin', 'python')
-
-  // Determine the pip command based on available tools
-  const pipCmd = uvPath
-    ? { cmd: uvPath, prefix: ['pip', 'install'] }
-    : { cmd: process.platform === 'win32' ? resolve(venvDir, 'Scripts', 'pip.exe') : resolve(venvDir, 'bin', 'pip'), prefix: ['install'] }
+  const venvPython = runtimePaths.venvPython
 
   // ── Step 1: Create venv (skip if exists) ──
   if (venvExists) {
@@ -706,11 +706,16 @@ async function setupPythonVenv(singingPkgRoot: string): Promise<string> {
     updateProgress(id, { step: 'venv', percent: 5 })
     if (uvPath) {
       appendLog(id, 'success', `Found uv: ${uvPath}`)
-      appendLog(id, 'info', 'Step 1: Creating virtual environment (uv sync)...')
-      await spawnAsync(uvPath, ['sync'], pythonDir, id, 5, 10)
+      appendLog(id, 'info', 'Step 1: Creating virtual environment (uv venv)...')
+      await execFileAsync(uvPath, ['venv', venvDir], {
+        cwd: runtimeDir,
+        timeout: 120_000,
+        shell: false,
+        windowsHide: true,
+      })
     }
     else {
-      const sysPython = await findPython(singingPkgRoot)
+      const sysPython = await findPython(runtimePaths)
       if (!sysPython)
         throw new Error('Neither uv nor Python found. Please install Python 3.10+ or uv first.')
       appendLog(id, 'success', `Found Python: ${sysPython.path}`)
@@ -718,10 +723,13 @@ async function setupPythonVenv(singingPkgRoot: string): Promise<string> {
       await execFileAsync(sysPython.path, ['-m', 'venv', venvDir], {
         timeout: 60_000,
         shell: false,
+        windowsHide: true,
       })
     }
     appendLog(id, 'success', 'Virtual environment created')
   }
+
+  const pipCmd = { cmd: venvPython, prefix: ['-m', 'pip', 'install'] }
 
   appendLog(id, 'info', `GPU detection: ${variant.label}`)
 
@@ -779,7 +787,7 @@ async function setupPythonVenv(singingPkgRoot: string): Promise<string> {
     else {
       appendLog(id, 'info', 'Using default PyPI index (includes MPS support on macOS)')
     }
-    await spawnAsync(pipCmd.cmd, torchArgs, pythonDir, id, stepPercent(0), stepPercent(0.9))
+    await spawnAsync(pipCmd.cmd, torchArgs, runtimeDir, id, stepPercent(0), stepPercent(0.9))
     appendLog(id, 'success', 'PyTorch installed')
     stepIdx++
   }
@@ -793,14 +801,14 @@ async function setupPythonVenv(singingPkgRoot: string): Promise<string> {
     const libPkgs = ['librosa', 'scipy', 'soundfile']
     appendLog(id, 'info', `[${stepIdx + 1}/${totalSteps}] Installing ${libPkgs.join(', ')}...`)
     try {
-      await spawnAsync(pipCmd.cmd, [...pipCmd.prefix, ...libPkgs], pythonDir, id, stepPercent(0), stepPercent(0.9))
+      await spawnAsync(pipCmd.cmd, [...pipCmd.prefix, ...libPkgs], runtimeDir, id, stepPercent(0), stepPercent(0.9))
       appendLog(id, 'success', 'librosa + scipy installed')
     }
     catch {
       appendLog(id, 'info', 'Retrying with relaxed dependency resolution...')
       try {
-        await spawnAsync(pipCmd.cmd, [...pipCmd.prefix, 'librosa', '--no-deps'], pythonDir, id, stepPercent(0), stepPercent(0.4))
-        await spawnAsync(pipCmd.cmd, [...pipCmd.prefix, 'soundfile', 'pooch', 'soxr', 'decorator', 'numba', 'scipy', 'scikit-learn', 'joblib', 'msgpack'], pythonDir, id, stepPercent(0.4), stepPercent(0.9))
+        await spawnAsync(pipCmd.cmd, [...pipCmd.prefix, 'librosa', '--no-deps'], runtimeDir, id, stepPercent(0), stepPercent(0.4))
+        await spawnAsync(pipCmd.cmd, [...pipCmd.prefix, 'soundfile', 'pooch', 'soxr', 'decorator', 'numba', 'scipy', 'scikit-learn', 'joblib', 'msgpack'], runtimeDir, id, stepPercent(0.4), stepPercent(0.9))
         appendLog(id, 'success', 'librosa + scipy installed (relaxed deps)')
       }
       catch {
@@ -838,7 +846,7 @@ async function setupPythonVenv(singingPkgRoot: string): Promise<string> {
 
     appendLog(id, 'info', `[${stepIdx + 1}/${totalSteps}] Installing pipeline packages: ${needed.join(', ')}...`)
     try {
-      await spawnAsync(pipCmd.cmd, [...pipCmd.prefix, ...needed], pythonDir, id, stepPercent(0), stepPercent(0.9))
+      await spawnAsync(pipCmd.cmd, [...pipCmd.prefix, ...needed], runtimeDir, id, stepPercent(0), stepPercent(0.9))
       appendLog(id, 'success', 'Pipeline packages installed')
     }
     catch (err) {
@@ -855,7 +863,7 @@ async function setupPythonVenv(singingPkgRoot: string): Promise<string> {
   updateProgress(id, { step: 'verify', percent: 92, message: 'Verifying all packages...' })
   appendLog(id, 'info', `[${totalSteps}/${totalSteps}] Verifying installation (torch, rvc, torchcrepe)...`)
 
-  const verifyScriptPath = join(pythonDir, '_verify_env.py')
+  const verifyScriptPath = join(runtimeDir, '_verify_env.py')
   const verifyLines = [
     'import sys',
     'ok = True',
@@ -901,10 +909,10 @@ async function setupPythonVenv(singingPkgRoot: string): Promise<string> {
       timeout: 120_000,
       windowsHide: true,
       shell: false,
-      cwd: pythonDir,
+      cwd: runtimeDir,
       env: {
         ...process.env,
-        PYTHONPATH: resolve(singingPkgRoot, 'python', 'src'),
+        PYTHONPATH: runtimePaths.pythonSrcDir ?? '',
       },
     })
     const output = stdout.toString().trim()
@@ -1090,8 +1098,8 @@ async function getSingingModule(): Promise<SingingModule | null> {
 // ─── Hono app ────────────────────────────────────────────────────────────
 function buildApp(dataDir: string) {
   const singingPkgRoot = findSingingPackageRoot()
-  const modelsDir = singingPkgRoot ? resolve(singingPkgRoot, 'models') : join(dataDir, 'models')
-  const tempDir = join(dataDir, 'tmp')
+  const runtimePaths = resolveDesktopSingingRuntimePaths(dataDir, singingPkgRoot)
+  const { modelsDir, tempDir } = runtimePaths
 
   const activeJobs = new Map<string, AbortController>()
 
@@ -1109,6 +1117,8 @@ function buildApp(dataDir: string) {
     if (!mod)
       return null
 
+    await ensureDesktopPythonRuntimeSources(runtimePaths)
+
     // Ensure the singing module can find FFmpeg and Python by injecting
     // the paths we discovered during setup into environment variables
     // BEFORE calling resolveRuntimeEnv().
@@ -1117,13 +1127,17 @@ function buildApp(dataDir: string) {
       process.env.AIRI_SINGING_FFMPEG_PATH = detectedFfmpeg
 
     if (singingPkgRoot) {
-      const pythonInfo = await findPython(singingPkgRoot)
+      const pythonInfo = await findPython(runtimePaths)
       if (pythonInfo?.path)
         process.env.AIRI_SINGING_PYTHON_PATH = pythonInfo.path
     }
 
     process.env.AIRI_SINGING_MODELS_DIR = modelsDir
     process.env.AIRI_SINGING_TEMP_DIR = tempDir
+    if (runtimePaths.pythonSrcDir)
+      process.env.AIRI_SINGING_PYTHON_SRC = runtimePaths.pythonSrcDir
+    if (runtimePaths.workerModulePath)
+      process.env.AIRI_SINGING_WORKER_MODULE = runtimePaths.workerModulePath
 
     // Migrate legacy flat model files into voice_models/{voiceId}/ structure
     try {
@@ -1715,10 +1729,10 @@ function buildApp(dataDir: string) {
     // ── Health & environment ────────────────────────────────────
     .get('/health', async (c) => {
       const ffmpegPath = await findFFmpeg(dataDir)
-      const pythonInfo = singingPkgRoot ? await findPython(singingPkgRoot) : null
+      const pythonInfo = singingPkgRoot ? await findPython(runtimePaths) : null
       const uvAvailable = !!(await findUv())
       const venvExists = singingPkgRoot
-        ? existsSync(resolve(singingPkgRoot, 'python', '.venv'))
+        ? existsSync(runtimePaths.venvDir)
         : false
 
       // Skip expensive package import checks while setup is running
@@ -1733,7 +1747,7 @@ function buildApp(dataDir: string) {
       }
       else if (singingPkgRoot) {
         // Uses cache: if already verified, returns instantly; otherwise checks with 60s cooldown
-        pkgCheck = await checkPythonPackages(singingPkgRoot)
+        pkgCheck = await checkPythonPackages(runtimePaths)
       }
       else {
         pkgCheck = { installed: false, missing: [] }
@@ -1838,9 +1852,9 @@ function buildApp(dataDir: string) {
 
       // Force recheck to see if packages are truly installed
       invalidatePkgCheckCache()
-      const existing = await findPython(singingPkgRoot)
+      const existing = await findPython(runtimePaths)
       if (existing?.isVenv) {
-        const pkgCheck = await checkPythonPackages(singingPkgRoot, true)
+        const pkgCheck = await checkPythonPackages(runtimePaths, true)
         if (pkgCheck.installed) {
           updateProgress('python', { step: 'done', percent: 100, message: 'Python environment ready', completed: true, error: undefined, startedAt: Date.now(), logs: [] })
           appendLog('python', 'success', 'All packages already installed and verified')
@@ -1850,8 +1864,7 @@ function buildApp(dataDir: string) {
 
       updateProgress('python', { step: 'init', percent: 0, message: 'Preparing Python environment...', completed: false, error: undefined, startedAt: Date.now(), logs: [] })
 
-      const pkgRoot = singingPkgRoot
-      setupPythonVenv(pkgRoot).catch((err) => {
+      setupPythonVenv(runtimePaths).catch((err) => {
         const msg = err instanceof Error ? err.message : String(err)
         appendLog('python', 'error', msg)
         updateProgress('python', { step: 'error', message: msg, error: msg, completed: true })
@@ -2209,11 +2222,14 @@ function buildApp(dataDir: string) {
         if (!isSafePathSegment(body.voiceId))
           return c.json({ error: 'Invalid voiceId' }, 400)
 
-        const pythonInfo = await findPython(singingPkgRoot)
+        const pythonInfo = await findPython(runtimePaths)
         if (!pythonInfo)
           return c.json({ error: 'Python not available' }, 503)
 
-        const pythonSrcDir = resolve(singingPkgRoot, 'python', 'src')
+        await ensureDesktopPythonRuntimeSources(runtimePaths)
+        const pythonSrcDir = runtimePaths.pythonSrcDir
+        if (!pythonSrcDir)
+          return c.json({ error: 'Python source directory not found' }, 500)
         const args = [
           '-m',
           'airi_singing_worker.evaluation',
@@ -2257,7 +2273,7 @@ function buildApp(dataDir: string) {
         if (!isSafePathSegment(body.voiceId))
           return c.json({ error: 'Invalid voiceId' }, 400)
 
-        const pythonInfo = await findPython(singingPkgRoot)
+        const pythonInfo = await findPython(runtimePaths)
         if (!pythonInfo)
           return c.json({ error: 'Python not available' }, 503)
 
@@ -2276,7 +2292,10 @@ function buildApp(dataDir: string) {
         if (!profilePath)
           return c.json({ error: 'Voice profile not found for this model' }, 404)
 
-        const pythonSrcDir = resolve(singingPkgRoot, 'python', 'src')
+        await ensureDesktopPythonRuntimeSources(runtimePaths)
+        const pythonSrcDir = runtimePaths.pythonSrcDir
+        if (!pythonSrcDir)
+          return c.json({ error: 'Python source directory not found' }, 500)
         const args = [
           '-m',
           'airi_singing_worker.calibration',
