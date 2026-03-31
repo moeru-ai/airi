@@ -145,6 +145,7 @@ export function useSingingCoverRuntime() {
     voiceId: string
     f0UpKey: number
     indexRate: number
+    filterRadius: number
     protect: number
     rmsMixRate: number
     autoCalibrate: boolean
@@ -160,6 +161,7 @@ export function useSingingCoverRuntime() {
         voiceId: input.voiceId,
         f0UpKey: input.f0UpKey,
         indexRate: input.indexRate,
+        filterRadius: input.filterRadius,
         protect: input.protect,
         rmsMixRate: input.rmsMixRate,
       },

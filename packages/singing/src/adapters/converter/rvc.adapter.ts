@@ -52,8 +52,6 @@ export class RvcAdapter implements ConverterBackend {
       args.push('--voice-id', String(params.voiceId))
     if (params.f0UpKey != null)
       args.push('--f0-up-key', String(params.f0UpKey))
-    if (params.f0File)
-      args.push('--f0-file', String(params.f0File))
     if (params.indexRate != null)
       args.push('--index-rate', String(params.indexRate))
     if (params.filterRadius != null)

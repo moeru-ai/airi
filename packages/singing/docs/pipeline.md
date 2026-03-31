@@ -4,7 +4,7 @@
 
 The full 9-stage pipeline is driven by the TypeScript orchestrator
 (`cover-pipeline-orchestrator.ts`), which calls individual Python backends
-as subprocesses. A standalone Python fallback (`cover_pipeline.py`) provides
+as subprocesses. A standalone Python pipeline (`cover_pipeline.py`) provides
 a simpler 4-stage flow (separate → F0 → convert → remix) for headless use
 without the TS layer.
 
@@ -62,9 +62,8 @@ without the TS layer.
   1. **Sample rate pre-alignment**: Resample input from 44.1kHz → 40kHz (model native SR) using librosa Kaiser-best resampling
   2. Load model + FAISS index via `load_model(model_path, index_path=...)`
   3. Set params: `f0method`, `f0up_key`, `index_rate`, `filter_radius`, `rms_mix_rate`, `protect`
-  4. If F0 file exists: call `vc_single()` directly with `f0_file` parameter
-  5. Otherwise: call `infer_file()` (internal F0 extraction)
-  6. **Post-alignment**: Resample output from 40kHz → 44.1kHz
+  4. Call `infer_file()` — RVC uses its internal RMVPE for F0 extraction (matching training)
+  5. **Post-alignment**: Resample output from 40kHz → 44.1kHz
 
 ### 6. Post-processing
 

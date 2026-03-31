@@ -6,6 +6,7 @@ in any CI environment.
 """
 
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -13,7 +14,18 @@ import soundfile as sf
 
 from airi_singing_worker.backends.converter import rvc as rvc_backend
 from airi_singing_worker.backends.postprocessor import vocal_postprocess
+from airi_singing_worker.backends.separator.mask_refine import (
+    reconstruct_stems_from_estimate,
+    stabilize_lead_presence,
+)
+from airi_singing_worker.calibration.param_predictor import (
+    PitchShiftResult,
+    PredictedParams,
+    predict_params,
+    predict_pitch_shift,
+)
 from airi_singing_worker.calibration.voice_profile import build_voice_profile
+from airi_singing_worker.errors.backend import MixError, PitchExtractionError
 from airi_singing_worker.evaluation import (
     composite,
     content_preservation,
@@ -117,7 +129,7 @@ class TestComputeOverallGrade:
         assert compute_overall_grade(card) in ("A", "B", "C", "D", "F")
 
 
-class TestEvaluationIdentityFallback:
+class TestEvaluationIdentityResolution:
     @staticmethod
     def _patch_non_identity_axes(monkeypatch):
         monkeypatch.setattr(content_preservation, "transcribe_audio", lambda _: "la la la")
@@ -136,7 +148,7 @@ class TestEvaluationIdentityFallback:
         monkeypatch.setattr(composite, "_compute_tearing_score", lambda *_args: 0.05)
         monkeypatch.setattr(composite, "_compute_hnr", lambda *_args: 18.0)
 
-    def test_run_evaluation_falls_back_to_reference_embedding_for_malformed_external_profile(self, monkeypatch):
+    def test_run_evaluation_uses_reference_embedding_for_malformed_external_profile(self, monkeypatch):
         self._patch_non_identity_axes(monkeypatch)
 
         ref_emb = np.array([1.0, 0.0], dtype=np.float32)
@@ -326,3 +338,344 @@ class TestVocalPostprocess:
             return float(np.mean(spec[mask] ** 2))
 
         assert hf_energy(processed) < hf_energy(noisy)
+
+
+# ── Zero-fallback error behavior tests ─────────────────────
+
+class TestRmvpeRequiresModel:
+    def test_extract_f0_errors_when_model_missing(self, tmp_path, monkeypatch):
+        """rmvpe.py must raise PitchExtractionError when RMVPE model is not found."""
+        from airi_singing_worker.backends.pitch import rmvpe
+
+        monkeypatch.setenv("RMVPE_MODEL_PATH", "")
+        monkeypatch.setattr(rmvpe, "_find_rmvpe_model", lambda: None)
+
+        with pytest.raises(PitchExtractionError, match="RMVPE model not found"):
+            rmvpe.extract_f0(str(tmp_path / "input.wav"), str(tmp_path))
+
+
+class TestFfmpegMixRequiresFFmpeg:
+    def test_remix_errors_when_ffmpeg_missing(self, tmp_path, monkeypatch):
+        """ffmpeg_mix.py must raise MixError when FFmpeg is not found."""
+        from airi_singing_worker.backends.mix import ffmpeg_mix
+
+        monkeypatch.setattr(ffmpeg_mix, "_find_ffmpeg", lambda: None)
+
+        with pytest.raises(MixError, match="FFmpeg is required"):
+            ffmpeg_mix.remix(
+                vocals_path=str(tmp_path / "v.wav"),
+                instrumental_path=str(tmp_path / "i.wav"),
+                output_path=str(tmp_path / "out.wav"),
+            )
+
+
+class TestPitchShiftClamp:
+    def test_pitch_shift_clamps_to_max_shift(self):
+        """predict_pitch_shift must clamp to max_shift semitones."""
+        from airi_singing_worker.calibration.source_analyzer import SourceFeatures
+        from airi_singing_worker.calibration.voice_profile import VoiceProfile
+
+        source = SourceFeatures(
+            f0_median=220.0,
+            f0_p10=180.0,
+            f0_p90=330.0,
+            f0_min=150.0,
+            f0_max=400.0,
+            dynamic_range=0.5,
+            sibilance_score=0.2,
+            spectral_flatness=0.1,
+            unvoiced_ratio=0.15,
+            bleed_score=0.1,
+            source_quality=3.5,
+            speaker_embedding=None,
+        )
+
+        # Target voice with very different median — would need >4 semitone shift
+        profile = VoiceProfile(
+            f0_p10=400.0,
+            f0_p50=500.0,
+            f0_p90=700.0,
+        )
+
+        result = predict_pitch_shift(source, profile, max_shift=4)
+        assert isinstance(result, PitchShiftResult)
+        assert -4 <= result.shift <= 4
+
+    def test_pitch_shift_returns_zero_confidence_on_insufficient_stats(self):
+        """predict_pitch_shift returns confidence=0 when F0 stats are insufficient."""
+        from airi_singing_worker.calibration.source_analyzer import SourceFeatures
+        from airi_singing_worker.calibration.voice_profile import VoiceProfile
+
+        source = SourceFeatures(
+            f0_median=0.0,
+            f0_p10=0.0,
+            f0_p90=0.0,
+            f0_min=0.0,
+            f0_max=0.0,
+            dynamic_range=0.5,
+            sibilance_score=0.2,
+            spectral_flatness=0.1,
+            unvoiced_ratio=0.5,
+            bleed_score=0.1,
+            source_quality=2.0,
+            speaker_embedding=None,
+        )
+
+        profile = VoiceProfile(
+            f0_p10=200.0,
+            f0_p50=300.0,
+            f0_p90=400.0,
+        )
+
+        result = predict_pitch_shift(source, profile)
+        assert result.shift == 0
+        assert result.confidence == 0.0
+
+
+class TestPredictedParamsConfidence:
+    def test_predicted_params_includes_pitch_confidence(self):
+        """predict_params must include pitch_confidence in its output."""
+        from airi_singing_worker.calibration.source_analyzer import SourceFeatures
+        from airi_singing_worker.calibration.voice_profile import VoiceProfile
+
+        source = SourceFeatures(
+            f0_median=220.0,
+            f0_p10=180.0,
+            f0_p90=330.0,
+            f0_min=150.0,
+            f0_max=400.0,
+            dynamic_range=0.5,
+            sibilance_score=0.2,
+            spectral_flatness=0.1,
+            unvoiced_ratio=0.15,
+            bleed_score=0.1,
+            source_quality=3.5,
+            speaker_embedding=None,
+        )
+        profile = VoiceProfile(
+            f0_p10=200.0,
+            f0_p50=250.0,
+            f0_p90=350.0,
+        )
+
+        result = predict_params(source, profile)
+        assert isinstance(result, PredictedParams)
+        assert hasattr(result, "pitch_confidence")
+        assert 0.0 <= result.pitch_confidence <= 1.0
+
+    def test_zero_confidence_when_f0_stats_insufficient(self):
+        """pitch_confidence must be 0.0 when F0 stats are insufficient."""
+        from airi_singing_worker.calibration.source_analyzer import SourceFeatures
+        from airi_singing_worker.calibration.voice_profile import VoiceProfile
+
+        source = SourceFeatures(
+            f0_median=0.0,
+            f0_p10=0.0,
+            f0_p90=0.0,
+            f0_min=0.0,
+            f0_max=0.0,
+        )
+        profile = VoiceProfile(
+            f0_p10=200.0,
+            f0_p50=300.0,
+            f0_p90=400.0,
+        )
+
+        result = predict_params(source, profile)
+        assert result.pitch_shift == 0
+        assert result.pitch_confidence == 0.0
+
+    def test_confidence_serialized_in_to_dict(self):
+        """pitch_confidence must appear in to_dict() output."""
+        params = PredictedParams(pitch_shift=2, pitch_confidence=0.85)
+        d = params.to_dict()
+        assert "pitch_confidence" in d
+        assert d["pitch_confidence"] == 0.85
+
+
+class TestModelArchDetection:
+    def test_detect_v2_40k_from_metadata(self):
+        """_detect_model_arch detects v2 40k from checkpoint metadata."""
+        from airi_singing_worker.backends.converter.rvc import _detect_model_arch
+
+        version, sr_key, f0_flag = _detect_model_arch(
+            weights={},
+            meta={"version": "v2", "sr": "40k", "f0": 1},
+        )
+        assert version == "v2"
+        assert sr_key == "40k"
+        assert f0_flag == 1
+
+    def test_detect_v2_48k_from_metadata(self):
+        """_detect_model_arch detects v2 48k from checkpoint metadata."""
+        from airi_singing_worker.backends.converter.rvc import _detect_model_arch
+
+        version, sr_key, f0_flag = _detect_model_arch(
+            weights={},
+            meta={"version": "v2", "sr": "48k", "f0": 1},
+        )
+        assert version == "v2"
+        assert sr_key == "48k"
+
+    def test_detect_v1_from_metadata(self):
+        """_detect_model_arch detects v1 from checkpoint metadata."""
+        from airi_singing_worker.backends.converter.rvc import _detect_model_arch
+
+        version, sr_key, f0_flag = _detect_model_arch(
+            weights={},
+            meta={"version": "v1", "sr": "40k", "f0": 1},
+        )
+        assert version == "v1"
+        assert sr_key == "40k"
+
+    def test_detect_numeric_sr(self):
+        """_detect_model_arch parses numeric sample rate (e.g. 40000)."""
+        from airi_singing_worker.backends.converter.rvc import _detect_model_arch
+
+        version, sr_key, _ = _detect_model_arch(
+            weights={},
+            meta={"version": "v2", "sr": 40000},
+        )
+        assert sr_key == "40k"
+
+    def test_defaults_to_v2_40k_when_no_metadata(self):
+        """_detect_model_arch defaults to v2 40k when no metadata is present."""
+        from airi_singing_worker.backends.converter.rvc import _detect_model_arch
+
+        version, sr_key, _ = _detect_model_arch(weights={}, meta={})
+        assert version == "v2"
+        assert sr_key == "40k"
+
+    def test_ensure_inference_format_errors_on_unsupported_arch(self, tmp_path, monkeypatch):
+        """_ensure_inference_format must raise ConversionError for unsupported arch."""
+        import torch
+        from airi_singing_worker.backends.converter.rvc import _ensure_inference_format
+        from airi_singing_worker.errors.backend import ConversionError
+
+        model_path = tmp_path / "model.pth"
+        cpt = {
+            "model": {"dummy_weight": torch.zeros(1)},
+            "version": "v3",
+            "sr": "96k",
+        }
+        torch.save(cpt, str(model_path))
+
+        with pytest.raises(ConversionError, match="Unsupported RVC architecture"):
+            _ensure_inference_format(str(model_path))
+
+
+class TestAdapterLoadingErrors:
+    def test_pitch_adapter_errors_when_weights_missing(self):
+        """PitchAdapter loader must error when weights file doesn't exist."""
+        from airi_singing_worker.adapters.pitch_adapter import load_pitch_adapter
+
+        with pytest.raises(RuntimeError, match="PitchAdapter weights not found"):
+            load_pitch_adapter(weights_path="/nonexistent/path.pt")
+
+    def test_param_controller_errors_when_weights_missing(self):
+        """ParamController loader must error when weights file doesn't exist."""
+        from airi_singing_worker.adapters.param_controller import load_param_controller
+
+        with pytest.raises(RuntimeError, match="ParamController weights not found"):
+            load_param_controller(weights_path="/nonexistent/path.pt")
+
+    def test_post_filter_errors_when_weights_missing(self):
+        """PostFilter loader must error when weights file doesn't exist."""
+        from airi_singing_worker.adapters.post_filter import load_post_filter
+
+        with pytest.raises(RuntimeError, match="PostFilter weights not found"):
+            load_post_filter(weights_path="/nonexistent/path.pt")
+
+
+# ── Lead vocal isolator tests ──────────────────────────────
+
+class TestLeadVocalIsolator:
+    def test_isolate_errors_when_checkpoint_missing(self, monkeypatch):
+        """lead_vocal_isolator must raise SeparationError when checkpoint is missing."""
+        from airi_singing_worker.backends.separator import lead_vocal_isolator
+        from airi_singing_worker.errors.backend import SeparationError
+
+        monkeypatch.setenv("KARAOKE_CKPT_PATH", "/nonexistent/karaoke.ckpt")
+        monkeypatch.setenv("KARAOKE_CONFIG_PATH", "/nonexistent/config.yaml")
+
+        with pytest.raises(SeparationError, match="Karaoke checkpoint not found"):
+            lead_vocal_isolator.isolate("/some/input.wav", "/some/output")
+
+    def test_isolate_errors_when_env_not_set(self, monkeypatch):
+        """lead_vocal_isolator must raise SeparationError when env vars are empty."""
+        from airi_singing_worker.backends.separator import lead_vocal_isolator
+        from airi_singing_worker.errors.backend import SeparationError
+
+        monkeypatch.setenv("KARAOKE_CKPT_PATH", "")
+        monkeypatch.setenv("KARAOKE_CONFIG_PATH", "")
+
+        with pytest.raises(SeparationError, match="Karaoke model paths not configured"):
+            lead_vocal_isolator.isolate("/some/input.wav", "/some/output")
+
+    def test_isolate_errors_when_config_missing(self, monkeypatch, tmp_path):
+        """lead_vocal_isolator must raise SeparationError when config file is missing."""
+        from airi_singing_worker.backends.separator import lead_vocal_isolator
+        from airi_singing_worker.errors.backend import SeparationError
+
+        ckpt = tmp_path / "karaoke.ckpt"
+        ckpt.write_bytes(b"fake-checkpoint")
+
+        monkeypatch.setenv("KARAOKE_CKPT_PATH", str(ckpt))
+        monkeypatch.setenv("KARAOKE_CONFIG_PATH", "/nonexistent/config.yaml")
+
+        with pytest.raises(SeparationError, match="Karaoke config not found"):
+            lead_vocal_isolator.isolate("/some/input.wav", "/some/output")
+
+
+class TestMaskRefine:
+    def test_reconstruct_stems_from_estimate_preserves_mixture_energy(self):
+        sr = 44100
+        t = np.linspace(0, 1.0, sr, endpoint=False, dtype=np.float32)
+        lead = 0.3 * np.sin(2 * np.pi * 220 * t)
+        backing = 0.2 * np.sin(2 * np.pi * 440 * t)
+        mix = lead + backing
+        estimate = lead * 0.85
+
+        refined_lead, refined_backing = reconstruct_stems_from_estimate(mix, estimate, sr)
+        reconstructed = refined_lead + refined_backing
+
+        assert np.max(np.abs(reconstructed - mix)) < 0.06
+
+    def test_stabilize_lead_presence_blends_back_missing_sections(self):
+        sr = 44100
+        t = np.linspace(0, 1.0, sr, endpoint=False, dtype=np.float32)
+        mix = 0.35 * np.sin(2 * np.pi * 220 * t)
+        lead = mix.copy()
+        lead[int(sr * 0.35):int(sr * 0.55)] *= 0.05
+
+        stabilized = stabilize_lead_presence(lead, mix, sr)
+
+        hole = slice(int(sr * 0.40), int(sr * 0.50))
+        original_rms = float(np.sqrt(np.mean(lead[hole] ** 2)))
+        stabilized_rms = float(np.sqrt(np.mean(stabilized[hole] ** 2)))
+        mix_rms = float(np.sqrt(np.mean(mix[hole] ** 2)))
+
+        assert stabilized_rms > original_rms * 2.5
+        assert stabilized_rms <= mix_rms
+
+
+# ── CoverRequest DTO tests ─────────────────────────────────
+
+class TestCoverRequestDto:
+    def test_isolate_lead_vocal_defaults_to_true(self):
+        """CoverRequest.isolate_lead_vocal must default to True."""
+        from airi_singing_worker.dto.request import CoverRequest
+
+        req = CoverRequest(input_path="/in.wav", output_dir="/out")
+        assert req.isolate_lead_vocal is True
+
+    def test_isolate_lead_vocal_can_be_disabled(self):
+        """CoverRequest.isolate_lead_vocal can be set to False."""
+        from airi_singing_worker.dto.request import CoverRequest
+
+        req = CoverRequest(
+            input_path="/in.wav",
+            output_dir="/out",
+            isolate_lead_vocal=False,
+        )
+        assert req.isolate_lead_vocal is False

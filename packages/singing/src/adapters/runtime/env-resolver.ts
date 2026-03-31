@@ -26,6 +26,8 @@ import { dirname, join, resolve } from 'node:path'
  *     separation/
  *       MelBandRoformer.ckpt      ← vocal separation weights (auto-downloaded)
  *       config_vocals_mel_band_roformer_kj.yaml
+ *       mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt ← lead isolation
+ *       config_mel_band_roformer_karaoke.yaml
  *     pretrained_v2/
  *       f0G40k.pth                ← RVC training base generator
  *       f0D40k.pth                ← RVC training base discriminator

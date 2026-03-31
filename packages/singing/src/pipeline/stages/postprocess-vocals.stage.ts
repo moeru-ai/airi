@@ -11,13 +11,16 @@ import { resolveRuntimeEnv } from '../../utils/resolve-env'
 
 /**
  * Stage: Postprocess Vocals
- * Applies DSP chain: Noise Gate → High-frequency Augmentation → De-essing
+ * Applies DSP chain: Noise Gate → Spectral Denoise → HF Balance → De-essing
+ *
+ * Prefers isolated lead_vocals.wav as HF reference when available because the
+ * mixed vocals.wav includes backing vocals whose spectral profile differs from
+ * the converted lead, leading to incorrect clamp/restore decisions.
  */
 export async function postprocessVocalsStage(
   ctx: PipelineContext,
 ): Promise<StageResult> {
   const convertedPath = join(ctx.jobDir, STAGE_DIRS.convert, ARTIFACT_NAMES.convertedVocals)
-  const sourceVocalsPath = join(ctx.jobDir, STAGE_DIRS.separate, ARTIFACT_NAMES.vocals)
 
   if (!existsSync(convertedPath)) {
     return {
@@ -29,6 +32,10 @@ export async function postprocessVocalsStage(
       ],
     }
   }
+
+  const leadVocalsPath = join(ctx.jobDir, STAGE_DIRS.isolate, ARTIFACT_NAMES.leadVocals)
+  const mixedVocalsPath = join(ctx.jobDir, STAGE_DIRS.separate, ARTIFACT_NAMES.vocals)
+  const sourceVocalsPath = existsSync(leadVocalsPath) ? leadVocalsPath : mixedVocalsPath
 
   const env = resolveRuntimeEnv()
   const outputPath = convertedPath
@@ -42,6 +49,16 @@ export async function postprocessVocalsStage(
     sourceVocalsPath,
     '--output',
     outputPath,
+    '--noise-gate-threshold',
+    '-54',
+    '--spectral-denoise-strength',
+    '0.35',
+    '--hf-max-ratio',
+    '1.5',
+    '--hf-mix-ratio',
+    '0.10',
+    '--deessing-threshold',
+    '-14',
   ]
 
   const result = await runProcess(env.pythonPath, args, {

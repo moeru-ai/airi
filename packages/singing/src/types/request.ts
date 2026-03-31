@@ -11,6 +11,8 @@ export interface CreateCoverRequest {
   separator: {
     backend: SeparatorBackendId
     model?: string
+    /** When true (default), isolate lead vocals from backing vocals via Karaoke model */
+    isolateLeadVocal?: boolean
   }
   pitch: {
     backend: PitchBackendId
@@ -52,6 +54,8 @@ export interface MixParams {
   ducking?: boolean
   targetLufs?: number
   truePeakDb?: number
+  /** Per-role gain overrides for the dynamic multi-track mixer (e.g. { backing: 0.6 }) */
+  trackGains?: Record<string, number>
 }
 
 /**

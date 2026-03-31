@@ -17,7 +17,7 @@ import { resolveRuntimeEnv } from '../../utils/resolve-env'
 
 /**
  * Stage: Auto-Calibrate
- * - Analyze separated vocal features
+ * - Analyze the cleanest available vocal features
  * - Load target voice profile
  * - Predict optimal RVC parameters (pitch_shift, index_rate, protect, rms_mix_rate)
  * - Overwrite converter params in the pipeline context
@@ -38,7 +38,9 @@ export async function autoCalibrateStage(
     }
   }
 
-  const vocalsPath = join(ctx.jobDir, STAGE_DIRS.separate, ARTIFACT_NAMES.vocals)
+  const isolatedLeadPath = join(ctx.jobDir, STAGE_DIRS.isolate, ARTIFACT_NAMES.leadVocals)
+  const separatedVocalsPath = join(ctx.jobDir, STAGE_DIRS.separate, ARTIFACT_NAMES.vocals)
+  const vocalsPath = existsSync(isolatedLeadPath) ? isolatedLeadPath : separatedVocalsPath
   if (!existsSync(vocalsPath)) {
     return {
       stage: PipelineStage.AutoCalibrate,
@@ -86,7 +88,15 @@ export async function autoCalibrateStage(
     )
 
     if (predicted && request.converter.backend === 'rvc') {
-      request.converter.f0UpKey = predicted.pitch_shift
+      const confidence = predicted.pitch_confidence ?? 0
+      const PITCH_CONFIDENCE_THRESHOLD = 0.6
+
+      // Only apply predicted pitch shift when confidence is high enough;
+      // a low-confidence shift (e.g. from poor F0 stats) can detune the
+      // entire song by up to 4 semitones.
+      request.converter.f0UpKey = confidence >= PITCH_CONFIDENCE_THRESHOLD
+        ? predicted.pitch_shift
+        : 0
       request.converter.indexRate = predicted.index_rate
       request.converter.filterRadius = predicted.filter_radius ?? 3
       request.converter.protect = predicted.protect
@@ -94,6 +104,8 @@ export async function autoCalibrateStage(
 
       ctx.metadata.set('auto_calibrated', true)
       ctx.metadata.set('predicted_params', predicted)
+      ctx.metadata.set('pitch_confidence', confidence)
+      ctx.metadata.set('pitch_shift_applied', request.converter.f0UpKey)
     }
 
     return {

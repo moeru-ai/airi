@@ -39,7 +39,11 @@ export async function evaluateStage(
   }
 
   const convertedPath = join(ctx.jobDir, STAGE_DIRS.convert, ARTIFACT_NAMES.convertedVocals)
-  const sourcePath = join(ctx.jobDir, STAGE_DIRS.separate, ARTIFACT_NAMES.vocals)
+
+  // Prefer isolated lead vocals for evaluation reference (cleaner single-voice F0)
+  const leadVocalsPath = join(ctx.jobDir, STAGE_DIRS.isolate, ARTIFACT_NAMES.leadVocals)
+  const mixedVocalsPath = join(ctx.jobDir, STAGE_DIRS.separate, ARTIFACT_NAMES.vocals)
+  const sourcePath = existsSync(leadVocalsPath) ? leadVocalsPath : mixedVocalsPath
 
   if (!existsSync(convertedPath) || !existsSync(sourcePath)) {
     return {

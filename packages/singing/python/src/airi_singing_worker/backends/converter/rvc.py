@@ -9,6 +9,7 @@ Environment variables (set by the TypeScript adapter):
 """
 
 import json
+import logging
 import os
 import inspect
 import shutil
@@ -21,6 +22,8 @@ import soundfile as sf
 from ...compat import patch_torch_load
 from ...errors.backend import ConversionError
 from ...io.files import ensure_dir
+
+logger = logging.getLogger(__name__)
 
 patch_torch_load()
 
@@ -45,12 +48,14 @@ def _patched_load_audio(file: str, sr: int) -> np.ndarray:
             capture_output=True, check=True, timeout=300,
         )
         return np.frombuffer(out.stdout, np.float32).flatten()
-    except Exception:
+    except Exception as e:
+        logger.warning("FFmpeg audio load failed, using soundfile: %s", e)
         data, orig_sr = sf.read(file, dtype="float32")
         if data.ndim > 1:
             data = data.mean(axis=1)
         if orig_sr != sr:
             import librosa
+            logger.info("Resampling %dHz -> %dHz via librosa", orig_sr, sr)
             data = librosa.resample(data, orig_sr=orig_sr, target_sr=sr)
         return data
 
@@ -69,13 +74,14 @@ def _apply_load_audio_patch() -> None:
     except Exception:
         pass
 
-# Standard RVC v2 40kHz f0 model architecture config.
-# These are the 18 constructor args for SynthesizerTrnMs768NSFsid:
-#   spec_channels, segment_size, inter_channels, hidden_channels,
+# ── RVC architecture config tables ──
+# Each config is the 18 constructor args for the corresponding Synthesizer class.
+# Fields: spec_channels, segment_size, inter_channels, hidden_channels,
 #   filter_channels, n_heads, n_layers, kernel_size, p_dropout, resblock,
 #   resblock_kernel_sizes, resblock_dilation_sizes, upsample_rates,
 #   upsample_initial_channel, upsample_kernel_sizes,
 #   spk_embed_dim, gin_channels, sr
+
 _RVC_V2_40K_CONFIG = [
     1025, 32, 192, 192, 768, 2, 6, 3, 0, "1",
     [3, 7, 11],
@@ -86,13 +92,100 @@ _RVC_V2_40K_CONFIG = [
     40000,
 ]
 
+_RVC_V2_32K_CONFIG = [
+    513, 32, 192, 192, 768, 2, 6, 3, 0, "1",
+    [3, 7, 11],
+    [[1, 3, 5], [1, 3, 5], [1, 3, 5]],
+    [10, 8, 2, 2],
+    512, [16, 16, 4, 4],
+    109, 256,
+    32000,
+]
+
+_RVC_V2_48K_CONFIG = [
+    1025, 32, 192, 192, 768, 2, 6, 3, 0, "1",
+    [3, 7, 11],
+    [[1, 3, 5], [1, 3, 5], [1, 3, 5]],
+    [12, 10, 2, 2],
+    512, [24, 20, 4, 4],
+    109, 256,
+    48000,
+]
+
+_RVC_V1_40K_CONFIG = [
+    1025, 32, 192, 192, 768, 2, 6, 3, 0, "1",
+    [3, 7, 11],
+    [[1, 3, 5], [1, 3, 5], [1, 3, 5]],
+    [10, 10, 2, 2],
+    512, [16, 16, 4, 4],
+    109, 256,
+    40000,
+]
+
+# (version, sr_key) -> (config, label)
+_CONFIG_TABLE: dict[tuple[str, str], tuple[list, str]] = {
+    ("v2", "40k"): (_RVC_V2_40K_CONFIG, "v2-40k-f0"),
+    ("v2", "32k"): (_RVC_V2_32K_CONFIG, "v2-32k-f0"),
+    ("v2", "48k"): (_RVC_V2_48K_CONFIG, "v2-48k-f0"),
+    ("v1", "40k"): (_RVC_V1_40K_CONFIG, "v1-40k-f0"),
+}
+
+
+def _detect_model_arch(
+    weights: dict,
+    meta: dict,
+) -> tuple[str, str, int]:
+    """Detect RVC model version, sample rate key, and f0 flag from checkpoint.
+
+    Returns (version, sr_key, f0_flag). Inspects metadata fields first,
+    then falls back to weight tensor shapes for version detection.
+    """
+    version = str(meta.get("version", "")).lower()
+    sr_raw = meta.get("sr", "")
+    f0_flag = int(meta.get("f0", 1))
+
+    # Infer version from weight shapes when metadata is absent.
+    # v2 uses 768-dim HuBERT -> emb_g embedding has shape[0] related to 768-dim features
+    # v1 uses 256-dim HuBERT -> enc_p.encoder.attn_layers weights differ in size
+    if not version:
+        emb_key = "emb_g.weight"
+        if emb_key in weights:
+            emb_dim = weights[emb_key].shape[0]
+            # v2 models use 109 speaker embeddings with 256-dim gin_channels
+            # Both v1 and v2 can have the same emb_g shape, so check enc_p input dim
+            version = "v2"
+            for k, v in weights.items():
+                # v1 has 256-channel intermediate, v2 has 768-channel
+                if k == "enc_p.encoder.attn_layers.0.conv_k.weight":
+                    ch = v.shape[1]
+                    version = "v1" if ch <= 256 else "v2"
+                    break
+        else:
+            version = "v2"
+
+    if not sr_raw:
+        sr_raw = "40k"
+
+    sr_key = str(sr_raw).replace("000", "k").lower()
+    if sr_key not in ("32k", "40k", "48k"):
+        # Try numeric parse: 32000->32k, 40000->40k, 48000->48k
+        try:
+            sr_num = int(sr_raw)
+            sr_key = f"{sr_num // 1000}k"
+        except (ValueError, TypeError):
+            sr_key = "40k"
+
+    return version, sr_key, f0_flag
+
 
 def _ensure_inference_format(model_path: str) -> str:
     """Convert training checkpoint to RVC inference format if needed.
 
     rvc_python.infer expects {weight, config, ...} but training checkpoints
     only have {model, iteration, learning_rate}. This function detects the
-    format and converts in-place when necessary.
+    model architecture (v1/v2, 32k/40k/48k) from metadata and weight shapes,
+    then writes the correct config. Raises ConversionError if the architecture
+    cannot be determined.
     """
     import torch
 
@@ -106,17 +199,33 @@ def _ensure_inference_format(model_path: str) -> str:
     if "model" not in cpt:
         return model_path
 
-    print(f"Converting training checkpoint to inference format: {model_path}", flush=True)
+    weights = cpt["model"]
+    version, sr_key, f0_flag = _detect_model_arch(weights, cpt)
+    config_key = (version, sr_key)
+
+    if config_key not in _CONFIG_TABLE:
+        raise ConversionError(
+            f"Unsupported RVC architecture: version={version}, sr={sr_key}. "
+            f"Supported: {list(_CONFIG_TABLE.keys())}. "
+            f"Provide a model in inference format (with 'config' + 'weight' keys)."
+        )
+
+    config, label = _CONFIG_TABLE[config_key]
+    logger.info(
+        "Converting training checkpoint to inference format: %s (detected: %s)",
+        model_path, label,
+    )
+
     inference_cpt = {
-        "weight": cpt["model"],
-        "config": _RVC_V2_40K_CONFIG,
-        "info": "v2-40k-f0 (auto-converted from training checkpoint)",
-        "sr": "40k",
-        "f0": 1,
-        "version": "v2",
+        "weight": weights,
+        "config": config,
+        "info": f"{label} (auto-converted from training checkpoint)",
+        "sr": sr_key,
+        "f0": f0_flag,
+        "version": version,
     }
     torch.save(inference_cpt, model_path)
-    print("Checkpoint converted successfully", flush=True)
+    logger.info("Checkpoint converted successfully: %s", label)
     return model_path
 
 
@@ -127,7 +236,7 @@ def _find_model(voice_id: str, models_dir: str | None = None) -> str | None:
       1. voice_models/{voice_id}/{voice_id}.pth  (new per-voice subdirectory)
       2. {models_dir}/{voice_id}.pth             (legacy flat layout)
       3. package-root/models/voice_models/{voice_id}/{voice_id}.pth
-      4. package-root/models/{voice_id}.pth       (legacy fallback)
+      4. package-root/models/{voice_id}.pth       (legacy flat layout)
     """
     candidates: list[Path] = []
     if models_dir:
@@ -208,12 +317,11 @@ def convert(
     models_dir: str | None = None,
     f0_up_key: int = 0,
     f0_method: str = "rmvpe",
-    f0_file: str | None = None,
     index_file: str | None = None,
     index_rate: float = 0.75,
     filter_radius: int = 3,
     rms_mix_rate: float = 0.25,
-    protect: float = 0.20,
+    protect: float = 0.33,
     **kwargs: object,
 ) -> str:
     """
@@ -255,20 +363,10 @@ def convert(
     actual_f0_up_key = int(kwargs.get("f0_up_key", f0_up_key))
     actual_rms_mix_rate = float(kwargs.get("rms_mix_rate", rms_mix_rate))
     actual_protect = float(kwargs.get("protect", protect))
-    actual_f0_file = str(kwargs.get("f0_file", f0_file or "")) or ""
     staged_registry_root = None
 
-    tmp_input = None
     try:
-        # Pre-align: resample input to model's native sample rate (40kHz)
-        src_info = sf.info(input_path)
         rvc_input = input_path
-        if src_info.samplerate != MODEL_TARGET_SR:
-            tmp_input = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
-            tmp_input.close()
-            _resample_wav(input_path, tmp_input.name, MODEL_TARGET_SR)
-            rvc_input = tmp_input.name
-            print(f"Pre-aligned: {src_info.samplerate}Hz -> {MODEL_TARGET_SR}Hz", flush=True)
 
         def _try_direct_load() -> bool:
             """Attempt the legacy load_model(path, index_path=...) API."""
@@ -311,27 +409,10 @@ def convert(
             filter_radius=actual_filter_radius,
             rms_mix_rate=actual_rms_mix_rate,
             protect=actual_protect,
+            resample_sr=0,
         )
 
-        if actual_f0_file and Path(actual_f0_file).exists():
-            from scipy.io import wavfile as scipy_wavfile
-            wav_opt = rvc.vc.vc_single(
-                sid=0,
-                input_audio_path=rvc_input,
-                f0_up_key=actual_f0_up_key,
-                f0_method=f0_method,
-                file_index=resolved_index_path,
-                index_rate=actual_index_rate,
-                filter_radius=actual_filter_radius,
-                resample_sr=rvc.resample_sr,
-                rms_mix_rate=actual_rms_mix_rate,
-                protect=actual_protect,
-                f0_file=actual_f0_file,
-                file_index2="",
-            )
-            scipy_wavfile.write(output_path, rvc.vc.tgt_sr, wav_opt)
-        else:
-            rvc.infer_file(rvc_input, output_path)
+        rvc.infer_file(rvc_input, output_path)
 
         # Post-align: resample output back to pipeline standard (44.1kHz)
         out_info = sf.info(output_path)
@@ -341,8 +422,6 @@ def convert(
     except Exception as e:
         raise ConversionError(f"RVC conversion failed: {e!s}") from e
     finally:
-        if tmp_input and os.path.exists(tmp_input.name):
-            os.unlink(tmp_input.name)
         if staged_registry_root and os.path.exists(staged_registry_root):
             shutil.rmtree(staged_registry_root, ignore_errors=True)
 
@@ -358,7 +437,7 @@ def _resample_wav(src_path: str, dst_path: str, target_sr: int) -> None:
         resampled = np.column_stack(channels)
     else:
         resampled = librosa.resample(data, orig_sr=orig_sr, target_sr=target_sr)
-    sf.write(dst_path, resampled, target_sr, subtype="PCM_16")
+    sf.write(dst_path, resampled, target_sr, subtype="FLOAT")
 
 
 def _get_inference_device() -> str:
@@ -385,10 +464,9 @@ if __name__ == "__main__":
     parser.add_argument("--models-dir", default=None)
     parser.add_argument("--index-file", default=None)
     parser.add_argument("--f0-up-key", type=int, default=0)
-    parser.add_argument("--f0-file", default=None)
     parser.add_argument("--index-rate", type=float, default=0.75)
     parser.add_argument("--filter-radius", type=int, default=3)
-    parser.add_argument("--protect", type=float, default=0.20)
+    parser.add_argument("--protect", type=float, default=0.33)
     parser.add_argument("--rms-mix-rate", type=float, default=0.25)
     args = parser.parse_args()
     result = convert(
@@ -399,7 +477,6 @@ if __name__ == "__main__":
         models_dir=args.models_dir,
         index_file=args.index_file,
         f0_up_key=args.f0_up_key,
-        f0_file=args.f0_file,
         index_rate=args.index_rate,
         filter_radius=args.filter_radius,
         protect=args.protect,

@@ -21,6 +21,7 @@ export interface CoverManifest {
   separator: {
     backend: SeparatorBackendId
     model: string
+    leadIsolation: boolean
   }
 
   pitch: {
@@ -39,6 +40,8 @@ export interface CoverManifest {
     ducking: boolean
     targetLufs: number
     truePeakDb: number
+    /** Tracks that participated in the final mix */
+    tracks?: Array<{ role: string, gain: number, label: string }>
   }
 
   /** Per-stage timing in milliseconds */

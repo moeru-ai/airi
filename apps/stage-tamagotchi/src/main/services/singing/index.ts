@@ -6,12 +6,9 @@ import { execFile, spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { createReadStream, createWriteStream, existsSync, realpathSync, statSync } from 'node:fs'
 import { mkdir, readdir, readFile, rename, rm, unlink, writeFile } from 'node:fs/promises'
-import { get as httpGet } from 'node:http'
-import { get as httpsGet } from 'node:https'
 import { createServer } from 'node:net'
 import { dirname, join, resolve } from 'node:path'
 import { Readable } from 'node:stream'
-import { pipeline } from 'node:stream/promises'
 import { promisify } from 'node:util'
 
 import { useLogger } from '@guiiai/logg'
@@ -519,94 +516,107 @@ function findSingingPackageRoot(): string | null {
 }
 
 // ─── HTTP download helper ────────────────────────────────────────────────
-function httpFollow(url: string): typeof httpsGet {
-  return url.startsWith('https') ? httpsGet : httpGet
-}
 
-function httpsDownload(url: string, dest: string, progressId: string, pctRange?: [number, number]): Promise<void> {
+const DOWNLOAD_TEMP_SUFFIX = '.downloading'
+
+/**
+ * Download a file using Node.js built-in fetch (undici) for fast HTTP/2 downloads.
+ * Writes to a .downloading temp file first, then renames atomically on success.
+ * Cleans up partial files on any failure.
+ */
+async function httpsDownload(url: string, dest: string, progressId: string, pctRange?: [number, number]): Promise<void> {
   const [pctMin, pctMax] = pctRange ?? [0, 100]
-  return new Promise((resolvePromise, reject) => {
-    const follow = (u: string, redirects = 0) => {
-      if (redirects > 10) {
-        reject(new Error('Too many redirects'))
-        return
-      }
-      const getter = httpFollow(u)
-      getter(u, (res) => {
-        if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          let loc = res.headers.location
-          if (loc.startsWith('/'))
-            loc = new URL(loc, u).href
-          follow(loc, redirects + 1)
-          return
-        }
-        if (res.statusCode !== 200) {
-          reject(new Error(`HTTP ${res.statusCode} from ${u}`))
-          return
-        }
-        const total = Number.parseInt(res.headers['content-length'] ?? '0', 10)
-        let downloaded = 0
-        let lastLogTime = 0
-        let lastLoggedPct = -1
-        const startTime = Date.now()
+  const tmpDest = dest + DOWNLOAD_TEMP_SUFFIX
 
-        res.on('data', (chunk: Buffer) => {
-          downloaded += chunk.length
-          const now = Date.now()
-          if (now - lastLogTime < 500)
-            return
-          lastLogTime = now
+  if (existsSync(tmpDest))
+    await unlink(tmpDest).catch(() => {})
 
-          const mb = (downloaded / 1024 / 1024).toFixed(1)
-          const totalMb = total > 0 ? (total / 1024 / 1024).toFixed(1) : '?'
-          const elapsed = (now - startTime) / 1000
-          const speed = elapsed > 0 ? (downloaded / 1024 / 1024 / elapsed).toFixed(1) : '0'
-          const frac = total > 0 ? downloaded / total : 0.5
-          const pct = Math.round(pctMin + (pctMax - pctMin) * frac)
-          const eta = total > 0 && elapsed > 0
-            ? Math.round((total - downloaded) / (downloaded / elapsed))
-            : -1
-
-          const etaStr = eta > 0 ? ` ETA ${eta}s` : ''
-          const msg = `${mb} / ${totalMb} MB  (${speed} MB/s${etaStr})`
-          updateProgress(progressId, { percent: pct, message: msg })
-
-          const logPct = Math.floor((downloaded / (total || downloaded)) * 10) * 10
-          if (logPct > lastLoggedPct) {
-            lastLoggedPct = logPct
-            appendLog(progressId, 'info', `  ↓ ${logPct}%  ${mb}/${totalMb} MB  ${speed} MB/s${etaStr}`)
-          }
-        })
-        const file = createWriteStream(dest)
-        pipeline(res, file)
-          .then(async () => {
-            if (total > 0 && downloaded < total) {
-              await unlink(dest).catch(() => {})
-              reject(new Error(`Incomplete download: got ${downloaded} bytes, expected ${total}`))
-              return
-            }
-            const actualSize = existsSync(dest) ? statSync(dest).size : 0
-            if (total > 0 && actualSize < total * 0.95) {
-              await unlink(dest).catch(() => {})
-              reject(new Error(`File size mismatch: disk ${actualSize} bytes vs expected ${total}`))
-              return
-            }
-            const finalMb = (actualSize / 1024 / 1024).toFixed(1)
-            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
-            appendLog(progressId, 'success', `  ✓ ${finalMb} MB downloaded in ${elapsed}s`)
-            resolvePromise()
-          })
-          .catch(async (err) => {
-            await unlink(dest).catch(() => {})
-            reject(err)
-          })
-      }).on('error', (err) => {
-        unlink(dest).catch(() => {})
-        reject(err)
-      })
-    }
-    follow(url)
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (airi-singing-pipeline/1.0; +https://github.com/moeru-ai/airi)',
+      'Accept': '*/*',
+    },
+    redirect: 'follow',
   })
+
+  if (!response.ok)
+    throw new Error(`HTTP ${response.status} ${response.statusText} from ${url}`)
+  if (!response.body)
+    throw new Error(`Empty response body from ${url}`)
+
+  const total = Number(response.headers.get('content-length') ?? 0)
+  let downloaded = 0
+  let lastLogTime = 0
+  let lastLoggedPct = -1
+  const startTime = Date.now()
+  const reader = response.body.getReader()
+  const file = createWriteStream(tmpDest)
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done)
+        break
+
+      file.write(value)
+      downloaded += value.length
+
+      const now = Date.now()
+      if (now - lastLogTime < 500)
+        continue
+      lastLogTime = now
+
+      const mb = (downloaded / 1024 / 1024).toFixed(1)
+      const totalMb = total > 0 ? (total / 1024 / 1024).toFixed(1) : '?'
+      const elapsed = (now - startTime) / 1000
+      const speed = elapsed > 0 ? (downloaded / 1024 / 1024 / elapsed).toFixed(1) : '0'
+      const frac = total > 0 ? downloaded / total : 0.5
+      const pct = Math.round(pctMin + (pctMax - pctMin) * frac)
+      const eta = total > 0 && elapsed > 0
+        ? Math.round((total - downloaded) / (downloaded / elapsed))
+        : -1
+
+      const etaStr = eta > 0 ? ` ETA ${eta}s` : ''
+      const msg = `${mb} / ${totalMb} MB  (${speed} MB/s${etaStr})`
+      updateProgress(progressId, { percent: pct, message: msg })
+
+      const logPct = Math.floor((downloaded / (total || downloaded)) * 10) * 10
+      if (logPct > lastLoggedPct) {
+        lastLoggedPct = logPct
+        appendLog(progressId, 'info', `  ↓ ${logPct}%  ${mb}/${totalMb} MB  ${speed} MB/s${etaStr}`)
+      }
+    }
+
+    await new Promise<void>((res, rej) => {
+      file.end()
+      file.on('finish', res)
+      file.on('error', rej)
+    })
+
+    if (total > 0 && downloaded < total) {
+      await unlink(tmpDest).catch(() => {})
+      throw new Error(`Incomplete download: got ${downloaded} bytes, expected ${total}`)
+    }
+
+    const actualSize = existsSync(tmpDest) ? statSync(tmpDest).size : 0
+    if (total > 0 && actualSize < total * 0.95) {
+      await unlink(tmpDest).catch(() => {})
+      throw new Error(`File size mismatch: disk ${actualSize} bytes vs expected ${total}`)
+    }
+
+    // Atomic rename: tmp -> final destination
+    if (existsSync(dest))
+      await unlink(dest).catch(() => {})
+    await rename(tmpDest, dest)
+
+    const finalMb = (actualSize / 1024 / 1024).toFixed(1)
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
+    appendLog(progressId, 'success', `  ✓ ${finalMb} MB downloaded in ${elapsed}s`)
+  }
+  catch (err) {
+    await unlink(tmpDest).catch(() => {})
+    throw err
+  }
 }
 
 // ─── Setup: FFmpeg ───────────────────────────────────────────────────────
@@ -2021,7 +2031,7 @@ function buildApp(dataDir: string) {
       const runModelsDownload = async () => {
         await mkdir(modelsDir, { recursive: true })
         appendLog(id, 'info', `Models directory: ${modelsDir}`)
-        appendLog(id, 'info', `Source: hf-mirror.com (HuggingFace mirror)`)
+        appendLog(id, 'info', `Source: ${process.env.HF_MIRROR ?? 'huggingface.co'}`)
 
         const needed: Array<(typeof BASE_MODELS)[number]> = []
         let totalDownloadBytes = 0

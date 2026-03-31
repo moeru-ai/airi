@@ -19,7 +19,6 @@ overrides:
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
-
 patchedDependencies:
   '@mediapipe/tasks-vision': patches/@mediapipe__tasks-vision.patch
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
@@ -113,6 +112,7 @@ catalog:
   vite-plugin-mkcert: ^1.17.10
   vue: ^3.5.30
   vue-sonner: 2.0.9
+  wavesurfer.js: ^7.12.5
   ws: ^8.20.0
   xsschema: 0.4.0-beta.13
   yaml: ^2.8.3

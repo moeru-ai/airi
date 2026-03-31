@@ -14,5 +14,5 @@ export const WORKING_FORMAT = AudioFormat.WAV
 /** Default working sample rate in Hz */
 export const WORKING_SAMPLE_RATE = 44100
 
-/** Default bit depth for working audio */
-export const WORKING_BIT_DEPTH = 16
+/** Default bit depth for working audio (32-bit float to avoid quantization noise in intermediate stages) */
+export const WORKING_BIT_DEPTH = 32

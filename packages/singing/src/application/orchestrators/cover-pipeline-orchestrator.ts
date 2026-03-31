@@ -13,6 +13,7 @@ import { convertVocalsStage } from '../../pipeline/stages/convert-vocals.stage'
 import { evaluateStage } from '../../pipeline/stages/evaluate.stage'
 import { extractF0Stage } from '../../pipeline/stages/extract-f0.stage'
 import { finalizeStage } from '../../pipeline/stages/finalize.stage'
+import { isolateLeadVocalStage } from '../../pipeline/stages/isolate-lead-vocal.stage'
 import { postprocessVocalsStage } from '../../pipeline/stages/postprocess-vocals.stage'
 import { prepareSourceStage } from '../../pipeline/stages/prepare-source.stage'
 import { remixStage } from '../../pipeline/stages/remix.stage'
@@ -47,11 +48,16 @@ export async function runCoverPipeline(
   const stages: Pipeline['stages'] = [
     { stage: PipelineStage.PrepareSource, handler: prepareSourceStage },
     { stage: PipelineStage.SeparateVocals, handler: separateVocalsStage },
-    { stage: PipelineStage.ExtractF0, handler: extractF0Stage },
+    { stage: PipelineStage.IsolateLeadVocal, handler: isolateLeadVocalStage },
   ]
 
+  // ExtractF0 is only for calibration source analysis and evaluation metrics,
+  // never for driving RVC (which uses its own internal RMVPE).
   if (useAutoCalibrate) {
-    stages.push({ stage: PipelineStage.AutoCalibrate, handler: autoCalibrateStage })
+    stages.push(
+      { stage: PipelineStage.ExtractF0, handler: extractF0Stage },
+      { stage: PipelineStage.AutoCalibrate, handler: autoCalibrateStage },
+    )
   }
 
   stages.push(

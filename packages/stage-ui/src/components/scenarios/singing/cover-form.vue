@@ -22,7 +22,8 @@ const { startCoverJob } = useSingingCoverRuntime()
 const inputFile = ref<File | null>(null)
 const voiceId = ref('')
 const f0UpKey = ref(0)
-const indexRate = ref(0.75)
+const indexRate = ref(0.5)
+const filterRadius = ref(3)
 const protect = ref(0.33)
 const rmsMixRate = ref(0.25)
 const autoCalibrate = ref(true)
@@ -93,6 +94,7 @@ async function handleSubmit() {
       voiceId: voiceId.value,
       f0UpKey: f0UpKey.value,
       indexRate: indexRate.value,
+      filterRadius: filterRadius.value,
       protect: protect.value,
       rmsMixRate: rmsMixRate.value,
       autoCalibrate: autoCalibrate.value,
@@ -230,7 +232,7 @@ async function handleSubmit() {
           <div class="i-solar:alt-arrow-down-line-duotone text-base transition-transform group-open:rotate-180" />
         </div>
       </summary>
-      <div class="grid grid-cols-2 mt-3 gap-3 md:grid-cols-4">
+      <div class="grid grid-cols-2 mt-3 gap-3 md:grid-cols-5">
         <div>
           <label class="mb-1 block text-xs text-neutral-500 dark:text-neutral-400">Pitch Shift (semitones)</label>
           <input
@@ -247,6 +249,17 @@ async function handleSubmit() {
             step="0.05"
             min="0"
             max="1"
+            class="w-full border border-neutral-300 rounded-lg bg-white px-2.5 py-1.5 text-sm outline-none transition-colors dark:border-neutral-600 focus:border-primary-400 dark:bg-neutral-800 dark:focus:border-primary-500"
+          >
+        </div>
+        <div>
+          <label class="mb-1 block text-xs text-neutral-500 dark:text-neutral-400">Filter Radius</label>
+          <input
+            v-model.number="filterRadius"
+            type="number"
+            step="1"
+            min="0"
+            max="7"
             class="w-full border border-neutral-300 rounded-lg bg-white px-2.5 py-1.5 text-sm outline-none transition-colors dark:border-neutral-600 focus:border-primary-400 dark:bg-neutral-800 dark:focus:border-primary-500"
           >
         </div>

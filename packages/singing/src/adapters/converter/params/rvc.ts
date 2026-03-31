@@ -9,7 +9,6 @@ export interface RvcParams {
   filterRadius: number
   protect: number
   rmsMixRate: number
-  f0File?: string
   indexFile?: string
 }
 
@@ -18,6 +17,6 @@ export const DEFAULT_RVC_PARAMS: RvcParams = {
   f0Method: 'rmvpe',
   indexRate: 0.75,
   filterRadius: 3,
-  protect: 0.20,
+  protect: 0.33,
   rmsMixRate: 0.25,
 }

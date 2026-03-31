@@ -17,6 +17,7 @@ export interface SourceFeatures {
 
 export interface PredictedParams {
   pitch_shift: number
+  pitch_confidence?: number
   index_rate: number
   filter_radius?: number
   protect: number

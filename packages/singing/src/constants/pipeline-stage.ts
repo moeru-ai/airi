@@ -6,6 +6,7 @@
 export enum PipelineStage {
   PrepareSource = 'prepare_source',
   SeparateVocals = 'separate_vocals',
+  IsolateLeadVocal = 'isolate_lead_vocal',
   ExtractF0 = 'extract_f0',
   AutoCalibrate = 'auto_calibrate',
   ConvertVocals = 'convert_vocals',
@@ -22,6 +23,7 @@ export enum PipelineStage {
 export const DEFAULT_STAGE_ORDER: readonly PipelineStage[] = [
   PipelineStage.PrepareSource,
   PipelineStage.SeparateVocals,
+  PipelineStage.IsolateLeadVocal,
   PipelineStage.ExtractF0,
   PipelineStage.AutoCalibrate,
   PipelineStage.ConvertVocals,
@@ -37,6 +39,7 @@ export const DEFAULT_STAGE_ORDER: readonly PipelineStage[] = [
 export const LEGACY_STAGE_ORDER: readonly PipelineStage[] = [
   PipelineStage.PrepareSource,
   PipelineStage.SeparateVocals,
+  PipelineStage.IsolateLeadVocal,
   PipelineStage.ExtractF0,
   PipelineStage.ConvertVocals,
   PipelineStage.PostprocessVocals,

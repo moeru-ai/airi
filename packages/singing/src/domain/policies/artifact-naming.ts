@@ -16,6 +16,7 @@ import type { PipelineStage } from '../../constants/pipeline-stage'
 const STAGE_PREFIX_MAP: Record<string, string> = {
   prepare_source: '01_prep',
   separate_vocals: '02_separate',
+  isolate_lead_vocal: '02b_isolate',
   extract_f0: '03_pitch',
   convert_vocals: '04_convert',
   postprocess_vocals: '04_convert',

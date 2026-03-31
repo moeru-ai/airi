@@ -25,6 +25,8 @@ class GateResult:
     f0_corr: float = 0.0
     source_leakage: float = 0.0
     tearing_risk: float = 0.0
+    naturalness_mos: float = 3.0
+    hnr: float = 15.0
     failed_metrics: list[str] | None = None
 
     def to_dict(self) -> dict:
@@ -34,11 +36,13 @@ class GateResult:
         return d
 
 
-# Default thresholds
 DEFAULT_THRESHOLDS = {
-    "singer_similarity": 0.65,
-    "f0_corr": 0.85,
+    "singer_similarity": 0.55,
+    "f0_corr": 0.75,
     "source_leakage_max": 0.40,
+    "tearing_max": 0.30,
+    "naturalness_mos": 2.5,
+    "hnr_min": 12.0,
 }
 
 
@@ -116,16 +120,36 @@ def run_validation_gate(
         logger.warning("Tearing detection failed: %s", e)
         result.tearing_risk = 0.0
 
+    # 5. Naturalness MOS prediction
+    try:
+        from ..evaluation.naturalness import predict_mos
+        result.naturalness_mos = predict_mos(output_path)
+    except Exception as e:
+        logger.warning("MOS prediction failed: %s", e)
+        result.naturalness_mos = 3.0
+
+    # 6. HNR (harmonics-to-noise ratio)
+    try:
+        from ..evaluation.composite import _compute_hnr
+        result.hnr = _compute_hnr(output_path)
+    except Exception as e:
+        logger.warning("HNR computation failed: %s", e)
+        result.hnr = 15.0
+
     # Evaluate pass/fail
     failed = []
-    if result.singer_similarity_available and result.singer_similarity < t.get("singer_similarity", 0.65):
+    if result.singer_similarity_available and result.singer_similarity < t.get("singer_similarity", 0.55):
         failed.append("singer_similarity")
-    if result.f0_corr < t.get("f0_corr", 0.85):
+    if result.f0_corr < t.get("f0_corr", 0.75):
         failed.append("f0_corr")
     if result.source_leakage > t.get("source_leakage_max", 0.40):
         failed.append("source_leakage")
-    if result.tearing_risk > 0.35:
+    if result.tearing_risk > t.get("tearing_max", 0.30):
         failed.append("tearing")
+    if result.naturalness_mos < t.get("naturalness_mos", 2.5):
+        failed.append("naturalness_mos")
+    if result.hnr < t.get("hnr_min", 12.0):
+        failed.append("hnr_low")
 
     result.failed_metrics = failed
     result.passed = len(failed) == 0

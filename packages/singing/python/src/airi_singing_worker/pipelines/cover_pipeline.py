@@ -89,7 +89,6 @@ def run_cover_pipeline(request: CoverRequest) -> CoverResponse:
                 output_dir=request.output_dir,
                 voice_id=request.voice_id or "",
                 f0_up_key=request.f0_up_key,
-                f0_file=f0_path,
                 index_rate=request.index_rate,
                 protect=request.protect,
                 rms_mix_rate=request.rms_mix_rate,

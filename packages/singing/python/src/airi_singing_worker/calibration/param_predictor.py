@@ -24,9 +24,10 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PredictedParams:
     pitch_shift: int = 0
+    pitch_confidence: float = 0.0
     index_rate: float = 0.75
     filter_radius: int = 3
-    protect: float = 0.20
+    protect: float = 0.33
     rms_mix_rate: float = 0.25
 
     def to_dict(self) -> dict:
@@ -67,29 +68,43 @@ def _overflow_penalty(
     return penalty
 
 
+@dataclass
+class PitchShiftResult:
+    shift: int = 0
+    confidence: float = 0.0
+
+
 def predict_pitch_shift(
     source: SourceFeatures,
     profile: VoiceProfile,
     lambda1: float = 1.0,
     lambda2: float = 0.5,
-) -> int:
+    max_shift: int = 4,
+) -> PitchShiftResult:
     """Find optimal semitone shift to match source F0 median to target.
 
-    Searches k ∈ {-12, ..., 12} minimizing:
-      λ1 * |12*log2((S50 * 2^(k/12)) / T50)| + λ2 * overflow_penalty
+    Searches k in [-max_shift, max_shift] minimizing:
+      lambda1 * |12*log2((S50 * 2^(k/12)) / T50)| + lambda2 * overflow_penalty
+
+    Returns PitchShiftResult with shift and confidence. When voiced frame
+    statistics are insufficient, returns shift=0 with confidence=0.0.
     """
     s50 = source.f0_median
     t50 = profile.f0_p50
 
     if s50 < 1.0 or t50 < 1.0:
-        return 0
+        logger.warning(
+            "Insufficient F0 statistics (source_median=%.1f, target_p50=%.1f), "
+            "skipping pitch shift",
+            s50, t50,
+        )
+        return PitchShiftResult(shift=0, confidence=0.0)
 
     best_k = 0
     best_cost = float("inf")
 
-    for k in range(-12, 13):
+    for k in range(-max_shift, max_shift + 1):
         shifted_s50 = s50 * (2.0 ** (k / 12.0))
-        # Deviation in semitones from target median
         if shifted_s50 <= 0:
             continue
         deviation = abs(12.0 * log2(shifted_s50 / t50))
@@ -105,7 +120,19 @@ def predict_pitch_shift(
             best_cost = cost
             best_k = k
 
-    return best_k
+    # Confidence based on how well the shift aligns medians (0-1 scale)
+    if best_cost < 0.01:
+        confidence = 1.0
+    else:
+        confidence = _clamp(1.0 / (1.0 + best_cost), 0.0, 1.0)
+
+    if best_k != 0:
+        logger.info(
+            "Auto pitch shift: %+d semitones (confidence=%.2f, source_median=%.1fHz, target_p50=%.1fHz)",
+            best_k, confidence, s50, t50,
+        )
+
+    return PitchShiftResult(shift=best_k, confidence=confidence)
 
 
 def predict_index_rate(
@@ -113,12 +140,11 @@ def predict_index_rate(
     profile: VoiceProfile,
     content_risk: float = 0.0,
 ) -> float:
-    """Predict optimal index rate based on embedding mismatch, quality gap, and content risk.
+    """Predict optimal index rate based on embedding mismatch, quality gap, range mismatch, and content risk.
 
-    RVC's own CLI docs note that higher index_rate strengthens accent/timbre
-    transfer but also increases artifact risk when pushed too far. We therefore
-    bias the predictor slightly lower than the original prototype and further
-    suppress retrieval when the source already looks sibilant/flat/noisy.
+    Higher index_rate strengthens accent/timbre transfer but also increases
+    artifact risk. When source and target vocal ranges differ significantly,
+    lower index_rate reduces timbre leakage from the retrieval index.
     """
     mismatch = 0.5
     if source.speaker_embedding and profile.embedding_centroid:
@@ -131,13 +157,18 @@ def predict_index_rate(
     target_quality = 3.5
     quality_gap = max(0.0, source.source_quality - target_quality)
 
-    leakage_risk = 0.0
+    # Range mismatch: penalize when source and target F0 ranges differ significantly
+    range_mismatch = 0.0
+    if source.f0_max > 1.0 and profile.f0_p90 > 1.0:
+        src_range_st = 12.0 * log2(max(source.f0_max, 1.0) / max(source.f0_min, 1.0))
+        tgt_range_st = 12.0 * log2(max(profile.f0_p90, 1.0) / max(profile.f0_p10, 1.0))
+        range_mismatch = _clamp(abs(src_range_st - tgt_range_st) / 24.0, 0.0, 1.0)
 
     rate = (
         0.30
         + 0.24 * mismatch
         - 0.22 * quality_gap
-        + 0.08 * leakage_risk
+        - 0.12 * range_mismatch
         - 0.20 * content_risk
         - 0.10 * source.sibilance_score
         - 0.08 * source.spectral_flatness
@@ -149,15 +180,10 @@ def predict_protect(
     source: SourceFeatures,
     tearing_risk: float = 0.0,
 ) -> float:
-    """Predict optimal protect value based on sibilance, unvoiced ratio, and tearing risk.
-
-    protect = clamp(
-        0.45 - 0.20 * unvoiced_ratio - 0.15 * sibilance_score
-             - 0.10 * tearing_risk - 0.10 * spectral_flatness,
-        0.10, 0.50
-    )
+    """Predict optimal protect value based on sibilance, unvoiced ratio, bleed, and tearing risk.
 
     Lower protect = stronger consonant/breath protection = less electronic tearing.
+    Higher bleed_score raises protect to compensate for separation artifacts.
     """
     val = (
         0.42
@@ -165,6 +191,7 @@ def predict_protect(
         - 0.18 * source.sibilance_score
         - 0.14 * tearing_risk
         - 0.10 * source.spectral_flatness
+        + 0.08 * source.bleed_score
     )
     return _clamp(val, 0.10, 0.50)
 
@@ -197,8 +224,10 @@ def predict_params(
         tearing_risk: 0-1 score from previous inference indicating electronic tearing severity.
         content_risk: 0-1 score from previous inference indicating content/lyric degradation.
     """
+    pitch_result = predict_pitch_shift(source, profile)
     return PredictedParams(
-        pitch_shift=predict_pitch_shift(source, profile),
+        pitch_shift=pitch_result.shift,
+        pitch_confidence=round(pitch_result.confidence, 3),
         index_rate=round(predict_index_rate(source, profile, content_risk), 2),
         filter_radius=3,
         protect=round(predict_protect(source, tearing_risk), 2),

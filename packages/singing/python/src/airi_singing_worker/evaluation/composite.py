@@ -193,12 +193,11 @@ def _resolve_identity_reference_embedding(
     synth_emb: np.ndarray,
     voice_profile_data: dict | None = None,
 ) -> np.ndarray:
-    """Choose the best available reference embedding for identity scoring.
+    """Choose the reference embedding for identity scoring.
 
-    The training pipeline now rejects empty training-generated centroids at the
-    source. This fallback remains as a defensive guard for malformed legacy or
-    externally supplied profile files so we do not collapse identity scoring to
-    zero when reading corrupted metadata.
+    Validates voice profile centroid data integrity before use. If the
+    centroid is missing, empty, or shape-mismatched, uses the reference
+    audio embedding directly as the identity target.
     """
     centroid_values = None
     if voice_profile_data:
@@ -209,11 +208,11 @@ def _resolve_identity_reference_embedding(
             centroid = np.asarray(centroid_values, dtype=np.float32).flatten()
             if centroid.size == 0:
                 logger.warning(
-                    "Voice profile centroid is empty for identity scoring; falling back to reference audio embedding",
+                    "Voice profile centroid is empty; using reference audio embedding for identity scoring",
                 )
             elif centroid.shape != synth_emb.shape:
                 logger.warning(
-                    "Voice profile centroid shape %s does not match synthesized embedding shape %s; falling back to reference audio embedding",
+                    "Voice profile centroid shape %s does not match synthesized embedding shape %s; using reference audio embedding instead",
                     centroid.shape,
                     synth_emb.shape,
                 )
@@ -221,7 +220,7 @@ def _resolve_identity_reference_embedding(
                 return centroid
         except Exception as e:
             logger.warning(
-                "Voice profile centroid is invalid for identity scoring (%s); falling back to reference audio embedding",
+                "Voice profile centroid is invalid for identity scoring (%s); using reference audio embedding instead",
                 e,
             )
 
@@ -451,10 +450,10 @@ def check_thresholds(
     Default thresholds are lenient — intended as a "minimum viable quality" gate.
     """
     defaults = {
-        "singer_similarity": 0.50,
-        "content_score": 0.40,
-        "f0_corr": 0.70,
-        "naturalness_mos": 2.0,
+        "singer_similarity": 0.55,
+        "content_score": 0.45,
+        "f0_corr": 0.75,
+        "naturalness_mos": 2.5,
     }
     t = {**defaults, **(thresholds or {})}
 

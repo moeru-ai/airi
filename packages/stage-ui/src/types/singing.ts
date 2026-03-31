@@ -47,13 +47,14 @@ export interface CoverFormState {
 }
 
 export const COVER_STAGE_PROGRESS_MAP: Record<string, number> = {
-  prepare_source: 11,
-  separate_vocals: 22,
-  extract_f0: 33,
-  auto_calibrate: 40,
-  convert_vocals: 50,
+  prepare_source: 10,
+  separate_vocals: 20,
+  isolate_lead_vocal: 28,
+  extract_f0: 36,
+  auto_calibrate: 43,
+  convert_vocals: 52,
   postprocess_vocals: 62,
-  remix: 74,
+  remix: 73,
   evaluate: 85,
   finalize: 95,
 }

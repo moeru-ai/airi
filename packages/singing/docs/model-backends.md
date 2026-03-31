@@ -34,8 +34,8 @@
 ### RVC Key Features
 
 - **FAISS Index Loading**: `.index` file is passed to `load_model(index_path=...)` for retrieval-augmented conversion
-- **F0 File Passthrough**: When pipeline F0 exists, bypasses `infer_file()` and calls `vc_single(f0_file=...)` directly
-- **Sample Rate Pre-alignment**: Input is resampled from 44.1kHz → 40kHz before RVC, output is resampled back to 44.1kHz after
+- **Internal RMVPE F0**: RVC uses its own internal RMVPE for F0 extraction, matching the training pipeline exactly
+- **Sample Rate Post-alignment**: Output is resampled from model native SR to 44.1kHz after conversion
 - **Automatic Format Conversion**: Training checkpoints are auto-converted to inference format on first use
 
 ## Post-processing (Python DSP Chain)

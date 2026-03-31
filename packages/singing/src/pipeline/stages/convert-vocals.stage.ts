@@ -6,6 +6,7 @@ import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { createConverter } from '../../adapters/converter/converter-router'
+import { runFfmpeg } from '../../adapters/ffmpeg/ffmpeg-runner'
 import { ConverterBackendId } from '../../constants/model-backends'
 import { PipelineStage } from '../../constants/pipeline-stage'
 import { createAudioPath } from '../../domain/value-objects/audio-path'
@@ -13,6 +14,7 @@ import { ARTIFACT_NAMES, STAGE_DIRS } from '../../manifests/artifact-layout'
 
 /**
  * Stage: Convert Vocals
+ * - Pre-process separated vocals (HPF 80Hz + DC removal)
  * - Run RVC or Seed-VC via Python worker
  */
 export async function convertVocalsStage(
@@ -21,7 +23,10 @@ export async function convertVocalsStage(
   const stageDir = join(ctx.jobDir, STAGE_DIRS.convert)
   await mkdir(stageDir, { recursive: true })
 
-  const vocalsPath = join(ctx.jobDir, STAGE_DIRS.separate, ARTIFACT_NAMES.vocals)
+  const leadVocalsPath = join(ctx.jobDir, STAGE_DIRS.isolate, ARTIFACT_NAMES.leadVocals)
+  const mixedVocalsPath = join(ctx.jobDir, STAGE_DIRS.separate, ARTIFACT_NAMES.vocals)
+  const vocalsPath = existsSync(leadVocalsPath) ? leadVocalsPath : mixedVocalsPath
+
   if (!existsSync(vocalsPath)) {
     return {
       stage: PipelineStage.ConvertVocals,
@@ -31,6 +36,25 @@ export async function convertVocalsStage(
       error: `Required artifact not found: ${ARTIFACT_NAMES.vocals}`,
     }
   }
+
+  // Pre-process: HPF 80Hz (remove separation bass bleed) + DC offset removal.
+  // NOTICE: dynaudnorm was removed because it alters the amplitude envelope,
+  // which causes RMVPE (inside RVC) to misjudge voiced/unvoiced boundaries
+  // and produce incorrect F0 values — manifesting as pitch drift in quiet sections.
+  const preprocessedPath = join(stageDir, 'preprocessed_vocals.wav')
+  const preprocessResult = await runFfmpeg([
+    '-i',
+    vocalsPath,
+    '-af',
+    'highpass=f=80,adc',
+    '-acodec',
+    'pcm_f32le',
+    '-y',
+    preprocessedPath,
+  ], { signal: ctx.signal })
+
+  const inputPath = preprocessResult.exitCode === 0 ? preprocessedPath : vocalsPath
+
   const backendId = ctx.task.request.mode === 'rvc'
     ? ConverterBackendId.RVC
     : ConverterBackendId.SeedVC
@@ -38,11 +62,8 @@ export async function convertVocalsStage(
   const converter = createConverter(backendId)
   const converterParams: Record<string, unknown> = { ...ctx.task.request.converter }
 
-  const f0Path = join(ctx.jobDir, STAGE_DIRS.pitch, ARTIFACT_NAMES.f0)
-  converterParams.f0File = f0Path
-
   await converter.convert(
-    createAudioPath(vocalsPath),
+    createAudioPath(inputPath),
     stageDir,
     converterParams,
     ctx.signal,

@@ -31,6 +31,7 @@ interface StageInfo {
 const stages: StageInfo[] = [
   { id: 'prepare_source', label: 'Source Preparation', description: 'Transcoding input audio to 44.1kHz WAV format', icon: 'i-solar:file-check-bold-duotone' },
   { id: 'separate_vocals', label: 'Vocal Separation', description: 'Splitting vocals from instrumental using MelBand-RoFormer neural network', icon: 'i-solar:music-note-slider-2-bold-duotone' },
+  { id: 'isolate_lead_vocal', label: 'Lead Vocal Isolation', description: 'Separating lead vocals from backing vocals using Karaoke model', icon: 'i-solar:microphone-3-bold-duotone' },
   { id: 'extract_f0', label: 'Pitch Extraction', description: 'Extracting fundamental frequency (F0) curve using RMVPE', icon: 'i-solar:chart-2-bold-duotone' },
   { id: 'auto_calibrate', label: 'Auto-Calibrate', description: 'Analyzing source audio and predicting optimal conversion parameters', icon: 'i-solar:magic-stick-3-bold-duotone' },
   { id: 'convert_vocals', label: 'Voice Conversion', description: 'Converting vocal timbre to target voice using RVC model', icon: 'i-solar:soundwave-bold-duotone' },

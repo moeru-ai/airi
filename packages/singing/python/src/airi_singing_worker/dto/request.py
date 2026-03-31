@@ -12,6 +12,7 @@ class CoverRequest:
     output_dir: str
     separator_backend: str = "melband"
     separator_model: str = "melband-roformer-kim-vocals"
+    isolate_lead_vocal: bool = True
     pitch_backend: str = "rmvpe"
     converter_backend: str = "rvc"
     voice_id: Optional[str] = None

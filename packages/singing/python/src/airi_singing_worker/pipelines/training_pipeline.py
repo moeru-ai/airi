@@ -49,17 +49,54 @@ def _release_gpu(label: str = "") -> None:
         print(f"  GPU memory released after {label}", flush=True)
 
 
-def _check_rvc_python() -> None:
-    """Warn (but don't crash) if rvc_python is not properly installed — fallbacks exist."""
+def _require_rvc_python() -> None:
+    """Verify rvc_python is installed. Errors immediately if missing."""
     try:
         from rvc_python.lib.audio import load_audio  # noqa: F401
+        from rvc_python.lib.rmvpe import RMVPE  # noqa: F401
+        from rvc_python.lib.jit.get_hubert import get_hubert_model  # noqa: F401
         print("rvc_python available", flush=True)
-    except ImportError:
-        print(
-            "WARNING: rvc_python.lib not available, using built-in fallbacks "
-            "for audio slicing, F0 extraction, and HuBERT loading.",
-            flush=True,
+    except ImportError as e:
+        raise SingingWorkerError(
+            "rvc_python is required for training. "
+            "Install with: pip install rvc-python",
+            code="MISSING_DEPENDENCY",
+        ) from e
+
+
+def _require_pretrained_models(allow_scratch: bool = False) -> tuple[str, str]:
+    """Validate pretrained G/D model paths exist. Returns (g_path, d_path).
+
+    Training from scratch produces unstable, mechanical, distorted output.
+    Pretrained models are required unless --allow-scratch is explicitly set.
+    """
+    pretrained_g = os.environ.get("RVC_PRETRAINED_G_PATH", "")
+    pretrained_d = os.environ.get("RVC_PRETRAINED_D_PATH", "")
+
+    if allow_scratch:
+        if not pretrained_g or not pretrained_d:
+            print(
+                "WARNING: Training from scratch (no pretrained models). "
+                "Results may be unstable.",
+                flush=True,
+            )
+        return pretrained_g, pretrained_d
+
+    if not pretrained_g or not Path(pretrained_g).exists():
+        raise SingingWorkerError(
+            "Pretrained generator model not found. "
+            "Set RVC_PRETRAINED_G_PATH env var to a valid .pth file. "
+            "Use --allow-scratch to train without pretrained models (not recommended).",
+            code="MISSING_PRETRAINED",
         )
+    if not pretrained_d or not Path(pretrained_d).exists():
+        raise SingingWorkerError(
+            "Pretrained discriminator model not found. "
+            "Set RVC_PRETRAINED_D_PATH env var to a valid .pth file. "
+            "Use --allow-scratch to train without pretrained models (not recommended).",
+            code="MISSING_PRETRAINED",
+        )
+    return pretrained_g, pretrained_d
 
 
 def _get_device() -> str:
@@ -75,160 +112,13 @@ def _get_device() -> str:
         if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
             import logging
             logging.getLogger(__name__).info(
-                "MPS (Metal) detected but RVC training requires CUDA; falling back to CPU"
+                "MPS (Metal) detected but RVC training requires CUDA; using CPU"
             )
     except ImportError:
         pass
     return "cpu"
 
 
-def _fallback_load_audio(file: str, sr: int) -> np.ndarray:
-    """Load audio file and resample to target sr — pure soundfile/scipy fallback."""
-    import subprocess
-    from ..io.ffmpeg import _get_ffmpeg_bin
-    try:
-        out = subprocess.run(
-            [_get_ffmpeg_bin(), "-nostdin", "-i", file,
-             "-f", "f32le", "-acodec", "pcm_f32le", "-ac", "1", "-ar", str(sr), "-"],
-            capture_output=True, check=True, timeout=300,
-        )
-        return np.frombuffer(out.stdout, np.float32).flatten()
-    except Exception:
-        data, orig_sr = sf.read(file, dtype="float32")
-        if data.ndim > 1:
-            data = data.mean(axis=1)
-        if orig_sr != sr:
-            import librosa
-            data = librosa.resample(data, orig_sr=orig_sr, target_sr=sr)
-        return data
-
-
-class _FallbackSlicer:
-    """Silence-based audio slicer — standalone fallback for rvc_python.lib.slicer2.Slicer."""
-
-    def __init__(
-        self,
-        sr: int,
-        threshold: float = -42.0,
-        min_length: int = 1500,
-        min_interval: int = 400,
-        hop_size: int = 15,
-        max_sil_kept: int = 500,
-    ):
-        self.sr = sr
-        min_interval = min(min_interval, min_length)
-        self._threshold = 10 ** (threshold / 20.0)
-        self._hop = int(sr * hop_size / 1000)
-        self._min_len = int(sr * min_length / 1000 / self._hop)
-        self._min_interval = int(sr * min_interval / 1000 / self._hop)
-        self._max_sil_kept = int(sr * max_sil_kept / 1000 / self._hop)
-
-    def _rms(self, y: np.ndarray) -> np.ndarray:
-        hop = self._hop
-        n_frames = len(y) // hop
-        rms = np.zeros(n_frames, dtype=np.float32)
-        for i in range(n_frames):
-            frame = y[i * hop : (i + 1) * hop]
-            rms[i] = np.sqrt(np.mean(frame ** 2))
-        return rms
-
-    def slice(self, waveform: np.ndarray):  # noqa: C901
-        """Yield audio chunks split on silence boundaries."""
-        if len(waveform) <= self._min_len * self._hop:
-            yield waveform
-            return
-
-        rms_list = self._rms(waveform)
-        sil_tags: list[tuple[int, int]] = []
-        silence_start = None
-        for i, rms in enumerate(rms_list):
-            if rms < self._threshold:
-                if silence_start is None:
-                    silence_start = i
-            else:
-                if silence_start is not None:
-                    sil_len = i - silence_start
-                    if sil_len >= self._min_interval:
-                        sil_tags.append((silence_start, i))
-                    silence_start = None
-        if silence_start is not None:
-            sil_tags.append((silence_start, len(rms_list)))
-
-        if not sil_tags:
-            yield waveform
-            return
-
-        chunks: list[np.ndarray] = []
-        pos = 0
-        for s, e in sil_tags:
-            mid = (s + e) // 2
-            sample_mid = mid * self._hop
-            if sample_mid - pos >= self._min_len * self._hop:
-                chunks.append(waveform[pos:sample_mid])
-                pos = sample_mid
-        if pos < len(waveform):
-            chunks.append(waveform[pos:])
-
-        for c in chunks:
-            if len(c) > 0:
-                yield c
-
-
-class _FallbackRMVPE:
-    """Minimal RMVPE-compatible wrapper using torchcrepe or librosa pyin.
-
-    Provides the same ``infer_from_audio(audio, thred)`` interface so the
-    training pipeline works identically when rvc_python.lib.rmvpe is unavailable.
-    """
-
-    def __init__(self, model_path: str, device: str = "cpu"):
-        self._device = device
-        self._backend = "none"
-        try:
-            import torchcrepe  # noqa: F401
-            self._backend = "crepe"
-        except ImportError:
-            try:
-                import librosa  # noqa: F401
-                self._backend = "librosa"
-            except ImportError:
-                pass
-        if self._backend == "none":
-            raise SingingWorkerError(
-                "No F0 backend: install rvc-python, torchcrepe, or librosa",
-                code="MISSING_DEPENDENCY",
-            )
-        print(f"RMVPE fallback using {self._backend}", flush=True)
-
-    def infer_from_audio(self, audio: np.ndarray, thred: float = 0.03) -> np.ndarray:
-        if self._backend == "crepe":
-            return self._crepe_f0(audio, thred)
-        return self._librosa_f0(audio, thred)
-
-    def _crepe_f0(self, audio: np.ndarray, thred: float) -> np.ndarray:
-        import torch
-        import torchcrepe
-
-        sr = 16000
-        hop = sr // 100
-        t = torch.from_numpy(audio).float().unsqueeze(0).to(self._device)
-        pitch = torchcrepe.predict(
-            t, sr, hop, 50, 1100, "full",
-            batch_size=512, device=self._device,
-        )
-        f0 = pitch.squeeze(0).cpu().numpy().astype(np.float32)
-        f0[f0 < 50] = 0.0
-        return f0
-
-    def _librosa_f0(self, audio: np.ndarray, thred: float) -> np.ndarray:
-        import librosa
-
-        sr = 16000
-        f0, voiced, _ = librosa.pyin(
-            audio.astype(np.float32), fmin=50, fmax=1100, sr=sr,
-        )
-        f0 = np.nan_to_num(f0, nan=0.0).astype(np.float32)
-        return f0
 
 
 def _preprocess_dataset(
@@ -249,8 +139,8 @@ def _preprocess_dataset(
     os.makedirs(wavs_16k_dir, exist_ok=True)
     os.makedirs(holdout_dir, exist_ok=True)
 
-    load_audio = _fallback_load_audio
-    Slicer = _FallbackSlicer
+    from rvc_python.lib.audio import load_audio
+    from rvc_python.lib.slicer2 import Slicer
 
     import librosa
     from scipy import signal
@@ -543,59 +433,20 @@ def _prepare_holdout_eval_clips(
 
 
 def _load_hubert(hubert_path: str, device: str):
-    """Load HuBERT model with multiple fallback strategies.
+    """Load HuBERT model using rvc_python's JIT loader."""
+    from rvc_python.lib.jit.get_hubert import get_hubert_model
 
-    Strategy 1: rvc_python's built-in HuBERT loader (most compatible)
-    Strategy 2: fairseq checkpoint_utils (legacy)
-    Strategy 3: Direct torch.load + manual model construction
-    """
-    import torch
-
-    # Strategy 1: use rvc_python's JIT HuBERT loader if available
     try:
-        from rvc_python.lib.jit.get_hubert import get_hubert_model
         model = get_hubert_model(hubert_path, device)
         model.eval()
         print("HuBERT loaded via rvc_python JIT loader", flush=True)
         return model
-    except Exception:
-        pass
-
-    # Strategy 2: fairseq high-level API
-    try:
-        from fairseq import checkpoint_utils
-        models, _, _ = checkpoint_utils.load_model_ensemble_and_task(
-            [hubert_path], suffix="",
-        )
-        model = models[0].to(device)
-        model.eval()
-        print("HuBERT loaded via fairseq", flush=True)
-        return model
-    except Exception:
-        pass
-
-    # Strategy 3: direct torch.load
-    try:
-        ckpt = torch.load(hubert_path, map_location=device, weights_only=False)
-        if "model" in ckpt:
-            from fairseq.models.hubert import HubertModel
-            cfg = ckpt.get("cfg", {})
-            model_cfg = cfg.get("model", cfg)
-            task_cfg = cfg.get("task", {})
-            model = HubertModel.build_model(model_cfg, task=None)
-            model.load_state_dict(ckpt["model"], strict=False)
-            model = model.to(device)
-            model.eval()
-            print("HuBERT loaded via direct checkpoint", flush=True)
-            return model
-    except Exception:
-        pass
-
-    raise SingingWorkerError(
-        "Failed to load HuBERT model with any available method. "
-        "Ensure fairseq is installed: pip install fairseq",
-        code="MODEL_LOAD_FAILED",
-    )
+    except Exception as e:
+        raise SingingWorkerError(
+            f"Failed to load HuBERT model from {hubert_path}: {e!s}. "
+            "Ensure hubert_base.pt is valid and rvc-python is installed.",
+            code="MODEL_LOAD_FAILED",
+        ) from e
 
 
 def _extract_hubert_features(
@@ -683,14 +534,8 @@ def _extract_f0(
             code="MISSING_MODEL",
         )
 
-    try:
-        from rvc_python.lib.rmvpe import RMVPE
-    except ImportError:
-        RMVPE = None
-    if RMVPE is not None:
-        rmvpe_model = RMVPE(rmvpe_path, is_half=device != "cpu", device=device)
-    else:
-        rmvpe_model = _FallbackRMVPE(rmvpe_path, device=device)
+    from rvc_python.lib.rmvpe import RMVPE
+    rmvpe_model = RMVPE(rmvpe_path, is_half=device != "cpu", device=device)
 
     wav_files = sorted(Path(wavs_16k_dir).glob("*.wav"))
     print(f"Extracting F0 from {len(wav_files)} 16kHz files...", flush=True)
@@ -814,12 +659,14 @@ def run_training_pipeline(
     output_dir: str,
     epochs: int = 200,
     batch_size: int = 8,
+    allow_scratch: bool = False,
 ) -> str:
     """Execute the RVC training pipeline.
 
     Returns path to the trained model file.
     """
-    _check_rvc_python()
+    _require_rvc_python()
+    pretrained_g, pretrained_d = _require_pretrained_models(allow_scratch)
     ensure_dir(output_dir)
 
     _set_progress_file(os.path.join(output_dir, "progress.json"))
@@ -903,9 +750,6 @@ def run_training_pipeline(
     )
 
     t0 = train_config.effective_cosine_t0()
-
-    pretrained_g = os.environ.get("RVC_PRETRAINED_G_PATH", "")
-    pretrained_d = os.environ.get("RVC_PRETRAINED_D_PATH", "")
 
     def _training_progress(epoch: int, total: int, loss_g: float, loss_d: float, loss_details: dict[str, float]) -> None:
         pct = 44 + int(44 * epoch / total)
@@ -1141,6 +985,8 @@ if __name__ == "__main__":
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--epochs", type=int, default=200)
     parser.add_argument("--batch-size", type=int, default=8)
+    parser.add_argument("--allow-scratch", action="store_true",
+                        help="Allow training without pretrained models (not recommended)")
     args = parser.parse_args()
 
     try:
@@ -1150,6 +996,7 @@ if __name__ == "__main__":
             args.output_dir,
             args.epochs,
             args.batch_size,
+            allow_scratch=args.allow_scratch,
         )
         print(json.dumps({"model_path": result}))
     except SingingWorkerError as e:

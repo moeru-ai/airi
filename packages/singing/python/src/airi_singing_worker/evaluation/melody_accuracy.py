@@ -1,21 +1,45 @@
-"""Axis 3 — Melody Accuracy: F0 correlation, RMSE, semitone accuracy, VUV error.
+"""Axis 3 -- Melody Accuracy: F0 correlation, RMSE, semitone accuracy, VUV error.
 
-Operates on F0 contour arrays (numpy). F0 extraction is handled externally
-(e.g. RMVPE or CREPE via the existing pitch backend).
+Uses rvc_python.lib.rmvpe.RMVPE for F0 extraction, matching the training
+and inference pipelines exactly.
 """
 
 from __future__ import annotations
+
+import os
+from pathlib import Path
 
 import numpy as np
 import soundfile as sf
 
 
-def extract_f0_from_audio(audio_path: str, sr: int = 16000) -> np.ndarray:
-    """Extract F0 contour from audio file using available backend.
+def _find_rmvpe_model() -> str:
+    """Locate the RMVPE model file, error if not found."""
+    env_path = os.environ.get("RMVPE_MODEL_PATH", "")
+    if env_path and Path(env_path).exists():
+        return env_path
 
-    Tries torchcrepe first, then librosa pyin as fallback.
+    candidates = [
+        Path("models/rmvpe.pt"),
+        Path(__file__).resolve().parents[5] / "models" / "rmvpe.pt",
+    ]
+    for p in candidates:
+        if p.exists():
+            return str(p)
+
+    raise RuntimeError(
+        "RMVPE model not found for evaluation F0 extraction. "
+        "Set RMVPE_MODEL_PATH env var or place rmvpe.pt in models/."
+    )
+
+
+def extract_f0_from_audio(audio_path: str, sr: int = 16000) -> np.ndarray:
+    """Extract F0 contour from audio file using RMVPE.
+
     Returns 1-D float32 array of F0 values (0.0 = unvoiced).
     """
+    from rvc_python.lib.rmvpe import RMVPE
+
     data, file_sr = sf.read(audio_path, dtype="float32")
     if data.ndim > 1:
         data = data.mean(axis=1)
@@ -23,40 +47,17 @@ def extract_f0_from_audio(audio_path: str, sr: int = 16000) -> np.ndarray:
         import librosa
         data = librosa.resample(data, orig_sr=file_sr, target_sr=sr)
 
-    # Strategy 1: torchcrepe
-    try:
-        import torch
-        import torchcrepe
+    rmvpe_path = _find_rmvpe_model()
 
-        audio_tensor = torch.from_numpy(data).float().unsqueeze(0)
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        audio_tensor = audio_tensor.to(device)
+    import torch
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    is_half = device != "cpu"
 
-        pitch = torchcrepe.predict(
-            audio_tensor, sr,
-            hop_length=int(sr / 100),
-            fmin=50, fmax=550,
-            model="full",
-            batch_size=512,
-            device=device,
-        )
-        return pitch.squeeze().cpu().numpy().astype(np.float32)
-    except ImportError:
-        pass
+    model = RMVPE(rmvpe_path, is_half=is_half, device=device)
+    f0 = model.infer_from_audio(data, thred=0.03)
+    del model
 
-    # Strategy 2: librosa pyin
-    try:
-        import librosa
-        f0, voiced, _ = librosa.pyin(
-            data, fmin=50, fmax=550, sr=sr,
-            frame_length=2048, hop_length=int(sr / 100),
-        )
-        f0 = np.nan_to_num(f0, nan=0.0)
-        return f0.astype(np.float32)
-    except ImportError:
-        pass
-
-    return np.zeros(len(data) // (sr // 100), dtype=np.float32)
+    return f0.astype(np.float32)
 
 
 def _align_f0(f0_ref: np.ndarray, f0_hyp: np.ndarray) -> tuple[np.ndarray, np.ndarray]:

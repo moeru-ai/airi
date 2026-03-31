@@ -19,12 +19,15 @@ class SourceFeatures:
     f0_median: float = 0.0
     f0_p10: float = 0.0
     f0_p90: float = 0.0
+    f0_min: float = 0.0
+    f0_max: float = 0.0
     speaker_embedding: list[float] | None = None
     dynamic_range: float = 0.0
     unvoiced_ratio: float = 0.0
     sibilance_score: float = 0.0
     spectral_flatness: float = 0.0
     source_quality: float = 3.0
+    bleed_score: float = 0.0
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -67,6 +70,8 @@ def analyze_source_features(
             feats.f0_median = float(np.median(voiced))
             feats.f0_p10 = float(np.percentile(voiced, 10))
             feats.f0_p90 = float(np.percentile(voiced, 90))
+            feats.f0_min = float(np.percentile(voiced, 2))
+            feats.f0_max = float(np.percentile(voiced, 98))
             feats.unvoiced_ratio = float(np.mean(f0 <= 1.0))
     except Exception as e:
         logger.warning("F0 extraction failed: %s", e)
@@ -111,8 +116,14 @@ def analyze_source_features(
     except (ImportError, Exception) as e:
         logger.warning("Spectral flatness failed: %s", e)
 
+    # Separation bleed estimation: low-frequency energy (<100Hz) relative to total
+    # High values indicate bass/kick bleed from imperfect vocal separation
+    try:
+        feats.bleed_score = _estimate_separation_bleed(data, sr)
+    except Exception as e:
+        logger.warning("Bleed estimation failed: %s", e)
+
     if include_quality_estimate:
-        # Source quality estimate via MOS
         try:
             from ..evaluation.naturalness import predict_mos
             feats.source_quality = predict_mos(vocal_path)
@@ -153,4 +164,38 @@ def _compute_sibilance(data: np.ndarray, sr: int) -> float:
 
     # Normalize: typical speech sibilance ratio is 0.05-0.15
     raw = float(np.mean(sibilance_ratios))
+    return float(np.clip(raw / 0.20, 0.0, 1.0))
+
+
+def _estimate_separation_bleed(data: np.ndarray, sr: int) -> float:
+    """Estimate instrumental bleed in separated vocals via sub-100Hz energy ratio.
+
+    Returns 0.0-1.0 where higher means more suspected bleed from bass/drums.
+    Clean vocal separation typically has very little energy below 100Hz.
+    """
+    n_fft = 4096
+    hop = n_fft // 2
+    n_frames = max(1, (len(data) - n_fft) // hop + 1)
+    freq_bins = np.fft.rfftfreq(n_fft, d=1.0 / sr)
+    low_mask = freq_bins < 100
+    mid_mask = (freq_bins >= 200) & (freq_bins <= 4000)
+
+    ratios = []
+    for i in range(n_frames):
+        start = i * hop
+        frame = data[start:start + n_fft]
+        if len(frame) < n_fft:
+            break
+        spectrum = np.abs(np.fft.rfft(frame * np.hanning(n_fft)))
+        mid_energy = np.sum(spectrum[mid_mask] ** 2)
+        if mid_energy < 1e-10:
+            continue
+        low_energy = np.sum(spectrum[low_mask] ** 2)
+        ratios.append(low_energy / mid_energy)
+
+    if not ratios:
+        return 0.0
+
+    # Typical clean vocals: ratio ~0.01-0.05; heavy bleed: >0.15
+    raw = float(np.mean(ratios))
     return float(np.clip(raw / 0.20, 0.0, 1.0))

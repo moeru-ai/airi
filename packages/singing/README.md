@@ -58,7 +58,7 @@ models/
 ## AI Cover Pipeline
 
 The full pipeline is orchestrated by the **TypeScript layer** (9 stages).
-A standalone **Python fallback** (4 stages) exists for headless use without TS.
+A standalone **Python pipeline** (4 stages) exists for headless use without TS.
 
 ### TypeScript Orchestrator (9 Stages)
 

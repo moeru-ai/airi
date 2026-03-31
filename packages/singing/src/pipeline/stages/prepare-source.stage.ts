@@ -31,7 +31,7 @@ export async function prepareSourceStage(
 
   const args = buildTranscodeArgs(inputPath, outputPath, {
     sampleRate: WORKING_SAMPLE_RATE,
-    bitDepth: 16,
+    bitDepth: 32,
     channels: 2,
   })
 

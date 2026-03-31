@@ -16,13 +16,15 @@ logger = logging.getLogger(__name__)
 
 MAX_RETRIES = 8
 
-# Per-metric adjustment deltas
+# Per-metric adjustment deltas (targeted adjustments per failure mode)
 ADJUSTMENTS = {
-    "singer_similarity": {"index_rate": +0.15},
+    "singer_similarity": {"index_rate": +0.10},
     "source_leakage": {"index_rate": +0.10},
-    "tearing": {"protect": -0.08},
+    "tearing": {"protect": -0.05, "index_rate": -0.10},
     "f0_corr": {"pitch_shift_delta": 1},
     "content_score": {"index_rate": -0.12},
+    "naturalness_mos": {"rms_mix_rate": +0.10},
+    "hnr_low": {"protect": -0.05},
 }
 
 
@@ -73,10 +75,29 @@ def adjust_params(
             )
 
         elif metric == "tearing":
-            delta = ADJUSTMENTS["tearing"]["protect"]
+            protect_delta = ADJUSTMENTS["tearing"]["protect"]
+            adjusted.protect = _clamp(adjusted.protect + protect_delta, 0.10, 0.50)
+            index_delta = ADJUSTMENTS["tearing"]["index_rate"]
+            adjusted.index_rate = _clamp(adjusted.index_rate + index_delta, 0.10, 0.90)
+            logger.info(
+                "Attempt %d: tearing detected -> protect %.2f -> %.2f, index_rate %.2f -> %.2f",
+                attempt, current_params.protect, adjusted.protect,
+                current_params.index_rate, adjusted.index_rate,
+            )
+
+        elif metric == "naturalness_mos":
+            delta = ADJUSTMENTS["naturalness_mos"]["rms_mix_rate"]
+            adjusted.rms_mix_rate = _clamp(adjusted.rms_mix_rate + delta, 0.05, 0.50)
+            logger.info(
+                "Attempt %d: naturalness_mos low -> rms_mix_rate %.2f -> %.2f",
+                attempt, current_params.rms_mix_rate, adjusted.rms_mix_rate,
+            )
+
+        elif metric == "hnr_low":
+            delta = ADJUSTMENTS["hnr_low"]["protect"]
             adjusted.protect = _clamp(adjusted.protect + delta, 0.10, 0.50)
             logger.info(
-                "Attempt %d: tearing detected -> protect %.2f -> %.2f",
+                "Attempt %d: HNR too low -> protect %.2f -> %.2f",
                 attempt, current_params.protect, adjusted.protect,
             )
 

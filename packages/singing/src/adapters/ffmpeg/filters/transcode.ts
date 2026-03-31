@@ -21,9 +21,11 @@ export function buildTranscodeArgs(
     args.push('-ar', String(options.sampleRate))
   if (options.channels)
     args.push('-ac', String(options.channels))
-  if (options.bitDepth === 16)
+  if (options.bitDepth === 32)
+    args.push('-acodec', 'pcm_f32le')
+  else if (options.bitDepth === 16)
     args.push('-acodec', 'pcm_s16le')
-  if (options.bitDepth === 24)
+  else if (options.bitDepth === 24)
     args.push('-acodec', 'pcm_s24le')
   args.push(outputPath)
   return args

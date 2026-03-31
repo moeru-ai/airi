@@ -1,5 +1,7 @@
 import type { BaseModelCategory, BaseModelInfo } from '../types/response'
 
+import process from 'node:process'
+
 import { existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -14,11 +16,19 @@ export interface BaseModelDefinition {
   description: string
 }
 
+// NOTICE: Default is huggingface.co (Xet Hub CDN, generally fast globally).
+// Set HF_MIRROR=https://hf-mirror.com if huggingface.co is blocked in your region.
+const HF_BASE = process.env.HF_MIRROR ?? 'https://huggingface.co'
+
+function hf(path: string): string {
+  return `${HF_BASE}/${path}`
+}
+
 export const BASE_MODELS: BaseModelDefinition[] = [
   {
     id: 'rmvpe',
     name: 'RMVPE',
-    url: 'https://hf-mirror.com/lj1995/VoiceConversionWebUI/resolve/main/rmvpe.pt',
+    url: hf('lj1995/VoiceConversionWebUI/resolve/main/rmvpe.pt'),
     filename: 'rmvpe.pt',
     sizeBytes: 181_184_272,
     category: 'pitch',
@@ -27,7 +37,7 @@ export const BASE_MODELS: BaseModelDefinition[] = [
   {
     id: 'hubert_base',
     name: 'HuBERT Base',
-    url: 'https://hf-mirror.com/lj1995/VoiceConversionWebUI/resolve/main/hubert_base.pt',
+    url: hf('lj1995/VoiceConversionWebUI/resolve/main/hubert_base.pt'),
     filename: 'hubert_base.pt',
     sizeBytes: 189_507_909,
     category: 'encoder',
@@ -36,7 +46,7 @@ export const BASE_MODELS: BaseModelDefinition[] = [
   {
     id: 'melband_roformer_ckpt',
     name: 'MelBand-RoFormer (weights)',
-    url: 'https://hf-mirror.com/KimberleyJSN/melbandroformer/resolve/main/MelBandRoformer.ckpt',
+    url: hf('KimberleyJSN/melbandroformer/resolve/main/MelBandRoformer.ckpt'),
     filename: 'MelBandRoformer.ckpt',
     subdir: 'separation',
     sizeBytes: 913_106_900,
@@ -54,9 +64,29 @@ export const BASE_MODELS: BaseModelDefinition[] = [
     description: 'Architecture configuration matching the separation weights',
   },
   {
+    id: 'melband_roformer_karaoke_ckpt',
+    name: 'MelBand-RoFormer Karaoke (weights)',
+    url: hf('jarredou/aufr33-viperx-karaoke-melroformer-model/resolve/main/mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt'),
+    filename: 'mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt',
+    subdir: 'separation',
+    sizeBytes: 913_096_801,
+    category: 'separation',
+    description: 'Lead vocal / backing vocal isolation model weights (Karaoke)',
+  },
+  {
+    id: 'melband_roformer_karaoke_config',
+    name: 'MelBand-RoFormer Karaoke (config)',
+    url: hf('jarredou/aufr33-viperx-karaoke-melroformer-model/resolve/main/config_mel_band_roformer_karaoke.yaml'),
+    filename: 'config_mel_band_roformer_karaoke.yaml',
+    subdir: 'separation',
+    sizeBytes: 1_722,
+    category: 'separation',
+    description: 'Architecture config matching the Karaoke separation weights',
+  },
+  {
     id: 'rvc_pretrained_g',
     name: 'RVC v2 Generator (f0, 40kHz)',
-    url: 'https://hf-mirror.com/lj1995/VoiceConversionWebUI/resolve/main/pretrained_v2/f0G40k.pth',
+    url: hf('lj1995/VoiceConversionWebUI/resolve/main/pretrained_v2/f0G40k.pth'),
     filename: 'f0G40k.pth',
     subdir: 'pretrained_v2',
     sizeBytes: 73_106_273,
@@ -66,7 +96,7 @@ export const BASE_MODELS: BaseModelDefinition[] = [
   {
     id: 'rvc_pretrained_d',
     name: 'RVC v2 Discriminator (f0, 40kHz)',
-    url: 'https://hf-mirror.com/lj1995/VoiceConversionWebUI/resolve/main/pretrained_v2/f0D40k.pth',
+    url: hf('lj1995/VoiceConversionWebUI/resolve/main/pretrained_v2/f0D40k.pth'),
     filename: 'f0D40k.pth',
     subdir: 'pretrained_v2',
     sizeBytes: 142_875_703,

@@ -76,6 +76,7 @@ export async function finalizeStage(
     separator: {
       backend: req.separator.backend,
       model: req.separator.model ?? 'default',
+      leadIsolation: ctx.metadata.get('lead_isolation_enabled') as boolean ?? false,
     },
     pitch: {
       backend: req.pitch.backend,
@@ -91,6 +92,7 @@ export async function finalizeStage(
       ducking: req.mix?.ducking ?? true,
       targetLufs: req.mix?.targetLufs ?? -14,
       truePeakDb: req.mix?.truePeakDb ?? -1.5,
+      tracks: ctx.metadata.get('mix_tracks') as Array<{ role: string, gain: number, label: string }> | undefined,
     },
     timing: timingRecord,
     artifactHashes: Object.keys(artifactHashes).length > 0 ? artifactHashes : undefined,

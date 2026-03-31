@@ -1,8 +1,15 @@
-"""RMVPE pitch extraction backend."""
+"""RMVPE pitch extraction backend.
+
+Uses rvc_python.lib.rmvpe.RMVPE exclusively to ensure training/inference
+F0 consistency. The same model and code path that produced F0 during
+training is used here for inference.
+"""
 
 import json
 import os
 from pathlib import Path
+
+import numpy as np
 
 from ...errors.backend import PitchExtractionError
 from ...io.audio import load_audio
@@ -22,7 +29,6 @@ def _find_rmvpe_model() -> str | None:
 
     candidates = [
         Path("models/rmvpe.pt"),
-        Path("models/rmvpe.onnx"),
         Path(__file__).resolve().parents[5] / "models" / "rmvpe.pt",
     ]
     for p in candidates:
@@ -31,137 +37,59 @@ def _find_rmvpe_model() -> str | None:
     return None
 
 
-def _extract_f0_pyworld(waveform: object, sr: int) -> "object":
-    import numpy as np
-    import pyworld as pw
-
-    x = np.asarray(waveform, dtype=np.float64)
-    if x.ndim > 1:
-        x = np.mean(x, axis=0 if x.shape[0] < x.shape[1] else 1)
-    x = np.ascontiguousarray(x)
-    frame_period = 5.0
-    _f0, t = pw.harvest(x, sr, frame_period=frame_period)
-    f0 = pw.stonemask(x, _f0, t, sr)
-    return f0.astype(np.float32)
-
-
-def _extract_f0_librosa(waveform: object, sr: int) -> "object":
-    import librosa
-    import numpy as np
-
-    x = np.asarray(waveform, dtype=np.float32)
-    if x.ndim > 1:
-        x = np.mean(x, axis=0 if x.shape[0] < x.shape[1] else 1)
-    f0, _, _ = librosa.pyin(
-        x,
-        fmin=librosa.note_to_hz("C2"),
-        fmax=librosa.note_to_hz("C7"),
-        sr=sr,
-    )
-    return np.nan_to_num(f0, nan=0.0).astype(np.float32)
-
-
-def _try_torchcrepe_f0(input_path: str, f0_path: str) -> bool:
-    """Return True if F0 was written with torchcrepe."""
+def _get_device() -> str:
+    """Select inference device for RMVPE."""
     try:
-        import numpy as np
         import torch
-        import torchcrepe
+        if torch.cuda.is_available():
+            return "cuda:0"
     except ImportError:
-        return False
-
-    try:
-        waveform, sr = load_audio(input_path, sr=16000)
-        if isinstance(waveform, torch.Tensor):
-            audio = waveform.float().flatten()
-        else:
-            w = np.asarray(waveform, dtype=np.float32)
-            if w.ndim > 1:
-                w = np.mean(w, axis=0 if w.shape[0] < w.shape[1] else 1)
-            audio = torch.from_numpy(np.ascontiguousarray(w)).float()
-        device = "cuda:0" if torch.cuda.is_available() else "cpu"
-        audio = audio.to(device)
-        hop_length = int(sr / 200.0)
-        fmin = 50
-        fmax = 550
-        pitch = torchcrepe.predict(
-            audio,
-            sr,
-            hop_length,
-            fmin,
-            fmax,
-            "full",
-            batch_size=1024,
-            device=device,
-        )
-        f0_np = pitch.detach().cpu().numpy().astype(np.float32).squeeze()
-        np.save(f0_path, f0_np)
-        return True
-    except Exception:
-        return False
+        pass
+    return "cpu"
 
 
 def extract_f0(input_path: str, output_dir: str) -> str:
-    """
-    Extract F0 pitch contour: prefer torchcrepe (CREPE), then pyworld harvest, then librosa pyin.
+    """Extract F0 pitch contour using RMVPE (matching training pipeline).
+
+    RMVPE internally uses hop_length=160 at 16kHz, producing F0 at 100fps.
+    This matches the spectrogram frame rate (40kHz / hop=400 = 100fps).
 
     Returns path to the output f0.npy file.
     """
     ensure_dir(output_dir)
     f0_path = str(Path(output_dir) / "f0.npy")
 
+    rmvpe_path = _find_rmvpe_model()
+    if not rmvpe_path:
+        raise PitchExtractionError(
+            "RMVPE model not found. Set RMVPE_MODEL_PATH env var "
+            "or place rmvpe.pt in models/. "
+            "Install rvc-python: pip install rvc-python"
+        )
+
     try:
-        import numpy as np
+        from rvc_python.lib.rmvpe import RMVPE
     except ImportError as e:
         raise PitchExtractionError(
-            "numpy is required for RMVPE. Install with: pip install numpy"
+            "rvc_python.lib.rmvpe is required for F0 extraction. "
+            "Install with: pip install rvc-python"
         ) from e
 
-    # Pitch extraction strategy (ordered by quality):
-    # 1. torchcrepe (CREPE full) — best quality, requires torch + torchcrepe
-    # 2. pyworld (harvest+stonemask) — good quality, CPU-only, requires pyworld
-    # 3. librosa (pyin) — baseline, requires librosa
-    # Future: native RMVPE checkpoint loading when _find_rmvpe_model() finds rmvpe.pt
+    device = _get_device()
+    is_half = device != "cpu"
 
-    if _try_torchcrepe_f0(input_path, f0_path):
-        return f0_path
+    rmvpe_model = RMVPE(rmvpe_path, is_half=is_half, device=device)
 
-    try:
-        import pyworld as pw  # noqa: F401
-    except ImportError:
-        pw = None  # type: ignore[assignment]
-    if pw is not None:
-        try:
-            waveform, sr = load_audio(input_path, sr=44100)
-            f0 = _extract_f0_pyworld(waveform, sr)
-            np.save(f0_path, f0)
-            return f0_path
-        except PitchExtractionError:
-            raise
-        except Exception as e:
-            raise PitchExtractionError(
-                "pyworld F0 extraction failed. Install with: pip install pyworld. "
-                f"Error: {e!s}"
-            ) from e
+    waveform, _sr = load_audio(input_path, sr=16000)
+    audio = np.asarray(waveform, dtype=np.float32)
+    if audio.ndim > 1:
+        audio = np.mean(audio, axis=0 if audio.shape[0] < audio.shape[1] else 1)
 
-    try:
-        import librosa  # noqa: F401
-    except ImportError as e:
-        raise PitchExtractionError(
-            "No F0 backend available. Install one of: "
-            "pip install torch torchcrepe  OR  pip install pyworld  OR  pip install librosa. "
-            f"Original import error: {e!s}"
-        ) from e
+    f0 = rmvpe_model.infer_from_audio(audio, thred=0.03)
+    np.save(f0_path, f0.astype(np.float32))
 
-    try:
-        waveform, sr = load_audio(input_path, sr=22050)
-        f0 = _extract_f0_librosa(waveform, sr)
-        np.save(f0_path, f0)
-        return f0_path
-    except Exception as e:
-        raise PitchExtractionError(
-            f"librosa F0 (pyin) failed: {e!s}"
-        ) from e
+    del rmvpe_model
+    return f0_path
 
 
 if __name__ == "__main__":

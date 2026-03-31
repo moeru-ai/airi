@@ -23,7 +23,7 @@ evaluation/
 Measures timbre similarity between converted output and target speaker.
 
 - **Primary metric**: Cosine similarity of speaker embeddings
-- **Backbone**: SpeechBrain ECAPA-TDNN (preferred), MFCC centroid (fallback)
+- **Backbone**: resemblyzer d-vector (256-dim, L2-normalized)
 - **Range**: 0.0 – 1.0
 
 ```python
@@ -39,7 +39,7 @@ similarity = compute_similarity(emb_ref, emb_synth)  # → 0.82
 Measures whether lyrics and pronunciation are preserved after conversion.
 
 - **Primary metrics**: Character Error Rate (CER), Word Error Rate (WER)
-- **ASR backend**: faster-whisper (preferred), Levenshtein fallback
+- **ASR backend**: faster-whisper (CTranslate2-based Whisper) + jiwer for error rates
 - `content_score = 1 - CER` (stored in ReportCard)
 
 ### 3. Melody Accuracy (melody_accuracy.py)
@@ -53,7 +53,7 @@ Measures pitch tracking fidelity.
 | Semitone Accuracy | Fraction of frames within ±50 cents |
 | VUV Error Rate | Voiced/unvoiced boundary mismatch rate |
 
-- **F0 extractor**: torchcrepe (preferred), librosa.pyin (fallback)
+- **F0 extractor**: rvc_python.lib.rmvpe.RMVPE (matching training and inference pipelines)
 
 ### 4. Naturalness (naturalness.py)
 
@@ -62,8 +62,8 @@ Measures audio quality and naturalness.
 | Metric | Description |
 |--------|-------------|
 | MCD | Mel Cepstral Distortion (with-reference) |
-| Loudness RMSE | ITU-R BS.1770 loudness difference (pyloudnorm or RMS fallback) |
-| MOS | Mean Opinion Score prediction (NISQA or heuristic fallback) |
+| Loudness RMSE | ITU-R BS.1770 loudness difference (pyloudnorm) |
+| MOS | Mean Opinion Score prediction (NISQA-TTS) |
 
 ### 5. Artifact Detection (composite.py)
 
@@ -172,15 +172,18 @@ During training (`training_pipeline.py`), the system:
 
 ## Dependencies
 
-Required (core):
+All dependencies are **required** — the pipeline uses a zero-fallback architecture.
+Missing dependencies cause immediate errors with install instructions.
+
+Core:
 - `numpy`, `soundfile`, `librosa`
 
-Optional (for full accuracy):
-- `resemblyzer` — d-vector speaker embeddings (256-dim, GPU-accelerated)
+Evaluation:
+- `rvc-python` — RMVPE F0 extraction (matching training/inference)
+- `resemblyzer` — d-vector speaker embeddings (256-dim)
 - `faster-whisper` — ASR for CER/WER
 - `jiwer` — WER/CER calculation
 - `pyloudnorm` — ITU-R BS.1770 loudness
 - `nisqa` — Neural MOS prediction
-- `torchcrepe` — Neural F0 extraction
 
-All optional dependencies have fallback implementations using numpy/librosa.
+See `packages/singing/python/DEPENDENCIES.md` for the full dependency reference.

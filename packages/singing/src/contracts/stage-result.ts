@@ -11,4 +11,6 @@ export interface StageResult {
   durationMs: number
   artifacts: Artifact[]
   error?: string
+  /** True when a stage was intentionally skipped (e.g. feature disabled) */
+  skipped?: boolean
 }
