@@ -141,6 +141,7 @@ Role:
   - Redis Stream envelope for durable NSFW image execution requests
 - `apps/server/src/services/nsfw-image-consumer-handler.ts`
   - ComfyUI submission and `/history/{prompt_id}` reconciliation logic
+  - discards invalid stale custom workflow overrides and falls back to the server-built default workflow
 - `apps/server/src/services/nsfw-image-workflow.ts`
   - builds a default API-format ComfyUI workflow from prompt, negative prompt, aspect ratio, and checkpoint config
   - currently targets the locally present `ponyDiffusionV6.safetensors` checkpoint by default
@@ -218,6 +219,9 @@ Role:
 - Hermes-backed NSFW image prompt planning
 - server-backed NSFW image job and gallery records
 - Redis-backed NSFW image execution queue
+- fallback from stale custom ComfyUI workflow overrides to the server default workflow
+- validated Windows GPU ComfyUI host on port `8189` using `torch 2.10.0+cu130`
+- validated `sm_120` arch support in the active Windows ComfyUI venv
 - ComfyUI submit/reconcile worker path
 - default API-format ComfyUI workflow generation for NSFW jobs
 

@@ -14,6 +14,16 @@ interface ComfyUiPromptSubmission {
   node_errors?: Record<string, unknown>
 }
 
+interface ComfyUiSubmitErrorResponse {
+  error?: {
+    type?: string
+    message?: string
+    details?: string
+    extra_info?: Record<string, unknown>
+  }
+  node_errors?: Record<string, unknown>
+}
+
 interface ComfyUiHistoryResponse {
   [promptId: string]: {
     outputs?: Record<string, {
@@ -72,6 +82,11 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
     return workflow && typeof workflow === 'object' ? workflow as Record<string, unknown> : null
   }
 
+  function stripWorkflow(params: Record<string, unknown>) {
+    const { workflow: _workflow, ...rest } = params
+    return rest
+  }
+
   function getComfyMeta(params: Record<string, unknown>) {
     const comfy = params.comfy
     if (!comfy || typeof comfy !== 'object') {
@@ -106,6 +121,20 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
     }
 
     return false
+  }
+
+  function shouldRetryWithDefaultWorkflow(body: string, hadWorkflowOverride: boolean) {
+    if (!hadWorkflowOverride) {
+      return false
+    }
+
+    try {
+      const parsed = JSON.parse(body) as ComfyUiSubmitErrorResponse
+      return parsed.error?.type === 'prompt_outputs_failed_validation'
+    }
+    catch {
+      return false
+    }
   }
 
   return {
@@ -173,7 +202,8 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
         return
       }
 
-      const workflow = extractWorkflow(job.params) ?? buildDefaultComfyWorkflow(job, env)
+      const workflowOverride = extractWorkflow(job.params)
+      const workflow = workflowOverride ?? buildDefaultComfyWorkflow(job, env)
 
       await mediaService.updateImageJobStatus(jobId, 'submitting', {
         errorMessage: null,
@@ -201,6 +231,85 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
 
       if (!submitResponse.ok) {
         const body = await submitResponse.text()
+        if (shouldRetryWithDefaultWorkflow(body, Boolean(workflowOverride))) {
+          const fallbackParams = stripWorkflow(job.params)
+          const fallbackWorkflow = buildDefaultComfyWorkflow({
+            ...job,
+            params: fallbackParams,
+          }, env)
+
+          await mediaService.updateImageJobStatus(jobId, 'queued', {
+            errorMessage: null,
+            params: fallbackParams,
+          })
+
+          logger.withFields({ jobId, promptId }).warn('Discarding invalid custom ComfyUI workflow override and retrying with default workflow')
+
+          const fallbackResponse = await fetch(new URL('/prompt', env.COMFYUI_BASE_URL), {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              prompt: fallbackWorkflow,
+              prompt_id: promptId,
+              client_id: clientId,
+            }),
+          })
+
+          if (!fallbackResponse.ok) {
+            const fallbackBody = await fallbackResponse.text()
+            await mediaService.updateImageJobStatus(jobId, 'failed', {
+              errorMessage: `ComfyUI fallback submit failed with status ${fallbackResponse.status}: ${fallbackBody}`.slice(0, 2000),
+              params: {
+                ...fallbackParams,
+                workflow: fallbackWorkflow,
+              },
+            })
+            return
+          }
+
+          const fallbackSubmission = await fallbackResponse.json() as ComfyUiPromptSubmission
+          await mediaService.updateImageJobStatus(jobId, 'running', {
+            params: {
+              ...fallbackParams,
+              workflow: fallbackWorkflow,
+              comfy: {
+                ...comfyMeta,
+                promptId: fallbackSubmission.prompt_id ?? promptId,
+                clientId,
+                queueNumber: fallbackSubmission.number,
+                nodeErrors: fallbackSubmission.node_errors,
+                submittedAt: new Date().toISOString(),
+                startedAt: new Date().toISOString(),
+              },
+            },
+          })
+
+          const fallbackHistory = await fetchComfyHistory(promptId)
+          if (!fallbackHistory) {
+            throw new JobStillRunningError(`ComfyUI job ${promptId} is still running`)
+          }
+
+          const fallbackMediaId = pickFirstImageFilename(fallbackHistory)
+          await mediaService.updateImageJobStatus(jobId, 'done', {
+            resultMediaId: fallbackMediaId ?? job.resultMediaId,
+            params: {
+              ...fallbackParams,
+              workflow: fallbackWorkflow,
+              comfy: {
+                ...comfyMeta,
+                promptId,
+                clientId,
+                completedAt: new Date().toISOString(),
+              },
+            },
+          })
+          await mediaService.updateGalleryItemByImageJobId(jobId, {
+            mediaId: fallbackMediaId ?? undefined,
+            title: job.sceneType ? `${job.sceneType} scene` : undefined,
+          })
+          return
+        }
+
         await mediaService.updateImageJobStatus(jobId, 'failed', {
           errorMessage: `ComfyUI submit failed with status ${submitResponse.status}: ${body}`.slice(0, 2000),
         })
