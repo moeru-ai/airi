@@ -18,13 +18,26 @@ dialogs:
     baseUrl: URL de base
     baseUrlHelp: URL de l'endpoint API (utilisez la valeur par défaut si vous n’êtes pas sûr)
     accountId: ID du compte
+    validationRunning: Running tests
     validationSuccess: Validation de la configuration réussie
+    validationPartial: Configuration partially validated
     validationFailed: La validation de la configuration a échouée.
     validationError: 'Erreur de validation: {error}'
+    testGeneration: Ping API
+    testGenerationRunning: Ping...
+    testGenerationFailed: Ping test failed
+    retryPingCheck: Retry
     skipForNow: Passer pour l'instant
     saveAndContinue: Sauvegarder et Continuer
     next: Suivant
     retry: Réessayer
+    credentialsSafeLabel: Keep your API keys and credentials safe!
+    credentialsSafeLocal: >-
+      AIRI is running pure locally in your PC, and we will never steal your credentials for AI / LLM providers. But keep in mind that your API keys are sensitive information. Make sure to keep them safe and do not share them with anyone.
+    credentialsSafeOpenSource: >-
+      AIRI is open sourced at {github}, if you want to check how we handle your credentials, feel free to inspect our code.
+    enableChatCheck: >-
+      Allow airi to send a "ping" message to the first available chat model to check availability
     start: Commençons !
     loginPrompt: Sign in to use the official AIRI provider for the best experience.
     loginAction: Sign in
@@ -101,12 +114,12 @@ live2d:
   focus:
     title: Désactiver le suivi du modèle par la souris
     button-disable:
-      title: Désactiver
+      title: Disable model mouse tracking
   fps:
     title: FPS
     description: Limiter la fréquence d'image du rendu
     options:
-      unlimited: ∞
+      unlimited: '∞'
 microphone: Microphone
 models: Modèle
 pages:
@@ -232,6 +245,10 @@ pages:
         title: Supprimer toutes les données
         description: Effacer tous les réglages, configurations de fournisseurs et modèles locaux.
         delete: Supprimer toutes les données
+      desktop-folder:
+        title: Open app data folder
+        description: Open AIRI's data folder in your file manager.
+        open: Open folder
       desktop:
         title: Réinitialiser les paramètres et états du bureau
         description: Effacer les paramètres du bureau AIRI et l'état d'exécution.
@@ -375,6 +392,14 @@ pages:
         section:
           provider-selection:
             description: Sélectionnez le fournisseur de reconnaissance vocale approprié
+          confidence-threshold:
+            title: Confidence Threshold
+            description: Filter out low-confidence transcriptions to reduce Whisper hallucinations. Values closer to 0 are more strict; drag to the leftmost to disable. Only effective for providers supporting Whisper API (e.g., OpenAI, Groq).
+            disabled: Disabled
+            verbose-json-note: >-
+              Note: If your provider does not support verbose_json responses, this setting will have no effect.
+            verbose-json-unsupported: >-
+              Your provider did not return verbose_json segments. Confidence filtering had no effect on the last transcription.
     memory-long-term:
       description: Paramètres et gestion de la mémoire à long terme
       title: Mémoire à long terme
@@ -767,6 +792,9 @@ pages:
       openai:
         description: openai.com
         title: OpenAI
+      azure-openai:
+        description: Azure OpenAI API
+        title: Azure OpenAI
       openai-compatible:
         description: Compatible avec OpenAI
         title: Compatible avec OpenAI
@@ -777,6 +805,9 @@ pages:
         description: n1n.ai - Fournisseur d'API d'IA haute performance.
         title: n1n
       openrouter:
+        description: openrouter.ai
+        title: OpenRouter
+      openrouter-audio-speech:
         description: openrouter.ai
         title: OpenRouter
       perplexity:

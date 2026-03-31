@@ -130,7 +130,7 @@ onMounted(async () => {
   serverChannelSettingsStore.websocketTlsConfig = serverChannelConfig.tlsConfig
 
   await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
-  await contextBridgeStore.initialize()
+  contextBridgeStore.initialize()
   characterOrchestratorStore.initialize()
   await startTrackingCursorPoint()
 

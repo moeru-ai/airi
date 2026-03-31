@@ -37,6 +37,10 @@ const { streamingMessage } = storeToRefs(chatStream)
 const { sending } = storeToRefs(chatOrchestrator)
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 
+function handleDeleteMessage(index: number) {
+  messages.value = messages.value.filter((_, messageIndex) => messageIndex !== index)
+}
+
 const viewControlsActiveMode = ref<'x' | 'y' | 'z' | 'scale'>('scale')
 const viewControlsInputsRef = useTemplateRef<InstanceType<typeof ViewControlInputs>>('viewControlsInputs')
 
@@ -59,6 +63,7 @@ const { startAnalyzer, stopAnalyzer, volumeLevel } = useAudioAnalyzer()
 let analyzerSource: MediaStreamAudioSourceNode | undefined
 
 function isMobileDevice() {
+  // eslint-disable-next-line e18e/prefer-static-regex
   return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 }
 
@@ -156,6 +161,7 @@ onMounted(() => {
           :class="[
             'relative z-20',
           ]"
+          @delete-message="handleDeleteMessage($event.index)"
         />
       </Transition>
     </KeepAlive>
