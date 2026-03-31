@@ -489,7 +489,6 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
           :scale="scale"
           :x-offset="positionInPercentageString.x"
           :y-offset="positionInPercentageString.y"
-          mb="<md:18"
         />
         <ControlsIsland
           ref="controlsIslandRef"
