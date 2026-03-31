@@ -148,7 +148,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   function replaceSessionMessages(sessionId: string, next: ChatHistoryItem[], options?: { persist?: boolean }) {
     sessionMessages.value[sessionId] = next
-    loadedSessions.add(sessionId)
 
     if (options?.persist !== false)
       void persistSession(sessionId)
@@ -213,6 +212,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
     sessionMetas.value[sessionId] = meta
     replaceSessionMessages(sessionId, initialMessages, { persist: false })
+    loadedSessions.add(sessionId)
     ensureGeneration(sessionId)
 
     if (!index.value)
@@ -285,13 +285,21 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function ensureSession(sessionId: string) {
     ensureGeneration(sessionId)
     if (!sessionMessages.value[sessionId] || sessionMessages.value[sessionId].length === 0) {
-      replaceSessionMessages(sessionId, [generateInitialMessage()])
+      replaceSessionMessages(sessionId, [generateInitialMessage()], { persist: false })
     }
+  }
+
+  function hasKnownSession(sessionId: string) {
+    return !!sessionMetas.value[sessionId]
+      || !!Object.values(index.value?.characters ?? {}).some(character => character.sessions[sessionId])
   }
 
   const messages = computed<ChatHistoryItem[]>({
     get: () => {
       if (!activeSessionId.value) {
+        return []
+      }
+      if (!loadedSessions.has(activeSessionId.value) && !sessionMessages.value[activeSessionId.value] && hasKnownSession(activeSessionId.value)) {
         return []
       }
       ensureSession(activeSessionId.value)
@@ -306,7 +314,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   function setActiveSession(sessionId: string) {
     activeSessionId.value = sessionId
-    ensureSession(sessionId)
 
     const characterId = getCurrentCharacterId()
     const characterIndex = index.value?.characters[characterId]
@@ -315,8 +322,37 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       void persistIndex()
     }
 
-    if (ready.value)
+    if (ready.value) {
       void loadSession(sessionId)
+    }
+    else if (!hasKnownSession(sessionId)) {
+      ensureSession(sessionId)
+    }
+  }
+
+  function applyRemoteSnapshot(snapshot: {
+    activeSessionId: string
+    sessionMessages: Record<string, ChatHistoryItem[]>
+    sessionMetas: Record<string, ChatSessionMeta>
+  }) {
+    activeSessionId.value = snapshot.activeSessionId
+    sessionMessages.value = snapshot.sessionMessages
+    sessionMetas.value = snapshot.sessionMetas
+    sessionGenerations.value = Object.fromEntries(
+      Object.keys(snapshot.sessionMessages).map(sessionId => [sessionId, sessionGenerations.value[sessionId] ?? 0]),
+    )
+    loadedSessions.clear()
+    for (const sessionId of Object.keys(snapshot.sessionMessages)) {
+      loadedSessions.add(sessionId)
+    }
+  }
+
+  function getSnapshot() {
+    return {
+      activeSessionId: activeSessionId.value,
+      sessionMessages: JSON.parse(JSON.stringify(sessionMessages.value)) as Record<string, ChatHistoryItem[]>,
+      sessionMetas: JSON.parse(JSON.stringify(sessionMetas.value)) as Record<string, ChatSessionMeta>,
+    }
   }
 
   function cleanupMessages(sessionId = activeSessionId.value) {
@@ -460,6 +496,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     messages,
 
     setActiveSession,
+    applyRemoteSnapshot,
+    getSnapshot,
     cleanupMessages,
     getAllSessions,
     resetAllSessions,
