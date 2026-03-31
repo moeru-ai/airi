@@ -15,7 +15,7 @@ export const useSettingsGeneral = defineStore('settings-general', () => {
 
   // NOTICE: 补回翻译字幕的核心开关
   const translationSubtitleEnabled = useLocalStorageManualReset<boolean>('settings/translation-subtitle-enabled', false)
-  const translationLanguage = useLocalStorageManualReset<string>('settings/translation-language', 'zh-CN')
+  const translationLanguage = useLocalStorageManualReset<string>('settings/translation-language', 'zh-Hans')
 
   const captionSpeakerColor = useLocalStorageManualReset<string>('settings/caption-speaker-color', '#ffffff')
   const captionAssistantColor = useLocalStorageManualReset<string>('settings/caption-assistant-color', '#eff6ff')
