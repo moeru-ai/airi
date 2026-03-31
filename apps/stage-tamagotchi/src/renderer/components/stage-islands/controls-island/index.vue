@@ -33,7 +33,7 @@ const settingsControlsIslandStore = useSettingsControlsIsland()
 const context = useElectronEventaContext()
 const { enabled } = storeToRefs(settingsAudioDeviceStore)
 const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
-const { autoHideControlsIsland, autoHideDelay, autoShowDelay } = storeToRefs(settingsControlsIslandStore)
+const { autoHideControlsIsland, autoHideDelay, autoShowDelay, autoHideOpacity } = storeToRefs(settingsControlsIslandStore)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const openChat = useElectronEventaInvoke(electronOpenChat)
 const isLinux = useElectronEventaInvoke(electron.app.isLinux)
@@ -87,6 +87,9 @@ useIntervalFn(() => {
     timeSinceOutside.value = 0
   }
 }, 100)
+
+// Calculate opacity when hidden (0-100 range converted to 0-1)
+const hiddenOpacity = computed(() => autoHideOpacity.value / 100)
 
 // Auto-hide: hide controls island when mouse leaves after delay
 // Auto-show: show controls island when mouse enters after delay
@@ -185,9 +188,9 @@ function refreshWindow() {
   <div
     ref="islandRef"
     fixed bottom-2 right-2
+    :style="autoHideControlsIsland ? { opacity: isHidden ? hiddenOpacity : 1 } : {}"
     :class="[
       autoHideControlsIsland ? 'transition-opacity duration-300' : '',
-      isHidden ? 'opacity-0' : 'opacity-100',
     ]"
   >
     <div flex flex-col items-end gap-1>
