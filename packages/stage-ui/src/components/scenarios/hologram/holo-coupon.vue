@@ -10,7 +10,8 @@ import { promoBannerVisuals } from './promo-banner'
 import { usePromoBannerLayout } from './use-promo-banner-layout'
 
 const { locale, t } = useI18n()
-const isVisible = ref(true)
+const isEnabled = false
+const isVisible = ref(false)
 
 function translateBannerItem(key: PromoBannerItemKey): PromoBannerItem {
   const prefix = `stage.promo-banner.items.${key}`
@@ -86,6 +87,12 @@ function scrollTo(index: number) {
 
 function close() {
   isVisible.value = false
+  stopAutoplay()
+}
+
+function open() {
+  isVisible.value = true
+  startAutoplay()
 }
 
 const activeItem = computed(() => items.value[currentIndex.value] ?? items.value[0])
@@ -103,14 +110,31 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div v-if="isVisible" class="fixed bottom-3 left-6 z-50 <md:hidden">
-    <div class="pointer-events-auto relative flex flex-col items-start">
+  <div v-if="isEnabled" class="fixed bottom-10 left-6 z-50 <md:hidden">
+    <button
+      v-if="!isVisible"
+      :class="[
+        'pointer-events-auto max-h-[10lh] min-h-[1lh]',
+        'bg-neutral-100 dark:bg-neutral-800',
+        'text-lg text-neutral-500 dark:text-neutral-400',
+        'flex items-center justify-center rounded-md p-2 outline-none',
+        'transition-colors transition-transform active:scale-95',
+      ]"
+      title="Open promo banner"
+      type="button"
+      @click="open"
+    >
+      <div class="i-solar:gift-bold-duotone" />
+    </button>
+
+    <div v-else class="pointer-events-auto relative flex flex-col items-start">
       <div :class="['relative h-60 w-108 overflow-hidden rounded-3xl border border-white/8 bg-neutral-900/86 shadow-2xl backdrop-blur-xl', 'ring-1 ring-black/10']">
         <button
           :class="[
             'absolute right-3 top-3 z-30 h-8 w-8 flex items-center justify-center rounded-full',
             'text-white/55 transition-colors hover:bg-white/10 hover:text-white',
           ]"
+          type="button"
           @click="close"
         >
           <div class="i-lucide-x h-5 w-5" />
@@ -212,6 +236,7 @@ onBeforeUnmount(() => {
                 'h-2.5 rounded-full transition-all duration-300',
                 currentIndex === index ? 'w-5 bg-white' : 'w-2.5 bg-white/30 hover:bg-white/50',
               ]"
+              type="button"
               @click="scrollTo(index)"
             />
           </div>
