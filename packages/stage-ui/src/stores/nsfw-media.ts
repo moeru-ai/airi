@@ -31,6 +31,9 @@ export interface NsfwGalleryItem {
   negativePrompt: string
   sceneType?: string | null
   tags: string[]
+  imageJobStatus?: 'queued' | 'submitting' | 'running' | 'done' | 'failed' | null
+  imageJobErrorMessage?: string | null
+  imageJobResultMediaId?: string | null
   createdAt: string | number | Date
   updatedAt: string | number | Date
 }

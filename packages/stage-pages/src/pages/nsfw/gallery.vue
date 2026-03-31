@@ -19,16 +19,30 @@ onMounted(() => {
 function formatDate(value: number) {
   return new Date(value).toLocaleString()
 }
+
+function statusTone(status?: string | null) {
+  switch (status) {
+    case 'done':
+      return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+    case 'failed':
+      return 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300'
+    case 'running':
+    case 'submitting':
+      return 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
+    default:
+      return 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300'
+  }
+}
 </script>
 
 <template>
   <div class="min-h-screen px-4 py-8 md:px-8">
     <div mx-auto max-w-6xl class="space-y-6">
-      <section class="relative overflow-hidden rounded-[2rem] bg-linear-to-br from-neutral-950 via-amber-950 to-black px-6 py-8 text-white shadow-sm md:px-10 md:py-12">
+      <section class="bg-linear-to-br relative overflow-hidden rounded-[2rem] from-neutral-950 via-amber-950 to-black px-6 py-8 text-white shadow-sm md:px-10 md:py-12">
         <div class="absolute right--12 top--14 h-60 w-60 rounded-full bg-amber-400/15 blur-3xl" />
         <div class="absolute bottom--12 left-8 h-48 w-48 rounded-full bg-orange-300/10 blur-3xl" />
         <div class="relative z-1 max-w-3xl">
-          <div class="mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.16em] backdrop-blur">
+          <div class="mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium tracking-[0.16em] uppercase backdrop-blur">
             NSFW Gallery
           </div>
           <h1 class="text-4xl font-semibold leading-tight md:text-5xl">
@@ -82,18 +96,46 @@ function formatDate(value: number) {
         >
           <div class="flex items-start justify-between gap-4">
             <div>
-              <div class="text-xs uppercase tracking-[0.16em] text-neutral-500 dark:text-neutral-400">
+              <div class="text-xs text-neutral-500 tracking-[0.16em] uppercase dark:text-neutral-400">
                 {{ item.title || item.characterId }}
               </div>
               <div class="mt-2 text-lg font-semibold">
                 {{ item.sceneType || 'nsfw' }}
               </div>
             </div>
+            <div
+              v-if="item.imageJobStatus"
+              class="rounded-full px-3 py-1 text-xs font-medium tracking-[0.12em] uppercase"
+              :class="statusTone(item.imageJobStatus)"
+            >
+              {{ item.imageJobStatus }}
+            </div>
           </div>
 
           <div class="mt-4 space-y-4">
+            <div
+              v-if="item.imageJobErrorMessage"
+              class="rounded-2xl bg-rose-50 px-4 py-4 text-sm text-rose-700 leading-6 dark:bg-rose-500/10 dark:text-rose-200"
+            >
+              {{ item.imageJobErrorMessage }}
+            </div>
+
+            <div
+              v-else-if="item.imageJobStatus === 'running' || item.imageJobStatus === 'submitting' || item.imageJobStatus === 'queued'"
+              class="rounded-2xl bg-amber-50 px-4 py-4 text-sm text-amber-700 leading-6 dark:bg-amber-500/10 dark:text-amber-200"
+            >
+              Render job is still processing in ComfyUI.
+            </div>
+
+            <div
+              v-else-if="item.imageJobResultMediaId || item.mediaId"
+              class="rounded-2xl bg-emerald-50 px-4 py-4 text-sm text-emerald-700 leading-6 dark:bg-emerald-500/10 dark:text-emerald-200"
+            >
+              Media ready: {{ item.imageJobResultMediaId || item.mediaId }}
+            </div>
+
             <div>
-              <div class="text-[11px] font-medium uppercase tracking-[0.16em] text-neutral-500 dark:text-neutral-400">
+              <div class="text-[11px] text-neutral-500 font-medium tracking-[0.16em] uppercase dark:text-neutral-400">
                 Prompt
               </div>
               <div class="mt-2 rounded-2xl bg-neutral-50 px-4 py-4 text-sm leading-6 dark:bg-neutral-800">
@@ -102,7 +144,7 @@ function formatDate(value: number) {
             </div>
 
             <div>
-              <div class="text-[11px] font-medium uppercase tracking-[0.16em] text-neutral-500 dark:text-neutral-400">
+              <div class="text-[11px] text-neutral-500 font-medium tracking-[0.16em] uppercase dark:text-neutral-400">
                 Negative Prompt
               </div>
               <div class="mt-2 rounded-2xl bg-neutral-50 px-4 py-4 text-sm leading-6 dark:bg-neutral-800">
@@ -114,7 +156,7 @@ function formatDate(value: number) {
               <span
                 v-for="tag in item.tags"
                 :key="`${item.id}:${tag}`"
-                class="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
+                class="rounded-full bg-amber-100 px-3 py-1 text-xs text-amber-700 font-medium dark:bg-amber-500/15 dark:text-amber-300"
               >
                 {{ tag }}
               </span>

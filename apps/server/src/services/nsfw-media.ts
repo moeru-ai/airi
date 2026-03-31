@@ -53,10 +53,28 @@ export function createNsfwMediaService(db: Database) {
     },
 
     async listGalleryItems(userId: string) {
-      return await db.query.galleryItems.findMany({
-        where: eq(schema.galleryItems.userId, userId),
-        orderBy: desc(schema.galleryItems.createdAt),
-      })
+      return await db
+        .select({
+          id: schema.galleryItems.id,
+          userId: schema.galleryItems.userId,
+          characterId: schema.galleryItems.characterId,
+          imageJobId: schema.galleryItems.imageJobId,
+          mediaId: schema.galleryItems.mediaId,
+          title: schema.galleryItems.title,
+          prompt: schema.galleryItems.prompt,
+          negativePrompt: schema.galleryItems.negativePrompt,
+          sceneType: schema.galleryItems.sceneType,
+          tags: schema.galleryItems.tags,
+          createdAt: schema.galleryItems.createdAt,
+          updatedAt: schema.galleryItems.updatedAt,
+          imageJobStatus: schema.imageJobs.status,
+          imageJobErrorMessage: schema.imageJobs.errorMessage,
+          imageJobResultMediaId: schema.imageJobs.resultMediaId,
+        })
+        .from(schema.galleryItems)
+        .leftJoin(schema.imageJobs, eq(schema.galleryItems.imageJobId, schema.imageJobs.id))
+        .where(eq(schema.galleryItems.userId, userId))
+        .orderBy(desc(schema.galleryItems.createdAt))
     },
 
     async updateGalleryItemByImageJobId(imageJobId: string, data: Partial<schema.NewGalleryItem>) {
