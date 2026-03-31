@@ -10,6 +10,7 @@ import { useSettingsTheme } from './theme'
 export * from './analytics'
 // Export sub-stores
 export * from './audio-device'
+export * from './beat-sync'
 export * from './controls-island'
 export * from './general'
 export * from './live2d'
@@ -70,6 +71,7 @@ export const useSettings = defineStore('settings', () => {
     live2dIdleAnimationEnabled: live2dRefs.live2dIdleAnimationEnabled,
     live2dAutoBlinkEnabled: live2dRefs.live2dAutoBlinkEnabled,
     live2dForceAutoBlinkEnabled: live2dRefs.live2dForceAutoBlinkEnabled,
+    live2dExpressionEnabled: live2dRefs.live2dExpressionEnabled,
     live2dShadowEnabled: live2dRefs.live2dShadowEnabled,
     live2dMaxFps: live2dRefs.live2dMaxFps,
 

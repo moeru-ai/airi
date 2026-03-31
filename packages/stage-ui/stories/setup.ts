@@ -9,8 +9,8 @@ import ThemeColorsHueControl from './components/ThemeColorsHueControl.vue'
 
 import { i18n } from './modules/i18n'
 
-import 'uno.css'
 import '@unocss/reset/tailwind.css'
+import 'uno.css'
 import './styles/main.css'
 // Fonts
 import '@proj-airi/font-cjkfonts-allseto/index.css'

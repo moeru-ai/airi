@@ -45,7 +45,7 @@ export default defineConfig({
     // Vite version, wait until Histoire updates to support Vite 7
     Yaml() as Plugin,
     Vue(),
-    Unocss(),
+    ...Unocss() as Plugin[],
     // TODO: Type wrong for `unplugin-yaml` in Histoire required
     // Vite version, wait until Histoire updates to support Vite 7
     Inspect() as Plugin,

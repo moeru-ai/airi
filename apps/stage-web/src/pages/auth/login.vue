@@ -68,7 +68,7 @@ watch(isDesktop, (val) => {
 <template>
   <div v-if="isDesktop" class="min-h-screen flex flex-col items-center justify-center">
     <div class="mb-8 text-3xl font-bold">
-      Sign in to AIRI Stage
+      Sign in
     </div>
     <div class="max-w-xs w-full flex flex-col gap-3">
       <Button
@@ -97,7 +97,7 @@ watch(isDesktop, (val) => {
     <div class="mb-12 flex flex-col items-center gap-4">
       <img src="../../assets/logo.svg" class="h-24 w-24 rounded-3xl shadow-lg">
       <div class="text-3xl font-bold">
-        AIRI Stage
+        AIRI
       </div>
     </div>
 

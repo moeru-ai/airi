@@ -37,7 +37,7 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+                      "expr": "sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\"}[$__rate_interval]))",
                       "legendFormat": "req/s"
                     },
                     "version": "v0"
@@ -105,7 +105,7 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_response_status_code=~\"5..\"}[$__rate_interval])) / sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+                      "expr": "sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_response_status_code=~\"5..\"}[$__rate_interval])) / sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\"}[$__rate_interval]))",
                       "legendFormat": "error rate"
                     },
                     "version": "v0"
@@ -175,7 +175,7 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "histogram_quantile(0.95, sum(rate(http_server_request_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\", http_route!~\"/api/v1/openai/.*\"}[$__rate_interval])) by (le))",
+                      "expr": "histogram_quantile(0.95, sum(rate(http_server_request_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_route!~\"/api/v1/openai/.*\"}[$__rate_interval])) by (le))",
                       "legendFormat": "p95"
                     },
                     "version": "v0"
@@ -243,8 +243,8 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum by (http_route) (rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_response_status_code!=\"404\"}[$__rate_interval]))",
-                      "legendFormat": "{{http_route}}"
+                      "expr": "sum by (http_route, http_request_method) (rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_response_status_code!=\"404\"}[$__rate_interval]))",
+                      "legendFormat": "{{http_request_method}} {{http_route}}"
                     },
                     "version": "v0"
                   },
@@ -260,7 +260,7 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_response_status_code=\"404\"}[$__rate_interval]))",
+                      "expr": "sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_response_status_code=\"404\"}[$__rate_interval]))",
                       "legendFormat": "404 (all paths)"
                     },
                     "version": "v0"
@@ -276,7 +276,7 @@
         "description": "Excludes 404 responses to avoid high-cardinality route explosion",
         "id": 4,
         "links": [],
-        "title": "Request Rate by Route",
+        "title": "Request Rate by Route + Method",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -338,7 +338,7 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "histogram_quantile(0.95, sum by (le, http_route) (rate(http_server_request_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\", http_response_status_code!=\"404\"}[$__rate_interval])))",
+                      "expr": "histogram_quantile(0.95, sum by (le, http_route) (rate(http_server_request_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_response_status_code!=\"404\"}[$__rate_interval])))",
                       "legendFormat": "{{http_route}}"
                     },
                     "version": "v0"
@@ -355,7 +355,7 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\", http_response_status_code=\"404\"}[$__rate_interval])))",
+                      "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_response_status_code=\"404\"}[$__rate_interval])))",
                       "legendFormat": "404 (all paths)"
                     },
                     "version": "v0"
@@ -433,7 +433,7 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum by (http_response_status_code) (rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+                      "expr": "sum by (http_response_status_code) (rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\"}[$__rate_interval]))",
                       "legendFormat": "{{http_response_status_code}}"
                     },
                     "version": "v0"
@@ -511,7 +511,7 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_response_status_code=\"404\"}[$__rate_interval]))",
+                      "expr": "sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_response_status_code=\"404\"}[$__rate_interval]))",
                       "legendFormat": "404 total"
                     },
                     "version": "v0"

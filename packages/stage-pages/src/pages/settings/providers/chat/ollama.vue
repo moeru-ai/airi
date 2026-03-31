@@ -180,7 +180,6 @@ onMounted(() => {
         />
       </ProviderAdvancedSettings>
 
-      <!-- Validation Status -->
       <ProviderValidationAlerts
         :is-valid="isValid"
         :is-validating="isValidating"

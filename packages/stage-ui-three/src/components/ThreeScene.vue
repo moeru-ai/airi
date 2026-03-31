@@ -7,10 +7,10 @@
   * - Src of model is obtained from stage-ui via props, which is NOT a part of stage-ui-three package
 */
 
-import type { VRM } from '@pixiv/three-vrm'
 import type { TresContext } from '@tresjs/core'
 import type { DirectionalLight, SphericalHarmonics3, Texture, WebGLRenderer, WebGLRenderTarget } from 'three'
 
+import type { VrmHook } from '../composables/vrm/hooks'
 import type { SceneBootstrap, ScenePhase, Vec3 } from '../stores/model-store'
 
 import { Screen } from '@proj-airi/ui'
@@ -487,11 +487,11 @@ const effectProps = {
   blendFunction: BlendFunction.SRC,
 }
 
-const vrmFrameHook = shallowRef<((vrm: VRM, delta: number) => void) | undefined>(undefined)
-function applyVrmFrameHook() {
-  modelRef.value?.setVrmFrameHook(vrmFrameHook.value)
+const vrmHooks = shallowRef<readonly VrmHook[]>([])
+function applyVrmHooks() {
+  modelRef.value?.setVrmHooks(vrmHooks.value)
 }
-watch(modelRef, () => applyVrmFrameHook(), { immediate: true })
+watch(modelRef, () => applyVrmHooks(), { immediate: true })
 
 watch(() => props.modelSrc, (modelSrc) => {
   modelPhase.value = modelSrc ? 'loading' : 'no-model'
@@ -628,9 +628,9 @@ defineExpose({
   setExpression: (expression: string, intensity = 1) => {
     modelRef.value?.setExpression(expression, intensity)
   },
-  setVrmFrameHook: (hook?: (vrm: VRM, delta: number) => void) => {
-    vrmFrameHook.value = hook
-    applyVrmFrameHook()
+  setVrmHooks: (hooks?: readonly VrmHook[]) => {
+    vrmHooks.value = hooks ?? []
+    applyVrmHooks()
   },
   canvasElement: () => {
     return tresCanvasRef.value?.renderer.instance.domElement

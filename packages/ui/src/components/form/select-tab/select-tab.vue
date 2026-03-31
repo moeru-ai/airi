@@ -1,10 +1,10 @@
-<script setup lang="ts">
+<script setup lang="ts" generic="T extends string | number">
 import { RadioGroupItem, RadioGroupRoot } from 'reka-ui'
 import { computed } from 'vue'
 
 interface SelectTabOption {
   label: string
-  value: string | number
+  value: T
   description?: string
   icon?: string
 }
@@ -20,7 +20,7 @@ const props = withDefaults(defineProps<{
   size: 'md',
 })
 
-const modelValue = defineModel<string | number>({ required: true })
+const modelValue = defineModel<T>({ required: true })
 
 const activeIndex = computed(() => props.options.findIndex(option => option.value === modelValue.value))
 const itemCount = computed(() => props.options.length || 1)
@@ -28,8 +28,8 @@ const isDisabled = computed(() => props.disabled || props.readonly)
 
 const sizeClasses = computed(() =>
   props.size === 'sm'
-    ? ['py-2', 'px-3', 'text-xs', 'rounded-md']
-    : ['py-2.5', 'px-3.5', 'text-sm', 'rounded-md'],
+    ? ['py-2', 'px-3', 'text-xs', 'rounded-md', 'min-w-24']
+    : ['py-2.5', 'px-3.5', 'text-sm', 'rounded-md', 'min-w-32'],
 )
 
 const rootStyle = computed(() => ({
@@ -49,7 +49,7 @@ const rootStyle = computed(() => ({
     :class="[
       'select-tab',
       'is-interacting',
-      'relative', 'flex', 'w-full', 'items-stretch', 'rounded-lg',
+      'relative', 'flex', 'items-stretch', 'rounded-lg',
       'overflow-hidden',
       'bg-white-400/6', 'dark:bg-neutral-950/70',
       'transition-[border-color,box-shadow,opacity]', 'duration-200', 'ease-out',
