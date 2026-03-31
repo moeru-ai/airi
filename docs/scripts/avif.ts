@@ -7,7 +7,7 @@ import { Transformer } from '@napi-rs/image'
 
 const SOURCE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp']
 
-async function transform(filePath: string): Promise<any> {
+async function transform(filePath: string): Promise<unknown> {
   if ((await stat(filePath)).isDirectory()) {
     return await Promise.allSettled(
       (await readdir(filePath)).map(file => transform(path.join(filePath, file))),
