@@ -65,14 +65,28 @@ export function buildDefaultComfyWorkflow(job: ImageJob, env: Env): ComfyPromptW
   const seedSource = Number.parseInt(job.id.replace(/\D/g, '').slice(0, 9), 10)
   const seed = Number.isFinite(seedSource) ? seedSource : Date.now() % 2147483647
 
-  return {
+  const primaryLoraEnabled = Boolean(env.COMFYUI_DEFAULT_LORA?.trim())
+  const secondaryLoraEnabled = Boolean(env.COMFYUI_SECONDARY_LORA?.trim())
+
+  const modelSource: [string, number] = secondaryLoraEnabled
+    ? ['11', 0]
+    : primaryLoraEnabled
+        ? ['10', 0]
+        : ['4', 0]
+
+  const clipSource: [string, number] = secondaryLoraEnabled
+    ? ['11', 1]
+    : primaryLoraEnabled
+        ? ['10', 1]
+        : ['4', 1]
+  const workflow: ComfyPromptWorkflow = {
     '3': {
       class_type: 'KSampler',
       inputs: {
         cfg: 8,
         denoise: 1,
         latent_image: ['5', 0],
-        model: ['4', 0],
+        model: modelSource,
         negative: ['7', 0],
         positive: ['6', 0],
         sampler_name: 'euler',
@@ -98,14 +112,14 @@ export function buildDefaultComfyWorkflow(job: ImageJob, env: Env): ComfyPromptW
     '6': {
       class_type: 'CLIPTextEncode',
       inputs: {
-        clip: ['4', 1],
+        clip: clipSource,
         text: positiveText,
       },
     },
     '7': {
       class_type: 'CLIPTextEncode',
       inputs: {
-        clip: ['4', 1],
+        clip: clipSource,
         text: job.negativePrompt,
       },
     },
@@ -124,4 +138,32 @@ export function buildDefaultComfyWorkflow(job: ImageJob, env: Env): ComfyPromptW
       },
     },
   }
+
+  if (primaryLoraEnabled) {
+    workflow['10'] = {
+      class_type: 'LoraLoader',
+      inputs: {
+        model: ['4', 0],
+        clip: ['4', 1],
+        lora_name: env.COMFYUI_DEFAULT_LORA,
+        strength_model: env.COMFYUI_DEFAULT_LORA_STRENGTH_MODEL,
+        strength_clip: env.COMFYUI_DEFAULT_LORA_STRENGTH_CLIP,
+      },
+    }
+  }
+
+  if (secondaryLoraEnabled) {
+    workflow['11'] = {
+      class_type: 'LoraLoader',
+      inputs: {
+        model: primaryLoraEnabled ? ['10', 0] : ['4', 0],
+        clip: primaryLoraEnabled ? ['10', 1] : ['4', 1],
+        lora_name: env.COMFYUI_SECONDARY_LORA,
+        strength_model: env.COMFYUI_SECONDARY_LORA_STRENGTH_MODEL,
+        strength_clip: env.COMFYUI_SECONDARY_LORA_STRENGTH_CLIP,
+      },
+    }
+  }
+
+  return workflow
 }

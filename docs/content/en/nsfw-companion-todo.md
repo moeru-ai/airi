@@ -13,7 +13,7 @@ This is the implementation checklist for the AIRI + Hermes companion stack.
 - [x] Publish NSFW image jobs into the queue from `POST /api/v1/nsfw/jobs`.
 - [x] Add a ComfyUI submit/reconcile consumer path that treats AIRI as the source of truth.
 - [x] Add a default ComfyUI API workflow builder for NSFW image jobs.
-- [ ] Tune the default ComfyUI workflow against the exact checkpoints and node set installed on this machine.
+- [x] Tune the default ComfyUI workflow against the exact locally installed Pony checkpoint and LoRA stack.
 - [ ] Persist ComfyUI execution metadata more explicitly than the current `params.comfy` blob if recovery needs become more complex.
 
 ## AIRI

@@ -144,6 +144,7 @@ Role:
 - `apps/server/src/services/nsfw-image-workflow.ts`
   - builds a default API-format ComfyUI workflow from prompt, negative prompt, aspect ratio, and checkpoint config
   - currently targets the locally present `ponyDiffusionV6.safetensors` checkpoint by default
+  - applies the locally present `pony_realism.safetensors` and skin-texture LoRA chain by default
 - `apps/server/src/bin/run-nsfw-image-consumer.ts`
   - standalone worker entrypoint for NSFW image execution
 - `apps/server/docker-compose.yml`

@@ -64,6 +64,12 @@ const EnvSchema = object({
   NSFW_IMAGE_EVENTS_MIN_IDLE_MS: optionalIntegerFromString(30000, 'NSFW_IMAGE_EVENTS_MIN_IDLE_MS', 1),
   COMFYUI_BASE_URL: optional(string(), 'http://127.0.0.1:8188'),
   COMFYUI_DEFAULT_CHECKPOINT: optional(string(), 'ponyDiffusionV6.safetensors'),
+  COMFYUI_DEFAULT_LORA: optional(string(), 'pony_realism.safetensors'),
+  COMFYUI_DEFAULT_LORA_STRENGTH_MODEL: optionalNumberFromString(0.8, 'COMFYUI_DEFAULT_LORA_STRENGTH_MODEL', 0, 2),
+  COMFYUI_DEFAULT_LORA_STRENGTH_CLIP: optionalNumberFromString(0.8, 'COMFYUI_DEFAULT_LORA_STRENGTH_CLIP', 0, 2),
+  COMFYUI_SECONDARY_LORA: optional(string(), 'realistic-skin-texture-style-xl-detailed-skin-sd1.5-flux1d-pony-illu.safetensors'),
+  COMFYUI_SECONDARY_LORA_STRENGTH_MODEL: optionalNumberFromString(0.55, 'COMFYUI_SECONDARY_LORA_STRENGTH_MODEL', 0, 2),
+  COMFYUI_SECONDARY_LORA_STRENGTH_CLIP: optionalNumberFromString(0.4, 'COMFYUI_SECONDARY_LORA_STRENGTH_CLIP', 0, 2),
 
   // Database pool
   DB_POOL_MAX: optionalIntegerFromString(20, 'DB_POOL_MAX', 1),
