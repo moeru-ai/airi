@@ -2,22 +2,60 @@
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useNsfwMediaStore } from '@proj-airi/stage-ui/stores/nsfw-media'
 import { Button } from '@proj-airi/ui'
-import { computed, onMounted } from 'vue'
+import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const mediaStore = useNsfwMediaStore()
+let pollHandle: ReturnType<typeof setInterval> | null = null
 
 const accessDenied = computed(() => !authStore.canAccessNsfw)
 const items = computed(() => mediaStore.sortedGalleryItems)
+const hasActiveJobs = computed(() => items.value.some(item =>
+  item.imageJobStatus === 'queued'
+  || item.imageJobStatus === 'submitting'
+  || item.imageJobStatus === 'running',
+))
 
 onMounted(() => {
   mediaStore.fetchGallery().catch(() => {})
 })
 
+onBeforeUnmount(() => {
+  stopPolling()
+})
+
+watch([accessDenied, hasActiveJobs], ([denied, active]) => {
+  if (denied || !active) {
+    stopPolling()
+    return
+  }
+
+  startPolling()
+}, { immediate: true })
+
 function formatDate(value: number) {
   return new Date(value).toLocaleString()
+}
+
+function startPolling() {
+  if (pollHandle) {
+    return
+  }
+
+  pollHandle = setInterval(() => {
+    mediaStore.fetchGallery().catch(() => {})
+  }, 5000)
+}
+
+function stopPolling() {
+  if (!pollHandle) {
+    return
+  }
+
+  clearInterval(pollHandle)
+  pollHandle = null
 }
 
 function statusTone(status?: string | null) {
