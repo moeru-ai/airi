@@ -61,6 +61,7 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - Build pipeline refs: `.github/workflows`; lint rules in `eslint.config.js`.
 - Tailwind/UnoCSS: prefer UnoCSS; if standardizing styles, add shortcuts/rules/plugins in `uno.config.ts`.
 - Bundling pattern: `packages/vite-plugin-warpdrive` (tsdown example).
+- Auth/OIDC: `packages/stage-shared/src/auth/` (shared PKCE), `packages/stage-ui/src/libs/auth.ts` + `auth-oidc.ts` (client library), `packages/stage-ui/src/stores/auth.ts` (store), `apps/server/src/libs/auth.ts` (server config), `apps/stage-tamagotchi/src/main/services/electron/auth.ts` + `loopback-server.ts` (Electron auth).
 
 ## Commands (pnpm with filters)
 
@@ -120,6 +121,21 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - When a user asks to use a specific tool or dependency, first check Context7 docs with the search tool, then inspect actual usage of the dependency in this repo.
 - If multiple names are returned from Context7 without a clear distinction, ask the user to choose or confirm the desired one.
 - If docs conflict with typecheck results, inspect the dependency source under `node_modules` to diagnose root cause and fix types/bugs.
+
+## Authentication & OIDC
+
+- Server (`apps/server`) acts as both user auth backend and OIDC Provider via `better-auth` + `oidcProvider` plugin.
+- All clients (Web, Electron, Mobile) use **Authorization Code + PKCE** — never implicit flow.
+- Shared PKCE crypto utils live in `@proj-airi/stage-shared/auth` (`packages/stage-shared/src/auth/`). Do not duplicate.
+- Auth client library: `packages/stage-ui/src/libs/auth.ts` (store writes, auto-refresh, `exchangeOIDCTokenForSession()`) and `auth-oidc.ts` (pure OIDC functions).
+- Auth store: `packages/stage-ui/src/stores/auth.ts` — `token`, `refreshToken`, `user`, `session` in localStorage.
+- Electron auth: loopback HTTP server on `127.0.0.1` (ports 19721-19725), NOT custom protocol. See `apps/stage-tamagotchi/src/main/services/electron/auth.ts` and `loopback-server.ts`.
+- Electron auth callback: service-level bridge at `apps/stage-tamagotchi/src/renderer/bridges/electron-auth-callback.ts` (NOT in Vue component lifecycle). Registered in `App.vue`.
+- Electron auth IPC: eventa contracts in `apps/stage-tamagotchi/src/shared/eventa.ts` (`electronAuthStartLogin`, `electronAuthCallback`, `electronAuthCallbackError`, `electronAuthLogout`).
+- OIDC→Session bridge: `apps/server/src/routes/oidc/session.ts` — converts OIDC access token to better-auth session token. Idempotent with 5-min TTL cache. Session creation via `(await auth.$context).internalAdapter.createSession(userId)`.
+- Electron callback relay: `apps/server/src/routes/oidc/electron-callback.ts` — server-served HTML page that forwards auth code to Electron loopback via JS `fetch()`. Port encoded in `state` as `{port}:{originalState}`.
+- Server-side OIDC details: see `apps/server/docs/ai-context/auth-and-oidc.md`.
+- **Key constraint**: better-auth does exact string matching on `redirect_uri`. Electron uses a single server-side relay URL instead of per-port loopback URLs.
 
 ## i18n
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { refDebounced, useIntervalFn } from '@vueuse/core'
@@ -27,6 +28,7 @@ import {
 
 const { isDark, toggleDark } = useTheme()
 const { t } = useI18n()
+const authStore = useAuthStore()
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const settingsStore = useSettings()
@@ -136,6 +138,11 @@ function refreshWindow() {
         leave-to-class="opacity-0 translate-y-8 scale-90 blur-sm"
       >
         <div v-if="expanded" border="1 neutral-200 dark:neutral-800" mb-2 flex flex-col gap-1 rounded-2xl p-2 backdrop-blur-xl class="bg-neutral-100/80 shadow-2xl shadow-black/20 dark:bg-neutral-900/80">
+          <ControlsIslandAuthButton
+            :button-style="adjustStyleClasses.button"
+            :icon-class="adjustStyleClasses.icon"
+          />
+
           <div grid grid-cols-3 gap-2>
             <ControlButtonTooltip disable-hoverable-content>
               <ControlButton :button-style="adjustStyleClasses.button" @click="openSettings({ route: '/settings' })">
@@ -215,11 +222,6 @@ function refreshWindow() {
 
       <!-- Main Controls -->
       <div flex flex-col gap-1>
-        <ControlsIslandAuthButton
-          :button-style="adjustStyleClasses.button"
-          :icon-class="adjustStyleClasses.icon"
-        />
-
         <ControlButtonTooltip side="left">
           <ControlButton :button-style="adjustStyleClasses.button" @click="expanded = !expanded">
             <div

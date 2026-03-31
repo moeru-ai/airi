@@ -6,6 +6,7 @@ import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { createAuthMiddleware } from 'better-auth/api'
 import { bearer, jwt, oidcProvider } from 'better-auth/plugins'
+import { eq } from 'drizzle-orm'
 
 import { getAuthTrustedOrigins } from '../utils/origin'
 
@@ -56,13 +57,12 @@ function buildTrustedClients(env: Env) {
       name: 'AIRI Stage Desktop',
       type: 'native' as const,
       redirectUrls: [
-        // Loopback redirect (RFC 8252 S7.3) — fixed ports because
-        // better-auth validates redirect_uri via exact string match.
-        'http://127.0.0.1:19721/callback',
-        'http://127.0.0.1:19722/callback',
-        'http://127.0.0.1:19723/callback',
-        'http://127.0.0.1:19724/callback',
-        'http://127.0.0.1:19725/callback',
+        // Server-side relay: the OIDC redirect lands on the server, which
+        // serves an HTML page that forwards the code to the Electron
+        // loopback via JS fetch(). The loopback port is encoded in the
+        // `state` parameter. This avoids navigating the browser to a
+        // loopback URL and removes the need for per-port redirect URIs.
+        `${env.API_SERVER_URL}/api/auth/oidc/electron-callback`,
       ],
       disabled: false,
       skipConsent: true,
@@ -87,6 +87,41 @@ function buildTrustedClients(env: Env) {
   }
 
   return clients
+}
+
+/**
+ * Ensure trusted OIDC clients exist in the `oauth_application` table.
+ * The oidcProvider plugin resolves trusted clients from memory, but the
+ * `oauth_access_token` table has a FK to `oauth_application.client_id`.
+ * Without a matching row, token INSERT fails with a constraint violation.
+ */
+export async function seedTrustedClients(db: Database, env: Env): Promise<void> {
+  const clients = buildTrustedClients(env)
+  if (clients.length === 0)
+    return
+
+  for (const client of clients) {
+    const existing = await db
+      .select({ clientId: authSchema.oauthApplication.clientId })
+      .from(authSchema.oauthApplication)
+      .where(eq(authSchema.oauthApplication.clientId, client.clientId))
+      .limit(1)
+
+    if (existing.length > 0)
+      continue
+
+    await db.insert(authSchema.oauthApplication).values({
+      id: crypto.randomUUID(),
+      clientId: client.clientId,
+      clientSecret: client.clientSecret,
+      name: client.name,
+      type: client.type,
+      redirectUrls: client.redirectUrls.join(','),
+      disabled: client.disabled,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+  }
 }
 
 // NOTICE: return type uses `any` to avoid TS2742 — betterAuth's inferred type

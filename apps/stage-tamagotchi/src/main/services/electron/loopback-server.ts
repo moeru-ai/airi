@@ -48,6 +48,16 @@ export function startLoopbackServer(): Promise<{
 
       const url = new URL(req.url ?? '/', `http://127.0.0.1`)
 
+      // CORS: the relay page on the server origin sends a cross-origin fetch()
+      // to the loopback. Allow all origins since this is a one-shot local server.
+      res.setHeader('Access-Control-Allow-Origin', '*')
+      res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204)
+        res.end()
+        return
+      }
+
       if (url.pathname !== '/callback') {
         res.writeHead(404)
         res.end('Not found')

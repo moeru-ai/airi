@@ -3,6 +3,7 @@ import type { BrowserWindow } from 'electron'
 
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
+import { errorMessageFrom } from '@moeru/std'
 import { generateCodeChallenge, generateCodeVerifier, generateState } from '@proj-airi/stage-shared/auth'
 import { shell } from 'electron'
 
@@ -20,6 +21,7 @@ type MainContext = ReturnType<typeof createContext>['context']
 
 // OIDC configuration for the Electron client.
 const OIDC_CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID || 'airi-stage-electron'
+const OIDC_CLIENT_SECRET = import.meta.env.VITE_OIDC_CLIENT_SECRET || ''
 const OIDC_SCOPES = 'openid profile email offline_access'
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'https://api.airi.build'
 const OIDC_AUTHORIZE_PATH = '/api/auth/oauth2/authorize'
@@ -47,7 +49,11 @@ export function createAuthService(params: {
     const loopback = await startLoopbackServer()
     closeLoopback = loopback.close
 
-    const redirectUri = `http://127.0.0.1:${loopback.port}/callback`
+    // Use the server-side relay as redirect_uri. The relay page serves HTML
+    // that forwards the authorization code to the loopback via JS fetch().
+    // The loopback port is encoded in the state parameter as "{port}:{state}".
+    const redirectUri = `${SERVER_URL}/api/auth/oidc/electron-callback`
+    const stateWithPort = `${loopback.port}:${state}`
 
     // Build authorization URL
     const url = new URL(OIDC_AUTHORIZE_PATH, SERVER_URL)
@@ -55,7 +61,7 @@ export function createAuthService(params: {
     url.searchParams.set('client_id', OIDC_CLIENT_ID)
     url.searchParams.set('redirect_uri', redirectUri)
     url.searchParams.set('scope', OIDC_SCOPES)
-    url.searchParams.set('state', state)
+    url.searchParams.set('state', stateWithPort)
     url.searchParams.set('code_challenge', codeChallenge)
     url.searchParams.set('code_challenge_method', 'S256')
 
@@ -76,9 +82,8 @@ export function createAuthService(params: {
         log.log('OIDC token exchange successful')
       })
       .catch((err) => {
-        const message = err instanceof Error ? err.message : String(err)
         log.withError(err).error('OIDC login failed')
-        params.context.emit(electronAuthCallbackError, { error: message })
+        params.context.emit(electronAuthCallbackError, { error: errorMessageFrom(err) ?? 'OIDC login failed' })
       })
       .finally(() => {
         closeLoopback = null
@@ -101,13 +106,20 @@ interface TokenExchangeResult {
 }
 
 async function exchangeCode(code: string, codeVerifier: string, redirectUri: string): Promise<TokenExchangeResult> {
-  const body = new URLSearchParams({
+  const params: Record<string, string> = {
     grant_type: 'authorization_code',
     code,
     redirect_uri: redirectUri,
     client_id: OIDC_CLIENT_ID,
     code_verifier: codeVerifier,
-  })
+  }
+
+  // Trusted clients configured with a secret are treated as confidential
+  // by better-auth's oidcProvider — token exchange requires the secret.
+  if (OIDC_CLIENT_SECRET)
+    params.client_secret = OIDC_CLIENT_SECRET
+
+  const body = new URLSearchParams(params)
 
   const response = await fetch(new URL(OIDC_TOKEN_PATH, SERVER_URL), {
     method: 'POST',

@@ -149,13 +149,41 @@ export async function signOut() {
     refreshTimer = null
   }
 
-  await authClient.signOut()
+  // NOTICE: Server signOut is wrapped in try/catch so that local state cleanup
+  // always runs regardless of server errors (e.g. network unreachable). User
+  // intent to log out is respected — the server session expires naturally.
+  try {
+    await authClient.signOut()
+  }
+  catch {
+    // Swallow — local cleanup below ensures the user is logged out client-side.
+  }
 
   const authStore = useAuthStore()
   authStore.user = null
   authStore.session = null
   authStore.token = null
   authStore.refreshToken = null
+}
+
+/**
+ * Exchange an OIDC access token for a better-auth session token via the
+ * server bridge endpoint. The OIDC token is passed as an argument and never
+ * written to the auth store — only the returned session token is persisted.
+ */
+export async function exchangeOIDCTokenForSession(oidcAccessToken: string): Promise<void> {
+  const res = await fetch(`${SERVER_URL}/api/auth/oidc/session`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${oidcAccessToken}` },
+  })
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ message: 'Bridge exchange failed' }))
+    throw new Error(body.message ?? 'Bridge exchange failed')
+  }
+
+  const { token } = await res.json() as { token: string }
+  useAuthStore().token = token
 }
 
 /**

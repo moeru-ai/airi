@@ -1,5 +1,6 @@
 import type Redis from 'ioredis'
 
+import type { Database } from './libs/db'
 import type { Env } from './libs/env'
 import type { MqService } from './libs/mq'
 import type { OtelInstance } from './libs/otel'
@@ -25,7 +26,7 @@ import { cors } from 'hono/cors'
 import { logger as honoLogger } from 'hono/logger'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
 
-import { createAuth } from './libs/auth'
+import { createAuth, seedTrustedClients } from './libs/auth'
 import { createDrizzle, migrateDatabase } from './libs/db'
 import { parsedEnv } from './libs/env'
 import { initializeExternalDependency } from './libs/external-dependency'
@@ -38,6 +39,8 @@ import { createCharacterRoutes } from './routes/characters'
 import { createChatWsHandlers } from './routes/chat-ws'
 import { createChatRoutes } from './routes/chats'
 import { createFluxRoutes } from './routes/flux'
+import { createElectronCallbackRelay } from './routes/oidc/electron-callback'
+import { createOIDCSessionRoute } from './routes/oidc/session'
 import { createV1CompletionsRoutes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
@@ -57,6 +60,7 @@ import { renderSignInPage } from './utils/sign-in-page'
 
 interface AppDeps {
   auth: ReturnType<typeof createAuth>
+  db: Database
   characterService: CharacterService
   chatService: ChatService
   providerService: ProviderService
@@ -169,6 +173,18 @@ async function buildApp(deps: AppDeps) {
       windowSec: await deps.configKV.getOrThrow('AUTH_RATE_LIMIT_WINDOW_SEC'),
       keyGenerator: c => c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'unknown',
     }))
+    /**
+     * OIDC session bridge: exchanges an OIDC access token for a
+     * better-auth session token. Registered before the catch-all
+     * so the rate limiter above applies.
+     */
+    .route('/api/auth/oidc/session', createOIDCSessionRoute(deps.auth, deps.db, deps.env.OIDC_CLIENT_ID_ELECTRON ?? ''))
+    /**
+     * Electron OIDC callback relay: serves an HTML page that forwards the
+     * authorization code to the Electron loopback server via JS fetch().
+     * This avoids navigating the browser to http://127.0.0.1:{port}.
+     */
+    .route('/api/auth/oidc/electron-callback', createElectronCallbackRelay())
     .on(['POST', 'GET'], '/api/auth/*', async (c) => {
       return deps.auth.handler(c.req.raw) as Promise<Response>
     })
@@ -300,7 +316,11 @@ export async function createApp() {
 
   const auth = injeca.provide('services:auth', {
     dependsOn: { db, env: parsedEnv, otel },
-    build: ({ dependsOn }) => createAuth(dependsOn.db, dependsOn.env, dependsOn.otel?.auth),
+    build: async ({ dependsOn }) => {
+      // Seed trusted OIDC clients into DB so FK constraints on oauth_access_token are satisfied
+      await seedTrustedClients(dependsOn.db, dependsOn.env)
+      return createAuth(dependsOn.db, dependsOn.env, dependsOn.otel?.auth)
+    },
   })
 
   const characterService = injeca.provide('services:characters', {
@@ -363,6 +383,7 @@ export async function createApp() {
   })
   const { app, injectWebSocket } = await buildApp({
     auth: resolved.auth,
+    db: resolved.db,
     characterService: resolved.characterService,
     chatService: resolved.chatService,
     providerService: resolved.providerService,

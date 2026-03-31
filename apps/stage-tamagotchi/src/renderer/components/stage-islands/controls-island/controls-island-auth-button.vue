@@ -1,20 +1,16 @@
 <script setup lang="ts">
-import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { fetchSession } from '@proj-airi/stage-ui/libs/auth'
+import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { toast } from 'vue-sonner'
 
 import ControlButtonTooltip from './control-button-tooltip.vue'
 import ControlButton from './control-button.vue'
 
 import {
-  electronAuthCallback,
-  electronAuthCallbackError,
-  electronAuthLogout,
   electronAuthStartLogin,
+  electronOpenSettings,
 } from '../../../../shared/eventa'
 
 defineProps<{
@@ -24,22 +20,17 @@ defineProps<{
 
 const { t } = useI18n()
 const authStore = useAuthStore()
-const { isAuthenticated, user, needsLogin } = storeToRefs(authStore)
-const context = useElectronEventaContext()
+const { isAuthenticated, user, needsLogin, credits } = storeToRefs(authStore)
 
 const startLogin = useElectronEventaInvoke(electronAuthStartLogin)
-const logout = useElectronEventaInvoke(electronAuthLogout)
+const openSettings = useElectronEventaInvoke(electronOpenSettings)
 
 const userName = computed(() => user.value?.name)
 const userAvatar = computed(() => user.value?.image)
 
 function handleClick() {
   if (isAuthenticated.value) {
-    logout()
-    authStore.user = null
-    authStore.session = null
-    authStore.token = null
-    authStore.refreshToken = null
+    openSettings({ route: '/settings/account' })
   }
   else {
     startLogin()
@@ -53,57 +44,57 @@ watch(needsLogin, (val) => {
     needsLogin.value = false
   }
 })
-
-// Listen for auth callback events from main process (after OIDC deep link)
-let unsubCallback: (() => void) | undefined
-let unsubError: (() => void) | undefined
-
-onMounted(() => {
-  unsubCallback = context.value.on(electronAuthCallback, async (event) => {
-    const tokens = event.body
-    if (!tokens)
-      return
-
-    authStore.token = tokens.accessToken
-    if (tokens.refreshToken)
-      authStore.refreshToken = tokens.refreshToken
-
-    // Fetch full session/user data from server using the new token
-    await fetchSession()
-  })
-
-  unsubError = context.value.on(electronAuthCallbackError, (event) => {
-    if (event.body)
-      toast.error(event.body.error)
-  })
-})
-
-onUnmounted(() => {
-  unsubCallback?.()
-  unsubError?.()
-})
 </script>
 
 <template>
-  <ControlButtonTooltip disable-hoverable-content>
-    <ControlButton :button-style="buttonStyle" @click="handleClick">
-      <template v-if="isAuthenticated && userAvatar">
-        <img
-          :src="userAvatar"
-          :alt="userName ?? ''"
-          :class="iconClass"
-          class="rounded-full object-cover"
+  <div v-if="isAuthenticated" flex="~ col gap-1.5" mb-1.5>
+    <!-- Top row: Avatar + Name -->
+    <div flex="~ items-center gap-3" px-1 py-0.5>
+      <ControlButtonTooltip disable-hoverable-content>
+        <ControlButton
+          :button-style="[buttonStyle, 'bg-black/20! border-none! p-2.5!']"
+          @click="handleClick"
         >
-      </template>
-      <template v-else-if="isAuthenticated">
-        <div i-solar:user-check-rounded-bold :class="iconClass" text="green-600 dark:green-400" />
-      </template>
-      <template v-else>
-        <div i-solar:user-bold-duotone :class="iconClass" text="neutral-800 dark:neutral-300" />
-      </template>
+          <img
+            v-if="userAvatar"
+            :src="userAvatar"
+            :alt="userName ?? ''"
+            :class="iconClass"
+            class="rounded-full object-cover"
+          >
+          <div v-else i-solar:user-check-rounded-bold :class="iconClass" text="green-600 dark:green-400" />
+        </ControlButton>
+        <template #tooltip>
+          {{ t('tamagotchi.stage.controls-island.account') }}
+        </template>
+      </ControlButtonTooltip>
+
+      <span
+        v-if="userName"
+        text="base neutral-800 dark:neutral-200"
+        truncate font-bold
+      >
+        {{ userName }}
+      </span>
+    </div>
+
+    <!-- Bottom row: Flux balance -->
+    <div
+      flex="~ items-center justify-between"
+      rounded-xl px-3 py-2
+      bg="black/5 dark:bg-black/30"
+    >
+      <span text="xs neutral-500 dark:neutral-400">Flux</span>
+      <span text="sm font-bold neutral-800 dark:neutral-200">{{ credits }}</span>
+    </div>
+  </div>
+
+  <ControlButtonTooltip v-else disable-hoverable-content>
+    <ControlButton :button-style="buttonStyle" @click="handleClick">
+      <div i-solar:user-bold-duotone :class="iconClass" text="neutral-800 dark:neutral-300" />
     </ControlButton>
     <template #tooltip>
-      {{ isAuthenticated ? t('tamagotchi.stage.controls-island.logout') : t('tamagotchi.stage.controls-island.login') }}
+      {{ t('tamagotchi.stage.controls-island.login') }}
     </template>
   </ControlButtonTooltip>
 </template>
