@@ -3,7 +3,7 @@ import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { useSettings, useSettingsAudioDevice, useSettingsControlsIsland } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
-import { useIntervalFn } from '@vueuse/core'
+import { refDebounced } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -66,27 +66,11 @@ const { isOutside } = useElectronMouseInElement(islandRef)
 const autoHideDelayMs = computed(() => autoHideDelay.value * 1000)
 const autoShowDelayMs = computed(() => autoShowDelay.value * 1000)
 
-// Track time since mouse left/entered
-const timeSinceOutside = ref(0)
-const timeSinceInside = ref(0)
+// Use refDebounced for auto-hide: isOutside becomes true after autoHideDelay
+const isOutsideDelayed = refDebounced(isOutside, autoHideControlsIsland.value ? autoHideDelayMs.value : 1500)
 
-let lastUpdateTime = Date.now()
-
-// Update time tracking
-useIntervalFn(() => {
-  const now = Date.now()
-  const delta = now - lastUpdateTime
-  lastUpdateTime = now
-
-  if (isOutside.value) {
-    timeSinceOutside.value += delta
-    timeSinceInside.value = 0
-  }
-  else {
-    timeSinceInside.value += delta
-    timeSinceOutside.value = 0
-  }
-}, 100)
+// Use refDebounced for auto-show: isOutside becomes false after autoShowDelay
+const isInsideDelayed = refDebounced(computed(() => !isOutside.value), autoShowDelayMs)
 
 // Calculate opacity when hidden (0-100 range converted to 0-1)
 const hiddenOpacity = computed(() => autoHideOpacity.value / 100)
@@ -101,27 +85,17 @@ const isHidden = computed(() => {
   if (isBlocked.value || expanded.value)
     return false
 
-  // When mouse is inside, always show immediately (unless show delay is set)
+  // When mouse is inside, wait for show delay before fully showing
   if (!isOutside.value) {
     if (autoShowDelay.value > 0) {
       // Wait for mouse to be inside for the configured delay before showing
-      return timeSinceInside.value < autoShowDelayMs.value
+      return !isInsideDelayed.value
     }
     return false
   }
 
   // When mouse is outside, hide after delay
-  return timeSinceOutside.value >= autoHideDelayMs.value
-})
-
-watch(isOutside, (outside) => {
-  lastUpdateTime = Date.now()
-  timeSinceOutside.value = 0
-  timeSinceInside.value = 0
-
-  if (outside && expanded.value && !isBlocked.value) {
-    expanded.value = false
-  }
+  return isOutsideDelayed.value
 })
 
 watch(expanded, (isExpanded) => {
@@ -130,11 +104,13 @@ watch(expanded, (isExpanded) => {
   }
 })
 
-useIntervalFn(() => {
-  if (expanded.value && isOutside.value && !isBlocked.value) {
+// Auto-collapse expanded panel when mouse leaves for configured delay
+// Using refDebounced for consistent delay behavior
+watch(isOutsideDelayed, (isDelayedOutside) => {
+  if (isDelayedOutside && expanded.value && !isBlocked.value) {
     expanded.value = false
   }
-}, () => autoHideDelayMs.value || 5000)
+})
 
 // Apply alwaysOnTop on mount and when it changes
 watch(alwaysOnTop, (val) => {
