@@ -1,14 +1,19 @@
 <script setup lang="ts">
+import type { JobStatus } from '../../../types/singing'
+
 import { useNow } from '@vueuse/core'
 import { computed } from 'vue'
 
+import { getSingingElapsedSeconds } from '../../../types/singing'
+
 const props = defineProps<{
   jobId?: string | null
-  status: string
+  status: JobStatus | 'idle'
   currentStage: string | null
   progress: number
   error: string | null
   startedAt?: number | null
+  updatedAt?: number | null
   canCancel?: boolean
 }>()
 
@@ -50,10 +55,12 @@ const activeStage = computed(() => {
 })
 
 const elapsed = computed(() => {
-  if (!props.startedAt)
-    return 0
-
-  return Math.max(0, Math.round((now.value.getTime() - props.startedAt) / 1000))
+  return getSingingElapsedSeconds(
+    props.startedAt,
+    props.updatedAt,
+    props.status,
+    now.value.getTime(),
+  )
 })
 
 const showCancelButton = computed(() => !!props.canCancel && (props.status === 'pending' || props.status === 'running'))

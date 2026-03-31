@@ -69,6 +69,22 @@ export function isTerminalSingingStatus(status: SingingJobDisplayStatus | JobSta
   return status === 'completed' || status === 'failed' || status === 'cancelled'
 }
 
+export function getSingingElapsedSeconds(
+  startedAt: number | null | undefined,
+  updatedAt: number | null | undefined,
+  status: SingingJobDisplayStatus | JobStatus,
+  now = Date.now(),
+): number {
+  if (!startedAt)
+    return 0
+
+  const endAt = isTerminalSingingStatus(status)
+    ? (updatedAt ?? startedAt)
+    : now
+
+  return Math.max(0, Math.round((endAt - startedAt) / 1000))
+}
+
 function toFiniteNumber(value: unknown, fallback = 0): number {
   if (typeof value === 'number' && Number.isFinite(value))
     return value

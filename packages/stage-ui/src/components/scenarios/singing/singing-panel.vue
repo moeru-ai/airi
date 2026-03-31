@@ -830,6 +830,7 @@ async function retrySetup() {
           :progress="coverStore.progress"
           :error="coverStore.error"
           :started-at="coverStore.startedAt"
+          :updated-at="coverStore.updatedAt"
           :can-cancel="coverStore.canCancel"
           @cancel="() => void coverRuntime.cancelActiveJob()"
         />

@@ -5,6 +5,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 
 import { useSingingTrainingRuntime } from '../../../composables/use-singing-training-runtime'
 import { useSingingTrainingStore } from '../../../stores/modules/singing/training'
+import { getSingingElapsedSeconds } from '../../../types/singing'
 
 const trainingStore = useSingingTrainingStore()
 const { startTrainingJob, cancelActiveJob } = useSingingTrainingRuntime()
@@ -37,10 +38,12 @@ const canSubmit = computed(() =>
 const reportCard = computed(() => trainingStore.reportCard)
 
 const elapsed = computed(() => {
-  if (!trainingStore.startedAt)
-    return 0
-
-  return Math.max(0, Math.round((now.value.getTime() - trainingStore.startedAt) / 1000))
+  return getSingingElapsedSeconds(
+    trainingStore.startedAt,
+    trainingStore.updatedAt,
+    trainingStore.status,
+    now.value.getTime(),
+  )
 })
 
 watch(
