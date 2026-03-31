@@ -2,7 +2,7 @@
 import type { PerceptionState, VrmPoseTargets } from '@proj-airi/model-driver-mediapipe'
 import type { Vector3Like } from 'three'
 
-import { createMediaPipeBackend, createMocapEngine, drawOverlay, poseToVrmTargets } from '@proj-airi/model-driver-mediapipe'
+import { createMediaPipeBackend, createMocapEngine, createVrmPoseApplier, drawOverlay, poseToVrmTargets } from '@proj-airi/model-driver-mediapipe'
 import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
@@ -18,6 +18,7 @@ const ignoreErrorsUntil = ref(0)
 
 const videoRef = ref<HTMLVideoElement>()
 const canvasRef = ref<HTMLCanvasElement>()
+const sceneRef = ref<InstanceType<typeof ThreeScene>>()
 let stream: MediaStream | undefined
 let engine: ReturnType<typeof createMocapEngine> | undefined
 
@@ -51,6 +52,16 @@ const latestState = ref<PerceptionState>()
 const latestPoseTargets = ref<VrmPoseTargets>()
 const prevPoseTargets = ref<VrmPoseTargets>()
 const prevPoseForward = ref<Vector3Like>()
+
+const vrmPoseApplier = createVrmPoseApplier({ alpha: 1 })
+function onVrmFrame(vrm: Parameters<typeof vrmPoseApplier.applyPoseDirectionsToVrm>[0]) {
+  const targets = latestPoseTargets.value
+  if (!targets)
+    return
+
+  vrmPoseApplier.applyPoseTargetsToVrm(vrm, targets)
+}
+const vrmFrameHook = (vrm: Parameters<typeof vrmPoseApplier.applyPoseDirectionsToVrm>[0], _delta: number) => onVrmFrame(vrm)
 
 const settingsStore = useSettings()
 const { stageModelRenderer, stageModelSelected, stageModelSelectedUrl, stageViewControlsEnabled } = storeToRefs(settingsStore)
@@ -235,6 +246,11 @@ watch(config, (val) => {
   engine?.updateConfig(toRaw(val))
 }, { deep: true })
 
+watch(sceneRef, (scene, prev) => {
+  prev?.setVrmFrameHook(undefined)
+  scene?.setVrmFrameHook(vrmFrameHook)
+}, { immediate: true })
+
 watch(pipelineEnabled, async (enabled) => {
   if (syncingToggleState.value)
     return
@@ -261,6 +277,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  sceneRef.value?.setVrmFrameHook(undefined)
   stop()
 })
 </script>
@@ -446,6 +463,7 @@ onUnmounted(() => {
         <div :class="['h-full', 'min-h-80']">
           <ThreeScene
             v-if="stageModelRenderer === 'vrm'"
+            ref="sceneRef"
             :model-src="stageModelSelectedUrl"
             :idle-animation="animations.idleLoop.toString()"
             :show-axes="stageViewControlsEnabled"

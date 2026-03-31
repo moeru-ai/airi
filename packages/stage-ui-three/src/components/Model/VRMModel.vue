@@ -186,6 +186,8 @@ const vrmAnimationMixer = ref<AnimationMixer>()
 const { onBeforeRender, stop, start } = useLoop()
 
 const vrmHooks: readonly VrmHook[] = resolveInternalVrmHooks()
+type VrmFrameRuntimeHook = (vrm: VRM, delta: number) => void
+const vrmFrameRuntimeHook = shallowRef<VrmFrameRuntimeHook>()
 let disposeBeforeRenderLoop: (() => void | undefined) | undefined
 
 // material type with optional update function for per-frame update, used for three-vrm's MToon material and custom shader materials with IBL injection
@@ -369,6 +371,16 @@ function runVrmFrameHooks(context: VrmFrameHookContext) {
   }
 }
 
+function runVrmFrameRuntimeHook(vrm: VRM, delta: number) {
+  try {
+    vrmFrameRuntimeHook.value?.(vrm, delta)
+  }
+  catch (error) {
+    console.error(error)
+    emit('error', error)
+  }
+}
+
 function runVrmDisposeHooks(context: VrmDisposeHookContext) {
   for (const hook of vrmHooks) {
     try {
@@ -428,6 +440,10 @@ function bindManagedVrmInstanceRenderLoop() {
         })
       }
     })
+    const vrmRuntimeHookMs = measureFrameStep(tracingEnabled, () => {
+      if (activeVrm)
+        runVrmFrameRuntimeHook(activeVrm, delta)
+    })
     const humanoidMs = measureFrameStep(tracingEnabled, () => {
       activeVrm?.humanoid.update()
     })
@@ -469,6 +485,7 @@ function bindManagedVrmInstanceRenderLoop() {
         springBoneMs,
         ts: traceStart,
         vrmFrameHookMs,
+        vrmRuntimeHookMs,
       })
     }
   }).off
@@ -1030,6 +1047,12 @@ if (import.meta.hot) {
 defineExpose({
   setExpression(expression: string, intensity = 1) {
     vrmEmote.value?.setEmotionWithResetAfter(expression, 3000, intensity)
+  },
+  // NOTICE: This runtime frame hook is intentionally separate from internal VRM model hooks.
+  // External callers use it for live pose/tracking input; internal hooks remain reserved for
+  // stage-ui-three's own model/material lifecycle extensions.
+  setVrmFrameHook(hook?: VrmFrameRuntimeHook) {
+    vrmFrameRuntimeHook.value = hook
   },
   scene: computed(() => vrm.value?.scene),
   lookAtUpdate(target: Vec3) {
