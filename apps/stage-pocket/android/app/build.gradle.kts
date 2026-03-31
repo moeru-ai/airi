@@ -1,12 +1,18 @@
-val androidMinSdk = rootProject.extra["minSdkVersion"] as Int
-val androidCompileSdk = rootProject.extra["compileSdkVersion"] as Int
-val androidTargetSdk = rootProject.extra["targetSdkVersion"] as Int
-val androidxAppCompatVersion = rootProject.extra["androidxAppCompatVersion"] as String
-val androidxCoordinatorLayoutVersion = rootProject.extra["androidxCoordinatorLayoutVersion"] as String
-val coreSplashScreenVersion = rootProject.extra["coreSplashScreenVersion"] as String
-val junitVersion = rootProject.extra["junitVersion"] as String
-val androidxJunitVersion = rootProject.extra["androidxJunitVersion"] as String
-val androidxEspressoCoreVersion = rootProject.extra["androidxEspressoCoreVersion"] as String
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+val minSdkVersion: Int by rootProject.extra
+val compileSdkVersion: Int by rootProject.extra
+val targetSdkVersion: Int by rootProject.extra
+val androidxAppCompatVersion: String by rootProject.extra
+val androidxCoordinatorLayoutVersion: String by rootProject.extra
+val coreSplashScreenVersion: String by rootProject.extra
+val junitVersion: String by rootProject.extra
+val androidxJunitVersion: String by rootProject.extra
+val androidxEspressoCoreVersion: String by rootProject.extra
+
+val androidMinSdk = minSdkVersion
+val androidCompileSdk = compileSdkVersion
+val androidTargetSdk = targetSdkVersion
 
 plugins {
     id("com.android.application")
@@ -24,11 +30,6 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        aaptOptions {
-            // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
-            // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
-            ignoreAssetsPattern = "!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~"
-        }
     }
 
     buildTypes {
@@ -40,9 +41,16 @@ android {
             )
         }
     }
+    androidResources {
+        // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+        // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+        ignoreAssetsPattern = "!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~"
+    }
+}
 
-    kotlinOptions {
-        jvmTarget = "21"
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_21)
     }
 }
 
@@ -68,7 +76,7 @@ apply(from = "capacitor.build.gradle")
 
 try {
     val servicesJson = file("google-services.json")
-    if (servicesJson.readText().isNotBlank()) {
+    if (servicesJson.isFile && servicesJson.length() > 0) {
         apply(plugin = "com.google.gms.google-services")
     }
 } catch (error: Exception) {
