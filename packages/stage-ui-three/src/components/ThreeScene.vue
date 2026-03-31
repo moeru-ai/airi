@@ -10,7 +10,6 @@
 import type { TresContext } from '@tresjs/core'
 import type { DirectionalLight, SphericalHarmonics3, Texture, WebGLRenderer, WebGLRenderTarget } from 'three'
 
-import type { VrmHook } from '../composables/vrm/hooks'
 import type { SceneBootstrap, ScenePhase, Vec3 } from '../stores/model-store'
 
 import { Screen } from '@proj-airi/ui'
@@ -487,12 +486,6 @@ const effectProps = {
   blendFunction: BlendFunction.SRC,
 }
 
-const vrmHooks = shallowRef<readonly VrmHook[]>([])
-function applyVrmHooks() {
-  modelRef.value?.setVrmHooks(vrmHooks.value)
-}
-watch(modelRef, () => applyVrmHooks(), { immediate: true })
-
 watch(() => props.modelSrc, (modelSrc) => {
   modelPhase.value = modelSrc ? 'loading' : 'no-model'
 
@@ -627,10 +620,6 @@ watch(directionalLightRotation, (newRotation) => {
 defineExpose({
   setExpression: (expression: string, intensity = 1) => {
     modelRef.value?.setExpression(expression, intensity)
-  },
-  setVrmHooks: (hooks?: readonly VrmHook[]) => {
-    vrmHooks.value = hooks ?? []
-    applyVrmHooks()
   },
   canvasElement: () => {
     return tresCanvasRef.value?.renderer.instance.domElement

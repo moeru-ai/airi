@@ -76,6 +76,7 @@ import {
 } from '../../composables/vrm/animation'
 import { loadVrm } from '../../composables/vrm/core'
 import { useVRMEmote } from '../../composables/vrm/expression'
+import { resolveInternalVrmHooks } from '../../composables/vrm/internal-hooks'
 import { useVRMLipSync } from '../../composables/vrm/lip-sync'
 import {
   createThreeRendererMemorySnapshot,
@@ -184,7 +185,7 @@ let stopCameraWatch: WatchStopHandle | undefined
 const vrmAnimationMixer = ref<AnimationMixer>()
 const { onBeforeRender, stop, start } = useLoop()
 
-const vrmHooks = shallowRef<readonly VrmHook[]>([])
+const vrmHooks: readonly VrmHook[] = resolveInternalVrmHooks()
 let disposeBeforeRenderLoop: (() => void | undefined) | undefined
 
 // material type with optional update function for per-frame update, used for three-vrm's MToon material and custom shader materials with IBL injection
@@ -260,9 +261,8 @@ function isLoadRequestCurrent(requestId: number) {
 function disposeDetachedVrm(detachedVrm?: VRM, detachedGroup?: Group) {
   detachedGroup?.removeFromParent()
 
-  if (detachedVrm) {
+  if (detachedVrm)
     VRMUtils.deepDispose(detachedVrm.scene as unknown as Object3D)
-  }
 }
 
 function detachVrmGroup(detachedGroup?: Group) {
@@ -346,19 +346,19 @@ function updateManagedVrmMaterials(activeVrm: VRM | undefined, delta: number) {
 }
 
 function runVrmLoadHooks(context: VrmLoadHookContext) {
-  for (const hook of vrmHooks.value) {
+  for (const hook of vrmHooks) {
     hook.onLoad?.(context)
   }
 }
 
 function runVrmMaterialHooks(context: VrmMaterialHookContext) {
-  for (const hook of vrmHooks.value) {
+  for (const hook of vrmHooks) {
     hook.onMaterial?.(context)
   }
 }
 
 function runVrmFrameHooks(context: VrmFrameHookContext) {
-  for (const hook of vrmHooks.value) {
+  for (const hook of vrmHooks) {
     try {
       hook.onFrame?.(context)
     }
@@ -370,7 +370,7 @@ function runVrmFrameHooks(context: VrmFrameHookContext) {
 }
 
 function runVrmDisposeHooks(context: VrmDisposeHookContext) {
-  for (const hook of vrmHooks.value) {
+  for (const hook of vrmHooks) {
     try {
       hook.onDispose?.(context)
     }
@@ -756,6 +756,14 @@ async function loadModel() {
       return
     }
 
+    runVrmLoadHooks({
+      cacheHit: false,
+      camera: camera.value,
+      reason: loadReason,
+      vrm: _vrm,
+      vrmGroup: _vrmGroup,
+    })
+
     /*
       * Animation setting
     */
@@ -781,13 +789,6 @@ async function loadModel() {
     nextVrmAnimationMixer.clipAction(clip).play()
 
     nextVrmEmote = useVRMEmote(_vrm)
-    runVrmLoadHooks({
-      cacheHit: false,
-      camera: camera.value,
-      reason: loadReason,
-      vrm: _vrm,
-      vrmGroup: _vrmGroup,
-    })
 
     /*
       * Shader setting
@@ -1029,9 +1030,6 @@ if (import.meta.hot) {
 defineExpose({
   setExpression(expression: string, intensity = 1) {
     vrmEmote.value?.setEmotionWithResetAfter(expression, 3000, intensity)
-  },
-  setVrmHooks(hooks?: readonly VrmHook[]) {
-    vrmHooks.value = hooks ?? []
   },
   scene: computed(() => vrm.value?.scene),
   lookAtUpdate(target: Vec3) {
