@@ -4,10 +4,10 @@ import type { UpdateInfo } from 'electron-updater'
 
 import type { AutoUpdaterState } from '../../../shared/eventa'
 
-import { env, platform } from 'node:process'
 import { rmSync } from 'node:fs'
-import { join } from 'node:path'
 import { homedir } from 'node:os'
+import { join } from 'node:path'
+import { env, platform } from 'node:process'
 
 import electronUpdater from 'electron-updater'
 
@@ -60,9 +60,11 @@ function getAppCacheDir(): string {
   const home = homedir()
   if (platform === 'win32') {
     return env.LOCALAPPDATA || join(home, 'AppData', 'Local')
-  } else if (platform === 'darwin') {
+  }
+  else if (platform === 'darwin') {
     return join(home, 'Library', 'Caches')
-  } else {
+  }
+  else {
     return env.XDG_CACHE_HOME || join(home, '.cache')
   }
 }
@@ -79,13 +81,13 @@ export function setupAutoUpdater(): AutoUpdater {
     if (cacheDir) {
       rmSync(join(cacheDir, 'ai.moeru.airi-updater'), { recursive: true, force: true })
     }
-  } catch (error) {
+  }
+  catch (error) {
     log.withError(error).warn('Failed to clean up updater cache')
   }
 
   let state: AutoUpdaterState = { status: 'idle' }
   const hooks = new Set<(state: AutoUpdaterState) => void>()
-
 
   function broadcast(next: AutoUpdaterState) {
     state = next
