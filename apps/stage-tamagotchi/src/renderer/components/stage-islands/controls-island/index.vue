@@ -67,7 +67,7 @@ const autoHideDelayMs = computed(() => autoHideDelay.value * 1000)
 const autoShowDelayMs = computed(() => autoShowDelay.value * 1000)
 
 // Use refDebounced for auto-hide: isOutside becomes true after autoHideDelay
-const isOutsideDelayed = refDebounced(isOutside, autoHideControlsIsland.value ? autoHideDelayMs.value : 1500)
+const isOutsideDelayed = refDebounced(isOutside, computed(() => autoHideControlsIsland.value ? autoHideDelayMs.value : 1500))
 
 // Use refDebounced for auto-show: isOutside becomes false after autoShowDelay
 const isInsideDelayed = refDebounced(computed(() => !isOutside.value), autoShowDelayMs)
