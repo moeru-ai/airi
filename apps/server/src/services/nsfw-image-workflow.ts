@@ -45,16 +45,35 @@ function dimensionsFromAspectRatio(aspectRatio?: string) {
   }
 }
 
+function clampDimensions(width: number, height: number, maxDimension: number) {
+  const largestDimension = Math.max(width, height)
+  if (largestDimension <= maxDimension) {
+    return { width, height }
+  }
+
+  const scale = maxDimension / largestDimension
+  const clamp = (value: number) => {
+    const scaled = Math.max(64, Math.round((value * scale) / 64) * 64)
+    return scaled
+  }
+
+  return {
+    width: clamp(width),
+    height: clamp(height),
+  }
+}
+
 function workflowPrefix(job: ImageJob, planner: PlannerParams) {
   return ['airi', job.route, job.characterId, planner.mood ?? 'scene']
-    .map(part => String(part).trim().replace(/[^a-zA-Z0-9_-]+/g, '-'))
+    .map(part => String(part).trim().replace(/[^\w-]+/g, '-'))
     .filter(Boolean)
     .join('-')
 }
 
 export function buildDefaultComfyWorkflow(job: ImageJob, env: Env): ComfyPromptWorkflow {
   const planner = parsePlannerParams(job.params)
-  const { width, height } = dimensionsFromAspectRatio(planner.aspectRatio)
+  const baseDimensions = dimensionsFromAspectRatio(planner.aspectRatio)
+  const { width, height } = clampDimensions(baseDimensions.width, baseDimensions.height, env.COMFYUI_MAX_DIMENSION)
   const positiveText = [
     job.prompt,
     planner.style,
@@ -71,19 +90,19 @@ export function buildDefaultComfyWorkflow(job: ImageJob, env: Env): ComfyPromptW
   const modelSource: [string, number] = secondaryLoraEnabled
     ? ['11', 0]
     : primaryLoraEnabled
-        ? ['10', 0]
-        : ['4', 0]
+      ? ['10', 0]
+      : ['4', 0]
 
   const clipSource: [string, number] = secondaryLoraEnabled
     ? ['11', 1]
     : primaryLoraEnabled
-        ? ['10', 1]
-        : ['4', 1]
+      ? ['10', 1]
+      : ['4', 1]
   const workflow: ComfyPromptWorkflow = {
-    '3': {
+    3: {
       class_type: 'KSampler',
       inputs: {
-        cfg: 8,
+        cfg: env.COMFYUI_DEFAULT_CFG,
         denoise: 1,
         latent_image: ['5', 0],
         model: modelSource,
@@ -92,16 +111,16 @@ export function buildDefaultComfyWorkflow(job: ImageJob, env: Env): ComfyPromptW
         sampler_name: 'euler',
         scheduler: 'normal',
         seed,
-        steps: 24,
+        steps: env.COMFYUI_DEFAULT_STEPS,
       },
     },
-    '4': {
+    4: {
       class_type: 'CheckpointLoaderSimple',
       inputs: {
         ckpt_name: env.COMFYUI_DEFAULT_CHECKPOINT,
       },
     },
-    '5': {
+    5: {
       class_type: 'EmptyLatentImage',
       inputs: {
         batch_size: 1,
@@ -109,28 +128,28 @@ export function buildDefaultComfyWorkflow(job: ImageJob, env: Env): ComfyPromptW
         width,
       },
     },
-    '6': {
+    6: {
       class_type: 'CLIPTextEncode',
       inputs: {
         clip: clipSource,
         text: positiveText,
       },
     },
-    '7': {
+    7: {
       class_type: 'CLIPTextEncode',
       inputs: {
         clip: clipSource,
         text: job.negativePrompt,
       },
     },
-    '8': {
+    8: {
       class_type: 'VAEDecode',
       inputs: {
         samples: ['3', 0],
         vae: ['4', 2],
       },
     },
-    '9': {
+    9: {
       class_type: 'SaveImage',
       inputs: {
         filename_prefix: workflowPrefix(job, planner),

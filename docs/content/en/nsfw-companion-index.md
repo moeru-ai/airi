@@ -234,6 +234,10 @@ Role:
   - ComfyUI prompt submission
   - ComfyUI queue visibility
 - Final image completion is still slow in the current `--cpu` ComfyUI run, so completion timing is not yet representative of the intended GPU path
+- The default workflow now supports env-level smoke-test tuning through:
+  - `COMFYUI_DEFAULT_STEPS`
+  - `COMFYUI_DEFAULT_CFG`
+  - `COMFYUI_MAX_DIMENSION`
 
 ### Still Open
 
