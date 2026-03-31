@@ -320,17 +320,23 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
       </template>
     </FieldCombobox>
 
-    <div :class="['mt-4', 'flex', 'items-center', 'justify-between']">
-      <div :class="['flex', 'flex-col', 'gap-1']">
-        <span :class="['text-sm', 'text-neutral-600', 'dark:text-neutral-400']">
-          {{ t('settings.live2d.fps.title') }}
-        </span>
-        <span :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
-          {{ t('settings.live2d.fps.description') }}
-        </span>
+    <label class="flex flex-col gap-4">
+      <div :class="['flex items-center gap-2', 'flex-row']">
+        <div class="flex-1">
+          <div class="flex items-center gap-1 text-sm font-medium">
+            <slot name="label">
+              {{ t('settings.live2d.fps.title') }}
+            </slot>
+          </div>
+          <div class="text-xs text-neutral-500 dark:text-neutral-400">
+            <slot name="description">
+              {{ t('settings.live2d.fps.description') }}
+            </slot>
+          </div>
+        </div>
+        <SelectTab v-model="live2dMaxFps" :options="fpsOptions" size="sm" :class="['shrink-0']" />
       </div>
-      <SelectTab v-model="live2dMaxFps" :options="fpsOptions" size="sm" :class="['w-48', 'shrink-0']" />
-    </div>
+    </label>
 
     <div mt-4 flex items-center justify-between>
       <span text-sm text-neutral-600 dark:text-neutral-400>Auto Blink</span>
