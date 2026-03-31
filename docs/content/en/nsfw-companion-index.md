@@ -221,12 +221,27 @@ Role:
 - ComfyUI submit/reconcile worker path
 - default API-format ComfyUI workflow generation for NSFW jobs
 
+### Live Runtime Status
+
+- Local ComfyUI now starts and serves `http://127.0.0.1:8188`
+- Local Postgres and Redis now run through `apps/server/docker-compose.yml`
+- `nsfw-image-consumer` now connects to local Postgres and Redis and applies migrations successfully
+- A real runtime test job was accepted by ComfyUI and appears in `queue_running`
+- Current end-to-end runtime path is proven through:
+  - AIRI job record
+  - Redis event
+  - worker pickup
+  - ComfyUI prompt submission
+  - ComfyUI queue visibility
+- Final image completion is still slow in the current `--cpu` ComfyUI run, so completion timing is not yet representative of the intended GPU path
+
 ### Still Open
 
 - server-side long-term memory
 - quality judge beyond simple heuristic flags
 - premium gating for NSFW media actions
-- tuning the default ComfyUI workflow against the exact locally installed checkpoints
+- GPU-backed ComfyUI runtime validation
+- final image completion and gallery reconciliation validation on a non-CPU render path
 - actual model wiring to `Hermes-4.3-36B`, `Grok 4.20`, and `GPT-5 mini`
 - build, typecheck, and tests once dependencies are installed
 

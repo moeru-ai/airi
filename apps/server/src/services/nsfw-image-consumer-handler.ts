@@ -1,6 +1,6 @@
 import type { Env } from '../libs/env'
-import type { NsfwMediaService } from './nsfw-media'
 import type { NsfwImageEvent } from './nsfw-image-events'
+import type { NsfwMediaService } from './nsfw-media'
 
 import { useLogger } from '@guiiai/logg'
 
@@ -31,7 +31,7 @@ interface ComfyUiHistoryResponse {
   }
 }
 
-class JobStillRunningError extends Error {
+export class JobStillRunningError extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'JobStillRunningError'
