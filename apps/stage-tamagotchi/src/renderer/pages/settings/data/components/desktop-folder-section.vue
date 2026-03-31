@@ -31,13 +31,13 @@ async function triggerOpenDesktopUserDataFolder() {
 </script>
 
 <template>
-  <div :class="['border-2 border-sky-200/80 rounded-xl bg-sky-50/80 p-4 shadow-sm', 'dark:border-sky-500/40 dark:bg-sky-500/10']">
+  <div :class="['border-2 border-neutral-200/50 rounded-xl bg-white/70 p-4 shadow-sm', 'dark:border-neutral-800/60 dark:bg-neutral-900/60']">
     <div :class="['grid grid-cols-1 items-start gap-3 md:grid-cols-[minmax(0,1fr)_auto]']">
       <div :class="['flex flex-col gap-1 md:max-w-[560px]']">
-        <div :class="['text-lg text-sky-700 font-medium dark:text-sky-200']">
+        <div :class="['text-lg font-medium']">
           {{ t('settings.pages.data.sections.desktop-folder.title') }}
         </div>
-        <p :class="['text-sm text-sky-700/80 dark:text-sky-200/80']">
+        <p :class="['text-sm text-neutral-600 dark:text-neutral-400']">
           {{ t('settings.pages.data.sections.desktop-folder.description') }}
         </p>
       </div>

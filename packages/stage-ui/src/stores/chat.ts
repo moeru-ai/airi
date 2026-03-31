@@ -190,12 +190,13 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
           // 处于翻译模式时，将文本单独分流给翻译钩子
           if (inTranslationMode) {
-            // NOTICE: 使用 console.info 以符合项目 ESLint 规范
-            console.info('[AIRI Translation] intercepted:', literal)
-
-            // 确保调用了 emitTokenTranslationHooks，这是数据流向 UI 的起点 [cite: 1, 40]
             await hooks.emitTokenTranslationHooks(literal, streamingMessageContext)
-            return
+
+            // 兼容 Web 端：如果没有 Electron 环境（无独立字幕窗），则不中断流程，防止翻译内容静默丢失
+            const isDesktop = typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('electron')
+            if (isDesktop) {
+              return
+            }
           }
 
           categorizer.consume(literal)

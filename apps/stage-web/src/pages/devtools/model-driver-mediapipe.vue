@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PerceptionState, VrmPoseTargets } from '@proj-airi/model-driver-mediapipe'
+import type { VrmHook } from '@proj-airi/stage-ui-three/composables/vrm'
 import type { Vector3Like } from 'three'
 
 import { createMediaPipeBackend, createMocapEngine, createVrmPoseApplier, drawOverlay, poseToVrmTargets } from '@proj-airi/model-driver-mediapipe'
@@ -61,7 +62,11 @@ function onVrmFrame(vrm: Parameters<typeof vrmPoseApplier.applyPoseDirectionsToV
     return
   vrmPoseApplier.applyPoseTargetsToVrm(vrm, targets)
 }
-const vrmFrameHook = (vrm: Parameters<typeof vrmPoseApplier.applyPoseDirectionsToVrm>[0]) => onVrmFrame(vrm)
+const vrmHooks: readonly VrmHook[] = [{
+  onFrame({ vrm }) {
+    onVrmFrame(vrm)
+  },
+}]
 
 const settingsStore = useSettings()
 const { stageModelRenderer, stageModelSelected, stageModelSelectedUrl, stageViewControlsEnabled } = storeToRefs(settingsStore)
@@ -247,8 +252,8 @@ watch(config, (val) => {
 }, { deep: true })
 
 watch(sceneRef, (scene, prev) => {
-  prev?.setVrmFrameHook(undefined)
-  scene?.setVrmFrameHook(vrmFrameHook)
+  prev?.setVrmHooks(undefined)
+  scene?.setVrmHooks(vrmHooks)
 }, { immediate: true })
 
 watch(pipelineEnabled, async (enabled) => {
@@ -277,7 +282,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  sceneRef.value?.setVrmFrameHook(undefined)
+  sceneRef.value?.setVrmHooks(undefined)
   stop()
 })
 </script>

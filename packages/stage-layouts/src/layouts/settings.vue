@@ -90,7 +90,13 @@ onMounted(() => updateThemeColor())
       <HeaderLink />
     </div>
     <!-- Content -->
-    <div class="max-h-[calc(100%-40px)] px-3 py-0 sm:max-h-[calc(100%-56px)] 2xl:max-w-screen-2xl md:py-0 xl:px-4" flex="~ col" mx-auto h-full min-h-0>
+    <div
+      :class="[
+        'px-3 py-0 2xl:max-w-screen-2xl md:py-0 xl:px-4',
+        isStageTamagotchi() ? 'sm:max-h-[calc(100%)] max-h-[calc(100%)]' : 'sm:max-h-[calc(100%-56px)] max-h-[calc(100%-40px)]',
+        'flex flex-col mx-auto h-full min-h-0',
+      ]"
+    >
       <PageHeader
         :title="routeHeaderMetadata?.title || ''"
         :subtitle="routeHeaderMetadata?.subtitle"
