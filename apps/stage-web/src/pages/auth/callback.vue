@@ -50,7 +50,7 @@ onMounted(async () => {
       <div :class="['mt-2', 'text-sm text-gray-500']">
         {{ error }}
       </div>
-      <a href="/auth/login" :class="['mt-4 inline-block', 'text-sm underline']">
+      <a href="/auth/sign-in" :class="['mt-4 inline-block', 'text-sm underline']">
         Try again
       </a>
     </div>

@@ -43,7 +43,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     // On web desktop, redirect to login page
     // TODO: type safe, import `useRouter` from router.ts
-    window.location.href = '/auth/login'
+    window.location.href = '/auth/sign-in'
   })
 
   // Reset status when changing the window viewport

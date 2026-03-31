@@ -164,13 +164,6 @@ export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null)
     baseURL: env.API_SERVER_URL,
     trustedOrigins: request => getAuthTrustedOrigins(env, request),
 
-    session: {
-      cookieCache: {
-        enabled: true,
-        maxAge: 5 * 60, // 5 minutes
-      },
-    },
-
     advanced: {},
 
     // NOTICE: skipStateCookieCheck required for Capacitor mobile apps.
