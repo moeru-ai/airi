@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { fetchSession, persistTokens } from '@proj-airi/stage-ui/libs/auth'
+import { bridgeOIDCTokens, fetchSession } from '@proj-airi/stage-ui/libs/auth'
 import { consumeFlowState, exchangeCodeForTokens } from '@proj-airi/stage-ui/libs/auth-oidc'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -31,7 +31,7 @@ onMounted(async () => {
 
   try {
     const tokens = await exchangeCodeForTokens(code, persisted.flowState, persisted.params, state)
-    persistTokens(tokens, persisted.params.clientId)
+    await bridgeOIDCTokens(tokens, persisted.params.clientId, persisted.params.clientSecret)
     await fetchSession()
     router.replace('/')
   }

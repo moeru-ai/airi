@@ -11,6 +11,11 @@ export interface OIDCFlowParams {
   clientId: string
   redirectUri: string
   scopes?: string[]
+  /**
+   * Client secret — required when the OIDC client is registered as
+   * confidential on the server. Omit for public clients.
+   */
+  clientSecret?: string
   /** Social provider hint — skips the server-side picker page. */
   provider?: 'google' | 'github'
 }
@@ -74,13 +79,19 @@ export async function exchangeCodeForTokens(
   if (returnedState !== flowState.state)
     throw new Error('OIDC state mismatch — possible CSRF attack')
 
-  const body = new URLSearchParams({
+  const bodyParams: Record<string, string> = {
     grant_type: 'authorization_code',
     code,
     redirect_uri: params.redirectUri,
     client_id: params.clientId,
     code_verifier: flowState.codeVerifier,
-  })
+  }
+
+  // Confidential clients must send the secret during token exchange.
+  if (params.clientSecret)
+    bodyParams.client_secret = params.clientSecret
+
+  const body = new URLSearchParams(bodyParams)
 
   const response = await fetch(new URL(OIDC_TOKEN_PATH, SERVER_URL), {
     method: 'POST',
@@ -103,12 +114,18 @@ export async function exchangeCodeForTokens(
 export async function refreshAccessToken(
   clientId: string,
   refreshToken: string,
+  clientSecret?: string,
 ): Promise<TokenResponse> {
-  const body = new URLSearchParams({
+  const params: Record<string, string> = {
     grant_type: 'refresh_token',
     refresh_token: refreshToken,
     client_id: clientId,
-  })
+  }
+
+  if (clientSecret)
+    params.client_secret = clientSecret
+
+  const body = new URLSearchParams(params)
 
   const response = await fetch(new URL(OIDC_TOKEN_PATH, SERVER_URL), {
     method: 'POST',
