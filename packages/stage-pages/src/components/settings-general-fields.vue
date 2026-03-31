@@ -3,7 +3,7 @@ import { all } from '@proj-airi/i18n'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { isPosthogAvailableInBuild } from '@proj-airi/stage-ui/stores/analytics'
 import { useSettings, useSettingsControlsIsland } from '@proj-airi/stage-ui/stores/settings'
-import { FieldCheckbox, FieldCombobox, FieldInput, useTheme } from '@proj-airi/ui'
+import { FieldCheckbox, FieldCombobox, FieldRange, useTheme } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -94,30 +94,46 @@ const languages = computed(() => {
     />
 
     <template v-if="showAutoHideControlsIsland && settingsControlsIsland.autoHideControlsIsland">
-      <FieldInput
+      <FieldRange
         v-model.number="settingsControlsIsland.autoHideDelay"
         v-motion
         :initial="{ opacity: 0, y: 10 }"
         :enter="{ opacity: 1, y: 0 }"
         :duration="250 + (6 * 10)"
         :delay="6 * 50"
-        type="number"
         :min="0"
-        :max="60"
-        label="Hide delay (seconds)"
+        :max="5"
+        :step="0.1"
+        :format-value="v => `${v}s`"
+        label="Hide delay"
       />
 
-      <FieldInput
+      <FieldRange
         v-model.number="settingsControlsIsland.autoShowDelay"
         v-motion
         :initial="{ opacity: 0, y: 10 }"
         :enter="{ opacity: 1, y: 0 }"
         :duration="250 + (7 * 10)"
         :delay="7 * 50"
-        type="number"
         :min="0"
         :max="5"
-        label="Show delay (seconds)"
+        :step="0.1"
+        :format-value="v => `${v}s`"
+        label="Show delay"
+      />
+
+      <FieldRange
+        v-model.number="settingsControlsIsland.autoHideOpacity"
+        v-motion
+        :initial="{ opacity: 0, y: 10 }"
+        :enter="{ opacity: 1, y: 0 }"
+        :duration="250 + (8 * 10)"
+        :delay="8 * 50"
+        :min="0"
+        :max="100"
+        :step="1"
+        :format-value="v => `${v}%`"
+        label="Hidden opacity"
       />
     </template>
 

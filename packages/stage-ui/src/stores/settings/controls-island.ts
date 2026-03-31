@@ -6,8 +6,9 @@ export const useSettingsControlsIsland = defineStore('settings-controls-island',
   const alwaysOnTop = useLocalStorageManualReset<boolean>('settings/always-on-top', true)
   const controlsIslandIconSize = useLocalStorageManualReset<'auto' | 'large' | 'small'>('settings/controls-island/icon-size', 'auto')
   const autoHideControlsIsland = useLocalStorageManualReset<boolean>('settings/controls-island/auto-hide', false)
-  const autoHideDelay = useLocalStorageManualReset<number>('settings/controls-island/auto-hide-delay', 5)
-  const autoShowDelay = useLocalStorageManualReset<number>('settings/controls-island/auto-show-delay', 0)
+  const autoHideDelay = useLocalStorageManualReset<number>('settings/controls-island/auto-hide-delay', 0.5)
+  const autoShowDelay = useLocalStorageManualReset<number>('settings/controls-island/auto-show-delay', 0.5)
+  const autoHideOpacity = useLocalStorageManualReset<number>('settings/controls-island/auto-hide-opacity', 30)
 
   function resetState() {
     allowVisibleOnAllWorkspaces.reset()
@@ -16,6 +17,7 @@ export const useSettingsControlsIsland = defineStore('settings-controls-island',
     autoHideControlsIsland.reset()
     autoHideDelay.reset()
     autoShowDelay.reset()
+    autoHideOpacity.reset()
   }
 
   return {
@@ -25,6 +27,7 @@ export const useSettingsControlsIsland = defineStore('settings-controls-island',
     autoHideControlsIsland,
     autoHideDelay,
     autoShowDelay,
+    autoHideOpacity,
     resetState,
   }
 })
