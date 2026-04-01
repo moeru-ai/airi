@@ -198,6 +198,9 @@ catalogs:
     is-network-error:
       specifier: ^1.3.1
       version: 1.3.1
+    isolated-vm:
+      specifier: ^6.1.2
+      version: 6.1.2
     knip:
       specifier: ^6.0.4
       version: 6.0.4
@@ -3452,6 +3455,9 @@ importers:
       eventemitter3:
         specifier: ^5.0.4
         version: 5.0.4
+      isolated-vm:
+        specifier: 'catalog:'
+        version: 6.1.2
       minecraft-data:
         specifier: 3.102.3
         version: 3.102.3
@@ -13245,6 +13251,10 @@ packages:
   isobject@3.0.1:
     resolution: {integrity: sha512-WhB9zCku7EGTj/HQQRz5aUQEUeoQZH2bWcltRErOpymJ4boYE6wL9Tbr23krRPSZ+C5zqNSrSw+Cc7sZZ4b7vg==}
     engines: {node: '>=0.10.0'}
+
+  isolated-vm@6.1.2:
+    resolution: {integrity: sha512-GGfsHqtlZiiurZaxB/3kY7LLAXR3sgzDul0fom4cSyBjx6ZbjpTrFWiH3z/nUfLJGJ8PIq9LQmQFiAxu24+I7A==}
+    engines: {node: '>=22.0.0'}
 
   isomorphic-fetch@3.0.0:
     resolution: {integrity: sha512-qvUtwJ3j6qwsF3jLxkZ72qCgjMysPzDfeV240JHiGZsANBYd+EEuu35v7dfrJ9Up0Ak07D7GGSkGhCHTqg/5wA==}
@@ -27914,6 +27924,10 @@ snapshots:
   isexe@3.1.1: {}
 
   isobject@3.0.1: {}
+
+  isolated-vm@6.1.2:
+    dependencies:
+      node-gyp-build: 4.8.4
 
   isomorphic-fetch@3.0.0(encoding@0.1.13):
     dependencies:

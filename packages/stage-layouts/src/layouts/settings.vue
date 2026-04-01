@@ -78,14 +78,12 @@ onMounted(() => updateThemeColor())
       paddingRight: 'env(safe-area-inset-right, 0px)',
       paddingLeft: 'env(safe-area-inset-left, 0px)',
     }"
-    h-full w-full
+    :class="['h-full w-full', 'flex flex-col']"
   >
     <!-- Header -->
     <div
       v-if="!isStageTamagotchi()"
-      class="px-0 py-1 hidden sm:block md:px-3 md:py-3"
-      w-full gap-2
-      bg="$bg-color"
+      :class="['px-0 py-1 hidden sm:block', 'md:px-3 md:py-3', 'w-full gap-2', 'bg-$bg-color']"
     >
       <HeaderLink />
     </div>
@@ -94,7 +92,7 @@ onMounted(() => updateThemeColor())
       :class="[
         'px-3 py-0 2xl:max-w-screen-2xl md:py-0 xl:px-4',
         isStageTamagotchi() ? 'sm:max-h-[calc(100%)] max-h-[calc(100%)]' : 'sm:max-h-[calc(100%-56px)] max-h-[calc(100%-40px)]',
-        'flex flex-col mx-auto h-full min-h-0',
+        'mx-auto flex min-h-0 w-full flex-1 flex-col',
       ]"
     >
       <PageHeader
@@ -102,7 +100,7 @@ onMounted(() => updateThemeColor())
         :subtitle="routeHeaderMetadata?.subtitle"
         :disable-back-button="isStageTamagotchi() && route.path === '/settings'"
       />
-      <div id="settings-scroll-container" relative min-h-0 flex-1 overflow-y-auto scrollbar-none>
+      <div id="settings-scroll-container" :class="['relative', 'min-h-0', 'flex-1', 'overflow-y-auto', 'scrollbar-none']">
         <RouterView />
       </div>
     </div>

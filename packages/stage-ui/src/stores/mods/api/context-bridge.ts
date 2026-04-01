@@ -10,11 +10,13 @@ import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref, toRaw, watch } from 'vue'
 
+import { getEventSourceKey } from '../../../utils/event-source'
 import { useChatOrchestratorStore } from '../../chat'
 import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME } from '../../chat/constants'
 import { useChatContextStore } from '../../chat/context-store'
 import { useChatSessionStore } from '../../chat/session-store'
 import { useChatStreamStore } from '../../chat/stream-store'
+import { useContextObservabilityStore } from '../../devtools/context-observability'
 import { useConsciousnessStore } from '../../modules/consciousness'
 import { useProvidersStore } from '../../providers'
 import { useModsServerChannelStore } from './channel-server'
@@ -46,6 +48,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
   const chatStream = useChatStreamStore()
   const chatContext = useChatContextStore()
   const serverChannelStore = useModsServerChannelStore()
+  const contextObservability = useContextObservabilityStore()
   const consciousnessStore = useConsciousnessStore()
   const providersStore = useProvidersStore()
   const { activeProvider, activeModel } = storeToRefs(consciousnessStore)
@@ -76,19 +79,93 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       let isProcessingRemoteStream = false
 
       const { stop } = watch(incomingContext, (event) => {
-        if (event)
-          chatContext.ingestContextMessage(event)
+        if (!event)
+          return
+
+        contextObservability.recordLifecycle({
+          phase: 'broadcast-received',
+          channel: 'broadcast',
+          sourceKey: getEventSourceKey(event),
+          strategy: event.strategy,
+          lane: event.lane,
+          contextId: event.contextId,
+          eventId: event.id,
+          textPreview: event.text,
+          sourceLabel: event.metadata?.source?.plugin?.id ?? event.metadata?.source?.id,
+          details: event,
+        })
+        const result = chatContext.ingestContextMessage(event)
+        if (result) {
+          contextObservability.recordLifecycle({
+            phase: 'store-ingested',
+            channel: 'broadcast',
+            sourceKey: result.sourceKey,
+            strategy: event.strategy,
+            lane: event.lane,
+            contextId: event.contextId,
+            eventId: event.id,
+            mutation: result.mutation,
+            textPreview: event.text,
+            sourceLabel: event.metadata?.source?.plugin?.id ?? event.metadata?.source?.id,
+            details: {
+              entryCount: result.entryCount,
+              event,
+            },
+          })
+        }
       })
       disposeHookFns.value.push(stop)
 
       disposeHookFns.value.push(serverChannelStore.onContextUpdate((event) => {
+        contextObservability.recordLifecycle({
+          phase: 'server-received',
+          channel: 'server',
+          sourceKey: getEventSourceKey(event),
+          strategy: event.data.strategy,
+          lane: event.data.lane,
+          contextId: event.data.contextId,
+          eventId: event.data.id,
+          textPreview: event.data.text,
+          sourceLabel: event.metadata?.source?.plugin?.id ?? event.metadata?.source?.id ?? event.source,
+          details: event,
+        })
         const contextMessage: ContextMessage = {
           ...event.data,
           metadata: event.metadata,
           createdAt: Date.now(),
         }
-        chatContext.ingestContextMessage(contextMessage)
+        const result = chatContext.ingestContextMessage(contextMessage)
+        if (result) {
+          contextObservability.recordLifecycle({
+            phase: 'store-ingested',
+            channel: 'server',
+            sourceKey: result.sourceKey,
+            strategy: contextMessage.strategy,
+            lane: contextMessage.lane,
+            contextId: contextMessage.contextId,
+            eventId: contextMessage.id,
+            mutation: result.mutation,
+            textPreview: contextMessage.text,
+            sourceLabel: event.metadata?.source?.plugin?.id ?? event.metadata?.source?.id ?? event.source,
+            details: {
+              entryCount: result.entryCount,
+              event,
+            },
+          })
+        }
         broadcastContext(toRaw(contextMessage))
+        contextObservability.recordLifecycle({
+          phase: 'broadcast-posted',
+          channel: 'broadcast',
+          sourceKey: getEventSourceKey(contextMessage),
+          strategy: contextMessage.strategy,
+          lane: contextMessage.lane,
+          contextId: contextMessage.contextId,
+          eventId: contextMessage.id,
+          textPreview: contextMessage.text,
+          sourceLabel: event.metadata?.source?.plugin?.id ?? event.metadata?.source?.id ?? event.source,
+          details: contextMessage,
+        })
       }))
 
       disposeHookFns.value.push(serverChannelStore.onEvent('input:text', async (event) => {
@@ -112,11 +189,45 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         if (normalizedContextUpdates?.length) {
           const createdAt = Date.now()
           for (const update of normalizedContextUpdates) {
-            chatContext.ingestContextMessage({
+            contextObservability.recordLifecycle({
+              phase: 'input-context-update',
+              channel: 'input',
+              strategy: update.strategy,
+              lane: update.lane,
+              contextId: update.contextId,
+              eventId: update.id,
+              textPreview: update.text,
+              sourceLabel: event.metadata?.source?.plugin?.id ?? event.metadata?.source?.id ?? event.source,
+              details: {
+                inputType: event.type,
+                update,
+              },
+            })
+            const contextMessage = {
               ...update,
               metadata: event.metadata,
               createdAt,
-            })
+            }
+            const result = chatContext.ingestContextMessage(contextMessage)
+            if (result) {
+              contextObservability.recordLifecycle({
+                phase: 'store-ingested',
+                channel: 'input',
+                sourceKey: result.sourceKey,
+                strategy: contextMessage.strategy,
+                lane: contextMessage.lane,
+                contextId: contextMessage.contextId,
+                eventId: contextMessage.id,
+                mutation: result.mutation,
+                textPreview: contextMessage.text,
+                sourceLabel: event.metadata?.source?.plugin?.id ?? event.metadata?.source?.id ?? event.source,
+                details: {
+                  entryCount: result.entryCount,
+                  inputType: event.type,
+                  update: contextMessage,
+                },
+              })
+            }
           }
         }
 
@@ -244,7 +355,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               'gen-ai:chat': {
                 message: context.message as UserMessage,
                 composedMessage: context.composedMessage,
-                contexts: context.contexts,
+                contexts: context.contexts as any,
                 input: context.input,
               },
             },
@@ -271,7 +382,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               'gen-ai:chat': {
                 message: context.message as UserMessage,
                 composedMessage: context.composedMessage,
-                contexts: context.contexts,
+                contexts: context.contexts as any,
                 input: context.input,
               },
             },

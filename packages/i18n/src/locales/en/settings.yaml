@@ -394,16 +394,30 @@ pages:
       description: Playing Minecraft!
       title: Minecraft
       enable: Enable Minecraft Integration
-      enable-description: Allow AIRI to interact with Minecraft game
-      server-address: Server Address
-      server-address-description: The IP address or hostname of the Minecraft server
-      server-address-placeholder: Enter server address (e.g., localhost or play.example.com)
-      server-port: Server Port
-      server-port-description: The port number of the Minecraft server (default 25565)
-      username: Username
-      username-description: Your username in the Minecraft server
-      username-placeholder: Enter your Minecraft username
+      enable-description: Include Minecraft self-knowledge in Stage chat turns and keep passive runtime visibility enabled.
       configured: Minecraft is properly configured!
+      read-only:
+        title: Read-only shell
+        description: Stage currently exposes Minecraft as a passive shell. Runtime status and traffic are visible here, but service configuration stays in the Minecraft service files.
+      setup:
+        title: Setup
+        description: You can find the instructions for setting up the bot in the following file
+      runtime:
+        title: Observed runtime
+        connection: Connection
+        latest-context: Latest bot context
+        waiting: Waiting for a fresh bot-originated context push.
+        unknown: Unknown
+      debug:
+        title: Minecraft traffic
+        empty: No Minecraft traffic observed yet.
+        source: 'Source: {source}'
+      status:
+        service-online: Service online
+        service-offline: Service offline
+        no-runtime-context: 'No bot context observed yet'
+        last-context-seconds: 'Last bot context: {seconds}s ago'
+        last-context-stale: 'Last bot context: Stale'
     hearing:
       description: Configure how speech recognition works
       title: Hearing
