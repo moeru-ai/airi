@@ -7,10 +7,10 @@
   * - Src of model is obtained from stage-ui via props, which is NOT a part of stage-ui-three package
 */
 
+import type { VRM } from '@pixiv/three-vrm'
 import type { TresContext } from '@tresjs/core'
 import type { DirectionalLight, SphericalHarmonics3, Texture, WebGLRenderer, WebGLRenderTarget } from 'three'
 
-import type { VrmHook } from '../composables/vrm/hooks'
 import type { SceneBootstrap, ScenePhase, Vec3 } from '../stores/model-store'
 
 import { Screen } from '@proj-airi/ui'
@@ -125,7 +125,10 @@ const {
   multisampling,
 } = storeToRefs(modelStore)
 
+type VrmFrameRuntimeHook = (vrm: VRM, delta: number) => void
+
 const modelRef = ref<InstanceType<typeof VRMModel>>()
+const vrmFrameRuntimeHook = shallowRef<VrmFrameRuntimeHook>()
 
 const camera = shallowRef(new PerspectiveCamera())
 const controlsRef = shallowRef<InstanceType<typeof OrbitControls>>()
@@ -487,11 +490,9 @@ const effectProps = {
   blendFunction: BlendFunction.SRC,
 }
 
-const vrmHooks = shallowRef<readonly VrmHook[]>([])
-function applyVrmHooks() {
-  modelRef.value?.setVrmHooks(vrmHooks.value)
+function applyVrmFrameRuntimeHook() {
+  modelRef.value?.setVrmFrameHook(vrmFrameRuntimeHook.value)
 }
-watch(modelRef, () => applyVrmHooks(), { immediate: true })
 
 watch(() => props.modelSrc, (modelSrc) => {
   modelPhase.value = modelSrc ? 'loading' : 'no-model'
@@ -509,6 +510,9 @@ watch(() => props.modelSrc, (modelSrc) => {
 watch(modelRef, (next, prev) => {
   if (!prev && next)
     emitSceneSubtreeTrace('modelRef', 'attached')
+
+  if (next)
+    applyVrmFrameRuntimeHook()
 
   if (prev && !next) {
     emitSceneSubtreeTrace('modelRef', 'detached')
@@ -628,9 +632,12 @@ defineExpose({
   setExpression: (expression: string, intensity = 1) => {
     modelRef.value?.setExpression(expression, intensity)
   },
-  setVrmHooks: (hooks?: readonly VrmHook[]) => {
-    vrmHooks.value = hooks ?? []
-    applyVrmHooks()
+  // NOTICE: External runtime hooks are intentionally separate from internal VRM model hooks.
+  // This public frame hook is reserved for live pose/tracking input and is forwarded to VRMModel
+  // without exposing the internal model/material lifecycle hook pipeline.
+  setVrmFrameHook: (hook?: VrmFrameRuntimeHook) => {
+    vrmFrameRuntimeHook.value = hook
+    applyVrmFrameRuntimeHook()
   },
   canvasElement: () => {
     return tresCanvasRef.value?.renderer.instance.domElement
