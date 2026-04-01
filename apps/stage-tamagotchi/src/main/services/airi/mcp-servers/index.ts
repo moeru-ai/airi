@@ -73,8 +73,12 @@ function stringifyError(error: unknown) {
   return String(error)
 }
 
+function getMcpDataDir() {
+  return join(app.getPath('appData'), 'ai.moeru.airi')
+}
+
 function getConfigPath() {
-  return join(app.getPath('userData'), 'mcp.json')
+  return join(getMcpDataDir(), 'mcp.json')
 }
 
 function parseQualifiedToolName(name: string) {
@@ -127,7 +131,7 @@ export function createMcpStdioManager(): McpStdioManager {
 
   const ensureConfigFile = async () => {
     const path = getConfigPath()
-    await mkdir(app.getPath('userData'), { recursive: true })
+    await mkdir(getMcpDataDir(), { recursive: true })
 
     try {
       await readFile(path, 'utf-8')
