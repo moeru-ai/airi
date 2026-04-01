@@ -5,6 +5,7 @@ import type { UpdateInfo } from 'electron-updater'
 import type { AutoUpdaterState } from '../../../shared/eventa'
 
 import { rmSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { env, platform } from 'node:process'
@@ -96,6 +97,88 @@ export function setupAutoUpdater(): AutoUpdater {
   }
   catch (error) {
     log.withError(error).warn('Failed to clean up updater cache')
+  }
+
+  // Fix electron-updater GitHubProvider: replace the atom-feed approach with
+  // a direct GitHub REST API call. The releases.atom endpoint silently returns
+  // null/empty in Electron's net module, causing a spurious
+  // "No published versions on GitHub" error on every startup.
+  if (!is.dev) {
+    try {
+      const _req = createRequire(import.meta.url)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { GitHubProvider } = _req('electron-updater/out/providers/GitHubProvider') as any
+      const { newUrlFromBase } = _req('electron-updater/out/util')
+      const { parseUpdateInfo } = _req('electron-updater/out/providers/Provider')
+      const { CancellationToken, newError: _newError } = _req('builder-util-runtime')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      GitHubProvider.prototype.getLatestVersion = async function (this: any) {
+        const cancellationToken = new CancellationToken()
+        const releasesPath = this.computeGithubBasePath(
+          `/repos/${this.options.owner}/${this.options.repo}/releases`,
+        )
+        const releasesUrl = newUrlFromBase(releasesPath, this.baseApiUrl)
+        let releasesRaw: string | null
+        try {
+          releasesRaw = await this.httpRequest(
+            releasesUrl,
+            { Accept: 'application/vnd.github.v3+json' },
+            cancellationToken,
+          )
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        catch (e: any) {
+          throw _newError(
+            `Unable to fetch releases from GitHub (${releasesUrl}): ${e.stack || e.message}`,
+            'ERR_UPDATER_LATEST_VERSION_NOT_FOUND',
+          )
+        }
+        if (releasesRaw == null)
+          throw _newError('No published versions on GitHub', 'ERR_UPDATER_NO_PUBLISHED_VERSIONS')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const releases: any[] = JSON.parse(releasesRaw)
+        const arch = process.arch === 'arm64' ? 'arm64' : 'x64'
+        const channelFile = `latest-${arch}.yml`
+        let channelFileUrl = ''
+        let rawData: string | null = null
+        let tag: string | null = null
+        let releaseName: string | null = null
+        let releaseNotes: string | null = null
+        for (const release of releases) {
+          if (release.draft)
+            continue
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const ymlAsset = ((release.assets as any[]) ?? []).find((a: any) => a.name === channelFile)
+          if (!ymlAsset)
+            continue
+          channelFileUrl = ymlAsset.browser_download_url
+          try {
+            const ymlUrl = new URL(channelFileUrl)
+            rawData = await this.httpRequest(ymlUrl, { Accept: '*/*' }, cancellationToken)
+            if (rawData == null)
+              continue
+            tag = release.tag_name
+            releaseName = release.name || release.tag_name
+            releaseNotes = release.body ?? null
+            break
+          }
+          catch {
+            continue
+          }
+        }
+        if (tag == null)
+          throw _newError('No published versions on GitHub', 'ERR_UPDATER_NO_PUBLISHED_VERSIONS')
+        const result = parseUpdateInfo(rawData!, channelFile, channelFileUrl)
+        if (result.releaseName == null)
+          result.releaseName = releaseName
+        if (result.releaseNotes == null)
+          result.releaseNotes = releaseNotes
+        return { tag, ...result }
+      }
+    }
+    catch (err) {
+      log.withError(err).warn('Failed to patch GitHubProvider.getLatestVersion — update checks may fail')
+    }
   }
 
   let state: AutoUpdaterState = { status: 'idle' }
