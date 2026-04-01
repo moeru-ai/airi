@@ -2,33 +2,31 @@ import type { Database } from './db'
 import type { Env } from './env'
 import type { AuthMetrics } from './otel'
 
+import { oauthProvider } from '@better-auth/oauth-provider'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { createAuthMiddleware } from 'better-auth/api'
-import { bearer, jwt, oidcProvider } from 'better-auth/plugins'
+import { bearer, jwt } from 'better-auth/plugins'
 import { eq } from 'drizzle-orm'
 
 import { getAuthTrustedOrigins } from '../utils/origin'
 
 import * as authSchema from '../schemas/accounts'
 
-interface TrustedClient {
+interface TrustedClientSeed {
   clientId: string
   clientSecret: string
   name: string
   type: 'web' | 'native'
-  redirectUrls: string[]
-  disabled: boolean
+  redirectUris: string[]
   skipConsent: boolean
-  metadata: Record<string, any> | null
 }
 
 /**
- * Build the list of trusted OIDC clients for first-party applications.
- * Trusted clients bypass DB lookups and skip consent screens.
+ * Build the list of first-party OIDC clients to seed into the database.
  */
-function buildTrustedClients(env: Env) {
-  const clients: TrustedClient[] = []
+function buildTrustedClientSeeds(env: Env): TrustedClientSeed[] {
+  const clients: TrustedClientSeed[] = []
 
   // Web app (production + dev)
   if (env.OIDC_CLIENT_ID_WEB && env.OIDC_CLIENT_SECRET_WEB) {
@@ -36,16 +34,13 @@ function buildTrustedClients(env: Env) {
       clientId: env.OIDC_CLIENT_ID_WEB,
       clientSecret: env.OIDC_CLIENT_SECRET_WEB,
       name: 'AIRI Stage Web',
-      type: 'web' as const,
-      redirectUrls: [
+      type: 'web',
+      redirectUris: [
         'https://airi.moeru.ai/auth/callback',
-        // Development
         'http://localhost:5173/auth/callback',
         'http://localhost:4173/auth/callback',
       ],
-      disabled: false,
       skipConsent: true,
-      metadata: null,
     })
   }
 
@@ -55,8 +50,8 @@ function buildTrustedClients(env: Env) {
       clientId: env.OIDC_CLIENT_ID_ELECTRON,
       clientSecret: env.OIDC_CLIENT_SECRET_ELECTRON,
       name: 'AIRI Stage Desktop',
-      type: 'native' as const,
-      redirectUrls: [
+      type: 'native',
+      redirectUris: [
         // Server-side relay: the OIDC redirect lands on the server, which
         // serves an HTML page that forwards the code to the Electron
         // loopback via JS fetch(). The loopback port is encoded in the
@@ -64,9 +59,7 @@ function buildTrustedClients(env: Env) {
         // loopback URL and removes the need for per-port redirect URIs.
         `${env.API_SERVER_URL}/api/auth/oidc/electron-callback`,
       ],
-      disabled: false,
       skipConsent: true,
-      metadata: null,
     })
   }
 
@@ -76,13 +69,11 @@ function buildTrustedClients(env: Env) {
       clientId: env.OIDC_CLIENT_ID_POCKET,
       clientSecret: env.OIDC_CLIENT_SECRET_POCKET,
       name: 'AIRI Stage Mobile',
-      type: 'native' as const,
-      redirectUrls: [
+      type: 'native',
+      redirectUris: [
         'capacitor://localhost/auth/callback',
       ],
-      disabled: false,
       skipConsent: true,
-      metadata: null,
     })
   }
 
@@ -90,34 +81,35 @@ function buildTrustedClients(env: Env) {
 }
 
 /**
- * Ensure trusted OIDC clients exist in the `oauth_application` table.
- * The oidcProvider plugin resolves trusted clients from memory, but the
- * `oauth_access_token` table has a FK to `oauth_application.client_id`.
+ * Ensure trusted OIDC clients exist in the `oauth_client` table.
+ * The oauthProvider plugin's `cachedTrustedClients` caches DB lookups, but
+ * the `oauth_access_token` table has a FK to `oauth_client.client_id`.
  * Without a matching row, token INSERT fails with a constraint violation.
  */
 export async function seedTrustedClients(db: Database, env: Env): Promise<void> {
-  const clients = buildTrustedClients(env)
-  if (clients.length === 0)
+  const seeds = buildTrustedClientSeeds(env)
+  if (seeds.length === 0)
     return
 
-  for (const client of clients) {
+  for (const seed of seeds) {
     const existing = await db
-      .select({ clientId: authSchema.oauthApplication.clientId })
-      .from(authSchema.oauthApplication)
-      .where(eq(authSchema.oauthApplication.clientId, client.clientId))
+      .select({ clientId: authSchema.oauthClient.clientId })
+      .from(authSchema.oauthClient)
+      .where(eq(authSchema.oauthClient.clientId, seed.clientId))
       .limit(1)
 
     if (existing.length > 0)
       continue
 
-    await db.insert(authSchema.oauthApplication).values({
+    await db.insert(authSchema.oauthClient).values({
       id: crypto.randomUUID(),
-      clientId: client.clientId,
-      clientSecret: client.clientSecret,
-      name: client.name,
-      type: client.type,
-      redirectUrls: client.redirectUrls.join(','),
-      disabled: client.disabled,
+      clientId: seed.clientId,
+      clientSecret: seed.clientSecret,
+      name: seed.name,
+      type: seed.type,
+      redirectUris: seed.redirectUris.join(','),
+      skipConsent: seed.skipConsent,
+      disabled: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     })
@@ -136,15 +128,21 @@ export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null)
       },
     }),
 
+    // NOTICE: disabledPaths prevents better-auth's built-in /token route from
+    // conflicting with oauthProvider's /oauth2/token endpoint.
+    disabledPaths: ['/token'],
+
     plugins: [
       bearer(),
       jwt(),
-      oidcProvider({
+      oauthProvider({
         loginPage: '/sign-in',
         consentPage: '/oauth/authorize',
-        requirePKCE: true,
-        allowPlainCodeChallengeMethod: false,
-        trustedClients: buildTrustedClients(env),
+        // Cache trusted client DB lookups by client_id for performance.
+        // Clients must still exist in the DB (seeded by seedTrustedClients).
+        cachedTrustedClients: new Set(
+          buildTrustedClientSeeds(env).map(c => c.clientId),
+        ),
       }),
     ],
 
@@ -153,6 +151,8 @@ export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null)
     },
 
     session: {
+      storeSessionInDatabase: true,
+
       // NOTICE: keep a short-lived signed session cache cookie so follow-up
       // session reads avoid hitting the database on every request.
       cookieCache: {

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
-import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { refDebounced, useIntervalFn } from '@vueuse/core'
@@ -28,7 +27,6 @@ import {
 
 const { isDark, toggleDark } = useTheme()
 const { t } = useI18n()
-const authStore = useAuthStore()
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const settingsStore = useSettings()

@@ -95,9 +95,9 @@ export function createOIDCSessionRoute(
         .from(oauthAccessToken)
         .where(
           and(
-            eq(oauthAccessToken.accessToken, accessToken),
+            eq(oauthAccessToken.token, accessToken),
             eq(oauthAccessToken.clientId, electronClientId),
-            gt(oauthAccessToken.accessTokenExpiresAt, now),
+            gt(oauthAccessToken.expiresAt, now),
           ),
         )
         .limit(1)
@@ -139,7 +139,7 @@ export function createOIDCSessionRoute(
         try {
           await db
             .delete(oauthAccessToken)
-            .where(eq(oauthAccessToken.accessToken, accessToken))
+            .where(eq(oauthAccessToken.token, accessToken))
         }
         catch (err) {
           logger.withError(err).warn('Failed to delete bridged OIDC access token')

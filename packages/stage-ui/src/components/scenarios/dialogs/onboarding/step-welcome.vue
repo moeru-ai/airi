@@ -28,12 +28,6 @@ const languages = computed(() => {
   return Object.entries(all).map(([value, label]) => ({ value, label }))
 })
 
-/**
- * Handle login from onboarding.
- * On Web: triggers the login drawer/redirect.
- * On Electron: emits the OIDC login IPC event via the auth store's needsLogin,
- * which the controls-island-auth-button component handles.
- */
 function handleLogin() {
   onboardingStore.showingSetup = false
   authStore.needsLogin = true

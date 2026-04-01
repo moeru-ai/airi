@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.5.6",
+    "@better-auth/oauth-provider": "catalog:",
     "@dotenvx/dotenvx": "^1.57.2",
     "@electric-sql/pglite": "catalog:",
     "@guiiai/logg": "catalog:",

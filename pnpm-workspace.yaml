@@ -19,7 +19,6 @@ overrides:
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
-
 patchedDependencies:
   '@mediapipe/tasks-vision': patches/@mediapipe__tasks-vision.patch
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
@@ -27,6 +26,7 @@ patchedDependencies:
   pixi-live2d-display: patches/pixi-live2d-display.patch
   srvx: patches/srvx.patch
 catalog:
+  '@better-auth/oauth-provider': 1.5.6
   '@capacitor/android': ^8.2.0
   '@capacitor/cli': ^8.2.0
   '@capacitor/core': ^8.2.0
