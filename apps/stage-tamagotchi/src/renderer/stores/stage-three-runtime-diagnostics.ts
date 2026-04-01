@@ -64,6 +64,7 @@ export interface StageThreeRuntimeVrmUpdateDiagnostics {
   springBoneMs: number
   totalMs: number
   vrmFrameHookMs: number
+  vrmRuntimeHookMs: number
 }
 
 export interface StageThreeRuntimeHitTestDiagnostics {
@@ -131,6 +132,7 @@ export function createDefaultStageVrmUpdateDiagnostics(): StageThreeRuntimeVrmUp
     springBoneMs: 0,
     totalMs: 0,
     vrmFrameHookMs: 0,
+    vrmRuntimeHookMs: 0,
   }
 }
 
@@ -220,6 +222,7 @@ export function applyVrmUpdateTracePayload(
     springBoneMs: payload.springBoneMs,
     totalMs: payload.durationMs,
     vrmFrameHookMs: payload.vrmFrameHookMs,
+    vrmRuntimeHookMs: payload.vrmRuntimeHookMs,
   }
 }
 
