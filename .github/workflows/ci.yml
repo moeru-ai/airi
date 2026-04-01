@@ -44,6 +44,9 @@ jobs:
           - app_name: ui-loading-screens
             command: pnpm -F @proj-airi/ui-loading-screens run play:build
 
+          - app_name: flick
+            command: pnpm -F @proj-airi/flick run build
+
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
