@@ -124,6 +124,11 @@ plugins-local
 plugins-development
 
 apps/stage-pocket/ios/buildServer.json
-.ghfs/
-.docs/superpowers
 apps/stage-tamagotchi/electron.vite.config.*.mjs
+.docs/superpowers
+
+# Tools - ghfs
+.ghfs/
+
+# Tools - Obsidian
+.obsidian/

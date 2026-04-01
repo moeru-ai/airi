@@ -10,6 +10,7 @@ export default defineConfig({
       'packages/plugin-sdk',
       'packages/server-runtime',
       'packages/server-sdk',
+      'packages/stage-shared',
       'packages/stage-ui',
       'packages/vite-plugin-warpdrive',
     ],

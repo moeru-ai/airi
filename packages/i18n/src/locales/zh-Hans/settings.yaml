@@ -123,6 +123,15 @@ live2d:
 microphone: 麦克风
 models: 模型
 pages:
+  account:
+    title: 账户
+    description: 查看您的个人资料和管理账户
+    notLoggedIn: 登录以查看您的账户并使用所有功能
+    login: 登录
+    logout: 退出登录
+    fluxBalance: Flux 余额
+    viewFluxDetails: 查看详情
+    signedInAs: 已登录为
   card:
     activate: 激活
     active: 已激活

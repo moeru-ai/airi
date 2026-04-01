@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { PerceptionState, VrmPoseTargets } from '@proj-airi/model-driver-mediapipe'
-import type { VrmHook } from '@proj-airi/stage-ui-three/composables/vrm'
 import type { Vector3Like } from 'three'
 
 import { createMediaPipeBackend, createMocapEngine, createVrmPoseApplier, drawOverlay, poseToVrmTargets } from '@proj-airi/model-driver-mediapipe'
@@ -54,19 +53,15 @@ const latestPoseTargets = ref<VrmPoseTargets>()
 const prevPoseTargets = ref<VrmPoseTargets>()
 const prevPoseForward = ref<Vector3Like>()
 
-// VRM pose applier
 const vrmPoseApplier = createVrmPoseApplier({ alpha: 1 })
 function onVrmFrame(vrm: Parameters<typeof vrmPoseApplier.applyPoseDirectionsToVrm>[0]) {
   const targets = latestPoseTargets.value
   if (!targets)
     return
+
   vrmPoseApplier.applyPoseTargetsToVrm(vrm, targets)
 }
-const vrmHooks: readonly VrmHook[] = [{
-  onFrame({ vrm }) {
-    onVrmFrame(vrm)
-  },
-}]
+const vrmFrameHook = (vrm: Parameters<typeof vrmPoseApplier.applyPoseDirectionsToVrm>[0], _delta: number) => onVrmFrame(vrm)
 
 const settingsStore = useSettings()
 const { stageModelRenderer, stageModelSelected, stageModelSelectedUrl, stageViewControlsEnabled } = storeToRefs(settingsStore)
@@ -252,8 +247,8 @@ watch(config, (val) => {
 }, { deep: true })
 
 watch(sceneRef, (scene, prev) => {
-  prev?.setVrmHooks(undefined)
-  scene?.setVrmHooks(vrmHooks)
+  prev?.setVrmFrameHook(undefined)
+  scene?.setVrmFrameHook(vrmFrameHook)
 }, { immediate: true })
 
 watch(pipelineEnabled, async (enabled) => {
@@ -282,7 +277,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  sceneRef.value?.setVrmHooks(undefined)
+  sceneRef.value?.setVrmFrameHook(undefined)
   stop()
 })
 </script>

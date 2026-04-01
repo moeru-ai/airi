@@ -41,6 +41,7 @@ import {
   pluginProtocolListProviders,
   pluginProtocolListProvidersEventName,
 } from '../shared/eventa'
+import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-callback'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
@@ -65,6 +66,7 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const context = useElectronEventaContext()
 usePerfTracerBridgeStore()
 initializeStageThreeRuntimeTraceBridge()
+initializeElectronAuthCallbackBridge()
 void stageWindowLifecycleStore.initializeWindowLifecycleBridge()
 const getServerChannelConfig = useElectronEventaInvoke(electronGetServerChannelConfig)
 const listPlugins = useElectronEventaInvoke(electronPluginList)

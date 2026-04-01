@@ -1,5 +1,6 @@
 import type Redis from 'ioredis'
 
+import type { Database } from './libs/db'
 import type { Env } from './libs/env'
 import type { MqService } from './libs/mq'
 import type { OtelInstance } from './libs/otel'
@@ -25,15 +26,16 @@ import { cors } from 'hono/cors'
 import { logger as honoLogger } from 'hono/logger'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
 
-import { createAuth } from './libs/auth'
+import { createAuth, getTrustedClientSeedSummaries, seedTrustedClients } from './libs/auth'
 import { createDrizzle, migrateDatabase } from './libs/db'
 import { parsedEnv } from './libs/env'
 import { initializeExternalDependency } from './libs/external-dependency'
 import { emitOtelLog, initOtel } from './libs/otel'
 import { createRedis } from './libs/redis'
+import { resolveRequestAuth } from './libs/request-auth'
 import { sessionMiddleware } from './middlewares/auth'
 import { otelMiddleware } from './middlewares/otel'
-import { rateLimiter } from './middlewares/rate-limit'
+import { createAuthRoutes } from './routes/auth'
 import { createCharacterRoutes } from './routes/characters'
 import { createChatWsHandlers } from './routes/chat-ws'
 import { createChatRoutes } from './routes/chats'
@@ -56,6 +58,7 @@ import { getTrustedOrigin } from './utils/origin'
 
 interface AppDeps {
   auth: ReturnType<typeof createAuth>
+  db: Database
   characterService: CharacterService
   chatService: ChatService
   providerService: ProviderService
@@ -70,7 +73,7 @@ interface AppDeps {
   otel: OtelInstance | null
 }
 
-async function buildApp(deps: AppDeps) {
+export async function buildApp(deps: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
 
   const app = new Hono<HonoEnv>()
@@ -106,9 +109,11 @@ async function buildApp(deps: AppDeps) {
     if (!token) {
       throw createUnauthorizedError('Missing token')
     }
-    const session = await deps.auth.api.getSession({
-      headers: new Headers({ Authorization: `Bearer ${token}` }),
-    })
+    const session = await resolveRequestAuth(
+      deps.auth,
+      deps.db,
+      new Headers({ Authorization: `Bearer ${token}` }),
+    )
     if (!session?.user) {
       throw createUnauthorizedError('Invalid token')
     }
@@ -116,7 +121,7 @@ async function buildApp(deps: AppDeps) {
   }))
 
   const builtApp = app
-    .use('*', sessionMiddleware(deps.auth))
+    .use('*', sessionMiddleware(deps.auth, deps.db))
     .use('*', async (c, next) => {
       // Skip global body limit for ASR transcription route (has its own 25MB limit)
       if (c.req.path === '/api/v1/openai/audio/transcriptions') {
@@ -149,47 +154,15 @@ async function buildApp(deps: AppDeps) {
     .on('GET', '/health', c => c.json({ status: 'ok' }))
 
     /**
-     * Auth routes are handled by the auth instance directly,
-     * Powered by better-auth.
-     * Rate limited by IP: 20 requests per minute.
+     * Auth routes: sign-in page, OIDC session bridge, electron callback
+     * relay, well-known metadata, and better-auth catch-all.
      */
-    .use('/api/auth/*', rateLimiter({
-      max: await deps.configKV.getOrThrow('AUTH_RATE_LIMIT_MAX'),
-      windowSec: await deps.configKV.getOrThrow('AUTH_RATE_LIMIT_WINDOW_SEC'),
-      keyGenerator: c => c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'unknown',
+    .route('/', await createAuthRoutes({
+      auth: deps.auth,
+      db: deps.db,
+      env: deps.env,
+      configKV: deps.configKV,
     }))
-    .on(['POST', 'GET'], '/api/auth/*', async (c) => {
-      const response: Response = await deps.auth.handler(c.req.raw)
-
-      // NOTICE: On OAuth callback redirects, the bearer plugin adds the session
-      // token to the `set-auth-token` header. But browsers don't expose headers
-      // from 302 redirects to JS. We append the token to the Location URL's
-      // fragment (#) so the client can extract it. Fragments are never sent to
-      // the server, so they won't leak into CDN/proxy logs or Referer headers.
-      if (response.status === 302) {
-        const token = response.headers.get('set-auth-token')
-        const location = response.headers.get('location')
-        if (token && location) {
-          try {
-            const url = new URL(location)
-            url.hash = `auth_token=${encodeURIComponent(token)}`
-            const headers = new Headers(response.headers)
-            headers.set('location', url.toString())
-            return new Response(response.body, {
-              status: response.status,
-              statusText: response.statusText,
-              headers,
-            })
-          }
-          catch (error) {
-            // If URL parsing fails, return the original response
-            logger.withError(error).warn('Failed to parse redirect URL, cannot append auth_token', { location })
-          }
-        }
-      }
-
-      return response
-    })
 
     /**
      * Character routes are handled by the character service.
@@ -318,7 +291,20 @@ export async function createApp() {
 
   const auth = injeca.provide('services:auth', {
     dependsOn: { db, env: parsedEnv, otel },
-    build: ({ dependsOn }) => createAuth(dependsOn.db, dependsOn.env, dependsOn.otel?.auth),
+    build: async ({ dependsOn }) => {
+      // Seed trusted OIDC clients into DB so FK constraints on oauth_access_token are satisfied
+      await seedTrustedClients(dependsOn.db, dependsOn.env)
+      const trustedClients = getTrustedClientSeedSummaries(dependsOn.env)
+      logger.withField('apiServerUrl', dependsOn.env.API_SERVER_URL).log('OIDC startup configuration')
+      for (const client of trustedClients) {
+        logger.withFields({
+          clientId: client.clientId,
+          clientName: client.name,
+          redirectUris: client.redirectUris.join(', '),
+        }).log('OIDC trusted client ready')
+      }
+      return createAuth(dependsOn.db, dependsOn.env, dependsOn.otel?.auth)
+    },
   })
 
   const characterService = injeca.provide('services:characters', {
@@ -381,6 +367,7 @@ export async function createApp() {
   })
   const { app, injectWebSocket } = await buildApp({
     auth: resolved.auth,
+    db: resolved.db,
     characterService: resolved.characterService,
     chatService: resolved.chatService,
     providerService: resolved.providerService,

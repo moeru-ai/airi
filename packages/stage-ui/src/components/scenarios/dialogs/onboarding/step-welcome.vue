@@ -2,7 +2,6 @@
 import type { OnboardingStepNextHandler } from './types'
 
 import { all } from '@proj-airi/i18n'
-import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { Button, FieldCombobox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
@@ -90,7 +89,6 @@ function handleLocalSetup() {
     </div>
     <div :class="['flex', 'flex-col', 'gap-3', 'md:flex-row']">
       <Button
-        v-if="!isStageTamagotchi()"
         v-motion
         :initial="{ opacity: 0 }"
         :enter="{ opacity: 1 }"
@@ -106,7 +104,7 @@ function handleLocalSetup() {
         :enter="{ opacity: 1 }"
         :duration="500"
         :delay="250"
-        :variant="isStageTamagotchi() ? 'primary' : 'secondary'"
+        variant="secondary"
         :label="t('settings.dialogs.onboarding.setupWithoutSigningIn')"
         :class="['flex-1']"
         @click="handleLocalSetup"
