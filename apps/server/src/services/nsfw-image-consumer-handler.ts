@@ -44,6 +44,8 @@ interface ComfyUiHistoryResponse {
 interface ParsedComfyHistoryStatus {
   state: 'running' | 'success' | 'error'
   errorMessage: string | null
+  errorType?: string | null
+  nodeType?: string | null
 }
 
 export class JobStillRunningError extends Error {
@@ -98,24 +100,63 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
 
       const payload = message[1]
       if (!payload || typeof payload !== 'object') {
-        return { state: 'error', errorMessage: 'ComfyUI execution failed' }
+        return { state: 'error', errorMessage: 'ComfyUI execution failed', errorType: null, nodeType: null }
       }
 
       const record = payload as Record<string, unknown>
       const nodeType = typeof record.node_type === 'string' ? record.node_type : ''
       const exceptionMessage = typeof record.exception_message === 'string' ? record.exception_message.trim() : ''
+      const exceptionType = typeof record.exception_type === 'string' ? record.exception_type : ''
       const composed = [nodeType, exceptionMessage].filter(Boolean).join(': ').trim()
       return {
         state: 'error',
         errorMessage: composed || 'ComfyUI execution failed',
+        errorType: exceptionType || null,
+        nodeType: nodeType || null,
       }
     }
 
     if (statusStr === 'error') {
-      return { state: 'error', errorMessage: 'ComfyUI execution failed' }
+      return { state: 'error', errorMessage: 'ComfyUI execution failed', errorType: null, nodeType: null }
     }
 
-    return { state: 'running', errorMessage: null }
+    return { state: 'running', errorMessage: null, errorType: null, nodeType: null }
+  }
+
+  function buildFailedComfyMeta(comfyMeta: Record<string, unknown>, input: {
+    promptId: string
+    clientId: string
+    errorMessage: string | null
+    errorType?: string | null
+    nodeType?: string | null
+  }) {
+    return {
+      ...comfyMeta,
+      promptId: input.promptId,
+      clientId: input.clientId,
+      executionStatus: 'error',
+      errorMessage: input.errorMessage,
+      errorType: input.errorType ?? null,
+      errorNodeType: input.nodeType ?? null,
+      historySeenAt: new Date().toISOString(),
+      failedAt: new Date().toISOString(),
+    }
+  }
+
+  function buildSuccessfulComfyMeta(comfyMeta: Record<string, unknown>, input: {
+    promptId: string
+    clientId: string
+    mediaId: string
+  }) {
+    return {
+      ...comfyMeta,
+      promptId: input.promptId,
+      clientId: input.clientId,
+      executionStatus: 'success',
+      outputMediaId: input.mediaId,
+      historySeenAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+    }
   }
 
   function extractWorkflow(params: Record<string, unknown>) {
@@ -233,12 +274,13 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
             errorMessage: parsedStatus.errorMessage,
             params: {
               ...job.params,
-              comfy: {
-                ...comfyMeta,
+              comfy: buildFailedComfyMeta(comfyMeta, {
                 promptId,
                 clientId,
-                failedAt: new Date().toISOString(),
-              },
+                errorMessage: parsedStatus.errorMessage,
+                errorType: parsedStatus.errorType,
+                nodeType: parsedStatus.nodeType,
+              }),
             },
           })
           return
@@ -255,6 +297,8 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
                 ...comfyMeta,
                 promptId,
                 clientId,
+                executionStatus: 'missing_output',
+                historySeenAt: new Date().toISOString(),
                 completedAt: new Date().toISOString(),
               },
             },
@@ -268,12 +312,11 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
           errorMessage: null,
           params: {
             ...job.params,
-            comfy: {
-              ...comfyMeta,
+            comfy: buildSuccessfulComfyMeta(comfyMeta, {
               promptId,
               clientId,
-              completedAt: new Date().toISOString(),
-            },
+              mediaId,
+            }),
           },
         })
 
@@ -384,12 +427,13 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
               params: {
                 ...fallbackParams,
                 workflow: fallbackWorkflow,
-                comfy: {
-                  ...comfyMeta,
+                comfy: buildFailedComfyMeta(comfyMeta, {
                   promptId,
                   clientId,
-                  failedAt: new Date().toISOString(),
-                },
+                  errorMessage: fallbackStatus.errorMessage,
+                  errorType: fallbackStatus.errorType,
+                  nodeType: fallbackStatus.nodeType,
+                }),
               },
             })
             return
@@ -407,6 +451,8 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
                   ...comfyMeta,
                   promptId,
                   clientId,
+                  executionStatus: 'missing_output',
+                  historySeenAt: new Date().toISOString(),
                   completedAt: new Date().toISOString(),
                 },
               },
@@ -420,12 +466,11 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
             params: {
               ...fallbackParams,
               workflow: fallbackWorkflow,
-              comfy: {
-                ...comfyMeta,
+              comfy: buildSuccessfulComfyMeta(comfyMeta, {
                 promptId,
                 clientId,
-                completedAt: new Date().toISOString(),
-              },
+                mediaId: fallbackMediaId,
+              }),
             },
           })
           await mediaService.updateGalleryItemByImageJobId(jobId, {
@@ -474,12 +519,13 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
           errorMessage: parsedStatus.errorMessage,
           params: {
             ...job.params,
-            comfy: {
-              ...comfyMeta,
+            comfy: buildFailedComfyMeta(comfyMeta, {
               promptId,
               clientId,
-              failedAt: new Date().toISOString(),
-            },
+              errorMessage: parsedStatus.errorMessage,
+              errorType: parsedStatus.errorType,
+              nodeType: parsedStatus.nodeType,
+            }),
           },
         })
         return
@@ -496,6 +542,8 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
               ...comfyMeta,
               promptId,
               clientId,
+              executionStatus: 'missing_output',
+              historySeenAt: new Date().toISOString(),
               completedAt: new Date().toISOString(),
             },
           },
@@ -508,12 +556,11 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
         resultMediaId: mediaId,
         params: {
           ...job.params,
-          comfy: {
-            ...comfyMeta,
+          comfy: buildSuccessfulComfyMeta(comfyMeta, {
             promptId,
             clientId,
-            completedAt: new Date().toISOString(),
-          },
+            mediaId,
+          }),
         },
       })
       await mediaService.updateGalleryItemByImageJobId(jobId, {
