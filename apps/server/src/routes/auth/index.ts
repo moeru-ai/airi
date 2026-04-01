@@ -53,6 +53,9 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
       const url = new URL(c.req.url)
       const oidcParams = new URLSearchParams(url.searchParams)
       oidcParams.delete('provider')
+      // Strip prompt so the post-login redirect to authorize doesn't force
+      // another login — prompt=login should only apply on the first pass.
+      oidcParams.delete('prompt')
 
       const callbackURL = oidcParams.toString()
         ? `${deps.env.API_SERVER_URL}/api/auth/oauth2/authorize?${oidcParams.toString()}`
