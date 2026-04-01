@@ -3,7 +3,7 @@ import type { OIDCFlowParams, TokenResponse } from './auth-oidc'
 import { createAuthClient } from 'better-auth/vue'
 
 import { useAuthStore } from '../stores/auth'
-import { buildAuthorizationURL, consumeFlowState, exchangeCodeForTokens, persistFlowState, refreshAccessToken } from './auth-oidc'
+import { buildAuthorizationURL, persistFlowState, refreshAccessToken } from './auth-oidc'
 import { SERVER_URL } from './server'
 
 export type OAuthProvider = 'google' | 'github'
@@ -45,15 +45,15 @@ let refreshTimer: ReturnType<typeof setTimeout> | null = null
 
 // Persisted OIDC client config for refresh after page reload
 const OIDC_CLIENT_KEY = 'auth/v1/oidc-client-id'
-const OIDC_CLIENT_SECRET_KEY = 'auth/v1/oidc-client-secret'
 const OIDC_TOKEN_EXPIRY_KEY = 'auth/v1/oidc-token-expiry'
 
 export function initializeAuth() {
   if (initialized)
     return
 
-  // Handle OIDC callback if we're on the callback page with a code
-  handleOIDCCallback().catch(() => {})
+  // NOTICE: OIDC callback is handled by the dedicated callback page
+  // (e.g. /auth/callback). initializeAuth() only restores existing
+  // sessions and refresh schedules — it does NOT consume the code.
 
   fetchSession().catch(() => {})
 
@@ -71,7 +71,7 @@ export function initializeAuth() {
  * 2. Persists the OIDC refresh token + client info so refresh works after reload.
  * 3. Schedules automatic OIDC token refresh at 80% of lifetime.
  */
-export async function bridgeOIDCTokens(tokens: TokenResponse, clientId: string, clientSecret?: string): Promise<void> {
+export async function bridgeOIDCTokens(tokens: TokenResponse, clientId: string): Promise<void> {
   // Exchange OIDC access token for a better-auth session token
   await exchangeOIDCTokenForSession(tokens.access_token)
 
@@ -81,25 +81,10 @@ export async function bridgeOIDCTokens(tokens: TokenResponse, clientId: string, 
 
   // Persist client info for refresh after page reload
   localStorage.setItem(OIDC_CLIENT_KEY, clientId)
-  if (clientSecret)
-    localStorage.setItem(OIDC_CLIENT_SECRET_KEY, clientSecret)
   if (tokens.expires_in) {
     const expiryMs = Date.now() + tokens.expires_in * 1000
     localStorage.setItem(OIDC_TOKEN_EXPIRY_KEY, String(expiryMs))
   }
-
-  scheduleTokenRefresh(tokens.expires_in, clientId, clientSecret)
-}
-
-/**
- * @deprecated Use `bridgeOIDCTokens` instead — this stores the OIDC access
- * token directly, which is wrong for better-auth session lookups.
- */
-export function persistTokens(tokens: TokenResponse, clientId: string): void {
-  const authStore = useAuthStore()
-  authStore.token = tokens.access_token
-  if (tokens.refresh_token)
-    authStore.refreshToken = tokens.refresh_token
 
   scheduleTokenRefresh(tokens.expires_in, clientId)
 }
@@ -107,7 +92,7 @@ export function persistTokens(tokens: TokenResponse, clientId: string): void {
 /**
  * Schedule a token refresh at 80% of the token's lifetime.
  */
-function scheduleTokenRefresh(expiresIn: number, clientId: string, clientSecret?: string): void {
+function scheduleTokenRefresh(expiresIn: number, clientId: string): void {
   if (refreshTimer)
     clearTimeout(refreshTimer)
 
@@ -119,9 +104,9 @@ function scheduleTokenRefresh(expiresIn: number, clientId: string, clientSecret?
       return
 
     try {
-      const tokens = await refreshAccessToken(clientId, authStore.refreshToken, clientSecret)
+      const tokens = await refreshAccessToken(clientId, authStore.refreshToken)
       // Bridge the refreshed OIDC token into a new session
-      await bridgeOIDCTokens(tokens, clientId, clientSecret)
+      await bridgeOIDCTokens(tokens, clientId)
       await fetchSession()
     }
     catch {
@@ -145,48 +130,19 @@ function restoreRefreshSchedule(): void {
   if (!clientId)
     return
 
-  const clientSecret = localStorage.getItem(OIDC_CLIENT_SECRET_KEY) ?? undefined
   const expiryRaw = localStorage.getItem(OIDC_TOKEN_EXPIRY_KEY)
 
   if (expiryRaw) {
     const remainingMs = Number(expiryRaw) - Date.now()
     if (remainingMs > 0) {
       // Convert remaining ms to seconds for scheduleTokenRefresh
-      scheduleTokenRefresh(remainingMs / 1000, clientId, clientSecret)
+      scheduleTokenRefresh(remainingMs / 1000, clientId)
       return
     }
   }
 
   // Token already expired or no expiry info — refresh immediately
-  scheduleTokenRefresh(0, clientId, clientSecret)
-}
-
-/**
- * Handle the OIDC authorization code callback.
- * Extracts code and state from URL query params, exchanges for tokens.
- */
-async function handleOIDCCallback(): Promise<boolean> {
-  const url = new URL(window.location.href)
-  const code = url.searchParams.get('code')
-  const state = url.searchParams.get('state')
-
-  if (!code || !state)
-    return false
-
-  const persisted = consumeFlowState()
-  if (!persisted)
-    return false
-
-  const tokens = await exchangeCodeForTokens(code, persisted.flowState, persisted.params, state)
-  await bridgeOIDCTokens(tokens, persisted.params.clientId, persisted.params.clientSecret)
-
-  // Clean the query params from the URL
-  url.searchParams.delete('code')
-  url.searchParams.delete('state')
-  url.searchParams.delete('iss')
-  window.history.replaceState(null, '', url.pathname + url.search)
-
-  return true
+  scheduleTokenRefresh(0, clientId)
 }
 
 export async function fetchSession() {
@@ -235,7 +191,6 @@ export async function signOut() {
 
   // Clean up persisted OIDC client info
   localStorage.removeItem(OIDC_CLIENT_KEY)
-  localStorage.removeItem(OIDC_CLIENT_SECRET_KEY)
   localStorage.removeItem(OIDC_TOKEN_EXPIRY_KEY)
 }
 

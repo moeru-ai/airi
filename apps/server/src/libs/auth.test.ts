@@ -46,22 +46,21 @@ describe('seedTrustedClients', () => {
     await seedTrustedClients(db as any, {
       API_SERVER_URL: 'http://localhost:3000',
       OIDC_CLIENT_ID_WEB: 'airi-stage-web',
-      OIDC_CLIENT_SECRET_WEB: 'web-secret',
       OIDC_CLIENT_ID_ELECTRON: 'airi-stage-electron',
       OIDC_CLIENT_SECRET_ELECTRON: 'electron-secret',
       OIDC_CLIENT_ID_POCKET: 'airi-stage-pocket',
-      OIDC_CLIENT_SECRET_POCKET: 'pocket-secret',
     } as any)
 
     expect(values).toHaveBeenCalledTimes(3)
 
+    // Web — public client (no secret, PKCE only)
     const webClient = capturedValues[0]
     if (!webClient)
       throw new Error('Expected web client seed insert')
 
     expect(webClient.clientId).toBe('airi-stage-web')
-    expect(webClient.clientSecret).toBe(await hashSecret('web-secret'))
-    expect(webClient.public).toBe(false)
+    expect(webClient.clientSecret).toBeNull()
+    expect(webClient.public).toBe(true)
     expect(webClient.redirectUris).toEqual([
       'https://airi.moeru.ai/auth/callback',
       'http://localhost:5173/auth/callback',
@@ -70,40 +69,59 @@ describe('seedTrustedClients', () => {
     expect(webClient.scopes).toEqual(['openid', 'profile', 'email', 'offline_access'])
     expect(webClient.grantTypes).toEqual(['authorization_code', 'refresh_token'])
     expect(webClient.responseTypes).toEqual(['code'])
-    expect(webClient.tokenEndpointAuthMethod).toBe('client_secret_post')
+    expect(webClient.tokenEndpointAuthMethod).toBe('none')
     expect(webClient.requirePKCE).toBe(true)
     expect(webClient.skipConsent).toBe(true)
 
+    // Electron — confidential client (secret in main process binary)
     const electronClient = capturedValues[1]
     if (!electronClient)
       throw new Error('Expected electron client seed insert')
 
     expect(electronClient.clientId).toBe('airi-stage-electron')
+    expect(electronClient.clientSecret).toBe(await hashSecret('electron-secret'))
+    expect(electronClient.public).toBe(false)
+    expect(electronClient.tokenEndpointAuthMethod).toBe('client_secret_post')
     expect(electronClient.redirectUris).toEqual([
       'http://localhost:3000/api/auth/oidc/electron-callback',
     ])
 
+    // Mobile — public client (no secret, PKCE only)
     const pocketClient = capturedValues[2]
     if (!pocketClient)
       throw new Error('Expected pocket client seed insert')
 
     expect(pocketClient.clientId).toBe('airi-stage-pocket')
+    expect(pocketClient.clientSecret).toBeNull()
+    expect(pocketClient.public).toBe(true)
+    expect(pocketClient.tokenEndpointAuthMethod).toBe('none')
     expect(pocketClient.redirectUris).toEqual([
       'capacitor://localhost/auth/callback',
     ])
   })
 
-  it('skips inserts for trusted clients that already exist', async () => {
+  it('updates existing clients to match current config', async () => {
+    const setCalls: any[] = []
+    const set = vi.fn((vals: any) => {
+      setCalls.push(vals)
+      return { where: vi.fn() }
+    })
+
     const { db, values } = createMockDb([
       [{ clientId: 'airi-stage-web' }],
-    ])
+    ]);
+    (db as any).update = vi.fn(() => ({ set }))
 
     await seedTrustedClients(db as any, {
       API_SERVER_URL: 'http://localhost:3000',
       OIDC_CLIENT_ID_WEB: 'airi-stage-web',
-      OIDC_CLIENT_SECRET_WEB: 'web-secret',
     } as any)
 
+    // Should update, not insert
     expect(values).not.toHaveBeenCalled()
+    expect(set).toHaveBeenCalledTimes(1)
+    expect(setCalls[0].public).toBe(true)
+    expect(setCalls[0].tokenEndpointAuthMethod).toBe('none')
+    expect(setCalls[0].clientSecret).toBeNull()
   })
 })

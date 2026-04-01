@@ -17,15 +17,17 @@ import * as authSchema from '../schemas/accounts'
 
 interface TrustedClientSeed {
   clientId: string
-  clientSecret: string
+  /** Omit for public clients (Web, Mobile) — only confidential clients need a secret. */
+  clientSecret?: string
   name: string
   type: 'web' | 'native'
+  /** Public clients rely solely on PKCE; confidential clients use client_secret + PKCE. */
   public: boolean
   redirectUris: string[]
   scopes: string[]
   grantTypes: string[]
   responseTypes: string[]
-  tokenEndpointAuthMethod: 'client_secret_post'
+  tokenEndpointAuthMethod: 'none' | 'client_secret_post'
   requirePKCE: boolean
   skipConsent: boolean
 }
@@ -40,14 +42,14 @@ const OIDC_RESPONSE_TYPES = ['code'] as const
 function buildTrustedClientSeeds(env: Env): TrustedClientSeed[] {
   const clients: TrustedClientSeed[] = []
 
-  // Web app (production + dev)
-  if (env.OIDC_CLIENT_ID_WEB && env.OIDC_CLIENT_SECRET_WEB) {
+  // Web app — public client (no secret, PKCE only).
+  // Browsers cannot safely store a client_secret; PKCE provides CSRF protection.
+  if (env.OIDC_CLIENT_ID_WEB) {
     clients.push({
       clientId: env.OIDC_CLIENT_ID_WEB,
-      clientSecret: env.OIDC_CLIENT_SECRET_WEB,
       name: 'AIRI Stage Web',
       type: 'web',
-      public: false,
+      public: true,
       redirectUris: [
         'https://airi.moeru.ai/auth/callback',
         'http://localhost:5173/auth/callback',
@@ -56,7 +58,7 @@ function buildTrustedClientSeeds(env: Env): TrustedClientSeed[] {
       scopes: [...OIDC_SCOPES],
       grantTypes: [...OIDC_GRANT_TYPES],
       responseTypes: [...OIDC_RESPONSE_TYPES],
-      tokenEndpointAuthMethod: 'client_secret_post',
+      tokenEndpointAuthMethod: 'none',
       requirePKCE: true,
       skipConsent: true,
     })
@@ -87,21 +89,21 @@ function buildTrustedClientSeeds(env: Env): TrustedClientSeed[] {
     })
   }
 
-  // Capacitor mobile app
-  if (env.OIDC_CLIENT_ID_POCKET && env.OIDC_CLIENT_SECRET_POCKET) {
+  // Capacitor mobile app — public client (no secret, PKCE only).
+  // Same reasoning as Web: native WebView cannot safely store secrets.
+  if (env.OIDC_CLIENT_ID_POCKET) {
     clients.push({
       clientId: env.OIDC_CLIENT_ID_POCKET,
-      clientSecret: env.OIDC_CLIENT_SECRET_POCKET,
       name: 'AIRI Stage Mobile',
       type: 'native',
-      public: false,
+      public: true,
       redirectUris: [
         'capacitor://localhost/auth/callback',
       ],
       scopes: [...OIDC_SCOPES],
       grantTypes: [...OIDC_GRANT_TYPES],
       responseTypes: [...OIDC_RESPONSE_TYPES],
-      tokenEndpointAuthMethod: 'client_secret_post',
+      tokenEndpointAuthMethod: 'none',
       requirePKCE: true,
       skipConsent: true,
     })
@@ -149,13 +151,8 @@ export async function seedTrustedClients(db: Database, env: Env): Promise<void> 
       .where(eq(authSchema.oauthClient.clientId, seed.clientId))
       .limit(1)
 
-    if (existing.length > 0)
-      continue
-
-    await db.insert(authSchema.oauthClient).values({
-      id: crypto.randomUUID(),
-      clientId: seed.clientId,
-      clientSecret: await hashClientSecret(seed.clientSecret),
+    const values = {
+      clientSecret: seed.clientSecret ? await hashClientSecret(seed.clientSecret) : null,
       name: seed.name,
       type: seed.type,
       public: seed.public,
@@ -166,9 +163,23 @@ export async function seedTrustedClients(db: Database, env: Env): Promise<void> 
       tokenEndpointAuthMethod: seed.tokenEndpointAuthMethod,
       requirePKCE: seed.requirePKCE,
       skipConsent: seed.skipConsent,
+      updatedAt: new Date(),
+    }
+
+    if (existing.length > 0) {
+      // Update existing client to match current config (e.g. public ↔ confidential change)
+      await db.update(authSchema.oauthClient)
+        .set(values)
+        .where(eq(authSchema.oauthClient.clientId, seed.clientId))
+      continue
+    }
+
+    await db.insert(authSchema.oauthClient).values({
+      id: crypto.randomUUID(),
+      clientId: seed.clientId,
+      ...values,
       disabled: false,
       createdAt: new Date(),
-      updatedAt: new Date(),
     })
   }
 }

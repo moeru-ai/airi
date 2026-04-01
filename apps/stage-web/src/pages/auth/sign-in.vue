@@ -13,9 +13,8 @@ const router = useRouter()
 
 const { isDesktop } = useBreakpoints()
 
-// OIDC client configuration for the web app
+// OIDC client configuration for the web app (public client — no secret, PKCE only)
 const OIDC_CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID || 'airi-stage-web'
-const OIDC_CLIENT_SECRET = import.meta.env.VITE_OIDC_CLIENT_SECRET || ''
 const OIDC_REDIRECT_URI = `${window.location.origin}/auth/callback`
 
 const loading = ref<Record<OAuthProvider, boolean>>({
@@ -28,7 +27,6 @@ async function handleSignIn(provider: OAuthProvider) {
   try {
     await signInOIDC({
       clientId: OIDC_CLIENT_ID,
-      clientSecret: OIDC_CLIENT_SECRET || undefined,
       redirectUri: OIDC_REDIRECT_URI,
       provider,
     })

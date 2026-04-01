@@ -31,7 +31,7 @@ onMounted(async () => {
 
   try {
     const tokens = await exchangeCodeForTokens(code, persisted.flowState, persisted.params, state)
-    await bridgeOIDCTokens(tokens, persisted.params.clientId, persisted.params.clientSecret)
+    await bridgeOIDCTokens(tokens, persisted.params.clientId)
     await fetchSession()
     router.replace('/')
   }

@@ -11,10 +11,10 @@ export interface LoopbackCallbackResult {
 
 /**
  * Fixed ports for the loopback OIDC callback server.
- * These must match the redirect URIs registered in the server's trusted client config.
+ * The server relay page (`/api/auth/oidc/electron-callback`) forwards the
+ * authorization code to `http://127.0.0.1:{port}/callback` via JS fetch().
+ * The port is encoded in the `state` parameter, not in the redirect_uri.
  *
- * NOTICE: better-auth validates redirect_uri via exact string match, so we cannot
- * use a random port. Instead, we try a small range of fixed ports in order.
  * See RFC 8252 S7.3 for the loopback redirect pattern.
  */
 const LOOPBACK_PORTS = [19721, 19722, 19723, 19724, 19725]

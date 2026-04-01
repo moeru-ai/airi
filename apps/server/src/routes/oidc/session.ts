@@ -1,12 +1,29 @@
 import type { Database } from '../../libs/db'
 import type { HonoEnv } from '../../types/hono'
 
+import { Buffer } from 'node:buffer'
+
 import { useLogger } from '@guiiai/logg'
 import { and, eq, gt, inArray } from 'drizzle-orm'
 import { Hono } from 'hono'
 
 import { oauthAccessToken } from '../../schemas/accounts'
 import { createUnauthorizedError } from '../../utils/error'
+
+/**
+ * Hash a token the same way oauthProvider does internally.
+ *
+ * NOTICE: oauthProvider defaults to `storeTokens: "hashed"`, meaning
+ * opaque access tokens are stored as SHA-256 → base64url(no padding).
+ * We must hash the incoming raw token before comparing against the DB.
+ */
+async function hashToken(token: string): Promise<string> {
+  const hash = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(token),
+  )
+  return Buffer.from(hash).toString('base64url')
+}
 
 /**
  * TTL for the in-memory bridge cache (5 minutes).
@@ -24,6 +41,10 @@ interface BridgeCacheEntry {
  * In-memory cache mapping OIDC access tokens to session tokens.
  * Provides idempotent bridge behaviour: the same OIDC token always
  * resolves to the same session token within the TTL window.
+ *
+ * TODO: Replace with Redis when multi-instance deployment is needed.
+ * In-memory Map only works for single-process; cache misses across
+ * pods would create duplicate sessions.
  */
 const bridgeCache = new Map<string, BridgeCacheEntry>()
 
@@ -85,6 +106,9 @@ export function createOIDCSessionRoute(
         return c.json({ token: cached.sessionToken })
       }
 
+      // Hash the raw token to match oauthProvider's `storeTokens: "hashed"` default.
+      const hashedToken = await hashToken(accessToken)
+
       // Look up the OIDC access token in the database.
       // Only accept tokens issued to a trusted client that have not expired.
       const now = new Date()
@@ -95,7 +119,7 @@ export function createOIDCSessionRoute(
         .from(oauthAccessToken)
         .where(
           and(
-            eq(oauthAccessToken.token, accessToken),
+            eq(oauthAccessToken.token, hashedToken),
             inArray(oauthAccessToken.clientId, trustedClientIds),
             gt(oauthAccessToken.expiresAt, now),
           ),
@@ -135,11 +159,14 @@ export function createOIDCSessionRoute(
 
       // Schedule cleanup: delete the OIDC access token row after the TTL
       // so it cannot be reused once the bridge cache expires.
+      // TODO: Replace setTimeout with DB-level TTL or cron cleanup.
+      // setTimeout does not survive process restarts — orphaned tokens
+      // will remain until their natural `expires_at` passes.
       setTimeout(async () => {
         try {
           await db
             .delete(oauthAccessToken)
-            .where(eq(oauthAccessToken.token, accessToken))
+            .where(eq(oauthAccessToken.token, hashedToken))
         }
         catch (err) {
           logger.withError(err).warn('Failed to delete bridged OIDC access token')
