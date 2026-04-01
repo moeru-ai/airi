@@ -12,7 +12,7 @@ import { createElectronCallbackRelay } from '../oidc/electron-callback'
 import { createOIDCSessionRoute } from '../oidc/session'
 
 export interface AuthRoutesDeps {
-  auth: any
+  auth: any // TODO: fix type
   db: Database
   env: Env
   configKV: ConfigKVService

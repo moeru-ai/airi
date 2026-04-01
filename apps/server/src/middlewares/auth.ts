@@ -17,6 +17,20 @@ type AuthInstance = ReturnType<typeof createAuth>
  */
 export function sessionMiddleware(auth: AuthInstance): MiddlewareHandler<HonoEnv> {
   return async (c, next) => {
+    // NOTICE: auth routes handle session lookup inside better-auth itself.
+    // Running the global session middleware on `/api/auth/*`, `/sign-in`, and
+    // the auth discovery endpoints duplicates the same session read and slows
+    // the OIDC login path (`authorize` → `token` → `get-session`) noticeably.
+    if (
+      c.req.path === '/sign-in'
+      || c.req.path.startsWith('/api/auth/')
+      || c.req.path === '/.well-known/oauth-authorization-server/api/auth'
+    ) {
+      c.set('user', null)
+      c.set('session', null)
+      return await next()
+    }
+
     const session = await auth.api.getSession({ headers: c.req.raw.headers })
 
     if (!session) {
