@@ -126,3 +126,4 @@ apps/stage-pocket/ios/buildServer.json
 .ghfs/
 .docs/superpowers
 apps/stage-tamagotchi/electron.vite.config.*.mjs
+.env
