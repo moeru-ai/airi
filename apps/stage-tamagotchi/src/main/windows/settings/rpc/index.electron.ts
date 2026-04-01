@@ -15,6 +15,7 @@ import { electronOpenDevtoolsWindow, electronOpenSettingsDevtools } from '../../
 import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { createWidgetsService } from '../../../services/airi/widgets'
 import { createAutoUpdaterService } from '../../../services/electron'
+import { createAuthService } from '../../../services/electron/auth'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
 export async function setupSettingsWindowInvokes(params: {
@@ -38,6 +39,7 @@ export async function setupSettingsWindowInvokes(params: {
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.settingsWindow })
   createAutoUpdaterService({ context, window: params.settingsWindow, service: params.autoUpdater })
   createMcpServersService({ context, manager: params.mcpStdioManager })
+  createAuthService({ context, window: params.settingsWindow })
 
   defineInvokeHandler(context, electronOpenSettingsDevtools, async () => params.settingsWindow.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenDevtoolsWindow, async (payload) => {

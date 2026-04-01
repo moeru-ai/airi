@@ -8,7 +8,7 @@
 - 不能映射到标准字段、但确实属于 AIRI 业务语义的字段，统一放到 `airi.*` 命名空间下。
 - 不要新增新的顶级前缀，例如 `llm.*`、`gateway.*`、`telegram.*` 之类的 attribute key。
 - span name、event name、metric name 不等于 attribute key；是否迁移它们要单独评估兼容性。
-- 代码里不要继续散落新的 observability key 字符串字面量；统一从 [packages/server-shared/src/observability.ts](/Users/luoling8192/Git/moeru-ai/airi/packages/server-shared/src/observability.ts) 引用。
+- 代码里不要继续散落新的 observability key 字符串字面量；统一从 [packages/server-shared/src/observability.ts](/packages/server-shared/src/observability.ts) 引用。
 
 ## 标准字段优先级
 
@@ -114,7 +114,7 @@ Redis 相关优先复用 instrumentation 自动产生的标准属性，不要重
 
 ### 当前已落地的 dashboard 例子
 
-[apps/server/otel/grafana/dashboards/airi-server-overview-cloud.json](/Users/luoling8192/Git/moeru-ai/airi/apps/server/otel/grafana/dashboards/airi-server-overview-cloud.json) 已经按以下方式查询：
+[apps/server/otel/grafana/dashboards/airi-server-overview-cloud.json](/apps/server/otel/grafana/dashboards/airi-server-overview-cloud.json) 已经按以下方式查询：
 
 - Request rate by model: `gen_ai_request_model`
 - Request rate by operation: `gen_ai_operation_name` + `airi_gen_ai_operation_kind`
@@ -152,8 +152,8 @@ span name 目前允许保留业务可读格式，例如：
 
 ## 当前参考实现
 
-- [packages/server-shared/src/observability.ts](/Users/luoling8192/Git/moeru-ai/airi/packages/server-shared/src/observability.ts)
-- [apps/server/src/routes/v1completions.ts](/Users/luoling8192/Git/moeru-ai/airi/apps/server/src/routes/v1completions.ts)
-- [apps/server/src/libs/otel.ts](/Users/luoling8192/Git/moeru-ai/airi/apps/server/src/libs/otel.ts)
-- [services/telegram-bot/src/llm/actions.ts](/Users/luoling8192/Git/moeru-ai/airi/services/telegram-bot/src/llm/actions.ts)
-- [services/telegram-bot/src/bots/telegram/agent/actions/read-message.ts](/Users/luoling8192/Git/moeru-ai/airi/services/telegram-bot/src/bots/telegram/agent/actions/read-message.ts)
+- [packages/server-shared/src/observability.ts](/packages/server-shared/src/observability.ts)
+- [apps/server/src/routes/v1completions.ts](/apps/server/src/routes/v1completions.ts)
+- [apps/server/src/libs/otel.ts](/apps/server/src/libs/otel.ts)
+- [services/telegram-bot/src/llm/actions.ts](/services/telegram-bot/src/llm/actions.ts)
+- [services/telegram-bot/src/bots/telegram/agent/actions/read-message.ts](/services/telegram-bot/src/bots/telegram/agent/actions/read-message.ts)
