@@ -230,29 +230,40 @@ Role:
 - validated live: a ComfyUI GPU `execution_error` now lands as `image_jobs.status=failed` with the upstream error text, while `resultMediaId` and gallery `mediaId` stay empty
 - ComfyUI submit/reconcile worker path
 - default API-format ComfyUI workflow generation for NSFW jobs
+- validated Docker CPU fallback against the local Linux ComfyUI model set
+- validated end-to-end fallback reconciliation using `sd_turbo.safetensors` on `http://localhost:8189`
 
 ### Live Runtime Status
 
 - Local ComfyUI now starts and serves `http://127.0.0.1:8188`
 - Local Postgres and Redis now run through `apps/server/docker-compose.yml`
 - `nsfw-image-consumer` now connects to local Postgres and Redis and applies migrations successfully
-- A real runtime test job was accepted by ComfyUI and appears in `queue_running`
-- A second ultra-light CPU smoke test was also accepted with:
+- The Docker CPU fallback now mounts the local Linux ComfyUI models instead of the incompatible Windows fallback set
+- The Docker CPU fallback now runs with `--cpu --disable-all-custom-nodes`
+- A real CPU fallback smoke render completed with:
   - `sd_turbo.safetensors`
-  - `4` steps
-  - `512x512`
+  - `2` steps
+  - `384x384`
   - no LoRA chain
-- Current end-to-end runtime path is proven through:
+- Current end-to-end fallback runtime path is proven through:
   - AIRI job record
   - Redis event
   - worker pickup
-  - ComfyUI prompt submission
-  - ComfyUI queue visibility
-- Final image completion is still slow in the current `--cpu` ComfyUI run, so completion timing and gallery reconciliation are not yet representative of the intended GPU path
+  - ComfyUI prompt submission on `http://localhost:8189`
+  - ComfyUI `history.status=success`
+  - `image_jobs.status=done`
+  - `image_jobs.result_media_id`
+  - `gallery_items.media_id`
+- The validated output filename from the fallback path is `airi-nsfw-runtime-character-soft_00001_.png`
 - The default workflow now supports env-level smoke-test tuning through:
   - `COMFYUI_DEFAULT_STEPS`
   - `COMFYUI_DEFAULT_CFG`
   - `COMFYUI_MAX_DIMENSION`
+- The CPU fallback now also supports env-level tuning through:
+  - `COMFYUI_FALLBACK_CHECKPOINT`
+  - `COMFYUI_FALLBACK_STEPS`
+  - `COMFYUI_FALLBACK_CFG`
+  - `COMFYUI_FALLBACK_MAX_DIMENSION`
 - Stuck ComfyUI jobs can now fail cleanly through:
   - `COMFYUI_SUBMIT_TIMEOUT_MS`
   - `COMFYUI_RUNNING_TIMEOUT_MS`
@@ -263,7 +274,7 @@ Role:
 - quality judge beyond simple heuristic flags
 - premium gating for NSFW media actions
 - GPU-backed ComfyUI runtime validation
-- final image completion and gallery reconciliation validation on a non-CPU render path
+- faster non-CPU render validation on the Windows GPU path
 - actual model wiring to `Hermes-4.3-36B`, `Grok 4.20`, and `GPT-5 mini`
 - build, typecheck, and tests once dependencies are installed
 

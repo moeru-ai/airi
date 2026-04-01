@@ -8,6 +8,15 @@ interface PlannerParams {
   aspectRatio?: string
 }
 
+interface WorkflowProfile {
+  checkpoint: string
+  steps: number
+  cfg: number
+  maxDimension: number
+  primaryLoraEnabled: boolean
+  secondaryLoraEnabled: boolean
+}
+
 type ComfyPromptWorkflow = Record<string, {
   class_type: string
   inputs: Record<string, unknown>
@@ -70,10 +79,49 @@ function workflowPrefix(job: ImageJob, planner: PlannerParams) {
     .join('-')
 }
 
+function getComfyMeta(params: Record<string, unknown>) {
+  const comfy = params.comfy
+  if (!comfy || typeof comfy !== 'object' || Array.isArray(comfy)) {
+    return {}
+  }
+
+  return comfy as Record<string, unknown>
+}
+
+function resolveWorkflowProfile(job: ImageJob, env: Env): WorkflowProfile {
+  const comfyMeta = getComfyMeta(job.params)
+  const isFallback = Boolean(
+    env.COMFYUI_FALLBACK_BASE_URL
+    && typeof comfyMeta.baseUrl === 'string'
+    && comfyMeta.baseUrl === env.COMFYUI_FALLBACK_BASE_URL,
+  )
+
+  if (isFallback) {
+    return {
+      checkpoint: env.COMFYUI_FALLBACK_CHECKPOINT || env.COMFYUI_DEFAULT_CHECKPOINT,
+      steps: env.COMFYUI_FALLBACK_STEPS,
+      cfg: env.COMFYUI_FALLBACK_CFG,
+      maxDimension: env.COMFYUI_FALLBACK_MAX_DIMENSION,
+      primaryLoraEnabled: false,
+      secondaryLoraEnabled: false,
+    }
+  }
+
+  return {
+    checkpoint: env.COMFYUI_DEFAULT_CHECKPOINT,
+    steps: env.COMFYUI_DEFAULT_STEPS,
+    cfg: env.COMFYUI_DEFAULT_CFG,
+    maxDimension: env.COMFYUI_MAX_DIMENSION,
+    primaryLoraEnabled: Boolean(env.COMFYUI_DEFAULT_LORA?.trim()),
+    secondaryLoraEnabled: Boolean(env.COMFYUI_SECONDARY_LORA?.trim()),
+  }
+}
+
 export function buildDefaultComfyWorkflow(job: ImageJob, env: Env): ComfyPromptWorkflow {
   const planner = parsePlannerParams(job.params)
   const baseDimensions = dimensionsFromAspectRatio(planner.aspectRatio)
-  const { width, height } = clampDimensions(baseDimensions.width, baseDimensions.height, env.COMFYUI_MAX_DIMENSION)
+  const profile = resolveWorkflowProfile(job, env)
+  const { width, height } = clampDimensions(baseDimensions.width, baseDimensions.height, profile.maxDimension)
   const positiveText = [
     job.prompt,
     planner.style,
@@ -84,8 +132,8 @@ export function buildDefaultComfyWorkflow(job: ImageJob, env: Env): ComfyPromptW
   const seedSource = Number.parseInt(job.id.replace(/\D/g, '').slice(0, 9), 10)
   const seed = Number.isFinite(seedSource) ? seedSource : Date.now() % 2147483647
 
-  const primaryLoraEnabled = Boolean(env.COMFYUI_DEFAULT_LORA?.trim())
-  const secondaryLoraEnabled = Boolean(env.COMFYUI_SECONDARY_LORA?.trim())
+  const primaryLoraEnabled = profile.primaryLoraEnabled
+  const secondaryLoraEnabled = profile.secondaryLoraEnabled
 
   const modelSource: [string, number] = secondaryLoraEnabled
     ? ['11', 0]
@@ -102,7 +150,7 @@ export function buildDefaultComfyWorkflow(job: ImageJob, env: Env): ComfyPromptW
     3: {
       class_type: 'KSampler',
       inputs: {
-        cfg: env.COMFYUI_DEFAULT_CFG,
+        cfg: profile.cfg,
         denoise: 1,
         latent_image: ['5', 0],
         model: modelSource,
@@ -111,13 +159,13 @@ export function buildDefaultComfyWorkflow(job: ImageJob, env: Env): ComfyPromptW
         sampler_name: 'euler',
         scheduler: 'normal',
         seed,
-        steps: env.COMFYUI_DEFAULT_STEPS,
+        steps: profile.steps,
       },
     },
     4: {
       class_type: 'CheckpointLoaderSimple',
       inputs: {
-        ckpt_name: env.COMFYUI_DEFAULT_CHECKPOINT,
+        ckpt_name: profile.checkpoint,
       },
     },
     5: {
