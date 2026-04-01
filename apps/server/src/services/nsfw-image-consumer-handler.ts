@@ -41,6 +41,11 @@ interface ComfyUiHistoryResponse {
   }
 }
 
+interface ParsedComfyHistoryStatus {
+  state: 'running' | 'success' | 'error'
+  errorMessage: string | null
+}
+
 export class JobStillRunningError extends Error {
   constructor(message: string) {
     super(message)
@@ -75,6 +80,42 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
     }
 
     return null
+  }
+
+  function parseHistoryStatus(historyEntry: NonNullable<Awaited<ReturnType<typeof fetchComfyHistory>>>): ParsedComfyHistoryStatus {
+    const status = historyEntry.status
+    const statusStr = typeof status?.status_str === 'string' ? status.status_str : null
+
+    if (statusStr === 'success') {
+      return { state: 'success', errorMessage: null }
+    }
+
+    const messages = Array.isArray(status?.messages) ? status.messages : []
+    for (const message of messages) {
+      if (!Array.isArray(message) || message[0] !== 'execution_error') {
+        continue
+      }
+
+      const payload = message[1]
+      if (!payload || typeof payload !== 'object') {
+        return { state: 'error', errorMessage: 'ComfyUI execution failed' }
+      }
+
+      const record = payload as Record<string, unknown>
+      const nodeType = typeof record.node_type === 'string' ? record.node_type : ''
+      const exceptionMessage = typeof record.exception_message === 'string' ? record.exception_message.trim() : ''
+      const composed = [nodeType, exceptionMessage].filter(Boolean).join(': ').trim()
+      return {
+        state: 'error',
+        errorMessage: composed || 'ComfyUI execution failed',
+      }
+    }
+
+    if (statusStr === 'error') {
+      return { state: 'error', errorMessage: 'ComfyUI execution failed' }
+    }
+
+    return { state: 'running', errorMessage: null }
   }
 
   function extractWorkflow(params: Record<string, unknown>) {
@@ -180,9 +221,50 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
           throw new JobStillRunningError(`ComfyUI job ${promptId} has not produced history yet`)
         }
 
+        const parsedStatus = parseHistoryStatus(history)
+        logger.withFields({ jobId, promptId, parsedStatus }).debug('Resolved ComfyUI history status for existing image job')
+        if (parsedStatus.state === 'running') {
+          throw new JobStillRunningError(`ComfyUI job ${promptId} is still running`)
+        }
+
+        if (parsedStatus.state === 'error') {
+          logger.withFields({ jobId, promptId, errorMessage: parsedStatus.errorMessage }).warn('Marking image job as failed from ComfyUI history status')
+          await mediaService.updateImageJobStatus(jobId, 'failed', {
+            errorMessage: parsedStatus.errorMessage,
+            params: {
+              ...job.params,
+              comfy: {
+                ...comfyMeta,
+                promptId,
+                clientId,
+                failedAt: new Date().toISOString(),
+              },
+            },
+          })
+          return
+        }
+
         const mediaId = pickFirstImageFilename(history)
+        if (!mediaId) {
+          logger.withFields({ jobId, promptId }).warn('ComfyUI history completed without image output; marking job failed')
+          await mediaService.updateImageJobStatus(jobId, 'failed', {
+            errorMessage: `ComfyUI job ${promptId} completed without image output`,
+            params: {
+              ...job.params,
+              comfy: {
+                ...comfyMeta,
+                promptId,
+                clientId,
+                completedAt: new Date().toISOString(),
+              },
+            },
+          })
+          return
+        }
+
+        logger.withFields({ jobId, promptId, mediaId }).log('Marking image job done from existing ComfyUI history')
         await mediaService.updateImageJobStatus(jobId, 'done', {
-          resultMediaId: mediaId ?? job.resultMediaId,
+          resultMediaId: mediaId,
           errorMessage: null,
           params: {
             ...job.params,
@@ -196,7 +278,7 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
         })
 
         await mediaService.updateGalleryItemByImageJobId(jobId, {
-          mediaId: mediaId ?? undefined,
+          mediaId,
           title: job.sceneType ? `${job.sceneType} scene` : undefined,
         })
         return
@@ -289,9 +371,52 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
             throw new JobStillRunningError(`ComfyUI job ${promptId} is still running`)
           }
 
+          const fallbackStatus = parseHistoryStatus(fallbackHistory)
+          logger.withFields({ jobId, promptId, parsedStatus: fallbackStatus }).debug('Resolved ComfyUI history status after fallback submit')
+          if (fallbackStatus.state === 'running') {
+            throw new JobStillRunningError(`ComfyUI job ${promptId} is still running`)
+          }
+
+          if (fallbackStatus.state === 'error') {
+            logger.withFields({ jobId, promptId, errorMessage: fallbackStatus.errorMessage }).warn('Marking image job as failed from fallback ComfyUI history status')
+            await mediaService.updateImageJobStatus(jobId, 'failed', {
+              errorMessage: fallbackStatus.errorMessage,
+              params: {
+                ...fallbackParams,
+                workflow: fallbackWorkflow,
+                comfy: {
+                  ...comfyMeta,
+                  promptId,
+                  clientId,
+                  failedAt: new Date().toISOString(),
+                },
+              },
+            })
+            return
+          }
+
           const fallbackMediaId = pickFirstImageFilename(fallbackHistory)
+          if (!fallbackMediaId) {
+            logger.withFields({ jobId, promptId }).warn('Fallback ComfyUI history completed without image output; marking job failed')
+            await mediaService.updateImageJobStatus(jobId, 'failed', {
+              errorMessage: `ComfyUI job ${promptId} completed without image output`,
+              params: {
+                ...fallbackParams,
+                workflow: fallbackWorkflow,
+                comfy: {
+                  ...comfyMeta,
+                  promptId,
+                  clientId,
+                  completedAt: new Date().toISOString(),
+                },
+              },
+            })
+            return
+          }
+
+          logger.withFields({ jobId, promptId, mediaId: fallbackMediaId }).log('Marking image job done from fallback ComfyUI history')
           await mediaService.updateImageJobStatus(jobId, 'done', {
-            resultMediaId: fallbackMediaId ?? job.resultMediaId,
+            resultMediaId: fallbackMediaId,
             params: {
               ...fallbackParams,
               workflow: fallbackWorkflow,
@@ -304,7 +429,7 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
             },
           })
           await mediaService.updateGalleryItemByImageJobId(jobId, {
-            mediaId: fallbackMediaId ?? undefined,
+            mediaId: fallbackMediaId,
             title: job.sceneType ? `${job.sceneType} scene` : undefined,
           })
           return
@@ -337,9 +462,50 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
         throw new JobStillRunningError(`ComfyUI job ${promptId} is still running`)
       }
 
+      const parsedStatus = parseHistoryStatus(history)
+      logger.withFields({ jobId, promptId, parsedStatus }).debug('Resolved ComfyUI history status immediately after submit')
+      if (parsedStatus.state === 'running') {
+        throw new JobStillRunningError(`ComfyUI job ${promptId} is still running`)
+      }
+
+      if (parsedStatus.state === 'error') {
+        logger.withFields({ jobId, promptId, errorMessage: parsedStatus.errorMessage }).warn('Marking image job as failed from immediate ComfyUI history status')
+        await mediaService.updateImageJobStatus(jobId, 'failed', {
+          errorMessage: parsedStatus.errorMessage,
+          params: {
+            ...job.params,
+            comfy: {
+              ...comfyMeta,
+              promptId,
+              clientId,
+              failedAt: new Date().toISOString(),
+            },
+          },
+        })
+        return
+      }
+
       const mediaId = pickFirstImageFilename(history)
+      if (!mediaId) {
+        logger.withFields({ jobId, promptId }).warn('Immediate ComfyUI history completed without image output; marking job failed')
+        await mediaService.updateImageJobStatus(jobId, 'failed', {
+          errorMessage: `ComfyUI job ${promptId} completed without image output`,
+          params: {
+            ...job.params,
+            comfy: {
+              ...comfyMeta,
+              promptId,
+              clientId,
+              completedAt: new Date().toISOString(),
+            },
+          },
+        })
+        return
+      }
+
+      logger.withFields({ jobId, promptId, mediaId }).log('Marking image job done from immediate ComfyUI history')
       await mediaService.updateImageJobStatus(jobId, 'done', {
-        resultMediaId: mediaId ?? job.resultMediaId,
+        resultMediaId: mediaId,
         params: {
           ...job.params,
           comfy: {
@@ -351,7 +517,7 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
         },
       })
       await mediaService.updateGalleryItemByImageJobId(jobId, {
-        mediaId: mediaId ?? undefined,
+        mediaId,
         title: job.sceneType ? `${job.sceneType} scene` : undefined,
       })
     },

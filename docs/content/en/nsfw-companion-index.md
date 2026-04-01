@@ -142,6 +142,8 @@ Role:
 - `apps/server/src/services/nsfw-image-consumer-handler.ts`
   - ComfyUI submission and `/history/{prompt_id}` reconciliation logic
   - discards invalid stale custom workflow overrides and falls back to the server-built default workflow
+  - treats ComfyUI `history.status=error` as `failed` instead of `done`
+  - only sets `resultMediaId` and gallery `mediaId` when actual image output exists
 - `apps/server/src/services/nsfw-image-workflow.ts`
   - builds a default API-format ComfyUI workflow from prompt, negative prompt, aspect ratio, and checkpoint config
   - currently targets the locally present `ponyDiffusionV6.safetensors` checkpoint by default
@@ -222,6 +224,8 @@ Role:
 - fallback from stale custom ComfyUI workflow overrides to the server default workflow
 - validated Windows GPU ComfyUI host on port `8189` using `torch 2.10.0+cu130`
 - validated `sm_120` arch support in the active Windows ComfyUI venv
+- hardened ComfyUI history reconciliation so errored executions no longer get marked as successful image jobs
+- validated live: a ComfyUI GPU `execution_error` now lands as `image_jobs.status=failed` with the upstream error text, while `resultMediaId` and gallery `mediaId` stay empty
 - ComfyUI submit/reconcile worker path
 - default API-format ComfyUI workflow generation for NSFW jobs
 
