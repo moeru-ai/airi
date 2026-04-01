@@ -1,0 +1,15 @@
+diff --git a/out/providers/GitHubProvider.js b/out/providers/GitHubProvider.js
+--- a/out/providers/GitHubProvider.js
++++ b/out/providers/GitHubProvider.js
+@@ -119,10 +119,6 @@
+         };
+         try {
+-            let channel = this.channel;
+-            if (this.updater.allowPrerelease && ((_d = semver.prerelease(tag)) === null || _d === void 0 ? void 0 : _d[0])) {
+-                channel = this.getCustomChannelName(String((_e = semver.prerelease(tag)) === null || _e === void 0 ? void 0 : _e[0]));
+-            }
+-            rawData = await fetchData(channel);
++            rawData = await fetchData(this.channel);
+         }
+         catch (e) {
+             if (this.updater.allowPrerelease) {

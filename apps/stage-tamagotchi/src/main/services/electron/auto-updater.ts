@@ -81,6 +81,12 @@ export function setupAutoUpdater(): AutoUpdater {
   // electron-updater into treating an older build as the "latest".
   autoUpdater.allowDowngrade = false
 
+  // Allow prerelease builds — Airi uses semver prerelease tags (alpha/beta).
+  // The electron-updater patch in patches/ prevents the yml channel name from
+  // being overridden to 'latest-beta'; we always use the baked-in 'latest-x64'
+  // (or 'latest-arm64') from app-update.yml.
+  autoUpdater.allowPrerelease = true
+
   // Clean up any stray installation files left over in the update cache directory
   try {
     const cacheDir = getAppCacheDir()
