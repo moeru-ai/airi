@@ -56,6 +56,9 @@ export function createAuthService(params: {
     const stateWithPort = `${loopback.port}:${state}`
 
     // Build authorization URL
+    // NOTICE: prompt=login forces the authorization server to show the login
+    // page even if the system browser has an existing session cookie. Without
+    // this, the OIDC flow auto-completes silently using the stale cookie.
     const url = new URL(OIDC_AUTHORIZE_PATH, SERVER_URL)
     url.searchParams.set('response_type', 'code')
     url.searchParams.set('client_id', OIDC_CLIENT_ID)
@@ -64,6 +67,7 @@ export function createAuthService(params: {
     url.searchParams.set('state', stateWithPort)
     url.searchParams.set('code_challenge', codeChallenge)
     url.searchParams.set('code_challenge_method', 'S256')
+    url.searchParams.set('prompt', 'login')
 
     // Open system browser
     await shell.openExternal(url.toString())

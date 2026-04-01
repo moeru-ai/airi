@@ -2,6 +2,8 @@ import type { Database } from './db'
 import type { Env } from './env'
 import type { AuthMetrics } from './otel'
 
+import { Buffer } from 'node:buffer'
+
 import { oauthProvider } from '@better-auth/oauth-provider'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
@@ -18,9 +20,19 @@ interface TrustedClientSeed {
   clientSecret: string
   name: string
   type: 'web' | 'native'
+  public: boolean
   redirectUris: string[]
+  scopes: string[]
+  grantTypes: string[]
+  responseTypes: string[]
+  tokenEndpointAuthMethod: 'client_secret_post'
+  requirePKCE: boolean
   skipConsent: boolean
 }
+
+const OIDC_SCOPES = ['openid', 'profile', 'email', 'offline_access'] as const
+const OIDC_GRANT_TYPES = ['authorization_code', 'refresh_token'] as const
+const OIDC_RESPONSE_TYPES = ['code'] as const
 
 /**
  * Build the list of first-party OIDC clients to seed into the database.
@@ -35,11 +47,17 @@ function buildTrustedClientSeeds(env: Env): TrustedClientSeed[] {
       clientSecret: env.OIDC_CLIENT_SECRET_WEB,
       name: 'AIRI Stage Web',
       type: 'web',
+      public: false,
       redirectUris: [
         'https://airi.moeru.ai/auth/callback',
         'http://localhost:5173/auth/callback',
         'http://localhost:4173/auth/callback',
       ],
+      scopes: [...OIDC_SCOPES],
+      grantTypes: [...OIDC_GRANT_TYPES],
+      responseTypes: [...OIDC_RESPONSE_TYPES],
+      tokenEndpointAuthMethod: 'client_secret_post',
+      requirePKCE: true,
       skipConsent: true,
     })
   }
@@ -51,6 +69,7 @@ function buildTrustedClientSeeds(env: Env): TrustedClientSeed[] {
       clientSecret: env.OIDC_CLIENT_SECRET_ELECTRON,
       name: 'AIRI Stage Desktop',
       type: 'native',
+      public: false,
       redirectUris: [
         // Server-side relay: the OIDC redirect lands on the server, which
         // serves an HTML page that forwards the code to the Electron
@@ -59,6 +78,11 @@ function buildTrustedClientSeeds(env: Env): TrustedClientSeed[] {
         // loopback URL and removes the need for per-port redirect URIs.
         `${env.API_SERVER_URL}/api/auth/oidc/electron-callback`,
       ],
+      scopes: [...OIDC_SCOPES],
+      grantTypes: [...OIDC_GRANT_TYPES],
+      responseTypes: [...OIDC_RESPONSE_TYPES],
+      tokenEndpointAuthMethod: 'client_secret_post',
+      requirePKCE: true,
       skipConsent: true,
     })
   }
@@ -70,9 +94,15 @@ function buildTrustedClientSeeds(env: Env): TrustedClientSeed[] {
       clientSecret: env.OIDC_CLIENT_SECRET_POCKET,
       name: 'AIRI Stage Mobile',
       type: 'native',
+      public: false,
       redirectUris: [
         'capacitor://localhost/auth/callback',
       ],
+      scopes: [...OIDC_SCOPES],
+      grantTypes: [...OIDC_GRANT_TYPES],
+      responseTypes: [...OIDC_RESPONSE_TYPES],
+      tokenEndpointAuthMethod: 'client_secret_post',
+      requirePKCE: true,
       skipConsent: true,
     })
   }
@@ -81,10 +111,31 @@ function buildTrustedClientSeeds(env: Env): TrustedClientSeed[] {
 }
 
 /**
+ * Hash a client secret the same way oauthProvider does internally.
+ *
+ * NOTICE: oauthProvider defaults to `storeClientSecret: "hashed"` when
+ * the JWT plugin is enabled (our config). The internal hasher is
+ * `SHA-256(secret) → base64url(no padding)`. We replicate this so that
+ * secrets seeded via raw INSERT match what the plugin expects during
+ * token exchange validation.
+ */
+async function hashClientSecret(secret: string): Promise<string> {
+  const hash = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(secret),
+  )
+  // base64url encode without padding — matches @better-auth/utils/base64
+  return Buffer.from(hash).toString('base64url')
+}
+
+/**
  * Ensure trusted OIDC clients exist in the `oauth_client` table.
  * The oauthProvider plugin's `cachedTrustedClients` caches DB lookups, but
  * the `oauth_access_token` table has a FK to `oauth_client.client_id`.
  * Without a matching row, token INSERT fails with a constraint violation.
+ *
+ * Secrets are hashed before storage to match oauthProvider's default
+ * `storeClientSecret: "hashed"` mode.
  */
 export async function seedTrustedClients(db: Database, env: Env): Promise<void> {
   const seeds = buildTrustedClientSeeds(env)
@@ -104,10 +155,16 @@ export async function seedTrustedClients(db: Database, env: Env): Promise<void> 
     await db.insert(authSchema.oauthClient).values({
       id: crypto.randomUUID(),
       clientId: seed.clientId,
-      clientSecret: seed.clientSecret,
+      clientSecret: await hashClientSecret(seed.clientSecret),
       name: seed.name,
       type: seed.type,
+      public: seed.public,
       redirectUris: seed.redirectUris,
+      scopes: seed.scopes,
+      grantTypes: seed.grantTypes,
+      responseTypes: seed.responseTypes,
+      tokenEndpointAuthMethod: seed.tokenEndpointAuthMethod,
+      requirePKCE: seed.requirePKCE,
       skipConsent: seed.skipConsent,
       disabled: false,
       createdAt: new Date(),
@@ -138,6 +195,8 @@ export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null)
       oauthProvider({
         loginPage: '/sign-in',
         consentPage: '/oauth/authorize',
+        scopes: [...OIDC_SCOPES],
+        validAudiences: [env.API_SERVER_URL],
         // Cache trusted client DB lookups by client_id for performance.
         // Clients must still exist in the DB (seeded by seedTrustedClients).
         cachedTrustedClients: new Set(
