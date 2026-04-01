@@ -1,16 +1,19 @@
 <script setup lang="ts">
-import type { PromoBannerItem, PromoBannerItemKey, PromoBannerVisual } from './promo-banner'
+import type { PromoBannerAction, PromoBannerItem, PromoBannerItemKey, PromoBannerVisual } from './promo-banner'
 
 import useEmblaCarousel from 'embla-carousel-vue'
 
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 
-import { promoBannerVisuals } from './promo-banner'
+import { useAuthStore } from '../../../stores/auth'
+import { getPromoBannerFallbackLabelKey, promoBannerVisuals } from './promo-banner'
 import { usePromoBannerLayout } from './use-promo-banner-layout'
 
+const router = useRouter()
 const { locale, t } = useI18n()
-const isEnabled = false
+const authStore = useAuthStore()
 const isVisible = ref(false)
 
 function translateBannerItem(key: PromoBannerItemKey): PromoBannerItem {
@@ -85,6 +88,17 @@ function scrollTo(index: number) {
   }
 }
 
+function handlePromoBannerAction(action: PromoBannerAction) {
+  close()
+
+  if (action.type === 'login') {
+    authStore.needsLogin = true
+    return
+  }
+
+  void router.push(action.to)
+}
+
 function close() {
   isVisible.value = false
   stopAutoplay()
@@ -110,7 +124,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div v-if="isEnabled" class="fixed bottom-10 left-6 z-50 <md:hidden">
+  <div class="fixed bottom-10 left-6 z-50 <md:hidden">
     <button
       v-if="!isVisible"
       :class="[
@@ -189,6 +203,8 @@ onBeforeUnmount(() => {
                       buttonClass,
                       'bg-white shadow-[0_8px_24px_rgba(255,255,255,0.16)] hover:translate-y-[-1px]',
                     ]"
+                    type="button"
+                    @click="handlePromoBannerAction(item.action)"
                   >
                     {{ item.cta }}
                   </button>
@@ -215,7 +231,7 @@ onBeforeUnmount(() => {
                   <div :class="[item.fallbackIcon, item.fallbackIconClass, 'absolute left-5 top-5 text-2xl']" />
                   <div :class="[item.fallbackIcon, item.fallbackIconClass, 'absolute bottom-7 right-4 text-4xl opacity-90']" />
                   <div class="absolute bottom-5 left-4 text-[10px] text-white/70 font-700 tracking-[0.3em] uppercase">
-                    {{ item.fallbackLabel }}
+                    {{ t(getPromoBannerFallbackLabelKey(item.key)) }}
                   </div>
                 </div>
 

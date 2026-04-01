@@ -45,6 +45,7 @@ promo-banner:
   items:
     signin:
       watermark: Moon
+      fallbackLabel: Moon Gift
       title: 7-Day Sign-In
       eventName: Sign in to claim stardust, avatar frames, and launch gifts.
       date: 03/28 - 04/10
@@ -52,6 +53,7 @@ promo-banner:
       cta: Sign In
     build:
       watermark: Build
+      fallbackLabel: Build Bonus
       title: Supply Box Bonus
       eventName: Finish construction tasks to earn bonus vouchers and double materials.
       date: 03/30 - 04/12
@@ -59,6 +61,7 @@ promo-banner:
       cta: View Tasks
     spring:
       watermark: Spring
+      fallbackLabel: Spring Draw
       title: Capsule Carnival
       eventName: Join the spring draw to unlock bubbles, charms, and themed furniture.
       date: 04/01 - 04/18
@@ -66,6 +69,7 @@ promo-banner:
       cta: Draw Now
     coupon:
       watermark: Talk
+      fallbackLabel: Coupon
       title: Top-Up Coupon
       eventName: Finish chat interactions to claim coupons for expansion and voice packs.
       date: 04/02 - 04/20
@@ -73,6 +77,7 @@ promo-banner:
       cta: Claim Coupon
     home:
       watermark: Home
+      fallbackLabel: Room Theme
       title: Spring Theme Update
       eventName: Unlock window, desk, and night-lamp themes to refresh your room.
       date: 04/05 - 04/22
