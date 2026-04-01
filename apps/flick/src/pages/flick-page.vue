@@ -1,19 +1,13 @@
 <script setup lang="ts">
-import type {
-  DecisionAnalysis,
-  DecisionDraft,
-  DecisionOptionId,
-  DirectionCard,
-  SlotId,
-  SpinnerLocale,
-} from '../utils/flick-engine'
+import type { DecisionOptionId, SlotId, SpinnerLocale } from '../utils/flick-engine'
 
 import { useStorage } from '@vueuse/core'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
 import FlickStandIn from '../components/flick-stand-in.vue'
 
-import { buildDecisionDraft, evaluateDecision } from '../utils/flick-engine'
+import { useHistory } from '../composables/useHistory'
+import { useRitual } from '../composables/useRitual'
 import { tts } from '../utils/vidu-service'
 
 // Vidu API key (for TTS narration — text is per-decision and dynamic)
@@ -21,15 +15,6 @@ import { tts } from '../utils/vidu-service'
 const VIDU_API_KEY = import.meta.env.VITE_VIDU_API_KEY
 if (!VIDU_API_KEY) {
   throw new Error('VITE_VIDU_API_KEY environment variable is required')
-}
-
-interface HistoryEntry {
-  id: number
-  createdAt: string
-  question: string
-  locale: SpinnerLocale
-  revealed: DirectionCard
-  analysis: DecisionAnalysis
 }
 
 const copy = {
@@ -166,16 +151,30 @@ const currentLocale = useStorage<SpinnerLocale>('flick:v1-locale', 'en')
 const colorMode = useStorage<'dark' | 'light'>('flick:color-mode', 'dark')
 const text = computed(() => copy[currentLocale.value])
 const quickPrompts = computed(() => quickPromptCopy[currentLocale.value])
-const recentHistory = useStorage<HistoryEntry[]>('flick:v1-history', [])
+const { history: recentHistory, addEntry } = useHistory()
 
 const question = ref('')
-const draft = ref<DecisionDraft | null>(null)
-const analysis = ref<DecisionAnalysis | null>(null)
-const spinNonce = ref(0)
-const spinning = ref(false)
-const slotPhase = ref<'idle' | 'spinning' | 'slot-selecting' | 'revealed'>('idle')
-const revealedCard = ref<DirectionCard | null>(null)
-const selectedSlot = ref<SlotId | null>(null)
+const ritual = useRitual({ locale: currentLocale, question })
+const {
+  analysis,
+  spinning,
+  slotPhase,
+  revealedCard,
+  spinNonce,
+  cardsVisible,
+  targetAngle,
+  draft,
+  canSpin,
+  recommendedCard,
+  directionCards,
+  startPrototype: ritualStart,
+  spinRitual: ritualSpin,
+  selectSlot: ritualSelect,
+  resetRitual: ritualReset,
+  onSpinningComplete: ritualOnComplete,
+  rebuildForLocale,
+} = ritual
+
 const showAbout = ref(false)
 
 // Vidu dynamic media state
@@ -188,16 +187,6 @@ const ttsAudio = ref<HTMLAudioElement | null>(null)
 // TTS button playing state
 const isTtsPlaying = computed(() => ttsAudio.value && ttsAudio.value.paused === false)
 
-// Direction cards visibility (for staggered entrance)
-const cardsVisible = ref(false)
-
-// Spinner target angle for controlled animation
-const targetAngle = ref(0)
-
-const canSpin = computed(() => Boolean(analysis.value) && slotPhase.value === 'idle')
-const recommendedCard = computed(() => analysis.value?.recommended_card ?? null)
-const directionCards = computed(() => analysis.value?.direction_cards ?? [])
-
 function setLocale(locale: SpinnerLocale) {
   currentLocale.value = locale
 }
@@ -206,91 +195,24 @@ function toggleColorMode() {
   colorMode.value = colorMode.value === 'dark' ? 'light' : 'dark'
 }
 
-function resetResultState() {
-  analysis.value = null
-  spinning.value = false
-  slotPhase.value = 'idle'
-  revealedCard.value = null
-  selectedSlot.value = null
-  cardsVisible.value = false
-  cardVideoUrl.value = null
-  expansionVideoUrl.value = null
-  ttsAudioUrl.value = null
-}
-
-function resetRitual() {
-  question.value = ''
-  draft.value = null
-  resetResultState()
-}
-
-function startPrototype() {
-  const nextDraft = buildDecisionDraft(question.value, currentLocale.value)
-  draft.value = nextDraft
-  resetResultState()
-
-  if (nextDraft.risk_flag === 'none') {
-    analysis.value = evaluateDecision(nextDraft)
-    // Trigger direction cards entrance animation
-    nextTick(() => {
-      setTimeout(() => {
-        cardsVisible.value = true
-      }, 100)
-    })
-  }
-}
-
 function useQuickPrompt(prompt: string) {
   question.value = prompt
-  startPrototype()
+  ritualStart()
 }
 
-// Calculate target angle for a given slot
-function getTargetAngle(slot: SlotId | null | undefined): number {
-  if (!slot)
-    return 0
-  switch (slot) {
-    case 'A':
-      return 0
-    case 'B':
-      return -120
-    case 'C':
-      return -240
-    default:
-      return 0
-  }
-}
-
-function selectSlot(slot: SlotId) {
+function handleSelectSlot(slot: SlotId) {
   if (!analysis.value)
     return
-  selectedSlot.value = slot
-  const cardIndex = analysis.value.direction_cards.findIndex(c => c.slot === slot)
-  if (cardIndex === -1)
-    return
-  revealedCard.value = analysis.value.direction_cards[cardIndex]
-  slotPhase.value = 'revealed'
-  spinNonce.value += 1
-  persistHistory()
-  if (revealedCard.value)
-    generateViduMedia(revealedCard.value.id)
-}
-
-function persistHistory() {
-  if (!analysis.value || !revealedCard.value)
-    return
-
-  recentHistory.value = [
-    {
-      id: Date.now(),
-      createdAt: new Date().toISOString(),
+  const card = ritualSelect(slot)
+  if (card && analysis.value) {
+    addEntry({
       question: analysis.value.input_summary,
       locale: currentLocale.value,
-      revealed: revealedCard.value,
+      revealed: card,
       analysis: analysis.value,
-    },
-    ...recentHistory.value,
-  ].slice(0, 6)
+    })
+    generateViduMedia(card.id)
+  }
 }
 
 // ─── Vidu: load static media assets when result is revealed ─────────────────
@@ -355,8 +277,8 @@ function stopTts() {
   }
 }
 
-// Spin ritual with coordinated animation
-function spinRitual() {
+// Spin ritual with coordinated animation (page handles Vidu reset, composable handles state)
+function handleSpinRitual() {
   if (!analysis.value || spinning.value)
     return
 
@@ -366,54 +288,25 @@ function spinRitual() {
   ttsAudioUrl.value = null
   stopTts()
 
-  spinNonce.value += 1
-  spinning.value = true
-  slotPhase.value = 'spinning'
-  cardsVisible.value = false
-
-  // Random target based on one of the three cards
-  const randomCard = directionCards.value[Math.floor(Math.random() * directionCards.value.length)]
-  targetAngle.value = getTargetAngle(randomCard?.slot)
-
-  // The FlickStandIn component handles the 1800ms RAF animation
-  // We transition to slot-selecting after animation completes
-  setTimeout(() => {
-    spinning.value = false
-    slotPhase.value = 'slot-selecting'
-  }, 1800)
+  ritualSpin()
 }
 
 // Handle spinning complete from FlickStandIn
-function onSpinningComplete() {
-  spinning.value = false
-  slotPhase.value = 'slot-selecting'
+function handleSpinningComplete() {
+  ritualOnComplete()
 }
 
 watch(currentLocale, (locale, previousLocale) => {
   if (locale === previousLocale || !draft.value)
     return
-
-  draft.value = buildDecisionDraft(question.value, locale)
-  resetResultState()
-  if (draft.value.risk_flag === 'none') {
-    analysis.value = evaluateDecision(draft.value)
-    nextTick(() => {
-      setTimeout(() => {
-        cardsVisible.value = true
-      }, 100)
-    })
-  }
-  else {
-    analysis.value = null
-  }
+  rebuildForLocale()
 })
 
 watch(question, (value, previousValue) => {
   if (value === previousValue || !draft.value)
     return
-
   draft.value = null
-  resetResultState()
+  ritual.resetResultState()
 })
 </script>
 
@@ -468,7 +361,7 @@ watch(question, (value, previousValue) => {
             :caption="text.standInCaption"
             :spinning="spinning"
             :target-angle="targetAngle"
-            @spinning-complete="onSpinningComplete"
+            @spinning-complete="handleSpinningComplete"
           />
 
           <!-- Direction cards panel (appears after analysis) -->
@@ -488,7 +381,7 @@ watch(question, (value, previousValue) => {
                 <span class="direction-slot">{{ card.slot }}</span>
                 <strong class="direction-title">{{ card.title }}</strong>
                 <p class="direction-preview">
-                  {{ card.preview }}
+                  {{ card.reason_short }}
                 </p>
                 <div class="direction-confidence">
                   <span class="direction-label">{{ text.directionLabels[card.id] }}</span>
@@ -496,7 +389,7 @@ watch(question, (value, previousValue) => {
                 </div>
               </div>
             </div>
-            <button class="ps-btn-primary full-width" :disabled="!canSpin || spinning" @click="spinRitual">
+            <button class="ps-btn-primary full-width" :disabled="!canSpin || spinning" @click="handleSpinRitual">
               {{ spinning ? text.spinningCta : text.spinCta }}
             </button>
           </article>
@@ -509,7 +402,7 @@ watch(question, (value, previousValue) => {
                 v-for="card in directionCards"
                 :key="card.slot"
                 class="slot-btn"
-                @click="selectSlot(card.slot)"
+                @click="handleSelectSlot(card.slot)"
               >
                 <span class="slot-btn-letter">{{ card.slot }}</span>
                 <span class="slot-btn-label">{{ text.directionLabels[card.id] }}</span>
@@ -606,7 +499,7 @@ watch(question, (value, previousValue) => {
               </template>
             </button>
 
-            <button class="ps-btn-ghost full-width reveal-content" style="--reveal-delay: 800ms" @click="resetRitual">
+            <button class="ps-btn-ghost full-width reveal-content" style="--reveal-delay: 800ms" @click="ritualReset">
               {{ text.newRitualCta }}
             </button>
           </article>
@@ -642,7 +535,7 @@ watch(question, (value, previousValue) => {
 
           <!-- Begin button -->
           <div class="ps-prototype-actions reveal reveal-delay-2">
-            <button class="ps-btn-primary full-width" :disabled="!question.trim()" @click="startPrototype">
+            <button class="ps-btn-primary full-width" :disabled="!question.trim()" @click="ritualStart">
               {{ text.inputCta }}
             </button>
           </div>
