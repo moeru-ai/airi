@@ -38,6 +38,9 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - uses: pnpm/action-setup@v4
         with:
           run_install: false
@@ -45,6 +48,11 @@ jobs:
         with:
           node-version: lts/*
           cache: pnpm
+
+      - name: Install Android build tools
+        run: |
+          sdkmanager "build-tools;36.1.0"
+          echo "${ANDROID_SDK_ROOT:-$ANDROID_HOME}/build-tools/36.1.0" >> "$GITHUB_PATH"
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build:packages
