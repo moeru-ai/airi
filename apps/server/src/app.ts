@@ -34,13 +34,11 @@ import { emitOtelLog, initOtel } from './libs/otel'
 import { createRedis } from './libs/redis'
 import { sessionMiddleware } from './middlewares/auth'
 import { otelMiddleware } from './middlewares/otel'
-import { rateLimiter } from './middlewares/rate-limit'
+import { createAuthRoutes } from './routes/auth'
 import { createCharacterRoutes } from './routes/characters'
 import { createChatWsHandlers } from './routes/chat-ws'
 import { createChatRoutes } from './routes/chats'
 import { createFluxRoutes } from './routes/flux'
-import { createElectronCallbackRelay } from './routes/oidc/electron-callback'
-import { createOIDCSessionRoute } from './routes/oidc/session'
 import { createV1CompletionsRoutes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
@@ -56,7 +54,6 @@ import { createRequestLogService } from './services/request-log'
 import { createStripeService } from './services/stripe'
 import { ApiError, createInternalError, createUnauthorizedError } from './utils/error'
 import { getTrustedOrigin } from './utils/origin'
-import { renderSignInPage } from './utils/sign-in-page'
 
 interface AppDeps {
   auth: ReturnType<typeof createAuth>
@@ -75,7 +72,7 @@ interface AppDeps {
   otel: OtelInstance | null
 }
 
-async function buildApp(deps: AppDeps) {
+export async function buildApp(deps: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
 
   const app = new Hono<HonoEnv>()
@@ -154,50 +151,15 @@ async function buildApp(deps: AppDeps) {
     .on('GET', '/health', c => c.json({ status: 'ok' }))
 
     /**
-     * Minimal login page for the OIDC Provider flow.
-     * When an unauthenticated user hits /api/auth/oauth2/authorize,
-     * better-auth redirects here. After the user signs in via a social
-     * provider, the oidcProvider after-hook auto-continues the OIDC flow.
-     *
-     * If a `provider` query parameter is present (e.g. `?provider=github`),
-     * skip the picker page and redirect directly to the social provider.
+     * Auth routes: sign-in page, OIDC session bridge, electron callback
+     * relay, well-known metadata, and better-auth catch-all.
      */
-    .on('GET', '/sign-in', (c) => {
-      const provider = c.req.query('provider')
-      if (provider === 'google' || provider === 'github') {
-        const socialUrl = `${deps.env.API_SERVER_URL}/api/auth/sign-in/social?provider=${provider}&callbackURL=${encodeURIComponent('/')}`
-        return c.redirect(socialUrl)
-      }
-
-      // Fallback: show the sign-in picker page (e.g. direct browser visit)
-      return c.html(renderSignInPage(deps.env.API_SERVER_URL))
-    })
-
-    /**
-     * Auth routes are handled by the auth instance directly,
-     * Powered by better-auth.
-     * Rate limited by IP: 20 requests per minute.
-     */
-    .use('/api/auth/*', rateLimiter({
-      max: await deps.configKV.getOrThrow('AUTH_RATE_LIMIT_MAX'),
-      windowSec: await deps.configKV.getOrThrow('AUTH_RATE_LIMIT_WINDOW_SEC'),
-      keyGenerator: c => c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'unknown',
+    .route('/', await createAuthRoutes({
+      auth: deps.auth,
+      db: deps.db,
+      env: deps.env,
+      configKV: deps.configKV,
     }))
-    /**
-     * OIDC session bridge: exchanges an OIDC access token for a
-     * better-auth session token. Registered before the catch-all
-     * so the rate limiter above applies.
-     */
-    .route('/api/auth/oidc/session', createOIDCSessionRoute(deps.auth, deps.db, deps.env.OIDC_CLIENT_ID_ELECTRON ?? ''))
-    /**
-     * Electron OIDC callback relay: serves an HTML page that forwards the
-     * authorization code to the Electron loopback server via JS fetch().
-     * This avoids navigating the browser to http://127.0.0.1:{port}.
-     */
-    .route('/api/auth/oidc/electron-callback', createElectronCallbackRelay())
-    .on(['POST', 'GET'], '/api/auth/*', async (c) => {
-      return deps.auth.handler(c.req.raw) as Promise<Response>
-    })
 
     /**
      * Character routes are handled by the character service.

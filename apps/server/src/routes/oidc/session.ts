@@ -2,7 +2,7 @@ import type { Database } from '../../libs/db'
 import type { HonoEnv } from '../../types/hono'
 
 import { useLogger } from '@guiiai/logg'
-import { and, eq, gt } from 'drizzle-orm'
+import { and, eq, gt, inArray } from 'drizzle-orm'
 import { Hono } from 'hono'
 
 import { oauthAccessToken } from '../../schemas/accounts'
@@ -50,19 +50,19 @@ function evictExpiredEntries(): void {
  *
  * @param auth - The better-auth instance (typed as `any` due to TS2742)
  * @param db - Drizzle database instance
- * @param electronClientId - The OIDC client ID for the Electron app
+ * @param trustedClientIds - OIDC client IDs allowed to use the bridge (web, electron, pocket)
  */
 export function createOIDCSessionRoute(
   auth: any,
   db: Database,
-  electronClientId: string,
+  trustedClientIds: string[],
 ) {
   const logger = useLogger('oidc-session').useGlobalConfig()
 
   return new Hono<HonoEnv>()
     .post('/', async (c) => {
-      // If the Electron client ID is not configured, reject all requests
-      if (!electronClientId) {
+      // If no trusted client IDs are configured, reject all requests
+      if (trustedClientIds.length === 0) {
         throw createUnauthorizedError('Invalid or expired token')
       }
 
@@ -86,7 +86,7 @@ export function createOIDCSessionRoute(
       }
 
       // Look up the OIDC access token in the database.
-      // Only accept tokens issued to the Electron client that have not expired.
+      // Only accept tokens issued to a trusted client that have not expired.
       const now = new Date()
       const rows = await db
         .select({
@@ -96,7 +96,7 @@ export function createOIDCSessionRoute(
         .where(
           and(
             eq(oauthAccessToken.token, accessToken),
-            eq(oauthAccessToken.clientId, electronClientId),
+            inArray(oauthAccessToken.clientId, trustedClientIds),
             gt(oauthAccessToken.expiresAt, now),
           ),
         )

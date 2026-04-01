@@ -1,17 +1,27 @@
+// Regex patterns for escaping values in HTML/JS context
+const RE_BACKSLASH = /\\/g
+const RE_SINGLE_QUOTE = /'/g
+const RE_LT = /</g
+
 /**
  * Render a minimal sign-in page for the OIDC Provider flow.
  *
  * When the oidcProvider plugin redirects an unauthenticated user here,
- * they choose a social provider. After authentication, better-auth's
- * after-hook detects the pending OIDC authorization request (via the
- * `oidc_login_prompt` signed cookie) and auto-continues the flow.
+ * they choose a social provider. After authentication, the social
+ * callback redirects to callbackURL, which points back to the OIDC
+ * authorize endpoint so the authorization code flow can complete.
  *
  * NOTICE: better-auth's `/api/auth/sign-in/social` is a POST endpoint
  * that expects JSON body `{ provider, callbackURL }` and returns a
  * redirect URL in JSON. We use fetch + redirect in JS, not `<a>` tags.
  */
-export function renderSignInPage(baseUrl: string): string {
+export function renderSignInPage(baseUrl: string, callbackURL: string = '/'): string {
   const signInEndpoint = `${baseUrl}/api/auth/sign-in/social`
+  // Escape callbackURL for safe embedding in a JS string literal inside HTML
+  const escapedCallbackURL = callbackURL
+    .replace(RE_BACKSLASH, '\\\\')
+    .replace(RE_SINGLE_QUOTE, '\\\'')
+    .replace(RE_LT, '\\x3c')
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -106,7 +116,7 @@ export function renderSignInPage(baseUrl: string): string {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             provider: provider,
-            callbackURL: '/'
+            callbackURL: '${escapedCallbackURL}'
           }),
           credentials: 'include',
           redirect: 'manual'

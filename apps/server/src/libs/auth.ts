@@ -107,7 +107,7 @@ export async function seedTrustedClients(db: Database, env: Env): Promise<void> 
       clientSecret: seed.clientSecret,
       name: seed.name,
       type: seed.type,
-      redirectUris: seed.redirectUris.join(','),
+      redirectUris: seed.redirectUris,
       skipConsent: seed.skipConsent,
       disabled: false,
       createdAt: new Date(),
