@@ -109,8 +109,8 @@ import {
 */
 const props = withDefaults(defineProps<{
   currentAudioSource?: AudioBufferSourceNode
+  lastCommittedModelSrc?: string
   modelSrc?: string
-  loadReason: VrmLifecycleReason
   idleAnimation: string
   // loadAnimations?: string[]
   paused?: boolean
@@ -139,7 +139,7 @@ const props = withDefaults(defineProps<{
 */
 const emit = defineEmits<{
   (e: 'loadingProgress', value: number): void
-  (e: 'loadStart'): void
+  (e: 'loadStart', value: 'initial-load' | 'model-reload' | 'model-switch'): void
   (e: 'sceneBootstrap', value: SceneBootstrap): void
   (e: 'lookAtTarget', value: Vec3): void
 
@@ -149,8 +149,8 @@ const emit = defineEmits<{
 
 const {
   currentAudioSource,
+  lastCommittedModelSrc,
   modelSrc,
-  loadReason,
   idleAnimation,
   // loadAnimations, // TBC
   paused,
@@ -672,9 +672,19 @@ function buildSceneBootstrap(activeVrm: VRM, cacheHit: boolean): SceneBootstrap 
   }
 }
 
+function resolveVrmLoadReason(): 'initial-load' | 'model-reload' | 'model-switch' {
+  if (!lastCommittedModelSrc.value)
+    return 'initial-load'
+
+  if (lastCommittedModelSrc.value !== modelSrc.value)
+    return 'model-switch'
+
+  return 'model-reload'
+}
+
 async function loadModel() {
   const requestId = invalidatePendingLoads()
-  const currentLoadReason = loadReason.value
+  const currentLoadReason = resolveVrmLoadReason()
   const loadStartedAt = performance.now()
   let nextVrm: VRM | undefined
   let nextVrmGroup: Group | undefined
@@ -693,6 +703,8 @@ async function loadModel() {
       return
     }
 
+    emit('loadStart', currentLoadReason)
+
     if (isStageThreeRuntimeTraceEnabled()) {
       stageThreeRuntimeTraceContext.emit(stageThreeTraceVrmLoadStartEvent, {
         modelSrc: modelSrc.value,
@@ -703,7 +715,6 @@ async function loadModel() {
       })
     }
 
-    emit('loadStart')
     modelLoaded.value = false
     const reusableInstance = takeManagedVrmInstance(getManagedVrmScopeKey(), modelSrc.value)
     if (reusableInstance) {

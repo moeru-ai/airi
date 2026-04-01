@@ -345,22 +345,6 @@ function setScenePhaseWithTrace(phase: ScenePhase, cause: SceneTracePhaseCause) 
   setScenePhase(phase)
 }
 
-function resolveLoadTransactionReason(): SceneTraceTransactionReason {
-  if (!props.modelSrc)
-    return 'no-model'
-
-  if (activeModelSrc.value === props.modelSrc)
-    return 'subtree-remount'
-
-  if (!lastCommittedModelSrc.value)
-    return 'initial-load'
-
-  if (lastCommittedModelSrc.value !== props.modelSrc)
-    return 'model-switch'
-
-  return 'model-reload'
-}
-
 function commitLastCommittedModelSrc(expectedRevision: number, nextPhase: ScenePhase) {
   if (nextPhase !== 'mounted')
     return
@@ -381,19 +365,16 @@ function commitLastCommittedModelSrc(expectedRevision: number, nextPhase: SceneP
   clearPendingCommittedModel()
 }
 
-const resolvedVrmLoadReason = computed<VrmLifecycleReason>(() => {
-  switch (latestSceneTransactionReason.value) {
-    case 'component-unmount':
+function toSceneLoadTransactionReason(reason: VrmLifecycleReason): SceneTraceTransactionReason {
+  switch (reason) {
     case 'initial-load':
-    case 'model-switch':
-      return latestSceneTransactionReason.value
     case 'model-reload':
-    case 'subtree-remount':
-      return 'model-reload'
+    case 'model-switch':
+      return reason
     default:
-      return 'initial-load'
+      return 'unknown'
   }
-})
+}
 
 function resolveScenePhaseAfterBinding(): ScenePhase {
   if (!canvasReady.value)
@@ -458,10 +439,10 @@ const controlEnable = computed(() => {
     && scenePhase.value === 'mounted'
     && sceneTransactionDepth.value === 0
 })
-function onVRMModelLoadStart() {
+function onVRMModelLoadStart(reason: VrmLifecycleReason) {
   modelPhase.value = 'loading'
   pendingSceneBootstrap.value = undefined
-  beginSceneBindingCycle(resolveLoadTransactionReason())
+  beginSceneBindingCycle(toSceneLoadTransactionReason(reason))
 }
 
 function onVRMSceneBootstrap(value: SceneBootstrap) {
@@ -775,8 +756,8 @@ defineExpose({
       <VRMModel
         ref="modelRef"
         :current-audio-source="props.currentAudioSource"
+        :last-committed-model-src="lastCommittedModelSrc"
         :model-src="props.modelSrc"
-        :load-reason="resolvedVrmLoadReason"
         :idle-animation="props.idleAnimation"
         :paused="props.paused"
         :env-select="envSelect"
