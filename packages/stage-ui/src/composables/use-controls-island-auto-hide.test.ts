@@ -357,7 +357,7 @@ describe('useControlsIslandAutoHide', () => {
       const autoHideDelayMs = computed(() => autoHideDelay.value * 1000)
       const autoShowDelayMs = computed(() => autoShowDelay.value * 1000)
 
-      const { start: startOutside, stop: stopOutside } = useTimeoutFn(() => {}, () => autoHideDelayMs.value, { immediate: false })
+      const { stop: stopOutside } = useTimeoutFn(() => {}, () => autoHideDelayMs.value, { immediate: false })
 
       const { start: startInside, stop: stopInside } = useTimeoutFn(() => {
         isInsideDelayed.value = true
@@ -378,7 +378,6 @@ describe('useControlsIslandAutoHide', () => {
 
       // Initial: mouse outside, isHidden should be true (delay already passed)
       // Simulate that delay has passed for being outside
-      const isOutsideDelayed = ref(true)
       expect(isHidden.value).toBe(true)
 
       // Mouse enters (isOutside = false)
@@ -401,9 +400,6 @@ describe('useControlsIslandAutoHide', () => {
     it('should use 1500ms fallback when autoHideControlsIsland is false', () => {
       const autoHideControlsIsland = ref(false)
       const autoHideDelay = ref(0.5)
-      const isOutside = ref(true)
-      const isBlocked = ref(false)
-      const expanded = ref(false)
 
       const collapseDelayMs = computed(() =>
         autoHideControlsIsland.value ? autoHideDelay.value * 1000 : 1500,
@@ -453,7 +449,7 @@ describe('useControlsIslandAutoHide', () => {
       const isBlocked = ref(false)
       const expanded = ref(false)
 
-      const { stopAll, isOutsideDelayed, isInsideDelayed } = useControlsIslandAutoHide({
+      const { stopAll } = useControlsIslandAutoHide({
         autoHideControlsIsland: ref(true),
         autoHideDelay,
         autoShowDelay: ref(0.5),
