@@ -46,6 +46,7 @@ export interface VrmUpdateFrameTracePayload extends StageThreeRuntimeTraceBasePa
   nodeConstraintMs: number
   springBoneMs: number
   vrmFrameHookMs: number
+  vrmRuntimeHookMs: number
 }
 
 export type ThreeSceneTracePhase = 'pending' | 'loading' | 'binding' | 'mounted' | 'no-model' | 'error'

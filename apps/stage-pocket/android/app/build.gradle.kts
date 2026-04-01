@@ -1,5 +1,7 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
+import java.util.Properties
+
 val minSdkVersion: Int by rootProject.extra
 val compileSdkVersion: Int by rootProject.extra
 val targetSdkVersion: Int by rootProject.extra
@@ -13,6 +15,14 @@ val androidxEspressoCoreVersion: String by rootProject.extra
 val androidMinSdk = minSdkVersion
 val androidCompileSdk = compileSdkVersion
 val androidTargetSdk = targetSdkVersion
+val appVersionProperties = Properties().apply {
+    rootProject.file("app-version.properties").inputStream().use(::load)
+}
+val androidVersionName = appVersionProperties.getProperty("AIRI_VERSION_NAME")
+    ?: error("AIRI_VERSION_NAME is missing in android/app-version.properties")
+val androidVersionCode = appVersionProperties.getProperty("AIRI_VERSION_CODE")
+    ?.toIntOrNull()
+    ?: error("AIRI_VERSION_CODE is missing or invalid in android/app-version.properties")
 
 plugins {
     id("com.android.application")
@@ -27,8 +37,8 @@ android {
         applicationId = "ai.moeru.airi_pocket"
         minSdk = androidMinSdk
         targetSdk = androidTargetSdk
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = androidVersionCode
+        versionName = androidVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
