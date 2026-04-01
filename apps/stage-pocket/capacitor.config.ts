@@ -16,6 +16,16 @@ const config: CapacitorConfig = {
         cleartext: false,
       }
     : undefined,
+  android: {
+    buildOptions: {
+      keystorePath: env.CAPACITOR_ANDROID_KEYSTORE_PATH,
+      keystoreAlias: env.CAPACITOR_ANDROID_KEYSTORE_ALIAS,
+      keystorePassword: env.CAPACITOR_ANDROID_KEYSTORE_PASSWORD,
+      keystoreAliasPassword: env.CAPACITOR_ANDROID_KEYSTORE_ALIAS_PASSWORD,
+      releaseType: 'APK',
+      signingType: 'apksigner',
+    },
+  },
 }
 
 export default config
