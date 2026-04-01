@@ -145,6 +145,7 @@ Role:
   - treats ComfyUI `history.status=error` as `failed` instead of `done`
   - only sets `resultMediaId` and gallery `mediaId` when actual image output exists
   - now records explicit `executionStatus`, `errorType`, `errorNodeType`, `historySeenAt`, and `outputMediaId` metadata under `params.comfy`
+  - can automatically requeue known GPU kernel failures to `COMFYUI_FALLBACK_BASE_URL` when configured
 - `apps/server/src/services/nsfw-image-workflow.ts`
   - builds a default API-format ComfyUI workflow from prompt, negative prompt, aspect ratio, and checkpoint config
   - currently targets the locally present `ponyDiffusionV6.safetensors` checkpoint by default

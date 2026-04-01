@@ -56,8 +56,8 @@ export class JobStillRunningError extends Error {
 }
 
 export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, env: Env) {
-  async function fetchComfyHistory(promptId: string) {
-    const response = await fetch(new URL(`/history/${promptId}`, env.COMFYUI_BASE_URL))
+  async function fetchComfyHistory(promptId: string, baseUrl = env.COMFYUI_BASE_URL) {
+    const response = await fetch(new URL(`/history/${promptId}`, baseUrl))
     if (response.status === 404) {
       return null
     }
@@ -121,6 +121,27 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
     }
 
     return { state: 'running', errorMessage: null, errorType: null, nodeType: null }
+  }
+
+  function shouldRetryOnFallback(parsedStatus: ParsedComfyHistoryStatus, comfyMeta: Record<string, unknown>) {
+    if (!env.COMFYUI_FALLBACK_BASE_URL) {
+      return false
+    }
+
+    if (typeof comfyMeta.fallbackUsed === 'boolean' && comfyMeta.fallbackUsed) {
+      return false
+    }
+
+    const error = (parsedStatus.errorMessage ?? '').toLowerCase()
+    return error.includes('no kernel image is available for execution on the device')
+  }
+
+  function resolveComfyBaseUrl(comfyMeta: Record<string, unknown>) {
+    if (typeof comfyMeta.baseUrl === 'string' && comfyMeta.baseUrl) {
+      return comfyMeta.baseUrl
+    }
+
+    return env.COMFYUI_BASE_URL
   }
 
   function buildFailedComfyMeta(comfyMeta: Record<string, unknown>, input: {
@@ -235,9 +256,10 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
       const comfyMeta = getComfyMeta(job.params)
       const promptId = typeof comfyMeta.promptId === 'string' ? comfyMeta.promptId : job.id
       const clientId = typeof comfyMeta.clientId === 'string' ? comfyMeta.clientId : `airi-${job.userId}`
+      const comfyBaseUrl = resolveComfyBaseUrl(comfyMeta)
 
       if (job.status === 'running' || job.status === 'submitting') {
-        const history = await fetchComfyHistory(promptId)
+        const history = await fetchComfyHistory(promptId, comfyBaseUrl)
         if (!history) {
           if (isTimedOut(job.status, comfyMeta)) {
             const timeoutMs = job.status === 'submitting'
@@ -269,6 +291,26 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
         }
 
         if (parsedStatus.state === 'error') {
+          if (shouldRetryOnFallback(parsedStatus, comfyMeta)) {
+            await mediaService.updateImageJobStatus(jobId, 'queued', {
+              errorMessage: null,
+              params: {
+                ...job.params,
+                comfy: {
+                  ...comfyMeta,
+                  baseUrl: env.COMFYUI_FALLBACK_BASE_URL,
+                  fallbackUsed: true,
+                  fallbackReason: parsedStatus.errorMessage,
+                  fallbackQueuedAt: new Date().toISOString(),
+                  promptId: job.id,
+                  clientId,
+                },
+              },
+            })
+            logger.withFields({ jobId, promptId, fallbackBaseUrl: env.COMFYUI_FALLBACK_BASE_URL }).warn('Retrying image job on ComfyUI fallback host after GPU kernel failure')
+            return
+          }
+
           logger.withFields({ jobId, promptId, errorMessage: parsedStatus.errorMessage }).warn('Marking image job as failed from ComfyUI history status')
           await mediaService.updateImageJobStatus(jobId, 'failed', {
             errorMessage: parsedStatus.errorMessage,
@@ -337,6 +379,7 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
           workflow,
           comfy: {
             ...comfyMeta,
+            baseUrl: comfyBaseUrl,
             promptId,
             clientId,
             submittedAt: new Date().toISOString(),
@@ -344,7 +387,7 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
         },
       })
 
-      const submitResponse = await fetch(new URL('/prompt', env.COMFYUI_BASE_URL), {
+      const submitResponse = await fetch(new URL('/prompt', comfyBaseUrl), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -399,6 +442,7 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
               workflow: fallbackWorkflow,
               comfy: {
                 ...comfyMeta,
+                baseUrl: env.COMFYUI_FALLBACK_BASE_URL ?? comfyBaseUrl,
                 promptId: fallbackSubmission.prompt_id ?? promptId,
                 clientId,
                 queueNumber: fallbackSubmission.number,
@@ -409,7 +453,7 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
             },
           })
 
-          const fallbackHistory = await fetchComfyHistory(promptId)
+          const fallbackHistory = await fetchComfyHistory(promptId, env.COMFYUI_FALLBACK_BASE_URL ?? comfyBaseUrl)
           if (!fallbackHistory) {
             throw new JobStillRunningError(`ComfyUI job ${promptId} is still running`)
           }
@@ -492,6 +536,7 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
           ...job.params,
           comfy: {
             ...comfyMeta,
+            baseUrl: comfyBaseUrl,
             promptId: submission.prompt_id ?? promptId,
             clientId,
             queueNumber: submission.number,
@@ -502,7 +547,7 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
         },
       })
 
-      const history = await fetchComfyHistory(promptId)
+      const history = await fetchComfyHistory(promptId, comfyBaseUrl)
       if (!history) {
         throw new JobStillRunningError(`ComfyUI job ${promptId} is still running`)
       }
@@ -514,6 +559,26 @@ export function createNsfwImageConsumerHandler(mediaService: NsfwMediaService, e
       }
 
       if (parsedStatus.state === 'error') {
+        if (shouldRetryOnFallback(parsedStatus, comfyMeta)) {
+          await mediaService.updateImageJobStatus(jobId, 'queued', {
+            errorMessage: null,
+            params: {
+              ...job.params,
+              comfy: {
+                ...comfyMeta,
+                baseUrl: env.COMFYUI_FALLBACK_BASE_URL,
+                fallbackUsed: true,
+                fallbackReason: parsedStatus.errorMessage,
+                fallbackQueuedAt: new Date().toISOString(),
+                promptId: job.id,
+                clientId,
+              },
+            },
+          })
+          logger.withFields({ jobId, promptId, fallbackBaseUrl: env.COMFYUI_FALLBACK_BASE_URL }).warn('Retrying image job on ComfyUI fallback host after immediate GPU kernel failure')
+          return
+        }
+
         logger.withFields({ jobId, promptId, errorMessage: parsedStatus.errorMessage }).warn('Marking image job as failed from immediate ComfyUI history status')
         await mediaService.updateImageJobStatus(jobId, 'failed', {
           errorMessage: parsedStatus.errorMessage,

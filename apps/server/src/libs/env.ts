@@ -63,6 +63,7 @@ const EnvSchema = object({
   NSFW_IMAGE_EVENTS_BLOCK_MS: optionalIntegerFromString(5000, 'NSFW_IMAGE_EVENTS_BLOCK_MS', 1),
   NSFW_IMAGE_EVENTS_MIN_IDLE_MS: optionalIntegerFromString(30000, 'NSFW_IMAGE_EVENTS_MIN_IDLE_MS', 1),
   COMFYUI_BASE_URL: optional(string(), 'http://127.0.0.1:8188'),
+  COMFYUI_FALLBACK_BASE_URL: optional(string()),
   COMFYUI_DEFAULT_CHECKPOINT: optional(string(), 'ponyDiffusionV6.safetensors'),
   COMFYUI_DEFAULT_STEPS: optionalIntegerFromString(24, 'COMFYUI_DEFAULT_STEPS', 1),
   COMFYUI_DEFAULT_CFG: optionalNumberFromString(8, 'COMFYUI_DEFAULT_CFG', 1, 30),
