@@ -27,6 +27,7 @@ interface Props {
   listClass?: string
   allowCustom?: boolean
   customOptionDescription?: string
+  expandedClass?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -105,7 +106,12 @@ function updateCustomValue(value: string) {
 </script>
 
 <template>
-  <div class="radio-card-detail-many-select">
+  <div
+    :class="[
+      'radio-card-detail-many-select',
+      isListExpanded ? props.expandedClass : '',
+    ]"
+  >
     <!-- Search bar -->
     <div v-if="searchable" class="relative" inline-flex="~" w-full items-center>
       <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -154,7 +160,7 @@ function updateCustomValue(value: string) {
                 : props.listClass
               )
               : isListExpanded
-                ? ['max-h-[calc(100dvh-7lh)] overflow-y-auto']
+                ? ['max-h-[calc(100dvh-22lh)] overflow-y-auto'] // TODO: hardcoded 22lh doesn't work in many hearing/vision components
                 : []
             ),
           ]"
@@ -195,6 +201,7 @@ function updateCustomValue(value: string) {
             flex items-center justify-center gap-2 rounded-lg py-2 transition="all duration-200 ease-in-out"
             :class="[
               isListExpanded ? 'bg-primary-500 hover:bg-primary-600 text-white' : 'bg-white dark:bg-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-800',
+              isListExpanded ? 'absolute bottom--14' : '',
             ]"
             @click="isListExpanded = !isListExpanded"
           >

@@ -19,6 +19,13 @@ import type {
 } from 'three'
 import type { Ref, WatchStopHandle } from 'vue'
 
+import type {
+  VrmDisposeHookContext,
+  VrmFrameHookContext,
+  VrmHook,
+  VrmLoadHookContext,
+  VrmMaterialHookContext,
+} from '../../composables/vrm/hooks'
 import type { SceneBootstrap, Vec3 } from '../../stores/model-store'
 import type { VrmLifecycleReason } from '../../trace'
 import type { ManagedVrmInstance } from './vrm-instance-cache'
@@ -69,6 +76,7 @@ import {
 } from '../../composables/vrm/animation'
 import { loadVrm } from '../../composables/vrm/core'
 import { useVRMEmote } from '../../composables/vrm/expression'
+import { resolveInternalVrmHooks } from '../../composables/vrm/internal-hooks'
 import { useVRMLipSync } from '../../composables/vrm/lip-sync'
 import {
   createThreeRendererMemorySnapshot,
@@ -177,8 +185,9 @@ let stopCameraWatch: WatchStopHandle | undefined
 const vrmAnimationMixer = ref<AnimationMixer>()
 const { onBeforeRender, stop, start } = useLoop()
 
-type VrmFrameHook = (vrm: VRM, delta: number) => void
-const vrmFrameHook = shallowRef<VrmFrameHook>()
+const vrmHooks: readonly VrmHook[] = resolveInternalVrmHooks()
+type VrmFrameRuntimeHook = (vrm: VRM, delta: number) => void
+const vrmFrameRuntimeHook = shallowRef<VrmFrameRuntimeHook>()
 let disposeBeforeRenderLoop: (() => void | undefined) | undefined
 
 // material type with optional update function for per-frame update, used for three-vrm's MToon material and custom shader materials with IBL injection
@@ -254,9 +263,8 @@ function isLoadRequestCurrent(requestId: number) {
 function disposeDetachedVrm(detachedVrm?: VRM, detachedGroup?: Group) {
   detachedGroup?.removeFromParent()
 
-  if (detachedVrm) {
+  if (detachedVrm)
     VRMUtils.deepDispose(detachedVrm.scene as unknown as Object3D)
-  }
 }
 
 function detachVrmGroup(detachedGroup?: Group) {
@@ -339,6 +347,72 @@ function updateManagedVrmMaterials(activeVrm: VRM | undefined, delta: number) {
   })
 }
 
+function runVrmLoadHooks(context: VrmLoadHookContext) {
+  for (const hook of vrmHooks) {
+    hook.onLoad?.(context)
+  }
+}
+
+function runVrmMaterialHooks(context: VrmMaterialHookContext) {
+  for (const hook of vrmHooks) {
+    hook.onMaterial?.(context)
+  }
+}
+
+function runVrmFrameHooks(context: VrmFrameHookContext) {
+  for (const hook of vrmHooks) {
+    try {
+      hook.onFrame?.(context)
+    }
+    catch (error) {
+      console.error(error)
+      emit('error', error)
+    }
+  }
+}
+
+function runVrmFrameRuntimeHook(vrm: VRM, delta: number) {
+  try {
+    vrmFrameRuntimeHook.value?.(vrm, delta)
+  }
+  catch (error) {
+    console.error(error)
+    emit('error', error)
+  }
+}
+
+function runVrmDisposeHooks(context: VrmDisposeHookContext) {
+  for (const hook of vrmHooks) {
+    try {
+      hook.onDispose?.(context)
+    }
+    catch (error) {
+      console.error(error)
+      emit('error', error)
+    }
+  }
+}
+
+function runVrmDisposeHooksForInstance(instance: ManagedVrmInstance | undefined, reason: VrmLifecycleReason) {
+  if (!instance)
+    return
+
+  runVrmDisposeHooks({
+    camera: camera.value,
+    reason,
+    vrm: instance.vrm,
+    vrmGroup: instance.group,
+  })
+}
+
+function destroyManagedVrmInstanceWithHooks(instance: ManagedVrmInstance | undefined, reason: VrmLifecycleReason) {
+  if (!instance)
+    return
+
+  runVrmDisposeHooksForInstance(instance, reason)
+  destroyManagedVrmInstance(instance)
+}
+
 function bindManagedVrmInstanceRenderLoop() {
   disposeBeforeRenderLoop?.()
 
@@ -354,17 +428,21 @@ function bindManagedVrmInstanceRenderLoop() {
       vrmAnimationMixer.value?.update(delta)
     })
     const activeVrm = vrm.value
+    const activeVrmGroup = vrmGroup.value
     updateManagedVrmMaterials(activeVrm, delta)
     const vrmFrameHookMs = measureFrameStep(tracingEnabled, () => {
-      if (activeVrm && vrmFrameHook.value) {
-        try {
-          vrmFrameHook.value(activeVrm, delta)
-        }
-        catch (err) {
-          console.error(err)
-          emit('error', err)
-        }
+      if (activeVrm && activeVrmGroup) {
+        runVrmFrameHooks({
+          camera: camera.value,
+          delta,
+          vrm: activeVrm,
+          vrmGroup: activeVrmGroup,
+        })
       }
+    })
+    const vrmRuntimeHookMs = measureFrameStep(tracingEnabled, () => {
+      if (activeVrm)
+        runVrmFrameRuntimeHook(activeVrm, delta)
     })
     const humanoidMs = measureFrameStep(tracingEnabled, () => {
       activeVrm?.humanoid.update()
@@ -407,6 +485,7 @@ function bindManagedVrmInstanceRenderLoop() {
         springBoneMs,
         ts: traceStart,
         vrmFrameHookMs,
+        vrmRuntimeHookMs,
       })
     }
   }).off
@@ -431,8 +510,9 @@ function componentCleanUp(
 
   const startedAt = performance.now()
   const activeInstance = getActiveManagedVrmInstance()
-  const rendererInstance = getRendererInstance()
   const shouldDestroyResources = shouldDestroyVrmResources(reason)
+  const clearedInstance = shouldDestroyResources ? clearManagedVrmInstance(getManagedVrmScopeKey()) : undefined
+  const rendererInstance = getRendererInstance()
   const hasCleanupWork = !!disposeBeforeRenderLoop
     || !!activeInstance
     || !!airiIblProbe
@@ -454,14 +534,14 @@ function componentCleanUp(
     detachVrmGroup(activeInstance.group)
 
   if (shouldDestroyResources) {
-    destroyManagedVrmInstance(activeInstance)
-    destroyManagedVrmInstance(clearManagedVrmInstance(getManagedVrmScopeKey()))
+    destroyManagedVrmInstanceWithHooks(activeInstance, reason)
+    destroyManagedVrmInstanceWithHooks(clearedInstance, reason)
   }
   else if (shouldStashVrmResources(reason)) {
-    destroyManagedVrmInstance(activeInstance ? stashManagedVrmInstance(activeInstance) : undefined)
+    destroyManagedVrmInstanceWithHooks(activeInstance ? stashManagedVrmInstance(activeInstance) : undefined, reason)
   }
   else {
-    destroyManagedVrmInstance(activeInstance)
+    destroyManagedVrmInstanceWithHooks(activeInstance, reason)
   }
 
   airiIblProbe?.dispose()
@@ -621,13 +701,18 @@ async function loadModel() {
     const reusableInstance = takeManagedVrmInstance(getManagedVrmScopeKey(), modelSrc.value)
     if (reusableInstance) {
       if (!isManagedVrmInstanceReusable(reusableInstance)) {
-        destroyManagedVrmInstance(reusableInstance)
+        destroyManagedVrmInstanceWithHooks(reusableInstance, loadReason)
       }
       else {
         if (!isLoadRequestCurrent(requestId)) {
-          destroyManagedVrmInstance(stashManagedVrmInstance(reusableInstance))
+          destroyManagedVrmInstanceWithHooks(stashManagedVrmInstance(reusableInstance), loadReason)
           return
         }
+
+        nextVrm = reusableInstance.vrm
+        nextVrmGroup = reusableInstance.group
+        nextVrmAnimationMixer = reusableInstance.mixer
+        nextVrmEmote = reusableInstance.emote
 
         if (!airiIblProbe && scene.value)
           airiIblProbe = createIblProbeController(scene.value)
@@ -636,6 +721,13 @@ async function loadModel() {
           componentCleanUp('model-switch', { invalidate: false })
         }
 
+        runVrmLoadHooks({
+          cacheHit: true,
+          camera: camera.value,
+          reason: loadReason,
+          vrm: reusableInstance.vrm,
+          vrmGroup: reusableInstance.group,
+        })
         emit('sceneBootstrap', buildSceneBootstrap(reusableInstance.vrm, true))
         commitManagedVrmInstance(reusableInstance)
         didCommitLoad = true
@@ -680,6 +772,14 @@ async function loadModel() {
       disposeDetachedVrm(nextVrm, nextVrmGroup)
       return
     }
+
+    runVrmLoadHooks({
+      cacheHit: false,
+      camera: camera.value,
+      reason: loadReason,
+      vrm: _vrm,
+      vrmGroup: _vrmGroup,
+    })
 
     /*
       * Animation setting
@@ -740,7 +840,7 @@ async function loadModel() {
     _vrm.scene.traverse((child) => {
       if (child instanceof Mesh && child.material) {
         const material = Array.isArray(child.material) ? child.material : [child.material]
-        material.forEach((mat) => {
+        material.forEach((mat, materialIndex) => {
           if (mat instanceof MeshStandardMaterial || mat instanceof MeshPhysicalMaterial) {
             // Should read envMap intensity from outside props
             mat.envMapIntensity = 1.0
@@ -759,6 +859,16 @@ async function loadModel() {
             // Lilia: I plan to replace all injected shader code to be my own, so that it can always avoid double injection and unknown user upload VRM injected shader behaviour...
             configureInjectedShaderMaterial(mat)
           }
+
+          runVrmMaterialHooks({
+            camera: camera.value,
+            material: mat,
+            materialIndex,
+            mesh: child,
+            reason: loadReason,
+            vrm: _vrm,
+            vrmGroup: _vrmGroup,
+          })
         })
       }
     })
@@ -790,6 +900,16 @@ async function loadModel() {
   }
   catch (err) {
     if (!didCommitLoad) {
+      if (nextVrm && nextVrmGroup) {
+        runVrmDisposeHooks({
+          camera: camera.value,
+          reason: loadReason,
+          vrm: nextVrm,
+          vrmGroup: nextVrmGroup,
+        })
+      }
+
+      nextVrmEmote?.dispose()
       nextVrmAnimationMixer?.stopAllAction()
       disposeDetachedVrm(nextVrm, nextVrmGroup)
     }
@@ -928,8 +1048,11 @@ defineExpose({
   setExpression(expression: string, intensity = 1) {
     vrmEmote.value?.setEmotionWithResetAfter(expression, 3000, intensity)
   },
-  setVrmFrameHook(hook?: VrmFrameHook) {
-    vrmFrameHook.value = hook
+  // NOTICE: This runtime frame hook is intentionally separate from internal VRM model hooks.
+  // External callers use it for live pose/tracking input; internal hooks remain reserved for
+  // stage-ui-three's own model/material lifecycle extensions.
+  setVrmFrameHook(hook?: VrmFrameRuntimeHook) {
+    vrmFrameRuntimeHook.value = hook
   },
   scene: computed(() => vrm.value?.scene),
   lookAtUpdate(target: Vec3) {

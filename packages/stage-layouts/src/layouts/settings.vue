@@ -90,10 +90,9 @@ onMounted(() => updateThemeColor())
     <!-- Content -->
     <div
       :class="[
-        'px-3 py-0 md:py-0 xl:px-4',
-        '2xl:max-w-screen-2xl',
-        'flex flex-col',
-        'mx-auto min-h-0 w-full flex-1',
+        'px-3 py-0 2xl:max-w-screen-2xl md:py-0 xl:px-4',
+        isStageTamagotchi() ? 'sm:max-h-[calc(100%)] max-h-[calc(100%)]' : 'sm:max-h-[calc(100%-56px)] max-h-[calc(100%-40px)]',
+        'flex flex-col mx-auto h-full min-h-0',
       ]"
     >
       <PageHeader

@@ -78,6 +78,7 @@ const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapab
 const listMcpTools = useElectronEventaInvoke(electronMcpListTools)
 const callMcpTool = useElectronEventaInvoke(electronMcpCallTool)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
+const isChatWindowRoute = () => route.path === '/chat'
 
 // NOTICE: register plugin host bridge during setup to avoid race with pages using it in immediate watchers.
 pluginHostInspectorStore.setBridge({
@@ -130,9 +131,11 @@ onMounted(async () => {
   serverChannelSettingsStore.websocketTlsConfig = serverChannelConfig.tlsConfig
 
   await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
-  await contextBridgeStore.initialize()
-  characterOrchestratorStore.initialize()
-  await startTrackingCursorPoint()
+  if (!isChatWindowRoute()) {
+    contextBridgeStore.initialize()
+    characterOrchestratorStore.initialize()
+    await startTrackingCursorPoint()
+  }
 
   // Expose stage provider definitions to plugin host APIs.
   defineInvokeHandler(context.value, pluginProtocolListProviders, async () => listProvidersForPluginHost())
@@ -157,7 +160,9 @@ watch(themeColorsHueDynamic, () => {
 }, { immediate: true })
 
 onUnmounted(() => {
-  contextBridgeStore.dispose()
+  if (!isChatWindowRoute()) {
+    contextBridgeStore.dispose()
+  }
   clearMcpToolBridge()
 })
 </script>

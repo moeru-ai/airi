@@ -53,15 +53,15 @@ const latestPoseTargets = ref<VrmPoseTargets>()
 const prevPoseTargets = ref<VrmPoseTargets>()
 const prevPoseForward = ref<Vector3Like>()
 
-// VRM pose applier
 const vrmPoseApplier = createVrmPoseApplier({ alpha: 1 })
 function onVrmFrame(vrm: Parameters<typeof vrmPoseApplier.applyPoseDirectionsToVrm>[0]) {
   const targets = latestPoseTargets.value
   if (!targets)
     return
+
   vrmPoseApplier.applyPoseTargetsToVrm(vrm, targets)
 }
-const vrmFrameHook = (vrm: Parameters<typeof vrmPoseApplier.applyPoseDirectionsToVrm>[0]) => onVrmFrame(vrm)
+const vrmFrameHook = (vrm: Parameters<typeof vrmPoseApplier.applyPoseDirectionsToVrm>[0], _delta: number) => onVrmFrame(vrm)
 
 const settingsStore = useSettings()
 const { stageModelRenderer, stageModelSelected, stageModelSelectedUrl, stageViewControlsEnabled } = storeToRefs(settingsStore)

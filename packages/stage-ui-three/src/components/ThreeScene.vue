@@ -125,7 +125,10 @@ const {
   multisampling,
 } = storeToRefs(modelStore)
 
+type VrmFrameRuntimeHook = (vrm: VRM, delta: number) => void
+
 const modelRef = ref<InstanceType<typeof VRMModel>>()
+const vrmFrameRuntimeHook = shallowRef<VrmFrameRuntimeHook>()
 
 const camera = shallowRef(new PerspectiveCamera())
 const controlsRef = shallowRef<InstanceType<typeof OrbitControls>>()
@@ -487,11 +490,9 @@ const effectProps = {
   blendFunction: BlendFunction.SRC,
 }
 
-const vrmFrameHook = shallowRef<((vrm: VRM, delta: number) => void) | undefined>(undefined)
-function applyVrmFrameHook() {
-  modelRef.value?.setVrmFrameHook(vrmFrameHook.value)
+function applyVrmFrameRuntimeHook() {
+  modelRef.value?.setVrmFrameHook(vrmFrameRuntimeHook.value)
 }
-watch(modelRef, () => applyVrmFrameHook(), { immediate: true })
 
 watch(() => props.modelSrc, (modelSrc) => {
   modelPhase.value = modelSrc ? 'loading' : 'no-model'
@@ -509,6 +510,9 @@ watch(() => props.modelSrc, (modelSrc) => {
 watch(modelRef, (next, prev) => {
   if (!prev && next)
     emitSceneSubtreeTrace('modelRef', 'attached')
+
+  if (next)
+    applyVrmFrameRuntimeHook()
 
   if (prev && !next) {
     emitSceneSubtreeTrace('modelRef', 'detached')
@@ -628,9 +632,12 @@ defineExpose({
   setExpression: (expression: string, intensity = 1) => {
     modelRef.value?.setExpression(expression, intensity)
   },
-  setVrmFrameHook: (hook?: (vrm: VRM, delta: number) => void) => {
-    vrmFrameHook.value = hook
-    applyVrmFrameHook()
+  // NOTICE: External runtime hooks are intentionally separate from internal VRM model hooks.
+  // This public frame hook is reserved for live pose/tracking input and is forwarded to VRMModel
+  // without exposing the internal model/material lifecycle hook pipeline.
+  setVrmFrameHook: (hook?: VrmFrameRuntimeHook) => {
+    vrmFrameRuntimeHook.value = hook
+    applyVrmFrameRuntimeHook()
   },
   canvasElement: () => {
     return tresCanvasRef.value?.renderer.instance.domElement

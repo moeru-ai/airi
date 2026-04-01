@@ -4,6 +4,9 @@ category: DevLog
 date: 2026-03-29
 excerpt: |
   我们应该如何在 Godot 中嵌入 WebView？关于 AIRI 改用 Godot 引擎进行场景渲染但是依然用 Web 技术来实现 UI 和逻辑。
+preview-cover:
+  light: "@assets('./assets/cover-light.avif')"
+  dark: "@assets('./assets/cover-dark.avif')"
 ---
 
 欢迎回来，这里是 [@LemonNekoGH](https://github.com/LemonNekoGH)，AIRI 维护者之一，距离柠猫的上一篇 DevLog 已经过去一个月了，这段时间里又整了一点点小活，今天就来和大家分享一下。
