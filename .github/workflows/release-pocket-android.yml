@@ -62,13 +62,13 @@ jobs:
         run: pnpm -F @proj-airi/stage-pocket exec cap sync android
 
       - name: Extract android keystore
-        run: echo "${{ secrets.CAPACITOR_ANDROID_KEYSTORE_BASE64 }}" | base64 -d > ${{ env.GITHUB_WORKSPACE }}/apps/stage-pocket/airi-pocket.jks
+        run: echo "${{ secrets.CAPACITOR_ANDROID_KEYSTORE_BASE64 }}" | base64 -d > ${{ github.workspace }}/apps/stage-pocket/airi-pocket.jks
 
       - name: Build APK
         working-directory: apps/stage-pocket/android
         run: pnpm -F @proj-airi/stage-pocket exec cap build android
         env:
-          CAPACITOR_ANDROID_KEYSTORE_PATH: ${{ env.GITHUB_WORKSPACE }}/apps/stage-pocket/airi-pocket.jks
+          CAPACITOR_ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/apps/stage-pocket/airi-pocket.jks
           CAPACITOR_ANDROID_KEYSTORE_ALIAS: ${{ secrets.CAPACITOR_ANDROID_KEYSTORE_ALIAS }}
           CAPACITOR_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.CAPACITOR_ANDROID_KEYSTORE_PASSWORD }}
           CAPACITOR_ANDROID_KEYSTORE_ALIAS_PASSWORD: ${{ secrets.CAPACITOR_ANDROID_KEYSTORE_ALIAS_PASSWORD }}
