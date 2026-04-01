@@ -19,8 +19,10 @@ overrides:
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
+
 patchedDependencies:
   '@mediapipe/tasks-vision': patches/@mediapipe__tasks-vision.patch
+  crossws@0.4.4: patches/crossws@0.4.4.patch
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
   mineflayer@4.33.0: patches/mineflayer@4.33.0.patch
   pixi-live2d-display: patches/pixi-live2d-display.patch
@@ -154,7 +156,6 @@ onlyBuiltDependencies:
   - spawn-sync
   - utf-8-validate
   - vue-demi
-
 packageExtensions:
   '@formkit/auto-animate':
     peerDependencies:
