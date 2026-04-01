@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
-import { useControlsIslandAutohide, useControlsIslandCollapse } from '@proj-airi/stage-ui/composables'
+import { useControlsIslandAutoHide, useControlsIslandCollapse } from '@proj-airi/stage-ui/composables'
 import { useSettings, useSettingsAudioDevice, useSettingsControlsIsland } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -63,7 +63,7 @@ defineExpose({
 const { isOutside } = useElectronMouseInElement(islandRef)
 
 // Auto-hide / Auto-show behavior
-const { isHidden, hiddenOpacity } = useControlsIslandAutohide({
+const { isHidden, hiddenOpacity } = useControlsIslandAutoHide({
   autoHideControlsIsland,
   autoHideDelay,
   autoShowDelay,

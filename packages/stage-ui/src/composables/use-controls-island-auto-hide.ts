@@ -3,7 +3,7 @@ import type { Ref } from 'vue'
 import { useTimeoutFn } from '@vueuse/core'
 import { computed, ref, watch } from 'vue'
 
-export interface UseControlsIslandAutohideOptions {
+export interface UseControlsIslandAutoHideOptions {
   /** Whether auto-hide is enabled */
   autoHideControlsIsland: Ref<boolean>
   /** Delay in seconds before hiding when mouse leaves */
@@ -20,7 +20,7 @@ export interface UseControlsIslandAutohideOptions {
   expanded: Ref<boolean>
 }
 
-export interface UseControlsIslandAutohideReturn {
+export interface UseControlsIslandAutoHideReturn {
   /** Delayed state: true after mouse has been outside for configured delay */
   isOutsideDelayed: Ref<boolean>
   /** Delayed state: true after mouse has been inside for configured delay */
@@ -37,7 +37,7 @@ export interface UseControlsIslandAutohideReturn {
  * Composable for controls island auto-hide/show behavior.
  * Handles delayed hide/show based on mouse position and configurable delays.
  */
-export function useControlsIslandAutohide(options: UseControlsIslandAutohideOptions): UseControlsIslandAutohideReturn {
+export function useControlsIslandAutoHide(options: UseControlsIslandAutoHideOptions): UseControlsIslandAutoHideReturn {
   const { autoHideControlsIsland, autoHideDelay, autoShowDelay, autoHideOpacity, isOutside, isBlocked, expanded } = options
 
   // Delayed states that respond to both value AND delay configuration changes
