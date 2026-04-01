@@ -15,14 +15,16 @@ const { needsLogin, isAuthenticated } = storeToRefs(authStore)
 const onboardingStore = useOnboardingStore()
 const { isDark } = useTheme()
 const startLogin = useElectronEventaInvoke(electronAuthStartLogin)
+const closeWindow = useElectronEventaInvoke(electronOnboardingClose)
 
 // The onboarding window is a separate Electron process with its own Pinia instance.
 // When step-welcome sets needsLogin=true, we must invoke the IPC login from here
 // since the controls-island watcher only exists in the main window.
-watch(needsLogin, (val) => {
+watch(needsLogin, async (val) => {
   if (val && !isAuthenticated.value) {
-    startLogin()
+    await startLogin()
     needsLogin.value = false
+    await closeWindow()
   }
 })
 
@@ -32,8 +34,6 @@ const extraSteps = computed(() => {
     ? [{ id: 'analytics-notice', component: OnboardingStepAnalyticsNotice }]
     : []
 })
-
-const closeWindow = useElectronEventaInvoke(electronOnboardingClose)
 
 async function handleSkipped() {
   onboardingStore.markSetupSkipped()

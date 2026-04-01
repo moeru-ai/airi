@@ -30,6 +30,19 @@ const OIDC_TOKEN_PATH = '/api/auth/oauth2/token'
 // Active loopback server cleanup handle
 let closeLoopback: (() => void) | null = null
 let loginInFlight = false
+const authContexts = new Set<MainContext>()
+
+function emitAuthCallback(tokens: TokenExchangeResult): void {
+  for (const context of authContexts) {
+    context.emit(electronAuthCallback, tokens)
+  }
+}
+
+function emitAuthError(error: string): void {
+  for (const context of authContexts) {
+    context.emit(electronAuthCallbackError, { error })
+  }
+}
 
 /**
  * Create the auth service IPC handlers for a given window context.
@@ -38,6 +51,11 @@ export function createAuthService(params: {
   context: MainContext
   window: BrowserWindow
 }): void {
+  authContexts.add(params.context)
+  params.window.on('closed', () => {
+    authContexts.delete(params.context)
+  })
+
   defineInvokeHandler(params.context, electronAuthStartLogin, async (_, options) => {
     if (params.window.webContents.id !== options?.raw.ipcMainEvent.sender.id) {
       return
@@ -90,17 +108,17 @@ export function createAuthService(params: {
         .then(async ({ code, state: returnedState }) => {
           if (returnedState !== state) {
             log.warn('State mismatch — possible CSRF attack')
-            params.context.emit(electronAuthCallbackError, { error: 'State mismatch' })
+            emitAuthError('State mismatch')
             return
           }
 
           const tokens = await exchangeCode(code, codeVerifier, redirectUri)
-          params.context.emit(electronAuthCallback, tokens)
+          emitAuthCallback(tokens)
           log.log('OIDC token exchange successful')
         })
         .catch((err) => {
           log.withError(err).error('OIDC login failed')
-          params.context.emit(electronAuthCallbackError, { error: errorMessageFrom(err) ?? 'OIDC login failed' })
+          emitAuthError(errorMessageFrom(err) ?? 'OIDC login failed')
         })
         .finally(() => {
           closeLoopback = null
@@ -111,7 +129,7 @@ export function createAuthService(params: {
       closeLoopback = null
       loginInFlight = false
       log.withError(err).error('Failed to start OIDC login flow')
-      params.context.emit(electronAuthCallbackError, { error: errorMessageFrom(err) ?? 'OIDC login failed' })
+      emitAuthError(errorMessageFrom(err) ?? 'OIDC login failed')
     }
   })
 
