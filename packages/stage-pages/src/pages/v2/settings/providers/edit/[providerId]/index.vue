@@ -3,6 +3,9 @@ import type { ProviderValidationStep } from '@proj-airi/stage-ui/libs'
 import type { ZodType } from 'zod'
 import type { $ZodType } from 'zod/v4/core'
 
+// TODO: https://developer.mozilla.org/en-US/docs/Web/API/HTML_Sanitizer_API
+import DOMPurify from 'dompurify'
+
 import { merge } from '@moeru/std'
 import {
   Alert,
@@ -68,6 +71,10 @@ const hasValidationFailures = computed(() => validationSteps.value.some(step => 
 const isOllamaProvider = computed(() => providerDefinition.value?.id === 'ollama')
 const shouldShowTroubleshootingOllamaConnectivity = computed(() => {
   return isOllamaProvider.value && validationSteps.value.some(step => step.id === 'openai-compatible:check-connectivity' && step.status === 'invalid')
+})
+const safeOllamaConnectivityTroubleshootingHtml = computed(() => {
+  const content = providerDefinition.value?.business?.({ t }).troubleshooting?.validators?.openaiCompatibleCheckConnectivity?.content
+  return DOMPurify.sanitize(content || '')
 })
 
 function getSchemaShape(schema: $ZodType): Record<string, ZodType> {
@@ -481,7 +488,7 @@ function handleDeleteProvider() {
               v-if="shouldShowTroubleshootingOllamaConnectivity && providerDefinition.business?.({ t }).troubleshooting?.validators?.openaiCompatibleCheckConnectivity"
               :label="providerDefinition.business?.({ t }).troubleshooting?.validators?.openaiCompatibleCheckConnectivity?.label"
             >
-              <div v-html="providerDefinition.business?.({ t }).troubleshooting?.validators?.openaiCompatibleCheckConnectivity?.content" />
+              <div v-html="safeOllamaConnectivityTroubleshootingHtml" />
             </Callout>
 
             <div :class="['flex', 'items-center', 'justify-between']">
