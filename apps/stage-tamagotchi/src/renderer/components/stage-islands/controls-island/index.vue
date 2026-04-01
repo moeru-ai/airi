@@ -144,7 +144,7 @@ function refreshWindow() {
 <template>
   <div
     ref="islandRef"
-    fixed bottom-2 right-2 bg-red
+    fixed bottom-2 right-2
     :style="autoHideControlsIsland ? { opacity: isHidden ? hiddenOpacity : 1 } : {}"
     :class="[
       autoHideControlsIsland ? 'transition-opacity duration-300' : '',
