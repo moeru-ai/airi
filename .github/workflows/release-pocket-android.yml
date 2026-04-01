@@ -113,3 +113,13 @@ jobs:
           files: apps/stage-pocket/android/bundle/${{ env.APK_NAME }}
           append_body: true
           tag_name: ${{ github.event.release.tag_name || inputs.tag }}
+
+      - name: Setup butler
+        uses: remarkablegames/setup-butler@v2
+
+      # https://itch.io/docs/butler/pushing.html
+      - name: Upload Android to itch.io
+        if: ${{ github.event_name == 'release' }}
+        run: butler push apps/stage-pocket/bundle/${{ env.BUNDLE_NAME }} nekomeowww/airi:android --userversion ${{ env.VERSION }}
+        env:
+          BUTLER_API_KEY: ${{ secrets.GAME_PUBLISHING_ITCHIO }}
