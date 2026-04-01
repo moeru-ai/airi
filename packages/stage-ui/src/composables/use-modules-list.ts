@@ -41,6 +41,8 @@ export function useModulesList() {
   const factorioStore = useFactorioStore()
   const beatSyncState = ref<BeatSyncDetectorState>()
 
+  minecraftStore.initialize()
+
   const modulesList = computed<Module[]>(() => [
     {
       id: 'consciousness',

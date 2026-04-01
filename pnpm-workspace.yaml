@@ -19,7 +19,6 @@ overrides:
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
-
 patchedDependencies:
   '@mediapipe/tasks-vision': patches/@mediapipe__tasks-vision.patch
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
@@ -91,6 +90,7 @@ catalog:
   idb-keyval: ^6.2.2
   injeca: ^0.1.8
   is-network-error: ^1.3.1
+  isolated-vm: ^6.1.2
   knip: ^6.0.4
   mkcert: ^3.2.0
   nano-staged: ^0.9.0
@@ -145,6 +145,7 @@ onlyBuiltDependencies:
   - es5-ext
   - esbuild
   - ffmpeg-static
+  - isolated-vm
   - less
   - msw
   - onnxruntime-node
@@ -153,6 +154,7 @@ onlyBuiltDependencies:
   - spawn-sync
   - utf-8-validate
   - vue-demi
+
 packageExtensions:
   '@formkit/auto-animate':
     peerDependencies:

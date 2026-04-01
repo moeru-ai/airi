@@ -146,7 +146,7 @@ describe('brain no-action follow-up', () => {
     const result = brain.forgetConversation()
 
     expect(result.ok).toBe(true)
-    expect(result.cleared).toEqual(['conversationHistory', 'lastLlmInputSnapshot', 'contextHistory'])
+    expect(result.cleared).toEqual(['conversationHistory', 'lastLlmInputSnapshot'])
     expect(brain.conversationHistory).toEqual([])
     expect(brain.lastLlmInputSnapshot).toBeNull()
     expect(brain.llmLogEntries).toHaveLength(1)
@@ -285,22 +285,19 @@ inv;
     expect(enqueueSpy).not.toHaveBeenCalled()
   })
 
-  it('uses attempt timeout guard so hanging llm call cannot stall processEvent', async () => {
+  it('does not pass a timeout to llmAgent calls', async () => {
     const deps: any = createDeps('await chat("hi")')
-    deps.llmAgent.callLLM = vi.fn(async () => await new Promise(() => {}))
+    deps.llmAgent.callLLM = vi.fn(async () => ({
+      text: 'await chat("hi")',
+      usage: {},
+    }))
     const brain: any = new Brain(deps)
-    brain.llmAttemptTimeoutMs = 25
-    brain.llmTurnDeadlineMs = 80
 
-    const outcome = await Promise.race([
-      brain.processEvent({} as any, createPerceptionEvent()).then(() => 'done'),
-      new Promise(resolve => setTimeout(resolve, 350, 'timeout')),
-    ])
+    await brain.processEvent({} as any, createPerceptionEvent())
 
-    expect(outcome).toBe('done')
     expect(deps.llmAgent.callLLM).toHaveBeenCalledTimes(1)
     const llmCallOptions = deps.llmAgent.callLLM.mock.calls[0]?.[0]
-    expect(typeof llmCallOptions?.timeoutMs).toBe('number')
+    expect(llmCallOptions?.timeoutMs).toBeUndefined()
     expect(llmCallOptions?.abortSignal).toBeInstanceOf(AbortSignal)
   })
 
@@ -319,8 +316,6 @@ inv;
       })
     })
     const brain: any = new Brain(deps)
-    brain.llmAttemptTimeoutMs = 2000
-    brain.llmTurnDeadlineMs = 2000
 
     const processing = brain.processEvent({} as any, createPerceptionEvent()).then(() => 'done')
     await started
@@ -612,7 +607,7 @@ describe('brain control action queue', () => {
     const brain: any = new Brain(deps)
     const outcome = await Promise.race([
       brain.processEvent({} as any, createPerceptionEvent()).then(() => 'done'),
-      new Promise(resolve => setTimeout(resolve, 80, 'timeout')),
+      new Promise(resolve => setTimeout(resolve, 250, 'timeout')),
     ])
 
     expect(outcome).toBe('done')
