@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
+import { useControlsIslandAutohide, useControlsIslandCollapse } from '@proj-airi/stage-ui/composables'
 import { useSettings, useSettingsAudioDevice, useSettingsControlsIsland } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
-import { useTimeoutFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -62,90 +62,30 @@ defineExpose({
 
 const { isOutside } = useElectronMouseInElement(islandRef)
 
-// Custom debounced refs that respond to both value AND delay configuration changes
-// Using manual setTimeout with watch to properly support reactive delay changes
-const isOutsideDelayed = ref(isOutside.value)
-const isInsideDelayed = ref(!isOutside.value)
+// Auto-hide / Auto-show behavior
+const { isHidden, hiddenOpacity } = useControlsIslandAutohide({
+  autoHideControlsIsland,
+  autoHideDelay,
+  autoShowDelay,
+  autoHideOpacity,
+  isOutside,
+  isBlocked,
+  expanded,
+})
 
-// --- Collapse expanded panel ---
-const collapseDelayMs = computed(() =>
-  autoHideControlsIsland.value ? autoHideDelay.value * 1000 : 1500,
-)
+// Auto-collapse behavior
+const { startCollapse, stopCollapse } = useControlsIslandCollapse({
+  autoHideDelay,
+  autoHideControlsIsland,
+  expanded,
+  isBlocked,
+})
 
-const { start: startCollapse, stop: stopCollapse } = useTimeoutFn(() => {
-  if (expanded.value && !isBlocked.value)
-    expanded.value = false
-}, () => collapseDelayMs.value, { immediate: false })
-
+// Watch mouse position to trigger collapse
 watch(isOutside, (val) => {
   stopCollapse()
   if (val)
     startCollapse()
-})
-
-// --- Auto-hide island（仅 autoHideControlsIsland = true 时生效）---
-const { start: startOutside, stop: stopOutside } = useTimeoutFn(() => {
-  isOutsideDelayed.value = true
-}, () => autoHideDelay.value * 1000, { immediate: false })
-
-const { start: startInside, stop: stopInside } = useTimeoutFn(() => {
-  isInsideDelayed.value = true
-}, () => autoShowDelay.value * 1000, { immediate: false })
-
-watch(isOutside, (val) => {
-  if (!autoHideControlsIsland.value) {
-    // 非自动隐藏模式，重置状态
-    stopOutside()
-    stopInside()
-    isOutsideDelayed.value = val
-    isInsideDelayed.value = !val
-    return
-  }
-  stopOutside()
-  stopInside()
-  if (val) {
-    isInsideDelayed.value = false
-    startOutside()
-  }
-  else {
-    isOutsideDelayed.value = false
-    startInside()
-  }
-})
-
-// 当 autoHideControlsIsland 切换时重置所有状态
-watch(autoHideControlsIsland, () => {
-  stopOutside()
-  stopInside()
-  stopCollapse()
-  isOutsideDelayed.value = isOutside.value
-  isInsideDelayed.value = !isOutside.value
-})
-
-// Calculate opacity when hidden (0-100 range converted to 0-1)
-const hiddenOpacity = computed(() => autoHideOpacity.value / 100)
-
-// Auto-hide: hide controls island when mouse leaves after delay
-// Auto-show: show controls island when mouse enters after delay
-const isHidden = computed(() => {
-  if (!autoHideControlsIsland.value)
-    return false
-
-  // Don't hide if there's a blocking overlay or expanded panel should stay
-  if (isBlocked.value || expanded.value)
-    return false
-
-  // When mouse is inside, wait for show delay before fully showing
-  if (!isOutside.value) {
-    if (autoShowDelay.value > 0) {
-      // Wait for mouse to be inside for the configured delay before showing
-      return !isInsideDelayed.value
-    }
-    return false
-  }
-
-  // When mouse is outside, hide after delay
-  return isOutsideDelayed.value
 })
 
 watch(expanded, (isExpanded) => {
