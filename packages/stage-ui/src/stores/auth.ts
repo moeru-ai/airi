@@ -1,12 +1,13 @@
 import type { Session, User } from 'better-auth'
 
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
-import { StorageSerializers, useLocalStorage, whenever } from '@vueuse/core'
+import { StorageSerializers, useLocalStorage, useTimeoutFn, whenever } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
 import { client } from '../composables/api'
 import { useBreakpoints } from '../composables/use-breakpoints'
+import { refreshAccessToken } from '../libs/auth-oidc'
 
 /**
  * Auth store — holds identity state and credits.
@@ -24,6 +25,11 @@ export const useAuthStore = defineStore('auth', () => {
   const refreshToken = useLocalStorage<string | null>('auth/v1/refresh-token', null)
   const isAuthenticated = computed(() => !!user.value && !!session.value)
   const userId = computed(() => user.value?.id ?? 'local')
+
+  // --- OIDC token refresh state ---
+  // Persisted so refresh scheduling survives page reloads.
+  const oidcClientId = useLocalStorage<string | null>('auth/v1/oidc-client-id', null)
+  const tokenExpiry = useLocalStorage<number | null>('auth/v1/oidc-token-expiry', null)
 
   const credits = useLocalStorage<number>('user/v1/flux', 0)
 
@@ -93,6 +99,97 @@ export const useAuthStore = defineStore('auth', () => {
     }
   })
 
+  // --- OIDC token refresh scheduling ---
+  // Uses useTimeoutFn for automatic cleanup on store teardown.
+  // The delay ref is updated by scheduleTokenRefresh before calling start().
+
+  const refreshDelayMs = ref(0)
+
+  const { start: startRefreshTimer, stop: stopRefreshTimer } = useTimeoutFn(
+    async () => {
+      if (!refreshToken.value || !oidcClientId.value)
+        return
+
+      try {
+        const tokens = await refreshAccessToken(oidcClientId.value, refreshToken.value)
+        // Re-bridge: persist new tokens and reschedule
+        if (tokens.refresh_token)
+          refreshToken.value = tokens.refresh_token
+        if (tokens.expires_in) {
+          tokenExpiry.value = Date.now() + tokens.expires_in * 1000
+          scheduleTokenRefresh(tokens.expires_in)
+        }
+
+        // Exchange the refreshed OIDC token for a new session (done by auth.ts caller)
+        // NOTICE: we emit an event via the onTokenRefreshed hook so auth.ts can
+        // call exchangeOIDCTokenForSession + fetchSession without circular deps.
+        // eslint-disable-next-line ts/no-use-before-define
+        for (const hook of tokenRefreshedHooks) {
+          try {
+            await hook(tokens.access_token)
+          }
+          catch (e) {
+            console.error('token refresh hook error', e)
+          }
+        }
+      }
+      catch {
+        // Refresh failed — clear auth state
+        token.value = null
+        refreshToken.value = null
+        oidcClientId.value = null
+        tokenExpiry.value = null
+      }
+    },
+    refreshDelayMs,
+    { immediate: false },
+  )
+
+  function scheduleTokenRefresh(expiresInSeconds: number): void {
+    stopRefreshTimer()
+    // Refresh at 80% of lifetime
+    refreshDelayMs.value = expiresInSeconds * 0.8 * 1000
+    startRefreshTimer()
+  }
+
+  /**
+   * Restore refresh scheduling from persisted state after page reload.
+   */
+  function restoreRefreshSchedule(): void {
+    if (!refreshToken.value || !oidcClientId.value)
+      return
+
+    if (tokenExpiry.value) {
+      const remainingMs = tokenExpiry.value - Date.now()
+      if (remainingMs > 0) {
+        scheduleTokenRefresh(remainingMs / 1000)
+        return
+      }
+    }
+
+    // Token already expired or no expiry info — refresh immediately
+    scheduleTokenRefresh(0)
+  }
+
+  // Hook for auth.ts to listen for token refreshes without circular imports
+  type TokenRefreshedHook = (accessToken: string) => void | Promise<void>
+  const tokenRefreshedHooks: TokenRefreshedHook[] = []
+
+  function onTokenRefreshed(hook: TokenRefreshedHook) {
+    tokenRefreshedHooks.push(hook)
+    return () => {
+      const idx = tokenRefreshedHooks.indexOf(hook)
+      if (idx >= 0)
+        tokenRefreshedHooks.splice(idx, 1)
+    }
+  }
+
+  function clearOIDCState(): void {
+    stopRefreshTimer()
+    oidcClientId.value = null
+    tokenExpiry.value = null
+  }
+
   const updateCredits = async () => {
     if (!isAuthenticated.value)
       return
@@ -126,5 +223,13 @@ export const useAuthStore = defineStore('auth', () => {
     needsLogin,
     onAuthenticated,
     onLogout,
+
+    // OIDC token refresh
+    oidcClientId,
+    tokenExpiry,
+    scheduleTokenRefresh,
+    restoreRefreshSchedule,
+    clearOIDCState,
+    onTokenRefreshed,
   }
 })

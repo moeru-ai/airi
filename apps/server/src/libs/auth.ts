@@ -36,6 +36,44 @@ const OIDC_SCOPES = ['openid', 'profile', 'email', 'offline_access'] as const
 const OIDC_GRANT_TYPES = ['authorization_code', 'refresh_token'] as const
 const OIDC_RESPONSE_TYPES = ['code'] as const
 
+const DEFAULT_WEB_REDIRECT_URIS = [
+  'https://airi.moeru.ai/auth/callback',
+  'http://localhost:5173/auth/callback',
+  'http://localhost:4173/auth/callback',
+]
+
+/**
+ * Build redirect URIs for the web OIDC client.
+ * Includes the default set plus any derived from API_SERVER_URL (for dev/preview
+ * deployments) and extra URIs from the OIDC_WEB_EXTRA_REDIRECT_URIS env var.
+ */
+function buildWebRedirectUris(env: Env): string[] {
+  const uris = new Set(DEFAULT_WEB_REDIRECT_URIS)
+
+  // If API_SERVER_URL has a different origin (e.g. a dev branch deployment),
+  // add its /auth/callback so OIDC redirect validation passes.
+  try {
+    const apiOrigin = new URL(env.API_SERVER_URL).origin
+    const derived = `${apiOrigin}/auth/callback`
+    if (!uris.has(derived))
+      uris.add(derived)
+  }
+  catch {
+    // Invalid API_SERVER_URL — skip
+  }
+
+  // Allow extra redirect URIs via env for custom deployments
+  if (env.OIDC_WEB_EXTRA_REDIRECT_URIS) {
+    for (const uri of env.OIDC_WEB_EXTRA_REDIRECT_URIS.split(',')) {
+      const trimmed = uri.trim()
+      if (trimmed)
+        uris.add(trimmed)
+    }
+  }
+
+  return [...uris]
+}
+
 /**
  * Build the list of first-party OIDC clients to seed into the database.
  */
@@ -50,11 +88,7 @@ function buildTrustedClientSeeds(env: Env): TrustedClientSeed[] {
       name: 'AIRI Stage Web',
       type: 'web',
       public: true,
-      redirectUris: [
-        'https://airi.moeru.ai/auth/callback',
-        'http://localhost:5173/auth/callback',
-        'http://localhost:4173/auth/callback',
-      ],
+      redirectUris: buildWebRedirectUris(env),
       scopes: [...OIDC_SCOPES],
       grantTypes: [...OIDC_GRANT_TYPES],
       responseTypes: [...OIDC_RESPONSE_TYPES],
@@ -221,6 +255,8 @@ export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null)
     },
 
     session: {
+      // NOTICE: oauthProvider's oauth_access_token table has a FK to the session
+      // table. Without DB-backed sessions the FK INSERT fails when issuing tokens.
       storeSessionInDatabase: true,
 
       // NOTICE: keep a short-lived signed session cache cookie so follow-up

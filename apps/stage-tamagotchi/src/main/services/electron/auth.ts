@@ -29,6 +29,7 @@ const OIDC_TOKEN_PATH = '/api/auth/oauth2/token'
 
 // Active loopback server cleanup handle
 let closeLoopback: (() => void) | null = null
+let loginInFlight = false
 
 /**
  * Create the auth service IPC handlers for a given window context.
@@ -37,66 +38,91 @@ export function createAuthService(params: {
   context: MainContext
   window: BrowserWindow
 }): void {
-  defineInvokeHandler(params.context, electronAuthStartLogin, async () => {
-    // Clean up any previous in-flight login
-    closeLoopback?.()
+  defineInvokeHandler(params.context, electronAuthStartLogin, async (_, options) => {
+    if (params.window.webContents.id !== options?.raw.ipcMainEvent.sender.id) {
+      return
+    }
 
-    const codeVerifier = generateCodeVerifier()
-    const codeChallenge = await generateCodeChallenge(codeVerifier)
-    const state = generateState()
+    if (loginInFlight) {
+      log.withFields({ windowId: params.window.webContents.id }).warn('Ignoring duplicate login request while OIDC flow is in progress')
+      return
+    }
 
-    // Start loopback server to receive the callback
-    const loopback = await startLoopbackServer()
-    closeLoopback = loopback.close
+    loginInFlight = true
 
-    // Use the server-side relay as redirect_uri. The relay page serves HTML
-    // that forwards the authorization code to the loopback via JS fetch().
-    // The loopback port is encoded in the state parameter as "{port}:{state}".
-    const redirectUri = `${SERVER_URL}/api/auth/oidc/electron-callback`
-    const stateWithPort = `${loopback.port}:${state}`
+    try {
+      // Clean up any previous in-flight login
+      closeLoopback?.()
 
-    // Build authorization URL
-    // NOTICE: prompt=login forces the authorization server to show the login
-    // page even if the system browser has an existing session cookie. Without
-    // this, the OIDC flow auto-completes silently using the stale cookie.
-    const url = new URL(OIDC_AUTHORIZE_PATH, SERVER_URL)
-    url.searchParams.set('response_type', 'code')
-    url.searchParams.set('client_id', OIDC_CLIENT_ID)
-    url.searchParams.set('redirect_uri', redirectUri)
-    url.searchParams.set('scope', OIDC_SCOPES)
-    url.searchParams.set('state', stateWithPort)
-    url.searchParams.set('code_challenge', codeChallenge)
-    url.searchParams.set('code_challenge_method', 'S256')
-    url.searchParams.set('prompt', 'login')
+      const codeVerifier = generateCodeVerifier()
+      const codeChallenge = await generateCodeChallenge(codeVerifier)
+      const state = generateState()
 
-    // Open system browser
-    await shell.openExternal(url.toString())
+      // Start loopback server to receive the callback
+      const loopback = await startLoopbackServer()
+      closeLoopback = loopback.close
 
-    // Wait for the callback in the background
-    loopback.result
-      .then(async ({ code, state: returnedState }) => {
-        if (returnedState !== state) {
-          log.warn('State mismatch — possible CSRF attack')
-          params.context.emit(electronAuthCallbackError, { error: 'State mismatch' })
-          return
-        }
+      // Use the server-side relay as redirect_uri. The relay page serves HTML
+      // that forwards the authorization code to the loopback via JS fetch().
+      // The loopback port is encoded in the state parameter as "{port}:{state}".
+      const redirectUri = `${SERVER_URL}/api/auth/oidc/electron-callback`
+      const stateWithPort = `${loopback.port}:${state}`
 
-        const tokens = await exchangeCode(code, codeVerifier, redirectUri)
-        params.context.emit(electronAuthCallback, tokens)
-        log.log('OIDC token exchange successful')
-      })
-      .catch((err) => {
-        log.withError(err).error('OIDC login failed')
-        params.context.emit(electronAuthCallbackError, { error: errorMessageFrom(err) ?? 'OIDC login failed' })
-      })
-      .finally(() => {
-        closeLoopback = null
-      })
+      // Build authorization URL
+      // NOTICE: prompt=login forces the authorization server to show the login
+      // page even if the system browser has an existing session cookie. Without
+      // this, the OIDC flow auto-completes silently using the stale cookie.
+      const url = new URL(OIDC_AUTHORIZE_PATH, SERVER_URL)
+      url.searchParams.set('response_type', 'code')
+      url.searchParams.set('client_id', OIDC_CLIENT_ID)
+      url.searchParams.set('redirect_uri', redirectUri)
+      url.searchParams.set('scope', OIDC_SCOPES)
+      url.searchParams.set('state', stateWithPort)
+      url.searchParams.set('code_challenge', codeChallenge)
+      url.searchParams.set('code_challenge_method', 'S256')
+      url.searchParams.set('prompt', 'login')
+
+      // Open system browser
+      await shell.openExternal(url.toString())
+
+      // Wait for the callback in the background
+      loopback.result
+        .then(async ({ code, state: returnedState }) => {
+          if (returnedState !== state) {
+            log.warn('State mismatch — possible CSRF attack')
+            params.context.emit(electronAuthCallbackError, { error: 'State mismatch' })
+            return
+          }
+
+          const tokens = await exchangeCode(code, codeVerifier, redirectUri)
+          params.context.emit(electronAuthCallback, tokens)
+          log.log('OIDC token exchange successful')
+        })
+        .catch((err) => {
+          log.withError(err).error('OIDC login failed')
+          params.context.emit(electronAuthCallbackError, { error: errorMessageFrom(err) ?? 'OIDC login failed' })
+        })
+        .finally(() => {
+          closeLoopback = null
+          loginInFlight = false
+        })
+    }
+    catch (err) {
+      closeLoopback = null
+      loginInFlight = false
+      log.withError(err).error('Failed to start OIDC login flow')
+      params.context.emit(electronAuthCallbackError, { error: errorMessageFrom(err) ?? 'OIDC login failed' })
+    }
   })
 
-  defineInvokeHandler(params.context, electronAuthLogout, async () => {
+  defineInvokeHandler(params.context, electronAuthLogout, async (_, options) => {
+    if (params.window.webContents.id !== options?.raw.ipcMainEvent.sender.id) {
+      return
+    }
+
     closeLoopback?.()
     closeLoopback = null
+    loginInFlight = false
   })
 }
 

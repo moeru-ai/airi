@@ -8,15 +8,12 @@ import { ref } from 'vue'
 import { toast } from 'vue-sonner'
 
 import { signInOIDC } from '../../libs/auth'
+import { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } from '../../libs/auth-config'
 
 const open = defineModel<boolean>('open', { required: true })
 
 const screenSafeArea = useScreenSafeArea()
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
-
-// OIDC client configuration (public client — no secret, PKCE only)
-const OIDC_CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID || 'airi-stage-web'
-const OIDC_REDIRECT_URI = `${window.location.origin}/auth/callback`
 
 const loading = ref<Record<OAuthProvider, boolean>>({
   google: false,

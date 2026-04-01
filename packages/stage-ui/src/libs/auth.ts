@@ -3,7 +3,7 @@ import type { OIDCFlowParams, TokenResponse } from './auth-oidc'
 import { createAuthClient } from 'better-auth/vue'
 
 import { useAuthStore } from '../stores/auth'
-import { buildAuthorizationURL, persistFlowState, refreshAccessToken } from './auth-oidc'
+import { buildAuthorizationURL, persistFlowState } from './auth-oidc'
 import { SERVER_URL } from './server'
 
 export type OAuthProvider = 'google' | 'github'
@@ -41,11 +41,6 @@ export const authClient = createAuthClient({
 })
 
 let initialized = false
-let refreshTimer: ReturnType<typeof setTimeout> | null = null
-
-// Persisted OIDC client config for refresh after page reload
-const OIDC_CLIENT_KEY = 'auth/v1/oidc-client-id'
-const OIDC_TOKEN_EXPIRY_KEY = 'auth/v1/oidc-token-expiry'
 
 export function initializeAuth() {
   if (initialized)
@@ -58,7 +53,15 @@ export function initializeAuth() {
   fetchSession().catch(() => {})
 
   // Restore OIDC token refresh scheduling from persisted state
-  restoreRefreshSchedule()
+  const authStore = useAuthStore()
+  authStore.restoreRefreshSchedule()
+
+  // Wire up token refresh → session bridge so the store can trigger
+  // session exchange without importing auth.ts (avoids circular deps).
+  authStore.onTokenRefreshed(async (accessToken) => {
+    await exchangeOIDCTokenForSession(accessToken)
+    await fetchSession()
+  })
 
   initialized = true
 }
@@ -80,69 +83,11 @@ export async function bridgeOIDCTokens(tokens: TokenResponse, clientId: string):
     authStore.refreshToken = tokens.refresh_token
 
   // Persist client info for refresh after page reload
-  localStorage.setItem(OIDC_CLIENT_KEY, clientId)
-  if (tokens.expires_in) {
-    const expiryMs = Date.now() + tokens.expires_in * 1000
-    localStorage.setItem(OIDC_TOKEN_EXPIRY_KEY, String(expiryMs))
-  }
+  authStore.oidcClientId = clientId
+  if (tokens.expires_in)
+    authStore.tokenExpiry = Date.now() + tokens.expires_in * 1000
 
-  scheduleTokenRefresh(tokens.expires_in, clientId)
-}
-
-/**
- * Schedule a token refresh at 80% of the token's lifetime.
- */
-function scheduleTokenRefresh(expiresIn: number, clientId: string): void {
-  if (refreshTimer)
-    clearTimeout(refreshTimer)
-
-  // Refresh at 80% of lifetime
-  const refreshMs = expiresIn * 0.8 * 1000
-  refreshTimer = setTimeout(async () => {
-    const authStore = useAuthStore()
-    if (!authStore.refreshToken)
-      return
-
-    try {
-      const tokens = await refreshAccessToken(clientId, authStore.refreshToken)
-      // Bridge the refreshed OIDC token into a new session
-      await bridgeOIDCTokens(tokens, clientId)
-      await fetchSession()
-    }
-    catch {
-      // Refresh failed — clear auth state
-      authStore.token = null
-      authStore.refreshToken = null
-    }
-  }, refreshMs)
-}
-
-/**
- * Restore refresh scheduling from persisted localStorage state after page
- * reload. Calculates remaining lifetime from the stored expiry timestamp.
- */
-function restoreRefreshSchedule(): void {
-  const authStore = useAuthStore()
-  if (!authStore.refreshToken)
-    return
-
-  const clientId = localStorage.getItem(OIDC_CLIENT_KEY)
-  if (!clientId)
-    return
-
-  const expiryRaw = localStorage.getItem(OIDC_TOKEN_EXPIRY_KEY)
-
-  if (expiryRaw) {
-    const remainingMs = Number(expiryRaw) - Date.now()
-    if (remainingMs > 0) {
-      // Convert remaining ms to seconds for scheduleTokenRefresh
-      scheduleTokenRefresh(remainingMs / 1000, clientId)
-      return
-    }
-  }
-
-  // Token already expired or no expiry info — refresh immediately
-  scheduleTokenRefresh(0, clientId)
+  authStore.scheduleTokenRefresh(tokens.expires_in)
 }
 
 export async function fetchSession() {
@@ -168,10 +113,8 @@ export async function listSessions() {
 }
 
 export async function signOut() {
-  if (refreshTimer) {
-    clearTimeout(refreshTimer)
-    refreshTimer = null
-  }
+  const authStore = useAuthStore()
+  authStore.clearOIDCState()
 
   // NOTICE: Server signOut is wrapped in try/catch so that local state cleanup
   // always runs regardless of server errors (e.g. network unreachable). User
@@ -183,15 +126,10 @@ export async function signOut() {
     // Swallow — local cleanup below ensures the user is logged out client-side.
   }
 
-  const authStore = useAuthStore()
   authStore.user = null
   authStore.session = null
   authStore.token = null
   authStore.refreshToken = null
-
-  // Clean up persisted OIDC client info
-  localStorage.removeItem(OIDC_CLIENT_KEY)
-  localStorage.removeItem(OIDC_TOKEN_EXPIRY_KEY)
 }
 
 /**

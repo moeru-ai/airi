@@ -61,10 +61,12 @@ describe('seedTrustedClients', () => {
     expect(webClient.clientId).toBe('airi-stage-web')
     expect(webClient.clientSecret).toBeNull()
     expect(webClient.public).toBe(true)
+    // Includes default URIs + derived from API_SERVER_URL (localhost:3000)
     expect(webClient.redirectUris).toEqual([
       'https://airi.moeru.ai/auth/callback',
       'http://localhost:5173/auth/callback',
       'http://localhost:4173/auth/callback',
+      'http://localhost:3000/auth/callback',
     ])
     expect(webClient.scopes).toEqual(['openid', 'profile', 'email', 'offline_access'])
     expect(webClient.grantTypes).toEqual(['authorization_code', 'refresh_token'])

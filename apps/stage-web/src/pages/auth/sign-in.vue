@@ -4,6 +4,7 @@ import type { OAuthProvider } from '@proj-airi/stage-ui/libs/auth'
 import { LoginDrawer } from '@proj-airi/stage-ui/components/auth'
 import { useBreakpoints } from '@proj-airi/stage-ui/composables'
 import { fetchSession, signInOIDC } from '@proj-airi/stage-ui/libs/auth'
+import { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } from '@proj-airi/stage-ui/libs/auth-config'
 import { Button } from '@proj-airi/ui'
 import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -12,10 +13,6 @@ import { toast } from 'vue-sonner'
 const router = useRouter()
 
 const { isDesktop } = useBreakpoints()
-
-// OIDC client configuration for the web app (public client — no secret, PKCE only)
-const OIDC_CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID || 'airi-stage-web'
-const OIDC_REDIRECT_URI = `${window.location.origin}/auth/callback`
 
 const loading = ref<Record<OAuthProvider, boolean>>({
   google: false,

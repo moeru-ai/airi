@@ -58,11 +58,6 @@ function renderRelayPage(params: {
       background: #fafafa;
       color: #1a1a1a;
     }
-    @media (prefers-color-scheme: dark) {
-      body { background: #0a0a0a; color: #e5e5e5; }
-      .card { background: #171717; border-color: #262626; }
-      .status.error { color: #f87171; }
-    }
     .card {
       background: #fff;
       border: 1px solid #e5e5e5;
@@ -85,6 +80,15 @@ function renderRelayPage(params: {
       margin: 16px auto;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (prefers-color-scheme: dark) {
+      body { background: #0a0a0a; color: #e5e5e5; }
+      .card { background: #171717; border-color: #262626; }
+      .status { color: #a3a3a3; }
+      .status.error { color: #f87171; }
+      .status.success { color: #4ade80; }
+      h1 { color: #f5f5f5; }
+    }
   </style>
 </head>
 <body>

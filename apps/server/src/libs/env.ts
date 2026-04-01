@@ -51,11 +51,11 @@ const EnvSchema = object({
   // OIDC Provider — trusted client credentials for first-party apps.
   // Each pair is optional; clients without credentials are simply not registered.
   OIDC_CLIENT_ID_WEB: optional(string()),
-  OIDC_CLIENT_SECRET_WEB: optional(string()),
   OIDC_CLIENT_ID_ELECTRON: optional(string()),
   OIDC_CLIENT_SECRET_ELECTRON: optional(string()),
   OIDC_CLIENT_ID_POCKET: optional(string()),
-  OIDC_CLIENT_SECRET_POCKET: optional(string()),
+  /** Comma-separated extra redirect URIs for the web OIDC client (dev/preview deployments). */
+  OIDC_WEB_EXTRA_REDIRECT_URIS: optional(string()),
 
   STRIPE_SECRET_KEY: optional(string()),
   STRIPE_WEBHOOK_SECRET: optional(string()),

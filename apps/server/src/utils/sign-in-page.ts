@@ -40,14 +40,6 @@ export function renderSignInPage(baseUrl: string, callbackURL: string = '/'): st
       background: #fafafa;
       color: #1a1a1a;
     }
-    @media (prefers-color-scheme: dark) {
-      body { background: #0a0a0a; color: #e5e5e5; }
-      .card { background: #171717; border-color: #262626; }
-      .btn { background: #262626; border-color: #333; color: #e5e5e5; }
-      .btn:hover { background: #333; }
-      .footer { color: #737373; }
-      .error { color: #f87171; }
-    }
     .card {
       background: #fff;
       border: 1px solid #e5e5e5;
@@ -81,6 +73,16 @@ export function renderSignInPage(baseUrl: string, callbackURL: string = '/'): st
     .footer { margin-top: 24px; font-size: 12px; color: #a3a3a3; }
     .footer a { color: inherit; text-decoration: underline; }
     .error { margin-top: 16px; font-size: 13px; color: #ef4444; display: none; }
+
+    @media (prefers-color-scheme: dark) {
+      body { background: #0a0a0a; color: #e5e5e5; }
+      .card { background: #171717; border-color: #262626; }
+      .btn { background: #262626; border-color: #333; color: #e5e5e5; }
+      .btn:hover { background: #333; }
+      .footer { color: #737373; }
+      .error { color: #f87171; }
+      h1 { color: #f5f5f5; }
+    }
   </style>
 </head>
 <body>
