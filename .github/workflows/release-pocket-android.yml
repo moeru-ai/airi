@@ -91,7 +91,7 @@ jobs:
           fi
 
           APK_NAME="${PRODUCT_NAME}-${VERSION}-android.apk"
-          APK_SOURCE="apps/stage-pocket/android/app/build/outputs/apk/release/app-release.apk"
+          APK_SOURCE="apps/stage-pocket/android/app/build/outputs/apk/release/app-release-signed.apk"
           APK_BUNDLE_DIR="apps/stage-pocket/android/bundle"
 
           mkdir -p "$APK_BUNDLE_DIR"
