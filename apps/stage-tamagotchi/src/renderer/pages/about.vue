@@ -21,7 +21,10 @@ const {
 } = useElectronAutoUpdater()
 
 const isDisabled = computed(() => updateState.value.status === 'disabled')
-const isLatestVersion = computed(() => updateState.value.status === 'idle' && !updateState.value.info && !isDisabled.value)
+const isLatestVersion = computed(() => {
+  const isIdleWithoutInfo = updateState.value.status === 'idle' && !updateState.value.info
+  return (updateState.value.status === 'not-available' || isIdleWithoutInfo) && !isDisabled.value
+})
 const isError = computed(() => updateState.value.status === 'error')
 
 const links = [
@@ -32,6 +35,20 @@ const links = [
 
 const showChangelog = ref(false)
 const { isDesktop } = useBreakpoints()
+
+const diagnosticsLogPath = computed(() => {
+  const platform = navigator.platform.toLowerCase()
+  if (platform.includes('win'))
+    return 'C:\\Users\\<you>\\AppData\\Local\\stage-tamagotchi-updater\\updater-log.txt'
+  if (platform.includes('mac'))
+    return '~/Library/Caches/stage-tamagotchi-updater/updater-log.txt'
+  return '~/.cache/stage-tamagotchi-updater/updater-log.txt'
+})
+
+const firstUpdateFile = computed(() => {
+  const file = updateState.value.info?.files?.[0]
+  return file?.url ?? file?.path ?? 'N/A'
+})
 
 function handleDownloadClick() {
   if (updateState.value.info?.releaseNotes)
@@ -145,6 +162,9 @@ const releaseNotesContent = computed(() => {
             <div v-if="isError" :class="['text-sm text-red-600 dark:text-red-400']">
               Error: {{ updateState.error?.message }}
             </div>
+            <div v-else-if="isLatestVersion" :class="['text-sm text-emerald-600 dark:text-emerald-400']">
+              Up to date (v{{ buildInfo.version }}).
+            </div>
 
             <div :class="['flex flex-wrap gap-2']">
               <Button
@@ -155,6 +175,28 @@ const releaseNotesContent = computed(() => {
                 :label="isBusy ? 'Checking...' : isLatestVersion ? 'Latest version' : isDisabled ? 'Updates disabled in Dev' : isError ? 'Retry Check' : 'Check for updates'"
                 @click="checkForUpdates()"
               />
+            </div>
+          </div>
+
+          <!-- Diagnostics -->
+          <div :class="['rounded-lg border border-neutral-200/70 bg-neutral-50/70 p-3 text-xs dark:border-neutral-800/70 dark:bg-neutral-950/40']">
+            <div :class="['mb-2 font-medium text-neutral-700 dark:text-neutral-300']">
+              Updater Diagnostics
+            </div>
+            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
+              status={{ updateState.status }}
+            </div>
+            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
+              current=v{{ buildInfo.version }}
+            </div>
+            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
+              target=v{{ updateState.info?.version ?? 'N/A' }}
+            </div>
+            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
+              file={{ firstUpdateFile }}
+            </div>
+            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
+              log={{ diagnosticsLogPath }}
             </div>
           </div>
         </div>
