@@ -48,7 +48,7 @@ export const providerTogetherAI = defineProvider<TogetherConfig>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList],
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList, ProviderValidationCheck.ChatCompletions],
     }),
   },
 })

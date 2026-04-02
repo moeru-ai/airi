@@ -51,7 +51,7 @@ export const providerCometAPI = defineProvider<CometApiConfig>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: [ProviderValidationCheck.ModelList],
+      checks: [ProviderValidationCheck.ModelList, ProviderValidationCheck.ChatCompletions],
     }),
   },
 })

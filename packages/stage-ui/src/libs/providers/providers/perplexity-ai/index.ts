@@ -84,7 +84,7 @@ export const providerPerplexityAI = defineProvider<PerplexityConfig>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: [ProviderValidationCheck.Connectivity],
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ChatCompletions],
     }),
   },
 })
