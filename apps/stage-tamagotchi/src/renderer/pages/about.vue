@@ -40,6 +40,21 @@ const diagnosticsLogPath = computed(() => {
   return updateState.value.diagnostics?.logFilePath ?? 'N/A'
 })
 
+const isWindowsUpdater = computed(() => {
+  return updateState.value.diagnostics?.platform === 'win32'
+})
+
+const downloadedStatusText = computed(() => {
+  if (isWindowsUpdater.value)
+    return `Update ready to install silently (v${updateState.value.info?.version}).`
+
+  return `Update ready to install on restart (v${updateState.value.info?.version}).`
+})
+
+const restartButtonLabel = computed(() => {
+  return isWindowsUpdater.value ? 'Restart to update silently' : 'Restart to install update'
+})
+
 const firstUpdateFile = computed(() => {
   const file = updateState.value.info?.files?.[0]
   return file?.url ?? file?.path ?? 'N/A'
@@ -134,14 +149,14 @@ const releaseNotesContent = computed(() => {
           <!-- State: Downloaded -->
           <div v-else-if="updateState.status === 'downloaded'" :class="['flex flex-col gap-4']">
             <div :class="['text-sm text-emerald-600 dark:text-emerald-400']">
-              Update ready to install (v{{ updateState.info?.version }}).
+              {{ downloadedStatusText }}
             </div>
             <div>
               <DoubleCheckButton
                 variant="primary"
                 @confirm="quitAndInstall()"
               >
-                Restart to update
+                {{ restartButtonLabel }}
                 <template #confirm>
                   Confirm Restart
                 </template>
