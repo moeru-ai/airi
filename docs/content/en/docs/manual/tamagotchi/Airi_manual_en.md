@@ -21,7 +21,7 @@ Corresponding version: AIRI-0.9.0-beta.4-windows-x64
 - Have fun! AwA
 
 ## Chapter 1 – Installation
-Go to the Project Airi GitHub homepage: [moeru-ai/airi](https://github.com/moeru-ai/airi)
+Go to the Project Airi Github homepage: [moeru-ai/airi](https://github.com/moeru-ai/airi)
 
 Find the “Releases” option on the right side of the page.
 
@@ -160,7 +160,7 @@ You can also choose “**None**” to disable voice.
 
 At the very bottom of this page, you can enter text to test the sound, and by clicking the '**Test Sound**' option, a test audio can be generated.
 
-[ Please note: The configuration process on this page may vary slightly for different service sources. This example uses Alibaba Bailing as an example; others should be based on actual situations. ]  
+[ Please note: The configuration process on this page may vary slightly for different service sources. This example uses Alibaba Bailian as an example; others should be based on actual situations. ]  
 [ Some of the services related to Pitch features may not work. ]
 
 #### Hearing
