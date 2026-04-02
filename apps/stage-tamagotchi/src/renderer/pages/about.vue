@@ -21,7 +21,9 @@ const {
 } = useElectronAutoUpdater()
 
 const isDisabled = computed(() => updateState.value.status === 'disabled')
-const isLatestVersion = computed(() => updateState.value.status === 'idle' && !updateState.value.info && !isDisabled.value)
+const isLatestVersion = computed(() => {
+  return updateState.value.status === 'not-available' && !isDisabled.value
+})
 const isError = computed(() => updateState.value.status === 'error')
 
 const links = [
@@ -32,6 +34,30 @@ const links = [
 
 const showChangelog = ref(false)
 const { isDesktop } = useBreakpoints()
+
+const diagnosticsLogPath = computed(() => {
+  return updateState.value.diagnostics?.logFilePath ?? 'N/A'
+})
+
+const isWindowsUpdater = computed(() => {
+  return updateState.value.diagnostics?.platform === 'win32'
+})
+
+const downloadedStatusText = computed(() => {
+  if (isWindowsUpdater.value)
+    return `Update ready to install silently (v${updateState.value.info?.version}).`
+
+  return `Update ready to install on restart (v${updateState.value.info?.version}).`
+})
+
+const restartButtonLabel = computed(() => {
+  return isWindowsUpdater.value ? 'Restart to update silently' : 'Restart to install update'
+})
+
+const firstUpdateFile = computed(() => {
+  const file = updateState.value.info?.files?.[0]
+  return file?.url ?? 'N/A'
+})
 
 function handleDownloadClick() {
   if (updateState.value.info?.releaseNotes)
@@ -122,14 +148,14 @@ const releaseNotesContent = computed(() => {
           <!-- State: Downloaded -->
           <div v-else-if="updateState.status === 'downloaded'" :class="['flex flex-col gap-4']">
             <div :class="['text-sm text-emerald-600 dark:text-emerald-400']">
-              Update ready to install (v{{ updateState.info?.version }}).
+              {{ downloadedStatusText }}
             </div>
             <div>
               <DoubleCheckButton
                 variant="primary"
                 @confirm="quitAndInstall()"
               >
-                Restart to update
+                {{ restartButtonLabel }}
                 <template #confirm>
                   Confirm Restart
                 </template>
@@ -145,16 +171,53 @@ const releaseNotesContent = computed(() => {
             <div v-if="isError" :class="['text-sm text-red-600 dark:text-red-400']">
               Error: {{ updateState.error?.message }}
             </div>
+            <div v-else-if="isLatestVersion" :class="['text-sm text-emerald-600 dark:text-emerald-400']">
+              Up to date (v{{ buildInfo.version }}).
+            </div>
 
             <div :class="['flex flex-wrap gap-2']">
               <Button
                 :variant="isError ? 'caution' : 'secondary'"
                 :loading="isBusy"
-                :disabled="isDisabled || (isLatestVersion && !isError)"
+                :disabled="isDisabled"
                 :icon="isLatestVersion ? 'i-solar:check-circle-outline' : isDisabled ? 'i-solar:forbidden-circle-outline' : 'i-solar:refresh-outline'"
                 :label="isBusy ? 'Checking...' : isLatestVersion ? 'Latest version' : isDisabled ? 'Updates disabled in Dev' : isError ? 'Retry Check' : 'Check for updates'"
                 @click="checkForUpdates()"
               />
+            </div>
+          </div>
+
+          <!-- Diagnostics -->
+          <div :class="['rounded-lg border border-neutral-200/70 bg-neutral-50/70 p-3 text-xs dark:border-neutral-800/70 dark:bg-neutral-950/40']">
+            <div :class="['mb-2 font-medium text-neutral-700 dark:text-neutral-300']">
+              Updater Diagnostics
+            </div>
+            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
+              status={{ updateState.status }}
+            </div>
+            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
+              current=v{{ buildInfo.version }}
+            </div>
+            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
+              target=v{{ updateState.info?.version ?? 'N/A' }}
+            </div>
+            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
+              file={{ firstUpdateFile }}
+            </div>
+            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
+              platform={{ updateState.diagnostics?.platform ?? 'N/A' }} arch={{ updateState.diagnostics?.arch ?? 'N/A' }}
+            </div>
+            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
+              channel={{ updateState.diagnostics?.channel ?? 'N/A' }}
+            </div>
+            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
+              feed={{ updateState.diagnostics?.feedUrl ?? 'N/A' }}
+            </div>
+            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
+              cache={{ updateState.diagnostics?.updaterCacheDir ?? 'N/A' }}
+            </div>
+            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
+              log={{ diagnosticsLogPath }}
             </div>
           </div>
         </div>
