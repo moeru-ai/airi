@@ -21,7 +21,7 @@ export interface AuthRoutesDeps {
 
 /**
  * All auth-related routes: sign-in page, rate-limited better-auth
- * catch-all, OIDC session bridge, electron callback relay, and
+ * helper routes, electron callback relay, catch-all, and
  * well-known metadata endpoints.
  *
  * Mounted at the root level because routes span multiple prefixes

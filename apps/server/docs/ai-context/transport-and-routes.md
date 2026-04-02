@@ -42,9 +42,10 @@
 实现位置：
 
 - 路由入口：`src/routes/auth/index.ts`（通过 `.route('/')` 挂载到根路径）
-- OIDC session bridge：`src/routes/oidc/session.ts`
+- token auth 辅助路由：`src/routes/oidc/token-auth.ts`
 - Electron 回调中继：`src/routes/oidc/electron-callback.ts`
 - better-auth 配置：`src/libs/auth.ts`
+- Bearer 解析：`src/libs/request-auth.ts`
 - 登录页渲染：`src/utils/sign-in-page.ts`
 
 特点：
@@ -53,7 +54,8 @@
 - 开启 email/password、Google、GitHub 社交登录
 - Bearer plugin + JWT plugin 已启用
 - `/api/auth/*` 有独立 IP 限流
-- 自定义 OIDC 路由（`/api/auth/oidc/*`）注册在 catch-all 之前
+- `GET /api/auth/get-session`、`POST /api/auth/sign-out`、`GET /api/auth/list-sessions` 由本地路由处理
+- Bearer token 会先尝试 better-auth session，再回退到受信任 OIDC access token
 - 详见 `auth-and-oidc.md`
 
 ### `/api/v1/characters`

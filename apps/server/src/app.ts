@@ -154,7 +154,7 @@ export async function buildApp(deps: AppDeps) {
     .on('GET', '/health', c => c.json({ status: 'ok' }))
 
     /**
-     * Auth routes: sign-in page, OIDC session bridge, electron callback
+     * Auth routes: sign-in page, token auth helpers, electron callback
      * relay, well-known metadata, and better-auth catch-all.
      */
     .route('/', await createAuthRoutes({
