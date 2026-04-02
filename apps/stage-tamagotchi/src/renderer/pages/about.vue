@@ -22,8 +22,7 @@ const {
 
 const isDisabled = computed(() => updateState.value.status === 'disabled')
 const isLatestVersion = computed(() => {
-  const isIdleWithoutInfo = updateState.value.status === 'idle' && !updateState.value.info
-  return (updateState.value.status === 'not-available' || isIdleWithoutInfo) && !isDisabled.value
+  return updateState.value.status === 'not-available' && !isDisabled.value
 })
 const isError = computed(() => updateState.value.status === 'error')
 
@@ -57,7 +56,7 @@ const restartButtonLabel = computed(() => {
 
 const firstUpdateFile = computed(() => {
   const file = updateState.value.info?.files?.[0]
-  return file?.url ?? file?.path ?? 'N/A'
+  return file?.url ?? 'N/A'
 })
 
 function handleDownloadClick() {
