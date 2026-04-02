@@ -15,6 +15,7 @@ import {
   useElectronRelativeMouse,
 } from '@proj-airi/electron-vueuse'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
+import { HoloCoupon } from '@proj-airi/stage-ui/components'
 import {
   createEmptyModelSettingsRuntimeSnapshot,
   resolveComponentStateToRuntimePhase,
@@ -476,6 +477,7 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
           :x-offset="positionInPercentageString.x"
           :y-offset="positionInPercentageString.y"
         />
+        <HoloCoupon />
         <ControlsIsland
           ref="controlsIslandRef"
         />

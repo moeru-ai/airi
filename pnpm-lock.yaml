@@ -2968,6 +2968,12 @@ importers:
       dompurify:
         specifier: ^3.3.3
         version: 3.3.3
+      embla-carousel-autoplay:
+        specifier: 9.0.0-rc01
+        version: 9.0.0-rc01(embla-carousel@9.0.0-rc01)
+      embla-carousel-vue:
+        specifier: 'catalog:'
+        version: 9.0.0-rc01(vue@3.5.30(typescript@5.9.3))
       es-toolkit:
         specifier: 'catalog:'
         version: 1.43.0
@@ -11963,6 +11969,11 @@ packages:
 
   email-addresses@3.1.0:
     resolution: {integrity: sha512-k0/r7GrWVL32kZlGwfPNgB2Y/mMXVTq/decgLczm/j34whdaspNrZO8CnXPf1laaHxI6ptUlsnAxN+UAPw+fzg==}
+
+  embla-carousel-autoplay@9.0.0-rc01:
+    resolution: {integrity: sha512-gl7jUe0X9xd5v7IiyFF2FCR+KTBesnutM0gQ3S75oo9EizZi5tJMNdVaFwvzepz6kGzDkkSbKMWitQvAbFVfdQ==}
+    peerDependencies:
+      embla-carousel: 9.0.0-rc01
 
   embla-carousel-reactive-utils@9.0.0-rc01:
     resolution: {integrity: sha512-RnW0NMrL7wVAQb9jro+l96hLI2JairyFHS2Jv+fvXakveD/c5aD9aoNH94YRbTmi0G7PxrKSxydmCpTy5eFmrA==}
@@ -26229,6 +26240,10 @@ snapshots:
       sax: 1.1.4
 
   email-addresses@3.1.0: {}
+
+  embla-carousel-autoplay@9.0.0-rc01(embla-carousel@9.0.0-rc01):
+    dependencies:
+      embla-carousel: 9.0.0-rc01
 
   embla-carousel-reactive-utils@9.0.0-rc01(embla-carousel@9.0.0-rc01):
     dependencies:

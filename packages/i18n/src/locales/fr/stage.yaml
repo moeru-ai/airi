@@ -41,4 +41,46 @@ profile-switcher:
   save-as-new: Enregistrer comme Nouveau Profil
   new-profile-name: Nom du profil
   manage: Gérer les Profils
+promo-banner:
+  items:
+    signin:
+      watermark: Moon
+      fallbackLabel: Cadeau lunaire
+      title: Cadeau de connexion 7 jours
+      eventName: Connectez-vous pour obtenir poussière d’étoile, cadre d’avatar et cadeaux spéciaux.
+      date: 03/28 - 04/10
+      reward: Jusqu’à 120 poussières d’étoile
+      cta: Se connecter
+    build:
+      watermark: Build
+      fallbackLabel: Bonus chantier
+      title: Caisse bonus
+      eventName: Terminez les missions de construction pour obtenir des coupons et des matériaux doublés.
+      date: 03/30 - 04/12
+      reward: 5 coupons + matériaux d’amélioration
+      cta: Voir les missions
+    spring:
+      watermark: Spring
+      fallbackLabel: Tirage printanier
+      title: Carnaval capsule
+      eventName: Participez au tirage du printemps pour débloquer bulles, charms et meubles thématiques.
+      date: 04/01 - 04/18
+      reward: Premier tirage à moitié prix + charm rare
+      cta: Aller au tirage
+    coupon:
+      watermark: Talk
+      fallbackLabel: Coupon
+      title: Coupon de recharge
+      eventName: Terminez des interactions pour obtenir des coupons pour packs de dialogue et de voix.
+      date: 04/02 - 04/20
+      reward: -6 sur 30 / -15 sur 68
+      cta: Récupérer le coupon
+    home:
+      watermark: Home
+      fallbackLabel: Theme de chambre
+      title: Décor de printemps
+      eventName: Débloquez des thèmes de fenêtre, bureau et veilleuse pour renouveler votre espace.
+      date: 04/05 - 04/22
+      reward: Ticket de thème offert à la connexion
+      cta: Voir le thème
 waiting: En attente

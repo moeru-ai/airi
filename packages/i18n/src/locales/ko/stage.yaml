@@ -41,4 +41,46 @@ profile-switcher:
   save-as-new: Save as New Profile
   new-profile-name: Profile name
   manage: Manage Profiles
+promo-banner:
+  items:
+    signin:
+      watermark: Moon
+      fallbackLabel: 달빛 선물
+      title: 7일 출석 보상
+      eventName: 출석만 해도 스타더스트, 아바타 프레임, 기념 보상을 받을 수 있어요.
+      date: 03/28 - 04/10
+      reward: 최대 120 스타더스트
+      cta: 지금 출석하기
+    build:
+      watermark: Build
+      fallbackLabel: 건설 보너스
+      title: 보급 상자 추가 지급
+      eventName: 건설 임무를 완료하면 보급 쿠폰과 2배 재료 보상을 획득합니다.
+      date: 03/30 - 04/12
+      reward: 보급 쿠폰 x5 + 강화 재료
+      cta: 임무 보기
+    spring:
+      watermark: Spring
+      fallbackLabel: 봄 추첨
+      title: 캡슐 카니발
+      eventName: 봄 뽑기에 참여해 말풍선, 장식, 테마 가구를 잠금 해제하세요.
+      date: 04/01 - 04/18
+      reward: 첫 뽑기 반값 + 희귀 장식
+      cta: 뽑기 하러 가기
+    coupon:
+      watermark: Talk
+      fallbackLabel: 쿠폰
+      title: 충전 쿠폰
+      eventName: 대화 미션을 완료하면 확장팩과 음성팩에 사용할 쿠폰을 받을 수 있어요.
+      date: 04/02 - 04/20
+      reward: 30 이상 6 할인 / 68 이상 15 할인
+      cta: 쿠폰 받기
+    home:
+      watermark: Home
+      fallbackLabel: 룸 테마
+      title: 봄 배경 업데이트
+      eventName: 창가, 책상, 무드등 테마를 열어 홈 화면을 새롭게 꾸며보세요.
+      date: 04/05 - 04/22
+      reward: 로그인 시 테마 추첨권 지급
+      cta: 테마 보기
 waiting: 대기 중
