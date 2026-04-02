@@ -25,6 +25,10 @@ docs:
   'close': 닫기
   'expand': 확장
   'collapse': 접기
+  'login': Sign in
+  'logging-in': Signing in...
+  'account': Account
+  'logout': Sign out
 'status-island':
   connected: WebSocket connected
   disconnected: WebSocket disconnected
