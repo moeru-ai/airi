@@ -128,14 +128,43 @@ Allowed usage is limited to:
 - feature inventory
 - runtime pattern comparison
 
+### 6. Runtime Snapshot Coordinator
+
+Claude Code has a unified runtime shell that consolidates execution context
+across tool invocations. AIRI now adopts this pattern in a targeted way:
+
+- new `runtime-coordinator.ts` provides a single source of truth for runtime context
+- `RuntimeSnapshot` captures all essential state: execution target, foreground context,
+  display info, terminal state, browser/CDP availability, screenshots, budget, approvals
+- coordinator unifies probe/refresh/aggregate logic that was scattered across files
+- lightweight runtime trace events for transparency (CDP failures, surface unavailability)
+- downstream consumers (action-executor, workflows) read from unified snapshot
+
+What we borrowed:
+- unified runtime shell structure
+- clear query-engine boundary
+- snapshot-based context passing
+
+What we explicitly deferred:
+- memory compaction system
+- subagent state management
+- giant bootstrap pattern
+- remote managed settings
+- feature-flag soup
+
+This is the foundation for stable multi-lane coordination. Browser lane, desktop
+lane, and coding lane can now operate from consistent runtime context without
+rebuilding state independently.
+
 ## Current Adoption Status
 
 The Claude-inspired changes currently adopted in this package are intentionally
- modest:
+ modest but structurally significant:
 
 - prep-tool registry and metadata
 - prep execution batch planning
 - richer `preparatoryResults` for workflow traceability
+- **runtime snapshot coordinator** (NEW) — unified runtime context layer
 
 This is the correct scale.
 

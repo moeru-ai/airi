@@ -439,12 +439,13 @@ export interface PolicyDecision {
 export interface SessionTraceEntry {
   id: string
   at: string
-  event: 'requested' | 'approval_required' | 'approved' | 'rejected' | 'executed' | 'denied' | 'failed'
-  toolName: string
-  action: PendingExecutableAction
-  context: ForegroundContext
-  policy: PolicyDecision
+  event: string
+  toolName?: string
+  action?: PendingExecutableAction
+  context?: ForegroundContext
+  policy?: PolicyDecision
   result?: Record<string, unknown>
+  metadata?: Record<string, unknown>
 }
 
 export interface PendingActionRecord {

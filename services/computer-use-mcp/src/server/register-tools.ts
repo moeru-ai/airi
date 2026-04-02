@@ -34,7 +34,6 @@ import {
   describeForegroundContext,
   summarizeCoordinateSpace,
 } from './formatters'
-import { refreshRuntimeRunState } from './refresh-run-state'
 import { registerCodingTools } from './register-coding'
 import { createAcquirePtyCallback, executeApprovedPtyCreate } from './register-pty'
 import { formatWorkflowStructuredContent } from './workflow-formatter'
@@ -103,9 +102,10 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
   const executePrepTool = createWorkflowPrepToolExecutor(runtime)
   registerCodingTools(params)
   const acquirePty = createAcquirePtyCallback(runtime)
+  const coordinator = runtime.coordinator
 
   async function refreshWorkflowRunState() {
-    await refreshRuntimeRunState(runtime)
+    await coordinator.refreshSnapshot('workflow_start')
   }
 
   // Workflow suspension state — stored in this closure so that
@@ -116,11 +116,14 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     'desktop_get_capabilities',
     {},
     async () => {
-      const [{ executionTarget, context, displayInfo, browserSurfaceAvailability }, permissionInfo] = await Promise.all([
-        refreshRuntimeRunState(runtime),
+      const snapshot = await coordinator.refreshSnapshot('tool_entry')
+      const surfaceSummary = coordinator.getSurfaceSummary()
+      const [permissionInfo] = await Promise.all([
         runtime.executor.getPermissionInfo(),
       ])
-      const snapshot = runtime.session.getSnapshot()
+
+      const { executionTarget, foregroundContext: context, displayInfo, browserSurfaceAvailability } = snapshot
+      const sessionSnapshot = runtime.session.getSnapshot()
       const preflight = getRuntimePreflight({
         config: runtime.config,
         lastScreenshot: runtime.session.getLastScreenshot(),
@@ -139,6 +142,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
           launchContext: preflight.launchContext,
           executionTarget,
           displayInfo,
+          surfaceSummary,
           permissions: permissionInfo,
           coordinateSpace: preflight.coordinateSpace,
           mutationGuards: {
@@ -160,7 +164,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
             maxOperationUnits: runtime.config.maxOperationUnits,
             defaultCaptureAfter: runtime.config.defaultCaptureAfter,
           },
-          session: snapshot,
+          session: sessionSnapshot,
           foregroundContext: context,
           windowAutomation: runtime.config.executor === 'macos-local'
             ? 'NSWorkspace + CGWindowList + Quartz'

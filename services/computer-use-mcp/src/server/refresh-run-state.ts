@@ -1,7 +1,21 @@
+/**
+ * DEPRECATED: Internal helper for refresh logic.
+ *
+ * This file is now superseded by runtime-coordinator.ts.
+ * Use `createRuntimeCoordinator(runtime).refreshSnapshot(reason)` instead.
+ *
+ * This export is kept temporarily for backward compatibility during migration.
+ * Direct callers should migrate to the coordinator interface.
+ */
+
 import type { ComputerUseServerRuntime } from './runtime'
 
 import { buildBrowserSurfaceAvailability } from './browser-surface'
 
+/**
+ * @deprecated Use `createRuntimeCoordinator(runtime).refreshSnapshot(reason)` instead.
+ * This function will be removed after all call sites are migrated.
+ */
 export async function refreshRuntimeRunState(runtime: ComputerUseServerRuntime) {
   const [executionTarget, context, displayInfo, cdpAvailability] = await Promise.all([
     runtime.executor.getExecutionTarget(),
