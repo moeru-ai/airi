@@ -82,6 +82,10 @@ export const useSettings = defineStore('settings', () => {
     // UI settings
     allowVisibleOnAllWorkspaces: controlsIslandRefs.allowVisibleOnAllWorkspaces,
     alwaysOnTop: controlsIslandRefs.alwaysOnTop,
+    autoHideControlsIsland: controlsIslandRefs.autoHideControlsIsland,
+    autoHideDelay: controlsIslandRefs.autoHideDelay,
+    autoShowDelay: controlsIslandRefs.autoShowDelay,
+    autoHideOpacity: controlsIslandRefs.autoHideOpacity,
 
     // Methods
     setThemeColorsHue: theme.setThemeColorsHue,
