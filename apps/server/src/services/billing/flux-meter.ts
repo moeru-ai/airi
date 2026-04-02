@@ -33,13 +33,26 @@ end
 return {0, debt}
 `
 
-interface FluxMeterConfig {
-  /** Meter identifier, used as Redis key segment and billing description prefix. */
-  name: string
+interface FluxMeterRuntime {
   /** How many small units equal one Flux. */
   unitsPerFlux: number
   /** Debt key TTL. Residual debt below unitsPerFlux is forgiven on expiry. */
   debtTtlSeconds: number
+}
+
+interface FluxMeterConfig {
+  /** Meter identifier, used as Redis key segment and billing description prefix. */
+  name: string
+  /**
+   * Resolves runtime pricing/TTL per call. Reads from Redis-backed configKV,
+   * so every instance sees config changes immediately. Called lazily so a
+   * missing pricing config surfaces as a per-request 503 (handled by the
+   * route's configGuard), not as a server-wide startup failure.
+   *
+   * NOTICE: Do NOT memoise across calls. Multi-instance deploys would then
+   * disagree on billing rate during config rollout windows.
+   */
+  resolveRuntime: () => Promise<FluxMeterRuntime>
 }
 
 interface AccumulateInput {
@@ -68,17 +81,22 @@ export function createFluxMeter(
   billingService: BillingService,
   config: FluxMeterConfig,
 ) {
-  if (config.unitsPerFlux <= 0)
-    throw new Error(`Invalid unitsPerFlux ${config.unitsPerFlux} for meter ${config.name}`)
+  async function getRuntime(): Promise<FluxMeterRuntime> {
+    const runtime = await config.resolveRuntime()
+    if (runtime.unitsPerFlux <= 0)
+      throw new Error(`Invalid unitsPerFlux ${runtime.unitsPerFlux} for meter ${config.name}`)
 
-  async function runScript(key: string, units: number): Promise<[number, number]> {
+    return runtime
+  }
+
+  async function runScript(key: string, units: number, runtime: FluxMeterRuntime): Promise<[number, number]> {
     const raw = await redis.eval(
       ACCUMULATE_SCRIPT,
       1,
       key,
       units,
-      config.unitsPerFlux,
-      config.debtTtlSeconds,
+      runtime.unitsPerFlux,
+      runtime.debtTtlSeconds,
     ) as [number | string, number | string]
 
     return [Number(raw[0]), Number(raw[1])]
@@ -95,8 +113,9 @@ export function createFluxMeter(
    * the upstream service so we fail fast and refuse to render unbillable usage.
    */
   async function assertCanAfford(userId: string, newUnits: number, currentBalance: number): Promise<void> {
+    const runtime = await getRuntime()
     const existingDebt = await readDebt(userId)
-    const projectedFlux = Math.floor((existingDebt + newUnits) / config.unitsPerFlux)
+    const projectedFlux = Math.floor((existingDebt + newUnits) / runtime.unitsPerFlux)
     // At minimum require the user can cover a single Flux crossing; avoids
     // letting zero-balance users accumulate indefinitely on the boundary.
     const required = Math.max(projectedFlux, currentBalance <= 0 ? 1 : 0)
@@ -110,11 +129,12 @@ export function createFluxMeter(
    * not cross a Flux boundary (cheap path for short TTS segments).
    */
   async function accumulate(input: AccumulateInput): Promise<AccumulateResult> {
-    if (input.units <= 0)
+    if (!Number.isFinite(input.units) || input.units <= 0)
       return { fluxDebited: 0, debtAfter: await readDebt(input.userId), balanceAfter: input.currentBalance }
 
+    const runtime = await getRuntime()
     const key = userFluxMeterDebtRedisKey(input.userId, config.name)
-    const [fluxDebited, debtAfter] = await runScript(key, input.units)
+    const [fluxDebited, debtAfter] = await runScript(key, input.units, runtime)
 
     if (fluxDebited === 0) {
       logger.withFields({
@@ -126,15 +146,39 @@ export function createFluxMeter(
       return { fluxDebited: 0, debtAfter, balanceAfter: input.currentBalance }
     }
 
-    const { flux } = await billingService.consumeFluxForLLM({
-      userId: input.userId,
-      amount: fluxDebited,
-      requestId: input.requestId,
-      description: `metered:${config.name}`,
-      ...(typeof input.metadata?.model === 'string' && { model: input.metadata.model }),
-    })
+    try {
+      const { flux } = await billingService.consumeFluxForLLM({
+        userId: input.userId,
+        amount: fluxDebited,
+        requestId: input.requestId,
+        description: `${config.name}_request`,
+        ...(typeof input.metadata?.model === 'string' && { model: input.metadata.model }),
+      })
 
-    return { fluxDebited, debtAfter, balanceAfter: flux }
+      return { fluxDebited, debtAfter, balanceAfter: flux }
+    }
+    catch (error) {
+      // Restore the already-settled portion back into the debt counter so the
+      // next successful request picks it up. Without this, a failed debit
+      // (insufficient balance under concurrency, transient DB error) silently
+      // under-bills the user for `fluxDebited * unitsPerFlux` units.
+      const restoreUnits = fluxDebited * runtime.unitsPerFlux
+      try {
+        await redis.incrby(key, restoreUnits)
+        await redis.expire(key, runtime.debtTtlSeconds)
+      }
+      catch (rollbackError) {
+        // Rollback failure is itself a billing leak; log loudly for manual
+        // reconciliation but do not shadow the original error.
+        logger.withError(rollbackError).withFields({
+          userId: input.userId,
+          meter: config.name,
+          restoreUnits,
+          requestId: input.requestId,
+        }).error('Failed to roll back meter debt after billing failure')
+      }
+      throw error
+    }
   }
 
   return {
