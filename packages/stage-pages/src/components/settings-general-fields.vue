@@ -69,8 +69,8 @@ const languages = computed(() => {
       :enter="{ opacity: 1, y: 0 }"
       :duration="250 + (5 * 10)"
       :delay="5 * 50"
-      label="Auto-hide controls island"
-      description="Hide controls island after mouse leaves, show after mouse enters"
+      :label="t('settings.controls-island.auto-hide.title')"
+      :description="t('settings.controls-island.auto-hide.description')"
     />
 
     <template v-if="showAutoHideControlsIsland && settingsControlsIsland.autoHideControlsIsland">
@@ -85,7 +85,7 @@ const languages = computed(() => {
         :max="5"
         :step="0.1"
         :format-value="v => `${v}s`"
-        label="Hide delay"
+        :label="t('settings.controls-island.hide-delay.title')"
       />
 
       <FieldRange
@@ -99,7 +99,7 @@ const languages = computed(() => {
         :max="5"
         :step="0.1"
         :format-value="v => `${v}s`"
-        label="Show delay"
+        :label="t('settings.controls-island.show-delay.title')"
       />
 
       <FieldRange
@@ -113,7 +113,7 @@ const languages = computed(() => {
         :max="100"
         :step="1"
         :format-value="v => `${v}%`"
-        label="Hidden opacity"
+        :label="t('settings.controls-island.hidden-opacity.title')"
       />
     </template>
 
