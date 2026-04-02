@@ -1876,6 +1876,190 @@ importers:
         specifier: ^3.2.6
         version: 3.2.6(typescript@5.9.3)
 
+  apps/ui-server-auth:
+    dependencies:
+      '@date-fns/utc':
+        specifier: ^2.1.1
+        version: 2.1.1
+      '@fontsource-variable/nunito':
+        specifier: 'catalog:'
+        version: 5.2.7
+      '@formkit/auto-animate':
+        specifier: ^0.9.0
+        version: 0.9.0(vue@3.5.30(typescript@5.9.3))
+      '@huggingface/transformers':
+        specifier: ^3.8.1
+        version: 3.8.1
+      '@moeru/eventa':
+        specifier: 'catalog:'
+        version: 1.0.0-beta.3(electron@41.0.3)
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
+      '@proj-airi/font-chillroundm':
+        specifier: workspace:^
+        version: link:../../packages/font-chillroundm
+      '@proj-airi/font-cjkfonts-allseto':
+        specifier: workspace:^
+        version: link:../../packages/font-cjkfonts-allseto
+      '@proj-airi/font-xiaolai':
+        specifier: workspace:^
+        version: link:../../packages/font-xiaolai
+      '@proj-airi/i18n':
+        specifier: workspace:^
+        version: link:../../packages/i18n
+      '@proj-airi/stage-layouts':
+        specifier: workspace:^
+        version: link:../../packages/stage-layouts
+      '@proj-airi/stage-shared':
+        specifier: workspace:^
+        version: link:../../packages/stage-shared
+      '@proj-airi/stage-ui':
+        specifier: workspace:^
+        version: link:../../packages/stage-ui
+      '@proj-airi/ui':
+        specifier: workspace:^
+        version: link:../../packages/ui
+      '@vueuse/core':
+        specifier: ^14.2.1
+        version: 14.2.1(vue@3.5.30(typescript@5.9.3))
+      '@vueuse/shared':
+        specifier: ^14.2.1
+        version: 14.2.1(vue@3.5.30(typescript@5.9.3))
+      animejs:
+        specifier: ^4.3.6
+        version: 4.3.6
+      colorjs.io:
+        specifier: ^0.6.1
+        version: 0.6.1
+      culori:
+        specifier: ^4.0.2
+        version: 4.0.2
+      date-fns:
+        specifier: ^4.1.0
+        version: 4.1.0
+      nanoid:
+        specifier: ^5.1.7
+        version: 5.1.7
+      nprogress:
+        specifier: ^0.2.0
+        version: 0.2.0
+      pinia:
+        specifier: ^3.0.4
+        version: 3.0.4(typescript@5.9.3)(vue@3.5.30(typescript@5.9.3))
+      posthog-js:
+        specifier: 'catalog:'
+        version: 1.306.1
+      uuid:
+        specifier: ^13.0.0
+        version: 13.0.0
+      vaul-vue:
+        specifier: ^0.4.1
+        version: 0.4.1(reka-ui@2.9.2(vue@3.5.30(typescript@5.9.3)))(vue@3.5.30(typescript@5.9.3))
+      vue:
+        specifier: 'catalog:'
+        version: 3.5.30(typescript@5.9.3)
+      vue-i18n:
+        specifier: ^11.3.0
+        version: 11.3.0(vue@3.5.30(typescript@5.9.3))
+      vue-router:
+        specifier: ^5.0.4
+        version: 5.0.4(@vue/compiler-sfc@3.5.30)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.30(typescript@5.9.3)))(vue@3.5.30(typescript@5.9.3))
+      vue-sonner:
+        specifier: ^2.0.9
+        version: 2.0.9(vue@3.5.30(typescript@5.9.3))
+    devDependencies:
+      '@iconify-json/carbon':
+        specifier: ^1.2.19
+        version: 1.2.19
+      '@iconify-json/eos-icons':
+        specifier: ^1.2.4
+        version: 1.2.4
+      '@iconify-json/logos':
+        specifier: 'catalog:'
+        version: 1.2.10
+      '@iconify-json/lucide':
+        specifier: ^1.2.98
+        version: 1.2.98
+      '@iconify-json/mingcute':
+        specifier: ^1.2.7
+        version: 1.2.7
+      '@iconify-json/ph':
+        specifier: ^1.2.2
+        version: 1.2.2
+      '@iconify-json/simple-icons':
+        specifier: ^1.2.75
+        version: 1.2.75
+      '@iconify-json/solar':
+        specifier: ^1.2.5
+        version: 1.2.5
+      '@iconify-json/svg-spinners':
+        specifier: ^1.2.4
+        version: 1.2.4
+      '@iconify-json/tabler':
+        specifier: 'catalog:'
+        version: 1.2.32
+      '@iconify-json/vscode-icons':
+        specifier: ^1.2.45
+        version: 1.2.45
+      '@intlify/unplugin-vue-i18n':
+        specifier: ^11.0.7
+        version: 11.0.7(@vue/compiler-dom@3.5.30)(eslint@10.1.0(jiti@2.6.1))(rollup@4.60.0)(typescript@5.9.3)(vite@8.0.2(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vue-i18n@11.3.0(vue@3.5.30(typescript@5.9.3)))(vue@3.5.30(typescript@5.9.3))
+      '@proj-airi/iconify-meteocons':
+        specifier: 'catalog:'
+        version: 0.1.4
+      '@proj-airi/lobe-icons':
+        specifier: ^1.0.18
+        version: 1.0.18
+      '@shikijs/markdown-it':
+        specifier: ^4.0.2
+        version: 4.0.2
+      '@types/culori':
+        specifier: ^4.0.1
+        version: 4.0.1
+      '@types/nprogress':
+        specifier: ^0.2.3
+        version: 0.2.3
+      '@types/splitpanes':
+        specifier: 'catalog:'
+        version: 2.2.6
+      '@unocss/reset':
+        specifier: ^66.6.7
+        version: 66.6.7
+      '@vitejs/plugin-vue':
+        specifier: ^6.0.5
+        version: 6.0.5(vite@8.0.2(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.30(typescript@5.9.3))
+      '@vue-macros/volar':
+        specifier: ^3.1.2
+        version: 3.1.2(typescript@5.9.3)(vue-tsc@3.2.6(typescript@5.9.3))(vue@3.5.30(typescript@5.9.3))
+      '@vueuse/motion':
+        specifier: ^3.0.3
+        version: 3.0.3(magicast@0.5.2)(vue@3.5.30(typescript@5.9.3))
+      unplugin-info:
+        specifier: ^1.2.4
+        version: 1.2.4(esbuild@0.27.2)(rollup@4.60.0)(vite@8.0.2(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
+      unplugin-vue-router:
+        specifier: ^0.19.2
+        version: 0.19.2(@vue/compiler-sfc@3.5.30)(vue-router@5.0.4(@vue/compiler-sfc@3.5.30)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.30(typescript@5.9.3)))(vue@3.5.30(typescript@5.9.3)))(vue@3.5.30(typescript@5.9.3))
+      unplugin-yaml:
+        specifier: ^4.0.1
+        version: 4.0.1(@nuxt/kit@3.20.2(magicast@0.5.2))(esbuild@0.27.2)(rolldown@1.0.0-rc.9)(rollup@4.60.0)(vite@8.0.2(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
+      vite:
+        specifier: 'catalog:'
+        version: 8.0.2(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
+      vite-plugin-vue-devtools:
+        specifier: ^8.1.1
+        version: 8.1.1(vite@8.0.2(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.30(typescript@5.9.3))
+      vite-plugin-vue-layouts:
+        specifier: ^0.11.0
+        version: 0.11.0(vite@8.0.2(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vue-router@5.0.4(@vue/compiler-sfc@3.5.30)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.30(typescript@5.9.3)))(vue@3.5.30(typescript@5.9.3)))(vue@3.5.30(typescript@5.9.3))
+      vue-macros:
+        specifier: ^3.1.2
+        version: 3.1.2(@vueuse/core@14.2.1(vue@3.5.30(typescript@5.9.3)))(esbuild@0.27.2)(rolldown@1.0.0-rc.9)(rollup@4.60.0)(typescript@5.9.3)(vite@8.0.2(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vue-tsc@3.2.6(typescript@5.9.3))(vue@3.5.30(typescript@5.9.3))
+      vue-tsc:
+        specifier: ^3.2.6
+        version: 3.2.6(typescript@5.9.3)
+
   docs:
     dependencies:
       '@fontsource-variable/comfortaa':
