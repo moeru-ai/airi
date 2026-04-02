@@ -100,6 +100,43 @@ Claude Code 那种“默认保守”的思路非常对。
 
 否则后面一旦做 prompt caching 或 summary reuse，会很难做干净。
 
+### 1.5 内容检索优先走 agentic search，不要先上 RAG 信仰
+
+这是 Claude Code 另一个很值钱的判断：
+
+- 对本地代码仓、会话日志、记忆目录这类**强文本、强结构、变化快**的数据
+- 不一定要先做 embedding / 向量库 / 检索增强生成
+- 很多时候，直接让 agent 用 `grep` / `rg` / `glob` / 文件枚举去找，反而更稳
+
+这个思路的优点很实际：
+
+- 没有索引过期问题
+- 不用维护额外向量库
+- 命中结果可解释
+- 模型可以边搜边改查询词，而不是被动吃检索结果
+
+但这个判断不能被滥用。
+
+它更适合：
+
+- 本地代码检索
+- 当前仓库里的 symbol / 文本搜索
+- 短期记忆目录检索
+- 会话日志或 JSONL 历史检索
+
+它不天然适合：
+
+- 跨项目大规模知识库
+- 强语义近义召回
+- 多语言模糊概念匹配
+- 需要高召回率的文档问答
+
+所以正确结论不是“RAG 没用”，而是：
+
+**AIRI 现在不该为了显得高级，过早把 coding/context retrieval 建成向量检索系统。**
+
+先把 `agentic search` 做硬，价值更高，也更符合当前阶段。
+
 ## 2. AIRI 现在该做什么
 
 ### 2.1 先补统一 Tool Descriptor，不要继续散装注册
@@ -171,6 +208,30 @@ Claude Code 那种“默认保守”的思路非常对。
 
 不要因为开发者忘记填 metadata，就把工具默认为无害。
 
+### 2.5 coding line 的内容检索先做 search-first，不做 embedding-first
+
+对 `computer-use-mcp` 来说，这条最应该落在 coding line：
+
+- 先用 `rg --files`、`rg`、路径过滤、文件类型过滤、symbol 命中来缩搜索面
+- 再让模型决定该读哪几个文件
+- 读完之后再决定要不要继续扩搜索
+
+这比“先把仓库全量 embedding 再问答”更适合现在的 AIRI。
+
+原因很简单：
+
+- monorepo 变化快
+- 代码检索本来就天然适合文本搜索
+- embedding 索引维护成本高
+- reviewer 很难看出向量检索为什么给了某些上下文
+
+换句话说：
+
+- **先做 search-driven coding surface**
+- **再考虑更强的语义检索**
+
+不要倒过来。
+
 ## 3. AIRI 现在不该做什么
 
 ### 3.1 不要抄 Claude 的 giant bootstrap
@@ -211,6 +272,24 @@ Claude Code 那种超重入口壳不适合 AIRI 现在复制。
 
 够了。
 
+### 3.4 不要把“agentic search”误包装成“全面知识检索方案”
+
+`grep` 很强，但不是万能。
+
+如果后面 AIRI 真要做：
+
+- 跨会话知识沉淀
+- 文档语义问答
+- 多来源长周期知识复用
+
+那还是可能需要专门的 retrieval 层。
+
+所以这一步该写清楚：
+
+- 现在采用的是 **search-first retrieval**
+- 不是永久拒绝 RAG
+- 只是当前阶段优先级和工程收益判断
+
 ## 4. 对应到 `computer-use-mcp` 的实施顺序
 
 ### Stage A: Tool Descriptor Registry
@@ -239,7 +318,23 @@ Claude Code 那种超重入口壳不适合 AIRI 现在复制。
 
 这个阶段先不做 tool search，也不改模型调用逻辑。
 
-### Stage C: ToolSearch Tool
+### Stage C: Search-First Context Retrieval
+
+目标：
+
+- 先把 coding/context retrieval 变成显式 search-driven 流程
+- 主要依赖 `rg` / `glob` / 文件枚举 / 精确文本命中
+- 让模型自己逐步缩小上下文，而不是先吞一坨预检索结果
+
+建议先覆盖：
+
+- repo file discovery
+- text/symbol hit collection
+- memory/log directory grep
+
+这一步不涉及向量库，也不做 embedding ingestion。
+
+### Stage D: ToolSearch Tool
 
 目标：
 
@@ -259,7 +354,7 @@ Claude Code 那种超重入口壳不适合 AIRI 现在复制。
 - `lane`
 - `whyMatched`
 
-### Stage D: Selective Schema Hydration
+### Stage E: Selective Schema Hydration
 
 目标：
 
@@ -289,6 +384,10 @@ Claude Code 那种超重入口壳不适合 AIRI 现在复制。
 - 比直接做 ToolSearch 更稳
 - 比继续堆新工具更值钱
 - 还能顺手改善 review、trace、prompt 暴露和后续 token 控制
+
+如果只能选第二个点，那就是：
+
+**把 coding line 的 context retrieval 明确做成 search-first。**
 
 ## 6. 一句话原则
 
