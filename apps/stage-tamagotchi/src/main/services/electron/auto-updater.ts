@@ -98,17 +98,69 @@ export function setupAutoUpdater(): AutoUpdater {
 
   const OFFICIAL_UPDATER_CACHE_DIR = join(getCacheRoot(), 'ai.moeru.airi-updater')
   const OFFICIAL_UPDATER_PENDING_DIR = join(OFFICIAL_UPDATER_CACHE_DIR, 'pending')
+  let resolvedFeedUrl = 'N/A'
+
+  const getDiagnostics = () => {
+    const executablePath = process.execPath
+    const uninstallPath = process.platform === 'win32'
+      ? join(dirname(executablePath), 'Uninstall airi.exe')
+      : undefined
+
+    return {
+      platform: process.platform,
+      arch: process.arch,
+      channel: autoUpdater.channel || getReleaseChannelName(),
+      feedUrl: resolvedFeedUrl,
+      logFilePath: UPDATER_LOG_FILE,
+      updaterCacheDir: OFFICIAL_UPDATER_CACHE_DIR,
+      pendingDir: OFFICIAL_UPDATER_PENDING_DIR,
+      executablePath,
+      uninstallPath,
+      uninstallExists: uninstallPath ? fs.existsSync(uninstallPath) : undefined,
+    }
+  }
 
   const logInstallDiagnostics = async () => {
-    const exePath = process.execPath
-    const uninstallPath = join(dirname(exePath), 'Uninstall airi.exe')
-    const uninstallExists = fs.existsSync(uninstallPath)
-    await logToFile('INFO', `Install diagnostics: platform=${process.platform} arch=${process.arch} exe=${exePath} uninstall=${uninstallPath} uninstallExists=${uninstallExists}`)
+    const diagnostics = getDiagnostics()
+    await logToFile('INFO', `Install diagnostics: platform=${diagnostics.platform} arch=${diagnostics.arch} exe=${diagnostics.executablePath} uninstall=${diagnostics.uninstallPath || 'N/A'} uninstallExists=${String(diagnostics.uninstallExists ?? false)}`)
+  }
+
+  const cleanupRootInstallerArtifacts = async () => {
+    const removed: string[] = []
+
+    const directTargets = [
+      join(OFFICIAL_UPDATER_CACHE_DIR, 'installer.exe'),
+      join(OFFICIAL_UPDATER_CACHE_DIR, 'installer'),
+    ]
+
+    for (const target of directTargets) {
+      if (fs.existsSync(target)) {
+        await fs.promises.rm(target, { force: true }).catch(() => {})
+        removed.push(target)
+      }
+    }
+
+    const entries = await fs.promises.readdir(OFFICIAL_UPDATER_CACHE_DIR, { withFileTypes: true }).catch(() => [])
+    for (const entry of entries) {
+      if (!entry.isFile())
+        continue
+
+      if (!/^installer(\..+)?$/i.test(entry.name))
+        continue
+
+      const target = join(OFFICIAL_UPDATER_CACHE_DIR, entry.name)
+      await fs.promises.rm(target, { force: true }).catch(() => {})
+      removed.push(target)
+    }
+
+    if (removed.length > 0)
+      await logToFile('INFO', `Removed updater root artifacts: ${removed.join(', ')}`)
   }
 
   const cleanupStaleUpdateFiles = async () => {
-    // Remove stale downloaded installers from previous runs after app startup.
+    // Remove stale downloaded installers and root installer artifacts from previous runs.
     await fs.promises.rm(OFFICIAL_UPDATER_PENDING_DIR, { recursive: true, force: true }).catch(() => {})
+    await cleanupRootInstallerArtifacts()
     await logToFile('INFO', `Updater cache cleanup attempted: ${OFFICIAL_UPDATER_PENDING_DIR}`)
   }
 
@@ -131,6 +183,7 @@ export function setupAutoUpdater(): AutoUpdater {
       throw new Error('No published versions on GitHub')
 
     const feedUrl = `https://github.com/moeru-ai/airi/releases/download/${latestRelease.tag_name}`
+    resolvedFeedUrl = feedUrl
     autoUpdater.allowPrerelease = false
     autoUpdater.autoDownload = false
     autoUpdater.channel = archChannel
@@ -157,11 +210,14 @@ export function setupAutoUpdater(): AutoUpdater {
   const hooks = new Set<(state: AutoUpdaterState) => void>()
 
   function broadcast(next: AutoUpdaterState) {
-    state = next
+    state = {
+      ...next,
+      diagnostics: getDiagnostics(),
+    }
 
     for (const listener of hooks) {
       try {
-        listener(next)
+        listener(state)
       }
       catch (error) {
         log.withError(error).error('Failed to notify listener')
@@ -223,7 +279,10 @@ export function setupAutoUpdater(): AutoUpdater {
 
       try {
         await logToFile('INFO', 'quitAndInstall called: launching installer in silent mode')
-        autoUpdater.quitAndInstall(true, true)
+        if (process.platform === 'win32')
+          autoUpdater.quitAndInstall(true, true)
+        else
+          autoUpdater.quitAndInstall()
       }
       finally {
         semaphore.release()

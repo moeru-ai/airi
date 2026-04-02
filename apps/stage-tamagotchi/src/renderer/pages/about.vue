@@ -37,12 +37,7 @@ const showChangelog = ref(false)
 const { isDesktop } = useBreakpoints()
 
 const diagnosticsLogPath = computed(() => {
-  const platform = navigator.platform.toLowerCase()
-  if (platform.includes('win'))
-    return 'C:\\Users\\<you>\\AppData\\Local\\stage-tamagotchi-updater\\updater-log.txt'
-  if (platform.includes('mac'))
-    return '~/Library/Caches/stage-tamagotchi-updater/updater-log.txt'
-  return '~/.cache/stage-tamagotchi-updater/updater-log.txt'
+  return updateState.value.diagnostics?.logFilePath ?? 'N/A'
 })
 
 const firstUpdateFile = computed(() => {
@@ -194,6 +189,18 @@ const releaseNotesContent = computed(() => {
             </div>
             <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
               file={{ firstUpdateFile }}
+            </div>
+            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
+              platform={{ updateState.diagnostics?.platform ?? 'N/A' }} arch={{ updateState.diagnostics?.arch ?? 'N/A' }}
+            </div>
+            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
+              channel={{ updateState.diagnostics?.channel ?? 'N/A' }}
+            </div>
+            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
+              feed={{ updateState.diagnostics?.feedUrl ?? 'N/A' }}
+            </div>
+            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
+              cache={{ updateState.diagnostics?.updaterCacheDir ?? 'N/A' }}
             </div>
             <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
               log={{ diagnosticsLogPath }}
