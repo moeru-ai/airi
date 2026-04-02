@@ -1,0 +1,33 @@
+{
+  "name": "@proj-airi/openclaw-bridge",
+  "type": "module",
+  "private": true,
+  "description": "Service-side AIRI bridge for delegated OpenClaw tasks.",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "services/openclaw-bridge"
+  },
+  "scripts": {
+    "start": "tsx --env-file-if-exists=.env.local src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@guiiai/logg": "catalog:",
+    "@moeru/std": "catalog:",
+    "@proj-airi/server-sdk": "workspace:^",
+    "@proj-airi/server-shared": "workspace:^",
+    "nanoid": "catalog:"
+  },
+  "devDependencies": {
+    "tsx": "catalog:",
+    "vitest": "catalog:vitest"
+  }
+}

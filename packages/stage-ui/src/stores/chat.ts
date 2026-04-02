@@ -13,6 +13,8 @@ import { ref, toRaw } from 'vue'
 import { useAnalytics } from '../composables'
 import { useLlmmarkerParser } from '../composables/llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from '../composables/response-categoriser'
+import { extractExplicitOpenClawTask } from '../tools'
+import { useAuthStore } from './auth'
 import { buildContextPromptMessage } from './chat/context-prompt'
 import { createDatetimeContext, createMinecraftContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
@@ -63,6 +65,7 @@ export interface QueuedSendSnapshot {
 export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const llmStore = useLLM()
   const consciousnessStore = useConsciousnessStore()
+  const authStore = useAuthStore()
   const { activeProvider } = storeToRefs(consciousnessStore)
   const { trackFirstMessage } = useAnalytics()
 
@@ -206,6 +209,44 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         createdAt: sendingCreatedAt,
         id: nanoid(),
       })
+
+      const explicitOpenClawTask = extractExplicitOpenClawTask(sendingMessage)
+      if (explicitOpenClawTask) {
+        const resultText = await llmStore.delegateOpenClawTask({
+          conversationId: sessionId,
+          source: 'stage-ui:chat-explicit-openclaw',
+          task: explicitOpenClawTask,
+          userId: authStore.userId || 'local',
+        })
+
+        buildingMessage.content = resultText
+        buildingMessage.slices.push({
+          type: 'text',
+          text: resultText,
+        })
+        updateUI()
+
+        if (!isStaleGeneration()) {
+          chatSession.appendSessionMessage(sessionId, toRaw(buildingMessage))
+        }
+
+        await hooks.emitStreamEndHooks(streamingMessageContext)
+        await hooks.emitAssistantResponseEndHooks(resultText, streamingMessageContext)
+        await hooks.emitAfterSendHooks(sendingMessage, streamingMessageContext)
+        await hooks.emitAssistantMessageHooks({ ...buildingMessage }, resultText, streamingMessageContext)
+        await hooks.emitChatTurnCompleteHooks({
+          output: { ...buildingMessage },
+          outputText: resultText,
+          toolCalls: [],
+        }, streamingMessageContext)
+
+        if (isForegroundSession()) {
+          streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
+        }
+
+        return
+      }
+
       const sessionMessagesForSend = chatSession.getSessionMessages(sessionId)
 
       const categorizer = createStreamingCategorizer(activeProvider.value)

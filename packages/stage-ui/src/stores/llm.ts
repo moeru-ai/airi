@@ -1,6 +1,8 @@
-import type { WebSocketEvents } from '@proj-airi/server-sdk'
+import type { WebSocketBaseEvent, WebSocketEvents } from '@proj-airi/server-sdk'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { CommonContentPart, CompletionToolCall, Message, Tool } from '@xsai/shared-chat'
+
+import type { OpenClawToolPayload, OpenClawToolResult } from '../tools'
 
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { listModels } from '@xsai/model'
@@ -11,8 +13,84 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { z } from 'zod/v4'
 
-import { debug, mcp } from '../tools'
+import { debug, executeOpenClawTool, mcp, openclaw } from '../tools'
 import { useModsServerChannelStore } from './mods/api/channel-server'
+
+function hasOpenClawMetadata(value: unknown): boolean {
+  return typeof value === 'object'
+    && value !== null
+    && 'openclaw' in value
+    && typeof value.openclaw === 'object'
+    && value.openclaw !== null
+}
+
+function readOpenClawResultMetadata(value: unknown): Omit<OpenClawToolResult, 'summary'> & { commandId: string } | undefined {
+  if (!hasOpenClawMetadata(value)) {
+    return undefined
+  }
+
+  const record = value as { openclaw: Record<string, unknown> }
+  const openclaw = record.openclaw
+  if (typeof openclaw.commandId !== 'string' || typeof openclaw.status !== 'string') {
+    return undefined
+  }
+
+  if (openclaw.status !== 'completed' && openclaw.status !== 'failed' && openclaw.status !== 'cancelled') {
+    return undefined
+  }
+
+  return {
+    commandId: openclaw.commandId,
+    status: openclaw.status,
+    error: typeof openclaw.error === 'object' && openclaw.error !== null ? openclaw.error as OpenClawToolResult['error'] : undefined,
+    result: typeof openclaw.result === 'object' && openclaw.result !== null ? openclaw.result as OpenClawToolResult['result'] : undefined,
+  }
+}
+
+function matchesOpenClawRequest(value: unknown, payload: OpenClawToolPayload): boolean {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+
+  const request = value as Record<string, unknown>
+  return request.conversationId === payload.conversationId
+    && request.userId === payload.userId
+    && request.source === (payload.source ?? 'stage-ui:openclaw-tool')
+}
+
+export function isTrustedOpenClawResultEvent(
+  event: WebSocketBaseEvent<'context:update', WebSocketEvents['context:update']>,
+  commandId: string,
+  payload: OpenClawToolPayload,
+): boolean {
+  const metadata = readOpenClawResultMetadata(event.data.metadata)
+  if (!metadata || event.data.lane !== 'openclaw:result' || metadata.commandId !== commandId) {
+    return false
+  }
+
+  if (event.metadata.source.kind !== 'plugin' || event.metadata.source.plugin.id !== 'openclaw-bridge') {
+    return false
+  }
+
+  const openclawMetadata = hasOpenClawMetadata(event.data.metadata)
+    ? (event.data.metadata as { openclaw: Record<string, unknown> }).openclaw
+    : undefined
+
+  return matchesOpenClawRequest(openclawMetadata?.request, payload)
+}
+
+export function prepareSparkCommandForSend(command: WebSocketEvents['spark:command']): WebSocketEvents['spark:command'] {
+  const targetsOpenClaw = command.contexts?.some(context => context.lane === 'openclaw:task' || hasOpenClawMetadata(context.metadata))
+
+  if (targetsOpenClaw) {
+    return command
+  }
+
+  return {
+    ...command,
+    destinations: [],
+  }
+}
 
 export type StreamEvent
   = | { type: 'text-delta', text: string }
@@ -26,6 +104,7 @@ export interface StreamOptions {
   headers?: Record<string, string>
   onStreamEvent?: (event: StreamEvent) => void | Promise<void>
   toolsCompatibility?: Map<string, boolean>
+  waitForOpenClawResult?: (commandId: string, payload: OpenClawToolPayload) => Promise<OpenClawToolResult>
   supportsTools?: boolean
   waitForTools?: boolean
   tools?: Tool[] | (() => Promise<Tool[] | undefined>)
@@ -118,6 +197,7 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
     ? [
         ...await mcp(),
         ...await debug(),
+        ...await openclaw(sendSparkCommand, options?.waitForOpenClawResult),
         ...await resolveTools(),
         await tool({
           name: 'call_spark_command',
@@ -242,6 +322,72 @@ export const useLLM = defineStore('llm', () => {
     return `${chatProvider.chat(model).baseURL}-${model}`
   }
 
+  function waitForOpenClawResult(commandId: string, payload: OpenClawToolPayload, timeoutMs = 120_000) {
+    return new Promise<OpenClawToolResult>((resolve, reject) => {
+      let settled = false
+
+      const cleanup = (dispose: () => void, timeout: ReturnType<typeof setTimeout>) => {
+        clearTimeout(timeout)
+        dispose()
+      }
+
+      const settleResolve = (dispose: () => void, timeout: ReturnType<typeof setTimeout>, value: OpenClawToolResult) => {
+        if (settled) {
+          return
+        }
+
+        settled = true
+        cleanup(dispose, timeout)
+        resolve(value)
+      }
+
+      const settleReject = (dispose: () => void, timeout: ReturnType<typeof setTimeout>, error: unknown) => {
+        if (settled) {
+          return
+        }
+
+        settled = true
+        cleanup(dispose, timeout)
+        reject(error)
+      }
+
+      const dispose = modsServerChannelStore.onContextUpdate((event) => {
+        if (!isTrustedOpenClawResultEvent(event, commandId, payload)) {
+          return
+        }
+
+        const metadata = readOpenClawResultMetadata(event.data.metadata)
+        if (!metadata) {
+          return
+        }
+
+        settleResolve(dispose, timeout, {
+          error: metadata.error,
+          result: metadata.result,
+          status: metadata.status,
+          summary: event.data.text,
+        })
+      })
+
+      const timeout = setTimeout(() => {
+        settleReject(dispose, timeout, new Error(`Timed out waiting for OpenClaw result (${commandId})`))
+      }, timeoutMs)
+    })
+  }
+
+  function sendRuntimeSparkCommand(command: WebSocketEvents['spark:command']) {
+    const preparedCommand = prepareSparkCommandForSend(command)
+
+    modsServerChannelStore.send({
+      type: 'spark:command',
+      data: preparedCommand,
+    })
+  }
+
+  function delegateOpenClawTask(payload: OpenClawToolPayload) {
+    return executeOpenClawTool(payload, sendRuntimeSparkCommand, waitForOpenClawResult)
+  }
+
   async function stream(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
     const key = modelKey(model, chatProvider)
     try {
@@ -250,21 +396,8 @@ export const useLLM = defineStore('llm', () => {
         chatProvider,
         messages,
         // TODO(@nekomeowww,@shinohara-rin): we should not register the command callback on every stream anyway...
-        (command) => {
-          // TODO(@nekomeowww): instruct the LLM to understand what destination is.
-          // Currently without skill like prompt injection, many issues occur.
-          // destination mostly are wrong or hallucinated, we need to find a way to make it more reliable.
-          //
-          // For now, since destinations as array will always broadcast to all connected modules/agents, we can set it to
-          // empty array to avoid wrong routing.
-          command.destinations = []
-
-          modsServerChannelStore.send({
-            type: 'spark:command',
-            data: command,
-          })
-        },
-        { ...options, toolsCompatibility: toolsCompatibility.value },
+        sendRuntimeSparkCommand,
+        { ...options, toolsCompatibility: toolsCompatibility.value, waitForOpenClawResult },
       )
     }
     catch (err) {
@@ -294,6 +427,7 @@ export const useLLM = defineStore('llm', () => {
   }
 
   return {
+    delegateOpenClawTask,
     models,
     stream,
   }

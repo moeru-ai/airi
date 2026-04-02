@@ -299,6 +299,12 @@ export default defineConfig<ThemeConfig>({
                   { text: '配置指南', link: withBase('/zh-Hans/docs/manual/config/') },
                 ],
               },
+              {
+                text: '集成',
+                items: [
+                  { text: 'AIRI 与 OpenClaw', link: withBase('/zh-Hans/docs/manual/openclaw/') },
+                ],
+              },
             ],
           },
           {

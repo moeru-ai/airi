@@ -286,4 +286,52 @@ describe('useLlmmarkerParser', async () => {
 
     expect(endText).toBe(fullText)
   })
+
+  it('should treat leading ACT lines as specials instead of literals', async () => {
+    const fullText = 'ACT: "emotion": {"name": "happy"}, "motion": "wave"\n\n早安！'
+    const collectedLiterals: string[] = []
+    const collectedSpecials: string[] = []
+
+    const parser = useLlmmarkerParser({
+      onLiteral(literal) {
+        collectedLiterals.push(literal)
+      },
+      onSpecial(special) {
+        collectedSpecials.push(special)
+      },
+    })
+
+    for (const char of fullText) {
+      await parser.consume(char)
+    }
+
+    await parser.end()
+
+    expect(collectedSpecials).toEqual(['<|ACT:{"emotion": {"name": "happy"}, "motion": "wave"}|>'])
+    expect(collectedLiterals.join('')).toBe('早安！')
+  })
+
+  it('should keep normal text containing ACT when it is not a directive', async () => {
+    const fullText = '我剛剛看到 ACT: 這三個字。'
+    const collectedLiterals: string[] = []
+    const collectedSpecials: string[] = []
+
+    const parser = useLlmmarkerParser({
+      onLiteral(literal) {
+        collectedLiterals.push(literal)
+      },
+      onSpecial(special) {
+        collectedSpecials.push(special)
+      },
+    })
+
+    for (const char of fullText) {
+      await parser.consume(char)
+    }
+
+    await parser.end()
+
+    expect(collectedSpecials).toEqual([])
+    expect(collectedLiterals.join('')).toBe(fullText)
+  })
 })

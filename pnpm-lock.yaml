@@ -3511,6 +3511,31 @@ importers:
         specifier: 'catalog:'
         version: 8.18.1
 
+  services/openclaw-bridge:
+    dependencies:
+      '@guiiai/logg':
+        specifier: 'catalog:'
+        version: 1.2.11
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
+      '@proj-airi/server-sdk':
+        specifier: workspace:^
+        version: link:../../packages/server-sdk
+      '@proj-airi/server-shared':
+        specifier: workspace:^
+        version: link:../../packages/server-shared
+      nanoid:
+        specifier: 'catalog:'
+        version: 5.1.6
+    devDependencies:
+      tsx:
+        specifier: 'catalog:'
+        version: 4.21.0
+      vitest:
+        specifier: catalog:vitest
+        version: 4.1.1(@opentelemetry/api@1.9.1)(@types/node@24.12.0)(@vitest/browser-playwright@4.1.1)(jsdom@27.4.0(bufferutil@4.1.0)(canvas@3.2.2)(utf-8-validate@5.0.10))(vite@8.0.2(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
+
   services/satori-bot:
     dependencies:
       '@electric-sql/pglite':

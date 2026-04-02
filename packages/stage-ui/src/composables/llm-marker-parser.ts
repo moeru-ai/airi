@@ -12,6 +12,11 @@ interface MarkerParserOptions {
   minLiteralEmitLength?: number
 }
 
+interface ActDirectiveMatch {
+  rest: string
+  special: string
+}
+
 interface StreamController<T> {
   stream: ReadableStream<T>
   write: (value: T) => void
@@ -74,6 +79,54 @@ function createLlmMarkerParser(options?: MarkerParserOptions) {
   const tailLength = Math.max(TAG_OPEN.length - 1, ESCAPED_TAG_OPEN.length - 1)
   let buffer = ''
   let inTag = false
+  let suppressLeadingNewlinesAfterAct = false
+
+  function tryConsumeActDirective(allowIncomplete = false): ActDirectiveMatch | 'pending' | null {
+    const actPrefixMatch = /^(\s*)ACT\s*:\s*/i.exec(buffer)
+    if (!actPrefixMatch) {
+      return null
+    }
+
+    const prefixLength = actPrefixMatch[0].length
+    const firstPayloadChar = buffer.slice(prefixLength).trimStart()[0]
+    if (firstPayloadChar !== '{' && firstPayloadChar !== '"') {
+      return null
+    }
+
+    const newlineIndex = buffer.indexOf('\n', prefixLength)
+    if (newlineIndex < 0) {
+      if (!allowIncomplete) {
+        return 'pending'
+      }
+
+      const payload = buffer.slice(prefixLength).trim()
+      buffer = ''
+      return {
+        rest: '',
+        special: `<|ACT:${normalizeActPayload(payload)}|>`,
+      }
+    }
+
+    const payload = buffer.slice(prefixLength, newlineIndex).trim()
+    const rest = buffer.slice(newlineIndex).replace(/^(\r?\n)+/, '')
+    return {
+      rest,
+      special: `<|ACT:${normalizeActPayload(payload)}|>`,
+    }
+  }
+
+  function normalizeActPayload(payload: string): string {
+    const trimmed = payload.trim()
+    if (!trimmed) {
+      return '{}'
+    }
+
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      return trimmed
+    }
+
+    return `{${trimmed}}`
+  }
 
   return {
     async consume(textPart: string, onLiteral: (value: string) => Promise<void> | void, onSpecial: (value: string) => Promise<void> | void) {
@@ -84,6 +137,29 @@ function createLlmMarkerParser(options?: MarkerParserOptions) {
 
       while (buffer.length > 0) {
         if (!inTag) {
+          if (suppressLeadingNewlinesAfterAct) {
+            const trimmed = buffer.replace(/^(\r?\n)+/, '')
+            if (trimmed !== buffer) {
+              buffer = trimmed
+              if (!buffer.length) {
+                break
+              }
+            }
+            suppressLeadingNewlinesAfterAct = false
+          }
+
+          const actDirective = tryConsumeActDirective()
+          if (actDirective === 'pending') {
+            break
+          }
+
+          if (actDirective) {
+            buffer = actDirective.rest
+            suppressLeadingNewlinesAfterAct = true
+            await onSpecial(actDirective.special)
+            continue
+          }
+
           const openTagIndex = buffer.indexOf(TAG_OPEN)
           if (openTagIndex < 0) {
             if (buffer.length - tailLength >= minLiteralEmitLength) {
@@ -114,7 +190,17 @@ function createLlmMarkerParser(options?: MarkerParserOptions) {
       }
     },
 
-    async end(onLiteral: (value: string) => Promise<void> | void) {
+    async end(
+      onLiteral: (value: string) => Promise<void> | void,
+      onSpecial: (value: string) => Promise<void> | void,
+    ) {
+      const actDirective = tryConsumeActDirective(true)
+      if (actDirective && actDirective !== 'pending') {
+        buffer = actDirective.rest
+        await onSpecial(actDirective.special)
+        buffer = buffer.replace(/^(\r?\n)+/, '')
+      }
+
       if (!inTag && buffer.length > 0) {
         await onLiteral(buffer)
         buffer = ''
@@ -145,6 +231,8 @@ function createLlmMarkerStream(input: ReadableStream<string>, options?: MarkerPa
         if (!literal)
           return
         write({ type: 'literal', value: literal })
+      }, async (special) => {
+        write({ type: 'special', value: special })
       })
       close()
     })
