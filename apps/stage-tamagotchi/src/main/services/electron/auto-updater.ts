@@ -4,7 +4,10 @@ import type { UpdateInfo } from 'electron-updater'
 
 import type { AutoUpdaterState } from '../../../shared/eventa'
 
-import { arch } from 'node:process'
+import fs from 'node:fs'
+import process from 'node:process'
+
+import { dirname, join } from 'node:path'
 
 import electronUpdater from 'electron-updater'
 
@@ -22,12 +25,46 @@ import {
 } from '../../../shared/eventa'
 import { MockAutoUpdater } from './mock-auto-updater'
 
+function getCacheRoot() {
+  switch (process.platform) {
+    case 'win32':
+      return process.env.LOCALAPPDATA || join(process.env.USERPROFILE || '', 'AppData', 'Local')
+    case 'darwin':
+      return join(process.env.HOME || '', 'Library', 'Caches')
+    default:
+      return process.env.XDG_CACHE_HOME || join(process.env.HOME || '', '.cache')
+  }
+}
+const CACHE_DIR = join(getCacheRoot(), 'stage-tamagotchi-updater')
+const UPDATER_LOG_FILE = join(CACHE_DIR, 'updater-log.txt')
+
+function getReleaseChannelName() {
+  const arch = process.arch
+
+  if (process.platform === 'darwin')
+    return arch === 'arm64' ? 'latest-arm64-mac' : 'latest-x64-mac'
+
+  if (process.platform === 'linux')
+    return arch === 'arm64' ? 'latest-arm64-linux-arm64' : 'latest-x64-linux'
+
+  return arch === 'arm64' ? 'latest-arm64' : 'latest-x64'
+}
+
+async function logToFile(level: string, msg: string) {
+  await fs.promises.mkdir(CACHE_DIR, { recursive: true }).catch(() => {})
+  await fs.promises.appendFile(UPDATER_LOG_FILE, `${new Date().toISOString()} [${level}] ${msg}\n`).catch(() => {})
+}
+
 export interface AppUpdaterLike {
-  channel?: string
   on: (event: string, listener: (...args: any[]) => void) => any
   checkForUpdates: () => Promise<any>
   downloadUpdate: () => Promise<any>
-  quitAndInstall: () => Promise<void>
+  quitAndInstall: (isSilent?: boolean, isForceRunAfter?: boolean) => Promise<void> | void
+  setFeedURL?: (options: { provider: 'generic', url: string }) => void
+  logger?: any
+  allowPrerelease?: boolean
+  autoDownload?: boolean
+  channel?: string
 }
 
 // NOTICE: this part of code is copied from https://www.electron.build/auto-update
@@ -59,19 +96,128 @@ export function setupAutoUpdater(): AutoUpdater {
   const log = useLogg('auto-updater').useGlobalConfig()
   const autoUpdater = fromImported()
 
+  const OFFICIAL_UPDATER_CACHE_DIR = join(getCacheRoot(), 'ai.moeru.airi-updater')
+  const OFFICIAL_UPDATER_PENDING_DIR = join(OFFICIAL_UPDATER_CACHE_DIR, 'pending')
+  let resolvedFeedUrl = 'N/A'
+
+  const getDiagnostics = () => {
+    const executablePath = process.execPath
+    const uninstallPath = process.platform === 'win32'
+      ? join(dirname(executablePath), 'Uninstall airi.exe')
+      : undefined
+
+    return {
+      platform: process.platform,
+      arch: process.arch,
+      channel: autoUpdater.channel || getReleaseChannelName(),
+      feedUrl: resolvedFeedUrl,
+      logFilePath: UPDATER_LOG_FILE,
+      updaterCacheDir: OFFICIAL_UPDATER_CACHE_DIR,
+      pendingDir: OFFICIAL_UPDATER_PENDING_DIR,
+      executablePath,
+      uninstallPath,
+      uninstallExists: uninstallPath ? fs.existsSync(uninstallPath) : undefined,
+    }
+  }
+
+  const logInstallDiagnostics = async () => {
+    const diagnostics = getDiagnostics()
+    await logToFile('INFO', `Install diagnostics: platform=${diagnostics.platform} arch=${diagnostics.arch} exe=${diagnostics.executablePath} uninstall=${diagnostics.uninstallPath || 'N/A'} uninstallExists=${String(diagnostics.uninstallExists ?? false)}`)
+  }
+
+  const cleanupRootInstallerArtifacts = async () => {
+    const removed: string[] = []
+
+    const directTargets = [
+      join(OFFICIAL_UPDATER_CACHE_DIR, 'installer.exe'),
+      join(OFFICIAL_UPDATER_CACHE_DIR, 'installer'),
+    ]
+
+    for (const target of directTargets) {
+      if (fs.existsSync(target)) {
+        await fs.promises.rm(target, { force: true }).catch(() => {})
+        removed.push(target)
+      }
+    }
+
+    const entries = await fs.promises.readdir(OFFICIAL_UPDATER_CACHE_DIR, { withFileTypes: true }).catch(() => [])
+    for (const entry of entries) {
+      if (!entry.isFile())
+        continue
+
+      if (!/^installer(\..+)?$/i.test(entry.name))
+        continue
+
+      const target = join(OFFICIAL_UPDATER_CACHE_DIR, entry.name)
+      await fs.promises.rm(target, { force: true }).catch(() => {})
+      removed.push(target)
+    }
+
+    if (removed.length > 0)
+      await logToFile('INFO', `Removed updater root artifacts: ${removed.join(', ')}`)
+  }
+
+  const cleanupStaleUpdateFiles = async () => {
+    // Remove stale downloaded installers and root installer artifacts from previous runs.
+    await fs.promises.rm(OFFICIAL_UPDATER_PENDING_DIR, { recursive: true, force: true }).catch(() => {})
+    await cleanupRootInstallerArtifacts()
+    await logToFile('INFO', `Updater cache cleanup attempted: ${OFFICIAL_UPDATER_PENDING_DIR}`)
+  }
+
+  const configureFeedForLatestRelease = async () => {
+    const archChannel = getReleaseChannelName()
+    const releasesApi = 'https://api.github.com/repos/moeru-ai/airi/releases?per_page=20'
+    const response = await fetch(releasesApi, {
+      headers: {
+        'accept': 'application/vnd.github+json',
+        'User-Agent': 'airi-updater',
+      },
+    })
+
+    if (!response.ok)
+      throw new Error(`Failed to query releases API (${response.status})`)
+
+    const releases = await response.json() as Array<{ tag_name?: string, draft?: boolean }>
+    const latestRelease = releases.find(release => !!release.tag_name && !release.draft)
+    if (!latestRelease?.tag_name)
+      throw new Error('No published versions on GitHub')
+
+    const feedUrl = `https://github.com/moeru-ai/airi/releases/download/${latestRelease.tag_name}`
+    resolvedFeedUrl = feedUrl
+    autoUpdater.allowPrerelease = false
+    autoUpdater.autoDownload = false
+    autoUpdater.channel = archChannel
+    autoUpdater.setFeedURL?.({ provider: 'generic', url: feedUrl })
+
+    await logToFile('INFO', `Updater feed set to ${feedUrl} (channel: ${archChannel})`)
+  }
+
+  // Configure updater defaults before dynamic feed resolution.
+  autoUpdater.allowPrerelease = false
+  autoUpdater.autoDownload = false
+  autoUpdater.channel = getReleaseChannelName()
+  void logInstallDiagnostics()
+  void cleanupStaleUpdateFiles()
+
+  autoUpdater.logger = {
+    info: (msg: string) => logToFile('INFO', msg),
+    warn: (msg: string) => logToFile('WARN', msg),
+    error: (msg: string) => logToFile('ERROR', msg),
+    debug: (msg: string) => logToFile('DEBUG', msg),
+  }
+
   let state: AutoUpdaterState = { status: 'idle' }
   const hooks = new Set<(state: AutoUpdaterState) => void>()
 
-  // Fix: explicitly map base channel to architecture to resolve 404 targets.
-  // electron-updater natively appends OS suffixes (-mac.yml, -linux.yml) automatically.
-  autoUpdater.channel = arch === 'arm64' ? 'latest-arm64' : 'latest-x64'
-
   function broadcast(next: AutoUpdaterState) {
-    state = next
+    state = {
+      ...next,
+      diagnostics: getDiagnostics(),
+    }
 
     for (const listener of hooks) {
       try {
-        listener(next)
+        listener(state)
       }
       catch (error) {
         log.withError(error).error('Failed to notify listener')
@@ -79,11 +225,18 @@ export function setupAutoUpdater(): AutoUpdater {
     }
   }
 
-  autoUpdater.on('error', error => broadcast({ status: 'error', error: { message: errorMessageFrom(error) || String(error) } }))
+  autoUpdater.on('error', error => broadcast({ status: 'error', error: { message: `${errorMessageFrom(error) || String(error)}\n\n(See full logs at ${UPDATER_LOG_FILE})` } }))
   autoUpdater.on('checking-for-update', () => broadcast({ status: 'checking' }))
-  autoUpdater.on('update-available', (info: UpdateInfo) => broadcast({ status: 'available', info }))
+  autoUpdater.on('update-available', (info: UpdateInfo) => {
+    void logToFile('INFO', `Update available: v${info.version}`)
+    broadcast({ status: 'available', info })
+  })
   autoUpdater.on('update-downloaded', (info: UpdateInfo) => broadcast({ status: 'downloaded', info }))
-  autoUpdater.on('update-not-available', () => broadcast({ status: 'not-available', info: { version: app.getVersion(), files: [], releaseDate: committerDate } }))
+  autoUpdater.on('update-not-available', () => {
+    void logToFile('INFO', `Up to date: v${app.getVersion()}`)
+    void cleanupStaleUpdateFiles()
+    broadcast({ status: 'not-available', info: { version: app.getVersion(), files: [], releaseDate: committerDate } })
+  })
   autoUpdater.on('download-progress', progress => broadcast({
     ...state,
     status: 'downloading',
@@ -95,7 +248,9 @@ export function setupAutoUpdater(): AutoUpdater {
     },
   }))
 
-  autoUpdater.checkForUpdates().catch(error => log.withError(error).error('checkForUpdates() failed'))
+  configureFeedForLatestRelease()
+    .then(() => autoUpdater.checkForUpdates())
+    .catch(error => log.withError(error).error('checkForUpdates() failed'))
 
   return {
     get state() {
@@ -103,6 +258,7 @@ export function setupAutoUpdater(): AutoUpdater {
     },
     async checkForUpdates() {
       broadcast({ status: 'checking' })
+      await configureFeedForLatestRelease()
       await autoUpdater.checkForUpdates().catch(error => log.withError(error).error('checkForUpdates() failed'))
     },
     async downloadUpdate() {
@@ -122,7 +278,11 @@ export function setupAutoUpdater(): AutoUpdater {
       await semaphore.acquire()
 
       try {
-        autoUpdater.quitAndInstall()
+        await logToFile('INFO', 'quitAndInstall called: launching installer in silent mode')
+        if (process.platform === 'win32')
+          autoUpdater.quitAndInstall(true, true)
+        else
+          autoUpdater.quitAndInstall()
       }
       finally {
         semaphore.release()
