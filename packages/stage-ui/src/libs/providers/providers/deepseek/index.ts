@@ -49,7 +49,7 @@ export const providerDeepSeek = defineProvider<DeepSeekConfig>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList],
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList, ProviderValidationCheck.ChatCompletions],
     }),
   },
 })
