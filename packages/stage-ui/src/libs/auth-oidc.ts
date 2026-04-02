@@ -46,6 +46,7 @@ export async function buildAuthorizationURL(
   url.searchParams.set('state', state)
   url.searchParams.set('code_challenge', codeChallenge)
   url.searchParams.set('code_challenge_method', 'S256')
+  url.searchParams.set('resource', SERVER_URL)
 
   if (params.provider)
     url.searchParams.set('provider', params.provider)
@@ -85,6 +86,7 @@ export async function exchangeCodeForTokens(
     redirect_uri: params.redirectUri,
     client_id: params.clientId,
     code_verifier: flowState.codeVerifier,
+    resource: SERVER_URL,
   }
 
   // Confidential clients must send the secret during token exchange.
@@ -120,6 +122,7 @@ export async function refreshAccessToken(
     grant_type: 'refresh_token',
     refresh_token: refreshToken,
     client_id: clientId,
+    resource: SERVER_URL,
   }
 
   if (clientSecret)

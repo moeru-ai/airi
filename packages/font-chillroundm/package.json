@@ -1,0 +1,31 @@
+{
+  "name": "@proj-airi/font-chillroundm",
+  "type": "module",
+  "version": "0.9.0-beta.4",
+  "description": "Essential CSS for font, ChillRoundM (a.k.a. 寒蝉半圆体), used by Project AIRI",
+  "author": {
+    "name": "Warren2060",
+    "email": "87366329+Warren2060@users.noreply.github.com",
+    "url": "https://github.com/Warren2060"
+  },
+  "license": "SIL Open Font License",
+  "homepage": "https://github.com/Warren2060/ChillRound",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/font-chillroundm"
+  },
+  "exports": {
+    ".": { "default": "./dist/index.css" },
+    "./index.css": { "default": "./dist/index.css" },
+    "./files/*": { "default": "./dist/files/*" },
+    "./files/*.ttf": { "default": "./dist/files/*.ttf" },
+    "./files/*.otf": { "default": "./dist/files/*.otf" },
+    "./*": { "default": "./*.css" }
+  },
+  "main": "./dist/index.css",
+  "scripts": {
+    "dev": "pnpm run build",
+    "build": "tsdown"
+  }
+}

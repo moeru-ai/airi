@@ -1,7 +1,7 @@
 import type { MiddlewareHandler } from 'hono'
 
 import type { createAuth } from '../libs/auth'
-import type { Database } from '../libs/db'
+import type { Env } from '../libs/env'
 import type { HonoEnv } from '../types/hono'
 
 import { useLogger } from '@guiiai/logg'
@@ -17,7 +17,7 @@ type AuthInstance = ReturnType<typeof createAuth>
  * Session middleware injects the user and session into the Hono context.
  * It does not block unauthorized requests.
  */
-export function sessionMiddleware(auth: AuthInstance, db: Database): MiddlewareHandler<HonoEnv> {
+export function sessionMiddleware(auth: AuthInstance, env: Env): MiddlewareHandler<HonoEnv> {
   return async (c, next) => {
     // NOTICE: auth routes handle session lookup inside better-auth itself.
     // Running the global session middleware on `/api/auth/*`, `/sign-in`, and
@@ -33,7 +33,7 @@ export function sessionMiddleware(auth: AuthInstance, db: Database): MiddlewareH
       return await next()
     }
 
-    const session = await resolveRequestAuth(auth, db, c.req.raw.headers)
+    const session = await resolveRequestAuth(auth, env, c.req.raw.headers)
 
     if (!session) {
       c.set('user', null)

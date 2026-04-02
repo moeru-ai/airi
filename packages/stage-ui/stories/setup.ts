@@ -24,7 +24,7 @@ import '@fontsource/dm-serif-display'
 import '@fontsource/gugi'
 import '@fontsource/kiwi-maru'
 import '@fontsource/m-plus-rounded-1c'
-import '@fontsource/sniglet'
+import '@fontsource-variable/nunito'
 
 export const setupVue3 = defineSetupVue3(({ app }) => {
   app.use(MotionPlugin)

@@ -22,10 +22,10 @@ const authStore = useAuthStore()
 const { isAuthenticated, user, needsLogin, credits } = storeToRefs(authStore)
 const context = useElectronEventaContext()
 
-const startLogin = useElectronEventaInvoke(electronAuthStartLogin)
+const startSigningIn = useElectronEventaInvoke(electronAuthStartLogin)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 
-const loggingIn = ref(false)
+const signingIn = ref(false)
 
 const userName = computed(() => user.value?.name)
 const userAvatar = computed(() => user.value?.image)
@@ -35,28 +35,28 @@ function handleClick() {
     openSettings({ route: '/settings/account' })
   }
   else {
-    doLogin()
+    doSigningIn()
   }
 }
 
-function doLogin() {
-  loggingIn.value = true
-  startLogin()
+function doSigningIn() {
+  signingIn.value = true
+  startSigningIn()
 }
 
 // Clear loading state on callback or error from main process.
 // No cleanup needed — this component lives for the window's lifetime.
 context.value.on(electronAuthCallback, () => {
-  loggingIn.value = false
+  signingIn.value = false
 })
 context.value.on(electronAuthCallbackError, () => {
-  loggingIn.value = false
+  signingIn.value = false
 })
 
 // React to needsLogin from other components (e.g. onboarding)
 watch(needsLogin, (val) => {
   if (val && !isAuthenticated.value) {
-    doLogin()
+    doSigningIn()
     needsLogin.value = false
   }
 })
@@ -64,13 +64,13 @@ watch(needsLogin, (val) => {
 // Clear loading when authenticated
 watch(isAuthenticated, (val) => {
   if (val)
-    loggingIn.value = false
+    signingIn.value = false
 })
 </script>
 
 <template>
-  <!-- Logging in state -->
-  <div v-if="loggingIn && !isAuthenticated" flex="~ col gap-1.5" mb-1.5>
+  <!-- Signing in state -->
+  <div v-if="signingIn && !isAuthenticated" flex="~ col gap-1.5" mb-1.5>
     <div
       flex="~ items-center gap-3"
       rounded-xl px-3 py-2.5
