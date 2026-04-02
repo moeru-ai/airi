@@ -79,6 +79,15 @@ controls-island:
     auto: Auto (responsive)
     large: Large (default)
     small: Small
+  auto-hide:
+    title: Auto-hide controls island
+    description: Hide controls island after mouse leaves, show after mouse enters
+  hide-delay:
+    title: Hide delay
+  show-delay:
+    title: Show delay
+  hidden-opacity:
+    title: Hidden opacity
 analytics:
   notice:
     title: Usage analytics

@@ -72,6 +72,15 @@ controls-island:
     auto: Tự động (thích ứng)
     large: Lớn (mặc định)
     small: Nhỏ
+  auto-hide:
+    title: Tự động ẩn đảo điều khiển
+    description: Ẩn đảo điều khiển khi chuột rời đi, hiển thị khi chuột di vào
+  hide-delay:
+    title: Độ trễ ẩn
+  show-delay:
+    title: Độ trễ hiển thị
+  hidden-opacity:
+    title: Độ mờ khi ẩn
 analytics:
   notice:
     title: Usage analytics

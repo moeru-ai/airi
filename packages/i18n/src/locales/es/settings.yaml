@@ -72,6 +72,15 @@ controls-island:
     auto: Automático (adaptativo)
     large: Grande (predeterminado)
     small: Pequeño
+  auto-hide:
+    title: Ocultar automáticamente la isla de controles
+    description: Ocultar la isla de controles cuando el ratón sale, mostrar cuando entra
+  hide-delay:
+    title: Retraso al ocultar
+  show-delay:
+    title: Retraso al mostrar
+  hidden-opacity:
+    title: Opacidad al ocultar
 analytics:
   notice:
     title: Análisis de uso

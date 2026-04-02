@@ -72,6 +72,15 @@ controls-island:
     auto: 自動（回應式）
     large: 大(默認)
     small: 小
+  auto-hide:
+    title: 自動隱藏控制島
+    description: 滑鼠離開後隱藏控制島，滑鼠進入後顯示
+  hide-delay:
+    title: 隱藏延遲
+  show-delay:
+    title: 顯示延遲
+  hidden-opacity:
+    title: 隱藏時透明度
 analytics:
   notice:
     title: Usage analytics
