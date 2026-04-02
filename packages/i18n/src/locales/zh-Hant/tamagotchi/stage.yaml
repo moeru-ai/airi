@@ -25,6 +25,10 @@ docs:
   'close': 關閉
   'expand': 展開
   'collapse': 摺疊
+  'login': Sign in
+  'logging-in': Signing in...
+  'account': Account
+  'logout': Sign out
 'status-island':
   connected: WebSocket connected
   disconnected: WebSocket disconnected

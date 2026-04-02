@@ -123,6 +123,15 @@ live2d:
 microphone: Микрофон
 models: Модель
 pages:
+  account:
+    title: Account
+    description: View your profile and manage your account
+    notLoggedIn: Sign in to view your account and access all features
+    login: Log in
+    logout: Log out
+    fluxBalance: Flux Balance
+    viewFluxDetails: View details
+    signedInAs: Signed in as
   card:
     activate: Активировать
     active: Активно
@@ -375,16 +384,30 @@ pages:
       description: Играем в Minecraft!
       title: Minecraft
       enable: Включить интеграцию Minecraft
-      enable-description: Разрешить AIRI взаимодействовать с игрой Minecraft
-      server-address: Адрес сервера
-      server-address-description: IP-адрес или имя хоста сервера Minecraft
-      server-address-placeholder: Введите адрес сервера (например, localhost или play.example.com)
-      server-port: Порт сервера
-      server-port-description: Номер порта сервера Minecraft (по умолчанию 25565)
-      username: Имя пользователя
-      username-description: Ваше имя пользователя на сервере Minecraft
-      username-placeholder: Введите ваше имя пользователя Minecraft
+      enable-description: Include Minecraft self-knowledge in Stage chat turns and keep passive runtime visibility enabled.
       configured: Minecraft настроен правильно!
+      read-only:
+        title: Read-only shell
+        description: Stage currently exposes Minecraft as a passive shell. Runtime status and traffic are visible here, but service configuration stays in the Minecraft service files.
+      setup:
+        title: Setup
+        description: You can find the instructions for setting up the bot in the following file
+      runtime:
+        title: Observed runtime
+        connection: Connection
+        latest-context: Latest bot context
+        waiting: Waiting for a fresh bot-originated context push.
+        unknown: Unknown
+      debug:
+        title: Minecraft traffic
+        empty: No Minecraft traffic observed yet.
+        source: 'Source: {source}'
+      status:
+        service-online: Service online
+        service-offline: Service offline
+        no-runtime-context: 'No bot context observed yet'
+        last-context-seconds: 'Last bot context: {seconds}s ago'
+        last-context-stale: 'Last bot context: Stale'
     hearing:
       description: Настройка распознавания речи
       title: Слух
