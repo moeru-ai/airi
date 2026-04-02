@@ -126,13 +126,7 @@ export async function buildApp(deps: AppDeps) {
 
   const builtApp = app
     .use('*', sessionMiddleware(deps.auth, deps.env))
-    .use('*', async (c, next) => {
-      // Skip global body limit for ASR transcription route (has its own 25MB limit)
-      if (c.req.path === '/api/v1/openai/audio/transcriptions') {
-        return next()
-      }
-      return bodyLimit({ maxSize: 1024 * 1024 })(c, next)
-    })
+    .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
     .onError((err, c) => {
       if (err instanceof ApiError) {
         if (err.statusCode >= 500) {
@@ -191,7 +185,7 @@ export async function buildApp(deps: AppDeps) {
     /**
      * V1 routes for official provider.
      */
-    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.billingMq, deps.ttsMeter, deps.env, deps.otel?.genAi))
+    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.billingMq, deps.ttsMeter, deps.redis, deps.env, deps.otel?.genAi))
 
     /**
      * Flux routes.
@@ -358,18 +352,20 @@ export async function createApp() {
 
   const ttsMeter = injeca.provide('services:ttsMeter', {
     dependsOn: { redis, billingService, configKV },
-    build: async ({ dependsOn }) => {
-      // Derive unitsPerFlux from the existing rate config so a single tunable
-      // (FLUX_PER_1K_CHARS_TTS) drives both pricing and the debt threshold.
-      const fluxPer1kChars = await dependsOn.configKV.getOrThrow('FLUX_PER_1K_CHARS_TTS')
-      const ttl = await dependsOn.configKV.get('TTS_DEBT_TTL_SECONDS')
-      const unitsPerFlux = Math.max(1, Math.floor(1000 / fluxPer1kChars))
-      return createFluxMeter(dependsOn.redis, dependsOn.billingService, {
-        name: 'tts',
-        unitsPerFlux,
-        debtTtlSeconds: ttl,
-      })
-    },
+    build: ({ dependsOn }) => createFluxMeter(dependsOn.redis, dependsOn.billingService, {
+      name: 'tts',
+      // Lazy config read: missing FLUX_PER_1K_CHARS_TTS surfaces as a
+      // per-request 503 (via route-level configGuard), not a server boot
+      // failure that would take chat/auth/stripe down with it.
+      resolveRuntime: async () => {
+        const fluxPer1kChars = await dependsOn.configKV.getOrThrow('FLUX_PER_1K_CHARS_TTS')
+        const ttl = await dependsOn.configKV.get('TTS_DEBT_TTL_SECONDS')
+        return {
+          unitsPerFlux: Math.max(1, Math.floor(1000 / fluxPer1kChars)),
+          debtTtlSeconds: ttl,
+        }
+      },
+    }),
   })
 
   await injeca.start()

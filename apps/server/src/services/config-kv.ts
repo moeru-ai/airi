@@ -14,8 +14,6 @@ import { configRedisKey } from '../utils/redis-keys'
  */
 const ConfigEntrySchemas = {
   FLUX_PER_REQUEST: optional(number(), 5),
-  FLUX_PER_REQUEST_TTS: number(),
-  FLUX_PER_REQUEST_ASR: number(),
   INITIAL_USER_FLUX: optional(number(), 0),
   FLUX_PER_1K_TOKENS: optional(number(), 1),
   FLUX_PER_1K_CHARS_TTS: number(),
@@ -29,6 +27,9 @@ const ConfigEntrySchemas = {
   // No default — absent lets Stripe auto-select payment methods via Dashboard config
   STRIPE_PAYMENT_METHODS: optional(array(string())),
   STRIPE_PAYMENT_METHOD_OPTIONS: optional(record(string(), any()), {}),
+  // BCP-47 locale → recommended voice id for the default TTS model.
+  // Consumed by the client to preselect a voice matching UI locale.
+  DEFAULT_TTS_VOICES: optional(record(string(), string()), {}),
 } as const
 
 type ConfigDefinitions = {
