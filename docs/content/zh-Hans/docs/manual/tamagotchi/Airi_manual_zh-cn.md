@@ -22,7 +22,7 @@
 
 ## 第一章·安装
 
-找到Projecr Airi Github主页：[moeru-ai/airi](https://github.com/moeru-ai/airi)
+找到Project Airi Github主页：[moeru-ai/airi](https://github.com/moeru-ai/airi)
 
 找到位于页面右侧的“**Releases**”选项
 
@@ -245,7 +245,7 @@
 你可以调整Sensitivity即灵敏度（我没试过，详细介绍略）  
 
 在该界面的最下方可以测试STT功能  
-点击“**start speech-to text text**”选项即可开始测试  
+点击“**start speech-to-text text**”选项即可开始测试  
 在Transcription Result下会显示结果
 
 其他内容说明暂略
