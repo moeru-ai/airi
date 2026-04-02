@@ -171,6 +171,9 @@ This is the correct scale.
 The mistake would be trying to "become Claude Code" in one jump. That would
  produce a worse, more coupled `computer-use-mcp`, not a stronger one.
 
+For the broader design translation, see
+[`claude-code-patterns-for-airi.md`](./claude-code-patterns-for-airi.md).
+
 ## Review Rule
 
 If a future change cites Claude Code as motivation, the author should answer all
