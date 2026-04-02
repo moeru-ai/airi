@@ -33,6 +33,9 @@ catalogs:
     '@electron/notarize':
       specifier: ^3.1.1
       version: 3.1.1
+    '@fontsource-variable/nunito':
+      specifier: ^5.2.7
+      version: 5.2.7
     '@guiiai/logg':
       specifier: ^1.2.11
       version: 1.2.11
@@ -672,6 +675,9 @@ importers:
       '@date-fns/utc':
         specifier: ^2.1.1
         version: 2.1.1
+      '@fontsource-variable/nunito':
+        specifier: 'catalog:'
+        version: 5.2.7
       '@formkit/auto-animate':
         specifier: ^0.9.0
         version: 0.9.0(vue@3.5.30(typescript@5.9.3))
@@ -693,6 +699,9 @@ importers:
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
         version: 0.4.29(drizzle-orm@0.45.1(@electric-sql/pglite@0.4.1)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.8))
+      '@proj-airi/font-chillroundm':
+        specifier: workspace:^
+        version: link:../../packages/font-chillroundm
       '@proj-airi/font-cjkfonts-allseto':
         specifier: workspace:^
         version: link:../../packages/font-cjkfonts-allseto
@@ -1039,6 +1048,9 @@ importers:
       '@fontsource-variable/jura':
         specifier: ^5.2.7
         version: 5.2.7
+      '@fontsource-variable/nunito':
+        specifier: 'catalog:'
+        version: 5.2.7
       '@fontsource-variable/quicksand':
         specifier: ^5.2.10
         version: 5.2.10
@@ -1060,9 +1072,6 @@ importers:
       '@fontsource/m-plus-rounded-1c':
         specifier: ^5.2.10
         version: 5.2.10
-      '@fontsource/sniglet':
-        specifier: ^5.2.8
-        version: 5.2.8
       '@formkit/auto-animate':
         specifier: ^0.9.0
         version: 0.9.0(vue@3.5.30(typescript@5.9.3))
@@ -1090,6 +1099,9 @@ importers:
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
         version: 0.4.29(drizzle-orm@0.45.1(@electric-sql/pglite@0.4.1)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.8))
+      '@proj-airi/font-chillroundm':
+        specifier: workspace:^
+        version: link:../../packages/font-chillroundm
       '@proj-airi/font-cjkfonts-allseto':
         specifier: workspace:^
         version: link:../../packages/font-cjkfonts-allseto
@@ -1493,6 +1505,9 @@ importers:
       '@date-fns/utc':
         specifier: ^2.1.1
         version: 2.1.1
+      '@fontsource-variable/nunito':
+        specifier: 'catalog:'
+        version: 5.2.7
       '@formkit/auto-animate':
         specifier: ^0.9.0
         version: 0.9.0(vue@3.5.30(typescript@5.9.3))
@@ -1514,6 +1529,9 @@ importers:
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
         version: 0.4.29(drizzle-orm@0.45.1(@electric-sql/pglite@0.4.1)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.8))
+      '@proj-airi/font-chillroundm':
+        specifier: workspace:^
+        version: link:../../packages/font-chillroundm
       '@proj-airi/font-cjkfonts-allseto':
         specifier: workspace:^
         version: link:../../packages/font-cjkfonts-allseto
@@ -2196,6 +2214,8 @@ importers:
         specifier: workspace:^
         version: link:../electron-eventa
 
+  packages/font-chillroundm: {}
+
   packages/font-cjkfonts-allseto: {}
 
   packages/font-departure-mono: {}
@@ -2620,6 +2640,9 @@ importers:
       '@date-fns/utc':
         specifier: ^2.1.1
         version: 2.1.1
+      '@fontsource-variable/nunito':
+        specifier: 'catalog:'
+        version: 5.2.7
       '@formkit/auto-animate':
         specifier: ^0.9.0
         version: 0.9.0(vue@3.5.30(typescript@5.9.3))
@@ -2644,6 +2667,9 @@ importers:
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
         version: 0.4.29(drizzle-orm@0.45.1(@electric-sql/pglite@0.4.1)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.8))
+      '@proj-airi/font-chillroundm':
+        specifier: workspace:^
+        version: link:../font-chillroundm
       '@proj-airi/font-cjkfonts-allseto':
         specifier: workspace:^
         version: link:../font-cjkfonts-allseto
@@ -2891,9 +2917,6 @@ importers:
       '@fontsource/m-plus-rounded-1c':
         specifier: ^5.2.10
         version: 5.2.10
-      '@fontsource/sniglet':
-        specifier: ^5.2.8
-        version: 5.2.8
       '@histoire/plugin-vue':
         specifier: 'catalog:'
         version: 1.0.0-beta.1(histoire@1.0.0-beta.1(@types/node@24.12.0)(bufferutil@4.1.0)(canvas@3.2.2)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(utf-8-validate@5.0.10)(vite@6.4.1(@types/node@24.12.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3))(vite@6.4.1(@types/node@24.12.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.30(typescript@5.9.3))
@@ -5455,6 +5478,9 @@ packages:
   '@fontsource-variable/jura@5.2.7':
     resolution: {integrity: sha512-zx/W8gmHn4m0SubAZvmq19/MEWLt2tf45bB3nHEdr354RRGGFSrMT/KiWQ6RTYM3P7uvlj621FnYR3PQcToo0g==}
 
+  '@fontsource-variable/nunito@5.2.7':
+    resolution: {integrity: sha512-2N8QhatkyKgSUbAGZO2FYLioxA32+RyI1EplVLawbpkGjUeui9Qg9VMrpkCaik1ydjFjfLV+kzQ0cGEsMrMenQ==}
+
   '@fontsource-variable/quicksand@5.2.10':
     resolution: {integrity: sha512-1uzkzGDwWgtFnxquAXuD7fZV9wHkALb49UPzRXxGTVeeLsNrGnIU0O/pcz6m1U7RDtpHz2qx77JhCpKaq7FrUg==}
 
@@ -5475,9 +5501,6 @@ packages:
 
   '@fontsource/m-plus-rounded-1c@5.2.10':
     resolution: {integrity: sha512-PLrYoJHCBMApU8zioMT+Un6TLr6JTI7lBJWXo+t2ZNdpEn1XqZG3Y3XvNuIxdX1F3m0UqvtEbtBMHgAbTdefOw==}
-
-  '@fontsource/sniglet@5.2.8':
-    resolution: {integrity: sha512-K2ESFqkw2AxBCu5Ar//ixp5el8lEcdmk8uDWj0jT1uiC82RFjQXq+PFvAA64Nd2TpHygafH7lY9K9493dzPXqw==}
 
   '@formkit/auto-animate@0.9.0':
     resolution: {integrity: sha512-VhP4zEAacXS3dfTpJpJ88QdLqMTcabMg0jwpOSxZ/VzfQVfl3GkZSCZThhGC5uhq/TxPHPzW0dzr4H9Bb1OgKA==}
@@ -19441,6 +19464,8 @@ snapshots:
 
   '@fontsource-variable/jura@5.2.7': {}
 
+  '@fontsource-variable/nunito@5.2.7': {}
+
   '@fontsource-variable/quicksand@5.2.10': {}
 
   '@fontsource-variable/urbanist@5.2.7': {}
@@ -19454,8 +19479,6 @@ snapshots:
   '@fontsource/kiwi-maru@5.2.8': {}
 
   '@fontsource/m-plus-rounded-1c@5.2.10': {}
-
-  '@fontsource/sniglet@5.2.8': {}
 
   '@formkit/auto-animate@0.9.0(vue@3.5.30(typescript@5.9.3))':
     dependencies:
