@@ -292,11 +292,14 @@ export function setupAutoUpdater(): AutoUpdater {
       await semaphore.acquire()
 
       try {
-        await logToFile('INFO', 'quitAndInstall called: launching installer in silent mode')
-        if (process.platform === 'win32')
+        if (process.platform === 'win32') {
+          await logToFile('INFO', 'quitAndInstall called: platform=win32 mode=silent forceRunAfter=true')
           autoUpdater.quitAndInstall(true, true)
-        else
+        }
+        else {
+          await logToFile('INFO', `quitAndInstall called: platform=${process.platform} mode=default`)
           autoUpdater.quitAndInstall()
+        }
       }
       finally {
         semaphore.release()
