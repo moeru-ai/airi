@@ -1,0 +1,26 @@
+{
+  "name": "@proj-airi/devtool-capture-stage-tamagotchi",
+  "type": "module",
+  "version": "0.9.0-beta.3",
+  "private": true,
+  "description": "Playwright-driven Electron capture tooling for stage-tamagotchi",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "capture": "tsx src/cli/capture.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@moeru/std": "catalog:",
+    "@types/node": "^24.12.0",
+    "meow": "catalog:",
+    "playwright": "^1.56.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
