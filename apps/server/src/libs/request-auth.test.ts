@@ -29,7 +29,7 @@ describe('resolveRequestAuth', () => {
     }
 
     const result = await resolveRequestAuth(
-      auth,
+      auth as any,
       mockEnv,
       new Headers({ Authorization: 'Bearer ignored' }),
     )
@@ -76,7 +76,7 @@ describe('resolveRequestAuth', () => {
     }
 
     const result = await resolveRequestAuth(
-      auth,
+      auth as any,
       mockEnv,
       new Headers({ Authorization: 'Bearer eyJhbGciOiJSUzI1NiJ9.test.sig' }),
     )
@@ -106,7 +106,7 @@ describe('resolveRequestAuth', () => {
     }
 
     const result = await resolveRequestAuth(
-      auth,
+      auth as any,
       mockEnv,
       new Headers({ Authorization: 'Bearer invalid-jwt' }),
     )
@@ -122,7 +122,7 @@ describe('resolveRequestAuth', () => {
     }
 
     const result = await resolveRequestAuth(
-      auth,
+      auth as any,
       mockEnv,
       new Headers(),
     )
@@ -149,7 +149,7 @@ describe('resolveRequestAuth', () => {
     }
 
     const result = await resolveRequestAuth(
-      auth,
+      auth as any,
       mockEnv,
       new Headers({ Authorization: 'Bearer eyJhbGciOiJSUzI1NiJ9.nosub.sig' }),
     )
