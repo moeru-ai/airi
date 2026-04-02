@@ -132,7 +132,12 @@ export async function buildApp(deps: AppDeps) {
     })
     .onError((err, c) => {
       if (err instanceof ApiError) {
-        logger.withError(err).warn('API error occurred')
+        if (err.statusCode >= 500) {
+          logger.withError(err).error('API error occurred')
+        }
+        else if (err.statusCode !== 401) {
+          logger.withError(err).warn('API error occurred')
+        }
 
         return c.json({
           error: err.errorCode,
@@ -193,7 +198,7 @@ export async function buildApp(deps: AppDeps) {
     /**
      * Stripe routes.
      */
-    .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.otel?.revenue))
+    .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue))
 
   return { app: builtApp, injectWebSocket }
 }
