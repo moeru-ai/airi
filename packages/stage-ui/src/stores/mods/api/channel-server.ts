@@ -102,6 +102,11 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
 
           console.warn('WebSocket server connection closed')
         },
+        onReady: () => {
+          connected.value = true
+          flush()
+          initializeListeners()
+        },
       })
 
       client.value.onEvent('module:authenticated', (event) => {
