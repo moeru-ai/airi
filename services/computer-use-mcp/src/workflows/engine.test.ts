@@ -434,6 +434,9 @@ describe('workflow engine', () => {
       expect.objectContaining({
         toolName: 'browser_dom_read_page',
         succeeded: true,
+        lane: 'browser_dom',
+        executionKind: 'probe',
+        concurrencySafe: true,
         metadata: expect.objectContaining({
           frameCount: undefined,
         }),
@@ -801,6 +804,9 @@ describe('workflow engine', () => {
       expect.objectContaining({
         toolName: 'display_enumerate',
         succeeded: true,
+        lane: 'display',
+        executionKind: 'probe',
+        concurrencySafe: true,
         metadata: expect.objectContaining({
           displayCount: 2,
           combinedBounds: { x: 0, y: 0, width: 3648, height: 1117 },

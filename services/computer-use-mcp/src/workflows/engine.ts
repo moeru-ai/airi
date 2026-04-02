@@ -26,6 +26,13 @@ import {
   explainNextStep,
   summarizeTaskProgress,
 } from '../transparency'
+import {
+  buildPreparatoryExecutionPlan,
+  extractWorkflowPrepMetadata,
+  type PlannedPreparatoryExecution,
+  type WorkflowPrepToolKind,
+  type WorkflowPrepToolLane,
+} from './prep-tools'
 import { resolveTerminalSurface } from './surface-resolver'
 import { resolveStepAction, resolveTerminalConfig } from './types'
 
@@ -98,6 +105,11 @@ export interface PreparatoryResult {
   toolName: string
   succeeded: boolean
   error?: string
+  displayName?: string
+  lane?: WorkflowPrepToolLane
+  executionKind?: WorkflowPrepToolKind
+  concurrencySafe?: boolean
+  summary?: string
   /** Metadata returned by the prep handler (slimmed for workflow use). */
   metadata?: Record<string, unknown>
 }
@@ -243,7 +255,6 @@ export async function executeWorkflow(params: {
       resolvedParams.cwd = codingState?.validationBaseline?.workspacePath
         ?? codingState?.workspacePath
     }
-
     const resolvedStep = { ...stepTemplate, params: resolvedParams }
     const action = resolveStepAction(resolvedStep)
 
@@ -628,93 +639,73 @@ export async function executeWorkflow(params: {
     // Tool-prep pipeline: collect advisories that have a PREP_TOOL_POLICY,
     // sort by priority, execute them, and handle reroute / writeback.
     // ------------------------------------------------------------------
-    const prepAdvisories = executionAdvisories
-      .filter(a => PREP_TOOL_POLICY[a.kind])
-      .sort((a, b) => (PREP_TOOL_POLICY[a.kind]!.priority) - (PREP_TOOL_POLICY[b.kind]!.priority))
+    const prepExecutionBatches = buildPreparatoryExecutionPlan(executionAdvisories)
 
     let prepFailure: { toolName: string, message: string } | undefined
     let rerouteTriggered = false
     let rerouteAdvisory: StrategyAdvisory | undefined
 
-    for (const prepAdv of prepAdvisories) {
-      const policy = PREP_TOOL_POLICY[prepAdv.kind]!
-      const prepToolName = prepAdv.suggestedToolName ?? `prep_${prepAdv.kind}`
+    for (const batch of prepExecutionBatches) {
+      const executeBatch = batch.parallel
+        ? Promise.all(batch.executions.map(execution =>
+            executePreparatoryExecution({
+              execution,
+              executeAction,
+              executePrepTool,
+              skipApprovalQueue: autoApproveSteps ?? false,
+            })))
+        : undefined
 
-      // advisory_only: log it but don't invoke
-      if (policy.retryability === 'advisory_only') {
-        preparatoryResults.push({
-          toolName: prepToolName,
-          succeeded: true,
-          metadata: { advisory_only: true },
-        })
-        continue
-      }
-
-      taskStep.toolName = prepToolName
-
-      try {
-        let prepResult = await invokePreparatoryExecution({
-          advisory: prepAdv,
-          executeAction,
-          executePrepTool,
-          skipApprovalQueue: autoApproveSteps ?? false,
-        })
-
-        if (prepResult.isError === true && policy.retryability === 'transient') {
-          prepResult = await invokePreparatoryExecution({
-            advisory: prepAdv,
+      const outcomes = executeBatch
+        ? await executeBatch
+        : await executePreparatoryExecutionSeries({
+            executions: batch.executions,
             executeAction,
             executePrepTool,
             skipApprovalQueue: autoApproveSteps ?? false,
-            retry: true,
+          })
+
+      for (const outcome of outcomes) {
+        taskStep.toolName = outcome.execution.toolName
+
+        if (outcome.result) {
+          applyPreparatoryToolSideEffects({
+            execution: outcome.execution,
+            result: outcome.result,
+            stateManager,
           })
         }
 
-        if (prepResult.isError === true) {
-          const errorMessage = extractErrorMessage(prepResult)
-          preparatoryResults.push({
-            toolName: prepToolName,
-            succeeded: false,
-            error: errorMessage,
-            metadata: extractPrepMetadata(prepToolName, prepResult),
-          })
+        preparatoryResults.push({
+          toolName: outcome.execution.toolName,
+          displayName: outcome.execution.spec.displayName,
+          lane: outcome.execution.spec.lane,
+          executionKind: outcome.execution.spec.kind,
+          concurrencySafe: outcome.execution.spec.concurrencySafe,
+          summary: outcome.execution.spec.summary,
+          succeeded: !outcome.errorMessage,
+          ...(outcome.errorMessage ? { error: outcome.errorMessage } : {}),
+          metadata: outcome.result
+            ? extractWorkflowPrepMetadata(outcome.execution.toolName, outcome.result)
+            : undefined,
+        })
+
+        if (outcome.errorMessage) {
           prepFailure = {
-            toolName: prepToolName,
-            message: errorMessage,
+            toolName: outcome.execution.toolName,
+            message: outcome.errorMessage,
           }
           break
         }
 
-        if (prepAdv.kind === 'enumerate_displays_first') {
-          const displayInfo = extractDisplayInfo(prepResult)
-          if (displayInfo) {
-            stateManager.updateDisplayInfo(displayInfo)
-          }
-        }
-
-        preparatoryResults.push({
-          toolName: prepToolName,
-          succeeded: true,
-          metadata: extractPrepMetadata(prepToolName, prepResult),
-        })
-
-        if (policy.outcomeOnSuccess === 'reroute') {
+        if (outcome.execution.policy.outcomeOnSuccess === 'reroute') {
           rerouteTriggered = true
-          rerouteAdvisory = prepAdv
+          rerouteAdvisory = outcome.execution.advisory
           break
         }
       }
-      catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error)
-        preparatoryResults.push({
-          toolName: prepToolName,
-          succeeded: false,
-          error: errorMessage,
-        })
-        prepFailure = {
-          toolName: prepToolName,
-          message: errorMessage,
-        }
+
+      if (prepFailure || rerouteTriggered) {
         break
       }
     }
@@ -1189,58 +1180,6 @@ function toBounds(value: unknown): DisplayInfo['combinedBounds'] {
   return { x, y, width, height }
 }
 
-function extractPrepMetadata(toolName: string, result: CallToolResult): Record<string, unknown> | undefined {
-  const structured = toRecord(result.structuredContent)
-
-  if (!structured) {
-    return undefined
-  }
-
-  switch (toolName) {
-    case 'display_enumerate':
-      return {
-        status: structured.status,
-        displayCount: structured.displayCount,
-        combinedBounds: structured.combinedBounds,
-        capturedAt: structured.capturedAt,
-      }
-    case 'accessibility_snapshot':
-      return {
-        status: structured.status,
-        appName: structured.appName,
-        pid: structured.pid,
-        nodeCount: structured.nodeCount,
-        capturedAt: structured.capturedAt,
-      }
-    case 'browser_cdp_collect_elements':
-      return {
-        status: structured.status,
-        elementCount: structured.elementCount,
-        page: structured.page,
-      }
-    case 'browser_dom_read_page':
-      return {
-        status: structured.status,
-        frameCount: structured.frameCount,
-        interactiveElementCount: structured.interactiveElementCount,
-        bridge: structured.bridge,
-      }
-    case 'pty_read_screen':
-      return {
-        status: structured.status,
-        sessionId: structured.sessionId,
-        alive: structured.alive,
-        rows: structured.rows,
-        cols: structured.cols,
-        executionReason: structured.executionReason,
-      }
-    default:
-      return typeof structured.status === 'string'
-        ? { status: structured.status }
-        : undefined
-  }
-}
-
 function extractDisplayInfo(result: CallToolResult): DisplayInfo | undefined {
   const structured = toRecord(result.structuredContent)
 
@@ -1317,6 +1256,111 @@ async function invokePreparatoryExecution(params: {
   throw new Error(`No execution path available for preparatory advisory "${advisory.kind}"`)
 }
 
+interface PreparatoryExecutionOutcome {
+  execution: PlannedPreparatoryExecution
+  result?: CallToolResult
+  errorMessage?: string
+}
+
+async function executePreparatoryExecution(params: {
+  execution: PlannedPreparatoryExecution
+  executeAction: ExecuteAction
+  executePrepTool?: ExecutePrepTool
+  skipApprovalQueue: boolean
+}): Promise<PreparatoryExecutionOutcome> {
+  const { execution, executeAction, executePrepTool, skipApprovalQueue } = params
+
+  // advisory_only: log it, but don't execute anything.
+  if (execution.policy.retryability === 'advisory_only') {
+    return {
+      execution,
+      result: {
+        content: [],
+        structuredContent: {
+          status: 'advisory_only',
+        },
+      },
+    }
+  }
+
+  try {
+    let prepResult = await invokePreparatoryExecution({
+      advisory: execution.advisory,
+      executeAction,
+      executePrepTool,
+      skipApprovalQueue,
+    })
+
+    if (prepResult.isError === true && execution.policy.retryability === 'transient') {
+      prepResult = await invokePreparatoryExecution({
+        advisory: execution.advisory,
+        executeAction,
+        executePrepTool,
+        skipApprovalQueue,
+        retry: true,
+      })
+    }
+
+    if (prepResult.isError === true) {
+      return {
+        execution,
+        result: prepResult,
+        errorMessage: extractErrorMessage(prepResult),
+      }
+    }
+
+    return {
+      execution,
+      result: prepResult,
+    }
+  }
+  catch (error) {
+    return {
+      execution,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    }
+  }
+}
+
+async function executePreparatoryExecutionSeries(params: {
+  executions: PlannedPreparatoryExecution[]
+  executeAction: ExecuteAction
+  executePrepTool?: ExecutePrepTool
+  skipApprovalQueue: boolean
+}): Promise<PreparatoryExecutionOutcome[]> {
+  const outcomes: PreparatoryExecutionOutcome[] = []
+
+  for (const execution of params.executions) {
+    const outcome = await executePreparatoryExecution({
+      execution,
+      executeAction: params.executeAction,
+      executePrepTool: params.executePrepTool,
+      skipApprovalQueue: params.skipApprovalQueue,
+    })
+    outcomes.push(outcome)
+
+    if (outcome.errorMessage || execution.policy.outcomeOnSuccess === 'reroute') {
+      break
+    }
+  }
+
+  return outcomes
+}
+
+function applyPreparatoryToolSideEffects(params: {
+  execution: PlannedPreparatoryExecution
+  result: CallToolResult
+  stateManager: RunStateManager
+}) {
+  const { execution, result, stateManager } = params
+
+  if (execution.advisory.kind === 'enumerate_displays_first') {
+    const displayInfo = extractDisplayInfo(result)
+    if (displayInfo) {
+      stateManager.updateDisplayInfo(displayInfo)
+    }
+  }
+}
 function buildWorkflowSummary(
   workflow: WorkflowDefinition,
   task: ActiveTask,
