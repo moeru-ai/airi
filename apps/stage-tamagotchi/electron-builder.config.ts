@@ -33,7 +33,7 @@ if (!useIconFormattedMacAppIcon) {
   console.warn('[electron-builder/config] Warning: Xcode version is below 26. Using .icns format for macOS app icon.')
 }
 else {
-  console.info('[electron-builder/config] Xcode version is 26 or above. Using .icon format for macOS app icon.')
+  console.warn('[electron-builder/config] Xcode version is 26 or above. Using .icon format for macOS app icon.')
 }
 
 export default {
@@ -101,7 +101,7 @@ export default {
       provider: 'github',
       owner: 'moeru-ai',
       repo: 'airi',
-      channel: 'latest',
+      channel: 'latest-${arch}',
     },
   },
   nsis: {

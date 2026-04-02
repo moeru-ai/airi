@@ -1,8 +1,7 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
+import type { AutoUpdaterState } from '@proj-airi/electron-eventa/electron-updater'
 import type { BrowserWindow } from 'electron'
 import type { UpdateInfo } from 'electron-updater'
-
-import type { AutoUpdaterState } from '../../../shared/eventa'
 
 import fs from 'node:fs'
 import process from 'node:process'
@@ -40,12 +39,6 @@ const UPDATER_LOG_FILE = join(CACHE_DIR, 'updater-log.txt')
 
 function getReleaseChannelName() {
   const arch = process.arch
-
-  if (process.platform === 'darwin')
-    return arch === 'arm64' ? 'latest-arm64-mac' : 'latest-x64-mac'
-
-  if (process.platform === 'linux')
-    return arch === 'arm64' ? 'latest-arm64-linux-arm64' : 'latest-x64-linux'
 
   return arch === 'arm64' ? 'latest-arm64' : 'latest-x64'
 }
@@ -92,6 +85,7 @@ export interface AutoUpdater {
 
 export function setupAutoUpdater(): AutoUpdater {
   const semaphore = new Semaphore(1)
+  const isPrereleaseBuild = app.getVersion().includes('-')
 
   const log = useLogg('auto-updater').useGlobalConfig()
   const autoUpdater = fromImported()
@@ -123,6 +117,12 @@ export function setupAutoUpdater(): AutoUpdater {
   const logInstallDiagnostics = async () => {
     const diagnostics = getDiagnostics()
     await logToFile('INFO', `Install diagnostics: platform=${diagnostics.platform} arch=${diagnostics.arch} exe=${diagnostics.executablePath} uninstall=${diagnostics.uninstallPath || 'N/A'} uninstallExists=${String(diagnostics.uninstallExists ?? false)}`)
+  }
+
+  const broadcastUpdaterError = (error: unknown, reason: string) => {
+    const message = `${errorMessageFrom(error) || String(error)}\n\n(See full logs at ${UPDATER_LOG_FILE})`
+    broadcast({ status: 'error', error: { message } })
+    log.withError(error).error(reason)
   }
 
   const cleanupRootInstallerArtifacts = async () => {
@@ -158,13 +158,15 @@ export function setupAutoUpdater(): AutoUpdater {
   }
 
   const cleanupStaleUpdateFiles = async () => {
-    // Remove stale downloaded installers and root installer artifacts from previous runs.
-    await fs.promises.rm(OFFICIAL_UPDATER_PENDING_DIR, { recursive: true, force: true }).catch(() => {})
+    // Remove only installer executables from previous runs; keep pending update payloads intact.
     await cleanupRootInstallerArtifacts()
     await logToFile('INFO', `Updater cache cleanup attempted: ${OFFICIAL_UPDATER_PENDING_DIR}`)
   }
 
   const configureFeedForLatestRelease = async () => {
+    if (is.dev)
+      return
+
     const archChannel = getReleaseChannelName()
     const releasesApi = 'https://api.github.com/repos/moeru-ai/airi/releases?per_page=20'
     const response = await fetch(releasesApi, {
@@ -177,14 +179,15 @@ export function setupAutoUpdater(): AutoUpdater {
     if (!response.ok)
       throw new Error(`Failed to query releases API (${response.status})`)
 
-    const releases = await response.json() as Array<{ tag_name?: string, draft?: boolean }>
-    const latestRelease = releases.find(release => !!release.tag_name && !release.draft)
+    const releases = await response.json() as Array<{ tag_name?: string, draft?: boolean, prerelease?: boolean }>
+    const latestRelease = releases.find(release => !!release.tag_name && !release.draft && !!release.prerelease === isPrereleaseBuild)
+      ?? releases.find(release => !!release.tag_name && !release.draft)
     if (!latestRelease?.tag_name)
       throw new Error('No published versions on GitHub')
 
     const feedUrl = `https://github.com/moeru-ai/airi/releases/download/${latestRelease.tag_name}`
     resolvedFeedUrl = feedUrl
-    autoUpdater.allowPrerelease = false
+    autoUpdater.allowPrerelease = isPrereleaseBuild
     autoUpdater.autoDownload = false
     autoUpdater.channel = archChannel
     autoUpdater.setFeedURL?.({ provider: 'generic', url: feedUrl })
@@ -193,7 +196,7 @@ export function setupAutoUpdater(): AutoUpdater {
   }
 
   // Configure updater defaults before dynamic feed resolution.
-  autoUpdater.allowPrerelease = false
+  autoUpdater.allowPrerelease = isPrereleaseBuild
   autoUpdater.autoDownload = false
   autoUpdater.channel = getReleaseChannelName()
   void logInstallDiagnostics()
@@ -225,7 +228,7 @@ export function setupAutoUpdater(): AutoUpdater {
     }
   }
 
-  autoUpdater.on('error', error => broadcast({ status: 'error', error: { message: `${errorMessageFrom(error) || String(error)}\n\n(See full logs at ${UPDATER_LOG_FILE})` } }))
+  autoUpdater.on('error', error => broadcastUpdaterError(error, 'autoUpdater error'))
   autoUpdater.on('checking-for-update', () => broadcast({ status: 'checking' }))
   autoUpdater.on('update-available', (info: UpdateInfo) => {
     void logToFile('INFO', `Update available: v${info.version}`)
@@ -248,9 +251,15 @@ export function setupAutoUpdater(): AutoUpdater {
     },
   }))
 
-  configureFeedForLatestRelease()
-    .then(() => autoUpdater.checkForUpdates())
-    .catch(error => log.withError(error).error('checkForUpdates() failed'))
+  void (async () => {
+    try {
+      await configureFeedForLatestRelease()
+      await autoUpdater.checkForUpdates()
+    }
+    catch (error) {
+      broadcastUpdaterError(error, 'checkForUpdates() failed')
+    }
+  })()
 
   return {
     get state() {
@@ -258,8 +267,13 @@ export function setupAutoUpdater(): AutoUpdater {
     },
     async checkForUpdates() {
       broadcast({ status: 'checking' })
-      await configureFeedForLatestRelease()
-      await autoUpdater.checkForUpdates().catch(error => log.withError(error).error('checkForUpdates() failed'))
+      try {
+        await configureFeedForLatestRelease()
+        await autoUpdater.checkForUpdates()
+      }
+      catch (error) {
+        broadcastUpdaterError(error, 'checkForUpdates() failed')
+      }
     },
     async downloadUpdate() {
       if (state.status === 'downloading' || state.status === 'downloaded')

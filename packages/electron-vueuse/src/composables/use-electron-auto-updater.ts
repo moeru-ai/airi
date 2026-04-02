@@ -8,10 +8,27 @@ import { computed, onMounted, ref } from 'vue'
 
 import { useElectronEventaContext, useElectronEventaInvoke } from './use-electron-eventa-context'
 
+interface AutoUpdaterDiagnostics {
+  platform: string
+  arch: string
+  channel: string
+  feedUrl: string
+  logFilePath: string
+  updaterCacheDir: string
+  pendingDir: string
+  executablePath: string
+  uninstallPath?: string
+  uninstallExists?: boolean
+}
+
+type AutoUpdaterStateWithDiagnostics = AutoUpdaterState & {
+  diagnostics?: AutoUpdaterDiagnostics
+}
+
 export function useElectronAutoUpdater() {
   const context = useElectronEventaContext()
 
-  const state = ref<AutoUpdaterState>({ status: 'idle' })
+  const state = ref<AutoUpdaterStateWithDiagnostics>({ status: 'idle' })
 
   const getState = useElectronEventaInvoke(autoUpdater.getState, context.value)
   const checkForUpdates = useElectronEventaInvoke(autoUpdater.checkForUpdates, context.value)
