@@ -74,6 +74,7 @@ export const useSettings = defineStore('settings', () => {
     live2dExpressionEnabled: live2dRefs.live2dExpressionEnabled,
     live2dShadowEnabled: live2dRefs.live2dShadowEnabled,
     live2dMaxFps: live2dRefs.live2dMaxFps,
+    live2dResolutionScaling: live2dRefs.live2dResolutionScaling,
 
     // Theme settings
     themeColorsHue: themeRefs.themeColorsHue,

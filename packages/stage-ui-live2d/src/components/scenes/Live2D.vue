@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Screen } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import Live2DCanvas from './live2d/Canvas.vue'
 import Live2DModel from './live2d/Model.vue'
@@ -28,6 +28,7 @@ withDefaults(defineProps<{
   live2dExpressionEnabled?: boolean
   live2dShadowEnabled?: boolean
   live2dMaxFps?: number
+  live2dResolutionScaling?: number
 }>(), {
   paused: false,
   focusAt: () => ({ x: 0, y: 0 }),
@@ -41,6 +42,7 @@ withDefaults(defineProps<{
   live2dExpressionEnabled: true,
   live2dShadowEnabled: true,
   live2dMaxFps: 0,
+  live2dResolutionScaling: 1,
 })
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
@@ -51,6 +53,7 @@ const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 
 const live2d = useLive2d()
 const { position } = storeToRefs(live2d)
+const live2dCanvasResolution = computed(() => Math.max(0.5, props.live2dResolutionScaling) * 2)
 
 watch([componentStateModel, componentStateCanvas], () => {
   componentState.value = (componentStateModel.value === 'mounted' && componentStateCanvas.value === 'mounted')
@@ -73,7 +76,7 @@ defineExpose({
       v-model:state="componentStateCanvas"
       :width="width"
       :height="height"
-      :resolution="2"
+      :resolution="live2dCanvasResolution"
       :max-fps="live2dMaxFps"
       max-h="100dvh"
     >

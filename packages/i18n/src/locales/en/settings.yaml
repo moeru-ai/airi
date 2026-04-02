@@ -127,6 +127,9 @@ live2d:
     description: Limit rendering frame rate
     options:
       unlimited: ∞
+  resolution-scaling:
+    title: Rendering Resolution Scale
+    description: Adjust Live2D render resolution scaling (base 2x)
 microphone: Microphone
 models: Model
 pages:

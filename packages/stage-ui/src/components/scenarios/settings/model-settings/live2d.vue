@@ -34,6 +34,7 @@ const {
   live2dExpressionEnabled,
   live2dShadowEnabled,
   live2dMaxFps,
+  live2dResolutionScaling,
 } = storeToRefs(settings)
 
 const live2d = useLive2d()
@@ -337,6 +338,35 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
         <SelectTab v-model="live2dMaxFps" :options="fpsOptions" size="sm" :class="['shrink-0']" />
       </div>
     </label>
+
+    <FieldRange
+      v-model="live2dResolutionScaling"
+      as="div"
+      :min="0.5"
+      :max="2"
+      :step="0.05"
+      :label="t('settings.live2d.resolution-scaling.title')"
+    >
+      <template #label>
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex-1">
+            <div class="text-sm font-medium">
+              {{ t('settings.live2d.resolution-scaling.title') }}
+            </div>
+            <div class="text-xs text-neutral-500 dark:text-neutral-400">
+              {{ t('settings.live2d.resolution-scaling.description') }}
+            </div>
+          </div>
+          <button
+            class="px-2 text-xs outline-none"
+            title="Reset value to default"
+            @click="() => live2dResolutionScaling = 1"
+          >
+            <div class="i-solar:forward-linear transform-scale-x--100 text-neutral-500 dark:text-neutral-400" />
+          </button>
+        </div>
+      </template>
+    </FieldRange>
 
     <div mt-4 flex items-center justify-between>
       <span text-sm text-neutral-600 dark:text-neutral-400>Auto Blink</span>

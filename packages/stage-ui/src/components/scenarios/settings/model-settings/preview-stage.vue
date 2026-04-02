@@ -43,6 +43,7 @@ const {
   live2dForceAutoBlinkEnabled,
   live2dShadowEnabled,
   live2dMaxFps,
+  live2dResolutionScaling,
 } = storeToRefs(settingsStore)
 const { scale: live2dScale } = storeToRefs(live2dStore)
 const { sceneMutationLocked, scenePhase } = storeToRefs(modelStore)
@@ -136,6 +137,7 @@ defineExpose({
         :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
         :live2d-shadow-enabled="live2dShadowEnabled"
         :live2d-max-fps="live2dMaxFps"
+        :live2d-resolution-scaling="live2dResolutionScaling"
       />
     </div>
   </template>
