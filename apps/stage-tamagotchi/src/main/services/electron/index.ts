@@ -1,5 +1,4 @@
 export * from './app'
-export * from './auth'
 export * from './auto-updater'
 export * from './powerMonitor'
 export * from './screen'

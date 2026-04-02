@@ -171,6 +171,7 @@
     "electron-builder": "^26.8.1",
     "electron-updater": "^6.8.3",
     "electron-vite": "^5.0.0",
+    "get-port-please": "catalog:",
     "h3": "^2.0.1-rc.19",
     "less": "^4.6.4",
     "mkcert": "catalog:",

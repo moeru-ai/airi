@@ -87,6 +87,7 @@ catalog:
   electron: ^40.8.3
   embla-carousel-vue: ^9.0.0-rc01
   es-toolkit: 1.43.0
+  get-port-please: ^3.2.0
   histoire: 1.0.0-beta.1
   hono: 4.11.3
   hono-rate-limiter: ^0.5.3

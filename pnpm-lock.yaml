@@ -186,6 +186,9 @@ catalogs:
     es-toolkit:
       specifier: 1.43.0
       version: 1.43.0
+    get-port-please:
+      specifier: ^3.2.0
+      version: 3.2.0
     histoire:
       specifier: 1.0.0-beta.1
       version: 1.0.0-beta.1
@@ -1448,6 +1451,9 @@ importers:
       electron-vite:
         specifier: ^5.0.0
         version: 5.0.0(vite@8.0.2(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
+      get-port-please:
+        specifier: 'catalog:'
+        version: 3.2.0
       h3:
         specifier: ^2.0.1-rc.19
         version: 2.0.1-rc.19(crossws@0.4.4(patch_hash=4d79ec736d10d2a81a9e2a31b067d43f0b6665122267981e652ab9923d165958)(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d)))

@@ -4,7 +4,11 @@ import type { BrowserWindow } from 'electron'
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
-import { generateCodeChallenge, generateCodeVerifier, generateState } from '@proj-airi/stage-shared/auth'
+import {
+  generateCodeChallenge,
+  generateCodeVerifier,
+  generateState,
+} from '@proj-airi/stage-shared/auth'
 import { shell } from 'electron'
 
 import {
@@ -13,7 +17,7 @@ import {
   electronAuthLogout,
   electronAuthStartLogin,
 } from '../../../shared/eventa'
-import { startLoopbackServer } from './loopback-server'
+import { startLoopbackServer } from '../electron/loopback-server'
 
 const log = useLogg('auth-service').useGlobalConfig()
 
@@ -28,18 +32,40 @@ const OIDC_TOKEN_PATH = '/api/auth/oauth2/token'
 
 // Active loopback server cleanup handle
 let closeLoopback: (() => void) | null = null
-let loginInFlight = false
-const authContexts = new Set<MainContext>()
+let signingInFlight = false
 
-function emitAuthCallback(tokens: TokenExchangeResult): void {
-  for (const context of authContexts) {
-    context.emit(electronAuthCallback, tokens)
-  }
+export interface WindowAuthManager {
+  registerWindow: (params: { context: MainContext, window: BrowserWindow }) => void
+  broadcastAuthCallback: (tokens: TokenExchangeResult) => void
+  broadcastAuthError: (error: string) => void
 }
 
-function emitAuthError(error: string): void {
-  for (const context of authContexts) {
-    context.emit(electronAuthCallbackError, { error })
+export function createWindowAuthManagerService(): WindowAuthManager {
+  const authContexts = new Set<MainContext>()
+
+  function broadcastAuthCallback(tokens: TokenExchangeResult): void {
+    for (const context of authContexts) {
+      context.emit(electronAuthCallback, tokens)
+    }
+  }
+
+  function broadcastAuthError(error: string): void {
+    for (const context of authContexts) {
+      context.emit(electronAuthCallbackError, { error })
+    }
+  }
+
+  return {
+    registerWindow(params) {
+      authContexts.add(params.context)
+
+      params.window.on('closed', () => {
+        authContexts.delete(params.context)
+      })
+    },
+
+    broadcastAuthCallback,
+    broadcastAuthError,
   }
 }
 
@@ -49,10 +75,11 @@ function emitAuthError(error: string): void {
 export function createAuthService(params: {
   context: MainContext
   window: BrowserWindow
+  windowAuthManager: WindowAuthManager
 }): void {
-  authContexts.add(params.context)
-  params.window.on('closed', () => {
-    authContexts.delete(params.context)
+  params.windowAuthManager.registerWindow({
+    context: params.context,
+    window: params.window,
   })
 
   defineInvokeHandler(params.context, electronAuthStartLogin, async (_, options) => {
@@ -60,14 +87,14 @@ export function createAuthService(params: {
       return
     }
 
-    if (loginInFlight) {
+    if (signingInFlight) {
       log.withFields({ windowId: params.window.webContents.id }).warn('Replacing in-flight OIDC login attempt with a new request')
       closeLoopback?.()
       closeLoopback = null
-      loginInFlight = false
+      signingInFlight = false
     }
 
-    loginInFlight = true
+    signingInFlight = true
 
     try {
       // Clean up any previous in-flight login
@@ -110,28 +137,28 @@ export function createAuthService(params: {
         .then(async ({ code, state: returnedState }) => {
           if (returnedState !== state) {
             log.warn('State mismatch — possible CSRF attack')
-            emitAuthError('State mismatch')
+            params.windowAuthManager.broadcastAuthError('State mismatch')
             return
           }
 
           const tokens = await exchangeCode(code, codeVerifier, redirectUri)
-          emitAuthCallback(tokens)
+          params.windowAuthManager.broadcastAuthCallback(tokens)
           log.log('OIDC token exchange successful')
         })
         .catch((err) => {
-          log.withError(err).error('OIDC login failed')
-          emitAuthError(errorMessageFrom(err) ?? 'OIDC login failed')
+          log.withError(err).error('OIDC signing in failed')
+          params.windowAuthManager.broadcastAuthError(errorMessageFrom(err) ?? 'OIDC signing in failed')
         })
         .finally(() => {
           closeLoopback = null
-          loginInFlight = false
+          signingInFlight = false
         })
     }
     catch (err) {
       closeLoopback = null
-      loginInFlight = false
-      log.withError(err).error('Failed to start OIDC login flow')
-      emitAuthError(errorMessageFrom(err) ?? 'OIDC login failed')
+      signingInFlight = false
+      log.withError(err).error('Failed to start OIDC signing in flow')
+      params.windowAuthManager.broadcastAuthError(errorMessageFrom(err) ?? 'OIDC signing in failed')
     }
   })
 
@@ -142,7 +169,7 @@ export function createAuthService(params: {
 
     closeLoopback?.()
     closeLoopback = null
-    loginInFlight = false
+    signingInFlight = false
   })
 }
 
