@@ -63,17 +63,28 @@ export function useControlsIslandAutoHide(options: UseControlsIslandAutoHideOpti
       isInsideDelayed.value = !val
       return
     }
+    // Stop any pending timers
     stopOutside()
     stopInside()
     if (val) {
       // Mouse left - start hide delay timer
-      isInsideDelayed.value = false
-      startOutside()
+      // Only update state when delay is met (or delay is 0)
+      if (autoHideDelay.value <= 0) {
+        isOutsideDelayed.value = true
+      }
+      else {
+        startOutside()
+      }
     }
     else {
       // Mouse entered - start show delay timer
-      isOutsideDelayed.value = false
-      startInside()
+      // Only update state when delay is met (or delay is 0)
+      if (autoShowDelay.value <= 0) {
+        isInsideDelayed.value = true
+      }
+      else {
+        startInside()
+      }
     }
   })
 
