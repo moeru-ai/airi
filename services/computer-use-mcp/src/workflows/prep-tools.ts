@@ -2,6 +2,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
 import type { PrepToolPolicy, StrategyAdvisory } from '../strategy'
 
+import { globalRegistry, initializeGlobalRegistry } from '../server/tool-descriptors'
 import { PREP_TOOL_POLICY } from '../strategy'
 
 export type WorkflowPrepToolLane
@@ -37,63 +38,36 @@ export interface PlannedPreparatoryExecutionBatch {
   executions: PlannedPreparatoryExecution[]
 }
 
-const prepToolSpecs: Record<string, WorkflowPrepToolSpec> = {
-  display_enumerate: {
-    canonicalName: 'display_enumerate',
-    displayName: 'Display enumerate',
-    lane: 'display',
-    kind: 'probe',
-    concurrencySafe: true,
-    summary: 'Capture display geometry and combined bounds before desktop interaction.',
-  },
-  accessibility_snapshot: {
-    canonicalName: 'accessibility_snapshot',
-    displayName: 'Accessibility snapshot',
-    lane: 'accessibility',
-    kind: 'probe',
-    concurrencySafe: true,
-    summary: 'Read the focused accessibility tree for semantic grounding.',
-  },
-  browser_cdp_collect_elements: {
-    canonicalName: 'browser_cdp_collect_elements',
-    displayName: 'Browser CDP collect elements',
-    lane: 'browser_cdp',
-    kind: 'probe',
-    concurrencySafe: true,
-    summary: 'Collect interactive browser elements through CDP.',
-  },
-  browser_dom_read_page: {
-    canonicalName: 'browser_dom_read_page',
-    displayName: 'Browser DOM read page',
-    lane: 'browser_dom',
-    kind: 'probe',
-    concurrencySafe: true,
-    summary: 'Read browser DOM frames and interactive elements from the extension bridge.',
-  },
-  pty_read_screen: {
-    canonicalName: 'pty_read_screen',
-    displayName: 'PTY read screen',
-    lane: 'pty',
-    kind: 'probe',
-    concurrencySafe: false,
-    summary: 'Read the current PTY screen buffer.',
-  },
-  pty_send_input: {
-    canonicalName: 'pty_send_input',
-    displayName: 'PTY send input',
-    lane: 'pty',
-    kind: 'mutation',
-    concurrencySafe: false,
-    summary: 'Write bytes into a PTY session.',
-  },
-  pty_destroy: {
-    canonicalName: 'pty_destroy',
-    displayName: 'PTY destroy session',
-    lane: 'pty',
-    kind: 'mutation',
-    concurrencySafe: false,
-    summary: 'Destroy a PTY session and revoke its grant.',
-  },
+/**
+ * Map descriptor lanes to workflow prep lanes.
+ */
+function mapDescriptorLaneToWorkflowLane(lane: string): WorkflowPrepToolLane {
+  const mapping: Record<string, WorkflowPrepToolLane> = {
+    display: 'display',
+    accessibility: 'accessibility',
+    browser_dom: 'browser_dom',
+    browser_cdp: 'browser_cdp',
+    pty: 'pty',
+    desktop: 'desktop',
+    internal: 'internal',
+  }
+  return mapping[lane] ?? 'internal'
+}
+
+/**
+ * Map descriptor kinds to workflow prep kinds.
+ */
+function mapDescriptorKindToWorkflowKind(kind: string, readOnly: boolean): WorkflowPrepToolKind {
+  if (readOnly) {
+    return 'probe'
+  }
+  if (kind === 'write' || kind === 'control') {
+    return 'mutation'
+  }
+  if (kind === 'workflow') {
+    return 'reroute'
+  }
+  return 'internal'
 }
 
 const unknownPrepToolSpec: WorkflowPrepToolSpec = {
@@ -129,9 +103,39 @@ export function canonicalizeWorkflowPrepToolName(toolName: string) {
   return toolName
 }
 
+/**
+ * Resolve workflow prep tool spec from descriptor registry.
+ * Falls back to unknown spec if not found.
+ */
 export function resolveWorkflowPrepToolSpec(toolName: string): WorkflowPrepToolSpec {
   const canonicalName = canonicalizeWorkflowPrepToolName(toolName)
-  return prepToolSpecs[canonicalName] ?? {
+
+  // Ensure registry is initialized
+  if (!globalRegistry.has(canonicalName)) {
+    // Try to initialize in case this is called early
+    try {
+      initializeGlobalRegistry()
+    }
+    catch {
+      // Already initialized or other error; proceed with lookup
+    }
+  }
+
+  // Lookup from descriptor registry
+  if (globalRegistry.has(canonicalName)) {
+    const descriptor = globalRegistry.get(canonicalName)
+    return {
+      canonicalName: descriptor.canonicalName,
+      displayName: descriptor.displayName,
+      lane: mapDescriptorLaneToWorkflowLane(descriptor.lane),
+      kind: mapDescriptorKindToWorkflowKind(descriptor.kind, descriptor.readOnly),
+      concurrencySafe: descriptor.concurrencySafe,
+      summary: descriptor.summary,
+    }
+  }
+
+  // Fallback to unknown spec
+  return {
     ...unknownPrepToolSpec,
     canonicalName,
     displayName: canonicalName,

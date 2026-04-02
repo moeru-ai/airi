@@ -1,6 +1,7 @@
 import type { ActionInvocation, ComputerUseConfig, ForegroundContext, PolicyDecision } from './types'
 
 import { resolveConfiguredOpenableApp } from './app-aliases'
+import { globalRegistry } from './server/tool-descriptors'
 
 function includesPattern(value: string | undefined, patterns: string[]) {
   const normalizedValue = value?.trim().toLowerCase()
@@ -10,7 +11,39 @@ function includesPattern(value: string | undefined, patterns: string[]) {
   return patterns.some(pattern => normalizedValue.includes(pattern.toLowerCase()))
 }
 
+/**
+ * Get baseline safety properties from descriptor registry.
+ * Returns undefined if tool is not in registry (fallback to legacy behavior).
+ */
+function getDescriptorBaseline(actionKind: string): {
+  readOnly: boolean
+  destructive: boolean
+  requiresApprovalByDefault: boolean
+} | undefined {
+  // Map action kinds to tool names (some are 1:1, some need mapping)
+  const toolName = actionKind
+
+  // Check if the tool exists in the registry
+  if (!globalRegistry.has(toolName)) {
+    return undefined
+  }
+
+  const descriptor = globalRegistry.get(toolName)
+  return {
+    readOnly: descriptor.readOnly,
+    destructive: descriptor.destructive,
+    requiresApprovalByDefault: descriptor.requiresApprovalByDefault,
+  }
+}
+
 function isMutatingAction(action: ActionInvocation) {
+  // First check descriptor baseline if available
+  const baseline = getDescriptorBaseline(action.kind)
+  if (baseline) {
+    return !baseline.readOnly
+  }
+
+  // Fallback to legacy hardcoded list for tools not in registry
   return ![
     'screenshot',
     'observe_windows',
@@ -146,8 +179,17 @@ export function evaluateActionPolicy(params: {
   const estimatedOperationUnits = estimateOperationUnits(params.action)
   const mutating = isMutatingAction(params.action)
   let allowed = true
-  let requiresApproval = false
   let riskLevel: PolicyDecision['riskLevel'] = 'low'
+
+  // Get descriptor baseline for approval requirement
+  // This serves as the initial default; stricter rules below can only tighten, not relax
+  const baseline = getDescriptorBaseline(params.action.kind)
+  let requiresApproval = baseline?.requiresApprovalByDefault ?? false
+
+  // If descriptor indicates destructive action, elevate risk level
+  if (baseline?.destructive) {
+    riskLevel = 'high'
+  }
 
   if (params.operationsExecuted >= params.config.maxOperations) {
     reasons.push('session operation budget exhausted')

@@ -52,12 +52,15 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "catalog:",
     "@moeru/std": "catalog:",
-    "node-pty": "catalog:",
+    "node-pty": "^1.0.0",
     "ws": "^8.19.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "typescript": "catalog:",
-    "typescript-eslint": "catalog:"
+    "@types/node": "^22.16.2",
+    "@types/ws": "catalog:",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.29.0",
+    "vitest": "catalog:vitest"
   }
 }

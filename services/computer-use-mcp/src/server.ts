@@ -12,9 +12,11 @@ import { registerCdpTools } from './server/register-cdp'
 import { registerDisplayTools } from './server/register-display'
 import { destroyAllPtySessions, registerPtyTools } from './server/register-pty'
 import { registerTaskMemoryTools } from './server/register-task-memory'
+import { registerToolDirectory } from './server/register-tool-directory'
 import { registerComputerUseTools } from './server/register-tools'
 import { registerVscodeTools } from './server/register-vscode'
 import { createRuntime } from './server/runtime'
+import { initializeGlobalRegistry } from './server/tool-descriptors'
 
 const packageVersion = '0.1.0'
 const enableTestTools = ['1', 'true', 'yes', 'on'].includes((env.COMPUTER_USE_ENABLE_TEST_TOOLS || '').trim().toLowerCase())
@@ -22,12 +24,18 @@ const enableTestTools = ['1', 'true', 'yes', 'on'].includes((env.COMPUTER_USE_EN
 export { type ComputerUseServerOptions } from './server/runtime'
 
 export async function createComputerUseMcpServer(config = resolveComputerUseConfig(), options: ComputerUseServerOptions = {}) {
+  // Initialize the global tool descriptor registry
+  initializeGlobalRegistry()
+
   const runtime = await createRuntime(config, options)
   const executeAction = createExecuteAction(runtime)
   const server = new McpServer({
     name: 'AIRI Computer Use',
     version: packageVersion,
   })
+
+  // Register the tool directory first (meta-tool for introspection)
+  registerToolDirectory({ server })
 
   registerComputerUseTools({
     server,
