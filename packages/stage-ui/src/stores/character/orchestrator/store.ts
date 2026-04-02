@@ -10,7 +10,7 @@ import { useConsciousnessStore } from '../../modules/consciousness'
 import { useProvidersStore } from '../../providers'
 import { setupAgentSparkNotifyHandler } from './agents/event-handler-spark-notify'
 
-export { sparkCommandSchema } from './agents/event-handler-spark-notify'
+export { sparkNotifyCommandSchema } from './agents/event-handler-spark-notify'
 
 export const useCharacterOrchestratorStore = defineStore('character-orchestrator', () => {
   const { stream } = useLLM()

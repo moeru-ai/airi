@@ -16,7 +16,7 @@ import { nanoid } from 'nanoid'
 import { setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { sparkCommandSchema, useCharacterOrchestratorStore } from '.'
+import { sparkNotifyCommandSchema, useCharacterOrchestratorStore } from '.'
 import { useCharacterStore } from '..'
 import { useLLM } from '../../llm'
 import { useAiriCardStore, useConsciousnessStore } from '../../modules'
@@ -75,12 +75,12 @@ function getArraySchema(schema?: Record<string, any>) {
   return candidates.find((candidate: Record<string, any>) => candidate?.type === 'array')
 }
 
-describe('sparkCommandSchema', () => {
+describe('sparkNotifyCommandSchema', () => {
   it('emits strict objects in the json schema', async () => {
     const sparkTool = await tool({
       name: 'builtIn_sparkCommand',
       description: 'test',
-      parameters: sparkCommandSchema,
+      parameters: sparkNotifyCommandSchema,
       execute: async () => undefined,
     })
 
@@ -152,7 +152,7 @@ describe('store character-orchestrator', () => {
           interrupt: 'false',
           ack: 'ok',
           guidance: null,
-        }] } satisfies z.infer<typeof sparkCommandSchema>)
+        }] } satisfies z.infer<typeof sparkNotifyCommandSchema>)
       }
 
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'Ahhh, got hit by zombie!' } satisfies StreamEvent)
