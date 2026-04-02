@@ -165,7 +165,7 @@ const releaseNotesContent = computed(() => {
               <Button
                 :variant="isError ? 'caution' : 'secondary'"
                 :loading="isBusy"
-                :disabled="isDisabled || (isLatestVersion && !isError)"
+                :disabled="isDisabled"
                 :icon="isLatestVersion ? 'i-solar:check-circle-outline' : isDisabled ? 'i-solar:forbidden-circle-outline' : 'i-solar:refresh-outline'"
                 :label="isBusy ? 'Checking...' : isLatestVersion ? 'Latest version' : isDisabled ? 'Updates disabled in Dev' : isError ? 'Retry Check' : 'Check for updates'"
                 @click="checkForUpdates()"
