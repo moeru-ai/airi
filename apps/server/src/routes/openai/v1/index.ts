@@ -1,4 +1,5 @@
 import type { Context } from 'hono'
+import type Redis from 'ioredis'
 
 import type { Env } from '../../../libs/env'
 import type { MqService } from '../../../libs/mq'
@@ -32,8 +33,18 @@ import {
   GEN_AI_ATTR_USAGE_OUTPUT_TOKENS,
   getServerConnectionAttributes,
 } from '../../../utils/observability'
+import { getCompressed, setCompressed } from '../../../utils/redis-compressed'
+import { ttsVoicesUpstreamCacheRedisKey } from '../../../utils/redis-keys'
 
 const tracer = trace.getTracer('v1-completions')
+
+// Upstream /audio/voices only changes when the gateway onboards a new backend
+// (days-to-weeks cadence). 24h TTL cuts per-request gateway calls to ~1/day
+// per model; operators can bump DEFAULT_TTS_VOICES immediately via configKV
+// (that map is fetched fresh per request, not cached here) and can wipe the
+// stale voice list with `DEL tts:voices:upstream:<model>` when a backend swap
+// needs to show up before the TTL expires.
+const TTS_VOICES_CACHE_TTL_SECONDS = 24 * 60 * 60
 
 const SAFE_RESPONSE_HEADERS = new Set([
   'content-type',
@@ -71,7 +82,7 @@ function getLlmMetricAttributes(opts: { model: string, type: string, status: num
   }
 }
 
-export function createV1CompletionsRoutes(fluxService: FluxService, billingService: BillingService, configKV: ConfigKVService, billingMq: MqService<BillingEvent>, ttsMeter: FluxMeter, env: Env, genAi?: GenAiMetrics | null) {
+export function createV1CompletionsRoutes(fluxService: FluxService, billingService: BillingService, configKV: ConfigKVService, billingMq: MqService<BillingEvent>, ttsMeter: FluxMeter, redis: Redis, env: Env, genAi?: GenAiMetrics | null) {
   const logger = useLogger('v1-completions').useGlobalConfig()
   // TODO: Extract this compat route into smaller facades/modules.
   // It currently mixes auth, rate limiting, proxying, billing, telemetry, and event publishing in one transport layer entrypoint.
@@ -317,18 +328,20 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
     return c.json(responseBody)
   }
 
-  // async function handleTTS(c: Context<HonoEnv>) {
-  //   const user = c.get('user')!
-  //   const flux = await fluxService.getFlux(user.id)
-  //   if (flux.flux <= 0) {
-  //     throw createPaymentRequiredError('Insufficient flux')
-  //   }
+  async function handleTTS(c: Context<HonoEnv>) {
+    const user = c.get('user')!
+    const flux = await fluxService.getFlux(user.id)
+    if (flux.flux <= 0) {
+      throw createPaymentRequiredError('Insufficient flux')
+    }
 
     const body = await c.req.json()
     const baseUrl = normalizeBaseUrl(env.GATEWAY_BASE_URL)
     const serverAttributes = getServerConnectionAttributes(baseUrl)
     let requestModel = body.model || 'auto'
-    const inputText: string = body.input ?? ''
+    // NOTICE: Guard against non-string body.input — upstream would reject it
+    // anyway, but billing math (.length → INCRBY) turns NaN into a Redis error.
+    const inputText: string = typeof body.input === 'string' ? body.input : ''
 
     if (requestModel === 'auto') {
       requestModel = env.DEFAULT_TTS_MODEL
@@ -347,33 +360,27 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
       },
     })
 
-  //   const response = await context.with(trace.setSpan(context.active(), span), () =>
-  //     fetch(`${baseUrl}audio/speech`, {
-  //       method: 'POST',
-  //       headers: { 'Content-Type': 'application/json' },
-  //       body: JSON.stringify(body),
-  //     }))
+    const startedAt = Date.now()
 
-  //   const durationMs = Date.now() - startedAt
-  //   span.setAttribute('http.response.status_code', response.status)
+    const response = await context.with(trace.setSpan(context.active(), span), () =>
+      fetch(`${baseUrl}audio/speech`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...body, model: requestModel }),
+      }))
 
-  //   if (!response.ok) {
-  //     span.setStatus({ code: SpanStatusCode.ERROR, message: `Gateway ${response.status}` })
-  //     span.end()
-  //     recordMetrics({ model: requestModel, status: response.status, type: 'tts', durationMs, fluxConsumed: 0 })
-  //     return new Response(response.body, {
-  //       status: response.status,
-  //       headers: buildSafeResponseHeaders(response),
-  //     })
-  //   }
+    const durationMs = Date.now() - startedAt
+    span.setAttribute('http.response.status_code', response.status)
 
-  //   const fluxPerRequest = await configKV.getOrThrow('FLUX_PER_REQUEST_TTS')
-  //   await billingService.consumeFluxForLLM({
-  //     userId: user.id,
-  //     amount: fluxPerRequest,
-  //     requestId: nanoid(),
-  //     description: `tts:${requestModel}`,
-  //   })
+    if (!response.ok) {
+      span.setStatus({ code: SpanStatusCode.ERROR, message: `Gateway ${response.status}` })
+      span.end()
+      recordMetrics({ model: requestModel, status: response.status, type: 'tts', durationMs, fluxConsumed: 0 })
+      return new Response(response.body, {
+        status: response.status,
+        headers: buildSafeResponseHeaders(response),
+      })
+    }
 
     // Debt-ledger billing: accumulate chars in Redis; only debit when we
     // cross a whole-Flux boundary. Sub-threshold requests cost 0 Flux at this
@@ -386,42 +393,68 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
       metadata: { model: requestModel },
     })
 
-  //   return new Response(response.body, {
-  //     status: response.status,
-  //     headers: buildSafeResponseHeaders(response),
-  //   })
-  // }
+    span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
+    span.end()
+    recordMetrics({ model: requestModel, status: response.status, type: 'tts', durationMs, fluxConsumed })
 
-  // async function handleTranscription(c: Context<HonoEnv>) {
-  //   const user = c.get('user')!
-  //   const flux = await fluxService.getFlux(user.id)
-  //   if (flux.flux <= 0) {
-  //     throw createPaymentRequiredError('Insufficient flux')
-  //   }
+    publishRequestLog({
+      userId: user.id,
+      model: requestModel,
+      status: response.status,
+      durationMs,
+      fluxConsumed,
+    })
 
-  //   const gatewayBaseUrl = await configKV.getOrThrow('GATEWAY_BASE_URL')
-  //   const baseUrl = normalizeBaseUrl(gatewayBaseUrl)
-  //   const serverAttributes = getServerConnectionAttributes(baseUrl)
+    return new Response(response.body, {
+      status: response.status,
+      headers: buildSafeResponseHeaders(response),
+    })
+  }
 
-  async function handleListVoices(_c: Context<HonoEnv>) {
-    const baseUrl = normalizeBaseUrl(env.GATEWAY_BASE_URL)
+  async function handleListVoices(c: Context<HonoEnv>) {
+    // Voice catalogs are per-model (different TTS models expose different
+    // voices), so cache key and upstream query are both keyed by model.
+    // `auto` and missing values fall back to the server's default.
+    const requested = c.req.query('model')
+    const model = (!requested || requested === 'auto') ? env.DEFAULT_TTS_MODEL : requested
+    const cacheKey = ttsVoicesUpstreamCacheRedisKey(model)
 
-  //   const startedAt = Date.now()
+    let body: Record<string, unknown>
+    const cached = await getCompressed(redis, cacheKey)
+    if (cached != null) {
+      body = JSON.parse(cached) as Record<string, unknown>
+    }
+    else {
+      const url = new URL(`${normalizeBaseUrl(env.GATEWAY_BASE_URL)}audio/voices`)
+      url.searchParams.set('model', model)
+      const response = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' } })
+      if (!response.ok) {
+        return new Response(response.body, {
+          status: response.status,
+          headers: buildSafeResponseHeaders(response),
+        })
+      }
+      // Cache the raw upstream bytes so the write path skips a parse→stringify
+      // round-trip. Body is parsed below for merging with `recommended`.
+      const text = await response.text()
+      body = JSON.parse(text) as Record<string, unknown>
+      await setCompressed(redis, cacheKey, text, TTS_VOICES_CACHE_TTL_SECONDS)
+    }
 
-  //   const rawBody = await c.req.arrayBuffer()
-  //   const contentType = c.req.header('content-type') || 'multipart/form-data'
-
-  //   const response = await context.with(trace.setSpan(context.active(), span), () =>
-  //     fetch(`${baseUrl}audio/transcriptions`, {
-  //       method: 'POST',
-  //       headers: { 'Content-Type': contentType },
-  //       body: rawBody,
-  //     }))
+    // Recommended map is read fresh from configKV (Redis-backed) so operator
+    // edits take effect immediately even while the upstream list is cached.
+    const recommended = (await configKV.getOptional('DEFAULT_TTS_VOICES')) ?? {}
+    return Response.json({ ...body, recommended })
+  }
 
   async function handleListTTSModels(_c: Context<HonoEnv>) {
-    const model = env.DEFAULT_TTS_MODEL
+    // Mirror the chat provider: expose a single 'auto' routing alias instead
+    // of the concrete DEFAULT_TTS_MODEL id. Keeps clients insulated from
+    // backend model swaps and stays symmetric with /chat listModels.
+    // /audio/speech and /audio/voices already translate 'auto' into
+    // env.DEFAULT_TTS_MODEL before hitting upstream.
     return Response.json({
-      models: [{ id: model, name: model }],
+      models: [{ id: 'auto', name: 'Auto' }],
     })
   }
 

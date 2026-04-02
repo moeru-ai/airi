@@ -13,8 +13,7 @@ import { useProvidersStore } from '../stores/providers'
  */
 const AUTH_ACTIVATED_PROVIDERS: Array<{ id: string, module: 'consciousness' | 'speech' | 'hearing' }> = [
   { id: 'official-provider', module: 'consciousness' },
-  // { id: 'official-provider-speech', module: 'speech' },
-  // { id: 'official-provider-transcription', module: 'hearing' },
+  { id: 'official-provider-speech', module: 'speech' },
 ]
 
 /**
@@ -59,7 +58,7 @@ export function useAuthProviderSync() {
           }
           break
         case 'speech':
-          if (!speechStore.activeSpeechProvider) {
+          if (!speechStore.activeSpeechProvider || speechStore.activeSpeechProvider === 'speech-noop') {
             speechStore.activeSpeechProvider = id
             speechStore.activeSpeechModel = 'auto'
           }
