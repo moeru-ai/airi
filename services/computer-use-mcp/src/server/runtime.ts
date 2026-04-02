@@ -11,6 +11,8 @@ import { RunStateManager } from '../state'
 import { TaskMemoryManager } from '../task-memory/manager'
 import { createLocalShellRunner } from '../terminal/runner'
 import { createCdpBridgeManager } from './cdp-manager'
+import { createRuntimeCoordinator } from './runtime-coordinator'
+import type { RuntimeCoordinator } from './runtime-coordinator'
 
 export interface ComputerUseServerOptions {
   executorFactory?: (config: ComputerUseConfig) => DesktopExecutor
@@ -28,6 +30,8 @@ export interface ComputerUseServerRuntime {
   stateManager: RunStateManager
   /** High-level task memory for the current session. */
   taskMemory: TaskMemoryManager
+  /** Unified snapshot coordinator for execution boundaries. */
+  coordinator: RuntimeCoordinator
 }
 
 function createExecutor(config: ComputerUseConfig, options: ComputerUseServerOptions = {}): DesktopExecutor {
@@ -65,7 +69,7 @@ export async function createRuntime(config = resolveComputerUseConfig(), options
   session.setTerminalState(terminalRunner.getState())
   stateManager.updateTerminalState(terminalRunner.getState())
 
-  return {
+  const runtimeBase = {
     config,
     session,
     executor,
@@ -74,5 +78,12 @@ export async function createRuntime(config = resolveComputerUseConfig(), options
     cdpBridgeManager,
     stateManager,
     taskMemory,
+  }
+
+  const coordinator = createRuntimeCoordinator(runtimeBase)
+
+  return {
+    ...runtimeBase,
+    coordinator,
   } satisfies ComputerUseServerRuntime
 }

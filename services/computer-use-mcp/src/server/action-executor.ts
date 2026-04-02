@@ -37,7 +37,6 @@ import {
   readEnvValue,
 } from '../utils/env-file'
 import { describeExecutionTarget } from './formatters'
-import { refreshRuntimeRunState } from './refresh-run-state'
 import {
   buildApprovalResponse,
   buildDeniedResponse,
@@ -142,14 +141,20 @@ function toTerminalStateContent(state: TerminalState) {
 }
 
 export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteAction {
+  // Use the shared coordinator from the runtime wrapper
+  const coordinator = runtime.coordinator
+
   return async (action, toolName, options = {}) => {
     const normalizedAction = normalizeConfiguredAppAction(action, runtime.config.openableApps)
-    const { executionTarget, context, displayInfo } = await refreshRuntimeRunState(runtime)
 
-    const budget = runtime.session.getBudgetState()
+    // Refresh runtime snapshot once at entry
+    const snapshot = await coordinator.refreshSnapshot('tool_entry')
+    const { executionTarget, foregroundContext: context, displayInfo } = snapshot
+
+    const budget = snapshot.sessionBudget
     const preflight = getRuntimePreflight({
       config: runtime.config,
-      lastScreenshot: runtime.session.getLastScreenshot(),
+      lastScreenshot: snapshot.lastScreenshot,
       displayInfo,
       executionTarget,
     })
