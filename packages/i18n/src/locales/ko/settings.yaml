@@ -123,6 +123,15 @@ live2d:
 microphone: 마이크
 models: 모델
 pages:
+  account:
+    title: Account
+    description: View your profile and manage your account
+    notLoggedIn: Sign in to view your account and access all features
+    login: Log in
+    logout: Log out
+    fluxBalance: Flux Balance
+    viewFluxDetails: View details
+    signedInAs: Signed in as
   card:
     activate: 활성화
     active: 활성
@@ -375,16 +384,30 @@ pages:
       description: Minecraft 플레이 중!
       title: Minecraft
       enable: Minecraft 통합 사용
-      enable-description: AIRI가 Minecraft를 접근하기 위해 허용
-      server-address: 서버 주소
-      server-address-description: Minecraft 서버의 IP 주소 및 호스트 이름
-      server-address-placeholder: '서버 주소 입력 (예시: localhost 및 play.example.com)'
-      server-port: 서버 포트
-      server-port-description: 'Minecraft 서버의 포트 번호 (기본값: 25565)'
-      username: 사용자 이름
-      username-description: Minecraft 서버의 사용자 이름
-      username-placeholder: Minecraft 사용자 이름을 입력하세요
+      enable-description: Include Minecraft self-knowledge in Stage chat turns and keep passive runtime visibility enabled.
       configured: Minecraft 구성 완료!
+      read-only:
+        title: Read-only shell
+        description: Stage currently exposes Minecraft as a passive shell. Runtime status and traffic are visible here, but service configuration stays in the Minecraft service files.
+      setup:
+        title: Setup
+        description: You can find the instructions for setting up the bot in the following file
+      runtime:
+        title: Observed runtime
+        connection: Connection
+        latest-context: Latest bot context
+        waiting: Waiting for a fresh bot-originated context push.
+        unknown: Unknown
+      debug:
+        title: Minecraft traffic
+        empty: No Minecraft traffic observed yet.
+        source: 'Source: {source}'
+      status:
+        service-online: Service online
+        service-offline: Service offline
+        no-runtime-context: 'No bot context observed yet'
+        last-context-seconds: 'Last bot context: {seconds}s ago'
+        last-context-stale: 'Last bot context: Stale'
     hearing:
       description: 음성 인식 작동 방식 구성
       title: 청력

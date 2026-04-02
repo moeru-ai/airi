@@ -25,6 +25,10 @@ docs:
   'close': 閉じる
   'expand': 展開
   'collapse': 折りたたむ
+  'login': Sign in
+  'logging-in': Signing in...
+  'account': Account
+  'logout': Sign out
 'status-island':
   connected: WebSocket が接続されました
   disconnected: WebSocket が切断されました
