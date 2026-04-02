@@ -50,6 +50,7 @@
     "hono-rate-limiter": "catalog:",
     "injeca": "catalog:",
     "ioredis": "^5.10.1",
+    "jose": "catalog:",
     "pg": "^8.20.0",
     "stripe": "^21.0.0",
     "tsx": "^4.21.0",

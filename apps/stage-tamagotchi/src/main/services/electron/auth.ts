@@ -100,6 +100,7 @@ export function createAuthService(params: {
       url.searchParams.set('code_challenge', codeChallenge)
       url.searchParams.set('code_challenge_method', 'S256')
       url.searchParams.set('prompt', 'login')
+      url.searchParams.set('resource', SERVER_URL)
 
       // Open system browser
       await shell.openExternal(url.toString())
@@ -161,6 +162,7 @@ async function exchangeCode(code: string, codeVerifier: string, redirectUri: str
     redirect_uri: redirectUri,
     client_id: OIDC_CLIENT_ID,
     code_verifier: codeVerifier,
+    resource: SERVER_URL,
   })
 
   const response = await fetch(new URL(OIDC_TOKEN_PATH, SERVER_URL), {

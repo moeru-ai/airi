@@ -82,11 +82,15 @@ OIDC_CLIENT_ID_POCKET
 | Token | 用途 | 存储位置 | 生命周期 |
 |-------|------|---------|---------|
 | Authorization Code | 一次性换 token | URL query param (`?code=`) | 极短，一次性 |
-| OIDC Access Token | 实际的 API 鉴权凭证（Bearer） | localStorage `auth/v1/token` | 由 oauthProvider 控制 |
-| OIDC Refresh Token | 刷新 access token | localStorage `auth/v1/refresh-token` | 长期 |
+| OIDC Access Token (JWT) | 实际的 API 鉴权凭证（Bearer） | localStorage `auth/v1/token` | 1 小时 TTL，自包含，不存数据库 |
+| OIDC Refresh Token | 刷新 access token | localStorage `auth/v1/refresh-token` | 长期，rotation 机制 |
 | Session 对象 | UI / API 所需的用户态快照 | `fetchSession()` 后保存在 auth store | 跟随 access token 可解析结果 |
 
-**为什么现在可以直接用 OIDC access token？** 因为服务端的 `resolveRequestAuth()` 已经统一支持两条路径：先走 `auth.api.getSession()` 解析 better-auth session；如果没有 session，再把 Bearer token 当作 OIDC access token 到 `oauth_access_token` 表中校验。对业务路由来说，拿到的仍然是统一的 `{ user, session }` 结构。
+**为什么现在可以直接用 OIDC access token？** 因为服务端的 `resolveRequestAuth()` 已经统一支持两条路径：先走 `auth.api.getSession()` 解析 better-auth session；如果没有 session，再用 `jose.jwtVerify()` 本地验证 JWT 签名、issuer、audience、过期时间，然后通过 `findUserById()` 补齐用户信息。对业务路由来说，拿到的仍然是统一的 `{ user, session }` 结构。
+
+**JWT 签发条件：** 前端在 authorize/token 请求中传递 `resource` 参数（值为 `API_SERVER_URL`），oauthProvider 据此签发 JWT 而非 opaque token。JWKS 通过 `/api/auth/jwks` 端点获取并缓存。
+
+**撤销策略：** JWT 1 小时 TTL + refresh token rotation。signout 时撤销 refresh token，JWT 等自然过期。不使用 denylist 或 Redis。
 
 **为什么不用 cookie？** 客户端和服务端跨域（如 `localhost:5173` vs `localhost:3000`），cookie 无法跨域传递。客户端 `credentials: 'omit'`，纯 Bearer token 鉴权。
 
@@ -134,8 +138,8 @@ Client (localhost:5173)                    Server (localhost:3000)              
       验证 state 防 CSRF                            │                                      │
         │                                          │                                      │
    9. POST /api/auth/oauth2/token ──────────────►  │                                      │
-      (code + code_verifier + client_id)           │                                      │
-      ◄──── { access_token, refresh_token } ────── │                                      │
+      (code + code_verifier + client_id + resource) │                                      │
+      ◄──── { access_token (JWT), refresh_token } ─ │                                      │
         │                                          │                                      │
   10. GET /api/auth/get-session ─────────────────►  │                                      │
       (Bearer: access_token)                       │                                      │
@@ -168,16 +172,17 @@ Electron 的 OIDC redirect_uri 不再直接指向 loopback 端口，而是指向
 
 ### Bearer 鉴权解析
 
-现在没有单独的 OIDC→Session bridge。服务端统一通过 `src/libs/request-auth.ts` 解析请求头：
+服务端通过 `src/libs/request-auth.ts` 解析请求头：
 
 1. 先调用 `auth.api.getSession({ headers })`，支持标准 better-auth session / cookie / Bearer session token
-2. 如果没有命中，再读取 `Authorization: Bearer <token>`
-3. 对 Bearer token 做 SHA-256 + base64url，与 `oauth_access_token.token` 比较
-4. 限制 `clientId` 必须属于受信任的一方客户端（Web、Electron、Pocket）
-5. 验证 `expiresAt > now`
-6. 用 `auth.$context.internalAdapter.findUserById()` 补齐用户信息，构造统一的 `{ user, session }`
+2. 如果没有命中，读取 `Authorization: Bearer <token>`
+3. 使用 `jose.jwtVerify()` 本地验证 JWT 签名、issuer、audience、过期时间
+4. 从 JWT `sub` claim 提取 userId，调用 `findUserById()` 补齐用户信息
+5. 构造统一的 `{ user, session }`
 
-这样业务中间件和路由层不需要关心 token 来自 better-auth session 还是 OIDC access token。
+JWT access token 由 oauthProvider 签发，条件是前端在 authorize/token 请求中传递 `resource` 参数（值为 `API_SERVER_URL`）。JWKS 通过 `/api/auth/jwks` 端点获取并缓存。
+
+这样业务中间件和路由层不需要关心 token 来自 better-auth session 还是 OIDC JWT access token。
 
 ### 自动 Token 刷新
 
@@ -239,7 +244,7 @@ Capacitor 移动端无法正确处理 state cookie（系统浏览器和 WebView 
 - 改登录页 → `src/utils/sign-in-page.ts`（HTML），或 `src/routes/auth/index.ts` 的 `/sign-in` 路由
 - 改认证中间件 → `src/app.ts` 的 session middleware
 - 改 trusted origins → `src/utils/origin.ts`
-- 改 Bearer 鉴权解析 → `src/libs/request-auth.ts`
+- 改 Bearer 鉴权解析 → `src/libs/request-auth.ts`（JWT 本地验签，依赖 jose + JWKS）
 - 改 token auth 辅助路由 → `src/routes/oidc/token-auth.ts`
 - 改回调中继 → `src/routes/oidc/electron-callback.ts`
 - 改 Auth 路由结构 → `src/routes/auth/index.ts`
