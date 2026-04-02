@@ -17,6 +17,7 @@
     "dev:docs": "pnpm -rF @proj-airi/docs run dev",
     "dev:ui": "pnpm -rF @proj-airi/stage-ui run story:dev",
     "dev:web": "pnpm -rF @proj-airi/stage-web run dev",
+    "dev:server-auth": "pnpm -rF @proj-airi/ui-server-auth run dev",
     "dev:pocket:ios": "pnpm -rF @proj-airi/stage-pocket run dev:ios",
     "dev:pocket:android": "pnpm -rF @proj-airi/stage-pocket run dev:android",
     "dev:server": "pnpm -rF @proj-airi/server-runtime run dev",
