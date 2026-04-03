@@ -101,7 +101,7 @@ const RESPONSES = {
     data: { kind, message, at: Date.now() },
     metadata: createServerEventMetadata(serverInstanceId, parentId),
   }),
-} satisfies Record<string, (...args: unknown[]) => WebSocketEvent<Record<string, unknown>>>
+} satisfies Record<string, (...args: any[]) => WebSocketEvent<Record<string, unknown>>>
 
 const DEFAULT_HEARTBEAT_TTL_MS = 60_000
 const DEFAULT_CONSUMER_GROUP = 'default'
@@ -713,7 +713,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
           if (target) {
             send(target.peer, {
               type: 'module:configure',
-              data: { config },
+              data: { config: config || {} },
               // NOTICE: this will forward the original event metadata as-is
               metadata: event.metadata,
             })
@@ -902,5 +902,3 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
     closeAllPeers,
   }
 }
-
-export const { app, closeAllPeers: _ } = setupApp()

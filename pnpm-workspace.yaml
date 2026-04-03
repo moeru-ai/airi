@@ -36,10 +36,14 @@ catalog:
   '@electric-sql/pglite': ^0.4.1
   '@electron-toolkit/preload': ^3.0.2
   '@electron/notarize': ^3.1.1
+  '@fontsource-variable/nunito': ^5.2.7
   '@guiiai/logg': ^1.2.11
   '@histoire/plugin-vue': 1.0.0-beta.1
   '@hono/node-ws': ^1.3.0
+  '@iconify-json/line-md': ^1.2.16
   '@iconify-json/logos': ^1.2.10
+  '@iconify-json/material-symbols': ^1.2.64
+  '@iconify-json/mdi': ^1.2.3
   '@iconify-json/tabler': ^1.2.32
   '@intlify/core': ^11.3.0
   '@modelcontextprotocol/sdk': ^1.27.1
@@ -80,12 +84,14 @@ catalog:
   capacitor-native-settings: ^8.1.0
   crossws: ^0.4.4
   d3: 7.9.0
+  date-fns: ^4.1.0
   drizzle-kit: ^0.31.10
   drizzle-orm: ^0.45.1
   drizzle-valibot: ^0.4.2
   electron: ^40.8.3
   embla-carousel-vue: ^9.0.0-rc01
   es-toolkit: 1.43.0
+  get-port-please: ^3.2.0
   histoire: 1.0.0-beta.1
   hono: 4.11.3
   hono-rate-limiter: ^0.5.3
@@ -93,7 +99,9 @@ catalog:
   injeca: ^0.1.8
   is-network-error: ^1.3.1
   isolated-vm: ^6.1.2
+  jose: ^6.2.2
   knip: ^6.0.4
+  meow: ^14.1.0
   mkcert: ^3.2.0
   nano-staged: ^0.9.0
   nanoid: 5.1.6

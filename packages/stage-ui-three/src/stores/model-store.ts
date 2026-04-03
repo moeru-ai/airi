@@ -15,6 +15,7 @@ export interface SceneBootstrap {
   cameraPosition: Vec3
   eyeHeight: number
   lookAtTarget: Vec3
+  modelOffset: Vec3
   modelOrigin: Vec3
   modelSize: Vec3
 }
@@ -133,6 +134,7 @@ export const useModelStore = defineStore('modelStore', () => {
   // REVIEW: `scale` is still shared with non-VRM view controls. The VRM path should
   // gradually move to `cameraDistance` as the primary user-facing zoom concept.
   const scale = useLocalStorage('settings/stage-ui-three/scale', 1)
+  const lastCommittedModelSrc = useLocalStorage('settings/stage-ui-three/lastModelSrc', '')
 
   // === Model lifecycle / bootstrap ===
   // These values are recalculated from the currently bound model instance whenever
@@ -160,6 +162,7 @@ export const useModelStore = defineStore('modelStore', () => {
     scenePhase.value = 'pending'
     sceneTransactionDepth.value = 0
 
+    lastCommittedModelSrc.value = ''
     modelSize.value = { x: 0, y: 0, z: 0 }
     modelOrigin.value = { x: 0, y: 0, z: 0 }
     modelOffset.value = { x: 0, y: 0, z: 0 }
@@ -216,6 +219,7 @@ export const useModelStore = defineStore('modelStore', () => {
     sceneMutationLocked,
 
     scale,
+    lastCommittedModelSrc,
 
     modelSize,
     modelOrigin,

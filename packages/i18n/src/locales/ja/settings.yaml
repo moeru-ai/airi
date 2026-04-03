@@ -123,6 +123,15 @@ live2d:
 microphone: マイク
 models: モデル
 pages:
+  account:
+    title: Account
+    description: View your profile and manage your account
+    notLoggedIn: Sign in to view your account and access all features
+    login: Log in
+    logout: Log out
+    fluxBalance: Flux Balance
+    viewFluxDetails: View details
+    signedInAs: Signed in as
   card:
     activate: 有効化
     active: 有効
@@ -375,16 +384,30 @@ pages:
       description: Minecraftをプレイ！
       title: Minecraft
       enable: Minecraft連携を有効にする
-      enable-description: AIRIがMinecraftゲームと対話できるようにする
-      server-address: サーバーアドレス
-      server-address-description: MinecraftサーバーのIPアドレスまたはホスト名
-      server-address-placeholder: サーバーアドレスを入力 (例： localhostまたはplay.example.com)
-      server-port: サーバーポート
-      server-port-description: Minecraftサーバーのポート番号 (デフォルト 25565)
-      username: ユーザー名
-      username-description: Minecraftサーバーでのユーザー名
-      username-placeholder: Minecraftユーザー名を入力
+      enable-description: Include Minecraft self-knowledge in Stage chat turns and keep passive runtime visibility enabled.
       configured: Minecraftは適切に設定されています！
+      read-only:
+        title: Read-only shell
+        description: Stage currently exposes Minecraft as a passive shell. Runtime status and traffic are visible here, but service configuration stays in the Minecraft service files.
+      setup:
+        title: Setup
+        description: You can find the instructions for setting up the bot in the following file
+      runtime:
+        title: Observed runtime
+        connection: Connection
+        latest-context: Latest bot context
+        waiting: Waiting for a fresh bot-originated context push.
+        unknown: Unknown
+      debug:
+        title: Minecraft traffic
+        empty: No Minecraft traffic observed yet.
+        source: 'Source: {source}'
+      status:
+        service-online: Service online
+        service-offline: Service offline
+        no-runtime-context: 'No bot context observed yet'
+        last-context-seconds: 'Last bot context: {seconds}s ago'
+        last-context-stale: 'Last bot context: Stale'
     hearing:
       description: 音声認識の動作を設定する
       title: 聴覚

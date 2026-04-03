@@ -49,7 +49,7 @@ async function handleConfigured() {
 <template>
   <div class="onboarding-root" h-full w-full flex flex-col overflow-x-hidden overflow-y-auto overscroll-none :class="bgClass">
     <div :class="bgClass" w="100dvw" min-h="12" w-full flex-shrink-0 select-none />
-    <div class="onboarding-scroll" w-full flex-1 px-3>
+    <div class="onboarding-scroll" w-full flex-1 px-10>
       <div class="onboarding-content" h-full>
         <OnboardingScreen :extra-steps="extraSteps" @skipped="handleSkipped" @configured="handleConfigured" />
       </div>

@@ -36,6 +36,15 @@ class MockWebSocket {
   pong() {}
 }
 
+class InjectedMockWebSocket extends MockWebSocket {
+  static instances: InjectedMockWebSocket[] = []
+
+  constructor(url: string) {
+    super(url)
+    InjectedMockWebSocket.instances.push(this)
+  }
+}
+
 vi.mock('crossws/websocket', () => ({
   default: MockWebSocket,
 }))
@@ -73,6 +82,7 @@ function emitMessage(socket: MockWebSocket, event: WebSocketEvent) {
 
 afterEach(() => {
   MockWebSocket.instances.length = 0
+  InjectedMockWebSocket.instances.length = 0
   vi.useRealTimers()
 })
 
@@ -164,6 +174,42 @@ describe('client', () => {
 
     dispose()
     expect(() => client.offEvent('input:text', listener)).not.toThrow()
+  })
+
+  it('uses an injected websocket constructor when provided', async () => {
+    const client = new Client({
+      autoConnect: false,
+      autoReconnect: false,
+      name: 'test-plugin',
+      websocketConstructor: InjectedMockWebSocket,
+    })
+
+    const connected = client.connect()
+    const socket = InjectedMockWebSocket.instances.at(-1)
+
+    expect(socket).toBeDefined()
+    expect(MockWebSocket.instances).toHaveLength(1)
+
+    if (!socket) {
+      throw new Error('No custom mock websocket instance created')
+    }
+
+    emitOpen(socket)
+    const announceEvent = parseSent(socket)
+
+    emitMessage(socket, {
+      type: 'module:announced',
+      data: {
+        name: 'test-plugin',
+        identity: announceEvent.data.identity,
+      },
+      metadata: {
+        source: { kind: 'plugin', plugin: { id: 'server' }, id: 'server-1' },
+        event: { id: 'announce-1' },
+      },
+    })
+
+    await expect(connected).resolves.toBeUndefined()
   })
 
   it('supports timeout-aware ensureConnected without cancelling the shared connect task', async () => {

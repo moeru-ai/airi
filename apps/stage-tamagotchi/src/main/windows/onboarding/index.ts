@@ -1,4 +1,5 @@
 import type { I18n } from '../../libs/i18n'
+import type { WindowAuthManager } from '../../services/airi/auth'
 import type { ServerChannel } from '../../services/airi/channel-server'
 
 import { join, resolve } from 'node:path'
@@ -14,7 +15,7 @@ import icon from '../../../../resources/icon.png?asset'
 import { electronOnboardingClose } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { createAuthService } from '../../services/electron/auth'
+import { createAuthService } from '../../services/airi/auth'
 import { toggleWindowShow } from '../shared'
 import { setupBaseWindowElectronInvokes } from '../shared/window'
 
@@ -26,6 +27,7 @@ export interface OnboardingWindowManager {
 export function setupOnboardingWindowManager(params: {
   serverChannel: ServerChannel
   i18n: I18n
+  windowAuthManager: WindowAuthManager
 }): OnboardingWindowManager {
   async function getOnboardingWindow(getWindow: () => Promise<BrowserWindow>) {
     const window = await getWindow()
@@ -72,7 +74,7 @@ export function setupOnboardingWindowManager(params: {
     })
 
     await setupBaseWindowElectronInvokes({ context, window: newWindow, i18n: params.i18n, serverChannel: params.serverChannel })
-    createAuthService({ context, window: newWindow })
+    createAuthService({ context, window: newWindow, windowAuthManager: params.windowAuthManager })
 
     await load(newWindow, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/onboarding'))
 

@@ -1,3 +1,4 @@
+import type { AuthInstance } from '../../libs/auth'
 import type { Database } from '../../libs/db'
 import type { Env } from '../../libs/env'
 import type { ConfigKVService } from '../../services/config-kv'
@@ -13,7 +14,7 @@ import { createElectronCallbackRelay } from '../oidc/electron-callback'
 import { createOIDCTokenAuthRoute } from '../oidc/token-auth'
 
 export interface AuthRoutesDeps {
-  auth: any // TODO: fix type
+  auth: AuthInstance
   db: Database
   env: Env
   configKV: ConfigKVService
@@ -21,13 +22,22 @@ export interface AuthRoutesDeps {
 
 /**
  * All auth-related routes: sign-in page, rate-limited better-auth
- * catch-all, OIDC session bridge, electron callback relay, and
+ * helper routes, electron callback relay, catch-all, and
  * well-known metadata endpoints.
  *
  * Mounted at the root level because routes span multiple prefixes
  * (`/sign-in`, `/api/auth/*`, `/.well-known/*`).
  */
 export async function createAuthRoutes(deps: AuthRoutesDeps) {
+  async function handleAuthRequest(request: Request): Promise<Response> {
+    const response = await deps.auth.handler(request)
+
+    if (!(response instanceof Response))
+      throw new TypeError('Expected auth handler to return a Response')
+
+    return response
+  }
+
   return new Hono<HonoEnv>()
     /**
      * Minimal login page for the OIDC Provider flow.
@@ -56,7 +66,7 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
         ? `${deps.env.API_SERVER_URL}/api/auth/oauth2/authorize?${oidcParams.toString()}`
         : '/'
 
-      if (provider === 'google' || provider === 'github') {
+      if (!!provider && ['google', 'github'].includes(provider)) {
         const socialUrl = `${deps.env.API_SERVER_URL}/api/auth/sign-in/social?provider=${provider}&callbackURL=${encodeURIComponent(callbackURL)}`
         return c.redirect(socialUrl)
       }
@@ -101,6 +111,6 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
       return oauthProviderOpenIdConfigMetadata(deps.auth)(c.req.raw)
     })
     .on(['POST', 'GET'], '/api/auth/*', async (c) => {
-      return deps.auth.handler(c.req.raw) as Promise<Response>
+      return handleAuthRequest(c.req.raw)
     })
 }

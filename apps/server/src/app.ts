@@ -1,5 +1,6 @@
 import type Redis from 'ioredis'
 
+import type { AuthInstance } from './libs/auth'
 import type { Database } from './libs/db'
 import type { Env } from './libs/env'
 import type { MqService } from './libs/mq'
@@ -57,7 +58,7 @@ import { ApiError, createInternalError, createUnauthorizedError } from './utils/
 import { getTrustedOrigin } from './utils/origin'
 
 interface AppDeps {
-  auth: ReturnType<typeof createAuth>
+  auth: AuthInstance
   db: Database
   characterService: CharacterService
   chatService: ChatService
@@ -111,7 +112,7 @@ export async function buildApp(deps: AppDeps) {
     }
     const session = await resolveRequestAuth(
       deps.auth,
-      deps.db,
+      deps.env,
       new Headers({ Authorization: `Bearer ${token}` }),
     )
     if (!session?.user) {
@@ -121,7 +122,7 @@ export async function buildApp(deps: AppDeps) {
   }))
 
   const builtApp = app
-    .use('*', sessionMiddleware(deps.auth, deps.db))
+    .use('*', sessionMiddleware(deps.auth, deps.env))
     .use('*', async (c, next) => {
       // Skip global body limit for ASR transcription route (has its own 25MB limit)
       if (c.req.path === '/api/v1/openai/audio/transcriptions') {
@@ -154,7 +155,7 @@ export async function buildApp(deps: AppDeps) {
     .on('GET', '/health', c => c.json({ status: 'ok' }))
 
     /**
-     * Auth routes: sign-in page, OIDC session bridge, electron callback
+     * Auth routes: sign-in page, token auth helpers, electron callback
      * relay, well-known metadata, and better-auth catch-all.
      */
     .route('/', await createAuthRoutes({

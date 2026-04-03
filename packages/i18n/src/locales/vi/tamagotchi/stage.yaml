@@ -25,6 +25,10 @@ docs:
   'close': Đóng
   'expand': Mở rộng
   'collapse': Sụp đổ
+  'login': Sign in
+  'logging-in': Signing in...
+  'account': Account
+  'logout': Sign out
 'status-island':
   connected: WebSocket connected
   disconnected: WebSocket disconnected

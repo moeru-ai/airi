@@ -1,18 +1,19 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { resolveRequestAuth, revokeOIDCAccessToken } from './request-auth'
+import { resolveRequestAuth } from './request-auth'
 
-function createSelectDb(rows: unknown[]) {
-  return {
-    select: vi.fn(() => ({
-      from: vi.fn(() => ({
-        where: vi.fn(() => ({
-          limit: vi.fn().mockResolvedValue(rows),
-        })),
-      })),
-    })),
-  }
-}
+// Mock jose module
+vi.mock('jose', () => ({
+  createRemoteJWKSet: vi.fn(() => 'mock-jwks'),
+  jwtVerify: vi.fn(),
+}))
+
+const { jwtVerify } = await import('jose')
+const mockedJwtVerify = vi.mocked(jwtVerify)
+
+const mockEnv = {
+  API_SERVER_URL: 'http://localhost:3000',
+} as any
 
 describe('resolveRequestAuth', () => {
   it('returns the better-auth session when it is already available', async () => {
@@ -27,29 +28,41 @@ describe('resolveRequestAuth', () => {
       },
     }
 
-    const db = createSelectDb([])
     const result = await resolveRequestAuth(
-      auth,
-      db as any,
+      auth as any,
+      mockEnv,
       new Headers({ Authorization: 'Bearer ignored' }),
     )
 
     expect(result).toBe(authSession)
-    expect(db.select).not.toHaveBeenCalled()
+    expect(mockedJwtVerify).not.toHaveBeenCalled()
   })
 
-  it('falls back to a trusted OIDC access token when no better-auth session exists', async () => {
-    const createdAt = new Date('2026-04-02T10:00:00.000Z')
-    const expiresAt = new Date('2026-04-02T11:00:00.000Z')
+  it('verifies JWT and returns user session when no better-auth session exists', async () => {
+    const iat = Math.floor(Date.now() / 1000)
+    const exp = iat + 3600
     const user = {
       id: 'user-1',
       email: 'user@example.com',
       name: 'User',
       emailVerified: true,
       image: null,
-      createdAt,
-      updatedAt: createdAt,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     }
+
+    mockedJwtVerify.mockResolvedValue({
+      payload: {
+        sub: 'user-1',
+        iss: 'http://localhost:3000/api/auth',
+        aud: ['http://localhost:3000', 'http://localhost:3000/api/auth/oauth2/userinfo'],
+        iat,
+        exp,
+        jti: 'jwt-token-id',
+      },
+      protectedHeader: { alg: 'RS256' },
+      key: {} as any,
+    } as any)
 
     const auth = {
       api: {
@@ -62,65 +75,85 @@ describe('resolveRequestAuth', () => {
       }),
     }
 
-    const db = createSelectDb([{
-      id: 'oauth-token-row',
-      userId: 'user-1',
-      sessionId: null,
-      createdAt,
-      expiresAt,
-    }])
-
     const result = await resolveRequestAuth(
-      auth,
-      db as any,
-      new Headers({ Authorization: 'Bearer oidc-access-token' }),
+      auth as any,
+      mockEnv,
+      new Headers({ Authorization: 'Bearer eyJhbGciOiJSUzI1NiJ9.test.sig' }),
     )
 
     expect(result).toEqual({
       user,
       session: {
-        id: 'oauth-token-row',
+        id: 'jwt-token-id',
         userId: 'user-1',
-        token: 'oidc-access-token',
-        createdAt,
-        updatedAt: createdAt,
-        expiresAt,
+        token: 'eyJhbGciOiJSUzI1NiJ9.test.sig',
+        createdAt: new Date(iat * 1000),
+        updatedAt: new Date(iat * 1000),
+        expiresAt: new Date(exp * 1000),
         ipAddress: null,
         userAgent: null,
       },
     })
   })
-})
 
-describe('revokeOIDCAccessToken', () => {
-  it('revokes the related refresh token and removes access tokens in one transaction', async () => {
-    const deleteWhere = vi.fn()
-    const updateWhere = vi.fn()
-    const transaction = vi.fn(async (callback: (tx: any) => Promise<void>) => {
-      await callback({
-        delete: vi.fn(() => ({ where: deleteWhere })),
-        update: vi.fn(() => ({
-          set: vi.fn(() => ({ where: updateWhere })),
-        })),
-      })
-    })
+  it('returns null when JWT verification fails', async () => {
+    mockedJwtVerify.mockRejectedValue(new Error('invalid signature'))
 
-    const db = {
-      ...createSelectDb([{
-        id: 'access-row-1',
-        refreshId: 'refresh-row-1',
-      }]),
-      transaction,
+    const auth = {
+      api: {
+        getSession: vi.fn().mockResolvedValue(null),
+      },
     }
 
-    const revoked = await revokeOIDCAccessToken(
-      db as any,
-      'oidc-access-token',
+    const result = await resolveRequestAuth(
+      auth as any,
+      mockEnv,
+      new Headers({ Authorization: 'Bearer invalid-jwt' }),
     )
 
-    expect(revoked).toBe(true)
-    expect(transaction).toHaveBeenCalledTimes(1)
-    expect(deleteWhere).toHaveBeenCalledTimes(2)
-    expect(updateWhere).toHaveBeenCalledTimes(1)
+    expect(result).toBeNull()
+  })
+
+  it('returns null when no Authorization header is present', async () => {
+    const auth = {
+      api: {
+        getSession: vi.fn().mockResolvedValue(null),
+      },
+    }
+
+    const result = await resolveRequestAuth(
+      auth as any,
+      mockEnv,
+      new Headers(),
+    )
+
+    expect(result).toBeNull()
+  })
+
+  it('returns null when JWT has no sub claim', async () => {
+    mockedJwtVerify.mockResolvedValue({
+      payload: {
+        iss: 'http://localhost:3000',
+        aud: 'http://localhost:3000',
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      },
+      protectedHeader: { alg: 'RS256' },
+      key: {} as any,
+    } as any)
+
+    const auth = {
+      api: {
+        getSession: vi.fn().mockResolvedValue(null),
+      },
+    }
+
+    const result = await resolveRequestAuth(
+      auth as any,
+      mockEnv,
+      new Headers({ Authorization: 'Bearer eyJhbGciOiJSUzI1NiJ9.nosub.sig' }),
+    )
+
+    expect(result).toBeNull()
   })
 })

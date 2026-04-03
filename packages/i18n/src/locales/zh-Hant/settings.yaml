@@ -123,6 +123,15 @@ live2d:
 microphone: 麥克風
 models: 模型
 pages:
+  account:
+    title: Account
+    description: View your profile and manage your account
+    notLoggedIn: Sign in to view your account and access all features
+    login: Log in
+    logout: Log out
+    fluxBalance: Flux Balance
+    viewFluxDetails: View details
+    signedInAs: Signed in as
   card:
     activate: 啟用
     active: 已啟用
@@ -375,16 +384,30 @@ pages:
       description: 一起玩 Minecraft！
       title: 我的世界 Minecraft
       enable: 啟用我的世界集成
-      enable-description: 允許 AIRI 與我的世界遊戲互動
-      server-address: 伺服器地址
-      server-address-description: 我的世界伺服器的 IP 地址或主機名稱
-      server-address-placeholder: 輸入伺服器地址（例如：localhost 或 play.example.com）
-      server-port: 伺服器端口
-      server-port-description: 我的世界伺服器的端口號（預設 25565）
-      username: 使用者名稱
-      username-description: 您在我的世界伺服器中的使用者名稱
-      username-placeholder: 輸入您的我的世界使用者名稱
+      enable-description: Include Minecraft self-knowledge in Stage chat turns and keep passive runtime visibility enabled.
       configured: 我的世界已正確設定！
+      read-only:
+        title: Read-only shell
+        description: Stage currently exposes Minecraft as a passive shell. Runtime status and traffic are visible here, but service configuration stays in the Minecraft service files.
+      setup:
+        title: Setup
+        description: You can find the instructions for setting up the bot in the following file
+      runtime:
+        title: Observed runtime
+        connection: Connection
+        latest-context: Latest bot context
+        waiting: Waiting for a fresh bot-originated context push.
+        unknown: Unknown
+      debug:
+        title: Minecraft traffic
+        empty: No Minecraft traffic observed yet.
+        source: 'Source: {source}'
+      status:
+        service-online: Service online
+        service-offline: Service offline
+        no-runtime-context: 'No bot context observed yet'
+        last-context-seconds: 'Last bot context: {seconds}s ago'
+        last-context-stale: 'Last bot context: Stale'
     hearing:
       description: 語音辨識
       title: 聽覺

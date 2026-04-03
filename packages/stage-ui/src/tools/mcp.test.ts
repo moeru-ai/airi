@@ -7,16 +7,16 @@ import { mcp } from './mcp'
 describe('tools mcp schema', () => {
   it('emits strict parameter objects', async () => {
     const tools = await mcp()
-    for (const name of ['mcp_list_tools', 'mcp_call_tool']) {
+    for (const name of ['builtIn_mcpListTools', 'builtIn_mcpCallTool']) {
       const t = tools.find(entry => entry.function.name === name)
       expect(t, `missing tool: ${name}`).toBeDefined()
       expect(t?.function.parameters.additionalProperties).toBe(false)
     }
   })
 
-  it('mcp_call_tool uses flat name+arguments schema', async () => {
+  it('builtIn_mcpCallTool uses flat name+arguments schema', async () => {
     const tools = await mcp()
-    const callTool = tools.find(entry => entry.function.name === 'mcp_call_tool')
+    const callTool = tools.find(entry => entry.function.name === 'builtIn_mcpCallTool')
     expect(callTool).toBeDefined()
 
     const props = (callTool!.function.parameters as JsonSchema).properties!

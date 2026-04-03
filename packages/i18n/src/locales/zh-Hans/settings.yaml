@@ -124,14 +124,14 @@ microphone: 麦克风
 models: 模型
 pages:
   account:
-    title: 账户
-    description: 查看您的个人资料和管理账户
-    notLoggedIn: 登录以查看您的账户并使用所有功能
-    login: 登录
-    logout: 退出登录
-    fluxBalance: Flux 余额
-    viewFluxDetails: 查看详情
-    signedInAs: 已登录为
+    title: Account
+    description: View your profile and manage your account
+    notLoggedIn: Sign in to view your account and access all features
+    login: Log in
+    logout: Log out
+    fluxBalance: Flux Balance
+    viewFluxDetails: View details
+    signedInAs: Signed in as
   card:
     activate: 激活
     active: 已激活
@@ -384,16 +384,30 @@ pages:
       description: 一起玩 Minecraft！
       title: 我的世界 Minecraft
       enable: 启用我的世界集成
-      enable-description: 允许AIRI与我的世界游戏互动
-      server-address: 服务器地址
-      server-address-description: 我的世界服务器的IP地址或主机名
-      server-address-placeholder: 输入服务器地址（例如：localhost或play.example.com）
-      server-port: 服务器端口
-      server-port-description: 我的世界服务器的端口号（默认 25565）
-      username: 用户名
-      username-description: 您在我的世界服务器中的用户名
-      username-placeholder: 输入您的我的世界用户名
+      enable-description: Include Minecraft self-knowledge in Stage chat turns and keep passive runtime visibility enabled.
       configured: 我的世界已正确配置！
+      read-only:
+        title: Read-only shell
+        description: Stage currently exposes Minecraft as a passive shell. Runtime status and traffic are visible here, but service configuration stays in the Minecraft service files.
+      setup:
+        title: Setup
+        description: You can find the instructions for setting up the bot in the following file
+      runtime:
+        title: Observed runtime
+        connection: Connection
+        latest-context: Latest bot context
+        waiting: Waiting for a fresh bot-originated context push.
+        unknown: Unknown
+      debug:
+        title: Minecraft traffic
+        empty: No Minecraft traffic observed yet.
+        source: 'Source: {source}'
+      status:
+        service-online: Service online
+        service-offline: Service offline
+        no-runtime-context: 'No bot context observed yet'
+        last-context-seconds: 'Last bot context: {seconds}s ago'
+        last-context-stale: 'Last bot context: Stale'
     hearing:
       description: 语音识别
       title: 听觉

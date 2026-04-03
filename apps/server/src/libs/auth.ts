@@ -294,10 +294,7 @@ export async function seedTrustedClients(db: Database, env: Env): Promise<void> 
   }
 }
 
-// NOTICE: return type uses `any` to avoid TS2742 — betterAuth's inferred type
-// references internal pnpm paths (@better-auth/core) that aren't directly accessible
-
-export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null): any {
+export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null) {
   return betterAuth({
     database: drizzleAdapter(db, {
       provider: 'pg',
@@ -318,6 +315,7 @@ export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null)
         consentPage: '/oauth/authorize',
         scopes: [...OIDC_SCOPES],
         validAudiences: [env.API_SERVER_URL],
+        accessTokenExpiresIn: 3600,
         // NOTICE: do not enable cachedTrustedClients here.
         // The oauth-provider plugin caches the full oauth_client row in-process,
         // including redirectUris. We mutate redirectUris at runtime for trusted
@@ -419,3 +417,5 @@ export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null)
     },
   })
 }
+
+export type AuthInstance = ReturnType<typeof createAuth>

@@ -122,6 +122,7 @@ context.value.on(electronSettingsNavigate, (event) => {
 
 onMounted(async () => {
   analyticsStore.initialize()
+  await displayModelsStore.initialize()
   cardStore.initialize()
 
   await chatSessionStore.initialize()

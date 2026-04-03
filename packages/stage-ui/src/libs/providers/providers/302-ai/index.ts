@@ -53,7 +53,7 @@ export const provider302AI = defineProvider<AI302Config>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: [ProviderValidationCheck.ModelList],
+      checks: [ProviderValidationCheck.ModelList, ProviderValidationCheck.ChatCompletions],
     }),
   },
 })

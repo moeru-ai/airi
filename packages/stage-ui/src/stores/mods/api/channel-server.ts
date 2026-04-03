@@ -1,4 +1,12 @@
-import type { ContextUpdate, InputContextUpdate, WebSocketBaseEvent, WebSocketEvent, WebSocketEventOptionalSource, WebSocketEvents } from '@proj-airi/server-sdk'
+import type {
+  ContextUpdate,
+  InputContextUpdate,
+  WebSocketBaseEvent,
+  WebSocketEvent,
+  WebSocketEventOptionalSource,
+  WebSocketEvents,
+  WebSocketLikeConstructor,
+} from '@proj-airi/server-sdk'
 import type { CommonContentPart } from '@xsai/shared-chat'
 
 import { Client, WebSocketEventSource } from '@proj-airi/server-sdk'
@@ -28,6 +36,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   const connected = ref(false)
   const client = ref<Client>()
   const initializing = ref<Promise<void> | null>(null)
+  const websocketConstructor = ref<WebSocketLikeConstructor>()
   const pendingSend = ref<Array<WebSocketEvent>>([])
   const pendingSendCount = computed(() => pendingSend.value.length)
 
@@ -60,11 +69,19 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     'ui:configure',
   ]
 
-  async function initialize(options?: { token?: string, possibleEvents?: Array<keyof WebSocketEvents> }) {
+  async function initialize(options?: {
+    token?: string
+    possibleEvents?: Array<keyof WebSocketEvents>
+    websocketConstructor?: WebSocketLikeConstructor
+  }) {
     if (connected.value && client.value)
       return Promise.resolve()
     if (initializing.value)
       return initializing.value
+
+    if (options?.websocketConstructor) {
+      websocketConstructor.value = options.websocketConstructor
+    }
 
     const possibleEvents = Array.from(new Set<keyof WebSocketEvents>([
       ...basePossibleEvents,
@@ -76,6 +93,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
         name: isStageWeb() ? WebSocketEventSource.StageWeb : isStageTamagotchi() ? WebSocketEventSource.StageTamagotchi : WebSocketEventSource.StageWeb,
         url: websocketUrl.value || defaultWebSocketUrl,
         token: options?.token,
+        websocketConstructor: websocketConstructor.value,
         possibleEvents,
         onAnyMessage: (event) => {
           if (REPLAYABLE_EVENT_TYPES.has(event.type as keyof WebSocketEvents))
@@ -101,6 +119,11 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
           replayableEvents.clear()
 
           console.warn('WebSocket server connection closed')
+        },
+        onReady: () => {
+          connected.value = true
+          flush()
+          initializeListeners()
         },
       })
 

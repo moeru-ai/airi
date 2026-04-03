@@ -167,7 +167,7 @@ export const providerOllama = defineProvider<OllamaConfig>({
       }),
     ],
     validateProvider: createOpenAICompatibleValidators({
-      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList],
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList, ProviderValidationCheck.ChatCompletions],
       schedule: {
         mode: 'interval',
         intervalMs: 15_000,

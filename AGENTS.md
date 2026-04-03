@@ -108,6 +108,14 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 ## Testing Practices
 
 - Vitest per project; keep runs targeted for speed.
+- For any investigated bug or issue, try to reproduce it first with a test-only reproduction before changing production code. Prefer a unit test; if that is not possible, use the smallest higher-level automated test that can still reproduce the problem.
+- When an issue reproduction test is possible, include the tracker identifier in the test case name:
+  - GitHub issues: include `Issue #<number>`
+  - Internal bugs tracked in Linear: include the Linear issue key
+- Add the actual report link as a comment directly above the regression test:
+  - GitHub issue URL for GitHub reports
+  - Discord message or thread URL for IM reports
+  - Linear issue URL for internal bugs
 - Mock IPC/services with `vi.fn`/`vi.mock`; do not rely on real Electron runtime.
 - For external providers/services, add both mock-based tests and integration-style tests (with env guards) when feasible. You can mock imports with Vitest.
 - Grow component/e2e coverage progressively (Vitest browser env where possible). Use `expect` and assert mock calls/params.

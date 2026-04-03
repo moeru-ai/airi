@@ -70,6 +70,7 @@ export type ThreeSceneTraceTransactionAction = 'begin' | 'end' | 'reset'
 export type ThreeSceneTraceTransactionReason
   = | 'component-unmount'
     | 'initial-load'
+    | 'model-reload'
     | 'model-switch'
     | 'no-model'
     | 'subtree-remount'
@@ -126,6 +127,7 @@ export type VrmLifecycleReason
   = | 'component-unmount'
     | 'initial-load'
     | 'manual-reload'
+    | 'model-reload'
     | 'model-switch'
 
 export interface VrmLifecycleTracePayload extends StageThreeRuntimeTraceBasePayload {

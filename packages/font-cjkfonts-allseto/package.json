@@ -18,8 +18,10 @@
     ".": { "default": "./dist/index.css" },
     "./index.css": { "default": "./dist/index.css" },
     "./files/*": { "default": "./dist/files/*" },
-    "./files/*.ttf": { "default": "./dist/files/*.ttf" }
+    "./files/*.ttf": { "default": "./dist/files/*.ttf" },
+    "./*": { "default": "./*.css" }
   },
+  "main": "./dist/index.css",
   "scripts": {
     "dev": "pnpm run build",
     "build": "tsdown"
