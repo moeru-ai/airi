@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { inject, onMounted, ref, watchEffect } from 'vue'
+
+import { injectPlatformLayout } from '../../constants'
 import { Application, DockDivider, DockRoot } from '../../containers/dock'
 import { Refractive } from '../../graphics'
 import { Apps, Finder, TrashFull } from '../../icons/applications'
@@ -9,10 +12,25 @@ const props = withDefaults(defineProps<{
 }>(), {
   size: 2,
 })
+
+const dockRoot = ref<HTMLElement | null>(null)
+const platformLayout = inject(injectPlatformLayout, null)
+
+watchEffect(() => {
+  if (platformLayout) {
+    platformLayout.dock.value = dockRoot.value
+  }
+})
+
+onMounted(() => {
+  if (platformLayout) {
+    platformLayout.dock.value = dockRoot.value
+  }
+})
 </script>
 
 <template>
-  <div class="absolute right-2 top-1/2 z-1000 translate-y--1/2">
+  <div ref="dockRoot" class="absolute right-2 top-1/2 z-1000 translate-y--1/2">
     <DockRoot :size="props.size">
       <Refractive
         :refraction="{

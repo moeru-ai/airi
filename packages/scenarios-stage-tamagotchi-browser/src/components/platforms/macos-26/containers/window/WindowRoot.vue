@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import type { CSSProperties } from 'vue'
+
+import { inject, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+
+import { injectPlatformLayout } from '../../constants'
+import { computeElementAnchorStyle, createContainerAnchorStyle, createWorkAreaRect } from './window-anchor'
+
 const props = withDefaults(defineProps<{
   title?: string
   focus?: boolean
@@ -6,24 +13,146 @@ const props = withDefaults(defineProps<{
   transparent?: boolean
   titleBarStyle?: 'default' | 'hidden' | 'hiddenInset' | 'customButtonsOnHover'
   hasShadow?: boolean
-  alignTo?: 'bottom-left' | 'bottom-right' | 'top-left' | 'top-right' | 'center'
+  anchorTo?: 'bottom-left' | 'bottom-right' | 'top-left' | 'top-right' | 'center'
+  anchorEl?: HTMLElement | SVGElement | null
+  anchorBounds?: 'platform' | 'workarea'
 }>(), {
+  anchorBounds: 'platform',
   focus: true,
   frame: true,
   transparent: false,
   titleBarStyle: 'default',
   hasShadow: true,
 })
+
+const platformLayout = inject(injectPlatformLayout, null)
+const windowRoot = ref<HTMLElement | null>(null)
+const anchorStyle = shallowRef<CSSProperties | undefined>()
+
+let resizeObserver: ResizeObserver | null = null
+let animationFrameId: number | null = null
+
+function cancelPendingAnchorUpdate() {
+  if (animationFrameId !== null) {
+    cancelAnimationFrame(animationFrameId)
+    animationFrameId = null
+  }
+}
+
+function updateAnchorStyle() {
+  if (!props.anchorTo) {
+    anchorStyle.value = undefined
+    return
+  }
+
+  const currentPlatformRoot = platformLayout?.root.value ?? null
+  const currentWindowRoot = windowRoot.value
+  const currentAnchorEl = props.anchorEl instanceof HTMLElement || props.anchorEl instanceof SVGElement
+    ? props.anchorEl
+    : null
+
+  // Element anchoring is the more specific mode: align this window to the
+  // measured target element inside the platform rather than to a platform edge.
+  if (currentAnchorEl && currentPlatformRoot && currentWindowRoot) {
+    anchorStyle.value = computeElementAnchorStyle({
+      anchor: props.anchorTo,
+      anchorRect: currentAnchorEl.getBoundingClientRect(),
+      platformRect: currentPlatformRoot.getBoundingClientRect(),
+      windowRect: currentWindowRoot.getBoundingClientRect(),
+    })
+    return
+  }
+
+  const platformRect = currentPlatformRoot?.getBoundingClientRect()
+  // When anchoring against the container, we can optionally shrink the usable
+  // bounds to the platform work area so windows avoid overlapping the dock.
+  const workAreaRect = platformRect
+    ? createWorkAreaRect({
+        dockRect: props.anchorBounds === 'workarea' ? platformLayout?.dock.value?.getBoundingClientRect() ?? null : null,
+        platformRect,
+      })
+    : undefined
+
+  anchorStyle.value = createContainerAnchorStyle(
+    props.anchorTo,
+    workAreaRect,
+    platformRect
+      ? {
+          width: platformRect.width,
+          height: platformRect.height,
+        }
+      : undefined,
+  )
+}
+
+function queueAnchorUpdate() {
+  cancelPendingAnchorUpdate()
+  // Layout reads happen on the next animation frame so repeated prop/observer
+  // changes collapse into one measurement pass.
+  animationFrameId = requestAnimationFrame(() => {
+    animationFrameId = null
+    updateAnchorStyle()
+  })
+}
+
+function refreshResizeObserver() {
+  resizeObserver?.disconnect()
+
+  if (typeof ResizeObserver === 'undefined') {
+    return
+  }
+
+  resizeObserver = new ResizeObserver(() => {
+    queueAnchorUpdate()
+  })
+
+  // The computed anchor can change when the platform, dock, window itself, or
+  // an explicit anchor element resizes, so all of them feed the same update path.
+  if (platformLayout?.root.value) {
+    resizeObserver.observe(platformLayout.root.value)
+  }
+
+  if (platformLayout?.dock.value) {
+    resizeObserver.observe(platformLayout.dock.value)
+  }
+
+  if (windowRoot.value) {
+    resizeObserver.observe(windowRoot.value)
+  }
+
+  if (props.anchorEl instanceof HTMLElement || props.anchorEl instanceof SVGElement) {
+    resizeObserver.observe(props.anchorEl)
+  }
+}
+
+onMounted(async () => {
+  await nextTick()
+  queueAnchorUpdate()
+  refreshResizeObserver()
+})
+
+watch(() => [props.anchorBounds, props.anchorTo, props.anchorEl], async () => {
+  await nextTick()
+  queueAnchorUpdate()
+  refreshResizeObserver()
+})
+
+onBeforeUnmount(() => {
+  cancelPendingAnchorUpdate()
+  resizeObserver?.disconnect()
+})
 </script>
 
 <template>
   <div
+    ref="windowRoot"
     :class="[
       'absolute',
       'flex flex-col',
       'rounded-2xl overflow-hidden',
       props.hasShadow ? 'shadow-xl' : '',
     ]"
+    :style="anchorStyle"
   >
     <div
       v-if="!!props.frame"

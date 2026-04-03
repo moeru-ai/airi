@@ -20,8 +20,8 @@ import { WindowRoot } from '../components/platforms/macos-26/containers/window'
  * than reinterpreting each translate against a resized responsive container.
  */
 const stageWindowStyle = {
-  left: '1200px',
-  top: '400px',
+  right: '0px',
+  bottom: '0px',
 }
 
 const websocketWindowStyle = {
@@ -60,7 +60,13 @@ onMounted(async () => {
     <ScenarioCaptureRoot name="intro-chat-window">
       <PlatformRoot :dock-size="1.5">
         <template #windows>
-          <WindowRoot :style="stageWindowStyle" :frame="false" :has-shadow="false">
+          <WindowRoot
+            :style="stageWindowStyle"
+            anchor-to="bottom-right"
+            anchor-bounds="workarea"
+            :frame="false"
+            :has-shadow="false"
+          >
             <img :src="stageShot" class="w-95">
           </WindowRoot>
           <WindowRoot :style="websocketWindowStyle">

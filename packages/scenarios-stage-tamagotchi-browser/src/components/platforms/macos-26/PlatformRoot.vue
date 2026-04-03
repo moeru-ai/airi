@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import type { Ref } from 'vue'
 
+import { computed, provide, readonly, ref } from 'vue'
+
+import { injectPlatformLayout } from './constants'
 import { Appearance, Dock, MenuBar } from './ui'
 
 const props = withDefaults(defineProps<{
@@ -21,10 +24,19 @@ const aspectRatio = computed(() => {
 
   return props.aspectRatio.split(':').map(Number).reduce((a, b) => a / b)
 })
+
+const platformRoot = ref<HTMLElement | null>(null)
+const dockRoot = ref<HTMLElement | null>(null)
+
+provide(injectPlatformLayout, {
+  dock: dockRoot,
+  root: readonly(platformRoot) as Readonly<Ref<HTMLElement | null>>,
+})
 </script>
 
 <template>
   <div
+    ref="platformRoot"
     :class="[
       'relative overflow-hidden',
       'font-macos',
