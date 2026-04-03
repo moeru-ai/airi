@@ -1,6 +1,6 @@
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 
-import { integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
+import { jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
 

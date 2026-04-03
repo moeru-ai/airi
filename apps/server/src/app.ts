@@ -399,7 +399,6 @@ export async function createApp() {
     otel,
   })
   const { app, injectWebSocket } = await buildApp({
-    db: resolved.db,
     auth: resolved.auth,
     db: resolved.db,
     characterService: resolved.characterService,
