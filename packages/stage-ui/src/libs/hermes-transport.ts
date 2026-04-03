@@ -61,7 +61,7 @@ export function createStubHermesReply(request: HermesReplyRequest): HermesReplyR
       score: null,
       flags: [],
     },
-    sceneType: request.route === 'nsfw' ? 'nsfw' : request.character.relationshipMode,
+    sceneType: (request.route === 'nsfw' ? 'nsfw' : (request.character.relationshipMode === 'companion' ? 'roleplay' : request.character.relationshipMode)) as any,
   }
 }
 
@@ -104,7 +104,7 @@ export async function generateHermesImagePromptViaTransport(
       prompt: request.prompt,
       negativePrompt: '',
       tags: [],
-      sceneType: request.route === 'nsfw' ? 'nsfw' : request.character.relationshipMode,
+      sceneType: (request.route === 'nsfw' ? 'nsfw' : (request.character.relationshipMode === 'companion' ? 'roleplay' : request.character.relationshipMode)) as any,
     }
   }
 

@@ -224,7 +224,7 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = {
       ...user.value,
       ...data,
-    } as User
+    } as unknown as User
     return user.value
   }
 
@@ -246,7 +246,7 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = {
       ...user.value,
       ...data,
-    } as User
+    } as unknown as User
     return user.value
   }
 
