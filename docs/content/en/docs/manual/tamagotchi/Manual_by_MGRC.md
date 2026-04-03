@@ -274,7 +274,7 @@ Change theme color. Enable RGB auto-change, pick a color, or choose a preset.
 
 [ WARNING: This option has no content and no back button. Do not click it – you will need to close and reopen settings. ]
 
-#### Developers
+#### Developer
 
 [ **Since this part mostly involves advanced features that are generally not used, the introduction here is for reference only!** ]
 
