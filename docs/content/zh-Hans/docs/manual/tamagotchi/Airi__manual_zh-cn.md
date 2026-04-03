@@ -22,7 +22,7 @@
 
 ## 第一章·安装
 
-找到Projecr Airi Github主页：[moeru-ai/airi](https://github.com/moeru-ai/airi)
+找到 Project Airi GitHub 主页：[moeru-ai/airi](https://github.com/moeru-ai/airi)
 
 找到位于页面右侧的“**Releases**”选项
 
