@@ -17,8 +17,8 @@
   },
   "scripts": {
     "capture": "tsx scripts/capture.ts",
-    "build": "vite build",
-    "dev": "vite",
+    "scenario:build": "vite build",
+    "scenario:dev": "vite",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
