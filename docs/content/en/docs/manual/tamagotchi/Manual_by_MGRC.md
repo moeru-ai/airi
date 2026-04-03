@@ -91,7 +91,7 @@ Click “Expand” to reveal eight options:
 ### System Tray Other Options
 
 Locate the Airi icon in the system tray (may be in hidden icons).  
-Right-click the icon to see ten options :  
+Right-click the icon to see ten options:  
 “show” - The main window can be summoned, but it is generally not needed.  
 “adjust sizes” – includes: “recommended(450x600)”, “full height”, “half height”, “full screen”  
 “align to” – includes: “center”, “top left”, “top right”, “bottom left”, “bottom right”  
