@@ -160,7 +160,7 @@ You can also choose “**None**” to disable voice.
 
 At the very bottom of this page, you can enter text to test the sound, and by clicking the '**Test Sound**' option, a test audio can be generated.
 
-[ Please note: The configuration process on this page may vary slightly for different service sources. This example uses Alibaba Bailing as an example; others should be based on actual situations. ]  
+[ Please note: The configuration process on this page may vary slightly for different service sources. This example uses Alibaba Bailian as an example; others should be based on actual situations. ]  
 [ Some of the services related to Pitch features may not work. ]
 
 #### Hearing
