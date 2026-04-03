@@ -112,27 +112,28 @@ export function createServer(opts?: ServerOptions): Server {
     }
 
     const secureEnabled = options?.tlsConfig != null
+    const h3App = setupApp()
+
+    const port = options.port
+    const hostname = options.hostname
+
+    const instance = serve(h3App.app, {
+      // @ts-expect-error - the .crossws property wasn't extended in types
+      plugins: [ws({ resolve: async req => (await h3App.app.fetch(req)).crossws })],
+      port,
+      hostname,
+      tls: options?.tlsConfig || undefined,
+      reusePort: true,
+      silent: true,
+      manual: true,
+      gracefulShutdown: {
+        forceTimeout: 0.5,
+        gracefulTimeout: 0.5,
+      },
+    })
 
     try {
-      const h3App = setupApp()
-
-      const port = options.port
-      const hostname = options.hostname
-
-      const instance = serve(h3App.app, {
-        // @ts-expect-error - the .crossws property wasn't extended in types
-        plugins: [ws({ resolve: async req => (await h3App.app.fetch(req)).crossws })],
-        port,
-        hostname,
-        tls: options?.tlsConfig || undefined,
-        reusePort: true,
-        silent: true,
-        manual: true,
-        gracefulShutdown: {
-          forceTimeout: 0.5,
-          gracefulTimeout: 0.5,
-        },
-      })
+      await instance.serve()
 
       serverInstance = {
         close: async (closeActiveConnections = false) => {
@@ -142,19 +143,6 @@ export function createServer(opts?: ServerOptions): Server {
           await instance.close(closeActiveConnections)
           log.log('server instance closed')
         },
-      }
-
-      const servePromise = instance.serve()
-      if (servePromise instanceof Promise) {
-        servePromise.catch((error) => {
-          const nodejsError = error as NodeJS.ErrnoException
-          if ('code' in nodejsError && nodejsError.code === 'EADDRINUSE') {
-            log.withError(error).warn('Port already in use, assuming server is already running')
-            return
-          }
-
-          log.withError(error).error('Error serving WebSocket server')
-        })
       }
 
       const protocol = secureEnabled ? 'wss' : 'ws'
@@ -168,7 +156,11 @@ export function createServer(opts?: ServerOptions): Server {
       }
     }
     catch (error) {
+      serverInstance = null
+      h3App.closeAllPeers()
+      await instance.close(true).catch(() => {})
       log.withError(error).error('failed to start WebSocket server')
+      throw error
     }
   }
 

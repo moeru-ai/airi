@@ -813,6 +813,9 @@ importers:
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.1(@electric-sql/pglite@0.4.1)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.8)
+      embla-carousel-vue:
+        specifier: 'catalog:'
+        version: 9.0.0-rc01(vue@3.5.30(typescript@5.9.3))
       gpuu:
         specifier: ^1.0.6
         version: 1.0.6
@@ -1225,6 +1228,9 @@ importers:
       electron-click-drag-plugin:
         specifier: ^2.0.2
         version: 2.0.2
+      embla-carousel-vue:
+        specifier: 'catalog:'
+        version: 9.0.0-rc01(vue@3.5.30(typescript@5.9.3))
       es-toolkit:
         specifier: ^1.45.1
         version: 1.45.1
@@ -1652,6 +1658,9 @@ importers:
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.1(@electric-sql/pglite@0.4.1)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.8)
+      embla-carousel-vue:
+        specifier: 'catalog:'
+        version: 9.0.0-rc01(vue@3.5.30(typescript@5.9.3))
       gpuu:
         specifier: ^1.0.6
         version: 1.0.6

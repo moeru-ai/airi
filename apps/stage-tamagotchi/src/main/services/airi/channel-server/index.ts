@@ -9,9 +9,10 @@ import { env, platform } from 'node:process'
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
+import { errorMessageFrom } from '@moeru/std'
 import { createServer, getLocalIPs } from '@proj-airi/server-runtime/server'
 import { Mutex } from 'async-mutex'
-import { app, ipcMain } from 'electron'
+import { app, ipcMain, session } from 'electron'
 import { createCA, createCert } from 'mkcert'
 import { x } from 'tinyexec'
 import { nullable, object, optional, string } from 'valibot'
@@ -41,9 +42,42 @@ const channelServerConfigStore = createConfig('server-channel', 'config.json', c
   },
   autoHeal: true,
 })
+let serverChannelServiceRegistered = false
+let serverChannelCertificateTrustConfigured = false
+
+interface ServerChannelCertificateVerifyRequest {
+  hostname: string
+  verificationResult: string
+  errorCode: number
+  certificate: {
+    subject: {
+      commonName: string
+    }
+    issuer: {
+      commonName: string
+      country: string
+      locality: string
+      organizations: string[]
+    }
+  }
+}
 
 async function getChannelServerConfig(): Promise<ServerOptions> {
   return channelServerConfigStore.get() || { tlsConfig: null }
+}
+
+function getServerRuntimeBaseOptions() {
+  return {
+    port: env.PORT ? Number.parseInt(env.PORT) : 6121,
+    hostname: env.SERVER_RUNTIME_HOSTNAME || '0.0.0.0',
+  }
+}
+
+async function resolveServerRuntimeOptions(config: ServerOptions): Promise<ServerOptions> {
+  return {
+    ...getServerRuntimeBaseOptions(),
+    tlsConfig: config.tlsConfig ? await getOrCreateCertificate() : null,
+  }
 }
 
 async function normalizeChannelServerOptions(payload: unknown, fallback?: ServerOptions) {
@@ -96,17 +130,53 @@ function certHasAllDomains(certPem: string, domains: string[]): boolean {
   }
 }
 
+function isTrustedServerChannelCertificate(request: ServerChannelCertificateVerifyRequest): boolean {
+  if (!['CERT_AUTHORITY_INVALID', 'ERR_CERT_AUTHORITY_INVALID'].includes(request.verificationResult)
+    && request.errorCode !== -202) {
+    return false
+  }
+
+  if (!getCertificateDomains().includes(request.hostname)) {
+    return false
+  }
+
+  const issuer = request.certificate.issuer
+  return request.certificate.subject.commonName === 'localhost'
+    && issuer.commonName === 'AIRI'
+    && issuer.country === 'US'
+    && issuer.locality === 'Local'
+    && issuer.organizations.includes('AIRI')
+}
+
+function configureServerChannelCertificateTrust() {
+  if (serverChannelCertificateTrustConfigured) {
+    return
+  }
+
+  session.defaultSession.setCertificateVerifyProc((request, callback) => {
+    if (isTrustedServerChannelCertificate(request)) {
+      callback(0)
+      return
+    }
+
+    callback(-3)
+  })
+
+  serverChannelCertificateTrustConfigured = true
+}
+
 async function installCACertificate(caCert: string) {
   const userDataPath = app.getPath('userData')
   const caCertPath = join(userDataPath, 'websocket-ca-cert.pem')
+  const log = useLogg('main/server-runtime').useGlobalConfig()
   writeFileSync(caCertPath, caCert)
 
   try {
     if (platform === 'darwin') {
-      await x(`security`, ['add-trusted-cert', '-d', '-r', 'trustRoot', '-k', '/Library/Keychains/System.keychain', `"${caCertPath}"`], { nodeOptions: { stdio: 'ignore' } })
+      await x('security', ['add-trusted-cert', '-d', '-r', 'trustRoot', '-k', join(app.getPath('home'), 'Library/Keychains/login.keychain-db'), caCertPath], { nodeOptions: { stdio: 'ignore' } })
     }
     else if (platform === 'win32') {
-      await x(`certutil`, ['-addstore', '-f', 'Root', `"${caCertPath}"`], { nodeOptions: { stdio: 'ignore' } })
+      await x('certutil', ['-addstore', '-f', 'Root', caCertPath], { nodeOptions: { stdio: 'ignore' } })
     }
     else if (platform === 'linux') {
       const caDir = '/usr/local/share/ca-certificates'
@@ -119,7 +189,7 @@ async function installCACertificate(caCert: string) {
         const userCaDir = join(env.HOME || '', '.local/share/ca-certificates')
         try {
           if (!existsSync(userCaDir)) {
-            await x(`mkdir`, ['-p', `"${userCaDir}"`], { nodeOptions: { stdio: 'ignore' } })
+            await x('mkdir', ['-p', userCaDir], { nodeOptions: { stdio: 'ignore' } })
           }
           writeFileSync(join(userCaDir, caFileName), caCert)
         }
@@ -129,8 +199,8 @@ async function installCACertificate(caCert: string) {
       }
     }
   }
-  catch {
-    // Ignore installation errors
+  catch (error) {
+    log.withError(error).warn(`Failed to install AIRI WebSocket CA certificate from ${caCertPath}`)
   }
 }
 
@@ -157,9 +227,9 @@ async function generateCertificate() {
     })
     writeFileSync(caCertPath, ca.cert)
     writeFileSync(caKeyPath, ca.key)
-
-    await installCACertificate(ca.cert)
   }
+
+  await installCACertificate(ca.cert)
 
   const domains = getCertificateDomains()
 
@@ -198,14 +268,13 @@ async function getOrCreateCertificate() {
 
 export async function setupServerChannel(params: { lifecycle: Lifecycle }): Promise<Server> {
   channelServerConfigStore.setup()
+  configureServerChannelCertificateTrust()
 
   const storedConfig = await getChannelServerConfig()
 
   const serverChannel = createServer({
     ...storedConfig,
-    port: env.PORT ? Number.parseInt(env.PORT) : 6121,
-    hostname: env.SERVER_RUNTIME_HOSTNAME || '0.0.0.0',
-    tlsConfig: storedConfig.tlsConfig ? await getOrCreateCertificate() : null,
+    ...(await resolveServerRuntimeOptions(storedConfig)),
   })
 
   const mutex = new Mutex()
@@ -291,6 +360,11 @@ export async function setupServerChannel(params: { lifecycle: Lifecycle }): Prom
 }
 
 export async function createServerChannelService(params: { serverChannel: Server }) {
+  if (serverChannelServiceRegistered) {
+    return
+  }
+  serverChannelServiceRegistered = true
+
   const { context } = createContext(ipcMain)
 
   defineInvokeHandler(context, electronGetServerChannelConfig, async () => {
@@ -298,30 +372,40 @@ export async function createServerChannelService(params: { serverChannel: Server
   })
 
   defineInvokeHandler(context, electronApplyServerChannelConfig, async (req) => {
+    const current = await getChannelServerConfig()
+    const next = await normalizeChannelServerOptions(req, current)
+    const changed = JSON.stringify(next.tlsConfig) !== JSON.stringify(current.tlsConfig)
+
     try {
-      const current = await getChannelServerConfig()
-      const next = await normalizeChannelServerOptions(req, current)
-      const changed = JSON.stringify(next.tlsConfig) !== JSON.stringify(current.tlsConfig)
-
-      channelServerConfigStore.update(next)
-
       if (changed) {
-        await params.serverChannel.stop()
-        await params.serverChannel.updateConfig({
-          port: env.PORT ? Number.parseInt(env.PORT) : 6121,
-          hostname: env.SERVER_RUNTIME_HOSTNAME || '0.0.0.0',
-          tlsConfig: next.tlsConfig ? await getOrCreateCertificate() : null,
-        })
-        await params.serverChannel.start()
-      }
-      else {
-        await params.serverChannel.start()
+        const nextRuntimeOptions = await resolveServerRuntimeOptions(next)
+
+        await params.serverChannel.updateConfig(nextRuntimeOptions)
+        await params.serverChannel.restart()
+        channelServerConfigStore.update(next)
+
+        return next
       }
 
+      await params.serverChannel.start()
+      channelServerConfigStore.update(next)
       return next
     }
     catch (error) {
       useLogg('main/server-runtime').withError(error).error('Failed to apply server channel configuration')
+      if (changed) {
+        const previousRuntimeOptions = await resolveServerRuntimeOptions(current)
+
+        try {
+          await params.serverChannel.updateConfig(previousRuntimeOptions)
+          await params.serverChannel.restart()
+        }
+        catch (rollbackError) {
+          useLogg('main/server-runtime').withError(rollbackError).error('Failed to restore previous server channel configuration')
+        }
+      }
+
+      throw new Error(errorMessageFrom(error) ?? 'Failed to apply server channel configuration')
     }
   })
 }

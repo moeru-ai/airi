@@ -65,6 +65,7 @@
     "dompurify": "^3.3.3",
     "driver.js": "^1.4.0",
     "drizzle-orm": "catalog:",
+    "embla-carousel-vue": "catalog:",
     "gpuu": "^1.0.6",
     "hono": "catalog:",
     "html2canvas": "^1.4.1",
