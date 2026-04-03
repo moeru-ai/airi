@@ -1,6 +1,8 @@
 import type { Logg } from '@guiiai/logg'
 import type { Message } from '@xsai/shared-chat'
 
+import type { AiriBridge } from '../../airi/airi-bridge'
+import type { MinecraftContextService } from '../../airi/minecraft-context-service'
 import type { ConversationUpdateEvent } from '../../debug/types'
 import type { Action } from '../../libs/mineflayer/action'
 import type { TaskExecutor } from '../action/task-executor'
@@ -9,7 +11,6 @@ import type { EventBus, TracedEvent } from '../event-bus'
 import type { PerceptionSignal } from '../perception/types/signals'
 import type { ReflexManager } from '../reflex/reflex-manager'
 import type { BotEvent, MineflayerWithAgents } from '../types'
-import type { ActiveContextState, ArchivedContext } from './context-summary'
 import type { PlannerGlobalDescriptor } from './js-planner'
 import type { LLMAgent, LLMResult } from './llm-agent'
 import type { LlmLogEntry, LlmLogEntryKind } from './llm-log'
@@ -18,12 +19,6 @@ import type { CancellationToken } from './task-state'
 import { config } from '../../composables/config'
 import { DebugService } from '../../debug'
 import { ActionError } from '../../utils/errors'
-import {
-
-  buildContextHistoryMessage,
-  collapseOldestContexts,
-  generateContextSummary,
-} from './context-summary'
 import { buildConsciousContextView } from './context-view'
 import { createHistoryRuntime } from './history-query'
 import { JavaScriptPlanner } from './js-planner'
@@ -47,6 +42,8 @@ interface BrainDeps {
   logger: Logg
   taskExecutor: TaskExecutor
   reflexManager: ReflexManager
+  airiBridge: AiriBridge
+  minecraftContextService: MinecraftContextService
 }
 
 interface QueuedEvent {
@@ -229,16 +226,13 @@ const MAX_QUEUED_CONTROL_ACTIONS = 5
 const MAX_PENDING_CONTROL_ACTIONS = 4
 const ACTION_QUEUE_RECENT_HISTORY_LIMIT = 20
 const MAX_CONVERSATION_HISTORY_MESSAGES = 200
-const MAX_ACTIVE_CONTEXT_MESSAGES = 30
-const MAX_CONTEXT_SUMMARIES_IN_PREFIX = 10
 const NO_ACTION_FOLLOWUP_BUDGET_DEFAULT = 3
 const NO_ACTION_FOLLOWUP_BUDGET_MAX = 8
 const NO_ACTION_STAGNATION_REPEAT_LIMIT = 2
+const DEFAULT_LLM_ATTEMPT_TIMEOUT_MS = 60_000
 const ERROR_BURST_GUARD_SOURCE_ID = 'brain:error_burst_guard'
 const ERROR_BURST_THRESHOLD = 3
 const ERROR_BURST_WINDOW_TURNS = 5
-const DEFAULT_LLM_ATTEMPT_TIMEOUT_MS = 15_000
-const DEFAULT_LLM_TURN_DEADLINE_MS = 45_000
 const MAX_EVENT_QUEUE_LENGTH = 256
 const MAX_CONSECUTIVE_HIGH_PRIORITY_TURNS = 8
 const PAUSE_ABORT_ERROR_NAME = 'AbortError'
@@ -282,24 +276,10 @@ export class Brain {
   private llmTraceIdCounter = 0
   private turnCounter = 0
   private currentInputEnvelope: RuntimeInputEnvelope | null = null
-  private llmAttemptTimeoutMs = DEFAULT_LLM_ATTEMPT_TIMEOUT_MS
-  private llmTurnDeadlineMs = DEFAULT_LLM_TURN_DEADLINE_MS
   private readonly llmLogRuntime = createLlmLogRuntime(() => this.llmLogEntries)
   private readonly patternRuntime = createPatternRuntime(PATTERN_CATALOG)
-
-  // Context boundary state
-  private archivedContexts: ArchivedContext[] = []
-  private activeContextState: ActiveContextState = {
-    label: null,
-    startTurnId: 0,
-    startedAt: Date.now(),
-  }
-
-  private activeContextStartIndex = 0
-  private cachedContextHistoryMessage: string | null = null
   private readonly historyRuntime = createHistoryRuntime({
     getConversationHistory: () => this.conversationHistory,
-    getArchivedContexts: () => this.archivedContexts,
     getLlmLogEntries: () => this.llmLogEntries,
     getCurrentTurnId: () => this.turnCounter,
   })
@@ -331,10 +311,20 @@ export class Brain {
 
     // Perception Handler
     this.unsubscribeEventBus = this.deps.eventBus.subscribe<PerceptionSignal>('conscious:signal:*', (event: TracedEvent<PerceptionSignal>) => {
+      // AIRI context updates are injected into conversation history without triggering a full cognitive cycle
+      if (event.payload.type === 'airi_context') {
+        this.conversationHistory.push({
+          role: 'user',
+          content: `[AIRI_CONTEXT] ${event.payload.description}`,
+        })
+        this.deps.logger.log('INFO', `Brain: Injected AIRI context: ${event.payload.description.slice(0, 80)}`)
+        return
+      }
+
       this.enqueueEvent(bot, {
         type: 'perception',
         payload: event.payload,
-        source: { type: 'minecraft', id: event.payload.sourceId ?? 'perception' },
+        source: { type: event.payload.sourceId === 'airi' ? 'airi' : 'minecraft', id: event.payload.sourceId ?? 'perception' },
         timestamp: Date.now(),
       }).catch(err => this.deps.logger.withError(err).error('Brain: Failed to process perception event'))
     })
@@ -402,9 +392,12 @@ export class Brain {
     this.deps.taskExecutor.on('action:failed', this.onActionFailed)
 
     this.deps.logger.log('INFO', 'Brain: Online.')
+
+    this.deps.minecraftContextService.bindBot(bot)
   }
 
   public destroy(): void {
+    this.deps.minecraftContextService.unbindBot()
     if (this.unsubscribeEventBus) {
       this.unsubscribeEventBus()
       this.unsubscribeEventBus = null
@@ -523,34 +516,18 @@ export class Brain {
     this.currentLlmAbortController = null
   }
 
-  private async callLLMWithTimeout(messages: Message[], attemptTimeoutMs: number): Promise<LLMResult> {
+  private async callLLM(messages: Message[]): Promise<LLMResult> {
     const abortController = new AbortController()
-    const timeoutError = Object.assign(
-      new Error(`LLM call timeout after ${attemptTimeoutMs}ms`),
-      { name: 'TimeoutError' },
-    )
 
     this.currentLlmAbortController = abortController
-    let timeoutHandle: ReturnType<typeof setTimeout> | undefined
     try {
-      const llmCallPromise = this.deps.llmAgent.callLLM({
+      return await this.deps.llmAgent.callLLM({
         messages,
         abortSignal: abortController.signal,
-        timeoutMs: attemptTimeoutMs,
+        timeoutMs: DEFAULT_LLM_ATTEMPT_TIMEOUT_MS,
       })
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        timeoutHandle = setTimeout(() => {
-          if (!abortController.signal.aborted)
-            abortController.abort(timeoutError)
-          reject(timeoutError)
-        }, attemptTimeoutMs)
-      })
-
-      return await Promise.race([llmCallPromise, timeoutPromise])
     }
     finally {
-      if (timeoutHandle)
-        clearTimeout(timeoutHandle)
       if (this.currentLlmAbortController === abortController)
         this.currentLlmAbortController = null
     }
@@ -565,205 +542,11 @@ export class Brain {
   public forgetConversation(): { ok: true, cleared: string[] } {
     this.conversationHistory = []
     this.lastLlmInputSnapshot = null
-    this.activeContextStartIndex = 0
-    this.activeContextState = { label: null, startTurnId: this.turnCounter, startedAt: Date.now() }
-    this.archivedContexts = []
-    this.cachedContextHistoryMessage = null
     this.emitConversationUpdate(false, true)
     return {
       ok: true,
-      cleared: ['conversationHistory', 'lastLlmInputSnapshot', 'contextHistory'],
+      cleared: ['conversationHistory', 'lastLlmInputSnapshot'],
     }
-  }
-
-  /**
-   * Enter a new task context boundary. Called by the LLM via REPL.
-   * If there's already an active context with messages, it is auto-exited first.
-   */
-  public enterContext(label: string): { ok: true, label: string, turnId: number } {
-    const normalizedLabel = (typeof label === 'string' && label.trim()) ? label.trim() : 'unnamed'
-
-    // If the current active context has messages, auto-exit it first
-    const activeMessageCount = this.conversationHistory.length - this.activeContextStartIndex
-    if (activeMessageCount > 0) {
-      this.exitCurrentContext(undefined, 'auto_exit_on_enter')
-    }
-
-    this.activeContextState = {
-      label: normalizedLabel,
-      startTurnId: this.turnCounter,
-      startedAt: Date.now(),
-    }
-    this.activeContextStartIndex = this.conversationHistory.length
-
-    this.appendLlmLog({
-      turnId: this.turnCounter,
-      kind: 'scheduler',
-      eventType: 'system_alert',
-      sourceType: 'system',
-      sourceId: 'brain:context',
-      tags: ['context', 'enter'],
-      text: `Entered context: "${normalizedLabel}"`,
-    })
-
-    return { ok: true, label: normalizedLabel, turnId: this.turnCounter }
-  }
-
-  /**
-   * Exit the current task context, summarize it, and archive it.
-   * Called by the LLM via REPL or internally for auto-trim.
-   */
-  public exitContext(summary?: string): { ok: true, summarized: string, messagesArchived: number } {
-    return this.exitCurrentContext(
-      typeof summary === 'string' && summary.trim() ? summary.trim() : undefined,
-      'explicit',
-    )
-  }
-
-  private exitCurrentContext(
-    providedSummary: string | undefined,
-    reason: 'explicit' | 'auto_exit_on_enter' | 'auto_trim',
-  ): { ok: true, summarized: string, messagesArchived: number } {
-    const activeMessages = this.conversationHistory.slice(this.activeContextStartIndex)
-    const startTurnId = this.activeContextState.startTurnId
-    const endTurnId = this.turnCounter
-    const label = this.activeContextState.label || 'unnamed'
-
-    // Generate summary: prefer LLM-provided, fall back to heuristic
-    const summaryText = providedSummary || generateContextSummary({
-      messages: activeMessages,
-      label,
-      llmLogEntries: this.llmLogEntries,
-      startTurnId,
-      endTurnId,
-    })
-
-    const archived: ArchivedContext = {
-      label,
-      summary: summaryText,
-      startTurnId,
-      endTurnId,
-      messageCount: activeMessages.length,
-      archivedAt: Date.now(),
-    }
-
-    this.archivedContexts.push(archived)
-
-    // Collapse oldest contexts if prefix is too large
-    if (this.archivedContexts.length > MAX_CONTEXT_SUMMARIES_IN_PREFIX) {
-      const collapseCount = this.archivedContexts.length - MAX_CONTEXT_SUMMARIES_IN_PREFIX + 1
-      this.archivedContexts = collapseOldestContexts(this.archivedContexts, collapseCount)
-    }
-
-    // Invalidate the cached prefix message so it's rebuilt next turn
-    this.cachedContextHistoryMessage = null
-
-    // Clear the active context messages from conversation history
-    // Keep them in memory for history queries but mark the new start index
-    this.activeContextStartIndex = this.conversationHistory.length
-
-    // Reset active context state
-    this.activeContextState = {
-      label: null,
-      startTurnId: this.turnCounter,
-      startedAt: Date.now(),
-    }
-
-    this.appendLlmLog({
-      turnId: this.turnCounter,
-      kind: 'scheduler',
-      eventType: 'system_alert',
-      sourceType: 'system',
-      sourceId: 'brain:context',
-      tags: ['context', 'exit', reason],
-      text: `Exited context: "${label}" (${activeMessages.length} messages archived). Summary: ${summaryText}`,
-      metadata: {
-        label,
-        reason,
-        messagesArchived: activeMessages.length,
-        summary: summaryText,
-        startTurnId,
-        endTurnId,
-      },
-    })
-
-    return {
-      ok: true,
-      summarized: summaryText,
-      messagesArchived: activeMessages.length,
-    }
-  }
-
-  /**
-   * Build the [CONTEXT_HISTORY] prefix message from archived contexts.
-   * Caches the result until invalidated by exitContext().
-   */
-  private getContextHistoryMessage(): string | null {
-    if (this.cachedContextHistoryMessage !== null)
-      return this.cachedContextHistoryMessage
-
-    const message = buildContextHistoryMessage(this.archivedContexts)
-    this.cachedContextHistoryMessage = message
-    return message
-  }
-
-  /**
-   * Auto-trim the active context if it exceeds the safety limit.
-   * Summarizes the oldest half and archives it.
-   */
-  private autoTrimActiveContext(): void {
-    const activeMessageCount = this.conversationHistory.length - this.activeContextStartIndex
-    if (activeMessageCount <= MAX_ACTIVE_CONTEXT_MESSAGES)
-      return
-
-    this.deps.logger.log('INFO', `Brain: Auto-trimming active context (${activeMessageCount} messages > ${MAX_ACTIVE_CONTEXT_MESSAGES} limit)`)
-
-    // Split: archive the oldest half, keep the newest half as active
-    const halfPoint = this.activeContextStartIndex + Math.floor(activeMessageCount / 2)
-    const oldMessages = this.conversationHistory.slice(this.activeContextStartIndex, halfPoint)
-
-    const summaryText = generateContextSummary({
-      messages: oldMessages,
-      label: this.activeContextState.label ? `${this.activeContextState.label} (partial)` : '(auto-trimmed)',
-      llmLogEntries: this.llmLogEntries,
-      startTurnId: this.activeContextState.startTurnId,
-      endTurnId: this.turnCounter,
-    })
-
-    const archived: ArchivedContext = {
-      label: this.activeContextState.label ? `${this.activeContextState.label} (partial)` : '(auto-trimmed)',
-      summary: summaryText,
-      startTurnId: this.activeContextState.startTurnId,
-      endTurnId: this.turnCounter,
-      messageCount: oldMessages.length,
-      archivedAt: Date.now(),
-    }
-
-    this.archivedContexts.push(archived)
-
-    if (this.archivedContexts.length > MAX_CONTEXT_SUMMARIES_IN_PREFIX) {
-      const collapseCount = this.archivedContexts.length - MAX_CONTEXT_SUMMARIES_IN_PREFIX + 1
-      this.archivedContexts = collapseOldestContexts(this.archivedContexts, collapseCount)
-    }
-
-    // Move the start index forward
-    this.activeContextStartIndex = halfPoint
-    this.cachedContextHistoryMessage = null
-
-    this.appendLlmLog({
-      turnId: this.turnCounter,
-      kind: 'scheduler',
-      eventType: 'system_alert',
-      sourceType: 'system',
-      sourceId: 'brain:context',
-      tags: ['context', 'auto_trim'],
-      text: `Auto-trimmed active context: archived ${oldMessages.length} messages`,
-      metadata: {
-        archivedCount: oldMessages.length,
-        remainingActive: this.conversationHistory.length - halfPoint,
-        summary: summaryText,
-      },
-    })
   }
 
   public async injectDebugEvent(event: BotEvent): Promise<void> {
@@ -917,7 +700,7 @@ export class Brain {
   }
 
   /**
-   * Re-emit the current conversation state with full context metadata.
+   * Re-emit the current conversation state for the debug dashboard.
    * Used by the debug dashboard's `request_conversation` handler on reconnect.
    */
   public broadcastConversationState(): void {
@@ -929,19 +712,6 @@ export class Brain {
       messages: this.toDebugConversationMessages(this.cloneMessages(this.conversationHistory)),
       isProcessing,
       ...(sessionBoundary && { sessionBoundary }),
-      activeContext: {
-        label: this.activeContextState.label,
-        startTurnId: this.activeContextState.startTurnId,
-        messageCount: this.conversationHistory.length - this.activeContextStartIndex,
-      },
-      archivedContexts: this.archivedContexts.map(ctx => ({
-        label: ctx.label,
-        summary: ctx.summary,
-        turns: ctx.endTurnId - ctx.startTurnId + 1,
-        archivedAt: ctx.archivedAt,
-      })),
-      activeContextStartIndex: this.activeContextStartIndex,
-      contextHistoryMessage: this.getContextHistoryMessage(),
     })
   }
 
@@ -966,9 +736,11 @@ export class Brain {
       setNoActionBudget: (value: number) => this.setNoActionFollowupBudget(value),
       getNoActionBudget: () => this.getNoActionBudgetState(),
       forgetConversation: () => this.forgetConversation(),
-      enterContext: (label: string) => this.enterContext(label),
-      exitContext: (summary?: string) => this.exitContext(summary),
       history: this.historyRuntime,
+      notifyAiri: (headline: string, note?: string, urgency?: 'immediate' | 'soon' | 'later') =>
+        this.deps.airiBridge.sendNotify(headline, note, urgency),
+      updateAiriContext: (text: string, hints?: string[], lane?: string) =>
+        this.deps.airiBridge.sendContextUpdate(text, hints, lane),
     }
   }
 
@@ -979,6 +751,13 @@ export class Brain {
     return signal.type === 'chat_message'
   }
 
+  private isAiriCommandEvent(event: BotEvent): boolean {
+    if (event.type !== 'perception')
+      return false
+    const signal = event.payload as PerceptionSignal
+    return signal.type === 'airi_command'
+  }
+
   private getNoActionBudgetState(): NoActionBudgetState {
     return {
       remaining: this.noActionFollowupBudgetRemaining,
@@ -987,7 +766,7 @@ export class Brain {
     }
   }
 
-  private resetNoActionFollowupBudget(reason: 'player_chat' | 'manual'): NoActionBudgetState {
+  private resetNoActionFollowupBudget(reason: 'player_chat' | 'manual' | 'airi_command'): NoActionBudgetState {
     this.noActionFollowupBudgetRemaining = NO_ACTION_FOLLOWUP_BUDGET_DEFAULT
     this.noActionFollowupLastSignature = null
     this.noActionFollowupStagnationCount = 0
@@ -1977,6 +1756,8 @@ export class Brain {
       return
     if (this.isPlayerChatEvent(event))
       this.resetNoActionFollowupBudget('player_chat')
+    if (this.isAiriCommandEvent(event))
+      this.resetNoActionFollowupBudget('airi_command')
 
     const turnId = ++this.turnCounter
     this.maybeActivateErrorBurstGuard(bot, event, turnId)
@@ -2037,8 +1818,6 @@ export class Brain {
     let result: string | null = null
     let capturedReasoning: string | undefined
     let lastError: unknown
-    const llmTurnDeadlineAt = Date.now() + this.llmTurnDeadlineMs
-
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       // Check pause at start of each retry attempt
       if (this.paused) {
@@ -2056,27 +1835,10 @@ export class Brain {
       }
 
       try {
-        const remainingTurnMs = llmTurnDeadlineAt - Date.now()
-        if (remainingTurnMs <= 0) {
-          lastError = Object.assign(
-            new Error(`LLM turn deadline exceeded after ${this.llmTurnDeadlineMs}ms`),
-            { name: 'TimeoutError' },
-          )
-          this.deps.logger.withError(lastError as Error).warn('Brain: LLM turn deadline exceeded, skipping turn')
-          break
-        }
-        const attemptTimeoutMs = Math.max(1, Math.min(this.llmAttemptTimeoutMs, remainingTurnMs))
-
-        // Auto-trim active context if it exceeds the safety limit
-        this.autoTrimActiveContext()
-
-        // Build messages: system + [CONTEXT_HISTORY prefix] + active context messages + new user message
-        const contextHistoryMsg = this.getContextHistoryMessage()
-        const activeMessages = this.conversationHistory.slice(this.activeContextStartIndex)
+        // Build messages: system + conversation history + new user message
         const messages: Message[] = [
           { role: 'system', content: systemPrompt },
-          ...(contextHistoryMsg ? [{ role: 'user' as const, content: contextHistoryMsg }] : []),
-          ...activeMessages,
+          ...this.conversationHistory,
           { role: 'user', content: userMessage },
         ]
         this.lastLlmInputSnapshot = {
@@ -2103,14 +1865,12 @@ export class Brain {
             attempt,
             maxAttempts,
             messageCount: messages.length,
-            timeoutMs: attemptTimeoutMs,
-            remainingTurnMs,
           },
         })
 
         const traceStart = Date.now()
 
-        const llmResult = await this.callLLMWithTimeout(messages, attemptTimeoutMs)
+        const llmResult = await this.callLLM(messages)
 
         const content = llmResult.text
         const reasoning = llmResult.reasoning
@@ -2281,14 +2041,10 @@ export class Brain {
         ...(capturedReasoning && { reasoning: capturedReasoning }),
       } as Message)
 
-      // Trim conversation history as an in-memory safety net.
-      // The active context boundary system handles LLM context window sizing;
-      // this only prevents unbounded memory growth for very long sessions.
+      // Trim conversation history as an in-memory safety net for long sessions.
       if (this.conversationHistory.length > MAX_CONVERSATION_HISTORY_MESSAGES) {
         const trimCount = this.conversationHistory.length - MAX_CONVERSATION_HISTORY_MESSAGES
         this.conversationHistory = this.conversationHistory.slice(trimCount)
-        // Adjust the active context start index to account for removed messages
-        this.activeContextStartIndex = Math.max(0, this.activeContextStartIndex - trimCount)
       }
 
       const actionDefs = new Map(this.deps.taskExecutor.getAvailableActions().map(action => [action.name, action]))
@@ -2507,17 +2263,6 @@ export class Brain {
     // (inactive state is the default and doesn't need to be stated every turn)
     if (this.errorBurstGuardState) {
       parts.push(`[ERROR_BURST] active=yes`)
-    }
-
-    // Context boundary status — reminds the model to use enterContext/exitContext
-    const activeLabel = this.activeContextState.label
-    const activeCount = this.conversationHistory.length - this.activeContextStartIndex
-    const archivedCount = this.archivedContexts.length
-    if (activeLabel) {
-      parts.push(`[CONTEXT] active="${activeLabel}" (${activeCount} messages); archived=${archivedCount}`)
-    }
-    else {
-      parts.push(`[CONTEXT] no active context (${activeCount} messages unmanaged); archived=${archivedCount}. Remember: call enterContext('label') when starting a task.`)
     }
 
     return parts.join('\n\n')

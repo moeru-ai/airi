@@ -7,7 +7,8 @@ import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot } 
 import { ref } from 'vue'
 import { toast } from 'vue-sonner'
 
-import { fetchSession, signIn } from '../../libs/auth'
+import { signInOIDC } from '../../libs/auth'
+import { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } from '../../libs/auth-config'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -22,8 +23,11 @@ const loading = ref<Record<OAuthProvider, boolean>>({
 async function handleSignIn(provider: OAuthProvider) {
   loading.value[provider] = true
   try {
-    await signIn(provider)
-    await fetchSession()
+    await signInOIDC({
+      clientId: OIDC_CLIENT_ID,
+      redirectUri: OIDC_REDIRECT_URI,
+      provider,
+    })
   }
   catch (error) {
     toast.error(error instanceof Error ? error.message : 'An unknown error occurred')

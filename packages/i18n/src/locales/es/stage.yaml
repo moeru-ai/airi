@@ -41,4 +41,46 @@ profile-switcher:
   save-as-new: Guardar como Nuevo Perfil
   new-profile-name: Nombre del perfil
   manage: Administrar Perfiles
+promo-banner:
+  items:
+    signin:
+      watermark: Moon
+      fallbackLabel: Regalo lunar
+      title: Recompensa de 7 días
+      eventName: Inicia sesión para conseguir polvo estelar, marcos de avatar y regalos especiales.
+      date: 03/28 - 04/10
+      reward: Hasta 120 de polvo estelar
+      cta: Iniciar sesión
+    build:
+      watermark: Build
+      fallbackLabel: Bono de obra
+      title: Caja de suministro extra
+      eventName: Completa tareas de construcción para obtener cupones y materiales al doble.
+      date: 03/30 - 04/12
+      reward: 5 cupones + materiales de mejora
+      cta: Ver tareas
+    spring:
+      watermark: Spring
+      fallbackLabel: Sorteo primaveral
+      title: Carnaval cápsula
+      eventName: Participa en el sorteo de primavera y desbloquea burbujas, dijes y muebles temáticos.
+      date: 04/01 - 04/18
+      reward: Primer intento a mitad + dije raro
+      cta: Ir al sorteo
+    coupon:
+      watermark: Talk
+      fallbackLabel: Cupón
+      title: Cupón de recarga
+      eventName: Completa interacciones para recibir cupones para paquetes de diálogo y voces.
+      date: 04/02 - 04/20
+      reward: Ahorra 6 en 30 / 15 en 68
+      cta: Recibir cupón
+    home:
+      watermark: Home
+      fallbackLabel: Tema del cuarto
+      title: Decoración de primavera
+      eventName: Desbloquea temas de ventana, escritorio y lámpara para renovar tu espacio.
+      date: 04/05 - 04/22
+      reward: Ticket de tema gratis al iniciar sesión
+      cta: Ver tema
 waiting: Esperando...

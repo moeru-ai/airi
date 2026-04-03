@@ -33,7 +33,11 @@ if (!useIconFormattedMacAppIcon) {
   console.warn('[electron-builder/config] Warning: Xcode version is below 26. Using .icns format for macOS app icon.')
 }
 else {
-  console.info('[electron-builder/config] Xcode version is 26 or above. Using .icon format for macOS app icon.')
+  // NOTICE: This success-path message intentionally uses stderr via `console.warn`.
+  // The artifact metadata CLI imports this config and is used in GitHub Actions
+  // command substitution for `GITHUB_ENV`; writing this log to stdout would break
+  // machine-readable output such as `BUNDLE_NAME=$(...)`.
+  console.warn('[electron-builder/config] Xcode version is 26 or above. Using .icon format for macOS app icon.')
 }
 
 export default {

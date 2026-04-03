@@ -1,5 +1,3 @@
-import type { IncomingMessage } from 'node:http'
-
 import type { Counter, Histogram, UpDownCounter } from '@opentelemetry/api'
 
 import type { Env } from './env'
@@ -12,9 +10,6 @@ import { logs, SeverityNumber } from '@opentelemetry/api-logs'
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-proto'
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-proto'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto'
-import { HttpInstrumentation } from '@opentelemetry/instrumentation-http'
-import { IORedisInstrumentation } from '@opentelemetry/instrumentation-ioredis'
-import { PgInstrumentation } from '@opentelemetry/instrumentation-pg'
 import { RuntimeNodeInstrumentation } from '@opentelemetry/instrumentation-runtime-node'
 import { resourceFromAttributes } from '@opentelemetry/resources'
 import { BatchLogRecordProcessor } from '@opentelemetry/sdk-logs'
@@ -172,17 +167,11 @@ export function initOtel(env: Env): OtelInstance | undefined {
       exportTimeoutMillis: 10_000,
     })],
     logRecordProcessors: [new BatchLogRecordProcessor(logExporter)],
+    // NOTICE: HttpInstrumentation, PgInstrumentation, and IORedisInstrumentation
+    // are registered in instrumentation.cjs (loaded via --require) so that
+    // require-in-the-middle can patch the CJS modules before tsx's ESM loader
+    // imports them. Only non-patching instrumentations belong here.
     instrumentations: [
-      new HttpInstrumentation({
-        ignoreIncomingRequestHook: (req: IncomingMessage) => {
-          // Ignore health check requests to reduce noise
-          return req.url === '/health'
-        },
-      }),
-      new PgInstrumentation({
-        enhancedDatabaseReporting: true,
-      }),
-      new IORedisInstrumentation(),
       new RuntimeNodeInstrumentation(),
     ],
   })

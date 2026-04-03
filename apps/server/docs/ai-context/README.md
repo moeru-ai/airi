@@ -25,6 +25,8 @@
   - 计费链路专项说明，重点看 Flux / Stripe / outbox / Redis Streams
 - `observability-conventions.md`
   - traces / metrics 命名规则，标准 OTel 字段与 `airi.*` 自定义字段边界
+- `auth-and-oidc.md`
+  - 认证与 OIDC Provider 架构、登录流程、trusted clients、踩坑记录
 
 ## 快速结论
 
@@ -45,3 +47,4 @@
 - 改配置默认值、Redis key 命名、HTTP route 命名：先看 `config-and-naming-conventions.md`
 - 改扣费、充值、Stripe：先看 `billing-architecture.md`
 - 改 trace / metric attributes、OTel 命名：先看 `observability-conventions.md`
+- 改认证、OIDC、登录流程：先看 `auth-and-oidc.md`

@@ -115,7 +115,7 @@ export const providerMinimax = defineProvider<MinimaxCnConfig>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: [ProviderValidationCheck.Connectivity],
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ChatCompletions],
     }),
   },
 })
@@ -155,7 +155,7 @@ export const providerMinimaxGlobal = defineProvider<MinimaxGlobalConfig>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: [ProviderValidationCheck.Connectivity],
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ChatCompletions],
     }),
   },
 })

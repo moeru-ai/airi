@@ -1,15 +1,11 @@
 <script setup lang="ts">
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
-import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import { errorMessageFrom } from '@moeru/std'
 import { ChatHistory } from '@proj-airi/stage-ui/components'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
-import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
-import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { BasicTextarea } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -17,7 +13,7 @@ import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenu
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { widgetsTools } from '../stores/tools/builtin/widgets'
+import { useChatSyncStore } from '../stores/chat-sync'
 
 const messageInput = ref('')
 const attachments = ref<{ type: 'image', data: string, mimeType: string, url: string }[]>([])
@@ -25,14 +21,11 @@ const attachments = ref<{ type: 'image', data: string, mimeType: string, url: st
 const chatOrchestrator = useChatOrchestratorStore()
 const chatSession = useChatSessionStore()
 const chatStream = useChatStreamStore()
-const { cleanupMessages } = useChatMaintenanceStore()
-const { ingest, onAfterMessageComposed } = chatOrchestrator
+const chatSyncStore = useChatSyncStore()
 const { messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
 const { sending } = storeToRefs(chatOrchestrator)
 const { t } = useI18n()
-const providersStore = useProvidersStore()
-const { activeModel, activeProvider } = storeToRefs(useConsciousnessStore())
 const isComposing = ref(false)
 const DOUBLE_ENTER_INTERVAL_MS = 300
 const TRAILING_NEWLINES_REGEX = /[\r\n]+$/
@@ -63,13 +56,10 @@ async function handleSend() {
   attachments.value = []
 
   try {
-    const providerConfig = providersStore.getProviderConfig(activeProvider.value)
-    await ingest(textToSend, {
-      model: activeModel.value,
-      chatProvider: await providersStore.getProviderInstance<ChatProvider>(activeProvider.value),
-      providerConfig,
+    await chatSyncStore.requestIngest({
+      text: textToSend,
       attachments: attachmentsToSend,
-      tools: widgetsTools,
+      toolset: 'widgets',
     })
 
     attachmentsToSend.forEach(att => URL.revokeObjectURL(att.url))
@@ -82,7 +72,7 @@ async function handleSend() {
       url: URL.createObjectURL(new Blob([Uint8Array.from(atob(att.data), c => c.charCodeAt(0))], { type: att.mimeType })),
     }))
     chatSession.setSessionMessages(chatSession.activeSessionId, [
-      ...messages.value.slice(0, -1),
+      ...messages.value,
       {
         role: 'error',
         content: errorMessageFrom(error) ?? 'Failed to send message',
@@ -159,17 +149,15 @@ function removeAttachment(index: number) {
   }
 }
 
-onAfterMessageComposed(async () => {
-  messageInput.value = ''
-  attachments.value.forEach(att => URL.revokeObjectURL(att.url))
-  attachments.value = []
-})
-
 watch(sendMode, () => {
   lastEnterTime.value = 0
 })
 
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
+
+async function handleDeleteMessage(index: number) {
+  await chatSyncStore.requestDeleteMessage({ index })
+}
 </script>
 
 <template>
@@ -179,6 +167,7 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
         :messages="historyMessages"
         :sending="sending"
         :streaming-message="streamingMessage"
+        @delete-message="handleDeleteMessage($event.index)"
       />
     </div>
     <div
@@ -254,7 +243,7 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
         hover:text="red-500 dark:red-400"
         flex items-center justify-center rounded-md p-2 outline-none
         transition-colors transition-transform active:scale-95
-        @click="() => cleanupMessages()"
+        @click="() => chatSyncStore.requestCleanup()"
       >
         <div class="i-solar:trash-bin-2-bold-duotone" />
       </button>

@@ -12,6 +12,7 @@ import type { TresContext } from '@tresjs/core'
 import type { DirectionalLight, SphericalHarmonics3, Texture, WebGLRenderer, WebGLRenderTarget } from 'three'
 
 import type { SceneBootstrap, ScenePhase, Vec3 } from '../stores/model-store'
+import type { VrmLifecycleReason } from '../trace'
 
 import { Screen } from '@proj-airi/ui'
 import { TresCanvas } from '@tresjs/core'
@@ -77,7 +78,7 @@ type SceneTracePhaseCause
     | 'vrm:error'
     | 'vrm:load-start'
     | 'vrm:loaded'
-type SceneTraceTransactionReason = 'component-unmount' | 'initial-load' | 'model-switch' | 'no-model' | 'subtree-remount' | 'unknown'
+type SceneTraceTransactionReason = 'component-unmount' | 'initial-load' | 'model-reload' | 'model-switch' | 'no-model' | 'subtree-remount' | 'unknown'
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 
@@ -93,6 +94,7 @@ const {
   scenePhase,
   sceneTransactionDepth,
 
+  lastCommittedModelSrc,
   modelSize,
   modelOrigin,
   modelOffset,
@@ -125,7 +127,10 @@ const {
   multisampling,
 } = storeToRefs(modelStore)
 
+type VrmFrameRuntimeHook = (vrm: VRM, delta: number) => void
+
 const modelRef = ref<InstanceType<typeof VRMModel>>()
+const vrmFrameRuntimeHook = shallowRef<VrmFrameRuntimeHook>()
 
 const camera = shallowRef(new PerspectiveCamera())
 const controlsRef = shallowRef<InstanceType<typeof OrbitControls>>()
@@ -137,6 +142,9 @@ const stageThreeSceneTraceOriginId = `three-scene:${Math.random().toString(36).s
 const latestScenePhaseTraceCause = ref<SceneTracePhaseCause>('props:model-src')
 const latestSceneTransactionReason = ref<SceneTraceTransactionReason>('unknown')
 const activeModelSrc = ref<string>()
+const bindingRevision = ref(0)
+const pendingCommittedModelSrc = ref<string>()
+const pendingCommittedModelRevision = ref<number>()
 const pendingSceneBootstrap = shallowRef<SceneBootstrap>()
 
 function emitThreeSceneTrace(label: string, event: any, payload: Record<string, unknown>) {
@@ -219,6 +227,16 @@ function toVec3(value: Vector3): Vec3 {
   return { x: value.x, y: value.y, z: value.z }
 }
 
+function clearPendingCommittedModel() {
+  pendingCommittedModelSrc.value = undefined
+  pendingCommittedModelRevision.value = undefined
+}
+
+function invalidateBindingRevision() {
+  bindingRevision.value += 1
+  clearPendingCommittedModel()
+}
+
 function applySceneBootstrap(value: SceneBootstrap) {
   const reason = latestSceneTransactionReason.value
   const previousOrigin = toVector3(modelOrigin.value)
@@ -231,7 +249,8 @@ function applySceneBootstrap(value: SceneBootstrap) {
   modelSize.value = { ...value.modelSize }
   eyeHeight.value = value.eyeHeight
 
-  if (reason === 'initial-load' || reason === 'unknown' || reason === 'no-model') {
+  if (reason === 'initial-load' || reason === 'unknown' || reason === 'no-model' || reason === 'model-switch') {
+    modelOffset.value = { ...value.modelOffset }
     cameraDistance.value = value.cameraDistance
     cameraPosition.value = { ...value.cameraPosition }
     lookAtTarget.value = { ...value.lookAtTarget }
@@ -301,6 +320,7 @@ const modelPhase = ref<ModelPhase>(props.modelSrc ? 'loading' : 'no-model')
 
 function beginSceneBindingCycle(reason: SceneTraceTransactionReason) {
   latestSceneTransactionReason.value = reason
+  invalidateBindingRevision()
   resetSceneBindingTransactions()
   emitSceneTransactionTrace('reset', reason)
   beginSceneBindingTransaction()
@@ -310,6 +330,7 @@ function beginSceneBindingCycle(reason: SceneTraceTransactionReason) {
 
 function beginSceneRebind(reason: SceneTraceTransactionReason = 'subtree-remount') {
   latestSceneTransactionReason.value = reason
+  invalidateBindingRevision()
 
   if (sceneTransactionDepth.value === 0) {
     beginSceneBindingTransaction()
@@ -324,17 +345,35 @@ function setScenePhaseWithTrace(phase: ScenePhase, cause: SceneTracePhaseCause) 
   setScenePhase(phase)
 }
 
-function resolveLoadTransactionReason(): SceneTraceTransactionReason {
-  if (!props.modelSrc)
-    return 'no-model'
+function commitLastCommittedModelSrc(expectedRevision: number, nextPhase: ScenePhase) {
+  if (nextPhase !== 'mounted')
+    return
 
-  if (!activeModelSrc.value)
-    return 'initial-load'
+  if (expectedRevision !== bindingRevision.value)
+    return
+
+  if (!pendingCommittedModelSrc.value || pendingCommittedModelRevision.value !== expectedRevision)
+    return
+
+  if (!activeModelSrc.value || pendingCommittedModelSrc.value !== activeModelSrc.value)
+    return
 
   if (props.modelSrc !== activeModelSrc.value)
-    return 'model-switch'
+    return
 
-  return 'subtree-remount'
+  lastCommittedModelSrc.value = pendingCommittedModelSrc.value
+  clearPendingCommittedModel()
+}
+
+function toSceneLoadTransactionReason(reason: VrmLifecycleReason): SceneTraceTransactionReason {
+  switch (reason) {
+    case 'initial-load':
+    case 'model-reload':
+    case 'model-switch':
+      return reason
+    default:
+      return 'unknown'
+  }
 }
 
 function resolveScenePhaseAfterBinding(): ScenePhase {
@@ -353,7 +392,7 @@ function resolveScenePhaseAfterBinding(): ScenePhase {
   return 'loading'
 }
 
-async function completeSceneBinding() {
+async function completeSceneBinding(expectedRevision = bindingRevision.value) {
   if (isCompletingBinding.value)
     return
   isCompletingBinding.value = true
@@ -367,6 +406,10 @@ async function completeSceneBinding() {
     }
 
     await nextTick()
+
+    if (expectedRevision !== bindingRevision.value)
+      return
+
     controlsRef.value?.update()
 
     if (sceneTransactionDepth.value > 0) {
@@ -374,7 +417,9 @@ async function completeSceneBinding() {
       emitSceneTransactionTrace('end', latestSceneTransactionReason.value)
     }
 
-    setScenePhaseWithTrace(resolveScenePhaseAfterBinding(), 'binding:complete')
+    const nextPhase = resolveScenePhaseAfterBinding()
+    setScenePhaseWithTrace(nextPhase, 'binding:complete')
+    commitLastCommittedModelSrc(expectedRevision, nextPhase)
   }
   finally {
     isCompletingBinding.value = false
@@ -394,10 +439,10 @@ const controlEnable = computed(() => {
     && scenePhase.value === 'mounted'
     && sceneTransactionDepth.value === 0
 })
-function onVRMModelLoadStart() {
+function onVRMModelLoadStart(reason: VrmLifecycleReason) {
   modelPhase.value = 'loading'
   pendingSceneBootstrap.value = undefined
-  beginSceneBindingCycle(resolveLoadTransactionReason())
+  beginSceneBindingCycle(toSceneLoadTransactionReason(reason))
 }
 
 function onVRMSceneBootstrap(value: SceneBootstrap) {
@@ -411,10 +456,13 @@ function onVRMModelLookAtTarget(value: Vec3) {
 }
 function onVRMModelLoaded(value: string) {
   activeModelSrc.value = value
+  pendingCommittedModelSrc.value = value
+  pendingCommittedModelRevision.value = bindingRevision.value
   modelPhase.value = 'ready'
-  void completeSceneBinding()
+  void completeSceneBinding(bindingRevision.value)
 }
 function onVRMModelError(error: unknown) {
+  invalidateBindingRevision()
   pendingSceneBootstrap.value = undefined
   modelPhase.value = props.modelSrc ? 'error' : 'no-model'
   resetSceneBindingTransactions()
@@ -468,6 +516,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  invalidateBindingRevision()
   if (tresCanvasRef.value)
     emitSceneSubtreeTrace('tresCanvasRef', 'detached')
 
@@ -487,16 +536,15 @@ const effectProps = {
   blendFunction: BlendFunction.SRC,
 }
 
-const vrmFrameHook = shallowRef<((vrm: VRM, delta: number) => void) | undefined>(undefined)
-function applyVrmFrameHook() {
-  modelRef.value?.setVrmFrameHook(vrmFrameHook.value)
+function applyVrmFrameRuntimeHook() {
+  modelRef.value?.setVrmFrameHook(vrmFrameRuntimeHook.value)
 }
-watch(modelRef, () => applyVrmFrameHook(), { immediate: true })
 
 watch(() => props.modelSrc, (modelSrc) => {
   modelPhase.value = modelSrc ? 'loading' : 'no-model'
 
   if (!modelSrc) {
+    invalidateBindingRevision()
     activeModelSrc.value = undefined
     pendingSceneBootstrap.value = undefined
     resetSceneBindingTransactions()
@@ -509,6 +557,9 @@ watch(() => props.modelSrc, (modelSrc) => {
 watch(modelRef, (next, prev) => {
   if (!prev && next)
     emitSceneSubtreeTrace('modelRef', 'attached')
+
+  if (next)
+    applyVrmFrameRuntimeHook()
 
   if (prev && !next) {
     emitSceneSubtreeTrace('modelRef', 'detached')
@@ -628,9 +679,12 @@ defineExpose({
   setExpression: (expression: string, intensity = 1) => {
     modelRef.value?.setExpression(expression, intensity)
   },
-  setVrmFrameHook: (hook?: (vrm: VRM, delta: number) => void) => {
-    vrmFrameHook.value = hook
-    applyVrmFrameHook()
+  // NOTICE: External runtime hooks are intentionally separate from internal VRM model hooks.
+  // This public frame hook is reserved for live pose/tracking input and is forwarded to VRMModel
+  // without exposing the internal model/material lifecycle hook pipeline.
+  setVrmFrameHook: (hook?: VrmFrameRuntimeHook) => {
+    vrmFrameRuntimeHook.value = hook
+    applyVrmFrameRuntimeHook()
   },
   canvasElement: () => {
     return tresCanvasRef.value?.renderer.instance.domElement
@@ -702,6 +756,7 @@ defineExpose({
       <VRMModel
         ref="modelRef"
         :current-audio-source="props.currentAudioSource"
+        :last-committed-model-src="lastCommittedModelSrc"
         :model-src="props.modelSrc"
         :idle-animation="props.idleAnimation"
         :paused="props.paused"

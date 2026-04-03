@@ -49,6 +49,7 @@ bundle/
 *.flatpak
 # WXT specified this too
 *.output
+.vfox.toml
 
 # Vite
 dist
@@ -123,7 +124,12 @@ plugins-local
 plugins-development
 
 apps/stage-pocket/ios/buildServer.json
-.ghfs/
-.docs/superpowers
 apps/stage-tamagotchi/electron.vite.config.*.mjs
 .env
+.docs/superpowers
+
+# Tools - ghfs
+.ghfs/
+
+# Tools - Obsidian
+.obsidian/
