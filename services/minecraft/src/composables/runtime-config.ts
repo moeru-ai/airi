@@ -7,6 +7,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 
 import { z } from 'zod'
 
+const ENV_LINE_SPLIT_RE = /\r?\n/
+
 const editableConfigSchema = z.object({
   enabled: z.boolean(),
   host: z.string().trim().min(1),
@@ -36,7 +38,7 @@ function parseEnvFile(filepath: string): Record<string, string> {
 
   const raw = readFileSync(filepath, 'utf8')
   return raw
-    .split(/\r?\n/)
+    .split(ENV_LINE_SPLIT_RE)
     .map(line => line.trim())
     .filter(line => line && !line.startsWith('#'))
     .reduce<Record<string, string>>((acc, line) => {

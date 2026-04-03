@@ -5,8 +5,10 @@ import { } from 'vue'
 
 import { contributors } from '../contributors'
 
+const INITIALS_RE = /\b[A-Z]/gi
+
 function getInitials(name: string) {
-  return name.match(/\b[A-Z]/gi) // Match the first letter of each word, if it’s an alphabet character
+  return name.match(INITIALS_RE) // Match the first letter of each word, if it’s an alphabet character
     ?.join('') // Join the matched characters to form initials
     ?? name[0] // Default to the first character if no match
 }

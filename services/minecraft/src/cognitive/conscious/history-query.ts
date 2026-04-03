@@ -2,6 +2,8 @@ import type { Message } from '@xsai/shared-chat'
 
 import type { LlmLogEntry } from './llm-log'
 
+const EVENT_PREFIX = '[EVENT]'
+
 /**
  * Compact turn summary returned by history.turns().
  */
@@ -132,10 +134,15 @@ export function createHistoryRuntime(deps: HistoryQueryDeps) {
         const msg = history[i]
         if (msg.role !== 'user' || typeof msg.content !== 'string')
           continue
-        // eslint-disable-next-line regexp/no-super-linear-backtracking
-        const match = msg.content.match(/\[EVENT\]\s*([^:\n]+:[^\n]+)/)
-        if (match?.[1] && !match[1].startsWith('Perception Signal:')) {
-          chats.unshift(match[1])
+
+        if (!msg.content.startsWith(EVENT_PREFIX)) {
+          continue
+        }
+
+        const eventText = msg.content.slice(EVENT_PREFIX.length).trimStart()
+        const colonIndex = eventText.indexOf(':')
+        if (colonIndex > 0 && !eventText.startsWith('Perception Signal:')) {
+          chats.unshift(eventText)
         }
       }
 

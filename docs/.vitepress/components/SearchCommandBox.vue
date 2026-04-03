@@ -19,6 +19,8 @@ import { LRUCache } from '../utils/cache'
 const emits = defineEmits<{
   close: []
 }>()
+const REGEX_ESCAPE_RE = /[|\\{}()[\]^$+*?.]/g
+const HYPHEN_RE = /-/g
 
 const { localeIndex } = useData()
 const { t } = useI18n()
@@ -130,7 +132,7 @@ function formMarkRegex(terms: Set<string>) {
   return new RegExp(
     [...terms]
       .sort((a, b) => b.length - a.length)
-      .map(term => `(${term.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&').replace(/-/g, '\\x2d')})`)
+      .map(term => `(${term.replace(REGEX_ESCAPE_RE, '\\$&').replace(HYPHEN_RE, '\\x2d')})`)
       .join('|'),
     'gi',
   )

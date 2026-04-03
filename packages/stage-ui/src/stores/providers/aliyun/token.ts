@@ -10,6 +10,7 @@ import { nlsMetaEndpointFromRegion } from './utils'
 const SIGNING_METHOD = 'HMAC-SHA1'
 const SIGNATURE_VERSION = '1.0'
 const API_VERSION = '2019-02-28'
+const TRAILING_SLASH_REGEX = /\/$/
 
 type AliyunQueryParams = Record<string, string>
 
@@ -96,7 +97,7 @@ export async function buildCreateTokenRequest(accessKeyId: string, accessKeySecr
   const signatureBase64 = await signStringToBase64(stringToSign, accessKeySecret)
   const encodedSignature = encodeURIComponent(signatureBase64)
   const signedQuery = `Signature=${encodedSignature}&${canonicalQuery}`
-  const endpoint = (options?.endpoint ?? nlsMetaEndpointFromRegion(options?.regionId ?? 'cn-shanghai').toString()).replace(/\/$/, '')
+  const endpoint = (options?.endpoint ?? nlsMetaEndpointFromRegion(options?.regionId ?? 'cn-shanghai').toString()).replace(TRAILING_SLASH_REGEX, '')
   const url = `${endpoint}/?${signedQuery}`
 
   return {

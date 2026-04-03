@@ -14,6 +14,8 @@ import { div, span } from '../prompts/utils'
 import { interpretAnimatedSticker } from './animated-sticker'
 import { toPngBase64 } from './image'
 
+const THINK_BLOCK_RE = /<think>[\s\S]*?<\/think>/
+
 export async function interpretSticker(bot: Bot, msg: Message, sticker: Sticker) {
   const logger = useLogg('interpretSticker').useGlobalConfig()
 
@@ -72,7 +74,7 @@ export async function interpretSticker(bot: Bot, msg: Message, sticker: Sticker)
     }
 
     const res = await generateText(req)
-    res.text = res.text.replace(/<think>[\s\S]*?<\/think>/, '').trim()
+    res.text = res.text.replace(THINK_BLOCK_RE, '').trim()
     if (!res.text) {
       throw new Error('No response text')
     }

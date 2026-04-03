@@ -20,6 +20,8 @@ import { debugClientMessageSchema, formatDebugValidationError } from './types'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+const ISO_TIME_COLON_RE = /:/g
+const DIRECTORY_TRAVERSAL_RE = /^(\.\.[/\\])+/
 
 function createViewerHtml(targetUrl: string): string {
   return `<!doctype html>
@@ -76,7 +78,7 @@ export class DebugServer {
     if (!fs.existsSync(logsDir)) {
       fs.mkdirSync(logsDir, { recursive: true })
     }
-    const filename = `session-${new Date().toISOString().replace(/:/g, '-')}.jsonl`
+    const filename = `session-${new Date().toISOString().replace(ISO_TIME_COLON_RE, '-')}.jsonl`
     this.logStream = fs.createWriteStream(path.join(logsDir, filename), { flags: 'a' })
   }
 
@@ -205,7 +207,7 @@ export class DebugServer {
     let filePath = req.url === '/' ? '/index.html' : req.url || '/index.html'
 
     // Security: prevent directory traversal
-    filePath = path.normalize(filePath).replace(/^(\.\.[/\\])+/, '')
+    filePath = path.normalize(filePath).replace(DIRECTORY_TRAVERSAL_RE, '')
 
     const fullPath = path.join(__dirname, 'web', filePath)
     const extname = path.extname(fullPath).toLowerCase()

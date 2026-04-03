@@ -18,6 +18,68 @@ const CONFIG = {
 }
 
 const SYSTEM_STATE_MARKER = 'The following blackboard provides you with information about your current state:'
+const HTML_AMPERSAND_RE = /&/g
+const HTML_LT_RE = /</g
+const HTML_GT_RE = />/g
+const HTML_QUOTE_RE = /"/g
+const HTML_APOSTROPHE_RE = /'/g
+const USER_MESSAGE_TAG_RE = /^\[(EVENT|FEEDBACK|PERCEPTION|STATE|ERROR_BURST_GUARD|ERROR_BURST|MANDATORY|SCRIPT|ACTION_QUEUE|NO_ACTION_BUDGET|CONTEXT)\]\s*/
+const DOUBLE_NEWLINE_RE = /\n\n/
+const NEWLINE_RE = /\n/g
+
+function parseChatSummary(text) {
+  if (!text.startsWith('Chat from ')) {
+    return null
+  }
+
+  const colonIndex = text.indexOf(':')
+  if (colonIndex <= 'Chat from '.length) {
+    return null
+  }
+
+  const speaker = text.slice('Chat from '.length, colonIndex)
+  const payload = text.slice(colonIndex + 1).trim()
+  if (!payload.startsWith('"') || !payload.endsWith('"')) {
+    return null
+  }
+
+  return {
+    speaker,
+    message: payload.slice(1, -1),
+  }
+}
+
+function parseFeedbackSummary(text) {
+  const colonIndex = text.indexOf(':')
+  if (colonIndex <= 0) {
+    return null
+  }
+
+  const toolName = text.slice(0, colonIndex)
+  const remainder = text.slice(colonIndex + 1).trimStart()
+  const successPrefix = 'Success'
+  const failedPrefix = 'Failed'
+  const status = remainder.startsWith(successPrefix)
+    ? successPrefix
+    : remainder.startsWith(failedPrefix)
+      ? failedPrefix
+      : null
+
+  if (!status) {
+    return null
+  }
+
+  let detail = remainder.slice(status.length)
+  if (detail.startsWith('.')) {
+    detail = detail.slice(1)
+  }
+
+  return {
+    detail: detail.trim(),
+    status,
+    toolName,
+  }
+}
 
 // =============================================================================
 // Utility Functions
@@ -27,11 +89,11 @@ function escapeHtml(text) {
   if (text == null)
     return ''
   return String(text)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
+    .replace(HTML_AMPERSAND_RE, '&amp;')
+    .replace(HTML_LT_RE, '&lt;')
+    .replace(HTML_GT_RE, '&gt;')
+    .replace(HTML_QUOTE_RE, '&quot;')
+    .replace(HTML_APOSTROPHE_RE, '&#39;')
 }
 
 function formatSystemMessageContent(content) {
@@ -577,14 +639,13 @@ function parseUserMessage(content) {
     return { sections: [], raw: '' }
   const sections = []
   // Known section tags in order they may appear
-  const tagPattern = /^\[(EVENT|FEEDBACK|PERCEPTION|STATE|ERROR_BURST_GUARD|ERROR_BURST|MANDATORY|SCRIPT|ACTION_QUEUE|NO_ACTION_BUDGET|CONTEXT)\]\s*/
   // Split on double-newline (the separator used by buildUserMessage)
-  const blocks = content.split(/\n\n/)
+  const blocks = content.split(DOUBLE_NEWLINE_RE)
   for (const block of blocks) {
     const trimmed = block.trim()
     if (!trimmed)
       continue
-    const m = trimmed.match(tagPattern)
+    const m = trimmed.match(USER_MESSAGE_TAG_RE)
     if (m) {
       sections.push({ tag: m[1], text: trimmed.slice(m[0].length) })
     }
@@ -778,9 +839,9 @@ class ConversationPanel {
   summarizeEvent(section) {
     const text = section.text
     // Chat messages: "Chat from X: "message""
-    const chatMatch = text.match(/^Chat from (\w+):\s*"(.+)"$/s)
+    const chatMatch = parseChatSummary(text)
     if (chatMatch)
-      return `Chat from ${chatMatch[1]}: "${chatMatch[2].slice(0, 60)}${chatMatch[2].length > 60 ? '...' : ''}"`
+      return `Chat from ${chatMatch.speaker}: "${chatMatch.message.slice(0, 60)}${chatMatch.message.length > 60 ? '...' : ''}"`
 
     // Perception Signal
     if (text.startsWith('Perception Signal:'))
@@ -800,16 +861,15 @@ class ConversationPanel {
 
     // FEEDBACK: "toolName: Success/Failed. details"
     if (section.tag === 'FEEDBACK') {
-      // eslint-disable-next-line regexp/no-super-linear-backtracking
-      const fbMatch = text.match(/^(\w+):\s*(Success|Failed)\.?\s*(.*)$/s)
+      const fbMatch = parseFeedbackSummary(text)
       if (fbMatch) {
-        const detail = fbMatch[3].slice(0, 50)
-        return `${fbMatch[1]}: ${fbMatch[2]}${detail ? ` — ${detail}${fbMatch[3].length > 50 ? '...' : ''}` : ''}`
+        const detail = fbMatch.detail.slice(0, 50)
+        return `${fbMatch.toolName}: ${fbMatch.status}${detail ? ` — ${detail}${fbMatch.detail.length > 50 ? '...' : ''}` : ''}`
       }
     }
 
     // Fallback: truncate
-    const flat = text.replace(/\n/g, ' ').slice(0, 70)
+    const flat = text.replace(NEWLINE_RE, ' ').slice(0, 70)
     return flat + (text.length > 70 ? '...' : '')
   }
 
@@ -860,7 +920,7 @@ class ConversationPanel {
     }
 
     // SCRIPT, PERCEPTION, OTHER — collapsible
-    const preview = section.text.slice(0, 60).replace(/\n/g, ' ')
+    const preview = section.text.slice(0, 60).replace(NEWLINE_RE, ' ')
     return `<div class="cv-section ${colorCls}">
       <button class="cv-section-toggle" data-toggle="${id}">
         <span class="cv-arrow">\u25B6</span>
@@ -882,7 +942,7 @@ class ConversationPanel {
 
     if (reasoning) {
       const rid = `cv-reason-${turnNum}`
-      const preview = reasoning.slice(0, 80).replace(/\n/g, ' ')
+      const preview = reasoning.slice(0, 80).replace(NEWLINE_RE, ' ')
       parts.push(`<div class="cv-reasoning">
         <button class="cv-reasoning-toggle" data-toggle="${rid}">
           <span class="cv-arrow">\u25B6</span>

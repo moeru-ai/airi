@@ -2,6 +2,8 @@
 
 import { readFile, writeFile } from 'node:fs/promises'
 
+const SEMVER_PATTERN = /^(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)(-(?<pre>[0-9A-Z.-]+))?$/i
+
 export async function packageJSONForVSCode(name: string) {
   const json = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf-8'))
   const originalName = json.name
@@ -45,7 +47,7 @@ export async function packageJSONForVSCode(name: string) {
 //     0.8.0        -> 0.8.(0*10000+9000)=0.8.9000 (preview=false)
 //   This keeps ordering: alpha < beta < rc < stable. Unknown prerelease tags default to alpha.
 export function encodeNumericVersion(version: string) {
-  const match = version.match(/^(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)(-(?<pre>[0-9A-Z.-]+))?$/i)
+  const match = version.match(SEMVER_PATTERN)
   if (!match || !match.groups)
     throw new Error(`Invalid semver: ${version}`)
 

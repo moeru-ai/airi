@@ -4,6 +4,9 @@ import JSZip from 'jszip'
 
 import { Cubism4ModelSettings, ZipLoader } from 'pixi-live2d-display/cubism4'
 
+const FILE_PATH_SPLIT_PATTERN = /[\\/]/
+const MOC_FILE_SUFFIX_PATTERN = /\.moc3?/
+
 ZipLoader.zipReader = (data: Blob, _url: string) => JSZip.loadAsync(data)
 
 const defaultCreateSettings = ZipLoader.createSettings
@@ -27,7 +30,7 @@ export function isMocFile(file: string) {
 
 export function basename(path: string): string {
   // https://stackoverflow.com/a/15270931
-  return path.split(/[\\/]/).pop()!
+  return path.split(FILE_PATH_SPLIT_PATTERN).pop()!
 }
 
 // copy and modified from https://github.com/guansss/live2d-viewer-web/blob/f6060b2ce52c2e26b6b61fa903c837fe343f72d1/src/app/upload.ts#L81-L142
@@ -41,7 +44,7 @@ function createFakeSettings(files: string[]): ModelSettings {
   }
 
   const mocFile = mocFiles[0]
-  const modelName = basename(mocFile).replace(/\.moc3?/, '')
+  const modelName = basename(mocFile).replace(MOC_FILE_SUFFIX_PATTERN, '')
 
   const textures = files.filter(f => f.endsWith('.png'))
 

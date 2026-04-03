@@ -2,6 +2,8 @@ import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@
 
 import { DebugService } from '../debug'
 
+const LOGGER_CALLER_RE = /\/([^/]+)\/([^/]+?)\.[jt]s/
+
 export type Logger = ReturnType<typeof useLogg>
 
 export function initLogger() {
@@ -21,7 +23,7 @@ export function useLogger() {
   const caller = stack?.split('\n')[2]
 
   // Match the parent directory and filename without extension
-  const match = caller?.match(/\/([^/]+)\/([^/]+?)\.[jt]s/)
+  const match = caller?.match(LOGGER_CALLER_RE)
   const dirName = match?.[1] || 'unknown'
   const fileName = match?.[2] || 'unknown'
 

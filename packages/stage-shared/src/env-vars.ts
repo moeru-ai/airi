@@ -1,3 +1,5 @@
+const ENV_TRUTHY_PATTERN = /^(?:1|true|t|yes|y|on)$/i
+
 /**
  * Returns true if the provided environment variable represents a truthy value.
  *
@@ -6,5 +8,5 @@
 export function isEnvTruthy(value: string | undefined | null): boolean {
   if (value == null)
     return false
-  return /^(?:1|true|t|yes|y|on)$/i.test(value.trim())
+  return ENV_TRUTHY_PATTERN.test(value.trim())
 }

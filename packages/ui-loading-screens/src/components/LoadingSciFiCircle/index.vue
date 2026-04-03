@@ -31,6 +31,8 @@ defineProps<{
   barrelDistortion?: boolean
 }>()
 
+const CONSOLE_FORMAT_SPECIFIER_PATTERN = /%[sdjo]/g
+
 const step = ref<string>('')
 const progress = ref<number>(0)
 const done = ref<boolean>(false)
@@ -319,7 +321,7 @@ async function writeLine<T extends any[]>(
   const formattedArgs = args.map(arg =>
     typeof arg === 'object' ? JSON.stringify(arg) : String(arg),
   )
-  const message = format.replace(/%[sdjo]/g, () => formattedArgs.shift() || '')
+  const message = format.replace(CONSOLE_FORMAT_SPECIFIER_PATTERN, () => formattedArgs.shift() || '')
   const timestampStr = withoutTimestamp ? '' : `[${formatTimestamp(timestamp)}] `
   const fullLine = timestampStr + message
 

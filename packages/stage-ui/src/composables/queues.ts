@@ -7,6 +7,9 @@ import { createQueue } from '@proj-airi/stream-kit'
 
 import { EMOTION_VALUES } from '../constants/emotions'
 
+const ACT_EMOTION_REGEX = /<\|ACT\s*(?::\s*)?(\{[\s\S]*\})\|>/i
+const DELAY_MARKER_REGEX = /<\|DELAY:(\d+)\|>/i
+
 export function useEmotionsMessageQueue(emotionsQueue: UseQueueReturn<EmotionPayload>) {
   const normalizeEmotionName = (value: string): Emotion | null => {
     const normalized = value.trim().toLowerCase()
@@ -22,7 +25,7 @@ export function useEmotionsMessageQueue(emotionsQueue: UseQueueReturn<EmotionPay
   }
 
   function parseActEmotion(content: string) {
-    const match = /<\|ACT\s*(?::\s*)?(\{[\s\S]*\})\|>/i.exec(content)
+    const match = ACT_EMOTION_REGEX.exec(content)
     if (!match)
       return { ok: false, emotion: null as EmotionPayload | null }
 
@@ -67,14 +70,14 @@ export function useEmotionsMessageQueue(emotionsQueue: UseQueueReturn<EmotionPay
 
 export function useDelayMessageQueue() {
   function splitDelays(content: string) {
-    if (!(/<\|DELAY:\d+\|>/i.test(content))) {
+    if (!(DELAY_MARKER_REGEX.test(content))) {
       return {
         ok: false,
         delay: 0,
       }
     }
 
-    const delayExecArray = /<\|DELAY:(\d+)\|>/i.exec(content)
+    const delayExecArray = DELAY_MARKER_REGEX.exec(content)
 
     const delay = delayExecArray?.[1]
     if (!delay) {

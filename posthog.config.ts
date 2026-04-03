@@ -2,11 +2,13 @@
 
 import type { PostHogConfig } from 'posthog-js'
 
+const ENV_TRUTHY_PATTERN = /^(?:1|true|t|yes|y|on)$/i
+
 function isEnvFlagEnabled(value: string | undefined): boolean {
   if (value == null)
     return false
 
-  return /^(?:1|true|t|yes|y|on)$/i.test(value.trim())
+  return ENV_TRUTHY_PATTERN.test(value.trim())
 }
 
 // For Release workflows set `VITE_ENABLE_POSTHOG=true`.

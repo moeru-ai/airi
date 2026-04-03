@@ -10,12 +10,13 @@ import { z } from 'zod'
 const perceptionModalityValues = ['sighted', 'heard', 'felt', 'system'] as const
 const detectorModeValues = ['sliding', 'tumbling'] as const
 const detectorGroupByValues = ['entityId', 'sourceId', 'global'] as const
+const WINDOW_DURATION_RE = /^(\d+(?:\.\d+)?)(ms|s|m)?$/
 
 export type DetectorMode = typeof detectorModeValues[number]
 export type DetectorGroupBy = typeof detectorGroupByValues[number]
 
 function isValidWindowDuration(value: string): boolean {
-  const match = value.match(/^(\d+(?:\.\d+)?)(ms|s|m)?$/)
+  const match = value.match(WINDOW_DURATION_RE)
   if (!match) {
     return false
   }

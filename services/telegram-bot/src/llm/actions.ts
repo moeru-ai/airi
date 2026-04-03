@@ -15,6 +15,11 @@ import { parse } from 'best-effort-json-parser'
 import { personality, systemTicking } from '../prompts'
 import { div, span, vif } from '../prompts/utils'
 
+const THINK_BLOCK_RE = /<think>[\s\S]*?<\/think>/
+const OPEN_JSON_CODE_FENCE_RE = /^```json\s*\n/
+const TRAILING_CODE_FENCE_RE = /\n```$/
+const OPEN_CODE_FENCE_RE = /^```\s*\n/
+
 export async function imagineAnAction(
   botId: string,
   currentAbortController: AbortController | undefined,
@@ -84,7 +89,7 @@ export async function imagineAnAction(
         const res = await generateText(req)
         s.setAttribute('llm.chat.generate_text.response.full_text', res.text)
 
-        res.text = res.text.replace(/<think>[\s\S]*?<\/think>/, '').trim()
+        res.text = res.text.replace(THINK_BLOCK_RE, '').trim()
         if (!res.text) {
           throw new Error('No response text')
         }
@@ -106,10 +111,10 @@ export async function imagineAnAction(
 
       const action = tracer.startActiveSpan('telegram.module.generate_agent_action.parse', (s) => {
         responseText = res.text
-          .replace(/^```json\s*\n/, '')
-          .replace(/\n```$/, '')
-          .replace(/^```\s*\n/, '')
-          .replace(/\n```$/, '')
+          .replace(OPEN_JSON_CODE_FENCE_RE, '')
+          .replace(TRAILING_CODE_FENCE_RE, '')
+          .replace(OPEN_CODE_FENCE_RE, '')
+          .replace(TRAILING_CODE_FENCE_RE, '')
           .trim()
 
         const raw = parse(responseText) as Record<string, unknown>

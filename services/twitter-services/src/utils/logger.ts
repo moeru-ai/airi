@@ -6,6 +6,8 @@ import { Format, LogLevel, setGlobalFormat, setGlobalLogLevel, useLogg } from '@
 
 import { useConfigManager } from '../config'
 
+const LOGGER_CALLER_RE = /(?:([^/]+)\/)?([^/\s]+?)(?:\.[jt]s)?:(\d+)(?::\d+)?\)?$/
+
 // Track initialization status
 let isInitialized = false
 
@@ -54,7 +56,7 @@ export function useLogger(name?: string): Logg {
   const caller = stack?.split('\n')[2]
 
   // Extract directory, filename and line number from stack trace
-  const match = caller?.match(/(?:([^/]+)\/)?([^/\s]+?)(?:\.[jt]s)?:(\d+)(?::\d+)?\)?$/)
+  const match = caller?.match(LOGGER_CALLER_RE)
   const dirName = match?.[1] || path.basename(path.dirname(__filename))
   const fileName = match?.[2] || path.basename(__filename, '.ts')
   const lineNumber = match?.[3] || '?'

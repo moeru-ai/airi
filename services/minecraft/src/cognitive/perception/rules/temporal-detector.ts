@@ -7,6 +7,8 @@
 
 import type { DetectorMode, DetectorState } from './types'
 
+const WINDOW_DURATION_RE = /^(\d+(?:\.\d+)?)(ms|s|m)?$/
+
 /**
  * Default slot duration in milliseconds
  */
@@ -224,7 +226,7 @@ export function processEvent(
  * Supports: '2s', '500ms', '1m', '100'
  */
 export function parseWindowDuration(duration: string): number {
-  const match = duration.match(/^(\d+(?:\.\d+)?)(ms|s|m)?$/)
+  const match = duration.match(WINDOW_DURATION_RE)
   if (!match) {
     throw new Error(`Invalid duration format: ${duration}`)
   }

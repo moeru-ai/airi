@@ -4,6 +4,9 @@ import { computed } from 'vue'
 import { data as blogPosts } from '../functions/blog.data'
 import { getFlatSideBarLinks, getSidebar, isActive } from './sidebar'
 
+const URL_HASH_OR_QUERY_RE = /[?#].*$/
+const DOCS_SECTION_PREFIX_RE = /\/(en|zh-Hans)\/docs\/([^/]+)\//
+
 /**
  * Compute previous/next navigation targets for the current page.
  * - For blog pages, keeps navigation within the same language blog directory.
@@ -93,7 +96,7 @@ export function usePrevNext() {
     const links = getFlatSideBarLinks(sidebar)
 
     // ignore inner-page links with hashes
-    let candidates = uniqBy(links, link => link.link.replace(/[?#].*$/, ''))
+    let candidates = uniqBy(links, link => link.link.replace(URL_HASH_OR_QUERY_RE, ''))
 
     // Restrict docs navigation within the same docs section (e.g., overview vs manual)
     // This prevents crossing into unrelated sections like `/zh-Hans/docs/manual/`.
@@ -107,7 +110,7 @@ export function usePrevNext() {
       const sectionBase = withBase(sectionPrefix)
       // If current page is the section root (e.g., /zh-Hans/docs/overview/),
       // do not render prev/next for docs to avoid showing a next button here.
-      const isSectionRoot = currentFullUrl.replace(/[?#].*$/, '') === sectionBase
+      const isSectionRoot = currentFullUrl.replace(URL_HASH_OR_QUERY_RE, '') === sectionBase
       if (isSectionRoot) {
         return {
           prev: undefined,
@@ -117,8 +120,8 @@ export function usePrevNext() {
       // Keep navigation within the same docs section and exclude the section root itself
       // to avoid showing a "next" link that points back to the section index.
       const filtered = candidates
-        .filter(l => l.link.replace(/[?#].*$/, '').startsWith(sectionBase))
-        .filter(l => l.link.replace(/[?#].*$/, '') !== sectionBase)
+        .filter(l => l.link.replace(URL_HASH_OR_QUERY_RE, '').startsWith(sectionBase))
+        .filter(l => l.link.replace(URL_HASH_OR_QUERY_RE, '') !== sectionBase)
       // Fallback to all candidates if filter would drop the current page
       const wouldDropCurrent = filtered.findIndex(l => isActive(currentFullUrl, l.link)) < 0
       if (!wouldDropCurrent) {
@@ -180,7 +183,7 @@ export function usePrevNext() {
  * Keeps navigation within the same section to avoid crossing into unrelated docs.
  */
 function getDocsSectionPrefix(fullUrl: string): string | undefined {
-  const m = fullUrl.match(/\/(en|zh-Hans)\/docs\/([^/]+)\//)
+  const m = fullUrl.match(DOCS_SECTION_PREFIX_RE)
   return m ? `/${m[1]}/docs/${m[2]}/` : undefined
 }
 

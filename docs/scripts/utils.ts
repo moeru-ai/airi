@@ -1,5 +1,19 @@
 import type MarkdownIt from 'markdown-it'
 
+function extractJSDocLink(content: string): string | null {
+  if (!content.startsWith('{@link')) {
+    return null
+  }
+
+  const closingBraceIndex = content.indexOf('}')
+  if (closingBraceIndex < 0) {
+    return null
+  }
+
+  const linkText = content.slice('{@link'.length, closingBraceIndex).trim()
+  return linkText || null
+}
+
 // Define a custom plugin to transform JSDoc @link tags
 export function transformJSDocLinks(md: MarkdownIt) {
   md.core.ruler.push('transform-jsdoc-links', (state) => {
@@ -8,10 +22,8 @@ export function transformJSDocLinks(md: MarkdownIt) {
         for (let i = 0; i < token.children.length; i++) {
           const child = token.children[i]!
           if (child.type === 'text' && child.content.startsWith('{@link')) {
-            // eslint-disable-next-line regexp/no-super-linear-backtracking
-            const matches = child.content.match(/\{@link\s+(.*?)\}/)
-            if (matches) {
-              const linkText = matches[1]!
+            const linkText = extractJSDocLink(child.content)
+            if (linkText) {
               const linkNode = new state.Token('link_open', 'a', 1)
               linkNode.attrSet('href', linkText)
               linkNode.attrSet('target', '_blank')

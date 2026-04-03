@@ -20,6 +20,10 @@ import { findStickerDescription, recordSticker } from '../models'
 import { div, span, ul } from '../prompts/utils'
 import { toPngBase64FromFile } from './image'
 
+const FRAME_FILE_RE = /frame-\d+\.png/
+const FRAME_FILE_NUMBER_RE = /frame-(\d+)\.png/
+const THINK_BLOCK_RE = /<think>[\s\S]*?<\/think>/
+
 // Set path to FFmpeg binaries
 ffmpeg.setFfmpegPath(ffmpegInstaller.path)
 
@@ -34,10 +38,10 @@ async function extractFrames(inputFilePath, outputDir, frameRate = 5) {
       .on('end', async () => {
         const files = await fs.readdir(outputDir)
         const sortedFiles = files
-          .filter(file => file.match(/frame-\d+\.png/))
+          .filter(file => file.match(FRAME_FILE_RE))
           .sort((a, b) => {
-            const numA = Number.parseInt(a.match(/frame-(\d+)\.png/)[1])
-            const numB = Number.parseInt(b.match(/frame-(\d+)\.png/)[1])
+            const numA = Number.parseInt(a.match(FRAME_FILE_NUMBER_RE)[1])
+            const numB = Number.parseInt(b.match(FRAME_FILE_NUMBER_RE)[1])
             return numA - numB
           })
         resolve(sortedFiles.map(file => path.join(outputDir, file)))
@@ -130,7 +134,7 @@ export async function interpretAnimatedSticker(bot: Bot, msg: Message, sticker: 
         }
 
         const res = await generateText(req)
-        res.text = res.text.replace(/<think>[\s\S]*?<\/think>/, '').trim()
+        res.text = res.text.replace(THINK_BLOCK_RE, '').trim()
         if (!res.text) {
           throw new Error('No response text')
         }

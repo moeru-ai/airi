@@ -1,5 +1,7 @@
 import type { VideoSite } from './types'
 
+const WHITESPACE_PATTERN = /\s+/g
+
 export function detectSiteFromUrl(url: string): VideoSite {
   try {
     const parsed = new URL(url)
@@ -39,5 +41,5 @@ export function extractVideoId(site: VideoSite, url: string): string | undefined
 }
 
 export function normalizeText(value: string | null | undefined) {
-  return value?.replace(/\s+/g, ' ').trim() || ''
+  return value?.replace(WHITESPACE_PATTERN, ' ').trim() || ''
 }

@@ -13,6 +13,8 @@ const props = withDefaults(defineProps<Props>(), {
   alpha: true,
   disabled: false,
 })
+const HEX_COLOR_REGEX = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i
+const RGB_COLOR_REGEX = /rgba?\(([^)]+)\)/
 
 const modelValue = defineModel<string>({ required: false, default: '#000000' })
 
@@ -36,7 +38,7 @@ const alphaValue = ref(1)
 
 // Color conversion utilities
 function hexToRgb(hex: string) {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  const result = HEX_COLOR_REGEX.exec(hex)
   return result
     ? {
         r: Number.parseInt(result[1], 16) / 255,
@@ -58,7 +60,7 @@ function parseColor(color: string) {
   document.body.removeChild(temp)
 
   // Parse rgb/rgba
-  const rgbMatch = computed.match(/rgba?\(([^)]+)\)/)
+  const rgbMatch = computed.match(RGB_COLOR_REGEX)
   if (rgbMatch) {
     const values = rgbMatch[1].split(',').map(v => Number.parseFloat(v.trim()))
     const rgb = {

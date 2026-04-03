@@ -9,6 +9,8 @@ export type ParseResult
 
 type NonTimelineCommands = 'post tweet' | 'search tweets' | 'like tweet' | 'retweet' | 'get user'
 
+const TIMELINE_COUNT_RE = /count:\s*(\d+)/
+
 /**
  * Parses a Twitter command from the input string
  * @param input The input string containing the command
@@ -36,7 +38,7 @@ export function parseTwitterCommand(input: string): ParseResult | null {
 
       // Special handling for 'get timeline' command to extract count parameter
       if (command === 'get timeline') {
-        const countMatch = content.match(/count:\s*(\d+)/)
+        const countMatch = content.match(TIMELINE_COUNT_RE)
         const count = countMatch ? Number.parseInt(countMatch[1], 10) : 10
         // For timeline command, use full trim for consistency
         const trimmedContent = content.trim()

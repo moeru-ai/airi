@@ -10,6 +10,14 @@ import { defineConfig, mergeConfigs, presetAttributify, presetIcons, presetTypog
 import { presetScrollbar } from 'unocss-preset-scrollbar'
 import { parseColor } from 'unocss/preset-mini'
 
+const HOVER_SUFFIX_RE = /:hover$/
+const CONTENT_PIPELINE_INCLUDE_RE = /\.(vue|svelte|[jt]sx|mdx?|astro|elm|php|phtml|html)($|\?)/
+const NODE_MODULES_PATH_RE = /\/node_modules\//
+const MASK_RULE_RE = /^mask-\[(.*)\]$/
+const UNDERSCORE_RE = /_/g
+const BG_DOTTED_RULE_RE = /^bg-dotted-\[(.*)\]$/
+const DRAG_REGION_RE = /drag-region/
+
 // On Netlify, building will result in when fetching metadata and fonts from @unocss/preset-web-fonts plugin:
 //
 // [cause]: AggregateError [ETIMEDOUT]:
@@ -48,7 +56,7 @@ export function presetStoryMockHover(): PresetOrFactoryAwaitable {
         return {
           matcher,
           selector: (s) => {
-            return `${s}, ${s.replace(/:hover$/, '')}._hover`
+            return `${s}, ${s.replace(HOVER_SUFFIX_RE, '')}._hover`
           },
         }
       },
@@ -170,20 +178,20 @@ export function sharedUnoConfig() {
       pipeline: {
         include: [
           // the default
-          /\.(vue|svelte|[jt]sx|mdx?|astro|elm|php|phtml|html)($|\?)/,
+          CONTENT_PIPELINE_INCLUDE_RE,
           // include js/ts files
           '(components|src)/**/*.{js,ts,vue}', // THIS CAN INCLUDE node_modules
           '**/stage-ui/**/*.{vue,js,ts}', // THIS TOO
           '**/ui/**/*.{vue,js,ts}', // THIS TOO
         ],
         exclude: [
-          /\/node_modules\//, // DO NOT SCAN THE BLACK HOLE
+          NODE_MODULES_PATH_RE, // DO NOT SCAN THE BLACK HOLE
         ],
       },
     },
     rules: [
-      [/^mask-\[(.*)\]$/, ([, suffix]) => ({ '-webkit-mask-image': suffix.replace(/_/g, ' ') })],
-      [/^bg-dotted-\[(.*)\]$/, ([, color], { theme }) => {
+      [MASK_RULE_RE, ([, suffix]) => ({ '-webkit-mask-image': suffix.replace(UNDERSCORE_RE, ' ') })],
+      [BG_DOTTED_RULE_RE, ([, color], { theme }) => {
         const parsedColor = parseColor(color, theme)
         // Util usage: https://github.com/unocss/unocss/blob/f57ef6ae50006a92f444738e50f3601c0d1121f2/packages-presets/preset-mini/src/_utils/utilities.ts#L186
         return {
@@ -191,7 +199,7 @@ export function sharedUnoConfig() {
           '--un-background-opacity': parsedColor?.cssColor?.alpha ?? parsedColor?.alpha ?? 1,
         }
       }],
-      [/drag-region/, () => ({ 'app-region': 'drag' })],
+      [DRAG_REGION_RE, () => ({ 'app-region': 'drag' })],
     ],
     theme: {
       fontFamily: {

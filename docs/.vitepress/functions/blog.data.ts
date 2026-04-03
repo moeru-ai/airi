@@ -10,6 +10,14 @@ import { createContentLoader } from 'vitepress'
 
 import { formatDate } from '../utils/utils'
 
+const AT_ASSETS_RE = /^@assets\(('\S+')|("\S+")|(\S+)\)$/
+const LEADING_PAREN_RE = /^\(/
+const TRAILING_PAREN_RE = /\)$/
+const LEADING_SINGLE_QUOTE_RE = /^'/
+const TRAILING_SINGLE_QUOTE_RE = /'$/
+const LEADING_DOUBLE_QUOTE_RE = /^"/
+const TRAILING_DOUBLE_QUOTE_RE = /"$/
+
 const config: SiteConfig = (globalThis as any).VITEPRESS_CONFIG
 const base = config.userConfig.base || env.BASE_URL || '/'
 
@@ -35,16 +43,15 @@ function cwdFromUrl(url: string): string {
 }
 
 function fromAtAssets(url: string): string {
-  const reg = /^@assets\(('\S+')|("\S+")|(\S+)\)$/
-  if (reg.test(url)) {
+  if (AT_ASSETS_RE.test(url)) {
     const res = url
-      .replace(reg, '$1')
-      .replace(/^\(/, '')
-      .replace(/\)$/, '')
-      .replace(/^'/, '')
-      .replace(/'$/, '')
-      .replace(/^"/, '')
-      .replace(/"$/, '')
+      .replace(AT_ASSETS_RE, '$1')
+      .replace(LEADING_PAREN_RE, '')
+      .replace(TRAILING_PAREN_RE, '')
+      .replace(LEADING_SINGLE_QUOTE_RE, '')
+      .replace(TRAILING_SINGLE_QUOTE_RE, '')
+      .replace(LEADING_DOUBLE_QUOTE_RE, '')
+      .replace(TRAILING_DOUBLE_QUOTE_RE, '')
 
     return res
   }

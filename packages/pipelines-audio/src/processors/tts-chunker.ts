@@ -9,6 +9,8 @@ import { createPushStream } from '../stream'
 export const TTS_FLUSH_INSTRUCTION = '\u200B'
 export const TTS_SPECIAL_TOKEN = '\u2063'
 
+const DIGIT_PATTERN = /\d/
+
 const keptPunctuations = new Set('?？!！')
 const hardPunctuations = new Set('.。?？!！…⋯～~\n\t\r')
 const softPunctuations = new Set(',，、–—:：;；《》「」')
@@ -83,9 +85,9 @@ export async function* chunkTtsInput(
       switch (value) {
         case '.':
         case ',': {
-          if (previousValue !== undefined && /\d/.test(previousValue)) {
+          if (previousValue !== undefined && DIGIT_PATTERN.test(previousValue)) {
             next = await iterator.next()
-            if (!next.done && next.value && /\d/.test(next.value)) {
+            if (!next.done && next.value && DIGIT_PATTERN.test(next.value)) {
               buffer += value
               current = next
               next = undefined

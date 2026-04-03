@@ -30,6 +30,8 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
 }>()
 
+const TEMPLATE_TAG_PATTERN = /\{\{(.*?)\}\}/g
+
 const { t } = useI18n()
 const cardStore = useAiriCardStore()
 const consciousnessStore = useConsciousnessStore()
@@ -96,7 +98,7 @@ function handleActivate() {
 }
 
 function highlightTagToHtml(text: string) {
-  return DOMPurify.sanitize(text?.replace(/\{\{(.*?)\}\}/g, '<span class="bg-primary-500/20 inline-block">{{ $1 }}</span>').trim())
+  return DOMPurify.sanitize(text?.replace(TEMPLATE_TAG_PATTERN, '<span class="bg-primary-500/20 inline-block">{{ $1 }}</span>').trim())
 }
 
 // Delete confirmation

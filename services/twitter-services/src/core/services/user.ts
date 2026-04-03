@@ -4,6 +4,8 @@ import type { Context } from '../browser/context'
 import { TWITTER_BASE_URL } from '../../constants'
 import { logger } from '../../utils/logger'
 
+const NON_DIGIT_RE = /\D/g
+
 /**
  * User Profile
  */
@@ -68,11 +70,11 @@ export function useTwitterUserServices(ctx: Context): TwitterService {
       const followingElement = await ctx.page.$('[href$="/following"]')
 
       const followerCount = followElement
-        ? Number.parseInt((await followElement.textContent() || '0').replace(/\D/g, ''))
+        ? Number.parseInt((await followElement.textContent() || '0').replace(NON_DIGIT_RE, ''))
         : undefined
 
       const followingCount = followingElement
-        ? Number.parseInt((await followingElement.textContent() || '0').replace(/\D/g, ''))
+        ? Number.parseInt((await followingElement.textContent() || '0').replace(NON_DIGIT_RE, ''))
         : undefined
 
       return {

@@ -2,6 +2,8 @@ import { useData } from 'vitepress'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+const EDIT_LINK_PATH_RE = /:path/g
+
 export function useEditLink() {
   const { theme, page } = useData()
   const { t } = useI18n()
@@ -13,7 +15,7 @@ export function useEditLink() {
       url = pattern(page.value)
     }
     else {
-      url = pattern.replace(/:path/g, page.value.filePath)
+      url = pattern.replace(EDIT_LINK_PATH_RE, page.value.filePath)
     }
 
     return { url, text }

@@ -10,6 +10,7 @@ export const TTS_SPECIAL_TOKEN = '\u2063'
 const keptPunctuations = new Set('?？!！')
 const hardPunctuations = new Set('.。?？!！…⋯～~\n\t\r')
 const softPunctuations = new Set(',，、–—:：;；《》「」')
+const DIGIT_REGEX = /\d/
 
 export interface TTSInputChunk {
   text: string
@@ -91,9 +92,9 @@ export async function* chunkTTSInput(
       switch (value) {
         case '.':
         case ',': {
-          if (previousValue !== undefined && /\d/.test(previousValue)) {
+          if (previousValue !== undefined && DIGIT_REGEX.test(previousValue)) {
             next = await iterator.next()
-            if (!next.done && next.value && /\d/.test(next.value)) {
+            if (!next.done && next.value && DIGIT_REGEX.test(next.value)) {
               // This dot could be a decimal point, so we skip it (don't fully skip! keep in tts input!)
 
               // REVIEW: @Lilia-Chen I think we need to remove the below line

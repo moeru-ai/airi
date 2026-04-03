@@ -47,7 +47,12 @@ const blockingOverlays = reactive(new Set<string>())
 const isBlocked = computed(() => blockingOverlays.size > 0)
 
 function setOverlay(key: string, active: boolean) {
-  active ? blockingOverlays.add(key) : blockingOverlays.delete(key)
+  if (active) {
+    blockingOverlays.add(key)
+  }
+  else {
+    blockingOverlays.delete(key)
+  }
 }
 
 // Expose for parent (e.g. to disable click-through when a dialog is open)

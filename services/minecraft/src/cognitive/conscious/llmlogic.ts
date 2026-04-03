@@ -15,6 +15,32 @@ export interface RetryDecision {
   remainingAttempts: number
 }
 
+const JSON_POSITION_RE = /position\s+(\d+)/i
+const JSON_FENCE_NEWLINE_PATTERN = /\r?\n/
+
+function extractFencedJsonBlock(input: string): string | null {
+  if (!input.startsWith('```') || !input.endsWith('```')) {
+    return null
+  }
+
+  const lines = input.split(JSON_FENCE_NEWLINE_PATTERN)
+  if (lines.length < 2) {
+    return null
+  }
+
+  const firstLine = lines[0].slice(3).trim().toLowerCase()
+  if (firstLine && firstLine !== 'json') {
+    return null
+  }
+
+  const lastLine = lines.at(-1).trim()
+  if (lastLine !== '```') {
+    return null
+  }
+
+  return lines.slice(1, -1).join('\n')
+}
+
 /**
  * Pure function to build messages for LLM
  */
@@ -153,10 +179,10 @@ export function shouldRetryError(err: unknown, remainingAttempts: number): Retry
  */
 export function extractJsonCandidate(input: string): string {
   const trimmed = input.trim()
-  // eslint-disable-next-line regexp/no-super-linear-backtracking
-  const fenced = trimmed.match(/^```(?:json)?[^\S\r\n]*\r?\n?([\s\S]*?)\r?\n?```$/i)
-  if (fenced?.[1])
-    return fenced[1].trim()
+
+  const fenced = extractFencedJsonBlock(trimmed)
+  if (fenced)
+    return fenced.trim()
 
   const start = trimmed.indexOf('{')
   const end = trimmed.lastIndexOf('}')
@@ -171,7 +197,7 @@ export function extractJsonCandidate(input: string): string {
  */
 function getJsonErrorPosition(err: unknown): number | null {
   const msg = toErrorMessage(err)
-  const match = msg.match(/position\s+(\d+)/i)
+  const match = msg.match(JSON_POSITION_RE)
   if (!match)
     return null
 

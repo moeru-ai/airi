@@ -5,6 +5,8 @@ import type { Tweet } from '../core/services/tweet'
 import { logger } from '../utils/logger'
 import { SELECTORS } from './selectors'
 
+const STATUS_ID_RE = /\/status\/(\d+)/
+
 /**
  * Tweet Parser
  * Extracts tweet information directly from the page DOM using Playwright
@@ -97,7 +99,7 @@ export class TweetParser {
       if (statusLink) {
         const href = await statusLink.getAttribute('href')
         if (href) {
-          const match = href.match(/\/status\/(\d+)/)
+          const match = href.match(STATUS_ID_RE)
           if (match && match[1]) {
             return match[1]
           }

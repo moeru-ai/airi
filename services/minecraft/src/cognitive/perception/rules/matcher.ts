@@ -6,6 +6,8 @@
 
 import type { WhereClause, WhereCondition } from './types'
 
+const TEMPLATE_PLACEHOLDER_RE = /\{\{\s*(\w+(?:\.\w+)*)\s*\}\}/g
+
 /**
  * Check if a value matches a single condition
  */
@@ -128,7 +130,7 @@ export function renderTemplate(
   template: string,
   context: Readonly<Record<string, unknown>>,
 ): string {
-  return template.replace(/\{\{\s*(\w+(?:\.\w+)*)\s*\}\}/g, (_, path: string) => {
+  return template.replace(TEMPLATE_PLACEHOLDER_RE, (_, path: string) => {
     const value = getNestedValue(context, path)
     return value !== undefined ? String(value) : `{{${path}}}`
   })

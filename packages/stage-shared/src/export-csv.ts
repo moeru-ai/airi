@@ -1,5 +1,7 @@
+const CSV_DOUBLE_QUOTE_PATTERN = /"/g
+
 function quoteField(field: unknown): string {
-  return `"${String(field).replace(/"/g, '""')}"`
+  return `"${String(field).replace(CSV_DOUBLE_QUOTE_PATTERN, '""')}"`
 }
 
 function toCsv(rows: Array<Array<unknown>>): string {

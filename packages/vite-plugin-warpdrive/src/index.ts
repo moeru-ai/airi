@@ -14,6 +14,9 @@ export type { UploadProvider } from './providers/types'
 
 type IncludeMatcher = RegExp | ((filename: string) => boolean)
 
+const LEADING_SLASHES_PATTERN = /^\/*/
+const TRAILING_SLASHES_PATTERN = /\/*$/
+
 export interface WarpDrivePluginOptions {
   provider: UploadProvider
   /**
@@ -272,7 +275,7 @@ export function WarpDrivePlugin(options: WarpDrivePluginOptions): Plugin {
 }
 
 function normalizePrefix(prefix: string) {
-  return prefix.replace(/^\/*/, '').replace(/\/*$/, '')
+  return prefix.replace(LEADING_SLASHES_PATTERN, '').replace(TRAILING_SLASHES_PATTERN, '')
 }
 
 function getAssetSize(asset: OutputAsset) {

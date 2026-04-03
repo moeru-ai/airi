@@ -35,6 +35,8 @@ const emit = defineEmits<{
 
 const modelValue = defineModel<boolean>()
 
+const CARD_VERSION_PATTERN = /^(?:\d+\.)+\d+$/
+
 const { t } = useI18n()
 const cardStore = useAiriCardStore()
 const consciousnessStore = useConsciousnessStore()
@@ -215,7 +217,7 @@ function saveCard(card: Card): boolean {
     errorMessage.value = t('settings.pages.card.creation.errors.name')
     return false
   }
-  else if (!/^(?:\d+\.)+\d+$/.test(rawCard.version)) {
+  else if (!CARD_VERSION_PATTERN.test(rawCard.version)) {
     // Invalid version
     showError.value = true
     errorMessage.value = t('settings.pages.card.creation.errors.version')

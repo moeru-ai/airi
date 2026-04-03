@@ -10,6 +10,7 @@ import { argv, cwd } from 'node:process'
 const ROOT = cwd()
 const SEARCH_ROOTS = ['apps', 'packages', 'plugins', 'services', 'integrations', 'docs']
 const IGNORE_DIRS = new Set(['node_modules', '.git', 'dist', 'build', '.next', '.nuxt', '.turbo', 'coverage', '.cache', 'out', '.vite'])
+const NON_FILESYSTEM_EXPORT_TARGET_PATTERN = /^(?:https?:|npm:|node:|data:)/
 
 function walk(dir, out) {
   let entries = []
@@ -123,8 +124,8 @@ function cleanupExportTarget(raw) {
 
 function resolveParentDir(pkgDir, rawTarget) {
   const target = cleanupExportTarget(rawTarget)
-  // eslint-disable-next-line regexp/no-unused-capturing-group
-  if (!target || /^(https?:|npm:|node:|data:)/.test(target))
+
+  if (!target || NON_FILESYSTEM_EXPORT_TARGET_PATTERN.test(target))
     return null
 
   const wildcardIndex = target.indexOf('*')

@@ -6,6 +6,23 @@ import { env } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 const templatePath = fileURLToPath(new URL('./brain-prompt.md', import.meta.url))
+const TEMPLATE_PLACEHOLDER_RE = /\{\{\s*(\w+)\s*\}\}/g
+const AUTO_WORD_RE = /\bAutomatically\b/gi
+const APPROXIMATELY_WORD_RE = /\bapproximately\b/gi
+const COORDINATE_WORD_RE = /\bcoordinate(s)?\b/gi
+const COORDINATES_WORD_RE = /\bcoordinates\b/gi
+const INVENTORY_WORD_RE = /\binventory\b/gi
+const NEAREST_WORD_RE = /\bnearest\b/gi
+const SPECIFIC_WORD_RE = /\bspecific\b/gi
+const GIVEN_WORD_RE = /\bgiven\b/gi
+const NUMBER_OF_WORD_RE = /\bnumber of\b/gi
+const PLAYER_WORD_RE = /\bplayer\b/gi
+const PLAYERS_WORD_RE = /\bplayers\b/gi
+const RESOURCE_WORD_RE = /\bresource(s)?\b/gi
+const POSITION_WORD_RE = /\bposition\b/gi
+const WHETHER_WORD_RE = /\bwhether\b/gi
+const WHITESPACE_RE = /\s+/g
+const LEADING_WHITESPACE_RE = /^\s+/
 
 let cachedTemplate: string | null = null
 let watcherInitialized = false
@@ -38,7 +55,7 @@ function ensureWatcher(): void {
 }
 
 function renderTemplate(template: string, vars: Record<string, string>): string {
-  return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_full, key) => vars[key] ?? '')
+  return template.replace(TEMPLATE_PLACEHOLDER_RE, (_full, key) => vars[key] ?? '')
 }
 
 // Helper to extract readable type from Zod schema
@@ -106,21 +123,21 @@ function getZodConstraintHint(def: any): string {
 
 function abbreviateToolDescription(input: string): string {
   return input
-    .replace(/\bAutomatically\b/gi, 'Auto')
-    .replace(/\bapproximately\b/gi, 'approx')
-    .replace(/\bcoordinate(s)?\b/gi, 'coord$1')
-    .replace(/\bcoordinates\b/gi, 'coords')
-    .replace(/\binventory\b/gi, 'inv')
-    .replace(/\bnearest\b/gi, 'near')
-    .replace(/\bspecific\b/gi, 'spec')
-    .replace(/\bgiven\b/gi, '')
-    .replace(/\bnumber of\b/gi, '#')
-    .replace(/\bplayer\b/gi, 'plyr')
-    .replace(/\bplayers\b/gi, 'plyrs')
-    .replace(/\bresource(s)?\b/gi, 'res$1')
-    .replace(/\bposition\b/gi, 'pos')
-    .replace(/\bwhether\b/gi, 'if')
-    .replace(/\s+/g, ' ')
+    .replace(AUTO_WORD_RE, 'Auto')
+    .replace(APPROXIMATELY_WORD_RE, 'approx')
+    .replace(COORDINATE_WORD_RE, 'coord$1')
+    .replace(COORDINATES_WORD_RE, 'coords')
+    .replace(INVENTORY_WORD_RE, 'inv')
+    .replace(NEAREST_WORD_RE, 'near')
+    .replace(SPECIFIC_WORD_RE, 'spec')
+    .replace(GIVEN_WORD_RE, '')
+    .replace(NUMBER_OF_WORD_RE, '#')
+    .replace(PLAYER_WORD_RE, 'plyr')
+    .replace(PLAYERS_WORD_RE, 'plyrs')
+    .replace(RESOURCE_WORD_RE, 'res$1')
+    .replace(POSITION_WORD_RE, 'pos')
+    .replace(WHETHER_WORD_RE, 'if')
+    .replace(WHITESPACE_RE, ' ')
     .trim()
 }
 
@@ -134,7 +151,7 @@ export function generateBrainSystemPrompt(availableActions: Action[]): string {
       ? Object.entries(a.schema.shape).map(([key, val]: [string, any]) => {
           const def = val._def
           const type = getZodTypeName(def)
-          const constraints = getZodConstraintHint(def).replace(/^\s+/, '')
+          const constraints = getZodConstraintHint(def).replace(LEADING_WHITESPACE_RE, '')
           const desc = val.description ? ` ${String(val.description).trim()}` : ''
           return `${key}:${type}${constraints}${desc}`
         }).join('; ')

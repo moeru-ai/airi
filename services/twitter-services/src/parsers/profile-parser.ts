@@ -5,6 +5,13 @@ import type { UserLink, UserProfile, UserStats } from '../core/services/user'
 import { logger } from '../utils/logger'
 import { SELECTORS } from './selectors'
 
+const PROFILE_USERNAME_RE = /twitter\.com\/([^/]+)/
+const FOLLOWING_LABEL_RE = /Following.*/
+const FOLLOWERS_LABEL_RE = /Followers.*/
+const POSTS_LABEL_RE = /posts|Posts.*/
+const LOCATION_LABEL_RE = /Location/
+const COMMA_RE = /,/g
+
 /**
  * Profile Parser
  * Extracts user profile information directly from the page DOM using Playwright
@@ -99,7 +106,7 @@ export class ProfileParser {
    */
   private static extractUsernameFromUrl(url: string): string | null {
     try {
-      const match = url.match(/twitter\.com\/([^/]+)/)
+      const match = url.match(PROFILE_USERNAME_RE)
       if (match && match[1] && !['home', 'explore', 'notifications', 'messages'].includes(match[1])) {
         return match[1]
       }
@@ -135,15 +142,15 @@ export class ProfileParser {
         const text = await statItem.textContent() || ''
 
         if (text.includes('Following')) {
-          const countText = text.replace(/Following.*/, '').trim()
+          const countText = text.replace(FOLLOWING_LABEL_RE, '').trim()
           stats.following = this.parseStatNumber(countText)
         }
         else if (text.includes('Followers')) {
-          const countText = text.replace(/Followers.*/, '').trim()
+          const countText = text.replace(FOLLOWERS_LABEL_RE, '').trim()
           stats.followers = this.parseStatNumber(countText)
         }
         else if (text.includes('posts') || text.includes('Posts')) {
-          const countText = text.replace(/posts|Posts.*/, '').trim()
+          const countText = text.replace(POSTS_LABEL_RE, '').trim()
           stats.tweets = this.parseStatNumber(countText)
         }
       }
@@ -251,7 +258,7 @@ export class ProfileParser {
           links.push({
             type: 'location',
             url: '',
-            title: locationText.replace('Location', '').trim(),
+            title: locationText.replace(LOCATION_LABEL_RE, '').trim(),
           })
         }
       }
@@ -284,7 +291,7 @@ export class ProfileParser {
       }
 
       // Handle other formats like 1,234
-      const normalized = text.replace(/,/g, '')
+      const normalized = text.replace(COMMA_RE, '')
       return Number.parseInt(normalized, 10) || 0
     }
     catch {

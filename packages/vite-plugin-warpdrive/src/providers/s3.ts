@@ -7,6 +7,12 @@ import { readFile } from 'node:fs/promises'
 
 import { S3mini } from 's3mini'
 
+const LEADING_SLASHES_PATTERN = /^\/*/
+const TRAILING_SLASHES_PATTERN = /\/*$/
+const TRAILING_URL_SLASHES_PATTERN = /\/+$/
+const LEADING_URL_SLASHES_PATTERN = /^\/+/
+const ETAG_QUOTES_PATTERN = /^"+|"+$/g
+
 export interface S3ProviderOptions {
   endpoint: string
   accessKeyId: string
@@ -86,17 +92,17 @@ async function isMd5HashMatched(client: S3mini, key: string, data: Buffer) {
 }
 
 function normalizePrefix(prefix: string) {
-  return prefix.replace(/^\/*/, '').replace(/\/*$/, '')
+  return prefix.replace(LEADING_SLASHES_PATTERN, '').replace(TRAILING_SLASHES_PATTERN, '')
 }
 
 function normalizeKey(key: string) {
-  return key.replace(/^\/*/, '')
+  return key.replace(LEADING_SLASHES_PATTERN, '')
 }
 
 function joinUrl(base: string, path: string) {
-  return `${base.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`
+  return `${base.replace(TRAILING_URL_SLASHES_PATTERN, '')}/${path.replace(LEADING_URL_SLASHES_PATTERN, '')}`
 }
 
 function sanitizeEtag(etag: string) {
-  return etag.replace(/^"+|"+$/g, '')
+  return etag.replace(ETAG_QUOTES_PATTERN, '')
 }

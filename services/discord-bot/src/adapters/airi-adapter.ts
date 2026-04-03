@@ -11,6 +11,7 @@ import { Client, Events, GatewayIntentBits, Partials } from 'discord.js'
 import { handlePing, registerCommands, VoiceManager } from '../bots/discord/commands'
 
 const log = useLogg('DiscordAdapter').useGlobalConfig()
+const DISCORD_MENTION_RE = /<@!?\d+>/g
 
 export interface DiscordAdapterConfig {
   discordToken?: string
@@ -219,7 +220,7 @@ export class DiscordAdapter {
       if (isMentioned || isDM) {
         const rawContent = message.content
         const content = isMentioned
-          ? rawContent.replace(/<@!?\d+>/g, '').trim()
+          ? rawContent.replace(DISCORD_MENTION_RE, '').trim()
           : rawContent.trim()
 
         if (!content)

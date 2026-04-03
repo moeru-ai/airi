@@ -15,6 +15,10 @@ import { config } from '../../config'
 import { ActionSchema } from '../types'
 import { personality, systemPrompt } from './prompts/index'
 
+const THINK_BLOCK_RE = /<think>[\s\S]*?<\/think>/
+const OPEN_CODE_FENCE_RE = /^```(?:json)?\s*/m
+const CLOSE_CODE_FENCE_RE = /\s*```\s*$/m
+
 export async function imagineAnAction(
   currentAbortController: AbortController | undefined,
   messages: LLMMessage[],
@@ -69,7 +73,7 @@ export async function imagineAnAction(
     }
 
     const res = await generateText(req)
-    res.text = res.text.replace(/<think>[\s\S]*?<\/think>/, '').trim()
+    res.text = res.text.replace(THINK_BLOCK_RE, '').trim()
 
     if (!res.text) {
       throw new Error('No response text')
@@ -85,8 +89,8 @@ export async function imagineAnAction(
     }).log('Generated action')
 
     responseText = res.text
-      .replace(/^```(?:json)?\s*/m, '')
-      .replace(/\s*```\s*$/m, '')
+      .replace(OPEN_CODE_FENCE_RE, '')
+      .replace(CLOSE_CODE_FENCE_RE, '')
       .trim()
 
     const parsed = parse(responseText)

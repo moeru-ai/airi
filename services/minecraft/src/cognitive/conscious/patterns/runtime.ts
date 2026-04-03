@@ -2,6 +2,7 @@ import type { PatternCard, PatternRuntime } from './types'
 
 const DEFAULT_LIMIT = 10
 const MAX_LIMIT = 25
+const TOKEN_SPLIT_RE = /[^a-z0-9_]+/g
 
 function normalizeLimit(limit: number | undefined): number {
   const fallback = Number.isFinite(limit) ? Number(limit) : DEFAULT_LIMIT
@@ -12,7 +13,7 @@ function tokenize(input: string): string[] {
   return [...new Set(
     input
       .toLowerCase()
-      .split(/[^a-z0-9_]+/g)
+      .split(TOKEN_SPLIT_RE)
       .map(token => token.trim())
       .filter(Boolean),
   )]

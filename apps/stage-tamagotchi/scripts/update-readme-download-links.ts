@@ -7,6 +7,7 @@ import { getFilenames } from './utils'
 
 const ROOT_DIR = resolve(import.meta.dirname, '..', '..', '..')
 const DOCS_DIR = resolve(ROOT_DIR, 'docs')
+const LEADING_V_PATTERN = /^v/
 
 // GitHub releases download URLs
 const GITHUB_WINDOWS_RE = /https:\/\/github\.com\/moeru-ai\/airi\/releases\/download\/v[^/]+\/AIRI-[^")\s]+-windows-x64-setup\.exe/g
@@ -24,7 +25,7 @@ async function main() {
     process.exit(1)
   }
 
-  const cleanVersion = version.replace(/^v/, '')
+  const cleanVersion = version.replace(LEADING_V_PATTERN, '')
   const releaseOptions = { release: true, autoTag: false, tag: [cleanVersion] }
 
   const windowsFilenames = await getFilenames('x86_64-pc-windows-msvc', releaseOptions)

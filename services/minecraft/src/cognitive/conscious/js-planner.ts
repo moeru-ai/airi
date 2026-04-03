@@ -18,6 +18,32 @@ import { errorMessageFrom } from '@moeru/std'
 import { executeSandboxWorker } from './js-planner-sandbox-runner'
 import { createQueryRuntime } from './query-dsl'
 
+const FENCED_JAVASCRIPT_LANG_PATTERN = /^(?:js|javascript|ts|typescript)$/i
+const JAVASCRIPT_FENCE_NEWLINE_PATTERN = /\r?\n/
+
+function extractFencedJavaScriptBlock(input: string): string | null {
+  if (!input.startsWith('```') || !input.endsWith('```')) {
+    return null
+  }
+
+  const lines = input.split(JAVASCRIPT_FENCE_NEWLINE_PATTERN)
+  if (lines.length < 2) {
+    return null
+  }
+
+  const firstLine = lines[0].slice(3).trim()
+  if (firstLine && !FENCED_JAVASCRIPT_LANG_PATTERN.test(firstLine)) {
+    return null
+  }
+
+  const lastLine = lines.at(-1).trim()
+  if (lastLine !== '```') {
+    return null
+  }
+
+  return lines.slice(1, -1).join('\n')
+}
+
 interface JavaScriptPlannerOptions {
   bridgeTimeoutMs?: number
   timeoutMs?: number
@@ -533,10 +559,10 @@ function copyForIsolate<T>(value: T): T {
 
 export function extractJavaScriptCandidate(input: string): string {
   const trimmed = input.trim()
-  // eslint-disable-next-line regexp/no-super-linear-backtracking
-  const fenced = trimmed.match(/^```(?:js|javascript|ts|typescript)?[^\S\r\n]*\r?\n?([\s\S]*?)\r?\n?```$/i)
-  if (fenced?.[1])
-    return fenced[1].trim()
+
+  const fenced = extractFencedJavaScriptBlock(trimmed)
+  if (fenced)
+    return fenced.trim()
 
   return trimmed
 }

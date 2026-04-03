@@ -1,5 +1,8 @@
 import type { TextContentPart } from '@xsai/shared-chat'
 
+const LEADING_NEWLINE_INDENT_RE = /\n\s+/g
+const LEADING_CARRIAGE_RETURN_INDENT_RE = /\r\s+/g
+
 export function vif(condition: boolean, a: string, b = '') {
   return condition ? a : b
 }
@@ -19,8 +22,8 @@ export function vChoice(...args: [boolean | (() => boolean), string][]) {
 export function span(...args: string[]) {
   return args
     .map(arg => arg.trim())
-    .map(arg => arg.replaceAll(/\n\s+/g, ''))
-    .map(arg => arg.replaceAll(/\r\s+/g, ' '))
+    .map(arg => arg.replaceAll(LEADING_NEWLINE_INDENT_RE, ''))
+    .map(arg => arg.replaceAll(LEADING_CARRIAGE_RETURN_INDENT_RE, ' '))
     .join(' ')
 }
 

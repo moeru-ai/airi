@@ -12,6 +12,8 @@ import { message } from '@xsai/utils-chat'
 import { findPhotosDescriptions, recordPhoto } from '../models'
 import { toPngBase64 } from './image'
 
+const THINK_BLOCK_RE = /<think>[\s\S]*?<\/think>/
+
 export async function interpretPhotos(state: BotContext, msg: Message, photos: PhotoSize[]) {
   try {
     const fileIds = photos.map(photo => photo.file_id)
@@ -59,7 +61,7 @@ export async function interpretPhotos(state: BotContext, msg: Message, photos: P
       }
 
       const res = await generateText(req)
-      res.text = res.text.replace(/<think>[\s\S]*?<\/think>/, '').trim()
+      res.text = res.text.replace(THINK_BLOCK_RE, '').trim()
       if (!res.text) {
         throw new Error('No response text')
       }

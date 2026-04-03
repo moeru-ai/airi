@@ -19,12 +19,13 @@ export interface VisionInferenceInput {
 
 // TODO: this should be configurable
 const VISION_INFERENCE_TIMEOUT_MS = 60_000
+const DATA_URL_REGEX = /^data:([^,]+),(.*)$/
 
 function parseDataUrl(dataUrl: string) {
   if (!dataUrl.startsWith('data:'))
     return { mimeType: 'image/png', base64: dataUrl, url: dataUrl }
 
-  const [, meta, data] = dataUrl.match(/^data:([^,]+),(.*)$/) || []
+  const [, meta, data] = dataUrl.match(DATA_URL_REGEX) || []
   const mimeType = meta?.split(';')[0] || 'image/png'
   const base64 = meta?.includes('base64') ? data : btoa(data)
   return {

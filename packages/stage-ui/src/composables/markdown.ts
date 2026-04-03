@@ -17,6 +17,7 @@ type MarkdownProcessor = Processor<any, any, any, any, string>
 
 const processorCache = new Map<string, Promise<MarkdownProcessor>>()
 const langRegex = /```(.{2,})\s/g
+const CODE_FENCE_REGEX = /`{3,}/
 
 function extractLangs(markdown: string): BundledLanguage[] {
   const matches = markdown.matchAll(langRegex)
@@ -90,7 +91,7 @@ export function useMarkdown() {
 
   return {
     process: async (markdown: string): Promise<string> => {
-      const hasCodeFence = /`{3,}/.test(markdown)
+      const hasCodeFence = CODE_FENCE_REGEX.test(markdown)
       const meta = { length: markdown.length, hasCodeFence }
 
       return defaultPerfTracer.withMeasure('markdown', 'process', async () => {

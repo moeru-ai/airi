@@ -6,6 +6,8 @@ import { SELECTORS } from '../../parsers/selectors'
 import { TweetParser } from '../../parsers/tweet-parser'
 import { scrollToLoadMoreTweets } from '../utils/scroll-helper'
 
+const STATUS_ID_RE = /\/status\/(\d+)/
+
 /**
  * Tweet Interface
  */
@@ -238,7 +240,7 @@ export function useTwitterTweetServices(ctx: Context): TwitterService {
         if (toastLink) {
           const href = await toastLink.getAttribute('href')
           if (href) {
-            const match = href.match(/\/status\/(\d+)/)
+            const match = href.match(STATUS_ID_RE)
             tweetId = match?.[1] || ''
           }
         }
@@ -246,7 +248,7 @@ export function useTwitterTweetServices(ctx: Context): TwitterService {
         // If we couldn't get the ID from the toast, check the current URL
         if (!tweetId) {
           const url = await page.url()
-          const match = url.match(/\/status\/(\d+)/)
+          const match = url.match(STATUS_ID_RE)
           tweetId = match?.[1] || ''
         }
       }

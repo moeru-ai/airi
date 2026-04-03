@@ -17,15 +17,19 @@ import { listJoinedChats } from '../../../../models/chats'
 import { messageSplit } from '../../../../prompts'
 import { cancellable } from '../../../../utils/promise'
 
+const THINK_BLOCK_RE = /<think>[\s\S]*?<\/think>/
+const OPEN_JSON_CODE_FENCE_RE = /^```json\s*\n/
+const TRAILING_CODE_FENCE_RE = /\n```$/
+const OPEN_CODE_FENCE_RE = /^```\s*\n/
+
 export function parseMayStructuredMessage(responseText: string) {
   const logger = useLogg('parseMayStructuredMessage').useGlobalConfig()
 
-  // eslint-disable-next-line regexp/no-super-linear-backtracking, regexp/optimal-quantifier-concatenation
-  const result = /^\{(("?)*.*\s*)*\}$/mu.exec(responseText)
-  if (result) {
-    logger.withField('text', JSON.stringify(responseText)).withField('result', result).log('Multiple messages detected')
+  const trimmed = responseText.trim()
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    logger.withField('text', JSON.stringify(responseText)).withField('result', trimmed).log('Multiple messages detected')
 
-    const parsedResponse = parse(result[0]) as ({ messages?: unknown, reply_to_message_id?: unknown } | undefined)
+    const parsedResponse = parse(trimmed) as ({ messages?: unknown, reply_to_message_id?: unknown } | undefined)
     const messages = Array.isArray(parsedResponse?.messages)
       ? parsedResponse.messages.filter((message): message is string => typeof message === 'string' && message.trim() !== '')
       : []
@@ -90,11 +94,11 @@ export async function sendMessage(
 
   const res = await generateText(req)
   res.text = res.text
-    .replace(/<think>[\s\S]*?<\/think>/, '')
-    .replace(/^```json\s*\n/, '')
-    .replace(/\n```$/, '')
-    .replace(/^```\s*\n/, '')
-    .replace(/\n```$/, '')
+    .replace(THINK_BLOCK_RE, '')
+    .replace(OPEN_JSON_CODE_FENCE_RE, '')
+    .replace(TRAILING_CODE_FENCE_RE, '')
+    .replace(OPEN_CODE_FENCE_RE, '')
+    .replace(TRAILING_CODE_FENCE_RE, '')
     .trim()
   if (!res.text) {
     throw new Error('No response text')

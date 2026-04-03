@@ -62,6 +62,8 @@ const defaultMcpConfig: ElectronMcpStdioConfigFile = {
   mcpServers: {},
 }
 const toolNameSeparator = '::'
+const LEADING_DOTTED_TRANSPORT_PATTERN = /^\.(?:stdio|stdo)::/
+const LEADING_TRANSPORT_PATTERN = /^(?:stdio|stdo)::/
 const mcpRequestTimeoutMsec = 10_000
 const mcpRequestMaxTotalTimeoutMsec = 15_000
 
@@ -91,8 +93,8 @@ function parseQualifiedToolName(name: string) {
 
 function resolveFallbackToolName(toolName: string): string | undefined {
   const normalizedTransportPrefix = toolName
-    .replace(/^\.(?:stdio|stdo)::/, '')
-    .replace(/^(?:stdio|stdo)::/, '')
+    .replace(LEADING_DOTTED_TRANSPORT_PATTERN, '')
+    .replace(LEADING_TRANSPORT_PATTERN, '')
   if (normalizedTransportPrefix !== toolName) {
     return normalizedTransportPrefix
   }

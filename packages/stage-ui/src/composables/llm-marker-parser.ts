@@ -2,6 +2,8 @@ const TAG_OPEN = '<|'
 const TAG_CLOSE = '|>'
 const ESCAPED_TAG_OPEN = '<{\'|\'}'
 const ESCAPED_TAG_CLOSE = '{\'|\'}>'
+const ACT_DIRECTIVE_PREFIX_REGEX = /^\s*ACT\s*:\s*/i
+const LEADING_NEWLINES_REGEX = /^(?:\r?\n)+/
 
 interface MarkerToken {
   type: 'literal' | 'special'
@@ -82,7 +84,7 @@ function createLlmMarkerParser(options?: MarkerParserOptions) {
   let suppressLeadingNewlinesAfterAct = false
 
   function tryConsumeActDirective(allowIncomplete = false): ActDirectiveMatch | 'pending' | null {
-    const actPrefixMatch = /^(\s*)ACT\s*:\s*/i.exec(buffer)
+    const actPrefixMatch = ACT_DIRECTIVE_PREFIX_REGEX.exec(buffer)
     if (!actPrefixMatch) {
       return null
     }
@@ -108,7 +110,7 @@ function createLlmMarkerParser(options?: MarkerParserOptions) {
     }
 
     const payload = buffer.slice(prefixLength, newlineIndex).trim()
-    const rest = buffer.slice(newlineIndex).replace(/^(\r?\n)+/, '')
+    const rest = buffer.slice(newlineIndex).replace(LEADING_NEWLINES_REGEX, '')
     return {
       rest,
       special: `<|ACT:${normalizeActPayload(payload)}|>`,
@@ -138,7 +140,7 @@ function createLlmMarkerParser(options?: MarkerParserOptions) {
       while (buffer.length > 0) {
         if (!inTag) {
           if (suppressLeadingNewlinesAfterAct) {
-            const trimmed = buffer.replace(/^(\r?\n)+/, '')
+            const trimmed = buffer.replace(LEADING_NEWLINES_REGEX, '')
             if (trimmed !== buffer) {
               buffer = trimmed
               if (!buffer.length) {
@@ -198,7 +200,7 @@ function createLlmMarkerParser(options?: MarkerParserOptions) {
       if (actDirective && actDirective !== 'pending') {
         buffer = actDirective.rest
         await onSpecial(actDirective.special)
-        buffer = buffer.replace(/^(\r?\n)+/, '')
+        buffer = buffer.replace(LEADING_NEWLINES_REGEX, '')
       }
 
       if (!inTag && buffer.length > 0) {
