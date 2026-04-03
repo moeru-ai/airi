@@ -22,6 +22,7 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@moeru/std": "catalog:",
     "@proj-airi/vishot-runner-browser": "workspace:^",
     "@proj-airi/vishot-runtime": "workspace:^",
     "date-fns": "catalog:",

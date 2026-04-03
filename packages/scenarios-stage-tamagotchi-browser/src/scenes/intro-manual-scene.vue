@@ -4,7 +4,7 @@ import { ScenarioCanvas, ScenarioCaptureRoot } from '@proj-airi/vishot-runtime/v
 import { onMounted } from 'vue'
 
 import stageShot from '../../artifacts/raw/00-stage-tamagotchi.png'
-import websocketSettingsShot from '../../artifacts/raw/04-websocket-settings.png'
+import websocketSettingsShot from '../../artifacts/raw/03-websocket-settings.png'
 import Icon from '../components/icon.vue'
 
 import { PlatformRoot } from '../components/platforms/macos-26'

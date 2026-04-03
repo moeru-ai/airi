@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@moeru/std": "catalog:",
     "@proj-airi/vishot-runner-electron": "workspace:^"
   }
 }
