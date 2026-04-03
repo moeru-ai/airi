@@ -1,0 +1,24 @@
+{
+  "name": "@proj-airi/scenarios-stage-tamagotchi-electron",
+  "type": "module",
+  "version": "0.9.0-beta.0",
+  "private": true,
+  "description": "Product-owned Electron scenarios for stage-tamagotchi raw screenshot capture",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@proj-airi/vishot-runner-electron": "workspace:^"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.0",
+    "typescript": "^5.9.3"
+  }
+}
