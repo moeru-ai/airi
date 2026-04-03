@@ -1,8 +1,52 @@
-# WIP
+# AIRI Minecraft Service
 
-**Caution: Documentation below may be out of date.**
+This workspace runs AIRI's dedicated Minecraft bot. It connects a Mineflayer runtime to a Minecraft server, loads the cognitive stack in `src/cognitive`, and bridges status, context, and command traffic back to AIRI so the Stage settings shell can observe the service.
 
-## 🧠 Cognitive Architecture
+## Deprecation Notice
+
+This service is on a deprecation path. The current Mineflayer-based bot is expected to be replaced by a Fabric mod based runtime, which will become the primary Minecraft integration surface going forward.
+
+Use this service for current local development and maintenance, but avoid building new long-term features around the Mineflayer runtime unless they are also part of the migration plan.
+
+## Safety Notice
+
+Do not connect this bot to public servers you do not trust.
+
+The runtime can execute JavaScript-generated action plans to control the bot. Those scripts run in an isolated environment, but they still drive a real local process with access to your Minecraft session, local network reachability, and other machine-side resources. A malicious or hostile server can still cause unwanted actions, or damage to your system.
+
+Treat this service as a local-development and trusted-server tool only.
+
+## Setup
+
+1. Install workspace dependencies from the repo root:
+
+   ```bash
+   pnpm i
+   ```
+
+2. Copy the template:
+
+   ```bash
+   cp services/minecraft/.env services/minecraft/.env.local
+   ```
+
+3. Edit `services/minecraft/.env.local`.
+
+4. Start the service:
+
+   ```bash
+   pnpm -F @proj-airi/minecraft-bot dev
+   ```
+
+   Or, from `services/minecraft/`:
+
+   ```bash
+   pnpm dev
+   ```
+
+5. The bot should automatically connect to both AIRI and the Minecraft server.
+
+## Cognitive Architecture
 
 AIRI's Minecraft agent is built on a **four-layered cognitive architecture** inspired by cognitive science, enabling reactive, conscious, and physically grounded behaviors.
 
@@ -99,7 +143,7 @@ The action layer is responsible for the actual execution of tasks in the world. 
 - **Action Registry** (`action-registry.ts`): Validates params and dispatches tool calls.
 - **Tool Catalog** (`llm-actions.ts`): Action/tool definitions and schemas bound to mineflayer skills.
 
-### 🔄 Event Flow Example
+### Event Flow Example
 
 **Scenario: "Build a house"**
 ```txt
@@ -117,10 +161,11 @@ Player: "build a house"
 [Conscious] Brain confirms completion: "House is ready!"
 ```
 
-### 📁 Project Structure
+### Project Structure
 
 ```txt
 src/
+├── airi/                      # AIRI bridge, module shell, status publishing
 ├── cognitive/                  # 🧠 Perception → Reflex → Conscious → Action
 │   ├── perception/            # Event definitions + rule evaluation
 │   │   ├── events/
@@ -153,17 +198,21 @@ src/
 │   ├── container.ts           # Dependency injection wiring
 │   ├── index.ts               # Cognitive system entrypoint
 │   └── types.ts               # Shared cognitive types
+├── composables/
+│   ├── config.ts              # Environment schema + defaults
+│   ├── runtime-config.ts      # Persisted local runtime config
+│   └── bot.ts
+├── debug/                     # Debug dashboard, MCP REPL, viewer integration
 ├── libs/
 │   └── mineflayer/           # Mineflayer bot wrapper/adapters
 ├── skills/                   # Atomic bot capabilities
-├── composables/              # Reusable functions (config, etc.)
 ├── plugins/                  # Mineflayer/bot plugins
-├── debug/                    # Debug web dashboard + MCP bridge
 ├── utils/                    # Helpers
+├── minecraft-bot-runtime.ts  # Bot lifecycle wrapper for reconnect/reconfigure
 └── main.ts                   # Bot entrypoint
 ```
 
-### 🎯 Design Principles
+### Design Principles
 
 1. **Separation of Concerns**: Each layer has a distinct responsibility
 2. **Event-Driven**: Loose coupling via centralized event system
@@ -171,7 +220,7 @@ src/
 4. **Extensibility**: Easy to add new reflexes or conscious behaviors
 5. **Cognitive Realism**: Mimics human-like perception → reaction → deliberation
 
-### 🚧 Future Enhancements
+### Future Enhancements
 
 - **Perception Layer**:
   - ⏱️ Temporal context window (remember recent events)

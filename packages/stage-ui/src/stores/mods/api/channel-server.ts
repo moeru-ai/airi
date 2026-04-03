@@ -1,4 +1,12 @@
-import type { ContextUpdate, InputContextUpdate, WebSocketBaseEvent, WebSocketEvent, WebSocketEventOptionalSource, WebSocketEvents } from '@proj-airi/server-sdk'
+import type {
+  ContextUpdate,
+  InputContextUpdate,
+  WebSocketBaseEvent,
+  WebSocketEvent,
+  WebSocketEventOptionalSource,
+  WebSocketEvents,
+  WebSocketLikeConstructor,
+} from '@proj-airi/server-sdk'
 import type { CommonContentPart } from '@xsai/shared-chat'
 
 import { Client, WebSocketEventSource } from '@proj-airi/server-sdk'
@@ -6,29 +14,50 @@ import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
 import { useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { useWebSocketInspectorStore } from '../../devtools/websocket-inspector'
+
+interface ChannelListenerEntry {
+  type: keyof WebSocketEvents
+  callback: (event: WebSocketBaseEvent<any, any>) => void | Promise<void>
+  boundClient?: Client
+}
+
+const REPLAYABLE_EVENT_TYPES = new Set<keyof WebSocketEvents>([
+  'module:announced',
+  'module:de-announced',
+  'registry:modules:health:healthy',
+  'registry:modules:health:unhealthy',
+  'registry:modules:sync',
+])
 
 export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:server', () => {
   const connected = ref(false)
   const client = ref<Client>()
   const initializing = ref<Promise<void> | null>(null)
+  const websocketConstructor = ref<WebSocketLikeConstructor>()
   const pendingSend = ref<Array<WebSocketEvent>>([])
-  const listenersInitialized = ref(false)
-  const listenerDisposers = ref<Array<() => void>>([])
+  const pendingSendCount = computed(() => pendingSend.value.length)
 
   const defaultWebSocketUrl = import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws'
   const websocketUrl = useLocalStorage('settings/connection/websocket-url', defaultWebSocketUrl)
+  const registeredListeners: ChannelListenerEntry[] = []
+  const replayableEvents = new Map<keyof WebSocketEvents, WebSocketBaseEvent<any, any>>()
 
   const basePossibleEvents: Array<keyof WebSocketEvents> = [
     'context:update',
     'error',
     'module:announce',
+    'module:announced',
     'module:configure',
+    'module:de-announced',
     'module:consumer:register',
     'module:consumer:unregister',
     'module:authenticated',
+    'registry:modules:health:healthy',
+    'registry:modules:health:unhealthy',
+    'registry:modules:sync',
     'spark:notify',
     'spark:emit',
     'spark:command',
@@ -40,11 +69,19 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     'ui:configure',
   ]
 
-  async function initialize(options?: { token?: string, possibleEvents?: Array<keyof WebSocketEvents> }) {
+  async function initialize(options?: {
+    token?: string
+    possibleEvents?: Array<keyof WebSocketEvents>
+    websocketConstructor?: WebSocketLikeConstructor
+  }) {
     if (connected.value && client.value)
       return Promise.resolve()
     if (initializing.value)
       return initializing.value
+
+    if (options?.websocketConstructor) {
+      websocketConstructor.value = options.websocketConstructor
+    }
 
     const possibleEvents = Array.from(new Set<keyof WebSocketEvents>([
       ...basePossibleEvents,
@@ -56,8 +93,12 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
         name: isStageWeb() ? WebSocketEventSource.StageWeb : isStageTamagotchi() ? WebSocketEventSource.StageTamagotchi : WebSocketEventSource.StageWeb,
         url: websocketUrl.value || defaultWebSocketUrl,
         token: options?.token,
+        websocketConstructor: websocketConstructor.value,
         possibleEvents,
         onAnyMessage: (event) => {
+          if (REPLAYABLE_EVENT_TYPES.has(event.type as keyof WebSocketEvents))
+            replayableEvents.set(event.type as keyof WebSocketEvents, event as WebSocketBaseEvent<any, any>)
+
           useWebSocketInspectorStore().add('incoming', event)
         },
         onAnySend: (event) => {
@@ -67,6 +108,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
           connected.value = false
           initializing.value = null
           clearListeners()
+          replayableEvents.clear()
 
           console.warn('WebSocket server connection error:', error)
         },
@@ -74,8 +116,14 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
           connected.value = false
           initializing.value = null
           clearListeners()
+          replayableEvents.clear()
 
           console.warn('WebSocket server connection closed')
+        },
+        onReady: () => {
+          connected.value = true
+          flush()
+          initializeListeners()
         },
       })
 
@@ -105,23 +153,54 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   }
 
   function clearListeners() {
-    for (const disposer of listenerDisposers.value) {
-      try {
-        disposer()
-      }
-      catch (error) {
-        console.warn('Failed to dispose channel listener:', error)
+    for (const listener of registeredListeners) {
+      if (listener.boundClient) {
+        listener.boundClient.offEvent(listener.type, listener.callback as any)
+        listener.boundClient = undefined
       }
     }
-    listenerDisposers.value = []
-    listenersInitialized.value = false
   }
 
   function initializeListeners() {
     if (!client.value)
-      // No-op for now; keep placeholder for future shared listeners.
-      // eslint-disable-next-line no-useless-return
       return
+
+    for (const listener of registeredListeners) {
+      if (listener.boundClient === client.value)
+        continue
+
+      listener.boundClient?.offEvent(listener.type, listener.callback as any)
+      client.value.onEvent(listener.type, listener.callback as any)
+      listener.boundClient = client.value
+    }
+  }
+
+  function registerListener<E extends keyof WebSocketEvents>(
+    type: E,
+    callback: (event: WebSocketBaseEvent<E, WebSocketEvents[E]>) => void | Promise<void>,
+  ) {
+    if (!client.value && !initializing.value)
+      void initialize()
+
+    const entry: ChannelListenerEntry = {
+      type,
+      callback: callback as any,
+    }
+    registeredListeners.push(entry)
+    initializeListeners()
+
+    const replayableEvent = replayableEvents.get(type)
+    if (replayableEvent)
+      void Promise.resolve(callback(replayableEvent as WebSocketBaseEvent<E, WebSocketEvents[E]>))
+
+    return () => {
+      const index = registeredListeners.indexOf(entry)
+      if (index >= 0)
+        registeredListeners.splice(index, 1)
+
+      entry.boundClient?.offEvent(type, callback as any)
+      entry.boundClient = undefined
+    }
   }
 
   function send<C = undefined>(data: WebSocketEventOptionalSource<C>) {
@@ -146,29 +225,15 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     }
   }
 
-  function onContextUpdate(callback: (event: WebSocketBaseEvent<'context:update', ContextUpdate<Record<string, unknown>, string | CommonContentPart[]>>) => void | Promise<void>) {
-    if (!client.value && !initializing.value)
-      void initialize()
-
-    client.value?.onEvent('context:update', callback as any)
-
-    return () => {
-      client.value?.offEvent('context:update', callback as any)
-    }
+  function onContextUpdate(callback: (event: WebSocketBaseEvent<'context:update', ContextUpdate>) => void | Promise<void>) {
+    return registerListener('context:update', callback)
   }
 
   function onEvent<E extends keyof WebSocketEvents>(
     type: E,
     callback: (event: WebSocketBaseEvent<E, WebSocketEvents[E]>) => void | Promise<void>,
   ) {
-    if (!client.value && !initializing.value)
-      void initialize()
-
-    client.value?.onEvent(type, callback as any)
-
-    return () => {
-      client.value?.offEvent(type, callback as any)
-    }
+    return registerListener(type, callback)
   }
 
   function sendContextUpdate(message: InputContextUpdate) {
@@ -182,6 +247,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   function dispose() {
     flush()
     clearListeners()
+    replayableEvents.clear()
 
     if (client.value) {
       client.value.close()
@@ -203,6 +269,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
 
   return {
     connected,
+    pendingSendCount,
     ensureConnected,
 
     initialize,
@@ -210,6 +277,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     sendContextUpdate,
     onContextUpdate,
     onEvent,
+    getPendingSendSnapshot: () => [...pendingSend.value],
     dispose,
   }
 })

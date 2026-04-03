@@ -1,0 +1,15 @@
+/* ChillRoundM Regular */
+@font-face {
+  font-family: 'ChillRoundM';
+  font-style: normal;
+  font-display: swap;
+  src: url(./files/ChillRoundM.ttf) format('truetype');
+}
+
+/* ChillRoundM Regular (otf) */
+@font-face {
+  font-family: 'ChillRoundM';
+  font-style: normal;
+  font-display: swap;
+  src: url(./files/ChillRoundM.otf) format('opentype');
+}

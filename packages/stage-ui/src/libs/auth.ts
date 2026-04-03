@@ -1,6 +1,9 @@
+import type { OIDCFlowParams, TokenResponse } from './auth-oidc'
+
 import { createAuthClient } from 'better-auth/vue'
 
 import { useAuthStore } from '../stores/auth'
+import { buildAuthorizationURL, persistFlowState } from './auth-oidc'
 import { SERVER_URL } from './server'
 
 export type OAuthProvider = 'google' | 'github'
@@ -21,19 +24,10 @@ export const authClient = createAuthClient({
     // (config.mjs L40), which causes cookies to be sent alongside the Authorization
     // header. We override with "omit" so only the Bearer token is used for auth.
     // This works because restOfFetchOptions is spread AFTER the default (L47).
-    // OAuth flow delivers the token via URL query param (`auth_token`) instead.
     credentials: 'omit',
     auth: {
       type: 'Bearer',
       token: () => getAuthToken() ?? '',
-    },
-    // Capture session token from bearer plugin's `set-auth-token` response header
-    // (returned on sign-in/sign-up API calls that aren't redirects).
-    onResponse(context) {
-      const token = context.response.headers.get('set-auth-token')
-      if (token) {
-        useAuthStore().token = token
-      }
     },
   },
 })
@@ -44,37 +38,39 @@ export function initializeAuth() {
   if (initialized)
     return
 
-  // Pick up auth_token from OAuth callback redirect URL
-  extractTokenFromURL()
+  // NOTICE: OIDC callback is handled by the dedicated callback page
+  // (e.g. /auth/callback). initializeAuth() only restores existing
+  // sessions and refresh schedules — it does NOT consume the code.
 
   fetchSession().catch(() => {})
+
+  // Restore OIDC token refresh scheduling from persisted state
+  const authStore = useAuthStore()
+  authStore.restoreRefreshSchedule()
+
+  authStore.onTokenRefreshed(async (accessToken) => {
+    authStore.token = accessToken
+    await fetchSession()
+  })
+
   initialized = true
 }
 
 /**
- * After OAuth callback, the server appends `#auth_token=<token>` to the
- * redirect URL. Fragments are never sent to the server, avoiding leakage
- * into CDN/proxy logs or Referer headers. Extract it, persist, and clean.
+ * Persist OIDC tokens locally and schedule refresh.
  */
-function extractTokenFromURL() {
-  const hash = window.location.hash.slice(1) // remove leading '#'
-  if (!hash)
-    return
-
-  const params = new URLSearchParams(hash)
-  const token = params.get('auth_token')
-  if (!token)
-    return
-
-  // Persist through the Pinia store ref so reactive consumers (e.g.
-  // needsOnboarding) observe the change immediately. Writing to the
-  // useLocalStorage ref updates both the Vue reactivity system and
-  // the underlying localStorage entry in one step.
+export async function applyOIDCTokens(tokens: TokenResponse, clientId: string): Promise<void> {
   const authStore = useAuthStore()
-  authStore.token = decodeURIComponent(token)
+  authStore.token = tokens.access_token
+  if (tokens.refresh_token)
+    authStore.refreshToken = tokens.refresh_token
 
-  // Clean the fragment from the URL to avoid leaking it in browser history
-  window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
+  // Persist client info for refresh after page reload
+  authStore.oidcClientId = clientId
+  if (tokens.expires_in)
+    authStore.tokenExpiry = Date.now() + tokens.expires_in * 1000
+
+  authStore.scheduleTokenRefresh(tokens.expires_in)
 }
 
 export async function fetchSession() {
@@ -91,6 +87,8 @@ export async function fetchSession() {
   authStore.user = null
   authStore.session = null
   authStore.token = null
+  authStore.refreshToken = null
+  authStore.clearOIDCState()
   return false
 }
 
@@ -99,17 +97,41 @@ export async function listSessions() {
 }
 
 export async function signOut() {
-  await authClient.signOut()
-
   const authStore = useAuthStore()
+  authStore.clearOIDCState()
+
+  // NOTICE: Server signOut is wrapped in try/catch so that local state cleanup
+  // always runs regardless of server errors (e.g. network unreachable). User
+  // intent to log out is respected even if token revocation fails server-side.
+  try {
+    await authClient.signOut()
+  }
+  catch {
+    // Swallow — local cleanup below ensures the user is logged out client-side.
+  }
+
   authStore.user = null
   authStore.session = null
   authStore.token = null
+  authStore.refreshToken = null
 }
 
-export async function signIn(provider: OAuthProvider) {
-  return await authClient.signIn.social({
+/**
+ * Initiate OIDC Authorization Code + PKCE login flow.
+ * Builds the authorization URL, persists PKCE state, and navigates.
+ */
+export async function signInOIDC(params: OIDCFlowParams) {
+  const { provider, ...oidcParams } = params
+  const { url, flowState } = await buildAuthorizationURL(oidcParams)
+  persistFlowState(flowState, params)
+
+  if (!provider) {
+    window.location.href = url
+    return
+  }
+
+  await authClient.signIn.social({
     provider,
-    callbackURL: window.location.origin,
+    callbackURL: url.toString(),
   })
 }

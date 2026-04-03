@@ -2,6 +2,7 @@ import type { Cubism4InternalModel, InternalModel } from 'pixi-live2d-display/cu
 import type { Ref } from 'vue'
 
 import type { BeatSyncController } from './beat-sync'
+import type { useExpressionController } from './expression-controller'
 
 import { useLive2DIdleEyeFocus } from './animation'
 
@@ -57,10 +58,13 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
 
   const prePlugins: MotionManagerPlugin[] = []
   const postPlugins: MotionManagerPlugin[] = []
+  const finalPlugins: MotionManagerPlugin[] = []
 
-  function register(plugin: MotionManagerPlugin, stage: 'pre' | 'post' = 'pre') {
+  function register(plugin: MotionManagerPlugin, stage: 'pre' | 'post' | 'final' = 'pre') {
     if (stage === 'pre')
       prePlugins.push(plugin)
+    else if (stage === 'final')
+      finalPlugins.push(plugin)
     else
       postPlugins.push(plugin)
   }
@@ -107,6 +111,11 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
     }
 
     runPlugins(postPlugins, ctx)
+
+    // Final plugins always run regardless of handled state (e.g. expression overrides)
+    for (const plugin of finalPlugins) {
+      plugin(ctx)
+    }
 
     lastUpdateTime.value = now
     return ctx.handled
@@ -219,7 +228,9 @@ export function useMotionUpdatePluginIdleFocus(idleEyeFocus = useLive2DIdleEyeFo
   }
 }
 
-export function useMotionUpdatePluginAutoEyeBlink(): MotionManagerPlugin {
+export function useMotionUpdatePluginAutoEyeBlink(
+  live2dExpressionEnabled?: Ref<boolean>,
+): MotionManagerPlugin {
   const blinkState = {
     phase: 'idle' as 'idle' | 'closing' | 'opening',
     progress: 0,
@@ -227,8 +238,14 @@ export function useMotionUpdatePluginAutoEyeBlink(): MotionManagerPlugin {
     startRight: 1,
     delayMs: 0,
   }
-  const blinkCloseDuration = 200 // ms
-  const blinkOpenDuration = 200 // ms
+
+  // Eye values captured at blink start.  Used as the base during
+  // closing/opening so that models without eye motion curves don't
+  // get stuck at 0 (since 0 × factor = 0 forever).
+  let preBlinkLeft = 1.0
+  let preBlinkRight = 1.0
+  const blinkCloseDuration = 75 // ms
+  const blinkOpenDuration = 75 // ms
   const minDelay = 3000
   const maxDelay = 8000
 
@@ -291,71 +308,132 @@ export function useMotionUpdatePluginAutoEyeBlink(): MotionManagerPlugin {
   }
 
   return (ctx) => {
-    // Possibility 1: Only update eye focus when the model is idle
-    // Possibility 2: For models having no motion groups, currentGroup will be undefined while groups can be { idle: ... }
-    if (!ctx.isIdleMotion || ctx.handled)
+    // ===== EXPRESSION OFF: MAIN-IDENTICAL BEHAVIOR =====
+    // When the expression system is disabled, replicate the exact auto-blink
+    // logic from main so that hookUpdate returns the same handled state and
+    // the SDK eyeBlink/motion pipeline is not disrupted.
+    if (!live2dExpressionEnabled?.value) {
+      if (!ctx.isIdleMotion || ctx.handled)
+        return
+
+      const baseLeft = clamp01(ctx.modelParameters.value.leftEyeOpen)
+      const baseRight = clamp01(ctx.modelParameters.value.rightEyeOpen)
+
+      // Auto-blink OFF: absolute write + markHandled (same as main).
+      if (!ctx.live2dAutoBlinkEnabled.value) {
+        resetBlinkState()
+        ctx.model.setParameterValueById('ParamEyeLOpen', baseLeft)
+        ctx.model.setParameterValueById('ParamEyeROpen', baseRight)
+        ctx.markHandled()
+        return
+      }
+
+      // Force ON or eyeBlink null: timer blink + markHandled.
+      if (ctx.live2dForceAutoBlinkEnabled.value || !ctx.internalModel.eyeBlink) {
+        const rawDelta = Math.max(ctx.timeDelta ?? 0, 0)
+        const dt = rawDelta < 5 ? rawDelta * 1000 : rawDelta
+        const safeDt = dt || 16
+        const { eyeLOpen, eyeROpen } = updateForcedBlink(safeDt, baseLeft, baseRight)
+        ctx.model.setParameterValueById('ParamEyeLOpen', eyeLOpen)
+        ctx.model.setParameterValueById('ParamEyeROpen', eyeROpen)
+        ctx.markHandled()
+        return
+      }
+
+      // SDK eyeBlink path: explicit call → read back → multiply by base → markHandled.
+      ctx.internalModel.eyeBlink!.updateParameters(ctx.model, ctx.timeDelta / 1000)
+      const blinkLeft = ctx.model.getParameterValueById('ParamEyeLOpen') as number
+      const blinkRight = ctx.model.getParameterValueById('ParamEyeROpen') as number
+      ctx.model.setParameterValueById('ParamEyeLOpen', clamp01(blinkLeft * baseLeft))
+      ctx.model.setParameterValueById('ParamEyeROpen', clamp01(blinkRight * baseRight))
+      ctx.markHandled()
+      return
+    }
+
+    // ===== EXPRESSION ON: MULTIPLY-MODULATE BEHAVIOR =====
+    // Run during idle motion only (non-idle motions control eyes via curves).
+    if (!ctx.isIdleMotion)
       return
 
     const baseLeft = clamp01(ctx.modelParameters.value.leftEyeOpen)
     const baseRight = clamp01(ctx.modelParameters.value.rightEyeOpen)
 
-    // If the user disabled auto blink entirely, keep manual values and bail. Reset state so re-enabling starts fresh.
+    // Auto-blink OFF: apply manual base values only (multiply with current).
     if (!ctx.live2dAutoBlinkEnabled.value) {
       resetBlinkState()
-      ctx.model.setParameterValueById('ParamEyeLOpen', baseLeft)
-      ctx.model.setParameterValueById('ParamEyeROpen', baseRight)
-      ctx.markHandled()
+      const currentLeft = ctx.model.getParameterValueById('ParamEyeLOpen') as number
+      const currentRight = ctx.model.getParameterValueById('ParamEyeROpen') as number
+      ctx.model.setParameterValueById('ParamEyeLOpen', clamp01(currentLeft * baseLeft))
+      ctx.model.setParameterValueById('ParamEyeROpen', clamp01(currentRight * baseRight))
       return
     }
 
-    // Option 1: Force auto blink via our own timer (for models without eyeBlink or when forced in settings).
-    if (ctx.live2dForceAutoBlinkEnabled.value || !ctx.internalModel.eyeBlink) {
-      // timeDelta can be seconds or milliseconds depending on source; normalize to ms.
-      const rawDelta = Math.max(ctx.timeDelta ?? 0, 0)
-      const dt = rawDelta < 5 ? rawDelta * 1000 : rawDelta // If less than 5, treat as seconds (e.g., 0.016s -> 16ms).
-      const safeDt = dt || 16 // Fallback to ~1 frame to avoid getting stuck when timeDelta is 0 on first tick.
-
-      const { eyeLOpen, eyeROpen } = updateForcedBlink(safeDt, baseLeft, baseRight)
-
-      ctx.model.setParameterValueById('ParamEyeLOpen', eyeLOpen)
-      ctx.model.setParameterValueById('ParamEyeROpen', eyeROpen)
-      ctx.markHandled()
+    // Force OFF and SDK eyeBlink alive: should not happen when expression ON
+    // (eyeBlink is nullified), but guard defensively — just apply multiplier.
+    if (!ctx.live2dForceAutoBlinkEnabled.value && ctx.internalModel.eyeBlink != null) {
+      resetBlinkState()
+      const currentLeft = ctx.model.getParameterValueById('ParamEyeLOpen') as number
+      const currentRight = ctx.model.getParameterValueById('ParamEyeROpen') as number
+      ctx.model.setParameterValueById('ParamEyeLOpen', clamp01(currentLeft * baseLeft))
+      ctx.model.setParameterValueById('ParamEyeROpen', clamp01(currentRight * baseRight))
       return
     }
 
-    // Option 2: Let Cubism drive the blink, but scale it with the user-provided base.
-    // If the model has eye blink parameters
-    if (ctx.internalModel.eyeBlink != null) {
-      // For the part of the auto eye blink implementation in pixi-live2d-display
-      //
-      // this.emit("beforeMotionUpdate");
-      // const motionUpdated = this.motionManager.update(this.coreModel, now);
-      // this.emit("afterMotionUpdate");
-      // model.saveParameters();
-      // this.motionManager.expressionManager?.update(model, now);
-      // if (!motionUpdated) {
-      //   this.eyeBlink?.updateParameters(model, dt);
-      // }
-      //
-      // https://github.com/guansss/pixi-live2d-display/blob/31317b37d5e22955a44d5b11f37f421e94a11269/src/cubism4/Cubism4InternalModel.ts#L202-L214
-      //
-      // If the this.motionManager.update returns true, as motion updated flag on,
-      // the eye blink parameters will not be updated, in another hand, the auto eye blink is disabled
-      //
-      // Since we are hooking the motionManager.update method currently,
-      // and previously a always `true` was returned, eye blink parameters were never updated.
-      //
-      // Thous we are here to manually update the eye blink parameters within this hooked method
-      ctx.internalModel.eyeBlink.updateParameters(ctx.model, ctx.timeDelta / 1000)
+    // --- Force Auto Blink: stateful blink for models without idle blink curves ---
+
+    const currentLeft = ctx.model.getParameterValueById('ParamEyeLOpen') as number
+    const currentRight = ctx.model.getParameterValueById('ParamEyeROpen') as number
+
+    // Skip blink when eyes are already nearly/fully closed (e.g. by expression).
+    const BLINK_THRESHOLD = 0.15
+    if (blinkState.phase === 'idle' && currentLeft <= BLINK_THRESHOLD && currentRight <= BLINK_THRESHOLD) {
+      resetBlinkState()
+      return
     }
 
-    // Apply manual eye parameters after auto eye blink
-    const blinkLeft = ctx.model.getParameterValueById('ParamEyeLOpen') as number
-    const blinkRight = ctx.model.getParameterValueById('ParamEyeROpen') as number
+    // Track post-expression eye values during idle as the blink baseline.
+    if (blinkState.phase === 'idle') {
+      preBlinkLeft = currentLeft
+      preBlinkRight = currentRight
+    }
 
-    ctx.model.setParameterValueById('ParamEyeLOpen', clamp01(blinkLeft * baseLeft))
-    ctx.model.setParameterValueById('ParamEyeROpen', clamp01(blinkRight * baseRight))
+    // Advance blink timer.
+    const wasActive = blinkState.phase !== 'idle'
+    const rawDelta = Math.max(ctx.timeDelta ?? 0, 0)
+    const dt = rawDelta < 5 ? rawDelta * 1000 : rawDelta
+    const safeDt = dt || 16
+    const { eyeLOpen: blinkFactorL, eyeROpen: blinkFactorR } = updateForcedBlink(safeDt, 1.0, 1.0)
 
-    ctx.markHandled()
+    // Blink cycle complete: restore exact pre-blink values.
+    if (wasActive && blinkState.phase === 'idle') {
+      ctx.model.setParameterValueById('ParamEyeLOpen', clamp01(preBlinkLeft * baseLeft))
+      ctx.model.setParameterValueById('ParamEyeROpen', clamp01(preBlinkRight * baseRight))
+      return
+    }
+
+    // Idle: don't write (avoids feedback-loop decay).
+    if (blinkState.phase === 'idle')
+      return
+
+    // Active blink: saved pre-blink values × blinkFactor.
+    ctx.model.setParameterValueById('ParamEyeLOpen', clamp01(preBlinkLeft * blinkFactorL * baseLeft))
+    ctx.model.setParameterValueById('ParamEyeROpen', clamp01(preBlinkRight * blinkFactorR * baseRight))
+  }
+}
+
+/**
+ * Post-plugin that applies expression parameter overrides from the expression
+ * store onto the Live2D model every frame.
+ *
+ * This plugin intentionally ignores `ctx.handled` so that expression values
+ * are always applied on top of whatever the motion / blink plugins produced.
+ * It also does NOT call `ctx.markHandled()` so it never blocks other plugins.
+ */
+export function useMotionUpdatePluginExpression(
+  controller: ReturnType<typeof useExpressionController>,
+): MotionManagerPlugin {
+  return (ctx) => {
+    // Always apply regardless of handled state – expressions layer on top.
+    controller.applyExpressions(ctx.model)
   }
 }

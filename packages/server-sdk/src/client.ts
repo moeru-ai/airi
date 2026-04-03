@@ -8,7 +8,9 @@ import type {
   WebSocketEvents,
 } from '@proj-airi/server-shared/types'
 
-import WebSocket from 'crossws/websocket'
+import type { WebSocketLike, WebSocketLikeConstructor, WebSocketMessageEventLike } from './websocket-like'
+
+import NativeWebSocket from 'crossws/websocket'
 import superjson from 'superjson'
 
 import { errorMessageFrom, sleep } from '@moeru/std'
@@ -46,6 +48,7 @@ export interface ClientOptions<C = undefined> {
   url?: string
   name: string
   token?: string
+  websocketConstructor?: WebSocketLikeConstructor
 
   possibleEvents?: Array<keyof WebSocketEvents<C>>
   identity?: MetadataEventSource
@@ -72,7 +75,7 @@ interface ConnectionAttempt {
   promise: Promise<void>
   reject: (error: Error) => void
   resolve: () => void
-  socket: WebSocket
+  socket: WebSocketLike
 }
 
 function createInstanceId() {
@@ -107,7 +110,7 @@ function normalizeHeartbeatOptions(heartbeat?: ClientHeartbeatOptions): Required
 }
 
 export class Client<C = undefined> {
-  private websocket?: WebSocket
+  private websocket?: WebSocketLike
   private shouldClose = false
   private connectTask?: Promise<void>
   private heartbeatTimer?: ReturnType<typeof setInterval>
@@ -120,8 +123,9 @@ export class Client<C = undefined> {
   private status: ClientStatus = 'idle'
   private readonly identity: MetadataEventSource
   private readonly heartbeat: Required<ClientHeartbeatOptions>
+  private readonly websocketConstructor: WebSocketLikeConstructor
 
-  private readonly opts: Required<Omit<ClientOptions<C>, 'token' | 'heartbeat'>> & Pick<ClientOptions<C>, 'token'> & {
+  private readonly opts: Required<Omit<ClientOptions<C>, 'token' | 'heartbeat' | 'websocketConstructor'>> & Pick<ClientOptions<C>, 'token'> & {
     heartbeat: Required<ClientHeartbeatOptions>
   }
 
@@ -133,6 +137,7 @@ export class Client<C = undefined> {
   private readonly stateListeners = new Set<(context: ClientStateChangeContext) => void>()
 
   constructor(options: ClientOptions<C>) {
+    const { websocketConstructor, ...clientOptions } = options
     const identity = options.identity ?? {
       kind: 'plugin',
       plugin: { id: options.name },
@@ -155,13 +160,14 @@ export class Client<C = undefined> {
       autoConnect: true,
       autoReconnect: true,
       maxReconnectAttempts: -1,
-      ...options,
+      ...clientOptions,
       heartbeat,
       identity,
     }
 
     this.identity = identity
     this.heartbeat = heartbeat
+    this.websocketConstructor = websocketConstructor ?? (NativeWebSocket as unknown as WebSocketLikeConstructor)
 
     if (this.opts.autoConnect) {
       void this.connect()
@@ -177,7 +183,7 @@ export class Client<C = undefined> {
   }
 
   get isSocketOpen() {
-    return this.websocket?.readyState === WebSocket.OPEN
+    return this.websocket?.readyState === this.websocketConstructor.OPEN
   }
 
   get lastError() {
@@ -294,7 +300,7 @@ export class Client<C = undefined> {
     const websocket = this.websocket
     this.websocket = undefined
 
-    if (websocket && websocket.readyState !== WebSocket.CLOSED && websocket.readyState !== WebSocket.CLOSING) {
+    if (websocket && websocket.readyState !== this.websocketConstructor.CLOSED && websocket.readyState !== this.websocketConstructor.CLOSING) {
       websocket.close()
     }
 
@@ -347,7 +353,8 @@ export class Client<C = undefined> {
   }
 
   private connectOnce(): Promise<void> {
-    const ws = new WebSocket(this.opts.url)
+    const WebSocketConstructor = this.websocketConstructor
+    const ws = new WebSocketConstructor(this.opts.url)
     this.websocket = ws
     this.lastReadAt = Date.now()
     this.lastPingAt = 0
@@ -366,7 +373,7 @@ export class Client<C = undefined> {
 
     const isCurrentSocket = () => this.websocket === ws
 
-    ws.onmessage = (event: MessageEvent) => {
+    ws.onmessage = (event: WebSocketMessageEventLike) => {
       if (!isCurrentSocket()) {
         return
       }
@@ -433,7 +440,7 @@ export class Client<C = undefined> {
     return attempt.promise
   }
 
-  private handleSocketFailure(error: Error, socket?: WebSocket) {
+  private handleSocketFailure(error: Error, socket?: WebSocketLike) {
     if (socket && this.websocket !== socket) {
       return
     }
@@ -441,14 +448,14 @@ export class Client<C = undefined> {
     const currentSocket = socket ?? this.websocket
     this.cleanupSocket(socket)
 
-    if (currentSocket && currentSocket.readyState !== WebSocket.CLOSED && currentSocket.readyState !== WebSocket.CLOSING) {
+    if (currentSocket && currentSocket.readyState !== this.websocketConstructor.CLOSED && currentSocket.readyState !== this.websocketConstructor.CLOSING) {
       currentSocket.close()
     }
 
     this.rejectAttempt(error)
   }
 
-  private cleanupSocket(socket?: WebSocket) {
+  private cleanupSocket(socket?: WebSocketLike) {
     if (socket && this.websocket !== socket) {
       return
     }
@@ -576,7 +583,7 @@ export class Client<C = undefined> {
     })
   }
 
-  private async handleMessage(event: MessageEvent) {
+  private async handleMessage(event: WebSocketMessageEventLike) {
     this.lastReadAt = Date.now()
 
     try {
@@ -755,7 +762,7 @@ export class Client<C = undefined> {
   }
 
   private sendNativeHeartbeat(kind: 'ping' | 'pong') {
-    const websocket = this.websocket as WebSocket & {
+    const websocket = this.websocket as WebSocketLike & {
       ping?: () => void
       pong?: () => void
     }
@@ -809,7 +816,7 @@ export class Client<C = undefined> {
     this.cleanupSocket(websocket)
     this.rejectAttempt(error)
 
-    if (websocket && websocket.readyState !== WebSocket.CLOSED && websocket.readyState !== WebSocket.CLOSING) {
+    if (websocket && websocket.readyState !== this.websocketConstructor.CLOSED && websocket.readyState !== this.websocketConstructor.CLOSING) {
       websocket.close()
     }
 

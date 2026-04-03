@@ -1,4 +1,5 @@
 import type { I18n } from '../../libs/i18n'
+import type { WindowAuthManager } from '../../services/airi/auth'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { McpStdioManager } from '../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
@@ -31,6 +32,7 @@ export function setupSettingsWindowReusableFunc(params: {
   serverChannel: ServerChannel
   mcpStdioManager: McpStdioManager
   i18n: I18n
+  windowAuthManager: WindowAuthManager
 }): SettingsWindowManager {
   const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
   const defaultRoute = '/settings'
@@ -69,6 +71,7 @@ export function setupSettingsWindowReusableFunc(params: {
       serverChannel: params.serverChannel,
       mcpStdioManager: params.mcpStdioManager,
       i18n: params.i18n,
+      windowAuthManager: params.windowAuthManager,
     })
 
     window.on('closed', () => {

@@ -123,6 +123,15 @@ live2d:
 microphone: Micro
 models: Mô hình
 pages:
+  account:
+    title: Account
+    description: View your profile and manage your account
+    notLoggedIn: Sign in to view your account and access all features
+    login: Log in
+    logout: Log out
+    fluxBalance: Flux Balance
+    viewFluxDetails: View details
+    signedInAs: Signed in as
   card:
     activate: Kích hoạt
     active: Đang hoạt động
@@ -245,6 +254,10 @@ pages:
         title: Xóa tất cả dữ liệu
         description: Xóa sạch toàn bộ thiết lập cục bộ, cấu hình nhà cung cấp và mô hình.
         delete: Xóa sạch dữ liệu
+      desktop-folder:
+        title: Open app data folder
+        description: Open AIRI's data folder in your file manager.
+        open: Open folder
       desktop:
         title: Đặt lại thiết lập máy tính
         description: Xóa các cài đặt và trạng thái thực thi của AIRI trên máy tính.
@@ -371,16 +384,30 @@ pages:
       description: Chơi Minecraft!
       title: Minecraft
       enable: Bật tích hợp Minecraft
-      enable-description: Cho phép AIRI tương tác với trò chơi Minecraft
-      server-address: Địa chỉ máy chủ
-      server-address-description: Địa chỉ IP hoặc tên máy chủ của máy chủ Minecraft
-      server-address-placeholder: Nhập địa chỉ máy chủ (ví dụ localhost hoặc play.example.com)
-      server-port: Cổng máy chủ
-      server-port-description: Số cổng của máy chủ Minecraft (mặc định 25565)
-      username: Tên người dùng
-      username-description: Tên người dùng của bạn trên máy chủ Minecraft
-      username-placeholder: Nhập tên người dùng Minecraft của bạn
+      enable-description: Include Minecraft self-knowledge in Stage chat turns and keep passive runtime visibility enabled.
       configured: Đã cấu hình Minecraft thành công!
+      read-only:
+        title: Read-only shell
+        description: Stage currently exposes Minecraft as a passive shell. Runtime status and traffic are visible here, but service configuration stays in the Minecraft service files.
+      setup:
+        title: Setup
+        description: You can find the instructions for setting up the bot in the following file
+      runtime:
+        title: Observed runtime
+        connection: Connection
+        latest-context: Latest bot context
+        waiting: Waiting for a fresh bot-originated context push.
+        unknown: Unknown
+      debug:
+        title: Minecraft traffic
+        empty: No Minecraft traffic observed yet.
+        source: 'Source: {source}'
+      status:
+        service-online: Service online
+        service-offline: Service offline
+        no-runtime-context: 'No bot context observed yet'
+        last-context-seconds: 'Last bot context: {seconds}s ago'
+        last-context-stale: 'Last bot context: Stale'
     hearing:
       description: Cấu hình nhận diện giọng nói
       title: Nghe
@@ -791,6 +818,9 @@ pages:
       openai:
         description: openai.com
         title: OpenAI
+      azure-openai:
+        description: Azure OpenAI API
+        title: Azure OpenAI
       openai-compatible:
         description: Tương thích OpenAI
         title: Tương thích OpenAI
@@ -801,6 +831,9 @@ pages:
         description: n1n.ai - Cung cấp API AI hiệu năng cao.
         title: n1n
       openrouter:
+        description: openrouter.ai
+        title: OpenRouter
+      openrouter-audio-speech:
         description: openrouter.ai
         title: OpenRouter
       perplexity:
