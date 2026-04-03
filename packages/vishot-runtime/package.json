@@ -32,9 +32,6 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.5",
-    "typescript": "^5.9.3",
-    "vite": "catalog:",
-    "vitest": "catalog:vitest",
     "vue-tsc": "^3.2.6"
   }
 }
