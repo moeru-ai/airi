@@ -45,42 +45,42 @@ promo-banner:
   items:
     signin:
       watermark: Moon
-      fallbackLabel: Cadeau lunaire
-      title: Cadeau de connexion 7 jours
-      eventName: Connectez-vous pour obtenir poussière d’étoile, cadre d’avatar et cadeaux spéciaux.
+      fallbackLabel: Moon Gift
+      title: 7-Day Sign-In
+      eventName: Sign in to claim stardust, avatar frames, and launch gifts.
       date: 03/28 - 04/10
-      reward: Jusqu’à 120 poussières d’étoile
-      cta: Se connecter
+      reward: Up to 120 Stardust
+      cta: Sign In
     build:
       watermark: Build
-      fallbackLabel: Bonus chantier
-      title: Caisse bonus
-      eventName: Terminez les missions de construction pour obtenir des coupons et des matériaux doublés.
+      fallbackLabel: Build Bonus
+      title: Supply Box Bonus
+      eventName: Finish construction tasks to earn bonus vouchers and double materials.
       date: 03/30 - 04/12
-      reward: 5 coupons + matériaux d’amélioration
-      cta: Voir les missions
+      reward: 5 Supply Vouchers + Upgrade Materials
+      cta: View Tasks
     spring:
       watermark: Spring
-      fallbackLabel: Tirage printanier
-      title: Carnaval capsule
-      eventName: Participez au tirage du printemps pour débloquer bulles, charms et meubles thématiques.
+      fallbackLabel: Spring Draw
+      title: Capsule Carnival
+      eventName: Join the spring draw to unlock bubbles, charms, and themed furniture.
       date: 04/01 - 04/18
-      reward: Premier tirage à moitié prix + charm rare
-      cta: Aller au tirage
+      reward: Half-Price First Pull + Rare Charm
+      cta: Draw Now
     coupon:
       watermark: Talk
       fallbackLabel: Coupon
-      title: Coupon de recharge
-      eventName: Terminez des interactions pour obtenir des coupons pour packs de dialogue et de voix.
+      title: Top-Up Coupon
+      eventName: Finish chat interactions to claim coupons for expansion and voice packs.
       date: 04/02 - 04/20
-      reward: -6 sur 30 / -15 sur 68
-      cta: Récupérer le coupon
+      reward: Save 6 on 30 / Save 15 on 68
+      cta: Claim Coupon
     home:
       watermark: Home
-      fallbackLabel: Theme de chambre
-      title: Décor de printemps
-      eventName: Débloquez des thèmes de fenêtre, bureau et veilleuse pour renouveler votre espace.
+      fallbackLabel: Room Theme
+      title: Spring Theme Update
+      eventName: Unlock window, desk, and night-lamp themes to refresh your room.
       date: 04/05 - 04/22
-      reward: Ticket de thème offert à la connexion
-      cta: Voir le thème
+      reward: Free Theme Draw Ticket on Login
+      cta: View Theme
 waiting: En attente

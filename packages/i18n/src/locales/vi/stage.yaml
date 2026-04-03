@@ -45,42 +45,42 @@ promo-banner:
   items:
     signin:
       watermark: Moon
-      fallbackLabel: Qua trang
-      title: Quà đăng nhập 7 ngày
-      eventName: Đăng nhập để nhận bụi sao, khung avatar và quà ra mắt đặc biệt.
+      fallbackLabel: Moon Gift
+      title: 7-Day Sign-In
+      eventName: Sign in to claim stardust, avatar frames, and launch gifts.
       date: 03/28 - 04/10
-      reward: Tối đa 120 bụi sao
-      cta: Điểm danh ngay
+      reward: Up to 120 Stardust
+      cta: Sign In
     build:
       watermark: Build
-      fallbackLabel: Thuong xay dung
-      title: Thùng tiếp tế thêm quà
-      eventName: Hoàn thành nhiệm vụ xây dựng để nhận phiếu tiếp tế và nguyên liệu nhân đôi.
+      fallbackLabel: Build Bonus
+      title: Supply Box Bonus
+      eventName: Finish construction tasks to earn bonus vouchers and double materials.
       date: 03/30 - 04/12
-      reward: 5 phiếu tiếp tế + nguyên liệu nâng cấp
-      cta: Xem nhiệm vụ
+      reward: 5 Supply Vouchers + Upgrade Materials
+      cta: View Tasks
     spring:
       watermark: Spring
-      fallbackLabel: Rut thuong xuan
-      title: Lễ hội capsule
-      eventName: Tham gia vòng quay mùa xuân để mở khóa bong bóng chat, charm và nội thất chủ đề.
+      fallbackLabel: Spring Draw
+      title: Capsule Carnival
+      eventName: Join the spring draw to unlock bubbles, charms, and themed furniture.
       date: 04/01 - 04/18
-      reward: Lượt đầu giảm nửa giá + charm hiếm
-      cta: Đến quay ngay
+      reward: Half-Price First Pull + Rare Charm
+      cta: Draw Now
     coupon:
       watermark: Talk
-      fallbackLabel: Phieu giam gia
-      title: Phiếu ưu đãi nạp
-      eventName: Hoàn thành tương tác hội thoại để nhận phiếu cho gói mở rộng và gói giọng nói.
+      fallbackLabel: Coupon
+      title: Top-Up Coupon
+      eventName: Finish chat interactions to claim coupons for expansion and voice packs.
       date: 04/02 - 04/20
-      reward: Giảm 6 cho 30 / giảm 15 cho 68
-      cta: Nhận phiếu
+      reward: Save 6 on 30 / Save 15 on 68
+      cta: Claim Coupon
     home:
       watermark: Home
-      fallbackLabel: Chu de phong
-      title: Cập nhật chủ đề xuân
-      eventName: Mở khóa chủ đề cửa sổ, bàn và đèn ngủ để làm mới không gian trang chủ.
+      fallbackLabel: Room Theme
+      title: Spring Theme Update
+      eventName: Unlock window, desk, and night-lamp themes to refresh your room.
       date: 04/05 - 04/22
-      reward: Tặng vé quay chủ đề khi đăng nhập
-      cta: Xem chủ đề
+      reward: Free Theme Draw Ticket on Login
+      cta: View Theme
 waiting: Đang chờ
