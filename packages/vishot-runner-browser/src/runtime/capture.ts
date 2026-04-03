@@ -1,6 +1,6 @@
 import type { Page } from 'playwright'
 
-import type { BrowserCaptureRequest, CapturedRootArtifact } from './types'
+import type { BrowserCaptureRequest, VishotArtifact } from './types'
 
 import path from 'node:path'
 
@@ -8,6 +8,7 @@ import { mkdir } from 'node:fs/promises'
 
 import { chromium } from 'playwright'
 
+import { applyArtifactTransformers, createImageArtifact } from './artifacts'
 import { assertUniqueCaptureFilePaths, captureFilePath } from './files'
 import { captureRootSelector } from './selectors'
 import { startSceneViteServer } from './vite-server'
@@ -34,7 +35,7 @@ async function waitForScenarioReady(page: Page): Promise<void> {
   })
 }
 
-async function captureRoot(page: Page, outputDir: string, rootName: string): Promise<CapturedRootArtifact> {
+async function captureRoot(page: Page, outputDir: string, rootName: string): Promise<VishotArtifact> {
   const filePath = captureFilePath(outputDir, rootName)
   const locator = page.locator(captureRootSelector(rootName))
 
@@ -44,10 +45,11 @@ async function captureRoot(page: Page, outputDir: string, rootName: string): Pro
     path: filePath,
   })
 
-  return {
-    rootName,
+  return createImageArtifact({
+    artifactName: rootName,
     filePath,
-  }
+    stage: 'browser-final',
+  })
 }
 
 async function resolveBaseUrl(request: BrowserCaptureRequest): Promise<{ baseUrl: string, closeServer?: () => Promise<void> }> {
@@ -67,7 +69,7 @@ async function resolveBaseUrl(request: BrowserCaptureRequest): Promise<{ baseUrl
   throw new Error('Browser capture requires either "baseUrl" or "sceneAppRoot"')
 }
 
-export async function captureBrowserRoots(request: BrowserCaptureRequest): Promise<CapturedRootArtifact[]> {
+export async function captureBrowserRoots(request: BrowserCaptureRequest): Promise<VishotArtifact[]> {
   const { baseUrl, closeServer } = await resolveBaseUrl(request)
   let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined
 
@@ -95,10 +97,11 @@ export async function captureBrowserRoots(request: BrowserCaptureRequest): Promi
 
       assertUniqueCaptureFilePaths(rootNames)
 
-      const artifacts: CapturedRootArtifact[] = []
+      const artifacts: VishotArtifact[] = []
 
       for (const rootName of rootNames) {
-        artifacts.push(await captureRoot(page, request.outputDir, rootName))
+        const artifact = await captureRoot(page, request.outputDir, rootName)
+        artifacts.push(...await applyArtifactTransformers(artifact, request.imageTransformers))
       }
 
       return artifacts

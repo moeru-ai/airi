@@ -13,8 +13,12 @@ export function sanitizeOutputName(name: string): string {
   return sanitized.length > 0 ? sanitized : 'capture'
 }
 
+export function artifactFilePath(outputDir: string, artifactName: string, format: string): string {
+  return path.resolve(outputDir, `${sanitizeOutputName(artifactName)}.${format}`)
+}
+
 export function captureFilePath(outputDir: string, rootName: string): string {
-  return path.resolve(outputDir, `${sanitizeOutputName(rootName)}.png`)
+  return artifactFilePath(outputDir, rootName, 'png')
 }
 
 export function assertUniqueCaptureFilePaths(rootNames: string[]): void {

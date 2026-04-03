@@ -193,7 +193,7 @@ describe('captureBrowserRoots', () => {
       outputDir,
     })
 
-    expect(artifacts.map(item => item.rootName)).toEqual([
+    expect(artifacts.map(item => item.artifactName)).toEqual([
       'intro-chat-window',
       'intro-websocket-settings',
     ])
