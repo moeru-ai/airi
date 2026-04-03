@@ -2515,6 +2515,9 @@ importers:
 
   packages/scenarios-stage-tamagotchi-browser:
     dependencies:
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
       '@proj-airi/vishot-runner-browser':
         specifier: workspace:^
         version: link:../vishot-runner-browser
@@ -2549,6 +2552,9 @@ importers:
 
   packages/scenarios-stage-tamagotchi-electron:
     dependencies:
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
       '@proj-airi/vishot-runner-electron':
         specifier: workspace:^
         version: link:../vishot-runner-electron
