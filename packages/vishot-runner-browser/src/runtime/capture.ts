@@ -4,12 +4,17 @@ import type { BrowserCaptureRequest, VishotArtifact } from './types'
 
 import path from 'node:path'
 
-import { mkdir } from 'node:fs/promises'
+import { mkdir, rm } from 'node:fs/promises'
 
 import { chromium } from 'playwright'
 
 import { applyArtifactTransformers, createImageArtifact } from './artifacts'
-import { assertUniqueCaptureFilePaths, captureFilePath } from './files'
+import {
+  assertArtifactFilesExist,
+  assertUniqueArtifactFilePaths,
+  assertUniqueCaptureFilePaths,
+  captureFilePath,
+} from './files'
 import { captureRootSelector } from './selectors'
 import { startSceneViteServer } from './vite-server'
 
@@ -50,6 +55,48 @@ async function captureRoot(page: Page, outputDir: string, rootName: string): Pro
     filePath,
     stage: 'browser-final',
   })
+}
+
+function assertBrowserImageArtifact(artifact: VishotArtifact): void {
+  if (artifact.kind !== 'image' || artifact.stage !== 'browser-final') {
+    throw new Error(
+      `Browser image transformers must return image artifacts with stage "browser-final". Received kind="${artifact.kind}" stage="${artifact.stage}" for artifact "${artifact.artifactName}".`,
+    )
+  }
+}
+
+async function applyBrowserImageTransformers(
+  artifact: VishotArtifact,
+  transformers: BrowserCaptureRequest['imageTransformers'],
+): Promise<VishotArtifact[]> {
+  const sourceFilePath = artifact.filePath
+  let currentArtifacts: VishotArtifact[] = [artifact]
+
+  for (const transformer of transformers ?? []) {
+    const nextArtifacts: VishotArtifact[] = []
+
+    for (const currentArtifact of currentArtifacts) {
+      const transformedArtifacts = await applyArtifactTransformers(currentArtifact, [transformer])
+
+      for (const transformedArtifact of transformedArtifacts) {
+        assertBrowserImageArtifact(transformedArtifact)
+        nextArtifacts.push(transformedArtifact)
+      }
+    }
+
+    assertUniqueArtifactFilePaths(nextArtifacts)
+    await assertArtifactFilesExist(nextArtifacts)
+    currentArtifacts = nextArtifacts
+  }
+
+  assertUniqueArtifactFilePaths(currentArtifacts)
+  await assertArtifactFilesExist(currentArtifacts)
+
+  if (currentArtifacts.length > 0 && currentArtifacts.every(artifact => artifact.filePath !== sourceFilePath)) {
+    await rm(sourceFilePath, { force: true })
+  }
+
+  return currentArtifacts
 }
 
 async function resolveBaseUrl(request: BrowserCaptureRequest): Promise<{ baseUrl: string, closeServer?: () => Promise<void> }> {
@@ -101,9 +148,10 @@ export async function captureBrowserRoots(request: BrowserCaptureRequest): Promi
 
       for (const rootName of rootNames) {
         const artifact = await captureRoot(page, request.outputDir, rootName)
-        artifacts.push(...await applyArtifactTransformers(artifact, request.imageTransformers))
+        artifacts.push(...await applyBrowserImageTransformers(artifact, request.imageTransformers))
       }
 
+      assertUniqueArtifactFilePaths(artifacts)
       return artifacts
     }
     finally {
