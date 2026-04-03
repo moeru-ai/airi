@@ -68,6 +68,11 @@ export default defineConfig({
 
     resolve: {
       alias: {
+        '@proj-airi/server-sdk': resolve(join(import.meta.dirname, '..', '..', 'packages', 'server-sdk', 'src')),
+        '@proj-airi/server-shared': resolve(join(import.meta.dirname, '..', '..', 'packages', 'server-shared', 'src')),
+        '@proj-airi/server-shared/types': resolve(join(import.meta.dirname, '..', '..', 'packages', 'server-shared', 'src', 'types', 'index.ts')),
+        '@proj-airi/electron-eventa/electron-updater': resolve(join(import.meta.dirname, '..', '..', 'packages', 'electron-eventa', 'src', 'electron-updater', 'index.ts')),
+        '@proj-airi/electron-eventa': resolve(join(import.meta.dirname, '..', '..', 'packages', 'electron-eventa', 'src', 'index.ts')),
         '@proj-airi/i18n': resolve(join(import.meta.dirname, '..', '..', 'packages', 'i18n', 'src')),
       },
     },
@@ -132,6 +137,11 @@ export default defineConfig({
     resolve: {
       alias: {
         '@proj-airi/server-sdk': resolve(join(import.meta.dirname, '..', '..', 'packages', 'server-sdk', 'src')),
+        '@proj-airi/server-shared': resolve(join(import.meta.dirname, '..', '..', 'packages', 'server-shared', 'src')),
+        '@proj-airi/server-shared/types': resolve(join(import.meta.dirname, '..', '..', 'packages', 'server-shared', 'src', 'types', 'index.ts')),
+        '@proj-airi/stream-kit': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stream-kit', 'src')),
+        '@proj-airi/electron-eventa/electron-updater': resolve(join(import.meta.dirname, '..', '..', 'packages', 'electron-eventa', 'src', 'electron-updater', 'index.ts')),
+        '@proj-airi/electron-eventa': resolve(join(import.meta.dirname, '..', '..', 'packages', 'electron-eventa', 'src', 'index.ts')),
         '@proj-airi/i18n': resolve(join(import.meta.dirname, '..', '..', 'packages', 'i18n', 'src')),
         '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src')),
         '@proj-airi/stage-pages': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src')),

@@ -34,12 +34,14 @@ export const openClawToolSchema = z.object({
 
 export type OpenClawToolPayload = z.infer<typeof openClawToolSchema>
 
-const explicitOpenClawTaskPatterns = [
-  /^\s*請用\s*OpenClaw\s*執行這個任務[：:]\s*(.+?)\s*$/i,
-  /^\s*請用\s*OpenClaw\s*執行任務[：:]\s*(.+?)\s*$/i,
-  /^\s*請交給\s*OpenClaw\s*處理[：:]\s*(.+?)\s*$/i,
-  /^\s*這是一個要交給\s*OpenClaw\s*的任務[：:]\s*(.+?)\s*$/i,
+const EXPLICIT_OPENCLAW_TASK_PREFIXES = [
+  '請用 OpenClaw 執行這個任務',
+  '請用 OpenClaw 執行任務',
+  '請交給 OpenClaw 處理',
+  '這是一個要交給 OpenClaw 的任務',
 ] as const
+
+const EXPLICIT_OPENCLAW_TASK_SPLIT_PATTERN = /[：:]/
 
 export interface OpenClawToolResult {
   error?: {
@@ -54,13 +56,17 @@ export interface OpenClawToolResult {
 }
 
 export function extractExplicitOpenClawTask(message: string): string | undefined {
-  for (const pattern of explicitOpenClawTaskPatterns) {
-    const match = message.match(pattern)
-    const task = match?.[1]?.trim()
+  const trimmedMessage = message.trim()
 
-    if (task) {
-      return task
+  for (const prefix of EXPLICIT_OPENCLAW_TASK_PREFIXES) {
+    if (!trimmedMessage.startsWith(prefix)) {
+      continue
     }
+
+    const [, ...rest] = trimmedMessage.split(EXPLICIT_OPENCLAW_TASK_SPLIT_PATTERN)
+    const task = rest.join(':').trim()
+    if (task)
+      return task
   }
 
   return undefined

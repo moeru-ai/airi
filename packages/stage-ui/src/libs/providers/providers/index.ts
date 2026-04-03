@@ -28,6 +28,7 @@ import './ollama'
 import './cloudflare-workers-ai'
 import './azure-ai-foundry'
 import './official'
+import './openclaw'
 
 export {
   getDefinedProvider,

@@ -13,6 +13,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { z } from 'zod/v4'
 
+import { isOpenClawModelTarget } from '../libs/providers/providers/openclaw/shared'
 import { debug, executeOpenClawTool, mcp, openclaw } from '../tools'
 import { useModsServerChannelStore } from './mods/api/channel-server'
 
@@ -103,11 +104,20 @@ export interface StreamOptions {
   abortSignal?: AbortSignal
   headers?: Record<string, string>
   onStreamEvent?: (event: StreamEvent) => void | Promise<void>
+  providerId?: string
   toolsCompatibility?: Map<string, boolean>
   waitForOpenClawResult?: (commandId: string, payload: OpenClawToolPayload) => Promise<OpenClawToolResult>
   supportsTools?: boolean
   waitForTools?: boolean
   tools?: Tool[] | (() => Promise<Tool[] | undefined>)
+}
+
+export function shouldExposeOpenClawBridgeTool(model: string, options?: StreamOptions): boolean {
+  if (options?.providerId === 'openclaw') {
+    return false
+  }
+
+  return !isOpenClawModelTarget(model)
 }
 
 function sanitizeMessages(messages: unknown[]): Message[] {
@@ -193,11 +203,12 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
   }
 
   const supportedTools = streamOptionsToolsCompatibilityOk(model, chatProvider, messages, options)
+  const includeOpenClawBridgeTool = shouldExposeOpenClawBridgeTool(model, options)
   const tools = supportedTools
     ? [
         ...await mcp(),
         ...await debug(),
-        ...await openclaw(sendSparkCommand, options?.waitForOpenClawResult),
+        ...(includeOpenClawBridgeTool ? await openclaw(sendSparkCommand, options?.waitForOpenClawResult) : []),
         ...await resolveTools(),
         await tool({
           name: 'call_spark_command',
@@ -325,29 +336,30 @@ export const useLLM = defineStore('llm', () => {
   function waitForOpenClawResult(commandId: string, payload: OpenClawToolPayload, timeoutMs = 120_000) {
     return new Promise<OpenClawToolResult>((resolve, reject) => {
       let settled = false
+      let timeout: ReturnType<typeof setTimeout>
 
-      const cleanup = (dispose: () => void, timeout: ReturnType<typeof setTimeout>) => {
+      const cleanup = (dispose: () => void) => {
         clearTimeout(timeout)
         dispose()
       }
 
-      const settleResolve = (dispose: () => void, timeout: ReturnType<typeof setTimeout>, value: OpenClawToolResult) => {
+      const settleResolve = (dispose: () => void, value: OpenClawToolResult) => {
         if (settled) {
           return
         }
 
         settled = true
-        cleanup(dispose, timeout)
+        cleanup(dispose)
         resolve(value)
       }
 
-      const settleReject = (dispose: () => void, timeout: ReturnType<typeof setTimeout>, error: unknown) => {
+      const settleReject = (dispose: () => void, error: unknown) => {
         if (settled) {
           return
         }
 
         settled = true
-        cleanup(dispose, timeout)
+        cleanup(dispose)
         reject(error)
       }
 
@@ -361,7 +373,7 @@ export const useLLM = defineStore('llm', () => {
           return
         }
 
-        settleResolve(dispose, timeout, {
+        settleResolve(dispose, {
           error: metadata.error,
           result: metadata.result,
           status: metadata.status,
@@ -369,8 +381,8 @@ export const useLLM = defineStore('llm', () => {
         })
       })
 
-      const timeout = setTimeout(() => {
-        settleReject(dispose, timeout, new Error(`Timed out waiting for OpenClaw result (${commandId})`))
+      timeout = setTimeout(() => {
+        settleReject(dispose, new Error(`Timed out waiting for OpenClaw result (${commandId})`))
       }, timeoutMs)
     })
   }

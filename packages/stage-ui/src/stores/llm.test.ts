@@ -3,7 +3,7 @@ import type { WebSocketBaseEvent, WebSocketEvents } from '@proj-airi/server-sdk'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { describe, expect, it } from 'vitest'
 
-import { isToolRelatedError, isTrustedOpenClawResultEvent, prepareSparkCommandForSend } from './llm'
+import { isToolRelatedError, isTrustedOpenClawResultEvent, prepareSparkCommandForSend, shouldExposeOpenClawBridgeTool } from './llm'
 
 describe('isToolRelatedError', () => {
   const positives: [provider: string, msg: string][] = [
@@ -95,6 +95,16 @@ describe('prepareSparkCommandForSend', () => {
     }
 
     expect(prepareSparkCommandForSend(command).destinations).toEqual([])
+  })
+})
+
+describe('shouldExposeOpenClawBridgeTool', () => {
+  it('disables the bridge tool when the active provider is native OpenClaw', () => {
+    expect(shouldExposeOpenClawBridgeTool('openclaw/default', { providerId: 'openclaw' })).toBe(false)
+  })
+
+  it('keeps the bridge tool for non-OpenClaw providers', () => {
+    expect(shouldExposeOpenClawBridgeTool('gpt-4o', { providerId: 'openai' })).toBe(true)
   })
 })
 

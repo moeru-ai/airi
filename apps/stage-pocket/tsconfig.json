@@ -8,12 +8,31 @@
       "DOM.Iterable",
       "DOM.AsyncIterable"
     ],
+    "baseUrl": ".",
     "paths": {
       "@proj-airi/stage-ui/*": [
         "../../packages/stage-ui/src/*"
       ],
       "@proj-airi/stage-layouts/*": [
         "../../packages/stage-layouts/src/*"
+      ],
+      "@proj-airi/server-sdk": [
+        "../../packages/server-sdk/src/index.ts"
+      ],
+      "@proj-airi/server-sdk/*": [
+        "../../packages/server-sdk/src/*"
+      ],
+      "@proj-airi/server-shared": [
+        "../../packages/server-shared/src/index.ts"
+      ],
+      "@proj-airi/server-shared/*": [
+        "../../packages/server-shared/src/*"
+      ],
+      "@proj-airi/stream-kit": [
+        "../../packages/stream-kit/src/index.ts"
+      ],
+      "@proj-airi/stream-kit/*": [
+        "../../packages/stream-kit/src/*"
       ]
     },
     "resolveJsonModule": true,

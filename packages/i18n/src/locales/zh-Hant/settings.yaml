@@ -870,6 +870,42 @@ pages:
         speech-description: Official text-to-speech provider by AIRI.
         transcription-title: Official Transcription Provider
         transcription-description: Official speech-to-text provider by AIRI.
+      openclaw:
+        title: OpenClaw
+        description: 以 agent 為核心的 OpenClaw 原生聊天提供者。
+        fields:
+          field:
+            agent-id:
+              label: Agent ID
+              description: 作為預設驗證與聊天路由目標的 OpenClaw agent 識別名稱。
+              placeholder: default
+            api-key:
+              description: 用於存取 OpenClaw HTTP API 的 operator 等級權杖。
+            api-mode:
+              label: API 模式
+              description: 選擇聊天請求要使用的 OpenClaw 相容端點。
+              options:
+                chat-completions: Chat Completions
+                responses: Responses（預覽）
+            base-url:
+              description: OpenClaw 服務的基礎 URL。AIRI 會自動正規化到 /v1 HTTP API 路徑。
+              placeholder: http://localhost:18789
+            session-key:
+              label: 手動 Session Key
+              description: 當 Session 策略設為手動時使用的明確 session key。
+              placeholder: team-room-1
+            session-strategy:
+              label: Session 策略
+              description: 選擇要由 AIRI 自動推導穩定的 OpenClaw session key，或改用手動指定值。
+              options:
+                auto: 自動
+                manual: 手動
+        troubleshooting:
+          validators:
+            openai-compatible-check-connectivity:
+              label: OpenClaw HTTP API 可能尚未完整啟用
+              content: >-
+                請確認 OpenClaw 正在運行、HTTP 相容 API 已啟用，且目前設定的 operator 權杖可存取對應的 agent targets。為了安全，建議優先使用 localhost 或 private network，而不是直接公開對外。
       transcriptions:
         playground:
           title: 實驗平台

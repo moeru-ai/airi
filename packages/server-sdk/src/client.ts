@@ -121,7 +121,7 @@ export class Client<C = undefined> {
   private readonly identity: MetadataEventSource
   private readonly heartbeat: Required<ClientHeartbeatOptions>
 
-  private readonly opts: Required<Omit<ClientOptions<C>, 'token' | 'heartbeat'>> & Pick<ClientOptions<C>, 'token'> & {
+  private readonly opts: Required<Omit<ClientOptions<C>, 'token' | 'heartbeat' | 'configSchema'>> & Pick<ClientOptions<C>, 'token' | 'configSchema'> & {
     heartbeat: Required<ClientHeartbeatOptions>
   }
 
@@ -147,7 +147,6 @@ export class Client<C = undefined> {
       onAnySend: () => {},
       possibleEvents: [],
       dependencies: [],
-      configSchema: undefined,
       onError: () => {},
       onClose: () => {},
       onReady: () => {},

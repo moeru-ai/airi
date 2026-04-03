@@ -928,6 +928,42 @@ pages:
         speech-description: Official text-to-speech provider by AIRI.
         transcription-title: Official Transcription Provider
         transcription-description: Official speech-to-text provider by AIRI.
+      openclaw:
+        title: OpenClaw
+        description: Native OpenClaw provider for agent-first chat workflows.
+        fields:
+          field:
+            agent-id:
+              label: Agent ID
+              description: The OpenClaw agent ID used as the default target for validation and chat routing.
+              placeholder: default
+            api-key:
+              description: Operator-level token used to access the OpenClaw HTTP API.
+            api-mode:
+              label: API Mode
+              description: Choose the OpenClaw compatibility endpoint used for chat requests.
+              options:
+                chat-completions: Chat Completions
+                responses: Responses (Preview)
+            base-url:
+              description: Base URL of the OpenClaw server. AIRI will normalize it to the /v1 HTTP API path.
+              placeholder: http://localhost:18789
+            session-key:
+              label: Manual Session Key
+              description: Explicit session key used when session strategy is set to manual.
+              placeholder: team-room-1
+            session-strategy:
+              label: Session Strategy
+              description: Choose whether AIRI derives a stable OpenClaw session key automatically or uses a manual one.
+              options:
+                auto: Auto
+                manual: Manual
+        troubleshooting:
+          validators:
+            openai-compatible-check-connectivity:
+              label: OpenClaw HTTP API setup may be incomplete
+              content: >-
+                Make sure OpenClaw is running, the HTTP compatibility API is enabled, and the configured operator token has access to the requested agent targets. For safety, prefer localhost or a private network instead of exposing the OpenClaw API publicly.
       transcriptions:
         playground:
           title: Transcription Playground

@@ -14,16 +14,40 @@
     "baseUrl": "./src/renderer",
     "paths": {
       "@proj-airi/stage-pages/*.vue": [
-        "../../packages/stage-pages/src/*.vue"
+        "../../../../packages/stage-pages/src/*.vue"
       ],
       "@proj-airi/stage-pages/*": [
-        "../../packages/stage-pages/src/*.ts"
+        "../../../../packages/stage-pages/src/*.ts"
       ],
       "@proj-airi/stage-ui/*": [
-        "../../packages/stage-ui/src/*"
+        "../../../../packages/stage-ui/src/*"
       ],
       "@proj-airi/stage-layouts/*": [
-        "../../packages/stage-layouts/src/*"
+        "../../../../packages/stage-layouts/src/*"
+      ],
+      "@proj-airi/server-sdk": [
+        "../../../../packages/server-sdk/src/index.ts"
+      ],
+      "@proj-airi/server-sdk/*": [
+        "../../../../packages/server-sdk/src/*"
+      ],
+      "@proj-airi/server-shared": [
+        "../../../../packages/server-shared/src/index.ts"
+      ],
+      "@proj-airi/server-shared/*": [
+        "../../../../packages/server-shared/src/*"
+      ],
+      "@proj-airi/stream-kit": [
+        "../../../../packages/stream-kit/src/index.ts"
+      ],
+      "@proj-airi/stream-kit/*": [
+        "../../../../packages/stream-kit/src/*"
+      ],
+      "@proj-airi/electron-eventa": [
+        "../../../../packages/electron-eventa/src/index.ts"
+      ],
+      "@proj-airi/electron-eventa/*": [
+        "../../../../packages/electron-eventa/src/*"
       ]
     },
     "resolveJsonModule": true,

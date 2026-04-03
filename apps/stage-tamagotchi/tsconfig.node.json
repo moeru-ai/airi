@@ -8,6 +8,15 @@
       "ESNext"
     ],
     "useDefineForClassFields": true,
+    "baseUrl": ".",
+    "paths": {
+      "@proj-airi/electron-eventa": [
+        "../../packages/electron-eventa/src/index.ts"
+      ],
+      "@proj-airi/electron-eventa/*": [
+        "../../packages/electron-eventa/src/*"
+      ]
+    },
     "resolveJsonModule": true,
     "types": [
       "vitest",

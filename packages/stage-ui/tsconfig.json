@@ -7,8 +7,29 @@
       "ESNext",
       "DOM.AsyncIterable"
     ],
+    "baseUrl": ".",
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "paths": {
+      "@proj-airi/server-sdk": [
+        "../server-sdk/src/index.ts"
+      ],
+      "@proj-airi/server-sdk/*": [
+        "../server-sdk/src/*"
+      ],
+      "@proj-airi/server-shared": [
+        "../server-shared/src/index.ts"
+      ],
+      "@proj-airi/server-shared/*": [
+        "../server-shared/src/*"
+      ],
+      "@proj-airi/stream-kit": [
+        "../stream-kit/src/index.ts"
+      ],
+      "@proj-airi/stream-kit/*": [
+        "../stream-kit/src/*"
+      ]
+    },
     "resolveJsonModule": true,
     "types": [
       "vitest",

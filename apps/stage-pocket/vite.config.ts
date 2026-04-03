@@ -24,10 +24,13 @@ import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
 import { defineConfig } from 'vite'
 
 // import { isEnvTruthy } from '@proj-airi/stage-shared'
+const ENV_TRUTHY_PATTERN = /^(?:1|true|t|yes|y|on)$/i
+const WINDOWS_NEWLINE_SPLIT_PATTERN = /\r?\n/
+
 function isEnvTruthy(value: string | undefined | null): boolean {
   if (value == null)
     return false
-  return /^(?:1|true|t|yes|y|on)$/i.test(value.trim())
+  return ENV_TRUTHY_PATTERN.test(value.trim())
 }
 
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
@@ -64,6 +67,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@proj-airi/server-sdk': resolve(join(import.meta.dirname, '..', '..', 'packages', 'server-sdk', 'src')),
+      '@proj-airi/server-shared': resolve(join(import.meta.dirname, '..', '..', 'packages', 'server-shared', 'src')),
+      '@proj-airi/server-shared/types': resolve(join(import.meta.dirname, '..', '..', 'packages', 'server-shared', 'src', 'types', 'index.ts')),
+      '@proj-airi/stream-kit': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stream-kit', 'src')),
       '@proj-airi/i18n': resolve(join(import.meta.dirname, '..', '..', 'packages', 'i18n', 'src')),
       '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src')),
       '@proj-airi/stage-layouts': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-layouts', 'src')),
@@ -108,7 +114,7 @@ export default defineConfig({
           // Workaround: plugin's bundled downloader has a feaxios bug, prefer system mkcert
           const command = process.platform === 'win32' ? 'where' : 'which'
           try {
-            return { mkcertPath: execSync(`${command} mkcert`, { stdio: 'pipe' }).toString().trim().split(/\r?\n/)[0] }
+            return { mkcertPath: execSync(`${command} mkcert`, { stdio: 'pipe' }).toString().trim().split(WINDOWS_NEWLINE_SPLIT_PATTERN)[0] }
           }
           catch {
             return {}

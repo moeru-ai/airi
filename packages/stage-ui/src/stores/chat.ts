@@ -13,6 +13,7 @@ import { ref, toRaw } from 'vue'
 import { useAnalytics } from '../composables'
 import { useLlmmarkerParser } from '../composables/llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from '../composables/response-categoriser'
+import { buildOpenClawSessionHeaders } from '../libs/providers/providers/openclaw/shared'
 import { extractExplicitOpenClawTask } from '../tools'
 import { useAuthStore } from './auth'
 import { buildContextPromptMessage } from './chat/context-prompt'
@@ -24,6 +25,7 @@ import { useChatStreamStore } from './chat/stream-store'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useLLM } from './llm'
 import { useConsciousnessStore } from './modules/consciousness'
+import { useProvidersStore } from './providers'
 
 interface SendOptions {
   model: string
@@ -65,6 +67,7 @@ export interface QueuedSendSnapshot {
 export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const llmStore = useLLM()
   const consciousnessStore = useConsciousnessStore()
+  const providersStore = useProvidersStore()
   const authStore = useAuthStore()
   const { activeProvider } = storeToRefs(consciousnessStore)
   const { trackFirstMessage } = useAnalytics()
@@ -377,13 +380,31 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       await hooks.emitBeforeSendHooks(sendingMessage, streamingMessageContext)
 
       let fullText = ''
-      const headers = (options.providerConfig?.headers || {}) as Record<string, string>
+      const resolvedProviderConfig = (options.providerConfig || providersStore.getProviderConfig(activeProvider.value) || {}) as Record<string, unknown>
+      const headers = { ...((resolvedProviderConfig.headers || {}) as Record<string, string>) }
+
+      if (activeProvider.value === 'openclaw') {
+        Object.assign(headers, buildOpenClawSessionHeaders({
+          activeSessionId: chatSession.activeSessionId,
+          fallbackSessionId: sessionId,
+          sessionKey: typeof resolvedProviderConfig.sessionKey === 'string' ? resolvedProviderConfig.sessionKey : undefined,
+          sessionStrategy: resolvedProviderConfig.sessionStrategy === 'manual' ? 'manual' : 'auto',
+        }))
+
+        const underlyingModel = typeof resolvedProviderConfig.underlyingModel === 'string'
+          ? resolvedProviderConfig.underlyingModel.trim()
+          : ''
+        if (underlyingModel) {
+          headers['x-openclaw-model'] = underlyingModel
+        }
+      }
 
       if (shouldAbort())
         return
 
       await llmStore.stream(options.model, options.chatProvider, newMessages as Message[], {
         headers,
+        providerId: activeProvider.value,
         tools: options.tools,
         // NOTICE: xsai stream may emit `finish` before tool steps continue, so keep waiting until
         // the final non-tool finish to avoid ending the chat turn with no assistant reply.

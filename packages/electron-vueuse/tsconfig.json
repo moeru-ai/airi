@@ -5,8 +5,17 @@
       "ESNext",
       "DOM"
     ],
+    "baseUrl": ".",
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "paths": {
+      "@proj-airi/electron-eventa": [
+        "../electron-eventa/src/index.ts"
+      ],
+      "@proj-airi/electron-eventa/*": [
+        "../electron-eventa/src/*"
+      ]
+    },
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
