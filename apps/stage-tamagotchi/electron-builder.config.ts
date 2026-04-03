@@ -33,6 +33,10 @@ if (!useIconFormattedMacAppIcon) {
   console.warn('[electron-builder/config] Warning: Xcode version is below 26. Using .icns format for macOS app icon.')
 }
 else {
+  // NOTICE: This success-path message intentionally uses stderr via `console.warn`.
+  // The artifact metadata CLI imports this config and is used in GitHub Actions
+  // command substitution for `GITHUB_ENV`; writing this log to stdout would break
+  // machine-readable output such as `BUNDLE_NAME=$(...)`.
   console.warn('[electron-builder/config] Xcode version is 26 or above. Using .icon format for macOS app icon.')
 }
 
@@ -97,6 +101,10 @@ export default {
   },
   win: {
     executableName: 'airi',
+    // NOTICE: Keep `channel: 'latest-${arch}'` for architecture-aware updater metadata.
+    // electron-builder expands `${arch}` at publish-time (for example: `latest-x64`, `latest-arm64`),
+    // and electron-updater later consumes that expanded channel to resolve platform-specific *.yml files.
+    // This prevents cross-arch lookups such as arm64 clients reading x64 metadata.
     publish: {
       provider: 'github',
       owner: 'moeru-ai',
@@ -115,6 +123,8 @@ export default {
   },
   mac: {
     entitlementsInherit: 'build/entitlements.mac.plist',
+    // NOTICE: Same channel rule as Windows. Keep `${arch}` here so generated metadata resolves
+    // to architecture-specific update feeds on macOS (for example: `latest-x64-mac.yml`, `latest-arm64-mac.yml`).
     publish: {
       provider: 'github',
       owner: 'moeru-ai',
@@ -148,6 +158,7 @@ export default {
       'deb',
       'rpm',
     ],
+    // NOTICE: Same channel rule as Windows/macOS. Keep `${arch}` to avoid x64/arm64 feed collisions on Linux.
     publish: {
       provider: 'github',
       owner: 'moeru-ai',

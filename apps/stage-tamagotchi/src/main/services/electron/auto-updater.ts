@@ -94,6 +94,9 @@ export function setupAutoUpdater(): AutoUpdater {
   const OFFICIAL_UPDATER_PENDING_DIR = join(OFFICIAL_UPDATER_CACHE_DIR, 'pending')
   let resolvedFeedUrl = 'N/A'
 
+  // NOTICE: Diagnostics are intentionally included in updater state for supportability.
+  // Updater failures are often environment-dependent (platform/arch/channel/feed/cache path),
+  // and surfacing this context in logs/UI dramatically reduces reproduction time.
   const getDiagnostics = () => {
     const executablePath = process.execPath
     const uninstallPath = process.platform === 'win32'
@@ -168,6 +171,9 @@ export function setupAutoUpdater(): AutoUpdater {
       return
 
     const archChannel = getReleaseChannelName()
+    // NOTICE: We query Releases API ourselves to enforce prerelease/stable matching with runtime version.
+    // The generic feed URL is then pinned to the chosen tag so updater metadata resolves deterministically.
+    // This avoids accidental cross-track updates (for example, stable app selecting prerelease metadata).
     const releasesApi = 'https://api.github.com/repos/moeru-ai/airi/releases?per_page=20'
     const response = await fetch(releasesApi, {
       headers: {
