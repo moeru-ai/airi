@@ -11,6 +11,24 @@ import { PlatformRoot } from '../components/platforms/macos-26'
 import { Application } from '../components/platforms/macos-26/containers/dock'
 import { WindowRoot } from '../components/platforms/macos-26/containers/window'
 
+/**
+ * These coordinates are expressed in the logical `1920x1080` canvas provided by
+ * `ScenarioCanvas`, not in the browser's live viewport.
+ *
+ * That is why the windows keep their relative placement when the viewport size
+ * changes: the browser scales the entire fixed scene surface after layout rather
+ * than reinterpreting each translate against a resized responsive container.
+ */
+const stageWindowStyle = {
+  left: '1200px',
+  top: '400px',
+}
+
+const websocketWindowStyle = {
+  left: '480px',
+  top: '120px',
+}
+
 async function waitForImageSource(source: string): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const image = new Image()
@@ -38,14 +56,14 @@ onMounted(async () => {
 </script>
 
 <template>
-  <ScenarioCanvas>
+  <ScenarioCanvas :width="1920" :height="1080">
     <ScenarioCaptureRoot name="intro-chat-window">
       <PlatformRoot :dock-size="1.5">
         <template #windows>
-          <WindowRoot class="translate-x-300 translate-y-100" :frame="false" :has-shadow="false">
+          <WindowRoot :style="stageWindowStyle" :frame="false" :has-shadow="false">
             <img :src="stageShot" class="w-95">
           </WindowRoot>
-          <WindowRoot class="translate-x-120 translate-y-30">
+          <WindowRoot :style="websocketWindowStyle">
             <img :src="websocketSettingsShot" class="w-120">
           </WindowRoot>
         </template>
