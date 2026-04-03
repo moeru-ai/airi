@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     projects: [
       'apps/server',
+      'apps/ui-server-auth',
       'apps/stage-tamagotchi',
       'packages/audio-pipelines-transcribe',
       'packages/cap-vite',

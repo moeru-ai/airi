@@ -4,6 +4,7 @@ import { useSettingsGeneral, useSettingsTheme } from '@proj-airi/stage-ui/stores
 import { storeToRefs } from 'pinia'
 import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { RouterView } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
 
 const i18n = useI18n()
@@ -27,6 +28,7 @@ watch(themeSettings.themeColorsHueDynamic, () => {
 
 <template>
   <div>
+    <RouterView />
     <ToasterRoot @close="id => toast.dismiss(id)">
       <Toaster />
     </ToasterRoot>
