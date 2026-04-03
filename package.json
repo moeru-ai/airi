@@ -14,6 +14,8 @@
   "scripts": {
     "start": "pnpm dev:web",
     "start:web": "pnpm dev:web",
+    "service:up": "bash ./scripts/service-up.sh",
+    "service:down": "bash ./scripts/service-down.sh",
     "kokoro:start": "bash ./scripts/kokoro-start.sh",
     "kokoro:restart": "bash ./scripts/kokoro-restart.sh",
     "kokoro:stop": "bash ./scripts/kokoro-stop.sh",

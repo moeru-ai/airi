@@ -10,6 +10,7 @@ SERVER_PORT="${AIRI_SERVER_PORT:-6121}"
 WEB_PORT="${AIRI_WEB_PORT:-5173}"
 WEB_URL="${AIRI_WEB_URL:-http://localhost:${WEB_PORT}}"
 WEB_HEALTH_TIMEOUT="${AIRI_WEB_HEALTH_TIMEOUT:-5}"
+OPENCLAW_BRIDGE_ENABLED="${OPENCLAW_BRIDGE_ENABLED:-false}"
 
 LOG_DIR="${AIRI_LOG_DIR:-${ROOT_DIR}/.logs/airi-openclaw}"
 SERVER_LOG="${AIRI_SERVER_LOG:-${LOG_DIR}/airi-server-runtime.log}"
@@ -83,6 +84,11 @@ start_server() {
 }
 
 start_bridge() {
+  if [[ "$OPENCLAW_BRIDGE_ENABLED" != "true" ]]; then
+    printf '目前已停用 OpenClaw bridge 啟動；如需啟用請設定 OPENCLAW_BRIDGE_ENABLED=true。\n'
+    return
+  fi
+
   if [[ ! -f "$BRIDGE_ENV_FILE" ]]; then
     printf '找不到 OpenClaw bridge 設定檔：%s\n' "$BRIDGE_ENV_FILE" >&2
     exit 1
@@ -171,7 +177,11 @@ main() {
       ;;
   esac
 
-  printf '目前使用的 OpenClaw bridge 設定檔：%s\n' "$BRIDGE_ENV_FILE"
+  if [[ "$OPENCLAW_BRIDGE_ENABLED" == "true" ]]; then
+    printf '目前使用的 OpenClaw bridge 設定檔：%s\n' "$BRIDGE_ENV_FILE"
+  else
+    printf '目前未啟用 OpenClaw bridge。\n'
+  fi
 }
 
 main "$@"
