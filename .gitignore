@@ -132,3 +132,9 @@ apps/stage-tamagotchi/electron.vite.config.*.mjs
 
 # Tools - Obsidian
 .obsidian/
+
+# Local agent and workflow state
+.cursor/
+.opencode/
+.sisyphus/
+openspec/config.yaml
