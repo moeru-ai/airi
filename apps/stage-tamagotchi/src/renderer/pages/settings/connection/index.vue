@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import ConnectionSettings from '@proj-airi/stage-pages/pages/settings/connection/ConnectionSettings.vue'
 
-import { FieldCheckbox } from '@proj-airi/ui'
+import { Callout, FieldCheckbox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -9,7 +9,7 @@ import { useI18n } from 'vue-i18n'
 import { useServerChannelSettingsStore } from '../../../stores/settings/server-channel'
 
 const serverChannelSettingsStore = useServerChannelSettingsStore()
-const { websocketTlsConfig } = storeToRefs(serverChannelSettingsStore)
+const { lastApplyError, websocketTlsConfig } = storeToRefs(serverChannelSettingsStore)
 const { t } = useI18n()
 
 const websocketTlsEnabled = computed({
@@ -23,6 +23,7 @@ const websocketTlsEnabled = computed({
 <template>
   <ConnectionSettings>
     <template #platform-specific>
+      <!-- TODO: show connected remote -->
       <FieldCheckbox
         v-model="websocketTlsEnabled"
         v-motion
@@ -33,6 +34,14 @@ const websocketTlsEnabled = computed({
         :label="t('settings.websocket-secure-enabled.title')"
         :description="t('settings.websocket-secure-enabled.description')"
       />
+
+      <Callout
+        v-if="lastApplyError"
+        theme="orange"
+        :label="t('settings.websocket-secure-enabled.title')"
+      >
+        {{ lastApplyError }}
+      </Callout>
     </template>
   </ConnectionSettings>
 </template>
