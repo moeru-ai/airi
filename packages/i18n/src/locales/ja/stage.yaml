@@ -41,4 +41,46 @@ profile-switcher:
   save-as-new: 新規プロファイルとして保存
   new-profile-name: Profile name
   manage: プロファイルを管理
+promo-banner:
+  items:
+    signin:
+      watermark: Moon
+      fallbackLabel: 月の贈り物
+      title: 7日間ログイン特典
+      eventName: ログインで星砂、アイコンフレーム、登場記念ギフトを獲得できます。
+      date: 03/28 - 04/10
+      reward: 最大 120 星砂
+      cta: 今すぐ受け取る
+    build:
+      watermark: Build
+      fallbackLabel: 建造ボーナス
+      title: 補給箱ボーナス
+      eventName: 建造任務を完了すると補給券と2倍素材報酬を獲得できます。
+      date: 03/30 - 04/12
+      reward: 補給券 x5 + 強化素材
+      cta: 任務を見る
+    spring:
+      watermark: Spring
+      fallbackLabel: 春の抽選
+      title: カプセルカーニバル
+      eventName: 春のガチャに参加して吹き出し、チャーム、テーマ家具を解放しましょう。
+      date: 04/01 - 04/18
+      reward: 初回半額 + レアチャーム
+      cta: 引きに行く
+    coupon:
+      watermark: Talk
+      fallbackLabel: クーポン
+      title: チャージクーポン
+      eventName: 会話ミッションを完了すると拡張パックや音声パック用クーポンを受け取れます。
+      date: 04/02 - 04/20
+      reward: 30で6割引 / 68で15割引
+      cta: クーポンを受け取る
+    home:
+      watermark: Home
+      fallbackLabel: ルームテーマ
+      title: 春のルーム更新
+      eventName: 窓辺、デスク、ナイトライトのテーマを開放して部屋を模様替えできます。
+      date: 04/05 - 04/22
+      reward: ログインでテーマ抽選券
+      cta: テーマを見る
 waiting: 待機中

@@ -41,4 +41,46 @@ profile-switcher:
   save-as-new: 存为新角色
   new-profile-name: 角色卡名称
   manage: 管理角色卡
+promo-banner:
+  items:
+    signin:
+      watermark: Moon
+      fallbackLabel: 月光礼盒
+      title: 七日签到礼
+      eventName: 完成签到即可领取星砂、头像框与登场纪念礼
+      date: 03/28 - 04/10
+      reward: 累计可得 120 星砂
+      cta: 立即签到
+    build:
+      watermark: Build
+      fallbackLabel: 建造加成
+      title: 补给箱加送
+      eventName: 完成建造任务可额外掉落补给券，素材收益双倍结算
+      date: 03/30 - 04/12
+      reward: 补给券 x5 + 强化素材
+      cta: 查看任务
+    spring:
+      watermark: Spring
+      fallbackLabel: 春日抽奖
+      title: 扭蛋嘉年华
+      eventName: 参与春日池抽奖，解锁聊天气泡、挂件与主题家具
+      date: 04/01 - 04/18
+      reward: 首抽半价 + 稀有挂件
+      cta: 前往抽取
+    coupon:
+      watermark: Talk
+      fallbackLabel: 优惠券
+      title: 充值优惠券
+      eventName: 完成对话互动即可领取充值券，可用于对话扩展包与语音包
+      date: 04/02 - 04/20
+      reward: 满 30 减 6 / 满 68 减 15
+      cta: 领取优惠券
+    home:
+      watermark: Home
+      fallbackLabel: 房间主题
+      title: 春季布景更新
+      eventName: 解锁窗台、桌摆与晚安灯饰三套主题，快速焕新主页空间
+      date: 04/05 - 04/22
+      reward: 登录即送布景抽取券
+      cta: 查看主题
 waiting: 等待中

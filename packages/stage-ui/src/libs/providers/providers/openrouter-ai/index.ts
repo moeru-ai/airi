@@ -65,7 +65,7 @@ export const providerOpenRouterAI = defineProvider<OpenRouterConfig>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList],
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList, ProviderValidationCheck.ChatCompletions],
       additionalHeaders: OPENROUTER_ATTRIBUTION_HEADERS,
     }),
   },

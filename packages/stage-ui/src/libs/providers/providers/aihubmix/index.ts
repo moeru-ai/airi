@@ -53,7 +53,7 @@ export const providerAIHubMix = defineProvider<AIHubMixConfig>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: [ProviderValidationCheck.ModelList],
+      checks: [ProviderValidationCheck.ModelList, ProviderValidationCheck.ChatCompletions],
     }),
   },
 })
