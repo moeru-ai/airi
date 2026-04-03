@@ -211,6 +211,10 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
       const categorizer = createStreamingCategorizer(activeProvider.value)
       let streamPosition = 0
+
+      // 提前获取设置并建立快照，防止用户在流式输出中途切断开关导致状态竞态
+      const settingsGeneral = useSettingsGeneral()
+      const isTranslationExpected = settingsGeneral.translationSubtitleEnabled
       let inTranslationMode = false // NOTICE: 翻译模式状态机，用于截断发往 TTS 的文本流
 
       const parser = useLlmmarkerParser({
@@ -255,10 +259,9 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         onSpecial: async (special) => {
           if (shouldAbort())
             return
-          // 这里的 special 包含完整的定界符，需匹配全量标签
-          // 运行时该回调触发时 store 已初始化，可安全忽略 ESLint 的静态顺序检查
-          // eslint-disable-next-line ts/no-use-before-define
-          if (special === '<|TRANS:|>' && settingsGeneral.translationSubtitleEnabled) {
+
+          // 这里的 special 包含完整的定界符，需匹配全量标签。使用快照变量判断，避免 ESLint 先使用后定义报错
+          if (special === '<|TRANS:|>' && isTranslationExpected) {
             console.info('[AIRI Translation] Mode Activated!')
             inTranslationMode = true
             return
@@ -340,11 +343,10 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         })
       }
 
-      const settingsGeneral = useSettingsGeneral()
-      if (settingsGeneral.translationSubtitleEnabled) {
+      if (isTranslationExpected) {
         const targetLang = settingsGeneral.translationLanguage || 'the user\'s local language'
         newMessages.push({
-          role: 'user',
+          role: 'system',
           content: `System Instruction: You must provide a bilingual response. First, output your normal response. Then, immediately append the exact tag <|TRANS:|> followed by the translated text of your response in ${targetLang}. Do not explain, just output the translated text after the tag.`,
         })
       }
