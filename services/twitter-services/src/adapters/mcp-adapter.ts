@@ -1,8 +1,10 @@
+import type { EventHandler, EventHandlerRequest } from 'h3'
 import type { Context } from '../core/browser/context'
 import type { Tweet } from '../core/services/tweet'
 import type { TwitterServices } from '../types/services'
 
 import { Buffer } from 'node:buffer'
+import { timingSafeEqual } from 'node:crypto'
 import { createServer } from 'node:http'
 
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js'
@@ -15,6 +17,54 @@ import { useTwitterTweetServices } from '../core/services/tweet'
 import { useTwitterUserServices } from '../core/services/user'
 import { errorToMessage } from '../utils/error'
 import { logger } from '../utils/logger'
+
+/**
+ * Constant-time string comparison to prevent timing attacks.
+ * Using a plain `===` / `!==` comparison leaks token length and character
+ * information via execution time; timingSafeEqual removes that side-channel.
+ */
+function timingSafeStringEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a)
+  const bufB = Buffer.from(b)
+  if (bufA.length !== bufB.length) {
+    // Perform a dummy comparison so the branch timing is normalised.
+    timingSafeEqual(bufA, bufA)
+    return false
+  }
+  return timingSafeEqual(bufA, bufB)
+}
+
+/**
+ * Wrap an event handler with a Bearer-token authentication guard.
+ *
+ * When the MCP_AUTH_TOKEN environment variable is set every incoming request
+ * must carry a matching `Authorization: Bearer <token>` header.  Requests
+ * that are missing the header or supply the wrong token receive a 401
+ * response and the inner handler is never called.
+ *
+ * When MCP_AUTH_TOKEN is *not* set the guard is a no-op and all requests are
+ * passed through (preserving the previous behaviour for deployments that do
+ * not need auth).
+ */
+function defineProtectedEventHandler(label: string, handler: EventHandler<EventHandlerRequest, unknown>) {
+  return defineEventHandler(async (event) => {
+    const authToken = process.env.MCP_AUTH_TOKEN
+    if (authToken) {
+      const authHeader = event.node.req.headers['authorization']
+      const providedToken
+        = typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
+          ? authHeader.slice(7)
+          : ''
+      if (!timingSafeStringEqual(providedToken, authToken)) {
+        logger.mcp.warn(`Unauthorized ${label} rejected`)
+        event.node.res.statusCode = 401
+        event.node.res.end(JSON.stringify({ error: 'Unauthorized' }))
+        return
+      }
+    }
+    return handler(event)
+  })
+}
 
 /**
  * MCP Protocol Adapter
@@ -40,6 +90,12 @@ export class MCPAdapter {
       timeline: useTwitterTimelineServices(this.ctx),
       tweet: useTwitterTweetServices(this.ctx),
       user: useTwitterUserServices(this.ctx),
+    }
+
+    // Warn operators when the auth token is absent so they know the HTTP
+    // endpoints are publicly accessible without any authentication.
+    if (!process.env.MCP_AUTH_TOKEN) {
+      logger.mcp.warn('MCP_AUTH_TOKEN is not set – all HTTP endpoints are publicly accessible without authentication')
     }
 
     // Create MCP server
@@ -423,11 +479,12 @@ export class MCPAdapter {
   private setupRoutes(): void {
     const router = createRouter()
 
-    // Set up CORS
+    // Set up CORS – include Authorization so that browser preflight requests
+    // for token-protected endpoints are allowed through.
     router.use('*', defineEventHandler((event) => {
       event.node.res.setHeader('Access-Control-Allow-Origin', '*')
       event.node.res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-      event.node.res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+      event.node.res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
 
       if (event.node.req.method === 'OPTIONS') {
         event.node.res.statusCode = 204
@@ -436,18 +493,7 @@ export class MCPAdapter {
     }))
 
     // SSE endpoint
-    router.get('/sse', defineEventHandler(async (event) => {
-      const authToken = process.env.MCP_AUTH_TOKEN
-      if (authToken) {
-        const authHeader = event.node.req.headers['authorization']
-        if (!authHeader || authHeader !== `Bearer ${authToken}`) {
-          logger.mcp.warn('Unauthorized MCP SSE connection attempt rejected')
-          event.node.res.statusCode = 401
-          event.node.res.end(JSON.stringify({ error: 'Unauthorized' }))
-          return
-        }
-      }
-
+    router.get('/sse', defineProtectedEventHandler('MCP SSE connection attempt', async (event) => {
       const { req, res } = event.node
 
       res.setHeader('Content-Type', 'text/event-stream')
@@ -471,17 +517,7 @@ export class MCPAdapter {
     }))
 
     // Messages endpoint - receive client requests
-    router.post('/messages', defineEventHandler(async (event) => {
-      const authToken = process.env.MCP_AUTH_TOKEN
-      if (authToken) {
-        const authHeader = event.node.req.headers['authorization']
-        if (!authHeader || authHeader !== `Bearer ${authToken}`) {
-          logger.mcp.warn('Unauthorized MCP message request rejected')
-          event.node.res.statusCode = 401
-          return { error: 'Unauthorized' }
-        }
-      }
-
+    router.post('/messages', defineProtectedEventHandler('MCP message request', async (event) => {
       if (this.activeTransports.length === 0) {
         logger.mcp.warn('Received message request but no active SSE connections')
         event.node.res.statusCode = 503
@@ -513,17 +549,7 @@ export class MCPAdapter {
     }))
 
     // Root path - provide service info
-    router.get('/', defineEventHandler((event) => {
-      const authToken = process.env.MCP_AUTH_TOKEN
-      if (authToken) {
-        const authHeader = event.node.req.headers['authorization']
-        if (!authHeader || authHeader !== `Bearer ${authToken}`) {
-          logger.mcp.warn('Unauthorized MCP root request rejected')
-          event.node.res.statusCode = 401
-          return { error: 'Unauthorized' }
-        }
-      }
-
+    router.get('/', defineProtectedEventHandler('MCP root request', (_event) => {
       return {
         name: 'Twitter MCP Service',
         version: '1.0.0',
