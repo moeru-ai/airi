@@ -3,8 +3,8 @@ import { markScenarioReady, resetScenarioReady } from '@proj-airi/vishot-runtime
 import { ScenarioCanvas, ScenarioCaptureRoot } from '@proj-airi/vishot-runtime/vue'
 import { onMounted } from 'vue'
 
-import stageShot from '../../artifacts/raw/00-stage-tamagotchi.png'
-import websocketSettingsShot from '../../artifacts/raw/03-websocket-settings.png'
+import stageShot from '../../artifacts/raw/00-stage-tamagotchi.avif'
+import websocketSettingsShot from '../../artifacts/raw/03-websocket-settings.avif'
 import Icon from '../components/icon.vue'
 
 import { PlatformRoot } from '../components/platforms/macos-26'

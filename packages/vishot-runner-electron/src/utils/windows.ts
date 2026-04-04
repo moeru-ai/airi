@@ -67,6 +67,14 @@ export interface StageWindowSnapshot {
   route: string
 }
 
+export async function snapshotStageWindows(electronApp: ElectronApplication): Promise<StageWindowSnapshot[]> {
+  const snapshots = await Promise.all(
+    electronApp.windows().map(page => classifyWindow(page)),
+  )
+
+  return snapshots.filter((snapshot): snapshot is StageWindowSnapshot => snapshot !== null)
+}
+
 export async function waitForStageWindow(electronApp: ElectronApplication, name: StageWindowName, timeout = 30_000): Promise<StageWindowSnapshot> {
   const deadline = Date.now() + timeout
 

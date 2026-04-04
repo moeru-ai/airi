@@ -10,7 +10,7 @@ export default defineScenario({
     await sleep(500)
 
     await controlsIsland.expand(mainWindow.page)
-    await sleep(1000)
+    await sleep(250)
     await capture('01-controls-island-expanded', mainWindow.page)
 
     const settingsWindowSnapshot = await controlsIsland.openSettings(mainWindow.page)
@@ -18,7 +18,9 @@ export default defineScenario({
     await sleep(1000)
     await capture('02-settings-window', settingsWindowSnapshot.page)
 
-    await mainWindow.page.bringToFront()
+    await settingsWindowSnapshot.page.bringToFront()
+    await sleep(500)
+
     const websocketSettingsPage = await settingsWindow.goToConnection(settingsWindowSnapshot.page)
     await websocketSettingsPage.getByText('WebSocket Server Address').waitFor({ state: 'visible' })
     await sleep(1000)

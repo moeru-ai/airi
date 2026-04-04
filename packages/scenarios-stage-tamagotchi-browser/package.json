@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@moeru/std": "catalog:",
+    "@napi-rs/image": "^1.12.0",
     "@proj-airi/vishot-runner-browser": "workspace:^",
     "@proj-airi/vishot-runtime": "workspace:^",
     "date-fns": "catalog:",
