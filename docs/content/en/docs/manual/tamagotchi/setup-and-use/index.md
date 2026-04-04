@@ -107,7 +107,7 @@ This window displays the virtual character. There are four buttons:
 - “Open hearing control” – bottom right, allows you to speak to Airi (requires STT service; seems you also need to open the chat window first. Since this function hasn’t worked for me yet, tutorial omitted).
 - “Move” – bottom right, long‑press and drag to reposition the main window.
 
-![Airi main window overview](../../../../public/assets/manual/tamagotchi/manual-main-window.avif)
+![Airi main window overview](./assets/manual-main-window.avif)
 
 <details>
 
@@ -135,7 +135,7 @@ Click “Expand” to reveal eight options:
 - “Always show” / “Hide on hover” – allows clicking through the window.
 - “Close” – closes Airi.
 
-![Airi expanded controls menu](../../../../public/assets/manual/tamagotchi/manual-controls-island-expanded.avif)
+![Airi expanded controls menu](./assets/manual-controls-island-expanded.avif)
 
 ### System Tray Other Options
 
@@ -183,13 +183,13 @@ There are nine sections:
 - “Connection” – configure WebSocket server address.
 - “System” – includes four sub‑sections: “General” (theme, language, etc.), “Color Scheme”, “Window Shortcuts” (empty – see warning), “Developer” (advanced features, see Chapter 4).
 
-![Airi settings window overview](../../../../public/assets/manual/tamagotchi/manual-settings-window.avif)
+![Airi settings window overview](./assets/manual-settings-window.avif)
 
 ### Chat Window
 
 You can open the chat window by clicking “Expand” on the main window and selecting “Open chat”.
 
-![Airi chat window interface](../../../../public/assets/manual/tamagotchi/manual-chat-window.avif)
+![Airi chat window interface](./assets/manual-chat-window.avif)
 
 Here you can chat with Airi.
 Detailed introduction omitted.
@@ -202,7 +202,7 @@ You can open settings by clicking “Expand” on the main window and selecting 
 
 Here you can upload, create, or modify the default character card.
 
-![Airi character card settings window](../../../../public/assets/manual/tamagotchi/manual-airi-card.avif)
+![Airi character card settings window](./assets/manual-airi-card.avif)
 
 About uploading: the popup suggests any file type is supported, but I haven’t used it, and there is no export function, so details omitted.
 
@@ -230,7 +230,7 @@ Finally, click the circle in the bottom‑right corner of the card, or select th
 
 Here you can configure various Airi functions, as follows:
 
-![Airi body modules settings window](../../../../public/assets/manual/tamagotchi/manual-modules.avif)
+![Airi body modules settings window](./assets/manual-modules.avif)
 
 #### Consciousness
 
@@ -238,7 +238,7 @@ First select a service source (or add a new one) and select it.
 [ *If there are too many sources and you cannot click the ones at the back, move the mouse over a tab, press the middle button, and drag left/right.* ]
 Then select a model – configuration is complete.
 
-![Airi consciousness settings window](../../../../public/assets/manual/tamagotchi/manual-consciousness.avif)
+![Airi consciousness settings window](./assets/manual-consciousness.avif)
 
 #### Vocalization
 
@@ -248,7 +248,7 @@ You can also choose “None” to disable Airi’s voice.
 
 At the bottom of this page, you can enter text to test the voice by clicking “**Test voice**”.
 
-![Airi vocalization settings window](../../../../public/assets/manual/tamagotchi/manual-speech.avif)
+![Airi vocalization settings window](./assets/manual-speech.avif)
 
 [ Note: The configuration process may vary slightly for different service sources. This uses Alibaba Bailian as an example; follow the actual interface. ]
 [ For some services, the Pitch control may not work. ]
@@ -259,7 +259,7 @@ Other details omitted.
 
 First select your audio input device.
 
-![Airi hearing settings window](../../../../public/assets/manual/tamagotchi/manual-hearing.avif)
+![Airi hearing settings window](./assets/manual-hearing.avif)
 Then select a service source (or add a new one) and select it.
 Then select a model – configuration is complete.
 
@@ -281,7 +281,7 @@ Other details omitted.
 First select a service source (or add a new one) and select it.
 Then select a model – configuration is complete.
 
-![Airi vision settings window](../../../../public/assets/manual/tamagotchi/manual-vision.avif)
+![Airi vision settings window](./assets/manual-vision.avif)
 
 You can also set “Capture interval”.
 
@@ -333,7 +333,7 @@ Not yet released.
 
 Here you can choose and set the character’s model.
 
-![Airi character model settings window](../../../../public/assets/manual/tamagotchi/manual-models.avif)
+![Airi character model settings window](./assets/manual-models.avif)
 
 Airi supports Live2D models and VRM 3D models.
 
@@ -369,7 +369,7 @@ Not yet released.
 
 Here you can configure LLM, TTS, and STT service sources.
 
-![Airi service sources settings window](../../../../public/assets/manual/tamagotchi/manual-providers.avif)
+![Airi service sources settings window](./assets/manual-providers.avif)
 
 Details omitted.
 
@@ -377,7 +377,7 @@ Details omitted.
 
 Here you can manage Airi’s various data.
 
-![Airi data settings window](../../../../public/assets/manual/tamagotchi/manual-data-settings.avif)
+![Airi data settings window](./assets/manual-data-settings.avif)
 
 [ ***Note: This section allows deletion and clearing of data, which cannot be undone. Please operate with caution!*** ]
 
@@ -401,7 +401,7 @@ The fifth box allows you to reset all provider settings and credentials, or clea
 
 Here you can configure your WebSocket server address.
 
-![Airi connection settings window](../../../../public/assets/manual/tamagotchi/manual-websocket-settings.avif)
+![Airi connection settings window](./assets/manual-websocket-settings.avif)
 
 (Details omitted.)
 
@@ -411,7 +411,7 @@ Here you can configure your WebSocket server address.
 
 Here you can set the program theme, language, etc.
 
-![Airi general system settings window](../../../../public/assets/manual/tamagotchi/manual-system-general.avif)
+![Airi general system settings window](./assets/manual-system-general.avif)
 
 Theme defaults to light; click the button to switch to dark mode.
 
@@ -425,7 +425,7 @@ Finally, you can choose whether to allow collection of usage data and crash repo
 
 Here you can change the theme color.
 
-![Airi color scheme settings window](../../../../public/assets/manual/tamagotchi/manual-system-color-scheme.avif)
+![Airi color scheme settings window](./assets/manual-system-color-scheme.avif)
 
 You can enable the RGB option to make the theme color cycle like an RGB strip.
 You can also drag the black line or click on the color bar to change the theme color.
@@ -442,7 +442,7 @@ You can also select a preset below to change the theme color.
 
 Here you can use some advanced features.
 
-![Airi developer settings window](../../../../public/assets/manual/tamagotchi/manual-system-developer.avif)
+![Airi developer settings window](./assets/manual-system-developer.avif)
 
 [ **Since most of this content is in English and consists of advanced features that are rarely needed, this part is for reference only!** ]
 
@@ -464,50 +464,50 @@ Blank – details omitted.
 
 Here you can detect the mouse cursor position on the screen.
 
-![Airi useElectronWindowMouse tool window](../../../../public/assets/manual/tamagotchi/manual-devtools-use-window-mouse.avif)
+![Airi useElectronWindowMouse tool window](./assets/manual-devtools-use-window-mouse.avif)
 
 ##### Displays
 
 Here you can visualize the mouse cursor position on the screen.
 
-![Airi Displays tool window](../../../../public/assets/manual/tamagotchi/manual-devtools-displays.avif)
+![Airi Displays tool window](./assets/manual-devtools-displays.avif)
 
 ##### widgets calling
 
 Details omitted.
 
-![Airi widgets calling tool window](../../../../public/assets/manual/tamagotchi/manual-devtools-widgets-calling.avif)
+![Airi widgets calling tool window](./assets/manual-devtools-widgets-calling.avif)
 
 ##### Context Flow
 
 Real‑time inspection of incoming context updates (server + broadcast) and outgoing chat hooks. Use this to verify how plugin context (e.g., VSCode coding context) flows into the chat pipeline and out to server events.
 Details omitted.
 
-![Airi Context Flow tool window](../../../../public/assets/manual/tamagotchi/manual-devtools-context-flow.avif)
+![Airi Context Flow tool window](./assets/manual-devtools-context-flow.avif)
 
 ##### relative mouse
 
 Here you can visualize the mouse cursor position within this window.
 
-![Airi relative mouse tool window](../../../../public/assets/manual/tamagotchi/manual-devtools-relative-mouse.avif)
+![Airi relative mouse tool window](./assets/manual-devtools-relative-mouse.avif)
 
 ##### beat sync visualizer
 
 Details omitted.
 
-![Airi beat sync visualizer tool window](../../../../public/assets/manual/tamagotchi/manual-devtools-beat-sync.avif)
+![Airi beat sync visualizer tool window](./assets/manual-devtools-beat-sync.avif)
 
 ##### WebSocket Inspector
 
 Details omitted.
 
-![Airi WebSocket Inspector tool window](../../../../public/assets/manual/tamagotchi/manual-devtools-websocket-inspector.avif)
+![Airi WebSocket Inspector tool window](./assets/manual-devtools-websocket-inspector.avif)
 
 ##### Plugin Host Debug
 
 Details omitted.
 
-![Airi Plugin Host Debug tool window](../../../../public/assets/manual/tamagotchi/manual-devtools-plugin-host.avif)
+![Airi Plugin Host Debug tool window](./assets/manual-devtools-plugin-host.avif)
 
 ##### Screen Capture
 
@@ -519,11 +519,11 @@ There are four options at the top:
 “devices” – omitted.
 “refetch” – omitted.
 
-![Airi Screen Capture tool window](../../../../public/assets/manual/tamagotchi/manual-devtools-screen-capture.avif)
+![Airi Screen Capture tool window](./assets/manual-devtools-screen-capture.avif)
 
 ##### vision capture
 
 If screen capture permission has not been granted yet, this page will also show a permission prompt first.
 After granting permission, the page can start capturing frames and show the vision processing result.
 
-![Airi vision capture tool window](../../../../public/assets/manual/tamagotchi/manual-devtools-vision-capture.avif)
+![Airi vision capture tool window](./assets/manual-devtools-vision-capture.avif)
