@@ -127,6 +127,12 @@ function send(peer: Peer, event: WebSocketEvent<Record<string, unknown>> | strin
   peer.send(typeof event === 'string' ? event : stringify(event))
 }
 
+export function detectHeartbeatControlFrame(text: string): MessageHeartbeatKind | undefined {
+  if (text === MessageHeartbeatKind.Ping || text === MessageHeartbeatKind.Pong) {
+    return text
+  }
+}
+
 export function resolveDeliveryConfig(event: WebSocketEvent): DeliveryConfig | undefined {
   const eventMetadata = getProtocolEventMetadata(event.type)
   const defaultDelivery = eventMetadata?.delivery
@@ -539,6 +545,32 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       let event: WebSocketEvent
 
       try {
+        const text = message.text()
+        const controlFrame = detectHeartbeatControlFrame(text)
+
+        // Some websocket runtimes surface control frames as plain text messages instead of
+        // exposing them through dedicated ping/pong hooks. Treat those payloads as transport
+        // liveness only so they do not leak into the application event protocol.
+        if (controlFrame) {
+          if (authenticatedPeer) {
+            authenticatedPeer.lastHeartbeatAt = Date.now()
+            authenticatedPeer.missedHeartbeats = 0
+
+            if (authenticatedPeer.healthy === false && authenticatedPeer.name && authenticatedPeer.identity) {
+              authenticatedPeer.healthy = true
+              logger.withFields({ peer: peer.id, peerName: authenticatedPeer.name })
+                .debug('ping/pong recovered, marking healthy')
+              broadcastToAuthenticated({
+                type: 'registry:modules:health:healthy',
+                data: { name: authenticatedPeer.name, index: authenticatedPeer.index, identity: authenticatedPeer.identity },
+                metadata: createServerEventMetadata(instanceId),
+              })
+            }
+          }
+
+          return
+        }
+
         // NOTICE: SDK clients send events using superjson.stringify, so we must use
         // superjson.parse here instead of message.json() (which uses JSON.parse).
         // Using JSON.parse on a superjson-encoded string returns the wrapper object
@@ -547,7 +579,6 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
         // However, external clients may send plain JSON (not superjson-encoded).
         // superjson.parse on plain JSON returns undefined since there is no `json` wrapper key.
         // In that case, fall back to JSON.parse so external clients can interoperate.
-        const text = message.text()
         const parsed = parse<WebSocketEvent>(text)
         const potentialEvent = (parsed && typeof parsed === 'object' && 'type' in parsed)
           ? parsed
@@ -881,10 +912,45 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
     },
     close: (peer, details) => {
       const p = peers.get(peer.id)
+      const now = Date.now()
+      const safeDetails = details ?? {}
+      const closeCode = typeof safeDetails.code === 'number' ? safeDetails.code : undefined
+      const closeReason = typeof safeDetails.reason === 'string' ? safeDetails.reason : undefined
+      const closeWasClean = typeof (safeDetails as { wasClean?: unknown }).wasClean === 'boolean'
+        ? (safeDetails as { wasClean?: unknown }).wasClean
+        : undefined
+      const heartbeatLastSeenAt = p?.lastHeartbeatAt
+      const heartbeatSilentForMs = heartbeatLastSeenAt ? now - heartbeatLastSeenAt : undefined
+      const likelyHeartbeatExpiry = Boolean(
+        p
+        && typeof heartbeatSilentForMs === 'number'
+        && heartbeatSilentForMs > heartbeatTtlMs,
+      )
+      const likelySilentNetworkClose = closeCode === 1005
+
       if (p)
         unregisterModulePeer(p, 'connection closed')
 
-      logger.withFields({ peer: peer.id, peerRemote: peer.remoteAddress, details, activePeers: peers.size }).log('closed')
+      logger.withFields({
+        peer: peer.id,
+        peerRemote: peer.remoteAddress,
+        details,
+        closeCode,
+        closeReason,
+        closeWasClean,
+        activePeers: peers.size,
+        peerAuthenticated: p?.authenticated,
+        peerName: p?.name,
+        peerIndex: p?.index,
+        peerHealthy: p?.healthy,
+        peerMissedHeartbeats: p?.missedHeartbeats,
+        heartbeatLastSeenAt,
+        heartbeatSilentForMs,
+        heartbeatTtlMs,
+        healthCheckIntervalMs,
+        likelyHeartbeatExpiry,
+        likelySilentNetworkClose,
+      }).log('closed')
       peers.delete(peer.id)
     },
   }))
