@@ -5,7 +5,6 @@ import type { ModelSettingsRuntimeChannelEvent } from '../../shared/model-settin
 
 import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
-import { tryCatch } from '@moeru/std'
 import { electron } from '@proj-airi/electron-eventa'
 import {
   useElectronEventaInvoke,
@@ -21,14 +20,16 @@ import {
   resolveComponentStateToRuntimePhase,
 } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
+import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables/audio/audio-analyzer'
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
 import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
+import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
-import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { refDebounced, useBroadcastChannel } from '@vueuse/core'
+import { refDebounced, useBroadcastChannel, useEventBus } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
 
@@ -222,16 +223,35 @@ const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const chatSyncStore = useChatSyncStore()
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
+const hearingStore = useHearingStore()
+// NOTICE: 增加 useVADModel 与 volumeThreshold
+const { useVADModel, volumeThreshold, useVADThreshold, minSilenceDurationMs, autoSendEnabled } = storeToRefs(hearingStore)
+
+// 音量检测回退方案 (Volume-based Fallback)
+const { audioContext } = storeToRefs(useAudioContext())
+const { startAnalyzer, stopAnalyzer, onAnalyzerUpdate } = useAudioAnalyzer()
+const isSpeechVolume = ref(false)
+let silenceTimer: ReturnType<typeof setTimeout> | undefined
+// NOTICE: 定义音量监听回调的卸载方法
+let stopAnalyzerUpdate: (() => void) | undefined
+// NOTICE: PR 修复 - 保存 MediaStreamSourceNode 引用以便在停止时断开，防止 AudioGraph 内存泄漏
+let volumeMediaStreamSource: MediaStreamAudioSourceNode | undefined
+
 const { init: initVAD, dispose: disposeVAD, start: startVAD, loaded: vadLoaded } = useVAD(workletUrl, {
-  threshold: ref(0.6),
+  threshold: useVADThreshold,
+  minSilenceDurationMs,
   onSpeechStart: () => {
-    void handleSpeechStart()
+    if (useVADModel.value)
+      void handleSpeechStart()
   },
   onSpeechEnd: () => {
-    void handleSpeechEnd()
+    if (useVADModel.value)
+      void handleSpeechEnd()
   },
 })
 
+// eslint-disable-next-line unused-imports/no-unused-vars
+let audioSessionId = 0
 let stopOnStopRecord: (() => void) | undefined
 const audioInteractionStarting = ref(false)
 
@@ -240,6 +260,9 @@ type CaptionChannelEvent
   = | { type: 'caption-speaker', text: string }
     | { type: 'caption-assistant', text: string }
 const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
+
+// NOTICE: 文本传送带发射器：用于在自动发送关闭时，将录音结果传送到客厅 (ChatArea) 的输入框中
+const { emit: postChatInput } = useEventBus<{ type: 'append-text', text: string }>('airi-chat-input-commands')
 
 function handleStreamingSentenceEnd(delta: string) {
   console.info('[Main Page] Received transcription delta:', delta)
@@ -250,17 +273,22 @@ function handleStreamingSentenceEnd(delta: string) {
 
   postCaption({ type: 'caption-speaker', text: finalText })
 
-  void (async () => {
-    try {
-      console.info('[Main Page] Sending transcription to chat:', finalText)
-      await chatSyncStore.requestIngest({ text: finalText })
-    }
-    catch (err) {
-      console.error('[Main Page] Failed to send chat from voice:', err)
-    }
-  })()
+  // NOTICE: 只有在全局开启了自动发送时，才将语音文本真正发送给后端，否则仅显示气泡字幕
+  if (autoSendEnabled.value) {
+    void (async () => {
+      try {
+        console.info('[Main Page] Sending transcription to chat:', finalText)
+        await chatSyncStore.requestIngest({ text: finalText })
+      }
+      catch (err) {
+        console.error('[Main Page] Failed to send chat from voice:', err)
+      }
+    })()
+  }
+  else {
+    postChatInput({ type: 'append-text', text: finalText })
+  }
 }
-
 function handleStreamingSpeechEnd(text: string) {
   console.info('[Main Page] Speech ended, final text:', text)
   postCaption({ type: 'caption-speaker', text })
@@ -288,27 +316,80 @@ async function startAudioInteraction() {
   if (audioInteractionStarting.value)
     return
 
-  // NOTICE: `stopOnStopRecord` only tracks whether the non-stream recording hook was registered.
-  //
-  // It does NOT guarantee that the current realtime transcription session is still attached to the
-  // latest `MediaStream`. We previously used it as a generic "already started" guard, which broke
-  // the hearing-config retoggle path: the mic stream was recreated, VAD restarted on the new stream,
-  // but `transcribeForMediaStream()` never reattached so speech was detected without any transcript.
-  //
-  // Keep the startup guard scoped to "startup in progress" only, and let stream changes restart the
-  // transcription binding when a new stream arrives.
+  audioSessionId++
+
   audioInteractionStarting.value = true
   try {
     console.info('[Main Page] Starting audio interaction...')
 
-    initVAD().then(() => {
+    // 监测引擎分流：根据 VAD 模型配置选择底层监听方式
+    if (useVADModel.value) {
+      initVAD().then(() => {
+        // NOTICE: 竞态拦截 - 仅在模式切出，或 VAD 未真正就绪（并发提前返回）时丢弃。
+        // 这样可以确保并发触发时，首个真正完成加载的 init 能接管最新流，防止 VAD 永久卡在 loading 失聪
+        if (!useVADModel.value || !vadLoaded.value)
+          return
+
+        if (stream.value) {
+          console.info('[Main Page] VAD initialized successfully, starting with stream input')
+          // NOTICE: 克隆 MediaStream 传入 VAD，防止 disposeVAD() 时物理停止原始麦克风轨道
+          return startVAD(stream.value.clone())
+        }
+      }).catch((err) => {
+        console.warn('[Main Page] VAD initialization failed (non-critical for Web Speech API):', err)
+      })
+    }
+    else {
+      // 纯音量检测机制 (Fallback)
       if (stream.value) {
-        console.info('[Main Page] VAD initialized successfully, starting with stream input')
-        return startVAD(stream.value)
+        // NOTICE: 确保 AudioContext 在挂载分析器前被唤醒，解决挂起失聪问题
+        if (audioContext.value.state === 'suspended') {
+          audioContext.value.resume().catch(e => console.warn('Failed to resume AudioContext:', e))
+        }
+
+        // NOTICE: 挂载新流前断开旧节点的连接，防止 AudioGraph 泄露
+        volumeMediaStreamSource?.disconnect()
+        const source = audioContext.value.createMediaStreamSource(stream.value)
+        volumeMediaStreamSource = source
+        const analyzer = startAnalyzer(audioContext.value)
+
+        // NOTICE: 重新赋值前必须执行一次卸载，防止因设备重连或流刷新造成的函数重入，导致旧闭包残留和幽灵并发
+        stopAnalyzerUpdate?.()
+
+        // NOTICE: 捕获并保存 unsubscribe 钩子以防止内存泄漏和多重触发
+        stopAnalyzerUpdate = onAnalyzerUpdate((volumeLevel) => {
+          if (useVADModel.value)
+            return
+
+          const isSpeaking = volumeLevel > volumeThreshold.value
+
+          if (isSpeaking && !isSpeechVolume.value) {
+            isSpeechVolume.value = true
+            if (silenceTimer)
+              clearTimeout(silenceTimer)
+            void handleSpeechStart()
+          }
+          else if (!isSpeaking && isSpeechVolume.value) {
+            if (!silenceTimer) {
+              silenceTimer = setTimeout(() => {
+                isSpeechVolume.value = false
+                void handleSpeechEnd()
+                silenceTimer = undefined
+              }, minSilenceDurationMs.value)
+            }
+          }
+          else if (isSpeaking && isSpeechVolume.value) {
+            if (silenceTimer) {
+              clearTimeout(silenceTimer)
+              silenceTimer = undefined
+            }
+          }
+        })
+
+        if (analyzer)
+          source.connect(analyzer)
       }
-    }).catch((err) => {
-      console.warn('[Main Page] VAD initialization failed (non-critical for Web Speech API):', err)
-    })
+    }
 
     if (shouldUseStreamInput.value) {
       console.info('[Main Page] Starting streaming transcription...', {
@@ -321,7 +402,6 @@ async function startAudioInteraction() {
         return
       }
 
-      // Use sentence deltas for live captions and speech end for final text.
       await transcribeForMediaStream(stream.value, {
         onSentenceEnd: handleStreamingSentenceEnd,
         onSpeechEnd: handleStreamingSpeechEnd,
@@ -337,14 +417,6 @@ async function startAudioInteraction() {
       })
     }
 
-    // NOTICE: This hook is only for record-then-transcribe providers.
-    //
-    // Streaming providers use the active `MediaStream` directly, so this callback must not be treated
-    // as proof that a realtime session is alive. Future refactors should keep recorder-hook bookkeeping
-    // separate from stream transcription state, otherwise mic/device re-toggles can leave VAD active
-    // but transcription detached.
-    //
-    // Hook once for non-streaming providers.
     if (!stopOnStopRecord) {
       stopOnStopRecord = onStopRecord(async (recording) => {
         if (shouldUseStreamInput.value)
@@ -354,14 +426,18 @@ async function startAudioInteraction() {
         if (!text || !text.trim())
           return
 
-        // Update caption overlay speaker text via BroadcastChannel
         postCaption({ type: 'caption-speaker', text })
 
-        try {
-          await chatSyncStore.requestIngest({ text })
+        if (autoSendEnabled.value) {
+          try {
+            await chatSyncStore.requestIngest({ text })
+          }
+          catch (err) {
+            console.error('Failed to send chat from voice:', err)
+          }
         }
-        catch (err) {
-          console.error('Failed to send chat from voice:', err)
+        else {
+          postChatInput({ type: 'append-text', text })
         }
       })
     }
@@ -374,14 +450,36 @@ async function startAudioInteraction() {
   }
 }
 
-function stopAudioInteraction() {
-  tryCatch(() => {
+async function stopAudioInteraction() {
+  try {
+    audioSessionId++ // 废弃所有仍在 inflight 的启动流程
+
+    // NOTICE: 必须 await 等待录音 finalize 完成并触发回调后，才能卸载钩子，否则最后一句会被丢弃
+    await stopRecord()
     stopOnStopRecord?.()
     stopOnStopRecord = undefined
     audioInteractionStarting.value = false
+
+    if (silenceTimer) {
+      clearTimeout(silenceTimer)
+      silenceTimer = undefined
+    }
+    isSpeechVolume.value = false
+
+    stopAnalyzerUpdate?.()
+    stopAnalyzerUpdate = undefined
+
     void stopStreamingTranscription(true)
+    stopAnalyzer()
+
+    volumeMediaStreamSource?.disconnect()
+    volumeMediaStreamSource = undefined
+
     disposeVAD()
-  })
+  }
+  catch (e) {
+    console.error('Failed to stop audio interaction cleanly', e)
+  }
 }
 
 watch(enabled, async (val) => {
@@ -391,9 +489,17 @@ watch(enabled, async (val) => {
     await startAudioInteraction()
   }
   else {
-    stopAudioInteraction()
+    await stopAudioInteraction()
   }
 }, { immediate: true })
+
+// 监听 VAD 模式开关动态热插拔引擎
+watch(useVADModel, async () => {
+  if (enabled.value) {
+    await stopAudioInteraction()
+    await startAudioInteraction()
+  }
+})
 
 onMounted(() => {
   chatSyncStore.initialize('authority')
@@ -407,7 +513,7 @@ onUnmounted(() => {
     type: 'owner-gone',
     ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
   })
-  stopAudioInteraction()
+  void stopAudioInteraction()
   chatSyncStore.dispose()
 })
 
@@ -415,25 +521,10 @@ watch(stream, async (currentStream) => {
   if (!enabled.value || !currentStream || audioInteractionStarting.value)
     return
 
-  // NOTICE: The controls-island mic toggle and device changes can replace the underlying MediaStream
-  // without reloading the page. When that happens, VAD may successfully restart against the new stream,
-  // but any existing transcription transport is still bound to the old one. Always allow the page to
-  // re-run `startAudioInteraction()` for a newly available stream unless startup is already underway.
-  console.info('[Main Page] Stream became available, ensuring audio interaction is started')
+  console.info('[Main Page] Stream became available, ensuring audio interaction is restarted')
+  await stopAudioInteraction()
   await startAudioInteraction()
 })
-
-watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
-  if (enabled.value && loaded && s) {
-    try {
-      await startVAD(s)
-    }
-    catch (e) {
-      console.error('Failed to start VAD with stream:', e)
-    }
-  }
-})
-
 // Assistant caption is broadcast from Stage.vue via the same channel
 </script>
 

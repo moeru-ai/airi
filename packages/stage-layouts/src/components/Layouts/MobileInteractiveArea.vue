@@ -13,7 +13,7 @@ import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consci
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea, useTheme } from '@proj-airi/ui'
-import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
+import { useElementVisibility, useEventBus, useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -43,6 +43,19 @@ function handleDeleteMessage(index: number) {
 
 const viewControlsActiveMode = ref<'x' | 'y' | 'z' | 'scale'>('scale')
 const viewControlsInputsRef = useTemplateRef<InstanceType<typeof ViewControlInputs>>('viewControlsInputs')
+
+// NOTICE: 增加可见性判断与对讲机接收器（防复读机制）
+const containerRef = useTemplateRef<HTMLElement>('containerRef')
+const isVisible = useElementVisibility(containerRef)
+// NOTICE: PR 修复 - 将跨 Tab 广播改为基于内存的 EventBus，防止多窗口串流导致文本泄露到其他实例
+const { on: onChatInputCommand } = useEventBus<{ type: 'append-text', text: string }>('airi-chat-input-commands')
+
+onChatInputCommand((cmd) => {
+  if (isVisible.value && cmd?.type === 'append-text' && cmd.text) {
+    const currentText = messageInput.value.trim()
+    messageInput.value = currentText ? `${currentText} ${cmd.text}` : cmd.text
+  }
+})
 
 const messageInput = ref('')
 const isComposing = ref(false)
@@ -145,7 +158,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div fixed bottom-0 w-full flex flex-col>
+  <div ref="containerRef" fixed bottom-0 w-full flex flex-col>
     <BackgroundDialogPicker v-model="backgroundDialogOpen" />
     <KeepAlive>
       <Transition name="fade">

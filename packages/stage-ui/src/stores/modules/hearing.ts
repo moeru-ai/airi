@@ -106,6 +106,13 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false)
   const autoSendDelay = useLocalStorageManualReset<number>('settings/hearing/auto-send-delay', 2000) // Default 2 seconds
   const confidenceThreshold = useLocalStorageManualReset<number>('settings/hearing/confidence-threshold', CONFIDENCE_THRESHOLD_DISABLED)
+
+  // 新增：将 VAD 参数写入本地存储，确保全局生效且不丢失
+  const useVADModel = useLocalStorageManualReset<boolean>('settings/hearing/use-vad-model', true)
+  const useVADThreshold = useLocalStorageManualReset<number>('settings/hearing/vad-threshold', 0.6)
+  const volumeThreshold = useLocalStorageManualReset<number>('settings/hearing/volume-threshold', 10)
+  const minSilenceDurationMs = useLocalStorageManualReset<number>('settings/hearing/min-silence-duration', 1200)
+
   const verboseJsonNotSupported = ref(false)
 
   watch(activeTranscriptionProvider, () => {
@@ -174,6 +181,10 @@ export const useHearingStore = defineStore('hearing-store', () => {
     autoSendEnabled.reset()
     autoSendDelay.reset()
     confidenceThreshold.reset()
+    useVADModel.reset()
+    useVADThreshold.reset()
+    volumeThreshold.reset()
+    minSilenceDurationMs.reset()
   }
 
   async function transcription(
@@ -274,6 +285,10 @@ export const useHearingStore = defineStore('hearing-store', () => {
     autoSendEnabled,
     autoSendDelay,
     confidenceThreshold,
+    useVADModel,
+    useVADThreshold,
+    volumeThreshold,
+    minSilenceDurationMs,
     verboseJsonNotSupported,
 
     supportsModelListing,

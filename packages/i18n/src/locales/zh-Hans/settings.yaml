@@ -416,13 +416,102 @@ pages:
           provider-selection:
             description: 选择合适的语音转文本的服务来源
           confidence-threshold:
-            title: Confidence Threshold
-            description: Filter out low-confidence transcriptions to reduce Whisper hallucinations. Values closer to 0 are more strict; drag to the leftmost to disable. Only effective for providers supporting Whisper API (e.g., OpenAI, Groq).
-            disabled: Disabled
+            title: 置信度阈值
+            description: 过滤掉低置信度的转录内容，以减少 Whisper 的幻觉现象。数值越接近 0 越严格；拖动到最左侧即可禁用。仅对支持 Whisper API（例如 OpenAI、Groq）的提供商有效。
+            disabled: 已禁用
             verbose-json-note: >-
-              Note: If your provider does not support verbose_json responses, this setting will have no effect.
+              注意：如果您的提供商不支持 verbose_json 响应格式，此设置将不会生效。
             verbose-json-unsupported: >-
-              Your provider did not return verbose_json segments. Confidence filtering had no effect on the last transcription.
+              您的提供商未返回 verbose_json 数据片段。置信度过滤对上一次转录未产生任何影响。
+          audio-input:
+            title: 音频输入设备
+            description: 为听觉模块选择合适的音频输入设备。
+            placeholder: 选择音频输入设备
+          no-providers:
+            title: 未配置提供商
+            description: 点击此处设置您的语音转录提供商
+          model-input-placeholder: "输入要使用的转录模型 (例如: 'whisper-1', 'gpt-4o-transcribe')"
+          auto-send:
+            title: 自动发送设置
+            description: 配置将转录文本自动发送到聊天的相关设置
+            enable:
+              label: 自动发送转录文本
+              description: 在一定延迟后自动将转录文本发送到聊天。这可能会消耗 Token，如果您希望在发送前手动检查和编辑转录内容，请将其禁用。
+            delay:
+              label: 自动发送延迟
+              description: 自动发送转录文本前的延迟时间（毫秒）。（0 = 立即发送，推荐：1000-3000ms）
+              immediate: 立即
+          monitoring:
+            error: 发生错误
+            start: 开始监听
+            stop: 停止监听
+            input-level: 输入音量
+          stt-test:
+            title: 语音转文本 (STT) 测试
+            description: 使用选定的音频设备测试您的转录提供商。这将帮助验证 STT 功能是否正常工作。
+            warning-no-provider: 请先在上方选择一个转录提供商以进行测试
+            warning-no-audio: 请先选择一个音频输入设备以进行测试
+            btn-start: 开始语音转文本测试
+            btn-stop: 停止测试
+            btn-transcribing: 正在转录...
+            error-title: 转录错误
+            streaming-note: 实时流模式：当您说话时，转录内容将实时显示
+            result-title: 转录结果
+            current-streaming: '当前转录内容 (实时):'
+            final: '最终转录内容:'
+            no-result: 暂无转录内容。请点击“开始语音转文本测试”对着麦克风说话。
+            info-provider: '提供商：'
+            info-model: '模型：'
+            info-mode: '模式：'
+            mode-streaming: 实时流 (Real-time)
+            mode-recording: 录音 (File-based)
+          vad:
+            global:
+              title: 全局语音活动检测 (VAD)
+              description: 配置全局语音检测方式，以自动启动和停止转录
+            model-based:
+              label: 基于模型的检测 (推荐)
+              description: 使用 AI 神经网络进行更准确的语音检测，而不是单纯依赖麦克风音量
+            threshold:
+              label: 语音检测及格线(检测音频是人声还是噪音)
+              description: 调整全局神经网络识别阈值（越低越敏感）
+            silence:
+              label: 停顿/换气容忍度
+              description: 在判定说话结束前等待的时间
+            volume:
+              label: 音量灵敏度
+              description: 调整全局原始麦克风音量检测阈值
+            test:
+              model-based:
+                label: 测试：基于模型
+                description: 仅限测试区：使用 AI 模型进行更准确的语音检测
+              threshold:
+                label: 测试：语音检测及格线
+                description: 仅限测试区：调整语音检测阈值
+              silence:
+                label: 测试：停顿/换气容忍度
+                description: 仅限测试区：在判定说话结束前等待的时间
+              volume:
+                label: 测试：音量灵敏度
+                description: 仅限测试区：调整原始音量检测阈值
+            status:
+              speaking-detected: 检测到语音
+              silence: 静音
+              model-based: 模型驱动
+              volume-based: 音量驱动
+            chart:
+              probability-of-speech: 说话概率
+              speech: 说话中
+              detection-threshold: 检测及格线
+              loading: 加载中...
+              inference-error: 推理错误
+              activated: 已激活
+              probability: 概率：
+              voice-activity: 语音活动状态
+              last-2-seconds: 过去 2 秒
+              speaking: 正在说话
+              voice-detected: 已检测到人声
+              speech-threshold: 语音识别阈值
     memory-long-term:
       description: 长期记忆
       title: 长期记忆
