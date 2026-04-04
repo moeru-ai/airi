@@ -1,0 +1,43 @@
+name: Release Pocket (iOS)
+
+permissions:
+  contents: write
+  actions: read
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build iOS
+    runs-on: macos-15
+    env:
+      PRODUCT_NAME: 'AIRI'
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:packages
+
+      - name: Build assets
+        run: pnpm -F @proj-airi/stage-pocket run build
+
+      - name: Sync assets to iOS
+        run: pnpm -F @proj-airi/stage-pocket exec cap sync ios
+
+      - name: Build iOS
+        run: |
+          xcodebuild build \
+            -project apps/stage-pocket/ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -destination "generic/platform=iOS Simulator" \
+            CODE_SIGNING_ALLOWED=NO
