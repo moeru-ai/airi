@@ -1,4 +1,4 @@
-import type { WebSocketEvent } from '@proj-airi/server-shared/types'
+import type { WebSocketEvent, WebSocketEventOf } from '@proj-airi/server-shared/types'
 
 import superjson from 'superjson'
 
@@ -12,18 +12,18 @@ class MockWebSocket {
 
   static instances: MockWebSocket[] = []
 
-  readonly sent: string[] = []
+  readonly sent: Array<string | ArrayBufferLike | ArrayBufferView<ArrayBufferLike>> = []
   readyState = MockWebSocket.CONNECTING
   onclose?: () => void
-  onerror?: (event: { error?: Error }) => void
-  onmessage?: (event: { data: string }) => void
+  onerror?: (event: { error?: Error } | unknown) => void
+  onmessage?: (event: { data: string | ArrayBufferLike | ArrayBufferView<ArrayBufferLike> }) => void
   onopen?: () => void
 
   constructor(public readonly url: string) {
     MockWebSocket.instances.push(this)
   }
 
-  send(data: string) {
+  send(data: string | ArrayBufferLike | ArrayBufferView<ArrayBufferLike>) {
     this.sent.push(data)
   }
 
@@ -65,8 +65,14 @@ function parseSent(socket: MockWebSocket, index = -1) {
   if (!payload) {
     throw new Error(`No sent payload at index ${index}`)
   }
+  if (typeof payload === 'string') {
+    return superjson.parse<WebSocketEvent>(payload)
+  }
 
-  return superjson.parse<WebSocketEvent>(payload)
+  const textDecoder = new TextDecoder()
+  const decoded = textDecoder.decode(payload)
+
+  return superjson.parse<WebSocketEvent>(decoded)
 }
 
 function emitOpen(socket: MockWebSocket) {
@@ -114,7 +120,8 @@ describe('client', () => {
       },
     })
 
-    const announceEvent = parseSent(socket)
+    const announceEvent = parseSent(socket) as WebSocketEventOf<'module:announced'>
+
     expect(announceEvent).toMatchObject({
       type: 'module:announce',
       data: { name: 'test-plugin' },
@@ -195,7 +202,7 @@ describe('client', () => {
     }
 
     emitOpen(socket)
-    const announceEvent = parseSent(socket)
+    const announceEvent = parseSent(socket) as WebSocketEventOf<'module:announced'>
 
     emitMessage(socket, {
       type: 'module:announced',
@@ -229,7 +236,7 @@ describe('client', () => {
     await timedOutAssertion
 
     emitOpen(socket)
-    const announceEvent = parseSent(socket)
+    const announceEvent = parseSent(socket) as WebSocketEventOf<'module:announced'>
 
     emitMessage(socket, {
       type: 'module:announced',
@@ -278,7 +285,8 @@ describe('client', () => {
 
     emitOpen(socket)
 
-    const announceEvent = parseSent(socket)
+    const announceEvent = parseSent(socket) as WebSocketEventOf<'module:announced'>
+
     emitMessage(socket, {
       type: 'module:announced',
       data: {
@@ -322,7 +330,8 @@ describe('client', () => {
 
     const secondSocket = lastSocket()
     emitOpen(secondSocket)
-    const announceEvent = parseSent(secondSocket)
+
+    const announceEvent = parseSent(secondSocket) as WebSocketEventOf<'module:announced'>
 
     emitMessage(secondSocket, {
       type: 'module:announced',
@@ -353,7 +362,8 @@ describe('client', () => {
     const socket = lastSocket()
     emitOpen(socket)
 
-    const announceEvent = parseSent(socket)
+    const announceEvent = parseSent(socket) as WebSocketEventOf<'module:announced'>
+
     const selfIdentity = announceEvent.data.identity
 
     emitMessage(socket, {

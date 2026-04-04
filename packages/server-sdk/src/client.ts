@@ -49,8 +49,8 @@ export interface ClientOptions<C = undefined> {
   name: string
   token?: string
   websocketConstructor?: WebSocketLikeConstructor
-  connectTimeoutMs?: number
 
+  connectTimeoutMs?: number
   possibleEvents?: Array<keyof WebSocketEvents<C>>
   identity?: MetadataEventSource
   dependencies?: ModuleDependency[]
@@ -126,9 +126,9 @@ export class Client<C = undefined> {
   private readonly heartbeat: Required<ClientHeartbeatOptions>
   private readonly websocketConstructor: WebSocketLikeConstructor
 
-  private readonly opts: Required<Omit<ClientOptions<C>, 'token' | 'heartbeat' | 'websocketConstructor'>> & Pick<ClientOptions<C>, 'token'> & {
-    heartbeat: Required<ClientHeartbeatOptions>
-  }
+  private readonly opts:
+    & Required<Omit<ClientOptions<C>, 'token' | 'heartbeat' | 'websocketConstructor' | 'configSchema'>>
+    & Pick<ClientOptions<C>, 'token' | 'heartbeat' | 'configSchema'>
 
   private readonly eventListeners = new Map<
     keyof WebSocketEvents<C>,

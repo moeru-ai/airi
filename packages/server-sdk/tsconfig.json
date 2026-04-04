@@ -14,6 +14,9 @@
         "../server-shared/src/*"
       ]
     },
+    "types": [
+      "node"
+    ],
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
