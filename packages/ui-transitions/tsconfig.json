@@ -2,9 +2,9 @@
   "compilerOptions": {
     "target": "ESNext",
     "lib": [
-      "ESNext",
       "DOM",
-      "DOM.Iterable"
+      "DOM.Iterable",
+      "ESNext"
     ],
     "module": "ESNext",
     "moduleResolution": "bundler",

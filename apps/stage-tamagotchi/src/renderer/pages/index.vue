@@ -15,6 +15,7 @@ import {
   useElectronRelativeMouse,
 } from '@proj-airi/electron-vueuse'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
+import { HoloCoupon } from '@proj-airi/stage-ui/components'
 import {
   createEmptyModelSettingsRuntimeSnapshot,
   resolveComponentStateToRuntimePhase,
@@ -36,9 +37,7 @@ import ResourceStatusIsland from '../components/stage-islands/resource-status-is
 import StatusIsland from '../components/stage-islands/status-island/index.vue'
 
 import { electronOpenOnboarding } from '../../shared/eventa'
-import {
-  modelSettingsRuntimeSnapshotChannelName,
-} from '../../shared/model-settings-runtime'
+import { modelSettingsRuntimeSnapshotChannelName } from '../../shared/model-settings-runtime'
 import { useChatSyncStore } from '../stores/chat-sync'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
@@ -476,6 +475,7 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
           :x-offset="positionInPercentageString.x"
           :y-offset="positionInPercentageString.y"
         />
+        <HoloCoupon />
         <ControlsIsland
           ref="controlsIslandRef"
         />

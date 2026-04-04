@@ -63,18 +63,23 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     await mutex.acquire()
 
     try {
+      const registerConsumers = () => {
+        for (const consumerEvent of consumerRegistrationEvents) {
+          serverChannelStore.send({
+            type: 'module:consumer:register',
+            data: {
+              event: consumerEvent,
+              mode: 'consumer-group',
+              group: 'chat-ingestion',
+            },
+          })
+        }
+      }
+
       await serverChannelStore.ensureConnected()
 
-      for (const consumerEvent of consumerRegistrationEvents) {
-        serverChannelStore.send({
-          type: 'module:consumer:register',
-          data: {
-            event: consumerEvent,
-            mode: 'consumer-group',
-            group: 'chat-ingestion',
-          },
-        })
-      }
+      registerConsumers()
+      disposeHookFns.value.push(serverChannelStore.onReconnected(() => registerConsumers()))
 
       let isProcessingRemoteStream = false
 

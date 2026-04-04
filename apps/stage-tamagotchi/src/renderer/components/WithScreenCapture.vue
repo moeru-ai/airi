@@ -26,6 +26,7 @@ const {
   checkMacOSPermission,
   requestMacOSPermission,
 } = useElectronScreenCapture(window.electron.ipcRenderer, sourcesOptions)
+
 const focused = useWindowFocus()
 
 async function checkPermissions() {

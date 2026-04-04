@@ -1,3 +1,3 @@
-import type { createContext } from '@moeru/eventa'
+import type { EventContext } from '@moeru/eventa'
 
-export type ChannelHost = ReturnType<typeof createContext>
+export type ChannelHost = EventContext<unknown, { raw?: any }>
