@@ -122,6 +122,8 @@ live2d:
     title: Disable model mouse tracking
     button-disable:
       title: Disable model mouse tracking
+  render-scale:
+    title: Render scale
   fps:
     title: FPS
     description: Limit rendering frame rate
@@ -1107,6 +1109,8 @@ theme:
 title: Settings
 voices: Voice
 vrm:
+  render-scale:
+    title: Render scale
   change-model:
     from-file: Load from File
     from-file-select: Select

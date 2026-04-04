@@ -115,6 +115,8 @@ live2d:
     title: Отключить слежение за мышью
     button-disable:
       title: Disable model mouse tracking
+  render-scale:
+    title: Масштаб рендера
   fps:
     title: ФПС
     description: Ограничить скорость рендеринга кадров
@@ -1069,6 +1071,8 @@ theme:
 title: Настройки
 voices: Голос
 vrm:
+  render-scale:
+    title: Масштаб рендера
   change-model:
     from-file: Загрузить из файла
     from-file-select: Выбрать
