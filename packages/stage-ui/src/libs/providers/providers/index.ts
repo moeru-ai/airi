@@ -29,6 +29,7 @@ import './cloudflare-workers-ai'
 import './azure-ai-foundry'
 import './official'
 import './openclaw'
+import './nanobot'
 
 export {
   getDefinedProvider,

@@ -964,6 +964,36 @@ pages:
               label: OpenClaw HTTP API setup may be incomplete
               content: >-
                 Make sure OpenClaw is running, the HTTP compatibility API is enabled, and the configured operator token has access to the requested agent targets. For safety, prefer localhost or a private network instead of exposing the OpenClaw API publicly.
+      nanobot:
+        title: Nanobot
+        description: Route AIRI chat through a local Nanobot OpenAI-compatible API.
+        fields:
+          field:
+            api-key:
+              description: Any non-empty API key accepted by your local Nanobot server, for example `dummy`.
+            base-url:
+              description: Base URL of the local Nanobot API. AIRI will normalize it to the /v1 path automatically.
+              placeholder: http://127.0.0.1:8900/v1
+            model:
+              label: Model
+              description: The exact model name exposed by Nanobot.
+              placeholder: gemma-4-26B-A4B-it-heretic-ara.Q4_K_M.gguf
+            session-id:
+              label: Manual Session ID
+              description: Optional fixed session ID used only when session strategy is manual.
+              placeholder: airi:desktop:team-room
+            session-id-strategy:
+              label: Session ID Strategy
+              description: Choose whether AIRI derives a stable session ID automatically from the current chat or uses a fixed manual value.
+              options:
+                auto: Auto
+                manual: Manual
+        troubleshooting:
+          validators:
+            openai-compatible-check-connectivity:
+              label: Nanobot API may be offline or misconfigured
+              content: >-
+                Make sure the Nanobot process is running locally, `/health` responds successfully, and the configured model name exactly matches the one Nanobot exposes on its chat completions endpoint.
       transcriptions:
         playground:
           title: Transcription Playground

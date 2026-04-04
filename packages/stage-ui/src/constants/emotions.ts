@@ -41,9 +41,13 @@ export const EMOTION_VRMExpressionName_value = {
   [Emotion.Think]: 'think',
   [Emotion.Surprise]: 'surprised',
   [Emotion.Awkward]: 'neutral',
-  [Emotion.Question]: 'think',
+  // NOTICE: AvatarSample_A does not ship a dedicated "think" expression.
+  // Route question to surprised so VRM models can show a clearer visible cue.
+  [Emotion.Question]: 'surprised',
   [Emotion.Neutral]: 'neutral',
-  [Emotion.Curious]: 'think',
+  // NOTICE: Curious should remain visually distinct from question/think on
+  // stock VRM presets, so prefer happy over collapsing into neutral.
+  [Emotion.Curious]: 'happy',
 } satisfies Record<Emotion, string | undefined>
 
 export interface EmotionPayload {

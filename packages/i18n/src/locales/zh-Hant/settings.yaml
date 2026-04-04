@@ -906,6 +906,36 @@ pages:
               label: OpenClaw HTTP API 可能尚未完整啟用
               content: >-
                 請確認 OpenClaw 正在運行、HTTP 相容 API 已啟用，且目前設定的 operator 權杖可存取對應的 agent targets。為了安全，建議優先使用 localhost 或 private network，而不是直接公開對外。
+      nanobot:
+        title: Nanobot
+        description: 透過本機 Nanobot 的 OpenAI-compatible API 來處理 AIRI 聊天。
+        fields:
+          field:
+            api-key:
+              description: 本機 Nanobot 伺服器接受的任意非空 API key，例如 `dummy`。
+            base-url:
+              description: 本機 Nanobot API 的基礎 URL。AIRI 會自動正規化到 /v1 路徑。
+              placeholder: http://127.0.0.1:8900/v1
+            model:
+              label: 模型
+              description: 必須填入 Nanobot 對外公布的精確 model name。
+              placeholder: gemma-4-26B-A4B-it-heretic-ara.Q4_K_M.gguf
+            session-id:
+              label: 手動 Session ID
+              description: 僅在 Session ID 策略為手動時使用的固定 session ID。
+              placeholder: airi:desktop:team-room
+            session-id-strategy:
+              label: Session ID 策略
+              description: 選擇讓 AIRI 依目前聊天自動推導穩定 session ID，或改用固定手動值。
+              options:
+                auto: 自動
+                manual: 手動
+        troubleshooting:
+          validators:
+            openai-compatible-check-connectivity:
+              label: Nanobot API 可能未啟動或設定有誤
+              content: >-
+                請確認本機 Nanobot 行程正在運作、`/health` 可正常回應，並且設定的 model name 與 Nanobot chat completions 端點對外公布的名稱完全一致。
       transcriptions:
         playground:
           title: 實驗平台

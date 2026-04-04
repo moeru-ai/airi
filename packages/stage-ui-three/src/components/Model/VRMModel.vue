@@ -1064,7 +1064,7 @@ if (import.meta.hot) {
 
 defineExpose({
   setExpression(expression: string, intensity = 1) {
-    vrmEmote.value?.setEmotionWithResetAfter(expression, 3000, intensity)
+    vrmEmote.value?.setEmotionWithResetAfter(expression, 5000, intensity)
   },
   // NOTICE: This runtime frame hook is intentionally separate from internal VRM model hooks.
   // External callers use it for live pose/tracking input; internal hooks remain reserved for

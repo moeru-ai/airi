@@ -13,6 +13,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { z } from 'zod/v4'
 
+import { providerHandlesStreaming, streamThroughProviderAdapter } from '../libs/providers/chat-adapters'
 import { isOpenClawModelTarget } from '../libs/providers/providers/openclaw/shared'
 import { debug, executeOpenClawTool, mcp, openclaw } from '../tools'
 import { useModsServerChannelStore } from './mods/api/channel-server'
@@ -104,7 +105,9 @@ export interface StreamOptions {
   abortSignal?: AbortSignal
   headers?: Record<string, string>
   onStreamEvent?: (event: StreamEvent) => void | Promise<void>
+  providerConfig?: Record<string, unknown>
   providerId?: string
+  sessionId?: string
   toolsCompatibility?: Map<string, boolean>
   waitForOpenClawResult?: (commandId: string, payload: OpenClawToolPayload) => Promise<OpenClawToolResult>
   supportsTools?: boolean
@@ -280,6 +283,37 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
     }
 
     try {
+      if (providerHandlesStreaming(options?.providerId)) {
+        void (async () => {
+          try {
+            const handled = await streamThroughProviderAdapter({
+              abortSignal: options?.abortSignal,
+              chatProvider,
+              headers: options?.headers,
+              messages: sanitized,
+              model,
+              onText: async (text) => {
+                await onEvent({ type: 'text-delta', text })
+              },
+              providerConfig: options?.providerConfig || {},
+              providerId: options?.providerId,
+              sessionId: options?.sessionId || '',
+            })
+
+            if (!handled) {
+              throw new Error(`No provider adapter registered for ${options?.providerId || 'unknown provider'}.`)
+            }
+
+            await onEvent({ type: 'finish', finishReason: 'stop' })
+          }
+          catch (err) {
+            rejectOnce(err)
+          }
+        })()
+
+        return
+      }
+
       const streamResult = streamText({
         ...chatConfig,
         abortSignal: options?.abortSignal,

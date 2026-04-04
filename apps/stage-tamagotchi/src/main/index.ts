@@ -44,6 +44,27 @@ import { setupWidgetsWindowManager } from './windows/widgets'
 // manage events within eventa's context system.
 ipcMain.setMaxListeners(100)
 
+ipcMain.handle('proj-airi:nanobot:http-fetch', async (_event, request: {
+  body?: string
+  headers?: Record<string, string>
+  method?: string
+  url: string
+}) => {
+  const response = await fetch(request.url, {
+    body: request.body,
+    headers: request.headers,
+    method: request.method || 'GET',
+  })
+
+  return {
+    bodyText: await response.text(),
+    headers: Object.fromEntries(response.headers.entries()),
+    ok: response.ok,
+    status: response.status,
+    statusText: response.statusText,
+  }
+})
+
 setElectronMainDirname(dirname(fileURLToPath(import.meta.url)))
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)

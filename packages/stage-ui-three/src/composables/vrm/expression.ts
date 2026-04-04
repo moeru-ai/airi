@@ -19,6 +19,10 @@ export function useVRMEmote(vrm: VRMCore) {
   const currentExpressionValues = ref(new Map<string, number>())
   const targetExpressionValues = ref(new Map<string, number>())
   const resetTimeout = ref<number>()
+  const expressionAliases = new Map<string, string[]>([
+    ['surprised', ['Surprised']],
+    ['think', ['neutral']],
+  ])
 
   // Utility functions
   const lerp = (start: number, end: number, t: number): number => {
@@ -87,6 +91,28 @@ export function useVRMEmote(vrm: VRMCore) {
     }
   }
 
+  function resolveExpressionName(name: string) {
+    const expressionNames = Object.keys(vrm.expressionManager?.expressionMap ?? {})
+    if (expressionNames.includes(name))
+      return name
+
+    const lowerCaseMap = new Map(expressionNames.map(expressionName => [expressionName.toLowerCase(), expressionName]))
+    const lowerCaseName = lowerCaseMap.get(name.toLowerCase())
+    if (lowerCaseName)
+      return lowerCaseName
+
+    for (const alias of expressionAliases.get(name) ?? []) {
+      if (expressionNames.includes(alias))
+        return alias
+
+      const lowerCaseAlias = lowerCaseMap.get(alias.toLowerCase())
+      if (lowerCaseAlias)
+        return lowerCaseAlias
+    }
+
+    return null
+  }
+
   const setEmotion = (emotionName: string, intensity = 1) => {
     clearResetTimeout()
 
@@ -121,7 +147,13 @@ export function useVRMEmote(vrm: VRMCore) {
 
     // Override target values for specified expressions in the emotion state
     for (const expr of emotionState.expression || []) {
-      targetExpressionValues.value.set(expr.name, expr.value * normalizedIntensity)
+      const resolvedName = resolveExpressionName(expr.name)
+      if (!resolvedName) {
+        console.warn(`Expression ${expr.name} not found on current VRM model`)
+        continue
+      }
+
+      targetExpressionValues.value.set(resolvedName, expr.value * normalizedIntensity)
     }
   }
 

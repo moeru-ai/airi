@@ -13,7 +13,7 @@ import { ref, toRaw } from 'vue'
 import { useAnalytics } from '../composables'
 import { useLlmmarkerParser } from '../composables/llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from '../composables/response-categoriser'
-import { buildOpenClawSessionHeaders } from '../libs/providers/providers/openclaw/shared'
+import { buildProviderRequestHeaders } from '../libs/providers/chat-adapters'
 import { extractExplicitOpenClawTask } from '../tools'
 import { useAuthStore } from './auth'
 import { buildContextPromptMessage } from './chat/context-prompt'
@@ -381,22 +381,14 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
       let fullText = ''
       const resolvedProviderConfig = (options.providerConfig || providersStore.getProviderConfig(activeProvider.value) || {}) as Record<string, unknown>
-      const headers = { ...((resolvedProviderConfig.headers || {}) as Record<string, string>) }
-
-      if (activeProvider.value === 'openclaw') {
-        Object.assign(headers, buildOpenClawSessionHeaders({
+      const headers = {
+        ...((resolvedProviderConfig.headers || {}) as Record<string, string>),
+        ...buildProviderRequestHeaders({
           activeSessionId: chatSession.activeSessionId,
-          fallbackSessionId: sessionId,
-          sessionKey: typeof resolvedProviderConfig.sessionKey === 'string' ? resolvedProviderConfig.sessionKey : undefined,
-          sessionStrategy: resolvedProviderConfig.sessionStrategy === 'manual' ? 'manual' : 'auto',
-        }))
-
-        const underlyingModel = typeof resolvedProviderConfig.underlyingModel === 'string'
-          ? resolvedProviderConfig.underlyingModel.trim()
-          : ''
-        if (underlyingModel) {
-          headers['x-openclaw-model'] = underlyingModel
-        }
+          providerConfig: resolvedProviderConfig,
+          providerId: activeProvider.value,
+          sessionId,
+        }),
       }
 
       if (shouldAbort())
@@ -404,7 +396,9 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
       await llmStore.stream(options.model, options.chatProvider, newMessages as Message[], {
         headers,
+        providerConfig: resolvedProviderConfig,
         providerId: activeProvider.value,
+        sessionId,
         tools: options.tools,
         // NOTICE: xsai stream may emit `finish` before tool steps continue, so keep waiting until
         // the final non-tool finish to avoid ending the chat turn with no assistant reply.
