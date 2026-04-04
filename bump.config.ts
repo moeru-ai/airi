@@ -30,6 +30,35 @@ async function syncAndroidVersion(version: string) {
   console.info(`Bumping Android version to ${version} (${currentVersionCode} -> ${nextVersionCode})`)
 }
 
+const iOSProjectFile = join(cwd(), 'apps/stage-pocket/ios/App/App.xcodeproj/project.pbxproj')
+
+const iOSMarketingVersionPattern = /MARKETING_VERSION = .*?;/g
+const iOSMarketingVersionTrimPattern = /-.+$/g
+const iOSProjectVersionPattern = /CURRENT_PROJECT_VERSION = (\d+);/
+const iOSProjectVersionPatternGlobal = /CURRENT_PROJECT_VERSION = (\d+);/g
+
+async function syncIOSVersion(version: string) {
+  const pbxproj = await readFile(iOSProjectFile, 'utf-8')
+  const currentVersionMatch = pbxproj.match(iOSProjectVersionPattern)
+  if (!currentVersionMatch) {
+    throw new TypeError('iOS project file does not contain a valid CURRENT_PROJECT_VERSION')
+  }
+
+  const currentBuildNumber = Number.parseInt(currentVersionMatch[1], 10)
+  if (!Number.isSafeInteger(currentBuildNumber) || currentBuildNumber < 1) {
+    throw new TypeError(`iOS CURRENT_PROJECT_VERSION is invalid: ${currentVersionMatch[1]}`)
+  }
+
+  const nextBuildNumber = currentBuildNumber + 1
+  const strictVersion = version.replace(iOSMarketingVersionTrimPattern, '')
+  const updatedPbxproj = pbxproj
+    .replace(iOSMarketingVersionPattern, `MARKETING_VERSION = ${strictVersion};`)
+    .replace(iOSProjectVersionPatternGlobal, `CURRENT_PROJECT_VERSION = ${nextBuildNumber};`)
+
+  await writeFile(iOSProjectFile, updatedPbxproj)
+  console.info(`Bumping iOS version to ${version} (${currentBuildNumber} -> ${nextBuildNumber})`)
+}
+
 export default defineConfig({
   recursive: true,
   commit: 'release: v%s',
@@ -40,5 +69,6 @@ export default defineConfig({
     await x('pnpm', ['publish', '-r', '--access', 'public', '--no-git-checks', '--dry-run'])
     const nextVersion = operation.state.newVersion
     await syncAndroidVersion(nextVersion)
+    await syncIOSVersion(nextVersion)
   },
 })
