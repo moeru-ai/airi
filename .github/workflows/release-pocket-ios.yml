@@ -66,6 +66,15 @@ jobs:
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp "$PROFILE_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/
 
+      - name: Read version from Xcode project
+        run: |
+          PBXPROJ="apps/stage-pocket/ios/App/App.xcodeproj/project.pbxproj"
+          VERSION="$(sed -n 's/.*MARKETING_VERSION = \(.*\);/\1/p' "$PBXPROJ" | head -1 | tr -d ' ')"
+          BUILD_NUMBER="$(sed -n 's/.*CURRENT_PROJECT_VERSION = \(.*\);/\1/p' "$PBXPROJ" | head -1 | tr -d ' ')"
+
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+
       - name: Archive iOS
         run: |
           xcodebuild archive \
@@ -78,7 +87,7 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
             PROVISIONING_PROFILE_SPECIFIER="AIRI CI" \
-            CURRENT_PROJECT_VERSION=${{ github.run_number }}
+            CURRENT_PROJECT_VERSION=${{ env.BUILD_NUMBER }}
 
       - name: Export IPA
         run: |
@@ -89,9 +98,8 @@ jobs:
 
       - name: Rename IPA for distribution
         run: |
-          VERSION="$(sed -n 's/.*MARKETING_VERSION = \(.*\);/\1/p' apps/stage-pocket/ios/App/App.xcodeproj/project.pbxproj | head -1 | tr -d ' ')"
           IPA_SOURCE="$(find "$RUNNER_TEMP/output" -name '*.ipa' -print -quit)"
-          IPA_NAME="${PRODUCT_NAME}-${VERSION}-ios.ipa"
+          IPA_NAME="${PRODUCT_NAME}-${VERSION}-b${BUILD_NUMBER}-ios.ipa"
 
           mv "$IPA_SOURCE" "$RUNNER_TEMP/output/$IPA_NAME"
 
