@@ -3,6 +3,7 @@ ignorePaths: []
 dictionaryDefinitions: []
 dictionaries: []
 words:
+  - 433DLLA855
   - acubismmotion
   - Aerisita
   - aihubmix
@@ -46,6 +47,7 @@ words:
   - cjkfonts
   - clippy
   - clustr
+  - codesign
   - collectblock
   - colorjs
   - cometapi
@@ -178,6 +180,7 @@ words:
   - minimizable
   - minisearch
   - mkdist
+  - mobileprovision
   - modelcontextprotocol
   - modnet
   - moeru
@@ -218,6 +221,7 @@ words:
   - otelcol
   - owenthereal
   - oxlint
+  - pbxproj
   - pglite
   - pgvector
   - picklist
@@ -328,6 +332,7 @@ words:
   - worklets
   - xast
   - xastscript
+  - xcarchive
   - xcodeproj
   - Xenova
   - xiaolai
