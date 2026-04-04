@@ -6,6 +6,16 @@ permissions:
 
 on:
   workflow_dispatch:
+    inputs:
+      build_only:
+        description: Build only (no upload to release)
+        required: false
+        default: false
+        type: boolean
+      tag:
+        description: Specific tag for the release upload
+        required: false
+        type: string
 
 jobs:
   build:
@@ -13,6 +23,7 @@ jobs:
     runs-on: macos-26
     env:
       PRODUCT_NAME: 'AIRI'
+      VITE_ENABLE_POSTHOG: 'true'
     steps:
       - uses: actions/checkout@v6
 
@@ -111,6 +122,14 @@ jobs:
           name: ${{ env.IPA_NAME }}
           path: ${{ runner.temp }}/output/${{ env.IPA_NAME }}
           if-no-files-found: error
+
+      - name: Upload to GitHub Releases
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only }}
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ runner.temp }}/output/${{ env.IPA_NAME }}
+          append_body: true
+          tag_name: ${{ inputs.tag }}
 
       - name: Clean up signing
         if: always()
