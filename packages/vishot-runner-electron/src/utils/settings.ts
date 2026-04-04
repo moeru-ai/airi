@@ -13,6 +13,21 @@ function getSettingsSwitch(settingsPage: Page, label: RegExp | string) {
   return { labelLocator, row, button }
 }
 
+export async function goToSettingsRoute(settingsPage: Page, routePath: string): Promise<Page> {
+  const normalizedRoutePath = routePath.startsWith('/')
+    ? routePath
+    : `/${routePath}`
+
+  if (!settingsPage.url().includes(`#${normalizedRoutePath}`)) {
+    await settingsPage.evaluate((nextRoutePath) => {
+      window.location.hash = nextRoutePath
+    }, normalizedRoutePath)
+    await settingsPage.waitForURL(new RegExp(`#${normalizedRoutePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`))
+  }
+
+  return settingsPage
+}
+
 export async function openSettingsConnectionPage(_mainPage: Page, settingsPage: Page): Promise<void> {
   if (!settingsPage.url().includes('#/settings/connection')) {
     await settingsPage.getByText(/connection|websocket|router/i).first().click({ force: true })
@@ -21,12 +36,7 @@ export async function openSettingsConnectionPage(_mainPage: Page, settingsPage: 
 }
 
 export async function goToSettingsConnectionPage(settingsPage: Page): Promise<Page> {
-  if (!settingsPage.url().includes('#/settings/connection')) {
-    await settingsPage.getByText(/connection|websocket|router/i).first().click({ force: true })
-    await settingsPage.waitForURL(/#\/settings\/connection/)
-  }
-
-  return settingsPage
+  return goToSettingsRoute(settingsPage, '/settings/connection')
 }
 
 export async function toggleSettingsSwitchByLabel(settingsPage: Page, label: RegExp | string): Promise<{ before: string, after: string }> {
