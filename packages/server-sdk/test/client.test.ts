@@ -299,4 +299,87 @@ describe('client', () => {
 
     dispose()
   })
+
+  it('retries after connect timeout and eventually connects on a later socket', async () => {
+    vi.useFakeTimers()
+
+    const client = new Client({
+      autoConnect: false,
+      autoReconnect: true,
+      connectTimeoutMs: 50,
+      name: 'test-plugin',
+    })
+
+    const connecting = client.connect()
+    const firstSocket = lastSocket()
+    const firstCloseSpy = vi.spyOn(firstSocket, 'close')
+
+    await vi.advanceTimersByTimeAsync(50)
+    expect(firstCloseSpy).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(MockWebSocket.instances).toHaveLength(2)
+
+    const secondSocket = lastSocket()
+    emitOpen(secondSocket)
+    const announceEvent = parseSent(secondSocket)
+
+    emitMessage(secondSocket, {
+      type: 'module:announced',
+      data: {
+        name: 'test-plugin',
+        identity: announceEvent.data.identity,
+      },
+      metadata: {
+        source: { kind: 'plugin', plugin: { id: 'server' }, id: 'server-1' },
+        event: { id: 'announce-retry-1' },
+      },
+    })
+
+    await expect(connecting).resolves.toBeUndefined()
+    expect(client.connectionStatus).toBe('ready')
+  })
+
+  it('does not emit onReady twice when sync fallback already moved status to ready', async () => {
+    const onReady = vi.fn()
+    const client = new Client({
+      autoConnect: false,
+      autoReconnect: false,
+      name: 'test-plugin',
+      onReady,
+    })
+
+    const connecting = client.connect()
+    const socket = lastSocket()
+    emitOpen(socket)
+
+    const announceEvent = parseSent(socket)
+    const selfIdentity = announceEvent.data.identity
+
+    emitMessage(socket, {
+      type: 'registry:modules:sync',
+      data: {
+        modules: [{ name: 'test-plugin', identity: selfIdentity }],
+      },
+      metadata: {
+        source: { kind: 'plugin', plugin: { id: 'server' }, id: 'server-1' },
+        event: { id: 'sync-1' },
+      },
+    })
+
+    emitMessage(socket, {
+      type: 'module:announced',
+      data: {
+        name: 'test-plugin',
+        identity: selfIdentity,
+      },
+      metadata: {
+        source: { kind: 'plugin', plugin: { id: 'server' }, id: 'server-1' },
+        event: { id: 'announce-1' },
+      },
+    })
+
+    await expect(connecting).resolves.toBeUndefined()
+    expect(onReady).toHaveBeenCalledTimes(1)
+  })
 })

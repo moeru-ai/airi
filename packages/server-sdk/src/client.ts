@@ -49,6 +49,7 @@ export interface ClientOptions<C = undefined> {
   name: string
   token?: string
   websocketConstructor?: WebSocketLikeConstructor
+  connectTimeoutMs?: number
 
   possibleEvents?: Array<keyof WebSocketEvents<C>>
   identity?: MetadataEventSource
@@ -148,6 +149,7 @@ export class Client<C = undefined> {
 
     this.opts = {
       url: 'ws://localhost:6121/ws',
+      connectTimeoutMs: 15_000,
       onAnyMessage: () => {},
       onAnySend: () => {},
       possibleEvents: [],
@@ -372,6 +374,19 @@ export class Client<C = undefined> {
     this.connectionAttempt = attempt
 
     const isCurrentSocket = () => this.websocket === ws
+    const connectTimeoutMs = this.opts.connectTimeoutMs
+    const connectTimer = setTimeout(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        return
+      }
+
+      ws.close()
+      deferred.reject(new Error(`Connection timeout after ${connectTimeoutMs}ms`))
+    }, connectTimeoutMs)
+
+    const clearConnectTimer = () => {
+      clearTimeout(connectTimer)
+    }
 
     ws.onmessage = (event: WebSocketMessageEventLike) => {
       if (!isCurrentSocket()) {
@@ -382,6 +397,8 @@ export class Client<C = undefined> {
     }
 
     ws.onerror = (event: any) => {
+      clearConnectTimer()
+
       if (!isCurrentSocket()) {
         return
       }
@@ -397,6 +414,8 @@ export class Client<C = undefined> {
     }
 
     ws.onclose = () => {
+      clearConnectTimer()
+
       if (!isCurrentSocket()) {
         return
       }
@@ -411,6 +430,7 @@ export class Client<C = undefined> {
 
       if (wasReady && this.opts.autoReconnect) {
         this.pendingReconnect = true
+        this.transitionTo('idle')
         void this.connect()
         return
       }
@@ -419,6 +439,8 @@ export class Client<C = undefined> {
     }
 
     ws.onopen = () => {
+      clearConnectTimer()
+
       if (!isCurrentSocket()) {
         return
       }
@@ -671,6 +693,42 @@ export class Client<C = undefined> {
           return
         }
 
+        if (this.status === 'ready') {
+          return
+        }
+
+        if (this.connectionAttempt) {
+          this.connectionAttempt.announced = true
+        }
+
+        this.reconnectAttempts = 0
+        this.transitionTo('ready')
+        this.resolveAttempt()
+        this.opts.onReady?.()
+        return
+      }
+
+      case 'registry:modules:sync': {
+        // Fallback: If the status is stuck at 'announcing' but the sync already contains this module,
+        // it means the announce succeeded; the server simply didn't send back 'module:announced'
+        if (this.status !== 'announcing' || !this.connectionAttempt) {
+          return
+        }
+
+        const modules = (data.data as any)?.modules as Array<{
+          name: string
+          identity?: { id?: string }
+        }> ?? []
+
+        const selfRegistered = modules.some(
+          m => m.name === this.opts.name
+            && m.identity?.id === this.identity.id,
+        )
+
+        if (!selfRegistered) {
+          return
+        }
+
         if (this.connectionAttempt) {
           this.connectionAttempt.announced = true
         }
@@ -829,6 +887,7 @@ export class Client<C = undefined> {
       return
     }
 
+    this.transitionTo('idle')
     void this.connect()
   }
 }
