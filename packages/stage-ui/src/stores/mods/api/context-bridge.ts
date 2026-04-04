@@ -73,7 +73,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
             mode: 'consumer-group',
             group: 'chat-ingestion',
           },
-        })
+        } as any) // NOTICE: bypass incomplete types in server-shared
       }
 
       let isProcessingRemoteStream = false
@@ -331,6 +331,12 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
           broadcastStreamEvent({ type: 'token-special', special, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
+        chatOrchestrator.onTokenTranslation(async (translation, context) => {
+          if (isProcessingRemoteStream)
+            return
+          // @ts-expect-error: token-translation is dynamically added for translation subtitle feature
+          broadcastStreamEvent({ type: 'token-translation', translation, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+        }),
         chatOrchestrator.onStreamEnd(async (context) => {
           if (isProcessingRemoteStream)
             return
@@ -430,6 +436,13 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
             case 'token-special':
               await chatOrchestrator.emitTokenSpecialHooks(event.special, event.context)
               break
+            // @ts-expect-error: dynamic token-translation event handling
+            case 'token-translation':
+              // 严格对齐官方 token-literal 的防御策略，仅判断 remoteStreamGuard 是否存在
+              if (remoteStreamGuard) {
+                await chatOrchestrator.emitTokenTranslationHooks((event as any).translation, (event as any).context)
+              }
+              break
             case 'stream-end':
               if (!remoteStreamGuard)
                 break
@@ -485,7 +498,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
             mode: 'consumer-group',
             group: 'chat-ingestion',
           },
-        })
+        } as any) // NOTICE: bypass incomplete types in server-shared
       }
 
       for (const fn of disposeHookFns.value) {

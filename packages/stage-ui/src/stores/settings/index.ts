@@ -58,6 +58,14 @@ export const useSettings = defineStore('settings', () => {
     language: generalRefs.language,
     analyticsEnabled: analyticsRefs.analyticsEnabled,
     websocketSecureEnabled: generalRefs.websocketSecureEnabled,
+    translationSubtitleEnabled: generalRefs.translationSubtitleEnabled,
+    translationLanguage: generalRefs.translationLanguage,
+    captionSpeakerColor: generalRefs.captionSpeakerColor,
+    captionAssistantColor: generalRefs.captionAssistantColor,
+    captionTranslationColor: generalRefs.captionTranslationColor,
+    captionSpeakerStrokeColor: generalRefs.captionSpeakerStrokeColor,
+    captionAssistantStrokeColor: generalRefs.captionAssistantStrokeColor,
+    captionTranslationStrokeColor: generalRefs.captionTranslationStrokeColor,
 
     // Stage model settings
     stageModelRenderer: stageModelRefs.stageModelRenderer,

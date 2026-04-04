@@ -22,6 +22,7 @@ import { useChatStreamStore } from './chat/stream-store'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useLLM } from './llm'
 import { useConsciousnessStore } from './modules/consciousness'
+import { useSettingsGeneral } from './settings/general'
 
 interface SendOptions {
   model: string
@@ -211,10 +212,26 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       const categorizer = createStreamingCategorizer(activeProvider.value)
       let streamPosition = 0
 
+      // 提前获取设置并建立快照，防止用户在流式输出中途切断开关导致状态竞态
+      const settingsGeneral = useSettingsGeneral()
+      const isTranslationExpected = settingsGeneral.translationSubtitleEnabled
+      let inTranslationMode = false // NOTICE: 翻译模式状态机，用于截断发往 TTS 的文本流
+
       const parser = useLlmmarkerParser({
         onLiteral: async (literal) => {
           if (shouldAbort())
             return
+
+          // 处于翻译模式时，将文本单独分流给翻译钩子
+          if (inTranslationMode) {
+            await hooks.emitTokenTranslationHooks(literal, streamingMessageContext)
+
+            // 兼容 Web 端：如果没有 Electron 环境（无独立字幕窗），则不中断流程，防止翻译内容静默丢失
+            const isDesktop = typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('electron')
+            if (isDesktop) {
+              return
+            }
+          }
 
           categorizer.consume(literal)
 
@@ -242,6 +259,18 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         onSpecial: async (special) => {
           if (shouldAbort())
             return
+
+          // 这里的 special 包含完整的定界符，需匹配全量标签。使用快照变量判断，避免 ESLint 先使用后定义报错
+          if (special === '<|TRANS:|>' && isTranslationExpected) {
+            console.info('[AIRI Translation] Mode Activated!')
+            inTranslationMode = true
+            return
+          }
+
+          // 如果已经进入翻译模式，直接丢弃所有后续的特殊标签，防止控制指令泄露
+          if (inTranslationMode) {
+            return
+          }
 
           await hooks.emitTokenSpecialHooks(special, streamingMessageContext)
         },
@@ -311,6 +340,14 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
             contexts: contextsSnapshot,
             promptMessage: contextPromptMessage,
           },
+        })
+      }
+
+      if (isTranslationExpected) {
+        const targetLang = settingsGeneral.translationLanguage || 'the user\'s local language'
+        newMessages.push({
+          role: 'system',
+          content: `System Instruction: You must provide a bilingual response. First, output your normal response. Then, immediately append the exact tag <|TRANS:|> followed by the translated text of your response in ${targetLang}. Do not explain, just output the translated text after the tag.`,
         })
       }
 
@@ -486,6 +523,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     emitAfterSendHooks: hooks.emitAfterSendHooks,
     emitTokenLiteralHooks: hooks.emitTokenLiteralHooks,
     emitTokenSpecialHooks: hooks.emitTokenSpecialHooks,
+    emitTokenTranslationHooks: hooks.emitTokenTranslationHooks,
     emitStreamEndHooks: hooks.emitStreamEndHooks,
     emitAssistantResponseEndHooks: hooks.emitAssistantResponseEndHooks,
     emitAssistantMessageHooks: hooks.emitAssistantMessageHooks,
@@ -497,6 +535,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     onAfterSend: hooks.onAfterSend,
     onTokenLiteral: hooks.onTokenLiteral,
     onTokenSpecial: hooks.onTokenSpecial,
+    onTokenTranslation: hooks.onTokenTranslation,
     onStreamEnd: hooks.onStreamEnd,
     onAssistantResponseEnd: hooks.onAssistantResponseEnd,
     onAssistantMessage: hooks.onAssistantMessage,

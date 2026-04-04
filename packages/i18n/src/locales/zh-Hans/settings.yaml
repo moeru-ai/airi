@@ -1116,3 +1116,15 @@ wip:
   title: 正在开发中
   description: >-
     此功能正在开发中，尚未公开发布。请在未来的更新中再次查看此功能。
+translation-subtitle:
+  title: 翻译字幕
+  description: 使用 TRANS 标签自动为 AI 回复附加双语翻译字幕。
+  language:
+    title: 目标语言
+    description: 请选择翻译字幕需要转换为的目标语言。
+caption-colors:
+  title: 字幕颜色与外观
+  speaker: 用户字幕
+  assistant: AI 原文字幕
+  translation: AI 翻译字幕
+  stroke: 描边颜色
