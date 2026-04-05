@@ -1,4 +1,5 @@
 import type { Card } from '@proj-airi/ccc'
+
 import type { Character, CreateCharacterPayload, UpdateCharacterPayload } from '../types/character'
 
 import { useLocalStorage } from '@vueuse/core'

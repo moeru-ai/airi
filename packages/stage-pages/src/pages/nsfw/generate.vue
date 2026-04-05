@@ -161,11 +161,11 @@ async function saveToGallery() {
 <template>
   <div class="min-h-screen px-4 py-8 md:px-8">
     <div mx-auto max-w-6xl class="space-y-6">
-      <section class="relative overflow-hidden rounded-[2rem] bg-linear-to-br from-neutral-950 via-fuchsia-950 to-black px-6 py-8 text-white shadow-sm md:px-10 md:py-12">
+      <section class="bg-linear-to-br relative overflow-hidden rounded-[2rem] from-neutral-950 via-fuchsia-950 to-black px-6 py-8 text-white shadow-sm md:px-10 md:py-12">
         <div class="absolute right--12 top--14 h-60 w-60 rounded-full bg-fuchsia-400/15 blur-3xl" />
         <div class="absolute bottom--12 left-8 h-48 w-48 rounded-full bg-rose-300/10 blur-3xl" />
         <div class="relative z-1 max-w-3xl">
-          <div class="mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.16em] backdrop-blur">
+          <div class="mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium tracking-[0.16em] uppercase backdrop-blur">
             NSFW Generate
           </div>
           <h1 class="text-4xl font-semibold leading-tight md:text-5xl">
@@ -207,7 +207,7 @@ async function saveToGallery() {
             <div class="mt-4 space-y-4">
               <div class="flex flex-col gap-1.5">
                 <label class="text-sm font-medium">Character</label>
-                <select v-model="selectedCharacterId" class="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800">
+                <select v-model="selectedCharacterId" class="w-full border border-neutral-200 rounded-lg bg-white px-3 py-2 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800">
                   <option value="" disabled>
                     Select a character
                   </option>
@@ -222,7 +222,7 @@ async function saveToGallery() {
                 <textarea
                   v-model="form.prompt"
                   rows="6"
-                  class="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800"
+                  class="w-full border border-neutral-200 rounded-lg bg-white px-3 py-2 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800"
                   placeholder="Describe the shot you want, the pose, outfit, setting, or scene beat."
                 />
               </div>
@@ -230,24 +230,24 @@ async function saveToGallery() {
               <div class="grid gap-4 sm:grid-cols-2">
                 <div class="flex flex-col gap-1.5">
                   <label class="text-sm font-medium">Style</label>
-                  <input v-model="form.style" class="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800">
+                  <input v-model="form.style" class="w-full border border-neutral-200 rounded-lg bg-white px-3 py-2 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800">
                 </div>
 
                 <div class="flex flex-col gap-1.5">
                   <label class="text-sm font-medium">Mood</label>
-                  <input v-model="form.mood" class="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800">
+                  <input v-model="form.mood" class="w-full border border-neutral-200 rounded-lg bg-white px-3 py-2 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800">
                 </div>
               </div>
 
               <div class="grid gap-4 sm:grid-cols-2">
                 <div class="flex flex-col gap-1.5">
                   <label class="text-sm font-medium">Framing</label>
-                  <input v-model="form.framing" class="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800">
+                  <input v-model="form.framing" class="w-full border border-neutral-200 rounded-lg bg-white px-3 py-2 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800">
                 </div>
 
                 <div class="flex flex-col gap-1.5">
                   <label class="text-sm font-medium">Aspect Ratio</label>
-                  <input v-model="form.aspectRatio" class="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800">
+                  <input v-model="form.aspectRatio" class="w-full border border-neutral-200 rounded-lg bg-white px-3 py-2 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-800">
                 </div>
               </div>
 
@@ -256,7 +256,7 @@ async function saveToGallery() {
                 <textarea
                   v-model="form.comfyWorkflow"
                   rows="7"
-                  class="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 font-mono text-xs outline-none dark:border-neutral-700 dark:bg-neutral-800"
+                  class="w-full border border-neutral-200 rounded-lg bg-white px-3 py-2 text-xs font-mono outline-none dark:border-neutral-700 dark:bg-neutral-800"
                 />
                 <p class="text-xs text-neutral-500 leading-5 dark:text-neutral-400">
                   Optional override. If left empty, AIRI now builds a default API-format ComfyUI workflow from the planned prompt, negative prompt, aspect ratio, and server checkpoint setting.
@@ -288,7 +288,7 @@ async function saveToGallery() {
 
             <div v-if="result" class="mt-4 space-y-5">
               <div>
-                <div class="text-[11px] font-medium uppercase tracking-[0.16em] text-neutral-500 dark:text-neutral-400">
+                <div class="text-[11px] text-neutral-500 font-medium tracking-[0.16em] uppercase dark:text-neutral-400">
                   Scene Type
                 </div>
                 <div class="mt-1 text-sm font-medium">
@@ -297,7 +297,7 @@ async function saveToGallery() {
               </div>
 
               <div>
-                <div class="text-[11px] font-medium uppercase tracking-[0.16em] text-neutral-500 dark:text-neutral-400">
+                <div class="text-[11px] text-neutral-500 font-medium tracking-[0.16em] uppercase dark:text-neutral-400">
                   Prompt
                 </div>
                 <div class="mt-2 rounded-2xl bg-neutral-50 px-4 py-4 text-sm leading-6 dark:bg-neutral-800">
@@ -306,7 +306,7 @@ async function saveToGallery() {
               </div>
 
               <div>
-                <div class="text-[11px] font-medium uppercase tracking-[0.16em] text-neutral-500 dark:text-neutral-400">
+                <div class="text-[11px] text-neutral-500 font-medium tracking-[0.16em] uppercase dark:text-neutral-400">
                   Negative Prompt
                 </div>
                 <div class="mt-2 rounded-2xl bg-neutral-50 px-4 py-4 text-sm leading-6 dark:bg-neutral-800">
@@ -315,14 +315,14 @@ async function saveToGallery() {
               </div>
 
               <div>
-                <div class="text-[11px] font-medium uppercase tracking-[0.16em] text-neutral-500 dark:text-neutral-400">
+                <div class="text-[11px] text-neutral-500 font-medium tracking-[0.16em] uppercase dark:text-neutral-400">
                   Tags
                 </div>
                 <div class="mt-3 flex flex-wrap gap-2">
                   <span
                     v-for="tag in result.tags"
                     :key="tag"
-                    class="rounded-full bg-fuchsia-100 px-3 py-1 text-xs font-medium text-fuchsia-700 dark:bg-fuchsia-500/15 dark:text-fuchsia-300"
+                    class="rounded-full bg-fuchsia-100 px-3 py-1 text-xs text-fuchsia-700 font-medium dark:bg-fuchsia-500/15 dark:text-fuchsia-300"
                   >
                     {{ tag }}
                   </span>
@@ -339,7 +339,7 @@ async function saveToGallery() {
               </div>
             </div>
 
-            <div v-else class="mt-4 rounded-2xl border border-dashed border-neutral-200 px-5 py-10 text-sm text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
+            <div v-else class="mt-4 border border-neutral-200 rounded-2xl border-dashed px-5 py-10 text-sm text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
               Generate a prompt to see the final scene package Hermes would send toward your image pipeline.
             </div>
           </div>

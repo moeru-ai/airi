@@ -81,19 +81,19 @@ async function enterStage() {
       </div>
 
       <div v-else class="grid gap-6 lg:grid-cols-[1.15fr,0.85fr]">
-        <section class="relative overflow-hidden rounded-[2rem] bg-linear-to-br from-neutral-950 via-neutral-900 to-rose-950 text-white shadow-sm">
+        <section class="bg-linear-to-br relative overflow-hidden rounded-[2rem] from-neutral-950 via-neutral-900 to-rose-950 text-white shadow-sm">
           <img
             :src="character.coverUrl"
             :alt="i18n.name"
             class="absolute inset-0 h-full w-full object-cover opacity-40"
           >
-          <div class="absolute inset-0 bg-linear-to-t from-black via-black/45 to-transparent" />
-          <div class="relative z-1 flex min-h-[34rem] flex-col justify-end gap-5 p-6 md:p-8">
+          <div class="bg-linear-to-t absolute inset-0 from-black via-black/45 to-transparent" />
+          <div class="relative z-1 min-h-[34rem] flex flex-col justify-end gap-5 p-6 md:p-8">
             <div class="flex flex-wrap gap-2">
               <span
                 v-for="badge in badges"
                 :key="badge"
-                class="rounded-full bg-white/12 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] backdrop-blur"
+                class="rounded-full bg-white/12 px-3 py-1 text-[11px] font-medium tracking-[0.16em] uppercase backdrop-blur"
               >
                 {{ badge }}
               </span>
@@ -110,7 +110,7 @@ async function enterStage() {
 
             <div class="grid gap-3 sm:grid-cols-3">
               <div class="rounded-2xl bg-white/10 px-4 py-3 backdrop-blur">
-                <div class="text-[11px] text-white/60 uppercase tracking-[0.16em]">
+                <div class="text-[11px] text-white/60 tracking-[0.16em] uppercase">
                   Dynamic
                 </div>
                 <div class="mt-1 text-sm font-medium">
@@ -118,7 +118,7 @@ async function enterStage() {
                 </div>
               </div>
               <div class="rounded-2xl bg-white/10 px-4 py-3 backdrop-blur">
-                <div class="text-[11px] text-white/60 uppercase tracking-[0.16em]">
+                <div class="text-[11px] text-white/60 tracking-[0.16em] uppercase">
                   Personality
                 </div>
                 <div class="mt-1 text-sm font-medium">
@@ -126,7 +126,7 @@ async function enterStage() {
                 </div>
               </div>
               <div class="rounded-2xl bg-white/10 px-4 py-3 backdrop-blur">
-                <div class="text-[11px] text-white/60 uppercase tracking-[0.16em]">
+                <div class="text-[11px] text-white/60 tracking-[0.16em] uppercase">
                   Access
                 </div>
                 <div class="mt-1 text-sm font-medium">
@@ -196,12 +196,12 @@ async function enterStage() {
             <h2 class="text-lg font-semibold">
               Engagement
             </h2>
-            <div class="mt-4 grid grid-cols-3 gap-3">
+            <div class="grid grid-cols-3 mt-4 gap-3">
               <div class="rounded-2xl bg-neutral-50 px-4 py-3 text-center dark:bg-neutral-800">
                 <div class="text-xl font-semibold">
                   {{ character.likesCount }}
                 </div>
-                <div class="text-xs text-neutral-500 uppercase tracking-wide dark:text-neutral-400">
+                <div class="text-xs text-neutral-500 tracking-wide uppercase dark:text-neutral-400">
                   Likes
                 </div>
               </div>
@@ -209,7 +209,7 @@ async function enterStage() {
                 <div class="text-xl font-semibold">
                   {{ character.bookmarksCount }}
                 </div>
-                <div class="text-xs text-neutral-500 uppercase tracking-wide dark:text-neutral-400">
+                <div class="text-xs text-neutral-500 tracking-wide uppercase dark:text-neutral-400">
                   Saves
                 </div>
               </div>
@@ -217,7 +217,7 @@ async function enterStage() {
                 <div class="text-xl font-semibold">
                   {{ character.interactionsCount }}
                 </div>
-                <div class="text-xs text-neutral-500 uppercase tracking-wide dark:text-neutral-400">
+                <div class="text-xs text-neutral-500 tracking-wide uppercase dark:text-neutral-400">
                   Chats
                 </div>
               </div>

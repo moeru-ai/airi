@@ -79,7 +79,7 @@ const voiceModel = computed(() => {
         <span
           v-for="badge in badges"
           :key="badge"
-          class="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] text-neutral-600 font-medium uppercase tracking-wide dark:bg-neutral-800 dark:text-neutral-300"
+          class="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] text-neutral-600 font-medium tracking-wide uppercase dark:bg-neutral-800 dark:text-neutral-300"
         >
           {{ badge }}
         </span>

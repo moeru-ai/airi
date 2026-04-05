@@ -5,8 +5,9 @@ import type {
   HermesReplyRequest,
   HermesUserContext,
 } from '@proj-airi/server-sdk-shared'
-import type { ChatHistoryItem } from '../types/chat'
+
 import type { Character } from '../types/character'
+import type { ChatHistoryItem } from '../types/chat'
 
 import { nanoid } from 'nanoid'
 

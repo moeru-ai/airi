@@ -55,32 +55,32 @@ const characters = computed(() => Array.from(characterStore.characters.values())
     return char.relationshipMode === activeFilter.value
   })
   .map((char) => {
-  const i18n = char.i18n?.[0] || { name: 'Unknown', tagline: '', description: '' }
+    const i18n = char.i18n?.[0] || { name: 'Unknown', tagline: '', description: '' }
 
-  return {
-    id: char.id,
-    name: i18n.name,
-    tagline: i18n.tagline || i18n.description,
-    avatarUrl: char.avatarUrl || 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=80',
-    characterAvatarUrl: char.characterAvatarUrl || characterAvatarImage,
-    coverUrl: char.coverUrl || coverImage,
-    coverBackgroundUrl: char.coverBackgroundUrl,
-    usedBy: char.interactionsCount,
-    interactions: char.interactionsCount,
-    likes: char.likesCount,
-    bookmarks: char.bookmarksCount,
-    forks: char.forksCount,
-    visibility: char.visibility,
-    nsfwEnabled: char.nsfwEnabled,
-    nsfwLevel: char.nsfwLevel,
-    relationshipMode: char.relationshipMode,
-    personality: char.personaProfile?.personality,
-    scenario: char.personaProfile?.scenario,
-    liked: char.likes?.some(l => l.userId === authStore.user?.id),
-    bookmarked: char.bookmarks?.some(b => b.userId === authStore.user?.id),
-    priceCredit: char.priceCredit,
-  }
-}))
+    return {
+      id: char.id,
+      name: i18n.name,
+      tagline: i18n.tagline || i18n.description,
+      avatarUrl: char.avatarUrl || 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=80',
+      characterAvatarUrl: char.characterAvatarUrl || characterAvatarImage,
+      coverUrl: char.coverUrl || coverImage,
+      coverBackgroundUrl: char.coverBackgroundUrl,
+      usedBy: char.interactionsCount,
+      interactions: char.interactionsCount,
+      likes: char.likesCount,
+      bookmarks: char.bookmarksCount,
+      forks: char.forksCount,
+      visibility: char.visibility,
+      nsfwEnabled: char.nsfwEnabled,
+      nsfwLevel: char.nsfwLevel,
+      relationshipMode: char.relationshipMode,
+      personality: char.personaProfile?.personality,
+      scenario: char.personaProfile?.scenario,
+      liked: char.likes?.some(l => l.userId === authStore.user?.id),
+      bookmarked: char.bookmarks?.some(b => b.userId === authStore.user?.id),
+      priceCredit: char.priceCredit,
+    }
+  }))
 
 const filters = [
   { id: 'all', label: 'All' },
@@ -94,7 +94,7 @@ const filters = [
 <template>
   <div :class="['min-h-screen w-full px-4 py-8 md:px-8']">
     <div mx-auto max-w-7xl>
-      <section class="relative overflow-hidden rounded-[2rem] bg-linear-to-br from-rose-50 via-white to-amber-50 px-6 py-8 shadow-sm ring-1 ring-neutral-200/70 md:px-10 md:py-12 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 dark:ring-neutral-800">
+      <section class="bg-linear-to-br relative overflow-hidden rounded-[2rem] from-rose-50 via-white to-amber-50 px-6 py-8 shadow-sm ring-1 ring-neutral-200/70 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 md:px-10 md:py-12 dark:ring-neutral-800">
         <div class="absolute right--10 top--10 h-56 w-56 rounded-full bg-rose-300/20 blur-3xl dark:bg-rose-500/10" />
         <div class="absolute bottom--14 left-10 h-48 w-48 rounded-full bg-amber-300/20 blur-3xl dark:bg-amber-500/10" />
         <div relative z-1 max-w-3xl>
@@ -124,7 +124,7 @@ const filters = [
         </div>
       </section>
 
-      <div class="mt-8 grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      <div class="grid mt-8 gap-6 lg:grid-cols-4 md:grid-cols-3 sm:grid-cols-2 xl:grid-cols-5">
         <article
           v-for="character in characters"
           :key="character.id"
@@ -226,16 +226,16 @@ const filters = [
                   </button>
                 </div>
                 <div class="flex flex-wrap gap-1.5">
-                  <span class="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] text-neutral-600 font-medium uppercase tracking-wide dark:bg-neutral-800 dark:text-neutral-300">
+                  <span class="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] text-neutral-600 font-medium tracking-wide uppercase dark:bg-neutral-800 dark:text-neutral-300">
                     {{ character.relationshipMode }}
                   </span>
                   <span
                     v-if="character.nsfwEnabled"
-                    class="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] text-rose-700 font-medium uppercase tracking-wide dark:bg-rose-500/15 dark:text-rose-300"
+                    class="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] text-rose-700 font-medium tracking-wide uppercase dark:bg-rose-500/15 dark:text-rose-300"
                   >
                     {{ character.nsfwLevel }}
                   </span>
-                  <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] text-amber-700 font-medium uppercase tracking-wide dark:bg-amber-500/15 dark:text-amber-300">
+                  <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] text-amber-700 font-medium tracking-wide uppercase dark:bg-amber-500/15 dark:text-amber-300">
                     {{ character.visibility }}
                   </span>
                 </div>

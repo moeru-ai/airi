@@ -1,8 +1,9 @@
 import type { HermesReplyResponse } from '@proj-airi/server-sdk-shared'
+
 import type { ContextMessage } from '../../types/chat'
 
-import { StorageSerializers, useLocalStorage } from '@vueuse/core'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
+import { StorageSerializers, useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
 

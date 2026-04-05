@@ -86,19 +86,19 @@ async function enterStage() {
       </div>
 
       <div v-else class="grid gap-6 lg:grid-cols-[1.15fr,0.85fr]">
-        <section class="relative overflow-hidden rounded-[2rem] bg-linear-to-br from-neutral-950 via-rose-950 to-black text-white shadow-sm">
+        <section class="bg-linear-to-br relative overflow-hidden rounded-[2rem] from-neutral-950 via-rose-950 to-black text-white shadow-sm">
           <img
             :src="character.coverUrl"
             :alt="i18n.name"
             class="absolute inset-0 h-full w-full object-cover opacity-40"
           >
-          <div class="absolute inset-0 bg-linear-to-t from-black via-black/50 to-transparent" />
-          <div class="relative z-1 flex min-h-[34rem] flex-col justify-end gap-5 p-6 md:p-8">
+          <div class="bg-linear-to-t absolute inset-0 from-black via-black/50 to-transparent" />
+          <div class="relative z-1 min-h-[34rem] flex flex-col justify-end gap-5 p-6 md:p-8">
             <div class="flex flex-wrap gap-2">
               <span
                 v-for="badge in accessBadges"
                 :key="badge"
-                class="rounded-full bg-white/12 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] backdrop-blur"
+                class="rounded-full bg-white/12 px-3 py-1 text-[11px] font-medium tracking-[0.16em] uppercase backdrop-blur"
               >
                 {{ badge }}
               </span>
@@ -108,14 +108,14 @@ async function enterStage() {
               <h1 class="text-4xl font-semibold md:text-5xl">
                 {{ i18n.name }}
               </h1>
-              <p class="mt-3 max-w-xl text-sm leading-6 text-white/80 md:text-base">
+              <p class="mt-3 max-w-xl text-sm text-white/80 leading-6 md:text-base">
                 {{ character.personaProfile?.personality || i18n.description }}
               </p>
             </div>
 
             <div class="grid gap-3 sm:grid-cols-3">
               <div class="rounded-2xl bg-white/10 px-4 py-3 backdrop-blur">
-                <div class="text-[11px] uppercase tracking-[0.16em] text-white/60">
+                <div class="text-[11px] text-white/60 tracking-[0.16em] uppercase">
                   Surface
                 </div>
                 <div class="mt-1 text-sm font-medium">
@@ -123,7 +123,7 @@ async function enterStage() {
                 </div>
               </div>
               <div v-if="character.personaProfile?.speakingStyle" class="rounded-2xl bg-white/10 px-4 py-3 backdrop-blur">
-                <div class="text-[11px] uppercase tracking-[0.16em] text-white/60">
+                <div class="text-[11px] text-white/60 tracking-[0.16em] uppercase">
                   Speaking Style
                 </div>
                 <div class="mt-1 text-sm font-medium">
@@ -131,7 +131,7 @@ async function enterStage() {
                 </div>
               </div>
               <div class="rounded-2xl bg-white/10 px-4 py-3 backdrop-blur">
-                <div class="text-[11px] uppercase tracking-[0.16em] text-white/60">
+                <div class="text-[11px] text-white/60 tracking-[0.16em] uppercase">
                   Dynamic
                 </div>
                 <div class="mt-1 text-sm font-medium">
@@ -162,7 +162,7 @@ async function enterStage() {
             <h2 class="text-lg font-semibold">
               Scenario
             </h2>
-            <p class="mt-3 text-sm leading-6 text-neutral-600 dark:text-neutral-300">
+            <p class="mt-3 text-sm text-neutral-600 leading-6 dark:text-neutral-300">
               {{ character.personaProfile?.scenario || i18n.description }}
             </p>
           </div>
@@ -193,7 +193,7 @@ async function enterStage() {
               <span
                 v-for="boundary in boundaries"
                 :key="boundary"
-                class="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
+                class="rounded-full bg-amber-100 px-3 py-1 text-xs text-amber-700 font-medium dark:bg-amber-500/15 dark:text-amber-300"
               >
                 {{ boundary }}
               </span>
@@ -207,12 +207,12 @@ async function enterStage() {
             <h2 class="text-lg font-semibold">
               Engagement
             </h2>
-            <div class="mt-4 grid grid-cols-3 gap-3">
+            <div class="grid grid-cols-3 mt-4 gap-3">
               <div class="rounded-2xl bg-neutral-50 px-4 py-3 text-center dark:bg-neutral-800">
                 <div class="text-xl font-semibold">
                   {{ character.likesCount }}
                 </div>
-                <div class="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                <div class="text-xs text-neutral-500 tracking-wide uppercase dark:text-neutral-400">
                   Likes
                 </div>
               </div>
@@ -220,7 +220,7 @@ async function enterStage() {
                 <div class="text-xl font-semibold">
                   {{ character.bookmarksCount }}
                 </div>
-                <div class="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                <div class="text-xs text-neutral-500 tracking-wide uppercase dark:text-neutral-400">
                   Saves
                 </div>
               </div>
@@ -228,7 +228,7 @@ async function enterStage() {
                 <div class="text-xl font-semibold">
                   {{ character.interactionsCount }}
                 </div>
-                <div class="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                <div class="text-xs text-neutral-500 tracking-wide uppercase dark:text-neutral-400">
                   Chats
                 </div>
               </div>
