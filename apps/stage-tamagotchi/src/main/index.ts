@@ -55,6 +55,7 @@ import { setupSherpawModelAssetsProtocol } from './services/electron/bundled-she
 import { setupGlobalShortcutService } from './services/electron/global-shortcut'
 import { setupPermissionHandlers } from './services/electron/media-permissions'
 import { setupSherpawModelAssets } from './services/electron/sherpaw-model-assets'
+import { createFetchService } from './services/electron/fetch'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
@@ -261,6 +262,8 @@ app.whenReady().then(async () => {
       return
     void fileLogger.appendLog(formatted)
   })
+
+  createFetchService()
 
   injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
 

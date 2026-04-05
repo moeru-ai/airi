@@ -1183,12 +1183,25 @@ export const useProvidersStore = defineStore('providers', () => {
 
         const fetchThroughElectronIfAvailable = async (url: string, init?: RequestInit) => {
           if (typeof window !== 'undefined' && 'electron' in window && (window as any).electron?.ipcRenderer) {
+            const normalizedHeaders: Record<string, string> = {}
+            if (init?.headers instanceof Headers) {
+              init.headers.forEach((value, key) => {
+                normalizedHeaders[key] = value
+              })
+            }
+            else if (Array.isArray(init?.headers)) {
+              for (const [key, value] of init.headers) {
+                normalizedHeaders[key] = value
+              }
+            }
+            else if (init?.headers && typeof init.headers === 'object') {
+              Object.assign(normalizedHeaders, init.headers as Record<string, string>)
+            }
+
             const result = await (window as any).electron.ipcRenderer.invoke('airi:electron:fetch', {
               url,
               method: init?.method ?? 'GET',
-              headers: init?.headers && typeof init.headers === 'object' && !Array.isArray(init.headers)
-                ? Object.fromEntries(Object.entries(init.headers as Record<string, string>))
-                : undefined,
+              headers: Object.keys(normalizedHeaders).length > 0 ? normalizedHeaders : undefined,
               body: typeof init?.body === 'string' ? init.body : undefined,
             })
 
@@ -1279,21 +1292,17 @@ export const useProvidersStore = defineStore('providers', () => {
       validators: {
         chatPingCheckAvailable: false,
         validateProviderConfig: async (config) => {
-          console.log('[gpt-sovits validator] config:', config)
           if (!config.baseUrl) {
-            console.log('[gpt-sovits validator] no baseUrl, returning invalid')
             return { errors: [new Error('Base URL is required')], reason: 'Base URL is required', valid: false }
           }
 
           const res = baseUrlValidator.value(config.baseUrl)
           if (res) {
-            console.log('[gpt-sovits validator] baseUrlValidator failed:', res)
             return res
           }
 
           try {
             const baseUrl = (config.baseUrl as string).replace(TRAILING_SLASH_RE, '')
-            console.log('[gpt-sovits validator] fetching:', `${baseUrl}/set_gpt_weights`)
 
             // Use Electron main process fetch if available to bypass CORS
             let response: Response
@@ -1329,24 +1338,17 @@ export const useProvidersStore = defineStore('providers', () => {
               clearTimeout(timeout)
             }
 
-            console.log('[gpt-sovits validator] response status:', response.status, response.statusText)
-
             // /set_gpt_weights without params returns 400 {"message":"gpt weight path is required"} — server is up
             if (!response.ok && response.status !== 400) {
               const reason = `GPT-SoVITS unreachable: HTTP ${response.status} ${response.statusText}`
-              console.log('[gpt-sovits validator] unreachable:', reason)
               return { errors: [new Error(reason)], reason, valid: false }
             }
-            console.log('[gpt-sovits validator] server is up, returning valid')
           }
           catch (err) {
-            console.log('[gpt-sovits validator] fetch error:', err)
             if (!(err instanceof Error) || err.name !== 'AbortError') {
               const reason = `GPT-SoVITS connection failed: ${String(err)}`
-              console.log('[gpt-sovits validator] connection failed:', reason)
               return { errors: [err as Error], reason, valid: false }
             }
-            console.log('[gpt-sovits validator] AbortError, treating as timeout failure')
             return { errors: [err as Error], reason: 'Connection timeout', valid: false }
           }
 
@@ -1995,10 +1997,8 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Configuration validation functions
   async function validateProvider(providerId: string, options: { force?: boolean } = {}): Promise<boolean> {
-    console.log('[validateProvider]', providerId, 'force:', options.force)
     const metadata = providerMetadata[providerId]
     if (!metadata) {
-      console.log('[validateProvider]', providerId, 'no metadata, returning false')
       return false
     }
 
@@ -2011,7 +2011,6 @@ export const useProvidersStore = defineStore('providers', () => {
 
     const config = providerCredentials.value[providerId]
     if (!config && providerId !== 'browser-web-speech-api') {
-      console.log('[validateProvider]', providerId, 'no config, returning false')
       return false
     }
 
@@ -2021,27 +2020,23 @@ export const useProvidersStore = defineStore('providers', () => {
     const forceValidation = options.force === true
 
     if (!forceValidation && runtimeState?.validatedCredentialHash === configString && typeof runtimeState.isConfigured === 'boolean') {
-      console.log('[validateProvider]', providerId, 'cache hit, returning:', runtimeState.isConfigured)
       return runtimeState.isConfigured
     }
 
     if (!forceValidation) {
       const pending = providerValidationInFlight.get(cacheKey)
       if (pending) {
-        console.log('[validateProvider]', providerId, 'validation in flight, returning pending promise')
         return pending
       }
     }
 
     const runValidation = async () => {
-      console.log('[validateProvider]', providerId, 'running validation with config:', config)
       // PITFALL: Please consider skip chat ping check during automatic/background validation,
       // since this can consume API tokens and may only be triggered
       // by user action (e.g. "Ping API" button on settings pages) or other user intentions.
       const validationResult = await metadata.validators.validateProviderConfig(config || {}, {
         skipChatPingCheck: true,
       })
-      console.log('[validateProvider]', providerId, 'validation result:', validationResult)
 
       if (providerRuntimeState.value[providerId]) {
         providerRuntimeState.value[providerId].isConfigured = validationResult.valid
@@ -2052,7 +2047,6 @@ export const useProvidersStore = defineStore('providers', () => {
         }
       }
 
-      console.log('[validateProvider]', providerId, 'final result:', validationResult.valid)
       return validationResult.valid
     }
 
