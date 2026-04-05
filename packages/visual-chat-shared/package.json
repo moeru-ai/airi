@@ -1,0 +1,40 @@
+{
+  "name": "@proj-airi/visual-chat-shared",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Shared types, utilities, and constants for AIRI visual chat",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/visual-chat-shared"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./electron": {
+      "types": "./dist/electron.d.mts",
+      "default": "./dist/electron.mjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "dev": "pnpm run build",
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@moeru/eventa": "catalog:",
+    "@proj-airi/visual-chat-protocol": "workspace:^",
+    "nanoid": "catalog:"
+  }
+}

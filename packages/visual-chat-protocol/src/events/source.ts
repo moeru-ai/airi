@@ -1,0 +1,5 @@
+export const SOURCE_REGISTERED = 'source:registered'
+export const SOURCE_UNREGISTERED = 'source:unregistered'
+export const SOURCE_ACTIVE_CHANGED = 'source:active:changed'
+export const SOURCE_SWITCH_REQUESTED = 'source:switch:requested'
+export const SOURCE_SWITCH_COMPLETED = 'source:switch:completed'
