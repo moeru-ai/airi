@@ -28,6 +28,7 @@ export interface StageWindowsApi {
 }
 
 export interface ControlsIslandApi {
+  waitForReady: (page: Page) => Promise<void>
   expand: (page: Page) => Promise<void>
   openSettings: (page: Page) => Promise<StageWindowSnapshot>
   openChat: (page: Page) => Promise<StageWindowSnapshot>
@@ -37,6 +38,7 @@ export interface ControlsIslandApi {
 export interface SettingsWindowApi {
   waitFor: (timeout?: number) => Promise<StageWindowSnapshot>
   goToConnection: (page: Page) => Promise<Page>
+  goToRoute: (page: Page, routePath: string) => Promise<Page>
 }
 
 export interface DialogsApi {
