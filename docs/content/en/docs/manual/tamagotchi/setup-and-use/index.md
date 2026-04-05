@@ -1,23 +1,16 @@
-# Project Airi Manual
+# Project AIRI Manual
 
 Writing time: (UTC+8) April 2, 2026 – evening
 
 Corresponding version: AIRI-0.9.0-beta.4-windows-x64
 
-<details>
-
-<summary>Expand to see the authors</summary>
-
+::: info Authors
 Lead writing team: MuGewRayce
 
 Contributing editor: JhIcefair (primary)
+:::
 
-</details>
-
-<details>
-
-<summary>Disclaimer: (click to expand)</summary>
-
+::: warning Before You Start
 - Some technical functions and operations of Airi will not be explained in detail in this manual.
 - The primary editor is only responsible for the Chinese version of this manual. Other language versions are AI‑translated and then lightly manually corrected, so they may not match the actual software. Please refer to the actual content.
 - Most of the content has been explored by the lead writing team and may differ from reality. Please rely on your own experience.
@@ -25,27 +18,37 @@ Contributing editor: JhIcefair (primary)
 - Due to limited time and ability, this manual currently only covers some detailed tutorials for Airi installed via the installer on Windows.
 - Some parts of the software use English without translation. This manual attempts to translate those parts, but the final interpretation should follow the actual software.
 - Version updates may change content. This manual only describes the latest version before the writing time. If you encounter differences with other versions, please handle them yourself.
-- If you have additions or questions about this manual, please @jhicefair on the official Project Airi Discord channel and leave a message.
-- For any other questions, please leave a message on the official Project Airi Discord channel.
+- If you have additions or questions about this manual, please @jhicefair on the official Project AIRI Discord channel and leave a message.
+- For any other questions, please leave a message on the official Project AIRI Discord channel.
 - Have fun! AwA
+:::
 
-</details>
+## Table Of Contents
+
+- [Chapter 1 – Installation](#chapter-1--installation)
+- [Chapter 2 – Initial Configuration](#chapter-2--initial-configuration)
+- [Chapter 3 – Airi Interface Overview](#chapter-3--airi-interface-overview)
+- [Chapter 4 – Settings](#chapter-4--settings)
 
 ## Chapter 1 – Installation
 
-Go to the Project Airi GitHub homepage: [moeru-ai/airi](https://github.com/moeru-ai/airi)
+Go to the Project AIRI GitHub homepage: [moeru-ai/airi](https://github.com/moeru-ai/airi)
 
-Find the “**Releases**” option on the right side of the page.
+Follow these steps:
 
-Click “+ 68 releases”
-(Note: the number indicates other releases; yours may not be 68)
+1. Find the “**Releases**” option on the right side of the page.
+2. Click “+ 68 releases”.
+3. Pick a version, find “**Assets**” below it, and expand.
+4. Choose the version suitable for your computer and download it.
 
-Pick a version, find “**Assets**” below it, and expand.
+::: tip Download Page Notes
+- The number in “+ 68 releases” only shows how many other releases exist, so yours may differ.
+- You may also need to click “Show all 19 assets” at the bottom; that number may also vary.
+:::
 
-Choose the version suitable for your computer and download it.
-(Note: You may need to click “Show all 19 assets” at the bottom – the number may vary.)
-
-[ *The following uses the Windows installer version as an example.* ]
+::: info Example
+The following uses the Windows installer version as an example.
+:::
 
 Locate the downloaded installer and double‑click to install.
 *(Due to time constraints, this part is skipped; I believe you can handle it.)*
@@ -56,10 +59,7 @@ Locate the downloaded installer and double‑click to install.
 
 Before you begin, you need to prepare at least one API from an LLM service provider.
 
-<details>
-
-<summary>Terminology explanation: (click to expand)</summary>
-
+::: info Terminology
 * LLM
 
 LLM stands for Large Language Model.
@@ -70,30 +70,30 @@ Simply put, an AI.
 API stands for Application Programming Interface.
 It is a set of predefined rules that allow different software applications to communicate, exchange data, and share functions.
 You don’t need to understand it deeply, just know how to obtain one.
+:::
 
-</details>
-
-[There are many LLM providers, and the methods to obtain an API vary. Due to time constraints, no tutorial or example is provided here. Please search online or ask an AI.]
+::: tip Getting An API
+There are many LLM providers, and the method for obtaining an API varies. Due to time constraints, no tutorial or example is provided here. Please search online or ask an AI.
+:::
 
 Once you have your API, keep it safe and do not share it with others.
 
 ### Section 2 – Launch Airi!
 
-Open Airi (normally it opens automatically after installation).
+Follow these steps to finish the first-time setup:
 
-Select your language in the main window.
+1. Open Airi (normally it opens automatically after installation).
+2. Select your language in the main window.
+3. Click “**setup with your provider**”.
+4. Select your service source and click “**Next**”.
 
-Click “**setup with your provider**”.
+::: info Example
+Using Deepseek as an example.
+:::
 
-Select your service source and click “**Next**”.
-
-[ *Using Deepseek as an example* ]
-
-Enter your API Key and click “**Next**”.
-
-Click “**Next**” again.
-
-Select the model you wish to use, then click “**Save and continue**”.
+5. Enter your API Key and click “**Next**”.
+6. Click “**Next**” again.
+7. Select the model you wish to use, then click “**Save and continue**”.
 
 Congratulations! You have completed the initial configuration of Airi.
 
@@ -109,10 +109,7 @@ This window displays the virtual character. There are four buttons:
 
 ![Airi main window overview](./assets/manual-main-window.avif)
 
-<details>
-
-<summary>Terminology explanation: (click to expand)</summary>
-
+::: info Terminology
 * websocket
 
 WebSocket is a network communication protocol that provides full‑duplex, persistent connections between a browser and a server.
@@ -122,8 +119,7 @@ In simple terms, traditional HTTP is a “request‑response” model (client re
 
 STT stands for Speech‑to‑Text, also known as automatic speech recognition (ASR).
 Its goal is to enable computers to understand human speech and convert it into text.
-
-</details>
+:::
 
 Click “Expand” to reveal eight options:
 - “Open settings” – opens the settings window.
@@ -155,19 +151,17 @@ Right‑click the Airi icon to see ten options:
 - “Caption overlay” – includes two options: “Follow window” (default, caption moves with main window) and “Reset position”.
 - “Quit” – closes Airi.
 
-<details>
-
-<summary>Terminology explanation: (click to expand)</summary>
-
+::: info Terminology
 * TTS
 
 TTS stands for Text‑to‑Speech, which converts written text into natural‑sounding spoken output.
-
-</details>
+:::
 
 ### Settings Window
 
-[ *This section only describes what the window contains; detailed functions are in Chapter 4.* ]
+::: info Scope
+This section only describes what the window contains. Detailed functions are explained in Chapter 4.
+:::
 
 You can open settings by clicking “Expand” on the main window and selecting “Open settings”, or by right‑clicking the Airi tray icon.
 
@@ -224,7 +218,9 @@ Creator’s notes – I haven’t used them, details omitted.
 The most important parts are name and description in Identity. After filling them in, click “**Create**” to complete the character card.
 
 Finally, click the circle in the bottom‑right corner of the card, or select the card and click Activate, to enable your character card.
-[ ***Note: Newly created cards are not enabled by default. You must activate them.*** ]
+::: warning Activation Required
+Newly created cards are not enabled by default. You must activate them manually.
+:::
 
 ### Body Modules
 
@@ -235,8 +231,11 @@ Here you can configure various Airi functions, as follows:
 #### Consciousness
 
 First select a service source (or add a new one) and select it.
-[ *If there are too many sources and you cannot click the ones at the back, move the mouse over a tab, press the middle button, and drag left/right.* ]
 Then select a model – configuration is complete.
+
+::: tip Too Many Service Sources
+If there are too many sources and you cannot click the ones at the back, move the mouse over a tab, press the middle mouse button, and drag left or right.
+:::
 
 ![Airi consciousness settings window](./assets/manual-consciousness.avif)
 
@@ -250,8 +249,10 @@ At the bottom of this page, you can enter text to test the voice by clicking “
 
 ![Airi vocalization settings window](./assets/manual-speech.avif)
 
-[ Note: The configuration process may vary slightly for different service sources. This uses Alibaba Bailian as an example; follow the actual interface. ]
-[ For some services, the Pitch control may not work. ]
+::: tip Vocalization Notes
+- The configuration process may vary slightly for different service sources. This section uses Alibaba Bailian as an example; follow the actual interface.
+- For some services, the Pitch control may not work.
+:::
 
 Other details omitted.
 
@@ -285,7 +286,9 @@ Then select a model – configuration is complete.
 
 You can also set “Capture interval”.
 
-[ ***This function requires enabling vision capture in System → Developer → vision capture. See that section for details.*** ]
+::: warning Requires Vision Capture
+This function requires enabling `vision capture` in `System -> Developer -> vision capture`. See that section for details.
+:::
 
 Other details omitted.
 
@@ -341,8 +344,10 @@ Click “**select model**” to choose a model. In this version, there are two L
 Select one and click “**confirm**” to switch models.
 You can also click “**add**” to import your own Live2D or VRM model.
 
-[ **Note: Old Live2D models are not supported! You must use files including “*.moc3”.** ]
-[ **Before importing a Live2D model, you must compress the model folder into a “*.zip” file.** ]
+::: warning Before Importing A Model
+- Old Live2D models are not supported. You must use files that include “*.moc3”.
+- Before importing a Live2D model, compress the model folder into a “*.zip” file.
+:::
 
 - **If you choose a Live2D model**
 
@@ -379,11 +384,15 @@ Here you can manage Airi’s various data.
 
 ![Airi data settings window](./assets/manual-data-settings.avif)
 
-[ ***Note: This section allows deletion and clearing of data, which cannot be undone. Please operate with caution!*** ]
+::: warning Destructive Actions
+This section allows deletion and clearing of data, which cannot be undone. Please operate with caution.
+:::
 
 The first box contains “Open app data folder”.
 Click “**Open folder**” to open it.
-[ *Note: There is a bug – it opens the folder multiple times at once.* ]
+::: tip Known Issue
+There is currently a bug where this action may open the folder multiple times at once.
+:::
 
 The second box allows you to import/export chat history or delete all chat sessions.
 (Details omitted.)
@@ -432,11 +441,15 @@ You can also drag the black line or click on the color bar to change the theme c
 Below that is a color preview.
 
 You can also select a preset below to change the theme color.
-[ ***Note: You should click on a circle, not the square box.*** ]
+::: tip Color Presets
+Click on one of the circles, not the square box.
+:::
 
 #### Window Shortcuts
 
-[ ***Warning: This option has no content and no back button. Once you enter, you must close and reopen the settings window. Do not click it!*** ]
+::: warning Do Not Open
+This option has no content and no back button. Once you enter it, you must close and reopen the settings window. Do not click it.
+:::
 
 #### Developer
 
@@ -444,7 +457,9 @@ Here you can use some advanced features.
 
 ![Airi developer settings window](./assets/manual-system-developer.avif)
 
-[ **Since most of this content is in English and consists of advanced features that are rarely needed, this part is for reference only!** ]
+::: info Advanced Features
+Most of this content is in English and consists of advanced features that are rarely needed, so this section is for reference only.
+:::
 
 - In the first box, you can click “**Open**” to open the developer tools window (like F12 in a browser).
 
