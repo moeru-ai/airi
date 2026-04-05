@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
-import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useControlsIslandAutoHide, useControlsIslandCollapse } from '@proj-airi/stage-ui/composables'
+import { useSettings, useSettingsAudioDevice, useSettingsControlsIsland } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
-import { refDebounced, useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -30,9 +30,11 @@ const { t } = useI18n()
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const settingsStore = useSettings()
+const settingsControlsIslandStore = useSettingsControlsIsland()
 const context = useElectronEventaContext()
 const { enabled } = storeToRefs(settingsAudioDeviceStore)
-const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
+const { alwaysOnTop } = storeToRefs(settingsStore)
+const { autoHideControlsIsland, autoHideDelay, autoShowDelay, autoHideOpacity } = storeToRefs(settingsControlsIslandStore)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const openChat = useElectronEventaInvoke(electronOpenChat)
 const isLinux = useElectronEventaInvoke(electron.app.isLinux)
@@ -47,7 +49,10 @@ const blockingOverlays = reactive(new Set<string>())
 const isBlocked = computed(() => blockingOverlays.size > 0)
 
 function setOverlay(key: string, active: boolean) {
-  active ? blockingOverlays.add(key) : blockingOverlays.delete(key)
+  if (active)
+    blockingOverlays.add(key)
+  else
+    blockingOverlays.delete(key)
 }
 
 // Expose for parent (e.g. to disable click-through when a dialog is open)
@@ -57,12 +62,31 @@ defineExpose({
 })
 
 const { isOutside } = useElectronMouseInElement(islandRef)
-const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
 
-watch(isOutsideAfter2seconds, (outside) => {
-  if (outside && expanded.value && !isBlocked.value) {
-    expanded.value = false
-  }
+// Auto-hide / Auto-show behavior
+const { isHidden, hiddenOpacity } = useControlsIslandAutoHide({
+  autoHideControlsIsland,
+  autoHideDelay,
+  autoShowDelay,
+  autoHideOpacity,
+  isOutside,
+  isBlocked,
+  expanded,
+})
+
+// Auto-collapse behavior
+const { startCollapse, stopCollapse } = useControlsIslandCollapse({
+  autoHideDelay,
+  autoHideControlsIsland,
+  expanded,
+  isBlocked,
+})
+
+// Watch mouse position to trigger collapse
+watch(isOutside, (val) => {
+  stopCollapse()
+  if (val)
+    startCollapse()
 })
 
 watch(expanded, (isExpanded) => {
@@ -70,12 +94,6 @@ watch(expanded, (isExpanded) => {
     blockingOverlays.clear()
   }
 })
-
-useIntervalFn(() => {
-  if (expanded.value && isOutside.value && !isBlocked.value) {
-    expanded.value = false
-  }
-}, 1500)
 
 // Apply alwaysOnTop on mount and when it changes
 watch(alwaysOnTop, (val) => {
@@ -86,31 +104,13 @@ function toggleAlwaysOnTop() {
   alwaysOnTop.value = !alwaysOnTop.value
 }
 
-// Grouped classes for icon / border / padding and combined style class
-const adjustStyleClasses = computed(() => {
-  let isLarge: boolean
-
-  // Determine size based on setting
-  switch (controlsIslandIconSize.value) {
-    case 'large':
-      isLarge = true
-      break
-    case 'small':
-      isLarge = false
-      break
-    case 'auto':
-    default:
-      // Fixed to large for better visibility in the new layout,
-      // can be changed to windowHeight based check if absolutely needed.
-      isLarge = true
-      break
-  }
-
-  const icon = isLarge ? 'size-5' : 'size-3'
-  const border = isLarge ? 'border-2' : 'border-0'
-  const padding = isLarge ? 'p-2' : 'p-0.5'
-  return { icon, border, padding, button: `${border} ${padding}` }
-})
+// Static style classes for icon / border / padding
+const adjustStyleClasses = {
+  icon: 'size-5',
+  border: 'border-2',
+  padding: 'p-2',
+  button: 'border-2 p-2',
+}
 
 /**
  * This is a know issue (or expected behavior maybe) to Electron.
@@ -126,7 +126,14 @@ function refreshWindow() {
 </script>
 
 <template>
-  <div ref="islandRef" fixed bottom-2 right-2>
+  <div
+    ref="islandRef"
+    fixed bottom-2 right-2
+    :style="autoHideControlsIsland ? { opacity: isHidden ? hiddenOpacity : 1 } : {}"
+    :class="[
+      autoHideControlsIsland ? 'transition-opacity duration-300' : '',
+    ]"
+  >
     <div flex flex-col items-end gap-1>
       <!-- iOS Style Drawer Panel -->
       <Transition

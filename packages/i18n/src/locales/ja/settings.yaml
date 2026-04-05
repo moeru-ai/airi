@@ -72,6 +72,15 @@ controls-island:
     auto: 自動 (レスポンシブ)
     large: 大 (デフォルト)
     small: 小
+  auto-hide:
+    title: コントロールアイランドを自動非表示
+    description: マウ스가離れたときにコントロールアイランドを非表示にし、 入ると表示します
+  hide-delay:
+    title: 非表示までの遅延
+  show-delay:
+    title: 表示までの遅延
+  hidden-opacity:
+    title: 非表示時の透明度
 analytics:
   notice:
     title: Usage analytics

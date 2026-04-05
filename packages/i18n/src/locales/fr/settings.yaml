@@ -72,6 +72,15 @@ controls-island:
     auto: Auto (réactif)
     large: Grande (défaut)
     small: Petite
+  auto-hide:
+    title: Masquer automatiquement l'îlot de contrôle
+    description: Masquer l'îlot de contrôle lorsque la souris sort, afficher cuando la souris entre
+  hide-delay:
+    title: Délai de masquage
+  show-delay:
+    title: Délai d'affichage
+  hidden-opacity:
+    title: Opacité lors du masquage
 analytics:
   notice:
     title: Usage analytics

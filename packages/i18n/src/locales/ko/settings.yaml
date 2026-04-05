@@ -72,6 +72,15 @@ controls-island:
     auto: 자동 (능동적)
     large: 크게 (기본값)
     small: 작게
+  auto-hide:
+    title: 컨트롤 아일랜드 자동 숨기기
+    description: 마우스가 떠날 때 컨트롤 아일랜드를 숨기고, 들어오면 표시합니다
+  hide-delay:
+    title: 숨기기 지연
+  show-delay:
+    title: 표시 지연
+  hidden-opacity:
+    title: 숨기기 시 투명도
 analytics:
   notice:
     title: Usage analytics

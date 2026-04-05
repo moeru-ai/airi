@@ -72,6 +72,15 @@ controls-island:
     auto: 自动（响应式）
     large: 大（默认）
     small: 小
+  auto-hide:
+    title: 自动隐藏控制岛
+    description: 鼠标离开后隐藏控制岛，鼠标进入后显示
+  hide-delay:
+    title: 隐藏延迟
+  show-delay:
+    title: 显示延迟
+  hidden-opacity:
+    title: 隐藏时透明度
 analytics:
   notice:
     title: 使用数据及崩溃分析

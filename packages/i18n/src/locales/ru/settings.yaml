@@ -72,6 +72,15 @@ controls-island:
     auto: Автоматически (отвечает)
     large: Большой (по умолчанию)
     small: Маленький
+  auto-hide:
+    title: Автоматически скрывать остров управления
+    description: Скрывать остров управления, когда мышь уходит, показывать, когда наводится
+  hide-delay:
+    title: Задержка скрытия
+  show-delay:
+    title: Задержка показа
+  hidden-opacity:
+    title: Прозрачность при скрытии
 analytics:
   notice:
     title: Usage analytics
