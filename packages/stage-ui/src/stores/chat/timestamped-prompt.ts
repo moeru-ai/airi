@@ -13,6 +13,7 @@ interface TimestampableMessage {
 }
 
 const TIMESTAMP_PREFIX_TEMPLATE = '[{timestamp}] {label}: '
+const SIGNIFICANT_TIMEGAP_MS = 30 * 60 * 1000
 
 export function formatPromptTimestamp(timestamp = Date.now()): string {
   const date = new Date(timestamp)
@@ -67,21 +68,18 @@ export function formatTimeDuration(milliseconds: number): string {
   const totalSeconds = Math.floor(milliseconds / 1000)
   const hours = Math.floor(totalSeconds / 3600)
   const minutes = Math.floor((totalSeconds % 3600) / 60)
-  const seconds = totalSeconds % 60
 
   const parts: string[] = []
   if (hours > 0)
     parts.push(`${hours} hour${hours > 1 ? 's' : ''}`)
   if (minutes > 0)
     parts.push(`${minutes} minute${minutes > 1 ? 's' : ''}`)
-  if (seconds > 0 && hours === 0 && minutes === 0)
-    parts.push(`${seconds} second${seconds > 1 ? 's' : ''}`)
 
   return parts.join(' ')
 }
 
 export function isSignificantTimegap(prevTimestamp: number, currentTimestamp: number): boolean {
-  return (currentTimestamp - prevTimestamp) >= 30 * 60 * 1000
+  return (currentTimestamp - prevTimestamp) >= SIGNIFICANT_TIMEGAP_MS
 }
 
 export function createTimegapNotification(prevTimestamp: number, currentTimestamp: number): TimestampableMessage {

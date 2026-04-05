@@ -69,7 +69,8 @@ describe('timestamped-prompt', () => {
   })
 
   it('formats time durations in human-readable format', () => {
-    expect(formatTimeDuration(30000)).toBe('30 seconds')
+    expect(formatTimeDuration(30 * 60 * 1000)).toBe('30 minutes')
+    expect(formatTimeDuration(45 * 60 * 1000)).toBe('45 minutes')
     expect(formatTimeDuration(60000)).toBe('1 minute')
     expect(formatTimeDuration(180000)).toBe('3 minutes')
     expect(formatTimeDuration(3600000)).toBe('1 hour')
