@@ -3,8 +3,8 @@ import type { ElectronApplication, Page } from 'playwright'
 import type { CaptureOptions, ScenarioContext } from './types'
 
 import { dismissDialog, dismissDrawer, swipeDownDrawer } from '../utils/overlays'
-import { expandControlsIsland, openChatFromControlsIsland, openHearingFromControlsIsland, openSettingsFromControlsIsland } from '../utils/selectors'
-import { goToSettingsConnectionPage } from '../utils/settings'
+import { expandControlsIsland, openChatFromControlsIsland, openHearingFromControlsIsland, openSettingsFromControlsIsland, waitForControlsIslandReady } from '../utils/selectors'
+import { goToSettingsConnectionPage, goToSettingsRoute } from '../utils/settings'
 import { waitForStageWindow } from '../utils/windows'
 import { capturePage } from './capture'
 
@@ -41,6 +41,9 @@ export function createScenarioContext(
       },
     },
     controlsIsland: {
+      waitForReady(page) {
+        return waitForControlsIslandReady(page)
+      },
       async expand(page) {
         await expandControlsIsland(page)
       },
@@ -62,6 +65,9 @@ export function createScenarioContext(
       },
       goToConnection(page) {
         return goToSettingsConnectionPage(page)
+      },
+      goToRoute(page, routePath) {
+        return goToSettingsRoute(page, routePath)
       },
     },
     dialogs: {

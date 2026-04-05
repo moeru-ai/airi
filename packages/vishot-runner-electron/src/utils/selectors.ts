@@ -2,19 +2,30 @@ import type { Page } from 'playwright'
 
 import { sleep } from '@moeru/std'
 
+const controlsIslandReadyTimeoutMs = 30_000
+
 function iconAttributeSelector(iconName: string): string {
   return `[${iconName.replace(':', '\\:')}]`
 }
 
-async function clickControlButtonByIcon(page: Page, iconName: string): Promise<void> {
-  const button = page
+function controlButtonsByIcon(page: Page, iconName: string) {
+  return page
     .locator('button')
     .filter({
       has: page.locator(iconAttributeSelector(iconName)),
     })
-    .last()
+}
 
-  await button.waitFor({ state: 'visible', timeout: 15_000 })
+export async function waitForControlsIslandReady(page: Page): Promise<void> {
+  const button = controlButtonsByIcon(page, 'i-solar:alt-arrow-up-line-duotone').first()
+
+  await button.waitFor({ state: 'visible', timeout: controlsIslandReadyTimeoutMs })
+}
+
+async function clickControlButtonByIcon(page: Page, iconName: string): Promise<void> {
+  const button = controlButtonsByIcon(page, iconName).first()
+
+  await button.waitFor({ state: 'visible', timeout: controlsIslandReadyTimeoutMs })
   await button.click({ force: true })
   await sleep(100)
 }
@@ -24,7 +35,11 @@ export async function expandControlsIsland(page: Page): Promise<void> {
 }
 
 export async function openSettingsFromControlsIsland(page: Page): Promise<void> {
-  await clickControlButtonByIcon(page, 'i-solar:settings-minimalistic-outline')
+  await controlButtonsByIcon(page, 'i-solar:settings-minimalistic-outline')
+    .first()
+    .click({ force: true, timeout: controlsIslandReadyTimeoutMs })
+
+  await sleep(100)
 }
 
 export async function openChatFromControlsIsland(page: Page): Promise<void> {
@@ -32,12 +47,7 @@ export async function openChatFromControlsIsland(page: Page): Promise<void> {
 }
 
 export async function openHearingFromControlsIsland(page: Page): Promise<Page> {
-  const expandButton = page
-    .locator('button')
-    .filter({
-      has: page.locator(iconAttributeSelector('i-solar:alt-arrow-up-line-duotone')),
-    })
-    .last()
+  const expandButton = controlButtonsByIcon(page, 'i-solar:alt-arrow-up-line-duotone').first()
 
   const hearingButton = expandButton.locator('xpath=ancestor::button[1]/following::button[1]').first()
 

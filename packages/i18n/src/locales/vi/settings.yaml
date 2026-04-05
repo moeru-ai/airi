@@ -116,7 +116,7 @@ live2d:
     button-disable:
       title: Disable model mouse tracking
   render-scale:
-    title: Tỷ lệ render
+    title: Render scale
   fps:
     title: FPS
     description: Giới hạn tốc độ khung hình hiển thị
@@ -1072,7 +1072,7 @@ title: Cài Đặt
 voices: Giọng Nói
 vrm:
   render-scale:
-    title: Tỷ lệ render
+    title: Render scale
   change-model:
     from-file: Tải từ Tệp
     from-file-select: Chọn
