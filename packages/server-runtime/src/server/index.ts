@@ -32,6 +32,9 @@ export interface Server {
   updateConfig: (newOptions: ServerOptions) => void
 }
 
+const DEFAULT_SERVER_PORT = 6121
+const DEFAULT_SERVER_HOSTNAME = '0.0.0.0'
+
 export function getLocalIPs(): string[] {
   const interfaces = networkInterfaces()
   const addresses: string[] = []
@@ -88,7 +91,7 @@ async function ensurePortAvailable(port: number, hostname: string): Promise<void
 }
 
 export function createServer(opts?: ServerOptions): Server {
-  let options = merge<ServerOptions>({ port: 6121, hostname: '0.0.0.0' }, opts)
+  let options = merge<ServerOptions>({ port: DEFAULT_SERVER_PORT, hostname: DEFAULT_SERVER_HOSTNAME }, opts)
 
   const { appLogFormat, appLogLevel } = normalizeLoggerConfig(options)
   const log = useLogg('@proj-airi/server-runtime/server').withLogLevelString(appLogLevel).withFormat(appLogFormat)
@@ -133,8 +136,8 @@ export function createServer(opts?: ServerOptions): Server {
     try {
       const h3App = setupApp()
 
-      const port = options.port ?? 6121
-      const hostname = options.hostname ?? '0.0.0.0'
+      const port = options.port ?? DEFAULT_SERVER_PORT
+      const hostname = options.hostname ?? DEFAULT_SERVER_HOSTNAME
 
       await ensurePortAvailable(port, hostname)
 

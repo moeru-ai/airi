@@ -11,7 +11,6 @@ import type { ConfigKVService } from './services/config-kv'
 import type { FluxService } from './services/flux'
 import type { FluxTransactionService } from './services/flux-transaction'
 import type { ProviderService } from './services/providers'
-// --- [singing] import (type) ---
 import type { SingingService } from './services/singing/singing-service'
 import type { StripeService } from './services/stripe'
 import type { HonoEnv } from './types/hono'
@@ -33,7 +32,6 @@ import { parsedEnv } from './libs/env'
 import { initializeExternalDependency } from './libs/external-dependency'
 import { emitOtelLog, initOtel } from './libs/otel'
 import { createRedis } from './libs/redis'
-// --- [singing] import (deps factory) ---
 import { createSingingDeps } from './libs/singing/deps'
 import { sessionMiddleware } from './middlewares/auth'
 import { otelMiddleware } from './middlewares/otel'
@@ -44,7 +42,6 @@ import { createChatRoutes } from './routes/chats'
 import { createFluxRoutes } from './routes/flux'
 import { createV1CompletionsRoutes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
-// --- [singing] import (route factory) ---
 import { createSingingRoutes } from './routes/singing'
 import { createStripeRoutes } from './routes/stripe'
 import { createBillingMq } from './services/billing/billing-events'
@@ -75,7 +72,6 @@ interface AppDeps {
   redis: Redis
   env: Env
   otel: OtelInstance | null
-  // --- [singing] dep ---
   singingService: SingingService
 }
 
@@ -228,10 +224,8 @@ async function buildApp(deps: AppDeps) {
     /**
      * Stripe routes.
      */
-    .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.otel?.revenue))
-
-    // --- [singing] route mount ---
     .route('/api/v1/singing', createSingingRoutes(deps.singingService))
+    .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.otel?.revenue))
 
   return { app: builtApp, injectWebSocket }
 }
@@ -368,7 +362,6 @@ export async function createApp() {
     build: ({ dependsOn }) => createRequestLogService(dependsOn.db),
   })
 
-  // --- [singing] injeca registration ---
   const singingService = injeca.provide('services:singing', {
     dependsOn: {},
     build: () => createSingingDeps().service,
@@ -396,7 +389,6 @@ export async function createApp() {
     redis,
     env: parsedEnv,
     otel,
-    // --- [singing] resolve ---
     singingService,
   })
   const { app, injectWebSocket } = await buildApp({
@@ -413,7 +405,6 @@ export async function createApp() {
     redis: resolved.redis,
     env: resolved.env,
     otel: resolved.otel,
-    // --- [singing] dep ---
     singingService: resolved.singingService,
   })
 
