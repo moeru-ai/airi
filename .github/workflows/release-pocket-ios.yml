@@ -128,8 +128,15 @@ jobs:
           path: ${{ runner.temp }}/output/${{ env.IPA_NAME }}
           if-no-files-found: error
 
+      - name: Install Transporter
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.no_testflight_upload }}
+        run: |
+          curl -fsSL "https://itunesconnect.apple.com/WebObjects/iTunesConnect.woa/ra/resources/download/public/Transporter__OSX/bin/" -o "$RUNNER_TEMP/itmstransporter.pkg"
+          sudo installer -pkg "$RUNNER_TEMP/itmstransporter.pkg" -target /
+          rm -f "$RUNNER_TEMP/itmstransporter.pkg"
+
       - name: Upload to TestFlight
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.no_release_upload }}
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.no_testflight_upload }}
         uses: apple-actions/upload-testflight-build@v4
         with:
           app-path: ${{ runner.temp }}/output/${{ env.IPA_NAME }}
@@ -138,7 +145,7 @@ jobs:
           api-private-key: ${{ secrets.APPSTORE_CONNECT_API_KEY }}
 
       - name: Upload to GitHub Releases
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.no_testflight_upload }}
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.no_release_upload }}
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ runner.temp }}/output/${{ env.IPA_NAME }}
