@@ -17,6 +17,7 @@ import { buildContextPromptMessage } from './chat/context-prompt'
 import { createDatetimeContext, createMinecraftContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { createChatHooks } from './chat/hooks'
+import { normalizeHistoryItemForPrompt, stripPromptMetadata } from './chat/prompt-messages'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { formatMessageWithPromptTimestamps, injectTimegapNotifications } from './chat/timestamped-prompt'
@@ -280,33 +281,14 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         ],
       })
 
-      const normalizedMessages: Array<Message & { createdAt?: number }> = sessionMessagesForSend.flatMap((msg) => {
-        const { context: _context, id: _id, ...withoutContext } = msg
-        const rawMessage = toRaw(withoutContext)
-
-        if (rawMessage.role === 'error')
-          return []
-
-        let normalizedMessage: Message
-        if (rawMessage.role === 'assistant') {
-          const { slices: _slices, tool_results: _toolResults, categorization: _categorization, ...rest } = rawMessage as ChatAssistantMessage
-          normalizedMessage = toRaw(rest)
-        }
-        else {
-          normalizedMessage = rawMessage
-        }
-
-        return [{
-          ...normalizedMessage,
-          createdAt: msg.createdAt,
-        }]
-      })
+      const normalizedMessages: Array<Message & { createdAt?: number }> = sessionMessagesForSend
+        .map(msg => normalizeHistoryItemForPrompt(toRaw(msg)))
 
       const contextsSnapshot = chatContext.getContextsSnapshot()
       const contextPromptMessage = buildContextPromptMessage(contextsSnapshot)
 
       // Build UI-visible messages (without timestamp prefixes)
-      let newMessages: Message[] = normalizedMessages
+      let newMessages: Message[] = normalizedMessages.map(stripPromptMetadata)
       if (contextPromptMessage) {
         const system = newMessages.slice(0, 1)
         const afterSystem = newMessages.slice(1, newMessages.length)
@@ -333,6 +315,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       // all the timing information it needs to respond contextually
       let promptMessages: Message[] = injectTimegapNotifications(normalizedMessages)
         .map(msg => formatMessageWithPromptTimestamps(msg))
+        .map(stripPromptMetadata)
 
       if (contextPromptMessage) {
         const system = promptMessages.slice(0, 1)
@@ -372,7 +355,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       if (shouldAbort())
         return
 
-      await llmStore.stream(options.model, options.chatProvider, promptMessages as Message[], {
+      await llmStore.stream(options.model, options.chatProvider, promptMessages, {
         headers,
         tools: options.tools,
         // NOTICE: xsai stream may emit `finish` before tool steps continue, so keep waiting until
