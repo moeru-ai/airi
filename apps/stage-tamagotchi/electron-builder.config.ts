@@ -91,6 +91,8 @@ export default {
   asar: true,
   asarUnpack: [
     '**/*.node',
+    'node_modules/@proj-airi/visual-chat-gateway/**',
+    'node_modules/@proj-airi/visual-chat-worker-minicpmo/**',
   ],
   extraMetadata: {
     name: 'ai.moeru.airi',

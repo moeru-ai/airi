@@ -1,0 +1,7 @@
+{
+  "name": "@proj-airi/visual-chat-production-sample",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Production deployment reference with env, compose, retention, and health checks"
+}

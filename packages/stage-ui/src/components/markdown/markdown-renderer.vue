@@ -47,6 +47,16 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.markdown-content :deep(p) {
+  margin: 0.4em 0;
+}
+
+.markdown-content :deep(br) {
+  display: block;
+  content: '';
+  margin-top: 0.35em;
+}
+
 .markdown-content :deep(pre) {
   overflow-x: auto;
   max-width: 100%;

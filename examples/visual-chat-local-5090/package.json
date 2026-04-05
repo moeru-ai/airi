@@ -1,0 +1,7 @@
+{
+  "name": "@proj-airi/visual-chat-local-5090",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Minimal local demo: phone + laptop + single GPU"
+}

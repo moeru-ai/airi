@@ -12,6 +12,12 @@
     ],
     "useDefineForClassFields": true,
     "paths": {
+      "@proj-airi/visual-chat-shared": [
+        "../../packages/visual-chat-shared/src/index.ts"
+      ],
+      "@proj-airi/visual-chat-shared/*": [
+        "../../packages/visual-chat-shared/src/*"
+      ],
       "@proj-airi/stage-pages/*.vue": [
         "../../packages/stage-pages/src/*.vue"
       ],

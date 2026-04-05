@@ -1,30 +1,13 @@
 <script setup lang="ts">
 import { IconItem, RippleGrid } from '@proj-airi/stage-ui/components'
 import { useRippleGridState } from '@proj-airi/stage-ui/composables/use-ripple-grid-state'
-import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const resolveAnimation = ref<() => void>()
 const { t } = useI18n()
 const { lastClickedIndex, setLastClickedIndex } = useRippleGridState()
-
-const settingsStore = useSettings()
-
-const removeBeforeEach = router.beforeEach(async (_, __, next) => {
-  if (!settingsStore.usePageSpecificTransitions || settingsStore.disableTransitions) {
-    next()
-    return
-  }
-
-  await new Promise<void>((resolve) => {
-    resolveAnimation.value = resolve
-  })
-  removeBeforeEach()
-  next()
-})
 
 const settings = computed(() => {
   return router

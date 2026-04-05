@@ -110,6 +110,7 @@ catalog:
   oxc-minify: ^0.121.0
   pinia: ^3.0.4
   posthog-js: 1.306.1
+  remark-breaks: ^4.0.0
   splitpanes: ^4.0.4
   std-env: ^4.0.0
   superjson: ^2.2.6

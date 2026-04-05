@@ -8,6 +8,17 @@
       "ESNext"
     ],
     "useDefineForClassFields": true,
+    "paths": {
+      "@proj-airi/visual-chat-ops": [
+        "../../packages/visual-chat-ops/src/index.ts"
+      ],
+      "@proj-airi/visual-chat-shared": [
+        "../../packages/visual-chat-shared/src/index.ts"
+      ],
+      "@proj-airi/visual-chat-shared/*": [
+        "../../packages/visual-chat-shared/src/*"
+      ]
+    },
     "resolveJsonModule": true,
     "types": [
       "vitest",
@@ -21,6 +32,8 @@
   },
   "include": [
     "../../uno.config.ts",
+    "../../packages/visual-chat-ops/src/**/*.ts",
+    "../../packages/visual-chat-shared/src/**/*.ts",
     "uno.config.ts",
     "electron.vite.config.ts",
 
