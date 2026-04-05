@@ -7,13 +7,18 @@ permissions:
 on:
   workflow_dispatch:
     inputs:
-      build_only:
-        description: Build only (no upload to release)
+      no_release_upload:
+        description: No GitHub release upload
         required: false
         default: false
         type: boolean
-      tag:
-        description: Specific tag for the release upload
+      no_testflight_upload:
+        description: No TestFlight upload
+        required: false
+        default: false
+        type: boolean
+      release_upload_tag:
+        description: GitHub release upload tag
         required: false
         type: string
 
@@ -124,7 +129,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload to TestFlight
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only }}
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.no_release_upload }}
         uses: apple-actions/upload-testflight-build@v4
         with:
           app-path: ${{ runner.temp }}/output/${{ env.IPA_NAME }}
@@ -133,12 +138,12 @@ jobs:
           api-private-key: ${{ secrets.APPSTORE_CONNECT_API_KEY }}
 
       - name: Upload to GitHub Releases
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only }}
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.no_testflight_upload }}
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ runner.temp }}/output/${{ env.IPA_NAME }}
           append_body: true
-          tag_name: ${{ inputs.tag }}
+          tag_name: ${{ inputs.release_upload_tag }}
 
       - name: Clean up signing
         if: always()
