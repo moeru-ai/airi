@@ -1,4 +1,4 @@
-import type { Message } from '@xsai/shared-chat'
+import type { CommonContentPart, Message } from '@xsai/shared-chat'
 
 import { describe, expect, it } from 'vitest'
 
@@ -23,7 +23,7 @@ describe('timestamped-prompt', () => {
     const prefix = '[2026-04-04 14:00:00] LLM: '
     const content = [
       { type: 'text', text: 'Good afternoon.' },
-    ]
+    ] satisfies CommonContentPart[]
 
     expect(prefixPromptTimestamp(content, prefix)).toEqual([
       { type: 'text', text: '[2026-04-04 14:00:00] LLM: Good afternoon.' },
@@ -34,7 +34,7 @@ describe('timestamped-prompt', () => {
     const prefix = '[2026-04-04 14:00:00] User: '
     const content = [
       { type: 'image_url', image_url: { url: 'https://example.com/image.png' } },
-    ]
+    ] satisfies CommonContentPart[]
 
     expect(prefixPromptTimestamp(content, prefix)).toEqual([
       { type: 'text', text: '[2026-04-04 14:00:00] User: ' },
