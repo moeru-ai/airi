@@ -4,7 +4,13 @@ import { defineScenario } from '@proj-airi/vishot-runner-electron'
 
 const airiCardPattern = /sort|排序|upload|上传/i
 const providersPattern = /Chat|Speech|Transcription/i
-const dataPattern = /Open folder|打开|chat|聊天/i
+// NOTICE: Must stay unique to /settings/data. The prior alternates `chat` / `聊天`
+// also matched the providers page (step 06), which renders a `Chat` / `聊天` provider
+// category immediately before this step — so the readiness check could pass on stale
+// providers DOM and silently produce a mislabeled screenshot. `打开` was also too
+// generic (appears on multiple pages as button labels). `Open app data folder` is
+// the desktop-folder section title and is literal English across every locale file.
+const dataPattern = /Open app data folder/i
 const systemGeneralPattern = /theme|主题|language|语言/i
 const systemColorSchemePattern = /RGB|Primary Color|主题颜色|500\/50/i
 const modelsPattern = /select model|confirm|缩放与位置|Zoom & Position/i
