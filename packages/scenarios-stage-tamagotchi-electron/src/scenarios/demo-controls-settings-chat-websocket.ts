@@ -26,6 +26,18 @@ const screenCapturePattern = /Applications|Displays|Refetch|Share Window|Share S
 const visionCapturePattern = /Applications|Displays|Capture interval|Processing|Idle|No vision output yet|Open system preferences|vision capture/i
 const websocketServerAddressPattern = /WebSocket Server Address|WebSocket 服务器地址/i
 
+function normalizeHashPath(hash: string): string {
+  const withoutHash = hash.startsWith('#')
+    ? hash.slice(1)
+    : hash
+
+  return withoutHash || '/'
+}
+
+function isTimeoutLikeError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'TimeoutError'
+}
+
 export default defineScenario({
   id: 'demo-controls-settings-chat-websocket',
   async run({ capture, controlsIsland, settingsWindow, stageWindows }) {
@@ -49,10 +61,20 @@ export default defineScenario({
       try {
         await settingsWindowSnapshot.page.getByText(readyPattern).first().waitFor({ state: 'visible', timeout: 15_000 })
       }
-      catch {
+      catch (error) {
+        if (!isTimeoutLikeError(error)) {
+          throw error
+        }
+
+        const currentHashPath = normalizeHashPath(new URL(settingsWindowSnapshot.page.url()).hash)
+        if (currentHashPath !== routePath) {
+          throw error
+        }
+
         // NOTICE: Some settings/devtools pages animate in or hydrate content asynchronously.
-        // Fall back to a bounded delay so the capture pipeline still progresses instead of aborting the full batch.
+        // Give known-slow pages one final bounded grace period, but still fail if the target route never becomes ready.
         await sleep(1250)
+        await settingsWindowSnapshot.page.getByText(readyPattern).first().waitFor({ state: 'visible', timeout: 5_000 })
       }
       await sleep(waitMs)
       await capture(name, settingsWindowSnapshot.page)

@@ -13,16 +13,30 @@ function getSettingsSwitch(settingsPage: Page, label: RegExp | string) {
   return { labelLocator, row, button }
 }
 
+function normalizeHashPath(hash: string): string {
+  const withoutHash = hash.startsWith('#')
+    ? hash.slice(1)
+    : hash
+
+  return withoutHash || '/'
+}
+
+function getCurrentHashPath(settingsPage: Page): string {
+  return normalizeHashPath(new URL(settingsPage.url()).hash)
+}
+
 export async function goToSettingsRoute(settingsPage: Page, routePath: string): Promise<Page> {
   const normalizedRoutePath = routePath.startsWith('/')
     ? routePath
     : `/${routePath}`
 
-  if (!settingsPage.url().includes(`#${normalizedRoutePath}`)) {
+  if (getCurrentHashPath(settingsPage) !== normalizedRoutePath) {
     await settingsPage.evaluate((nextRoutePath) => {
       window.location.hash = nextRoutePath
     }, normalizedRoutePath)
-    await settingsPage.waitForURL(new RegExp(`#${normalizedRoutePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`))
+    await settingsPage.waitForFunction((expectedHashPath) => {
+      return window.location.hash === `#${expectedHashPath}`
+    }, normalizedRoutePath)
   }
 
   return settingsPage
