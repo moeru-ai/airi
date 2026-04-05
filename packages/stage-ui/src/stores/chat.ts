@@ -351,7 +351,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         message: sendingMessage,
         contexts: contextsSnapshot,
         promptMessage: contextPromptMessage,
-          composedMessage: newMessages,
+        composedMessage: newMessages,
       })
       contextObservability.recordLifecycle({
         phase: 'after-compose',
