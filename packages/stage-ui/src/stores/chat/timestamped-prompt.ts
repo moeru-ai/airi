@@ -1,11 +1,11 @@
 // Inject timestamps before user/assistant prompt contents so the model can anchor each message in time.
 // This helps avoid timeline confusion when earlier history contains different greetings or temporal references.
-type CommonContentPart = {
+interface CommonContentPart {
   type: string
   [key: string]: unknown
 }
 
-type TimestampableMessage = {
+interface TimestampableMessage {
   role: string
   content: string | CommonContentPart[]
   createdAt?: number

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ChatAssistantMessage, ChatHistoryItem, ContextMessage } from '../../../../types/chat'
+import type { ChatHistoryEntry } from '../history-entries'
 
 import { computed, onMounted, provide, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -9,7 +10,6 @@ import ChatErrorItem from './error-item.vue'
 import ChatUserItem from './user-item.vue'
 
 import { chatScrollContainerKey } from '../constants'
-import type { ChatHistoryEntry } from '../history-entries'
 import { buildChatHistoryEntries } from '../history-entries'
 import { getChatHistoryItemKey } from '../utils'
 

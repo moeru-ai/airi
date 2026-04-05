@@ -19,10 +19,10 @@ import { useChatContextStore } from './chat/context-store'
 import { createChatHooks } from './chat/hooks'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
+import { formatMessageWithPromptTimestamps, injectTimegapNotifications } from './chat/timestamped-prompt'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useLLM } from './llm'
 import { useConsciousnessStore } from './modules/consciousness'
-import { formatMessageWithPromptTimestamps, injectTimegapNotifications } from './chat/timestamped-prompt'
 
 interface SendOptions {
   model: string
@@ -280,7 +280,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         ],
       })
 
-      let normalizedMessages = sessionMessagesForSend.map((msg) => {
+      const normalizedMessages = sessionMessagesForSend.map((msg) => {
         const { context: _context, id: _id, ...withoutContext } = msg
         const rawMessage = toRaw(withoutContext)
 
@@ -329,7 +329,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       // This is separate from UI messages to keep the chat display clean while giving the model
       // all the timing information it needs to respond contextually
       let promptMessages = injectTimegapNotifications(
-        normalizedMessages as Array<Message & { createdAt?: number }>
+        normalizedMessages as Array<Message & { createdAt?: number }>,
       ).map(msg => formatMessageWithPromptTimestamps(msg)) as Message[]
 
       if (contextPromptMessage) {
