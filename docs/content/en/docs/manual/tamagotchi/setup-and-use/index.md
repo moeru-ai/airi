@@ -205,23 +205,20 @@ Here you can upload, create, or modify the default character card.
 About uploading: the popup suggests any file type is supported, but I haven’t used it, and there is no export function, so details omitted.
 
 About creating a new character card:
-You can set the character’s identity, behavior, modules, etc.
+I recommend doing it in this order:
 
-**Identity** includes name, nickname, description, creator’s notes.
+1. Fill out **Identity**, including name, nickname, description, and creator’s notes.
+2. Then adjust **Behavior**, including personality, scenario, and greeting.
+3. If needed, configure **Modules** for character-specific body modules.
+4. Finally, review **Settings**, including system prompt, history prompt instructions, and version.
+5. When you are ready, click “**Create**” to create the character card.
+6. After creation, click the circle in the bottom-right corner of the card, or select the card and click Activate, to enable it.
+
+The most important fields in **Identity** are name and description.
 Name is the official name; if a nickname is set, it will be used first.
 Description is the detailed personality. You can be creative or refer to the default character card.
-(Note: if you refer to the default card, you may omit the part about ACT tags.)
-Creator’s notes – I haven’t used them, details omitted.
-
-**Behavior** includes personality, scenario (environment/background/context), and greeting. I haven’t adjusted these, details omitted.
-
-**Modules** – you can configure character‑specific body modules; usually leave as is, details omitted.
-
-**Settings** includes system prompt, history prompt instructions, and version (character card version). I haven’t used the first two, details omitted.
-
-The most important parts are name and description in Identity. After filling them in, click “**Create**” to complete the character card.
-
-Finally, click the circle in the bottom‑right corner of the card, or select the card and click Activate, to enable your character card.
+If you refer to the default card, you may omit the part about ACT tags.
+I haven’t used creator’s notes, and I also haven’t fully tested all Behavior, Modules, and Settings options yet.
 ::: warning Activation Required
 Newly created cards are not enabled by default. You must activate them manually.
 :::
@@ -234,8 +231,10 @@ Here you can configure various Airi functions, as follows:
 
 #### Consciousness
 
-First select a service source (or add a new one) and select it.
-Then select a model – configuration is complete.
+I recommend doing it in this order:
+
+1. First select a service source, or add a new one and select it.
+2. Then select a model.
 
 ::: tip Too Many Service Sources
 If there are too many sources and you cannot click the ones at the back, move the mouse over a tab, press the middle mouse button, and drag left or right.
@@ -245,11 +244,14 @@ If there are too many sources and you cannot click the ones at the back, move th
 
 #### Vocalization
 
-First select a service source (or add a new one) and select it.
-Then select a model, then select a voice.
-You can also choose “None” to disable Airi’s voice.
+I recommend doing it in this order:
 
-At the bottom of this page, you can enter text to test the voice by clicking “**Test voice**”.
+1. First select a service source, or add a new one and select it.
+2. Then select a model.
+3. Next select a voice.
+4. If you do not want Airi to speak, choose “None”.
+
+After the basic setup, you can enter text at the bottom of this page and click “**Test voice**” to generate a sample.
 
 ![Airi vocalization settings window](./assets/manual-speech.avif)
 
@@ -262,29 +264,35 @@ Other details omitted.
 
 #### Hearing
 
-First select your audio input device.
+I recommend doing it in this order:
+
+1. First select your audio input device.
+2. Then select a service source, or add a new one and select it.
+3. Then select a model.
 
 ![Airi hearing settings window](./assets/manual-hearing.avif)
-Then select a service source (or add a new one) and select it.
-Then select a model – configuration is complete.
 
 Additionally, you can enable “Auto‑send transcribed text” to send automatically, or disable it to adjust the transcription result (I think – I haven’t successfully used Hearing).
 You can also set “Auto‑send delay”.
 
-In the middle of this page, you can test the microphone.
-Click “**start monitoring**” to start listening.
-You can adjust Sensitivity (I haven’t tried it, details omitted).
+If you want to test the microphone:
 
-At the bottom of this page, you can test STT.
-Click “**start speech‑to‑text**” to begin testing.
-The result will appear under “Transcription Result”.
+1. Click “**start monitoring**” in the middle of the page.
+2. If needed, adjust Sensitivity.
+
+If you want to test STT:
+
+1. Click “**start speech‑to‑text**” at the bottom of the page.
+2. Check the result under “Transcription Result”.
 
 Other details omitted.
 
 #### Vision
 
-First select a service source (or add a new one) and select it.
-Then select a model – configuration is complete.
+I recommend doing it in this order:
+
+1. First select a service source, or add a new one and select it.
+2. Then select a model.
 
 ![Airi vision settings window](./assets/manual-vision.avif)
 
@@ -307,7 +315,11 @@ Not yet released.
 #### Discord
 
 Here you can configure a Discord bot so that Airi can join your Discord server and interact.
-You need to obtain your Discord bot token and enter it in the appropriate field.
+I recommend preparing it in this order:
+
+1. Obtain your Discord bot token.
+2. Enter it into the appropriate field.
+3. Then finish the rest of the configuration based on the page.
 
 **Note:**
 This function requires a Discord bot, which is not included in the installer version. You need to extract the relevant files from the GitHub page. Since I have a low priority for this, tutorial omitted.
@@ -344,9 +356,13 @@ Here you can choose and set the character’s model.
 
 Airi supports Live2D models and VRM 3D models.
 
-Click “**select model**” to choose a model. In this version, there are two Live2D and two VRM models by default.
-Select one and click “**confirm**” to switch models.
-You can also click “**add**” to import your own Live2D or VRM model.
+If you only want to switch to an existing model, I recommend doing it like this:
+
+1. Click “**select model**” to open the model picker.
+2. In this version, there are two Live2D and two VRM models by default.
+3. Select one and click “**confirm**” to switch.
+
+If you want to import your own model, click “**add**” to import a Live2D or VRM model.
 
 ::: warning Before Importing A Model
 - Old Live2D models are not supported. You must use files that include “*.moc3”.
@@ -355,19 +371,19 @@ You can also click “**add**” to import your own Live2D or VRM model.
 
 - **If you choose a Live2D model**
 
-Expand “Zoom & Position” to adjust the model’s size and position in the main window.
-x is horizontal (left/right), y is vertical (up/down).
+You can continue in this order:
 
-Expand “parameters” to set mouse tracking, Idle Animation, frame rate, Auto Blink, Force Auto Blink (fallback timer), Shadow, reset to default parameters, clear model cache, and all model‑specific parameters.
-If you want to set an idle animation, ensure the model zip includes animation files.
-Other details omitted.
+1. Expand “Zoom & Position” to adjust the model’s size and position in the main window.
+2. x is horizontal (left/right), y is vertical (up/down).
+3. Expand “parameters” to set mouse tracking, Idle Animation, frame rate, Auto Blink, Force Auto Blink (fallback timer), Shadow, reset to default parameters, clear model cache, and all model-specific parameters.
+4. If you want idle animation, make sure the model zip includes animation files.
+5. If needed, expand “Expressions” to enable the Expression System.
 
-Expand “Expressions” to enable the Expression System.
-I haven’t tested this yet, details omitted.
+I have not fully tested this part yet, so details are still limited.
 
 - **If you choose a VRM 3D model**
 
-Expand “Scene” to set Model Position, camera angle (degrees), camera distance (zoom), model orientation (Y‑axis rotation), model gaze direction, etc.
+Expand “Scene” and then set Model Position, camera angle (degrees), camera distance (zoom), model orientation (Y‑axis rotation), model gaze direction, and related values.
 This section, including “Change model”, is omitted due to time constraints.
 
 ### Memory Bank
@@ -392,23 +408,19 @@ Here you can manage Airi’s various data.
 This section allows deletion and clearing of data, which cannot be undone. Please operate with caution.
 :::
 
-The first box contains “Open app data folder”.
-Click “**Open folder**” to open it.
+I recommend understanding this page by sections:
+
+1. The first box contains “Open app data folder”. Click “**Open folder**” to open it.
 ::: tip Known Issue
 There is currently a bug where this action may open the folder multiple times at once.
 :::
 
-The second box allows you to import/export chat history or delete all chat sessions.
-(Details omitted.)
+2. The second box allows you to import/export chat history or delete all chat sessions.
+3. The third box allows you to delete all imported models or reset module preferences and credentials.
+4. The fourth box allows you to reset desktop settings and state.
+5. The fifth box allows you to reset all provider settings and credentials, or clear every local setting, provider configuration, and model.
 
-The third box allows you to delete all imported models or reset module preferences and credentials.
-(Details omitted.)
-
-The fourth box allows you to reset desktop settings and state.
-(Details omitted.)
-
-The fifth box allows you to reset all provider settings and credentials, or clear every local setting, provider configuration, and model.
-(Details omitted.)
+Details for each action are omitted here, but you should double-check before running any delete or reset action.
 
 ### Connection
 
