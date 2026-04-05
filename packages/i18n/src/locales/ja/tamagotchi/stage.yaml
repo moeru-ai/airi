@@ -29,10 +29,6 @@ docs:
   'logging-in': Signing in...
   'account': Account
   'logout': Sign out
-'status-island':
-  connected: WebSocket が接続されました
-  disconnected: WebSocket が切断されました
-  'open-settings': WebSocketの設定を開く
 notice:
   'fade-on-hover':
     title: ホバー時にフェード

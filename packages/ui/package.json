@@ -16,6 +16,7 @@
   },
   "exports": {
     ".": "./src/index.ts",
+    "./main.css": "./src/main.css",
     "./components/animations": "./src/components/animations/index.ts",
     "./components/form": "./src/components/form/index.ts",
     "./components/layouts": "./src/components/layouts/index.ts",
