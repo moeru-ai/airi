@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/server-sdk-shared",
   "type": "module",
-  "version": "0.9.0-beta.4",
+  "version": "0.9.0-beta.5",
   "private": true,
   "description": "Shared event contracts and types consumed by AIRI server-sdk clients and server-side handlers",
   "author": {
