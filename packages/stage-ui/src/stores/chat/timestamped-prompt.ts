@@ -62,3 +62,57 @@ export function formatMessageWithPromptTimestamps(message: TimestampableMessage)
     content: prefixPromptTimestamp(message.content, prefix),
   }
 }
+
+export function formatTimeDuration(milliseconds: number): string {
+  const totalSeconds = Math.floor(milliseconds / 1000)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+
+  const parts: string[] = []
+  if (hours > 0)
+    parts.push(`${hours} hour${hours > 1 ? 's' : ''}`)
+  if (minutes > 0)
+    parts.push(`${minutes} minute${minutes > 1 ? 's' : ''}`)
+  if (seconds > 0 && hours === 0 && minutes === 0)
+    parts.push(`${seconds} second${seconds > 1 ? 's' : ''}`)
+
+  return parts.join(' ')
+}
+
+export function isSignificantTimegap(prevTimestamp: number, currentTimestamp: number): boolean {
+  return (currentTimestamp - prevTimestamp) >= 30 * 60 * 1000
+}
+
+export function createTimegapNotification(prevTimestamp: number, currentTimestamp: number): TimestampableMessage {
+  const duration = formatTimeDuration(currentTimestamp - prevTimestamp)
+  return {
+    role: 'system',
+    content: `[${duration} have passed since the last message]`,
+  }
+}
+
+export function injectTimegapNotifications(messages: TimestampableMessage[]): TimestampableMessage[] {
+  if (messages.length === 0)
+    return messages
+
+  const result: TimestampableMessage[] = []
+
+  for (let i = 0; i < messages.length; i++) {
+    const current = messages[i]
+    const currentTs = current.createdAt
+
+    if (i > 0) {
+      const prev = messages[i - 1]
+      const prevTs = prev.createdAt
+
+      if (prevTs != null && currentTs != null && isSignificantTimegap(prevTs, currentTs)) {
+        result.push(createTimegapNotification(prevTs, currentTs))
+      }
+    }
+
+    result.push(current)
+  }
+
+  return result
+}

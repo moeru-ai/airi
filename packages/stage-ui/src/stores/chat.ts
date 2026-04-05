@@ -22,7 +22,7 @@ import { useChatStreamStore } from './chat/stream-store'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useLLM } from './llm'
 import { useConsciousnessStore } from './modules/consciousness'
-import { formatMessageWithPromptTimestamps } from './chat/timestamped-prompt'
+import { formatMessageWithPromptTimestamps, injectTimegapNotifications } from './chat/timestamped-prompt'
 
 interface SendOptions {
   model: string
@@ -280,7 +280,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         ],
       })
 
-      let newMessages = sessionMessagesForSend.map((msg) => {
+      let normalizedMessages = sessionMessagesForSend.map((msg) => {
         const { context: _context, id: _id, ...withoutContext } = msg
         const rawMessage = toRaw(withoutContext)
 
@@ -293,17 +293,17 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
           normalizedMessage = rawMessage
         }
 
-        const timestampedMessage = formatMessageWithPromptTimestamps({
+        return {
           ...normalizedMessage,
           createdAt: msg.createdAt,
-        })
-
-        const { createdAt: _createdAt, ...finalMessage } = timestampedMessage
-        return finalMessage
+        } as Message & { createdAt?: number }
       })
 
       const contextsSnapshot = chatContext.getContextsSnapshot()
       const contextPromptMessage = buildContextPromptMessage(contextsSnapshot)
+
+      // Build UI-visible messages (without timestamp prefixes)
+      let newMessages = normalizedMessages
       if (contextPromptMessage) {
         const system = newMessages.slice(0, 1)
         const afterSystem = newMessages.slice(1, newMessages.length)
@@ -323,6 +323,24 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
             promptMessage: contextPromptMessage,
           },
         })
+      }
+
+      // Build LLM-facing messages (with timestamps and gap notifications for temporal awareness)
+      // This is separate from UI messages to keep the chat display clean while giving the model
+      // all the timing information it needs to respond contextually
+      let promptMessages = injectTimegapNotifications(
+        normalizedMessages as Array<Message & { createdAt?: number }>
+      ).map(msg => formatMessageWithPromptTimestamps(msg)) as Message[]
+
+      if (contextPromptMessage) {
+        const system = promptMessages.slice(0, 1)
+        const afterSystem = promptMessages.slice(1, promptMessages.length)
+
+        promptMessages = [
+          ...system,
+          contextPromptMessage,
+          ...afterSystem,
+        ]
       }
 
       streamingMessageContext.composedMessage = newMessages as Message[]
@@ -352,7 +370,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       if (shouldAbort())
         return
 
-      await llmStore.stream(options.model, options.chatProvider, newMessages as Message[], {
+      await llmStore.stream(options.model, options.chatProvider, promptMessages as Message[], {
         headers,
         tools: options.tools,
         // NOTICE: xsai stream may emit `finish` before tool steps continue, so keep waiting until
