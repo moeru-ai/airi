@@ -22,6 +22,7 @@ import { useChatStreamStore } from './chat/stream-store'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useLLM } from './llm'
 import { useConsciousnessStore } from './modules/consciousness'
+import { formatMessageWithPromptTimestamps } from './chat/timestamped-prompt'
 
 interface SendOptions {
   model: string
@@ -280,15 +281,25 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       })
 
       let newMessages = sessionMessagesForSend.map((msg) => {
-        const { context: _context, id: _id, createdAt: _createdAt, ...withoutContext } = msg
+        const { context: _context, id: _id, ...withoutContext } = msg
         const rawMessage = toRaw(withoutContext)
 
+        let normalizedMessage: Message
         if (rawMessage.role === 'assistant') {
           const { slices: _slices, tool_results: _toolResults, categorization: _categorization, ...rest } = rawMessage as ChatAssistantMessage
-          return toRaw(rest)
+          normalizedMessage = toRaw(rest)
+        }
+        else {
+          normalizedMessage = rawMessage
         }
 
-        return rawMessage
+        const timestampedMessage = formatMessageWithPromptTimestamps({
+          ...normalizedMessage,
+          createdAt: msg.createdAt,
+        })
+
+        const { createdAt: _createdAt, ...finalMessage } = timestampedMessage
+        return finalMessage
       })
 
       const contextsSnapshot = chatContext.getContextsSnapshot()
