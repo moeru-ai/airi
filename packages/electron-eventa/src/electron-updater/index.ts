@@ -27,13 +27,10 @@ export interface AutoUpdaterDiagnostics {
   platform: string
   arch: string
   channel: string
-  feedUrl: string
+  feedUrl?: string
   logFilePath: string
-  updaterCacheDir: string
-  pendingDir: string
   executablePath: string
-  uninstallPath?: string
-  uninstallExists?: boolean
+  isOverrideActive: boolean
 }
 
 export interface AutoUpdaterState {

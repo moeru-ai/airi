@@ -35,10 +35,6 @@ const links = [
 const showChangelog = ref(false)
 const { isDesktop } = useBreakpoints()
 
-const diagnosticsLogPath = computed(() => {
-  return updateState.value.diagnostics?.logFilePath ?? 'N/A'
-})
-
 const isWindowsUpdater = computed(() => {
   return updateState.value.diagnostics?.platform === 'win32'
 })
@@ -52,11 +48,6 @@ const downloadedStatusText = computed(() => {
 
 const restartButtonLabel = computed(() => {
   return isWindowsUpdater.value ? 'Restart to update silently' : 'Restart to install update'
-})
-
-const firstUpdateFile = computed(() => {
-  const file = updateState.value.info?.files?.[0]
-  return file?.url ?? 'N/A'
 })
 
 function handleDownloadClick() {
@@ -184,40 +175,6 @@ const releaseNotesContent = computed(() => {
                 :label="isBusy ? 'Checking...' : isLatestVersion ? 'Latest version' : isDisabled ? 'Updates disabled in Dev' : isError ? 'Retry Check' : 'Check for updates'"
                 @click="checkForUpdates()"
               />
-            </div>
-          </div>
-
-          <!-- Diagnostics -->
-          <div :class="['rounded-lg border border-neutral-200/70 bg-neutral-50/70 p-3 text-xs dark:border-neutral-800/70 dark:bg-neutral-950/40']">
-            <div :class="['mb-2 font-medium text-neutral-700 dark:text-neutral-300']">
-              Updater Diagnostics
-            </div>
-            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
-              status={{ updateState.status }}
-            </div>
-            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
-              current=v{{ buildInfo.version }}
-            </div>
-            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
-              target=v{{ updateState.info?.version ?? 'N/A' }}
-            </div>
-            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
-              file={{ firstUpdateFile }}
-            </div>
-            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
-              platform={{ updateState.diagnostics?.platform ?? 'N/A' }} arch={{ updateState.diagnostics?.arch ?? 'N/A' }}
-            </div>
-            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
-              channel={{ updateState.diagnostics?.channel ?? 'N/A' }}
-            </div>
-            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
-              feed={{ updateState.diagnostics?.feedUrl ?? 'N/A' }}
-            </div>
-            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
-              cache={{ updateState.diagnostics?.updaterCacheDir ?? 'N/A' }}
-            </div>
-            <div :class="['font-mono text-neutral-500 dark:text-neutral-400 break-words']">
-              log={{ diagnosticsLogPath }}
             </div>
           </div>
         </div>
