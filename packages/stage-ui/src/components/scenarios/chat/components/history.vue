@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ChatAssistantMessage, ChatHistoryItem, ContextMessage } from '../../../../types/chat'
 
-import { computed, onMounted, provide, ref, watch } from 'vue'
+import { computed, onMounted, provide, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ChatAssistantItem from './assistant-item.vue'
@@ -9,6 +9,8 @@ import ChatErrorItem from './error-item.vue'
 import ChatUserItem from './user-item.vue'
 
 import { chatScrollContainerKey } from '../constants'
+import type { ChatHistoryEntry } from '../history-entries'
+import { buildChatHistoryEntries } from '../history-entries'
 import { getChatHistoryItemKey } from '../utils'
 
 const props = withDefaults(defineProps<{
@@ -29,7 +31,7 @@ const emit = defineEmits<{
   (e: 'deleteMessage', payload: { message: ChatHistoryItem, index: number, key: string | number }): void
 }>()
 
-const chatHistoryRef = ref<HTMLDivElement>()
+const chatHistoryRef = useTemplateRef<HTMLDivElement>('chatHistoryRef')
 provide(chatScrollContainerKey, chatHistoryRef)
 
 const { t } = useI18n()
@@ -79,18 +81,6 @@ const renderMessages = computed<ChatHistoryItem[]>(() => {
   return [...props.messages, streaming.value]
 })
 
-function getMessageTimestamp(message: ChatHistoryItem | undefined) {
-  return message?.createdAt ?? message?.context?.createdAt
-}
-
-function areSameDay(leftTimestamp: number, rightTimestamp: number) {
-  const left = new Date(leftTimestamp)
-  const right = new Date(rightTimestamp)
-  return left.getFullYear() === right.getFullYear()
-    && left.getMonth() === right.getMonth()
-    && left.getDate() === right.getDate()
-}
-
 const timestampFormatter = new Intl.DateTimeFormat(undefined, {
   month: 'short',
   day: 'numeric',
@@ -103,49 +93,30 @@ function formatChatMessageTimestamp(timestamp: number) {
   return timestampFormatter.format(new Date(timestamp))
 }
 
-function shouldShowTimestampHeader(index: number, message: ChatHistoryItem) {
-  if (index === 0)
-    return true
+const historyClasses = computed(() => [
+  'relative h-full w-full overflow-y-auto rounded-xl',
+  'flex flex-col',
+  props.variant === 'mobile' ? 'gap-1 px-2 py-2' : 'gap-2',
+])
 
-  const currentTs = getMessageTimestamp(message)
-  const previousTs = getMessageTimestamp(renderMessages.value[index - 1])
-  if (currentTs == null)
-    return false
-  if (previousTs == null)
-    return true
-  if (!areSameDay(currentTs, previousTs))
-    return true
+const timestampRowClasses = computed(() => [
+  'flex items-center',
+  props.variant === 'mobile' ? 'gap-2 px-1 py-1' : 'gap-3 px-1 py-1.5',
+])
 
-  return currentTs - previousTs >= 30 * 60 * 1000
-}
+const timestampDividerClasses = [
+  'h-px flex-1',
+  'bg-neutral-200/70 dark:bg-neutral-800/70',
+]
 
-const renderEntries = computed(() => {
-  const entries: Array<{
-    type: 'timestamp'
-    timestamp: number
-  } | {
-    type: 'message'
-    message: ChatHistoryItem
-    index: number
-  }> = []
+const timestampLabelClasses = computed(() => [
+  'shrink-0 rounded-full border font-medium tabular-nums shadow-sm backdrop-blur-md',
+  'border-neutral-200/70 bg-white/70 text-neutral-500',
+  'dark:border-neutral-800/80 dark:bg-neutral-950/70 dark:text-neutral-300',
+  props.variant === 'mobile' ? 'px-2 py-0.5 text-[11px]' : 'px-3 py-1 text-xs',
+])
 
-  renderMessages.value.forEach((message, index) => {
-    if (shouldShowTimestampHeader(index, message)) {
-      entries.push({
-        type: 'timestamp',
-        timestamp: getMessageTimestamp(message) ?? Date.now(),
-      })
-    }
-
-    entries.push({
-      type: 'message',
-      message,
-      index,
-    })
-  })
-
-  return entries
-})
+const renderEntries = computed<ChatHistoryEntry[]>(() => buildChatHistoryEntries(renderMessages.value))
 
 function emitCopyMessage(message: ChatHistoryItem, index: number) {
   emit('copyMessage', {
@@ -165,14 +136,18 @@ function emitDeleteMessage(message: ChatHistoryItem, index: number) {
 </script>
 
 <template>
-  <div ref="chatHistoryRef" v-auto-animate flex="~ col" relative h-full w-full overflow-y-auto rounded-xl px="<sm:2" py="<sm:2" :class="variant === 'mobile' ? 'gap-1' : 'gap-2'">
+  <div
+    ref="chatHistoryRef"
+    v-auto-animate
+    :class="historyClasses"
+  >
     <template v-for="(entry, entryIndex) in renderEntries" :key="entry.type === 'timestamp' ? `timestamp:${entry.timestamp}:${entryIndex}` : getChatHistoryItemKey(entry.message, entry.index)">
-      <div v-if="entry.type === 'timestamp'" class="flex items-center gap-3 px-2 py-2">
-        <div class="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
-        <div class="rounded-full bg-white/80 px-3 py-1 text-xs text-neutral-500 dark:bg-slate-950/80 dark:text-neutral-300">
-          [{{ formatChatMessageTimestamp(entry.timestamp) }}]
+      <div v-if="entry.type === 'timestamp'" :class="timestampRowClasses">
+        <div :class="timestampDividerClasses" />
+        <div :class="timestampLabelClasses">
+          {{ formatChatMessageTimestamp(entry.timestamp) }}
         </div>
-        <div class="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
+        <div :class="timestampDividerClasses" />
       </div>
 
       <div v-else-if="entry.message.role === 'error'">

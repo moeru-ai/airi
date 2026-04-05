@@ -6,6 +6,9 @@ import { computed, ref } from 'vue'
 import ChatScrollVisualizer from '../composables/use-element-scroll-visualize.vue'
 import ChatHistory from './history.vue'
 
+const MORNING_TS = new Date('2026-04-04T09:00:00').getTime()
+const LUNCH_TS = new Date('2026-04-04T12:45:00').getTime()
+
 const markdownMessages = ref<ChatHistoryItem[]>([
   {
     role: 'user',
@@ -104,6 +107,37 @@ const errorMessages = ref<ChatHistoryItem[]>([
   },
 ])
 
+const timestampMessages = ref<ChatHistoryItem[]>([
+  {
+    role: 'user',
+    content: 'Could you recap what changed this morning?',
+    createdAt: MORNING_TS,
+  },
+  {
+    role: 'assistant',
+    content: '',
+    slices: [
+      { type: 'text', text: 'You wrapped the chat action menu and started polishing timestamp separators.' },
+    ],
+    tool_results: [],
+    createdAt: MORNING_TS + 8_000,
+  },
+  {
+    role: 'user',
+    content: 'I am back after lunch. What still needs attention?',
+    createdAt: LUNCH_TS,
+  },
+  {
+    role: 'assistant',
+    content: '',
+    slices: [
+      { type: 'text', text: 'The history list still needs a softer separator style so it matches the current chat cards.' },
+    ],
+    tool_results: [],
+    createdAt: LUNCH_TS + 12_000,
+  },
+])
+
 const streamingMessage = ref<ChatAssistantMessage>({
   role: 'assistant',
   content: '',
@@ -182,6 +216,15 @@ const streamingMessage = ref<ChatAssistantMessage>({
           :streaming-message="streamingMessage"
           variant="mobile"
         />
+      </div>
+    </Variant>
+
+    <Variant
+      id="with-timestamps"
+      title="With Timestamps"
+    >
+      <div class="font-cute">
+        <ChatHistory :messages="timestampMessages" />
       </div>
     </Variant>
 
