@@ -116,7 +116,7 @@ live2d:
     button-disable:
       title: Disable model mouse tracking
   render-scale:
-    title: 렌더 스케일
+    title: Render scale
   fps:
     title: FPS (초당 프레임)
     description: 렌더링 주사율 제한
@@ -1072,7 +1072,7 @@ title: 설정
 voices: 음성
 vrm:
   render-scale:
-    title: 렌더 스케일
+    title: Render scale
   change-model:
     from-file: 파일로부터 불러오기
     from-file-select: 선택
