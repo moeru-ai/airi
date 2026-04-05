@@ -23,7 +23,12 @@ const beatSyncPattern = /Beat sync driver|Hit beat|Punchy V|Beat Sync Visualizer
 const websocketInspectorPattern = /Incoming|Outgoing|Filter payload|No messages found|WebSocket Inspector/i
 const pluginHostPattern = /Discovered|Enabled|Loaded|Capabilities|Plugin Host Debug/i
 const screenCapturePattern = /Applications|Displays|Refetch|Share Window|Share Screen|屏幕捕获|Open system preferences|打开系统偏好设置/i
-const visionCapturePattern = /Applications|Displays|Capture interval|Processing|Idle|No vision output yet|Open system preferences|vision capture/i
+// NOTICE: Must stay unique to /devtools/vision. Step 25 captures /devtools/screen-capture
+// immediately before this, and both pages render `Applications` / `Displays` tab labels, so
+// matching against those generics lets the readiness check pass against the stale
+// screen-capture DOM and silently produce a mislabeled screenshot. Only use text that does
+// not appear on screen-capture.vue.
+const visionCapturePattern = /Capture interval|No vision output yet|vision capture/i
 const websocketServerAddressPattern = /WebSocket Server Address|WebSocket 服务器地址/i
 
 function normalizeHashPath(hash: string): string {
