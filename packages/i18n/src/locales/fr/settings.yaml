@@ -116,7 +116,7 @@ live2d:
     button-disable:
       title: Disable model mouse tracking
   render-scale:
-    title: Échelle de rendu
+    title: Render scale
   fps:
     title: FPS
     description: Limiter la fréquence d'image du rendu
@@ -1072,7 +1072,7 @@ title: Paramètres
 voices: Voix
 vrm:
   render-scale:
-    title: Échelle de rendu
+    title: Render scale
   change-model:
     from-file: Charger depuis un fichier
     from-file-select: Sélectionner
