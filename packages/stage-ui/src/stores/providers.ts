@@ -69,6 +69,8 @@ const ALIYUN_NLS_REGIONS = [
 
 type AliyunNlsRegion = typeof ALIYUN_NLS_REGIONS[number]
 
+const TRAILING_SLASH_RE = /\/$/
+
 export interface ProviderMetadata {
   id: string
   order?: number
@@ -1152,6 +1154,206 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'gpt-sovits': {
+      id: 'gpt-sovits',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      nameKey: 'settings.pages.providers.provider.gpt-sovits.title',
+      name: 'GPT-SoVITS',
+      descriptionKey: 'settings.pages.providers.provider.gpt-sovits.description',
+      description: 'github.com/RVC-Boss/GPT-SoVITS',
+      iconColor: 'i-lobe-icons:openai',
+      defaultOptions: () => ({
+        baseUrl: 'http://127.0.0.1:9880',
+        refAudioPath: '',
+        promptText: '',
+        promptLang: 'zh',
+        textLang: 'zh',
+        gptWeightsPath: '',
+        sovitsWeightsPath: '',
+      }),
+      createProvider: async (config) => {
+        const baseUrl = (config.baseUrl as string).replace(TRAILING_SLASH_RE, '')
+        const refAudioPath = config.refAudioPath as string
+        const promptText = config.promptText as string
+        const promptLang = (config.promptLang as string) || 'zh'
+        const textLang = (config.textLang as string) || 'zh'
+        const gptWeightsPath = (config.gptWeightsPath as string) || ''
+        const sovitsWeightsPath = (config.sovitsWeightsPath as string) || ''
+
+        const fetchThroughElectronIfAvailable = async (url: string, init?: RequestInit) => {
+          if (typeof window !== 'undefined' && 'electron' in window && (window as any).electron?.ipcRenderer) {
+            const result = await (window as any).electron.ipcRenderer.invoke('airi:electron:fetch', {
+              url,
+              method: init?.method ?? 'GET',
+              headers: init?.headers && typeof init.headers === 'object' && !Array.isArray(init.headers)
+                ? Object.fromEntries(Object.entries(init.headers as Record<string, string>))
+                : undefined,
+              body: typeof init?.body === 'string' ? init.body : undefined,
+            })
+
+            let responseBody: BodyInit
+            if (result.bodyBase64) {
+              // Decode base64 to ArrayBuffer for binary responses
+              const binaryString = atob(result.bodyBase64)
+              const bytes = new Uint8Array(binaryString.length)
+              for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i)
+              }
+              responseBody = bytes.buffer
+            }
+            else {
+              responseBody = result.body
+            }
+
+            return new Response(responseBody, {
+              status: result.status,
+              statusText: result.statusText,
+              headers: result.headers,
+            })
+          }
+
+          return await globalThis.fetch(url, init)
+        }
+
+        // Switch models if paths provided
+        if (gptWeightsPath) {
+          await fetchThroughElectronIfAvailable(`${baseUrl}/set_gpt_weights?weights_path=${encodeURIComponent(gptWeightsPath)}`).catch(() => {})
+        }
+        if (sovitsWeightsPath) {
+          await fetchThroughElectronIfAvailable(`${baseUrl}/set_sovits_weights?weights_path=${encodeURIComponent(sovitsWeightsPath)}`).catch(() => {})
+        }
+
+        const provider: SpeechProvider = {
+          speech: () => ({
+            baseURL: `${baseUrl}/`,
+            model: 'gpt-sovits',
+            // Custom fetch that rewrites the request to GPT-SoVITS api_v2.py format
+            fetch: async (_url: RequestInfo | URL, init?: RequestInit) => {
+              const body = JSON.parse(init?.body as string ?? '{}')
+              const ttsBody = {
+                text: body.input ?? '',
+                text_lang: textLang,
+                ref_audio_path: refAudioPath,
+                prompt_text: promptText,
+                prompt_lang: promptLang,
+                media_type: 'wav',
+                streaming_mode: false,
+              }
+              const ttsUrl = `${baseUrl}/tts`
+              return await fetchThroughElectronIfAvailable(ttsUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(ttsBody),
+                signal: init?.signal ?? undefined,
+              })
+            },
+          }),
+        }
+        return provider
+      },
+      capabilities: {
+        listModels: async () => [
+          {
+            id: 'gpt-sovits',
+            name: 'GPT-SoVITS',
+            provider: 'gpt-sovits',
+            description: 'GPT-SoVITS voice cloning model',
+            contextLength: 0,
+            deprecated: false,
+          },
+        ],
+        listVoices: async () => [
+          {
+            id: 'default',
+            name: 'Default (configured reference audio)',
+            provider: 'gpt-sovits',
+            languages: [
+              { code: 'zh', title: 'Chinese' },
+              { code: 'en', title: 'English' },
+              { code: 'ja', title: 'Japanese' },
+            ],
+          },
+        ],
+      },
+      validators: {
+        chatPingCheckAvailable: false,
+        validateProviderConfig: async (config) => {
+          console.log('[gpt-sovits validator] config:', config)
+          if (!config.baseUrl) {
+            console.log('[gpt-sovits validator] no baseUrl, returning invalid')
+            return { errors: [new Error('Base URL is required')], reason: 'Base URL is required', valid: false }
+          }
+
+          const res = baseUrlValidator.value(config.baseUrl)
+          if (res) {
+            console.log('[gpt-sovits validator] baseUrlValidator failed:', res)
+            return res
+          }
+
+          try {
+            const baseUrl = (config.baseUrl as string).replace(TRAILING_SLASH_RE, '')
+            console.log('[gpt-sovits validator] fetching:', `${baseUrl}/set_gpt_weights`)
+
+            // Use Electron main process fetch if available to bypass CORS
+            let response: Response
+            if (typeof window !== 'undefined' && 'electron' in window && (window as any).electron?.ipcRenderer) {
+              const result = await (window as any).electron.ipcRenderer.invoke('airi:electron:fetch', {
+                url: `${baseUrl}/set_gpt_weights`,
+                method: 'GET',
+              })
+
+              let responseBody: BodyInit
+              if (result.bodyBase64) {
+                const binaryString = atob(result.bodyBase64)
+                const bytes = new Uint8Array(binaryString.length)
+                for (let i = 0; i < binaryString.length; i++) {
+                  bytes[i] = binaryString.charCodeAt(i)
+                }
+                responseBody = bytes.buffer
+              }
+              else {
+                responseBody = result.body
+              }
+
+              response = new Response(responseBody, {
+                status: result.status,
+                statusText: result.statusText,
+                headers: result.headers,
+              })
+            }
+            else {
+              const controller = new AbortController()
+              const timeout = setTimeout(() => controller.abort(), 5000)
+              response = await fetch(`${baseUrl}/set_gpt_weights`, { signal: controller.signal })
+              clearTimeout(timeout)
+            }
+
+            console.log('[gpt-sovits validator] response status:', response.status, response.statusText)
+
+            // /set_gpt_weights without params returns 400 {"message":"gpt weight path is required"} — server is up
+            if (!response.ok && response.status !== 400) {
+              const reason = `GPT-SoVITS unreachable: HTTP ${response.status} ${response.statusText}`
+              console.log('[gpt-sovits validator] unreachable:', reason)
+              return { errors: [new Error(reason)], reason, valid: false }
+            }
+            console.log('[gpt-sovits validator] server is up, returning valid')
+          }
+          catch (err) {
+            console.log('[gpt-sovits validator] fetch error:', err)
+            if (!(err instanceof Error) || err.name !== 'AbortError') {
+              const reason = `GPT-SoVITS connection failed: ${String(err)}`
+              console.log('[gpt-sovits validator] connection failed:', reason)
+              return { errors: [err as Error], reason, valid: false }
+            }
+            console.log('[gpt-sovits validator] AbortError, treating as timeout failure')
+            return { errors: [err as Error], reason: 'Connection timeout', valid: false }
+          }
+
+          return { errors: [], reason: '', valid: true }
+        },
+      },
+    },
     'index-tts-vllm': {
       id: 'index-tts-vllm',
       category: 'speech',
@@ -1793,9 +1995,12 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Configuration validation functions
   async function validateProvider(providerId: string, options: { force?: boolean } = {}): Promise<boolean> {
+    console.log('[validateProvider]', providerId, 'force:', options.force)
     const metadata = providerMetadata[providerId]
-    if (!metadata)
+    if (!metadata) {
+      console.log('[validateProvider]', providerId, 'no metadata, returning false')
       return false
+    }
 
     // Web Speech API doesn't require credentials - use empty config if not present
     if (providerId === 'browser-web-speech-api') {
@@ -1805,31 +2010,38 @@ export const useProvidersStore = defineStore('providers', () => {
     }
 
     const config = providerCredentials.value[providerId]
-    if (!config && providerId !== 'browser-web-speech-api')
+    if (!config && providerId !== 'browser-web-speech-api') {
+      console.log('[validateProvider]', providerId, 'no config, returning false')
       return false
+    }
 
     const configString = JSON.stringify(config || {})
     const runtimeState = providerRuntimeState.value[providerId]
     const cacheKey = `${providerId}:${configString}`
     const forceValidation = options.force === true
 
-    if (!forceValidation && runtimeState?.validatedCredentialHash === configString && typeof runtimeState.isConfigured === 'boolean')
+    if (!forceValidation && runtimeState?.validatedCredentialHash === configString && typeof runtimeState.isConfigured === 'boolean') {
+      console.log('[validateProvider]', providerId, 'cache hit, returning:', runtimeState.isConfigured)
       return runtimeState.isConfigured
+    }
 
     if (!forceValidation) {
       const pending = providerValidationInFlight.get(cacheKey)
       if (pending) {
+        console.log('[validateProvider]', providerId, 'validation in flight, returning pending promise')
         return pending
       }
     }
 
     const runValidation = async () => {
+      console.log('[validateProvider]', providerId, 'running validation with config:', config)
       // PITFALL: Please consider skip chat ping check during automatic/background validation,
       // since this can consume API tokens and may only be triggered
       // by user action (e.g. "Ping API" button on settings pages) or other user intentions.
       const validationResult = await metadata.validators.validateProviderConfig(config || {}, {
         skipChatPingCheck: true,
       })
+      console.log('[validateProvider]', providerId, 'validation result:', validationResult)
 
       if (providerRuntimeState.value[providerId]) {
         providerRuntimeState.value[providerId].isConfigured = validationResult.valid
@@ -1840,6 +2052,7 @@ export const useProvidersStore = defineStore('providers', () => {
         }
       }
 
+      console.log('[validateProvider]', providerId, 'final result:', validationResult.valid)
       return validationResult.valid
     }
 
