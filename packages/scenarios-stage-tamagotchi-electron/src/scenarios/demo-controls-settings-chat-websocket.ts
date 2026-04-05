@@ -11,7 +11,19 @@ const modelsPattern = /select model|confirm|缩放与位置|Zoom & Position/i
 const modulesPattern = /Consciousness|意识|Speech|发声|Hearing|听觉/i
 const hearingPattern = /Audio Input Device|音频输入设备|start monitoring|Start Monitoring|Transcription Result/i
 const developerPattern = /Open DevTools|打开|Markdown|Lag|Vision Capture|Screen Capture/i
-const consciousnessPattern = /No Providers Configured|提供商|当前模型|Current model|Chat/i
+// NOTICE: Anchor on the consciousness page's always-rendered section description
+// (consciousness.vue renders this unconditionally regardless of provider/model state
+// or user locale). Previous alternates like `提供商` / `No Providers Configured` did
+// not match zh-Hans (which renders `服务来源` / `没有配置服务来源`), and `当前模型` /
+// `Current model` only appear when a model is already selected — so fresh environments
+// with no providers configured would hang on readiness.
+//
+// Caveat: vision.vue reuses the same `provider-model-selection.description` i18n key,
+// so this pattern also matches on /settings/modules/vision. That is safe here because
+// consciousness (step 14) is reached from developer (step 13), which does not render
+// either phrase — no stale-DOM collision is possible at this step. If the step order
+// ever changes, pick a token unique to consciousness.vue instead.
+const consciousnessPattern = /Select the suitable LLM|为意识选择合适/i
 const speechPattern = /Hello, my name is AI Assistant|Test voice|Voice|声音|Speech|选择语音合成服务来源/i
 const visionPattern = /Capture interval|context|ollama|提供商|Current model|Chat|Vision capture cadence/i
 const useWindowMousePattern = /useWindowMouse|\d+,\s*\d+/i
