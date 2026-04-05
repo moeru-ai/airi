@@ -110,7 +110,7 @@ jobs:
       - name: Rename IPA for distribution
         run: |
           IPA_SOURCE="$(find "$RUNNER_TEMP/output" -name '*.ipa' -print -quit)"
-          IPA_NAME="${PRODUCT_NAME}-${VERSION}-b${BUILD_NUMBER}-ios.ipa"
+          IPA_NAME="${PRODUCT_NAME}-${VERSION}_(${BUILD_NUMBER})-ios.ipa"
 
           mv "$IPA_SOURCE" "$RUNNER_TEMP/output/$IPA_NAME"
 
@@ -122,6 +122,15 @@ jobs:
           name: ${{ env.IPA_NAME }}
           path: ${{ runner.temp }}/output/${{ env.IPA_NAME }}
           if-no-files-found: error
+
+      - name: Upload to TestFlight
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only }}
+        uses: apple-actions/upload-testflight-build@v4
+        with:
+          app-path: ${{ runner.temp }}/output/${{ env.IPA_NAME }}
+          issuer-id: ${{ secrets.APPSTORE_CONNECT_API_ISSUER_ID }}
+          api-key-id: ${{ secrets.APPSTORE_CONNECT_API_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_CONNECT_API_KEY }}
 
       - name: Upload to GitHub Releases
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only }}
