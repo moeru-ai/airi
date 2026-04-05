@@ -203,12 +203,31 @@ app.whenReady().then(async () => {
   })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsMarkdownStressWindow, serverChannel, mcpStdioManager, i18n },
+    dependsOn: {
+      widgetsManager,
+      beatSync,
+      autoUpdater,
+      devtoolsMarkdownStressWindow,
+      serverChannel,
+      mcpStdioManager,
+      i18n,
+    },
     build: async ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, mcpStdioManager, i18n, onboardingWindowManager },
+    dependsOn: {
+      settingsWindow,
+      chatWindow,
+      widgetsManager,
+      noticeWindow,
+      beatSync,
+      autoUpdater,
+      serverChannel,
+      mcpStdioManager,
+      i18n,
+      onboardingWindowManager,
+    },
     build: async ({ dependsOn }) => setupMainWindow(dependsOn),
   })
 
@@ -218,7 +237,16 @@ app.whenReady().then(async () => {
   })
 
   const tray = injeca.provide('app:tray', {
-    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, serverChannel, beatSyncBgWindow: beatSync, aboutWindow, i18n },
+    dependsOn: {
+      mainWindow,
+      settingsWindow,
+      captionWindow,
+      widgetsWindow: widgetsManager,
+      serverChannel,
+      beatSyncBgWindow: beatSync,
+      aboutWindow,
+      i18n,
+    },
     build: async ({ dependsOn }) => setupTray(dependsOn),
   })
 
