@@ -18,7 +18,14 @@ export interface ElectronFetchResult {
   bodyBase64?: string
 }
 
+let fetchServiceRegistered = false
+
 export function createFetchService() {
+  if (fetchServiceRegistered)
+    return
+
+  fetchServiceRegistered = true
+
   ipcMain.handle(ELECTRON_FETCH_IPC_CHANNEL, async (_event, payload: ElectronFetchPayload): Promise<ElectronFetchResult> => {
     const response = await fetch(payload.url, {
       method: payload.method ?? 'GET',

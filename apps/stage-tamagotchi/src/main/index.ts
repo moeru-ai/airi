@@ -28,6 +28,7 @@ import { setupServerChannel } from './services/airi/channel-server'
 import { setupMcpStdioManager } from './services/airi/mcp-servers'
 import { setupPluginHost } from './services/airi/plugins'
 import { setupAutoUpdater } from './services/electron/auto-updater'
+import { createFetchService } from './services/electron/fetch'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
@@ -96,6 +97,8 @@ app.whenReady().then(async () => {
       return
     void fileLogger.appendLog(formatted)
   })
+
+  createFetchService()
 
   injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
 
