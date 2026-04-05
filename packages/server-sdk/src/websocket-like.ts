@@ -3,7 +3,7 @@ export interface WebSocketMessageEventLike<T = string> {
 }
 
 export interface WebSocketErrorEventLike {
-  error?: Error
+  error?: Error | unknown
 }
 
 export interface WebSocketLike {

@@ -75,6 +75,9 @@ catalogs:
     '@moeru/std':
       specifier: 0.1.0-beta.17
       version: 0.1.0-beta.17
+    '@napi-rs/image':
+      specifier: ^1.12.0
+      version: 1.12.0
     '@nekopaw/tempora':
       specifier: 0.4.0-alpha.1
       version: 0.4.0-alpha.1
@@ -2518,6 +2521,9 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@napi-rs/image':
+        specifier: ^1.12.0
+        version: 1.12.0
       '@proj-airi/vishot-runner-browser':
         specifier: workspace:^
         version: link:../vishot-runner-browser
@@ -3553,6 +3559,9 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@napi-rs/image':
+        specifier: 'catalog:'
+        version: 1.12.0
       meow:
         specifier: 'catalog:'
         version: 14.1.0

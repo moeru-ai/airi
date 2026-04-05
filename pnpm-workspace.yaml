@@ -50,6 +50,7 @@ catalog:
   '@moeru/eslint-config': 0.1.0-beta.15
   '@moeru/eventa': 1.0.0-beta.3
   '@moeru/std': 0.1.0-beta.17
+  '@napi-rs/image': ^1.12.0
   '@nekopaw/tempora': 0.4.0-alpha.1
   '@pinia/testing': ^1.0.3
   '@proj-airi/drizzle-duckdb-wasm': ^0.4.29

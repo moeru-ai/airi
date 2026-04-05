@@ -1,21 +1,27 @@
+import type { ArtifactTransformer } from '../runtime/types'
+
 import path from 'node:path'
 import process from 'node:process'
 
-import { mkdir } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 
 import meow from 'meow'
 
 import { errorMessageFrom } from '@moeru/std'
+import { Transformer } from '@napi-rs/image'
 import { _electron as electron } from 'playwright'
 
 import { createScenarioContext } from '../runtime/context'
 import { loadScenarioModule } from '../runtime/load-scenario'
 import { resolveElectronAppInfo } from '../utils/app-path'
 
+type CaptureFormat = 'png' | 'avif'
+
 interface CaptureCliArguments {
   scenarioPath: string
   outputDir: string
+  format: CaptureFormat
 }
 
 const captureHelpText = `
@@ -26,6 +32,7 @@ const captureHelpText = `
 
   Options
     --output-dir, -o  Directory to write PNG screenshots into
+    --format         Output format: png or avif
 
   Examples
     $ capture packages/scenarios-stage-tamagotchi-electron/src/scenarios/settings-connection.ts --output-dir ./artifacts/manual-run
@@ -46,6 +53,35 @@ function isDirectExecution(): boolean {
   return path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 }
 
+function parseCaptureFormat(format: string | undefined): CaptureFormat {
+  if (format === undefined || format.length === 0) {
+    return 'png'
+  }
+
+  if (format === 'png' || format === 'avif') {
+    return format
+  }
+
+  throw new Error(`Unsupported capture format "${format}". Expected "png" or "avif".`)
+}
+
+function createAvifTransformer(): ArtifactTransformer {
+  return async (artifact) => {
+    // eslint-disable-next-line e18e/prefer-static-regex
+    const derivedFilePath = artifact.filePath.replace(/\.png$/i, '.avif')
+    const avifBuffer = await new Transformer(await readFile(artifact.filePath)).avif()
+
+    await writeFile(derivedFilePath, avifBuffer)
+    await rm(artifact.filePath, { force: true })
+
+    return {
+      ...artifact,
+      filePath: derivedFilePath,
+      format: 'avif',
+    }
+  }
+}
+
 export function parseCaptureCliArguments(argv: string[]): CaptureCliArguments {
   const cli = meow(captureHelpText, {
     argv: normalizeCliArgv(argv),
@@ -53,6 +89,9 @@ export function parseCaptureCliArguments(argv: string[]): CaptureCliArguments {
     flags: {
       outputDir: {
         shortFlag: 'o',
+        type: 'string',
+      },
+      format: {
         type: 'string',
       },
     },
@@ -67,11 +106,12 @@ export function parseCaptureCliArguments(argv: string[]): CaptureCliArguments {
   return {
     scenarioPath: cli.input[0],
     outputDir: cli.flags.outputDir,
+    format: parseCaptureFormat(cli.flags.format),
   }
 }
 
 async function main(): Promise<void> {
-  const { scenarioPath, outputDir } = parseCaptureCliArguments(process.argv.slice(2))
+  const { scenarioPath, outputDir, format } = parseCaptureCliArguments(process.argv.slice(2))
   const resolvedOutputDir = path.resolve(process.cwd(), outputDir)
 
   await mkdir(resolvedOutputDir, { recursive: true })
@@ -87,7 +127,15 @@ async function main(): Promise<void> {
   })
 
   try {
-    const context = createScenarioContext(electronApp, resolvedOutputDir)
+    const context = createScenarioContext(
+      electronApp,
+      resolvedOutputDir,
+      format === 'avif'
+        ? {
+            transformers: [createAvifTransformer()],
+          }
+        : undefined,
+    )
     await loadedScenario.scenario.run(context)
   }
   finally {

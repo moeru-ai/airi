@@ -115,6 +115,8 @@ live2d:
     title: 停用模型滑鼠追蹤
     button-disable:
       title: Disable model mouse tracking
+  render-scale:
+    title: 渲染倍率
   fps:
     title: FPS
     description: 限制渲染幀率
@@ -1072,6 +1074,8 @@ theme:
 title: 設定
 voices: 聲線
 vrm:
+  render-scale:
+    title: 渲染倍率
   change-model:
     from-file: 從檔案載入
     from-file-select: 選擇

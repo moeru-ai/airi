@@ -1,5 +1,7 @@
 import type { Page } from 'playwright'
 
+import { sleep } from '@moeru/std'
+
 function iconAttributeSelector(iconName: string): string {
   return `[${iconName.replace(':', '\\:')}]`
 }
@@ -12,10 +14,9 @@ async function clickControlButtonByIcon(page: Page, iconName: string): Promise<v
     })
     .last()
 
-  await button.waitFor({ state: 'visible', timeout: 20_000 })
-  await button.hover()
+  await button.waitFor({ state: 'visible', timeout: 15_000 })
   await button.click({ force: true })
-  await button.hover()
+  await sleep(100)
 }
 
 export async function expandControlsIsland(page: Page): Promise<void> {

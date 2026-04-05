@@ -27,6 +27,7 @@ export const useSettingsLive2d = defineStore('settings-live2d', () => {
   const live2dExpressionEnabled = useLocalStorageManualReset<boolean>('settings/live2d/expression-enabled', false)
   const live2dShadowEnabled = useLocalStorageManualReset<boolean>('settings/live2d/shadow-enabled', true)
   const live2dMaxFps = useLocalStorageManualReset<number>('settings/live2d/max-fps', 0)
+  const live2dRenderScale = useLocalStorageManualReset<number>('settings/live2d/render-scale', 2)
 
   function resetState() {
     live2dDisableFocus.reset()
@@ -36,6 +37,7 @@ export const useSettingsLive2d = defineStore('settings-live2d', () => {
     live2dExpressionEnabled.reset()
     live2dShadowEnabled.reset()
     live2dMaxFps.reset()
+    live2dRenderScale.reset()
   }
 
   return {
@@ -46,6 +48,7 @@ export const useSettingsLive2d = defineStore('settings-live2d', () => {
     live2dExpressionEnabled,
     live2dShadowEnabled,
     live2dMaxFps,
+    live2dRenderScale,
     resetState,
   }
 })

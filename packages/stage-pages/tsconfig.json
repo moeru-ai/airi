@@ -4,8 +4,8 @@
     "jsx": "preserve",
     "lib": [
       "DOM",
-      "ESNext",
-      "DOM.AsyncIterable"
+      "DOM.AsyncIterable",
+      "ESNext"
     ],
     "module": "ESNext",
     "moduleResolution": "Bundler",

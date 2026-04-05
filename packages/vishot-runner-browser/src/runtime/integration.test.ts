@@ -1,8 +1,8 @@
 import path from 'node:path'
 
-import { access, mkdir, mkdtemp, writeFile } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 interface FakeLocator {
   evaluateAll: <T>(callback: (elements: Array<{ getAttribute: (name: string) => string | null }>) => T) => Promise<T>
@@ -110,18 +110,16 @@ function createFixturePage(html: string): FakePage {
 }
 
 let captureBrowserRoots: typeof import('./capture').captureBrowserRoots
+const fixtureRoots = new Set<string>()
 
 vi.mock('playwright', () => {
   return {
     chromium: {
       launch: vi.fn(async () => {
-        let page: FakePage | undefined
-
         return {
           newContext: async () => ({
             newPage: async () => {
-              page = createFixturePage('')
-              return page
+              return createFixturePage('')
             },
             close: async () => {},
           }),
@@ -138,6 +136,7 @@ beforeAll(async () => {
 
 async function createViteSceneFixture(): Promise<string> {
   const rootDir = await mkdtemp(path.join(process.cwd(), '.tmp-scene-'))
+  fixtureRoots.add(rootDir)
 
   await mkdir(path.join(rootDir, 'artifacts'), { recursive: true })
 
@@ -181,6 +180,23 @@ export default defineConfig({
 
   return rootDir
 }
+
+async function cleanupFixtureRoots(): Promise<void> {
+  await Promise.allSettled(
+    Array.from(fixtureRoots, async (rootDir) => {
+      await rm(rootDir, { force: true, recursive: true })
+      fixtureRoots.delete(rootDir)
+    }),
+  )
+}
+
+afterEach(async () => {
+  await cleanupFixtureRoots()
+})
+
+afterAll(async () => {
+  await cleanupFixtureRoots()
+})
 
 describe('captureBrowserRoots', () => {
   it('captures all roots from a vite-served scene app', async () => {
@@ -248,14 +264,14 @@ describe('captureBrowserRoots', () => {
     await expect(access(path.join(outputDir, 'intro-websocket-settings.avif'))).resolves.toBeUndefined()
   }, 120000)
 
-  it('rejects non-image transformer outputs in the browser image pipeline', async () => {
+  it('rejects non-browser-final transformer outputs in the browser image pipeline', async () => {
     const sceneAppRoot = await createViteSceneFixture()
     const outputDir = path.join(sceneAppRoot, 'artifacts', 'final-test')
 
     await expect(captureBrowserRoots({
       imageTransformers: [async artifact => ({
         ...artifact,
-        kind: 'video',
+        stage: 'electron-raw',
       })],
       sceneAppRoot,
       routePath: '/',
@@ -326,5 +342,7 @@ describe('captureBrowserRoots', () => {
       routePath: '/',
       outputDir,
     })).rejects.toThrow('both resolve to')
+
+    await expect(access(path.join(outputDir, 'intro-chat-window.png'))).resolves.toBeUndefined()
   }, 120000)
 })

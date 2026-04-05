@@ -115,6 +115,8 @@ live2d:
     title: モデルのマウストラッキングを無効にする
     button-disable:
       title: Disable model mouse tracking
+  render-scale:
+    title: レンダースケール
   fps:
     title: FPS
     description: レンダリングフレームレートを制限
@@ -1072,6 +1074,8 @@ theme:
 title: 設定
 voices: 音声
 vrm:
+  render-scale:
+    title: レンダースケール
   change-model:
     from-file: ファイルから読み込む
     from-file-select: 選択

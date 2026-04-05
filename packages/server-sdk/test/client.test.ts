@@ -1,4 +1,4 @@
-import type { WebSocketEvent } from '@proj-airi/server-shared/types'
+import type { WebSocketEvent, WebSocketEventOf } from '@proj-airi/server-shared/types'
 
 import superjson from 'superjson'
 
@@ -12,18 +12,18 @@ class MockWebSocket {
 
   static instances: MockWebSocket[] = []
 
-  readonly sent: string[] = []
+  readonly sent: Array<string | ArrayBufferLike | ArrayBufferView<ArrayBufferLike>> = []
   readyState = MockWebSocket.CONNECTING
   onclose?: () => void
-  onerror?: (event: { error?: Error }) => void
-  onmessage?: (event: { data: string }) => void
+  onerror?: (event: { error?: Error } | unknown) => void
+  onmessage?: (event: { data: string | ArrayBufferLike | ArrayBufferView<ArrayBufferLike> }) => void
   onopen?: () => void
 
   constructor(public readonly url: string) {
     MockWebSocket.instances.push(this)
   }
 
-  send(data: string) {
+  send(data: string | ArrayBufferLike | ArrayBufferView<ArrayBufferLike>) {
     this.sent.push(data)
   }
 
@@ -65,8 +65,14 @@ function parseSent(socket: MockWebSocket, index = -1) {
   if (!payload) {
     throw new Error(`No sent payload at index ${index}`)
   }
+  if (typeof payload === 'string') {
+    return superjson.parse<WebSocketEvent>(payload)
+  }
 
-  return superjson.parse<WebSocketEvent>(payload)
+  const textDecoder = new TextDecoder()
+  const decoded = textDecoder.decode(payload)
+
+  return superjson.parse<WebSocketEvent>(decoded)
 }
 
 function emitOpen(socket: MockWebSocket) {
@@ -114,7 +120,8 @@ describe('client', () => {
       },
     })
 
-    const announceEvent = parseSent(socket)
+    const announceEvent = parseSent(socket) as WebSocketEventOf<'module:announced'>
+
     expect(announceEvent).toMatchObject({
       type: 'module:announce',
       data: { name: 'test-plugin' },
@@ -195,7 +202,7 @@ describe('client', () => {
     }
 
     emitOpen(socket)
-    const announceEvent = parseSent(socket)
+    const announceEvent = parseSent(socket) as WebSocketEventOf<'module:announced'>
 
     emitMessage(socket, {
       type: 'module:announced',
@@ -229,7 +236,7 @@ describe('client', () => {
     await timedOutAssertion
 
     emitOpen(socket)
-    const announceEvent = parseSent(socket)
+    const announceEvent = parseSent(socket) as WebSocketEventOf<'module:announced'>
 
     emitMessage(socket, {
       type: 'module:announced',
@@ -278,7 +285,8 @@ describe('client', () => {
 
     emitOpen(socket)
 
-    const announceEvent = parseSent(socket)
+    const announceEvent = parseSent(socket) as WebSocketEventOf<'module:announced'>
+
     emitMessage(socket, {
       type: 'module:announced',
       data: {
@@ -298,5 +306,90 @@ describe('client', () => {
     expect(listener).toHaveBeenCalledWith({ previousStatus: 'announcing', status: 'ready' })
 
     dispose()
+  })
+
+  it('retries after connect timeout and eventually connects on a later socket', async () => {
+    vi.useFakeTimers()
+
+    const client = new Client({
+      autoConnect: false,
+      autoReconnect: true,
+      connectTimeoutMs: 50,
+      name: 'test-plugin',
+    })
+
+    const connecting = client.connect()
+    const firstSocket = lastSocket()
+    const firstCloseSpy = vi.spyOn(firstSocket, 'close')
+
+    await vi.advanceTimersByTimeAsync(50)
+    expect(firstCloseSpy).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(MockWebSocket.instances).toHaveLength(2)
+
+    const secondSocket = lastSocket()
+    emitOpen(secondSocket)
+
+    const announceEvent = parseSent(secondSocket) as WebSocketEventOf<'module:announced'>
+
+    emitMessage(secondSocket, {
+      type: 'module:announced',
+      data: {
+        name: 'test-plugin',
+        identity: announceEvent.data.identity,
+      },
+      metadata: {
+        source: { kind: 'plugin', plugin: { id: 'server' }, id: 'server-1' },
+        event: { id: 'announce-retry-1' },
+      },
+    })
+
+    await expect(connecting).resolves.toBeUndefined()
+    expect(client.connectionStatus).toBe('ready')
+  })
+
+  it('does not emit onReady twice when sync fallback already moved status to ready', async () => {
+    const onReady = vi.fn()
+    const client = new Client({
+      autoConnect: false,
+      autoReconnect: false,
+      name: 'test-plugin',
+      onReady,
+    })
+
+    const connecting = client.connect()
+    const socket = lastSocket()
+    emitOpen(socket)
+
+    const announceEvent = parseSent(socket) as WebSocketEventOf<'module:announced'>
+
+    const selfIdentity = announceEvent.data.identity
+
+    emitMessage(socket, {
+      type: 'registry:modules:sync',
+      data: {
+        modules: [{ name: 'test-plugin', identity: selfIdentity }],
+      },
+      metadata: {
+        source: { kind: 'plugin', plugin: { id: 'server' }, id: 'server-1' },
+        event: { id: 'sync-1' },
+      },
+    })
+
+    emitMessage(socket, {
+      type: 'module:announced',
+      data: {
+        name: 'test-plugin',
+        identity: selfIdentity,
+      },
+      metadata: {
+        source: { kind: 'plugin', plugin: { id: 'server' }, id: 'server-1' },
+        event: { id: 'announce-1' },
+      },
+    })
+
+    await expect(connecting).resolves.toBeUndefined()
+    expect(onReady).toHaveBeenCalledTimes(1)
   })
 })
