@@ -25,11 +25,12 @@ Contributing editor: JhIcefair (primary)
 
 ## Table Of Contents
 
-- [Chapter 1 – Installation](#chapter-1--installation)
-- [Chapter 2 – Initial Configuration](#chapter-2--initial-configuration)
-- [Chapter 3 – Airi Interface Overview](#chapter-3--airi-interface-overview)
-- [Chapter 4 – Settings](#chapter-4--settings)
+- [Chapter 1 – Installation](#chapter-1-installation)
+- [Chapter 2 – Initial Configuration](#chapter-2-initial-configuration)
+- [Chapter 3 – Airi Interface Overview](#chapter-3-interface-overview)
+- [Chapter 4 – Settings](#chapter-4-settings)
 
+<a id="chapter-1-installation"></a>
 ## Chapter 1 – Installation
 
 Go to the Project AIRI GitHub homepage: [moeru-ai/airi](https://github.com/moeru-ai/airi)
@@ -53,6 +54,7 @@ The following uses the Windows installer version as an example.
 Locate the downloaded installer and double‑click to install.
 *(Due to time constraints, this part is skipped; I believe you can handle it.)*
 
+<a id="chapter-2-initial-configuration"></a>
 ## Chapter 2 – Initial Configuration
 
 ### Section 1 – Preparation
@@ -97,6 +99,7 @@ Using Deepseek as an example.
 
 Congratulations! You have completed the initial configuration of Airi.
 
+<a id="chapter-3-interface-overview"></a>
 ## Chapter 3 – Airi Interface Overview
 
 ### Main Window
@@ -188,6 +191,7 @@ You can open the chat window by clicking “Expand” on the main window and sel
 Here you can chat with Airi.
 Detailed introduction omitted.
 
+<a id="chapter-4-settings"></a>
 ## Chapter 4 – Settings
 
 You can open settings by clicking “Expand” on the main window and selecting “Open settings”, or by right‑clicking the Airi tray icon.
