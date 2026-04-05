@@ -1,17 +1,10 @@
+import type { Message } from '@xsai/shared-chat'
+
 import { describe, expect, it } from 'vitest'
 
 import { createTimegapNotification, formatMessageWithPromptTimestamps, formatPromptTimestamp, formatTimeDuration, injectTimegapNotifications, isSignificantTimegap, prefixPromptTimestamp } from './timestamped-prompt'
 
-interface CommonContentPart {
-  type: string
-  [key: string]: unknown
-}
-
-interface Message {
-  role: string
-  content: string | CommonContentPart[]
-  createdAt?: number
-}
+type TimestampedMessage = Message & { createdAt?: number }
 
 describe('timestamped-prompt', () => {
   it('formats timestamps using local date/time', () => {
@@ -28,7 +21,7 @@ describe('timestamped-prompt', () => {
 
   it('prefixes the first text part in an array of content parts', () => {
     const prefix = '[2026-04-04 14:00:00] LLM: '
-    const content: CommonContentPart[] = [
+    const content = [
       { type: 'text', text: 'Good afternoon.' },
     ]
 
@@ -39,7 +32,7 @@ describe('timestamped-prompt', () => {
 
   it('inserts a text prefix when the first content part is not text', () => {
     const prefix = '[2026-04-04 14:00:00] User: '
-    const content: CommonContentPart[] = [
+    const content = [
       { type: 'image_url', image_url: { url: 'https://example.com/image.png' } },
     ]
 
@@ -50,7 +43,7 @@ describe('timestamped-prompt', () => {
   })
 
   it('applies timestamp prefixes only to user and assistant messages', () => {
-    const message: Message = {
+    const message: TimestampedMessage = {
       role: 'user',
       content: 'Hi there',
     }
@@ -60,7 +53,7 @@ describe('timestamped-prompt', () => {
   })
 
   it('preserves non-user/assistant messages unchanged', () => {
-    const message: Message = {
+    const message: TimestampedMessage = {
       role: 'system',
       content: 'System instruction',
     }
@@ -100,7 +93,7 @@ describe('timestamped-prompt', () => {
   it('injects timegap notifications between messages when gap >= 30 minutes', () => {
     const base = new Date('2026-04-04T14:00:00').getTime()
 
-    const messages: Message[] = [
+    const messages: TimestampedMessage[] = [
       { role: 'user', content: 'Hi', createdAt: base },
       { role: 'assistant', content: 'Hello!', createdAt: base + 5000 },
       { role: 'user', content: 'OK', createdAt: base + 35 * 60 * 1000 }, // 35 minutes later

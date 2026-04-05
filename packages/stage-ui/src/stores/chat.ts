@@ -280,9 +280,12 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         ],
       })
 
-      const normalizedMessages = sessionMessagesForSend.map((msg) => {
+      const normalizedMessages: Array<Message & { createdAt?: number }> = sessionMessagesForSend.flatMap((msg) => {
         const { context: _context, id: _id, ...withoutContext } = msg
         const rawMessage = toRaw(withoutContext)
+
+        if (rawMessage.role === 'error')
+          return []
 
         let normalizedMessage: Message
         if (rawMessage.role === 'assistant') {
@@ -293,17 +296,17 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
           normalizedMessage = rawMessage
         }
 
-        return {
+        return [{
           ...normalizedMessage,
           createdAt: msg.createdAt,
-        } as Message & { createdAt?: number }
+        }]
       })
 
       const contextsSnapshot = chatContext.getContextsSnapshot()
       const contextPromptMessage = buildContextPromptMessage(contextsSnapshot)
 
       // Build UI-visible messages (without timestamp prefixes)
-      let newMessages = normalizedMessages
+      let newMessages: Message[] = normalizedMessages
       if (contextPromptMessage) {
         const system = newMessages.slice(0, 1)
         const afterSystem = newMessages.slice(1, newMessages.length)
@@ -328,9 +331,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       // Build LLM-facing messages (with timestamps and gap notifications for temporal awareness)
       // This is separate from UI messages to keep the chat display clean while giving the model
       // all the timing information it needs to respond contextually
-      let promptMessages = injectTimegapNotifications(
-        normalizedMessages as Array<Message & { createdAt?: number }>,
-      ).map(msg => formatMessageWithPromptTimestamps(msg)) as Message[]
+      let promptMessages: Message[] = injectTimegapNotifications(normalizedMessages)
+        .map(msg => formatMessageWithPromptTimestamps(msg))
 
       if (contextPromptMessage) {
         const system = promptMessages.slice(0, 1)
@@ -343,13 +345,13 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         ]
       }
 
-      streamingMessageContext.composedMessage = newMessages as Message[]
+      streamingMessageContext.composedMessage = newMessages
       contextObservability.capturePromptProjection({
         sessionId,
         message: sendingMessage,
         contexts: contextsSnapshot,
         promptMessage: contextPromptMessage,
-        composedMessage: newMessages as Message[],
+          composedMessage: newMessages,
       })
       contextObservability.recordLifecycle({
         phase: 'after-compose',

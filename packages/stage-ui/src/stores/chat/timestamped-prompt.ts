@@ -1,19 +1,17 @@
+import type { CommonContentPart, Message, SystemMessage, TextContentPart } from '@xsai/shared-chat'
+
 // Inject timestamps before user/assistant prompt contents so the model can anchor each message in time.
 // This helps avoid timeline confusion when earlier history contains different greetings or temporal references.
-interface CommonContentPart {
-  type: string
-  [key: string]: unknown
-}
-
-interface TimestampableMessage {
-  role: string
-  content: string | CommonContentPart[]
-  createdAt?: number
-  [key: string]: unknown
-}
+type TimestampableContentPart = CommonContentPart | TextContentPart
+type TimestampableContent = string | TimestampableContentPart[]
+type TimestampableMessage = Message & { createdAt?: number }
 
 const TIMESTAMP_PREFIX_TEMPLATE = '[{timestamp}] {label}: '
 const SIGNIFICANT_TIMEGAP_MS = 30 * 60 * 1000
+
+function isTextContentPart(part: TimestampableContentPart): part is TextContentPart {
+  return part.type === 'text' && typeof (part as { text?: unknown }).text === 'string'
+}
 
 export function formatPromptTimestamp(timestamp = Date.now()): string {
   const date = new Date(timestamp)
@@ -28,24 +26,26 @@ export function formatPromptTimestamp(timestamp = Date.now()): string {
 }
 
 export function prefixPromptTimestamp(
-  content: string | CommonContentPart[],
+  content: TimestampableContent,
   prefix: string,
-): string | CommonContentPart[] {
+): TimestampableContent {
   if (typeof content === 'string')
     return `${prefix}${content}`
 
+  const textPrefixPart = { type: 'text', text: prefix } as TextContentPart
+
   if (content.length === 0)
-    return [{ type: 'text', text: prefix }]
+    return [textPrefixPart]
 
   const [first, ...rest] = content
-  if (first.type === 'text') {
+  if (isTextContentPart(first)) {
     return [
       { ...first, text: `${prefix}${first.text}` },
       ...rest,
     ]
   }
 
-  return [{ type: 'text', text: prefix }, ...content]
+  return [textPrefixPart, ...content]
 }
 
 export function formatMessageWithPromptTimestamps(message: TimestampableMessage): TimestampableMessage {
@@ -82,7 +82,7 @@ export function isSignificantTimegap(prevTimestamp: number, currentTimestamp: nu
   return (currentTimestamp - prevTimestamp) >= SIGNIFICANT_TIMEGAP_MS
 }
 
-export function createTimegapNotification(prevTimestamp: number, currentTimestamp: number): TimestampableMessage {
+export function createTimegapNotification(prevTimestamp: number, currentTimestamp: number): SystemMessage & { createdAt?: number } {
   const duration = formatTimeDuration(currentTimestamp - prevTimestamp)
   return {
     role: 'system',
