@@ -2,14 +2,13 @@ import type { CommonContentPart, Message, SystemMessage, TextContentPart } from 
 
 // Inject timestamps before user/assistant prompt contents so the model can anchor each message in time.
 // This helps avoid timeline confusion when earlier history contains different greetings or temporal references.
-type TimestampableContentPart = CommonContentPart | TextContentPart
-type TimestampableContent = string | TimestampableContentPart[]
 type TimestampableMessage = Message & { createdAt?: number }
+type TimestampedAssistantMessage = Extract<TimestampableMessage, { role: 'assistant' }>
 
 const TIMESTAMP_PREFIX_TEMPLATE = '[{timestamp}] {label}: '
 const SIGNIFICANT_TIMEGAP_MS = 30 * 60 * 1000
 
-function isTextContentPart(part: TimestampableContentPart): part is TextContentPart {
+function isTextContentPart(part: { type: string, text?: unknown }): part is TextContentPart {
   return part.type === 'text' && typeof (part as { text?: unknown }).text === 'string'
 }
 
@@ -26,13 +25,39 @@ export function formatPromptTimestamp(timestamp = Date.now()): string {
 }
 
 export function prefixPromptTimestamp(
-  content: TimestampableContent,
+  content: string | CommonContentPart[],
   prefix: string,
-): TimestampableContent {
+): string | CommonContentPart[] {
   if (typeof content === 'string')
     return `${prefix}${content}`
 
-  const textPrefixPart = { type: 'text', text: prefix } as TextContentPart
+  const textPrefixPart = { type: 'text', text: prefix } as CommonContentPart
+
+  if (content.length === 0)
+    return [textPrefixPart]
+
+  const [first, ...rest] = content
+  if (isTextContentPart(first)) {
+    return [
+      { ...first, text: `${prefix}${first.text}` },
+      ...rest,
+    ]
+  }
+
+  return [textPrefixPart, ...content]
+}
+
+function prefixAssistantPromptTimestamp(
+  content: TimestampedAssistantMessage['content'],
+  prefix: string,
+): TimestampedAssistantMessage['content'] {
+  if (content == null)
+    return prefix
+
+  if (typeof content === 'string')
+    return `${prefix}${content}`
+
+  const textPrefixPart: TextContentPart = { type: 'text', text: prefix }
 
   if (content.length === 0)
     return [textPrefixPart]
@@ -58,9 +83,16 @@ export function formatMessageWithPromptTimestamps(message: TimestampableMessage)
     .replace('{timestamp}', timestamp)
     .replace('{label}', label)
 
+  if (message.role === 'user') {
+    return {
+      ...message,
+      content: prefixPromptTimestamp(message.content, prefix),
+    }
+  }
+
   return {
     ...message,
-    content: prefixPromptTimestamp(message.content, prefix),
+    content: prefixAssistantPromptTimestamp(message.content, prefix),
   }
 }
 
