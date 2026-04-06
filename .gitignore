@@ -133,3 +133,7 @@ apps/stage-tamagotchi/electron.vite.config.*.mjs
 
 # Tools - Obsidian
 .obsidian/
+
+# Android keystore (secrets)
+apps/stage-pocket/*.jks
+apps/stage-pocket/*base64.txt
