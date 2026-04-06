@@ -189,12 +189,13 @@ async function navigatePrevious() {
 </script>
 
 <template>
-  <div class="onboarding-step-container" h-full w-full>
+  <div class="onboarding-step-container" min-h-0 w-full flex flex-1 flex-col overflow-hidden>
     <Transition :name="direction === 'next' ? 'slide-next' : 'slide-prev'" mode="out-in">
       <component
         :is="currentStep.component"
         v-if="currentStep"
         :key="currentStep.id"
+        class="min-h-0 min-w-0 flex flex-1 flex-col overflow-hidden"
         v-bind="currentStepProps"
         :on-next="requestNextStep"
         :on-previous="requestPreviousStep"

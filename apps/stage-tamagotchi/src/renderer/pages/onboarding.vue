@@ -47,10 +47,14 @@ async function handleConfigured() {
 </script>
 
 <template>
-  <div class="onboarding-root" h-full w-full flex flex-col overflow-x-hidden overflow-y-auto overscroll-none :class="bgClass">
-    <div :class="bgClass" w="100dvw" min-h="12" w-full flex-shrink-0 select-none />
-    <div class="onboarding-scroll" w-full flex-1 px-10>
-      <div class="onboarding-content" h-full>
+  <!-- Same flex/min-h-0 chain as OnboardingDialog so model step grid scrolls inside the viewport (not the whole page). -->
+  <div
+    class="onboarding-root h-full min-h-0 w-full flex flex-col overflow-hidden overscroll-none drag-region"
+    :class="bgClass"
+  >
+    <div class="min-h-12 w-full flex-shrink-0 select-none" :class="bgClass" />
+    <div class="onboarding-scroll min-h-0 w-full flex flex-1 flex-col overflow-hidden px-10">
+      <div class="onboarding-content min-h-0 flex flex-1 flex-col overflow-hidden">
         <OnboardingScreen :extra-steps="extraSteps" @skipped="handleSkipped" @configured="handleConfigured" />
       </div>
     </div>
@@ -73,7 +77,6 @@ async function handleConfigured() {
 .onboarding-scroll {
   padding-top: 8px;
   padding-bottom: 20px;
-  overflow-y: auto;
 }
 </style>
 
