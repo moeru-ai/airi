@@ -64,6 +64,9 @@ function isTimeoutLikeError(error: unknown): boolean {
 export default defineScenario({
   id: 'demo-controls-settings-chat-websocket',
   async run({ capture, controlsIsland, settingsWindow, stageWindows }) {
+    const mainWindow = await stageWindows.waitFor('main')
+    await controlsIsland.waitForReady(mainWindow.page)
+
     async function ensureControlsIslandExpanded() {
       const chatButton = mainWindow.page
         .locator('button')
@@ -78,33 +81,6 @@ export default defineScenario({
         await sleep(250)
       }
     }
-
-    async function captureSettingsRoute(name: string, routePath: string, readyPattern: RegExp, waitMs = 250) {
-      await settingsWindow.goToRoute(settingsWindowSnapshot.page, routePath)
-      try {
-        await settingsWindowSnapshot.page.getByText(readyPattern).first().waitFor({ state: 'visible', timeout: 15_000 })
-      }
-      catch (error) {
-        if (!isTimeoutLikeError(error)) {
-          throw error
-        }
-
-        const currentHashPath = normalizeHashPath(new URL(settingsWindowSnapshot.page.url()).hash)
-        if (currentHashPath !== routePath) {
-          throw error
-        }
-
-        // NOTICE: Some settings/devtools pages animate in or hydrate content asynchronously.
-        // Give known-slow pages one final bounded grace period, but still fail if the target route never becomes ready.
-        await sleep(1250)
-        await settingsWindowSnapshot.page.getByText(readyPattern).first().waitFor({ state: 'visible', timeout: 5_000 })
-      }
-      await sleep(waitMs)
-      await capture(name, settingsWindowSnapshot.page)
-    }
-
-    const mainWindow = await stageWindows.waitFor('main')
-    await controlsIsland.waitForReady(mainWindow.page)
 
     await capture('00-stage-tamagotchi', mainWindow.page)
     await sleep(500)
@@ -129,6 +105,30 @@ export default defineScenario({
     await settingsWindowSnapshot.page.getByText(/connection|websocket|router/i).first().waitFor({ state: 'visible' })
     await sleep(1000)
     await capture('02-settings-window', settingsWindowSnapshot.page)
+
+    async function captureSettingsRoute(name: string, routePath: string, readyPattern: RegExp, waitMs = 250) {
+      await settingsWindow.goToRoute(settingsWindowSnapshot.page, routePath)
+      try {
+        await settingsWindowSnapshot.page.getByText(readyPattern).first().waitFor({ state: 'visible', timeout: 15_000 })
+      }
+      catch (error) {
+        if (!isTimeoutLikeError(error)) {
+          throw error
+        }
+
+        const currentHashPath = normalizeHashPath(new URL(settingsWindowSnapshot.page.url()).hash)
+        if (currentHashPath !== routePath) {
+          throw error
+        }
+
+        // NOTICE: Some settings/devtools pages animate in or hydrate content asynchronously.
+        // Give known-slow pages one final bounded grace period, but still fail if the target route never becomes ready.
+        await sleep(1250)
+        await settingsWindowSnapshot.page.getByText(readyPattern).first().waitFor({ state: 'visible', timeout: 5_000 })
+      }
+      await sleep(waitMs)
+      await capture(name, settingsWindowSnapshot.page)
+    }
 
     await settingsWindow.goToRoute(settingsWindowSnapshot.page, '/settings/airi-card')
     await settingsWindowSnapshot.page.getByText(airiCardPattern).first().waitFor({ state: 'visible' })

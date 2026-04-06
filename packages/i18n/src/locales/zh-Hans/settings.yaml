@@ -909,6 +909,19 @@ pages:
       description: WebSocket 服务器的完整地址(例如，ws://localhost:6121/ws)
       label: WebSocket 服务器地址
       placeholder: ws://localhost:6121/ws
+    server-hostname:
+      label: 网络暴露范围
+      description: 选择 AIRI 网关只监听当前设备，还是允许局域网中的其他设备连接。
+      advanced-label: 绑定主机名
+      advanced-description: 需要手动绑定网络地址时，填写指定的主机名或 IP 地址。
+      options:
+        this-device: 当前设备
+        all: 全部
+        advanced: 高级
+    server-auth-token:
+      label: Auth Token
+      description: 连接到此网关的远程客户端需要提供此安全令牌。留空时 AIRI 会自动生成新的令牌。
+      placeholder: 自动生成
   scene:
     description: 配置角色所在环境
     title: 场景

@@ -226,12 +226,6 @@ export class RuleEngine {
     if (this.detectorDecisions.length > MAX_DETECTOR_DECISIONS) {
       this.detectorDecisions.splice(0, this.detectorDecisions.length - MAX_DETECTOR_DECISIONS)
     }
-
-    // NOTICE: matched_not_fired is expected on high-frequency streams and would
-    // dominate logs; keep it in snapshots/devtools and reserve default logs for fired.
-    if (snapshot.decision === 'matched_not_fired') {
-
-    }
   }
 
   /**

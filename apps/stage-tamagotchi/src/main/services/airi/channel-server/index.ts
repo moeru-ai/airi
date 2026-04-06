@@ -1,7 +1,9 @@
 import type { Server, ServerOptions } from '@proj-airi/server-runtime/server'
 import type { Lifecycle } from 'injeca'
 
-import { X509Certificate } from 'node:crypto'
+import type { ElectronServerChannelConfig } from '../../../../shared/eventa'
+
+import { randomUUID, X509Certificate } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { env, platform } from 'node:process'
@@ -23,8 +25,11 @@ import {
   electronGetServerChannelConfig,
 } from '../../../../shared/eventa'
 import { createConfig } from '../../../libs/electron/persistence'
+import { ensureServerChannelConfigDefaults } from './config'
 
 const channelServerConfigSchema = object({
+  hostname: optional(string()),
+  authToken: optional(string()),
   tlsConfig: optional(nullable(object({
     cert: optional(string()),
     key: optional(string()),
@@ -33,11 +38,15 @@ const channelServerConfigSchema = object({
 })
 
 const channelServerInvokeConfigSchema = z.object({
+  hostname: z.string().optional(),
+  authToken: z.string().optional(),
   tlsConfig: z.object({ }).nullable().optional(),
 }).strict()
 
 const channelServerConfigStore = createConfig('server-channel', 'config.json', channelServerConfigSchema, {
   default: {
+    hostname: '127.0.0.1',
+    authToken: '',
     tlsConfig: null,
   },
   autoHeal: true,
@@ -62,25 +71,41 @@ interface ServerChannelCertificateVerifyRequest {
   }
 }
 
-async function getChannelServerConfig(): Promise<ServerOptions> {
-  return channelServerConfigStore.get() || { tlsConfig: null }
+function getServerChannelPort() {
+  return env.SERVER_CHANNEL_PORT ? Number.parseInt(env.SERVER_CHANNEL_PORT) : 6121
+}
+
+async function getChannelServerConfig(): Promise<ElectronServerChannelConfig> {
+  const config = channelServerConfigStore.get() || { hostname: '127.0.0.1', authToken: '', tlsConfig: null }
+
+  return {
+    hostname: config.hostname || '127.0.0.1',
+    authToken: config.authToken || '',
+    tlsConfig: config.tlsConfig || null,
+  }
 }
 
 function getServerRuntimeBaseOptions() {
   return {
-    port: env.PORT ? Number.parseInt(env.PORT) : 6121,
-    hostname: env.SERVER_RUNTIME_HOSTNAME || '0.0.0.0',
+    port: getServerChannelPort(),
+    hostname: '127.0.0.1',
   }
 }
 
 async function resolveServerRuntimeOptions(config: ServerOptions): Promise<ServerOptions> {
   return {
     ...getServerRuntimeBaseOptions(),
+    auth: {
+      token: 'authToken' in config && typeof config.authToken === 'string' ? config.authToken : '',
+    },
+    hostname: 'hostname' in config && typeof config.hostname === 'string'
+      ? config.hostname || '127.0.0.1'
+      : '127.0.0.1',
     tlsConfig: config.tlsConfig ? await getOrCreateCertificate() : null,
   }
 }
 
-async function normalizeChannelServerOptions(payload: unknown, fallback?: ServerOptions) {
+async function normalizeChannelServerOptions(payload: unknown, fallback?: ElectronServerChannelConfig) {
   if (!fallback) {
     fallback = await getChannelServerConfig()
   }
@@ -90,14 +115,18 @@ async function normalizeChannelServerOptions(payload: unknown, fallback?: Server
     return fallback
   }
 
-  return {
+  const normalizedConfig = {
+    hostname: parsed.data.hostname ?? fallback.hostname,
+    authToken: parsed.data.authToken ?? fallback.authToken,
     tlsConfig: typeof parsed.data.tlsConfig === 'undefined' ? null : parsed.data.tlsConfig,
   }
+
+  return ensureServerChannelConfigDefaults(normalizedConfig, randomUUID).config
 }
 
 function getCertificateDomains(): string[] {
   const localIPs = getLocalIPs()
-  const hostname = env.SERVER_RUNTIME_HOSTNAME
+  const hostname = channelServerConfigStore.get()?.hostname || env.SERVER_RUNTIME_HOSTNAME
   return Array.from(new Set([
     'localhost',
     '127.0.0.1',
@@ -283,11 +312,12 @@ export async function setupServerChannel(params: { lifecycle: Lifecycle }): Prom
   configureServerChannelCertificateTrust()
 
   const storedConfig = await getChannelServerConfig()
+  const { changed: storedConfigChanged, config: normalizedStoredConfig } = ensureServerChannelConfigDefaults(storedConfig, randomUUID)
+  if (storedConfigChanged) {
+    channelServerConfigStore.update(normalizedStoredConfig)
+  }
 
-  const serverChannel = createServer({
-    ...storedConfig,
-    ...(await resolveServerRuntimeOptions(storedConfig)),
-  })
+  const serverChannel = createServer(await resolveServerRuntimeOptions(normalizedStoredConfig))
 
   const mutex = new Mutex()
 
@@ -386,26 +416,28 @@ export async function createServerChannelService(params: { serverChannel: Server
   defineInvokeHandler(context, electronApplyServerChannelConfig, async (req) => {
     const current = await getChannelServerConfig()
     const next = await normalizeChannelServerOptions(req, current)
-    const changed = JSON.stringify(next.tlsConfig) !== JSON.stringify(current.tlsConfig)
+    const tlsChanged = JSON.stringify(next.tlsConfig) !== JSON.stringify(current.tlsConfig)
+    const hostnameChanged = next.hostname !== current.hostname
+    const authTokenChanged = next.authToken !== current.authToken
+    const runtimeChanged = tlsChanged || hostnameChanged || authTokenChanged
 
     try {
-      if (changed) {
+      if (runtimeChanged) {
         const nextRuntimeOptions = await resolveServerRuntimeOptions(next)
 
         await params.serverChannel.updateConfig(nextRuntimeOptions)
         await params.serverChannel.restart()
-        channelServerConfigStore.update(next)
-
-        return next
+      }
+      else {
+        await params.serverChannel.start()
       }
 
-      await params.serverChannel.start()
       channelServerConfigStore.update(next)
       return next
     }
     catch (error) {
       useLogg('main/server-runtime').withError(error).error('Failed to apply server channel configuration')
-      if (changed) {
+      if (runtimeChanged) {
         const previousRuntimeOptions = await resolveServerRuntimeOptions(current)
 
         try {

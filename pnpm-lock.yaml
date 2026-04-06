@@ -2642,6 +2642,9 @@ importers:
       '@proj-airi/plugin-protocol':
         specifier: workspace:*
         version: link:../plugin-protocol
+      crossws:
+        specifier: ^0.4.4
+        version: 0.4.4(patch_hash=4d79ec736d10d2a81a9e2a31b067d43f0b6665122267981e652ab9923d165958)(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))
 
   packages/stage-layouts:
     dependencies:
