@@ -138,8 +138,6 @@ export function createServer(opts?: ServerOptions): Server {
       })
 
       try {
-        await instance.serve()
-
         serverInstance = {
           close: async (closeActiveConnections = false) => {
             log.log('closing all peers')
@@ -149,6 +147,8 @@ export function createServer(opts?: ServerOptions): Server {
             log.log('server instance closed')
           },
         }
+
+        await instance.serve()
 
         const protocol = secureEnabled ? 'wss' : 'ws'
         if (hostname === '0.0.0.0') {
@@ -173,7 +173,6 @@ export function createServer(opts?: ServerOptions): Server {
 
     return startTask
   }
-
   async function stop() {
     await closeServer(true)
   }

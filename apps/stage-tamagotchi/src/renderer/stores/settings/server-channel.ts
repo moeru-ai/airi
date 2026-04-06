@@ -59,6 +59,13 @@ export const useServerChannelSettingsStore = defineStore('tamagotchi-server-chan
     catch (error) {
       const message = errorMessageFrom(error) ?? 'Failed to apply WebSocket security setting'
       lastApplyError.value = message
+
+      syncingWithServer.value = true
+      tlsConfig.value = oldTls
+      hostname.value = oldHost
+      authToken.value = oldAuth
+      syncingWithServer.value = false
+
       toast.error(message)
     }
   })
