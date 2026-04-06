@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/scenarios-stage-tamagotchi-browser",
   "type": "module",
-  "version": "0.9.0-beta.0",
+  "version": "0.9.0-beta.5",
   "private": true,
   "description": "Vite/Vue scene app for stage tamagotchi browser captures",
   "author": {

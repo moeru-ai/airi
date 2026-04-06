@@ -84,3 +84,7 @@ promo-banner:
       reward: Free Theme Draw Ticket on Login
       cta: View Theme
 waiting: Waiting
+websocket-status:
+  connected: WebSocket connected
+  disconnected: WebSocket disconnected
+  open-settings: Open WebSocket settings

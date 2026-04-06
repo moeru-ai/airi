@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/stage-tamagotchi",
   "type": "module",
-  "version": "0.9.0-beta.4",
+  "version": "0.9.0-beta.5",
   "private": true,
   "description": "LLM powered virtual character",
   "author": {
@@ -29,7 +29,9 @@
     "rename-artifacts": "mkdir -p bundle && tsx scripts/rename-artifacts.ts",
     "merge-latest-mac": "tsx scripts/merge-latest-mac.ts",
     "regenerate-windows-latest": "tsx scripts/regenerate-windows-latest.ts",
-    "artifacts-metadata": "tsx scripts/artifacts-metadata.ts"
+    "artifacts-metadata": "tsx scripts/artifacts-metadata.ts",
+    "update-test:generate": "tsx scripts/update-test/generate-manifest.ts",
+    "update-test:server": "tsx scripts/update-test/start-server.ts"
   },
   "dependencies": {
     "@date-fns/utc": "^2.1.1",
