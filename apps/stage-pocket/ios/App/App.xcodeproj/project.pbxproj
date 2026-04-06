@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A1B2C3D42F10000100AA0001 /* HostWebSocketBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F10000100AA0002 /* HostWebSocketBridge.swift */; };
+		A1B2C3D42F10000100AA0003 /* URLSessionHostWebSocketSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F10000100AA0004 /* URLSessionHostWebSocketSession.swift */; };
+		A1B2C3D42F10000100AA0005 /* WeakScriptMessageHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F10000100AA0006 /* WeakScriptMessageHandler.swift */; };
 		0DF9DE312F0E0A42008AB01F /* AppIcon_LiquidGlass.icon in Resources */ = {isa = PBXBuildFile; fileRef = 0DF9DE302F0E0A42008AB01F /* AppIcon_LiquidGlass.icon */; };
 		29ABB4BA2F03F2B400285F7F /* DevBridgeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29ABB4B92F03F2B400285F7F /* DevBridgeViewController.swift */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
@@ -20,6 +23,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A1B2C3D42F10000100AA0002 /* HostWebSocketBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostWebSocketBridge.swift; sourceTree = "<group>"; };
+		A1B2C3D42F10000100AA0004 /* URLSessionHostWebSocketSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = URLSessionHostWebSocketSession.swift; sourceTree = "<group>"; };
+		A1B2C3D42F10000100AA0006 /* WeakScriptMessageHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeakScriptMessageHandler.swift; sourceTree = "<group>"; };
 		0DF9DE302F0E0A42008AB01F /* AppIcon_LiquidGlass.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon_LiquidGlass.icon; sourceTree = "<group>"; };
 		29ABB4B92F03F2B400285F7F /* DevBridgeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevBridgeViewController.swift; sourceTree = "<group>"; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
@@ -67,6 +73,9 @@
 			isa = PBXGroup;
 			children = (
 				29ABB4B92F03F2B400285F7F /* DevBridgeViewController.swift */,
+				A1B2C3D42F10000100AA0002 /* HostWebSocketBridge.swift */,
+				A1B2C3D42F10000100AA0004 /* URLSessionHostWebSocketSession.swift */,
+				A1B2C3D42F10000100AA0006 /* WeakScriptMessageHandler.swift */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -163,6 +172,9 @@
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				29ABB4BA2F03F2B400285F7F /* DevBridgeViewController.swift in Sources */,
+				A1B2C3D42F10000100AA0001 /* HostWebSocketBridge.swift in Sources */,
+				A1B2C3D42F10000100AA0003 /* URLSessionHostWebSocketSession.swift in Sources */,
+				A1B2C3D42F10000100AA0005 /* WeakScriptMessageHandler.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

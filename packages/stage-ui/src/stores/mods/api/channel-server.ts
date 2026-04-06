@@ -9,6 +9,7 @@ import type {
 } from '@proj-airi/server-sdk'
 import type { CommonContentPart } from '@xsai/shared-chat'
 
+import { errorMessageFrom } from '@moeru/std'
 import { Client, WebSocketEventSource } from '@proj-airi/server-sdk'
 import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
 import { useLocalStorage } from '@vueuse/core'
@@ -22,6 +23,20 @@ interface ChannelListenerEntry {
   type: keyof WebSocketEvents
   callback: (event: WebSocketBaseEvent<any, any>) => void | Promise<void>
   boundClient?: Client
+}
+
+function hasReconnectableWebSocketScheme(url: string | undefined) {
+  if (!url) {
+    return false
+  }
+
+  try {
+    const parsedUrl = new URL(url)
+    return parsedUrl.protocol === 'ws:' || parsedUrl.protocol === 'wss:'
+  }
+  catch {
+    return false
+  }
 }
 
 const REPLAYABLE_EVENT_TYPES = new Set<keyof WebSocketEvents>([
@@ -116,8 +131,10 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
           // Do not clear listeners or replay cache here.
           // onError may be recoverable while the SDK is reconnecting.
           if (import.meta.env.DEV) {
-            // eslint-disable-next-line no-console
-            console.debug('WebSocket server connection error:', error)
+            console.info('WebSocket server connection error:', {
+              message: errorMessageFrom(error) ?? 'Unknown websocket error',
+              error,
+            })
           }
         },
         onClose: () => {
@@ -305,6 +322,9 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
 
   watch(websocketUrl, (newUrl, oldUrl) => {
     if (newUrl === oldUrl)
+      return
+
+    if (!hasReconnectableWebSocketScheme(newUrl))
       return
 
     if (client.value || initializing.value) {

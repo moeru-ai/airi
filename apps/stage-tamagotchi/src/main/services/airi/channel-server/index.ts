@@ -107,6 +107,21 @@ function getCertificateDomains(): string[] {
   ]))
 }
 
+function getCertificatePaths() {
+  const userDataPath = app.getPath('userData')
+
+  return {
+    certPath: join(userDataPath, 'websocket-cert.pem'),
+    keyPath: join(userDataPath, 'websocket-key.pem'),
+    caCertPath: join(userDataPath, 'websocket-ca-cert.pem'),
+    caKeyPath: join(userDataPath, 'websocket-ca-key.pem'),
+  }
+}
+
+function withCertificateChain(cert: string, caCert?: string) {
+  return caCert ? `${cert.trim()}\n${caCert.trim()}\n` : cert
+}
+
 function certHasAllDomains(certPem: string, domains: string[]): boolean {
   try {
     const cert = new X509Certificate(certPem)
@@ -166,8 +181,7 @@ function configureServerChannelCertificateTrust() {
 }
 
 async function installCACertificate(caCert: string) {
-  const userDataPath = app.getPath('userData')
-  const caCertPath = join(userDataPath, 'websocket-ca-cert.pem')
+  const { caCertPath } = getCertificatePaths()
   const log = useLogg('main/server-runtime').useGlobalConfig()
   writeFileSync(caCertPath, caCert)
 
@@ -205,9 +219,7 @@ async function installCACertificate(caCert: string) {
 }
 
 async function generateCertificate() {
-  const userDataPath = app.getPath('userData')
-  const caCertPath = join(userDataPath, 'websocket-ca-cert.pem')
-  const caKeyPath = join(userDataPath, 'websocket-ca-key.pem')
+  const { caCertPath, caKeyPath } = getCertificatePaths()
 
   let ca: { key: string, cert: string }
 
@@ -246,16 +258,15 @@ async function generateCertificate() {
 }
 
 async function getOrCreateCertificate() {
-  const userDataPath = app.getPath('userData')
-  const certPath = join(userDataPath, 'websocket-cert.pem')
-  const keyPath = join(userDataPath, 'websocket-key.pem')
+  const { certPath, keyPath, caCertPath } = getCertificatePaths()
   const expectedDomains = getCertificateDomains()
 
   if (existsSync(certPath) && existsSync(keyPath)) {
     const cert = readFileSync(certPath, 'utf-8')
     const key = readFileSync(keyPath, 'utf-8')
     if (certHasAllDomains(cert, expectedDomains)) {
-      return { cert, key }
+      const caCert = existsSync(caCertPath) ? readFileSync(caCertPath, 'utf-8') : undefined
+      return { cert: withCertificateChain(cert, caCert), key }
     }
   }
 
@@ -263,7 +274,8 @@ async function getOrCreateCertificate() {
   writeFileSync(certPath, cert)
   writeFileSync(keyPath, key)
 
-  return { cert, key }
+  const caCert = existsSync(caCertPath) ? readFileSync(caCertPath, 'utf-8') : undefined
+  return { cert: withCertificateChain(cert, caCert), key }
 }
 
 export async function setupServerChannel(params: { lifecycle: Lifecycle }): Promise<Server> {
