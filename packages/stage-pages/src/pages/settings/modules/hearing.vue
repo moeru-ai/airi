@@ -30,6 +30,11 @@ const {
   autoSendDelay,
   confidenceThreshold,
   verboseJsonNotSupported,
+  // 提取全局持久化配置
+  useVADModel: globalUseVADModel,
+  useVADThreshold: globalUseVADThreshold,
+  volumeThreshold: globalVolumeThreshold,
+  minSilenceDurationMs: globalMinSilenceDurationMs,
 } = storeToRefs(hearingStore)
 const providersStore = useProvidersStore()
 const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
@@ -76,8 +81,26 @@ const testStreamingText = ref<string>('')
 const testStatusMessage = ref<string>('')
 const testStreamWasStarted = ref(false) // Track if we started the stream for testing
 
-const useVADThreshold = ref(0.6) // 0.1 - 0.9
-const useVADModel = ref(true) // Toggle between VAD and volume-based detection
+// 游乐场专属的临时测试变量
+const testUseVADModel = ref(globalUseVADModel?.value ?? true)
+const testUseVADThreshold = ref(globalUseVADThreshold?.value ?? 0.6)
+const testVolumeThreshold = ref(globalVolumeThreshold?.value ?? 10)
+const testMinSilenceDurationMs = ref(globalMinSilenceDurationMs?.value ?? 1200)
+
+// 当你在左侧修改全局配置时，如果右侧没有正在监听测试，就自动同步过去
+watch([globalUseVADModel, globalUseVADThreshold, globalVolumeThreshold, globalMinSilenceDurationMs], ([m, t, v, s]) => {
+  if (!isMonitoring.value) {
+    if (m !== undefined)
+      testUseVADModel.value = m
+    if (t !== undefined)
+      testUseVADThreshold.value = t
+    if (v !== undefined)
+      testVolumeThreshold.value = v
+    if (s !== undefined)
+      testMinSilenceDurationMs.value = s
+  }
+})
+
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
 async function handleSpeechStart() {
@@ -118,7 +141,8 @@ const {
   loaded: loadedVAD,
   loading: loadingVAD,
 } = useVAD(workletUrl, {
-  threshold: useVADThreshold,
+  threshold: testUseVADThreshold, // 使用测试变量
+  minSilenceDurationMs: testMinSilenceDurationMs, // 使用测试变量
   onSpeechStart: () => {
     void handleSpeechStart()
   },
@@ -129,7 +153,7 @@ const {
 
 const isSpeechVolume = ref(false) // Volume-based speaking detection
 const isSpeech = computed(() => {
-  if (useVADModel.value && loadedVAD.value) {
+  if (testUseVADModel.value && loadedVAD.value) {
     return isSpeechVAD.value
   }
 
@@ -156,14 +180,14 @@ async function setupAudioMonitoring() {
     // Fallback speaking detection (when VAD model is not used)
     const analyzer = startAnalyzer(audioContext.value)
     onAnalyzerUpdate((volumeLevel) => {
-      if (!useVADModel.value || !loadedVAD.value) {
-        isSpeechVolume.value = volumeLevel > useVADThreshold.value
+      if (!testUseVADModel.value || !loadedVAD.value) {
+        isSpeechVolume.value = volumeLevel > testVolumeThreshold.value // 拆分：使用独立的测试音量变量
       }
     })
     if (analyzer)
       source.connect(analyzer)
 
-    if (useVADModel.value) {
+    if (testUseVADModel.value) {
       await initVAD()
       await startVAD(stream.value)
     }
@@ -203,7 +227,7 @@ async function toggleMonitoring() {
 
 // Speaking indicator with enhanced VAD visualization
 const speakingIndicatorClass = computed(() => {
-  if (!useVADModel.value || !loadedVAD.value) {
+  if (!testUseVADModel.value || !loadedVAD.value) { // 替换为 test 变量
     // Volume-based: simple green/white
     return isSpeechVolume.value
       ? 'bg-green-500 shadow-lg shadow-green-500/50'
@@ -212,7 +236,7 @@ const speakingIndicatorClass = computed(() => {
 
   // VAD-based: color intensity based on probability
   const prob = isSpeechProb.value
-  const threshold = useVADThreshold.value
+  const threshold = testUseVADThreshold.value // 替换为 test 变量
 
   if (prob > threshold) {
     // Speaking: green (could add intensity in future)
@@ -499,13 +523,13 @@ onUnmounted(() => {
         <div>
           <FieldCombobox
             v-model="selectedAudioInput"
-            label="Audio Input Device"
-            description="Select the audio input device for your hearing module."
+            :label="t('settings.pages.modules.hearing.sections.section.audio-input.title')"
+            :description="t('settings.pages.modules.hearing.sections.section.audio-input.description')"
             :options="audioInputs.map(input => ({
               label: input.label || input.deviceId,
               value: input.deviceId,
             }))"
-            placeholder="Select an audio input device"
+            :placeholder="t('settings.pages.modules.hearing.sections.section.audio-input.placeholder')"
             layout="vertical"
           />
         </div>
@@ -571,8 +595,8 @@ onUnmounted(() => {
               >
                 <div i-solar:warning-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
                 <div class="flex flex-col">
-                  <span class="font-medium">No Providers Configured</span>
-                  <span class="text-sm text-neutral-400 dark:text-neutral-500">Click here to set up your Transcription providers</span>
+                  <span class="font-medium">{{ t('settings.pages.modules.hearing.sections.section.no-providers.title') }}</span>
+                  <span class="text-sm text-neutral-400 dark:text-neutral-500">{{ t('settings.pages.modules.hearing.sections.section.no-providers.description') }}</span>
                 </div>
                 <div i-solar:arrow-right-line-duotone class="ml-auto text-xl text-neutral-400 dark:text-neutral-500" />
               </RouterLink>
@@ -592,7 +616,7 @@ onUnmounted(() => {
                   {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}
                 </span>
                 <span v-else>
-                  Enter the transcription model to use (e.g., 'whisper-1', 'gpt-4o-transcribe')
+                  {{ t('settings.pages.modules.hearing.sections.section.model-input-placeholder') }}
                 </span>
                 <span v-if="activeTranscriptionModel" class="text-sm text-neutral-400 font-medium dark:text-neutral-400">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.current_model_label') }} {{ activeTranscriptionModel }}</span>
               </div>
@@ -689,30 +713,82 @@ onUnmounted(() => {
         <div class="border-t border-neutral-200 pt-4 dark:border-neutral-700">
           <div class="mb-4">
             <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
-              Auto-send Settings
+              {{ t('settings.pages.modules.hearing.sections.section.auto-send.title') }}
             </h2>
             <div text="neutral-400 dark:neutral-400">
-              Configure automatic sending of transcribed text to chat
+              {{ t('settings.pages.modules.hearing.sections.section.auto-send.description') }}
             </div>
           </div>
 
           <div class="space-y-4">
             <FieldCheckbox
               v-model="autoSendEnabled"
-              label="Auto-send transcribed text"
-              description="Automatically send transcribed text to chat after a delay. This may consume tokens, so disable if you want to manually review and edit transcriptions before sending."
+              :label="t('settings.pages.modules.hearing.sections.section.auto-send.enable.label')"
+              :description="t('settings.pages.modules.hearing.sections.section.auto-send.enable.description')"
             />
 
             <FieldRange
               v-if="autoSendEnabled"
               v-model="autoSendDelay"
-              label="Auto-send delay"
-              description="Delay in milliseconds before automatically sending transcribed text (0 = send immediately, recommended: 1000-3000ms)"
+              :label="t('settings.pages.modules.hearing.sections.section.auto-send.delay.label')"
+              :description="t('settings.pages.modules.hearing.sections.section.auto-send.delay.description')"
               :min="0"
               :max="10000"
               :step="100"
-              :format-value="value => value === 0 ? 'Immediate' : `${(value / 1000).toFixed(1)}s`"
+              :format-value="value => value === 0 ? t('settings.pages.modules.hearing.sections.section.auto-send.delay.immediate') : `${(value / 1000).toFixed(1)}s`"
             />
+          </div>
+        </div>
+
+        <div :class="['pt-4', 'border-t border-neutral-200 dark:border-neutral-700']">
+          <div :class="['mb-4']">
+            <h2 :class="['text-lg md:text-2xl', 'text-neutral-500 dark:text-neutral-500']">
+              {{ t('settings.pages.modules.hearing.sections.section.vad.global.title') }}
+            </h2>
+            <div :class="['text-neutral-400 dark:text-neutral-400']">
+              {{ t('settings.pages.modules.hearing.sections.section.vad.global.description') }}
+            </div>
+          </div>
+
+          <div :class="['space-y-4']">
+            <FieldCheckbox
+              v-model="globalUseVADModel"
+              :label="t('settings.pages.modules.hearing.sections.section.vad.model-based.label')"
+              :description="t('settings.pages.modules.hearing.sections.section.vad.model-based.description')"
+            />
+
+            <template v-if="globalUseVADModel">
+              <FieldRange
+                v-model="globalUseVADThreshold"
+                :label="t('settings.pages.modules.hearing.sections.section.vad.threshold.label')"
+                :description="t('settings.pages.modules.hearing.sections.section.vad.threshold.description')"
+                :min="0.1"
+                :max="0.9"
+                :step="0.05"
+                :format-value="value => `${(value * 100).toFixed(0)}%`"
+              />
+              <FieldRange
+                v-model="globalMinSilenceDurationMs"
+                :label="t('settings.pages.modules.hearing.sections.section.vad.silence.label')"
+                :description="t('settings.pages.modules.hearing.sections.section.vad.silence.description')"
+                :min="500"
+                :max="5000"
+                :step="100"
+                :format-value="value => value >= 1000 ? `${(value / 1000).toFixed(1)}s` : `${value}ms`"
+              />
+            </template>
+
+            <template v-else>
+              <FieldRange
+                v-model="globalVolumeThreshold"
+                :label="t('settings.pages.modules.hearing.sections.section.vad.volume.label')"
+                :description="t('settings.pages.modules.hearing.sections.section.vad.volume.description')"
+                :min="1"
+                :max="80"
+                :step="1"
+                :format-value="value => `${value}%`"
+              />
+            </template>
           </div>
         </div>
       </div>
@@ -730,10 +806,10 @@ onUnmounted(() => {
           </div>
         </h2>
 
-        <ErrorContainer v-if="error" title="Error occurred" :error="error" mb-4 />
+        <ErrorContainer v-if="error" :title="t('settings.pages.modules.hearing.sections.section.monitoring.error')" :error="error" mb-4 />
 
         <Button class="mb-4" w-full @click="toggleMonitoring">
-          {{ isMonitoring ? 'Stop Monitoring' : 'Start Monitoring' }}
+          {{ isMonitoring ? t('settings.pages.modules.hearing.sections.section.monitoring.stop') : t('settings.pages.modules.hearing.sections.section.monitoring.start') }}
         </Button>
 
         <div>
@@ -750,37 +826,45 @@ onUnmounted(() => {
             <!-- Audio Level Visualization -->
             <div class="space-y-3">
               <!-- Volume Meter -->
-              <LevelMeter :level="volumeLevel" label="Input Level" />
+              <LevelMeter :level="volumeLevel" :label="t('settings.pages.modules.hearing.sections.section.monitoring.input-level')" />
 
               <!-- VAD Probability Meter (when VAD model is active) -->
               <ThresholdMeter
-                v-if="useVADModel && loadedVAD"
+                v-if="testUseVADModel && loadedVAD"
                 :value="isSpeechProb"
-                :threshold="useVADThreshold"
-                label="Probability of Speech"
-                below-label="Silence"
-                above-label="Speech"
-                threshold-label="Detection threshold"
+                :threshold="testUseVADThreshold"
+                :label="t('settings.pages.modules.hearing.sections.section.vad.chart.probability-of-speech')"
+                :below-label="t('settings.pages.modules.hearing.sections.section.vad.status.silence')"
+                :above-label="t('settings.pages.modules.hearing.sections.section.vad.chart.speech')"
+                :threshold-label="t('settings.pages.modules.hearing.sections.section.vad.chart.detection-threshold')"
               />
 
-              <!-- Threshold Controls -->
-              <div v-if="useVADModel && loadedVAD" class="space-y-3">
+              <div v-if="testUseVADModel && loadedVAD" class="space-y-3">
                 <FieldRange
-                  v-model="useVADThreshold"
-                  label="Sensitivity"
-                  description="Adjust the threshold for speech detection"
+                  v-model="testUseVADThreshold"
+                  :label="t('settings.pages.modules.hearing.sections.section.vad.test.threshold.label')"
+                  :description="t('settings.pages.modules.hearing.sections.section.vad.test.threshold.description')"
                   :min="0.1"
                   :max="0.9"
                   :step="0.05"
                   :format-value="value => `${(value * 100).toFixed(0)}%`"
                 />
+                <FieldRange
+                  v-model="testMinSilenceDurationMs"
+                  :label="t('settings.pages.modules.hearing.sections.section.vad.test.silence.label')"
+                  :description="t('settings.pages.modules.hearing.sections.section.vad.test.silence.description')"
+                  :min="500"
+                  :max="5000"
+                  :step="100"
+                  :format-value="value => value >= 1000 ? `${(value / 1000).toFixed(1)}s` : `${value}ms`"
+                />
               </div>
 
               <div v-else class="space-y-3">
                 <FieldRange
-                  v-model="useVADThreshold"
-                  label="Sensitivity"
-                  description="Adjust the threshold for speech detection"
+                  v-model="testVolumeThreshold"
+                  :label="t('settings.pages.modules.hearing.sections.section.vad.test.volume.label')"
+                  :description="t('settings.pages.modules.hearing.sections.section.vad.test.volume.description')"
                   :min="1"
                   :max="80"
                   :step="1"
@@ -788,64 +872,60 @@ onUnmounted(() => {
                 />
               </div>
 
-              <!-- Speaking Indicator -->
               <div class="flex items-center gap-3">
                 <div
                   class="h-4 w-4 rounded-full transition-all duration-200"
                   :class="speakingIndicatorClass"
                 />
                 <span class="text-sm font-medium">
-                  {{ isSpeech ? 'Speaking Detected' : 'Silence' }}
+                  {{ isSpeech ? t('settings.pages.modules.hearing.sections.section.vad.status.speaking-detected') : t('settings.pages.modules.hearing.sections.section.vad.status.silence') }}
                 </span>
                 <span class="ml-auto text-xs text-neutral-500">
-                  {{ useVADModel && loadedVAD ? 'Model Based' : 'Volume Based' }}
+                  {{ testUseVADModel && loadedVAD ? t('settings.pages.modules.hearing.sections.section.vad.status.model-based') : t('settings.pages.modules.hearing.sections.section.vad.status.volume-based') }}
                 </span>
               </div>
 
-              <!-- VAD Method Selection -->
               <div class="border-t border-neutral-200 pt-3 dark:border-neutral-700">
                 <FieldCheckbox
-                  v-model="useVADModel"
-                  label="Model Based"
-                  description="Use AI models for more accurate speech detection"
+                  v-model="testUseVADModel"
+                  :label="t('settings.pages.modules.hearing.sections.section.vad.test.model-based.label')"
+                  :description="t('settings.pages.modules.hearing.sections.section.vad.test.model-based.description')"
                 />
 
-                <!-- VAD Model Status -->
-                <div v-if="useVADModel" class="mt-3 space-y-2">
+                <div v-if="testUseVADModel" class="mt-3 space-y-2">
                   <div v-if="loadingVAD" class="flex items-center gap-2 text-primary-600 dark:text-primary-400">
                     <div class="animate-spin text-sm" i-solar:spinner-line-duotone />
-                    <span class="text-sm">Loading...</span>
+                    <span class="text-sm">{{ t('settings.pages.modules.hearing.sections.section.vad.chart.loading') }}</span>
                   </div>
 
                   <ErrorContainer
                     v-else-if="vadModelError"
-                    title="Inference error"
+                    :title="t('settings.pages.modules.hearing.sections.section.vad.chart.inference-error')"
                     :error="vadModelError"
                   />
 
                   <div v-else-if="loadedVAD" class="flex items-center gap-2 text-green-600 dark:text-green-400">
                     <div class="text-sm" i-solar:check-circle-bold-duotone />
-                    <span class="text-sm">Activated</span>
+                    <span class="text-sm">{{ t('settings.pages.modules.hearing.sections.section.vad.chart.activated') }}</span>
                     <span class="ml-auto text-xs text-neutral-500">
-                      Probability: {{ (isSpeechProb * 100).toFixed(1) }}%
+                      {{ t('settings.pages.modules.hearing.sections.section.vad.chart.probability') }} {{ (isSpeechProb * 100).toFixed(1) }}%
                     </span>
                   </div>
                 </div>
               </div>
 
-              <!-- Voice Activity Visualization (when VAD model is active) -->
               <TimeSeriesChart
-                v-if="useVADModel && loadedVAD"
+                v-if="testUseVADModel && loadedVAD"
                 :history="isSpeechHistory"
                 :current-value="isSpeechProb"
-                :threshold="useVADThreshold"
+                :threshold="testUseVADThreshold"
                 :is-active="isSpeech"
-                title="Voice Activity"
-                subtitle="Last 2 seconds"
-                active-label="Speaking"
-                active-legend-label="Voice detected"
-                inactive-legend-label="Silence"
-                threshold-label="Speech threshold"
+                :title="t('settings.pages.modules.hearing.sections.section.vad.chart.voice-activity')"
+                :subtitle="t('settings.pages.modules.hearing.sections.section.vad.chart.last-2-seconds')"
+                :active-label="t('settings.pages.modules.hearing.sections.section.vad.chart.speaking')"
+                :active-legend-label="t('settings.pages.modules.hearing.sections.section.vad.chart.voice-detected')"
+                :inactive-legend-label="t('settings.pages.modules.hearing.sections.section.vad.status.silence')"
+                :threshold-label="t('settings.pages.modules.hearing.sections.section.vad.chart.speech-threshold')"
               />
             </div>
           </div>
@@ -855,23 +935,23 @@ onUnmounted(() => {
       <!-- Speech-to-Text Test Section -->
       <div w-full rounded-xl bg="neutral-50 dark:[rgba(0,0,0,0.3)]" p-4 flex="~ col gap-4">
         <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
-          Speech-to-Text Test
+          {{ t('settings.pages.modules.hearing.sections.section.stt-test.title') }}
         </h2>
         <div text="sm neutral-400 dark:neutral-500" mb-2>
-          Test your transcription provider with the selected audio device. This will help verify that STT is working correctly.
+          {{ t('settings.pages.modules.hearing.sections.section.stt-test.description') }}
         </div>
 
         <div v-if="!activeTranscriptionProvider" class="border border-amber-200 rounded-lg bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
           <div class="flex items-center gap-2 text-amber-700 dark:text-amber-400">
             <div i-solar:warning-circle-line-duotone class="text-lg" />
-            <span class="text-sm font-medium">Please select a transcription provider above to test</span>
+            <span class="text-sm font-medium">{{ t('settings.pages.modules.hearing.sections.section.stt-test.warning-no-provider') }}</span>
           </div>
         </div>
 
         <div v-else-if="!selectedAudioInput" class="border border-amber-200 rounded-lg bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
           <div class="flex items-center gap-2 text-amber-700 dark:text-amber-400">
             <div i-solar:warning-circle-line-duotone class="text-lg" />
-            <span class="text-sm font-medium">Please select an audio input device to test</span>
+            <span class="text-sm font-medium">{{ t('settings.pages.modules.hearing.sections.section.stt-test.warning-no-audio') }}</span>
           </div>
         </div>
 
@@ -891,11 +971,11 @@ onUnmounted(() => {
               <div v-else class="mr-2">
                 <div i-solar:microphone-line-duotone text-lg />
               </div>
-              {{ isTestingSTT ? 'Stop Test' : isTranscribing ? 'Transcribing...' : 'Start Speech-to-Text Test' }}
+              {{ isTestingSTT ? t('settings.pages.modules.hearing.sections.section.stt-test.btn-stop') : isTranscribing ? t('settings.pages.modules.hearing.sections.section.stt-test.btn-transcribing') : t('settings.pages.modules.hearing.sections.section.stt-test.btn-start') }}
             </Button>
           </div>
 
-          <ErrorContainer v-if="testTranscriptionError" title="Transcription Error" :error="testTranscriptionError" />
+          <ErrorContainer v-if="testTranscriptionError" :title="t('settings.pages.modules.hearing.sections.section.stt-test.error-title')" :error="testTranscriptionError" />
 
           <div v-if="testStatusMessage" class="border border-primary-200 rounded-lg bg-primary-50 p-3 dark:border-primary-800 dark:bg-primary-900/20">
             <div class="flex items-center gap-2 text-primary-700 dark:text-primary-400">
@@ -908,14 +988,14 @@ onUnmounted(() => {
           <div v-if="shouldUseStreamInput" class="border border-blue-200 rounded-lg bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
             <div class="flex items-center gap-2 text-blue-700 dark:text-blue-400">
               <div i-solar:info-circle-line-duotone class="text-sm" />
-              <span class="text-xs">Streaming mode: Transcription will appear in real-time as you speak</span>
+              <span class="text-xs">{{ t('settings.pages.modules.hearing.sections.section.stt-test.streaming-note') }}</span>
             </div>
           </div>
 
           <div class="space-y-3">
             <div>
               <label class="mb-1 block text-sm text-neutral-700 font-medium dark:text-neutral-300">
-                Transcription Result
+                {{ t('settings.pages.modules.hearing.sections.section.stt-test.result-title') }}
               </label>
               <div
                 v-if="testTranscriptionText || testStreamingText"
@@ -923,7 +1003,7 @@ onUnmounted(() => {
               >
                 <div v-if="testStreamingText && shouldUseStreamInput" class="text-neutral-600 dark:text-neutral-400">
                   <div class="mb-2 font-medium">
-                    Current transcription (streaming):
+                    {{ t('settings.pages.modules.hearing.sections.section.stt-test.current-streaming') }}
                   </div>
                   <div class="whitespace-pre-wrap">
                     {{ testStreamingText }}
@@ -931,7 +1011,7 @@ onUnmounted(() => {
                 </div>
                 <div v-if="testTranscriptionText" class="text-neutral-700 dark:text-neutral-200">
                   <div v-if="testStreamingText && shouldUseStreamInput" class="mb-2 mt-3 border-t border-neutral-200 pt-2 font-medium dark:border-neutral-700">
-                    Final transcription:
+                    {{ t('settings.pages.modules.hearing.sections.section.stt-test.final') }}
                   </div>
                   <div class="whitespace-pre-wrap">
                     {{ testTranscriptionText }}
@@ -942,16 +1022,16 @@ onUnmounted(() => {
                 v-else
                 class="min-h-[100px] border border-neutral-300 rounded-lg border-dashed bg-neutral-50 p-3 text-sm text-neutral-400 dark:border-neutral-700 dark:bg-neutral-900/50 dark:text-neutral-500"
               >
-                No transcription yet. Click "Start Speech-to-Text Test" and speak into your microphone.
+                {{ t('settings.pages.modules.hearing.sections.section.stt-test.no-result') }}
               </div>
             </div>
 
             <div v-if="activeTranscriptionProvider" class="text-xs text-neutral-500 dark:text-neutral-400">
-              <div>Provider: <span class="font-medium">{{ configuredTranscriptionProvidersMetadata.find(p => p.id === activeTranscriptionProvider)?.localizedName || activeTranscriptionProvider }}</span></div>
+              <div>{{ t('settings.pages.modules.hearing.sections.section.stt-test.info-provider') }} <span class="font-medium">{{ configuredTranscriptionProvidersMetadata.find(p => p.id === activeTranscriptionProvider)?.localizedName || activeTranscriptionProvider }}</span></div>
               <div v-if="activeTranscriptionModel">
-                Model: <span class="font-medium">{{ activeTranscriptionModel }}</span>
+                {{ t('settings.pages.modules.hearing.sections.section.stt-test.info-model') }} <span class="font-medium">{{ activeTranscriptionModel }}</span>
               </div>
-              <div>Mode: <span class="font-medium">{{ shouldUseStreamInput ? 'Streaming (real-time)' : 'Recording (file-based)' }}</span></div>
+              <div>{{ t('settings.pages.modules.hearing.sections.section.stt-test.info-mode') }} <span class="font-medium">{{ shouldUseStreamInput ? t('settings.pages.modules.hearing.sections.section.stt-test.mode-streaming') : t('settings.pages.modules.hearing.sections.section.stt-test.mode-recording') }}</span></div>
             </div>
           </div>
         </div>

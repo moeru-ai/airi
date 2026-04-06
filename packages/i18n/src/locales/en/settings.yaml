@@ -441,6 +441,95 @@ pages:
               Note: If your provider does not support verbose_json responses, this setting will have no effect.
             verbose-json-unsupported: >-
               Your provider did not return verbose_json segments. Confidence filtering had no effect on the last transcription.
+          audio-input:
+            title: Audio Input Device
+            description: Select the audio input device for your hearing module.
+            placeholder: Select an audio input device
+          no-providers:
+            title: No Providers Configured
+            description: Click here to set up your Transcription providers
+          model-input-placeholder: "Enter the transcription model to use (e.g., 'whisper-1', 'gpt-4o-transcribe')"
+          auto-send:
+            title: Auto-send Settings
+            description: Configure automatic sending of transcribed text to chat
+            enable:
+              label: Auto-send transcribed text
+              description: Automatically send transcribed text to chat after a delay. This may consume tokens, so disable if you want to manually review and edit transcriptions before sending.
+            delay:
+              label: Auto-send delay
+              description: 'Delay in milliseconds before automatically sending transcribed text (0 = send immediately, recommended: 1000-3000ms)'
+              immediate: Immediate
+          monitoring:
+            error: Error occurred
+            start: Start Monitoring
+            stop: Stop Monitoring
+            input-level: Input Level
+          stt-test:
+            title: Speech-to-Text Test
+            description: Test your transcription provider with the selected audio device. This will help verify that STT is working correctly.
+            warning-no-provider: Please select a transcription provider above to test
+            warning-no-audio: Please select an audio input device to test
+            btn-start: Start Speech-to-Text Test
+            btn-stop: Stop Test
+            btn-transcribing: Transcribing...
+            error-title: Transcription Error
+            streaming-note: 'Streaming mode: Transcription will appear in real-time as you speak'
+            result-title: Transcription Result
+            current-streaming: 'Current transcription (streaming):'
+            final: 'Final transcription:'
+            no-result: "No transcription yet. Click 'Start Speech-to-Text Test' and speak into your microphone."
+            info-provider: 'Provider: '
+            info-model: 'Model: '
+            info-mode: 'Mode: '
+            mode-streaming: Streaming (real-time)
+            mode-recording: Recording (file-based)
+          vad:
+            global:
+              title: Global Voice Activity Detection
+              description: Configure how speech is detected globally to start and stop transcription
+            model-based:
+              label: Model Based Detection (Recommended)
+              description: Use AI neural networks for more accurate speech detection instead of raw volume
+            threshold:
+              label: Speech Detection Threshold
+              description: Adjust the global neural network threshold (lower = more sensitive)
+            silence:
+              label: Silence Tolerance
+              description: How long to wait before considering speech ended (breathing/thinking time)
+            volume:
+              label: Volume Sensitivity
+              description: Adjust the global raw volume threshold for speech detection
+            test:
+              model-based:
+                label: Test Model Based
+                description: 'Playground only: Use AI models for more accurate speech detection'
+              threshold:
+                label: Test Speech Detection Threshold
+                description: 'Playground only: Adjust the threshold for speech detection'
+              silence:
+                label: Test Silence Tolerance
+                description: 'Playground only: How long to wait before considering speech ended'
+              volume:
+                label: Test Volume Sensitivity
+                description: 'Playground only: Adjust the raw volume threshold for speech detection'
+            status:
+              speaking-detected: Speaking Detected
+              silence: Silence
+              model-based: Model Based
+              volume-based: Volume Based
+            chart:
+              probability-of-speech: Probability of Speech
+              speech: Speech
+              detection-threshold: Detection threshold
+              loading: Loading...
+              inference-error: Inference error
+              activated: Activated
+              probability: 'Probability:'
+              voice-activity: Voice Activity
+              last-2-seconds: Last 2 seconds
+              speaking: Speaking
+              voice-detected: Voice detected
+              speech-threshold: Speech threshold
     memory-long-term:
       description: Long-term memory specific settings and management
       title: Long-Term Memory

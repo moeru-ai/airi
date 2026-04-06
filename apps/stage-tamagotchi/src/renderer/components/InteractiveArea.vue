@@ -7,10 +7,10 @@ import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { BasicTextarea } from '@proj-airi/ui'
-import { useLocalStorage } from '@vueuse/core'
+import { useElementVisibility, useEventBus, useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useChatSyncStore } from '../stores/chat-sync'
@@ -38,6 +38,19 @@ const sendModeLabels = computed<Record<SendMode, string>>(() => ({
   'ctrl-enter': t('stage.send-mode.ctrl-enter'),
   'double-enter': t('stage.send-mode.double-enter'),
 }))
+
+// NOTICE: 建立与非流式语音输入（如主页的录音模式）的跨组件文本输送带。
+const containerRef = useTemplateRef<HTMLElement>('containerRef')
+const isVisible = useElementVisibility(containerRef)
+// NOTICE: PR 修复 - 将跨 Tab 广播改为基于内存的 EventBus，防止多窗口串流导致文本泄露到其他实例
+const { on: onChatInputCommand } = useEventBus<{ type: 'append-text', text: string }>('airi-chat-input-commands')
+
+onChatInputCommand((cmd) => {
+  if (isVisible.value && cmd?.type === 'append-text' && cmd.text) {
+    const currentText = messageInput.value.trim()
+    messageInput.value = currentText ? `${currentText} ${cmd.text}` : cmd.text
+  }
+})
 
 async function handleSend() {
   if (isComposing.value) {
@@ -161,7 +174,7 @@ async function handleDeleteMessage(index: number) {
 </script>
 
 <template>
-  <div h-full w-full flex="~ col gap-1">
+  <div ref="containerRef" h-full w-full flex="~ col gap-1">
     <div w-full flex-1 overflow-hidden>
       <ChatHistory
         :messages="historyMessages"

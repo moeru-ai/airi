@@ -1,12 +1,15 @@
 import type { MaybeRefOrGetter } from 'vue'
 
-import { merge } from '@moeru/std'
+// 顺手重构：引入了规范要求的 errorMessageFrom
+import { errorMessageFrom, merge } from '@moeru/std'
 import { ref, toRef, watch } from 'vue'
 
 import { createVAD, createVADStates } from '../../../workers/vad'
 
 interface UseVADOptions {
   threshold?: MaybeRefOrGetter<number>
+  // 核心改动 1：允许外部传入静音打断时长
+  minSilenceDurationMs?: MaybeRefOrGetter<number>
 
   onSpeechStart?: () => void
   onSpeechEnd?: () => void
@@ -15,6 +18,8 @@ interface UseVADOptions {
 export function useVAD(workerUrl: string, options?: UseVADOptions) {
   const defaultOptions: UseVADOptions = {
     threshold: ref(0.6),
+    // 核心改动 2：设定默认值为符合人类正常说话换气的 1200ms
+    minSilenceDurationMs: ref(1200),
   }
 
   options = merge(defaultOptions, options)
@@ -32,6 +37,8 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
   const loading = ref(false)
 
   const threshold = toRef(options.threshold)
+  // 核心改动 3：让代码“监听”这个新参数
+  const minSilenceDurationMs = toRef(options.minSilenceDurationMs)
 
   async function init() {
     if (loaded.value || loading.value || manager.value)
@@ -45,7 +52,8 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
         sampleRate: 16000,
         speechThreshold: threshold.value,
         exitThreshold: (threshold.value ?? 0.6) * 0.3,
-        minSilenceDurationMs: 400,
+        // 核心改动 4：把写死的 400 替换成外部传进来的变量
+        minSilenceDurationMs: minSilenceDurationMs.value ?? 1200,
       })
 
       // Set up event handlers
@@ -93,7 +101,8 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
       loaded.value = true
     }
     catch (error) {
-      inferenceError.value = error instanceof Error ? error.message : String(error)
+      // 顺手重构：使用官方要求的 errorMessageFrom 替代旧写法，并给一个兜底文本
+      inferenceError.value = errorMessageFrom(error) ?? 'Failed to initialize VAD'
     }
     finally {
       loading.value = false
@@ -124,6 +133,13 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
     }
   })
 
+  // 核心改动 5：如果 UI 界面上的滑块被拖动，立刻通知底层的 VAD 刷新参数
+  watch(minSilenceDurationMs, (newVal) => {
+    if (vad.value && newVal) {
+      vad.value.updateConfig({ minSilenceDurationMs: newVal })
+    }
+  })
+
   return {
     isSpeech,
     isSpeechProb,
@@ -132,6 +148,8 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
     loading,
     inferenceError,
     threshold,
+    // 核心改动 6：把这个变量交出去，给 UI 界面使用
+    minSilenceDurationMs,
 
     init,
     start,

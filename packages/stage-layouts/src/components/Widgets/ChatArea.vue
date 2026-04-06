@@ -12,10 +12,10 @@ import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea, FieldCombobox } from '@proj-airi/ui'
-import { until, useLocalStorage } from '@vueuse/core'
+import { until, useElementVisibility, useEventBus, useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger, PopoverContent, PopoverRoot, PopoverTrigger } from 'reka-ui'
-import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import IndicatorMicVolume from './IndicatorMicVolume.vue'
@@ -23,6 +23,19 @@ import IndicatorMicVolume from './IndicatorMicVolume.vue'
 const messageInput = ref('')
 const hearingPopoverOpen = ref(false)
 const isComposing = ref(false)
+
+// NOTICE: 增加可见性判断与对讲机接收器（防复读机制）
+const containerRef = useTemplateRef<HTMLElement>('containerRef')
+const isVisible = useElementVisibility(containerRef)
+// NOTICE: PR 修复 - 将跨 Tab 广播改为基于内存的 EventBus，防止多窗口串流导致文本泄露到其他实例
+const { on: onChatInputCommand } = useEventBus<{ type: 'append-text', text: string }>('airi-chat-input-commands')
+
+onChatInputCommand((cmd) => {
+  if (isVisible.value && cmd?.type === 'append-text' && cmd.text) {
+    const currentText = messageInput.value.trim()
+    messageInput.value = currentText ? `${currentText} ${cmd.text}` : cmd.text
+  }
+})
 const isListening = ref(false) // Transcription listening state (separate from microphone enabled)
 const DOUBLE_ENTER_INTERVAL_MS = 300
 const TRAILING_NEWLINES_REGEX = /[\r\n]+$/
@@ -454,7 +467,7 @@ watch(sendMode, () => {
 </script>
 
 <template>
-  <div h="<md:full" flex gap-2 class="ph-no-capture">
+  <div ref="containerRef" h="<md:full" flex gap-2 class="ph-no-capture">
     <div
       :class="[
         'relative',
