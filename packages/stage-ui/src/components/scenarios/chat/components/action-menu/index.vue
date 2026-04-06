@@ -3,7 +3,7 @@ import type { ComponentPublicInstance } from 'vue'
 
 import type { ChatActionMenuAction } from '.'
 
-import { useElementVisibility } from '@vueuse/core'
+import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
 import { clamp } from 'es-toolkit'
 import {
   ContextMenuContent,
@@ -20,6 +20,7 @@ import {
 import { computed, inject, shallowRef, useTemplateRef } from 'vue'
 
 import { createChatActionMenuItems } from '.'
+import { useBreakpoints } from '../../../../../composables/use-breakpoints'
 import { useElementScroll } from '../../composables/use-element-scroll'
 import { chatScrollContainerKey } from '../../constants'
 
@@ -70,6 +71,9 @@ const bottomSentinelVisible = useElementVisibility(bottomSentinelRef, {
   initialValue: false,
   scrollTarget: effectiveScrollTarget,
 })
+
+const { isMobile } = useBreakpoints()
+const shouldDisableDropdownMenu = computed(() => (isStageWeb() || isStageCapacitor()) && isMobile.value)
 
 const menuItems = computed(() => createChatActionMenuItems({
   canCopy: props.canCopy && props.copyText.trim().length > 0,
@@ -164,6 +168,7 @@ function setMeasuredElement(element: Element | ComponentPublicInstance | null) {
 
         <DropdownMenuRoot>
           <DropdownMenuTrigger
+            v-if="!shouldDisableDropdownMenu"
             as-child
             :class="[
               'absolute z-10 opacity-0 transition-opacity duration-200',
