@@ -37,6 +37,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@proj-airi/plugin-protocol": "workspace:*"
+    "@proj-airi/plugin-protocol": "workspace:*",
+    "crossws": "^0.4.4"
   }
 }

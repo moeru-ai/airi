@@ -944,6 +944,12 @@ pages:
       description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
       label: WebSocket Server Address
       placeholder: ws://localhost:6121/ws
+    server-hostname:
+      label: AIRI Gateway Hostname
+      description: Set zero (0.0.0.0) to bind to all available IP addresses on your WiFi network. Otherwise, bind this to 127.0.0.1 for maximum local security.
+    server-auth-token:
+      label: Application Gateway Key
+      description: Security key to authenticate clients connecting to your node over the network. If empty, the gateway will not require authentication.
   scene:
     description: Configure the environment where the character lives
     title: Scene

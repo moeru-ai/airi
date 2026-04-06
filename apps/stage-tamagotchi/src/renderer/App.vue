@@ -131,7 +131,7 @@ onMounted(async () => {
   await settingsAudioDeviceStore.initialize()
 
   const serverChannelConfig = await getServerChannelConfig()
-  serverChannelSettingsStore.websocketTlsConfig = serverChannelConfig.tlsConfig
+  serverChannelSettingsStore.tlsConfig = serverChannelConfig.tlsConfig
 
   await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
   if (!isChatWindowRoute()) {

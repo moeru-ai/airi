@@ -32,6 +32,9 @@
     "src/shared/**/*.ts",
     "src/shared/**/*.d.ts",
     "src/shared/**/*.tsx",
-    "src/shared/**/*.vue"
+    "src/shared/**/*.vue",
+
+    "../../packages/server-runtime/src/**/*.ts",
+    "../../packages/server-shared/src/**/*.ts"
   ]
 }

@@ -909,6 +909,12 @@ pages:
       description: WebSocket 服务器的完整地址(例如，ws://localhost:6121/ws)
       label: WebSocket 服务器地址
       placeholder: ws://localhost:6121/ws
+    server-hostname:
+      label: AIRI 网关主机名
+      description: 设置为 0 (0.0.0.0) 以绑定到 WiFi 网络中的所有可用 IP 地址。否则，请将其绑定到 127.0.0.1 以获得最大的本地安全。
+    server-auth-token:
+      label: 应用网关密钥
+      description: 用于验证连接到您的节点的客户端。如果为空，网关将不需要身份验证。检查您的网关日志以获取自动生成的密钥。
   scene:
     description: 配置角色所在环境
     title: 场景
