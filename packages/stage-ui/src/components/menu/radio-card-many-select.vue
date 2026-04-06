@@ -28,6 +28,11 @@ interface Props {
   allowCustom?: boolean
   customOptionDescription?: string
   expandedClass?: string
+  /**
+   * When true, root fills a flex parent (`flex-1 min-h-0`) and only the model grid scrolls;
+   * expand/collapse stays visible above the grid scroll area (e.g. onboarding modal).
+   */
+  fillAvailableHeight?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -44,6 +49,7 @@ const props = withDefaults(defineProps<Props>(), {
   listClass: '',
   allowCustom: false,
   customOptionDescription: 'Custom Value',
+  fillAvailableHeight: false,
 })
 
 const emit = defineEmits<{
@@ -99,6 +105,21 @@ const showExpandCollapseBtn = computed(() => {
   return filteredItems.value.length > props.columns
 })
 
+/** Scroll-area classes when the grid itself scrolls (non–fill-expanded). Fill+expanded uses a block scroll shell instead (see template). */
+const gridSizeClasses = computed(() => {
+  if (props.listClass) {
+    return typeof props.listClass === 'string' ? [props.listClass] : props.listClass
+  }
+  if (isListExpanded.value) {
+    return ['max-h-[calc(100dvh-22lh)]', 'overflow-y-auto']
+  }
+  return []
+})
+
+const gridCollapseShrink = computed(() => {
+  return props.fillAvailableHeight && !isListExpanded.value ? ['flex-shrink-0'] : []
+})
+
 function updateCustomValue(value: string) {
   customValue.value = value
   emit('update:customValue', value)
@@ -109,11 +130,12 @@ function updateCustomValue(value: string) {
   <div
     :class="[
       'radio-card-detail-many-select',
+      props.fillAvailableHeight ? 'min-h-0 flex flex-1 flex-col' : '',
       isListExpanded ? props.expandedClass : '',
     ]"
   >
     <!-- Search bar -->
-    <div v-if="searchable" class="relative" inline-flex="~" w-full items-center>
+    <div v-if="searchable" class="relative flex-shrink-0" inline-flex="~" w-full items-center>
       <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
         <div i-solar:magnifer-line-duotone class="text-neutral-500 dark:text-neutral-400" />
       </div>
@@ -129,7 +151,12 @@ function updateCustomValue(value: string) {
     </div>
 
     <!-- Items list with search results info -->
-    <div class="mt-4 space-y-2">
+    <div
+      :class="[
+        'mt-4',
+        props.fillAvailableHeight ? 'flex min-h-0 flex-1 flex-col gap-2' : 'space-y-2',
+      ]"
+    >
       <!-- Search results info -->
       <div v-if="searchQuery" class="text-sm text-neutral-500 dark:text-neutral-400">
         {{ searchResultsText.replace('{count}', filteredItems.length.toString()).replace('{total}', items.length.toString()) }}
@@ -146,23 +173,49 @@ function updateCustomValue(value: string) {
       </Alert>
 
       <!-- Items grid -->
-      <div class="relative">
-        <!-- Responsive grid container -->
+      <div
+        class="relative"
+        :class="[props.fillAvailableHeight ? 'flex min-h-0 flex-1 flex-col' : '']"
+      >
         <div
+          v-if="props.fillAvailableHeight && isListExpanded"
+          class="radio-card-many-select-grid-scroll mb-2 min-h-0 flex-1 overflow-y-auto pb-36"
+        >
+          <div
+            class="grid grid-cols-1 gap-4 md:grid-cols-[repeat(var(--cols),minmax(0,1fr))]"
+            transition="all duration-200 ease-in-out"
+            :style="{ '--cols': props.columns }"
+          >
+            <RadioCardDetail
+              v-for="item in filteredItems"
+              :id="item.id"
+              :key="item.id"
+              v-model="modelValue"
+              :value="item.id"
+              :title="item.name"
+              :description="item.description"
+              :deprecated="item.deprecated"
+              :show-expand-collapse="showMore"
+              :expand-collapse-threshold="100"
+              :show-custom-input="item.customizable"
+              :custom-input-value="customValue"
+              :custom-input-placeholder="customInputPlaceholder"
+              name="radio-card-detail-many-select"
+              @update:custom-input-value="updateCustomValue($event)"
+            />
+          </div>
+        </div>
+
+        <!-- Responsive grid container (collapsed strip, or non-fill expanded) -->
+        <div
+          v-else
           :class="[
             'grid gap-4 mb-2',
             isListExpanded
               ? 'grid-cols-1 md:grid-cols-[repeat(var(--cols),minmax(0,1fr))] snap-y snap-proximity'
               : 'grid-flow-col auto-cols-[calc((100%-(var(--cols)-1)*1rem)/var(--cols))] overflow-x-auto scrollbar-none snap-x snap-proximity',
-            ...(props.listClass
-              ? (typeof props.listClass === 'string'
-                ? [props.listClass]
-                : props.listClass
-              )
-              : isListExpanded
-                ? ['max-h-[calc(100dvh-22lh)] overflow-y-auto'] // TODO: hardcoded 22lh doesn't work in many hearing/vision components
-                : []
-            ),
+            ...gridSizeClasses,
+            ...gridCollapseShrink,
           ]"
           transition="all duration-200 ease-in-out"
           :style="{ '--cols': props.columns }"
@@ -182,7 +235,7 @@ function updateCustomValue(value: string) {
             :custom-input-value="customValue"
             :custom-input-placeholder="customInputPlaceholder"
             name="radio-card-detail-many-select"
-            class="snap-start"
+            :class="isListExpanded ? 'snap-start' : ''"
             @update:custom-input-value="updateCustomValue($event)"
           />
         </div>
@@ -194,6 +247,7 @@ function updateCustomValue(value: string) {
           rounded-xl
           :class="[
             isListExpanded ? 'w-full' : 'mt-4 w-full rounded-lg',
+            props.fillAvailableHeight ? 'flex-shrink-0' : '',
           ]"
         >
           <button
@@ -201,7 +255,7 @@ function updateCustomValue(value: string) {
             flex items-center justify-center gap-2 rounded-lg py-2 transition="all duration-200 ease-in-out"
             :class="[
               isListExpanded ? 'bg-primary-500 hover:bg-primary-600 text-white' : 'bg-white dark:bg-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-800',
-              isListExpanded ? 'absolute bottom--14' : '',
+              isListExpanded && !props.fillAvailableHeight ? 'absolute bottom--14' : '',
             ]"
             @click="isListExpanded = !isListExpanded"
           >

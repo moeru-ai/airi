@@ -32,11 +32,13 @@ onMounted(() => screenSafeArea.update())
   <DialogRoot v-if="isDesktop" :open="showDialog" @update:open="value => showDialog = value">
     <DialogPortal>
       <DialogOverlay class="fixed inset-0 z-9999 bg-black/50 backdrop-blur-sm data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn" />
-      <DialogContent class="fixed left-1/2 top-1/2 z-9999 max-h-full max-w-2xl w-[92dvw] transform overflow-y-scroll rounded-2xl bg-white p-6 shadow-xl outline-none backdrop-blur-md scrollbar-none -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:bg-neutral-900">
+      <DialogContent class="fixed left-1/2 top-1/2 z-9999 max-h-full max-w-2xl w-[92dvw] flex flex-col overflow-hidden rounded-2xl bg-white p-6 shadow-xl outline-none backdrop-blur-md scrollbar-none -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:bg-neutral-900">
         <VisuallyHidden>
           <DialogTitle>Onboarding</DialogTitle>
         </VisuallyHidden>
-        <Onboarding :extra-steps="props.extraSteps" @configured="emit('configured')" @skipped="emit('skipped')" />
+        <div class="min-h-0 min-w-0 w-full flex flex-1 flex-col overflow-hidden">
+          <Onboarding :extra-steps="props.extraSteps" @configured="emit('configured')" @skipped="emit('skipped')" />
+        </div>
       </DialogContent>
     </DialogPortal>
   </DialogRoot>
