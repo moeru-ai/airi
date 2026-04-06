@@ -84,3 +84,7 @@ promo-banner:
       reward: Ticket de tirage de thème gratuit à la connexion
       cta: Voir le thème
 waiting: En attente
+websocket-status:
+  connected: WebSocket connecté
+  disconnected: WebSocket déconnecté
+  open-settings: Ouvrir les paramètres WebSocket

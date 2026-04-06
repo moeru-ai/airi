@@ -84,3 +84,7 @@ promo-banner:
       reward: ログイン時の無料テーマ抽選チケット
       cta: テーマを表示
 waiting: 待機中
+websocket-status:
+  connected: WebSocket が接続されました
+  disconnected: WebSocket が切断されました
+  open-settings: WebSocketの設定を開く

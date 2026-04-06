@@ -29,10 +29,6 @@ docs:
   'logging-in': Signing in...
   'account': Account
   'logout': Sign out
-'status-island':
-  connected: WebSocket подключен
-  disconnected: WebSocket отключен
-  'open-settings': Открыть настройки WebSocket
 notice:
   'fade-on-hover':
     title: Исчезать при наведении
