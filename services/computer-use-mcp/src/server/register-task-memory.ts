@@ -5,6 +5,7 @@ import type { ComputerUseServerRuntime } from './runtime'
 import { z } from 'zod'
 
 import { textContent } from './content'
+import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptors'
 
 /**
  * Register task memory MCP tools on the server.
@@ -17,9 +18,9 @@ export function registerTaskMemoryTools(server: McpServer, runtime: ComputerUseS
   // ------------------------------------------------------------------
   // task_memory_update
   // ------------------------------------------------------------------
-  server.tool(
-    'task_memory_update',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('task_memory_update'),
+    schema: {
       status: z.enum(['active', 'blocked', 'done']).optional().describe('Task status'),
       goal: z.string().optional().describe('High-level task goal'),
       currentStep: z.string().optional().describe('What is being done right now'),
@@ -39,7 +40,7 @@ export function registerTaskMemoryTools(server: McpServer, runtime: ComputerUseS
       sourceTurnId: z.string().min(1).describe('Stable identifier of the completed turn producing this update'),
       sourceTurnIndex: z.number().int().nonnegative().describe('Monotonic index of the completed turn within the session'),
     },
-    async (params, _extra) => {
+    handler: async (params, _extra) => {
       const result = runtime.taskMemory.update(
         {
           status: params.status,
@@ -82,15 +83,15 @@ export function registerTaskMemoryTools(server: McpServer, runtime: ComputerUseS
         content: [textContent('Task memory update had no meaningful content to persist.')],
       }
     },
-  )
+  })
 
   // ------------------------------------------------------------------
   // task_memory_get
   // ------------------------------------------------------------------
-  server.tool(
-    'task_memory_get',
-    {},
-    async (_params, _extra) => {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('task_memory_get'),
+    schema: {},
+    handler: async (_params, _extra) => {
       const tm = runtime.taskMemory.get()
       if (!tm) {
         return {
@@ -103,20 +104,20 @@ export function registerTaskMemoryTools(server: McpServer, runtime: ComputerUseS
         structuredContent: { ...tm } as Record<string, unknown>,
       }
     },
-  )
+  })
 
   // ------------------------------------------------------------------
   // task_memory_clear
   // ------------------------------------------------------------------
-  server.tool(
-    'task_memory_clear',
-    {},
-    async (_params, _extra) => {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('task_memory_clear'),
+    schema: {},
+    handler: async (_params, _extra) => {
       runtime.taskMemory.clear()
       runtime.stateManager.clearTaskMemory()
       return {
         content: [textContent('Task memory cleared.')],
       }
     },
-  )
+  })
 }

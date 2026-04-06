@@ -30,6 +30,7 @@ import type { ComputerUseServerRuntime } from './runtime'
 import { z } from 'zod'
 
 import { textContent } from './content'
+import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptors'
 
 export interface ExecuteTerminalCommandFn {
   (
@@ -53,6 +54,9 @@ const CODE_CLI_CANDIDATES = [
   'code-insiders',
   'cursor',
 ] as const
+
+const TS_ERROR_PATTERN = /^([^(]+)\((\d+),(\d+)\): +(error|warning) +(TS\d+): +(\S.*)$/
+const VUE_TSC_ERROR_PATTERN = /^([^:]+):(\d+):(\d+) +- +(error|warning) +(TS\d+): +(\S.*)$/
 
 /**
  * Attempt to detect the active `code` CLI binary.
@@ -113,10 +117,10 @@ export function registerVscodeTools({ server, runtime, executeTerminalCommand }:
   // vscode_resolve_code_cli
   // ---------------------------------------------------------------------------
 
-  server.tool(
-    'vscode_resolve_code_cli',
-    {},
-    async () => {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('vscode_resolve_code_cli'),
+    schema: {},
+    handler: async () => {
       // Force re-probe
       cachedCli = undefined
       codeCliProbeCompleted = false
@@ -148,19 +152,19 @@ export function registerVscodeTools({ server, runtime, executeTerminalCommand }:
         },
       }
     },
-  )
+  })
 
   // ---------------------------------------------------------------------------
   // vscode_open_workspace
   // ---------------------------------------------------------------------------
 
-  server.tool(
-    'vscode_open_workspace',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('vscode_open_workspace'),
+    schema: {
       folderPath: z.string().min(1).describe('Absolute path to the workspace folder to open'),
       reuseWindow: z.boolean().optional().describe('Reuse existing window instead of opening new one (default: true)'),
     },
-    async ({ folderPath, reuseWindow }) => {
+    handler: async ({ folderPath, reuseWindow }) => {
       const probe = await getCodeCli()
       if (probe.status === 'passthrough') {
         return probe.callToolResult
@@ -210,21 +214,21 @@ export function registerVscodeTools({ server, runtime, executeTerminalCommand }:
         },
       }
     },
-  )
+  })
 
   // ---------------------------------------------------------------------------
   // vscode_open_file
   // ---------------------------------------------------------------------------
 
-  server.tool(
-    'vscode_open_file',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('vscode_open_file'),
+    schema: {
       filePath: z.string().min(1).describe('Absolute path to the file to open'),
       line: z.number().int().min(1).optional().describe('Line number to jump to (1-based)'),
       column: z.number().int().min(1).optional().describe('Column number to jump to (1-based)'),
       reuseWindow: z.boolean().optional().describe('Reuse existing window (default: true)'),
     },
-    async ({ filePath, line, column, reuseWindow }) => {
+    handler: async ({ filePath, line, column, reuseWindow }) => {
       const probe = await getCodeCli()
       if (probe.status === 'passthrough') {
         return probe.callToolResult
@@ -288,20 +292,20 @@ export function registerVscodeTools({ server, runtime, executeTerminalCommand }:
         },
       }
     },
-  )
+  })
 
   // ---------------------------------------------------------------------------
   // vscode_run_task
   // ---------------------------------------------------------------------------
 
-  server.tool(
-    'vscode_run_task',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('vscode_run_task'),
+    schema: {
       command: z.string().min(1).describe('Shell command to run (e.g. "pnpm typecheck", "pnpm test:run")'),
       cwd: z.string().optional().describe('Working directory for the command'),
       timeoutMs: z.number().int().min(1_000).max(300_000).optional().describe('Timeout in milliseconds (default: 60000)'),
     },
-    async ({ command, cwd, timeoutMs }) => {
+    handler: async ({ command, cwd, timeoutMs }) => {
       const timeout = timeoutMs ?? 60_000
       const terminal = await runTerminalCommand(executeTerminalCommand, {
         command,
@@ -346,20 +350,20 @@ export function registerVscodeTools({ server, runtime, executeTerminalCommand }:
         },
       }
     },
-  )
+  })
 
   // ---------------------------------------------------------------------------
   // vscode_list_problems
   // ---------------------------------------------------------------------------
 
-  server.tool(
-    'vscode_list_problems',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('vscode_list_problems'),
+    schema: {
       cwd: z.string().optional().describe('Project root to run diagnostics from'),
       checkCommand: z.string().optional().describe('Diagnostic command (default: "pnpm typecheck 2>&1")'),
       maxLines: z.number().int().min(10).max(500).optional().describe('Maximum output lines to return (default: 200)'),
     },
-    async ({ cwd, checkCommand, maxLines }) => {
+    handler: async ({ cwd, checkCommand, maxLines }) => {
       const command = checkCommand ?? 'pnpm typecheck 2>&1'
       const limit = maxLines ?? 200
       const terminal = await runTerminalCommand(executeTerminalCommand, {
@@ -380,10 +384,9 @@ export function registerVscodeTools({ server, runtime, executeTerminalCommand }:
       const output = truncated ? lines.slice(0, limit).join('\n') : combined
 
       // Parse TypeScript-style error lines: "src/foo.ts(10,5): error TS2345: ..."
-      const errorPattern = /^([^(]+)\((\d+),(\d+)\): +(error|warning) +(TS\d+): +(\S.*)$/
       const problems: VscodeProblem[] = []
       for (const line of lines) {
-        const match = line.match(errorPattern)
+        const match = line.match(TS_ERROR_PATTERN)
         if (match) {
           problems.push({
             file: match[1],
@@ -397,9 +400,8 @@ export function registerVscodeTools({ server, runtime, executeTerminalCommand }:
       }
 
       // Also try "file:line:col - error TS..." format (vue-tsc)
-      const vueTscPattern = /^([^:]+):(\d+):(\d+) +- +(error|warning) +(TS\d+): +(\S.*)$/
       for (const line of lines) {
-        const match = line.match(vueTscPattern)
+        const match = line.match(VUE_TSC_ERROR_PATTERN)
         if (match && !problems.some(p => p.file === match[1] && p.line === Number(match[2]))) {
           problems.push({
             file: match[1],
@@ -444,7 +446,7 @@ export function registerVscodeTools({ server, runtime, executeTerminalCommand }:
         },
       }
     },
-  )
+  })
 }
 
 type TerminalCommandExecution

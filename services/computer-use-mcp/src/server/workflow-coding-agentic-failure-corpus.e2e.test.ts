@@ -22,6 +22,8 @@ import {
   createTestConfig,
 } from '../test-fixtures'
 import { registerComputerUseTools } from './register-tools'
+import { createRuntimeCoordinator } from './runtime-coordinator'
+import { initializeGlobalRegistry } from './tool-descriptors'
 
 const execAsync = promisify(execCallback)
 
@@ -40,7 +42,7 @@ function createMockServer() {
     server: {
       tool(...args: unknown[]) {
         const name = args[0] as string
-        const handler = args[args.length - 1] as ToolHandler
+        const handler = args.at(-1) as ToolHandler
         handlers.set(name, handler)
       },
     } as unknown as McpServer,
@@ -79,7 +81,7 @@ function failure(action: ActionInvocation, message: string): CallToolResult {
 }
 
 function createRuntime(): ComputerUseServerRuntime {
-  return {
+  const base = {
     config: createTestConfig({ approvalMode: 'never' }),
     stateManager: new RunStateManager(),
     session: {
@@ -121,6 +123,8 @@ function createRuntime(): ComputerUseServerRuntime {
     },
     taskMemory: {},
   } as unknown as ComputerUseServerRuntime
+  base.coordinator = createRuntimeCoordinator(base)
+  return base
 }
 
 async function createWorkspaceFixture() {
@@ -322,6 +326,7 @@ function buildExecuteAction(runtime: ComputerUseServerRuntime, scenario: Failure
 }
 
 async function runScenario(scenario: FailureScenario) {
+  initializeGlobalRegistry()
   const runtime = createRuntime()
   const workspace = await createWorkspaceFixture()
   const { server, invoke } = createMockServer()

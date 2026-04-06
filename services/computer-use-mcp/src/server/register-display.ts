@@ -6,6 +6,7 @@ import { z } from 'zod'
 
 import { enumerateDisplays, findDisplayForPoint, formatDisplaySummary } from '../display'
 import { textContent } from './content'
+import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptors'
 
 export interface RegisterDisplayToolsOptions {
   server: McpServer
@@ -13,10 +14,10 @@ export interface RegisterDisplayToolsOptions {
 }
 
 export function registerDisplayTools({ server, runtime }: RegisterDisplayToolsOptions) {
-  server.tool(
-    'display_enumerate',
-    {},
-    async () => {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('display_enumerate'),
+    schema: {},
+    handler: async () => {
       try {
         const snapshot = await enumerateDisplays(runtime.config)
         const summary = formatDisplaySummary(snapshot)
@@ -56,15 +57,15 @@ export function registerDisplayTools({ server, runtime }: RegisterDisplayToolsOp
         }
       }
     },
-  )
+  })
 
-  server.tool(
-    'display_identify_point',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('display_identify_point'),
+    schema: {
       x: z.number().describe('Logical X coordinate in global screen space'),
       y: z.number().describe('Logical Y coordinate in global screen space'),
     },
-    async ({ x, y }) => {
+    handler: async ({ x, y }) => {
       try {
         const snapshot = await enumerateDisplays(runtime.config)
         const display = findDisplayForPoint(snapshot, x, y)
@@ -118,5 +119,5 @@ export function registerDisplayTools({ server, runtime }: RegisterDisplayToolsOp
         }
       }
     },
-  )
+  })
 }

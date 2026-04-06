@@ -156,6 +156,31 @@ This is the foundation for stable multi-lane coordination. Browser lane, desktop
 lane, and coding lane can now operate from consistent runtime context without
 rebuilding state independently.
 
+### 7. Tool Descriptor and Discovery Layer
+
+The next Claude-inspired layer is now in place in a first practical form:
+
+- a unified `ToolDescriptor` registry acts as the metadata source of truth
+- public MCP registration is descriptor-driven instead of summary-string driven
+- `tool_directory` exposes a compact, filterable directory of tools
+- `tool_search` provides lightweight descriptor search without schema expansion
+- policy and prep layers already consume descriptor metadata instead of keeping
+  their own divergent copies
+
+What we borrowed:
+
+- compact tool exposure before full schema exposure
+- fail-closed tool metadata defaults
+- explicit tool lanes and kinds as runtime inputs
+
+What we explicitly deferred:
+
+- selective schema hydration
+- LLM-ranked tool search
+- prompt-cache-specific tool exposure tricks
+- descriptor-driven reimplementation of every approval path in one pass
+- turning tool discovery into a giant "AI picks tools for AI" layer
+
 ## Current Adoption Status
 
 The Claude-inspired changes currently adopted in this package are intentionally
@@ -165,6 +190,29 @@ The Claude-inspired changes currently adopted in this package are intentionally
 - prep execution batch planning
 - richer `preparatoryResults` for workflow traceability
 - **runtime snapshot coordinator** (NEW) — unified runtime context layer
+- **tool descriptor registry + descriptor-driven registration** (NEW)
+- **tool_directory + tool_search v1** (NEW)
+
+## Current Phase Boundary
+
+The current Claude-inspired phase should now be considered:
+
+- done:
+  - prep harness metadata
+  - runtime snapshot coordinator
+  - tool descriptor registry
+  - descriptor-driven registration
+  - `tool_directory`
+  - `tool_search` v1
+- explicitly not part of this phase:
+  - search-first retrieval
+  - `ToolExecutionRecord`
+  - multi-surface routing
+  - memory/subagent systems
+  - schema hydration and prompt-caching tricks
+
+The next implementation phase should start from `search-first retrieval`, not
+from more tool metadata work.
 
 This is the correct scale.
 
