@@ -30,15 +30,22 @@ const channelServerConfigSchema = object({
     key: optional(string()),
     passphrase: optional(string()),
   }))),
+  auth: optional(object({
+    token: optional(string()),
+  })),
 })
 
 const channelServerInvokeConfigSchema = z.object({
   tlsConfig: z.object({ }).nullable().optional(),
+  authToken: z.string().optional(),
 }).strict()
 
 const channelServerConfigStore = createConfig('server-channel', 'config.json', channelServerConfigSchema, {
   default: {
     tlsConfig: null,
+    auth: {
+      token: '',
+    },
   },
   autoHeal: true,
 })
@@ -48,7 +55,13 @@ function getServerChannelPort() {
 }
 
 async function getChannelServerConfig(): Promise<ServerOptions> {
-  return channelServerConfigStore.get() || { tlsConfig: null }
+  const config = channelServerConfigStore.get()
+  return {
+    tlsConfig: config?.tlsConfig || null,
+    auth: {
+      token: config?.auth?.token || '',
+    },
+  }
 }
 
 async function normalizeChannelServerOptions(payload: unknown, fallback?: ServerOptions) {
@@ -62,7 +75,10 @@ async function normalizeChannelServerOptions(payload: unknown, fallback?: Server
   }
 
   return {
-    tlsConfig: typeof parsed.data.tlsConfig === 'undefined' ? null : parsed.data.tlsConfig,
+    tlsConfig: typeof parsed.data.tlsConfig === 'undefined' ? fallback.tlsConfig : parsed.data.tlsConfig,
+    auth: {
+      token: typeof parsed.data.authToken === 'undefined' ? fallback.auth?.token : parsed.data.authToken,
+    },
   }
 }
 
@@ -372,22 +388,33 @@ export async function createServerChannelService(params: { serverChannel: Server
     console.log('[Main/ServerChannel] getServerChannelConfig invoked')
     const config = await getChannelServerConfig()
     console.log(`[Main/ServerChannel] getServerChannelConfig resolved in ${Date.now() - startedAt}ms`)
-    return { websocketTlsConfig: config.tlsConfig || null }
+    return {
+      websocketTlsConfig: config.tlsConfig || null,
+      websocketAuthToken: config.auth?.token || '',
+    }
   })
 
   defineInvokeHandler(context, electronApplyServerChannelConfig, async (req) => {
     try {
       const current = await getChannelServerConfig()
-      const next = await normalizeChannelServerOptions({ tlsConfig: req?.websocketTlsConfig }, current)
+      const next = await normalizeChannelServerOptions({
+        tlsConfig: req?.websocketTlsConfig,
+        authToken: req?.websocketAuthToken,
+      }, current)
       const changed = JSON.stringify(next.tlsConfig) !== JSON.stringify(current.tlsConfig)
+        || JSON.stringify(next.auth) !== JSON.stringify(current.auth)
 
       channelServerConfigStore.update(next)
 
       if (changed) {
         await params.serverChannel.stop()
         await params.serverChannel.updateConfig({
+          ...next,
+          auth: {
+            token: next.auth?.token || '',
+          },
           port: getServerChannelPort(),
-          hostname: env.SERVER_RUNTIME_HOSTNAME || '0.0.0.0',
+          hostname: env.SERVER_RUNTIME_HOSTNAME || '127.0.0.1',
           tlsConfig: next.tlsConfig ? await getOrCreateCertificate() : null,
         })
         await params.serverChannel.start()
@@ -396,7 +423,10 @@ export async function createServerChannelService(params: { serverChannel: Server
         await params.serverChannel.start()
       }
 
-      return { websocketTlsConfig: next.tlsConfig || null }
+      return {
+        websocketTlsConfig: next.tlsConfig || null,
+        websocketAuthToken: next.auth?.token || '',
+      }
     }
     catch (error) {
       useLogg('main/server-runtime').withError(error).error('Failed to apply server channel configuration')

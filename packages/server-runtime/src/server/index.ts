@@ -71,7 +71,7 @@ export function getLocalIPs(): string[] {
 }
 
 export function createServer(opts?: ServerOptions): Server {
-  let options = merge<ServerOptions>({ port: 6121, hostname: '0.0.0.0' }, opts)
+  let options = merge<ServerOptions>({ port: 6121, hostname: '127.0.0.1' }, opts)
 
   const { appLogFormat, appLogLevel } = normalizeLoggerConfig(options)
   const log = useLogg('@proj-airi/server-runtime/server').withLogLevelString(appLogLevel).withFormat(appLogFormat)
@@ -117,7 +117,7 @@ export function createServer(opts?: ServerOptions): Server {
 
     startTask = (async () => {
       const secureEnabled = options?.tlsConfig != null
-      const h3App = setupApp()
+      const h3App = setupApp(options)
 
       const port = options.port
       const hostname = options.hostname

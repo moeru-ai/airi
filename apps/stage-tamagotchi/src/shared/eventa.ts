@@ -18,6 +18,7 @@ export interface ElectronServerChannelTlsConfig {
 
 export interface ElectronServerChannelConfig {
   websocketTlsConfig: ElectronServerChannelTlsConfig | null
+  websocketAuthToken: string
 }
 export const electronGetServerChannelConfig = defineInvokeEventa<ElectronServerChannelConfig>('eventa:invoke:electron:server-channel:get-config')
 export const electronApplyServerChannelConfig = defineInvokeEventa<ElectronServerChannelConfig, Partial<ElectronServerChannelConfig>>('eventa:invoke:electron:server-channel:apply-config')

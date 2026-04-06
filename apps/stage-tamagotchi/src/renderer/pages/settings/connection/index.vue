@@ -9,7 +9,7 @@ import { useI18n } from 'vue-i18n'
 import { useServerChannelSettingsStore } from '../../../stores/settings/server-channel'
 
 const serverChannelSettingsStore = useServerChannelSettingsStore()
-const { websocketTlsConfig } = storeToRefs(serverChannelSettingsStore)
+const { websocketTlsConfig, websocketAuthToken } = storeToRefs(serverChannelSettingsStore)
 const { t } = useI18n()
 
 const websocketTlsEnabled = computed({
@@ -23,16 +23,29 @@ const websocketTlsEnabled = computed({
 <template>
   <ConnectionSettings>
     <template #platform-specific>
-      <FieldCheckbox
-        v-model="websocketTlsEnabled"
-        v-motion
-        :initial="{ opacity: 0, y: 10 }"
-        :enter="{ opacity: 1, y: 0 }"
-        :duration="250 + (5 * 10)"
-        :delay="5 * 50"
-        :label="t('settings.websocket-secure-enabled.title')"
-        :description="t('settings.websocket-secure-enabled.description')"
-      />
+      <div class="flex flex-col gap-4">
+        <FieldInput
+          v-model="websocketAuthToken"
+          v-motion
+          :initial="{ opacity: 0, y: 10 }"
+          :enter="{ opacity: 1, y: 0 }"
+          :duration="250 + (5 * 10)"
+          :delay="5 * 50"
+          :label="t('settings.connection.auth-token.title')"
+          :description="t('settings.connection.auth-token.description')"
+          :placeholder="t('settings.connection.auth-token.placeholder')"
+        />
+        <FieldCheckbox
+          v-model="websocketTlsEnabled"
+          v-motion
+          :initial="{ opacity: 0, y: 10 }"
+          :enter="{ opacity: 1, y: 0 }"
+          :duration="250 + (6 * 10)"
+          :delay="6 * 50"
+          :label="t('settings.websocket-secure-enabled.title')"
+          :description="t('settings.websocket-secure-enabled.description')"
+        />
+      </div>
     </template>
   </ConnectionSettings>
 </template>

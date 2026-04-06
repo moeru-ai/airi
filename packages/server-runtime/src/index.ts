@@ -108,7 +108,11 @@ export function normalizeLoggerConfig(options?: AppOptions) {
 
 export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => void } {
   const instanceId = options?.instanceId || optionOrEnv(undefined, 'SERVER_INSTANCE_ID', nanoid())
-  const authToken = optionOrEnv(options?.auth?.token, 'AUTHENTICATION_TOKEN', '')
+  let authToken = optionOrEnv(options?.auth?.token, 'AUTHENTICATION_TOKEN', '')
+  const isTokenGenerated = !authToken
+  if (isTokenGenerated) {
+    authToken = nanoid()
+  }
 
   const { appLogLevel, appLogFormat, websocketLogLevel, websocketLogFormat } = normalizeLoggerConfig(options)
 
@@ -118,6 +122,13 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
   const app = new H3({
     onError: error => appLogger.withError(error).error('an error occurred'),
   })
+
+  if (isTokenGenerated) {
+    appLogger.warn('No authentication token provided via options or AUTHENTICATION_TOKEN env.')
+    appLogger.warn('A secure App Key (Auth Token) has been automatically generated for this session.')
+    appLogger.log(`>>> APP KEY: ${authToken} <<<`)
+    appLogger.warn('Please use this key in your client settings (e.g. Stage UI -> Settings -> Connection -> App Key) to connect.')
+  }
 
   const peers = new Map<string, AuthenticatedPeer>()
   const peersByModule = new Map<string, Map<number | undefined, AuthenticatedPeer>>()

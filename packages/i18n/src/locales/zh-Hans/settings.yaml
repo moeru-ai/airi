@@ -802,6 +802,10 @@ pages:
   connection:
     description: 配置 WebSocket 服务器连接
     title: 连接
+    auth-token:
+      title: 应用网关密钥
+      description: 外部应用程序连接到此实例时使用的安全密钥。
+      placeholder: 输入您的应用网关密钥...
     websocket-url:
       description: WebSocket 服务器的完整地址(例如，ws://localhost:6121/ws)
       label: WebSocket 服务器地址

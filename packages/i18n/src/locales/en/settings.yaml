@@ -881,6 +881,10 @@ pages:
   connection:
     description: Configure WebSocket server connection
     title: Connection
+    auth-token:
+      title: Application Gateway Key
+      description: The security key used by external applications to connect to this instance.
+      placeholder: Enter your application gateway key...
     websocket-url:
       description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
       label: WebSocket Server Address
