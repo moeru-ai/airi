@@ -3,13 +3,6 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "paths": {
-      "@proj-airi/server-runtime": ["./packages/server-runtime/src/index.ts"],
-      "@proj-airi/server-runtime/server": ["./packages/server-runtime/src/server/index.ts"],
-      "@proj-airi/server-shared": ["./packages/server-shared/src/index.ts"],
-      "@proj-airi/stage-shared": ["./packages/stage-shared/src/index.ts"],
-      "@proj-airi/stage-ui": ["./packages/stage-ui/src/index.ts"]
-    },
     "resolveJsonModule": true,
     "strictNullChecks": true,
     "noFallthroughCasesInSwitch": true,

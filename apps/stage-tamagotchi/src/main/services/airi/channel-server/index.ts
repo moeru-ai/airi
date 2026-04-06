@@ -1,17 +1,17 @@
 import type { Server, ServerOptions } from '@proj-airi/server-runtime/server'
 import type { Lifecycle } from 'injeca'
 
-import type { ElectronServerChannelConfig, ElectronServerChannelTlsConfig } from '../../../../shared/eventa'
+import type { ElectronServerChannelConfig } from '../../../../shared/eventa'
 
-import { randomUUID, X509Certificate } from 'node:crypto'
+import { X509Certificate } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { Socket } from 'node:net'
 import { join } from 'node:path'
 import { env, platform } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
+import { errorMessageFrom } from '@moeru/std'
 import { createServer, getLocalIPs } from '@proj-airi/server-runtime/server'
 import { Mutex } from 'async-mutex'
 import { app, ipcMain, session } from 'electron'
@@ -23,7 +23,6 @@ import { z } from 'zod'
 import {
   electronApplyServerChannelConfig,
   electronGetServerChannelConfig,
-
 } from '../../../../shared/eventa'
 import { createConfig } from '../../../libs/electron/persistence'
 
@@ -51,6 +50,25 @@ const channelServerConfigStore = createConfig('server-channel', 'config.json', c
   },
   autoHeal: true,
 })
+let serverChannelServiceRegistered = false
+let serverChannelCertificateTrustConfigured = false
+
+interface ServerChannelCertificateVerifyRequest {
+  hostname: string
+  verificationResult: string
+  errorCode: number
+  certificate: {
+    subject: {
+      commonName: string
+    }
+    issuer: {
+      commonName: string
+      country: string
+      locality: string
+      organizations: string[]
+    }
+  }
+}
 
 function getServerChannelPort() {
   return env.SERVER_CHANNEL_PORT ? Number.parseInt(env.SERVER_CHANNEL_PORT) : 6121
@@ -58,14 +76,35 @@ function getServerChannelPort() {
 
 async function getChannelServerConfig(): Promise<ElectronServerChannelConfig> {
   const config = channelServerConfigStore.get() || { hostname: '127.0.0.1', authToken: '', tlsConfig: null }
+
   return {
     hostname: config.hostname || '127.0.0.1',
     authToken: config.authToken || '',
-    tlsConfig: (config.tlsConfig || null) as ElectronServerChannelTlsConfig | null,
+    tlsConfig: config.tlsConfig || null,
   }
 }
 
-async function normalizeChannelServerOptions(payload: unknown, fallback?: any) {
+function getServerRuntimeBaseOptions() {
+  return {
+    port: getServerChannelPort(),
+    hostname: '127.0.0.1',
+  }
+}
+
+async function resolveServerRuntimeOptions(config: ServerOptions): Promise<ServerOptions> {
+  return {
+    ...getServerRuntimeBaseOptions(),
+    auth: {
+      token: 'authToken' in config && typeof config.authToken === 'string' ? config.authToken : '',
+    },
+    hostname: 'hostname' in config && typeof config.hostname === 'string'
+      ? config.hostname || '127.0.0.1'
+      : '127.0.0.1',
+    tlsConfig: config.tlsConfig ? await getOrCreateCertificate() : null,
+  }
+}
+
+async function normalizeChannelServerOptions(payload: unknown, fallback?: ElectronServerChannelConfig) {
   if (!fallback) {
     fallback = await getChannelServerConfig()
   }
@@ -84,7 +123,7 @@ async function normalizeChannelServerOptions(payload: unknown, fallback?: any) {
 
 function getCertificateDomains(): string[] {
   const localIPs = getLocalIPs()
-  const hostname = env.SERVER_RUNTIME_HOSTNAME
+  const hostname = channelServerConfigStore.get()?.hostname || env.SERVER_RUNTIME_HOSTNAME
   return Array.from(new Set([
     'localhost',
     '127.0.0.1',
@@ -132,43 +171,49 @@ function certHasAllDomains(certPem: string, domains: string[]): boolean {
   }
 }
 
-/**
- * Checks if the given certificate is trusted by our generated CA.
- */
-function isTrustedServerChannelCertificate(certData: string | Buffer, caCertPem: string): boolean {
-  try {
-    const caCert = new X509Certificate(caCertPem)
-    const cert = new X509Certificate(certData)
-    return cert.verify(caCert.publicKey)
-  }
-  catch {
+function isTrustedServerChannelCertificate(request: ServerChannelCertificateVerifyRequest): boolean {
+  if (!['CERT_AUTHORITY_INVALID', 'ERR_CERT_AUTHORITY_INVALID'].includes(request.verificationResult)
+    && request.errorCode !== -202) {
     return false
   }
+
+  if (!getCertificateDomains().includes(request.hostname)) {
+    return false
+  }
+
+  const issuer = request.certificate.issuer
+  return request.certificate.subject.commonName === 'localhost'
+    && issuer.commonName === 'AIRI'
+    && issuer.country === 'US'
+    && issuer.locality === 'Local'
+    && issuer.organizations.includes('AIRI')
 }
 
-/**
- * Configures the Electron session to trust our generated CA certificate specifically
- * for the server channel.
- */
-function configureServerChannelCertificateTrust(caCertPem: string) {
+function configureServerChannelCertificateTrust() {
+  if (serverChannelCertificateTrustConfigured) {
+    return
+  }
+
   session.defaultSession.setCertificateVerifyProc((request, callback) => {
-    // Only trust our generated certificate if it matches our CA's signature.
-    if (isTrustedServerChannelCertificate(request.certificate.data, caCertPem)) {
-      callback(0) // Trusted
+    if (isTrustedServerChannelCertificate(request)) {
+      callback(0)
+      return
     }
-    else {
-      callback(-2) // Use default verification logic
-    }
+
+    callback(-3)
   })
+
+  serverChannelCertificateTrustConfigured = true
 }
 
 async function installCACertificate(caCert: string) {
   const { caCertPath } = getCertificatePaths()
+  const log = useLogg('main/server-runtime').useGlobalConfig()
   writeFileSync(caCertPath, caCert)
 
   try {
     if (platform === 'darwin') {
-      await x('security', ['add-trusted-cert', '-d', '-r', 'trustRoot', '-k', '/Library/Keychains/System.keychain', caCertPath], { nodeOptions: { stdio: 'ignore' } })
+      await x('security', ['add-trusted-cert', '-d', '-r', 'trustRoot', '-k', join(app.getPath('home'), 'Library/Keychains/login.keychain-db'), caCertPath], { nodeOptions: { stdio: 'ignore' } })
     }
     else if (platform === 'win32') {
       await x('certutil', ['-addstore', '-f', 'Root', caCertPath], { nodeOptions: { stdio: 'ignore' } })
@@ -188,14 +233,14 @@ async function installCACertificate(caCert: string) {
           }
           writeFileSync(join(userCaDir, caFileName), caCert)
         }
-        catch (error) {
-          useLogg('main/services/channel-server').withError(error as any).error('Failed to install certificate for Linux (user share)')
+        catch {
+          // Ignore errors
         }
       }
     }
   }
   catch (error) {
-    useLogg('main/services/channel-server').withError(error as any).error('Failed to install CA certificate to system store')
+    log.withError(error).warn(`Failed to install AIRI WebSocket CA certificate from ${caCertPath}`)
   }
 }
 
@@ -220,10 +265,9 @@ async function generateCertificate() {
     })
     writeFileSync(caCertPath, ca.cert)
     writeFileSync(caKeyPath, ca.key)
-
-    await installCACertificate(ca.cert)
-    configureServerChannelCertificateTrust(ca.cert)
   }
+
+  await installCACertificate(ca.cert)
 
   const domains = getCertificateDomains()
 
@@ -262,94 +306,12 @@ async function getOrCreateCertificate() {
 
 export async function setupServerChannel(params: { lifecycle: Lifecycle }): Promise<Server> {
   channelServerConfigStore.setup()
+  configureServerChannelCertificateTrust()
 
   const storedConfig = await getChannelServerConfig()
-  console.log('[main/services/channel-server] Loaded stored config. Token exists:', !!storedConfig.authToken)
-
-  if (!storedConfig.authToken) {
-    const newToken = randomUUID()
-    console.log('[main/services/channel-server] No authToken found. Generating new one:', newToken)
-    storedConfig.authToken = newToken
-    // Update synchronously (saves internally)
-    channelServerConfigStore.update({
-      hostname: storedConfig.hostname,
-      authToken: storedConfig.authToken,
-      tlsConfig: storedConfig.tlsConfig,
-    })
-    console.log('[main/services/channel-server] authToken generated.')
-  }
-  else {
-    console.log('[main/services/channel-server] Using existing authToken:', storedConfig.authToken)
-  }
-
-  const serverOptions: ServerOptions = {
-    auth: { token: storedConfig.authToken },
-    port: getServerChannelPort(),
-    hostname: storedConfig.hostname || env.SERVER_RUNTIME_HOSTNAME || '127.0.0.1',
-    tlsConfig: storedConfig.tlsConfig ? await getOrCreateCertificate() : null,
-  }
-
-  const serverChannel = createServer(serverOptions)
+  const serverChannel = createServer(await resolveServerRuntimeOptions(storedConfig))
 
   const mutex = new Mutex()
-  let startLoopTask: Promise<void> | null = null
-  let healthCheckTimer: NodeJS.Timeout | null = null
-
-  function getRuntimePort() {
-    return getServerChannelPort()
-  }
-
-  function isPortListening(port: number) {
-    return new Promise<boolean>((resolve) => {
-      const socket = new Socket()
-      let settled = false
-
-      const settle = (value: boolean) => {
-        if (settled)
-          return
-        settled = true
-        socket.destroy()
-        resolve(value)
-      }
-
-      socket.once('connect', () => settle(true))
-      socket.once('error', () => settle(false))
-      socket.setTimeout(1500, () => settle(false))
-      socket.connect(port, storedConfig.hostname || '127.0.0.1')
-    })
-  }
-
-  async function ensureServerRunning(reason: string) {
-    if (startLoopTask)
-      return startLoopTask
-
-    const log = useLogg('main/server-runtime').useGlobalConfig()
-    startLoopTask = (async () => {
-      let attempt = 0
-
-      while (true) {
-        attempt += 1
-        try {
-          await serverChannel.start()
-          if (await isPortListening(getRuntimePort())) {
-            log.withFields({ reason, attempt, port: getRuntimePort() }).log('WebSocket server confirmed ready')
-            return
-          }
-
-          throw new Error(`WebSocket server was not listening on port ${getRuntimePort()} after start`)
-        }
-        catch (error) {
-          const delayMs = Math.min(1000 * 2 ** (attempt - 1), 10000)
-          log.withFields({ reason, attempt, delayMs, port: getRuntimePort() }).withError(error as Error).error('WebSocket server start failed, retrying')
-          await new Promise(resolve => setTimeout(resolve, delayMs))
-        }
-      }
-    })().finally(() => {
-      startLoopTask = null
-    })
-
-    return startLoopTask
-  }
 
   params.lifecycle.appHooks.onStart(async () => {
     const release = await mutex.acquire()
@@ -357,17 +319,11 @@ export async function setupServerChannel(params: { lifecycle: Lifecycle }): Prom
     const log = useLogg('main/server-runtime').useGlobalConfig()
 
     try {
-      await ensureServerRunning('app startup')
-      healthCheckTimer = setInterval(async () => {
-        if (!(await isPortListening(getRuntimePort()))) {
-          log.withFields({ port: getRuntimePort() }).warn('WebSocket server is down while app is running, restarting')
-          await ensureServerRunning('health check')
-        }
-      }, 5000)
+      await serverChannel.start()
       log.log('WebSocket server started')
     }
     catch (error) {
-      log.withError(error as Error).error('Error starting WebSocket server')
+      log.withError(error).error('Error starting WebSocket server')
     }
     finally {
       release()
@@ -382,15 +338,11 @@ export async function setupServerChannel(params: { lifecycle: Lifecycle }): Prom
     }
 
     try {
-      if (healthCheckTimer) {
-        clearInterval(healthCheckTimer)
-        healthCheckTimer = null
-      }
       await serverChannel.stop()
       log.log('WebSocket server closed')
     }
     catch (error) {
-      log.withError(error as Error).error('Error closing WebSocket server')
+      log.withError(error).error('Error closing WebSocket server')
     }
     finally {
       release()
@@ -429,7 +381,7 @@ export async function setupServerChannel(params: { lifecycle: Lifecycle }): Prom
         release()
       }
     },
-    async updateConfig(config: ServerOptions) {
+    async updateConfig(config) {
       const release = await mutex.acquire()
       try {
         await serverChannel.updateConfig(config)
@@ -441,8 +393,6 @@ export async function setupServerChannel(params: { lifecycle: Lifecycle }): Prom
   }
 }
 
-let serverChannelServiceRegistered = false
-
 export async function createServerChannelService(params: { serverChannel: Server }) {
   if (serverChannelServiceRegistered) {
     return
@@ -450,63 +400,48 @@ export async function createServerChannelService(params: { serverChannel: Server
   serverChannelServiceRegistered = true
 
   const { context } = createContext(ipcMain)
-  console.log('[main/services/channel-server] Registering Eventa invoke handlers')
 
   defineInvokeHandler(context, electronGetServerChannelConfig, async () => {
-    const startedAt = Date.now()
-    console.log('[main/services/channel-server] getServerChannelConfig invoked')
-    const config = await getChannelServerConfig()
-    console.log(`[main/services/channel-server] getServerChannelConfig resolved in ${Date.now() - startedAt}ms`)
-    return {
-      tlsConfig: config.tlsConfig,
-      authToken: config.authToken,
-      hostname: config.hostname,
-    }
+    return await getChannelServerConfig()
   })
 
   defineInvokeHandler(context, electronApplyServerChannelConfig, async (req) => {
+    const current = await getChannelServerConfig()
+    const next = await normalizeChannelServerOptions(req, current)
+    const tlsChanged = JSON.stringify(next.tlsConfig) !== JSON.stringify(current.tlsConfig)
+    const hostnameChanged = next.hostname !== current.hostname
+    const authTokenChanged = next.authToken !== current.authToken
+    const runtimeChanged = tlsChanged || hostnameChanged || authTokenChanged
+
     try {
-      const current = await getChannelServerConfig()
-      const next = await normalizeChannelServerOptions(req, current)
+      if (runtimeChanged) {
+        const nextRuntimeOptions = await resolveServerRuntimeOptions(next)
 
-      const tlsChanged = JSON.stringify(next.tlsConfig) !== JSON.stringify(current.tlsConfig)
-
-      // Update synchronously (saves internally)
-      channelServerConfigStore.update({
-        hostname: next.hostname,
-        authToken: next.authToken,
-        tlsConfig: next.tlsConfig,
-      })
-
-      if (tlsChanged) {
-        await params.serverChannel.stop()
-        await params.serverChannel.updateConfig({
-          auth: { token: next.authToken },
-          port: getServerChannelPort(),
-          hostname: next.hostname || '127.0.0.1',
-          tlsConfig: next.tlsConfig ? await getOrCreateCertificate() : null,
-        })
-        await params.serverChannel.start()
+        await params.serverChannel.updateConfig(nextRuntimeOptions)
+        await params.serverChannel.restart()
       }
       else {
-        // Propagate other changes even if TLS didn't change
-        await params.serverChannel.updateConfig({
-          auth: { token: next.authToken },
-          hostname: next.hostname || '127.0.0.1',
-        })
-        // Ensure it's running
         await params.serverChannel.start()
       }
 
-      return {
-        tlsConfig: next.tlsConfig,
-        authToken: next.authToken,
-        hostname: next.hostname,
-      }
+      channelServerConfigStore.update(next)
+      return next
     }
     catch (error) {
-      useLogg('main/services/channel-server').withError(error as Error).error('Failed to apply server channel configuration')
-      throw error
+      useLogg('main/server-runtime').withError(error).error('Failed to apply server channel configuration')
+      if (runtimeChanged) {
+        const previousRuntimeOptions = await resolveServerRuntimeOptions(current)
+
+        try {
+          await params.serverChannel.updateConfig(previousRuntimeOptions)
+          await params.serverChannel.restart()
+        }
+        catch (rollbackError) {
+          useLogg('main/server-runtime').withError(rollbackError).error('Failed to restore previous server channel configuration')
+        }
+      }
+
+      throw new Error(errorMessageFrom(error) ?? 'Failed to apply server channel configuration')
     }
   })
 }

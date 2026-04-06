@@ -1,4 +1,5 @@
 import type { Locale } from '@intlify/core'
+import type { ServerOptions } from '@proj-airi/server-runtime/server'
 import type {
   ThreeHitTestReadTracePayload,
   ThreeSceneRenderInfoTracePayload,
@@ -22,12 +23,8 @@ export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windo
 export const electronOpenSettingsDevtools = defineInvokeEventa('eventa:invoke:electron:windows:settings:devtools:open')
 export const electronOpenDevtoolsWindow = defineInvokeEventa<void, { route?: string }>('eventa:invoke:electron:windows:devtools:open')
 
-export interface ElectronServerChannelTlsConfig {
-  [key: string]: unknown
-}
-
 export interface ElectronServerChannelConfig {
-  tlsConfig: ElectronServerChannelTlsConfig | null
+  tlsConfig?: ServerOptions['tlsConfig'] | null
   authToken: string
   hostname: string
 }

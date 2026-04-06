@@ -910,11 +910,18 @@ pages:
       label: WebSocket 服务器地址
       placeholder: ws://localhost:6121/ws
     server-hostname:
-      label: AIRI 网关主机名
-      description: 设置为 0 (0.0.0.0) 以绑定到 WiFi 网络中的所有可用 IP 地址。否则，请将其绑定到 127.0.0.1 以获得最大的本地安全。
+      label: 网络暴露范围
+      description: 选择 AIRI 网关只监听当前设备，还是允许局域网中的其他设备连接。
+      advanced-label: 绑定主机名
+      advanced-description: 需要手动绑定网络地址时，填写指定的主机名或 IP 地址。
+      options:
+        this-device: 当前设备
+        all: 全部
+        advanced: 高级
     server-auth-token:
-      label: 应用网关密钥
-      description: 用于验证连接到您的节点的客户端。如果为空，网关将不需要身份验证。检查您的网关日志以获取自动生成的密钥。
+      label: Auth Token
+      description: 连接到此网关的远程客户端需要提供此安全令牌。留空则禁用令牌认证。
+      placeholder: 可选
   scene:
     description: 配置角色所在环境
     title: 场景
