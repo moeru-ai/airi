@@ -39,7 +39,17 @@ Hello! Thank you for your interest in contributing to this project. This guide w
 
    > https://stackoverflow.com/a/64121601
 
-4. Install `pnpm` through `corepack`
+4. (Optional) Install GTK libraries via [MSYS2](https://www.msys2.org/) for native Node.js addons (e.g. `canvas`)
+
+   Download and install MSYS2 from https://www.msys2.org/, then open the **MSYS2 MINGW64** shell and run:
+
+   ```bash
+   pacman -Syu
+   pacman -S mingw-w64-x86_64-gtk3 mingw-w64-x86_64-cairo mingw-w64-x86_64-pango mingw-w64-x86_64-glib2
+   ```
+
+
+5. Install `pnpm` through `corepack`
 
    ```powershell
    corepack enable
