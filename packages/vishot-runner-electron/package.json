@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/vishot-runner-electron",
   "type": "module",
-  "version": "0.9.0-beta.3",
+  "version": "0.9.0-beta.5",
   "private": true,
   "description": "Playwright-driven Electron capture runner for stage-tamagotchi",
   "author": {

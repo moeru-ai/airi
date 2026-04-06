@@ -297,6 +297,9 @@ catalogs:
     vue-sonner:
       specifier: 2.0.9
       version: 2.0.9
+    web-haptics:
+      specifier: ^0.0.6
+      version: 0.0.6
     ws:
       specifier: ^8.20.0
       version: 8.20.0
@@ -915,6 +918,9 @@ importers:
       vue-sonner:
         specifier: ^2.0.9
         version: 2.0.9(vue@3.5.30(typescript@5.9.3))
+      web-haptics:
+        specifier: 'catalog:'
+        version: 0.0.6(react@19.2.3)(vue@3.5.30(typescript@5.9.3))
       workbox-window:
         specifier: ^7.4.0
         version: 7.4.0
@@ -1330,6 +1336,9 @@ importers:
       vue-sonner:
         specifier: 'catalog:'
         version: 2.0.9(vue@3.5.30(typescript@5.9.3))
+      web-haptics:
+        specifier: 'catalog:'
+        version: 0.0.6(react@19.2.3)(vue@3.5.30(typescript@5.9.3))
       xsschema:
         specifier: 'catalog:'
         version: 0.4.0-beta.13(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.3.1(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
@@ -1508,6 +1517,9 @@ importers:
       vite-bundle-visualizer:
         specifier: ^1.2.1
         version: 1.2.1(rolldown@1.0.0-rc.9)(rollup@4.60.0)
+      vite-plugin-mkcert:
+        specifier: 'catalog:'
+        version: 1.17.10(vite@8.0.2(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
       vite-plugin-vue-devtools:
         specifier: ^8.1.1
         version: 8.1.1(vite@8.0.2(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.30(typescript@5.9.3))
@@ -1763,6 +1775,9 @@ importers:
       vue-sonner:
         specifier: ^2.0.9
         version: 2.0.9(vue@3.5.30(typescript@5.9.3))
+      web-haptics:
+        specifier: 'catalog:'
+        version: 0.0.6(react@19.2.3)(vue@3.5.30(typescript@5.9.3))
       workbox-window:
         specifier: ^7.4.0
         version: 7.4.0
@@ -1884,6 +1899,9 @@ importers:
       vite-bundle-visualizer:
         specifier: ^1.2.1
         version: 1.2.1(rolldown@1.0.0-rc.9)(rollup@4.60.0)
+      vite-plugin-mkcert:
+        specifier: 'catalog:'
+        version: 1.17.10(vite@8.0.2(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
       vite-plugin-pwa:
         specifier: ^1.2.0
         version: 1.2.0(vite@8.0.2(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(workbox-build@7.4.0)(workbox-window@7.4.0)
@@ -3125,6 +3143,9 @@ importers:
       vue-sonner:
         specifier: ^2.0.9
         version: 2.0.9(vue@3.5.30(typescript@5.9.3))
+      web-haptics:
+        specifier: 'catalog:'
+        version: 0.0.6(react@19.2.3)(vue@3.5.30(typescript@5.9.3))
       xast-util-to-xml:
         specifier: ^4.0.0
         version: 4.0.0
@@ -17477,6 +17498,23 @@ packages:
   web-ext-run@0.2.4:
     resolution: {integrity: sha512-rQicL7OwuqWdQWI33JkSXKcp7cuv1mJG8u3jRQwx/8aDsmhbTHs9ZRmNYOL+LX0wX8edIEQX8jj4bB60GoXtKA==}
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
+
+  web-haptics@0.0.6:
+    resolution: {integrity: sha512-eCzcf1LDi20+Fr0x9V3OkX92k0gxEQXaHajmhXHitsnk6SxPeshv8TBtBRqxyst8HI1uf2FyFVE7QS3jo1gkrw==}
+    peerDependencies:
+      react: '>=18'
+      react-dom: '>=18'
+      svelte: '>=4'
+      vue: '>=3'
+    peerDependenciesMeta:
+      react:
+        optional: true
+      react-dom:
+        optional: true
+      svelte:
+        optional: true
+      vue:
+        optional: true
 
   web-namespaces@2.0.1:
     resolution: {integrity: sha512-bKr1DkiNa2krS7qxNtdrtHAmzuYGFQLiQ13TsorsdT6ULTkPLKuu5+GsFpDlg6JFjUTwX2DyhMPG2be8uPrqsQ==}
@@ -33059,6 +33097,11 @@ snapshots:
       zip-dir: 2.0.0
     transitivePeerDependencies:
       - supports-color
+
+  web-haptics@0.0.6(react@19.2.3)(vue@3.5.30(typescript@5.9.3)):
+    optionalDependencies:
+      react: 19.2.3
+      vue: 3.5.30(typescript@5.9.3)
 
   web-namespaces@2.0.1: {}
 

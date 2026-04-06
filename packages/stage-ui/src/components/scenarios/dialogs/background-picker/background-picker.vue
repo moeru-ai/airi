@@ -206,7 +206,7 @@ async function applySelection(isImport = false) {
 </script>
 
 <template>
-  <div class="h-full min-h-0 flex flex-col">
+  <div class="h-full min-h-0 flex flex-col py-2">
     <div class="flex-1 overflow-x-hidden overflow-y-auto overscroll-contain p-1 scrollbar-none">
       <div class="flex flex-col gap-4">
         <div class="grid grid-cols-2 gap-3 md:grid-cols-3">

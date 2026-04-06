@@ -99,6 +99,7 @@
     "vue-i18n": "^11.3.0",
     "vue-router": "^5.0.4",
     "vue-sonner": "^2.0.9",
+    "web-haptics": "catalog:",
     "workbox-window": "^7.4.0",
     "xsschema": "catalog:",
     "yauzl": "^3.2.1",

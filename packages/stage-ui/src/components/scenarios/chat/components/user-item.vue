@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ChatHistoryItem, ChatMessage } from '../../../../types/chat'
 
+import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
 
 import { MarkdownRenderer } from '../../../markdown'
@@ -60,7 +61,10 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
           :ref="setMeasuredElement"
           flex="~ col" shadow="sm neutral-200/50 dark:none"
           min-w-20 rounded-xl h="unset <sm:fit"
-          :class="boxClasses"
+          :class="[
+            boxClasses,
+            (isStageWeb() || isStageCapacitor()) && props.variant === 'mobile' ? 'select-none sm:select-auto' : '',
+          ]"
         >
           <div>
             <span text-sm text="black/60 dark:white/65" font-normal class="inline <sm:hidden">{{ label }}</span>

@@ -29,7 +29,7 @@ const {
 <template>
   <div
     :class="[
-      'h-full flex flex-col gap-4 relative overflow-y-hidden',
+      'min-h-0 flex min-w-0 flex-1 flex-col gap-4',
     ]"
   >
     <div sticky top-0 z-100 flex flex-shrink-0 items-center gap-2>
@@ -43,7 +43,7 @@ const {
     </div>
 
     <!-- Using the new RadioCardManySelect component -->
-    <div flex flex-1 flex-col gap-4>
+    <div class="min-h-0 flex flex-1 flex-col gap-4 overflow-hidden">
       <Alert
         v-if="providerModels.length === 0 && !isLoadingActiveProviderModels"
         type="error"
@@ -61,6 +61,8 @@ const {
       <RadioCardManySelect
         v-model="activeModel"
         v-model:search-query="modelSearchQuery"
+        class="min-h-0 flex flex-1 flex-col"
+        fill-available-height
         :items="providerModels.toSorted((a, b) => a.id === activeModel ? -1 : b.id === activeModel ? 1 : 0)"
         :searchable="true"
         :allow-custom="true"
@@ -71,7 +73,6 @@ const {
         :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
         :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
         :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
-        list-class="max-h-[calc(100dvh-20rem)] overflow-y-auto"
       />
 
       <Alert v-if="activeProviderModelError" type="error">
@@ -86,11 +87,7 @@ const {
       </Alert>
     </div>
 
-    <div
-      :class="[
-        'absolute bottom-0 w-full',
-      ]"
-    >
+    <div class="w-full flex-shrink-0">
       <!-- Action Buttons -->
       <Button
         variant="primary"

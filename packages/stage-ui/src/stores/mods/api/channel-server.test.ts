@@ -1,5 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 
 const serverSdkMocks = vi.hoisted(() => {
   class MockClient {
@@ -347,5 +348,25 @@ describe('channel-server store reconnect', () => {
         data: { message: 'reconnect-authenticated-queued' },
       }),
     ]))
+  })
+
+  it('does not reconnect while the url scheme is not valid', async () => {
+    const store = useModsServerChannelStore()
+
+    const initializePromise = store.initialize({ token: 'secret' })
+    const firstClient = serverSdkMocks.MockClient.instances[0]
+
+    firstClient.simulateAuthenticated()
+    await initializePromise
+
+    store.websocketUrl = 'wss:'
+    await nextTick()
+
+    expect(serverSdkMocks.MockClient.instances).toHaveLength(1)
+
+    store.websocketUrl = 'wss://192.168.123.112:6121/ws'
+    await nextTick()
+
+    expect(serverSdkMocks.MockClient.instances).toHaveLength(2)
   })
 })
