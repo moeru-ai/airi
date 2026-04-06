@@ -29,10 +29,6 @@ docs:
   'logging-in': Signing in...
   'account': Account
   'logout': Sign out
-  'login': サインイン
-  'logging-in': サインイン中…
-  'account': アカウント
-  'logout': サインアウト
 'status-island':
   connected: WebSocket が接続されました
   disconnected: WebSocket が切断されました
