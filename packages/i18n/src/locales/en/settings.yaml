@@ -955,8 +955,8 @@ pages:
         advanced: Advanced
     server-auth-token:
       label: Auth Token
-      description: Security token required by remote clients that connect to this gateway. Leave empty to disable token authentication.
-      placeholder: Optional
+      description: Security token required by remote clients that connect to this gateway. When left empty, AIRI generates a new token automatically.
+      placeholder: Auto-generate
   scene:
     description: Configure the environment where the character lives
     title: Scene

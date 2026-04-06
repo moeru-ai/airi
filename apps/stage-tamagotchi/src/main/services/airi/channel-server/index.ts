@@ -3,7 +3,7 @@ import type { Lifecycle } from 'injeca'
 
 import type { ElectronServerChannelConfig } from '../../../../shared/eventa'
 
-import { X509Certificate } from 'node:crypto'
+import { randomUUID, X509Certificate } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { env, platform } from 'node:process'
@@ -25,6 +25,7 @@ import {
   electronGetServerChannelConfig,
 } from '../../../../shared/eventa'
 import { createConfig } from '../../../libs/electron/persistence'
+import { ensureServerChannelConfigDefaults } from './config'
 
 const channelServerConfigSchema = object({
   hostname: optional(string()),
@@ -114,11 +115,13 @@ async function normalizeChannelServerOptions(payload: unknown, fallback?: Electr
     return fallback
   }
 
-  return {
+  const normalizedConfig = {
     hostname: parsed.data.hostname ?? fallback.hostname,
     authToken: parsed.data.authToken ?? fallback.authToken,
     tlsConfig: typeof parsed.data.tlsConfig === 'undefined' ? null : parsed.data.tlsConfig,
   }
+
+  return ensureServerChannelConfigDefaults(normalizedConfig, randomUUID).config
 }
 
 function getCertificateDomains(): string[] {
@@ -309,7 +312,12 @@ export async function setupServerChannel(params: { lifecycle: Lifecycle }): Prom
   configureServerChannelCertificateTrust()
 
   const storedConfig = await getChannelServerConfig()
-  const serverChannel = createServer(await resolveServerRuntimeOptions(storedConfig))
+  const { changed: storedConfigChanged, config: normalizedStoredConfig } = ensureServerChannelConfigDefaults(storedConfig, randomUUID)
+  if (storedConfigChanged) {
+    channelServerConfigStore.update(normalizedStoredConfig)
+  }
+
+  const serverChannel = createServer(await resolveServerRuntimeOptions(normalizedStoredConfig))
 
   const mutex = new Mutex()
 

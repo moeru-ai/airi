@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import ConnectionSettings from '@proj-airi/stage-pages/pages/settings/connection/ConnectionSettings.vue'
 
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { Callout, FieldCheckbox, FieldInput, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
@@ -31,6 +32,7 @@ const exposureMode = computed({
 })
 
 const showAdvancedHostname = computed(() => exposureMode.value === 'advanced')
+const showDesktopServerControls = computed(() => isStageTamagotchi())
 
 const exposureModeOptions = computed(() => [
   {
@@ -64,6 +66,7 @@ const exposureModeOptions = computed(() => [
       />
 
       <div
+        v-if="showDesktopServerControls"
         v-motion
         :initial="{ opacity: 0, y: 10 }"
         :enter="{ opacity: 1, y: 0 }"
@@ -85,7 +88,7 @@ const exposureModeOptions = computed(() => [
       </div>
 
       <FieldInput
-        v-if="showAdvancedHostname"
+        v-if="showDesktopServerControls && showAdvancedHostname"
         v-model="hostname"
         v-motion
         :initial="{ opacity: 0, y: 10 }"
@@ -98,6 +101,7 @@ const exposureModeOptions = computed(() => [
       />
 
       <FieldInput
+        v-if="showDesktopServerControls"
         v-model="authToken"
         v-motion
         :initial="{ opacity: 0, y: 10 }"

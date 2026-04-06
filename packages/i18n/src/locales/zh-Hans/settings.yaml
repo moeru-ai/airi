@@ -920,8 +920,8 @@ pages:
         advanced: 高级
     server-auth-token:
       label: Auth Token
-      description: 连接到此网关的远程客户端需要提供此安全令牌。留空则禁用令牌认证。
-      placeholder: 可选
+      description: 连接到此网关的远程客户端需要提供此安全令牌。留空时 AIRI 会自动生成新的令牌。
+      placeholder: 自动生成
   scene:
     description: 配置角色所在环境
     title: 场景
