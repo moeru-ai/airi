@@ -74,6 +74,12 @@ const menu = computed(() => [
     to: '/devtools/plugin-host',
   },
   {
+    title: 'Updater',
+    description: 'Inspect updater state, explicit feed overrides, and install actions',
+    icon: 'i-solar:restart-bold-duotone',
+    to: '/devtools/updater',
+  },
+  {
     title: 'Screen Capture',
     description: 'Capture screen or window as video and/or audio streams',
     icon: 'i-solar:screen-share-bold-duotone',
@@ -135,6 +141,15 @@ const openDevtoolsWindow = useElectronEventaInvoke(electronOpenDevtoolsWindow)
     icon-off="i-solar:people-nearby-bold-duotone"
     text="settings.animations.use-page-specific-transitions.title"
     description="settings.animations.use-page-specific-transitions.description"
+    transition="all ease-in-out duration-250"
+  />
+  <CheckBar
+    v-model="settings.inspectUpdaterDiagnostics"
+    mb-2
+    icon-on="i-solar:bug-bold-duotone"
+    icon-off="i-solar:bug-minimalistic-outline"
+    text="Inspect updater diagnostics"
+    description="Show detailed updater diagnostics in the developer updater page."
     transition="all ease-in-out duration-250"
   />
 

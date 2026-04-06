@@ -2,7 +2,7 @@ import type { WebSocketBaseEvent, WebSocketEvents } from '@proj-airi/server-shar
 
 import { describe, expect, it } from 'vitest'
 
-import { resolveDeliveryConfig, selectConsumerPeerId } from './index'
+import { detectHeartbeatControlFrame, resolveDeliveryConfig, selectConsumerPeerId } from './index'
 
 function createInputTextEvent(
   overrides: Partial<WebSocketBaseEvent<'input:text', WebSocketEvents['input:text']>> = {},
@@ -193,5 +193,18 @@ describe('selectConsumerPeerId', () => {
 
     expect(firstSelectedPeerId).toBe('stage-window-a')
     expect(secondSelectedPeerId).toBe('stage-window-a')
+  })
+})
+
+describe('detectHeartbeatControlFrame', () => {
+  it('recognizes raw websocket control frame text without treating it as protocol JSON', () => {
+    expect(detectHeartbeatControlFrame('ping')).toBe('ping')
+    expect(detectHeartbeatControlFrame('pong')).toBe('pong')
+  })
+
+  it('ignores non-control payloads', () => {
+    expect(detectHeartbeatControlFrame('')).toBeUndefined()
+    expect(detectHeartbeatControlFrame('🩵')).toBeUndefined()
+    expect(detectHeartbeatControlFrame('{"type":"transport:connection:heartbeat"}')).toBeUndefined()
   })
 })

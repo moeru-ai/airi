@@ -68,7 +68,11 @@ function assertBrowserImageArtifact(artifact: VishotArtifact): void {
 async function applyBrowserImageTransformers(
   artifact: VishotArtifact,
   transformers: BrowserCaptureRequest['imageTransformers'],
-): Promise<VishotArtifact[]> {
+): Promise<{
+  artifacts: VishotArtifact[]
+  shouldRemoveSourceFile: boolean
+  sourceFilePath: string
+}> {
   const sourceFilePath = artifact.filePath
   let currentArtifacts: VishotArtifact[] = [artifact]
 
@@ -92,11 +96,11 @@ async function applyBrowserImageTransformers(
   assertUniqueArtifactFilePaths(currentArtifacts)
   await assertArtifactFilesExist(currentArtifacts)
 
-  if (currentArtifacts.length > 0 && currentArtifacts.every(artifact => artifact.filePath !== sourceFilePath)) {
-    await rm(sourceFilePath, { force: true })
+  return {
+    artifacts: currentArtifacts,
+    shouldRemoveSourceFile: currentArtifacts.length > 0 && currentArtifacts.every(artifact => artifact.filePath !== sourceFilePath),
+    sourceFilePath,
   }
-
-  return currentArtifacts
 }
 
 async function resolveBaseUrl(request: BrowserCaptureRequest): Promise<{ baseUrl: string, closeServer?: () => Promise<void> }> {
@@ -145,17 +149,32 @@ export async function captureBrowserRoots(request: BrowserCaptureRequest): Promi
       assertUniqueCaptureFilePaths(rootNames)
 
       const artifacts: VishotArtifact[] = []
+      const cleanupTargets: Array<{
+        shouldRemoveSourceFile: boolean
+        sourceFilePath: string
+      }> = []
 
       for (const rootName of rootNames) {
         const artifact = await captureRoot(page, request.outputDir, rootName)
-        artifacts.push(...await applyBrowserImageTransformers(artifact, request.imageTransformers))
+        const transformed = await applyBrowserImageTransformers(artifact, request.imageTransformers)
+        artifacts.push(...transformed.artifacts)
+        cleanupTargets.push(transformed)
       }
 
       assertUniqueArtifactFilePaths(artifacts)
+
+      for (const cleanupTarget of cleanupTargets) {
+        if (cleanupTarget.shouldRemoveSourceFile) {
+          await rm(cleanupTarget.sourceFilePath, { force: true })
+        }
+      }
+
+      await context.close()
+
       return artifacts
     }
     finally {
-      await context.close()
+      await context.close().catch(() => {})
     }
   }
   finally {

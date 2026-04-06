@@ -2,8 +2,25 @@ import type { ElectronApplication, Page } from 'playwright'
 
 import type { StageWindowName, StageWindowSnapshot } from '../utils/windows'
 
+export type VishotArtifactKind = 'image'
+export type VishotArtifactStage = 'browser-final' | 'electron-raw'
+
+export interface VishotArtifact {
+  kind: VishotArtifactKind
+  stage: VishotArtifactStage
+  artifactName: string
+  filePath: string
+  format: string
+  metadata?: Record<string, unknown>
+}
+
+export type ArtifactTransformer = (
+  artifact: VishotArtifact,
+) => Promise<VishotArtifact | VishotArtifact[]>
+
 export interface CaptureOptions {
   fullPage?: boolean
+  transformers?: ArtifactTransformer[]
 }
 
 export interface StageWindowsApi {
@@ -11,6 +28,7 @@ export interface StageWindowsApi {
 }
 
 export interface ControlsIslandApi {
+  waitForReady: (page: Page) => Promise<void>
   expand: (page: Page) => Promise<void>
   openSettings: (page: Page) => Promise<StageWindowSnapshot>
   openChat: (page: Page) => Promise<StageWindowSnapshot>
@@ -20,6 +38,7 @@ export interface ControlsIslandApi {
 export interface SettingsWindowApi {
   waitFor: (timeout?: number) => Promise<StageWindowSnapshot>
   goToConnection: (page: Page) => Promise<Page>
+  goToRoute: (page: Page, routePath: string) => Promise<Page>
 }
 
 export interface DialogsApi {
@@ -34,7 +53,7 @@ export interface DrawersApi {
 export interface ScenarioContext {
   electronApp: ElectronApplication
   outputDir: string
-  capture: (name: string, page: Page, options?: CaptureOptions) => Promise<string>
+  capture: (name: string, page: Page, options?: CaptureOptions) => Promise<VishotArtifact[]>
   stageWindows: StageWindowsApi
   controlsIsland: ControlsIslandApi
   settingsWindow: SettingsWindowApi

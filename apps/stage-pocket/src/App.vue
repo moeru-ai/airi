@@ -18,6 +18,8 @@ import { toast, Toaster } from 'vue-sonner'
 
 import OnboardingPermissionsStep from './components/onboarding/step-permissions.vue'
 
+import { getHostWebSocketConstructor } from './modules/websocket-bridge'
+
 const contextBridgeStore = useContextBridgeStore()
 const i18n = useI18n()
 const displayModelsStore = useDisplayModelsStore()
@@ -76,7 +78,10 @@ onMounted(async () => {
     onboardingStore.showingSetup = true
   }
 
-  await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
+  await serverChannelStore.initialize({
+    possibleEvents: ['ui:configure'],
+    websocketConstructor: getHostWebSocketConstructor(),
+  }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
   contextBridgeStore.initialize()
   characterOrchestratorStore.initialize()
 

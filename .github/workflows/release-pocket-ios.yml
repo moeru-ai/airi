@@ -6,6 +6,21 @@ permissions:
 
 on:
   workflow_dispatch:
+    inputs:
+      no_release_upload:
+        description: No GitHub release upload
+        required: false
+        default: false
+        type: boolean
+      no_testflight_upload:
+        description: No TestFlight upload
+        required: false
+        default: false
+        type: boolean
+      release_upload_tag:
+        description: GitHub release upload tag
+        required: false
+        type: string
 
 jobs:
   build:
@@ -13,6 +28,7 @@ jobs:
     runs-on: macos-26
     env:
       PRODUCT_NAME: 'AIRI'
+      VITE_ENABLE_POSTHOG: 'true'
     steps:
       - uses: actions/checkout@v6
 
@@ -66,6 +82,15 @@ jobs:
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           cp "$PROFILE_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/
 
+      - name: Read version from Xcode project
+        run: |
+          PBXPROJ="apps/stage-pocket/ios/App/App.xcodeproj/project.pbxproj"
+          VERSION="$(sed -n 's/.*MARKETING_VERSION = \(.*\);/\1/p' "$PBXPROJ" | head -1 | tr -d ' ')"
+          BUILD_NUMBER="$(sed -n 's/.*CURRENT_PROJECT_VERSION = \(.*\);/\1/p' "$PBXPROJ" | head -1 | tr -d ' ')"
+
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+
       - name: Archive iOS
         run: |
           xcodebuild archive \
@@ -78,7 +103,7 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
             PROVISIONING_PROFILE_SPECIFIER="AIRI CI" \
-            CURRENT_PROJECT_VERSION=${{ github.run_number }}
+            CURRENT_PROJECT_VERSION=${{ env.BUILD_NUMBER }}
 
       - name: Export IPA
         run: |
@@ -89,9 +114,8 @@ jobs:
 
       - name: Rename IPA for distribution
         run: |
-          VERSION="$(sed -n 's/.*MARKETING_VERSION = \(.*\);/\1/p' apps/stage-pocket/ios/App/App.xcodeproj/project.pbxproj | head -1 | tr -d ' ')"
           IPA_SOURCE="$(find "$RUNNER_TEMP/output" -name '*.ipa' -print -quit)"
-          IPA_NAME="${PRODUCT_NAME}-${VERSION}-ios.ipa"
+          IPA_NAME="${PRODUCT_NAME}-${VERSION}_(${BUILD_NUMBER})-ios.ipa"
 
           mv "$IPA_SOURCE" "$RUNNER_TEMP/output/$IPA_NAME"
 
@@ -103,6 +127,30 @@ jobs:
           name: ${{ env.IPA_NAME }}
           path: ${{ runner.temp }}/output/${{ env.IPA_NAME }}
           if-no-files-found: error
+
+      - name: Install Transporter
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.no_testflight_upload }}
+        run: |
+          curl -fsSL "https://itunesconnect.apple.com/WebObjects/iTunesConnect.woa/ra/resources/download/public/Transporter__OSX/bin/" -o "$RUNNER_TEMP/itmstransporter.pkg"
+          sudo installer -pkg "$RUNNER_TEMP/itmstransporter.pkg" -target /
+          rm -f "$RUNNER_TEMP/itmstransporter.pkg"
+
+      - name: Upload to TestFlight
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.no_testflight_upload }}
+        uses: apple-actions/upload-testflight-build@v4
+        with:
+          app-path: ${{ runner.temp }}/output/${{ env.IPA_NAME }}
+          issuer-id: ${{ secrets.APPSTORE_CONNECT_API_ISSUER_ID }}
+          api-key-id: ${{ secrets.APPSTORE_CONNECT_API_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_CONNECT_API_KEY }}
+
+      - name: Upload to GitHub Releases
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.no_release_upload }}
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ runner.temp }}/output/${{ env.IPA_NAME }}
+          append_body: true
+          tag_name: ${{ inputs.release_upload_tag }}
 
       - name: Clean up signing
         if: always()

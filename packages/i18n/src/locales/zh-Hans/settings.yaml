@@ -115,6 +115,8 @@ live2d:
     title: 禁用模型鼠标跟踪
     button-disable:
       title: 禁用live2D模型鼠标追踪
+  render-scale:
+    title: Render scale
   fps:
     title: 帧率
     description: 限制渲染帧率
@@ -1069,6 +1071,8 @@ theme:
 title: 设置
 voices: 声线
 vrm:
+  render-scale:
+    title: Render scale
   change-model:
     from-file: 从文件加载
     from-file-select: 选择

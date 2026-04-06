@@ -21,7 +21,9 @@ const {
 } = useElectronAutoUpdater()
 
 const isDisabled = computed(() => updateState.value.status === 'disabled')
-const isLatestVersion = computed(() => updateState.value.status === 'idle' && !updateState.value.info && !isDisabled.value)
+const isLatestVersion = computed(() => {
+  return updateState.value.status === 'not-available' && !isDisabled.value
+})
 const isError = computed(() => updateState.value.status === 'error')
 
 const links = [
@@ -32,6 +34,21 @@ const links = [
 
 const showChangelog = ref(false)
 const { isDesktop } = useBreakpoints()
+
+const isWindowsUpdater = computed(() => {
+  return updateState.value.diagnostics?.platform === 'win32'
+})
+
+const downloadedStatusText = computed(() => {
+  if (isWindowsUpdater.value)
+    return `Update ready to install silently (v${updateState.value.info?.version}).`
+
+  return `Update ready to install on restart (v${updateState.value.info?.version}).`
+})
+
+const restartButtonLabel = computed(() => {
+  return isWindowsUpdater.value ? 'Restart to update silently' : 'Restart to install update'
+})
 
 function handleDownloadClick() {
   if (updateState.value.info?.releaseNotes)
@@ -122,14 +139,14 @@ const releaseNotesContent = computed(() => {
           <!-- State: Downloaded -->
           <div v-else-if="updateState.status === 'downloaded'" :class="['flex flex-col gap-4']">
             <div :class="['text-sm text-emerald-600 dark:text-emerald-400']">
-              Update ready to install (v{{ updateState.info?.version }}).
+              {{ downloadedStatusText }}
             </div>
             <div>
               <DoubleCheckButton
                 variant="primary"
                 @confirm="quitAndInstall()"
               >
-                Restart to update
+                {{ restartButtonLabel }}
                 <template #confirm>
                   Confirm Restart
                 </template>
@@ -145,12 +162,15 @@ const releaseNotesContent = computed(() => {
             <div v-if="isError" :class="['text-sm text-red-600 dark:text-red-400']">
               Error: {{ updateState.error?.message }}
             </div>
+            <div v-else-if="isLatestVersion" :class="['text-sm text-emerald-600 dark:text-emerald-400']">
+              Up to date (v{{ buildInfo.version }}).
+            </div>
 
             <div :class="['flex flex-wrap gap-2']">
               <Button
                 :variant="isError ? 'caution' : 'secondary'"
                 :loading="isBusy"
-                :disabled="isDisabled || (isLatestVersion && !isError)"
+                :disabled="isDisabled"
                 :icon="isLatestVersion ? 'i-solar:check-circle-outline' : isDisabled ? 'i-solar:forbidden-circle-outline' : 'i-solar:refresh-outline'"
                 :label="isBusy ? 'Checking...' : isLatestVersion ? 'Latest version' : isDisabled ? 'Updates disabled in Dev' : isError ? 'Retry Check' : 'Check for updates'"
                 @click="checkForUpdates()"

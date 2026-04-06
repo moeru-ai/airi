@@ -7,10 +7,10 @@ chat:
   reasoning: 推理
 message: 說點什麼...
 send-mode:
-  title: Send key
+  title: 傳送按鍵
   enter: Enter
   ctrl-enter: Ctrl + Enter
-  double-enter: Double Enter
+  double-enter: Enter + Enter
 operations:
   load-models: 載入模型
   load-models-status:
@@ -36,17 +36,17 @@ viewers:
       model:
         title: 模型
 profile-switcher:
-  no-profile: No Profile
-  no-profiles: No profiles yet
-  save-as-new: Save as New Profile
-  new-profile-name: Profile name
-  manage: Manage Profiles
+  no-profile: 無設定檔
+  no-profiles: 暫時沒有設定檔
+  save-as-new: 儲存為新設定檔
+  new-profile-name: 設定檔名稱
+  manage: 管理設定檔
 promo-banner:
   items:
     signin:
       watermark: Moon
       fallbackLabel: Moon Gift
-      title: 7-Day Sign-In
+      title: 7日簽到
       eventName: Sign in to claim stardust, avatar frames, and launch gifts.
       date: 03/28 - 04/10
       reward: Up to 120 Stardust
@@ -58,9 +58,9 @@ promo-banner:
       eventName: Finish construction tasks to earn bonus vouchers and double materials.
       date: 03/30 - 04/12
       reward: 5 Supply Vouchers + Upgrade Materials
-      cta: View Tasks
+      cta: 查看任務
     spring:
-      watermark: Spring
+      watermark: 春天
       fallbackLabel: Spring Draw
       title: Capsule Carnival
       eventName: Join the spring draw to unlock bubbles, charms, and themed furniture.

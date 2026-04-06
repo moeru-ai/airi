@@ -11,6 +11,7 @@ describe('parseCaptureCliArguments', () => {
     ])).toEqual({
       scenarioPath: 'packages/scenarios-stage-tamagotchi-electron/src/scenarios/settings-connection.ts',
       outputDir: './artifacts/manual-run',
+      format: 'png',
     })
   })
 
@@ -22,6 +23,7 @@ describe('parseCaptureCliArguments', () => {
     ])).toEqual({
       scenarioPath: 'packages/scenarios-stage-tamagotchi-electron/src/scenarios/settings-connection.ts',
       outputDir: './artifacts/manual-run',
+      format: 'png',
     })
   })
 
@@ -32,6 +34,21 @@ describe('parseCaptureCliArguments', () => {
     ])).toEqual({
       scenarioPath: 'packages/scenarios-stage-tamagotchi-electron/src/scenarios/settings-connection.ts',
       outputDir: './artifacts/manual-run',
+      format: 'png',
+    })
+  })
+
+  it('accepts an optional --format flag', () => {
+    expect(parseCaptureCliArguments([
+      'packages/scenarios-stage-tamagotchi-electron/src/scenarios/settings-connection.ts',
+      '--output-dir',
+      './artifacts/manual-run',
+      '--format',
+      'avif',
+    ])).toEqual({
+      scenarioPath: 'packages/scenarios-stage-tamagotchi-electron/src/scenarios/settings-connection.ts',
+      outputDir: './artifacts/manual-run',
+      format: 'avif',
     })
   })
 
@@ -46,6 +63,16 @@ describe('parseCaptureCliArguments', () => {
     expect(() => parseCaptureCliArguments([
       'packages/scenarios-stage-tamagotchi-electron/src/scenarios/settings-connection.ts',
     ])).toThrow('Usage: capture <scenario.ts> --output-dir <dir>')
+  })
+
+  it('rejects unsupported output formats', () => {
+    expect(() => parseCaptureCliArguments([
+      'packages/scenarios-stage-tamagotchi-electron/src/scenarios/settings-connection.ts',
+      '--output-dir',
+      './artifacts/manual-run',
+      '--format',
+      'webp',
+    ])).toThrow('Unsupported capture format "webp". Expected "png" or "avif".')
   })
 
   it('rejects extra positional arguments', () => {

@@ -17,8 +17,7 @@ export interface BrowserCaptureRequest {
     deviceScaleFactor?: number
   }
 }
-
-export type VishotArtifactKind = 'image' | 'video'
+export type VishotArtifactKind = 'image'
 export type VishotArtifactStage = 'browser-final' | 'electron-raw'
 
 export interface VishotArtifact {
