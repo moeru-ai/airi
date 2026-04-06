@@ -71,8 +71,12 @@ async function main() {
     exit(0)
   }
 
-  process.on('SIGINT', () => { void close() })
-  process.on('SIGTERM', () => { void close() })
+  process.on('SIGINT', () => {
+    void close()
+  })
+  process.on('SIGTERM', () => {
+    void close()
+  })
 }
 
 if (import.meta.main) {
