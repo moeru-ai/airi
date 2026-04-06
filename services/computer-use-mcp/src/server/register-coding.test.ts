@@ -10,6 +10,7 @@ import { buildCodingApplyPatchBackendResult } from '../coding/result-shape'
 import { RunStateManager } from '../state'
 import { createTestConfig } from '../test-fixtures'
 import { registerCodingTools } from './register-coding'
+import { initializeGlobalRegistry } from './tool-descriptors'
 
 type ToolHandler = (args: Record<string, unknown>) => Promise<CallToolResult>
 
@@ -20,7 +21,7 @@ function createMockServer() {
     server: {
       tool(...args: unknown[]) {
         const name = args[0] as string
-        const handler = args[args.length - 1] as ToolHandler
+        const handler = args.at(-1) as ToolHandler
         handlers.set(name, handler)
       },
     } as unknown as McpServer,
@@ -39,6 +40,7 @@ describe('registerCodingTools', () => {
   let runtime: ComputerUseServerRuntime
 
   beforeEach(() => {
+    initializeGlobalRegistry()
     runtime = {
       config: createTestConfig(),
       stateManager: new RunStateManager(),

@@ -14,6 +14,7 @@ import {
   createTestConfig,
 } from '../test-fixtures'
 import { registerComputerUseTools } from './register-tools'
+import { createRuntimeCoordinator } from './runtime-coordinator'
 
 type ToolHandler = (args: Record<string, unknown>) => Promise<CallToolResult>
 
@@ -24,7 +25,7 @@ function createMockServer() {
     server: {
       tool(...args: unknown[]) {
         const name = args[0] as string
-        const handler = args[args.length - 1] as ToolHandler
+        const handler = args.at(-1) as ToolHandler
         handlers.set(name, handler)
       },
     } as unknown as McpServer,
@@ -96,6 +97,7 @@ describe('registerComputerUseTools: workflow_coding_loop', () => {
       },
       taskMemory: {},
     } as unknown as ComputerUseServerRuntime
+    runtime.coordinator = createRuntimeCoordinator(runtime)
   })
 
   it('registers workflow_coding_loop as a first-class workflow tool', async () => {

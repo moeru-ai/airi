@@ -37,11 +37,23 @@ export {
   taskMemoryDescriptors,
   vscodeDescriptors,
 } from './all'
+// Helpers
+export {
+  getToolKind,
+  getToolLane,
+  getToolSummary,
+  isToolConcurrencySafe,
+  isToolReadOnly,
+  registerToolWithDescriptor,
+  requireDescriptor,
+  toolRequiresApprovalByDefault,
+  validateToolsHaveDescriptors,
+} from './register-helper'
+
 // Registry
 export type { ToolQueryOptions } from './registry'
-
 export { globalRegistry, ToolDescriptorRegistry } from './registry'
+
 // Types
 export type { ToolDescriptor, ToolKind, ToolLane } from './types'
-
 export { isToolDescriptor, validateDescriptor } from './types'

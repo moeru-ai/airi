@@ -39,7 +39,8 @@ function createMockServer() {
 
   return {
     server: {
-      tool(name: string, _schema: unknown, handler: ToolHandler) {
+      tool(name: string, arg2: any, arg3: any, arg4?: any) {
+        const handler = typeof arg4 === 'function' ? arg4 : arg3
         handlers.set(name, handler)
       },
     } as unknown as McpServer,

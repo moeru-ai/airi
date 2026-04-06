@@ -24,6 +24,7 @@ import {
 } from '../terminal/pty-runner'
 import { textContent } from './content'
 import { buildApprovalResponse } from './responses'
+import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptors'
 
 export interface RegisterPtyToolsOptions {
   server: McpServer
@@ -232,10 +233,10 @@ export function registerPtyTools({ server, runtime }: RegisterPtyToolsOptions) {
     return { taskId: task.id, stepId: step?.stepId }
   }
 
-  server.tool(
-    'pty_get_status',
-    {},
-    async () => {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('pty_get_status'),
+    schema: {},
+    handler: async () => {
       const availability = await getPtyAvailabilityInfo()
       const sessions = availability.available ? listPtySessions() : []
       const trackedSessions = runtime.stateManager.getPtySessions()
@@ -261,11 +262,11 @@ export function registerPtyTools({ server, runtime }: RegisterPtyToolsOptions) {
         },
       }
     },
-  )
+  })
 
-  server.tool(
-    'pty_create',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('pty_create'),
+    schema: {
       rows: z.number().int().min(1).max(200).optional().describe('Terminal rows (default: 24)'),
       cols: z.number().int().min(1).max(500).optional().describe('Terminal columns (default: 80)'),
       cwd: z.string().optional().describe('Initial working directory'),
@@ -273,7 +274,7 @@ export function registerPtyTools({ server, runtime }: RegisterPtyToolsOptions) {
       workflowStepLabel: z.string().min(1).optional().describe('(deprecated) Workflow step label for backward compat'),
       approvalSessionId: z.string().min(1).optional().describe('(internal) Approval session id used to bind the PTY Open Grant'),
     },
-    async ({ rows, cols, cwd, stepId, workflowStepLabel, approvalSessionId }) => {
+    handler: async ({ rows, cols, cwd, stepId, workflowStepLabel, approvalSessionId }) => {
       const availability = await getPtyAvailabilityInfo()
       if (!availability.available) {
         return {
@@ -337,7 +338,7 @@ export function registerPtyTools({ server, runtime }: RegisterPtyToolsOptions) {
         approvalSessionId,
       })
     },
-  )
+  })
 
   const createSendInputHandler = (toolName: 'pty_send_input' | 'pty_write') => async ({ sessionId, data, approvalSessionId }: { sessionId: string, data: string, approvalSessionId?: string }) => {
     const grantError = requirePtyGrant({
@@ -392,18 +393,25 @@ export function registerPtyTools({ server, runtime }: RegisterPtyToolsOptions) {
   }
 
   // Primary name
-  server.tool('pty_send_input', sendInputSchema, createSendInputHandler('pty_send_input'))
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('pty_send_input'),
+    schema: sendInputSchema,
+    handler: createSendInputHandler('pty_send_input'),
+  })
   // Compat alias — kept for backward compatibility, not the canonical name
-  server.tool('pty_write', sendInputSchema, createSendInputHandler('pty_write'))
-
-  server.tool(
-    'pty_read_screen',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('pty_write'),
+    schema: sendInputSchema,
+    handler: createSendInputHandler('pty_write'),
+  })
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('pty_read_screen'),
+    schema: {
       sessionId: z.string().min(1).describe('PTY session id'),
       maxLines: z.number().int().min(1).max(500).optional().describe('Maximum lines to return from the terminal buffer (default: terminal rows)'),
       approvalSessionId: z.string().min(1).optional().describe('(internal) Approval session id used to validate the PTY Open Grant'),
     },
-    async ({ sessionId, maxLines, approvalSessionId }) => {
+    handler: async ({ sessionId, maxLines, approvalSessionId }) => {
       const grantError = requirePtyGrant({
         runtime,
         operation: 'pty_read_screen',
@@ -460,17 +468,17 @@ export function registerPtyTools({ server, runtime }: RegisterPtyToolsOptions) {
         }
       }
     },
-  )
+  })
 
-  server.tool(
-    'pty_resize',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('pty_resize'),
+    schema: {
       sessionId: z.string().min(1).describe('PTY session id'),
       cols: z.number().int().min(1).max(500).describe('New terminal column count'),
       rows: z.number().int().min(1).max(200).describe('New terminal row count'),
       approvalSessionId: z.string().min(1).optional().describe('(internal) Approval session id used to validate the PTY Open Grant'),
     },
-    async ({ sessionId, cols, rows, approvalSessionId }) => {
+    handler: async ({ sessionId, cols, rows, approvalSessionId }) => {
       const grantError = requirePtyGrant({
         runtime,
         operation: 'pty_resize',
@@ -515,15 +523,15 @@ export function registerPtyTools({ server, runtime }: RegisterPtyToolsOptions) {
         }
       }
     },
-  )
+  })
 
-  server.tool(
-    'pty_destroy',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('pty_destroy'),
+    schema: {
       sessionId: z.string().min(1).describe('PTY session id to destroy'),
       approvalSessionId: z.string().min(1).optional().describe('(internal) Approval session id used to validate the PTY Open Grant'),
     },
-    async ({ sessionId, approvalSessionId }) => {
+    handler: async ({ sessionId, approvalSessionId }) => {
       const grantError = requirePtyGrant({
         runtime,
         operation: 'pty_destroy',
@@ -559,7 +567,7 @@ export function registerPtyTools({ server, runtime }: RegisterPtyToolsOptions) {
         },
       }
     },
-  )
+  })
 }
 
 // ---------------------------------------------------------------------------

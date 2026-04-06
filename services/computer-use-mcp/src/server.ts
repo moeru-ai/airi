@@ -13,6 +13,7 @@ import { registerDisplayTools } from './server/register-display'
 import { destroyAllPtySessions, registerPtyTools } from './server/register-pty'
 import { registerTaskMemoryTools } from './server/register-task-memory'
 import { registerToolDirectory } from './server/register-tool-directory'
+import { registerToolSearch } from './server/register-tool-search'
 import { registerComputerUseTools } from './server/register-tools'
 import { registerVscodeTools } from './server/register-vscode'
 import { createRuntime } from './server/runtime'
@@ -36,6 +37,7 @@ export async function createComputerUseMcpServer(config = resolveComputerUseConf
 
   // Register the tool directory first (meta-tool for introspection)
   registerToolDirectory({ server })
+  registerToolSearch({ server })
 
   registerComputerUseTools({
     server,

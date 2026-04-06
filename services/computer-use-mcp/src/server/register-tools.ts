@@ -36,6 +36,7 @@ import {
 } from './formatters'
 import { registerCodingTools } from './register-coding'
 import { createAcquirePtyCallback, executeApprovedPtyCreate } from './register-pty'
+import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptors/register-helper'
 import { formatWorkflowStructuredContent } from './workflow-formatter'
 import { createWorkflowPrepToolExecutor } from './workflow-prep-tools'
 
@@ -112,10 +113,11 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
   // workflow_resume and the approve handler can access it.
   let suspendedWorkflow: WorkflowSuspension | undefined
 
-  server.tool(
-    'desktop_get_capabilities',
-    {},
-    async () => {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('desktop_get_capabilities'),
+    schema: {},
+
+    handler: async () => {
       const snapshot = await coordinator.refreshSnapshot('tool_entry')
       const surfaceSummary = coordinator.getSurfaceSummary()
       const [permissionInfo] = await Promise.all([
@@ -181,13 +183,14 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         },
       }
     },
-  )
+  })
 
   if (enableTestTools && runtime.executor.openTestTarget) {
-    server.tool(
-      'desktop_open_test_target',
-      {},
-      async () => {
+    registerToolWithDescriptor(server, {
+      descriptor: requireDescriptor('desktop_open_test_target'),
+      schema: {},
+
+      handler: async () => {
         const result = await runtime.executor.openTestTarget!()
 
         return {
@@ -203,110 +206,131 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
           },
         }
       },
-    )
+    })
   }
 
-  server.tool(
-    'desktop_observe_windows',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('desktop_observe_windows'),
+
+    schema: {
       limit: z.number().int().min(1).max(32).optional().describe('Maximum number of visible windows to return'),
       app: z.string().optional().describe('Optional app-name substring filter'),
     },
-    async input => executeAction({ kind: 'observe_windows', input }, 'desktop_observe_windows'),
-  )
 
-  server.tool(
-    'desktop_screenshot',
-    {
+    handler: async input => executeAction({ kind: 'observe_windows', input }, 'desktop_observe_windows'),
+  })
+
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('desktop_screenshot'),
+
+    schema: {
       label: z.string().optional().describe('Optional label for the saved screenshot file'),
     },
-    async ({ label }) => executeAction({ kind: 'screenshot', input: { label } }, 'desktop_screenshot'),
-  )
 
-  server.tool(
-    'desktop_open_app',
-    {
+    handler: async ({ label }) => executeAction({ kind: 'screenshot', input: { label } }, 'desktop_screenshot'),
+  })
+
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('desktop_open_app'),
+
+    schema: {
       app: z.string().min(1).describe('Application name from COMPUTER_USE_OPENABLE_APPS'),
     },
-    async (input: OpenAppActionInput) => executeAction({ kind: 'open_app', input }, 'desktop_open_app'),
-  )
 
-  server.tool(
-    'desktop_focus_app',
-    {
+    handler: async (input: OpenAppActionInput) => executeAction({ kind: 'open_app', input }, 'desktop_open_app'),
+  })
+
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('desktop_focus_app'),
+
+    schema: {
       app: z.string().min(1).describe('Application name from COMPUTER_USE_OPENABLE_APPS'),
     },
-    async (input: FocusAppActionInput) => executeAction({ kind: 'focus_app', input }, 'desktop_focus_app'),
-  )
 
-  server.tool(
-    'desktop_click',
-    {
+    handler: async (input: FocusAppActionInput) => executeAction({ kind: 'focus_app', input }, 'desktop_focus_app'),
+  })
+
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('desktop_click'),
+
+    schema: {
       x: z.number().describe('Absolute screen X coordinate in pixels'),
       y: z.number().describe('Absolute screen Y coordinate in pixels'),
       button: z.enum(['left', 'right', 'middle']).optional().describe('Mouse button, default left'),
       clickCount: z.number().int().min(1).max(2).optional().describe('Number of clicks, default 1'),
       captureAfter: z.boolean().optional().describe('Whether to return a fresh screenshot after the action'),
     },
-    async (input: ClickActionInput) => executeAction({ kind: 'click', input }, 'desktop_click'),
-  )
 
-  server.tool(
-    'desktop_type_text',
-    {
+    handler: async (input: ClickActionInput) => executeAction({ kind: 'click', input }, 'desktop_click'),
+  })
+
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('desktop_type_text'),
+
+    schema: {
       text: z.string().min(1).describe('Text to type into the focused UI element'),
       x: z.number().optional().describe('Optional X coordinate to click before typing'),
       y: z.number().optional().describe('Optional Y coordinate to click before typing'),
       pressEnter: z.boolean().optional().describe('Whether to press Enter after typing'),
       captureAfter: z.boolean().optional().describe('Whether to return a fresh screenshot after the action'),
     },
-    async (input: TypeTextActionInput) => executeAction({ kind: 'type_text', input }, 'desktop_type_text'),
-  )
 
-  server.tool(
-    'desktop_press_keys',
-    {
+    handler: async (input: TypeTextActionInput) => executeAction({ kind: 'type_text', input }, 'desktop_type_text'),
+  })
+
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('desktop_press_keys'),
+
+    schema: {
       keys: z.array(z.string()).min(1).describe('Single key chord, e.g. ["ctrl", "l"]'),
       captureAfter: z.boolean().optional().describe('Whether to return a fresh screenshot after the action'),
     },
-    async input => executeAction({ kind: 'press_keys', input }, 'desktop_press_keys'),
-  )
 
-  server.tool(
-    'desktop_scroll',
-    {
+    handler: async input => executeAction({ kind: 'press_keys', input }, 'desktop_press_keys'),
+  })
+
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('desktop_scroll'),
+
+    schema: {
       x: z.number().optional().describe('Optional X coordinate to move to before scrolling'),
       y: z.number().optional().describe('Optional Y coordinate to move to before scrolling'),
       deltaX: z.number().optional().describe('Horizontal scroll delta in pixels'),
       deltaY: z.number().describe('Vertical scroll delta in pixels'),
       captureAfter: z.boolean().optional().describe('Whether to return a fresh screenshot after the action'),
     },
-    async input => executeAction({ kind: 'scroll', input }, 'desktop_scroll'),
-  )
 
-  server.tool(
-    'desktop_wait',
-    {
+    handler: async input => executeAction({ kind: 'scroll', input }, 'desktop_scroll'),
+  })
+
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('desktop_wait'),
+
+    schema: {
       durationMs: z.number().int().min(0).max(30_000).describe('Wait time in milliseconds'),
       captureAfter: z.boolean().optional().describe('Whether to return a fresh screenshot after the wait'),
     },
-    async input => executeAction({ kind: 'wait', input }, 'desktop_wait'),
-  )
 
-  server.tool(
-    'terminal_exec',
-    {
+    handler: async input => executeAction({ kind: 'wait', input }, 'desktop_wait'),
+  })
+
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('terminal_exec'),
+
+    schema: {
       command: z.string().min(1).describe('Shell command to execute in the local background runner'),
       cwd: z.string().optional().describe('Optional working directory override'),
       timeoutMs: z.number().int().min(1).max(120_000).optional().describe('Optional timeout override in milliseconds'),
     },
-    async (input: TerminalExecActionInput) => executeAction({ kind: 'terminal_exec', input }, 'terminal_exec'),
-  )
 
-  server.tool(
-    'terminal_get_state',
-    {},
-    async () => {
+    handler: async (input: TerminalExecActionInput) => executeAction({ kind: 'terminal_exec', input }, 'terminal_exec'),
+  })
+
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('terminal_get_state'),
+    schema: {},
+
+    handler: async () => {
       const terminalState = runtime.session.getTerminalState()
       return {
         content: [
@@ -318,47 +342,56 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         },
       }
     },
-  )
+  })
 
-  server.tool(
-    'terminal_reset_state',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('terminal_reset_state'),
+
+    schema: {
       reason: z.string().optional().describe('Optional reset note for the audit log'),
     },
-    async input => executeAction({ kind: 'terminal_reset', input }, 'terminal_reset_state'),
-  )
 
-  server.tool(
-    'secret_read_env_value',
-    {
+    handler: async input => executeAction({ kind: 'terminal_reset', input }, 'terminal_reset_state'),
+  })
+
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('secret_read_env_value'),
+
+    schema: {
       filePath: z.string().min(1).describe('Absolute or explicit env file path to inspect, for example /Users/liuziheng/airi/.env'),
       keys: z.array(z.string().min(1)).min(1).max(16).describe('Candidate env variable names to try in order, e.g. ["AIRI_E2E_DISCORD_TOKEN", "DISCORD_BOT_TOKEN"]'),
       allowPlaceholder: z.boolean().optional().describe('Whether to allow obvious placeholder/template values such as replace-with-your-token'),
     },
-    async (input: SecretReadEnvValueActionInput) => executeAction({ kind: 'secret_read_env_value', input }, 'secret_read_env_value'),
-  )
 
-  server.tool(
-    'clipboard_read_text',
-    {
+    handler: async (input: SecretReadEnvValueActionInput) => executeAction({ kind: 'secret_read_env_value', input }, 'secret_read_env_value'),
+  })
+
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('clipboard_read_text'),
+
+    schema: {
       maxLength: z.number().int().min(1).max(32_768).optional().describe('Optional maximum number of characters to return from the clipboard'),
       trim: z.boolean().optional().describe('Whether to trim leading/trailing whitespace before returning the text (default: true)'),
     },
-    async input => executeAction({ kind: 'clipboard_read_text', input }, 'clipboard_read_text'),
-  )
 
-  server.tool(
-    'clipboard_write_text',
-    {
+    handler: async input => executeAction({ kind: 'clipboard_read_text', input }, 'clipboard_read_text'),
+  })
+
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('clipboard_write_text'),
+
+    schema: {
       text: z.string().describe('Text to place into the system clipboard'),
     },
-    async input => executeAction({ kind: 'clipboard_write_text', input }, 'clipboard_write_text'),
-  )
 
-  server.tool(
-    'browser_dom_get_bridge_status',
-    {},
-    async () => {
+    handler: async input => executeAction({ kind: 'clipboard_write_text', input }, 'clipboard_write_text'),
+  })
+
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('browser_dom_get_bridge_status'),
+    schema: {},
+
+    handler: async () => {
       const bridge = runtime.browserDomBridge.getStatus()
       return {
         content: [
@@ -370,12 +403,13 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         },
       }
     },
-  )
+  })
 
-  server.tool(
-    'browser_dom_get_active_tab',
-    {},
-    async () => {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('browser_dom_get_active_tab'),
+    schema: {},
+
+    handler: async () => {
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
 
@@ -391,17 +425,19 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         },
       }
     },
-  )
+  })
 
-  server.tool(
-    'browser_dom_read_page',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('browser_dom_read_page'),
+
+    schema: {
       includeText: z.boolean().optional().describe('Whether to include truncated body text for each frame'),
       maxElements: z.number().int().min(1).max(500).optional().describe('Maximum interactive elements per frame to collect'),
       tabId: optionalTabIdSchema,
       frameIds: optionalFrameIdsSchema,
     },
-    async ({ includeText, maxElements, tabId, frameIds }) => {
+
+    handler: async ({ includeText, maxElements, tabId, frameIds }) => {
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
 
@@ -429,17 +465,19 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         },
       }
     },
-  )
+  })
 
-  server.tool(
-    'browser_dom_find_elements',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('browser_dom_find_elements'),
+
+    schema: {
       selector: z.string().min(1).describe('CSS selector to query in the active tab frames'),
       maxResults: z.number().int().min(1).max(50).optional().describe('Maximum matched elements to include per frame'),
       tabId: optionalTabIdSchema,
       frameIds: optionalFrameIdsSchema,
     },
-    async ({ selector, maxResults, tabId, frameIds }) => {
+
+    handler: async ({ selector, maxResults, tabId, frameIds }) => {
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
 
@@ -461,16 +499,18 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         },
       }
     },
-  )
+  })
 
-  server.tool(
-    'browser_dom_click',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('browser_dom_click'),
+
+    schema: {
       selector: z.string().min(1).describe('CSS selector to click via the browser extension bridge'),
       tabId: optionalTabIdSchema,
       frameIds: optionalFrameIdsSchema,
     },
-    async ({ selector, tabId, frameIds }) => {
+
+    handler: async ({ selector, tabId, frameIds }) => {
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
 
@@ -491,16 +531,18 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         },
       }
     },
-  )
+  })
 
-  server.tool(
-    'browser_dom_read_input_value',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('browser_dom_read_input_value'),
+
+    schema: {
       selector: z.string().min(1).describe('CSS selector for the input/select/textarea element'),
       tabId: optionalTabIdSchema,
       frameIds: optionalFrameIdsSchema,
     },
-    async ({ selector, tabId, frameIds }) => {
+
+    handler: async ({ selector, tabId, frameIds }) => {
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
 
@@ -521,11 +563,12 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         },
       }
     },
-  )
+  })
 
-  server.tool(
-    'browser_dom_set_input_value',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('browser_dom_set_input_value'),
+
+    schema: {
       selector: z.string().min(1).describe('CSS selector for the input/select/textarea element'),
       value: z.string().describe('Value to assign to the matched element'),
       simulateKeystrokes: z.boolean().optional().describe('Whether to emit a per-character key/input chain'),
@@ -533,7 +576,8 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       tabId: optionalTabIdSchema,
       frameIds: optionalFrameIdsSchema,
     },
-    async ({ selector, value, simulateKeystrokes, blur, tabId, frameIds }) => {
+
+    handler: async ({ selector, value, simulateKeystrokes, blur, tabId, frameIds }) => {
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
 
@@ -558,17 +602,19 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         },
       }
     },
-  )
+  })
 
-  server.tool(
-    'browser_dom_check_checkbox',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('browser_dom_check_checkbox'),
+
+    schema: {
       selector: z.string().min(1).describe('CSS selector for the checkbox or radio-like element'),
       checked: z.boolean().optional().describe('Target checked state; omit to toggle'),
       tabId: optionalTabIdSchema,
       frameIds: optionalFrameIdsSchema,
     },
-    async ({ selector, checked, tabId, frameIds }) => {
+
+    handler: async ({ selector, checked, tabId, frameIds }) => {
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
 
@@ -591,17 +637,19 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         },
       }
     },
-  )
+  })
 
-  server.tool(
-    'browser_dom_select_option',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('browser_dom_select_option'),
+
+    schema: {
       selector: z.string().min(1).describe('CSS selector for the <select> element'),
       value: z.string().min(1).describe('Option value or visible text to select'),
       tabId: optionalTabIdSchema,
       frameIds: optionalFrameIdsSchema,
     },
-    async ({ selector, value, tabId, frameIds }) => {
+
+    handler: async ({ selector, value, tabId, frameIds }) => {
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
 
@@ -624,17 +672,19 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         },
       }
     },
-  )
+  })
 
-  server.tool(
-    'browser_dom_wait_for_element',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('browser_dom_wait_for_element'),
+
+    schema: {
       selector: z.string().min(1).describe('CSS selector to wait for'),
       timeoutMs: z.number().int().min(1).max(30_000).optional().describe('How long to wait before timing out'),
       tabId: optionalTabIdSchema,
       frameIds: optionalFrameIdsSchema,
     },
-    async ({ selector, timeoutMs, tabId, frameIds }) => {
+
+    handler: async ({ selector, timeoutMs, tabId, frameIds }) => {
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
 
@@ -657,16 +707,18 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         },
       }
     },
-  )
+  })
 
-  server.tool(
-    'browser_dom_get_element_attributes',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('browser_dom_get_element_attributes'),
+
+    schema: {
       selector: z.string().min(1).describe('CSS selector for the target element'),
       tabId: optionalTabIdSchema,
       frameIds: optionalFrameIdsSchema,
     },
-    async ({ selector, tabId, frameIds }) => {
+
+    handler: async ({ selector, tabId, frameIds }) => {
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
 
@@ -687,17 +739,19 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         },
       }
     },
-  )
+  })
 
-  server.tool(
-    'browser_dom_get_computed_styles',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('browser_dom_get_computed_styles'),
+
+    schema: {
       selector: z.string().min(1).describe('CSS selector for the target element'),
       properties: z.array(z.string()).min(1).max(32).optional().describe('Optional subset of CSS properties to return'),
       tabId: optionalTabIdSchema,
       frameIds: optionalFrameIdsSchema,
     },
-    async ({ selector, properties, tabId, frameIds }) => {
+
+    handler: async ({ selector, properties, tabId, frameIds }) => {
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
 
@@ -719,11 +773,12 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         },
       }
     },
-  )
+  })
 
-  server.tool(
-    'browser_dom_trigger_event',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('browser_dom_trigger_event'),
+
+    schema: {
       selector: z.string().min(1).describe('CSS selector for the target element'),
       eventName: z.string().min(1).describe('Event name to dispatch, e.g. click, input, change'),
       eventType: z.enum(['Event', 'MouseEvent', 'KeyboardEvent', 'InputEvent', 'FocusEvent']).optional().describe('DOM event constructor to use'),
@@ -731,7 +786,8 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       tabId: optionalTabIdSchema,
       frameIds: optionalFrameIdsSchema,
     },
-    async ({ selector, eventName, eventType, optsJson, tabId, frameIds }) => {
+
+    handler: async ({ selector, eventName, eventType, optsJson, tabId, frameIds }) => {
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
 
@@ -788,12 +844,13 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         },
       }
     },
-  )
+  })
 
-  server.tool(
-    'desktop_list_pending_actions',
-    {},
-    async () => {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('desktop_list_pending_actions'),
+    schema: {},
+
+    handler: async () => {
       const pendingActions = runtime.session.listPendingActions()
 
       return {
@@ -806,14 +863,16 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         },
       }
     },
-  )
+  })
 
-  server.tool(
-    'desktop_approve_pending_action',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('desktop_approve_pending_action'),
+
+    schema: {
       id: z.string().min(1).describe('Pending action id returned by another desktop tool'),
     },
-    async ({ id }) => {
+
+    handler: async ({ id }) => {
       const pending = runtime.session.getPendingAction(id)
       if (!pending) {
         return {
@@ -862,15 +921,17 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         skipApprovalQueue: true,
       })
     },
-  )
+  })
 
-  server.tool(
-    'desktop_reject_pending_action',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('desktop_reject_pending_action'),
+
+    schema: {
       id: z.string().min(1).describe('Pending action id returned by another desktop tool'),
       reason: z.string().optional().describe('Optional rejection note for the audit log'),
     },
-    async ({ id, reason }) => {
+
+    handler: async ({ id, reason }) => {
       const pending = runtime.session.getPendingAction(id)
       if (!pending) {
         return {
@@ -907,14 +968,16 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         },
       }
     },
-  )
+  })
 
-  server.tool(
-    'desktop_get_session_trace',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('desktop_get_session_trace'),
+
+    schema: {
       limit: z.number().int().min(1).max(200).optional().describe('How many recent trace entries to return'),
     },
-    async ({ limit }) => {
+
+    handler: async ({ limit }) => {
       const trace = runtime.session.getRecentTrace(limit)
       return {
         content: [
@@ -926,16 +989,17 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         },
       }
     },
-  )
+  })
 
   // ---------------------------------------------------------------------------
   // Run-level state tool
   // ---------------------------------------------------------------------------
 
-  server.tool(
-    'desktop_get_state',
-    {},
-    async () => {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('desktop_get_state'),
+    schema: {},
+
+    handler: async () => {
       await refreshWorkflowRunState()
 
       const state = runtime.stateManager.getState()
@@ -949,7 +1013,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         },
       }
     },
-  )
+  })
 
   // ---------------------------------------------------------------------------
   // Workflow tools — unified outward formatter
@@ -969,15 +1033,17 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     }
   }
 
-  server.tool(
-    'workflow_open_workspace',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('workflow_open_workspace'),
+
+    schema: {
       projectPath: z.string().min(1).describe('Absolute path to the project directory'),
       ideApp: z.string().optional().describe('IDE application to open the workspace with (default: Cursor)'),
       fileManagerApp: z.string().optional().describe('File manager to reveal the workspace in (default: Finder)'),
       autoApprove: z.boolean().optional().describe('Skip per-step approval for workflow actions (default: true)'),
     },
-    async ({ projectPath, ideApp, fileManagerApp, autoApprove }) => {
+
+    handler: async ({ projectPath, ideApp, fileManagerApp, autoApprove }) => {
       const workflow = createDevOpenWorkspaceWorkflow({ projectPath, ideApp, fileManagerApp })
       const result = await executeWorkflow({
         workflow,
@@ -994,11 +1060,12 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
 
       return formatWorkflowResult(workflow.id, result)
     },
-  )
+  })
 
-  server.tool(
-    'workflow_validate_workspace',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('workflow_validate_workspace'),
+
+    schema: {
       projectPath: z.string().min(1).describe('Absolute path to the project directory'),
       ideApp: z.string().optional().describe('IDE application to open the workspace with (default: Cursor)'),
       fileManagerApp: z.string().optional().describe('File manager to reveal the workspace in (default: Finder)'),
@@ -1006,7 +1073,8 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       checkCommand: z.string().optional().describe('Validation command to run from the workspace root (default: pnpm typecheck)'),
       autoApprove: z.boolean().optional().describe('Skip per-step approval for workflow actions (default: true)'),
     },
-    async ({ projectPath, ideApp, fileManagerApp, changesCommand, checkCommand, autoApprove }) => {
+
+    handler: async ({ projectPath, ideApp, fileManagerApp, changesCommand, checkCommand, autoApprove }) => {
       const workflow = createDevValidateWorkspaceWorkflow({
         projectPath,
         ideApp,
@@ -1029,16 +1097,18 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
 
       return formatWorkflowResult(workflow.id, result)
     },
-  )
+  })
 
-  server.tool(
-    'workflow_run_tests',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('workflow_run_tests'),
+
+    schema: {
       projectPath: z.string().min(1).describe('Absolute path to the project directory'),
       testCommand: z.string().optional().describe('Shell command to run tests (default: pnpm test:run)'),
       autoApprove: z.boolean().optional().describe('Skip per-step approval for workflow actions (default: true)'),
     },
-    async ({ projectPath, testCommand, autoApprove }) => {
+
+    handler: async ({ projectPath, testCommand, autoApprove }) => {
       const workflow = createDevRunTestsWorkflow({ projectPath, testCommand })
       const result = await executeWorkflow({
         workflow,
@@ -1056,16 +1126,18 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
 
       return formatWorkflowResult(workflow.id, result)
     },
-  )
+  })
 
-  server.tool(
-    'workflow_inspect_failure',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('workflow_inspect_failure'),
+
+    schema: {
       ideApp: z.string().optional().describe('IDE application to focus (default: Cursor)'),
       diagnosticCommand: z.string().optional().describe('Optional command to re-run for fresh error output'),
       autoApprove: z.boolean().optional().describe('Skip per-step approval for workflow actions (default: true)'),
     },
-    async ({ ideApp, diagnosticCommand, autoApprove }) => {
+
+    handler: async ({ ideApp, diagnosticCommand, autoApprove }) => {
       const workflow = createDevInspectFailureWorkflow({ ideApp, diagnosticCommand })
       const result = await executeWorkflow({
         workflow,
@@ -1081,17 +1153,19 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
 
       return formatWorkflowResult(workflow.id, result)
     },
-  )
+  })
 
-  server.tool(
-    'workflow_browse_and_act',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('workflow_browse_and_act'),
+
+    schema: {
       app: z.string().optional().describe('Application to open (default: Google Chrome)'),
       goal: z.string().optional().describe('Short description of what to accomplish'),
       url: z.string().optional().describe('Optional URL to navigate to in the browser'),
       autoApprove: z.boolean().optional().describe('Skip per-step approval for workflow actions (default: true)'),
     },
-    async ({ app, goal, url, autoApprove }) => {
+
+    handler: async ({ app, goal, url, autoApprove }) => {
       const workflow = createAppBrowseAndActWorkflow({ app, goal, url })
       const result = await executeWorkflow({
         workflow,
@@ -1107,11 +1181,12 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
 
       return formatWorkflowResult(workflow.id, result)
     },
-  )
+  })
 
-  server.tool(
-    'workflow_coding_loop',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('workflow_coding_loop'),
+
+    schema: {
       workspacePath: z.string().min(1).describe('Absolute path to the workspace root.'),
       taskGoal: z.string().min(1).describe('High-level description of the coding task to accomplish.'),
       targetFile: z.string().min(1).optional().describe('Optional workspace-relative file path to inspect and patch. If omitted, workflow attempts auto-resolution from search output.'),
@@ -1126,7 +1201,8 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       testCommand: z.string().optional().describe('Optional validation command to run after patching (default: auto scoped validation).'),
       autoApprove: z.boolean().optional().describe('Skip per-step approval for workflow actions (default: true)'),
     },
-    async ({ workspacePath, taskGoal, targetFile, searchQuery, targetSymbol, targetLine, targetColumn, allowMultiFile, maxPlannedFiles, patchOld, patchNew, testCommand, autoApprove }) => {
+
+    handler: async ({ workspacePath, taskGoal, targetFile, searchQuery, targetSymbol, targetLine, targetColumn, allowMultiFile, maxPlannedFiles, patchOld, patchNew, testCommand, autoApprove }) => {
       if (!targetFile && !searchQuery && !targetSymbol) {
         return {
           isError: true,
@@ -1166,11 +1242,12 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
 
       return formatWorkflowResult(workflow.id, result)
     },
-  )
+  })
 
-  server.tool(
-    'workflow_coding_agentic_loop',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('workflow_coding_agentic_loop'),
+
+    schema: {
       workspacePath: z.string().min(1).describe('Absolute path to the workspace root.'),
       taskGoal: z.string().min(1).describe('High-level description of the coding task to accomplish.'),
       targetFile: z.string().min(1).optional().describe('Optional workspace-relative file path to inspect and patch. If omitted, workflow attempts auto-resolution from search output.'),
@@ -1186,7 +1263,8 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       testCommand: z.string().optional().describe('Optional validation command to run after patching (default: auto scoped validation).'),
       autoApprove: z.boolean().optional().describe('Skip per-step approval for workflow actions (default: true)'),
     },
-    async ({ workspacePath, taskGoal, targetFile, searchQuery, targetSymbol, targetLine, targetColumn, allowMultiFile, maxPlannedFiles, changeIntent, patchOld, patchNew, testCommand, autoApprove }) => {
+
+    handler: async ({ workspacePath, taskGoal, targetFile, searchQuery, targetSymbol, targetLine, targetColumn, allowMultiFile, maxPlannedFiles, changeIntent, patchOld, patchNew, testCommand, autoApprove }) => {
       if (!targetFile && !searchQuery && !targetSymbol) {
         return {
           isError: true,
@@ -1227,15 +1305,17 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
 
       return formatWorkflowResult(workflow.id, result)
     },
-  )
+  })
 
-  server.tool(
-    'workflow_resume',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('workflow_resume'),
+
+    schema: {
       approved: z.boolean().optional().describe('Whether the pending step was approved (default: true)'),
       autoApprove: z.boolean().optional().describe('Skip per-step approval for remaining steps (default: true)'),
     },
-    async ({ approved, autoApprove }) => {
+
+    handler: async ({ approved, autoApprove }) => {
       if (!suspendedWorkflow) {
         return {
           isError: true,
@@ -1263,5 +1343,5 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
 
       return formatWorkflowResult(suspension.workflow.id, result)
     },
-  )
+  })
 }

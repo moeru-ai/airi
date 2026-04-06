@@ -2,6 +2,10 @@
  * Tool Descriptor Registry Tests
  */
 
+import { readdirSync, readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -10,6 +14,7 @@ import {
   createPopulatedRegistry,
   globalRegistry,
   initializeGlobalRegistry,
+  validateToolsHaveDescriptors,
 } from './index'
 import { validateDescriptor } from './types'
 
@@ -152,6 +157,35 @@ describe('toolDescriptorRegistry', () => {
       const results = globalRegistry.query({ lane: 'desktop' })
 
       expect(results.length).toBeGreaterThan(0)
+    })
+
+    it('should have zero missing and orphan descriptors against register-* descriptor usage', () => {
+      initializeGlobalRegistry()
+
+      const descriptorsDir = dirname(fileURLToPath(import.meta.url))
+      const serverDir = resolve(descriptorsDir, '..')
+      const registerFiles = readdirSync(serverDir)
+        .filter(fileName => fileName.startsWith('register-'))
+        .filter(fileName => fileName.endsWith('.ts'))
+        .filter(fileName => !fileName.endsWith('.test.ts'))
+
+      const toolNames = new Set<string>()
+      const requireDescriptorPattern = /requireDescriptor\(\s*['"]([^'"]+)['"]\s*\)/g
+
+      for (const fileName of registerFiles) {
+        const source = readFileSync(resolve(serverDir, fileName), 'utf8')
+        for (const match of source.matchAll(requireDescriptorPattern)) {
+          const name = match[1]
+          if (name)
+            toolNames.add(name)
+        }
+      }
+
+      const result = validateToolsHaveDescriptors(Array.from(toolNames))
+
+      expect(result.valid).toBe(true)
+      expect(result.missing).toEqual([])
+      expect(result.orphans).toEqual([])
     })
   })
 

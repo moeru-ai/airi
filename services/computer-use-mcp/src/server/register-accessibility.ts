@@ -6,6 +6,7 @@ import { z } from 'zod'
 
 import { captureAXTree, formatAXSnapshotAsText } from '../accessibility'
 import { textContent } from './content'
+import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptors'
 
 export interface RegisterAccessibilityToolsOptions {
   server: McpServer
@@ -13,16 +14,16 @@ export interface RegisterAccessibilityToolsOptions {
 }
 
 export function registerAccessibilityTools({ server, runtime }: RegisterAccessibilityToolsOptions) {
-  server.tool(
-    'accessibility_snapshot',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('accessibility_snapshot'),
+    schema: {
       pid: z.number().int().min(1).optional().describe('Target a specific process by PID; defaults to the frontmost application'),
       maxDepth: z.number().int().min(1).max(30).optional().describe('Maximum tree depth to traverse (default: 15)'),
       maxNodes: z.number().int().min(1).max(10000).optional().describe('Maximum total nodes to collect (default: 2000)'),
       verbose: z.boolean().optional().describe('Include all nodes, even those with empty roles/titles'),
       includeBounds: z.boolean().optional().describe('Include screen-coordinate bounding rects in the text output'),
     },
-    async ({ pid, maxDepth, maxNodes, verbose, includeBounds }) => {
+    handler: async ({ pid, maxDepth, maxNodes, verbose, includeBounds }) => {
       try {
         const snapshot = await captureAXTree(runtime.config, {
           pid,
@@ -64,17 +65,17 @@ export function registerAccessibilityTools({ server, runtime }: RegisterAccessib
         }
       }
     },
-  )
+  })
 
-  server.tool(
-    'accessibility_find_element',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('accessibility_find_element'),
+    schema: {
       role: z.string().optional().describe('AX role to search for, e.g. AXButton, AXTextField'),
       title: z.string().optional().describe('Title substring to match (case-insensitive)'),
       pid: z.number().int().min(1).optional().describe('Target process PID; defaults to frontmost app'),
       maxResults: z.number().int().min(1).max(50).optional().describe('Maximum matches to return (default: 10)'),
     },
-    async ({ role, title, pid, maxResults }) => {
+    handler: async ({ role, title, pid, maxResults }) => {
       try {
         const snapshot = await captureAXTree(runtime.config, {
           pid,
@@ -137,5 +138,5 @@ export function registerAccessibilityTools({ server, runtime }: RegisterAccessib
         }
       }
     },
-  )
+  })
 }

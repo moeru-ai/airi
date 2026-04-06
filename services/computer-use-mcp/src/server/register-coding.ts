@@ -9,18 +9,18 @@ import {
   summarizeCodingToolResult,
 } from '../coding/result-shape'
 import { textContent } from './content'
+import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptors'
 
 export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
   const { server, runtime, executeAction } = options
   const primitives = new CodingPrimitives(runtime)
 
-  server.tool(
-    'coding_review_workspace',
-    'Review the current workspace state, get git status, and set context.',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('coding_review_workspace'),
+    schema: {
       workspacePath: z.string().describe('Absolute path to the workspace root. Future commands will use this as root.'),
     },
-    async ({ workspacePath }) => {
+    handler: async ({ workspacePath }) => {
       const result = await primitives.reviewWorkspace(workspacePath)
       return {
         content: [textContent(summarizeCodingToolResult({
@@ -33,17 +33,16 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
         }),
       }
     },
-  )
+  })
 
-  server.tool(
-    'coding_read_file',
-    'Read a file or range of lines from a file within the workspace.',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('coding_read_file'),
+    schema: {
       filePath: z.string().describe('Workspace-relative file path, or "auto" to use last deterministic target selection.'),
       startLine: z.number().int().min(1).optional().describe('1-based start line.'),
       endLine: z.number().int().min(1).optional().describe('1-based end line.'),
     },
-    async ({ filePath, startLine, endLine }) => {
+    handler: async ({ filePath, startLine, endLine }) => {
       const output = await primitives.readFile(filePath, startLine, endLine)
       const backendResult = buildCodingReadFileBackendResult({
         filePath,
@@ -63,18 +62,17 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
         }),
       }
     },
-  )
+  })
 
-  server.tool(
-    'coding_search_text',
-    'Search text in workspace files with deterministic payload limits.',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('coding_search_text'),
+    schema: {
       query: z.string().min(1).describe('Text query to search for.'),
       targetPath: z.string().optional().describe('Optional workspace-relative subdirectory to scope the search.'),
       glob: z.string().optional().describe('Optional ripgrep-style glob filter, e.g. "*.ts".'),
       limit: z.number().int().min(1).max(20).optional().describe('Maximum number of matches to return (hard-clamped to 20).'),
     },
-    async ({ query, targetPath, glob, limit }) => {
+    handler: async ({ query, targetPath, glob, limit }) => {
       const result = await primitives.searchText(query, targetPath, glob, limit)
 
       return {
@@ -88,18 +86,17 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
         }),
       }
     },
-  )
+  })
 
-  server.tool(
-    'coding_search_symbol',
-    'Search symbol declarations in TS/JS source files with optional glob and result limit.',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('coding_search_symbol'),
+    schema: {
       symbolName: z.string().min(1).describe('Exact symbol name to search for.'),
       targetPath: z.string().optional().describe('Optional workspace-relative subdirectory to scope the search.'),
       glob: z.string().optional().describe('Optional ripgrep-style glob filter, e.g. "*.ts".'),
       limit: z.number().int().min(1).max(20).optional().describe('Maximum number of matches to return (hard-clamped to 20).'),
     },
-    async ({ symbolName, targetPath, glob, limit }) => {
+    handler: async ({ symbolName, targetPath, glob, limit }) => {
       const result = await primitives.searchSymbol(symbolName, targetPath, glob, limit)
       const backendResult = result as unknown as Record<string, unknown>
 
@@ -114,18 +111,17 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
         }),
       }
     },
-  )
+  })
 
-  server.tool(
-    'coding_find_references',
-    'Find symbol references from a specific file position using TypeScript language service.',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('coding_find_references'),
+    schema: {
       filePath: z.string().describe('Workspace-relative file path where the symbol occurrence exists, or "auto" to use last deterministic target selection.'),
       targetLine: z.number().int().min(1).describe('1-based line number of the symbol occurrence.'),
       targetColumn: z.number().int().min(1).describe('1-based column number of the symbol occurrence.'),
       limit: z.number().int().min(1).max(20).optional().describe('Maximum number of references to return (hard-clamped to 20).'),
     },
-    async ({ filePath, targetLine, targetColumn, limit }) => {
+    handler: async ({ filePath, targetLine, targetColumn, limit }) => {
       const result = await primitives.findReferences(filePath, targetLine, targetColumn, limit)
       const backendResult = result as unknown as Record<string, unknown>
 
@@ -140,19 +136,18 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
         }),
       }
     },
-  )
+  })
 
-  server.tool(
-    'coding_select_target',
-    'Select a deterministic target file from explicit and search-derived candidates.',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('coding_select_target'),
+    schema: {
       targetFile: z.string().optional().describe('Optional explicit workspace-relative file path (highest selection priority).'),
       targetPath: z.string().optional().describe('Optional workspace-relative scoped path used for deterministic tie-break scoring.'),
       targetSymbol: z.string().optional().describe('Optional symbol hint for selection reasoning metadata.'),
       searchQuery: z.string().optional().describe('Optional text-search hint for selection reasoning metadata.'),
       changeIntent: z.enum(['behavior_fix', 'refactor', 'api_change', 'config_change', 'test_fix']).optional().describe('Optional intent hint for hypothesis-driven selection.'),
     },
-    async ({ targetFile, targetPath, targetSymbol, searchQuery, changeIntent }) => {
+    handler: async ({ targetFile, targetPath, targetSymbol, searchQuery, changeIntent }) => {
       const result = await primitives.selectTarget({
         targetFile,
         targetPath,
@@ -173,19 +168,18 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
         }),
       }
     },
-  )
+  })
 
-  server.tool(
-    'coding_plan_changes',
-    'Create a deterministic limited coding plan (max 3 files, unique files only, dependsOn/checkpoint enabled).',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('coding_plan_changes'),
+    schema: {
       intent: z.string().min(1).describe('Short intent for the planned changes.'),
       allowMultiFile: z.boolean().optional().describe('Whether multi-file planning is allowed (default: true).'),
       maxPlannedFiles: z.number().int().min(1).max(3).optional().describe('Maximum number of planned files (default: 2, max: 3).'),
       changeIntent: z.enum(['behavior_fix', 'refactor', 'api_change', 'config_change', 'test_fix']).optional().describe('Intent category for session-aware planning.'),
       sessionAware: z.boolean().optional().describe('Enable bounded plan-session state machine behavior.'),
     },
-    async ({ intent, allowMultiFile, maxPlannedFiles, changeIntent, sessionAware }) => {
+    handler: async ({ intent, allowMultiFile, maxPlannedFiles, changeIntent, sessionAware }) => {
       const result = await primitives.planChanges({
         intent,
         allowMultiFile,
@@ -206,19 +200,18 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
         }),
       }
     },
-  )
+  })
 
-  server.tool(
-    'coding_analyze_impact',
-    'Analyze local 1-hop impact graph for JS/TS targets and produce bounded impact evidence.',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('coding_analyze_impact'),
+    schema: {
       targetFile: z.string().optional().describe('Optional explicit workspace-relative target file.'),
       targetPath: z.string().optional().describe('Optional workspace-relative scoped path for analysis.'),
       targetSymbol: z.string().optional().describe('Optional symbol name to anchor semantic impact analysis.'),
       searchQuery: z.string().optional().describe('Optional text query used as candidate evidence.'),
       maxDepth: z.number().int().min(1).max(1).optional().describe('Impact depth (v1 fixed to 1-hop).'),
     },
-    async ({ targetFile, targetPath, targetSymbol, searchQuery, maxDepth }) => {
+    handler: async ({ targetFile, targetPath, targetSymbol, searchQuery, maxDepth }) => {
       const result = await primitives.analyzeImpact({
         targetFile,
         targetPath,
@@ -239,19 +232,18 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
         }),
       }
     },
-  )
+  })
 
-  server.tool(
-    'coding_validate_hypothesis',
-    'Validate intent-driven target hypotheses against local impact evidence.',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('coding_validate_hypothesis'),
+    schema: {
       targetFile: z.string().optional().describe('Optional explicit workspace-relative target file.'),
       targetPath: z.string().optional().describe('Optional workspace-relative scoped path for analysis.'),
       targetSymbol: z.string().optional().describe('Optional symbol name for hypothesis validation.'),
       searchQuery: z.string().optional().describe('Optional text query used as candidate evidence.'),
       changeIntent: z.enum(['behavior_fix', 'refactor', 'api_change', 'config_change', 'test_fix']).describe('Change intent for hypothesis scoring.'),
     },
-    async ({ targetFile, targetPath, targetSymbol, searchQuery, changeIntent }) => {
+    handler: async ({ targetFile, targetPath, targetSymbol, searchQuery, changeIntent }) => {
       const result = await primitives.validateHypothesis({
         targetFile,
         targetPath,
@@ -271,16 +263,15 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
         }),
       }
     },
-  )
+  })
 
-  server.tool(
-    'coding_diagnose_changes',
-    'Diagnose change failures into structured root causes for amend/abort decisions.',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('coding_diagnose_changes'),
+    schema: {
       currentFilePath: z.string().optional().describe('Optional current file path under diagnosis.'),
       validationOutput: z.string().optional().describe('Optional validation output override for diagnosis.'),
     },
-    async ({ currentFilePath, validationOutput }) => {
+    handler: async ({ currentFilePath, validationOutput }) => {
       const result = await primitives.diagnoseChanges({
         currentFilePath,
         validationOutput,
@@ -298,16 +289,15 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
         }),
       }
     },
-  )
+  })
 
-  server.tool(
-    'coding_capture_validation_baseline',
-    'Capture baseline diff/failing checks and optionally switch to a temporary git worktree for isolated edits.',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('coding_capture_validation_baseline'),
+    schema: {
       workspacePath: z.string().optional().describe('Optional absolute workspace path override.'),
       createTemporaryWorktree: z.boolean().optional().describe('Whether to create and switch to a temporary git worktree (default: true).'),
     },
-    async ({ workspacePath, createTemporaryWorktree }) => {
+    handler: async ({ workspacePath, createTemporaryWorktree }) => {
       const result = await primitives.captureValidationBaseline({
         workspacePath,
         createTemporaryWorktree,
@@ -325,15 +315,14 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
         }),
       }
     },
-  )
+  })
 
-  server.tool(
-    'coding_review_changes',
-    'Run deterministic diff-aware review for the current coding plan/file.',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('coding_review_changes'),
+    schema: {
       currentFilePath: z.string().optional().describe('Optional explicit file path to review; defaults to currently selected target/plan step.'),
     },
-    async ({ currentFilePath }) => {
+    handler: async ({ currentFilePath }) => {
       const result = await primitives.reviewChanges({ currentFilePath })
       const backendResult = result as unknown as Record<string, unknown>
 
@@ -348,17 +337,16 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
         }),
       }
     },
-  )
+  })
 
-  server.tool(
-    'coding_apply_patch',
-    'Apply a patch/replacement to a file within the workspace.',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('coding_apply_patch'),
+    schema: {
       filePath: z.string().describe('Workspace-relative file path, or "auto" to use last deterministic target selection.'),
       oldString: z.string().describe('Exact string to replace.'),
       newString: z.string().describe('String to replace it with.'),
     },
-    async ({ filePath, oldString, newString }) => {
+    handler: async ({ filePath, oldString, newString }) => {
       const actionResult = await executeAction({
         kind: 'coding_apply_patch',
         input: {
@@ -385,19 +373,18 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
         }),
       }
     },
-  )
+  })
 
-  server.tool(
-    'coding_compress_context',
-    'Summarize coding context and extract constraints and state into a deterministic output.',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('coding_compress_context'),
+    schema: {
       goal: z.string().describe('Current high-level goal.'),
       filesSummary: z.string().describe('Summary of relevant files.'),
       recentResultSummary: z.string().describe('Summary of the last few command executions.'),
       unresolvedIssues: z.string().describe('Any known open issues or blockers.'),
       nextStepRecommendation: z.string().describe('Immediate next logical step.'),
     },
-    async ({ goal, filesSummary, recentResultSummary, unresolvedIssues, nextStepRecommendation }) => {
+    handler: async ({ goal, filesSummary, recentResultSummary, unresolvedIssues, nextStepRecommendation }) => {
       const result = await primitives.compressContext(goal, filesSummary, recentResultSummary, unresolvedIssues, nextStepRecommendation)
       return {
         content: [textContent(summarizeCodingToolResult({
@@ -410,12 +397,11 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
         }),
       }
     },
-  )
+  })
 
-  server.tool(
-    'coding_report_status',
-    'Report structured execution status for the current iteration.',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('coding_report_status'),
+    schema: {
       status: z.enum(['completed', 'in_progress', 'blocked', 'failed', 'auto']).describe('Current execution phase status, or "auto" to derive it from recent coding state.'),
       summary: z.string().describe('Brief status summary.'),
       filesTouched: z.array(z.string()).describe('List of files modified.'),
@@ -423,7 +409,7 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
       checks: z.array(z.string()).describe('Results of specific validation checks.'),
       nextStep: z.string().describe('Next suggested step or reason for blocking.'),
     },
-    async ({ status, summary, filesTouched, commandsRun, checks, nextStep }) => {
+    handler: async ({ status, summary, filesTouched, commandsRun, checks, nextStep }) => {
       const result = await primitives.reportStatus(status, summary, filesTouched, commandsRun, checks, nextStep)
       return {
         content: [textContent(summarizeCodingToolResult({
@@ -436,5 +422,5 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
         }),
       }
     },
-  )
+  })
 }

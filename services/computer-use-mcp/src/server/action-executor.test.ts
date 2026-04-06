@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { RunStateManager } from '../state'
 import { createDisplayInfo, createLocalExecutionTarget, createTerminalState, createTestConfig } from '../test-fixtures'
 import { createExecuteAction } from './action-executor'
+import { createRuntimeCoordinator } from './runtime-coordinator'
 
 describe('createExecuteAction', () => {
   it('refreshes browser surface availability for direct actions before evaluating strategy', async () => {
@@ -89,6 +90,8 @@ describe('createExecuteAction', () => {
       stateManager,
       taskMemory: {},
     } as unknown as ComputerUseServerRuntime
+    const coordinator = createRuntimeCoordinator(runtime)
+    runtime.coordinator = coordinator
 
     const executeAction = createExecuteAction(runtime)
     const result = await executeAction({ kind: 'click', input: { x: 10, y: 20, captureAfter: false } }, 'desktop_click')

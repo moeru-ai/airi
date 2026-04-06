@@ -5,6 +5,7 @@ import type { ComputerUseServerRuntime } from './runtime'
 import { z } from 'zod'
 
 import { textContent } from './content'
+import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptors'
 
 export interface RegisterCdpToolsOptions {
   server: McpServer
@@ -16,12 +17,12 @@ export interface RegisterCdpToolsOptions {
  * via the DevTools Protocol, without requiring the browser extension.
  */
 export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
-  server.tool(
-    'browser_cdp_connect',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('browser_cdp_connect'),
+    schema: {
       cdpUrl: z.string().optional().describe('Chrome DevTools Protocol endpoint (default: http://localhost:9222)'),
     },
-    async ({ cdpUrl }) => {
+    handler: async ({ cdpUrl }) => {
       try {
         const bridge = await runtime.cdpBridgeManager.ensureBridge(cdpUrl)
         const status = bridge.getStatus()
@@ -49,12 +50,12 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
         }
       }
     },
-  )
+  })
 
-  server.tool(
-    'browser_cdp_status',
-    {},
-    async () => {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('browser_cdp_status'),
+    schema: {},
+    handler: async () => {
       const status = runtime.cdpBridgeManager.getStatus()
 
       return {
@@ -67,14 +68,14 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
         },
       }
     },
-  )
+  })
 
-  server.tool(
-    'browser_cdp_accessibility_snapshot',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('browser_cdp_accessibility_snapshot'),
+    schema: {
       cdpUrl: z.string().optional().describe('CDP endpoint override'),
     },
-    async ({ cdpUrl }) => {
+    handler: async ({ cdpUrl }) => {
       try {
         const bridge = await runtime.cdpBridgeManager.ensureBridge(cdpUrl)
         const snapshot = await bridge.getAccessibilityTree()
@@ -104,15 +105,15 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
         }
       }
     },
-  )
+  })
 
-  server.tool(
-    'browser_cdp_evaluate',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('browser_cdp_evaluate'),
+    schema: {
       expression: z.string().min(1).describe('JavaScript expression to evaluate in the page context'),
       cdpUrl: z.string().optional().describe('CDP endpoint override'),
     },
-    async ({ expression, cdpUrl }) => {
+    handler: async ({ expression, cdpUrl }) => {
       try {
         const bridge = await runtime.cdpBridgeManager.ensureBridge(cdpUrl)
         const result = await bridge.evaluate(expression)
@@ -138,15 +139,15 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
         }
       }
     },
-  )
+  })
 
-  server.tool(
-    'browser_cdp_collect_elements',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('browser_cdp_collect_elements'),
+    schema: {
       maxElements: z.number().int().min(1).max(500).optional().describe('Maximum interactive elements to collect (default: 200)'),
       cdpUrl: z.string().optional().describe('CDP endpoint override'),
     },
-    async ({ maxElements, cdpUrl }) => {
+    handler: async ({ maxElements, cdpUrl }) => {
       try {
         const bridge = await runtime.cdpBridgeManager.ensureBridge(cdpUrl)
         const elements = await bridge.collectInteractiveElements(maxElements)
@@ -179,16 +180,16 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
         }
       }
     },
-  )
+  })
 
-  server.tool(
-    'browser_cdp_screenshot',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('browser_cdp_screenshot'),
+    schema: {
       format: z.enum(['png', 'jpeg']).optional().describe('Image format (default: png)'),
       quality: z.number().int().min(0).max(100).optional().describe('JPEG quality (only for jpeg format)'),
       cdpUrl: z.string().optional().describe('CDP endpoint override'),
     },
-    async ({ format, quality, cdpUrl }) => {
+    handler: async ({ format, quality, cdpUrl }) => {
       try {
         const bridge = await runtime.cdpBridgeManager.ensureBridge(cdpUrl)
         const base64 = await bridge.screenshot({ format, quality })
@@ -224,15 +225,15 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
         }
       }
     },
-  )
+  })
 
-  server.tool(
-    'browser_cdp_navigate',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('browser_cdp_navigate'),
+    schema: {
       url: z.string().min(1).describe('URL to navigate to'),
       cdpUrl: z.string().optional().describe('CDP endpoint override'),
     },
-    async ({ url, cdpUrl }) => {
+    handler: async ({ url, cdpUrl }) => {
       try {
         const bridge = await runtime.cdpBridgeManager.ensureBridge(cdpUrl)
         await bridge.navigate(url)
@@ -258,7 +259,7 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
         }
       }
     },
-  )
+  })
 
   // Return a cleanup function for server shutdown
   return {

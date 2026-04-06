@@ -10,6 +10,7 @@ import type { ZodRawShape, ZodTypeAny } from 'zod'
 
 import type { ToolDescriptor } from './types'
 
+import { initializeGlobalRegistry } from './all'
 import { globalRegistry } from './registry'
 
 /**
@@ -52,8 +53,15 @@ export function registerToolWithDescriptor<TSchema extends ZodRawShape>(
 
   // Register with MCP server
   // The description comes from the descriptor's summary
-  // Note: Need to cast to any due to complex MCP SDK types
-  (server.tool as Function)(
+  // NOTE: cast required due MCP SDK overload shape not expressing generic descriptor schema here.
+  const register = server.tool as unknown as (
+    name: string,
+    description: string,
+    schema: TSchema,
+    handler: DescriptorToolOptions<TSchema>['handler'],
+  ) => void
+
+  register(
     descriptor.canonicalName,
     descriptor.summary,
     schema,
@@ -65,6 +73,9 @@ export function registerToolWithDescriptor<TSchema extends ZodRawShape>(
  * Get descriptor for a tool name, throwing if not found.
  */
 export function requireDescriptor(canonicalName: string): ToolDescriptor {
+  if (globalRegistry.size === 0) {
+    initializeGlobalRegistry()
+  }
   return globalRegistry.get(canonicalName)
 }
 

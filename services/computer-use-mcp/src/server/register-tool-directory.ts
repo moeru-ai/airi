@@ -10,7 +10,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 
 import { textContent } from './content'
-import { globalRegistry, initializeGlobalRegistry } from './tool-descriptors'
+import { globalRegistry, initializeGlobalRegistry, registerToolWithDescriptor, requireDescriptor } from './tool-descriptors'
 
 /**
  * Options for registering the tool directory.
@@ -30,10 +30,9 @@ export function registerToolDirectory({ server }: RegisterToolDirectoryOptions):
     initializeGlobalRegistry()
   }
 
-  server.tool(
-    'tool_directory',
-    'List available tools with optional filtering by lane, kind, or search query. Returns a compact directory for navigation and a structured list for programmatic access.',
-    {
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('tool_directory'),
+    schema: {
       lane: z.string().optional().describe(
         'Filter by tool lane (desktop, browser_dom, browser_cdp, coding, pty, display, accessibility, task_memory, vscode, workflow, internal)',
       ),
@@ -50,7 +49,7 @@ export function registerToolDirectory({ server }: RegisterToolDirectoryOptions):
         'Case-insensitive substring search across tool names, display names, and summaries',
       ),
     },
-    async ({ lane, kind, readOnlyOnly, approvalRequiredOnly, query }) => {
+    handler: async ({ lane, kind, readOnlyOnly, approvalRequiredOnly, query }) => {
       // Query the registry with filters
       const results = globalRegistry.query({
         lane: lane as Parameters<typeof globalRegistry.query>[0]['lane'],
@@ -98,5 +97,5 @@ export function registerToolDirectory({ server }: RegisterToolDirectoryOptions):
         structuredContent,
       }
     },
-  )
+  })
 }
