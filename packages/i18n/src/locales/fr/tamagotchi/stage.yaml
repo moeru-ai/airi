@@ -25,10 +25,10 @@ docs:
   'close': Fermer
   'expand': Développer
   'collapse': Réduire
-  'login': Sign in
-  'logging-in': Signing in...
-  'account': Account
-  'logout': Sign out
+  'login': Se connecter
+  'logging-in': Connexion en cours...
+  'account': Compte
+  'logout': Compte
 'status-island':
   connected: WebSocket connecté
   disconnected: WebSocket déconnecté
