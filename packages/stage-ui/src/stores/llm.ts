@@ -7,7 +7,7 @@ import { streamText } from '@xsai/stream-text'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-import { createSparkCommandTool, debug, mcp } from '../tools'
+import { createSparkCommandTool, debug, mcp, memory } from '../tools'
 import { useModsServerChannelStore } from './mods/api/channel-server'
 
 export type StreamEvent
@@ -70,6 +70,7 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
     ? [
         ...await mcp(),
         ...await debug(),
+        ...await memory(),
         ...await resolveTools(),
         await createSparkCommandTool({ sendSparkCommand }),
       ]

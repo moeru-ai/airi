@@ -14,11 +14,12 @@ import { useAnalytics } from '../composables'
 import { useLlmmarkerParser } from '../composables/llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from '../composables/response-categoriser'
 import { buildContextPromptMessage } from './chat/context-prompt'
-import { createDatetimeContext, createMinecraftContext } from './chat/context-providers'
+import { createDatetimeContext, createLorebookContext, createMinecraftContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { createChatHooks } from './chat/hooks'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
+import { useLorebookStore } from './character/lorebook'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useLLM } from './llm'
 import { useConsciousnessStore } from './modules/consciousness'
@@ -128,6 +129,18 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     const minecraftContext = createMinecraftContext()
     if (minecraftContext)
       chatContext.ingestContextMessage(minecraftContext)
+
+    // Scan message and recent history for lorebook keyword matches
+    const lorebookStore = useLorebookStore()
+    if (lorebookStore.enabledEntries.length > 0) {
+      const recentMessages = chatSession.getSessionMessages(sessionId)
+      const scanWindow = recentMessages.slice(-lorebookStore.scanDepth)
+      const scanText = [sendingMessage, ...scanWindow.map(m => m.content)].join('\n')
+      const matchedEntries = lorebookStore.scanForMatches(scanText)
+      const lorebookContext = createLorebookContext(matchedEntries)
+      if (lorebookContext)
+        chatContext.ingestContextMessage(lorebookContext)
+    }
 
     const sendingCreatedAt = Date.now()
     // TODO: Expire or prune stale runtime contexts from disconnected services before composing.
