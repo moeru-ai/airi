@@ -21,6 +21,7 @@ import type {
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 
 import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
+import { getCachedWebGPUCapabilities, isWebGPUSupported } from '@proj-airi/stage-shared/webgpu'
 import { computedAsync, useIntervalFn, useLocalStorage } from '@vueuse/core'
 import {
   createOpenAI,
@@ -34,7 +35,6 @@ import {
 } from '@xsai-ext/providers/utils'
 import { listModels } from '@xsai/model'
 import { uniqBy } from 'es-toolkit'
-import { isWebGPUSupported } from 'gpuu/webgpu'
 import { defineStore } from 'pinia'
 import {
   createUnAlibabaCloud,
@@ -47,8 +47,8 @@ import {
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { getKokoroAdapter } from '../libs/inference/adapters/kokoro'
 import { getProviderValidationIntervalMs, listProviders as listDefinedProviders, ProviderValidationCheck } from '../libs/providers'
-import { getKokoroWorker } from '../workers/kokoro'
 import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '../workers/kokoro/constants'
 import { useAuthStore } from './auth'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
@@ -1551,7 +1551,7 @@ export const useProvidersStore = defineStore('providers', () => {
       icon: 'i-lobe-icons:speaker',
 
       defaultOptions: () => {
-        const hasWebGPU = typeof navigator !== 'undefined' && !!navigator.gpu
+        const hasWebGPU = getCachedWebGPUCapabilities()?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
         const model = getDefaultKokoroModel(hasWebGPU)
         return {
           model,
@@ -1561,7 +1561,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
       createProvider: async (_config) => {
         // Import the worker manager
-        const workerManagerPromise = getKokoroWorker()
+        const workerManagerPromise = getKokoroAdapter()
 
         const provider: SpeechProvider = {
           speech: () => {
@@ -1606,7 +1606,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
       capabilities: {
         listModels: async (_config: Record<string, unknown>) => {
-          const hasWebGPU = typeof navigator !== 'undefined' && !!navigator.gpu
+          const hasWebGPU = getCachedWebGPUCapabilities()?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
           return kokoroModelsToModelInfo(hasWebGPU, t)
         },
 
@@ -1624,15 +1624,30 @@ export const useProvidersStore = defineStore('providers', () => {
 
           // Validate platform requirements
           if (modelDef.platform === 'webgpu') {
-            const hasWebGPU = typeof navigator !== 'undefined' && !!navigator.gpu
+            const hasWebGPU = getCachedWebGPUCapabilities()?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
             if (!hasWebGPU) {
               throw new Error('WebGPU is required for this model but is not available in your browser')
             }
           }
 
           try {
-            const workerManager = await getKokoroWorker()
-            await workerManager.loadModel(modelDef.quantization, modelDef.platform, { onProgress: _hooks?.onProgress })
+            const workerManager = await getKokoroAdapter()
+            await workerManager.loadModel(modelDef.quantization, modelDef.platform, {
+              onProgress: _hooks?.onProgress
+                ? (p) => {
+                    // Map unified ProgressPayload back to ProgressInfo shape
+                    // that the provider hooks expect (HuggingFace transformers format)
+                    _hooks.onProgress!({
+                      name: p.file ?? '',
+                      file: p.file ?? '',
+                      progress: p.percent >= 0 ? p.percent : 0,
+                      status: 'progress',
+                      loaded: p.loaded ?? 0,
+                      total: p.total ?? 0,
+                    } as ProgressInfo)
+                  }
+                : undefined,
+            })
           }
           catch (error) {
             console.error('Failed to load Kokoro model:', error)
@@ -1649,20 +1664,20 @@ export const useProvidersStore = defineStore('providers', () => {
               if (modelDef) {
                 // Validate platform requirements
                 if (modelDef.platform === 'webgpu') {
-                  const hasWebGPU = typeof navigator !== 'undefined' && !!navigator.gpu
+                  const hasWebGPU = getCachedWebGPUCapabilities()?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
                   if (!hasWebGPU) {
                     throw new Error('WebGPU is required for this model but is not available in your browser')
                   }
                 }
 
                 // Load the model
-                const workerManager = await getKokoroWorker()
+                const workerManager = await getKokoroAdapter()
                 await workerManager.loadModel(modelDef.quantization, modelDef.platform)
               }
             }
 
             // Get worker manager and fetch voices from the model
-            const workerManager = await getKokoroWorker()
+            const workerManager = await getKokoroAdapter()
             const modelVoices = workerManager.getVoices()
 
             // Language code mapping

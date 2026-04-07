@@ -99,6 +99,8 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 
 onMounted(async () => {
   // Check WebGPU support
+  // NOTICE: Uses synchronous check for initial render. The cached result from
+  // detectWebGPU() is populated by the providers store during initialization.
   hasWebGPU.value = typeof navigator !== 'undefined' && !!navigator.gpu
 
   try {
