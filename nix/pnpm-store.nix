@@ -33,7 +33,7 @@ let
       dontFixup = true;
     };
 
-  # 2990 independent store fragments — one per package
+  # 3014 independent store fragments — one per package
   pkgStores = lib.mapAttrs makePkgStore packages;
 
 in
