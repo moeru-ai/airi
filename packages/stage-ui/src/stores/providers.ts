@@ -2244,9 +2244,15 @@ export const useProvidersStore = defineStore('providers', () => {
     return providerCredentials.value[providerId]
   }
 
+  function applyRemoteProviderConfig(providerId: string, config: Record<string, unknown>) {
+    providerCredentials.value[providerId] = config
+    markProviderAdded(providerId)
+  }
+
   return {
     providers: providerCredentials,
     getProviderConfig,
+    applyRemoteProviderConfig,
     addedProviders,
     markProviderAdded,
     unmarkProviderAdded,
