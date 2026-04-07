@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+import { useModsServerChannelStore } from '../../../../stores/mods/api/channel-server'
 
 const { t } = useI18n()
 const { websocketUrl } = storeToRefs(useModsServerChannelStore())
