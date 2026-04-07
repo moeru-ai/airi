@@ -83,14 +83,12 @@ stdenvNoCC.mkDerivation {
         cp -rn --no-preserve=mode "$store/index/." "$out/$storeVer/index/"
       fi
     done < "$pkgStoresListPath"
-    # fetcherVersion=2 tells pnpmConfigHook the store is a raw directory (not a tarball)
-    echo -n "2" > "$out/.fetcher-version"
-  '';
-  postInstall = ''
     # NOTICE: CAFS v10 files with -exec suffix denote executable binaries (e.g. turbo, esbuild).
     # Set their permissions to 555 (r-xr-xr-x) so pnpm can execute them during install.
     # Without this, pnpm install fails with EACCES when trying to run native binaries.
     find "$out" -type f -name "*-exec" -print0 | xargs -0 chmod 555
+    # fetcherVersion=2 tells pnpmConfigHook the store is a raw directory (not a tarball)
+    echo -n "2" > "$out/.fetcher-version"
   '';
   dontConfigure = true;
   dontUnpack = true;
