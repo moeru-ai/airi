@@ -20,6 +20,8 @@ import type {
 
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 
+import { createBrowserLocalTranscriptionProvider } from './providers/browser-local/transcription'
+
 import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
 import { computedAsync, useIntervalFn, useLocalStorage } from '@vueuse/core'
 import {
@@ -384,33 +386,28 @@ export const useProvidersStore = defineStore('providers', () => {
     }),
     'browser-local-audio-transcription': buildOpenAICompatibleProvider({
       id: 'browser-local-audio-transcription',
-      name: 'Browser (Local)',
+      name: 'Browser (Local Whisper)',
       nameKey: 'settings.pages.providers.provider.browser-local-audio-transcription.title',
       descriptionKey: 'settings.pages.providers.provider.browser-local-audio-transcription.description',
       icon: 'i-lobe-icons:huggingface',
-      description: 'https://github.com/moeru-ai/xsai-transformers',
+      description: 'In-browser Whisper ASR via @xsai-transformers/transcription. Supports Chinese and 90+ languages. No API key needed.',
       category: 'transcription',
       tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
       isAvailableBy: isBrowserAndMemoryEnough,
-      creator: createOpenAI,
+      creator: () => createBrowserLocalTranscriptionProvider() as any,
+      transcriptionFeatures: {
+        supportsGenerate: true,
+        supportsStreamOutput: false,
+        supportsStreamInput: false,
+      },
       validation: [],
       validators: {
         chatPingCheckAvailable: false,
-        validateProviderConfig: (config) => {
-          if (!config.baseUrl) {
-            return {
-              errors: [new Error('Base URL is required.')],
-              reason: 'Base URL is required. This is likely a bug, report to developers on https://github.com/moeru-ai/airi/issues.',
-              valid: false,
-            }
-          }
-
-          return {
-            errors: [],
-            reason: '',
-            valid: true,
-          }
-        },
+        validateProviderConfig: () => ({
+          errors: [],
+          reason: '',
+          valid: true,
+        }),
       },
     }),
     'openai-audio-speech': buildOpenAICompatibleProvider({

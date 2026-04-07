@@ -150,10 +150,10 @@ export const useHearingStore = defineStore('hearing-store', () => {
     if (!activeTranscriptionProvider.value)
       return false
 
-    // Web Speech API doesn't strictly need a model selected (it has a default)
-    // but we still check to maintain consistency
-    if (activeTranscriptionProvider.value === 'browser-web-speech-api') {
-      return true // Web Speech API is ready if provider is selected and available
+    // Web Speech API and browser-local don't strictly need a model selected
+    if (activeTranscriptionProvider.value === 'browser-web-speech-api'
+      || activeTranscriptionProvider.value === 'browser-local-audio-transcription') {
+      return true
     }
 
     // For OpenAI Compatible providers, check provider config as fallback
