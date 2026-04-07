@@ -30,6 +30,7 @@ function getReleaseChannelName() {
 }
 
 const GITHUB_RELEASES_API_URL = 'https://api.github.com/repos/moeru-ai/airi/releases?per_page=100'
+const GITHUB_RELEASES_ATOM_URL = 'https://github.com/moeru-ai/airi/releases.atom'
 const GITHUB_RELEASE_DOWNLOAD_BASE_URL = 'https://github.com/moeru-ai/airi/releases/download'
 const UPDATE_CHANNEL_ENV_KEY = 'AIRI_UPDATE_CHANNEL'
 
@@ -103,6 +104,49 @@ function selectLatestTagForLane(releases: GitHubReleaseRecord[], lane: UpdateLan
 
   candidates.sort((a, b) => semver.rcompare(a.version, b.version))
   return candidates[0]?.tag
+}
+
+/**
+ * Extract release tags from GitHub releases Atom feed without adding XML-parser dependencies.
+ *
+ * The current feed contains entries like:
+ * `<entry><link rel="alternate" type="text/html" href="https://github.com/moeru-ai/airi/releases/tag/v0.9.0-beta.6"/></entry>`
+ * and
+ * `<entry><id>tag:github.com,2008:Repository/963495975/v0.9.0-alpha.36</id></entry>`
+ *
+ * We intentionally scan for `/moeru-ai/airi/releases/tag/` so we only consume actual release tag links.
+ */
+function extractReleaseTagsFromAtom(atom: string) {
+  const tags: string[] = []
+  const marker = '/moeru-ai/airi/releases/tag/'
+  let offset = 0
+
+  while (offset < atom.length) {
+    const markerIndex = atom.indexOf(marker, offset)
+    if (markerIndex === -1)
+      break
+
+    const start = markerIndex + marker.length
+    let end = start
+    while (end < atom.length) {
+      const char = atom[end]
+      if (char === '"' || char === '<' || char === '?' || char === '&')
+        break
+      end += 1
+    }
+
+    // Slice the raw path segment after the marker, e.g. `v0.9.0-beta.6`.
+    const rawTag = atom.slice(start, end).trim()
+    // Atom encodes URLs, so decode in case future tags contain escaped characters.
+    const decodedTag = decodeURIComponent(rawTag)
+    // Feed entries can repeat across updates; keep a unique ordered tag list.
+    if (decodedTag && !tags.includes(decodedTag))
+      tags.push(decodedTag)
+
+    offset = end + 1
+  }
+
+  return tags
 }
 
 export interface AppUpdaterLike {
@@ -232,20 +276,35 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
   }
 
   async function resolveGitHubReleaseTagForLane(lane: UpdateLane) {
-    const response = await fetch(GITHUB_RELEASES_API_URL, {
-      headers: {
-        accept: 'application/vnd.github+json',
-      },
-    })
+    try {
+      const response = await fetch(GITHUB_RELEASES_API_URL, {
+        headers: {
+          accept: 'application/vnd.github+json',
+        },
+      })
 
-    if (!response.ok)
-      throw new Error(`Failed to fetch GitHub releases (${response.status} ${response.statusText})`)
+      if (!response.ok)
+        throw new Error(`Failed to fetch GitHub releases (${response.status} ${response.statusText})`)
 
-    const payload = await response.json()
-    if (!Array.isArray(payload))
-      throw new Error('Unexpected GitHub releases payload shape')
+      const payload = await response.json()
+      if (!Array.isArray(payload))
+        throw new Error('Unexpected GitHub releases payload shape')
 
-    const tag = selectLatestTagForLane(payload as GitHubReleaseRecord[], lane)
+      const tag = selectLatestTagForLane(payload as GitHubReleaseRecord[], lane)
+      if (tag)
+        return tag
+    }
+    catch (error) {
+      log.withError(error).warn('GitHub releases API lookup failed, trying releases.atom fallback')
+    }
+
+    const atomResponse = await fetch(GITHUB_RELEASES_ATOM_URL)
+    if (!atomResponse.ok)
+      throw new Error(`Failed to fetch GitHub releases atom (${atomResponse.status} ${atomResponse.statusText})`)
+
+    const atom = await atomResponse.text()
+    const releasesFromAtom = extractReleaseTagsFromAtom(atom).map(tag => ({ tag_name: tag }))
+    const tag = selectLatestTagForLane(releasesFromAtom, lane)
     if (!tag)
       throw new Error(`No GitHub release found for update lane "${lane}"`)
 

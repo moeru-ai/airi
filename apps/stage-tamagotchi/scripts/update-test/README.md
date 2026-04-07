@@ -2,11 +2,10 @@
 
 This directory provides a local mocked update-server workflow for Stage Tamagotchi.
 
-It is intended to verify AIRI's refactored updater path:
+It is intended to verify AIRI's updater path:
 
 - explicit `UPDATE_SERVER_URL` override mode
-- no GitHub Releases API dependency
-- no custom updater cache ownership
+- lane switching (`stable`, `beta`, `alpha`, `nightly`) via `AIRI_UPDATE_CHANNEL`
 - developer-only updater diagnostics inspection
 
 ## Files
@@ -38,6 +37,8 @@ Then, in another terminal:
 ```bash
 cd apps/stage-tamagotchi
 UPDATE_SERVER_URL=http://127.0.0.1:8787/stable pnpm run dev
+# optional lane override:
+# AIRI_UPDATE_CHANNEL=beta UPDATE_SERVER_URL=http://127.0.0.1:8787/beta pnpm run dev
 ```
 
 ## Verification Flow
@@ -63,12 +64,31 @@ You can also print the workflow commands with:
 bash apps/stage-tamagotchi/scripts/update-test/run-test.sh
 ```
 
+For automated matrix checks (lane x runtime feed mode + bundle-version test matrix), run:
+
+```bash
+pnpm -F @proj-airi/stage-tamagotchi update-test:matrix
+```
+
+This script:
+
+- runs Vitest updater matrix tests (including bundled version: stable/beta/alpha)
+- generates local fixtures for `stable`, `beta`, `alpha`, `nightly`
+- runs packaged app checks for two runtime modes:
+  - `UPDATE_SERVER_URL` override mode
+  - no override (GitHub lane resolution mode)
+- captures logs and summaries under `scripts/update-test/artifacts/`
+- writes a green/red matrix report at `scripts/update-test/artifacts/<run-id>/summary.md`
+
 Environment variables supported by the wrapper:
 
 - `PORT`
 - `CHANNEL`
 - `TARGET`
 - `VERSION`
+- `AIRI_UPDATE_CHANNEL` (at app launch time; independent from `CHANNEL`)
+- `RUN_SECONDS` (matrix app runtime per case; default `18`)
+- `LOG_DIR` (matrix artifact directory override)
 
 Common targets:
 

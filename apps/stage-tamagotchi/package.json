@@ -31,7 +31,8 @@
     "regenerate-windows-latest": "tsx scripts/regenerate-windows-latest.ts",
     "artifacts-metadata": "tsx scripts/artifacts-metadata.ts",
     "update-test:generate": "tsx scripts/update-test/generate-manifest.ts",
-    "update-test:server": "tsx scripts/update-test/start-server.ts"
+    "update-test:server": "tsx scripts/update-test/start-server.ts",
+    "update-test:matrix": "bash scripts/update-test/run-matrix.sh"
   },
   "dependencies": {
     "@date-fns/utc": "^2.1.1",
