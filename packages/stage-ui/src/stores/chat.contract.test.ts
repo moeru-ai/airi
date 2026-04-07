@@ -12,6 +12,7 @@ const trackFirstMessageMock = vi.fn()
 const ingestContextMessageMock = vi.fn()
 const getContextsSnapshotMock = vi.fn()
 const createDatetimeContextMock = vi.fn()
+const createMinecraftContextMock = vi.fn()
 const persistSessionMessagesMock = vi.fn()
 const forkSessionMock = vi.fn()
 const ensureSessionMock = vi.fn()
@@ -101,6 +102,7 @@ vi.mock('../composables/response-categoriser', () => ({
 
 vi.mock('./chat/context-providers', () => ({
   createDatetimeContext: () => createDatetimeContextMock(),
+  createMinecraftContext: () => createMinecraftContextMock(),
 }))
 
 vi.mock('./chat/context-store', () => ({
@@ -118,6 +120,11 @@ vi.mock('./chat/session-store', () => ({
       ensureSessionMock(sessionId)
       sessionMessages[sessionId] ??= [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
     },
+    appendSessionMessage: (sessionId: string, message: any) => {
+      sessionMessages[sessionId] ??= []
+      sessionMessages[sessionId].push(message)
+    },
+    getSessionMessages: (sessionId: string) => sessionMessages[sessionId] ?? [],
     persistSessionMessages: persistSessionMessagesMock,
     getSessionGeneration: () => currentGeneration,
     forkSession: forkSessionMock,
@@ -154,6 +161,8 @@ describe('chat orchestrator contract', () => {
     ingestContextMessageMock.mockReset()
     getContextsSnapshotMock.mockReset()
     createDatetimeContextMock.mockReset()
+    createMinecraftContextMock.mockReset()
+    createMinecraftContextMock.mockReturnValue(undefined)
     persistSessionMessagesMock.mockReset()
     forkSessionMock.mockReset()
     ensureSessionMock.mockReset()
@@ -241,7 +250,7 @@ describe('chat orchestrator contract', () => {
     expect(store.sending).toBe(false)
     expect(trackFirstMessageMock).toHaveBeenCalledTimes(1)
     expect(ingestContextMessageMock).toHaveBeenCalledWith(datetimeContext)
-    expect(persistSessionMessagesMock).toHaveBeenCalledTimes(2)
+    expect(persistSessionMessagesMock).not.toHaveBeenCalled()
     expect(parserConsumeMock).toHaveBeenCalledWith('hello')
     expect(parserEndMock).toHaveBeenCalledTimes(1)
     expect(hookOrder).toEqual([

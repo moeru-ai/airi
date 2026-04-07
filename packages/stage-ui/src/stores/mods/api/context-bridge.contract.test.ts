@@ -12,6 +12,8 @@ const appendStreamLiteralMock = vi.fn()
 const finalizeStreamMock = vi.fn()
 const resetStreamMock = vi.fn()
 const serverSendMock = vi.fn()
+const ensureConnectedMock = vi.fn().mockResolvedValue(undefined)
+const onReconnectedMock = vi.fn(() => () => {})
 const onContextUpdateMock = vi.fn(() => () => {})
 const onEventMock = vi.fn(() => () => {})
 const getProviderInstanceMock = vi.fn()
@@ -156,6 +158,8 @@ vi.mock('../../providers', () => ({
 
 vi.mock('./channel-server', () => ({
   useModsServerChannelStore: () => ({
+    ensureConnected: ensureConnectedMock,
+    onReconnected: onReconnectedMock,
     onContextUpdate: onContextUpdateMock,
     onEvent: onEventMock,
     send: serverSendMock,
@@ -172,6 +176,9 @@ describe('context bridge contract', () => {
     finalizeStreamMock.mockReset()
     resetStreamMock.mockReset()
     serverSendMock.mockReset()
+    ensureConnectedMock.mockClear()
+    ensureConnectedMock.mockResolvedValue(undefined)
+    onReconnectedMock.mockClear()
     onContextUpdateMock.mockClear()
     onEventMock.mockClear()
     getProviderInstanceMock.mockReset()

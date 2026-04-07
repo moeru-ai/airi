@@ -10,10 +10,17 @@ const {
   streamTextMock,
   mcpMock,
   debugMock,
+  createSparkCommandToolMock,
 } = vi.hoisted(() => ({
   streamTextMock: vi.fn(),
   mcpMock: vi.fn(async () => []),
   debugMock: vi.fn(async () => []),
+  createSparkCommandToolMock: vi.fn(async () => ({
+    name: 'spark',
+    description: '',
+    parameters: {},
+    execute: vi.fn(),
+  })),
 }))
 
 vi.mock('@xsai/model', () => ({
@@ -27,6 +34,7 @@ vi.mock('@xsai/stream-text', () => ({
 vi.mock('../tools', () => ({
   mcp: mcpMock,
   debug: debugMock,
+  createSparkCommandTool: createSparkCommandToolMock,
 }))
 
 const provider = {
@@ -49,6 +57,7 @@ describe('isToolRelatedError', () => {
     streamTextMock.mockReset()
     mcpMock.mockClear()
     debugMock.mockClear()
+    createSparkCommandToolMock.mockClear()
     setActivePinia(createPinia())
   })
 
