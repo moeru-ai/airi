@@ -13,6 +13,7 @@ import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 
+import { weatherTools } from './tools/builtin/weather'
 import { widgetsTools } from './tools/builtin/widgets'
 
 type ChatSyncMode = 'inactive' | 'authority' | 'follower'
@@ -177,8 +178,19 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
   }
 
   function resolveTools(toolset?: ToolsetId) {
-    if (toolset === 'widgets')
-      return widgetsTools
+    if (toolset === 'widgets') {
+      return async () => {
+        const [widgetTools, weatherToolset] = await Promise.all([
+          widgetsTools(),
+          weatherTools(),
+        ])
+
+        return [
+          ...widgetTools,
+          ...weatherToolset,
+        ]
+      }
+    }
 
     return undefined
   }
