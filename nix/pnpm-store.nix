@@ -5,6 +5,7 @@
   lib,
   fetchurl,
   nodejs,
+  pnpm,
 }:
 let
   # Use import (not callPackage) to avoid callPackage injecting `override` into
@@ -45,12 +46,29 @@ in
 # environment variables, causing E2BIG. passAsFile writes the content to a
 # temp file and sets pkgStoresListPath, keeping the env small. Nix still
 # tracks the string context (i.e. dependencies on all pkgStores) correctly.
+#
+# NOTICE: pnpm is added as a nativeBuildInput solely to detect the CAFS store
+# version subdirectory (e.g. "v10") at merge build time via `pnpm store path`.
+# This avoids hardcoding the version and automatically adapts when nixpkgs
+# updates pnpm to a version that bumps its internal store layout. The per-package
+# builds (makePkgStore) do NOT include pnpm, so their drv hashes are unaffected
+# by pnpm version bumps — only this single merge derivation reruns.
 stdenvNoCC.mkDerivation {
   name = "airi-pnpm-deps";
+  nativeBuildInputs = [ pnpm ];
   passAsFile = [ "pkgStoresList" ];
   pkgStoresList = lib.concatStringsSep "\n" (lib.attrValues pkgStores);
   buildPhase = ''
-    mkdir -p "$out/files" "$out/index"
+    # Detect pnpm's internal CAFS version subdirectory (e.g. "v10").
+    # pnpm appends this as the last segment of its store path.
+    export HOME=$(mktemp -d)
+    # Suppress packageManager version mismatch errors (we're not in a project dir)
+    pnpm config set manage-package-manager-versions false 2>/dev/null || true
+    storeVer=$(basename "$(pnpm store path 2>/dev/null)")
+    # Validate: must be v<digits>; fall back to v10 if detection fails
+    [[ "$storeVer" =~ ^v[0-9]+$ ]] || storeVer=v10
+
+    mkdir -p "$out/$storeVer/files" "$out/$storeVer/index"
     while IFS= read -r store; do
       [ -z "$store" ] && continue
       if [ -d "$store/files" ]; then
@@ -58,10 +76,10 @@ stdenvNoCC.mkDerivation {
         # permissions (0555, read-only) into $out. Without it, the first package
         # to create e.g. files/cd/ sets it to 0555, and subsequent packages fail
         # to write into it with "Permission denied".
-        cp -rn --no-preserve=mode "$store/files/." "$out/files/"
+        cp -rn --no-preserve=mode "$store/files/." "$out/$storeVer/files/"
       fi
       if [ -d "$store/index" ]; then
-        cp -rn --no-preserve=mode "$store/index/." "$out/index/"
+        cp -rn --no-preserve=mode "$store/index/." "$out/$storeVer/index/"
       fi
     done < "$pkgStoresListPath"
     # fetcherVersion=2 tells pnpmConfigHook the store is a raw directory (not a tarball)

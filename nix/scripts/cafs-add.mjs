@@ -139,9 +139,21 @@ try {
         const fileHex = fileHash.toString('hex')
         const fileB64 = fileHash.toString('base64')
 
-        // Write to files/{hex[:2]}/{hex[2:]}
+        // NOTICE: mode is stored as decimal integer (e.g. 420 = 0o644, 493 = 0o755)
+        // pnpm uses this value when recreating the file in node_modules
+        const isExec = !!(stat.mode & 0o111)
+        const mode = isExec ? 0o755 : 0o644 // 493 or 420
+
+        // NOTICE: pnpm CAFS v10 uses a "-exec" filename suffix for executable files.
+        // Without the suffix, pnpm cannot locate binaries in the store and falls back
+        // to downloading, which fails in offline mode. Non-executable files have no
+        // suffix. See nixpkgs pkgs/development/tools/pnpm/fetch-deps/default.nix
+        // fixupPhase: `find $out -type f -name "*-exec" -print0 | xargs -0 chmod 555`.
+        const cafsName = isExec ? `${fileHex.slice(2)}-exec` : fileHex.slice(2)
+
+        // Write to files/{hex[:2]}/{hex[2:]} or files/{hex[:2]}/{hex[2:]}-exec
         const destDir = join(outputDir, 'files', fileHex.slice(0, 2))
-        const destPath = join(destDir, fileHex.slice(2))
+        const destPath = join(destDir, cafsName)
         mkdirSync(destDir, { recursive: true })
         // Copy without loading into memory; COPYFILE_EXCL = fail if dest exists (CAFS: same hash = same file)
         try {
@@ -152,17 +164,11 @@ try {
             throw e
         }
 
-        // NOTICE: mode is stored as decimal integer (e.g. 420 = 0o644, 493 = 0o755)
-        // pnpm uses this value when recreating the file in node_modules
-        const isExec = !!(stat.mode & 0o111)
-        const mode = isExec ? 0o755 : 0o644 // 493 or 420
-
-        // NOTICE: checkedAt is set to a fixed epoch (1) for Nix reproducibility.
-        // pnpm uses this timestamp to decide whether to re-verify file integrity.
-        // A value of 1 is treated as "very old" but causes no correctness issues
-        // since pnpm install --offline skips network verification anyway.
+        // NOTICE: checkedAt is intentionally omitted (matches nixpkgs pnpm.fetchDeps
+        // behaviour: `jq "del(.. | .checkedAt?)"` strips it from all index files).
+        // When present with a stale timestamp, pnpm may trigger integrity re-verification
+        // which can fail unexpectedly in the Nix sandbox.
         filesIndex[relPath] = {
-          checkedAt: 1,
           integrity: `sha512-${fileB64}`,
           mode,
           size: stat.size,
