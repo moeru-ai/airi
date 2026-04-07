@@ -347,6 +347,15 @@ patchedDependencies:
   '@mediapipe/tasks-vision':
     hash: 2014bd232d13f4bfac27f27d61105894bf54aca350379b2816fe05b6d3e27d66
     path: patches/@mediapipe__tasks-vision.patch
+  '@xsai/generate-text@0.5.0-beta.2':
+    hash: 306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6
+    path: patches/@xsai__generate-text@0.5.0-beta.2.patch
+  '@xsai/shared-chat@0.5.0-beta.2':
+    hash: 26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01
+    path: patches/@xsai__shared-chat@0.5.0-beta.2.patch
+  '@xsai/stream-text@0.5.0-beta.2':
+    hash: 90dfe10d02f5946658508ec019937eab600745c93446ce7b2fdb1a0ed70e3e49
+    path: patches/@xsai__stream-text@0.5.0-beta.2.patch
   crossws@0.4.4:
     hash: 4d79ec736d10d2a81a9e2a31b067d43f0b6665122267981e652ab9923d165958
     path: patches/crossws@0.4.4.patch
@@ -501,13 +510,13 @@ importers:
         version: 14.2.1(vue@3.5.30(typescript@5.9.3))
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2
+        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2
+        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2
+        version: 0.5.0-beta.2(patch_hash=90dfe10d02f5946658508ec019937eab600745c93446ce7b2fdb1a0ed70e3e49)
       valibot:
         specifier: ^1.3.1
         version: 1.3.1(typescript@5.9.3)
@@ -788,7 +797,7 @@ importers:
         version: 0.5.0-beta.2
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2
+        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
       '@xsai/model':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
@@ -797,10 +806,10 @@ importers:
         version: 0.5.0-beta.2
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2
+        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2
+        version: 0.5.0-beta.2(patch_hash=90dfe10d02f5946658508ec019937eab600745c93446ce7b2fdb1a0ed70e3e49)
       '@xsai/stream-transcription':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
@@ -1197,7 +1206,7 @@ importers:
         version: 0.5.0-beta.2
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2
+        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
       '@xsai/model':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
@@ -1206,10 +1215,10 @@ importers:
         version: 0.5.0-beta.2
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2
+        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2
+        version: 0.5.0-beta.2(patch_hash=90dfe10d02f5946658508ec019937eab600745c93446ce7b2fdb1a0ed70e3e49)
       '@xsai/stream-transcription':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
@@ -1642,7 +1651,7 @@ importers:
         version: 0.5.0-beta.2
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2
+        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
       '@xsai/model':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
@@ -1651,10 +1660,10 @@ importers:
         version: 0.5.0-beta.2
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2
+        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2
+        version: 0.5.0-beta.2(patch_hash=90dfe10d02f5946658508ec019937eab600745c93446ce7b2fdb1a0ed70e3e49)
       '@xsai/stream-transcription':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
@@ -2514,7 +2523,7 @@ importers:
         version: 1.0.0-beta.3(electron@41.0.3)
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2
+        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
 
   packages/plugin-sdk:
     dependencies:
@@ -2998,7 +3007,7 @@ importers:
         version: 0.5.0-beta.2
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2
+        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
       '@xsai/generate-transcription':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
@@ -3010,10 +3019,10 @@ importers:
         version: 0.5.0-beta.2
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2
+        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2
+        version: 0.5.0-beta.2(patch_hash=90dfe10d02f5946658508ec019937eab600745c93446ce7b2fdb1a0ed70e3e49)
       '@xsai/stream-transcription':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
@@ -3747,13 +3756,13 @@ importers:
         version: 0.5.0-beta.2
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2
+        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
       '@xsai/generate-transcription':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2
+        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
       discord.js:
         specifier: ^14.25.1
         version: 14.25.1(bufferutil@4.1.0)(utf-8-validate@5.0.10)
@@ -3786,10 +3795,10 @@ importers:
         version: link:../../packages/server-sdk
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2
+        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2
+        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
       alien-signals:
         specifier: ^3.1.2
         version: 3.1.2
@@ -3895,10 +3904,10 @@ importers:
         version: 0.3.4(typescript@5.9.3)
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2
+        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2
+        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
       '@xsai/utils-chat':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
@@ -3986,10 +3995,10 @@ importers:
         version: 0.5.0-beta.2
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2
+        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0-beta.2
+        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
       '@xsai/tool':
         specifier: 'catalog:'
         version: 0.5.0-beta.2(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
@@ -24770,10 +24779,10 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.5.0-beta.2
 
-  '@xsai/generate-text@0.5.0-beta.2':
+  '@xsai/generate-text@0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)':
     dependencies:
       '@xsai/shared': 0.5.0-beta.2
-      '@xsai/shared-chat': 0.5.0-beta.2
+      '@xsai/shared-chat': 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
 
   '@xsai/generate-transcription@0.4.4':
     dependencies:
@@ -24787,7 +24796,7 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.5.0-beta.2
 
-  '@xsai/shared-chat@0.5.0-beta.2':
+  '@xsai/shared-chat@0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)':
     dependencies:
       '@xsai/shared': 0.5.0-beta.2
 
@@ -24799,10 +24808,10 @@ snapshots:
 
   '@xsai/shared@0.5.0-beta.2': {}
 
-  '@xsai/stream-text@0.5.0-beta.2':
+  '@xsai/stream-text@0.5.0-beta.2(patch_hash=90dfe10d02f5946658508ec019937eab600745c93446ce7b2fdb1a0ed70e3e49)':
     dependencies:
       '@xsai/shared': 0.5.0-beta.2
-      '@xsai/shared-chat': 0.5.0-beta.2
+      '@xsai/shared-chat': 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
       '@xsai/shared-stream': 0.5.0-beta.2
 
   '@xsai/stream-transcription@0.5.0-beta.2':
@@ -24813,7 +24822,7 @@ snapshots:
   '@xsai/tool@0.5.0-beta.2(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)':
     dependencies:
       '@xsai/shared': 0.5.0-beta.2
-      '@xsai/shared-chat': 0.5.0-beta.2
+      '@xsai/shared-chat': 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
       xsschema: 0.5.0-beta.2(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.3.1(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
     transitivePeerDependencies:
       - '@valibot/to-json-schema'
@@ -24825,7 +24834,7 @@ snapshots:
 
   '@xsai/utils-chat@0.5.0-beta.2':
     dependencies:
-      '@xsai/shared-chat': 0.5.0-beta.2
+      '@xsai/shared-chat': 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
 
   abbrev@3.0.1: {}
 

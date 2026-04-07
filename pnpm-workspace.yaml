@@ -21,6 +21,9 @@ overrides:
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 patchedDependencies:
   '@mediapipe/tasks-vision': patches/@mediapipe__tasks-vision.patch
+  '@xsai/generate-text@0.5.0-beta.2': patches/@xsai__generate-text@0.5.0-beta.2.patch
+  '@xsai/shared-chat@0.5.0-beta.2': patches/@xsai__shared-chat@0.5.0-beta.2.patch
+  '@xsai/stream-text@0.5.0-beta.2': patches/@xsai__stream-text@0.5.0-beta.2.patch
   crossws@0.4.4: patches/crossws@0.4.4.patch
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
   mineflayer@4.33.0: patches/mineflayer@4.33.0.patch
