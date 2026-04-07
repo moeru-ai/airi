@@ -112,7 +112,7 @@ function toCssSize(value?: string | number): string | undefined {
     <SelectTrigger
       :class="[
         'group',
-        'w-full inline-flex items-center justify-between border px-1 leading-none h-fit gap-[5px] outline-none',
+        'w-full inline-flex items-center justify-between border px-3 leading-none h-9 gap-[5px] outline-none',
         props.shape === 'rounded' ? 'rounded-full' : 'rounded-lg',
         'text-sm text-neutral-700 dark:text-neutral-200 data-[placeholder]:text-neutral-400 dark:data-[placeholder]:text-neutral-500',
         props.variant === 'default' ? 'bg-white dark:bg-neutral-900 disabled:bg-neutral-100 hover:bg-neutral-50 dark:disabled:bg-neutral-900 dark:hover:bg-neutral-700' : '',
@@ -144,7 +144,6 @@ function toCssSize(value?: string | number): string | undefined {
         <SelectValue
           v-else
           v-model="modelValue"
-          :placeholder="props.placeholder"
         />
       </div>
       <SelectIcon as-child>
