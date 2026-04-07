@@ -85,6 +85,6 @@ promo-banner:
       cta: View Theme
 waiting: 대기 중
 websocket-status:
-  connected: WebSocket에 연결됨
-  disconnected: WebSocket 연결 끊김
-  open-settings: WebSocket 설정 열기
+  connected: WebSocket connected
+  disconnected: WebSocket disconnected
+  open-settings: Open WebSocket settings

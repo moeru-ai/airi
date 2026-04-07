@@ -25,6 +25,8 @@ export const electronOpenDevtoolsWindow = defineInvokeEventa<void, { route?: str
 
 export interface ElectronServerChannelConfig {
   tlsConfig?: ServerOptions['tlsConfig'] | null
+  authToken: string
+  hostname: string
 }
 export const electronGetServerChannelConfig = defineInvokeEventa<ElectronServerChannelConfig>('eventa:invoke:electron:server-channel:get-config')
 export const electronApplyServerChannelConfig = defineInvokeEventa<ElectronServerChannelConfig, Partial<ElectronServerChannelConfig>>('eventa:invoke:electron:server-channel:apply-config')

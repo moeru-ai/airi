@@ -2,13 +2,14 @@
 import type { ChatAssistantMessage, ChatHistoryItem, ContextMessage } from '../../../../types/chat'
 import type { ChatHistoryEntry } from '../history-entries'
 
-import { computed, onMounted, provide, useTemplateRef, watch } from 'vue'
+import { computed, provide, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ChatAssistantItem from './assistant-item.vue'
 import ChatErrorItem from './error-item.vue'
 import ChatUserItem from './user-item.vue'
 
+import { useChatHistoryScroll } from '../composables/use-chat-history-scroll'
 import { chatScrollContainerKey } from '../constants'
 import { buildChatHistoryEntries } from '../history-entries'
 import { getChatHistoryItemKey } from '../utils'
@@ -35,30 +36,29 @@ const chatHistoryRef = useTemplateRef<HTMLDivElement>('chatHistoryRef')
 provide(chatScrollContainerKey, chatHistoryRef)
 
 const { t } = useI18n()
+
 const labels = computed(() => ({
   assistant: props.assistantLabel ?? t('stage.chat.message.character-name.airi'),
   user: props.userLabel ?? t('stage.chat.message.character-name.you'),
   error: props.errorLabel ?? t('stage.chat.message.character-name.core-system'),
 }))
 
-function scrollToBottom() {
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      if (!chatHistoryRef.value)
-        return
+const streaming = computed<ChatAssistantMessage & { context?: ContextMessage } & { createdAt?: number }>(
+  () => props.streamingMessage ?? {
+    role: 'assistant',
+    content: '',
+    slices: [],
+    tool_results: [],
+    createdAt: Date.now(),
+  },
+)
 
-      chatHistoryRef.value.scrollTop = chatHistoryRef.value.scrollHeight
-    })
-  })
-}
+const showStreamingPlaceholder = computed(
+  () => (streaming.value.slices?.length ?? 0) === 0 && !streaming.value.content,
+)
 
-watch([() => props.messages, () => props.streamingMessage], scrollToBottom, { deep: true, flush: 'post' })
-watch(() => props.sending, scrollToBottom, { flush: 'post' })
-onMounted(scrollToBottom)
-
-const streaming = computed<ChatAssistantMessage & { context?: ContextMessage } & { createdAt?: number }>(() => props.streamingMessage ?? { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now() })
-const showStreamingPlaceholder = computed(() => (streaming.value.slices?.length ?? 0) === 0 && !streaming.value.content)
 const streamingTs = computed(() => streaming.value?.createdAt)
+
 function shouldShowPlaceholder(message: ChatHistoryItem) {
   const ts = streamingTs.value
   if (ts == null)
@@ -66,6 +66,7 @@ function shouldShowPlaceholder(message: ChatHistoryItem) {
 
   return message.context?.createdAt === ts || message.createdAt === ts
 }
+
 const renderMessages = computed<ChatHistoryItem[]>(() => {
   if (!props.sending)
     return props.messages
@@ -74,12 +75,24 @@ const renderMessages = computed<ChatHistoryItem[]>(() => {
   if (!streamTs)
     return props.messages
 
-  const hasStreamAlready = streamTs && props.messages.some(msg => msg?.role === 'assistant' && msg?.createdAt === streamTs)
+  const hasStreamAlready = props.messages.some(
+    msg => msg?.role === 'assistant' && msg?.createdAt === streamTs,
+  )
+
   if (hasStreamAlready)
     return props.messages
 
   return [...props.messages, streaming.value]
 })
+
+/* keep main branch scrolling behavior */
+useChatHistoryScroll({
+  containerRef: chatHistoryRef,
+  messages: renderMessages,
+  getKey: getChatHistoryItemKey,
+})
+
+/* keep timestamp injection feature */
 
 const timestampFormatter = new Intl.DateTimeFormat(undefined, {
   month: 'short',
@@ -116,7 +129,9 @@ const timestampLabelClasses = computed(() => [
   props.variant === 'mobile' ? 'px-2 py-0.5 text-[11px]' : 'px-3 py-1 text-xs',
 ])
 
-const renderEntries = computed<ChatHistoryEntry[]>(() => buildChatHistoryEntries(renderMessages.value))
+const renderEntries = computed<ChatHistoryEntry[]>(
+  () => buildChatHistoryEntries(renderMessages.value),
+)
 
 function emitCopyMessage(message: ChatHistoryItem, index: number) {
   emit('copyMessage', {
@@ -141,8 +156,17 @@ function emitDeleteMessage(message: ChatHistoryItem, index: number) {
     v-auto-animate
     :class="historyClasses"
   >
-    <template v-for="(entry, entryIndex) in renderEntries" :key="entry.type === 'timestamp' ? `timestamp:${entry.timestamp}:${entryIndex}` : getChatHistoryItemKey(entry.message, entry.index)">
-      <div v-if="entry.type === 'timestamp'" :class="timestampRowClasses">
+    <template
+      v-for="(entry, entryIndex) in renderEntries"
+      :key="entry.type === 'timestamp'
+        ? `timestamp:${entry.timestamp}:${entryIndex}`
+        : getChatHistoryItemKey(entry.message, entry.index)"
+    >
+      <!-- timestamp -->
+      <div
+        v-if="entry.type === 'timestamp'"
+        :class="timestampRowClasses"
+      >
         <div :class="timestampDividerClasses" />
         <div :class="timestampLabelClasses">
           {{ formatChatMessageTimestamp(entry.timestamp) }}
@@ -150,37 +174,37 @@ function emitDeleteMessage(message: ChatHistoryItem, index: number) {
         <div :class="timestampDividerClasses" />
       </div>
 
-      <div v-else-if="entry.message.role === 'error'">
-        <ChatErrorItem
-          :message="entry.message"
-          :label="labels.error"
-          :show-placeholder="sending && entry.index === renderMessages.length - 1"
-          :variant="variant"
-          @copy="emitCopyMessage(entry.message, entry.index)"
-          @delete="emitDeleteMessage(entry.message, entry.index)"
-        />
-      </div>
+      <!-- error -->
+      <ChatErrorItem
+        v-else-if="entry.message.role === 'error'"
+        :message="entry.message"
+        :label="labels.error"
+        :show-placeholder="sending && entry.index === renderMessages.length - 1"
+        :variant="variant"
+        @copy="emitCopyMessage(entry.message, entry.index)"
+        @delete="emitDeleteMessage(entry.message, entry.index)"
+      />
 
-      <div v-else-if="entry.message.role === 'assistant'">
-        <ChatAssistantItem
-          :message="entry.message"
-          :label="labels.assistant"
-          :show-placeholder="shouldShowPlaceholder(entry.message) && showStreamingPlaceholder"
-          :variant="variant"
-          @copy="emitCopyMessage(entry.message, entry.index)"
-          @delete="emitDeleteMessage(entry.message, entry.index)"
-        />
-      </div>
+      <!-- assistant -->
+      <ChatAssistantItem
+        v-else-if="entry.message.role === 'assistant'"
+        :message="entry.message"
+        :label="labels.assistant"
+        :show-placeholder="shouldShowPlaceholder(entry.message) && showStreamingPlaceholder"
+        :variant="variant"
+        @copy="emitCopyMessage(entry.message, entry.index)"
+        @delete="emitDeleteMessage(entry.message, entry.index)"
+      />
 
-      <div v-else-if="entry.message.role === 'user'">
-        <ChatUserItem
-          :message="entry.message"
-          :label="labels.user"
-          :variant="variant"
-          @copy="emitCopyMessage(entry.message, entry.index)"
-          @delete="emitDeleteMessage(entry.message, entry.index)"
-        />
-      </div>
+      <!-- user -->
+      <ChatUserItem
+        v-else-if="entry.message.role === 'user'"
+        :message="entry.message"
+        :label="labels.user"
+        :variant="variant"
+        @copy="emitCopyMessage(entry.message, entry.index)"
+        @delete="emitDeleteMessage(entry.message, entry.index)"
+      />
     </template>
   </div>
 </template>

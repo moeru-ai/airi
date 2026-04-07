@@ -29,6 +29,7 @@ import { array, number, object, optional, string } from 'valibot'
 import icon from '../../../../resources/icon.png?asset'
 
 import { electronStartDraggingWindow } from '../../../shared/eventa'
+import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
 import { baseUrl, getElectronMainDirname, load } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { transparentWindowConfig } from '../shared'
@@ -98,6 +99,11 @@ export async function setupMainWindow(params: {
     params.onWindowCreated(window)
   }
 
+  let allowClose = false
+  onAppBeforeQuit(() => {
+    allowClose = true
+  })
+
   // NOTICE: in development mode, open devtools by default
   if (is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG) {
     try {
@@ -142,6 +148,14 @@ export async function setupMainWindow(params: {
 
   window.on('resize', () => handleNewBounds(window.getBounds()))
   window.on('move', () => handleNewBounds(window.getBounds()))
+  window.on('close', (event) => {
+    if (allowClose) {
+      return
+    }
+
+    event.preventDefault()
+    window.hide()
+  })
 
   // Thanks to [@HeartArmy](https://github.com/HeartArmy) for the tip implementation.
   //
