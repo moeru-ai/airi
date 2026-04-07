@@ -52,6 +52,10 @@ class AutomaticSpeechRecognitionPipeline {
   }
 }
 
+/**
+ * Convert base64-encoded WAV audio to Float32Array features.
+ * @deprecated Prefer sending Float32Array directly via transferable for zero-copy.
+ */
 async function base64ToFeatures(base64Audio: string): Promise<Float32Array> {
   // Decode base64 to binary
   const binaryString = atob(base64Audio)
@@ -73,7 +77,7 @@ async function base64ToFeatures(base64Audio: string): Promise<Float32Array> {
 }
 
 let processing = false
-async function generate({ audio, language }: { audio: string, language: string }) {
+async function generate({ audio, audioFloat32, language }: { audio?: string, audioFloat32?: Float32Array, language: string }) {
   if (processing)
     return
   processing = true
@@ -81,7 +85,9 @@ async function generate({ audio, language }: { audio: string, language: string }
   // Tell the main thread we are starting
   globalThis.postMessage({ status: 'start' })
 
-  const audioData = await base64ToFeatures(audio)
+  // Prefer pre-converted Float32Array (zero-copy via transferable),
+  // fall back to base64 decoding for backward compatibility.
+  const audioData = audioFloat32 ?? await base64ToFeatures(audio!)
 
   // Retrieve the text-generation pipeline.
   const [tokenizer, processor, model] = await AutomaticSpeechRecognitionPipeline.getInstance()

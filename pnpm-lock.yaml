@@ -2872,6 +2872,9 @@ importers:
       '@vueuse/core':
         specifier: 'catalog:'
         version: 14.1.0(vue@3.5.30(typescript@5.9.3))
+      gpuu:
+        specifier: ^1.0.6
+        version: 1.0.6
       pinia:
         specifier: 'catalog:'
         version: 3.0.4(typescript@5.9.3)(vue@3.5.30(typescript@5.9.3))
