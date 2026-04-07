@@ -1,5 +1,5 @@
-import type { LoadableTranscriptionProvider } from '@xsai-transformers/transcription'
 import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
+import type { LoadableTranscriptionProvider } from '@xsai-transformers/transcription'
 
 import { createTranscriptionProvider } from '@xsai-transformers/transcription'
 import { shallowRef } from 'vue'
