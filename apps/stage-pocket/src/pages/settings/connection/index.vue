@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import ConnectionSettings from '@proj-airi/stage-pages/pages/settings/connection/ConnectionSettings.vue'
+import { ConnectionSettings } from '@proj-airi/stage-ui/components'
 
 import ServerChannelQrScanner from './server-channel-qr-scanner.vue'
 </script>
