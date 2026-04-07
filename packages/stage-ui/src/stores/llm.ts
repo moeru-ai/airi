@@ -1,8 +1,13 @@
 import type { WebSocketEvents } from '@proj-airi/server-sdk'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
-import type { CommonContentPart, CompletionToolCall, Message, Tool } from '@xsai/shared-chat'
+import type { CommonContentPart, CompletionToolCall, CompletionToolResult, Message, Tool } from '@xsai/shared-chat'
 
 import { listModels } from '@xsai/model'
+import {
+
+  stepCountAtLeast,
+
+} from '@xsai/shared-chat'
 import { streamText } from '@xsai/stream-text'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
@@ -14,6 +19,7 @@ export type StreamEvent
   = | { type: 'text-delta', text: string }
     | ({ type: 'finish' } & any)
     | ({ type: 'tool-call' } & CompletionToolCall)
+    | (CompletionToolResult & { type: 'tool-error' })
     | { type: 'tool-result', toolCallId: string, result?: string | CommonContentPart[] }
     | { type: 'error', error: any }
 
@@ -95,7 +101,8 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
         await options?.onStreamEvent?.(event as StreamEvent)
         if (event && (event as StreamEvent).type === 'finish') {
           const finishReason = (event as any).finishReason
-          if (finishReason !== 'tool_calls' || !options?.waitForTools)
+          const waitingForToolRound = finishReason === 'tool_calls' || finishReason === 'tool-calls'
+          if (!waitingForToolRound || !options?.waitForTools)
             resolveOnce()
         }
         else if (event && (event as StreamEvent).type === 'error') {
@@ -111,10 +118,11 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
       const streamResult = streamText({
         ...chatConfig,
         abortSignal: options?.abortSignal,
-        maxSteps: 10,
         messages: sanitized,
         headers: options?.headers,
+        stopWhen: stepCountAtLeast(10),
         tools,
+        captureToolErrors: true,
         onEvent,
       })
 

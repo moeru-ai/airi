@@ -21,6 +21,9 @@ overrides:
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 patchedDependencies:
   '@mediapipe/tasks-vision': patches/@mediapipe__tasks-vision.patch
+  '@xsai/generate-text@0.5.0-beta.2': patches/@xsai__generate-text@0.5.0-beta.2.patch
+  '@xsai/shared-chat@0.5.0-beta.2': patches/@xsai__shared-chat@0.5.0-beta.2.patch
+  '@xsai/stream-text@0.5.0-beta.2': patches/@xsai__stream-text@0.5.0-beta.2.patch
   crossws@0.4.4: patches/crossws@0.4.4.patch
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
   mineflayer@4.33.0: patches/mineflayer@4.33.0.patch
@@ -67,17 +70,18 @@ catalog:
   '@types/unist': ^3.0.3
   '@types/ws': ^8.18.1
   '@vueuse/core': 14.1.0
-  '@xsai-ext/providers': ^0.4.4
-  '@xsai/embed': ^0.4.4
-  '@xsai/generate-speech': 0.4.0-beta.13
-  '@xsai/generate-text': ^0.4.4
-  '@xsai/generate-transcription': ^0.4.4
-  '@xsai/model': ^0.4.4
-  '@xsai/shared': 0.4.0-beta.13
-  '@xsai/shared-chat': 0.4.0-beta.13
-  '@xsai/stream-text': ^0.4.4
-  '@xsai/tool': ^0.4.4
-  '@xsai/utils-chat': 0.4.0-beta.13
+  '@xsai-ext/providers': 0.5.0-beta.2
+  '@xsai/embed': 0.5.0-beta.2
+  '@xsai/generate-speech': 0.5.0-beta.2
+  '@xsai/generate-text': 0.5.0-beta.2
+  '@xsai/generate-transcription': 0.5.0-beta.2
+  '@xsai/model': 0.5.0-beta.2
+  '@xsai/shared': 0.5.0-beta.2
+  '@xsai/shared-chat': 0.5.0-beta.2
+  '@xsai/stream-text': 0.5.0-beta.2
+  '@xsai/stream-transcription': 0.5.0-beta.2
+  '@xsai/tool': 0.5.0-beta.2
+  '@xsai/utils-chat': 0.5.0-beta.2
   alien-signals: ^3.1.2
   async-mutex: 0.5.0
   better-auth: ^1.5.6
@@ -128,7 +132,7 @@ catalog:
   vue-sonner: 2.0.9
   web-haptics: ^0.0.6
   ws: ^8.20.0
-  xsschema: 0.4.0-beta.13
+  xsschema: 0.5.0-beta.2
   yaml: ^2.8.3
   zod: ^4.3.6
 catalogs:
