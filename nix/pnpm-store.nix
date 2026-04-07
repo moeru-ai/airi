@@ -53,11 +53,12 @@ in
 # updates pnpm to a version that bumps its internal store layout. The per-package
 # builds (makePkgStore) do NOT include pnpm, so their drv hashes are unaffected
 # by pnpm version bumps — only this single merge derivation reruns.
+# Fix: trailing newline in pkgStoresList - 2026-04-07
 stdenvNoCC.mkDerivation {
   name = "airi-pnpm-deps";
   nativeBuildInputs = [ pnpm ];
   passAsFile = [ "pkgStoresList" ];
-  pkgStoresList = lib.concatStringsSep "\n" (lib.attrValues pkgStores);
+  pkgStoresList = (lib.concatStringsSep "\n" (lib.attrValues pkgStores)) + "\n";
   buildPhase = ''
     # Detect pnpm's internal CAFS version subdirectory (e.g. "v10").
     # pnpm appends this as the last segment of its store path.
