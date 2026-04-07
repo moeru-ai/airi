@@ -6,6 +6,7 @@ import type { UpdateInfo } from 'electron-updater'
 import process from 'node:process'
 
 import electronUpdater from 'electron-updater'
+import semver from 'semver'
 
 import { is } from '@electron-toolkit/utils'
 import { useLogg } from '@guiiai/logg'
@@ -14,6 +15,7 @@ import { errorMessageFrom, tryCatch } from '@moeru/std'
 import { committerDate } from '~build/git'
 import { app } from 'electron'
 import { Semaphore } from 'es-toolkit'
+import { isWindows } from 'std-env'
 
 import {
   autoUpdater as autoUpdaterEventa,
@@ -63,9 +65,13 @@ export interface AutoUpdater {
   subscribe: (callback: (state: AutoUpdaterState) => void) => () => void
 }
 
+function isPrereleaseVersion(version: string) {
+  return (semver.prerelease(version)?.length ?? 0) > 0
+}
+
 export function setupAutoUpdater(): AutoUpdater {
   const semaphore = new Semaphore(1)
-  const isPrereleaseBuild = app.getVersion().includes('-')
+  const isPrereleaseBuild = isPrereleaseVersion(app.getVersion())
   const log = useLogg('auto-updater').useGlobalConfig()
   const autoUpdater = fromImported()
   const feedUrlOverride = getUpdateServerOverride()
@@ -173,7 +179,7 @@ export function setupAutoUpdater(): AutoUpdater {
       await semaphore.acquire()
 
       try {
-        if (process.platform === 'win32')
+        if (isWindows)
           autoUpdater.quitAndInstall(true, true)
         else
           autoUpdater.quitAndInstall()
@@ -209,31 +215,21 @@ export function createAutoUpdaterService(params: { context: MainContext, window:
     tryCatch(() => context.emit(electronAutoUpdaterStateChanged, state))
   })
 
-  const cleanups: Array<() => void> = [unsubscribe]
-
-  cleanups.push(
+  const cleanups: Array<() => void> = [
+    unsubscribe,
     defineInvokeHandler(context, autoUpdaterEventa.getState, () => service.state),
-  )
-
-  cleanups.push(
     defineInvokeHandler(context, autoUpdaterEventa.checkForUpdates, async () => {
       await service.checkForUpdates().catch(error => log.withError(error).error('checkForUpdates() failed'))
       return service.state
     }),
-  )
-
-  cleanups.push(
     defineInvokeHandler(context, autoUpdaterEventa.downloadUpdate, async () => {
       await service.downloadUpdate()
       return service.state
     }),
-  )
-
-  cleanups.push(
     defineInvokeHandler(context, autoUpdaterEventa.quitAndInstall, async () => {
       await service.quitAndInstall()
     }),
-  )
+  ]
 
   const cleanup = () => {
     for (const fn of cleanups)
