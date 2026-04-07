@@ -139,6 +139,15 @@ describe('setupAutoUpdater', () => {
     expect(service.state.diagnostics).not.toHaveProperty('uninstallExists')
   })
 
+  it('does not treat build metadata as prerelease', async () => {
+    appMock.getVersion.mockReturnValue('1.2.3+build-1')
+
+    const { setupAutoUpdater } = await import('./auto-updater')
+    setupAutoUpdater()
+
+    expect(updaterState.instance.allowPrerelease).toBe(false)
+  })
+
   it('uses silent relaunch install on Windows only', async () => {
     const originalPlatform = process.platform
     vi.stubEnv('TEST_PLATFORM', '')

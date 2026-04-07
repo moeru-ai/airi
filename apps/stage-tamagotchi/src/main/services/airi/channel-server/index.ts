@@ -5,6 +5,7 @@ import type { ElectronServerChannelConfig } from '../../../../shared/eventa'
 
 import { randomUUID, X509Certificate } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { isIP } from 'node:net'
 import { join } from 'node:path'
 import { env, platform } from 'node:process'
 
@@ -13,6 +14,7 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { errorMessageFrom } from '@moeru/std'
 import { createServer, getLocalIPs } from '@proj-airi/server-runtime/server'
+import { createServerChannelQrPayload } from '@proj-airi/stage-shared/server-channel-qr'
 import { Mutex } from 'async-mutex'
 import { app, ipcMain, session } from 'electron'
 import { createCA, createCert } from 'mkcert'
@@ -23,6 +25,7 @@ import { z } from 'zod'
 import {
   electronApplyServerChannelConfig,
   electronGetServerChannelConfig,
+  electronGetServerChannelQrPayload,
 } from '../../../../shared/eventa'
 import { createConfig } from '../../../libs/electron/persistence'
 import { ensureServerChannelConfigDefaults } from './config'
@@ -73,6 +76,50 @@ interface ServerChannelCertificateVerifyRequest {
 
 function getServerChannelPort() {
   return env.SERVER_CHANNEL_PORT ? Number.parseInt(env.SERVER_CHANNEL_PORT) : 6121
+}
+
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1'])
+
+function isLoopbackHost(host: string) {
+  return LOOPBACK_HOSTS.has(host)
+}
+
+function getServerChannelQrHosts(config: ElectronServerChannelConfig, serverChannel: Server) {
+  if (config.hostname === '0.0.0.0') {
+    return Array.from(new Set(serverChannel.getConnectionHost()))
+      .filter(host => !isLoopbackHost(host))
+      .sort()
+  }
+
+  if (isLoopbackHost(config.hostname)) {
+    return []
+  }
+
+  return [config.hostname]
+}
+
+function createServerChannelUrl(protocol: 'ws' | 'wss', host: string) {
+  const urlHost = isIP(host) === 6 ? `[${host}]` : host
+  // TODO: Deduplicate the server channel websocket path with `packages/server-runtime/src/index.ts`
+  // and `packages/server-sdk/src/client.ts` so this does not rely on three separate `/ws` literals.
+  return `${protocol}://${urlHost}:${getServerChannelPort()}/ws`
+}
+
+function getServerChannelQrPayload(config: ElectronServerChannelConfig, serverChannel: Server) {
+  const protocol = config.tlsConfig ? 'wss' : 'ws'
+  const urls = getServerChannelQrHosts(config, serverChannel)
+    .map(host => createServerChannelUrl(protocol, host))
+
+  if (!urls.length) {
+    throw new Error('No reachable private LAN address is available for the current server channel host.')
+  }
+
+  return createServerChannelQrPayload({
+    type: 'airi:server-channel',
+    version: 1,
+    urls,
+    authToken: config.authToken,
+  })
 }
 
 async function getChannelServerConfig(): Promise<ElectronServerChannelConfig> {
@@ -411,6 +458,11 @@ export async function createServerChannelService(params: { serverChannel: Server
 
   defineInvokeHandler(context, electronGetServerChannelConfig, async () => {
     return await getChannelServerConfig()
+  })
+
+  defineInvokeHandler(context, electronGetServerChannelQrPayload, async () => {
+    const config = await getChannelServerConfig()
+    return getServerChannelQrPayload(config, params.serverChannel)
   })
 
   defineInvokeHandler(context, electronApplyServerChannelConfig, async (req) => {

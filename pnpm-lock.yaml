@@ -12,6 +12,9 @@ catalogs:
     '@capacitor/android':
       specifier: ^8.2.0
       version: 8.2.0
+    '@capacitor/barcode-scanner':
+      specifier: ^3.0.2
+      version: 3.0.2
     '@capacitor/cli':
       specifier: ^8.2.0
       version: 8.2.0
@@ -279,6 +282,9 @@ catalogs:
     unstorage:
       specifier: ^1.17.4
       version: 1.17.4
+    uqr:
+      specifier: ^0.1.3
+      version: 0.1.3
     valibot:
       specifier: 1.2.0
       version: 1.2.0
@@ -684,6 +690,9 @@ importers:
       '@capacitor/android':
         specifier: 'catalog:'
         version: 8.2.0(@capacitor/core@8.2.0)
+      '@capacitor/barcode-scanner':
+        specifier: 'catalog:'
+        version: 3.0.2(@capacitor/core@8.2.0)
       '@capacitor/core':
         specifier: 'catalog:'
         version: 8.2.0
@@ -1297,6 +1306,9 @@ importers:
       remark-rehype:
         specifier: ^11.1.2
         version: 11.1.2
+      semver:
+        specifier: ^7.7.4
+        version: 7.7.4
       shiki:
         specifier: ^4.0.2
         version: 4.0.2
@@ -1312,6 +1324,9 @@ importers:
       unspeech:
         specifier: catalog:xsai
         version: 0.1.11
+      uqr:
+        specifier: 'catalog:'
+        version: 0.1.3
       uuid:
         specifier: ^13.0.0
         version: 13.0.0
@@ -1439,6 +1454,9 @@ importers:
       '@types/nprogress':
         specifier: ^0.2.3
         version: 0.2.3
+      '@types/semver':
+        specifier: ^7.7.1
+        version: 7.7.1
       '@types/splitpanes':
         specifier: 'catalog:'
         version: 2.2.6
@@ -2875,6 +2893,9 @@ importers:
       pinia:
         specifier: 'catalog:'
         version: 3.0.4(typescript@5.9.3)(vue@3.5.30(typescript@5.9.3))
+      valibot:
+        specifier: 'catalog:'
+        version: 1.2.0(typescript@5.9.3)
       vue:
         specifier: 'catalog:'
         version: 3.5.30(typescript@5.9.3)
@@ -4910,6 +4931,11 @@ packages:
     resolution: {integrity: sha512-XLm5OsWLPfXQxDxzFS7SOdMEgGvW+2c7TGLXkTR2cSKdkWK5Abns4imlT5qghKYhjM9r74IrDkBWg/9ALUGNKQ==}
     peerDependencies:
       '@capacitor/core': ^8.2.0
+
+  '@capacitor/barcode-scanner@3.0.2':
+    resolution: {integrity: sha512-eD8G0dj/vDTytzFY3qK/5EWZtv17NHMN97gx5KSHUuqFXOScf+5e4Rwwak8zDkX17VLXNym6y3eIn8AvCLY+Pg==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
 
   '@capacitor/cli@8.2.0':
     resolution: {integrity: sha512-1cMEk0d/I6tl1U+v/lnJR5Oylpx8ZBIHrvQxD5zK0MkjYOUyQAAGJgh97rkhGJqjAUvrGpa8H4BmyhNQN9a17A==}
@@ -9491,6 +9517,9 @@ packages:
   '@types/responselike@1.0.3':
     resolution: {integrity: sha512-H/+L+UkTV33uf49PH5pCAUBVPNj2nDBXTN+qS1dOwyyg24l3CcicicCA7ca+HMvJBZcFgl5r8e+RR6elsb4Lyw==}
 
+  '@types/semver@7.7.1':
+    resolution: {integrity: sha512-FmgJfu+MOcQ370SD0ev7EI8TlCAfKYU+B4m5T3yXc1CiRN94g/SZPtsCkk506aUDtlMnFZvasDwHHUcZUEaYuA==}
+
   '@types/slice-ansi@4.0.0':
     resolution: {integrity: sha512-+OpjSaq85gvlZAYINyzKpLeiFkSC4EsC6IIiT6v6TLSU5k5U83fHGj9Lel8oKEXM0HqgrMVCjXPDPVICtxF7EQ==}
 
@@ -13272,6 +13301,9 @@ packages:
     resolution: {integrity: sha512-fPU6BHNpsyIhr8yyMpTLLxAbkaK8ArIBcmZIRiBLiDhjeqvXolaEmDGmELFuX9I4xDcaKKcJl+TKZLqruBbmWA==}
     engines: {node: '>=8.0.0'}
 
+  html5-qrcode@2.3.8:
+    resolution: {integrity: sha512-jsr4vafJhwoLVEDW3n1KvPnCCXWaQfRng0/EEYk1vNcQGcG/htAdhJX0be8YyqMoSz7+hZvOZSTAepsabiuhiQ==}
+
   htmlparser2@10.0.0:
     resolution: {integrity: sha512-TwAZM+zE5Tq3lrEHvOlvwgj1XLWQCtaaibSN11Q+gGBAS7Y1uZSWwXXRe4iF6OXnaq1riyQAPFOBtYc77Mxq0g==}
 
@@ -17044,6 +17076,9 @@ packages:
     resolution: {integrity: sha512-+dwUY4L35XFYEzE+OAL3sarJdUioVovq+8f7lcIJ7wnmnYQV5UD1Y/lcwaMSyaQ6Bj3JMj1XSTjZbNLHn/19yA==}
     engines: {node: '>=18'}
 
+  uqr@0.1.3:
+    resolution: {integrity: sha512-0rjE8iEJe4YmT9TOhwsZtqCMRLc5DXZUI2UEYUUg63ikBkqqE5EYWaI0etFe/5KUcmcYwLih2RND1kq+hrUJXA==}
+
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
 
@@ -18998,6 +19033,11 @@ snapshots:
   '@capacitor/android@8.2.0(@capacitor/core@8.2.0)':
     dependencies:
       '@capacitor/core': 8.2.0
+
+  '@capacitor/barcode-scanner@3.0.2(@capacitor/core@8.2.0)':
+    dependencies:
+      '@capacitor/core': 8.2.0
+      html5-qrcode: 2.3.8
 
   '@capacitor/cli@8.2.0':
     dependencies:
@@ -23396,6 +23436,8 @@ snapshots:
   '@types/responselike@1.0.3':
     dependencies:
       '@types/node': 24.12.0
+
+  '@types/semver@7.7.1': {}
 
   '@types/slice-ansi@4.0.0': {}
 
@@ -27973,6 +28015,8 @@ snapshots:
       css-line-break: 2.1.0
       text-segmentation: 1.0.3
 
+  html5-qrcode@2.3.8: {}
+
   htmlparser2@10.0.0:
     dependencies:
       domelementtype: 2.3.0
@@ -32523,6 +32567,8 @@ snapshots:
       pupa: 3.3.0
       semver: 7.7.4
       xdg-basedir: 5.1.0
+
+  uqr@0.1.3: {}
 
   uri-js@4.4.1:
     dependencies:

@@ -7,6 +7,8 @@ import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import ServerChannelQrCard from './server-channel-qr-card.vue'
+
 import { useServerChannelSettingsStore } from '../../../stores/settings/server-channel'
 import {
   hostnameFromExposureMode,
@@ -121,6 +123,8 @@ const exposureModeOptions = computed(() => [
       >
         {{ lastApplyError }}
       </Callout>
+
+      <ServerChannelQrCard />
     </template>
   </ConnectionSettings>
 </template>

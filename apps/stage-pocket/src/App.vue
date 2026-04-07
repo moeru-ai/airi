@@ -134,7 +134,7 @@ const extraSteps = computed(() => [
   </StageTransitionGroup>
 
   <ToasterRoot @close="id => toast.dismiss(id)">
-    <Toaster />
+    <Toaster rich-colors />
   </ToasterRoot>
 
   <!-- First Time Setup Dialog -->
