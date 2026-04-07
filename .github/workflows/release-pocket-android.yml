@@ -98,6 +98,7 @@ jobs:
           mv "$APK_SOURCE" "$APK_BUNDLE_DIR/$APK_NAME"
 
           echo "APK_NAME=$APK_NAME" >> "$GITHUB_ENV"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -120,6 +121,6 @@ jobs:
       # https://itch.io/docs/butler/pushing.html
       - name: Upload Android to itch.io
         if: ${{ github.event_name == 'release' }}
-        run: butler push apps/stage-pocket/bundle/${{ env.BUNDLE_NAME }} nekomeowww/airi:android --userversion ${{ env.VERSION }}
+        run: butler push apps/stage-pocket/android/bundle/${{ env.APK_NAME }} nekomeowww/airi:android --userversion ${{ env.VERSION }}
         env:
           BUTLER_API_KEY: ${{ secrets.GAME_PUBLISHING_ITCHIO }}
