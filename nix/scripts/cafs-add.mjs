@@ -102,6 +102,16 @@ try {
     }
   }
 
+  // NOTICE: chmod unconditionally after extraction — some tarballs store directories
+  // with non-executable modes (e.g. 0600 or 0555). GNU tar with --no-same-permissions
+  // only applies the umask, which cannot *add* bits. Critically, tar sets directory
+  // permissions *after* writing all children into them: so extraction can exit 0
+  // while leaving directories non-traversable. Without execute on a parent directory,
+  // statSync/readdirSync of children will fail with EACCES. The loop above only
+  // calls chmod on failure; this call handles the case where tar succeeds but still
+  // produces non-executable dirs.
+  execSync(`chmod -R u+rwX ${JSON.stringify(tmpDir)}`)
+
   // npm tarballs always have a single top-level "package/" directory; strip it
   const topLevel = readdirSync(tmpDir)
   const pkgRoot = topLevel.length === 1 ? join(tmpDir, topLevel[0]) : tmpDir
@@ -176,5 +186,12 @@ try {
   })
 }
 finally {
+  // NOTICE: chmod before rm — some tarballs extract directories with mode 0555
+  // (no write bit). Even with --no-same-permissions, tar only masks the umask;
+  // it cannot add bits, so 0555 dirs stay non-writable and rm -rf fails.
+  // This is unconditional because chmod in the extraction loop only fires on
+  // failure, so a tarball that extracts successfully on the first pass but has
+  // non-writable dirs would make rm -rf fail during cleanup.
+  execSync(`chmod -R u+rwX ${JSON.stringify(tmpDir)}`)
   execSync(`rm -rf ${JSON.stringify(tmpDir)}`)
 }

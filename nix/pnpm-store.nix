@@ -38,19 +38,32 @@ let
 in
 # Merge all per-package CAFS fragments into one complete pnpm store.
 # CAFS is content-addressed: cp -rn is safe (same hash = same file, no conflicts).
-# Dependencies on pkgStores are established via string interpolation below.
+#
+# NOTICE: pkgStoresList is passed via passAsFile instead of being interpolated
+# directly into buildPhase. With ~3000 packages each path is ~50 chars, the
+# concatenated string exceeds ARG_MAX (~2 MB) when bash is invoked with all
+# environment variables, causing E2BIG. passAsFile writes the content to a
+# temp file and sets pkgStoresListPath, keeping the env small. Nix still
+# tracks the string context (i.e. dependencies on all pkgStores) correctly.
 stdenvNoCC.mkDerivation {
   name = "airi-pnpm-deps";
+  passAsFile = [ "pkgStoresList" ];
+  pkgStoresList = lib.concatStringsSep "\n" (lib.attrValues pkgStores);
   buildPhase = ''
     mkdir -p "$out/files" "$out/index"
-    for store in ${lib.concatStringsSep " " (lib.attrValues pkgStores)}; do
+    while IFS= read -r store; do
+      [ -z "$store" ] && continue
       if [ -d "$store/files" ]; then
-        cp -rn "$store/files/." "$out/files/"
+        # NOTICE: --no-preserve=mode prevents cp from copying Nix store directory
+        # permissions (0555, read-only) into $out. Without it, the first package
+        # to create e.g. files/cd/ sets it to 0555, and subsequent packages fail
+        # to write into it with "Permission denied".
+        cp -rn --no-preserve=mode "$store/files/." "$out/files/"
       fi
       if [ -d "$store/index" ]; then
-        cp -rn "$store/index/." "$out/index/"
+        cp -rn --no-preserve=mode "$store/index/." "$out/index/"
       fi
-    done
+    done < "$pkgStoresListPath"
     # fetcherVersion=2 tells pnpmConfigHook the store is a raw directory (not a tarball)
     echo -n "2" > "$out/.fetcher-version"
   '';
