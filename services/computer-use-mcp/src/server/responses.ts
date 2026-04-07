@@ -71,6 +71,7 @@ export function buildExecutionErrorResponse(params: {
   context: { available: boolean, appName?: string, windowTitle?: string }
   executionTarget: ExecutionTarget
   policy: PolicyDecision
+  verification?: Record<string, unknown>
 }): CallToolResult {
   return {
     isError: true,
@@ -86,6 +87,7 @@ export function buildExecutionErrorResponse(params: {
       executionTarget: params.executionTarget,
       policy: params.policy,
       error: params.errorMessage,
+      verification: params.verification,
     },
   }
 }

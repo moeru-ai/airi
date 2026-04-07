@@ -12,6 +12,18 @@ The rule is simple:
 
 ## What We Can Use Now
 
+Before listing the adopted pieces, one architectural correction needs to stay explicit:
+
+- `tool-first` is a useful support layer
+- it is **not** the center of `computer-use-mcp`
+- for AIRI, the real center should be:
+  - runtime facts
+  - lane contracts
+  - action cycle correctness
+  - verification / repair / audit
+
+Claude-inspired structure is worth using only insofar as it strengthens those layers.
+
 ### 1. Tool-First Harness
 
 Claude Code treats tools as first-class runtime objects instead of loose helper
@@ -181,6 +193,23 @@ What we explicitly deferred:
 - descriptor-driven reimplementation of every approval path in one pass
 - turning tool discovery into a giant "AI picks tools for AI" layer
 
+### 8. Search-First Retrieval Is Lane-Scoped, Not System-Scoped
+
+Claude Code's search-first instinct is still useful, but for AIRI it belongs first to
+the coding line, not the entire `computer-use-mcp` architecture.
+
+The correct use is:
+
+- repo / trace / task-memory retrieval for coding tools
+- search-driven narrowing before reading more files
+- explainable evidence instead of hidden semantic recall
+
+The incorrect use is:
+
+- treating retrieval as the next global architectural center
+- letting retrieval outrank verification or lane handoff correctness
+- smuggling a large memory/retrieval system in under the label of "Claude-inspired"
+
 ## Current Adoption Status
 
 The Claude-inspired changes currently adopted in this package are intentionally
@@ -192,6 +221,8 @@ The Claude-inspired changes currently adopted in this package are intentionally
 - **runtime snapshot coordinator** (NEW) — unified runtime context layer
 - **tool descriptor registry + descriptor-driven registration** (NEW)
 - **tool_directory + tool_search v1** (NEW)
+- coding-line search-first retrieval may land as a lane-local enhancement, but it
+  should not redefine the package's global architecture
 
 ## Current Phase Boundary
 
@@ -205,14 +236,24 @@ The current Claude-inspired phase should now be considered:
   - `tool_directory`
   - `tool_search` v1
 - explicitly not part of this phase:
-  - search-first retrieval
   - `ToolExecutionRecord`
   - multi-surface routing
   - memory/subagent systems
   - schema hydration and prompt-caching tricks
 
-The next implementation phase should start from `search-first retrieval`, not
-from more tool metadata work.
+The next global implementation phase should **not** start from more tool metadata work,
+and it should also not treat retrieval as the new architectural center.
+
+The better next priorities are:
+
+1. runtime fact freshness / provenance
+2. operation contract registry
+3. postcondition verification / repair contract
+4. lane handoff contract
+5. only then broader execution-record and routing layers
+
+`search-first retrieval` remains a valid coding-line follow-up, but it is lane-scoped
+work, not the system axis for `computer-use-mcp`.
 
 This is the correct scale.
 
@@ -221,6 +262,45 @@ The mistake would be trying to "become Claude Code" in one jump. That would
 
 For the broader design translation, see
 [`claude-code-patterns-for-airi.md`](./claude-code-patterns-for-airi.md).
+
+## Additional Near-Term Guidance
+
+### Operational Memory Before Big Memory
+
+If AIRI needs memory-like behavior in the near term, prefer **operational memory**
+over Claude-style long-term/session-memory systems.
+
+Good near-term examples:
+
+- recent failure signatures
+- recent approval rejection reasons
+- recent broken selector / target state
+- last-known-good path for a lane-specific task
+
+This is much cheaper and more useful for recovery than prematurely building a
+general episodic or semantic memory layer.
+
+### App Profiles Instead of App-Specific Runtime Branches
+
+`computer-use-mcp` should avoid growing app-specific substrate logic forever.
+
+Prefer:
+
+- generic substrate capabilities:
+  - launch
+  - focus
+  - observe
+  - type
+  - click
+  - run shell
+- app profiles for:
+  - bundle ids
+  - quirks
+  - selector hints
+  - verification hints
+  - safe open/focus contracts
+
+This keeps the runtime from degenerating into an app-specific rule zoo.
 
 ## Review Rule
 

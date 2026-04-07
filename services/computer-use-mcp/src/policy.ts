@@ -1,7 +1,11 @@
 import type { ActionInvocation, ComputerUseConfig, ForegroundContext, PolicyDecision } from './types'
 
 import { resolveConfiguredOpenableApp } from './app-aliases'
-import { globalRegistry } from './server/tool-descriptors'
+import {
+  isMutatingOperationContract,
+  requireOperationContract,
+  requiresApprovalByDefault,
+} from './operation-contracts'
 
 function includesPattern(value: string | undefined, patterns: string[]) {
   const normalizedValue = value?.trim().toLowerCase()
@@ -9,63 +13,6 @@ function includesPattern(value: string | undefined, patterns: string[]) {
     return false
 
   return patterns.some(pattern => normalizedValue.includes(pattern.toLowerCase()))
-}
-
-/**
- * Get baseline safety properties from descriptor registry.
- * Returns undefined if tool is not in registry (fallback to legacy behavior).
- */
-function getDescriptorBaseline(actionKind: string): {
-  readOnly: boolean
-  destructive: boolean
-  requiresApprovalByDefault: boolean
-} | undefined {
-  // Map action kinds to tool names (some are 1:1, some need mapping)
-  const toolName = actionKind
-
-  // Check if the tool exists in the registry
-  if (!globalRegistry.has(toolName)) {
-    return undefined
-  }
-
-  const descriptor = globalRegistry.get(toolName)
-  return {
-    readOnly: descriptor.readOnly,
-    destructive: descriptor.destructive,
-    requiresApprovalByDefault: descriptor.requiresApprovalByDefault,
-  }
-}
-
-function isMutatingAction(action: ActionInvocation) {
-  // First check descriptor baseline if available
-  const baseline = getDescriptorBaseline(action.kind)
-  if (baseline) {
-    return !baseline.readOnly
-  }
-
-  // Fallback to legacy hardcoded list for tools not in registry
-  return ![
-    'screenshot',
-    'observe_windows',
-    'wait',
-    'terminal_reset',
-    'clipboard_read_text',
-    'secret_read_env_value',
-    'coding_review_workspace',
-    'coding_read_file',
-    'coding_compress_context',
-    'coding_report_status',
-    'coding_search_text',
-    'coding_search_symbol',
-    'coding_find_references',
-    'coding_analyze_impact',
-    'coding_validate_hypothesis',
-    'coding_select_target',
-    'coding_plan_changes',
-    'coding_review_changes',
-    'coding_diagnose_changes',
-    'coding_capture_validation_baseline',
-  ].includes(action.kind)
 }
 
 function isUiInteractionAction(action: ActionInvocation) {
@@ -168,6 +115,16 @@ const deniedShortcuts = new Set([
   'option+tab',
 ])
 
+const riskScore: Record<PolicyDecision['riskLevel'], number> = {
+  low: 0,
+  medium: 1,
+  high: 2,
+}
+
+function tightenRisk(current: PolicyDecision['riskLevel'], candidate: PolicyDecision['riskLevel']) {
+  return riskScore[candidate] > riskScore[current] ? candidate : current
+}
+
 export function evaluateActionPolicy(params: {
   action: ActionInvocation
   config: ComputerUseConfig
@@ -177,19 +134,11 @@ export function evaluateActionPolicy(params: {
 }): PolicyDecision {
   const reasons: string[] = []
   const estimatedOperationUnits = estimateOperationUnits(params.action)
-  const mutating = isMutatingAction(params.action)
+  const operationContract = requireOperationContract(params.action.kind)
+  const mutating = isMutatingOperationContract(operationContract)
   let allowed = true
-  let riskLevel: PolicyDecision['riskLevel'] = 'low'
-
-  // Get descriptor baseline for approval requirement
-  // This serves as the initial default; stricter rules below can only tighten, not relax
-  const baseline = getDescriptorBaseline(params.action.kind)
-  let requiresApproval = baseline?.requiresApprovalByDefault ?? false
-
-  // If descriptor indicates destructive action, elevate risk level
-  if (baseline?.destructive) {
-    riskLevel = 'high'
-  }
+  let riskLevel: PolicyDecision['riskLevel'] = operationContract.baseRiskLevel
+  let requiresApproval = requiresApprovalByDefault(operationContract)
 
   if (params.operationsExecuted >= params.config.maxOperations) {
     reasons.push('session operation budget exhausted')
@@ -229,7 +178,7 @@ export function evaluateActionPolicy(params: {
   }
   else if (mutating && isUiInteractionAction(params.action) && !params.context.available && params.action.kind !== 'open_app' && params.action.kind !== 'focus_app') {
     reasons.push(`foreground context unavailable: ${params.context.unavailableReason || 'unknown reason'}`)
-    requiresApproval = params.config.approvalMode !== 'never'
+    requiresApproval = requiresApproval || params.config.approvalMode !== 'never'
   }
 
   if (params.action.kind === 'open_app' || params.action.kind === 'focus_app') {
@@ -248,7 +197,7 @@ export function evaluateActionPolicy(params: {
       allowed = false
     }
     requiresApproval = true
-    riskLevel = 'medium'
+    riskLevel = tightenRisk(riskLevel, 'medium')
   }
 
   if (params.action.kind === 'press_keys') {
@@ -262,30 +211,30 @@ export function evaluateActionPolicy(params: {
   if (params.action.kind === 'type_text' && params.action.input.text.length > 160) {
     reasons.push('typing a long payload should be reviewed')
     requiresApproval = true
-    riskLevel = 'high'
+    riskLevel = tightenRisk(riskLevel, 'high')
   }
 
   if (params.action.kind === 'terminal_exec') {
     requiresApproval = true
-    riskLevel = 'high'
+    riskLevel = tightenRisk(riskLevel, 'high')
   }
 
   if (params.action.kind === 'coding_apply_patch') {
     requiresApproval = true
-    riskLevel = 'high'
+    riskLevel = tightenRisk(riskLevel, 'high')
   }
 
   if (params.action.kind === 'clipboard_read_text' || params.action.kind === 'clipboard_write_text' || params.action.kind === 'secret_read_env_value') {
     requiresApproval = true
-    riskLevel = 'high'
+    riskLevel = tightenRisk(riskLevel, 'high')
   }
 
   if (params.action.kind === 'click' || params.action.kind === 'press_keys' || params.action.kind === 'scroll') {
-    riskLevel = 'medium'
+    riskLevel = tightenRisk(riskLevel, 'medium')
   }
 
   if (params.action.kind === 'type_text') {
-    riskLevel = 'high'
+    riskLevel = tightenRisk(riskLevel, 'high')
   }
 
   if (params.config.approvalMode === 'never') {

@@ -14,6 +14,17 @@
 - 不把 Anthropic 内部工程习惯硬搬进 AIRI
 - 只学结构、边界、默认策略、运行时分层
 
+还有一个必须写死的纠偏：
+
+- 不要让 AIRI 长成 “Claude Code 的轮廓”
+- `tool system` 很重要，但它不是 `computer-use-mcp` 的抽象中心
+- 对 AIRI 来说，真正的中心应该是：
+  - runtime facts
+  - lane contracts
+  - action cycle
+  - verification / repair
+- tool directory / tool search / retrieval 都是支撑层，不是主心骨
+
 参考材料：
 
 - `https://www.codefather.cn/post/2039551862717313025`
@@ -137,55 +148,81 @@ Claude Code 那种“默认保守”的思路非常对。
 
 先把 `agentic search` 做硬，价值更高，也更符合当前阶段。
 
+### 1.6 真正该学的是边界感，不是 Claude Code 的形状
+
+Claude Code 值得学的，不是“它有一个很强的工具系统”，而是：
+
+- 它知道哪些层该硬，哪些层该晚点做
+- 它默认保守，而不是默认乐观
+- 它把 runtime / tool / memory / lane 分层，而不是揉成一坨
+
+但 `computer-use-mcp` 不是纯 coding harness。
+
+对 AIRI 来说，如果主战场是 multi-surface computer use，那么真正决定系统质量的不是：
+
+- 工具目录做得多漂亮
+- tool search 节省了多少 token
+- retrieval 多像 Claude Code
+
+而是：
+
+- runtime facts 是不是真、够不够新鲜
+- lane handoff 是否清晰
+- action 执行后有没有 postcondition verification
+- 失败后能不能 repair / reroute / audit
+
+所以 Claude-inspired 结构该保留，但 AIRI 的系统中心应该改成：
+
+**Action Kernel + Lane Contracts + Verification**
+
 ## 2. AIRI 现在该做什么
 
-### 2.1 先补统一 Tool Descriptor，不要继续散装注册
+### 2.1 先承认：tool-first 不是系统中心，只是重要支撑层
 
-现在 `register-tools.ts` 还是偏“把工具注册到 MCP”。
+对 coding line，先做 descriptor / tool directory / search-first retrieval 很合理。
 
-下一步应该补一层统一 descriptor，至少带这些字段：
+但对 `computer-use-mcp` 主线，这些层更适合作为：
 
-- `canonicalName`
-- `displayName`
-- `summary`
-- `lane`
-- `kind`
-- `concurrencySafe`
-- `readOnly`
-- `destructive`
-- `requiresApproval`
-- `schemaLoader`
-- `executor`
+- runtime 的输入面
+- approval / review / trace 的辅助层
+- 大工具集下的暴露控制层
 
-重点不是花哨，而是把“工具的语义信息”从注册代码里抽出来。
+而不是系统主轴。
 
-### 2.2 先做 Tool Directory，再做 Tool Search
+如果现在把它们继续当成最高优先级，AIRI 很容易长成：
 
-不要一上来就做花哨的向量检索。
+- tool system 越来越完整
+- 多 surface action cycle 反而没被同样强度地抽象出来
 
-第一步更合理：
+这不是好事。
 
-- 做一个稳定的 tool directory
-- 每个工具只有名字 + 一句话介绍 + safety 元数据
-- 先把这个目录用于 prompt / trace / debug / review
+### 2.2 统一 Tool Descriptor 仍然值得做，但它该往 Operation Contract 演进
 
-第二步才是：
+统一 descriptor 还是对的，但对 `computer-use-mcp` 来说，真正更值钱的下一步不是只停在 descriptor，而是继续长成 **Operation Contract**。
 
-- 增加一个 `tool_search` 类工具
-- 输入任务意图或关键词
-- 返回候选工具清单
-- 再按需注入完整 schema
+建议补这些字段：
 
-换句话说：
+- `effectType`: `observe | read | mutate | launch | network | shell`
+- `targetSurface`: `browser | desktop | terminal | coding`
+- `requiresFocus`
+- `idempotent`
+- `reversible`
+- `postconditionRequired`
+- `approvalScope`
 
-- `tool directory` 是基础设施
-- `tool search` 是它的消费方式之一
+否则后面 approval / verification / recovery 还是得靠工具名猜行为。
 
-### 2.3 只在“工具太多”时启用精简暴露
+### 2.3 Tool Directory 和 Tool Search 仍然有价值，但定位要降一级
 
-不要把 ToolSearch 变成默认路径，不然小场景反而更绕。
+Tool directory / tool search 依然值得保留，但它们应该服务于：
 
-更合理的策略：
+- tool exposure hygiene
+- prompt/token 控制
+- review/debug/introspection
+
+不是替代 action kernel。
+
+更合理的策略仍然是：
 
 - 核心固定工具少时，直接给完整 schema
 - 工具数量超过阈值时，切到“目录 -> 候选 -> 完整定义”两阶段暴露
@@ -195,7 +232,7 @@ Claude Code 那种“默认保守”的思路非常对。
 - 例如工具数 > 24
 - 或估算工具 schema token 超过某个上限
 
-### 2.4 fail-closed 默认值应该进 Tool Descriptor
+### 2.4 fail-closed 默认值应该进 Tool Descriptor / Operation Contract
 
 建议 AIRI 明确采用这些默认值：
 
@@ -230,7 +267,15 @@ Claude Code 那种“默认保守”的思路非常对。
 - **先做 search-driven coding surface**
 - **再考虑更强的语义检索**
 
-不要倒过来。
+但这条更适合作为 **coding lane 的局部路线**，而不是 `computer-use-mcp` 全局下一优先级。
+
+如果主战场是 multi-surface computer use，那么更靠前的应该是：
+
+1. runtime fact freshness / provenance
+2. lane handoff contract
+3. postcondition verification / recovery contract
+4. approval token 绑定 effect + target + TTL + context hash
+5. 之后才是 coding line 的 search-first retrieval
 
 ## 3. AIRI 现在不该做什么
 
@@ -290,78 +335,130 @@ Claude Code 那种超重入口壳不适合 AIRI 现在复制。
 - 不是永久拒绝 RAG
 - 只是当前阶段优先级和工程收益判断
 
+### 3.5 不要把 prep layer 继续养成第二个 planner
+
+如果 prep 层继续同时承担：
+
+- 前置条件探测
+- 前置动作生成
+- execution batch 安排
+- reroute 建议
+- 局部判断
+
+它很快就会和 workflow planner / recovery / diagnosis 重叠。
+
+更干净的边界是：
+
+- prep layer = **precondition resolver**
+- 它可以发现前置条件问题
+- 它可以生成前置动作
+- 但它不应该偷偷承担全局任务规划
+
+否则系统最后会出现三套半 planner，谁都不完全负责。
+
+### 3.6 不要把 app-specific 特判写进 substrate
+
+`computer-use-mcp` v1 现在对 Terminal / Cursor / Chrome 这类 app 有现实偏好，这是合理的。
+
+但下一步不能继续按 app 名称把逻辑长进 runtime 本体，否则会出现 app rules zoo。
+
+更合理的方式是：
+
+- substrate 只定义 generic capability：
+  - launch
+  - focus
+  - observe
+  - type
+  - click
+  - run shell
+- app profile 只补：
+  - bundle id
+  - known quirks
+  - selector hints
+  - verification hints
+  - safe open/focus contract
+
 ## 4. 对应到 `computer-use-mcp` 的实施顺序
 
-### Stage A: Tool Descriptor Registry
+### Stage A: Runtime Facts Freshness / Provenance
 
 目标：
 
-- 给真实 MCP tools 建立统一 descriptor 层
-- 不改变工具能力，只改变描述与注册结构
+- 不只是拿到 runtime snapshot
+- 还要知道每个事实：
+  - 来自哪里
+  - 何时探测
+  - 目前新鲜度如何
+  - 何时应失效
 
 优先落点：
 
-- `src/server/register-tools.ts`
-- `src/server/register-coding.ts`
-- `src/workflows/prep-tools.ts`
+- `runtime-coordinator.ts`
+- runtime fact providers
+- snapshot assembler / freshness policy
+- browser / desktop / terminal handoff 边界
 
-### Stage B: Tool Directory Export
-
-目标：
-
-- 产出一份轻量工具目录
-- 每项只有：
-  - 工具名
-  - 一句话介绍
-  - lane
-  - safety flags
-
-这个阶段先不做 tool search，也不改模型调用逻辑。
-
-### Stage C: Search-First Context Retrieval
+### Stage B: Operation Contract Registry
 
 目标：
 
-- 先把 coding/context retrieval 变成显式 search-driven 流程
-- 主要依赖 `rg` / `glob` / 文件枚举 / 精确文本命中
-- 让模型自己逐步缩小上下文，而不是先吞一坨预检索结果
+- 让工具元数据从“描述工具”升级成“约束操作”
+- 让 approval / verification / recovery 不再靠工具名猜行为
 
-建议先覆盖：
+优先落点：
 
-- repo file discovery
-- text/symbol hit collection
-- memory/log directory grep
+- effect semantics
+- target surface
+- postcondition requirement
+- approval scope
+- idempotence / reversibility
 
-这一步不涉及向量库，也不做 embedding ingestion。
-
-### Stage D: ToolSearch Tool
-
-目标：
-
-- 增加一个内部工具或 runtime 步骤
-- 让模型在大工具集下先选候选工具
-
-建议输入：
-
-- 用户任务描述
-- 当前 lane 偏好
-- 是否允许 mutation
-
-建议输出：
-
-- `toolName`
-- `summary`
-- `lane`
-- `whyMatched`
-
-### Stage E: Selective Schema Hydration
+### Stage C: Action Cycle Verification / Repair Contract
 
 目标：
 
-- 模型只拿候选工具的完整 schema
-- 不是每轮都拿全量工具定义
+- 固定 observe -> decide -> act -> verify -> repair 闭环
+- 明确每类操作的 postcondition contract
+- 明确 verify 失败后的 repair / reroute / abort 规则
 
-这个阶段才真正开始产生 token 节省收益。
+优先落点：
+
+- desktop mutate/control
+- browser act/control
+- terminal shell / PTY
+- coding write/apply
+
+### Stage D: Lane Handoff Contract
+
+目标：
+
+- 明确 browser / desktop / terminal / coding 之间何时切 lane
+- handoff 时携带哪些 facts、constraints、approval scopes、verify obligations
+
+这一步不做 Atlas 级 planner，只先把 route reason 和 handoff boundary 写清楚。
+
+### Stage E: Tool Exposure Hygiene
+
+目标：
+
+- 保留 descriptor / tool directory / tool search
+- 但把它们放回“暴露控制和 introspection”层
+- 在大工具集场景下减少 token，而不是假装这就是系统中心
+
+### Stage F: Coding-Line Search-First Retrieval
+
+目标：
+
+- 让 coding line 的 repo / trace / task memory 检索更显式、更可解释
+- 这一步依然是对的，但它是 **lane-scoped follow-up**，不是整个系统的抽象中心
+
+首批覆盖：
+
+- repo code
+- session trace
+- task memory
+
+这一层仍然不意味着立刻上向量库或 RAG。
 
 ## 5. 对 AIRI 的直接结论
 
@@ -375,17 +472,21 @@ Claude Code 那种超重入口壳不适合 AIRI 现在复制。
 
 最不该学的，是它那一整坨巨型产品化外围系统。
 
-如果只能选一个现在就做的点，那就是：
+如果只能选一个 **现在该补的新点**，那就是：
 
-**先把 Tool Directory 做出来。**
+**先把 Operation Contract + Verification Contract 立起来。**
 
 因为这一步：
 
-- 比直接做 ToolSearch 更稳
-- 比继续堆新工具更值钱
-- 还能顺手改善 review、trace、prompt 暴露和后续 token 控制
+- 比继续扩 tool exposure 更接近 `computer-use-mcp` 的主复杂度
+- 比直接做 retrieval / memory 更能提升执行可靠性
+- 能真正支撑 approval / recovery / reroute / audit
 
 如果只能选第二个点，那就是：
+
+**给 runtime facts 加 freshness / provenance。**
+
+如果只能选第三个点，那才是：
 
 **把 coding line 的 context retrieval 明确做成 search-first。**
 
@@ -395,4 +496,4 @@ Claude Code 那种超重入口壳不适合 AIRI 现在复制。
 
 正确做法是：
 
-**用 Claude Code 暴露出来的优秀结构，逼 AIRI 自己长出更干净的 runtime 和 tool system。**
+**用 Claude Code 暴露出来的边界感和默认策略，逼 AIRI 自己长出更干净的 action kernel、lane contracts 和 verification system。**
