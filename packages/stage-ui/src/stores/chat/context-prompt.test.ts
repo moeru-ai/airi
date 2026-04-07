@@ -33,7 +33,7 @@ describe('formatContextPromptText', () => {
   })
 
   // https://github.com/moeru-ai/airi/issues/1539
-  it('Issue #1539: excludes id, createdAt, and metadata from serialized output', () => {
+  it('issue #1539: excludes id, createdAt, and metadata from serialized output', () => {
     const text = formatContextPromptText(makeContext())
 
     expect(text).not.toContain('volatile-random-id')
@@ -43,7 +43,7 @@ describe('formatContextPromptText', () => {
   })
 
   // https://github.com/moeru-ai/airi/issues/1539
-  it('Issue #1539: includes only contextId, strategy, and text', () => {
+  it('issue #1539: includes only contextId, strategy, and text', () => {
     const text = formatContextPromptText(makeContext())
 
     expect(text).toContain('system:datetime')
@@ -52,7 +52,7 @@ describe('formatContextPromptText', () => {
   })
 
   // https://github.com/moeru-ai/airi/issues/1539
-  it('Issue #1539: produces identical output regardless of volatile fields', () => {
+  it('issue #1539: produces identical output regardless of volatile fields', () => {
     const a = formatContextPromptText(makeContext({ id: 'aaa', createdAt: 1 }))
     const b = formatContextPromptText(makeContext({ id: 'bbb', createdAt: 2 }))
 

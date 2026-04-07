@@ -4,7 +4,7 @@ import { createDatetimeContext } from './datetime'
 
 describe('createDatetimeContext', () => {
   // https://github.com/moeru-ai/airi/issues/1539
-  it('Issue #1539: uses a fixed deterministic id instead of a random one', () => {
+  it('issue #1539: uses a fixed deterministic id instead of a random one', () => {
     const a = createDatetimeContext()
     const b = createDatetimeContext()
     expect(a.id).toBe(b.id)
@@ -12,7 +12,7 @@ describe('createDatetimeContext', () => {
   })
 
   // https://github.com/moeru-ai/airi/issues/1539
-  it('Issue #1539: quantizes time to the minute (seconds and ms are zeroed)', () => {
+  it('issue #1539: quantizes time to the minute (seconds and ms are zeroed)', () => {
     vi.useFakeTimers()
     try {
       vi.setSystemTime(new Date('2026-04-07T12:34:56.789Z'))
@@ -27,7 +27,7 @@ describe('createDatetimeContext', () => {
   })
 
   // https://github.com/moeru-ai/airi/issues/1539
-  it('Issue #1539: produces identical output for calls within the same minute', () => {
+  it('issue #1539: produces identical output for calls within the same minute', () => {
     vi.useFakeTimers()
     try {
       vi.setSystemTime(new Date('2026-04-07T12:34:10.000Z'))
