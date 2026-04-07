@@ -10,6 +10,24 @@ Scope: `services/computer-use-mcp/**`
 - `computer-use-mcp` owns execution primitives, workflow orchestration, terminal/browser/desktop surfaces, trace, audit, and safety checks.
 - Treat terminal, browser, editor, and desktop operations as one task system. Do not split them into disconnected demos.
 
+## Architectural Center
+
+Do not let this package drift into a "tool system with some execution attached".
+
+The architectural center of `computer-use-mcp` should be:
+
+1. runtime facts
+2. lane contracts
+3. action cycle correctness
+4. verification / repair / audit
+
+Tool descriptors, tool directory/search, and coding-line retrieval are useful,
+but they are support layers. They are not the system center.
+
+If a future design choice looks more like "Claude Code shape adoption" than
+"stronger observe -> decide -> act -> verify -> repair behavior", treat that as
+a warning sign and justify it explicitly.
+
 ## Current Status Snapshot
 
 Updated for the current terminal-lane-v2 workstream.

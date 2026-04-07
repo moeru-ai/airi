@@ -1,4 +1,4 @@
-import type { ComputerUseConfig } from './types'
+import type { ActionInvocation, ComputerUseConfig } from './types'
 
 import { describe, expect, it } from 'vitest'
 
@@ -15,27 +15,59 @@ const baseConfig: ComputerUseConfig = createTestConfig({
 })
 
 describe('evaluateActionPolicy', () => {
-  it('requires approval for mutating ui actions in actions mode', () => {
-    const decision = evaluateActionPolicy({
-      action: {
-        kind: 'click',
-        input: {
-          x: 10,
-          y: 12,
-        },
-      },
-      config: baseConfig,
-      context: {
-        available: true,
-        appName: 'Finder',
-        platform: 'darwin',
-      },
-      operationsExecuted: 0,
-      operationUnitsConsumed: 0,
-    })
+  it('treats desktop mutation actions as approval-required in actions mode', () => {
+    const actions: ActionInvocation[] = [
+      { kind: 'click', input: { x: 10, y: 12 } },
+      { kind: 'type_text', input: { text: 'hello' } },
+      { kind: 'press_keys', input: { keys: ['command', 'l'] } },
+      { kind: 'scroll', input: { deltaY: 120 } },
+    ]
 
-    expect(decision.allowed).toBe(true)
-    expect(decision.requiresApproval).toBe(true)
+    for (const action of actions) {
+      const decision = evaluateActionPolicy({
+        action,
+        config: baseConfig,
+        context: {
+          available: true,
+          appName: 'Finder',
+          platform: 'darwin',
+        },
+        operationsExecuted: 0,
+        operationUnitsConsumed: 0,
+      })
+
+      expect(decision.allowed).toBe(true)
+      expect(decision.requiresApproval).toBe(true)
+    }
+  })
+
+  it('keeps observe/read actions non-mutating in actions mode', () => {
+    const actions: ActionInvocation[] = [
+      { kind: 'screenshot', input: {} },
+      { kind: 'observe_windows', input: {} },
+      { kind: 'coding_read_file', input: { filePath: '/tmp/mock.ts' } },
+      { kind: 'coding_search_text', input: { query: 'needle' } },
+    ]
+
+    for (const action of actions) {
+      const decision = evaluateActionPolicy({
+        action,
+        config: {
+          ...baseConfig,
+          approvalMode: 'actions',
+        },
+        context: {
+          available: true,
+          appName: 'Finder',
+          platform: 'darwin',
+        },
+        operationsExecuted: 0,
+        operationUnitsConsumed: 0,
+      })
+
+      expect(decision.allowed).toBe(true)
+      expect(decision.requiresApproval).toBe(false)
+    }
   })
 
   it('requires approval for terminal execution in actions mode', () => {
@@ -199,5 +231,32 @@ describe('evaluateActionPolicy', () => {
 
     expect(decision.allowed).toBe(false)
     expect(decision.reasons[0]).toContain('linux-x11 executor does not support app open/focus actions')
+  })
+
+  it('keeps coding_apply_patch baseline risk at high', () => {
+    const decision = evaluateActionPolicy({
+      action: {
+        kind: 'coding_apply_patch',
+        input: {
+          filePath: '/tmp/mock.ts',
+          oldString: 'before',
+          newString: 'after',
+        },
+      },
+      config: {
+        ...baseConfig,
+        approvalMode: 'actions',
+      },
+      context: {
+        available: false,
+        platform: 'darwin',
+      },
+      operationsExecuted: 0,
+      operationUnitsConsumed: 0,
+    })
+
+    expect(decision.allowed).toBe(true)
+    expect(decision.requiresApproval).toBe(true)
+    expect(decision.riskLevel).toBe('high')
   })
 })

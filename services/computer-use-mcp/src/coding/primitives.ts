@@ -37,6 +37,7 @@ import type {
   TargetDecisionCase,
   TargetJudgement,
 } from '../state'
+import type { SearchEvidenceBundle, SearchPlan } from './retrieval'
 
 import { exec, execFile } from 'node:child_process'
 import { env } from 'node:process'
@@ -67,6 +68,11 @@ import {
   validatePlanGraphInvariants,
 } from './planner-graph'
 import {
+  buildEvidencePreview,
+  executeSearchPlan,
+
+} from './retrieval'
+import {
   clampSearchLimit,
   findReferences,
   searchSymbol,
@@ -83,6 +89,10 @@ export class CodingPrimitives {
   private readonly maxAutoStringLength = 300
   private readonly maxAutoArrayLength = 10
 
+  // NOTICE: Phase 1 retrieval integration — temporary storage for retrieval results.
+  // Not persisted to state; only used during method execution.
+  private lastRetrievalBundle?: SearchEvidenceBundle
+
   private clampString(value: string) {
     const normalized = value || ''
     if (normalized.length <= this.maxAutoStringLength) {
@@ -97,6 +107,93 @@ export class CodingPrimitives {
       .filter(Boolean)
       .slice(0, this.maxAutoArrayLength)
       .map(value => this.clampString(value))
+  }
+
+  // NOTICE: Execute retrieval and cache selectedFiles as search matches.
+  // Returns retrieval bundle for optional inclusion in tool results.
+  private async executeRetrieval(params: {
+    targetFile?: string
+    targetPath?: string
+    targetSymbol?: string
+    searchQuery?: string
+  }): Promise<SearchEvidenceBundle | undefined> {
+    // Skip retrieval if targetFile is explicitly provided
+    if (params.targetFile) {
+      return undefined
+    }
+
+    // Skip retrieval if no search params
+    if (!params.targetSymbol && !params.searchQuery) {
+      return undefined
+    }
+
+    try {
+      const workspacePath = this.getWorkspaceRoot()
+      const plan: SearchPlan = {
+        workspacePath,
+        searchRoot: this.resolveSearchRoot(params.targetPath),
+        query: params.searchQuery,
+        targetSymbol: params.targetSymbol,
+        targetPath: params.targetPath,
+        scopes: ['repo_code', 'session_trace', 'task_memory'],
+        limitPerScope: 20,
+        maxSelectedFiles: 20,
+        maxTraceEntries: 50,
+        maxEvidenceItems: 10,
+      }
+
+      const bundle = await executeSearchPlan(this.runtime, plan)
+
+      // Cache selectedFiles as search matches for buildTargetCandidates
+      if (params.targetSymbol && bundle.selectedFiles.length > 0) {
+        const symbolFiles = bundle.repoHits
+          .filter(hit => hit.source === 'symbol')
+          .map(hit => hit.file)
+        const uniqueSymbolFiles = Array.from(new Set(symbolFiles))
+        if (uniqueSymbolFiles.length > 0) {
+          this.rememberSearchMatches('symbol', uniqueSymbolFiles, params.targetPath)
+        }
+      }
+
+      if (params.searchQuery && bundle.selectedFiles.length > 0) {
+        const textFiles = bundle.repoHits
+          .filter(hit => hit.source === 'text')
+          .map(hit => hit.file)
+        const uniqueTextFiles = Array.from(new Set(textFiles))
+        if (uniqueTextFiles.length > 0) {
+          this.rememberSearchMatches('text', uniqueTextFiles, params.targetPath)
+        }
+      }
+
+      return bundle
+    }
+    catch (error) {
+      // NOTICE: Retrieval failures are non-fatal in phase 1.
+      // Fall back to existing behavior using cached search results.
+      return undefined
+    }
+  }
+
+  // NOTICE: Build retrieval block for tool results (phase 1).
+  // Returns undefined if no retrieval was executed.
+  buildRetrievalBlock() {
+    if (!this.lastRetrievalBundle) {
+      return undefined
+    }
+
+    const evidence = buildEvidencePreview(this.lastRetrievalBundle)
+
+    return {
+      plan: {
+        query: this.lastRetrievalBundle.plan.query,
+        targetSymbol: this.lastRetrievalBundle.plan.targetSymbol,
+        targetPath: this.lastRetrievalBundle.plan.targetPath,
+        scopes: this.lastRetrievalBundle.plan.scopes,
+      },
+      selectedFiles: this.lastRetrievalBundle.selectedFiles,
+      diagnostics: this.lastRetrievalBundle.diagnostics,
+      evidencePreview: evidence,
+    }
   }
 
   private getCodingState() {
@@ -2463,6 +2560,10 @@ export class CodingPrimitives {
       throw new McpError(ErrorCode.InvalidParams, 'Workspace not reviewed yet. Call coding_review_workspace first.')
     }
 
+    // NOTICE: Phase 1 retrieval integration — execute retrieval before building candidates
+    const retrievalBundle = await this.executeRetrieval(params)
+    this.lastRetrievalBundle = retrievalBundle
+
     const maxDepth = 1 as const
     const candidates = this.buildTargetCandidates({
       explicitTargetFile: params.targetFile,
@@ -2673,6 +2774,7 @@ export class CodingPrimitives {
     searchQuery?: string
     changeIntent: CodingChangeIntent
   }) {
+    // NOTICE: Phase 1 retrieval integration — analyzeImpact will execute retrieval
     const impact = await this.analyzeImpact({
       targetFile: params.targetFile,
       targetPath: params.targetPath,
@@ -2739,6 +2841,10 @@ export class CodingPrimitives {
     if (!state) {
       throw new McpError(ErrorCode.InvalidParams, 'Workspace not reviewed yet. Call coding_review_workspace first.')
     }
+
+    // NOTICE: Phase 1 retrieval integration — execute retrieval before building candidates
+    const retrievalBundle = await this.executeRetrieval(params)
+    this.lastRetrievalBundle = retrievalBundle
 
     if (!params.targetFile) {
       if (state.currentPlanGraph?.nodes?.length) {

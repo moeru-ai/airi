@@ -10,6 +10,7 @@ import type { WorkflowDefinition } from './types'
 
 import { describe, expect, it, vi } from 'vitest'
 
+import { formatWorkflowStructuredContent } from '../server/workflow-formatter'
 import { RunStateManager } from '../state'
 import { executeWorkflow, resumeWorkflow } from './engine'
 
@@ -823,6 +824,154 @@ describe('workflow engine', () => {
       combinedBounds: { x: 0, y: 0, width: 3648, height: 1117 },
     })
     expect(displayInfo?.displays).toHaveLength(2)
+  })
+
+  it('attaches verification summary for click main action step', async () => {
+    const workflow: WorkflowDefinition = {
+      id: 'test_click_verification_summary',
+      name: 'Click Verification Summary',
+      description: 'Click step should carry verification summary.',
+      maxRetries: 1,
+      steps: [
+        {
+          label: 'Click point',
+          kind: 'click_element',
+          description: 'Click at fixed point',
+          params: { x: 100, y: 120 },
+        },
+      ],
+    }
+
+    const executeAction: ExecuteAction = vi.fn().mockResolvedValue(makeSuccessResult())
+    const executePrepTool = vi.fn().mockResolvedValue(makePrepSuccessResult({ status: 'ok' }))
+    const sm = new RunStateManager()
+
+    const result = await executeWorkflow({
+      workflow,
+      executeAction,
+      executePrepTool,
+      stateManager: sm,
+    })
+
+    expect(result.status).toBe('completed')
+    expect(result.stepResults[0]?.verification).toMatchObject({
+      requirement: 'required',
+      method: 'surface_observation_refresh',
+      failureDisposition: 'repair_hint',
+      repairHint: 'refresh_surface_observation',
+    })
+  })
+
+  it('attaches verification summary for focus_app main action step', async () => {
+    const workflow: WorkflowDefinition = {
+      id: 'test_focus_verification_summary',
+      name: 'Focus Verification Summary',
+      description: 'ensure_app maps to focus_app and should carry verification summary.',
+      maxRetries: 1,
+      steps: [
+        {
+          label: 'Focus Terminal',
+          kind: 'ensure_app',
+          description: 'Focus target app',
+          params: { app: 'Terminal' },
+        },
+      ],
+    }
+
+    const executeAction: ExecuteAction = vi.fn().mockResolvedValue(makeSuccessResult())
+    const executePrepTool = vi.fn().mockResolvedValue(makePrepSuccessResult({ status: 'ok' }))
+    const sm = new RunStateManager()
+
+    const result = await executeWorkflow({
+      workflow,
+      executeAction,
+      executePrepTool,
+      stateManager: sm,
+    })
+
+    expect(result.status).toBe('completed')
+    expect(result.stepResults[0]?.verification).toMatchObject({
+      requirement: 'required',
+      method: 'foreground_match',
+      failureDisposition: 'repair_hint',
+      repairHint: 'refocus_target_app',
+    })
+  })
+
+  it('does not attach verification summary for screenshot and coding_read_file steps', async () => {
+    const workflow: WorkflowDefinition = {
+      id: 'test_none_verification_summary',
+      name: 'None Verification Summary',
+      description: 'Observe/read style steps should not carry verification summary.',
+      maxRetries: 1,
+      steps: [
+        {
+          label: 'Take screenshot',
+          kind: 'take_screenshot',
+          description: 'Capture desktop',
+          params: {},
+        },
+        {
+          label: 'Read file for context',
+          kind: 'coding_read_file',
+          description: 'Read selected file',
+          params: {
+            filePath: 'src/example.ts',
+          },
+        },
+      ],
+    }
+
+    const executeAction: ExecuteAction = vi.fn().mockResolvedValue(makeSuccessResult())
+    const executePrepTool = vi.fn().mockResolvedValue(makePrepSuccessResult({ status: 'ok' }))
+    const sm = new RunStateManager()
+
+    const result = await executeWorkflow({
+      workflow,
+      executeAction,
+      executePrepTool,
+      stateManager: sm,
+    })
+
+    expect(result.status).toBe('completed')
+    expect(result.stepResults[0]?.verification).toBeUndefined()
+    expect(result.stepResults[1]?.verification).toBeUndefined()
+  })
+
+  it('keeps workflow formatter outward step shape unchanged when engine carries verification', async () => {
+    const workflow: WorkflowDefinition = {
+      id: 'test_formatter_shape_without_verification',
+      name: 'Formatter Shape',
+      description: 'Formatter should not expose engine verification summary.',
+      maxRetries: 1,
+      steps: [
+        {
+          label: 'Focus Terminal',
+          kind: 'ensure_app',
+          description: 'Focus target app',
+          params: { app: 'Terminal' },
+        },
+      ],
+    }
+
+    const executeAction: ExecuteAction = vi.fn().mockResolvedValue(makeSuccessResult())
+    const sm = new RunStateManager()
+
+    const result = await executeWorkflow({
+      workflow,
+      executeAction,
+      stateManager: sm,
+    })
+
+    expect(result.stepResults[0]?.verification).toBeDefined()
+
+    const formatted = formatWorkflowStructuredContent({
+      workflowId: workflow.id,
+      result,
+      runState: sm.getState(),
+    })
+
+    expect((formatted.stepResults as Array<Record<string, unknown>>)[0]).not.toHaveProperty('verification')
   })
 
   it('fails the workflow when a preparatory tool fails', async () => {

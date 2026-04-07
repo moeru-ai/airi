@@ -155,7 +155,11 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
         searchQuery,
         changeIntent,
       })
-      const backendResult = result as unknown as Record<string, unknown>
+      const retrievalBlock = primitives.buildRetrievalBlock()
+      const backendResult = {
+        ...result,
+        ...(retrievalBlock ? { retrieval: retrievalBlock } : {}),
+      } as unknown as Record<string, unknown>
 
       return {
         content: [textContent(summarizeCodingToolResult({
@@ -219,7 +223,11 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
         searchQuery,
         maxDepth,
       })
-      const backendResult = result as unknown as Record<string, unknown>
+      const retrievalBlock = primitives.buildRetrievalBlock()
+      const backendResult = {
+        ...result,
+        ...(retrievalBlock ? { retrieval: retrievalBlock } : {}),
+      } as unknown as Record<string, unknown>
 
       return {
         content: [textContent(summarizeCodingToolResult({
@@ -251,15 +259,20 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
         searchQuery,
         changeIntent,
       })
+      const retrievalBlock = primitives.buildRetrievalBlock()
+      const backendResult = {
+        ...result,
+        ...(retrievalBlock ? { retrieval: retrievalBlock } : {}),
+      }
 
       return {
         content: [textContent(summarizeCodingToolResult({
           toolName: 'coding_validate_hypothesis',
-          backendResult: result,
+          backendResult,
         }))],
         structuredContent: buildCodingToolStructuredContent({
           toolName: 'coding_validate_hypothesis',
-          backendResult: result,
+          backendResult,
         }),
       }
     },

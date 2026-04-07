@@ -12,7 +12,13 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import type { ExecuteAction } from '../server/action-executor'
 import type { ActiveTask, RunStateManager, TaskStep } from '../state'
 import type { StrategyAdvisory } from '../strategy'
-import type { DisplayInfo } from '../types'
+import type { ActionKind, DisplayInfo } from '../types'
+import type { VerificationContractSummary } from '../verification-contracts'
+import type {
+  PlannedPreparatoryExecution,
+  WorkflowPrepToolKind,
+  WorkflowPrepToolLane,
+} from './prep-tools'
 import type { WorkflowDefinition, WorkflowStepTemplate } from './types'
 
 import process from 'node:process'
@@ -27,11 +33,12 @@ import {
   summarizeTaskProgress,
 } from '../transparency'
 import {
+  requireVerificationContract,
+  toVerificationContractSummary,
+} from '../verification-contracts'
+import {
   buildPreparatoryExecutionPlan,
   extractWorkflowPrepMetadata,
-  type PlannedPreparatoryExecution,
-  type WorkflowPrepToolKind,
-  type WorkflowPrepToolLane,
 } from './prep-tools'
 import { resolveTerminalSurface } from './surface-resolver'
 import { resolveStepAction, resolveTerminalConfig } from './types'
@@ -128,6 +135,8 @@ export interface WorkflowStepResult {
   explanation: string
   /** Results of preparatory tool invocations (if any). */
   preparatoryResults?: PreparatoryResult[]
+  /** Verification obligation summary for the main action step (internal only). */
+  verification?: VerificationContractSummary
 }
 
 // ---------------------------------------------------------------------------
@@ -257,6 +266,9 @@ export async function executeWorkflow(params: {
     }
     const resolvedStep = { ...stepTemplate, params: resolvedParams }
     const action = resolveStepAction(resolvedStep)
+    const mainActionVerificationSummary = action
+      ? getMainActionVerificationSummary(action.kind)
+      : undefined
 
     // -----------------------------------------------------------------------
     // PTY step family — direct PTY operations within the workflow.
@@ -786,6 +798,11 @@ export async function executeWorkflow(params: {
           status: 'pending_approval',
           explanation: `${intent} — Awaiting approval. ${explainNextStep(advisories, task)}`,
           preparatoryResults: preparatoryResults.length > 0 ? preparatoryResults : undefined,
+          ...(mainActionVerificationSummary
+            ? {
+                verification: mainActionVerificationSummary,
+              }
+            : {}),
         })
         // Build suspension so the workflow can be resumed after approval.
         const suspension: WorkflowSuspension = {
@@ -830,6 +847,11 @@ export async function executeWorkflow(params: {
             context: stateManager.getState().foregroundContext || { available: false, platform: process.platform as NodeJS.Platform },
           }),
           preparatoryResults: preparatoryResults.length > 0 ? preparatoryResults : undefined,
+          ...(mainActionVerificationSummary
+            ? {
+                verification: mainActionVerificationSummary,
+              }
+            : {}),
         })
 
         // If the step is critical, abort.
@@ -857,6 +879,11 @@ export async function executeWorkflow(params: {
           context: stateManager.getState().foregroundContext || { available: false, platform: process.platform as NodeJS.Platform },
         }),
         preparatoryResults: preparatoryResults.length > 0 ? preparatoryResults : undefined,
+        ...(mainActionVerificationSummary
+          ? {
+              verification: mainActionVerificationSummary,
+            }
+          : {}),
       })
     }
     catch (error) {
@@ -870,6 +897,11 @@ export async function executeWorkflow(params: {
         status: 'failure',
         explanation: `Unexpected error: ${errorMsg}`,
         preparatoryResults: preparatoryResults.length > 0 ? preparatoryResults : undefined,
+        ...(mainActionVerificationSummary
+          ? {
+              verification: mainActionVerificationSummary,
+            }
+          : {}),
       })
 
       if (resolvedStep.critical) {
@@ -941,7 +973,7 @@ export async function resumeWorkflow(params: {
     }
   }
   // Also update the last step result's status.
-  const lastResult = suspension.stepResults[suspension.stepResults.length - 1]
+  const lastResult = suspension.stepResults.at(-1)
   if (lastResult && suspension.pausedDuring === 'main_action') {
     lastResult.succeeded = approved
     lastResult.status = approved ? 'success' : 'failure'
@@ -1361,6 +1393,16 @@ function applyPreparatoryToolSideEffects(params: {
     }
   }
 }
+
+function getMainActionVerificationSummary(actionKind: ActionKind): VerificationContractSummary | undefined {
+  const verificationContract = requireVerificationContract(actionKind)
+  if (verificationContract.requirement === 'none') {
+    return undefined
+  }
+
+  return toVerificationContractSummary(verificationContract)
+}
+
 function buildWorkflowSummary(
   workflow: WorkflowDefinition,
   task: ActiveTask,

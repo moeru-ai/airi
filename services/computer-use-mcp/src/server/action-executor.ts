@@ -9,6 +9,7 @@ import type {
   TerminalCommandResult,
   TerminalState,
 } from '../types'
+import type { VerificationContractSummary } from '../verification-contracts'
 import type { ComputerUseServerRuntime } from './runtime'
 
 import { normalizeConfiguredAppAction } from '../app-aliases'
@@ -17,6 +18,10 @@ import {
   buildCodingApplyPatchBackendResult,
   buildCodingReadFileBackendResult,
 } from '../coding/result-shape'
+import {
+  isMutatingOperationContract,
+  requireOperationContract,
+} from '../operation-contracts'
 import { evaluateActionPolicy } from '../policy'
 import { getRuntimePreflight } from '../preflight'
 import { buildCoordinateSpaceInfo } from '../runtime-probes'
@@ -36,6 +41,10 @@ import {
   maskEnvValuePreview,
   readEnvValue,
 } from '../utils/env-file'
+import {
+  requireVerificationContract,
+  toVerificationContractSummary,
+} from '../verification-contracts'
 import { describeExecutionTarget } from './formatters'
 import {
   buildApprovalResponse,
@@ -43,37 +52,16 @@ import {
   buildExecutionErrorResponse,
   buildSuccessResponse,
 } from './responses'
+import {
+  formatVerificationFailure,
+  runPostActionVerification,
+} from './verification-runner'
 
 export interface ExecuteActionOptions {
   skipApprovalQueue?: boolean
 }
 
 export type ExecuteAction = (action: ActionInvocation, toolName: string, options?: ExecuteActionOptions) => Promise<CallToolResult>
-
-function isMutatingAction(action: ActionInvocation) {
-  return ![
-    'screenshot',
-    'observe_windows',
-    'wait',
-    'terminal_reset',
-    'clipboard_read_text',
-    'secret_read_env_value',
-    'coding_review_workspace',
-    'coding_read_file',
-    'coding_compress_context',
-    'coding_report_status',
-    'coding_search_text',
-    'coding_search_symbol',
-    'coding_find_references',
-    'coding_analyze_impact',
-    'coding_validate_hypothesis',
-    'coding_select_target',
-    'coding_plan_changes',
-    'coding_review_changes',
-    'coding_diagnose_changes',
-    'coding_capture_validation_baseline',
-  ].includes(action.kind)
-}
 
 async function captureOptionalScreenshot(params: {
   action: ActionInvocation
@@ -140,12 +128,45 @@ function toTerminalStateContent(state: TerminalState) {
   }
 }
 
+function toOperationContractSummary(contract: ReturnType<typeof requireOperationContract>) {
+  return {
+    effectType: contract.effectType,
+    targetSurface: contract.targetSurface,
+    postconditionRequired: contract.postconditionRequired,
+    approvalScope: contract.approvalScope,
+  }
+}
+
+function buildTraceMetadata(params: {
+  operationContractSummary: ReturnType<typeof toOperationContractSummary>
+  verificationSummary?: VerificationContractSummary
+}) {
+  return {
+    ...params.operationContractSummary,
+    ...(params.verificationSummary
+      ? {
+          verification: params.verificationSummary,
+        }
+      : {}),
+  }
+}
+
 export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteAction {
   // Use the shared coordinator from the runtime wrapper
   const coordinator = runtime.coordinator
 
   return async (action, toolName, options = {}) => {
     const normalizedAction = normalizeConfiguredAppAction(action, runtime.config.openableApps)
+    const operationContract = requireOperationContract(normalizedAction.kind)
+    const operationContractSummary = toOperationContractSummary(operationContract)
+    const verificationContract = requireVerificationContract(normalizedAction.kind)
+    const verificationSummary = verificationContract.requirement !== 'none'
+      ? toVerificationContractSummary(verificationContract)
+      : undefined
+    const traceMetadata = buildTraceMetadata({
+      operationContractSummary,
+      verificationSummary,
+    })
 
     // Refresh runtime snapshot once at entry
     const snapshot = await coordinator.refreshSnapshot('tool_entry')
@@ -184,6 +205,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       action: normalizedAction,
       context,
       policy: decision,
+      metadata: traceMetadata,
       result: {
         executionTarget,
         displayInfo,
@@ -203,6 +225,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         action: normalizedAction,
         context,
         policy: deniedDecision,
+        metadata: traceMetadata,
         result: {
           executionTarget,
           coordinateSpace: preflight.coordinateSpace,
@@ -213,7 +236,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       return buildDeniedResponse(deniedDecision, context, executionTarget)
     }
 
-    if (isMutatingAction(normalizedAction) && preflight.mutationReadinessIssues.length > 0) {
+    if (isMutatingOperationContract(operationContract) && preflight.mutationReadinessIssues.length > 0) {
       const deniedDecision = buildDeniedDecision({
         decision,
         issues: preflight.mutationReadinessIssues,
@@ -225,6 +248,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         action: normalizedAction,
         context,
         policy: deniedDecision,
+        metadata: traceMetadata,
         result: {
           executionTarget,
           coordinateSpace: preflight.coordinateSpace,
@@ -242,6 +266,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         action: normalizedAction,
         context,
         policy: decision,
+        metadata: traceMetadata,
         result: {
           executionTarget,
         },
@@ -265,6 +290,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         action: normalizedAction,
         context,
         policy: decision,
+        metadata: traceMetadata,
         result: {
           executionTarget,
           pendingActionId: pending.id,
@@ -457,6 +483,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
             action: normalizedAction,
             context,
             policy: decision,
+            metadata: traceMetadata,
             result: {
               executionTarget,
               screenshotPath: screenshot.path,
@@ -676,6 +703,56 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         })
       }
 
+      const verificationResult = await runPostActionVerification({
+        runtime,
+        action: normalizedAction,
+        screenshot,
+      })
+
+      if (verificationResult?.status === 'failed') {
+        const verificationError = formatVerificationFailure({
+          action: normalizedAction,
+          verification: verificationResult,
+        })
+
+        await runtime.session.record({
+          event: 'failed',
+          toolName,
+          action: normalizedAction,
+          context,
+          policy: decision,
+          metadata: traceMetadata,
+          result: {
+            executionTarget,
+            error: verificationError,
+            verification: {
+              status: verificationResult.status,
+              ...verificationResult.summary,
+              failureDisposition: verificationResult.failureDisposition,
+              repairHint: verificationResult.repairHint,
+              reason: verificationResult.reason,
+              observedContext: verificationResult.observedContext,
+            },
+          },
+        })
+
+        return buildExecutionErrorResponse({
+          errorMessage: `${verificationError}${advisorySummary ? ` Strategy: ${advisorySummary}` : ''}`,
+          action: normalizedAction,
+          context,
+          executionTarget,
+          policy: decision,
+          verification: {
+            status: verificationResult.status,
+            ...verificationResult.summary,
+            failureDisposition: verificationResult.failureDisposition,
+            repairHint: verificationResult.repairHint,
+            reason: verificationResult.reason,
+            observedContext: verificationResult.observedContext,
+          },
+        })
+      }
+
       // Transparency: explain what just happened.
       const outcome = explainActionOutcome({
         action: normalizedAction,
@@ -690,6 +767,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         action: normalizedAction,
         context,
         policy: decision,
+        metadata: traceMetadata,
         result: {
           ...backendResult,
           executionTarget,
@@ -752,6 +830,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         action: normalizedAction,
         context,
         policy: decision,
+        metadata: traceMetadata,
         result: {
           executionTarget,
           error: errorMessage,
