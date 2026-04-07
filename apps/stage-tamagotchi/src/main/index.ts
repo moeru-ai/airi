@@ -101,7 +101,19 @@ app.whenReady().then(async () => {
 
   const appConfig = injeca.provide('configs:app', () => createGlobalAppConfig())
   const electronApp = injeca.provide('host:electron:app', () => app)
-  const autoUpdater = injeca.provide('services:auto-updater', () => setupAutoUpdater())
+  const autoUpdater = injeca.provide('services:auto-updater', {
+    dependsOn: { appConfig },
+    build: ({ dependsOn }) => setupAutoUpdater({
+      getStoredUpdateLane: () => dependsOn.appConfig.get()?.updateChannel,
+      setStoredUpdateLane: (lane) => {
+        const currentConfig = dependsOn.appConfig.get()
+        dependsOn.appConfig.update({
+          language: currentConfig?.language ?? 'en',
+          updateChannel: lane,
+        })
+      },
+    }),
+  })
 
   const i18n = injeca.provide('libs:i18n', {
     dependsOn: { appConfig },
