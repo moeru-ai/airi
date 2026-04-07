@@ -11,6 +11,8 @@ import type {
 } from '../types'
 import type { VerificationContractSummary } from '../verification-contracts'
 import type { ComputerUseServerRuntime } from './runtime'
+import type { RuntimeSnapshot } from './runtime-coordinator'
+import type { VerificationRunResult } from './verification-runner'
 
 import { normalizeConfiguredAppAction } from '../app-aliases'
 import { CodingPrimitives } from '../coding/primitives'
@@ -19,9 +21,11 @@ import {
   buildCodingReadFileBackendResult,
 } from '../coding/result-shape'
 import {
+  getOperationInvalidationTags,
   isMutatingOperationContract,
   requireOperationContract,
 } from '../operation-contracts'
+import { estimateOperationUnits } from '../operation-units'
 import { evaluateActionPolicy } from '../policy'
 import { getRuntimePreflight } from '../preflight'
 import { buildCoordinateSpaceInfo } from '../runtime-probes'
@@ -52,9 +56,12 @@ import {
   buildExecutionErrorResponse,
   buildSuccessResponse,
 } from './responses'
+import { toRuntimeFactSummary } from './runtime-facts'
 import {
+  buildRepairedVerification,
   formatVerificationFailure,
   runPostActionVerification,
+  runVerificationRepairAttempt,
 } from './verification-runner'
 
 export interface ExecuteActionOptions {
@@ -149,6 +156,27 @@ function buildTraceMetadata(params: {
         }
       : {}),
   }
+}
+
+function toVerificationResultContent(verification: VerificationRunResult) {
+  return {
+    status: verification.status,
+    ...verification.summary,
+    reason: verification.reason,
+    observedContext: verification.observedContext,
+    repairAttempt: verification.repairAttempt,
+  }
+}
+
+function buildRuntimeFactsSummary(snapshot: RuntimeSnapshot) {
+  const summary: Record<string, any> = {
+    foregroundContext: toRuntimeFactSummary(snapshot.facts.foregroundContext),
+    executionTarget: toRuntimeFactSummary(snapshot.facts.executionTarget),
+  }
+  if (snapshot.facts.lastScreenshot) {
+    summary.lastScreenshot = toRuntimeFactSummary(snapshot.facts.lastScreenshot)
+  }
+  return summary
 }
 
 export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteAction {
@@ -682,7 +710,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       }
 
       runtime.session.consumeOperation(decision.estimatedOperationUnits)
-      const screenshot = await captureOptionalScreenshot({
+      let screenshot = await captureOptionalScreenshot({
         action: normalizedAction,
         executor: runtime.executor,
         config: runtime.config,
@@ -703,54 +731,162 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         })
       }
 
-      const verificationResult = await runPostActionVerification({
-        runtime,
-        action: normalizedAction,
-        screenshot,
-      })
+      let verificationResult: VerificationRunResult | undefined
 
-      if (verificationResult?.status === 'failed') {
-        const verificationError = formatVerificationFailure({
+      if (verificationContract.requirement !== 'none') {
+        const verificationSnapshot = await coordinator.refreshSnapshot('verification_check')
+        verificationResult = runPostActionVerification({
           action: normalizedAction,
-          verification: verificationResult,
+          postActionSnapshot: verificationSnapshot,
+          screenshot,
         })
 
-        await runtime.session.record({
-          event: 'failed',
-          toolName,
-          action: normalizedAction,
-          context,
-          policy: decision,
-          metadata: traceMetadata,
-          result: {
-            executionTarget,
-            error: verificationError,
-            verification: {
-              status: verificationResult.status,
-              ...verificationResult.summary,
-              failureDisposition: verificationResult.failureDisposition,
-              repairHint: verificationResult.repairHint,
-              reason: verificationResult.reason,
-              observedContext: verificationResult.observedContext,
+        if (verificationResult?.status === 'failed') {
+          await runtime.session.record({
+            event: 'verification_failed',
+            toolName,
+            action: normalizedAction,
+            context,
+            policy: decision,
+            metadata: traceMetadata,
+            result: {
+              executionTarget,
+              verification: toVerificationResultContent(verificationResult),
+              runtimeFacts: buildRuntimeFactsSummary(verificationSnapshot),
             },
-          },
-        })
+          })
 
-        return buildExecutionErrorResponse({
-          errorMessage: `${verificationError}${advisorySummary ? ` Strategy: ${advisorySummary}` : ''}`,
-          action: normalizedAction,
-          context,
-          executionTarget,
-          policy: decision,
-          verification: {
-            status: verificationResult.status,
-            ...verificationResult.summary,
-            failureDisposition: verificationResult.failureDisposition,
-            repairHint: verificationResult.repairHint,
-            reason: verificationResult.reason,
-            observedContext: verificationResult.observedContext,
-          },
-        })
+          if (verificationResult.summary.failureDisposition === 'repair_hint' && verificationResult.summary.repairHint !== 'none') {
+            const repairResult = await runVerificationRepairAttempt({
+              runtime,
+              action: normalizedAction,
+              failedVerification: verificationResult,
+              screenshot,
+            })
+
+            const repairAttempt = repairResult.repairAttempt
+            screenshot = repairResult.screenshot ?? screenshot
+            verificationResult = repairResult.verification
+
+            if (repairAttempt.attempted) {
+              if (repairAttempt.hint === 'refocus_target_app' || repairAttempt.hint === 'reopen_target_app') {
+                runtime.session.consumeOperation(estimateOperationUnits(normalizedAction))
+              }
+
+              await runtime.session.record({
+                event: 'repair_attempted',
+                toolName,
+                action: normalizedAction,
+                context,
+                policy: decision,
+                metadata: traceMetadata,
+                result: {
+                  executionTarget,
+                  repairAttempt,
+                  runtimeFacts: buildRuntimeFactsSummary(verificationSnapshot),
+                },
+              })
+
+              if (repairAttempt.succeeded) {
+                coordinator.enqueueInvalidation(repairResult.invalidationTags)
+                const repairSnapshot = await coordinator.refreshSnapshot('repair_check')
+                const recheckVerificationResult = runPostActionVerification({
+                  action: normalizedAction,
+                  postActionSnapshot: repairSnapshot,
+                  screenshot,
+                })
+
+                if (recheckVerificationResult?.status === 'passed') {
+                  verificationResult = buildRepairedVerification({
+                    verification: recheckVerificationResult,
+                    repairAttempt,
+                  })
+
+                  await runtime.session.record({
+                    event: 'repair_succeeded',
+                    toolName,
+                    action: normalizedAction,
+                    context,
+                    policy: decision,
+                    metadata: traceMetadata,
+                    result: {
+                      executionTarget,
+                      verification: toVerificationResultContent(verificationResult),
+                      runtimeFacts: buildRuntimeFactsSummary(repairSnapshot),
+                    },
+                  })
+                }
+                else {
+                  verificationResult = {
+                    ...(recheckVerificationResult ?? verificationResult),
+                    status: 'failed',
+                    reason: recheckVerificationResult?.reason || verificationResult.reason || 'verification still failed after repair',
+                    repairAttempt,
+                  }
+
+                  await runtime.session.record({
+                    event: 'repair_failed',
+                    toolName,
+                    action: normalizedAction,
+                    context,
+                    policy: decision,
+                    metadata: traceMetadata,
+                    result: {
+                      executionTarget,
+                      verification: toVerificationResultContent(verificationResult),
+                      runtimeFacts: buildRuntimeFactsSummary(repairSnapshot),
+                    },
+                  })
+                }
+              }
+              else {
+                await runtime.session.record({
+                  event: 'repair_failed',
+                  toolName,
+                  action: normalizedAction,
+                  context,
+                  policy: decision,
+                  metadata: traceMetadata,
+                  result: {
+                    executionTarget,
+                    verification: toVerificationResultContent(verificationResult),
+                    runtimeFacts: buildRuntimeFactsSummary(verificationSnapshot),
+                  },
+                })
+              }
+            }
+          }
+
+          if (verificationResult.status !== 'repaired') {
+            const verificationError = formatVerificationFailure({
+              action: normalizedAction,
+              verification: verificationResult,
+            })
+
+            await runtime.session.record({
+              event: 'failed',
+              toolName,
+              action: normalizedAction,
+              context,
+              policy: decision,
+              metadata: traceMetadata,
+              result: {
+                executionTarget,
+                error: verificationError,
+                verification: toVerificationResultContent(verificationResult),
+              },
+            })
+
+            return buildExecutionErrorResponse({
+              errorMessage: `${verificationError}${advisorySummary ? ` Strategy: ${advisorySummary}` : ''}`,
+              action: normalizedAction,
+              context,
+              executionTarget,
+              policy: decision,
+              verification: toVerificationResultContent(verificationResult),
+            })
+          }
+        }
       }
 
       // Transparency: explain what just happened.
@@ -760,6 +896,9 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         terminalResult: normalizedAction.kind === 'terminal_exec' ? (backendResult as unknown as TerminalCommandResult) : undefined,
         context,
       })
+      const verificationRecoverySummary = verificationResult?.status === 'repaired'
+        ? ' Verification recovered after repair.'
+        : ''
 
       await runtime.session.record({
         event: 'executed',
@@ -776,8 +915,12 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         },
       })
 
+      // Enqueue invalidation tags from this action's operation contract so the
+      // next refreshSnapshot selectively re-probes the affected facts.
+      coordinator.enqueueInvalidation(getOperationInvalidationTags(normalizedAction.kind))
+
       return buildSuccessResponse({
-        summary: `${intent} ${outcome}${advisorySummary ? ` Strategy: ${advisorySummary}` : ''}`,
+        summary: `${intent} ${outcome}${verificationRecoverySummary}${advisorySummary ? ` Strategy: ${advisorySummary}` : ''}`,
         screenshot,
         structuredContent: {
           status: 'executed',

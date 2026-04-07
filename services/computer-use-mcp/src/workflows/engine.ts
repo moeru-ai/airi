@@ -10,9 +10,9 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
 import type { ExecuteAction } from '../server/action-executor'
-import type { ActiveTask, RunStateManager, TaskStep } from '../state'
+import type { ActiveTask, RunState, RunStateManager, TaskStep } from '../state'
 import type { StrategyAdvisory } from '../strategy'
-import type { ActionKind, DisplayInfo } from '../types'
+import type { ActionKind, DisplayInfo, TerminalSurface } from '../types'
 import type { VerificationContractSummary } from '../verification-contracts'
 import type {
   PlannedPreparatoryExecution,
@@ -25,6 +25,12 @@ import process from 'node:process'
 
 import { randomUUID } from 'node:crypto'
 
+import {
+  evaluateTerminalHandoffReadiness,
+} from '../lane-handoff-contract'
+import {
+  getLaneHandoffContract,
+} from '../lane-handoff-registry'
 import { buildRecoveryPlan, evaluateStrategy, PREP_TOOL_POLICY } from '../strategy'
 import {
   explainActionIntent,
@@ -379,6 +385,77 @@ export async function executeWorkflow(params: {
         state,
       })
 
+      const sourceSurface = resolveCurrentTerminalSurface({
+        state,
+        taskId: task.id,
+        stepId: taskStep.stepId,
+      })
+      const targetSurface: TerminalSurface = surfaceResolution.surface === 'pty' ? 'pty' : 'exec'
+
+      let handoffDecisionSource = `surface_resolver:${surfaceResolution.reason}`
+      let handoffContractId: string | undefined
+
+      if (sourceSurface !== targetSurface) {
+        const handoffContract = getLaneHandoffContract({
+          lane: 'terminal',
+          sourceSurface,
+          targetSurface,
+        })
+
+        if (!handoffContract) {
+          const failureExplanation = `Terminal lane handoff blocked: missing contract for ${sourceSurface}->${targetSurface}.`
+          stateManager.completeCurrentStep('failure', failureExplanation)
+          stateManager.finishTask('failed')
+          stepResults.push({
+            step: resolvedStep,
+            advisories,
+            succeeded: false,
+            status: 'failure',
+            explanation: failureExplanation,
+          })
+
+          return {
+            success: false,
+            status: 'failed',
+            task,
+            stepResults,
+            summary: buildWorkflowSummary(workflow, task, stepResults),
+          }
+        }
+
+        const readiness = evaluateTerminalHandoffReadiness({
+          contract: handoffContract,
+          context: {
+            boundPtySessionId: surfaceResolution.boundPtySessionId,
+            hasAcquirePtyCallback: Boolean(acquirePty),
+          },
+        })
+
+        if (!readiness.ready) {
+          const failureExplanation = `Terminal lane handoff blocked: ${readiness.reason}.`
+          stateManager.completeCurrentStep('failure', failureExplanation)
+          stateManager.finishTask('failed')
+          stepResults.push({
+            step: resolvedStep,
+            advisories,
+            succeeded: false,
+            status: 'failure',
+            explanation: failureExplanation,
+          })
+
+          return {
+            success: false,
+            status: 'failed',
+            task,
+            stepResults,
+            summary: buildWorkflowSummary(workflow, task, stepResults),
+          }
+        }
+
+        handoffContractId = handoffContract.id
+        handoffDecisionSource = `lane_handoff:${handoffContract.id}:${surfaceResolution.reason}`
+      }
+
       if (surfaceResolution.surface === 'pty') {
         // -- PTY path --
         // Try to self-acquire PTY if the callback is available
@@ -463,7 +540,7 @@ export async function executeWorkflow(params: {
             surface: 'pty',
             transport: 'pty',
             reason: surfaceResolution.explanation,
-            source: `surface_resolver:${surfaceResolution.reason}`,
+            source: handoffDecisionSource,
           })
           stateManager.addStepTerminalBinding({
             taskId: task.id,
@@ -540,7 +617,7 @@ export async function executeWorkflow(params: {
           surface: 'pty',
           transport: 'pty',
           reason: surfaceResolution.explanation,
-          source: 'surface_resolver_legacy_reroute',
+          source: handoffContractId ? `lane_handoff:${handoffContractId}:legacy_reroute` : 'surface_resolver_legacy_reroute',
         })
         stateManager.addStepTerminalBinding({
           taskId: task.id,
@@ -582,7 +659,7 @@ export async function executeWorkflow(params: {
         surface: 'exec',
         transport: 'exec',
         reason: surfaceResolution.explanation,
-        source: `surface_resolver:${surfaceResolution.reason}`,
+        source: handoffDecisionSource,
       })
       stateManager.addStepTerminalBinding({
         taskId: task.id,
@@ -1176,6 +1253,27 @@ async function executePtyCommand(params: {
       explanation: `PTY command execution error: ${error instanceof Error ? error.message : String(error)}`,
     }
   }
+}
+
+function resolveCurrentTerminalSurface(params: {
+  state: RunState
+  taskId: string
+  stepId: string
+}): TerminalSurface {
+  const stepBinding = params.state.workflowStepTerminalBindings.find(
+    binding => binding.taskId === params.taskId && binding.stepId === params.stepId,
+  )
+
+  if (stepBinding?.surface === 'exec' || stepBinding?.surface === 'pty') {
+    return stepBinding.surface
+  }
+
+  const recentSurface = params.state.recentSurfaceDecision?.surface
+  if (recentSurface === 'exec' || recentSurface === 'pty') {
+    return recentSurface
+  }
+
+  return 'exec'
 }
 
 function extractErrorMessage(result: CallToolResult): string {
