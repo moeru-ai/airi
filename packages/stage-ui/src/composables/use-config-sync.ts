@@ -2,10 +2,9 @@ import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
-import { client } from './api'
-
 import { useAuthStore } from '../stores/auth'
 import { useProvidersStore } from '../stores/providers'
+import { client } from './api'
 
 export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error'
 
