@@ -37,20 +37,26 @@
 
 ## 路由到服务映射
 
-### `/api/auth/*`
+### `/api/auth/*` 及 `/sign-in`
 
 实现位置：
 
-- 路由注册：`src/app.ts`
-- 实际处理：`auth.handler(c.req.raw)`
-- 服务工厂：`src/libs/auth.ts`
+- 路由入口：`src/routes/auth/index.ts`（通过 `.route('/')` 挂载到根路径）
+- token auth 辅助路由：`src/routes/oidc/token-auth.ts`
+- Electron 回调中继：`src/routes/oidc/electron-callback.ts`
+- better-auth 配置：`src/libs/auth.ts`
+- Bearer 解析：`src/libs/request-auth.ts`
+- 登录页渲染：`src/utils/sign-in-page.ts`
 
 特点：
 
-- 基于 `better-auth`
-- 开启 email/password、Google、GitHub
-- Bearer plugin 已启用
-- `/api/auth/*` 有独立 IP 限流，每分钟 20 次
+- 基于 `better-auth` + `oauthProvider` 插件
+- 开启 email/password、Google、GitHub 社交登录
+- Bearer plugin + JWT plugin 已启用
+- `/api/auth/*` 有独立 IP 限流
+- `GET /api/auth/get-session`、`POST /api/auth/sign-out`、`GET /api/auth/list-sessions` 由本地路由处理
+- Bearer token 会先尝试 better-auth session，再回退到受信任 OIDC access token
+- 详见 `auth-and-oidc.md`
 
 ### `/api/v1/characters`
 

@@ -28,10 +28,7 @@ const sourcesOptions = ref<SourcesOptions>({
 })
 
 const { t } = useI18n()
-const {
-  getSources,
-  selectWithSource,
-} = useElectronScreenCapture(window.electron.ipcRenderer, sourcesOptions)
+const { getSources, selectWithSource } = useElectronScreenCapture(window.electron.ipcRenderer, sourcesOptions)
 
 const categoryOptions = [
   { label: 'Applications', value: 'applications', icon: 'i-solar:window-frame-line-duotone' },
@@ -90,13 +87,16 @@ function toObjectUrl(bytes: Uint8Array, mime: string) {
 
 async function startCapture(source: SerializableDesktopCapturerSource) {
   try {
-    await selectWithSource(() => source.id, async () => {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: true,
-      })
-      activeStreams.value.push(stream)
-    })
+    await selectWithSource(
+      () => source.id,
+      async () => {
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: true,
+        })
+        activeStreams.value.push(stream)
+      },
+    )
   }
   catch (err) {
     console.error('Error selecting source:', err)

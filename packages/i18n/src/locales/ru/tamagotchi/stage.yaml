@@ -25,10 +25,10 @@ docs:
   'close': Закрыть
   'expand': Развернуть
   'collapse': Свернуть
-'status-island':
-  connected: WebSocket подключен
-  disconnected: WebSocket отключен
-  'open-settings': Открыть настройки WebSocket
+  'login': Sign in
+  'logging-in': Signing in...
+  'account': Account
+  'logout': Sign out
 notice:
   'fade-on-hover':
     title: Исчезать при наведении

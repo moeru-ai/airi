@@ -49,6 +49,7 @@ bundle/
 *.flatpak
 # WXT specified this too
 *.output
+.vfox.toml
 
 # Vite
 dist
@@ -56,6 +57,7 @@ dist
 .nuxt
 # vite-plugin-inspect
 .vite-inspect
+.vite-inspect*
 
 # auto import & auto fs based router
 components.d.ts
@@ -123,5 +125,12 @@ plugins-local
 plugins-development
 
 apps/stage-pocket/ios/buildServer.json
-.ghfs/
+apps/stage-pocket/airi-pocket.jks
+apps/stage-tamagotchi/electron.vite.config.*.mjs
 .docs/superpowers
+
+# Tools - ghfs
+.ghfs/
+
+# Tools - Obsidian
+.obsidian/

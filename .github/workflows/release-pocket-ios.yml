@@ -1,0 +1,161 @@
+name: Release Pocket (iOS)
+
+permissions:
+  contents: write
+  actions: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      no_release_upload:
+        description: No GitHub release upload
+        required: false
+        default: false
+        type: boolean
+      no_testflight_upload:
+        description: No TestFlight upload
+        required: false
+        default: false
+        type: boolean
+      release_upload_tag:
+        description: GitHub release upload tag
+        required: false
+        type: string
+
+jobs:
+  build:
+    name: Build iOS
+    runs-on: macos-26
+    env:
+      PRODUCT_NAME: 'AIRI'
+      VITE_ENABLE_POSTHOG: 'true'
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:packages
+
+      - name: Build assets
+        run: pnpm -F @proj-airi/stage-pocket run build
+
+      - name: Sync assets to iOS
+        run: pnpm -F @proj-airi/stage-pocket exec cap sync ios
+
+      - name: Install Apple certificate
+        env:
+          CERT_BASE64: ${{ secrets.APPLE_DISTRIBUTION_CERT_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_CERT_PASSWORD }}
+        run: |
+          CERT_PATH="$RUNNER_TEMP/certificate.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 16)"
+
+          echo "$CERT_BASE64" | base64 --decode -o "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -P "$CERT_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
+
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+
+      - name: Install provisioning profile
+        env:
+          PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          PROFILE_PATH="$RUNNER_TEMP/profile.mobileprovision"
+          echo "$PROFILE_BASE64" | base64 --decode -o "$PROFILE_PATH"
+
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp "$PROFILE_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/
+
+      - name: Read version from Xcode project
+        run: |
+          PBXPROJ="apps/stage-pocket/ios/App/App.xcodeproj/project.pbxproj"
+          VERSION="$(sed -n 's/.*MARKETING_VERSION = \(.*\);/\1/p' "$PBXPROJ" | head -1 | tr -d ' ')"
+          BUILD_NUMBER="$(sed -n 's/.*CURRENT_PROJECT_VERSION = \(.*\);/\1/p' "$PBXPROJ" | head -1 | tr -d ' ')"
+
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+
+      - name: Archive iOS
+        run: |
+          xcodebuild archive \
+            -project apps/stage-pocket/ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            DEVELOPMENT_TEAM=433DLLA855 \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="AIRI CI" \
+            CURRENT_PROJECT_VERSION=${{ env.BUILD_NUMBER }}
+
+      - name: Export IPA
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportPath "$RUNNER_TEMP/output" \
+            -exportOptionsPlist apps/stage-pocket/ios/ExportOptions.plist
+
+      - name: Rename IPA for distribution
+        run: |
+          IPA_SOURCE="$(find "$RUNNER_TEMP/output" -name '*.ipa' -print -quit)"
+          IPA_NAME="${PRODUCT_NAME}-${VERSION}_(${BUILD_NUMBER})-ios.ipa"
+
+          mv "$IPA_SOURCE" "$RUNNER_TEMP/output/$IPA_NAME"
+
+          echo "IPA_NAME=$IPA_NAME" >> "$GITHUB_ENV"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.IPA_NAME }}
+          path: ${{ runner.temp }}/output/${{ env.IPA_NAME }}
+          if-no-files-found: error
+
+      - name: Install Transporter
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.no_testflight_upload }}
+        run: |
+          curl -fsSL "https://itunesconnect.apple.com/WebObjects/iTunesConnect.woa/ra/resources/download/public/Transporter__OSX/bin/" -o "$RUNNER_TEMP/itmstransporter.pkg"
+          sudo installer -pkg "$RUNNER_TEMP/itmstransporter.pkg" -target /
+          rm -f "$RUNNER_TEMP/itmstransporter.pkg"
+
+      - name: Upload to TestFlight
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.no_testflight_upload }}
+        uses: apple-actions/upload-testflight-build@v4
+        with:
+          app-path: ${{ runner.temp }}/output/${{ env.IPA_NAME }}
+          issuer-id: ${{ secrets.APPSTORE_CONNECT_API_ISSUER_ID }}
+          api-key-id: ${{ secrets.APPSTORE_CONNECT_API_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_CONNECT_API_KEY }}
+
+      - name: Upload to GitHub Releases
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.no_release_upload }}
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ runner.temp }}/output/${{ env.IPA_NAME }}
+          append_body: true
+          tag_name: ${{ inputs.release_upload_tag }}
+
+      - name: Clean up signing
+        if: always()
+        run: |
+          if [ -n "$KEYCHAIN_PATH" ]; then
+            security delete-keychain "$KEYCHAIN_PATH" 2>/dev/null || true
+          fi
+          rm -f ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision

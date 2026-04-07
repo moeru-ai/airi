@@ -633,9 +633,13 @@ export class PluginHost {
     const lifecycle = createActor(pluginLifecycleMachine)
     lifecycle.start()
 
-    const permissionSnapshot = this.permissions.initialize(id, manifest.permissions, {
-      persisted: this.persistedPermissionGrants.get(identity.plugin.id),
-    })
+    const permissionSnapshot = this.permissions.initialize(
+      id,
+      manifest.permissions,
+      {
+        persisted: this.persistedPermissionGrants.get(identity.plugin.id),
+      },
+    )
 
     const session: PluginHostSession = {
       manifest,

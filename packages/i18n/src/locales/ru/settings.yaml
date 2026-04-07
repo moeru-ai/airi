@@ -18,13 +18,26 @@ dialogs:
     baseUrl: Базовый URL
     baseUrlHelp: URL конечной точки API (оставьте по умолчанию, если не уверены)
     accountId: ID аккаунта
+    validationRunning: Running tests
     validationSuccess: Успешная проверка конфигурации
+    validationPartial: Configuration partially validated
     validationFailed: Проверка конфигурации не удалась
     validationError: 'Ошибка проверки: {error}'
+    testGeneration: Ping API
+    testGenerationRunning: Ping...
+    testGenerationFailed: Ping test failed
+    retryPingCheck: Retry
     skipForNow: Пропустить на сейчас
     saveAndContinue: Сохранить и продолжить
     next: Далее
     retry: Повторить
+    credentialsSafeLabel: Keep your API keys and credentials safe!
+    credentialsSafeLocal: >-
+      AIRI is running pure locally in your PC, and we will never steal your credentials for AI / LLM providers. But keep in mind that your API keys are sensitive information. Make sure to keep them safe and do not share them with anyone.
+    credentialsSafeOpenSource: >-
+      AIRI is open sourced at {github}, if you want to check how we handle your credentials, feel free to inspect our code.
+    enableChatCheck: >-
+      Allow airi to send a "ping" message to the first available chat model to check availability
     start: Поехали!
     loginPrompt: Sign in to use the official AIRI provider for the best experience.
     loginAction: Sign in
@@ -101,15 +114,26 @@ live2d:
   focus:
     title: Отключить слежение за мышью
     button-disable:
-      title: Отключить
+      title: Disable model mouse tracking
+  render-scale:
+    title: Render scale
   fps:
     title: ФПС
     description: Ограничить скорость рендеринга кадров
     options:
-      unlimited: Без ограничений
+      unlimited: '∞'
 microphone: Микрофон
 models: Модель
 pages:
+  account:
+    title: Account
+    description: View your profile and manage your account
+    notLoggedIn: Sign in to view your account and access all features
+    login: Log in
+    logout: Log out
+    fluxBalance: Flux Balance
+    viewFluxDetails: View details
+    signedInAs: Signed in as
   card:
     activate: Активировать
     active: Активно
@@ -232,6 +256,10 @@ pages:
         title: Удалить все данные
         description: Очистка всех локальных настроек, конфигурации провайдера и модели.
         delete: Удалить все данные
+      desktop-folder:
+        title: Open app data folder
+        description: Open AIRI's data folder in your file manager.
+        open: Open folder
       desktop:
         title: Сбросить настройки и состояния рабочего стола
         description: Очистить настройки AIRI рабочего стола и состояние рабочего времени.
@@ -358,16 +386,30 @@ pages:
       description: Играем в Minecraft!
       title: Minecraft
       enable: Включить интеграцию Minecraft
-      enable-description: Разрешить AIRI взаимодействовать с игрой Minecraft
-      server-address: Адрес сервера
-      server-address-description: IP-адрес или имя хоста сервера Minecraft
-      server-address-placeholder: Введите адрес сервера (например, localhost или play.example.com)
-      server-port: Порт сервера
-      server-port-description: Номер порта сервера Minecraft (по умолчанию 25565)
-      username: Имя пользователя
-      username-description: Ваше имя пользователя на сервере Minecraft
-      username-placeholder: Введите ваше имя пользователя Minecraft
+      enable-description: Include Minecraft self-knowledge in Stage chat turns and keep passive runtime visibility enabled.
       configured: Minecraft настроен правильно!
+      read-only:
+        title: Read-only shell
+        description: Stage currently exposes Minecraft as a passive shell. Runtime status and traffic are visible here, but service configuration stays in the Minecraft service files.
+      setup:
+        title: Setup
+        description: You can find the instructions for setting up the bot in the following file
+      runtime:
+        title: Observed runtime
+        connection: Connection
+        latest-context: Latest bot context
+        waiting: Waiting for a fresh bot-originated context push.
+        unknown: Unknown
+      debug:
+        title: Minecraft traffic
+        empty: No Minecraft traffic observed yet.
+        source: 'Source: {source}'
+      status:
+        service-online: Service online
+        service-offline: Service offline
+        no-runtime-context: 'No bot context observed yet'
+        last-context-seconds: 'Last bot context: {seconds}s ago'
+        last-context-stale: 'Last bot context: Stale'
     hearing:
       description: Настройка распознавания речи
       title: Слух
@@ -375,6 +417,14 @@ pages:
         section:
           provider-selection:
             description: Выберите подходящего провайдера синтеза речи
+          confidence-threshold:
+            title: Confidence Threshold
+            description: Filter out low-confidence transcriptions to reduce Whisper hallucinations. Values closer to 0 are more strict; drag to the leftmost to disable. Only effective for providers supporting Whisper API (e.g., OpenAI, Groq).
+            disabled: Disabled
+            verbose-json-note: >-
+              Note: If your provider does not support verbose_json responses, this setting will have no effect.
+            verbose-json-unsupported: >-
+              Your provider did not return verbose_json segments. Confidence filtering had no effect on the last transcription.
     memory-long-term:
       description: Настройки долговременной памяти
       title: Долговременная память
@@ -767,6 +817,9 @@ pages:
       openai:
         description: openai.com
         title: OpenAI
+      azure-openai:
+        description: Azure OpenAI API
+        title: Azure OpenAI
       openai-compatible:
         description: Совместимый с OpenAI
         title: OpenAI Compatible
@@ -778,6 +831,9 @@ pages:
         title: n1n
       openrouter:
         description: Openrouter.ai
+        title: OpenRouter
+      openrouter-audio-speech:
+        description: openrouter.ai
         title: OpenRouter
       perplexity:
         description: perplexity.ai
@@ -853,6 +909,19 @@ pages:
       description: Полный адрес сервера WebSocket (например, ws://localhost:6121/ws)
       label: Адрес сервера WebSocket
       placeholder: Ws://localhost:6121/ws
+    server-hostname:
+      label: Expose On Network
+      description: Choose whether the AIRI gateway only listens on this device or can be reached from your local network.
+      advanced-label: Bind Hostname
+      advanced-description: Use a specific hostname or IP address when you need manual network binding.
+      options:
+        this-device: This device
+        all: All
+        advanced: Advanced
+    server-auth-token:
+      label: Auth Token
+      description: Security token required by remote clients that connect to this gateway. When left empty, AIRI generates a new token automatically.
+      placeholder: Auto-generate
   scene:
     description: Настройте окружение, в котором живёт персонаж
     title: Сцена
@@ -1015,6 +1084,8 @@ theme:
 title: Настройки
 voices: Голос
 vrm:
+  render-scale:
+    title: Render scale
   change-model:
     from-file: Загрузить из файла
     from-file-select: Выбрать

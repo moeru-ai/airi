@@ -25,10 +25,10 @@ docs:
   'close': Fermer
   'expand': Développer
   'collapse': Réduire
-'status-island':
-  connected: WebSocket connecté
-  disconnected: WebSocket déconnecté
-  'open-settings': Ouvrir les paramètres WebSocket
+  'login': Se connecter
+  'logging-in': Connexion en cours...
+  'account': Compte
+  'logout': Compte
 notice:
   'fade-on-hover':
     title: Disparaître au survol

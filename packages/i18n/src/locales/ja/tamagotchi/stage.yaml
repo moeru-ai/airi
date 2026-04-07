@@ -25,10 +25,10 @@ docs:
   'close': 閉じる
   'expand': 展開
   'collapse': 折りたたむ
-'status-island':
-  connected: WebSocket が接続されました
-  disconnected: WebSocket が切断されました
-  'open-settings': WebSocketの設定を開く
+  'login': サインイン
+  'logging-in': サインイン中…
+  'account': アカウント
+  'logout': サインアウト
 notice:
   'fade-on-hover':
     title: ホバー時にフェード

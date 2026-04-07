@@ -25,10 +25,10 @@ docs:
   'close': Đóng
   'expand': Mở rộng
   'collapse': Sụp đổ
-'status-island':
-  connected: WebSocket connected
-  disconnected: WebSocket disconnected
-  'open-settings': Open WebSocket settings
+  'login': Sign in
+  'logging-in': Signing in...
+  'account': Account
+  'logout': Sign out
 notice:
   'fade-on-hover':
     title: Mờ dần khi rê chuột

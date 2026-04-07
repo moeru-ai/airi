@@ -1,5 +1,7 @@
+import process, { cwd, env } from 'node:process'
+
+import { execSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
-import { cwd, env } from 'node:process'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import templateCompilerOptions from '@tresjs/core/template-compiler-options'
@@ -8,10 +10,12 @@ import Unocss from 'unocss/vite'
 import Info from 'unplugin-info/vite'
 import VueRouter from 'unplugin-vue-router/vite'
 import Yaml from 'unplugin-yaml/vite'
+import Mkcert from 'vite-plugin-mkcert'
 import VueDevTools from 'vite-plugin-vue-devtools'
 import Layouts from 'vite-plugin-vue-layouts'
 import VueMacros from 'vue-macros/vite'
 
+import { tryCatch } from '@moeru/std'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
 import { createS3Provider, WarpDrivePlugin } from '@proj-airi/vite-plugin-warpdrive'
@@ -21,6 +25,17 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
+
+function hasFlagEnableMkcert(): boolean {
+  if (process.argv.includes('--mkcert')) {
+    return true
+  }
+  if (env.STAGE_WEB_ENABLE_MKCERT === 'true') {
+    return true
+  }
+
+  return false
+}
 
 export default defineConfig({
   optimizeDeps: {
@@ -88,6 +103,18 @@ export default defineConfig({
   },
 
   plugins: [
+    ...(
+      hasFlagEnableMkcert()
+        ? [Mkcert((() => {
+            // Workaround: plugin's bundled downloader has a feaxios bug, prefer system mkcert
+            const command = process.platform === 'win32' ? 'where' : 'which'
+            // eslint-disable-next-line e18e/prefer-static-regex
+            const { data } = tryCatch(() => ({ mkcertPath: execSync(`${command} mkcert`, { stdio: 'pipe' }).toString().trim().split(/\r?\n/)[0] }))
+            return data
+          })())]
+        : []
+    ),
+
     Info(),
 
     Yaml(),
@@ -131,7 +158,7 @@ export default defineConfig({
     ...(env.TARGET_HUGGINGFACE_SPACE
       ? []
       : [VitePWA({
-          registerType: 'autoUpdate',
+          registerType: 'prompt',
           includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
           manifest: {
             name: 'AIRI',

@@ -9,11 +9,6 @@
     "vue"
   ],
 
-  "rust-analyzer.cargo.extraEnv": {
-    "MACOSX_DEPLOYMENT_TARGET": "10.13"
-  },
-  "rust-analyzer.cargo.targetDir": "target/rust-analyzer",
-
   // Disable the default formatter
   "prettier.enable": false,
   "editor.formatOnSave": false,
@@ -62,12 +57,5 @@
     "appimage",
     "localforage"
   ],
-  "[rust]": {
-    "editor.defaultFormatter": "rust-lang.rust-analyzer",
-    "editor.formatOnSave": true
-  },
-  "rust-analyzer.checkOnSave": true,
-  "rust-analyzer.cachePriming.enable": false, // Disable cache priming on workspace startup to save some memory while working on non-Rust tasks
-
   "vitest.disableWorkspaceWarning": true
 }

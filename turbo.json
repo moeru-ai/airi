@@ -4,6 +4,9 @@
     "build": {
       "outputs": ["dist/**"]
     },
+    "@proj-airi/server-schema#build": {
+      "cache": false
+    },
     "@proj-airi/electron-vueuse#build": {
       "dependsOn": ["@proj-airi/electron-eventa#build"],
       "outputs": ["dist/**"]

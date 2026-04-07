@@ -412,6 +412,7 @@ function handleDeleteProvider(providerId: string) {
                     :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
                     :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
                     :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
+                    expanded-class="mb-12"
                     @update:custom-value="updateCustomModelName"
                   />
                 </template>

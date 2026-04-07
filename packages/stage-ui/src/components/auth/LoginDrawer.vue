@@ -7,7 +7,9 @@ import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot } 
 import { ref } from 'vue'
 import { toast } from 'vue-sonner'
 
-import { fetchSession, signIn } from '../../libs/auth'
+import { signInOIDC } from '../../libs/auth'
+import { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } from '../../libs/auth-config'
+import { defaultSignInProviders } from './providers'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -22,8 +24,11 @@ const loading = ref<Record<OAuthProvider, boolean>>({
 async function handleSignIn(provider: OAuthProvider) {
   loading.value[provider] = true
   try {
-    await signIn(provider)
-    await fetchSession()
+    await signInOIDC({
+      clientId: OIDC_CLIENT_ID,
+      redirectUri: OIDC_REDIRECT_URI,
+      provider,
+    })
   }
   catch (error) {
     toast.error(error instanceof Error ? error.message : 'An unknown error occurred')
@@ -49,20 +54,14 @@ async function handleSignIn(provider: OAuthProvider) {
           </div>
           <div class="flex flex-col gap-4">
             <Button
+              v-for="provider in defaultSignInProviders"
+              :key="provider.id"
               :class="['w-full', 'py-4', 'flex', 'items-center', 'justify-center', 'gap-3', 'text-lg', 'rounded-2xl']"
-              icon="i-simple-icons-google"
-              :loading="loading.google"
-              @click="handleSignIn('google')"
+              :icon="provider.icon"
+              :loading="loading[provider.id]"
+              @click="handleSignIn(provider.id)"
             >
-              <span>Sign in with Google</span>
-            </Button>
-            <Button
-              :class="['w-full', 'py-4', 'flex', 'items-center', 'justify-center', 'gap-3', 'text-lg', 'rounded-2xl']"
-              icon="i-simple-icons-github"
-              :loading="loading.github"
-              @click="handleSignIn('github')"
-            >
-              <span>Sign in with GitHub</span>
+              <span>Sign in with {{ provider.name }}</span>
             </Button>
           </div>
           <div class="mt-10 pb-2 text-center text-xs text-gray-400">

@@ -1,3 +1,4 @@
+import type { Eventa } from '@moeru/eventa'
 import type { AssistantMessage, CommonContentPart, Message, ToolMessage, UserMessage } from '@xsai/shared-chat'
 
 import { defineEventa } from '@moeru/eventa'
@@ -394,6 +395,40 @@ export interface ModulePermissionError {
   recoverable?: boolean
 }
 
+export type DeliveryMode = 'broadcast' | 'consumer' | 'consumer-group'
+
+export type DeliverySelectionStrategy = 'first' | 'round-robin' | 'priority' | 'sticky'
+
+export interface DeliveryConfig {
+  mode?: DeliveryMode
+  group?: string
+  required?: boolean
+  selection?: DeliverySelectionStrategy
+  stickyKey?: string
+}
+
+export interface ProtocolEventaMetadata {
+  delivery?: DeliveryConfig
+}
+
+export interface ProtocolEventaInvokeMetadata {
+  delivery?: Partial<DeliveryConfig>
+}
+
+export type ProtocolEventa<P = undefined>
+  = Eventa<P, ProtocolEventaMetadata, ProtocolEventaInvokeMetadata>
+
+function defineProtocolEventa<P = undefined>(
+  id: string,
+  options?: {
+    inheritFrom?: ProtocolEventa<P>
+    metadata?: ProtocolEventaMetadata
+    invokeMetadata?: ProtocolEventaInvokeMetadata
+  },
+): ProtocolEventa<P> {
+  return defineEventa<P, ProtocolEventaMetadata, ProtocolEventaInvokeMetadata>(id, options)
+}
+
 export type RouteTargetExpression
   = | { type: 'and', all: RouteTargetExpression[] }
     | { type: 'or', any: RouteTargetExpression[] }
@@ -408,6 +443,7 @@ export type RouteTargetExpression
 export interface RouteConfig {
   destinations?: Array<string | RouteTargetExpression>
   bypass?: boolean
+  delivery?: DeliveryConfig
 }
 
 export enum MessageHeartbeatKind {
@@ -435,7 +471,7 @@ interface InputSource {
 interface OutputSource {
   'gen-ai:chat': {
     message: UserMessage
-    contexts: Record<string, ContextUpdate<Record<string, any>, string | CommonContentPart[]>[]>
+    contexts: Record<string, ContextUpdate<Record<string, any>, unknown>[]>
     composedMessage: Array<Message>
     input?: InputEventEnvelope
   }
@@ -574,7 +610,7 @@ interface ModuleCompatibilityResultEvent {
   reason?: string
 }
 
-interface RegistryModulesSyncEvent {
+export interface RegistryModulesSyncEvent {
   modules: Array<{
     name: string
     index?: number
@@ -599,7 +635,7 @@ interface ModuleAnnounceEvent<C = undefined> {
   configSchema?: ModuleConfigSchema
   dependencies?: ModuleDependency[]
 }
-interface ModuleAnnouncedEvent {
+export interface ModuleAnnouncedEvent {
   name: string
   index?: number
   identity: ModuleIdentity
@@ -892,6 +928,19 @@ interface ModuleConfigureEvent<C = undefined> {
   config: C | Record<string, unknown>
 }
 
+interface ModuleConsumerRegisterEvent {
+  event: string
+  mode?: Exclude<DeliveryMode, 'broadcast'>
+  group?: string
+  priority?: number
+}
+
+interface ModuleConsumerUnregisterEvent {
+  event: string
+  mode?: Exclude<DeliveryMode, 'broadcast'>
+  group?: string
+}
+
 interface UiConfigureEvent<C = undefined> {
   moduleName: string
   moduleIndex?: number
@@ -1047,26 +1096,62 @@ export const moduleContributeCapabilityConfigurationCommitStatus = defineEventa<
 export const moduleContributeCapabilityConfigurationConfigured = defineEventa<ModuleContributeCapabilityConfigurationConfiguredEvent>('module:contribute:capability:configuration:configured')
 export const moduleContributeCapabilityActivated = defineEventa<ModuleContributeCapabilityActivatedEvent>('module:contribute:capability:activated')
 
-export const moduleStatusChange = defineEventa<ModuleStatusChangeEvent>('module:status:change')
+export const moduleStatusChange = defineProtocolEventa<ModuleStatusChangeEvent>('module:status:change')
 
-export const moduleConfigure = defineEventa<ModuleConfigureEvent>('module:configure')
+export const moduleConfigure = defineProtocolEventa<ModuleConfigureEvent>('module:configure')
+export const moduleConsumerRegister = defineProtocolEventa<ModuleConsumerRegisterEvent>('module:consumer:register')
+export const moduleConsumerUnregister = defineProtocolEventa<ModuleConsumerUnregisterEvent>('module:consumer:unregister')
 
-export const uiConfigure = defineEventa<UiConfigureEvent>('ui:configure')
+export const uiConfigure = defineProtocolEventa<UiConfigureEvent>('ui:configure')
 
-export const inputText = defineEventa<WebSocketEventInputText>('input:text')
-export const inputTextVoice = defineEventa<WebSocketEventInputTextVoice>('input:text:voice')
-export const inputVoice = defineEventa<WebSocketEventInputVoice>('input:voice')
+export const inputText = defineProtocolEventa<WebSocketEventInputText>('input:text', {
+  metadata: {
+    delivery: {
+      mode: 'consumer-group',
+      group: 'chat-ingestion',
+      selection: 'first',
+    },
+  },
+})
+export const inputTextVoice = defineProtocolEventa<WebSocketEventInputTextVoice>('input:text:voice', {
+  metadata: {
+    delivery: {
+      mode: 'consumer-group',
+      group: 'chat-ingestion',
+      selection: 'first',
+    },
+  },
+})
+export const inputVoice = defineProtocolEventa<WebSocketEventInputVoice>('input:voice', {
+  metadata: {
+    delivery: {
+      mode: 'consumer-group',
+      group: 'chat-ingestion',
+      selection: 'first',
+    },
+  },
+})
 
-export const outputGenAiChatToolCall = defineEventa<OutputGenAiChatToolCallEvent>('output:gen-ai:chat:tool-call')
-export const outputGenAiChatMessage = defineEventa<OutputGenAiChatMessageEvent>('output:gen-ai:chat:message')
-export const outputGenAiChatComplete = defineEventa<OutputGenAiChatCompleteEvent>('output:gen-ai:chat:complete')
+export const outputGenAiChatToolCall = defineProtocolEventa<OutputGenAiChatToolCallEvent>('output:gen-ai:chat:tool-call')
+export const outputGenAiChatMessage = defineProtocolEventa<OutputGenAiChatMessageEvent>('output:gen-ai:chat:message')
+export const outputGenAiChatComplete = defineProtocolEventa<OutputGenAiChatCompleteEvent>('output:gen-ai:chat:complete')
 
-export const sparkNotify = defineEventa<SparkNotifyEvent>('spark:notify')
-export const sparkEmit = defineEventa<SparkEmitEvent>('spark:emit')
-export const sparkCommand = defineEventa<SparkCommandEvent>('spark:command')
+export const sparkNotify = defineProtocolEventa<SparkNotifyEvent>('spark:notify')
+export const sparkEmit = defineProtocolEventa<SparkEmitEvent>('spark:emit')
+export const sparkCommand = defineProtocolEventa<SparkCommandEvent>('spark:command')
 
-export const transportConnectionHeartbeat = defineEventa<TransportConnectionHeartbeatEvent>('transport:connection:heartbeat')
-export const contextUpdate = defineEventa<ContextUpdateEvent>('context:update')
+export const transportConnectionHeartbeat = defineProtocolEventa<TransportConnectionHeartbeatEvent>('transport:connection:heartbeat')
+export const contextUpdate = defineProtocolEventa<ContextUpdateEvent>('context:update')
+
+export const protocolEventMetadataByType = {
+  [inputText.id]: inputText.metadata,
+  [inputTextVoice.id]: inputTextVoice.metadata,
+  [inputVoice.id]: inputVoice.metadata,
+} satisfies Partial<Record<keyof ProtocolEvents, ProtocolEventaMetadata | undefined>>
+
+export function getProtocolEventMetadata(eventType: keyof ProtocolEvents | string) {
+  return protocolEventMetadataByType[eventType as keyof typeof protocolEventMetadataByType]
+}
 
 // Thanks to:
 //
@@ -1202,6 +1287,14 @@ export interface ProtocolEvents<C = undefined> {
    * Push configuration down to module (host → module).
    */
   'module:configure': ModuleConfigureEvent<C>
+  /**
+   * Register the current module instance as a consumer for an event or event group.
+   */
+  'module:consumer:register': ModuleConsumerRegisterEvent
+  /**
+   * Unregister the current module instance from an event consumer registration.
+   */
+  'module:consumer:unregister': ModuleConsumerUnregisterEvent
 
   'ui:configure': UiConfigureEvent<C>
 

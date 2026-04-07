@@ -1,6 +1,7 @@
 {
   "name": "@proj-airi/stage-ui",
   "type": "module",
+  "version": "0.9.0-beta.6",
   "private": true,
   "description": "Shared core for stage",
   "author": {
@@ -56,6 +57,7 @@
   },
   "dependencies": {
     "@date-fns/utc": "^2.1.1",
+    "@fontsource-variable/nunito": "catalog:",
     "@formkit/auto-animate": "^0.9.0",
     "@huggingface/transformers": "^3.8.1",
     "@moeru/eventa": "catalog:",
@@ -64,6 +66,7 @@
     "@proj-airi/chromatic": "^1.0.2",
     "@proj-airi/core-character": "workspace:^",
     "@proj-airi/drizzle-duckdb-wasm": "catalog:",
+    "@proj-airi/font-chillroundm": "workspace:^",
     "@proj-airi/font-cjkfonts-allseto": "workspace:^",
     "@proj-airi/font-xiaolai": "workspace:^",
     "@proj-airi/i18n": "workspace:^",
@@ -100,6 +103,8 @@
     "d3": "catalog:",
     "date-fns": "^4.1.0",
     "dompurify": "^3.3.3",
+    "embla-carousel-autoplay": "9.0.0-rc01",
+    "embla-carousel-vue": "catalog:",
     "es-toolkit": "catalog:",
     "gpuu": "^1.0.6",
     "hono": "catalog:",
@@ -133,6 +138,7 @@
     "vue-i18n": "^11.3.0",
     "vue-router": "^5.0.4",
     "vue-sonner": "^2.0.9",
+    "web-haptics": "catalog:",
     "xast-util-to-xml": "^4.0.0",
     "xastscript": "^4.0.0",
     "xsschema": "catalog:",
@@ -148,7 +154,6 @@
     "@fontsource/gugi": "^5.2.7",
     "@fontsource/kiwi-maru": "^5.2.8",
     "@fontsource/m-plus-rounded-1c": "^5.2.10",
-    "@fontsource/sniglet": "^5.2.8",
     "@histoire/plugin-vue": "catalog:",
     "@iconify-json/carbon": "^1.2.19",
     "@iconify-json/eos-icons": "^1.2.4",
