@@ -10,7 +10,7 @@ send-mode:
   title: Send key
   enter: Enter
   ctrl-enter: Ctrl + Enter
-  double-enter: Double Enter
+  double-enter: 双击Enter
 operations:
   load-models: 加载模型
   load-models-status:
@@ -50,7 +50,7 @@ promo-banner:
       eventName: Sign in to claim stardust, avatar frames, and launch gifts.
       date: 03/28 - 04/10
       reward: Up to 120 Stardust
-      cta: Sign In
+      cta: 登录
     build:
       watermark: Build
       fallbackLabel: Build Bonus
@@ -85,6 +85,6 @@ promo-banner:
       cta: View Theme
 waiting: 等待中
 websocket-status:
-  connected: WebSocket 已连接
-  disconnected: WebSocket 已断开
-  open-settings: 打开 WebSocket 设置
+  connected: WebSocket connected
+  disconnected: WebSocket disconnected
+  open-settings: Open WebSocket settings

@@ -85,6 +85,6 @@ promo-banner:
       cta: View Theme
 waiting: Đang chờ
 websocket-status:
-  connected: WebSocket đã kết nối
-  disconnected: WebSocket đã ngắt kết nối
-  open-settings: Mở cài đặt WebSocket
+  connected: WebSocket connected
+  disconnected: WebSocket disconnected
+  open-settings: Open WebSocket settings
