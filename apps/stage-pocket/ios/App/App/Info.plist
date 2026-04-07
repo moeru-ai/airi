@@ -26,6 +26,8 @@
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>AIRI needs access to your local network to connect to your Tamagotchi host.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>AIRI uses the camera to scan Tamagotchi connection QR codes.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

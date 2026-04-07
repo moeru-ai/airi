@@ -59,6 +59,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
 
   const defaultWebSocketUrl = import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws'
   const websocketUrl = useLocalStorage('settings/connection/websocket-url', defaultWebSocketUrl)
+  const websocketAuthToken = useLocalStorage('settings/connection/websocket-auth-token', '')
   const registeredListeners: ChannelListenerEntry[] = []
   const replayableEvents = new Map<keyof WebSocketEvents, WebSocketBaseEvent<any, any>>()
 
@@ -109,7 +110,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
       client.value = new Client({
         name: isStageWeb() ? WebSocketEventSource.StageWeb : isStageTamagotchi() ? WebSocketEventSource.StageTamagotchi : WebSocketEventSource.StageWeb,
         url: websocketUrl.value || defaultWebSocketUrl,
-        token: options?.token,
+        token: options?.token ?? (websocketAuthToken.value || undefined),
         websocketConstructor: websocketConstructor.value,
         heartbeat: {
           // Keep client and server heartbeat windows aligned to reduce false-positive disconnects.
@@ -320,8 +321,8 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     }
   }
 
-  watch(websocketUrl, (newUrl, oldUrl) => {
-    if (newUrl === oldUrl)
+  watch([websocketUrl, websocketAuthToken], ([newUrl, newToken], [oldUrl, oldToken]) => {
+    if (newUrl === oldUrl && newToken === oldToken)
       return
 
     if (!hasReconnectableWebSocketScheme(newUrl))
@@ -336,6 +337,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   return {
     connected,
     pendingSendCount,
+    websocketAuthToken,
     websocketUrl,
     ensureConnected,
 
