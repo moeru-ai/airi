@@ -1,3 +1,4 @@
+import type { RuntimeFactInvalidationTag } from '../server/runtime-facts'
 import type { ActionKind, RiskLevel } from '../types'
 
 export type OperationEffectType = 'observe' | 'read' | 'mutate' | 'launch' | 'network' | 'shell'
@@ -15,6 +16,8 @@ export interface OperationContract {
   postconditionRequired: boolean
   approvalScope: OperationApprovalScope
   baseRiskLevel: RiskLevel
+  /** Declarative list of runtime fact invalidation tags this action may produce on success. */
+  invalidationTags: readonly RuntimeFactInvalidationTag[]
 }
 
 type OperationContractBaseline = Omit<OperationContract, 'actionKind'>
@@ -28,6 +31,7 @@ const observeReadDesktopBaseline: OperationContractBaseline = {
   postconditionRequired: false,
   approvalScope: 'none',
   baseRiskLevel: 'low',
+  invalidationTags: ['screenshot_refresh'],
 }
 
 const codingReadBaseline: OperationContractBaseline = {
@@ -39,6 +43,7 @@ const codingReadBaseline: OperationContractBaseline = {
   postconditionRequired: false,
   approvalScope: 'none',
   baseRiskLevel: 'low',
+  invalidationTags: [],
 }
 
 const desktopMutateBaseline: OperationContractBaseline = {
@@ -50,30 +55,37 @@ const desktopMutateBaseline: OperationContractBaseline = {
   postconditionRequired: true,
   approvalScope: 'per_action',
   baseRiskLevel: 'medium',
+  invalidationTags: ['desktop_mutation'],
 }
 
 const actionKindContractBaselines = {
   screenshot: observeReadDesktopBaseline,
-  observe_windows: observeReadDesktopBaseline,
+  observe_windows: {
+    ...observeReadDesktopBaseline,
+    // observe_windows does not refresh the screenshot buffer
+    invalidationTags: [] as readonly RuntimeFactInvalidationTag[],
+  },
   clipboard_read_text: {
-    effectType: 'read',
-    targetSurface: 'system',
+    effectType: 'read' as const,
+    targetSurface: 'system' as const,
     requiresFocus: false,
     idempotent: true,
     reversible: false,
     postconditionRequired: false,
-    approvalScope: 'none',
-    baseRiskLevel: 'low',
+    approvalScope: 'none' as const,
+    baseRiskLevel: 'low' as const,
+    invalidationTags: [] as readonly RuntimeFactInvalidationTag[],
   },
   secret_read_env_value: {
-    effectType: 'read',
-    targetSurface: 'system',
+    effectType: 'read' as const,
+    targetSurface: 'system' as const,
     requiresFocus: false,
     idempotent: true,
     reversible: false,
     postconditionRequired: false,
-    approvalScope: 'per_action',
-    baseRiskLevel: 'medium',
+    approvalScope: 'per_action' as const,
+    baseRiskLevel: 'medium' as const,
+    invalidationTags: [] as readonly RuntimeFactInvalidationTag[],
   },
 
   coding_review_workspace: codingReadBaseline,
@@ -97,77 +109,84 @@ const actionKindContractBaselines = {
   scroll: desktopMutateBaseline,
 
   open_app: {
-    effectType: 'launch',
-    targetSurface: 'desktop',
+    effectType: 'launch' as const,
+    targetSurface: 'desktop' as const,
     requiresFocus: false,
     idempotent: false,
     reversible: false,
     postconditionRequired: true,
-    approvalScope: 'terminal_and_apps',
-    baseRiskLevel: 'medium',
+    approvalScope: 'terminal_and_apps' as const,
+    baseRiskLevel: 'medium' as const,
+    invalidationTags: ['app_lifecycle', 'desktop_mutation'] as readonly RuntimeFactInvalidationTag[],
   },
   focus_app: {
-    effectType: 'mutate',
-    targetSurface: 'desktop',
+    effectType: 'mutate' as const,
+    targetSurface: 'desktop' as const,
     requiresFocus: false,
     idempotent: true,
     reversible: false,
     postconditionRequired: true,
-    approvalScope: 'terminal_and_apps',
-    baseRiskLevel: 'medium',
+    approvalScope: 'terminal_and_apps' as const,
+    baseRiskLevel: 'medium' as const,
+    invalidationTags: ['desktop_mutation'] as readonly RuntimeFactInvalidationTag[],
   },
 
   terminal_exec: {
-    effectType: 'shell',
-    targetSurface: 'terminal',
+    effectType: 'shell' as const,
+    targetSurface: 'terminal' as const,
     requiresFocus: false,
     idempotent: false,
     reversible: false,
     postconditionRequired: false,
-    approvalScope: 'terminal_and_apps',
-    baseRiskLevel: 'high',
+    approvalScope: 'terminal_and_apps' as const,
+    baseRiskLevel: 'high' as const,
+    invalidationTags: ['terminal_mutation'] as readonly RuntimeFactInvalidationTag[],
   },
   terminal_reset: {
-    effectType: 'shell',
-    targetSurface: 'terminal',
+    effectType: 'shell' as const,
+    targetSurface: 'terminal' as const,
     requiresFocus: false,
     idempotent: true,
     reversible: false,
     postconditionRequired: false,
-    approvalScope: 'terminal_and_apps',
-    baseRiskLevel: 'medium',
+    approvalScope: 'terminal_and_apps' as const,
+    baseRiskLevel: 'medium' as const,
+    invalidationTags: ['terminal_mutation'] as readonly RuntimeFactInvalidationTag[],
   },
 
   coding_apply_patch: {
-    effectType: 'mutate',
-    targetSurface: 'coding',
+    effectType: 'mutate' as const,
+    targetSurface: 'coding' as const,
     requiresFocus: false,
     idempotent: false,
     reversible: false,
     postconditionRequired: false,
-    approvalScope: 'per_action',
-    baseRiskLevel: 'high',
+    approvalScope: 'per_action' as const,
+    baseRiskLevel: 'high' as const,
+    invalidationTags: [] as readonly RuntimeFactInvalidationTag[],
   },
 
   clipboard_write_text: {
-    effectType: 'mutate',
-    targetSurface: 'system',
+    effectType: 'mutate' as const,
+    targetSurface: 'system' as const,
     requiresFocus: false,
     idempotent: false,
     reversible: false,
     postconditionRequired: false,
-    approvalScope: 'per_action',
-    baseRiskLevel: 'medium',
+    approvalScope: 'per_action' as const,
+    baseRiskLevel: 'medium' as const,
+    invalidationTags: [] as readonly RuntimeFactInvalidationTag[],
   },
   wait: {
-    effectType: 'observe',
-    targetSurface: 'system',
+    effectType: 'observe' as const,
+    targetSurface: 'system' as const,
     requiresFocus: false,
     idempotent: true,
     reversible: false,
     postconditionRequired: false,
-    approvalScope: 'none',
-    baseRiskLevel: 'low',
+    approvalScope: 'none' as const,
+    baseRiskLevel: 'low' as const,
+    invalidationTags: [] as readonly RuntimeFactInvalidationTag[],
   },
 } satisfies Record<ActionKind, OperationContractBaseline>
 
@@ -194,6 +213,7 @@ export const ptyCreateOperationContract: OperationContract = Object.freeze({
   postconditionRequired: false,
   approvalScope: 'pty_session',
   baseRiskLevel: 'high',
+  invalidationTags: ['terminal_mutation'] as readonly RuntimeFactInvalidationTag[],
 })
 
 const operationContracts = new Map<OperationContractActionKind, OperationContract>([
@@ -237,4 +257,12 @@ export function isMutatingOperationContract(contract: Pick<OperationContract, 'e
 
 export function requiresApprovalByDefault(contract: Pick<OperationContract, 'approvalScope'>): boolean {
   return contract.approvalScope !== 'none'
+}
+
+/**
+ * Returns the invalidation tags declared by an operation contract.
+ * Safe to call even when the contract is unknown — returns empty array.
+ */
+export function getOperationInvalidationTags(actionKind: OperationContractActionKind): readonly RuntimeFactInvalidationTag[] {
+  return getOperationContract(actionKind)?.invalidationTags ?? []
 }

@@ -159,7 +159,7 @@ describe('createExecuteAction', () => {
       preferredSurface: 'browser_dom',
       selectedToolName: 'browser_dom_read_page',
     })
-    expect(cdpBridgeManager.probeAvailability).toHaveBeenCalledTimes(1)
+    expect(cdpBridgeManager.probeAvailability).toHaveBeenCalledTimes(2)
 
     const structured = result.structuredContent as Record<string, any>
     expect(structured.transparency.advisories).toContainEqual(expect.objectContaining({
@@ -442,13 +442,46 @@ describe('createExecuteAction', () => {
     expect(executor.getForegroundContext).toHaveBeenCalledTimes(2)
   })
 
-  it('fails focus_app verification with repair hint when refreshed foreground mismatches', async () => {
+  it('repairs focus_app verification failure and succeeds without approval queue', async () => {
+    const { runtime, session, executor } = createMockRuntime({
+      configOverrides: {
+        approvalMode: 'never',
+      },
+      foregroundContextSequence: [
+        { available: true, appName: 'Finder', platform: 'darwin' },
+        { available: true, appName: 'Cursor', platform: 'darwin' },
+        { available: true, appName: 'Terminal', platform: 'darwin' },
+      ],
+      focusAppImpl: async () => ({
+        performed: true,
+        backend: 'dry-run' as const,
+        notes: [],
+      }),
+    })
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'focus_app', input: { app: 'Terminal' } }, 'desktop_focus_app')
+
+    expect(result.isError).not.toBe(true)
+    expect((result.structuredContent as Record<string, any>).status).toBe('executed')
+    expect((result.structuredContent as Record<string, any>).backendResult?.verificationRecovery).toBeUndefined()
+    expect(session.createPendingAction).not.toHaveBeenCalled()
+    expect(executor.focusApp).toHaveBeenCalledTimes(2)
+
+    const events = session.record.mock.calls.map(call => call[0].event)
+    expect(events).toContain('verification_failed')
+    expect(events).toContain('repair_attempted')
+    expect(events).toContain('repair_succeeded')
+  })
+
+  it('fails focus_app when repair does not recover foreground match', async () => {
     const { runtime, session } = createMockRuntime({
       configOverrides: {
         approvalMode: 'never',
       },
       foregroundContextSequence: [
         { available: true, appName: 'Finder', platform: 'darwin' },
+        { available: true, appName: 'Cursor', platform: 'darwin' },
         { available: true, appName: 'Cursor', platform: 'darwin' },
       ],
       focusAppImpl: async () => ({
@@ -469,46 +502,285 @@ describe('createExecuteAction', () => {
       failureDisposition: 'repair_hint',
       repairHint: 'refocus_target_app',
       reason: expect.stringContaining('expected foreground app "Terminal"'),
+      repairAttempt: expect.objectContaining({
+        attempted: true,
+        succeeded: true,
+      }),
     })
 
-    const failedRecord = session.record.mock.calls
-      .map(call => call[0])
-      .find(entry => entry.event === 'failed' && entry.action?.kind === 'focus_app')
-    expect(failedRecord?.result).toMatchObject({
-      verification: {
-        status: 'failed',
-        repairHint: 'refocus_target_app',
-      },
-    })
+    const events = session.record.mock.calls.map(call => call[0].event)
+    expect(events).toContain('verification_failed')
+    expect(events).toContain('repair_attempted')
+    expect(events).toContain('repair_failed')
   })
 
-  it('fails click verification when post-action observation refresh fails', async () => {
-    const { runtime } = createMockRuntime({
+  it('does not re-execute click during verification repair flow', async () => {
+    const { runtime, session, executor } = createMockRuntime({
       configOverrides: {
         approvalMode: 'never',
       },
       foregroundContextSequence: [
-        { available: true, appName: 'Finder', platform: 'darwin' },
-        new Error('foreground probe unavailable'),
+        { available: false, platform: 'darwin', unavailableReason: 'no accessibility context' },
+        { available: false, platform: 'darwin', unavailableReason: 'no accessibility context' },
+        { available: false, platform: 'darwin', unavailableReason: 'no accessibility context' },
       ],
       clickImpl: async () => ({
         performed: true,
         backend: 'dry-run' as const,
         notes: [],
       }),
+      takeScreenshotImpl: async () => ({
+        dataBase64: 'ZmFrZQ==',
+        mimeType: 'image/png' as const,
+        path: '/tmp/fake-repair-screenshot.png',
+        width: 1280,
+        height: 720,
+        placeholder: false,
+        executionTargetMode: 'local-windowed' as const,
+        sourceHostName: 'fake-local',
+      }),
     })
 
     const executeAction = createExecuteAction(runtime)
     const result = await executeAction({ kind: 'click', input: { x: 10, y: 20, captureAfter: false } }, 'desktop_click')
 
-    expect(result.isError).toBe(true)
-    expect((result.structuredContent as Record<string, any>).status).toBe('failed')
-    expect((result.structuredContent as Record<string, any>).verification).toMatchObject({
-      status: 'failed',
-      method: 'surface_observation_refresh',
-      failureDisposition: 'repair_hint',
-      repairHint: 'refresh_surface_observation',
-      reason: expect.stringContaining('unable to refresh post-action observation'),
+    expect(result.isError).not.toBe(true)
+    expect((result.structuredContent as Record<string, any>).status).toBe('executed')
+    expect((result.structuredContent as Record<string, any>).backendResult?.verificationRecovery).toBeUndefined()
+    expect(executor.click).toHaveBeenCalledTimes(1)
+    expect(executor.takeScreenshot).toHaveBeenCalledTimes(1)
+
+    const events = session.record.mock.calls.map(call => call[0].event)
+    expect(events).toContain('verification_failed')
+    expect(events).toContain('repair_attempted')
+    expect(events).toContain('repair_succeeded')
+  })
+
+  it('counts one extra operation unit bundle for app repair attempts', async () => {
+    for (const action of [
+      { kind: 'open_app', input: { app: 'Terminal' } } as const,
+      { kind: 'focus_app', input: { app: 'Terminal' } } as const,
+    ]) {
+      const { runtime, session } = createMockRuntime({
+        configOverrides: {
+          approvalMode: 'never',
+        },
+        foregroundContextSequence: [
+          { available: true, appName: 'Finder', platform: 'darwin' },
+          { available: true, appName: 'Cursor', platform: 'darwin' },
+          { available: true, appName: 'Terminal', platform: 'darwin' },
+        ],
+        openAppImpl: async () => ({
+          performed: true,
+          backend: 'dry-run' as const,
+          notes: [],
+        }),
+        focusAppImpl: async () => ({
+          performed: true,
+          backend: 'dry-run' as const,
+          notes: [],
+        }),
+      })
+
+      const executeAction = createExecuteAction(runtime)
+      const result = await executeAction(action, `tool_${action.kind}`)
+
+      expect(result.isError).not.toBe(true)
+      expect(session.consumeOperation).toHaveBeenCalledTimes(2)
+      expect(session.consumeOperation).toHaveBeenNthCalledWith(1, 2)
+      expect(session.consumeOperation).toHaveBeenNthCalledWith(2, 2)
+    }
+  })
+
+  it('does not add extra operation units for refresh_surface_observation repair', async () => {
+    const { runtime, session } = createMockRuntime({
+      configOverrides: {
+        approvalMode: 'never',
+      },
+      foregroundContextSequence: [
+        { available: false, platform: 'darwin', unavailableReason: 'no accessibility context' },
+        { available: false, platform: 'darwin', unavailableReason: 'no accessibility context' },
+        { available: false, platform: 'darwin', unavailableReason: 'no accessibility context' },
+      ],
+      clickImpl: async () => ({
+        performed: true,
+        backend: 'dry-run' as const,
+        notes: [],
+      }),
+      takeScreenshotImpl: async () => ({
+        dataBase64: 'ZmFrZQ==',
+        mimeType: 'image/png' as const,
+        path: '/tmp/fake-repair-screenshot.png',
+        width: 1280,
+        height: 720,
+        placeholder: false,
+        executionTargetMode: 'local-windowed' as const,
+        sourceHostName: 'fake-local',
+      }),
     })
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'click', input: { x: 10, y: 20, captureAfter: false } }, 'desktop_click')
+
+    expect(result.isError).not.toBe(true)
+    expect((result.structuredContent as Record<string, any>).status).toBe('executed')
+    expect(session.consumeOperation).toHaveBeenCalledTimes(1)
+    expect(session.consumeOperation).toHaveBeenNthCalledWith(1, 1)
+  })
+
+  it('enqueues app repair invalidation before repair_check refresh for focus_app', async () => {
+    const { runtime, executor } = createMockRuntime({
+      configOverrides: {
+        approvalMode: 'never',
+      },
+      foregroundContextSequence: [
+        { available: true, appName: 'Finder', platform: 'darwin' },
+        { available: true, appName: 'Cursor', platform: 'darwin' },
+        { available: true, appName: 'Terminal', platform: 'darwin' },
+      ],
+      focusAppImpl: async () => ({
+        performed: true,
+        backend: 'dry-run' as const,
+        notes: [],
+      }),
+    })
+
+    const enqueueSpy = vi.spyOn(runtime.coordinator, 'enqueueInvalidation')
+    const refreshSpy = vi.spyOn(runtime.coordinator, 'refreshSnapshot')
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'focus_app', input: { app: 'Terminal' } }, 'desktop_focus_app')
+
+    expect(result.isError).not.toBe(true)
+    expect(executor.getForegroundContext).toHaveBeenCalledTimes(3)
+
+    const repairCheckCallIndex = refreshSpy.mock.calls.findIndex(call => call[0] === 'repair_check')
+    expect(repairCheckCallIndex).toBeGreaterThan(-1)
+
+    const repairCheckCallOrder = refreshSpy.mock.invocationCallOrder[repairCheckCallIndex]!
+    const repairScopedEnqueue = enqueueSpy.mock.calls
+      .map((call, index) => ({ tags: call[0], order: enqueueSpy.mock.invocationCallOrder[index]! }))
+      .find(entry => Array.isArray(entry.tags)
+        && entry.tags.includes('app_lifecycle')
+        && entry.tags.includes('desktop_mutation')
+        && entry.order < repairCheckCallOrder)
+
+    expect(repairScopedEnqueue).toBeDefined()
+  })
+
+  it('enqueues app repair invalidation for open_app recheck', async () => {
+    const { runtime, executor } = createMockRuntime({
+      configOverrides: {
+        approvalMode: 'never',
+      },
+      foregroundContextSequence: [
+        { available: true, appName: 'Finder', platform: 'darwin' },
+        { available: true, appName: 'Cursor', platform: 'darwin' },
+        { available: true, appName: 'Terminal', platform: 'darwin' },
+      ],
+      openAppImpl: async () => ({
+        performed: true,
+        backend: 'dry-run' as const,
+        notes: [],
+      }),
+    })
+
+    const enqueueSpy = vi.spyOn(runtime.coordinator, 'enqueueInvalidation')
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'open_app', input: { app: 'Terminal' } }, 'desktop_open_app')
+
+    expect(result.isError).not.toBe(true)
+    expect(executor.getForegroundContext).toHaveBeenCalledTimes(3)
+    expect(enqueueSpy).toHaveBeenCalledWith(['app_lifecycle', 'desktop_mutation'])
+  })
+
+  it('observation repair enqueue includes screenshot_refresh when repair captures screenshot', async () => {
+    const { runtime, executor } = createMockRuntime({
+      configOverrides: {
+        approvalMode: 'never',
+      },
+      foregroundContextSequence: [
+        { available: false, platform: 'darwin', unavailableReason: 'no accessibility context' },
+        { available: false, platform: 'darwin', unavailableReason: 'no accessibility context' },
+        { available: false, platform: 'darwin', unavailableReason: 'no accessibility context' },
+      ],
+      clickImpl: async () => ({
+        performed: true,
+        backend: 'dry-run' as const,
+        notes: [],
+      }),
+      takeScreenshotImpl: async () => ({
+        dataBase64: 'ZmFrZQ==',
+        mimeType: 'image/png' as const,
+        path: '/tmp/repair-captured.png',
+        executionTargetMode: 'local-windowed' as const,
+      }),
+    })
+
+    const enqueueSpy = vi.spyOn(runtime.coordinator, 'enqueueInvalidation')
+    const refreshSpy = vi.spyOn(runtime.coordinator, 'refreshSnapshot')
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'click', input: { x: 12, y: 24, captureAfter: false } }, 'desktop_click')
+
+    expect(result.isError).not.toBe(true)
+    expect(executor.takeScreenshot).toHaveBeenCalledTimes(1)
+
+    const repairCheckCallIndex = refreshSpy.mock.calls.findIndex(call => call[0] === 'repair_check')
+    expect(repairCheckCallIndex).toBeGreaterThan(-1)
+
+    const repairCheckCallOrder = refreshSpy.mock.invocationCallOrder[repairCheckCallIndex]!
+    const repairScopedEnqueue = enqueueSpy.mock.calls
+      .map((call, index) => ({ tags: call[0], order: enqueueSpy.mock.invocationCallOrder[index]! }))
+      .find(entry => Array.isArray(entry.tags)
+        && entry.tags.includes('desktop_mutation')
+        && entry.tags.includes('screenshot_refresh')
+        && entry.order < repairCheckCallOrder)
+
+    expect(repairScopedEnqueue).toBeDefined()
+  })
+
+  it('does not enqueue repair invalidation tags when repair attempt fails', async () => {
+    let focusInvocationCount = 0
+    const { runtime } = createMockRuntime({
+      configOverrides: {
+        approvalMode: 'never',
+      },
+      foregroundContextSequence: [
+        { available: true, appName: 'Finder', platform: 'darwin' },
+        { available: true, appName: 'Cursor', platform: 'darwin' },
+      ],
+      focusAppImpl: async () => {
+        focusInvocationCount += 1
+        if (focusInvocationCount === 1) {
+          return {
+            performed: true,
+            backend: 'dry-run' as const,
+            notes: [],
+          }
+        }
+
+        throw new Error('repair focus failed')
+      },
+    })
+
+    const enqueueSpy = vi.spyOn(runtime.coordinator, 'enqueueInvalidation')
+    const refreshSpy = vi.spyOn(runtime.coordinator, 'refreshSnapshot')
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'focus_app', input: { app: 'Terminal' } }, 'desktop_focus_app')
+
+    expect(result.isError).toBe(true)
+
+    const repairCheckCall = refreshSpy.mock.calls.find(call => call[0] === 'repair_check')
+    expect(repairCheckCall).toBeUndefined()
+
+    const repairScopedEnqueue = enqueueSpy.mock.calls
+      .map(call => call[0])
+      .filter(tags => Array.isArray(tags)
+        && tags.includes('app_lifecycle')
+        && tags.includes('desktop_mutation'))
+    expect(repairScopedEnqueue).toHaveLength(0)
   })
 })

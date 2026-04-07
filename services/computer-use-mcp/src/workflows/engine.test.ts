@@ -826,6 +826,93 @@ describe('workflow engine', () => {
     expect(displayInfo?.displays).toHaveLength(2)
   })
 
+  it('records lane_handoff source when terminal step transitions exec->pty', async () => {
+    const workflow: WorkflowDefinition = {
+      id: 'test_terminal_handoff_contract_source',
+      name: 'Terminal Handoff Contract Source',
+      description: 'Explicit PTY step should record lane_handoff source metadata.',
+      maxRetries: 1,
+      steps: [
+        {
+          label: 'Run interactive command',
+          kind: 'run_command',
+          description: 'Use PTY surface explicitly',
+          params: { command: 'vim src/index.ts' },
+          terminal: { mode: 'pty', interaction: 'one_shot' },
+        },
+      ],
+    }
+
+    const executeAction: ExecuteAction = vi.fn().mockResolvedValue(makeSuccessResult('exec path should not be used'))
+    const executePrepTool = vi.fn().mockImplementation(async (toolName: string) => {
+      if (toolName.startsWith('pty_send_input:')) {
+        return makePrepSuccessResult({ status: 'ok' })
+      }
+
+      if (toolName.startsWith('pty_read_screen:')) {
+        return makePrepSuccessResult({ status: 'ok', screenContent: 'done' })
+      }
+
+      throw new Error(`Unexpected prep tool invocation: ${toolName}`)
+    })
+    const acquirePty = vi.fn().mockResolvedValue({
+      acquired: true,
+      ptySessionId: 'pty_handoff_1',
+    })
+    const sm = new RunStateManager()
+
+    const result = await executeWorkflow({
+      workflow,
+      executeAction,
+      executePrepTool,
+      acquirePty,
+      stateManager: sm,
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.status).toBe('completed')
+    expect(executeAction).not.toHaveBeenCalled()
+    expect(sm.getRecentSurfaceDecision()).toMatchObject({
+      surface: 'pty',
+      source: expect.stringContaining('lane_handoff:terminal_exec_to_pty'),
+    })
+  })
+
+  it('keeps legacy reroute source when PTY acquire callback is missing', async () => {
+    const workflow: WorkflowDefinition = {
+      id: 'test_terminal_handoff_legacy_reroute',
+      name: 'Terminal Handoff Legacy Reroute',
+      description: 'Without acquire callback, explicit PTY step should still reroute safely.',
+      maxRetries: 1,
+      steps: [
+        {
+          label: 'Run interactive command',
+          kind: 'run_command',
+          description: 'Use PTY surface explicitly',
+          params: { command: 'vim src/index.ts' },
+          terminal: { mode: 'pty', interaction: 'one_shot' },
+        },
+      ],
+    }
+
+    const executeAction: ExecuteAction = vi.fn().mockResolvedValue(makeSuccessResult('exec path should not be used'))
+    const sm = new RunStateManager()
+
+    const result = await executeWorkflow({
+      workflow,
+      executeAction,
+      stateManager: sm,
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.status).toBe('reroute_required')
+    expect(executeAction).not.toHaveBeenCalled()
+    expect(sm.getRecentSurfaceDecision()).toMatchObject({
+      surface: 'pty',
+      source: 'lane_handoff:terminal_exec_to_pty:legacy_reroute',
+    })
+  })
+
   it('attaches verification summary for click main action step', async () => {
     const workflow: WorkflowDefinition = {
       id: 'test_click_verification_summary',
@@ -896,6 +983,77 @@ describe('workflow engine', () => {
       failureDisposition: 'repair_hint',
       repairHint: 'refocus_target_app',
     })
+  })
+
+  it('keeps ensure_app step success when executor repaired verification internally', async () => {
+    const workflow: WorkflowDefinition = {
+      id: 'test_ensure_app_repair_success',
+      name: 'Ensure App Repair Success',
+      description: 'Engine should treat repaired ensure_app as success.',
+      maxRetries: 1,
+      steps: [
+        {
+          label: 'Ensure Terminal focused',
+          kind: 'ensure_app',
+          description: 'Focus target app with internal repair if needed',
+          params: { app: 'Terminal' },
+        },
+      ],
+    }
+
+    const executeAction: ExecuteAction = vi.fn().mockResolvedValue({
+      content: [{ type: 'text', text: 'verification recovered after repair' }],
+      structuredContent: {
+        status: 'executed',
+      } as unknown as CallToolResult['structuredContent'],
+    })
+    const sm = new RunStateManager()
+
+    const result = await executeWorkflow({
+      workflow,
+      executeAction,
+      stateManager: sm,
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.status).toBe('completed')
+    expect(result.stepResults[0]?.status).toBe('success')
+  })
+
+  it('keeps ensure_app step failure when executor repair fails', async () => {
+    const workflow: WorkflowDefinition = {
+      id: 'test_ensure_app_repair_failed',
+      name: 'Ensure App Repair Failed',
+      description: 'Engine should fail step when repaired execution returns failed.',
+      maxRetries: 1,
+      steps: [
+        {
+          label: 'Ensure Terminal focused',
+          kind: 'ensure_app',
+          description: 'Focus target app with internal repair if needed',
+          params: { app: 'Terminal' },
+        },
+      ],
+    }
+
+    const executeAction: ExecuteAction = vi.fn().mockResolvedValue({
+      isError: true,
+      content: [{ type: 'text', text: 'verification still failed after repair' }],
+      structuredContent: {
+        status: 'failed',
+      } as unknown as CallToolResult['structuredContent'],
+    })
+    const sm = new RunStateManager()
+
+    const result = await executeWorkflow({
+      workflow,
+      executeAction,
+      stateManager: sm,
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.status).toBe('failed')
+    expect(result.stepResults[0]?.status).toBe('failure')
   })
 
   it('does not attach verification summary for screenshot and coding_read_file steps', async () => {
