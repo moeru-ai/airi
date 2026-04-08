@@ -1699,7 +1699,10 @@ export const useProvidersStore = defineStore('providers', () => {
           // - Capacitor native (iOS/Android): OS HTTP stack bypasses CORS — no gate.
           // - Web/Capacitor production: Vite dev-server proxy is absent; users must
           //   point baseUrl at a same-origin CORS proxy they control.
-          const usingDefaultUrl = !config.baseUrl || config.baseUrl === 'https://api.fish.audio'
+          // Normalize before comparison: strip trailing slashes the same way
+          // createProvider does, so 'https://api.fish.audio/' is caught too.
+          const normalizedConfigUrl = ((config.baseUrl as string) || '').replace(TRAILING_SLASH_RE, '')
+          const usingDefaultUrl = !config.baseUrl || normalizedConfigUrl === 'https://api.fish.audio'
           if (usingDefaultUrl && (isStageWeb() || isStageCapacitor()) && !import.meta.env.DEV) {
             errors.push(new Error(
               'Fish Audio requires a custom base URL (a CORS proxy) in production builds. '
