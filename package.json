@@ -45,7 +45,8 @@
     "nolyfill": "pnpm dlx nolyfill",
     "open:ios": "pnpm -rF @proj-airi/stage-pocket run open:ios",
     "knip": "knip",
-    "nix:gen": "tsx nix/scripts/gen-pnpm-packages.ts"
+    "nix:gen": "tsx nix/scripts/gen-pnpm-packages.ts",
+    "nix:bundle-cafs": "tsdown nix/scripts/pnpm-cafs-add.ts --format esm --out-dir nix/scripts --no-clean --target node22"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^8.2.0",
@@ -53,6 +54,7 @@
     "@electron-toolkit/eslint-config-ts": "^3.1.0",
     "@iconify/utils": "^3.1.0",
     "@moeru/eslint-config": "catalog:",
+    "@pnpm/store.cafs": "1000.1.4",
     "@proj-airi/unocss-preset-chromatic": "^1.1.1",
     "@types/node": "^24.12.2",
     "@unocss/eslint-config": "^66.6.8",

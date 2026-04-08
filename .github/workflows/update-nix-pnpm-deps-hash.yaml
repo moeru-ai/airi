@@ -28,7 +28,7 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Regenerate Nix package derivations
         run: pnpm run nix:gen
@@ -40,4 +40,4 @@ jobs:
         with:
           commit_message: 'chore(nix): regenerate pnpm package derivations'
           commit_author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
-          file_pattern: 'nix/pnpm-packages.nix nix/pnpm-store.nix'
+          file_pattern: 'nix/pnpm-packages.json'
