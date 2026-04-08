@@ -38,16 +38,16 @@ describe('formatContextPromptText', () => {
 
     expect(text).not.toContain('volatile-random-id')
     expect(text).not.toContain('1743940440000')
-    expect(text).not.toContain('metadata')
     expect(text).not.toContain('airi:system:datetime')
   })
 
   // https://github.com/moeru-ai/airi/issues/1539
-  it('issue #1539: includes only contextId, strategy, and text', () => {
+  it('issue #1539: only includes text content in XML format', () => {
     const text = formatContextPromptText(makeContext())
 
-    expect(text).toContain('system:datetime')
-    expect(text).toContain('replace-self')
+    expect(text).toContain('<context>')
+    expect(text).toContain('</context>')
+    expect(text).toContain('<module name="system:datetime">')
     expect(text).toContain('Current datetime: 2026-04-07T12:34:00.000Z')
   })
 
@@ -57,6 +57,35 @@ describe('formatContextPromptText', () => {
     const b = formatContextPromptText(makeContext({ id: 'bbb', createdAt: 2 }))
 
     expect(a).toBe(b)
+  })
+
+  it('formats multiple modules', () => {
+    const snapshot: ContextSnapshot = {
+      'system:datetime': [
+        {
+          id: 'a',
+          contextId: 'system:datetime',
+          strategy: ContextUpdateStrategy.ReplaceSelf,
+          text: 'Current datetime: 2026-04-07T12:34:00.000Z',
+          createdAt: 0,
+        },
+      ],
+      'system:minecraft': [
+        {
+          id: 'b',
+          contextId: 'system:minecraft',
+          strategy: ContextUpdateStrategy.ReplaceSelf,
+          text: 'Bot is online',
+          createdAt: 0,
+        },
+      ],
+    }
+
+    const text = formatContextPromptText(snapshot)
+
+    expect(text).toContain('<module name="system:datetime">')
+    expect(text).toContain('<module name="system:minecraft">')
+    expect(text).toContain('Bot is online')
   })
 })
 

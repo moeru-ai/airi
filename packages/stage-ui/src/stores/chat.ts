@@ -302,15 +302,16 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         // See: https://github.com/moeru-ai/airi/issues/1539
         const lastMessage = newMessages.at(-1)
         if (lastMessage && lastMessage.role === 'user') {
-          // Preserve existing content parts (including non-text parts like
-          // image_url for vision requests) and prepend context as a text part.
+          // Append context after the user's content, separated by a newline.
+          // Keeping it at the end of the last message preserves the static
+          // history prefix for LLM KV-cache reuse.
           const existingParts = typeof lastMessage.content === 'string'
             ? [{ type: 'text' as const, text: lastMessage.content }]
             : lastMessage.content
 
           lastMessage.content = [
-            { type: 'text' as const, text: contextPromptText },
             ...existingParts,
+            { type: 'text' as const, text: `\n${contextPromptText}` },
           ]
         }
 
