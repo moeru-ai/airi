@@ -5,12 +5,14 @@ import { useCharacterStore } from '@proj-airi/stage-ui/stores/characters'
 import { Button, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 import CharacterDialog from './components/CharacterDialog.vue'
 import CharacterItem from './components/CharacterItem.vue'
 
 const characterStore = useCharacterStore()
 const { characters } = storeToRefs(characterStore)
+const router = useRouter()
 
 // Fetch on mount
 onMounted(() => {
@@ -49,10 +51,9 @@ function handleDelete(id: string) {
   }
 }
 
-function handleActivate(char: Character) {
-  // TODO: Implement activation logic (global store for active character)
-  // eslint-disable-next-line no-console
-  console.log('Activate', char.id)
+async function handleActivate(char: Character) {
+  await characterStore.activateCharacter(char.id)
+  router.push('/')
 }
 </script>
 
@@ -107,7 +108,7 @@ function handleActivate(char: Character) {
         v-for="char in filteredCharacters"
         :key="char.id"
         :character="char"
-        :is-active="false"
+        :is-active="characterStore.isCharacterActive(char.id)"
         :is-selected="selectedCharacter?.id === char.id"
         @select="handleEdit(char)"
         @activate="handleActivate(char)"

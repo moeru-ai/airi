@@ -67,7 +67,22 @@ describe('characterRoutes', () => {
 
   it('post / should create character with cover', async () => {
     const payload = {
-      character: { version: '1', coverUrl: 'url', characterId: 'cid' },
+      character: {
+        version: '1',
+        coverUrl: 'url',
+        characterId: 'cid',
+        visibility: 'public',
+        nsfwEnabled: true,
+        nsfwLevel: 'suggestive',
+        relationshipMode: 'romance',
+        personaProfile: {
+          personality: 'Playful',
+          scenario: 'Late-night texting',
+          speakingStyle: 'Teasing',
+          starterMessages: ['You took long enough.'],
+          memoryProfile: 'deep',
+        },
+      },
       i18n: [{ language: 'en', name: 'Aster', description: 'desc', tags: [] }],
       cover: { foregroundUrl: 'fg', backgroundUrl: 'bg' },
     }
@@ -84,6 +99,12 @@ describe('characterRoutes', () => {
 
     const char = await characterService.findById(data.id)
     expect(char?.cover?.foregroundUrl).toBe('fg')
+    expect(char?.visibility).toBe('public')
+    expect(char?.nsfwEnabled).toBe(true)
+    expect(char?.personaProfile).toMatchObject({
+      personality: 'Playful',
+      memoryProfile: 'deep',
+    })
   })
 
   it('get / should return created character', async () => {
@@ -118,13 +139,26 @@ describe('characterRoutes', () => {
 
     const res = await app.fetch(new Request(`http://localhost/${charId}`, {
       method: 'PATCH',
-      body: JSON.stringify({ version: '2.0' }),
+      body: JSON.stringify({
+        version: '2.0',
+        nsfwLevel: 'explicit',
+        relationshipMode: 'roleplay',
+        personaProfile: {
+          personality: 'Direct',
+          boundaries: ['no minors'],
+        },
+      }),
       headers: { 'Content-Type': 'application/json' },
     }), { user: testUser } as any)
 
     expect(res.status).toBe(200)
     const char = await characterService.findById(charId)
     expect(char?.version).toBe('2.0')
+    expect(char?.nsfwLevel).toBe('explicit')
+    expect(char?.relationshipMode).toBe('roleplay')
+    expect(char?.personaProfile).toMatchObject({
+      personality: 'Direct',
+    })
   })
 
   it('patch /:id should return 403 if not owner', async () => {

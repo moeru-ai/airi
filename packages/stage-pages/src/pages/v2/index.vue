@@ -2,10 +2,13 @@
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useCharacterStore } from '@proj-airi/stage-ui/stores/characters'
 import { Button } from '@proj-airi/ui'
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 const characterStore = useCharacterStore()
 const authStore = useAuthStore()
+const router = useRouter()
+const activeFilter = ref<'all' | 'companion' | 'romance' | 'roleplay' | 'nsfw'>('all')
 
 const coverImage = new URL('../../../../stage-ui/src/components/menu/relu.avif', import.meta.url).href
 const characterAvatarImage = new URL('../../../../stage-ui/src/assets/live2d/models/hiyori/preview.png', import.meta.url).href
@@ -38,33 +41,90 @@ onMounted(() => {
   characterStore.fetchList(true)
 })
 
-const characters = computed(() => Array.from(characterStore.characters.values()).map((char) => {
-  const i18n = char.i18n?.[0] || { name: 'Unknown', tagline: '', description: '' }
+async function openCharacter(id: string) {
+  await characterStore.activateCharacter(id)
+  router.push(`/v2/${id}`)
+}
 
-  return {
-    id: char.id,
-    name: i18n.name,
-    tagline: i18n.tagline || i18n.description,
-    avatarUrl: char.avatarUrl || 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=80',
-    characterAvatarUrl: char.characterAvatarUrl || characterAvatarImage,
-    coverUrl: char.coverUrl || coverImage,
-    coverBackgroundUrl: char.coverBackgroundUrl,
-    usedBy: char.interactionsCount,
-    interactions: char.interactionsCount,
-    likes: char.likesCount,
-    bookmarks: char.bookmarksCount,
-    forks: char.forksCount,
-    liked: char.likes?.some(l => l.userId === authStore.user?.id),
-    bookmarked: char.bookmarks?.some(b => b.userId === authStore.user?.id),
-    priceCredit: char.priceCredit,
-  }
-}))
+const characters = computed(() => Array.from(characterStore.characters.values())
+  .filter((char) => {
+    if (activeFilter.value === 'all')
+      return true
+    if (activeFilter.value === 'nsfw')
+      return char.nsfwEnabled
+    return char.relationshipMode === activeFilter.value
+  })
+  .map((char) => {
+    const i18n = char.i18n?.[0] || { name: 'Unknown', tagline: '', description: '' }
+
+    return {
+      id: char.id,
+      name: i18n.name,
+      tagline: i18n.tagline || i18n.description,
+      avatarUrl: char.avatarUrl || 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=80',
+      characterAvatarUrl: char.characterAvatarUrl || characterAvatarImage,
+      coverUrl: char.coverUrl || coverImage,
+      coverBackgroundUrl: char.coverBackgroundUrl,
+      usedBy: char.interactionsCount,
+      interactions: char.interactionsCount,
+      likes: char.likesCount,
+      bookmarks: char.bookmarksCount,
+      forks: char.forksCount,
+      visibility: char.visibility,
+      nsfwEnabled: char.nsfwEnabled,
+      nsfwLevel: char.nsfwLevel,
+      relationshipMode: char.relationshipMode,
+      personality: char.personaProfile?.personality,
+      scenario: char.personaProfile?.scenario,
+      liked: char.likes?.some(l => l.userId === authStore.user?.id),
+      bookmarked: char.bookmarks?.some(b => b.userId === authStore.user?.id),
+      priceCredit: char.priceCredit,
+    }
+  }))
+
+const filters = [
+  { id: 'all', label: 'All' },
+  { id: 'companion', label: 'Companion' },
+  { id: 'romance', label: 'Romance' },
+  { id: 'roleplay', label: 'Roleplay' },
+  { id: 'nsfw', label: 'NSFW' },
+] as const
 </script>
 
 <template>
-  <div :class="['min-h-screen w-full']">
-    <div>
-      <div :class="['mt-10 grid gap-6', 'sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5']">
+  <div :class="['min-h-screen w-full px-4 py-8 md:px-8']">
+    <div mx-auto max-w-7xl>
+      <section class="bg-linear-to-br relative overflow-hidden rounded-[2rem] from-rose-50 via-white to-amber-50 px-6 py-8 shadow-sm ring-1 ring-neutral-200/70 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 md:px-10 md:py-12 dark:ring-neutral-800">
+        <div class="absolute right--10 top--10 h-56 w-56 rounded-full bg-rose-300/20 blur-3xl dark:bg-rose-500/10" />
+        <div class="absolute bottom--14 left-10 h-48 w-48 rounded-full bg-amber-300/20 blur-3xl dark:bg-amber-500/10" />
+        <div relative z-1 max-w-3xl>
+          <div class="mb-3 inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs text-neutral-600 font-medium backdrop-blur dark:bg-neutral-800/80 dark:text-neutral-300">
+            <div class="i-solar:hearts-line-duotone text-sm text-rose-500" />
+            Explore companions, romance, and roleplay personas
+          </div>
+          <h1 class="max-w-2xl text-4xl text-neutral-950 font-semibold leading-tight md:text-5xl dark:text-white">
+            Find a companion that actually feels intentional
+          </h1>
+          <p class="mt-4 max-w-2xl text-sm text-neutral-600 leading-6 md:text-base dark:text-neutral-300">
+            Browse character profiles, compare dynamics, and jump into companions built for companionship, romance, or fantasy roleplay instead of generic chatbot cards.
+          </p>
+          <div class="mt-6 flex flex-wrap gap-2">
+            <button
+              v-for="filter in filters"
+              :key="filter.id"
+              class="rounded-full px-4 py-2 text-sm font-medium transition-all"
+              :class="activeFilter === filter.id
+                ? 'bg-neutral-950 text-white dark:bg-white dark:text-neutral-950'
+                : 'bg-white text-neutral-700 ring-1 ring-neutral-200 hover:bg-neutral-100 dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-700 dark:hover:bg-neutral-800'"
+              @click="activeFilter = filter.id"
+            >
+              {{ filter.label }}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <div class="grid mt-8 gap-6 lg:grid-cols-4 md:grid-cols-3 sm:grid-cols-2 xl:grid-cols-5">
         <article
           v-for="character in characters"
           :key="character.id"
@@ -165,8 +225,22 @@ const characters = computed(() => Array.from(characterStore.characters.values())
                     </div>
                   </button>
                 </div>
+                <div class="flex flex-wrap gap-1.5">
+                  <span class="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] text-neutral-600 font-medium tracking-wide uppercase dark:bg-neutral-800 dark:text-neutral-300">
+                    {{ character.relationshipMode }}
+                  </span>
+                  <span
+                    v-if="character.nsfwEnabled"
+                    class="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] text-rose-700 font-medium tracking-wide uppercase dark:bg-rose-500/15 dark:text-rose-300"
+                  >
+                    {{ character.nsfwLevel }}
+                  </span>
+                  <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] text-amber-700 font-medium tracking-wide uppercase dark:bg-amber-500/15 dark:text-amber-300">
+                    {{ character.visibility }}
+                  </span>
+                </div>
                 <div :class="['flex-1 text-xs text-ellipsis text-neutral-500 line-clamp-3 max-h-[3rem] overflow-hidden']">
-                  {{ character.tagline }}
+                  {{ character.personality || character.scenario || character.tagline }}
                 </div>
                 <div :class="['grid grid-cols-3 items-center']">
                   <div :class="['flex items-center justify-start']">
@@ -208,29 +282,18 @@ const characters = computed(() => Array.from(characterStore.characters.values())
                     </Button>
                   </div>
                   <div :class="['flex items-center justify-end']">
-                    <div
+                    <button
+                      type="button"
                       :class="[
                         'flex flex-row items-center gap-1',
                         'pl-1.5 pr-2 py-1 rounded-full',
                         'bg-neutral-900/50',
                       ]"
+                      @click="openCharacter(character.id)"
                     >
-                      <div
-                        :class="[
-                          'i-ph:plus-bold',
-                          'text-xs inline-block',
-                          'text-neutral-100 dark:text-neutral-900',
-                        ]"
-                      />
-                      <span
-                        :class="[
-                          'text-xs',
-                          'text-neutral-100 dark:text-neutral-900',
-                        ]"
-                      >
-                        Chat
-                      </span>
-                    </div>
+                      <div :class="['i-solar:chat-square-bold text-xs inline-block text-neutral-100 dark:text-neutral-900']" />
+                      <span :class="['text-xs', 'text-neutral-100 dark:text-neutral-900']">Open</span>
+                    </button>
                   </div>
                 </div>
               </div>

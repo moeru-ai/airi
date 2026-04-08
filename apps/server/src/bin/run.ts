@@ -9,8 +9,9 @@ import { cac } from 'cac'
 import { runApiServer } from '../app'
 import { errorMessageFromUnknown } from '../utils/error-message'
 import { runBillingConsumer } from './run-billing-consumer'
+import { runNsfwImageConsumer } from './run-nsfw-image-consumer'
 
-const serverRoles = ['api', 'billing-consumer'] as const
+const serverRoles = ['api', 'billing-consumer', 'nsfw-image-consumer'] as const
 
 type ServerRole = typeof serverRoles[number]
 
@@ -21,6 +22,9 @@ async function runServerRole(role: ServerRole): Promise<void> {
       return
     case 'billing-consumer':
       await runBillingConsumer()
+      return
+    case 'nsfw-image-consumer':
+      await runNsfwImageConsumer()
   }
 }
 
@@ -35,6 +39,10 @@ export function createServerCli() {
   cli
     .command('billing-consumer', 'Start the billing events consumer (transactions, audit, request logs)')
     .action(() => runServerRole('billing-consumer'))
+
+  cli
+    .command('nsfw-image-consumer', 'Start the NSFW image jobs consumer (ComfyUI execution and reconciliation)')
+    .action(() => runServerRole('nsfw-image-consumer'))
 
   cli.help()
 

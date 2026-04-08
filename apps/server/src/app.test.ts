@@ -42,11 +42,13 @@ function createTestDeps() {
     characterService: {} as any,
     chatService: {} as any,
     providerService: {} as any,
+    nsfwMediaService: {} as any,
     fluxService: {} as any,
     fluxTransactionService: {} as any,
     stripeService: {} as any,
     billingService: {} as any,
     billingMq: {} as any,
+    nsfwImageMq: {} as any,
     configKV: {
       getOrThrow: vi.fn(async (key: string) => {
         switch (key) {

@@ -1,5 +1,5 @@
 import { createInsertSchema, createSelectSchema } from 'drizzle-valibot'
-import { array, literal, number, object, optional, pipe, string, transform, union } from 'valibot'
+import { array, boolean, literal, number, object, optional, pipe, string, transform, union } from 'valibot'
 
 import * as schema from '../../schemas/characters'
 
@@ -45,6 +45,40 @@ const AvatarModelTypeSchema = union([
   literal('live2d'),
 ])
 
+const CharacterVisibilitySchema = union([
+  literal('private'),
+  literal('public'),
+  literal('unlisted'),
+])
+
+const CharacterNsfwLevelSchema = union([
+  literal('none'),
+  literal('suggestive'),
+  literal('explicit'),
+])
+
+const CharacterRelationshipModeSchema = union([
+  literal('companion'),
+  literal('romance'),
+  literal('roleplay'),
+])
+
+const CharacterMemoryProfileSchema = union([
+  literal('light'),
+  literal('standard'),
+  literal('deep'),
+])
+
+export const CharacterPersonaProfileSchema = object({
+  personality: optional(string()),
+  scenario: optional(string()),
+  speakingStyle: optional(string()),
+  traits: optional(array(string())),
+  boundaries: optional(array(string())),
+  starterMessages: optional(array(string())),
+  memoryProfile: optional(CharacterMemoryProfileSchema),
+})
+
 export const CharacterSchema = createSelectSchema(schema.character)
 export const InsertCharacterSchema = createInsertSchema(schema.character)
 
@@ -77,6 +111,11 @@ export const CreateCharacterSchema = object({
     avatarUrl: optional(string()),
     creatorRole: optional(string()),
     priceCredit: optional(string()),
+    visibility: optional(CharacterVisibilitySchema),
+    nsfwEnabled: optional(boolean()),
+    nsfwLevel: optional(CharacterNsfwLevelSchema),
+    relationshipMode: optional(CharacterRelationshipModeSchema),
+    personaProfile: optional(CharacterPersonaProfileSchema),
   }),
   cover: optional(createInsertSchema(schema.characterCovers, {
     characterId: optional(string()),
@@ -109,6 +148,11 @@ export const UpdateCharacterSchema = createInsertSchema(schema.character, {
   avatarUrl: optional(string()),
   creatorRole: optional(string()),
   priceCredit: optional(string()),
+  visibility: optional(CharacterVisibilitySchema),
+  nsfwEnabled: optional(boolean()),
+  nsfwLevel: optional(CharacterNsfwLevelSchema),
+  relationshipMode: optional(CharacterRelationshipModeSchema),
+  personaProfile: optional(CharacterPersonaProfileSchema),
   creatorId: optional(string()),
   ownerId: optional(string()),
   characterId: optional(string()),

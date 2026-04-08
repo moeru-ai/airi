@@ -26,6 +26,14 @@ const i18n = computed(() => {
 
 const name = computed(() => i18n.value?.name || 'Unknown')
 const description = computed(() => i18n.value?.description || '')
+const personaSummary = computed(() => props.character.personaProfile?.personality || description.value)
+const badges = computed(() => {
+  const items = [props.character.relationshipMode]
+  if (props.character.nsfwEnabled)
+    items.push(props.character.nsfwLevel)
+  items.push(props.character.visibility)
+  return items
+})
 
 const consciousnessModel = computed(() => {
   if (!props.character.capabilities)
@@ -67,8 +75,18 @@ const voiceModel = computed(() => {
       </div>
 
       <!-- Card description -->
-      <p v-if="description" class="line-clamp-3 min-h-40px flex-1 text-sm text-neutral-500 dark:text-neutral-400">
-        {{ description }}
+      <div class="z-1 flex flex-wrap gap-1.5">
+        <span
+          v-for="badge in badges"
+          :key="badge"
+          class="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] text-neutral-600 font-medium tracking-wide uppercase dark:bg-neutral-800 dark:text-neutral-300"
+        >
+          {{ badge }}
+        </span>
+      </div>
+
+      <p v-if="personaSummary" class="line-clamp-3 min-h-40px flex-1 text-sm text-neutral-500 dark:text-neutral-400">
+        {{ personaSummary }}
       </p>
 
       <!-- Card stats -->

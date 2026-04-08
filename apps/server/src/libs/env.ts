@@ -6,7 +6,7 @@ import { useLogger } from '@guiiai/logg'
 import { injeca } from 'injeca'
 import { integer, maxValue, minValue, nonEmpty, object, optional, parse, pipe, string, transform } from 'valibot'
 
-import { DEFAULT_BILLING_EVENTS_STREAM } from '../utils/redis-keys'
+import { DEFAULT_BILLING_EVENTS_STREAM, DEFAULT_NSFW_IMAGE_EVENTS_STREAM } from '../utils/redis-keys'
 
 function optionalIntegerFromString(defaultValue: number, envKey: string, minimum: number) {
   return optional(
@@ -56,6 +56,30 @@ const EnvSchema = object({
   BILLING_EVENTS_BATCH_SIZE: optionalIntegerFromString(10, 'BILLING_EVENTS_BATCH_SIZE', 1),
   BILLING_EVENTS_BLOCK_MS: optionalIntegerFromString(5000, 'BILLING_EVENTS_BLOCK_MS', 1),
   BILLING_EVENTS_MIN_IDLE_MS: optionalIntegerFromString(30000, 'BILLING_EVENTS_MIN_IDLE_MS', 1),
+
+  NSFW_IMAGE_EVENTS_STREAM: optional(string(), DEFAULT_NSFW_IMAGE_EVENTS_STREAM),
+  NSFW_IMAGE_EVENTS_CONSUMER_NAME: optional(string()),
+  NSFW_IMAGE_EVENTS_BATCH_SIZE: optionalIntegerFromString(10, 'NSFW_IMAGE_EVENTS_BATCH_SIZE', 1),
+  NSFW_IMAGE_EVENTS_BLOCK_MS: optionalIntegerFromString(5000, 'NSFW_IMAGE_EVENTS_BLOCK_MS', 1),
+  NSFW_IMAGE_EVENTS_MIN_IDLE_MS: optionalIntegerFromString(30000, 'NSFW_IMAGE_EVENTS_MIN_IDLE_MS', 1),
+  COMFYUI_BASE_URL: optional(string(), 'http://127.0.0.1:8188'),
+  COMFYUI_FALLBACK_BASE_URL: optional(string()),
+  COMFYUI_DEFAULT_CHECKPOINT: optional(string(), 'ponyDiffusionV6.safetensors'),
+  COMFYUI_FALLBACK_CHECKPOINT: optional(string(), 'sd_turbo.safetensors'),
+  COMFYUI_DEFAULT_STEPS: optionalIntegerFromString(24, 'COMFYUI_DEFAULT_STEPS', 1),
+  COMFYUI_FALLBACK_STEPS: optionalIntegerFromString(2, 'COMFYUI_FALLBACK_STEPS', 1),
+  COMFYUI_DEFAULT_CFG: optionalNumberFromString(8, 'COMFYUI_DEFAULT_CFG', 1, 30),
+  COMFYUI_FALLBACK_CFG: optionalNumberFromString(1, 'COMFYUI_FALLBACK_CFG', 1, 30),
+  COMFYUI_MAX_DIMENSION: optionalIntegerFromString(1216, 'COMFYUI_MAX_DIMENSION', 64),
+  COMFYUI_FALLBACK_MAX_DIMENSION: optionalIntegerFromString(384, 'COMFYUI_FALLBACK_MAX_DIMENSION', 64),
+  COMFYUI_SUBMIT_TIMEOUT_MS: optionalIntegerFromString(120000, 'COMFYUI_SUBMIT_TIMEOUT_MS', 1000),
+  COMFYUI_RUNNING_TIMEOUT_MS: optionalIntegerFromString(900000, 'COMFYUI_RUNNING_TIMEOUT_MS', 1000),
+  COMFYUI_DEFAULT_LORA: optional(string(), 'pony_realism.safetensors'),
+  COMFYUI_DEFAULT_LORA_STRENGTH_MODEL: optionalNumberFromString(0.8, 'COMFYUI_DEFAULT_LORA_STRENGTH_MODEL', 0, 2),
+  COMFYUI_DEFAULT_LORA_STRENGTH_CLIP: optionalNumberFromString(0.8, 'COMFYUI_DEFAULT_LORA_STRENGTH_CLIP', 0, 2),
+  COMFYUI_SECONDARY_LORA: optional(string(), 'realistic-skin-texture-style-xl-detailed-skin-sd1.5-flux1d-pony-illu.safetensors'),
+  COMFYUI_SECONDARY_LORA_STRENGTH_MODEL: optionalNumberFromString(0.55, 'COMFYUI_SECONDARY_LORA_STRENGTH_MODEL', 0, 2),
+  COMFYUI_SECONDARY_LORA_STRENGTH_CLIP: optionalNumberFromString(0.4, 'COMFYUI_SECONDARY_LORA_STRENGTH_CLIP', 0, 2),
 
   // Database pool
   DB_POOL_MAX: optionalIntegerFromString(20, 'DB_POOL_MAX', 1),

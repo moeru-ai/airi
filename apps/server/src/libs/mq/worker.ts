@@ -44,11 +44,18 @@ export function createMqWorker<TEvent>(mq: MqService<TEvent>) {
             await mq.ack(options.group, message.streamMessageId)
           }
           catch (error) {
-            logger.withError(error).withFields({
+            const log = logger.withFields({
               group: options.group,
               consumer: options.consumer,
               streamMessageId: message.streamMessageId,
-            }).error('MQ handler failed; leaving message pending')
+            })
+
+            if (error instanceof Error && error.name === 'JobStillRunningError') {
+              log.withError(error).warn('MQ handler deferred; message remains pending for retry')
+              continue
+            }
+
+            log.withError(error).error('MQ handler failed; leaving message pending')
           }
         }
       }

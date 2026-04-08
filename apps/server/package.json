@@ -9,6 +9,7 @@
     "dev": "pnpm run apply:env -- tsx --import ./instrumentation.mjs --watch src/bin/run.ts api",
     "start": "pnpm run apply:env -- tsx --import ./instrumentation.mjs src/bin/run.ts api",
     "server": "pnpm run apply:env -- tsx --import ./instrumentation.mjs src/bin/run.ts",
+    "nsfw:image-consumer": "pnpm run apply:env -- tsx --import ./instrumentation.mjs src/bin/run.ts nsfw-image-consumer",
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",

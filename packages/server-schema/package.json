@@ -31,6 +31,9 @@
   "scripts": {
     "build": "tsdown"
   },
+  "dependencies": {
+    "valibot": "catalog:"
+  },
   "devDependencies": {
     "@proj-airi/unplugin-drizzle-orm-migrations": "catalog:"
   }

@@ -12,6 +12,8 @@ import type { ChatService } from './services/chats'
 import type { ConfigKVService } from './services/config-kv'
 import type { FluxService } from './services/flux'
 import type { FluxTransactionService } from './services/flux-transaction'
+import type { NsfwImageEvent } from './services/nsfw-image-events'
+import type { NsfwMediaService } from './services/nsfw-media'
 import type { ProviderService } from './services/providers'
 import type { StripeService } from './services/stripe'
 import type { HonoEnv } from './types/hono'
@@ -41,9 +43,11 @@ import { createCharacterRoutes } from './routes/characters'
 import { createChatWsHandlers } from './routes/chat-ws'
 import { createChatRoutes } from './routes/chats'
 import { createFluxRoutes } from './routes/flux'
+import { createNsfwMediaRoutes } from './routes/nsfw-media'
 import { createV1CompletionsRoutes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
+import { createUserRoutes } from './routes/users'
 import { createBillingMq } from './services/billing/billing-events'
 import { createBillingService } from './services/billing/billing-service'
 import { createCharacterService } from './services/characters'
@@ -51,6 +55,8 @@ import { createChatService } from './services/chats'
 import { createConfigKVService } from './services/config-kv'
 import { createFluxService } from './services/flux'
 import { createFluxTransactionService } from './services/flux-transaction'
+import { createNsfwImageMq } from './services/nsfw-image-events'
+import { createNsfwMediaService } from './services/nsfw-media'
 import { createProviderService } from './services/providers'
 import { createRequestLogService } from './services/request-log'
 import { createStripeService } from './services/stripe'
@@ -63,11 +69,13 @@ interface AppDeps {
   characterService: CharacterService
   chatService: ChatService
   providerService: ProviderService
+  nsfwMediaService: NsfwMediaService
   fluxService: FluxService
   fluxTransactionService: FluxTransactionService
   stripeService: StripeService
   billingService: BillingService
   billingMq: MqService<BillingEvent>
+  nsfwImageMq: MqService<NsfwImageEvent>
   configKV: ConfigKVService
   redis: Redis
   env: Env
@@ -174,6 +182,16 @@ export async function buildApp(deps: AppDeps) {
      * Provider routes are handled by the provider service.
      */
     .route('/api/v1/providers', createProviderRoutes(deps.providerService))
+
+    /**
+     * Current user settings routes.
+     */
+    .route('/api/v1/users', createUserRoutes(deps.db))
+
+    /**
+     * NSFW media routes.
+     */
+    .route('/api/v1/nsfw', createNsfwMediaRoutes(deps.nsfwMediaService, deps.nsfwImageMq))
 
     /**
      * Chat routes are handled by the chat service.
@@ -318,6 +336,18 @@ export async function createApp() {
     build: ({ dependsOn }) => createProviderService(dependsOn.db),
   })
 
+  const nsfwMediaService = injeca.provide('services:nsfw-media', {
+    dependsOn: { db },
+    build: ({ dependsOn }) => createNsfwMediaService(dependsOn.db),
+  })
+
+  const nsfwImageMq = injeca.provide('services:nsfwImageMq', {
+    dependsOn: { redis, env: parsedEnv },
+    build: ({ dependsOn }) => createNsfwImageMq(dependsOn.redis, {
+      stream: dependsOn.env.NSFW_IMAGE_EVENTS_STREAM,
+    }),
+  })
+
   const chatService = injeca.provide('services:chats', {
     dependsOn: { db, otel },
     build: ({ dependsOn }) => createChatService(dependsOn.db, dependsOn.otel?.engagement),
@@ -355,12 +385,14 @@ export async function createApp() {
     characterService,
     chatService,
     providerService,
+    nsfwMediaService,
     fluxService,
     fluxTransactionService,
     requestLogService,
     stripeService,
     billingService,
     billingMq,
+    nsfwImageMq,
     configKV,
     redis,
     env: parsedEnv,
@@ -372,11 +404,13 @@ export async function createApp() {
     characterService: resolved.characterService,
     chatService: resolved.chatService,
     providerService: resolved.providerService,
+    nsfwMediaService: resolved.nsfwMediaService,
     fluxService: resolved.fluxService,
     fluxTransactionService: resolved.fluxTransactionService,
     stripeService: resolved.stripeService,
     billingService: resolved.billingService,
     billingMq: resolved.billingMq,
+    nsfwImageMq: resolved.nsfwImageMq,
     configKV: resolved.configKV,
     redis: resolved.redis,
     env: resolved.env,

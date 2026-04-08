@@ -33,6 +33,18 @@ describe('characterService', () => {
       characterId: 'cid',
       ownerId: testUser.id,
       creatorId: testUser.id,
+      visibility: 'public' as const,
+      nsfwEnabled: true,
+      nsfwLevel: 'suggestive' as const,
+      relationshipMode: 'romance' as const,
+      personaProfile: {
+        personality: 'Playful and teasing',
+        speakingStyle: 'Flirty',
+        traits: ['witty', 'warm'],
+        boundaries: ['no violence'],
+        starterMessages: ['Missed me?'],
+        memoryProfile: 'deep' as const,
+      },
     }
 
     const result = await service.create({
@@ -46,6 +58,13 @@ describe('characterService', () => {
     const found = await service.findById('char-1')
     expect(found?.i18n[0].name).toBe('Aster')
     expect(found?.cover?.foregroundUrl).toBe('fg')
+    expect(found?.visibility).toBe('public')
+    expect(found?.nsfwEnabled).toBe(true)
+    expect(found?.relationshipMode).toBe('romance')
+    expect(found?.personaProfile).toMatchObject({
+      personality: 'Playful and teasing',
+      memoryProfile: 'deep',
+    })
   })
 
   it('findAll should return characters with relations', async () => {
@@ -93,9 +112,21 @@ describe('characterService', () => {
   })
 
   it('update should update character fields', async () => {
-    await service.update('char-1', { version: '2.0' })
+    await service.update('char-1', {
+      version: '2.0',
+      nsfwLevel: 'explicit',
+      personaProfile: {
+        personality: 'More intense',
+        memoryProfile: 'standard',
+      },
+    })
     const char = await service.findById('char-1')
     expect(char?.version).toBe('2.0')
+    expect(char?.nsfwLevel).toBe('explicit')
+    expect(char?.personaProfile).toMatchObject({
+      personality: 'More intense',
+      memoryProfile: 'standard',
+    })
   })
 
   it('delete should soft delete character', async () => {

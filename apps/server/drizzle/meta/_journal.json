@@ -64,6 +64,20 @@
       "when": 1775032828818,
       "tag": "0008_gray_xavin",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1774803600000,
+      "tag": "0009_nsfw_user_gating",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1774807200000,
+      "tag": "0010_nsfw_media",
+      "breakpoints": true
     }
   ]
 }
