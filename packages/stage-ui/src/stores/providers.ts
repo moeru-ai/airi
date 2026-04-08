@@ -20,7 +20,7 @@ import type {
 
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 
-import { isStageCapacitor, isStageTamagotchi, isStageWeb, isUrl } from '@proj-airi/stage-shared'
+import { isElectronWindow, isStageCapacitor, isStageTamagotchi, isStageWeb, isUrl } from '@proj-airi/stage-shared'
 import { computedAsync, useIntervalFn, useLocalStorage } from '@vueuse/core'
 import {
   createOpenAI,
@@ -1558,23 +1558,25 @@ export const useProvidersStore = defineStore('providers', () => {
         const apiKey = (config.apiKey as string ?? '').trim()
         const baseUrl = ((config.baseUrl as string) || 'https://api.fish.audio').replace(TRAILING_SLASH_RE, '')
         // NOTICE: Fish Audio's API is server-to-server only and does not send CORS
-        // headers for browser origins. In Vite dev mode we route through the local
-        // dev-server proxy (/fish-audio-api → https://api.fish.audio) so the request
-        // appears same-origin and is never blocked. Custom base URLs (e.g. a user's own
-        // proxy) bypass this logic and are used as-is.
-        // See apps/stage-web/vite.config.ts and apps/stage-pocket/vite.config.ts for the
-        // matching server.proxy entries.
+        // headers for browser origins. Depending on the runtime, we choose one of
+        // three strategies to avoid CORS failures:
         //
-        // NOTICE: The proxy only exists in browser-based Vite dev servers (stage-web,
-        // stage-pocket). Electron's renderer dev server has no matching proxy route, so
-        // we must skip the rewrite when running inside Electron to avoid 404s.
+        //   1. Electron — delegate to the main process via Eventa IPC. The main
+        //      process uses net.fetch which runs in Node and is never subject to
+        //      browser CORS enforcement. The IPC contract is defined in
+        //      apps/stage-tamagotchi/src/shared/eventa.ts (electronFishAudioTTS).
         //
-        // TODO: Add an Eventa IPC handler (electronFetchFishAudio) so the Electron main
-        // process can perform the request via net.fetch (no CORS restrictions in Node).
-        // Until that path exists, Fish Audio with the default URL is gated out of
-        // Electron via validateProviderConfig below.
-        const isElectron = typeof navigator !== 'undefined' && navigator.userAgent.includes('Electron')
-        const effectiveBase = (import.meta.env.DEV && !isElectron && baseUrl === 'https://api.fish.audio')
+        //   2. Browser DEV (stage-web / stage-pocket) — route through the local
+        //      Vite dev-server proxy (/fish-audio-api → https://api.fish.audio) so
+        //      the request appears same-origin. See vite.config.ts in each app for
+        //      the matching server.proxy entry.
+        //
+        //   3. Everything else (custom base URL, Capacitor native) — use the URL
+        //      as-is. Capacitor native builds use the OS HTTP stack and are not
+        //      subject to browser CORS. A custom base URL means the user has their
+        //      own same-origin proxy and needs no rewrite.
+        const electronWindow = isStageTamagotchi() ? isElectronWindow(window) && window : false
+        const effectiveBase = (!electronWindow && import.meta.env.DEV && baseUrl === 'https://api.fish.audio')
           ? '/fish-audio-api'
           : baseUrl
         const provider: SpeechProvider = {
@@ -1598,6 +1600,23 @@ export const useProvidersStore = defineStore('providers', () => {
               const body = JSON.parse((init?.body as string) ?? '{}') as {
                 input?: string
                 voice?: string
+              }
+              if (electronWindow) {
+                // Delegate to main process to bypass renderer CORS.
+                // defineInvoke returns a typed invoker function; call it with the payload.
+                const { defineInvoke } = await import('@moeru/eventa')
+                const { createContext } = await import('@moeru/eventa/adapters/electron/renderer')
+                const { electronFishAudioTTS } = await import('./providers/fish-audio/ipc')
+                const { context } = createContext(electronWindow.electron.ipcRenderer)
+                // NOTICE: AbortSignal is not serializable over IPC and cannot be
+                // forwarded to the main process. Cancellation of in-flight IPC
+                // requests is not yet supported for this path.
+                const invokeTTS = defineInvoke(context, electronFishAudioTTS)
+                const result = await invokeTTS({ apiKey, baseUrl, text: body.input ?? '', referenceId: body.voice || null })
+                return new Response(result.data.buffer as ArrayBuffer, {
+                  status: result.status,
+                  headers: { 'Content-Type': result.contentType },
+                })
               }
               return fetch(`${effectiveBase}/v1/tts`, {
                 method: 'POST',
@@ -1673,29 +1692,19 @@ export const useProvidersStore = defineStore('providers', () => {
             }
           }
 
-          // Gate the default Fish Audio URL in contexts where browser CORS will block
-          // the request and no local proxy or IPC path exists yet.
+          // Gate the default Fish Audio URL in contexts where browser CORS will
+          // block the request and no proxy/IPC path exists.
           //
-          // - Electron (all modes): renderer enforces CORS; main-process IPC path not yet
-          //   implemented. TODO: remove this gate once electronFetchFishAudio IPC exists.
-          // - Web/Capacitor production: Vite dev-server proxy is absent. Users who need
-          //   production access must point baseUrl at a same-origin CORS proxy they control.
-          // - Capacitor native (iOS/Android): exempt — Capacitor uses the OS HTTP stack
-          //   which is not subject to browser CORS restrictions.
+          // - Electron: handled via IPC (electronFishAudioTTS) — no gate needed.
+          // - Capacitor native (iOS/Android): OS HTTP stack bypasses CORS — no gate.
+          // - Web/Capacitor production: Vite dev-server proxy is absent; users must
+          //   point baseUrl at a same-origin CORS proxy they control.
           const usingDefaultUrl = !config.baseUrl || config.baseUrl === 'https://api.fish.audio'
-          if (usingDefaultUrl) {
-            if (isStageTamagotchi()) {
-              errors.push(new Error(
-                'Fish Audio requires a custom base URL (a CORS proxy) when running in the desktop app. '
-                + 'Native IPC support is not yet available.',
-              ))
-            }
-            else if ((isStageWeb() || isStageCapacitor()) && !import.meta.env.DEV) {
-              errors.push(new Error(
-                'Fish Audio requires a custom base URL (a CORS proxy) in production builds. '
-                + 'The dev-server proxy is only available during local development.',
-              ))
-            }
+          if (usingDefaultUrl && (isStageWeb() || isStageCapacitor()) && !import.meta.env.DEV) {
+            errors.push(new Error(
+              'Fish Audio requires a custom base URL (a CORS proxy) in production builds. '
+              + 'The dev-server proxy is only available during local development.',
+            ))
           }
 
           return {
