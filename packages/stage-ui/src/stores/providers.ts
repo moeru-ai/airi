@@ -1562,11 +1562,12 @@ export const useProvidersStore = defineStore('providers', () => {
         // dev-server proxy (/fish-audio-api → https://api.fish.audio) so the request
         // appears same-origin and is never blocked. Custom base URLs (e.g. a user's own
         // proxy) bypass this logic and are used as-is.
-        // See apps/stage-web/vite.config.ts for the matching server.proxy entry.
+        // See apps/stage-web/vite.config.ts and apps/stage-pocket/vite.config.ts for the
+        // matching server.proxy entries.
         //
-        // NOTICE: The proxy only exists in the stage-web Vite dev server.
-        // Electron's renderer dev server has no matching proxy route, so we must
-        // skip the rewrite when running inside Electron to avoid 404s.
+        // NOTICE: The proxy only exists in browser-based Vite dev servers (stage-web,
+        // stage-pocket). Electron's renderer dev server has no matching proxy route, so
+        // we must skip the rewrite when running inside Electron to avoid 404s.
         const isElectron = typeof navigator !== 'undefined' && navigator.userAgent.includes('Electron')
         const effectiveBase = (import.meta.env.DEV && !isElectron && baseUrl === 'https://api.fish.audio')
           ? '/fish-audio-api'
