@@ -20,7 +20,7 @@ import type {
 
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 
-import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
+import { isStageCapacitor, isStageTamagotchi, isStageWeb, isUrl } from '@proj-airi/stage-shared'
 import { computedAsync, useIntervalFn, useLocalStorage } from '@vueuse/core'
 import {
   createOpenAI,
@@ -1568,6 +1568,11 @@ export const useProvidersStore = defineStore('providers', () => {
         // NOTICE: The proxy only exists in browser-based Vite dev servers (stage-web,
         // stage-pocket). Electron's renderer dev server has no matching proxy route, so
         // we must skip the rewrite when running inside Electron to avoid 404s.
+        //
+        // TODO: Add an Eventa IPC handler (electronFetchFishAudio) so the Electron main
+        // process can perform the request via net.fetch (no CORS restrictions in Node).
+        // Until that path exists, Fish Audio with the default URL is gated out of
+        // Electron via validateProviderConfig below.
         const isElectron = typeof navigator !== 'undefined' && navigator.userAgent.includes('Electron')
         const effectiveBase = (import.meta.env.DEV && !isElectron && baseUrl === 'https://api.fish.audio')
           ? '/fish-audio-api'
@@ -1665,6 +1670,31 @@ export const useProvidersStore = defineStore('providers', () => {
             }
             catch {
               errors.push(new Error('Base URL is not a valid absolute URL.'))
+            }
+          }
+
+          // Gate the default Fish Audio URL in contexts where browser CORS will block
+          // the request and no local proxy or IPC path exists yet.
+          //
+          // - Electron (all modes): renderer enforces CORS; main-process IPC path not yet
+          //   implemented. TODO: remove this gate once electronFetchFishAudio IPC exists.
+          // - Web/Capacitor production: Vite dev-server proxy is absent. Users who need
+          //   production access must point baseUrl at a same-origin CORS proxy they control.
+          // - Capacitor native (iOS/Android): exempt — Capacitor uses the OS HTTP stack
+          //   which is not subject to browser CORS restrictions.
+          const usingDefaultUrl = !config.baseUrl || config.baseUrl === 'https://api.fish.audio'
+          if (usingDefaultUrl) {
+            if (isStageTamagotchi()) {
+              errors.push(new Error(
+                'Fish Audio requires a custom base URL (a CORS proxy) when running in the desktop app. '
+                + 'Native IPC support is not yet available.',
+              ))
+            }
+            else if ((isStageWeb() || isStageCapacitor()) && !import.meta.env.DEV) {
+              errors.push(new Error(
+                'Fish Audio requires a custom base URL (a CORS proxy) in production builds. '
+                + 'The dev-server proxy is only available during local development.',
+              ))
             }
           }
 
