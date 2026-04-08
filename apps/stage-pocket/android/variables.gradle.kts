@@ -1,4 +1,4 @@
-val minSdkVersion by extra(24)
+val minSdkVersion by extra(26)
 val compileSdkVersion by extra(36)
 val targetSdkVersion by extra(36)
 val androidxActivityVersion by extra("1.11.0")

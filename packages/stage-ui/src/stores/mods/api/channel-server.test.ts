@@ -369,4 +369,34 @@ describe('channel-server store reconnect', () => {
 
     expect(serverSdkMocks.MockClient.instances).toHaveLength(2)
   })
+
+  it('uses the persisted websocket auth token when initialize does not receive an explicit token', async () => {
+    const store = useModsServerChannelStore()
+    store.websocketAuthToken = 'persisted-secret'
+
+    const initializePromise = store.initialize()
+    const client = serverSdkMocks.MockClient.instances[0]
+
+    expect(client.options.token).toBe('persisted-secret')
+
+    client.simulateAuthenticated()
+    await initializePromise
+  })
+
+  it('reconnects when the persisted websocket auth token changes', async () => {
+    const store = useModsServerChannelStore()
+    store.websocketAuthToken = 'initial-secret'
+
+    const initializePromise = store.initialize()
+    const firstClient = serverSdkMocks.MockClient.instances[0]
+
+    firstClient.simulateAuthenticated()
+    await initializePromise
+
+    store.websocketAuthToken = 'rotated-secret'
+    await nextTick()
+
+    expect(serverSdkMocks.MockClient.instances.length).toBeGreaterThan(1)
+    expect(serverSdkMocks.MockClient.instances.at(-1)?.options.token).toBe('rotated-secret')
+  })
 })

@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@capacitor/android": "catalog:",
+    "@capacitor/barcode-scanner": "catalog:",
     "@capacitor/core": "catalog:",
     "@capacitor/ios": "catalog:",
     "@capacitor/local-notifications": "catalog:",
@@ -59,7 +60,7 @@
     "@xsai/shared": "catalog:",
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
-    "@xsai/stream-transcription": "0.4.0-beta.8",
+    "@xsai/stream-transcription": "catalog:",
     "@xsai/utils-chat": "catalog:",
     "animejs": "^4.3.6",
     "capacitor-native-settings": "catalog:",

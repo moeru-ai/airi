@@ -149,7 +149,13 @@ export default defineConfig({
       importMode: 'async',
       routesFolder: [
         resolve(import.meta.dirname, 'src', 'pages'),
-        resolve(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src', 'pages'),
+        {
+          src: resolve(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src', 'pages'),
+          exclude: base => [
+            ...base,
+            '**/settings/connection/index.vue',
+          ],
+        },
       ],
       exclude: ['**/components/**'],
     }),

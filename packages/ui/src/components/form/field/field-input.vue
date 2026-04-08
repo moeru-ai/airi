@@ -1,8 +1,10 @@
 <script
   setup
   lang="ts"
-  generic="InputType extends 'number' | string, T = InputType extends 'number' ? (number | undefined) : ((string | undefined))"
+  generic="InputType extends 'number' | InputTypeHTMLAttribute | string, T = InputType extends 'number' ? (number | undefined) : ((string | undefined))"
 >
+import type { InputTypeHTMLAttribute } from 'vue'
+
 import { Input } from '../input'
 
 const props = withDefaults(defineProps<{

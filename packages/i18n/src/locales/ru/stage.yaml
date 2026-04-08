@@ -85,6 +85,6 @@ promo-banner:
       cta: View Theme
 waiting: Ожидание
 websocket-status:
-  connected: WebSocket подключен
-  disconnected: WebSocket отключен
-  open-settings: Открыть настройки WebSocket
+  connected: WebSocket connected
+  disconnected: WebSocket disconnected
+  open-settings: Open WebSocket settings

@@ -14,8 +14,8 @@ const { statusMessage, statusTone, handleStatus } = createDataSettingsStatusStat
 
 <template>
   <div :class="['flex flex-col gap-4 pb-4']">
-    <DesktopFolderSection @status="handleStatus" />
     <StatusBanner v-if="statusMessage" :message="statusMessage" :tone="statusTone" />
+    <DesktopFolderSection @status="handleStatus" />
     <ChatsSection @status="handleStatus" />
     <ModelsModulesSection @status="handleStatus" />
     <DesktopResetSection @status="handleStatus" />
