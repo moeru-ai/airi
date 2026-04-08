@@ -18,32 +18,32 @@ dialogs:
     baseUrl: Базовый URL
     baseUrlHelp: URL конечной точки API (оставьте по умолчанию, если не уверены)
     accountId: ID аккаунта
-    validationRunning: Running tests
+    validationRunning: Запуск тестов
     validationSuccess: Успешная проверка конфигурации
-    validationPartial: Configuration partially validated
+    validationPartial: Конфигурация проверена частично
     validationFailed: Проверка конфигурации не удалась
     validationError: 'Ошибка проверки: {error}'
-    testGeneration: Ping API
-    testGenerationRunning: Ping...
-    testGenerationFailed: Ping test failed
-    retryPingCheck: Retry
+    testGeneration: Проверка соединения API
+    testGenerationRunning: Проверка соединения...
+    testGenerationFailed: Проверка соединения не удалась
+    retryPingCheck: Повторить
     skipForNow: Пропустить на сейчас
     saveAndContinue: Сохранить и продолжить
     next: Далее
     retry: Повторить
-    credentialsSafeLabel: Keep your API keys and credentials safe!
+    credentialsSafeLabel: Держите ваши ключи API и учетные данные в безопасности!
     credentialsSafeLocal: >-
-      AIRI is running pure locally in your PC, and we will never steal your credentials for AI / LLM providers. But keep in mind that your API keys are sensitive information. Make sure to keep them safe and do not share them with anyone.
+      AIRI работает исключительно локально в вашем ПК, и мы никогда не похитим ваши учетные данные для ИИ / LLM провайдеров. Но имейте в виду, что ваши ключи API являются конфиденциальной информацией. Убедитесь, что вы храните их в безопасности и никому не передаёте.
     credentialsSafeOpenSource: >-
-      AIRI is open sourced at {github}, if you want to check how we handle your credentials, feel free to inspect our code.
+      AIRI имеет открытый исходный код по адресу {github}. Если вы хотите проверить, как мы обрабатываем ваши учётные данные, смело изучайте наш код.
     enableChatCheck: >-
-      Allow airi to send a "ping" message to the first available chat model to check availability
+      Разрешить airi отправить "ping" сообщение первой доступной чат модели для проверки доступности
     start: Поехали!
-    loginPrompt: Sign in to use the official AIRI provider for the best experience.
-    loginAction: Sign in
-    setupWithoutSigningIn: Setup with your provider
+    loginPrompt: Войдите, чтобы использовать официального провайдера AIRI для наилучшего опыта.
+    loginAction: Войти
+    setupWithoutSigningIn: Настройка с вашим провайдером
     flux: Flux
-    buyFlux: Charge Flux
+    buyFlux: Пополнить Flux
     select-model: Выберите модель
     no-models: Нет доступных моделей
     no-models-help: >-
@@ -63,8 +63,8 @@ dialogs:
       stateNotGranted: Не предоставлено
 language:
   title: Язык
-  description: >
-    UI language. You can set characters' language later.
+  description: |
+    Язык интерфейса. Язык персонажей вы сможете настроить позже.
 controls-island:
   icon-size:
     title: Размер значка Управления островом
@@ -74,17 +74,18 @@ controls-island:
     small: Маленький
 analytics:
   notice:
-    title: Usage analytics
-    description: AIRI collects anonymous usage analytics to help us understand how the app is used and improve stability. No personal data is collected.
-    privacyPrefix: Read the
-    privacyLink: privacy policy
-    onboardingHint: You can turn analytics off later in Settings > System > General.
-    settingsHint: You can turn analytics off at any time.
+    title: Аналитика использования
+    description: >-
+      AIRI собирает анонимную аналитику использования, чтобы помочь нам понять, как используется приложение, и улучшить стабильность. Личные данные не собираются.
+    privacyPrefix: Прочтите
+    privacyLink: политика конфиденциальности
+    onboardingHint: Вы можете отключить аналитику позже в Настройках > Система > Общие.
+    settingsHint: Вы можете отключить аналитику в любое время.
   toggle:
-    title: Enable usage analytics
-    description: Turn this off to opt out of analytics collection.
+    title: Включить аналитику использования
+    description: Отключите эту опцию, чтобы отказаться от сбора аналитики.
   disabled:
-    title: Analytics disabled for this development build
+    title: Аналитика отключена для этой разрабатываемой сборки
 live2d:
   change-model:
     from-file: Загрузить из файла
@@ -114,9 +115,9 @@ live2d:
   focus:
     title: Отключить слежение за мышью
     button-disable:
-      title: Disable model mouse tracking
+      title: Отключить отслеживание мыши модели
   render-scale:
-    title: Render scale
+    title: Масштаб рендеринга
   fps:
     title: ФПС
     description: Ограничить скорость рендеринга кадров
@@ -126,14 +127,14 @@ microphone: Микрофон
 models: Модель
 pages:
   account:
-    title: Account
-    description: View your profile and manage your account
-    notLoggedIn: Sign in to view your account and access all features
-    login: Log in
-    logout: Log out
-    fluxBalance: Flux Balance
-    viewFluxDetails: View details
-    signedInAs: Signed in as
+    title: Аккаунт
+    description: Просматривайте свой профиль и управляйте своей учетной записью
+    notLoggedIn: Войдите, чтобы просмотреть аккаунт и получить доступ ко всем функциям
+    login: Войти
+    logout: Выйти
+    fluxBalance: Баланс Flux
+    viewFluxDetails: Подробнее
+    signedInAs: Вы вошли как
   card:
     activate: Активировать
     active: Активно
@@ -257,9 +258,9 @@ pages:
         description: Очистка всех локальных настроек, конфигурации провайдера и модели.
         delete: Удалить все данные
       desktop-folder:
-        title: Open app data folder
-        description: Open AIRI's data folder in your file manager.
-        open: Open folder
+        title: Открыть папку с данными приложения
+        description: Открыть папку с данными AIRI в вашем файловом менеджере.
+        open: Открыть папку
       desktop:
         title: Сбросить настройки и состояния рабочего стола
         description: Очистить настройки AIRI рабочего стола и состояние рабочего времени.
@@ -386,30 +387,33 @@ pages:
       description: Играем в Minecraft!
       title: Minecraft
       enable: Включить интеграцию Minecraft
-      enable-description: Include Minecraft self-knowledge in Stage chat turns and keep passive runtime visibility enabled.
+      enable-description: >-
+        Включать самопознание Minecraft в этапы чата и оставить включённой пассивную видимость среды выполнения.
       configured: Minecraft настроен правильно!
       read-only:
-        title: Read-only shell
-        description: Stage currently exposes Minecraft as a passive shell. Runtime status and traffic are visible here, but service configuration stays in the Minecraft service files.
+        title: Оболочка только для чтения
+        description: >-
+          Этап в данный момент предоставляет Minecraft как пассивную оболочку. Статус среды выполнения и трафик видны здесь, но конфигурация сервиса остаётся в файлах сервиса Minecraft.
       setup:
-        title: Setup
-        description: You can find the instructions for setting up the bot in the following file
+        title: Установить
+        description: >-
+          Вы можете найти инструкции по настройке бота в следующем файле
       runtime:
-        title: Observed runtime
-        connection: Connection
-        latest-context: Latest bot context
-        waiting: Waiting for a fresh bot-originated context push.
-        unknown: Unknown
+        title: Наблюдаемая среда выполнения
+        connection: Подключение
+        latest-context: Последний контекст бота
+        waiting: Ожидание отправки нового контекста от бота.
+        unknown: Неизвестно
       debug:
-        title: Minecraft traffic
-        empty: No Minecraft traffic observed yet.
-        source: 'Source: {source}'
+        title: Трафик Minecraft
+        empty: Трафика Minecraft пока не обнаружено.
+        source: 'Источник: {source}'
       status:
-        service-online: Service online
-        service-offline: Service offline
-        no-runtime-context: 'No bot context observed yet'
-        last-context-seconds: 'Last bot context: {seconds}s ago'
-        last-context-stale: 'Last bot context: Stale'
+        service-online: Сервис онлайн
+        service-offline: Сервис офлайн
+        no-runtime-context: Контекст бота пока не обнаружен
+        last-context-seconds: 'Последний контекст бота: {seconds}с назад'
+        last-context-stale: 'Последний контекст бота: устарел'
     hearing:
       description: Настройка распознавания речи
       title: Слух
@@ -418,13 +422,14 @@ pages:
           provider-selection:
             description: Выберите подходящего провайдера синтеза речи
           confidence-threshold:
-            title: Confidence Threshold
-            description: Filter out low-confidence transcriptions to reduce Whisper hallucinations. Values closer to 0 are more strict; drag to the leftmost to disable. Only effective for providers supporting Whisper API (e.g., OpenAI, Groq).
-            disabled: Disabled
+            title: Порог уверенности
+            description: >-
+              Отфильтровывать транскрипции с низкой уверенностью, чтобы уменьшить галлюцинации Whisper. Значения ближе к 0 более строгие; перетащите в крайнее левое положение, чтобы отключить. Работает только для провайдеров, поддерживающих Whisper API (например, OpenAI, Groq).
+            disabled: Отключено
             verbose-json-note: >-
-              Note: If your provider does not support verbose_json responses, this setting will have no effect.
+              Примечание: Если ваш провайдер не поддерживает verbose_json ответы, эта настройка не будет иметь никакого эффекта.
             verbose-json-unsupported: >-
-              Your provider did not return verbose_json segments. Confidence filtering had no effect on the last transcription.
+              Ваш провайдер не вернул сегменты verbose_json. Фильтрация по уверенности не повлияла на последнюю транскрипцию.
     memory-long-term:
       description: Настройки долговременной памяти
       title: Долговременная память
@@ -511,33 +516,34 @@ pages:
         apply-and-restart: Сохранить и перезапустить MCP
       messages:
         opened: Файл конфигурации открыт {path}
-        restarted: MCP серверы перезапущены. Запущен {started}, не удалось {failed}, пропущено {skipped}
+        restarted: >-
+          MCP серверы перезапущены. Запущен {started}, не удалось {failed}, пропущено {skipped}
   flux:
     title: Flux
-    buy: Charge
-    description: Current Flux
-    packagesError: Failed to load packages. Please try again later.
+    buy: Пополнить
+    description: Текущий Flux
+    packagesError: Не удалось загрузить пакеты. Пожалуйста, повторите попытку позже.
     checkout:
-      success: Payment successful! Your Flux has been topped up.
-      canceled: Payment was canceled.
-      error: Something went wrong. Please try again later.
+      success: Платеж выполнен! Ваш Flux пополнился.
+      canceled: Оплата была отменена.
+      error: Что-то пошло не так. Повторите попытку позже.
     audit:
-      title: Transaction History
-      time: Time
-      type: Type
-      detail: Detail
-      amount: Amount
-      typeAddition: Top-up
-      typeConsumption: Usage
-      typeInitial: Initial Grant
-      loading: Loading history...
-      empty: No transaction records yet.
-      loadMore: Load More
-      delayHint: Usage records may be delayed by up to 1 minute
+      title: История транзакций
+      time: Время
+      type: Тип
+      detail: Сведения
+      amount: Кол-во
+      typeAddition: Пополнение
+      typeConsumption: Использование
+      typeInitial: Начальный грант
+      loading: Загрузка истории...
+      empty: Пока нет записей транзакций.
+      loadMore: Загрузить ещё
+      delayHint: Записи об использовании могут задерживаться до 1 минуты
     packages:
-      title: Flux Packages
-      buy: Charge
-      description: Flux packages to choose from.
+      title: Flux пакеты
+      buy: Пополнить
+      description: Пакеты Flux на выбор.
   providers:
     explained:
       chat: Провайдеры текстогенерации, напр. OpenRouter, OpenAI, Ollama.
@@ -621,7 +627,7 @@ pages:
                       К сожалению, произошла проверка соединения для Ollama. Не волнуйтесь, для копий Ollama требуется дополнительная конфигурация для передачи Ollama. Необходимо установить <code>OLLAMA_HOST</code> явно при запуске приложения Ollama или Ollama CLI сервера, для получения подробной информации смотрите руководство по интеграции <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama</a>.
     common:
       continueAnyway: Продолжить всё равно
-      goToModelSelection: 'Выберите модель →'
+      goToModelSelection: Выберите модель →
       fields:
         field:
           api-key:
@@ -872,7 +878,7 @@ pages:
         title: xAI
       zai:
         description: z.ai
-        title: Z.ai
+        title: 智谱大模型
       302-ai:
         description: 302.AI
         title: 302.AI
@@ -889,12 +895,12 @@ pages:
         description: Браузер  STT (требует Chrome/Edge/Safari)
         title: Web Speech API
       official:
-        title: Official Provider
-        description: Official AI provider by AIRI.
-        speech-title: Official Speech Provider
-        speech-description: Official text-to-speech provider by AIRI.
-        transcription-title: Official Transcription Provider
-        transcription-description: Official speech-to-text provider by AIRI.
+        title: Официальный провайдер
+        description: Официальный ИИ провайдер AIRI.
+        speech-title: Официальный провайдер синтеза речи
+        speech-description: Официальный text-to-speech провайдер AIRI.
+        transcription-title: Официальный провайдер транскрипции
+        transcription-description: Официальный speech-to-text провайдер AIRI.
       transcriptions:
         playground:
           title: Песочница транскрипции
@@ -910,18 +916,44 @@ pages:
       label: Адрес сервера WebSocket
       placeholder: Ws://localhost:6121/ws
     server-hostname:
-      label: Expose On Network
-      description: Choose whether the AIRI gateway only listens on this device or can be reached from your local network.
-      advanced-label: Bind Hostname
-      advanced-description: Use a specific hostname or IP address when you need manual network binding.
+      label: Открыть доступ по сети
+      description: >-
+        Выберите, будет ли шлюз AIRI прослушивать только это устройство или к нему можно будет подключиться из вашей локальной сети.
+      advanced-label: Привязать имя хоста
+      advanced-description: >-
+        Использовать определенное имя хоста или IP-адрес, когда требуется ручная привязка сети.
       options:
-        this-device: This device
-        all: All
-        advanced: Advanced
+        this-device: Это устройство
+        all: Все
+        advanced: Дополнительно
     server-auth-token:
-      label: Auth Token
-      description: Security token required by remote clients that connect to this gateway. When left empty, AIRI generates a new token automatically.
-      placeholder: Auto-generate
+      label: Токен аутентификации
+      description: >-
+        Токен безопасности, требуемый удалёнными клиентами для подключения к этому шлюзу. Если оставить пустым, AIRI сгенерирует новый токен автоматически.
+      placeholder: Авто-Генерация
+    qr:
+      title: Connect from Stage Pocket
+      description: >-
+        Scan this QR code from Stage Pocket to try all reachable local network addresses and save the first working one.
+      refresh: Refresh
+      image-alt: AIRI server channel connection QR code
+      candidates: Candidate addresses
+      token-hint: >-
+        The QR code includes the auth token so Stage Pocket can authenticate after connecting. Do not share it publicly.
+      errors:
+        title: QR code unavailable
+        unavailable: Failed to prepare the connection QR code.
+    qr-scan:
+      title: Quick Connect
+      description: Scan the QR code from Tamagotchi to quick connect
+      instructions: Point the camera at the AIRI connection QR code.
+      action: Scan
+      success:
+        title: Connected address saved
+        description: 'URL been used: {url}'
+      errors:
+        title: QR scan failed
+        failed: Failed to scan or connect with the QR code.
   scene:
     description: Настройте окружение, в котором живёт персонаж
     title: Сцена
@@ -995,7 +1027,7 @@ pages:
                   Трансляция микрофона на Aliyun NLS и проверка текущих субтитров
               performance-playground:
                 title: Игровая площадка производительности
-                description: 'Выражения VRM + Проводка TTS lip синхронизации'
+                description: Выражения VRM + Проводка TTS lip синхронизации
         theme-presets:
           presets:
             default:
@@ -1072,7 +1104,7 @@ pages:
         title: Открыть инструменты разработчика
         button: Открыть
   credits:
-    buy: Buy
+    buy: Купить
 sections:
   section:
     general:
@@ -1085,7 +1117,7 @@ title: Настройки
 voices: Голос
 vrm:
   render-scale:
-    title: Render scale
+    title: Масштаб рендеринга
   change-model:
     from-file: Загрузить из файла
     from-file-select: Выбрать
