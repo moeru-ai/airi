@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import { useElectronAutoUpdater } from '@proj-airi/electron-vueuse'
+import type { ElectronUpdaterChannel } from '../../shared/eventa'
+
+import { useElectronAutoUpdater, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { AboutContent, MarkdownRenderer } from '@proj-airi/stage-ui/components'
 import { useBreakpoints } from '@proj-airi/stage-ui/composables'
 import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
-import { Button, DoubleCheckButton, Progress } from '@proj-airi/ui'
+import { Button, DoubleCheckButton, FieldSelect, Progress } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { DrawerContent, DrawerDescription, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTitle } from 'vaul-vue'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+
+import { electronGetUpdaterPreferences, electronSetUpdaterPreferences } from '../../shared/eventa'
 
 const analyticsStore = useSharedAnalyticsStore()
 const { buildInfo } = storeToRefs(analyticsStore)
@@ -34,6 +38,14 @@ const links = [
 
 const showChangelog = ref(false)
 const { isDesktop } = useBreakpoints()
+const updateChannelOptions = ['auto', 'stable', 'alpha', 'beta', 'nightly', 'canary'] as const
+const updateChannelSelectOptions = updateChannelOptions.map(channel => ({
+  label: channel,
+  value: channel,
+}))
+type UpdateChannelOption = typeof updateChannelOptions[number]
+const selectedUpdateChannel = ref<UpdateChannelOption>('auto')
+const isUpdateChannelUpdating = ref(false)
 
 const isWindowsUpdater = computed(() => {
   return updateState.value.diagnostics?.platform === 'win32'
@@ -50,6 +62,9 @@ const restartButtonLabel = computed(() => {
   return isWindowsUpdater.value ? 'Restart to update silently' : 'Restart to install update'
 })
 
+const getUpdaterPreferences = useElectronEventaInvoke(electronGetUpdaterPreferences)
+const setUpdaterPreferences = useElectronEventaInvoke(electronSetUpdaterPreferences)
+
 function handleDownloadClick() {
   if (updateState.value.info?.releaseNotes)
     showChangelog.value = true
@@ -62,6 +77,26 @@ function confirmDownload() {
   downloadUpdate()
 }
 
+async function refreshUpdaterChannelPreference() {
+  const preferences = await getUpdaterPreferences()
+  selectedUpdateChannel.value = preferences?.channel ?? 'auto'
+}
+
+async function setUpdateChannelPreference(channel: UpdateChannelOption) {
+  if (isUpdateChannelUpdating.value)
+    return
+
+  isUpdateChannelUpdating.value = true
+  try {
+    const nextChannel = channel === 'auto' ? undefined : channel as ElectronUpdaterChannel
+    const preferences = await setUpdaterPreferences({ channel: nextChannel })
+    selectedUpdateChannel.value = preferences?.channel ?? 'auto'
+  }
+  finally {
+    isUpdateChannelUpdating.value = false
+  }
+}
+
 // Ensure releaseNotes is a string for the renderer
 const releaseNotesContent = computed(() => {
   const notes = updateState.value.info?.releaseNotes
@@ -69,6 +104,10 @@ const releaseNotesContent = computed(() => {
     return notes.map(n => typeof n === 'string' ? n : n?.note ?? '').join('\n\n')
   }
   return typeof notes === 'string' ? notes : ''
+})
+
+onMounted(() => {
+  void refreshUpdaterChannelPreference()
 })
 </script>
 
@@ -88,6 +127,18 @@ const releaseNotesContent = computed(() => {
 
       <!-- Main Content Card -->
       <div :class="['mb-12', 'rounded-2xl', 'bg-white/50 dark:bg-black/20', 'p-6', 'backdrop-blur-sm']">
+        <FieldSelect
+          :model-value="selectedUpdateChannel"
+          :disabled="isUpdateChannelUpdating"
+          label="Update lane"
+          description="Choose which release lane updater checks against. Auto follows the current app prerelease lane."
+          placeholder="Choose update lane"
+          :options="updateChannelSelectOptions"
+          layout="vertical"
+          :class="['mb-6']"
+          @update:model-value="setUpdateChannelPreference($event as UpdateChannelOption)"
+        />
+
         <!-- Build Info -->
         <div :class="['flex flex-wrap items-center justify-between gap-4', 'mb-6', 'border-b border-neutral-200/50 dark:border-neutral-800/50', 'pb-6']">
           <div>

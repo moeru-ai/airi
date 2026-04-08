@@ -24,9 +24,11 @@ interface Emits {
   (e: 'skipped'): void
 }
 
-const { extraSteps = [] } = defineProps<{
+const props = withDefaults(defineProps<{
   extraSteps?: OnboardingStep[]
-}>()
+}>(), {
+  extraSteps: () => [],
+})
 const emit = defineEmits<Emits>()
 const step = ref(0)
 const direction = ref<'next' | 'previous'>('next')
@@ -134,7 +136,7 @@ const allSteps = computed<OnboardingStep[]>(() => {
         return true
       },
     },
-    ...extraSteps.map(step => ({
+    ...props.extraSteps.map(step => ({
       ...step,
       props: () => ({
         ...step.props?.(),

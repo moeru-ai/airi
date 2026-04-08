@@ -1,0 +1,34 @@
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index bfa8434ddad32d08af9d9aedaf6a1f1caa21cac8..db248a93025a37d2c0d11d7a6bb31aa9ba6ee63b 100644
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -1,9 +1,13 @@
+ import { WithUnknown } from '@xsai/shared';
+-import { ChatOptions, CompletionStep, PrepareStep, StopCondition, FinishReason, AssistantMessage, Usage, Message, CompletionToolCall, CompletionToolResult } from '@xsai/shared-chat';
++import { ChatOptions, CompletionStep, OnToolCallFinishCallback, OnToolCallStartCallback, PrepareStep, RepairToolCallFunction, StopCondition, FinishReason, AssistantMessage, Usage, Message, CompletionToolCall, CompletionToolResult } from '@xsai/shared-chat';
+ 
+ interface GenerateTextOptions extends ChatOptions {
+     onStepFinish?: (step: CompletionStep<true>) => Promise<unknown> | unknown;
++    captureToolErrors?: boolean;
++    onToolCallFinish?: OnToolCallFinishCallback;
++    onToolCallStart?: OnToolCallStartCallback;
+     prepareStep?: PrepareStep;
++    repairToolCall?: RepairToolCallFunction;
+     /** @internal */
+     steps?: CompletionStep<true>[];
+     /** @default `stepCountAtLeast(1)` */
+diff --git a/dist/index.js b/dist/index.js
+index 11940a69300f795caa7b780deba1f61a4d3127f6..2cefa4f4806493b21aae75df2cb1ae4e6ae5f160 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -41,6 +41,10 @@ const rawGenerateText = async (options) => {
+         msgToolCalls.map(async (toolCall) => executeTool({
+           abortSignal: options.abortSignal,
++          captureToolErrors: options.captureToolErrors,
+           messages,
++          onToolCallFinish: options.onToolCallFinish,
++          onToolCallStart: options.onToolCallStart,
++          repairToolCall: options.repairToolCall,
+           toolCall,
+           tools: options.tools
+         }))

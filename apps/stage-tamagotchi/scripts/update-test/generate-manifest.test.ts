@@ -60,4 +60,22 @@ describe('generateManifestFixtures', () => {
     expect(manifest.files[0]?.size).toBeGreaterThan(0)
     await expect(readFile(result.artifactPath, 'utf8')).resolves.toBe('mock-installer-binary')
   })
+
+  it.each(['stable', 'beta', 'alpha', 'nightly'] as const)('supports channel fixtures for %s', async (channel) => {
+    const root = await mkdtemp(join(tmpdir(), 'airi-update-test-'))
+    roots.push(root)
+
+    const result = await generateManifestFixtures({
+      rootDir: root,
+      channel,
+      target: 'aarch64-apple-darwin',
+      version: '9.9.9-test.2',
+      releaseNotes: 'Mock update lane fixture',
+      artifactContent: `mock-installer-${channel}`,
+    })
+
+    expect(result.channelDir).toBe(join(root, channel))
+    expect(result.latestFilename).toBe('latest-arm64-mac.yml')
+    await expect(readFile(result.artifactPath, 'utf8')).resolves.toBe(`mock-installer-${channel}`)
+  })
 })

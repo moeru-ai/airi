@@ -107,7 +107,7 @@ const isTransparent = computed(() => {
   return true
 })
 
-const { isNearAnyBorder: isAroundWindowBorder } = useElectronMouseAroundWindowBorder({ threshold: 30 })
+const { isNearAnyBorder: isAroundWindowBorder } = useElectronMouseAroundWindowBorder({ threshold: 10 })
 const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)

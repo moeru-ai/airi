@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import ConnectionSettings from '@proj-airi/stage-pages/pages/settings/connection/ConnectionSettings.vue'
-
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
+import { ConnectionSettings } from '@proj-airi/stage-ui/components'
 import { Callout, FieldCheckbox, FieldInput, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
@@ -53,80 +52,61 @@ const exposureModeOptions = computed(() => [
 </script>
 
 <template>
-  <ConnectionSettings>
-    <template #platform-specific>
-      <!-- TODO: show connected remote -->
-      <FieldCheckbox
-        v-model="websocketTlsEnabled"
-        v-motion
-        :initial="{ opacity: 0, y: 10 }"
-        :enter="{ opacity: 1, y: 0 }"
-        :duration="250 + (5 * 10)"
-        :delay="5 * 50"
-        :label="t('settings.websocket-secure-enabled.title')"
-        :description="t('settings.websocket-secure-enabled.description')"
-      />
-
-      <div
-        v-if="showDesktopServerControls"
-        v-motion
-        :initial="{ opacity: 0, y: 10 }"
-        :enter="{ opacity: 1, y: 0 }"
-        :duration="250 + (6 * 10)"
-        :delay="6 * 50"
-        :class="['flex', 'flex-col', 'gap-2']"
-      >
-        <div :class="['text-sm', 'font-medium', 'text-neutral-900', 'dark:text-neutral-100']">
-          {{ t('settings.pages.connection.server-hostname.label') }}
-        </div>
-        <div :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
-          {{ t('settings.pages.connection.server-hostname.description') }}
-        </div>
-        <SelectTab
-          v-model="exposureMode"
-          size="sm"
-          :options="exposureModeOptions"
+  <div>
+    <Callout
+      v-if="lastApplyError"
+      theme="orange"
+      :label="t('settings.websocket-secure-enabled.title')"
+    >
+      {{ lastApplyError }}
+    </Callout>
+    <ConnectionSettings>
+      <template #platform-specific>
+        <!-- TODO: show connected remote -->
+        <FieldCheckbox
+          v-model="websocketTlsEnabled"
+          :label="t('settings.websocket-secure-enabled.title')"
+          :description="t('settings.websocket-secure-enabled.description')"
         />
-      </div>
 
-      <FieldInput
-        v-if="showDesktopServerControls && showAdvancedHostname"
-        v-model="hostname"
-        v-motion
-        :initial="{ opacity: 0, y: 10 }"
-        :enter="{ opacity: 1, y: 0 }"
-        :duration="250 + (7 * 10)"
-        :delay="7 * 50"
-        :label="t('settings.pages.connection.server-hostname.advanced-label')"
-        :description="t('settings.pages.connection.server-hostname.advanced-description')"
-        placeholder="192.168.1.25"
-      />
+        <div
+          v-if="showDesktopServerControls"
+          :class="['flex', 'flex-col', 'gap-2']"
+        >
+          <div :class="['text-sm', 'font-medium', 'text-neutral-900', 'dark:text-neutral-100']">
+            {{ t('settings.pages.connection.server-hostname.label') }}
+          </div>
+          <div :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
+            {{ t('settings.pages.connection.server-hostname.description') }}
+          </div>
+          <SelectTab
+            v-model="exposureMode"
+            size="sm"
+            :options="exposureModeOptions"
+          />
+        </div>
 
-      <FieldInput
-        v-if="showDesktopServerControls"
-        v-model="authToken"
-        v-motion
-        :initial="{ opacity: 0, y: 10 }"
-        :enter="{ opacity: 1, y: 0 }"
-        :duration="250 + (8 * 10)"
-        :delay="8 * 50"
-        secure
-        :label="t('settings.pages.connection.server-auth-token.label')"
-        :description="t('settings.pages.connection.server-auth-token.description')"
-        :placeholder="t('settings.pages.connection.server-auth-token.placeholder')"
-      />
+        <FieldInput
+          v-if="showDesktopServerControls && showAdvancedHostname"
+          v-model="hostname"
+          :label="t('settings.pages.connection.server-hostname.advanced-label')"
+          :description="t('settings.pages.connection.server-hostname.advanced-description')"
+          placeholder="192.168.1.25"
+        />
 
-      <Callout
-        v-if="lastApplyError"
-        theme="orange"
-        :label="t('settings.websocket-secure-enabled.title')"
-      >
-        {{ lastApplyError }}
-      </Callout>
+        <FieldInput
+          v-if="showDesktopServerControls"
+          v-model="authToken"
+          type="password"
+          :label="t('settings.pages.connection.server-auth-token.label')"
+          :description="t('settings.pages.connection.server-auth-token.description')"
+          :placeholder="t('settings.pages.connection.server-auth-token.placeholder')"
+        />
 
-      <ServerChannelQrCard />
-    </template>
-  </ConnectionSettings>
+        <ServerChannelQrCard />
+      </template>
+    </ConnectionSettings>
+  </div>
 </template>
 
 <route lang="yaml">

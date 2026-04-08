@@ -3,7 +3,7 @@ import type { ServerChannelQrPayload } from '@proj-airi/stage-shared/server-chan
 
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { Button, Callout, Collapsible } from '@proj-airi/ui'
+import { Button, Callout, Collapsible, useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { renderSVG } from 'uqr'
 import { computed, shallowRef, watch } from 'vue'
@@ -12,6 +12,7 @@ import { useI18n } from 'vue-i18n'
 import { electronGetServerChannelQrPayload } from '../../../../shared/eventa'
 import { useServerChannelSettingsStore } from '../../../stores/settings/server-channel'
 
+const { isDark } = useTheme()
 const { t } = useI18n()
 const getServerChannelQrPayload = useElectronEventaInvoke(electronGetServerChannelQrPayload)
 const { authToken, hostname, tlsConfig } = storeToRefs(useServerChannelSettingsStore())
@@ -38,7 +39,7 @@ const qrCodeSource = computed(() => {
     ecc: 'M',
     pixelSize: 8,
     whiteColor: 'transparent',
-    blackColor: '#111827',
+    blackColor: isDark.value ? '#D5D5D5' : '#121212',
   })
 
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
@@ -94,7 +95,7 @@ watch([hostname, tlsConfig, authToken], () => {
 
     <div
       :class="[
-        'mt-3 rounded-2xl border border-neutral-200/70 bg-white/70 p-4 dark:border-neutral-700/70 dark:bg-neutral-900/50',
+        'mt-3 rounded-xl bg-white/70 p-4 dark:bg-neutral-900/50',
         'flex flex-col gap-4',
       ]"
     >

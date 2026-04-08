@@ -378,6 +378,15 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
               })
 
               break
+            case 'tool-error':
+              toolCallQueue.enqueue({
+                type: 'tool-call-result',
+                id: event.toolCallId,
+                isError: true,
+                result: event.result,
+              })
+
+              break
             case 'text-delta':
               fullText += event.text
               await parser.consume(event.text)

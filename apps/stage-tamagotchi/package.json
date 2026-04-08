@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/stage-tamagotchi",
   "type": "module",
-  "version": "0.9.0-beta.6",
+  "version": "0.9.0-beta.7",
   "private": true,
   "description": "LLM powered virtual character",
   "author": {
@@ -31,7 +31,8 @@
     "regenerate-windows-latest": "tsx scripts/regenerate-windows-latest.ts",
     "artifacts-metadata": "tsx scripts/artifacts-metadata.ts",
     "update-test:generate": "tsx scripts/update-test/generate-manifest.ts",
-    "update-test:server": "tsx scripts/update-test/start-server.ts"
+    "update-test:server": "tsx scripts/update-test/start-server.ts",
+    "update-test:matrix": "bash scripts/update-test/run-matrix.sh"
   },
   "dependencies": {
     "@date-fns/utc": "^2.1.1",
@@ -82,7 +83,7 @@
     "@xsai/shared": "catalog:",
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
-    "@xsai/stream-transcription": "0.4.0-beta.8",
+    "@xsai/stream-transcription": "catalog:",
     "@xsai/tool": "catalog:",
     "@xsai/utils-chat": "catalog:",
     "alien-signals": "catalog:",
