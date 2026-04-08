@@ -4,7 +4,7 @@
 
   callPackage,
 
-  pnpm,
+  pnpmConfigHook,
 
   cacert,
   gitMinimal,
@@ -37,7 +37,7 @@ stdenvNoCC.mkDerivation (final: {
       cacert # For network request
       gitMinimal # For unplugin-info
       nodejs
-      pnpm.configHook
+      pnpmConfigHook
     ];
 
     buildPhase = ''
