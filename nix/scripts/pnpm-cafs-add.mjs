@@ -2,10 +2,44 @@
 import { createRequire } from "node:module";
 import process$1 from "node:process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 //#region \0rolldown/runtime.js
 var __commonJSMin = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
 var __require = /* @__PURE__ */ createRequire(import.meta.url);
+//#endregion
+//#region node_modules/.pnpm/@pnpm+constants@1001.3.1/node_modules/@pnpm/constants/lib/index.js
+var require_lib$4 = /* @__PURE__ */ __commonJSMin(((exports) => {
+	Object.defineProperty(exports, "__esModule", { value: true });
+	exports.USEFUL_NON_ROOT_PNPM_FIELDS = exports.FULL_FILTERED_META_DIR = exports.FULL_META_DIR = exports.ABBREVIATED_META_DIR = exports.WORKSPACE_MANIFEST_FILENAME = exports.STORE_VERSION = exports.LAYOUT_VERSION = exports.ENGINE_NAME = exports.MANIFEST_BASE_NAMES = exports.LOCKFILE_VERSION = exports.LOCKFILE_MAJOR_VERSION = exports.WANTED_LOCKFILE = void 0;
+	exports.getNodeBinLocationForCurrentOS = getNodeBinLocationForCurrentOS;
+	exports.getDenoBinLocationForCurrentOS = getDenoBinLocationForCurrentOS;
+	exports.getBunBinLocationForCurrentOS = getBunBinLocationForCurrentOS;
+	exports.WANTED_LOCKFILE = "pnpm-lock.yaml";
+	exports.LOCKFILE_MAJOR_VERSION = "9";
+	exports.LOCKFILE_VERSION = `${exports.LOCKFILE_MAJOR_VERSION}.0`;
+	exports.MANIFEST_BASE_NAMES = [
+		"package.json",
+		"package.json5",
+		"package.yaml"
+	];
+	exports.ENGINE_NAME = `${process.platform};${process.arch};node${process.version.split(".")[0].substring(1)}`;
+	exports.LAYOUT_VERSION = 5;
+	exports.STORE_VERSION = "v10";
+	exports.WORKSPACE_MANIFEST_FILENAME = "pnpm-workspace.yaml";
+	exports.ABBREVIATED_META_DIR = "metadata-v1.3";
+	exports.FULL_META_DIR = "metadata-full-v1.3";
+	exports.FULL_FILTERED_META_DIR = "metadata-ff-v1.3";
+	exports.USEFUL_NON_ROOT_PNPM_FIELDS = ["executionEnv"];
+	function getNodeBinLocationForCurrentOS(platform = process.platform) {
+		return platform === "win32" ? "node.exe" : "bin/node";
+	}
+	function getDenoBinLocationForCurrentOS(platform = process.platform) {
+		return platform === "win32" ? "deno.exe" : "deno";
+	}
+	function getBunBinLocationForCurrentOS(platform = process.platform) {
+		return platform === "win32" ? "bun.exe" : "bun";
+	}
+}));
 //#endregion
 //#region node_modules/.pnpm/minipass@7.1.3/node_modules/minipass/dist/commonjs/index.js
 var require_commonjs = /* @__PURE__ */ __commonJSMin(((exports) => {
@@ -4050,23 +4084,8 @@ var require_writeBufferToCafs = /* @__PURE__ */ __commonJSMin(((exports) => {
 	}
 }));
 //#endregion
-//#region nix/scripts/pnpm-cafs-add.ts
-/**
-* pnpm-cafs-add — Write a single npm tarball into a pnpm CAFS store fragment
-* using pnpm's own @pnpm/store.cafs library.
-*
-* Usage:
-*   node pnpm-cafs-add.bundled.mjs <tarball.tgz> <output-dir> <name@version> <sha512-base64>
-*
-* The output-dir will contain the partial store structure:
-*   output-dir/files/{hex[:2]}/{hex[2:]}[-exec]
-*   output-dir/index/{hex[:2]}/{hex[2:64]}-{name+version}.json
-*
-* This script delegates all CAFS logic (hashing, file placement, -exec suffix)
-* to @pnpm/store.cafs — pnpm's own implementation. This ensures the output format
-* automatically tracks pnpm's internal store layout across versions.
-*/
-var import_lib = (/* @__PURE__ */ __commonJSMin(((exports) => {
+//#region node_modules/.pnpm/@pnpm+store.cafs@1000.1.4/node_modules/@pnpm/store.cafs/lib/index.js
+var require_lib = /* @__PURE__ */ __commonJSMin(((exports) => {
 	var __importDefault = exports && exports.__importDefault || function(mod) {
 		return mod && mod.__esModule ? mod : { "default": mod };
 	};
@@ -4131,7 +4150,26 @@ var import_lib = (/* @__PURE__ */ __commonJSMin(((exports) => {
 			filePath
 		};
 	}
-})))();
+}));
+//#endregion
+//#region nix/scripts/pnpm-cafs-add.ts
+/**
+* pnpm-cafs-add — Write a single npm tarball into a pnpm CAFS store fragment
+* using pnpm's own @pnpm/store.cafs library.
+*
+* Usage:
+*   node pnpm-cafs-add.mjs <tarball.tgz> <output-dir> <name@version> <sha512-base64>
+*
+* The output-dir will contain the complete store structure:
+*   output-dir/.fetcher-version                    ← "2" (raw directory format)
+*   output-dir/<STORE_VERSION>/files/...           ← content-addressed files
+*   output-dir/<STORE_VERSION>/index/...           ← package index JSON
+*
+* ALL pnpm format knowledge is encapsulated here via @pnpm/store.cafs and
+* @pnpm/constants. The Nix merge derivation is completely format-agnostic.
+*/
+var import_lib = require_lib$4();
+var import_lib$1 = require_lib();
 const [, , tarballPath, outputDir, nameVersion, integrityArg] = process$1.argv;
 if (!tarballPath || !outputDir || !nameVersion || !integrityArg) {
 	console.error("Usage: pnpm-cafs-add <tarball.tgz> <output-dir> <name@version> <sha512-base64>");
@@ -4140,8 +4178,9 @@ if (!tarballPath || !outputDir || !nameVersion || !integrityArg) {
 const lastAt = nameVersion.lastIndexOf("@");
 const pkgName = nameVersion.slice(0, lastAt);
 const pkgVersion = nameVersion.slice(lastAt + 1);
+const cafsDir = join(outputDir, import_lib.STORE_VERSION);
 const tarballBuffer = readFileSync(tarballPath);
-const cafs = (0, import_lib.createCafs)(outputDir);
+const cafs = (0, import_lib$1.createCafs)(cafsDir);
 const { filesIndex } = cafs.addFilesFromTarball(tarballBuffer);
 const files = {};
 for (const [relPath, info] of Object.entries(filesIndex)) files[relPath] = {
@@ -4157,5 +4196,6 @@ writeFileSync(indexPath, JSON.stringify({
 	requiresBuild: false,
 	files
 }));
+writeFileSync(join(outputDir, ".fetcher-version"), "2");
 //#endregion
 export {};

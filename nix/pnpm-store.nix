@@ -10,18 +10,24 @@
 # Per-package caching: Nix independently caches each makePkgStore derivation.
 # When a single dependency updates, only that package's derivation re-runs — the
 # other ~3000 are served from cache.
+#
+# All pnpm internal format knowledge (store version prefix, fetcher-version file,
+# CAFS file layout) is encapsulated in pnpm-cafs-add.mjs via @pnpm/store.cafs.
+# This Nix file is completely format-agnostic.
 {
   stdenvNoCC,
   lib,
   fetchurl,
   nodejs,
-  pnpm,
 }:
 let
   packagesJson = builtins.fromJSON (builtins.readFile ./pnpm-packages.json);
 
   # Each package gets its own derivation: fetch tarball → write CAFS fragment
-  # via pnpm's own @pnpm/store.cafs library (bundled in pnpm-cafs-add.mjs).
+  # via pnpm's own @pnpm/store.cafs and @pnpm/constants libraries (bundled
+  # in pnpm-cafs-add.mjs). The script writes the complete store structure
+  # including version prefix and .fetcher-version — Nix doesn't need to
+  # know pnpm's internal format at all.
   makePkgStore = key: pkg:
     let
       drv = fetchurl {
@@ -57,48 +63,18 @@ in
 # environment variables, causing E2BIG. passAsFile writes the content to a
 # temp file and sets pkgStoresListPath, keeping the env small. Nix still
 # tracks the string context (i.e. dependencies on all pkgStores) correctly.
-#
-# NOTICE: pnpm is added as a nativeBuildInput solely to detect the CAFS store
-# version subdirectory (e.g. "v10") at merge build time via `pnpm store path`.
-# This avoids hardcoding the version and automatically adapts when nixpkgs
-# updates pnpm to a version that bumps its internal store layout. The per-package
-# builds (makePkgStore) do NOT include pnpm, so their drv hashes are unaffected
-# by pnpm version bumps — only this single merge derivation reruns.
 stdenvNoCC.mkDerivation {
   name = "airi-pnpm-deps";
-  nativeBuildInputs = [ pnpm ];
   passAsFile = [ "pkgStoresList" ];
   pkgStoresList = (lib.concatStringsSep "\n" (lib.attrValues pkgStores)) + "\n";
   buildPhase = ''
-    # Detect pnpm's internal CAFS version subdirectory (e.g. "v10").
-    # pnpm appends this as the last segment of its store path.
-    export HOME=$(mktemp -d)
-    # Suppress packageManager version mismatch errors (we're not in a project dir)
-    pnpm config set manage-package-manager-versions false 2>/dev/null || true
-    storeVer=$(basename "$(pnpm store path 2>/dev/null)")
-    # Validate: must be v<digits>; fall back to v10 if detection fails
-    [[ "$storeVer" =~ ^v[0-9]+$ ]] || storeVer=v10
-
-    mkdir -p "$out/$storeVer/files" "$out/$storeVer/index"
     while IFS= read -r store; do
       [ -z "$store" ] && continue
-      if [ -d "$store/files" ]; then
-        # NOTICE: --no-preserve=mode prevents cp from copying Nix store directory
-        # permissions (0555, read-only) into $out. Without it, the first package
-        # to create e.g. files/cd/ sets it to 0555, and subsequent packages fail
-        # to write into it with "Permission denied".
-        cp -rn --no-preserve=mode "$store/files/." "$out/$storeVer/files/"
-      fi
-      if [ -d "$store/index" ]; then
-        cp -rn --no-preserve=mode "$store/index/." "$out/$storeVer/index/"
-      fi
+      cp -rn --no-preserve=mode "$store/." "$out/"
     done < "$pkgStoresListPath"
-    # NOTICE: CAFS v10 files with -exec suffix denote executable binaries (e.g. turbo, esbuild).
+    # NOTICE: CAFS files with -exec suffix denote executable binaries (e.g. turbo, esbuild).
     # Set their permissions to 555 (r-xr-xr-x) so pnpm can execute them during install.
-    # Without this, pnpm install fails with EACCES when trying to run native binaries.
     find "$out" -type f -name "*-exec" -exec chmod 555 {} +
-    # fetcherVersion=2 tells pnpmConfigHook the store is a raw directory (not a tarball)
-    echo -n "2" > "$out/.fetcher-version"
   '';
   dontConfigure = true;
   dontUnpack = true;
