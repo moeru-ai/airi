@@ -45,8 +45,7 @@
     "nolyfill": "pnpm dlx nolyfill",
     "open:ios": "pnpm -rF @proj-airi/stage-pocket run open:ios",
     "knip": "knip",
-    "nix:gen": "tsx nix/scripts/gen-pnpm-packages.ts",
-    "nix:bundle-cafs": "tsdown nix/scripts/pnpm-cafs-add.ts --format esm --out-dir nix/scripts --no-clean --target node22"
+    "nix:gen": "tsx nix/scripts/gen-pnpm-packages.ts"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^8.2.0",

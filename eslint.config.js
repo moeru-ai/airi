@@ -28,7 +28,6 @@ export default defineConfig({
     '.agents/**',
     '.github/**',
     'CLAUDE.md', // Skip the symbolic link
-    'nix/scripts/pnpm-cafs-add.mjs', // Bundled output from pnpm-cafs-add.ts
   ],
 }, {
   rules: {
