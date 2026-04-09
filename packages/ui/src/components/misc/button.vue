@@ -19,6 +19,7 @@ interface ButtonProps {
   loading?: boolean // Loading state
   variant?: ButtonVariant // Button style variant
   size?: ButtonSize // Button size variant
+  shape?: 'rounded' | 'pill' | 'square' // Button shape
   theme?: ButtonTheme // Button theme
   block?: boolean // Full width button
 }
@@ -127,9 +128,21 @@ const variantClasses: Record<ButtonVariant, Record<ButtonTheme, {
 
 // Extract size styles for better organization
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'px-3 py-1.5 text-xs',
-  md: 'px-4 py-2 text-sm',
-  lg: 'px-6 py-3 text-base',
+  sm: props.shape === 'pill'
+    ? 'px-3 py-1.5 text-xs'
+    : props.shape === 'square'
+      ? 'p-2 text-xs'
+      : 'px-4 py-2 text-sm',
+  md: props.shape === 'pill'
+    ? 'px-4 py-2 text-sm'
+    : props.shape === 'square'
+      ? 'p-3 text-sm'
+      : 'px-5 py-3 text-base',
+  lg: props.shape === 'pill'
+    ? 'px-6 py-3 text-base'
+    : props.shape === 'square'
+      ? 'p-4 text-base'
+      : 'px-6 py-3 text-base',
 }
 
 // Base classes that are always applied
