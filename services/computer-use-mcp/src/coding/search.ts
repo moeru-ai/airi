@@ -328,11 +328,40 @@ export async function searchText(workspacePath: string, query: string, options: 
 
   args.push(normalizedQuery, '.')
   const output = await runRipgrep(args, searchRoot)
-  const matches = parseRipgrepMatches({
+  let matches = parseRipgrepMatches({
     output,
     workspacePath,
     searchRoot,
-  }).slice(0, effectiveLimit)
+  })
+
+  const files = Array.from(new Set(matches.map(m => m.file)))
+  const mtimes = new Map<string, number>()
+
+  await Promise.allSettled(
+    files.map(async (file) => {
+      try {
+        const stat = await fs.stat(path.join(workspacePath, file))
+        mtimes.set(file, stat.mtimeMs)
+      }
+      catch {
+        mtimes.set(file, 0)
+      }
+    }),
+  )
+
+  matches.sort((a, b) => {
+    const timeA = mtimes.get(a.file) || 0
+    const timeB = mtimes.get(b.file) || 0
+    if (timeA !== timeB) {
+      return timeB - timeA
+    }
+    if (a.file === b.file) {
+      return a.line - b.line
+    }
+    return a.file.localeCompare(b.file)
+  })
+
+  matches = matches.slice(0, effectiveLimit)
 
   return {
     total,
@@ -396,6 +425,33 @@ export async function searchSymbol(workspacePath: string, symbolName: string, op
 
   const output = await runRipgrep(args, searchRoot)
   const files = output.split('\n').filter(Boolean)
+
+  const mtimes = new Map<string, number>()
+  await Promise.allSettled(
+    files.map(async (file) => {
+      try {
+        const { absolutePath } = resolveReportedPath({
+          workspacePath,
+          searchRoot,
+          reportedPath: file,
+        })
+        const stat = await fs.stat(absolutePath)
+        mtimes.set(file, stat.mtimeMs)
+      }
+      catch {
+        mtimes.set(file, 0)
+      }
+    }),
+  )
+
+  files.sort((a, b) => {
+    const timeA = mtimes.get(a) || 0
+    const timeB = mtimes.get(b) || 0
+    if (timeA !== timeB) {
+      return timeB - timeA
+    }
+    return a.localeCompare(b)
+  })
 
   const allMatches: SearchMatch[] = []
 

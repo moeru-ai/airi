@@ -5031,20 +5031,51 @@ export class CodingPrimitives {
   async readFile(filePath: string, startLine?: number, endLine?: number) {
     const resolvedFilePath = this.resolveTargetFileInput(filePath)
     const absPath = this.resolveWorkspacePath(resolvedFilePath)
+
+    const isBlockedDevicePath = (p: string) => {
+      const blocked = new Set(['/dev/zero', '/dev/random', '/dev/urandom', '/dev/full', '/dev/stdin', '/dev/tty', '/dev/console', '/dev/stdout', '/dev/stderr', '/dev/fd/0', '/dev/fd/1', '/dev/fd/2'])
+      return blocked.has(p) || (p.startsWith('/proc/') && (p.endsWith('/fd/0') || p.endsWith('/fd/1') || p.endsWith('/fd/2')))
+    }
+
+    if (isBlockedDevicePath(absPath)) {
+      throw new McpError(ErrorCode.InvalidParams, `Cannot read '${filePath}': this device file would block or produce infinite output.`)
+    }
+
     try {
+      let rangeStr = 'all'
+      if (startLine !== undefined && endLine !== undefined) {
+        rangeStr = `${startLine}-${endLine}`
+      }
+
+      const state = this.runtime.stateManager.getState().coding ?? { recentReads: [], recentEdits: [], workspacePath: '', gitSummary: '', recentCommandResults: [], recentSearches: [], pendingIssues: [] }
+      let mtimeMs = 0
+      try {
+        const stat = await fs.stat(absPath)
+        if (stat)
+          mtimeMs = Math.floor(stat.mtimeMs || 0)
+      }
+      catch {
+        // ignore
+      }
+
+      const existingState = state.readFileState?.[absPath]
+      if (existingState && existingState.rangeStr === rangeStr && existingState.mtimeMs === mtimeMs) {
+        const recentReads = [...state.recentReads, { path: resolvedFilePath, range: rangeStr }]
+        this.runtime.stateManager.updateCodingState({ recentReads })
+        return `[File content unchanged: ${resolvedFilePath} (${rangeStr})]`
+      }
+
       const content = await fs.readFile(absPath, 'utf8')
       const lines = content.split('\n')
 
       let output = content
-      let rangeStr = 'all'
       if (startLine !== undefined && endLine !== undefined) {
         output = lines.slice(startLine - 1, endLine).join('\n')
-        rangeStr = `${startLine}-${endLine}`
       }
 
-      const state = this.runtime.stateManager.getState().coding ?? { recentReads: [], recentEdits: [], workspacePath: '', gitSummary: '', recentCommandResults: [] }
       const recentReads = [...state.recentReads, { path: resolvedFilePath, range: rangeStr }]
-      this.runtime.stateManager.updateCodingState({ recentReads })
+      const readFileState = { ...state.readFileState, [absPath]: { mtimeMs, rangeStr } }
+      this.runtime.stateManager.updateCodingState({ recentReads, readFileState })
 
       return output
     }
@@ -5054,21 +5085,210 @@ export class CodingPrimitives {
     }
   }
 
+  private stripTrailingWhitespace(str: string): string {
+    const lines = str.split(/(\r\n|\n|\r)/)
+    let result = ''
+    for (let i = 0; i < lines.length; i++) {
+      const part = lines[i]
+      if (part !== undefined) {
+        if (i % 2 === 0) {
+          result += part.replace(/\s+$/, '')
+        }
+        else {
+          result += part
+        }
+      }
+    }
+    return result
+  }
+
+  private normalizeQuotes(str: string): string {
+    return str
+      .replaceAll('‘', '\'')
+      .replaceAll('’', '\'')
+      .replaceAll('“', '"')
+      .replaceAll('”', '"')
+  }
+
+  private isOpeningContext(chars: string[], index: number): boolean {
+    if (index === 0) {
+      return true
+    }
+    const prev = chars[index - 1]
+    return (
+      prev === ' '
+      || prev === '\t'
+      || prev === '\n'
+      || prev === '\r'
+      || prev === '('
+      || prev === '['
+      || prev === '{'
+      || prev === '\u2014'
+      || prev === '\u2013'
+    )
+  }
+
+  private applyCurlyDoubleQuotes(str: string): string {
+    const chars = [...str]
+    const result: string[] = []
+    for (let i = 0; i < chars.length; i++) {
+      if (chars[i] === '"') {
+        result.push(
+          this.isOpeningContext(chars, i) ? '“' : '”',
+        )
+      }
+      else {
+        result.push(chars[i]!)
+      }
+    }
+    return result.join('')
+  }
+
+  private applyCurlySingleQuotes(str: string): string {
+    const chars = [...str]
+    const result: string[] = []
+    for (let i = 0; i < chars.length; i++) {
+      if (chars[i] === '\'') {
+        const prev = i > 0 ? chars[i - 1] : undefined
+        const next = i < chars.length - 1 ? chars[i + 1] : undefined
+        const prevIsLetter = prev !== undefined && /\p{L}/u.test(prev)
+        const nextIsLetter = next !== undefined && /\p{L}/u.test(next)
+        if (prevIsLetter && nextIsLetter) {
+          result.push('’')
+        }
+        else {
+          result.push(
+            this.isOpeningContext(chars, i) ? '‘' : '’',
+          )
+        }
+      }
+      else {
+        result.push(chars[i]!)
+      }
+    }
+    return result.join('')
+  }
+
+  private preserveQuoteStyle(
+    oldString: string,
+    actualOldString: string,
+    newString: string,
+  ): string {
+    if (oldString === actualOldString) {
+      return newString
+    }
+
+    const hasDoubleQuotes = actualOldString.includes('“') || actualOldString.includes('”')
+    const hasSingleQuotes = actualOldString.includes('‘') || actualOldString.includes('’')
+
+    if (!hasDoubleQuotes && !hasSingleQuotes) {
+      return newString
+    }
+
+    let result = newString
+
+    if (hasDoubleQuotes) {
+      result = this.applyCurlyDoubleQuotes(result)
+    }
+    if (hasSingleQuotes) {
+      result = this.applyCurlySingleQuotes(result)
+    }
+
+    return result
+  }
+
+  private desanitizeMatchString(matchString: string): {
+    result: string
+    appliedReplacements: Array<{ from: string, to: string }>
+  } {
+    const DESANITIZATIONS: Record<string, string> = {
+      '<fnr>': '<function_results>',
+      '<n>': '<name>',
+      '</n>': '</name>',
+      '<o>': '<output>',
+      '</o>': '</output>',
+      '<e>': '<error>',
+      '</e>': '</error>',
+      '<s>': '<system>',
+      '</s>': '</system>',
+      '<r>': '<result>',
+      '</r>': '</result>',
+      '< META_START >': '<META_START>',
+      '< META_END >': '<META_END>',
+      '< EOT >': '<EOT>',
+      '< META >': '<META>',
+      '< SOS >': '<SOS>',
+      '\n\nH:': '\n\nHuman:',
+      '\n\nA:': '\n\nAssistant:',
+    }
+
+    let result = matchString
+    const appliedReplacements: Array<{ from: string, to: string }> = []
+
+    for (const [from, to] of Object.entries(DESANITIZATIONS)) {
+      const beforeReplace = result
+      result = result.replaceAll(from, to)
+
+      if (beforeReplace !== result) {
+        appliedReplacements.push({ from, to })
+      }
+    }
+
+    return { result, appliedReplacements }
+  }
+
   async applyPatch(filePath: string, oldString: string, newString: string) {
     const resolvedFilePath = this.resolveTargetFileInput(filePath)
     const absPath = this.resolveWorkspacePath(resolvedFilePath)
     try {
       const content = await fs.readFile(absPath, 'utf8')
-      const occurrences = content.split(oldString).length - 1
+      const isMarkdown = /\.(md|mdx)$/i.test(absPath)
+
+      let effectiveOldString = oldString
+      let effectiveNewString = isMarkdown ? newString : this.stripTrailingWhitespace(newString)
+
+      let occurrences = content.split(effectiveOldString).length - 1
 
       if (occurrences === 0) {
-        throw new Error('oldString not found in file exactly as provided.')
+        const { result: desanitizedOldString, appliedReplacements } = this.desanitizeMatchString(effectiveOldString)
+
+        const fallbackOldString = desanitizedOldString
+        let fallbackNewString = effectiveNewString
+
+        for (const { from, to } of appliedReplacements) {
+          fallbackNewString = fallbackNewString.replaceAll(from, to)
+        }
+
+        if (content.includes(fallbackOldString)) {
+          effectiveOldString = fallbackOldString
+          effectiveNewString = fallbackNewString
+          occurrences = content.split(effectiveOldString).length - 1
+        }
+        else {
+          const normalizedContent = this.normalizeQuotes(content)
+          const normalizedOldString = this.normalizeQuotes(fallbackOldString)
+
+          const searchIndex = normalizedContent.indexOf(normalizedOldString)
+          if (searchIndex !== -1) {
+            const normalizedOccurrences = normalizedContent.split(normalizedOldString).length - 1
+            if (normalizedOccurrences === 1) {
+              const actualOldStringInFile = content.substring(searchIndex, searchIndex + fallbackOldString.length)
+              effectiveOldString = actualOldStringInFile
+              effectiveNewString = this.preserveQuoteStyle(fallbackOldString, actualOldStringInFile, fallbackNewString)
+              occurrences = 1
+            }
+          }
+        }
+      }
+
+      if (occurrences === 0) {
+        throw new Error('oldString not found in file exactly as provided. Please check for formatting differences (like indentation or quotes) or use coding_read_file to get the exact string.')
       }
       if (occurrences > 1) {
         throw new Error(`oldString found ${occurrences} times in file. Please provide a more specific oldString to ensure exact match.`)
       }
 
-      const newContent = content.replace(oldString, newString)
+      const newContent = content.replace(effectiveOldString, effectiveNewString)
       await fs.writeFile(absPath, newContent, 'utf8')
 
       const state = this.runtime.stateManager.getState().coding ?? { recentReads: [], recentEdits: [], workspacePath: '', gitSummary: '', recentCommandResults: [], recentSearches: [], pendingIssues: [] }
@@ -5126,6 +5346,14 @@ export class CodingPrimitives {
     const actualStatus = status === 'auto'
       ? this.inferAutoReportStatus()
       : status
+
+    // Policy Constraint: Zero-Issue Sync
+    if (actualStatus === 'completed' && state?.lastChangeReview?.unresolvedIssues?.length) {
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `Permission Locked (Zero-Issue Sync): Cannot report status as 'completed'. There are unresolved issues remaining in the last review:\n- ${state.lastChangeReview.unresolvedIssues.join('\n- ')}\nYou MUST resolve these issues before completing the workflow.`,
+      )
+    }
 
     const actualFilesTouched = filesTouched.length === 1 && filesTouched[0] === 'auto'
       ? (state?.currentPlan?.steps.filter(step => step.status === 'completed').map(step => step.filePath)

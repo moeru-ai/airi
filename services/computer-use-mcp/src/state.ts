@@ -807,6 +807,7 @@ export interface CodingRunState {
   workspacePath: string
   gitSummary: string
   recentReads: Array<{ path: string, range?: string }>
+  readFileState?: Record<string, { mtimeMs: number, rangeStr: string }>
   recentEdits: Array<{ path: string, summary?: string }>
   recentCommandResults: string[]
   recentSearches: string[]
