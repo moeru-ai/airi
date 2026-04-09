@@ -92,10 +92,6 @@ function hasValidationCommandMismatch(params: {
 }) {
   const scopedCommand = normalizeCommand(params.scopedCommand)
 
-  if (!scopedCommand) {
-    return true
-  }
-
   // REVIEW: Missing terminal evidence is handled by the no_validation_run trigger.
   // This branch only decides whether the observed validation command diverged from
   // the resolved scoped command for the current target.
@@ -109,14 +105,18 @@ function hasValidationCommandMismatch(params: {
   ].filter(Boolean)))
 
   if (observedCommands.length === 0) {
-    return false
-  }
-
-  if (observedCommands.includes(scopedCommand)) {
-    return false
+    return !scopedCommand
   }
 
   if (params.fileHints.length > 0 && observedCommands.some(command => commandTargetsReviewedFiles(command, params.fileHints))) {
+    return false
+  }
+
+  if (!scopedCommand) {
+    return true
+  }
+
+  if (observedCommands.includes(scopedCommand)) {
     return false
   }
 
@@ -157,10 +157,6 @@ function detectTriggers(params: {
   }
 
   if (diagnosis?.rootCauseType === 'validation_command_mismatch') {
-    triggers.add('validation_command_mismatch')
-  }
-
-  if (!codingState.lastScopedValidationCommand) {
     triggers.add('validation_command_mismatch')
   }
 

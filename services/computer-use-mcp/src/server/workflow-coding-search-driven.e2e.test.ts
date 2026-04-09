@@ -282,8 +282,65 @@ describe('workflow_coding_loop search-driven e2e', () => {
     const content = await readFile(join(workspace, 'src', 'index.ts'), 'utf8')
     expect(content).toContain('export const flag = true')
     expect(runtime.stateManager.getState().coding?.lastTargetSelection?.selectedFile).toBe('src/index.ts')
+    expect(runtime.stateManager.getState().lastTerminalResult?.command).toContain('grep -q')
+    expect(runtime.stateManager.getState().coding?.lastVerificationOutcome?.outcome).toBe('passed')
+    expect(runtime.stateManager.getState().coding?.lastVerificationOutcome?.reasonCodes).toContain('gate_pass')
 
     await rm(workspace, { recursive: true, force: true })
+  })
+
+  it('accepts repo-specific validation command when it targets the reviewed file', async () => {
+    const workspace = await mkdtemp(join(tmpdir(), 'airi-coding-loop-custom-validator-'))
+    await mkdir(join(workspace, 'src'), { recursive: true })
+    await writeFile(join(workspace, 'src', 'index.ts'), 'export const flag = false\n', 'utf8')
+
+    const terminalCommands: string[] = []
+    const { server, invoke } = createMockServer()
+    registerComputerUseTools({
+      server,
+      runtime,
+      executeAction: createFunctionalExecuteAction(runtime, {
+        onTerminalExec: async ({ command }) => {
+          terminalCommands.push(command)
+          if (command.includes('./scripts/check-one-file.sh')) {
+            return {
+              stdout: 'custom verifier passed\n',
+              stderr: '',
+              exitCode: 0,
+            }
+          }
+
+          return {
+            stdout: 'ok\n',
+            stderr: '',
+            exitCode: 0,
+          }
+        },
+      }),
+      enableTestTools: false,
+    })
+
+    try {
+      const result = await invoke('workflow_coding_loop', {
+        workspacePath: workspace,
+        taskGoal: 'Allow repo-specific custom validation command',
+        targetFile: 'src/index.ts',
+        patchOld: 'export const flag = false',
+        patchNew: 'export const flag = true',
+        testCommand: './scripts/check-one-file.sh src/index.ts',
+        autoApprove: true,
+      })
+
+      const structured = result.structuredContent as Record<string, any>
+      expect(structured.status).toBe('completed')
+      expect(terminalCommands).toHaveLength(1)
+      expect(terminalCommands[0]).toContain('./scripts/check-one-file.sh src/index.ts')
+      expect(runtime.stateManager.getState().coding?.lastVerificationOutcome?.outcome).toBe('passed')
+      expect(runtime.stateManager.getState().coding?.lastVerificationOutcome?.reasonCodes).toContain('gate_pass')
+    }
+    finally {
+      await rm(workspace, { recursive: true, force: true })
+    }
   })
 
   it('keeps deterministic two-file progression with first run blocked by completion gate and second run completing', async () => {

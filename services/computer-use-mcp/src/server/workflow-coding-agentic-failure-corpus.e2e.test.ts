@@ -388,6 +388,12 @@ async function runScenario(scenario: FailureScenario) {
   }
 }
 
+function expectFailedVerificationOutcome(runtime: ComputerUseServerRuntime) {
+  const verificationOutcome = runtime.stateManager.getState().coding?.lastVerificationOutcome
+  expect(verificationOutcome?.outcome).toBe('failed')
+  expect((verificationOutcome?.reasonCodes || []).length).toBeGreaterThan(0)
+}
+
 describe('workflow_coding_agentic_loop failure corpus e2e', () => {
   it('classifies wrong_target when patched file is reverted before review', async () => {
     const { workspace, runtime, workflowResult } = await runScenario('wrong_target')
@@ -395,6 +401,7 @@ describe('workflow_coding_agentic_loop failure corpus e2e', () => {
     try {
       const structured = workflowResult.structuredContent as Record<string, any>
       expect(structured.status).toBe('failed')
+      expectFailedVerificationOutcome(runtime)
 
       const diagnosis = runtime.stateManager.getState().coding?.lastChangeDiagnosis
       expect(diagnosis?.rootCauseType).toBe('wrong_target')
@@ -427,6 +434,7 @@ describe('workflow_coding_agentic_loop failure corpus e2e', () => {
     try {
       const structured = workflowResult.structuredContent as Record<string, any>
       expect(structured.status).toBe('failed')
+      expectFailedVerificationOutcome(runtime)
 
       const codingState = runtime.stateManager.getState().coding
       const diagnosis = codingState?.lastChangeDiagnosis
@@ -462,6 +470,7 @@ describe('workflow_coding_agentic_loop failure corpus e2e', () => {
     try {
       const structured = workflowResult.structuredContent as Record<string, any>
       expect(structured.status).toBe('failed')
+      expectFailedVerificationOutcome(runtime)
 
       const codingState = runtime.stateManager.getState().coding
       const review = codingState?.lastChangeReview
@@ -494,6 +503,7 @@ describe('workflow_coding_agentic_loop failure corpus e2e', () => {
     try {
       const structured = workflowResult.structuredContent as Record<string, any>
       expect(structured.status).toBe('failed')
+      expectFailedVerificationOutcome(runtime)
 
       const codingState = runtime.stateManager.getState().coding
       const diagnosis = codingState?.lastChangeDiagnosis
@@ -524,6 +534,7 @@ describe('workflow_coding_agentic_loop failure corpus e2e', () => {
     try {
       const structured = workflowResult.structuredContent as Record<string, any>
       expect(structured.status).toBe('failed')
+      expectFailedVerificationOutcome(runtime)
 
       const codingState = runtime.stateManager.getState().coding
       const diagnosis = codingState?.lastChangeDiagnosis

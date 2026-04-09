@@ -776,6 +776,14 @@ export interface CodingExecutionReport {
   nextStep: string
 }
 
+export interface CodingVerificationMemorySeed {
+  reasonCodes: string[]
+  suggestedValidationCommand?: string
+  reviewedFile?: string
+  outcome: 'nudged' | 'recheck_required' | 'passed' | 'failed'
+  recordedAt: string
+}
+
 export interface CodingCompactionMeta {
   compactionCount: number
   lastCompactedAt: string
@@ -837,6 +845,8 @@ export interface CodingRunState {
   lastPlannerDecision?: CodingPlannerDecision
   compactionMeta?: CodingCompactionMeta
   roundContext?: CodingRoundContext
+  lastVerificationNudge?: CodingVerificationMemorySeed
+  lastVerificationOutcome?: CodingVerificationMemorySeed
 }
 
 export interface RunState {
@@ -1050,7 +1060,7 @@ export class RunStateManager {
       next = {
         ...next,
         causalTraceLog: nextLog,
-        lastCausalTrace: lastCausalTrace || nextLog[nextLog.length - 1],
+        lastCausalTrace: lastCausalTrace || nextLog.at(-1),
       }
     }
 
