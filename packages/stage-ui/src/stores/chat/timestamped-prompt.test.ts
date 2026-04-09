@@ -10,6 +10,8 @@ interface CommonContentPart {
 interface Message {
   role: string
   content: string | CommonContentPart[]
+  createdAt?: number
+  [key: string]: unknown
 }
 
 describe('timestamped-prompt', () => {
