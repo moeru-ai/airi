@@ -240,9 +240,15 @@ export const useProvidersStore = defineStore('providers', () => {
       }
       if (this.cache.size >= this.MAX_INSTANCES) {
         const firstKey = this.cache.keys().next().value
-        this.cache.delete(firstKey)
+        if (firstKey !== undefined) {
+          this.cache.delete(firstKey)
+        }
       }
       this.cache.set(key, { instance, timestamp: Date.now() })
+    }
+
+    delete(key: string): boolean {
+      return this.cache.delete(key)
     }
 
     clear(): void {
