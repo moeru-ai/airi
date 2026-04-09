@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 
 import { formatMessageWithPromptTimestamps, formatPromptTimestamp, prefixPromptTimestamp } from './timestamped-prompt'
 
-type CommonContentPart = {
+interface CommonContentPart {
   type: string
   [key: string]: unknown
 }
 
-type Message = {
+interface Message {
   role: string
   content: string | CommonContentPart[]
 }

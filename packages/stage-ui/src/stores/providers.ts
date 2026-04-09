@@ -215,13 +215,14 @@ export const useProvidersStore = defineStore('providers', () => {
   // PERF: TTL-based provider instance cache with LRU eviction to prevent unbounded memory growth
   // Expected improvement: 2-5MB savings, prevents memory leaks from provider switching
   class ProviderInstanceCache {
-    private cache = new Map<string, { instance: unknown; timestamp: number }>()
+    private cache = new Map<string, { instance: unknown, timestamp: number }>()
     private readonly TTL = 30 * 60 * 1000 // 30 minutes
     private readonly MAX_INSTANCES = 20
 
     get(key: string): unknown | undefined {
       const entry = this.cache.get(key)
-      if (!entry) return undefined
+      if (!entry)
+        return undefined
       if (Date.now() - entry.timestamp > this.TTL) {
         this.cache.delete(key)
         return undefined

@@ -13,13 +13,14 @@ import { mergeLoadedSessionMessages } from './session-message-merge'
 // PERF: Bounded session message cache with LRU eviction to prevent unlimited memory growth
 // Expected improvement: 5-10MB savings, prevents memory leaks from session accumulation
 class SessionMessageCache {
-  private cache = new Map<string, { messages: ChatHistoryItem[]; accessTime: number }>()
+  private cache = new Map<string, { messages: ChatHistoryItem[], accessTime: number }>()
   private readonly MAX_SESSIONS = 50 // Limit to 50 most recently accessed sessions
   private readonly MAX_MESSAGES_PER_SESSION = 100 // Limit to 100 messages per session
 
   get(sessionId: string): ChatHistoryItem[] | undefined {
     const entry = this.cache.get(sessionId)
-    if (!entry) return undefined
+    if (!entry)
+      return undefined
     // Update access time for LRU
     entry.accessTime = Date.now()
     return entry.messages
@@ -372,7 +373,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       ensureSession(activeSessionId.value)
       // Check cache first for better performance
       const cached = sessionMessageCache.get(activeSessionId.value)
-      if (cached) return cached
+      if (cached)
+        return cached
       return sessionMessages.value[activeSessionId.value] ?? []
     },
     set: (value) => {
@@ -468,7 +470,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     ensureSession(sessionId)
     // Check cache first for better performance
     const cached = sessionMessageCache.get(sessionId)
-    if (cached) return cached
+    if (cached)
+      return cached
     return sessionMessages.value[sessionId] ?? []
   }
 

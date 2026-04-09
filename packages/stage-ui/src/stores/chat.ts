@@ -88,7 +88,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     activeSessionControllers.delete(sessionId)
 
     // Also cancel queued sends for this session
-    pendingQueuedSends.value.forEach(send => {
+    pendingQueuedSends.value.forEach((send) => {
       if (send.sessionId === sessionId) {
         send.cancelled = true
         send.abortController.abort()
@@ -129,7 +129,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
             controllers.splice(index, 1)
             if (controllers.length === 0) {
               activeSessionControllers.delete(sessionId)
-            } else {
+            }
+            else {
               activeSessionControllers.set(sessionId, controllers)
             }
           }
