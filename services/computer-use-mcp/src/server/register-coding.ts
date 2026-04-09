@@ -148,17 +148,16 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
       changeIntent: z.enum(['behavior_fix', 'refactor', 'api_change', 'config_change', 'test_fix']).optional().describe('Optional intent hint for hypothesis-driven selection.'),
     },
     handler: async ({ targetFile, targetPath, targetSymbol, searchQuery, changeIntent }) => {
-      const result = await primitives.selectTarget({
+      const { result, retrieval } = await primitives.selectTargetWithRetrieval({
         targetFile,
         targetPath,
         targetSymbol,
         searchQuery,
         changeIntent,
       })
-      const retrievalBlock = primitives.buildRetrievalBlock()
       const backendResult = {
         ...result,
-        ...(retrievalBlock ? { retrieval: retrievalBlock } : {}),
+        ...(retrieval ? { retrieval } : {}),
       } as unknown as Record<string, unknown>
 
       return {
@@ -216,17 +215,16 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
       maxDepth: z.number().int().min(1).max(1).optional().describe('Impact depth (v1 fixed to 1-hop).'),
     },
     handler: async ({ targetFile, targetPath, targetSymbol, searchQuery, maxDepth }) => {
-      const result = await primitives.analyzeImpact({
+      const { result, retrieval } = await primitives.analyzeImpactWithRetrieval({
         targetFile,
         targetPath,
         targetSymbol,
         searchQuery,
         maxDepth,
       })
-      const retrievalBlock = primitives.buildRetrievalBlock()
       const backendResult = {
         ...result,
-        ...(retrievalBlock ? { retrieval: retrievalBlock } : {}),
+        ...(retrieval ? { retrieval } : {}),
       } as unknown as Record<string, unknown>
 
       return {
@@ -252,17 +250,16 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
       changeIntent: z.enum(['behavior_fix', 'refactor', 'api_change', 'config_change', 'test_fix']).describe('Change intent for hypothesis scoring.'),
     },
     handler: async ({ targetFile, targetPath, targetSymbol, searchQuery, changeIntent }) => {
-      const result = await primitives.validateHypothesis({
+      const { result, retrieval } = await primitives.validateHypothesisWithRetrieval({
         targetFile,
         targetPath,
         targetSymbol,
         searchQuery,
         changeIntent,
       })
-      const retrievalBlock = primitives.buildRetrievalBlock()
       const backendResult = {
         ...result,
-        ...(retrievalBlock ? { retrieval: retrievalBlock } : {}),
+        ...(retrieval ? { retrieval } : {}),
       }
 
       return {

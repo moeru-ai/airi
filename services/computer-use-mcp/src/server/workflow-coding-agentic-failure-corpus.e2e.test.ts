@@ -34,6 +34,7 @@ type FailureScenario
     | 'missed_dependency'
     | 'baseline_noise'
     | 'validation_timed_out'
+    | 'validation_command_mismatch'
 
 function createMockServer() {
   const handlers = new Map<string, ToolHandler>()
@@ -262,6 +263,20 @@ function buildExecuteAction(runtime: ComputerUseServerRuntime, scenario: Failure
             return success(action, terminalResult)
           }
 
+          if (scenario === 'validation_command_mismatch') {
+            const terminalResult = {
+              command: 'echo validation-mismatch-command',
+              stdout: 'validation mismatch marker\n',
+              stderr: '',
+              exitCode: 0,
+              effectiveCwd: action.input.cwd || '',
+              durationMs: 1,
+              timedOut: false,
+            }
+            runtime.stateManager.updateTerminalResult(terminalResult)
+            return success(action, terminalResult)
+          }
+
           const command = String(action.input.command)
           const cwd = action.input.cwd
 
@@ -348,6 +363,8 @@ async function runScenario(scenario: FailureScenario) {
         return 'pnpm test'
       case 'validation_timed_out':
         return 'pnpm test'
+      case 'validation_command_mismatch':
+        return 'echo validation-mismatch-command'
     }
   })()
 
@@ -373,9 +390,12 @@ async function runScenario(scenario: FailureScenario) {
 
 describe('workflow_coding_agentic_loop failure corpus e2e', () => {
   it('classifies wrong_target when patched file is reverted before review', async () => {
-    const { workspace, runtime } = await runScenario('wrong_target')
+    const { workspace, runtime, workflowResult } = await runScenario('wrong_target')
 
     try {
+      const structured = workflowResult.structuredContent as Record<string, any>
+      expect(structured.status).toBe('failed')
+
       const diagnosis = runtime.stateManager.getState().coding?.lastChangeDiagnosis
       expect(diagnosis?.rootCauseType).toBe('wrong_target')
       expect(diagnosis?.nextAction).toBe('amend')
@@ -402,9 +422,12 @@ describe('workflow_coding_agentic_loop failure corpus e2e', () => {
   })
 
   it('classifies missed_dependency and amends session with companion file', async () => {
-    const { workspace, runtime } = await runScenario('missed_dependency')
+    const { workspace, runtime, workflowResult } = await runScenario('missed_dependency')
 
     try {
+      const structured = workflowResult.structuredContent as Record<string, any>
+      expect(structured.status).toBe('failed')
+
       const codingState = runtime.stateManager.getState().coding
       const diagnosis = codingState?.lastChangeDiagnosis
       const session = codingState?.currentPlanSession
@@ -434,9 +457,12 @@ describe('workflow_coding_agentic_loop failure corpus e2e', () => {
   })
 
   it('classifies baseline_noise when validation failure matches captured baseline command', async () => {
-    const { workspace, runtime } = await runScenario('baseline_noise')
+    const { workspace, runtime, workflowResult } = await runScenario('baseline_noise')
 
     try {
+      const structured = workflowResult.structuredContent as Record<string, any>
+      expect(structured.status).toBe('failed')
+
       const codingState = runtime.stateManager.getState().coding
       const review = codingState?.lastChangeReview
       const diagnosis = codingState?.lastChangeDiagnosis
@@ -463,9 +489,12 @@ describe('workflow_coding_agentic_loop failure corpus e2e', () => {
   })
 
   it('classifies validation_timed_out as validation_environment_issue and aborts session', async () => {
-    const { workspace, runtime } = await runScenario('validation_timed_out')
+    const { workspace, runtime, workflowResult } = await runScenario('validation_timed_out')
 
     try {
+      const structured = workflowResult.structuredContent as Record<string, any>
+      expect(structured.status).toBe('failed')
+
       const codingState = runtime.stateManager.getState().coding
       const diagnosis = codingState?.lastChangeDiagnosis
 
@@ -483,6 +512,27 @@ describe('workflow_coding_agentic_loop failure corpus e2e', () => {
       expect(Array.isArray(diagnosis?.conflictingEvidence)).toBe(true)
       expect(diagnosis?.recommendedRepairWindow?.scope).toBe('workspace')
       expect(codingState?.currentPlanSession?.status).toBe('aborted')
+    }
+    finally {
+      await rm(workspace, { recursive: true, force: true })
+    }
+  })
+
+  it('classifies validation_command_mismatch and keeps final workflow status failed', async () => {
+    const { workspace, runtime, workflowResult } = await runScenario('validation_command_mismatch')
+
+    try {
+      const structured = workflowResult.structuredContent as Record<string, any>
+      expect(structured.status).toBe('failed')
+
+      const codingState = runtime.stateManager.getState().coding
+      const diagnosis = codingState?.lastChangeDiagnosis
+
+      expect(diagnosis?.rootCauseType).toBe('validation_command_mismatch')
+      expect(diagnosis?.nextAction).toBe('continue')
+      expect(diagnosis?.shouldAbortPlan).toBe(false)
+      expect(Array.isArray(diagnosis?.evidence)).toBe(true)
+      expect((diagnosis?.evidence || []).length).toBeGreaterThan(0)
     }
     finally {
       await rm(workspace, { recursive: true, force: true })

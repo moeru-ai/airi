@@ -121,7 +121,18 @@ function createRuntime(): ComputerUseServerRuntime {
   return base
 }
 
-function createFunctionalExecuteAction(runtime: ComputerUseServerRuntime): ExecuteAction {
+function createFunctionalExecuteAction(runtime: ComputerUseServerRuntime, options?: {
+  onTerminalExec?: (input: {
+    command: string
+    cwd?: string
+    timeoutMs?: number
+  }) => Promise<{
+    stdout?: string
+    stderr?: string
+    exitCode: number
+    timedOut?: boolean
+  }>
+}): ExecuteAction {
   return async (action) => {
     const primitives = new CodingPrimitives(runtime)
 
@@ -185,6 +196,27 @@ function createFunctionalExecuteAction(runtime: ComputerUseServerRuntime): Execu
           return success(action, result as Record<string, unknown>)
         }
         case 'terminal_exec': {
+          if (options?.onTerminalExec) {
+            const simulated = await options.onTerminalExec({
+              command: String(action.input.command),
+              cwd: action.input.cwd,
+              timeoutMs: action.input.timeoutMs,
+            })
+
+            const terminalResult = {
+              command: String(action.input.command),
+              stdout: simulated.stdout || '',
+              stderr: simulated.stderr || '',
+              exitCode: simulated.exitCode,
+              effectiveCwd: action.input.cwd || '',
+              durationMs: 1,
+              timedOut: simulated.timedOut ?? false,
+            }
+
+            runtime.stateManager.updateTerminalResult(terminalResult)
+            return success(action, terminalResult)
+          }
+
           const stdoutStderr = await execAsync(action.input.command, {
             cwd: action.input.cwd,
             timeout: action.input.timeoutMs,
@@ -254,7 +286,7 @@ describe('workflow_coding_loop search-driven e2e', () => {
     await rm(workspace, { recursive: true, force: true })
   })
 
-  it('supports deterministic two-file sequential progression via follow-up run', async () => {
+  it('keeps deterministic two-file progression with first run blocked by completion gate and second run completing', async () => {
     const workspace = await mkdtemp(join(tmpdir(), 'airi-coding-loop-dual-'))
     await writeFile(join(workspace, 'a.ts'), 'export const flag = false\n', 'utf8')
     await writeFile(join(workspace, 'b.ts'), 'export const flag = false\n', 'utf8')
@@ -281,7 +313,7 @@ describe('workflow_coding_loop search-driven e2e', () => {
     })
 
     const firstStructured = first.structuredContent as Record<string, any>
-    expect(firstStructured.status).toBe('completed')
+    expect(firstStructured.status).toBe('failed')
 
     const firstReport = runtime.stateManager.getState().coding?.lastCodingReport
     expect(firstReport?.status).toBe('in_progress')
@@ -310,5 +342,127 @@ describe('workflow_coding_loop search-driven e2e', () => {
     expect(runtime.stateManager.getState().coding?.lastCodingReport?.status).toBe('completed')
 
     await rm(workspace, { recursive: true, force: true })
+  })
+
+  it('runs one scoped verification recheck and completes only when recheck passes', async () => {
+    const workspace = await mkdtemp(join(tmpdir(), 'airi-coding-loop-recheck-pass-'))
+    await mkdir(join(workspace, 'src'), { recursive: true })
+    await writeFile(join(workspace, 'src', 'index.ts'), 'export const flag = false\n', 'utf8')
+
+    const terminalCommands: string[] = []
+    const { server, invoke } = createMockServer()
+    registerComputerUseTools({
+      server,
+      runtime,
+      executeAction: createFunctionalExecuteAction(runtime, {
+        onTerminalExec: async ({ command }) => {
+          terminalCommands.push(command)
+          if (command.includes('invalid-validation-command')) {
+            return {
+              stdout: 'noop\n',
+              stderr: '',
+              exitCode: 0,
+            }
+          }
+
+          if (command.includes('pnpm exec eslint')) {
+            return {
+              stdout: 'scoped validation passed\n',
+              stderr: '',
+              exitCode: 0,
+            }
+          }
+
+          return {
+            stdout: 'ok\n',
+            stderr: '',
+            exitCode: 0,
+          }
+        },
+      }),
+      enableTestTools: false,
+    })
+
+    try {
+      const result = await invoke('workflow_coding_loop', {
+        workspacePath: workspace,
+        taskGoal: 'Require scoped recheck before completion',
+        targetFile: 'src/index.ts',
+        patchOld: 'export const flag = false',
+        patchNew: 'export const flag = true',
+        testCommand: 'echo invalid-validation-command',
+        autoApprove: true,
+      })
+
+      const structured = result.structuredContent as Record<string, any>
+      expect(structured.status).toBe('completed')
+      expect(terminalCommands).toHaveLength(2)
+      expect(terminalCommands[0]).toContain('invalid-validation-command')
+      expect(terminalCommands[1]).toContain('pnpm exec eslint')
+    }
+    finally {
+      await rm(workspace, { recursive: true, force: true })
+    }
+  })
+
+  it('returns failed when scoped verification recheck still does not pass gate', async () => {
+    const workspace = await mkdtemp(join(tmpdir(), 'airi-coding-loop-recheck-fail-'))
+    await mkdir(join(workspace, 'src'), { recursive: true })
+    await writeFile(join(workspace, 'src', 'index.ts'), 'export const flag = false\n', 'utf8')
+
+    const terminalCommands: string[] = []
+    const { server, invoke } = createMockServer()
+    registerComputerUseTools({
+      server,
+      runtime,
+      executeAction: createFunctionalExecuteAction(runtime, {
+        onTerminalExec: async ({ command }) => {
+          terminalCommands.push(command)
+          if (command.includes('invalid-validation-command')) {
+            return {
+              stdout: 'noop\n',
+              stderr: '',
+              exitCode: 0,
+            }
+          }
+
+          if (command.includes('pnpm exec eslint')) {
+            return {
+              stdout: '',
+              stderr: 'scoped validation failed\n',
+              exitCode: 1,
+            }
+          }
+
+          return {
+            stdout: '',
+            stderr: 'unexpected command\n',
+            exitCode: 1,
+          }
+        },
+      }),
+      enableTestTools: false,
+    })
+
+    try {
+      const result = await invoke('workflow_coding_loop', {
+        workspacePath: workspace,
+        taskGoal: 'Fail after bounded scoped recheck',
+        targetFile: 'src/index.ts',
+        patchOld: 'export const flag = false',
+        patchNew: 'export const flag = true',
+        testCommand: 'echo invalid-validation-command',
+        autoApprove: true,
+      })
+
+      const structured = result.structuredContent as Record<string, any>
+      expect(structured.status).toBe('failed')
+      expect(terminalCommands).toHaveLength(2)
+      expect(terminalCommands[0]).toContain('invalid-validation-command')
+      expect(terminalCommands[1]).toContain('pnpm exec eslint')
+    }
+    finally {
+      await rm(workspace, { recursive: true, force: true })
+    }
   })
 })

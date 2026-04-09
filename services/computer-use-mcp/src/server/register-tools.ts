@@ -1,4 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
 import type {
   BrowserDomFrameResult,
@@ -15,6 +16,8 @@ import type { ComputerUseServerRuntime } from './runtime'
 
 import { z } from 'zod'
 
+import { CodingPrimitives } from '../coding/primitives'
+import { evaluateCodingVerificationGate } from '../coding/verification-gate'
 import { getRuntimePreflight } from '../preflight'
 import { summarizeRunState } from '../transparency'
 import {
@@ -1033,6 +1036,177 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     }
   }
 
+  function getCodingGateTerminalEvidence() {
+    const state = runtime.stateManager.getState()
+    return {
+      hasTerminalResult: Boolean(state.lastTerminalResult),
+      terminalCommand: state.lastTerminalResult?.command,
+      terminalExitCode: state.lastTerminalResult?.exitCode,
+    }
+  }
+
+  function isBoundedRecheckActionExecuted(result: CallToolResult) {
+    if (result.isError === true) {
+      return false
+    }
+
+    const structured = result.structuredContent as Record<string, unknown> | undefined
+    if (!structured || typeof structured.status !== 'string') {
+      return true
+    }
+
+    return structured.status === 'executed' || structured.status === 'ok'
+  }
+
+  function buildGateFailureResult(params: {
+    baseResult: import('../workflows').WorkflowExecutionResult
+    gateSummary: string
+  }): import('../workflows').WorkflowExecutionResult {
+    return {
+      ...params.baseResult,
+      success: false,
+      status: 'failed',
+      task: {
+        ...params.baseResult.task,
+        phase: 'failed',
+      },
+      summary: `${params.baseResult.summary}\n${params.gateSummary}`,
+    }
+  }
+
+  async function runBoundedCodingVerificationRecheck(params: {
+    workflowKind: 'coding_loop' | 'coding_agentic_loop'
+    workspacePath: string
+    autoApproveSteps: boolean
+  }) {
+    const codingState = runtime.stateManager.getState().coding
+    if (!codingState?.workspacePath) {
+      return {
+        succeeded: false,
+        explanation: 'bounded verification recheck aborted: coding workspace context is unavailable.',
+      }
+    }
+
+    const currentFilePath = codingState.lastTargetSelection?.selectedFile
+    const primitives = new CodingPrimitives(runtime)
+    const scopedValidation = await primitives.resolveScopedValidationCommand(currentFilePath)
+
+    const recheckCwd = codingState.validationBaseline?.workspacePath
+      || codingState.workspacePath
+      || params.workspacePath
+
+    const validationResult = await executeAction({
+      kind: 'terminal_exec',
+      input: {
+        command: scopedValidation.command,
+        cwd: recheckCwd,
+        timeoutMs: 60_000,
+      },
+    }, `workflow_${params.workflowKind}_verification_recheck_terminal_exec`, {
+      skipApprovalQueue: params.autoApproveSteps,
+    })
+
+    if (!isBoundedRecheckActionExecuted(validationResult)) {
+      return {
+        succeeded: false,
+        explanation: 'bounded verification recheck failed while executing scoped validation command.',
+      }
+    }
+
+    const reviewResult = await executeAction({
+      kind: 'coding_review_changes',
+      input: currentFilePath ? { currentFilePath } : {},
+    }, `workflow_${params.workflowKind}_verification_recheck_review_changes`, {
+      skipApprovalQueue: params.autoApproveSteps,
+    })
+
+    if (!isBoundedRecheckActionExecuted(reviewResult)) {
+      return {
+        succeeded: false,
+        explanation: 'bounded verification recheck failed while running coding_review_changes.',
+      }
+    }
+
+    if (params.workflowKind === 'coding_agentic_loop') {
+      const diagnosisResult = await executeAction({
+        kind: 'coding_diagnose_changes',
+        input: currentFilePath ? { currentFilePath } : {},
+      }, `workflow_${params.workflowKind}_verification_recheck_diagnose_changes`, {
+        skipApprovalQueue: params.autoApproveSteps,
+      })
+
+      if (!isBoundedRecheckActionExecuted(diagnosisResult)) {
+        return {
+          succeeded: false,
+          explanation: 'bounded verification recheck failed while running coding_diagnose_changes.',
+        }
+      }
+    }
+
+    return {
+      succeeded: true,
+      explanation: `bounded verification recheck executed scoped command: ${scopedValidation.command}`,
+    }
+  }
+
+  async function applyCodingVerificationGate(params: {
+    workflowKind: 'coding_loop' | 'coding_agentic_loop'
+    workspacePath: string
+    autoApproveSteps: boolean
+    result: import('../workflows').WorkflowExecutionResult
+  }): Promise<import('../workflows').WorkflowExecutionResult> {
+    const { result } = params
+    if (!result.success || result.status !== 'completed') {
+      return result
+    }
+
+    let gateDecision = evaluateCodingVerificationGate({
+      codingState: runtime.stateManager.getState().coding,
+      workflowKind: params.workflowKind,
+      terminalEvidence: getCodingGateTerminalEvidence(),
+    })
+
+    if (gateDecision.decision === 'pass') {
+      return result
+    }
+
+    if (gateDecision.decision === 'recheck_once') {
+      const recheckOutcome = await runBoundedCodingVerificationRecheck({
+        workflowKind: params.workflowKind,
+        workspacePath: params.workspacePath,
+        autoApproveSteps: params.autoApproveSteps,
+      })
+
+      if (!recheckOutcome.succeeded) {
+        runtime.stateManager.finishTask('failed')
+        return buildGateFailureResult({
+          baseResult: result,
+          gateSummary: `[Verification Gate] ${recheckOutcome.explanation} reason=${gateDecision.reasonCode}`,
+        })
+      }
+
+      gateDecision = evaluateCodingVerificationGate({
+        codingState: runtime.stateManager.getState().coding,
+        workflowKind: params.workflowKind,
+        recheckAttempted: true,
+        terminalEvidence: getCodingGateTerminalEvidence(),
+      })
+
+      if (gateDecision.decision === 'pass') {
+        return {
+          ...result,
+          summary: `${result.summary}\n[Verification Gate] single bounded verification recheck passed.`,
+        }
+      }
+    }
+
+    runtime.stateManager.finishTask('failed')
+    return buildGateFailureResult({
+      baseResult: result,
+      gateSummary: `[Verification Gate] ${gateDecision.explanation} reason=${gateDecision.reasonCode}`,
+    })
+  }
+
   registerToolWithDescriptor(server, {
     descriptor: requireDescriptor('workflow_open_workspace'),
 
@@ -1238,9 +1412,16 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         autoApproveSteps: autoApprove ?? true,
       })
 
-      suspendedWorkflow = result.suspension
+      const gatedResult = await applyCodingVerificationGate({
+        workflowKind: 'coding_loop',
+        workspacePath,
+        autoApproveSteps: autoApprove ?? true,
+        result,
+      })
 
-      return formatWorkflowResult(workflow.id, result)
+      suspendedWorkflow = gatedResult.suspension
+
+      return formatWorkflowResult(workflow.id, gatedResult)
     },
   })
 
@@ -1301,9 +1482,16 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         autoApproveSteps: autoApprove ?? true,
       })
 
-      suspendedWorkflow = result.suspension
+      const gatedResult = await applyCodingVerificationGate({
+        workflowKind: 'coding_agentic_loop',
+        workspacePath,
+        autoApproveSteps: autoApprove ?? true,
+        result,
+      })
 
-      return formatWorkflowResult(workflow.id, result)
+      suspendedWorkflow = gatedResult.suspension
+
+      return formatWorkflowResult(workflow.id, gatedResult)
     },
   })
 

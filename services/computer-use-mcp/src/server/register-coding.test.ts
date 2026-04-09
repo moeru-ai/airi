@@ -300,44 +300,46 @@ describe('registerCodingTools', () => {
   })
 
   it('registers coding_select_target and returns structured selection payload', async () => {
-    vi.spyOn(CodingPrimitives.prototype, 'selectTarget').mockResolvedValue({
-      status: 'selected',
-      selectedFile: 'src/example.ts',
-      candidates: [{
-        filePath: 'src/example.ts',
-        sourceKind: 'symbol',
-        sourceLabel: 'symbol:example',
-        score: 300,
-        matchCount: 1,
-        inScopedPath: false,
-        recentlyEdited: false,
-        recentlyRead: false,
-        reasons: ['source=symbol(300)'],
-      }],
-      reason: 'Selected deterministically.',
-      recommendedNextAction: 'Proceed with auto.',
+    vi.spyOn(CodingPrimitives.prototype, 'selectTargetWithRetrieval').mockResolvedValue({
+      result: {
+        status: 'selected',
+        selectedFile: 'src/example.ts',
+        candidates: [{
+          filePath: 'src/example.ts',
+          sourceKind: 'symbol',
+          sourceLabel: 'symbol:example',
+          score: 300,
+          matchCount: 1,
+          inScopedPath: false,
+          recentlyEdited: false,
+          recentlyRead: false,
+          reasons: ['source=symbol(300)'],
+        }],
+        reason: 'Selected deterministically.',
+        recommendedNextAction: 'Proceed with auto.',
+      },
+      retrieval: {
+        plan: {
+          query: 'example',
+          targetSymbol: undefined,
+          targetPath: undefined,
+          scopes: ['repo_code', 'session_trace', 'task_memory'],
+        },
+        selectedFiles: ['src/example.ts'],
+        diagnostics: {
+          repoHitCount: 1,
+          traceHitCount: 1,
+          taskMemoryHitCount: 0,
+          selectedFileCount: 1,
+          selectionMode: 'repo_plus_context',
+        },
+        evidencePreview: {
+          repoSnippets: ['src/example.ts:10 [text] example'],
+          traceSnippets: ['tool_call (metadata.query) example'],
+          taskMemorySnippets: [],
+        },
+      },
     } as any)
-    vi.spyOn(CodingPrimitives.prototype, 'buildRetrievalBlock').mockReturnValue({
-      plan: {
-        query: 'example',
-        targetSymbol: undefined,
-        targetPath: undefined,
-        scopes: ['repo_code', 'session_trace', 'task_memory'],
-      },
-      selectedFiles: ['src/example.ts'],
-      diagnostics: {
-        repoHitCount: 1,
-        traceHitCount: 1,
-        taskMemoryHitCount: 0,
-        selectedFileCount: 1,
-        selectionMode: 'repo_plus_context',
-      },
-      evidencePreview: {
-        repoSnippets: ['src/example.ts:10 [text] example'],
-        traceSnippets: ['tool_call (metadata.query) example'],
-        taskMemorySnippets: [],
-      },
-    })
 
     const { server, invoke } = createMockServer()
     registerCodingTools({
@@ -447,38 +449,40 @@ describe('registerCodingTools', () => {
   })
 
   it('registers coding_analyze_impact and returns structured impact payload', async () => {
-    vi.spyOn(CodingPrimitives.prototype, 'analyzeImpact').mockResolvedValue({
-      status: 'ok',
-      languageSupport: 'js_ts',
-      explanation: 'ok',
-      targetCandidates: [],
-      importExportNeighbors: ['src/a.ts'],
-      directReferences: [],
-      likelyImpactedTests: ['src/a.test.ts'],
-      likelyCompanionFiles: ['src/a.ts'],
-      graphSnapshot: { maxDepth: 1, truncated: false, nodes: [], edges: [] },
+    vi.spyOn(CodingPrimitives.prototype, 'analyzeImpactWithRetrieval').mockResolvedValue({
+      result: {
+        status: 'ok',
+        languageSupport: 'js_ts',
+        explanation: 'ok',
+        targetCandidates: [],
+        importExportNeighbors: ['src/a.ts'],
+        directReferences: [],
+        likelyImpactedTests: ['src/a.test.ts'],
+        likelyCompanionFiles: ['src/a.ts'],
+        graphSnapshot: { maxDepth: 1, truncated: false, nodes: [], edges: [] },
+      },
+      retrieval: {
+        plan: {
+          query: undefined,
+          targetSymbol: 'foo',
+          targetPath: undefined,
+          scopes: ['repo_code', 'session_trace', 'task_memory'],
+        },
+        selectedFiles: ['src/a.ts'],
+        diagnostics: {
+          repoHitCount: 1,
+          traceHitCount: 0,
+          taskMemoryHitCount: 1,
+          selectedFileCount: 1,
+          selectionMode: 'repo_plus_context',
+        },
+        evidencePreview: {
+          repoSnippets: ['src/a.ts:1 [symbol] foo'],
+          traceSnippets: [],
+          taskMemorySnippets: ['goal: foo'],
+        },
+      },
     } as any)
-    vi.spyOn(CodingPrimitives.prototype, 'buildRetrievalBlock').mockReturnValue({
-      plan: {
-        query: undefined,
-        targetSymbol: 'foo',
-        targetPath: undefined,
-        scopes: ['repo_code', 'session_trace', 'task_memory'],
-      },
-      selectedFiles: ['src/a.ts'],
-      diagnostics: {
-        repoHitCount: 1,
-        traceHitCount: 0,
-        taskMemoryHitCount: 1,
-        selectedFileCount: 1,
-        selectionMode: 'repo_plus_context',
-      },
-      evidencePreview: {
-        repoSnippets: ['src/a.ts:1 [symbol] foo'],
-        traceSnippets: [],
-        taskMemorySnippets: ['goal: foo'],
-      },
-    })
 
     const { server, invoke } = createMockServer()
     registerCodingTools({
@@ -514,36 +518,38 @@ describe('registerCodingTools', () => {
   })
 
   it('registers coding_validate_hypothesis and returns structured hypothesis payload', async () => {
-    vi.spyOn(CodingPrimitives.prototype, 'validateHypothesis').mockResolvedValue({
-      status: 'validated',
-      reason: 'ok',
-      hypotheses: [],
-      selectedHypothesis: {
-        id: 'hyp_1',
-        filePath: 'src/example.ts',
+    vi.spyOn(CodingPrimitives.prototype, 'validateHypothesisWithRetrieval').mockResolvedValue({
+      result: {
+        status: 'validated',
+        reason: 'ok',
+        hypotheses: [],
+        selectedHypothesis: {
+          id: 'hyp_1',
+          filePath: 'src/example.ts',
+        },
+      },
+      retrieval: {
+        plan: {
+          query: undefined,
+          targetSymbol: 'foo',
+          targetPath: undefined,
+          scopes: ['repo_code', 'session_trace', 'task_memory'],
+        },
+        selectedFiles: ['src/example.ts'],
+        diagnostics: {
+          repoHitCount: 1,
+          traceHitCount: 0,
+          taskMemoryHitCount: 0,
+          selectedFileCount: 1,
+          selectionMode: 'repo_only',
+        },
+        evidencePreview: {
+          repoSnippets: ['src/example.ts:12 [symbol] foo'],
+          traceSnippets: [],
+          taskMemorySnippets: [],
+        },
       },
     } as any)
-    vi.spyOn(CodingPrimitives.prototype, 'buildRetrievalBlock').mockReturnValue({
-      plan: {
-        query: undefined,
-        targetSymbol: 'foo',
-        targetPath: undefined,
-        scopes: ['repo_code', 'session_trace', 'task_memory'],
-      },
-      selectedFiles: ['src/example.ts'],
-      diagnostics: {
-        repoHitCount: 1,
-        traceHitCount: 0,
-        taskMemoryHitCount: 0,
-        selectedFileCount: 1,
-        selectionMode: 'repo_only',
-      },
-      evidencePreview: {
-        repoSnippets: ['src/example.ts:12 [symbol] foo'],
-        traceSnippets: [],
-        taskMemorySnippets: [],
-      },
-    })
 
     const { server, invoke } = createMockServer()
     registerCodingTools({
