@@ -1,7 +1,7 @@
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 import { useProvidersStore } from '../providers'
 
@@ -14,6 +14,11 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   const activeCustomModelName = useLocalStorageManualReset<string>('settings/consciousness/active-custom-model', '')
   const expandedDescriptions = refManualReset<Record<string, boolean>>(() => ({}))
   const modelSearchQuery = refManualReset<string>('')
+
+  // PERF: Cache lowercased query to avoid repeated case conversion in filter
+  const normalizedSearchQuery = computed(() => {
+    return modelSearchQuery.value.toLowerCase().trim()
+  })
 
   // Computed properties
   const supportsModelListing = computed(() => {
@@ -33,11 +38,12 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   })
 
   const filteredModels = computed(() => {
-    if (!modelSearchQuery.value.trim()) {
+    const query = normalizedSearchQuery.value
+    if (!query) {
       return providerModels.value
     }
 
-    const query = modelSearchQuery.value.toLowerCase().trim()
+    // PERF: Use cached query instead of converting case for each model
     return providerModels.value.filter(model =>
       model.name.toLowerCase().includes(query)
       || model.id.toLowerCase().includes(query)

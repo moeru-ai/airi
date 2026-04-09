@@ -115,9 +115,14 @@ export const useSpeechStore = defineStore('speech', () => {
 
   // Watch for provider changes and load voices
   watch(activeSpeechProvider, async (newProvider) => {
-    if (newProvider) {
-      await loadVoicesForProvider(newProvider)
-      // Don't reset voice settings when changing providers to allow for persistence
+    if (newProvider && newProvider !== 'speech-noop') {
+      // NOTICE: Only load voices if the provider's credentials have been validated.
+      // Direct access via key to avoid race condition where watch fires before async validation completes.
+      const runtimeState = providersStore.providerRuntimeState[newProvider]
+      if (runtimeState && runtimeState.validatedCredentialHash !== undefined) {
+        await loadVoicesForProvider(newProvider)
+      }
+      // Don't load voices if validation hasn't completed yet; let the async validation complete first.
     }
   }, {
     // REVIEW: should we always load voices on init? What will happen when network is not available?
