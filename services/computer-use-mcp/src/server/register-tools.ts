@@ -17,6 +17,11 @@ import type { ComputerUseServerRuntime } from './runtime'
 
 import { z } from 'zod'
 
+import {
+  deriveCodingOperationalMemorySeeds,
+  pickPrimaryOperationalMemory,
+  summarizeOperationalMemory,
+} from '../coding/coding-memory-taxonomy'
 import { CodingPrimitives } from '../coding/primitives'
 import { evaluateCodingVerificationGate } from '../coding/verification-gate'
 import { evaluateCodingVerificationNudge } from '../coding/verification-nudge'
@@ -1095,6 +1100,74 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     })
   }
 
+  /**
+   * Derive and persist operational memory seeds from the current coding state.
+   * Called immediately after every `recordVerificationOutcomeSeed` so seeds
+   * reflect the final gate decision made in this cycle.
+   */
+  function recordOperationalMemorySeeds() {
+    const codingState = runtime.stateManager.getState().coding
+    if (!codingState) {
+      return
+    }
+
+    const seeds = deriveCodingOperationalMemorySeeds(codingState)
+    const summary = summarizeOperationalMemory(seeds)
+    runtime.stateManager.updateCodingState({
+      operationalMemorySeeds: seeds,
+      lastOperationalMemorySummary: summary,
+    })
+  }
+
+  /**
+   * Apply lightweight bias to the upcoming workflow run based on the primary
+   * seed from the previous cycle.  This is a hint layer only — it does NOT
+   * modify the outward result shape nor directly trigger any action.
+   *
+   * Two bias paths:
+   * 1. `validation_command_mismatch` / `no_validation_run` — escalate the
+   *    pre-existing lastVerificationNudge outcome to `recheck_required` so the
+   *    gate's recheck path activates even before the first terminal run.
+   * 2. `wrong_target` / `missed_dependency` / `patch_verification_mismatch` —
+   *    prepend a `[prior_memory:...]` entry to `pendingIssues` so downstream
+   *    review and gate evaluation can see the prior lesson.
+   */
+  function applyOperationalMemoryBias() {
+    const codingState = runtime.stateManager.getState().coding
+    const primary = pickPrimaryOperationalMemory(codingState?.operationalMemorySeeds ?? [])
+    if (!primary) {
+      return
+    }
+
+    if (primary.reason === 'validation_command_mismatch' || primary.reason === 'no_validation_run') {
+      const currentNudge = codingState?.lastVerificationNudge
+      if (currentNudge && currentNudge.outcome === 'nudged') {
+        runtime.stateManager.updateCodingState({
+          lastVerificationNudge: {
+            ...currentNudge,
+            outcome: 'recheck_required',
+          },
+        })
+      }
+    }
+
+    if (
+      primary.reason === 'wrong_target'
+      || primary.reason === 'missed_dependency'
+      || primary.reason === 'patch_verification_mismatch'
+    ) {
+      const hint = `[prior_memory:${primary.reason}] ${primary.summary}`
+      // NOTICE: Strip all stale [prior_memory:] entries before appending so repeated
+      // failures on the same reason don't pile up as noise across retries.
+      const previousIssues = (codingState?.pendingIssues ?? []).filter(
+        issue => !issue.startsWith('[prior_memory:'),
+      )
+      runtime.stateManager.updateCodingState({
+        pendingIssues: [...previousIssues, hint],
+      })
+    }
+  }
+
   function applyBlockingNudgeToGateDecision(params: {
     gateDecision: ReturnType<typeof evaluateCodingVerificationGate>
     nudge: ReturnType<typeof evaluateCodingVerificationNudge>
@@ -1308,6 +1381,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         outcome: 'passed',
         workspacePath: params.workspacePath,
       })
+      recordOperationalMemorySeeds()
       return result
     }
 
@@ -1334,6 +1408,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
           outcome: 'failed',
           workspacePath: params.workspacePath,
         })
+        recordOperationalMemorySeeds()
         runtime.stateManager.finishTask('failed')
         return buildGateFailureResult({
           baseResult: result,
@@ -1376,6 +1451,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
           outcome: 'passed',
           workspacePath: params.workspacePath,
         })
+        recordOperationalMemorySeeds()
         return {
           ...result,
           summary: `${result.summary}\n[Verification Gate] single bounded verification recheck passed.`,
@@ -1390,6 +1466,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       outcome: 'failed',
       workspacePath: params.workspacePath,
     })
+    recordOperationalMemorySeeds()
 
     runtime.stateManager.finishTask('failed')
     return buildGateFailureResult({
@@ -1585,6 +1662,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         requestedValidationCommand: testCommand ?? 'auto',
         reviewedFileHint: targetFile,
       })
+      applyOperationalMemoryBias()
 
       const workflow = createCodingExecutionLoopWorkflow({
         workspacePath,
@@ -1661,6 +1739,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         requestedValidationCommand: testCommand ?? 'auto',
         reviewedFileHint: targetFile,
       })
+      applyOperationalMemoryBias()
 
       const workflow = createCodingAgenticLoopWorkflow({
         workspacePath,
