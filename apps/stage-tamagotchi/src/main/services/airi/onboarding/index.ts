@@ -1,5 +1,5 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
-import type { BrowserWindow } from 'electron'
+import type { BrowserWindow, Rectangle } from 'electron'
 
 import type { OnboardingWindowManager } from '../../../windows/onboarding'
 
@@ -12,26 +12,33 @@ import { computeAdjacentPosition } from '../../../windows/shared/display'
 
 const ANIMATION_DURATION = 350
 
-function animateWindowPosition(
+function animateWindowBounds(
   window: BrowserWindow,
-  targetX: number,
-  targetY: number,
+  target: Rectangle,
 ): ReturnType<typeof animate> | undefined {
   if (window.isDestroyed())
     return undefined
 
-  const bounds = window.getBounds()
-  const state = { x: bounds.x, y: bounds.y }
+  const current = window.getBounds()
+  const state = { x: current.x, y: current.y, w: current.width, h: current.height }
 
   return animate(state, {
-    x: targetX,
-    y: targetY,
+    x: target.x,
+    y: target.y,
+    w: target.width,
+    h: target.height,
     duration: ANIMATION_DURATION,
     ease: 'outCubic',
     modifier: utils.round(0),
     onRender: () => {
-      if (!window.isDestroyed())
-        window.setPosition(Math.round(state.x), Math.round(state.y))
+      if (!window.isDestroyed()) {
+        window.setBounds({
+          x: Math.round(state.x),
+          y: Math.round(state.y),
+          width: Math.round(state.w),
+          height: Math.round(state.h),
+        })
+      }
     },
   })
 }
@@ -51,14 +58,19 @@ export function createOnboardingService(params: {
     const onboardingBounds = onboardingWindow.getBounds()
     const display = screen.getDisplayMatching(onboardingBounds)
 
-    const newPosition = computeAdjacentPosition(
+    const adjacent = computeAdjacentPosition(
       onboardingBounds,
       { width: savedBounds.width, height: savedBounds.height },
       display.workArea,
     )
 
     currentAnimation?.pause()
-    currentAnimation = animateWindowPosition(params.mainWindow, newPosition.x, newPosition.y)
+    currentAnimation = animateWindowBounds(params.mainWindow, {
+      x: adjacent.x,
+      y: adjacent.y,
+      width: adjacent.width,
+      height: adjacent.height,
+    })
 
     let userMovedManually = false
     let ignoreNextMoves = true
@@ -70,6 +82,7 @@ export function createOnboardingService(params: {
     }
 
     params.mainWindow.on('move', moveListener)
+    params.mainWindow.on('resize', moveListener)
     setTimeout(() => {
       ignoreNextMoves = false
     }, ANIMATION_DURATION + 50)
@@ -78,10 +91,11 @@ export function createOnboardingService(params: {
 
     cleanupOnClosed = params.onboardingWindowManager.onClosed(() => {
       params.mainWindow.removeListener('move', moveListener)
+      params.mainWindow.removeListener('resize', moveListener)
 
       if (!userMovedManually && !params.mainWindow.isDestroyed()) {
         currentAnimation?.pause()
-        currentAnimation = animateWindowPosition(params.mainWindow, savedBounds.x, savedBounds.y)
+        currentAnimation = animateWindowBounds(params.mainWindow, savedBounds)
       }
 
       cleanupOnClosed = undefined
