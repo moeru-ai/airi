@@ -231,6 +231,34 @@ describe('coding verification gate', () => {
     expect(decision.reasonCode).toBe('gate_pass')
   })
 
+  it('accepts file-targeted custom validation command even when scoped command is missing', () => {
+    const decision = evaluateCodingVerificationGate({
+      codingState: createCodingState({
+        lastScopedValidationCommand: undefined,
+        lastChangeReview: {
+          status: 'ready_for_next_file',
+          filesReviewed: ['src/example.ts'],
+          diffSummary: 'ok',
+          validationSummary: 'custom verifier passed',
+          validationCommand: './scripts/check-one-file.sh src/example.ts',
+          baselineComparison: 'unknown',
+          detectedRisks: [],
+          unresolvedIssues: [],
+          recommendedNextAction: 'done',
+        },
+      }),
+      workflowKind: 'coding_loop',
+      terminalEvidence: {
+        hasTerminalResult: true,
+        terminalCommand: './scripts/check-one-file.sh src/example.ts',
+        terminalExitCode: 0,
+      },
+    })
+
+    expect(decision.decision).toBe('pass')
+    expect(decision.reasonCode).toBe('gate_pass')
+  })
+
   it('treats patch_verification_mismatch as recheck-ineligible hard failure', () => {
     const decision = evaluateCodingVerificationGate({
       codingState: createCodingState({

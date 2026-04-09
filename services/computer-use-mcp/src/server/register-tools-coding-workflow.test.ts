@@ -82,6 +82,11 @@ function createGateAwareExecuteAction(
     terminalSequence?: ScriptedTerminalState[]
     reviewSequence?: ScriptedReviewState[]
     diagnosisSequence?: ScriptedDiagnosisState[]
+    onTerminalExec?: (snapshot: {
+      index: number
+      hasVerificationNudge: boolean
+      verificationOutcome?: 'nudged' | 'recheck_required' | 'passed' | 'failed'
+    }) => void
   },
 ) {
   let terminalIndex = 0
@@ -191,6 +196,12 @@ function createGateAwareExecuteAction(
     }
 
     if (action.kind === 'terminal_exec') {
+      options?.onTerminalExec?.({
+        index: terminalIndex,
+        hasVerificationNudge: Boolean(runtime.stateManager.getState().coding?.lastVerificationNudge),
+        verificationOutcome: runtime.stateManager.getState().coding?.lastVerificationOutcome?.outcome,
+      })
+
       const terminalState = options?.terminalSequence?.[terminalIndex++]
       if (terminalState?.applyToState !== false) {
         runtime.stateManager.updateTerminalResult({
@@ -756,6 +767,143 @@ describe('registerComputerUseTools: workflow_coding_loop', () => {
     expect(structured.status).toBe('completed')
     expect(executeAction.mock.calls.filter(call => call[0].kind === 'terminal_exec')).toHaveLength(2)
     expect(executeAction.mock.calls.filter(call => call[0].kind === 'coding_review_changes')).toHaveLength(2)
+  })
+
+  it('generates verification nudge before bounded recheck execution', async () => {
+    const terminalObservations: Array<{
+      index: number
+      hasVerificationNudge: boolean
+      verificationOutcome?: 'nudged' | 'recheck_required' | 'passed' | 'failed'
+    }> = []
+
+    const executeAction = createGateAwareExecuteAction(runtime, {
+      terminalSequence: [
+        { applyToState: false },
+        { applyToState: true, exitCode: 0 },
+      ],
+      reviewSequence: [
+        {
+          status: 'needs_follow_up',
+          detectedRisks: ['no_validation_run'],
+          unresolvedIssues: [],
+          scopedValidationCommand: 'pnpm exec eslint "src/example.ts"',
+        },
+        {
+          status: 'ready_for_next_file',
+          detectedRisks: [],
+          unresolvedIssues: [],
+          scopedValidationCommand: 'pnpm exec eslint "src/example.ts"',
+        },
+      ],
+      onTerminalExec: snapshot => terminalObservations.push(snapshot),
+    })
+    const { server, invoke } = createMockServer()
+
+    registerComputerUseTools({
+      server,
+      runtime,
+      executeAction,
+      enableTestTools: false,
+    })
+
+    const result = await invoke('workflow_coding_loop', {
+      workspacePath: '/tmp/project',
+      taskGoal: 'Nudge before bounded recheck',
+      targetFile: 'src/example.ts',
+      patchOld: 'a',
+      patchNew: 'b',
+      testCommand: 'auto',
+      autoApprove: true,
+    })
+
+    expect((result.structuredContent as Record<string, any>).status).toBe('completed')
+    expect(terminalObservations).toHaveLength(2)
+    expect(terminalObservations[1]?.hasVerificationNudge).toBe(true)
+  })
+
+  it('accepts custom validation commands when they target reviewed file', async () => {
+    const executeAction = createGateAwareExecuteAction(runtime, {
+      reviewSequence: [{
+        status: 'ready_for_next_file',
+        detectedRisks: [],
+        unresolvedIssues: [],
+        validationCommand: './scripts/check-one-file.sh src/example.ts',
+        scopedValidationCommand: 'pnpm exec eslint "src/example.ts"',
+      }],
+    })
+    const { server, invoke } = createMockServer()
+
+    registerComputerUseTools({
+      server,
+      runtime,
+      executeAction,
+      enableTestTools: false,
+    })
+
+    const result = await invoke('workflow_coding_loop', {
+      workspacePath: '/tmp/project',
+      taskGoal: 'Use repo-specific validation command',
+      targetFile: 'src/example.ts',
+      patchOld: 'a',
+      patchNew: 'b',
+      testCommand: './scripts/check-one-file.sh src/example.ts',
+      autoApprove: true,
+    })
+
+    const structured = result.structuredContent as Record<string, any>
+    expect(structured.status).toBe('completed')
+    expect(executeAction.mock.calls.filter(call => call[0].kind === 'terminal_exec')).toHaveLength(1)
+    expect(runtime.stateManager.getState().coding?.lastVerificationOutcome?.reasonCodes).toContain('gate_pass')
+  })
+
+  it('does not let coding_report_status auto override blocking verification nudge', async () => {
+    const executeAction = createGateAwareExecuteAction(runtime, {
+      terminalSequence: [
+        { applyToState: true, command: 'echo noop-validation', exitCode: 0 },
+        { applyToState: true, command: 'echo noop-validation', exitCode: 0 },
+      ],
+      reviewSequence: [
+        {
+          status: 'ready_for_next_file',
+          detectedRisks: [],
+          unresolvedIssues: [],
+          validationCommand: 'echo noop-validation',
+          scopedValidationCommand: 'echo noop-validation',
+        },
+        {
+          status: 'ready_for_next_file',
+          detectedRisks: [],
+          unresolvedIssues: [],
+          validationCommand: 'echo noop-validation',
+          scopedValidationCommand: 'echo noop-validation',
+        },
+      ],
+    })
+    const { server, invoke } = createMockServer()
+
+    registerComputerUseTools({
+      server,
+      runtime,
+      executeAction,
+      enableTestTools: false,
+    })
+
+    const result = await invoke('workflow_coding_loop', {
+      workspacePath: '/tmp/project',
+      taskGoal: 'Blocking nudge must dominate auto report',
+      targetFile: 'src/example.ts',
+      patchOld: 'a',
+      patchNew: 'b',
+      testCommand: 'echo noop-validation',
+      autoApprove: true,
+    })
+
+    const structured = result.structuredContent as Record<string, any>
+    expect(structured.status).toBe('failed')
+    expect(executeAction.mock.calls.filter(call => call[0].kind === 'terminal_exec')).toHaveLength(2)
+    expect(runtime.stateManager.getState().coding?.lastCodingReport?.status).toBe('completed')
+    expect(runtime.stateManager.getState().coding?.lastVerificationOutcome?.outcome).toBe('failed')
+    expect(runtime.stateManager.getState().coding?.lastVerificationOutcome?.reasonCodes).toContain('validation_command_mismatch')
   })
 
   it('coding_loop does not recheck for patch_verification_mismatch and fails directly', async () => {

@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
+import type { CodingVerificationGateReasonCode } from '../coding/verification-gate'
 import type {
   BrowserDomFrameResult,
   ClickActionInput,
@@ -18,6 +19,7 @@ import { z } from 'zod'
 
 import { CodingPrimitives } from '../coding/primitives'
 import { evaluateCodingVerificationGate } from '../coding/verification-gate'
+import { evaluateCodingVerificationNudge } from '../coding/verification-nudge'
 import { getRuntimePreflight } from '../preflight'
 import { summarizeRunState } from '../transparency'
 import {
@@ -1045,6 +1047,118 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     }
   }
 
+  function pickPrimaryReasonCode(reasonCodes: CodingVerificationGateReasonCode[]) {
+    return reasonCodes.find(code => code !== 'gate_pass') || reasonCodes[0] || 'gate_pass'
+  }
+
+  function recordVerificationNudgeSeed(params: {
+    reasonCodes: CodingVerificationGateReasonCode[]
+    suggestedValidationCommand?: string
+    reviewedFile?: string
+    outcome: 'nudged' | 'recheck_required' | 'passed' | 'failed'
+    workspacePath?: string
+  }) {
+    const codingState = runtime.stateManager.getState().coding
+    runtime.stateManager.updateCodingState({
+      ...(params.workspacePath && !codingState?.workspacePath
+        ? { workspacePath: params.workspacePath }
+        : {}),
+      lastVerificationNudge: {
+        reasonCodes: params.reasonCodes,
+        suggestedValidationCommand: params.suggestedValidationCommand,
+        reviewedFile: params.reviewedFile,
+        outcome: params.outcome,
+        recordedAt: new Date().toISOString(),
+      },
+    })
+  }
+
+  function recordVerificationOutcomeSeed(params: {
+    reasonCodes: CodingVerificationGateReasonCode[]
+    suggestedValidationCommand?: string
+    reviewedFile?: string
+    outcome: 'nudged' | 'recheck_required' | 'passed' | 'failed'
+    workspacePath?: string
+  }) {
+    const codingState = runtime.stateManager.getState().coding
+    runtime.stateManager.updateCodingState({
+      ...(params.workspacePath && !codingState?.workspacePath
+        ? { workspacePath: params.workspacePath }
+        : {}),
+      lastVerificationOutcome: {
+        reasonCodes: params.reasonCodes,
+        suggestedValidationCommand: params.suggestedValidationCommand,
+        reviewedFile: params.reviewedFile,
+        outcome: params.outcome,
+        recordedAt: new Date().toISOString(),
+      },
+    })
+  }
+
+  function applyBlockingNudgeToGateDecision(params: {
+    gateDecision: ReturnType<typeof evaluateCodingVerificationGate>
+    nudge: ReturnType<typeof evaluateCodingVerificationNudge>
+    recheckAttempted: boolean
+  }): ReturnType<typeof evaluateCodingVerificationGate> {
+    const { gateDecision, nudge, recheckAttempted } = params
+    if (gateDecision.decision !== 'pass' || nudge.severity !== 'blocking') {
+      return gateDecision
+    }
+
+    const reasonCode = pickPrimaryReasonCode(nudge.reasonCodes)
+    if (!reasonCode || reasonCode === 'gate_pass') {
+      return gateDecision
+    }
+
+    const canSingleRecheck = !recheckAttempted
+      && (reasonCode === 'no_validation_run' || reasonCode === 'validation_command_mismatch')
+
+    if (canSingleRecheck) {
+      return {
+        ...gateDecision,
+        decision: 'recheck_once' as const,
+        finalReportStatus: 'in_progress' as const,
+        workflowOutcome: 'failed' as const,
+        reasonCode,
+        explanation: `Blocking verification nudge requires one bounded recheck before completion. ${nudge.message}`,
+      }
+    }
+
+    return {
+      ...gateDecision,
+      decision: 'needs_follow_up' as const,
+      finalReportStatus: 'failed' as const,
+      workflowOutcome: 'failed' as const,
+      reasonCode,
+      explanation: `Blocking verification nudge prevents completion. ${nudge.message}`,
+    }
+  }
+
+  function recordPreValidationNudge(params: {
+    workflowKind: 'coding_loop' | 'coding_agentic_loop'
+    workspacePath: string
+    requestedValidationCommand?: string
+    reviewedFileHint?: string
+  }) {
+    const nudge = evaluateCodingVerificationNudge({
+      codingState: runtime.stateManager.getState().coding,
+      workflowKind: params.workflowKind,
+      requestedValidationCommand: params.requestedValidationCommand,
+      terminalEvidence: {
+        hasTerminalResult: false,
+      },
+      reviewedFileHint: params.reviewedFileHint,
+    })
+
+    recordVerificationNudgeSeed({
+      reasonCodes: nudge.reasonCodes,
+      suggestedValidationCommand: nudge.suggestedValidationCommand,
+      reviewedFile: nudge.reviewedFile,
+      outcome: 'nudged',
+      workspacePath: params.workspacePath,
+    })
+  }
+
   function isBoundedRecheckActionExecuted(result: CallToolResult) {
     if (result.isError === true) {
       return false
@@ -1160,17 +1274,52 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       return result
     }
 
+    const initialNudge = evaluateCodingVerificationNudge({
+      codingState: runtime.stateManager.getState().coding,
+      workflowKind: params.workflowKind,
+      terminalEvidence: getCodingGateTerminalEvidence(),
+    })
+
+    recordVerificationNudgeSeed({
+      reasonCodes: initialNudge.reasonCodes,
+      suggestedValidationCommand: initialNudge.suggestedValidationCommand,
+      reviewedFile: initialNudge.reviewedFile,
+      outcome: 'nudged',
+      workspacePath: params.workspacePath,
+    })
+
     let gateDecision = evaluateCodingVerificationGate({
       codingState: runtime.stateManager.getState().coding,
       workflowKind: params.workflowKind,
       terminalEvidence: getCodingGateTerminalEvidence(),
     })
 
+    gateDecision = applyBlockingNudgeToGateDecision({
+      gateDecision,
+      nudge: initialNudge,
+      recheckAttempted: false,
+    })
+
     if (gateDecision.decision === 'pass') {
+      recordVerificationOutcomeSeed({
+        reasonCodes: ['gate_pass'],
+        suggestedValidationCommand: initialNudge.suggestedValidationCommand,
+        reviewedFile: initialNudge.reviewedFile,
+        outcome: 'passed',
+        workspacePath: params.workspacePath,
+      })
       return result
     }
 
     if (gateDecision.decision === 'recheck_once') {
+      recordVerificationOutcomeSeed({
+        reasonCodes: [gateDecision.reasonCode],
+        suggestedValidationCommand: initialNudge.suggestedValidationCommand,
+        reviewedFile: initialNudge.reviewedFile,
+        outcome: 'recheck_required',
+        workspacePath: params.workspacePath,
+      })
+
       const recheckOutcome = await runBoundedCodingVerificationRecheck({
         workflowKind: params.workflowKind,
         workspacePath: params.workspacePath,
@@ -1178,12 +1327,33 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       })
 
       if (!recheckOutcome.succeeded) {
+        recordVerificationOutcomeSeed({
+          reasonCodes: [gateDecision.reasonCode],
+          suggestedValidationCommand: initialNudge.suggestedValidationCommand,
+          reviewedFile: initialNudge.reviewedFile,
+          outcome: 'failed',
+          workspacePath: params.workspacePath,
+        })
         runtime.stateManager.finishTask('failed')
         return buildGateFailureResult({
           baseResult: result,
           gateSummary: `[Verification Gate] ${recheckOutcome.explanation} reason=${gateDecision.reasonCode}`,
         })
       }
+
+      const recheckNudge = evaluateCodingVerificationNudge({
+        codingState: runtime.stateManager.getState().coding,
+        workflowKind: params.workflowKind,
+        terminalEvidence: getCodingGateTerminalEvidence(),
+      })
+
+      recordVerificationNudgeSeed({
+        reasonCodes: recheckNudge.reasonCodes,
+        suggestedValidationCommand: recheckNudge.suggestedValidationCommand,
+        reviewedFile: recheckNudge.reviewedFile,
+        outcome: 'nudged',
+        workspacePath: params.workspacePath,
+      })
 
       gateDecision = evaluateCodingVerificationGate({
         codingState: runtime.stateManager.getState().coding,
@@ -1192,13 +1362,34 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         terminalEvidence: getCodingGateTerminalEvidence(),
       })
 
+      gateDecision = applyBlockingNudgeToGateDecision({
+        gateDecision,
+        nudge: recheckNudge,
+        recheckAttempted: true,
+      })
+
       if (gateDecision.decision === 'pass') {
+        recordVerificationOutcomeSeed({
+          reasonCodes: ['gate_pass'],
+          suggestedValidationCommand: recheckNudge.suggestedValidationCommand,
+          reviewedFile: recheckNudge.reviewedFile,
+          outcome: 'passed',
+          workspacePath: params.workspacePath,
+        })
         return {
           ...result,
           summary: `${result.summary}\n[Verification Gate] single bounded verification recheck passed.`,
         }
       }
     }
+
+    recordVerificationOutcomeSeed({
+      reasonCodes: [gateDecision.reasonCode],
+      suggestedValidationCommand: runtime.stateManager.getState().coding?.lastScopedValidationCommand?.command,
+      reviewedFile: runtime.stateManager.getState().coding?.lastTargetSelection?.selectedFile,
+      outcome: 'failed',
+      workspacePath: params.workspacePath,
+    })
 
     runtime.stateManager.finishTask('failed')
     return buildGateFailureResult({
@@ -1388,6 +1579,13 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         }
       }
 
+      recordPreValidationNudge({
+        workflowKind: 'coding_loop',
+        workspacePath,
+        requestedValidationCommand: testCommand ?? 'auto',
+        reviewedFileHint: targetFile,
+      })
+
       const workflow = createCodingExecutionLoopWorkflow({
         workspacePath,
         taskGoal,
@@ -1456,6 +1654,13 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
           },
         }
       }
+
+      recordPreValidationNudge({
+        workflowKind: 'coding_agentic_loop',
+        workspacePath,
+        requestedValidationCommand: testCommand ?? 'auto',
+        reviewedFileHint: targetFile,
+      })
 
       const workflow = createCodingAgenticLoopWorkflow({
         workspacePath,
