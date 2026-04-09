@@ -62,7 +62,7 @@ jobs:
             |:------------------------|:---------------------------------------------------------------------------------------|
             | 🔭 Waiting for approval | For maintainers, approve [here](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
-            Hey, @nekomeowww, @sumimakito, @luoling8192, @LemonNekoGH, kindly take some time to review and approve this deployment when you are available. Thank you! 🙏
+            Hey, @nekomeowww, @sumimakito, @LemonNekoGH, kindly take some time to review and approve this deployment when you are available. Thank you! 🙏
 
   on-success:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
