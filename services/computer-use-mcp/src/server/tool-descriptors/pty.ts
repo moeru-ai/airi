@@ -52,6 +52,7 @@ export const ptyDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: true,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'pty_read_screen',
@@ -64,6 +65,7 @@ export const ptyDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'pty_resize',
@@ -76,6 +78,7 @@ export const ptyDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'pty_destroy',
@@ -88,5 +91,6 @@ export const ptyDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: true,
     public: true,
+    defaultDeferred: true,
   },
 ]

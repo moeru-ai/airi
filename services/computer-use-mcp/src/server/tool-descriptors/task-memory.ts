@@ -16,6 +16,7 @@ export const taskMemoryDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'task_memory_get',
@@ -28,6 +29,7 @@ export const taskMemoryDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'task_memory_clear',
@@ -40,5 +42,6 @@ export const taskMemoryDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
 ]

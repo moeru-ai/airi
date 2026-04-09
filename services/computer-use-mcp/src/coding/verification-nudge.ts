@@ -142,6 +142,9 @@ function buildNudgeMessage(params: {
     : ''
 
   if (params.severity === 'blocking') {
+    if (params.reasonCodes.includes('verification_bad_faith')) {
+      return `Verification rejected (${params.workflowKind}): Used a non-verifiable shortcut (like echo/ls/pwd) instead of a real test. You MUST run actual tests or execute the patched code. Shortcuts are strictly prohibited.${suggestionText}`
+    }
     return `Verification nudge (${params.workflowKind}) is blocking due to ${reasonText}.${suggestionText}`
   }
 
@@ -216,7 +219,7 @@ export function evaluateCodingVerificationNudge(params: EvaluateCodingVerificati
     addReason('no_validation_run', hasTerminalResult ? 'blocking' : 'warning')
   }
   else if (OBVIOUS_NOOP_RE.test(candidateCommand)) {
-    addReason('validation_command_mismatch', 'blocking')
+    addReason('verification_bad_faith', 'blocking')
   }
   else {
     const alignedToScoped = scopedCommand.length > 0 && candidateCommand === scopedCommand

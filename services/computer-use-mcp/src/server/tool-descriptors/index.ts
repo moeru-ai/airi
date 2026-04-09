@@ -46,6 +46,7 @@ export {
   isToolReadOnly,
   registerToolWithDescriptor,
   requireDescriptor,
+  toolInstances,
   toolRequiresApprovalByDefault,
   validateToolsHaveDescriptors,
 } from './register-helper'

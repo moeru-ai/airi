@@ -16,6 +16,7 @@ export const vscodeDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'vscode_open_workspace',
@@ -28,6 +29,7 @@ export const vscodeDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: true,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'vscode_open_file',
@@ -40,6 +42,7 @@ export const vscodeDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'vscode_run_task',
@@ -52,6 +55,7 @@ export const vscodeDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: true,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'vscode_list_problems',
@@ -64,5 +68,6 @@ export const vscodeDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
 ]

@@ -16,6 +16,7 @@ export type CodingVerificationGateDecisionKind
 export type CodingVerificationGateTrigger
   = | 'no_validation_run'
     | 'validation_command_mismatch'
+    | 'verification_bad_faith'
     | 'unresolved_issues_remain'
     | 'patch_verification_mismatch'
 
@@ -28,6 +29,7 @@ export type CodingVerificationGateReasonCode
     | 'pending_planner_work'
     | 'no_validation_run'
     | 'validation_command_mismatch'
+    | 'verification_bad_faith'
     | 'unresolved_issues_remain'
     | 'patch_verification_mismatch'
     | 'amend_required'
@@ -160,6 +162,10 @@ function detectTriggers(params: {
     triggers.add('validation_command_mismatch')
   }
 
+  // NOTE: verification_bad_faith is explicitly injected via nudges/terminal checks mapping,
+  // but if the diagnosis flags it as validation_command_mismatch, we want to stay open
+  // to intercepting that. Right now bad_faith is checked in the downstream evaluation.
+
   return Array.from(triggers)
 }
 
@@ -208,7 +214,14 @@ export function evaluateCodingVerificationGate(params: {
     codingState?.lastTargetSelection?.selectedFile,
     ...(review?.filesReviewed || []),
   ].filter((value): value is string => Boolean(value && value.trim()))))
-  if (hasValidationCommandMismatch({
+  const candidateCommand = normalizeCommand(
+    terminalEvidence.terminalCommand || review?.validationCommand,
+  )
+
+  if (OBVIOUS_NOOP_RE.test(candidateCommand)) {
+    triggers.add('verification_bad_faith')
+  }
+  else if (hasValidationCommandMismatch({
     hasTerminalResult: terminalEvidence.hasTerminalResult,
     fileHints,
     reviewValidationCommand: review?.validationCommand,
@@ -299,6 +312,15 @@ export function evaluateCodingVerificationGate(params: {
       explanation: 'Unresolved issues remain after review; workflow cannot be completed.',
       evidence,
       finalReportStatus: 'blocked',
+    })
+  }
+
+  if (triggers.has('verification_bad_faith')) {
+    return buildNeedsFollowUpDecision({
+      reasonCode: 'verification_bad_faith',
+      explanation: 'Verification rejected: Used a non-verifiable shortcut (like echo/ls/pwd). You MUST run a real test or execute the patched code to be permitted to complete.',
+      evidence,
+      finalReportStatus: 'failed',
     })
   }
 

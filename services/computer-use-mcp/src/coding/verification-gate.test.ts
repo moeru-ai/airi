@@ -157,7 +157,7 @@ describe('coding verification gate', () => {
         filesReviewed: ['src/example.ts'],
         diffSummary: 'ok',
         validationSummary: 'ok',
-        validationCommand: 'echo ok',
+        validationCommand: 'pnpm some-other-script',
         baselineComparison: 'unknown',
         detectedRisks: [],
         unresolvedIssues: [],
@@ -177,7 +177,7 @@ describe('coding verification gate', () => {
       recheckAttempted: false,
       terminalEvidence: {
         hasTerminalResult: true,
-        terminalCommand: 'echo ok',
+        terminalCommand: 'pnpm some-other-script',
         terminalExitCode: 0,
       },
     })
@@ -190,12 +190,34 @@ describe('coding verification gate', () => {
       recheckAttempted: true,
       terminalEvidence: {
         hasTerminalResult: true,
-        terminalCommand: 'echo ok',
+        terminalCommand: 'pnpm some-other-script',
         terminalExitCode: 0,
       },
     })
     expect(secondDecision.decision).toBe('needs_follow_up')
     expect(secondDecision.reasonCode).toBe('validation_command_mismatch')
+  })
+
+  it('treats bad faith commands as immediate hard failure, skipping recheck', () => {
+    const decision = evaluateCodingVerificationGate({
+      codingState: createCodingState({
+        lastScopedValidationCommand: {
+          command: 'pnpm test',
+          scope: 'workspace',
+          reason: 'targeted validation',
+          resolvedAt: new Date().toISOString(),
+        },
+      }),
+      workflowKind: 'coding_loop',
+      recheckAttempted: false,
+      terminalEvidence: {
+        hasTerminalResult: true,
+        terminalCommand: 'echo "all good"',
+        terminalExitCode: 0,
+      },
+    })
+    expect(decision.decision).toBe('needs_follow_up')
+    expect(decision.reasonCode).toBe('verification_bad_faith')
   })
 
   it('accepts repo-specific validation commands when terminal and scoped evidence align', () => {

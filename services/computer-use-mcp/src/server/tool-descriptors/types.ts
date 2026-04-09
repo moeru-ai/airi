@@ -97,6 +97,11 @@ export interface ToolDescriptor {
    * False = internal tool not registered with MCP server.
    */
   public: boolean
+  /**
+   * Whether this tool is hidden from the default tool list to reduce context bloat.
+   * True = deferred loading (must be explicitly enabled via tool_search).
+   */
+  defaultDeferred?: boolean
 }
 
 /**

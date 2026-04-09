@@ -859,23 +859,23 @@ describe('registerComputerUseTools: workflow_coding_loop', () => {
   it('does not let coding_report_status auto override blocking verification nudge', async () => {
     const executeAction = createGateAwareExecuteAction(runtime, {
       terminalSequence: [
-        { applyToState: true, command: 'echo noop-validation', exitCode: 0 },
-        { applyToState: true, command: 'echo noop-validation', exitCode: 0 },
+        { applyToState: true, command: 'pnpm run noop-validation', exitCode: 0 },
+        { applyToState: true, command: 'pnpm run noop-validation', exitCode: 0 },
       ],
       reviewSequence: [
         {
           status: 'ready_for_next_file',
           detectedRisks: [],
           unresolvedIssues: [],
-          validationCommand: 'echo noop-validation',
-          scopedValidationCommand: 'echo noop-validation',
+          validationCommand: 'pnpm run noop-validation',
+          scopedValidationCommand: 'pnpm run something-else',
         },
         {
           status: 'ready_for_next_file',
           detectedRisks: [],
           unresolvedIssues: [],
-          validationCommand: 'echo noop-validation',
-          scopedValidationCommand: 'echo noop-validation',
+          validationCommand: 'pnpm run noop-validation',
+          scopedValidationCommand: 'pnpm run something-else',
         },
       ],
     })
@@ -894,7 +894,7 @@ describe('registerComputerUseTools: workflow_coding_loop', () => {
       targetFile: 'src/example.ts',
       patchOld: 'a',
       patchNew: 'b',
-      testCommand: 'echo noop-validation',
+      testCommand: 'pnpm run noop-validation',
       autoApprove: true,
     })
 

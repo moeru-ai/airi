@@ -17,6 +17,7 @@ import {
   initializeGlobalRegistry,
   registerToolWithDescriptor,
   requireDescriptor,
+  toolInstances,
 } from './tool-descriptors'
 
 const DEFAULT_LIMIT = 8
@@ -85,10 +86,20 @@ export function registerToolSearch({ server }: RegisterToolSearchOptions): void 
       lane: z.string().optional().describe('Optional lane filter applied before ranking candidates.'),
       kind: z.string().optional().describe('Optional kind filter applied before ranking candidates.'),
       limit: z.number().int().min(1).max(MAX_LIMIT).optional().describe(`Maximum number of candidates to return (default: ${DEFAULT_LIMIT}, max: ${MAX_LIMIT}).`),
+      exposeTools: z.array(z.string()).optional().describe('Optional list of canonicalNames to immediately expose in your tool list for subsequent turns.'),
     },
-    handler: async ({ query, lane, kind, limit }) => {
+    handler: async ({ query, lane, kind, limit, exposeTools }) => {
       const queryLower = query.trim().toLowerCase()
       const targetLimit = limit ?? DEFAULT_LIMIT
+
+      if (exposeTools && exposeTools.length > 0) {
+        for (const toolName of exposeTools) {
+          const registeredTool = toolInstances.get(toolName)
+          if (registeredTool) {
+            registeredTool.enable()
+          }
+        }
+      }
 
       const scoped = globalRegistry.query({
         lane: lane as ToolLane | undefined,
@@ -125,8 +136,12 @@ export function registerToolSearch({ server }: RegisterToolSearchOptions): void 
         ? `Top ${compactLines.length} candidate(s):\n\n${compactLines.join('\n')}`
         : 'No tools match the specified query and filters.'
 
+      const exposedText = exposeTools && exposeTools.length > 0
+        ? `\n\nSuccessfully exposed the following tools to your active list: ${exposeTools.join(', ')}.`
+        : ''
+
       return {
-        content: [textContent(compactText)],
+        content: [textContent(compactText + exposedText)],
         structuredContent: {
           status: 'ok' as const,
           query,
@@ -136,6 +151,7 @@ export function registerToolSearch({ server }: RegisterToolSearchOptions): void 
             lane: lane ?? null,
             kind: kind ?? null,
             limit: targetLimit,
+            exposeTools: exposeTools ?? null,
           },
           candidates: candidates.map(candidate => ({
             canonicalName: candidate.descriptor.canonicalName,
