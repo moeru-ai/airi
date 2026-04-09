@@ -12,7 +12,7 @@ import { computeAdjacentPosition } from '../../../windows/shared/display'
 
 const ANIMATION_DURATION = 350
 
-function animateWindowBounds(
+function animateWindowTo(
   window: BrowserWindow,
   target: Rectangle,
 ): ReturnType<typeof animate> | undefined {
@@ -20,25 +20,22 @@ function animateWindowBounds(
     return undefined
 
   const current = window.getBounds()
-  const state = { x: current.x, y: current.y, w: current.width, h: current.height }
+  const needsResize = current.width !== target.width || current.height !== target.height
+
+  if (needsResize)
+    window.setSize(target.width, target.height)
+
+  const state = { x: current.x, y: current.y }
 
   return animate(state, {
     x: target.x,
     y: target.y,
-    w: target.width,
-    h: target.height,
     duration: ANIMATION_DURATION,
     ease: 'outCubic',
     modifier: utils.round(0),
     onRender: () => {
-      if (!window.isDestroyed()) {
-        window.setBounds({
-          x: Math.round(state.x),
-          y: Math.round(state.y),
-          width: Math.round(state.w),
-          height: Math.round(state.h),
-        })
-      }
+      if (!window.isDestroyed())
+        window.setPosition(Math.round(state.x), Math.round(state.y))
     },
   })
 }
@@ -65,7 +62,7 @@ export function createOnboardingService(params: {
     )
 
     currentAnimation?.pause()
-    currentAnimation = animateWindowBounds(params.mainWindow, {
+    currentAnimation = animateWindowTo(params.mainWindow, {
       x: adjacent.x,
       y: adjacent.y,
       width: adjacent.width,
@@ -95,7 +92,7 @@ export function createOnboardingService(params: {
 
       if (!userMovedManually && !params.mainWindow.isDestroyed()) {
         currentAnimation?.pause()
-        currentAnimation = animateWindowBounds(params.mainWindow, savedBounds)
+        currentAnimation = animateWindowTo(params.mainWindow, savedBounds)
       }
 
       cleanupOnClosed = undefined
