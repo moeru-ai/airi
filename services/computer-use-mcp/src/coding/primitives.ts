@@ -70,7 +70,6 @@ import {
 import {
   buildEvidencePreview,
   executeSearchPlan,
-
 } from './retrieval'
 import {
   clampSearchLimit,
@@ -83,15 +82,31 @@ import { buildTargetDecisionCase, resolveTargetJudgement } from './target-case'
 const execAsync = promisify(exec)
 const execFileAsync = promisify(execFile)
 
+function buildRetrievalBlock(bundle?: SearchEvidenceBundle) {
+  if (!bundle) {
+    return undefined
+  }
+
+  const evidence = buildEvidencePreview(bundle)
+
+  return {
+    plan: {
+      query: bundle.plan.query,
+      targetSymbol: bundle.plan.targetSymbol,
+      targetPath: bundle.plan.targetPath,
+      scopes: bundle.plan.scopes,
+    },
+    selectedFiles: bundle.selectedFiles,
+    diagnostics: bundle.diagnostics,
+    evidencePreview: evidence,
+  }
+}
+
 export class CodingPrimitives {
   constructor(private runtime: ComputerUseServerRuntime) {}
 
   private readonly maxAutoStringLength = 300
   private readonly maxAutoArrayLength = 10
-
-  // NOTICE: Phase 1 retrieval integration — temporary storage for retrieval results.
-  // Not persisted to state; only used during method execution.
-  private lastRetrievalBundle?: SearchEvidenceBundle
 
   private clampString(value: string) {
     const normalized = value || ''
@@ -167,32 +182,10 @@ export class CodingPrimitives {
 
       return bundle
     }
-    catch (error) {
+    catch {
       // NOTICE: Retrieval failures are non-fatal in phase 1.
       // Fall back to existing behavior using cached search results.
       return undefined
-    }
-  }
-
-  // NOTICE: Build retrieval block for tool results (phase 1).
-  // Returns undefined if no retrieval was executed.
-  buildRetrievalBlock() {
-    if (!this.lastRetrievalBundle) {
-      return undefined
-    }
-
-    const evidence = buildEvidencePreview(this.lastRetrievalBundle)
-
-    return {
-      plan: {
-        query: this.lastRetrievalBundle.plan.query,
-        targetSymbol: this.lastRetrievalBundle.plan.targetSymbol,
-        targetPath: this.lastRetrievalBundle.plan.targetPath,
-        scopes: this.lastRetrievalBundle.plan.scopes,
-      },
-      selectedFiles: this.lastRetrievalBundle.selectedFiles,
-      diagnostics: this.lastRetrievalBundle.diagnostics,
-      evidencePreview: evidence,
     }
   }
 
@@ -2555,14 +2548,36 @@ export class CodingPrimitives {
     searchQuery?: string
     maxDepth?: number
   }) {
+    return (await this.analyzeImpactWithRetrieval(params)).result
+  }
+
+  async analyzeImpactWithRetrieval(params: {
+    targetFile?: string
+    targetPath?: string
+    targetSymbol?: string
+    searchQuery?: string
+    maxDepth?: number
+  }) {
+    const retrievalBundle = await this.executeRetrieval(params)
+    const result = await this.analyzeImpactCore(params)
+
+    return {
+      result,
+      retrieval: buildRetrievalBlock(retrievalBundle),
+    }
+  }
+
+  private async analyzeImpactCore(params: {
+    targetFile?: string
+    targetPath?: string
+    targetSymbol?: string
+    searchQuery?: string
+    maxDepth?: number
+  }) {
     const state = this.getCodingState()
     if (!state) {
       throw new McpError(ErrorCode.InvalidParams, 'Workspace not reviewed yet. Call coding_review_workspace first.')
     }
-
-    // NOTICE: Phase 1 retrieval integration — execute retrieval before building candidates
-    const retrievalBundle = await this.executeRetrieval(params)
-    this.lastRetrievalBundle = retrievalBundle
 
     const maxDepth = 1 as const
     const candidates = this.buildTargetCandidates({
@@ -2774,8 +2789,17 @@ export class CodingPrimitives {
     searchQuery?: string
     changeIntent: CodingChangeIntent
   }) {
-    // NOTICE: Phase 1 retrieval integration — analyzeImpact will execute retrieval
-    const impact = await this.analyzeImpact({
+    return (await this.validateHypothesisWithRetrieval(params)).result
+  }
+
+  async validateHypothesisWithRetrieval(params: {
+    targetFile?: string
+    targetPath?: string
+    targetSymbol?: string
+    searchQuery?: string
+    changeIntent: CodingChangeIntent
+  }) {
+    const { result: impact, retrieval } = await this.analyzeImpactWithRetrieval({
       targetFile: params.targetFile,
       targetPath: params.targetPath,
       targetSymbol: params.targetSymbol,
@@ -2784,10 +2808,13 @@ export class CodingPrimitives {
 
     if (impact.status === 'unsupported') {
       return {
-        status: 'unsupported' as const,
-        changeIntent: params.changeIntent,
-        reason: impact.explanation,
-        hypotheses: [] as CodingTargetHypothesis[],
+        result: {
+          status: 'unsupported' as const,
+          changeIntent: params.changeIntent,
+          reason: impact.explanation,
+          hypotheses: [] as CodingTargetHypothesis[],
+        },
+        retrieval,
       }
     }
 
@@ -2799,10 +2826,13 @@ export class CodingPrimitives {
 
     if (hypotheses.length === 0) {
       return {
-        status: 'no_match' as const,
-        changeIntent: params.changeIntent,
-        reason: 'No hypothesis candidates were produced from current search/impact evidence.',
-        hypotheses,
+        result: {
+          status: 'no_match' as const,
+          changeIntent: params.changeIntent,
+          reason: 'No hypothesis candidates were produced from current search/impact evidence.',
+          hypotheses,
+        },
+        retrieval,
       }
     }
 
@@ -2810,10 +2840,13 @@ export class CodingPrimitives {
     const second = hypotheses[1]
     if (second && second.score === top.score) {
       return {
-        status: 'ambiguous' as const,
-        changeIntent: params.changeIntent,
-        reason: `Top hypotheses are tied at score ${top.score}.`,
-        hypotheses,
+        result: {
+          status: 'ambiguous' as const,
+          changeIntent: params.changeIntent,
+          reason: `Top hypotheses are tied at score ${top.score}.`,
+          hypotheses,
+        },
+        retrieval,
       }
     }
 
@@ -2822,11 +2855,14 @@ export class CodingPrimitives {
     })
 
     return {
-      status: 'validated' as const,
-      changeIntent: params.changeIntent,
-      reason: `Validated hypothesis ${top.id} for ${top.filePath}.`,
-      selectedHypothesis: top,
-      hypotheses,
+      result: {
+        status: 'validated' as const,
+        changeIntent: params.changeIntent,
+        reason: `Validated hypothesis ${top.id} for ${top.filePath}.`,
+        selectedHypothesis: top,
+        hypotheses,
+      },
+      retrieval,
     }
   }
 
@@ -2837,14 +2873,36 @@ export class CodingPrimitives {
     searchQuery?: string
     changeIntent?: CodingChangeIntent
   }) {
+    return (await this.selectTargetWithRetrieval(params)).result
+  }
+
+  async selectTargetWithRetrieval(params: {
+    targetFile?: string
+    targetPath?: string
+    targetSymbol?: string
+    searchQuery?: string
+    changeIntent?: CodingChangeIntent
+  }) {
+    const retrievalBundle = await this.executeRetrieval(params)
+    const result = await this.selectTargetCore(params)
+
+    return {
+      result,
+      retrieval: buildRetrievalBlock(retrievalBundle),
+    }
+  }
+
+  private async selectTargetCore(params: {
+    targetFile?: string
+    targetPath?: string
+    targetSymbol?: string
+    searchQuery?: string
+    changeIntent?: CodingChangeIntent
+  }) {
     const state = this.getCodingState()
     if (!state) {
       throw new McpError(ErrorCode.InvalidParams, 'Workspace not reviewed yet. Call coding_review_workspace first.')
     }
-
-    // NOTICE: Phase 1 retrieval integration — execute retrieval before building candidates
-    const retrievalBundle = await this.executeRetrieval(params)
-    this.lastRetrievalBundle = retrievalBundle
 
     if (!params.targetFile) {
       if (state.currentPlanGraph?.nodes?.length) {

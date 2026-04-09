@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
+import type { CodingChangeRootCauseType, CodingReviewRisk } from '../state'
 import type { ActionInvocation } from '../types'
 import type { ComputerUseServerRuntime } from './runtime'
 
@@ -49,6 +50,238 @@ function makeExecutedResult(action: ActionInvocation): CallToolResult {
       backendResult: {},
     },
   }
+}
+
+interface ScriptedTerminalState {
+  applyToState?: boolean
+  command?: string
+  exitCode?: number
+  stdout?: string
+  stderr?: string
+  timedOut?: boolean
+}
+
+interface ScriptedReviewState {
+  status: 'ready_for_next_file' | 'needs_follow_up' | 'blocked' | 'failed'
+  detectedRisks?: CodingReviewRisk[]
+  unresolvedIssues?: string[]
+  validationCommand?: string
+  scopedValidationCommand?: string | null
+}
+
+interface ScriptedDiagnosisState {
+  nextAction: 'amend' | 'abort' | 'continue'
+  rootCauseType?: CodingChangeRootCauseType
+  shouldAbortPlan?: boolean
+  shouldAmendPlan?: boolean
+}
+
+function createGateAwareExecuteAction(
+  runtime: ComputerUseServerRuntime,
+  options?: {
+    terminalSequence?: ScriptedTerminalState[]
+    reviewSequence?: ScriptedReviewState[]
+    diagnosisSequence?: ScriptedDiagnosisState[]
+  },
+) {
+  let terminalIndex = 0
+  let reviewIndex = 0
+  let diagnosisIndex = 0
+
+  return vi.fn(async (action: ActionInvocation) => {
+    const now = new Date().toISOString()
+    const coding = runtime.stateManager.getState().coding
+
+    if (action.kind === 'coding_review_workspace') {
+      runtime.stateManager.updateCodingState({
+        workspacePath: action.input.workspacePath,
+        gitSummary: 'clean',
+      })
+      return makeExecutedResult(action)
+    }
+
+    if (action.kind === 'coding_capture_validation_baseline') {
+      runtime.stateManager.updateCodingState({
+        validationBaseline: {
+          workspacePath: coding?.workspacePath || '/tmp/project',
+          baselineDirtyFiles: [],
+          baselineDiffSummary: '',
+          baselineFailingChecks: [],
+          baselineSkippedValidations: [],
+          capturedAt: now,
+          workspaceMetadata: {
+            gitAvailable: false,
+          },
+        },
+      })
+      return makeExecutedResult(action)
+    }
+
+    if (action.kind === 'coding_select_target') {
+      const selectedFile = typeof action.input.targetFile === 'string' && action.input.targetFile !== 'auto'
+        ? action.input.targetFile
+        : coding?.lastTargetSelection?.selectedFile || 'src/example.ts'
+
+      runtime.stateManager.updateCodingState({
+        lastTargetSelection: {
+          status: 'selected',
+          selectedFile,
+          candidates: [{
+            filePath: selectedFile,
+            sourceKind: 'explicit',
+            sourceLabel: `explicit:${selectedFile}`,
+            score: 100,
+            matchCount: 1,
+            inScopedPath: true,
+            recentlyEdited: false,
+            recentlyRead: false,
+            reasons: ['scripted-test-target'],
+          }],
+          reason: `selected ${selectedFile}`,
+          recommendedNextAction: `edit ${selectedFile}`,
+        },
+      })
+
+      return makeExecutedResult(action)
+    }
+
+    if (action.kind === 'coding_plan_changes') {
+      const selectedFile = runtime.stateManager.getState().coding?.lastTargetSelection?.selectedFile || 'src/example.ts'
+      runtime.stateManager.updateCodingState({
+        currentPlan: {
+          maxPlannedFiles: 1,
+          diffBaselineFiles: [],
+          steps: [{
+            filePath: selectedFile,
+            intent: 'scripted',
+            source: 'target_selection',
+            status: 'completed',
+            dependsOn: [],
+            checkpoint: 'none',
+          }],
+          reason: 'scripted test plan',
+        },
+        ...(action.input.sessionAware
+          ? {
+              currentPlanSession: {
+                id: 'session-scripted',
+                createdAt: now,
+                updatedAt: now,
+                status: 'completed',
+                amendCount: 0,
+                backtrackCount: 0,
+                maxAmendCount: 2,
+                maxBacktrackCount: 1,
+                maxFiles: 1,
+                changeIntent: 'behavior_fix',
+                steps: [{
+                  filePath: selectedFile,
+                  intent: 'behavior_fix',
+                  source: 'target_selection',
+                  status: 'validated',
+                  dependsOn: [],
+                  checkpoint: 'none',
+                }],
+                reason: 'scripted test session',
+              },
+            }
+          : {}),
+      })
+      return makeExecutedResult(action)
+    }
+
+    if (action.kind === 'terminal_exec') {
+      const terminalState = options?.terminalSequence?.[terminalIndex++]
+      if (terminalState?.applyToState !== false) {
+        runtime.stateManager.updateTerminalResult({
+          command: terminalState?.command || action.input.command,
+          stdout: terminalState?.stdout || '',
+          stderr: terminalState?.stderr || '',
+          exitCode: terminalState?.exitCode ?? 0,
+          effectiveCwd: action.input.cwd || '/tmp/project',
+          durationMs: 1,
+          timedOut: terminalState?.timedOut ?? false,
+        })
+      }
+      return makeExecutedResult(action)
+    }
+
+    if (action.kind === 'coding_review_changes') {
+      const configured = options?.reviewSequence?.[reviewIndex++] ?? {
+        status: 'ready_for_next_file',
+        detectedRisks: [],
+        unresolvedIssues: [],
+      }
+      const selectedFile = runtime.stateManager.getState().coding?.lastTargetSelection?.selectedFile || 'src/example.ts'
+      const terminalCommand = runtime.stateManager.getState().lastTerminalResult?.command
+      const validationCommand = configured.validationCommand ?? terminalCommand
+
+      runtime.stateManager.updateCodingState({
+        lastChangeReview: {
+          status: configured.status,
+          filesReviewed: [selectedFile],
+          diffSummary: 'scripted review',
+          validationSummary: configured.status === 'ready_for_next_file' ? 'ok' : 'follow-up required',
+          validationCommand,
+          baselineComparison: 'unknown',
+          detectedRisks: configured.detectedRisks || [],
+          unresolvedIssues: configured.unresolvedIssues || [],
+          recommendedNextAction: configured.status === 'ready_for_next_file' ? 'report completion' : 'follow-up needed',
+        },
+        lastScopedValidationCommand: configured.scopedValidationCommand === null
+          ? undefined
+          : {
+              command: configured.scopedValidationCommand || validationCommand || `pnpm exec eslint "${selectedFile}"`,
+              scope: 'file',
+              reason: 'scripted review evidence',
+              filePath: selectedFile,
+              resolvedAt: now,
+            },
+      })
+
+      return makeExecutedResult(action)
+    }
+
+    if (action.kind === 'coding_diagnose_changes') {
+      const configured = options?.diagnosisSequence?.[diagnosisIndex++] ?? {
+        nextAction: 'continue',
+        rootCauseType: 'baseline_noise',
+        shouldAbortPlan: false,
+        shouldAmendPlan: false,
+      }
+      runtime.stateManager.updateCodingState({
+        lastChangeDiagnosis: {
+          rootCauseType: configured.rootCauseType || 'baseline_noise',
+          confidence: 0.8,
+          evidence: ['scripted diagnosis'],
+          affectedFiles: [runtime.stateManager.getState().coding?.lastTargetSelection?.selectedFile || 'src/example.ts'],
+          nextAction: configured.nextAction,
+          recommendedAction: `diagnosis:${configured.nextAction}`,
+          shouldAmendPlan: configured.shouldAmendPlan ?? configured.nextAction === 'amend',
+          shouldAbortPlan: configured.shouldAbortPlan ?? configured.nextAction === 'abort',
+        },
+      })
+      return makeExecutedResult(action)
+    }
+
+    if (action.kind === 'coding_report_status') {
+      runtime.stateManager.updateCodingState({
+        lastCodingReport: {
+          status: 'completed',
+          summary: 'scripted report',
+          filesTouched: ['src/example.ts'],
+          commandsRun: runtime.stateManager.getState().lastTerminalResult?.command
+            ? [runtime.stateManager.getState().lastTerminalResult!.command]
+            : [],
+          checks: [],
+          nextStep: 'done',
+        },
+      })
+      return makeExecutedResult(action)
+    }
+
+    return makeExecutedResult(action)
+  })
 }
 
 describe('registerComputerUseTools: workflow_coding_loop', () => {
@@ -101,7 +334,7 @@ describe('registerComputerUseTools: workflow_coding_loop', () => {
   })
 
   it('registers workflow_coding_loop as a first-class workflow tool', async () => {
-    const executeAction = vi.fn(async (action: ActionInvocation) => makeExecutedResult(action))
+    const executeAction = createGateAwareExecuteAction(runtime)
     const { server, invoke } = createMockServer()
 
     registerComputerUseTools({
@@ -155,7 +388,7 @@ describe('registerComputerUseTools: workflow_coding_loop', () => {
   })
 
   it('executes coding search/reference branch when search params are provided', async () => {
-    const executeAction = vi.fn(async (action: ActionInvocation) => makeExecutedResult(action))
+    const executeAction = createGateAwareExecuteAction(runtime)
     const { server, invoke } = createMockServer()
 
     registerComputerUseTools({
@@ -202,7 +435,7 @@ describe('registerComputerUseTools: workflow_coding_loop', () => {
   })
 
   it('supports search-driven auto target mode when targetFile is omitted', async () => {
-    const executeAction = vi.fn(async (action: ActionInvocation) => makeExecutedResult(action))
+    const executeAction = createGateAwareExecuteAction(runtime)
     const { server, invoke } = createMockServer()
 
     registerComputerUseTools({
@@ -244,7 +477,7 @@ describe('registerComputerUseTools: workflow_coding_loop', () => {
   })
 
   it('skips coding_find_references until a deterministic target file exists', async () => {
-    const executeAction = vi.fn(async (action: ActionInvocation) => makeExecutedResult(action))
+    const executeAction = createGateAwareExecuteAction(runtime)
     const { server, invoke } = createMockServer()
 
     registerComputerUseTools({
@@ -272,7 +505,7 @@ describe('registerComputerUseTools: workflow_coding_loop', () => {
   })
 
   it('fails fast when neither targetFile nor search hints are provided', async () => {
-    const executeAction = vi.fn(async (action: ActionInvocation) => makeExecutedResult(action))
+    const executeAction = createGateAwareExecuteAction(runtime)
     const { server, invoke } = createMockServer()
 
     registerComputerUseTools({
@@ -337,7 +570,7 @@ describe('registerComputerUseTools: workflow_coding_loop', () => {
   })
 
   it('registers workflow_coding_agentic_loop and executes agentic coding steps', async () => {
-    const executeAction = vi.fn(async (action: ActionInvocation) => makeExecutedResult(action))
+    const executeAction = createGateAwareExecuteAction(runtime)
     const { server, invoke } = createMockServer()
 
     registerComputerUseTools({
@@ -404,33 +637,7 @@ describe('registerComputerUseTools: workflow_coding_loop', () => {
   })
 
   it('uses the captured validation workspace for agentic validation commands', async () => {
-    const executeAction = vi.fn(async (action: ActionInvocation) => {
-      if (action.kind === 'coding_review_workspace') {
-        runtime.stateManager.updateCodingState({
-          workspacePath: '/tmp/project',
-          gitSummary: 'clean',
-        })
-      }
-
-      if (action.kind === 'coding_capture_validation_baseline') {
-        runtime.stateManager.updateCodingState({
-          workspacePath: '/tmp/project',
-          validationBaseline: {
-            workspacePath: '/tmp/project',
-            baselineDirtyFiles: [],
-            baselineDiffSummary: '',
-            baselineFailingChecks: [],
-            baselineSkippedValidations: [],
-            capturedAt: new Date().toISOString(),
-            workspaceMetadata: {
-              gitAvailable: false,
-            },
-          },
-        })
-      }
-
-      return makeExecutedResult(action)
-    })
+    const executeAction = createGateAwareExecuteAction(runtime)
     const { server, invoke } = createMockServer()
 
     registerComputerUseTools({
@@ -459,8 +666,276 @@ describe('registerComputerUseTools: workflow_coding_loop', () => {
     })
   })
 
+  it('coding_loop fails when review stays needs_follow_up after single recheck', async () => {
+    const executeAction = createGateAwareExecuteAction(runtime, {
+      terminalSequence: [
+        { applyToState: false },
+        { applyToState: true, exitCode: 0 },
+      ],
+      reviewSequence: [
+        {
+          status: 'needs_follow_up',
+          detectedRisks: ['no_validation_run'],
+          unresolvedIssues: [],
+          scopedValidationCommand: 'pnpm exec eslint "src/example.ts"',
+        },
+        {
+          status: 'needs_follow_up',
+          detectedRisks: ['unresolved_issues_remain'],
+          unresolvedIssues: ['still unresolved'],
+          scopedValidationCommand: 'pnpm exec eslint "src/example.ts"',
+        },
+      ],
+    })
+    const { server, invoke } = createMockServer()
+
+    registerComputerUseTools({
+      server,
+      runtime,
+      executeAction,
+      enableTestTools: false,
+    })
+
+    const result = await invoke('workflow_coding_loop', {
+      workspacePath: '/tmp/project',
+      taskGoal: 'Needs follow-up after recheck',
+      targetFile: 'src/example.ts',
+      patchOld: 'a',
+      patchNew: 'b',
+      testCommand: 'auto',
+      autoApprove: true,
+    })
+
+    const structured = result.structuredContent as Record<string, any>
+    expect(structured.status).toBe('failed')
+    expect(executeAction.mock.calls.filter(call => call[0].kind === 'terminal_exec')).toHaveLength(2)
+    expect(executeAction.mock.calls.filter(call => call[0].kind === 'coding_review_changes')).toHaveLength(2)
+  })
+
+  it('coding_loop triggers exactly one bounded recheck for no_validation_run and completes only after pass', async () => {
+    const executeAction = createGateAwareExecuteAction(runtime, {
+      terminalSequence: [
+        { applyToState: false },
+        { applyToState: true, exitCode: 0 },
+      ],
+      reviewSequence: [
+        {
+          status: 'needs_follow_up',
+          detectedRisks: ['no_validation_run'],
+          unresolvedIssues: [],
+          scopedValidationCommand: 'pnpm exec eslint "src/example.ts"',
+        },
+        {
+          status: 'ready_for_next_file',
+          detectedRisks: [],
+          unresolvedIssues: [],
+          scopedValidationCommand: 'pnpm exec eslint "src/example.ts"',
+        },
+      ],
+    })
+    const { server, invoke } = createMockServer()
+
+    registerComputerUseTools({
+      server,
+      runtime,
+      executeAction,
+      enableTestTools: false,
+    })
+
+    const result = await invoke('workflow_coding_loop', {
+      workspacePath: '/tmp/project',
+      taskGoal: 'Trigger bounded recheck once',
+      targetFile: 'src/example.ts',
+      patchOld: 'a',
+      patchNew: 'b',
+      testCommand: 'auto',
+      autoApprove: true,
+    })
+
+    const structured = result.structuredContent as Record<string, any>
+    expect(structured.status).toBe('completed')
+    expect(executeAction.mock.calls.filter(call => call[0].kind === 'terminal_exec')).toHaveLength(2)
+    expect(executeAction.mock.calls.filter(call => call[0].kind === 'coding_review_changes')).toHaveLength(2)
+  })
+
+  it('coding_loop does not recheck for patch_verification_mismatch and fails directly', async () => {
+    const executeAction = createGateAwareExecuteAction(runtime, {
+      reviewSequence: [{
+        status: 'ready_for_next_file',
+        detectedRisks: ['patch_verification_mismatch'],
+        unresolvedIssues: [],
+      }],
+    })
+    const { server, invoke } = createMockServer()
+
+    registerComputerUseTools({
+      server,
+      runtime,
+      executeAction,
+      enableTestTools: false,
+    })
+
+    const result = await invoke('workflow_coding_loop', {
+      workspacePath: '/tmp/project',
+      taskGoal: 'Patch mismatch should fail directly',
+      targetFile: 'src/example.ts',
+      patchOld: 'a',
+      patchNew: 'b',
+      testCommand: 'pnpm test',
+      autoApprove: true,
+    })
+
+    const structured = result.structuredContent as Record<string, any>
+    expect(structured.status).toBe('failed')
+    expect(executeAction.mock.calls.filter(call => call[0].kind === 'terminal_exec')).toHaveLength(1)
+    expect(executeAction.mock.calls.filter(call => call[0].kind === 'coding_review_changes')).toHaveLength(1)
+  })
+
+  it('coding_agentic_loop fails when diagnosis nextAction is amend', async () => {
+    const executeAction = createGateAwareExecuteAction(runtime, {
+      diagnosisSequence: [{
+        nextAction: 'amend',
+        rootCauseType: 'incomplete_change',
+      }],
+    })
+    const { server, invoke } = createMockServer()
+
+    registerComputerUseTools({
+      server,
+      runtime,
+      executeAction,
+      enableTestTools: false,
+    })
+
+    const result = await invoke('workflow_coding_agentic_loop', {
+      workspacePath: '/tmp/project',
+      taskGoal: 'Diagnosis amend',
+      targetFile: 'src/example.ts',
+      patchOld: 'a',
+      patchNew: 'b',
+      testCommand: 'pnpm test',
+      autoApprove: true,
+    })
+
+    expect((result.structuredContent as Record<string, any>).status).toBe('failed')
+  })
+
+  it('coding_agentic_loop fails when diagnosis nextAction is abort', async () => {
+    const executeAction = createGateAwareExecuteAction(runtime, {
+      diagnosisSequence: [{
+        nextAction: 'abort',
+        rootCauseType: 'validation_environment_issue',
+      }],
+    })
+    const { server, invoke } = createMockServer()
+
+    registerComputerUseTools({
+      server,
+      runtime,
+      executeAction,
+      enableTestTools: false,
+    })
+
+    const result = await invoke('workflow_coding_agentic_loop', {
+      workspacePath: '/tmp/project',
+      taskGoal: 'Diagnosis abort',
+      targetFile: 'src/example.ts',
+      patchOld: 'a',
+      patchNew: 'b',
+      testCommand: 'pnpm test',
+      autoApprove: true,
+    })
+
+    expect((result.structuredContent as Record<string, any>).status).toBe('failed')
+  })
+
+  it('coding_agentic_loop fails when diagnosis says continue but review is still not ready', async () => {
+    const executeAction = createGateAwareExecuteAction(runtime, {
+      reviewSequence: [{
+        status: 'needs_follow_up',
+        detectedRisks: ['unresolved_issues_remain'],
+        unresolvedIssues: ['risk remains'],
+      }],
+      diagnosisSequence: [{
+        nextAction: 'continue',
+        rootCauseType: 'baseline_noise',
+      }],
+    })
+    const { server, invoke } = createMockServer()
+
+    registerComputerUseTools({
+      server,
+      runtime,
+      executeAction,
+      enableTestTools: false,
+    })
+
+    const result = await invoke('workflow_coding_agentic_loop', {
+      workspacePath: '/tmp/project',
+      taskGoal: 'Diagnosis continue but review not ready',
+      targetFile: 'src/example.ts',
+      patchOld: 'a',
+      patchNew: 'b',
+      testCommand: 'pnpm test',
+      autoApprove: true,
+    })
+
+    expect((result.structuredContent as Record<string, any>).status).toBe('failed')
+  })
+
+  it('coding_agentic_loop bounded recheck runs at most once', async () => {
+    const executeAction = createGateAwareExecuteAction(runtime, {
+      terminalSequence: [
+        { applyToState: false },
+        { applyToState: true, command: 'echo still-mismatch', exitCode: 0 },
+      ],
+      reviewSequence: [
+        {
+          status: 'needs_follow_up',
+          detectedRisks: ['no_validation_run'],
+          unresolvedIssues: [],
+          scopedValidationCommand: 'pnpm exec eslint "src/example.ts"',
+        },
+        {
+          status: 'needs_follow_up',
+          detectedRisks: [],
+          unresolvedIssues: [],
+          scopedValidationCommand: 'pnpm exec eslint "src/example.ts"',
+          validationCommand: 'echo still-mismatch',
+        },
+      ],
+      diagnosisSequence: [
+        { nextAction: 'continue', rootCauseType: 'validation_command_mismatch' },
+        { nextAction: 'continue', rootCauseType: 'validation_command_mismatch' },
+      ],
+    })
+    const { server, invoke } = createMockServer()
+
+    registerComputerUseTools({
+      server,
+      runtime,
+      executeAction,
+      enableTestTools: false,
+    })
+
+    const result = await invoke('workflow_coding_agentic_loop', {
+      workspacePath: '/tmp/project',
+      taskGoal: 'Recheck only once',
+      targetFile: 'src/example.ts',
+      patchOld: 'a',
+      patchNew: 'b',
+      testCommand: 'auto',
+      autoApprove: true,
+    })
+
+    expect((result.structuredContent as Record<string, any>).status).toBe('failed')
+    expect(executeAction.mock.calls.filter(call => call[0].kind === 'terminal_exec')).toHaveLength(2)
+    expect(executeAction.mock.calls.filter(call => call[0].kind === 'coding_review_changes')).toHaveLength(2)
+    expect(executeAction.mock.calls.filter(call => call[0].kind === 'coding_diagnose_changes')).toHaveLength(2)
+  })
+
   it('fails fast for agentic workflow when no target hint exists', async () => {
-    const executeAction = vi.fn(async (action: ActionInvocation) => makeExecutedResult(action))
+    const executeAction = createGateAwareExecuteAction(runtime)
     const { server, invoke } = createMockServer()
 
     registerComputerUseTools({
