@@ -411,6 +411,9 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
       storedPreferredLane = lane
       options.setStoredUpdateLane?.(lane)
       resetPreparedFeedForLaneChange()
+      // Keep UI state consistent with the newly selected lane.
+      // A fresh check runs right after channel update from renderer.
+      broadcast({ status: 'idle' })
     },
     subscribe(callback) {
       hooks.add(callback)
