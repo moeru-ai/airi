@@ -17,11 +17,31 @@ class SessionMessageCache {
   private readonly MAX_SESSIONS = 50 // Limit to 50 most recently accessed sessions
   private readonly MAX_MESSAGES_PER_SESSION = 100 // Limit to 100 messages per session
 
+  constructor(private onEvict?: (sessionId: string) => void) {}
+
+  private evictOldest(): void {
+    let oldestTime = Date.now()
+    let oldestKey = ''
+
+    for (const [key, entry] of this.cache) {
+      if (entry.accessTime < oldestTime) {
+        oldestTime = entry.accessTime
+        oldestKey = key
+      }
+    }
+
+    if (!oldestKey)
+      return
+
+    this.cache.delete(oldestKey)
+    this.onEvict?.(oldestKey)
+  }
+
   get(sessionId: string): ChatHistoryItem[] | undefined {
     const entry = this.cache.get(sessionId)
     if (!entry)
       return undefined
-    // Update access time for LRU
+
     entry.accessTime = Date.now()
     return entry.messages
   }
@@ -30,29 +50,27 @@ class SessionMessageCache {
     // Limit messages per session to prevent individual sessions from growing too large
     const limitedMessages = messages.slice(-this.MAX_MESSAGES_PER_SESSION)
 
+    if (this.cache.has(sessionId)) {
+      this.cache.delete(sessionId)
+    }
+
     if (this.cache.size >= this.MAX_SESSIONS) {
-      // LRU: evict least recently accessed session
-      let oldestTime = Date.now()
-      let oldestKey = ''
-      for (const [key, entry] of this.cache) {
-        if (entry.accessTime < oldestTime) {
-          oldestTime = entry.accessTime
-          oldestKey = key
-        }
-      }
-      if (oldestKey) {
-        this.cache.delete(oldestKey)
-      }
+      this.evictOldest()
     }
 
     this.cache.set(sessionId, { messages: limitedMessages, accessTime: Date.now() })
   }
 
   delete(sessionId: string): void {
-    this.cache.delete(sessionId)
+    if (this.cache.delete(sessionId)) {
+      this.onEvict?.(sessionId)
+    }
   }
 
   clear(): void {
+    for (const key of this.cache.keys()) {
+      this.onEvict?.(key)
+    }
     this.cache.clear()
   }
 
@@ -60,8 +78,6 @@ class SessionMessageCache {
     return this.cache.size
   }
 }
-
-const sessionMessageCache = new SessionMessageCache()
 
 export const useChatSessionStore = defineStore('chat-session', () => {
   const { userId } = storeToRefs(useAuthStore())
@@ -81,6 +97,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   let persistQueue = Promise.resolve()
   const loadedSessions = new Set<string>()
   const loadingSessions = new Map<string, Promise<void>>()
+
+  const sessionMessageCache = new SessionMessageCache((sessionId) => {
+    delete sessionMessages.value[sessionId]
+    delete sessionMetas.value[sessionId]
+    delete sessionGenerations.value[sessionId]
+    loadedSessions.delete(sessionId)
+  })
 
   // I know this nu uh, better than loading all language on rehypeShiki
   const codeBlockSystemPrompt = '- For any programming code block, always specify the programming language that supported on @shikijs/rehype on the rendered markdown, eg. ```python ... ```\n'

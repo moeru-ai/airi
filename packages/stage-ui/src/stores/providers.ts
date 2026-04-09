@@ -227,12 +227,18 @@ export const useProvidersStore = defineStore('providers', () => {
         this.cache.delete(key)
         return undefined
       }
+
+      // Move the accessed entry to the most recently used position
+      this.cache.delete(key)
+      this.cache.set(key, entry)
       return entry.instance
     }
 
     set(key: string, instance: unknown): void {
+      if (this.cache.has(key)) {
+        this.cache.delete(key)
+      }
       if (this.cache.size >= this.MAX_INSTANCES) {
-        // LRU: evict first entry (oldest)
         const firstKey = this.cache.keys().next().value
         this.cache.delete(firstKey)
       }
@@ -2205,7 +2211,7 @@ export const useProvidersStore = defineStore('providers', () => {
     if (instance?.dispose)
       await instance.dispose()
 
-    providerInstanceCache.set(providerId, undefined) // Mark as disposed
+    providerInstanceCache.delete(providerId)
   }
 
   const availableProvidersMetadata = computedAsync<ProviderMetadata[]>(async () => {
