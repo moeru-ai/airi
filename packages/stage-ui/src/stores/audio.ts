@@ -3,19 +3,19 @@ import { computed, ref, shallowRef } from 'vue'
 
 // PERF: Reusable buffer pool for audio frequency data to reduce allocations
 class AudioBufferPool {
-  private buffers: Uint8Array[] = []
+  private buffers: Uint8Array<ArrayBuffer>[] = []
 
-  acquireBuffer(size: number): Uint8Array {
+  acquireBuffer(size: number): Uint8Array<ArrayBuffer> {
     // Find or create buffer matching required size
     const buffer = this.buffers.find(b => b.length === size)
     if (buffer) {
       this.buffers = this.buffers.filter(b => b !== buffer)
       return buffer
     }
-    return new Uint8Array(size)
+    return new Uint8Array(new ArrayBuffer(size)) as Uint8Array<ArrayBuffer>
   }
 
-  releaseBuffer(buffer: Uint8Array): void {
+  releaseBuffer(buffer: Uint8Array<ArrayBuffer>): void {
     // Pool up to 4 reusable buffers per size
     if (this.buffers.filter(b => b.length === buffer.length).length < 4) {
       this.buffers.push(buffer)
