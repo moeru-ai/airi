@@ -10,9 +10,26 @@ import type {
 import { spawn } from 'node:child_process'
 import { env, cwd as processCwd } from 'node:process'
 
+/** Matches runs of whitespace for command summary trimming. */
+const WHITESPACE_RUN_RE = /\s+/g
+
 function summarizeCommand(command: string) {
-  const compact = command.replace(/\s+/g, ' ').trim()
+  const compact = command.replace(WHITESPACE_RUN_RE, ' ').trim()
   return compact.length > 160 ? `${compact.slice(0, 157)}...` : compact
+}
+
+/**
+ * Detects if a shell command string contains a `cd` directive that would
+ * cause CWD drift. Each spawn is a fresh subprocess, so 'cd' commands have
+ * no effect on the next terminal_exec call's working directory.
+ *
+ * Pattern matches `cd` appearing at statement start, after ;|& separators,
+ * or after newlines — avoiding false-positive matches on words containing "cd".
+ */
+const CD_DIRECTIVE_RE = /(?:^|[;&|\n])\s*cd\s/
+
+function containsCdDirective(command: string): boolean {
+  return CD_DIRECTIVE_RE.test(command)
 }
 
 export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunner {
@@ -109,6 +126,17 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
           })
         })
       })
+
+      // NOTICE: Each spawn is an independent subprocess — `cd` commands change the shell's
+      // working directory for that invocation only. The next tool call will still start from
+      // the same effectiveCwd. We detect this to nudge the model before it makes false
+      // assumptions about persistent shell state.
+      if (containsCdDirective(input.command)) {
+        const notice = `[NOTICE: CWD changes via 'cd' do not persist between tool calls — each terminal_exec runs in a new subprocess starting from cwd=${effectiveCwd}. Pass an explicit 'cwd' parameter to target a different directory on the next call.]`
+        result.stderr = result.stderr
+          ? `${result.stderr}\n${notice}`
+          : notice
+      }
 
       state.effectiveCwd = result.effectiveCwd
       state.lastExitCode = result.exitCode

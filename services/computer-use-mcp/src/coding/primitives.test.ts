@@ -643,6 +643,7 @@ describe('codingPrimitives', () => {
 
     const spy = vi.spyOn(searchModule, 'searchText').mockResolvedValue({
       total: 0,
+      limit: 10,
       matches: [],
     })
 
