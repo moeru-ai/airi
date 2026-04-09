@@ -209,6 +209,7 @@ describe('registerCodingTools', () => {
   it('registers coding_search_text and returns structured search payload', async () => {
     vi.spyOn(CodingPrimitives.prototype, 'searchText').mockResolvedValue({
       total: 1,
+      limit: 10,
       matches: [{ file: 'src/example.ts', line: 3, column: 2, snippet: 'needle()' }],
     })
     const { server, invoke } = createMockServer()

@@ -3,6 +3,11 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
 import type { CodingVerificationGateReasonCode } from '../coding/verification-gate'
 import type {
+  CrossLaneConstraint,
+  CrossLaneHandoffReason,
+  CrossLaneSurface,
+} from '../lane-handoff-contract'
+import type {
   BrowserDomFrameResult,
   ClickActionInput,
   FocusAppActionInput,
@@ -25,6 +30,10 @@ import {
 import { CodingPrimitives } from '../coding/primitives'
 import { evaluateCodingVerificationGate } from '../coding/verification-gate'
 import { evaluateCodingVerificationNudge } from '../coding/verification-nudge'
+import {
+  CROSS_LANE_ALLOWED_ROUTES,
+  validateCrossLaneRoute,
+} from '../lane-handoff-contract'
 import { getRuntimePreflight } from '../preflight'
 import { summarizeRunState } from '../transparency'
 import {
@@ -1814,6 +1823,77 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       suspendedWorkflow = result.suspension
 
       return formatWorkflowResult(suspension.workflow.id, result)
+    },
+  })
+
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('workflow_switch_lane'),
+
+    schema: {
+      sourceLane: z.enum(['coding', 'browser', 'terminal', 'desktop']).describe('The lane currently active (where the switch is being requested from).'),
+      targetLane: z.enum(['coding', 'browser', 'terminal', 'desktop']).describe('The lane you want to enter.'),
+      reason: z.enum(['validate_visual_state', 'validate_runtime_behavior', 'return_evidence', 'inspect_network', 'observe_console_errors']).describe('Declared reason for the handoff — must be an allowed reason for the route.'),
+      constraints: z.array(
+        z.object({
+          description: z.string().min(1).describe('What must be verified in the target lane.'),
+          required: z.boolean().describe('Whether failure to satisfy this constraint blocks the handoff.'),
+          expectedValue: z.string().optional().describe('Optional expected value or pattern for automated assertion.'),
+        }),
+      ).min(1).describe('Verification obligations the target lane must fulfill. At least one is required.'),
+    },
+
+    handler: async ({ sourceLane, targetLane, reason, constraints }) => {
+      const validation = validateCrossLaneRoute({
+        sourceLane: sourceLane as CrossLaneSurface,
+        targetLane: targetLane as CrossLaneSurface,
+        reason: reason as CrossLaneHandoffReason,
+      })
+
+      if (!validation.allowed) {
+        return {
+          isError: true,
+          content: [textContent(`Cross-lane handoff denied: ${validation.reason}`)],
+          structuredContent: {
+            status: 'denied',
+            reason: validation.reason,
+            sourceLane,
+            targetLane,
+            requestedReason: reason,
+            allowedRoutes: CROSS_LANE_ALLOWED_ROUTES.map(r => ({
+              route: `${r.sourceLane}→${r.targetLane}`,
+              allowedReasons: r.allowedReasons,
+            })),
+          },
+        }
+      }
+
+      const handoffId = `handoff_${Date.now()}_${sourceLane}_to_${targetLane}`
+      const contract = {
+        id: handoffId,
+        sourceLane,
+        targetLane,
+        reason,
+        constraints: constraints as CrossLaneConstraint[],
+        approvalScope: validation.approvalScope,
+        status: 'pending' as const,
+        initiatedAt: new Date().toISOString(),
+      }
+
+      const constraintSummary = constraints
+        .map((c, i) => `${i + 1}. [${c.required ? 'required' : 'optional'}] ${c.description}${c.expectedValue ? ` (expected: ${c.expectedValue})` : ''}`)
+        .join('\n')
+
+      return {
+        content: [
+          textContent(
+            `Cross-lane handoff initiated: ${sourceLane} → ${targetLane} (reason: ${reason}).\n\nVerification constraints that must be fulfilled in target lane:\n${constraintSummary}\n\nHandoff ID: ${handoffId}`,
+          ),
+        ],
+        structuredContent: {
+          status: 'handoff_initiated',
+          contract,
+        },
+      }
     },
   })
 }

@@ -21,6 +21,7 @@ describe('retrieval', () => {
   it('query hits in repo_code returns selectedFiles', async () => {
     vi.spyOn(search, 'searchText').mockResolvedValue({
       total: 2,
+      limit: 10,
       matches: [
         { file: 'src/foo.ts', line: 10, column: 5, snippet: 'const needle = 42' },
         { file: 'src/bar.ts', line: 20, column: 10, snippet: 'needle.doSomething()' },
@@ -68,6 +69,7 @@ describe('retrieval', () => {
 
     vi.spyOn(search, 'searchText').mockResolvedValue({
       total: 1,
+      limit: 10,
       matches: [
         { file: 'src/text.ts', line: 15, column: 5, snippet: 'targetFunc is mentioned here' },
       ],
@@ -93,6 +95,7 @@ describe('retrieval', () => {
   it('session_trace hits without repo hits: empty selectedFiles, selectionMode=no_repo_hits', async () => {
     vi.spyOn(search, 'searchText').mockResolvedValue({
       total: 0,
+      limit: 10,
       matches: [],
     })
 
@@ -126,6 +129,7 @@ describe('retrieval', () => {
   it('task_memory hits without repo hits: empty selectedFiles, selectionMode=no_repo_hits', async () => {
     vi.spyOn(search, 'searchText').mockResolvedValue({
       total: 0,
+      limit: 10,
       matches: [],
     })
 
@@ -161,6 +165,7 @@ describe('retrieval', () => {
   it('targetPath enables scoped path bonus', async () => {
     vi.spyOn(search, 'searchText').mockResolvedValue({
       total: 3,
+      limit: 10,
       matches: [
         { file: 'src/utils/helper.ts', line: 10, column: 5, snippet: 'needle found' },
         { file: 'tests/unit/test.ts', line: 20, column: 10, snippet: 'needle test' },
@@ -188,6 +193,7 @@ describe('retrieval', () => {
   it('uses resolved searchRoot instead of raw targetPath semantics', async () => {
     const searchTextSpy = vi.spyOn(search, 'searchText').mockResolvedValue({
       total: 1,
+      limit: 10,
       matches: [
         { file: 'src/utils/helper.ts', line: 10, column: 5, snippet: 'needle found' },
       ],
@@ -218,6 +224,7 @@ describe('retrieval', () => {
 
     vi.spyOn(search, 'searchText').mockResolvedValue({
       total: 1,
+      limit: 10,
       matches: [
         { file: 'src/long.ts', line: 10, column: 5, snippet: truncatedSnippet },
       ],
@@ -240,6 +247,7 @@ describe('retrieval', () => {
   it('repo_plus_context mode when both repo and context hits exist', async () => {
     vi.spyOn(search, 'searchText').mockResolvedValue({
       total: 1,
+      limit: 10,
       matches: [
         { file: 'src/foo.ts', line: 10, column: 5, snippet: 'needle' },
       ],
@@ -294,6 +302,7 @@ describe('retrieval', () => {
 
     vi.spyOn(search, 'searchText').mockResolvedValue({
       total: 1,
+      limit: 10,
       matches: [
         { file: 'src/shared.ts', line: 15, column: 5, snippet: 'shared is used here' },
       ],

@@ -564,6 +564,19 @@ export const desktopDescriptors: ToolDescriptor[] = [
     public: true,
     defaultDeferred: true,
   },
+  {
+    canonicalName: 'workflow_switch_lane',
+    displayName: 'Workflow Switch Lane',
+    summary: 'Request a cross-lane handoff (coding → browser, browser → coding, coding → terminal, terminal → coding). Must declare a typed reason and at least one verification constraint. Denied if route is not in the approved allowlist.',
+    lane: 'workflow',
+    kind: 'control',
+    readOnly: false,
+    destructive: false,
+    concurrencySafe: false,
+    requiresApprovalByDefault: true,
+    public: true,
+    defaultDeferred: true,
+  },
 ]
 
 /**
