@@ -25,14 +25,10 @@ docs:
   'close': 关闭
   'expand': 展开
   'collapse': 折叠
-  'login': Sign in
+  'login': 登录
   'logging-in': Signing in...
-  'account': Account
-  'logout': Sign out
-'status-island':
-  connected: WebSocket 已连接
-  disconnected: WebSocket 已断开
-  'open-settings': 打开 WebSocket 设置
+  'account': 账号
+  'logout': 退出登录
 notice:
   'fade-on-hover':
     title: 悬停淡出

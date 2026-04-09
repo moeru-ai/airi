@@ -8,18 +8,71 @@ import com.getcapacitor.Bridge
 import com.getcapacitor.BridgeActivity
 import com.getcapacitor.BridgeWebViewClient
 import com.getcapacitor.Logger
+import org.json.JSONObject
+
+import ai.moeru.airi_pocket.websocket.HostWebSocketBridge
+import ai.moeru.airi_pocket.websocket.HostWebSocketEvent
+import ai.moeru.airi_pocket.websocket.HostWebSocketSession
+import ai.moeru.airi_pocket.websocket.OkHttpHostWebSocketSessionFactory
+import ai.moeru.airi_pocket.websocket.WebSocketBridgeJavascriptInterface
+import ai.moeru.airi_pocket.websocket.createHostWebSocketClient
 
 class MainActivity : BridgeActivity() {
+    companion object {
+        internal var webSocketSessionFactoryOverrideForTesting: ((String, (HostWebSocketEvent) -> Unit) -> HostWebSocketSession)? = null
+    }
+
+    private val webSocketBridgeClient = createHostWebSocketClient()
+    private var webSocketBridge: HostWebSocketBridge? = null
 
     override fun load() {
         super.load()
 
         val bridge = bridge ?: return
+        installWebSocketBridge(bridge)
+
         if (!bridge.isDevMode) {
             return
         }
 
         bridge.setWebViewClient(DebugTlsBypassWebViewClient(bridge))
+    }
+
+    override fun onDestroy() {
+        webSocketBridge?.dispose()
+        super.onDestroy()
+    }
+
+    internal fun evaluateJavascriptForTesting(script: String, callback: (String?) -> Unit) {
+        bridge?.webView?.let { webView ->
+            webView.post {
+                webView.evaluateJavascript(script, callback)
+            }
+        } ?: callback(null)
+    }
+
+    private fun installWebSocketBridge(bridge: Bridge) {
+        val hostWebSocketBridge = HostWebSocketBridge(
+            sessionFactory = webSocketSessionFactoryOverrideForTesting
+                ?: OkHttpHostWebSocketSessionFactory(webSocketBridgeClient)::create,
+            eventSink = ::dispatchWebSocketBridgeEvent,
+        )
+        webSocketBridge = hostWebSocketBridge
+
+        bridge.webView.addJavascriptInterface(
+            WebSocketBridgeJavascriptInterface(hostWebSocketBridge),
+            "AiriHostBridge",
+        )
+    }
+
+    private fun dispatchWebSocketBridgeEvent(payload: String) {
+        val webView = bridge?.webView ?: return
+        webView.post {
+            webView.evaluateJavascript(
+                "window.__airiHostBridge?.onNativeMessage(${JSONObject.quote(payload)})",
+                null,
+            )
+        }
     }
 
     private class DebugTlsBypassWebViewClient(

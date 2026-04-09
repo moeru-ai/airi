@@ -29,10 +29,6 @@ docs:
   'logging-in': Signing in...
   'account': Account
   'logout': Sign out
-'status-island':
-  connected: WebSocket connected
-  disconnected: WebSocket disconnected
-  'open-settings': Open WebSocket settings
 notice:
   'fade-on-hover':
     title: Mờ dần khi rê chuột

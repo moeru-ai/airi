@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import type { OAuthProvider } from '@proj-airi/stage-ui/libs/auth'
 
-import { defaultSignInProviders, SignInPanel } from '@proj-airi/stage-ui/components/auth'
+import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth'
 import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
+import { Button } from '@proj-airi/ui'
 import { computed, shallowRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
@@ -62,26 +63,41 @@ async function handleProviderSelect(provider: OAuthProvider) {
 <template>
   <main
     :class="[
-      'relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(115,190,255,0.18),_transparent_45%),linear-gradient(180deg,_rgba(255,255,255,0.98),_rgba(243,244,246,0.96))] px-6 py-10',
-      'dark:bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.16),_transparent_38%),linear-gradient(180deg,_rgba(3,7,18,0.98),_rgba(10,15,28,0.98))]',
-      'flex items-center justify-center',
+      'min-h-screen flex flex-col items-center justify-center px-6 py-10',
     ]"
   >
     <div
       :class="[
-        'pointer-events-none absolute left-1/2 top-0 h-72 w-72 -translate-x-1/2 rounded-full bg-primary-300/20 blur-3xl',
-        'dark:bg-primary-500/10',
+        'mb-8 text-3xl font-bold',
       ]"
-    />
+    >
+      Sign in
+    </div>
 
-    <div :class="['relative w-full max-w-md']">
-      <SignInPanel
-        :providers="defaultSignInProviders"
-        :pending-provider="pendingProvider"
-        :error="errorMessage"
-        subtitle="Pick a provider to resume the AIRI authorization flow."
-        @select="handleProviderSelect"
-      />
+    <div
+      :class="[
+        'max-w-xs w-full flex flex-col gap-3',
+      ]"
+    >
+      <Button
+        v-for="provider in defaultSignInProviders"
+        :key="provider.id"
+        :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']"
+        :icon="provider.id === 'google' ? 'i-simple-icons-google' : provider.id === 'github' ? 'i-simple-icons-github' : undefined"
+        :loading="pendingProvider === provider.id"
+        @click="handleProviderSelect(provider.id)"
+      >
+        <span>{{ provider.name }}</span>
+      </Button>
+    </div>
+
+    <div
+      v-if="errorMessage"
+      :class="[
+        'mt-4 max-w-xs w-full text-center text-sm text-red-500',
+      ]"
+    >
+      {{ errorMessage }}
     </div>
   </main>
 </template>

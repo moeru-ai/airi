@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import { useElectronAutoUpdater } from '@proj-airi/electron-vueuse'
+import type { ElectronUpdaterChannel } from '../../shared/eventa'
+
+import { useElectronAutoUpdater, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { AboutContent, MarkdownRenderer } from '@proj-airi/stage-ui/components'
 import { useBreakpoints } from '@proj-airi/stage-ui/composables'
 import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
-import { Button, DoubleCheckButton, Progress } from '@proj-airi/ui'
+import { Button, DoubleCheckButton, FieldSelect, Progress } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { DrawerContent, DrawerDescription, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTitle } from 'vaul-vue'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+
+import { electronGetUpdaterPreferences, electronSetUpdaterPreferences } from '../../shared/eventa'
 
 const analyticsStore = useSharedAnalyticsStore()
 const { buildInfo } = storeToRefs(analyticsStore)
@@ -21,7 +25,9 @@ const {
 } = useElectronAutoUpdater()
 
 const isDisabled = computed(() => updateState.value.status === 'disabled')
-const isLatestVersion = computed(() => updateState.value.status === 'idle' && !updateState.value.info && !isDisabled.value)
+const isLatestVersion = computed(() => {
+  return updateState.value.status === 'not-available' && !isDisabled.value
+})
 const isError = computed(() => updateState.value.status === 'error')
 
 const links = [
@@ -32,6 +38,32 @@ const links = [
 
 const showChangelog = ref(false)
 const { isDesktop } = useBreakpoints()
+const updateChannelOptions = ['auto', 'stable', 'alpha', 'beta', 'nightly', 'canary'] as const
+const updateChannelSelectOptions = updateChannelOptions.map(channel => ({
+  label: channel,
+  value: channel,
+}))
+type UpdateChannelOption = typeof updateChannelOptions[number]
+const selectedUpdateChannel = ref<UpdateChannelOption>('auto')
+const isUpdateChannelUpdating = ref(false)
+
+const isWindowsUpdater = computed(() => {
+  return updateState.value.diagnostics?.platform === 'win32'
+})
+
+const downloadedStatusText = computed(() => {
+  if (isWindowsUpdater.value)
+    return `Update ready to install silently (v${updateState.value.info?.version}).`
+
+  return `Update ready to install on restart (v${updateState.value.info?.version}).`
+})
+
+const restartButtonLabel = computed(() => {
+  return isWindowsUpdater.value ? 'Restart to update silently' : 'Restart to install update'
+})
+
+const getUpdaterPreferences = useElectronEventaInvoke(electronGetUpdaterPreferences)
+const setUpdaterPreferences = useElectronEventaInvoke(electronSetUpdaterPreferences)
 
 function handleDownloadClick() {
   if (updateState.value.info?.releaseNotes)
@@ -45,6 +77,26 @@ function confirmDownload() {
   downloadUpdate()
 }
 
+async function refreshUpdaterChannelPreference() {
+  const preferences = await getUpdaterPreferences()
+  selectedUpdateChannel.value = preferences?.channel ?? 'auto'
+}
+
+async function setUpdateChannelPreference(channel: UpdateChannelOption) {
+  if (isUpdateChannelUpdating.value)
+    return
+
+  isUpdateChannelUpdating.value = true
+  try {
+    const nextChannel = channel === 'auto' ? undefined : channel as ElectronUpdaterChannel
+    const preferences = await setUpdaterPreferences({ channel: nextChannel })
+    selectedUpdateChannel.value = preferences?.channel ?? 'auto'
+  }
+  finally {
+    isUpdateChannelUpdating.value = false
+  }
+}
+
 // Ensure releaseNotes is a string for the renderer
 const releaseNotesContent = computed(() => {
   const notes = updateState.value.info?.releaseNotes
@@ -52,6 +104,10 @@ const releaseNotesContent = computed(() => {
     return notes.map(n => typeof n === 'string' ? n : n?.note ?? '').join('\n\n')
   }
   return typeof notes === 'string' ? notes : ''
+})
+
+onMounted(() => {
+  void refreshUpdaterChannelPreference()
 })
 </script>
 
@@ -71,6 +127,18 @@ const releaseNotesContent = computed(() => {
 
       <!-- Main Content Card -->
       <div :class="['mb-12', 'rounded-2xl', 'bg-white/50 dark:bg-black/20', 'p-6', 'backdrop-blur-sm']">
+        <FieldSelect
+          :model-value="selectedUpdateChannel"
+          :disabled="isUpdateChannelUpdating"
+          label="Update lane"
+          description="Choose which release lane updater checks against. Auto follows the current app prerelease lane."
+          placeholder="Choose update lane"
+          :options="updateChannelSelectOptions"
+          layout="vertical"
+          :class="['mb-6']"
+          @update:model-value="setUpdateChannelPreference($event as UpdateChannelOption)"
+        />
+
         <!-- Build Info -->
         <div :class="['flex flex-wrap items-center justify-between gap-4', 'mb-6', 'border-b border-neutral-200/50 dark:border-neutral-800/50', 'pb-6']">
           <div>
@@ -122,14 +190,14 @@ const releaseNotesContent = computed(() => {
           <!-- State: Downloaded -->
           <div v-else-if="updateState.status === 'downloaded'" :class="['flex flex-col gap-4']">
             <div :class="['text-sm text-emerald-600 dark:text-emerald-400']">
-              Update ready to install (v{{ updateState.info?.version }}).
+              {{ downloadedStatusText }}
             </div>
             <div>
               <DoubleCheckButton
                 variant="primary"
                 @confirm="quitAndInstall()"
               >
-                Restart to update
+                {{ restartButtonLabel }}
                 <template #confirm>
                   Confirm Restart
                 </template>
@@ -145,12 +213,15 @@ const releaseNotesContent = computed(() => {
             <div v-if="isError" :class="['text-sm text-red-600 dark:text-red-400']">
               Error: {{ updateState.error?.message }}
             </div>
+            <div v-else-if="isLatestVersion" :class="['text-sm text-emerald-600 dark:text-emerald-400']">
+              Up to date (v{{ buildInfo.version }}).
+            </div>
 
             <div :class="['flex flex-wrap gap-2']">
               <Button
                 :variant="isError ? 'caution' : 'secondary'"
                 :loading="isBusy"
-                :disabled="isDisabled || (isLatestVersion && !isError)"
+                :disabled="isDisabled"
                 :icon="isLatestVersion ? 'i-solar:check-circle-outline' : isDisabled ? 'i-solar:forbidden-circle-outline' : 'i-solar:refresh-outline'"
                 :label="isBusy ? 'Checking...' : isLatestVersion ? 'Latest version' : isDisabled ? 'Updates disabled in Dev' : isError ? 'Retry Check' : 'Check for updates'"
                 @click="checkForUpdates()"

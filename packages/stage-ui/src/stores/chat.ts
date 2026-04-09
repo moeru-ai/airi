@@ -13,7 +13,7 @@ import { ref, toRaw, watch } from 'vue'
 import { useAnalytics } from '../composables'
 import { useLlmmarkerParser } from '../composables/llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from '../composables/response-categoriser'
-import { buildContextPromptMessage } from './chat/context-prompt'
+import { formatContextPromptText } from './chat/context-prompt'
 import { createDatetimeContext, createMinecraftContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { createChatHooks } from './chat/hooks'
@@ -22,7 +22,6 @@ import { useChatStreamStore } from './chat/stream-store'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useLLM } from './llm'
 import { useConsciousnessStore } from './modules/consciousness'
-import { formatMessageWithPromptTimestamps } from './chat/timestamped-prompt'
 
 interface SendOptions {
   model: string
@@ -328,39 +327,41 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         ],
       })
 
-      let newMessages = sessionMessagesForSend.map((msg) => {
-        const { context: _context, id: _id, ...withoutContext } = msg
+      const newMessages = sessionMessagesForSend.map((msg) => {
+        const { context: _context, id: _id, createdAt: _createdAt, ...withoutContext } = msg
         const rawMessage = toRaw(withoutContext)
 
-        let normalizedMessage: Message
         if (rawMessage.role === 'assistant') {
           const { slices: _slices, tool_results: _toolResults, categorization: _categorization, ...rest } = rawMessage as ChatAssistantMessage
-          normalizedMessage = toRaw(rest)
-        }
-        else {
-          normalizedMessage = rawMessage
+          return toRaw(rest)
         }
 
-        const timestampedMessage = formatMessageWithPromptTimestamps({
-          ...normalizedMessage,
-          createdAt: msg.createdAt,
-        })
-
-        const { createdAt: _createdAt, ...finalMessage } = timestampedMessage
-        return finalMessage
+        return rawMessage
       })
 
       const contextsSnapshot = chatContext.getContextsSnapshot()
-      const contextPromptMessage = buildContextPromptMessage(contextsSnapshot)
-      if (contextPromptMessage) {
-        const system = newMessages.slice(0, 1)
-        const afterSystem = newMessages.slice(1, newMessages.length)
+      const contextPromptText = formatContextPromptText(contextsSnapshot)
+      if (contextPromptText) {
+        // Merge context into the latest user message instead of inserting a
+        // separate user message, which would create consecutive same-role
+        // messages forbidden by some providers (e.g. Anthropic → 400 error).
+        // Appending at the end keeps the static history prefix stable for
+        // LLM KV-cache reuse.
+        // See: https://github.com/moeru-ai/airi/issues/1539
+        const lastMessage = newMessages.at(-1)
+        if (lastMessage && lastMessage.role === 'user') {
+          // Append context after the user's content, separated by a newline.
+          // Keeping it at the end of the last message preserves the static
+          // history prefix for LLM KV-cache reuse.
+          const existingParts = typeof lastMessage.content === 'string'
+            ? [{ type: 'text' as const, text: lastMessage.content }]
+            : lastMessage.content
 
-        newMessages = [
-          ...system,
-          contextPromptMessage,
-          ...afterSystem,
-        ]
+          lastMessage.content = [
+            ...existingParts,
+            { type: 'text' as const, text: `\n${contextPromptText}` },
+          ]
+        }
 
         contextObservability.recordLifecycle({
           phase: 'prompt-context-built',
@@ -368,7 +369,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
           sessionId,
           details: {
             contexts: contextsSnapshot,
-            promptMessage: contextPromptMessage,
+            promptText: contextPromptText,
           },
         })
       }
@@ -378,7 +379,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         sessionId,
         message: sendingMessage,
         contexts: contextsSnapshot,
-        promptMessage: contextPromptMessage,
+        promptMessage: undefined,
         composedMessage: newMessages as Message[],
       })
       contextObservability.recordLifecycle({
@@ -420,6 +421,15 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
               toolCallQueue.enqueue({
                 type: 'tool-call-result',
                 id: event.toolCallId,
+                result: event.result,
+              })
+
+              break
+            case 'tool-error':
+              toolCallQueue.enqueue({
+                type: 'tool-call-result',
+                id: event.toolCallId,
+                isError: true,
                 result: event.result,
               })
 

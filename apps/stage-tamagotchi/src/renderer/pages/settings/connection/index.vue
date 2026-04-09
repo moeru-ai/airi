@@ -1,49 +1,112 @@
 <script setup lang="ts">
-import ConnectionSettings from '@proj-airi/stage-pages/pages/settings/connection/ConnectionSettings.vue'
-
-import { Callout, FieldCheckbox } from '@proj-airi/ui'
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
+import { ConnectionSettings } from '@proj-airi/stage-ui/components'
+import { Callout, FieldCheckbox, FieldInput, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import ServerChannelQrCard from './server-channel-qr-card.vue'
+
 import { useServerChannelSettingsStore } from '../../../stores/settings/server-channel'
+import {
+  hostnameFromExposureMode,
+  serverChannelExposureModeFromHostname,
+} from '../../../stores/settings/server-channel-options'
 
 const serverChannelSettingsStore = useServerChannelSettingsStore()
-const { lastApplyError, websocketTlsConfig } = storeToRefs(serverChannelSettingsStore)
+const { authToken, hostname, lastApplyError, tlsConfig } = storeToRefs(serverChannelSettingsStore)
 const { t } = useI18n()
 
 const websocketTlsEnabled = computed({
-  get: () => websocketTlsConfig.value != null,
+  get: () => tlsConfig.value != null,
   set: (value: boolean) => {
-    serverChannelSettingsStore.websocketTlsConfig = value ? {} : null
+    serverChannelSettingsStore.tlsConfig = value ? {} : null
   },
 })
+
+const exposureMode = computed({
+  get: () => serverChannelExposureModeFromHostname(hostname.value),
+  set: (mode) => {
+    hostname.value = hostnameFromExposureMode(mode, hostname.value)
+  },
+})
+
+const showAdvancedHostname = computed(() => exposureMode.value === 'advanced')
+const showDesktopServerControls = computed(() => isStageTamagotchi())
+
+const exposureModeOptions = computed(() => [
+  {
+    label: t('settings.pages.connection.server-hostname.options.this-device'),
+    value: 'this-device',
+  },
+  {
+    label: t('settings.pages.connection.server-hostname.options.all'),
+    value: 'all',
+  },
+  {
+    label: t('settings.pages.connection.server-hostname.options.advanced'),
+    value: 'advanced',
+  },
+])
 </script>
 
 <template>
-  <ConnectionSettings>
-    <template #platform-specific>
-      <!-- TODO: show connected remote -->
-      <FieldCheckbox
-        v-model="websocketTlsEnabled"
-        v-motion
-        :initial="{ opacity: 0, y: 10 }"
-        :enter="{ opacity: 1, y: 0 }"
-        :duration="250 + (5 * 10)"
-        :delay="5 * 50"
-        :label="t('settings.websocket-secure-enabled.title')"
-        :description="t('settings.websocket-secure-enabled.description')"
-      />
+  <div>
+    <Callout
+      v-if="lastApplyError"
+      theme="orange"
+      :label="t('settings.websocket-secure-enabled.title')"
+    >
+      {{ lastApplyError }}
+    </Callout>
+    <ConnectionSettings>
+      <template #platform-specific>
+        <!-- TODO: show connected remote -->
+        <FieldCheckbox
+          v-model="websocketTlsEnabled"
+          :label="t('settings.websocket-secure-enabled.title')"
+          :description="t('settings.websocket-secure-enabled.description')"
+        />
 
-      <Callout
-        v-if="lastApplyError"
-        theme="orange"
-        :label="t('settings.websocket-secure-enabled.title')"
-      >
-        {{ lastApplyError }}
-      </Callout>
-    </template>
-  </ConnectionSettings>
+        <div
+          v-if="showDesktopServerControls"
+          :class="['flex', 'flex-col', 'gap-2']"
+        >
+          <div :class="['text-sm', 'font-medium', 'text-neutral-900', 'dark:text-neutral-100']">
+            {{ t('settings.pages.connection.server-hostname.label') }}
+          </div>
+          <div :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
+            {{ t('settings.pages.connection.server-hostname.description') }}
+          </div>
+          <SelectTab
+            v-model="exposureMode"
+            size="sm"
+            :options="exposureModeOptions"
+          />
+        </div>
+
+        <FieldInput
+          v-if="showDesktopServerControls && showAdvancedHostname"
+          v-model="hostname"
+          :label="t('settings.pages.connection.server-hostname.advanced-label')"
+          :description="t('settings.pages.connection.server-hostname.advanced-description')"
+          placeholder="192.168.1.25"
+        />
+
+        <FieldInput
+          v-if="showDesktopServerControls"
+          v-model="authToken"
+          type="password"
+          :label="t('settings.pages.connection.server-auth-token.label')"
+          :description="t('settings.pages.connection.server-auth-token.description')"
+          :placeholder="t('settings.pages.connection.server-auth-token.placeholder')"
+        />
+
+        <ServerChannelQrCard />
+      </template>
+    </ConnectionSettings>
+  </div>
 </template>
 
 <route lang="yaml">

@@ -1,5 +1,6 @@
 export * from './about'
 export * from './chat'
+export * from './connection'
 export * from './dialogs'
 export * from './hologram'
 export * from './providers'

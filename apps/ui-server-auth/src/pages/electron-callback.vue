@@ -1,8 +1,5 @@
 <script setup lang="ts">
-import { BackgroundGradientOverlay } from '@proj-airi/stage-ui/components'
 import { onMounted, shallowRef } from 'vue'
-
-import AuthNotice from '../components/auth-notice.vue'
 
 import { parseElectronCallbackQuery } from '../composables/electron-callback.shared'
 
@@ -129,46 +126,82 @@ onMounted(() => {
 <template>
   <main
     :class="[
-      'relative min-h-screen overflow-hidden px-4 py-10 sm:px-6',
-      'flex items-center justify-center',
-      'bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.95),rgba(245,247,255,0.72)_42%,rgba(238,243,255,0.42)_100%)]',
-      'dark:bg-[radial-gradient(circle_at_top,rgba(27,31,45,0.96),rgba(12,15,24,0.92)_46%,rgba(5,7,12,1)_100%)]',
+      'min-h-screen flex items-center justify-center px-6 py-10',
     ]"
   >
-    <BackgroundGradientOverlay color="color-mix(in srgb, rgb(83 122 255 / 28%) 55%, transparent)" />
-
     <div
-      aria-hidden="true"
       :class="[
-        'pointer-events-none absolute left-1/2 top-[16%] size-[22rem] -translate-x-1/2 rounded-full blur-3xl',
-        'bg-[radial-gradient(circle,rgba(118,156,255,0.28),transparent_68%)]',
-        'dark:bg-[radial-gradient(circle,rgba(118,156,255,0.16),transparent_72%)]',
+        'max-w-xl w-full rounded-xl border border-neutral-200 bg-white p-6',
+        'dark:border-neutral-800 dark:bg-neutral-900',
       ]"
-    />
-
-    <div class="relative z-1 max-w-3xl w-full flex flex-col items-center gap-5">
-      <AuthNotice
-        :description="viewModel.description"
-        :detail="viewModel.detail"
-        :primary-action-disabled="viewModel.primaryActionDisabled"
-        :primary-action-label="viewModel.primaryActionLabel"
-        :secondary-action-label="viewModel.secondaryActionLabel"
-        :status="viewModel.status"
-        :title="viewModel.title"
-        @primary-action="openRelayUrl"
-        @secondary-action="copyRelayUrl"
+    >
+      <div
+        :class="[
+          'text-2xl font-bold',
+        ]"
       >
-        <a
-          v-if="viewModel.relayUrl && viewModel.status === 'fallback'"
+        {{ viewModel.title }}
+      </div>
+
+      <p
+        :class="[
+          'mt-3 text-sm text-neutral-600 dark:text-neutral-300',
+        ]"
+      >
+        {{ viewModel.description }}
+      </p>
+
+      <p
+        v-if="viewModel.detail"
+        :class="[
+          'mt-3 break-all text-xs text-neutral-500 dark:text-neutral-400',
+        ]"
+      >
+        {{ viewModel.detail }}
+      </p>
+
+      <div
+        :class="[
+          'mt-6 flex flex-wrap items-center gap-2',
+        ]"
+      >
+        <button
+          v-if="viewModel.primaryActionLabel"
+          type="button"
+          :disabled="viewModel.primaryActionDisabled"
           :class="[
-            'break-all text-center text-xs leading-6 text-neutral-500 underline decoration-dotted underline-offset-4',
-            'hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200',
+            'rounded-md border border-neutral-300 px-3 py-2 text-sm',
+            'disabled:cursor-not-allowed disabled:opacity-50',
+            'dark:border-neutral-700',
           ]"
-          :href="viewModel.relayUrl"
+          @click="openRelayUrl"
         >
-          {{ viewModel.relayUrl }}
-        </a>
-      </AuthNotice>
+          {{ viewModel.primaryActionLabel }}
+        </button>
+
+        <button
+          v-if="viewModel.secondaryActionLabel"
+          type="button"
+          :class="[
+            'rounded-md border border-neutral-300 px-3 py-2 text-sm',
+            'dark:border-neutral-700',
+          ]"
+          @click="copyRelayUrl"
+        >
+          {{ viewModel.secondaryActionLabel }}
+        </button>
+      </div>
+
+      <a
+        v-if="viewModel.relayUrl && viewModel.status === 'fallback'"
+        :class="[
+          'mt-4 block break-all text-xs text-neutral-500 underline decoration-dotted underline-offset-4',
+          'hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200',
+        ]"
+        :href="viewModel.relayUrl"
+      >
+        {{ viewModel.relayUrl }}
+      </a>
     </div>
   </main>
 </template>

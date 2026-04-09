@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/stage-tamagotchi",
   "type": "module",
-  "version": "0.9.0-beta.4",
+  "version": "0.9.0-beta.7",
   "private": true,
   "description": "LLM powered virtual character",
   "author": {
@@ -13,9 +13,7 @@
   "main": "./out/main/index.js",
   "scripts": {
     "lint": "eslint --cache .",
-    "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
-    "typecheck:web": "vue-tsc --noEmit -p tsconfig.web.json --composite false",
-    "typecheck": "pnpm run typecheck:node && pnpm run typecheck:web",
+    "typecheck": "vue-tsc --noEmit",
     "app:dev": "pnpm run dev",
     "app:build": "pnpm run build",
     "start": "electron-vite preview",
@@ -29,7 +27,10 @@
     "rename-artifacts": "mkdir -p bundle && tsx scripts/rename-artifacts.ts",
     "merge-latest-mac": "tsx scripts/merge-latest-mac.ts",
     "regenerate-windows-latest": "tsx scripts/regenerate-windows-latest.ts",
-    "artifacts-metadata": "tsx scripts/artifacts-metadata.ts"
+    "artifacts-metadata": "tsx scripts/artifacts-metadata.ts",
+    "update-test:generate": "tsx scripts/update-test/generate-manifest.ts",
+    "update-test:server": "tsx scripts/update-test/start-server.ts",
+    "update-test:matrix": "bash scripts/update-test/run-matrix.sh"
   },
   "dependencies": {
     "@date-fns/utc": "^2.1.1",
@@ -80,7 +81,7 @@
     "@xsai/shared": "catalog:",
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
-    "@xsai/stream-transcription": "0.4.0-beta.8",
+    "@xsai/stream-transcription": "catalog:",
     "@xsai/tool": "catalog:",
     "@xsai/utils-chat": "catalog:",
     "alien-signals": "catalog:",
@@ -110,11 +111,13 @@
     "reka-ui": "^2.9.2",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
+    "semver": "^7.7.4",
     "shiki": "^4.0.2",
     "splitpanes": "catalog:",
     "three": "^0.183.2",
     "unified": "^11.0.5",
     "unspeech": "catalog:xsai",
+    "uqr": "catalog:",
     "uuid": "^13.0.0",
     "valibot": "^1.3.1",
     "vaul-vue": "^0.4.1",
@@ -123,6 +126,7 @@
     "vue-i18n": "^11.3.0",
     "vue-router": "^5.0.4",
     "vue-sonner": "catalog:",
+    "web-haptics": "catalog:",
     "xsschema": "catalog:",
     "zod": "^4.3.6"
   },
@@ -158,6 +162,7 @@
     "@types/audioworklet": "catalog:",
     "@types/culori": "^4.0.1",
     "@types/nprogress": "^0.2.3",
+    "@types/semver": "^7.7.1",
     "@types/splitpanes": "catalog:",
     "@types/three": "^0.183.1",
     "@types/yauzl": "^2.10.3",
@@ -184,6 +189,7 @@
     "unplugin-yaml": "^4.0.1",
     "vite": "catalog:",
     "vite-bundle-visualizer": "^1.2.1",
+    "vite-plugin-mkcert": "catalog:",
     "vite-plugin-vue-devtools": "^8.1.1",
     "vite-plugin-vue-layouts": "^0.11.0",
     "vue-macros": "^3.1.2",

@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import type { ChatAssistantMessage, ChatHistoryItem, ContextMessage } from '../../../../types/chat'
 
-import { computed, onMounted, provide, ref, watch } from 'vue'
+import { computed, provide, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ChatAssistantItem from './assistant-item.vue'
 import ChatErrorItem from './error-item.vue'
 import ChatUserItem from './user-item.vue'
 
+import { useChatHistoryScroll } from '../composables/use-chat-history-scroll'
 import { chatScrollContainerKey } from '../constants'
 import { getChatHistoryItemKey } from '../utils'
 
@@ -39,21 +40,6 @@ const labels = computed(() => ({
   error: props.errorLabel ?? t('stage.chat.message.character-name.core-system'),
 }))
 
-function scrollToBottom() {
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      if (!chatHistoryRef.value)
-        return
-
-      chatHistoryRef.value.scrollTop = chatHistoryRef.value.scrollHeight
-    })
-  })
-}
-
-watch([() => props.messages, () => props.streamingMessage], scrollToBottom, { deep: true, flush: 'post' })
-watch(() => props.sending, scrollToBottom, { flush: 'post' })
-onMounted(scrollToBottom)
-
 const streaming = computed<ChatAssistantMessage & { context?: ContextMessage } & { createdAt?: number }>(() => props.streamingMessage ?? { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now() })
 const showStreamingPlaceholder = computed(() => (streaming.value.slices?.length ?? 0) === 0 && !streaming.value.content)
 const streamingTs = computed(() => streaming.value?.createdAt)
@@ -79,72 +65,10 @@ const renderMessages = computed<ChatHistoryItem[]>(() => {
   return [...props.messages, streaming.value]
 })
 
-function getMessageTimestamp(message: ChatHistoryItem | undefined) {
-  return message?.createdAt ?? message?.context?.createdAt
-}
-
-function areSameDay(leftTimestamp: number, rightTimestamp: number) {
-  const left = new Date(leftTimestamp)
-  const right = new Date(rightTimestamp)
-  return left.getFullYear() === right.getFullYear()
-    && left.getMonth() === right.getMonth()
-    && left.getDate() === right.getDate()
-}
-
-const timestampFormatter = new Intl.DateTimeFormat(undefined, {
-  month: 'short',
-  day: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-})
-
-function formatChatMessageTimestamp(timestamp: number) {
-  return timestampFormatter.format(new Date(timestamp))
-}
-
-function shouldShowTimestampHeader(index: number, message: ChatHistoryItem) {
-  if (index === 0)
-    return true
-
-  const currentTs = getMessageTimestamp(message)
-  const previousTs = getMessageTimestamp(renderMessages.value[index - 1])
-  if (currentTs == null)
-    return false
-  if (previousTs == null)
-    return true
-  if (!areSameDay(currentTs, previousTs))
-    return true
-
-  return currentTs - previousTs >= 30 * 60 * 1000
-}
-
-const renderEntries = computed(() => {
-  const entries: Array<{
-    type: 'timestamp'
-    timestamp: number
-  } | {
-    type: 'message'
-    message: ChatHistoryItem
-    index: number
-  }> = []
-
-  renderMessages.value.forEach((message, index) => {
-    if (shouldShowTimestampHeader(index, message)) {
-      entries.push({
-        type: 'timestamp',
-        timestamp: getMessageTimestamp(message) ?? Date.now(),
-      })
-    }
-
-    entries.push({
-      type: 'message',
-      message,
-      index,
-    })
-  })
-
-  return entries
+useChatHistoryScroll({
+  containerRef: chatHistoryRef,
+  messages: renderMessages,
+  getKey: getChatHistoryItemKey,
 })
 
 function emitCopyMessage(message: ChatHistoryItem, index: number) {
@@ -166,44 +90,37 @@ function emitDeleteMessage(message: ChatHistoryItem, index: number) {
 
 <template>
   <div ref="chatHistoryRef" v-auto-animate flex="~ col" relative h-full w-full overflow-y-auto rounded-xl px="<sm:2" py="<sm:2" :class="variant === 'mobile' ? 'gap-1' : 'gap-2'">
-    <template v-for="(entry, entryIndex) in renderEntries" :key="entry.type === 'timestamp' ? `timestamp:${entry.timestamp}:${entryIndex}` : getChatHistoryItemKey(entry.message, entry.index)">
-      <div v-if="entry.type === 'timestamp'" class="flex items-center gap-3 px-2 py-2">
-        <div class="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
-        <div class="rounded-full bg-white/80 px-3 py-1 text-xs text-neutral-500 dark:bg-slate-950/80 dark:text-neutral-300">
-          [{{ formatChatMessageTimestamp(entry.timestamp) }}]
-        </div>
-        <div class="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
-      </div>
-
-      <div v-else-if="entry.message.role === 'error'">
+    <template v-for="(message, index) in renderMessages" :key="getChatHistoryItemKey(message, index)">
+      <div
+        :data-chat-message-index="index"
+        :data-chat-message-key="String(getChatHistoryItemKey(message, index))"
+        :data-chat-message-role="message.role"
+      >
         <ChatErrorItem
-          :message="entry.message"
+          v-if="message.role === 'error'"
+          :message="message"
           :label="labels.error"
-          :show-placeholder="sending && entry.index === renderMessages.length - 1"
+          :show-placeholder="sending && index === renderMessages.length - 1"
           :variant="variant"
-          @copy="emitCopyMessage(entry.message, entry.index)"
-          @delete="emitDeleteMessage(entry.message, entry.index)"
+          @copy="emitCopyMessage(message, index)"
+          @delete="emitDeleteMessage(message, index)"
         />
-      </div>
-
-      <div v-else-if="entry.message.role === 'assistant'">
         <ChatAssistantItem
-          :message="entry.message"
+          v-else-if="message.role === 'assistant'"
+          :message="message"
           :label="labels.assistant"
-          :show-placeholder="shouldShowPlaceholder(entry.message) && showStreamingPlaceholder"
+          :show-placeholder="shouldShowPlaceholder(message) && showStreamingPlaceholder"
           :variant="variant"
-          @copy="emitCopyMessage(entry.message, entry.index)"
-          @delete="emitDeleteMessage(entry.message, entry.index)"
+          @copy="emitCopyMessage(message, index)"
+          @delete="emitDeleteMessage(message, index)"
         />
-      </div>
-
-      <div v-else-if="entry.message.role === 'user'">
         <ChatUserItem
-          :message="entry.message"
+          v-else-if="message.role === 'user'"
+          :message="message"
           :label="labels.user"
           :variant="variant"
-          @copy="emitCopyMessage(entry.message, entry.index)"
-          @delete="emitDeleteMessage(entry.message, entry.index)"
+          @copy="emitCopyMessage(message, index)"
+          @delete="emitDeleteMessage(message, index)"
         />
       </div>
     </template>

@@ -2,15 +2,32 @@ import type { UserMessage } from '@xsai/shared-chat'
 
 import type { ContextMessage } from '../../types/chat'
 
+import { toXml } from 'xast-util-to-xml'
+import { x } from 'xastscript'
+
 export type ContextSnapshot = Record<string, ContextMessage[]>
 
+/**
+ * Build an xast tree from context snapshot.
+ * Only the `text` field is included — volatile metadata (random IDs,
+ * millisecond timestamps) is excluded to keep the output deterministic
+ * and friendly to LLM KV-cache prefix matching.
+ * See: https://github.com/moeru-ai/airi/issues/1539
+ */
+function buildContextTree(contextsSnapshot: ContextSnapshot) {
+  const modules = Object.entries(contextsSnapshot).map(([key, messages]) =>
+    x('module', { name: key }, messages.map(m => x(null, m.text))),
+  )
+
+  return x('context', modules)
+}
+
 export function formatContextPromptText(contextsSnapshot: ContextSnapshot) {
-  if (Object.keys(contextsSnapshot).length === 0)
+  const entries = Object.entries(contextsSnapshot)
+  if (entries.length === 0)
     return ''
 
-  return ''
-    + 'These are the contextual information retrieved or on-demand updated from other modules, you may use them as context for chat, or reference of the next action, tool call, etc.:\n'
-    + `${Object.entries(contextsSnapshot).map(([key, value]) => `Module ${key}: ${JSON.stringify(value)}`).join('\n')}\n`
+  return toXml(buildContextTree(contextsSnapshot))
 }
 
 export function buildContextPromptMessage(contextsSnapshot: ContextSnapshot): UserMessage | null {

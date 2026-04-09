@@ -12,6 +12,9 @@ catalogs:
     '@capacitor/android':
       specifier: ^8.2.0
       version: 8.2.0
+    '@capacitor/barcode-scanner':
+      specifier: ^3.0.2
+      version: 3.0.2
     '@capacitor/cli':
       specifier: ^8.2.0
       version: 8.2.0
@@ -124,38 +127,41 @@ catalogs:
       specifier: 14.1.0
       version: 14.1.0
     '@xsai-ext/providers':
-      specifier: ^0.4.4
-      version: 0.4.4
+      specifier: 0.5.0-beta.2
+      version: 0.5.0-beta.2
     '@xsai/embed':
-      specifier: ^0.4.4
-      version: 0.4.4
+      specifier: 0.5.0-beta.2
+      version: 0.5.0-beta.2
     '@xsai/generate-speech':
-      specifier: 0.4.0-beta.13
-      version: 0.4.0-beta.13
+      specifier: 0.5.0-beta.2
+      version: 0.5.0-beta.2
     '@xsai/generate-text':
-      specifier: ^0.4.4
-      version: 0.4.4
+      specifier: 0.5.0-beta.2
+      version: 0.5.0-beta.2
     '@xsai/generate-transcription':
-      specifier: ^0.4.4
-      version: 0.4.4
+      specifier: 0.5.0-beta.2
+      version: 0.5.0-beta.2
     '@xsai/model':
-      specifier: ^0.4.4
-      version: 0.4.4
+      specifier: 0.5.0-beta.2
+      version: 0.5.0-beta.2
     '@xsai/shared':
-      specifier: 0.4.0-beta.13
-      version: 0.4.0-beta.13
+      specifier: 0.5.0-beta.2
+      version: 0.5.0-beta.2
     '@xsai/shared-chat':
-      specifier: 0.4.0-beta.13
-      version: 0.4.0-beta.13
+      specifier: 0.5.0-beta.2
+      version: 0.5.0-beta.2
     '@xsai/stream-text':
-      specifier: ^0.4.4
-      version: 0.4.4
+      specifier: 0.5.0-beta.2
+      version: 0.5.0-beta.2
+    '@xsai/stream-transcription':
+      specifier: 0.5.0-beta.2
+      version: 0.5.0-beta.2
     '@xsai/tool':
-      specifier: ^0.4.4
-      version: 0.4.4
+      specifier: 0.5.0-beta.2
+      version: 0.5.0-beta.2
     '@xsai/utils-chat':
-      specifier: 0.4.0-beta.13
-      version: 0.4.0-beta.13
+      specifier: 0.5.0-beta.2
+      version: 0.5.0-beta.2
     alien-signals:
       specifier: ^3.1.2
       version: 3.1.2
@@ -279,6 +285,9 @@ catalogs:
     unstorage:
       specifier: ^1.17.4
       version: 1.17.4
+    uqr:
+      specifier: ^0.1.3
+      version: 0.1.3
     valibot:
       specifier: 1.2.0
       version: 1.2.0
@@ -297,12 +306,15 @@ catalogs:
     vue-sonner:
       specifier: 2.0.9
       version: 2.0.9
+    web-haptics:
+      specifier: ^0.0.6
+      version: 0.0.6
     ws:
       specifier: ^8.20.0
       version: 8.20.0
     xsschema:
-      specifier: 0.4.0-beta.13
-      version: 0.4.0-beta.13
+      specifier: 0.5.0-beta.2
+      version: 0.5.0-beta.2
     yaml:
       specifier: ^2.8.3
       version: 2.8.3
@@ -341,6 +353,15 @@ patchedDependencies:
   '@mediapipe/tasks-vision':
     hash: 2014bd232d13f4bfac27f27d61105894bf54aca350379b2816fe05b6d3e27d66
     path: patches/@mediapipe__tasks-vision.patch
+  '@xsai/generate-text@0.5.0-beta.2':
+    hash: 306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6
+    path: patches/@xsai__generate-text@0.5.0-beta.2.patch
+  '@xsai/shared-chat@0.5.0-beta.2':
+    hash: 26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01
+    path: patches/@xsai__shared-chat@0.5.0-beta.2.patch
+  '@xsai/stream-text@0.5.0-beta.2':
+    hash: 90dfe10d02f5946658508ec019937eab600745c93446ce7b2fdb1a0ed70e3e49
+    path: patches/@xsai__stream-text@0.5.0-beta.2.patch
   crossws@0.4.4:
     hash: 4d79ec736d10d2a81a9e2a31b067d43f0b6665122267981e652ab9923d165958
     path: patches/crossws@0.4.4.patch
@@ -495,13 +516,13 @@ importers:
         version: 14.2.1(vue@3.5.30(typescript@5.9.3))
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2(patch_hash=90dfe10d02f5946658508ec019937eab600745c93446ce7b2fdb1a0ed70e3e49)
       valibot:
         specifier: ^1.3.1
         version: 1.3.1(typescript@5.9.3)
@@ -510,7 +531,7 @@ importers:
         version: 3.5.30(typescript@5.9.3)
       xsschema:
         specifier: 'catalog:'
-        version: 0.4.0-beta.13(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.3.1(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
+        version: 0.5.0-beta.2(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.3.1(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
     devDependencies:
       '@iconify-json/solar':
         specifier: ^1.2.5
@@ -681,6 +702,9 @@ importers:
       '@capacitor/android':
         specifier: 'catalog:'
         version: 8.2.0(@capacitor/core@8.2.0)
+      '@capacitor/barcode-scanner':
+        specifier: 'catalog:'
+        version: 3.0.2(@capacitor/core@8.2.0)
       '@capacitor/core':
         specifier: 'catalog:'
         version: 8.2.0
@@ -773,34 +797,34 @@ importers:
         version: 14.2.1(vue@3.5.30(typescript@5.9.3))
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2
       '@xsai-transformers/embed':
         specifier: ^0.0.11
         version: 0.0.11(electron@41.0.3)
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
       '@xsai/model':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2
       '@xsai/shared':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2(patch_hash=90dfe10d02f5946658508ec019937eab600745c93446ce7b2fdb1a0ed70e3e49)
       '@xsai/stream-transcription':
-        specifier: 0.4.0-beta.8
-        version: 0.4.0-beta.8
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2
       '@xsai/utils-chat':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2
       animejs:
         specifier: ^4.3.6
         version: 4.3.6
@@ -915,12 +939,15 @@ importers:
       vue-sonner:
         specifier: ^2.0.9
         version: 2.0.9(vue@3.5.30(typescript@5.9.3))
+      web-haptics:
+        specifier: 'catalog:'
+        version: 0.0.6(react@19.2.3)(vue@3.5.30(typescript@5.9.3))
       workbox-window:
         specifier: ^7.4.0
         version: 7.4.0
       xsschema:
         specifier: 'catalog:'
-        version: 0.4.0-beta.13(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.3.1(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
+        version: 0.5.0-beta.2(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.3.1(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
       yauzl:
         specifier: ^3.2.1
         version: 3.2.1
@@ -1176,7 +1203,7 @@ importers:
         version: 14.2.1(vue@3.5.30(typescript@5.9.3))
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2
       '@xsai-transformers/embed':
         specifier: ^0.0.11
         version: 0.0.11(electron@40.8.3)(h3@2.0.1-rc.19(crossws@0.4.4(patch_hash=4d79ec736d10d2a81a9e2a31b067d43f0b6665122267981e652ab9923d165958)(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
@@ -1185,31 +1212,31 @@ importers:
         version: 0.0.11(electron@40.8.3)(h3@2.0.1-rc.19(crossws@0.4.4(patch_hash=4d79ec736d10d2a81a9e2a31b067d43f0b6665122267981e652ab9923d165958)(srvx@0.11.13(patch_hash=c761d25a70e22a0925c88fe91a9dd1c3153dd341d8fd4f260166678156c4df2d))))
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
       '@xsai/model':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2
       '@xsai/shared':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2(patch_hash=90dfe10d02f5946658508ec019937eab600745c93446ce7b2fdb1a0ed70e3e49)
       '@xsai/stream-transcription':
-        specifier: 0.4.0-beta.8
-        version: 0.4.0-beta.8
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2
       '@xsai/tool':
         specifier: 'catalog:'
-        version: 0.4.4(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
+        version: 0.5.0-beta.2(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
       '@xsai/utils-chat':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2
       alien-signals:
         specifier: 'catalog:'
         version: 3.1.2
@@ -1291,6 +1318,9 @@ importers:
       remark-rehype:
         specifier: ^11.1.2
         version: 11.1.2
+      semver:
+        specifier: ^7.7.4
+        version: 7.7.4
       shiki:
         specifier: ^4.0.2
         version: 4.0.2
@@ -1306,6 +1336,9 @@ importers:
       unspeech:
         specifier: catalog:xsai
         version: 0.1.11
+      uqr:
+        specifier: 'catalog:'
+        version: 0.1.3
       uuid:
         specifier: ^13.0.0
         version: 13.0.0
@@ -1330,9 +1363,12 @@ importers:
       vue-sonner:
         specifier: 'catalog:'
         version: 2.0.9(vue@3.5.30(typescript@5.9.3))
+      web-haptics:
+        specifier: 'catalog:'
+        version: 0.0.6(react@19.2.3)(vue@3.5.30(typescript@5.9.3))
       xsschema:
         specifier: 'catalog:'
-        version: 0.4.0-beta.13(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.3.1(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
+        version: 0.5.0-beta.2(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.3.1(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
       zod:
         specifier: ^4.3.6
         version: 4.3.6
@@ -1430,6 +1466,9 @@ importers:
       '@types/nprogress':
         specifier: ^0.2.3
         version: 0.2.3
+      '@types/semver':
+        specifier: ^7.7.1
+        version: 7.7.1
       '@types/splitpanes':
         specifier: 'catalog:'
         version: 2.2.6
@@ -1508,6 +1547,9 @@ importers:
       vite-bundle-visualizer:
         specifier: ^1.2.1
         version: 1.2.1(rolldown@1.0.0-rc.9)(rollup@4.60.0)
+      vite-plugin-mkcert:
+        specifier: 'catalog:'
+        version: 1.17.10(vite@8.0.2(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
       vite-plugin-vue-devtools:
         specifier: ^8.1.1
         version: 8.1.1(vite@8.0.2(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.30(typescript@5.9.3))
@@ -1618,34 +1660,34 @@ importers:
         version: 14.2.1(vue@3.5.30(typescript@5.9.3))
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2
       '@xsai-transformers/embed':
         specifier: ^0.0.11
         version: 0.0.11(electron@41.0.3)
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
       '@xsai/model':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2
       '@xsai/shared':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2(patch_hash=90dfe10d02f5946658508ec019937eab600745c93446ce7b2fdb1a0ed70e3e49)
       '@xsai/stream-transcription':
-        specifier: 0.4.0-beta.8
-        version: 0.4.0-beta.8
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2
       '@xsai/utils-chat':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2
       animejs:
         specifier: ^4.3.6
         version: 4.3.6
@@ -1763,12 +1805,15 @@ importers:
       vue-sonner:
         specifier: ^2.0.9
         version: 2.0.9(vue@3.5.30(typescript@5.9.3))
+      web-haptics:
+        specifier: 'catalog:'
+        version: 0.0.6(react@19.2.3)(vue@3.5.30(typescript@5.9.3))
       workbox-window:
         specifier: ^7.4.0
         version: 7.4.0
       xsschema:
         specifier: 'catalog:'
-        version: 0.4.0-beta.13(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.3.1(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
+        version: 0.5.0-beta.2(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.3.1(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
       yauzl:
         specifier: ^3.2.1
         version: 3.2.1
@@ -1884,6 +1929,9 @@ importers:
       vite-bundle-visualizer:
         specifier: ^1.2.1
         version: 1.2.1(rolldown@1.0.0-rc.9)(rollup@4.60.0)
+      vite-plugin-mkcert:
+        specifier: 'catalog:'
+        version: 1.17.10(vite@8.0.2(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
       vite-plugin-pwa:
         specifier: ^1.2.0
         version: 1.2.0(vite@8.0.2(@types/node@24.12.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(workbox-build@7.4.0)(workbox-window@7.4.0)
@@ -2493,7 +2541,7 @@ importers:
         version: 1.0.0-beta.3(electron@41.0.3)
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
 
   packages/plugin-sdk:
     dependencies:
@@ -2659,13 +2707,13 @@ importers:
         version: 14.2.1(vue@3.5.30(typescript@5.9.3))
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2
       '@xsai/stream-transcription':
-        specifier: 0.4.0-beta.8
-        version: 0.4.0-beta.8
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2
       animejs:
         specifier: ^4.3.6
         version: 4.3.6
@@ -2771,13 +2819,13 @@ importers:
         version: 14.2.1(vue@3.5.30(typescript@5.9.3))
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2
       '@xsai/stream-transcription':
-        specifier: 0.4.0-beta.8
-        version: 0.4.0-beta.8
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2
       animejs:
         specifier: ^4.3.6
         version: 4.3.6
@@ -2822,7 +2870,7 @@ importers:
         version: 2.0.9(vue@3.5.30(typescript@5.9.3))
       xsschema:
         specifier: 'catalog:'
-        version: 0.4.0-beta.13(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.3.1(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
+        version: 0.5.0-beta.2(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.3.1(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
       zod:
         specifier: 'catalog:'
         version: 4.3.6
@@ -2857,6 +2905,9 @@ importers:
       pinia:
         specifier: 'catalog:'
         version: 3.0.4(typescript@5.9.3)(vue@3.5.30(typescript@5.9.3))
+      valibot:
+        specifier: 'catalog:'
+        version: 1.2.0(typescript@5.9.3)
       vue:
         specifier: 'catalog:'
         version: 3.5.30(typescript@5.9.3)
@@ -2962,7 +3013,7 @@ importers:
         version: 14.2.1(vue@3.5.30(typescript@5.9.3))
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2
       '@xsai-transformers/embed':
         specifier: ^0.0.11
         version: 0.0.11(electron@41.0.3)
@@ -2971,37 +3022,37 @@ importers:
         version: 0.0.11(electron@41.0.3)
       '@xsai/embed':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
       '@xsai/generate-transcription':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2
       '@xsai/model':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2
       '@xsai/shared':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2(patch_hash=90dfe10d02f5946658508ec019937eab600745c93446ce7b2fdb1a0ed70e3e49)
       '@xsai/stream-transcription':
-        specifier: 0.4.0-beta.8
-        version: 0.4.0-beta.8
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2
       '@xsai/tool':
         specifier: 'catalog:'
-        version: 0.4.4(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
+        version: 0.5.0-beta.2(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
       '@xsai/utils-chat':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2
       animejs:
         specifier: ^4.3.6
         version: 4.3.6
@@ -3125,6 +3176,9 @@ importers:
       vue-sonner:
         specifier: ^2.0.9
         version: 2.0.9(vue@3.5.30(typescript@5.9.3))
+      web-haptics:
+        specifier: 'catalog:'
+        version: 0.0.6(react@19.2.3)(vue@3.5.30(typescript@5.9.3))
       xast-util-to-xml:
         specifier: ^4.0.0
         version: 4.0.0
@@ -3133,7 +3187,7 @@ importers:
         version: 4.0.0
       xsschema:
         specifier: 'catalog:'
-        version: 0.4.0-beta.13(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.3.1(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
+        version: 0.5.0-beta.2(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.3.1(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
       zod:
         specifier: ^4.3.6
         version: 4.3.6
@@ -3317,7 +3371,7 @@ importers:
         version: 14.2.1(vue@3.5.30(typescript@5.9.3))
       '@xsai/tool':
         specifier: 'catalog:'
-        version: 0.4.4(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
+        version: 0.5.0-beta.2(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
       animejs:
         specifier: ^4.3.6
         version: 4.3.6
@@ -3717,19 +3771,19 @@ importers:
         version: 0.1.10
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
       '@xsai/generate-transcription':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
       discord.js:
         specifier: ^14.25.1
         version: 14.25.1(bufferutil@4.1.0)(utf-8-validate@5.0.10)
@@ -3762,10 +3816,10 @@ importers:
         version: link:../../packages/server-sdk
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
       alien-signals:
         specifier: ^3.1.2
         version: 3.1.2
@@ -3871,13 +3925,13 @@ importers:
         version: 0.3.4(typescript@5.9.3)
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
       '@xsai/utils-chat':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2
       best-effort-json-parser:
         specifier: ^1.4.0
         version: 1.4.0
@@ -3959,19 +4013,19 @@ importers:
         version: 0.3.4(typescript@5.9.3)
       '@xsai/embed':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.4.4
+        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
       '@xsai/tool':
         specifier: 'catalog:'
-        version: 0.4.4(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
+        version: 0.5.0-beta.2(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
       '@xsai/utils-chat':
         specifier: 'catalog:'
-        version: 0.4.0-beta.13
+        version: 0.5.0-beta.2
       best-effort-json-parser:
         specifier: ^1.4.0
         version: 1.4.0
@@ -4889,6 +4943,11 @@ packages:
     resolution: {integrity: sha512-XLm5OsWLPfXQxDxzFS7SOdMEgGvW+2c7TGLXkTR2cSKdkWK5Abns4imlT5qghKYhjM9r74IrDkBWg/9ALUGNKQ==}
     peerDependencies:
       '@capacitor/core': ^8.2.0
+
+  '@capacitor/barcode-scanner@3.0.2':
+    resolution: {integrity: sha512-eD8G0dj/vDTytzFY3qK/5EWZtv17NHMN97gx5KSHUuqFXOScf+5e4Rwwak8zDkX17VLXNym6y3eIn8AvCLY+Pg==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
 
   '@capacitor/cli@8.2.0':
     resolution: {integrity: sha512-1cMEk0d/I6tl1U+v/lnJR5Oylpx8ZBIHrvQxD5zK0MkjYOUyQAAGJgh97rkhGJqjAUvrGpa8H4BmyhNQN9a17A==}
@@ -9470,6 +9529,9 @@ packages:
   '@types/responselike@1.0.3':
     resolution: {integrity: sha512-H/+L+UkTV33uf49PH5pCAUBVPNj2nDBXTN+qS1dOwyyg24l3CcicicCA7ca+HMvJBZcFgl5r8e+RR6elsb4Lyw==}
 
+  '@types/semver@7.7.1':
+    resolution: {integrity: sha512-FmgJfu+MOcQ370SD0ev7EI8TlCAfKYU+B4m5T3yXc1CiRN94g/SZPtsCkk506aUDtlMnFZvasDwHHUcZUEaYuA==}
+
   '@types/slice-ansi@4.0.0':
     resolution: {integrity: sha512-+OpjSaq85gvlZAYINyzKpLeiFkSC4EsC6IIiT6v6TLSU5k5U83fHGj9Lel8oKEXM0HqgrMVCjXPDPVICtxF7EQ==}
 
@@ -10342,6 +10404,9 @@ packages:
   '@xsai-ext/providers@0.4.4':
     resolution: {integrity: sha512-PVk3IFOPzPyvss9zY6IO6pJ890F5B6LWGWuhU6DzofWMTnqcUzm0hR2Ml/Qo8kZa3Qy/DZkUT0O1T+5g/fZkWw==}
 
+  '@xsai-ext/providers@0.5.0-beta.2':
+    resolution: {integrity: sha512-GwOLUlr+Dicl5UGcd5bidPn+bblBrUJsrB/CfIQXI7czLhDs6DJ3COYU5+i6xDVh/WAC0GD/AkO0NdEMfDwfig==}
+
   '@xsai-ext/shared-providers@0.4.0-beta.12':
     resolution: {integrity: sha512-ME9L8BtapghM0W2SiTdulq0IvU3WR0h7dZ3k1bg/eXag2XUdbh1jy0zYY3oGmpMBmKXO8JXcArS1mq87gpsK0A==}
     deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
@@ -10368,41 +10433,47 @@ packages:
   '@xsai/embed@0.4.4':
     resolution: {integrity: sha512-3qKtjjerzola+ggmpfEgESbxQsTkPAKY/Y3hEZiDSFDbRc+3m1AHmMMW+kNiis+Fz+GK8/zDAeVUNMx457XntA==}
 
-  '@xsai/generate-speech@0.4.0-beta.13':
-    resolution: {integrity: sha512-2Nd84TTohnZgm1/l9TYNGHn+vajEavV6wJAvdIVT+5N0m3THPlKbrys2R84NZ1OjD9y3vpqUGdHsdwJyxCXVbg==}
+  '@xsai/embed@0.5.0-beta.2':
+    resolution: {integrity: sha512-z2Yfi0TEjzYElWkr61PTsBn13QtPFtBW46+WAOBFdFGhtcpzH7cGpLlbmr+vAosZm6bRdarZF9VqKq9ccp72UA==}
 
-  '@xsai/generate-text@0.4.4':
-    resolution: {integrity: sha512-eDLeRaaeY3SyjrICeIfPXksqfk36oXLTcjinDNLrsiFHqmNvxfbq3WRccy6hjZy4aOWhkV+qPFZnB3ZIyTfs8w==}
+  '@xsai/generate-speech@0.5.0-beta.2':
+    resolution: {integrity: sha512-MWVEQJXiwHeVwkF/8ycCNAyRIdGrpqRmeC0LhD0OACla/Bt+AIAnEZsOU7D+OxFrigKqWG1NwH+4Wh1xLhnT1Q==}
+
+  '@xsai/generate-text@0.5.0-beta.2':
+    resolution: {integrity: sha512-E2yq0mUWtnYNM7JGSd1UbcqQEX57xoND9pCivQVWbyXDwkEEwCgI3pezBqQYwNQlNWd2mtwVZukYXvFfo43+aw==}
 
   '@xsai/generate-transcription@0.4.4':
     resolution: {integrity: sha512-4xAOSHLSV0yAFo0YHxL1F31NbcUj/vIVEUsi+7FSvL/HuKicAvHyEnFoew9+vB0B0e9u9lvgJt8bd5rM0dxgbg==}
 
-  '@xsai/model@0.4.4':
-    resolution: {integrity: sha512-7hjWAOpvv+T7rjbiLw1bKmqdJ78n/iYEcBYh/4wqT2IXDH5TlPw12DgyD5MYonVwA0KxvOtUBejtUroSgsFjMA==}
+  '@xsai/generate-transcription@0.5.0-beta.2':
+    resolution: {integrity: sha512-ykeh409PVp6qzAwpUocRinbYmQdF6/6O2dvhH39A7cnYF5P1bLTfrqeYKQTj8GJLK6TW6ODsnfW1Qq7Jxqz5Dg==}
 
-  '@xsai/shared-chat@0.4.0-beta.13':
-    resolution: {integrity: sha512-nvE/lrS50JsZPw09cOaa6vebMfXXuJ7j3/41CN+UqwgJwCWteT4eZRVG55sH1vOAwO8ZOBaPR8pqo88Ph3uy6A==}
+  '@xsai/model@0.5.0-beta.2':
+    resolution: {integrity: sha512-FN2AUGGAWTw7XUDf6y1JrcmTRbC8J3FQSE2Sy9HS/pKzEUohBRyiZGc6IEpYzfIE8ShdIa/d5jA070SF8CuZWw==}
 
-  '@xsai/shared-chat@0.4.4':
-    resolution: {integrity: sha512-R/lJDt6SnENVaJcUCO1USVuO/G6qtCbJqopPqARF1n20KWDbchLwW/nvkuZH1TM9vMxaywVNmO9sNJ+uoWJEPA==}
+  '@xsai/shared-chat@0.5.0-beta.2':
+    resolution: {integrity: sha512-PyJh49To2+GuY2sVeiVZEs7UF648RYOFZo4jD+qvxX6y/iafLsMtbXnQr3LFt9qcMqqPaQ1Yu2ABsNR+Cr3mAQ==}
 
-  '@xsai/shared@0.4.0-beta.13':
-    resolution: {integrity: sha512-s+CUJcxDNd/IVDDIECIRcCTJimkKNu29skLv3tm21YpSWoFFPuGM682gTNuFoIfSeEy3D3/RTGXzfefgirkNxA==}
+  '@xsai/shared-stream@0.5.0-beta.2':
+    resolution: {integrity: sha512-oEmUNpEBx4CBxmFxnN7Btge/9GcON8KTI/Pl6QuT9pjCpK4g0nAG2dddX0BTZCbyMdlDd1ipdnr5Kmh/Yf2JuQ==}
 
   '@xsai/shared@0.4.4':
     resolution: {integrity: sha512-ZrOeRJ0fqV8YRDwyQbYJx1N8Fe2UTl2psjV7ucYJ+gMr3oWzrmNfTX9zrpV9zwzBMUe6VvqhK/iJzz8p4jYlsw==}
 
-  '@xsai/stream-text@0.4.4':
-    resolution: {integrity: sha512-NaJF7PrZzlAtSGP5fIWuTOY5mc4LymwrRvTfdUR+0paJRu66qIP7CGCsDJGpKRBcRdpLakb4/8qn3vqeKG9r8A==}
+  '@xsai/shared@0.5.0-beta.2':
+    resolution: {integrity: sha512-4Ljo+yBor8ASBrMT5hRd6vjLlkKVLVvzOVMrdUlxvLVZuMZy7Gcttz17qp/ErqRGX9xkx10UqC0GOce7FpNyzQ==}
 
-  '@xsai/stream-transcription@0.4.0-beta.8':
-    resolution: {integrity: sha512-4V8xHBS7MwnWSuEBaEYOYZE3A3f+Qh9taR+KEui1LJCRH9uq6F4G+s2MTf1GWORaqLNrYmK0yKE0cIImWJ853Q==}
+  '@xsai/stream-text@0.5.0-beta.2':
+    resolution: {integrity: sha512-Qm8zlmmlaxm++H/REyER7T9kftOlnNy4TbVIiTye8TEwVwfJrf3PQ32aS2TKbaW+CThgZarNMj+V4E9+YloyeA==}
 
-  '@xsai/tool@0.4.4':
-    resolution: {integrity: sha512-a6w16B6zaOdSEq8iOwfchu20GsYHu3y8QArlxOAk7ej1WOaHr4iVhJBgIguRSTrak4vBKLAljr1OIltGBSAaag==}
+  '@xsai/stream-transcription@0.5.0-beta.2':
+    resolution: {integrity: sha512-C5sChW4PvCuMFjbZZ/mry+CBvJu6mQaIbivO39pMBl/MAZIq2kNMFygOugKEwitp8qBJ6iGkcpH0ek5OKjROuA==}
 
-  '@xsai/utils-chat@0.4.0-beta.13':
-    resolution: {integrity: sha512-QlDIFjHT7zHq0Vm+DmgDZpq1vOf2Z5oiSxoIH3EfkN6FGbd9gXsR5JAtzaET7PttORMjv18+IXzvCxAVSOGaiA==}
+  '@xsai/tool@0.5.0-beta.2':
+    resolution: {integrity: sha512-M/4vx25FoXjiBiCp+cVXOpwKd7yMBL4R6rgVzKL2YmNVEWqLrREUPn/I2YNp9SyHKsELsk3LTS0IiXOvwXGuuA==}
+
+  '@xsai/utils-chat@0.5.0-beta.2':
+    resolution: {integrity: sha512-WSjoxY0w+3oRSZQkAWHdhOuidRlaYJR3y6bvELmJje6lCh86a4PQtMIPwJIoTmtuVY13ZgGvvKqoQz/0xS32LA==}
 
   abbrev@3.0.1:
     resolution: {integrity: sha512-AO2ac6pjRB3SJmGJo+v5/aK6Omggp6fsLrs6wN9bd35ulu4cCwaAU9+7ZhXjeqHVkaHThLuzH0nZr0YpCDhygg==}
@@ -13250,6 +13321,9 @@ packages:
   html2canvas@1.4.1:
     resolution: {integrity: sha512-fPU6BHNpsyIhr8yyMpTLLxAbkaK8ArIBcmZIRiBLiDhjeqvXolaEmDGmELFuX9I4xDcaKKcJl+TKZLqruBbmWA==}
     engines: {node: '>=8.0.0'}
+
+  html5-qrcode@2.3.8:
+    resolution: {integrity: sha512-jsr4vafJhwoLVEDW3n1KvPnCCXWaQfRng0/EEYk1vNcQGcG/htAdhJX0be8YyqMoSz7+hZvOZSTAepsabiuhiQ==}
 
   htmlparser2@10.0.0:
     resolution: {integrity: sha512-TwAZM+zE5Tq3lrEHvOlvwgj1XLWQCtaaibSN11Q+gGBAS7Y1uZSWwXXRe4iF6OXnaq1riyQAPFOBtYc77Mxq0g==}
@@ -17023,6 +17097,9 @@ packages:
     resolution: {integrity: sha512-+dwUY4L35XFYEzE+OAL3sarJdUioVovq+8f7lcIJ7wnmnYQV5UD1Y/lcwaMSyaQ6Bj3JMj1XSTjZbNLHn/19yA==}
     engines: {node: '>=18'}
 
+  uqr@0.1.3:
+    resolution: {integrity: sha512-0rjE8iEJe4YmT9TOhwsZtqCMRLc5DXZUI2UEYUUg63ikBkqqE5EYWaI0etFe/5KUcmcYwLih2RND1kq+hrUJXA==}
+
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
 
@@ -17478,6 +17555,23 @@ packages:
     resolution: {integrity: sha512-rQicL7OwuqWdQWI33JkSXKcp7cuv1mJG8u3jRQwx/8aDsmhbTHs9ZRmNYOL+LX0wX8edIEQX8jj4bB60GoXtKA==}
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
 
+  web-haptics@0.0.6:
+    resolution: {integrity: sha512-eCzcf1LDi20+Fr0x9V3OkX92k0gxEQXaHajmhXHitsnk6SxPeshv8TBtBRqxyst8HI1uf2FyFVE7QS3jo1gkrw==}
+    peerDependencies:
+      react: '>=18'
+      react-dom: '>=18'
+      svelte: '>=4'
+      vue: '>=3'
+    peerDependenciesMeta:
+      react:
+        optional: true
+      react-dom:
+        optional: true
+      svelte:
+        optional: true
+      vue:
+        optional: true
+
   web-namespaces@2.0.1:
     resolution: {integrity: sha512-bKr1DkiNa2krS7qxNtdrtHAmzuYGFQLiQ13TsorsdT6ULTkPLKuu5+GsFpDlg6JFjUTwX2DyhMPG2be8uPrqsQ==}
 
@@ -17723,36 +17817,13 @@ packages:
     resolution: {integrity: sha512-TEU+nJVUUnA4CYJFLvK5X9AOeH4KvDvhIfm0vV1GaQRtchnG0hgK5p8hw/xjv8cunWYCsiPCSDzObPyhEwq3KQ==}
     engines: {node: '>=0.4.0'}
 
-  xsschema@0.4.0-beta.13:
-    resolution: {integrity: sha512-gw44icHZnuaY/LqI7aKcHz4rWHI/HmpQJicnZ0+hTYWeJlhwVWzaOaguQTV6QecmAeqwOU5pmClYaFy/9dmMzw==}
+  xsschema@0.5.0-beta.2:
+    resolution: {integrity: sha512-zUtk3Ro6Gn39zn7fJRImwmLJmSOpao09dUxdLVyofr+RzfxEEdtm7UVJPe4lUGTJxUCzNptpRp549yD9uKWiug==}
     peerDependencies:
       '@valibot/to-json-schema': ^1.0.0
       arktype: ^2.1.20
       effect: ^3.16.0
-      sury: ^10.0.0
-      zod: ^3.25.0 || ^4.0.0
-      zod-to-json-schema: ^3.25.0
-    peerDependenciesMeta:
-      '@valibot/to-json-schema':
-        optional: true
-      arktype:
-        optional: true
-      effect:
-        optional: true
-      sury:
-        optional: true
-      zod:
-        optional: true
-      zod-to-json-schema:
-        optional: true
-
-  xsschema@0.4.4:
-    resolution: {integrity: sha512-TMhbk8AhxO+YuDOn3rXBjGXQ+Vja3T13UPQkHx/FemhusaOzRfCSj2seykt0mdnFPsOtO9l3ANf4adcp+4NRGw==}
-    peerDependencies:
-      '@valibot/to-json-schema': ^1.0.0
-      arktype: ^2.1.20
-      effect: ^3.16.0
-      sury: ^10.0.0
+      sury: ^10.0.0 || ^11.0.0-alpha
       zod: ^3.25.0 || ^4.0.0
       zod-to-json-schema: ^3.25.0
     peerDependenciesMeta:
@@ -18960,6 +19031,11 @@ snapshots:
   '@capacitor/android@8.2.0(@capacitor/core@8.2.0)':
     dependencies:
       '@capacitor/core': 8.2.0
+
+  '@capacitor/barcode-scanner@3.0.2(@capacitor/core@8.2.0)':
+    dependencies:
+      '@capacitor/core': 8.2.0
+      html5-qrcode: 2.3.8
 
   '@capacitor/cli@8.2.0':
     dependencies:
@@ -23359,6 +23435,8 @@ snapshots:
     dependencies:
       '@types/node': 24.12.0
 
+  '@types/semver@7.7.1': {}
+
   '@types/slice-ansi@4.0.0': {}
 
   '@types/splitpanes@2.2.6':
@@ -24654,6 +24732,10 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.4.4
 
+  '@xsai-ext/providers@0.5.0-beta.2':
+    dependencies:
+      '@xsai/shared': 0.5.0-beta.2
+
   '@xsai-ext/shared-providers@0.4.0-beta.12':
     dependencies:
       '@xsai/shared': 0.4.4
@@ -24731,49 +24813,59 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.4.4
 
-  '@xsai/generate-speech@0.4.0-beta.13':
+  '@xsai/embed@0.5.0-beta.2':
     dependencies:
-      '@xsai/shared': 0.4.4
+      '@xsai/shared': 0.5.0-beta.2
 
-  '@xsai/generate-text@0.4.4':
+  '@xsai/generate-speech@0.5.0-beta.2':
     dependencies:
-      '@xsai/shared': 0.4.4
-      '@xsai/shared-chat': 0.4.4
+      '@xsai/shared': 0.5.0-beta.2
+
+  '@xsai/generate-text@0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)':
+    dependencies:
+      '@xsai/shared': 0.5.0-beta.2
+      '@xsai/shared-chat': 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
 
   '@xsai/generate-transcription@0.4.4':
     dependencies:
       '@xsai/shared': 0.4.4
 
-  '@xsai/model@0.4.4':
+  '@xsai/generate-transcription@0.5.0-beta.2':
     dependencies:
-      '@xsai/shared': 0.4.4
+      '@xsai/shared': 0.5.0-beta.2
 
-  '@xsai/shared-chat@0.4.0-beta.13':
+  '@xsai/model@0.5.0-beta.2':
     dependencies:
-      '@xsai/shared': 0.4.4
+      '@xsai/shared': 0.5.0-beta.2
 
-  '@xsai/shared-chat@0.4.4':
+  '@xsai/shared-chat@0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)':
     dependencies:
-      '@xsai/shared': 0.4.4
+      '@xsai/shared': 0.5.0-beta.2
 
-  '@xsai/shared@0.4.0-beta.13': {}
+  '@xsai/shared-stream@0.5.0-beta.2':
+    dependencies:
+      '@xsai/shared': 0.5.0-beta.2
 
   '@xsai/shared@0.4.4': {}
 
-  '@xsai/stream-text@0.4.4':
-    dependencies:
-      '@xsai/shared': 0.4.4
-      '@xsai/shared-chat': 0.4.4
+  '@xsai/shared@0.5.0-beta.2': {}
 
-  '@xsai/stream-transcription@0.4.0-beta.8':
+  '@xsai/stream-text@0.5.0-beta.2(patch_hash=90dfe10d02f5946658508ec019937eab600745c93446ce7b2fdb1a0ed70e3e49)':
     dependencies:
-      '@xsai/shared': 0.4.4
+      '@xsai/shared': 0.5.0-beta.2
+      '@xsai/shared-chat': 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
+      '@xsai/shared-stream': 0.5.0-beta.2
 
-  '@xsai/tool@0.4.4(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)':
+  '@xsai/stream-transcription@0.5.0-beta.2':
     dependencies:
-      '@xsai/shared': 0.4.4
-      '@xsai/shared-chat': 0.4.4
-      xsschema: 0.4.4(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
+      '@xsai/shared': 0.5.0-beta.2
+      '@xsai/shared-stream': 0.5.0-beta.2
+
+  '@xsai/tool@0.5.0-beta.2(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)':
+    dependencies:
+      '@xsai/shared': 0.5.0-beta.2
+      '@xsai/shared-chat': 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
+      xsschema: 0.5.0-beta.2(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.3.1(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6)
     transitivePeerDependencies:
       - '@valibot/to-json-schema'
       - arktype
@@ -24782,9 +24874,9 @@ snapshots:
       - zod
       - zod-to-json-schema
 
-  '@xsai/utils-chat@0.4.0-beta.13':
+  '@xsai/utils-chat@0.5.0-beta.2':
     dependencies:
-      '@xsai/shared-chat': 0.4.4
+      '@xsai/shared-chat': 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
 
   abbrev@3.0.1: {}
 
@@ -27934,6 +28026,8 @@ snapshots:
     dependencies:
       css-line-break: 2.1.0
       text-segmentation: 1.0.3
+
+  html5-qrcode@2.3.8: {}
 
   htmlparser2@10.0.0:
     dependencies:
@@ -32486,6 +32580,8 @@ snapshots:
       semver: 7.7.4
       xdg-basedir: 5.1.0
 
+  uqr@0.1.3: {}
+
   uri-js@4.4.1:
     dependencies:
       punycode: 2.3.1
@@ -33060,6 +33156,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  web-haptics@0.0.6(react@19.2.3)(vue@3.5.30(typescript@5.9.3)):
+    optionalDependencies:
+      react: 19.2.3
+      vue: 3.5.30(typescript@5.9.3)
+
   web-namespaces@2.0.1: {}
 
   web-streams-polyfill@3.3.3: {}
@@ -33404,14 +33505,9 @@ snapshots:
 
   xmlhttprequest-ssl@2.1.2: {}
 
-  xsschema@0.4.0-beta.13(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.3.1(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6):
+  xsschema@0.5.0-beta.2(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.3.1(typescript@5.9.3)))(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6):
     optionalDependencies:
       '@valibot/to-json-schema': 1.0.0-rc.0(valibot@1.3.1(typescript@5.9.3))
-      zod: 4.3.6
-      zod-to-json-schema: 3.25.1(zod@4.3.6)
-
-  xsschema@0.4.4(zod-to-json-schema@3.25.1(zod@4.3.6))(zod@4.3.6):
-    optionalDependencies:
       zod: 4.3.6
       zod-to-json-schema: 3.25.1(zod@4.3.6)
 

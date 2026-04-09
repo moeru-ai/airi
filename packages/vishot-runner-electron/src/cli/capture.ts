@@ -18,6 +18,13 @@ import { resolveElectronAppInfo } from '../utils/app-path'
 
 type CaptureFormat = 'png' | 'avif'
 
+/** Max width for AVIF output — anything wider is downscaled proportionally. */
+const AVIF_MAX_WIDTH = 1920
+/** AVIF quality (0-100, 100 = lossless). 50 is nearly indistinguishable for UI screenshots. */
+const AVIF_QUALITY = 50
+/** rav1e speed preset (1 = slow/best, 10 = fast/worst). 6 balances size vs encode time. */
+const AVIF_SPEED = 6
+
 interface CaptureCliArguments {
   scenarioPath: string
   outputDir: string
@@ -69,7 +76,20 @@ function createAvifTransformer(): ArtifactTransformer {
   return async (artifact) => {
     // eslint-disable-next-line e18e/prefer-static-regex
     const derivedFilePath = artifact.filePath.replace(/\.png$/i, '.avif')
-    const avifBuffer = await new Transformer(await readFile(artifact.filePath)).avif()
+
+    const transformer = new Transformer(await readFile(artifact.filePath))
+    const metadata = await transformer.metadata()
+
+    // Downscale images wider than AVIF_MAX_WIDTH, keeping aspect ratio
+    if (metadata.width > AVIF_MAX_WIDTH) {
+      const scale = AVIF_MAX_WIDTH / metadata.width
+      transformer.resize(AVIF_MAX_WIDTH, Math.round(metadata.height * scale))
+    }
+
+    const avifBuffer = await transformer.avif({
+      quality: AVIF_QUALITY,
+      speed: AVIF_SPEED,
+    })
 
     await writeFile(derivedFilePath, avifBuffer)
     await rm(artifact.filePath, { force: true })

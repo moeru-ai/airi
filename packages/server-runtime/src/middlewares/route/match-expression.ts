@@ -42,7 +42,7 @@ function getPeerLabels(peer: AuthenticatedPeer) {
   }
 }
 
-export function matchesRouteExpression(expression: RouteTargetExpression, peer: AuthenticatedPeer) {
+export function matchesRouteExpression(expression: RouteTargetExpression, peer: AuthenticatedPeer): boolean {
   switch (expression.type) {
     case 'and':
       return expression.all.every(expr => matchesRouteExpression(expr, peer))
