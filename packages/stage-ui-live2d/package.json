@@ -31,6 +31,7 @@
     "./utils/live2d-zip-loader": "./src/utils/live2d-zip-loader.ts",
     "./utils/live2d-opfs-registration": "./src/utils/live2d-opfs-registration.ts",
     "./utils/live2d-uri-encode-filenames": "./src/utils/live2d-uri-encode-filenames.ts",
+    "./utils/mmd-zip-loader": "./src/utils/mmd-zip-loader.ts",
     "./utils/opfs-loader": "./src/utils/opfs-loader.ts"
   },
   "scripts": {

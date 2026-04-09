@@ -3418,6 +3418,9 @@ importers:
       '@moeru/eventa':
         specifier: 'catalog:'
         version: 1.0.0-beta.3(electron@41.0.3)
+      '@moeru/three-mmd':
+        specifier: ^0.1.0-beta.3
+        version: 0.1.0-beta.3(@types/three@0.183.1)(three@0.183.2)
       '@pixiv/three-vrm':
         specifier: ^3.5.1
         version: 3.5.1(@types/three@0.183.1)(three@0.183.2)
@@ -3430,6 +3433,9 @@ importers:
       '@proj-airi/stage-shared':
         specifier: workspace:*
         version: link:../stage-shared
+      '@proj-airi/stage-ui-live2d':
+        specifier: workspace:*
+        version: link:../stage-ui-live2d
       '@proj-airi/ui':
         specifier: workspace:*
         version: link:../ui
@@ -6453,6 +6459,12 @@ packages:
 
   '@moeru/std@0.1.0-beta.17':
     resolution: {integrity: sha512-GyLDCKHiqXyO60Wn0+Hc7Tfo/GJQA3pV5FZGkzGhvJM7LQPZDB0tksuJV92LuRF1lG8x78B+8UfVFhVf8xXVfg==}
+
+  '@moeru/three-mmd@0.1.0-beta.3':
+    resolution: {integrity: sha512-31rmU0YnUdfSDyPTsnk8OFjo/zAkS2BfaOyu4y0F0bt7Kz4IKrWkotngv+DcxECexFWSsyOqr0Fcmyubz9VvYA==}
+    peerDependencies:
+      '@types/three': ^0.180.0
+      three: ^0.180.0
 
   '@mrleebo/prisma-ast@0.13.1':
     resolution: {integrity: sha512-XyroGQXcHrZdvmrGJvsA9KNeOOgGMg1Vg9OlheUsBOSKznLMDl+YChxbkboRHvtFYJEMRYmlV3uoo/njCw05iw==}
@@ -13063,7 +13075,6 @@ packages:
   glob@11.1.0:
     resolution: {integrity: sha512-vuNwKSaKiqm7g0THUBu2x7ckSs3XJLXE+2ssL7/MfTGPLLcrJQ/4Uq1CjPTtO5cCIiRxqvN6Twy1qOwhL0Xjcw==}
     engines: {node: 20 || >=22}
-    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
     hasBin: true
 
   glob@13.0.0:
@@ -20595,6 +20606,11 @@ snapshots:
   '@moeru/std@0.1.0-beta.1': {}
 
   '@moeru/std@0.1.0-beta.17': {}
+
+  '@moeru/three-mmd@0.1.0-beta.3(@types/three@0.183.1)(three@0.183.2)':
+    dependencies:
+      '@types/three': 0.183.1
+      three: 0.183.2
 
   '@mrleebo/prisma-ast@0.13.1':
     dependencies:

@@ -58,6 +58,9 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
 
   let generateLive2DPreview: (file: File) => Promise<string | undefined>
   let generateVrmPreview: (file: File) => Promise<string | undefined>
+  let generateMmdPreview: (modelUrl: string) => Promise<string | undefined>
+  let mmdLoadMmdFromZip: (file: File) => Promise<{ modelUrl: string, vmdUrl?: string, textures: Map<string, string> }>
+  let mmdRegisterMmdTextures: (textures: Map<string, string>) => void
 
   const displayModelsFromIndexedDBLoading = ref(false)
 
@@ -96,6 +99,21 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   const loadLive2DModelPreview = (file: File) => generateLive2DPreview(file)
   const loadVrmModelPreview = (file: File) => generateVrmPreview(file)
 
+  async function loadMmdModelPreview(file: File) {
+    try {
+      const mmdData = await mmdLoadMmdFromZip(file)
+      // Register textures for the preview loader
+      mmdRegisterMmdTextures(mmdData.textures)
+      // Don't load VMD animation for preview - show model facing front
+      const preview = await generateMmdPreview(mmdData.modelUrl)
+      return preview
+    }
+    catch (err) {
+      console.error('Failed to generate MMD preview:', err)
+      return undefined
+    }
+  }
+
   async function addDisplayModel(format: DisplayModelFormat, file: File) {
     await until(displayModelsFromIndexedDBLoading).toBe(false)
     const newDisplayModel: DisplayModelFile = { id: `display-model-${nanoid()}`, format, type: 'file', file, name: file.name, importedAt: Date.now() }
@@ -106,6 +124,10 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     }
     else if (format === DisplayModelFormat.VRM) {
       const previewImage = await loadVrmModelPreview(file)
+      newDisplayModel.previewImage = previewImage
+    }
+    else if (format === DisplayModelFormat.PMXZip) {
+      const previewImage = await loadMmdModelPreview(file)
       newDisplayModel.previewImage = previewImage
     }
 
@@ -146,9 +168,15 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
 
     const { loadLive2DModelPreview } = await import('@proj-airi/stage-ui-live2d/utils/live2d-preview')
     const { loadVrmModelPreview } = await import('@proj-airi/stage-ui-three/utils/vrm-preview')
+    const { loadMmdModelPreview } = await import('@proj-airi/stage-ui-three/utils/mmd-preview')
+    const { loadMmdFromZip } = await import('@proj-airi/stage-ui-live2d/utils/mmd-zip-loader')
+    const { registerMmdTextures } = await import('@proj-airi/stage-ui-three/composables/mmd/loader')
 
     generateLive2DPreview = loadLive2DModelPreview
     generateVrmPreview = loadVrmModelPreview
+    generateMmdPreview = loadMmdModelPreview
+    mmdLoadMmdFromZip = loadMmdFromZip
+    mmdRegisterMmdTextures = registerMmdTextures
   }
 
   return {

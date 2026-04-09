@@ -1,13 +1,15 @@
 import type { DisplayModel } from '../display-models'
 
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
+import { cleanupMmdZipData, loadMmdFromZip } from '@proj-airi/stage-ui-live2d/utils/mmd-zip-loader'
+import { registerMmdTextures as registerMmdTexturesForLoader } from '@proj-airi/stage-ui-three/composables/mmd/loader'
 import { refManualReset, useEventListener } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, watch } from 'vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
 
-export type StageModelRenderer = 'live2d' | 'vrm' | 'disabled' | undefined
+export type StageModelRenderer = 'live2d' | 'vrm' | 'mmd' | 'disabled' | undefined
 
 export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const displayModelsStore = useDisplayModelsStore()
@@ -23,7 +25,11 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   })
   const stageModelSelectedDisplayModel = refManualReset<DisplayModel | undefined>(undefined)
   const stageModelSelectedUrl = refManualReset<string | undefined>(undefined)
+  const stageModelSelectedVmdUrl = refManualReset<string | undefined>(undefined)
   const stageModelRenderer = refManualReset<StageModelRenderer>(undefined)
+
+  // Store extracted MMD data for cleanup
+  let currentMmdZipData: ReturnType<typeof loadMmdFromZip> extends Promise<infer T> ? T : never
 
   const stageViewControlsEnabled = refManualReset<boolean>(false)
 
@@ -40,12 +46,26 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     stageModelSelectedUrl.value = nextUrl
   }
 
+  function revokeStageModelVmdUrl(url?: string) {
+    if (url?.startsWith('blob:'))
+      URL.revokeObjectURL(url)
+  }
+
+  function replaceStageModelVmdUrl(nextUrl?: string) {
+    if (stageModelSelectedVmdUrl.value === nextUrl)
+      return
+
+    revokeStageModelVmdUrl(stageModelSelectedVmdUrl.value)
+    stageModelSelectedVmdUrl.value = nextUrl
+  }
+
   async function updateStageModel() {
     const requestId = ++stageModelUpdateSequence
     const selectedModelId = stageModelSelectedState.value
 
     if (!selectedModelId) {
       replaceStageModelUrl(undefined)
+      replaceStageModelVmdUrl(undefined)
       stageModelSelectedDisplayModel.value = undefined
       stageModelRenderer.value = 'disabled'
       return
@@ -57,6 +77,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
 
     if (!model) {
       replaceStageModelUrl(undefined)
+      replaceStageModelVmdUrl(undefined)
       stageModelSelectedDisplayModel.value = undefined
       stageModelRenderer.value = 'disabled'
       return
@@ -69,22 +90,54 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
       case DisplayModelFormat.VRM:
         stageModelRenderer.value = 'vrm'
         break
+      case DisplayModelFormat.PMXZip:
+      case DisplayModelFormat.PMXDirectory:
+      case DisplayModelFormat.PMD:
+        stageModelRenderer.value = 'mmd'
+        break
       default:
         stageModelRenderer.value = 'disabled'
         break
     }
 
     if (model.type === 'file') {
-      const nextUrl = URL.createObjectURL(model.file)
-      if (requestId !== stageModelUpdateSequence) {
-        URL.revokeObjectURL(nextUrl)
-        return
-      }
+      // Handle PMXZip - need to extract the ZIP first
+      if (model.format === DisplayModelFormat.PMXZip) {
+        // Clean up previous MMD ZIP data
+        if (currentMmdZipData) {
+          cleanupMmdZipData(currentMmdZipData)
+          currentMmdZipData = undefined
+        }
 
-      replaceStageModelUrl(nextUrl)
+        const mmdData = await loadMmdFromZip(model.file)
+        if (requestId !== stageModelUpdateSequence) {
+          // Cleanup if request was superseded
+          cleanupMmdZipData(mmdData)
+          return
+        }
+
+        currentMmdZipData = mmdData
+
+        // Register textures for MMD loader to resolve
+        registerMmdTexturesForLoader(mmdData.textures)
+
+        replaceStageModelUrl(mmdData.modelUrl)
+        replaceStageModelVmdUrl(mmdData.vmdUrl)
+      }
+      else {
+        const nextUrl = URL.createObjectURL(model.file)
+        if (requestId !== stageModelUpdateSequence) {
+          URL.revokeObjectURL(nextUrl)
+          return
+        }
+
+        replaceStageModelUrl(nextUrl)
+        replaceStageModelVmdUrl(undefined)
+      }
     }
     else {
       replaceStageModelUrl(model.url)
+      replaceStageModelVmdUrl(undefined)
     }
 
     stageModelSelectedDisplayModel.value = model
@@ -96,6 +149,11 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
 
   useEventListener('unload', () => {
     revokeStageModelUrl(stageModelSelectedUrl.value)
+    revokeStageModelVmdUrl(stageModelSelectedVmdUrl.value)
+    if (currentMmdZipData) {
+      cleanupMmdZipData(currentMmdZipData)
+      currentMmdZipData = undefined
+    }
   })
 
   watch(stageModelSelectedState, (_newValue, _oldValue) => {
@@ -104,10 +162,17 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
 
   async function resetState() {
     revokeStageModelUrl(stageModelSelectedUrl.value)
+    revokeStageModelVmdUrl(stageModelSelectedVmdUrl.value)
+
+    if (currentMmdZipData) {
+      cleanupMmdZipData(currentMmdZipData)
+      currentMmdZipData = undefined
+    }
 
     stageModelSelectedState.reset()
     stageModelSelectedDisplayModel.reset()
     stageModelSelectedUrl.reset()
+    stageModelSelectedVmdUrl.reset()
     stageModelRenderer.reset()
     stageViewControlsEnabled.reset()
 
@@ -118,6 +183,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     stageModelRenderer,
     stageModelSelected,
     stageModelSelectedUrl,
+    stageModelSelectedVmdUrl,
     stageModelSelectedDisplayModel,
     stageViewControlsEnabled,
 

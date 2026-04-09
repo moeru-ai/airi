@@ -59,6 +59,15 @@ function handleAddVRMModel(file: FileList | null) {
   displayModelStore.addDisplayModel(DisplayModelFormat.VRM, file[0])
 }
 
+function handleAddMMDModel(file: FileList | null) {
+  if (file === null || file.length === 0)
+    return
+  if (!file[0].name.endsWith('.zip'))
+    return
+
+  displayModelStore.addDisplayModel(DisplayModelFormat.PMXZip, file[0])
+}
+
 const mapFormatRenderer: Record<DisplayModelFormat, string> = {
   [DisplayModelFormat.Live2dZip]: 'Live2D',
   [DisplayModelFormat.Live2dDirectory]: 'Live2D',
@@ -70,9 +79,11 @@ const mapFormatRenderer: Record<DisplayModelFormat, string> = {
 
 const live2dDialog = useFileDialog({ accept: '.zip', multiple: false, reset: true })
 const vrmDialog = useFileDialog({ accept: '.vrm', multiple: false, reset: true })
+const mmdDialog = useFileDialog({ accept: '.zip', multiple: false, reset: true })
 
 live2dDialog.onChange(handleAddLive2DModel)
 vrmDialog.onChange(handleAddVRMModel)
+mmdDialog.onChange(handleAddMMDModel)
 </script>
 
 <template>
@@ -109,7 +120,17 @@ vrmDialog.onChange(handleAddVRMModel)
                   'data-[highlighted]:bg-primary-300/20 dark:data-[highlighted]:bg-primary-100/20',
                   'data-[highlighted]:text-primary-400 dark:data-[highlighted]:text-primary-200',
                 ]"
-                transition="colors duration-200 ease-in-out"
+                transition="colors duration-200 ease-in-out" @click="mmdDialog.open()"
+              >
+                MMD
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                :class="[
+                  'data-[disabled]:text-mauve8 relative flex cursor-pointer select-none items-center rounded-md px-3 py-2 leading-none outline-none data-[disabled]:pointer-events-none',
+                  'text-base sm:text-sm',
+                  'data-[highlighted]:bg-primary-300/20 dark:data-[highlighted]:bg-primary-100/20',
+                  'data-[highlighted]:text-primary-400 dark:data-[highlighted]:text-primary-200',
+                ]"
                 @click="live2dDialog.open()"
               >
                 Live2D

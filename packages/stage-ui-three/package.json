@@ -16,8 +16,11 @@
   },
   "exports": {
     "./assets/vrm": "./src/assets/vrm/index.ts",
+    "./composables/mmd": "./src/composables/mmd/index.ts",
+    "./composables/mmd/loader": "./src/composables/mmd/loader.ts",
     "./composables/vrm": "./src/composables/vrm/index.ts",
     "./trace": "./src/trace/index.ts",
+    "./utils/mmd-preview": "./src/utils/mmd-preview.ts",
     "./utils/vrm-preview": "./src/utils/vrm-preview.ts",
     ".": "./src/index.ts"
   },
@@ -26,10 +29,12 @@
   },
   "dependencies": {
     "@moeru/eventa": "catalog:",
+    "@moeru/three-mmd": "^0.1.0-beta.3",
     "@pixiv/three-vrm": "^3.5.1",
     "@pixiv/three-vrm-animation": "^3.5.1",
     "@pixiv/three-vrm-core": "^3.5.1",
     "@proj-airi/stage-shared": "workspace:*",
+    "@proj-airi/stage-ui-live2d": "workspace:*",
     "@proj-airi/ui": "workspace:*",
     "@tresjs/cientos": "^5.6.0",
     "@tresjs/core": "^5.7.0",

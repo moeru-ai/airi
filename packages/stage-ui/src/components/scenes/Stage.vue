@@ -13,7 +13,7 @@ import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeechPipeline } from '@proj-airi/pipelines-audio'
 import { Live2DScene, useLive2d } from '@proj-airi/stage-ui-live2d'
-import { ThreeScene } from '@proj-airi/stage-ui-three'
+import { MMDScene, ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
 import { createQueue } from '@proj-airi/stream-kit'
 import { useBroadcastChannel } from '@vueuse/core'
@@ -52,6 +52,7 @@ const db = ref<DuckDBWasmDrizzleDatabase>()
 
 const vrmViewerRef = ref<InstanceType<typeof ThreeScene>>()
 const live2dSceneRef = ref<InstanceType<typeof Live2DScene>>()
+const mmdSceneRef = ref<InstanceType<typeof MMDScene>>()
 
 const settingsStore = useSettings()
 const {
@@ -59,6 +60,7 @@ const {
   stageViewControlsEnabled,
   live2dDisableFocus,
   stageModelSelectedUrl,
+  stageModelSelectedVmdUrl,
   stageModelSelected,
   themeColorsHue,
   themeColorsHueDynamic,
@@ -542,6 +544,9 @@ function canvasElement() {
 
   else if (stageModelRenderer.value === 'vrm')
     return vrmViewerRef.value?.canvasElement()
+
+  else if (stageModelRenderer.value === 'mmd')
+    return mmdSceneRef.value?.canvasElement()
 }
 
 function readRenderTargetRegionAtClientPoint(clientX: number, clientY: number, radius: number) {
@@ -601,6 +606,17 @@ defineExpose({
         :paused="paused"
         :show-axes="stageViewControlsEnabled"
         :current-audio-source="currentAudioSource"
+        @error="console.error"
+      />
+      <MMDScene
+        v-if="stageModelRenderer === 'mmd' && showStage"
+        ref="mmdSceneRef"
+        v-model:state="componentState"
+        :model-src="stageModelSelectedUrl"
+        :vmd-src="stageModelSelectedVmdUrl"
+        min-w="50% <lg:full" min-h="100 sm:100" h-full w-full flex-1
+        :paused="paused"
+        :show-axes="stageViewControlsEnabled"
         @error="console.error"
       />
     </div>
