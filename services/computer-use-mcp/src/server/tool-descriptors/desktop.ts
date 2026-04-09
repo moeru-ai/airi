@@ -19,6 +19,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'desktop_observe_windows',
@@ -31,6 +32,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'desktop_screenshot',
@@ -43,6 +45,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
 
   // Desktop interaction tools
@@ -57,6 +60,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: true,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'desktop_focus_app',
@@ -69,6 +73,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: true,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'desktop_click',
@@ -81,6 +86,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'desktop_type_text',
@@ -93,6 +99,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'desktop_press_keys',
@@ -105,6 +112,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'desktop_scroll',
@@ -117,6 +125,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'desktop_wait',
@@ -129,6 +138,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'desktop_get_state',
@@ -141,6 +151,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'desktop_get_session_trace',
@@ -153,6 +164,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'desktop_list_pending_actions',
@@ -165,6 +177,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'desktop_approve_pending_action',
@@ -177,6 +190,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'desktop_reject_pending_action',
@@ -189,6 +203,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
 
   // Terminal tools
@@ -203,6 +218,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: true,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'terminal_reset_state',
@@ -215,6 +231,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'terminal_get_state',
@@ -227,6 +244,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
 
   // Browser DOM tools (extension-based)
@@ -241,6 +259,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'browser_dom_find_elements',
@@ -253,6 +272,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'browser_dom_click',
@@ -265,6 +285,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'browser_dom_check_checkbox',
@@ -277,6 +298,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'browser_dom_set_input_value',
@@ -289,6 +311,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'browser_dom_select_option',
@@ -301,6 +324,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'browser_dom_trigger_event',
@@ -313,6 +337,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'browser_dom_read_input_value',
@@ -325,6 +350,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'browser_dom_get_element_attributes',
@@ -337,6 +363,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'browser_dom_get_computed_styles',
@@ -349,6 +376,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'browser_dom_wait_for_element',
@@ -361,6 +389,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'browser_dom_get_active_tab',
@@ -373,6 +402,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'browser_dom_get_bridge_status',
@@ -385,6 +415,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
 
   // Clipboard tools
@@ -399,6 +430,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: true,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'clipboard_write_text',
@@ -411,6 +443,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: true,
     public: true,
+    defaultDeferred: true,
   },
 
   // Secret/env tools
@@ -425,6 +458,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: true,
     public: true,
+    defaultDeferred: true,
   },
 
   // Workflow tools
@@ -463,6 +497,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'workflow_open_workspace',
@@ -475,6 +510,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'workflow_run_tests',
@@ -487,6 +523,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'workflow_validate_workspace',
@@ -499,6 +536,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'workflow_inspect_failure',
@@ -511,6 +549,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'workflow_resume',
@@ -523,6 +562,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
 ]
 
@@ -541,6 +581,7 @@ export const internalDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: false,
     public: false,
+    defaultDeferred: true,
   },
 ]
 
@@ -559,6 +600,7 @@ export const metaDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'tool_search',

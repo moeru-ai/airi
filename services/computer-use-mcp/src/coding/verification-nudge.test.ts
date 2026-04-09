@@ -62,7 +62,7 @@ describe('verification-nudge', () => {
     })
 
     expect(nudge.severity).toBe('blocking')
-    expect(nudge.reasonCodes).toContain('validation_command_mismatch')
+    expect(nudge.reasonCodes).toContain('verification_bad_faith')
   })
 
   it('keeps unresolved issues as blocking even with validation command', () => {

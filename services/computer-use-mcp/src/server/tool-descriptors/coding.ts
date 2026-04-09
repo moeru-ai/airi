@@ -16,6 +16,7 @@ export const codingDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'coding_read_file',
@@ -76,6 +77,7 @@ export const codingDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'coding_plan_changes',
@@ -88,6 +90,7 @@ export const codingDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'coding_analyze_impact',
@@ -100,6 +103,7 @@ export const codingDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'coding_validate_hypothesis',
@@ -112,6 +116,7 @@ export const codingDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'coding_diagnose_changes',
@@ -124,6 +129,7 @@ export const codingDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'coding_capture_validation_baseline',
@@ -136,6 +142,7 @@ export const codingDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'coding_review_changes',
@@ -148,6 +155,7 @@ export const codingDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'coding_apply_patch',
@@ -172,6 +180,7 @@ export const codingDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'coding_report_status',
@@ -184,5 +193,6 @@ export const codingDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
 ]

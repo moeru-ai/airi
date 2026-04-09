@@ -416,7 +416,7 @@ describe('workflow_coding_loop search-driven e2e', () => {
           terminalCommands.push(command)
           if (command.includes('invalid-validation-command')) {
             return {
-              stdout: 'noop\n',
+              stdout: 'PASS src/other.test.ts\n✓ flag is set\n1 passed\n',
               stderr: '',
               exitCode: 0,
             }
@@ -447,7 +447,7 @@ describe('workflow_coding_loop search-driven e2e', () => {
         targetFile: 'src/index.ts',
         patchOld: 'export const flag = false',
         patchNew: 'export const flag = true',
-        testCommand: 'echo invalid-validation-command',
+        testCommand: 'pnpm run invalid-validation-command',
         autoApprove: true,
       })
 
@@ -477,7 +477,7 @@ describe('workflow_coding_loop search-driven e2e', () => {
           terminalCommands.push(command)
           if (command.includes('invalid-validation-command')) {
             return {
-              stdout: 'noop\n',
+              stdout: 'PASS src/other.test.ts\n✓ flag is set\n1 passed\n',
               stderr: '',
               exitCode: 0,
             }
@@ -508,7 +508,7 @@ describe('workflow_coding_loop search-driven e2e', () => {
         targetFile: 'src/index.ts',
         patchOld: 'export const flag = false',
         patchNew: 'export const flag = true',
-        testCommand: 'echo invalid-validation-command',
+        testCommand: 'pnpm run invalid-validation-command',
         autoApprove: true,
       })
 

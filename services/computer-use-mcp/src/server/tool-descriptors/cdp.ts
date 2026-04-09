@@ -16,6 +16,7 @@ export const cdpDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'browser_cdp_status',
@@ -28,6 +29,7 @@ export const cdpDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'browser_cdp_accessibility_snapshot',
@@ -40,6 +42,7 @@ export const cdpDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'browser_cdp_evaluate',
@@ -52,6 +55,7 @@ export const cdpDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: true,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'browser_cdp_collect_elements',
@@ -64,6 +68,7 @@ export const cdpDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'browser_cdp_screenshot',
@@ -76,6 +81,7 @@ export const cdpDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'browser_cdp_navigate',
@@ -88,5 +94,6 @@ export const cdpDescriptors: ToolDescriptor[] = [
     concurrencySafe: false,
     requiresApprovalByDefault: true,
     public: true,
+    defaultDeferred: true,
   },
 ]

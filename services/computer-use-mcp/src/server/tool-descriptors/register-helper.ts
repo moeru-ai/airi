@@ -4,7 +4,7 @@
  * Utilities for descriptor-driven tool registration.
  */
 
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { McpServer, RegisteredTool } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import type { ZodRawShape, ZodTypeAny } from 'zod'
 
@@ -12,6 +12,11 @@ import type { ToolDescriptor } from './types'
 
 import { initializeGlobalRegistry } from './all'
 import { globalRegistry } from './registry'
+
+/**
+ * Registry of instantiated tools on the current server.
+ */
+export const toolInstances = new Map<string, RegisteredTool>()
 
 /**
  * Options for descriptor-driven tool registration.
@@ -40,7 +45,7 @@ export interface DescriptorToolOptions<TSchema extends ZodRawShape> {
 export function registerToolWithDescriptor<TSchema extends ZodRawShape>(
   server: McpServer,
   options: DescriptorToolOptions<TSchema>,
-): void {
+): RegisteredTool {
   const { descriptor, schema, handler } = options
 
   // Validate descriptor is in registry (fail-closed)
@@ -59,14 +64,22 @@ export function registerToolWithDescriptor<TSchema extends ZodRawShape>(
     description: string,
     schema: TSchema,
     handler: DescriptorToolOptions<TSchema>['handler'],
-  ) => void
+  ) => RegisteredTool
 
-  register(
+  const registeredTool = register(
     descriptor.canonicalName,
     descriptor.summary,
     schema,
     handler,
   )
+
+  toolInstances.set(descriptor.canonicalName, registeredTool)
+
+  if (descriptor.defaultDeferred && registeredTool?.disable) {
+    registeredTool.disable()
+  }
+
+  return registeredTool
 }
 
 /**

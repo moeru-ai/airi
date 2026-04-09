@@ -52,6 +52,7 @@ export type CodingOperationalMemoryReason
     | 'baseline_noise'
     | 'unresolved_issues_remain'
     | 'patch_verification_mismatch'
+    | 'verification_bad_faith'
     | 'no_validation_run'
     | 'review_missing'
     | 'pending_planner_work'
@@ -122,6 +123,12 @@ const GATE_REASON_MAP: Partial<Record<
     kind: 'verification_failure',
     reason: 'validation_command_mismatch',
     recheckEligible: true,
+    blocking: true,
+  },
+  verification_bad_faith: {
+    kind: 'verification_failure',
+    reason: 'verification_bad_faith',
+    recheckEligible: false,
     blocking: true,
   },
   patch_verification_mismatch: {

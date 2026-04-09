@@ -16,6 +16,7 @@ export const displayDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
   {
     canonicalName: 'display_identify_point',
@@ -28,5 +29,6 @@ export const displayDescriptors: ToolDescriptor[] = [
     concurrencySafe: true,
     requiresApprovalByDefault: false,
     public: true,
+    defaultDeferred: true,
   },
 ]
