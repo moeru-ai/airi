@@ -13,9 +13,7 @@
   "main": "./out/main/index.js",
   "scripts": {
     "lint": "eslint --cache .",
-    "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
-    "typecheck:web": "vue-tsc --noEmit -p tsconfig.web.json --composite false",
-    "typecheck": "pnpm run typecheck:node && pnpm run typecheck:web",
+    "typecheck": "vue-tsc --noEmit",
     "app:dev": "pnpm run dev",
     "app:build": "pnpm run build",
     "start": "electron-vite preview",
