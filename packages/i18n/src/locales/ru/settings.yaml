@@ -932,28 +932,28 @@ pages:
         Токен безопасности, требуемый удалёнными клиентами для подключения к этому шлюзу. Если оставить пустым, AIRI сгенерирует новый токен автоматически.
       placeholder: Авто-Генерация
     qr:
-      title: Connect from Stage Pocket
+      title: Подключиться из Stage Pocket
       description: >-
-        Scan this QR code from Stage Pocket to try all reachable local network addresses and save the first working one.
-      refresh: Refresh
-      image-alt: AIRI server channel connection QR code
-      candidates: Candidate addresses
+        Сканируйте этот QR-код из Stage Pocket, чтобы попробовать все доступные адреса локальной сети и сохранить первый рабочий.
+      refresh: Обновить
+      image-alt: QR-код соединения с сервером AIRI
+      candidates: Адреса кандидаты
       token-hint: >-
-        The QR code includes the auth token so Stage Pocket can authenticate after connecting. Do not share it publicly.
+        QR-код включает в себя токен авторизации, чтобы Stage Pocket мог пройти аутентификацию после подключения. Не делитесь этим публично.
       errors:
-        title: QR code unavailable
-        unavailable: Failed to prepare the connection QR code.
+        title: QR-код недоступен
+        unavailable: Не удалось подготовить QR-код подключения.
     qr-scan:
-      title: Quick Connect
-      description: Scan the QR code from Tamagotchi to quick connect
-      instructions: Point the camera at the AIRI connection QR code.
-      action: Scan
+      title: Быстрое подключение
+      description: Сканируйте QR-код из Tamagotchi для быстрого подключения
+      instructions: Наведите камеру на QR-код подключения AIRI.
+      action: Сканировать
       success:
-        title: Connected address saved
-        description: 'URL been used: {url}'
+        title: Подключенный адрес сохранен
+        description: 'Использованный URL: {url}'
       errors:
-        title: QR scan failed
-        failed: Failed to scan or connect with the QR code.
+        title: Ошибка сканирования QR-кода
+        failed: Не удалось отсканировать или подключиться с помощью QR-коду.
   scene:
     description: Настройте окружение, в котором живёт персонаж
     title: Сцена
