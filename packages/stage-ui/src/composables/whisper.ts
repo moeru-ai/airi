@@ -1,8 +1,9 @@
-import type { MessageEvents, MessageGenerate, ProgressMessageEvents } from '../libs/workers/types'
+import type { MessageGenerate, ProgressMessageEvents } from '../libs/workers/types'
 
 import { merge } from '@moeru/std'
-import { useWebWorker } from '@vueuse/core'
-import { onUnmounted, ref, watch } from 'vue'
+import { onUnmounted, ref } from 'vue'
+
+import { createWhisperAdapter } from '../libs/inference/adapters/whisper'
 
 export interface UseWhisperOptions {
   onLoading: (message: string) => void
@@ -27,11 +28,7 @@ export function useWhisper(url: string, options?: Partial<UseWhisperOptions>) {
     onComplete: () => {},
   }, options)
 
-  const {
-    post: whisperPost,
-    data: whisperData,
-    terminate,
-  } = useWebWorker<MessageEvents>(url, { type: 'module' })
+  const adapter = createWhisperAdapter(url)
 
   const status = ref<'loading' | 'ready' | null>(null)
   const loadingMessage = ref('')
@@ -40,7 +37,8 @@ export function useWhisper(url: string, options?: Partial<UseWhisperOptions>) {
   const tps = ref<number>(0)
   const result = ref('')
 
-  watch(whisperData, (e) => {
+  // Subscribe to raw worker events for streaming UI updates
+  adapter.onMessage((e) => {
     switch (e.status) {
       case 'loading':
         status.value = 'loading'
@@ -94,18 +92,27 @@ export function useWhisper(url: string, options?: Partial<UseWhisperOptions>) {
   })
 
   onUnmounted(() => {
-    terminate()
+    adapter.terminate()
   })
 
   return {
-    transcribe: (message: MessageGenerate) => whisperPost(message),
+    transcribe: (message: MessageGenerate) => {
+      // Delegate to adapter for transcription (fire-and-forget for streaming)
+      // The actual result arrives via the 'complete' event handler above
+      adapter.transcribe({
+        audio: message.data.audio ?? '',
+        language: message.data.language,
+      }).catch((err) => {
+        console.error('Whisper transcription error:', err)
+      })
+    },
     status,
     loadingMessage,
     loadingProgress,
     transcribing,
     tps,
     result,
-    load: () => whisperPost({ type: 'load' }),
-    terminate,
+    load: () => adapter.load(),
+    terminate: () => adapter.terminate(),
   }
 }

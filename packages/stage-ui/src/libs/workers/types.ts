@@ -68,7 +68,10 @@ export type ProgressMessageEvents = EventInitiate | EventProgress | EventDone
 export interface MessageGenerate {
   type: 'generate'
   data: {
-    audio: string
+    /** Base64-encoded WAV audio. @deprecated Prefer audioFloat32 for zero-copy. */
+    audio?: string
+    /** Pre-converted Float32Array audio samples (transferable, zero-copy) */
+    audioFloat32?: Float32Array
     language: string
   }
 }
