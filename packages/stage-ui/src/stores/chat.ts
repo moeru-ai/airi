@@ -544,12 +544,10 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
   // PERF: Cancel streams when switching sessions to prevent hanging operations
   // Expected improvement: 20-50ms per transition, clean resource management
-  let previousSessionId = activeSessionId.value
   watch(activeSessionId, (newSessionId, oldSessionId) => {
     if (oldSessionId && oldSessionId !== newSessionId) {
       cancelSessionSends(oldSessionId)
     }
-    previousSessionId = newSessionId
   })
 
   return {
