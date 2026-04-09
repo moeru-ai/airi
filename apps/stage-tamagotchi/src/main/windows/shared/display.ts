@@ -142,6 +142,42 @@ export function widthFrom(bounds: Rectangle, sizeOptions: Size & { min?: Size, m
 }
 
 /**
+ * Compute a position for `target` adjacent to `anchor`, staying within `workArea`.
+ */
+export function computeAdjacentPosition(
+  anchorBounds: Rectangle,
+  targetSize: { width: number, height: number },
+  workArea: Rectangle,
+  offset = 16,
+): { x: number, y: number } {
+  const centerY = anchorBounds.y + Math.floor((anchorBounds.height - targetSize.height) / 2)
+  const clampY = (y: number) => Math.min(
+    Math.max(y, workArea.y),
+    workArea.y + workArea.height - targetSize.height,
+  )
+
+  // Try right
+  const rightX = anchorBounds.x + anchorBounds.width + offset
+  if (rightX + targetSize.width <= workArea.x + workArea.width) {
+    return { x: rightX, y: clampY(centerY) }
+  }
+
+  // Try left
+  const leftX = anchorBounds.x - targetSize.width - offset
+  if (leftX >= workArea.x) {
+    return { x: leftX, y: clampY(centerY) }
+  }
+
+  // Fall back to below
+  const belowY = anchorBounds.y + anchorBounds.height + offset
+  const belowX = anchorBounds.x + Math.floor((anchorBounds.width - targetSize.width) / 2)
+  return {
+    x: Math.min(Math.max(belowX, workArea.x), workArea.x + workArea.width - targetSize.width),
+    y: Math.min(belowY, workArea.y + workArea.height - targetSize.height),
+  }
+}
+
+/**
  * Calculate height based on options similar to how Web CSS does it.
  *
  * @param bounds
