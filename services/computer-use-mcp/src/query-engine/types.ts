@@ -110,6 +110,22 @@ export interface QueryEngineResult {
   summary: string
   filesModified: string[]
   error?: string
+  /** Post-loop verification results. Empty if verification was not run. */
+  verification: VerificationRecord[]
+}
+
+/**
+ * Record of a single verification check run after the agent loop completes.
+ */
+export interface VerificationRecord {
+  /** What was checked (e.g., 'file_exists', 'file_readable', 'test_run', 'typecheck') */
+  check: string
+  /** Target of the check (file path, test command, etc.) */
+  target: string
+  /** Whether the check passed */
+  passed: boolean
+  /** Details: command output, error message, etc. */
+  detail: string
 }
 
 /**

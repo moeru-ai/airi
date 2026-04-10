@@ -105,6 +105,63 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
         maxChars: args.max_chars as number | undefined,
       })
     },
+
+    edit_file: async (args) => {
+      const filePath = resolveFilePath(args.file_path as string)
+      const oldText = args.old_text as string
+      const newText = args.new_text as string
+
+      // Read current content
+      let content: string
+      try {
+        const fs = await import('node:fs/promises')
+        content = await fs.readFile(filePath, 'utf-8')
+      }
+      catch {
+        return { error: `File not found: ${filePath}. Use write_file to create new files.` }
+      }
+
+      // Find and replace
+      const index = content.indexOf(oldText)
+      if (index === -1) {
+        // Show context to help the LLM fix its search string
+        const lines = content.split('\n')
+        const preview = lines.slice(0, Math.min(40, lines.length)).join('\n')
+        return {
+          error: `old_text not found in ${filePath}. File has ${lines.length} lines.`,
+          hint: 'Make sure old_text matches the file content exactly, including whitespace and indentation.',
+          preview: preview.length > 2000 ? `${preview.slice(0, 2000)}\n[...]` : preview,
+        }
+      }
+
+      // Check for multiple matches
+      const secondIndex = content.indexOf(oldText, index + oldText.length)
+      if (secondIndex !== -1) {
+        return {
+          error: `old_text matches multiple locations in ${filePath}. Provide more context to make the match unique.`,
+          firstMatch: `line ${content.slice(0, index).split('\n').length}`,
+          secondMatch: `line ${content.slice(0, secondIndex).split('\n').length}`,
+        }
+      }
+
+      // Apply edit
+      const newContent = content.slice(0, index) + newText + content.slice(index + oldText.length)
+      const fs = await import('node:fs/promises')
+      await fs.writeFile(filePath, newContent, 'utf-8')
+
+      // Report what changed
+      const lineNum = content.slice(0, index).split('\n').length
+      const oldLines = oldText.split('\n').length
+      const newLines = newText.split('\n').length
+      return {
+        success: true,
+        file: filePath,
+        line: lineNum,
+        linesRemoved: oldLines,
+        linesAdded: newLines,
+        diff: `@@ -${lineNum},${oldLines} +${lineNum},${newLines} @@\n${oldText.split('\n').map(l => `-${l}`).join('\n')}\n${newText.split('\n').map(l => `+${l}`).join('\n')}`,
+      }
+    },
   }
 }
 
@@ -243,6 +300,22 @@ export function getToolDefinitions(): QueryEngineTool[] {
           url: { type: 'string', description: 'URL to fetch.' },
           timeout_ms: { type: 'number', description: 'Timeout in ms. Default: 15000.' },
           max_chars: { type: 'number', description: 'Max chars to return. Default: 50000.' },
+        },
+      },
+    },
+    {
+      name: 'edit_file',
+      description: 'Make a precise edit to an existing file by replacing old_text with new_text. '
+        + 'old_text must match the file content EXACTLY (including whitespace). '
+        + 'Use this instead of write_file when modifying existing files — it is safer and preserves unchanged content. '
+        + 'If old_text is not found, you will get an error with a file preview to help you fix the match.',
+      parameters: {
+        type: 'object',
+        required: ['file_path', 'old_text', 'new_text'],
+        properties: {
+          file_path: { type: 'string', description: 'File path to edit.' },
+          old_text: { type: 'string', description: 'Exact text to find and replace. Must match file content exactly.' },
+          new_text: { type: 'string', description: 'Replacement text.' },
         },
       },
     },

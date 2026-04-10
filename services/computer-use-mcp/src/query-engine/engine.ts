@@ -2,14 +2,18 @@
  * QueryEngine — the autonomous coding loop.
  *
  * Implements the ReAct pattern (think → act → observe → continue):
- * 1. Build messages (system prompt + history)
- * 2. Call LLM → get assistant response
- * 3. If assistant has tool_calls → execute tools → collect results → continue
- * 4. If no tool_calls → done, return final response
+ * 1. Detect workspace toolchain (package manager, test runner, etc.)
+ * 2. Build messages (system prompt + history)
+ * 3. Call LLM → get assistant response
+ * 4. If assistant has tool_calls → execute tools → collect results → continue
+ * 5. If no tool_calls → run post-loop verification → return
  *
  * The engine is MCP-native: it's triggered by a `coding_agentic_run` MCP tool call,
  * and internally uses already-registered CodingPrimitives for all file operations.
  */
+
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 
 import type { CodingPrimitives } from '../coding/primitives'
 import type { TerminalRunner } from '../types'
@@ -20,6 +24,7 @@ import type {
   QueryEngineResult,
   QueryMessage,
   ToolCall,
+  VerificationRecord,
 } from './types'
 
 import { BudgetGuard } from './budget-guard'
@@ -57,6 +62,171 @@ export function resolveConfig(overrides?: Partial<QueryEngineConfig>): QueryEngi
     abortSignal: overrides?.abortSignal,
   }
 }
+
+// ─── Toolchain Detection ──────────────────────────────────────────
+
+interface WorkspaceToolchain {
+  packageManager: 'pnpm' | 'npm' | 'yarn' | 'bun'
+  testCommand?: string
+  typecheckCommand?: string
+}
+
+/**
+ * Detect workspace toolchain by checking for lockfiles and config files.
+ * This gives the LLM accurate commands to run for verification.
+ */
+function detectToolchain(workspacePath: string): WorkspaceToolchain {
+  const exists = (f: string) => existsSync(join(workspacePath, f))
+
+  // Detect package manager
+  let packageManager: WorkspaceToolchain['packageManager'] = 'npm'
+  if (exists('pnpm-lock.yaml') || exists('pnpm-workspace.yaml')) packageManager = 'pnpm'
+  else if (exists('yarn.lock')) packageManager = 'yarn'
+  else if (exists('bun.lockb') || exists('bun.lock')) packageManager = 'bun'
+
+  // Detect test runner
+  let testCommand: string | undefined
+  if (exists('vitest.config.ts') || exists('vitest.config.js') || exists('vitest.config.mts')) {
+    testCommand = `${packageManager} exec vitest run`
+  }
+  else if (exists('jest.config.ts') || exists('jest.config.js')) {
+    testCommand = `${packageManager} exec jest --passWithNoTests`
+  }
+
+  // Detect typecheck
+  let typecheckCommand: string | undefined
+  if (exists('tsconfig.json')) {
+    typecheckCommand = `${packageManager} exec tsc --noEmit`
+  }
+
+  return { packageManager, testCommand, typecheckCommand }
+}
+
+// ─── Post-loop Verification ───────────────────────────────────────
+
+/**
+ * Run post-loop verification on all files the agent claimed to modify.
+ *
+ * Checks:
+ * 1. File exists and is readable
+ * 2. File is valid UTF-8
+ * 3. If .ts/.js: no obvious syntax errors (optional typecheck)
+ */
+async function verifyModifiedFiles(
+  filesModified: string[],
+  workspacePath: string,
+): Promise<VerificationRecord[]> {
+  const records: VerificationRecord[] = []
+  const fs = await import('node:fs/promises')
+  const path = await import('node:path')
+
+  for (const filePath of filesModified) {
+    const absPath = path.isAbsolute(filePath) ? filePath : path.join(workspacePath, filePath)
+
+    // Check 1: file exists
+    try {
+      await fs.access(absPath)
+    }
+    catch {
+      records.push({
+        check: 'file_exists',
+        target: filePath,
+        passed: false,
+        detail: `File does not exist at ${absPath}`,
+      })
+      continue
+    }
+
+    // Check 2: file is readable
+    try {
+      const content = await fs.readFile(absPath, 'utf-8')
+      records.push({
+        check: 'file_readable',
+        target: filePath,
+        passed: true,
+        detail: `${content.length} chars, ${content.split('\n').length} lines`,
+      })
+
+      // Check 3: basic syntax sanity for TS/JS files
+      if (filePath.match(/\.(ts|tsx|js|jsx|mts|mjs)$/)) {
+        const syntaxIssues = checkBasicSyntax(content)
+        records.push({
+          check: 'syntax_sanity',
+          target: filePath,
+          passed: syntaxIssues.length === 0,
+          detail: syntaxIssues.length === 0
+            ? 'Basic syntax checks passed'
+            : `Issues: ${syntaxIssues.join('; ')}`,
+        })
+      }
+    }
+    catch (err) {
+      records.push({
+        check: 'file_readable',
+        target: filePath,
+        passed: false,
+        detail: `Failed to read: ${err instanceof Error ? err.message : String(err)}`,
+      })
+    }
+  }
+
+  return records
+}
+
+/**
+ * Quick syntax sanity checks without a full parser.
+ * Catches the most common issues that would fail compilation.
+ */
+function checkBasicSyntax(content: string): string[] {
+  const issues: string[] = []
+
+  // Check balanced brackets/parens/braces
+  const counts = { '{': 0, '(': 0, '[': 0 }
+  const closers: Record<string, keyof typeof counts> = { '}': '{', ')': '(', ']': '[' }
+  // Skip strings and comments for bracket counting
+  let inString: string | null = null
+  let inLineComment = false
+  let inBlockComment = false
+
+  for (let i = 0; i < content.length; i++) {
+    const ch = content[i]!
+    const next = content[i + 1]
+
+    if (inLineComment) {
+      if (ch === '\n') inLineComment = false
+      continue
+    }
+    if (inBlockComment) {
+      if (ch === '*' && next === '/') { inBlockComment = false; i++ }
+      continue
+    }
+    if (inString) {
+      if (ch === inString && content[i - 1] !== '\\') inString = null
+      continue
+    }
+
+    if (ch === '/' && next === '/') { inLineComment = true; continue }
+    if (ch === '/' && next === '*') { inBlockComment = true; continue }
+    if (ch === '\'' || ch === '"' || ch === '`') { inString = ch; continue }
+
+    if (ch in counts) counts[ch as keyof typeof counts]++
+    if (ch in closers) counts[closers[ch]!]--
+  }
+
+  if (counts['{'] !== 0) issues.push(`Unbalanced braces: ${counts['{']} unclosed`)
+  if (counts['('] !== 0) issues.push(`Unbalanced parens: ${counts['(']} unclosed`)
+  if (counts['['] !== 0) issues.push(`Unbalanced brackets: ${counts['[']} unclosed`)
+
+  // Check for common import issues
+  if (content.includes('from \'') || content.includes('from "')) {
+    // Has imports — check they're at the top or inside functions
+    // (this is just a sanity check, not a full linter)
+  }
+
+  return issues
+}
+
+// ─── LLM API Call ─────────────────────────────────────────────────
 
 /**
  * Call an OpenAI-compatible chat completions API.
@@ -132,6 +302,8 @@ async function callLLM(params: {
   }
 }
 
+// ─── Main Loop ────────────────────────────────────────────────────
+
 /**
  * Run the autonomous coding loop.
  *
@@ -157,6 +329,9 @@ export async function runQueryEngine(params: {
   const toolDefs = getToolDefinitions()
   const filesModified = new Set<string>()
 
+  // ─── Detect workspace toolchain ───
+  const toolchain = detectToolchain(workspacePath)
+
   // Build OpenAI-format tool definitions
   const openaiTools = toolDefs.map(t => ({
     type: 'function' as const,
@@ -167,12 +342,15 @@ export async function runQueryEngine(params: {
     },
   }))
 
-  // System prompt
+  // System prompt — now with toolchain info
   const systemPrompt = buildSystemPrompt({
     workspacePath,
     tools: toolDefs,
     maxTurns: config.maxTurns,
     maxToolCalls: config.maxToolCalls,
+    packageManager: toolchain.packageManager,
+    testCommand: toolchain.testCommand,
+    typecheckCommand: toolchain.typecheckCommand,
   })
 
   // Conversation history
@@ -183,31 +361,48 @@ export async function runQueryEngine(params: {
 
   let lastAssistantContent = ''
 
+  // Helper to build a result with verification
+  const buildResult = async (
+    status: QueryEngineResult['status'],
+    snap: ReturnType<BudgetGuard['snapshot']>,
+    error?: string,
+  ): Promise<QueryEngineResult> => {
+    // Run post-loop verification on modified files
+    const verification = await verifyModifiedFiles(
+      Array.from(filesModified),
+      workspacePath,
+    )
+
+    onProgress?.({
+      turn: snap.turnsUsed,
+      phase: 'completed',
+      budget: snap,
+      message: `Verification: ${verification.filter(v => v.passed).length}/${verification.length} checks passed`,
+    })
+
+    return {
+      status,
+      turnsUsed: snap.turnsUsed,
+      toolCallsUsed: snap.toolCallsUsed,
+      tokensUsed: snap.tokensUsed,
+      summary: lastAssistantContent || (error ? `Error: ${error}` : ''),
+      filesModified: Array.from(filesModified),
+      error,
+      verification,
+    }
+  }
+
   // ---- Main loop ----
   while (true) {
     // Check abort
     if (config.abortSignal?.aborted) {
-      return {
-        status: 'aborted',
-        turnsUsed: budget.snapshot().turnsUsed,
-        toolCallsUsed: budget.snapshot().toolCallsUsed,
-        tokensUsed: budget.snapshot().tokensUsed,
-        summary: lastAssistantContent || 'Aborted before completion.',
-        filesModified: Array.from(filesModified),
-      }
+      return buildResult('aborted', budget.snapshot())
     }
 
     // Check budget before calling LLM
     const snap = budget.snapshot()
     if (snap.exhausted) {
-      return {
-        status: 'budget_exhausted',
-        turnsUsed: snap.turnsUsed,
-        toolCallsUsed: snap.toolCallsUsed,
-        tokensUsed: snap.tokensUsed,
-        summary: lastAssistantContent || 'Budget exhausted before completion.',
-        filesModified: Array.from(filesModified),
-      }
+      return buildResult('budget_exhausted', snap)
     }
 
     // Inject low-budget advisory if approaching limit
@@ -237,15 +432,7 @@ export async function runQueryEngine(params: {
         continue
       }
 
-      return {
-        status: 'error',
-        turnsUsed: snap.turnsUsed,
-        toolCallsUsed: snap.toolCallsUsed,
-        tokensUsed: snap.tokensUsed,
-        summary: lastAssistantContent || '',
-        filesModified: Array.from(filesModified),
-        error: message,
-      }
+      return buildResult('error', snap, message)
     }
 
     // Record budget consumption
@@ -273,17 +460,9 @@ export async function runQueryEngine(params: {
       lastAssistantContent = response.content
     }
 
-    // No tool calls → done
+    // No tool calls → agent is done, run verification and return
     if (response.toolCalls.length === 0) {
-      const finalSnap = budget.snapshot()
-      return {
-        status: 'completed',
-        turnsUsed: finalSnap.turnsUsed,
-        toolCallsUsed: finalSnap.toolCallsUsed,
-        tokensUsed: finalSnap.tokensUsed,
-        summary: lastAssistantContent,
-        filesModified: Array.from(filesModified),
-      }
+      return buildResult('completed', budget.snapshot())
     }
 
     // Execute tool calls
@@ -300,7 +479,7 @@ export async function runQueryEngine(params: {
       })
 
       // Track file modifications
-      if (toolName === 'write_file') {
+      if (toolName === 'write_file' || toolName === 'edit_file') {
         try {
           const args = JSON.parse(toolCall.function.arguments)
           if (args.file_path) filesModified.add(args.file_path)

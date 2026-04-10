@@ -12,4 +12,5 @@ export type {
   QueryEngineTool,
   QueryMessage,
   ToolCall,
+  VerificationRecord,
 } from './types'
