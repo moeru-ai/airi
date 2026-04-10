@@ -1730,3 +1730,40 @@ pnpm -F @proj-airi/computer-use-mcp exec vitest run   # 66 files, 691 tests, all
 pnpm -F @proj-airi/computer-use-mcp exec tsx ./src/bin/e2e-lane-hygiene.ts  # ALL STEPS PASSED
 pnpm -F @proj-airi/computer-use-mcp exec tsx ./src/bin/e2e-coding-workflow.ts  # ALL 4 PHASES PASSED
 ```
+
+## 📅 2026-04-10: P0 工具缺口补全 — coding_write_file + coding_list_files
+
+> 消费级 agent 差距评估后的第一批修复。这两个工具是几乎所有编程任务的前提。
+
+### 新增工具
+
+| 工具 | 类型 | 风险 | 用途 |
+|---|---|---|---|
+| `coding_write_file` | write/mutate | 🔴 high | 创建新文件或覆盖已有文件。自动创建父目录。走审批策略。 |
+| `coding_list_files` | read | 🟢 low | Glob 模式文件搜索。默认排除 node_modules/.git/dist/build。上限 2000 结果。 |
+
+### 触及的契约链（12 个文件）
+
+每个新工具都需要在完整的契约链中注册，否则运行时会 panic：
+
+```
+types.ts → ActionKind + ActionInvocation
+  → operation-contracts → 效果类型/风险/审批范围
+    → verification-contracts → 验证方式/失败处置
+      → policy.ts → 审批逻辑
+        → action-executor.ts → 执行分发
+          → transparency.ts → 意图/结果/失败解释
+            → operation-units.ts → 操作单位消耗
+              → register-coding.ts → MCP tool 注册 + schema
+                → result-shape.ts → 结构化结果
+                  → workflows/types.ts → 工作流步骤类型
+                    → coding/primitives.ts → 后端实现
+```
+
+### 验证
+```bash
+pnpm -F @proj-airi/computer-use-mcp exec vitest run  # 66 files, 691 tests, all green
+```
+
+### 工具总数更新
+AIRI computer-use-mcp 现有 **87 个注册工具**（+2）。
