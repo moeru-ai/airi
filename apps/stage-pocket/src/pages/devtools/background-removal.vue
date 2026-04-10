@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { detectWebGPU } from '@proj-airi/stage-shared/webgpu'
 import { createBackgroundRemovalAdapter } from '@proj-airi/stage-ui/libs/inference/adapters/background-removal'
 import { Button, Checkbox, InputFile } from '@proj-airi/ui'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
@@ -60,11 +59,7 @@ watch(autoProcess, (enabled) => {
 
 onMounted(async () => {
   try {
-    const capabilities = await detectWebGPU()
-    if (!capabilities.supported) {
-      throw new Error('WebGPU is not supported in this browser.')
-    }
-
+    // Worker auto-detects WebGPU and falls back to WASM if unavailable
     await adapter.load()
   }
   catch (err) {

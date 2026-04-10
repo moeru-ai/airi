@@ -4,6 +4,17 @@
  * All inference workers (Kokoro, Whisper, background-removal, etc.)
  * communicate with the main thread through this typed protocol.
  * Each adapter maps its domain-specific messages to/from these types.
+ *
+ * ## Architecture Note: GPU Device Isolation
+ *
+ * Each Web Worker creates its own GPUDevice via `navigator.gpu.requestAdapter()`.
+ * WebGPU does not support sharing a GPUDevice across workers — this is a platform
+ * limitation, not a design choice. To mitigate the cost of multiple device contexts:
+ *
+ * - **LoadQueue** ensures only one model loads at a time (prevents bandwidth/VRAM spikes)
+ * - **GPUResourceCoordinator** tracks estimated VRAM across all models and emits
+ *   memory pressure events so the app can unload LRU models when nearing budget
+ * - Workers auto-detect WebGPU availability and fall back to WASM when unavailable
  */
 
 // ---------------------------------------------------------------------------
