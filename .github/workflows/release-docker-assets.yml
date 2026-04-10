@@ -1,0 +1,79 @@
+name: Release Docker / OCI for Assets
+
+on:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - 'apps/ui-server-auth/**'
+  workflow_dispatch:
+
+jobs:
+  ghcr_build_assets:
+    name: Release Assets
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - assets_name: ui-server-auth
+            build_directory: ./apps/ui-server-auth/dist
+            build_command: |
+              pnpm -F @proj-airi/ui-server-auth run build
+    steps:
+      # Why?
+      #
+      # failed to build archive at `/home/runner/work/airi/airi/target/x86_64-unknown-linux-gnu/release/deps/libapp_lib.rlib`:
+      # No space left on device (os error 28)
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+
+      - uses: actions/checkout@v6
+      # Turborepo
+      - name: Cache turbo build setup
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: ${{ matrix.build_command }}
+
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/${{ github.repository }}/${{ matrix.assets_name }}
+          flavor: |
+            latest=true
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./apps/ui-server-auth/dist
+          file: ./apps/ui-server-auth/Dockerfile
+          build-args: |
+            VITE_ENABLE_POSTHOG=true
+          platforms: linux/amd64,linux/arm64,linux/arm64/v8
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

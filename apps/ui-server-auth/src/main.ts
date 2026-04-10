@@ -16,8 +16,7 @@ import App from './App.vue'
 
 import { i18n } from './modules/i18n'
 
-import '@proj-airi/font-cjkfonts-allseto/index.css'
-import '@proj-airi/font-xiaolai/index.css'
+import '@proj-airi/font-chillroundm/index.css'
 import '@unocss/reset/tailwind.css'
 import 'vue-sonner/style.css'
 import './styles/main.css'
