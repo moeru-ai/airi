@@ -57,6 +57,7 @@ import {
   buildSuccessResponse,
 } from './responses'
 import { toRuntimeFactSummary } from './runtime-facts'
+import { captureClickEvidence } from './verification-evidence-capture'
 import {
   buildRepairedVerification,
   formatVerificationFailure,
@@ -578,6 +579,21 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
             ...result,
             pointerTrace,
           }
+
+          // Evidence Capture: click
+          captureClickEvidence(runtime, {
+            source: 'desktop_click',
+            actionKind: 'click',
+            subject: 'pointer_target',
+            observed: {
+              x: normalizedAction.input.x,
+              y: normalizedAction.input.y,
+              button: normalizedAction.input.button ?? null,
+              appName: runtime.stateManager.getState().activeApp ?? null,
+              windowTitle: runtime.stateManager.getState().activeWindowTitle ?? null,
+            },
+            summary: 'Foreground checked after click.',
+          })
           break
         }
         case 'type_text': {
@@ -599,6 +615,20 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
               })
               runtime.session.setPointerPosition({ x: normalizedAction.input.x, y: normalizedAction.input.y })
               backendResult.focusPointerTrace = pointerTrace
+
+              // Evidence Capture: prep click for type_text
+              captureClickEvidence(runtime, {
+                source: 'type_text_focus',
+                actionKind: 'type_text',
+                subject: 'pointer_target',
+                observed: {
+                  x: normalizedAction.input.x,
+                  y: normalizedAction.input.y,
+                  appName: runtime.stateManager.getState().activeApp ?? null,
+                  windowTitle: runtime.stateManager.getState().activeWindowTitle ?? null,
+                },
+                summary: 'Foreground checked after typing focus.',
+              })
             }
             catch (clickError) {
               const msg = clickError instanceof Error ? clickError.message : String(clickError)

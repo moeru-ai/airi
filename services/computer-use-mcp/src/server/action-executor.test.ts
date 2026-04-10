@@ -16,8 +16,8 @@ import { createRuntimeCoordinator } from './runtime-coordinator'
 function createMockRuntime(params?: {
   configOverrides?: Parameters<typeof createTestConfig>[0]
   executionTarget?: ReturnType<typeof createLocalExecutionTarget> | ReturnType<typeof createRemoteExecutionTarget>
-  foregroundContext?: { available: boolean, appName?: string, platform: NodeJS.Platform, unavailableReason?: string }
-  foregroundContextSequence?: Array<{ available: boolean, appName?: string, platform: NodeJS.Platform, unavailableReason?: string } | Error>
+  foregroundContext?: { available: boolean, appName?: string, windowTitle?: string, platform: NodeJS.Platform, unavailableReason?: string }
+  foregroundContextSequence?: Array<{ available: boolean, appName?: string, windowTitle?: string, platform: NodeJS.Platform, unavailableReason?: string } | Error>
   displayInfo?: ReturnType<typeof createDisplayInfo>
   lastScreenshot?: unknown
   clickImpl?: Parameters<typeof vi.fn>[0]
@@ -62,6 +62,7 @@ function createMockRuntime(params?: {
     foregroundContextMock.mockResolvedValue(params?.foregroundContext ?? {
       available: true,
       appName: 'Finder',
+      windowTitle: 'Desktop',
       platform: 'darwin' as const,
     })
   }
@@ -782,5 +783,100 @@ describe('createExecuteAction', () => {
         && tags.includes('app_lifecycle')
         && tags.includes('desktop_mutation'))
     expect(repairScopedEnqueue).toHaveLength(0)
+  })
+
+  it('records structured verification evidence after a successful click', async () => {
+    const { runtime } = createMockRuntime({
+      foregroundContext: { available: true, appName: 'Finder', windowTitle: 'Desktop', platform: 'darwin' },
+      clickImpl: async () => ({ performed: true, backend: 'dry-run' as const, notes: [] }),
+    })
+
+    const executeAction = createExecuteAction(runtime)
+    await executeAction({ kind: 'click', input: { x: 100, y: 200, button: 'left', clickCount: 1, captureAfter: false } }, 'desktop_click')
+
+    const state = runtime.stateManager.getState()
+    expect(state.lastVerificationEvidence).toHaveLength(1)
+    const evidence = state.lastVerificationEvidence![0]
+    expect(evidence).toMatchObject({
+      kind: 'foreground_context',
+      source: 'desktop_click',
+      actionKind: 'click',
+      subject: 'pointer_target',
+      observed: {
+        x: 100,
+        y: 200,
+        appName: 'Finder',
+        windowTitle: 'Desktop',
+      },
+    })
+    expect(state.lastVerificationEvidenceSummary).toBe('Foreground checked after click.')
+    expect(evidence.summary).toContain('Facts: ')
+    expect(evidence.summary).toContain('Finder')
+  })
+
+  it('records structured verification evidence during type_text focus click', async () => {
+    const { runtime } = createMockRuntime({
+      foregroundContext: { available: true, appName: 'Cursor', windowTitle: 'Edit', platform: 'darwin' },
+      clickImpl: async () => ({ performed: true, backend: 'dry-run' as const, notes: [] }),
+      typeTextImpl: async () => ({ performed: true, backend: 'dry-run' as const, notes: [] }),
+    })
+
+    const executeAction = createExecuteAction(runtime)
+    await executeAction({ kind: 'type_text', input: { text: 'hello', x: 50, y: 50, captureAfter: false } }, 'desktop_type_text')
+
+    const state = runtime.stateManager.getState()
+    expect(state.lastVerificationEvidence).toHaveLength(1)
+    const evidence = state.lastVerificationEvidence![0]
+    expect(evidence).toMatchObject({
+      kind: 'foreground_context',
+      source: 'type_text_focus',
+      actionKind: 'type_text',
+      subject: 'pointer_target',
+      observed: {
+        x: 50,
+        appName: 'Cursor',
+        windowTitle: 'Edit',
+      },
+    })
+    expect(state.lastVerificationEvidenceSummary).toBe('Foreground checked after typing focus.')
+  })
+
+  it('keeps click_likely_duplicate as advisory and still executes click', async () => {
+    const { runtime, executor } = createMockRuntime({
+      foregroundContext: { available: true, appName: 'App', windowTitle: 'Title', platform: 'darwin' },
+      clickImpl: async () => ({ performed: true, backend: 'dry-run' as const, notes: [] }),
+    })
+
+    runtime.stateManager.updateRunState({
+      lastVerificationEvidence: [{
+        kind: 'foreground_context',
+        source: 'desktop_click',
+        capturedAt: new Date().toISOString(),
+        confidence: 1,
+        summary: 'Clicked pointer target',
+        blockingEligible: true,
+        actionKind: 'click',
+        subject: 'pointer_target',
+        observed: {
+          x: 10,
+          y: 20,
+          appName: 'App',
+          windowTitle: 'Title',
+        },
+        relatedRuntimeFacts: [],
+      }],
+    })
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'click', input: { x: 10, y: 20, captureAfter: false } }, 'desktop_click')
+
+    expect(result.isError).not.toBe(true)
+    expect((result.structuredContent as Record<string, any>).status).toBe('executed')
+    expect(executor.click).toHaveBeenCalledTimes(1)
+    expect((result.structuredContent as Record<string, any>).transparency.advisories).toContainEqual(
+      expect.objectContaining({
+        kind: 'click_likely_duplicate',
+      }),
+    )
   })
 })
