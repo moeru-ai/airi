@@ -51,12 +51,6 @@ const updaterErrorMessage = computed(() => {
   }
 })
 
-const links = [
-  { labelKey: 'tamagotchi.stage.about.links.home', href: 'https://airi.moeru.ai/docs/', icon: 'i-solar:home-smile-outline' },
-  { labelKey: 'tamagotchi.stage.about.links.documentation', href: 'https://airi.moeru.ai/docs/en/docs/overview/', icon: 'i-solar:document-add-outline' },
-  { labelKey: 'tamagotchi.stage.about.links.github', href: 'https://github.com/moeru-ai/airi', icon: 'i-simple-icons:github' },
-]
-
 const showChangelog = ref(false)
 const showBugReportDialog = ref(false)
 const { isDesktop } = useBreakpoints()
@@ -194,153 +188,142 @@ onMounted(() => {
       'dark:text-neutral-100',
     ]"
   >
-    <div :class="['mx-auto max-w-[min(960px,calc(100%-2rem))]', 'px-6 py-20']">
+    <div :class="['mx-auto max-w-[min(960px,calc(100%-2rem))]', 'p-6']">
       <AboutContent
         title="Project"
         highlight="AIRI"
         :subtitle="t('tamagotchi.stage.about.subtitle')"
-      />
-
-      <!-- Main Content Card -->
-      <div :class="['mb-12', 'rounded-2xl', 'bg-white/50 dark:bg-black/20', 'p-6', 'backdrop-blur-sm']">
-        <FieldSelect
-          :model-value="selectedUpdateChannel"
-          :disabled="isUpdateChannelUpdating || isBusy"
-          :label="t('tamagotchi.stage.about.update.lane.label')"
-          :description="t('tamagotchi.stage.about.update.lane.description')"
-          :placeholder="t('tamagotchi.stage.about.update.lane.placeholder')"
-          :options="updateChannelSelectOptions"
-          layout="vertical"
-          :class="['mb-6']"
-          @update:model-value="setUpdateChannelPreference($event as UpdateChannelOption)"
-        />
-
-        <!-- Build Info -->
-        <div :class="['flex flex-wrap items-center justify-between gap-4', 'mb-6', 'border-b border-neutral-200/50 dark:border-neutral-800/50', 'pb-6']">
-          <div>
-            <div :class="['text-sm text-neutral-500 dark:text-neutral-400']">
-              {{ t('tamagotchi.stage.about.current-version') }}
-            </div>
-            <div :class="['text-xl font-medium font-mono']">
-              {{ buildInfo.version }}
-            </div>
-          </div>
-          <div :class="['text-right text-xs text-neutral-400 dark:text-neutral-500']">
-            <div>{{ buildInfo.branch }}@{{ buildInfo.commit }}</div>
-            <div>{{ buildInfo.builtOn }}</div>
-          </div>
-        </div>
-
-        <!-- Update Logic -->
-        <div :class="['flex flex-col gap-4']">
-          <!-- State: Available -->
-          <div v-if="updateState.status === 'available'" :class="['flex flex-col gap-4']">
-            <div :class="['text-sm flex flex-wrap items-center gap-2']">
-              <span :class="['font-mono text-neutral-600 dark:text-neutral-300']">v{{ buildInfo.version }}</span>
-              <div :class="['i-solar:arrow-right-line-duotone text-lg text-neutral-400']" />
-              <span :class="['font-mono text-pink-500 dark:text-pink-400 font-bold']">v{{ updateState.info?.version }}</span>
-            </div>
-            <div>
-              <Button
-                variant="primary"
-                :loading="isBusy"
-                icon="i-solar:download-minimalistic-outline"
-                :label="t('tamagotchi.stage.about.update.actions.download')"
-                @click="handleDownloadClick()"
-              />
-            </div>
-          </div>
-
-          <!-- State: Downloading -->
-          <div v-else-if="updateState.status === 'downloading'" :class="['flex flex-col gap-2']">
-            <div :class="['flex justify-between text-sm']">
-              <span>{{ t('tamagotchi.stage.about.update.status.downloading') }}</span>
-              <span :class="['font-mono']">{{ updateState.progress?.percent.toFixed(1) }}%</span>
-            </div>
-            <Progress :progress="updateState.progress?.percent ?? 0" />
-            <div :class="['text-xs text-neutral-400 text-right font-mono']">
-              {{ ((updateState.progress?.bytesPerSecond ?? 0) / 1024 / 1024).toFixed(2) }} MB/s
-            </div>
-          </div>
-
-          <!-- State: Downloaded -->
-          <div v-else-if="updateState.status === 'downloaded'" :class="['flex flex-col gap-4']">
-            <div :class="['text-sm text-emerald-600 dark:text-emerald-400']">
-              {{ downloadedStatusText }}
-            </div>
-            <div>
-              <DoubleCheckButton
-                variant="primary"
-                @confirm="quitAndInstall()"
-              >
-                {{ restartButtonLabel }}
-                <template #confirm>
-                  {{ t('tamagotchi.stage.about.update.actions.confirm-restart') }}
-                </template>
-                <template #cancel>
-                  {{ t('tamagotchi.stage.about.common.cancel') }}
-                </template>
-              </DoubleCheckButton>
-            </div>
-          </div>
-
-          <!-- State: Idle, Checking, Error, Disabled, Not Available -->
-          <div v-else :class="['flex flex-col gap-4']">
-            <div v-if="isError" :class="['flex flex-col gap-2']">
-              <ContainerError
-                :message="updaterErrorMessage"
-                height-preset="sm"
-                @feedback="openBugReportDialog"
-              />
-            </div>
-            <div v-else-if="isLatestVersion" :class="['text-sm text-emerald-600 dark:text-emerald-400']">
-              {{ t('tamagotchi.stage.about.update.status.latest', { version: buildInfo.version }) }}
-            </div>
-
-            <div :class="['flex flex-wrap gap-2']">
-              <Button
-                :variant="isError ? 'caution' : 'secondary'"
-                :loading="isBusy"
-                :disabled="isDisabled"
-                :icon="isLatestVersion ? 'i-solar:check-circle-outline' : isDisabled ? 'i-solar:forbidden-circle-outline' : 'i-solar:refresh-outline'"
-                :label="isBusy
-                  ? t('tamagotchi.stage.about.update.actions.checking')
-                  : isLatestVersion
-                    ? t('tamagotchi.stage.about.update.actions.latest-version')
-                    : isDisabled
-                      ? t('tamagotchi.stage.about.update.actions.disabled-dev')
-                      : isError
-                        ? t('tamagotchi.stage.about.update.actions.retry-check')
-                        : t('tamagotchi.stage.about.update.actions.check-for-updates')"
-                @click="checkForUpdates()"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Links -->
-      <div>
-        <div :class="['text-neutral-500 dark:text-neutral-400 mb-4']">
-          {{ t('tamagotchi.stage.about.links.title') }}
-        </div>
-        <div :class="['flex flex-wrap gap-2']">
-          <a
-            v-for="link in links"
-            :key="link.href"
-            :href="link.href"
-            target="_blank"
-            class="contents"
+      >
+        <template #before-build-info>
+          <!-- Main Content Card -->
+          <div
+            :class="[
+              'rounded-2xl', 'flex', 'flex-col', 'gap-6',
+              'p-4',
+              'rounded-xl',
+              'bg-neutral-200/80 dark:bg-neutral-800',
+              'backdrop-blur-sm',
+            ]"
           >
-            <Button
-              variant="secondary-muted"
-              :icon="link.icon"
-              :label="t(link.labelKey)"
-              size="sm"
+            <!-- Build Info -->
+            <div
+              :class="[
+                'flex flex-wrap items-center justify-between gap-4',
+              ]"
+            >
+              <div>
+                <div :class="['text-sm text-neutral-500 dark:text-neutral-400']">
+                  {{ t('tamagotchi.stage.about.current-version') }}
+                </div>
+                <div :class="['text-xl font-medium font-mono']">
+                  {{ buildInfo.version }}
+                </div>
+              </div>
+              <div :class="['text-right text-xs text-neutral-400 dark:text-neutral-500']">
+                <div>{{ buildInfo.branch }}@{{ buildInfo.commit }}</div>
+                <div>{{ buildInfo.builtOn }}</div>
+              </div>
+            </div>
+
+            <FieldSelect
+              :model-value="selectedUpdateChannel"
+              :disabled="isUpdateChannelUpdating || isBusy"
+              :label="t('tamagotchi.stage.about.update.lane.label')"
+              :description="t('tamagotchi.stage.about.update.lane.description')"
+              :placeholder="t('tamagotchi.stage.about.update.lane.placeholder')"
+              :options="updateChannelSelectOptions"
+              @update:model-value="setUpdateChannelPreference($event as UpdateChannelOption)"
             />
-          </a>
-        </div>
-      </div>
+
+            <!-- Update Logic -->
+            <div :class="['flex flex-col gap-4']">
+              <!-- State: Available -->
+              <div v-if="updateState.status === 'available'" :class="['flex flex-col gap-4']">
+                <div :class="['text-sm flex flex-wrap items-center gap-2']">
+                  <span :class="['font-mono text-neutral-600 dark:text-neutral-300']">v{{ buildInfo.version }}</span>
+                  <div :class="['i-solar:arrow-right-line-duotone text-lg text-neutral-400']" />
+                  <span :class="['font-mono text-pink-500 dark:text-pink-400 font-bold']">v{{ updateState.info?.version }}</span>
+                </div>
+                <div>
+                  <Button
+                    variant="primary"
+                    :loading="isBusy"
+                    icon="i-solar:download-minimalistic-outline"
+                    :label="t('tamagotchi.stage.about.update.actions.download')"
+                    @click="handleDownloadClick()"
+                  />
+                </div>
+              </div>
+
+              <!-- State: Downloading -->
+              <div v-else-if="updateState.status === 'downloading'" :class="['flex flex-col gap-2']">
+                <div :class="['flex justify-between text-sm']">
+                  <span>{{ t('tamagotchi.stage.about.update.status.downloading') }}</span>
+                  <span :class="['font-mono']">{{ updateState.progress?.percent.toFixed(1) }}%</span>
+                </div>
+                <Progress :progress="updateState.progress?.percent ?? 0" />
+                <div :class="['text-xs text-neutral-400 text-right font-mono']">
+                  {{ ((updateState.progress?.bytesPerSecond ?? 0) / 1024 / 1024).toFixed(2) }} MB/s
+                </div>
+              </div>
+
+              <!-- State: Downloaded -->
+              <div v-else-if="updateState.status === 'downloaded'" :class="['flex flex-col gap-4']">
+                <div :class="['text-sm text-emerald-600 dark:text-emerald-400']">
+                  {{ downloadedStatusText }}
+                </div>
+                <div>
+                  <DoubleCheckButton
+                    variant="primary"
+                    @confirm="quitAndInstall()"
+                  >
+                    {{ restartButtonLabel }}
+                    <template #confirm>
+                      {{ t('tamagotchi.stage.about.update.actions.confirm-restart') }}
+                    </template>
+                    <template #cancel>
+                      {{ t('tamagotchi.stage.about.common.cancel') }}
+                    </template>
+                  </DoubleCheckButton>
+                </div>
+              </div>
+
+              <!-- State: Idle, Checking, Error, Disabled, Not Available -->
+              <div v-else :class="['flex flex-col gap-4']">
+                <div v-if="isError" :class="['flex flex-col gap-2']">
+                  <ContainerError
+                    :message="updaterErrorMessage"
+                    height-preset="sm"
+                    @feedback="openBugReportDialog"
+                  />
+                </div>
+                <div v-else-if="isLatestVersion" :class="['text-sm text-emerald-600 dark:text-emerald-400']">
+                  {{ t('tamagotchi.stage.about.update.status.latest', { version: buildInfo.version }) }}
+                </div>
+
+                <div :class="['flex flex-wrap gap-2']">
+                  <Button
+                    :variant="isError ? 'caution' : 'secondary'"
+                    :loading="isBusy"
+                    :disabled="isDisabled"
+                    :icon="isLatestVersion ? 'i-solar:check-circle-outline' : isDisabled ? 'i-solar:forbidden-circle-outline' : 'i-solar:refresh-outline'"
+                    :label="isBusy
+                      ? t('tamagotchi.stage.about.update.actions.checking')
+                      : isLatestVersion
+                        ? t('tamagotchi.stage.about.update.actions.latest-version')
+                        : isDisabled
+                          ? t('tamagotchi.stage.about.update.actions.disabled-dev')
+                          : isError
+                            ? t('tamagotchi.stage.about.update.actions.retry-check')
+                            : t('tamagotchi.stage.about.update.actions.check-for-updates')"
+                    @click="checkForUpdates()"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+      </AboutContent>
     </div>
 
     <!-- Changelog Dialog (Desktop) -->
