@@ -7,6 +7,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 
 import { resolveComputerUseConfig } from './config'
 import { createExecuteAction } from './server/action-executor'
+import { textContent } from './server/content'
 import { registerAccessibilityTools } from './server/register-accessibility'
 import { registerCdpTools } from './server/register-cdp'
 import { registerDisplayTools } from './server/register-display'
@@ -18,6 +19,11 @@ import { registerComputerUseTools } from './server/register-tools'
 import { registerVscodeTools } from './server/register-vscode'
 import { createRuntime } from './server/runtime'
 import { initializeGlobalRegistry } from './server/tool-descriptors'
+import {
+  buildCrossLaneAdvisory,
+  inferToolLane,
+  shouldUpdateActiveLane,
+} from './server/tool-lane-hygiene'
 
 const packageVersion = '0.1.0'
 const enableTestTools = ['1', 'true', 'yes', 'on'].includes((env.COMPUTER_USE_ENABLE_TEST_TOOLS || '').trim().toLowerCase())
@@ -30,12 +36,69 @@ export async function createComputerUseMcpServer(config = resolveComputerUseConf
 
   const runtime = await createRuntime(config, options)
   const executeAction = createExecuteAction(runtime)
-  const server = new McpServer({
+  const rawServer = new McpServer({
     name: 'AIRI Computer Use',
     version: packageVersion,
   })
 
-  // Register the tool directory first (meta-tool for introspection)
+  // --- Tool Lane Hygiene (global) ---
+  // Wrap the McpServer instance to intercept ALL `server.tool()` calls,
+  // enabling automatic lane inference and cross-lane advisory injection
+  // for every registered tool across all sub-registries.
+  const server = new Proxy(rawServer, {
+    get(target, prop, receiver) {
+      if (prop === 'tool') {
+        // NOTICE: McpServer.tool() has many overloads (2–5 positional args).
+        // The handler is always the last argument and is always a function.
+        // We use rest args to avoid coupling to any specific overload shape.
+        return (name: string, ...rest: any[]) => {
+          const handlerIndex = rest.findIndex((arg: unknown) => typeof arg === 'function')
+          if (handlerIndex < 0) {
+            // No handler found — pass through unchanged (defensive fallback)
+            return (rawServer.tool as any)(name, ...rest)
+          }
+
+          const originalHandler = rest[handlerIndex]
+          const wrappedHandler = async (input: any, extra: any) => {
+            const lane = inferToolLane(name)
+            let advisory: string | null = null
+
+            if (lane) {
+              const activeLane = runtime.stateManager.getState().inferredActiveLane
+              advisory = buildCrossLaneAdvisory({
+                toolName: name,
+                toolLane: lane,
+                inferredActiveLane: activeLane,
+              })
+
+              if (shouldUpdateActiveLane(lane)) {
+                runtime.stateManager.updateInferredLane(lane)
+              }
+            }
+
+            const result = await originalHandler(input, extra)
+
+            // Inject the advisory as a new content entry without mutating the original
+            if (advisory && result && Array.isArray(result.content)) {
+              return {
+                ...result,
+                content: [...result.content, textContent('\n\n' + advisory)],
+              }
+            }
+
+            return result
+          }
+
+          const wrappedRest = [...rest]
+          wrappedRest[handlerIndex] = wrappedHandler
+          return (rawServer.tool as any)(name, ...wrappedRest)
+        }
+      }
+      return Reflect.get(target, prop, receiver)
+    },
+  })
+
+  // All registrations use the proxied server for full lane hygiene coverage
   registerToolDirectory({ server })
   registerToolSearch({ server })
 
@@ -61,7 +124,7 @@ export async function createComputerUseMcpServer(config = resolveComputerUseConf
   const cdpCleanup = registerCdpTools({ server, runtime })
 
   return {
-    server,
+    server: rawServer,
     runtime,
     cdpCleanup,
   }
