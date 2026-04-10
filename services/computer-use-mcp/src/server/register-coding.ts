@@ -477,7 +477,7 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
       const writeResult = await primitives.writeFile(filePath, content)
 
       captureVerificationEvidence(runtime, {
-        kind: 'file_write',
+        kind: 'coding_review',
         source: 'coding_write_file',
         confidence: 0.9,
         summary: writeResult.created

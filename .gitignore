@@ -133,3 +133,6 @@ apps/stage-tamagotchi/electron.vite.config.*.mjs
 
 # Tools - Obsidian
 .obsidian/
+
+# E2E test generated artifacts (created by e2e-coding.ts)
+services/computer-use-mcp/src/query-engine/e2e-generated-*

@@ -38,6 +38,9 @@ const allActionKinds = [
   'coding_review_changes',
   'coding_diagnose_changes',
   'coding_capture_validation_baseline',
+  'coding_write_file',
+  'coding_list_files',
+  'coding_agentic_run',
 ] as const satisfies readonly ActionKind[]
 
 type MissingActionKinds = Exclude<ActionKind, (typeof allActionKinds)[number]>

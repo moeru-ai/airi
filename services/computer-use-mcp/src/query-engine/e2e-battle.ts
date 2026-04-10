@@ -107,6 +107,7 @@ async function runScenario(
   const primitives = new CodingPrimitives(runtime)
 
   const terminal = {
+    describe: () => ({ kind: 'local-shell-runner' as const, notes: ['e2e-battle stub'] }),
     execute: async (input: { command: string; cwd?: string; timeoutMs?: number }) => {
       try {
         const stdout = execSync(input.command, {
@@ -121,6 +122,8 @@ async function runScenario(
         return { command: input.command, stdout: err.stdout ?? '', stderr: err.stderr ?? '', exitCode: err.status ?? 1, effectiveCwd: input.cwd ?? workspacePath, durationMs: 0, timedOut: false }
       }
     },
+    getState: () => ({ effectiveCwd: workspacePath }),
+    resetState: (reason?: string) => ({ effectiveCwd: workspacePath }),
   }
 
   const config = resolveConfig({

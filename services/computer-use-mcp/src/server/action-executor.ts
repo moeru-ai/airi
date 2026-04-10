@@ -517,7 +517,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           })
           const result = await runQueryEngine({
             goal: normalizedAction.input.goal,
-            workspacePath: runtime.config.workspacePath ?? process.cwd(),
+            workspacePath: process.cwd(),
             primitives,
             terminal: runtime.terminalRunner,
             config,

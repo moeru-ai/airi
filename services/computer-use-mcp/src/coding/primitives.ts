@@ -5441,7 +5441,7 @@ export class CodingPrimitives {
     excludePatterns?: string[]
     maxResults?: number
   }): Promise<{ files: Array<{ path: string, isDirectory: boolean }>, totalFound: number, truncated: boolean }> {
-    const workspacePath = this.getWorkspacePath()
+    const workspacePath = this.getWorkspaceRoot()
     const maxResults = Math.min(params.maxResults ?? 500, 2000)
     const pattern = params.pattern ?? '**/*'
     const excludePatterns = params.excludePatterns ?? ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/build/**']

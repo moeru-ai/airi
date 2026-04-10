@@ -366,8 +366,9 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
       let totalLines: number
       try {
         const result = await primitives.readFile(filePath, startLine, endLine)
-        content = typeof result === 'string' ? result : result.content
-        totalLines = typeof result === 'string' ? content.split('\n').length : result.totalLines
+        // NOTICE: primitives.readFile returns a string, not an object.
+        content = result
+        totalLines = content.split('\n').length
       }
       catch {
         // Fallback: direct fs read
@@ -451,12 +452,13 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
     },
 
     search_text: async (args) => {
-      return primitives.searchText({
-        query: args.query as string,
-        filePattern: args.file_pattern as string | undefined,
-        maxResults: args.max_results as number | undefined,
-        caseSensitive: args.case_sensitive as boolean | undefined,
-      })
+      // NOTICE: primitives.searchText takes positional args, not an object.
+      return primitives.searchText(
+        args.query as string,
+        undefined, // targetPath — search_text tool doesn't expose this
+        args.file_pattern as string | undefined,
+        args.max_results as number | undefined,
+      )
     },
 
     bash: async (args) => {
