@@ -115,10 +115,25 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
 
           finished = true
           cleanup()
+
+          // NOTICE: Truncate huge outputs to prevent context window bloat.
+          // Keep head (first 40k chars) + tail (last 10k chars) for maximum context.
+          const MAX_OUTPUT_CHARS = 100_000
+          const HEAD_CHARS = 40_000
+          const TAIL_CHARS = 10_000
+
+          const truncateOutput = (output: string, label: string): string => {
+            if (output.length <= MAX_OUTPUT_CHARS) return output
+            const head = output.slice(0, HEAD_CHARS)
+            const tail = output.slice(-TAIL_CHARS)
+            const omitted = output.length - HEAD_CHARS - TAIL_CHARS
+            return `${head}\n\n[... ${omitted} characters omitted from ${label} ...]\n\n${tail}`
+          }
+
           resolve({
             command: input.command,
-            stdout,
-            stderr,
+            stdout: truncateOutput(stdout, 'stdout'),
+            stderr: truncateOutput(stderr, 'stderr'),
             exitCode: typeof code === 'number' ? code : 1,
             effectiveCwd,
             durationMs: Date.now() - startedAt,

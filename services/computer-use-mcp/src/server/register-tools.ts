@@ -64,6 +64,7 @@ import { compareDomFingerprints, computeDomFingerprint } from '../browser-dom/br
 import { computeBrowserActionConfidence } from '../browser-dom/browser-action-confidence'
 import { diagnoseBrowserActionError } from '../browser-dom/browser-repair-contract'
 import { registerCodingTools } from './register-coding'
+import { registerWebTools } from './register-web'
 import { createAcquirePtyCallback, executeApprovedPtyCreate } from './register-pty'
 import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptors/register-helper'
 import {
@@ -227,6 +228,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
 
   const executePrepTool = createWorkflowPrepToolExecutor(runtime)
   registerCodingTools(params)
+  registerWebTools(params)
   const acquirePty = createAcquirePtyCallback(runtime)
   const coordinator = runtime.coordinator
 

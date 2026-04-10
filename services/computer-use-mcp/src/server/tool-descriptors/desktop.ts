@@ -627,4 +627,32 @@ export const metaDescriptors: ToolDescriptor[] = [
     requiresApprovalByDefault: false,
     public: true,
   },
+
+  // Web tools — HTTP-based information gathering without browser surfaces
+  {
+    canonicalName: 'web_fetch',
+    displayName: 'Web Fetch',
+    summary: 'Fetch content from a URL via HTTP. Converts HTML to simplified text. No JavaScript execution. For pages requiring login or JS, use browser tools instead.',
+    lane: 'desktop',
+    kind: 'read',
+    readOnly: true,
+    destructive: false,
+    concurrencySafe: true,
+    requiresApprovalByDefault: true,
+    public: true,
+    defaultDeferred: true,
+  },
+  {
+    canonicalName: 'web_search',
+    displayName: 'Web Search',
+    summary: 'Search the web using a query string. Returns a list of result URLs with titles and snippets. Use web_fetch to read full page content.',
+    lane: 'desktop',
+    kind: 'read',
+    readOnly: true,
+    destructive: false,
+    concurrencySafe: true,
+    requiresApprovalByDefault: true,
+    public: true,
+    defaultDeferred: true,
+  },
 ]
