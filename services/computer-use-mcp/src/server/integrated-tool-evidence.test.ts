@@ -1,5 +1,6 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
+
 import type { ComputerUseServerRuntime } from './runtime'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -31,7 +32,7 @@ function createMockServer() {
   }
 }
 
-describe('Integrated Tool Evidence Capture', () => {
+describe('integrated Tool Evidence Capture', () => {
   let runtime: ComputerUseServerRuntime
 
   beforeEach(() => {
@@ -66,6 +67,16 @@ describe('Integrated Tool Evidence Capture', () => {
           success: true,
           result: { success: true },
         }]),
+        checkCheckbox: vi.fn().mockResolvedValue([{
+          frameId: 0,
+          success: true,
+          result: { success: true },
+        }]),
+        selectOption: vi.fn().mockResolvedValue([{
+          frameId: 0,
+          success: true,
+          result: { success: true },
+        }]),
       },
     } as unknown as ComputerUseServerRuntime
   })
@@ -90,7 +101,7 @@ describe('Integrated Tool Evidence Capture', () => {
         targetFrameId: 0,
       },
     })
-    expect(state.lastVerificationEvidenceSummary).toContain('Foreground checked after browser click')
+    expect(state.lastVerificationEvidenceSummary).toContain('Clicked selector "#submit-button" in browser.')
   })
 
   it('manages handoff lifecycle and evidence for workflow_switch_lane', async () => {
@@ -139,7 +150,7 @@ describe('Integrated Tool Evidence Capture', () => {
     const stateAfterReturn = runtime.stateManager.getState()
     expect(stateAfterReturn.activeHandoffContract).toBeUndefined()
     expect(stateAfterReturn.handoffHistory).toHaveLength(1)
-    
+
     const resolved = stateAfterReturn.handoffHistory[0]
     expect(resolved.status).toBe('fulfilled')
     // Evidence for constraint 0 should NOT be the "Missing" placeholder
@@ -168,5 +179,53 @@ describe('Integrated Tool Evidence Capture', () => {
       },
     })
     expect(state.lastVerificationEvidenceSummary).toContain('Set input value for "#username"')
+  })
+
+  it('captures interaction evidence for browser_dom_check_checkbox', async () => {
+    const { server, invoke } = createMockServer()
+    registerComputerUseTools({ server, runtime, executeAction: vi.fn(), enableTestTools: false })
+
+    const result = await invoke('browser_dom_check_checkbox', {
+      selector: '#agree-terms',
+      checked: true,
+    })
+
+    expect(result.isError).not.toBe(true)
+    const state = runtime.stateManager.getState()
+    expect(state.lastVerificationEvidence).toHaveLength(1)
+    expect(state.lastVerificationEvidence![0]).toMatchObject({
+      source: 'browser_dom_check_checkbox',
+      actionKind: 'browser_dom_check_checkbox',
+      subject: '#agree-terms',
+      observed: {
+        selector: '#agree-terms',
+        checked: true,
+      },
+    })
+    expect(state.lastVerificationEvidenceSummary).toContain('Toggled/Set checkbox "#agree-terms"')
+  })
+
+  it('captures interaction evidence for browser_dom_select_option', async () => {
+    const { server, invoke } = createMockServer()
+    registerComputerUseTools({ server, runtime, executeAction: vi.fn(), enableTestTools: false })
+
+    const result = await invoke('browser_dom_select_option', {
+      selector: '#country-select',
+      value: 'US',
+    })
+
+    expect(result.isError).not.toBe(true)
+    const state = runtime.stateManager.getState()
+    expect(state.lastVerificationEvidence).toHaveLength(1)
+    expect(state.lastVerificationEvidence![0]).toMatchObject({
+      source: 'browser_dom_select_option',
+      actionKind: 'browser_dom_select_option',
+      subject: '#country-select',
+      observed: {
+        selector: '#country-select',
+        selectedValue: 'US',
+      },
+    })
+    expect(state.lastVerificationEvidenceSummary).toContain('Selected option "US" for "#country-select"')
   })
 })

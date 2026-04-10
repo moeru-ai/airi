@@ -53,15 +53,14 @@ import {
   describeForegroundContext,
   summarizeCoordinateSpace,
 } from './formatters'
+import { registerCodingTools } from './register-coding'
+import { createAcquirePtyCallback, executeApprovedPtyCreate } from './register-pty'
+import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptors/register-helper'
 import {
   captureClickEvidence,
   captureHandoffEvidence,
   captureUiInteractionEvidence,
 } from './verification-evidence-capture'
-import { registerCodingTools } from './register-coding'
-import { createAcquirePtyCallback, executeApprovedPtyCreate } from './register-pty'
-import { toRuntimeFactSummary } from './runtime-facts'
-import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptors/register-helper'
 import { formatWorkflowStructuredContent } from './workflow-formatter'
 import { createWorkflowPrepToolExecutor } from './workflow-prep-tools'
 
@@ -558,7 +557,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
           appName: runtime.stateManager.getState().activeApp,
           windowTitle: runtime.stateManager.getState().activeWindowTitle,
         },
-        summary: 'Foreground checked after browser click.',
+        summary: `Clicked selector "${selector}" in browser.`,
       })
 
       return {
@@ -1937,7 +1936,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
 
       const handoffIsReturn = targetLane === 'coding'
       const activeContract = runtime.stateManager.getState().activeHandoffContract
-      
+
       const handoffId = (handoffIsReturn && activeContract && activeContract.sourceLane === targetLane)
         ? activeContract.id
         : `handoff_${Date.now()}_${sourceLane}_to_${targetLane}`
@@ -1970,16 +1969,18 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         reason,
         summary: evidenceSummary,
         constraints: constraints as CrossLaneConstraint[],
-        observation: handoffIsReturn ? {
-          foregroundApp: runtime.stateManager.getState().activeApp,
-          windowTitle: runtime.stateManager.getState().activeWindowTitle,
-        } : undefined,
+        observation: handoffIsReturn
+          ? {
+              foregroundApp: runtime.stateManager.getState().activeApp,
+              windowTitle: runtime.stateManager.getState().activeWindowTitle,
+            }
+          : undefined,
       })
 
       // If returning, check if we transitioned and fulfilled a contract
       const newState = runtime.stateManager.getState()
       const resolvedContract = newState.handoffHistory.find(h => h.id === handoffId)
-      
+
       let fulfillmentAdvice = ''
       if (resolvedContract) {
         const statusText = resolvedContract.status.toUpperCase()
