@@ -127,6 +127,50 @@ describe('registerCodingTools', () => {
     })
   })
 
+  it('records non-blocking structured evidence after coding_report_status', async () => {
+    vi.spyOn(CodingPrimitives.prototype, 'reportStatus').mockResolvedValue({
+      status: 'completed',
+      summary: 'Done and done.',
+      filesTouched: [],
+      commandsRun: [],
+      checks: [],
+      nextStep: 'none',
+    })
+    const { server, invoke } = createMockServer()
+
+    registerCodingTools({
+      server,
+      runtime,
+      executeAction: vi.fn() as any,
+      enableTestTools: false,
+    })
+
+    await invoke('coding_report_status', {
+      status: 'completed',
+      summary: 'Done and done.',
+      filesTouched: [],
+      commandsRun: [],
+      checks: [],
+      nextStep: 'none',
+    })
+
+    const state = runtime.stateManager.getState()
+    expect(state.lastVerificationEvidence).toHaveLength(1)
+    const evidence = state.lastVerificationEvidence![0]
+    expect(evidence).toMatchObject({
+      kind: 'status_report',
+      source: 'coding_report_status',
+      confidence: 0.8,
+      blockingEligible: false,
+      observed: {
+        status: 'completed',
+        summary: 'Done and done.',
+      },
+    })
+    expect(state.lastVerificationEvidenceSummary).toBe('Coding report: Done and done.')
+  })
+
+
   it('routes coding_apply_patch through executeAction so approval policy is preserved', async () => {
     const executeAction = vi.fn().mockResolvedValue({
       content: [{ type: 'text', text: 'Approval required for coding_apply_patch.' }],

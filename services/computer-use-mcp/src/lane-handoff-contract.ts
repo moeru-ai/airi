@@ -1,6 +1,6 @@
 import type { OperationApprovalScope, OperationTargetSurface } from './operation-contracts'
 import type { TerminalSurface } from './types'
-import type { VerificationMethod } from './verification-contracts'
+import type { VerificationMethod, VerificationRepairHint } from './verification-contracts'
 
 export type LaneKind = 'workflow' | 'browser' | 'desktop-native' | 'handoff' | 'terminal'
 
@@ -158,6 +158,8 @@ export interface CrossLaneHandoffContract {
   evidence?: Record<number, string>
   /** Reason for failure if status is 'failed'. */
   failureReason?: string
+  /** Suggested repair action for the agent to recover if failed. */
+  repairHint?: VerificationRepairHint
 }
 
 /**

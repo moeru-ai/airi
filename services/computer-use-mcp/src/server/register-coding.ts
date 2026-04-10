@@ -8,6 +8,7 @@ import {
   buildCodingToolStructuredContent,
   summarizeCodingToolResult,
 } from '../coding/result-shape'
+import { captureVerificationEvidence } from './verification-evidence-capture'
 import { textContent } from './content'
 import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptors'
 
@@ -421,6 +422,26 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
     },
     handler: async ({ status, summary, filesTouched, commandsRun, checks, nextStep }) => {
       const result = await primitives.reportStatus(status, summary, filesTouched, commandsRun, checks, nextStep)
+
+      // Evidence Capture: coding_report_status
+      captureVerificationEvidence(
+        runtime,
+        {
+          kind: 'status_report',
+          source: 'coding_report_status',
+          confidence: 0.8, // self-reported, advisory only
+          summary: `Coding execution report generated: ${result.summary}`,
+          blockingEligible: false,
+          observed: {
+            status: result.status,
+            summary: result.summary,
+            filesTouchedCount: filesTouched.length,
+            commandsRunCount: commandsRun.length,
+          },
+        },
+        `Coding report: ${result.summary}`,
+      )
+
       return {
         content: [textContent(summarizeCodingToolResult({
           toolName: 'coding_report_status',

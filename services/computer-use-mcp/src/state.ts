@@ -27,6 +27,7 @@ import type {
   WindowObservation,
   WorkflowStepTerminalBinding,
 } from './types'
+import type { CrossLaneHandoffContract } from './lane-handoff-contract'
 
 import { appNamesMatch } from './app-aliases'
 
@@ -929,9 +930,18 @@ export interface RunState {
   taskMemory?: TaskMemory
 
   // --- Coding core context ----------------------------------------------
-  // --- Coding core context ----------------------------------------------
   /** State specific to the AIRI Coding Surface v1. */
   coding?: CodingRunState
+
+  // --- Verification context ---------------------------------------------
+  /** Non-blocking captured evidence representing observations without hard fail criteria. */
+  lastVerificationEvidence?: import('./verification-evidence').VerificationEvidenceRecord[]
+  /** Short summary of recent verification artifacts for logs and prompts. */
+  lastVerificationEvidenceSummary?: string
+  /** Currently active cross-lane handoff verification contract. */
+  activeHandoffContract?: CrossLaneHandoffContract
+  /** Buffer of recently resolved cross-lane handoffs. */
+  handoffHistory: CrossLaneHandoffContract[]
 
   // --- Meta -------------------------------------------------------------
   /** ISO timestamp of the last state update. */
@@ -953,6 +963,7 @@ export class RunStateManager {
       workflowStepTerminalBindings: [],
       ptyApprovalGrants: [],
       ptyAuditLog: [],
+      handoffHistory: [],
       updatedAt: new Date().toISOString(),
     }
   }
@@ -1096,6 +1107,12 @@ export class RunStateManager {
   /** Return a readonly snapshot of the current run state. */
   getState(): Readonly<RunState> {
     return { ...this.state }
+  }
+
+  /** Update the root run state with partial changes. */
+  updateRunState(update: Partial<RunState>) {
+    Object.assign(this.state, update)
+    this.touch()
   }
 
   // -- Desktop context updates -------------------------------------------
@@ -1427,6 +1444,15 @@ export class RunStateManager {
     if (entry) {
       entry.lastInteractionAt = new Date().toISOString()
       this.state.activePtySessionId = sessionId
+      this.touch()
+    }
+  }
+
+  /** Update the working directory record for a PTY session. */
+  updatePtySessionCwd(sessionId: string, cwd: string): void {
+    const entry = this.state.ptySessions.find(s => s.id === sessionId)
+    if (entry && entry.cwd !== cwd) {
+      entry.cwd = cwd
       this.touch()
     }
   }

@@ -53,8 +53,13 @@ import {
   describeForegroundContext,
   summarizeCoordinateSpace,
 } from './formatters'
+import {
+  captureClickEvidence,
+  captureHandoffEvidence,
+} from './verification-evidence-capture'
 import { registerCodingTools } from './register-coding'
 import { createAcquirePtyCallback, executeApprovedPtyCreate } from './register-pty'
+import { toRuntimeFactSummary } from './runtime-facts'
 import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptors/register-helper'
 import { formatWorkflowStructuredContent } from './workflow-formatter'
 import { createWorkflowPrepToolExecutor } from './workflow-prep-tools'
@@ -538,6 +543,23 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         tabId,
         frameIds,
       })
+
+      // Evidence Capture: browser dom click
+      captureClickEvidence(runtime, {
+        source: 'browser_dom_click',
+        actionKind: 'browser_dom_click',
+        subject: selector,
+        observed: {
+          selector,
+          targetFrameId: result.targetFrameId,
+          targetPointX: result.targetPoint.x,
+          targetPointY: result.targetPoint.y,
+          appName: runtime.stateManager.getState().activeApp,
+          windowTitle: runtime.stateManager.getState().activeWindowTitle,
+        },
+        summary: 'Foreground checked after browser click.',
+      })
+
       return {
         content: [
           textContent(`Clicked selector "${selector}" in frame ${result.targetFrameId} at (${result.targetPoint.x}, ${result.targetPoint.y}).`),
@@ -1867,7 +1889,13 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         }
       }
 
-      const handoffId = `handoff_${Date.now()}_${sourceLane}_to_${targetLane}`
+      const handoffIsReturn = targetLane === 'coding'
+      const activeContract = runtime.stateManager.getState().activeHandoffContract
+      
+      const handoffId = (handoffIsReturn && activeContract && activeContract.sourceLane === targetLane)
+        ? activeContract.id
+        : `handoff_${Date.now()}_${sourceLane}_to_${targetLane}`
+
       const contract = {
         id: handoffId,
         sourceLane,
@@ -1883,15 +1911,48 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         .map((c, i) => `${i + 1}. [${c.required ? 'required' : 'optional'}] ${c.description}${c.expectedValue ? ` (expected: ${c.expectedValue})` : ''}`)
         .join('\n')
 
+      // Evidence Capture: handoff status
+      const evidenceSummary = handoffIsReturn
+        ? `Handoff return: ${sourceLane} -> ${targetLane}. Evidence captured before return.`
+        : `Handoff initiated: ${sourceLane} -> ${targetLane}. Expected constraints: ${constraints.length}`
+
+      captureHandoffEvidence(runtime, {
+        source: handoffIsReturn ? 'workflow_switch_lane_return' : 'workflow_switch_lane_initiation',
+        handoffId,
+        sourceLane,
+        targetLane,
+        reason,
+        summary: evidenceSummary,
+        constraints: constraints as CrossLaneConstraint[],
+        observation: handoffIsReturn ? {
+          foregroundApp: runtime.stateManager.getState().activeApp,
+          windowTitle: runtime.stateManager.getState().activeWindowTitle,
+        } : undefined,
+      })
+
+      // If returning, check if we transitioned and fulfilled a contract
+      const newState = runtime.stateManager.getState()
+      const resolvedContract = newState.handoffHistory.find(h => h.id === handoffId)
+      
+      let fulfillmentAdvice = ''
+      if (resolvedContract) {
+        const statusText = resolvedContract.status.toUpperCase()
+        const failureText = resolvedContract.failureReason ? ` - ${resolvedContract.failureReason}` : ''
+        const repairText = (resolvedContract.repairHint && resolvedContract.repairHint !== 'none')
+          ? `\n[REPAIR SUGGESTED] Action: ${resolvedContract.repairHint}. Please attempt this recovery step before proceeding.`
+          : ''
+        fulfillmentAdvice = `\n\nVerification Contract Result: ${statusText}${failureText}${repairText}`
+      }
+
       return {
         content: [
           textContent(
-            `Cross-lane handoff initiated: ${sourceLane} → ${targetLane} (reason: ${reason}).\n\nVerification constraints that must be fulfilled in target lane:\n${constraintSummary}\n\nHandoff ID: ${handoffId}`,
+            `Cross-lane handoff initiated: ${sourceLane} → ${targetLane} (reason: ${reason}).\n\nVerification constraints that must be fulfilled in target lane:\n${constraintSummary}\n\nHandoff ID: ${handoffId}${fulfillmentAdvice}`,
           ),
         ],
         structuredContent: {
-          status: 'handoff_initiated',
-          contract,
+          status: handoffIsReturn ? 'handoff_resolved' : 'handoff_initiated',
+          contract: handoffIsReturn ? resolvedContract : contract,
         },
       }
     },
