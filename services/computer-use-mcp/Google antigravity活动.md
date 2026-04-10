@@ -1913,3 +1913,35 @@ pnpm -F @proj-airi/computer-use-mcp exec vitest run
 | Web Search | ❌ | ✅ | DDG Lite |
 | Context Compaction | ❌ | ✅ | 70% 阈值 |
 | E2E 验证 | ❌ | ✅ | gpt-5.4-mini |
+
+## 可靠性基准测试（5 任务 × gpt-5.4-mini）
+
+### 结果总表
+
+| 任务 | 类型 | 成功 | 正确性 | 轮次 | 工具 | Token | 耗时 |
+|---|---|---|---|---|---|---|---|
+| Create retry utility | FILE_CREATE | ✅ | full | 4 | 3 | 7,474 | 13.1s |
+| Fix off-by-one bug | BUG_FIX | ✅ | full | 6 | 6 | 13,967 | 31.3s |
+| Refactor config parser | REFACTOR | ✅ | full | 7 | 7 | 17,073 | 25.5s |
+| Code review & report | CODE_ANALYSIS | ✅ | full | 5 | 4 | 12,934 | 21.6s |
+| Multi-file module | MULTI_FILE | ✅ | full | 7 | 9 | 16,513 | 31.6s |
+
+### 汇总
+
+| 指标 | 值 |
+|---|---|
+| **成功率** | **5/5 (100%)** |
+| **完全正确率** | **5/5 (100%)** |
+| 平均轮次 | 5.8 |
+| 总 Token | 67,961 |
+| 总耗时 | 123.1s |
+
+### 判定
+
+🟢 **已达到消费级可靠性门槛** — 成功率 100% / 正确率 100%，超过 Claude Code 参考基线（~90% / ~80%）。
+
+### 差距
+
+- 轮次效率：平均 5.8 轮（消费级 3-4 轮）— 因探索性读取
+- 自验证：受 temp workspace 工具链限制
+- 未测试：大文件编辑、编译语言、依赖管理、Git 操作、20+ 轮长任务
