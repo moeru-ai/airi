@@ -26,7 +26,7 @@ docs:
   'expand': 展开
   'collapse': 折叠
   'login': 登录
-  'logging-in': Signing in...
+  'logging-in': 登录中...
   'account': 账号
   'logout': 退出登录
 notice:
@@ -45,47 +45,47 @@ notice:
     read-more: 阅读更多
     preview-title: 这是什么？
 about:
-  subtitle: Desktop ver.
-  current-version: Current Version
+  subtitle: 桌面版本
+  current-version: 当前版本
   common:
-    cancel: Cancel
+    cancel: 取消
   links:
-    title: Links
-    home: Home
-    documentation: Documentations
+    title: 网址
+    home: 首页
+    documentation: 文档
     github: GitHub
   update:
     lane:
-      label: Update lane
+      label: 更新频道
       description: Choose channel release to follow
-      placeholder: Choose update lane
+      placeholder: 选择更新频道
     channels:
-      auto: Auto
-      stable: Stable
-      alpha: Alpha
-      beta: Beta
-      nightly: Nightly
-      canary: Canary
+      auto: 自动
+      stable: 稳定版
+      alpha: Alpha 测试版
+      beta: Beta 测试版
+      nightly: 每夜构建
+      canary: 尝鲜版
     status:
-      downloading: Downloading update...
-      error-prefix: Error
-      latest: Up to date (v{version}).
+      downloading: 正在下载更新......
+      error-prefix: 错误
+      latest: 已是最新版（v{version}）
       downloaded:
-        windows: Update ready to install silently (v{version}).
-        restart: Update ready to install on restart (v{version}).
+        windows: 已准备好静默更新版本至 v{version}
+        restart: 已准备好重启后安装版本 v{version}
     actions:
-      download: Download Update
-      download-short: Download
-      confirm-download: Confirm Download
-      check-for-updates: Check for updates
-      checking: Checking...
-      latest-version: Latest version
-      disabled-dev: Updates disabled in Dev
-      retry-check: Retry Check
-      restart-silent: Restart to update silently
-      restart-install: Restart to install update
-      confirm-restart: Confirm Restart
+      download: 下载更新
+      download-short: 下载
+      confirm-download: 确认下载
+      check-for-updates: 检查更新
+      checking: 正在检查...
+      latest-version: 最新版本
+      disabled-dev: 已禁用开发环境时的更新
+      retry-check: 重新检查
+      restart-silent: 重新启动以静默更新
+      restart-install: 重启并安装更新
+      confirm-restart: 确认重新启动
     dialog:
-      title: Update Available
-      description: A new version (v{version}) is available.
-      no-release-notes-markdown: _No release notes provided._
+      title: 有可用的更新
+      description: 有新的 v{version} 版本可用
+      no-release-notes-markdown: _无发布日志_
