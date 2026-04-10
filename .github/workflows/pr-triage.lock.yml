@@ -21,17 +21,10 @@
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
 #
-# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"06a791cf3bfb192a95364219386e5759716d1667692a0da64a80969ad9c246ec","compiler_version":"v0.66.1","strict":true,"agent_id":"copilot"}
+# gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"397edb5596f7a9c8b3f4c49ae92c2ff1a67357342349b47aeb85d5fa77e8d99a","compiler_version":"v0.66.1","strict":true,"agent_id":"copilot"}
 
 name: 'PR Triage'
 'on':
-  pull_request:
-    # forks: # Fork filtering applied via job conditions
-    # - "*" # Fork filtering applied via job conditions
-    types:
-      - opened
-      - reopened
-      - ready_for_review
   # roles: all # Roles processed as role check in pre-activation job
   workflow_dispatch:
     inputs:
@@ -59,14 +52,11 @@ jobs:
     permissions:
       contents: read
     outputs:
-      body: ${{ steps.sanitized.outputs.body }}
       comment_id: ''
       comment_repo: ''
       lockdown_check_failed: ${{ steps.generate_aw_info.outputs.lockdown_check_failed == 'true' }}
       model: ${{ steps.generate_aw_info.outputs.model }}
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
-      text: ${{ steps.sanitized.outputs.text }}
-      title: ${{ steps.sanitized.outputs.title }}
     steps:
       - name: Setup Scripts
         uses: github/gh-aw-actions/setup@v0.66.1
@@ -133,15 +123,6 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/check_version_updates.cjs');
             await main();
-      - name: Compute current body text
-        id: sanitized
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-        with:
-          script: |
-            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/compute_text.cjs');
-            await main();
       - name: Create prompt with built-in context
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
@@ -159,14 +140,14 @@ jobs:
         run: |
           bash ${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh
           {
-          cat << 'GH_AW_PROMPT_a3f9c4434fbb98dd_EOF'
+          cat << 'GH_AW_PROMPT_2c76f77ac91f3074_EOF'
           <system>
-          GH_AW_PROMPT_a3f9c4434fbb98dd_EOF
+          GH_AW_PROMPT_2c76f77ac91f3074_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_a3f9c4434fbb98dd_EOF'
+          cat << 'GH_AW_PROMPT_2c76f77ac91f3074_EOF'
           <safe-output-tools>
           Tools: add_labels(max:12), remove_labels(max:24), missing_tool, missing_data, noop
           </safe-output-tools>
@@ -198,12 +179,12 @@ jobs:
           {{/if}}
           </github-context>
 
-          GH_AW_PROMPT_a3f9c4434fbb98dd_EOF
+          GH_AW_PROMPT_2c76f77ac91f3074_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_a3f9c4434fbb98dd_EOF'
+          cat << 'GH_AW_PROMPT_2c76f77ac91f3074_EOF'
           </system>
           {{#runtime-import .github/workflows/pr-triage.md}}
-          GH_AW_PROMPT_a3f9c4434fbb98dd_EOF
+          GH_AW_PROMPT_2c76f77ac91f3074_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -304,28 +285,12 @@ jobs:
           echo "GH_AW_SAFE_OUTPUTS=${RUNNER_TEMP}/gh-aw/safeoutputs/outputs.jsonl" >> "$GITHUB_OUTPUT"
           echo "GH_AW_SAFE_OUTPUTS_CONFIG_PATH=${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" >> "$GITHUB_OUTPUT"
           echo "GH_AW_SAFE_OUTPUTS_TOOLS_PATH=${RUNNER_TEMP}/gh-aw/safeoutputs/tools.json" >> "$GITHUB_OUTPUT"
-      - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
       - name: Create gh-aw temp directory
         run: bash ${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh
       - name: Configure gh CLI for GitHub Enterprise
         run: bash ${RUNNER_TEMP}/gh-aw/actions/configure_gh_for_ghe.sh
         env:
           GH_TOKEN: ${{ github.token }}
-      - name: Configure Git credentials
-        env:
-          REPO_NAME: ${{ github.repository }}
-          SERVER_URL: ${{ github.server_url }}
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          git config --global am.keepcr true
-          # Re-authenticate git with GitHub token
-          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
-          echo "Git configured with standard GitHub Actions identity"
       - name: Checkout PR branch
         id: checkout-pr
         if: |
@@ -363,12 +328,12 @@ jobs:
           mkdir -p ${RUNNER_TEMP}/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_0f8db0e947b498fe_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_030285e34b70b18a_EOF'
           {"add_labels":{"allowed":["bug","feature","pending triage","apps/stage-pocket","apps/stage-tamagotchi","apps/stage-web","env/os-all","env/os-linux","env/os-macos","env/os-windows","priority/general","priority/nice-to-have","priority/urgent","scope/agent","scope/audio-input","scope/audio-output","scope/avatar","scope/avatar/live2d","scope/avatar/vrm","scope/documentation","scope/engineering","scope/extension","scope/game-playing-ai","scope/i18n","scope/providers","scope/server-api","scope/ui"],"max":12,"target":"${{ github.event.pull_request.number || github.event.inputs.pull_request_number }}"},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"remove_labels":{"allowed":["bug","feature","pending triage","apps/stage-pocket","apps/stage-tamagotchi","apps/stage-web","env/os-all","env/os-linux","env/os-macos","env/os-windows","priority/general","priority/nice-to-have","priority/urgent","scope/agent","scope/audio-input","scope/audio-output","scope/avatar","scope/avatar/live2d","scope/avatar/vrm","scope/documentation","scope/engineering","scope/extension","scope/game-playing-ai","scope/i18n","scope/providers","scope/server-api","scope/ui"],"max":24,"target":"${{ github.event.pull_request.number || github.event.inputs.pull_request_number }}"}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_0f8db0e947b498fe_EOF
+          GH_AW_SAFE_OUTPUTS_CONFIG_030285e34b70b18a_EOF
       - name: Write Safe Outputs Tools
         run: |
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_5bc72715972c7d1a_EOF'
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/tools_meta.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_META_f2e952965579650d_EOF'
           {
             "description_suffixes": {
               "add_labels": " CONSTRAINTS: Maximum 12 label(s) can be added. Only these labels are allowed: [\"bug\" \"feature\" \"pending triage\" \"apps/stage-pocket\" \"apps/stage-tamagotchi\" \"apps/stage-web\" \"env/os-all\" \"env/os-linux\" \"env/os-macos\" \"env/os-windows\" \"priority/general\" \"priority/nice-to-have\" \"priority/urgent\" \"scope/agent\" \"scope/audio-input\" \"scope/audio-output\" \"scope/avatar\" \"scope/avatar/live2d\" \"scope/avatar/vrm\" \"scope/documentation\" \"scope/engineering\" \"scope/extension\" \"scope/game-playing-ai\" \"scope/i18n\" \"scope/providers\" \"scope/server-api\" \"scope/ui\"]. Target: ${{ github.event.pull_request.number || github.event.inputs.pull_request_number }}.",
@@ -377,8 +342,8 @@ jobs:
             "repo_params": {},
             "dynamic_tools": []
           }
-          GH_AW_SAFE_OUTPUTS_TOOLS_META_5bc72715972c7d1a_EOF
-          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_8e899f4f78d5d215_EOF'
+          GH_AW_SAFE_OUTPUTS_TOOLS_META_f2e952965579650d_EOF
+          cat > ${RUNNER_TEMP}/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_c162d3514deb43ef_EOF'
           {
             "add_labels": {
               "defaultMax": 5,
@@ -476,7 +441,7 @@ jobs:
               }
             }
           }
-          GH_AW_SAFE_OUTPUTS_VALIDATION_8e899f4f78d5d215_EOF
+          GH_AW_SAFE_OUTPUTS_VALIDATION_c162d3514deb43ef_EOF
           node ${RUNNER_TEMP}/gh-aw/actions/generate_safe_outputs_tools.cjs
       - name: Generate Safe Outputs MCP Server Config
         id: safe-outputs-config
@@ -546,7 +511,7 @@ jobs:
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.12'
 
           mkdir -p /home/runner/.copilot
-          cat << GH_AW_MCP_CONFIG_9d3dfaecdae28def_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
+          cat << GH_AW_MCP_CONFIG_c874bea70434f302_EOF | bash ${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh
           {
             "mcpServers": {
               "github": {
@@ -587,7 +552,7 @@ jobs:
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
             }
           }
-          GH_AW_MCP_CONFIG_9d3dfaecdae28def_EOF
+          GH_AW_MCP_CONFIG_c874bea70434f302_EOF
       - name: Download activation artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -633,18 +598,6 @@ jobs:
         if: always()
         continue-on-error: true
         run: bash ${RUNNER_TEMP}/gh-aw/actions/detect_inference_access_error.sh
-      - name: Configure Git credentials
-        env:
-          REPO_NAME: ${{ github.repository }}
-          SERVER_URL: ${{ github.server_url }}
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          git config --global am.keepcr true
-          # Re-authenticate git with GitHub token
-          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
-          echo "Git configured with standard GitHub Actions identity"
       - name: Copy Copilot session state files to logs
         if: always()
         continue-on-error: true
@@ -859,7 +812,7 @@ jobs:
           GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.agent.outputs.inference_access_error }}
           GH_AW_LOCKDOWN_CHECK_FAILED: ${{ needs.activation.outputs.lockdown_check_failed }}
           GH_AW_GROUP_REPORTS: 'false'
-          GH_AW_FAILURE_REPORT_AS_ISSUE: 'true'
+          GH_AW_FAILURE_REPORT_AS_ISSUE: 'false'
           GH_AW_TIMEOUT_MINUTES: '20'
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
