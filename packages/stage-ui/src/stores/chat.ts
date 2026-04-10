@@ -23,6 +23,15 @@ import { useContextObservabilityStore } from './devtools/context-observability'
 import { useLLM } from './llm'
 import { useConsciousnessStore } from './modules/consciousness'
 
+const cloneStreamingMessage = (message: StreamingAssistantMessage): StreamingAssistantMessage => {
+  try {
+    return structuredClone(message)
+  }
+  catch {
+    return JSON.parse(JSON.stringify(message)) as StreamingAssistantMessage
+  }
+}
+
 interface SendOptions {
   model: string
   chatProvider: ChatProvider
@@ -157,15 +166,6 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     const isForegroundSession = () => sessionId === activeSessionId.value
 
     const buildingMessage: StreamingAssistantMessage = { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now(), id: nanoid() }
-
-    const cloneStreamingMessage = (message: StreamingAssistantMessage): StreamingAssistantMessage => {
-      try {
-        return structuredClone(message)
-      }
-      catch {
-        return JSON.parse(JSON.stringify(message)) as StreamingAssistantMessage
-      }
-    }
 
     const updateUI = () => {
       if (isForegroundSession()) {
