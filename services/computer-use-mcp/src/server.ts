@@ -18,7 +18,13 @@ import { registerToolSearch } from './server/register-tool-search'
 import { registerComputerUseTools } from './server/register-tools'
 import { registerVscodeTools } from './server/register-vscode'
 import { createRuntime } from './server/runtime'
-import { initializeGlobalRegistry } from './server/tool-descriptors'
+import { globalRegistry, initializeGlobalRegistry } from './server/tool-descriptors'
+import {
+  applyResultBudget,
+  buildSafetyTierAdvisory,
+  inferSafetyTier,
+  recordInvocation,
+} from './server/tool-invocation-intelligence'
 import {
   buildCrossLaneAdvisory,
   inferToolLane,
@@ -41,10 +47,15 @@ export async function createComputerUseMcpServer(config = resolveComputerUseConf
     version: packageVersion,
   })
 
-  // --- Tool Lane Hygiene (global) ---
-  // Wrap the McpServer instance to intercept ALL `server.tool()` calls,
-  // enabling automatic lane inference and cross-lane advisory injection
-  // for every registered tool across all sub-registries.
+  // --- Tool Invocation Intelligence (global) ---
+  // Wrap the McpServer instance to intercept ALL `server.tool()` calls.
+  // AIRI's interceptor pattern: intelligence lives in the proxy, tools stay pure.
+  //
+  // Four layers (all advisory-only, never blocking):
+  // 1. Lane hygiene — cross-lane usage advisories
+  // 2. Safety tier — graduated advisory for destructive operations
+  // 3. Result budget — truncate oversized results to prevent context bloat
+  // 4. Invocation telemetry — per-call tracking for diagnostics
   const server = new Proxy(rawServer, {
     get(target, prop, receiver) {
       if (prop === 'tool') {
@@ -60,33 +71,73 @@ export async function createComputerUseMcpServer(config = resolveComputerUseConf
 
           const originalHandler = rest[handlerIndex]
           const wrappedHandler = async (input: any, extra: any) => {
+            const startTime = Date.now()
             const lane = inferToolLane(name)
-            let advisory: string | null = null
+            const advisories: string[] = []
 
+            // Layer 1: Lane hygiene
             if (lane) {
               const activeLane = runtime.stateManager.getState().inferredActiveLane
-              advisory = buildCrossLaneAdvisory({
+              const laneAdvisory = buildCrossLaneAdvisory({
                 toolName: name,
                 toolLane: lane,
                 inferredActiveLane: activeLane,
               })
+
+              if (laneAdvisory) {
+                advisories.push(laneAdvisory)
+              }
 
               if (shouldUpdateActiveLane(lane)) {
                 runtime.stateManager.updateInferredLane(lane)
               }
             }
 
-            const result = await originalHandler(input, extra)
+            // Layer 2: Safety tier advisory
+            const safetyAdvisory = buildSafetyTierAdvisory(name)
+            if (safetyAdvisory) {
+              advisories.push(safetyAdvisory)
+            }
 
-            // Inject the advisory as a new content entry without mutating the original
-            if (advisory && result && Array.isArray(result.content)) {
-              return {
-                ...result,
-                content: [...result.content, textContent('\n\n' + advisory)],
+            // Execute the tool
+            const result = await originalHandler(input, extra)
+            const durationMs = Date.now() - startTime
+
+            // Layer 3: Result budget guard
+            let resultTruncated = false
+            let processedResult = result
+
+            if (result && Array.isArray(result.content)) {
+              const budgetOutcome = applyResultBudget(name, result.content)
+              resultTruncated = budgetOutcome.truncated
+              if (budgetOutcome.truncated) {
+                processedResult = { ...result, content: budgetOutcome.content }
               }
             }
 
-            return result
+            // Layer 4: Invocation telemetry
+            const descriptor = globalRegistry.getOptional(name)
+            recordInvocation({
+              toolName: name,
+              lane,
+              safetyTier: descriptor ? inferSafetyTier(descriptor) : 'guarded',
+              calledAt: new Date(startTime).toISOString(),
+              durationMs,
+              resultTruncated,
+            })
+
+            // Inject advisories as content entries without mutating the original
+            if (advisories.length > 0 && processedResult && Array.isArray(processedResult.content)) {
+              return {
+                ...processedResult,
+                content: [
+                  ...processedResult.content,
+                  ...advisories.map(a => textContent('\n\n' + a)),
+                ],
+              }
+            }
+
+            return processedResult
           }
 
           const wrappedRest = [...rest]

@@ -27,6 +27,13 @@ import {
   pickPrimaryOperationalMemory,
   summarizeOperationalMemory,
 } from '../coding/coding-memory-taxonomy'
+import {
+  buildSnapshotFromSeeds,
+  loadWorkspaceMemory,
+  snapshotHasActionableMemory,
+  summarizeSnapshotForAgent,
+  writeWorkspaceMemory,
+} from './workspace-memory'
 import { CodingPrimitives } from '../coding/primitives'
 import { evaluateCodingVerificationGate } from '../coding/verification-gate'
 import { evaluateCodingVerificationNudge } from '../coding/verification-nudge'
@@ -1358,6 +1365,18 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       operationalMemorySeeds: seeds,
       lastOperationalMemorySummary: summary,
     })
+
+    // Persist blocking seeds to workspace for cross-session continuity.
+    // Non-critical — failure to write is silently ignored.
+    const workspacePath = codingState.workspacePath
+    if (workspacePath) {
+      const snapshot = buildSnapshotFromSeeds({
+        seeds,
+        lastValidationCommand: codingState.lastScopedValidationCommand?.command,
+        lastReviewedFile: codingState.lastTargetSelection?.selectedFile,
+      })
+      writeWorkspaceMemory(workspacePath, snapshot)
+    }
   }
 
   /**
@@ -1375,7 +1394,25 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
    */
   function applyOperationalMemoryBias() {
     const codingState = runtime.stateManager.getState().coding
-    const primary = pickPrimaryOperationalMemory(codingState?.operationalMemorySeeds ?? [])
+    let seeds = codingState?.operationalMemorySeeds ?? []
+
+    // Cross-session bridge: if no in-memory seeds exist, try loading
+    // from the workspace snapshot (.airi-session.json). This is AIRI's
+    // lightweight cross-session persistence — no user-facing memory system,
+    // just operational bias continuity.
+    if (seeds.length === 0 && codingState?.workspacePath) {
+      const snapshot = loadWorkspaceMemory(codingState.workspacePath)
+      if (snapshotHasActionableMemory(snapshot)) {
+        seeds = snapshot!.operationalSeeds
+        // Persist loaded seeds into session state so they're visible
+        runtime.stateManager.updateCodingState({
+          operationalMemorySeeds: seeds,
+          lastOperationalMemorySummary: `[cross-session] ${summarizeSnapshotForAgent(snapshot!)}`,
+        })
+      }
+    }
+
+    const primary = pickPrimaryOperationalMemory(seeds)
     if (!primary) {
       return
     }
