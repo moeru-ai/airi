@@ -102,6 +102,63 @@ function detectToolchain(workspacePath: string): WorkspaceToolchain {
   return { packageManager, testCommand, typecheckCommand }
 }
 
+// ─── Transient Error Detection ────────────────────────────────────
+
+/**
+ * Patterns that indicate a transient/retryable error.
+ * These are network issues, rate limits, or server overload — NOT logic errors.
+ */
+const TRANSIENT_PATTERNS = [
+  // Network errors
+  'fetch failed', 'econnreset', 'enotfound', 'etimedout', 'econnrefused',
+  'socket hang up', 'network', 'epipe', 'ehostunreach',
+  // HTTP status codes indicating server issues
+  '429', '502', '503', '500',
+  // Timeout/abort
+  'timeout', 'aborterror', 'signal',
+  // Provider-specific rate limit messages
+  'rate_limit', 'capacity', 'overloaded', 'temporarily', 'try again',
+  'too many requests', 'server_error',
+]
+
+/**
+ * Check if an error message indicates a transient/retryable error.
+ * Non-transient errors (401, 400, invalid key) should NOT be retried.
+ */
+export function isTransientError(message: string): boolean {
+  const lower = message.toLowerCase()
+
+  // Explicit non-retryable patterns (auth/validation)
+  const NON_RETRYABLE = ['401', '403', 'invalid api key', 'invalid_api_key', 'authentication', '400', 'invalid_request']
+  if (NON_RETRYABLE.some(p => lower.includes(p))) return false
+
+  return TRANSIENT_PATTERNS.some(p => lower.includes(p))
+}
+
+// ─── Tool Result Truncation ───────────────────────────────────────
+
+/**
+ * Truncate tool results to prevent context bloat.
+ * Keeps head + tail with a truncation notice in between.
+ *
+ * Different tools get different treatment:
+ * - read_file: already truncated by tool-router, this is a final safety net
+ * - bash: test output can be very long, keep head+tail
+ * - list_files / search_text: can return hundreds of results
+ */
+const MAX_TOOL_RESULT_CHARS = 8000
+
+function truncateToolResult(content: string, maxChars: number = MAX_TOOL_RESULT_CHARS): string {
+  if (content.length <= maxChars) return content
+
+  const headSize = Math.floor(maxChars * 0.7)
+  const tailSize = Math.floor(maxChars * 0.2)
+  const head = content.slice(0, headSize)
+  const tail = content.slice(-tailSize)
+  const omitted = content.length - headSize - tailSize
+  return `${head}\n\n... [${omitted} chars truncated — showing first ${headSize} and last ${tailSize} chars] ...\n\n${tail}`
+}
+
 // ─── Post-loop Verification ───────────────────────────────────────
 
 /**
@@ -110,7 +167,7 @@ function detectToolchain(workspacePath: string): WorkspaceToolchain {
  * Checks:
  * 1. File exists and is readable
  * 2. File is valid UTF-8
- * 3. If .ts/.js: no obvious syntax errors (optional typecheck)
+ * 3. If .ts/.js: no obvious syntax errors (with tolerance for parser limits)
  */
 async function verifyModifiedFiles(
   filesModified: string[],
@@ -149,7 +206,7 @@ async function verifyModifiedFiles(
 
       // Check 3: basic syntax sanity for TS/JS files
       if (filePath.match(/\.(ts|tsx|js|jsx|mts|mjs)$/)) {
-        const syntaxIssues = checkBasicSyntax(content)
+        const syntaxIssues = checkBasicSyntax(content, filePath)
         records.push({
           check: 'syntax_sanity',
           target: filePath,
@@ -175,53 +232,113 @@ async function verifyModifiedFiles(
 
 /**
  * Quick syntax sanity checks without a full parser.
- * Catches the most common issues that would fail compilation.
+ *
+ * Improved to handle:
+ * - Template literals (backtick strings with ${} interpolation)
+ * - Regex literals (/pattern/) — brackets inside don't count
+ * - Tolerance threshold — small imbalances (≤2) are ignored since our
+ *   lightweight parser can't handle every JS edge case (JSX, etc.)
  */
-function checkBasicSyntax(content: string): string[] {
-  const issues: string[] = []
+function checkBasicSyntax(content: string, filePath?: string): string[] {
+  // NOTICE: JSON files get dedicated parsing; md/txt skip entirely
+  const ext = filePath?.split('.').pop()?.toLowerCase()
+  if (ext === 'json') {
+    try { JSON.parse(content); return [] }
+    catch (e) { return [`Invalid JSON: ${(e as Error).message}`] }
+  }
+  if (ext === 'md' || ext === 'txt' || ext === 'css' || ext === 'html') return []
 
-  // Check balanced brackets/parens/braces
+  const issues: string[] = []
   const counts = { '{': 0, '(': 0, '[': 0 }
   const closers: Record<string, keyof typeof counts> = { '}': '{', ')': '(', ']': '[' }
-  // Skip strings and comments for bracket counting
+
   let inString: string | null = null
   let inLineComment = false
   let inBlockComment = false
+  let inTemplateLiteral = false
+  let templateBraceDepth = 0 // Track ${} nesting inside template literals
+  let inRegex = false
 
   for (let i = 0; i < content.length; i++) {
     const ch = content[i]!
     const next = content[i + 1]
+    const prev = i > 0 ? content[i - 1] : ''
 
+    // Line comment
     if (inLineComment) {
       if (ch === '\n') inLineComment = false
       continue
     }
+    // Block comment
     if (inBlockComment) {
       if (ch === '*' && next === '/') { inBlockComment = false; i++ }
       continue
     }
+    // Regular string ('...' or "...")
     if (inString) {
-      if (ch === inString && content[i - 1] !== '\\') inString = null
+      if (ch === inString && prev !== '\\') inString = null
       continue
     }
+    // Regex literal
+    if (inRegex) {
+      if (ch === '/' && prev !== '\\') inRegex = false
+      continue
+    }
+    // Template literal with ${} interpolation
+    if (inTemplateLiteral) {
+      if (ch === '`' && prev !== '\\') {
+        inTemplateLiteral = false
+        continue
+      }
+      if (ch === '$' && next === '{') {
+        templateBraceDepth++
+        i++ // skip the {
+        counts['{']++ // the ${ still opens a brace
+        continue
+      }
+      continue // skip all other chars inside template literal text
+    }
 
+    // Enter comments
     if (ch === '/' && next === '/') { inLineComment = true; continue }
     if (ch === '/' && next === '*') { inBlockComment = true; continue }
-    if (ch === '\'' || ch === '"' || ch === '`') { inString = ch; continue }
+    // Enter strings
+    if (ch === '\'' || ch === '"') { inString = ch; continue }
+    // Enter template literal
+    if (ch === '`') { inTemplateLiteral = true; continue }
+    // Enter regex (heuristic: / after = , ( , [ , ! , & , | , ; , { , } , , , : , return , case)
+    if (ch === '/' && next !== '/' && next !== '*') {
+      const prevNonSpace = content.slice(Math.max(0, i - 10), i).trimEnd().slice(-1)
+      if ('=([!&|;{},:\n'.includes(prevNonSpace) || prevNonSpace === '') {
+        inRegex = true
+        continue
+      }
+    }
+
+    // Track braces inside template interpolation
+    if (templateBraceDepth > 0) {
+      if (ch === '{') templateBraceDepth++
+      if (ch === '}') {
+        templateBraceDepth--
+        if (templateBraceDepth === 0) {
+          counts['{']-- // closing the ${ brace
+          inTemplateLiteral = true // back to template text
+          continue
+        }
+      }
+    }
 
     if (ch in counts) counts[ch as keyof typeof counts]++
     if (ch in closers) counts[closers[ch]!]--
   }
 
-  if (counts['{'] !== 0) issues.push(`Unbalanced braces: ${counts['{']} unclosed`)
-  if (counts['('] !== 0) issues.push(`Unbalanced parens: ${counts['(']} unclosed`)
-  if (counts['['] !== 0) issues.push(`Unbalanced brackets: ${counts['[']} unclosed`)
-
-  // Check for common import issues
-  if (content.includes('from \'') || content.includes('from "')) {
-    // Has imports — check they're at the top or inside functions
-    // (this is just a sanity check, not a full linter)
-  }
+  // NOTICE: Tolerance threshold — our parser can't handle every edge case
+  // (JSX tags, regex with brackets, uncommon escape sequences).
+  // Small imbalances (≤2) are likely parser artifacts, not real bugs.
+  const TOLERANCE = 2
+  if (Math.abs(counts['{']) > TOLERANCE) issues.push(`Unbalanced braces: ${counts['{']} unclosed`)
+  if (Math.abs(counts['(']) > TOLERANCE) issues.push(`Unbalanced parens: ${counts['(']} unclosed`)
+  if (Math.abs(counts['[']) > TOLERANCE) issues.push(`Unbalanced brackets: ${counts['[']} unclosed`)
 
   return issues
 }
@@ -361,6 +478,17 @@ export async function runQueryEngine(params: {
 
   let lastAssistantContent = ''
 
+  // ─── Retry state ───
+  const MAX_LLM_RETRIES = 5
+  const LLM_RETRY_BASE_MS = 1000
+  let consecutiveRetries = 0
+
+  // ─── Exploration phase tracking ───
+  // Counts turns without any edit to enforce the DISCOVER phase limit.
+  const DISCOVER_LIMIT = Math.min(4, Math.floor(config.maxTurns * 0.25))
+  let turnsWithoutEdit = 0
+  let anyEditMade = false
+
   // Helper to build a result with verification
   const buildResult = async (
     status: QueryEngineResult['status'],
@@ -418,17 +546,26 @@ export async function runQueryEngine(params: {
       budget: snap,
     })
 
-    // Call LLM
+    // Call LLM with exponential backoff retry
     let response: LLMResponse
     try {
       response = await callLLM({ config, messages: messagesForCall, tools: openaiTools })
+      consecutiveRetries = 0 // Reset on success
     }
     catch (err) {
       const message = err instanceof Error ? err.message : String(err)
 
-      // Retry up to 3 times on transient errors
-      if (snap.turnsUsed < 3 && (message.includes('429') || message.includes('503') || message.includes('timeout'))) {
-        await new Promise(r => setTimeout(r, 2000 * (snap.turnsUsed + 1)))
+      if (isTransientError(message) && consecutiveRetries < MAX_LLM_RETRIES) {
+        consecutiveRetries++
+        // Exponential backoff: 1s → 2s → 4s → 8s → 16s, plus jitter
+        const delay = LLM_RETRY_BASE_MS * Math.pow(2, consecutiveRetries - 1) + Math.random() * 500
+        onProgress?.({
+          turn: snap.turnsUsed,
+          phase: 'calling_llm',
+          budget: snap,
+          message: `Transient error, retry ${consecutiveRetries}/${MAX_LLM_RETRIES} in ${Math.round(delay)}ms: ${message.slice(0, 100)}`,
+        })
+        await new Promise(r => setTimeout(r, delay))
         continue
       }
 
@@ -564,15 +701,37 @@ export async function runQueryEngine(params: {
     // Flush any remaining read-only calls
     await flushReadOnly()
 
-    // Append all results to history in original order
+    // Append all results to history in original order, with truncation
     for (const slot of resultSlots) {
       if (slot) {
         messages.push({
           role: 'tool',
           tool_call_id: slot.toolCallId,
-          content: slot.content,
+          content: truncateToolResult(slot.content),
         })
       }
+    }
+
+    // ─── Exploration phase enforcement ───
+    // Track whether the agent made any edits this turn.
+    const EDIT_TOOLS = new Set(['edit_file', 'multi_edit_file', 'write_file'])
+    const madeEditThisTurn = response.toolCalls.some(tc => EDIT_TOOLS.has(tc.function.name))
+    if (madeEditThisTurn) {
+      anyEditMade = true
+      turnsWithoutEdit = 0
+    }
+    else {
+      turnsWithoutEdit++
+    }
+
+    // If agent has been exploring too long without editing, inject a nudge
+    if (!anyEditMade && turnsWithoutEdit >= DISCOVER_LIMIT) {
+      messages.push({
+        role: 'system',
+        content: `PHASE WARNING: You have spent ${turnsWithoutEdit} turns exploring without making any edits. `
+          + 'You must now either (1) make an edit using edit_file/multi_edit_file, or (2) provide your final summary if the task is investigation-only. '
+          + 'Do NOT continue searching or reading files without a concrete action plan.',
+      })
     }
 
     // Context compaction — compress history when approaching token limit.

@@ -38,7 +38,11 @@ async function main() {
   console.log(`Model: ${process.env.AIRI_AGENT_MODEL ?? 'gpt-5.4-mini'}`)
   console.log('')
 
-  const runtime = { config: { workspacePath }, cwd: workspacePath } as any
+  const runtime = {
+    config: { workspacePath },
+    cwd: workspacePath,
+    getWorkspacePath: () => workspacePath,
+  } as any
   const primitives = new CodingPrimitives(runtime)
 
   const terminal = {

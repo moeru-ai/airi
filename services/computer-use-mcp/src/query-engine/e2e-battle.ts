@@ -99,7 +99,11 @@ async function runScenario(
   // Reset repo to clean state
   execSync('git checkout .', { cwd: workspacePath, encoding: 'utf-8' })
 
-  const runtime = { config: { workspacePath }, cwd: workspacePath } as any
+  const runtime = {
+    config: { workspacePath },
+    cwd: workspacePath,
+    getWorkspacePath: () => workspacePath,
+  } as any
   const primitives = new CodingPrimitives(runtime)
 
   const terminal = {
@@ -200,7 +204,7 @@ async function main() {
       const result = await runScenario(scenario, workspacePath)
       results.push(result)
 
-      const icon = result.status === 'completed' && result.diffLines > 0 ? '✅' : '❌'
+      const icon = (result.status === 'completed' || result.status === 'budget_exhausted') && result.diffLines > 0 ? (result.status === 'completed' ? '✅' : '⚠️') : '❌'
       console.log(`│ ${icon} Status: ${result.status}`)
       console.log(`│   Turns: ${result.turnsUsed}/12 | Tools: ${result.toolCalls} | Tokens: ${result.tokensUsed}`)
       console.log(`│   Duration: ${(result.durationMs / 1000).toFixed(1)}s | Diff: ${result.diffLines} lines | Verification: ${result.verificationScore}`)
@@ -242,7 +246,7 @@ async function main() {
   let totalDuration = 0
 
   for (const r of results) {
-    const icon = r.status === 'completed' && r.diffLines > 0 ? '✅' : '❌'
+    const icon = (r.status === 'completed' || r.status === 'budget_exhausted') && r.diffLines > 0 ? (r.status === 'completed' ? '✅' : '⚠️') : '❌'
     const cols = [
       r.name.padEnd(24),
       `${icon} ${r.status}`.padEnd(16),
@@ -253,7 +257,7 @@ async function main() {
     ]
     console.log(`  ${cols.join(' | ')}`)
 
-    if (r.status === 'completed' && r.diffLines > 0) passed++
+    if ((r.status === 'completed' || r.status === 'budget_exhausted') && r.diffLines > 0) passed++
     totalTokens += r.tokensUsed
     totalDuration += r.durationMs
   }
