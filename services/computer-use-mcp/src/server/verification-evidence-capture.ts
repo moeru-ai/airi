@@ -39,7 +39,7 @@ export function captureClickEvidence(
     source: string
     actionKind: string
     subject: string
-    observed: Record<string, unknown>
+    observed: Record<string, string | number | boolean | null>
     summary: string
     /** Override the default 0.8 confidence with a dynamic value. */
     confidence?: number
@@ -73,7 +73,7 @@ export function captureUiInteractionEvidence(
     source: string
     actionKind: string
     subject: string
-    observed: Record<string, unknown>
+    observed: Record<string, string | number | boolean | null>
     summary: string
     /** Override the default 0.8 confidence with a dynamic value. */
     confidence?: number
