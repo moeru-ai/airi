@@ -25,6 +25,57 @@ export interface ToolRouterDeps {
 }
 
 /**
+ * Apply a single search-and-replace edit to a file.
+ * Shared by edit_file (single edit) and used as a building block.
+ */
+async function applySingleEdit(filePath: string, oldText: string, newText: string): Promise<unknown> {
+  const fs = await import('node:fs/promises')
+
+  let content: string
+  try {
+    content = await fs.readFile(filePath, 'utf-8')
+  }
+  catch {
+    return { error: `File not found: ${filePath}. Use write_file to create new files.` }
+  }
+
+  const index = content.indexOf(oldText)
+  if (index === -1) {
+    const lines = content.split('\n')
+    const preview = lines.slice(0, Math.min(40, lines.length)).join('\n')
+    return {
+      error: `old_text not found in ${filePath}. File has ${lines.length} lines.`,
+      hint: 'Make sure old_text matches the file content exactly, including whitespace and indentation.',
+      preview: preview.length > 2000 ? `${preview.slice(0, 2000)}\n[...]` : preview,
+    }
+  }
+
+  const secondIndex = content.indexOf(oldText, index + oldText.length)
+  if (secondIndex !== -1) {
+    return {
+      error: `old_text matches multiple locations in ${filePath}. Provide more context to make the match unique.`,
+      firstMatch: `line ${content.slice(0, index).split('\n').length}`,
+      secondMatch: `line ${content.slice(0, secondIndex).split('\n').length}`,
+    }
+  }
+
+  const newContent = content.slice(0, index) + newText + content.slice(index + oldText.length)
+  await fs.writeFile(filePath, newContent, 'utf-8')
+
+  const lineNum = content.slice(0, index).split('\n').length
+  const oldLines = oldText.split('\n').length
+  const newLines = newText.split('\n').length
+  return {
+    success: true,
+    file: filePath,
+    line: lineNum,
+    linesRemoved: oldLines,
+    linesAdded: newLines,
+    diff: `@@ -${lineNum},${oldLines} +${lineNum},${newLines} @@\n${oldText.split('\n').map(l => `-${l}`).join('\n')}\n${newText.split('\n').map(l => `+${l}`).join('\n')}`,
+  }
+}
+
+/**
  * Build the route table mapping tool names to handlers.
  */
 export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandler> {
@@ -110,8 +161,18 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
       const filePath = resolveFilePath(args.file_path as string)
       const oldText = args.old_text as string
       const newText = args.new_text as string
+      return applySingleEdit(filePath, oldText, newText)
+    },
 
-      // Read current content
+    multi_edit_file: async (args) => {
+      const filePath = resolveFilePath(args.file_path as string)
+      const edits = args.edits as Array<{ old_text: string; new_text: string }>
+
+      if (!Array.isArray(edits) || edits.length === 0) {
+        return { error: 'edits must be a non-empty array of { old_text, new_text } objects.' }
+      }
+
+      // Read file once
       let content: string
       try {
         const fs = await import('node:fs/promises')
@@ -121,45 +182,55 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
         return { error: `File not found: ${filePath}. Use write_file to create new files.` }
       }
 
-      // Find and replace
-      const index = content.indexOf(oldText)
-      if (index === -1) {
-        // Show context to help the LLM fix its search string
+      // Apply edits sequentially, validating each one
+      const applied: Array<{ line: number; linesRemoved: number; linesAdded: number }> = []
+      const errors: string[] = []
+
+      for (let i = 0; i < edits.length; i++) {
+        const edit = edits[i]!
+        const index = content.indexOf(edit.old_text)
+        if (index === -1) {
+          errors.push(`Edit ${i + 1}: old_text not found. Searched for: ${JSON.stringify(edit.old_text.slice(0, 80))}`)
+          continue
+        }
+
+        // Check for multiple matches
+        const secondIndex = content.indexOf(edit.old_text, index + edit.old_text.length)
+        if (secondIndex !== -1) {
+          errors.push(`Edit ${i + 1}: old_text matches multiple locations (lines ${content.slice(0, index).split('\n').length} and ${content.slice(0, secondIndex).split('\n').length}). Provide more context.`)
+          continue
+        }
+
+        const lineNum = content.slice(0, index).split('\n').length
+        content = content.slice(0, index) + edit.new_text + content.slice(index + edit.old_text.length)
+        applied.push({
+          line: lineNum,
+          linesRemoved: edit.old_text.split('\n').length,
+          linesAdded: edit.new_text.split('\n').length,
+        })
+      }
+
+      if (applied.length === 0) {
         const lines = content.split('\n')
-        const preview = lines.slice(0, Math.min(40, lines.length)).join('\n')
         return {
-          error: `old_text not found in ${filePath}. File has ${lines.length} lines.`,
-          hint: 'Make sure old_text matches the file content exactly, including whitespace and indentation.',
-          preview: preview.length > 2000 ? `${preview.slice(0, 2000)}\n[...]` : preview,
+          error: `No edits could be applied. ${errors.join(' | ')}`,
+          hint: 'Make sure each old_text matches the current file content exactly.',
+          preview: lines.slice(0, 40).join('\n').slice(0, 2000),
         }
       }
 
-      // Check for multiple matches
-      const secondIndex = content.indexOf(oldText, index + oldText.length)
-      if (secondIndex !== -1) {
-        return {
-          error: `old_text matches multiple locations in ${filePath}. Provide more context to make the match unique.`,
-          firstMatch: `line ${content.slice(0, index).split('\n').length}`,
-          secondMatch: `line ${content.slice(0, secondIndex).split('\n').length}`,
-        }
-      }
-
-      // Apply edit
-      const newContent = content.slice(0, index) + newText + content.slice(index + oldText.length)
+      // Write back
       const fs = await import('node:fs/promises')
-      await fs.writeFile(filePath, newContent, 'utf-8')
+      await fs.writeFile(filePath, content, 'utf-8')
 
-      // Report what changed
-      const lineNum = content.slice(0, index).split('\n').length
-      const oldLines = oldText.split('\n').length
-      const newLines = newText.split('\n').length
       return {
         success: true,
         file: filePath,
-        line: lineNum,
-        linesRemoved: oldLines,
-        linesAdded: newLines,
-        diff: `@@ -${lineNum},${oldLines} +${lineNum},${newLines} @@\n${oldText.split('\n').map(l => `-${l}`).join('\n')}\n${newText.split('\n').map(l => `+${l}`).join('\n')}`,
+        editsApplied: applied.length,
+        editsTotal: edits.length,
+        editsFailed: errors.length,
+        details: applied,
+        ...(errors.length > 0 ? { errors } : {}),
       }
     },
   }
@@ -308,7 +379,7 @@ export function getToolDefinitions(): QueryEngineTool[] {
       description: 'Make a precise edit to an existing file by replacing old_text with new_text. '
         + 'old_text must match the file content EXACTLY (including whitespace). '
         + 'Use this instead of write_file when modifying existing files — it is safer and preserves unchanged content. '
-        + 'If old_text is not found, you will get an error with a file preview to help you fix the match.',
+        + 'For multiple edits to the same file, use multi_edit_file instead.',
       parameters: {
         type: 'object',
         required: ['file_path', 'old_text', 'new_text'],
@@ -316,6 +387,32 @@ export function getToolDefinitions(): QueryEngineTool[] {
           file_path: { type: 'string', description: 'File path to edit.' },
           old_text: { type: 'string', description: 'Exact text to find and replace. Must match file content exactly.' },
           new_text: { type: 'string', description: 'Replacement text.' },
+        },
+      },
+    },
+    {
+      name: 'multi_edit_file',
+      description: 'Apply multiple edits to a single file in one operation. '
+        + 'Each edit replaces old_text with new_text. Edits are applied sequentially '
+        + 'so later edits see the result of earlier ones. '
+        + 'Use this when you need to change multiple non-adjacent sections of the same file.',
+      parameters: {
+        type: 'object',
+        required: ['file_path', 'edits'],
+        properties: {
+          file_path: { type: 'string', description: 'File path to edit.' },
+          edits: {
+            type: 'array',
+            description: 'Array of edits to apply.',
+            items: {
+              type: 'object',
+              required: ['old_text', 'new_text'],
+              properties: {
+                old_text: { type: 'string', description: 'Exact text to find.' },
+                new_text: { type: 'string', description: 'Replacement text.' },
+              },
+            },
+          },
         },
       },
     },

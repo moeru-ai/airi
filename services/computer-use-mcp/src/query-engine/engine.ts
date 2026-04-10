@@ -465,40 +465,90 @@ export async function runQueryEngine(params: {
       return buildResult('completed', budget.snapshot())
     }
 
-    // Execute tool calls
+    // Execute tool calls — parallel for read-only, serialized for mutations
     budget.recordToolCalls(response.toolCalls.length)
 
+    // Classify tools into read-only (parallelizable) and mutating (serialized)
+    const MUTATING_TOOLS = new Set(['write_file', 'edit_file', 'multi_edit_file', 'bash'])
+
+    // Track file modifications (before execution)
     for (const toolCall of response.toolCalls) {
       const toolName = toolCall.function.name
-
-      onProgress?.({
-        turn: budget.snapshot().turnsUsed,
-        phase: 'executing_tools',
-        toolName,
-        budget: budget.snapshot(),
-      })
-
-      // Track file modifications
-      if (toolName === 'write_file' || toolName === 'edit_file') {
+      if (toolName === 'write_file' || toolName === 'edit_file' || toolName === 'multi_edit_file') {
         try {
           const args = JSON.parse(toolCall.function.arguments)
           if (args.file_path) filesModified.add(args.file_path)
         }
         catch { /* ignore parse errors for tracking */ }
       }
+    }
+
+    // Split into parallel-safe and sequential batches
+    // Strategy: collect consecutive read-only calls into a parallel batch,
+    // then execute each mutating call individually.
+    type PendingCall = { toolCall: ToolCall; index: number }
+    const readOnlyBatch: PendingCall[] = []
+    const orderedResults: Array<{ toolCallId: string; content: string }> = []
+
+    // Pre-allocate result slots
+    const resultSlots = new Array<{ toolCallId: string; content: string } | null>(response.toolCalls.length).fill(null)
+
+    // Helper to execute a single tool call and store the result
+    const execOne = async (tc: ToolCall, slotIndex: number) => {
+      onProgress?.({
+        turn: budget.snapshot().turnsUsed,
+        phase: 'executing_tools',
+        toolName: tc.function.name,
+        budget: budget.snapshot(),
+      })
 
       const { result, error } = await executeToolCall(
         routes,
-        toolName,
-        toolCall.function.arguments,
+        tc.function.name,
+        tc.function.arguments,
       )
 
-      // Append tool result to history
-      messages.push({
-        role: 'tool',
-        tool_call_id: toolCall.id,
+      resultSlots[slotIndex] = {
+        toolCallId: tc.id,
         content: error ? `[ERROR] ${result}` : result,
-      })
+      }
+    }
+
+    // Flush any pending read-only batch in parallel
+    const flushReadOnly = async () => {
+      if (readOnlyBatch.length === 0) return
+      await Promise.all(readOnlyBatch.map(p => execOne(p.toolCall, p.index)))
+      readOnlyBatch.length = 0
+    }
+
+    // Process tool calls maintaining order for mutations
+    for (let i = 0; i < response.toolCalls.length; i++) {
+      const toolCall = response.toolCalls[i]!
+      const isMutating = MUTATING_TOOLS.has(toolCall.function.name)
+
+      if (isMutating) {
+        // Flush any pending reads first, then run this mutation
+        await flushReadOnly()
+        await execOne(toolCall, i)
+      }
+      else {
+        // Accumulate read-only calls for parallel execution
+        readOnlyBatch.push({ toolCall, index: i })
+      }
+    }
+
+    // Flush any remaining read-only calls
+    await flushReadOnly()
+
+    // Append all results to history in original order
+    for (const slot of resultSlots) {
+      if (slot) {
+        messages.push({
+          role: 'tool',
+          tool_call_id: slot.toolCallId,
+          content: slot.content,
+        })
+      }
     }
 
     // Context compaction — compress history when approaching token limit.
