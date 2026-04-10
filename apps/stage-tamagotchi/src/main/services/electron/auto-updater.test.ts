@@ -79,6 +79,8 @@ vi.mock('~build/git', () => ({
 }))
 
 describe('setupAutoUpdater', () => {
+  const expectedChannelByArch = process.arch === 'arm64' ? 'latest-arm64' : 'latest-x64'
+
   const laneReleaseTagMap = {
     stable: 'v0.9.9',
     beta: 'v0.9.10-beta.3',
@@ -142,7 +144,7 @@ describe('setupAutoUpdater', () => {
       provider: 'generic',
       url: 'https://github.com/moeru-ai/airi/releases/download/v0.9.0-beta.6',
     })
-    expect(updaterState.instance.channel).toBe('latest-arm64')
+    expect(updaterState.instance.channel).toBe(expectedChannelByArch)
   })
 
   it('ignores UPDATE_SERVER_URL in non-dev runtime', async () => {
@@ -255,7 +257,7 @@ describe('setupAutoUpdater', () => {
     expect(service.state.diagnostics).toEqual(expect.objectContaining({
       platform: process.platform,
       arch: process.arch,
-      channel: 'latest-arm64',
+      channel: expectedChannelByArch,
       executablePath: expect.any(String),
       logFilePath: '/tmp/airi/logs',
       isOverrideActive: false,
