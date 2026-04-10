@@ -71,6 +71,20 @@ describe('isTransientError', () => {
   it('does not retry unknown errors', () => {
     expect(isTransientError('Something completely unknown happened')).toBe(false)
   })
+
+  // Regression: '500' must NOT match inside larger numbers
+  it('does not false-positive on "File has 500 lines"', () => {
+    expect(isTransientError('File has 500 lines')).toBe(false)
+  })
+
+  it('does not false-positive on "processed 15000 records"', () => {
+    // '500' pattern must not match inside '15000'
+    expect(isTransientError('processed 15000 records successfully')).toBe(false)
+  })
+
+  it('does not false-positive on "neural network"', () => {
+    expect(isTransientError('neural network model')).toBe(false)
+  })
 })
 
 // ─── Component 2: truncateToolResult (test via import) ───

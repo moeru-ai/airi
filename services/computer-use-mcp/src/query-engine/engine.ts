@@ -21,7 +21,6 @@ import type {
   QueryEngineResult,
   QueryMessage,
   ToolCall,
-  VerificationRecord,
 } from './types'
 
 import { existsSync } from 'node:fs'
@@ -123,35 +122,38 @@ function detectToolchain(workspacePath: string): WorkspaceToolchain {
 /**
  * Patterns that indicate a transient/retryable error.
  * These are network issues, rate limits, or server overload — NOT logic errors.
+ *
+ * NOTICE: Uses regex with word boundaries to prevent false positives like:
+ * - '500' matching '15000ms' or 'File has 500 lines'
+ * - '429' matching port numbers
+ * - 'network' matching 'neural network'
  */
-const TRANSIENT_PATTERNS = [
+const TRANSIENT_PATTERNS: RegExp[] = [
   // Network errors
-  'fetch failed',
-  'econnreset',
-  'enotfound',
-  'etimedout',
-  'econnrefused',
-  'socket hang up',
-  'network',
-  'epipe',
-  'ehostunreach',
-  // HTTP status codes indicating server issues
-  '429',
-  '502',
-  '503',
-  '500',
+  /\bfetch failed\b/i,
+  /\beconnreset\b/i,
+  /\benotfound\b/i,
+  /\betimedout\b/i,
+  /\beconnrefused\b/i,
+  /\bsocket hang up\b/i,
+  /\bnetwork error\b/i, // "network error" specifically, not just "network"
+  /\bepipe\b/i,
+  /\behostunreach\b/i,
+  // HTTP status codes — only match in API error context like "(500)" or "error 503"
+  /\b429\b/i,
+  /\(50[023]\)/i, // (500), (502), (503)
+  /\berror\s+50[023]\b/i, // error 500, error 502, error 503
   // Timeout/abort
-  'timeout',
-  'aborterror',
-  'signal',
+  /\btimeout\b/i,
+  /\baborterror\b/i,
   // Provider-specific rate limit messages
-  'rate_limit',
-  'capacity',
-  'overloaded',
-  'temporarily',
-  'try again',
-  'too many requests',
-  'server_error',
+  /\brate_limit/i,
+  /\bcapacity\b/i,
+  /\boverloaded\b/i,
+  /\btemporarily unavailable\b/i,
+  /\btry again\b/i,
+  /\btoo many requests\b/i,
+  /\bserver_error\b/i,
 ]
 
 /**
@@ -161,12 +163,12 @@ const TRANSIENT_PATTERNS = [
 export function isTransientError(message: string): boolean {
   const lower = message.toLowerCase()
 
-  // Explicit non-retryable patterns (auth/validation)
-  const NON_RETRYABLE = ['401', '403', 'invalid api key', 'invalid_api_key', 'authentication', '400', 'invalid_request']
-  if (NON_RETRYABLE.some(p => lower.includes(p)))
+  // Explicit non-retryable patterns (auth/validation) — check first
+  const NON_RETRYABLE = [/\b401\b/, /\b403\b/, /invalid.api.key/i, /invalid_api_key/i, /\bauthentication\b/i, /\b400\b/, /invalid_request/i]
+  if (NON_RETRYABLE.some(p => p.test(lower)))
     return false
 
-  return TRANSIENT_PATTERNS.some(p => lower.includes(p))
+  return TRANSIENT_PATTERNS.some(p => p.test(message))
 }
 
 // ─── Tool Result Truncation ───────────────────────────────────────
@@ -197,81 +199,8 @@ function truncateToolResult(content: string, maxChars: number = MAX_TOOL_RESULT_
 // ─── Post-loop Verification ───────────────────────────────────────
 // Extracted to verification.ts (verifyModifiedFiles, checkBasicSyntax)
 
-// ─── LLM API Call ─────────────────────────────────────────────────
-
-/**
- * Call an OpenAI-compatible chat completions API.
- * Uses native fetch — no external SDK dependency.
- */
-async function callLLM(params: {
-  config: QueryEngineConfig
-  messages: QueryMessage[]
-  tools: Array<{ type: 'function', function: { name: string, description: string, parameters: Record<string, unknown> } }>
-}): Promise<LLMResponse> {
-  const { config, messages, tools } = params
-
-  if (!config.apiKey) {
-    throw new Error(
-      'AIRI_AGENT_API_KEY is not set. The QueryEngine requires an API key to call the LLM. '
-      + 'Set it via environment variable or pass it in the config.',
-    )
-  }
-
-  const body: Record<string, unknown> = {
-    model: config.model,
-    messages,
-    tools: tools.length > 0 ? tools : undefined,
-    tool_choice: tools.length > 0 ? 'auto' : undefined,
-  }
-
-  const response = await fetch(`${config.baseURL}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${config.apiKey}`,
-    },
-    body: JSON.stringify(body),
-    signal: config.abortSignal,
-  })
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => 'unknown error')
-    throw new Error(`LLM API error (${response.status}): ${errorText.slice(0, 500)}`)
-  }
-
-  const data = await response.json() as {
-    choices: Array<{
-      message: {
-        content: string | null
-        tool_calls?: ToolCall[]
-      }
-      finish_reason: string
-    }>
-    usage?: {
-      prompt_tokens: number
-      completion_tokens: number
-      total_tokens: number
-    }
-  }
-
-  const choice = data.choices?.[0]
-  if (!choice) {
-    throw new Error('LLM API returned empty choices array')
-  }
-
-  return {
-    content: choice.message.content,
-    toolCalls: choice.message.tool_calls ?? [],
-    finishReason: choice.finish_reason,
-    usage: data.usage
-      ? {
-          promptTokens: data.usage.prompt_tokens,
-          completionTokens: data.usage.completion_tokens,
-          totalTokens: data.usage.total_tokens,
-        }
-      : undefined,
-  }
-}
+// NOTICE: callLLM (non-streaming) was removed — only callLLMStreaming is used.
+// If a non-streaming fallback is ever needed, re-add it and dispatch here.
 
 // ─── Main Loop ────────────────────────────────────────────────────
 
@@ -339,7 +268,6 @@ export async function runQueryEngine(params: {
 
   // ─── Model fallback state ───
   let currentModel = config.model
-  let usedFallback = false
 
   // ─── Exploration phase tracking ───
   const DISCOVER_LIMIT = Math.min(4, Math.floor(config.maxTurns * 0.25))
@@ -355,10 +283,12 @@ export async function runQueryEngine(params: {
   const MAX_NO_TOOL_ROUNDS = 3
 
   // ─── Read cache ───
-  // Caches read_file results keyed by "filePath:startLine:endLine".
+  // Caches read_file RAW results keyed by "filePath:startLine:endLine".
+  // Uses raw (pre-truncation) content so changes in the middle are detected.
   // Invalidated when the file is modified via edit_file/multi_edit_file/write_file.
   const readCache = new Map<string, string>()
-  // Caches list_files results to avoid re-listing the same directory.
+  // Caches list_files results keyed by the full args JSON to avoid re-listing.
+  // Different patterns/directories produce different keys.
   const listCache = new Map<string, number>()
 
   // ─── Session state ───
@@ -465,11 +395,9 @@ export async function runQueryEngine(params: {
         },
       })
       consecutiveRetries = 0 // Reset on success
-      if (usedFallback) {
-        // Switch back to primary model after fallback succeeds
-        currentModel = config.model
-        usedFallback = false
-      }
+      // NOTICE: We intentionally do NOT switch back to primary after fallback
+      // succeeds. If primary was failing, it's likely still unstable. Staying
+      // on fallback for the rest of the session avoids ping-pong failures.
     }
     catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -490,7 +418,6 @@ export async function runQueryEngine(params: {
       // Model fallback: if primary is exhausted, try fallback model
       if (config.fallbackModel && currentModel !== config.fallbackModel && isTransientError(message)) {
         currentModel = config.fallbackModel
-        usedFallback = true
         consecutiveRetries = 0
         onProgress?.({
           turn: snap.turnsUsed,
@@ -566,9 +493,12 @@ export async function runQueryEngine(params: {
     if (response.toolCalls.length === 0) {
       consecutiveNoToolCalls++
 
-      // If the agent has already made edits and is now summarizing, it's truly done.
-      // If it has given MAX_NO_TOOL_ROUNDS consecutive text-only responses, give up.
-      if (anyEditMade || consecutiveNoToolCalls >= MAX_NO_TOOL_ROUNDS) {
+      // NOTICE: After edits are made, allow 2 text-only rounds before exiting.
+      // This prevents premature termination when the agent summarizes, then
+      // wants to run verification tools in the next turn. Without this grace
+      // period, the agent gets killed after its first summary response.
+      const exitThreshold = anyEditMade ? 2 : MAX_NO_TOOL_ROUNDS
+      if (consecutiveNoToolCalls >= exitThreshold) {
         return buildResult('completed', budget.snapshot())
       }
 
@@ -639,7 +569,7 @@ export async function runQueryEngine(params: {
     // then execute each mutating call individually.
     interface PendingCall { toolCall: ToolCall, index: number }
     const readOnlyBatch: PendingCall[] = []
-    const orderedResults: Array<{ toolCallId: string, content: string }> = []
+    // NOTICE: results collected in resultSlots[] array below, not a separate list
 
     // Pre-allocate result slots
     const resultSlots = new Array<{ toolCallId: string, content: string } | null>(response.toolCalls.length).fill(null)
@@ -697,20 +627,22 @@ export async function runQueryEngine(params: {
       const slot = resultSlots[idx]
       if (slot) {
         const toolName = response.toolCalls[idx]?.function.name ?? ''
-        let content = truncateToolResult(slot.content)
+        const rawContent = slot.content
+        let content = truncateToolResult(rawContent)
 
-        // Read cache: if this is a read_file result, cache it
-        if (toolName === 'read_file' && !content.startsWith('[ERROR]')) {
+        // Read cache: compare RAW content before truncation to detect
+        // changes in the truncated middle section of large files.
+        if (toolName === 'read_file' && !rawContent.startsWith('[ERROR]')) {
           try {
             const args = JSON.parse(response.toolCalls[idx]!.function.arguments)
             const cacheKey = `${args.file_path}:${args.start_line ?? ''}:${args.end_line ?? ''}`
             const cached = readCache.get(cacheKey)
-            if (cached === content) {
-              // Exact same content — replace with cache hit notice
+            if (cached === rawContent) {
+              // Exact same raw content — replace with cache hit notice
               content = `[cached — same as previous read of ${args.file_path}]`
             }
             else {
-              readCache.set(cacheKey, content)
+              readCache.set(cacheKey, rawContent)
             }
           }
           catch { /* ignore parse errors */ }
@@ -732,21 +664,20 @@ export async function runQueryEngine(params: {
           catch { /* ignore */ }
         }
 
-        // NOTICE: list_files dedup — when agent calls list_files on the same
-        // directory twice, return a short stub instead of the full listing.
-        // This saves significant tokens in exploration-heavy scenarios.
-        if (toolName === 'list_files' && !content.startsWith('[ERROR]')) {
+        // NOTICE: list_files dedup — when agent calls list_files with the same
+        // args twice, return a short stub instead of the full listing.
+        // Uses full args JSON as key to distinguish different directories/patterns.
+        if (toolName === 'list_files' && !rawContent.startsWith('[ERROR]')) {
           try {
-            const args = JSON.parse(response.toolCalls[idx]!.function.arguments)
-            const cacheKey = `list:${args.pattern ?? ''}:${args.exclude_patterns ?? ''}`
-            const cachedLen = listCache.get(cacheKey)
+            const argsStr = response.toolCalls[idx]!.function.arguments
+            const cachedLen = listCache.get(argsStr)
             if (cachedLen != null) {
               content = `[already listed — ${cachedLen} entries. Use search_text to find specific files instead of re-listing.]`
             }
             else {
               // Estimate entry count from the result
-              const lineCount = content.split('\n').filter(Boolean).length
-              listCache.set(cacheKey, lineCount)
+              const lineCount = rawContent.split('\n').filter(Boolean).length
+              listCache.set(argsStr, lineCount)
             }
           }
           catch { /* ignore */ }

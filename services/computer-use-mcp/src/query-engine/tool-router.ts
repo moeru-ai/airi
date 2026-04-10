@@ -320,31 +320,93 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
         return { error: `File not found: ${filePath}. Use write_file to create new files.` }
       }
 
+      // NOTICE: Layered matching for multi_edit_file — consistent with edit_file.
+      // Tries exact → whitespace-normalized → quote-normalized → indent-normalized.
+      // Returns the index and actual matched text in the original content.
+      const normalizeWS = (s: string) => s.replace(/[ \t]+/g, ' ').replace(/\r\n/g, '\n')
+      const normalizeQuotes = (s: string) =>
+        s.replace(/[\u2018\u2019\u201A\u2039\u203A'`]/g, '\'')
+          .replace(/[\u201C\u201D\u201E\u00AB\u00BB"]/g, '"')
+      const stripIndent = (s: string) => s.split('\n').map(l => l.trimStart()).join('\n')
+
+      function findLayered(haystack: string, needle: string): { index: number, matchedText: string, layer: string } | null {
+        // Layer 1: Exact
+        const exact = haystack.indexOf(needle)
+        if (exact !== -1) return { index: exact, matchedText: needle, layer: 'exact' }
+
+        // Layer 2: Whitespace-normalized
+        const hNorm = normalizeWS(haystack)
+        const nNorm = normalizeWS(needle)
+        const wsIdx = hNorm.indexOf(nNorm)
+        if (wsIdx !== -1) {
+          // Map back to original: find the line range
+          const beforeNorm = hNorm.slice(0, wsIdx)
+          const lineStart = beforeNorm.split('\n').length - 1
+          const lineCount = nNorm.split('\n').length
+          const lines = haystack.split('\n')
+          const matchedText = lines.slice(lineStart, lineStart + lineCount).join('\n')
+          const index = haystack.indexOf(matchedText)
+          if (index !== -1) return { index, matchedText, layer: 'whitespace_normalized' }
+        }
+
+        // Layer 3: Quote-normalized
+        const hQ = normalizeQuotes(haystack)
+        const nQ = normalizeQuotes(needle)
+        if (hQ !== haystack || nQ !== needle) {
+          const qIdx = hQ.indexOf(nQ)
+          if (qIdx !== -1) {
+            const matchedText = haystack.slice(qIdx, qIdx + nQ.length)
+            return { index: qIdx, matchedText, layer: 'quote_normalized' }
+          }
+        }
+
+        // Layer 4: Indent-normalized
+        const hI = stripIndent(haystack)
+        const nI = stripIndent(needle)
+        if (nI.length > 10) {
+          const iIdx = hI.indexOf(nI)
+          if (iIdx !== -1) {
+            const beforeI = hI.slice(0, iIdx)
+            const lineStart = beforeI.split('\n').length - 1
+            const lineCount = nI.split('\n').length
+            const lines = haystack.split('\n')
+            const matchedText = lines.slice(lineStart, lineStart + lineCount).join('\n')
+            const index = haystack.indexOf(matchedText)
+            if (index !== -1) return { index, matchedText, layer: 'indent_normalized' }
+          }
+        }
+
+        return null
+      }
+
       // Apply edits sequentially, validating each one
-      const applied: Array<{ line: number, linesRemoved: number, linesAdded: number }> = []
+      const applied: Array<{ line: number, linesRemoved: number, linesAdded: number, layer: string }> = []
       const errors: string[] = []
 
       for (let i = 0; i < edits.length; i++) {
         const edit = edits[i]!
-        const index = content.indexOf(edit.old_text)
-        if (index === -1) {
-          errors.push(`Edit ${i + 1}: old_text not found. Searched for: ${JSON.stringify(edit.old_text.slice(0, 80))}`)
+        const match = findLayered(content, edit.old_text)
+        if (!match) {
+          errors.push(`Edit ${i + 1}: old_text not found (tried exact, whitespace, quote, indent matching). Searched for: ${JSON.stringify(edit.old_text.slice(0, 80))}`)
           continue
         }
 
-        // Check for multiple matches
-        const secondIndex = content.indexOf(edit.old_text, index + edit.old_text.length)
-        if (secondIndex !== -1) {
-          errors.push(`Edit ${i + 1}: old_text matches multiple locations (lines ${content.slice(0, index).split('\n').length} and ${content.slice(0, secondIndex).split('\n').length}). Provide more context.`)
-          continue
+        // Check for multiple matches (only exact layer — fuzzy layers are less likely to collide)
+        if (match.layer === 'exact') {
+          const secondIndex = content.indexOf(edit.old_text, match.index + edit.old_text.length)
+          if (secondIndex !== -1) {
+            errors.push(`Edit ${i + 1}: old_text matches multiple locations (lines ${content.slice(0, match.index).split('\n').length} and ${content.slice(0, secondIndex).split('\n').length}). Provide more context.`)
+            continue
+          }
         }
 
-        const lineNum = content.slice(0, index).split('\n').length
-        content = content.slice(0, index) + edit.new_text + content.slice(index + edit.old_text.length)
+        const lineNum = content.slice(0, match.index).split('\n').length
+        content = content.slice(0, match.index) + edit.new_text + content.slice(match.index + match.matchedText.length)
         applied.push({
           line: lineNum,
-          linesRemoved: edit.old_text.split('\n').length,
+          linesRemoved: match.matchedText.split('\n').length,
           linesAdded: edit.new_text.split('\n').length,
+          layer: match.layer,
         })
       }
 
@@ -370,7 +432,7 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
         details: applied,
         ...(errors.length > 0 ? { errors } : {}),
         // Diff preview summary for multi-edit
-        diff_summary: `${applied.length} edit(s) applied: ${applied.map(a => `L${a.line}: -${a.linesRemoved}/+${a.linesAdded}`).join(', ')}`,
+        diff_summary: `${applied.length} edit(s) applied: ${applied.map(a => `L${a.line}[${a.layer}]: -${a.linesRemoved}/+${a.linesAdded}`).join(', ')}`,
       }
     },
 
@@ -426,21 +488,23 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
     },
 
     git_stash: async (args) => {
-      const { execSync } = await import('node:child_process')
+      const { execFileSync } = await import('node:child_process')
       const action = (args.action as string) || 'push'
       try {
         if (action === 'push') {
           const message = args.message as string | undefined
-          const cmd = message ? `git stash push -m "${message.replace(/"/g, '\\"')}"` : 'git stash push'
-          const output = execSync(cmd, { cwd: workspacePath, encoding: 'utf-8', timeout: 15_000 })
+          // NOTICE: Use execFileSync with array args to prevent shell injection.
+          // LLM-generated messages can contain $(), backticks, etc.
+          const gitArgs = message ? ['stash', 'push', '-m', message] : ['stash', 'push']
+          const output = execFileSync('git', gitArgs, { cwd: workspacePath, encoding: 'utf-8', timeout: 15_000 })
           return { action: 'push', output: output.trim() }
         }
         else if (action === 'pop') {
-          const output = execSync('git stash pop', { cwd: workspacePath, encoding: 'utf-8', timeout: 15_000 })
+          const output = execFileSync('git', ['stash', 'pop'], { cwd: workspacePath, encoding: 'utf-8', timeout: 15_000 })
           return { action: 'pop', output: output.trim() }
         }
         else if (action === 'list') {
-          const output = execSync('git stash list', { cwd: workspacePath, encoding: 'utf-8', timeout: 10_000 })
+          const output = execFileSync('git', ['stash', 'list'], { cwd: workspacePath, encoding: 'utf-8', timeout: 10_000 })
           return { action: 'list', stashes: output.trim().split('\n').filter(Boolean) }
         }
         else {
@@ -453,15 +517,16 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
     },
 
     git_commit: async (args) => {
-      const { execSync } = await import('node:child_process')
+      const { execFileSync } = await import('node:child_process')
       const message = args.message as string
       if (!message)
         return { error: 'Commit message is required.' }
       try {
         // Stage all changes first
-        execSync('git add -A', { cwd: workspacePath, encoding: 'utf-8', timeout: 10_000 })
-        const output = execSync(`git commit -m "${message.replace(/"/g, '\\"')}"`, { cwd: workspacePath, encoding: 'utf-8', timeout: 15_000 })
-        return { success: true, output: output.trim() }
+        execFileSync('git', ['add', '-A'], { cwd: workspacePath, encoding: 'utf-8', timeout: 10_000 })
+        // NOTICE: Use execFileSync with array args to prevent shell injection.
+        execFileSync('git', ['commit', '-m', message], { cwd: workspacePath, encoding: 'utf-8', timeout: 15_000 })
+        return { success: true, output: `Committed with message: ${message}` }
       }
       catch (err: any) {
         return { error: `git commit failed: ${err.message}` }

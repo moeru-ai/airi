@@ -15,7 +15,7 @@ export function estimateMessageTokens(messages: QueryMessage[]): number {
   return messages.reduce((sum, msg) => {
     const content = msg.role === 'assistant'
       ? (msg.content ?? '') + (msg.tool_calls ? JSON.stringify(msg.tool_calls) : '')
-      : msg.content
+      : (msg.content ?? '')
     // +4 per message for role/separator overhead
     return sum + estimateTokenCount(content) + 4
   }, 0)
