@@ -270,6 +270,64 @@ function buildScenarios(airiRoot: string): RealWorldScenario[] {
         }
       },
     },
+
+    // S6 [HARD] AIRI monorepo — cross-file: rename a function and update callers
+    {
+      name: 'AIRI: Cross-file rename fix',
+      difficulty: 'hard',
+      repo: `local:${airiRoot}`,
+      workDir: join(TEST_ROOT, 'airi-s6'),
+      goal: '',
+      maxTurns: 14,
+      maxTokenBudget: 120_000,
+      setup: (ws) => {
+        // Plant a cross-file break:
+        // 1. Rename a function in packages/ui/src/composables/use-theme.ts
+        // 2. This will break any file that imports it
+        const sourceFile = join(ws, 'packages/ui/src/composables/use-theme.ts')
+        if (existsSync(sourceFile)) {
+          let content = readFileSync(sourceFile, 'utf-8')
+          // Rename the exported function — add "V2" suffix
+          content = content.replace(
+            /export\s+function\s+useTheme\b/,
+            'export function useThemeV2',
+          )
+          writeFileSync(sourceFile, content)
+        }
+        // Also break the re-export in index.ts
+        const indexFile = join(ws, 'packages/ui/src/index.ts')
+        if (existsSync(indexFile)) {
+          let content = readFileSync(indexFile, 'utf-8')
+          // The re-export still references old name — this is the bug
+          // Agent needs to find this and update it
+          if (!content.includes('useTheme')) {
+            // If there's no useTheme export, add one to create the break
+            content = `export { useTheme } from './composables/use-theme'\n${content}`
+            writeFileSync(indexFile, content)
+          }
+        }
+      },
+      validate: (ws) => {
+        // Require at least 2 files changed
+        try {
+          const diff = execSync('git diff --name-only', { cwd: ws, encoding: 'utf-8' }).trim()
+          const files = diff.split('\n').filter(f => f.trim().length > 0)
+          if (files.length < 2) {
+            return { passed: false, details: `Only ${files.length} file(s) changed: ${files.join(', ')}. Need ≥2 for cross-file fix.` }
+          }
+          // Check that the source file was handled
+          const touchedSource = files.some(f => f.includes('use-theme'))
+          const touchedCaller = files.some(f => f.includes('index'))
+          if (!touchedSource && !touchedCaller) {
+            return { passed: false, details: `Changed ${files.join(', ')} but neither use-theme nor index was fixed` }
+          }
+          return { passed: true, details: `Cross-file fix: ${files.join(', ')}` }
+        }
+        catch {
+          return { passed: false, details: 'git diff failed' }
+        }
+      },
+    },
   ]
 }
 
@@ -388,6 +446,24 @@ Do NOT create new files. Do NOT use write_file.
 5. Read the edited section back to verify
 
 Use absolute paths. Only modify ONE existing file.`
+  }
+
+  if (scenario.name.includes('Cross-file') || scenario.name.includes('rename')) {
+    return `You are working in a TypeScript monorepo at ${ws}.
+
+TASK: Someone renamed the function \`useTheme\` to \`useThemeV2\` in packages/ui/src/composables/use-theme.ts
+but forgot to update the re-export in packages/ui/src/index.ts. This causes a build error.
+
+Fix ALL places that still reference the old name:
+
+1. Read packages/ui/src/composables/use-theme.ts to confirm the current function name
+2. Read packages/ui/src/index.ts to see the broken re-export
+3. Search the codebase for other imports of \`useTheme\` that need updating
+4. Fix each file using edit_file — update the old name to match the new one
+5. Read each edited file back to verify
+
+You MUST edit existing files using edit_file. Do NOT create new files.
+Use absolute paths. Fix ALL broken references, not just one.`
   }
 
   return 'No goal defined'

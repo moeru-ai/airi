@@ -76,8 +76,8 @@ ALL file modifications MUST go through edit_file, multi_edit_file, or write_file
 - After ${explorationBudget} turns, move to Phase 2.
 
 ### Phase 2: ACT
-- Call edit_file for modifications to existing files.
-- Call write_file for new files.
+- Call edit_file for modifications to existing files. NEVER use write_file to modify existing files — write_file overwrites the entire file and loses content.
+- Call write_file ONLY to create brand-new files that don't exist yet.
 - Call multi_edit_file for multiple changes in one file.
 - After each edit, call read_file to confirm the change applied correctly.
 - If edit_file returns fuzzy candidates, use the exact text from the candidate.

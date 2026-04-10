@@ -486,18 +486,37 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
     write_file: async (args) => {
       const filePath = await resolveFilePath(args.file_path as string)
       const content = args.content as string
+
+      // NOTICE: Warn when agent tries to overwrite an existing file.
+      // This catches the common mistake of using write_file to "edit"
+      // an existing file, which destroys all content not in the new write.
+      const fs = await import('node:fs/promises')
+      let fileExists = false
       try {
-        return await primitives.writeFile(filePath, content)
+        await fs.access(filePath)
+        fileExists = true
+      }
+      catch { /* file doesn't exist, OK to create */ }
+
+      let result: any
+      try {
+        result = await primitives.writeFile(filePath, content)
       }
       catch {
-        // Fallback: direct fs write when runtime is not fully initialized
-        const fs = await import('node:fs/promises')
         const path = await import('node:path')
         const dir = path.dirname(filePath)
         await fs.mkdir(dir, { recursive: true })
         await fs.writeFile(filePath, content, 'utf8')
-        return { written: true, absolutePath: filePath, bytesWritten: Buffer.byteLength(content, 'utf8'), created: true }
+        result = { written: true, absolutePath: filePath, bytesWritten: Buffer.byteLength(content, 'utf8'), created: !fileExists }
       }
+
+      if (fileExists) {
+        return {
+          ...result,
+          warning: `⚠️ File already existed and was OVERWRITTEN. If you intended to make a small edit, use edit_file instead — it preserves the rest of the file. write_file replaces the entire file content.`,
+        }
+      }
+      return result
     },
 
     list_files: async (args) => {
