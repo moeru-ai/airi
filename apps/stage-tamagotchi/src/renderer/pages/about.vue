@@ -3,6 +3,8 @@ import type { BugReportDialogSubmitPayload } from '@proj-airi/stage-ui/component
 
 import type { ElectronUpdaterChannel } from '../../shared/eventa'
 
+import semver from 'semver'
+
 import { useElectronAutoUpdater, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { AboutContent, BugReportDialog, createBugReportPageContext, MarkdownRenderer } from '@proj-airi/stage-ui/components'
 import { useBreakpoints } from '@proj-airi/stage-ui/composables'
@@ -86,6 +88,22 @@ const restartButtonLabel = computed(() => {
   return isWindowsUpdater.value
     ? t('tamagotchi.stage.about.update.actions.restart-silent')
     : t('tamagotchi.stage.about.update.actions.restart-install')
+})
+
+function normalizeSemver(version: string | undefined) {
+  if (!version)
+    return undefined
+
+  return semver.valid(version) ?? semver.valid(version.startsWith('v') ? version.slice(1) : version)
+}
+
+const isDowngradeUpdate = computed(() => {
+  const currentVersion = normalizeSemver(buildInfo.value.version)
+  const targetVersion = normalizeSemver(updateState.value.info?.version)
+  if (!currentVersion || !targetVersion)
+    return false
+
+  return semver.lt(targetVersion, currentVersion)
 })
 
 const getUpdaterPreferences = useElectronEventaInvoke(electronGetUpdaterPreferences)
@@ -244,6 +262,12 @@ onMounted(() => {
                   <div :class="['i-solar:arrow-right-line-duotone text-lg text-neutral-400']" />
                   <span :class="['font-mono text-pink-500 dark:text-pink-400 font-bold']">v{{ updateState.info?.version }}</span>
                 </div>
+                <div
+                  v-if="isDowngradeUpdate"
+                  :class="['text-sm rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-700 dark:text-amber-200']"
+                >
+                  Selected channel offers an older build than your current version. Installing this update will downgrade AIRI.
+                </div>
                 <div>
                   <Button
                     variant="primary"
@@ -271,6 +295,12 @@ onMounted(() => {
               <div v-else-if="updateState.status === 'downloaded'" :class="['flex flex-col gap-4']">
                 <div :class="['text-sm text-emerald-600 dark:text-emerald-400']">
                   {{ downloadedStatusText }}
+                </div>
+                <div
+                  v-if="isDowngradeUpdate"
+                  :class="['text-sm rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-700 dark:text-amber-200']"
+                >
+                  Downgrade package downloaded from selected channel. Restart will install an older version.
                 </div>
                 <div>
                   <DoubleCheckButton
