@@ -155,6 +155,7 @@ export function resolveStepAction(step: WorkflowStepTemplate): ActionInvocation 
       return { kind: 'wait', input: { durationMs: step.params.durationMs as number, captureAfter: true } }
     case 'evaluate':
     case 'summarize':
+      return undefined
     // PTY step family — handled by the engine's PTY execution path, not resolveStepAction
     case 'pty_send_input':
     case 'pty_read_screen':

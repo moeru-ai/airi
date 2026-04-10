@@ -1,5 +1,7 @@
 import type { RunnerRequest, RunnerResponse } from '../runner/protocol'
 
+import process from 'node:process'
+
 import { createInterface } from 'node:readline'
 
 import { LinuxX11RunnerService } from '../runner/service'

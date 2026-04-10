@@ -38,14 +38,14 @@ export function hasMeaningfulTaskMemoryExtraction(ext: TaskMemoryExtraction): bo
   return isValidStatus(ext.status)
     || isNonEmptyString(ext.goal)
     || isNonEmptyString(ext.currentStep)
-    || isStringArray(ext.confirmedFacts) && ext.confirmedFacts.length > 0
-    || isArtifactArray(ext.artifacts) && ext.artifacts.length > 0
-    || isStringArray(ext.blockers) && ext.blockers.length > 0
+    || (isStringArray(ext.confirmedFacts) && ext.confirmedFacts.length > 0)
+    || (isArtifactArray(ext.artifacts) && ext.artifacts.length > 0)
+    || (isStringArray(ext.blockers) && ext.blockers.length > 0)
     || isNonEmptyString(ext.nextStep)
-    || isStringArray(ext.plan) && ext.plan.length > 0
-    || isStringArray(ext.workingAssumptions) && ext.workingAssumptions.length > 0
+    || (isStringArray(ext.plan) && ext.plan.length > 0)
+    || (isStringArray(ext.workingAssumptions) && ext.workingAssumptions.length > 0)
     || isNonEmptyString(ext.recentFailureReason)
-    || isStringArray(ext.completionCriteria) && ext.completionCriteria.length > 0
+    || (isStringArray(ext.completionCriteria) && ext.completionCriteria.length > 0)
     || ext.newTask === true
 }
 

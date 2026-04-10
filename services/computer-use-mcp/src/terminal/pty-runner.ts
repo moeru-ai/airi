@@ -23,6 +23,7 @@ let nodePtyLoadError: string | undefined
 
 const NODE_PTY_MODULE = 'node-pty'
 const requireNodeModule = createRequire(import.meta.url)
+const PTY_LINE_SPLIT_RE = /\r?\n/
 
 function stringifyLoadError(error: unknown) {
   return error instanceof Error ? error.stack || error.message : String(error)
@@ -158,7 +159,7 @@ export async function createPtySession(
 
   pty.onData((data: string) => {
     // Split on newlines and append to scrollback buffer
-    const lines = data.split(/\r?\n/)
+    const lines = data.split(PTY_LINE_SPLIT_RE)
     for (const line of lines) {
       instance.buffer.push(line)
     }

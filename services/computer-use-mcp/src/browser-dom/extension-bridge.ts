@@ -72,19 +72,19 @@ export class BrowserDomExtensionBridge {
           port: this.config.port,
         })
 
-        const cleanup = () => {
-          nextServer.off('listening', onListening)
-          nextServer.off('error', onError)
-        }
-
-        const onListening = () => {
+        function onListening() {
           cleanup()
           resolve(nextServer)
         }
 
-        const onError = (error: Error) => {
+        function onError(error: Error) {
           cleanup()
           reject(error)
+        }
+
+        function cleanup() {
+          nextServer.off('listening', onListening)
+          nextServer.off('error', onError)
         }
 
         nextServer.once('listening', onListening)

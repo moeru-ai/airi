@@ -26,13 +26,11 @@ import type {
   RunnerScreenshotResult,
 } from './protocol'
 
+import process from 'node:process'
+
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { createInterface } from 'node:readline'
-
-function quoteShell(value: string) {
-  return `'${value.replaceAll(`'`, `'\\''`)}'`
-}
 
 function buildSshTarget(config: ComputerUseConfig) {
   if (!config.remoteSshHost || !config.remoteSshUser) {
@@ -75,7 +73,7 @@ export function createSshRunnerTransportFactory(config: ComputerUseConfig): Runn
       buildSshTarget(config),
       'sh',
       '-lc',
-      quoteShell(config.remoteRunnerCommand),
+      config.remoteRunnerCommand,
     ],
     env: process.env,
   })

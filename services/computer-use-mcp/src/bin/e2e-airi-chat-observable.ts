@@ -88,6 +88,11 @@ const promptMarker = `airi-e2e-${runId.slice(-8)}`
 // which makes the follow-up Enter key commit composition instead of submitting
 // the AIRI chat textarea. The prompt remains overrideable via AIRI_E2E_PROMPT.
 const promptBaseText = env.AIRI_E2E_PROMPT?.trim() || 'Reply with one short sentence only: hello from AIRI desktop E2E.'
+const WHITESPACE_SPLIT_RE = /\s+/
+const DOTENV_LINE_SPLIT_RE = /\r?\n/u
+const QUOTED_VALUE_RE = /^['"]|['"]$/gu
+const DEVTOOLS_BROWSER_WS_PATH_RE = /\/devtools\/browser\/[^/]+$/
+const DEVTOOLS_LISTENING_RE = /DevTools listening on (ws:\/\/\S+)/
 const promptText = `${promptBaseText} [${promptMarker}]`
 const reportDir = resolve(packageDir, '.computer-use-mcp', 'reports', `airi-chat-observable-${runId}`)
 const reportPath = resolve(reportDir, 'report.json')
@@ -126,7 +131,7 @@ function parseCommandArgs(raw: string | undefined, fallback: string[]) {
   }
 
   return raw
-    .split(/\s+/)
+    .split(WHITESPACE_SPLIT_RE)
     .map(item => item.trim())
     .filter(Boolean)
 }
@@ -226,7 +231,7 @@ async function waitFor<T>(label: string, task: () => Promise<T | undefined>, tim
 function parseDotEnv(text: string) {
   const values: Record<string, string> = {}
 
-  for (const line of text.split(/\r?\n/u)) {
+  for (const line of text.split(DOTENV_LINE_SPLIT_RE)) {
     const trimmed = line.trim()
     if (!trimmed || trimmed.startsWith('#')) {
       continue
@@ -239,7 +244,7 @@ function parseDotEnv(text: string) {
 
     const key = trimmed.slice(0, separatorIndex).trim()
     const rawValue = trimmed.slice(separatorIndex + 1).trim()
-    const unwrapped = rawValue.replace(/^['"]|['"]$/gu, '')
+    const unwrapped = rawValue.replace(QUOTED_VALUE_RE, '')
     values[key] = unwrapped
   }
 
@@ -362,7 +367,7 @@ async function listDebugTargets(browserWsUrl: string) {
           title: String(target.title || ''),
           type: String(target.type || ''),
           url: String(target.url || ''),
-          webSocketDebuggerUrl: browserWsUrl.replace(/\/devtools\/browser\/[^/]+$/, `/devtools/page/${targetId}`),
+          webSocketDebuggerUrl: browserWsUrl.replace(DEVTOOLS_BROWSER_WS_PATH_RE, `/devtools/page/${targetId}`),
         } satisfies DebugTarget
       })
   }
@@ -502,14 +507,14 @@ async function main() {
 
     stageProcess.stdout.on('data', (chunk) => {
       stageLogStream.write(chunk)
-      const match = chunk.toString('utf-8').match(/DevTools listening on (ws:\/\/\S+)/)
+      const match = chunk.toString('utf-8').match(DEVTOOLS_LISTENING_RE)
       if (match?.[1]) {
         browserWsUrl = match[1]
       }
     })
     stageProcess.stderr.on('data', (chunk) => {
       stageLogStream.write(chunk)
-      const match = chunk.toString('utf-8').match(/DevTools listening on (ws:\/\/\S+)/)
+      const match = chunk.toString('utf-8').match(DEVTOOLS_LISTENING_RE)
       if (match?.[1]) {
         browserWsUrl = match[1]
       }

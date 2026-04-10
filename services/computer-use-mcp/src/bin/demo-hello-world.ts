@@ -10,6 +10,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
 const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
+const homeDir = env.HOME || '$HOME'
 
 async function main() {
   console.info('🚀 Starting computer-use-mcp server …')
@@ -55,11 +56,11 @@ async function main() {
     }
 
     // 2. Step 1: Create folder + Python file via terminal_exec
-    console.info('\n📁 Step 1: Creating folder ~/hello-python-project …')
+    console.info('\n📁 Step 1: Creating folder $HOME/hello-python-project …')
     const mkdirResult = await client.callTool({
       name: 'terminal_exec',
       arguments: {
-        command: 'mkdir -p ~/hello-python-project',
+        command: 'mkdir -p "$HOME/hello-python-project"',
         timeoutMs: 10_000,
       },
     })
@@ -70,7 +71,7 @@ async function main() {
     const writeResult = await client.callTool({
       name: 'terminal_exec',
       arguments: {
-        command: `cat > ~/hello-python-project/main.py << 'PYEOF'
+        command: `cat > "$HOME/hello-python-project/main.py" << 'PYEOF'
 #!/usr/bin/env python3
 """Hello World project — created by AIRI computer-use-mcp"""
 
@@ -87,12 +88,12 @@ PYEOF`,
     printResult('write main.py', writeResult)
 
     // 4. Step 3: Run it!
-    console.info('\n🐍 Step 3: Running python3 ~/hello-python-project/main.py …')
+    console.info('\n🐍 Step 3: Running python3 $HOME/hello-python-project/main.py …')
     const runResult = await client.callTool({
       name: 'terminal_exec',
       arguments: {
-        command: 'python3 ~/hello-python-project/main.py',
-        cwd: `${env.HOME}/hello-python-project`,
+        command: 'python3 "$HOME/hello-python-project/main.py"',
+        cwd: `${homeDir}/hello-python-project`,
         timeoutMs: 15_000,
       },
     })
@@ -103,7 +104,7 @@ PYEOF`,
     const lsResult = await client.callTool({
       name: 'terminal_exec',
       arguments: {
-        command: 'ls -la ~/hello-python-project && echo "---" && cat ~/hello-python-project/main.py',
+        command: 'ls -la "$HOME/hello-python-project" && echo "---" && cat "$HOME/hello-python-project/main.py"',
         timeoutMs: 10_000,
       },
     })

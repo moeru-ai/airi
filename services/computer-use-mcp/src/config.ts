@@ -1,7 +1,7 @@
 import type { ApprovalMode, Bounds, ComputerUseConfig, DisplaySize, ExecutorKind } from './types'
 
 import { join } from 'node:path'
-import { cwd, env } from 'node:process'
+import { cwd, env, platform } from 'node:process'
 
 const defaultDeniedApps = [
   '1password',
@@ -18,6 +18,45 @@ const defaultOpenableApps = [
   'Visual Studio Code',
   'Google Chrome',
 ]
+
+const DISPLAY_SIZE_RE = /^(\d+)x(\d+)$/i
+const HOME_PREFIX_RE = /^~(?=\/|$)/
+
+function normalizeHomePathToken(value: string) {
+  return value.replace(HOME_PREFIX_RE, '$HOME')
+}
+
+function resolveDefaultOpenableApps(executor: ExecutorKind, hostPlatform: NodeJS.Platform) {
+  if (executor === 'linux-x11') {
+    return ['Terminal', 'Visual Studio Code', 'Google Chrome']
+  }
+
+  if (executor === 'macos-local') {
+    return defaultOpenableApps
+  }
+
+  if (hostPlatform === 'darwin') {
+    return defaultOpenableApps
+  }
+
+  if (hostPlatform === 'win32') {
+    return ['Windows Terminal', 'Visual Studio Code', 'Google Chrome']
+  }
+
+  return ['Terminal', 'Visual Studio Code', 'Google Chrome']
+}
+
+function resolveDefaultTerminalShell(hostPlatform: NodeJS.Platform) {
+  if (hostPlatform === 'win32') {
+    return 'powershell.exe'
+  }
+
+  if (hostPlatform === 'linux') {
+    return '/bin/bash'
+  }
+
+  return '/bin/zsh'
+}
 
 function parseBoolean(value: string | undefined, fallback: boolean) {
   if (value == null)
@@ -82,7 +121,7 @@ function parseDisplaySize(value: string | undefined, fallback: DisplaySize): Dis
   if (!value)
     return fallback
 
-  const match = value.trim().match(/^(\d+)x(\d+)$/i)
+  const match = value.trim().match(DISPLAY_SIZE_RE)
   if (!match) {
     throw new Error(`invalid COMPUTER_USE_REMOTE_DISPLAY_SIZE: ${value}`)
   }
@@ -113,6 +152,7 @@ function inferPortFromUrl(value: string | undefined) {
 }
 
 export function resolveComputerUseConfig(): ComputerUseConfig {
+  const hostPlatform = platform
   const executor = parseExecutor(env.COMPUTER_USE_EXECUTOR)
   const sessionRoot = env.COMPUTER_USE_SESSION_ROOT?.trim() || join(cwd(), '.computer-use-mcp')
   const launchHostProcess = env.COMPUTER_USE_LAUNCH_HOST_PROCESS?.trim()
@@ -161,7 +201,7 @@ export function resolveComputerUseConfig(): ComputerUseConfig {
     allowApps: parseList(env.COMPUTER_USE_ALLOW_APPS),
     denyApps: parseList(env.COMPUTER_USE_DENY_APPS, defaultDeniedApps),
     denyWindowTitles: parseList(env.COMPUTER_USE_DENY_WINDOW_TITLES),
-    openableApps: parseList(env.COMPUTER_USE_OPENABLE_APPS, defaultOpenableApps),
+    openableApps: parseList(env.COMPUTER_USE_OPENABLE_APPS, resolveDefaultOpenableApps(executor, hostPlatform)),
     timeoutMs: parseInteger(env.COMPUTER_USE_TIMEOUT_MS, 15_000),
     sessionTag: env.COMPUTER_USE_SESSION_TAG?.trim() || undefined,
     launchHostProcess,
@@ -174,11 +214,11 @@ export function resolveComputerUseConfig(): ComputerUseConfig {
     requireSessionTagForMutatingActions,
     requireAllowedBoundsForMutatingActions,
     requireCoordinateAlignmentForMutatingActions,
-    terminalShell: env.COMPUTER_USE_TERMINAL_SHELL?.trim() || env.SHELL?.trim() || '/bin/zsh',
+    terminalShell: env.COMPUTER_USE_TERMINAL_SHELL?.trim() || env.SHELL?.trim() || resolveDefaultTerminalShell(hostPlatform),
     remoteSshHost,
     remoteSshUser,
     remoteSshPort: parseInteger(env.COMPUTER_USE_REMOTE_SSH_PORT, 22),
-    remoteRunnerCommand: env.COMPUTER_USE_REMOTE_RUNNER_COMMAND?.trim() || '~/.local/bin/airi-desktop-runner',
+    remoteRunnerCommand: normalizeHomePathToken(env.COMPUTER_USE_REMOTE_RUNNER_COMMAND?.trim() || '$HOME/.local/bin/airi-desktop-runner'),
     remoteDisplaySize,
     remoteObservationBaseUrl,
     remoteObservationServePort,

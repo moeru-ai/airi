@@ -27,6 +27,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { appNamesMatch, findKnownAppMention } from '../app-aliases'
 
 const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
+const WHITESPACE_SPLIT_RE = /\s+/
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -57,7 +58,7 @@ function createSmokeProjectDir() {
 
 async function createClient(overrides: Record<string, string> = {}): Promise<Client> {
   const command = env.COMPUTER_USE_SMOKE_SERVER_COMMAND?.trim() || 'pnpm'
-  const args = (env.COMPUTER_USE_SMOKE_SERVER_ARGS || 'start').split(/\s+/).filter(Boolean)
+  const args = (env.COMPUTER_USE_SMOKE_SERVER_ARGS || 'start').split(WHITESPACE_SPLIT_RE).filter(Boolean)
   const cwd = env.COMPUTER_USE_SMOKE_SERVER_CWD?.trim() || packageDir
 
   const transport = new StdioClientTransport({

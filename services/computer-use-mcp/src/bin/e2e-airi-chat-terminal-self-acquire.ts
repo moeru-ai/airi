@@ -76,6 +76,10 @@ const preferredDebugPort = Number(env.AIRI_E2E_DEBUG_PORT || '9222')
 const runId = new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-')
 const repoChangesCommand = 'git diff --stat -- services/computer-use-mcp packages/stage-ui apps/stage-tamagotchi'
 const summaryMarker = 'Terminal self-acquire demo complete.'
+const DOTENV_LINE_SPLIT_RE = /\r?\n/u
+const QUOTED_VALUE_RE = /^['"]|['"]$/gu
+const DEVTOOLS_BROWSER_WS_PATH_RE = /\/devtools\/browser\/[^/]+$/
+const DEVTOOLS_LISTENING_RE = /DevTools listening on (ws:\/\/\S+)/
 const promptText = [
   `Use MCP tools to validate the AIRI repository at ${repoDir}.`,
   'Call the real workflow, do not narrate or simulate tool results.',
@@ -136,7 +140,7 @@ function addTimeline(event: string, detail?: Record<string, unknown>) {
 function parseDotEnv(text: string) {
   const values: Record<string, string> = {}
 
-  for (const line of text.split(/\r?\n/u)) {
+  for (const line of text.split(DOTENV_LINE_SPLIT_RE)) {
     const trimmed = line.trim()
     if (!trimmed || trimmed.startsWith('#')) {
       continue
@@ -149,7 +153,7 @@ function parseDotEnv(text: string) {
 
     const key = trimmed.slice(0, separatorIndex).trim()
     const rawValue = trimmed.slice(separatorIndex + 1).trim()
-    const unwrapped = rawValue.replace(/^['"]|['"]$/gu, '')
+    const unwrapped = rawValue.replace(QUOTED_VALUE_RE, '')
     values[key] = unwrapped
   }
 
@@ -468,7 +472,7 @@ async function listDebugTargets(browserWsUrl: string) {
           title: String(target.title || ''),
           type: String(target.type || ''),
           url: String(target.url || ''),
-          webSocketDebuggerUrl: browserWsUrl.replace(/\/devtools\/browser\/[^/]+$/, `/devtools/page/${targetId}`),
+          webSocketDebuggerUrl: browserWsUrl.replace(DEVTOOLS_BROWSER_WS_PATH_RE, `/devtools/page/${targetId}`),
         } satisfies DebugTarget
       })
   }
@@ -669,14 +673,14 @@ async function main() {
 
     stageProcess.stdout.on('data', (chunk) => {
       stageLogStream.write(chunk)
-      const match = chunk.toString('utf-8').match(/DevTools listening on (ws:\/\/\S+)/)
+      const match = chunk.toString('utf-8').match(DEVTOOLS_LISTENING_RE)
       if (match?.[1]) {
         browserWsUrl = match[1]
       }
     })
     stageProcess.stderr.on('data', (chunk) => {
       stageLogStream.write(chunk)
-      const match = chunk.toString('utf-8').match(/DevTools listening on (ws:\/\/\S+)/)
+      const match = chunk.toString('utf-8').match(DEVTOOLS_LISTENING_RE)
       if (match?.[1]) {
         browserWsUrl = match[1]
       }

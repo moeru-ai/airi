@@ -1,12 +1,12 @@
 import type { ComputerUseConfig } from '../types'
 
+import process from 'node:process'
+
 import { spawn } from 'node:child_process'
 
 import { runProcess } from '../utils/process'
 
-function quoteShell(value: string) {
-  return `'${value.replaceAll(`'`, `'\\''`)}'`
-}
+const HOME_PREFIX_RE = /^~(?=\/|$)/
 
 function buildSshTarget(config: ComputerUseConfig) {
   if (!config.remoteSshHost || !config.remoteSshUser) {
@@ -17,7 +17,7 @@ function buildSshTarget(config: ComputerUseConfig) {
 }
 
 export function normalizeRemoteShellPath(value: string) {
-  return value.replace(/^~(?=\/|$)/, '${HOME}')
+  return value.replace(HOME_PREFIX_RE, '$HOME')
 }
 
 export function buildRemoteShellCommandArgs(config: ComputerUseConfig, command: string) {
@@ -34,7 +34,7 @@ export function buildRemoteShellCommandArgs(config: ComputerUseConfig, command: 
     buildSshTarget(config),
     'sh',
     '-lc',
-    quoteShell(command),
+    command,
   ]
 }
 

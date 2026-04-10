@@ -36,10 +36,11 @@ export interface BrowserAgentTaskResult {
 
 const computerUseRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../bin/computer_use')
 const cliModule = 'google_computer_use.cli'
+const CRLF_SPLIT_RE = /\r?\n/u
 
 function trimNonEmptyLines(text: string) {
   return text
-    .split(/\r?\n/u)
+    .split(CRLF_SPLIT_RE)
     .map(line => line.trim())
     .filter(Boolean)
 }

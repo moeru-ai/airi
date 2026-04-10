@@ -612,32 +612,13 @@ const KNOWN_BROWSERS = new Set([
   'chromium',
   'orion',
 ])
+const APP_SUFFIX_RE = /\.app$/u
 
 /** Check if the foreground app is a known web browser. */
 function isBrowserApp(appName: string | undefined): boolean {
   if (!appName)
     return false
-  return KNOWN_BROWSERS.has(appName.trim().toLowerCase().replace(/\.app$/u, ''))
-}
-
-const TERMINAL_APPS = new Set([
-  'terminal',
-  'iterm2',
-  'iterm',
-  'alacritty',
-  'kitty',
-  'wezterm',
-  'hyper',
-  'warp',
-  'rio',
-  'ghostty',
-])
-
-/** Check if the foreground app is a known terminal emulator. */
-function isTerminalApp(appName: string | undefined): boolean {
-  if (!appName)
-    return false
-  return TERMINAL_APPS.has(appName.trim().toLowerCase().replace(/\.app$/u, ''))
+  return KNOWN_BROWSERS.has(appName.trim().toLowerCase().replace(APP_SUFFIX_RE, ''))
 }
 
 const KNOWN_TUI_PROGRAMS = [

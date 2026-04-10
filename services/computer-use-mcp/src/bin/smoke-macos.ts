@@ -6,13 +6,14 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
 const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
+const WHITESPACE_SPLIT_RE = /\s+/
 
 function parseCommandArgs(raw: string | undefined, fallback: string[]) {
   if (!raw?.trim())
     return fallback
 
   return raw
-    .split(/\s+/)
+    .split(WHITESPACE_SPLIT_RE)
     .map(item => item.trim())
     .filter(Boolean)
 }

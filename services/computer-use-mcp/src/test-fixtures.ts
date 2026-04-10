@@ -34,7 +34,7 @@ export function createTestConfig(overrides: Partial<ComputerUseConfig> = {}): Co
     remoteSshHost: '20.196.212.37',
     remoteSshUser: 'airi',
     remoteSshPort: 22,
-    remoteRunnerCommand: '~/.local/bin/airi-desktop-runner',
+    remoteRunnerCommand: '$HOME/.local/bin/airi-desktop-runner',
     remoteDisplaySize: {
       width: 1280,
       height: 720,

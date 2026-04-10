@@ -19,12 +19,15 @@ const knownApps: KnownAppDefinition[] = [
   { canonical: 'Electron', aliases: ['electron'] },
 ]
 
+const APP_SUFFIX_RE = /\.app$/u
+const WHITESPACE_RE = /\s+/gu
+
 function normalizeAppNameKey(value: string) {
   return value
     .trim()
     .toLowerCase()
-    .replace(/\.app$/u, '')
-    .replace(/\s+/gu, ' ')
+    .replace(APP_SUFFIX_RE, '')
+    .replace(WHITESPACE_RE, ' ')
 }
 
 function getCanonicalKnownAppName(value: string) {

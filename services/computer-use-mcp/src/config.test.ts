@@ -34,7 +34,7 @@ describe('resolveComputerUseConfig', () => {
     expect(config.remoteSshHost).toBe('20.196.212.37')
     expect(config.remoteSshUser).toBe('airi')
     expect(config.remoteSshPort).toBe(2201)
-    expect(config.remoteRunnerCommand).toBe('~/.local/bin/custom-runner')
+    expect(config.remoteRunnerCommand).toBe('$HOME/.local/bin/custom-runner')
     expect(config.remoteDisplaySize).toEqual({
       width: 1366,
       height: 768,

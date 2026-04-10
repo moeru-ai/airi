@@ -1,6 +1,8 @@
 import type { ComputerUseConfig, DesktopExecutor, TerminalRunner } from '../types'
 import type { CdpBridgeManager } from './cdp-manager'
 
+import { platform } from 'node:process'
+
 import { BrowserDomExtensionBridge } from '../browser-dom/extension-bridge'
 import { resolveComputerUseConfig } from '../config'
 import { createDryRunExecutor } from '../executors/dry-run'
@@ -33,6 +35,10 @@ export interface ComputerUseServerRuntime {
 function createExecutor(config: ComputerUseConfig, options: ComputerUseServerOptions = {}): DesktopExecutor {
   if (options.executorFactory)
     return options.executorFactory(config)
+
+  if (config.executor === 'macos-local' && platform !== 'darwin') {
+    throw new Error(`macos-local executor requires a darwin host, current platform is ${platform}`)
+  }
 
   if (config.executor === 'linux-x11')
     return createLinuxX11Executor(config)

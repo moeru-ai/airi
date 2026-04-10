@@ -16,10 +16,11 @@ import type {
   WindowObservation,
 } from '../types'
 
+import process, { platform } from 'node:process'
+
 import { existsSync, readdirSync } from 'node:fs'
 import { hostname } from 'node:os'
 import { join } from 'node:path'
-import { platform } from 'node:process'
 
 import { appNamesMatch, getKnownAppLaunchNames } from '../app-aliases'
 import { probeDisplayInfo, probePermissionInfo } from '../runtime-probes'
@@ -32,6 +33,8 @@ const buttonNames = {
   right: 1,
   middle: 2,
 } as const
+
+const APP_SUFFIX_RE = /\.app$/u
 
 const keyCodeMap: Record<string, number> = {
   a: 0,
@@ -419,12 +422,12 @@ function resolveInstalledMacAppName(app: string) {
         return false
       }
 
-      const bundleName = entry.replace(/\.app$/u, '')
+      const bundleName = entry.replace(APP_SUFFIX_RE, '')
       return getKnownAppLaunchNames(app).some(candidate => appNamesMatch(bundleName, candidate))
     })
 
     if (appBundle) {
-      return appBundle.replace(/\.app$/u, '')
+      return appBundle.replace(APP_SUFFIX_RE, '')
     }
   }
 

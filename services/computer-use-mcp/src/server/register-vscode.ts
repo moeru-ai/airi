@@ -53,6 +53,8 @@ const CODE_CLI_CANDIDATES = [
   'code-insiders',
   'cursor',
 ] as const
+const TYPESCRIPT_ERROR_LINE_RE = /^([^(]+)\((\d+),(\d+)\): +(error|warning) +(TS\d+): +(\S.*)$/
+const VUE_TSC_ERROR_LINE_RE = /^([^:]+):(\d+):(\d+) +- +(error|warning) +(TS\d+): +(\S.*)$/
 
 /**
  * Attempt to detect the active `code` CLI binary.
@@ -380,10 +382,9 @@ export function registerVscodeTools({ server, runtime, executeTerminalCommand }:
       const output = truncated ? lines.slice(0, limit).join('\n') : combined
 
       // Parse TypeScript-style error lines: "src/foo.ts(10,5): error TS2345: ..."
-      const errorPattern = /^([^(]+)\((\d+),(\d+)\): +(error|warning) +(TS\d+): +(\S.*)$/
       const problems: VscodeProblem[] = []
       for (const line of lines) {
-        const match = line.match(errorPattern)
+        const match = line.match(TYPESCRIPT_ERROR_LINE_RE)
         if (match) {
           problems.push({
             file: match[1],
@@ -397,9 +398,8 @@ export function registerVscodeTools({ server, runtime, executeTerminalCommand }:
       }
 
       // Also try "file:line:col - error TS..." format (vue-tsc)
-      const vueTscPattern = /^([^:]+):(\d+):(\d+) +- +(error|warning) +(TS\d+): +(\S.*)$/
       for (const line of lines) {
-        const match = line.match(vueTscPattern)
+        const match = line.match(VUE_TSC_ERROR_LINE_RE)
         if (match && !problems.some(p => p.file === match[1] && p.line === Number(match[2]))) {
           problems.push({
             file: match[1],

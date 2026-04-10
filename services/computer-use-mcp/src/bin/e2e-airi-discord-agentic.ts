@@ -127,6 +127,11 @@ const discordBotLogPath = resolve(reportDir, 'discord-bot.log')
 const mcpSessionRoot = resolve(reportDir, 'computer-use-session')
 const rootEnvPath = resolve(repoDir, '.env')
 const verifyDiscordBot = parseBooleanEnv(env.AIRI_E2E_DISCORD_VERIFY_BOT, false)
+const WHITESPACE_SPLIT_RE = /\s+/
+const DOTENV_LINE_SPLIT_RE = /\r?\n/u
+const QUOTED_VALUE_RE = /^['"]|['"]$/gu
+const DEVTOOLS_BROWSER_WS_PATH_RE = /\/devtools\/browser\/[^/]+$/
+const DEVTOOLS_LISTENING_RE = /DevTools listening on (ws:\/\/\S+)/
 
 const execFileAsync = promisify(execFile)
 
@@ -183,7 +188,7 @@ function parseCommandArgs(raw: string | undefined, fallback: string[]) {
   }
 
   return raw
-    .split(/\s+/)
+    .split(WHITESPACE_SPLIT_RE)
     .map(item => item.trim())
     .filter(Boolean)
 }
@@ -296,7 +301,7 @@ async function waitFor<T>(label: string, task: () => Promise<T | undefined>, tim
 function parseDotEnv(text: string) {
   const values: Record<string, string> = {}
 
-  for (const line of text.split(/\r?\n/u)) {
+  for (const line of text.split(DOTENV_LINE_SPLIT_RE)) {
     const trimmed = line.trim()
     if (!trimmed || trimmed.startsWith('#')) {
       continue
@@ -309,7 +314,7 @@ function parseDotEnv(text: string) {
 
     const key = trimmed.slice(0, separatorIndex).trim()
     const rawValue = trimmed.slice(separatorIndex + 1).trim()
-    const unwrapped = rawValue.replace(/^['"]|['"]$/gu, '')
+    const unwrapped = rawValue.replace(QUOTED_VALUE_RE, '')
     values[key] = unwrapped
   }
 
@@ -358,7 +363,7 @@ function createLineListener(onLine: (line: string) => void) {
 
   return (chunk: { toString: (encoding: string) => string }) => {
     buffer += chunk.toString('utf-8')
-    const lines = buffer.split(/\r?\n/u)
+    const lines = buffer.split(DOTENV_LINE_SPLIT_RE)
     buffer = lines.pop() ?? ''
 
     for (const line of lines) {
@@ -476,7 +481,7 @@ async function listDebugTargets(browserWsUrl: string) {
           title: String(target.title || ''),
           type: String(target.type || ''),
           url: String(target.url || ''),
-          webSocketDebuggerUrl: browserWsUrl.replace(/\/devtools\/browser\/[^/]+$/, `/devtools/page/${targetId}`),
+          webSocketDebuggerUrl: browserWsUrl.replace(DEVTOOLS_BROWSER_WS_PATH_RE, `/devtools/page/${targetId}`),
         } satisfies DebugTarget
       })
   }
@@ -658,7 +663,7 @@ async function main() {
     })
 
     const onStageChunk = createLineListener((line) => {
-      const match = line.match(/DevTools listening on (ws:\/\/\S+)/)
+      const match = line.match(DEVTOOLS_LISTENING_RE)
       if (match?.[1]) {
         browserWsUrl = match[1]
       }

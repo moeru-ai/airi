@@ -21,6 +21,8 @@ import type {
   RunnerScreenshotResult,
 } from './protocol'
 
+import process, { platform } from 'node:process'
+
 import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { createReadStream } from 'node:fs'
@@ -28,12 +30,18 @@ import { access, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { homedir, tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
-import { platform } from 'node:process'
 
 import { runProcess, sanitizeFileSegment } from '../utils/process'
 
 const sessionDisplayStart = 90
 const sessionDisplayEnd = 110
+const ACTIVE_WINDOW_ID_RE = /window id # (0x[0-9a-fA-F]+)/
+const XPROP_TITLE_RE = /=\s*"([^"]*)"/
+const XPROP_CLASS_RE = /=\s*"([^"]*)",\s*"([^"]*)"/
+const CRLF_SPLIT_RE = /\r?\n/
+const WHITESPACE_SPLIT_RE = /\s+/
+const TRAILING_SLASH_RE = /\/$/
+const DUPLICATE_SLASH_RE = /\/{2,}/g
 
 async function sleep(durationMs: number) {
   await new Promise(resolve => setTimeout(resolve, durationMs))
@@ -199,7 +207,7 @@ export class LinuxX11RunnerService {
         timeoutMs: 5_000,
         env: this.getX11Env(),
       })
-      const match = stdout.match(/window id # (0x[0-9a-fA-F]+)/)
+      const match = stdout.match(ACTIVE_WINDOW_ID_RE)
       if (!match || match[1] === '0x0') {
         return {
           available: false,
@@ -220,8 +228,8 @@ export class LinuxX11RunnerService {
         }).catch(() => ({ stdout: '', stderr: '' })),
       ])
 
-      const title = titleResult.stdout.match(/=\s*"([^"]*)"/)?.[1]
-      const classes = classResult.stdout.match(/=\s*"([^"]*)",\s*"([^"]*)"/)
+      const title = titleResult.stdout.match(XPROP_TITLE_RE)?.[1]
+      const classes = classResult.stdout.match(XPROP_CLASS_RE)
 
       return {
         available: true,
@@ -521,12 +529,12 @@ export class LinuxX11RunnerService {
         env: this.getX11Env(),
       }).catch(() => ({ stdout: '', stderr: '' }))
 
-      const match = stdout.split(/\r?\n/).find((line) => {
-        return line.trim().split(/\s+/)[2] === String(pid)
+      const match = stdout.split(CRLF_SPLIT_RE).find((line) => {
+        return line.trim().split(WHITESPACE_SPLIT_RE)[2] === String(pid)
       })
 
       if (match) {
-        return match.trim().split(/\s+/)[0]
+        return match.trim().split(WHITESPACE_SPLIT_RE)[0]
       }
 
       await sleep(250)
@@ -649,7 +657,7 @@ export class LinuxX11RunnerService {
       return ''
     }
 
-    return this.observationBaseUrl.pathname.replace(/\/$/, '')
+    return this.observationBaseUrl.pathname.replace(TRAILING_SLASH_RE, '')
   }
 
   private buildObservationPublicUrl(fileName: string) {
@@ -658,7 +666,7 @@ export class LinuxX11RunnerService {
     }
 
     const basePath = this.getObservationBasePath()
-    const pathName = `${basePath}/${this.observationToken}/${fileName}`.replace(/\/{2,}/g, '/')
+    const pathName = `${basePath}/${this.observationToken}/${fileName}`.replace(DUPLICATE_SLASH_RE, '/')
     return new URL(pathName, this.observationBaseUrl).toString()
   }
 
