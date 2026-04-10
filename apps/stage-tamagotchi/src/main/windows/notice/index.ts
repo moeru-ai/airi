@@ -7,6 +7,7 @@ import type { ServerChannel } from '../../services/airi/channel-server'
 import { join, resolve } from 'node:path'
 
 import { defineInvokeHandler } from '@moeru/eventa'
+import { safeClose } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow as ElectronBrowserWindow, shell } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
@@ -67,8 +68,7 @@ export function setupNoticeWindowManager(params: {
           if (!action?.id || action.id !== handle.id)
             return
           resolve(action.action === 'confirm')
-          if (!handle.window.isDestroyed())
-            handle.window.close()
+          safeClose(handle.window)
         })
       })
     },

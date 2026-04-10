@@ -1,0 +1,21 @@
+diff --git a/package.json b/package.json
+index 83bc399d520005d0077448e26652bab17e22ef99..367ed097cf66ed8a906d89eeff168327664a04d0 100644
+--- a/package.json
++++ b/package.json
+@@ -6,10 +6,12 @@
+   "browser": "vision_bundle.mjs",
+   "module": "vision_bundle.mjs",
+   "exports": {
+-    "import": "./vision_bundle.mjs",
+-    "require": "./vision_bundle.cjs",
+-    "default": "./vision_bundle.mjs",
+-    "types": "./vision.d.ts",
++    ".": {
++      "import": "./vision_bundle.mjs",
++      "require": "./vision_bundle.cjs",
++      "default": "./vision_bundle.mjs",
++      "types": "./vision.d.ts"
++    },
+     "./vision_wasm_internal.js": "./vision_wasm_internal.js",
+     "./vision_wasm_internal.wasm": "./vision_wasm_internal.wasm",
+     "./vision_wasm_nosimd_internal.js": "./vision_wasm_nosimd_internal.js",

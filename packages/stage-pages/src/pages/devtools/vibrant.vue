@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { InputFile } from '@proj-airi/ui'
+import { InputFileCard } from '@proj-airi/ui'
 import { Vibrant } from 'node-vibrant/browser'
 import { ref, watch } from 'vue'
 
@@ -49,7 +49,7 @@ watch(files, (files) => {
       {{ colorsDebug }}
     </div>
     <div flex gap-2>
-      <InputFile v-model="files" h-60 w-full />
+      <InputFileCard v-model="files" h-60 w-full />
     </div>
     <div
       h-60

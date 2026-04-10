@@ -50,10 +50,11 @@ export function useOptimisticMutation<T, R = T, E = unknown>(options: UseOptimis
   } = options
 
   return useAsyncState(async () => {
-    const rollback = await apply()
     if (skipActionIf && await skipActionIf()) {
       return undefined as R
     }
+
+    const rollback = await apply()
 
     try {
       const result = await action()

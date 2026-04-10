@@ -1,0 +1,43 @@
+name: Update (Post Release) README URLs
+
+on:
+  release:
+    types:
+      - released
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., v0.9.0-alpha.7)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Update README download links
+        run: pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/update-readme-download-links.ts ${{ github.event.release.tag_name || inputs.tag }}
+
+      - name: Pull with rebase
+        run: git pull origin main --rebase --autostash
+
+      - uses: stefanzweifel/git-auto-commit-action@v6
+        with:
+          commit_message: 'chore: update README release artifacts to ${{ github.event.release.tag_name || inputs.tag }}'
+          commit_author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>

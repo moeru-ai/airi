@@ -28,6 +28,15 @@ export interface ChatDataStore {
 }
 
 export function createChatDataStore(access: ChatDataAccess): ChatDataStore {
+  function cloneDeep<T>(value: T): T {
+    try {
+      return structuredClone(value)
+    }
+    catch {
+      return JSON.parse(JSON.stringify(value)) as T
+    }
+  }
+
   function ensureGeneration(sessionId: string) {
     const generations = access.getGenerations()
     if (generations[sessionId] === undefined)
@@ -118,7 +127,7 @@ export function createChatDataStore(access: ChatDataAccess): ChatDataStore {
   }
 
   function getAllSessions() {
-    return JSON.parse(JSON.stringify(access.getSessions())) as Record<string, ChatHistoryItem[]>
+    return cloneDeep(access.getSessions())
   }
 
   function getSessionGenerationValue(sessionId?: string) {

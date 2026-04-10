@@ -23,11 +23,22 @@ export interface AutoUpdaterError {
   message: string
 }
 
+export interface AutoUpdaterDiagnostics {
+  platform: string
+  arch: string
+  channel: string
+  feedUrl?: string
+  logFilePath: string
+  executablePath: string
+  isOverrideActive: boolean
+}
+
 export interface AutoUpdaterState {
   status: AutoUpdaterStatus
   info?: Omit<UpdateInfo, 'path' | 'sha512'>
   progress?: AutoUpdaterProgress
   error?: AutoUpdaterError
+  diagnostics?: AutoUpdaterDiagnostics
 }
 
 export const electronAutoUpdaterStateChanged = defineEventa<AutoUpdaterState>('eventa:event:electron:auto-updater:state-changed')

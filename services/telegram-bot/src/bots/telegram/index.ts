@@ -55,7 +55,7 @@ async function dispatchAction(ctx: BotContext, action: Action, abortController: 
         }
       }
 
-      return () => handleLoopStep(ctx, chatCtx)
+      return
     }
     case 'send_sticker':
     {
@@ -135,7 +135,7 @@ async function dispatchAction(ctx: BotContext, action: Action, abortController: 
         chatCtx.actions.push({ action, result: `AIRI System: List of chats:${(await listJoinedChats()).map(chat => `ID:${chat.chat_id}, Name:${chat.chat_name}`).join('\n')}` })
       }
 
-      return () => handleLoopStep(ctx, chatCtx)
+      return
     case 'send_message':
     {
       const chatCtx = ensureChatContext(ctx, action.chatId)
@@ -168,8 +168,6 @@ async function dispatchAction(ctx: BotContext, action: Action, abortController: 
       if (chatCtx) {
         chatCtx.messages.push(message.user(`AIRI System: The action you sent ${action.action} haven't implemented yet by developer.`))
       }
-
-      return () => handleLoopStep(ctx, chatCtx)
   }
 }
 
@@ -223,9 +221,7 @@ async function handleLoopStep(ctx: BotContext, chatCtx: ChatContext, incomingMes
       ctx.lastInteractedNChatIds = ctx.lastInteractedNChatIds.slice(-5)
     }
 
-    if (chatCtx.messages == null) {
-      chatCtx.messages = []
-    }
+    chatCtx.messages ??= []
     if (chatCtx.messages.length > 20) {
       const length = chatCtx.messages.length
       // pick the latest 5
@@ -233,9 +229,7 @@ async function handleLoopStep(ctx: BotContext, chatCtx: ChatContext, incomingMes
       chatCtx.messages.push(message.user(`AIRI System: Approaching to system context limit, reducing... memory..., reduced from ${length} to ${chatCtx.messages.length}, history may lost.`))
     }
 
-    if (chatCtx.actions == null) {
-      chatCtx.actions = []
-    }
+    chatCtx.actions ??= []
     if (chatCtx.actions.length > 50) {
       const length = chatCtx.actions.length
       // pick the latest 20

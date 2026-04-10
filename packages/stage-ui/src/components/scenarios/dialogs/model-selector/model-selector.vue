@@ -5,12 +5,17 @@ import { Button } from '@proj-airi/ui'
 import { useFileDialog } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger, EditableArea, EditableEditTrigger, EditableInput, EditablePreview, EditableRoot, EditableSubmitTrigger } from 'reka-ui'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../../../../stores/display-models'
 
-const emits = defineEmits<{ (e: 'close', value: void): void }>()
-const selectedModel = defineModel<DisplayModel | undefined>({ type: Object, required: false })
+const props = defineProps<{
+  selectedModel?: DisplayModel
+}>()
+const emits = defineEmits<{
+  (e: 'close', value: void): void
+  (e: 'pick', value: DisplayModel | undefined): void
+}>()
 
 const displayModelStore = useDisplayModelsStore()
 const { displayModelsFromIndexedDBLoading, displayModels } = storeToRefs(displayModelStore)
@@ -19,7 +24,11 @@ function handleRemoveModel(model: DisplayModel) {
   displayModelStore.removeDisplayModel(model.id)
 }
 
-const highlightDisplayModelCard = ref<string | undefined>(selectedModel.value?.id)
+const highlightDisplayModelCard = ref<string | undefined>(props.selectedModel?.id)
+
+watch(() => props.selectedModel?.id, (modelId) => {
+  highlightDisplayModelCard.value = modelId
+}, { immediate: true })
 
 function handleAddLive2DModel(file: FileList | null) {
   if (file === null || file.length === 0)
@@ -31,12 +40,13 @@ function handleAddLive2DModel(file: FileList | null) {
 }
 
 function handlePick(m: DisplayModel) {
-  selectedModel.value = m
+  highlightDisplayModelCard.value = m.id
+  emits('pick', m)
   emits('close', undefined)
 }
 
 function handleMobilePick() {
-  selectedModel.value = displayModels.value.find(model => model.id === highlightDisplayModelCard.value)
+  emits('pick', displayModels.value.find(model => model.id === highlightDisplayModelCard.value))
   emits('close', undefined)
 }
 
@@ -180,8 +190,8 @@ vrmDialog.onChange(handleAddVRMModel)
             aspect="12/16"
             px-1 py-2
           >
-            <img v-if="model.previewImage" :src="model.previewImage" h-full w-full rounded-lg object-cover :class="[highlightDisplayModelCard && highlightDisplayModelCard === model.id ? 'ring-3 ring-primary-400' : 'ring-0 ring-transparent']" transition="all duration-200 ease-in-out">
-            <div v-else bg="neutral-100 dark:neutral-900" relative h-full w-full flex flex-col items-center justify-center gap-2 overflow-hidden rounded-lg :class="[highlightDisplayModelCard && highlightDisplayModelCard === model.id ? 'ring-3 ring-primary-400' : 'ring-0 ring-transparent']" transition="all duration-200 ease-in-out">
+            <img v-if="model.previewImage" :src="model.previewImage" h-full w-full rounded-xl object-cover :class="[highlightDisplayModelCard && highlightDisplayModelCard === model.id ? 'ring-3 ring-primary-400' : 'ring-0 ring-transparent']" transition="all duration-200 ease-in-out">
+            <div v-else bg="neutral-100 dark:neutral-900" relative h-full w-full flex flex-col items-center justify-center gap-2 overflow-hidden rounded-xl :class="[highlightDisplayModelCard && highlightDisplayModelCard === model.id ? 'ring-3 ring-primary-400' : 'ring-0 ring-transparent']" transition="all duration-200 ease-in-out">
               <div i-solar:question-square-bold-duotone text-4xl opacity-75 />
               <div translate-y="100%" absolute top-0 flex flex-col translate-x--7 rotate-45 scale-250 gap-0 opacity-5>
                 <div text="sm sm:sm" translate-x-7 translate-y--2 text-nowrap>
@@ -197,7 +207,7 @@ vrmDialog.onChange(handleAddVRMModel)
             </div>
           </div>
           <div w-full flex flex-col>
-            <div w-full flex-1 p-2>
+            <div w-full flex-1 px-2 py-4>
               <EditableRoot
                 v-slot="{ isEditing }"
                 :default-value="model.name"

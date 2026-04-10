@@ -192,7 +192,7 @@ export function useActiveAnchor(
 
     // page bottom - highlight last link
     if (isBottom) {
-      activateLink(headers[headers.length - 1]!.link)
+      activateLink(headers.at(-1)!.link)
       return
     }
 

@@ -1,0 +1,7 @@
+interface:
+  display_name: 'xsAI'
+  short_description: 'Use xsAI for minimal OpenAI-compatible code'
+  default_prompt: 'Use $xsai to choose the smallest xsAI package and build a runnable OpenAI-compatible example.'
+
+policy:
+  allow_implicit_invocation: true

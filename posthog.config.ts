@@ -2,8 +2,16 @@
 
 import type { PostHogConfig } from 'posthog-js'
 
-// These PostHog project API keys are considered public and are safe
-// to be stored here as clear text.
+function isEnvFlagEnabled(value: string | undefined): boolean {
+  if (value == null)
+    return false
+
+  // eslint-disable-next-line e18e/prefer-static-regex
+  return /^(?:1|true|t|yes|y|on)$/i.test(value.trim())
+}
+
+// For Release workflows set `VITE_ENABLE_POSTHOG=true`.
+export const POSTHOG_ENABLED = isEnvFlagEnabled(import.meta.env.VITE_ENABLE_POSTHOG)
 
 export const POSTHOG_PROJECT_KEY_WEB
   = import.meta.env.VITE_POSTHOG_PROJECT_KEY_WEB

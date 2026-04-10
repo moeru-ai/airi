@@ -307,7 +307,7 @@ async function writeLine<T extends any[]>(
   format: string,
   ...args: [...T, WriteLineOptions?]
 ): Promise<void> {
-  const options = args.length > 0 && typeof args[args.length - 1] === 'object'
+  const options = args.length > 0 && typeof args.at(-1) === 'object'
     ? args.pop() as WriteLineOptions
     : {}
 

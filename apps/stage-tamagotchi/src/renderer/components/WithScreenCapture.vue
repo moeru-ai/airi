@@ -21,10 +21,12 @@ const { t } = useI18n()
 const {
   getSources,
   setSource,
+  resetSource,
   selectWithSource,
   checkMacOSPermission,
   requestMacOSPermission,
 } = useElectronScreenCapture(window.electron.ipcRenderer, sourcesOptions)
+
 const focused = useWindowFocus()
 
 async function checkPermissions() {
@@ -62,6 +64,7 @@ watch(focused, async (isFocused) => {
     v-bind="{
       getSources,
       setSource,
+      resetSource,
       selectWithSource,
       hasPermissions,
       checkPermissions,

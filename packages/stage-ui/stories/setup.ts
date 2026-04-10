@@ -9,8 +9,8 @@ import ThemeColorsHueControl from './components/ThemeColorsHueControl.vue'
 
 import { i18n } from './modules/i18n'
 
-import 'uno.css'
 import '@unocss/reset/tailwind.css'
+import 'uno.css'
 import './styles/main.css'
 // Fonts
 import '@proj-airi/font-cjkfonts-allseto/index.css'
@@ -24,7 +24,7 @@ import '@fontsource/dm-serif-display'
 import '@fontsource/gugi'
 import '@fontsource/kiwi-maru'
 import '@fontsource/m-plus-rounded-1c'
-import '@fontsource/sniglet'
+import '@fontsource-variable/nunito'
 
 export const setupVue3 = defineSetupVue3(({ app }) => {
   app.use(MotionPlugin)

@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/font-cjkfonts-allseto",
   "type": "module",
-  "version": "0.9.0-alpha.5",
+  "version": "0.9.0",
   "description": "Essential CSS for font, cjkfonts 全瀨體, used by Project AIRI",
   "author": {
     "name": "Creators of cjkFonts",
@@ -18,8 +18,10 @@
     ".": { "default": "./dist/index.css" },
     "./index.css": { "default": "./dist/index.css" },
     "./files/*": { "default": "./dist/files/*" },
-    "./files/*.ttf": { "default": "./dist/files/*.ttf" }
+    "./files/*.ttf": { "default": "./dist/files/*.ttf" },
+    "./*": { "default": "./*.css" }
   },
+  "main": "./dist/index.css",
   "scripts": {
     "dev": "pnpm run build",
     "build": "tsdown"

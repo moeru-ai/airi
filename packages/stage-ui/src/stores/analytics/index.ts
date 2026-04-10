@@ -1,18 +1,45 @@
 import type { AboutBuildInfo } from '../../components/scenarios/about/types'
 
-import posthog from 'posthog-js'
+import { defineStore, storeToRefs } from 'pinia'
+import { ref, watch } from 'vue'
 
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { useBuildInfo } from '../../composables/use-build-info'
+import { useSettingsAnalytics } from '../settings/analytics'
+import {
+  isPosthogAvailableInBuild,
+  registerPosthogBuildInfo,
+  syncPosthogCapture,
+} from './posthog'
 
-import { useBuildInfo } from '../../composables'
+export * from './posthog'
+export * from './privacy-policy'
 
 export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
   const buildInfo = ref<AboutBuildInfo>(useBuildInfo())
+  const settingsAnalytics = useSettingsAnalytics()
+  const { analyticsEnabled } = storeToRefs(settingsAnalytics)
   const isInitialized = ref(false)
 
   const appStartTime = ref<number | null>(null)
   const firstMessageTracked = ref(false)
+
+  watch(analyticsEnabled, (enabled, previousEnabled) => {
+    if (!isInitialized.value)
+      return
+
+    const shouldCapture = syncPosthogCapture(enabled)
+    if (shouldCapture) {
+      // When analytics is enabled mid-session, invalidate appStartTime and
+      // mark first message as already tracked to avoid backfilling a stale
+      // event with a misleading duration or timing.
+      if (!previousEnabled && !firstMessageTracked.value) {
+        appStartTime.value = null
+        markFirstMessageTracked()
+      }
+
+      registerPosthogBuildInfo(buildInfo.value)
+    }
+  })
 
   function initialize() {
     if (isInitialized.value)
@@ -20,13 +47,11 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
 
     appStartTime.value = Date.now()
 
-    // Register metadata with PostHog after buildInfo is set
-    posthog.register({
-      app_version: (buildInfo.value.version && buildInfo.value.version !== '0.0.0') ? buildInfo.value.version : 'dev',
-      app_commit: buildInfo.value.commit,
-      app_branch: buildInfo.value.branch,
-      app_build_time: buildInfo.value.builtOn,
-    })
+    if (isPosthogAvailableInBuild()) {
+      const shouldCapture = syncPosthogCapture(analyticsEnabled.value)
+      if (shouldCapture)
+        registerPosthogBuildInfo(buildInfo.value)
+    }
 
     isInitialized.value = true
   }

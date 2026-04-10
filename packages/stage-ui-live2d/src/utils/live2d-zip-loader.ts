@@ -10,7 +10,7 @@ const defaultCreateSettings = ZipLoader.createSettings
 ZipLoader.createSettings = async (reader: JSZip) => {
   const filePaths = Object.keys(reader.files)
 
-  if (!filePaths.find(file => isSettingsFile(file))) {
+  if (!filePaths.some(file => isSettingsFile(file))) {
     return createFakeSettings(filePaths)
   }
 
@@ -18,7 +18,7 @@ ZipLoader.createSettings = async (reader: JSZip) => {
 }
 
 export function isSettingsFile(file: string) {
-  return file.endsWith('model3.json')
+  return file.endsWith('.model3.json') || file.endsWith('.model.json')
 }
 
 export function isMocFile(file: string) {

@@ -3,8 +3,8 @@ import type { ccv3 } from '@proj-airi/ccc'
 
 import { Alert } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { InputFile } from '@proj-airi/ui'
-import { Select } from '@proj-airi/ui/components/form'
+import { InputFileCard } from '@proj-airi/ui'
+import { ComboboxSelect } from '@proj-airi/ui/components/form'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -204,7 +204,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
         <div class="top-[-32px] whitespace-nowrap text-sm text-neutral-500 leading-10 lg:absolute dark:text-neutral-400">
           {{ t('settings.pages.card.sort_by') }}:
         </div>
-        <Select
+        <ComboboxSelect
           v-model="sortOption"
           :options="[
             { value: 'nameAsc', label: t('settings.pages.card.name_asc') },
@@ -223,7 +223,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
       :class="{ 'grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 grid-auto-rows-[minmax(min-content,max-content)] grid-auto-flow-dense sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] sm:gap-5 md:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(250px,1fr))]': cards.size > 0 }"
     >
       <!-- Upload card -->
-      <InputFile v-model="inputFiles" accept="*.json">
+      <InputFileCard v-model="inputFiles" accept="*.json">
         <template #default="{ isDragging }">
           <template v-if="!isDragging">
             <div flex flex-col items-center>
@@ -245,7 +245,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
             </div>
           </template>
         </template>
-      </InputFile>
+      </InputFileCard>
 
       <!-- Create card -->
       <CardCreate @click="handleCardCreationDialog" />

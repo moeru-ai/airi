@@ -33,6 +33,7 @@ import {
   merge,
 } from '@xsai-ext/providers/utils'
 import { listModels } from '@xsai/model'
+import { uniqBy } from 'es-toolkit'
 import { isWebGPUSupported } from 'gpuu/webgpu'
 import { defineStore } from 'pinia'
 import {
@@ -46,14 +47,15 @@ import {
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { listProviders as listDefinedProviders } from '../libs/providers'
-import { getProviderValidationIntervalMs } from '../libs/providers/validators/run'
+import { getProviderValidationIntervalMs, listProviders as listDefinedProviders, ProviderValidationCheck } from '../libs/providers'
 import { getKokoroWorker } from '../workers/kokoro'
 import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '../workers/kokoro/constants'
+import { useAuthStore } from './auth'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 import { convertProviderDefinitionsToMetadata } from './providers/converters'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
+import { buildOpenRouterAudioSpeechProvider } from './providers/openrouter/audio-speech'
 import { createWebSpeechAPIProvider } from './providers/web-speech-api'
 
 const ALIYUN_NLS_REGIONS = [
@@ -137,7 +139,14 @@ export interface ProviderMetadata {
     loadModel?: (config: Record<string, unknown>, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
   }
   validators: {
-    validateProviderConfig: (config: Record<string, unknown>) => Promise<{
+    /**
+     * Validate a provider's configuration.
+     *
+     * PITFALL: When `skipChatPingCheck` is not set, the ChatCompletions validator
+     * (if present) may send a real `generateText("ping")` request that consumes
+     * API tokens. All automatic/background callers may consider pass `skipChatPingCheck: true`.
+     */
+    validateProviderConfig: (config: Record<string, unknown>, options?: { skipChatPingCheck?: boolean, onlyChatPingCheck?: boolean }) => Promise<{
       errors: unknown[]
       reason: string
       valid: boolean
@@ -146,7 +155,19 @@ export interface ProviderMetadata {
       reason: string
       valid: boolean
     }
+    /**
+     * Whether the "skip chat ping check" checkbox should be shown in the UI.
+     *
+     * Automatically derived: `true` when the provider has a ChatCompletions
+     * runtime validator AND `disableChatPingCheckUI` is not set on the definition.
+     */
+    chatPingCheckAvailable: boolean
   }
+  /**
+   * If true, the provider does not require user-provided credentials (e.g. API keys).
+   * Used for official/built-in providers that authenticate via session.
+   */
+  requiresCredentials?: boolean
   transcriptionFeatures?: {
     supportsGenerate: boolean
     supportsStreamOutput: boolean
@@ -237,6 +258,7 @@ export const useProvidersStore = defineStore('providers', () => {
   }
 
   // Centralized provider metadata with provider factory functions
+  const authState = useAuthStore()
   const providerMetadata: Record<string, ProviderMetadata> = {
     'speech-noop': {
       id: 'speech-noop',
@@ -259,6 +281,7 @@ export const useProvidersStore = defineStore('providers', () => {
         listVoices: async () => [],
       },
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: () => ({
           errors: [],
           reason: '',
@@ -279,6 +302,7 @@ export const useProvidersStore = defineStore('providers', () => {
       creator: createOpenAI,
       validation: [],
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           if (!config.baseUrl) {
             return {
@@ -309,6 +333,7 @@ export const useProvidersStore = defineStore('providers', () => {
       creator: createOpenAI,
       validation: [],
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           if (!config.baseUrl) {
             return {
@@ -339,6 +364,7 @@ export const useProvidersStore = defineStore('providers', () => {
       creator: createOpenAI,
       validation: [],
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           if (!config.baseUrl) {
             return {
@@ -369,6 +395,7 @@ export const useProvidersStore = defineStore('providers', () => {
       creator: createOpenAI,
       validation: [],
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           if (!config.baseUrl) {
             return {
@@ -397,7 +424,7 @@ export const useProvidersStore = defineStore('providers', () => {
       tasks: ['text-to-speech'],
       defaultBaseUrl: 'https://api.openai.com/v1/',
       creator: createOpenAI,
-      validation: ['health'],
+      validation: [ProviderValidationCheck.Health],
       capabilities: {
         // NOTE: OpenAI does not provide an API endpoint to retrieve available voices.
         // Voices are hardcoded here - this is a provider limitation, not an application limitation.
@@ -542,6 +569,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API Key is required'),
@@ -628,7 +656,7 @@ export const useProvidersStore = defineStore('providers', () => {
       tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
       defaultBaseUrl: 'https://api.openai.com/v1/',
       creator: createOpenAI,
-      validation: ['health'],
+      validation: [ProviderValidationCheck.Health],
       capabilities: {
         listModels: async () => {
           // OpenAI transcription models are hardcoded (no API endpoint to list them)
@@ -677,6 +705,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API Key is required'),
@@ -778,6 +807,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors: Error[] = []
           const toString = (value: unknown) => typeof value === 'string' ? value.trim() : ''
@@ -857,6 +887,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: () => {
           // Web Speech API requires no configuration, just browser support
           // Always return valid if browser supports it, so it auto-configures
@@ -950,6 +981,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API key is required.'),
@@ -1034,6 +1066,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors: Error[] = []
           if (!config.apiKey) {
@@ -1099,6 +1132,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API key is required.'),
@@ -1175,6 +1209,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: async (config) => {
           const errors = [
             !config.baseUrl && new Error('Base URL is required. Default to http://localhost:11996/tts/ for Index-TTS.'),
@@ -1355,6 +1390,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API key is required.'),
@@ -1420,6 +1456,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API key is required.'),
@@ -1440,6 +1477,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'openrouter-audio-speech': buildOpenRouterAudioSpeechProvider(v => baseUrlValidator.value(v)),
     'comet-api-speech': buildOpenAICompatibleProvider({
       id: 'comet-api-speech',
       name: 'CometAPI Speech',
@@ -1454,7 +1492,7 @@ export const useProvidersStore = defineStore('providers', () => {
         createModelProvider({ apiKey, baseURL }),
         createSpeechProvider({ apiKey, baseURL }),
       ),
-      validation: ['model_list'],
+      validation: [ProviderValidationCheck.ModelList],
     }),
     'comet-api-transcription': buildOpenAICompatibleProvider({
       id: 'comet-api-transcription',
@@ -1470,7 +1508,7 @@ export const useProvidersStore = defineStore('providers', () => {
         createModelProvider({ apiKey, baseURL }),
         createTranscriptionProvider({ apiKey, baseURL }),
       ),
-      validation: ['model_list'],
+      validation: [ProviderValidationCheck.ModelList],
     }),
     'player2-speech': {
       id: 'player2-speech',
@@ -1553,6 +1591,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: async (config) => {
           const errors = [
             !config.baseUrl && new Error('Base URL is required. Default to http://localhost:4315/v1/'),
@@ -1753,6 +1792,7 @@ export const useProvidersStore = defineStore('providers', () => {
       },
 
       validators: {
+        chatPingCheckAvailable: false,
         validateProviderConfig: async (config: any) => {
           const model = config.model as string
 
@@ -1804,7 +1844,7 @@ export const useProvidersStore = defineStore('providers', () => {
     }
   }
 
-  // Keep only legacy ASR/TTS providers as hand-written metadata.
+  // Keep only legacy ASR/TTS providers and official providers as hand-written metadata.
   // All other categories are sourced from unified definitions in libs/providers.
   for (const [providerId, existing] of Object.entries(providerMetadata)) {
     if (existing.category !== 'speech' && existing.category !== 'transcription') {
@@ -1875,7 +1915,12 @@ export const useProvidersStore = defineStore('providers', () => {
     }
 
     const runValidation = async () => {
-      const validationResult = await metadata.validators.validateProviderConfig(config || {})
+      // PITFALL: Please consider skip chat ping check during automatic/background validation,
+      // since this can consume API tokens and may only be triggered
+      // by user action (e.g. "Ping API" button on settings pages) or other user intentions.
+      const validationResult = await metadata.validators.validateProviderConfig(config || {}, {
+        skipChatPingCheck: true,
+      })
 
       if (providerRuntimeState.value[providerId]) {
         providerRuntimeState.value[providerId].isConfigured = validationResult.valid
@@ -1907,7 +1952,7 @@ export const useProvidersStore = defineStore('providers', () => {
     const defaultOptions = metadata?.defaultOptions?.() || {}
     return {
       ...defaultOptions,
-      ...(Object.prototype.hasOwnProperty.call(defaultOptions, 'baseUrl') ? {} : { baseUrl: '' }),
+      ...(Object.hasOwn(defaultOptions, 'baseUrl') ? {} : { baseUrl: '' }),
     }
   }
 
@@ -1970,6 +2015,8 @@ export const useProvidersStore = defineStore('providers', () => {
   watch(providerCredentials, updateConfigurationStatus, { deep: true, immediate: true })
   startPeriodicRuntimeValidation()
 
+  watch(() => authState.isAuthenticated, updateConfigurationStatus)
+
   // Available providers (only those that are properly configured)
   const availableProviders = computed(() => Object.keys(providerMetadata).filter(providerId => providerRuntimeState.value[providerId]?.isConfigured))
 
@@ -2016,6 +2063,14 @@ export const useProvidersStore = defineStore('providers', () => {
     markProviderAdded(providerId)
   }
 
+  function setProviderUnconfigured(providerId: string) {
+    if (providerRuntimeState.value[providerId]) {
+      providerRuntimeState.value[providerId].isConfigured = false
+      providerRuntimeState.value[providerId].validatedCredentialHash = undefined
+    }
+    unmarkProviderAdded(providerId)
+  }
+
   async function resetProviderSettings() {
     providerCredentials.value = {}
     addedProviders.value = {}
@@ -2027,12 +2082,12 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Function to fetch models for a specific provider
   async function fetchModelsForProvider(providerId: string) {
-    const config = providerCredentials.value[providerId]
-    if (!config)
-      return []
-
     const metadata = providerMetadata[providerId]
     if (!metadata)
+      return []
+
+    const config = providerCredentials.value[providerId]
+    if (!config && metadata.requiresCredentials !== false)
       return []
 
     const runtimeState = providerRuntimeState.value[providerId]
@@ -2042,18 +2097,19 @@ export const useProvidersStore = defineStore('providers', () => {
     }
 
     try {
-      const models = metadata.capabilities.listModels ? await metadata.capabilities.listModels(config) : []
+      const models = metadata.capabilities.listModels ? await metadata.capabilities.listModels(config || {}) : []
 
       // Transform and store the models
       if (runtimeState) {
-        runtimeState.models = models.map(model => ({
-          id: model.id,
-          name: model.name,
-          description: model.description,
-          contextLength: model.contextLength,
-          deprecated: model.deprecated,
-          provider: providerId,
-        }))
+        runtimeState.models = uniqBy(models.filter(model => !!model.id), m => m.id)
+          .map(model => ({
+            id: model.id,
+            name: model.name,
+            description: model.description,
+            contextLength: model.contextLength,
+            deprecated: model.deprecated,
+            provider: providerId,
+          }))
         return runtimeState.models
       }
       return []
@@ -2176,14 +2232,15 @@ export const useProvidersStore = defineStore('providers', () => {
     if (!metadata)
       throw new Error(`Provider metadata for ${providerId} not found`)
 
-    // Web Speech API doesn't require credentials - use empty config
+    // Providers that don't require credentials use empty config
     let config = providerCredentials.value[providerId]
-    if (!config && providerId === 'browser-web-speech-api') {
-      config = getDefaultProviderConfig(providerId)
+    const noCredentials = metadata.requiresCredentials === false || providerId === 'browser-web-speech-api'
+    if (!config && noCredentials) {
+      config = getDefaultProviderConfig(providerId) || {}
       providerCredentials.value[providerId] = config
     }
 
-    if (!config && providerId !== 'browser-web-speech-api')
+    if (!config && !noCredentials)
       throw new Error(`Provider credentials for ${providerId} not found`)
 
     try {
@@ -2287,6 +2344,7 @@ export const useProvidersStore = defineStore('providers', () => {
     deleteProvider,
     availableProviders,
     configuredProviders,
+    providerRuntimeState,
     providerMetadata,
     getProviderMetadata,
     getTranscriptionFeatures,
@@ -2304,6 +2362,7 @@ export const useProvidersStore = defineStore('providers', () => {
     disposeProviderInstance,
     resetProviderSettings,
     forceProviderConfigured,
+    setProviderUnconfigured,
     availableProvidersMetadata,
     allChatProvidersMetadata,
     allAudioSpeechProvidersMetadata,

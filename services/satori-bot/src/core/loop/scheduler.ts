@@ -62,9 +62,7 @@ export async function handleLoopStep(
       }
 
       // Manage action context size
-      if (chatCtx.actions == null) {
-        chatCtx.actions = []
-      }
+      chatCtx.actions ??= []
       chatCtx.actions = trimActions(chatCtx.actions, MAX_ACTIONS_IN_CONTEXT, ACTIONS_KEEP_ON_TRIM)
     }
 
@@ -225,8 +223,6 @@ export async function onMessageArrival(
     return
   }
   isQueueConsumerRunning = true
-
-  const log = botContext.logger
 
   try {
     while (botContext.eventQueue.length > 0) {

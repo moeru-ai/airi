@@ -13,6 +13,11 @@ export interface Peer {
    * WebSocket lifecycle state (mirrors WebSocket.readyState)
    */
   readyState?: number
+  request?: {
+    url?: string
+    headers?: Headers
+  }
+  remoteAddress?: string
 }
 
 export interface NamedPeer {
@@ -32,4 +37,6 @@ export interface AuthenticatedPeer extends NamedPeer {
   authenticated: boolean
   identity?: MetadataEventSource
   lastHeartbeatAt?: number
+  healthy?: boolean
+  missedHeartbeats?: number
 }

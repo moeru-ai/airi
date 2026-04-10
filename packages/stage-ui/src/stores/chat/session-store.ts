@@ -5,14 +5,13 @@ import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
-import { client } from '../../composables/api'
-import { useLocalFirstRequest } from '../../composables/use-local-first'
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
+import { mergeLoadedSessionMessages } from './session-message-merge'
 
 export const useChatSessionStore = defineStore('chat-session', () => {
-  const { userId, isAuthenticated } = storeToRefs(useAuthStore())
+  const { userId } = storeToRefs(useAuthStore())
   const { activeCardId, systemPrompt } = storeToRefs(useAiriCardStore())
 
   const activeSessionId = ref<string>('')
@@ -27,7 +26,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   let initializePromise: Promise<void> | null = null
 
   let persistQueue = Promise.resolve()
-  let syncQueue = Promise.resolve()
   const loadedSessions = new Set<string>()
   const loadingSessions = new Map<string, Promise<void>>()
 
@@ -48,28 +46,17 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return persistQueue
   }
 
-  function enqueueSync(task: () => Promise<void>) {
-    syncQueue = syncQueue.then(task, task)
-    return syncQueue
+  function cloneDeep<T>(value: T): T {
+    try {
+      return structuredClone(value)
+    }
+    catch {
+      return JSON.parse(JSON.stringify(value)) as T
+    }
   }
 
   function snapshotMessages(messages: ChatHistoryItem[]) {
-    return JSON.parse(JSON.stringify(messages)) as ChatHistoryItem[]
-  }
-
-  function extractMessageContent(message: ChatHistoryItem) {
-    if (typeof message.content === 'string')
-      return message.content
-    if (Array.isArray(message.content)) {
-      return message.content.map((part) => {
-        if (typeof part === 'string')
-          return part
-        if (part && typeof part === 'object' && 'text' in part)
-          return String(part.text ?? '')
-        return ''
-      }).join('')
-    }
-    return ''
+    return cloneDeep(messages)
   }
 
   function ensureSessionMessageIds(sessionId: string) {
@@ -89,87 +76,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       sessionMessages.value[sessionId] = next
 
     return next
-  }
-
-  function buildSyncMessages(messages: ChatHistoryItem[]) {
-    return messages.map(message => ({
-      id: message.id ?? nanoid(),
-      role: message.role,
-      content: extractMessageContent(message),
-      createdAt: message.createdAt,
-    }))
-  }
-
-  async function syncSessionToRemote(sessionId: string) {
-    let cachedRecord: ChatSessionRecord | null | undefined
-    const request = useLocalFirstRequest({
-      local: async () => {
-        cachedRecord = await chatSessionsRepo.getSession(sessionId)
-        return cachedRecord
-      },
-      remote: async () => {
-        if (!cachedRecord)
-          cachedRecord = await chatSessionsRepo.getSession(sessionId)
-        if (!cachedRecord)
-          return cachedRecord
-
-        const members: Array<
-          | { type: 'user', userId: string }
-          | { type: 'character', characterId: string }
-        > = [
-          { type: 'user', userId: userId.value },
-        ]
-
-        if (cachedRecord.meta.characterId && cachedRecord.meta.characterId !== 'default') {
-          members.push({
-            type: 'character',
-            characterId: cachedRecord.meta.characterId,
-          })
-        }
-
-        const normalizedMessages = cachedRecord.messages.map(message => message.id ? message : { ...message, id: nanoid() })
-        if (normalizedMessages.some((message, index) => cachedRecord?.messages[index]?.id !== message.id)) {
-          cachedRecord = {
-            ...cachedRecord,
-            messages: normalizedMessages,
-          }
-          await chatSessionsRepo.saveSession(sessionId, cachedRecord)
-        }
-
-        const res = await client.api.chats.sync.$post({
-          json: {
-            chat: {
-              id: cachedRecord.meta.sessionId,
-              type: 'group',
-              title: cachedRecord.meta.title,
-              createdAt: cachedRecord.meta.createdAt,
-              updatedAt: cachedRecord.meta.updatedAt,
-            },
-            members,
-            messages: buildSyncMessages(cachedRecord.messages),
-          },
-        })
-
-        if (!res.ok)
-          throw new Error('Failed to sync chat session')
-        return cachedRecord
-      },
-      allowRemote: () => isAuthenticated.value,
-      lazy: true,
-    })
-
-    await request.execute()
-  }
-
-  function scheduleSync(sessionId: string) {
-    void enqueueSync(async () => {
-      try {
-        await syncSessionToRemote(sessionId)
-      }
-      catch (error) {
-        console.warn('Failed to sync chat session', error)
-      }
-    })
   }
 
   function generateInitialMessageFromPrompt(prompt: string) {
@@ -209,48 +115,69 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   async function persistIndex() {
     if (!index.value)
       return
-    const snapshot = JSON.parse(JSON.stringify(index.value)) as ChatSessionsIndex
+    const snapshot = cloneDeep(index.value)
     await enqueuePersist(() => chatSessionsRepo.saveIndex(snapshot))
   }
 
   async function persistSession(sessionId: string) {
-    const meta = sessionMetas.value[sessionId]
-    if (!meta)
-      return
-    const messages = snapshotMessages(ensureSessionMessageIds(sessionId))
-    const now = Date.now()
-    const updatedMeta = {
-      ...meta,
-      updatedAt: now,
-    }
+    await enqueuePersist(async () => {
+      const meta = sessionMetas.value[sessionId]
+      if (!meta)
+        return
 
-    sessionMetas.value[sessionId] = updatedMeta
-    const characterIndex = index.value?.characters[meta.characterId]
-    if (characterIndex)
-      characterIndex.sessions[sessionId] = updatedMeta
+      const messages = snapshotMessages(ensureSessionMessageIds(sessionId))
+      const now = Date.now()
+      const updatedMeta = {
+        ...meta,
+        updatedAt: now,
+      }
 
-    const record: ChatSessionRecord = {
-      meta: updatedMeta,
-      messages,
-    }
+      sessionMetas.value[sessionId] = updatedMeta
+      const characterIndex = index.value?.characters[meta.characterId]
+      if (characterIndex)
+        characterIndex.sessions[sessionId] = updatedMeta
 
-    await enqueuePersist(() => chatSessionsRepo.saveSession(sessionId, record))
-    await persistIndex()
-    scheduleSync(sessionId)
+      const record: ChatSessionRecord = {
+        meta: updatedMeta,
+        messages,
+      }
+
+      await chatSessionsRepo.saveSession(sessionId, record)
+
+      if (index.value) {
+        const snapshot = cloneDeep(index.value)
+        await chatSessionsRepo.saveIndex(snapshot)
+      }
+    })
   }
 
   function persistSessionMessages(sessionId: string) {
     void persistSession(sessionId)
   }
 
-  function setSessionMessages(sessionId: string, next: ChatHistoryItem[]) {
+  function replaceSessionMessages(sessionId: string, next: ChatHistoryItem[], options?: { persist?: boolean }) {
     sessionMessages.value[sessionId] = next
-    void persistSession(sessionId)
+
+    if (options?.persist !== false)
+      void persistSession(sessionId)
+  }
+
+  function setSessionMessages(sessionId: string, next: ChatHistoryItem[]) {
+    replaceSessionMessages(sessionId, next)
+  }
+
+  function appendSessionMessage(sessionId: string, message: ChatHistoryItem) {
+    ensureSession(sessionId)
+    replaceSessionMessages(sessionId, [
+      ...(sessionMessages.value[sessionId] ?? []),
+      message,
+    ])
   }
 
   async function loadSession(sessionId: string) {
-    if (loadedSessions.has(sessionId))
+    if (loadedSessions.has(sessionId)) {
       return
+    }
     if (loadingSessions.has(sessionId)) {
       await loadingSessions.get(sessionId)
       return
@@ -259,9 +186,15 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const loadPromise = (async () => {
       const stored = await chatSessionsRepo.getSession(sessionId)
       if (stored) {
+        const currentMessages = sessionMessages.value[sessionId] ?? []
+        const mergedMessages = mergeLoadedSessionMessages(stored.messages, currentMessages)
+
         sessionMetas.value[sessionId] = stored.meta
-        sessionMessages.value[sessionId] = stored.messages
+        replaceSessionMessages(sessionId, mergedMessages, { persist: false })
         ensureGeneration(sessionId)
+
+        if (mergedMessages !== stored.messages)
+          await persistSession(sessionId)
       }
       loadedSessions.add(sessionId)
     })()
@@ -284,10 +217,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       updatedAt: now,
     }
 
-    const initialMessages = options?.messages?.length ? options.messages : [generateInitialMessage()]
+    const initialMessages = options?.messages?.length ? cloneDeep(options.messages) : [generateInitialMessage()]
 
     sessionMetas.value[sessionId] = meta
-    sessionMessages.value[sessionId] = initialMessages
+    replaceSessionMessages(sessionId, initialMessages, { persist: false })
+    loadedSessions.add(sessionId)
     ensureGeneration(sessionId)
 
     if (!index.value)
@@ -305,7 +239,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const record: ChatSessionRecord = { meta, messages: initialMessages }
     await enqueuePersist(() => chatSessionsRepo.saveSession(sessionId, record))
     await persistIndex()
-    scheduleSync(sessionId)
 
     if (options?.setActive !== false)
       activeSessionId.value = sessionId
@@ -337,10 +270,12 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   async function initialize() {
-    if (ready.value)
+    if (ready.value) {
       return
-    if (initializePromise)
+    }
+    if (initializePromise) {
       return initializePromise
+    }
     initializing.value = true
     initializePromise = (async () => {
       await ensureActiveSessionForCharacter()
@@ -359,31 +294,34 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function ensureSession(sessionId: string) {
     ensureGeneration(sessionId)
     if (!sessionMessages.value[sessionId] || sessionMessages.value[sessionId].length === 0) {
-      sessionMessages.value[sessionId] = [generateInitialMessage()]
-      void persistSession(sessionId)
+      replaceSessionMessages(sessionId, [generateInitialMessage()], { persist: false })
     }
+  }
+
+  function hasKnownSession(sessionId: string) {
+    return !!sessionMetas.value[sessionId]
+      || !!Object.values(index.value?.characters ?? {}).some(character => character.sessions[sessionId])
   }
 
   const messages = computed<ChatHistoryItem[]>({
     get: () => {
-      if (!activeSessionId.value)
+      if (!activeSessionId.value) {
         return []
-      ensureSession(activeSessionId.value)
-      if (ready.value)
-        void loadSession(activeSessionId.value)
+      }
+      if (!loadedSessions.has(activeSessionId.value) && !sessionMessages.value[activeSessionId.value] && hasKnownSession(activeSessionId.value)) {
+        return []
+      }
       return sessionMessages.value[activeSessionId.value] ?? []
     },
     set: (value) => {
       if (!activeSessionId.value)
         return
-      sessionMessages.value[activeSessionId.value] = value
-      void persistSession(activeSessionId.value)
+      replaceSessionMessages(activeSessionId.value, value)
     },
   })
 
   function setActiveSession(sessionId: string) {
     activeSessionId.value = sessionId
-    ensureSession(sessionId)
 
     const characterId = getCurrentCharacterId()
     const characterIndex = index.value?.characters[characterId]
@@ -392,8 +330,42 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       void persistIndex()
     }
 
-    if (ready.value)
+    if (ready.value) {
       void loadSession(sessionId)
+    }
+    else if (!hasKnownSession(sessionId)) {
+      ensureSession(sessionId)
+    }
+  }
+
+  function applyRemoteSnapshot(snapshot: {
+    activeSessionId: string
+    sessionMessages: Record<string, ChatHistoryItem[]>
+    sessionMetas: Record<string, ChatSessionMeta>
+    index?: ChatSessionsIndex | null
+  }) {
+    activeSessionId.value = snapshot.activeSessionId
+    sessionMessages.value = cloneDeep(snapshot.sessionMessages)
+    sessionMetas.value = cloneDeep(snapshot.sessionMetas)
+    if (snapshot.index !== undefined) {
+      index.value = cloneDeep(snapshot.index)
+    }
+    sessionGenerations.value = Object.fromEntries(
+      Object.keys(snapshot.sessionMessages).map(sessionId => [sessionId, sessionGenerations.value[sessionId] ?? 0]),
+    )
+    loadedSessions.clear()
+    for (const sessionId of Object.keys(snapshot.sessionMessages)) {
+      loadedSessions.add(sessionId)
+    }
+  }
+
+  function getSnapshot() {
+    return {
+      activeSessionId: activeSessionId.value,
+      sessionMessages: cloneDeep(sessionMessages.value),
+      sessionMetas: cloneDeep(sessionMetas.value),
+      index: cloneDeep(index.value),
+    }
   }
 
   function cleanupMessages(sessionId = activeSessionId.value) {
@@ -403,7 +375,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   function getAllSessions() {
-    return JSON.parse(JSON.stringify(sessionMessages.value)) as Record<string, ChatHistoryItem[]>
+    return cloneDeep(sessionMessages.value)
   }
 
   async function resetAllSessions() {
@@ -437,8 +409,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   function getSessionMessages(sessionId: string) {
     ensureSession(sessionId)
-    if (ready.value)
-      void loadSession(sessionId)
     return sessionMessages.value[sessionId] ?? []
   }
 
@@ -460,6 +430,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   async function forkSession(options: { fromSessionId: string, atIndex?: number, reason?: string, hidden?: boolean }) {
     const characterId = getCurrentCharacterId()
+    await loadSession(options.fromSessionId)
     const parentMessages = getSessionMessages(options.fromSessionId)
     const forkIndex = options.atIndex ?? parentMessages.length
     const nextMessages = parentMessages.slice(0, forkIndex)
@@ -495,8 +466,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
     return {
       format: 'chat-sessions-index:v1',
-      index: index.value,
-      sessions,
+      index: cloneDeep(index.value),
+      sessions: cloneDeep(sessions),
     }
   }
 
@@ -504,20 +475,23 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (payload.format !== 'chat-sessions-index:v1')
       return
 
-    index.value = payload.index
+    index.value = cloneDeep(payload.index)
     sessionMessages.value = {}
     sessionMetas.value = {}
     sessionGenerations.value = {}
     loadedSessions.clear()
     loadingSessions.clear()
 
-    await enqueuePersist(() => chatSessionsRepo.saveIndex(payload.index))
+    await enqueuePersist(() => chatSessionsRepo.saveIndex(cloneDeep(payload.index)))
 
     for (const [sessionId, record] of Object.entries(payload.sessions)) {
-      sessionMetas.value[sessionId] = record.meta
-      sessionMessages.value[sessionId] = record.messages
+      sessionMetas.value[sessionId] = cloneDeep(record.meta)
+      sessionMessages.value[sessionId] = cloneDeep(record.messages)
       ensureGeneration(sessionId)
-      await enqueuePersist(() => chatSessionsRepo.saveSession(sessionId, record))
+      await enqueuePersist(() => chatSessionsRepo.saveSession(sessionId, {
+        meta: cloneDeep(record.meta),
+        messages: cloneDeep(record.messages),
+      }))
     }
 
     await ensureActiveSessionForCharacter()
@@ -538,12 +512,15 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     messages,
 
     setActiveSession,
+    applyRemoteSnapshot,
+    getSnapshot,
     cleanupMessages,
     getAllSessions,
     resetAllSessions,
 
     ensureSession,
     setSessionMessages,
+    appendSessionMessage,
     persistSessionMessages,
     getSessionMessages,
     sessionMessages,

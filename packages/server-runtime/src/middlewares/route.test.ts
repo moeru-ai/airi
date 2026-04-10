@@ -15,7 +15,12 @@ function createPeer(options: {
   labels?: Record<string, string>
 }): AuthenticatedPeer {
   return {
-    peer: { id: options.id, send: () => 0 },
+    peer: {
+      id: options.id,
+      send: () => 0,
+      request: { url: 'http://localhost', headers: new Headers() },
+      remoteAddress: '127.0.0.1',
+    },
     authenticated: true,
     name: options.name,
     identity: options.plugin && options.instanceId
@@ -91,6 +96,37 @@ describe('route middleware', () => {
     })
 
     expect(collectDestinations(event)).toEqual(['label:env=prod'])
+  })
+  it('respects explicit empty destinations as an override', () => {
+    const event = createSparkNotifyEvent({
+      data: {
+        id: 'evt-3',
+        eventId: 'spark-3',
+        kind: 'ping',
+        urgency: 'soon',
+        headline: 'hello',
+        destinations: ['module:character'],
+      },
+      route: { destinations: [] },
+    })
+
+    expect(collectDestinations(event)).toEqual([])
+  })
+
+  it('treats an explicit empty route destination list as the override', () => {
+    const event = createSparkNotifyEvent({
+      data: {
+        id: 'evt-override',
+        eventId: 'spark-override',
+        kind: 'ping',
+        urgency: 'soon',
+        headline: 'hello',
+        destinations: ['module:character'],
+      },
+      route: { destinations: [] },
+    })
+
+    expect(collectDestinations(event)).toEqual([])
   })
 
   it('matches destinations by label selector', () => {

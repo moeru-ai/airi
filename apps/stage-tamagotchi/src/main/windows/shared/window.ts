@@ -5,17 +5,18 @@ import type { BrowserWindow, BrowserWindowConstructorOptions } from 'electron'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 
+import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
 import { isMacOS } from 'std-env'
 
 import { createServerChannelService } from '../../services/airi/channel-server'
 import { createI18nService } from '../../services/airi/i18n'
-import { createAppService, createScreenService, createWindowService } from '../../services/electron'
+import { createAppService, createPowerMonitorService, createScreenService, createWindowService } from '../../services/electron'
 
 export function toggleWindowShow(window?: BrowserWindow | null): void {
   if (!window) {
     return
   }
-  if (window.isDestroyed()) {
+  if (isRendererUnavailable(window)) {
     return
   }
 
@@ -98,6 +99,8 @@ export async function setupBaseWindowElectronInvokes(params: {
   createScreenService({ context: params.context, window: params.window })
   createWindowService({ context: params.context, window: params.window })
   createAppService({ context: params.context, window: params.window })
+  createPowerMonitorService({ context: params.context, window: params.window })
+
   await createI18nService({ context: params.context, window: params.window, i18n: params.i18n })
 
   createServerChannelService({ serverChannel: params.serverChannel })

@@ -24,9 +24,14 @@ const SYSTEM_STATE_MARKER = 'The following blackboard provides you with informat
 // =============================================================================
 
 function escapeHtml(text) {
-  const div = document.createElement('div')
-  div.textContent = text
-  return div.innerHTML
+  if (text == null)
+    return ''
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 function formatSystemMessageContent(content) {
@@ -182,7 +187,7 @@ class DebugClient {
 
   scheduleReconnect() {
     if (this.reconnectAttempts >= CONFIG.RECONNECT_MAX_ATTEMPTS) {
-      console.log('Max reconnect attempts reached')
+      console.warn('Max reconnect attempts reached')
       return
     }
 
@@ -594,7 +599,7 @@ function parseUserMessage(content) {
 class ConversationPanel {
   constructor(client) {
     this.client = client
-    this._mkSession = () => ({ messages: [], greyed: false, activeContext: null, archivedContexts: [], activeContextStartIndex: 0, contextHistoryMessage: null })
+    this._mkSession = () => ({ messages: [], greyed: false })
     this.sessions = [this._mkSession()]
     this.isProcessing = false
     this.autoScroll = true
@@ -637,19 +642,15 @@ class ConversationPanel {
 
   handleUpdate(data) {
     if (data.sessionBoundary) {
-      const cur = this.sessions[this.sessions.length - 1]
+      const cur = this.sessions.at(-1)
       if (cur)
         cur.greyed = true
       this.sessions.push(this._mkSession())
     }
     else {
-      const cur = this.sessions[this.sessions.length - 1]
+      const cur = this.sessions.at(-1)
       if (cur) {
         cur.messages = data.messages || []
-        cur.activeContext = data.activeContext || null
-        cur.archivedContexts = data.archivedContexts || []
-        cur.activeContextStartIndex = data.activeContextStartIndex ?? 0
-        cur.contextHistoryMessage = data.contextHistoryMessage || null
       }
     }
     this.isProcessing = !!data.isProcessing
@@ -703,16 +704,11 @@ class ConversationPanel {
   // --- Session rendering ---
 
   renderSession(session) {
-    const { messages, activeContext, archivedContexts, contextHistoryMessage } = session
+    const { messages } = session
     if (!messages || messages.length === 0)
       return '<div class="empty-state">No messages yet</div>'
 
     const parts = []
-
-    // Context status bar
-    if (archivedContexts?.length > 0 || activeContext) {
-      parts.push(this.renderContextStatusBar(activeContext, archivedContexts, contextHistoryMessage))
-    }
 
     // Group messages into turns (user+assistant pairs)
     const turns = this.groupIntoTurns(messages)
@@ -753,24 +749,11 @@ class ConversationPanel {
     const n = this.turnCounter
     const userParsed = turn.user ? parseUserMessage(turn.user.content || '') : null
     const eventSection = userParsed?.sections.find(s => s.tag === 'EVENT' || s.tag === 'FEEDBACK')
-    const contextSection = userParsed?.sections.find(s => s.tag === 'CONTEXT')
 
     // Build a short summary for the turn header
     let summary = `Turn ${n}`
     if (eventSection) {
       summary = this.summarizeEvent(eventSection)
-    }
-
-    // Detect context label from the [CONTEXT] section
-    let ctxBadge = ''
-    if (contextSection) {
-      const ctxMatch = contextSection.text.match(/active="([^"]+)"/)
-      if (ctxMatch) {
-        ctxBadge = `<span class="cv-ctx-badge cv-ctx-active">${escapeHtml(ctxMatch[1])}</span>`
-      }
-      else if (contextSection.text.includes('no active context')) {
-        ctxBadge = '<span class="cv-ctx-badge cv-ctx-none">no ctx</span>'
-      }
     }
 
     const turnId = `cv-turn-${n}`
@@ -782,7 +765,6 @@ class ConversationPanel {
         <span class="cv-arrow">\u25B6</span>
         <span class="cv-turn-num">#${n}</span>
         <span class="cv-turn-summary">${escapeHtml(summary)}</span>
-        ${ctxBadge}
       </button>
       <div class="cv-turn-body" id="${turnId}">
         ${userHtml}
@@ -818,6 +800,7 @@ class ConversationPanel {
 
     // FEEDBACK: "toolName: Success/Failed. details"
     if (section.tag === 'FEEDBACK') {
+      // eslint-disable-next-line regexp/no-super-linear-backtracking
       const fbMatch = text.match(/^(\w+):\s*(Success|Failed)\.?\s*(.*)$/s)
       if (fbMatch) {
         const detail = fbMatch[3].slice(0, 50)
@@ -922,49 +905,6 @@ class ConversationPanel {
     return `<div class="cv-assistant">${parts.join('')}</div>`
   }
 
-  // --- Context status bar ---
-
-  renderContextStatusBar(activeContext, archivedContexts, contextHistoryMessage) {
-    const parts = []
-    // Active context indicator
-    if (activeContext?.label) {
-      parts.push(`<span class="cv-ctx-status-active"><span class="cv-ctx-dot"></span> ${escapeHtml(activeContext.label)} (${activeContext.messageCount} msgs)</span>`)
-    }
-    else {
-      parts.push('<span class="cv-ctx-status-idle"><span class="cv-ctx-dot cv-ctx-dot-idle"></span> No active context</span>')
-    }
-
-    // Archived count
-    if (archivedContexts?.length > 0) {
-      const archId = `cv-archived-${Math.random().toString(36).slice(2, 6)}`
-      const items = archivedContexts.map((ctx, i) => {
-        const time = new Date(ctx.archivedAt).toLocaleTimeString()
-        return `<div class="cv-arch-item">
-          <span class="cv-arch-idx">#${i + 1}</span>
-          <strong>${escapeHtml(ctx.label || 'unnamed')}</strong>
-          <span class="cv-arch-meta">${ctx.turns}t &middot; ${time}</span>
-          <div class="cv-arch-summary">${escapeHtml(ctx.summary)}</div>
-        </div>`
-      }).join('')
-      parts.push(`<button class="cv-ctx-arch-btn" data-toggle="${archId}">
-        <span class="cv-arrow">\u25B6</span> ${archivedContexts.length} archived
-      </button>`)
-      // Append the collapsible body after the status bar
-      parts.push(`<div class="cv-ctx-arch-body" id="${archId}">${items}</div>`)
-    }
-
-    // Context history prefix
-    if (contextHistoryMessage) {
-      const chId = `cv-ctxhist-${Math.random().toString(36).slice(2, 6)}`
-      parts.push(`<button class="cv-ctx-hist-btn" data-toggle="${chId}">
-        <span class="cv-arrow">\u25B6</span> prefix
-      </button>`)
-      parts.push(`<div class="cv-ctx-hist-body" id="${chId}"><pre class="cv-ctx-hist-content">${escapeHtml(contextHistoryMessage)}</pre></div>`)
-    }
-
-    return `<div class="cv-ctx-bar">${parts.join('')}</div>`
-  }
-
   // --- System message ---
 
   renderSystemMessage(msg) {
@@ -1009,6 +949,7 @@ class ToolsPanel {
   }
 
   requestTools() {
+    // eslint-disable-next-line no-console
     console.log('[ToolsPanel] Requesting tools...')
     // Check if we already have tools to avoid re-rendering on reconnect if not needed
     // But re-requesting ensures we are in sync with server capabilities
@@ -1143,7 +1084,7 @@ class ToolsPanel {
           }
 
           value = Number.parseFloat(value)
-          if (isNaN(value)) {
+          if (Number.isNaN(value)) {
             this.showResult(tool.name, { error: `Invalid number for ${paramName}` }, true)
             return
           }
@@ -1186,7 +1127,7 @@ class ToolsPanel {
   }
 
   handleResult(data) {
-    const { toolName, result, error } = data
+    const { toolName, error } = data
 
     this.executingTools.delete(toolName)
     this.updateCardState(toolName, error ? 'error' : 'success')

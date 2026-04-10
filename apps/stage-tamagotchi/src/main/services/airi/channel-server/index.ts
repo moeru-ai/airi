@@ -1,137 +1,179 @@
-import type { ElectronServerChannelTlsConfig } from '../../../../shared/eventa'
+import type { Server, ServerOptions } from '@proj-airi/server-runtime/server'
+import type { Lifecycle } from 'injeca'
 
-import { X509Certificate } from 'node:crypto'
+import type { ElectronServerChannelConfig } from '../../../../shared/eventa'
+
+import { randomUUID, X509Certificate } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { isIP } from 'node:net'
-import { networkInterfaces } from 'node:os'
 import { join } from 'node:path'
 import { env, platform } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
-import { app, ipcMain } from 'electron'
+import { errorMessageFrom } from '@moeru/std'
+import { createServer, getLocalIPs } from '@proj-airi/server-runtime/server'
+import { createServerChannelQrPayload } from '@proj-airi/stage-shared/server-channel-qr'
+import { Mutex } from 'async-mutex'
+import { app, ipcMain, session } from 'electron'
 import { createCA, createCert } from 'mkcert'
 import { x } from 'tinyexec'
-import { nullable, object, record, string, unknown } from 'valibot'
+import { nullable, object, optional, string } from 'valibot'
 import { z } from 'zod'
 
 import {
   electronApplyServerChannelConfig,
   electronGetServerChannelConfig,
+  electronGetServerChannelQrPayload,
 } from '../../../../shared/eventa'
-import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
 import { createConfig } from '../../../libs/electron/persistence'
-
-interface ServerInstance { close: (closeActiveConnections?: boolean) => Promise<void> }
-interface ServerChannelOptions { websocketTlsConfig?: ElectronServerChannelTlsConfig | null }
-
-export interface ServerChannel {
-  start: () => Promise<void>
-  stop: () => Promise<void>
-  restart: () => Promise<void>
-  updateConfig: (newOptions: ServerChannelOptions) => void
-}
-
-let isServerQuitHookRegistered = false
+import { ensureServerChannelConfigDefaults } from './config'
 
 const channelServerConfigSchema = object({
-  websocketTlsConfig: nullable(record(string(), unknown())),
+  hostname: optional(string()),
+  authToken: optional(string()),
+  tlsConfig: optional(nullable(object({
+    cert: optional(string()),
+    key: optional(string()),
+    passphrase: optional(string()),
+  }))),
 })
 
 const channelServerInvokeConfigSchema = z.object({
-  websocketTlsConfig: z.record(z.string(), z.unknown()).nullable().optional(),
+  hostname: z.string().optional(),
+  authToken: z.string().optional(),
+  tlsConfig: z.object({ }).nullable().optional(),
 }).strict()
 
 const channelServerConfigStore = createConfig('server-channel', 'config.json', channelServerConfigSchema, {
   default: {
-    websocketTlsConfig: null,
+    hostname: '127.0.0.1',
+    authToken: '',
+    tlsConfig: null,
   },
   autoHeal: true,
 })
+let serverChannelServiceRegistered = false
+let serverChannelCertificateTrustConfigured = false
 
-function getChannelServerConfig() {
-  return channelServerConfigStore.get() ?? { websocketTlsConfig: null }
+interface ServerChannelCertificateVerifyRequest {
+  hostname: string
+  verificationResult: string
+  errorCode: number
+  certificate: {
+    subject: {
+      commonName: string
+    }
+    issuer: {
+      commonName: string
+      country: string
+      locality: string
+      organizations: string[]
+    }
+  }
 }
 
-function normalizeChannelServerOptions(
-  payload: unknown,
-  fallback = getChannelServerConfig(),
-) {
+function getServerChannelPort() {
+  return env.SERVER_CHANNEL_PORT ? Number.parseInt(env.SERVER_CHANNEL_PORT) : 6121
+}
+
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1'])
+
+function isLoopbackHost(host: string) {
+  return LOOPBACK_HOSTS.has(host)
+}
+
+function getServerChannelQrHosts(config: ElectronServerChannelConfig, serverChannel: Server) {
+  if (config.hostname === '0.0.0.0') {
+    return Array.from(new Set(serverChannel.getConnectionHost()))
+      .filter(host => !isLoopbackHost(host))
+      .sort()
+  }
+
+  if (isLoopbackHost(config.hostname)) {
+    return []
+  }
+
+  return [config.hostname]
+}
+
+function createServerChannelUrl(protocol: 'ws' | 'wss', host: string) {
+  const urlHost = isIP(host) === 6 ? `[${host}]` : host
+  // TODO: Deduplicate the server channel websocket path with `packages/server-runtime/src/index.ts`
+  // and `packages/server-sdk/src/client.ts` so this does not rely on three separate `/ws` literals.
+  return `${protocol}://${urlHost}:${getServerChannelPort()}/ws`
+}
+
+function getServerChannelQrPayload(config: ElectronServerChannelConfig, serverChannel: Server) {
+  const protocol = config.tlsConfig ? 'wss' : 'ws'
+  const urls = getServerChannelQrHosts(config, serverChannel)
+    .map(host => createServerChannelUrl(protocol, host))
+
+  if (!urls.length) {
+    throw new Error('No reachable private LAN address is available for the current server channel host.')
+  }
+
+  return createServerChannelQrPayload({
+    type: 'airi:server-channel',
+    version: 1,
+    urls,
+    authToken: config.authToken,
+  })
+}
+
+async function getChannelServerConfig(): Promise<ElectronServerChannelConfig> {
+  const config = channelServerConfigStore.get() || { hostname: '127.0.0.1', authToken: '', tlsConfig: null }
+
+  return {
+    hostname: config.hostname || '127.0.0.1',
+    authToken: config.authToken || '',
+    tlsConfig: config.tlsConfig || null,
+  }
+}
+
+function getServerRuntimeBaseOptions() {
+  return {
+    port: getServerChannelPort(),
+    hostname: '127.0.0.1',
+  }
+}
+
+async function resolveServerRuntimeOptions(config: ServerOptions): Promise<ServerOptions> {
+  return {
+    ...getServerRuntimeBaseOptions(),
+    auth: {
+      token: 'authToken' in config && typeof config.authToken === 'string' ? config.authToken : '',
+    },
+    hostname: 'hostname' in config && typeof config.hostname === 'string'
+      ? config.hostname || '127.0.0.1'
+      : '127.0.0.1',
+    tlsConfig: config.tlsConfig ? await getOrCreateCertificate() : null,
+  }
+}
+
+async function normalizeChannelServerOptions(payload: unknown, fallback?: ElectronServerChannelConfig) {
+  if (!fallback) {
+    fallback = await getChannelServerConfig()
+  }
+
   const parsed = channelServerInvokeConfigSchema.safeParse(payload)
   if (!parsed.success) {
     return fallback
   }
 
-  return {
-    websocketTlsConfig: typeof parsed.data.websocketTlsConfig === 'undefined' ? null : parsed.data.websocketTlsConfig,
-  }
-}
-
-function registerServerQuitHook(getServerChannel: () => ServerChannel | null) {
-  if (isServerQuitHookRegistered)
-    return
-
-  isServerQuitHookRegistered = true
-
-  onAppBeforeQuit(async () => {
-    const log = useLogg('main/server-runtime').useGlobalConfig()
-    const serverChannel = getServerChannel()
-    if (!serverChannel) {
-      return
-    }
-
-    try {
-      await serverChannel.stop()
-      log.log('WebSocket server closed')
-    }
-    catch (error) {
-      log.withError(error).error('Error closing WebSocket server')
-    }
-  })
-}
-
-function getLocalIPs(): string[] {
-  const interfaces = networkInterfaces()
-  const addresses: string[] = []
-
-  const VIRTUAL_INTERFACE_PREFIXES = [
-    'vboxnet',
-    'vmnet',
-    'docker',
-    'br-',
-    'veth',
-    'utun',
-    'wg',
-    'tap',
-    'tun',
-  ]
-  const isVirtualInterface = (name: string) =>
-    VIRTUAL_INTERFACE_PREFIXES.some(prefix => name.startsWith(prefix))
-
-  for (const [name, entries] of Object.entries(interfaces)) {
-    if (!entries)
-      continue
-    if (isVirtualInterface(name))
-      continue
-
-    for (const entry of entries) {
-      const rawAddress = entry.address
-      if (!rawAddress)
-        continue
-
-      const address = rawAddress.includes('%') ? rawAddress.split('%')[0] : rawAddress
-      if (isIP(address))
-        addresses.push(address)
-    }
+  const normalizedConfig = {
+    hostname: parsed.data.hostname ?? fallback.hostname,
+    authToken: parsed.data.authToken ?? fallback.authToken,
+    tlsConfig: typeof parsed.data.tlsConfig === 'undefined' ? null : parsed.data.tlsConfig,
   }
 
-  return addresses
+  return ensureServerChannelConfigDefaults(normalizedConfig, randomUUID).config
 }
 
 function getCertificateDomains(): string[] {
   const localIPs = getLocalIPs()
-  const hostname = env.SERVER_RUNTIME_HOSTNAME
+  const hostname = channelServerConfigStore.get()?.hostname || env.SERVER_RUNTIME_HOSTNAME
   return Array.from(new Set([
     'localhost',
     '127.0.0.1',
@@ -139,6 +181,21 @@ function getCertificateDomains(): string[] {
     ...(hostname ? [hostname] : []),
     ...localIPs,
   ]))
+}
+
+function getCertificatePaths() {
+  const userDataPath = app.getPath('userData')
+
+  return {
+    certPath: join(userDataPath, 'websocket-cert.pem'),
+    keyPath: join(userDataPath, 'websocket-key.pem'),
+    caCertPath: join(userDataPath, 'websocket-ca-cert.pem'),
+    caKeyPath: join(userDataPath, 'websocket-ca-key.pem'),
+  }
+}
+
+function withCertificateChain(cert: string, caCert?: string) {
+  return caCert ? `${cert.trim()}\n${caCert.trim()}\n` : cert
 }
 
 function certHasAllDomains(certPem: string, domains: string[]): boolean {
@@ -164,17 +221,52 @@ function certHasAllDomains(certPem: string, domains: string[]): boolean {
   }
 }
 
+function isTrustedServerChannelCertificate(request: ServerChannelCertificateVerifyRequest): boolean {
+  if (!['CERT_AUTHORITY_INVALID', 'ERR_CERT_AUTHORITY_INVALID'].includes(request.verificationResult)
+    && request.errorCode !== -202) {
+    return false
+  }
+
+  if (!getCertificateDomains().includes(request.hostname)) {
+    return false
+  }
+
+  const issuer = request.certificate.issuer
+  return request.certificate.subject.commonName === 'localhost'
+    && issuer.commonName === 'AIRI'
+    && issuer.country === 'US'
+    && issuer.locality === 'Local'
+    && issuer.organizations.includes('AIRI')
+}
+
+function configureServerChannelCertificateTrust() {
+  if (serverChannelCertificateTrustConfigured) {
+    return
+  }
+
+  session.defaultSession.setCertificateVerifyProc((request, callback) => {
+    if (isTrustedServerChannelCertificate(request)) {
+      callback(0)
+      return
+    }
+
+    callback(-3)
+  })
+
+  serverChannelCertificateTrustConfigured = true
+}
+
 async function installCACertificate(caCert: string) {
-  const userDataPath = app.getPath('userData')
-  const caCertPath = join(userDataPath, 'websocket-ca-cert.pem')
+  const { caCertPath } = getCertificatePaths()
+  const log = useLogg('main/server-runtime').useGlobalConfig()
   writeFileSync(caCertPath, caCert)
 
   try {
     if (platform === 'darwin') {
-      await x(`security`, ['add-trusted-cert', '-d', '-r', 'trustRoot', '-k', '/Library/Keychains/System.keychain', `"${caCertPath}"`], { nodeOptions: { stdio: 'ignore' } })
+      await x('security', ['add-trusted-cert', '-d', '-r', 'trustRoot', '-k', join(app.getPath('home'), 'Library/Keychains/login.keychain-db'), caCertPath], { nodeOptions: { stdio: 'ignore' } })
     }
     else if (platform === 'win32') {
-      await x(`certutil`, ['-addstore', '-f', 'Root', `"${caCertPath}"`], { nodeOptions: { stdio: 'ignore' } })
+      await x('certutil', ['-addstore', '-f', 'Root', caCertPath], { nodeOptions: { stdio: 'ignore' } })
     }
     else if (platform === 'linux') {
       const caDir = '/usr/local/share/ca-certificates'
@@ -187,7 +279,7 @@ async function installCACertificate(caCert: string) {
         const userCaDir = join(env.HOME || '', '.local/share/ca-certificates')
         try {
           if (!existsSync(userCaDir)) {
-            await x(`mkdir`, ['-p', `"${userCaDir}"`], { nodeOptions: { stdio: 'ignore' } })
+            await x('mkdir', ['-p', userCaDir], { nodeOptions: { stdio: 'ignore' } })
           }
           writeFileSync(join(userCaDir, caFileName), caCert)
         }
@@ -197,15 +289,13 @@ async function installCACertificate(caCert: string) {
       }
     }
   }
-  catch {
-    // Ignore installation errors
+  catch (error) {
+    log.withError(error).warn(`Failed to install AIRI WebSocket CA certificate from ${caCertPath}`)
   }
 }
 
 async function generateCertificate() {
-  const userDataPath = app.getPath('userData')
-  const caCertPath = join(userDataPath, 'websocket-ca-cert.pem')
-  const caKeyPath = join(userDataPath, 'websocket-ca-key.pem')
+  const { caCertPath, caKeyPath } = getCertificatePaths()
 
   let ca: { key: string, cert: string }
 
@@ -225,9 +315,9 @@ async function generateCertificate() {
     })
     writeFileSync(caCertPath, ca.cert)
     writeFileSync(caKeyPath, ca.key)
-
-    await installCACertificate(ca.cert)
   }
+
+  await installCACertificate(ca.cert)
 
   const domains = getCertificateDomains()
 
@@ -244,16 +334,15 @@ async function generateCertificate() {
 }
 
 async function getOrCreateCertificate() {
-  const userDataPath = app.getPath('userData')
-  const certPath = join(userDataPath, 'websocket-cert.pem')
-  const keyPath = join(userDataPath, 'websocket-key.pem')
+  const { certPath, keyPath, caCertPath } = getCertificatePaths()
   const expectedDomains = getCertificateDomains()
 
   if (existsSync(certPath) && existsSync(keyPath)) {
     const cert = readFileSync(certPath, 'utf-8')
     const key = readFileSync(keyPath, 'utf-8')
     if (certHasAllDomains(cert, expectedDomains)) {
-      return { cert, key }
+      const caCert = existsSync(caCertPath) ? readFileSync(caCertPath, 'utf-8') : undefined
+      return { cert: withCertificateChain(cert, caCert), key }
     }
   }
 
@@ -261,173 +350,160 @@ async function getOrCreateCertificate() {
   writeFileSync(certPath, cert)
   writeFileSync(keyPath, key)
 
-  return { cert, key }
+  const caCert = existsSync(caCertPath) ? readFileSync(caCertPath, 'utf-8') : undefined
+  return { cert: withCertificateChain(cert, caCert), key }
 }
 
-export function createServerChannel(initialOptions: ServerChannelOptions = getChannelServerConfig()): ServerChannel {
-  const log = useLogg('main/server-runtime').useGlobalConfig()
-  let serverInstance: ServerInstance | null = null
-  let options = initialOptions
+export async function setupServerChannel(params: { lifecycle: Lifecycle }): Promise<Server> {
+  channelServerConfigStore.setup()
+  configureServerChannelCertificateTrust()
 
-  log.withFields({ hasTlsConfig: !!options.websocketTlsConfig }).log('creating server channel')
+  const storedConfig = await getChannelServerConfig()
+  const { changed: storedConfigChanged, config: normalizedStoredConfig } = ensureServerChannelConfigDefaults(storedConfig, randomUUID)
+  if (storedConfigChanged) {
+    channelServerConfigStore.update(normalizedStoredConfig)
+  }
 
-  async function closeServer(closeActiveConnections = false) {
-    if (!serverInstance || typeof serverInstance.close !== 'function') {
-      return
-    }
+  const serverChannel = createServer(await resolveServerRuntimeOptions(normalizedStoredConfig))
+
+  const mutex = new Mutex()
+
+  params.lifecycle.appHooks.onStart(async () => {
+    const release = await mutex.acquire()
+
+    const log = useLogg('main/server-runtime').useGlobalConfig()
 
     try {
-      if (closeActiveConnections) {
-        log.log('closing existing server instance')
-      }
-      await serverInstance.close(closeActiveConnections)
-      if (closeActiveConnections) {
-        log.log('existing server instance closed')
-      }
+      await serverChannel.start()
+      log.log('WebSocket server started')
     }
     catch (error) {
-      const nodejsError = error as NodeJS.ErrnoException
-      if ('code' in nodejsError && nodejsError.code === 'ERR_SERVER_NOT_RUNNING') {
-        return
-      }
-
-      if (!closeActiveConnections) {
-        log.withError(error).error('Error closing WebSocket server')
-      }
+      log.withError(error).error('Error starting WebSocket server')
     }
     finally {
-      serverInstance = null
+      release()
     }
-  }
+  })
+  params.lifecycle.appHooks.onStop(async () => {
+    const release = await mutex.acquire()
 
-  async function start() {
-    if (serverInstance) {
+    const log = useLogg('main/server-runtime').useGlobalConfig()
+    if (!serverChannel) {
       return
     }
 
-    const secureEnabled = options?.websocketTlsConfig != null
-
     try {
-      const serverRuntime = await import('@proj-airi/server-runtime')
-      const { plugin: ws } = await import('crossws/server')
-      const { serve } = await import('h3')
-
-      const h3App = serverRuntime.setupApp()
-
-      const port = env.PORT ? Number(env.PORT) : 6121
-      const hostname = env.SERVER_RUNTIME_HOSTNAME || '0.0.0.0'
-
-      // FIXME: should prompt user to grant permission to save certificate files on macOS
-      const tls = secureEnabled ? await getOrCreateCertificate() : undefined
-
-      const instance = serve(h3App.app, {
-        // @ts-expect-error - the .crossws property wasn't extended in types
-        plugins: [ws({ resolve: async req => (await h3App.app.fetch(req)).crossws })],
-        port,
-        hostname,
-        tls,
-        reusePort: true,
-        silent: true,
-        manual: true,
-        gracefulShutdown: {
-          forceTimeout: 0.5,
-          gracefulTimeout: 0.5,
-        },
-      })
-
-      serverInstance = {
-        close: async (closeActiveConnections = false) => {
-          log.log('closing all peers')
-          h3App.closeAllPeers()
-          log.log('closing server instance')
-          await instance.close(closeActiveConnections)
-          log.log('server instance closed')
-        },
-      }
-
-      const servePromise = instance.serve()
-      if (servePromise instanceof Promise) {
-        servePromise.catch((error) => {
-          const nodejsError = error as NodeJS.ErrnoException
-          if ('code' in nodejsError && nodejsError.code === 'EADDRINUSE') {
-            log.withError(error).warn('Port already in use, assuming server is already running')
-            return
-          }
-
-          log.withError(error).error('Error serving WebSocket server')
-        })
-      }
-
-      const protocol = secureEnabled ? 'wss' : 'ws'
-      if (hostname === '0.0.0.0') {
-        const ips = getLocalIPs().filter(ip => ip !== '127.0.0.1' && ip !== '::1')
-        const targets = ips.length > 0 ? ips.join(', ') : 'localhost'
-        log.log(`@proj-airi/server-runtime started on ${protocol}://0.0.0.0:${port} (reachable via: ${targets})`)
-      }
-      else {
-        log.log(`@proj-airi/server-runtime started on ${protocol}://${hostname}:${port}`)
-      }
+      await serverChannel.stop()
+      log.log('WebSocket server closed')
     }
     catch (error) {
-      log.withError(error).error('failed to start WebSocket server')
+      log.withError(error).error('Error closing WebSocket server')
     }
-  }
-
-  async function stop() {
-    await closeServer()
-  }
-
-  async function restart() {
-    log.log('restarting server channel', { options })
-    await closeServer(true)
-    await start()
-  }
-
-  async function updateConfig(newOptions: ServerChannelOptions) {
-    options = { ...options, ...newOptions }
-  }
+    finally {
+      release()
+    }
+  })
 
   return {
-    start,
-    stop,
-    restart,
-    updateConfig,
+    getConnectionHost() {
+      return serverChannel.getConnectionHost()
+    },
+    async start() {
+      const release = await mutex.acquire()
+      try {
+        await serverChannel.start()
+      }
+      finally {
+        release()
+      }
+    },
+    async restart() {
+      const release = await mutex.acquire()
+      try {
+        await serverChannel.stop()
+        await serverChannel.start()
+      }
+      finally {
+        release()
+      }
+    },
+    async stop() {
+      const release = await mutex.acquire()
+      try {
+        await serverChannel.stop()
+      }
+      finally {
+        release()
+      }
+    },
+    async updateConfig(config) {
+      const release = await mutex.acquire()
+      try {
+        await serverChannel.updateConfig(config)
+      }
+      finally {
+        release()
+      }
+    },
   }
 }
 
-export async function setupServerChannel() {
-  channelServerConfigStore.setup()
-  const serverChannel = createServerChannel(getChannelServerConfig())
-  registerServerQuitHook(() => serverChannel)
+export async function createServerChannelService(params: { serverChannel: Server }) {
+  if (serverChannelServiceRegistered) {
+    return
+  }
+  serverChannelServiceRegistered = true
 
-  // Start the server during module initialization so startup is bound to injeca lifecycle.
-  await serverChannel.start()
-  return serverChannel
-}
-
-export async function createServerChannelService(params: { serverChannel: ServerChannel }) {
   const { context } = createContext(ipcMain)
 
   defineInvokeHandler(context, electronGetServerChannelConfig, async () => {
-    return getChannelServerConfig()
+    return await getChannelServerConfig()
+  })
+
+  defineInvokeHandler(context, electronGetServerChannelQrPayload, async () => {
+    const config = await getChannelServerConfig()
+    return getServerChannelQrPayload(config, params.serverChannel)
   })
 
   defineInvokeHandler(context, electronApplyServerChannelConfig, async (req) => {
-    const current = getChannelServerConfig()
-    const next = normalizeChannelServerOptions(req, current)
-    const changed = JSON.stringify(next.websocketTlsConfig) !== JSON.stringify(current.websocketTlsConfig)
+    const current = await getChannelServerConfig()
+    const next = await normalizeChannelServerOptions(req, current)
+    const tlsChanged = JSON.stringify(next.tlsConfig) !== JSON.stringify(current.tlsConfig)
+    const hostnameChanged = next.hostname !== current.hostname
+    const authTokenChanged = next.authToken !== current.authToken
+    const runtimeChanged = tlsChanged || hostnameChanged || authTokenChanged
 
-    channelServerConfigStore.update(next)
+    try {
+      if (runtimeChanged) {
+        const nextRuntimeOptions = await resolveServerRuntimeOptions(next)
 
-    if (changed) {
-      await params.serverChannel.stop()
-      await params.serverChannel.updateConfig(next)
-      await params.serverChannel.start()
+        await params.serverChannel.updateConfig(nextRuntimeOptions)
+        await params.serverChannel.restart()
+      }
+      else {
+        await params.serverChannel.start()
+      }
+
+      channelServerConfigStore.update(next)
+      return next
     }
-    else {
-      await params.serverChannel.start()
-    }
+    catch (error) {
+      useLogg('main/server-runtime').withError(error).error('Failed to apply server channel configuration')
+      if (runtimeChanged) {
+        const previousRuntimeOptions = await resolveServerRuntimeOptions(current)
 
-    return next
+        try {
+          await params.serverChannel.updateConfig(previousRuntimeOptions)
+          await params.serverChannel.restart()
+        }
+        catch (rollbackError) {
+          useLogg('main/server-runtime').withError(rollbackError).error('Failed to restore previous server channel configuration')
+        }
+      }
+
+      throw new Error(errorMessageFrom(error) ?? 'Failed to apply server channel configuration')
+    }
   })
 }
+
+export type { Server as ServerChannel }

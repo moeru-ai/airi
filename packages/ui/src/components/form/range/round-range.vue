@@ -56,7 +56,8 @@ function handleInput(e: Event) {
     :min="scaledMin"
     :max="scaledMax"
     :step="scaledStep"
-    class="slider-progress form_input-round-range"
+    :disabled="props.disabled"
+    :class="['slider-progress', 'form_input-round-range', props.disabled ? 'opacity-60 pointer-events-none' : '']"
     @input="handleInput"
   >
 </template>
@@ -70,7 +71,6 @@ https://toughengineer.github.io/demo/slider-styler*/
   min-height: var(--height);
   appearance: none;
   background: transparent;
-  border-radius: 4px;
   transition: background-color 0.2s ease;
 
   --thumb-width: var(--height);
@@ -83,7 +83,7 @@ https://toughengineer.github.io/demo/slider-styler*/
   --track-height: calc(var(--height) - var(--track-value-padding) * 2);
   --track-box-shadow: 0 0 12px -2px rgb(0 0 0 / 22%);
   --track-border: none;
-  --track-border-radius: 10px;
+  --track-border-radius: 16px;
   --track-background: rgba(0, 0, 0, 0.4);
 
   --track-value-background: rgb(255, 255, 255);
@@ -98,7 +98,7 @@ https://toughengineer.github.io/demo/slider-styler*/
   --thumb-background: rgb(238, 238, 238);
 
   --track-border: none;
-  --track-background: rgba(99, 99, 99, 0.7);
+  --track-background: rgba(64, 64, 64, 0.7);
   --track-box-shadow: 0 0 12px -2px rgb(0 0 0 / 22%);
 
   --track-value-background: rgb(238, 238, 238);
@@ -113,6 +113,20 @@ https://toughengineer.github.io/demo/slider-styler*/
 
 .form_input-round-range:focus {
   outline: none;
+}
+
+.form_input-round-range:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.form_input-round-range:disabled::-webkit-slider-thumb,
+.form_input-round-range:disabled::-webkit-slider-runnable-track,
+.form_input-round-range:disabled::-moz-range-thumb,
+.form_input-round-range:disabled::-moz-range-track,
+.form_input-round-range:disabled::-ms-thumb,
+.form_input-round-range:disabled::-ms-track {
+  cursor: not-allowed;
 }
 
 /*webkit*/

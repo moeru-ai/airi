@@ -4,7 +4,7 @@ import type { ServerEvent, ServerEvents } from '@proj-airi/stage-ui/stores/provi
 import vadWorkletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
 import { createAliyunNLSProvider, streamAliyunTranscription } from '@proj-airi/stage-ui/stores/providers/aliyun/stream-transcription'
-import { Button, FieldInput, FieldSelect } from '@proj-airi/ui'
+import { Button, FieldCombobox, FieldInput } from '@proj-airi/ui'
 import { computed, nextTick, onBeforeUnmount, reactive, ref, shallowRef, watch } from 'vue'
 
 type AliyunRegion
@@ -387,7 +387,7 @@ onBeforeUnmount(async () => {
           placeholder="请输入 AppKey"
         />
 
-        <FieldSelect
+        <FieldCombobox
           v-model="credentials.region"
           label="Region"
           description="Match the region used when issuing the token."

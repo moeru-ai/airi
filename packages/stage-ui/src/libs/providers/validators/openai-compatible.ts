@@ -8,12 +8,10 @@ import { listModels } from '@xsai/model'
 import { message } from '@xsai/utils-chat'
 import { Mutex } from 'es-toolkit'
 
-import { isModelProvider } from '../types'
-
-type OpenAICompatibleValidationCheck = 'connectivity' | 'model_list' | 'chat_completions'
+import { isModelProvider, ProviderValidationCheck } from '../types'
 
 interface OpenAICompatibleValidationOptions<TConfig extends { apiKey?: string, baseUrl?: string }> {
-  checks?: OpenAICompatibleValidationCheck[]
+  checks?: ProviderValidationCheck[]
   additionalHeaders?: Record<string, string>
   allowValidationWithoutModel?: boolean
   schedule?: {
@@ -103,7 +101,7 @@ async function pickValidationModel<TConfig extends { apiKey?: string | null, bas
 export function createOpenAICompatibleValidators<TConfig extends { apiKey?: string, baseUrl?: string }>(
   options?: OpenAICompatibleValidationOptions<TConfig>,
 ): ProviderDefinition<TConfig>['validators'] {
-  const checks = options?.checks ?? ['connectivity', 'model_list', 'chat_completions']
+  const checks = options?.checks ?? [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList]
   const additionalHeaders = options?.additionalHeaders
   const missingValidationModelReason = 'No model available for validation. Configure a model manually and try again.'
 
@@ -235,25 +233,45 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     },
   }))
 
-  if (checks.includes('connectivity')) {
+  if (checks.includes(ProviderValidationCheck.Connectivity)) {
     validatorConfig.validateProvider?.push(({ t }) => ({
       id: 'openai-compatible:check-connectivity',
       name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-connectivity.title'),
       schedule: options?.schedule,
-      validator: async (config, provider, providerExtra, contextOptions) => {
+      validator: async (config) => {
         const errors: Array<{ error: unknown }> = []
-        const result = await getChatCheckResult(
-          config,
-          provider,
-          providerExtra,
-          contextOptions as { validationCache?: Map<string, unknown> } | undefined,
-        )
-        if (!result.connectivityOk) {
-          const errorMessage = result.errorMessage || 'Unknown error.'
+        const baseUrl = String(config.baseUrl ?? '')
+        const modelsUrl = baseUrl.endsWith('/') ? `${baseUrl}models` : `${baseUrl}/models`
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 10_000)
+
+        try {
+          const response = await fetch(modelsUrl, {
+            method: 'GET',
+            headers: {
+              ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
+              ...additionalHeaders,
+            },
+            signal: controller.signal,
+          })
+
+          if (response.status >= 500) {
+            const errorMessage = `Server error: HTTP ${response.status}`
+            const reason = options?.connectivityFailureReason
+              ? options.connectivityFailureReason({ config, error: new Error(errorMessage), errorMessage })
+              : `Connectivity check failed: ${errorMessage}`
+            errors.push({ error: new Error(reason) })
+          }
+        }
+        catch (e) {
+          const errorMessage = errorMessageFrom(e) || 'Unknown error.'
           const reason = options?.connectivityFailureReason
-            ? options.connectivityFailureReason({ config, error: result.error, errorMessage })
+            ? options.connectivityFailureReason({ config, error: e, errorMessage })
             : `Connectivity check failed: ${errorMessage}`
           errors.push({ error: new Error(reason) })
+        }
+        finally {
+          clearTimeout(timeout)
         }
 
         return {
@@ -266,7 +284,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     }))
   }
 
-  if (checks.includes('chat_completions')) {
+  if (checks.includes(ProviderValidationCheck.ChatCompletions)) {
     validatorConfig.validateProvider?.push(({ t }) => ({
       id: 'openai-compatible:check-chat-completions',
       name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-supports-chat-completion.title'),
@@ -293,7 +311,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     }))
   }
 
-  if (checks.includes('model_list')) {
+  if (checks.includes(ProviderValidationCheck.ModelList)) {
     validatorConfig.validateProvider?.push(({ t }) => ({
       id: 'openai-compatible:check-model-list',
       name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-supports-model-listing.title'),

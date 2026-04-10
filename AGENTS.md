@@ -90,6 +90,7 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - Prefer functional patterns + DI (`injeca`) for testability.
 - Use Valibot for schema validation; keep schemas close to their consumers.
 - Use Eventa (`@moeru/eventa`) for structured IPC/RPC contracts where needed.
+- Use `errorMessageFrom(error)` from `@moeru/std` to extract error messages instead of manual patterns like `error instanceof Error ? error.message : String(error)`. Pair with `?? 'fallback'` when a default is needed.
 - Do not add backward-compatibility guards. If extended support is required, write refactor docs and spin up another Codex or Claude Code instance via shell command to complete the implementation with clear instructions and the expected post-refactor shape.
 - If the refactor scope is small, do a progressive refactor step by step.
 - When modifying code, always check for opportunities to do small, minimal progressive refactors alongside the change.
@@ -99,7 +100,8 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - Prefer Vue v-bind class arrays for readability when working with UnoCSS & tailwindcss: do `:class="['px-2 py-1','flex items-center','bg-white/50 dark:bg-black/50']"`, don't do `class="px-2 py-1 flex items-center bg-white/50 dark:bg-black/50"`, don't do `px="2" py="1" flex="~ items-center" bg="white/50 dark:black/50"`; avoid long inline `class=""`. Refactor legacy when you touch it.
 - Use/extend UnoCSS shortcuts/rules in `uno.config.ts`; add new shortcuts/rules/plugins there when standardizing styles. Prefer UnoCSS over Tailwind.
 - Check `apps/stage-web/src/styles` for existing animations; reuse or extend before adding new ones. If you need config references, see `apps/stage-web/tsconfig.json` and `uno.config.ts`.
-- Build primitives on `@proj-airi/ui` (reka-ui) instead of raw DOM; see `packages/ui/src/components/Form` for patterns.
+- Build primitives on `@proj-airi/ui` (reka-ui) instead of raw DOM; see [`docs/ai/context/ui-components.md`](docs/ai/context/ui-components.md) for the full component API reference and `packages/ui/src/components/Form` for implementation patterns.
+- **When adding or updating components in `packages/ui`**, update [`docs/ai/context/ui-components.md`](docs/ai/context/ui-components.md) to reflect the change (props, slots, emits, description).
 - Use Iconify icon sets; avoid bespoke SVGs.
 - Animations: keep intuitive, lively, and readable.
 - `useDark` (VueUse): set `disableTransition: false` or use existing composables in `packages/ui`.
@@ -107,6 +109,14 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 ## Testing Practices
 
 - Vitest per project; keep runs targeted for speed.
+- For any investigated bug or issue, try to reproduce it first with a test-only reproduction before changing production code. Prefer a unit test; if that is not possible, use the smallest higher-level automated test that can still reproduce the problem.
+- When an issue reproduction test is possible, include the tracker identifier in the test case name:
+  - GitHub issues: include `Issue #<number>`
+  - Internal bugs tracked in Linear: include the Linear issue key
+- Add the actual report link as a comment directly above the regression test:
+  - GitHub issue URL for GitHub reports
+  - Discord message or thread URL for IM reports
+  - Linear issue URL for internal bugs
 - Mock IPC/services with `vi.fn`/`vi.mock`; do not rely on real Electron runtime.
 - For external providers/services, add both mock-based tests and integration-style tests (with env guards) when feasible. You can mock imports with Vitest.
 - Grow component/e2e coverage progressively (Vitest browser env where possible). Use `expect` and assert mock calls/params.

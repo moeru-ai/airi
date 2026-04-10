@@ -183,7 +183,9 @@ async function dropItemsAndWaitForCollection(
     let settled = false
 
     const cleanup = () => {
+      // eslint-disable-next-line ts/no-use-before-define
       mineflayer.bot.removeListener('playerCollect', onCollect)
+      // eslint-disable-next-line ts/no-use-before-define
       mineflayer.removeListener('interrupt', onInterrupt)
     }
 
