@@ -19,7 +19,7 @@ jobs:
       matrix:
         include:
           - assets_name: ui-server-auth
-            build_directory: ./apps/ui-server-auth/dist
+            build_directory: ./apps/server/public/ui-server-auth
             build_command: |
               pnpm -F @proj-airi/ui-server-auth run build
     steps:
@@ -68,7 +68,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/build-push-action@v6
         with:
-          context: ./apps/ui-server-auth/dist
+          context: ./apps/server/public/ui-server-auth
           file: ./apps/ui-server-auth/Dockerfile
           build-args: |
             VITE_ENABLE_POSTHOG=true
