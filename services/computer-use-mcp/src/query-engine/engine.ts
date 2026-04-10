@@ -29,6 +29,8 @@ import type {
 
 import { BudgetGuard } from './budget-guard'
 import { compactIfNeeded } from './context-compact'
+import { buildSessionState, loadSession, saveSession } from './session'
+import { callLLMStreaming } from './streaming'
 import { buildSystemPrompt } from './system-prompt'
 import {
   buildToolRoutes,
@@ -60,6 +62,9 @@ export function resolveConfig(overrides?: Partial<QueryEngineConfig>): QueryEngi
     maxTokenBudget: overrides?.maxTokenBudget ?? DEFAULTS.maxTokenBudget,
     approvalMode: overrides?.approvalMode ?? DEFAULTS.approvalMode,
     abortSignal: overrides?.abortSignal,
+    fallbackModel: overrides?.fallbackModel ?? process.env.AIRI_AGENT_FALLBACK_MODEL,
+    sessionId: overrides?.sessionId,
+    sessionDir: overrides?.sessionDir,
   }
 }
 
@@ -483,11 +488,46 @@ export async function runQueryEngine(params: {
   const LLM_RETRY_BASE_MS = 1000
   let consecutiveRetries = 0
 
+  // ─── Model fallback state ───
+  let currentModel = config.model
+  let usedFallback = false
+
   // ─── Exploration phase tracking ───
-  // Counts turns without any edit to enforce the DISCOVER phase limit.
   const DISCOVER_LIMIT = Math.min(4, Math.floor(config.maxTurns * 0.25))
   let turnsWithoutEdit = 0
   let anyEditMade = false
+
+  // ─── Read cache ───
+  // Caches read_file results keyed by "filePath:startLine:endLine".
+  // Invalidated when the file is modified via edit_file/multi_edit_file/write_file.
+  const readCache = new Map<string, string>()
+
+  // ─── Session state ───
+  const sessionId = config.sessionId ?? crypto.randomUUID()
+
+  // Restore session if one exists
+  if (config.sessionId) {
+    const saved = await loadSession(config.sessionId, config.sessionDir)
+    if (saved && saved.status === 'in_progress') {
+      // Restore conversation state
+      messages.length = 0
+      messages.push(...saved.messages)
+      for (const f of saved.filesModified) filesModified.add(f)
+      lastAssistantContent = saved.lastAssistantContent
+      anyEditMade = saved.anyEditMade
+      turnsWithoutEdit = saved.turnsWithoutEdit
+      // Restore budget
+      for (let i = 0; i < saved.turnsUsed; i++) budget.recordTurn()
+      budget.recordToolCalls(saved.toolCallsUsed)
+      budget.recordTokens(saved.tokensUsed)
+      onProgress?.({
+        turn: saved.turnsUsed,
+        phase: 'session_saved' as any,
+        budget: budget.snapshot(),
+        message: `Session restored: ${saved.turnsUsed} turns, ${saved.tokensUsed} tokens`,
+      })
+    }
+  }
 
   // Helper to build a result with verification
   const buildResult = async (
@@ -517,6 +557,7 @@ export async function runQueryEngine(params: {
       filesModified: Array.from(filesModified),
       error,
       verification,
+      sessionId,
     }
   }
 
@@ -546,27 +587,78 @@ export async function runQueryEngine(params: {
       budget: snap,
     })
 
-    // Call LLM with exponential backoff retry
+    // Call LLM with exponential backoff retry and model fallback
     let response: LLMResponse
     try {
-      response = await callLLM({ config, messages: messagesForCall, tools: openaiTools })
+      // Use streaming variant for real-time output
+      const callConfig = { ...config, model: currentModel }
+      response = await callLLMStreaming({
+        config: callConfig,
+        messages: messagesForCall,
+        tools: openaiTools,
+        onDelta: (delta) => {
+          onProgress?.({
+            turn: snap.turnsUsed + 1,
+            phase: 'streaming',
+            budget: snap,
+            delta,
+          })
+        },
+      })
       consecutiveRetries = 0 // Reset on success
+      if (usedFallback) {
+        // Switch back to primary model after fallback succeeds
+        currentModel = config.model
+        usedFallback = false
+      }
     }
     catch (err) {
       const message = err instanceof Error ? err.message : String(err)
 
       if (isTransientError(message) && consecutiveRetries < MAX_LLM_RETRIES) {
         consecutiveRetries++
-        // Exponential backoff: 1s → 2s → 4s → 8s → 16s, plus jitter
         const delay = LLM_RETRY_BASE_MS * Math.pow(2, consecutiveRetries - 1) + Math.random() * 500
         onProgress?.({
           turn: snap.turnsUsed,
-          phase: 'calling_llm',
+          phase: 'retrying',
           budget: snap,
           message: `Transient error, retry ${consecutiveRetries}/${MAX_LLM_RETRIES} in ${Math.round(delay)}ms: ${message.slice(0, 100)}`,
         })
         await new Promise(r => setTimeout(r, delay))
         continue
+      }
+
+      // Model fallback: if primary is exhausted, try fallback model
+      if (config.fallbackModel && currentModel !== config.fallbackModel && isTransientError(message)) {
+        currentModel = config.fallbackModel
+        usedFallback = true
+        consecutiveRetries = 0
+        onProgress?.({
+          turn: snap.turnsUsed,
+          phase: 'retrying',
+          budget: snap,
+          message: `Primary model failed, falling back to ${config.fallbackModel}`,
+        })
+        continue
+      }
+
+      // Save session before giving up on error
+      if (config.sessionId) {
+        const state = buildSessionState({
+          sessionId,
+          goal,
+          workspacePath,
+          messages,
+          filesModified,
+          turnsUsed: snap.turnsUsed,
+          toolCallsUsed: snap.toolCallsUsed,
+          tokensUsed: snap.tokensUsed,
+          anyEditMade,
+          turnsWithoutEdit,
+          lastAssistantContent,
+          status: 'error',
+        })
+        await saveSession(state, config.sessionDir)
       }
 
       return buildResult('error', snap, message)
@@ -576,6 +668,20 @@ export async function runQueryEngine(params: {
     budget.recordTurn()
     if (response.usage) {
       budget.recordTokens(response.usage.totalTokens)
+    }
+    else {
+      // NOTICE: Streaming mode may not return usage stats from all providers.
+      // Estimate tokens from message content as a fallback for budget tracking.
+      const { estimateTokenCount } = await import('./tokenizer')
+      const promptTokens = messagesForCall.reduce((sum, m) => {
+        const content = m.role === 'assistant'
+          ? (m.content ?? '') + (m.tool_calls ? JSON.stringify(m.tool_calls) : '')
+          : (m.content ?? '')
+        return sum + estimateTokenCount(content)
+      }, 0)
+      const completionTokens = estimateTokenCount(response.content ?? '')
+        + (response.toolCalls.length > 0 ? estimateTokenCount(JSON.stringify(response.toolCalls)) : 0)
+      budget.recordTokens(promptTokens + completionTokens)
     }
 
     // Append assistant message to history
@@ -701,13 +807,50 @@ export async function runQueryEngine(params: {
     // Flush any remaining read-only calls
     await flushReadOnly()
 
-    // Append all results to history in original order, with truncation
-    for (const slot of resultSlots) {
+    // Append all results to history in original order, with truncation + read cache
+    for (let idx = 0; idx < resultSlots.length; idx++) {
+      const slot = resultSlots[idx]
       if (slot) {
+        const toolName = response.toolCalls[idx]?.function.name ?? ''
+        let content = truncateToolResult(slot.content)
+
+        // Read cache: if this is a read_file result, cache it
+        if (toolName === 'read_file' && !content.startsWith('[ERROR]')) {
+          try {
+            const args = JSON.parse(response.toolCalls[idx]!.function.arguments)
+            const cacheKey = `${args.file_path}:${args.start_line ?? ''}:${args.end_line ?? ''}`
+            const cached = readCache.get(cacheKey)
+            if (cached === content) {
+              // Exact same content — replace with cache hit notice
+              content = `[cached — same as previous read of ${args.file_path}]`
+            }
+            else {
+              readCache.set(cacheKey, content)
+            }
+          }
+          catch { /* ignore parse errors */ }
+        }
+
+        // Invalidate cache when files are edited
+        if (toolName === 'edit_file' || toolName === 'multi_edit_file' || toolName === 'write_file') {
+          try {
+            const args = JSON.parse(response.toolCalls[idx]!.function.arguments)
+            if (args.file_path) {
+              // Remove all cache entries for this file
+              for (const key of readCache.keys()) {
+                if (key.startsWith(args.file_path + ':')) {
+                  readCache.delete(key)
+                }
+              }
+            }
+          }
+          catch { /* ignore */ }
+        }
+
         messages.push({
           role: 'tool',
           tool_call_id: slot.toolCallId,
-          content: truncateToolResult(slot.content),
+          content,
         })
       }
     }
@@ -731,6 +874,33 @@ export async function runQueryEngine(params: {
         content: `PHASE WARNING: You have spent ${turnsWithoutEdit} turns exploring without making any edits. `
           + 'You must now either (1) make an edit using edit_file/multi_edit_file, or (2) provide your final summary if the task is investigation-only. '
           + 'Do NOT continue searching or reading files without a concrete action plan.',
+      })
+    }
+
+    // ─── Session auto-save ───
+    // Save session state every 5 turns for crash recovery
+    if (config.sessionId && budget.snapshot().turnsUsed % 5 === 0) {
+      const snap2 = budget.snapshot()
+      const state = buildSessionState({
+        sessionId,
+        goal,
+        workspacePath,
+        messages,
+        filesModified,
+        turnsUsed: snap2.turnsUsed,
+        toolCallsUsed: snap2.toolCallsUsed,
+        tokensUsed: snap2.tokensUsed,
+        anyEditMade,
+        turnsWithoutEdit,
+        lastAssistantContent,
+        status: 'in_progress',
+      })
+      await saveSession(state, config.sessionDir)
+      onProgress?.({
+        turn: snap2.turnsUsed,
+        phase: 'session_saved',
+        budget: snap2,
+        message: `Session auto-saved (turn ${snap2.turnsUsed})`,
       })
     }
 

@@ -5,29 +5,19 @@
  * Strategy: When message count exceeds a configurable limit, compress older
  * messages into a summary while keeping the most recent messages intact.
  * This prevents context window overflow in long-running autonomous loops.
- *
- * NOTICE: Token estimation uses a rough chars/4 heuristic. A proper tokenizer
- * (tiktoken) would be more accurate but adds a dependency.
  */
 
 import type { QueryMessage } from './types'
+import { estimateTokenCount } from './tokenizer'
 
-/**
- * Rough token estimation: ~4 chars per token for English text.
- * Underestimates for CJK, overestimates for code with long identifiers.
- */
-function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4)
-}
-
-/** Estimate total tokens in a message array. */
+/** Estimate total tokens in a message array using the multi-heuristic tokenizer. */
 export function estimateMessageTokens(messages: QueryMessage[]): number {
   return messages.reduce((sum, msg) => {
     const content = msg.role === 'assistant'
       ? (msg.content ?? '') + (msg.tool_calls ? JSON.stringify(msg.tool_calls) : '')
       : msg.content
     // +4 per message for role/separator overhead
-    return sum + estimateTokens(content) + 4
+    return sum + estimateTokenCount(content) + 4
   }, 0)
 }
 

@@ -40,6 +40,24 @@ export interface QueryEngineConfig {
 
   /** Abort signal for cancellation. */
   abortSignal?: AbortSignal
+
+  /**
+   * Fallback model to use when the primary model fails with transient errors
+   * after all retries are exhausted. If set, the engine will try this model
+   * before giving up entirely.
+   */
+  fallbackModel?: string
+
+  /**
+   * Session ID for persistence. If set, the engine can save/restore
+   * conversation state to resume long-running tasks.
+   */
+  sessionId?: string
+
+  /**
+   * Session storage directory. Defaults to /tmp/airi-sessions.
+   */
+  sessionDir?: string
 }
 
 /**
@@ -112,6 +130,8 @@ export interface QueryEngineResult {
   error?: string
   /** Post-loop verification results. Empty if verification was not run. */
   verification: VerificationRecord[]
+  /** Session ID, if session persistence was enabled. */
+  sessionId?: string
 }
 
 /**
@@ -133,8 +153,30 @@ export interface VerificationRecord {
  */
 export interface QueryEngineProgress {
   turn: number
-  phase: 'calling_llm' | 'executing_tools' | 'completed' | 'error'
+  phase: 'calling_llm' | 'executing_tools' | 'completed' | 'error' | 'streaming' | 'retrying' | 'session_saved'
   toolName?: string
   budget: BudgetSnapshot
   message?: string
+  /** Streaming content delta (when phase = 'streaming'). */
+  delta?: string
+}
+
+/**
+ * Serializable session state for persistence.
+ * Captures everything needed to resume a query engine run.
+ */
+export interface SessionState {
+  sessionId: string
+  goal: string
+  workspacePath: string
+  messages: QueryMessage[]
+  filesModified: string[]
+  turnsUsed: number
+  toolCallsUsed: number
+  tokensUsed: number
+  anyEditMade: boolean
+  turnsWithoutEdit: number
+  lastAssistantContent: string
+  savedAt: string
+  status: 'in_progress' | 'completed' | 'error'
 }

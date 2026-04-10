@@ -495,7 +495,14 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
       const filePath = await resolveFilePath(args.file_path as string)
       const oldText = args.old_text as string
       const newText = args.new_text as string
-      return applySingleEdit(filePath, oldText, newText)
+      const result = await applySingleEdit(filePath, oldText, newText)
+
+      // Diff preview: show what changed
+      if (typeof result === 'object' && (result as any).success) {
+        const diffPreview = buildDiffPreview(oldText, newText)
+        return { ...result as object, diff_preview: diffPreview }
+      }
+      return result
     },
 
     multi_edit_file: async (args) => {
@@ -565,6 +572,98 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
         editsFailed: errors.length,
         details: applied,
         ...(errors.length > 0 ? { errors } : {}),
+        // Diff preview summary for multi-edit
+        diff_summary: `${applied.length} edit(s) applied: ${applied.map(a => `L${a.line}: -${a.linesRemoved}/+${a.linesAdded}`).join(', ')}`,
+      }
+    },
+
+    // ─── Git Integration Tools ───
+    // Safe, structured git operations that bypass the bash write guard.
+
+    git_status: async () => {
+      const { execSync } = await import('node:child_process')
+      try {
+        const status = execSync('git status --porcelain', { cwd: workspacePath, encoding: 'utf-8', timeout: 10_000 })
+        const branch = execSync('git branch --show-current', { cwd: workspacePath, encoding: 'utf-8', timeout: 5_000 }).trim()
+        const lines = status.trim().split('\n').filter(Boolean)
+        return {
+          branch,
+          totalChanges: lines.length,
+          staged: lines.filter(l => l[0] !== ' ' && l[0] !== '?').length,
+          unstaged: lines.filter(l => l[1] === 'M' || l[1] === 'D').length,
+          untracked: lines.filter(l => l.startsWith('??')).length,
+          files: lines.slice(0, 50).map(l => ({ status: l.slice(0, 2), path: l.slice(3) })),
+        }
+      }
+      catch (err: any) {
+        return { error: `git status failed: ${err.message}` }
+      }
+    },
+
+    git_diff: async (args) => {
+      const { execSync } = await import('node:child_process')
+      const filePath = args.file_path as string | undefined
+      const staged = args.staged as boolean | undefined
+      try {
+        const cmd = ['git', 'diff']
+        if (staged) cmd.push('--staged')
+        if (filePath) cmd.push('--', filePath)
+        const diff = execSync(cmd.join(' '), { cwd: workspacePath, encoding: 'utf-8', timeout: 15_000 })
+        if (!diff.trim()) return { message: 'No changes.', diff: '' }
+        // Truncate very long diffs
+        const maxChars = 30_000
+        if (diff.length > maxChars) {
+          return {
+            diff: diff.slice(0, maxChars) + `\n\n... [${diff.length - maxChars} chars truncated]`,
+            truncated: true,
+          }
+        }
+        return { diff }
+      }
+      catch (err: any) {
+        return { error: `git diff failed: ${err.message}` }
+      }
+    },
+
+    git_stash: async (args) => {
+      const { execSync } = await import('node:child_process')
+      const action = (args.action as string) || 'push'
+      try {
+        if (action === 'push') {
+          const message = args.message as string | undefined
+          const cmd = message ? `git stash push -m "${message.replace(/"/g, '\\"')}"` : 'git stash push'
+          const output = execSync(cmd, { cwd: workspacePath, encoding: 'utf-8', timeout: 15_000 })
+          return { action: 'push', output: output.trim() }
+        }
+        else if (action === 'pop') {
+          const output = execSync('git stash pop', { cwd: workspacePath, encoding: 'utf-8', timeout: 15_000 })
+          return { action: 'pop', output: output.trim() }
+        }
+        else if (action === 'list') {
+          const output = execSync('git stash list', { cwd: workspacePath, encoding: 'utf-8', timeout: 10_000 })
+          return { action: 'list', stashes: output.trim().split('\n').filter(Boolean) }
+        }
+        else {
+          return { error: `Unknown stash action: ${action}. Use push, pop, or list.` }
+        }
+      }
+      catch (err: any) {
+        return { error: `git stash ${action} failed: ${err.message}` }
+      }
+    },
+
+    git_commit: async (args) => {
+      const { execSync } = await import('node:child_process')
+      const message = args.message as string
+      if (!message) return { error: 'Commit message is required.' }
+      try {
+        // Stage all changes first
+        execSync('git add -A', { cwd: workspacePath, encoding: 'utf-8', timeout: 10_000 })
+        const output = execSync(`git commit -m "${message.replace(/"/g, '\\"')}"`, { cwd: workspacePath, encoding: 'utf-8', timeout: 15_000 })
+        return { success: true, output: output.trim() }
+      }
+      catch (err: any) {
+        return { error: `git commit failed: ${err.message}` }
       }
     },
   }
@@ -752,5 +851,96 @@ export function getToolDefinitions(): QueryEngineTool[] {
         },
       },
     },
+    // ─── Git Integration Tools ───
+    {
+      name: 'git_status',
+      description: 'Get the git status of the workspace: current branch, staged/unstaged/untracked files.',
+      parameters: {
+        type: 'object',
+        properties: {},
+      },
+    },
+    {
+      name: 'git_diff',
+      description: 'Show git diff of changes. Can be filtered to a specific file and staged/unstaged.',
+      parameters: {
+        type: 'object',
+        properties: {
+          file_path: { type: 'string', description: 'Optional: limit diff to this file path.' },
+          staged: { type: 'boolean', description: 'If true, show staged changes. Default: false (unstaged).' },
+        },
+      },
+    },
+    {
+      name: 'git_stash',
+      description: 'Manage git stash: push (save changes), pop (restore), or list stashes.',
+      parameters: {
+        type: 'object',
+        required: ['action'],
+        properties: {
+          action: { type: 'string', description: 'Action: push, pop, or list.' },
+          message: { type: 'string', description: 'Stash message (for push action).' },
+        },
+      },
+    },
+    {
+      name: 'git_commit',
+      description: 'Stage all changes and create a git commit.',
+      parameters: {
+        type: 'object',
+        required: ['message'],
+        properties: {
+          message: { type: 'string', description: 'Commit message.' },
+        },
+      },
+    },
   ]
+}
+
+/**
+ * Build a unified diff preview for a single edit.
+ * Shows - lines (removed) and + lines (added).
+ */
+function buildDiffPreview(oldText: string, newText: string): string {
+  const oldLines = oldText.split('\n')
+  const newLines = newText.split('\n')
+
+  // Simple line-by-line diff (not a proper Myers diff, but good for previews)
+  const diffLines: string[] = []
+  const maxLen = Math.max(oldLines.length, newLines.length)
+
+  // Find the first and last differing lines
+  let firstDiff = 0
+  while (firstDiff < oldLines.length && firstDiff < newLines.length && oldLines[firstDiff] === newLines[firstDiff]) {
+    firstDiff++
+  }
+
+  let oldEnd = oldLines.length - 1
+  let newEnd = newLines.length - 1
+  while (oldEnd > firstDiff && newEnd > firstDiff && oldLines[oldEnd] === newLines[newEnd]) {
+    oldEnd--
+    newEnd--
+  }
+
+  // Context lines before
+  if (firstDiff > 0) {
+    diffLines.push(` ${oldLines[firstDiff - 1]}`)
+  }
+
+  // Removed lines
+  for (let i = firstDiff; i <= oldEnd; i++) {
+    diffLines.push(`-${oldLines[i]}`)
+  }
+
+  // Added lines
+  for (let i = firstDiff; i <= newEnd; i++) {
+    diffLines.push(`+${newLines[i]}`)
+  }
+
+  // Context after
+  if (oldEnd + 1 < oldLines.length) {
+    diffLines.push(` ${oldLines[oldEnd + 1]}`)
+  }
+
+  return diffLines.join('\n')
 }
