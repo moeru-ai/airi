@@ -22,7 +22,7 @@ type AmazonBedrockConfig = z.infer<typeof amazonBedrockConfigSchema>
 function mergeConsecutiveRoles(messages: Array<{ role: string, content: any[] }>) {
   const merged: Array<{ role: string, content: any[] }> = []
   for (const msg of messages) {
-    const last = merged[merged.length - 1]
+    const last = merged.at(-1)
     if (last && last.role === msg.role) {
       last.content.push(...msg.content)
     }
