@@ -60,7 +60,7 @@ jobs:
             builder-args: --macos --x64
             skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'macos' }}
 
-          - os: macos-26
+          - os: macos-14
             artifact: darwin-arm64
             target: aarch64-apple-darwin
             builder-args: --macos --arm64
@@ -108,13 +108,13 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: macOS Select Xcode 26.2
-        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-26'
+        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-14'
         run: |
           sudo xcode-select -s /Applications/Xcode_26.2.app
           xcodebuild -version
 
       - name: macOS Show Toolchain
-        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-26'
+        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-14'
         run: |
           xcodebuild -version
           actool --version
@@ -141,7 +141,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build (macOS Only) # macOS
-        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-26'
+        if: matrix.os == 'macos-15-intel' || matrix.os == 'macos-14'
         run: |
           echo "$CSC_CONTENT" | base64 --decode > apps/stage-tamagotchi/apple-developer-code-signing.p12
           export CSC_LINK="./apple-developer-code-signing.p12"
@@ -197,7 +197,7 @@ jobs:
           echo "VERSION=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-version)" >> $GITHUB_ENV
 
       - name: Get Artifacts Envs (Nightly + macOS Only)
-        if: ${{ github.event_name == 'schedule' && (matrix.os == 'macos-26' || matrix.os == 'macos-15-intel') }}
+        if: ${{ github.event_name == 'schedule' && (matrix.os == 'macos-14' || matrix.os == 'macos-15-intel') }}
         working-directory: ./apps/stage-tamagotchi
         run: |
           echo "BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-bundle-name)" >> $GITHUB_ENV
@@ -294,7 +294,7 @@ jobs:
           echo "VERSION=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-version --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $GITHUB_ENV
 
       - name: Get Artifacts Envs (Manual + macOS Only)
-        if: ${{ github.event_name == 'workflow_dispatch' && (matrix.os == 'macos-26' || matrix.os == 'macos-15-intel') }}
+        if: ${{ github.event_name == 'workflow_dispatch' && (matrix.os == 'macos-14' || matrix.os == 'macos-15-intel') }}
         working-directory: ./apps/stage-tamagotchi
         run: |
           echo "BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-bundle-name --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $GITHUB_ENV
@@ -468,7 +468,7 @@ jobs:
 
       # https://itch.io/docs/butler/pushing.html
       - name: Upload macOS (arm64) to itch.io
-        if: ${{ github.event_name == 'release' && matrix.os == 'macos-26' }}
+        if: ${{ github.event_name == 'release' && matrix.os == 'macos-14' }}
         run: butler push apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }} nekomeowww/airi:osx --userversion ${{ env.VERSION }}
         env:
           BUTLER_API_KEY: ${{ secrets.GAME_PUBLISHING_ITCHIO }}
