@@ -7,6 +7,12 @@ export {
   getModelCacheSize,
   isModelCached,
 } from './cache-utils'
+// Coordinator singleton
+export {
+  getGPUCoordinator,
+  getLoadQueue,
+  MODEL_VRAM_ESTIMATES,
+} from './coordinator'
 // Resource management
 export {
   createGPUResourceCoordinator,

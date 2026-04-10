@@ -1551,8 +1551,10 @@ export const useProvidersStore = defineStore('providers', () => {
       icon: 'i-lobe-icons:speaker',
 
       defaultOptions: () => {
-        const hasWebGPU = getCachedWebGPUCapabilities()?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
-        const model = getDefaultKokoroModel(hasWebGPU)
+        const capabilities = getCachedWebGPUCapabilities()
+        const hasWebGPU = capabilities?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
+        const fp16Supported = capabilities?.fp16Supported ?? false
+        const model = getDefaultKokoroModel(hasWebGPU, fp16Supported)
         return {
           model,
           voiceId: '',
@@ -1657,27 +1659,27 @@ export const useProvidersStore = defineStore('providers', () => {
 
         listVoices: async (config: Record<string, unknown>) => {
           try {
-            // Reload the model before fetching voices
-            const modelId = config.model as string
-            if (modelId) {
-              const modelDef = KOKORO_MODELS.find(m => m.id === modelId)
-              if (modelDef) {
-                // Validate platform requirements
-                if (modelDef.platform === 'webgpu') {
-                  const hasWebGPU = getCachedWebGPUCapabilities()?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
-                  if (!hasWebGPU) {
-                    throw new Error('WebGPU is required for this model but is not available in your browser')
-                  }
-                }
+            const workerManager = await getKokoroAdapter()
 
-                // Load the model
-                const workerManager = await getKokoroAdapter()
-                await workerManager.loadModel(modelDef.quantization, modelDef.platform)
+            // Only reload the model if it hasn't been loaded yet (state !== 'ready').
+            // This avoids redundant worker round-trips when voices are already cached.
+            if (workerManager.state !== 'ready') {
+              const modelId = config.model as string
+              if (modelId) {
+                const modelDef = KOKORO_MODELS.find(m => m.id === modelId)
+                if (modelDef) {
+                  if (modelDef.platform === 'webgpu') {
+                    const hasWebGPU = getCachedWebGPUCapabilities()?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
+                    if (!hasWebGPU) {
+                      throw new Error('WebGPU is required for this model but is not available in your browser')
+                    }
+                  }
+
+                  await workerManager.loadModel(modelDef.quantization, modelDef.platform)
+                }
               }
             }
 
-            // Get worker manager and fetch voices from the model
-            const workerManager = await getKokoroAdapter()
             const modelVoices = workerManager.getVoices()
 
             // Language code mapping

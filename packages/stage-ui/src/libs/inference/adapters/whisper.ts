@@ -1,18 +1,18 @@
 /**
  * Whisper ASR inference adapter.
  *
- * Bridges the generic inference protocol with the existing Whisper
- * worker (`libs/workers/worker.ts`). Adds timeout handling, WASM
- * fallback, and unified progress reporting while preserving the
- * existing composable API surface.
+ * Uses the unified inference protocol from protocol.ts.
+ * Preserves the onMessage API for streaming UI updates by forwarding
+ * unified protocol messages to subscribers.
  */
 
-import type {
-  MessageEvents,
-} from '../../workers/types'
+import type { AllocationToken } from '../gpu-resource-coordinator'
 import type { ProgressPayload } from '../protocol'
 
 import { AsyncMutex } from '../async-mutex'
+import { getGPUCoordinator, getLoadQueue, MODEL_VRAM_ESTIMATES } from '../coordinator'
+import { LOAD_PRIORITY } from '../load-queue'
+import { createRequestId } from '../protocol'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -27,9 +27,20 @@ export type WhisperState
     | 'terminated'
 
 export interface WhisperTranscribeInput {
-  audio: string
+  audio?: string
+  audioFloat32?: Float32Array
   language: string
 }
+
+/**
+ * Unified message events for Whisper, based on protocol.ts types.
+ * These replace the old status-based MessageEvents.
+ */
+export type WhisperEvent
+  = | { type: 'progress', payload: ProgressPayload & Record<string, unknown> }
+    | { type: 'model-ready' }
+    | { type: 'inference-result', output: { text: string[] } }
+    | { type: 'error', payload: { code: string, message: string } }
 
 export interface WhisperAdapter {
   /** Load the Whisper model */
@@ -45,10 +56,10 @@ export interface WhisperAdapter {
   readonly state: WhisperState
 
   /**
-   * Subscribe to raw worker events for streaming UI updates.
+   * Subscribe to unified protocol events for streaming UI updates.
    * Returns an unsubscribe function.
    */
-  onMessage: (handler: (event: MessageEvents) => void) => () => void
+  onMessage: (handler: (event: WhisperEvent) => void) => () => void
 }
 
 // ---------------------------------------------------------------------------
@@ -65,16 +76,33 @@ const TRANSCRIBE_TIMEOUT = 120_000
 export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
   let worker: Worker | null = null
   let state: WhisperState = 'idle'
-  const messageHandlers = new Set<(event: MessageEvents) => void>()
+  let allocationToken: AllocationToken | null = null
+  const messageHandlers = new Set<(event: WhisperEvent) => void>()
 
   const operationMutex = new AsyncMutex()
 
   function ensureWorker(): Worker {
     if (!worker) {
       worker = new Worker(workerUrl, { type: 'module' })
-      worker.addEventListener('message', (event: MessageEvent<MessageEvents>) => {
-        for (const handler of messageHandlers)
-          handler(event.data)
+      worker.addEventListener('message', (event: MessageEvent) => {
+        const data = event.data
+        // Forward unified protocol messages to subscribers
+        if (data.type === 'progress') {
+          const evt: WhisperEvent = { type: 'progress', payload: data.payload }
+          for (const handler of messageHandlers) handler(evt)
+        }
+        else if (data.type === 'model-ready') {
+          const evt: WhisperEvent = { type: 'model-ready' }
+          for (const handler of messageHandlers) handler(evt)
+        }
+        else if (data.type === 'inference-result') {
+          const evt: WhisperEvent = { type: 'inference-result', output: data.output }
+          for (const handler of messageHandlers) handler(evt)
+        }
+        else if (data.type === 'error') {
+          const evt: WhisperEvent = { type: 'error', payload: data.payload }
+          for (const handler of messageHandlers) handler(evt)
+        }
       })
       worker.addEventListener('error', (event) => {
         state = 'error'
@@ -84,20 +112,37 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
     return worker
   }
 
-  function waitForStatus(
-    targetStatus: string,
+  /**
+   * Wait for a specific unified protocol message type, filtered by requestId.
+   */
+  function waitForMessage<T = any>(
+    w: Worker,
+    requestId: string,
+    targetType: string,
     timeout: number,
-  ): Promise<MessageEvents> {
-    return new Promise<MessageEvents>((resolve, reject) => {
+    onOther?: (data: any) => void,
+  ): Promise<T> {
+    return new Promise((resolve, reject) => {
       let timeoutId: ReturnType<typeof setTimeout> | undefined
-      const w = ensureWorker()
 
-      const handler = (event: MessageEvent<MessageEvents>) => {
-        if (event.data.status === targetStatus) {
+      const handler = (event: MessageEvent) => {
+        if (event.data.requestId !== requestId)
+          return
+
+        if (event.data.type === targetType) {
           if (timeoutId !== undefined)
             clearTimeout(timeoutId)
           w.removeEventListener('message', handler)
-          resolve(event.data)
+          resolve(event.data as T)
+        }
+        else if (event.data.type === 'error') {
+          if (timeoutId !== undefined)
+            clearTimeout(timeoutId)
+          w.removeEventListener('message', handler)
+          reject(new Error(event.data.payload?.message ?? 'Worker error'))
+        }
+        else {
+          onOther?.(event.data)
         }
       }
 
@@ -105,7 +150,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
 
       timeoutId = setTimeout(() => {
         w.removeEventListener('message', handler)
-        reject(new Error(`Whisper: timeout after ${timeout}ms waiting for '${targetStatus}'`))
+        reject(new Error(`Whisper: timeout after ${timeout}ms waiting for '${targetType}'`))
       }, timeout)
     })
   }
@@ -115,56 +160,46 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
   ): Promise<void> {
     return operationMutex.run(async () => {
       state = 'loading'
-      const w = ensureWorker()
 
-      // Listen for progress during loading
-      let progressHandler: ((event: MessageEvent<MessageEvents>) => void) | null = null
-      if (onProgress) {
-        progressHandler = (event: MessageEvent<MessageEvents>) => {
-          const data = event.data
-          if (data.status === 'loading') {
+      return getLoadQueue().enqueue('whisper-large-v3-turbo', LOAD_PRIORITY.ASR, async () => {
+        const w = ensureWorker()
+        const requestId = createRequestId()
+
+        const readyPromise = waitForMessage(w, requestId, 'model-ready', LOAD_TIMEOUT, (data) => {
+          if (data.type === 'progress' && onProgress) {
+            const payload = data.payload
             onProgress({
-              phase: 'compile',
-              percent: -1,
-              message: data.data,
+              phase: payload.phase ?? 'download',
+              percent: payload.percent ?? -1,
+              message: payload.message,
+              file: payload.file,
+              loaded: payload.loaded,
+              total: payload.total,
             })
           }
-          else if (data.status === 'progress') {
-            onProgress({
-              phase: 'download',
-              percent: data.progress != null ? Math.round(data.progress * 100) : -1,
-              file: data.file,
-              loaded: data.loaded,
-              total: data.total,
-            })
-          }
-          else if (data.status === 'initiate') {
-            onProgress({
-              phase: 'download',
-              percent: 0,
-              file: data.file,
-              message: `Loading ${data.file}`,
-            })
-          }
+        })
+
+        w.postMessage({ type: 'load-model', requestId, modelId: 'whisper-large-v3-turbo', device: 'webgpu' })
+
+        try {
+          await readyPromise
+
+          // Track GPU memory allocation
+          const coordinator = getGPUCoordinator()
+          if (allocationToken)
+            coordinator.release(allocationToken)
+          allocationToken = coordinator.requestAllocation(
+            'whisper-large-v3-turbo',
+            MODEL_VRAM_ESTIMATES['whisper-large-v3-turbo'] ?? 800 * 1024 * 1024,
+          )
+
+          state = 'ready'
         }
-        w.addEventListener('message', progressHandler)
-      }
-
-      const readyPromise = waitForStatus('ready', LOAD_TIMEOUT)
-      w.postMessage({ type: 'load' })
-
-      try {
-        await readyPromise
-        state = 'ready'
-      }
-      catch (error) {
-        state = 'error'
-        throw error
-      }
-      finally {
-        if (progressHandler)
-          w.removeEventListener('message', progressHandler)
-      }
+        catch (error) {
+          state = 'error'
+          throw error
+        }
+      })
     })
   }
 
@@ -174,20 +209,24 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
         throw new Error('Model not loaded. Call load() first.')
 
       state = 'transcribing'
+      const requestId = createRequestId()
 
-      const completePromise = waitForStatus('complete', TRANSCRIBE_TIMEOUT)
+      const resultPromise = waitForMessage<any>(worker, requestId, 'inference-result', TRANSCRIBE_TIMEOUT)
+
       worker.postMessage({
-        type: 'generate',
-        data: { audio: input.audio, language: input.language },
+        type: 'run-inference',
+        requestId,
+        input: {
+          audio: input.audio,
+          audioFloat32: input.audioFloat32,
+          language: input.language,
+        },
       })
 
       try {
-        const result = await completePromise
+        const result = await resultPromise
         state = 'ready'
-        if (result.status === 'complete') {
-          return result.output[0] || ''
-        }
-        return ''
+        return result.output?.text?.[0] ?? ''
       }
       catch (error) {
         state = 'error'
@@ -202,11 +241,15 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
       worker.terminate()
       worker = null
     }
+    if (allocationToken) {
+      getGPUCoordinator().release(allocationToken)
+      allocationToken = null
+    }
     messageHandlers.clear()
     state = 'terminated'
   }
 
-  function onMessage(handler: (event: MessageEvents) => void): () => void {
+  function onMessage(handler: (event: WhisperEvent) => void): () => void {
     messageHandlers.add(handler)
     return () => messageHandlers.delete(handler)
   }

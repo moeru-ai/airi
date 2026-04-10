@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { SpeechProvider } from '@xsai-ext/providers/utils'
 
+import { getCachedWebGPUCapabilities } from '@proj-airi/stage-shared/webgpu'
 import {
   SpeechPlayground,
   SpeechProviderSettings,
@@ -30,6 +31,7 @@ const providerConfig = computed(() => {
 
 // Check if WebGPU is supported
 const hasWebGPU = ref(false)
+const fp16Supported = ref(false)
 
 // Track voices loading state
 const voicesLoading = ref(false)
@@ -51,7 +53,7 @@ const model = computed({
     if (currentValue)
       return currentValue
 
-    return getDefaultKokoroModel(hasWebGPU.value)
+    return getDefaultKokoroModel(hasWebGPU.value, fp16Supported.value)
   },
   set(val: string) {
     const config = providersStore.getProviderConfig(providerId)
@@ -101,7 +103,9 @@ onMounted(async () => {
   // Check WebGPU support
   // NOTICE: Uses synchronous check for initial render. The cached result from
   // detectWebGPU() is populated by the providers store during initialization.
-  hasWebGPU.value = typeof navigator !== 'undefined' && !!navigator.gpu
+  const capabilities = getCachedWebGPUCapabilities()
+  hasWebGPU.value = capabilities?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
+  fp16Supported.value = capabilities?.fp16Supported ?? false
 
   try {
     voicesLoading.value = true

@@ -14,7 +14,14 @@ export type ProgressPhase = 'download' | 'compile' | 'warmup' | 'inference'
 
 export interface ProgressPayload {
   phase: ProgressPhase
-  /** 0-100, -1 when indeterminate */
+  /**
+   * Progress percentage, normalized to 0-100 range.
+   * Use -1 when the progress is indeterminate.
+   *
+   * Adapters are responsible for normalizing worker-specific ranges:
+   * - @huggingface/transformers progress_callback: already 0-100
+   * - Whisper status 'progress': 0-1 → multiply by 100
+   */
   percent: number
   /** Optional human-readable status */
   message?: string

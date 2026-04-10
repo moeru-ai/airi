@@ -3,11 +3,16 @@
  *
  * Offloads Xenova/modnet inference to a Web Worker so the main
  * thread is not blocked during image processing.
+ * Uses the unified inference protocol from protocol.ts.
  */
 
+import type { AllocationToken } from '../gpu-resource-coordinator'
 import type { ProgressPayload } from '../protocol'
 
 import { AsyncMutex } from '../async-mutex'
+import { getGPUCoordinator, getLoadQueue, MODEL_VRAM_ESTIMATES } from '../coordinator'
+import { LOAD_PRIORITY } from '../load-queue'
+import { createRequestId } from '../protocol'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -44,14 +49,10 @@ const PROCESS_TIMEOUT = 60_000
 // Factory
 // ---------------------------------------------------------------------------
 
-let requestCounter = 0
-function nextRequestId(): string {
-  return `bgr_${(requestCounter++).toString(36)}`
-}
-
 export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
   let worker: Worker | null = null
   let state: BackgroundRemovalAdapter['state'] = 'idle'
+  let allocationToken: AllocationToken | null = null
 
   const operationMutex = new AsyncMutex()
 
@@ -69,13 +70,17 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
     return worker
   }
 
-  function waitForMessage(
+  /**
+   * Wait for a specific message type from the worker, filtered by requestId.
+   * Uses the unified protocol message types.
+   */
+  function waitForMessage<T = any>(
     w: Worker,
     requestId: string,
     targetType: string,
     timeout: number,
     onOther?: (data: any) => void,
-  ): Promise<any> {
+  ): Promise<T> {
     return new Promise((resolve, reject) => {
       let timeoutId: ReturnType<typeof setTimeout> | undefined
 
@@ -87,13 +92,13 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
           if (timeoutId !== undefined)
             clearTimeout(timeoutId)
           w.removeEventListener('message', handler)
-          resolve(event.data)
+          resolve(event.data as T)
         }
         else if (event.data.type === 'error') {
           if (timeoutId !== undefined)
             clearTimeout(timeoutId)
           w.removeEventListener('message', handler)
-          reject(new Error(event.data.message))
+          reject(new Error(event.data.payload?.message ?? 'Worker error'))
         }
         else {
           onOther?.(event.data)
@@ -112,22 +117,39 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
   async function load(onProgress?: (p: ProgressPayload) => void): Promise<void> {
     return operationMutex.run(async () => {
       state = 'loading'
-      const w = ensureWorker()
-      const requestId = nextRequestId()
 
-      const loadedPromise = waitForMessage(w, requestId, 'loaded', LOAD_TIMEOUT, (data) => {
-        if (data.type === 'progress' && onProgress) {
-          onProgress({
-            phase: 'download',
-            percent: data.progress >= 0 ? Math.round(data.progress) : -1,
-            message: data.message,
-          })
-        }
+      return getLoadQueue().enqueue('modnet', LOAD_PRIORITY.BACKGROUND_REMOVAL, async () => {
+        const w = ensureWorker()
+        const requestId = createRequestId()
+
+        const loadedPromise = waitForMessage(w, requestId, 'model-ready', LOAD_TIMEOUT, (data) => {
+          if (data.type === 'progress' && onProgress) {
+            const payload = data.payload
+            onProgress({
+              phase: payload.phase ?? 'download',
+              percent: payload.percent ?? -1,
+              message: payload.message,
+              file: payload.file,
+              loaded: payload.loaded,
+              total: payload.total,
+            })
+          }
+        })
+
+        w.postMessage({ type: 'load-model', requestId, modelId: 'Xenova/modnet', device: 'webgpu' })
+        await loadedPromise
+
+        // Track GPU memory allocation
+        const coordinator = getGPUCoordinator()
+        if (allocationToken)
+          coordinator.release(allocationToken)
+        allocationToken = coordinator.requestAllocation(
+          'modnet',
+          MODEL_VRAM_ESTIMATES.modnet ?? 25 * 1024 * 1024,
+        )
+
+        state = 'ready'
       })
-
-      w.postMessage({ type: 'load', requestId })
-      await loadedPromise
-      state = 'ready'
     })
   }
 
@@ -137,19 +159,21 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
         throw new Error('Model not loaded. Call load() first.')
 
       state = 'processing'
-      const requestId = nextRequestId()
+      const requestId = createRequestId()
 
-      const resultPromise = waitForMessage(worker, requestId, 'result', PROCESS_TIMEOUT)
+      const resultPromise = waitForMessage<any>(worker, requestId, 'inference-result', PROCESS_TIMEOUT)
 
       // Send raw pixel data (transferable copy)
       const pixelsCopy = new Uint8ClampedArray(imageData.data)
       worker.postMessage(
         {
-          type: 'process',
+          type: 'run-inference',
           requestId,
-          imageData: pixelsCopy,
-          width: imageData.width,
-          height: imageData.height,
+          input: {
+            imageData: pixelsCopy,
+            width: imageData.width,
+            height: imageData.height,
+          },
         },
         [pixelsCopy.buffer],
       )
@@ -162,7 +186,7 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
         imageData.width,
         imageData.height,
       )
-      const maskData = result.maskData as Uint8Array
+      const maskData = result.output.maskData as Uint8Array
       for (let i = 0; i < maskData.length; i++) {
         output.data[4 * i + 3] = maskData[i]
       }
@@ -177,6 +201,10 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
     if (worker) {
       worker.terminate()
       worker = null
+    }
+    if (allocationToken) {
+      getGPUCoordinator().release(allocationToken)
+      allocationToken = null
     }
     state = 'terminated'
   }

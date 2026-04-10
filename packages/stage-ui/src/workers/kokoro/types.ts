@@ -47,7 +47,10 @@ export interface LoadedMessage {
 export interface SuccessMessage {
   type: 'result'
   status: 'success'
-  buffer: ArrayBuffer
+  /** Raw PCM audio samples (Float32Array transferred via transferable) */
+  samples: Float32Array
+  /** Audio sampling rate in Hz (e.g. 24000) */
+  samplingRate: number
 }
 
 export interface ErrorMessage {

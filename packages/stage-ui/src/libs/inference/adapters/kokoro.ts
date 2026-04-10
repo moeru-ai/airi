@@ -1,19 +1,20 @@
 /**
  * Kokoro TTS inference adapter.
  *
- * Bridges the generic `InferenceWorkerManager` protocol with the
- * Kokoro-specific worker message format. The underlying worker
- * (`workers/kokoro/worker.ts`) keeps its existing message types —
- * this adapter translates between the two protocols.
+ * Uses the unified inference protocol from protocol.ts.
+ * The worker now speaks the same protocol — no translation layer needed.
  */
 
 import type { VoiceKey, Voices } from '../../../workers/kokoro/types'
+import type { AllocationToken } from '../gpu-resource-coordinator'
 import type { ProgressPayload } from '../protocol'
 
 import { defaultPerfTracer } from '@proj-airi/stage-shared'
 
 import { AsyncMutex } from '../async-mutex'
-import { classifyError } from '../protocol'
+import { getGPUCoordinator, getLoadQueue, MODEL_VRAM_ESTIMATES } from '../coordinator'
+import { LOAD_PRIORITY } from '../load-queue'
+import { classifyError, createRequestId } from '../protocol'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -50,53 +51,101 @@ const MAX_RESTARTS = 3
 const RESTART_DELAY_MS = 1_000
 
 // ---------------------------------------------------------------------------
-// Internals
+// Audio Encoding
 // ---------------------------------------------------------------------------
 
-// Reuse the waitForEvent pattern from the original KokoroWorkerManager
-interface WaitForEventOptions<T extends Event> {
-  predicate?: (event: T) => boolean
-  callback?: (event: T) => void
-  timeout?: number
-  timeoutError?: Error
+/**
+ * Encode raw PCM Float32Array samples into a WAV ArrayBuffer.
+ * This runs on the main thread — intentionally lightweight (just header + int16 conversion).
+ */
+function encodeWav(samples: Float32Array, sampleRate: number, numChannels = 1): ArrayBuffer {
+  const bitsPerSample = 16
+  const bytesPerSample = bitsPerSample / 8
+  const dataLength = samples.length * bytesPerSample
+  const headerLength = 44
+  const buffer = new ArrayBuffer(headerLength + dataLength)
+  const view = new DataView(buffer)
+
+  // RIFF header
+  writeString(view, 0, 'RIFF')
+  view.setUint32(4, 36 + dataLength, true)
+  writeString(view, 8, 'WAVE')
+
+  // fmt chunk
+  writeString(view, 12, 'fmt ')
+  view.setUint32(16, 16, true) // chunk size
+  view.setUint16(20, 1, true) // PCM format
+  view.setUint16(22, numChannels, true)
+  view.setUint32(24, sampleRate, true)
+  view.setUint32(28, sampleRate * numChannels * bytesPerSample, true) // byte rate
+  view.setUint16(32, numChannels * bytesPerSample, true) // block align
+  view.setUint16(34, bitsPerSample, true)
+
+  // data chunk
+  writeString(view, 36, 'data')
+  view.setUint32(40, dataLength, true)
+
+  // Convert Float32 [-1, 1] to Int16
+  const output = new Int16Array(buffer, headerLength)
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]))
+    output[i] = s < 0 ? s * 0x8000 : s * 0x7FFF
+  }
+
+  return buffer
 }
 
-function waitForEvent<T extends Event>(
-  element: EventTarget,
-  eventName: string,
-  options: WaitForEventOptions<T> = {},
-): Promise<T> {
-  const {
-    predicate = () => true,
-    callback = () => {},
-    timeout,
-    timeoutError = new Error(`Timeout waiting for event: ${eventName}`),
-  } = options
+function writeString(view: DataView, offset: number, str: string): void {
+  for (let i = 0; i < str.length; i++) {
+    view.setUint8(offset + i, str.charCodeAt(i))
+  }
+}
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Wait for a specific message type from the worker, filtered by requestId.
+ * Calls `callback` for interleaved messages (e.g. progress).
+ */
+function waitForWorkerMessage<T = any>(
+  worker: Worker,
+  requestId: string,
+  targetType: string,
+  timeout: number,
+  callback?: (data: any) => void,
+): Promise<T> {
   return new Promise((resolve, reject) => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined
 
-    const listener = (event: Event) => {
-      const typedEvent = event as T
-      if (predicate(typedEvent)) {
+    const handler = (event: MessageEvent) => {
+      if (event.data.requestId !== requestId)
+        return
+
+      if (event.data.type === targetType) {
         if (timeoutId !== undefined)
           clearTimeout(timeoutId)
-        element.removeEventListener(eventName, listener)
-        resolve(typedEvent)
+        worker.removeEventListener('message', handler)
+        resolve(event.data as T)
+      }
+      else if (event.data.type === 'error') {
+        if (timeoutId !== undefined)
+          clearTimeout(timeoutId)
+        worker.removeEventListener('message', handler)
+        reject(new Error(event.data.payload?.message ?? 'Worker error'))
       }
       else {
-        callback(typedEvent)
+        callback?.(event.data)
       }
     }
 
-    element.addEventListener(eventName, listener)
+    worker.addEventListener('message', handler)
 
-    if (timeout !== undefined) {
-      timeoutId = setTimeout(() => {
-        element.removeEventListener(eventName, listener)
-        reject(timeoutError)
-      }, timeout)
-    }
+    timeoutId = setTimeout(() => {
+      worker.removeEventListener('message', handler)
+      reject(new Error(`Kokoro: timeout after ${timeout}ms waiting for '${targetType}'`))
+    }, timeout)
   })
 }
 
@@ -109,6 +158,7 @@ export function createKokoroAdapter(): KokoroAdapter {
   let state: KokoroAdapter['state'] = 'idle'
   let voices: Voices | null = null
   let restartAttempts = 0
+  let allocationToken: AllocationToken | null = null
 
   const operationMutex = new AsyncMutex()
   const lifecycleMutex = new AsyncMutex()
@@ -187,38 +237,47 @@ export function createKokoroAdapter(): KokoroAdapter {
     return defaultPerfTracer.withMeasure('inference', 'kokoro-load-model', () => operationMutex.run(async () => {
       state = 'loading'
 
-      // NOTICE: We listen for the existing Kokoro worker protocol ('loaded'
-      // type) rather than the unified protocol. The worker.ts file is
-      // unchanged — this adapter does the translation.
-      const voicePromise = waitForEvent<MessageEvent>(worker!, 'message', {
-        predicate: event => event.data.type === 'loaded',
-        callback: (event) => {
-          if (event.data.type === 'progress' && options?.onProgress) {
-            const raw = event.data.progress
+      // Use the global load queue to serialize model loads across all adapters
+      return getLoadQueue().enqueue(`kokoro-${quantization}`, LOAD_PRIORITY.TTS, async () => {
+        const requestId = createRequestId()
+
+        const readyPromise = waitForWorkerMessage<any>(worker!, requestId, 'model-ready', LOAD_MODEL_TIMEOUT, (data) => {
+          if (data.type === 'progress' && options?.onProgress) {
+            const payload = data.payload
             options.onProgress({
-              phase: 'download',
-              // NOTICE: raw.progress from kokoro-js/@huggingface/transformers is already 0-100
-              percent: raw?.progress != null ? Math.round(raw.progress) : -1,
-              message: raw?.status ?? undefined,
-              file: raw?.file ?? undefined,
-              loaded: raw?.loaded ?? undefined,
-              total: raw?.total ?? undefined,
+              phase: payload.phase ?? 'download',
+              percent: payload.percent ?? -1,
+              message: payload.message,
+              file: payload.file,
+              loaded: payload.loaded,
+              total: payload.total,
             })
           }
-        },
-        timeout: LOAD_MODEL_TIMEOUT,
-      })
+        })
 
-      worker!.postMessage({
-        type: 'load',
-        data: { quantization, device },
-      })
+        worker!.postMessage({
+          type: 'load-model',
+          requestId,
+          modelId: 'kokoro-82m',
+          device,
+          dtype: quantization,
+        })
 
-      const event = await voicePromise
-      voices = event.data.voices
-      state = 'ready'
-      onSuccess()
-      return voices!
+        const response = await readyPromise
+        voices = (response.metadata?.voices as Voices) ?? null
+
+        // Track GPU memory allocation
+        const coordinator = getGPUCoordinator()
+        if (allocationToken)
+          coordinator.release(allocationToken)
+        const estimateKey = `kokoro-${quantization}`
+        const estimated = MODEL_VRAM_ESTIMATES[estimateKey] ?? 165 * 1024 * 1024
+        allocationToken = coordinator.requestAllocation(`kokoro-${quantization}`, estimated)
+
+        state = 'ready'
+        onSuccess()
+        return voices!
+      })
     }), { quantization, device }).catch((error) => {
       handleWorkerError(error instanceof Error ? error : new Error(String(error)))
       throw error
@@ -230,29 +289,32 @@ export function createKokoroAdapter(): KokoroAdapter {
       if (!worker)
         throw new Error('Worker not initialized. Call loadModel() first.')
 
-      state = 'running'
+      // Update LRU timestamp for memory pressure tracking
+      if (allocationToken)
+        getGPUCoordinator().touch(allocationToken.modelId)
 
-      const resultPromise = waitForEvent<MessageEvent>(worker, 'message', {
-        predicate: event => event.data.type === 'result',
-        timeout: GENERATE_TIMEOUT,
-      })
+      state = 'running'
+      const requestId = createRequestId()
+
+      const resultPromise = waitForWorkerMessage<any>(worker, requestId, 'inference-result', GENERATE_TIMEOUT)
 
       worker.postMessage({
-        type: 'generate',
-        data: { text, voice },
+        type: 'run-inference',
+        requestId,
+        input: { action: 'generate', text, voice },
       })
 
-      const event = await resultPromise
-      const response = event.data
+      const response = await resultPromise
+      const output = response.output
 
-      if (response.status === 'success') {
+      if (output.action === 'generate') {
         state = 'ready'
         onSuccess()
-        return response.buffer as ArrayBuffer
+        return encodeWav(output.samples as Float32Array, output.samplingRate as number)
       }
 
-      const errorCode = classifyError(new Error(response.message ?? 'Generation failed'))
-      throw new Error(`[${errorCode}] ${response.message ?? 'Generation failed'}`)
+      const errorCode = classifyError(new Error('Unexpected output action'))
+      throw new Error(`[${errorCode}] Unexpected output action: ${output.action}`)
     }), { text: text.slice(0, 50), voice }).catch((error) => {
       handleWorkerError(error instanceof Error ? error : new Error(String(error)))
       throw error
@@ -268,6 +330,10 @@ export function createKokoroAdapter(): KokoroAdapter {
   function terminateAdapter(): void {
     operationMutex.reset(new Error('Adapter terminated'))
     destroyWorker()
+    if (allocationToken) {
+      getGPUCoordinator().release(allocationToken)
+      allocationToken = null
+    }
     voices = null
     state = 'terminated'
   }
