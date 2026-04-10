@@ -183,7 +183,6 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
     :top-color="sampledColor"
   >
     <div flex="~ col" relative z-2 h-100dvh w-100vw of-hidden py-safe>
-      <WebSocketStatusButton />
       <!-- header -->
       <div class="px-0 py-1 md:px-3 md:py-3" w-full gap-2>
         <Header class="hidden md:flex" />
@@ -204,7 +203,11 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
           :scale="scale"
         />
         <InteractiveArea v-if="!isMobile" h="85dvh" absolute right-4 flex flex-1 flex-col max-w="500px" min-w="30%" />
-        <MobileInteractiveArea v-if="isMobile" @settings-open="handleSettingsOpen" />
+        <MobileInteractiveArea v-if="isMobile" @settings-open="handleSettingsOpen">
+          <template #status>
+            <WebSocketStatusButton />
+          </template>
+        </MobileInteractiveArea>
       </div>
     </div>
   </BackgroundProvider>

@@ -50,9 +50,9 @@
     "yaml"
   ],
 
-  "typescript.tsdk": "node_modules/typescript/lib",
-  "typescript.preferences.includePackageJsonAutoImports": "off",
-  "typescript.suggest.autoImports": false,
+  "js/ts.tsdk.path": "node_modules/typescript/lib",
+  "js/ts.preferences.includePackageJsonAutoImports": "off",
+  "js/ts.suggest.autoImports": false,
   "cSpell.words": [
     "appimage",
     "localforage"

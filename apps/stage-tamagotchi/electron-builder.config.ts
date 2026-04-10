@@ -75,6 +75,11 @@ export default {
     'out/**',
     'resources/**',
     'package.json',
+    // NOTICE: Exclude npm `electron` package from app payload.
+    // Electron runtime is already provided by the outer app bundle; bundling a nested
+    // `node_modules/electron/dist/Electron.app` makes electron-builder deep-sign it and
+    // fails on non-code resources (for example `locale.pak`) with timestamp/signing errors.
+    '!**/node_modules/electron{,/**}',
     '!**/.vscode/*',
     '!src/**/*',
     '!**/node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}',

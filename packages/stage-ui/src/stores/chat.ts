@@ -13,7 +13,7 @@ import { ref, toRaw } from 'vue'
 import { useAnalytics } from '../composables'
 import { useLlmmarkerParser } from '../composables/llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from '../composables/response-categoriser'
-import { buildContextPromptMessage } from './chat/context-prompt'
+import { formatContextPromptText } from './chat/context-prompt'
 import { createDatetimeContext, createMinecraftContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { createChatHooks } from './chat/hooks'
@@ -279,7 +279,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         ],
       })
 
-      let newMessages = sessionMessagesForSend.map((msg) => {
+      const newMessages = sessionMessagesForSend.map((msg) => {
         const { context: _context, id: _id, createdAt: _createdAt, ...withoutContext } = msg
         const rawMessage = toRaw(withoutContext)
 
@@ -292,16 +292,28 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       })
 
       const contextsSnapshot = chatContext.getContextsSnapshot()
-      const contextPromptMessage = buildContextPromptMessage(contextsSnapshot)
-      if (contextPromptMessage) {
-        const system = newMessages.slice(0, 1)
-        const afterSystem = newMessages.slice(1, newMessages.length)
+      const contextPromptText = formatContextPromptText(contextsSnapshot)
+      if (contextPromptText) {
+        // Merge context into the latest user message instead of inserting a
+        // separate user message, which would create consecutive same-role
+        // messages forbidden by some providers (e.g. Anthropic → 400 error).
+        // Appending at the end keeps the static history prefix stable for
+        // LLM KV-cache reuse.
+        // See: https://github.com/moeru-ai/airi/issues/1539
+        const lastMessage = newMessages.at(-1)
+        if (lastMessage && lastMessage.role === 'user') {
+          // Append context after the user's content, separated by a newline.
+          // Keeping it at the end of the last message preserves the static
+          // history prefix for LLM KV-cache reuse.
+          const existingParts = typeof lastMessage.content === 'string'
+            ? [{ type: 'text' as const, text: lastMessage.content }]
+            : lastMessage.content
 
-        newMessages = [
-          ...system,
-          contextPromptMessage,
-          ...afterSystem,
-        ]
+          lastMessage.content = [
+            ...existingParts,
+            { type: 'text' as const, text: `\n${contextPromptText}` },
+          ]
+        }
 
         contextObservability.recordLifecycle({
           phase: 'prompt-context-built',
@@ -309,7 +321,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
           sessionId,
           details: {
             contexts: contextsSnapshot,
-            promptMessage: contextPromptMessage,
+            promptText: contextPromptText,
           },
         })
       }
@@ -319,7 +331,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         sessionId,
         message: sendingMessage,
         contexts: contextsSnapshot,
-        promptMessage: contextPromptMessage,
+        promptMessage: undefined,
         composedMessage: newMessages as Message[],
       })
       contextObservability.recordLifecycle({
