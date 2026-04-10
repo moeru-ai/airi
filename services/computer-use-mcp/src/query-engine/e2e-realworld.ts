@@ -1,16 +1,19 @@
 /**
- * Real-World Production Validation
+ * Real-World Production Validation v2
  *
- * Tests the AIRI coding agent against real open-source repositories
- * with realistic tasks that a developer would actually ask.
+ * Tests the AIRI coding agent against real open-source repositories.
+ * Includes HARD tasks (find+fix bug, edit existing files) not just JSDoc.
  *
- * IMPORTANT: All scenarios run in ISOLATED workspaces under /tmp.
- * The AIRI monorepo scenarios use a shallow git clone of the local repo
- * to avoid polluting the working tree.
+ * All scenarios run in ISOLATED workspaces under /tmp.
+ *
+ * Features:
+ * - Multi-run mode: pass --runs N to run N times and report stats
+ * - Strict validation: must edit EXISTING tracked files, not create temp files
+ * - Mixed difficulty: easy (JSDoc) + hard (fix planted bug, edit existing code)
  *
  * Usage:
  *   AIRI_AGENT_API_KEY=<key> AIRI_AGENT_BASE_URL=<url> AIRI_AGENT_MODEL=gpt-5.4-mini \
- *     pnpm exec tsx src/query-engine/e2e-realworld.ts
+ *     pnpm exec tsx src/query-engine/e2e-realworld.ts [--runs 5]
  */
 
 import { execSync } from 'node:child_process'
@@ -24,13 +27,7 @@ import { resolveConfig, runQueryEngine } from './engine'
 
 const TEST_ROOT = '/tmp/airi-realworld-tests'
 
-/**
- * Resolve the AIRI monorepo root by walking up from this file to find .git.
- * Falls back to cwd() if not found.
- */
 function findAiriRoot(): string {
-  // NOTICE: tsx supports import.meta.dirname in Node 21+
-  // For older Node, fall back to process.cwd()
   const startDir = typeof import.meta.dirname === 'string'
     ? import.meta.dirname
     : process.cwd()
@@ -66,130 +63,25 @@ function createTerminal(workspacePath: string) {
   }
 }
 
-// ─── Test Scenario ───
+// ─── Scenario Types ───
 
 interface RealWorldScenario {
   name: string
-  /** git clone URL, or 'local:<path>' to shallow-clone a local repo */
+  difficulty: 'easy' | 'medium' | 'hard'
   repo: string
   branch?: string
-  /** Absolute path to use as workspace (under TEST_ROOT) */
   workDir: string
   goal: string
   maxTurns: number
   maxTokenBudget: number
+  /** Optional setup to run after clone (e.g., plant a bug) */
+  setup?: (ws: string) => void
   validate: (ws: string) => { passed: boolean; details: string }
 }
 
-// ─── Scenario Builder ───
-
-function buildScenarios(airiRoot: string): RealWorldScenario[] {
-  return [
-    // Scenario 1: AIRI monorepo (ISOLATED copy) — edit a composable
-    {
-      name: 'AIRI: Add missing JSDoc to a Vue composable',
-      repo: `local:${airiRoot}`,
-      workDir: join(TEST_ROOT, 'airi-s1'),
-      goal: '', // set dynamically
-      maxTurns: 10,
-      maxTokenBudget: 80_000,
-      validate: (ws) => {
-        try {
-          const diff = execSync('git diff --name-only', { cwd: ws, encoding: 'utf-8' })
-          const untracked = execSync('git ls-files --others --exclude-standard', { cwd: ws, encoding: 'utf-8' })
-          const allChanged = [...diff.split('\n'), ...untracked.split('\n')]
-            .filter(f => f.trim().length > 0 && (f.includes('packages/ui') || f.includes('.ts') || f.includes('.vue')))
-          if (allChanged.length > 0) {
-            return { passed: true, details: `Changed: ${allChanged.join(', ')}` }
-          }
-          return { passed: false, details: 'No files were changed' }
-        }
-        catch {
-          return { passed: false, details: 'git check failed' }
-        }
-      },
-    },
-
-    // Scenario 2: AIRI monorepo (ISOLATED copy) — analysis task (read-only)
-    {
-      name: 'AIRI: Find unused exports in stage-ui',
-      repo: `local:${airiRoot}`,
-      workDir: join(TEST_ROOT, 'airi-s2'),
-      goal: '', // set dynamically
-      maxTurns: 12,
-      maxTokenBudget: 100_000,
-      validate: (ws) => {
-        const reportPath = join(ws, 'analysis-report.md')
-        if (!existsSync(reportPath)) {
-          return { passed: false, details: 'Analysis report not created' }
-        }
-        const content = readFileSync(reportPath, 'utf-8')
-        const hasExports = content.toLowerCase().includes('export')
-        const hasFile = content.includes('.ts') || content.includes('.vue')
-        const isSubstantial = content.length > 200
-        return {
-          passed: isSubstantial && (hasExports || hasFile),
-          details: `Report: ${content.length} chars, hasExports=${hasExports}, hasFile=${hasFile}`,
-        }
-      },
-    },
-
-    // Scenario 3: Zod — popular TypeScript validation library
-    {
-      name: 'Zod: Add a utility type helper',
-      repo: 'https://github.com/colinhacks/zod.git',
-      branch: 'main',
-      workDir: join(TEST_ROOT, 'zod'),
-      goal: '', // set dynamically
-      maxTurns: 10,
-      maxTokenBudget: 80_000,
-      validate: (ws) => {
-        try {
-          const diff = execSync('git diff --stat', { cwd: ws, encoding: 'utf-8' })
-          const untracked = execSync('git ls-files --others --exclude-standard', { cwd: ws, encoding: 'utf-8' })
-          const hasChanges = diff.trim().length > 0 || untracked.trim().length > 0
-          const details = diff.trim()
-            ? diff.trim().split('\n').slice(-1)[0]
-            : (untracked.trim() ? `New files: ${untracked.trim().split('\n').join(', ')}` : 'no changes')
-          return { passed: hasChanges, details: details || 'no changes' }
-        }
-        catch {
-          return { passed: false, details: 'git check failed' }
-        }
-      },
-    },
-
-    // Scenario 4: httpie (Python CLI) — cross-language test
-    {
-      name: 'HTTPie: Fix a docstring',
-      repo: 'https://github.com/httpie/cli.git',
-      branch: 'master',
-      workDir: join(TEST_ROOT, 'httpie'),
-      goal: '', // set dynamically
-      maxTurns: 8,
-      maxTokenBudget: 60_000,
-      validate: (ws) => {
-        try {
-          const diff = execSync('git diff --stat', { cwd: ws, encoding: 'utf-8' })
-          const untracked = execSync('git ls-files --others --exclude-standard', { cwd: ws, encoding: 'utf-8' })
-          const hasChanges = diff.trim().length > 0 || untracked.trim().length > 0
-          const details = diff.trim()
-            ? diff.trim().split('\n').slice(-1)[0]
-            : (untracked.trim() ? `New files: ${untracked.trim().split('\n').join(', ')}` : 'no changes')
-          return { passed: hasChanges, details: details || 'no changes' }
-        }
-        catch {
-          return { passed: false, details: 'git check failed' }
-        }
-      },
-    },
-  ]
-}
-
-// ─── Runner ───
-
 interface ScenarioResult {
   name: string
+  difficulty: string
   passed: boolean
   status: string
   turns: number
@@ -201,33 +93,205 @@ interface ScenarioResult {
   error?: string
 }
 
+// ─── Validation Helpers ───
+
 /**
- * Prepare workspace: clone or shallow-copy as needed.
- * Returns the resolved workspace path.
+ * Strict validator: requires editing an EXISTING tracked file.
+ * New/temp files don't count. This prevents the agent from "cheating"
+ * by creating a temp file instead of editing the target.
  */
+function requireExistingFileEdit(ws: string, pathFilter?: string): { passed: boolean; details: string } {
+  try {
+    const diff = execSync('git diff --name-only', { cwd: ws, encoding: 'utf-8' }).trim()
+    if (!diff) {
+      return { passed: false, details: 'No existing files were modified (git diff empty)' }
+    }
+    const files = diff.split('\n').filter(f => f.trim().length > 0)
+    if (pathFilter) {
+      const matching = files.filter(f => f.includes(pathFilter))
+      if (matching.length === 0) {
+        return { passed: false, details: `Modified ${files.join(', ')} but none match filter '${pathFilter}'` }
+      }
+      return { passed: true, details: `Edited: ${matching.join(', ')}` }
+    }
+    return { passed: true, details: `Edited: ${files.join(', ')}` }
+  }
+  catch {
+    return { passed: false, details: 'git diff failed' }
+  }
+}
+
+/**
+ * Verify a planted bug was fixed by checking if a specific string
+ * is NO LONGER present in a file.
+ */
+function requireBugFixed(ws: string, filePath: string, bugPattern: string): { passed: boolean; details: string } {
+  try {
+    const absPath = join(ws, filePath)
+    if (!existsSync(absPath)) {
+      return { passed: false, details: `File ${filePath} not found` }
+    }
+    const content = readFileSync(absPath, 'utf-8')
+    if (content.includes(bugPattern)) {
+      return { passed: false, details: `Bug pattern '${bugPattern}' still present in ${filePath}` }
+    }
+    // Also check the file was actually modified
+    const editResult = requireExistingFileEdit(ws, filePath)
+    if (!editResult.passed) {
+      return { passed: false, details: `Bug pattern gone but file not in git diff: ${editResult.details}` }
+    }
+    return { passed: true, details: `Bug fixed in ${filePath}` }
+  }
+  catch (err: any) {
+    return { passed: false, details: `Error: ${err.message}` }
+  }
+}
+
+// ─── Scenario Builder ───
+
+function buildScenarios(airiRoot: string): RealWorldScenario[] {
+  return [
+    // S1 [EASY] AIRI monorepo — JSDoc a composable (baseline)
+    {
+      name: 'AIRI: Add JSDoc to composable',
+      difficulty: 'easy',
+      repo: `local:${airiRoot}`,
+      workDir: join(TEST_ROOT, 'airi-s1'),
+      goal: '',
+      maxTurns: 10,
+      maxTokenBudget: 80_000,
+      validate: (ws) => requireExistingFileEdit(ws, 'packages/ui'),
+    },
+
+    // S2 [EASY] AIRI monorepo — analysis task (read-only + write report)
+    {
+      name: 'AIRI: Find unused exports',
+      difficulty: 'easy',
+      repo: `local:${airiRoot}`,
+      workDir: join(TEST_ROOT, 'airi-s2'),
+      goal: '',
+      maxTurns: 12,
+      maxTokenBudget: 100_000,
+      validate: (ws) => {
+        const reportPath = join(ws, 'analysis-report.md')
+        if (!existsSync(reportPath)) {
+          return { passed: false, details: 'Report not created' }
+        }
+        const content = readFileSync(reportPath, 'utf-8')
+        const ok = content.length > 200
+          && (content.toLowerCase().includes('export') || content.includes('.ts'))
+        return { passed: ok, details: `Report: ${content.length} chars` }
+      },
+    },
+
+    // S3 [MEDIUM] AIRI monorepo — find and fix a planted bug
+    {
+      name: 'AIRI: Fix planted type bug',
+      difficulty: 'medium',
+      repo: `local:${airiRoot}`,
+      workDir: join(TEST_ROOT, 'airi-s3'),
+      goal: '',
+      maxTurns: 12,
+      maxTokenBudget: 100_000,
+      setup: (ws) => {
+        // Plant a bug: introduce a typo in a real file
+        // We'll add a broken import to packages/ui/src/index.ts
+        const targetFile = join(ws, 'packages/ui/src/index.ts')
+        if (existsSync(targetFile)) {
+          const content = readFileSync(targetFile, 'utf-8')
+          // Add a broken re-export at the top
+          const buggy = `// AIRI-TEST-BUG: This line has a deliberate typo causing a build error\nexport { useThm } from './composables/use-theme'\n${content}`
+          writeFileSync(targetFile, buggy)
+        }
+      },
+      validate: (ws) => requireBugFixed(
+        ws,
+        'packages/ui/src/index.ts',
+        'useThm', // the typo — should be fixed to useTheme or removed
+      ),
+    },
+
+    // S4 [MEDIUM] HTTPie — must edit an EXISTING .py file (strict)
+    {
+      name: 'HTTPie: Improve existing docstring',
+      difficulty: 'medium',
+      repo: 'https://github.com/httpie/cli.git',
+      branch: 'master',
+      workDir: join(TEST_ROOT, 'httpie'),
+      goal: '',
+      maxTurns: 10,
+      maxTokenBudget: 80_000,
+      validate: (ws) => {
+        // STRICT: must have edited an existing .py file, not created a temp
+        const result = requireExistingFileEdit(ws, '.py')
+        if (!result.passed) return result
+        // Extra check: the diff should show added docstring content
+        try {
+          const diff = execSync('git diff', { cwd: ws, encoding: 'utf-8' })
+          const hasDocstring = diff.includes('"""') || diff.includes("'''")
+            || diff.includes('Args:') || diff.includes('Returns:')
+            || diff.includes('docstring') || diff.includes('@param')
+          if (!hasDocstring) {
+            return { passed: false, details: `${result.details} but diff doesn't contain docstring content` }
+          }
+          return { passed: true, details: `${result.details} with docstring content` }
+        }
+        catch {
+          return result // fallback to basic edit check
+        }
+      },
+    },
+
+    // S5 [HARD] Zod — edit the main source file (large file handling)
+    {
+      name: 'Zod: Add JSDoc to export',
+      difficulty: 'hard',
+      repo: 'https://github.com/colinhacks/zod.git',
+      branch: 'main',
+      workDir: join(TEST_ROOT, 'zod'),
+      goal: '',
+      maxTurns: 12,
+      maxTokenBudget: 100_000,
+      validate: (ws) => {
+        // Must edit an existing tracked .ts file, not write a new one
+        const result = requireExistingFileEdit(ws, '.ts')
+        if (!result.passed) return result
+        // Check that JSDoc was added
+        try {
+          const diff = execSync('git diff', { cwd: ws, encoding: 'utf-8' })
+          const hasJSDoc = diff.includes('/**') || diff.includes('* @')
+          if (!hasJSDoc) {
+            return { passed: false, details: `${result.details} but diff doesn't contain JSDoc` }
+          }
+          return { passed: true, details: `${result.details} with JSDoc` }
+        }
+        catch {
+          return result
+        }
+      },
+    },
+  ]
+}
+
+// ─── Runner ───
+
 function prepareWorkspace(scenario: RealWorldScenario): string {
   const ws = scenario.workDir
 
   if (scenario.repo.startsWith('local:')) {
-    // Shallow-clone local repo to isolated directory
     const localPath = scenario.repo.slice('local:'.length)
     if (existsSync(join(ws, '.git'))) {
-      // Already cloned — just reset
       execSync('git checkout . && git clean -fd', { cwd: ws, encoding: 'utf-8', timeout: 30_000 })
     }
     else {
-      // NOTICE: Use git clone --depth 1 --no-hardlinks to create a truly
-      // isolated copy. --no-hardlinks ensures the clone is independent.
       mkdirSync(ws, { recursive: true })
       execSync(`git clone --depth 1 --no-hardlinks file://${localPath} ${ws}`, {
         encoding: 'utf-8',
         timeout: 120_000,
       })
     }
-    return ws
   }
-
-  if (scenario.repo && !existsSync(join(ws, '.git'))) {
+  else if (scenario.repo && !existsSync(join(ws, '.git'))) {
     console.log(`  📦 Cloning ${scenario.repo}...`)
     const branchFlag = scenario.branch ? `--branch ${scenario.branch}` : ''
     execSync(`git clone --depth 1 ${branchFlag} ${scenario.repo} ${ws}`, {
@@ -239,70 +303,99 @@ function prepareWorkspace(scenario: RealWorldScenario): string {
     execSync('git checkout . && git clean -fd', { cwd: ws, encoding: 'utf-8', timeout: 30_000 })
   }
 
+  // Run setup (e.g., plant bugs)
+  if (scenario.setup) {
+    scenario.setup(ws)
+  }
+
   return ws
+}
+
+function buildGoal(scenario: RealWorldScenario, ws: string): string {
+  if (scenario.goal) return scenario.goal
+
+  if (scenario.name.includes('JSDoc') && scenario.name.includes('AIRI')) {
+    return `You are working in a TypeScript monorepo at ${ws}.
+
+TASK: Find a composable in packages/ui/src/ and add JSDoc to it.
+
+1. Search for composable files in packages/ui/src/
+2. Read the one you find
+3. Add JSDoc to the exported function using edit_file — you MUST edit the existing file, do NOT create a new file
+4. Read the file back to verify
+
+Use absolute paths. Only modify existing files.`
+  }
+
+  if (scenario.name.includes('unused exports')) {
+    return `You are working in a TypeScript monorepo at ${ws}.
+
+TASK: Analyze packages/stage-ui/src/stores/ for unused exports.
+
+1. List files in packages/stage-ui/src/stores/
+2. Pick one store file and read it
+3. Search the codebase for imports of its exports
+4. Write analysis to ${ws}/analysis-report.md
+
+This is read-only analysis — do NOT modify source files.
+Use absolute paths.`
+  }
+
+  if (scenario.name.includes('planted') || scenario.name.includes('Fix planted')) {
+    return `You are working in a TypeScript monorepo at ${ws}.
+
+TASK: There is a deliberate bug in packages/ui/src/index.ts that causes a build error.
+Find it and fix it.
+
+1. Read packages/ui/src/index.ts — look for a broken import/export
+2. The bug is a typo in an export name that doesn't match any real export from the source module
+3. Fix the bug using edit_file — either correct the name or remove the broken line
+4. Read the file back to verify the fix
+
+Use absolute paths. Be precise. Only fix the bug, don't change anything else.`
+  }
+
+  if (scenario.name.includes('HTTPie')) {
+    return `You are working in the HTTPie CLI repository at ${ws}.
+
+TASK: Find an undocumented Python function and add a proper docstring.
+
+CRITICAL: You MUST edit an EXISTING .py file using edit_file.
+Do NOT create new temporary files. Do NOT use write_file to create a copy.
+Find a real function in the existing codebase and edit it in-place.
+
+1. List files in httpie/
+2. Read a Python file (e.g., httpie/output/formatters/colors.py or httpie/cli/definition.py)
+3. Find a function without a docstring
+4. Add a docstring using edit_file with the exact function signature as old_text
+5. Read the file back to verify
+
+Use absolute paths. Only modify ONE existing file.`
+  }
+
+  if (scenario.name.includes('Zod')) {
+    return `You are working in the Zod repository at ${ws}.
+
+TASK: Add a JSDoc comment to an undocumented exported function or type.
+
+CRITICAL: You MUST edit an EXISTING .ts file using edit_file.
+Do NOT create new files. Do NOT use write_file.
+
+1. List files in src/
+2. Read the main source file
+3. Use the File Outline to find an exported function without JSDoc
+4. Add JSDoc using edit_file — match the exact existing text as old_text
+5. Read the edited section back to verify
+
+Use absolute paths. Only modify ONE existing file.`
+  }
+
+  return 'No goal defined'
 }
 
 async function runScenario(scenario: RealWorldScenario): Promise<ScenarioResult> {
   const workspacePath = prepareWorkspace(scenario)
-
-  // Set dynamic goals based on scenario
-  let goal = scenario.goal
-  if (scenario.name.includes('JSDoc') && scenario.name.includes('AIRI')) {
-    goal = `You are working in a TypeScript monorepo at ${workspacePath}.
-
-TASK: Find and document a composable function in packages/ui.
-
-1. Search for composable files in packages/ui/src/ (look for useTheme, useDark, or any exported composable)
-2. Read the source code of the composable you find
-3. Add JSDoc comments to the exported function explaining what it does, its parameters, return value, and a usage example
-4. Verify your changes by reading the file back
-
-Use absolute paths. The workspace root is ${workspacePath}.
-Be precise. Only modify the composable file, nothing else.`
-  }
-  else if (scenario.name.includes('unused exports')) {
-    goal = `You are working in a TypeScript monorepo at ${workspacePath}.
-
-TASK: Analyze packages/stage-ui/src/stores/ to find one store that has unused exports.
-
-1. List files in packages/stage-ui/src/stores/
-2. Pick one store file and read it
-3. Search the rest of the codebase for imports of its exports
-4. Write a brief analysis to ${workspacePath}/analysis-report.md listing:
-   - File analyzed
-   - Exports found
-   - Which exports are imported elsewhere
-   - Which exports appear unused
-
-This is analysis only — do NOT modify any source files except creating the report.
-Use absolute paths.`
-  }
-  else if (scenario.name.startsWith('Zod:')) {
-    goal = `You are working in the Zod repository at ${workspacePath}.
-
-TASK: Read the main source entry point and add a JSDoc comment to one undocumented exported type or function.
-
-1. List files in the src/ directory
-2. Read the main entry file (likely src/index.ts or similar)
-3. Find an exported type or function that lacks JSDoc
-4. Add a clear JSDoc comment explaining what it does using edit_file
-5. Read the file back to verify your edit was applied correctly
-
-Use absolute paths. Be precise. Only modify one file, only add documentation.`
-  }
-  else if (scenario.name.startsWith('HTTPie:')) {
-    goal = `You are working in the HTTPie CLI repository at ${workspacePath}.
-
-TASK: Find an undocumented or poorly documented Python function and improve its docstring.
-
-1. List files in the httpie/ directory
-2. Pick a Python file and read it
-3. Find a function without a docstring or with a minimal one
-4. Add or improve the docstring following Google Python Style Guide format using edit_file
-5. Read the file back to verify your edit
-
-Use absolute paths. Be precise. Only modify one file.`
-  }
+  const goal = buildGoal(scenario, workspacePath)
 
   const runtime = {
     config: { workspacePath },
@@ -342,6 +435,7 @@ Use absolute paths. Be precise. Only modify one file.`
 
     return {
       name: scenario.name,
+      difficulty: scenario.difficulty,
       passed: validation.passed,
       status: result.status,
       turns: result.turnsUsed,
@@ -355,6 +449,7 @@ Use absolute paths. Be precise. Only modify one file.`
   catch (err: any) {
     return {
       name: scenario.name,
+      difficulty: scenario.difficulty,
       passed: false,
       status: 'error',
       turns: 0,
@@ -370,27 +465,20 @@ Use absolute paths. Be precise. Only modify one file.`
 
 // ─── Main ───
 
-async function main() {
-  const airiRoot = findAiriRoot()
-
-  console.log('╔═══════════════════════════════════════════════════════════╗')
-  console.log('║     AIRI REAL-WORLD PRODUCTION VALIDATION                ║')
-  console.log('║     Model: ' + (process.env.AIRI_AGENT_MODEL ?? 'gpt-5.4-mini').padEnd(46) + '║')
-  console.log('╚═══════════════════════════════════════════════════════════╝')
-  console.log('')
-  console.log(`  AIRI root: ${airiRoot}`)
-  console.log(`  Test root: ${TEST_ROOT}`)
-  console.log(`  NOTE: All scenarios run in ISOLATED workspaces under ${TEST_ROOT}`)
-  console.log('')
-
-  mkdirSync(TEST_ROOT, { recursive: true })
+async function runSuite(airiRoot: string, runIndex: number, totalRuns: number): Promise<ScenarioResult[]> {
+  if (totalRuns > 1) {
+    console.log(`\n${'═'.repeat(60)}`)
+    console.log(`  RUN ${runIndex + 1}/${totalRuns}`)
+    console.log(`${'═'.repeat(60)}`)
+  }
 
   const scenarios = buildScenarios(airiRoot)
   const results: ScenarioResult[] = []
 
   for (let i = 0; i < scenarios.length; i++) {
     const scenario = scenarios[i]
-    console.log(`┌─── Scenario ${i + 1}/${scenarios.length}: ${scenario.name} ───`)
+    const diffTag = `[${scenario.difficulty.toUpperCase()}]`
+    console.log(`┌─── ${diffTag} S${i + 1}/${scenarios.length}: ${scenario.name} ───`)
     console.log(`│  Workspace: ${scenario.workDir}`)
     console.log(`│  Budget: ${scenario.maxTurns}T / ${(scenario.maxTokenBudget / 1000).toFixed(0)}K tokens`)
 
@@ -398,54 +486,102 @@ async function main() {
     results.push(result)
 
     const icon = result.passed ? '✅' : '❌'
-    console.log(`│  ${icon} Status: ${result.status}`)
-    console.log(`│    Turns: ${result.turns} | Tokens: ${Math.round(result.tokens / 1000)}K | Duration: ${result.durationS}s`)
+    console.log(`│  ${icon} ${result.status} | ${result.turns}T | ${Math.round(result.tokens / 1000)}K | ${result.durationS}s`)
     console.log(`│    Tools: ${result.toolsUsed.join(', ')}`)
-    console.log(`│    Files: ${result.filesModified.join(', ') || 'none'}`)
     console.log(`│    Validation: ${result.validationDetails}`)
     if (result.error) console.log(`│    Error: ${result.error}`)
-    console.log('└───')
-    console.log('')
+    console.log('└───\n')
   }
 
-  // Summary
+  return results
+}
+
+async function main() {
+  const airiRoot = findAiriRoot()
+  const runsArg = process.argv.indexOf('--runs')
+  const totalRuns = runsArg >= 0 ? Number.parseInt(process.argv[runsArg + 1] || '1', 10) : 1
+
   console.log('╔═══════════════════════════════════════════════════════════╗')
-  console.log('║              REAL-WORLD VALIDATION SCORECARD             ║')
+  console.log('║     AIRI REAL-WORLD VALIDATION v2                        ║')
+  console.log('║     Model: ' + (process.env.AIRI_AGENT_MODEL ?? 'gpt-5.4-mini').padEnd(46) + '║')
+  console.log(`║     Runs: ${String(totalRuns).padEnd(47)}║`)
   console.log('╚═══════════════════════════════════════════════════════════╝')
+  console.log(`  AIRI root: ${airiRoot}`)
+  console.log(`  Test root: ${TEST_ROOT}`)
+  console.log(`  All scenarios run in ISOLATED workspaces`)
   console.log('')
 
-  const passed = results.filter(r => r.passed).length
-  const total = results.length
-  const totalTokens = results.reduce((s, r) => s + (r.tokens || 0), 0)
-  const totalTime = results.reduce((s, r) => s + r.durationS, 0)
+  mkdirSync(TEST_ROOT, { recursive: true })
 
-  for (const r of results) {
-    const icon = r.passed ? '✅' : '❌'
-    console.log(`  ${icon} ${r.name}`)
-    console.log(`     ${r.turns}T | ${Math.round(r.tokens / 1000)}K tokens | ${r.durationS}s | ${r.status}`)
-    console.log(`     ${r.validationDetails}`)
-    if (r.error) console.log(`     ⚠️ ${r.error}`)
+  const allRuns: ScenarioResult[][] = []
+
+  for (let r = 0; r < totalRuns; r++) {
+    const results = await runSuite(airiRoot, r, totalRuns)
+    allRuns.push(results)
+  }
+
+  // ─── Aggregate stats ───
+  const scenarioNames = allRuns[0].map(r => r.name)
+  const scenarioCount = scenarioNames.length
+
+  console.log('\n╔═══════════════════════════════════════════════════════════╗')
+  console.log('║              VALIDATION SCORECARD                        ║')
+  console.log('╚═══════════════════════════════════════════════════════════╝\n')
+
+  // Per-scenario stats
+  for (let s = 0; s < scenarioCount; s++) {
+    const name = scenarioNames[s]
+    const diff = allRuns[0][s].difficulty
+    const passes = allRuns.filter(run => run[s].passed).length
+    const avgTokens = Math.round(allRuns.reduce((sum, run) => sum + (run[s].tokens || 0), 0) / totalRuns / 1000)
+    const avgTime = (allRuns.reduce((sum, run) => sum + run[s].durationS, 0) / totalRuns).toFixed(1)
+    const rate = Math.round(passes / totalRuns * 100)
+    const icon = rate >= 80 ? '✅' : rate >= 50 ? '🟡' : '❌'
+    console.log(`  ${icon} [${diff.toUpperCase()}] ${name}`)
+    console.log(`     Pass: ${passes}/${totalRuns} (${rate}%) | Avg: ${avgTokens}K tokens, ${avgTime}s`)
     console.log('')
   }
 
-  console.log(`  Pass rate: ${passed}/${total} (${Math.round(passed / total * 100)}%)`)
+  // Overall
+  const totalPassed = allRuns.reduce((sum, run) => sum + run.filter(r => r.passed).length, 0)
+  const totalTests = totalRuns * scenarioCount
+  const overallRate = Math.round(totalPassed / totalTests * 100)
+  const totalTokens = allRuns.reduce((sum, run) =>
+    sum + run.reduce((s, r) => s + (r.tokens || 0), 0), 0)
+  const totalTime = allRuns.reduce((sum, run) =>
+    sum + run.reduce((s, r) => s + r.durationS, 0), 0)
+
+  console.log(`  Overall: ${totalPassed}/${totalTests} (${overallRate}%)`)
   console.log(`  Total tokens: ${Math.round(totalTokens / 1000)}K`)
   console.log(`  Total time: ${totalTime.toFixed(1)}s`)
+
+  if (totalRuns > 1) {
+    // Per-run breakdown
+    console.log('\n  Per-run breakdown:')
+    for (let r = 0; r < totalRuns; r++) {
+      const run = allRuns[r]
+      const p = run.filter(x => x.passed).length
+      const icons = run.map(x => x.passed ? '✅' : '❌').join('')
+      console.log(`    Run ${r + 1}: ${p}/${scenarioCount} ${icons}`)
+    }
+  }
+
   console.log('')
+  if (overallRate >= 80) console.log('  🟢 PRODUCTION READY')
+  else if (overallRate >= 60) console.log('  🟡 PROMISING — needs improvement')
+  else console.log('  🔴 NOT READY')
 
-  if (passed === total) {
-    console.log('  🟢 ALL SCENARIOS PASSED')
-  }
-  else if (passed >= total * 0.75) {
-    console.log('  🟡 MOSTLY PASSED — Some scenarios need attention')
-  }
-  else {
-    console.log('  🔴 BELOW THRESHOLD')
-  }
-
-  // Save results
-  const reportPath = join(TEST_ROOT, 'validation-report.json')
-  writeFileSync(reportPath, JSON.stringify({ results, summary: { passed, total, totalTokens, totalTime } }, null, 2))
+  // Save
+  const reportPath = join(TEST_ROOT, 'validation-report-v2.json')
+  writeFileSync(reportPath, JSON.stringify({
+    runs: totalRuns,
+    overallRate,
+    totalPassed,
+    totalTests,
+    totalTokens,
+    totalTime,
+    allRuns,
+  }, null, 2))
   console.log(`\n  Results saved to: ${reportPath}`)
 }
 
