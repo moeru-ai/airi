@@ -439,8 +439,8 @@ TASK: Add a JSDoc comment to an undocumented exported function or type.
 CRITICAL: You MUST edit an EXISTING .ts file using edit_file.
 Do NOT create new files. Do NOT use write_file.
 
-1. List files in src/
-2. Read the main source file
+1. Use list_files to discover the actual project structure (do NOT assume 'src/' exists — Zod uses 'packages/')
+2. Navigate the directory tree to find the main source files
 3. Use the File Outline to find an exported function without JSDoc
 4. Add JSDoc using edit_file — match the exact existing text as old_text
 5. Read the edited section back to verify
@@ -499,6 +499,11 @@ async function runScenario(scenario: RealWorldScenario): Promise<ScenarioResult>
       onProgress: (event) => {
         if (event.toolName && !toolsUsed.includes(event.toolName)) {
           toolsUsed.push(event.toolName)
+        }
+        // NOTICE: Only log meaningful events. Streaming chunks are suppressed
+        // to reduce noise — we only log the final "completed" streaming event.
+        if (event.phase === 'streaming' && !event.message?.includes('completed')) {
+          return // suppress intermediate streaming chunks
         }
         const icon = event.phase === 'calling_llm' ? '🤖' : event.phase === 'executing_tools' ? '🔧' : '📊'
         const msg = event.message ? ` | ${event.message.slice(0, 60)}` : ''
@@ -561,8 +566,14 @@ async function runSuite(airiRoot: string, runIndex: number, totalRuns: number): 
     const result = await runScenario(scenario)
     results.push(result)
 
-    const icon = result.passed ? '✅' : '❌'
-    console.log(`│  ${icon} ${result.status} | ${result.turns}T | ${Math.round(result.tokens / 1000)}K | ${result.durationS}s`)
+    // NOTICE: Separate engine completion status from validation pass/fail.
+    // A run can be `budget_exhausted` but still pass validation (task done under wire).
+    // This distinction matters for honest benchmark reporting.
+    const validIcon = result.passed ? '✅' : '❌'
+    const engineIcon = result.status === 'completed' ? '🟢' : result.status === 'budget_exhausted' ? '🟡' : '🔴'
+    const tokenStr = result.tokens > 0 ? `${Math.round(result.tokens / 1000)}K` : '⚠️ 0K (no usage from provider)'
+    console.log(`│  ${validIcon} validation ${result.passed ? 'PASSED' : 'FAILED'} | ${engineIcon} engine: ${result.status}`)
+    console.log(`│  ${result.turns}T | ${tokenStr} | ${result.durationS}s`)
     console.log(`│    Tools: ${result.toolsUsed.join(', ')}`)
     console.log(`│    Validation: ${result.validationDetails}`)
     if (result.error) console.log(`│    Error: ${result.error}`)

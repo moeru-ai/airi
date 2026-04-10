@@ -36,6 +36,9 @@ export async function callLLMStreaming(params: {
     tools: tools.length > 0 ? tools : undefined,
     tool_choice: tools.length > 0 ? 'auto' : undefined,
     stream: true,
+    // NOTICE: Without this, most providers (including OpenAI) do NOT return
+    // usage statistics in streaming mode. This was causing 0K token reports.
+    stream_options: { include_usage: true },
   }
 
   const response = await fetch(`${config.baseURL}/chat/completions`, {

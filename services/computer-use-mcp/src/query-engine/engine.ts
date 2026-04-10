@@ -89,18 +89,25 @@ function detectToolchain(workspacePath: string): WorkspaceToolchain {
   else if (exists('yarn.lock')) packageManager = 'yarn'
   else if (exists('bun.lockb') || exists('bun.lock')) packageManager = 'bun'
 
-  // Detect test runner
+  // NOTICE: Only detect test/typecheck commands if dependencies are installed.
+  // Without node_modules, commands like 'vitest run' and 'tsc --noEmit' will
+  // always fail, wasting agent turns on impossible verification.
+  const hasDeps = exists('node_modules')
+
+  // Detect test runner (only if deps installed)
   let testCommand: string | undefined
-  if (exists('vitest.config.ts') || exists('vitest.config.js') || exists('vitest.config.mts')) {
-    testCommand = `${packageManager} exec vitest run`
-  }
-  else if (exists('jest.config.ts') || exists('jest.config.js')) {
-    testCommand = `${packageManager} exec jest --passWithNoTests`
+  if (hasDeps) {
+    if (exists('vitest.config.ts') || exists('vitest.config.js') || exists('vitest.config.mts')) {
+      testCommand = `${packageManager} exec vitest run`
+    }
+    else if (exists('jest.config.ts') || exists('jest.config.js')) {
+      testCommand = `${packageManager} exec jest --passWithNoTests`
+    }
   }
 
-  // Detect typecheck
+  // Detect typecheck (only if deps installed)
   let typecheckCommand: string | undefined
-  if (exists('tsconfig.json')) {
+  if (hasDeps && exists('tsconfig.json')) {
     typecheckCommand = `${packageManager} exec tsc --noEmit`
   }
 
@@ -509,6 +516,8 @@ export async function runQueryEngine(params: {
   // Caches read_file results keyed by "filePath:startLine:endLine".
   // Invalidated when the file is modified via edit_file/multi_edit_file/write_file.
   const readCache = new Map<string, string>()
+  // Caches list_files results to avoid re-listing the same directory.
+  const listCache = new Map<string, number>()
 
   // ─── Session state ───
   const sessionId = config.sessionId ?? crypto.randomUUID()
@@ -874,6 +883,26 @@ export async function runQueryEngine(params: {
                   readCache.delete(key)
                 }
               }
+            }
+          }
+          catch { /* ignore */ }
+        }
+
+        // NOTICE: list_files dedup — when agent calls list_files on the same
+        // directory twice, return a short stub instead of the full listing.
+        // This saves significant tokens in exploration-heavy scenarios.
+        if (toolName === 'list_files' && !content.startsWith('[ERROR]')) {
+          try {
+            const args = JSON.parse(response.toolCalls[idx]!.function.arguments)
+            const cacheKey = `list:${args.pattern ?? ''}:${args.exclude_patterns ?? ''}`
+            const cachedLen = listCache.get(cacheKey)
+            if (cachedLen != null) {
+              content = `[already listed — ${cachedLen} entries. Use search_text to find specific files instead of re-listing.]`
+            }
+            else {
+              // Estimate entry count from the result
+              const lineCount = content.split('\n').filter(Boolean).length
+              listCache.set(cacheKey, lineCount)
             }
           }
           catch { /* ignore */ }
