@@ -8,7 +8,7 @@ import type { StreamEvent, StreamOptions } from './llm'
 import { createQueue } from '@proj-airi/stream-kit'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { ref, toRaw } from 'vue'
+import { computed, ref, toRaw } from 'vue'
 
 import { useAnalytics } from '../composables'
 import { useLlmmarkerParser } from '../composables/llm-marker-parser'
@@ -75,7 +75,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
   const sending = ref(false)
   const pendingQueuedSends = ref<QueuedSend[]>([])
-  const pendingQueuedSendCount = ref(0)
+  const pendingQueuedSendCount = computed(() => pendingQueuedSends.value.length)
   const hooks = createChatHooks()
 
   const sendQueue = createQueue<QueuedSend>({
@@ -103,13 +103,11 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   })
 
   sendQueue.on('enqueue', (queuedSend) => {
-    pendingQueuedSends.value = [...pendingQueuedSends.value, queuedSend]
-    pendingQueuedSendCount.value = pendingQueuedSends.value.length
+    pendingQueuedSends.value.push(queuedSend)
   })
 
   sendQueue.on('dequeue', (queuedSend) => {
     pendingQueuedSends.value = pendingQueuedSends.value.filter(item => item !== queuedSend)
-    pendingQueuedSendCount.value = pendingQueuedSends.value.length
   })
 
   async function performSend(
@@ -160,9 +158,18 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
     const buildingMessage: StreamingAssistantMessage = { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now(), id: nanoid() }
 
+    const cloneStreamingMessage = (message: StreamingAssistantMessage): StreamingAssistantMessage => {
+      try {
+        return structuredClone(message)
+      }
+      catch {
+        return JSON.parse(JSON.stringify(message)) as StreamingAssistantMessage
+      }
+    }
+
     const updateUI = () => {
       if (isForegroundSession()) {
-        streamingMessage.value = JSON.parse(JSON.stringify(buildingMessage))
+        streamingMessage.value = cloneStreamingMessage(buildingMessage)
       }
     }
 
@@ -476,7 +483,6 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     pendingQueuedSends.value = sessionId
       ? pendingQueuedSends.value.filter(item => item.sessionId !== sessionId)
       : []
-    pendingQueuedSendCount.value = pendingQueuedSends.value.length
   }
 
   function getPendingQueuedSendSnapshot() {
