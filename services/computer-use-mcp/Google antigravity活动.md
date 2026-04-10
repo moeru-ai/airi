@@ -1633,5 +1633,37 @@ pnpm -F @proj-airi/computer-use-mcp exec tsx ./src/bin/e2e-coding-workflow.ts  #
 - [x] Proxy 全覆盖（上移到 server.ts）
 - [x] E2E Phase 4 修复（cache-hit 断言）
 - [x] Memory v1 已 operationally complete（21 tests）
-- [x] PR #36 更新：7 commits, 所有变更已推送
+- [x] PR #36 更新：所有变更已推送
+- [x] Claude Code 参考分析 + 三项改进
 - [ ] 跨 session 持久化（Memory v2 进阶，显式推迟）
+
+## 📅 2026-04-10: Claude Code 参考分析
+
+### 分析范围
+深入研读 `.computer-use-mcp/claude-code-haha-main` (~2000 文件)，聚焦六个核心设计点：
+1. **Tool 抽象层** (`Tool.ts`, 793 行) — rich metadata per tool
+2. **Tool Search** (`toolSearch.ts`, 757 行) — 按需加载 + 自动阈值
+3. **Memory 四体分类** (`memoryTypes.ts`, 272 行) — user/feedback/project/reference
+4. **Coordinator 模式** (`coordinatorMode.ts`, 370 行) — 主从编排 + synthesis 义务
+5. **权限安全分级** — isDestructive / DenialTracking / auto-classifier
+6. **Verification 纪律** — prompt 层验证约束
+
+### 结论
+- AIRI 在 Tool Search、Verification Gate、Tool Descriptor 上已持平或领先
+- **最大差距**：跨 session 记忆（Claude Code 有完整的 memdir 系统，AIRI 只有单 session bias）
+- **值得借鉴**：验证纪律语言、synthesis 义务概念、四体记忆分类框架
+
+### 从分析中落地的三项改进
+1. **Tool Descriptor 安全元数据** — ✅ 已有（readOnly/concurrencySafe/destructive 在之前的 phase 中已加入）
+2. **Prompt 验证纪律语言** — ✅ 已注入 `coding-loop.ts`
+   - `Run Validation/Tests` 步骤：加入 "prove the code works, don't just confirm it exists"
+   - `Self-review and Report` 步骤：加入 "synthesize findings into specific file paths"
+3. **Memory v2 设计锚点** — ✅ 写入 `coding-memory-taxonomy.ts` 头部 REVIEW 注释
+   - 四体分类：user/feedback/project/reference
+   - 不存可推导信息原则
+   - drift caveat：读取记忆时验证当前状态
+
+### 不借鉴的部分
+- Coordinator 主从模式（AIRI 走 Lane Handoff Contract，不搞主从）
+- 交互式权限审批（AIRI 运行在 auto-approve 模式，不面向终端用户）
+- GrowthBook feature flags（AIRI 不用 Anthropic 的遥测基础设施）
