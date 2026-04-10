@@ -342,6 +342,54 @@ function findFuzzyCandidates(
 }
 
 /**
+ * Extract a structural outline from source code lines.
+ *
+ * Detects exported functions, classes, types, interfaces, and variables
+ * across TypeScript/JavaScript and Python, returning their name and line number.
+ * This is used to give the agent a "table of contents" for large files
+ * so it knows where to read with start_line/end_line.
+ */
+function extractOutline(lines: string[]): Array<{ line: number; kind: string; name: string }> {
+  const results: Array<{ line: number; kind: string; name: string }> = []
+
+  // NOTICE: These patterns are intentionally broad to catch most common
+  // export styles. They may produce false positives on comments/strings,
+  // but that's acceptable for a navigation aid — precision < recall here.
+  const patterns: Array<{ pattern: RegExp; kindFn: (m: RegExpMatchArray) => string; nameFn: (m: RegExpMatchArray) => string }> = [
+    // TypeScript/JavaScript: export function foo, export async function foo
+    { pattern: /^export\s+(?:async\s+)?function\s+(\w+)/, kindFn: () => 'function', nameFn: m => m[1] },
+    // export class Foo
+    { pattern: /^export\s+class\s+(\w+)/, kindFn: () => 'class', nameFn: m => m[1] },
+    // export interface Foo
+    { pattern: /^export\s+interface\s+(\w+)/, kindFn: () => 'interface', nameFn: m => m[1] },
+    // export type Foo
+    { pattern: /^export\s+type\s+(\w+)/, kindFn: () => 'type', nameFn: m => m[1] },
+    // export const/let/var foo
+    { pattern: /^export\s+(?:const|let|var)\s+(\w+)/, kindFn: () => 'const', nameFn: m => m[1] },
+    // export default function/class
+    { pattern: /^export\s+default\s+(?:async\s+)?function\s+(\w+)/, kindFn: () => 'default function', nameFn: m => m[1] },
+    { pattern: /^export\s+default\s+class\s+(\w+)/, kindFn: () => 'default class', nameFn: m => m[1] },
+    // Python: def foo, class Foo, async def foo
+    { pattern: /^(?:async\s+)?def\s+(\w+)\s*\(/, kindFn: () => 'def', nameFn: m => m[1] },
+    { pattern: /^class\s+(\w+)\s*[:(]/, kindFn: () => 'class', nameFn: m => m[1] },
+  ]
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trimStart()
+    for (const { pattern, kindFn, nameFn } of patterns) {
+      const match = trimmed.match(pattern)
+      if (match) {
+        results.push({ line: i + 1, kind: kindFn(match), name: nameFn(match) })
+        break // one match per line
+      }
+    }
+  }
+
+  // Cap at 80 entries to avoid bloating the response
+  return results.slice(0, 80)
+}
+
+/**
  * Build the route table mapping tool names to handlers.
  */
 export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandler> {
@@ -388,7 +436,7 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
       }
 
       // Large file strategy: if no range was requested and the file is large,
-      // return first + last lines with a navigation hint.
+      // return first + last lines with a navigation hint AND a structural outline.
       const MAX_LINES_NO_RANGE = 500
       const lines = content.split('\n')
 
@@ -404,12 +452,21 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
         const tailWithNums = lines.slice(tailStart)
           .map((l, i) => `${String(tailStart + i + 1).padStart(5)}  ${l}`).join('\n')
 
+        // NOTICE: Generate a structural outline for large files.
+        // This helps the agent find exported functions/types/classes
+        // without reading the entire file, so it knows where to
+        // request start_line/end_line for targeted reads.
+        const outline = extractOutline(lines)
+        const outlineSection = outline.length > 0
+          ? `\n\n## File Outline (exported symbols)\n${outline.map(e => `  L${String(e.line).padStart(5)}: ${e.kind} ${e.name}`).join('\n')}`
+          : ''
+
         return {
           path: filePath,
           totalLines,
           truncated: true,
-          content: `${headWithNums}\n\n... [${omitted} lines omitted — use start_line/end_line to read specific sections] ...\n\n${tailWithNums}`,
-          hint: `File has ${totalLines} lines. Showing lines 1-${HEAD_LINES} and ${tailStart + 1}-${totalLines}. Use start_line/end_line to read the middle.`,
+          content: `${headWithNums}\n\n... [${omitted} lines omitted — use start_line/end_line to read specific sections] ...\n\n${tailWithNums}${outlineSection}`,
+          hint: `File has ${totalLines} lines. Showing lines 1-${HEAD_LINES} and ${tailStart + 1}-${totalLines}. ${outline.length} exported symbols found in outline. Use start_line/end_line to read specific sections.`,
         }
       }
 
