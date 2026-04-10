@@ -41,6 +41,7 @@ export type AdvisoryKind
     | 'document_ready_state_informational'
     | 'dom_unchanged_after_action'
     | 'browser_action_failed_with_repair'
+    | 'cross_lane_tool_usage'
 
 /** Broad category for classifying advisories. */
 export type AdvisoryCategory = 'prep' | 'reroute' | 'recovery' | 'informational'
@@ -104,6 +105,7 @@ export const ADVISORY_CATEGORY_MAP: Record<AdvisoryKind, AdvisoryCategory> = {
   proceed: 'informational',
   document_ready_state_informational: 'informational',
   dom_unchanged_after_action: 'informational',
+  cross_lane_tool_usage: 'informational',
 }
 
 /** Maps each advisory kind to the surface it recommends. */
@@ -128,6 +130,7 @@ export const ADVISORY_SURFACE_MAP: Record<AdvisoryKind, RecommendedSurface> = {
   document_ready_state_informational: 'none',
   dom_unchanged_after_action: 'none',
   browser_action_failed_with_repair: 'none',
+  cross_lane_tool_usage: 'none',
 }
 
 /**

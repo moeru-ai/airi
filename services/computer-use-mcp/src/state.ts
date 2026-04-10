@@ -28,6 +28,7 @@ import type {
   WorkflowStepTerminalBinding,
 } from './types'
 import type { CrossLaneHandoffContract } from './lane-handoff-contract'
+import type { ToolLane } from './server/tool-descriptors/types'
 
 import { appNamesMatch } from './app-aliases'
 
@@ -943,6 +944,10 @@ export interface RunState {
   /** Buffer of recently resolved cross-lane handoffs. */
   handoffHistory: CrossLaneHandoffContract[]
 
+  // --- Tool Lane Hygiene --------------------------------------------------
+  /** Inferred active lane from the most recent non-exempt tool invocation. */
+  inferredActiveLane?: ToolLane
+
   // --- Meta -------------------------------------------------------------
   /** ISO timestamp of the last state update. */
   updatedAt: string
@@ -1318,6 +1323,15 @@ export class RunStateManager {
       this.state.activeTask.phase = phase
       this.state.activeTask.finishedAt = new Date().toISOString()
     }
+    this.touch()
+  }
+
+  /**
+   * Update the inferred active lane from the most recent tool invocation.
+   * Only non-exempt lanes (see tool-lane-hygiene.ts) should call this.
+   */
+  updateInferredLane(lane: ToolLane) {
+    this.state.inferredActiveLane = lane
     this.touch()
   }
 
