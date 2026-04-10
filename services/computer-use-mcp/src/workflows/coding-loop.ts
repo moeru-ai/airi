@@ -126,7 +126,11 @@ export function createCodingExecutionLoopWorkflow(params?: {
       {
         label: 'Run Validation/Tests',
         kind: 'run_command',
-        description: 'Run scoped validation command (auto resolves to file-level checks when possible).',
+        // NOTICE: Verification discipline — prove the code works, don't just
+        // confirm it exists. Run tests with the feature enabled. Investigate
+        // failures — don't dismiss as "unrelated" without evidence. Try edge
+        // cases and error paths, not just the happy path.
+        description: 'Run scoped validation command (auto resolves to file-level checks when possible). MUST run real tests — echo/ls/pwd shortcuts are rejected. Investigate any failure; do not dismiss as unrelated.',
         params: { command: testCommand, cwd: workspacePath, timeoutMs: 60_000 },
         critical: false,
       },
@@ -140,7 +144,10 @@ export function createCodingExecutionLoopWorkflow(params?: {
       {
         label: 'Self-review and Report',
         kind: 'coding_report_status',
-        description: 'Report the structured execution status for the loop.',
+        // NOTICE: Synthesis obligation — summarize findings into specific file
+        // paths and line numbers. Never say "based on the changes" without
+        // citing what changed and where. Prove the change works; don't rubber-stamp.
+        description: 'Report the structured execution status for the loop. Synthesize findings into specific file paths and outcomes. Be skeptical — if something looks off, flag it.',
         params: {
           status: 'auto',
           summary: 'auto',

@@ -10,6 +10,26 @@
  * - Pure functions only — no runtime, no side effects
  * - Only in-session memory (no cross-session persistence)
  * - Seeds drive bias hints, NOT direct action execution
+ *
+ * REVIEW: Future cross-session memory (v2) design anchor
+ *
+ * When cross-session persistence is needed, consider a four-body
+ * classification (inspired by Claude Code's memoryTypes taxonomy):
+ *
+ *   1. user      — user role, preferences, knowledge level
+ *   2. feedback  — corrections AND confirmations (both negative and positive signals)
+ *   3. project   — ongoing work, goals, deadlines, constraints (convert
+ *                  relative dates to absolute: "Thursday" → "2026-03-05")
+ *   4. reference — pointers to external systems (Linear, Grafana, Slack)
+ *
+ * Key principles if implementing:
+ * - Never store what git/grep can derive (code patterns, file paths, architecture)
+ * - Even if user explicitly asks to store a code pattern, ask "what's non-obvious?"
+ * - On recall, verify against current state before acting — memories can go stale
+ * - "The memory says X exists" ≠ "X exists now" — grep/read before recommending
+ *
+ * Current scope: operational memory only (verification outcomes, diagnosis
+ * results, gate decisions). Cross-session = deferred until product need arises.
  */
 
 import type {
