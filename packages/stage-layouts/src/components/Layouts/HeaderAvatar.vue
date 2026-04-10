@@ -21,7 +21,7 @@ onClickOutside(dropdownRef, () => {
 
 <template>
   <div flex items-center gap-2>
-    <!-- Non-authenticated: Settings & Login -->
+    <!-- Non-authenticated: Settings & Sign in -->
     <!-- NOTICE: The avatar is stored in the localstorage, it will be shown at the first time of the page load, so we do not need the skeleton loading here -->
     <template v-if="!isAuthenticated">
       <RouterLink
@@ -38,7 +38,7 @@ onClickOutside(dropdownRef, () => {
         border="2 solid neutral-100/60 dark:neutral-800/30"
         bg="neutral-50/70 dark:neutral-800/70"
         w-fit flex items-center justify-center rounded-xl p-2 backdrop-blur-md
-        title="Login"
+        title="Sign in"
         type="button"
         @click="authStore.needsLogin = true"
       >
@@ -128,7 +128,7 @@ onClickOutside(dropdownRef, () => {
               @click="signOut"
             >
               <div class="i-solar:logout-3-bold-duotone text-lg transition group-hover:text-red-600 dark:group-hover:text-red-400" />
-              Logout
+              Sign out
             </button>
           </div>
         </div>

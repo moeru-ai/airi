@@ -155,8 +155,8 @@ pages:
     title: Account
     description: View your profile and manage your account
     notLoggedIn: Sign in to view your account and access all features
-    login: Log in
-    logout: Log out
+    login: Sign in
+    logout: Sign out
     fluxBalance: Flux Balance
     viewFluxDetails: View details
     signedInAs: Signed in as

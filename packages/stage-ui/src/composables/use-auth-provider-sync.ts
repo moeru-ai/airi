@@ -8,7 +8,7 @@ import { useSpeechStore } from '../stores/modules/speech'
 import { useProvidersStore } from '../stores/providers'
 
 /**
- * Provider IDs to auto-activate on login.
+ * Provider IDs to auto-activate on sign-in.
  * Edit this list to enable/disable official providers.
  */
 const AUTH_ACTIVATED_PROVIDERS: Array<{ id: string, module: 'consciousness' | 'speech' | 'hearing' }> = [
@@ -32,7 +32,7 @@ export function useAuthProviderSync() {
 
   // Track whether the sync has already fired in this session to avoid
   // re-running on every page navigation (onAuthenticated fires immediately
-  // if already logged in when the hook is registered).
+  // if already signed in when the hook is registered).
   let hasSynced = false
 
   authStore.onAuthenticated(async () => {
