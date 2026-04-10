@@ -497,6 +497,14 @@ export async function runQueryEngine(params: {
   let turnsWithoutEdit = 0
   let anyEditMade = false
 
+  // ─── Continuation tracking ───
+  // NOTICE: Agents sometimes respond with thinking/planning text before
+  // calling tools. We nudge them to continue instead of exiting immediately.
+  // Exit only when: already made edits (summarizing), or 3x consecutive
+  // text-only rounds (genuinely stuck/done).
+  let consecutiveNoToolCalls = 0
+  const MAX_NO_TOOL_ROUNDS = 3
+
   // ─── Read cache ───
   // Caches read_file results keyed by "filePath:startLine:endLine".
   // Invalidated when the file is modified via edit_file/multi_edit_file/write_file.
@@ -703,10 +711,34 @@ export async function runQueryEngine(params: {
       lastAssistantContent = response.content
     }
 
-    // No tool calls → agent is done, run verification and return
+    // No tool calls → agent might be done, OR just thinking/planning
     if (response.toolCalls.length === 0) {
-      return buildResult('completed', budget.snapshot())
+      consecutiveNoToolCalls++
+
+      // If the agent has already made edits and is now summarizing, it's truly done.
+      // If it has given MAX_NO_TOOL_ROUNDS consecutive text-only responses, give up.
+      if (anyEditMade || consecutiveNoToolCalls >= MAX_NO_TOOL_ROUNDS) {
+        return buildResult('completed', budget.snapshot())
+      }
+
+      // Context-aware nudge: tell the agent specifically what to do next
+      const lastContent = (response.content ?? '').toLowerCase()
+      let nudge: string
+      if (lastContent.includes('plan') || lastContent.includes('would') || lastContent.includes('should')) {
+        nudge = `[System] You described a plan but did not call any tools. Stop planning and start executing. Call edit_file, write_file, read_file, or search_text right now. (${consecutiveNoToolCalls}/${MAX_NO_TOOL_ROUNDS} text-only rounds used)`
+      }
+      else if (filesModified.size === 0 && budget.snapshot().turnsUsed > 2) {
+        nudge = `[System] You have used ${budget.snapshot().turnsUsed} turns but haven't modified any files yet. Call edit_file or write_file now to make changes, or call read_file/search_text if you need more information. (${consecutiveNoToolCalls}/${MAX_NO_TOOL_ROUNDS} text-only rounds used)`
+      }
+      else {
+        nudge = `[System] You responded with text but did not call any tools. The task is NOT complete. Call tools now — do not just describe what you would do. (${consecutiveNoToolCalls}/${MAX_NO_TOOL_ROUNDS} text-only rounds used)`
+      }
+      messages.push({ role: 'user' as const, content: nudge })
+      continue
     }
+
+    // Got tool calls — reset counter
+    consecutiveNoToolCalls = 0
 
     // Execute tool calls — parallel for read-only, serialized for mutations
     budget.recordToolCalls(response.toolCalls.length)

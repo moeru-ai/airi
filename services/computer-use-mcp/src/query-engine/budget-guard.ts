@@ -38,7 +38,11 @@ export class BudgetGuard {
 
   /** Record token usage from an LLM response. */
   recordTokens(tokens: number): void {
-    this.tokensUsed += tokens
+    // NOTICE: Guard against NaN — some providers return partial usage
+    // objects where totalTokens is undefined, leading to NaN propagation.
+    if (Number.isFinite(tokens)) {
+      this.tokensUsed += tokens
+    }
   }
 
   /** Get a snapshot of current budget consumption. */
