@@ -17,6 +17,7 @@ function emptyState(): RunState {
     workflowStepTerminalBindings: [],
     ptyApprovalGrants: [],
     ptyAuditLog: [],
+    handoffHistory: [],
     updatedAt: new Date().toISOString(),
   }
 }

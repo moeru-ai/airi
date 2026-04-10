@@ -28,6 +28,7 @@ describe('zero-Issue Sync (reportStatus lock)', () => {
         validationSummary: 'fake validation',
         validationCommand: 'pnpm test',
         baselineComparison: 'unknown',
+        recommendedNextAction: 'Address hallucinated issues',
       },
     })
 
@@ -54,6 +55,7 @@ describe('zero-Issue Sync (reportStatus lock)', () => {
         validationSummary: 'fake validation',
         validationCommand: 'pnpm test',
         baselineComparison: 'unknown',
+        recommendedNextAction: 'Fix syntax error',
       },
     })
 
@@ -75,6 +77,7 @@ describe('zero-Issue Sync (reportStatus lock)', () => {
         validationSummary: 'fake validation',
         validationCommand: 'pnpm test',
         baselineComparison: 'unknown',
+        recommendedNextAction: 'Proceed to next file',
       },
     })
 
