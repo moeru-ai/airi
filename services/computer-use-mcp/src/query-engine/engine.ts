@@ -481,6 +481,30 @@ export async function runQueryEngine(params: {
         }
         catch { /* ignore parse errors for tracking */ }
       }
+      // NOTICE: Track file modifications via bash commands too.
+      // Agents sometimes use sed/echo/cat to modify files instead of edit_file.
+      if (toolName === 'bash') {
+        try {
+          const args = JSON.parse(toolCall.function.arguments)
+          const cmd = (args.command as string) || ''
+          // Detect common file-mutating shell commands
+          const bashFilePatterns = [
+            /\bsed\s+.*?-i['"]*\s+.*?(\S+)\s*$/,         // sed -i 'expr' file
+            /\bsed\s+.*?-i['"]*\s+.*?['"].*?['"]\s+(\S+)/, // sed -i 's/x/y/' file
+            />\s*(\S+)/,                                      // echo > file / cat > file
+            /\btee\s+(?:-a\s+)?(\S+)/,                       // tee file / tee -a file
+          ]
+          for (const pat of bashFilePatterns) {
+            const m = cmd.match(pat)
+            if (m?.[1]) {
+              const { isAbsolute, resolve } = await import('node:path')
+              const target = isAbsolute(m[1]) ? m[1] : resolve(workspacePath, m[1])
+              filesModified.add(target)
+            }
+          }
+        }
+        catch { /* ignore parse errors for tracking */ }
+      }
     }
 
     // Split into parallel-safe and sequential batches

@@ -92,18 +92,70 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
   return {
     read_file: async (args) => {
       const filePath = resolveFilePath(args.file_path as string)
+      const startLine = args.start_line as number | undefined
+      const endLine = args.end_line as number | undefined
+
+      // Read the raw content
+      let content: string
+      let totalLines: number
       try {
-        return await primitives.readFile(
-          filePath,
-          args.start_line as number | undefined,
-          args.end_line as number | undefined,
-        )
+        const result = await primitives.readFile(filePath, startLine, endLine)
+        content = typeof result === 'string' ? result : result.content
+        totalLines = typeof result === 'string' ? content.split('\n').length : result.totalLines
       }
       catch {
         // Fallback: direct fs read
         const fs = await import('node:fs/promises')
-        const content = await fs.readFile(filePath, 'utf8')
-        return { content, path: filePath, totalLines: content.split('\n').length }
+        const raw = await fs.readFile(filePath, 'utf8')
+        const allLines = raw.split('\n')
+        totalLines = allLines.length
+
+        if (startLine || endLine) {
+          const s = Math.max(1, startLine ?? 1)
+          const e = Math.min(totalLines, endLine ?? totalLines)
+          content = allLines.slice(s - 1, e).join('\n')
+        }
+        else {
+          content = raw
+        }
+      }
+
+      // Large file strategy: if no range was requested and the file is large,
+      // return first + last lines with a navigation hint.
+      const MAX_LINES_NO_RANGE = 500
+      const lines = content.split('\n')
+
+      if (!startLine && !endLine && lines.length > MAX_LINES_NO_RANGE) {
+        const HEAD_LINES = 200
+        const TAIL_LINES = 100
+        const omitted = lines.length - HEAD_LINES - TAIL_LINES
+
+        // Prepend line numbers for navigation
+        const headWithNums = lines.slice(0, HEAD_LINES)
+          .map((l, i) => `${String(i + 1).padStart(5)}  ${l}`).join('\n')
+        const tailStart = lines.length - TAIL_LINES
+        const tailWithNums = lines.slice(tailStart)
+          .map((l, i) => `${String(tailStart + i + 1).padStart(5)}  ${l}`).join('\n')
+
+        return {
+          path: filePath,
+          totalLines,
+          truncated: true,
+          content: `${headWithNums}\n\n... [${omitted} lines omitted — use start_line/end_line to read specific sections] ...\n\n${tailWithNums}`,
+          hint: `File has ${totalLines} lines. Showing lines 1-${HEAD_LINES} and ${tailStart + 1}-${totalLines}. Use start_line/end_line to read the middle.`,
+        }
+      }
+
+      // For small files or ranged reads, add line numbers
+      const baseLineNum = startLine ?? 1
+      const numbered = lines
+        .map((l, i) => `${String(baseLineNum + i).padStart(5)}  ${l}`)
+        .join('\n')
+
+      return {
+        path: filePath,
+        totalLines,
+        content: numbered,
       }
     },
 
@@ -299,14 +351,16 @@ export function getToolDefinitions(): QueryEngineTool[] {
   return [
     {
       name: 'read_file',
-      description: 'Read the contents of a file. Optionally specify a line range.',
+      description: 'Read the contents of a file with line numbers. '
+        + 'For files over 500 lines, only the first 200 and last 100 lines are shown unless start_line/end_line are specified. '
+        + 'Use start_line and end_line to read specific sections of large files.',
       parameters: {
         type: 'object',
         required: ['file_path'],
         properties: {
           file_path: { type: 'string', description: 'Absolute or workspace-relative file path.' },
-          start_line: { type: 'number', description: 'Start line (1-indexed, inclusive).' },
-          end_line: { type: 'number', description: 'End line (1-indexed, inclusive).' },
+          start_line: { type: 'number', description: 'Start line (1-indexed, inclusive). Use to read specific sections of large files.' },
+          end_line: { type: 'number', description: 'End line (1-indexed, inclusive). Use to read specific sections of large files.' },
         },
       },
     },
