@@ -25,8 +25,93 @@ export interface ToolRouterDeps {
 }
 
 /**
- * Apply a single search-and-replace edit to a file.
- * Shared by edit_file (single edit) and used as a building block.
+ * Detect if a bash command would modify files.
+ * Returns the violation info if detected, null if the command is safe.
+ *
+ * This is a HARD system boundary — not a prompt suggestion.
+ * All file writes must go through edit_file/multi_edit_file/write_file.
+ */
+export function detectBashWriteViolation(command: string): { pattern: string; target?: string } | null {
+  // Normalize: collapse whitespace, strip leading/trailing
+  const cmd = command.trim()
+
+  // Patterns that ALWAYS indicate file mutation
+  const WRITE_PATTERNS: Array<{ regex: RegExp; name: string }> = [
+    { regex: /\bsed\s+.*-i/, name: 'sed -i (in-place edit)' },
+    { regex: /\bperl\s+.*-[pi]/, name: 'perl -pi (in-place edit)' },
+    { regex: /\bawk\s+.*-i\s+inplace/, name: 'awk -i inplace' },
+    { regex: /(?:^|[|;])\s*cat\s.*>\s*\S/, name: 'cat > file (overwrite)' },
+    { regex: /(?:^|[|;])\s*echo\s.*>\s*\S/, name: 'echo > file (overwrite)' },
+    { regex: /(?:^|[|;])\s*printf\s.*>\s*\S/, name: 'printf > file (overwrite)' },
+    { regex: />\s*(?!\/dev\/(?:null|stderr|stdout))\S/, name: '> file (redirect to file)' },
+    { regex: /\btee\s+(?!.*\/dev\/)/, name: 'tee (write to file)' },
+    { regex: /\bchmod\s/, name: 'chmod (change permissions)' },
+    { regex: /\brm\s/, name: 'rm (delete files)' },
+    { regex: /\brmdir\s/, name: 'rmdir (delete directory)' },
+    { regex: /\bmv\s/, name: 'mv (move/rename files)' },
+    { regex: /\bcp\s/, name: 'cp (copy files)' },
+    { regex: /\bln\s/, name: 'ln (create links)' },
+    { regex: /\btruncate\s/, name: 'truncate (truncate files)' },
+    { regex: /\bdd\s/, name: 'dd (disk dump)' },
+    { regex: /\bpatch\s/, name: 'patch (apply patches)' },
+    { regex: /\bgit\s+(add|commit|reset|checkout|stash|merge|rebase|cherry-pick|revert)\b/, name: 'git write operation' },
+    { regex: /\bpython[3]?\s+-c\s+.*open\s*\(.*['"]\s*w/, name: 'python write to file' },
+    { regex: /\bnode\s+-e\s+.*writeFile/, name: 'node writeFile' },
+  ]
+
+  // Allowlist: commands that look like writes but are actually safe
+  const SAFE_OVERRIDES = [
+    />\s*\/dev\/null/,      // Redirecting to /dev/null is fine
+    /2>\s*\/dev\/null/,     // stderr to /dev/null
+    /2>&1/,                 // stderr to stdout
+    /\bgit\s+(status|log|diff|show|branch|remote|describe|rev-parse|ls-files)\b/, // git read ops
+    /\bgit\s+stash\s+list\b/, // git stash list is read-only
+  ]
+
+  // Check safe overrides first
+  for (const safe of SAFE_OVERRIDES) {
+    if (safe.test(cmd)) {
+      // If the entire command matches a safe pattern, skip checking
+      // But only if NO write pattern also matches beyond the safe part
+    }
+  }
+
+  for (const { regex, name } of WRITE_PATTERNS) {
+    if (regex.test(cmd)) {
+      // Double-check it's not a safe override
+      const isSafe = SAFE_OVERRIDES.some(safe => {
+        // If the safe pattern explains the write pattern, it's fine
+        // e.g., "echo foo 2>/dev/null" — the > is to /dev/null
+        if (safe.test(cmd)) {
+          // Remove the safe part and re-check
+          const cleaned = cmd.replace(safe, '')
+          return !regex.test(cleaned)
+        }
+        return false
+      })
+
+      if (!isSafe) {
+        // Try to extract target file
+        const targetMatch = cmd.match(/(?:>|tee|sed\s.*-i\s.*\s|cp\s.*\s|mv\s.*\s)(\S+)\s*$/)
+        return { pattern: name, target: targetMatch?.[1] }
+      }
+    }
+  }
+
+  return null
+}
+
+/**
+ * Apply a single search-and-replace edit to a file with LAYERED MATCHING.
+ *
+ * Match strategy (in order):
+ * 1. Exact match
+ * 2. Whitespace-normalized match (collapse runs of whitespace)
+ * 3. Indent-normalized match (strip leading whitespace from both)
+ * 4. Fuzzy window match (find the most similar contiguous block)
+ *
+ * On failure, returns the top 3 candidate snippets with similarity scores
+ * so the agent can self-correct without re-reading the file.
  */
 async function applySingleEdit(filePath: string, oldText: string, newText: string): Promise<unknown> {
   const fs = await import('node:fs/promises')
@@ -39,40 +124,221 @@ async function applySingleEdit(filePath: string, oldText: string, newText: strin
     return { error: `File not found: ${filePath}. Use write_file to create new files.` }
   }
 
-  const index = content.indexOf(oldText)
-  if (index === -1) {
-    const lines = content.split('\n')
-    const preview = lines.slice(0, Math.min(40, lines.length)).join('\n')
-    return {
-      error: `old_text not found in ${filePath}. File has ${lines.length} lines.`,
-      hint: 'Make sure old_text matches the file content exactly, including whitespace and indentation.',
-      preview: preview.length > 2000 ? `${preview.slice(0, 2000)}\n[...]` : preview,
+  // ─── Layer 1: Exact match ───
+  const exactIndex = content.indexOf(oldText)
+  if (exactIndex !== -1) {
+    const secondIndex = content.indexOf(oldText, exactIndex + oldText.length)
+    if (secondIndex !== -1) {
+      return {
+        error: `old_text matches multiple locations in ${filePath}. Provide more context to make the match unique.`,
+        firstMatch: `line ${content.slice(0, exactIndex).split('\n').length}`,
+        secondMatch: `line ${content.slice(0, secondIndex).split('\n').length}`,
+      }
+    }
+    return applyAndReport(fs, filePath, content, exactIndex, oldText, newText, 'exact')
+  }
+
+  // ─── Layer 2: Whitespace-normalized match ───
+  const normalizeWS = (s: string) => s.replace(/[ \t]+/g, ' ').replace(/\r\n/g, '\n')
+  const contentNorm = normalizeWS(content)
+  const oldNorm = normalizeWS(oldText)
+  const wsIndex = contentNorm.indexOf(oldNorm)
+  if (wsIndex !== -1) {
+    // Find the actual position in original content by mapping back
+    const actualRange = findOriginalRange(content, contentNorm, wsIndex, oldNorm.length)
+    if (actualRange) {
+      return applyAndReport(fs, filePath, content, actualRange.start,
+        content.slice(actualRange.start, actualRange.end), newText, 'whitespace_normalized')
     }
   }
 
-  const secondIndex = content.indexOf(oldText, index + oldText.length)
-  if (secondIndex !== -1) {
-    return {
-      error: `old_text matches multiple locations in ${filePath}. Provide more context to make the match unique.`,
-      firstMatch: `line ${content.slice(0, index).split('\n').length}`,
-      secondMatch: `line ${content.slice(0, secondIndex).split('\n').length}`,
+  // ─── Layer 3: Indent-normalized match ───
+  const stripIndent = (s: string) => s.split('\n').map(l => l.trimStart()).join('\n')
+  const contentStripped = stripIndent(content)
+  const oldStripped = stripIndent(oldText)
+  if (oldStripped.length > 10) {
+    const indentIndex = contentStripped.indexOf(oldStripped)
+    if (indentIndex !== -1) {
+      const actualRange = findOriginalRange(content, contentStripped, indentIndex, oldStripped.length)
+      if (actualRange) {
+        return applyAndReport(fs, filePath, content, actualRange.start,
+          content.slice(actualRange.start, actualRange.end), newText, 'indent_normalized')
+      }
     }
   }
 
-  const newContent = content.slice(0, index) + newText + content.slice(index + oldText.length)
+  // ─── Layer 4: Fuzzy window match — find the most similar block ───
+  const candidates = findFuzzyCandidates(content, oldText, 3)
+
+  if (candidates.length > 0 && candidates[0]!.similarity >= 0.7) {
+    // High-confidence fuzzy match: report but DON'T auto-apply (agent must confirm)
+    return {
+      error: `Exact match not found. Found ${candidates.length} similar candidate(s).`,
+      matchType: 'fuzzy_candidates',
+      candidates: candidates.map(c => ({
+        lineStart: c.lineStart,
+        lineEnd: c.lineEnd,
+        similarity: `${Math.round(c.similarity * 100)}%`,
+        snippet: c.text.length > 300 ? `${c.text.slice(0, 300)}...` : c.text,
+      })),
+      hint: 'Use the exact text from one of these candidates as old_text, or use start_line/end_line with read_file to see the full context.',
+    }
+  }
+
+  // ─── Layer 5: Total failure — show file structure ───
+  const lines = content.split('\n')
+  const preview = lines.slice(0, Math.min(30, lines.length))
+    .map((l, i) => `${String(i + 1).padStart(5)}  ${l}`).join('\n')
+
+  return {
+    error: `old_text not found in ${filePath}. No similar text found (file has ${lines.length} lines).`,
+    hint: 'Read the file with read_file to see its current content, then use the exact text for old_text.',
+    preview: preview.length > 2000 ? `${preview.slice(0, 2000)}\n[...]` : preview,
+    ...(candidates.length > 0 ? {
+      bestCandidate: {
+        lineStart: candidates[0]!.lineStart,
+        similarity: `${Math.round(candidates[0]!.similarity * 100)}%`,
+        snippet: candidates[0]!.text.slice(0, 200),
+      },
+    } : {}),
+  }
+}
+
+/**
+ * Apply the edit and return a structured report with diff.
+ */
+async function applyAndReport(
+  fs: typeof import('node:fs/promises'),
+  filePath: string,
+  content: string,
+  index: number,
+  actualOldText: string,
+  newText: string,
+  matchType: string,
+): Promise<unknown> {
+  const newContent = content.slice(0, index) + newText + content.slice(index + actualOldText.length)
   await fs.writeFile(filePath, newContent, 'utf-8')
 
   const lineNum = content.slice(0, index).split('\n').length
-  const oldLines = oldText.split('\n').length
+  const oldLines = actualOldText.split('\n').length
   const newLines = newText.split('\n').length
   return {
     success: true,
     file: filePath,
+    matchType,
     line: lineNum,
     linesRemoved: oldLines,
     linesAdded: newLines,
-    diff: `@@ -${lineNum},${oldLines} +${lineNum},${newLines} @@\n${oldText.split('\n').map(l => `-${l}`).join('\n')}\n${newText.split('\n').map(l => `+${l}`).join('\n')}`,
+    diff: `@@ -${lineNum},${oldLines} +${lineNum},${newLines} @@\n${actualOldText.split('\n').map(l => `-${l}`).join('\n')}\n${newText.split('\n').map(l => `+${l}`).join('\n')}`,
   }
+}
+
+/**
+ * Map a position in a normalized string back to the original string.
+ * Returns {start, end} in the original string, or null if mapping fails.
+ */
+function findOriginalRange(
+  original: string,
+  normalized: string,
+  normIndex: number,
+  normLength: number,
+): { start: number; end: number } | null {
+  // Build a character mapping from normalized to original positions
+  // by walking both strings simultaneously
+  let origPos = 0
+  let normPos = 0
+  let startOrig = -1
+  let endOrig = -1
+
+  // Simple heuristic: find line-based mapping
+  const origLines = original.split('\n')
+  const normLines = normalized.split('\n')
+
+  if (origLines.length !== normLines.length) return null
+
+  // Map normalized char position to line number
+  let charCount = 0
+  let startLine = -1
+  let endLine = -1
+  for (let i = 0; i < normLines.length; i++) {
+    if (startLine === -1 && charCount + normLines[i]!.length >= normIndex) {
+      startLine = i
+    }
+    charCount += normLines[i]!.length + 1 // +1 for \n
+    if (charCount >= normIndex + normLength) {
+      endLine = i
+      break
+    }
+  }
+
+  if (startLine === -1) return null
+  if (endLine === -1) endLine = origLines.length - 1
+
+  // Get the original text for those lines
+  const beforeStart = origLines.slice(0, startLine).join('\n')
+  const matchedLines = origLines.slice(startLine, endLine + 1).join('\n')
+  const start = beforeStart.length + (startLine > 0 ? 1 : 0)
+
+  return { start, end: start + matchedLines.length }
+}
+
+/**
+ * Find the top-N most similar contiguous blocks in content compared to target.
+ * Uses a sliding-window approach with line-level Jaccard similarity.
+ */
+function findFuzzyCandidates(
+  content: string,
+  target: string,
+  maxCandidates: number,
+): Array<{ lineStart: number; lineEnd: number; similarity: number; text: string }> {
+  const contentLines = content.split('\n')
+  const targetLines = target.split('\n')
+  const targetLen = targetLines.length
+  const targetTokens = new Set(targetLines.flatMap(l => l.trim().split(/\s+/).filter(Boolean)))
+
+  if (targetTokens.size === 0) return []
+
+  const candidates: Array<{ lineStart: number; lineEnd: number; similarity: number; text: string }> = []
+
+  // Slide a window of targetLen lines over the content
+  const windowSize = Math.max(targetLen, 3)
+  for (let i = 0; i <= contentLines.length - windowSize; i++) {
+    const windowLines = contentLines.slice(i, i + windowSize)
+    const windowTokens = new Set(windowLines.flatMap(l => l.trim().split(/\s+/).filter(Boolean)))
+
+    // Jaccard similarity
+    let intersection = 0
+    for (const t of targetTokens) {
+      if (windowTokens.has(t)) intersection++
+    }
+    const union = targetTokens.size + windowTokens.size - intersection
+    const similarity = union > 0 ? intersection / union : 0
+
+    if (similarity > 0.3) {
+      candidates.push({
+        lineStart: i + 1,
+        lineEnd: i + windowSize,
+        similarity,
+        text: windowLines.join('\n'),
+      })
+    }
+  }
+
+  // Sort by similarity descending, take top N
+  candidates.sort((a, b) => b.similarity - a.similarity)
+
+  // Deduplicate overlapping ranges
+  const filtered: typeof candidates = []
+  for (const c of candidates) {
+    if (filtered.length >= maxCandidates) break
+    const overlaps = filtered.some(f =>
+      (c.lineStart >= f.lineStart && c.lineStart <= f.lineEnd)
+      || (c.lineEnd >= f.lineStart && c.lineEnd <= f.lineEnd),
+    )
+    if (!overlaps) filtered.push(c)
+  }
+
+  return filtered
 }
 
 /**
@@ -84,14 +350,14 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
   /**
    * Resolve a file path: if relative, resolve against workspacePath.
    */
-  const resolveFilePath = (filePath: string): string => {
-    const pathMod = require('node:path') as typeof import('node:path')
+  const resolveFilePath = async (filePath: string): Promise<string> => {
+    const pathMod = await import('node:path')
     return pathMod.isAbsolute(filePath) ? filePath : pathMod.join(workspacePath, filePath)
   }
 
   return {
     read_file: async (args) => {
-      const filePath = resolveFilePath(args.file_path as string)
+      const filePath = await resolveFilePath(args.file_path as string)
       const startLine = args.start_line as number | undefined
       const endLine = args.end_line as number | undefined
 
@@ -160,7 +426,7 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
     },
 
     write_file: async (args) => {
-      const filePath = resolveFilePath(args.file_path as string)
+      const filePath = await resolveFilePath(args.file_path as string)
       const content = args.content as string
       try {
         return await primitives.writeFile(filePath, content)
@@ -194,8 +460,24 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
     },
 
     bash: async (args) => {
+      const command = args.command as string
+
+      // NOTICE: System-level guard — bash MUST NOT modify files.
+      // File modifications must go through edit_file/multi_edit_file/write_file
+      // so they are tracked, verified, and reversible.
+      const violation = detectBashWriteViolation(command)
+      if (violation) {
+        return {
+          error: true,
+          blocked: true,
+          message: `BLOCKED: bash command would modify files (${violation.pattern}).`,
+          hint: `Use edit_file or multi_edit_file to modify "${violation.target || 'files'}". `
+            + 'bash is only allowed for: reading, searching, compiling, testing, linting, and git queries.',
+        }
+      }
+
       return terminal.execute({
-        command: args.command as string,
+        command,
         cwd: args.cwd as string | undefined,
         timeoutMs: args.timeout_ms as number | undefined,
       })
@@ -210,14 +492,14 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
     },
 
     edit_file: async (args) => {
-      const filePath = resolveFilePath(args.file_path as string)
+      const filePath = await resolveFilePath(args.file_path as string)
       const oldText = args.old_text as string
       const newText = args.new_text as string
       return applySingleEdit(filePath, oldText, newText)
     },
 
     multi_edit_file: async (args) => {
-      const filePath = resolveFilePath(args.file_path as string)
+      const filePath = await resolveFilePath(args.file_path as string)
       const edits = args.edits as Array<{ old_text: string; new_text: string }>
 
       if (!Array.isArray(edits) || edits.length === 0) {
