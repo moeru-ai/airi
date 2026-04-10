@@ -45,6 +45,7 @@ export type WorkflowStepKind
     | 'coding_capture_validation_baseline'
     | 'coding_write_file'
     | 'coding_list_files'
+    | 'coding_agentic_run'
     // Coding Execution Core v1 step family
 
 // ---------------------------------------------------------------------------
@@ -150,6 +151,7 @@ export function resolveStepAction(step: WorkflowStepTemplate): ActionInvocation 
     case 'coding_capture_validation_baseline':
     case 'coding_write_file':
     case 'coding_list_files':
+    case 'coding_agentic_run':
       return { kind: step.kind, input: step.params as any }
     case 'ensure_app':
       return { kind: 'focus_app', input: { app: step.params.app as string } }

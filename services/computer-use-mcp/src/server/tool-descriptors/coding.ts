@@ -219,4 +219,19 @@ export const codingDescriptors: ToolDescriptor[] = [
     requiresApprovalByDefault: false,
     public: true,
   },
+
+  // Autonomous coding loop
+  {
+    canonicalName: 'coding_agentic_run',
+    displayName: 'Coding Agentic Run',
+    summary: 'Start an autonomous coding loop to complete a task. The agent will read, search, edit files, and run commands to accomplish the given goal.',
+    lane: 'coding',
+    kind: 'write',
+    readOnly: false,
+    destructive: true,
+    concurrencySafe: false,
+    requiresApprovalByDefault: true,
+    public: true,
+    defaultDeferred: true,
+  },
 ]

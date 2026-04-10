@@ -66,6 +66,8 @@ export function explainActionIntent(action: ActionInvocation, runState: RunState
       return `Write file: ${action.input.filePath}${action.input.overwrite ? ' (overwrite)' : ' (create)'}`
     case 'coding_list_files':
       return `List workspace files${action.input.pattern ? ` matching "${action.input.pattern}"` : ''}`
+    case 'coding_agentic_run':
+      return `Start autonomous coding loop: ${action.input.goal}`
 
     case 'screenshot':
       return `Taking a screenshot to observe the current state of the desktop${taskContext}.`
@@ -202,6 +204,8 @@ export function explainActionOutcome(params: {
       return `File ${action.input.filePath} written successfully.`
     case 'coding_list_files':
       return 'File listing completed.'
+    case 'coding_agentic_run':
+      return 'Autonomous coding loop completed.'
 
     case 'screenshot':
       return 'Screenshot captured successfully. The model can now analyze the current desktop state.'
@@ -264,6 +268,7 @@ function buildFailureExplanation(
     case 'coding_capture_validation_baseline':
     case 'coding_write_file':
     case 'coding_list_files':
+    case 'coding_agentic_run':
       parts.push('Ensure the file path and workspace boundaries are perfectly aligned and readable.')
       break
     case 'click':

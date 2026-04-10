@@ -39,6 +39,7 @@ export type CodingToolName
     | 'coding_capture_validation_baseline'
     | 'coding_write_file'
     | 'coding_list_files'
+    | 'coding_agentic_run'
 
 export type CodingBackendResult
   = | CodingWorkspaceReview
@@ -132,5 +133,7 @@ export function summarizeCodingToolResult(params: {
       return `Wrote file: ${String((backendResult as Record<string, unknown>).absolutePath || 'unknown')}.`
     case 'coding_list_files':
       return `Listed ${String((backendResult as Record<string, unknown>).totalFound || 0)} file(s).`
+    case 'coding_agentic_run':
+      return `Autonomous loop ${String((backendResult as Record<string, unknown>).status || 'unknown')}: ${String((backendResult as Record<string, unknown>).turnsUsed || 0)} turns.`
   }
 }

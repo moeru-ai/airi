@@ -171,7 +171,7 @@ export function evaluateActionPolicy(params: {
     riskLevel = tightenRisk(riskLevel, 'high')
   }
 
-  if (params.action.kind === 'coding_apply_patch' || params.action.kind === 'coding_write_file') {
+  if (params.action.kind === 'coding_apply_patch' || params.action.kind === 'coding_write_file' || params.action.kind === 'coding_agentic_run') {
     requiresApproval = true
     riskLevel = tightenRisk(riskLevel, 'high')
   }

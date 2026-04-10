@@ -39,6 +39,7 @@ export type ActionKind
     | 'coding_capture_validation_baseline'
     | 'coding_write_file'
     | 'coding_list_files'
+    | 'coding_agentic_run'
 export type ApprovalGrantScope = 'terminal_and_apps' | 'pty_session'
 
 // ---------------------------------------------------------------------------
@@ -422,6 +423,7 @@ export type ActionInvocation
     | { kind: 'coding_capture_validation_baseline', input: CodingCaptureValidationBaselineActionInput }
     | { kind: 'coding_write_file', input: { filePath: string, content: string, overwrite: boolean } }
     | { kind: 'coding_list_files', input: { pattern?: string, excludePatterns?: string[], maxResults?: number } }
+    | { kind: 'coding_agentic_run', input: { goal: string, model?: string, maxTurns?: number, approvalMode?: 'auto' | 'per_mutation' } }
     | { kind: 'scroll', input: ScrollActionInput }
     | { kind: 'wait', input: WaitActionInput }
     | { kind: 'terminal_exec', input: TerminalExecActionInput }

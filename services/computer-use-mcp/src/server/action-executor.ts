@@ -507,6 +507,24 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           backendResult = result as unknown as Record<string, unknown>
           break
         }
+        case 'coding_agentic_run': {
+          const { resolveConfig, runQueryEngine } = await import('../query-engine')
+          const primitives = new CodingPrimitives(runtime)
+          const config = resolveConfig({
+            model: normalizedAction.input.model,
+            maxTurns: normalizedAction.input.maxTurns,
+            approvalMode: normalizedAction.input.approvalMode,
+          })
+          const result = await runQueryEngine({
+            goal: normalizedAction.input.goal,
+            workspacePath: runtime.config.workspacePath ?? process.cwd(),
+            primitives,
+            terminal: runtime.terminalRunner,
+            config,
+          })
+          backendResult = result as unknown as Record<string, unknown>
+          break
+        }
 
         case 'screenshot': {
           const screenshot = await runtime.executor.takeScreenshot(normalizedAction.input)

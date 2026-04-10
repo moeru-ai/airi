@@ -71,6 +71,7 @@ const actionKindVerificationBaselines = {
   coding_diagnose_changes: noVerificationBaseline,
   coding_capture_validation_baseline: noVerificationBaseline,
   coding_list_files: noVerificationBaseline,
+  coding_agentic_run: noVerificationBaseline,
 
   click: uiMutationVerificationBaseline,
   type_text: uiMutationVerificationBaseline,

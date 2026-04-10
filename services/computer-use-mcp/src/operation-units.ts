@@ -21,6 +21,8 @@ export function estimateOperationUnits(action: ActionInvocation) {
     case 'coding_capture_validation_baseline':
     case 'coding_list_files':
       return 1
+    case 'coding_agentic_run':
+      return 10
 
     case 'screenshot':
       return 3

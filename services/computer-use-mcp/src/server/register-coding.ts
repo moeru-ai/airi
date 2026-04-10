@@ -530,4 +530,18 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
       }
     },
   })
+
+  // --- coding_agentic_run ---
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('coding_agentic_run'),
+    schema: {
+      goal: z.string().min(1).describe('The coding task to accomplish autonomously.'),
+      model: z.string().optional().describe('LLM model override (default: AIRI_AGENT_MODEL env var).'),
+      maxTurns: z.number().int().min(1).max(100).optional().describe('Maximum LLM turns. Default: 50.'),
+      approvalMode: z.enum(['auto', 'per_mutation']).optional().describe('Approval mode. Default: auto.'),
+    },
+    handler: async (input: { goal: string; model?: string; maxTurns?: number; approvalMode?: 'auto' | 'per_mutation' }) => {
+      return executeAction({ kind: 'coding_agentic_run', input }, 'coding_agentic_run')
+    },
+  })
 }
