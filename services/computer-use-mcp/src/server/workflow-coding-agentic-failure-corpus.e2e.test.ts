@@ -35,6 +35,8 @@ type FailureScenario
     | 'baseline_noise'
     | 'validation_timed_out'
     | 'validation_command_mismatch'
+    | 'bad_faith_echo'
+    | 'bad_faith_node_eval'
 
 function createMockServer() {
   const handlers = new Map<string, ToolHandler>()
@@ -277,6 +279,34 @@ function buildExecuteAction(runtime: ComputerUseServerRuntime, scenario: Failure
             return success(action, terminalResult)
           }
 
+          if (scenario === 'bad_faith_echo') {
+            const terminalResult = {
+              command: 'echo all tests pass',
+              stdout: 'all tests pass\n',
+              stderr: '',
+              exitCode: 0,
+              effectiveCwd: action.input.cwd || '',
+              durationMs: 1,
+              timedOut: false,
+            }
+            runtime.stateManager.updateTerminalResult(terminalResult)
+            return success(action, terminalResult)
+          }
+
+          if (scenario === 'bad_faith_node_eval') {
+            const terminalResult = {
+              command: 'node -e "console.log(ok)"',
+              stdout: 'ok\n',
+              stderr: '',
+              exitCode: 0,
+              effectiveCwd: action.input.cwd || '',
+              durationMs: 1,
+              timedOut: false,
+            }
+            runtime.stateManager.updateTerminalResult(terminalResult)
+            return success(action, terminalResult)
+          }
+
           const command = String(action.input.command)
           const cwd = action.input.cwd
 
@@ -365,6 +395,10 @@ async function runScenario(scenario: FailureScenario) {
         return 'pnpm test'
       case 'validation_command_mismatch':
         return 'echo validation-mismatch-command'
+      case 'bad_faith_echo':
+        return 'echo all tests pass'
+      case 'bad_faith_node_eval':
+        return 'node -e "console.log(ok)"'
     }
   })()
 
@@ -544,6 +578,38 @@ describe('workflow_coding_agentic_loop failure corpus e2e', () => {
       expect(diagnosis?.shouldAbortPlan).toBe(false)
       expect(Array.isArray(diagnosis?.evidence)).toBe(true)
       expect((diagnosis?.evidence || []).length).toBeGreaterThan(0)
+    }
+    finally {
+      await rm(workspace, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects bad_faith_echo: echo is not a real test', async () => {
+    const { workspace, runtime, workflowResult } = await runScenario('bad_faith_echo')
+
+    try {
+      const structured = workflowResult.structuredContent as Record<string, any>
+      expect(structured.status).toBe('failed')
+      expectFailedVerificationOutcome(runtime)
+
+      const verificationOutcome = runtime.stateManager.getState().coding?.lastVerificationOutcome
+      expect(verificationOutcome?.reasonCodes).toContain('verification_bad_faith')
+    }
+    finally {
+      await rm(workspace, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects bad_faith_node_eval: node -e is not a real test', async () => {
+    const { workspace, runtime, workflowResult } = await runScenario('bad_faith_node_eval')
+
+    try {
+      const structured = workflowResult.structuredContent as Record<string, any>
+      expect(structured.status).toBe('failed')
+      expectFailedVerificationOutcome(runtime)
+
+      const verificationOutcome = runtime.stateManager.getState().coding?.lastVerificationOutcome
+      expect(verificationOutcome?.reasonCodes).toContain('verification_bad_faith')
     }
     finally {
       await rm(workspace, { recursive: true, force: true })
