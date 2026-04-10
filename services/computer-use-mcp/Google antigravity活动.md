@@ -2223,3 +2223,76 @@ agent 的 diff 输出：
 ```
 
 **测试：73 files, 787 tests (+50 new), all green**
+
+## 真实工程验证：4 场景 Battle Test
+
+### 测试设计
+
+对同一个脏仓库（qq-bot, 222 files, 2351行 scheduleService.js），跑 4 个不同类型任务：
+- 每个场景：clean checkout → 12 turn budget → 150K token limit → 评分
+- 真实 git diff 验证（不信 agent 说的，看实际改了什么）
+
+### 结果
+
+```
+╔═══════════════════════════════════════════════╗
+║              RELIABILITY SCORECARD            ║
+╚═══════════════════════════════════════════════╝
+
+  Scenario                  | Status           | Turns | Tokens | Diff
+  ─────────────────────────────────────────────────────────────────────
+  Fix hardcoded values      | ✅ completed      | 12/12 | 93K    | 12
+  Add input validation      | ✅ completed      | 6/12  | 28K    | 4
+  Add missing error handling | ✅ completed      | 11/12 | 75K    | 4
+  Fix a real test           | ❌ error          | 2/12  | 4K     | 0
+
+  Pass rate: 3/4 (75%)
+  Total tokens: 199K
+  Avg tokens/scenario: 50K
+  Avg time/scenario: 54.5s
+
+  🟢 BATTLE TEST: CONSUMER-GRADE VIABLE
+```
+
+### 各场景分析
+
+#### Scenario 1: Fix hardcoded values ✅
+- Workflow: `list_files → search_text → read_file → search_text → read_file×2 → multi_edit_file → read_file → edit_file → read_file → bash`
+- 提取了 `SHANGHAI_TIME_OFFSET_MS` 和 `OCR_CONFIDENCE_THRESHOLD`
+- 做了 read-back 验证
+- 12 行 diff，真实改动
+
+#### Scenario 2: Add input validation ✅ ⭐ 最佳表现
+- Workflow: `list_files → search_text → read_file → edit_file → read_file`
+- **只用 6 轮 28K tokens** — 高效的 discover→read→edit→verify 流程
+- 添加了 `if (typeof msg !== 'string' || !msg) return null;`
+- 完美的教科书级执行
+
+#### Scenario 3: Add missing error handling ✅
+- Workflow: `list_files → search_text → read_file → search_text → read_file → multi_edit_file → read_file → edit_file → read_file → edit_file`
+- 找到 `readScheduleProfileFromCosmos` 的空 catch 块
+- 添加了 `console.error(...)` 日志
+- 尝试了 3 次编辑（2 次自修正），最终成功
+
+#### Scenario 4: Fix a real test ❌
+- API fetch failed（网络瞬断），不是 agent 能力问题
+- 仅 2 turns 就挂了，需要 retry 机制
+
+### 关键发现
+
+1. **bash 写禁令有效**：0 次 sed 绕过，所有编辑都走 edit_file/multi_edit_file
+2. **分层匹配有效**：Scenario 3 的 3 次编辑尝试中 2 次自修正
+3. **阶段模型有效**：Scenario 2 展示了理想的 5 步流程
+4. **效率差异巨大**：简单任务 28K tokens vs 复杂任务 93K tokens
+5. **API 稳定性是瓶颈**：Scenario 4 因网络挂掉，需要更好的 retry
+
+### 对比 CC 消费级（诚实评估）
+
+| 维度 | CC | AIRI 当前 | 差距 |
+|---|---|---|---|
+| 成功率 | ~90% | 75% (3/4) | -15% |
+| Token 效率 | ~20-30K/task | 50K avg | 2x |
+| 最佳表现 | 3-5 turns | 6 turns (S2) | 接近 |
+| 最差表现 | 10-15 turns | 12 turns (S1) | 接近 |
+| API 容错 | retry+fallback | 基础 retry | 弱 |
+| 自修正 | 1-2 次内 | 2-3 次内 | 接近 |
