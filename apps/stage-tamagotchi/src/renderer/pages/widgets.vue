@@ -196,20 +196,23 @@ function handleClose() {
 </script>
 
 <template>
-  <div class="h-full w-full">
+  <div class="relative h-full w-full">
+    <button
+      :class="[
+        'absolute right-2 top-2 z-10 size-7 rounded-full text-xs text-white transition',
+        'bg-black/40 hover:bg-black/60',
+      ]"
+      title="Close widget"
+      @click="handleClose"
+    >
+      ✕
+    </button>
     <div v-if="!widgetId" class="h-full flex items-center justify-center">
       <div class="border border-neutral-200/20 rounded-xl bg-neutral-900/40 px-4 py-3 text-sm text-neutral-200/80 backdrop-blur">
         Missing widget id. Launch the window via a component call to populate this view.
       </div>
     </div>
     <div v-else-if="widget" class="relative h-full">
-      <button
-        class="absolute right-2 top-2 z-10 size-7 rounded-full bg-black/40 text-xs text-white transition hover:bg-black/60"
-        title="Close widget"
-        @click="handleClose"
-      >
-        ✕
-      </button>
       <component
         :is="resolveWidgetComponent(widget.componentName)"
         :key="widget.id"
