@@ -8,9 +8,13 @@
 
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
 import { isTransientError } from './engine'
+// ─── Component 3: checkBasicSyntax ───
+// Now exported from verification.ts — import directly instead of duplicating
+import { checkBasicSyntax } from './verification'
 
 // ─── Component 1: isTransientError ───
 
@@ -76,7 +80,8 @@ describe('isTransientError', () => {
 describe('truncateToolResult logic', () => {
   // Replicate the truncation logic for testing
   function truncate(content: string, maxChars: number = 8000): string {
-    if (content.length <= maxChars) return content
+    if (content.length <= maxChars)
+      return content
     const headSize = Math.floor(maxChars * 0.7)
     const tailSize = Math.floor(maxChars * 0.2)
     const head = content.slice(0, headSize)
@@ -114,73 +119,8 @@ describe('truncateToolResult logic', () => {
   })
 })
 
-// ─── Component 3: checkBasicSyntax ───
-// We test the improved syntax checker by importing it via the verify path
-
 describe('checkBasicSyntax improvements', () => {
-  // Replicate the core logic for targeted testing
-  function checkSyntax(content: string, filePath?: string): string[] {
-    const ext = filePath?.split('.').pop()?.toLowerCase()
-    if (ext === 'json') {
-      try { JSON.parse(content); return [] }
-      catch (e) { return [`Invalid JSON: ${(e as Error).message}`] }
-    }
-    if (ext === 'md' || ext === 'txt' || ext === 'css' || ext === 'html') return []
-
-    const issues: string[] = []
-    const counts = { '{': 0, '(': 0, '[': 0 }
-    const closers: Record<string, keyof typeof counts> = { '}': '{', ')': '(', ']': '[' }
-
-    let inString: string | null = null
-    let inLineComment = false
-    let inBlockComment = false
-    let inTemplateLiteral = false
-    let templateBraceDepth = 0
-    let inRegex = false
-
-    for (let i = 0; i < content.length; i++) {
-      const ch = content[i]!
-      const next = content[i + 1]
-      const prev = i > 0 ? content[i - 1] : ''
-
-      if (inLineComment) { if (ch === '\n') inLineComment = false; continue }
-      if (inBlockComment) { if (ch === '*' && next === '/') { inBlockComment = false; i++ }; continue }
-      if (inString) { if (ch === inString && prev !== '\\') inString = null; continue }
-      if (inRegex) { if (ch === '/' && prev !== '\\') inRegex = false; continue }
-      if (inTemplateLiteral) {
-        if (ch === '`' && prev !== '\\') { inTemplateLiteral = false; continue }
-        if (ch === '$' && next === '{') { templateBraceDepth++; i++; counts['{']++; continue }
-        continue
-      }
-
-      if (ch === '/' && next === '/') { inLineComment = true; continue }
-      if (ch === '/' && next === '*') { inBlockComment = true; continue }
-      if (ch === '\'' || ch === '"') { inString = ch; continue }
-      if (ch === '`') { inTemplateLiteral = true; continue }
-      if (ch === '/' && next !== '/' && next !== '*') {
-        const prevNonSpace = content.slice(Math.max(0, i - 10), i).trimEnd().slice(-1)
-        if ('=([!&|;{},:\n'.includes(prevNonSpace) || prevNonSpace === '') { inRegex = true; continue }
-      }
-
-      if (templateBraceDepth > 0) {
-        if (ch === '{') templateBraceDepth++
-        if (ch === '}') {
-          templateBraceDepth--
-          if (templateBraceDepth === 0) { counts['{']--; inTemplateLiteral = true; continue }
-        }
-      }
-
-      if (ch in counts) counts[ch as keyof typeof counts]++
-      if (ch in closers) counts[closers[ch]!]--
-    }
-
-    const TOLERANCE = 2
-    if (Math.abs(counts['{']) > TOLERANCE) issues.push(`Unbalanced braces: ${counts['{']} unclosed`)
-    if (Math.abs(counts['(']) > TOLERANCE) issues.push(`Unbalanced parens: ${counts['(']} unclosed`)
-    if (Math.abs(counts['[']) > TOLERANCE) issues.push(`Unbalanced brackets: ${counts['[']} unclosed`)
-
-    return issues
-  }
+  const checkSyntax = checkBasicSyntax
 
   it('passes on balanced code', () => {
     const code = `function hello() {\n  const x = [1, 2, 3]\n  return x.map((i) => i + 1)\n}\n`

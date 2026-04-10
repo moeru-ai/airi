@@ -12,9 +12,6 @@
  * and internally uses already-registered CodingPrimitives for all file operations.
  */
 
-import { existsSync } from 'node:fs'
-import { join } from 'node:path'
-
 import type { CodingPrimitives } from '../coding/primitives'
 import type { TerminalRunner } from '../types'
 import type {
@@ -27,6 +24,9 @@ import type {
   VerificationRecord,
 } from './types'
 
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
+
 import { BudgetGuard } from './budget-guard'
 import { compactIfNeeded } from './context-compact'
 import { buildSessionState, loadSession, saveSession } from './session'
@@ -37,6 +37,7 @@ import {
   executeToolCall,
   getToolDefinitions,
 } from './tool-router'
+import { verifyModifiedFiles } from './verification'
 
 /**
  * Default configuration values.
@@ -85,9 +86,12 @@ function detectToolchain(workspacePath: string): WorkspaceToolchain {
 
   // Detect package manager
   let packageManager: WorkspaceToolchain['packageManager'] = 'npm'
-  if (exists('pnpm-lock.yaml') || exists('pnpm-workspace.yaml')) packageManager = 'pnpm'
-  else if (exists('yarn.lock')) packageManager = 'yarn'
-  else if (exists('bun.lockb') || exists('bun.lock')) packageManager = 'bun'
+  if (exists('pnpm-lock.yaml') || exists('pnpm-workspace.yaml'))
+    packageManager = 'pnpm'
+  else if (exists('yarn.lock'))
+    packageManager = 'yarn'
+  else if (exists('bun.lockb') || exists('bun.lock'))
+    packageManager = 'bun'
 
   // NOTICE: Only detect test/typecheck commands if dependencies are installed.
   // Without node_modules, commands like 'vitest run' and 'tsc --noEmit' will
@@ -122,15 +126,32 @@ function detectToolchain(workspacePath: string): WorkspaceToolchain {
  */
 const TRANSIENT_PATTERNS = [
   // Network errors
-  'fetch failed', 'econnreset', 'enotfound', 'etimedout', 'econnrefused',
-  'socket hang up', 'network', 'epipe', 'ehostunreach',
+  'fetch failed',
+  'econnreset',
+  'enotfound',
+  'etimedout',
+  'econnrefused',
+  'socket hang up',
+  'network',
+  'epipe',
+  'ehostunreach',
   // HTTP status codes indicating server issues
-  '429', '502', '503', '500',
+  '429',
+  '502',
+  '503',
+  '500',
   // Timeout/abort
-  'timeout', 'aborterror', 'signal',
+  'timeout',
+  'aborterror',
+  'signal',
   // Provider-specific rate limit messages
-  'rate_limit', 'capacity', 'overloaded', 'temporarily', 'try again',
-  'too many requests', 'server_error',
+  'rate_limit',
+  'capacity',
+  'overloaded',
+  'temporarily',
+  'try again',
+  'too many requests',
+  'server_error',
 ]
 
 /**
@@ -142,7 +163,8 @@ export function isTransientError(message: string): boolean {
 
   // Explicit non-retryable patterns (auth/validation)
   const NON_RETRYABLE = ['401', '403', 'invalid api key', 'invalid_api_key', 'authentication', '400', 'invalid_request']
-  if (NON_RETRYABLE.some(p => lower.includes(p))) return false
+  if (NON_RETRYABLE.some(p => lower.includes(p)))
+    return false
 
   return TRANSIENT_PATTERNS.some(p => lower.includes(p))
 }
@@ -161,7 +183,8 @@ export function isTransientError(message: string): boolean {
 const MAX_TOOL_RESULT_CHARS = 8000
 
 function truncateToolResult(content: string, maxChars: number = MAX_TOOL_RESULT_CHARS): string {
-  if (content.length <= maxChars) return content
+  if (content.length <= maxChars)
+    return content
 
   const headSize = Math.floor(maxChars * 0.7)
   const tailSize = Math.floor(maxChars * 0.2)
@@ -172,188 +195,7 @@ function truncateToolResult(content: string, maxChars: number = MAX_TOOL_RESULT_
 }
 
 // ─── Post-loop Verification ───────────────────────────────────────
-
-/**
- * Run post-loop verification on all files the agent claimed to modify.
- *
- * Checks:
- * 1. File exists and is readable
- * 2. File is valid UTF-8
- * 3. If .ts/.js: no obvious syntax errors (with tolerance for parser limits)
- */
-async function verifyModifiedFiles(
-  filesModified: string[],
-  workspacePath: string,
-): Promise<VerificationRecord[]> {
-  const records: VerificationRecord[] = []
-  const fs = await import('node:fs/promises')
-  const path = await import('node:path')
-
-  for (const filePath of filesModified) {
-    const absPath = path.isAbsolute(filePath) ? filePath : path.join(workspacePath, filePath)
-
-    // Check 1: file exists
-    try {
-      await fs.access(absPath)
-    }
-    catch {
-      records.push({
-        check: 'file_exists',
-        target: filePath,
-        passed: false,
-        detail: `File does not exist at ${absPath}`,
-      })
-      continue
-    }
-
-    // Check 2: file is readable
-    try {
-      const content = await fs.readFile(absPath, 'utf-8')
-      records.push({
-        check: 'file_readable',
-        target: filePath,
-        passed: true,
-        detail: `${content.length} chars, ${content.split('\n').length} lines`,
-      })
-
-      // Check 3: basic syntax sanity for TS/JS files
-      if (filePath.match(/\.(ts|tsx|js|jsx|mts|mjs)$/)) {
-        const syntaxIssues = checkBasicSyntax(content, filePath)
-        records.push({
-          check: 'syntax_sanity',
-          target: filePath,
-          passed: syntaxIssues.length === 0,
-          detail: syntaxIssues.length === 0
-            ? 'Basic syntax checks passed'
-            : `Issues: ${syntaxIssues.join('; ')}`,
-        })
-      }
-    }
-    catch (err) {
-      records.push({
-        check: 'file_readable',
-        target: filePath,
-        passed: false,
-        detail: `Failed to read: ${err instanceof Error ? err.message : String(err)}`,
-      })
-    }
-  }
-
-  return records
-}
-
-/**
- * Quick syntax sanity checks without a full parser.
- *
- * Improved to handle:
- * - Template literals (backtick strings with ${} interpolation)
- * - Regex literals (/pattern/) — brackets inside don't count
- * - Tolerance threshold — small imbalances (≤2) are ignored since our
- *   lightweight parser can't handle every JS edge case (JSX, etc.)
- */
-function checkBasicSyntax(content: string, filePath?: string): string[] {
-  // NOTICE: JSON files get dedicated parsing; md/txt skip entirely
-  const ext = filePath?.split('.').pop()?.toLowerCase()
-  if (ext === 'json') {
-    try { JSON.parse(content); return [] }
-    catch (e) { return [`Invalid JSON: ${(e as Error).message}`] }
-  }
-  if (ext === 'md' || ext === 'txt' || ext === 'css' || ext === 'html') return []
-
-  const issues: string[] = []
-  const counts = { '{': 0, '(': 0, '[': 0 }
-  const closers: Record<string, keyof typeof counts> = { '}': '{', ')': '(', ']': '[' }
-
-  let inString: string | null = null
-  let inLineComment = false
-  let inBlockComment = false
-  let inTemplateLiteral = false
-  let templateBraceDepth = 0 // Track ${} nesting inside template literals
-  let inRegex = false
-
-  for (let i = 0; i < content.length; i++) {
-    const ch = content[i]!
-    const next = content[i + 1]
-    const prev = i > 0 ? content[i - 1] : ''
-
-    // Line comment
-    if (inLineComment) {
-      if (ch === '\n') inLineComment = false
-      continue
-    }
-    // Block comment
-    if (inBlockComment) {
-      if (ch === '*' && next === '/') { inBlockComment = false; i++ }
-      continue
-    }
-    // Regular string ('...' or "...")
-    if (inString) {
-      if (ch === inString && prev !== '\\') inString = null
-      continue
-    }
-    // Regex literal
-    if (inRegex) {
-      if (ch === '/' && prev !== '\\') inRegex = false
-      continue
-    }
-    // Template literal with ${} interpolation
-    if (inTemplateLiteral) {
-      if (ch === '`' && prev !== '\\') {
-        inTemplateLiteral = false
-        continue
-      }
-      if (ch === '$' && next === '{') {
-        templateBraceDepth++
-        i++ // skip the {
-        counts['{']++ // the ${ still opens a brace
-        continue
-      }
-      continue // skip all other chars inside template literal text
-    }
-
-    // Enter comments
-    if (ch === '/' && next === '/') { inLineComment = true; continue }
-    if (ch === '/' && next === '*') { inBlockComment = true; continue }
-    // Enter strings
-    if (ch === '\'' || ch === '"') { inString = ch; continue }
-    // Enter template literal
-    if (ch === '`') { inTemplateLiteral = true; continue }
-    // Enter regex (heuristic: / after = , ( , [ , ! , & , | , ; , { , } , , , : , return , case)
-    if (ch === '/' && next !== '/' && next !== '*') {
-      const prevNonSpace = content.slice(Math.max(0, i - 10), i).trimEnd().slice(-1)
-      if ('=([!&|;{},:\n'.includes(prevNonSpace) || prevNonSpace === '') {
-        inRegex = true
-        continue
-      }
-    }
-
-    // Track braces inside template interpolation
-    if (templateBraceDepth > 0) {
-      if (ch === '{') templateBraceDepth++
-      if (ch === '}') {
-        templateBraceDepth--
-        if (templateBraceDepth === 0) {
-          counts['{']-- // closing the ${ brace
-          inTemplateLiteral = true // back to template text
-          continue
-        }
-      }
-    }
-
-    if (ch in counts) counts[ch as keyof typeof counts]++
-    if (ch in closers) counts[closers[ch]!]--
-  }
-
-  // NOTICE: Tolerance threshold — our parser can't handle every edge case
-  // (JSX tags, regex with brackets, uncommon escape sequences).
-  // Small imbalances (≤2) are likely parser artifacts, not real bugs.
-  const TOLERANCE = 2
-  if (Math.abs(counts['{']) > TOLERANCE) issues.push(`Unbalanced braces: ${counts['{']} unclosed`)
-  if (Math.abs(counts['(']) > TOLERANCE) issues.push(`Unbalanced parens: ${counts['(']} unclosed`)
-  if (Math.abs(counts['[']) > TOLERANCE) issues.push(`Unbalanced brackets: ${counts['[']} unclosed`)
-
-  return issues
-}
+// Extracted to verification.ts (verifyModifiedFiles, checkBasicSyntax)
 
 // ─── LLM API Call ─────────────────────────────────────────────────
 
@@ -364,7 +206,7 @@ function checkBasicSyntax(content: string, filePath?: string): string[] {
 async function callLLM(params: {
   config: QueryEngineConfig
   messages: QueryMessage[]
-  tools: Array<{ type: 'function'; function: { name: string; description: string; parameters: Record<string, unknown> } }>
+  tools: Array<{ type: 'function', function: { name: string, description: string, parameters: Record<string, unknown> } }>
 }): Promise<LLMResponse> {
   const { config, messages, tools } = params
 
@@ -634,7 +476,7 @@ export async function runQueryEngine(params: {
 
       if (isTransientError(message) && consecutiveRetries < MAX_LLM_RETRIES) {
         consecutiveRetries++
-        const delay = LLM_RETRY_BASE_MS * Math.pow(2, consecutiveRetries - 1) + Math.random() * 500
+        const delay = LLM_RETRY_BASE_MS * 2 ** (consecutiveRetries - 1) + Math.random() * 500
         onProgress?.({
           turn: snap.turnsUsed,
           phase: 'retrying',
@@ -761,7 +603,8 @@ export async function runQueryEngine(params: {
       if (toolName === 'write_file' || toolName === 'edit_file' || toolName === 'multi_edit_file') {
         try {
           const args = JSON.parse(toolCall.function.arguments)
-          if (args.file_path) filesModified.add(args.file_path)
+          if (args.file_path)
+            filesModified.add(args.file_path)
         }
         catch { /* ignore parse errors for tracking */ }
       }
@@ -773,10 +616,10 @@ export async function runQueryEngine(params: {
           const cmd = (args.command as string) || ''
           // Detect common file-mutating shell commands
           const bashFilePatterns = [
-            /\bsed\s+.*?-i['"]*\s+.*?(\S+)\s*$/,         // sed -i 'expr' file
-            /\bsed\s+.*?-i['"]*\s+.*?['"].*?['"]\s+(\S+)/, // sed -i 's/x/y/' file
-            />\s*(\S+)/,                                      // echo > file / cat > file
-            /\btee\s+(?:-a\s+)?(\S+)/,                       // tee file / tee -a file
+            /\bsed\s+(?:\S.*?)??-i['"]*\s+(?:\S.*?)??(\S+)\s*$/, // sed -i 'expr' file
+            /\bsed\s+(?:\S.*?)??-i['"]*\s+(?:\S.*?)??['"].*?['"]\s+(\S+)/, // sed -i 's/x/y/' file
+            />\s*(\S+)/, // echo > file / cat > file
+            /\btee\s+(?:-a\s+)?(\S+)/, // tee file / tee -a file
           ]
           for (const pat of bashFilePatterns) {
             const m = cmd.match(pat)
@@ -794,12 +637,12 @@ export async function runQueryEngine(params: {
     // Split into parallel-safe and sequential batches
     // Strategy: collect consecutive read-only calls into a parallel batch,
     // then execute each mutating call individually.
-    type PendingCall = { toolCall: ToolCall; index: number }
+    interface PendingCall { toolCall: ToolCall, index: number }
     const readOnlyBatch: PendingCall[] = []
-    const orderedResults: Array<{ toolCallId: string; content: string }> = []
+    const orderedResults: Array<{ toolCallId: string, content: string }> = []
 
     // Pre-allocate result slots
-    const resultSlots = new Array<{ toolCallId: string; content: string } | null>(response.toolCalls.length).fill(null)
+    const resultSlots = new Array<{ toolCallId: string, content: string } | null>(response.toolCalls.length).fill(null)
 
     // Helper to execute a single tool call and store the result
     const execOne = async (tc: ToolCall, slotIndex: number) => {
@@ -824,7 +667,8 @@ export async function runQueryEngine(params: {
 
     // Flush any pending read-only batch in parallel
     const flushReadOnly = async () => {
-      if (readOnlyBatch.length === 0) return
+      if (readOnlyBatch.length === 0)
+        return
       await Promise.all(readOnlyBatch.map(p => execOne(p.toolCall, p.index)))
       readOnlyBatch.length = 0
     }
@@ -879,7 +723,7 @@ export async function runQueryEngine(params: {
             if (args.file_path) {
               // Remove all cache entries for this file
               for (const key of readCache.keys()) {
-                if (key.startsWith(args.file_path + ':')) {
+                if (key.startsWith(`${args.file_path}:`)) {
                   readCache.delete(key)
                 }
               }
