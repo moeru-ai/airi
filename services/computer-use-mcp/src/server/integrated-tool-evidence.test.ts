@@ -61,6 +61,11 @@ describe('Integrated Tool Evidence Capture', () => {
           targetFrameId: 0,
           targetPoint: { x: 100, y: 100 },
         }),
+        setInputValue: vi.fn().mockResolvedValue([{
+          frameId: 0,
+          success: true,
+          result: { success: true },
+        }]),
       },
     } as unknown as ComputerUseServerRuntime
   })
@@ -139,5 +144,29 @@ describe('Integrated Tool Evidence Capture', () => {
     expect(resolved.status).toBe('fulfilled')
     // Evidence for constraint 0 should NOT be the "Missing" placeholder
     expect(resolved.evidence?.[0]).not.toContain('Missing required evidence')
+  })
+
+  it('captures interaction evidence for browser_dom_set_input_value', async () => {
+    const { server, invoke } = createMockServer()
+    registerComputerUseTools({ server, runtime, executeAction: vi.fn(), enableTestTools: false })
+
+    const result = await invoke('browser_dom_set_input_value', {
+      selector: '#username',
+      value: 'antigravity',
+    })
+
+    expect(result.isError).not.toBe(true)
+    const state = runtime.stateManager.getState()
+    expect(state.lastVerificationEvidence).toHaveLength(1)
+    expect(state.lastVerificationEvidence![0]).toMatchObject({
+      source: 'browser_dom_set_input_value',
+      actionKind: 'browser_dom_set_input_value',
+      subject: '#username',
+      observed: {
+        selector: '#username',
+        valueLength: 11,
+      },
+    })
+    expect(state.lastVerificationEvidenceSummary).toContain('Set input value for "#username"')
   })
 })

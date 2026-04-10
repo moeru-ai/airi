@@ -56,6 +56,7 @@ import {
 import {
   captureClickEvidence,
   captureHandoffEvidence,
+  captureUiInteractionEvidence,
 } from './verification-evidence-capture'
 import { registerCodingTools } from './register-coding'
 import { createAcquirePtyCallback, executeApprovedPtyCreate } from './register-pty'
@@ -630,6 +631,21 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         tabId,
         frameIds,
       })
+
+      // Evidence Capture: browser dom set_input_value
+      captureUiInteractionEvidence(runtime, {
+        source: 'browser_dom_set_input_value',
+        actionKind: 'browser_dom_set_input_value',
+        subject: selector,
+        observed: {
+          selector,
+          valueLength: value.length,
+          appName: runtime.stateManager.getState().activeApp,
+          windowTitle: runtime.stateManager.getState().activeWindowTitle,
+        },
+        summary: `Set input value for "${selector}" in browser.`,
+      })
+
       return {
         content: [
           textContent(summarizeBrowserDomFrameResults(`set_input_value for "${selector}"`, results)),
@@ -665,6 +681,21 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         tabId,
         frameIds,
       })
+
+      // Evidence Capture: browser dom check_checkbox
+      captureUiInteractionEvidence(runtime, {
+        source: 'browser_dom_check_checkbox',
+        actionKind: 'browser_dom_check_checkbox',
+        subject: selector,
+        observed: {
+          selector,
+          checked: checked ?? 'toggle',
+          appName: runtime.stateManager.getState().activeApp,
+          windowTitle: runtime.stateManager.getState().activeWindowTitle,
+        },
+        summary: `Toggled/Set checkbox "${selector}" in browser.`,
+      })
+
       return {
         content: [
           textContent(summarizeBrowserDomFrameResults(`check_checkbox for "${selector}"`, results)),
@@ -700,6 +731,21 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         tabId,
         frameIds,
       })
+
+      // Evidence Capture: browser dom select_option
+      captureUiInteractionEvidence(runtime, {
+        source: 'browser_dom_select_option',
+        actionKind: 'browser_dom_select_option',
+        subject: selector,
+        observed: {
+          selector,
+          selectedValue: value,
+          appName: runtime.stateManager.getState().activeApp,
+          windowTitle: runtime.stateManager.getState().activeWindowTitle,
+        },
+        summary: `Selected option "${value}" for "${selector}" in browser.`,
+      })
+
       return {
         content: [
           textContent(summarizeBrowserDomFrameResults(`select_option for "${selector}"`, results)),
