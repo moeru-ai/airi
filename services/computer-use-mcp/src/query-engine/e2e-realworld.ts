@@ -1,10 +1,11 @@
 /**
- * Real-World Production Validation v2
+ * Real-World Validation v2
  *
  * Tests the AIRI coding agent against real open-source repositories.
  * Includes HARD tasks (find+fix bug, edit existing files) not just JSDoc.
  *
- * All scenarios run in ISOLATED workspaces under /tmp.
+ * All scenarios run in ISOLATED workspaces under TEST_ROOT (/tmp/airi-realworld-tests).
+ * prepareWorkspace() enforces this constraint — non-compliant paths are rejected.
  *
  * Features:
  * - Multi-run mode: pass --runs N to run N times and report stats
@@ -336,6 +337,16 @@ function buildScenarios(airiRoot: string): RealWorldScenario[] {
 function prepareWorkspace(scenario: RealWorldScenario): string {
   const ws = scenario.workDir
 
+  // NOTICE: Hard guard — all workspaces MUST be under TEST_ROOT.
+  // This prevents accidental pollution of the host filesystem if someone
+  // misconfigures a scenario's workDir path.
+  if (!ws.startsWith(TEST_ROOT)) {
+    throw new Error(
+      `Workspace path safety violation: "${ws}" is not under TEST_ROOT ("${TEST_ROOT}"). `
+      + `All scenarios must use workDir inside TEST_ROOT to prevent host filesystem pollution.`,
+    )
+  }
+
   if (scenario.repo.startsWith('local:')) {
     const localPath = scenario.repo.slice('local:'.length)
     if (existsSync(join(ws, '.git'))) {
@@ -571,7 +582,7 @@ async function runSuite(airiRoot: string, runIndex: number, totalRuns: number): 
     // This distinction matters for honest benchmark reporting.
     const validIcon = result.passed ? '✅' : '❌'
     const engineIcon = result.status === 'completed' ? '🟢' : result.status === 'budget_exhausted' ? '🟡' : '🔴'
-    const tokenStr = result.tokens > 0 ? `${Math.round(result.tokens / 1000)}K` : '⚠️ 0K (no usage from provider)'
+    const tokenStr = result.tokens > 0 ? `${Math.round(result.tokens / 1000)}K` : '⚠️ 0K (no usage data)'
     console.log(`│  ${validIcon} validation ${result.passed ? 'PASSED' : 'FAILED'} | ${engineIcon} engine: ${result.status}`)
     console.log(`│  ${result.turns}T | ${tokenStr} | ${result.durationS}s`)
     console.log(`│    Tools: ${result.toolsUsed.join(', ')}`)
@@ -654,9 +665,11 @@ async function main() {
   }
 
   console.log('')
-  if (overallRate >= 80) console.log('  🟢 PRODUCTION READY')
+  // NOTICE: Honest assessment — do NOT claim "production ready" from a small test suite.
+  // These scenarios cover basic editing tasks, not real-world debugging or architecture.
+  if (overallRate >= 80) console.log('  🟢 STABLE on this scenario set (not a production readiness claim)')
   else if (overallRate >= 60) console.log('  🟡 PROMISING — needs improvement')
-  else console.log('  🔴 NOT READY')
+  else console.log('  🔴 NOT STABLE on this scenario set')
 
   // Save
   const reportPath = join(TEST_ROOT, 'validation-report-v2.json')

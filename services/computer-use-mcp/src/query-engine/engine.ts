@@ -265,6 +265,8 @@ export async function runQueryEngine(params: {
   const MAX_LLM_RETRIES = 5
   const LLM_RETRY_BASE_MS = 1000
   let consecutiveRetries = 0
+  // Tracks whether we've warned about provider not returning usage stats
+  let tokenEstimationWarned = false
 
   // ─── Model fallback state ───
   let currentModel = config.model
@@ -456,8 +458,9 @@ export async function runQueryEngine(params: {
       budget.recordTokens(response.usage.totalTokens)
     }
     else {
-      // NOTICE: Streaming mode may not return usage stats from all providers.
-      // Estimate tokens from message content as a fallback for budget tracking.
+      // NOTICE: Streaming mode may not return usage stats from all providers
+      // (even with stream_options.include_usage). Fall back to heuristic
+      // estimation so budget tracking doesn't silently stay at 0.
       const { estimateTokenCount } = await import('./tokenizer')
       const promptTokens = messagesForCall.reduce((sum, m) => {
         const content = m.role === 'assistant'
@@ -467,7 +470,18 @@ export async function runQueryEngine(params: {
       }, 0)
       const completionTokens = estimateTokenCount(response.content ?? '')
         + (response.toolCalls.length > 0 ? estimateTokenCount(JSON.stringify(response.toolCalls)) : 0)
-      budget.recordTokens(promptTokens + completionTokens)
+      const estimated = promptTokens + completionTokens
+      budget.recordTokens(estimated)
+      // Flag that we're using estimated tokens — once per session
+      if (!tokenEstimationWarned) {
+        tokenEstimationWarned = true
+        onProgress?.({
+          turn: snap.turnsUsed + 1,
+          phase: 'streaming',
+          budget: snap,
+          message: `⚠️ Provider did not return usage stats. Token counts are heuristic estimates (~${Math.round(estimated / 1000)}K for this turn).`,
+        })
+      }
     }
 
     // Append assistant message to history

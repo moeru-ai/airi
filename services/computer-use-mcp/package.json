@@ -46,6 +46,8 @@
     "smoke:workflow": "tsx ./src/bin/smoke-workflow.ts",
     "mcp:inspector": "pnpx @modelcontextprotocol/inspector pnpm -F @proj-airi/computer-use-mcp start",
     "build": "tsdown",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config ./vitest.config.ts"
   },

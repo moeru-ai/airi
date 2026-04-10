@@ -1938,7 +1938,7 @@ pnpm -F @proj-airi/computer-use-mcp exec vitest run
 
 ### 判定
 
-🟢 **已达到消费级可靠性门槛** — 成功率 100% / 正确率 100%，超过 Claude Code 参考基线（~90% / ~80%）。
+⚠️ **在本组场景下表现良好** — 5 个场景成功率 100% / 正确率 100%。但这只是小规模 curated tasks，不代表真实生产环境可靠性。
 
 ### 差距
 
@@ -2515,7 +2515,7 @@ default → "调工具，不要只描述"
     Run 2: 5/5 ✅✅✅✅✅
     Run 3: 4/5 ❌✅✅✅✅
 
-  🟢 PRODUCTION READY
+  🟢 STABLE on this scenario set (not a production readiness claim)
 ```
 
 ### 全历程对比
