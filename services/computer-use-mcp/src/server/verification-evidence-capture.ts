@@ -41,6 +41,8 @@ export function captureClickEvidence(
     subject: string
     observed: Record<string, unknown>
     summary: string
+    /** Override the default 0.8 confidence with a dynamic value. */
+    confidence?: number
   },
 ) {
   const state = runtime.stateManager.getState()
@@ -52,7 +54,7 @@ export function captureClickEvidence(
       source: params.source,
       actionKind: params.actionKind,
       subject: params.subject,
-      confidence: 0.8, // Active App/API match
+      confidence: params.confidence ?? 0.8,
       summary: `${params.summary}\nFacts: ${summarizeRunStateConcise(state)}`,
       blockingEligible: false,
       observed: params.observed,
@@ -73,6 +75,8 @@ export function captureUiInteractionEvidence(
     subject: string
     observed: Record<string, unknown>
     summary: string
+    /** Override the default 0.8 confidence with a dynamic value. */
+    confidence?: number
   },
 ) {
   const state = runtime.stateManager.getState()
@@ -84,7 +88,7 @@ export function captureUiInteractionEvidence(
       source: params.source,
       actionKind: params.actionKind,
       subject: params.subject,
-      confidence: 0.8, // API-based interaction result
+      confidence: params.confidence ?? 0.8,
       summary: `${params.summary}\nFacts: ${summarizeRunStateConcise(state)}`,
       blockingEligible: false,
       observed: params.observed,

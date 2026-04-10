@@ -39,6 +39,8 @@ export type AdvisoryKind
     | 'enumerate_displays_first'
     | 'click_likely_duplicate'
     | 'document_ready_state_informational'
+    | 'dom_unchanged_after_action'
+    | 'browser_action_failed_with_repair'
 
 /** Broad category for classifying advisories. */
 export type AdvisoryCategory = 'prep' | 'reroute' | 'recovery' | 'informational'
@@ -96,10 +98,12 @@ export const ADVISORY_CATEGORY_MAP: Record<AdvisoryKind, AdvisoryCategory> = {
   abort_task: 'recovery',
   approval_rejected_replan: 'recovery',
   click_likely_duplicate: 'recovery',
+  browser_action_failed_with_repair: 'recovery',
 
   // Informational: no action needed, safe to proceed
   proceed: 'informational',
   document_ready_state_informational: 'informational',
+  dom_unchanged_after_action: 'informational',
 }
 
 /** Maps each advisory kind to the surface it recommends. */
@@ -122,6 +126,8 @@ export const ADVISORY_SURFACE_MAP: Record<AdvisoryKind, RecommendedSurface> = {
   click_likely_duplicate: 'desktop',
   proceed: 'none',
   document_ready_state_informational: 'none',
+  dom_unchanged_after_action: 'none',
+  browser_action_failed_with_repair: 'none',
 }
 
 /**

@@ -53,6 +53,9 @@ import {
   describeForegroundContext,
   summarizeCoordinateSpace,
 } from './formatters'
+import { compareDomFingerprints, computeDomFingerprint } from '../browser-dom/browser-dom-fingerprint'
+import { computeBrowserActionConfidence } from '../browser-dom/browser-action-confidence'
+import { diagnoseBrowserActionError } from '../browser-dom/browser-repair-contract'
 import { registerCodingTools } from './register-coding'
 import { createAcquirePtyCallback, executeApprovedPtyCreate } from './register-pty'
 import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptors/register-helper'
@@ -136,6 +139,76 @@ async function getReadyStateNudge(runtime: ComputerUseServerRuntime, tabId?: num
     // optional extension method might not be implemented
   }
   return { nudge: '', warning: undefined }
+}
+
+/**
+ * Capture a DOM fingerprint before and after a mutating browser action.
+ * Returns a staleness nudge string and the fingerprint comparison result.
+ * Silently degrades if the bridge is unavailable or fails.
+ */
+async function getDomStalenessNudge(
+  runtime: ComputerUseServerRuntime,
+  beforeFingerprint: string,
+  tabId?: number,
+  frameIds?: number[],
+): Promise<{ stalenessNudge: string; domUnchanged: boolean; domHashBefore: string; domHashAfter: string }> {
+  try {
+    if (!beforeFingerprint || !runtime.browserDomBridge.getStatus().connected) {
+      return { stalenessNudge: '', domUnchanged: false, domHashBefore: beforeFingerprint, domHashAfter: '' }
+    }
+    const afterFrames = await runtime.browserDomBridge.readAllFramesDom({ tabId, frameIds, maxElements: 200 })
+    const afterFingerprint = computeDomFingerprint(afterFrames)
+    const comparison = compareDomFingerprints(beforeFingerprint, afterFingerprint)
+    if (comparison.unchanged) {
+      const stalenessNudge = `\n\n💡 Advisory: DOM unchanged after action (hash ${beforeFingerprint}). The click may not have had the expected effect. Consider verifying with a screenshot or re-reading the page.`
+      return { stalenessNudge, domUnchanged: true, domHashBefore: beforeFingerprint, domHashAfter: afterFingerprint }
+    }
+    return { stalenessNudge: '', domUnchanged: false, domHashBefore: beforeFingerprint, domHashAfter: afterFingerprint }
+  }
+  catch {
+    return { stalenessNudge: '', domUnchanged: false, domHashBefore: beforeFingerprint, domHashAfter: '' }
+  }
+}
+
+async function captureDomFingerprintBefore(runtime: ComputerUseServerRuntime, tabId?: number, frameIds?: number[]): Promise<string> {
+  try {
+    if (!runtime.browserDomBridge.getStatus().connected) return ''
+    const frames = await runtime.browserDomBridge.readAllFramesDom({ tabId, frameIds, maxElements: 200 })
+    return computeDomFingerprint(frames)
+  }
+  catch {
+    return ''
+  }
+}
+
+function buildBrowserDomErrorWithRepair(error: unknown, selector: string, actionKind: string, runtime: ComputerUseServerRuntime) {
+  const message = error instanceof Error ? error.message : String(error)
+  const repair = diagnoseBrowserActionError(error, selector, actionKind)
+  if (repair) {
+    return {
+      isError: true,
+      content: [
+        textContent(`${actionKind} failed for "${selector}": ${message}\n\n${repair.reactionText}`),
+      ],
+      structuredContent: {
+        status: 'error',
+        error: message,
+        repairSuggestion: repair,
+        bridge: runtime.browserDomBridge.getStatus(),
+      },
+    }
+  }
+  return {
+    isError: true,
+    content: [
+      textContent(`${actionKind} failed for "${selector}": ${message}`),
+    ],
+    structuredContent: {
+      status: 'error',
+      error: message,
+      bridge: runtime.browserDomBridge.getStatus(),
+    },
+  }
 }
 
 export function registerComputerUseTools(params: RegisterComputerUseToolsOptions) {
@@ -554,40 +627,56 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
 
-      const { nudge, warning } = await getReadyStateNudge(runtime, tabId, frameIds)
-      const result = await runtime.browserDomBridge.clickSelector({
-        selector,
-        tabId,
-        frameIds,
-      })
-
-      // Evidence Capture: browser dom click
-      captureClickEvidence(runtime, {
-        source: 'browser_dom_click',
-        actionKind: 'browser_dom_click',
-        subject: selector,
-        observed: {
+      try {
+        const { nudge, warning } = await getReadyStateNudge(runtime, tabId, frameIds)
+        const domHashBefore = await captureDomFingerprintBefore(runtime, tabId, frameIds)
+        const result = await runtime.browserDomBridge.clickSelector({
           selector,
-          targetFrameId: result.targetFrameId,
-          targetPointX: result.targetPoint.x,
-          targetPointY: result.targetPoint.y,
-          appName: runtime.stateManager.getState().activeApp,
-          windowTitle: runtime.stateManager.getState().activeWindowTitle,
-          ...(warning ? { readyStateWarning: warning } : {}),
-        },
-        summary: `Clicked selector "${selector}" in browser.`,
-      })
+          tabId,
+          frameIds,
+        })
+        const { stalenessNudge, domUnchanged, domHashAfter } = await getDomStalenessNudge(runtime, domHashBefore, tabId, frameIds)
 
-      return {
-        content: [
-          textContent(`Clicked selector "${selector}" in frame ${result.targetFrameId} at (${result.targetPoint.x}, ${result.targetPoint.y}).${nudge}`),
-        ],
-        structuredContent: {
-          status: 'ok',
-          selector,
-          ...result,
-          bridge: runtime.browserDomBridge.getStatus(),
-        },
+        // Evidence Capture: browser dom click
+        const clickConfidence = computeBrowserActionConfidence({
+          bridgeConnected: true,
+          pageFullyLoaded: !warning,
+          domChanged: !domUnchanged,
+          elementVisible: true,
+        })
+        captureClickEvidence(runtime, {
+          source: 'browser_dom_click',
+          actionKind: 'browser_dom_click',
+          subject: selector,
+          observed: {
+            selector,
+            targetFrameId: result.targetFrameId,
+            targetPointX: result.targetPoint.x,
+            targetPointY: result.targetPoint.y,
+            appName: runtime.stateManager.getState().activeApp,
+            windowTitle: runtime.stateManager.getState().activeWindowTitle,
+            ...(warning ? { readyStateWarning: warning } : {}),
+            ...(domHashBefore ? { domHashBefore, domHashAfter, domUnchanged } : {}),
+          },
+          summary: `Clicked selector "${selector}" in browser.`,
+          confidence: clickConfidence,
+        })
+
+        return {
+          content: [
+            textContent(`Clicked selector "${selector}" in frame ${result.targetFrameId} at (${result.targetPoint.x}, ${result.targetPoint.y}).${nudge}${stalenessNudge}`),
+          ],
+          structuredContent: {
+            status: 'ok',
+            selector,
+            ...result,
+            ...(domHashBefore ? { domHashBefore, domHashAfter, domUnchanged } : {}),
+            bridge: runtime.browserDomBridge.getStatus(),
+          },
+        }
+      }
+      catch (error) {
+        return buildBrowserDomErrorWithRepair(error, selector, 'browser_dom_click', runtime)
       }
     },
   })
@@ -640,42 +729,57 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
 
-      const { nudge, warning } = await getReadyStateNudge(runtime, tabId, frameIds)
-      const results = await runtime.browserDomBridge.setInputValue({
-        selector,
-        value,
-        simulateKeystrokes,
-        blur,
-        tabId,
-        frameIds,
-      })
-
-      // Evidence Capture: browser dom set_input_value
-      captureUiInteractionEvidence(runtime, {
-        source: 'browser_dom_set_input_value',
-        actionKind: 'browser_dom_set_input_value',
-        subject: selector,
-        observed: {
+      try {
+        const { nudge, warning } = await getReadyStateNudge(runtime, tabId, frameIds)
+        const domHashBefore = await captureDomFingerprintBefore(runtime, tabId, frameIds)
+        const results = await runtime.browserDomBridge.setInputValue({
           selector,
-          valueLength: value.length,
-          appName: runtime.stateManager.getState().activeApp,
-          windowTitle: runtime.stateManager.getState().activeWindowTitle,
-          ...(warning ? { readyStateWarning: warning } : {}),
-        },
-        summary: `Set input value for "${selector}" in browser.`,
-      })
+          value,
+          simulateKeystrokes,
+          blur,
+          tabId,
+          frameIds,
+        })
+        const { stalenessNudge, domUnchanged, domHashAfter } = await getDomStalenessNudge(runtime, domHashBefore, tabId, frameIds)
 
-      return {
-        content: [
-          textContent(summarizeBrowserDomFrameResults(`set_input_value for "${selector}"`, results) + nudge),
-        ],
-        structuredContent: {
-          status: 'ok',
-          selector,
-          valueLength: value.length,
-          results,
-          bridge: runtime.browserDomBridge.getStatus(),
-        },
+        const setInputConfidence = computeBrowserActionConfidence({
+          bridgeConnected: true,
+          pageFullyLoaded: !warning,
+          domChanged: !domUnchanged,
+          elementVisible: true,
+        })
+        captureUiInteractionEvidence(runtime, {
+          source: 'browser_dom_set_input_value',
+          actionKind: 'browser_dom_set_input_value',
+          subject: selector,
+          observed: {
+            selector,
+            valueLength: value.length,
+            appName: runtime.stateManager.getState().activeApp,
+            windowTitle: runtime.stateManager.getState().activeWindowTitle,
+            ...(warning ? { readyStateWarning: warning } : {}),
+            ...(domHashBefore ? { domHashBefore, domHashAfter, domUnchanged } : {}),
+          },
+          summary: `Set input value for "${selector}" in browser.`,
+          confidence: setInputConfidence,
+        })
+
+        return {
+          content: [
+            textContent(summarizeBrowserDomFrameResults(`set_input_value for "${selector}"`, results) + nudge + stalenessNudge),
+          ],
+          structuredContent: {
+            status: 'ok',
+            selector,
+            valueLength: value.length,
+            results,
+            ...(domHashBefore ? { domHashBefore, domHashAfter, domUnchanged } : {}),
+            bridge: runtime.browserDomBridge.getStatus(),
+          },
+        }
+      }
+      catch (error) {
+        return buildBrowserDomErrorWithRepair(error, selector, 'browser_dom_set_input_value', runtime)
       }
     },
   })
@@ -694,40 +798,56 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
 
-      const { nudge, warning } = await getReadyStateNudge(runtime, tabId, frameIds)
-      const results = await runtime.browserDomBridge.checkCheckbox({
-        selector,
-        checked,
-        tabId,
-        frameIds,
-      })
-
-      // Evidence Capture: browser dom check_checkbox
-      captureUiInteractionEvidence(runtime, {
-        source: 'browser_dom_check_checkbox',
-        actionKind: 'browser_dom_check_checkbox',
-        subject: selector,
-        observed: {
-          selector,
-          checked: checked ?? 'toggle',
-          appName: runtime.stateManager.getState().activeApp,
-          windowTitle: runtime.stateManager.getState().activeWindowTitle,
-          ...(warning ? { readyStateWarning: warning } : {}),
-        },
-        summary: `Toggled/Set checkbox "${selector}" in browser.`,
-      })
-
-      return {
-        content: [
-          textContent(summarizeBrowserDomFrameResults(`check_checkbox for "${selector}"`, results) + nudge),
-        ],
-        structuredContent: {
-          status: 'ok',
+      try {
+        const { nudge, warning } = await getReadyStateNudge(runtime, tabId, frameIds)
+        const domHashBefore = await captureDomFingerprintBefore(runtime, tabId, frameIds)
+        const results = await runtime.browserDomBridge.checkCheckbox({
           selector,
           checked,
-          results,
-          bridge: runtime.browserDomBridge.getStatus(),
-        },
+          tabId,
+          frameIds,
+        })
+        const { stalenessNudge, domUnchanged, domHashAfter } = await getDomStalenessNudge(runtime, domHashBefore, tabId, frameIds)
+
+        // Evidence Capture: browser dom check_checkbox
+        const checkboxConfidence = computeBrowserActionConfidence({
+          bridgeConnected: true,
+          pageFullyLoaded: !warning,
+          domChanged: !domUnchanged,
+          elementVisible: true,
+        })
+        captureUiInteractionEvidence(runtime, {
+          source: 'browser_dom_check_checkbox',
+          actionKind: 'browser_dom_check_checkbox',
+          subject: selector,
+          observed: {
+            selector,
+            checked: checked ?? 'toggle',
+            appName: runtime.stateManager.getState().activeApp,
+            windowTitle: runtime.stateManager.getState().activeWindowTitle,
+            ...(warning ? { readyStateWarning: warning } : {}),
+            ...(domHashBefore ? { domHashBefore, domHashAfter, domUnchanged } : {}),
+          },
+          summary: `Toggled/Set checkbox "${selector}" in browser.`,
+          confidence: checkboxConfidence,
+        })
+
+        return {
+          content: [
+            textContent(summarizeBrowserDomFrameResults(`check_checkbox for "${selector}"`, results) + nudge + stalenessNudge),
+          ],
+          structuredContent: {
+            status: 'ok',
+            selector,
+            checked,
+            results,
+            ...(domHashBefore ? { domHashBefore, domHashAfter, domUnchanged } : {}),
+            bridge: runtime.browserDomBridge.getStatus(),
+          },
+        }
+      }
+      catch (error) {
+        return buildBrowserDomErrorWithRepair(error, selector, 'browser_dom_check_checkbox', runtime)
       }
     },
   })
@@ -746,40 +866,56 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
 
-      const { nudge, warning } = await getReadyStateNudge(runtime, tabId, frameIds)
-      const results = await runtime.browserDomBridge.selectOption({
-        selector,
-        value,
-        tabId,
-        frameIds,
-      })
-
-      // Evidence Capture: browser dom select_option
-      captureUiInteractionEvidence(runtime, {
-        source: 'browser_dom_select_option',
-        actionKind: 'browser_dom_select_option',
-        subject: selector,
-        observed: {
-          selector,
-          selectedValue: value,
-          appName: runtime.stateManager.getState().activeApp,
-          windowTitle: runtime.stateManager.getState().activeWindowTitle,
-          ...(warning ? { readyStateWarning: warning } : {}),
-        },
-        summary: `Selected option "${value}" for "${selector}" in browser.`,
-      })
-
-      return {
-        content: [
-          textContent(summarizeBrowserDomFrameResults(`select_option for "${selector}"`, results) + nudge),
-        ],
-        structuredContent: {
-          status: 'ok',
+      try {
+        const { nudge, warning } = await getReadyStateNudge(runtime, tabId, frameIds)
+        const domHashBefore = await captureDomFingerprintBefore(runtime, tabId, frameIds)
+        const results = await runtime.browserDomBridge.selectOption({
           selector,
           value,
-          results,
-          bridge: runtime.browserDomBridge.getStatus(),
-        },
+          tabId,
+          frameIds,
+        })
+        const { stalenessNudge, domUnchanged, domHashAfter } = await getDomStalenessNudge(runtime, domHashBefore, tabId, frameIds)
+
+        // Evidence Capture: browser dom select_option
+        const selectConfidence = computeBrowserActionConfidence({
+          bridgeConnected: true,
+          pageFullyLoaded: !warning,
+          domChanged: !domUnchanged,
+          elementVisible: true,
+        })
+        captureUiInteractionEvidence(runtime, {
+          source: 'browser_dom_select_option',
+          actionKind: 'browser_dom_select_option',
+          subject: selector,
+          observed: {
+            selector,
+            selectedValue: value,
+            appName: runtime.stateManager.getState().activeApp,
+            windowTitle: runtime.stateManager.getState().activeWindowTitle,
+            ...(warning ? { readyStateWarning: warning } : {}),
+            ...(domHashBefore ? { domHashBefore, domHashAfter, domUnchanged } : {}),
+          },
+          summary: `Selected option "${value}" for "${selector}" in browser.`,
+          confidence: selectConfidence,
+        })
+
+        return {
+          content: [
+            textContent(summarizeBrowserDomFrameResults(`select_option for "${selector}"`, results) + nudge + stalenessNudge),
+          ],
+          structuredContent: {
+            status: 'ok',
+            selector,
+            value,
+            results,
+            ...(domHashBefore ? { domHashBefore, domHashAfter, domUnchanged } : {}),
+            bridge: runtime.browserDomBridge.getStatus(),
+          },
+        }
+      }
+      catch (error) {
+        return buildBrowserDomErrorWithRepair(error, selector, 'browser_dom_select_option', runtime)
       }
     },
   })
