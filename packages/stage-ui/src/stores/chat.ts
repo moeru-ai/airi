@@ -23,7 +23,7 @@ import { useContextObservabilityStore } from './devtools/context-observability'
 import { useLLM } from './llm'
 import { useConsciousnessStore } from './modules/consciousness'
 
-const cloneStreamingMessage = (message: StreamingAssistantMessage): StreamingAssistantMessage => {
+function cloneStreamingMessage(message: StreamingAssistantMessage): StreamingAssistantMessage {
   try {
     return structuredClone(message)
   }
