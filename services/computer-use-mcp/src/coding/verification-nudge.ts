@@ -35,7 +35,9 @@ export interface CodingVerificationNudge {
 
 const WHITESPACE_RE = /\s+/g
 const PATH_SEPARATOR_RE = /\\/g
-const OBVIOUS_NOOP_RE = /^(?:echo(?:\s|$)|pwd(?:\s|$)|ls(?:\s|$)|cat(?:\s|$))/i
+// NOTICE: This regex catches commands that provide zero verification value.
+// It must be kept in sync with the copy in verification-gate.ts.
+const OBVIOUS_NOOP_RE = /^(?:echo(?:\s|$)|pwd(?:\s|$)|ls(?:\s|$)|cat(?:\s|$)|true(?:\s|$)|exit\s+0|node\s+-e\s|python[23]?\s+-c\s|printf(?:\s|$))/i
 
 const DISALLOWED_SHORTCUTS = [
   'read_code_without_running_validation',
@@ -143,7 +145,10 @@ function buildNudgeMessage(params: {
 
   if (params.severity === 'blocking') {
     if (params.reasonCodes.includes('verification_bad_faith')) {
-      return `Verification rejected (${params.workflowKind}): Used a non-verifiable shortcut (like echo/ls/pwd) instead of a real test. You MUST run actual tests or execute the patched code. Shortcuts are strictly prohibited.${suggestionText}`
+      return `Verification rejected (${params.workflowKind}): Used a non-verifiable shortcut (like echo/ls/pwd/node -e/python -c) instead of a real test. You MUST run actual tests or execute the patched code. Shortcuts are strictly prohibited.${suggestionText}`
+    }
+    if (params.reasonCodes.includes('terminal_exit_nonzero')) {
+      return `Verification rejected (${params.workflowKind}): Terminal exited with a non-zero code — the test likely failed. Fix the failing test before completing.${suggestionText}`
     }
     return `Verification nudge (${params.workflowKind}) is blocking due to ${reasonText}.${suggestionText}`
   }

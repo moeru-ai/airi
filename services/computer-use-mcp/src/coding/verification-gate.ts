@@ -17,6 +17,7 @@ export type CodingVerificationGateTrigger
   = | 'no_validation_run'
     | 'validation_command_mismatch'
     | 'verification_bad_faith'
+    | 'terminal_exit_nonzero'
     | 'unresolved_issues_remain'
     | 'patch_verification_mismatch'
 
@@ -30,6 +31,7 @@ export type CodingVerificationGateReasonCode
     | 'no_validation_run'
     | 'validation_command_mismatch'
     | 'verification_bad_faith'
+    | 'terminal_exit_nonzero'
     | 'unresolved_issues_remain'
     | 'patch_verification_mismatch'
     | 'amend_required'
@@ -68,7 +70,9 @@ export interface EvaluateCodingVerificationGateParams {
 }
 
 const WHITESPACE_RE = /\s+/g
-const OBVIOUS_NOOP_RE = /^(?:echo\s+.+|pwd|ls(?:\s|$)|cat\s+)/i
+// NOTICE: This regex catches commands that provide zero verification value.
+// It must be kept in sync with the copy in verification-nudge.ts.
+const OBVIOUS_NOOP_RE = /^(?:echo(?:\s|$)|pwd(?:\s|$)|ls(?:\s|$)|cat(?:\s|$)|true(?:\s|$)|exit\s+0|node\s+-e\s|python[23]?\s+-c\s|printf(?:\s|$))/i
 
 function normalizeCommand(command?: string) {
   return (command || '').trim().replace(WHITESPACE_RE, ' ').toLowerCase()
@@ -231,6 +235,17 @@ export function evaluateCodingVerificationGate(params: {
     triggers.add('validation_command_mismatch')
   }
 
+  // Terminal exit code awareness: if the test command exited non-zero but
+  // the review still says ready_for_next_file, the evidence is contradictory.
+  if (
+    terminalEvidence.hasTerminalResult
+    && terminalEvidence.terminalExitCode !== undefined
+    && terminalEvidence.terminalExitCode !== 0
+    && review?.status === 'ready_for_next_file'
+  ) {
+    triggers.add('terminal_exit_nonzero')
+  }
+
   const evidence: CodingVerificationEvidenceSummary = {
     reviewStatus: review?.status,
     reviewValidationCommand: review?.validationCommand,
@@ -318,7 +333,16 @@ export function evaluateCodingVerificationGate(params: {
   if (triggers.has('verification_bad_faith')) {
     return buildNeedsFollowUpDecision({
       reasonCode: 'verification_bad_faith',
-      explanation: 'Verification rejected: Used a non-verifiable shortcut (like echo/ls/pwd). You MUST run a real test or execute the patched code to be permitted to complete.',
+      explanation: 'Verification rejected: Used a non-verifiable shortcut (like echo/ls/pwd/node -e/python -c). You MUST run a real test or execute the patched code to be permitted to complete.',
+      evidence,
+      finalReportStatus: 'failed',
+    })
+  }
+
+  if (triggers.has('terminal_exit_nonzero')) {
+    return buildNeedsFollowUpDecision({
+      reasonCode: 'terminal_exit_nonzero',
+      explanation: `Verification rejected: Terminal exit code was ${terminalEvidence.terminalExitCode} (non-zero) but review marked as ready. Fix the failing test before completing.`,
       evidence,
       finalReportStatus: 'failed',
     })

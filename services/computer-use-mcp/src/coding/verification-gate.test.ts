@@ -308,4 +308,91 @@ describe('coding verification gate', () => {
     expect(decision.reasonCode).toBe('patch_verification_mismatch')
     expect(decision.workflowOutcome).toBe('failed')
   })
+
+  it('treats node -e as bad faith', () => {
+    const decision = evaluateCodingVerificationGate({
+      codingState: createCodingState(),
+      workflowKind: 'coding_loop',
+      recheckAttempted: false,
+      terminalEvidence: {
+        hasTerminalResult: true,
+        terminalCommand: 'node -e "console.log(\'ok\')"',
+        terminalExitCode: 0,
+      },
+    })
+    expect(decision.decision).toBe('needs_follow_up')
+    expect(decision.reasonCode).toBe('verification_bad_faith')
+  })
+
+  it('treats python -c as bad faith', () => {
+    const decision = evaluateCodingVerificationGate({
+      codingState: createCodingState(),
+      workflowKind: 'coding_loop',
+      recheckAttempted: false,
+      terminalEvidence: {
+        hasTerminalResult: true,
+        terminalCommand: 'python -c "print(1)"',
+        terminalExitCode: 0,
+      },
+    })
+    expect(decision.decision).toBe('needs_follow_up')
+    expect(decision.reasonCode).toBe('verification_bad_faith')
+  })
+
+  it('treats `true` command as bad faith', () => {
+    const decision = evaluateCodingVerificationGate({
+      codingState: createCodingState(),
+      workflowKind: 'coding_loop',
+      recheckAttempted: false,
+      terminalEvidence: {
+        hasTerminalResult: true,
+        terminalCommand: 'true',
+        terminalExitCode: 0,
+      },
+    })
+    expect(decision.decision).toBe('needs_follow_up')
+    expect(decision.reasonCode).toBe('verification_bad_faith')
+  })
+
+  it('treats printf as bad faith', () => {
+    const decision = evaluateCodingVerificationGate({
+      codingState: createCodingState(),
+      workflowKind: 'coding_loop',
+      recheckAttempted: false,
+      terminalEvidence: {
+        hasTerminalResult: true,
+        terminalCommand: 'printf "PASS"',
+        terminalExitCode: 0,
+      },
+    })
+    expect(decision.decision).toBe('needs_follow_up')
+    expect(decision.reasonCode).toBe('verification_bad_faith')
+  })
+
+  it('rejects when terminal exit code is non-zero but review says ready', () => {
+    const decision = evaluateCodingVerificationGate({
+      codingState: createCodingState({
+        lastChangeReview: {
+          status: 'ready_for_next_file',
+          filesReviewed: ['src/example.ts'],
+          diffSummary: 'ok',
+          validationSummary: 'ok',
+          validationCommand: 'pnpm test',
+          baselineComparison: 'unknown',
+          detectedRisks: [],
+          unresolvedIssues: [],
+          recommendedNextAction: 'done',
+        },
+      }),
+      workflowKind: 'coding_loop',
+      recheckAttempted: false,
+      terminalEvidence: {
+        hasTerminalResult: true,
+        terminalCommand: 'pnpm test',
+        terminalExitCode: 1,
+      },
+    })
+    expect(decision.decision).toBe('needs_follow_up')
+    expect(decision.reasonCode).toBe('terminal_exit_nonzero')
+  })
 })

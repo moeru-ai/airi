@@ -144,4 +144,52 @@ describe('verification-nudge', () => {
     expect(nudge.severity).toBe('blocking')
     expect(nudge.reasonCodes).toContain('abort_required')
   })
+
+  it('marks node -e as bad faith blocking', () => {
+    const nudge = evaluateCodingVerificationNudge({
+      codingState: createCodingState(),
+      workflowKind: 'coding_loop',
+      requestedValidationCommand: 'node -e "console.log(1)"',
+      terminalEvidence: { hasTerminalResult: false },
+    })
+
+    expect(nudge.severity).toBe('blocking')
+    expect(nudge.reasonCodes).toContain('verification_bad_faith')
+  })
+
+  it('marks python -c as bad faith blocking', () => {
+    const nudge = evaluateCodingVerificationNudge({
+      codingState: createCodingState(),
+      workflowKind: 'coding_loop',
+      requestedValidationCommand: 'python -c "print(1)"',
+      terminalEvidence: { hasTerminalResult: false },
+    })
+
+    expect(nudge.severity).toBe('blocking')
+    expect(nudge.reasonCodes).toContain('verification_bad_faith')
+  })
+
+  it('marks `true` as bad faith blocking', () => {
+    const nudge = evaluateCodingVerificationNudge({
+      codingState: createCodingState(),
+      workflowKind: 'coding_loop',
+      requestedValidationCommand: 'true',
+      terminalEvidence: { hasTerminalResult: false },
+    })
+
+    expect(nudge.severity).toBe('blocking')
+    expect(nudge.reasonCodes).toContain('verification_bad_faith')
+  })
+
+  it('marks printf as bad faith blocking', () => {
+    const nudge = evaluateCodingVerificationNudge({
+      codingState: createCodingState(),
+      workflowKind: 'coding_loop',
+      requestedValidationCommand: 'printf "ok"',
+      terminalEvidence: { hasTerminalResult: false },
+    })
+
+    expect(nudge.severity).toBe('blocking')
+    expect(nudge.reasonCodes).toContain('verification_bad_faith')
+  })
 })
