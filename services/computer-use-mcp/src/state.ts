@@ -538,6 +538,15 @@ export class RunStateManager {
     }
   }
 
+  /** Update the last observed cwd of a PTY session from terminal prompt heuristics. */
+  updatePtySessionCwd(sessionId: string, cwd: string): void {
+    const entry = this.state.ptySessions.find(s => s.id === sessionId)
+    if (entry && entry.cwd !== cwd) {
+      entry.cwd = cwd
+      this.touch()
+    }
+  }
+
   /** Bind a PTY session to a workflow step by stable stepId. */
   bindPtySessionToStepId(sessionId: string, stepId: string): void {
     const entry = this.state.ptySessions.find(s => s.id === sessionId)
