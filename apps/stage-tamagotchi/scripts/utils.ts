@@ -4,15 +4,15 @@ import process from 'node:process'
 
 import { x } from 'tinyexec'
 
-import packageJSON from '../package.json' assert { type: 'json' }
+import packageJSON from '../package.json' with { type: 'json' }
 
 export async function getVersion(options: { release: boolean, autoTag: boolean, tag: string[] }) {
   if (!options.release || !options.tag) {
     // Otherwise, fetch from the latest git ref
     const res = await x('git', ['log', '-1', '--pretty=format:"%H"'])
-    // eslint-disable-next-line e18e/prefer-static-regex
+
     const date = new Date().toISOString().split('T')[0].replace(/-/g, '')
-    // eslint-disable-next-line e18e/prefer-static-regex
+
     return `nightly-${date}-${String(res.stdout.replace(/"/g, '')).trim().substring(0, 7)}`
   }
 

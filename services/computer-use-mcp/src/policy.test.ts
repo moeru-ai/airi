@@ -93,7 +93,7 @@ describe('evaluateActionPolicy', () => {
       action: {
         kind: 'secret_read_env_value',
         input: {
-          filePath: '/Users/liuziheng/airi/.env',
+          filePath: '/workspace/airi/.env',
           keys: ['DISCORD_BOT_TOKEN'],
         },
       },

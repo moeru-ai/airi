@@ -158,7 +158,7 @@ export function createLastScreenshot(overrides: Partial<LastScreenshotInfo> = {}
 
 export function createTerminalState(overrides: Partial<TerminalState> = {}): TerminalState {
   return {
-    effectiveCwd: '/Users/liuziheng/airi',
+    effectiveCwd: '/workspace/airi',
     lastExitCode: 0,
     lastCommandSummary: 'pwd',
     ...overrides,

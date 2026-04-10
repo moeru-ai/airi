@@ -104,7 +104,7 @@ describe('terminal release gates', () => {
   })
 
   it('exec happy path: opens workspace, runs checks/tests, writes back state, and continues', async () => {
-    const projectPath = '/Users/liuziheng/airi'
+    const projectPath = '/workspace/airi'
     const workflow = createDevValidateWorkspaceWorkflow({
       projectPath,
       ideApp: 'Cursor',
@@ -439,5 +439,5 @@ describe('terminal release gates', () => {
 })
 
 function projectPathFromTask(_task: ActiveTask) {
-  return '/Users/liuziheng/airi'
+  return '/workspace/airi'
 }

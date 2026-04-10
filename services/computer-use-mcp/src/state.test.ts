@@ -37,13 +37,13 @@ describe('runStateManager', () => {
       stdout: 'All tests passed',
       stderr: '',
       exitCode: 0,
-      effectiveCwd: '/Users/test/project',
+      effectiveCwd: '/workspace/project',
       durationMs: 500,
       timedOut: false,
     })
 
     const state = manager.getState()
-    expect(state.terminalState?.effectiveCwd).toBe('/Users/test/project')
+    expect(state.terminalState?.effectiveCwd).toBe('/workspace/project')
     expect(state.terminalState?.lastExitCode).toBe(0)
     expect(state.lastTerminalResult?.exitCode).toBe(0)
     expect(manager.lastTerminalSucceeded()).toBe(true)
