@@ -107,13 +107,21 @@ export function detectBashWriteViolation(command: string): { pattern: string; ta
  * Match strategy (in order):
  * 1. Exact match
  * 2. Whitespace-normalized match (collapse runs of whitespace)
- * 3. Indent-normalized match (strip leading whitespace from both)
- * 4. Fuzzy window match (find the most similar contiguous block)
+ * 3. Quote-normalized match (smart quotes → straight quotes)
+ * 4. Indent-normalized match (strip leading whitespace from both)
+ * 5. Line-anchored edit (if start_line/end_line provided, replace that range directly)
+ * 6. Fuzzy window match — auto-apply if similarity >= 85%, suggest if >= 70%
  *
- * On failure, returns the top 3 candidate snippets with similarity scores
- * so the agent can self-correct without re-reading the file.
+ * On failure, returns diagnostic info showing exactly what's different
+ * between old_text and the closest candidate, so the agent can self-correct.
  */
-async function applySingleEdit(filePath: string, oldText: string, newText: string): Promise<unknown> {
+async function applySingleEdit(
+  filePath: string,
+  oldText: string,
+  newText: string,
+  startLine?: number,
+  endLine?: number,
+): Promise<unknown> {
   const fs = await import('node:fs/promises')
 
   let content: string
@@ -122,6 +130,44 @@ async function applySingleEdit(filePath: string, oldText: string, newText: strin
   }
   catch {
     return { error: `File not found: ${filePath}. Use write_file to create new files.` }
+  }
+
+  // ─── Layer 0: Line-anchored edit (bypass text matching entirely) ───
+  // NOTICE: When the agent provides start_line + end_line, we replace that
+  // range directly. This is the most reliable edit mode for large files
+  // where the agent already knows the exact location from a previous read.
+  if (startLine != null && endLine != null) {
+    const lines = content.split('\n')
+    const s = Math.max(1, startLine) - 1 // 0-indexed
+    const e = Math.min(endLine, lines.length) // inclusive → exclusive
+    if (s >= lines.length) {
+      return { error: `start_line ${startLine} is beyond file end (${lines.length} lines)` }
+    }
+    const actualOld = lines.slice(s, e).join('\n')
+    // If old_text is provided, verify it roughly matches for safety
+    if (oldText && oldText.trim().length > 0) {
+      const oldTrimmed = oldText.split('\n').map(l => l.trim()).join('\n')
+      const actualTrimmed = actualOld.split('\n').map(l => l.trim()).join('\n')
+      if (!actualTrimmed.includes(oldTrimmed.slice(0, 50)) && !oldTrimmed.includes(actualTrimmed.slice(0, 50))) {
+        return {
+          error: `Line range ${startLine}-${endLine} does not match old_text.`,
+          actualContent: actualOld.length > 500 ? `${actualOld.slice(0, 500)}...` : actualOld,
+          hint: 'Read the file again to get the current content at those lines.',
+        }
+      }
+    }
+    const beforeLines = lines.slice(0, s)
+    const afterLines = lines.slice(e)
+    const newContent = [...beforeLines, newText, ...afterLines].join('\n')
+    await fs.writeFile(filePath, newContent, 'utf-8')
+    return {
+      success: true,
+      file: filePath,
+      matchType: 'line_anchored',
+      line: startLine,
+      linesRemoved: e - s,
+      linesAdded: newText.split('\n').length,
+    }
   }
 
   // ─── Layer 1: Exact match ───
@@ -144,7 +190,6 @@ async function applySingleEdit(filePath: string, oldText: string, newText: strin
   const oldNorm = normalizeWS(oldText)
   const wsIndex = contentNorm.indexOf(oldNorm)
   if (wsIndex !== -1) {
-    // Find the actual position in original content by mapping back
     const actualRange = findOriginalRange(content, contentNorm, wsIndex, oldNorm.length)
     if (actualRange) {
       return applyAndReport(fs, filePath, content, actualRange.start,
@@ -152,7 +197,25 @@ async function applySingleEdit(filePath: string, oldText: string, newText: strin
     }
   }
 
-  // ─── Layer 3: Indent-normalized match ───
+  // ─── Layer 3: Quote-normalized match ───
+  // NOTICE: LLMs frequently confuse single/double quotes, smart/curly quotes,
+  // and backtick variants. This layer normalizes all quote characters before
+  // matching, then applies the edit using the original text.
+  const normalizeQuotes = (s: string) =>
+    s.replace(/[\u2018\u2019\u201A\u2039\u203A'`]/g, "'")
+      .replace(/[\u201C\u201D\u201E\u00AB\u00BB"]/g, '"')
+  const contentQuoted = normalizeQuotes(content)
+  const oldQuoted = normalizeQuotes(oldText)
+  if (oldQuoted !== oldText || contentQuoted !== content) {
+    const qIndex = contentQuoted.indexOf(oldQuoted)
+    if (qIndex !== -1) {
+      // Apply at the same position in the original content
+      const actualOld = content.slice(qIndex, qIndex + oldQuoted.length)
+      return applyAndReport(fs, filePath, content, qIndex, actualOld, newText, 'quote_normalized')
+    }
+  }
+
+  // ─── Layer 4: Indent-normalized match ───
   const stripIndent = (s: string) => s.split('\n').map(l => l.trimStart()).join('\n')
   const contentStripped = stripIndent(content)
   const oldStripped = stripIndent(oldText)
@@ -167,32 +230,58 @@ async function applySingleEdit(filePath: string, oldText: string, newText: strin
     }
   }
 
-  // ─── Layer 4: Fuzzy window match — find the most similar block ───
+  // ─── Layer 5: Fuzzy window match — auto-apply if high confidence ───
   const candidates = findFuzzyCandidates(content, oldText, 3)
 
-  if (candidates.length > 0 && candidates[0]!.similarity >= 0.7) {
-    // High-confidence fuzzy match: report but DON'T auto-apply (agent must confirm)
-    return {
-      error: `Exact match not found. Found ${candidates.length} similar candidate(s).`,
-      matchType: 'fuzzy_candidates',
-      candidates: candidates.map(c => ({
-        lineStart: c.lineStart,
-        lineEnd: c.lineEnd,
-        similarity: `${Math.round(c.similarity * 100)}%`,
-        snippet: c.text.length > 300 ? `${c.text.slice(0, 300)}...` : c.text,
-      })),
-      hint: 'Use the exact text from one of these candidates as old_text, or use start_line/end_line with read_file to see the full context.',
+  if (candidates.length > 0) {
+    const best = candidates[0]!
+
+    // NOTICE: Auto-apply threshold at 85%. Below that, the risk of applying
+    // the wrong block is too high. Between 70-85% we report candidates.
+    if (best.similarity >= 0.85) {
+      // High-confidence: auto-apply the best match
+      const lines = content.split('\n')
+      const actualOld = lines.slice(best.lineStart - 1, best.lineEnd).join('\n')
+      const beforeLines = lines.slice(0, best.lineStart - 1)
+      const afterLines = lines.slice(best.lineEnd)
+      const newContent = [...beforeLines, ...newText.split('\n'), ...afterLines].join('\n')
+      await fs.writeFile(filePath, newContent, 'utf-8')
+      return {
+        success: true,
+        file: filePath,
+        matchType: `fuzzy_auto_applied (${Math.round(best.similarity * 100)}%)`,
+        line: best.lineStart,
+        linesRemoved: best.lineEnd - best.lineStart + 1,
+        linesAdded: newText.split('\n').length,
+        warning: `Applied via fuzzy match (${Math.round(best.similarity * 100)}% similarity). Verify the result with read_file.`,
+      }
+    }
+
+    if (best.similarity >= 0.7) {
+      // Medium confidence: report candidates with diagnostic diff
+      return {
+        error: `Exact match not found. Found ${candidates.length} similar candidate(s).`,
+        matchType: 'fuzzy_candidates',
+        candidates: candidates.map(c => ({
+          lineStart: c.lineStart,
+          lineEnd: c.lineEnd,
+          similarity: `${Math.round(c.similarity * 100)}%`,
+          snippet: c.text.length > 400 ? `${c.text.slice(0, 400)}...` : c.text,
+        })),
+        diagnostic: buildDiagnosticDiff(oldText, best.text),
+        hint: 'Copy the exact text from the snippet above as old_text, or use start_line/end_line to edit by line range.',
+      }
     }
   }
 
-  // ─── Layer 5: Total failure — show file structure ───
+  // ─── Layer 6: Total failure — show file structure + diagnostic ───
   const lines = content.split('\n')
   const preview = lines.slice(0, Math.min(30, lines.length))
     .map((l, i) => `${String(i + 1).padStart(5)}  ${l}`).join('\n')
 
   return {
     error: `old_text not found in ${filePath}. No similar text found (file has ${lines.length} lines).`,
-    hint: 'Read the file with read_file to see its current content, then use the exact text for old_text.',
+    hint: 'Read the file with read_file to see its current content, then use the exact text for old_text. You can also use start_line/end_line to edit by line range.',
     preview: preview.length > 2000 ? `${preview.slice(0, 2000)}\n[...]` : preview,
     ...(candidates.length > 0 ? {
       bestCandidate: {
@@ -202,6 +291,31 @@ async function applySingleEdit(filePath: string, oldText: string, newText: strin
       },
     } : {}),
   }
+}
+
+/**
+ * Build a human-readable diagnostic showing exactly what differs
+ * between the agent's old_text and the actual file content.
+ * This helps the agent understand WHY the match failed.
+ */
+function buildDiagnosticDiff(expected: string, actual: string): string {
+  const expLines = expected.split('\n')
+  const actLines = actual.split('\n')
+  const diffs: string[] = []
+
+  const maxLines = Math.max(expLines.length, actLines.length)
+  for (let i = 0; i < Math.min(maxLines, 10); i++) {
+    const exp = expLines[i] ?? '<missing>'
+    const act = actLines[i] ?? '<missing>'
+    if (exp !== act) {
+      diffs.push(`  Line ${i + 1}:`)
+      diffs.push(`    yours:  ${JSON.stringify(exp.slice(0, 120))}`)
+      diffs.push(`    actual: ${JSON.stringify(act.slice(0, 120))}`)
+    }
+  }
+
+  if (diffs.length === 0) return 'Lines match but overall text differs (trailing newline or whitespace issue)'
+  return diffs.join('\n')
 }
 
 /**
@@ -573,7 +687,9 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
       const filePath = await resolveFilePath(args.file_path as string)
       const oldText = args.old_text as string
       const newText = args.new_text as string
-      const result = await applySingleEdit(filePath, oldText, newText)
+      const startLine = args.start_line as number | undefined
+      const endLine = args.end_line as number | undefined
+      const result = await applySingleEdit(filePath, oldText, newText, startLine, endLine)
 
       // Diff preview: show what changed
       if (typeof result === 'object' && (result as any).success) {
@@ -890,16 +1006,18 @@ export function getToolDefinitions(): QueryEngineTool[] {
     {
       name: 'edit_file',
       description: 'Make a precise edit to an existing file by replacing old_text with new_text. '
-        + 'old_text must match the file content EXACTLY (including whitespace). '
-        + 'Use this instead of write_file when modifying existing files — it is safer and preserves unchanged content. '
-        + 'For multiple edits to the same file, use multi_edit_file instead.',
+        + 'Supports 6-layer matching: exact → whitespace-normalized → quote-normalized → indent-normalized → fuzzy auto-apply → line-anchored. '
+        + 'If old_text matching fails, you can use start_line/end_line to edit by line range (most reliable for large files). '
+        + 'Use this instead of write_file when modifying existing files — it is safer and preserves unchanged content.',
       parameters: {
         type: 'object',
         required: ['file_path', 'old_text', 'new_text'],
         properties: {
           file_path: { type: 'string', description: 'File path to edit.' },
-          old_text: { type: 'string', description: 'Exact text to find and replace. Must match file content exactly.' },
+          old_text: { type: 'string', description: 'Text to find and replace. Has 6-layer fuzzy matching so minor whitespace/quote differences are handled automatically.' },
           new_text: { type: 'string', description: 'Replacement text.' },
+          start_line: { type: 'number', description: 'Optional. Start line (1-indexed) for line-anchored editing. When provided with end_line, replaces lines start_line through end_line with new_text. Most reliable for large files.' },
+          end_line: { type: 'number', description: 'Optional. End line (1-indexed, inclusive) for line-anchored editing.' },
         },
       },
     },
