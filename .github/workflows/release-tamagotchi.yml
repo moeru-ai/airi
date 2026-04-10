@@ -102,7 +102,7 @@ jobs:
       # failed to build archive at `/home/runner/work/airi/airi/target/x86_64-unknown-linux-gnu/release/deps/libapp_lib.rlib`:
       # No space left on device (os error 28)
       - name: Free Disk Space
-        if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
+        if: matrix.os == 'ubuntu-latest'
         uses: jlumbroso/free-disk-space@main
 
       - uses: actions/checkout@v6
@@ -483,4 +483,6 @@ jobs:
         if: ${{ github.event_name == 'release' && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
         run: butler push apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }} nekomeowww/airi:linux --userversion ${{ env.VERSION }}
         env:
+          BUTLER_API_KEY: ${{ secrets.GAME_PUBLISHING_ITCHIO }}
+ env:
           BUTLER_API_KEY: ${{ secrets.GAME_PUBLISHING_ITCHIO }}
