@@ -38,6 +38,8 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     maxAttempts: 3,
   })
   let tickTimer: ReturnType<typeof setInterval> | undefined
+  let initialized = false
+  const eventUnsubscribes: Array<() => void> = []
   const sparkNotifyAgent = setupAgentSparkNotifyHandler({
     stream,
     getActiveProvider: () => activeProvider.value,
@@ -76,17 +78,17 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
 
   function enqueueSparkNotify(event: WebSocketEventOf<'spark:notify'>, options?: { reason?: string, nextRunAt?: number, maxAttempts?: number }) {
     if (!pendingNotifies.value.some(item => item.data.id === event.data.id)) {
-      pendingNotifies.value = [...pendingNotifies.value, event]
+      pendingNotifies.value.push(event)
     }
 
-    scheduledNotifies.value = [...scheduledNotifies.value, {
+    scheduledNotifies.value.push({
       event,
       enqueuedAt: Date.now(),
       nextRunAt: options?.nextRunAt ?? computeNextRunAt(event, 0),
       attempts: 0,
       maxAttempts: options?.maxAttempts ?? attentionConfig.value.maxAttempts,
       reason: options?.reason,
-    }]
+    })
   }
 
   async function processSparkNotify(event: WebSocketEventOf<'spark:notify'>) {
@@ -198,25 +200,45 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   }
 
   function initialize() {
-    modsServerChannelStore.onEvent('spark:notify', async (event) => {
-      try {
-        await handleIncomingSparkNotify(event)
-      }
-      catch (error) {
-        console.warn('Failed to handle spark:notify event:', error)
-      }
-    })
+    if (initialized)
+      return
 
-    modsServerChannelStore.onEvent('spark:emit', async (event) => {
-      try {
-        await handleSparkEmit(event)
-      }
-      catch (error) {
-        console.warn('Failed to handle spark:emit event:', error)
-      }
-    })
+    initialized = true
+
+    eventUnsubscribes.push(
+      modsServerChannelStore.onEvent('spark:notify', async (event) => {
+        try {
+          await handleIncomingSparkNotify(event)
+        }
+        catch (error) {
+          console.warn('Failed to handle spark:notify event:', error)
+        }
+      }),
+    )
+
+    eventUnsubscribes.push(
+      modsServerChannelStore.onEvent('spark:emit', async (event) => {
+        try {
+          await handleSparkEmit(event)
+        }
+        catch (error) {
+          console.warn('Failed to handle spark:emit event:', error)
+        }
+      }),
+    )
 
     startTicker()
+  }
+
+  function dispose() {
+    stopTicker()
+
+    for (const unsubscribe of eventUnsubscribes) {
+      unsubscribe()
+    }
+
+    eventUnsubscribes.length = 0
+    initialized = false
   }
 
   return {
@@ -228,6 +250,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     initialize,
     startTicker,
     stopTicker,
+    dispose,
 
     handleSparkNotify: handleIncomingSparkNotify,
     handleSparkEmit,
