@@ -19,6 +19,7 @@ function createBaseState(overrides: Partial<RunState> = {}): RunState {
     workflowStepTerminalBindings: [],
     ptyApprovalGrants: [],
     ptyAuditLog: [],
+    handoffHistory: [],
     updatedAt: new Date().toISOString(),
     ...overrides,
   }
@@ -429,6 +430,90 @@ describe('evaluateStrategy', () => {
     expect(advisories.some(a => a.kind === 'use_accessibility_grounding')).toBe(true)
     expect(advisories.some(a => a.kind === 'enumerate_displays_first')).toBe(true)
     expect(advisories.some(a => a.kind === 'proceed')).toBe(false)
+  })
+
+  // -----------------------------------------------------------------------
+  // Rule 12: Click Anti-Spam
+  // -----------------------------------------------------------------------
+
+  it('should advise click_likely_duplicate when clicking same spot without new screenshot', () => {
+    const clickTime = new Date('2024-01-01T10:00:00Z').toISOString()
+    const state = createBaseState({
+      foregroundContext: { available: true, appName: 'App', windowTitle: 'Title', platform: 'darwin' },
+      lastVerificationEvidence: [
+        {
+          kind: 'foreground_context',
+          source: 'desktop_click',
+          capturedAt: clickTime,
+          confidence: 1.0,
+          blockingEligible: true,
+          actionKind: 'click',
+          subject: 'pointer_target',
+          observed: { x: 100, y: 100, appName: 'App', windowTitle: 'Title' },
+          summary: 'clicked',
+          relatedRuntimeFacts: [],
+        },
+      ],
+      lastScreenshot: {
+        path: 'old.png',
+        capturedAt: '2024-01-01T09:59:00Z', // BEFORE click
+        placeholder: false,
+        width: 100,
+        height: 100,
+        executionTargetMode: 'local-windowed',
+        sourceHostName: 'host',
+        sourceDisplayId: '0',
+        sourceSessionTag: 'tag',
+      },
+    })
+
+    const advisories = evaluateStrategy({
+      proposedAction: { kind: 'click', input: { x: 100, y: 100, button: 'left', clickCount: 1 } },
+      state,
+      freshContext: { available: true, appName: 'App', windowTitle: 'Title', platform: 'darwin' },
+    })
+
+    expect(advisories.some(a => a.kind === 'click_likely_duplicate')).toBe(true)
+  })
+
+  it('should NOT advise click_likely_duplicate when a fresh screenshot exists', () => {
+    const clickTime = new Date('2024-01-01T10:00:00Z').getTime()
+    const state = createBaseState({
+      foregroundContext: { available: true, appName: 'App', windowTitle: 'Title', platform: 'darwin' },
+      lastVerificationEvidence: [
+        {
+          kind: 'foreground_context',
+          source: 'desktop_click',
+          capturedAt: new Date(clickTime).toISOString(),
+          confidence: 1.0,
+          blockingEligible: true,
+          actionKind: 'click',
+          subject: 'pointer_target',
+          observed: { x: 100, y: 100, appName: 'App', windowTitle: 'Title' },
+          summary: 'clicked',
+          relatedRuntimeFacts: [],
+        },
+      ],
+      lastScreenshot: {
+        path: 'new.png',
+        capturedAt: new Date(clickTime + 1000).toISOString(), // AFTER click
+        placeholder: false,
+        width: 100,
+        height: 100,
+        executionTargetMode: 'local-windowed',
+        sourceHostName: 'host',
+        sourceDisplayId: '0',
+        sourceSessionTag: 'tag',
+      },
+    })
+
+    const advisories = evaluateStrategy({
+      proposedAction: { kind: 'click', input: { x: 100, y: 100, button: 'left', clickCount: 1 } },
+      state,
+      freshContext: { available: true, appName: 'App', windowTitle: 'Title', platform: 'darwin' },
+    })
+
+    expect(advisories.some(a => a.kind === 'click_likely_duplicate')).toBe(false)
   })
 })
 

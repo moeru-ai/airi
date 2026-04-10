@@ -37,6 +37,7 @@ export type AdvisoryKind
     | 'use_browser_surface'
     | 'use_pty_surface'
     | 'enumerate_displays_first'
+    | 'click_likely_duplicate'
 
 /** Broad category for classifying advisories. */
 export type AdvisoryCategory = 'prep' | 'reroute' | 'recovery' | 'informational'
@@ -93,6 +94,7 @@ export const ADVISORY_CATEGORY_MAP: Record<AdvisoryKind, AdvisoryCategory> = {
   wait_and_retry: 'recovery',
   abort_task: 'recovery',
   approval_rejected_replan: 'recovery',
+  click_likely_duplicate: 'recovery',
 
   // Informational: no action needed, safe to proceed
   proceed: 'informational',
@@ -115,6 +117,7 @@ export const ADVISORY_SURFACE_MAP: Record<AdvisoryKind, RecommendedSurface> = {
   abort_task: 'none',
   approval_rejected_replan: 'none',
 
+  click_likely_duplicate: 'desktop',
   proceed: 'none',
 }
 
@@ -187,6 +190,7 @@ function advisory(fields: Omit<StrategyAdvisory, 'category' | 'recommendedSurfac
  * - Skip the proposed action entirely (abort / replan).
  * - Proceed as-is if the advisory is 'proceed'.
  */
+
 export function evaluateStrategy(params: {
   proposedAction: ActionInvocation
   state: RunState
@@ -370,6 +374,32 @@ export function evaluateStrategy(params: {
       reason: 'Display configuration is unknown. Enumerate displays to ensure correct coordinate targeting on multi-monitor setups.',
       suggestedToolName: 'display_enumerate',
     }))
+  }
+
+  // -----------------------------------------------------------------------
+  // Rule 12: Click Anti-Spam — prevent clicking the same spot multiple times
+  // without verifying the state change.
+  // -----------------------------------------------------------------------
+  if (proposedAction.kind === 'click' && state.lastVerificationEvidence) {
+    const lastClick = state.lastVerificationEvidence.find(e => e.source === 'desktop_click')
+    if (lastClick && lastClick.observed.x === proposedAction.input.x && lastClick.observed.y === proposedAction.input.y) {
+      // Check if apps/window still match
+      const lastApp = lastClick.observed.appName
+      const lastTitle = lastClick.observed.windowTitle
+      if (lastApp === ctx?.appName && lastTitle === ctx?.windowTitle) {
+        // If NO fresh screenshot was taken since the last click, it's likely a spam click.
+        const lastClickTime = new Date(lastClick.capturedAt).getTime()
+        const lastScreenshotTime = state.lastScreenshot ? new Date(state.lastScreenshot.capturedAt).getTime() : 0
+        
+        if (lastScreenshotTime <= lastClickTime) {
+          advisories.push(advisory({
+            kind: 'click_likely_duplicate',
+            reason: `You already clicked this exact spot in "${lastApp}" recently and haven't refreshed your visual state since. Capture a screenshot first to verify if the UI changed.`,
+            suggestedAction: { kind: 'screenshot', input: {} },
+          }))
+        }
+      }
+    }
   }
 
   // If no advisories were emitted, it is safe to proceed.
