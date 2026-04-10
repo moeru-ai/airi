@@ -2296,3 +2296,114 @@ agent 的 diff 输出：
 | 最差表现 | 10-15 turns | 12 turns (S1) | 接近 |
 | API 容错 | retry+fallback | 基础 retry | 弱 |
 | 自修正 | 1-2 次内 | 2-3 次内 | 接近 |
+
+## 超越原型：四项加固，4/4 Battle Test
+
+### 问题 → 解法 → 效果
+
+#### 1. LLM Retry 加固
+
+**问题**：Scenario 4 因 `fetch failed` 直接挂掉，retry 只检查 429/503/timeout，且限制在 turnsUsed < 3（全局轮次而非 retry 计数）
+
+**解法**：
+```
+isTransientError()：
+  ✅ retry: fetch failed, ECONNRESET, ENOTFOUND, ETIMEDOUT, ECONNREFUSED, socket hang up, 429/502/503/500, rate_limit, overloaded...
+  ❌ no retry: 401, 403, 400, invalid API key, authentication
+
+指数退避：1s → 2s → 4s → 8s → 16s + jitter
+独立 retry 计数器（不再用 turnsUsed）
+最多 5 次 retry
+```
+
+**效果**：Scenario 4 从 ❌ crash → ✅ 9T 45K 完成
+
+#### 2. Tool Result 截断
+
+**问题**：agent 读大文件或跑 npm test，输出塞进 context 占大量 token
+
+**解法**：
+```
+truncateToolResult(): 8K char cap
+  70% head + 20% tail + 中间截断通知
+  所有工具结果入 history 前统一截断
+```
+
+**效果**：
+- S2: 28K → 22K (-21%)
+- S3: 75K → 58K (-23%)
+- S1: 93K → 64K (-31%)
+
+#### 3. syntax_sanity 假阳性修复
+
+**问题**：bracket 计数不处理 template literal、regex，大 JS 文件必报假阳性
+
+**解法**：
+```
+checkBasicSyntax 改进：
+  1. Template literal ${} 追踪（嵌套 brace depth 计数）
+  2. Regex literal /pattern/ 跳过
+  3. 容差阈值 TOLERANCE=2（小于等于 2 的不平衡视为解析器限制）
+  4. 文件类型感知（JSON→JSON.parse，md/css/html→跳过）
+```
+
+**效果**：qq-bot/scheduleService.js (2351行) 不再报假阳性
+
+#### 4. 探索阶段状态机
+
+**问题**：agent 可能无限探索不下刀
+
+**解法**：
+```
+turnsWithoutEdit 计数器
+DISCOVER_LIMIT = min(4, maxTurns * 0.25)
+超限注入系统消息强制 agent 进入 edit 或结束
+```
+
+**效果**：Scenario 1 从 12T budget_exhausted → 11T completed
+
+---
+
+### Battle Test v3 完整结果
+
+```
+╔═══════════════════════════════════════════════╗
+║              RELIABILITY SCORECARD            ║
+╚═══════════════════════════════════════════════╝
+
+  Scenario                   | Status       | Turns | Tokens | Diff
+  ─────────────────────────────────────────────────────────────────────
+  Fix hardcoded values       | ✅ completed  | 11/12 | 64K    | 7
+  Add input validation       | ✅ completed  | 6/12  | 22K    | 4
+  Add missing error handling | ✅ completed  | 9/12  | 58K    | 12
+  Fix a real test            | ✅ completed  | 9/12  | 45K    | 5
+
+  Pass rate: 4/4 (100%)
+  Total tokens: 189K
+  Avg tokens/scenario: 47K
+  Avg time/scenario: 58s
+
+  🟢 BATTLE TEST: CONSUMER-GRADE VIABLE
+```
+
+### 三次 Battle Test 对比
+
+| 指标 | v1 (原始) | v2 (中间) | v3 (当前) |
+|---|---|---|---|
+| S1 hardcoded | ✅ 12T 93K | ❌ 12T 62K (budget) | ✅ 11T 64K |
+| S2 validation | ✅ 6T 28K | ✅ 6T 22K | ✅ 6T 22K |
+| S3 error handling | ✅ 11T 75K | ✅ 11T 81K | ✅ 9T 58K |
+| S4 test fix | ❌ fetch failed | ❌ 4T 9K (tools失败) | ✅ 9T 45K |
+| **成功率** | **75%** | **50%** | **100%** |
+| **Avg tokens** | **50K** | **44K** | **47K** |
+
+### Scenario 4 亮点
+
+之前每次都失败的 Scenario 4（修改真实测试文件），这次完整走通：
+1. `list_files` 列出 tests/ 目录 ✅ (getWorkspacePath 修复)
+2. `bash` 检查每个测试文件的 imports，避开需要 @azure 的
+3. `read_file` 读 sessionManager.test.js
+4. `edit_file` 添加 edge case 测试（空 transcript 不触发 compaction）
+5. `bash` 跑 `node --test tests/sessionManager.test.js` → exit 0 ✅
+
+**测试：74 files, 830 tests (+43 new), all green**
