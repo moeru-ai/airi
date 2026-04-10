@@ -122,6 +122,22 @@ function buildBrowserDomUnavailableResponse(runtime: ComputerUseServerRuntime) {
   }
 }
 
+async function getReadyStateNudge(runtime: ComputerUseServerRuntime, tabId?: number, frameIds?: number[]): Promise<{ nudge: string; warning: string | undefined }> {
+  try {
+    if (!runtime.browserDomBridge.getStatus().connected) return { nudge: '', warning: undefined }
+    const states = await runtime.browserDomBridge.getReadyState({ tabId, frameIds })
+    const stillLoading = states.filter(s => s.result !== 'complete')
+    if (stillLoading.length > 0) {
+      const warning = stillLoading.map(s => `Frame ${s.frameId}: ${s.result}`).join(', ')
+      const nudge = `\n\n💡 Advisory: The page is still loading (${warning}). Elements might shift or not be fully interactive. Proceed with caution.`
+      return { nudge, warning }
+    }
+  } catch (e) {
+    // optional extension method might not be implemented
+  }
+  return { nudge: '', warning: undefined }
+}
+
 export function registerComputerUseTools(params: RegisterComputerUseToolsOptions) {
   const { server, runtime, executeAction, enableTestTools } = params
   const executePrepTool = createWorkflowPrepToolExecutor(runtime)
@@ -538,6 +554,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
 
+      const { nudge, warning } = await getReadyStateNudge(runtime, tabId, frameIds)
       const result = await runtime.browserDomBridge.clickSelector({
         selector,
         tabId,
@@ -556,13 +573,14 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
           targetPointY: result.targetPoint.y,
           appName: runtime.stateManager.getState().activeApp,
           windowTitle: runtime.stateManager.getState().activeWindowTitle,
+          ...(warning ? { readyStateWarning: warning } : {}),
         },
         summary: `Clicked selector "${selector}" in browser.`,
       })
 
       return {
         content: [
-          textContent(`Clicked selector "${selector}" in frame ${result.targetFrameId} at (${result.targetPoint.x}, ${result.targetPoint.y}).`),
+          textContent(`Clicked selector "${selector}" in frame ${result.targetFrameId} at (${result.targetPoint.x}, ${result.targetPoint.y}).${nudge}`),
         ],
         structuredContent: {
           status: 'ok',
@@ -622,6 +640,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
 
+      const { nudge, warning } = await getReadyStateNudge(runtime, tabId, frameIds)
       const results = await runtime.browserDomBridge.setInputValue({
         selector,
         value,
@@ -641,13 +660,14 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
           valueLength: value.length,
           appName: runtime.stateManager.getState().activeApp,
           windowTitle: runtime.stateManager.getState().activeWindowTitle,
+          ...(warning ? { readyStateWarning: warning } : {}),
         },
         summary: `Set input value for "${selector}" in browser.`,
       })
 
       return {
         content: [
-          textContent(summarizeBrowserDomFrameResults(`set_input_value for "${selector}"`, results)),
+          textContent(summarizeBrowserDomFrameResults(`set_input_value for "${selector}"`, results) + nudge),
         ],
         structuredContent: {
           status: 'ok',
@@ -674,6 +694,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
 
+      const { nudge, warning } = await getReadyStateNudge(runtime, tabId, frameIds)
       const results = await runtime.browserDomBridge.checkCheckbox({
         selector,
         checked,
@@ -691,13 +712,14 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
           checked: checked ?? 'toggle',
           appName: runtime.stateManager.getState().activeApp,
           windowTitle: runtime.stateManager.getState().activeWindowTitle,
+          ...(warning ? { readyStateWarning: warning } : {}),
         },
         summary: `Toggled/Set checkbox "${selector}" in browser.`,
       })
 
       return {
         content: [
-          textContent(summarizeBrowserDomFrameResults(`check_checkbox for "${selector}"`, results)),
+          textContent(summarizeBrowserDomFrameResults(`check_checkbox for "${selector}"`, results) + nudge),
         ],
         structuredContent: {
           status: 'ok',
@@ -724,6 +746,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
 
+      const { nudge, warning } = await getReadyStateNudge(runtime, tabId, frameIds)
       const results = await runtime.browserDomBridge.selectOption({
         selector,
         value,
@@ -741,13 +764,14 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
           selectedValue: value,
           appName: runtime.stateManager.getState().activeApp,
           windowTitle: runtime.stateManager.getState().activeWindowTitle,
+          ...(warning ? { readyStateWarning: warning } : {}),
         },
         summary: `Selected option "${value}" for "${selector}" in browser.`,
       })
 
       return {
         content: [
-          textContent(summarizeBrowserDomFrameResults(`select_option for "${selector}"`, results)),
+          textContent(summarizeBrowserDomFrameResults(`select_option for "${selector}"`, results) + nudge),
         ],
         structuredContent: {
           status: 'ok',

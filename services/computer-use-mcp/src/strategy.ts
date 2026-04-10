@@ -38,6 +38,7 @@ export type AdvisoryKind
     | 'use_pty_surface'
     | 'enumerate_displays_first'
     | 'click_likely_duplicate'
+    | 'document_ready_state_informational'
 
 /** Broad category for classifying advisories. */
 export type AdvisoryCategory = 'prep' | 'reroute' | 'recovery' | 'informational'
@@ -98,6 +99,7 @@ export const ADVISORY_CATEGORY_MAP: Record<AdvisoryKind, AdvisoryCategory> = {
 
   // Informational: no action needed, safe to proceed
   proceed: 'informational',
+  document_ready_state_informational: 'informational',
 }
 
 /** Maps each advisory kind to the surface it recommends. */
@@ -119,6 +121,7 @@ export const ADVISORY_SURFACE_MAP: Record<AdvisoryKind, RecommendedSurface> = {
 
   click_likely_duplicate: 'desktop',
   proceed: 'none',
+  document_ready_state_informational: 'none',
 }
 
 /**

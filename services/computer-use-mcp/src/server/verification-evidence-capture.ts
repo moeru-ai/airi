@@ -39,7 +39,7 @@ export function captureClickEvidence(
     source: string
     actionKind: string
     subject: string
-    observed: Record<string, string | number | boolean | null>
+    observed: Record<string, unknown>
     summary: string
   },
 ) {
@@ -71,7 +71,7 @@ export function captureUiInteractionEvidence(
     source: string
     actionKind: string
     subject: string
-    observed: Record<string, string | number | boolean | null>
+    observed: Record<string, unknown>
     summary: string
   },
 ) {
