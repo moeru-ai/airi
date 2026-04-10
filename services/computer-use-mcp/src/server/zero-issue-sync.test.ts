@@ -21,6 +21,7 @@ describe('zero-Issue Sync (reportStatus lock)', () => {
     runtime.stateManager.updateCodingState({
       lastChangeReview: {
         status: 'needs_follow_up',
+        recommendedNextAction: 'amend',
         unresolvedIssues: ['Hallucinated issue: Variable might be undefined in edge case'],
         filesReviewed: ['src/index.ts'],
         detectedRisks: [],
@@ -47,6 +48,7 @@ describe('zero-Issue Sync (reportStatus lock)', () => {
     runtime.stateManager.updateCodingState({
       lastChangeReview: {
         status: 'needs_follow_up',
+        recommendedNextAction: 'amend',
         unresolvedIssues: ['Real issue: Syntax error on line 42'],
         filesReviewed: ['src/index.ts'],
         detectedRisks: [],
@@ -68,6 +70,7 @@ describe('zero-Issue Sync (reportStatus lock)', () => {
     runtime.stateManager.updateCodingState({
       lastChangeReview: {
         status: 'ready_for_next_file',
+        recommendedNextAction: 'continue',
         unresolvedIssues: [], // Empty!
         filesReviewed: ['src/index.ts'],
         detectedRisks: [],
