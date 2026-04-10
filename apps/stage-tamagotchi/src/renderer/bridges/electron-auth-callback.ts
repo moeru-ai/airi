@@ -37,7 +37,7 @@ export function initializeElectronAuthCallbackBridge() {
       await fetchSession()
     }
     catch (error) {
-      toast.error(errorMessageFrom(error) ?? 'Login failed')
+      toast.error(errorMessageFrom(error) ?? 'Sign-in failed')
     }
   })
 

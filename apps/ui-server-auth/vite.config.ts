@@ -13,6 +13,7 @@ import VueMacros from 'vue-macros/vite'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
+  base: '/_ui/server-auth/',
   optimizeDeps: {
     exclude: [
       // Internal Packages
@@ -43,6 +44,8 @@ export default defineConfig({
     },
   },
   build: {
+    emptyOutDir: true,
+    outDir: resolve(join(import.meta.dirname, '..', 'server', 'public', 'ui-server-auth')),
     sourcemap: true,
   },
   worker: {

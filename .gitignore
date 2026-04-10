@@ -73,6 +73,7 @@ components.d.ts
 **/.netlify/*
 **/.netlify/functions-serve/*
 
+**/server/public/*
 **/public/assets/js/*
 **/assets/live2d/models/*
 **/assets/vrm/models/*
