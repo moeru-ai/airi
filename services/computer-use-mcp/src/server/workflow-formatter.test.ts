@@ -20,6 +20,7 @@ function createBaseRunState(overrides: Partial<RunState> = {}): RunState {
     workflowStepTerminalBindings: [],
     ptyApprovalGrants: [],
     ptyAuditLog: [],
+    handoffHistory: [],
     updatedAt: new Date().toISOString(),
     ...overrides,
   }

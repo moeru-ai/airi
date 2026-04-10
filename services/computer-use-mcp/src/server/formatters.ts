@@ -1,3 +1,4 @@
+import type { RunState } from '../state'
 import type { CoordinateSpaceInfo, ExecutionTarget, PolicyDecision } from '../types'
 
 export function describeForegroundContext(record: { appName?: string, windowTitle?: string, available: boolean }) {
@@ -27,4 +28,22 @@ export function summarizeCoordinateSpace(info: CoordinateSpaceInfo) {
   if (info.aligned === false)
     return 'mismatch'
   return 'unknown'
+}
+
+export function summarizeRunStateConcise(state: RunState): string {
+  const parts: string[] = []
+
+  if (state.foregroundContext) {
+    parts.push(`Foreground: ${describeForegroundContext(state.foregroundContext)}`)
+  }
+
+  if (state.terminalState?.lastCommandSummary) {
+    parts.push(`Last Cmd: ${state.terminalState.lastCommandSummary} (exit ${state.terminalState.lastExitCode})`)
+  }
+
+  if (state.activeTask) {
+    parts.push(`Task Phase: ${state.activeTask.phase}`)
+  }
+
+  return parts.join(' | ') || 'No runtime context available'
 }
