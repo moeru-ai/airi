@@ -1801,7 +1801,43 @@ pnpm -F @proj-airi/computer-use-mcp exec vitest run  # 66 files, 691 tests, all 
 - **安全围栏**：硬预算限制（50轮/200调用/500k tokens），到限自动停止
 - **xsai 接口**：OpenAI-compatible，provider 无关
 
-### 待审批决策
-1. LLM provider 配置方式（env 变量 vs config）
-2. 审批模式（auto vs per_mutation）
-3. 第一版范围（最小版 ~300 行 vs 完整版 ~1000 行）
+### ✅ 已实现（审批通过后立即执行）
+
+新增 `src/query-engine/` 模块（9 个文件，~600 行核心代码）：
+
+| 文件 | 功能 |
+|---|---|
+| `types.ts` | QueryEngineConfig, QueryMessage, BudgetSnapshot, QueryEngineResult |
+| `engine.ts` | ReAct 循环主体 + resolveConfig + callLLM (native fetch) |
+| `budget-guard.ts` | 硬预算守卫 (turns/tokens/tool_calls) + 低预算 advisory |
+| `tool-router.ts` | LLM tool_call → 内部原语路由 + 结果截断 |
+| `system-prompt.ts` | 动态系统提示构建器 |
+| `index.ts` | Barrel export |
+| `budget-guard.test.ts` | 12 个单元测试 |
+| `tool-router.test.ts` | 8 个单元测试 |
+| `engine.test.ts` | 3 个单元测试 |
+
+配置方式：通过环境变量
+- `AIRI_AGENT_MODEL` — LLM 模型（默认 gpt-4o）
+- `AIRI_AGENT_API_KEY` — API key（必需）
+- `AIRI_AGENT_BASE_URL` — API 端点（默认 OpenAI）
+
+MCP tool：`coding_agentic_run` 已注册并完全走通契约链。
+
+### 验证
+```bash
+pnpm -F @proj-airi/computer-use-mcp exec vitest run  # 69 files, 714 tests, all green
+```
+
+### 里程碑总结
+
+AIRI 从被动的 MCP server **进化为自主编码 agent**。
+
+| 指标 | 之前 | 之后 |
+|---|---|---|
+| 注册工具 | 87 | 90 (+3: web_fetch, web_search, coding_agentic_run) |
+| 测试 | 691 | 714 (+23) |
+| 测试文件 | 66 | 69 (+3) |
+| 自主循环 | ❌ | ✅ QueryEngine |
+| Web 能力 | ❌ | ✅ web_fetch |
+| 输出截断 | ❌ | ✅ 100k terminal + 50k tool |
