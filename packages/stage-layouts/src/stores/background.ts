@@ -7,11 +7,12 @@ import { useLocalStorage, useObjectUrl } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, markRaw, onScopeDispose, ref, shallowRef, watch } from 'vue'
 
-import { DefaultBackgroundPreview } from '../components/Backgrounds/default'
+import { DefaultBackgroundPreview, TransparentBackgroundPreview } from '../components/Backgrounds/default'
 
 export enum BackgroundKind {
   Wave = 'wave',
   Image = 'image',
+  Transparent = 'transparent',
 }
 
 export interface BackgroundItem extends BackgroundOption {
@@ -35,6 +36,13 @@ export const useBackgroundStore = defineStore('background', () => {
       description: 'Animated wave on cross grid',
       kind: BackgroundKind.Wave,
       component: markRaw(DefaultBackgroundPreview),
+    },
+    {
+      id: 'transparent',
+      label: 'Transparent',
+      description: 'Reveal the native background behind the WebView',
+      kind: BackgroundKind.Transparent,
+      component: markRaw(TransparentBackgroundPreview),
     },
   ]
 
@@ -143,9 +151,11 @@ export const useBackgroundStore = defineStore('background', () => {
   async function applyPickerSelection(payload: { option: BackgroundOption, color?: string }) {
     const kind = payload.option.kind === BackgroundKind.Wave
       ? BackgroundKind.Wave
-      : payload.option.kind === BackgroundKind.Image
-        ? BackgroundKind.Image
-        : BackgroundKind.Image
+      : payload.option.kind === BackgroundKind.Transparent
+        ? BackgroundKind.Transparent
+        : payload.option.kind === BackgroundKind.Image
+          ? BackgroundKind.Image
+          : BackgroundKind.Image
 
     const selection: BackgroundItem = {
       ...payload.option,
