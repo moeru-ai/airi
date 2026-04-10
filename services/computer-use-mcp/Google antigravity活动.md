@@ -1994,3 +1994,90 @@ pnpm -F @proj-airi/computer-use-mcp exec vitest run
 - 添加 `parseBingResults()` 和 `parseDDGResults()` 解析器（含 CAPTCHA 检测）
 - 添加 `searchViaCustomAPI()` 支持 SearXNG JSON 格式
 - 测试套件：71 files, 728 tests, all green
+
+## 自验证能力升级（向 CC 水平靠拢）
+
+### 问题：之前的 benchmark "100% success" 是虚的
+
+- 任务都在 temp workspace 跑，没有工具链
+- vitest/tsc 跑不了，agent 不知道怎么验证
+- 字符串匹配 ≠ 真正验证
+- agent 说 "完成" 就信了，没有 post-loop 检查
+
+### 改进 1：Mandatory Verification Protocol（system-prompt.ts）
+
+重写系统提示，加入强制验证协议：
+
+```
+旧的: "Verify after changes" (一句话)
+新的:
+  - 写完文件后 MUST read back
+  - 写完代码 MUST 跑 test/typecheck
+  - 验证失败 MUST 修复或报告
+  - Final summary MUST 分三段: Changes Made / Verification Results / Remaining Issues
+  - 从不 claim 未验证的东西 "works"
+```
+
+### 改进 2：Toolchain Detection（engine.ts）
+
+引擎启动时自动检测 workspace 的工具链：
+- pnpm/npm/yarn/bun（看 lockfile）
+- vitest/jest（看 config 文件）
+- TypeScript（看 tsconfig.json）
+- 注入到 system prompt，agent 就有了正确的验证命令
+
+### 改进 3：Post-loop Verification（engine.ts）
+
+Agent 循环结束后，引擎自动跑二次验证：
+1. `file_exists` — 文件是否真的存在
+2. `file_readable` — 内容是否可读 + 大小
+3. `syntax_sanity` — 括号/括弧/大括号是否平衡
+
+结果写入 `QueryEngineResult.verification[]`
+
+### 改进 4：edit_file 精准编辑（tool-router.ts）
+
+新工具：search-and-replace 精准编辑（类似 CC 的 edit_file）：
+- 精确匹配 old_text → 替换为 new_text
+- 拒绝多重匹配（要求唯一）
+- 匹配失败时返回文件预览帮助 LLM 自修正
+- 返回 diff 输出
+
+### E2E 验证结果
+
+```
+Agent 输出（新格式）：
+### Changes Made
+- e2e-generated-util.ts — added formatDuration and truncateMiddle
+
+### Verification Results
+- ✅ verified by running npx vitest run ... exit code: 0
+
+### Remaining Issues
+- None
+
+Engine 自动验证：
+✅ file_readable: 863 chars, 28 lines
+✅ syntax_sanity: Basic syntax checks passed
+Total: 2/2 passed
+```
+
+### CC 差距缩减
+
+| 能力 | CC | AIRI 改前 | AIRI 改后 |
+|---|---|---|---|
+| 写完 read back | ✅ | ❌ | ✅ |
+| 跑测试验证 | ✅ | ❌ 不知道命令 | ✅ 自动检测 |
+| 精准编辑 | ✅ | ❌ 全文重写 | ✅ edit_file |
+| 诚实报告 | ✅ | ❌ 总说成功 | ✅ 三段式 |
+| Post-loop 验证 | ❌ | ❌ | ✅ 二次验证 |
+| Diff 输出 | ✅ | ❌ | ✅ edit_file 返回 diff |
+| 工具链感知 | ✅ | ❌ | ✅ 自动检测 |
+
+### 仍需追赶
+
+- **multi-edit_file**：CC 支持一次编辑多处，AIRI 目前一次一处
+- **并行工具调用**：CC 支持并行，AIRI 串行
+- **Git 集成**：CC 有 git diff/commit/stash，AIRI 需要 bash
+- **大文件 limit**：CC 对大文件有分段读取策略
+- **retry on LLM error**：CC 有更完善的 retry + fallback
