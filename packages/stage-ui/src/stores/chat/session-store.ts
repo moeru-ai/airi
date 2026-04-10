@@ -194,7 +194,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         ensureGeneration(sessionId)
 
         if (mergedMessages !== stored.messages)
-        await persistSession(sessionId)
+          await persistSession(sessionId)
       }
       loadedSessions.add(sessionId)
     })()
