@@ -265,14 +265,16 @@ describe('chat orchestrator contract', () => {
       'turn-complete',
     ])
 
-    expect(composedMessages).toHaveLength(3)
+    expect(composedMessages).toHaveLength(2)
     expect(composedMessages[0]).toMatchObject({ role: 'system' })
     expect(composedMessages[1]).toMatchObject({ role: 'user' })
-    expect(composedMessages[2]).toMatchObject({ role: 'user', content: 'hello from user' })
+    const userMessageContent = (composedMessages[1] as any).content
 
-    const syntheticContextText = (composedMessages[1] as any).content?.[0]?.text
-    expect(syntheticContextText).toContain('These are the contextual information')
-    expect(syntheticContextText).toContain('Module weather:')
+    expect(userMessageContent[0].text).toBe('hello from user')
+
+    const syntheticContextText = userMessageContent[1].text
+    expect(syntheticContextText).toContain('<context>')
+    expect(syntheticContextText).toContain('<module name="weather">')
   })
 
   it('rejects cancelled queued sends before they start', async () => {

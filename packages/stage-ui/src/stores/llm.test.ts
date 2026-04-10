@@ -29,6 +29,9 @@ vi.mock('@xsai/model', () => ({
 
 vi.mock('@xsai/stream-text', () => ({
   streamText: streamTextMock,
+}))
+
+vi.mock('@xsai/shared-chat', () => ({
   stepCountAtLeast: vi.fn(),
 }))
 
