@@ -10,7 +10,7 @@ on:
 
 jobs:
   ghcr_build_assets:
-    name: Release Assets
+    name: Release Assets (${{ matrix.assets_name }})
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -54,6 +54,7 @@ jobs:
           flavor: |
             latest=true
           tags: |
+            type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
