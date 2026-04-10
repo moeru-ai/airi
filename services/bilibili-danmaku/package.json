@@ -1,0 +1,27 @@
+{
+  "name": "@proj-airi/bilibili-danmaku",
+  "type": "module",
+  "private": true,
+  "description": "Bilibili live danmaku input service for AIRI",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "services/bilibili-danmaku"
+  },
+  "scripts": {
+    "start": "tsx --env-file=.env --env-file-if-exists=.env.local src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@guiiai/logg": "catalog:",
+    "@proj-airi/server-sdk": "workspace:^",
+    "bilibili-live-ws": "^7.0.2",
+    "tsx": "^4.21.0"
+  }
+}
