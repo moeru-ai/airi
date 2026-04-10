@@ -23,6 +23,7 @@ import type {
 } from './types'
 
 import { BudgetGuard } from './budget-guard'
+import { compactIfNeeded } from './context-compact'
 import { buildSystemPrompt } from './system-prompt'
 import {
   buildToolRoutes,
@@ -152,7 +153,7 @@ export async function runQueryEngine(params: {
   const { goal, workspacePath, primitives, terminal, config, onProgress } = params
 
   const budget = new BudgetGuard(config)
-  const routes = buildToolRoutes({ primitives, terminal })
+  const routes = buildToolRoutes({ primitives, terminal, workspacePath })
   const toolDefs = getToolDefinitions()
   const filesModified = new Set<string>()
 
@@ -318,6 +319,23 @@ export async function runQueryEngine(params: {
         role: 'tool',
         tool_call_id: toolCall.id,
         content: error ? `[ERROR] ${result}` : result,
+      })
+    }
+
+    // Context compaction — compress history when approaching token limit.
+    // Run after all tool results are collected, before the next LLM call.
+    const compactResult = compactIfNeeded(messages, {
+      compactThreshold: Math.floor(config.maxTokenBudget * 0.7),
+      preserveRecentCount: 10,
+    })
+    if (compactResult.compacted) {
+      messages.length = 0
+      messages.push(...compactResult.messages)
+      onProgress?.({
+        turn: budget.snapshot().turnsUsed,
+        phase: 'calling_llm',
+        budget: budget.snapshot(),
+        message: `Context compacted: ${compactResult.originalCount} → ${compactResult.compactedCount} messages (${compactResult.estimatedTokensBefore} → ${compactResult.estimatedTokensAfter} estimated tokens)`,
       })
     }
   }

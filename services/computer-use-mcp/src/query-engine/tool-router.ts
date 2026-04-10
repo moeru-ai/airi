@@ -21,28 +21,56 @@ export type ToolHandler = (args: Record<string, unknown>) => Promise<unknown>
 export interface ToolRouterDeps {
   primitives: CodingPrimitives
   terminal: TerminalRunner
+  workspacePath: string
 }
 
 /**
  * Build the route table mapping tool names to handlers.
  */
 export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandler> {
-  const { primitives, terminal } = deps
+  const { primitives, terminal, workspacePath } = deps
+
+  /**
+   * Resolve a file path: if relative, resolve against workspacePath.
+   */
+  const resolveFilePath = (filePath: string): string => {
+    const pathMod = require('node:path') as typeof import('node:path')
+    return pathMod.isAbsolute(filePath) ? filePath : pathMod.join(workspacePath, filePath)
+  }
 
   return {
     read_file: async (args) => {
-      return primitives.readFile(
-        args.file_path as string,
-        args.start_line as number | undefined,
-        args.end_line as number | undefined,
-      )
+      const filePath = resolveFilePath(args.file_path as string)
+      try {
+        return await primitives.readFile(
+          filePath,
+          args.start_line as number | undefined,
+          args.end_line as number | undefined,
+        )
+      }
+      catch {
+        // Fallback: direct fs read
+        const fs = await import('node:fs/promises')
+        const content = await fs.readFile(filePath, 'utf8')
+        return { content, path: filePath, totalLines: content.split('\n').length }
+      }
     },
 
     write_file: async (args) => {
-      return primitives.writeFile(
-        args.file_path as string,
-        args.content as string,
-      )
+      const filePath = resolveFilePath(args.file_path as string)
+      const content = args.content as string
+      try {
+        return await primitives.writeFile(filePath, content)
+      }
+      catch {
+        // Fallback: direct fs write when runtime is not fully initialized
+        const fs = await import('node:fs/promises')
+        const path = await import('node:path')
+        const dir = path.dirname(filePath)
+        await fs.mkdir(dir, { recursive: true })
+        await fs.writeFile(filePath, content, 'utf8')
+        return { written: true, absolutePath: filePath, bytesWritten: Buffer.byteLength(content, 'utf8'), created: true }
+      }
     },
 
     list_files: async (args) => {

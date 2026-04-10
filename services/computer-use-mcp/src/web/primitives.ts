@@ -201,13 +201,13 @@ export async function webFetch(params: {
 }
 
 /**
- * Web search using terminal-based search.
- * Delegates to a curl-based search API or falls back to a notice.
+ * Web search via DuckDuckGo HTML lite endpoint.
  *
- * NOTICE: This is a stub that returns a structured "not yet configured" response.
- * A full implementation would integrate with a search API (e.g., SearXNG, Brave Search).
- * The tool is registered now so the descriptor/contract chain is complete and ready
- * for the backend to be wired in.
+ * Uses DDG's lightweight HTML search page which requires no API key.
+ * Parses result links, titles, and snippets from the HTML response.
+ *
+ * NOTICE: DuckDuckGo may rate-limit heavy usage. For production/high-volume
+ * use, consider integrating a dedicated search API (SearXNG, Brave Search).
  */
 export async function webSearch(params: {
   query: string
@@ -216,14 +216,86 @@ export async function webSearch(params: {
   const startedAt = Date.now()
   const { query, maxResults = 10 } = params
 
-  // NOTICE: Stub — returns a structured response indicating no search backend is configured.
-  // To enable: set AIRI_SEARCH_API_URL in the environment and implement the fetch call below.
-  return {
-    query,
-    results: [],
-    totalResults: 0,
-    searchedAt: new Date().toISOString(),
-    durationMs: Date.now() - startedAt,
-    note: `Web search is not yet configured. To use this tool, configure a search API backend (e.g., SearXNG at AIRI_SEARCH_API_URL). Alternatively, use web_fetch to directly fetch known URLs, or use terminal_exec with curl to query APIs.`,
+  const searchUrl = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`
+
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS)
+
+    const response = await fetch(searchUrl, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'AIRI-ComputerUse/1.0 (MCP; +https://github.com/moeru-ai/airi)',
+        'Accept': 'text/html',
+      },
+    }).finally(() => clearTimeout(timeout))
+
+    if (!response.ok) {
+      return {
+        query,
+        results: [],
+        totalResults: 0,
+        searchedAt: new Date().toISOString(),
+        durationMs: Date.now() - startedAt,
+        note: `Search request failed with status ${response.status}.`,
+      }
+    }
+
+    const html = await response.text()
+
+    // Parse DDG lite results — each result is in a table row with class "result-link"
+    // Format: <a rel="nofollow" href="URL" class="result-link">TITLE</a>
+    // Snippet follows in a <td class="result-snippet"> element
+    const results: Array<{ url: string; title: string; snippet: string }> = []
+
+    // Extract links and titles
+    const linkRegex = /<a[^>]+class="result-link"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi
+    const snippetRegex = /<td[^>]+class="result-snippet"[^>]*>([\s\S]*?)<\/td>/gi
+
+    const links: Array<{ url: string; title: string }> = []
+    let linkMatch: RegExpExecArray | null = linkRegex.exec(html)
+    while (linkMatch !== null) {
+      const url = linkMatch[1] ?? ''
+      const title = htmlToText(linkMatch[2] ?? '').trim()
+      if (url && !url.startsWith('/') && title) {
+        links.push({ url, title })
+      }
+      linkMatch = linkRegex.exec(html)
+    }
+
+    const snippets: string[] = []
+    let snippetMatch: RegExpExecArray | null = snippetRegex.exec(html)
+    while (snippetMatch !== null) {
+      snippets.push(htmlToText(snippetMatch[1] ?? '').trim())
+      snippetMatch = snippetRegex.exec(html)
+    }
+
+    // Pair links with snippets
+    for (let i = 0; i < Math.min(links.length, maxResults); i++) {
+      results.push({
+        url: links[i]!.url,
+        title: links[i]!.title,
+        snippet: snippets[i] ?? '',
+      })
+    }
+
+    return {
+      query,
+      results,
+      totalResults: results.length,
+      searchedAt: new Date().toISOString(),
+      durationMs: Date.now() - startedAt,
+    }
+  }
+  catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return {
+      query,
+      results: [],
+      totalResults: 0,
+      searchedAt: new Date().toISOString(),
+      durationMs: Date.now() - startedAt,
+      note: `Search failed: ${message}. Use web_fetch to directly fetch known URLs, or use terminal_exec with curl to query APIs.`,
+    }
   }
 }
