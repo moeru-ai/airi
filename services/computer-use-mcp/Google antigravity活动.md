@@ -1767,3 +1767,41 @@ pnpm -F @proj-airi/computer-use-mcp exec vitest run  # 66 files, 691 tests, all 
 
 ### 工具总数更新
 AIRI computer-use-mcp 现有 **87 个注册工具**（+2）。
+
+## 📅 2026-04-10: P1 补全 — terminal 增强 + web_fetch/web_search
+
+### Terminal Runner 增强
+- 输出截断：stdout/stderr 超过 100k 字符时，保留头 40k + 尾 10k，中间截断
+- 防止 verbose 构建日志或 `find /` 撑爆 context window
+
+### 新增工具
+
+| 工具 | 类型 | 用途 |
+|---|---|---|
+| `web_fetch` | read | HTTP 内容抓取。HTML→text 转换，URL 验证，响应体限制 200KB，文本限制 50k chars |
+| `web_search` | read | Web 搜索（结构化 stub，等待搜索 API 后端配置） |
+
+### 新增文件
+- `src/web/primitives.ts` — webFetch + webSearch 实现
+- `src/server/register-web.ts` — MCP 工具注册
+
+### 验证
+```bash
+pnpm -F @proj-airi/computer-use-mcp exec vitest run  # 66 files, 691 tests, all green
+```
+
+## 📅 2026-04-10: P2 QueryEngine 自主循环架构设计（待审批）
+
+> 🏗️ 设计文档已产出，等待用户审批后开始实现。
+
+### 核心设计
+- **ReAct 循环**：think → act → observe → continue
+- **MCP-first**：通过 `coding_agentic_run` MCP tool 启动，不取代 MCP
+- **工具复用**：循环内调用已有 coding primitives，不另建一套
+- **安全围栏**：硬预算限制（50轮/200调用/500k tokens），到限自动停止
+- **xsai 接口**：OpenAI-compatible，provider 无关
+
+### 待审批决策
+1. LLM provider 配置方式（env 变量 vs config）
+2. 审批模式（auto vs per_mutation）
+3. 第一版范围（最小版 ~300 行 vs 完整版 ~1000 行）
