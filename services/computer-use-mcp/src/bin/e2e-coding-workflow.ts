@@ -98,7 +98,7 @@ async function main() {
   try {
     const { tools } = await client.listTools()
     const names = new Set(tools.map(t => t.name))
-    for (const name of ['workflow_coding_loop', 'desktop_get_state', 'coding_read_file']) {
+    for (const name of ['workflow_coding_loop']) {
       assert(names.has(name), `missing required tool: ${name}`)
     }
     console.info(`  ${tools.length} tools available`)
@@ -139,6 +139,10 @@ async function main() {
     console.info('  ✓ index.ts was patched')
 
     console.info('\n── Phase 3: verify coding state/report ──')
+    await client.callTool({
+      name: 'tool_search',
+      arguments: { query: 'desktop_get_state coding_read_file', exposeTools: ['desktop_get_state', 'coding_read_file'] },
+    })
     const stateResult = await client.callTool({
       name: 'desktop_get_state',
       arguments: {},

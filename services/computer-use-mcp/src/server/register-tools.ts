@@ -60,6 +60,11 @@ import { registerCodingTools } from './register-coding'
 import { createAcquirePtyCallback, executeApprovedPtyCreate } from './register-pty'
 import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptors/register-helper'
 import {
+  buildCrossLaneAdvisory,
+  inferToolLane,
+  shouldUpdateActiveLane,
+} from './tool-lane-hygiene'
+import {
   captureClickEvidence,
   captureHandoffEvidence,
   captureUiInteractionEvidence,
@@ -212,9 +217,75 @@ function buildBrowserDomErrorWithRepair(error: unknown, selector: string, action
 }
 
 export function registerComputerUseTools(params: RegisterComputerUseToolsOptions) {
-  const { server, runtime, executeAction, enableTestTools } = params
+  const { runtime, executeAction, enableTestTools } = params
+
+  // --- Tool Lane Hygiene ---
+  // Wrap the MCPServer instance to intercept `server.tool()` calls made by
+  // registerComputerUseTools and registerCodingTools. This enables automatic
+  // lane inference and cross-lane advisory injection for these tools.
+  // NOTICE: Tools registered outside this function (accessibility, display,
+  // PTY, vscode, CDP, task_memory, meta) bypass this proxy. Their lanes are
+  // exempt or low-traffic, so partial coverage is acceptable for now.
+  const hygieneServer = new Proxy(params.server, {
+    get(target, prop, receiver) {
+      if (prop === 'tool') {
+        // NOTICE: McpServer.tool() has many overloads (2–5 positional args).
+        // The handler is always the last argument and is always a function.
+        // We use rest args to avoid coupling to any specific overload shape.
+        return (name: string, ...rest: any[]) => {
+          const handlerIndex = rest.findIndex((arg: unknown) => typeof arg === 'function')
+          if (handlerIndex < 0) {
+            // No handler found — pass through unchanged (defensive fallback)
+            return (params.server.tool as any)(name, ...rest)
+          }
+
+          const originalHandler = rest[handlerIndex]
+          const wrappedHandler = async (input: any, extra: any) => {
+            const lane = inferToolLane(name)
+            let advisory: string | null = null
+
+            if (lane) {
+              const activeLane = runtime.stateManager.getState().inferredActiveLane
+              advisory = buildCrossLaneAdvisory({
+                toolName: name,
+                toolLane: lane,
+                inferredActiveLane: activeLane,
+              })
+
+              if (shouldUpdateActiveLane(lane)) {
+                runtime.stateManager.updateInferredLane(lane)
+              }
+            }
+
+            const result = await originalHandler(input, extra)
+
+            // Inject the advisory as a new content entry without mutating the original
+            if (advisory && result && Array.isArray(result.content)) {
+              return {
+                ...result,
+                content: [...result.content, textContent('\n\n' + advisory)],
+              }
+            }
+
+            return result
+          }
+
+          const wrappedRest = [...rest]
+          wrappedRest[handlerIndex] = wrappedHandler
+          return (params.server.tool as any)(name, ...wrappedRest)
+        }
+      }
+      return Reflect.get(target, prop, receiver)
+    },
+  })
+
+  // Override server with the hygiene-wrapped instance so all local inline calls use the proxy
+  const server = hygieneServer
+  // Create wrapped params for any external sub-registry calls
+  const wrappedParams = { ...params, server: hygieneServer }
+
   const executePrepTool = createWorkflowPrepToolExecutor(runtime)
-  registerCodingTools(params)
+  registerCodingTools(wrappedParams)
   const acquirePty = createAcquirePtyCallback(runtime)
   const coordinator = runtime.coordinator
 

@@ -59,19 +59,12 @@ export function registerToolWithDescriptor<TSchema extends ZodRawShape>(
   // Register with MCP server
   // The description comes from the descriptor's summary
   // NOTE: cast required due MCP SDK overload shape not expressing generic descriptor schema here.
-  const register = server.tool as unknown as (
-    name: string,
-    description: string,
-    schema: TSchema,
-    handler: DescriptorToolOptions<TSchema>['handler'],
-  ) => RegisteredTool
-
-  const registeredTool = register(
+  const registeredTool = (server.tool as any)(
     descriptor.canonicalName,
     descriptor.summary,
     schema,
     handler,
-  )
+  ) as RegisteredTool
 
   toolInstances.set(descriptor.canonicalName, registeredTool)
 
