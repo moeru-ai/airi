@@ -67,14 +67,45 @@ const MODEL_ID = 'onnx-community/whisper-large-v3-turbo'
 // Model singleton
 // ---------------------------------------------------------------------------
 
+/**
+ * Detect whether WebGPU is available inside the worker.
+ * Workers don't have access to `navigator.gpu` on all browsers,
+ * so we do a simple feature check.
+ */
+async function detectWebGPUInWorker(): Promise<boolean> {
+  try {
+    if (typeof navigator === 'undefined' || !navigator.gpu)
+      return false
+    const adapter = await navigator.gpu.requestAdapter()
+    return adapter != null
+  }
+  catch {
+    return false
+  }
+}
+
+// Track which device was actually used (for reporting back to main thread)
+let resolvedDevice: 'webgpu' | 'wasm' | 'cpu' = 'webgpu'
+
 class AutomaticSpeechRecognitionPipeline {
   static model_id: string | null = null
   static tokenizer: Promise<PreTrainedTokenizer>
   static processor: Promise<Processor>
   static model: Promise<PreTrainedModel>
 
-  static async getInstance(progress_callback?: ProgressCallback) {
+  static async getInstance(progress_callback?: ProgressCallback, device: 'webgpu' | 'wasm' | 'cpu' = 'webgpu') {
     this.model_id = MODEL_ID
+
+    // Auto-detect: if WebGPU was requested but unavailable, fall back to WASM
+    let actualDevice = device
+    if (device === 'webgpu') {
+      const hasWebGPU = await detectWebGPUInWorker()
+      if (!hasWebGPU) {
+        console.warn('[Whisper Worker] WebGPU not available, falling back to WASM')
+        actualDevice = 'wasm'
+      }
+    }
+    resolvedDevice = actualDevice
 
     this.tokenizer ??= AutoTokenizer.from_pretrained(this.model_id, {
       progress_callback,
@@ -91,7 +122,7 @@ class AutomaticSpeechRecognitionPipeline {
         encoder_model: 'fp16',
         decoder_model_merged: 'q4', // 'fp16' is broken for decoder
       },
-      device: 'webgpu',
+      device: actualDevice,
       progress_callback,
     })
 
@@ -159,7 +190,7 @@ function sendError(requestId: string, error: unknown): void {
 let currentLoadRequestId: string | null = null
 
 async function loadModel(request: LoadModelRequest): Promise<void> {
-  const { requestId } = request
+  const { requestId, device } = request
   currentLoadRequestId = requestId
 
   try {
@@ -179,7 +210,7 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
           sendProgress(currentLoadRequestId, 'download', 0, `Loading ${x.file}`, { file: x.file })
         }
       }
-    })
+    }, device as 'webgpu' | 'wasm' | 'cpu')
 
     sendProgress(requestId, 'warmup', -1, 'Compiling shaders and warming up model...')
 
@@ -195,7 +226,7 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
       type: 'model-ready',
       requestId,
       modelId: MODEL_ID,
-      device: 'webgpu',
+      device: resolvedDevice,
     }
     globalThis.postMessage(ready)
   }

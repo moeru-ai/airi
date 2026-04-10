@@ -73,6 +73,23 @@ function sendError(requestId: string, error: unknown): void {
   globalThis.postMessage(msg)
 }
 
+/**
+ * Detect whether WebGPU is available inside the worker.
+ */
+async function detectWebGPUInWorker(): Promise<boolean> {
+  try {
+    if (typeof navigator === 'undefined' || !navigator.gpu)
+      return false
+    const adapter = await navigator.gpu.requestAdapter()
+    return adapter != null
+  }
+  catch {
+    return false
+  }
+}
+
+let resolvedDevice: 'webgpu' | 'wasm' | 'cpu' = 'webgpu'
+
 async function loadModel(request: LoadModelRequest): Promise<void> {
   const { requestId } = request
 
@@ -82,16 +99,27 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
         type: 'model-ready',
         requestId,
         modelId: MODEL_ID,
-        device: 'webgpu',
+        device: resolvedDevice,
       }
       globalThis.postMessage(ready)
       return
     }
 
+    // Auto-detect: if WebGPU was requested but unavailable, fall back to WASM
+    let device = request.device ?? 'webgpu'
+    if (device === 'webgpu') {
+      const hasWebGPU = await detectWebGPUInWorker()
+      if (!hasWebGPU) {
+        console.warn('[BG Removal Worker] WebGPU not available, falling back to WASM')
+        device = 'wasm'
+      }
+    }
+    resolvedDevice = device as 'webgpu' | 'wasm' | 'cpu'
+
     env.backends.onnx.wasm!.proxy = false
 
     model = await AutoModel.from_pretrained(MODEL_ID, {
-      device: request.device ?? 'webgpu',
+      device,
       progress_callback: (progress: any) => {
         sendProgress(requestId, progress?.progress ?? -1, progress?.status)
       },
@@ -103,7 +131,7 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
       type: 'model-ready',
       requestId,
       modelId: MODEL_ID,
-      device: 'webgpu',
+      device: resolvedDevice,
     }
     globalThis.postMessage(ready)
   }

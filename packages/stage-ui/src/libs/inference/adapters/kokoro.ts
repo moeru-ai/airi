@@ -11,6 +11,7 @@ import type { ProgressPayload } from '../protocol'
 
 import { defaultPerfTracer } from '@proj-airi/stage-shared'
 
+import { removeInferenceStatus, updateInferenceStatus } from '../../../composables/use-inference-status'
 import { AsyncMutex } from '../async-mutex'
 import { getGPUCoordinator, getLoadQueue, MODEL_VRAM_ESTIMATES } from '../coordinator'
 import { LOAD_PRIORITY } from '../load-queue'
@@ -236,22 +237,27 @@ export function createKokoroAdapter(): KokoroAdapter {
 
     return defaultPerfTracer.withMeasure('inference', 'kokoro-load-model', () => operationMutex.run(async () => {
       state = 'loading'
+      const modelStatusId = `kokoro-${quantization}`
+      updateInferenceStatus(modelStatusId, { state: 'downloading', device: device as any })
 
       // Use the global load queue to serialize model loads across all adapters
-      return getLoadQueue().enqueue(`kokoro-${quantization}`, LOAD_PRIORITY.TTS, async () => {
+      return getLoadQueue().enqueue(modelStatusId, LOAD_PRIORITY.TTS, async () => {
         const requestId = createRequestId()
 
         const readyPromise = waitForWorkerMessage<any>(worker!, requestId, 'model-ready', LOAD_MODEL_TIMEOUT, (data) => {
-          if (data.type === 'progress' && options?.onProgress) {
+          if (data.type === 'progress') {
             const payload = data.payload
-            options.onProgress({
+            const progress: ProgressPayload = {
               phase: payload.phase ?? 'download',
               percent: payload.percent ?? -1,
               message: payload.message,
               file: payload.file,
               loaded: payload.loaded,
               total: payload.total,
-            })
+            }
+            // Update reactive inference status
+            updateInferenceStatus(modelStatusId, { progress })
+            options?.onProgress?.(progress)
           }
         })
 
@@ -275,6 +281,7 @@ export function createKokoroAdapter(): KokoroAdapter {
         allocationToken = coordinator.requestAllocation(`kokoro-${quantization}`, estimated)
 
         state = 'ready'
+        updateInferenceStatus(modelStatusId, { state: 'ready', device: (response.device ?? device) as any })
         onSuccess()
         return voices!
       })
@@ -331,6 +338,7 @@ export function createKokoroAdapter(): KokoroAdapter {
     operationMutex.reset(new Error('Adapter terminated'))
     destroyWorker()
     if (allocationToken) {
+      removeInferenceStatus(allocationToken.modelId)
       getGPUCoordinator().release(allocationToken)
       allocationToken = null
     }

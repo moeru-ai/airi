@@ -9,6 +9,9 @@
 import type { AllocationToken } from '../gpu-resource-coordinator'
 import type { ProgressPayload } from '../protocol'
 
+import { defaultPerfTracer } from '@proj-airi/stage-shared'
+
+import { removeInferenceStatus, updateInferenceStatus } from '../../../composables/use-inference-status'
 import { AsyncMutex } from '../async-mutex'
 import { getGPUCoordinator, getLoadQueue, MODEL_VRAM_ESTIMATES } from '../coordinator'
 import { LOAD_PRIORITY } from '../load-queue'
@@ -117,6 +120,7 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
   async function load(onProgress?: (p: ProgressPayload) => void): Promise<void> {
     return operationMutex.run(async () => {
       state = 'loading'
+      updateInferenceStatus('modnet', { state: 'downloading', device: 'webgpu' })
 
       return getLoadQueue().enqueue('modnet', LOAD_PRIORITY.BACKGROUND_REMOVAL, async () => {
         const w = ensureWorker()
@@ -149,12 +153,13 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
         )
 
         state = 'ready'
+        updateInferenceStatus('modnet', { state: 'ready' })
       })
     })
   }
 
   async function processImage(imageData: ImageData): Promise<ImageData> {
-    return operationMutex.run(async () => {
+    return defaultPerfTracer.withMeasure('inference', 'bg-removal-process', () => operationMutex.run(async () => {
       if (!worker || (state !== 'ready' && state !== 'processing'))
         throw new Error('Model not loaded. Call load() first.')
 
@@ -193,7 +198,7 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
 
       state = 'ready'
       return output
-    })
+    }), { width: imageData.width, height: imageData.height })
   }
 
   function terminateAdapter(): void {
@@ -203,6 +208,7 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
       worker = null
     }
     if (allocationToken) {
+      removeInferenceStatus('modnet')
       getGPUCoordinator().release(allocationToken)
       allocationToken = null
     }
