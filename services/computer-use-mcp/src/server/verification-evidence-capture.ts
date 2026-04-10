@@ -63,6 +63,38 @@ export function captureClickEvidence(
 }
 
 /**
+ * Specialized factory for general UI interaction evidence capture (input, toggle, select).
+ */
+export function captureUiInteractionEvidence(
+  runtime: ComputerUseServerRuntime,
+  params: {
+    source: string
+    actionKind: string
+    subject: string
+    observed: Record<string, string | number | boolean | null>
+    summary: string
+  },
+) {
+  const state = runtime.stateManager.getState()
+
+  return captureVerificationEvidence(
+    runtime,
+    {
+      kind: 'foreground_context',
+      source: params.source,
+      actionKind: params.actionKind,
+      subject: params.subject,
+      confidence: 0.8, // API-based interaction result
+      summary: `${params.summary}\nFacts: ${summarizeRunStateConcise(state)}`,
+      blockingEligible: false,
+      observed: params.observed,
+      relatedRuntimeFacts: ['foregroundContext'],
+    },
+    params.summary,
+  )
+}
+
+/**
  * Specialized factory for handoff evidence capture.
  */
 export function captureHandoffEvidence(
