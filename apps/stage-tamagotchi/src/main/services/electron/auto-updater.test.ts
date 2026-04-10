@@ -259,7 +259,7 @@ describe('setupAutoUpdater', () => {
       arch: process.arch,
       channel: expectedChannelByArch,
       executablePath: expect.any(String),
-      logFilePath: '/tmp/airi/logs',
+      logFilePath: expect.stringMatching(/stage-tamagotchi-updater[\\/]updater-log\.txt$/),
       isOverrideActive: false,
     }))
     expect(service.state.diagnostics).not.toHaveProperty('updaterCacheDir')
