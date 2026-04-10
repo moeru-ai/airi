@@ -52,7 +52,7 @@ function defineProtectedEventHandler(label: string, handler: EventHandler<EventH
     if (authToken) {
       const authHeader = event.node.req.headers['authorization']
       const providedToken
-        = typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
+        = typeof authHeader === 'string' && authHeader.toLowerCase().startsWith('bearer ')
           ? authHeader.slice(7)
           : ''
       if (!timingSafeStringEqual(providedToken, authToken)) {
