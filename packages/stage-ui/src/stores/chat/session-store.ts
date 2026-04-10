@@ -342,10 +342,14 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     activeSessionId: string
     sessionMessages: Record<string, ChatHistoryItem[]>
     sessionMetas: Record<string, ChatSessionMeta>
+    index?: ChatSessionsIndex | null
   }) {
     activeSessionId.value = snapshot.activeSessionId
     sessionMessages.value = cloneDeep(snapshot.sessionMessages)
     sessionMetas.value = cloneDeep(snapshot.sessionMetas)
+    if (snapshot.index !== undefined) {
+      index.value = cloneDeep(snapshot.index)
+    }
     sessionGenerations.value = Object.fromEntries(
       Object.keys(snapshot.sessionMessages).map(sessionId => [sessionId, sessionGenerations.value[sessionId] ?? 0]),
     )
