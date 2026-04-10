@@ -62,6 +62,10 @@ export function explainActionIntent(action: ActionInvocation, runState: RunState
       return 'Diagnose change failure causes using diff, validation and impact evidence'
     case 'coding_capture_validation_baseline':
       return 'Capture baseline dirty tree and validation state for noise isolation'
+    case 'coding_write_file':
+      return `Write file: ${action.input.filePath}${action.input.overwrite ? ' (overwrite)' : ' (create)'}`
+    case 'coding_list_files':
+      return `List workspace files${action.input.pattern ? ` matching "${action.input.pattern}"` : ''}`
 
     case 'screenshot':
       return `Taking a screenshot to observe the current state of the desktop${taskContext}.`
@@ -194,6 +198,10 @@ export function explainActionOutcome(params: {
       return 'Change diagnosis completed with root-cause classification.'
     case 'coding_capture_validation_baseline':
       return 'Validation baseline captured for current workspace.'
+    case 'coding_write_file':
+      return `File ${action.input.filePath} written successfully.`
+    case 'coding_list_files':
+      return 'File listing completed.'
 
     case 'screenshot':
       return 'Screenshot captured successfully. The model can now analyze the current desktop state.'
@@ -254,6 +262,8 @@ function buildFailureExplanation(
     case 'coding_review_changes':
     case 'coding_diagnose_changes':
     case 'coding_capture_validation_baseline':
+    case 'coding_write_file':
+    case 'coding_list_files':
       parts.push('Ensure the file path and workspace boundaries are perfectly aligned and readable.')
       break
     case 'click':

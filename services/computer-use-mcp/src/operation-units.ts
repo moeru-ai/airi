@@ -3,6 +3,7 @@ import type { ActionInvocation } from './types'
 export function estimateOperationUnits(action: ActionInvocation) {
   switch (action.kind) {
     case 'coding_apply_patch':
+    case 'coding_write_file':
       return 5
     case 'coding_review_workspace':
     case 'coding_read_file':
@@ -18,6 +19,7 @@ export function estimateOperationUnits(action: ActionInvocation) {
     case 'coding_review_changes':
     case 'coding_diagnose_changes':
     case 'coding_capture_validation_baseline':
+    case 'coding_list_files':
       return 1
 
     case 'screenshot':

@@ -37,6 +37,8 @@ export type ActionKind
     | 'coding_review_changes'
     | 'coding_diagnose_changes'
     | 'coding_capture_validation_baseline'
+    | 'coding_write_file'
+    | 'coding_list_files'
 export type ApprovalGrantScope = 'terminal_and_apps' | 'pty_session'
 
 // ---------------------------------------------------------------------------
@@ -418,6 +420,8 @@ export type ActionInvocation
     | { kind: 'coding_review_changes', input: CodingReviewChangesActionInput }
     | { kind: 'coding_diagnose_changes', input: CodingDiagnoseChangesActionInput }
     | { kind: 'coding_capture_validation_baseline', input: CodingCaptureValidationBaselineActionInput }
+    | { kind: 'coding_write_file', input: { filePath: string, content: string, overwrite: boolean } }
+    | { kind: 'coding_list_files', input: { pattern?: string, excludePatterns?: string[], maxResults?: number } }
     | { kind: 'scroll', input: ScrollActionInput }
     | { kind: 'wait', input: WaitActionInput }
     | { kind: 'terminal_exec', input: TerminalExecActionInput }

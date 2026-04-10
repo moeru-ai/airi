@@ -70,6 +70,7 @@ const actionKindVerificationBaselines = {
   coding_review_changes: noVerificationBaseline,
   coding_diagnose_changes: noVerificationBaseline,
   coding_capture_validation_baseline: noVerificationBaseline,
+  coding_list_files: noVerificationBaseline,
 
   click: uiMutationVerificationBaseline,
   type_text: uiMutationVerificationBaseline,
@@ -92,6 +93,13 @@ const actionKindVerificationBaselines = {
   },
 
   coding_apply_patch: {
+    requirement: 'best_effort',
+    method: 'coding_state',
+    evidenceKinds: ['coding_state'],
+    failureDisposition: 'repair_hint',
+    repairHint: 'recheck_patch',
+  },
+  coding_write_file: {
     requirement: 'best_effort',
     method: 'coding_state',
     evidenceKinds: ['coding_state'],

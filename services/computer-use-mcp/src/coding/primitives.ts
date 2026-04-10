@@ -5391,4 +5391,129 @@ export class CodingPrimitives {
     this.runtime.stateManager.updateCodingState({ lastCodingReport })
     return lastCodingReport
   }
+
+  /**
+   * Write a file, creating parent directories if needed.
+   * Validates the path stays within the workspace.
+   */
+  async writeFile(filePath: string, content: string): Promise<{ written: boolean, absolutePath: string, bytesWritten: number, created: boolean }> {
+    const resolvedFilePath = this.resolveWorkspacePath(filePath)
+
+    // Check if file already exists
+    let existed = false
+    try {
+      await fs.access(resolvedFilePath)
+      existed = true
+    }
+    catch {
+      // File doesn't exist — will be created
+    }
+
+    // Create parent directories
+    const dir = path.dirname(resolvedFilePath)
+    await fs.mkdir(dir, { recursive: true })
+
+    // Write the file
+    await fs.writeFile(resolvedFilePath, content, 'utf8')
+
+    // Track the edit in state
+    const state = this.runtime.stateManager.getState().coding ?? {
+      recentReads: [], recentEdits: [], workspacePath: '',
+      gitSummary: '', recentCommandResults: [], recentSearches: [], pendingIssues: [],
+    }
+    const recentEdits = [...state.recentEdits, { path: filePath, action: existed ? 'overwrite' : 'create' }]
+    this.runtime.stateManager.updateCodingState({ recentEdits })
+
+    return {
+      written: true,
+      absolutePath: resolvedFilePath,
+      bytesWritten: Buffer.byteLength(content, 'utf8'),
+      created: !existed,
+    }
+  }
+
+  /**
+   * List files and directories in the workspace matching optional patterns.
+   * Returns relative paths sorted alphabetically.
+   */
+  async listFiles(params: {
+    pattern?: string
+    excludePatterns?: string[]
+    maxResults?: number
+  }): Promise<{ files: Array<{ path: string, isDirectory: boolean }>, totalFound: number, truncated: boolean }> {
+    const workspacePath = this.getWorkspacePath()
+    const maxResults = Math.min(params.maxResults ?? 500, 2000)
+    const pattern = params.pattern ?? '**/*'
+    const excludePatterns = params.excludePatterns ?? ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/build/**']
+
+    const results: Array<{ path: string, isDirectory: boolean }> = []
+
+    // Simple recursive walk with basic glob matching
+    const walk = async (dir: string, relBase: string) => {
+      if (results.length >= maxResults) return
+
+      let entries: import('node:fs').Dirent[]
+      try {
+        entries = await fs.readdir(dir, { withFileTypes: true })
+      }
+      catch {
+        return
+      }
+
+      for (const entry of entries) {
+        if (results.length >= maxResults) break
+
+        const relPath = relBase ? `${relBase}/${entry.name}` : entry.name
+
+        // Check exclude patterns (simple suffix/prefix match)
+        const excluded = excludePatterns.some((ex) => {
+          const cleaned = ex.replace(/\*\*/g, '').replace(/\*/g, '')
+          return cleaned && relPath.includes(cleaned.replace(/\//g, '/'))
+        })
+        if (excluded) continue
+
+        // Check include pattern (simple glob matching)
+        const matchesPattern = this.simpleGlobMatch(relPath, pattern)
+
+        if (matchesPattern || entry.isDirectory()) {
+          if (matchesPattern) {
+            results.push({ path: relPath, isDirectory: entry.isDirectory() })
+          }
+
+          if (entry.isDirectory()) {
+            await walk(path.join(dir, entry.name), relPath)
+          }
+        }
+      }
+    }
+
+    await walk(workspacePath, '')
+
+    results.sort((a, b) => a.path.localeCompare(b.path))
+
+    return {
+      files: results.slice(0, maxResults),
+      totalFound: results.length,
+      truncated: results.length >= maxResults,
+    }
+  }
+
+  /**
+   * Simple glob pattern matching.
+   * Supports: * (any chars except /), ** (any chars including /), ? (single char)
+   */
+  private simpleGlobMatch(str: string, pattern: string): boolean {
+    const regexStr = pattern
+      .replace(/\./g, '\\.')
+      .replace(/\*\*/g, '§§')
+      .replace(/\*/g, '[^/]*')
+      .replace(/§§/g, '.*')
+      .replace(/\?/g, '.')
+    try {
+      return new RegExp(`^${regexStr}$`).test(str)
+    }
+    catch {
+      return false
+    }
+  }
 }

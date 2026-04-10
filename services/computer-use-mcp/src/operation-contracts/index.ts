@@ -102,6 +102,7 @@ const actionKindContractBaselines = {
   coding_review_changes: codingReadBaseline,
   coding_diagnose_changes: codingReadBaseline,
   coding_capture_validation_baseline: codingReadBaseline,
+  coding_list_files: codingReadBaseline,
 
   click: desktopMutateBaseline,
   type_text: desktopMutateBaseline,
@@ -155,6 +156,17 @@ const actionKindContractBaselines = {
   },
 
   coding_apply_patch: {
+    effectType: 'mutate' as const,
+    targetSurface: 'coding' as const,
+    requiresFocus: false,
+    idempotent: false,
+    reversible: false,
+    postconditionRequired: false,
+    approvalScope: 'per_action' as const,
+    baseRiskLevel: 'high' as const,
+    invalidationTags: [] as readonly RuntimeFactInvalidationTag[],
+  },
+  coding_write_file: {
     effectType: 'mutate' as const,
     targetSurface: 'coding' as const,
     requiresFocus: false,

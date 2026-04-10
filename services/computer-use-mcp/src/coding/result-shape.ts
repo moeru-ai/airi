@@ -37,6 +37,8 @@ export type CodingToolName
     | 'coding_review_changes'
     | 'coding_diagnose_changes'
     | 'coding_capture_validation_baseline'
+    | 'coding_write_file'
+    | 'coding_list_files'
 
 export type CodingBackendResult
   = | CodingWorkspaceReview
@@ -126,5 +128,9 @@ export function summarizeCodingToolResult(params: {
       return `Change diagnosis root cause: ${String((backendResult as Record<string, unknown>).rootCauseType || 'unknown')}.`
     case 'coding_capture_validation_baseline':
       return `Validation baseline captured for ${String((backendResult as Record<string, unknown>).workspacePath || 'workspace')}.`
+    case 'coding_write_file':
+      return `Wrote file: ${String((backendResult as Record<string, unknown>).absolutePath || 'unknown')}.`
+    case 'coding_list_files':
+      return `Listed ${String((backendResult as Record<string, unknown>).totalFound || 0)} file(s).`
   }
 }

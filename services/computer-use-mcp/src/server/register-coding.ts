@@ -454,4 +454,80 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
       }
     },
   })
+
+  // --- coding_write_file ---
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('coding_write_file'),
+    schema: {
+      filePath: z.string().min(1).describe('Workspace-relative file path to create or overwrite.'),
+      content: z.string().describe('Full file content to write.'),
+      overwrite: z.boolean().optional().describe('If true, overwrite existing file. If false (default), fail if file exists.'),
+    },
+    handler: async ({ filePath, content, overwrite }) => {
+      // Safety: route through executeAction for approval policy
+      const result = await executeAction({
+        kind: 'coding_write_file' as any,
+        input: { filePath, content, overwrite: overwrite ?? false },
+      }, 'coding_write_file')
+
+      if (result.content) {
+        return result
+      }
+
+      const writeResult = await primitives.writeFile(filePath, content)
+
+      captureVerificationEvidence(runtime, {
+        kind: 'file_write',
+        source: 'coding_write_file',
+        confidence: 0.9,
+        summary: writeResult.created
+          ? `Created new file: ${filePath} (${writeResult.bytesWritten} bytes)`
+          : `Overwrote file: ${filePath} (${writeResult.bytesWritten} bytes)`,
+        blockingEligible: false,
+        observed: writeResult,
+      }, `Write file: ${filePath}`)
+
+      const summary = writeResult.created
+        ? `✅ Created: ${filePath} (${writeResult.bytesWritten} bytes)`
+        : `✅ Overwritten: ${filePath} (${writeResult.bytesWritten} bytes)`
+
+      return {
+        content: [textContent(summary)],
+        structuredContent: buildCodingToolStructuredContent({
+          toolName: 'coding_write_file',
+          backendResult: writeResult,
+        }),
+      }
+    },
+  })
+
+  // --- coding_list_files ---
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('coding_list_files'),
+    schema: {
+      pattern: z.string().optional().describe('Glob pattern to match files. Default: "**/*". Examples: "**/*.ts", "src/**/*.vue"'),
+      excludePatterns: z.array(z.string()).optional().describe('Glob patterns to exclude. Default: node_modules, .git, dist, build.'),
+      maxResults: z.number().int().min(1).max(2000).optional().describe('Maximum results to return. Default: 500, max: 2000.'),
+    },
+    handler: async ({ pattern, excludePatterns, maxResults }) => {
+      const result = await primitives.listFiles({ pattern, excludePatterns, maxResults })
+
+      const fileList = result.files
+        .map(f => `${f.isDirectory ? '📁' : '📄'} ${f.path}`)
+        .join('\n')
+
+      const summary = [
+        `Found ${result.totalFound} items${result.truncated ? ' (truncated)' : ''}:`,
+        fileList,
+      ].join('\n')
+
+      return {
+        content: [textContent(summary)],
+        structuredContent: buildCodingToolStructuredContent({
+          toolName: 'coding_list_files',
+          backendResult: result,
+        }),
+      }
+    },
+  })
 }

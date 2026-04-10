@@ -488,6 +488,25 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           backendResult = result as unknown as Record<string, unknown>
           break
         }
+        case 'coding_write_file': {
+          const primitives = new CodingPrimitives(runtime)
+          const result = await primitives.writeFile(
+            normalizedAction.input.filePath,
+            normalizedAction.input.content,
+          )
+          backendResult = result as unknown as Record<string, unknown>
+          break
+        }
+        case 'coding_list_files': {
+          const primitives = new CodingPrimitives(runtime)
+          const result = await primitives.listFiles({
+            pattern: normalizedAction.input.pattern,
+            excludePatterns: normalizedAction.input.excludePatterns,
+            maxResults: normalizedAction.input.maxResults,
+          })
+          backendResult = result as unknown as Record<string, unknown>
+          break
+        }
 
         case 'screenshot': {
           const screenshot = await runtime.executor.takeScreenshot(normalizedAction.input)
