@@ -54,8 +54,8 @@
     "jose": "catalog:",
     "pg": "^8.20.0",
     "stripe": "^22.0.1",
-    "tsx": "^4.21.0",
-    "valibot": "catalog:"
+    "valibot": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@better-auth/cli": "^1.4.21",
