@@ -4,6 +4,10 @@
  * Provides lifecycle management (start / restart / terminate), request
  * serialisation via AsyncMutex, timeout handling, and a unified
  * message protocol for any inference worker.
+ *
+ * NOTICE: Currently not consumed by any adapter. Adapters implement their
+ * own lifecycle management directly. This module is retained as a reusable
+ * building block for future adapters that need generic worker management.
  */
 
 import type {

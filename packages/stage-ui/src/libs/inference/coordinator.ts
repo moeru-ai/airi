@@ -11,6 +11,7 @@ import type { LoadQueue } from './load-queue'
 
 import { getCachedWebGPUCapabilities } from '@proj-airi/stage-shared/webgpu'
 
+import { MODEL_NAMES } from './constants'
 import { createGPUResourceCoordinator } from './gpu-resource-coordinator'
 import { createLoadQueue } from './load-queue'
 
@@ -65,8 +66,8 @@ export const MODEL_VRAM_ESTIMATES: Record<string, number> = {
   'kokoro-q4f16': 41 * 1024 * 1024,
 
   // Whisper large v3 turbo — encoder fp16 + decoder q4
-  'whisper-large-v3-turbo': 800 * 1024 * 1024, // ~800 MB
+  [MODEL_NAMES.WHISPER]: 800 * 1024 * 1024, // ~800 MB
 
   // Xenova/modnet — small model
-  'modnet': 25 * 1024 * 1024, // ~25 MB
+  [MODEL_NAMES.BG_REMOVAL]: 25 * 1024 * 1024, // ~25 MB
 }

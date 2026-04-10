@@ -19,6 +19,7 @@ import type {
 
 import { AutoModel, AutoProcessor, env, RawImage } from '@huggingface/transformers'
 
+import { MODEL_IDS, MODEL_NAMES } from '../../libs/inference/constants'
 import { classifyError } from '../../libs/inference/protocol'
 
 // ---------------------------------------------------------------------------
@@ -44,7 +45,7 @@ export interface BackgroundRemovalOutput {
 let model: PreTrainedModel | null = null
 let processor: Processor | null = null
 
-const MODEL_ID = 'Xenova/modnet'
+const MODEL_ID = MODEL_IDS.BG_REMOVAL
 
 function sendProgress(requestId: string, percent: number, message?: string): void {
   const msg: ProgressResponse = {
@@ -98,7 +99,7 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
       const ready: ModelReadyResponse = {
         type: 'model-ready',
         requestId,
-        modelId: MODEL_ID,
+        modelId: MODEL_NAMES.BG_REMOVAL,
         device: resolvedDevice,
       }
       globalThis.postMessage(ready)
@@ -130,7 +131,7 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
     const ready: ModelReadyResponse = {
       type: 'model-ready',
       requestId,
-      modelId: MODEL_ID,
+      modelId: MODEL_NAMES.BG_REMOVAL,
       device: resolvedDevice,
     }
     globalThis.postMessage(ready)

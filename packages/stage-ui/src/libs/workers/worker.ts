@@ -32,6 +32,7 @@ import {
   WhisperForConditionalGeneration,
 } from '@huggingface/transformers'
 
+import { MODEL_IDS, MODEL_NAMES } from '../inference/constants'
 import { classifyError } from '../inference/protocol'
 
 // ---------------------------------------------------------------------------
@@ -61,7 +62,7 @@ export interface WhisperStreamUpdate {
 // ---------------------------------------------------------------------------
 
 const MAX_NEW_TOKENS = 64
-const MODEL_ID = 'onnx-community/whisper-large-v3-turbo'
+const MODEL_ID = MODEL_IDS.WHISPER
 
 // ---------------------------------------------------------------------------
 // Model singleton
@@ -225,7 +226,7 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
     const ready: ModelReadyResponse = {
       type: 'model-ready',
       requestId,
-      modelId: MODEL_ID,
+      modelId: MODEL_NAMES.WHISPER,
       device: resolvedDevice,
     }
     globalThis.postMessage(ready)

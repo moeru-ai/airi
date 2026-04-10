@@ -13,6 +13,7 @@ import { defaultPerfTracer } from '@proj-airi/stage-shared'
 
 import { removeInferenceStatus, updateInferenceStatus } from '../../../composables/use-inference-status'
 import { AsyncMutex } from '../async-mutex'
+import { MODEL_IDS, MODEL_NAMES, TIMEOUTS } from '../constants'
 import { getGPUCoordinator, getLoadQueue, MODEL_VRAM_ESTIMATES } from '../coordinator'
 import { LOAD_PRIORITY } from '../load-queue'
 import { createRequestId } from '../protocol'
@@ -45,8 +46,8 @@ export interface BackgroundRemovalAdapter {
 // Constants
 // ---------------------------------------------------------------------------
 
-const LOAD_TIMEOUT = 120_000
-const PROCESS_TIMEOUT = 60_000
+const LOAD_TIMEOUT = TIMEOUTS.BG_REMOVAL_LOAD
+const PROCESS_TIMEOUT = TIMEOUTS.BG_REMOVAL_PROCESS
 
 // ---------------------------------------------------------------------------
 // Factory
@@ -120,9 +121,9 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
   async function load(onProgress?: (p: ProgressPayload) => void): Promise<void> {
     return operationMutex.run(async () => {
       state = 'loading'
-      updateInferenceStatus('modnet', { state: 'downloading', device: 'webgpu' })
+      updateInferenceStatus(MODEL_NAMES.BG_REMOVAL, { state: 'downloading', device: 'webgpu' })
 
-      return getLoadQueue().enqueue('modnet', LOAD_PRIORITY.BACKGROUND_REMOVAL, async () => {
+      return getLoadQueue().enqueue(MODEL_NAMES.BG_REMOVAL, LOAD_PRIORITY.BACKGROUND_REMOVAL, async () => {
         const w = ensureWorker()
         const requestId = createRequestId()
 
@@ -140,7 +141,7 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
           }
         })
 
-        w.postMessage({ type: 'load-model', requestId, modelId: 'Xenova/modnet', device: 'webgpu' })
+        w.postMessage({ type: 'load-model', requestId, modelId: MODEL_IDS.BG_REMOVAL, device: 'webgpu' })
         await loadedPromise
 
         // Track GPU memory allocation
@@ -148,12 +149,12 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
         if (allocationToken)
           coordinator.release(allocationToken)
         allocationToken = coordinator.requestAllocation(
-          'modnet',
+          MODEL_NAMES.BG_REMOVAL,
           MODEL_VRAM_ESTIMATES.modnet ?? 25 * 1024 * 1024,
         )
 
         state = 'ready'
-        updateInferenceStatus('modnet', { state: 'ready' })
+        updateInferenceStatus(MODEL_NAMES.BG_REMOVAL, { state: 'ready' })
       })
     })
   }
@@ -208,7 +209,7 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
       worker = null
     }
     if (allocationToken) {
-      removeInferenceStatus('modnet')
+      removeInferenceStatus(MODEL_NAMES.BG_REMOVAL)
       getGPUCoordinator().release(allocationToken)
       allocationToken = null
     }

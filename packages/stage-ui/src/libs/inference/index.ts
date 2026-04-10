@@ -7,6 +7,14 @@ export {
   getModelCacheSize,
   isModelCached,
 } from './cache-utils'
+// Constants
+export {
+  MAX_RESTARTS,
+  MODEL_IDS,
+  MODEL_NAMES,
+  RESTART_DELAY_MS,
+  TIMEOUTS,
+} from './constants'
 // Coordinator singleton
 export {
   getGPUCoordinator,

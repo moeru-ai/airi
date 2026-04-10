@@ -13,6 +13,7 @@ import { defaultPerfTracer } from '@proj-airi/stage-shared'
 
 import { removeInferenceStatus, updateInferenceStatus } from '../../../composables/use-inference-status'
 import { AsyncMutex } from '../async-mutex'
+import { MAX_RESTARTS, MODEL_NAMES, RESTART_DELAY_MS, TIMEOUTS } from '../constants'
 import { getGPUCoordinator, getLoadQueue, MODEL_VRAM_ESTIMATES } from '../coordinator'
 import { LOAD_PRIORITY } from '../load-queue'
 import { classifyError, createRequestId } from '../protocol'
@@ -46,10 +47,8 @@ export interface KokoroAdapter {
 // Constants
 // ---------------------------------------------------------------------------
 
-const LOAD_MODEL_TIMEOUT = 120_000
-const GENERATE_TIMEOUT = 120_000
-const MAX_RESTARTS = 3
-const RESTART_DELAY_MS = 1_000
+const LOAD_MODEL_TIMEOUT = TIMEOUTS.KOKORO_LOAD
+const GENERATE_TIMEOUT = TIMEOUTS.KOKORO_GENERATE
 
 // ---------------------------------------------------------------------------
 // Audio Encoding
@@ -264,7 +263,7 @@ export function createKokoroAdapter(): KokoroAdapter {
         worker!.postMessage({
           type: 'load-model',
           requestId,
-          modelId: 'kokoro-82m',
+          modelId: MODEL_NAMES.KOKORO,
           device,
           dtype: quantization,
         })

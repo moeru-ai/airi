@@ -18,6 +18,7 @@ import type { VoiceKey, Voices } from './types'
 
 import { KokoroTTS } from 'kokoro-js'
 
+import { MODEL_IDS, MODEL_NAMES } from '../../libs/inference/constants'
 import { classifyError } from '../../libs/inference/protocol'
 
 // ---------------------------------------------------------------------------
@@ -81,7 +82,7 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
       const ready: ModelReadyResponse = {
         type: 'model-ready',
         requestId,
-        modelId: 'kokoro-82m',
+        modelId: MODEL_NAMES.KOKORO,
         device: device as 'webgpu' | 'wasm' | 'cpu',
         metadata: { voices: ttsModel.voices },
       }
@@ -95,7 +96,7 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
       : quantization
 
     ttsModel = await KokoroTTS.from_pretrained(
-      'onnx-community/Kokoro-82M-v1.0-ONNX',
+      MODEL_IDS.KOKORO,
       {
         dtype: modelQuantization as 'fp32' | 'fp16' | 'q8' | 'q4' | 'q4f16',
         device: device as 'wasm' | 'webgpu' | 'cpu',
@@ -124,7 +125,7 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
     const ready: ModelReadyResponse = {
       type: 'model-ready',
       requestId,
-      modelId: 'kokoro-82m',
+      modelId: MODEL_NAMES.KOKORO,
       device: device as 'webgpu' | 'wasm' | 'cpu',
       metadata: { voices: ttsModel.voices },
     }

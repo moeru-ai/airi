@@ -13,6 +13,7 @@ import { defaultPerfTracer } from '@proj-airi/stage-shared'
 
 import { removeInferenceStatus, updateInferenceStatus } from '../../../composables/use-inference-status'
 import { AsyncMutex } from '../async-mutex'
+import { MAX_RESTARTS, MODEL_NAMES, RESTART_DELAY_MS, TIMEOUTS } from '../constants'
 import { getGPUCoordinator, getLoadQueue, MODEL_VRAM_ESTIMATES } from '../coordinator'
 import { LOAD_PRIORITY } from '../load-queue'
 import { createRequestId } from '../protocol'
@@ -69,10 +70,8 @@ export interface WhisperAdapter {
 // Constants
 // ---------------------------------------------------------------------------
 
-const LOAD_TIMEOUT = 180_000 // Whisper model is large, allow more time
-const TRANSCRIBE_TIMEOUT = 120_000
-const MAX_RESTARTS = 3
-const RESTART_DELAY_MS = 1_000
+const LOAD_TIMEOUT = TIMEOUTS.WHISPER_LOAD
+const TRANSCRIBE_TIMEOUT = TIMEOUTS.WHISPER_TRANSCRIBE
 
 // ---------------------------------------------------------------------------
 // Factory
@@ -202,9 +201,9 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
   ): Promise<void> {
     return operationMutex.run(async () => {
       state = 'loading'
-      updateInferenceStatus('whisper-large-v3-turbo', { state: 'downloading', device: 'webgpu' })
+      updateInferenceStatus(MODEL_NAMES.WHISPER, { state: 'downloading', device: 'webgpu' })
 
-      return getLoadQueue().enqueue('whisper-large-v3-turbo', LOAD_PRIORITY.ASR, async () => {
+      return getLoadQueue().enqueue(MODEL_NAMES.WHISPER, LOAD_PRIORITY.ASR, async () => {
         const w = ensureWorker()
         const requestId = createRequestId()
 
@@ -222,7 +221,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
           }
         })
 
-        w.postMessage({ type: 'load-model', requestId, modelId: 'whisper-large-v3-turbo', device: 'webgpu' })
+        w.postMessage({ type: 'load-model', requestId, modelId: MODEL_NAMES.WHISPER, device: 'webgpu' })
 
         try {
           await readyPromise
@@ -232,12 +231,12 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
           if (allocationToken)
             coordinator.release(allocationToken)
           allocationToken = coordinator.requestAllocation(
-            'whisper-large-v3-turbo',
-            MODEL_VRAM_ESTIMATES['whisper-large-v3-turbo'] ?? 800 * 1024 * 1024,
+            MODEL_NAMES.WHISPER,
+            MODEL_VRAM_ESTIMATES[MODEL_NAMES.WHISPER] ?? 800 * 1024 * 1024,
           )
 
           state = 'ready'
-          updateInferenceStatus('whisper-large-v3-turbo', { state: 'ready' })
+          updateInferenceStatus(MODEL_NAMES.WHISPER, { state: 'ready' })
           onSuccess()
         }
         catch (error) {
@@ -288,7 +287,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
       worker = null
     }
     if (allocationToken) {
-      removeInferenceStatus('whisper-large-v3-turbo')
+      removeInferenceStatus(MODEL_NAMES.WHISPER)
       getGPUCoordinator().release(allocationToken)
       allocationToken = null
     }
