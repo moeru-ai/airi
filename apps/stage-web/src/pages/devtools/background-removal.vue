@@ -2,7 +2,7 @@
 import type { PreTrainedModel, Processor } from '@huggingface/transformers'
 
 import { AutoModel, AutoProcessor, env, RawImage } from '@huggingface/transformers'
-import { Button, Checkbox, InputFile } from '@proj-airi/ui'
+import { Button, Checkbox, InputFileCard } from '@proj-airi/ui'
 import { check } from 'gpuu/webgpu'
 import { computed, onMounted, ref, watch } from 'vue'
 
@@ -222,7 +222,7 @@ function hidePreview() {
     <!-- Main content -->
     <template v-else>
       <!-- File upload area -->
-      <InputFile v-model="imageFiles" accept="image/*" multiple w-full />
+      <InputFileCard v-model="imageFiles" accept="image/*" multiple w-full />
 
       <!-- Controls -->
       <div flex flex-wrap items-center justify-between gap-4>

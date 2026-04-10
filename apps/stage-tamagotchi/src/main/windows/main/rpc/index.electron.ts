@@ -47,7 +47,7 @@ export async function setupMainWindowElectronInvokes(params: {
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.window })
   createAutoUpdaterService({ context, window: params.window, service: params.autoUpdater })
   createMcpServersService({ context, manager: params.mcpStdioManager })
-  createOnboardingService({ context, onboardingWindowManager: params.onboardingWindowManager })
+  createOnboardingService({ context, onboardingWindowManager: params.onboardingWindowManager, mainWindow: params.window })
   createAuthService({ context, window: params.window, windowAuthManager: params.windowAuthManager })
 
   defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))

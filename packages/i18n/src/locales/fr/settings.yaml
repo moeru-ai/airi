@@ -63,7 +63,7 @@ dialogs:
       stateNotGranted: Non accordée
 language:
   title: Langage
-  description: >
+  description: |
     Langue de l'interface. Vous pourrez définir la langue des personnages plus tard.
 controls-island:
   icon-size:
@@ -75,7 +75,8 @@ controls-island:
 analytics:
   notice:
     title: Statistiques d'utilisation
-    description: AIRI collecte des statistiques d'utilisation anonymes pour nous aider à comprendre comment l'application est utilisée et améliorer sa stabilité. Aucune donnée personnelle n'est collectée.
+    description: >-
+      AIRI collecte des statistiques d'utilisation anonymes pour nous aider à comprendre comment l'application est utilisée et améliorer sa stabilité. Aucune donnée personnelle n'est collectée.
     privacyPrefix: Read the
     privacyLink: politique de confidentialité
     onboardingHint: Vous pouvez désactiver les statistiques plus tard dans Paramètres > Système > Général.
@@ -386,14 +387,18 @@ pages:
       description: Jouer à Minecraft !
       title: Minecraft
       enable: Activer l'intégration Minecraft
-      enable-description: Include Minecraft self-knowledge in Stage chat turns and keep passive runtime visibility enabled.
+      enable-description: >-
+        Include Minecraft self-knowledge in Stage chat turns and keep passive runtime visibility enabled.
       configured: Minecraft est correctement configuré !
       read-only:
         title: Shell en lecture seule
-        description: Stage currently exposes Minecraft as a passive shell. Runtime status and traffic are visible here, but service configuration stays in the Minecraft service files.
+        description: >-
+          Stage currently exposes Minecraft as a passive shell. Runtime status and traffic are visible here, but service configuration stays in the Minecraft service files.
       setup:
         title: Configuration
-        description: "Vous pouvez trouver les instructions de configuration du bot dans le fichier suivant\n"
+        description: >-
+          Vous pouvez trouver les instructions de configuration du bot dans le fichier suivant
+
       runtime:
         title: Observed runtime
         connection: Connexion
@@ -407,7 +412,7 @@ pages:
       status:
         service-online: Service en ligne
         service-offline: Service hors ligne
-        no-runtime-context: 'Aucun contexte de bot observé pour l''instant'
+        no-runtime-context: Aucun contexte de bot observé pour l'instant
         last-context-seconds: 'Dernier contexte du bot : il y a {seconds}s'
         last-context-stale: 'Dernier contexte du bot : Obsolète'
     hearing:
@@ -419,7 +424,8 @@ pages:
             description: Sélectionnez le fournisseur de reconnaissance vocale approprié
           confidence-threshold:
             title: Confidence Threshold
-            description: Filter out low-confidence transcriptions to reduce Whisper hallucinations. Values closer to 0 are more strict; drag to the leftmost to disable. Only effective for providers supporting Whisper API (e.g., OpenAI, Groq).
+            description: >-
+              Filter out low-confidence transcriptions to reduce Whisper hallucinations. Values closer to 0 are more strict; drag to the leftmost to disable. Only effective for providers supporting Whisper API (e.g., OpenAI, Groq).
             disabled: Désactivé
             verbose-json-note: >-
               Remarque : Si votre fournisseur ne prend pas en charge les réponses verbose_json, ce paramètre n'aura aucun effet.
@@ -511,7 +517,8 @@ pages:
         apply-and-restart: Enregistrer et redémarrer stdio MCP
       messages:
         opened: 'Fichier de configuration ouvert à : {path}'
-        restarted: 'Serveurs MCP redémarrés. Lancés : {started}, en échec : {failed}, ignorés : {skipped}'
+        restarted: >-
+          Serveurs MCP redémarrés. Lancés : {started}, en échec : {failed}, ignorés : {skipped}
   flux:
     title: Flux
     buy: Charge
@@ -621,7 +628,7 @@ pages:
                       Nous sommes désolés que le test de connectivité pour Ollama ait échoué. Ne vous inquiétez pas, une configuration supplémentaire est nécessaire pour les instances Ollama. Vous devez définir explicitement <code>OLLAMA_HOST</code> lors du lancement de l'application ou du serveur CLI Ollama. Pour plus d'informations, consultez le <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">guide d'intégration Ollama</a>.
     common:
       continueAnyway: Continuer quand même
-      goToModelSelection: 'Sélectionnez un Modèle'
+      goToModelSelection: Sélectionnez un Modèle
       fields:
         field:
           api-key:
@@ -914,17 +921,43 @@ pages:
       placeholder: ws://localhost:6121/ws
     server-hostname:
       label: Expose On Network
-      description: Choose whether the AIRI gateway only listens on this device or can be reached from your local network.
+      description: >-
+        Choose whether the AIRI gateway only listens on this device or can be reached from your local network.
       advanced-label: Bind Hostname
-      advanced-description: Use a specific hostname or IP address when you need manual network binding.
+      advanced-description: >-
+        Use a specific hostname or IP address when you need manual network binding.
       options:
         this-device: This device
         all: All
         advanced: Advanced
     server-auth-token:
       label: Auth Token
-      description: Security token required by remote clients that connect to this gateway. When left empty, AIRI generates a new token automatically.
+      description: >-
+        Security token required by remote clients that connect to this gateway. When left empty, AIRI generates a new token automatically.
       placeholder: Auto-generate
+    qr:
+      title: Connect from Stage Pocket
+      description: >-
+        Scan this QR code from Stage Pocket to try all reachable local network addresses and save the first working one.
+      refresh: Refresh
+      image-alt: AIRI server channel connection QR code
+      candidates: Candidate addresses
+      token-hint: >-
+        The QR code includes the auth token so Stage Pocket can authenticate after connecting. Do not share it publicly.
+      errors:
+        title: QR code unavailable
+        unavailable: Failed to prepare the connection QR code.
+    qr-scan:
+      title: Quick Connect
+      description: Scan the QR code from Tamagotchi to quick connect
+      instructions: Point the camera at the AIRI connection QR code.
+      action: Scan
+      success:
+        title: Connected address saved
+        description: 'URL been used: {url}'
+      errors:
+        title: QR scan failed
+        failed: Failed to scan or connect with the QR code.
   scene:
     description: Configurer l’environnement où vit le personnage
     title: Scène
@@ -998,7 +1031,7 @@ pages:
                   Diffuser l'audio du microphone vers Aliyun NLS et inspecter les transcriptions en direct
               performance-playground:
                 title: Zone d'essai de performance
-                description: 'Expressions VRM + synchro labiale TTS'
+                description: Expressions VRM + synchro labiale TTS
         theme-presets:
           presets:
             default:

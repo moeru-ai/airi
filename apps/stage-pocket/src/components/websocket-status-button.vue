@@ -3,7 +3,6 @@ import { useLampFlickerAnimation } from '@proj-airi/stage-ui/composables/use-lam
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { lampFlickerAnimationClass } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { TooltipContent, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -60,43 +59,19 @@ function openConnectionSettings() {
 </script>
 
 <template>
-  <div
-    class="fixed right-3 z-20"
-    :style="{ top: 'max(0.75rem, env(safe-area-inset-top, 0px))' }"
+  <button
+    type="button"
+    :class="buttonClass"
+    :aria-label="tooltipLabel"
+    :title="tooltipLabel"
+    @click="openConnectionSettings"
   >
-    <TooltipProvider :delay-duration="0" :skip-delay-duration="0">
-      <TooltipRoot>
-        <TooltipTrigger as-child>
-          <button
-            type="button"
-            :class="buttonClass"
-            :aria-label="tooltipLabel"
-            :title="tooltipLabel"
-            @click="openConnectionSettings"
-          >
-            <div
-              :class="iconClasses"
-              :style="flickerStyle"
-              @animationiteration="onAnimationIteration"
-            />
-          </button>
-        </TooltipTrigger>
-        <Transition name="pocket-ws-tooltip-fade">
-          <TooltipContent
-            :class="[
-              'border border-solid border-neutral-200/60 dark:border-neutral-800/10',
-              'bg-neutral-50/80 dark:bg-neutral-800/70',
-              'w-fit flex items-center px-1.5 py-1 rounded-lg backdrop-blur-md text-xs',
-            ]"
-            side="left"
-            :side-offset="4"
-          >
-            {{ tooltipLabel }}
-          </TooltipContent>
-        </Transition>
-      </TooltipRoot>
-    </TooltipProvider>
-  </div>
+    <div
+      :class="iconClasses"
+      :style="flickerStyle"
+      @animationiteration="onAnimationIteration"
+    />
+  </button>
 </template>
 
 <style scoped>

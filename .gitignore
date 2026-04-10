@@ -67,7 +67,7 @@ components.d.ts
 .eslintcache
 **/.cache/
 **/.vitepress/cache/
-**/tsconfig.tsbuildinfo
+**/*.tsbuildinfo
 
 # Netlify
 **/.netlify/*
