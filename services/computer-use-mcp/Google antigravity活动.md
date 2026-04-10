@@ -1945,3 +1945,52 @@ pnpm -F @proj-airi/computer-use-mcp exec vitest run
 - 轮次效率：平均 5.8 轮（消费级 3-4 轮）— 因探索性读取
 - 自验证：受 temp workspace 工具链限制
 - 未测试：大文件编辑、编译语言、依赖管理、Git 操作、20+ 轮长任务
+
+## Web Search 实装验证
+
+### 测试时间：2026-04-10 20:37 UTC+8
+
+### 多后端搜索策略
+
+实装了 3 层 fallback：
+1. **AIRI_SEARCH_API_URL**（优先）— SearXNG/Brave Search 等自定义 API
+2. **Bing 解析**（b_algo blocks）— SSR HTML
+3. **DDG Lite 解析**（result-link/result-snippet）
+
+### 真实测试结果
+
+| 搜索引擎 | 状态 | 原因 |
+|---|---|---|
+| DuckDuckGo Lite | ❌ CAPTCHA | 弹出 "Select all squares containing a duck" 验证 |
+| Bing | ❌ JS-only | 2026 年已全面改为 JS 渲染，curl 返回空白结果区 |
+| Google | ❌ JS-only | 返回 `noscript` → `enablejs` 重定向 |
+| SearXNG 公共节点 | ❌ 429 | 全部限流 |
+
+### 核心发现
+
+> **2026 年所有主流搜索引擎都需要 JavaScript 渲染**。搜索引擎抓取在无 headless browser 环境下不可行。
+
+### 最终方案
+
+```
+┌─────────────────────────────────────────────┐
+│  web_search 三层 fallback 策略               │
+├─────────────────────────────────────────────┤
+│  1. AIRI_SEARCH_API_URL (自定义 API)         │ ← 生产推荐
+│  2. Bing HTML parsing (b_algo)              │ ← 仅部分地区可用
+│  3. DDG Lite (result-link)                  │ ← 易被 CAPTCHA
+│  4. 错误消息 + 建议用 bash/curl              │ ← 优雅降级
+└─────────────────────────────────────────────┘
+```
+
+**对 QueryEngine 的影响**：
+- 基准测试 5/5 全过（无 web_search 依赖）— 核心编码循环不受影响
+- QueryEngine 中的 agent 可以用 `bash` + `curl` 直接查询 API 绕过
+- 生产部署时应配置 `AIRI_SEARCH_API_URL` 指向 SearXNG 或 Brave Search API
+
+### 代码改进
+
+- 重写 `web/primitives.ts` 的 `webSearch`：多后端 + CAPTCHA 检测 + SearXNG 自定义 API 支持
+- 添加 `parseBingResults()` 和 `parseDDGResults()` 解析器（含 CAPTCHA 检测）
+- 添加 `searchViaCustomAPI()` 支持 SearXNG JSON 格式
+- 测试套件：71 files, 728 tests, all green

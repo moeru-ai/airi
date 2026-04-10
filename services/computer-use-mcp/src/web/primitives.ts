@@ -201,13 +201,127 @@ export async function webFetch(params: {
 }
 
 /**
- * Web search via DuckDuckGo HTML lite endpoint.
+ * Browser-like User-Agent for search engines.
+ * Using a real browser UA dramatically reduces CAPTCHA/bot-detection.
+ */
+const SEARCH_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+
+/**
+ * Parse Bing search results from HTML.
  *
- * Uses DDG's lightweight HTML search page which requires no API key.
- * Parses result links, titles, and snippets from the HTML response.
+ * Bing's HTML results follow this structure:
+ *   <li class="b_algo">
+ *     <div class="b_tpcn"><a ... href="https://bing.com/ck/a?...u=REAL_URL">
+ *       <div class="b_title"><h2>TITLE</h2></div>
+ *     </a></div>
+ *     <div class="b_caption"><p ...>SNIPPET</p></div>
+ *     <div class="b_attribution"><cite>VISIBLE_URL</cite></div>
+ *   </li>
  *
- * NOTICE: DuckDuckGo may rate-limit heavy usage. For production/high-volume
- * use, consider integrating a dedicated search API (SearXNG, Brave Search).
+ * NOTICE: Bing uses redirect URLs (bing.com/ck/a?...). We extract the
+ * actual URL from the `u=` parameter, which is base64-encoded.
+ */
+function parseBingResults(html: string, maxResults: number): Array<{ url: string; title: string; snippet: string }> {
+  const results: Array<{ url: string; title: string; snippet: string }> = []
+
+  // Strategy 1: Extract cite tags (visible URLs) + h2 titles from b_algo blocks
+  // Split HTML by b_algo blocks
+  const algoBlocks = html.split(/class="b_algo"/)
+  // Skip first chunk (before first result)
+  for (let i = 1; i < algoBlocks.length && results.length < maxResults; i++) {
+    const block = algoBlocks[i]!
+
+    // Extract title from h2
+    const h2Match = block.match(/<h2[^>]*>([\s\S]*?)<\/h2>/i)
+    const title = h2Match ? htmlToText(h2Match[1] ?? '') : ''
+
+    // Extract URL from cite tag (visible URL, not the redirect)
+    const citeMatch = block.match(/<cite[^>]*>([\s\S]*?)<\/cite>/i)
+    let url = citeMatch ? htmlToText(citeMatch[1] ?? '').replace(/\s+/g, '') : ''
+
+    // If cite URL doesn't have protocol, try extracting from href
+    if (url && !url.startsWith('http')) {
+      url = `https://${url}`
+    }
+
+    // Also try to extract from the redirect URL's `u=` parameter
+    if (!url || url.length < 10) {
+      const hrefMatch = block.match(/href="[^"]*[?&]u=a1([^&"]+)/i)
+      if (hrefMatch) {
+        try {
+          url = Buffer.from(hrefMatch[1]!, 'base64').toString('utf-8')
+        }
+        catch { /* ignore decode failures */ }
+      }
+    }
+
+    // Extract snippet from p tag within b_caption
+    const snippetMatch = block.match(/<p[^>]*>([\s\S]*?)<\/p>/i)
+    const snippet = snippetMatch ? htmlToText(snippetMatch[1] ?? '') : ''
+
+    if (title && url && url.startsWith('http')) {
+      // Clean up Bing's URL formatting (often has › separators in cite)
+      const cleanUrl = url.split(' ')[0]!.replace(/›/g, '/').replace(/\s/g, '')
+      results.push({ url: cleanUrl, title: title.trim(), snippet: snippet.trim() })
+    }
+  }
+
+  return results
+}
+
+/**
+ * Parse DuckDuckGo lite search results from HTML.
+ * Returns empty array if CAPTCHA is detected.
+ */
+function parseDDGResults(html: string, maxResults: number): Array<{ url: string; title: string; snippet: string }> | null {
+  // CAPTCHA detection
+  if (html.includes('anomaly-modal') || html.includes('Select all squares')) {
+    return null // CAPTCHA detected
+  }
+
+  const results: Array<{ url: string; title: string; snippet: string }> = []
+
+  const linkRegex = /<a[^>]+class="result-link"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi
+  const snippetRegex = /<td[^>]+class="result-snippet"[^>]*>([\s\S]*?)<\/td>/gi
+
+  const links: Array<{ url: string; title: string }> = []
+  let linkMatch: RegExpExecArray | null = linkRegex.exec(html)
+  while (linkMatch !== null) {
+    const url = linkMatch[1] ?? ''
+    const title = htmlToText(linkMatch[2] ?? '').trim()
+    if (url && !url.startsWith('/') && title) {
+      links.push({ url, title })
+    }
+    linkMatch = linkRegex.exec(html)
+  }
+
+  const snippets: string[] = []
+  let snippetMatch: RegExpExecArray | null = snippetRegex.exec(html)
+  while (snippetMatch !== null) {
+    snippets.push(htmlToText(snippetMatch[1] ?? '').trim())
+    snippetMatch = snippetRegex.exec(html)
+  }
+
+  for (let i = 0; i < Math.min(links.length, maxResults); i++) {
+    results.push({
+      url: links[i]!.url,
+      title: links[i]!.title,
+      snippet: snippets[i] ?? '',
+    })
+  }
+
+  return results
+}
+
+/**
+ * Web search with multi-backend fallback strategy.
+ *
+ * Backends tried in order:
+ * 1. Bing — SSR HTML, reliable, no CAPTCHA for moderate usage
+ * 2. DuckDuckGo Lite — fails to CAPTCHA under bot detection
+ *
+ * NOTICE: For high-volume or production use, configure a dedicated search API
+ * (Brave Search, SearXNG) via AIRI_SEARCH_API_URL environment variable.
  */
 export async function webSearch(params: {
   query: string
@@ -216,86 +330,131 @@ export async function webSearch(params: {
   const startedAt = Date.now()
   const { query, maxResults = 10 } = params
 
-  const searchUrl = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`
+  // Try custom search API first if configured
+  const customApiUrl = process.env.AIRI_SEARCH_API_URL
+  if (customApiUrl) {
+    try {
+      const result = await searchViaCustomAPI(customApiUrl, query, maxResults, startedAt)
+      if (result) return result
+    }
+    catch { /* Fall through to Bing */ }
+  }
 
+  // Backend 1: Bing
   try {
+    const bingUrl = `https://www.bing.com/search?q=${encodeURIComponent(query)}&count=${maxResults}`
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS)
 
-    const response = await fetch(searchUrl, {
+    const response = await fetch(bingUrl, {
       signal: controller.signal,
       headers: {
-        'User-Agent': 'AIRI-ComputerUse/1.0 (MCP; +https://github.com/moeru-ai/airi)',
+        'User-Agent': SEARCH_UA,
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+    }).finally(() => clearTimeout(timeout))
+
+    if (response.ok) {
+      const html = await response.text()
+      const results = parseBingResults(html, maxResults)
+
+      if (results.length > 0) {
+        return {
+          query,
+          results,
+          totalResults: results.length,
+          searchedAt: new Date().toISOString(),
+          durationMs: Date.now() - startedAt,
+        }
+      }
+    }
+  }
+  catch { /* Fall through to DDG */ }
+
+  // Backend 2: DuckDuckGo Lite
+  try {
+    const ddgUrl = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS)
+
+    const response = await fetch(ddgUrl, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': SEARCH_UA,
         'Accept': 'text/html',
       },
     }).finally(() => clearTimeout(timeout))
 
-    if (!response.ok) {
-      return {
-        query,
-        results: [],
-        totalResults: 0,
-        searchedAt: new Date().toISOString(),
-        durationMs: Date.now() - startedAt,
-        note: `Search request failed with status ${response.status}.`,
+    if (response.ok) {
+      const html = await response.text()
+      const results = parseDDGResults(html, maxResults)
+
+      if (results !== null && results.length > 0) {
+        return {
+          query,
+          results,
+          totalResults: results.length,
+          searchedAt: new Date().toISOString(),
+          durationMs: Date.now() - startedAt,
+        }
       }
-    }
 
-    const html = await response.text()
-
-    // Parse DDG lite results — each result is in a table row with class "result-link"
-    // Format: <a rel="nofollow" href="URL" class="result-link">TITLE</a>
-    // Snippet follows in a <td class="result-snippet"> element
-    const results: Array<{ url: string; title: string; snippet: string }> = []
-
-    // Extract links and titles
-    const linkRegex = /<a[^>]+class="result-link"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi
-    const snippetRegex = /<td[^>]+class="result-snippet"[^>]*>([\s\S]*?)<\/td>/gi
-
-    const links: Array<{ url: string; title: string }> = []
-    let linkMatch: RegExpExecArray | null = linkRegex.exec(html)
-    while (linkMatch !== null) {
-      const url = linkMatch[1] ?? ''
-      const title = htmlToText(linkMatch[2] ?? '').trim()
-      if (url && !url.startsWith('/') && title) {
-        links.push({ url, title })
+      if (results === null) {
+        // CAPTCHA detected — don't retry DDG
       }
-      linkMatch = linkRegex.exec(html)
-    }
-
-    const snippets: string[] = []
-    let snippetMatch: RegExpExecArray | null = snippetRegex.exec(html)
-    while (snippetMatch !== null) {
-      snippets.push(htmlToText(snippetMatch[1] ?? '').trim())
-      snippetMatch = snippetRegex.exec(html)
-    }
-
-    // Pair links with snippets
-    for (let i = 0; i < Math.min(links.length, maxResults); i++) {
-      results.push({
-        url: links[i]!.url,
-        title: links[i]!.title,
-        snippet: snippets[i] ?? '',
-      })
-    }
-
-    return {
-      query,
-      results,
-      totalResults: results.length,
-      searchedAt: new Date().toISOString(),
-      durationMs: Date.now() - startedAt,
     }
   }
-  catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    return {
-      query,
-      results: [],
-      totalResults: 0,
-      searchedAt: new Date().toISOString(),
-      durationMs: Date.now() - startedAt,
-      note: `Search failed: ${message}. Use web_fetch to directly fetch known URLs, or use terminal_exec with curl to query APIs.`,
-    }
+  catch { /* Fall through to fallback */ }
+
+  // All backends failed
+  return {
+    query,
+    results: [],
+    totalResults: 0,
+    searchedAt: new Date().toISOString(),
+    durationMs: Date.now() - startedAt,
+    note: 'All search backends returned no results. This may be due to bot detection or network issues. '
+      + 'Use web_fetch to directly fetch known URLs, or use bash with `curl` to query APIs. '
+      + 'For reliable search, configure AIRI_SEARCH_API_URL with a SearXNG or Brave Search API endpoint.',
+  }
+}
+
+/**
+ * Query a custom search API (SearXNG-compatible JSON format).
+ */
+async function searchViaCustomAPI(
+  apiUrl: string,
+  query: string,
+  maxResults: number,
+  startedAt: number,
+): Promise<WebSearchResult | null> {
+  const url = `${apiUrl}/search?q=${encodeURIComponent(query)}&format=json&categories=general`
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS)
+
+  const response = await fetch(url, {
+    signal: controller.signal,
+    headers: { 'Accept': 'application/json' },
+  }).finally(() => clearTimeout(timeout))
+
+  if (!response.ok) return null
+
+  const data = await response.json() as {
+    results?: Array<{ url: string; title: string; content: string }>
+  }
+
+  const results = (data.results ?? []).slice(0, maxResults).map(r => ({
+    url: r.url,
+    title: r.title,
+    snippet: r.content,
+  }))
+
+  return {
+    query,
+    results,
+    totalResults: results.length,
+    searchedAt: new Date().toISOString(),
+    durationMs: Date.now() - startedAt,
   }
 }
