@@ -2129,3 +2129,97 @@ Total: 2/2 passed
 | Git 集成 | ✅ | ⚠️ bash |
 | 大文件分段 | ✅ | ❌ |
 | LLM retry | ✅ | ⚠️ 基础 |
+
+## 系统层加固：bash 写禁令 + 分层匹配 + 阶段模型
+
+### 问题回顾
+
+上一轮 E2E 暴露：
+- Agent 用 `sed -i` 绕过 edit_file → diff 不可信，验证链断裂
+- edit_file 匹配失败后 agent 空转 → 15 轮 207K token 只改 4 行
+- 没有执行阶段约束 → agent 永远探索不下刀
+
+诊断结论：**底层骨架像了，产品级行为还没到。70-80 分的工程原型，最后 20 分最难。**
+
+### 改进 1：bash 写禁令（系统层硬禁 detectBashWriteViolation）
+
+不是 prompt 建议，是执行层拦截。20 个 blocked pattern：
+- `sed -i`, `perl -pi`, `awk -i inplace` → 禁
+- `echo/cat/printf > file`, `tee file` → 禁
+- `rm`, `mv`, `cp`, `chmod`, `truncate`, `dd`, `patch` → 禁
+- `git add/commit/reset/checkout/stash/merge/rebase` → 禁
+- `python -c "open('f','w')"`, `node -e "writeFile"` → 禁
+
+安全白名单：
+- `> /dev/null`, `2>/dev/null`, `2>&1` → 允许
+- `git status/log/diff/show/branch/remote` → 允许
+- `npm test`, `tsc --noEmit`, `ls`, `cat`, `grep`, `find` → 允许
+
+41 个测试覆盖。
+
+### 改进 2：edit_file 五层分层匹配
+
+```
+Layer 1: 精确匹配（原行为）
+Layer 2: 空白归一化（collapse spaces/tabs → 自动修复 agent 的格式差异）
+Layer 3: 缩进归一化（strip leading whitespace → agent 记错缩进也能匹配）
+Layer 4: Fuzzy window + Jaccard（滑动窗口找最接近的代码块 → 返回 top-3 候选，NOT 自动应用）
+Layer 5: 带行号的文件预览 + 最相近候选（终极 fallback）
+```
+
+关键设计：
+- fuzzy 匹配不自动应用，返回候选让 agent 用确切文本重试
+- `matchType` 字段让验证路径知道是怎么匹配到的
+- 6 个测试覆盖所有层
+
+### 改进 3：阶段执行模型（DISCOVER→PLAN→EDIT→VERIFY→FINALIZE）
+
+```
+Phase 1: DISCOVER (max 3 turns)
+  - list_files 一次，search_text 找代码，最多读 3 个文件
+  - 超限必须进 PLAN
+
+Phase 2: PLAN (1 turn)
+  - 决定改哪些文件、怎么改
+
+Phase 3: EDIT
+  - edit_file / multi_edit_file
+  - 改完立即 read_file 回读
+
+Phase 4: VERIFY
+  - npm test / tsc --noEmit
+  - 失败回 Phase 3 修
+
+Phase 5: FINALIZE
+  - 三段式报告：Changes Made / Verification Results / Remaining Issues
+```
+
+### E2E 对比
+
+| 指标 | 改前 v2 | 改后 v4 |
+|---|---|---|
+| 编辑工具 | sed (bash绕过) | multi_edit_file ✅ |
+| 文件追踪 | 漏掉 | 正常追踪 ✅ |
+| 有效改动 | 1行(合并3行) | 16行 4处修改 |
+| read-back | ❌ | ✅ Turn 15-17 |
+| 跑测试 | ❌ | ✅ Turn 18 npm test |
+| workflow | explore→explore→..→sed | explore→read→edit→readback→test |
+
+脏仓库(qq-bot/scheduleService.js, 2351行)：
+- 提取 hardcoded 时区偏移为常量
+- 添加 "后天" 查询类型检测
+- 扩展日期偏移计算
+- 添加缺失数据的防护
+
+agent 的 diff 输出：
+```diff
++const DEFAULT_SHANGHAI_TZ_OFFSET_MS = 8 * 60 * 60 * 1000;
+-return new Date(Date.now() + 8 * 60 * 60 * 1000);
++return new Date(Date.now() + DEFAULT_SHANGHAI_TZ_OFFSET_MS);
++if (lower.includes('后天') && lower.includes('课')) return 'day_after_tomorrow';
+-const base = new Date(nowSh.getTime() + (when === 'tomorrow' ? 24 : 0) * 60 * 60 * 1000);
++const dayOffset = when === 'tomorrow' ? 24 : when === 'day_after_tomorrow' ? 48 : 0;
++const base = new Date(nowSh.getTime() + dayOffset * 60 * 60 * 1000);
+```
+
+**测试：73 files, 787 tests (+50 new), all green**
