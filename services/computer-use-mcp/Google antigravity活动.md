@@ -1667,3 +1667,66 @@ pnpm -F @proj-airi/computer-use-mcp exec tsx ./src/bin/e2e-coding-workflow.ts  #
 - Coordinator 主从模式（AIRI 走 Lane Handoff Contract，不搞主从）
 - 交互式权限审批（AIRI 运行在 auto-approve 模式，不面向终端用户）
 - GrowthBook feature flags（AIRI 不用 Anthropic 的遥测基础设施）
+
+## 📅 2026-04-10: AIRI 版 Tool Invocation Intelligence
+
+> 学思路、学架构、不抄代码。做 AIRI 原生能力，不是拙劣模仿 Claude Code。
+
+### 设计理念差异
+
+| 维度 | Claude Code | AIRI |
+|---|---|---|
+| 安全/预算逻辑 | 嵌入每个 Tool 定义（793 行 `Tool.ts`） | 在拦截器层实现，Tool 零感知 |
+| 跨 session 记忆 | Markdown + YAML frontmatter（人类可读） | `.airi-session.json`（机器可读，无解析歧义） |
+| 记忆范围 | 4 类（user/feedback/project/reference） | 仅 operational seeds（验证结果/偏差提示） |
+| 架构模式 | 每个 tool method 实现 isConcurrencySafe() 等 | 正交拦截器模式，tool 保持纯净 |
+
+### 实现的四层拦截器（全部 advisory-only）
+
+#### 1. Lane Hygiene（已有，本次未改动）
+跨 lane 工具调用时注入提示。
+
+#### 2. Safety Tier Advisory（新增）
+- `tool-invocation-intelligence.ts`
+- 从 descriptor 推导三级安全分类：`safe` / `guarded` / `destructive`
+- 仅 `destructive` 级别生成 advisory，safe 和 guarded 静默
+- 不阻断任何调用
+
+#### 3. Result Budget Guard（新增）
+- 默认预算 50,000 字符（≈12,500 tokens）
+- 超出时截断文本内容，保留非文本（图片等）
+- 截断通知包含原始大小和建议
+- 豁免工具：screenshot、display、workflow 结构化输出
+
+#### 4. Invocation Telemetry（新增）
+- 每次调用记录：tool name、lane、safety tier、耗时、是否截断
+- 有界环形缓冲（上限 100 条），不会无限增长
+- `getInvocationSummary()` 提供聚合诊断（按 lane 分组、destructive 计数）
+
+### Workspace Memory Snapshot（新增）
+- `workspace-memory.ts`
+- Gate cycle 结束后，将 blocking seeds 写入 `.airi-session.json`
+- 下次 session 启动时，`applyOperationalMemoryBias()` 自动读取并注入偏差
+- 仅持久化 blocking seeds — advisory seeds 是 session 临时数据
+- JSON schema v1，前向兼容
+
+### 新增文件
+| 文件 | 行数 | 用途 |
+|---|---|---|
+| `tool-invocation-intelligence.ts` | ~230 | 安全分级 + 预算守卫 + 遥测 |
+| `tool-invocation-intelligence.test.ts` | ~150 | 14 个测试 |
+| `workspace-memory.ts` | ~170 | 跨 session 记忆快照 |
+| `workspace-memory.test.ts` | ~120 | 8 个测试 |
+
+### 修改文件
+| 文件 | 改动 |
+|---|---|
+| `server.ts` | Proxy 从 lane-only 扩展为 4 层拦截器 |
+| `register-tools.ts` | `recordOperationalMemorySeeds` 写入磁盘；`applyOperationalMemoryBias` 加载磁盘快照 |
+
+### 验证
+```bash
+pnpm -F @proj-airi/computer-use-mcp exec vitest run   # 66 files, 691 tests, all green (+22 new)
+pnpm -F @proj-airi/computer-use-mcp exec tsx ./src/bin/e2e-lane-hygiene.ts  # ALL STEPS PASSED
+pnpm -F @proj-airi/computer-use-mcp exec tsx ./src/bin/e2e-coding-workflow.ts  # ALL 4 PHASES PASSED
+```
