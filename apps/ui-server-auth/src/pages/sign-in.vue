@@ -5,11 +5,17 @@ import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth'
 import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
 import { Button } from '@proj-airi/ui'
 import { computed, shallowRef, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
+import { getServerAuthBootstrapContext } from '../modules/server-auth-context'
 import { createServerSignInContext, requestSocialSignInRedirect } from '../modules/sign-in'
 
 const route = useRoute()
+const { t } = useI18n()
+const bootstrapContext = getServerAuthBootstrapContext()
+const apiServerUrl = bootstrapContext?.apiServerUrl ?? SERVER_URL
+const currentUrl = bootstrapContext?.currentUrl ?? window.location.href
 
 const errorMessage = shallowRef<string | null>(null)
 const pendingProvider = shallowRef<OAuthProvider | null>(null)
@@ -17,7 +23,7 @@ const autoStartedProvider = shallowRef<OAuthProvider | null>(null)
 
 const providerLookup = new Set<OAuthProvider>(defaultSignInProviders.map(provider => provider.id))
 
-const signInContext = computed(() => createServerSignInContext(window.location.href, SERVER_URL))
+const signInContext = computed(() => createServerSignInContext(currentUrl, apiServerUrl))
 
 const requestedProvider = computed<OAuthProvider | null>(() => {
   const provider = signInContext.value.requestedProvider
@@ -46,7 +52,7 @@ async function handleProviderSelect(provider: OAuthProvider) {
 
   try {
     const redirectUrl = await requestSocialSignInRedirect({
-      apiServerUrl: SERVER_URL,
+      apiServerUrl,
       provider,
       callbackURL: signInContext.value.callbackURL,
     })
@@ -54,7 +60,7 @@ async function handleProviderSelect(provider: OAuthProvider) {
     window.location.href = redirectUrl
   }
   catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'Sign in failed'
+    errorMessage.value = error instanceof Error ? error.message : t('server.auth.signIn.error.fallback')
     pendingProvider.value = null
   }
 }
@@ -63,7 +69,7 @@ async function handleProviderSelect(provider: OAuthProvider) {
 <template>
   <main
     :class="[
-      'min-h-screen flex flex-col items-center justify-center px-6 py-10',
+      'min-h-screen flex flex-col items-center justify-center px-6 py-10 font-cuteen',
     ]"
   >
     <div
@@ -71,7 +77,7 @@ async function handleProviderSelect(provider: OAuthProvider) {
         'mb-8 text-3xl font-bold',
       ]"
     >
-      Sign in
+      {{ t('server.auth.signIn.title') }}
     </div>
 
     <div
@@ -98,6 +104,31 @@ async function handleProviderSelect(provider: OAuthProvider) {
       ]"
     >
       {{ errorMessage }}
+    </div>
+
+    <div
+      :class="[
+        'mt-8 text-center text-xs text-gray-400',
+      ]"
+    >
+      {{ t('server.auth.signIn.footer.prefix') }}
+      <a
+        href="https://airi.moeru.ai/docs/en/about/terms"
+        :class="[
+          'underline',
+        ]"
+      >
+        {{ t('server.auth.signIn.footer.terms') }}
+      </a>
+      {{ t('server.auth.signIn.footer.and') }}
+      <a
+        href="https://airi.moeru.ai/docs/en/about/privacy"
+        :class="[
+          'underline',
+        ]"
+      >
+        {{ t('server.auth.signIn.footer.privacy') }}
+      </a>.
     </div>
   </main>
 </template>

@@ -102,12 +102,12 @@ export async function signOut() {
 
   // NOTICE: Server signOut is wrapped in try/catch so that local state cleanup
   // always runs regardless of server errors (e.g. network unreachable). User
-  // intent to log out is respected even if token revocation fails server-side.
+  // intent to sign out is respected even if token revocation fails server-side.
   try {
     await authClient.signOut()
   }
   catch {
-    // Swallow — local cleanup below ensures the user is logged out client-side.
+    // Swallow — local cleanup below ensures the user is signed out client-side.
   }
 
   authStore.user = null
@@ -117,7 +117,7 @@ export async function signOut() {
 }
 
 /**
- * Initiate OIDC Authorization Code + PKCE login flow.
+ * Initiate OIDC Authorization Code + PKCE sign-in flow.
  * Builds the authorization URL, persists PKCE state, and navigates.
  */
 export async function signInOIDC(params: OIDCFlowParams) {

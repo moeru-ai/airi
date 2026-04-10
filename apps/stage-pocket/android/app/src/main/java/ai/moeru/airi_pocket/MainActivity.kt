@@ -1,5 +1,6 @@
 package ai.moeru.airi_pocket
 
+import android.graphics.Color
 import android.net.Uri
 import android.net.http.SslError
 import android.webkit.SslErrorHandler
@@ -29,6 +30,7 @@ class MainActivity : BridgeActivity() {
         super.load()
 
         val bridge = bridge ?: return
+        bridge.webView.setBackgroundColor(Color.TRANSPARENT)
         installWebSocketBridge(bridge)
 
         if (!bridge.isDevMode) {

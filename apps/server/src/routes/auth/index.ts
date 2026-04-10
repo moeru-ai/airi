@@ -5,13 +5,16 @@ import type { ConfigKVService } from '../../services/config-kv'
 import type { HonoEnv } from '../../types/hono'
 
 import { oauthProviderAuthServerMetadata, oauthProviderOpenIdConfigMetadata } from '@better-auth/oauth-provider'
+import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
 
 import { ensureDynamicFirstPartyRedirectUri } from '../../libs/auth'
 import { rateLimiter } from '../../middlewares/rate-limit'
-import { renderSignInPage } from '../../utils/sign-in-page'
+import { getServerAuthUiDistDir, renderServerAuthUiHtml, SERVER_AUTH_UI_BASE_PATH } from '../../utils/server-auth-ui'
 import { createElectronCallbackRelay } from '../oidc/electron-callback'
 import { createOIDCTokenAuthRoute } from '../oidc/token-auth'
+
+const RE_SERVER_AUTH_UI_BASE_PATH = /^\/_ui\/server-auth/
 
 export interface AuthRoutesDeps {
   auth: AuthInstance
@@ -39,6 +42,10 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
   }
 
   return new Hono<HonoEnv>()
+    .use(`${SERVER_AUTH_UI_BASE_PATH}/*`, serveStatic({
+      root: getServerAuthUiDistDir(),
+      rewriteRequestPath: (path: string) => path.replace(RE_SERVER_AUTH_UI_BASE_PATH, ''),
+    }))
     /**
      * Minimal login page for the OIDC Provider flow.
      * When an unauthenticated user hits /api/auth/oauth2/authorize,
@@ -58,8 +65,8 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
       const url = new URL(c.req.url)
       const oidcParams = new URLSearchParams(url.searchParams)
       oidcParams.delete('provider')
-      // Strip prompt so the post-login redirect to authorize doesn't force
-      // another login — prompt=login should only apply on the first pass.
+      // Strip prompt so the post-sign-in redirect to authorize doesn't force
+      // another sign-in — prompt=login should only apply on the first pass.
       oidcParams.delete('prompt')
 
       const callbackURL = oidcParams.toString()
@@ -71,8 +78,10 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
         return c.redirect(socialUrl)
       }
 
-      // Fallback: show the sign-in picker page (e.g. direct browser visit)
-      return c.html(renderSignInPage(deps.env.API_SERVER_URL, callbackURL))
+      return c.html(renderServerAuthUiHtml({
+        apiServerUrl: deps.env.API_SERVER_URL,
+        currentUrl: c.req.url,
+      }))
     })
 
     /**

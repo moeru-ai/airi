@@ -95,7 +95,7 @@ export function startLoopbackServer(): Promise<{
     const timeout = setTimeout(() => {
       if (!settled) {
         settled = true
-        resultReject!(new Error('Login timed out — no callback received'))
+        resultReject!(new Error('Sign-in timed out — no callback received'))
         server.close()
       }
     }, 5 * 60 * 1000)
@@ -134,7 +134,7 @@ export function startLoopbackServer(): Promise<{
               return
 
             settled = true
-            resultReject!(new Error('OIDC login attempt cancelled'))
+            resultReject!(new Error('OIDC sign-in attempt cancelled'))
             server.close()
           },
         })
