@@ -2076,8 +2076,56 @@ Total: 2/2 passed
 
 ### 仍需追赶
 
-- **multi-edit_file**：CC 支持一次编辑多处，AIRI 目前一次一处
-- **并行工具调用**：CC 支持并行，AIRI 串行
+- ~~**multi-edit_file**：CC 支持一次编辑多处，AIRI 目前一次一处~~ ✅ 已实现
+- ~~**并行工具调用**：CC 支持并行，AIRI 串行~~ ✅ 已实现
 - **Git 集成**：CC 有 git diff/commit/stash，AIRI 需要 bash
 - **大文件 limit**：CC 对大文件有分段读取策略
 - **retry on LLM error**：CC 有更完善的 retry + fallback
+
+## multi_edit_file + 并行工具调用
+
+### multi_edit_file（tool-router.ts）
+
+一次调用修改同一文件多处，对齐 CC 的 multi-edit 能力：
+- 批量 search-and-replace，顺序应用（后编辑看到前编辑的结果）
+- 部分失败：能改的改了，改不了的报错
+- 拒绝重复匹配（安全性）
+- 提取 `applySingleEdit` 共享函数
+
+### 并行工具调用（engine.ts）
+
+```
+旧: for (const toolCall of toolCalls) await execute(toolCall) // 串行
+新: 
+  read_file, list_files, search_text, web_fetch → Promise.all  // 并行
+  write_file, edit_file, multi_edit_file, bash → 串行           // 安全
+  结果按原始顺序插入 history                                      // 正确性
+```
+
+策略：
+- 连续的 read-only 调用自动 batch 成 Promise.all
+- 遇到 mutation 先 flush 读缓冲，再串行执行
+- 所有结果按原始索引排序后写入消息历史
+
+### 测试
+
+9 个新测试覆盖：
+- 批量编辑多处
+- 部分失败报告
+- 全失败回退
+- 重复匹配拒绝
+- 顺序依赖正确性
+- 单编辑 diff 输出
+- 工具定义 schema 验证
+
+**总计：72 files, 737 tests, all green**
+
+### CC 差距更新
+
+| 能力 | CC | AIRI |
+|---|---|---|
+| multi-edit | ✅ | ✅ |
+| 并行工具 | ✅ | ✅ |
+| Git 集成 | ✅ | ⚠️ bash |
+| 大文件分段 | ✅ | ❌ |
+| LLM retry | ✅ | ⚠️ 基础 |
