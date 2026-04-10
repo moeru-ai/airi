@@ -51,7 +51,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "catalog:",
     "node-pty": "catalog:",
-    "ws": "^8.19.0",
+    "ws": "^8.20.0",
     "zod": "^4.3.6"
   }
 }

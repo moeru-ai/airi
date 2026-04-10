@@ -33,7 +33,7 @@
     "@iconify-json/line-md": "catalog:",
     "@iconify-json/material-symbols": "catalog:",
     "@iconify-json/mdi": "catalog:",
-    "@unocss/reset": "^66.6.7",
+    "@unocss/reset": "^66.6.8",
     "@vitejs/plugin-vue": "^6.0.5",
     "vue-tsc": "^3.2.6"
   }

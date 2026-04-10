@@ -60,7 +60,7 @@
     "es-toolkit": "catalog:",
     "jszip": "^3.10.1",
     "pinia": "^3.0.4",
-    "pixi-filters": "4",
+    "pixi-filters": "^4.2.0",
     "pixi-live2d-display": "^0.4.0",
     "three": "^0.183.2",
     "vue": "catalog:",

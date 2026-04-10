@@ -19,6 +19,6 @@
     "@moeru/std": "catalog:",
     "@napi-rs/image": "catalog:",
     "meow": "catalog:",
-    "playwright": "^1.56.1"
+    "playwright": "^1.59.1"
   }
 }
