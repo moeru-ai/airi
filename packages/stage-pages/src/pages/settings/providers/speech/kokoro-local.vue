@@ -109,8 +109,10 @@ onMounted(async () => {
 
     const config = providersStore.getProviderConfig(providerId)
 
-    // Persist the default model if none is saved yet so validation passes on first visit
-    if (!config.model) {
+    // Persist a safe default model if none is saved, or if the saved model is fp32-webgpu which
+    // is ~700 MB and causes the page to hang indefinitely on first load. Users can switch to
+    // larger/WebGPU models manually after the initial download succeeds.
+    if (!config.model || config.model === 'fp32-webgpu') {
       config.model = getDefaultKokoroModel(hasWebGPU.value)
     }
 

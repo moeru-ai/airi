@@ -35,7 +35,7 @@ const providersStore = useProvidersStore()
 const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
 const { trackProviderClick } = useAnalytics()
-const { stopStream, startStream } = useSettingsAudioDevice()
+const { stopStream, startStream, askPermission } = useSettingsAudioDevice()
 const { audioInputs, selectedAudioInput, stream } = storeToRefs(useSettingsAudioDevice())
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const { startAnalyzer, stopAnalyzer, onAnalyzerUpdate, volumeLevel } = useAudioAnalyzer()
@@ -470,7 +470,12 @@ watch(activeTranscriptionProvider, async (provider) => {
 }, { immediate: true })
 
 onMounted(async () => {
-  // Audio devices are loaded on demand when user requests them
+  // Request mic permission and enumerate devices immediately so the audio input dropdown
+  // is populated when the user opens this page. Without this, the dropdown stays empty
+  // until the user manually interacts with it, making STT appear broken.
+  askPermission().catch(() => {
+    // Permission denied — the dropdown will remain empty and the user will see a warning.
+  })
   syncOpenAICompatibleSettings()
 })
 

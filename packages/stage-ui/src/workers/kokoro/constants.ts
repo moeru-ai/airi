@@ -95,10 +95,15 @@ export function kokoroModelsToModelInfo(hasWebGPU: boolean, t?: (key: string) =>
 }
 
 /**
- * Get the default model based on WebGPU availability
- * @param hasWebGPU - Whether WebGPU is available
- * @returns The default model to use
+ * Get the default model based on WebGPU availability.
+ *
+ * NOTICE: fp32-webgpu is intentionally excluded from the automatic default even when WebGPU is
+ * available. The full-precision WebGPU model is ~700 MB and causes the settings page to hang on
+ * first visit while the worker attempts a silent background download. q4f16 (~320 MB, WASM) is
+ * the best practical default: it works across all browsers, downloads in a reasonable time, and
+ * produces near-identical quality to the larger variants for conversational output.
+ * Users who want the WebGPU model can select it manually after the initial load succeeds.
  */
-export function getDefaultKokoroModel(hasWebGPU: boolean): KokoroQuantization {
-  return hasWebGPU ? 'fp32-webgpu' : 'q4f16'
+export function getDefaultKokoroModel(_hasWebGPU: boolean): KokoroQuantization {
+  return 'q4f16'
 }
