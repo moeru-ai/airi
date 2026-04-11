@@ -14,8 +14,10 @@ import type { CodingPrimitives } from '../coding/primitives'
 import type { TerminalRunner } from '../types'
 import type { QueryEngineTool } from './types'
 
+import { findReferences, searchSymbol } from '../coding/search'
 import { webFetch } from '../web/primitives'
-import { applySingleEdit, buildDiffPreview, extractOutline } from './edit-engine'
+import { applySingleEdit, buildDiffPreview, extractOutline, findUndocumentedExports } from './edit-engine'
+import { getDiagnostics } from './navigation'
 
 export type ToolHandler = (args: Record<string, unknown>) => Promise<unknown>
 
@@ -206,12 +208,19 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
           ? `\n\n## File Outline (exported symbols)\n${outline.map(e => `  L${String(e.line).padStart(5)}: ${e.kind} ${e.name}`).join('\n')}`
           : ''
 
+        // NOTICE: Attach undocumented export metadata for doc tasks.
+        // Only for TS/JS/Python files — avoids noise on config files etc.
+        const docMeta = isDocCandidateFile(filePath)
+          ? buildDocCandidateMeta(lines)
+          : undefined
+
         return {
           path: filePath,
           totalLines,
           truncated: true,
           content: `${headWithNums}\n\n... [${omitted} lines omitted — use start_line/end_line to read specific sections] ...\n\n${tailWithNums}${outlineSection}`,
           hint: `File has ${totalLines} lines. Showing lines 1-${HEAD_LINES} and ${tailStart + 1}-${totalLines}. ${outline.length} exported symbols found in outline. Use start_line/end_line to read specific sections.`,
+          ...docMeta,
         }
       }
 
@@ -221,10 +230,16 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
         .map((l, i) => `${String(baseLineNum + i).padStart(5)}  ${l}`)
         .join('\n')
 
+      // Attach undocumented exports for small TS/JS/Python files (full read)
+      const docMeta = (!startLine && !endLine && isDocCandidateFile(filePath))
+        ? buildDocCandidateMeta(lines)
+        : undefined
+
       return {
         path: filePath,
         totalLines,
         content: numbered,
+        ...docMeta,
       }
     },
 
@@ -287,6 +302,38 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
         args.file_pattern as string | undefined,
         args.max_results as number | undefined,
       )
+    },
+
+    search_symbol: async (args) => {
+      const result = await searchSymbol(
+        workspacePath,
+        String(args.symbol_name),
+        {
+          searchRoot: args.target_path ? String(args.target_path) : workspacePath,
+          glob: args.file_pattern ? String(args.file_pattern) : undefined,
+        },
+      )
+      // Cap the snippet lengths to avoid massive context
+      if (result.matches && Array.isArray(result.matches)) {
+        result.matches = result.matches.map((m: any) => ({
+          ...m,
+          snippet: m.snippet && m.snippet.length > 200 ? `${m.snippet.slice(0, 200)}...` : m.snippet,
+        }))
+      }
+      return result
+    },
+
+    find_references: async (args) => {
+      return findReferences(
+        workspacePath,
+        String(args.file_path),
+        Number(args.line),
+        Number(args.column),
+      )
+    },
+
+    get_diagnostics: async (args) => {
+      return getDiagnostics(workspacePath, String(args.file_path))
     },
 
     bash: async (args) => {
@@ -702,6 +749,46 @@ export function getToolDefinitions(): QueryEngineTool[] {
       },
     },
     {
+      name: 'search_symbol',
+      description: 'Find definitions of a symbol across the workspace using Semantic Navigation. '
+        + 'Returns exact AST-based matches with line and column numbers. Currently supports JS/TS files.',
+      parameters: {
+        type: 'object',
+        required: ['symbol_name'],
+        properties: {
+          symbol_name: { type: 'string', description: 'Name of the symbol (e.g., function, class, interface) to definitions for.' },
+          target_path: { type: 'string', description: 'Optional sub-directory to limit search scope.' },
+          file_pattern: { type: 'string', description: 'Optional glob pattern to limit scope (e.g., **/*.ts).' },
+        },
+      },
+    },
+    {
+      name: 'find_references',
+      description: 'Find all references/usages of a symbol at a specific file location using Semantic Navigation. '
+        + 'Provide the exact file_path, line, and column where the symbol is defined or used.',
+      parameters: {
+        type: 'object',
+        required: ['file_path', 'line', 'column'],
+        properties: {
+          file_path: { type: 'string', description: 'Absolute or workspace-relative path of the file.' },
+          line: { type: 'number', description: 'Line number (1-indexed) where the symbol is located.' },
+          column: { type: 'number', description: 'Column number (1-indexed) where the symbol is located.' },
+        },
+      },
+    },
+    {
+      name: 'get_diagnostics',
+      description: 'Get AST/LSP-level syntax and semantic diagnostics (errors/warnings) for a specific file. '
+        + 'Helps pinpoint why a file might be failing continuous integration or typechecks.',
+      parameters: {
+        type: 'object',
+        required: ['file_path'],
+        properties: {
+          file_path: { type: 'string', description: 'Path to the file to typecheck/analyze.' },
+        },
+      },
+    },
+    {
       name: 'bash',
       description: 'Run a shell command for TESTING, BUILDING, or GIT QUERIES only. '
         + 'NOT for file discovery (use list_files/search_text). '
@@ -822,3 +909,34 @@ export function getToolDefinitions(): QueryEngineTool[] {
 }
 
 // buildDiffPreview moved to edit-engine.ts
+
+// ─── Doc candidate helpers ───
+
+/**
+ * Check if a file path is a TS/JS/Python source file that could have exports.
+ * Used to decide whether to attach undocumented export metadata.
+ */
+function isDocCandidateFile(filePath: string): boolean {
+  const ext = filePath.split('.').pop()?.toLowerCase() ?? ''
+  return ['ts', 'tsx', 'js', 'jsx', 'mts', 'mjs', 'py'].includes(ext)
+}
+
+/**
+ * Build metadata about undocumented exports for a source file.
+ * Returns undefined if there are no exports at all (non-module file).
+ */
+function buildDocCandidateMeta(lines: string[]): Record<string, unknown> | undefined {
+  const { undocumented, documented } = findUndocumentedExports(lines)
+  const total = undocumented.length + documented
+  if (total === 0)
+    return undefined
+
+  return {
+    undocumentedExports: undocumented.slice(0, 20),
+    documentedExportsCount: documented,
+    undocumentedExportsCount: undocumented.length,
+    ...(undocumented.length === 0
+      ? { docHint: 'All exports in this file already have documentation. Choose a different file.' }
+      : { docHint: `${undocumented.length} exports need documentation. Pick one from undocumentedExports and add JSDoc/docstring.` }),
+  }
+}

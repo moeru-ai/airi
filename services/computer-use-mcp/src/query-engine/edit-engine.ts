@@ -62,6 +62,15 @@ export async function applySingleEdit(
     const beforeLines = lines.slice(0, s)
     const afterLines = lines.slice(e)
     const newContent = [...beforeLines, newText, ...afterLines].join('\n')
+    // NOTICE: No-op detection — if the replacement produces identical content, report failure.
+    if (newContent === content) {
+      return {
+        error: 'EDIT NO-OP: The replacement text is identical to the existing content at the specified line range. No changes were made.',
+        hint: 'Your new_text must differ from the existing content. Read the file to verify the current state.',
+        matchType: 'line_anchored_noop',
+        line: startLine,
+      }
+    }
     await fs.writeFile(filePath, newContent, 'utf-8')
     return {
       success: true,
@@ -143,6 +152,15 @@ export async function applySingleEdit(
       const beforeLines = lines.slice(0, best.lineStart - 1)
       const afterLines = lines.slice(best.lineEnd)
       const newContent = [...beforeLines, ...newText.split('\n'), ...afterLines].join('\n')
+      // NOTICE: No-op detection for fuzzy auto-apply
+      if (newContent === content) {
+        return {
+          error: 'EDIT NO-OP: Fuzzy match found the text but your replacement is identical to the existing content. No changes were made.',
+          hint: 'Your new_text must differ from the existing content. Read the file to verify the current state.',
+          matchType: 'fuzzy_noop',
+          line: best.lineStart,
+        }
+      }
       await fs.writeFile(filePath, newContent, 'utf-8')
       return {
         success: true,
@@ -234,6 +252,17 @@ async function applyAndReport(
   matchType: string,
 ): Promise<unknown> {
   const newContent = content.slice(0, index) + newText + content.slice(index + actualOldText.length)
+  // NOTICE: No-op detection — the edit matched but the replacement is identical to original.
+  // This happens when the model sends old_text === new_text, or when normalization
+  // causes a match but the original text already has the desired content.
+  if (newContent === content) {
+    return {
+      error: 'EDIT NO-OP: old_text was found but new_text is identical to the existing content. No changes were made.',
+      hint: 'Your new_text must differ from old_text. The file already contains the content you are trying to write.',
+      matchType: `${matchType}_noop`,
+      line: content.slice(0, index).split('\n').length,
+    }
+  }
   await fs.writeFile(filePath, newContent, 'utf-8')
 
   const lineNum = content.slice(0, index).split('\n').length
@@ -399,6 +428,75 @@ export function extractOutline(lines: string[]): Array<{ line: number, kind: str
 
   // Cap at 80 entries to avoid bloating the response
   return results.slice(0, 80)
+}
+
+/**
+ * Find exported symbols that lack JSDoc/docstring comments.
+ *
+ * Returns only those symbols from the outline that do NOT have a
+ * documentation comment (/** ... *​/ for TS/JS, triple-quoted for Python)
+ * in the lines immediately preceding them.
+ *
+ * This is used to guide the agent toward undocumented exports when the
+ * task is to add JSDoc/docstring, preventing no-op edits on symbols
+ * that already have documentation.
+ */
+export function findUndocumentedExports(
+  lines: string[],
+): { undocumented: Array<{ line: number, kind: string, name: string }>, documented: number } {
+  const outline = extractOutline(lines)
+  let documented = 0
+  const undocumented: Array<{ line: number, kind: string, name: string }> = []
+
+  for (const entry of outline) {
+    const lineIdx = entry.line - 1 // 0-indexed
+    if (hasDocComment(lines, lineIdx)) {
+      documented++
+    }
+    else {
+      undocumented.push(entry)
+    }
+  }
+
+  return { undocumented, documented }
+}
+
+/**
+ * Check if the lines immediately before `lineIdx` contain a doc comment.
+ * Looks for JSDoc (/** ... *​/), Python docstrings (triple quotes),
+ * or consecutive // comments.
+ */
+function hasDocComment(lines: string[], lineIdx: number): boolean {
+  // Scan backwards from the line before the symbol
+  for (let i = lineIdx - 1; i >= Math.max(0, lineIdx - 5); i--) {
+    const trimmed = lines[i]!.trim()
+    // Empty lines — keep scanning
+    if (trimmed === '')
+      continue
+    // JSDoc end: */
+    if (trimmed.endsWith('*/'))
+      return true
+    // Single-line JSDoc: /** ... */
+    if (trimmed.startsWith('/**'))
+      return true
+    // Python docstring
+    if (trimmed.includes('"""') || trimmed.includes('\'\'\''))
+      return true
+    // Consecutive // comments (at least 2 lines of comments = "documented")
+    if (trimmed.startsWith('//') || trimmed.startsWith('#')) {
+      // Check if the line before this is also a comment
+      if (i > 0 && (lines[i - 1]!.trim().startsWith('//') || lines[i - 1]!.trim().startsWith('#'))) {
+        return true
+      }
+      continue
+    }
+    // Decorator line — skip (common in Python/TS)
+    if (trimmed.startsWith('@'))
+      continue
+    // Non-comment, non-empty line → no doc comment
+    return false
+  }
+  return false
 }
 
 /**

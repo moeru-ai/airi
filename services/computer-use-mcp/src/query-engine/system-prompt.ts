@@ -54,9 +54,13 @@ Tools: ${toolNames}
 
 ## Rules
 
-bash is READ-ONLY and LAST RESORT. NEVER use bash for discovery when list_files/search_text/read_file can do the job. bash is only for: running tests, running typecheck, git queries. NEVER: sed -i, echo>, tee, mv, cp, rm, patch. All file changes → edit_file/write_file.
+bash is READ-ONLY and LAST RESORT. NEVER use bash for discovery when list_files/search_text/read_file can do the job. bash is only for: running tests, running typecheck, git queries. NEVER: sed -i, echo>, tee, mv, cp, rm, patch. All file changes → edit_file/write_file. If bash is used repeatedly without new edits or verification conclusions, stop and switch back to structured tools.
 
 edit_file for existing files (6-layer fuzzy matching, supports start_line/end_line). write_file ONLY for new files. NEVER write_file on existing files.
+
+For report/analysis tasks: after sufficient retrieval, produce the report artifact with write_file and read it back for verification.
+
+For existing-file edit tasks (docstring/jsdoc/in-place fixes): locate target → read exact content → edit_file → read back. Do not keep exploring once a valid target is known.
 
 Do NOT assume repo structure. Use list_files first to discover actual directory layout before guessing paths like 'src/' or 'lib/'.
 

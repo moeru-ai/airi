@@ -27,10 +27,18 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { BudgetGuard } from './budget-guard'
+import { evaluateCompletionGuard } from './completion-guard'
 import { compactIfNeeded } from './context-compact'
+import {
+  evaluateBashProgress,
+  getBashPenaltyNudge,
+  shouldNudgeBashPenalty,
+  shouldRejectBashDiscovery,
+} from './progress-tracker'
 import { buildSessionState, loadSession, saveSession } from './session'
 import { callLLMStreaming } from './streaming'
 import { buildSystemPrompt } from './system-prompt'
+import { classifyTask, createTaskState, updateTaskState } from './task-discipline'
 import {
   buildToolRoutes,
   executeToolCall,
@@ -225,6 +233,7 @@ export async function runQueryEngine(params: {
   const { goal, workspacePath, primitives, terminal, config, onProgress } = params
 
   const budget = new BudgetGuard(config)
+  const taskState = createTaskState(classifyTask(goal), goal)
   const routes = buildToolRoutes({ primitives, terminal, workspacePath })
   const toolDefs = getToolDefinitions()
   const filesModified = new Set<string>()
@@ -275,6 +284,7 @@ export async function runQueryEngine(params: {
   const DISCOVER_LIMIT = Math.min(4, Math.floor(config.maxTurns * 0.25))
   let turnsWithoutEdit = 0
   let anyEditMade = false
+  let noopRecoveryNudge: string | null = null
 
   // ─── Continuation tracking ───
   // NOTICE: Agents sometimes respond with thinking/planning text before
@@ -507,21 +517,34 @@ export async function runQueryEngine(params: {
     if (response.toolCalls.length === 0) {
       consecutiveNoToolCalls++
 
-      // NOTICE: After edits are made, allow 2 text-only rounds before exiting.
-      // This prevents premature termination when the agent summarizes, then
-      // wants to run verification tools in the next turn. Without this grace
-      // period, the agent gets killed after its first summary response.
+      // ─── Completion guard: task-kind-aware exit gating ───
+      // NOTICE: This replaces the old "consecutive text-only rounds" heuristic.
+      // The guard checks TaskState (report written? files edited? verification done?)
+      // and only allows finalization when the task's criteria are met.
+      const completionVerdict = evaluateCompletionGuard(
+        taskState,
+        filesModified.size,
+        budget.snapshot().turnsUsed,
+        config.maxTurns,
+      )
+
+      // Hard exit: if criteria met AND agent has had a chance to summarize
       const exitThreshold = anyEditMade ? 2 : MAX_NO_TOOL_ROUNDS
-      if (consecutiveNoToolCalls >= exitThreshold) {
+      if (consecutiveNoToolCalls >= exitThreshold && completionVerdict.canFinalize) {
         return buildResult('completed', budget.snapshot())
       }
 
-      // Context-aware nudge: tell the agent specifically what to do next
+      // If criteria not met, inject the task-specific nudge
+      if (!completionVerdict.canFinalize && completionVerdict.nudge) {
+        messages.push({ role: 'user' as const, content: completionVerdict.nudge })
+        continue
+      }
+
+      // Fallback: criteria met but under threshold, or no nudge available
+      // Use generic nudge
       const lastContent = (response.content ?? '').toLowerCase()
       let nudge: string
       if (anyEditMade && consecutiveNoToolCalls === 1) {
-        // NOTICE: Post-edit nudge — most common path where agent summarizes
-        // edits then stops without verifying. Direct it toward verification.
         const modifiedList = Array.from(filesModified).slice(0, 3).join(', ')
         nudge = `[System] You've modified files (${modifiedList}). Before finishing, VERIFY your changes: `
           + 'run tests with bash, or read_file the modified files to confirm correctness. '
@@ -529,9 +552,6 @@ export async function runQueryEngine(params: {
       }
       else if (lastContent.includes('plan') || lastContent.includes('would') || lastContent.includes('should')) {
         nudge = `[System] You described a plan but did not call any tools. Stop planning and start executing. Call edit_file, write_file, read_file, or search_text right now. (${consecutiveNoToolCalls}/${MAX_NO_TOOL_ROUNDS} text-only rounds used)`
-      }
-      else if (filesModified.size === 0 && budget.snapshot().turnsUsed > 2) {
-        nudge = `[System] You have used ${budget.snapshot().turnsUsed} turns but haven't modified any files yet. Call edit_file or write_file now to make changes, or call read_file/search_text if you need more information. (${consecutiveNoToolCalls}/${MAX_NO_TOOL_ROUNDS} text-only rounds used)`
       }
       else {
         nudge = `[System] You responded with text but did not call any tools. The task is NOT complete. Call tools now — do not just describe what you would do. (${consecutiveNoToolCalls}/${MAX_NO_TOOL_ROUNDS} text-only rounds used)`
@@ -573,6 +593,23 @@ export async function runQueryEngine(params: {
         budget: budget.snapshot(),
       })
 
+      // Phase 3: Intercept and reject exploratory bash if penalized
+      if (tc.function.name === 'bash') {
+        try {
+          const args = tc.function.arguments ? JSON.parse(tc.function.arguments) : {}
+          const command = args.command || ''
+          const isDiscovery = /\b(find|ls|grep|cat|ag|rg|tree)\b/i.test(command)
+          if (isDiscovery && shouldRejectBashDiscovery(taskState)) {
+            resultSlots[slotIndex] = {
+              toolCallId: tc.id,
+              content: '[System] BASH DISCOVERY REJECTED. You have reached the penalty threshold for using exploratory bash without making task progress. Stop using bash to crawl files. Use list_files, search_text, or read_file instead. Proceed with concrete actions.',
+            }
+            return
+          }
+        }
+        catch { /* ignore parse errors */ }
+      }
+
       const { result, error } = await executeToolCall(
         routes,
         tc.function.name,
@@ -612,23 +649,60 @@ export async function runQueryEngine(params: {
     // Flush any remaining read-only calls
     await flushReadOnly()
 
-    // Track file modifications POST-execution — only count successful edits
+    // Track file modifications POST-execution and update task state
     for (let idx = 0; idx < resultSlots.length; idx++) {
       const slot = resultSlots[idx]
       if (!slot)
         continue
       const toolName = response.toolCalls[idx]?.function.name ?? ''
+      const isError = slot.content.startsWith('[ERROR]')
+
+      // Update task state machine with each tool result
+      try {
+        const toolArgs = JSON.parse(response.toolCalls[idx]!.function.arguments)
+
+        const stateBefore = { ...taskState, editedFiles: new Set(taskState.editedFiles) }
+        updateTaskState(taskState, toolName, toolArgs, slot.content, isError)
+
+        // Phase 3: Track bash progress
+        if (toolName === 'bash' && !isError) {
+          const command = toolArgs.command || ''
+          const evalResult = evaluateBashProgress(stateBefore, taskState, command, slot.content)
+          if (!evalResult.isProgress) {
+            taskState.bashNoProgressCount++
+          }
+          else {
+            // Reset counter on progress
+            taskState.bashNoProgressCount = 0
+          }
+        }
+      }
+      catch { /* ignore parse errors in args */ }
+
       // Only track write/edit tools that actually succeeded
       if (toolName === 'write_file' || toolName === 'edit_file' || toolName === 'multi_edit_file') {
         // NOTICE: Check for success signals in the result. Failed edits return
-        // 'error', 'BLOCKED', or 'EDIT FAILED' — those should NOT be counted.
-        if (!slot.content.includes('[ERROR]') && !slot.content.includes('BLOCKED') && !slot.content.includes('EDIT FAILED')) {
+        // 'error', 'BLOCKED', 'EDIT FAILED', or 'NO-OP' — those should NOT be counted.
+        if (!isError && !slot.content.includes('BLOCKED') && !slot.content.includes('EDIT FAILED') && !slot.content.includes('NO-OP')) {
           try {
             const args = JSON.parse(response.toolCalls[idx]!.function.arguments)
             if (args.file_path)
               filesModified.add(args.file_path)
           }
           catch { /* ignore parse errors */ }
+        }
+
+        // ─── Doc-task NO-OP recovery ───
+        // NOTICE: When a JSDoc/docstring task gets a NO-OP, the agent needs
+        // a specific recovery signal. Without this, it retries the same
+        // symbol or gives up, causing S1-type failures.
+        if (slot.content.includes('NO-OP') && isDocTask(goal)) {
+          noopRecoveryNudge = '[System] EDIT NO-OP: The symbol you targeted already has documentation, or your replacement is identical to the existing content. '
+            + 'DO NOT retry the same symbol. Instead:\n'
+            + '  1. Check the undocumentedExports list from your last read_file response\n'
+            + '  2. Pick a DIFFERENT symbol that lacks JSDoc/docstring\n'
+            + '  3. If all exports in this file are documented, read_file a different source file\n'
+            + 'Call edit_file with a different target immediately.'
         }
       }
     }
@@ -702,6 +776,12 @@ export async function runQueryEngine(params: {
       }
     }
 
+    // ─── Inject doc-task NO-OP recovery nudge ───
+    if (noopRecoveryNudge) {
+      messages.push({ role: 'user' as const, content: noopRecoveryNudge })
+      noopRecoveryNudge = null
+    }
+
     // ─── Exploration phase enforcement ───
     // Track whether the agent made any edits this turn.
     const EDIT_TOOLS = new Set(['edit_file', 'multi_edit_file', 'write_file'])
@@ -714,14 +794,74 @@ export async function runQueryEngine(params: {
       turnsWithoutEdit++
     }
 
-    // If agent has been exploring too long without editing, inject a nudge
+    // If agent has been exploring too long without editing, inject a nudge.
+    // For existing_file_edit tasks, use stronger wording and escalate.
     if (!anyEditMade && turnsWithoutEdit >= DISCOVER_LIMIT) {
+      if (taskState.taskKind === 'existing_file_edit') {
+        // NOTICE: existing_file_edit specific nudge — role: 'user' for stronger signal.
+        // The agent has been reading/searching without committing an edit.
+        const isEscalated = turnsWithoutEdit >= DISCOVER_LIMIT * 2
+        const nudgeText = isEscalated
+          ? `[System] CRITICAL: You have spent ${turnsWithoutEdit} turns reading files without calling edit_file.`
+          + ' You MUST call edit_file in your NEXT response. Pick the most relevant file you have already read'
+          + ' and make the required change. Do NOT call read_file, search_text, list_files, or bash.'
+          + ' Your very next tool call must be edit_file.'
+          : `[System] You have spent ${turnsWithoutEdit} turns exploring.`
+            + ' You have enough context — call edit_file now to make the required change.'
+            + ' Do not continue reading or searching. Act on what you already know.'
+        messages.push({ role: 'user' as const, content: nudgeText })
+      }
+      else if (taskState.taskKind === 'analysis_report') {
+        // Analysis tasks need write_file, not edit_file
+        const nudgeText = `[System] You have spent ${turnsWithoutEdit} turns exploring without producing a deliverable.`
+          + ' You must now call write_file to create your report/analysis artifact.'
+          + ' Do NOT continue searching. Summarize what you have found and write the report.'
+        messages.push({ role: 'user' as const, content: nudgeText })
+      }
+      else {
+        messages.push({
+          role: 'system',
+          content: `PHASE WARNING: You have spent ${turnsWithoutEdit} turns exploring without making any edits. `
+            + 'You must now either (1) make an edit using edit_file/multi_edit_file, or (2) provide your final summary if the task is investigation-only. '
+            + 'Do NOT continue searching or reading files without a concrete action plan.',
+        })
+      }
+    }
+
+    // Phase 3: Check if we hit the bash penalty threshold exact boundary to nudge
+    if (shouldNudgeBashPenalty(taskState)) {
       messages.push({
-        role: 'system',
-        content: `PHASE WARNING: You have spent ${turnsWithoutEdit} turns exploring without making any edits. `
-          + 'You must now either (1) make an edit using edit_file/multi_edit_file, or (2) provide your final summary if the task is investigation-only. '
-          + 'Do NOT continue searching or reading files without a concrete action plan.',
+        role: 'user', // User role to pass validation and ensure strength
+        content: getBashPenaltyNudge(),
       })
+    }
+
+    // ─── Post-tool finalization nudge ───
+    // NOTICE: If the task's core work is done (canFinalize=true) but the agent
+    // is still calling tools instead of summarizing, nudge it to wrap up.
+    // This reduces budget_exhausted by catching the "edit+readback done but
+    // still running bash/read_file" pattern.
+    if (anyEditMade) {
+      const postToolVerdict = evaluateCompletionGuard(
+        taskState,
+        filesModified.size,
+        budget.snapshot().turnsUsed,
+        config.maxTurns,
+      )
+      if (postToolVerdict.canFinalize) {
+        // Count how many turns the agent has spent after completing core work
+        // Only nudge if it's been at least 1 full turn since canFinalize became true
+        const turnsAfterCore = turnsWithoutEdit // repurpose: turns since last edit = turns after core work
+        if (turnsAfterCore >= 1) {
+          const modifiedList = Array.from(filesModified).slice(0, 3).join(', ')
+          messages.push({
+            role: 'user' as const,
+            content: `[System] Your core task is COMPLETE. You have successfully modified: ${modifiedList}. `
+              + 'Stop running additional tools. Provide your final summary now — describe what you changed, '
+              + 'what you verified, and any remaining issues. Do NOT call more tools.',
+          })
+        }
+      }
     }
 
     // ─── Session auto-save ───
@@ -768,4 +908,13 @@ export async function runQueryEngine(params: {
       })
     }
   }
+}
+
+/**
+ * Detect if the goal is a JSDoc/docstring/documentation task.
+ * Used to gate doc-specific runtime behaviors (undocumented export hints,
+ * NO-OP recovery nudges) that shouldn't apply to general fix/analysis tasks.
+ */
+function isDocTask(goal: string): boolean {
+  return /\b(?:jsdoc|docstring|documentation|doc\s*comment|add\s+(?:a\s+)?(?:jsdoc|docstring|documentation))\b/i.test(goal)
 }
