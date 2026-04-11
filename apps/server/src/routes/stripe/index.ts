@@ -184,8 +184,8 @@ export function createStripeRoutes(
       const session = await stripe.checkout.sessions.create({
         // When STRIPE_PAYMENT_METHODS is not set, omit payment_method_types to let Stripe
         // automatically determine available methods based on currency and Dashboard settings
-        ...(paymentMethods && { payment_method_types: paymentMethods as Stripe.Checkout.SessionCreateParams.PaymentMethodType[] }),
-        ...(Object.keys(paymentMethodOptions).length > 0 && { payment_method_options: paymentMethodOptions as Stripe.Checkout.SessionCreateParams.PaymentMethodOptions }),
+        ...(paymentMethods && { payment_method_types: paymentMethods as any }),
+        ...(Object.keys(paymentMethodOptions).length > 0 && { payment_method_options: paymentMethodOptions as any }),
         // When currency is specified, Stripe uses the matching currency_options on the Price
         ...(currency && { currency }),
         line_items: [{ price: stripePriceId, quantity: 1 }],
