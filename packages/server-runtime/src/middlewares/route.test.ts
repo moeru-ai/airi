@@ -131,6 +131,22 @@ describe('route middleware', () => {
     expect(collectDestinations(event)).toEqual([])
   })
 
+  it('treats an explicit empty data destination list as the override', () => {
+    const event = createSparkNotifyEvent({
+      data: {
+        id: 'evt-data-empty',
+        eventId: 'spark-data-empty',
+        kind: 'ping',
+        urgency: 'soon',
+        headline: 'hello',
+        destinations: [],
+      },
+      route: undefined,
+    })
+
+    expect(collectDestinations(event)).toEqual([])
+  })
+
   it('matches destinations by label selector', () => {
     const peer = createPeer({
       id: 'peer-2',
