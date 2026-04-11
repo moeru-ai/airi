@@ -147,8 +147,8 @@ pages:
     title: 账号
     description: 查看您的个人资料并管理您的帐户
     notLoggedIn: 登录以查看您的帐户并访问所有功能
-    login: 登录
-    logout: 退出登录
+    login: Sign in
+    logout: Sign out
     fluxBalance: 剩余通量
     viewFluxDetails: 查看详情
     signedInAs: 登录 为

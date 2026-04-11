@@ -147,8 +147,8 @@ pages:
     title: Compte
     description: Consultez votre profil et gérez votre compte
     notLoggedIn: Connectez-vous pour accéder à votre compte et à toutes les fonctionnalités
-    login: Se connecter
-    logout: Se déconnecter
+    login: Sign in
+    logout: Sign out
     fluxBalance: Solde de Flux
     viewFluxDetails: Voir les détails
     signedInAs: Connecté en tant que

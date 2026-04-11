@@ -28,7 +28,7 @@ docs:
   'login': Se connecter
   'logging-in': Connexion en cours...
   'account': Compte
-  'logout': Se déconnecter
+  'logout': Compte
 notice:
   'fade-on-hover':
     title: Disparaître au survol

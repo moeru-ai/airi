@@ -147,8 +147,8 @@ pages:
     title: アカウント
     description: プロフィールを表示し、アカウントを管理します
     notLoggedIn: アカウントにログインして、全機能をご利用ください
-    login: ログイン
-    logout: ログアウト
+    login: Sign in
+    logout: Sign out
     fluxBalance: Flux 残高
     viewFluxDetails: 詳細を見る
     signedInAs: サインイン済み

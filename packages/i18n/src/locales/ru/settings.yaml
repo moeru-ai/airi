@@ -147,8 +147,8 @@ pages:
     title: Аккаунт
     description: Просматривайте свой профиль и управляйте своей учетной записью
     notLoggedIn: Войдите, чтобы просмотреть аккаунт и получить доступ ко всем функциям
-    login: Войти
-    logout: Выйти
+    login: Sign in
+    logout: Sign out
     fluxBalance: Баланс Flux
     viewFluxDetails: Подробнее
     signedInAs: Вы вошли как
