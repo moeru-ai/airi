@@ -1,7 +1,7 @@
 import type { Database } from '../libs/db'
 
 import { useLogger } from '@guiiai/logg'
-import { desc, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray } from 'drizzle-orm'
 
 import * as schema from '../schemas/flux-transaction'
 
@@ -48,27 +48,22 @@ export function createFluxTransactionService(db: Database) {
     },
 
     async getStats(userId: string) {
-      const rows = await db.select({
-        type: schema.fluxTransaction.type,
-        total: sql<number>`sum(${schema.fluxTransaction.amount})`.mapWith(Number),
+      // Get the balance right after the most recent credit/initial transaction
+      // as the "capacity" for the progress bar
+      const [latestCredit] = await db.select({
+        balanceAfter: schema.fluxTransaction.balanceAfter,
       })
         .from(schema.fluxTransaction)
-        .where(eq(schema.fluxTransaction.userId, userId))
-        .groupBy(schema.fluxTransaction.type)
+        .where(
+          and(
+            eq(schema.fluxTransaction.userId, userId),
+            inArray(schema.fluxTransaction.type, ['credit', 'initial']),
+          ),
+        )
+        .orderBy(desc(schema.fluxTransaction.createdAt))
+        .limit(1)
 
-      let totalReceived = 0
-      let totalConsumed = 0
-
-      for (const row of rows) {
-        if (row.type === 'credit' || row.type === 'initial') {
-          totalReceived += row.total
-        }
-        else if (row.type === 'debit') {
-          totalConsumed += row.total
-        }
-      }
-
-      return { totalReceived, totalConsumed }
+      return { capacity: latestCredit?.balanceAfter ?? 0 }
     },
   }
 }

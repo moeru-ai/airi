@@ -68,14 +68,12 @@ const auditHasMore = ref(false)
 const auditOffset = ref(0)
 const AUDIT_PAGE_SIZE = 20
 
-const totalReceived = ref(0)
-const totalConsumed = ref(0)
+const capacity = ref(0)
 
 const fluxPercentage = computed(() => {
-  if (totalReceived.value === 0)
+  if (capacity.value === 0)
     return credits.value > 0 ? 100 : 0
-  const remaining = Math.max(0, totalReceived.value - totalConsumed.value)
-  return Math.min(100, Math.round((remaining / totalReceived.value) * 100))
+  return Math.min(100, Math.round((credits.value / capacity.value) * 100))
 })
 
 async function fetchStats() {
@@ -83,8 +81,7 @@ async function fetchStats() {
     const res = await client.api.v1.flux.stats.$get()
     if (res.ok) {
       const data = await res.json()
-      totalReceived.value = data.totalReceived
-      totalConsumed.value = data.totalConsumed
+      capacity.value = data.capacity
     }
   }
   catch {
@@ -173,7 +170,7 @@ const groupedRows = computed<GroupedRow[]>(() => {
           model: (record.metadata?.model as string) || '',
           count: group.length,
           totalAmount: group.reduce((sum, r) => sum + r.amount, 0),
-          firstTime: group.at(-1).createdAt,
+          firstTime: group.at(-1)!.createdAt,
           lastTime: group[0].createdAt,
           records: group,
         })
