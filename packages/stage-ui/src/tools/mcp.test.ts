@@ -23,4 +23,15 @@ describe('tools mcp schema', () => {
     expect((props.name as JsonSchema).type).toBe('string')
     expect((props.arguments as JsonSchema).type).toBe('string')
   })
+
+  it('describes MCP tools as optional and need-based', async () => {
+    const tools = await mcp()
+    const listTool = tools.find(entry => entry.function.name === 'builtIn_mcpListTools')
+    const callTool = tools.find(entry => entry.function.name === 'builtIn_mcpCallTool')
+
+    expect(listTool?.function.description).toContain('only when the request truly needs external capabilities')
+    expect(listTool?.function.description).toContain('Do not call this for greetings, small talk')
+    expect(callTool?.function.description).toContain('only after deciding a tool is actually necessary')
+    expect(callTool?.function.description).toContain('Do not call this for ordinary conversation')
+  })
 })

@@ -23,12 +23,17 @@ export type StreamEvent
     | { type: 'tool-result', toolCallId: string, result?: string | CommonContentPart[] }
     | { type: 'error', error: any }
 
+export type ToolMode = 'disabled' | 'enabled'
+export type BuiltinToolName = 'mcp' | 'debug' | 'spark-command'
+
 export interface StreamOptions {
   abortSignal?: AbortSignal
   headers?: Record<string, string>
   onStreamEvent?: (event: StreamEvent) => void | Promise<void>
   toolsCompatibility?: Map<string, boolean>
   supportsTools?: boolean
+  toolMode?: ToolMode
+  builtinTools?: BuiltinToolName[]
   waitForTools?: boolean
   tools?: Tool[] | (() => Promise<Tool[] | undefined>)
 }
@@ -60,6 +65,20 @@ function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProv
   return options?.toolsCompatibility?.get(key) !== false
 }
 
+function streamOptionsToolModeEnabled(options?: StreamOptions): boolean {
+  return options?.toolMode === 'enabled'
+}
+
+function streamOptionsBuiltinTools(options?: StreamOptions) {
+  const builtinTools = new Set(options?.builtinTools ?? [])
+
+  return {
+    mcp: builtinTools.has('mcp'),
+    debug: builtinTools.has('debug'),
+    sparkCommand: builtinTools.has('spark-command'),
+  }
+}
+
 async function streamFrom(model: string, chatProvider: ChatProvider, messages: Message[], sendSparkCommand: (command: WebSocketEvents['spark:command']) => void, options?: StreamOptions) {
   const chatConfig = chatProvider.chat(model)
   const sanitized = sanitizeMessages(messages as unknown[])
@@ -71,15 +90,18 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
     return tools ?? []
   }
 
-  const supportedTools = streamOptionsToolsCompatibilityOk(model, chatProvider, messages, options)
+  const toolModeEnabled = streamOptionsToolModeEnabled(options)
+  const builtinTools = streamOptionsBuiltinTools(options)
+  const supportedTools = toolModeEnabled && streamOptionsToolsCompatibilityOk(model, chatProvider, messages, options)
   const tools = supportedTools
     ? [
-        ...await mcp(),
-        ...await debug(),
+        ...(builtinTools.mcp ? await mcp() : []),
+        ...(builtinTools.debug ? await debug() : []),
         ...await resolveTools(),
-        await createSparkCommandTool({ sendSparkCommand }),
+        ...(builtinTools.sparkCommand ? [await createSparkCommandTool({ sendSparkCommand })] : []),
       ]
-    : undefined
+    : []
+  const resolvedTools = tools.length > 0 ? tools : undefined
 
   return new Promise<void>((resolve, reject) => {
     let settled = false
@@ -121,7 +143,9 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
         messages: sanitized,
         headers: options?.headers,
         stopWhen: stepCountAtLeast(10),
-        tools,
+        // NOTICE: Tooling is opt-in so plain chat turns do not silently advertise MCP/debug
+        // capabilities. Callers must explicitly enable tool mode and request any built-ins.
+        tools: resolvedTools,
         captureToolErrors: true,
         onEvent,
       })

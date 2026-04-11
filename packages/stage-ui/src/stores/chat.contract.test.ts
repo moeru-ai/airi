@@ -203,9 +203,13 @@ describe('chat orchestrator contract', () => {
     getContextsSnapshotMock.mockReturnValue(contextsSnapshot)
 
     let composedMessages: Message[] = []
+    let receivedOptions: any
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, messages: Message[], options: any) => {
       composedMessages = messages
-      expect(options.waitForTools).toBe(true)
+      receivedOptions = options
+      expect(options.toolMode).toBe('disabled')
+      expect(options.tools).toBeUndefined()
+      expect(options.waitForTools).toBe(false)
 
       await options.onStreamEvent({ type: 'text-delta', text: 'hello' })
       await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
@@ -268,6 +272,8 @@ describe('chat orchestrator contract', () => {
     expect(composedMessages).toHaveLength(2)
     expect(composedMessages[0]).toMatchObject({ role: 'system' })
     expect(composedMessages[1]).toMatchObject({ role: 'user' })
+    expect(receivedOptions.builtinTools).toBeUndefined()
+    expect((composedMessages[0] as any).content).toBe('system prompt')
     const userMessageContent = (composedMessages[1] as any).content
 
     expect(userMessageContent[0].text).toBe('hello from user')
@@ -275,6 +281,92 @@ describe('chat orchestrator contract', () => {
     const syntheticContextText = userMessageContent[1].text
     expect(syntheticContextText).toContain('<context>')
     expect(syntheticContextText).toContain('<module name="weather">')
+  })
+
+  it('forwards tools only when tool mode is explicitly enabled', async () => {
+    getContextsSnapshotMock.mockReturnValue({})
+    const customTools = [{ name: 'weather-tool' }] as any
+    let receivedOptions: any
+    let composedMessages: Message[] = []
+
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, messages: Message[], options: any) => {
+      receivedOptions = options
+      composedMessages = messages
+      await options.onStreamEvent({ type: 'tool-call', toolName: 'weather-tool', args: '{"location":"Tokyo"}', toolCallId: 'tool-1', toolCallType: 'function' })
+      await options.onStreamEvent({ type: 'tool-result', toolCallId: 'tool-1', result: 'sunny' })
+      await options.onStreamEvent({ type: 'text-delta', text: 'hello with tools' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatOrchestratorStore()
+    await store.ingest('hello with tools', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      toolMode: 'enabled',
+      builtinTools: ['mcp'],
+      waitForTools: true,
+      tools: customTools,
+    })
+
+    expect(receivedOptions.toolMode).toBe('enabled')
+    expect(receivedOptions.builtinTools).toEqual(['mcp'])
+    expect(receivedOptions.waitForTools).toBe(true)
+    expect(receivedOptions.tools).toBe(customTools)
+    expect((composedMessages[0] as any).content).toContain('MCP tools are optional.')
+    expect((composedMessages[0] as any).content).toContain('Do not call MCP tools for greetings, small talk')
+
+    const assistantMessage = sessionMessages['session-1'].at(-1)
+    expect(assistantMessage).toMatchObject({
+      role: 'assistant',
+      tool_results: [{ id: 'tool-1', result: 'sunny' }],
+    })
+    expect(assistantMessage.slices).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'tool-call',
+        toolCall: expect.objectContaining({
+          toolCallId: 'tool-1',
+          toolName: 'weather-tool',
+        }),
+      }),
+      expect.objectContaining({
+        type: 'text',
+        text: 'hello with tools',
+      }),
+    ]))
+  })
+
+  it('ignores unexpected tool events when tool mode is disabled', async () => {
+    getContextsSnapshotMock.mockReturnValue({})
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+      await options.onStreamEvent({ type: 'tool-call', toolName: 'weather-tool', args: '{"location":"Tokyo"}', toolCallId: 'tool-1', toolCallType: 'function' })
+      await options.onStreamEvent({ type: 'tool-error', toolCallId: 'tool-1', result: 'boom' })
+      await options.onStreamEvent({ type: 'text-delta', text: 'plain reply' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatOrchestratorStore()
+
+    try {
+      await store.ingest('hello', {
+        model: 'gpt-test',
+        chatProvider: provider,
+      })
+    }
+    finally {
+      warnSpy.mockRestore()
+    }
+
+    const assistantMessage = sessionMessages['session-1'].at(-1)
+    expect(assistantMessage).toMatchObject({
+      role: 'assistant',
+      tool_results: [],
+    })
+    expect(assistantMessage.slices).toEqual([
+      { type: 'text', text: 'plain reply' },
+    ])
+    expect(warnSpy).toHaveBeenCalledTimes(1)
   })
 
   it('rejects cancelled queued sends before they start', async () => {

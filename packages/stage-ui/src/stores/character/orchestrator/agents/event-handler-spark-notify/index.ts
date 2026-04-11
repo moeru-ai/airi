@@ -3,7 +3,7 @@ import type { ChatProvider, ChatProviderWithExtraOptions, EmbedProvider, EmbedPr
 import type { Message } from '@xsai/shared-chat'
 
 import type { SparkNotifyCommandDraft } from '../../../../../tools'
-import type { StreamEvent } from '../../../../llm'
+import type { StreamEvent, ToolMode } from '../../../../llm'
 
 import { nanoid } from 'nanoid'
 
@@ -26,6 +26,7 @@ export interface SparkNotifyAgentDeps {
     options: {
       tools?: any[]
       supportsTools?: boolean
+      toolMode?: ToolMode
       waitForTools?: boolean
       onStreamEvent?: (event: StreamEvent) => void | Promise<void>
     },
@@ -104,6 +105,7 @@ export function setupAgentSparkNotifyHandler(deps: SparkNotifyAgentDeps) {
     await deps.stream(activeModel, chatProvider, [systemMessage, userMessage], {
       tools,
       supportsTools: true,
+      toolMode: 'enabled',
       waitForTools: true,
       onStreamEvent: async (streamEvent: StreamEvent) => {
         if (streamEvent.type === 'text-delta') {

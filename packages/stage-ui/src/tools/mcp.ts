@@ -6,7 +6,7 @@ import { getMcpToolBridge } from '../stores/mcp-tool-bridge'
 const tools = [
   tool({
     name: 'builtIn_mcpListTools',
-    description: 'List all available MCP tools. Call this first to discover tool names before calling builtIn_mcpCallTool.',
+    description: 'List all available MCP tools only when the request truly needs external capabilities, fresh data, or an action outside the model. Do not call this for greetings, small talk, translation, rewriting, summarization, or reasoning-only replies. Call this first to discover tool names before calling builtIn_mcpCallTool.',
     execute: async () => {
       try {
         return await getMcpToolBridge().listTools()
@@ -20,7 +20,7 @@ const tools = [
   }),
   tool({
     name: 'builtIn_mcpCallTool',
-    description: 'Call an MCP tool by name. Use builtIn_mcpListTools first to get available tool names.',
+    description: 'Call an MCP tool by name only after deciding a tool is actually necessary for the request. Do not call this for ordinary conversation or tasks answerable from the current chat context. Use builtIn_mcpListTools first to get available tool names.',
     execute: async ({ name, arguments: argsJson }) => {
       try {
         const args = argsJson ? JSON.parse(argsJson) : {}

@@ -109,6 +109,26 @@ describe('isToolRelatedError', () => {
     })
   }
 
+  it('does not attach tools when tool mode is disabled', async () => {
+    const customTool = { name: 'custom-tool' } as any
+    streamTextMock.mockImplementation((options: { onEvent: (event: unknown) => Promise<void>, tools?: unknown[] }) => {
+      queueMicrotask(async () => {
+        await options.onEvent({ type: 'finish', finishReason: 'stop' })
+      })
+      return createMockStreamResult()
+    })
+
+    const store = useLLM()
+    await store.stream('model-a', provider, [{ role: 'user', content: 'hello' }] as Message[], {
+      tools: [customTool],
+    })
+
+    expect(streamTextMock.mock.calls[0]?.[0]?.tools).toBeUndefined()
+    expect(mcpMock).not.toHaveBeenCalled()
+    expect(debugMock).not.toHaveBeenCalled()
+    expect(createSparkCommandToolMock).not.toHaveBeenCalled()
+  })
+
   it('keeps stream pending on tool_calls finish when waitForTools is true', async () => {
     let onEvent: ((event: unknown) => Promise<void>) | undefined
     streamTextMock.mockImplementation((options: { onEvent: (event: unknown) => Promise<void> }) => {
@@ -121,6 +141,7 @@ describe('isToolRelatedError', () => {
     let resolved = false
 
     const pending = store.stream('model-a', provider, [{ role: 'user', content: 'hello' }] as Message[], {
+      toolMode: 'enabled',
       waitForTools: true,
       onStreamEvent,
     }).then(() => {
@@ -147,6 +168,7 @@ describe('isToolRelatedError', () => {
 
     const store = useLLM()
     const pending = store.stream('model-a', provider, [{ role: 'user', content: 'hello' }] as Message[], {
+      toolMode: 'enabled',
       waitForTools: true,
     })
 
@@ -156,7 +178,29 @@ describe('isToolRelatedError', () => {
     await expect(pending).rejects.toThrow('stream failed')
   })
 
-  it('keeps builtin tools and auto-disables tools after tool-related errors', async () => {
+  it('only attaches custom tools by default when tool mode is enabled', async () => {
+    const store = useLLM()
+    const customTool = { name: 'custom-tool' } as any
+
+    streamTextMock.mockImplementation((options: { onEvent: (event: unknown) => Promise<void>, tools?: unknown[] }) => {
+      queueMicrotask(async () => {
+        await options.onEvent({ type: 'finish', finishReason: 'stop' })
+      })
+      return createMockStreamResult()
+    })
+
+    await store.stream('model-a', provider, [{ role: 'user', content: 'hello' }] as Message[], {
+      toolMode: 'enabled',
+      tools: [customTool],
+    })
+
+    expect(streamTextMock.mock.calls[0]?.[0]?.tools).toEqual([customTool])
+    expect(mcpMock).not.toHaveBeenCalled()
+    expect(debugMock).not.toHaveBeenCalled()
+    expect(createSparkCommandToolMock).not.toHaveBeenCalled()
+  })
+
+  it('attaches selected builtin tools and auto-disables tools after tool-related errors', async () => {
     const store = useLLM()
     const customTool = { name: 'custom-tool' } as any
 
@@ -168,6 +212,8 @@ describe('isToolRelatedError', () => {
     })
 
     await expect(store.stream('model-a', provider, [{ role: 'user', content: 'hello' }] as Message[], {
+      toolMode: 'enabled',
+      builtinTools: ['mcp', 'debug', 'spark-command'],
       tools: [customTool],
     })).rejects.toThrow('does not support tools')
 
@@ -175,6 +221,7 @@ describe('isToolRelatedError', () => {
     expect(Array.isArray(firstCallTools)).toBe(true)
     expect(mcpMock).toHaveBeenCalledTimes(1)
     expect(debugMock).toHaveBeenCalledTimes(1)
+    expect(createSparkCommandToolMock).toHaveBeenCalledTimes(1)
     expect(firstCallTools).toContain(customTool)
 
     streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => Promise<void>, tools?: unknown[] }) => {
@@ -185,6 +232,8 @@ describe('isToolRelatedError', () => {
     })
 
     await store.stream('model-a', provider, [{ role: 'user', content: 'hello again' }] as Message[], {
+      toolMode: 'enabled',
+      builtinTools: ['mcp', 'debug', 'spark-command'],
       tools: [customTool],
     })
 

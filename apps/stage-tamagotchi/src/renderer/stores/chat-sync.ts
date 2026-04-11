@@ -207,12 +207,15 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       throw new Error(`Failed to resolve chat provider "${providerId}"`)
     }
 
+    const tools = resolveTools(payload.toolset)
+
     await chatOrchestrator.ingest(payload.text, {
       model: modelId,
       chatProvider,
       attachments: payload.attachments,
       input: payload.input,
-      tools: resolveTools(payload.toolset),
+      toolMode: tools ? 'enabled' : 'disabled',
+      tools,
     }, payload.sessionId)
   }
 

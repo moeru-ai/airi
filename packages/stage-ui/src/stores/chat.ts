@@ -23,6 +23,16 @@ import { useContextObservabilityStore } from './devtools/context-observability'
 import { useLLM } from './llm'
 import { useConsciousnessStore } from './modules/consciousness'
 
+const MCP_TOOL_USAGE_POLICY = [
+  '<mcp-tool-policy>',
+  'MCP tools are optional. Use them only when the request requires external capabilities, fresh data, or an action outside the model.',
+  'Do not call MCP tools for greetings, small talk, translation, paraphrasing, summarization, rewriting, brainstorming, or reasoning that can be completed from the conversation and provided context.',
+  'Call builtIn_mcpListTools only when you actually need MCP help and do not already know which tool fits.',
+  'Call builtIn_mcpCallTool only after deciding a tool is necessary and identifying the correct tool name.',
+  'If no MCP tool is needed, answer directly in natural language without mentioning tools.',
+  '</mcp-tool-policy>',
+].join('\n')
+
 function cloneStreamingMessage(message: StreamingAssistantMessage): StreamingAssistantMessage {
   try {
     return structuredClone(message)
@@ -32,12 +42,39 @@ function cloneStreamingMessage(message: StreamingAssistantMessage): StreamingAss
   }
 }
 
+function appendInstructionToMessageContent(content: Message['content'], instruction: string): Message['content'] {
+  if (typeof content === 'string')
+    return `${content}\n\n${instruction}`
+
+  return [
+    ...content,
+    { type: 'text', text: `\n\n${instruction}` },
+  ]
+}
+
+function appendSystemInstruction(messages: Message[], instruction: string) {
+  const firstSystemMessage = messages.find(message => message.role === 'system')
+
+  if (firstSystemMessage) {
+    firstSystemMessage.content = appendInstructionToMessageContent(firstSystemMessage.content, instruction)
+    return
+  }
+
+  messages.unshift({
+    role: 'system',
+    content: instruction,
+  })
+}
+
 interface SendOptions {
   model: string
   chatProvider: ChatProvider
   providerConfig?: Record<string, unknown>
   attachments?: { type: 'image', data: string, mimeType: string }[]
   tools?: StreamOptions['tools']
+  toolMode?: StreamOptions['toolMode']
+  builtinTools?: StreamOptions['builtinTools']
+  waitForTools?: StreamOptions['waitForTools']
   input?: WebSocketEventInputs
 }
 
@@ -129,6 +166,11 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       return
 
     chatSession.ensureSession(sessionId)
+    const toolMode = options.toolMode ?? 'disabled'
+    const toolModeEnabled = toolMode === 'enabled'
+    const builtinTools = options.builtinTools ?? []
+    const mcpToolEnabled = toolModeEnabled && builtinTools.includes('mcp')
+    const waitForTools = toolModeEnabled && (options.waitForTools ?? true)
 
     // Inject current datetime context before composing the message
     chatContext.ingestContextMessage(createDatetimeContext())
@@ -298,6 +340,10 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         return rawMessage
       })
 
+      if (mcpToolEnabled) {
+        appendSystemInstruction(newMessages as Message[], MCP_TOOL_USAGE_POLICY)
+      }
+
       const contextsSnapshot = chatContext.getContextsSnapshot()
       const contextPromptText = formatContextPromptText(contextsSnapshot)
       if (contextPromptText) {
@@ -356,19 +402,34 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
       let fullText = ''
       const headers = (options.providerConfig?.headers || {}) as Record<string, string>
+      let warnedAboutUnexpectedToolEvent = false
+      const warnUnexpectedToolEvent = () => {
+        if (warnedAboutUnexpectedToolEvent)
+          return
+
+        warnedAboutUnexpectedToolEvent = true
+        console.warn('[chat] Ignoring tool stream events because tool mode is disabled for this chat turn.')
+      }
 
       if (shouldAbort())
         return
 
       await llmStore.stream(options.model, options.chatProvider, newMessages as Message[], {
         headers,
-        tools: options.tools,
-        // NOTICE: xsai stream may emit `finish` before tool steps continue, so keep waiting until
-        // the final non-tool finish to avoid ending the chat turn with no assistant reply.
-        waitForTools: true,
+        toolMode,
+        builtinTools: builtinTools.length > 0 ? builtinTools : undefined,
+        tools: toolModeEnabled ? options.tools : undefined,
+        // NOTICE: xsai stream may emit `finish` before tool steps continue, so only keep waiting
+        // for a final non-tool finish when this chat turn intentionally allows tool use.
+        waitForTools,
         onStreamEvent: async (event: StreamEvent) => {
           switch (event.type) {
             case 'tool-call':
+              if (!toolModeEnabled) {
+                warnUnexpectedToolEvent()
+                break
+              }
+
               toolCallQueue.enqueue({
                 type: 'tool-call',
                 toolCall: event,
@@ -376,6 +437,11 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
               break
             case 'tool-result':
+              if (!toolModeEnabled) {
+                warnUnexpectedToolEvent()
+                break
+              }
+
               toolCallQueue.enqueue({
                 type: 'tool-call-result',
                 id: event.toolCallId,
@@ -384,6 +450,11 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
               break
             case 'tool-error':
+              if (!toolModeEnabled) {
+                warnUnexpectedToolEvent()
+                break
+              }
+
               toolCallQueue.enqueue({
                 type: 'tool-call-result',
                 id: event.toolCallId,
