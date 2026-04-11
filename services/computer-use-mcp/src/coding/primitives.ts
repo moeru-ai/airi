@@ -5282,7 +5282,21 @@ export class CodingPrimitives {
       }
 
       if (occurrences === 0) {
-        throw new Error('oldString not found in file exactly as provided. Please check for formatting differences (like indentation or quotes) or use coding_read_file to get the exact string.')
+        const oldLines = effectiveOldString.split('\n');
+        let hint = '';
+        if (oldLines.length > 0) {
+          const firstLine = oldLines.find(l => l.trim().length > 0)?.trim();
+          if (firstLine) {
+            const fileLines = content.split('\n');
+            const matchIdx = fileLines.findIndex(l => l.includes(firstLine));
+            if (matchIdx !== -1) {
+              const start = Math.max(0, matchIdx - 2);
+              const end = Math.min(fileLines.length, matchIdx + oldLines.length + 2);
+              hint = `\nDid you mean this snippet around line ${matchIdx + 1}?\n---\n${fileLines.slice(start, end).join('\n')}\n---`;
+            }
+          }
+        }
+        throw new Error(`oldString not found in file exactly as provided. Please check for formatting differences (like indentation or quotes).${hint}`);
       }
       if (occurrences > 1) {
         throw new Error(`oldString found ${occurrences} times in file. Please provide a more specific oldString to ensure exact match.`)

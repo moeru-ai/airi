@@ -156,38 +156,41 @@ export async function applySingleEdit(
     }
 
     if (best.similarity >= 0.7) {
+      // NOTICE: Format as an actionable instruction, not raw JSON.
+      // LLMs routinely ignore candidates arrays and retry with the same
+      // failing text. The text below is written as a direct command.
+      const bestText = best.text.length > 600 ? `${best.text.slice(0, 600)}\n[... truncated]` : best.text
       return {
-        error: `Exact match not found. Found ${candidates.length} similar candidate(s).`,
-        matchType: 'fuzzy_candidates',
-        candidates: candidates.map(c => ({
-          lineStart: c.lineStart,
-          lineEnd: c.lineEnd,
-          similarity: `${Math.round(c.similarity * 100)}%`,
-          snippet: c.text.length > 400 ? `${c.text.slice(0, 400)}...` : c.text,
-        })),
+        error: 'EDIT FAILED — old_text does not match the file.',
+        action_required: `Your old_text was ${Math.round(best.similarity * 100)}% similar to text at lines ${best.lineStart}-${best.lineEnd}. `
+          + 'Either:\n'
+          + `  (A) Copy the EXACT text below as your old_text:\n`
+          + `--- Actual content at lines ${best.lineStart}-${best.lineEnd} ---\n${bestText}\n---\n`
+          + `  (B) Use start_line=${best.lineStart}, end_line=${best.lineEnd} to edit by line range (most reliable).`,
         diagnostic: buildDiagnosticDiff(oldText, best.text),
-        hint: 'Copy the exact text from the snippet above as old_text, or use start_line/end_line to edit by line range.',
       }
     }
   }
 
-  // ─── Layer 6: Total failure — show file structure + diagnostic ───
+  // ─── Layer 6: Total failure — actionable guidance ───
   const lines = content.split('\n')
-  const preview = lines.slice(0, Math.min(30, lines.length))
+
+  // Show a compact preview to orient the agent
+  const previewLines = Math.min(20, lines.length)
+  const previewText = lines.slice(0, previewLines)
     .map((l, i) => `${String(i + 1).padStart(5)}  ${l}`)
     .join('\n')
 
   return {
-    error: `old_text not found in ${filePath}. No similar text found (file has ${lines.length} lines).`,
-    hint: 'Read the file with read_file to see its current content, then use the exact text for old_text. You can also use start_line/end_line to edit by line range.',
-    preview: preview.length > 2000 ? `${preview.slice(0, 2000)}\n[...]` : preview,
+    error: `EDIT FAILED — old_text not found in ${filePath} (${lines.length} lines). No similar text found.`,
+    action_required: 'Read the file with read_file to see its current content. '
+      + 'Then either:\n'
+      + '  (A) Copy the EXACT text you want to change as old_text.\n'
+      + '  (B) Use start_line and end_line to edit by line range (most reliable for large files).',
+    file_head: previewText.length > 1500 ? `${previewText.slice(0, 1500)}\n[...]` : previewText,
     ...(candidates.length > 0
       ? {
-          bestCandidate: {
-            lineStart: candidates[0]!.lineStart,
-            similarity: `${Math.round(candidates[0]!.similarity * 100)}%`,
-            snippet: candidates[0]!.text.slice(0, 200),
-          },
+          closest_match: `Best candidate at lines ${candidates[0]!.lineStart}-${candidates[0]!.lineEnd} (${Math.round(candidates[0]!.similarity * 100)}% similar): ${candidates[0]!.text.slice(0, 200)}`,
         }
       : {}),
   }

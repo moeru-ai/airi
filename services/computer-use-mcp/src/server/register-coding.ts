@@ -354,7 +354,7 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
     descriptor: requireDescriptor('coding_apply_patch'),
     schema: {
       filePath: z.string().describe('Workspace-relative file path, or "auto" to use last deterministic target selection.'),
-      oldString: z.string().describe('Exact string to replace.'),
+      oldString: z.string().describe('Exact string to replace. Must match the file exactly, including whitespace and indentation.'),
       newString: z.string().describe('String to replace it with.'),
     },
     handler: async ({ filePath, oldString, newString }) => {

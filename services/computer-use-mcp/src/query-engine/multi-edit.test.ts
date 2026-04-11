@@ -180,8 +180,8 @@ describe('edit_file (single)', () => {
 
     expect(error).toBe(false)
     const parsed = JSON.parse(result)
-    expect(parsed.error).toContain('old_text not found')
-    expect(parsed.preview).toContain('const x = 1')
+    expect(parsed.error).toContain('EDIT FAILED')
+    expect(parsed.file_head).toContain('const x = 1')
   })
 })
 

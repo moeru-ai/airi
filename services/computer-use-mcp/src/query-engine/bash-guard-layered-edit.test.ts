@@ -205,9 +205,9 @@ describe('edit_file layered matching', () => {
     }))
 
     const parsed = JSON.parse(result)
-    // Should NOT auto-apply, should return candidates
+    // Should NOT auto-apply, should return actionable guidance
     expect(parsed.error).toBeDefined()
-    expect(parsed.candidates || parsed.bestCandidate).toBeDefined()
+    expect(parsed.action_required).toBeDefined()
   })
 
   it('Layer 5: total failure shows preview with line numbers', async () => {
@@ -222,8 +222,8 @@ describe('edit_file layered matching', () => {
 
     const parsed = JSON.parse(result)
     expect(parsed.error).toContain('not found')
-    expect(parsed.preview).toBeDefined()
-    expect(parsed.hint).toContain('read_file')
+    expect(parsed.file_head).toBeDefined()
+    expect(parsed.action_required).toContain('read_file')
   })
 
   it('reports matchType in successful edits', async () => {

@@ -21,7 +21,7 @@ export const codingDescriptors: ToolDescriptor[] = [
   {
     canonicalName: 'coding_read_file',
     displayName: 'Coding Read File',
-    summary: 'Read the contents of a file with optional line range. Returns file content with line numbers for precise navigation.',
+    summary: 'Read the exact contents of a file with optional line range. Returns raw file content without line numbers so you can copy-paste exact strings for patches.',
     lane: 'coding',
     kind: 'read',
     readOnly: true,

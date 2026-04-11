@@ -519,7 +519,15 @@ export async function runQueryEngine(params: {
       // Context-aware nudge: tell the agent specifically what to do next
       const lastContent = (response.content ?? '').toLowerCase()
       let nudge: string
-      if (lastContent.includes('plan') || lastContent.includes('would') || lastContent.includes('should')) {
+      if (anyEditMade && consecutiveNoToolCalls === 1) {
+        // NOTICE: Post-edit nudge — most common path where agent summarizes
+        // edits then stops without verifying. Direct it toward verification.
+        const modifiedList = Array.from(filesModified).slice(0, 3).join(', ')
+        nudge = `[System] You've modified files (${modifiedList}). Before finishing, VERIFY your changes: `
+          + 'run tests with bash, or read_file the modified files to confirm correctness. '
+          + `(${consecutiveNoToolCalls}/${exitThreshold} text-only rounds before auto-complete)`
+      }
+      else if (lastContent.includes('plan') || lastContent.includes('would') || lastContent.includes('should')) {
         nudge = `[System] You described a plan but did not call any tools. Stop planning and start executing. Call edit_file, write_file, read_file, or search_text right now. (${consecutiveNoToolCalls}/${MAX_NO_TOOL_ROUNDS} text-only rounds used)`
       }
       else if (filesModified.size === 0 && budget.snapshot().turnsUsed > 2) {
@@ -541,42 +549,10 @@ export async function runQueryEngine(params: {
     // Classify tools into read-only (parallelizable) and mutating (serialized)
     const MUTATING_TOOLS = new Set(['write_file', 'edit_file', 'multi_edit_file', 'bash'])
 
-    // Track file modifications (before execution)
-    for (const toolCall of response.toolCalls) {
-      const toolName = toolCall.function.name
-      if (toolName === 'write_file' || toolName === 'edit_file' || toolName === 'multi_edit_file') {
-        try {
-          const args = JSON.parse(toolCall.function.arguments)
-          if (args.file_path)
-            filesModified.add(args.file_path)
-        }
-        catch { /* ignore parse errors for tracking */ }
-      }
-      // NOTICE: Track file modifications via bash commands too.
-      // Agents sometimes use sed/echo/cat to modify files instead of edit_file.
-      if (toolName === 'bash') {
-        try {
-          const args = JSON.parse(toolCall.function.arguments)
-          const cmd = (args.command as string) || ''
-          // Detect common file-mutating shell commands
-          const bashFilePatterns = [
-            /\bsed\s+(?:\S.*?)??-i['"]*\s+(?:\S.*?)??(\S+)\s*$/, // sed -i 'expr' file
-            /\bsed\s+(?:\S.*?)??-i['"]*\s+(?:\S.*?)??['"].*?['"]\s+(\S+)/, // sed -i 's/x/y/' file
-            />\s*(\S+)/, // echo > file / cat > file
-            /\btee\s+(?:-a\s+)?(\S+)/, // tee file / tee -a file
-          ]
-          for (const pat of bashFilePatterns) {
-            const m = cmd.match(pat)
-            if (m?.[1]) {
-              const { isAbsolute, resolve } = await import('node:path')
-              const target = isAbsolute(m[1]) ? m[1] : resolve(workspacePath, m[1])
-              filesModified.add(target)
-            }
-          }
-        }
-        catch { /* ignore parse errors for tracking */ }
-      }
-    }
+    // NOTICE: File modification tracking is done POST-execution, not here.
+    // See the result processing loop below — files are only added to
+    // filesModified when the tool result indicates actual success.
+    // This prevents counting failed edits as modifications.
 
     // Split into parallel-safe and sequential batches
     // Strategy: collect consecutive read-only calls into a parallel batch,
@@ -635,6 +611,25 @@ export async function runQueryEngine(params: {
 
     // Flush any remaining read-only calls
     await flushReadOnly()
+
+    // Track file modifications POST-execution — only count successful edits
+    for (let idx = 0; idx < resultSlots.length; idx++) {
+      const slot = resultSlots[idx]
+      if (!slot) continue
+      const toolName = response.toolCalls[idx]?.function.name ?? ''
+      // Only track write/edit tools that actually succeeded
+      if (toolName === 'write_file' || toolName === 'edit_file' || toolName === 'multi_edit_file') {
+        // NOTICE: Check for success signals in the result. Failed edits return
+        // 'error', 'BLOCKED', or 'EDIT FAILED' — those should NOT be counted.
+        if (!slot.content.includes('[ERROR]') && !slot.content.includes('BLOCKED') && !slot.content.includes('EDIT FAILED')) {
+          try {
+            const args = JSON.parse(response.toolCalls[idx]!.function.arguments)
+            if (args.file_path) filesModified.add(args.file_path)
+          }
+          catch { /* ignore parse errors */ }
+        }
+      }
+    }
 
     // Append all results to history in original order, with truncation + read cache
     for (let idx = 0; idx < resultSlots.length; idx++) {

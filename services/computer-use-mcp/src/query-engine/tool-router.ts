@@ -203,10 +203,8 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
     write_file: async (args) => {
       const filePath = await resolveFilePath(args.file_path as string)
       const content = args.content as string
+      const overwrite = args.overwrite as boolean | undefined
 
-      // NOTICE: Warn when agent tries to overwrite an existing file.
-      // This catches the common mistake of using write_file to "edit"
-      // an existing file, which destroys all content not in the new write.
       const fs = await import('node:fs/promises')
       let fileExists = false
       try {
@@ -214,6 +212,21 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
         fileExists = true
       }
       catch { /* file doesn't exist, OK to create */ }
+
+      // NOTICE: HARD rejection of overwrites on existing files.
+      // Previously this was a warning string appended to the result, but LLMs
+      // routinely ignore warnings in tool results. A 500-line file getting
+      // replaced by 20 lines of "improved" content is an unrecoverable data loss.
+      // The agent MUST use edit_file for existing files, or set overwrite: true.
+      if (fileExists && !overwrite) {
+        return {
+          error: true,
+          message: `BLOCKED: "${filePath}" already exists. `
+            + 'Use edit_file to modify existing files (it preserves unchanged content). '
+            + 'write_file is for creating NEW files only. '
+            + 'If you truly need to replace the entire file, set overwrite: true.',
+        }
+      }
 
       let result: any
       try {
@@ -227,12 +240,6 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
         result = { written: true, absolutePath: filePath, bytesWritten: Buffer.byteLength(content, 'utf8'), created: !fileExists }
       }
 
-      if (fileExists) {
-        return {
-          ...result,
-          warning: `⚠️ File already existed and was OVERWRITTEN. If you intended to make a small edit, use edit_file instead — it preserves the rest of the file. write_file replaces the entire file content.`,
-        }
-      }
       return result
     },
 
@@ -613,13 +620,16 @@ export function getToolDefinitions(): QueryEngineTool[] {
     },
     {
       name: 'write_file',
-      description: 'Create or overwrite a file with new content. Parent directories are created automatically.',
+      description: 'Create a NEW file with content. Parent directories are created automatically. '
+        + 'BLOCKED on existing files — use edit_file to modify existing files. '
+        + 'Set overwrite: true only if you need to completely replace a file.',
       parameters: {
         type: 'object',
         required: ['file_path', 'content'],
         properties: {
           file_path: { type: 'string', description: 'File path to write.' },
           content: { type: 'string', description: 'Full file content to write.' },
+          overwrite: { type: 'boolean', description: 'Set to true to allow overwriting an existing file. Default: false (blocks on existing files).' },
         },
       },
     },
@@ -651,7 +661,11 @@ export function getToolDefinitions(): QueryEngineTool[] {
     },
     {
       name: 'bash',
-      description: 'Execute a shell command. Returns stdout, stderr, and exit code.',
+      description: 'Run a shell command for TESTING, BUILDING, or GIT QUERIES only. '
+        + 'NOT for file discovery (use list_files/search_text). '
+        + 'NOT for file reading (use read_file). '
+        + 'NOT for file writing (blocked — use edit_file/write_file). '
+        + 'Returns stdout, stderr, and exit code.',
       parameters: {
         type: 'object',
         required: ['command'],
