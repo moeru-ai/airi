@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { buildToolRoutes, executeToolCall, getToolDefinitions } from './tool-router'
+import { buildToolRoutes, detectBashDiscoveryViolation, executeToolCall, getToolDefinitions } from './tool-router'
 
 describe('tool-router', () => {
   describe('getToolDefinitions', () => {
@@ -152,6 +152,38 @@ describe('tool-router', () => {
       expect(parsed.written).toBe(true)
       expect(writeFile).toHaveBeenCalledTimes(1)
       expect(readFileSync(existingFilePath, 'utf-8')).toContain('value = 2')
+    })
+  })
+
+  describe('detectBashDiscoveryViolation', () => {
+    it('blocks naive find commands', () => {
+      expect(detectBashDiscoveryViolation('find . -name "*.ts"')).toBeTruthy()
+      expect(detectBashDiscoveryViolation('  find src -type f')).toBeTruthy()
+      expect(detectBashDiscoveryViolation('fd --hidden index')).toBeTruthy()
+    })
+
+    it('blocks naive read commands', () => {
+      expect(detectBashDiscoveryViolation('cat package.json')).toBeTruthy()
+      expect(detectBashDiscoveryViolation('less src/index.ts')).toBeTruthy()
+      expect(detectBashDiscoveryViolation('tail -n 50 err.log')).toBeTruthy()
+    })
+
+    it('blocks naive grep commands', () => {
+      expect(detectBashDiscoveryViolation('grep -r "TODO" src/')).toBeTruthy()
+      expect(detectBashDiscoveryViolation('rg "function"')).toBeTruthy()
+      expect(detectBashDiscoveryViolation('ag "FIXME"')).toBeTruthy()
+    })
+
+    it('blocks naive ls / tree commands', () => {
+      expect(detectBashDiscoveryViolation('ls -la')).toBeTruthy()
+      expect(detectBashDiscoveryViolation('tree src/')).toBeTruthy()
+    })
+
+    it('allows valid piped executions', () => {
+      expect(detectBashDiscoveryViolation('npm run test | grep FAIL')).toBeNull()
+      expect(detectBashDiscoveryViolation('tsc --noEmit | cat')).toBeNull()
+      expect(detectBashDiscoveryViolation('echo "hello"')).toBeNull()
+      expect(detectBashDiscoveryViolation('./script.sh | less')).toBeNull()
     })
   })
 })

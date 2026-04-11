@@ -102,6 +102,34 @@ export function detectBashWriteViolation(command: string): { pattern: string, ta
   return null
 }
 
+/**
+ * Detect if a bash command is naively being used for target discovery.
+ * Returns the violation message if detected, null if the command is allowed.
+ *
+ * This prevents the AI from falling into a retry loop executing `bash > find`
+ * instead of using the native structured tools.
+ */
+export function detectBashDiscoveryViolation(command: string): string | null {
+  const cmd = command.trim()
+
+  // Block basic read commands not chained/piped
+  if (/^\s*(cat|less|more|head|tail)\b/.test(cmd)) {
+    return 'Use read_file tool to read file contents'
+  }
+
+  // Block naive discovery
+  if (/^\s*(find|ls|tree|fd)\b/.test(cmd)) {
+    return 'Use list_files tool for file discovery'
+  }
+
+  // Block text search
+  if (/^\s*(grep|rg|ag|ack|xargs\s+grep)\b/.test(cmd)) {
+    return 'Use search_text tool to search across files'
+  }
+
+  return null
+}
+
 // ─── Edit logic extracted to edit-engine.ts ───
 
 /**
@@ -275,6 +303,17 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
           message: `BLOCKED: bash command would modify files (${violation.pattern}).`,
           hint: `Use edit_file or multi_edit_file to modify "${violation.target || 'files'}". `
             + 'bash is only allowed for: reading, searching, compiling, testing, linting, and git queries.',
+        }
+      }
+
+      // NOTICE: Prevent simple discovery bash loops (Stupidity Event: S2/S4 fail modes)
+      const discoveryViolation = detectBashDiscoveryViolation(command)
+      if (discoveryViolation) {
+        return {
+          error: true,
+          blocked: true,
+          message: `BLOCKED: Do not use bash for simple file discovery/reading.`,
+          hint: discoveryViolation,
         }
       }
 
