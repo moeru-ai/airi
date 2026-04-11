@@ -3,7 +3,10 @@ import type { AutoUpdaterState } from '@proj-airi/electron-eventa/electron-updat
 import type { BrowserWindow } from 'electron'
 import type { UpdateInfo } from 'electron-updater'
 
+import fs from 'node:fs'
 import process from 'node:process'
+
+import { join } from 'node:path'
 
 import electronUpdater from 'electron-updater'
 import semver from 'semver'
@@ -33,6 +36,32 @@ const GITHUB_RELEASES_API_URL = 'https://api.github.com/repos/moeru-ai/airi/rele
 const GITHUB_RELEASES_ATOM_URL = 'https://github.com/moeru-ai/airi/releases.atom'
 const GITHUB_RELEASE_DOWNLOAD_BASE_URL = 'https://github.com/moeru-ai/airi/releases/download'
 const UPDATE_CHANNEL_ENV_KEY = 'AIRI_UPDATE_CHANNEL'
+
+function getCacheRoot() {
+  switch (process.platform) {
+    case 'win32':
+      return process.env.LOCALAPPDATA || join(process.env.USERPROFILE || '', 'AppData', 'Local')
+    case 'darwin':
+      return join(process.env.HOME || '', 'Library', 'Caches')
+    default:
+      return process.env.XDG_CACHE_HOME || join(process.env.HOME || '', '.cache')
+  }
+}
+
+const UPDATER_DEBUG_CACHE_DIR = join(getCacheRoot(), 'stage-tamagotchi-updater')
+const UPDATER_LOG_FILE = join(UPDATER_DEBUG_CACHE_DIR, 'updater-log.txt')
+const OFFICIAL_UPDATER_CACHE_DIR = join(getCacheRoot(), 'ai.moeru.airi-updater')
+
+async function logToFile(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: string) {
+  await fs.promises.mkdir(UPDATER_DEBUG_CACHE_DIR, { recursive: true }).catch(() => {})
+  await fs.promises.appendFile(UPDATER_LOG_FILE, `${new Date().toISOString()} [${level}] ${message}\n`).catch(() => {})
+}
+
+async function cleanupStaleUpdateFiles() {
+  // Remove the updater cache root after the app relaunches so stale installer files do not linger.
+  await fs.promises.rm(OFFICIAL_UPDATER_CACHE_DIR, { recursive: true, force: true }).catch(() => {})
+  await logToFile('INFO', `Updater cache cleanup attempted: ${OFFICIAL_UPDATER_CACHE_DIR}`)
+}
 
 export type UpdateLane = 'stable' | 'alpha' | 'beta' | 'nightly' | 'canary'
 interface GitHubReleaseRecord {
@@ -208,14 +237,27 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
 
   autoUpdater.allowPrerelease = isPrereleaseBuild
   autoUpdater.autoDownload = false
+  void cleanupStaleUpdateFiles()
   if (activeFeedUrlOverride)
     autoUpdater.channel = releaseChannelName
   autoUpdater.forceDevUpdateConfig = !!feedUrlOverride && !app.isPackaged
   autoUpdater.logger = {
-    info: (message: string) => log.log(message),
-    warn: (message: string) => log.warn(message),
-    error: (message: string) => log.error(message),
-    debug: (message: string) => log.debug(message),
+    info: (message: string) => {
+      log.log(message)
+      void logToFile('INFO', message)
+    },
+    warn: (message: string) => {
+      log.warn(message)
+      void logToFile('WARN', message)
+    },
+    error: (message: string) => {
+      log.error(message)
+      void logToFile('ERROR', message)
+    },
+    debug: (message: string) => {
+      log.debug(message)
+      void logToFile('DEBUG', message)
+    },
   }
 
   if (activeFeedUrlOverride)
@@ -227,7 +269,7 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
       platform: process.platform,
       arch: process.arch,
       channel: autoUpdater.channel || releaseChannelName,
-      logFilePath: app.getPath('logs'),
+      logFilePath: UPDATER_LOG_FILE,
       executablePath: process.execPath,
       isOverrideActive: !!activeFeedUrlOverride,
       ...(activeFeedUrlOverride ? { feedUrl: activeFeedUrlOverride } : {}),
