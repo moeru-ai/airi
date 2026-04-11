@@ -1,6 +1,6 @@
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
-import type { CommonContentPart, Message, ToolMessage } from '@xsai/shared-chat'
+import type { CommonContentPart, Message, SystemMessage, ToolMessage } from '@xsai/shared-chat'
 
 import type { ChatAssistantMessage, ChatSlices, ChatStreamEventContext, StreamingAssistantMessage } from '../types/chat'
 import type { StreamEvent, StreamOptions } from './llm'
@@ -42,7 +42,7 @@ function cloneStreamingMessage(message: StreamingAssistantMessage): StreamingAss
   }
 }
 
-function appendInstructionToMessageContent(content: Message['content'], instruction: string): Message['content'] {
+function appendInstructionToMessageContent(content: SystemMessage['content'], instruction: string): SystemMessage['content'] {
   if (typeof content === 'string')
     return `${content}\n\n${instruction}`
 
@@ -53,7 +53,7 @@ function appendInstructionToMessageContent(content: Message['content'], instruct
 }
 
 function appendSystemInstruction(messages: Message[], instruction: string) {
-  const firstSystemMessage = messages.find(message => message.role === 'system')
+  const firstSystemMessage = messages.find((message): message is SystemMessage => message.role === 'system')
 
   if (firstSystemMessage) {
     firstSystemMessage.content = appendInstructionToMessageContent(firstSystemMessage.content, instruction)
