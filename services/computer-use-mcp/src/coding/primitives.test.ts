@@ -190,6 +190,18 @@ describe('codingPrimitives', () => {
     )
   })
 
+  it('throws with helpful snippet if oldString is not found but first line matches', async () => {
+    const { runtime } = createRuntime()
+    // @ts-expect-error mock runtime
+    const primitives = new CodingPrimitives(runtime)
+
+    vi.mocked(fs.readFile).mockResolvedValue('line 1\nline 2\n  line 3\nline 4\nline 5')
+
+    await expect(
+      primitives.applyPatch('target.txt', 'line 2\nline 3', 'line 2 modified\nline 3 modified')
+    ).rejects.toThrow(/Did you mean this snippet around line 2\?\n---\nline 1\nline 2\n  line 3\nline 4\nline 5\n---/)
+  })
+
   it('fails path check when applying patch to a different file escape', async () => {
     const { runtime } = createRuntime()
     // @ts-expect-error mock runtime

@@ -16,6 +16,7 @@ type ToolHandler = (args: Record<string, unknown>) => Promise<CallToolResult>
 
 function createMockServer() {
   const handlers = new Map<string, ToolHandler>()
+  const toolArgs = new Map<string, unknown[]>()
 
   return {
     server: {
@@ -23,6 +24,7 @@ function createMockServer() {
         const name = args[0] as string
         const handler = args.at(-1) as ToolHandler
         handlers.set(name, handler)
+        toolArgs.set(name, args)
       },
     } as unknown as McpServer,
     async invoke(name: string, args: Record<string, unknown> = {}) {
@@ -33,6 +35,13 @@ function createMockServer() {
 
       return await handler(args)
     },
+    getToolArgs(name: string) {
+      const args = toolArgs.get(name)
+      if (!args) {
+        throw new Error(`Missing registered tool args: ${name}`)
+      }
+      return args
+    }
   }
 }
 
@@ -671,5 +680,31 @@ describe('registerCodingTools', () => {
       type: 'text',
       text: 'Validation baseline captured for /tmp/project/.airi-agentic-worktree.',
     })
+  })
+
+  it('registers coding_read_file with updated descriptor summary', () => {
+    const { server, getToolArgs } = createMockServer()
+    registerCodingTools({
+      server,
+      runtime,
+      executeAction: vi.fn() as any,
+      enableTestTools: false,
+    })
+    const args = getToolArgs('coding_read_file')
+    const description = args[1] as string
+    expect(description).toContain('without line numbers so you can copy-paste exact strings for patches')
+  })
+
+  it('registers coding_apply_patch with exact match constraint on oldString schema', () => {
+    const { server, getToolArgs } = createMockServer()
+    registerCodingTools({
+      server,
+      runtime,
+      executeAction: vi.fn() as any,
+      enableTestTools: false,
+    })
+    const args = getToolArgs('coding_apply_patch')
+    const schema = args[2] as any
+    expect(schema.oldString.description).toContain('Must match the file exactly, including whitespace and indentation')
   })
 })
