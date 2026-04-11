@@ -152,6 +152,10 @@ const TOOLS_RELATED_ERROR_PATTERNS: RegExp[] = [
   /unrecognized request argument.+tools/i, // Azure AI Foundry
   /tool use with function calling is unsupported/i, // Google Generative AI
   /tool_use_failed/i, // Groq
+  // NOTICE: Groq rejects OpenAI-specific tool parameters (e.g. capture_tool_errors) that the
+  // xsai library sends unconditionally. These 400 responses indicate incompatible tool schemas
+  // rather than a missing feature, so we degrade to tool-less mode and retry.
+  /property '[^']+' is unsupported/i, // Groq — unsupported OpenAI tool parameters
   /does not support function.?calling/i, // Anthropic
   /tools?\s+(is|are)\s+not\s+supported/i, // Cloudflare Workers AI
 ]
