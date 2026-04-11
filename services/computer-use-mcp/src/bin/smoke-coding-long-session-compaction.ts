@@ -116,7 +116,7 @@ function main() {
       pendingIssues: Array.from({ length: 60 }, (_, index) => `round=${round} issue=${index}`),
       planHistory: Array.from({ length: 45 }, (_, index) => createPlanSession(round * 45 + index)),
       causalTraceLog: [...previousLog, ...traceBatch],
-      lastCausalTrace: traceBatch[traceBatch.length - 1],
+      lastCausalTrace: traceBatch.at(-1),
     })
 
     manager.refreshCodingRoundContext()

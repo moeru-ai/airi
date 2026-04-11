@@ -22,18 +22,14 @@ import type { ComputerUseServerRuntime } from './runtime'
 
 import { z } from 'zod'
 
+import { computeBrowserActionConfidence } from '../browser-dom/browser-action-confidence'
+import { compareDomFingerprints, computeDomFingerprint } from '../browser-dom/browser-dom-fingerprint'
+import { diagnoseBrowserActionError } from '../browser-dom/browser-repair-contract'
 import {
   deriveCodingOperationalMemorySeeds,
   pickPrimaryOperationalMemory,
   summarizeOperationalMemory,
 } from '../coding/coding-memory-taxonomy'
-import {
-  buildSnapshotFromSeeds,
-  loadWorkspaceMemory,
-  snapshotHasActionableMemory,
-  summarizeSnapshotForAgent,
-  writeWorkspaceMemory,
-} from './workspace-memory'
 import { CodingPrimitives } from '../coding/primitives'
 import { evaluateCodingVerificationGate } from '../coding/verification-gate'
 import { evaluateCodingVerificationNudge } from '../coding/verification-nudge'
@@ -60,12 +56,9 @@ import {
   describeForegroundContext,
   summarizeCoordinateSpace,
 } from './formatters'
-import { compareDomFingerprints, computeDomFingerprint } from '../browser-dom/browser-dom-fingerprint'
-import { computeBrowserActionConfidence } from '../browser-dom/browser-action-confidence'
-import { diagnoseBrowserActionError } from '../browser-dom/browser-repair-contract'
 import { registerCodingTools } from './register-coding'
-import { registerWebTools } from './register-web'
 import { createAcquirePtyCallback, executeApprovedPtyCreate } from './register-pty'
+import { registerWebTools } from './register-web'
 import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptors/register-helper'
 import {
   captureClickEvidence,
@@ -74,6 +67,13 @@ import {
 } from './verification-evidence-capture'
 import { formatWorkflowStructuredContent } from './workflow-formatter'
 import { createWorkflowPrepToolExecutor } from './workflow-prep-tools'
+import {
+  buildSnapshotFromSeeds,
+  loadWorkspaceMemory,
+  snapshotHasActionableMemory,
+  summarizeSnapshotForAgent,
+  writeWorkspaceMemory,
+} from './workspace-memory'
 
 export interface RegisterComputerUseToolsOptions {
   server: McpServer
@@ -133,9 +133,10 @@ function buildBrowserDomUnavailableResponse(runtime: ComputerUseServerRuntime) {
   }
 }
 
-async function getReadyStateNudge(runtime: ComputerUseServerRuntime, tabId?: number, frameIds?: number[]): Promise<{ nudge: string; warning: string | undefined }> {
+async function getReadyStateNudge(runtime: ComputerUseServerRuntime, tabId?: number, frameIds?: number[]): Promise<{ nudge: string, warning: string | undefined }> {
   try {
-    if (!runtime.browserDomBridge.getStatus().connected) return { nudge: '', warning: undefined }
+    if (!runtime.browserDomBridge.getStatus().connected)
+      return { nudge: '', warning: undefined }
     const states = await runtime.browserDomBridge.getReadyState({ tabId, frameIds })
     const stillLoading = states.filter(s => s.result !== 'complete')
     if (stillLoading.length > 0) {
@@ -143,7 +144,8 @@ async function getReadyStateNudge(runtime: ComputerUseServerRuntime, tabId?: num
       const nudge = `\n\n💡 Advisory: The page is still loading (${warning}). Elements might shift or not be fully interactive. Proceed with caution.`
       return { nudge, warning }
     }
-  } catch (e) {
+  }
+  catch (e) {
     // optional extension method might not be implemented
   }
   return { nudge: '', warning: undefined }
@@ -159,7 +161,7 @@ async function getDomStalenessNudge(
   beforeFingerprint: string,
   tabId?: number,
   frameIds?: number[],
-): Promise<{ stalenessNudge: string; domUnchanged: boolean; domHashBefore: string; domHashAfter: string }> {
+): Promise<{ stalenessNudge: string, domUnchanged: boolean, domHashBefore: string, domHashAfter: string }> {
   try {
     if (!beforeFingerprint || !runtime.browserDomBridge.getStatus().connected) {
       return { stalenessNudge: '', domUnchanged: false, domHashBefore: beforeFingerprint, domHashAfter: '' }
@@ -180,7 +182,8 @@ async function getDomStalenessNudge(
 
 async function captureDomFingerprintBefore(runtime: ComputerUseServerRuntime, tabId?: number, frameIds?: number[]): Promise<string> {
   try {
-    if (!runtime.browserDomBridge.getStatus().connected) return ''
+    if (!runtime.browserDomBridge.getStatus().connected)
+      return ''
     const frames = await runtime.browserDomBridge.readAllFramesDom({ tabId, frameIds, maxElements: 200 })
     return computeDomFingerprint(frames)
   }

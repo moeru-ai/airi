@@ -34,7 +34,8 @@ function findAiriRoot(): string {
     : process.cwd()
   let dir = startDir
   for (let i = 0; i < 10; i++) {
-    if (existsSync(join(dir, '.git'))) return dir
+    if (existsSync(join(dir, '.git')))
+      return dir
     dir = join(dir, '..')
   }
   return process.cwd()
@@ -45,7 +46,7 @@ function findAiriRoot(): string {
 function createTerminal(workspacePath: string) {
   return {
     describe: () => ({ kind: 'local-shell-runner' as const, notes: ['realworld-test'] }),
-    execute: async (input: { command: string; cwd?: string; timeoutMs?: number }) => {
+    execute: async (input: { command: string, cwd?: string, timeoutMs?: number }) => {
       try {
         const stdout = execSync(input.command, {
           cwd: input.cwd ?? workspacePath,
@@ -77,7 +78,7 @@ interface RealWorldScenario {
   maxTokenBudget: number
   /** Optional setup to run after clone (e.g., plant a bug) */
   setup?: (ws: string) => void
-  validate: (ws: string) => { passed: boolean; details: string }
+  validate: (ws: string) => { passed: boolean, details: string }
 }
 
 interface ScenarioResult {
@@ -101,7 +102,7 @@ interface ScenarioResult {
  * New/temp files don't count. This prevents the agent from "cheating"
  * by creating a temp file instead of editing the target.
  */
-function requireExistingFileEdit(ws: string, pathFilter?: string): { passed: boolean; details: string } {
+function requireExistingFileEdit(ws: string, pathFilter?: string): { passed: boolean, details: string } {
   try {
     const diff = execSync('git diff --name-only', { cwd: ws, encoding: 'utf-8' }).trim()
     if (!diff) {
@@ -126,7 +127,7 @@ function requireExistingFileEdit(ws: string, pathFilter?: string): { passed: boo
  * Verify a planted bug was fixed by checking if a specific string
  * is NO LONGER present in a file.
  */
-function requireBugFixed(ws: string, filePath: string, bugPattern: string): { passed: boolean; details: string } {
+function requireBugFixed(ws: string, filePath: string, bugPattern: string): { passed: boolean, details: string } {
   try {
     const absPath = join(ws, filePath)
     if (!existsSync(absPath)) {
@@ -161,7 +162,7 @@ function buildScenarios(airiRoot: string): RealWorldScenario[] {
       goal: '',
       maxTurns: 10,
       maxTokenBudget: 80_000,
-      validate: (ws) => requireExistingFileEdit(ws, 'packages/ui'),
+      validate: ws => requireExistingFileEdit(ws, 'packages/ui'),
     },
 
     // S2 [EASY] AIRI monorepo — analysis task (read-only + write report)
@@ -205,7 +206,7 @@ function buildScenarios(airiRoot: string): RealWorldScenario[] {
           writeFileSync(targetFile, buggy)
         }
       },
-      validate: (ws) => requireBugFixed(
+      validate: ws => requireBugFixed(
         ws,
         'packages/ui/src/index.ts',
         'useThm', // the typo — should be fixed to useTheme or removed
@@ -225,11 +226,12 @@ function buildScenarios(airiRoot: string): RealWorldScenario[] {
       validate: (ws) => {
         // STRICT: must have edited an existing .py file, not created a temp
         const result = requireExistingFileEdit(ws, '.py')
-        if (!result.passed) return result
+        if (!result.passed)
+          return result
         // Extra check: the diff should show added docstring content
         try {
           const diff = execSync('git diff', { cwd: ws, encoding: 'utf-8' })
-          const hasDocstring = diff.includes('"""') || diff.includes("'''")
+          const hasDocstring = diff.includes('"""') || diff.includes('\'\'\'')
             || diff.includes('Args:') || diff.includes('Returns:')
             || diff.includes('docstring') || diff.includes('@param')
           if (!hasDocstring) {
@@ -256,7 +258,8 @@ function buildScenarios(airiRoot: string): RealWorldScenario[] {
       validate: (ws) => {
         // Must edit an existing tracked .ts file, not write a new one
         const result = requireExistingFileEdit(ws, '.ts')
-        if (!result.passed) return result
+        if (!result.passed)
+          return result
         // Check that JSDoc was added
         try {
           const diff = execSync('git diff', { cwd: ws, encoding: 'utf-8' })
@@ -381,7 +384,8 @@ function prepareWorkspace(scenario: RealWorldScenario): string {
 }
 
 function buildGoal(scenario: RealWorldScenario, ws: string): string {
-  if (scenario.goal) return scenario.goal
+  if (scenario.goal)
+    return scenario.goal
 
   if (scenario.name.includes('JSDoc') && scenario.name.includes('AIRI')) {
     return `You are working in a TypeScript monorepo at ${ws}.
@@ -587,7 +591,8 @@ async function runSuite(airiRoot: string, runIndex: number, totalRuns: number): 
     console.log(`│  ${result.turns}T | ${tokenStr} | ${result.durationS}s`)
     console.log(`│    Tools: ${result.toolsUsed.join(', ')}`)
     console.log(`│    Validation: ${result.validationDetails}`)
-    if (result.error) console.log(`│    Error: ${result.error}`)
+    if (result.error)
+      console.log(`│    Error: ${result.error}`)
     console.log('└───\n')
   }
 
@@ -601,7 +606,7 @@ async function main() {
 
   console.log('╔═══════════════════════════════════════════════════════════╗')
   console.log('║     AIRI REAL-WORLD VALIDATION v2                        ║')
-  console.log('║     Model: ' + (process.env.AIRI_AGENT_MODEL ?? 'gpt-5.4-mini').padEnd(46) + '║')
+  console.log(`║     Model: ${(process.env.AIRI_AGENT_MODEL ?? 'gpt-5.4-mini').padEnd(46)}║`)
   console.log(`║     Runs: ${String(totalRuns).padEnd(47)}║`)
   console.log('╚═══════════════════════════════════════════════════════════╝')
   console.log(`  AIRI root: ${airiRoot}`)
@@ -665,11 +670,13 @@ async function main() {
   }
 
   console.log('')
-  // NOTICE: Honest assessment — do NOT claim "production ready" from a small test suite.
-  // These scenarios cover basic editing tasks, not real-world debugging or architecture.
-  if (overallRate >= 80) console.log('  🟢 STABLE on this scenario set (not a production readiness claim)')
-  else if (overallRate >= 60) console.log('  🟡 PROMISING — needs improvement')
-  else console.log('  🔴 NOT STABLE on this scenario set')
+  // NOTICE: Keep the conclusion descriptive, not absolute.
+  // This suite is sampled and task-bounded; it is not a production-readiness gate.
+  if (overallRate >= 80)
+    console.log('  🟢 Sampled run-set shows strong task completion under current constraints')
+  else if (overallRate >= 60)
+    console.log('  🟡 Sampled run-set is mixed; additional hard cases are needed')
+  else console.log('  🔴 Sampled run-set currently unstable; investigate failure clusters')
 
   // Save
   const reportPath = join(TEST_ROOT, 'validation-report-v2.json')

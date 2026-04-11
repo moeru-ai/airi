@@ -1,11 +1,11 @@
-export type VerificationEvidenceKind =
-  | 'foreground_context'
-  | 'window_title_match'
-  | 'screenshot_capture'
-  | 'runtime_fact_summary'
-  | 'terminal_result'
-  | 'coding_review'
-  | 'status_report'
+export type VerificationEvidenceKind
+  = | 'foreground_context'
+    | 'window_title_match'
+    | 'screenshot_capture'
+    | 'runtime_fact_summary'
+    | 'terminal_result'
+    | 'coding_review'
+    | 'status_report'
 
 export interface VerificationEvidenceRecord {
   kind: VerificationEvidenceKind

@@ -625,29 +625,30 @@ export class CodingPrimitives {
 
     const codingState = this.getCodingState()
     const plannerWorkflowSignal = this.getPlannerWorkflowSignal()
-    const selectedFile = codingState?.lastTargetSelection?.selectedFile
 
-    if (
-      selectedFile
-      && plannerWorkflowSignal.selectedFile
-      && plannerWorkflowSignal.selectedFile !== selectedFile
-      && plannerWorkflowSignal.blockedFiles.includes(selectedFile)
-      && !plannerWorkflowSignal.blockedFiles.includes(plannerWorkflowSignal.selectedFile)
-    ) {
-      return plannerWorkflowSignal.selectedFile
-    }
-
-    if (selectedFile) {
-      return selectedFile
-    }
-
+    // 1. Highest priority: Planner workflow recommendation (DAG head or running node)
     if (plannerWorkflowSignal.selectedFile) {
       return plannerWorkflowSignal.selectedFile
     }
 
+    // 2. Next: Explicit target selection from coding_select_target
+    const selectedFile = codingState?.lastTargetSelection?.selectedFile
+    if (selectedFile) {
+      return selectedFile
+    }
+
+    // 3. Fallback: Most recent edit or read to prevent "no deterministic target" crash
+    const lastEdit = codingState?.recentEdits?.[0]?.path
+    if (lastEdit)
+      return lastEdit
+
+    const lastRead = codingState?.recentReads?.[0]?.path
+    if (lastRead)
+      return lastRead
+
     throw new McpError(
       ErrorCode.InvalidParams,
-      'targetFile is "auto" but no deterministic target is selected. Run coding_select_target first or provide targetFile explicitly.',
+      'targetFile is "auto" but no deterministic target is selected and no recent activity found. Run coding_select_target first or provide targetFile explicitly.',
     )
   }
 
@@ -5282,21 +5283,21 @@ export class CodingPrimitives {
       }
 
       if (occurrences === 0) {
-        const oldLines = effectiveOldString.split('\n');
-        let hint = '';
+        const oldLines = effectiveOldString.split('\n')
+        let hint = ''
         if (oldLines.length > 0) {
-          const firstLine = oldLines.find(l => l.trim().length > 0)?.trim();
+          const firstLine = oldLines.find(l => l.trim().length > 0)?.trim()
           if (firstLine) {
-            const fileLines = content.split('\n');
-            const matchIdx = fileLines.findIndex(l => l.includes(firstLine));
+            const fileLines = content.split('\n')
+            const matchIdx = fileLines.findIndex(l => l.includes(firstLine))
             if (matchIdx !== -1) {
-              const start = Math.max(0, matchIdx - 2);
-              const end = Math.min(fileLines.length, matchIdx + oldLines.length + 2);
-              hint = `\nDid you mean this snippet around line ${matchIdx + 1}?\n---\n${fileLines.slice(start, end).join('\n')}\n---`;
+              const start = Math.max(0, matchIdx - 2)
+              const end = Math.min(fileLines.length, matchIdx + oldLines.length + 2)
+              hint = `\nDid you mean this snippet around line ${matchIdx + 1}?\n---\n${fileLines.slice(start, end).join('\n')}\n---`
             }
           }
         }
-        throw new Error(`oldString not found in file exactly as provided. Please check for formatting differences (like indentation or quotes).${hint}`);
+        throw new Error(`oldString not found in file exactly as provided. Please check for formatting differences (like indentation or quotes).${hint}`)
       }
       if (occurrences > 1) {
         throw new Error(`oldString found ${occurrences} times in file. Please provide a more specific oldString to ensure exact match.`)
@@ -5321,6 +5322,18 @@ export class CodingPrimitives {
   async compressContext(goal: string, filesSummary: string, recentResultSummary: string, unresolvedIssues: string, nextStepRecommendation: string) {
     const state = this.getCodingState()
 
+    const failures: string[] = []
+    if (state?.lastVerificationOutcome && state.lastVerificationOutcome.outcome !== 'passed') {
+      failures.push(`Verification: ${state.lastVerificationOutcome.reasonCodes.join(', ')}`)
+    }
+    // NOTICE: winnerReason lives on CodingDiagnosisCompetition, not on CodingChangeDiagnosis.
+    // Use competition's winnerReason if available; fall back to rootCauseType.
+    if (state?.lastChangeDiagnosis && (state.lastChangeDiagnosis.nextAction === 'amend' || state.lastChangeDiagnosis.nextAction === 'abort')) {
+      const diagReason = state.lastDiagnosisCompetition?.winnerReason || state.lastChangeDiagnosis.rootCauseType
+      failures.push(`Diagnosis: ${state.lastChangeDiagnosis.nextAction} - ${diagReason}`)
+    }
+    const failureSummary = failures.length > 0 ? `\n[RECENT FAILURES: ${failures.join(' | ')}]` : ''
+
     const actualFilesSummary = filesSummary === 'auto'
       ? ([
           state?.lastTargetSelection?.selectedFile ? `Selected target: ${state.lastTargetSelection.selectedFile}` : '',
@@ -5332,8 +5345,8 @@ export class CodingPrimitives {
       : filesSummary
 
     const actualRecentResult = recentResultSummary === 'auto'
-      ? ((state?.recentCommandResults || []).slice(-this.maxAutoArrayLength).join('\n---\n') || 'No commands run.')
-      : recentResultSummary
+      ? (((state?.recentCommandResults || []).slice(-this.maxAutoArrayLength).join('\n---\n') || 'No commands run.') + failureSummary)
+      : (recentResultSummary + failureSummary)
 
     const actualUnresolvedIssues = unresolvedIssues === 'auto'
       ? this.inferAutoUnresolvedIssues().join('\n')
@@ -5432,8 +5445,13 @@ export class CodingPrimitives {
 
     // Track the edit in state
     const state = this.runtime.stateManager.getState().coding ?? {
-      recentReads: [], recentEdits: [], workspacePath: '',
-      gitSummary: '', recentCommandResults: [], recentSearches: [], pendingIssues: [],
+      recentReads: [],
+      recentEdits: [],
+      workspacePath: '',
+      gitSummary: '',
+      recentCommandResults: [],
+      recentSearches: [],
+      pendingIssues: [],
     }
     const recentEdits = [...state.recentEdits, { path: filePath, action: existed ? 'overwrite' : 'create' }]
     this.runtime.stateManager.updateCodingState({ recentEdits })
@@ -5464,7 +5482,8 @@ export class CodingPrimitives {
 
     // Simple recursive walk with basic glob matching
     const walk = async (dir: string, relBase: string) => {
-      if (results.length >= maxResults) return
+      if (results.length >= maxResults)
+        return
 
       let entries: import('node:fs').Dirent[]
       try {
@@ -5475,7 +5494,8 @@ export class CodingPrimitives {
       }
 
       for (const entry of entries) {
-        if (results.length >= maxResults) break
+        if (results.length >= maxResults)
+          break
 
         const relPath = relBase ? `${relBase}/${entry.name}` : entry.name
 
@@ -5484,7 +5504,8 @@ export class CodingPrimitives {
           const cleaned = ex.replace(/\*\*/g, '').replace(/\*/g, '')
           return cleaned && relPath.includes(cleaned.replace(/\//g, '/'))
         })
-        if (excluded) continue
+        if (excluded)
+          continue
 
         // Check include pattern (simple glob matching)
         const matchesPattern = this.simpleGlobMatch(relPath, pattern)

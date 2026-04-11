@@ -8,9 +8,9 @@ import {
   buildCodingToolStructuredContent,
   summarizeCodingToolResult,
 } from '../coding/result-shape'
-import { captureVerificationEvidence } from './verification-evidence-capture'
 import { textContent } from './content'
 import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptors'
+import { captureVerificationEvidence } from './verification-evidence-capture'
 
 export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
   const { server, runtime, executeAction } = options
@@ -540,7 +540,7 @@ export function registerCodingTools(options: RegisterComputerUseToolsOptions) {
       maxTurns: z.number().int().min(1).max(100).optional().describe('Maximum LLM turns. Default: 50.'),
       approvalMode: z.enum(['auto', 'per_mutation']).optional().describe('Approval mode. Default: auto.'),
     },
-    handler: async (input: { goal: string; model?: string; maxTurns?: number; approvalMode?: 'auto' | 'per_mutation' }) => {
+    handler: async (input: { goal: string, model?: string, maxTurns?: number, approvalMode?: 'auto' | 'per_mutation' }) => {
       return executeAction({ kind: 'coding_agentic_run', input }, 'coding_agentic_run')
     },
   })

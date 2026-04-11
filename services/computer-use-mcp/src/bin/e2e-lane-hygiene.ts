@@ -63,9 +63,11 @@ async function createClient(): Promise<Client> {
 }
 
 function getTextContent(result: unknown): string {
-  if (!result || typeof result !== 'object') return ''
+  if (!result || typeof result !== 'object')
+    return ''
   const content = (result as any).content
-  if (!Array.isArray(content)) return ''
+  if (!Array.isArray(content))
+    return ''
   return content
     .filter((c: any) => c.type === 'text')
     .map((c: any) => c.text || '')
@@ -168,7 +170,8 @@ async function main() {
     const stateData = (stateResult as any)?.structuredContent
     if (stateData?.runState?.inferredActiveLane) {
       console.info(`  inferredActiveLane: ${stateData.runState.inferredActiveLane}`)
-    } else {
+    }
+    else {
       console.info('  (inferredActiveLane not exposed in structuredContent)')
     }
     console.info('  ✓ Lane state check done\n')

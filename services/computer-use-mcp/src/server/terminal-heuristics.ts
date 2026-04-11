@@ -15,17 +15,18 @@ export interface TerminalHeuristicsResult {
  * Detects common pagination markers (more, less, etc.) in terminal output.
  */
 export function detectPagination(screenContent: string): TerminalHeuristicsResult['pagination'] | undefined {
-  if (!screenContent) return undefined
-  
+  if (!screenContent)
+    return undefined
+
   const lines = screenContent.split('\n')
-  const lastLine = lines[lines.length - 1].trim()
+  const lastLine = lines.at(-1).trim()
   const secondLastLine = lines.length > 1 ? lines[lines.length - 2].trim() : ''
 
   // Common pagination patterns
   if (lastLine.includes('--More--')) {
     return { suggestedAction: 'press_space', reason: 'Pagination detected (--More--)' }
   }
-  
+
   if (lastLine === ':' || lastLine.includes('(END)')) {
     return { suggestedAction: 'press_q', reason: 'End of output or pager prompt detected' }
   }
@@ -46,22 +47,26 @@ export function detectPagination(screenContent: string): TerminalHeuristicsResul
  * - path >
  */
 export function extractCwdFromPrompt(line: string): string | undefined {
-  if (!line || line.length > 200) return undefined
-  
+  if (!line || line.length > 200)
+    return undefined
+
   // Pattern 1: user@host:path$ (typical bash/zsh default)
   const pattern1 = /[\w.-]+@[\w.-]+:([^$#\s>]+)\s*[$#]\s*$/
   const match1 = line.match(pattern1)
-  if (match1) return match1[1]
+  if (match1)
+    return match1[1]
 
   // Pattern 2: [user@host path]$ (CentOS/RHEL)
   const pattern2 = /\[[\w.-]+@[\w.-]+\s+([^\]]+)\]\s*[$#]\s*$/
   const match2 = line.match(pattern2)
-  if (match2) return match2[1]
+  if (match2)
+    return match2[1]
 
   // Pattern 3: Simple path > (generic)
   const pattern3 = /^(\/(?:[\w.-]+\/)*[\w.-]+)\s*>\s*$/
   const match3 = line.match(pattern3)
-  if (match3) return match3[1]
+  if (match3)
+    return match3[1]
 
   return undefined
 }

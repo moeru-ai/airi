@@ -123,7 +123,8 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
           const TAIL_CHARS = 10_000
 
           const truncateOutput = (output: string, label: string): string => {
-            if (output.length <= MAX_OUTPUT_CHARS) return output
+            if (output.length <= MAX_OUTPUT_CHARS)
+              return output
             const head = output.slice(0, HEAD_CHARS)
             const tail = output.slice(-TAIL_CHARS)
             const omitted = output.length - HEAD_CHARS - TAIL_CHARS

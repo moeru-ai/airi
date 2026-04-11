@@ -48,7 +48,7 @@ function htmlToText(html: string): string {
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+    .replace(/&#39;/g, '\'')
     .replace(/&nbsp;/g, ' ')
     .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
     // Collapse whitespace
@@ -152,7 +152,8 @@ export async function webFetch(params: {
 
     while (totalBytes < MAX_RESPONSE_BYTES) {
       const { done, value } = await reader.read()
-      if (done) break
+      if (done)
+        break
       chunks.push(value)
       totalBytes += value.length
     }
@@ -221,8 +222,8 @@ const SEARCH_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/5
  * NOTICE: Bing uses redirect URLs (bing.com/ck/a?...). We extract the
  * actual URL from the `u=` parameter, which is base64-encoded.
  */
-function parseBingResults(html: string, maxResults: number): Array<{ url: string; title: string; snippet: string }> {
-  const results: Array<{ url: string; title: string; snippet: string }> = []
+function parseBingResults(html: string, maxResults: number): Array<{ url: string, title: string, snippet: string }> {
+  const results: Array<{ url: string, title: string, snippet: string }> = []
 
   // Strategy 1: Extract cite tags (visible URLs) + h2 titles from b_algo blocks
   // Split HTML by b_algo blocks
@@ -273,18 +274,18 @@ function parseBingResults(html: string, maxResults: number): Array<{ url: string
  * Parse DuckDuckGo lite search results from HTML.
  * Returns empty array if CAPTCHA is detected.
  */
-function parseDDGResults(html: string, maxResults: number): Array<{ url: string; title: string; snippet: string }> | null {
+function parseDDGResults(html: string, maxResults: number): Array<{ url: string, title: string, snippet: string }> | null {
   // CAPTCHA detection
   if (html.includes('anomaly-modal') || html.includes('Select all squares')) {
     return null // CAPTCHA detected
   }
 
-  const results: Array<{ url: string; title: string; snippet: string }> = []
+  const results: Array<{ url: string, title: string, snippet: string }> = []
 
   const linkRegex = /<a[^>]+class="result-link"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi
   const snippetRegex = /<td[^>]+class="result-snippet"[^>]*>([\s\S]*?)<\/td>/gi
 
-  const links: Array<{ url: string; title: string }> = []
+  const links: Array<{ url: string, title: string }> = []
   let linkMatch: RegExpExecArray | null = linkRegex.exec(html)
   while (linkMatch !== null) {
     const url = linkMatch[1] ?? ''
@@ -335,7 +336,8 @@ export async function webSearch(params: {
   if (customApiUrl) {
     try {
       const result = await searchViaCustomAPI(customApiUrl, query, maxResults, startedAt)
-      if (result) return result
+      if (result)
+        return result
     }
     catch { /* Fall through to Bing */ }
   }
@@ -435,13 +437,14 @@ async function searchViaCustomAPI(
 
   const response = await fetch(url, {
     signal: controller.signal,
-    headers: { 'Accept': 'application/json' },
+    headers: { Accept: 'application/json' },
   }).finally(() => clearTimeout(timeout))
 
-  if (!response.ok) return null
+  if (!response.ok)
+    return null
 
   const data = await response.json() as {
-    results?: Array<{ url: string; title: string; content: string }>
+    results?: Array<{ url: string, title: string, content: string }>
   }
 
   const results = (data.results ?? []).slice(0, maxResults).map(r => ({

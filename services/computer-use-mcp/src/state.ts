@@ -9,6 +9,8 @@
  * process. Persistent audit lives in session trace / JSONL.
  */
 
+import type { CrossLaneHandoffContract } from './lane-handoff-contract'
+import type { ToolLane } from './server/tool-descriptors/types'
 import type { TaskMemory } from './task-memory/types'
 import type {
   BrowserSurfaceAvailability,
@@ -27,8 +29,6 @@ import type {
   WindowObservation,
   WorkflowStepTerminalBinding,
 } from './types'
-import type { CrossLaneHandoffContract } from './lane-handoff-contract'
-import type { ToolLane } from './server/tool-descriptors/types'
 
 import { appNamesMatch } from './app-aliases'
 

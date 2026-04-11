@@ -9,13 +9,24 @@
  * For integration-level loop tests, see e2e-realworld.ts.
  */
 
+import type { QueryMessage } from './types'
+
 import { describe, expect, it } from 'vitest'
 
+// ─── BudgetGuard ──────────────────────────────────────────────
+import { BudgetGuard } from './budget-guard'
+// ─── Context Compaction ─────────────────────────────────────────
+import { compactIfNeeded, estimateMessageTokens } from './context-compact'
 import { resolveConfig } from './engine'
+// ─── Tokenizer ──────────────────────────────────────────────────
+import { isTransientError } from './engine'
+// ─── isTransientError edge cases ────────────────────────────────
+// Main test suite is in hardening.test.ts — these test specific regressions.
+import { estimateTokenCount } from './tokenizer'
 
 // ─── resolveConfig ──────────────────────────────────────────────
 
-describe('QueryEngine', () => {
+describe('queryEngine', () => {
   describe('resolveConfig', () => {
     it('uses defaults when no overrides or env vars', () => {
       const config = resolveConfig({
@@ -76,11 +87,7 @@ describe('QueryEngine', () => {
   })
 })
 
-// ─── BudgetGuard ──────────────────────────────────────────────
-
-import { BudgetGuard } from './budget-guard'
-
-describe('BudgetGuard', () => {
+describe('budgetGuard', () => {
   it('starts with full budget available', () => {
     const guard = new BudgetGuard({ maxTurns: 10, maxToolCalls: 50, maxTokenBudget: 100_000 })
     const snap = guard.snapshot()
@@ -119,7 +126,7 @@ describe('BudgetGuard', () => {
 
   it('guards against NaN token values', () => {
     const guard = new BudgetGuard({ maxTurns: 10, maxToolCalls: 50, maxTokenBudget: 100_000 })
-    guard.recordTokens(NaN)
+    guard.recordTokens(Number.NaN)
     guard.recordTokens(undefined as unknown as number)
     guard.recordTokens(Infinity)
     const snap = guard.snapshot()
@@ -159,11 +166,6 @@ describe('BudgetGuard', () => {
     expect(snap.turnsUsed).toBe(1) // plenty of turns left
   })
 })
-
-// ─── Context Compaction ─────────────────────────────────────────
-
-import { compactIfNeeded, estimateMessageTokens } from './context-compact'
-import type { QueryMessage } from './types'
 
 describe('contextCompaction', () => {
   it('does NOT compact when under threshold', () => {
@@ -215,10 +217,6 @@ describe('contextCompaction', () => {
   })
 })
 
-// ─── Tokenizer ──────────────────────────────────────────────────
-
-import { estimateTokenCount } from './tokenizer'
-
 describe('tokenizer', () => {
   it('returns 0 for empty/null input', () => {
     expect(estimateTokenCount('')).toBe(0)
@@ -257,11 +255,6 @@ describe('tokenizer', () => {
     expect(tokens).toBeLessThan(10_000)
   })
 })
-
-// ─── isTransientError edge cases ────────────────────────────────
-// Main test suite is in hardening.test.ts — these test specific regressions.
-
-import { isTransientError } from './engine'
 
 describe('isTransientError regressions', () => {
   it('handles empty string', () => {

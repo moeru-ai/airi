@@ -1,7 +1,9 @@
-import { describe, it, expect } from 'vitest'
-import { evaluateHandoffFulfillment } from './handoff-fulfillment'
 import type { CrossLaneHandoffContract } from '../lane-handoff-contract'
 import type { VerificationEvidenceRecord } from '../verification-evidence'
+
+import { describe, expect, it } from 'vitest'
+
+import { evaluateHandoffFulfillment } from './handoff-fulfillment'
 
 describe('evaluateHandoffFulfillment', () => {
   const mockContract: CrossLaneHandoffContract = {
@@ -27,8 +29,8 @@ describe('evaluateHandoffFulfillment', () => {
         confidence: 1.0,
         summary: 'App is Finder',
         blockingEligible: false,
-        observed: { appName: 'Finder' }
-      }
+        observed: { appName: 'Finder' },
+      },
     ]
 
     const result = evaluateHandoffFulfillment(mockContract, records)
@@ -46,7 +48,7 @@ describe('evaluateHandoffFulfillment', () => {
         confidence: 1.0,
         summary: 'Some other evidence',
         blockingEligible: false,
-      }
+      },
     ]
 
     const result = evaluateHandoffFulfillment(mockContract, records)
@@ -60,8 +62,8 @@ describe('evaluateHandoffFulfillment', () => {
     const contractWithExpected: CrossLaneHandoffContract = {
       ...mockContract,
       constraints: [
-        { description: 'Check title', required: true, expectedValue: 'Dashboard' }
-      ]
+        { description: 'Check title', required: true, expectedValue: 'Dashboard' },
+      ],
     }
 
     const records: VerificationEvidenceRecord[] = [
@@ -72,8 +74,8 @@ describe('evaluateHandoffFulfillment', () => {
         confidence: 1.0,
         summary: 'Captured window',
         blockingEligible: false,
-        observed: { windowTitle: 'Dashboard' }
-      }
+        observed: { windowTitle: 'Dashboard' },
+      },
     ]
 
     const result = evaluateHandoffFulfillment(contractWithExpected, records)

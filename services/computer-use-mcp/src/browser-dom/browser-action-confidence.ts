@@ -31,10 +31,14 @@ export interface BrowserActionConfidenceFactors {
 export function computeBrowserActionConfidence(factors: Partial<BrowserActionConfidenceFactors>): number {
   let confidence = 0.5
 
-  if (factors.bridgeConnected) confidence += 0.1
-  if (factors.pageFullyLoaded) confidence += 0.1
-  if (factors.domChanged) confidence += 0.1
-  if (factors.elementVisible) confidence += 0.1
+  if (factors.bridgeConnected)
+    confidence += 0.1
+  if (factors.pageFullyLoaded)
+    confidence += 0.1
+  if (factors.domChanged)
+    confidence += 0.1
+  if (factors.elementVisible)
+    confidence += 0.1
 
   // Clamp to [0.0, 1.0] and round to 2 decimal places
   return Math.round(Math.min(1.0, Math.max(0.0, confidence)) * 100) / 100

@@ -188,7 +188,7 @@ describe('runStateManager', () => {
       recentSearches: Array.from({ length: 100 }, (_, index) => `Search ${index}`),
       pendingIssues: Array.from({ length: 60 }, (_, index) => `Issue ${index}`),
       planHistory: Array.from({ length: 40 }, (_, index) => createPlanSession(index)),
-      lastCausalTrace: traceLog[traceLog.length - 1],
+      lastCausalTrace: traceLog.at(-1),
       causalTraceLog: traceLog,
       lastPlannerDecision: {
         selectedFile: 'src/main.ts',
@@ -322,7 +322,7 @@ describe('runStateManager', () => {
         recentSearches: Array.from({ length: 120 }, (_, index) => `round=${round} search=${index}`),
         pendingIssues: Array.from({ length: 50 }, (_, index) => `round=${round} issue=${index}`),
         planHistory: Array.from({ length: 35 }, (_, index) => createPlanSession(round * 35 + index)),
-        lastCausalTrace: traceBatch[traceBatch.length - 1],
+        lastCausalTrace: traceBatch.at(-1),
         causalTraceLog: [...(manager.getState().coding?.causalTraceLog || []), ...traceBatch],
       })
       manager.refreshCodingRoundContext()

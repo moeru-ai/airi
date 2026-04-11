@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { BudgetGuard } from './budget-guard'
 
-describe('BudgetGuard', () => {
+describe('budgetGuard', () => {
   it('starts with zero consumption', () => {
     const guard = new BudgetGuard({ maxTurns: 10, maxToolCalls: 50, maxTokenBudget: 100_000 })
     const snap = guard.snapshot()

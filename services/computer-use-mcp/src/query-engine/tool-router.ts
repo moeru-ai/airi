@@ -339,7 +339,8 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
       function findLayered(haystack: string, needle: string): { index: number, matchedText: string, layer: string } | null {
         // Layer 1: Exact
         const exact = haystack.indexOf(needle)
-        if (exact !== -1) return { index: exact, matchedText: needle, layer: 'exact' }
+        if (exact !== -1)
+          return { index: exact, matchedText: needle, layer: 'exact' }
 
         // Layer 2: Whitespace-normalized
         const hNorm = normalizeWS(haystack)
@@ -353,7 +354,8 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
           const lines = haystack.split('\n')
           const matchedText = lines.slice(lineStart, lineStart + lineCount).join('\n')
           const index = haystack.indexOf(matchedText)
-          if (index !== -1) return { index, matchedText, layer: 'whitespace_normalized' }
+          if (index !== -1)
+            return { index, matchedText, layer: 'whitespace_normalized' }
         }
 
         // Layer 3: Quote-normalized
@@ -379,7 +381,8 @@ export function buildToolRoutes(deps: ToolRouterDeps): Record<string, ToolHandle
             const lines = haystack.split('\n')
             const matchedText = lines.slice(lineStart, lineStart + lineCount).join('\n')
             const index = haystack.indexOf(matchedText)
-            if (index !== -1) return { index, matchedText, layer: 'indent_normalized' }
+            if (index !== -1)
+              return { index, matchedText, layer: 'indent_normalized' }
           }
         }
 

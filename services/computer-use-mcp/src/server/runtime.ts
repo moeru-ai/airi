@@ -1,5 +1,6 @@
 import type { ComputerUseConfig, DesktopExecutor, TerminalRunner } from '../types'
 import type { CdpBridgeManager } from './cdp-manager'
+import type { RuntimeCoordinator } from './runtime-coordinator'
 
 import { BrowserDomExtensionBridge } from '../browser-dom/extension-bridge'
 import { resolveComputerUseConfig } from '../config'
@@ -12,7 +13,6 @@ import { TaskMemoryManager } from '../task-memory/manager'
 import { createLocalShellRunner } from '../terminal/runner'
 import { createCdpBridgeManager } from './cdp-manager'
 import { createRuntimeCoordinator } from './runtime-coordinator'
-import type { RuntimeCoordinator } from './runtime-coordinator'
 
 export interface ComputerUseServerOptions {
   executorFactory?: (config: ComputerUseConfig) => DesktopExecutor

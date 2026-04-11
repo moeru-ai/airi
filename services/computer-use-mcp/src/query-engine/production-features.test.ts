@@ -8,10 +8,11 @@
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, expect, it, beforeEach, afterEach } from 'vitest'
+
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { buildSessionState, deleteSession, listSessions, loadSession, saveSession } from './session'
-import { estimateTokenCount, estimateMessagesTokens } from './tokenizer'
+import { estimateMessagesTokens, estimateTokenCount } from './tokenizer'
 
 // ─── Session Persistence ───
 
@@ -206,7 +207,7 @@ describe('read cache logic', () => {
     // Invalidate /tmp/test.ts
     const editedFile = '/tmp/test.ts'
     for (const key of cache.keys()) {
-      if (key.startsWith(editedFile + ':')) {
+      if (key.startsWith(`${editedFile}:`)) {
         cache.delete(key)
       }
     }

@@ -37,7 +37,8 @@ const NUMBERS = /\d+/g
  * 4. Add overhead for special tokens, punctuation
  */
 export function estimateTokenCount(text: string): number {
-  if (!text) return 0
+  if (!text)
+    return 0
 
   // Count CJK characters
   const cjkMatches = text.match(CJK_RANGE)
@@ -53,7 +54,8 @@ export function estimateTokenCount(text: string): number {
   let tokenEstimate = cjkTokens
 
   for (const word of words) {
-    if (word.length === 0) continue
+    if (word.length === 0)
+      continue
 
     // Short words (1-3 chars) are usually 1 token
     if (word.length <= 3) {
@@ -68,7 +70,7 @@ export function estimateTokenCount(text: string): number {
     }
 
     // Punctuation-heavy (like code operators): 1 token each
-    if (/^[^a-zA-Z0-9]+$/.test(word)) {
+    if (/^[^a-z0-9]+$/i.test(word)) {
       tokenEstimate += Math.ceil(word.length / 2)
       continue
     }
@@ -81,8 +83,10 @@ export function estimateTokenCount(text: string): number {
     // Each subword is roughly 1 token if short, more if long
     let wordTokens = 0
     for (const sub of word.split(/(?=[A-Z])|_/).filter(Boolean)) {
-      if (sub.length <= 4) wordTokens += 1
-      else if (sub.length <= 8) wordTokens += 2
+      if (sub.length <= 4)
+        wordTokens += 1
+      else if (sub.length <= 8)
+        wordTokens += 2
       else wordTokens += Math.ceil(sub.length / 4)
     }
 
@@ -99,7 +103,7 @@ export function estimateTokenCount(text: string): number {
  * Estimate tokens for an array of messages.
  * Adds per-message overhead (role token, separator tokens).
  */
-export function estimateMessagesTokens(messages: Array<{ role: string; content: string | null; tool_calls?: unknown }>): number {
+export function estimateMessagesTokens(messages: Array<{ role: string, content: string | null, tool_calls?: unknown }>): number {
   let total = 0
 
   for (const msg of messages) {

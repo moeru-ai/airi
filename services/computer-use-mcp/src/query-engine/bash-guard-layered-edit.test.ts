@@ -3,8 +3,9 @@
  */
 
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import {
@@ -147,7 +148,7 @@ describe('edit_file layered matching', () => {
     rmSync(ws, { recursive: true, force: true })
   })
 
-  it('Layer 1: exact match works', async () => {
+  it('layer 1: exact match works', async () => {
     const filePath = join(ws, 'test.ts')
     writeFileSync(filePath, 'const x = 1\nconst y = 2\n')
 
@@ -163,13 +164,13 @@ describe('edit_file layered matching', () => {
     expect(readFileSync(filePath, 'utf-8')).toContain('const x = 10')
   })
 
-  it('Layer 2: whitespace-normalized match', async () => {
+  it('layer 2: whitespace-normalized match', async () => {
     const filePath = join(ws, 'test.ts')
     writeFileSync(filePath, 'const  x  =  1\nconst y = 2\n')
 
     const { result } = await executeToolCall(routes, 'edit_file', JSON.stringify({
       file_path: filePath,
-      old_text: 'const x = 1',  // Agent used single spaces
+      old_text: 'const x = 1', // Agent used single spaces
       new_text: 'const x = 10',
     }))
 
@@ -178,13 +179,13 @@ describe('edit_file layered matching', () => {
     expect(parsed.matchType).toBe('whitespace_normalized')
   })
 
-  it('Layer 3: indent-normalized match', async () => {
+  it('layer 3: indent-normalized match', async () => {
     const filePath = join(ws, 'test.ts')
     writeFileSync(filePath, '    function foo() {\n        return 1\n    }\n')
 
     const { result } = await executeToolCall(routes, 'edit_file', JSON.stringify({
       file_path: filePath,
-      old_text: 'function foo() {\nreturn 1\n}',  // Agent stripped indentation
+      old_text: 'function foo() {\nreturn 1\n}', // Agent stripped indentation
       new_text: '    function foo() {\n        return 42\n    }',
     }))
 
@@ -194,13 +195,13 @@ describe('edit_file layered matching', () => {
     expect(readFileSync(filePath, 'utf-8')).toContain('return 42')
   })
 
-  it('Layer 4: fuzzy match returns candidates', async () => {
+  it('layer 4: fuzzy match returns candidates', async () => {
     const filePath = join(ws, 'test.ts')
     writeFileSync(filePath, 'function calculate(a, b) {\n  return a + b\n}\n\nfunction other() {\n  return 42\n}\n')
 
     const { result } = await executeToolCall(routes, 'edit_file', JSON.stringify({
       file_path: filePath,
-      old_text: 'function calculate(x, y) {\n  return x + y\n}',  // Wrong param names
+      old_text: 'function calculate(x, y) {\n  return x + y\n}', // Wrong param names
       new_text: 'function calculate(a: number, b: number) {\n  return a + b\n}',
     }))
 
@@ -210,7 +211,7 @@ describe('edit_file layered matching', () => {
     expect(parsed.action_required).toBeDefined()
   })
 
-  it('Layer 5: total failure shows preview with line numbers', async () => {
+  it('layer 5: total failure shows preview with line numbers', async () => {
     const filePath = join(ws, 'test.ts')
     writeFileSync(filePath, 'completely different content\nnothing matches\n')
 
@@ -242,13 +243,13 @@ describe('edit_file layered matching', () => {
 
   // ─── New Layer Tests ───
 
-  it('Layer 3: quote-normalized match (smart quotes → straight)', async () => {
+  it('layer 3: quote-normalized match (smart quotes → straight)', async () => {
     const filePath = join(ws, 'test.ts')
     writeFileSync(filePath, 'const msg = "hello"\n')
 
     const { result } = await executeToolCall(routes, 'edit_file', JSON.stringify({
       file_path: filePath,
-      old_text: 'const msg = \u201Chello\u201D',  // smart/curly quotes
+      old_text: 'const msg = \u201Chello\u201D', // smart/curly quotes
       new_text: 'const msg = "world"',
     }))
 
@@ -258,13 +259,13 @@ describe('edit_file layered matching', () => {
     expect(readFileSync(filePath, 'utf-8')).toContain('const msg = "world"')
   })
 
-  it('Line-anchored edit: replaces exact line range', async () => {
+  it('line-anchored edit: replaces exact line range', async () => {
     const filePath = join(ws, 'test.ts')
     writeFileSync(filePath, 'line1\nline2\nline3\nline4\nline5\n')
 
     const { result } = await executeToolCall(routes, 'edit_file', JSON.stringify({
       file_path: filePath,
-      old_text: '',  // not needed for line-anchored
+      old_text: '', // not needed for line-anchored
       new_text: 'replaced2\nreplaced3',
       start_line: 2,
       end_line: 3,
@@ -281,7 +282,7 @@ describe('edit_file layered matching', () => {
     expect(content).not.toContain('\nline2\n')
   })
 
-  it('Line-anchored edit: validates old_text sanity check', async () => {
+  it('line-anchored edit: validates old_text sanity check', async () => {
     const filePath = join(ws, 'test.ts')
     writeFileSync(filePath, 'line1\nline2\nline3\n')
 
@@ -298,7 +299,7 @@ describe('edit_file layered matching', () => {
     expect(parsed.actualContent).toBeDefined()
   })
 
-  it('Fuzzy auto-apply: high confidence match gets applied', async () => {
+  it('fuzzy auto-apply: high confidence match gets applied', async () => {
     const filePath = join(ws, 'test.ts')
     // Write a file where minor differences exist
     writeFileSync(filePath, 'function greet(name: string) {\n  console.log("Hello " + name)\n  return name\n}\n')
@@ -316,7 +317,7 @@ describe('edit_file layered matching', () => {
     expect(parsed.success || parsed.candidates || parsed.error).toBeDefined()
   })
 
-  it('Fuzzy candidates include diagnostic diff', async () => {
+  it('fuzzy candidates include diagnostic diff', async () => {
     const filePath = join(ws, 'test.ts')
     writeFileSync(filePath, 'export function add(a: number, b: number) {\n  return a + b\n}\n\nexport function sub(a: number, b: number) {\n  return a - b\n}\n')
 

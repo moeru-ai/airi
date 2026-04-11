@@ -21,7 +21,7 @@ import type { LLMResponse, QueryEngineConfig, QueryMessage, ToolCall } from './t
 export async function callLLMStreaming(params: {
   config: QueryEngineConfig
   messages: QueryMessage[]
-  tools: Array<{ type: 'function'; function: { name: string; description: string; parameters: Record<string, unknown> } }>
+  tools: Array<{ type: 'function', function: { name: string, description: string, parameters: Record<string, unknown> } }>
   onDelta?: (delta: string) => void
 }): Promise<LLMResponse> {
   const { config, messages, tools, onDelta } = params
@@ -71,14 +71,15 @@ export async function callLLMStreaming(params: {
   const toolCallMap = new Map<number, {
     id: string
     type: 'function'
-    function: { name: string; arguments: string }
+    function: { name: string, arguments: string }
   }>()
 
   let buffer = ''
 
   while (true) {
     const { done, value } = await reader.read()
-    if (done) break
+    if (done)
+      break
 
     buffer += decoder.decode(value, { stream: true })
 
@@ -87,9 +88,11 @@ export async function callLLMStreaming(params: {
     buffer = lines.pop() ?? '' // Keep incomplete line in buffer
 
     for (const line of lines) {
-      if (!line.startsWith('data: ')) continue
+      if (!line.startsWith('data: '))
+        continue
       const data = line.slice(6).trim()
-      if (data === '[DONE]') continue
+      if (data === '[DONE]')
+        continue
 
       try {
         const chunk = JSON.parse(data) as {
@@ -100,7 +103,7 @@ export async function callLLMStreaming(params: {
                 index: number
                 id?: string
                 type?: string
-                function?: { name?: string; arguments?: string }
+                function?: { name?: string, arguments?: string }
               }>
             }
             finish_reason?: string | null
@@ -113,7 +116,8 @@ export async function callLLMStreaming(params: {
         }
 
         const choice = chunk.choices?.[0]
-        if (!choice) continue
+        if (!choice)
+          continue
 
         // Content delta
         if (choice.delta.content) {
@@ -136,9 +140,12 @@ export async function callLLMStreaming(params: {
               })
             }
             else {
-              if (tcDelta.id) existing.id = tcDelta.id
-              if (tcDelta.function?.name) existing.function.name += tcDelta.function.name
-              if (tcDelta.function?.arguments) existing.function.arguments += tcDelta.function.arguments
+              if (tcDelta.id)
+                existing.id = tcDelta.id
+              if (tcDelta.function?.name)
+                existing.function.name += tcDelta.function.name
+              if (tcDelta.function?.arguments)
+                existing.function.arguments += tcDelta.function.arguments
             }
           }
         }

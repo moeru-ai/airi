@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
-
 import type { QueryMessage } from './types'
+
+import { describe, expect, it } from 'vitest'
 
 import { compactIfNeeded, estimateMessageTokens } from './context-compact'
 

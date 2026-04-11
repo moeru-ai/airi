@@ -71,7 +71,8 @@ export class BudgetGuard {
    */
   buildAdvisory(): string | null {
     const snap = this.snapshot()
-    if (!snap.nearLimit) return null
+    if (!snap.nearLimit)
+      return null
 
     const parts: string[] = [
       '[BUDGET WARNING] You are running low on budget.',

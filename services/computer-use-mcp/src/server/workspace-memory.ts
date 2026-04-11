@@ -16,10 +16,10 @@
  * - Pure functions that read/write — no singleton state.
  */
 
+import type { CodingOperationalMemorySeed } from '../coding/coding-memory-taxonomy'
+
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-
-import type { CodingOperationalMemorySeed } from '../coding/coding-memory-taxonomy'
 
 // ---------------------------------------------------------------------------
 // Types

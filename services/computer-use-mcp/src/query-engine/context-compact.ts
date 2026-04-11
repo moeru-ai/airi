@@ -8,6 +8,7 @@
  */
 
 import type { QueryMessage } from './types'
+
 import { estimateTokenCount } from './tokenizer'
 
 /** Estimate total tokens in a message array using the multi-heuristic tokenizer. */

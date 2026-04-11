@@ -402,7 +402,7 @@ export function evaluateStrategy(params: {
         // If NO fresh screenshot was taken since the last click, it's likely a spam click.
         const lastClickTime = new Date(lastClick.capturedAt).getTime()
         const lastScreenshotTime = state.lastScreenshot ? new Date(state.lastScreenshot.capturedAt).getTime() : 0
-        
+
         if (lastScreenshotTime <= lastClickTime) {
           advisories.push(advisory({
             kind: 'click_likely_duplicate',

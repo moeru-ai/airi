@@ -56,7 +56,8 @@ export function registerWebTools(options: RegisterComputerUseToolsOptions) {
         for (const r of result.results) {
           lines.push(`\n## ${r.title}`)
           lines.push(r.url)
-          if (r.snippet) lines.push(r.snippet)
+          if (r.snippet)
+            lines.push(r.snippet)
         }
       }
 

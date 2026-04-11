@@ -25,7 +25,7 @@ export function maskClipboardPreview(text: string) {
   }
 
   if (normalized.length <= 8) {
-    return `${normalized[0] || ''}${'*'.repeat(Math.max(normalized.length - 2, 0))}${normalized[normalized.length - 1] || ''}`
+    return `${normalized[0] || ''}${'*'.repeat(Math.max(normalized.length - 2, 0))}${normalized.at(-1) || ''}`
   }
 
   return `${normalized.slice(0, 4)}${'*'.repeat(Math.min(12, normalized.length - 8))}${normalized.slice(-4)}`

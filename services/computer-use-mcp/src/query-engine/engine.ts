@@ -140,8 +140,8 @@ const TRANSIENT_PATTERNS: RegExp[] = [
   /\bepipe\b/i,
   /\behostunreach\b/i,
   // HTTP status codes — only match in API error context like "(500)" or "error 503"
-  /\b429\b/i,
-  /\(50[023]\)/i, // (500), (502), (503)
+  /\b429\b/,
+  /\(50[023]\)/, // (500), (502), (503)
   /\berror\s+50[023]\b/i, // error 500, error 502, error 503
   // Timeout/abort
   /\btimeout\b/i,
@@ -615,7 +615,8 @@ export async function runQueryEngine(params: {
     // Track file modifications POST-execution — only count successful edits
     for (let idx = 0; idx < resultSlots.length; idx++) {
       const slot = resultSlots[idx]
-      if (!slot) continue
+      if (!slot)
+        continue
       const toolName = response.toolCalls[idx]?.function.name ?? ''
       // Only track write/edit tools that actually succeeded
       if (toolName === 'write_file' || toolName === 'edit_file' || toolName === 'multi_edit_file') {
@@ -624,7 +625,8 @@ export async function runQueryEngine(params: {
         if (!slot.content.includes('[ERROR]') && !slot.content.includes('BLOCKED') && !slot.content.includes('EDIT FAILED')) {
           try {
             const args = JSON.parse(response.toolCalls[idx]!.function.arguments)
-            if (args.file_path) filesModified.add(args.file_path)
+            if (args.file_path)
+              filesModified.add(args.file_path)
           }
           catch { /* ignore parse errors */ }
         }

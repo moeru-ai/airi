@@ -50,7 +50,7 @@ describe('applyResultBudget', () => {
     expect(result.truncated).toBe(true)
     expect(result.originalSize).toBe(2000)
     // Last item should be the truncation notice
-    const lastItem = result.content[result.content.length - 1]
+    const lastItem = result.content.at(-1)
     expect(lastItem.text).toContain('Result truncated')
   })
 
@@ -80,7 +80,7 @@ describe('applyResultBudget', () => {
 
   it('handles multiple text items with partial truncation', () => {
     const content = [
-      { type: 'text', text: 'first'.repeat(20) },  // 100 chars
+      { type: 'text', text: 'first'.repeat(20) }, // 100 chars
       { type: 'text', text: 'second'.repeat(20) }, // 120 chars
     ]
     const result = applyResultBudget('some_tool', content, 150)
@@ -108,16 +108,25 @@ describe('invocation telemetry', () => {
   it('getInvocationSummary aggregates correctly', () => {
     clearInvocationLog()
     recordInvocation({
-      toolName: 'a', lane: 'coding', safetyTier: 'safe',
-      calledAt: '', resultTruncated: false,
+      toolName: 'a',
+      lane: 'coding',
+      safetyTier: 'safe',
+      calledAt: '',
+      resultTruncated: false,
     })
     recordInvocation({
-      toolName: 'b', lane: 'desktop', safetyTier: 'destructive',
-      calledAt: '', resultTruncated: true,
+      toolName: 'b',
+      lane: 'desktop',
+      safetyTier: 'destructive',
+      calledAt: '',
+      resultTruncated: true,
     })
     recordInvocation({
-      toolName: 'c', lane: 'coding', safetyTier: 'guarded',
-      calledAt: '', resultTruncated: false,
+      toolName: 'c',
+      lane: 'coding',
+      safetyTier: 'guarded',
+      calledAt: '',
+      resultTruncated: false,
     })
 
     const summary = getInvocationSummary()
@@ -132,8 +141,11 @@ describe('invocation telemetry', () => {
     clearInvocationLog()
     for (let i = 0; i < 120; i++) {
       recordInvocation({
-        toolName: `tool_${i}`, lane: 'coding', safetyTier: 'safe',
-        calledAt: '', resultTruncated: false,
+        toolName: `tool_${i}`,
+        lane: 'coding',
+        safetyTier: 'safe',
+        calledAt: '',
+        resultTruncated: false,
       })
     }
     expect(getInvocationLog()).toHaveLength(100)

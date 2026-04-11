@@ -1,6 +1,6 @@
-import type { CrossLaneHandoffContract, CrossLaneConstraint } from '../lane-handoff-contract'
-import type { VerificationEvidenceRecord } from '../verification-evidence'
+import type { CrossLaneConstraint, CrossLaneHandoffContract } from '../lane-handoff-contract'
 import type { VerificationRepairHint } from '../verification-contracts'
+import type { VerificationEvidenceRecord } from '../verification-evidence'
 
 export interface HandoffFulfillmentResult {
   status: 'fulfilled' | 'failed' | 'partial'
@@ -35,7 +35,7 @@ export function evaluateHandoffFulfillment(
   constraints.forEach((constraint, index) => {
     // Basic heuristic: look for evidence that seems to address the constraint surface or keywords
     const matchingEvidence = findMatchingEvidence(constraint, evidenceRecords)
-    
+
     if (matchingEvidence) {
       evidence[index] = matchingEvidence.summary
       fulfilledCount++
@@ -65,9 +65,11 @@ export function evaluateHandoffFulfillment(
   if (status !== 'fulfilled') {
     if (contract.reason === 'validate_visual_state') {
       repairHint = 'refocus_target_app'
-    } else if (contract.reason === 'validate_runtime_behavior') {
+    }
+    else if (contract.reason === 'validate_runtime_behavior') {
       repairHint = 'refresh_surface_observation'
-    } else if (contract.reason === 'inspect_network' || contract.reason === 'observe_console_errors') {
+    }
+    else if (contract.reason === 'inspect_network' || contract.reason === 'observe_console_errors') {
       repairHint = 'refresh_surface_observation'
     }
   }
@@ -91,24 +93,28 @@ function findMatchingEvidence(
 ): VerificationEvidenceRecord | undefined {
   // 1. Exact match in summaries if possible (weak check)
   const desc = constraint.description.toLowerCase()
-  
+
   // 2. Check for relevant surface kind matches
   // If the constraint mentions "app" or "window", look for foreground_context
   const needsContext = desc.includes('app') || desc.includes('window') || desc.includes('title')
-  
-  return records.find(r => {
-    if (needsContext && r.kind === 'foreground_context') return true
-    
+
+  return records.find((r) => {
+    if (needsContext && r.kind === 'foreground_context')
+      return true
+
     // Check if descriptions overlap
     const summary = r.summary.toLowerCase()
-    if (summary.includes(desc)) return true
-    
+    if (summary.includes(desc))
+      return true
+
     if (constraint.expectedValue) {
       const expected = constraint.expectedValue.toLowerCase()
-      if (summary.includes(expected)) return true
-      if (r.observed && Object.values(r.observed).some(v => String(v).toLowerCase().includes(expected))) return true
+      if (summary.includes(expected))
+        return true
+      if (r.observed && Object.values(r.observed).some(v => String(v).toLowerCase().includes(expected)))
+        return true
     }
-    
+
     return false
   })
 }

@@ -146,7 +146,7 @@ Ran command: `export PATH="$PATH:/opt/homebrew/bin"; pnpm -F @proj-airi/computer
 
 刚才我又重新运行了您提供的验收命令：
 - ✅ `typecheck` 通过
-- ✅ `vitest` (59 个测试用例) 全部通过 
+- ✅ `vitest` (59 个测试用例) 全部通过
 - ✅ `eslint` 全部通过
 
 代码状态非常卫生，没有遗留问题或冲突，您可以随时安全地将 **Operational Memory Taxonomy v1** 的工作作为一个独立的 Commit 提交。
@@ -221,7 +221,7 @@ Coding lane 的闭环做得很重很成功。按照 `Stage C` 的规划，接下
 
 #### 选项 3：明确 Lane Handoff Contract（Stage D）
 在前面一个 commit (`04323a8b` feat: add handoff and runtime fact invalidation) 中，你这部分的架子已经开了个头。接下来最值得做的是：
-- **浏览器 / 桌面 / 终端 / Coding 之间何时切 lane？** 
+- **浏览器 / 桌面 / 终端 / Coding 之间何时切 lane？**
 - Handoff 发生时，需携带哪些 context（facts、constraints、approval scopes 等）？
 - 这是连接各个刚修好的 “结实车厢” 的挂钩。不用做超大型规划（Atlas-level planner），只需写清 `route reason` 和 `handoff boundary`。
 
@@ -452,7 +452,7 @@ Edited walkthrough.md
 ### 主要改动
 1. **彻底阻断伪造验证（Bad Faith Detection）**
    在 `src/coding/verification-gate.ts` 和 `src/coding/verification-nudge.ts` 引入了对 `OBVIOUS_NOOP_RE` （像 `echo "ok"`, `ls`, `pwd`）的第一优先级检测拦截。如果命中了这些绕行操作，系统将拒绝给这部分行为做所谓的 `recheck_once`（因为试图绕出轨道的行为不配获得无条件重试的宽大处理），直接以 `needs_follow_up` 强行阻断验证进程。
-   
+
 2. **强制规范 Prompt 与 Nudge**
    增加了一条极度尖锐和明确的报错文本给副手看：
    `"Verification rejected: Used a non-verifiable shortcut (like echo/ls/pwd) instead of a real test. You MUST run actual tests or execute the patched code. Shortcuts are strictly prohibited."`
@@ -645,18 +645,18 @@ Ran command: `export PATH="$PATH:/opt/homebrew/bin"; pnpm -F @proj-airi/computer
 Edited task.md
 Edited walkthrough.md
 
-Phase 2b（证据链加固）所有目标都已经全部竣工并且以满分通过测试套件！
+Phase 2b（证据链加固）目标已完成，并通过当次测试套件验证。
 
 **执行亮点汇报 (详情已更新至 [walkthrough.md](file:///Users/liuziheng/.gemini/antigravity/brain/844a81bc-9a5e-45a2-a5d0-e85eb6b70b4b/artifacts/walkthrough.md))**：
 1. **Zero-Issue Sync (零遗留问题锁)**：对 `reportStatus` 修改落实了严酷的策略约束；一旦上一轮审查还带着高亮隐患报告，它再也无法调 API 自欺欺人地报 `completed` 了，底层 `McpError` 直接抛回去强制要求它在本地立刻处理修 Bug。
 2. **Coverage Evidence 作用域靶向防御**：由于 Test Runner 原生 Stdout 在报告覆盖轨迹上是残缺且脆弱的。所以我选择把核心监控面直接前置到**命令本身**。现在，如果它的目标改了 `src/foo/A.ts`：
     * 它跑 `pnpm test` -> 判定证据太泛滥，直接拦截重判 `validation_command_mismatch`。
-    * 并且我会丢回非常精准的要求：告诉它别想糊弄，**必须**使用指向目标文件或者该文件直系测试靶标的范围控制测试。由于做了 `baseName` 放缩推断检测，所以 `vitest run src/foo/A.test.ts` 会完美通行，同时证明它具备精准定位自己污染圈的能力。 
+    * 并且我会丢回非常精准的要求：告诉它别想糊弄，**必须**使用指向目标文件或者该文件直系测试靶标的范围控制测试。由于做了 `baseName` 放缩推断检测，所以 `vitest run src/foo/A.test.ts` 会完美通行，同时证明它具备精准定位自己污染圈的能力。
 
 `pnpm test` 下全部 620 个本地及 E2E 测例已平稳通过（原本受到严格环境加固干扰报错的测试也在先前的修复下稳定了）。
 至此，我们这条防线不仅过滤小动作，还真正卡住了 LLM 要给出 "精确范围化" 证明的最后一道死门。
 
-到这里，Airi Coding Lane 的护盾机制可以说是已经完全成型且具备实战抵御力了。我们可以随时推进后续 Roadmap 或进行集成回归检验！
+到这里，Airi Coding Lane 的防线在当前场景下更稳了。建议继续按 roadmap 推进，并持续做集成回归验证。
 
 
 Viewed claude-code-heuristics.md:1-117
@@ -669,7 +669,7 @@ Viewed claude-code-heuristics.md:1-117
 
 #### 1. 文本替换的高级鲁棒性 (Robust String Replacements) - P0
 *   **目标**: 根治 LLM 经常改错代码缩进、弄丢行尾空格、混淆单双引号导致的 Patch 失败循环。
-*   **动作**: 
+*   **动作**:
     1. 在 `coding_apply_patch` (或 `edit` 工具) 的底层植入 **智能引号归一化**（先抹平直角/弯引号试探匹配，再恢复文件原格式）。
     2. 加入 **行尾空格裁剪防抖 (Trailing Whitespace Trimming)**（除 Markdown 外，预处理移除两端干扰空格，保证 Patch 的 Exact Match 成功率大幅跃升）。
     3. 加入 **XML 标签自纠错拦截**（解决大模型有时自作主张输出缩写如 `<fnr>` 代替 `<function_results>` 的顽疾）。
@@ -991,12 +991,12 @@ Commit 已入库：`d0607027`。
 
 ### Phase D（卫生工程）✅
 
-**Auto-CWD Reset — `runner.ts`**  
+**Auto-CWD Reset — `runner.ts`**
 提取了 `WHITESPACE_RUN_RE` 和 `CD_DIRECTIVE_RE` 两个模块级常量。`execute()` 在命令执行完毕后检测 `cd` 指令模式，若命中则向 `stderr` 追加机器可读的 `[NOTICE]` 消息，明确告知模型：
 
 > "CWD changes via 'cd' do not persist between tool calls — each terminal_exec runs in a new subprocess starting from `cwd=<original>`."
 
-**Pagination Nudge — `search.ts`**  
+**Pagination Nudge — `search.ts`**
 搜索结果类型中的 `limit` 字段没有在所有 mock stub 里补齐，引发 typecheck 失败。修复了三处测试文件（`retrieval.test.ts`、`primitives.test.ts`、`register-coding.test.ts`）共 11 个 stub，同时将两个内联正则提升到模块级（`LINE_BREAK_RE`、`RIPGREP_LINE_RE`）。
 
 ### Phase C（Cross-Lane Handoff）✅
@@ -1113,7 +1113,7 @@ Edited walkthrough.md
     *   **Status Report**：在 `coding_report_status` 执行时汇总当前的所有验证信号。
 4.  **工程质量**：修复了 18 个 TypeScript
 
- 类型错误（包括解决与 `transparency` 层的方法名冲突），目前 `typecheck` 和 `vitest` 专项测试均 100% 通过。
+ 类型错误（包括解决与 `transparency` 层的方法名冲突），当前 `typecheck` 与当次 `vitest` 专项测试已通过。
 
 详细改动说明见：[walkthrough.md](file:///Users/liuziheng/.gemini/antigravity/brain/844a81bc-9a5e-45a2-a5d0-e85eb6b70b4b/walkthrough.md)。
 
@@ -1997,7 +1997,7 @@ pnpm -F @proj-airi/computer-use-mcp exec vitest run
 
 ## 自验证能力升级（向 CC 水平靠拢）
 
-### 问题：之前的 benchmark "100% success" 是虚的
+### 问题：之前的 benchmark 表述过于乐观
 
 - 任务都在 temp workspace 跑，没有工具链
 - vitest/tsc 跑不了，agent 不知道怎么验证
@@ -2096,7 +2096,7 @@ Total: 2/2 passed
 
 ```
 旧: for (const toolCall of toolCalls) await execute(toolCall) // 串行
-新: 
+新:
   read_file, list_files, search_text, web_fetch → Promise.all  // 并行
   write_file, edit_file, multi_edit_file, bash → 串行           // 安全
   结果按原始顺序插入 history                                      // 正确性
@@ -2251,7 +2251,7 @@ agent 的 diff 输出：
   Avg tokens/scenario: 50K
   Avg time/scenario: 54.5s
 
-  🟢 BATTLE TEST: CONSUMER-GRADE VIABLE
+  🟢 BATTLE TEST: SMALL-SAMPLE PASS (needs broader validation)
 ```
 
 ### 各场景分析
@@ -2383,7 +2383,7 @@ DISCOVER_LIMIT = min(4, maxTurns * 0.25)
   Avg tokens/scenario: 47K
   Avg time/scenario: 58s
 
-  🟢 BATTLE TEST: CONSUMER-GRADE VIABLE
+  🟢 BATTLE TEST: SMALL-SAMPLE PASS (needs broader validation)
 ```
 
 ### 三次 Battle Test 对比

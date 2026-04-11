@@ -170,7 +170,6 @@ describe('registerCodingTools', () => {
     expect(state.lastVerificationEvidenceSummary).toBe('Coding report: Done and done.')
   })
 
-
   it('routes coding_apply_patch through executeAction so approval policy is preserved', async () => {
     const executeAction = vi.fn().mockResolvedValue({
       content: [{ type: 'text', text: 'Approval required for coding_apply_patch.' }],

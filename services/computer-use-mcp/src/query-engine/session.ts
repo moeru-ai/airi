@@ -66,7 +66,7 @@ export async function deleteSession(sessionId: string, sessionDir?: string): Pro
 /**
  * List all saved sessions.
  */
-export async function listSessions(sessionDir?: string): Promise<Array<{ sessionId: string; savedAt: string; status: string; goal: string }>> {
+export async function listSessions(sessionDir?: string): Promise<Array<{ sessionId: string, savedAt: string, status: string, goal: string }>> {
   const fs = await import('node:fs/promises')
   const path = await import('node:path')
 
@@ -74,10 +74,11 @@ export async function listSessions(sessionDir?: string): Promise<Array<{ session
 
   try {
     const files = await fs.readdir(dir)
-    const sessions: Array<{ sessionId: string; savedAt: string; status: string; goal: string }> = []
+    const sessions: Array<{ sessionId: string, savedAt: string, status: string, goal: string }> = []
 
     for (const file of files) {
-      if (!file.endsWith('.json')) continue
+      if (!file.endsWith('.json'))
+        continue
       try {
         const content = await fs.readFile(path.join(dir, file), 'utf-8')
         const state = JSON.parse(content) as SessionState

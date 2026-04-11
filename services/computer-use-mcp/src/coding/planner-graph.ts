@@ -94,8 +94,12 @@ function cloneGraph(graph: CodingPlanGraph): CodingPlanGraph {
 }
 
 function buildGraphEdges(graph: Pick<CodingPlanGraph, 'taskNodes' | 'subtaskNodes' | 'nodes'>): CodingPlanEdge[] {
+  // Silent Healing: Deduplicate and filter self-dependencies
   const dependencyEdges: CodingPlanEdge[] = graph.nodes.flatMap((node) => {
-    return node.dependsOn.map(depId => ({
+    const validDeps = Array.from(new Set(node.dependsOn))
+      .filter(depId => depId !== node.id)
+
+    return validDeps.map(depId => ({
       from: depId,
       to: node.id,
       relation: 'depends_on' as const,

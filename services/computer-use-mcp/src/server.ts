@@ -132,7 +132,7 @@ export async function createComputerUseMcpServer(config = resolveComputerUseConf
                 ...processedResult,
                 content: [
                   ...processedResult.content,
-                  ...advisories.map(a => textContent('\n\n' + a)),
+                  ...advisories.map(a => textContent(`\n\n${a}`)),
                 ],
               }
             }

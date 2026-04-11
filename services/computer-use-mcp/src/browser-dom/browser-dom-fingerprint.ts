@@ -11,8 +11,9 @@ import { createHash } from 'node:crypto'
  * When the bridge is unavailable or returns no data, returns an empty string
  * so callers can safely compare without special-casing.
  */
-export function computeDomFingerprint(frames: Array<{ frameId: number; result: unknown }>): string {
-  if (!frames || frames.length === 0) return ''
+export function computeDomFingerprint(frames: Array<{ frameId: number, result: unknown }>): string {
+  if (!frames || frames.length === 0)
+    return ''
 
   try {
     // Extract interactive elements from each frame's result payload
@@ -27,7 +28,8 @@ export function computeDomFingerprint(frames: Array<{ frameId: number; result: u
       }
     }
 
-    if (elements.length === 0) return ''
+    if (elements.length === 0)
+      return ''
 
     const serialized = JSON.stringify(elements)
     return createHash('sha256').update(serialized).digest('hex').slice(0, 16)
@@ -47,7 +49,7 @@ export function computeDomFingerprint(frames: Array<{ frameId: number; result: u
 export function compareDomFingerprints(
   before: string,
   after: string,
-): { unchanged: boolean; before: string; after: string } {
+): { unchanged: boolean, before: string, after: string } {
   // If either is empty, we can't reliably compare — assume changed
   if (!before || !after) {
     return { unchanged: false, before, after }
@@ -63,8 +65,10 @@ export function compareDomFingerprints(
 // NOTICE: The bridge wraps results in { data: ... } or { success: ..., data: ... }.
 // This mirrors the unwrap logic in register-tools.ts.
 function unwrapPayload(value: unknown): unknown {
-  if (!value || typeof value !== 'object') return value
+  if (!value || typeof value !== 'object')
+    return value
   const record = value as Record<string, unknown>
-  if ('data' in record) return record.data
+  if ('data' in record)
+    return record.data
   return value
 }

@@ -206,7 +206,7 @@ export class BrowserDomExtensionBridge {
     return await this.callAction<Record<string, unknown> | null>('getActiveTab')
   }
 
-  async getReadyState(params: { tabId?: number; frameIds?: number[] } = {}) {
+  async getReadyState(params: { tabId?: number, frameIds?: number[] } = {}) {
     return await this.callAction<Array<BrowserDomFrameResult<string>>>('getReadyState', params)
   }
 
