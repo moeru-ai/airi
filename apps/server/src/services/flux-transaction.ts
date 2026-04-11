@@ -1,7 +1,7 @@
 import type { Database } from '../libs/db'
 
 import { useLogger } from '@guiiai/logg'
-import { desc, eq } from 'drizzle-orm'
+import { desc, eq, sql } from 'drizzle-orm'
 
 import * as schema from '../schemas/flux-transaction'
 
@@ -45,6 +45,30 @@ export function createFluxTransactionService(db: Database) {
         records.pop()
 
       return { records, hasMore }
+    },
+
+    async getStats(userId: string) {
+      const rows = await db.select({
+        type: schema.fluxTransaction.type,
+        total: sql<number>`sum(${schema.fluxTransaction.amount})`.mapWith(Number),
+      })
+        .from(schema.fluxTransaction)
+        .where(eq(schema.fluxTransaction.userId, userId))
+        .groupBy(schema.fluxTransaction.type)
+
+      let totalReceived = 0
+      let totalConsumed = 0
+
+      for (const row of rows) {
+        if (row.type === 'credit' || row.type === 'initial') {
+          totalReceived += row.total
+        }
+        else if (row.type === 'debit') {
+          totalConsumed += row.total
+        }
+      }
+
+      return { totalReceived, totalConsumed }
     },
   }
 }
