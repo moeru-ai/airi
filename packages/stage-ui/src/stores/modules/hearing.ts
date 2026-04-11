@@ -4,7 +4,7 @@ import type { WithUnknown } from '@xsai/shared'
 import type { StreamTranscriptionResult, StreamTranscriptionOptions as XSAIStreamTranscriptionOptions } from '@xsai/stream-transcription'
 
 import { errorMessageFrom, tryCatch } from '@moeru/std'
-import { IOAttrs, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
+import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
@@ -394,7 +394,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       return
 
     if (asrSpan) {
-      asrSpan.setAttribute(IOAttrs.ASRAbort, !!abort)
+      asrSpan.setAttribute(IOAttributes.ASRAbort, !!abort)
       asrSpan.end()
       asrSpan = undefined
     }
@@ -507,8 +507,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     const turnSpan = startSpan(IOSpanNames.InteractionTurn)
     activeTurnSpan.value = turnSpan
     asrSpan = startSpan(IOSpanNames.SpeechRecognition, turnSpan, {
-      [IOAttrs.Subsystem]: IOSubsystems.ASR,
-      [IOAttrs.ASRProvider]: activeTranscriptionProvider.value ?? '',
+      [IOAttributes.Subsystem]: IOSubsystems.ASR,
+      [IOAttributes.GenAIRequestModel]: activeTranscriptionProvider.value ?? '',
     })
 
     console.info('[Hearing Pipeline] transcribeForMediaStream called', {
@@ -625,13 +625,13 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           onSentenceEnd: (delta) => {
             bumpIdle() // Bump idle timer on activity (only if enabled)
             if (asrSpan)
-              asrSpan.addEvent(IOEvents.SentenceEnd, { [IOAttrs.ASRText]: delta })
+              asrSpan.addEvent(IOEvents.ASRSentenceEnd, { [IOAttributes.ASRText]: delta })
             // Call the options callback
             options?.onSentenceEnd?.(delta)
           },
           onSpeechEnd: (text) => {
             if (asrSpan) {
-              asrSpan.setAttribute(IOAttrs.ASRText, text)
+              asrSpan.setAttribute(IOAttributes.ASRText, text)
               asrSpan.end()
               asrSpan = undefined
             }
@@ -793,7 +793,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
               if (value) {
                 fullText += value
                 if (asrSpan)
-                  asrSpan.addEvent(IOEvents.SentenceEnd, { [IOAttrs.ASRText]: value })
+                  asrSpan.addEvent(IOEvents.ASRSentenceEnd, { [IOAttributes.ASRText]: value })
                 // Use captured callbacks to avoid cross-session leakage
                 sessionCallbacks.onSentenceEnd?.(value)
               }
@@ -805,7 +805,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           }
           finally {
             if (asrSpan) {
-              asrSpan.setAttribute(IOAttrs.ASRText, fullText)
+              asrSpan.setAttribute(IOAttributes.ASRText, fullText)
               asrSpan.end()
               asrSpan = undefined
             }

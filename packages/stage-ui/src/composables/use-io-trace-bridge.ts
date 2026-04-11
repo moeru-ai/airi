@@ -1,7 +1,7 @@
 import type { Span } from '@opentelemetry/api'
 import type { createSpeechPipeline } from '@proj-airi/pipelines-audio'
 
-import { IOAttrs, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
+import { IOAttributes, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { onScopeDispose, watch } from 'vue'
 
 import { activeTurnSpan, startSpan } from './use-io-tracer'
@@ -48,19 +48,19 @@ export function useIOTraceBridge(pipeline: ReturnType<typeof createSpeechPipelin
     if (!ttsSegmentSpan) {
       hadSegments = true
       ttsSegmentSpan = startSpan(IOSpanNames.TTSSegment, currentParent, {
-        [IOAttrs.Subsystem]: IOSubsystems.TTS,
-        [IOAttrs.TTSSegmentId]: request.segmentId,
-        [IOAttrs.TTSText]: request.text,
-        [IOAttrs.TTSChunkReason]: segmentReasons.get(request.segmentId) ?? '',
+        [IOAttributes.Subsystem]: IOSubsystems.TTS,
+        [IOAttributes.TTSSegmentId]: request.segmentId,
+        [IOAttributes.TTSText]: request.text,
+        [IOAttributes.TTSChunkReason]: segmentReasons.get(request.segmentId) ?? '',
       })
       segmentReasons.delete(request.segmentId)
       segmentSpans.set(request.segmentId, ttsSegmentSpan)
     }
 
     const ttsSynthesisSpan = startSpan(IOSpanNames.TTSSynthesis, ttsSegmentSpan, {
-      [IOAttrs.Subsystem]: IOSubsystems.TTS,
-      [IOAttrs.TTSSegmentId]: request.segmentId,
-      [IOAttrs.TTSText]: request.text,
+      [IOAttributes.Subsystem]: IOSubsystems.TTS,
+      [IOAttributes.TTSSegmentId]: request.segmentId,
+      [IOAttributes.TTSText]: request.text,
     })
     synthesisSpans.set(request.segmentId, ttsSynthesisSpan)
   }))
@@ -76,9 +76,9 @@ export function useIOTraceBridge(pipeline: ReturnType<typeof createSpeechPipelin
   cleanupFns.push(pipeline.on('onPlaybackStart', (event) => {
     const segSpan = segmentSpans.get(event.item.segmentId)
     const playbackSpan = startSpan(IOSpanNames.AudioPlayback, segSpan, {
-      [IOAttrs.Subsystem]: IOSubsystems.Playback,
-      [IOAttrs.TTSSegmentId]: event.item.segmentId,
-      [IOAttrs.TTSText]: event.item.text,
+      [IOAttributes.Subsystem]: IOSubsystems.Playback,
+      [IOAttributes.TTSSegmentId]: event.item.segmentId,
+      [IOAttributes.TTSText]: event.item.text,
     })
     playbackSpans.set(event.item.segmentId, playbackSpan)
   }))
@@ -96,8 +96,8 @@ export function useIOTraceBridge(pipeline: ReturnType<typeof createSpeechPipelin
   cleanupFns.push(pipeline.on('onPlaybackInterrupt', (event) => {
     const playbackSpan = playbackSpans.get(event.item.segmentId)
     if (playbackSpan) {
-      playbackSpan.setAttribute(IOAttrs.TTSInterrupted, true)
-      playbackSpan.setAttribute(IOAttrs.TTSInterruptReason, event.reason)
+      playbackSpan.setAttribute(IOAttributes.TTSInterrupted, true)
+      playbackSpan.setAttribute(IOAttributes.TTSInterruptReason, event.reason)
       playbackSpan.end()
       playbackSpans.delete(event.item.segmentId)
     }
@@ -112,7 +112,7 @@ export function useIOTraceBridge(pipeline: ReturnType<typeof createSpeechPipelin
 
   cleanupFns.push(pipeline.on('onIntentCancel', () => {
     for (const [segmentId, span] of segmentSpans) {
-      span.setAttribute(IOAttrs.TTSCanceled, true)
+      span.setAttribute(IOAttributes.TTSCanceled, true)
       span.end()
       segmentSpans.delete(segmentId)
     }

@@ -2,8 +2,8 @@ import type { Attributes } from '@opentelemetry/api'
 import type { ReadableSpan } from '@opentelemetry/sdk-trace-base'
 import type { IOSpan, IOSubsystem, IOTurn } from '@proj-airi/stage-shared'
 
-import { getTimeOrigin, hrTimeToMilliseconds, hrTimeToNanoseconds } from '@opentelemetry/core'
-import { IOAttrs, IOEvents, IOSpanNames } from '@proj-airi/stage-shared'
+import { hrTimeToMilliseconds, hrTimeToNanoseconds } from '@opentelemetry/core'
+import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { defineStore } from 'pinia'
 import { computed, ref, triggerRef } from 'vue'
 
@@ -25,16 +25,15 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
   const isRecording = ref(false)
   const selectedSpanId = ref<string | null>(null)
   const recordingStartTs = ref(0)
-  const revision = ref(0)
+  const rawSpanCount = ref(0)
 
   const turnsByTraceId = new Map<string, IOTurn>()
 
   const rawSpans: ReadableSpan[] = []
-  let unsubRemote: (() => void) | undefined
+  let unsubscribeRemote: (() => void) | undefined
 
   function notifyUpdate() {
     triggerRef(turns)
-    revision.value++
   }
 
   const activeTurn = computed(() => {
@@ -69,6 +68,7 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
 
   function handleSpan(readable: ReadableSpan) {
     rawSpans.push(readable)
+    rawSpanCount.value++
 
     const spanCtx = readable.spanContext()
     const traceId = spanCtx.traceId
@@ -100,7 +100,7 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
       const turn = getOrCreateTurn()
       if (endMs)
         turn.endTs = endMs
-      const text = readable.attributes[IOAttrs.ASRText]
+      const text = readable.attributes[IOAttributes.ASRText]
       if (typeof text === 'string')
         turn.inputText = text
 
@@ -108,12 +108,12 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
       return
     }
 
-    const subsystem = readable.attributes[IOAttrs.Subsystem] as IOSubsystem | undefined
+    const subsystem = readable.attributes[IOAttributes.Subsystem] as IOSubsystem | undefined
 
     if (!subsystem) {
       if (readable.name === IOSpanNames.TTSSegment) {
         const turn = getOrCreateTurn()
-        const text = readable.attributes[IOAttrs.TTSText]
+        const text = readable.attributes[IOAttributes.TTSText]
         if (typeof text === 'string' && !turn.outputText)
           turn.outputText = text
       }
@@ -130,17 +130,17 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
         const shortKey = key.includes('.') ? key.split('.').at(-1)! : key
         meta[shortKey] = value
       }
-      if (event.name === IOEvents.FirstToken) {
+      if (event.name === IOEvents.LLMFirstToken) {
         meta.firstTokenTs = hrTimeToMilliseconds(event.time)
       }
     }
 
-    if (subsystem === 'asr' && typeof readable.attributes[IOAttrs.ASRText] === 'string')
-      turn.inputText = (turn.inputText ?? '') + (readable.attributes[IOAttrs.ASRText] as string)
-    if (subsystem === 'llm' && typeof meta.text_length === 'number')
+    if (subsystem === IOSubsystems.ASR && typeof readable.attributes[IOAttributes.ASRText] === 'string')
+      turn.inputText = (turn.inputText ?? '') + (readable.attributes[IOAttributes.ASRText] as string)
+    if (subsystem === IOSubsystems.LLM && typeof meta.text_length === 'number')
       turn.outputText = `(${meta.text_length} chars)`
 
-    const segmentId = readable.attributes[IOAttrs.TTSSegmentId]
+    const segmentId = readable.attributes[IOAttributes.TTSSegmentId]
 
     const ioSpan: IOSpan = {
       id: spanId,
@@ -148,7 +148,7 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
       parentSpanId: readable.parentSpanContext?.spanId,
       ttsCorrelationId: typeof segmentId === 'string' ? segmentId : undefined,
       subsystem,
-      name: readable.name.split(':').at(-1) ?? readable.name,
+      name: readable.name,
       startTs: startMs,
       endTs: endMs,
       meta,
@@ -164,8 +164,8 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
 
     initIOTracer()
     onIOSpan(handleSpan)
-    unsubRemote = onRemoteIOSpan(handleSpan)
-    recordingStartTs.value = getTimeOrigin() + performance.now()
+    unsubscribeRemote = onRemoteIOSpan(handleSpan)
+    recordingStartTs.value = performance.timeOrigin + performance.now()
     isRecording.value = true
 
     console.info('[IOTracer] Recording started (OTel mode, local + remote)')
@@ -179,30 +179,29 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
     activeTurnSpan.value = undefined
 
     onIOSpan(undefined)
-    unsubRemote?.()
-    unsubRemote = undefined
+    unsubscribeRemote?.()
+    unsubscribeRemote = undefined
     isRecording.value = false
-
-    console.info('[IOTracer] Recording stopped')
   }
 
   function clear() {
     turns.value = []
     turnsByTraceId.clear()
     rawSpans.length = 0
+    rawSpanCount.value = 0
     selectedSpanId.value = null
-    recordingStartTs.value = getTimeOrigin() + performance.now()
+    recordingStartTs.value = performance.timeOrigin + performance.now()
   }
 
   function selectSpan(spanId: string | null) {
     selectedSpanId.value = spanId
   }
 
-  function exportOtlpJson() {
+  function exportOTLP() {
     if (rawSpans.length === 0)
       return
 
-    const spanJsons = rawSpans.map((span) => {
+    const spans = rawSpans.map((span) => {
       const ctx = span.spanContext()
       const parentCtx = span.parentSpanContext
 
@@ -242,7 +241,7 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
         },
         scopeSpans: [{
           scope: { name: 'io' },
-          spans: spanJsons,
+          spans,
         }],
       }],
     }
@@ -261,15 +260,14 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
     turns,
     activeTurn,
     isRecording,
+    rawSpanCount,
     recordingStartTs,
-    revision,
     selectedSpanId,
     selectedSpan,
     startRecording,
     stopRecording,
     clear,
     selectSpan,
-    exportOtlpJson,
-    rawSpanCount: computed(() => { revision.value; return rawSpans.length }),
+    exportOTLP,
   }
 })

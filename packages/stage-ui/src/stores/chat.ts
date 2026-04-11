@@ -5,7 +5,7 @@ import type { CommonContentPart, Message, ToolMessage } from '@xsai/shared-chat'
 import type { ChatAssistantMessage, ChatSlices, ChatStreamEventContext, StreamingAssistantMessage } from '../types/chat'
 import type { StreamEvent, StreamOptions } from './llm'
 
-import { IOAttrs, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
+import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { createQueue } from '@proj-airi/stream-kit'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -368,8 +368,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         activeTurnSpan.value = startSpan(IOSpanNames.InteractionTurn)
 
       const llmSpan = startSpan(IOSpanNames.LLMInference, activeTurnSpan.value, {
-        [IOAttrs.Subsystem]: IOSubsystems.LLM,
-        [IOAttrs.LLMModel]: options.model,
+        [IOAttributes.Subsystem]: IOSubsystems.LLM,
+        [IOAttributes.GenAIRequestModel]: options.model,
       })
       const llmRequestTs = performance.now()
       let llmFirstTokenEmitted = false
@@ -410,8 +410,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
               case 'text-delta':
                 if (!llmFirstTokenEmitted) {
                   llmFirstTokenEmitted = true
-                  llmSpan.addEvent(IOEvents.FirstToken, {
-                    [IOAttrs.LLM_TTFT]: performance.now() - llmRequestTs,
+                  llmSpan.addEvent(IOEvents.LLMFirstToken, {
+                    [IOAttributes.LLM_TTFT]: performance.now() - llmRequestTs,
                   })
                 }
                 fullText += event.text
@@ -425,7 +425,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
           },
         })
 
-        llmSpan.setAttribute(IOAttrs.LLMTextLength, fullText.length)
+        llmSpan.setAttribute(IOAttributes.LLMTextLength, fullText.length)
       }
       finally {
         // TODO: Record errors on llmSpan
