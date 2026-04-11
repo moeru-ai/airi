@@ -50,7 +50,7 @@ function getCacheRoot() {
 
 const UPDATER_DEBUG_CACHE_DIR = join(getCacheRoot(), 'stage-tamagotchi-updater')
 const UPDATER_LOG_FILE = join(UPDATER_DEBUG_CACHE_DIR, 'updater-log.txt')
-const OFFICIAL_UPDATER_PENDING_DIR = join(getCacheRoot(), 'ai.moeru.airi-updater', 'pending')
+const OFFICIAL_UPDATER_CACHE_DIR = join(getCacheRoot(), 'ai.moeru.airi-updater')
 
 async function logToFile(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: string) {
   await fs.promises.mkdir(UPDATER_DEBUG_CACHE_DIR, { recursive: true }).catch(() => {})
@@ -58,8 +58,9 @@ async function logToFile(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: st
 }
 
 async function cleanupStaleUpdateFiles() {
-  await fs.promises.rm(OFFICIAL_UPDATER_PENDING_DIR, { recursive: true, force: true }).catch(() => {})
-  await logToFile('INFO', `Updater cache cleanup attempted: ${OFFICIAL_UPDATER_PENDING_DIR}`)
+  // Remove the updater cache root after the app relaunches so stale installer files do not linger.
+  await fs.promises.rm(OFFICIAL_UPDATER_CACHE_DIR, { recursive: true, force: true }).catch(() => {})
+  await logToFile('INFO', `Updater cache cleanup attempted: ${OFFICIAL_UPDATER_CACHE_DIR}`)
 }
 
 export type UpdateLane = 'stable' | 'alpha' | 'beta' | 'nightly' | 'canary'
