@@ -18,6 +18,7 @@ interface FluxPackage {
   label: string
   defaultCurrency: string
   currencies: Record<string, string>
+  recommended?: boolean
 }
 
 const loadingPriceId = ref<string | null>(null)
@@ -71,7 +72,7 @@ const AUDIT_PAGE_SIZE = 20
 const capacity = ref(0)
 
 const fluxPercentage = computed(() => {
-  if (capacity.value === 0)
+  if (capacity.value <= 0)
     return credits.value > 0 ? 100 : 0
   return Math.min(100, Math.round((credits.value / capacity.value) * 100))
 })
@@ -254,27 +255,29 @@ async function handleBuy(stripePriceId: string) {
     </div>
 
     <!-- Battery Card -->
-    <div relative overflow-hidden rounded-2xl bg="neutral-100 dark:neutral-800" p-8 text-center>
+    <div relative overflow-hidden rounded-2xl bg="neutral-100 dark:neutral-800" p-6 sm:p-8>
       <!-- Background Progress -->
       <div
         class="flux-progress-bar absolute inset-y-0 left-0 bg-primary-500/20 dark:bg-primary-400/20"
       />
 
       <!-- Content -->
-      <div relative z-1>
-        <div i-solar:battery-charge-bold-duotone mx-auto size-12 text-primary-500 />
-        <h2 mt-2 text-4xl font-bold tracking-tight>
-          {{ formatNumber(credits) }}
-        </h2>
-        <p text="sm neutral-500">
-          {{ t('settings.pages.flux.description') }}
-        </p>
+      <div relative z-1 flex="~ items-center justify-start sm:col sm:justify-center gap-4 sm:gap-2" text-left sm:text-center>
+        <div i-solar:battery-charge-bold-duotone size-12 shrink-0 text-primary-500 sm:mx-auto sm:size-14 />
+        <div flex="~ col gap-1">
+          <h2 text-3xl font-bold tracking-tight sm:text-4xl>
+            {{ formatNumber(credits) }}
+          </h2>
+          <p text="sm neutral-500">
+            {{ t('settings.pages.flux.description') }}
+          </p>
+        </div>
       </div>
     </div>
 
     <div flex="~ col gap-4">
       <!-- Currency selector -->
-      <div v-if="currencyOptions.length > 1" flex="~ justify-end">
+      <div v-if="currencyOptions.length > 1" flex="~ justify-start sm:justify-end">
         <SelectTab
           v-model="selectedCurrency"
           :options="currencyOptions"
@@ -284,18 +287,28 @@ async function handleBuy(stripePriceId: string) {
 
       <div grid="~ cols-1 sm:cols-3 gap-4">
         <button
-          v-for="pkg in packages" :key="pkg.stripePriceId"
+          v-for="(pkg, index) in packages" :key="pkg.stripePriceId"
           :disabled="loadingPriceId !== null"
           :class="[
-            'group relative flex flex-col items-center gap-2 overflow-hidden',
-            'rounded-2xl border border-neutral-200 bg-white p-6 transition-all duration-300 ease-out',
-            'dark:border-neutral-800 dark:bg-neutral-900',
+            'group relative flex flex-row sm:flex-col items-center justify-between sm:justify-center overflow-hidden text-left sm:text-center gap-4 sm:gap-2',
+            'rounded-2xl border-2 bg-white p-6 transition-all duration-300 ease-out',
+            pkg.recommended ? 'border-primary-400 dark:border-primary-500 shadow-sm' : 'border-neutral-200 dark:border-neutral-800',
+            'dark:bg-neutral-900',
             'hover:-translate-y-1 hover:border-primary-400 hover:shadow-md dark:hover:border-primary-500',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
             loadingPriceId !== null && loadingPriceId !== pkg.stripePriceId ? 'opacity-50 grayscale-50 cursor-not-allowed' : 'cursor-pointer',
           ]"
           @click="handleBuy(pkg.stripePriceId)"
         >
+          <!-- Recommended Badge -->
+          <div
+            v-if="pkg.recommended"
+            class="absolute right-0 top-0 flex items-center gap-1 rounded-bl-xl bg-primary-500 px-2.5 py-1 text-[10px] text-white font-bold tracking-wider uppercase shadow-sm"
+          >
+            <div class="i-solar:star-fall-bold-duotone size-3" />
+            HOT
+          </div>
+
           <!-- Loading Overlay -->
           <div
             v-if="loadingPriceId === pkg.stripePriceId"
@@ -304,13 +317,23 @@ async function handleBuy(stripePriceId: string) {
             <div class="i-svg-spinners:90-ring-with-bg size-8 text-primary-500" />
           </div>
 
-          <div text="sm neutral-500 dark:neutral-400" font-medium transition-colors class="group-hover:text-primary-600 dark:group-hover:text-primary-400">
-            {{ pkg.label }}
+          <div flex="~ col sm:items-center gap-1" relative z-1 w-full>
+            <div text="sm neutral-500 dark:neutral-400" font-medium transition-colors class="group-hover:text-primary-600 dark:group-hover:text-primary-400">
+              {{ pkg.label }}
+            </div>
+            <div flex="~ items-baseline justify-start sm:justify-center gap-1">
+              <span text="2xl neutral-800 dark:neutral-100" font-bold>
+                {{ pkg.currencies[selectedCurrency] ?? pkg.currencies[pkg.defaultCurrency] }}
+              </span>
+            </div>
           </div>
-          <div flex="~ items-baseline gap-1">
-            <span text="2xl neutral-800 dark:neutral-100" font-bold>
-              {{ pkg.currencies[selectedCurrency] ?? pkg.currencies[pkg.defaultCurrency] }}
-            </span>
+
+          <!-- Battery Icons (Mobile Only) -->
+          <div flex="~ items-center gap-1" relative z-1 class="text-primary-200 transition-colors dark:text-primary-800/60 group-hover:text-primary-300 sm:hidden dark:group-hover:text-primary-700">
+            <div
+              v-for="i in Math.min(index + 1, 3)" :key="i"
+              class="i-solar:battery-charge-bold-duotone size-8 sm:size-10"
+            />
           </div>
         </button>
       </div>
