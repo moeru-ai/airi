@@ -1,0 +1,176 @@
+/**
+ * background.js — MV3 Service Worker for AIRI Desktop Grounding
+ *
+ * Routes commands from the AIRI extension bridge → chrome.tabs.sendMessage
+ * → msg_bridge.js → content.js (__AIRI_DG__)
+ *
+ * IMPORTANT: This background does NOT use offscreen documents or Python bridges.
+ * It receives commands directly from the existing BrowserDomExtensionBridge
+ * WebSocket connection in the AIRI computer-use-mcp service.
+ *
+ * Only read-only observation commands are supported.
+ * All DOM-mutating actions (click, type, hover, scroll) have been removed
+ * because the desktop lane uses real macOS OS-level input events.
+ *
+ * Adapted from /Users/liuziheng/computer_use/chrome-extension/background.js.
+ * Stripped: offscreen management, Python bridge, all DOM-action commands
+ * (clickAt, typeAt, hoverAt, scrollAt, simulateDragDrop, readStorage,
+ * setStorage, readCanvasData, injectCSS, executeScript, etc.)
+ */
+
+// ---- Tab / Frame utilities ----
+
+async function getActiveTab() {
+  const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
+  return tabs[0] || null
+}
+
+// ---- Core: route commands to content.js via msg_bridge.js ----
+
+/**
+ * Send a CU_ACTION message to a specific tab + frame.
+ * msg_bridge.js (ISOLATED world) receives → postMessage → content.js (MAIN world)
+ */
+async function sendCUAction(tabId, frameId, method, args) {
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      resolve({ success: false, error: 'sendMessage timeout' })
+    }, 8000)
+
+    try {
+      chrome.tabs.sendMessage(
+        tabId,
+        { type: 'CU_ACTION', method, args: args || [] },
+        { frameId },
+        (response) => {
+          clearTimeout(timeout)
+          if (chrome.runtime.lastError) {
+            resolve({ success: false, error: chrome.runtime.lastError.message })
+          }
+          else {
+            resolve(response || { success: false, error: 'no response' })
+          }
+        },
+      )
+    }
+    catch (e) {
+      clearTimeout(timeout)
+      resolve({ success: false, error: e.message || String(e) })
+    }
+  })
+}
+
+/**
+ * Run a CU_ACTION across all frames (or specified frames) in a tab.
+ * Returns [{frameId, result}]
+ */
+async function runCUAction(tabId, frameIds, method, args) {
+  let targets = frameIds
+  if (!targets || (Array.isArray(targets) && targets.length === 0)) {
+    const frames = await chrome.webNavigation.getAllFrames({ tabId })
+    targets = frames.map(f => f.frameId)
+  }
+  else if (!Array.isArray(targets)) {
+    targets = [targets]
+  }
+
+  return Promise.all(
+    targets.map(async (fid) => {
+      const result = await sendCUAction(tabId, fid, method, args)
+      return { frameId: fid, result }
+    }),
+  )
+}
+
+// ---- Handle external commands (from AIRI extension bridge) ----
+
+/**
+ * Handle a command from the AIRI BrowserDomExtensionBridge.
+ *
+ * Only read-only observation commands are supported:
+ * - getActiveTab: get the active tab info
+ * - getAllFrames: list all frames in the active tab
+ * - readAllFramesDOM: collect interactive elements from all frames
+ * - findElement: find a single element by CSS selector
+ * - findElements: find multiple elements by CSS selector
+ * - getClickTarget: get center point of an element for click targeting
+ * - getElementAttributes: get all attributes of an element
+ */
+async function handleCommand(cmd) {
+  const { action, id } = cmd
+  try {
+    let result
+    const tab = await getActiveTab()
+    const tabId = cmd.tabId || (tab && tab.id)
+
+    if (!tabId && action !== 'getActiveTab') {
+      return { id, ok: false, error: 'no active tab' }
+    }
+
+    switch (action) {
+      case 'getActiveTab':
+        result = tab ? { id: tab.id, url: tab.url, title: tab.title } : null
+        break
+
+      case 'getAllFrames':
+        result = await chrome.webNavigation.getAllFrames({ tabId })
+        break
+
+      case 'readAllFramesDOM':
+        result = await runCUAction(tabId, cmd.frameIds || null, 'collectFrameDOM', [cmd.opts || {}])
+        break
+
+      case 'findElement':
+        result = await runCUAction(tabId, cmd.frameIds || null, 'findElement', [cmd.selector || ''])
+        break
+
+      case 'findElements':
+        result = await runCUAction(tabId, cmd.frameIds || null, 'findElements', [cmd.selector || '', cmd.max || 10])
+        break
+
+      case 'getClickTarget':
+        result = await runCUAction(tabId, cmd.frameIds || null, 'getClickTarget', [cmd.selector || ''])
+        break
+
+      case 'getElementAttributes':
+        result = await runCUAction(tabId, cmd.frameIds || null, 'getElementAttributes', [cmd.selector || ''])
+        break
+
+      default:
+        result = { error: `unknown action: ${action}` }
+    }
+
+    return { id, ok: true, result }
+  }
+  catch (e) {
+    return { id, ok: false, error: e.message || String(e) }
+  }
+}
+
+// ---- Listen for external messages ----
+// The AIRI BrowserDomExtensionBridge connects via chrome.runtime.onMessageExternal
+// or through the existing WebSocket bridge mechanism
+
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === 'AIRI_DG_COMMAND') {
+    handleCommand(msg.data)
+      .then(resp => sendResponse(resp))
+      .catch(e => sendResponse({ ok: false, error: String(e) }))
+    return true // Keep sendResponse async
+  }
+
+  // Support the existing ws-incoming format from BrowserDomExtensionBridge
+  if (msg.type === 'ws-incoming') {
+    handleCommand(msg.data)
+      .then((resp) => {
+        // Send response back via the same channel
+        chrome.runtime.sendMessage({ type: 'ws-send', data: resp })
+      })
+      .catch((e) => {
+        chrome.runtime.sendMessage({ type: 'ws-send', data: { id: msg.data?.id, ok: false, error: String(e) } })
+      })
+    return false
+  }
+
+  return false
+})

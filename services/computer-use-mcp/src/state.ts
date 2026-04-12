@@ -177,6 +177,14 @@ export interface RunState {
   /** High-level task execution state (goal, facts, blockers, next step). */
   taskMemory?: TaskMemory
 
+  // --- Desktop grounding -------------------------------------------------
+  /** Latest unified desktop grounding snapshot captured by `desktop_observe`. */
+  lastGroundingSnapshot?: import('./desktop-grounding-types').DesktopGroundingSnapshot
+  /** Most recent pointer snap intent for overlay rendering. */
+  lastPointerIntent?: import('./desktop-grounding-types').PointerIntent
+  /** Candidate id of the last `desktop_click_target` call for duplicate protection. */
+  lastClickedCandidateId?: string
+
   // --- Meta -------------------------------------------------------------
   /** ISO timestamp of the last state update. */
   updatedAt: string
@@ -385,6 +393,37 @@ export class RunStateManager {
       this.state.activeTask.phase = phase
       this.state.activeTask.finishedAt = new Date().toISOString()
     }
+    this.touch()
+  }
+
+  // -- Desktop grounding updates -----------------------------------------
+
+  /**
+   * Store a fresh desktop grounding snapshot from `desktop_observe`.
+   * A new observe invalidates the duplicate-click guard.
+   */
+  updateGroundingSnapshot(snapshot: import('./desktop-grounding-types').DesktopGroundingSnapshot): void {
+    this.state.lastGroundingSnapshot = snapshot
+    this.state.lastClickedCandidateId = undefined
+    this.touch()
+  }
+
+  /**
+   * Store the last pointer snap intent and clicked candidate id.
+   */
+  updatePointerIntent(intent: import('./desktop-grounding-types').PointerIntent, candidateId: string): void {
+    this.state.lastPointerIntent = intent
+    this.state.lastClickedCandidateId = candidateId
+    this.touch()
+  }
+
+  /**
+   * Clear desktop grounding state when the snapshot becomes invalid.
+   */
+  clearGroundingState(): void {
+    this.state.lastGroundingSnapshot = undefined
+    this.state.lastPointerIntent = undefined
+    this.state.lastClickedCandidateId = undefined
     this.touch()
   }
 
