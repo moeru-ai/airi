@@ -76,6 +76,7 @@ onUnmounted(() => {
 <route lang="yaml">
 meta:
   layout: settings
-  titleKey: IO Tracer
-  subtitleKey: Devtools
+  titleKey: tamagotchi.settings.devtools.pages.io-tracer.title
+  subtitleKey: tamagotchi.settings.devtools.title
+  disableBackButton: true
 </route>
