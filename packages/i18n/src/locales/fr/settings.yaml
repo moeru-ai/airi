@@ -538,6 +538,7 @@ pages:
   flux:
     title: Flux
     buy: Charge
+    currency: Currency
     description: Flux actuel
     packagesError: Échec du chargement des offres. Veuillez réessayer plus tard.
     checkout:
@@ -557,6 +558,7 @@ pages:
       empty: Aucune transaction pour l'instant.
       loadMore: Charger plus
       delayHint: Les enregistrements d'utilisation peuvent être retardés jusqu'à 1 minute
+      ttsRequests: requests
     packages:
       title: Offres de Flux
       buy: Charge

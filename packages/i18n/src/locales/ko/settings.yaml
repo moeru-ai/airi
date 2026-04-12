@@ -538,6 +538,7 @@ pages:
   flux:
     title: Flux
     buy: Charge
+    currency: Currency
     description: Current Flux
     packagesError: Failed to load packages. Please try again later.
     checkout:
@@ -557,6 +558,7 @@ pages:
       empty: No transaction records yet.
       loadMore: Load More
       delayHint: Usage records may be delayed by up to 1 minute
+      ttsRequests: requests
     packages:
       title: Flux Packages
       buy: Charge

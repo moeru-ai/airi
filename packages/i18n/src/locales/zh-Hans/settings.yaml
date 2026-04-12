@@ -538,7 +538,7 @@ pages:
   flux:
     title: Flux
     buy: 充值
-    currency: 货币
+    currency: Currency
     description: 充值 Flux
     packagesError: 暂时无法获取可用的 Flux 电量包。可以之后再试试吗？
     checkout:
@@ -558,7 +558,7 @@ pages:
       empty: 暂无消耗记录
       loadMore: 更多信息
       delayHint: Flux 电量历史记录是缓慢更新的，可能有延迟
-      ttsRequests: 次请求
+      ttsRequests: requests
     packages:
       title: Flux 电池包
       buy: 充值

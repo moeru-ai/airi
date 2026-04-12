@@ -147,8 +147,8 @@ pages:
     title: Аккаунт
     description: Просматривайте свой профиль и управляйте своей учетной записью
     notLoggedIn: Войдите, чтобы просмотреть аккаунт и получить доступ ко всем функциям
-    login: Sign in
-    logout: Sign out
+    login: Войти
+    logout: Выйти
     fluxBalance: Баланс Flux
     viewFluxDetails: Подробнее
     signedInAs: Вы вошли как
@@ -538,6 +538,7 @@ pages:
   flux:
     title: Flux
     buy: Пополнить
+    currency: Currency
     description: Текущий Flux
     packagesError: Не удалось загрузить пакеты. Пожалуйста, повторите попытку позже.
     checkout:
@@ -557,6 +558,7 @@ pages:
       empty: Пока нет записей транзакций.
       loadMore: Загрузить ещё
       delayHint: Записи об использовании могут задерживаться до 1 минуты
+      ttsRequests: requests
     packages:
       title: Flux пакеты
       buy: Пополнить

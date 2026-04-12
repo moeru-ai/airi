@@ -1,47 +1,47 @@
 electronCallback:
   title:
-    loading: Completing sign-in
-    openingAiri: Opening AIRI
-    signedIn: You are signed in
-    signInFailed: Sign-in failed
-    finishSignInInAiri: Finish sign-in in AIRI
-    openAiriToContinue: Open AIRI to continue
+    loading: Завершение авторизации
+    openingAiri: Открытие AIRI
+    signedIn: Вы вошли в систему
+    signInFailed: Не удалось войти
+    finishSignInInAiri: Завершение входа в AIRI
+    openAiriToContinue: Откройте AIRI, чтобы продолжить
   message:
-    checkingResponse: Checking your sign-in response and preparing the handoff to AIRI.
-    passingToAiri: Passing your sign-in back to AIRI now. This page should close in a moment.
-    syncedAndSafeToClose: We notified AIRI client you signed from.
-    invalidResponse: We could not use this sign-in response.
-    loopbackUnreachable: The browser could not reach AIRI through the local callback port.
-    tryOpenDirectly: We will try opening the local handoff directly. If that still fails, use the button below.
-    automaticHandoffFailed: Automatic handoff did not finish in this browser session.
+    checkingResponse: Проверка ответа на вход и подготовка передачи в AIRI.
+    passingToAiri: Передавайте данные для входа обратно в AIRI. Эта страница должна закрыться через мгновение.
+    syncedAndSafeToClose: Мы уведомили клиента AIRI, с которого вы зарегистрировались.
+    invalidResponse: Мы не смогли использовать ответ на вход.
+    loopbackUnreachable: Браузеру не удалось подключиться к AIRI через локальный порт обратного вызова.
+    tryOpenDirectly: Мы постараемся открыть локальную передачу напрямую. Если это не удалось, воспользуйтесь кнопкой ниже.
+    automaticHandoffFailed: Автоматическая передача не завершилась в этой сессии браузера.
   label:
-    signIn: Sign in
-    safeToClose: It is safe to close this tab now.
-    whyStillHere: Why this tab still here?
+    signIn: Войти
+    safeToClose: Закрыть эту вкладку теперь безопасно.
+    whyStillHere: Почему эта вкладка всё ещё здесь?
   action:
-    openAiriManually: Open AIRI manually
+    openAiriManually: Открыть AIRI вручную
   hint:
-    closeTabManually: Some browsers do not allow this page to close itself automatically. You can close it manually.
+    closeTabManually: Некоторые браузеры не позволяют закрыть эту страницу автоматически. Вы можете закрыть ее вручную.
 signIn:
-  title: Sign in
+  title: Войти
   error:
-    fallback: Sign in failed
-    unknown: An unknown error occurred
-    authFailed: Authentication failed. Please try again.
+    fallback: Войти не удалось
+    unknown: Произошла неизвестная ошибка
+    authFailed: Аутентификация не пройдена. Пожалуйста, попробуйте снова.
   footer:
-    prefix: By continuing, you agree to our
-    terms: Terms
-    and: and
-    privacy: Privacy Policy
+    prefix: Продолжая, вы соглашаетесь с нашими политиками
+    terms: Условия использования
+    and: и
+    privacy: Политика конфиденциальности
 webCallback:
   title:
-    signIn: Sign in
-    errorLabel: We encountered an error while signing you in
-    loading: Signing in...
+    signIn: Войти
+    errorLabel: Во время входа в систему произошла ошибка
+    loading: Выполняется вход...
   message:
-    missingCodeOrState: Missing authorization code or state
-    missingFlowState: Missing OIDC flow state - please try logging in again
-    tokenExchangeFailed: Token exchange failed
-    finalizing: Finalizing authentication with AIRI.
+    missingCodeOrState: Отсутствует код авторизации или состояние
+    missingFlowState: Отсутствует состояние потока OIDC - попробуйте войти снова
+    tokenExchangeFailed: Обмен токенов не удался
+    finalizing: Завершение аутентификации с AIRI.
   action:
-    tryAgain: Try again
+    tryAgain: Попробовать снова
