@@ -9,9 +9,11 @@
  * process. Persistent audit lives in session trace / JSONL.
  */
 
+import type { DesktopSession } from './desktop-session'
 import type { TaskMemory } from './task-memory/types'
 import type {
   BrowserSurfaceAvailability,
+  ChromeSessionInfo,
   DisplayInfo,
   ExecutionTarget,
   ForegroundContext,
@@ -184,6 +186,16 @@ export interface RunState {
   lastPointerIntent?: import('./desktop-grounding-types').PointerIntent
   /** Candidate id of the last `desktop_click_target` call for duplicate protection. */
   lastClickedCandidateId?: string
+
+  // --- Chrome Session ----------------------------------------------------
+  /** Agent's dedicated Chrome session (managed by ChromeSessionManager). */
+  chromeSession?: ChromeSessionInfo
+  /** The user's foreground app before the agent took over. */
+  previousUserForegroundApp?: string
+
+  // --- Desktop Session ---------------------------------------------------
+  /** Agent's active desktop execution session. */
+  desktopSession?: DesktopSession
 
   // --- Meta -------------------------------------------------------------
   /** ISO timestamp of the last state update. */
@@ -424,6 +436,52 @@ export class RunStateManager {
     this.state.lastGroundingSnapshot = undefined
     this.state.lastPointerIntent = undefined
     this.state.lastClickedCandidateId = undefined
+    this.touch()
+  }
+
+  // -- Chrome Session updates ---------------------------------------------
+
+  /**
+   * Store the agent's Chrome session info.
+   * Called after ChromeSessionManager.ensureAgentWindow() succeeds.
+   */
+  updateChromeSession(info: ChromeSessionInfo): void {
+    this.state.chromeSession = info
+    this.touch()
+  }
+
+  /**
+   * Clear the Chrome session (e.g. on session end or Chrome crash).
+   */
+  clearChromeSession(): void {
+    this.state.chromeSession = undefined
+    this.state.previousUserForegroundApp = undefined
+    this.touch()
+  }
+
+  /**
+   * Remember the user's foreground app before agent takes over.
+   */
+  savePreviousUserForeground(appName: string): void {
+    this.state.previousUserForegroundApp = appName
+    this.touch()
+  }
+
+  // -- Desktop Session updates --------------------------------------------
+
+  /**
+   * Update the agent's desktop session.
+   */
+  updateDesktopSession(session: DesktopSession): void {
+    this.state.desktopSession = session
+    this.touch()
+  }
+
+  /**
+   * Clear the desktop session.
+   */
+  clearDesktopSession(): void {
+    this.state.desktopSession = undefined
     this.touch()
   }
 

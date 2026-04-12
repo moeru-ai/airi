@@ -201,4 +201,12 @@ export interface PointerIntent {
   confidence: number
   /** Pointer animation path for overlay visualization */
   path: PointerTracePoint[]
+
+  // ---- Ghost pointer execution phases (v3) ----
+  /** Execution lifecycle phase for ghost pointer animation. */
+  phase?: 'preview' | 'executing' | 'completed'
+  /** Outcome of the execution (set when phase = 'completed'). */
+  executionResult?: 'success' | 'fallback' | 'error'
+  /** Human-readable description of the execution route taken. */
+  executionRoute?: string
 }

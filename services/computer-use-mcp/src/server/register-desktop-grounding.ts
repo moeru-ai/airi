@@ -24,6 +24,7 @@ import { z } from 'zod'
 import { decideBrowserAction } from '../browser-action-router'
 import { captureDesktopGrounding, formatGroundingForAgent } from '../desktop-grounding'
 import { resolveSnapByCandidate } from '../snap-resolver'
+import { sleep } from '../utils/sleep'
 import { textContent } from './content'
 import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptors/register-helper'
 
@@ -54,16 +55,58 @@ export function registerDesktopGroundingTools(params: {
 
     handler: async ({ includeChrome }) => {
       try {
-        // Try to get an existing CDP bridge (non-fatal if unavailable)
+        // If the agent has a desktop session with a controlled app,
+        // ensure that app is in the foreground before observing.
+        // Falls back to Chrome session check for backward compatibility.
+        const sessionCtrl = runtime.desktopSessionController
+        const activeSession = sessionCtrl.getSession()
+        if (activeSession?.controlledApp) {
+          const currentForeground = await runtime.executor.getForegroundContext()
+          const wasAlreadyInFront = await sessionCtrl.ensureControlledAppInForeground({
+            currentForeground,
+            chromeSessionManager: runtime.chromeSessionManager,
+            activateApp: async (appName) => {
+              await runtime.executor.focusApp({ app: appName })
+            },
+          })
+          if (!wasAlreadyInFront) {
+            await sleep(300)
+          }
+        }
+        else {
+          // Fallback: Chrome session without desktop session
+          const chromeSession = runtime.chromeSessionManager.getSessionInfo()
+          if (chromeSession) {
+            const currentForeground = await runtime.executor.getForegroundContext()
+            if (currentForeground.available && currentForeground.appName !== 'Google Chrome') {
+              if (currentForeground.appName) {
+                runtime.stateManager.savePreviousUserForeground(currentForeground.appName)
+              }
+              await runtime.chromeSessionManager.bringToFront()
+              await sleep(300)
+            }
+          }
+        }
+
+        // Try to get or reconnect a CDP bridge.
+        // NOTICE: `desktop_ensure_chrome` can launch Chrome before its DevTools
+        // endpoint is fully ready. When observe runs later, reconnect from the
+        // recorded session URL instead of staying stuck in AX-only mode.
         let cdpBridge: import('../browser-dom/cdp-bridge').CdpBridge | undefined
         try {
           const status = runtime.cdpBridgeManager.getStatus()
           if (status.connected) {
             cdpBridge = await runtime.cdpBridgeManager.ensureBridge()
           }
+          else {
+            const chromeSession = runtime.chromeSessionManager.getSessionInfo()
+            if (chromeSession?.cdpUrl) {
+              cdpBridge = await runtime.cdpBridgeManager.ensureBridge(chromeSession.cdpUrl)
+            }
+          }
         }
         catch {
-          // CDP bridge unavailable — graceful degradation
+          // CDP bridge unavailable — graceful degradation to extension or AX
         }
 
         const snapshot = await captureDesktopGrounding({
@@ -91,10 +134,17 @@ export function registerDesktopGroundingTools(params: {
 
         // Update foreground context from the observation
         if (snapshot.foregroundApp && snapshot.foregroundApp !== 'unknown') {
+          const chromeSession = runtime.chromeSessionManager.getSessionInfo()
+          const isAgentOwned = chromeSession
+            ? snapshot.foregroundApp === 'Google Chrome'
+            : false
+
           runtime.stateManager.updateForegroundContext({
             available: true,
             appName: snapshot.foregroundApp,
             platform: process.platform,
+            agentOwned: isAgentOwned,
+            agentWindowPid: isAgentOwned ? chromeSession?.pid : undefined,
           })
         }
 
@@ -152,6 +202,24 @@ export function registerDesktopGroundingTools(params: {
 
         const snapshot = state.lastGroundingSnapshot
 
+        // Session: ensure the controlled app is still in foreground before clicking
+        const sessionCtrl = runtime.desktopSessionController
+        const activeSession = sessionCtrl.getSession()
+        if (activeSession?.controlledApp) {
+          const currentForeground = await runtime.executor.getForegroundContext()
+          const wasAlreadyInFront = await sessionCtrl.ensureControlledAppInForeground({
+            currentForeground,
+            chromeSessionManager: runtime.chromeSessionManager,
+            activateApp: async (appName) => {
+              await runtime.executor.focusApp({ app: appName })
+            },
+          })
+          if (!wasAlreadyInFront) {
+            await sleep(200)
+          }
+          sessionCtrl.touch()
+        }
+
         // Validate: check for duplicate clicks on same candidate without re-observe
         if (state.lastClickedCandidateId === candidateId) {
           return {
@@ -192,7 +260,8 @@ export function registerDesktopGroundingTools(params: {
           ],
         }
 
-        // Update RunState — pointer intent + clicked candidate
+        // Update RunState — pointer intent + clicked candidate (phase: executing)
+        intent.phase = 'executing'
         runtime.stateManager.updatePointerIntent(intent, candidateId)
 
         // Route the click: browser-dom for chrome_dom candidates, OS input for everything else
@@ -245,6 +314,12 @@ export function registerDesktopGroundingTools(params: {
             pointerTrace: intent.path,
           })
         }
+
+        // Phase: completed — update ghost pointer state for overlay fadeout
+        intent.phase = 'completed'
+        intent.executionResult = routeNote ? 'fallback' : 'success'
+        intent.executionRoute = `${executionRoute} (${routeDecision.reason})`
+        runtime.stateManager.updatePointerIntent(intent, candidateId)
 
         const candidateDesc = candidate ? `${candidate.source} ${candidate.role} "${candidate.label}"` : candidateId
 
