@@ -35,9 +35,12 @@ const speed = ref<number>(
   || defaultVoiceSettings.speed,
 )
 
-// Model selection
+// Model selection (store raw string; empty string is valid while editing — default is applied only at API call)
 const model = computed({
-  get: () => providers.value[providerId]?.model as string | undefined || defaultModel,
+  get: () => {
+    const raw = providers.value[providerId]?.model as string | undefined | null
+    return raw ?? ''
+  },
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
@@ -66,8 +69,8 @@ watch(
       if (Math.abs(speed.value - newSpeed) > 0.001) // Use small epsilon for float comparison
         speed.value = newSpeed
 
-      // Sync model if it was reset
-      if (!config.model && model.value !== defaultModel)
+      // Sync model if property was cleared externally (undefined/null), not when user sets empty string
+      if (config.model == null && model.value !== defaultModel)
         model.value = defaultModel
 
       // Sync voice if it was reset
@@ -89,13 +92,9 @@ const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
 // Ensure provider config is initialized on mount
 onMounted(() => {
-  if (!providers.value[providerId]) {
-    providers.value[providerId] = {}
-  }
-  // Initialize model and voice if they don't exist
-  if (!providers.value[providerId].model) {
-    providers.value[providerId].model = defaultModel
-  }
+  providers.value[providerId] ??= {}
+  // Only assign default when model is null/undefined; empty string is kept intentionally
+  providers.value[providerId].model ??= defaultModel
   if (!providers.value[providerId].voice) {
     providers.value[providerId].voice = 'alloy'
   }
@@ -131,14 +130,6 @@ watch(speed, async () => {
   if (!providers.value[providerId])
     providers.value[providerId] = {}
   providers.value[providerId].speed = speed.value
-})
-
-watch(model, () => {
-  // Ensure provider config exists
-  if (!providers.value[providerId])
-    providers.value[providerId] = {}
-  // Save model to provider config (this persists to localStorage automatically)
-  providers.value[providerId].model = model.value
 })
 
 watch(voice, () => {
