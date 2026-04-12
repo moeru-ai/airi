@@ -27,6 +27,7 @@ const defaultVoiceSettings = {
 // Get provider metadata
 const providerId = 'openai-compatible-audio-speech'
 const defaultModel = 'tts-1'
+const defaultVoice = 'alloy'
 
 // Initialize speed from provider config or default
 const speed = ref<number>(
@@ -49,7 +50,10 @@ const model = computed({
 })
 
 const voice = computed({
-  get: () => providers.value[providerId]?.voice || 'alloy',
+  get: () => {
+    const raw = providers.value[providerId]?.voice as string | undefined | null
+    return raw ?? ''
+  },
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
@@ -73,15 +77,15 @@ watch(
       if (config.model == null && model.value !== defaultModel)
         model.value = defaultModel
 
-      // Sync voice if it was reset
-      if (!config.voice && voice.value !== 'alloy')
-        voice.value = 'alloy'
+      // Sync voice if property was cleared externally (undefined/null), not when user sets empty string
+      if (config.voice == null && voice.value !== defaultVoice)
+        voice.value = defaultVoice
     }
     else {
       // Provider config was reset, reset our local refs to defaults
       speed.value = defaultVoiceSettings.speed
       model.value = defaultModel
-      voice.value = 'alloy'
+      voice.value = defaultVoice
     }
   },
   { deep: true, immediate: true },
@@ -93,11 +97,9 @@ const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 // Ensure provider config is initialized on mount
 onMounted(() => {
   providers.value[providerId] ??= {}
-  // Only assign default when model is null/undefined; empty string is kept intentionally
+  // Defaults only when unset (null/undefined); empty strings are kept intentionally
   providers.value[providerId].model ??= defaultModel
-  if (!providers.value[providerId].voice) {
-    providers.value[providerId].voice = 'alloy'
-  }
+  providers.value[providerId].voice ??= defaultVoice
 })
 
 // Generate speech with OpenAI-compatible parameters
@@ -117,7 +119,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
     provider,
     modelToUse,
     input,
-    voiceId || (voice.value as string),
+    voiceId || voice.value || defaultVoice,
     {
       ...providerConfig,
       ...defaultVoiceSettings,
@@ -130,14 +132,6 @@ watch(speed, async () => {
   if (!providers.value[providerId])
     providers.value[providerId] = {}
   providers.value[providerId].speed = speed.value
-})
-
-watch(voice, () => {
-  // Ensure provider config exists
-  if (!providers.value[providerId])
-    providers.value[providerId] = {}
-  // Save voice to provider config (this persists to localStorage automatically)
-  providers.value[providerId].voice = voice.value
 })
 
 // Use the composable to get validation logic and state
