@@ -119,6 +119,15 @@ const openDevtoolsWindow = useElectronEventaInvoke(electronOpenDevtoolsWindow)
   </ButtonBar>
   <ButtonBar
     mb-2
+    icon="i-solar:chart-2-bold-duotone"
+    text="IO Tracer"
+    transition="all ease-in-out duration-250"
+    @click="() => openDevtoolsWindow({ route: '/devtools/io-tracer' })"
+  >
+    IO Tracer
+  </ButtonBar>
+  <ButtonBar
+    mb-2
     icon="i-solar:chart-square-bold-duotone"
     :text="t('tamagotchi.settings.devtools.pages.lag-visualizer.title')"
     transition="all ease-in-out duration-250"
