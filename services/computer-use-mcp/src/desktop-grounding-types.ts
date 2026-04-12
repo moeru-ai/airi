@@ -37,9 +37,6 @@ export const TARGET_SOURCE_PRIORITY: readonly TargetSource[] = [
   'raw',
 ] as const
 
-/** Maximum snapshot age tolerated before `desktop_click_target` must refresh. */
-export const DESKTOP_CLICK_SNAPSHOT_MAX_AGE_MS = 5_000
-
 // ---------------------------------------------------------------------------
 // Target candidate
 // ---------------------------------------------------------------------------
@@ -79,10 +76,6 @@ export interface DesktopTargetCandidate {
   inputType?: string
   /** CSS selector for re-querying (best-effort) */
   selector?: string
-  /** Frame ID within the Chrome page (0 = main frame) */
-  frameId?: number
-  /** Whether candidate is in page content area (true for all chrome_dom candidates) */
-  isPageContent?: boolean
 
   // ---- AX extras ----
   /** AX tree UID for `findAXNodeByUid` lookup */
@@ -144,8 +137,6 @@ export interface DesktopGroundingSnapshot {
   capturedAt: string
   /** Name of the foreground application */
   foregroundApp: string
-  /** Title of the foreground window when available */
-  foregroundWindowTitle?: string
   /** Current window list */
   windows: WindowInfo[]
   /** Latest screenshot artifact */

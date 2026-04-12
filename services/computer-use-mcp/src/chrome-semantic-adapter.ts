@@ -32,11 +32,6 @@ import type {
  */
 const CHROME_CHROME_HEIGHT_PX = 88
 
-// Pre-compiled regex for selector building (module scope per eslint e18e/prefer-static-regex)
-const RE_DOUBLE_QUOTE = /"/g
-const RE_WHITESPACE_SPLIT = /\s+/
-const RE_CSS_ESCAPE = /[^\w-]/g
-
 /**
  * Capture Chrome semantic data from the active tab.
  *
@@ -96,7 +91,6 @@ export function chromeElementsToTargetCandidates(
   elements: BrowserDomInteractiveElement[],
   windowBounds: Bounds,
   chromeHeightPx: number = CHROME_CHROME_HEIGHT_PX,
-  frameId: number = 0,
 ): DesktopTargetCandidate[] {
   const candidates: DesktopTargetCandidate[] = []
   const viewportOffsetX = windowBounds.x
@@ -106,10 +100,6 @@ export function chromeElementsToTargetCandidates(
     if (!el.rect || el.rect.w === 0 || el.rect.h === 0) {
       continue
     }
-
-    // Read per-element frame ID if tagged by captureViaExtension,
-    // otherwise fall back to the function parameter
-    const elFrameId = (el as Record<string, unknown>)._frameId as number | undefined
 
     // Convert page-relative rect to screen-absolute bounds
     const bounds: Bounds = {
@@ -130,7 +120,6 @@ export function chromeElementsToTargetCandidates(
     const label = buildLabel(el)
     const role = el.role || el.tag || 'element'
     const confidence = computeElementConfidence(el)
-    const selector = buildSelector(el)
 
     candidates.push({
       id: '', // Will be assigned by the grounding layer
@@ -144,10 +133,6 @@ export function chromeElementsToTargetCandidates(
       tag: el.tag,
       href: el.href,
       inputType: el.type,
-      selector,
-      frameId: elFrameId ?? frameId,
-      isPageContent: true, // All chrome_dom candidates are page content by definition
-      enabled: !el.disabled,
     })
   }
 
@@ -166,8 +151,8 @@ async function captureViaExtension(
     maxElements: 150,
   })
 
-  // Merge interactive elements from all frames, preserving frame identity
-  const allElements: Array<BrowserDomInteractiveElement & { _frameId?: number }> = []
+  // Merge interactive elements from all frames
+  const allElements: BrowserDomInteractiveElement[] = []
   let pageUrl = ''
   let pageTitle = ''
 
@@ -185,10 +170,7 @@ async function captureViaExtension(
       ?? (dom.data && typeof dom.data === 'object' && (dom.data as Record<string, unknown>).interactiveElements)
     const elements = rawElements as BrowserDomInteractiveElement[] | undefined
     if (elements) {
-      // Tag each element with its frame ID for downstream routing
-      for (const el of elements) {
-        allElements.push({ ...el, _frameId: frame.frameId })
-      }
+      allElements.push(...elements)
     }
   }
 
@@ -230,52 +212,6 @@ async function captureViaCdp(bridge: CdpBridge): Promise<ChromeSemanticSnapshot>
     capturedAt: new Date().toISOString(),
     source: 'cdp',
   }
-}
-
-/**
- * Build a best-effort CSS selector for re-querying the element via the
- * browser-dom bridge. Used by the browser action router for DOM-level
- * click precision instead of OS coordinate input.
- *
- * Priority: #id > [name] > tag[type] > tag.className > tag
- */
-function buildSelector(el: BrowserDomInteractiveElement): string | undefined {
-  // Unique id — best
-  if (el.id && el.id.trim()) {
-    return `#${cssEscape(el.id.trim())}`
-  }
-
-  const tag = el.tag?.toLowerCase() || '*'
-
-  // Name attribute — common for form inputs
-  if (el.name && el.name.trim()) {
-    return `${tag}[name="${el.name.trim().replace(RE_DOUBLE_QUOTE, '\\"')}"]`
-  }
-
-  // Tag + type — useful for input[type="submit"] etc.
-  if (el.type && el.type.trim() && (tag === 'input' || tag === 'button')) {
-    return `${tag}[type="${el.type.trim().replace(RE_DOUBLE_QUOTE, '\\"')}"]`
-  }
-
-  // Tag + first className — fallback
-  if (el.className && el.className.trim()) {
-    const firstClass = el.className.trim().split(RE_WHITESPACE_SPLIT)[0]
-    if (firstClass) {
-      return `${tag}.${cssEscape(firstClass)}`
-    }
-  }
-
-  // Tag alone is too generic to be useful
-  return undefined
-}
-
-/**
- * Minimal CSS identifier escape for Node.js (CSS.escape is browser-only).
- * Escapes characters that are invalid in CSS identifiers per the spec.
- * Sufficient for id/class name escaping in selector construction.
- */
-function cssEscape(value: string): string {
-  return value.replace(RE_CSS_ESCAPE, ch => `\\${ch}`)
 }
 
 /**

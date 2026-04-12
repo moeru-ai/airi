@@ -50,7 +50,7 @@ export async function createComputerUseMcpServer(config = resolveComputerUseConf
     },
   })
   const cdpCleanup = registerCdpTools({ server, runtime })
-  registerDesktopGroundingTools({ server, runtime, executeAction })
+  registerDesktopGroundingTools({ server, runtime })
 
   return {
     server,

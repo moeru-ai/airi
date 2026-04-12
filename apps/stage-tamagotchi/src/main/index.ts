@@ -9,9 +9,9 @@ import messages from '@proj-airi/i18n/locales'
 
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLevel, useLogg } from '@guiiai/logg'
-import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
 import { app, ipcMain } from 'electron'
+import { noop } from 'es-toolkit'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
 import { isLinux } from 'std-env'
 
@@ -19,17 +19,14 @@ import icon from '../../resources/icon.png?asset'
 
 import { openDebugger, setupDebugger } from './app/debugger'
 import { nullFileLoggerHandle, setupFileLogger } from './app/file-logger'
-import { createArtistryConfig } from './configs/artistry'
 import { createGlobalAppConfig } from './configs/global'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
 import { createI18n } from './libs/i18n'
 import { createWindowAuthManagerService } from './services/airi/auth'
 import { setupServerChannel } from './services/airi/channel-server'
-import { setupBuiltInServer } from './services/airi/http-server'
 import { setupMcpStdioManager } from './services/airi/mcp-servers'
 import { setupPluginHost } from './services/airi/plugins'
-import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { setupAutoUpdater } from './services/electron/auto-updater'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
@@ -104,16 +101,15 @@ app.whenReady().then(async () => {
   injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
 
   const appConfig = injeca.provide('configs:app', () => createGlobalAppConfig())
-  const artistryConfig = injeca.provide('configs:artistry', () => createArtistryConfig())
   const electronApp = injeca.provide('host:electron:app', () => app)
   const autoUpdater = injeca.provide('services:auto-updater', {
     dependsOn: { appConfig },
     build: ({ dependsOn }) => setupAutoUpdater({
       getStoredUpdateLane: () => dependsOn.appConfig.get()?.updateChannel,
       setStoredUpdateLane: (lane) => {
-        const current = dependsOn.appConfig.get()
+        const currentConfig = dependsOn.appConfig.get()
         dependsOn.appConfig.update({
-          language: current?.language ?? 'en',
+          language: currentConfig?.language ?? 'en',
           updateChannel: lane,
         })
       },
@@ -130,12 +126,13 @@ app.whenReady().then(async () => {
     build: async ({ dependsOn }) => setupServerChannel(dependsOn),
   })
 
-  const airiHttpServer = injeca.provide('modules:airi-http-server', {
-    build: async () => setupBuiltInServer({ servers: [] }),
-  })
-
   const mcpStdioManager = injeca.provide('modules:mcp-stdio-manager', {
     build: async () => setupMcpStdioManager(),
+  })
+
+  const pluginHost = injeca.provide('modules:plugin-host', {
+    dependsOn: { serverChannel },
+    build: () => setupPluginHost(),
   })
 
   const windowAuthManager = injeca.provide('services:window-auth-manager', () => createWindowAuthManagerService())
@@ -143,7 +140,7 @@ app.whenReady().then(async () => {
   // BeatSync will create a background window to capture and process audio.
   const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
 
-  const devtoolsWindow = injeca.provide('windows:devtools', () => setupDevtoolsWindow())
+  const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())
 
   const onboardingWindowManager = injeca.provide('windows:onboarding', {
     dependsOn: { serverChannel, i18n, windowAuthManager },
@@ -160,11 +157,6 @@ app.whenReady().then(async () => {
     build: ({ dependsOn }) => setupWidgetsWindowManager(dependsOn),
   })
 
-  const pluginHost = injeca.provide('modules:plugin-host', {
-    dependsOn: { serverChannel, widgetsManager },
-    build: ({ dependsOn }) => setupPluginHost({ widgetsManager: dependsOn.widgetsManager }),
-  })
-
   const aboutWindow = injeca.provide('windows:about', {
     dependsOn: { autoUpdater, i18n, serverChannel },
     build: ({ dependsOn }) => setupAboutWindowReusable(dependsOn),
@@ -176,7 +168,7 @@ app.whenReady().then(async () => {
   })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow, serverChannel, mcpStdioManager, i18n, windowAuthManager },
+    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsMarkdownStressWindow, serverChannel, mcpStdioManager, i18n, windowAuthManager },
     build: async ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
   })
 
@@ -207,20 +199,13 @@ app.whenReady().then(async () => {
     // provider depends on 'windows:desktop-overlay'.
     injeca.invoke({
       dependsOn: { desktopOverlay },
-      callback: () => {},
+      callback: noop,
     })
   }
 
   injeca.invoke({
-    dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, artistryConfig },
-    callback: async (deps) => {
-      const { context } = createContext(ipcMain)
-      await setupArtistryBridge({
-        widgetsManager: deps.widgetsWindow,
-        context,
-        artistryConfig: deps.artistryConfig,
-      })
-    },
+    dependsOn: { mainWindow, tray, serverChannel, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager },
+    callback: noop,
   })
 
   injeca.start().catch(err => console.error(err))

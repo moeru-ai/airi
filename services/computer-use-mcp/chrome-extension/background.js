@@ -12,7 +12,7 @@
  * All DOM-mutating actions (click, type, hover, scroll) have been removed
  * because the desktop lane uses real macOS OS-level input events.
  *
- * Adapted from the upstream computer-use chrome-extension.
+ * Adapted from /Users/liuziheng/computer_use/chrome-extension/background.js.
  * Stripped: offscreen management, Python bridge, all DOM-action commands
  * (clickAt, typeAt, hoverAt, scrollAt, simulateDragDrop, readStorage,
  * setStorage, readCanvasData, injectCSS, executeScript, etc.)
@@ -87,7 +87,7 @@ async function runCUAction(tabId, frameIds, method, args) {
 /**
  * Handle a command from the AIRI BrowserDomExtensionBridge.
  *
- * Supported actions:
+ * Only read-only observation commands are supported:
  * - getActiveTab: get the active tab info
  * - getAllFrames: list all frames in the active tab
  * - readAllFramesDOM: collect interactive elements from all frames
@@ -95,14 +95,6 @@ async function runCUAction(tabId, frameIds, method, args) {
  * - findElements: find multiple elements by CSS selector
  * - getClickTarget: get center point of an element for click targeting
  * - getElementAttributes: get all attributes of an element
- * - setInputValue: set value of a text input or textarea
- * - checkCheckbox: check or uncheck a native checkbox/radio
- * - selectOption: select an option in a <select> element
- * - readInputValue: read the current value of an input/textarea/select
- * - getComputedStyles: get computed CSS styles for an element
- * - triggerEvent: dispatch a DOM event on an element
- * - waitForElement: wait for an element to appear in the DOM
- * - clickAt: dispatch a click event at viewport coordinates
  */
 async function handleCommand(cmd) {
   const { action, id } = cmd
@@ -144,68 +136,8 @@ async function handleCommand(cmd) {
         result = await runCUAction(tabId, cmd.frameIds || null, 'getElementAttributes', [cmd.selector || ''])
         break
 
-      case 'setInputValue':
-        result = await runCUAction(tabId, cmd.frameIds || null, 'setInputValue', [
-          cmd.selector || '',
-          cmd.value || '',
-          { blur: cmd.opts?.blur !== false, simulateKeystrokes: !!cmd.opts?.simulateKeystrokes },
-        ])
-        break
-
-      case 'checkCheckbox':
-        result = await runCUAction(tabId, cmd.frameIds || null, 'checkCheckbox', [
-          cmd.selector || '',
-          cmd.checked,
-        ])
-        break
-
-      case 'selectOption':
-        result = await runCUAction(tabId, cmd.frameIds || null, 'selectOption', [
-          cmd.selector || '',
-          cmd.value || '',
-        ])
-        break
-
-      case 'readInputValue':
-        result = await runCUAction(tabId, cmd.frameIds || null, 'readInputValue', [
-          cmd.selector || '',
-        ])
-        break
-
-      case 'getComputedStyles':
-        result = await runCUAction(tabId, cmd.frameIds || null, 'getComputedStyles', [
-          cmd.selector || '',
-          cmd.properties || [],
-        ])
-        break
-
-      case 'triggerEvent':
-        result = await runCUAction(tabId, cmd.frameIds || null, 'triggerEvent', [
-          cmd.selector || '',
-          cmd.eventName || '',
-          cmd.opts || {},
-        ])
-        break
-
-      case 'waitForElement':
-        result = await runCUAction(tabId, cmd.frameIds || null, 'waitForElement', [
-          cmd.selector || '',
-          cmd.timeoutMs || 5000,
-        ])
-        break
-
-      case 'clickAt':
-        result = await runCUAction(tabId, cmd.frameIds || null, 'clickAt', [
-          cmd.x ?? 0,
-          cmd.y ?? 0,
-        ])
-        break
-
       default:
-        // NOTICE: unknown actions must return ok:false so BrowserDomExtensionBridge
-        // rejects the pending promise; returning ok:true would make callers like
-        // setInputValue/checkCheckbox see a resolved promise and skip fallback paths.
-        return { id, ok: false, error: `unknown action: ${action}` }
+        result = { error: `unknown action: ${action}` }
     }
 
     return { id, ok: true, result }
@@ -227,64 +159,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true // Keep sendResponse async
   }
 
+  // Support the existing ws-incoming format from BrowserDomExtensionBridge
+  if (msg.type === 'ws-incoming') {
+    handleCommand(msg.data)
+      .then((resp) => {
+        // Send response back via the same channel
+        chrome.runtime.sendMessage({ type: 'ws-send', data: resp })
+      })
+      .catch((e) => {
+        chrome.runtime.sendMessage({ type: 'ws-send', data: { id: msg.data?.id, ok: false, error: String(e) } })
+      })
+    return false
+  }
+
   return false
 })
-
-// ---- WebSocket Relay ----
-// Injects the WebSocket connection directly in the background worker,
-// replacing the deleted offscreen document.
-// TODO: Add shared-secret auth handshake to prevent rogue localhost processes
-// from hijacking the bridge. The bridge server should generate a token and
-// inject it into chrome.storage.local so the extension can present it on hello.
-const WS_URL = 'ws://localhost:8765'
-const BRIDGE_VERSION = 'cu-bridge-2026-02-06-no-eval'
-let ws = null
-let reconnectDelay = 1000
-const MAX_DELAY = 30000
-
-function connectWS() {
-  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING))
-    return
-
-  ws = new WebSocket(WS_URL)
-
-  ws.onopen = () => {
-    console.log('[background] WebSocket connected')
-    reconnectDelay = 1000
-    ws.send(JSON.stringify({ type: 'hello', source: 'chrome-extension', version: BRIDGE_VERSION }))
-  }
-
-  ws.onmessage = (evt) => {
-    try {
-      const data = JSON.parse(evt.data)
-      handleCommand(data)
-        .then((resp) => {
-          if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify(resp))
-          }
-        })
-        .catch((e) => {
-          if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ id: data?.id, ok: false, error: String(e) }))
-          }
-        })
-    }
-    catch (e) {
-      console.error('[background] parse error:', e)
-    }
-  }
-
-  ws.onclose = () => {
-    console.log(`[background] WebSocket closed, reconnect in ${reconnectDelay}ms`)
-    ws = null
-    setTimeout(connectWS, reconnectDelay)
-    reconnectDelay = Math.min(reconnectDelay * 2, MAX_DELAY)
-  }
-
-  ws.onerror = (e) => {
-    console.error('[background] WebSocket error:', e)
-    ws?.close()
-  }
-}
-
-connectWS()

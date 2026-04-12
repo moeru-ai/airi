@@ -15,14 +15,12 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 
 import type { PointerIntent } from '../desktop-grounding-types'
-import type { ExecuteAction } from './action-executor'
 import type { ComputerUseServerRuntime } from './runtime'
 
 import process from 'node:process'
 
 import { z } from 'zod'
 
-import { decideBrowserAction } from '../browser-action-router'
 import { captureDesktopGrounding, formatGroundingForAgent } from '../desktop-grounding'
 import { resolveSnapByCandidate } from '../snap-resolver'
 import { textContent } from './content'
@@ -39,9 +37,8 @@ import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptor
 export function registerDesktopGroundingTools(params: {
   server: McpServer
   runtime: ComputerUseServerRuntime
-  executeAction: ExecuteAction
 }) {
-  const { server, runtime, executeAction } = params
+  const { server, runtime } = params
 
   // -----------------------------------------------------------------------
   // desktop_observe
@@ -194,112 +191,27 @@ export function registerDesktopGroundingTools(params: {
           ],
         }
 
-        // Update RunState — pointer intent
+        // Update RunState — pointer intent + clicked candidate
         runtime.stateManager.updatePointerIntent(intent, candidateId)
 
-        // Route the click: browser-dom for chrome_dom candidates, OS input for everything else.
-        // Pass button and clickCount so non-left or multi-click requests fall through to OS input
-        // rather than silently degrading to a single left click on the browser-dom path.
+        // Execute the click via the macOS executor
+        await runtime.executor.click({
+          x: snap.snappedPoint.x,
+          y: snap.snappedPoint.y,
+          button: button || 'left',
+          clickCount: clickCount ?? 1,
+          pointerTrace: intent.path,
+        })
+
         const candidate = snapshot.targetCandidates.find(c => c.id === candidateId)
-        const bridgeConnected = runtime.browserDomBridge?.getStatus().connected ?? false
-        const routeDecision = candidate
-          ? decideBrowserAction(candidate, bridgeConnected, button, clickCount)
-          : { route: 'os_input' as const, reason: 'candidate not found' }
-
-        let executionRoute = routeDecision.route
-        let routeNote = ''
-
-        if (routeDecision.route === 'browser_dom' && routeDecision.selector) {
-          // Try browser-dom bridge action first, dispatching by method
-          try {
-            const frameIds = routeDecision.frameId !== undefined ? [routeDecision.frameId] : undefined
-            if (routeDecision.bridgeMethod === 'checkCheckbox') {
-              const frameResults = await runtime.browserDomBridge!.checkCheckbox({
-                selector: routeDecision.selector,
-                frameIds,
-              })
-              // NOTICE: bridge resolve ≠ DOM success. Each frame returns
-              // { success, error } — if none succeeded the selector/frame was
-              // stale and we must fall back to OS click.
-              const anySucceeded = Array.isArray(frameResults) && frameResults.some(
-                fr => (fr.result as Record<string, unknown>)?.success === true,
-              )
-              if (!anySucceeded) {
-                throw new Error('checkCheckbox: no frame reported success')
-              }
-            }
-            else {
-              const clickResult = await runtime.browserDomBridge!.clickSelector({
-                selector: routeDecision.selector,
-                frameIds,
-              })
-              // NOTICE: clickSelector resolves even when clickAt hits no element.
-              // Check per-frame results; if none succeeded, fall back to OS click.
-              const clickFrames = clickResult?.clickResults
-              const anyClickSucceeded = Array.isArray(clickFrames) && clickFrames.some(
-                fr => (fr.result as Record<string, unknown>)?.success === true,
-              )
-              if (!anyClickSucceeded) {
-                throw new Error('clickSelector: no frame reported a successful click')
-              }
-            }
-          }
-          catch (browserError) {
-            // Fallback to OS input on browser-dom failure; still goes through policy pipeline
-            executionRoute = 'os_input'
-            routeNote = `browser-dom ${routeDecision.bridgeMethod ?? 'click'} failed (${browserError instanceof Error ? browserError.message : String(browserError)}), fell back to OS input`
-            const actionResult = await executeAction({
-              kind: 'click',
-              input: {
-                x: snap.snappedPoint.x,
-                y: snap.snappedPoint.y,
-                button: button || 'left',
-                clickCount: clickCount ?? 1,
-              },
-            }, 'desktop_click_target')
-            // If the action was denied or queued for approval, relay the policy result
-            // and do not report a false success or update post-click state.
-            const status = (actionResult.structuredContent as Record<string, unknown> | undefined)?.status
-            if (actionResult.isError || status === 'approval_required' || status === 'denied') {
-              return actionResult
-            }
-          }
-        }
-        else {
-          // OS-level click through policy pipeline — respects approvalMode and policy gates
-          const actionResult = await executeAction({
-            kind: 'click',
-            input: {
-              x: snap.snappedPoint.x,
-              y: snap.snappedPoint.y,
-              button: button || 'left',
-              clickCount: clickCount ?? 1,
-            },
-          }, 'desktop_click_target')
-          // If the action was denied or queued for approval, relay the policy result
-          // and do not report a false success or update post-click state.
-          const status = (actionResult.structuredContent as Record<string, unknown> | undefined)?.status
-          if (actionResult.isError || status === 'approval_required' || status === 'denied') {
-            return actionResult
-          }
-        }
-
-        // Record the candidate as clicked only after execution succeeds or bypasses policy
-        runtime.stateManager.recordClickedCandidate(candidateId)
-
         const candidateDesc = candidate ? `${candidate.source} ${candidate.role} "${candidate.label}"` : candidateId
 
         const lines = [
           `Clicked: ${candidateDesc}`,
           `  Snap: ${snap.reason}`,
           `  Point: (${snap.snappedPoint.x}, ${snap.snappedPoint.y})`,
-          `  Route: ${executionRoute} (${routeDecision.reason})`,
           `  Button: ${button || 'left'}, clicks: ${clickCount ?? 1}`,
         ]
-
-        if (routeNote) {
-          lines.push(`  ⚠ ${routeNote}`)
-        }
 
         if (snap.reason.includes('stale')) {
           lines.push('  ⚠ WARNING: Target source is stale. Consider calling desktop_observe again.')

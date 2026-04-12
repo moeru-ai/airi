@@ -5,7 +5,7 @@
  * without a DOM environment or Vue test-utils.
  */
 
-import type { ElectronMcpCallToolResult } from '../../shared/eventa'
+import type { McpCallToolResult } from '@proj-airi/stage-ui/stores/mcp-tool-bridge'
 
 // ---------------------------------------------------------------------------
 // Types — minimal shapes matching RunState fields the overlay consumes
@@ -90,7 +90,7 @@ export function extractOverlayState(runState: Record<string, unknown>): OverlayS
  * Extract runState from an MCP call result.
  * Returns undefined if the result is an error or has no structured content.
  */
-export function extractRunStateFromResult(result: ElectronMcpCallToolResult): Record<string, unknown> | undefined {
+export function extractRunStateFromResult(result: McpCallToolResult): Record<string, unknown> | undefined {
   if (result.isError)
     return undefined
 
@@ -121,7 +121,7 @@ export interface OverlayPollController {
 
 export interface OverlayPollConfig {
   /** Function to call MCP tool. */
-  callTool: (name: string) => Promise<ElectronMcpCallToolResult>
+  callTool: (name: string) => Promise<McpCallToolResult>
   /** Callback with extracted state on each successful poll. */
   onState: (state: OverlayState) => void
   /** Normal poll interval in ms. Default: 250. */
