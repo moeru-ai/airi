@@ -18,159 +18,6 @@
  * setStorage, readCanvasData, injectCSS, executeScript, etc.)
  */
 
-// ---- Bridge connection ----
-
-const DEFAULT_BRIDGE_HOST = '127.0.0.1'
-const DEFAULT_BRIDGE_PORT = 8765
-const BRIDGE_RECONNECT_DELAY_MS = 1000
-const BRIDGE_HOST_STORAGE_KEY = 'browserDomBridgeHost'
-const BRIDGE_PORT_STORAGE_KEY = 'browserDomBridgePort'
-
-let bridgeSocket = null
-let reconnectTimer = null
-let connecting = false
-let bridgeHost = DEFAULT_BRIDGE_HOST
-let bridgePort = DEFAULT_BRIDGE_PORT
-
-function clearReconnectTimer() {
-  if (reconnectTimer !== null) {
-    clearTimeout(reconnectTimer)
-    reconnectTimer = null
-  }
-}
-
-function scheduleReconnect(delayMs = BRIDGE_RECONNECT_DELAY_MS) {
-  if (reconnectTimer !== null)
-    return
-
-  reconnectTimer = setTimeout(() => {
-    reconnectTimer = null
-    connectBridge().catch(() => {})
-  }, delayMs)
-}
-
-function sendBridgeMessage(payload) {
-  if (!bridgeSocket || bridgeSocket.readyState !== WebSocket.OPEN)
-    return false
-
-  bridgeSocket.send(JSON.stringify(payload))
-  return true
-}
-
-function normalizeBridgeHost(value) {
-  return typeof value === 'string' && value.trim() ? value.trim() : DEFAULT_BRIDGE_HOST
-}
-
-function normalizeBridgePort(value) {
-  if (typeof value === 'number' && Number.isInteger(value) && value > 0)
-    return value
-
-  if (typeof value === 'string' && value.trim()) {
-    const parsed = Number.parseInt(value.trim(), 10)
-    if (Number.isInteger(parsed) && parsed > 0)
-      return parsed
-  }
-
-  return DEFAULT_BRIDGE_PORT
-}
-
-async function loadBridgeConfig() {
-  try {
-    const stored = await chrome.storage.local.get([
-      BRIDGE_HOST_STORAGE_KEY,
-      BRIDGE_PORT_STORAGE_KEY,
-    ])
-    bridgeHost = normalizeBridgeHost(stored[BRIDGE_HOST_STORAGE_KEY])
-    bridgePort = normalizeBridgePort(stored[BRIDGE_PORT_STORAGE_KEY])
-  }
-  catch {
-    bridgeHost = DEFAULT_BRIDGE_HOST
-    bridgePort = DEFAULT_BRIDGE_PORT
-  }
-}
-
-async function saveBridgeConfig(host, port) {
-  await chrome.storage.local.set({
-    [BRIDGE_HOST_STORAGE_KEY]: normalizeBridgeHost(host),
-    [BRIDGE_PORT_STORAGE_KEY]: normalizeBridgePort(port),
-  })
-  await loadBridgeConfig()
-}
-
-async function handleBridgeMessage(raw) {
-  let data
-  try {
-    data = JSON.parse(String(raw))
-  }
-  catch {
-    return
-  }
-
-  const response = await handleCommand(data)
-  sendBridgeMessage(response)
-}
-
-async function connectBridge() {
-  if (connecting)
-    return
-  if (bridgeSocket && (bridgeSocket.readyState === WebSocket.OPEN || bridgeSocket.readyState === WebSocket.CONNECTING))
-    return
-
-  connecting = true
-  try {
-    await loadBridgeConfig()
-    const socket = new WebSocket(`ws://${bridgeHost}:${bridgePort}`)
-    bridgeSocket = socket
-
-    socket.addEventListener('open', () => {
-      connecting = false
-      clearReconnectTimer()
-      sendBridgeMessage({
-        type: 'hello',
-        source: 'airi-desktop-grounding-extension',
-        version: chrome.runtime.getManifest().version,
-      })
-    })
-
-    socket.addEventListener('message', (event) => {
-      void handleBridgeMessage(event.data)
-    })
-
-    socket.addEventListener('close', () => {
-      if (bridgeSocket === socket) {
-        bridgeSocket = null
-      }
-      connecting = false
-      scheduleReconnect()
-    })
-
-    socket.addEventListener('error', () => {
-      connecting = false
-      try {
-        socket.close()
-      }
-      catch {}
-    })
-  }
-  catch {
-    connecting = false
-    scheduleReconnect()
-  }
-}
-
-function reconnectBridgeNow() {
-  clearReconnectTimer()
-  if (bridgeSocket) {
-    try {
-      bridgeSocket.close()
-    }
-    catch {}
-    bridgeSocket = null
-  }
-  connecting = false
-  void connectBridge()
-}
-
 // ---- Tab / Frame utilities ----
 
 async function getActiveTab() {
@@ -290,7 +137,7 @@ async function handleCommand(cmd) {
         break
 
       default:
-        return { id, ok: false, error: `unknown action: ${action}` }
+        result = { error: `unknown action: ${action}` }
     }
 
     return { id, ok: true, result }
@@ -305,24 +152,6 @@ async function handleCommand(cmd) {
 // or through the existing WebSocket bridge mechanism
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  void connectBridge()
-
-  if (msg.type === 'AIRI_DG_SET_BRIDGE_ENDPOINT') {
-    saveBridgeConfig(msg.host, msg.port)
-      .then(() => {
-        reconnectBridgeNow()
-        sendResponse({
-          ok: true,
-          host: bridgeHost,
-          port: bridgePort,
-        })
-      })
-      .catch((e) => {
-        sendResponse({ ok: false, error: e?.message || String(e) })
-      })
-    return true
-  }
-
   if (msg.type === 'AIRI_DG_COMMAND') {
     handleCommand(msg.data)
       .then(resp => sendResponse(resp))
@@ -345,24 +174,3 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   return false
 })
-
-chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName !== 'local')
-    return
-
-  if (changes[BRIDGE_HOST_STORAGE_KEY] || changes[BRIDGE_PORT_STORAGE_KEY]) {
-    void loadBridgeConfig().finally(() => {
-      reconnectBridgeNow()
-    })
-  }
-})
-
-chrome.runtime.onStartup.addListener(() => {
-  void connectBridge()
-})
-
-chrome.runtime.onInstalled.addListener(() => {
-  void connectBridge()
-})
-
-void connectBridge()

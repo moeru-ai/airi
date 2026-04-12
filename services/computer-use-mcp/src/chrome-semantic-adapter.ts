@@ -18,7 +18,6 @@ import type {
 } from './desktop-grounding-types'
 import type {
   Bounds,
-  BrowserDomFrameDom,
   BrowserDomInteractiveElement,
 } from './types'
 
@@ -53,10 +52,7 @@ export async function captureChromeSemantics(
     try {
       const status = extensionBridge.getStatus()
       if (status.connected) {
-        const extensionSnapshot = await captureViaExtension(extensionBridge)
-        if (extensionSnapshot.interactiveElements.length > 0 || !cdpBridge?.getStatus().connected) {
-          return extensionSnapshot
-        }
+        return await captureViaExtension(extensionBridge)
       }
     }
     catch {
@@ -147,107 +143,6 @@ export function chromeElementsToTargetCandidates(
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-function toRecord(value: unknown): Record<string, unknown> | undefined {
-  if (!value || typeof value !== 'object' || Array.isArray(value))
-    return undefined
-
-  return value as Record<string, unknown>
-}
-
-function toFiniteNumber(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
-}
-
-function getExtensionFramePayload(result: Record<string, unknown>) {
-  return toRecord(result.data) ?? result
-}
-
-function getFrameRect(payload: Record<string, unknown>): BrowserDomFrameDom['frameRect'] | undefined {
-  const rect = toRecord(payload.frameRect)
-  if (!rect)
-    return undefined
-
-  const x = toFiniteNumber(rect.x)
-  const y = toFiniteNumber(rect.y)
-  const w = toFiniteNumber(rect.w)
-  const h = toFiniteNumber(rect.h)
-  if (x === undefined || y === undefined || w === undefined || h === undefined)
-    return undefined
-
-  return { x, y, w, h }
-}
-
-function getFrameParentId(frame: Record<string, unknown>): number | undefined {
-  return toFiniteNumber(frame.parentFrameId)
-}
-
-function offsetInteractiveElement(
-  element: BrowserDomInteractiveElement,
-  offset: { x: number, y: number },
-): BrowserDomInteractiveElement {
-  return {
-    ...element,
-    rect: element.rect
-      ? {
-          ...element.rect,
-          x: element.rect.x + offset.x,
-          y: element.rect.y + offset.y,
-        }
-      : element.rect,
-    center: element.center
-      ? {
-          x: element.center.x + offset.x,
-          y: element.center.y + offset.y,
-        }
-      : element.center,
-  }
-}
-
-function resolveFrameOffset(
-  frameId: number,
-  parentIds: Map<number, number | undefined>,
-  payloads: Map<number, Record<string, unknown>>,
-  cache: Map<number, { x: number, y: number } | null>,
-  visiting: Set<number> = new Set(),
-): { x: number, y: number } | null {
-  if (cache.has(frameId))
-    return cache.get(frameId) ?? null
-
-  if (frameId === 0) {
-    const rootOffset = { x: 0, y: 0 }
-    cache.set(frameId, rootOffset)
-    return rootOffset
-  }
-
-  if (visiting.has(frameId)) {
-    return null
-  }
-
-  visiting.add(frameId)
-
-  const payload = payloads.get(frameId)
-  const frameRect = payload ? getFrameRect(payload) : undefined
-  const parentFrameId = parentIds.get(frameId)
-  if (!frameRect || parentFrameId === undefined) {
-    visiting.delete(frameId)
-    return null
-  }
-
-  const parentOffset = resolveFrameOffset(parentFrameId, parentIds, payloads, cache, visiting)
-  if (!parentOffset) {
-    visiting.delete(frameId)
-    return null
-  }
-
-  const resolvedOffset = {
-    x: parentOffset.x + frameRect.x,
-    y: parentOffset.y + frameRect.y,
-  }
-  cache.set(frameId, resolvedOffset)
-  visiting.delete(frameId)
-  return resolvedOffset
-}
-
 async function captureViaExtension(
   bridge: BrowserDomExtensionBridge,
 ): Promise<ChromeSemanticSnapshot> {
@@ -255,67 +150,27 @@ async function captureViaExtension(
     includeText: false,
     maxElements: 150,
   })
-  const frameTree = typeof bridge.getAllFrames === 'function'
-    ? await bridge.getAllFrames().catch(() => [])
-    : []
 
   // Merge interactive elements from all frames
   const allElements: BrowserDomInteractiveElement[] = []
   let pageUrl = ''
   let pageTitle = ''
-  const payloadsByFrameId = new Map<number, Record<string, unknown>>()
-  const parentIdsByFrameId = new Map<number, number | undefined>()
-  const resolvedOffsets = new Map<number, { x: number, y: number } | null>()
-
-  for (const frame of frameTree) {
-    const frameRecord = toRecord(frame)
-    if (!frameRecord)
-      continue
-
-    const frameId = toFiniteNumber(frameRecord.frameId)
-    if (frameId === undefined)
-      continue
-
-    parentIdsByFrameId.set(frameId, getFrameParentId(frameRecord))
-  }
 
   for (const frame of frames) {
     const dom = frame.result as Record<string, unknown> | undefined
     if (!dom)
       continue
 
-    const payload = getExtensionFramePayload(dom)
-    payloadsByFrameId.set(frame.frameId, payload)
-
     if (frame.frameId === 0) {
-      pageUrl = (payload.url as string) || ''
-      pageTitle = (payload.title as string) || ''
+      pageUrl = (dom.url as string) || ''
+      pageTitle = (dom.title as string) || ''
     }
-  }
 
-  for (const frame of frames) {
-    const payload = payloadsByFrameId.get(frame.frameId)
-    if (!payload)
-      continue
-
-    const rawElements = payload.interactiveElements
+    const rawElements = dom.interactiveElements
+      ?? (dom.data && typeof dom.data === 'object' && (dom.data as Record<string, unknown>).interactiveElements)
     const elements = rawElements as BrowserDomInteractiveElement[] | undefined
     if (elements) {
-      const offset = resolveFrameOffset(
-        frame.frameId,
-        parentIdsByFrameId,
-        payloadsByFrameId,
-        resolvedOffsets,
-      )
-
-      if (frame.frameId !== 0 && !offset) {
-        continue
-      }
-
-      const normalizedElements = offset
-        ? elements.map(element => offsetInteractiveElement(element, offset))
-        : elements
-      allElements.push(...normalizedElements)
+      allElements.push(...elements)
     }
   }
 

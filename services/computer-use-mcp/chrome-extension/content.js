@@ -67,35 +67,6 @@
     return els
   }
 
-  /**
-   * Get this frame's embedding rect relative to its parent viewport.
-   *
-   * NOTICE: Cross-origin frames may not expose `window.frameElement`.
-   * In that case we return null and let the adapter skip those frame-local
-   * coordinates rather than projecting them incorrectly onto the desktop.
-   */
-  function _getFrameRect() {
-    try {
-      if (window.top === window)
-        return null
-
-      const frameEl = window.frameElement
-      if (!(frameEl instanceof Element))
-        return null
-
-      const r = frameEl.getBoundingClientRect()
-      return {
-        x: Math.round(r.left),
-        y: Math.round(r.top),
-        w: Math.round(r.width),
-        h: Math.round(r.height),
-      }
-    }
-    catch {
-      return null
-    }
-  }
-
   // ---- Core API (read-only) ----
 
   const __AIRI_DG__ = {
@@ -113,7 +84,6 @@
         url: location.href,
         title: document.title || '',
         bodyText: includeText ? (document.body ? document.body.innerText || '' : '').slice(0, 3000) : '',
-        frameRect: _getFrameRect() || undefined,
         interactiveElements: _collectInteractiveElements(maxElements),
       }
     },

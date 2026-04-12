@@ -18,18 +18,17 @@ import type { OverlayState } from './desktop-overlay-polling'
 
 import { electron } from '@proj-airi/electron-eventa'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { getMcpToolBridge } from '@proj-airi/stage-ui/stores/mcp-tool-bridge'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
-import { electronMcpCallTool } from '../../shared/eventa'
 import { pointInOverlay, rectIntersectsOverlay, screenRectToLocal, screenToLocal } from './desktop-overlay-coordinates'
 import { createEmptyOverlayState, createOverlayPollController } from './desktop-overlay-polling'
 
 // ---------------------------------------------------------------------------
-// Overlay window bounds
+// Overlay window bounds — read once on mount from main process
 // ---------------------------------------------------------------------------
 
 const getWindowBounds = useElectronEventaInvoke(electron.window.getBounds)
-const callMcpTool = useElectronEventaInvoke(electronMcpCallTool)
 const overlayBounds = ref<Rect | null>(null)
 
 // ---------------------------------------------------------------------------
@@ -66,8 +65,21 @@ const matchedCandidate = computed(() => {
   return visibleCandidates.value.find(c => c.id === pointerIntent.value!.candidateId) ?? null
 })
 
+// ---------------------------------------------------------------------------
+// Polling controller
+// ---------------------------------------------------------------------------
+
+let bridgeAvailable = false
+
 const controller = createOverlayPollController({
-  callTool: name => callMcpTool({ name }),
+  callTool: async (name) => {
+    // Probe bridge availability lazily
+    if (!bridgeAvailable) {
+      getMcpToolBridge() // Throws if not set
+      bridgeAvailable = true
+    }
+    return getMcpToolBridge().callTool({ name })
+  },
   onState: (newState) => {
     state.value = newState
   },
@@ -123,11 +135,14 @@ const targetBoxStyle = computed(() => {
 // Lifecycle
 // ---------------------------------------------------------------------------
 
-async function syncOverlayBounds() {
+onMounted(async () => {
+  // Read overlay window bounds from main process (one-time)
   try {
-    overlayBounds.value = await getWindowBounds()
+    const bounds = await getWindowBounds()
+    overlayBounds.value = bounds
   }
   catch {
+    // Fallback: assume bounds start at (0,0) with window inner size
     overlayBounds.value = {
       x: 0,
       y: 0,
@@ -135,20 +150,11 @@ async function syncOverlayBounds() {
       height: window.innerHeight,
     }
   }
-}
 
-function handleResize() {
-  void syncOverlayBounds()
-}
-
-onMounted(async () => {
-  await syncOverlayBounds()
-  window.addEventListener('resize', handleResize)
   controller.start()
 })
 
 onUnmounted(() => {
-  window.removeEventListener('resize', handleResize)
   controller.stop()
 })
 </script>
