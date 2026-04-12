@@ -6,6 +6,7 @@ import type { ComputerUseServerRuntime } from './runtime'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { CodingPrimitives } from '../coding/primitives'
+import { buildCodingApplyPatchBackendResult } from '../coding/result-shape'
 import { RunStateManager } from '../state'
 import { createTestConfig } from '../test-fixtures'
 import { registerCodingTools } from './register-coding'
