@@ -79,6 +79,7 @@ export function registerChromeSessionTools(params: {
             }
           }
           catch (cdpError) {
+            // Non-fatal: agent can still work via os_input / extension bridge
             cdpStatus = `connect failed: ${cdpError instanceof Error ? cdpError.message : String(cdpError)}`
           }
         }

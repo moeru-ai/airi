@@ -94,8 +94,8 @@ export function registerDesktopGroundingTools(params: {
         // recorded session URL instead of staying stuck in AX-only mode.
         let cdpBridge: import('../browser-dom/cdp-bridge').CdpBridge | undefined
         try {
-          const status = runtime.cdpBridgeManager.getStatus()
-          if (status.connected) {
+          const cdpStatus = runtime.cdpBridgeManager.getStatus()
+          if (cdpStatus.connected) {
             cdpBridge = await runtime.cdpBridgeManager.ensureBridge()
           }
           else {
