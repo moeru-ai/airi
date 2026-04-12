@@ -20,6 +20,7 @@ engine: copilot
 tools:
   github:
     toolsets: [repos, issues, pull_requests, labels]
+    min-integrity: none
 
 network: defaults
 
