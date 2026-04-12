@@ -33,6 +33,7 @@ import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
 import { setupCaptionWindowManager } from './windows/caption'
 import { setupChatWindowReusableFunc } from './windows/chat'
+import { isDesktopOverlayEnabled, setupDesktopOverlayWindow } from './windows/desktop-overlay'
 import { setupDevtoolsWindow } from './windows/devtools'
 import { setupMainWindow } from './windows/main'
 import { setupNoticeWindowManager } from './windows/notice'
@@ -185,6 +186,13 @@ app.whenReady().then(async () => {
     dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, serverChannel, beatSyncBgWindow: beatSync, aboutWindow, i18n },
     build: async ({ dependsOn }) => setupTray(dependsOn),
   })
+
+  // Desktop grounding overlay — gated by AIRI_DESKTOP_OVERLAY=1
+  if (isDesktopOverlayEnabled()) {
+    injeca.provide('windows:desktop-overlay', {
+      build: async () => setupDesktopOverlayWindow(),
+    })
+  }
 
   injeca.invoke({
     dependsOn: { mainWindow, tray, serverChannel, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager },
