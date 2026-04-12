@@ -65,6 +65,16 @@ const actionKindContractBaselines = {
     // observe_windows does not refresh the screenshot buffer
     invalidationTags: [] as readonly RuntimeFactInvalidationTag[],
   },
+  desktop_observe: {
+    ...observeReadDesktopBaseline,
+    // desktop_observe refreshes both screenshot and grounding snapshot
+    invalidationTags: ['screenshot_refresh'] as readonly RuntimeFactInvalidationTag[],
+  },
+  desktop_click_target: {
+    ...desktopMutateBaseline,
+    // desktop_click_target is a mutating desktop action
+    invalidationTags: ['desktop_mutation'] as readonly RuntimeFactInvalidationTag[],
+  },
   clipboard_read_text: {
     effectType: 'read' as const,
     targetSurface: 'system' as const,

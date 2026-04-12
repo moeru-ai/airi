@@ -10,6 +10,8 @@ export type MouseButton = 'left' | 'right' | 'middle'
 export type ActionKind
   = | 'screenshot'
     | 'observe_windows'
+    | 'desktop_observe'
+    | 'desktop_click_target'
     | 'open_app'
     | 'focus_app'
     | 'secret_read_env_value'
@@ -244,6 +246,22 @@ export interface ClipboardWriteTextActionInput {
   text: string
 }
 
+/** Input for the `desktop_observe` tool — unified observation */
+export interface DesktopObserveInput {
+  /** Whether to include Chrome semantic data (default: auto-detect based on foreground app) */
+  includeChrome?: boolean
+}
+
+/** Input for the `desktop_click_target` tool — snap + click by candidate id */
+export interface DesktopClickTargetInput {
+  /** Target candidate id from the last `desktop_observe` snapshot */
+  candidateId: string
+  /** Number of clicks (default: 1, 2 = double-click) */
+  clickCount?: number
+  /** Mouse button (default: 'left') */
+  button?: MouseButton
+}
+
 export interface ScreenshotRequest {
   label?: string
 }
@@ -397,6 +415,9 @@ export interface TestTargetLaunchResult {
 export type ActionInvocation
   = | { kind: 'screenshot', input: ScreenshotRequest }
     | { kind: 'observe_windows', input: ObserveWindowsRequest }
+    // Desktop grounding actions
+    | { kind: 'desktop_observe', input: DesktopObserveInput }
+    | { kind: 'desktop_click_target', input: DesktopClickTargetInput }
     | { kind: 'open_app', input: OpenAppActionInput }
     | { kind: 'focus_app', input: FocusAppActionInput }
     | { kind: 'secret_read_env_value', input: SecretReadEnvValueActionInput }
@@ -590,6 +611,8 @@ export interface BrowserDomInteractiveElement {
   value?: string
   href?: string
   placeholder?: string
+  /** ARIA role attribute */
+  role?: string
   disabled?: boolean
   checked?: boolean
   visible?: boolean

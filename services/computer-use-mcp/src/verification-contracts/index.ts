@@ -50,6 +50,8 @@ const uiMutationVerificationBaseline: VerificationContractBaseline = {
 const actionKindVerificationBaselines = {
   screenshot: noVerificationBaseline,
   observe_windows: noVerificationBaseline,
+  desktop_observe: noVerificationBaseline,
+  desktop_click_target: uiMutationVerificationBaseline,
   secret_read_env_value: noVerificationBaseline,
   clipboard_read_text: noVerificationBaseline,
   wait: noVerificationBaseline,

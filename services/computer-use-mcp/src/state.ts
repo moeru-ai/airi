@@ -948,6 +948,14 @@ export interface RunState {
   /** Inferred active lane from the most recent non-exempt tool invocation. */
   inferredActiveLane?: ToolLane
 
+  // --- Desktop Grounding -------------------------------------------------
+  /** Latest unified desktop grounding snapshot from `desktop_observe`. */
+  lastGroundingSnapshot?: import('./desktop-grounding-types').DesktopGroundingSnapshot
+  /** Most recent pointer intent (snap decision) for overlay visualization. */
+  lastPointerIntent?: import('./desktop-grounding-types').PointerIntent
+  /** Candidate id of the last `desktop_click_target` invocation (for duplicate detection). */
+  lastClickedCandidateId?: string
+
   // --- Meta -------------------------------------------------------------
   /** ISO timestamp of the last state update. */
   updatedAt: string
@@ -1332,6 +1340,38 @@ export class RunStateManager {
    */
   updateInferredLane(lane: ToolLane) {
     this.state.inferredActiveLane = lane
+    this.touch()
+  }
+
+  // -- Desktop Grounding updates ------------------------------------------
+
+  /**
+   * Update the latest desktop grounding snapshot (from desktop_observe).
+   * Resets lastClickedCandidateId since a fresh observation invalidates
+   * the duplicate-click guard.
+   */
+  updateGroundingSnapshot(snapshot: import('./desktop-grounding-types').DesktopGroundingSnapshot): void {
+    this.state.lastGroundingSnapshot = snapshot
+    this.state.lastClickedCandidateId = undefined
+    this.touch()
+  }
+
+  /**
+   * Update the pointer intent and clicked candidate (from desktop_click_target).
+   */
+  updatePointerIntent(intent: import('./desktop-grounding-types').PointerIntent, candidateId: string): void {
+    this.state.lastPointerIntent = intent
+    this.state.lastClickedCandidateId = candidateId
+    this.touch()
+  }
+
+  /**
+   * Clear all desktop grounding state.
+   */
+  clearGroundingState(): void {
+    this.state.lastGroundingSnapshot = undefined
+    this.state.lastPointerIntent = undefined
+    this.state.lastClickedCandidateId = undefined
     this.touch()
   }
 

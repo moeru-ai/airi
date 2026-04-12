@@ -97,6 +97,10 @@ export function explainActionIntent(action: ActionInvocation, runState: RunState
       return `Executing terminal command: \`${action.input.command.length > 80 ? `${action.input.command.slice(0, 77)}...` : action.input.command}\`${taskContext}.`
     case 'terminal_reset':
       return `Resetting the terminal state${action.input.reason ? ` (${action.input.reason})` : ''}${taskContext}.`
+    case 'desktop_observe':
+      return `Capturing unified desktop observation (screenshot + AX tree + Chrome semantics)${taskContext}.`
+    case 'desktop_click_target':
+      return `Clicking on target candidate "${action.input.candidateId}" using snap-resolved coordinates${taskContext}.`
   }
 }
 
@@ -235,6 +239,10 @@ export function explainActionOutcome(params: {
       return buildTerminalOutcomeExplanation(action, terminalResult)
     case 'terminal_reset':
       return 'Terminal state has been reset.'
+    case 'desktop_observe':
+      return 'Desktop observation captured successfully. Target candidates have been identified.'
+    case 'desktop_click_target':
+      return `Clicked on target candidate "${action.input.candidateId}" at snap-resolved coordinates.`
   }
 }
 
@@ -446,6 +454,27 @@ export function summarizeRunState(state: RunState): string {
   }
   if (state.lastApprovalRejected) {
     parts.push(`Last approval was REJECTED${state.lastRejectionReason ? ` (${state.lastRejectionReason})` : ''}`)
+  }
+
+  // Desktop grounding
+  if (state.lastGroundingSnapshot) {
+    const gs = state.lastGroundingSnapshot
+    const staleMarks: string[] = []
+    if (gs.staleFlags.screenshot)
+      staleMarks.push('screenshot')
+    if (gs.staleFlags.ax)
+      staleMarks.push('AX')
+    if (gs.staleFlags.chromeSemantic)
+      staleMarks.push('Chrome')
+    const staleNote = staleMarks.length > 0 ? ` [stale: ${staleMarks.join(', ')}]` : ''
+    parts.push(`Grounding: ${gs.snapshotId} (${gs.targetCandidates.length} candidates)${staleNote}`)
+    if (gs.chromeSemanticSnapshot) {
+      parts.push(`  Chrome page: ${gs.chromeSemanticSnapshot.pageTitle}`)
+    }
+  }
+  if (state.lastPointerIntent) {
+    const pi = state.lastPointerIntent
+    parts.push(`Last pointer: ${pi.source} → (${pi.snappedPoint.x}, ${pi.snappedPoint.y}) candidate=${pi.candidateId ?? 'none'} conf=${pi.confidence.toFixed(2)}`)
   }
 
   // Task

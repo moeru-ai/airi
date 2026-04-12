@@ -11,6 +11,8 @@ import {
 const allActionKinds = [
   'screenshot',
   'observe_windows',
+  'desktop_observe',
+  'desktop_click_target',
   'open_app',
   'focus_app',
   'secret_read_env_value',

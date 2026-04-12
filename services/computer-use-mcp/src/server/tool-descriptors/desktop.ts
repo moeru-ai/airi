@@ -47,6 +47,32 @@ export const desktopDescriptors: ToolDescriptor[] = [
     public: true,
     defaultDeferred: true,
   },
+  {
+    canonicalName: 'desktop_observe',
+    displayName: 'Desktop Observe',
+    summary: 'Capture unified desktop observation: screenshot + window list + AX tree + Chrome semantics (when Chrome is foreground). Returns ranked interactable target candidates with ids, bounds, and source labels.',
+    lane: 'desktop',
+    kind: 'read',
+    readOnly: true,
+    destructive: false,
+    concurrencySafe: true,
+    requiresApprovalByDefault: false,
+    public: true,
+    defaultDeferred: true,
+  },
+  {
+    canonicalName: 'desktop_click_target',
+    displayName: 'Desktop Click Target',
+    summary: 'Click on a target candidate from the last desktop_observe snapshot using snap-resolved coordinates (chrome_dom > ax > vision > raw priority). Requires a recent desktop_observe call.',
+    lane: 'desktop',
+    kind: 'write',
+    readOnly: false,
+    destructive: false,
+    concurrencySafe: false,
+    requiresApprovalByDefault: false,
+    public: true,
+    defaultDeferred: true,
+  },
 
   // Desktop interaction tools
   {
