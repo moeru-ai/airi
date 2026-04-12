@@ -538,6 +538,7 @@ pages:
   flux:
     title: Flujo
     buy: Cobro
+    currency: Currency
     description: Flujo actual
     packagesError: Error al cargar paquetes. Por favor, inténtalo de nuevo más tarde.
     checkout:
@@ -557,6 +558,7 @@ pages:
       empty: No hay registros de transacción todavía.
       loadMore: Cargar más
       delayHint: Los registros de uso se pueden retrasar hasta 1 minuto
+      ttsRequests: requests
     packages:
       title: Paquetes de flujo
       buy: Carga

@@ -45,47 +45,47 @@ notice:
     read-more: Подробнее
     preview-title: Что это?
 about:
-  subtitle: Desktop ver.
-  current-version: Current Version
+  subtitle: Desktop версия.
+  current-version: Текущая версия
   common:
-    cancel: Cancel
+    cancel: Отменить
   links:
-    title: Links
-    home: Home
-    documentation: Documentations
+    title: Ссылки
+    home: Главная
+    documentation: Документация
     github: GitHub
   update:
     lane:
-      label: Update lane
-      description: Choose channel release to follow
-      placeholder: Choose update lane
+      label: Канал обновления
+      description: Выберите релиз канала для отслеживания
+      placeholder: Выбрать канал обновления
     channels:
-      auto: Auto
-      stable: Stable
-      alpha: Alpha
-      beta: Beta
+      auto: Авто
+      stable: Стабильный
+      alpha: Альфа
+      beta: Бета
       nightly: Nightly
       canary: Canary
     status:
-      downloading: Downloading update...
-      error-prefix: Error
-      latest: Up to date (v{version}).
+      downloading: Загрузка обновления...
+      error-prefix: Ошибка
+      latest: Актуально (v{version}).
       downloaded:
-        windows: Update ready to install silently (v{version}).
-        restart: Update ready to install on restart (v{version}).
+        windows: Обновление готово к установке в автоматическом режиме (v{version}).
+        restart: Обновление готово к установке после перезапуска (v{version}).
     actions:
-      download: Download Update
-      download-short: Download
-      confirm-download: Confirm Download
-      check-for-updates: Check for updates
-      checking: Checking...
-      latest-version: Latest version
-      disabled-dev: Updates disabled in Dev
-      retry-check: Retry Check
-      restart-silent: Restart to update silently
-      restart-install: Restart to install update
-      confirm-restart: Confirm Restart
+      download: Загрузить обновление
+      download-short: Загрузка
+      confirm-download: Подтвердить загрузку
+      check-for-updates: Проверить обновления
+      checking: Проверка...
+      latest-version: Последняя версия
+      disabled-dev: Обновления отключены в Dev
+      retry-check: Повторить проверку
+      restart-silent: Перезапустите, чтобы обновить автоматически
+      restart-install: Перезапустите для установки обновления
+      confirm-restart: Подтвердить перезапуск
     dialog:
-      title: Update Available
-      description: A new version (v{version}) is available.
-      no-release-notes-markdown: _No release notes provided._
+      title: Доступно обновление
+      description: Доступна новая версия (v{version})
+      no-release-notes-markdown: _Заметки о релизе не предоставлены._
