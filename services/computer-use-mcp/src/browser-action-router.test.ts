@@ -98,6 +98,42 @@ describe('decideBrowserAction', () => {
     expect(decision.route).toBe('browser_dom')
     expect(decision.bridgeMethod).toBe('clickSelector')
   })
+
+  it('routes radio input to clickSelector, not checkCheckbox', () => {
+    const decision = decideBrowserAction(makeCandidate({
+      tag: 'input',
+      inputType: 'radio',
+      selector: 'input[name="color"]',
+    }), true)
+    expect(decision.route).toBe('browser_dom')
+    expect(decision.bridgeMethod).toBe('clickSelector')
+  })
+
+  it('routes link element to clickSelector', () => {
+    const decision = decideBrowserAction(makeCandidate({
+      tag: 'a',
+      role: 'link',
+      href: 'https://example.com',
+      selector: 'a.nav-link',
+    }), true)
+    expect(decision.route).toBe('browser_dom')
+    expect(decision.bridgeMethod).toBe('clickSelector')
+  })
+
+  it('checkbox with bridge down falls back to os_input, not checkCheckbox', () => {
+    const decision = decideBrowserAction(makeCandidate({
+      tag: 'input',
+      inputType: 'checkbox',
+      selector: '#agree',
+    }), false)
+    expect(decision.route).toBe('os_input')
+    expect(decision.bridgeMethod).toBeUndefined()
+  })
+
+  it('returns reason string that includes the selector', () => {
+    const decision = decideBrowserAction(makeCandidate({ selector: '#my-btn' }), true)
+    expect(decision.reason).toContain('#my-btn')
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -204,5 +240,166 @@ describe('decideBrowserTypeAction', () => {
     }), true)
     expect(decision.route).toBe('os_input')
     expect(decision.reason).toContain('no CSS selector')
+  })
+
+  it('routes number input to setInputValue', () => {
+    const decision = decideBrowserTypeAction(makeCandidate({
+      tag: 'input',
+      inputType: 'number',
+      selector: '#quantity',
+    }), true)
+    expect(decision.route).toBe('browser_dom')
+    expect(decision.bridgeMethod).toBe('setInputValue')
+  })
+
+  it('routes search input to setInputValue', () => {
+    const decision = decideBrowserTypeAction(makeCandidate({
+      tag: 'input',
+      inputType: 'search',
+      selector: '#search',
+    }), true)
+    expect(decision.route).toBe('browser_dom')
+    expect(decision.bridgeMethod).toBe('setInputValue')
+  })
+
+  it('routes url input to setInputValue', () => {
+    const decision = decideBrowserTypeAction(makeCandidate({
+      tag: 'input',
+      inputType: 'url',
+      selector: '#website',
+    }), true)
+    expect(decision.route).toBe('browser_dom')
+    expect(decision.bridgeMethod).toBe('setInputValue')
+  })
+
+  it('routes tel input to setInputValue', () => {
+    const decision = decideBrowserTypeAction(makeCandidate({
+      tag: 'input',
+      inputType: 'tel',
+      selector: '#phone',
+    }), true)
+    expect(decision.route).toBe('browser_dom')
+    expect(decision.bridgeMethod).toBe('setInputValue')
+  })
+
+  it('falls back to os_input for radio inputs', () => {
+    const decision = decideBrowserTypeAction(makeCandidate({
+      tag: 'input',
+      inputType: 'radio',
+      selector: 'input[name="option"]',
+    }), true)
+    expect(decision.route).toBe('os_input')
+    expect(decision.reason).toContain('not a text input')
+  })
+
+  it('falls back to os_input for hidden inputs', () => {
+    const decision = decideBrowserTypeAction(makeCandidate({
+      tag: 'input',
+      inputType: 'hidden',
+      selector: '#csrf',
+    }), true)
+    expect(decision.route).toBe('os_input')
+    expect(decision.reason).toContain('not a text input')
+  })
+
+  it('falls back to os_input for color picker inputs', () => {
+    const decision = decideBrowserTypeAction(makeCandidate({
+      tag: 'input',
+      inputType: 'color',
+      selector: '#color-pick',
+    }), true)
+    expect(decision.route).toBe('os_input')
+    expect(decision.reason).toContain('not a text input')
+  })
+
+  it('select element falls back to os_input for type (not a text input)', () => {
+    const decision = decideBrowserTypeAction(makeCandidate({
+      tag: 'select',
+      selector: '#country',
+    }), true)
+    expect(decision.route).toBe('os_input')
+    expect(decision.reason).toContain('not a text input')
+  })
+
+  it('returns reason string that includes the selector on success', () => {
+    const decision = decideBrowserTypeAction(makeCandidate({
+      tag: 'input',
+      inputType: 'text',
+      selector: '#my-input',
+    }), true)
+    expect(decision.reason).toContain('#my-input')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Cross-function consistency
+// ---------------------------------------------------------------------------
+
+describe('click + type routing consistency', () => {
+  it('text input routes to clickSelector for click and setInputValue for type', () => {
+    const candidate = makeCandidate({
+      tag: 'input',
+      inputType: 'text',
+      selector: '#email',
+    })
+    const clickD = decideBrowserAction(candidate, true)
+    const typeD = decideBrowserTypeAction(candidate, true)
+
+    expect(clickD.route).toBe('browser_dom')
+    expect(clickD.bridgeMethod).toBe('clickSelector')
+    expect(typeD.route).toBe('browser_dom')
+    expect(typeD.bridgeMethod).toBe('setInputValue')
+    // Same selector used for both
+    expect(clickD.selector).toBe(typeD.selector)
+  })
+
+  it('checkbox routes to checkCheckbox for click but os_input for type', () => {
+    const candidate = makeCandidate({
+      tag: 'input',
+      inputType: 'checkbox',
+      selector: '#agree',
+    })
+    const clickD = decideBrowserAction(candidate, true)
+    const typeD = decideBrowserTypeAction(candidate, true)
+
+    expect(clickD.route).toBe('browser_dom')
+    expect(clickD.bridgeMethod).toBe('checkCheckbox')
+    expect(typeD.route).toBe('os_input') // Can't type into a checkbox
+  })
+
+  it('button routes to clickSelector for click but os_input for type', () => {
+    const candidate = makeCandidate({
+      tag: 'button',
+      role: 'button',
+      selector: '#submit',
+    })
+    const clickD = decideBrowserAction(candidate, true)
+    const typeD = decideBrowserTypeAction(candidate, true)
+
+    expect(clickD.route).toBe('browser_dom')
+    expect(clickD.bridgeMethod).toBe('clickSelector')
+    expect(typeD.route).toBe('os_input')
+  })
+
+  it('ax candidate always routes to os_input for both click and type', () => {
+    const candidate = makeCandidate({ source: 'ax', selector: '#whatever' })
+    const clickD = decideBrowserAction(candidate, true)
+    const typeD = decideBrowserTypeAction(candidate, true)
+
+    expect(clickD.route).toBe('os_input')
+    expect(typeD.route).toBe('os_input')
+  })
+
+  it('bridge-down candidate routes to os_input for both click and type', () => {
+    const candidate = makeCandidate({
+      tag: 'input',
+      inputType: 'text',
+      selector: '#email',
+    })
+    const clickD = decideBrowserAction(candidate, false)
+    const typeD = decideBrowserTypeAction(candidate, false)
+
+    expect(clickD.route).toBe('os_input')
+    expect(typeD.route).toBe('os_input')
   })
 })
