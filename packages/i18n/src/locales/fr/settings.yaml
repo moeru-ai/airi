@@ -147,8 +147,8 @@ pages:
     title: Compte
     description: Consultez votre profil et gérez votre compte
     notLoggedIn: Connectez-vous pour accéder à votre compte et à toutes les fonctionnalités
-    login: Se connecter
-    logout: Se déconnecter
+    login: Sign in
+    logout: Sign out
     fluxBalance: Solde de Flux
     viewFluxDetails: Voir les détails
     signedInAs: Connecté en tant que
@@ -538,6 +538,7 @@ pages:
   flux:
     title: Flux
     buy: Charge
+    currency: Currency
     description: Flux actuel
     packagesError: Échec du chargement des offres. Veuillez réessayer plus tard.
     checkout:
@@ -557,6 +558,7 @@ pages:
       empty: Aucune transaction pour l'instant.
       loadMore: Charger plus
       delayHint: Les enregistrements d'utilisation peuvent être retardés jusqu'à 1 minute
+      ttsRequests: requests
     packages:
       title: Offres de Flux
       buy: Charge

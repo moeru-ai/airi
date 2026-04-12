@@ -2942,6 +2942,15 @@ importers:
       '@moeru/eventa':
         specifier: 'catalog:'
         version: 1.0.0-beta.3(electron@40.8.5)(h3@2.0.1-rc.20(crossws@0.4.4(patch_hash=4d79ec736d10d2a81a9e2a31b067d43f0b6665122267981e652ab9923d165958)(srvx@0.11.15)))
+      '@opentelemetry/api':
+        specifier: ^1.9.0
+        version: 1.9.1
+      '@opentelemetry/core':
+        specifier: ^2.6.0
+        version: 2.6.1(@opentelemetry/api@1.9.1)
+      '@opentelemetry/sdk-trace-base':
+        specifier: ^2.6.0
+        version: 2.6.1(@opentelemetry/api@1.9.1)
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../audio

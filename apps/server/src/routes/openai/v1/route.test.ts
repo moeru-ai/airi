@@ -406,6 +406,46 @@ describe('v1CompletionsRoutes', () => {
     })
   })
 
+  describe('gET /api/v1/openai/audio/models', () => {
+    it('should return configured TTS model from config', async () => {
+      const app = createTestApp(createMockFluxService(), createMockConfigKV({ DEFAULT_TTS_MODEL: 'microsoft/v1' }))
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/openai/audio/models', { method: 'GET' }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(200)
+      const data = await res.json() as { models: { id: string, name: string }[] }
+      expect(data.models).toHaveLength(1)
+      expect(data.models[0].id).toBe('microsoft/v1')
+    })
+
+    it('should return 401 when unauthenticated', async () => {
+      const app = createTestApp(createMockFluxService(), createMockConfigKV())
+
+      const res = await app.request('/api/v1/openai/audio/models', { method: 'GET' })
+      expect(res.status).toBe(401)
+    })
+
+    it('should return 503 when DEFAULT_TTS_MODEL is not configured', async () => {
+      const configKV = createMockConfigKV()
+      configKV.getOptional = vi.fn(async (key: string) => {
+        if (key === 'DEFAULT_TTS_MODEL')
+          return null
+        return (configKV as any).__defaults?.[key] ?? null
+      })
+
+      const app = createTestApp(createMockFluxService(), configKV)
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/openai/audio/models', { method: 'GET' }),
+        { user: testUser } as any,
+      )
+      expect(res.status).toBe(503)
+    })
+  })
+
   describe('route matching', () => {
     it('gET /api/v1/openai/chat/completions should return 404', async () => {
       const app = createTestApp(createMockFluxService(), createMockConfigKV())
