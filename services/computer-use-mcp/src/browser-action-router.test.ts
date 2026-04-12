@@ -3,10 +3,14 @@ import type { DesktopTargetCandidate } from './desktop-grounding-types'
 import { describe, expect, it } from 'vitest'
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 import { decideBrowserAction, decideBrowserTypeAction } from './browser-action-router'
 =======
 import { decideBrowserAction } from './browser-action-router'
 >>>>>>> e5264fd6b (feat(computer-use-mcp): add browser-native action routing for chrome_dom candidates)
+=======
+import { decideBrowserAction, decideBrowserTypeAction } from './browser-action-router'
+>>>>>>> c751ac56c (feat(computer-use-mcp): add type/checkbox browser-dom routing (v2 slice 2))
 
 function makeCandidate(overrides: Partial<DesktopTargetCandidate> = {}): DesktopTargetCandidate {
   return {
@@ -26,12 +30,18 @@ function makeCandidate(overrides: Partial<DesktopTargetCandidate> = {}): Desktop
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c751ac56c (feat(computer-use-mcp): add type/checkbox browser-dom routing (v2 slice 2))
 // ---------------------------------------------------------------------------
 // decideBrowserAction (click routing)
 // ---------------------------------------------------------------------------
 
+<<<<<<< HEAD
 =======
 >>>>>>> e5264fd6b (feat(computer-use-mcp): add browser-native action routing for chrome_dom candidates)
+=======
+>>>>>>> c751ac56c (feat(computer-use-mcp): add type/checkbox browser-dom routing (v2 slice 2))
 describe('decideBrowserAction', () => {
   it('routes chrome_dom with selector + bridge available to browser_dom', () => {
     const decision = decideBrowserAction(makeCandidate(), true)
@@ -39,9 +49,13 @@ describe('decideBrowserAction', () => {
     expect(decision.selector).toBe('#submit-btn')
     expect(decision.frameId).toBe(0)
 <<<<<<< HEAD
+<<<<<<< HEAD
     expect(decision.bridgeMethod).toBe('clickSelector')
 =======
 >>>>>>> e5264fd6b (feat(computer-use-mcp): add browser-native action routing for chrome_dom candidates)
+=======
+    expect(decision.bridgeMethod).toBe('clickSelector')
+>>>>>>> c751ac56c (feat(computer-use-mcp): add type/checkbox browser-dom routing (v2 slice 2))
   })
 
   it('falls back to os_input when source is ax', () => {
@@ -79,6 +93,9 @@ describe('decideBrowserAction', () => {
     expect(decision.reason).toContain('no CSS selector')
   })
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> c751ac56c (feat(computer-use-mcp): add type/checkbox browser-dom routing (v2 slice 2))
 
   it('routes checkbox to checkCheckbox instead of clickSelector', () => {
     const decision = decideBrowserAction(makeCandidate({
@@ -109,6 +126,7 @@ describe('decideBrowserAction', () => {
     expect(decision.route).toBe('browser_dom')
     expect(decision.bridgeMethod).toBe('clickSelector')
   })
+<<<<<<< HEAD
 
   it('routes radio input to clickSelector, not checkCheckbox', () => {
     const decision = decideBrowserAction(makeCandidate({
@@ -145,6 +163,8 @@ describe('decideBrowserAction', () => {
     const decision = decideBrowserAction(makeCandidate({ selector: '#my-btn' }), true)
     expect(decision.reason).toContain('#my-btn')
   })
+=======
+>>>>>>> c751ac56c (feat(computer-use-mcp): add type/checkbox browser-dom routing (v2 slice 2))
 })
 
 // ---------------------------------------------------------------------------
@@ -252,6 +272,7 @@ describe('decideBrowserTypeAction', () => {
     expect(decision.route).toBe('os_input')
     expect(decision.reason).toContain('no CSS selector')
   })
+<<<<<<< HEAD
 
   it('routes number input to setInputValue', () => {
     const decision = decideBrowserTypeAction(makeCandidate({
@@ -415,4 +436,6 @@ describe('click + type routing consistency', () => {
   })
 =======
 >>>>>>> e5264fd6b (feat(computer-use-mcp): add browser-native action routing for chrome_dom candidates)
+=======
+>>>>>>> c751ac56c (feat(computer-use-mcp): add type/checkbox browser-dom routing (v2 slice 2))
 })

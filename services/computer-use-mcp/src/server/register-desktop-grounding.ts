@@ -206,17 +206,26 @@ export function registerDesktopGroundingTools(params: {
         let routeNote = ''
 
         if (routeDecision.route === 'browser_dom' && routeDecision.selector) {
-          // Try browser-dom bridge click first
+          // Try browser-dom bridge action first, dispatching by method
           try {
-            await runtime.browserDomBridge!.clickSelector({
-              selector: routeDecision.selector,
-              frameIds: routeDecision.frameId !== undefined ? [routeDecision.frameId] : undefined,
-            })
+            const frameIds = routeDecision.frameId !== undefined ? [routeDecision.frameId] : undefined
+            if (routeDecision.bridgeMethod === 'checkCheckbox') {
+              await runtime.browserDomBridge!.checkCheckbox({
+                selector: routeDecision.selector,
+                frameIds,
+              })
+            }
+            else {
+              await runtime.browserDomBridge!.clickSelector({
+                selector: routeDecision.selector,
+                frameIds,
+              })
+            }
           }
           catch (browserError) {
             // Fallback to OS input on browser-dom failure
             executionRoute = 'os_input'
-            routeNote = `browser-dom click failed (${browserError instanceof Error ? browserError.message : String(browserError)}), fell back to OS input`
+            routeNote = `browser-dom ${routeDecision.bridgeMethod ?? 'click'} failed (${browserError instanceof Error ? browserError.message : String(browserError)}), fell back to OS input`
             await runtime.executor.click({
               x: snap.snappedPoint.x,
               y: snap.snappedPoint.y,

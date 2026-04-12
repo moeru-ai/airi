@@ -12,9 +12,14 @@ import type {
 } from '../types'
 import type { ComputerUseServerRuntime } from './runtime'
 
+<<<<<<< HEAD
 import { appNamesMatch, normalizeConfiguredAppAction } from '../app-aliases'
 import { decideBrowserTypeAction } from '../browser-action-router'
 import { DESKTOP_CLICK_SNAPSHOT_MAX_AGE_MS } from '../desktop-grounding-types'
+=======
+import { normalizeConfiguredAppAction } from '../app-aliases'
+import { decideBrowserTypeAction } from '../browser-action-router'
+>>>>>>> c751ac56c (feat(computer-use-mcp): add type/checkbox browser-dom routing (v2 slice 2))
 import { evaluateActionPolicy } from '../policy'
 import { getRuntimePreflight } from '../preflight'
 import { buildCoordinateSpaceInfo } from '../runtime-probes'
@@ -469,17 +474,25 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           }
 
           // Browser-dom type routing: if the last clicked grounding candidate
+<<<<<<< HEAD
           // is a chrome_dom text input, use setInputValue for DOM precision.
           // NOTICE: skip this path when explicit coordinates are provided.
           // Coordinates mean the caller has targeted a specific screen position
           // (possibly in a different app/window), so using lastClickedCandidateId
           // would write into a stale Chrome selector instead of the current target.
           const hasExplicitCoords = typeof normalizedAction.input.x === 'number' && typeof normalizedAction.input.y === 'number'
+=======
+          // is a chrome_dom text input, use setInputValue for DOM precision
+>>>>>>> c751ac56c (feat(computer-use-mcp): add type/checkbox browser-dom routing (v2 slice 2))
           let usedBrowserDom = false
           const runState = runtime.stateManager.getState()
           const lastSnapshot = runState.lastGroundingSnapshot
           const lastClickedId = runState.lastClickedCandidateId
+<<<<<<< HEAD
           if (!hasExplicitCoords && lastClickedId && lastSnapshot) {
+=======
+          if (lastClickedId && lastSnapshot) {
+>>>>>>> c751ac56c (feat(computer-use-mcp): add type/checkbox browser-dom routing (v2 slice 2))
             const lastCandidate = lastSnapshot.targetCandidates.find(
               c => c.id === lastClickedId,
             )
@@ -488,7 +501,11 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
               const typeDecision = decideBrowserTypeAction(lastCandidate, bridgeConnected)
               if (typeDecision.route === 'browser_dom' && typeDecision.selector) {
                 try {
+<<<<<<< HEAD
                   const frameResults = await runtime.browserDomBridge!.setInputValue({
+=======
+                  await runtime.browserDomBridge!.setInputValue({
+>>>>>>> c751ac56c (feat(computer-use-mcp): add type/checkbox browser-dom routing (v2 slice 2))
                     selector: typeDecision.selector,
                     value: normalizedAction.input.text,
                     simulateKeystrokes: false,
@@ -497,6 +514,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
                       ? [typeDecision.frameId]
                       : undefined,
                   })
+<<<<<<< HEAD
                   // NOTICE: bridge resolve ≠ DOM success. Frame results carry
                   // per-frame { success, error } — if none succeeded the
                   // selector/frame was stale and we must fall back to OS typeText.
@@ -506,6 +524,8 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
                   if (!anySucceeded) {
                     throw new Error('setInputValue: no frame reported success')
                   }
+=======
+>>>>>>> c751ac56c (feat(computer-use-mcp): add type/checkbox browser-dom routing (v2 slice 2))
                   usedBrowserDom = true
                   backendResult.browserDomRoute = {
                     method: 'setInputValue',
