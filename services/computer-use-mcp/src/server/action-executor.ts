@@ -13,6 +13,7 @@ import type {
 import type { ComputerUseServerRuntime } from './runtime'
 
 import { appNamesMatch, normalizeConfiguredAppAction } from '../app-aliases'
+import { decideBrowserTypeAction } from '../browser-action-router'
 import { DESKTOP_CLICK_SNAPSHOT_MAX_AGE_MS } from '../desktop-grounding-types'
 import { evaluateActionPolicy } from '../policy'
 import { getRuntimePreflight } from '../preflight'
@@ -466,10 +467,56 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
               throw new Error(`Preparatory click at (${normalizedAction.input.x}, ${normalizedAction.input.y}) failed before typing: ${msg}`)
             }
           }
-          const result = await runtime.executor.typeText(normalizedAction.input)
-          backendResult = {
-            ...backendResult,
-            ...result,
+
+          // Browser-dom type routing: if the last clicked grounding candidate
+          // is a chrome_dom text input, use setInputValue for DOM precision
+          let usedBrowserDom = false
+          const runState = runtime.stateManager.getState()
+          const lastSnapshot = runState.lastGroundingSnapshot
+          const lastClickedId = runState.lastClickedCandidateId
+          if (lastClickedId && lastSnapshot) {
+            const lastCandidate = lastSnapshot.targetCandidates.find(
+              c => c.id === lastClickedId,
+            )
+            if (lastCandidate) {
+              const bridgeConnected = runtime.browserDomBridge?.getStatus().connected ?? false
+              const typeDecision = decideBrowserTypeAction(lastCandidate, bridgeConnected)
+              if (typeDecision.route === 'browser_dom' && typeDecision.selector) {
+                try {
+                  await runtime.browserDomBridge!.setInputValue({
+                    selector: typeDecision.selector,
+                    value: normalizedAction.input.text,
+                    simulateKeystrokes: false,
+                    blur: !normalizedAction.input.pressEnter,
+                    frameIds: typeDecision.frameId !== undefined
+                      ? [typeDecision.frameId]
+                      : undefined,
+                  })
+                  usedBrowserDom = true
+                  backendResult.browserDomRoute = {
+                    method: 'setInputValue',
+                    selector: typeDecision.selector,
+                    reason: typeDecision.reason,
+                  }
+                }
+                catch {
+                  // Fallback to OS typeText below
+                }
+              }
+            }
+          }
+
+          if (!usedBrowserDom) {
+            const result = await runtime.executor.typeText(normalizedAction.input)
+            backendResult = {
+              ...backendResult,
+              ...result,
+            }
+          }
+
+          // Handle pressEnter even when browser-dom was used
+          if (usedBrowserDom && normalizedAction.input.pressEnter) {
+            await runtime.executor.pressKeys({ keys: ['Return'] })
           }
           break
         }
