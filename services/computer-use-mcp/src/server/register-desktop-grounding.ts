@@ -21,6 +21,7 @@ import process from 'node:process'
 
 import { z } from 'zod'
 
+import { decideBrowserAction } from '../browser-action-router'
 import { captureDesktopGrounding, formatGroundingForAgent } from '../desktop-grounding'
 import { resolveSnapByCandidate } from '../snap-resolver'
 import { textContent } from './content'
@@ -194,24 +195,61 @@ export function registerDesktopGroundingTools(params: {
         // Update RunState — pointer intent + clicked candidate
         runtime.stateManager.updatePointerIntent(intent, candidateId)
 
-        // Execute the click via the macOS executor
-        await runtime.executor.click({
-          x: snap.snappedPoint.x,
-          y: snap.snappedPoint.y,
-          button: button || 'left',
-          clickCount: clickCount ?? 1,
-          pointerTrace: intent.path,
-        })
-
+        // Route the click: browser-dom for chrome_dom candidates, OS input for everything else
         const candidate = snapshot.targetCandidates.find(c => c.id === candidateId)
+        const bridgeConnected = runtime.browserDomBridge?.getStatus().connected ?? false
+        const routeDecision = candidate
+          ? decideBrowserAction(candidate, bridgeConnected)
+          : { route: 'os_input' as const, reason: 'candidate not found' }
+
+        let executionRoute = routeDecision.route
+        let routeNote = ''
+
+        if (routeDecision.route === 'browser_dom' && routeDecision.selector) {
+          // Try browser-dom bridge click first
+          try {
+            await runtime.browserDomBridge!.clickSelector({
+              selector: routeDecision.selector,
+              frameIds: routeDecision.frameId !== undefined ? [routeDecision.frameId] : undefined,
+            })
+          }
+          catch (browserError) {
+            // Fallback to OS input on browser-dom failure
+            executionRoute = 'os_input'
+            routeNote = `browser-dom click failed (${browserError instanceof Error ? browserError.message : String(browserError)}), fell back to OS input`
+            await runtime.executor.click({
+              x: snap.snappedPoint.x,
+              y: snap.snappedPoint.y,
+              button: button || 'left',
+              clickCount: clickCount ?? 1,
+              pointerTrace: intent.path,
+            })
+          }
+        }
+        else {
+          // OS-level click (existing path)
+          await runtime.executor.click({
+            x: snap.snappedPoint.x,
+            y: snap.snappedPoint.y,
+            button: button || 'left',
+            clickCount: clickCount ?? 1,
+            pointerTrace: intent.path,
+          })
+        }
+
         const candidateDesc = candidate ? `${candidate.source} ${candidate.role} "${candidate.label}"` : candidateId
 
         const lines = [
           `Clicked: ${candidateDesc}`,
           `  Snap: ${snap.reason}`,
           `  Point: (${snap.snappedPoint.x}, ${snap.snappedPoint.y})`,
+          `  Route: ${executionRoute} (${routeDecision.reason})`,
           `  Button: ${button || 'left'}, clicks: ${clickCount ?? 1}`,
         ]
+
+        if (routeNote) {
+          lines.push(`  ⚠ ${routeNote}`)
+        }
 
         if (snap.reason.includes('stale')) {
           lines.push('  ⚠ WARNING: Target source is stale. Consider calling desktop_observe again.')

@@ -76,6 +76,10 @@ export interface DesktopTargetCandidate {
   inputType?: string
   /** CSS selector for re-querying (best-effort) */
   selector?: string
+  /** Frame ID within the Chrome page (0 = main frame) */
+  frameId?: number
+  /** Whether candidate is in page content area (true for all chrome_dom candidates) */
+  isPageContent?: boolean
 
   // ---- AX extras ----
   /** AX tree UID for `findAXNodeByUid` lookup */

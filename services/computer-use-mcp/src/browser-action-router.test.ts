@@ -2,7 +2,11 @@ import type { DesktopTargetCandidate } from './desktop-grounding-types'
 
 import { describe, expect, it } from 'vitest'
 
+<<<<<<< HEAD
 import { decideBrowserAction, decideBrowserTypeAction } from './browser-action-router'
+=======
+import { decideBrowserAction } from './browser-action-router'
+>>>>>>> e5264fd6b (feat(computer-use-mcp): add browser-native action routing for chrome_dom candidates)
 
 function makeCandidate(overrides: Partial<DesktopTargetCandidate> = {}): DesktopTargetCandidate {
   return {
@@ -21,17 +25,23 @@ function makeCandidate(overrides: Partial<DesktopTargetCandidate> = {}): Desktop
   }
 }
 
+<<<<<<< HEAD
 // ---------------------------------------------------------------------------
 // decideBrowserAction (click routing)
 // ---------------------------------------------------------------------------
 
+=======
+>>>>>>> e5264fd6b (feat(computer-use-mcp): add browser-native action routing for chrome_dom candidates)
 describe('decideBrowserAction', () => {
   it('routes chrome_dom with selector + bridge available to browser_dom', () => {
     const decision = decideBrowserAction(makeCandidate(), true)
     expect(decision.route).toBe('browser_dom')
     expect(decision.selector).toBe('#submit-btn')
     expect(decision.frameId).toBe(0)
+<<<<<<< HEAD
     expect(decision.bridgeMethod).toBe('clickSelector')
+=======
+>>>>>>> e5264fd6b (feat(computer-use-mcp): add browser-native action routing for chrome_dom candidates)
   })
 
   it('falls back to os_input when source is ax', () => {
@@ -68,6 +78,7 @@ describe('decideBrowserAction', () => {
     expect(decision.route).toBe('os_input')
     expect(decision.reason).toContain('no CSS selector')
   })
+<<<<<<< HEAD
 
   it('routes checkbox to checkCheckbox instead of clickSelector', () => {
     const decision = decideBrowserAction(makeCandidate({
@@ -402,4 +413,6 @@ describe('click + type routing consistency', () => {
     expect(clickD.route).toBe('os_input')
     expect(typeD.route).toBe('os_input')
   })
+=======
+>>>>>>> e5264fd6b (feat(computer-use-mcp): add browser-native action routing for chrome_dom candidates)
 })

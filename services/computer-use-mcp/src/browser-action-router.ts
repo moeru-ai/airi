@@ -1,13 +1,20 @@
 /**
+<<<<<<< HEAD
  * Browser action router — decides whether a desktop action should go through
+=======
+ * Browser action router — decides whether a desktop click should go through
+>>>>>>> e5264fd6b (feat(computer-use-mcp): add browser-native action routing for chrome_dom candidates)
  * the browser-dom bridge (DOM-level precision) or OS-level input.
  *
  * Routing rules are fixed, not heuristic:
  * - chrome_dom candidate with selector + bridge available → browser_dom
  * - Everything else → os_input
  * - Bridge unavailable → os_input (graceful fallback)
+<<<<<<< HEAD
  *
  * Covers: click, type/setInputValue, checkCheckbox, selectOption.
+=======
+>>>>>>> e5264fd6b (feat(computer-use-mcp): add browser-native action routing for chrome_dom candidates)
  */
 
 import type { DesktopTargetCandidate } from './desktop-grounding-types'
@@ -17,6 +24,7 @@ export interface BrowserActionDecision {
   route: 'browser_dom' | 'os_input'
   /** Human-readable explanation of the routing decision */
   reason: string
+<<<<<<< HEAD
   /** CSS selector for browser-dom action (only when route is browser_dom) */
   selector?: string
   /** Frame ID for browser-dom action (only when route is browser_dom) */
@@ -34,6 +42,27 @@ function checkBrowserDomPreconditions(
   candidate: DesktopTargetCandidate,
   bridgeAvailable: boolean,
 ): BrowserActionDecision | undefined {
+=======
+  /** CSS selector for browser-dom click (only when route is browser_dom) */
+  selector?: string
+  /** Frame ID for browser-dom click (only when route is browser_dom) */
+  frameId?: number
+}
+
+/**
+ * Decide whether a click on a candidate should go through browser-dom
+ * bridge or OS-level input.
+ *
+ * @param candidate - The target candidate from the grounding snapshot
+ * @param bridgeAvailable - Whether the browser-dom bridge is connected
+ * @returns Routing decision with reason
+ */
+export function decideBrowserAction(
+  candidate: DesktopTargetCandidate,
+  bridgeAvailable: boolean,
+): BrowserActionDecision {
+  // Only chrome_dom candidates are eligible for browser-native routing
+>>>>>>> e5264fd6b (feat(computer-use-mcp): add browser-native action routing for chrome_dom candidates)
   if (candidate.source !== 'chrome_dom') {
     return {
       route: 'os_input',
@@ -41,6 +70,10 @@ function checkBrowserDomPreconditions(
     }
   }
 
+<<<<<<< HEAD
+=======
+  // Must have a selector for DOM re-query
+>>>>>>> e5264fd6b (feat(computer-use-mcp): add browser-native action routing for chrome_dom candidates)
   if (!candidate.selector) {
     return {
       route: 'os_input',
@@ -48,6 +81,10 @@ function checkBrowserDomPreconditions(
     }
   }
 
+<<<<<<< HEAD
+=======
+  // Bridge must be available
+>>>>>>> e5264fd6b (feat(computer-use-mcp): add browser-native action routing for chrome_dom candidates)
   if (!bridgeAvailable) {
     return {
       route: 'os_input',
@@ -55,6 +92,7 @@ function checkBrowserDomPreconditions(
     }
   }
 
+<<<<<<< HEAD
   return undefined
 }
 
@@ -95,10 +133,14 @@ export function decideBrowserAction(
     }
   }
 
+=======
+  // All conditions met → route through browser DOM
+>>>>>>> e5264fd6b (feat(computer-use-mcp): add browser-native action routing for chrome_dom candidates)
   return {
     route: 'browser_dom',
     selector: candidate.selector,
     frameId: candidate.frameId,
+<<<<<<< HEAD
     bridgeMethod: 'clickSelector',
     reason: `chrome_dom candidate with selector '${candidate.selector}' routed to browser-dom bridge`,
   }
@@ -177,3 +219,8 @@ function isCheckboxCandidate(candidate: DesktopTargetCandidate): boolean {
     return true
   return false
 }
+=======
+    reason: `chrome_dom candidate with selector '${candidate.selector}' routed to browser-dom bridge`,
+  }
+}
+>>>>>>> e5264fd6b (feat(computer-use-mcp): add browser-native action routing for chrome_dom candidates)
