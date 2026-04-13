@@ -145,24 +145,25 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
 
 
 
-analyser.workletNode.port.onmessage = (e) => {
-  if (e.data.type === 'audioData') {
-    // 1. Pass a single options object instead of positional arguments
-    (rhythmAnalyzer as any).analyzeChunck({
-      channelData: e.data.data,
-      audioSampleRate: e.data.outputSampleRate,
-      bufferSize: e.data.data.length,
-      postMessage: (message: any) => {
-        // 2. Check message.message instead of message.event
-        // 3. The library uses 'BPM' or 'BPM_STABLE' for the event type
-        if ((message.message === 'BPM' || message.message === 'BPM_STABLE') && message.data.bpm) {
-          lockBpm = message.data.bpm;
-          syncMetronome(lockBpm, true);
-        }
+    analyser.workletNode.port.onmessage = (e) => {
+      if (e.data.type === 'audioData') {
+        // According to docs/v3, we pass a single options object.
+        (rhythmAnalyzer as any).analyzeChunck({
+          channelData: e.data.data,
+          audioSampleRate: e.data.outputSampleRate,
+          bufferSize: e.data.data.length,
+          postMessage: (message: any) => {
+            // The library emits 'BPM' or 'BPM_STABLE' in the .message property
+            const isBpmEvent = message.message === 'BPM' || message.message === 'BPM_STABLE';
+            
+            if (isBpmEvent && message.data.bpm) {
+              lockBpm = message.data.bpm;
+              syncMetronome(lockBpm, true);
+            }
+          }
+        });
       }
-    });
-  }
-};
+    };
     const node = await createSource(context)
 
     inputAnalyserNode = context.createAnalyser()
