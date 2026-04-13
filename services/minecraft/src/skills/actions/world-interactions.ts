@@ -219,42 +219,42 @@ export async function breakBlockAt(
   if (x == null || y == null || z == null) {
     throw new ActionError('UNKNOWN', 'Invalid position to break block at')
   }
-  
+
   // Calculate the block position by rounding down the coordinates
   const blockPos = new Vec3(Math.floor(x), Math.floor(y), Math.floor(z))
   logger.log(`Attempting to break block at ${blockPos}`)
-  
+
   // Log bot position
   const botPos = mineflayer.bot.entity.position
   logger.log(`Bot position: ${botPos.x.toFixed(1)}, ${botPos.y.toFixed(1)}, ${botPos.z.toFixed(1)}`)
-  
+
   // Calculate the actual block under the bot's feet
   const feetPos = new Vec3(Math.floor(botPos.x), Math.floor(botPos.y - 1), Math.floor(botPos.z))
   logger.log(`Actual block under feet: ${feetPos}`)
-  
+
   // Use the provided position directly
-  let targetPos = blockPos
-  
+  const targetPos = blockPos
+
   const block = mineflayer.bot.blockAt(targetPos)
   if (!block) {
     logger.log(`No block found at position ${targetPos}.`)
     throw new ActionError('TARGET_NOT_FOUND', `No block found at position ${targetPos}`, { position: targetPos })
   }
-  
+
   logger.log(`Found block: ${block.name} at ${block.position}`)
-  
+
   if (block.name !== 'air' && block.name !== 'water' && block.name !== 'lava') {
     const distance = mineflayer.bot.entity.position.distanceTo(block.position)
     logger.log(`Distance to block: ${distance.toFixed(2)}`)
-    
+
     // Log game mode
     logger.log(`Game mode: ${mineflayer.bot.game.gameMode}`)
-    
+
     if (distance > 4.5) {
       logger.log(`Moving to block position ${targetPos}`)
       await goToPosition(mineflayer, targetPos.x, targetPos.y, targetPos.z)
     }
-    
+
     if (mineflayer.bot.game.gameMode !== 'creative') {
       logger.log(`Equipping tool for block: ${block.name}`)
       await mineflayer.bot.tool.equipForBlock(block)
@@ -267,17 +267,17 @@ export async function breakBlockAt(
         throw new ActionError('RESOURCE_MISSING', `Don't have right tools to break ${block.name}`, { blockType: block.name })
       }
     }
-    
+
     logger.log(`Can dig block: ${mineflayer.bot.canDigBlock(block)}`)
     if (!mineflayer.bot.canDigBlock(block)) {
       logger.log(`Cannot break ${block.name} at ${targetPos}.`)
       throw new ActionError('UNKNOWN', `Cannot break ${block.name} at ${targetPos}`, { blockType: block.name, position: targetPos })
     }
-    
+
     logger.log(`Looking at block ${block.position}`)
     await mineflayer.bot.lookAt(block.position, true) // Ensure the bot has finished turning
     await sleep(500)
-    
+
     try {
       logger.log(`Starting to dig block ${block.name} at ${block.position}`)
       // Increase digging time to ensure block is fully broken
@@ -288,11 +288,11 @@ export async function breakBlockAt(
           1,
         )}, z:${targetPos.z.toFixed(1)}.`,
       )
-      
+
       // Verify block is actually broken
       const afterBlock = mineflayer.bot.blockAt(targetPos)
       logger.log(`Block after digging: ${afterBlock?.name || 'air'}`)
-      
+
       // If block is still there, try again
       if (afterBlock && afterBlock.name !== 'air') {
         logger.log(`Block still exists, trying again...`)

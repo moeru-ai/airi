@@ -282,7 +282,8 @@ class InventoryQueryChain {
   }
 
   public count(name: string): number {
-    if (!name) return 0
+    if (!name)
+      return 0
     const needle = name.toLowerCase()
     return this.list()
       .filter(item => item.name.toLowerCase() === needle)
