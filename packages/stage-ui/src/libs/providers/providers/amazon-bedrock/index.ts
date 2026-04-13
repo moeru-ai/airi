@@ -143,9 +143,9 @@ function createBedrockConverseProvider(config: {
         const id = `chatcmpl-bedrock-${Date.now()}`
         const encoder = new TextEncoder()
 
-        // Emit SSE chunks character-by-character to simulate a streaming response.
+        // Emit the full response as a single SSE chunk (non-streaming Converse API response).
         const stream = new ReadableStream({
-          async start(controller) {
+          start(controller) {
             const enqueue = (chunk: object) =>
               controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`))
 
@@ -155,14 +155,11 @@ function createBedrockConverseProvider(config: {
               choices: [{ delta: { role: 'assistant' }, index: 0, finish_reason: null }],
             })
 
-            for (const char of fullText) {
-              enqueue({
-                id,
-                object: 'chat.completion.chunk',
-                choices: [{ delta: { content: char }, index: 0, finish_reason: null }],
-              })
-              await new Promise(r => setTimeout(r, 10))
-            }
+            enqueue({
+              id,
+              object: 'chat.completion.chunk',
+              choices: [{ delta: { content: fullText }, index: 0, finish_reason: null }],
+            })
 
             enqueue({
               id,
