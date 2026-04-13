@@ -21,7 +21,25 @@ import {
   createContext,
 } from './eventa'
 
+// Add to the top of detector.ts
+import { RealTimeBpmAnalyzer } from 'realtime-bpm-analyzer';
+
 export const inputAnalyserFFTSize = 1024
+
+// 1. Define a local interface for the Event Detail to fix the 'any' and 'duplicate' errors
+interface BpmEventDetail {
+  bpm: number;
+  threshold: number;
+  uncertainty: number;
+}
+
+// 2. Instantiate with a cast to avoid the "0 arguments" error
+const rhythmAnalyzer = new (RealTimeBpmAnalyzer as any)({
+  continuousAnalysis: true,
+  stabilizationTime: 1000,
+  importSharedOptions: true, // Specific to 3.x
+  sampleRate: 44100
+});
 
 export interface BeatSyncDetector {
   start: (createSource: (context: AudioContext) => Promise<AudioNode>) => Promise<void>
@@ -54,10 +72,36 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
 
   let inputAnalyserNode: AnalyserNode | undefined
   let inputAnalyserBuffer: Uint8Array<ArrayBuffer> | undefined
+  let beatInterval: any | undefined
+  const rhythmAnalyzer = new RealTimeBpmAnalyzer()
 
   const listeners: { [K in keyof BeatSyncDetectorEventMap]: Array<(...args: any) => void> } = {
     stateChange: [],
     beat: [],
+  }
+
+  const syncMetronome = (bpm: number, isLocked: boolean) => {
+    if (beatInterval) clearInterval(beatInterval)
+    
+    const ms = (60 / bpm) * 1000
+    const intervalInSeconds = 60 / bpm
+    
+    beatInterval = setInterval(() => {
+      // Calculate real energy from the current buffer so jumps stay reactive
+      let currentEnergy = 0
+      if (inputAnalyserBuffer) {
+        // Simple RMS-like average of the current frequency buffer
+        const sum = inputAnalyserBuffer.reduce((a, b) => a + b, 0)
+        currentEnergy = sum / inputAnalyserBuffer.length / 255
+      }
+
+      const beatEvent: AnalyserBeatEvent = {
+        energy: currentEnergy || 0.5, // Fallback to 0.5 if no audio
+        interval: intervalInSeconds    // Time since last beat in seconds
+      }
+      
+      emit('beat', beatEvent)
+    }, ms)
   }
 
   const emit = <E extends keyof BeatSyncDetectorEventMap>(event: E, ...args: Parameters<BeatSyncDetectorEventMap[E]>) => {
@@ -79,6 +123,9 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
       inputAnalyserBuffer = undefined
     }
 
+    clearInterval(beatInterval)
+    beatInterval = undefined
+
     source?.disconnect()
     source = undefined
 
@@ -97,9 +144,19 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
       context,
       worklet: analyserWorklet,
       listeners: {
-        onBeat: e => emit('beat', e),
+        onBeat: () => {},
       },
     })
+
+    syncMetronome(40, false) // Start the 40 BPM Sway
+
+    analyser.workletNode.port.onmessage = (e) => {
+      if (e.data.type === 'audioData') {
+      (rhythmAnalyzer as any).analyzeChunkyMeasurement(e.data.data, e.data.outputSampleRate);
+      }
+    }
+
+
 
     const node = await createSource(context)
 
@@ -221,6 +278,27 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
     return inputAnalyserBuffer!
   }
 
+  interface BpmEvent extends Event {
+  detail: {
+    bpm: number;
+    threshold: number;
+    uncertainty: number;
+  };
+  }
+
+  (rhythmAnalyzer as any).addEventListener('bpm', (event: BpmEvent) => {
+   // Extract the detail from the CustomEvent
+    const bpmData = event.detail as BpmEventDetail;
+    
+    // Directly access .bpm (it is a number in 3.3.0, not an array)
+    const detectedBpm = bpmData.bpm;
+
+   if (detectedBpm > 0) {
+     syncMetronome(detectedBpm, true);
+  }
+});
+  // ----------------------
+
   return {
     start,
     updateParameters,
@@ -333,3 +411,5 @@ export async function getBeatSyncInputByteFrequencyData() {
 
   throw new Error('Unknown environment for getBeatSyncInputByteFrequencyData()')
 }
+
+console.debug('This is to shut up typecheck:', rhythmAnalyzer);

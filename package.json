@@ -66,6 +66,7 @@
     "oxlint": "^1.59.0",
     "posthog-js": "catalog:",
     "publint": "^0.3.18",
+    "realtime-bpm-analyzer": "^3.0.0",
     "rollup": "^4.60.1",
     "simple-git-hooks": "^2.13.1",
     "sponsorkit": "^17.1.0",

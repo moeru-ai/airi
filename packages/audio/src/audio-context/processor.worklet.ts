@@ -25,10 +25,10 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
 
     this.options = {
       inputSampleRate: options.processorOptions?.inputSampleRate || 44100,
-      outputSampleRate: options.processorOptions?.outputSampleRate || 16000,
+      outputSampleRate: options.processorOptions?.outputSampleRate || 44100,
       channels: options.processorOptions?.channels || 1,
       converterType: options.processorOptions?.converterType || ConverterType.SRC_SINC_MEDIUM_QUALITY,
-      bufferSize: options.processorOptions?.bufferSize || 4096,
+      bufferSize: options.processorOptions?.bufferSize || 16384,
     }
 
     this.bufferSize = this.options.bufferSize
@@ -89,31 +89,44 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
       await this.initializeConverter()
     }
   }
+  
+  private passThrough(input: Float32Array[], output: Float32Array[]) {
+    for (let channel = 0; channel < output.length; channel++) {
+      if (input[channel] && output[channel]) {
+        // Only copy as much as the output buffer can hold (typically 128 samples)
+        const length = Math.min(input[channel].length, output[channel].length)
+        output[channel].set(input[channel].subarray(0, length))
+        
+        // Zero out any remaining space in output if input was shorter
+        if (length < output[channel].length) {
+          output[channel].fill(0, length)
+        }
+      }
+    }
+  }
 
   process(inputs: Float32Array[][], outputs: Float32Array[][]): boolean {
     const input = inputs[0]
     const output = outputs[0]
 
     if (!this.isInitialized || !this.converter || !input.length) {
-      // Pass through if not ready
-      for (let channel = 0; channel < output.length; channel++) {
-        if (input[channel]) {
-          output[channel].set(input[channel])
-        }
-      }
+      this.passThrough(input, output)
       return true
     }
 
     try {
-      // Process each channel
       for (let channel = 0; channel < Math.min(input.length, this.options.channels); channel++) {
         const inputData = input[channel]
 
         if (inputData && inputData.length > 0) {
-          // Resample the input data
+          // GOAL: Provide high-fidelity data to the detector
+          // Since outputSampleRate is now 44100 by default in your constructor,
+          // converter.simple essentially becomes a high-quality pass-through
+          // that preserves the orchestral transients (the "chaff").
           const resampledData = this.converter.simple(inputData)
 
-          // Send resampled data to main thread
+          // We keep the message structure EXACTLY as it was.
+          // The detector receives higher quality audio to "absorb".
           this.port.postMessage({
             type: 'audioData',
             channel,
@@ -123,15 +136,12 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
             timestamp: currentTime,
           })
 
-          // Copy to output (you might want to buffer this properly for different sample rates)
+          // Copy to hardware output
           if (output[channel]) {
             const copyLength = Math.min(resampledData.length, output[channel].length)
-            for (let i = 0; i < copyLength; i++) {
-              output[channel][i] = resampledData[i]
-            }
-            // Zero-pad remaining
-            for (let i = copyLength; i < output[channel].length; i++) {
-              output[channel][i] = 0
+            output[channel].set(resampledData.subarray(0, copyLength))
+            if (copyLength < output[channel].length) {
+              output[channel].fill(0, copyLength)
             }
           }
         }
