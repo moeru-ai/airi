@@ -27,7 +27,7 @@ export interface SettingsWindowManager {
 export function setupSettingsWindowReusableFunc(params: {
   widgetsManager: WidgetsWindowManager
   autoUpdater: AutoUpdater
-  devtoolsMarkdownStressWindow: DevtoolsWindowManager
+  devtoolsWindow: DevtoolsWindowManager
   onWindowCreated?: (window: BrowserWindow) => void
   serverChannel: ServerChannel
   mcpStdioManager: McpStdioManager
@@ -67,7 +67,7 @@ export function setupSettingsWindowReusableFunc(params: {
       settingsWindow: window,
       widgetsManager: params.widgetsManager,
       autoUpdater: params.autoUpdater,
-      devtoolsMarkdownStressWindow: params.devtoolsMarkdownStressWindow,
+      devtoolsWindow: params.devtoolsWindow,
       serverChannel: params.serverChannel,
       mcpStdioManager: params.mcpStdioManager,
       i18n: params.i18n,

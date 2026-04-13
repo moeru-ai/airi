@@ -113,7 +113,7 @@ const openDevtoolsWindow = useElectronEventaInvoke(electronOpenDevtoolsWindow)
     icon="i-solar:code-bold-duotone"
     :text="t('tamagotchi.settings.devtools.pages.markdown-stress.title')"
     transition="all ease-in-out duration-250"
-    @click="() => openDevtoolsWindow({ route: '/devtools/markdown-stress' })"
+    @click="() => openDevtoolsWindow({ key: 'markdown-stress', route: '/devtools/markdown-stress' })"
   >
     {{ t('tamagotchi.settings.devtools.pages.markdown-stress.title') }}
   </ButtonBar>
