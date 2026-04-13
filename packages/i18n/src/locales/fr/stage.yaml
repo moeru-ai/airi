@@ -8,9 +8,9 @@ chat:
 message: Dites quelque chose...
 send-mode:
   title: Send key
-  enter: Enter
-  ctrl-enter: Ctrl + Enter
-  double-enter: Double Enter
+  enter: Entrée
+  ctrl-enter: Ctrl + Entrée
+  double-enter: Double Entrée
 operations:
   load-models: Charger les modèles
   load-models-status:
@@ -41,4 +41,50 @@ profile-switcher:
   save-as-new: Enregistrer comme Nouveau Profil
   new-profile-name: Nom du profil
   manage: Gérer les Profils
+promo-banner:
+  items:
+    signin:
+      watermark: Lune
+      fallbackLabel: Moon Gift
+      title: Connexion sur 7 jours
+      eventName: Connectez-vous pour récupérer de la poussière d’étoiles, des cadres d’avatar et des cadeaux de lancement.
+      date: 28/03 - 10/04
+      reward: Jusqu’à 120 poussières d’étoiles
+      cta: Se connecter
+    build:
+      watermark: Build
+      fallbackLabel: Bonus de construction
+      title: Bonus de boîte de ravitaillement
+      eventName: Terminez des tâches de construction pour obtenir des bons bonus et des matériaux doublés.
+      date: 30/03 - 12/04
+      reward: 5 bons de ravitaillement + matériaux d’amélioration
+      cta: Voir les tâches
+    spring:
+      watermark: Printemps
+      fallbackLabel: Tirage de printemps
+      title: Capsule Carnival
+      eventName: Join the spring draw to unlock bubbles, charms, and themed furniture.
+      date: 01/04 - 18/04
+      reward: Half-Price First Pull + Rare Charm
+      cta: Draw Now
+    coupon:
+      watermark: Discussion
+      fallbackLabel: Coupon
+      title: Coupon de recharge
+      eventName: Terminez des interactions de chat pour récupérer des coupons pour l’extension et les packs vocaux.
+      date: 02/04 - 20/04
+      reward: Save 6 on 30 / Save 15 on 68
+      cta: Récupérer le coupon
+    home:
+      watermark: Accueil
+      fallbackLabel: Thème de la chambre
+      title: Mise à jour du thème de printemps
+      eventName: Débloquez des thèmes de fenêtre, bureau et lampe de nuit pour rafraîchir votre chambre.
+      date: 05/04 - 22/04
+      reward: Free Theme Draw Ticket on Sign-in
+      cta: Voir le thème
 waiting: En attente
+websocket-status:
+  connected: WebSocket connected
+  disconnected: WebSocket disconnected
+  open-settings: Open WebSocket settings

@@ -49,6 +49,10 @@ Stream: `billing-events`
 - `api` — HTTP 服务
 - `billing-consumer` — 消费 Redis Stream，异步写入 transaction log、LLM 请求日志到 DB
 
+### Stripe 定价
+
+Flux 充值定价完全由 Stripe Product/Price 管理，详见 [stripe-pricing.md](stripe-pricing.md)。
+
 ## 关键服务
 
 ### BillingService (`services/billing-service.ts`)

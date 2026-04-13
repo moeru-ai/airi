@@ -14,6 +14,7 @@ export interface ChatSlicesToolCall {
 export interface ChatSlicesToolCallResult {
   type: 'tool-call-result'
   id: string
+  isError?: boolean
   result?: string | CommonContentPart[]
 }
 
@@ -23,6 +24,7 @@ export interface ChatAssistantMessage extends AssistantMessage {
   slices: ChatSlices[]
   tool_results: {
     id: string
+    isError?: boolean
     result?: string | CommonContentPart[]
   }[]
   categorization?: {
@@ -38,7 +40,7 @@ export interface ErrorMessage {
   content: string
 }
 
-export interface ContextMessage extends ContextUpdate<Record<string, unknown>, string | CommonContentPart[]> {
+export interface ContextMessage extends ContextUpdate<Record<string, unknown>, unknown> {
   metadata?: {
     source: MetadataEventSource
   }

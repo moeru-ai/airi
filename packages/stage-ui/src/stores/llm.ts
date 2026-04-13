@@ -1,17 +1,25 @@
+import type { WebSocketEvents } from '@proj-airi/server-sdk'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
-import type { CommonContentPart, CompletionToolCall, Message, Tool } from '@xsai/shared-chat'
+import type { CommonContentPart, CompletionToolCall, CompletionToolResult, Message, Tool } from '@xsai/shared-chat'
 
 import { listModels } from '@xsai/model'
+import {
+
+  stepCountAtLeast,
+
+} from '@xsai/shared-chat'
 import { streamText } from '@xsai/stream-text'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-import { debug, mcp } from '../tools'
+import { createSparkCommandTool, debug, mcp } from '../tools'
+import { useModsServerChannelStore } from './mods/api/channel-server'
 
 export type StreamEvent
   = | { type: 'text-delta', text: string }
     | ({ type: 'finish' } & any)
     | ({ type: 'tool-call' } & CompletionToolCall)
+    | (CompletionToolResult & { type: 'tool-error' })
     | { type: 'tool-result', toolCallId: string, result?: string | CommonContentPart[] }
     | { type: 'error', error: any }
 
@@ -52,7 +60,7 @@ function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProv
   return options?.toolsCompatibility?.get(key) !== false
 }
 
-async function streamFrom(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
+async function streamFrom(model: string, chatProvider: ChatProvider, messages: Message[], sendSparkCommand: (command: WebSocketEvents['spark:command']) => void, options?: StreamOptions) {
   const chatConfig = chatProvider.chat(model)
   const sanitized = sanitizeMessages(messages as unknown[])
 
@@ -69,6 +77,7 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
         ...await mcp(),
         ...await debug(),
         ...await resolveTools(),
+        await createSparkCommandTool({ sendSparkCommand }),
       ]
     : undefined
 
@@ -92,7 +101,8 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
         await options?.onStreamEvent?.(event as StreamEvent)
         if (event && (event as StreamEvent).type === 'finish') {
           const finishReason = (event as any).finishReason
-          if (finishReason !== 'tool_calls' || !options?.waitForTools)
+          const waitingForToolRound = finishReason === 'tool_calls' || finishReason === 'tool-calls'
+          if (!waitingForToolRound || !options?.waitForTools)
             resolveOnce()
         }
         else if (event && (event as StreamEvent).type === 'error') {
@@ -108,10 +118,11 @@ async function streamFrom(model: string, chatProvider: ChatProvider, messages: M
       const streamResult = streamText({
         ...chatConfig,
         abortSignal: options?.abortSignal,
-        maxSteps: 10,
         messages: sanitized,
         headers: options?.headers,
+        stopWhen: stepCountAtLeast(10),
         tools,
+        captureToolErrors: true,
         onEvent,
       })
 
@@ -152,6 +163,7 @@ export function isToolRelatedError(err: unknown): boolean {
 
 export const useLLM = defineStore('llm', () => {
   const toolsCompatibility = ref<Map<string, boolean>>(new Map())
+  const modsServerChannelStore = useModsServerChannelStore()
 
   function modelKey(model: string, chatProvider: ChatProvider): string {
     return `${chatProvider.chat(model).baseURL}-${model}`
@@ -160,7 +172,27 @@ export const useLLM = defineStore('llm', () => {
   async function stream(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
     const key = modelKey(model, chatProvider)
     try {
-      await streamFrom(model, chatProvider, messages, { ...options, toolsCompatibility: toolsCompatibility.value })
+      await streamFrom(
+        model,
+        chatProvider,
+        messages,
+        // TODO(@nekomeowww,@shinohara-rin): we should not register the command callback on every stream anyway...
+        (command) => {
+          // TODO(@nekomeowww): instruct the LLM to understand what destination is.
+          // Currently without skill like prompt injection, many issues occur.
+          // destination mostly are wrong or hallucinated, we need to find a way to make it more reliable.
+          //
+          // For now, since destinations as array will always broadcast to all connected modules/agents, we can set it to
+          // empty array to avoid wrong routing.
+          command.destinations = []
+
+          modsServerChannelStore.send({
+            type: 'spark:command',
+            data: command,
+          })
+        },
+        { ...options, toolsCompatibility: toolsCompatibility.value },
+      )
     }
     catch (err) {
       if (isToolRelatedError(err)) {

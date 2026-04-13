@@ -8,7 +8,9 @@ import type {
   WebSocketEvents,
 } from '@proj-airi/server-shared/types'
 
-import WebSocket from 'crossws/websocket'
+import type { WebSocketLike, WebSocketLikeConstructor, WebSocketMessageEventLike } from './websocket-like'
+
+import NativeWebSocket from 'crossws/websocket'
 import superjson from 'superjson'
 
 import { errorMessageFrom, sleep } from '@moeru/std'
@@ -46,7 +48,9 @@ export interface ClientOptions<C = undefined> {
   url?: string
   name: string
   token?: string
+  websocketConstructor?: WebSocketLikeConstructor
 
+  connectTimeoutMs?: number
   possibleEvents?: Array<keyof WebSocketEvents<C>>
   identity?: MetadataEventSource
   dependencies?: ModuleDependency[]
@@ -72,7 +76,7 @@ interface ConnectionAttempt {
   promise: Promise<void>
   reject: (error: Error) => void
   resolve: () => void
-  socket: WebSocket
+  socket: WebSocketLike
 }
 
 function createInstanceId() {
@@ -107,7 +111,7 @@ function normalizeHeartbeatOptions(heartbeat?: ClientHeartbeatOptions): Required
 }
 
 export class Client<C = undefined> {
-  private websocket?: WebSocket
+  private websocket?: WebSocketLike
   private shouldClose = false
   private connectTask?: Promise<void>
   private heartbeatTimer?: ReturnType<typeof setInterval>
@@ -120,10 +124,11 @@ export class Client<C = undefined> {
   private status: ClientStatus = 'idle'
   private readonly identity: MetadataEventSource
   private readonly heartbeat: Required<ClientHeartbeatOptions>
+  private readonly websocketConstructor: WebSocketLikeConstructor
 
-  private readonly opts: Required<Omit<ClientOptions<C>, 'token' | 'heartbeat'>> & Pick<ClientOptions<C>, 'token'> & {
-    heartbeat: Required<ClientHeartbeatOptions>
-  }
+  private readonly opts:
+    & Required<Omit<ClientOptions<C>, 'token' | 'heartbeat' | 'websocketConstructor' | 'configSchema'>>
+    & Pick<ClientOptions<C>, 'token' | 'heartbeat' | 'configSchema'>
 
   private readonly eventListeners = new Map<
     keyof WebSocketEvents<C>,
@@ -133,6 +138,7 @@ export class Client<C = undefined> {
   private readonly stateListeners = new Set<(context: ClientStateChangeContext) => void>()
 
   constructor(options: ClientOptions<C>) {
+    const { websocketConstructor, ...clientOptions } = options
     const identity = options.identity ?? {
       kind: 'plugin',
       plugin: { id: options.name },
@@ -143,6 +149,7 @@ export class Client<C = undefined> {
 
     this.opts = {
       url: 'ws://localhost:6121/ws',
+      connectTimeoutMs: 15_000,
       onAnyMessage: () => {},
       onAnySend: () => {},
       possibleEvents: [],
@@ -155,13 +162,14 @@ export class Client<C = undefined> {
       autoConnect: true,
       autoReconnect: true,
       maxReconnectAttempts: -1,
-      ...options,
+      ...clientOptions,
       heartbeat,
       identity,
     }
 
     this.identity = identity
     this.heartbeat = heartbeat
+    this.websocketConstructor = websocketConstructor ?? (NativeWebSocket as unknown as WebSocketLikeConstructor)
 
     if (this.opts.autoConnect) {
       void this.connect()
@@ -177,7 +185,7 @@ export class Client<C = undefined> {
   }
 
   get isSocketOpen() {
-    return this.websocket?.readyState === WebSocket.OPEN
+    return this.websocket?.readyState === this.websocketConstructor.OPEN
   }
 
   get lastError() {
@@ -294,7 +302,7 @@ export class Client<C = undefined> {
     const websocket = this.websocket
     this.websocket = undefined
 
-    if (websocket && websocket.readyState !== WebSocket.CLOSED && websocket.readyState !== WebSocket.CLOSING) {
+    if (websocket && websocket.readyState !== this.websocketConstructor.CLOSED && websocket.readyState !== this.websocketConstructor.CLOSING) {
       websocket.close()
     }
 
@@ -347,7 +355,8 @@ export class Client<C = undefined> {
   }
 
   private connectOnce(): Promise<void> {
-    const ws = new WebSocket(this.opts.url)
+    const WebSocketConstructor = this.websocketConstructor
+    const ws = new WebSocketConstructor(this.opts.url)
     this.websocket = ws
     this.lastReadAt = Date.now()
     this.lastPingAt = 0
@@ -365,8 +374,21 @@ export class Client<C = undefined> {
     this.connectionAttempt = attempt
 
     const isCurrentSocket = () => this.websocket === ws
+    const connectTimeoutMs = this.opts.connectTimeoutMs
+    const connectTimer = setTimeout(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        return
+      }
 
-    ws.onmessage = (event: MessageEvent) => {
+      ws.close()
+      deferred.reject(new Error(`Connection timeout after ${connectTimeoutMs}ms`))
+    }, connectTimeoutMs)
+
+    const clearConnectTimer = () => {
+      clearTimeout(connectTimer)
+    }
+
+    ws.onmessage = (event: WebSocketMessageEventLike) => {
       if (!isCurrentSocket()) {
         return
       }
@@ -375,6 +397,8 @@ export class Client<C = undefined> {
     }
 
     ws.onerror = (event: any) => {
+      clearConnectTimer()
+
       if (!isCurrentSocket()) {
         return
       }
@@ -390,6 +414,8 @@ export class Client<C = undefined> {
     }
 
     ws.onclose = () => {
+      clearConnectTimer()
+
       if (!isCurrentSocket()) {
         return
       }
@@ -404,6 +430,7 @@ export class Client<C = undefined> {
 
       if (wasReady && this.opts.autoReconnect) {
         this.pendingReconnect = true
+        this.transitionTo('idle')
         void this.connect()
         return
       }
@@ -412,6 +439,8 @@ export class Client<C = undefined> {
     }
 
     ws.onopen = () => {
+      clearConnectTimer()
+
       if (!isCurrentSocket()) {
         return
       }
@@ -433,7 +462,7 @@ export class Client<C = undefined> {
     return attempt.promise
   }
 
-  private handleSocketFailure(error: Error, socket?: WebSocket) {
+  private handleSocketFailure(error: Error, socket?: WebSocketLike) {
     if (socket && this.websocket !== socket) {
       return
     }
@@ -441,14 +470,14 @@ export class Client<C = undefined> {
     const currentSocket = socket ?? this.websocket
     this.cleanupSocket(socket)
 
-    if (currentSocket && currentSocket.readyState !== WebSocket.CLOSED && currentSocket.readyState !== WebSocket.CLOSING) {
+    if (currentSocket && currentSocket.readyState !== this.websocketConstructor.CLOSED && currentSocket.readyState !== this.websocketConstructor.CLOSING) {
       currentSocket.close()
     }
 
     this.rejectAttempt(error)
   }
 
-  private cleanupSocket(socket?: WebSocket) {
+  private cleanupSocket(socket?: WebSocketLike) {
     if (socket && this.websocket !== socket) {
       return
     }
@@ -576,7 +605,7 @@ export class Client<C = undefined> {
     })
   }
 
-  private async handleMessage(event: MessageEvent) {
+  private async handleMessage(event: WebSocketMessageEventLike) {
     this.lastReadAt = Date.now()
 
     try {
@@ -661,6 +690,42 @@ export class Client<C = undefined> {
 
       case 'module:announced': {
         if (!this.isSelfAnnouncement(data)) {
+          return
+        }
+
+        if (this.status === 'ready') {
+          return
+        }
+
+        if (this.connectionAttempt) {
+          this.connectionAttempt.announced = true
+        }
+
+        this.reconnectAttempts = 0
+        this.transitionTo('ready')
+        this.resolveAttempt()
+        this.opts.onReady?.()
+        return
+      }
+
+      case 'registry:modules:sync': {
+        // Fallback: If the status is stuck at 'announcing' but the sync already contains this module,
+        // it means the announce succeeded; the server simply didn't send back 'module:announced'
+        if (this.status !== 'announcing' || !this.connectionAttempt) {
+          return
+        }
+
+        const modules = (data.data as any)?.modules as Array<{
+          name: string
+          identity?: { id?: string }
+        }> ?? []
+
+        const selfRegistered = modules.some(
+          m => m.name === this.opts.name
+            && m.identity?.id === this.identity.id,
+        )
+
+        if (!selfRegistered) {
           return
         }
 
@@ -755,7 +820,7 @@ export class Client<C = undefined> {
   }
 
   private sendNativeHeartbeat(kind: 'ping' | 'pong') {
-    const websocket = this.websocket as WebSocket & {
+    const websocket = this.websocket as WebSocketLike & {
       ping?: () => void
       pong?: () => void
     }
@@ -809,7 +874,7 @@ export class Client<C = undefined> {
     this.cleanupSocket(websocket)
     this.rejectAttempt(error)
 
-    if (websocket && websocket.readyState !== WebSocket.CLOSED && websocket.readyState !== WebSocket.CLOSING) {
+    if (websocket && websocket.readyState !== this.websocketConstructor.CLOSED && websocket.readyState !== this.websocketConstructor.CLOSING) {
       websocket.close()
     }
 
@@ -822,6 +887,7 @@ export class Client<C = undefined> {
       return
     }
 
+    this.transitionTo('idle')
     void this.connect()
   }
 }

@@ -108,6 +108,12 @@ onMounted(async () => {
     await providersStore.fetchModelsForProvider(providerId)
 
     const config = providersStore.getProviderConfig(providerId)
+
+    // Persist the default model if none is saved yet so validation passes on first visit
+    if (!config.model) {
+      config.model = getDefaultKokoroModel(hasWebGPU.value)
+    }
+
     const metadata = providersStore.getProviderMetadata(providerId)
     const validationResult = await metadata.validators.validateProviderConfig(config)
     if (validationResult.valid) {

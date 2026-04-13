@@ -3,6 +3,7 @@ ignorePaths: []
 dictionaryDefinitions: []
 dictionaries: []
 words:
+  - 433DLLA855
   - acubismmotion
   - Aerisita
   - aihubmix
@@ -16,6 +17,7 @@ words:
   - allseto
   - animejs
   - APNG
+  - APPSTORE
   - Armbruster
   - asar
   - astrojs
@@ -41,10 +43,12 @@ words:
   - catppuccin
   - cdylib
   - cerebras
+  - chillroundm
   - cientos
   - cjkfonts
   - clippy
   - clustr
+  - codesign
   - collectblock
   - colorjs
   - cometapi
@@ -133,6 +137,8 @@ words:
   - injeca
   - injecta
   - intlify
+  - ITCHIO
+  - itmstransporter
   - jlumbroso
   - jszip
   - Kawaii
@@ -142,6 +148,7 @@ words:
   - kirakira
   - knip
   - kwaa
+  - Landmarker
   - lemonneko
   - lemonnekogh
   - lerp
@@ -177,6 +184,8 @@ words:
   - minimizable
   - minisearch
   - mkdist
+  - mobileprovision
+  - Mocap
   - modelcontextprotocol
   - modnet
   - moeru
@@ -198,6 +207,7 @@ words:
   - novita
   - nprogress
   - nsis
+  - Nunito
   - nuxi
   - nuxt
   - nuxtjs
@@ -216,6 +226,7 @@ words:
   - otelcol
   - owenthereal
   - oxlint
+  - pbxproj
   - pglite
   - pgvector
   - picklist
@@ -242,6 +253,7 @@ words:
   - rdev
   - rehype
   - reka
+  - remarkablegames
   - Replayable
   - resampler
   - RGBE
@@ -255,6 +267,7 @@ words:
   - safetensors
   - SAVEPOINT
   - Screenable
+  - sdkmanager
   - sensenova
   - serde
   - Shadcn
@@ -266,6 +279,7 @@ words:
   - sizecheck
   - smallserial
   - Sniglet
+  - softprops
   - sonarjs
   - sonner
   - specta
@@ -283,6 +297,8 @@ words:
   - tauri
   - taze
   - tempora
+  - temurin
+  - testflight
   - tinyexec
   - togetherapi
   - tolist
@@ -300,9 +316,11 @@ words:
   - unplugin
   - unspeech
   - upterm
+  - userversion
   - valibot
   - vaul
   - velin
+  - vishot
   - VITE
   - vitepress
   - vllm
@@ -325,6 +343,8 @@ words:
   - worklets
   - xast
   - xastscript
+  - xcarchive
+  - xcodeproj
   - Xenova
   - xiaolai
   - xsai

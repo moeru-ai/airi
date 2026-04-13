@@ -7,10 +7,10 @@ chat:
   reasoning: 推論
 message: 何か話しかけてみましょう…
 send-mode:
-  title: Send key
+  title: キーを送信
   enter: Enter
   ctrl-enter: Ctrl + Enter
-  double-enter: Double Enter
+  double-enter: Enter二回
 operations:
   load-models: モデルの読み込み
   load-models-status:
@@ -39,6 +39,52 @@ profile-switcher:
   no-profile: プロファイルがありません
   no-profiles: まだプロファイルがありません
   save-as-new: 新規プロファイルとして保存
-  new-profile-name: Profile name
+  new-profile-name: プロファイル名
   manage: プロファイルを管理
+promo-banner:
+  items:
+    signin:
+      watermark: 月
+      fallbackLabel: 月の贈り物
+      title: 7日間のログイン
+      eventName: スターダストやアバターフレーム、ローンチ特典を受け取るにはログインしてください。
+      date: 03/28 - 04/10
+      reward: 最大120スターダスト
+      cta: サインイン
+    build:
+      watermark: ビルド
+      fallbackLabel: ビルドボーナス
+      title: 補給箱ボーナス
+      eventName: ビルド作業を完了してボーナスバウチャーを獲得し、資材を2倍にしよう。
+      date: 03/30 - 04/12
+      reward: 供給券5枚＋アップグレード用資材
+      cta: タスクを表示
+    spring:
+      watermark: 春
+      fallbackLabel: 春の抽選会
+      title: カプセルカーニバル
+      eventName: 春の抽選会に参加して、バブルやチャーム、テーマ家具を解放しよう。
+      date: 04/01 - 04/18
+      reward: 初回半額＋レアチャーム付き
+      cta: 今すぐ抽選
+    coupon:
+      watermark: トーク
+      fallbackLabel: クーポン
+      title: チャージクーポン
+      eventName: チャットでのやり取りを完了して、拡張パックやボイスパック用のクーポンを獲得しましょう。
+      date: 04/02 - 04/20
+      reward: 30のご利用で6お得 / 68のご利用で15お得
+      cta: クーポンを受け取る
+    home:
+      watermark: ホーム
+      fallbackLabel: 部屋のテーマ
+      title: 春のテーマアップデート
+      eventName: 窓・机・ナイトランプのテーマをアンロックして、部屋を刷新しましょう。
+      date: 04/05 - 04/22
+      reward: Free Theme Draw Ticket on Sign-in
+      cta: テーマを表示
 waiting: 待機中
+websocket-status:
+  connected: WebSocketが接続されました
+  disconnected: WebSocketが切断されました
+  open-settings: WebSocketの設定を開く

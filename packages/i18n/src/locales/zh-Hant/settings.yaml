@@ -61,9 +61,26 @@ dialogs:
       stateRequesting: Requesting...
       stateGranted: Granted
       stateNotGranted: Not granted
+  bug-report:
+    title: Bug report (´;ω;`)ヾ(･∀･`)
+    subtitle: Oops, sorry we made something wrong. Would you mind telling us what happened?
+    trigger-label: Report a Bug
+    submit-label: Send Bug Report
+    triage-description: Include screenshot and page context to help us triage this issue.
+    description-placeholder: Steps to reproduce, expected behavior, and actual behavior
+    include-current-page-screenshot: Include current page screenshot
+    manual-media:
+      label: Manually choose screenshots / recordings
+      optional: Optional.
+    media-files:
+      label: Media files
+      description: 'Optional: manually select.'
+      placeholder: Choose screenshot or video file
+      selected-count: '{count} file(s) selected'
+    last-submitted-preview: Last Submitted Payload Preview
 language:
   title: 語言
-  description: >
+  description: |
     UI language. You can set characters' language later.
 controls-island:
   icon-size:
@@ -75,7 +92,8 @@ controls-island:
 analytics:
   notice:
     title: Usage analytics
-    description: AIRI collects anonymous usage analytics to help us understand how the app is used and improve stability. No personal data is collected.
+    description: >-
+      AIRI collects anonymous usage analytics to help us understand how the app is used and improve stability. No personal data is collected.
     privacyPrefix: Read the
     privacyLink: privacy policy
     onboardingHint: You can turn analytics off later in Settings > System > General.
@@ -115,6 +133,8 @@ live2d:
     title: 停用模型滑鼠追蹤
     button-disable:
       title: Disable model mouse tracking
+  render-scale:
+    title: Render scale
   fps:
     title: FPS
     description: 限制渲染幀率
@@ -123,6 +143,15 @@ live2d:
 microphone: 麥克風
 models: 模型
 pages:
+  account:
+    title: Account
+    description: View your profile and manage your account
+    notLoggedIn: Sign in to view your account and access all features
+    login: Sign in
+    logout: Sign out
+    fluxBalance: Flux Balance
+    viewFluxDetails: View details
+    signedInAs: Signed in as
   card:
     activate: 啟用
     active: 已啟用
@@ -375,16 +404,33 @@ pages:
       description: 一起玩 Minecraft！
       title: 我的世界 Minecraft
       enable: 啟用我的世界集成
-      enable-description: 允許 AIRI 與我的世界遊戲互動
-      server-address: 伺服器地址
-      server-address-description: 我的世界伺服器的 IP 地址或主機名稱
-      server-address-placeholder: 輸入伺服器地址（例如：localhost 或 play.example.com）
-      server-port: 伺服器端口
-      server-port-description: 我的世界伺服器的端口號（預設 25565）
-      username: 使用者名稱
-      username-description: 您在我的世界伺服器中的使用者名稱
-      username-placeholder: 輸入您的我的世界使用者名稱
+      enable-description: >-
+        Include Minecraft self-knowledge in Stage chat turns and keep passive runtime visibility enabled.
       configured: 我的世界已正確設定！
+      read-only:
+        title: Read-only shell
+        description: >-
+          Stage currently exposes Minecraft as a passive shell. Runtime status and traffic are visible here, but service configuration stays in the Minecraft service files.
+      setup:
+        title: Setup
+        description: >-
+          You can find the instructions for setting up the bot in the following file
+      runtime:
+        title: Observed runtime
+        connection: Connection
+        latest-context: Latest bot context
+        waiting: Waiting for a fresh bot-originated context push.
+        unknown: Unknown
+      debug:
+        title: Minecraft traffic
+        empty: No Minecraft traffic observed yet.
+        source: 'Source: {source}'
+      status:
+        service-online: Service online
+        service-offline: Service offline
+        no-runtime-context: No bot context observed yet
+        last-context-seconds: 'Last bot context: {seconds}s ago'
+        last-context-stale: 'Last bot context: Stale'
     hearing:
       description: 語音辨識
       title: 聽覺
@@ -394,7 +440,8 @@ pages:
             description: 選擇合適的語音辨識提供者
           confidence-threshold:
             title: Confidence Threshold
-            description: Filter out low-confidence transcriptions to reduce Whisper hallucinations. Values closer to 0 are more strict; drag to the leftmost to disable. Only effective for providers supporting Whisper API (e.g., OpenAI, Groq).
+            description: >-
+              Filter out low-confidence transcriptions to reduce Whisper hallucinations. Values closer to 0 are more strict; drag to the leftmost to disable. Only effective for providers supporting Whisper API (e.g., OpenAI, Groq).
             disabled: Disabled
             verbose-json-note: >-
               Note: If your provider does not support verbose_json responses, this setting will have no effect.
@@ -486,10 +533,12 @@ pages:
         apply-and-restart: 儲存並重新啟動 stdio MCP
       messages:
         opened: 已於 {path} 開啟設定檔
-        restarted: MCP 伺服器已重新啟動。已啟動：{started}，已失敗：{failed}，已略過：{skipped}
+        restarted: >-
+          MCP 伺服器已重新啟動。已啟動：{started}，已失敗：{failed}，已略過：{skipped}
   flux:
     title: Flux
     buy: Charge
+    currency: Currency
     description: Current Flux
     packagesError: Failed to load packages. Please try again later.
     checkout:
@@ -509,6 +558,7 @@ pages:
       empty: No transaction records yet.
       loadMore: Load More
       delayHint: Usage records may be delayed by up to 1 minute
+      ttsRequests: requests
     packages:
       title: Flux Packages
       buy: Charge
@@ -596,7 +646,7 @@ pages:
                       很抱歉，Ollama 連接檢查失敗。不要擔心，如果使用 Ollama，需要額外配置才能通過 Ollama。 您需要在啟動 Olama 應用程序或 Ollama CLI 伺服器時明確設置 <code>OLLAMA_HOST</code> 詳情，請檢查 <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama 集成指南</a>。
     common:
       continueAnyway: 仍然繼續
-      goToModelSelection: '選擇模型→'
+      goToModelSelection: 選擇模型→
       fields:
         field:
           api-key:
@@ -884,6 +934,45 @@ pages:
       description: WebSocket 伺服器的完整位址（例如：ws://localhost:6121/ws）
       label: WebSocket 伺服器位址
       placeholder: ws://localhost:6121/ws
+    server-hostname:
+      label: Expose On Network
+      description: >-
+        Choose whether the AIRI gateway only listens on this device or can be reached from your local network.
+      advanced-label: Bind Hostname
+      advanced-description: >-
+        Use a specific hostname or IP address when you need manual network binding.
+      options:
+        this-device: This device
+        all: All
+        advanced: Advanced
+    server-auth-token:
+      label: Auth Token
+      description: >-
+        Security token required by remote clients that connect to this gateway. When left empty, AIRI generates a new token automatically.
+      placeholder: Auto-generate
+    qr:
+      title: Connect from Stage Pocket
+      description: >-
+        Scan this QR code from Stage Pocket to try all reachable local network addresses and save the first working one.
+      refresh: Refresh
+      image-alt: AIRI server channel connection QR code
+      candidates: Candidate addresses
+      token-hint: >-
+        The QR code includes the auth token so Stage Pocket can authenticate after connecting. Do not share it publicly.
+      errors:
+        title: QR code unavailable
+        unavailable: Failed to prepare the connection QR code.
+    qr-scan:
+      title: Quick Connect
+      description: Scan the QR code from Tamagotchi to quick connect
+      instructions: Point the camera at the AIRI connection QR code.
+      action: Scan
+      success:
+        title: Connected address saved
+        description: 'URL been used: {url}'
+      errors:
+        title: QR scan failed
+        failed: Failed to scan or connect with the QR code.
   scene:
     description: 設定角色所在環境
     title: 場景
@@ -957,7 +1046,7 @@ pages:
                   將麥克風音訊串流至阿里雲 NLS 並檢查即時轉錄文字
               performance-playground:
                 title: 效能實驗場
-                description: 'VRM 表情 + TTS 嘴型同步實驗場'
+                description: VRM 表情 + TTS 嘴型同步實驗場
         theme-presets:
           presets:
             default:
@@ -1046,6 +1135,8 @@ theme:
 title: 設定
 voices: 聲線
 vrm:
+  render-scale:
+    title: Render scale
   change-model:
     from-file: 從檔案載入
     from-file-select: 選擇

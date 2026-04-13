@@ -84,49 +84,6 @@ describe('configKVService', () => {
     expect(value).toBe(500)
   })
 
-  // --- FLUX_PACKAGES (JSON) ---
-
-  it('get FLUX_PACKAGES should parse JSON array', async () => {
-    const packages = [
-      { amount: 500, fluxAmount: 5000, label: '5000 Flux', price: '$5' },
-      { amount: 1000, fluxAmount: 12000, label: '12000 Flux', price: '$10' },
-    ]
-    redis._store.set(configRedisKey('FLUX_PACKAGES'), JSON.stringify(packages))
-
-    const value = await service.getOrThrow('FLUX_PACKAGES')
-    expect(value).toEqual(packages)
-  })
-
-  it('set FLUX_PACKAGES should serialize as JSON', async () => {
-    const packages = [{ amount: 500, fluxAmount: 5000, label: '5000 Flux', price: '$5' }]
-    await service.set('FLUX_PACKAGES', packages)
-
-    const stored = redis._store.get(configRedisKey('FLUX_PACKAGES'))
-    expect(stored).toBe(JSON.stringify(packages))
-  })
-
-  it('fLUX_PACKAGES round-trip should preserve structure', async () => {
-    const packages = [
-      { amount: 500, fluxAmount: 5000, label: '5000 Flux', price: '$5' },
-      { amount: 1000, fluxAmount: 12000, label: '12000 Flux', price: '$10' },
-      { amount: 5000, fluxAmount: 75000, label: '75000 Flux', price: '$50' },
-    ]
-    await service.set('FLUX_PACKAGES', packages)
-
-    const value = await service.getOrThrow('FLUX_PACKAGES')
-    expect(value).toEqual(packages)
-  })
-
-  it('getOptional FLUX_PACKAGES should return schema default when not set', async () => {
-    const value = await service.getOptional('FLUX_PACKAGES')
-    expect(value).toEqual([])
-  })
-
-  it('get MAX_CHECKOUT_AMOUNT_CENTS should return schema default when not set', async () => {
-    const value = await service.get('MAX_CHECKOUT_AMOUNT_CENTS')
-    expect(value).toBe(1_000_000)
-  })
-
   it('set should store string values as JSON strings', async () => {
     await service.set('GATEWAY_BASE_URL', 'https://gateway.example.com')
 

@@ -74,6 +74,12 @@ const menu = computed(() => [
     to: '/devtools/plugin-host',
   },
   {
+    title: 'Updater',
+    description: 'Inspect updater state, explicit feed overrides, and install actions',
+    icon: 'i-solar:restart-bold-duotone',
+    to: '/devtools/updater',
+  },
+  {
     title: 'Screen Capture',
     description: 'Capture screen or window as video and/or audio streams',
     icon: 'i-solar:screen-share-bold-duotone',
@@ -137,7 +143,6 @@ const openDevtoolsWindow = useElectronEventaInvoke(electronOpenDevtoolsWindow)
     description="settings.animations.use-page-specific-transitions.description"
     transition="all ease-in-out duration-250"
   />
-
   <div flex="~ col gap-4" mt-2 pb-12>
     <IconItem
       v-for="(item, index) in menu"

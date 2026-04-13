@@ -1,0 +1,14 @@
+diff --git a/dist/server/node.mjs b/dist/server/node.mjs
+index 02a3dbbdf8487e25addd61cd85bc77e8e5ea1a55..010ebece41cacb7a1f43b336ab6dbe13d35f8b40 100644
+--- a/dist/server/node.mjs
++++ b/dist/server/node.mjs
+@@ -13,6 +13,9 @@ function plugin(wsOpts) {
+ 		});
+ 		const originalServe = server.serve;
+ 		server.serve = () => {
++			server.node?.server.on("error", (err) => {
++				console.error("[crossws] Server error:", err);
++			});
+ 			server.node?.server.on("upgrade", (req, socket, head) => {
+ 				ws.handleUpgrade(req, socket, head, new NodeRequest({
+ 					req,

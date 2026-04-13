@@ -10,6 +10,7 @@ import { useI18n } from 'vue-i18n'
 
 import ControlButtonTooltip from './control-button-tooltip.vue'
 import ControlButton from './control-button.vue'
+import ControlsIslandAuthButton from './controls-island-auth-button.vue'
 import ControlsIslandFadeOnHover from './controls-island-fade-on-hover.vue'
 import ControlsIslandHearingConfig from './controls-island-hearing-config.vue'
 import ControlsIslandProfilePicker from './controls-island-profile-picker.vue'
@@ -135,6 +136,11 @@ function refreshWindow() {
         leave-to-class="opacity-0 translate-y-8 scale-90 blur-sm"
       >
         <div v-if="expanded" border="1 neutral-200 dark:neutral-800" mb-2 flex flex-col gap-1 rounded-2xl p-2 backdrop-blur-xl class="bg-neutral-100/80 shadow-2xl shadow-black/20 dark:bg-neutral-900/80">
+          <ControlsIslandAuthButton
+            :button-style="adjustStyleClasses.button"
+            :icon-class="adjustStyleClasses.icon"
+          />
+
           <div grid grid-cols-3 gap-2>
             <ControlButtonTooltip disable-hoverable-content>
               <ControlButton :button-style="adjustStyleClasses.button" @click="openSettings({ route: '/settings' })">

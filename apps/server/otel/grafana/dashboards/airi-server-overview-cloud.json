@@ -668,7 +668,7 @@
                     "kind": "DataQuery",
                     "spec": {
                       "expr": "sum(rate(user_login_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
-                      "legendFormat": "logins/s"
+                      "legendFormat": "sign-ins/s"
                     },
                     "version": "v0"
                   },
@@ -700,7 +700,7 @@
         "description": "",
         "id": 32,
         "links": [],
-        "title": "User Logins & Registrations",
+        "title": "User Sign-ins & Registrations",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",

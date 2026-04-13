@@ -41,6 +41,7 @@ import {
   pluginProtocolListProviders,
   pluginProtocolListProvidersEventName,
 } from '../shared/eventa'
+import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-callback'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
@@ -65,6 +66,7 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const context = useElectronEventaContext()
 usePerfTracerBridgeStore()
 initializeStageThreeRuntimeTraceBridge()
+initializeElectronAuthCallbackBridge()
 void stageWindowLifecycleStore.initializeWindowLifecycleBridge()
 const getServerChannelConfig = useElectronEventaInvoke(electronGetServerChannelConfig)
 const listPlugins = useElectronEventaInvoke(electronPluginList)
@@ -120,6 +122,7 @@ context.value.on(electronSettingsNavigate, (event) => {
 
 onMounted(async () => {
   analyticsStore.initialize()
+  await displayModelsStore.initialize()
   cardStore.initialize()
 
   await chatSessionStore.initialize()
@@ -128,9 +131,14 @@ onMounted(async () => {
   await settingsAudioDeviceStore.initialize()
 
   const serverChannelConfig = await getServerChannelConfig()
-  serverChannelSettingsStore.websocketTlsConfig = serverChannelConfig.tlsConfig
+  serverChannelSettingsStore.tlsConfig = serverChannelConfig.tlsConfig ?? null
+  serverChannelSettingsStore.hostname = serverChannelConfig.hostname
+  serverChannelSettingsStore.authToken = serverChannelConfig.authToken
 
-  await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
+  await serverChannelStore.initialize({
+    token: serverChannelConfig.authToken || undefined,
+    possibleEvents: ['ui:configure'],
+  }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
   if (!isChatWindowRoute()) {
     contextBridgeStore.initialize()
     characterOrchestratorStore.initialize()

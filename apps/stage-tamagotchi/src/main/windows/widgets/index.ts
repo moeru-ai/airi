@@ -8,6 +8,7 @@ import type { ServerChannel } from '../../services/airi/channel-server'
 import { join, resolve } from 'node:path'
 
 import { createContext } from '@moeru/eventa/adapters/electron/main'
+import { safeClose } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow as ElectronBrowserWindow, ipcMain, screen, shell } from 'electron'
 import { isMacOS } from 'std-env'
 import { number, object, optional } from 'valibot'
@@ -115,6 +116,7 @@ export function setupWidgetsWindowManager(params: {
 
   let pendingRoute: string | undefined
   let currentRoute: string | undefined
+  let activeWidgetsWindow: BrowserWindow | undefined
 
   let widgetsManager: WidgetsWindowManager | undefined
 
@@ -125,6 +127,7 @@ export function setupWidgetsWindowManager(params: {
     ipcMain.setMaxListeners(0)
 
     const window = createWidgetsWindow()
+    activeWidgetsWindow = window
     const { context } = createContext(ipcMain, window)
     eventaContext = context
 
@@ -162,6 +165,8 @@ export function setupWidgetsWindowManager(params: {
     window.on('closed', () => {
       eventaContext = undefined
       currentRoute = undefined
+      if (activeWidgetsWindow === window)
+        activeWidgetsWindow = undefined
       windowContexts.forEach((context) => {
         if (context.window === window)
           context.window = undefined
@@ -303,6 +308,19 @@ export function setupWidgetsWindowManager(params: {
       removeWidgetInternal(id, false)
 
     eventaContext?.emit(widgetsClearEvent, undefined)
+
+    const windowsToClose = new Set<BrowserWindow>()
+    if (activeWidgetsWindow && !activeWidgetsWindow.isDestroyed())
+      windowsToClose.add(activeWidgetsWindow)
+
+    windowContexts.forEach((context) => {
+      if (context.window && !context.window.isDestroyed())
+        windowsToClose.add(context.window)
+    })
+
+    for (const window of windowsToClose)
+      safeClose(window)
+
     windowContexts.clear()
   }
 

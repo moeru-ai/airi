@@ -1,23 +1,10 @@
 import type Redis from 'ioredis'
 import type { InferOutput } from 'valibot'
 
-import { array, number, object, optional, parse, string } from 'valibot'
+import { any, array, number, optional, parse, record, string } from 'valibot'
 
 import { createServiceUnavailableError } from '../utils/error'
 import { configRedisKey } from '../utils/redis-keys'
-
-export interface FluxPackage {
-  /** Amount in cents sent to Stripe */
-  amount: number
-  /** How much Flux the buyer receives for this package */
-  fluxAmount: number
-  /** Display label, e.g. "500 Flux" */
-  label: string
-  /** Display price, e.g. "$5" */
-  price: string
-}
-
-const FluxPackageSchema = object({ amount: number(), fluxAmount: number(), label: string(), price: string() })
 
 /**
  * Config entry schemas are the single source of truth for:
@@ -30,13 +17,16 @@ const ConfigEntrySchemas = {
   FLUX_PER_REQUEST_TTS: number(),
   FLUX_PER_REQUEST_ASR: number(),
   INITIAL_USER_FLUX: optional(number(), 0),
-  FLUX_PACKAGES: optional(array(FluxPackageSchema), []),
   FLUX_PER_1K_TOKENS: optional(number(), 1),
-  MAX_CHECKOUT_AMOUNT_CENTS: optional(number(), 1_000_000),
   GATEWAY_BASE_URL: string(),
   DEFAULT_CHAT_MODEL: string(),
   AUTH_RATE_LIMIT_MAX: optional(number(), 20),
   AUTH_RATE_LIMIT_WINDOW_SEC: optional(number(), 60),
+  // No default — absent means top-up is not available yet
+  STRIPE_FLUX_PRODUCT_ID: optional(string()),
+  // No default — absent lets Stripe auto-select payment methods via Dashboard config
+  STRIPE_PAYMENT_METHODS: optional(array(string())),
+  STRIPE_PAYMENT_METHOD_OPTIONS: optional(record(string(), any()), {}),
 } as const
 
 type ConfigDefinitions = {
