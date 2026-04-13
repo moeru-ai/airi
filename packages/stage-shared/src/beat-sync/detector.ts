@@ -47,7 +47,7 @@ export type CreateBeatSyncDetectorOptions
     | { env: StageEnvironment.Web }
     | { env: StageEnvironment.Capacitor }
 
-export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): BeatSyncDetector {
+export async function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): BeatSyncDetector {
   let context: AudioContext | undefined
   let analyser: Analyser | undefined
   let source: AudioNode | undefined
@@ -97,8 +97,7 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
     }, ms)
   }
 
-  syncMetronome(40, false) // Start the 40 BPM Sway
-  
+
   const emit = <E extends keyof BeatSyncDetectorEventMap>(event: E, ...args: Parameters<BeatSyncDetectorEventMap[E]>) => {
     listeners[event].forEach(listener => listener(...args))
   }
@@ -283,6 +282,20 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
     inputAnalyserNode?.getByteFrequencyData(inputAnalyserBuffer!)
     return inputAnalyserBuffer!
   }
+  
+  return {
+    start: async () => {
+      // ✅ START THE FALLBACK ONLY WHEN START IS CALLED
+      syncMetronome(40, false);
+      
+      state.isActive = true;
+      // ... rest of your port.onmessage and wiring logic ...
+    },
+    stop: () => {
+      state.isActive = false;
+      // Ensure you stop the timer here too!
+    }
+  };
 
   interface BpmEvent extends Event {
   detail: {
