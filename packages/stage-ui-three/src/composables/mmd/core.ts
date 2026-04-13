@@ -27,7 +27,7 @@ export interface MmdLoadResult {
 }
 
 // 判断材质类型的辅助函数
-function getMaterialType(matName: string): 'skin' | 'eye' | 'sock' | 'hair' | 'cloth' | 'other' {
+export function getMaterialType(matName: string): 'skin' | 'eye' | 'sock' | 'hair' | 'cloth' | 'other' {
   const name = matName.toLowerCase()
 
   // 输出调试信息

@@ -14,6 +14,8 @@ export default defineConfig({
       'packages/server-sdk',
       'packages/stage-shared',
       'packages/stage-ui',
+      'packages/stage-ui-live2d',
+      'packages/stage-ui-three',
       'packages/vishot-runtime',
       'packages/vite-plugin-warpdrive',
     ],
