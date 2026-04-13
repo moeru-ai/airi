@@ -73,7 +73,12 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
   let inputAnalyserNode: AnalyserNode | undefined
   let inputAnalyserBuffer: Uint8Array<ArrayBuffer> | undefined
   let beatInterval: any | undefined
-  const rhythmAnalyzer = new RealTimeBpmAnalyzer()
+  const rhythmAnalyzer = new (RealTimeBpmAnalyzer as any)({
+    continuousAnalysis: true,
+    stabilizationTime: 1000,
+    importSharedOptions: true,
+    sampleRate: 44100
+  })
 
   const listeners: { [K in keyof BeatSyncDetectorEventMap]: Array<(...args: any) => void> } = {
     stateChange: [],
