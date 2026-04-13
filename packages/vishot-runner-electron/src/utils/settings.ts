@@ -1,4 +1,3 @@
-/* eslint-disable e18e/prefer-static-regex */
 import type { Page } from 'playwright'
 
 function normalizeLabel(label: RegExp | string): string | RegExp {
