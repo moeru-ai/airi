@@ -18,6 +18,10 @@ const ConfigEntrySchemas = {
   FLUX_PER_REQUEST_ASR: number(),
   INITIAL_USER_FLUX: optional(number(), 0),
   FLUX_PER_1K_TOKENS: optional(number(), 1),
+  FLUX_PER_1K_CHARS_TTS: number(),
+  // Debt-ledger TTL: residual TTS chars below 1 Flux are forgiven on expiry.
+  // 24h gives users a long-enough window for accumulated dust to settle naturally.
+  TTS_DEBT_TTL_SECONDS: optional(number(), 86400),
   GATEWAY_BASE_URL: string(),
   DEFAULT_CHAT_MODEL: string(),
   AUTH_RATE_LIMIT_MAX: optional(number(), 20),

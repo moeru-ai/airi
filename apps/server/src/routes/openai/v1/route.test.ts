@@ -37,8 +37,8 @@ function createMockBillingService(flux = 100): BillingService {
 function createMockConfigKV(overrides: Record<string, any> = {}): ConfigKVService {
   const defaults: Record<string, any> = {
     FLUX_PER_REQUEST: 1,
-    FLUX_PER_REQUEST_TTS: 1,
-    FLUX_PER_REQUEST_ASR: 1,
+    FLUX_PER_1K_CHARS_TTS: 2,
+    TTS_DEBT_TTL_SECONDS: 86400,
     GATEWAY_BASE_URL: 'http://mock-gateway/',
     DEFAULT_CHAT_MODEL: 'openai/gpt-5-mini',
     ...overrides,
@@ -66,13 +66,36 @@ function createMockBillingMq(): MqService<BillingEvent> {
   } as any
 }
 
+function createMockTtsMeter(unitsPerFlux = 1000) {
+  let debt = 0
+  return {
+    assertCanAfford: vi.fn(async () => undefined),
+    accumulate: vi.fn(async ({ units, currentBalance }: { units: number, currentBalance: number }) => {
+      debt += units
+      const fluxDebited = Math.floor(debt / unitsPerFlux)
+      debt -= fluxDebited * unitsPerFlux
+      return { fluxDebited, debtAfter: debt, balanceAfter: currentBalance - fluxDebited }
+    }),
+    peekDebt: vi.fn(async () => debt),
+    config: { name: 'tts', unitsPerFlux, debtTtlSeconds: 86400 },
+  } as any
+}
+
 function createTestApp(
   fluxService: FluxService,
   configKV: ConfigKVService,
   billingService?: BillingService,
   billingMq?: MqService<BillingEvent>,
+  ttsMeter?: ReturnType<typeof createMockTtsMeter>,
 ) {
-  const routes = createV1CompletionsRoutes(fluxService, billingService ?? createMockBillingService(), configKV, billingMq ?? createMockBillingMq(), null)
+  const routes = createV1CompletionsRoutes(
+    fluxService,
+    billingService ?? createMockBillingService(),
+    configKV,
+    billingMq ?? createMockBillingMq(),
+    ttsMeter ?? createMockTtsMeter(),
+    null,
+  )
   const app = new Hono<HonoEnv>()
 
   app.onError((err, c) => {
@@ -381,6 +404,56 @@ describe('v1CompletionsRoutes', () => {
     it('should proxy transcription request to upstream', async () => {
       globalThis.fetch = vi.fn(async () => new Response('{"text":"hello"}', {
         status: 200,
+        headers: { 'Content-Type': 'audio/mpeg' },
+      }))
+
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({ DEFAULT_TTS_MODEL: 'tts-1-hd' }),
+      )
+
+      await app.fetch(
+        new Request('http://localhost/api/v1/openai/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', input: 'test', voice: 'alloy' }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        'http://mock-gateway/audio/speech',
+        expect.objectContaining({
+          body: expect.stringContaining('"model":"tts-1-hd"'),
+        }),
+      )
+    })
+
+    it('should bill per character with minimum charge', async () => {
+      globalThis.fetch = vi.fn(async () => new Response(new Uint8Array([1]), {
+        status: 200,
+        headers: { 'Content-Type': 'audio/mpeg' },
+      }))
+
+      const billingService = createMockBillingService(100)
+      // Debt ledger: short input below unitsPerFlux accumulates without debit.
+      const app = createTestApp(createMockFluxService(), createMockConfigKV(), billingService)
+
+      await app.fetch(
+        new Request('http://localhost/api/v1/openai/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', input: 'hello', voice: 'alloy' }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(billingService.consumeFluxForLLM).not.toHaveBeenCalled()
+    })
+
+    it('should not charge when upstream returns error', async () => {
+      globalThis.fetch = vi.fn(async () => new Response('{"error":"service down"}', {
+        status: 500,
         headers: { 'Content-Type': 'application/json' },
       }))
 
@@ -395,6 +468,85 @@ describe('v1CompletionsRoutes', () => {
           method: 'POST',
           body: formData,
         }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(500)
+      expect(billingService.consumeFluxForLLM).not.toHaveBeenCalled()
+    })
+
+    it('should return 402 when flux is insufficient', async () => {
+      const app = createTestApp(
+        createMockFluxService(0),
+        createMockConfigKV(),
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/openai/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', input: 'hello', voice: 'alloy' }),
+        }),
+        { user: testUser } as any,
+      )
+      expect(res.status).toBe(402)
+    })
+
+    it('should not charge when input is empty', async () => {
+      globalThis.fetch = vi.fn(async () => new Response(new Uint8Array([1]), {
+        status: 200,
+        headers: { 'Content-Type': 'audio/mpeg' },
+      }))
+
+      const billingService = createMockBillingService(100)
+      const app = createTestApp(createMockFluxService(), createMockConfigKV(), billingService)
+
+      await app.fetch(
+        new Request('http://localhost/api/v1/openai/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', input: '', voice: 'alloy' }),
+        }),
+        { user: testUser } as any,
+      )
+
+      // Debt ledger: empty input adds 0 units, no debit triggered.
+      expect(billingService.consumeFluxForLLM).not.toHaveBeenCalled()
+    })
+
+    it('should charge proportionally for long input', async () => {
+      globalThis.fetch = vi.fn(async () => new Response(new Uint8Array([1]), {
+        status: 200,
+        headers: { 'Content-Type': 'audio/mpeg' },
+      }))
+
+      const billingService = createMockBillingService(100)
+      const ttsMeter = createMockTtsMeter()
+      // Mock meter unitsPerFlux = 1000, input = 2500 chars → debit 2 Flux, 500 dust.
+      const longInput = 'a'.repeat(2500)
+      const app = createTestApp(createMockFluxService(), createMockConfigKV(), billingService, undefined, ttsMeter)
+
+      await app.fetch(
+        new Request('http://localhost/api/v1/openai/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', input: longInput, voice: 'alloy' }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(ttsMeter.accumulate).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 'user-1', units: 2500 }),
+      )
+    })
+  })
+
+  describe('gET /api/v1/openai/audio/models', () => {
+    it('should return configured TTS model from config', async () => {
+      const app = createTestApp(createMockFluxService(), createMockConfigKV({ DEFAULT_TTS_MODEL: 'microsoft/v1' }))
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/openai/audio/models', { method: 'GET' }),
         { user: testUser } as any,
       )
 
