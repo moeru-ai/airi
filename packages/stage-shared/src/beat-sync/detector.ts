@@ -94,7 +94,8 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
     beatInterval = setInterval(() => {
       // Calculate real energy from the current buffer so jumps stay reactive
       let currentEnergy = 0
-      if (inputAnalyserBuffer) {
+      if (inputAnalyserNode && inputAnalyserBuffer) {
+        inputAnalyserNode.getByteFrequencyData(inputAnalyserBuffer)
         // Simple RMS-like average of the current frequency buffer
         const sum = inputAnalyserBuffer.reduce((a, b) => a + b, 0)
         currentEnergy = sum / inputAnalyserBuffer.length / 255
