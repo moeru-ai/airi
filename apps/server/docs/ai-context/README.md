@@ -23,6 +23,8 @@
   - `configKV` 默认值来源、Redis key 命名、HTTP route 命名、后续收敛 TODO
 - `billing-architecture.md`
   - 计费链路专项说明，重点看 Flux / Stripe / outbox / Redis Streams
+- `flux-meter.md`
+  - Sub-Flux 计量服务（TTS/STT 等）的债务账本机制与复用指南
 - `observability-conventions.md`
   - traces / metrics 命名规则，标准 OTel 字段与 `airi.*` 自定义字段边界
 - `auth-and-oidc.md`

@@ -25,6 +25,10 @@ export function userFluxRedisKey(userId: string): string {
   return createRedisKey('user', userId, 'flux')
 }
 
+export function userFluxMeterDebtRedisKey(userId: string, meterName: string): string {
+  return createRedisKey('user', userId, 'flux-meter', meterName, 'debt')
+}
+
 export function userChatBroadcastRedisKey(userId: string): string {
   return createRedisKey('user', userId, 'chat', 'broadcast')
 }

@@ -7,6 +7,7 @@ import type { MqService } from './libs/mq'
 import type { OtelInstance } from './libs/otel'
 import type { BillingEvent } from './services/billing/billing-events'
 import type { BillingService } from './services/billing/billing-service'
+import type { FluxMeter } from './services/billing/flux-meter'
 import type { CharacterService } from './services/characters'
 import type { ChatService } from './services/chats'
 import type { ConfigKVService } from './services/config-kv'
@@ -46,6 +47,7 @@ import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
 import { createBillingMq } from './services/billing/billing-events'
 import { createBillingService } from './services/billing/billing-service'
+import { createFluxMeter } from './services/billing/flux-meter'
 import { createCharacterService } from './services/characters'
 import { createChatService } from './services/chats'
 import { createConfigKVService } from './services/config-kv'
@@ -67,6 +69,7 @@ interface AppDeps {
   fluxTransactionService: FluxTransactionService
   stripeService: StripeService
   billingService: BillingService
+  ttsMeter: FluxMeter
   billingMq: MqService<BillingEvent>
   configKV: ConfigKVService
   redis: Redis
@@ -188,7 +191,7 @@ export async function buildApp(deps: AppDeps) {
     /**
      * V1 routes for official provider.
      */
-    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.billingMq, deps.otel?.genAi))
+    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.billingMq, deps.ttsMeter, deps.otel?.genAi))
 
     /**
      * Flux routes.
@@ -353,6 +356,22 @@ export async function createApp() {
     build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.billingMq, dependsOn.configKV, dependsOn.otel?.revenue),
   })
 
+  const ttsMeter = injeca.provide('services:ttsMeter', {
+    dependsOn: { redis, billingService, configKV },
+    build: async ({ dependsOn }) => {
+      // Derive unitsPerFlux from the existing rate config so a single tunable
+      // (FLUX_PER_1K_CHARS_TTS) drives both pricing and the debt threshold.
+      const fluxPer1kChars = await dependsOn.configKV.getOrThrow('FLUX_PER_1K_CHARS_TTS')
+      const ttl = await dependsOn.configKV.get('TTS_DEBT_TTL_SECONDS')
+      const unitsPerFlux = Math.max(1, Math.floor(1000 / fluxPer1kChars))
+      return createFluxMeter(dependsOn.redis, dependsOn.billingService, {
+        name: 'tts',
+        unitsPerFlux,
+        debtTtlSeconds: ttl,
+      })
+    },
+  })
+
   await injeca.start()
   const resolved = await injeca.resolve({
     db,
@@ -365,6 +384,7 @@ export async function createApp() {
     requestLogService,
     stripeService,
     billingService,
+    ttsMeter,
     billingMq,
     configKV,
     redis,
@@ -381,6 +401,7 @@ export async function createApp() {
     fluxTransactionService: resolved.fluxTransactionService,
     stripeService: resolved.stripeService,
     billingService: resolved.billingService,
+    ttsMeter: resolved.ttsMeter,
     billingMq: resolved.billingMq,
     configKV: resolved.configKV,
     redis: resolved.redis,
