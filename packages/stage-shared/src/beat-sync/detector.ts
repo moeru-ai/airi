@@ -401,4 +401,3 @@ export async function getBeatSyncInputByteFrequencyData() {
   throw new Error('Unknown environment for getBeatSyncInputByteFrequencyData()')
 }
 
-console.debug('This is to shut up typecheck:', rhythmAnalyzer);
