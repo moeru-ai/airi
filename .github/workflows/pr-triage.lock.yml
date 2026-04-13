@@ -1,13 +1,13 @@
 # gh-aw-metadata: {"schema_version":"v3","frontmatter_hash":"4119968c6357ec3cc0eb9f26fd93713b8a51a37b6727e2b68400ba87cb9f0f14","compiler_version":"v0.68.1","strict":true,"agent_id":"copilot"}
 # gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/checkout","sha":"de0fac2e4500dabe0009e67214ff5f5447ce83dd","version":"v6.0.2"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9"},{"repo":"actions/upload-artifact","sha":"bbbca2ddaa5d8feaa63e36b76fdaad77386f024f","version":"v7"},{"repo":"github/gh-aw-actions/setup","sha":"2fe53acc038ba01c3bbdc767d4b25df31ca5bdfc","version":"v0.68.1"}]}
-#    ___                   _   _
-#   / _ \                 | | (_)
-#  | |_| | __ _  ___ _ __ | |_ _  ___
+#    ___                   _   _      
+#   / _ \                 | | (_)     
+#  | |_| | __ _  ___ _ __ | |_ _  ___ 
 #  |  _  |/ _` |/ _ \ '_ \| __| |/ __|
-#  | | | | (_| |  __/ | | | |_| | (__
+#  | | | | (_| |  __/ | | | |_| | (__ 
 #  \_| |_/\__, |\___|_| |_|\__|_|\___|
 #          __/ |
-#  _    _ |___/
+#  _    _ |___/ 
 # | |  | |                / _| |
 # | |  | | ___ _ __ _  __| |_| | _____      ____
 # | |/\| |/ _ \ '__| |/ /|  _| |/ _ \ \ /\ / / ___|
@@ -36,13 +36,13 @@
 #   - actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
 #   - github/gh-aw-actions/setup@2fe53acc038ba01c3bbdc767d4b25df31ca5bdfc # v0.68.1
 
-name: 'PR Triage'
-'on':
+name: "PR Triage"
+"on":
   # roles: all # Roles processed as role check in pre-activation job
   workflow_dispatch:
     inputs:
       aw_context:
-        default: ''
+        default: ""
         description: Agent caller context (used internally by Agentic Workflows).
         required: false
         type: string
@@ -54,10 +54,10 @@ name: 'PR Triage'
 permissions: {}
 
 concurrency:
-  group: 'gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref || github.run_id }}'
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref || github.run_id }}"
   cancel-in-progress: true
 
-run-name: 'PR Triage'
+run-name: "PR Triage"
 
 jobs:
   activation:
@@ -66,8 +66,8 @@ jobs:
       actions: read
       contents: read
     outputs:
-      comment_id: ''
-      comment_repo: ''
+      comment_id: ""
+      comment_repo: ""
       lockdown_check_failed: ${{ steps.generate_aw_info.outputs.lockdown_check_failed == 'true' }}
       model: ${{ steps.generate_aw_info.outputs.model }}
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
@@ -83,22 +83,22 @@ jobs:
       - name: Generate agentic run info
         id: generate_aw_info
         env:
-          GH_AW_INFO_ENGINE_ID: 'copilot'
-          GH_AW_INFO_ENGINE_NAME: 'GitHub Copilot CLI'
+          GH_AW_INFO_ENGINE_ID: "copilot"
+          GH_AW_INFO_ENGINE_NAME: "GitHub Copilot CLI"
           GH_AW_INFO_MODEL: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || 'auto' }}
-          GH_AW_INFO_VERSION: '1.0.21'
-          GH_AW_INFO_AGENT_VERSION: '1.0.21'
-          GH_AW_INFO_CLI_VERSION: 'v0.68.1'
-          GH_AW_INFO_WORKFLOW_NAME: 'PR Triage'
-          GH_AW_INFO_EXPERIMENTAL: 'false'
-          GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: 'true'
-          GH_AW_INFO_STAGED: 'false'
+          GH_AW_INFO_VERSION: "1.0.21"
+          GH_AW_INFO_AGENT_VERSION: "1.0.21"
+          GH_AW_INFO_CLI_VERSION: "v0.68.1"
+          GH_AW_INFO_WORKFLOW_NAME: "PR Triage"
+          GH_AW_INFO_EXPERIMENTAL: "false"
+          GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
+          GH_AW_INFO_STAGED: "false"
           GH_AW_INFO_ALLOWED_DOMAINS: '["defaults"]'
-          GH_AW_INFO_FIREWALL_ENABLED: 'true'
-          GH_AW_INFO_AWF_VERSION: 'v0.25.18'
-          GH_AW_INFO_AWMG_VERSION: ''
-          GH_AW_INFO_FIREWALL_TYPE: 'squid'
-          GH_AW_COMPILED_STRICT: 'true'
+          GH_AW_INFO_FIREWALL_ENABLED: "true"
+          GH_AW_INFO_AWF_VERSION: "v0.25.18"
+          GH_AW_INFO_AWMG_VERSION: ""
+          GH_AW_INFO_FIREWALL_TYPE: "squid"
+          GH_AW_COMPILED_STRICT: "true"
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
@@ -124,8 +124,8 @@ jobs:
         id: check-lock-file
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
-          GH_AW_WORKFLOW_FILE: 'pr-triage.lock.yml'
-          GH_AW_CONTEXT_WORKFLOW_REF: '${{ github.workflow_ref }}'
+          GH_AW_WORKFLOW_FILE: "pr-triage.lock.yml"
+          GH_AW_CONTEXT_WORKFLOW_REF: "${{ github.workflow_ref }}"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -135,7 +135,7 @@ jobs:
       - name: Check compile-agentic version
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
-          GH_AW_COMPILED_VERSION: 'v0.68.1'
+          GH_AW_COMPILED_VERSION: "v0.68.1"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -197,7 +197,7 @@ jobs:
           - **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__
           {{/if}}
           </github-context>
-
+          
           GH_AW_PROMPT_ac6c71c56c8e4dab_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/github_mcp_tools_with_safeoutputs_prompt.md"
           cat << 'GH_AW_PROMPT_ac6c71c56c8e4dab_EOF'
@@ -233,9 +233,9 @@ jobs:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
-
+            
             const substitutePlaceholders = require('${{ runner.temp }}/gh-aw/actions/substitute_placeholders.cjs');
-
+            
             // Call the substitution function
             return await substitutePlaceholders({
               file: process.env.GH_AW_PROMPT,
@@ -282,8 +282,8 @@ jobs:
       pull-requests: read
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-      GH_AW_ASSETS_ALLOWED_EXTS: ''
-      GH_AW_ASSETS_BRANCH: ''
+      GH_AW_ASSETS_ALLOWED_EXTS: ""
+      GH_AW_ASSETS_BRANCH: ""
       GH_AW_ASSETS_MAX_SIZE_KB: 0
       GH_AW_MCP_LOG_DIR: /tmp/gh-aw/mcp-logs/safeoutputs
       GH_AW_WORKFLOW_ID_SANITIZED: prtriage
@@ -492,17 +492,17 @@ jobs:
           # Mask immediately to prevent timing vulnerabilities
           API_KEY=$(openssl rand -base64 45 | tr -d '/+=')
           echo "::add-mask::${API_KEY}"
-
+          
           PORT=3001
-
+          
           # Set outputs for next steps
           {
             echo "safe_outputs_api_key=${API_KEY}"
             echo "safe_outputs_port=${PORT}"
           } >> "$GITHUB_OUTPUT"
-
+          
           echo "Safe Outputs MCP server will run on port ${PORT}"
-
+          
       - name: Start Safe Outputs MCP HTTP Server
         id: safe-outputs-start
         env:
@@ -522,9 +522,9 @@ jobs:
           export GH_AW_SAFE_OUTPUTS_TOOLS_PATH
           export GH_AW_SAFE_OUTPUTS_CONFIG_PATH
           export GH_AW_MCP_LOG_DIR
-
+          
           bash "${RUNNER_TEMP}/gh-aw/actions/start_safe_outputs_server.sh"
-
+          
       - name: Start MCP Gateway
         id: start-mcp-gateway
         env:
@@ -535,7 +535,7 @@ jobs:
         run: |
           set -eo pipefail
           mkdir -p /tmp/gh-aw/mcp-config
-
+          
           # Export gateway environment variables for MCP config and gateway script
           export MCP_GATEWAY_PORT="80"
           export MCP_GATEWAY_DOMAIN="host.docker.internal"
@@ -546,10 +546,10 @@ jobs:
           mkdir -p "${MCP_GATEWAY_PAYLOAD_DIR}"
           export MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD="524288"
           export DEBUG="*"
-
+          
           export GH_AW_ENGINE="copilot"
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network host -v /var/run/docker.sock:/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e GH_AW_SAFE_OUTPUTS_PORT -e GH_AW_SAFE_OUTPUTS_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw ghcr.io/github/gh-aw-mcpg:v0.2.17'
-
+          
           mkdir -p /home/runner/.copilot
           cat << GH_AW_MCP_CONFIG_5e459cc9884ee19f_EOF | bash "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.sh"
           {
@@ -686,7 +686,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_ALLOWED_DOMAINS: 'api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,telemetry.enterprise.githubcopilot.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com'
+          GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,telemetry.enterprise.githubcopilot.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
         with:
@@ -795,7 +795,7 @@ jobs:
       issues: write
       pull-requests: write
     concurrency:
-      group: 'gh-aw-conclusion-pr-triage'
+      group: "gh-aw-conclusion-pr-triage"
       cancel-in-progress: false
     outputs:
       incomplete_count: ${{ steps.report_incomplete.outputs.incomplete_count }}
@@ -829,11 +829,11 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
-          GH_AW_NOOP_MAX: '1'
-          GH_AW_WORKFLOW_NAME: 'PR Triage'
+          GH_AW_NOOP_MAX: "1"
+          GH_AW_WORKFLOW_NAME: "PR Triage"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
-          GH_AW_NOOP_REPORT_AS_ISSUE: 'true'
+          GH_AW_NOOP_REPORT_AS_ISSUE: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -846,8 +846,8 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
-          GH_AW_MISSING_TOOL_CREATE_ISSUE: 'true'
-          GH_AW_WORKFLOW_NAME: 'PR Triage'
+          GH_AW_MISSING_TOOL_CREATE_ISSUE: "true"
+          GH_AW_WORKFLOW_NAME: "PR Triage"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -860,8 +860,8 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
-          GH_AW_REPORT_INCOMPLETE_CREATE_ISSUE: 'true'
-          GH_AW_WORKFLOW_NAME: 'PR Triage'
+          GH_AW_REPORT_INCOMPLETE_CREATE_ISSUE: "true"
+          GH_AW_WORKFLOW_NAME: "PR Triage"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -875,19 +875,19 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: 'PR Triage'
+          GH_AW_WORKFLOW_NAME: "PR Triage"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
-          GH_AW_WORKFLOW_ID: 'pr-triage'
-          GH_AW_ENGINE_ID: 'copilot'
+          GH_AW_WORKFLOW_ID: "pr-triage"
+          GH_AW_ENGINE_ID: "copilot"
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.activation.outputs.secret_verification_result }}
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.agent.outputs.inference_access_error }}
           GH_AW_LOCKDOWN_CHECK_FAILED: ${{ needs.activation.outputs.lockdown_check_failed }}
           GH_AW_STALE_LOCK_FILE_FAILED: ${{ needs.activation.outputs.stale_lock_file_failed }}
-          GH_AW_GROUP_REPORTS: 'false'
-          GH_AW_FAILURE_REPORT_AS_ISSUE: 'false'
-          GH_AW_TIMEOUT_MINUTES: '20'
+          GH_AW_GROUP_REPORTS: "false"
+          GH_AW_FAILURE_REPORT_AS_ISSUE: "false"
+          GH_AW_TIMEOUT_MINUTES: "20"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -976,8 +976,8 @@ jobs:
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
-          WORKFLOW_NAME: 'PR Triage'
-          WORKFLOW_DESCRIPTION: 'No description provided'
+          WORKFLOW_NAME: "PR Triage"
+          WORKFLOW_DESCRIPTION: "No description provided"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
@@ -1060,12 +1060,12 @@ jobs:
       pull-requests: write
     timeout-minutes: 15
     env:
-      GH_AW_CALLER_WORKFLOW_ID: '${{ github.repository }}/pr-triage'
+      GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/pr-triage"
       GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}
-      GH_AW_ENGINE_ID: 'copilot'
+      GH_AW_ENGINE_ID: "copilot"
       GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
-      GH_AW_WORKFLOW_ID: 'pr-triage'
-      GH_AW_WORKFLOW_NAME: 'PR Triage'
+      GH_AW_WORKFLOW_ID: "pr-triage"
+      GH_AW_WORKFLOW_NAME: "PR Triage"
     outputs:
       code_push_failure_count: ${{ steps.process_safe_outputs.outputs.code_push_failure_count }}
       code_push_failure_errors: ${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}
@@ -1109,10 +1109,10 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
-          GH_AW_ALLOWED_DOMAINS: 'api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,telemetry.enterprise.githubcopilot.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com'
+          GH_AW_ALLOWED_DOMAINS: "api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,telemetry.enterprise.githubcopilot.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: '{"add_labels":{"allowed":["bug","feature","pending triage","apps/stage-pocket","apps/stage-tamagotchi","apps/stage-web","env/os-all","env/os-linux","env/os-macos","env/os-windows","priority/general","priority/nice-to-have","priority/urgent","scope/agent","scope/audio-input","scope/audio-output","scope/avatar","scope/avatar/live2d","scope/avatar/vrm","scope/documentation","scope/engineering","scope/extension","scope/game-playing-ai","scope/i18n","scope/providers","scope/server-api","scope/ui"],"max":12,"target":"${{ github.event.pull_request.number || github.event.inputs.pull_request_number }}"},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"remove_labels":{"allowed":["bug","feature","pending triage","apps/stage-pocket","apps/stage-tamagotchi","apps/stage-web","env/os-all","env/os-linux","env/os-macos","env/os-windows","priority/general","priority/nice-to-have","priority/urgent","scope/agent","scope/audio-input","scope/audio-output","scope/avatar","scope/avatar/live2d","scope/avatar/vrm","scope/documentation","scope/engineering","scope/extension","scope/game-playing-ai","scope/i18n","scope/providers","scope/server-api","scope/ui"],"max":24,"target":"${{ github.event.pull_request.number || github.event.inputs.pull_request_number }}"},"report_incomplete":{}}'
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_labels\":{\"allowed\":[\"bug\",\"feature\",\"pending triage\",\"apps/stage-pocket\",\"apps/stage-tamagotchi\",\"apps/stage-web\",\"env/os-all\",\"env/os-linux\",\"env/os-macos\",\"env/os-windows\",\"priority/general\",\"priority/nice-to-have\",\"priority/urgent\",\"scope/agent\",\"scope/audio-input\",\"scope/audio-output\",\"scope/avatar\",\"scope/avatar/live2d\",\"scope/avatar/vrm\",\"scope/documentation\",\"scope/engineering\",\"scope/extension\",\"scope/game-playing-ai\",\"scope/i18n\",\"scope/providers\",\"scope/server-api\",\"scope/ui\"],\"max\":12,\"target\":\"${{ github.event.pull_request.number || github.event.inputs.pull_request_number }}\"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"remove_labels\":{\"allowed\":[\"bug\",\"feature\",\"pending triage\",\"apps/stage-pocket\",\"apps/stage-tamagotchi\",\"apps/stage-web\",\"env/os-all\",\"env/os-linux\",\"env/os-macos\",\"env/os-windows\",\"priority/general\",\"priority/nice-to-have\",\"priority/urgent\",\"scope/agent\",\"scope/audio-input\",\"scope/audio-output\",\"scope/avatar\",\"scope/avatar/live2d\",\"scope/avatar/vrm\",\"scope/documentation\",\"scope/engineering\",\"scope/extension\",\"scope/game-playing-ai\",\"scope/i18n\",\"scope/providers\",\"scope/server-api\",\"scope/ui\"],\"max\":24,\"target\":\"${{ github.event.pull_request.number || github.event.inputs.pull_request_number }}\"},\"report_incomplete\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1127,3 +1127,4 @@ jobs:
           name: safe-outputs-items
           path: /tmp/gh-aw/safe-output-items.jsonl
           if-no-files-found: ignore
+
