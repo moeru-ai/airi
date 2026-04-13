@@ -159,6 +159,7 @@ export function createKokoroAdapter(): KokoroAdapter {
   let voices: Voices | null = null
   let restartAttempts = 0
   let allocationToken: AllocationToken | null = null
+  let currentModelStatusId: string | null = null
 
   const operationMutex = new AsyncMutex()
   const lifecycleMutex = new AsyncMutex()
@@ -237,6 +238,12 @@ export function createKokoroAdapter(): KokoroAdapter {
     return defaultPerfTracer.withMeasure('inference', 'kokoro-load-model', () => operationMutex.run(async () => {
       state = 'loading'
       const modelStatusId = `kokoro-${quantization}`
+
+      // Clear previous model status when switching models
+      if (currentModelStatusId && currentModelStatusId !== modelStatusId)
+        removeInferenceStatus(currentModelStatusId)
+      currentModelStatusId = modelStatusId
+
       updateInferenceStatus(modelStatusId, { state: 'downloading', device: device as any })
 
       // Use the global load queue to serialize model loads across all adapters

@@ -96,6 +96,7 @@ export function useWhisper(url: string, options?: Partial<UseWhisperOptions>) {
   return {
     transcribe: (input: { audio?: string, audioFloat32?: Float32Array, language: string }) => {
       transcribing.value = true
+      opts.onStart?.()
       adapter.transcribe({
         audio: input.audio,
         audioFloat32: input.audioFloat32,
@@ -103,6 +104,7 @@ export function useWhisper(url: string, options?: Partial<UseWhisperOptions>) {
       }).catch((err) => {
         console.error('Whisper transcription error:', err)
         transcribing.value = false
+        opts.onError?.(err instanceof Error ? err.message : String(err))
       })
     },
     status,

@@ -223,26 +223,31 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
 
         w.postMessage({ type: 'load-model', requestId, modelId: MODEL_NAMES.WHISPER, device: 'webgpu' })
 
+        let readyResponse: any
         try {
-          await readyPromise
-
-          // Track GPU memory allocation
-          const coordinator = getGPUCoordinator()
-          if (allocationToken)
-            coordinator.release(allocationToken)
-          allocationToken = coordinator.requestAllocation(
-            MODEL_NAMES.WHISPER,
-            MODEL_VRAM_ESTIMATES[MODEL_NAMES.WHISPER] ?? 800 * 1024 * 1024,
-          )
-
-          state = 'ready'
-          updateInferenceStatus(MODEL_NAMES.WHISPER, { state: 'ready' })
-          onSuccess()
+          readyResponse = await readyPromise
         }
         catch (error) {
           state = 'error'
+          updateInferenceStatus(MODEL_NAMES.WHISPER, { state: 'error' })
           throw error
         }
+
+        // Capture actual device reported by the worker (may fall back to WASM)
+        const actualDevice = readyResponse?.device ?? 'webgpu'
+
+        // Track GPU memory allocation
+        const coordinator = getGPUCoordinator()
+        if (allocationToken)
+          coordinator.release(allocationToken)
+        allocationToken = coordinator.requestAllocation(
+          MODEL_NAMES.WHISPER,
+          MODEL_VRAM_ESTIMATES[MODEL_NAMES.WHISPER] ?? 800 * 1024 * 1024,
+        )
+
+        state = 'ready'
+        updateInferenceStatus(MODEL_NAMES.WHISPER, { state: 'ready', device: actualDevice })
+        onSuccess()
       })
     })
   }

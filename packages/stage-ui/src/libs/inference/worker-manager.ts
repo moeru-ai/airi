@@ -110,6 +110,13 @@ function waitForWorkerMessage<T extends WorkerOutboundMessage>(
         worker.removeEventListener('message', handler)
         resolve(event.data)
       }
+      else if (event.data.type === 'error') {
+        if (timeoutId !== undefined)
+          clearTimeout(timeoutId)
+        worker.removeEventListener('message', handler)
+        const payload = (event.data as any).payload
+        reject(new Error(payload?.message ?? 'Worker error'))
+      }
       else {
         onOther?.(event.data)
       }
@@ -242,9 +249,6 @@ export function createInferenceWorkerManager(
         onOther: (msg) => {
           if (msg.type === 'progress' && msg.requestId === requestId && onProgress)
             onProgress(msg.payload)
-          if (msg.type === 'error' && msg.requestId === requestId) {
-            // Will be handled by the catch below
-          }
         },
         timeout: loadTimeout,
       })
@@ -289,9 +293,6 @@ export function createInferenceWorkerManager(
         onOther: (msg) => {
           if (msg.type === 'progress' && msg.requestId === requestId && onProgress)
             onProgress(msg.payload)
-          if (msg.type === 'error' && msg.requestId === requestId) {
-            // Error during inference — will be caught by timeout or explicit error
-          }
         },
         timeout: inferenceTimeout,
       })

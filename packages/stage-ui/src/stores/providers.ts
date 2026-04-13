@@ -1608,8 +1608,10 @@ export const useProvidersStore = defineStore('providers', () => {
 
       capabilities: {
         listModels: async (_config: Record<string, unknown>) => {
-          const hasWebGPU = getCachedWebGPUCapabilities()?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
-          return kokoroModelsToModelInfo(hasWebGPU, t)
+          const caps = getCachedWebGPUCapabilities()
+          const hasWebGPU = caps?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
+          const fp16Supported = caps?.fp16Supported ?? false
+          return kokoroModelsToModelInfo(hasWebGPU, t, fp16Supported)
         },
 
         loadModel: async (config: Record<string, unknown>, _hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => {
@@ -1657,64 +1659,67 @@ export const useProvidersStore = defineStore('providers', () => {
           }
         },
 
-        listVoices: async (config: Record<string, unknown>) => {
-          try {
-            const workerManager = await getKokoroAdapter()
-
-            // Only reload the model if it hasn't been loaded yet (state !== 'ready').
-            // This avoids redundant worker round-trips when voices are already cached.
-            if (workerManager.state !== 'ready') {
+        listVoices: (() => {
+          let lastLoadedModelId: string | null = null
+          return async (config: Record<string, unknown>) => {
+            try {
+              const workerManager = await getKokoroAdapter()
               const modelId = config.model as string
-              if (modelId) {
-                const modelDef = KOKORO_MODELS.find(m => m.id === modelId)
-                if (modelDef) {
-                  if (modelDef.platform === 'webgpu') {
-                    const hasWebGPU = getCachedWebGPUCapabilities()?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
-                    if (!hasWebGPU) {
-                      throw new Error('WebGPU is required for this model but is not available in your browser')
-                    }
-                  }
 
-                  await workerManager.loadModel(modelDef.quantization, modelDef.platform)
+              // Reload the model if it hasn't been loaded yet or if the model ID changed
+              if (workerManager.state !== 'ready' || (modelId && modelId !== lastLoadedModelId)) {
+                if (modelId) {
+                  const modelDef = KOKORO_MODELS.find(m => m.id === modelId)
+                  if (modelDef) {
+                    if (modelDef.platform === 'webgpu') {
+                      const hasWebGPU = getCachedWebGPUCapabilities()?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
+                      if (!hasWebGPU) {
+                        throw new Error('WebGPU is required for this model but is not available in your browser')
+                      }
+                    }
+
+                    await workerManager.loadModel(modelDef.quantization, modelDef.platform)
+                    lastLoadedModelId = modelId
+                  }
                 }
               }
-            }
 
-            const modelVoices = workerManager.getVoices()
+              const modelVoices = workerManager.getVoices()
 
-            // Language code mapping
-            const languageMap: Record<string, { code: string, title: string }> = {
-              'en-us': { code: 'en-US', title: 'English (US)' },
-              'en-gb': { code: 'en-GB', title: 'English (UK)' },
-              'ja': { code: 'ja', title: 'Japanese' },
-              'zh-cn': { code: 'zh-CN', title: 'Chinese (Mandarin)' },
-              'es': { code: 'es', title: 'Spanish' },
-              'fr': { code: 'fr', title: 'French' },
-              'hi': { code: 'hi', title: 'Hindi' },
-              'it': { code: 'it', title: 'Italian' },
-              'pt-br': { code: 'pt-BR', title: 'Portuguese (Brazil)' },
-            }
-
-            // Transform the voices object to the expected array format
-            return Object.entries(modelVoices).map(([id, voice]: [string, { language: string, name: string, gender: string }]) => {
-              const languageCode = voice.language.toLowerCase()
-              const languageInfo = languageMap[languageCode] || { code: languageCode, title: voice.language }
-
-              return {
-                id,
-                name: `${voice.name} (${voice.gender}, ${languageInfo.title.split('(')[0].trim()})`,
-                provider: 'kokoro-local',
-                languages: [languageInfo],
-                gender: voice.gender.toLowerCase(),
+              // Language code mapping
+              const languageMap: Record<string, { code: string, title: string }> = {
+                'en-us': { code: 'en-US', title: 'English (US)' },
+                'en-gb': { code: 'en-GB', title: 'English (UK)' },
+                'ja': { code: 'ja', title: 'Japanese' },
+                'zh-cn': { code: 'zh-CN', title: 'Chinese (Mandarin)' },
+                'es': { code: 'es', title: 'Spanish' },
+                'fr': { code: 'fr', title: 'French' },
+                'hi': { code: 'hi', title: 'Hindi' },
+                'it': { code: 'it', title: 'Italian' },
+                'pt-br': { code: 'pt-BR', title: 'Portuguese (Brazil)' },
               }
-            })
+
+              // Transform the voices object to the expected array format
+              return Object.entries(modelVoices).map(([id, voice]: [string, { language: string, name: string, gender: string }]) => {
+                const languageCode = voice.language.toLowerCase()
+                const languageInfo = languageMap[languageCode] || { code: languageCode, title: voice.language }
+
+                return {
+                  id,
+                  name: `${voice.name} (${voice.gender}, ${languageInfo.title.split('(')[0].trim()})`,
+                  provider: 'kokoro-local',
+                  languages: [languageInfo],
+                  gender: voice.gender.toLowerCase(),
+                }
+              })
+            }
+            catch (error) {
+              console.error('Failed to fetch Kokoro voices:', error)
+              // Return empty array if model not loaded yet
+              return []
+            }
           }
-          catch (error) {
-            console.error('Failed to fetch Kokoro voices:', error)
-            // Return empty array if model not loaded yet
-            return []
-          }
-        },
+        })(),
       },
 
       validators: {

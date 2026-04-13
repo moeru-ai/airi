@@ -142,7 +142,19 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
         })
 
         w.postMessage({ type: 'load-model', requestId, modelId: MODEL_IDS.BG_REMOVAL, device: 'webgpu' })
-        await loadedPromise
+
+        let loadedResponse: any
+        try {
+          loadedResponse = await loadedPromise
+        }
+        catch (error) {
+          state = 'error'
+          updateInferenceStatus(MODEL_NAMES.BG_REMOVAL, { state: 'error' })
+          throw error
+        }
+
+        // Capture actual device reported by the worker (may fall back to WASM)
+        const actualDevice = loadedResponse?.device ?? 'webgpu'
 
         // Track GPU memory allocation
         const coordinator = getGPUCoordinator()
@@ -154,7 +166,7 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
         )
 
         state = 'ready'
-        updateInferenceStatus(MODEL_NAMES.BG_REMOVAL, { state: 'ready' })
+        updateInferenceStatus(MODEL_NAMES.BG_REMOVAL, { state: 'ready', device: actualDevice })
       })
     })
   }
@@ -184,7 +196,14 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
         [pixelsCopy.buffer],
       )
 
-      const result = await resultPromise
+      let result: any
+      try {
+        result = await resultPromise
+      }
+      catch (error) {
+        state = 'ready'
+        throw error
+      }
 
       // Apply mask to original image alpha channel
       const output = new ImageData(

@@ -3,8 +3,8 @@
  *
  * Allows the app to preload inference models during idle time,
  * so they're ready before the user first needs them.
- * Uses `requestIdleCallback` (or setTimeout fallback) to avoid
- * blocking the main thread during app startup.
+ * Uses `setTimeout` to defer loading and avoid blocking the main
+ * thread during app startup.
  */
 
 import { onUnmounted, ref } from 'vue'
