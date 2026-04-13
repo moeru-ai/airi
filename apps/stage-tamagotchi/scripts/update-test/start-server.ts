@@ -25,7 +25,7 @@ function getContentType(pathname: string) {
 export async function startUpdateTestServer(options: { port: number, rootDir: string }) {
   const server = createServer(async (request, response) => {
     const pathname = request.url?.split('?')[0] || '/'
-    // eslint-disable-next-line e18e/prefer-static-regex
+
     const safePath = normalize(pathname).replace(/^(\.\.(\/|\\|$))+/, '')
     const filePath = join(options.rootDir, safePath === '/' ? '/index.html' : safePath)
 

@@ -3,6 +3,7 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
+import { useInferencePreload } from '@proj-airi/stage-ui/composables'
 import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
@@ -60,6 +61,7 @@ const chatSessionStore = useChatSessionStore()
 const serverChannelStore = useModsServerChannelStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
 const analyticsStore = useSharedAnalyticsStore()
+const inferencePreload = useInferencePreload()
 const pluginHostInspectorStore = usePluginHostInspectorStore()
 const stageWindowLifecycleStore = useStageWindowLifecycleStore()
 const settingsAudioDeviceStore = useSettingsAudioDevice()
@@ -157,6 +159,9 @@ onMounted(async () => {
       },
     })
   }
+
+  // Preload local inference models (Kokoro TTS, etc.) in background after a delay
+  inferencePreload.triggerPreload()
 })
 
 watch(themeColorsHue, () => {

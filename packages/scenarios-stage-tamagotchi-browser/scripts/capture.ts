@@ -14,7 +14,6 @@ const formatFlagIndex = argv.findIndex(arg => arg === '--format')
 const requestedFormat = formatFlagIndex >= 0 ? argv[formatFlagIndex + 1] : 'png'
 
 const avifTransformer: ArtifactTransformer = async (artifact) => {
-  // eslint-disable-next-line e18e/prefer-static-regex
   const derivedFilePath = artifact.filePath.replace(/\.png$/i, '.avif')
   const avifBuffer = await new Transformer(await readFile(artifact.filePath)).avif()
 

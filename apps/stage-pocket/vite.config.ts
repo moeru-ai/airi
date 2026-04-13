@@ -28,7 +28,7 @@ import { defineConfig } from 'vite'
 function isEnvTruthy(value: string | undefined | null): boolean {
   if (value == null)
     return false
-  // eslint-disable-next-line e18e/prefer-static-regex
+
   return /^(?:1|true|t|yes|y|on)$/i.test(value.trim())
 }
 
@@ -109,7 +109,7 @@ export default defineConfig({
       : [mkcert((() => {
           // Workaround: plugin's bundled downloader has a feaxios bug, prefer system mkcert
           const command = process.platform === 'win32' ? 'where' : 'which'
-          // eslint-disable-next-line e18e/prefer-static-regex
+
           const { data } = tryCatch(() => ({ mkcertPath: execSync(`${command} mkcert`, { stdio: 'pipe' }).toString().trim().split(/\r?\n/)[0] }))
           return data
         })())],

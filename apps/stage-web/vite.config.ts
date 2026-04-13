@@ -108,7 +108,7 @@ export default defineConfig({
         ? [Mkcert((() => {
             // Workaround: plugin's bundled downloader has a feaxios bug, prefer system mkcert
             const command = process.platform === 'win32' ? 'where' : 'which'
-            // eslint-disable-next-line e18e/prefer-static-regex
+
             const { data } = tryCatch(() => ({ mkcertPath: execSync(`${command} mkcert`, { stdio: 'pipe' }).toString().trim().split(/\r?\n/)[0] }))
             return data
           })())]
