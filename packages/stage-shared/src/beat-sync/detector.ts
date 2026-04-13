@@ -144,9 +144,10 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
     syncMetronome(40, false) // Start the 40 BPM Sway
 
     analyser.workletNode.port.onmessage = (e) => {
-      if (e.data.type === 'audioData') {
-      (rhythmAnalyzer as any).analyzeChunkyMeasurement(e.data.data, e.data.outputSampleRate);
-      }
+    const result = await (rhythmAnalyzer as any).analyzeFullBuffer(e.data.data);
+    if (result && result.bpm) {
+      lockBpm = result.bpm;
+      syncMetronome(lockBpm, true);
     }
 
 
