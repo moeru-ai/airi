@@ -97,6 +97,8 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
     }, ms)
   }
 
+  syncMetronome(40, false) // Start the 40 BPM Sway
+  
   const emit = <E extends keyof BeatSyncDetectorEventMap>(event: E, ...args: Parameters<BeatSyncDetectorEventMap[E]>) => {
     listeners[event].forEach(listener => listener(...args))
   }
@@ -141,7 +143,7 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
       },
     })
 
-    syncMetronome(40, false) // Start the 40 BPM Sway
+
 
 analyser.workletNode.port.onmessage = (e) => { // Removed async if not needed
     if (e.data.type === 'audioData') {
