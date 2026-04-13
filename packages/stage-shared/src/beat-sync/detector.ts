@@ -145,18 +145,23 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
 
 
 
-analyser.workletNode.port.onmessage = (e) => { // Removed async if not needed
-    if (e.data.type === 'audioData') {
-        // Use the actual method found on the instance in 3.3.0
-        // Note the spelling: 'Chunck' not 'Chunk'
-        const result = (rhythmAnalyzer as any).analyzeChunck(e.data.data, e.data.outputSampleRate);
-        
-        if (result && result.bpm) {
-            syncMetronome(result, true);
+analyser.workletNode.port.onmessage = (e) => {
+  if (e.data.type === 'audioData') {
+    // 3.3.0 Signature: (channelData, sampleRate, bufferSize, postMessage)
+    // We don't 'await' it because the result comes through the callback!
+    (rhythmAnalyzer as any).analyzeChunck(
+      e.data.data, 
+      e.data.outputSampleRate, 
+      e.data.data.length, // bufferSize
+      (message: any) => { // the postMessage callback
+        if (message.event === 'bpm' && message.data.bpm) {
+          let lockBpm = message.data.bpm;
+          syncMetronome(lockBpm, true);
         }
-    }
+      }
+    );
+  }
 };
-
     const node = await createSource(context)
 
     inputAnalyserNode = context.createAnalyser()
