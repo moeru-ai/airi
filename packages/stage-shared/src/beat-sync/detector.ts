@@ -143,15 +143,17 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
 
     syncMetronome(40, false) // Start the 40 BPM Sway
 
-    analyser.workletNode.port.onmessage = async (e) => {
-        if (e.data.type === 'audioData') {
-            const result = await (rhythmAnalyzer as any).analyzeFullBuffer(e.data.data);
-            if (result && result.bpm) {
-                lockBpm = result.bpm;
-                syncMetronome(lockBpm, true);
-            }
+analyser.workletNode.port.onmessage = (e) => { // Removed async if not needed
+    if (e.data.type === 'audioData') {
+        // Use the actual method found on the instance in 3.3.0
+        // Note the spelling: 'Chunck' not 'Chunk'
+        const result = (rhythmAnalyzer as any).analyzeChunck(e.data.data, e.data.outputSampleRate);
+        
+        if (result && result.bpm) {
+            syncMetronome(result, true);
         }
-    };
+    }
+};
 
     const node = await createSource(context)
 
