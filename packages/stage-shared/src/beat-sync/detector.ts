@@ -26,20 +26,7 @@ import { RealTimeBpmAnalyzer } from 'realtime-bpm-analyzer';
 
 export const inputAnalyserFFTSize = 1024
 
-// 1. Define a local interface for the Event Detail to fix the 'any' and 'duplicate' errors
-interface BpmEventDetail {
-  bpm: number;
-  threshold: number;
-  uncertainty: number;
-}
 
-// 2. Instantiate with a cast to avoid the "0 arguments" error
-const rhythmAnalyzer = new (RealTimeBpmAnalyzer as any)({
-  continuousAnalysis: true,
-  stabilizationTime: 1000,
-  importSharedOptions: true, // Specific to 3.x
-  sampleRate: 44100
-});
 
 export interface BeatSyncDetector {
   start: (createSource: (context: AudioContext) => Promise<AudioNode>) => Promise<void>
