@@ -20,7 +20,7 @@ import type {
 
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 
-import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
+import { isElectronWindow, isStageCapacitor, isStageTamagotchi, isStageWeb, isUrl } from '@proj-airi/stage-shared'
 import { computedAsync, useIntervalFn, useLocalStorage } from '@vueuse/core'
 import {
   createOpenAI,
@@ -57,6 +57,8 @@ import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 import { buildOpenRouterAudioSpeechProvider } from './providers/openrouter/audio-speech'
 import { createWebSpeechAPIProvider } from './providers/web-speech-api'
+
+const TRAILING_SLASH_RE = /\/$/
 
 const ALIYUN_NLS_REGIONS = [
   'cn-shanghai',
@@ -1535,6 +1537,182 @@ export const useProvidersStore = defineStore('providers', () => {
           return {
             errors,
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            valid: errors.length === 0,
+          }
+        },
+      },
+    },
+    'fish-audio': {
+      id: 'fish-audio',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      nameKey: 'settings.pages.providers.provider.fish-audio.title',
+      name: 'Fish Audio',
+      descriptionKey: 'settings.pages.providers.provider.fish-audio.description',
+      description: 'fish.audio',
+      icon: 'i-lobe-icons:fishaudio',
+      defaultOptions: () => ({
+        baseUrl: 'https://api.fish.audio',
+      }),
+      createProvider: async (config) => {
+        const apiKey = (config.apiKey as string ?? '').trim()
+        const baseUrl = ((config.baseUrl as string) || 'https://api.fish.audio').replace(TRAILING_SLASH_RE, '')
+        // NOTICE: Fish Audio's API is server-to-server only and does not send CORS
+        // headers for browser origins. Depending on the runtime, we choose one of
+        // three strategies to avoid CORS failures:
+        //
+        //   1. Electron — delegate to the main process via Eventa IPC. The main
+        //      process uses net.fetch which runs in Node and is never subject to
+        //      browser CORS enforcement. The IPC contract is defined in
+        //      apps/stage-tamagotchi/src/shared/eventa.ts (electronFishAudioTTS).
+        //
+        //   2. Browser DEV (stage-web / stage-pocket) — route through the local
+        //      Vite dev-server proxy (/fish-audio-api → https://api.fish.audio) so
+        //      the request appears same-origin. See vite.config.ts in each app for
+        //      the matching server.proxy entry.
+        //
+        //   3. Everything else (custom base URL, Capacitor native) — use the URL
+        //      as-is. Capacitor native builds use the OS HTTP stack and are not
+        //      subject to browser CORS. A custom base URL means the user has their
+        //      own same-origin proxy and needs no rewrite.
+        const electronWindow = isStageTamagotchi() ? isElectronWindow(window) && window : false
+        const effectiveBase = (!electronWindow && import.meta.env.DEV && baseUrl === 'https://api.fish.audio')
+          ? '/fish-audio-api'
+          : baseUrl
+        const provider: SpeechProvider = {
+          speech: (model: string) => ({
+            // NOTICE: baseURL must be an absolute URL — @xsai/generate-speech calls
+            // `new URL('audio/speech', baseURL)` internally. Our custom fetch below
+            // ignores the URL argument entirely and builds its own, so the value here
+            // only needs to be valid; we always keep the original absolute baseUrl.
+            baseURL: `${baseUrl}/`,
+            model,
+            // NOTICE: Fish Audio does not use the OpenAI /audio/speech endpoint format.
+            // We intercept the xsai generateSpeech request and translate it to
+            // Fish Audio's POST /v1/tts format (text/reference_id in body).
+            //
+            // NOTICE: The Fish Audio API accepts the model via a `model` request header,
+            // but sending custom headers from the browser triggers a CORS preflight that
+            // Fish Audio's CDN does not allow (Access-Control-Allow-Headers does not
+            // include `model`). The Fish Audio JS/Python SDKs also never send `model` as
+            // a header — they rely on the server default (`s2-pro`). We do the same here.
+            fetch: async (_url: RequestInfo | URL, init?: RequestInit) => {
+              const body = JSON.parse((init?.body as string) ?? '{}') as {
+                input?: string
+                voice?: string
+              }
+              if (electronWindow) {
+                // Delegate to main process to bypass renderer CORS.
+                // defineInvoke returns a typed invoker function; call it with the payload.
+                const { defineInvoke } = await import('@moeru/eventa')
+                const { createContext } = await import('@moeru/eventa/adapters/electron/renderer')
+                const { electronFishAudioTTS } = await import('./providers/fish-audio/ipc')
+                const { context } = createContext(electronWindow.electron.ipcRenderer)
+                // NOTICE: AbortSignal is not serializable over IPC and cannot be
+                // forwarded to the main process. Cancellation of in-flight IPC
+                // requests is not yet supported for this path.
+                const invokeTTS = defineInvoke(context, electronFishAudioTTS)
+                const result = await invokeTTS({ apiKey, baseUrl, text: body.input ?? '', referenceId: body.voice || null })
+                return new Response(result.data.buffer as ArrayBuffer, {
+                  status: result.status,
+                  headers: { 'Content-Type': result.contentType },
+                })
+              }
+              return fetch(`${effectiveBase}/v1/tts`, {
+                method: 'POST',
+                // Forward the AbortSignal so the HTTP request is cancelled when
+                // the TTS pipeline is aborted (e.g. user interrupts playback).
+                signal: init?.signal,
+                headers: {
+                  'Authorization': `Bearer ${apiKey}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  text: body.input ?? '',
+                  reference_id: body.voice || null,
+                  format: 'mp3',
+                }),
+              })
+            },
+          }),
+        }
+        return provider
+      },
+      capabilities: {
+        // NOTICE: The Fish Audio API selects the model via a `model` HTTP header.
+        // Sending that custom header from a browser causes CORS preflight failures,
+        // so we cannot forward model selection to the API. The server defaults to
+        // s2-pro when no header is present. Listing models here is informational only.
+        listModels: async () => [
+          {
+            id: 's2-pro',
+            name: 'S2 Pro',
+            provider: 'fish-audio',
+            description: 'Latest generation model (server default)',
+            contextLength: 0,
+            deprecated: false,
+          },
+        ],
+        listVoices: async (config) => {
+          const { listFishAudioVoices } = await import('./providers/fish-audio/list-voices')
+          const rawBase = ((config.baseUrl as string) || 'https://api.fish.audio').replace(TRAILING_SLASH_RE, '')
+          const isElectronRenderer = typeof navigator !== 'undefined' && navigator.userAgent.includes('Electron')
+          const effectiveVoiceBase = (import.meta.env.DEV && !isElectronRenderer && rawBase === 'https://api.fish.audio')
+            ? '/fish-audio-api'
+            : rawBase
+          return listFishAudioVoices(
+            ((config.apiKey as string) ?? '').trim(),
+            effectiveVoiceBase,
+          )
+        },
+      },
+      validators: {
+        chatPingCheckAvailable: false,
+        validateProviderConfig: (config) => {
+          const errors: Error[] = []
+
+          if (!config.apiKey) {
+            errors.push(new Error('API key is required.'))
+          }
+
+          // NOTICE: We intentionally skip the shared baseUrlValidator here because
+          // it requires a trailing slash for standard URL composition. Fish Audio's
+          // custom fetch override ignores the passed URL and constructs its own, so
+          // trailing-slash strictness is irrelevant. We only verify it's a valid
+          // absolute URL when one is explicitly provided.
+          if (config.baseUrl) {
+            try {
+              const parsed = new URL(config.baseUrl as string)
+              if (!parsed.host) {
+                errors.push(new Error('Base URL must have a valid host.'))
+              }
+            }
+            catch {
+              errors.push(new Error('Base URL is not a valid absolute URL.'))
+            }
+          }
+
+          // Gate the default Fish Audio URL in contexts where browser CORS will
+          // block the request and no proxy/IPC path exists.
+          //
+          // - Electron: handled via IPC (electronFishAudioTTS) — no gate needed.
+          // - Capacitor native (iOS/Android): OS HTTP stack bypasses CORS — no gate.
+          // - Web/Capacitor production: Vite dev-server proxy is absent; users must
+          //   point baseUrl at a same-origin CORS proxy they control.
+          // Normalize before comparison: strip trailing slashes the same way
+          // createProvider does, so 'https://api.fish.audio/' is caught too.
+          const normalizedConfigUrl = ((config.baseUrl as string) || '').replace(TRAILING_SLASH_RE, '')
+          const usingDefaultUrl = !config.baseUrl || normalizedConfigUrl === 'https://api.fish.audio'
+          if (usingDefaultUrl && (isStageWeb() || isStageCapacitor()) && !import.meta.env.DEV) {
+            errors.push(new Error(
+              'Fish Audio requires a custom base URL (a CORS proxy) in production builds. '
+              + 'The dev-server proxy is only available during local development.',
+            ))
+          }
+
+          return {
+            errors,
+            reason: errors.map(e => e.message).join(', '),
             valid: errors.length === 0,
           }
         },

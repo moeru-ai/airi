@@ -799,6 +799,9 @@ pages:
           default-text: 您好！这是 Kokoro 文本转语音（TTS）系统的测试。
           title: 实验平台
         title: Kokoro TTS (本地)
+      fish-audio:
+        description: fish.audio
+        title: Fish Audio
       fireworks:
         description: Fireworks.ai
         title: Fireworks.ai

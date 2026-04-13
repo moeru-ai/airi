@@ -799,6 +799,9 @@ pages:
           default-text: 안녕하세요! 이것은 Kokoro 문자 음성 변환 시스템의 테스트입니다.
           title: 음성 플레이그라운드
         title: Kokoro TTS (로컬)
+      fish-audio:
+        description: fish.audio
+        title: Fish Audio
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai

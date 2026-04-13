@@ -799,6 +799,9 @@ pages:
           default-text: Xin chào! Đây là bản thử nghiệm hệ thống giọng nói Kokoro.
           title: Thử nghiệm giọng nói
         title: Kokoro TTS (Cục bộ)
+      fish-audio:
+        description: fish.audio
+        title: Fish Audio
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai

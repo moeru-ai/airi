@@ -283,6 +283,9 @@ export interface ElectronAuthTokens {
   expiresIn: number
 }
 export const electronAuthStartLogin = defineInvokeEventa<void>('eventa:invoke:electron:auth:start-login')
+
+export { electron } from '@proj-airi/electron-eventa'
+export * from '@proj-airi/electron-eventa/electron-updater'
 export const electronAuthCallback = defineEventa<ElectronAuthTokens>('eventa:event:electron:auth:callback')
 export const electronAuthCallbackError = defineEventa<{ error: string }>('eventa:event:electron:auth:callback-error')
 export const electronAuthLogout = defineInvokeEventa<void>('eventa:invoke:electron:auth:logout')
@@ -290,5 +293,7 @@ export const electronAuthLogout = defineInvokeEventa<void>('eventa:invoke:electr
 export const i18nSetLocale = defineInvokeEventa<void, Locale>('eventa:invoke:electron:i18n:set-locale')
 export const i18nGetLocale = defineInvokeEventa<Locale>('eventa:invoke:electron:i18n:get-locale')
 
-export { electron } from '@proj-airi/electron-eventa'
-export * from '@proj-airi/electron-eventa/electron-updater'
+// Fish Audio TTS IPC contract lives in packages/stage-ui so it can be imported
+// by the renderer without creating an app → package dependency inversion.
+export { electronFishAudioTTS } from '@proj-airi/stage-ui/stores/providers/fish-audio/ipc'
+export type { ElectronFishAudioTTSPayload, ElectronFishAudioTTSResult } from '@proj-airi/stage-ui/stores/providers/fish-audio/ipc'

@@ -1,5 +1,6 @@
 export * from './app'
 export * from './auto-updater'
+export * from './fish-audio'
 export * from './powerMonitor'
 export * from './screen'
 export * from './window'
