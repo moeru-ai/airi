@@ -538,7 +538,7 @@ pages:
   flux:
     title: Flux
     buy: Пополнить
-    currency: Currency
+    currency: Валюта
     description: Текущий Flux
     packagesError: Не удалось загрузить пакеты. Пожалуйста, повторите попытку позже.
     checkout:
@@ -558,7 +558,7 @@ pages:
       empty: Пока нет записей транзакций.
       loadMore: Загрузить ещё
       delayHint: Записи об использовании могут задерживаться до 1 минуты
-      ttsRequests: requests
+      ttsRequests: запросы
     packages:
       title: Flux пакеты
       buy: Пополнить
