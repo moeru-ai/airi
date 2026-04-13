@@ -5,6 +5,7 @@ import type { GenAiMetrics } from '../../../libs/otel'
 import type { UsageInfo } from '../../../services/billing/billing'
 import type { BillingEvent } from '../../../services/billing/billing-events'
 import type { BillingService } from '../../../services/billing/billing-service'
+import type { FluxMeter } from '../../../services/billing/flux-meter'
 import type { ConfigKVService } from '../../../services/config-kv'
 import type { FluxService } from '../../../services/flux'
 import type { HonoEnv } from '../../../types/hono'
@@ -69,7 +70,7 @@ function getLlmMetricAttributes(opts: { model: string, type: string, status: num
   }
 }
 
-export function createV1CompletionsRoutes(fluxService: FluxService, billingService: BillingService, configKV: ConfigKVService, billingMq: MqService<BillingEvent>, genAi?: GenAiMetrics | null) {
+export function createV1CompletionsRoutes(fluxService: FluxService, billingService: BillingService, configKV: ConfigKVService, billingMq: MqService<BillingEvent>, ttsMeter: FluxMeter, genAi?: GenAiMetrics | null) {
   const logger = useLogger('v1-completions').useGlobalConfig()
   // TODO: Extract this compat route into smaller facades/modules.
   // It currently mixes auth, rate limiting, proxying, billing, telemetry, and event publishing in one transport layer entrypoint.
@@ -337,7 +338,18 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
   //     },
   //   })
 
-  //   const startedAt = Date.now()
+    // Pre-flight: refuse before hitting upstream if this segment would push the
+    // user past their balance. Cheap-path requests below the Flux threshold
+    // still pass when the user has at least 1 Flux.
+    await ttsMeter.assertCanAfford(user.id, inputText.length, flux.flux)
+
+    const span = tracer.startSpan('llm.gateway.tts', {
+      attributes: {
+        [GEN_AI_ATTR_REQUEST_MODEL]: requestModel,
+        [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'text_to_speech',
+        ...serverAttributes,
+      },
+    })
 
   //   const response = await context.with(trace.setSpan(context.active(), span), () =>
   //     fetch(`${baseUrl}audio/speech`, {
@@ -367,17 +379,16 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
   //     description: `tts:${requestModel}`,
   //   })
 
-  //   span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxPerRequest)
-  //   span.end()
-  //   recordMetrics({ model: requestModel, status: response.status, type: 'tts', durationMs, fluxConsumed: fluxPerRequest })
-
-  //   publishRequestLog({
-  //     userId: user.id,
-  //     model: requestModel,
-  //     status: response.status,
-  //     durationMs,
-  //     fluxConsumed: fluxPerRequest,
-  //   })
+    // Debt-ledger billing: accumulate chars in Redis; only debit when we
+    // cross a whole-Flux boundary. Sub-threshold requests cost 0 Flux at this
+    // call site — the cost is realised on a later request that crosses.
+    const { fluxDebited: fluxConsumed } = await ttsMeter.accumulate({
+      userId: user.id,
+      units: inputText.length,
+      currentBalance: flux.flux,
+      requestId: nanoid(),
+      metadata: { model: requestModel },
+    })
 
   //   return new Response(response.body, {
   //     status: response.status,

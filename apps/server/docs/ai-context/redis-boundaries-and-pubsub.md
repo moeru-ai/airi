@@ -30,6 +30,9 @@
   - 例如聊天跨实例广播 `chat:{userId}:broadcast`
 - Streams
   - 例如 `billing-events`
+- 计量债务账本（atomic counter + TTL）
+  - 例如 TTS 累计字符 `user:{userId}:flux-meter:tts:debt`
+  - 见 [flux-meter.md](flux-meter.md)
 
 其中：
 
