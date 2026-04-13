@@ -84,6 +84,7 @@ catalog:
   alien-signals: ^3.1.2
   async-mutex: 0.5.0
   better-auth: ^1.6.2
+  better-call: ^2.0.3
   builder-util-runtime: ^9.5.1
   cac: ^7.0.0
   capacitor-native-settings: ^8.1.0
