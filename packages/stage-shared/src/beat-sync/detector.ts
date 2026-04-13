@@ -292,17 +292,12 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
   };
   }
 
-  (rhythmAnalyzer as any).addEventListener('bpm', (event: BpmEvent) => {
-   // Extract the detail from the CustomEvent
-    const bpmData = event.detail as BpmEventDetail;
-    
-    // Directly access .bpm (it is a number in 3.3.0, not an array)
-    const detectedBpm = bpmData.bpm;
-
-   if (detectedBpm > 0) {
-     syncMetronome(detectedBpm, true);
+(rhythmAnalyzer as any).onNext = (bpm: number, threshold: number) => {
+  lockBpm = bpm;
+  if (lockBpm > 0) {
+    syncMetronome(lockBpm, true);
   }
-});
+};
   // ----------------------
 
   return {
