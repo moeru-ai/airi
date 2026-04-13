@@ -8,6 +8,62 @@
       "when": 1772532674887,
       "tag": "0000_mean_slipstream",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1772532802115,
+      "tag": "0001_magenta_skrulls",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772634952890,
+      "tag": "0002_mean_tigra",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1773229668722,
+      "tag": "0003_old_titania",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1773421458174,
+      "tag": "0004_bouncy_devos",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1774582846222,
+      "tag": "0005_tough_living_tribunal",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1774584037626,
+      "tag": "0006_overconfident_susan_delgado",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1774632446757,
+      "tag": "0007_red_nicolaos",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1775032828818,
+      "tag": "0008_gray_xavin",
+      "breakpoints": true
     }
   ]
 }

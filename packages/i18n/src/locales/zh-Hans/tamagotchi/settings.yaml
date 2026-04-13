@@ -25,7 +25,7 @@ pages:
       sections:
         section:
           use-window-mouse:
-            title: 使用窗口鼠标工具
+            title: useElectronWindowMouse
             description: 测试 Electron 窗口鼠标位置
 devtools:
   title: 开发者选项
@@ -38,10 +38,10 @@ devtools:
       title: 性能可视化
       description: 切换 FPS/长任务/内存叠加
     markdown-stress:
-      title: Markdown Stress
+      title: Markdown 压力测试
       description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
     widgets-calling:
-      title: 挂件调用
+      title: 小组件调用
 screen-capture:
   permissions-prompt:
     title: 屏幕捕获

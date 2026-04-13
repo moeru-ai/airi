@@ -7,6 +7,7 @@ import {
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
+import { getDefinedProvider } from '@proj-airi/stage-ui/libs'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldInput, FieldRange } from '@proj-airi/ui'
@@ -155,6 +156,21 @@ const {
   validationMessage,
   forceValid,
 } = useProviderValidation(providerId)
+
+const apiKeyPlaceholder = computed(() => {
+  const definition = getDefinedProvider(providerId)
+  if (!definition?.createProviderConfig)
+    return 'sk-...'
+
+  const schema = definition.createProviderConfig({ t }) as any
+  const shape = typeof schema?.shape === 'function' ? schema.shape() : schema?.shape
+  const apiKeySchema = shape?.apiKey
+  if (!apiKeySchema)
+    return 'sk-...'
+
+  const meta = typeof apiKeySchema.meta === 'function' ? apiKeySchema.meta() : undefined
+  return typeof meta?.placeholderLocalized === 'string' ? meta.placeholderLocalized : 'sk-...'
+})
 </script>
 
 <template>
@@ -162,7 +178,7 @@ const {
     :provider-id="providerId"
     :default-model="defaultModel"
     :additional-settings="defaultVoiceSettings"
-    placeholder="sk-..."
+    :placeholder="apiKeyPlaceholder"
   >
     <!-- Voice settings specific to OpenAI Compatible -->
     <template #voice-settings>

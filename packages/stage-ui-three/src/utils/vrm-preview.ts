@@ -1,5 +1,5 @@
 import type { VRM } from '@pixiv/three-vrm'
-import type { Group, Object3D } from 'three'
+import type { Group, Material, Object3D } from 'three'
 
 import { VRMUtils } from '@pixiv/three-vrm'
 import { AmbientLight, AnimationMixer, DirectionalLight, PerspectiveCamera, Scene, WebGLRenderer } from 'three'
@@ -19,6 +19,20 @@ function disposePreviewRenderer(renderer: WebGLRenderer) {
   renderer.renderLists.dispose()
   renderer.dispose()
   renderer.forceContextLoss()
+}
+
+function hasMaterialUpdate(material: Material): material is Material & { update: (delta: number) => void } {
+  return typeof (material as { update?: unknown }).update === 'function'
+}
+
+function updatePreviewVrmMaterials(vrm: VRM | undefined, delta: number) {
+  // NOTICE: three-vrm drives MToon per-frame uniforms, including alphaTest used by MASK cutout,
+  // through material.update(delta). The preview path renders a one-shot offscreen frame instead of
+  // using VRM.update(delta), so we need to forward material updates manually before rendering.
+  vrm?.materials?.forEach((material) => {
+    if (hasMaterialUpdate(material))
+      material.update(delta)
+  })
 }
 
 /**
@@ -49,6 +63,7 @@ export async function loadVrmModelPreview(file: File) {
   let vrmInstance: VRM | undefined
   let vrmGroup: Group | undefined
   let mixer: AnimationMixer | undefined
+  const previewDelta = 0.1
 
   try {
     const vrmData = await loadVrm(objUrl, { scene, lookAt: true })
@@ -71,13 +86,14 @@ export async function loadVrmModelPreview(file: File) {
         mixer = new AnimationMixer(vrmData._vrm.scene)
         const action = mixer.clipAction(clip)
         action.play()
-        mixer.update(0.1)
+        mixer.update(previewDelta)
       }
     }
     catch (err) {
       console.warn('Failed to load VRM animation for preview:', err)
     }
 
+    updatePreviewVrmMaterials(vrmInstance, previewDelta)
     renderer.render(scene, camera)
 
     const dataUrl = offscreenCanvas.toDataURL()

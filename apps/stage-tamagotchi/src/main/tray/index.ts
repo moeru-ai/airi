@@ -11,6 +11,7 @@ import type { WidgetsWindowManager } from '../windows/widgets'
 import { env } from 'node:process'
 
 import { is } from '@electron-toolkit/utils'
+import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
 import { effect } from 'alien-signals'
 import { app, Menu, nativeImage, screen, Tray } from 'electron'
 import { debounce, once } from 'es-toolkit'
@@ -28,19 +29,27 @@ const RECOMMENDED_HEIGHT = 600
 const ASPECT_RATIO = RECOMMENDED_WIDTH / RECOMMENDED_HEIGHT
 
 function applyWindowSize(window: BrowserWindow, width: number, height: number, x?: number, y?: number): void {
+  if (isRendererUnavailable(window)) {
+    return
+  }
+
   window.setResizable(true)
+
   const bounds = {
     width: Math.round(width),
     height: Math.round(height),
-  } as any
+  } as Electron.Rectangle
+
   if (x !== undefined && y !== undefined) {
     bounds.x = Math.round(x)
     bounds.y = Math.round(y)
   }
+
   window.setBounds(bounds)
   if (x === undefined || y === undefined) {
     window.center()
   }
+
   window.show()
 }
 
@@ -96,6 +105,10 @@ export function setupTray(params: {
     onAppBeforeQuit(() => appTray.destroy())
 
     const rebuildContextMenu = debounce((): void => {
+      if (isRendererUnavailable(params.mainWindow)) {
+        return
+      }
+
       const { x: areaX, y: areaY, width: areaWidth, height: areaHeight } = screen.getPrimaryDisplay().workArea
       const { width: windowWidth, height: windowHeight } = params.mainWindow.getBounds()
 

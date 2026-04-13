@@ -8,18 +8,29 @@ import type { StreamEvent, StreamOptions } from './llm'
 import { createQueue } from '@proj-airi/stream-kit'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { ref, toRaw } from 'vue'
+import { computed, ref, toRaw } from 'vue'
 
 import { useAnalytics } from '../composables'
 import { useLlmmarkerParser } from '../composables/llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from '../composables/response-categoriser'
-import { createDatetimeContext } from './chat/context-providers'
+import { formatContextPromptText } from './chat/context-prompt'
+import { createDatetimeContext, createMinecraftContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { createChatHooks } from './chat/hooks'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
+import { useContextObservabilityStore } from './devtools/context-observability'
 import { useLLM } from './llm'
 import { useConsciousnessStore } from './modules/consciousness'
+
+function cloneStreamingMessage(message: StreamingAssistantMessage): StreamingAssistantMessage {
+  try {
+    return structuredClone(message)
+  }
+  catch {
+    return JSON.parse(JSON.stringify(message)) as StreamingAssistantMessage
+  }
+}
 
 interface SendOptions {
   model: string
@@ -49,6 +60,15 @@ interface QueuedSend {
   }
 }
 
+export interface QueuedSendSnapshot {
+  sessionId: string
+  generation: number
+  cancelled: boolean
+  messagePreview: string
+  hasAttachments: boolean
+  inputType?: WebSocketEventInputs['type']
+}
+
 export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const llmStore = useLLM()
   const consciousnessStore = useConsciousnessStore()
@@ -58,11 +78,13 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const chatSession = useChatSessionStore()
   const chatStream = useChatStreamStore()
   const chatContext = useChatContextStore()
+  const contextObservability = useContextObservabilityStore()
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
 
   const sending = ref(false)
   const pendingQueuedSends = ref<QueuedSend[]>([])
+  const pendingQueuedSendCount = computed(() => pendingQueuedSends.value.length)
   const hooks = createChatHooks()
 
   const sendQueue = createQueue<QueuedSend>({
@@ -90,7 +112,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   })
 
   sendQueue.on('enqueue', (queuedSend) => {
-    pendingQueuedSends.value = [...pendingQueuedSends.value, queuedSend]
+    pendingQueuedSends.value.push(queuedSend)
   })
 
   sendQueue.on('dequeue', (queuedSend) => {
@@ -110,14 +132,29 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
     // Inject current datetime context before composing the message
     chatContext.ingestContextMessage(createDatetimeContext())
+    const minecraftContext = createMinecraftContext()
+    if (minecraftContext)
+      chatContext.ingestContextMessage(minecraftContext)
 
     const sendingCreatedAt = Date.now()
+    // TODO: Expire or prune stale runtime contexts from disconnected services before composing.
+    // The Minecraft page already times out service liveness locally, but the shared chat context
+    // snapshot can still retain the last runtime context:update until we add cross-store expiry.
     const streamingMessageContext: ChatStreamEventContext = {
       message: { role: 'user', content: sendingMessage, createdAt: sendingCreatedAt, id: nanoid() },
       contexts: chatContext.getContextsSnapshot(),
       composedMessage: [],
       input: options.input,
     }
+    contextObservability.recordLifecycle({
+      phase: 'before-compose',
+      channel: 'chat',
+      sessionId,
+      textPreview: sendingMessage,
+      details: {
+        contexts: streamingMessageContext.contexts,
+      },
+    })
 
     const isStaleGeneration = () => chatSession.getSessionGeneration(sessionId) !== generation
     const shouldAbort = () => isStaleGeneration()
@@ -132,7 +169,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
     const updateUI = () => {
       if (isForegroundSession()) {
-        streamingMessage.value = JSON.parse(JSON.stringify(buildingMessage))
+        streamingMessage.value = cloneStreamingMessage(buildingMessage)
       }
     }
 
@@ -170,12 +207,13 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       if (shouldAbort())
         return
 
-      const sessionMessagesForSend = chatSession.sessionMessages[sessionId]
-      if (!sessionMessagesForSend) {
-        throw new Error('Session messages not found')
-      }
-      sessionMessagesForSend.push({ role: 'user', content: finalContent, createdAt: sendingCreatedAt, id: nanoid() })
-      chatSession.persistSessionMessages(sessionId)
+      chatSession.appendSessionMessage(sessionId, {
+        role: 'user',
+        content: finalContent,
+        createdAt: sendingCreatedAt,
+        id: nanoid(),
+      })
+      const sessionMessagesForSend = chatSession.getSessionMessages(sessionId)
 
       const categorizer = createStreamingCategorizer(activeProvider.value)
       let streamPosition = 0
@@ -248,7 +286,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         ],
       })
 
-      let newMessages = sessionMessagesForSend.map((msg) => {
+      const newMessages = sessionMessagesForSend.map((msg) => {
         const { context: _context, id: _id, createdAt: _createdAt, ...withoutContext } = msg
         const rawMessage = toRaw(withoutContext)
 
@@ -261,28 +299,57 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       })
 
       const contextsSnapshot = chatContext.getContextsSnapshot()
-      if (Object.keys(contextsSnapshot).length > 0) {
-        const system = newMessages.slice(0, 1)
-        const afterSystem = newMessages.slice(1, newMessages.length)
+      const contextPromptText = formatContextPromptText(contextsSnapshot)
+      if (contextPromptText) {
+        // Merge context into the latest user message instead of inserting a
+        // separate user message, which would create consecutive same-role
+        // messages forbidden by some providers (e.g. Anthropic → 400 error).
+        // Appending at the end keeps the static history prefix stable for
+        // LLM KV-cache reuse.
+        // See: https://github.com/moeru-ai/airi/issues/1539
+        const lastMessage = newMessages.at(-1)
+        if (lastMessage && lastMessage.role === 'user') {
+          // Append context after the user's content, separated by a newline.
+          // Keeping it at the end of the last message preserves the static
+          // history prefix for LLM KV-cache reuse.
+          const existingParts = typeof lastMessage.content === 'string'
+            ? [{ type: 'text' as const, text: lastMessage.content }]
+            : lastMessage.content
 
-        newMessages = [
-          ...system,
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: ''
-                  + 'These are the contextual information retrieved or on-demand updated from other modules, you may use them as context for chat, or reference of the next action, tool call, etc.:\n'
-                  + `${Object.entries(contextsSnapshot).map(([key, value]) => `Module ${key}: ${JSON.stringify(value)}`).join('\n')}\n`,
-              },
-            ],
+          lastMessage.content = [
+            ...existingParts,
+            { type: 'text' as const, text: `\n${contextPromptText}` },
+          ]
+        }
+
+        contextObservability.recordLifecycle({
+          phase: 'prompt-context-built',
+          channel: 'chat',
+          sessionId,
+          details: {
+            contexts: contextsSnapshot,
+            promptText: contextPromptText,
           },
-          ...afterSystem,
-        ]
+        })
       }
 
       streamingMessageContext.composedMessage = newMessages as Message[]
+      contextObservability.capturePromptProjection({
+        sessionId,
+        message: sendingMessage,
+        contexts: contextsSnapshot,
+        promptMessage: undefined,
+        composedMessage: newMessages as Message[],
+      })
+      contextObservability.recordLifecycle({
+        phase: 'after-compose',
+        channel: 'chat',
+        sessionId,
+        textPreview: sendingMessage,
+        details: {
+          composedMessage: newMessages,
+        },
+      })
 
       await hooks.emitAfterMessageComposedHooks(sendingMessage, streamingMessageContext)
       await hooks.emitBeforeSendHooks(sendingMessage, streamingMessageContext)
@@ -316,6 +383,15 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
               })
 
               break
+            case 'tool-error':
+              toolCallQueue.enqueue({
+                type: 'tool-call-result',
+                id: event.toolCallId,
+                isError: true,
+                result: event.result,
+              })
+
+              break
             case 'text-delta':
               fullText += event.text
               await parser.consume(event.text)
@@ -331,8 +407,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       await parser.end()
 
       if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
-        sessionMessagesForSend.push(toRaw(buildingMessage))
-        chatSession.persistSessionMessages(sessionId)
+        chatSession.appendSessionMessage(sessionId, toRaw(buildingMessage))
       }
 
       await hooks.emitStreamEndHooks(streamingMessageContext)
@@ -410,14 +485,25 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       : []
   }
 
+  function getPendingQueuedSendSnapshot() {
+    return pendingQueuedSends.value.map(queued => ({
+      sessionId: queued.sessionId,
+      generation: queued.generation,
+      cancelled: !!queued.cancelled,
+      messagePreview: queued.sendingMessage.slice(0, 120),
+      hasAttachments: !!queued.options.attachments?.length,
+      inputType: queued.options.input?.type,
+    } satisfies QueuedSendSnapshot))
+  }
+
   return {
     sending,
-
-    discoverToolsCompatibility: llmStore.discoverToolsCompatibility,
+    pendingQueuedSendCount,
 
     ingest,
     ingestOnFork,
     cancelPendingSends,
+    getPendingQueuedSendSnapshot,
 
     clearHooks: hooks.clearHooks,
 

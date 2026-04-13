@@ -8,7 +8,7 @@ import {
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { getDefaultKokoroModel } from '@proj-airi/stage-ui/workers/kokoro/constants'
-import { Callout, Select } from '@proj-airi/ui'
+import { Callout, ComboboxSelect } from '@proj-airi/ui'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -108,6 +108,12 @@ onMounted(async () => {
     await providersStore.fetchModelsForProvider(providerId)
 
     const config = providersStore.getProviderConfig(providerId)
+
+    // Persist the default model if none is saved yet so validation passes on first visit
+    if (!config.model) {
+      config.model = getDefaultKokoroModel(hasWebGPU.value)
+    }
+
     const metadata = providersStore.getProviderMetadata(providerId)
     const validationResult = await metadata.validators.validateProviderConfig(config)
     if (validationResult.valid) {
@@ -173,7 +179,7 @@ watch(model, async (newValue) => {
           </div>
         </Callout>
         <div>
-          <Select
+          <ComboboxSelect
             v-model="model"
             :options="modelOptions"
             :disabled="modelsLoading"

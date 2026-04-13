@@ -53,7 +53,8 @@ export function useProviderValidation(providerId: string) {
   const isValid = ref(false)
   const validationMessage = ref('')
 
-  const hasManualValidators = computed(() => !!providerMetadata.value?.validators.runManualValidation)
+  // Manual chat ping check state (settings pages only)
+  const hasManualValidators = computed(() => !!providerMetadata.value?.validators.chatPingCheckAvailable)
   const isManualTesting = ref(false)
   const manualTestPassed = ref(false)
   const manualTestMessage = ref('')
@@ -74,7 +75,11 @@ export function useProviderValidation(providerId: string) {
       if (config.baseUrl)
         config.baseUrl = config.baseUrl.trim()
 
-      const validationResult = await providerMetadata.value.validators.validateProviderConfig(config)
+      // Settings pages always skip chat ping check during automatic validation
+      // to avoid unexpected API billing. Users can trigger it manually.
+      const validationResult = await providerMetadata.value.validators.validateProviderConfig(config, {
+        skipChatPingCheck: true,
+      })
       isValid.value = validationResult.valid
 
       if (!isValid.value)
@@ -91,7 +96,7 @@ export function useProviderValidation(providerId: string) {
     catch (error) {
       isValid.value = false
       finalValidationMessage = t('settings.dialogs.onboarding.validationError', {
-        error: errorMessageFrom(error),
+        error: errorMessageFrom(error) ?? 'Generic error (993b5ad7)',
       })
     }
     finally {
@@ -99,6 +104,36 @@ export function useProviderValidation(providerId: string) {
         isValidating.value--
         validationMessage.value = finalValidationMessage
       }, Math.max(0, debounceTime - (performance.now() - startValidationTimestamp)))
+    }
+  }
+
+  async function runManualTest() {
+    if (!providerMetadata.value)
+      return
+
+    isManualTesting.value = true
+    manualTestMessage.value = ''
+
+    try {
+      const config = { ...credentials.value }
+      if (config.apiKey)
+        config.apiKey = config.apiKey.trim()
+      if (config.baseUrl)
+        config.baseUrl = config.baseUrl.trim()
+
+      const result = await providerMetadata.value.validators.validateProviderConfig(config, {
+        onlyChatPingCheck: true,
+      })
+      manualTestPassed.value = result.valid
+      if (!result.valid)
+        manualTestMessage.value = result.reason
+    }
+    catch (error) {
+      manualTestPassed.value = false
+      manualTestMessage.value = errorMessageFrom(error) ?? 'Generic error (e56ae24f)'
+    }
+    finally {
+      isManualTesting.value = false
     }
   }
 
@@ -130,34 +165,6 @@ export function useProviderValidation(providerId: string) {
     manualTestPassed.value = false
     manualTestMessage.value = ''
   }, { deep: true })
-
-  async function runManualTest() {
-    if (!providerMetadata.value?.validators.runManualValidation)
-      return
-
-    isManualTesting.value = true
-    manualTestMessage.value = ''
-
-    try {
-      const config = { ...credentials.value }
-      if (config?.apiKey)
-        config.apiKey = config.apiKey.trim()
-      if (config?.baseUrl)
-        config.baseUrl = config.baseUrl.trim()
-
-      const result = await providerMetadata.value.validators.runManualValidation(config)
-      manualTestPassed.value = result.valid
-      if (!result.valid)
-        manualTestMessage.value = result.reason
-    }
-    catch (error) {
-      manualTestPassed.value = false
-      manualTestMessage.value = errorMessageFrom(error) ?? 'Unknown error'
-    }
-    finally {
-      isManualTesting.value = false
-    }
-  }
 
   function handleResetSettings() {
     const defaultOptions = providerMetadata.value?.defaultOptions ? providerMetadata.value.defaultOptions() : {}

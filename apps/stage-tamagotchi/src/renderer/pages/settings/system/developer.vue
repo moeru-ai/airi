@@ -74,10 +74,22 @@ const menu = computed(() => [
     to: '/devtools/plugin-host',
   },
   {
+    title: 'Updater',
+    description: 'Inspect updater state, explicit feed overrides, and install actions',
+    icon: 'i-solar:restart-bold-duotone',
+    to: '/devtools/updater',
+  },
+  {
     title: 'Screen Capture',
     description: 'Capture screen or window as video and/or audio streams',
     icon: 'i-solar:screen-share-bold-duotone',
     to: '/devtools/screen-capture',
+  },
+  {
+    title: 'Vision Capture',
+    description: 'Capture a screen frame and inspect the output payload',
+    icon: 'i-solar:eye-closed-bold-duotone',
+    to: '/devtools/vision',
   },
 ])
 
@@ -88,42 +100,27 @@ const openDevtoolsWindow = useElectronEventaInvoke(electronOpenDevtoolsWindow)
 <template>
   <ButtonBar
     v-model="settings.disableTransitions"
-    v-motion
     mb-2
     icon="i-solar:settings-minimalistic-outline"
     text="settings.pages.page.developers.open-devtools.title"
-    :initial="{ opacity: 0, y: 10 }"
-    :enter="{ opacity: 1, y: 0 }"
-    :duration="250 + (19 * 10)"
-    :delay="1 * 50"
     transition="all ease-in-out duration-250"
     @click="() => openDevTools()"
   >
     {{ t('settings.pages.page.developers.open-devtools.button') }}
   </ButtonBar>
   <ButtonBar
-    v-motion
     mb-2
     icon="i-solar:code-bold-duotone"
     :text="t('tamagotchi.settings.devtools.pages.markdown-stress.title')"
-    :initial="{ opacity: 0, y: 10 }"
-    :enter="{ opacity: 1, y: 0 }"
-    :duration="250 + (19 * 10)"
-    :delay="2 * 50"
     transition="all ease-in-out duration-250"
     @click="() => openDevtoolsWindow({ route: '/devtools/markdown-stress' })"
   >
     {{ t('tamagotchi.settings.devtools.pages.markdown-stress.title') }}
   </ButtonBar>
   <ButtonBar
-    v-motion
     mb-2
     icon="i-solar:chart-square-bold-duotone"
     :text="t('tamagotchi.settings.devtools.pages.lag-visualizer.title')"
-    :initial="{ opacity: 0, y: 10 }"
-    :enter="{ opacity: 1, y: 0 }"
-    :duration="250 + (19 * 10)"
-    :delay="3 * 50"
     transition="all ease-in-out duration-250"
     @click="() => router.push('/devtools/performance-visualizer')"
   >
@@ -131,32 +128,21 @@ const openDevtoolsWindow = useElectronEventaInvoke(electronOpenDevtoolsWindow)
   </ButtonBar>
   <CheckBar
     v-model="settings.disableTransitions"
-    v-motion
     mb-2
     icon-on="i-solar:people-nearby-bold-duotone"
     icon-off="i-solar:running-2-line-duotone"
     text="settings.animations.stage-transitions.title"
-    :initial="{ opacity: 0, y: 10 }"
-    :enter="{ opacity: 1, y: 0 }"
-    :duration="250 + (19 * 10)"
-    :delay="4 * 50"
     transition="all ease-in-out duration-250"
   />
   <CheckBar
     v-model="settings.usePageSpecificTransitions"
-    v-motion
     :disabled="settings.disableTransitions"
     icon-on="i-solar:running-2-line-duotone"
     icon-off="i-solar:people-nearby-bold-duotone"
     text="settings.animations.use-page-specific-transitions.title"
     description="settings.animations.use-page-specific-transitions.description"
-    :initial="{ opacity: 0, y: 10 }"
-    :enter="{ opacity: 1, y: 0 }"
-    :duration="250 + (20 * 10)"
-    :delay="5 * 50"
     transition="all ease-in-out duration-250"
   />
-
   <div flex="~ col gap-4" mt-2 pb-12>
     <IconItem
       v-for="(item, index) in menu"
@@ -166,7 +152,7 @@ const openDevtoolsWindow = useElectronEventaInvoke(electronOpenDevtoolsWindow)
       :enter="{ opacity: 1, y: 0 }"
       :duration="250"
       :style="{
-        transitionDelay: `${(5 + index) * 50}ms`, // delay between each item, unocss doesn't support dynamic generation of classes now
+        transitionDelay: `${(index) * 50}ms`, // delay between each item, unocss doesn't support dynamic generation of classes now
       }"
       :title="item.title"
       :description="item.description"

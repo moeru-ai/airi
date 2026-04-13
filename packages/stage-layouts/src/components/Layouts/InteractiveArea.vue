@@ -20,6 +20,10 @@ const { streamingMessage } = storeToRefs(useChatStreamStore())
 
 const isLoading = ref(true)
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
+
+function handleDeleteMessage(index: number) {
+  messages.value = messages.value.filter((_, messageIndex) => messageIndex !== index)
+}
 </script>
 
 <template>
@@ -41,6 +45,7 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
             :streaming-message="streamingMessage"
             h-full
             variant="desktop"
+            @delete-message="handleDeleteMessage($event.index)"
             @vue:mounted="isLoading = false"
           />
         </div>

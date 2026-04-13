@@ -43,8 +43,10 @@ export interface VrmUpdateFrameTracePayload extends StageThreeRuntimeTraceBasePa
   humanoidMs: number
   lipSyncMs: number
   lookAtMs: number
+  nodeConstraintMs: number
   springBoneMs: number
   vrmFrameHookMs: number
+  vrmRuntimeHookMs: number
 }
 
 export type ThreeSceneTracePhase = 'pending' | 'loading' | 'binding' | 'mounted' | 'no-model' | 'error'
@@ -68,6 +70,7 @@ export type ThreeSceneTraceTransactionAction = 'begin' | 'end' | 'reset'
 export type ThreeSceneTraceTransactionReason
   = | 'component-unmount'
     | 'initial-load'
+    | 'model-reload'
     | 'model-switch'
     | 'no-model'
     | 'subtree-remount'
@@ -124,6 +127,7 @@ export type VrmLifecycleReason
   = | 'component-unmount'
     | 'initial-load'
     | 'manual-reload'
+    | 'model-reload'
     | 'model-switch'
 
 export interface VrmLifecycleTracePayload extends StageThreeRuntimeTraceBasePayload {

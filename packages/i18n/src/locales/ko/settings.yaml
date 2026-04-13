@@ -18,39 +18,70 @@ dialogs:
     baseUrl: 기본 URL
     baseUrlHelp: API 엔드포인트 URL(확실하지 않은 경우 기본값 사용)
     accountId: 계정 ID
+    validationRunning: 테스트 실행
     validationSuccess: 구성 검증 성공
     validationPartial: Configuration partially validated
     validationFailed: 구성 검증 실패
     validationError: '검증 오류: {error}'
-    testGeneration: Test Generation
-    testGenerationRunning: Testing...
-    testGenerationFailed: Generation test failed
+    testGeneration: API 핑
+    testGenerationRunning: Ping...
+    testGenerationFailed: Ping 테스트 실패
+    retryPingCheck: 재 시도
     skipForNow: 지금은 건너뛰기
     saveAndContinue: 저장 및 계속
     next: 다음
     retry: 다시 시도
+    credentialsSafeLabel: Keep your API keys and credentials safe!
+    credentialsSafeLocal: >-
+      AIRI는 PC에서 온전히 로컬에서 실행되며 AI / LLM 제공 업체에 대한 자격 증명을 절대 훔치지 않아요. 당신의 API 키는 민감한 정보라는 점을 명심해주세요. 보안에 신경써주시고 절대 누구와도 공유하지 마세요.
+    credentialsSafeOpenSource: >-
+      AIRI는 {github}에서 오픈 소스입니다. 당신의 자격 증명을 처리하는 방법을 확인하려면 언제든지 코드를 검사하실 수 있어요.
+    enableChatCheck: >-
+      Airi가 첫 모델에게 "Ping" 메시지를 보낼 수 있도록 허용하기
     start: 그럼 시작합시다!
+    loginPrompt: 최고의 경험을 위해 공식 AIFI 제공업체를 이용하려면 로그인하세요.
+    loginAction: 가입하기
+    setupWithoutSigningIn: 당신의 제공업자로 설정하기
+    flux: 플럭스
+    buyFlux: 플럭스 충전하기
     select-model: 모델 선택
     no-models: 사용 가능한 모델 없음
     no-models-help: >-
       이전 단계로 돌아가서 API 키를 확인하거나 네트워크 연결을 확인해 주세요.
     permissions:
-      title: Notifications
-      description: You can allow notifications now or continue and set it up later.
-      notificationsTitle: Notifications
+      title: 알림
+      description: 지금 알림을 받도록 허용할 수 있고 나중에 허용할 수 있어요.
+      notificationsTitle: 알림
       notificationsDescription: Allow reminders and important status updates.
       notificationsAction: Request notification permission
       notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
-      openSettings: Open iOS Settings
+      openSettings: iOS 설정 열기
       optionalHint: You can continue even if notification permission is not granted.
-      stateUnknown: Not requested
-      stateRequesting: Requesting...
-      stateGranted: Granted
-      stateNotGranted: Not granted
+      stateUnknown: 요청 전
+      stateRequesting: 요청 중...
+      stateGranted: 허용됨
+      stateNotGranted: 허용되지 않음
+  bug-report:
+    title: 버그 리포트 (´;ω;`)ヾ(･∀･`)
+    subtitle: 이런, 문제가 생겼나 봐요. 혹시 어쩌다 이렇게 됐는지 저희에게 설명해주실 수 있나요?
+    trigger-label: 버그 제보하기
+    submit-label: 버그 리포트 전송
+    triage-description: Include screenshot and page context to help us triage this issue.
+    description-placeholder: Steps to reproduce, expected behavior, and actual behavior
+    include-current-page-screenshot: Include current page screenshot
+    manual-media:
+      label: Manually choose screenshots / recordings
+      optional: 선택 사항.
+    media-files:
+      label: 미디어 파일
+      description: '선택 사항: 수동으로 선택하기.'
+      placeholder: Choose screenshot or video file
+      selected-count: '{count}개의 파일이 선택 됨'
+    last-submitted-preview: Last Submitted Payload Preview
 language:
   title: 언어
-  description: >
-    AIRI 인터페이스의 언어를 바꿉니다. 다만 캐릭터의 응답 언어는 변경되지 않습니다.
+  description: |
+    UI 언어에요. 캐릭터의 언어는 나중에 바꿀 수 있어요.
 controls-island:
   icon-size:
     title: 아일랜드 아이콘 크기 조정
@@ -58,6 +89,20 @@ controls-island:
     auto: 자동 (능동적)
     large: 크게 (기본값)
     small: 작게
+analytics:
+  notice:
+    title: 사용량 분석
+    description: >-
+      AIRI collects anonymous usage analytics to help us understand how the app is used and improve stability. No personal data is collected.
+    privacyPrefix: 읽으세요
+    privacyLink: 개인 정보 정책
+    onboardingHint: 설정 > 시스템 > 일반에서 분석을 끌 수 있어요.
+    settingsHint: 분석은 언제나 끌 수 있어요.
+  toggle:
+    title: 사용 분석 켜기
+    description: 분석 수집을 거부하려면 꺼주세요................
+  disabled:
+    title: Analytics disabled for this development build
 live2d:
   change-model:
     from-file: 파일로부터 불러오기
@@ -87,15 +132,26 @@ live2d:
   focus:
     title: 마우스 포인터 추적 비활성화
     button-disable:
-      title: 비활성화
+      title: Disable model mouse tracking
+  render-scale:
+    title: Render scale
   fps:
     title: FPS (초당 프레임)
     description: 렌더링 주사율 제한
     options:
-      unlimited: 무제한
+      unlimited: '∞'
 microphone: 마이크
 models: 모델
 pages:
+  account:
+    title: Account
+    description: View your profile and manage your account
+    notLoggedIn: Sign in to view your account and access all features
+    login: Sign in
+    logout: Sign out
+    fluxBalance: Flux Balance
+    viewFluxDetails: View details
+    signedInAs: Signed in as
   card:
     activate: 활성화
     active: 활성
@@ -218,6 +274,10 @@ pages:
         title: 모든 데이터 삭제
         description: 로컬 설정, 제공자 설정 및 모델을 전부 삭제합니다.
         delete: 모든 데이터 삭제
+      desktop-folder:
+        title: Open app data folder
+        description: Open AIRI's data folder in your file manager.
+        open: Open folder
       desktop:
         title: 데스크탑 설정 및 상태 초기화
         description: AIRI 데스크탑 설정 및 런타임 상태를 전부 지웁니다.
@@ -344,16 +404,33 @@ pages:
       description: Minecraft 플레이 중!
       title: Minecraft
       enable: Minecraft 통합 사용
-      enable-description: AIRI가 Minecraft를 접근하기 위해 허용
-      server-address: 서버 주소
-      server-address-description: Minecraft 서버의 IP 주소 및 호스트 이름
-      server-address-placeholder: '서버 주소 입력 (예시: localhost 및 play.example.com)'
-      server-port: 서버 포트
-      server-port-description: 'Minecraft 서버의 포트 번호 (기본값: 25565)'
-      username: 사용자 이름
-      username-description: Minecraft 서버의 사용자 이름
-      username-placeholder: Minecraft 사용자 이름을 입력하세요
+      enable-description: >-
+        Include Minecraft self-knowledge in Stage chat turns and keep passive runtime visibility enabled.
       configured: Minecraft 구성 완료!
+      read-only:
+        title: Read-only shell
+        description: >-
+          Stage currently exposes Minecraft as a passive shell. Runtime status and traffic are visible here, but service configuration stays in the Minecraft service files.
+      setup:
+        title: Setup
+        description: >-
+          You can find the instructions for setting up the bot in the following file
+      runtime:
+        title: Observed runtime
+        connection: Connection
+        latest-context: Latest bot context
+        waiting: Waiting for a fresh bot-originated context push.
+        unknown: Unknown
+      debug:
+        title: Minecraft traffic
+        empty: No Minecraft traffic observed yet.
+        source: 'Source: {source}'
+      status:
+        service-online: Service online
+        service-offline: Service offline
+        no-runtime-context: No bot context observed yet
+        last-context-seconds: 'Last bot context: {seconds}s ago'
+        last-context-stale: 'Last bot context: Stale'
     hearing:
       description: 음성 인식 작동 방식 구성
       title: 청력
@@ -361,6 +438,15 @@ pages:
         section:
           provider-selection:
             description: 적절한 음성 인식 제공자 선택
+          confidence-threshold:
+            title: Confidence Threshold
+            description: >-
+              Filter out low-confidence transcriptions to reduce Whisper hallucinations. Values closer to 0 are more strict; drag to the leftmost to disable. Only effective for providers supporting Whisper API (e.g., OpenAI, Groq).
+            disabled: Disabled
+            verbose-json-note: >-
+              Note: If your provider does not support verbose_json responses, this setting will have no effect.
+            verbose-json-unsupported: >-
+              Your provider did not return verbose_json segments. Confidence filtering had no effect on the last transcription.
     memory-long-term:
       description: 장기 메모리 관련 설정 및 관리
       title: 장기 메모리
@@ -449,6 +535,34 @@ pages:
         opened: '{path}에서 설정 파일 열림'
         restarted: >-
           MCP 서버 재시작 완료. 시작: {started}, 실패: {failed}, 건너뜀: {skipped}
+  flux:
+    title: Flux
+    buy: Charge
+    currency: Currency
+    description: Current Flux
+    packagesError: Failed to load packages. Please try again later.
+    checkout:
+      success: Payment successful! Your Flux has been topped up.
+      canceled: Payment was canceled.
+      error: Something went wrong. Please try again later.
+    audit:
+      title: Transaction History
+      time: Time
+      type: Type
+      detail: Detail
+      amount: Amount
+      typeAddition: Top-up
+      typeConsumption: Usage
+      typeInitial: Initial Grant
+      loading: Loading history...
+      empty: No transaction records yet.
+      loadMore: Load More
+      delayHint: Usage records may be delayed by up to 1 minute
+      ttsRequests: requests
+    packages:
+      title: Flux Packages
+      buy: Charge
+      description: Flux packages to choose from.
   providers:
     explained:
       chat: '텍스트 생성 모델 제공자를 구성합니다. (예시: OpenRouter, OpenAI, Ollama)'
@@ -532,7 +646,7 @@ pages:
                       Ollama에 대한 연결 검사가 실패했다는 소식을 듣게 되어 유감입니다. 걱정하지 마세요. Ollama 인스턴스의 경우 Ollama를 통과시키기 위해 추가 구성이 필요합니다. Ollama 애플리케이션 또는 Ollama CLI 서버를 시작할 때 <code>OLLAMA_HOST</code>를 명시적으로 설정해야 하며, 자세한 정보는 <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama 통합 가이드</a>를 확인하세요.
     common:
       continueAnyway: 계속 진행
-      goToModelSelection: 'Select Model →'
+      goToModelSelection: Select Model →
       fields:
         field:
           api-key:
@@ -728,6 +842,9 @@ pages:
       openai:
         description: openai.com
         title: OpenAI
+      azure-openai:
+        description: Azure OpenAI API
+        title: Azure OpenAI
       openai-compatible:
         description: OpenAI 호환
         title: OpenAI 호환
@@ -738,6 +855,9 @@ pages:
         description: n1n.ai - 고성능 AI API 제공자.
         title: n1n
       openrouter:
+        description: openrouter.ai
+        title: OpenRouter
+      openrouter-audio-speech:
         description: openrouter.ai
         title: OpenRouter
       perplexity:
@@ -775,6 +895,9 @@ pages:
       xai:
         description: x.ai
         title: xAI
+      zai:
+        description: z.ai
+        title: Z.ai
       302-ai:
         description: 302.AI
         title: 302.AI
@@ -790,6 +913,13 @@ pages:
       browser-web-speech-api:
         description: 브라우저 기반 STT(Chrome/Edge/Safari 필요)
         title: 웹 음성 API
+      official:
+        title: Official Provider
+        description: Official AI provider by AIRI.
+        speech-title: Official Speech Provider
+        speech-description: Official text-to-speech provider by AIRI.
+        transcription-title: Official Transcription Provider
+        transcription-description: Official speech-to-text provider by AIRI.
       transcriptions:
         playground:
           title: 전사 놀이터
@@ -804,6 +934,45 @@ pages:
       description: '웹소켓 서버의 전체 주소(예: ws://localhost:6121/ws)'
       label: 웹소켓 서버 주소
       placeholder: ws://localhost:6121/ws
+    server-hostname:
+      label: Expose On Network
+      description: >-
+        Choose whether the AIRI gateway only listens on this device or can be reached from your local network.
+      advanced-label: Bind Hostname
+      advanced-description: >-
+        Use a specific hostname or IP address when you need manual network binding.
+      options:
+        this-device: This device
+        all: All
+        advanced: Advanced
+    server-auth-token:
+      label: Auth Token
+      description: >-
+        Security token required by remote clients that connect to this gateway. When left empty, AIRI generates a new token automatically.
+      placeholder: Auto-generate
+    qr:
+      title: Connect from Stage Pocket
+      description: >-
+        Scan this QR code from Stage Pocket to try all reachable local network addresses and save the first working one.
+      refresh: Refresh
+      image-alt: AIRI server channel connection QR code
+      candidates: Candidate addresses
+      token-hint: >-
+        The QR code includes the auth token so Stage Pocket can authenticate after connecting. Do not share it publicly.
+      errors:
+        title: QR code unavailable
+        unavailable: Failed to prepare the connection QR code.
+    qr-scan:
+      title: Quick Connect
+      description: Scan the QR code from Tamagotchi to quick connect
+      instructions: Point the camera at the AIRI connection QR code.
+      action: Scan
+      success:
+        title: Connected address saved
+        description: 'URL been used: {url}'
+      errors:
+        title: QR scan failed
+        failed: Failed to scan or connect with the QR code.
   scene:
     description: 캐릭터가 사는 환경 구성하기
     title: 장면
@@ -877,7 +1046,7 @@ pages:
                   Aliyun NLS로 마이크 오디오 스트리밍 및 라이브 녹취록 검사
               performance-playground:
                 title: 성능 놀이터
-                description: 'VRM expressions + TTS lip sync playground'
+                description: VRM expressions + TTS lip sync playground
         theme-presets:
           presets:
             default:
@@ -953,6 +1122,8 @@ pages:
       open-devtools:
         title: 개발자 도구 열기
         button: 열기
+  credits:
+    buy: Buy
 sections:
   section:
     general:
@@ -964,6 +1135,8 @@ theme:
 title: 설정
 voices: 음성
 vrm:
+  render-scale:
+    title: Render scale
   change-model:
     from-file: 파일로부터 불러오기
     from-file-select: 선택

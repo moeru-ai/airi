@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 
-import { env, exit } from 'node:process'
+import process, { env, exit } from 'node:process'
 
 import { createServer } from '../server'
 

@@ -1,8 +1,11 @@
 import type { Database } from '../libs/db'
 
+import { useLogger } from '@guiiai/logg'
 import { and, eq, isNull, sql } from 'drizzle-orm'
 
 import * as schema from '../schemas/providers'
+
+const logger = useLogger('providers')
 
 export function createProviderService(db: Database) {
   return {
@@ -92,6 +95,7 @@ export function createProviderService(db: Database) {
 
     async createUserConfig(data: schema.NewUserProviderConfig) {
       const [inserted] = await db.insert(schema.userProviderConfigs).values(data).returning()
+      logger.withFields({ id: inserted.id, ownerId: data.ownerId, definitionId: data.definitionId }).log('Created user provider config')
       return inserted
     },
 
@@ -103,17 +107,20 @@ export function createProviderService(db: Database) {
           isNull(schema.userProviderConfigs.deletedAt),
         ))
         .returning()
+      logger.withFields({ id }).log('Updated user provider config')
       return updated
     },
 
     async deleteUserConfig(id: string) {
-      return await db.update(schema.userProviderConfigs)
+      const result = await db.update(schema.userProviderConfigs)
         .set({ deletedAt: new Date() })
         .where(and(
           eq(schema.userProviderConfigs.id, id),
           isNull(schema.userProviderConfigs.deletedAt),
         ))
         .returning()
+      logger.withFields({ id }).log('Deleted user provider config')
+      return result
     },
 
     // System Provider Configs
@@ -134,6 +141,7 @@ export function createProviderService(db: Database) {
 
     async createSystemConfig(data: schema.NewSystemProviderConfig) {
       const [inserted] = await db.insert(schema.systemProviderConfigs).values(data).returning()
+      logger.withFields({ id: inserted.id, definitionId: data.definitionId }).log('Created system provider config')
       return inserted
     },
 
@@ -145,17 +153,20 @@ export function createProviderService(db: Database) {
           isNull(schema.systemProviderConfigs.deletedAt),
         ))
         .returning()
+      logger.withFields({ id }).log('Updated system provider config')
       return updated
     },
 
     async deleteSystemConfig(id: string) {
-      return await db.update(schema.systemProviderConfigs)
+      const result = await db.update(schema.systemProviderConfigs)
         .set({ deletedAt: new Date() })
         .where(and(
           eq(schema.systemProviderConfigs.id, id),
           isNull(schema.systemProviderConfigs.deletedAt),
         ))
         .returning()
+      logger.withFields({ id }).log('Deleted system provider config')
+      return result
     },
   }
 }

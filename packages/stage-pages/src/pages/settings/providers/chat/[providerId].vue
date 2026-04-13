@@ -11,6 +11,7 @@ import {
   ProviderValidationAlerts,
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
+import { getDefinedProvider } from '@proj-airi/stage-ui/libs'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
@@ -60,6 +61,21 @@ const {
   runManualTest,
 } = useProviderValidation(providerId)
 
+const apiKeyPlaceholder = computed(() => {
+  const definition = getDefinedProvider(providerId)
+  if (!definition?.createProviderConfig)
+    return 'sk-...'
+
+  const schema = definition.createProviderConfig({ t }) as any
+  const shape = typeof schema?.shape === 'function' ? schema.shape() : schema?.shape
+  const apiKeySchema = shape?.apiKey
+  if (!apiKeySchema)
+    return 'sk-...'
+
+  const meta = typeof apiKeySchema.meta === 'function' ? apiKeySchema.meta() : undefined
+  return typeof meta?.placeholderLocalized === 'string' ? meta.placeholderLocalized : 'sk-...'
+})
+
 function goToModelSelection() {
   activeProvider.value = providerId
   router.push('/settings/modules/consciousness')
@@ -69,6 +85,7 @@ function goToModelSelection() {
 <template>
   <ProviderSettingsLayout
     :provider-name="providerMetadata?.localizedName"
+    :provider-icon="providerMetadata?.icon"
     :provider-icon-color="providerMetadata?.iconColor"
     :on-back="() => router.back()"
   >
@@ -81,7 +98,7 @@ function goToModelSelection() {
         <ProviderApiKeyInput
           v-model="apiKey"
           :provider-name="providerMetadata?.localizedName"
-          placeholder="sk-..."
+          :placeholder="apiKeyPlaceholder"
         />
       </ProviderBasicSettings>
 
@@ -92,7 +109,6 @@ function goToModelSelection() {
         />
       </ProviderAdvancedSettings>
 
-      <!-- Validation Status -->
       <ProviderValidationAlerts
         :is-valid="isValid"
         :is-validating="isValidating"

@@ -1,14 +1,9 @@
 import localforage from 'localforage'
 
-import { loadLive2DModelPreview as generateLive2DPreview } from '@proj-airi/stage-ui-live2d/utils/live2d-preview'
-import { loadVrmModelPreview as generateVrmPreview } from '@proj-airi/stage-ui-three/utils/vrm-preview'
 import { until } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-
-import '@proj-airi/stage-ui-live2d/utils/live2d-zip-loader'
-import '@proj-airi/stage-ui-live2d/utils/live2d-opfs-registration'
 
 export enum DisplayModelFormat {
   Live2dZip = 'live2d-zip',
@@ -61,6 +56,9 @@ const displayModelsPresets: DisplayModel[] = [
 export const useDisplayModelsStore = defineStore('display-models', () => {
   const displayModels = ref<DisplayModel[]>([])
 
+  let generateLive2DPreview: (file: File) => Promise<string | undefined>
+  let generateVrmPreview: (file: File) => Promise<string | undefined>
+
   const displayModelsFromIndexedDBLoading = ref(false)
 
   async function loadDisplayModelsFromIndexedDB() {
@@ -96,10 +94,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   }
 
   const loadLive2DModelPreview = (file: File) => generateLive2DPreview(file)
-
-  async function loadVrmModelPreview(file: File) {
-    return generateVrmPreview(file)
-  }
+  const loadVrmModelPreview = (file: File) => generateVrmPreview(file)
 
   async function addDisplayModel(format: DisplayModelFormat, file: File) {
     await until(displayModelsFromIndexedDBLoading).toBe(false)
@@ -145,10 +140,22 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     displayModels.value = [...displayModelsPresets].sort((a, b) => b.importedAt - a.importedAt)
   }
 
+  async function initialize() {
+    await import('@proj-airi/stage-ui-live2d/utils/live2d-zip-loader')
+    await import('@proj-airi/stage-ui-live2d/utils/live2d-opfs-registration')
+
+    const { loadLive2DModelPreview } = await import('@proj-airi/stage-ui-live2d/utils/live2d-preview')
+    const { loadVrmModelPreview } = await import('@proj-airi/stage-ui-three/utils/vrm-preview')
+
+    generateLive2DPreview = loadLive2DModelPreview
+    generateVrmPreview = loadVrmModelPreview
+  }
+
   return {
     displayModels,
     displayModelsFromIndexedDBLoading,
 
+    initialize,
     loadDisplayModelsFromIndexedDB,
     getDisplayModel,
     addDisplayModel,

@@ -1,3 +1,4 @@
+/* eslint-disable e18e/prefer-static-regex */
 import type { Buffer } from 'node:buffer'
 
 import type { UploadProvider } from './types'

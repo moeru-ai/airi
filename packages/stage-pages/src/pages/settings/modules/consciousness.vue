@@ -160,36 +160,53 @@ function handleDeleteProvider(providerId: string) {
         </div>
 
         <!-- Error state -->
-        <ErrorContainer
-          v-else-if="activeProviderModelError"
-          :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
-          :error="activeProviderModelError"
-        />
+        <template v-else-if="activeProviderModelError">
+          <ErrorContainer
+            :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
+            :error="activeProviderModelError"
+          />
+          <!-- Manual model input fallback when model list fails to load -->
+          <div class="mt-2">
+            <label class="mb-1 block text-sm font-medium">
+              {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_name') }}
+            </label>
+            <input
+              v-model="activeModel" type="text"
+              class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
+              :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+            >
+          </div>
+        </template>
 
-        <!-- Manual model input fallback when model list fails to load -->
-        <div v-if="activeProviderModelError" class="mt-2">
-          <label class="mb-1 block text-sm font-medium">
-            {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_name') }}
-          </label>
-          <input
-            v-model="activeModel" type="text"
-            class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
-            :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
-          >
-        </div>
+        <!-- No models available - Allow custom model input via search -->
+        <!-- Only show when there are truly no models (not when fetch error occurred) to avoid competing UIs -->
+        <template v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels && !activeProviderModelError">
+          <Alert type="warning">
+            <template #title>
+              {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
+            </template>
+            <template #content>
+              {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
+            </template>
+          </Alert>
 
-        <!-- No models available -->
-        <Alert
-          v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels"
-          type="warning"
-        >
-          <template #title>
-            {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
-          </template>
-          <template #content>
-            {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
-          </template>
-        </Alert>
+          <!-- Using the new RadioCardManySelect component - works with empty list for custom input -->
+          <RadioCardManySelect
+            v-model="activeModel"
+            v-model:search-query="modelSearchQuery"
+            :items="[]"
+            :searchable="true"
+            :allow-custom="true"
+            :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
+            :search-no-results-title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')"
+            :search-no-results-description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results_description', { query: modelSearchQuery })"
+            :search-results-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_results', { count: '{count}', total: '{total}' })"
+            :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
+            :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
+            :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
+            @update:custom-value="updateCustomModelName"
+          />
+        </template>
 
         <!-- Using the new RadioCardManySelect component -->
         <template v-else-if="providerModels.length > 0">
@@ -206,6 +223,7 @@ function handleDeleteProvider(providerId: string) {
             :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
             :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
             :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
+            expanded-class="mb-12"
             @update:custom-value="updateCustomModelName"
           />
         </template>

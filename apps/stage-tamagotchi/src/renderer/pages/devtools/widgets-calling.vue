@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { Button, FieldInput, FieldSelect, FieldTextArea } from '@proj-airi/ui'
+import { Button, FieldCombobox, FieldInput, FieldTextArea } from '@proj-airi/ui'
 import { computed, reactive, ref } from 'vue'
 
 import { widgetsAdd, widgetsClear, widgetsOpenWindow, widgetsPrepareWindow, widgetsRemove, widgetsUpdate } from '../../../shared/eventa'
@@ -274,6 +274,38 @@ function applyMapPreset() {
       </div>
     </div>
 
+    <div class="flex flex-wrap gap-3">
+      <Button
+        variant="primary"
+        :disabled="busy"
+        @click="handleAdd"
+      >
+        Spawn / Replace
+      </Button>
+      <Button
+        variant="secondary"
+        :disabled="busy"
+        @click="handleUpdate"
+      >
+        Update Props
+      </Button>
+      <Button
+        variant="secondary"
+        :disabled="busy"
+        @click="handleRemove"
+      >
+        Remove Widget
+      </Button>
+      <Button
+        class="ml-auto"
+        variant="danger"
+        :disabled="busy"
+        @click="handleClear"
+      >
+        Clear All
+      </Button>
+    </div>
+
     <div class="grid gap-4 md:grid-cols-2">
       <FieldInput
         v-model="form.id"
@@ -291,7 +323,7 @@ function applyMapPreset() {
     </div>
 
     <div class="grid gap-4 md:grid-cols-3">
-      <FieldSelect
+      <FieldCombobox
         v-model="form.sizePreset"
         label="Size Preset"
         description="Choose a preset or opt into custom spans."
@@ -332,38 +364,6 @@ function applyMapPreset() {
       description="Provide valid JSON for the widget props."
       :rows="8"
     />
-
-    <div class="flex flex-wrap gap-3">
-      <Button
-        variant="primary"
-        :disabled="busy"
-        @click="handleAdd"
-      >
-        Spawn / Replace
-      </Button>
-      <Button
-        variant="secondary"
-        :disabled="busy"
-        @click="handleUpdate"
-      >
-        Update Props
-      </Button>
-      <Button
-        variant="secondary"
-        :disabled="busy"
-        @click="handleRemove"
-      >
-        Remove Widget
-      </Button>
-      <Button
-        class="ml-auto"
-        variant="danger"
-        :disabled="busy"
-        @click="handleClear"
-      >
-        Clear All
-      </Button>
-    </div>
 
     <div class="text-sm space-y-1">
       <p v-if="lastAction" class="text-primary-200/90">

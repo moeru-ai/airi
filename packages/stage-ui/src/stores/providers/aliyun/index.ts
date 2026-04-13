@@ -171,9 +171,8 @@ export function createAliyunNLSSession(
   function start(websocketConn: WebSocket, options?: {
     sessionId?: string
   } & EventStartTranscription['payload']) {
-    const mergedOptions = merge({ sessionId: providerSessionId }, options)
-
-    websocketConn.send(JSON.stringify({
+    const mergedOptions = merge<({ sessionId: string } & EventStartTranscription['payload'])>({ sessionId: providerSessionId }, options)
+    const jsonPayload = JSON.stringify({
       header: {
         appkey: provider.appKey,
         message_id: nanoid(),
@@ -181,18 +180,17 @@ export function createAliyunNLSSession(
         namespace: 'SpeechTranscriber',
         name: 'StartTranscription',
       },
-      payload: {
-        format: 'wav',
-      },
-    } satisfies EventStartTranscription))
+      payload: mergedOptions,
+    } satisfies EventStartTranscription)
+
+    websocketConn.send(jsonPayload)
   }
 
   function stop(websocketConn?: WebSocket, options?: {
     sessionId?: string
   }) {
-    const mergedOptions = merge({ sessionId: providerSessionId }, options)
-
-    websocketConn?.send(JSON.stringify({
+    const mergedOptions = merge<({ sessionId: string })>({ sessionId: providerSessionId }, options)
+    const jsonPayload = JSON.stringify({
       header: {
         appkey: provider.appKey,
         message_id: nanoid(),
@@ -201,7 +199,9 @@ export function createAliyunNLSSession(
         name: 'StopTranscription',
       },
       payload: undefined,
-    } satisfies EventStopTranscription))
+    } satisfies EventStopTranscription)
+
+    websocketConn?.send(jsonPayload)
   }
 
   function onEvent(data: unknown, cb: (event: ServerEvent) => void) {

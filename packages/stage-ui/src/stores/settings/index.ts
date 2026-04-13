@@ -1,14 +1,19 @@
 import { defineStore, storeToRefs } from 'pinia'
 
+import { useSettingsAnalytics } from './analytics'
 import { useSettingsControlsIsland } from './controls-island'
+import { useSettingsDeveloper } from './developer'
 import { useSettingsGeneral } from './general'
 import { useSettingsLive2d } from './live2d'
 import { useSettingsStageModel } from './stage-model'
 import { useSettingsTheme } from './theme'
 
+export * from './analytics'
 // Export sub-stores
 export * from './audio-device'
+export * from './beat-sync'
 export * from './controls-island'
+export * from './developer'
 export * from './general'
 export * from './live2d'
 export * from './stage-model'
@@ -25,31 +30,38 @@ export { DEFAULT_THEME_COLORS_HUE } from './theme'
  */
 export const useSettings = defineStore('settings', () => {
   const general = useSettingsGeneral()
+  const analytics = useSettingsAnalytics()
   const stageModel = useSettingsStageModel()
   const live2d = useSettingsLive2d()
   const theme = useSettingsTheme()
   const controlsIsland = useSettingsControlsIsland()
+  const developer = useSettingsDeveloper()
 
   async function resetState() {
     await stageModel.resetState()
+    analytics.resetState()
     general.resetState()
     live2d.resetState()
     theme.resetState()
     controlsIsland.resetState()
+    developer.resetState()
   }
 
   // Extract refs from sub-stores to maintain proper reactivity
   const generalRefs = storeToRefs(general)
+  const analyticsRefs = storeToRefs(analytics)
   const stageModelRefs = storeToRefs(stageModel)
   const live2dRefs = storeToRefs(live2d)
   const themeRefs = storeToRefs(theme)
   const controlsIslandRefs = storeToRefs(controlsIsland)
+  const developerRefs = storeToRefs(developer)
 
   return {
     // Core settings
     disableTransitions: generalRefs.disableTransitions,
     usePageSpecificTransitions: generalRefs.usePageSpecificTransitions,
     language: generalRefs.language,
+    analyticsEnabled: analyticsRefs.analyticsEnabled,
     websocketSecureEnabled: generalRefs.websocketSecureEnabled,
 
     // Stage model settings
@@ -64,8 +76,10 @@ export const useSettings = defineStore('settings', () => {
     live2dIdleAnimationEnabled: live2dRefs.live2dIdleAnimationEnabled,
     live2dAutoBlinkEnabled: live2dRefs.live2dAutoBlinkEnabled,
     live2dForceAutoBlinkEnabled: live2dRefs.live2dForceAutoBlinkEnabled,
+    live2dExpressionEnabled: live2dRefs.live2dExpressionEnabled,
     live2dShadowEnabled: live2dRefs.live2dShadowEnabled,
     live2dMaxFps: live2dRefs.live2dMaxFps,
+    live2dRenderScale: live2dRefs.live2dRenderScale,
 
     // Theme settings
     themeColorsHue: themeRefs.themeColorsHue,
@@ -75,6 +89,7 @@ export const useSettings = defineStore('settings', () => {
     allowVisibleOnAllWorkspaces: controlsIslandRefs.allowVisibleOnAllWorkspaces,
     alwaysOnTop: controlsIslandRefs.alwaysOnTop,
     controlsIslandIconSize: controlsIslandRefs.controlsIslandIconSize,
+    inspectUpdaterDiagnostics: developerRefs.inspectUpdaterDiagnostics,
 
     // Methods
     setThemeColorsHue: theme.setThemeColorsHue,

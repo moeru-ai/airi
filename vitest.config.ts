@@ -4,13 +4,18 @@ export default defineConfig({
   test: {
     projects: [
       'apps/server',
+      'apps/ui-server-auth',
       'apps/stage-tamagotchi',
-      'packages/stage-ui',
-      'packages/plugin-sdk',
-      'packages/cap-vite',
-      'packages/vite-plugin-warpdrive',
       'packages/audio-pipelines-transcribe',
+      'packages/cap-vite',
+      'packages/vishot-runner-browser',
+      'packages/plugin-sdk',
       'packages/server-runtime',
+      'packages/server-sdk',
+      'packages/stage-shared',
+      'packages/stage-ui',
+      'packages/vishot-runtime',
+      'packages/vite-plugin-warpdrive',
     ],
   },
 })

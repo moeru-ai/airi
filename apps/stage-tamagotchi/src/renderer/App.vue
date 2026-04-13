@@ -14,7 +14,7 @@ import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/conte
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { usePerfTracerBridgeStore } from '@proj-airi/stage-ui/stores/perf-tracer-bridge'
 import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from '@proj-airi/stage-ui/stores/plugin-host-capabilities'
-import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, watch } from 'vue'
@@ -41,6 +41,7 @@ import {
   pluginProtocolListProviders,
   pluginProtocolListProvidersEventName,
 } from '../shared/eventa'
+import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-callback'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
@@ -61,9 +62,11 @@ const characterOrchestratorStore = useCharacterOrchestratorStore()
 const analyticsStore = useSharedAnalyticsStore()
 const pluginHostInspectorStore = usePluginHostInspectorStore()
 const stageWindowLifecycleStore = useStageWindowLifecycleStore()
+const settingsAudioDeviceStore = useSettingsAudioDevice()
 const context = useElectronEventaContext()
 usePerfTracerBridgeStore()
 initializeStageThreeRuntimeTraceBridge()
+initializeElectronAuthCallbackBridge()
 void stageWindowLifecycleStore.initializeWindowLifecycleBridge()
 const getServerChannelConfig = useElectronEventaInvoke(electronGetServerChannelConfig)
 const listPlugins = useElectronEventaInvoke(electronPluginList)
@@ -77,6 +80,7 @@ const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapab
 const listMcpTools = useElectronEventaInvoke(electronMcpListTools)
 const callMcpTool = useElectronEventaInvoke(electronMcpCallTool)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
+const isChatWindowRoute = () => route.path === '/chat'
 
 // NOTICE: register plugin host bridge during setup to avoid race with pages using it in immediate watchers.
 pluginHostInspectorStore.setBridge({
@@ -118,19 +122,28 @@ context.value.on(electronSettingsNavigate, (event) => {
 
 onMounted(async () => {
   analyticsStore.initialize()
+  await displayModelsStore.initialize()
   cardStore.initialize()
 
   await chatSessionStore.initialize()
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
+  await settingsAudioDeviceStore.initialize()
 
   const serverChannelConfig = await getServerChannelConfig()
-  serverChannelSettingsStore.websocketTlsConfig = serverChannelConfig.tlsConfig
+  serverChannelSettingsStore.tlsConfig = serverChannelConfig.tlsConfig ?? null
+  serverChannelSettingsStore.hostname = serverChannelConfig.hostname
+  serverChannelSettingsStore.authToken = serverChannelConfig.authToken
 
-  await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
-  await contextBridgeStore.initialize()
-  characterOrchestratorStore.initialize()
-  await startTrackingCursorPoint()
+  await serverChannelStore.initialize({
+    token: serverChannelConfig.authToken || undefined,
+    possibleEvents: ['ui:configure'],
+  }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
+  if (!isChatWindowRoute()) {
+    contextBridgeStore.initialize()
+    characterOrchestratorStore.initialize()
+    await startTrackingCursorPoint()
+  }
 
   // Expose stage provider definitions to plugin host APIs.
   defineInvokeHandler(context.value, pluginProtocolListProviders, async () => listProvidersForPluginHost())
@@ -155,7 +168,9 @@ watch(themeColorsHueDynamic, () => {
 }, { immediate: true })
 
 onUnmounted(() => {
-  contextBridgeStore.dispose()
+  if (!isChatWindowRoute()) {
+    contextBridgeStore.dispose()
+  }
   clearMcpToolBridge()
 })
 </script>

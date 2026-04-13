@@ -6,6 +6,11 @@ chat:
       you: 당신
   reasoning: 추론
 message: 듣고 있어요...
+send-mode:
+  title: Send key
+  enter: 엔터
+  ctrl-enter: Ctrl + Enter
+  double-enter: Double Enter
 operations:
   load-models: 모델 불러오기
   load-models-status:
@@ -31,8 +36,55 @@ viewers:
       model:
         title: 모델
 profile-switcher:
-  no-profile: No Profile
-  no-profiles: No profiles yet
-  save-as-new: Save as New Profile
-  manage: Manage Profiles
+  no-profile: 프로필 없음
+  no-profiles: 아직 프로필 없음
+  save-as-new: 새로운 프로필로 저장하기
+  new-profile-name: 프로필 이름
+  manage: 프로필 관리
+promo-banner:
+  items:
+    signin:
+      watermark: 달
+      fallbackLabel: Moon Gift
+      title: 7-Day Sign-In
+      eventName: Sign in to claim stardust, avatar frames, and launch gifts.
+      date: 03/28 - 04/10
+      reward: Up to 120 Stardust
+      cta: 로그인
+    build:
+      watermark: 빌드
+      fallbackLabel: 빌드 보너스
+      title: Supply Box Bonus
+      eventName: Finish construction tasks to earn bonus vouchers and double materials.
+      date: 03/30 - 04/12
+      reward: 5 Supply Vouchers + Upgrade Materials
+      cta: 작업 보기
+    spring:
+      watermark: Spring
+      fallbackLabel: Spring Draw
+      title: Capsule Carnival
+      eventName: Join the spring draw to unlock bubbles, charms, and themed furniture.
+      date: 04/01 - 04/18
+      reward: Half-Price First Pull + Rare Charm
+      cta: Draw Now
+    coupon:
+      watermark: 대화
+      fallbackLabel: 쿠폰
+      title: Top-Up Coupon
+      eventName: Finish chat interactions to claim coupons for expansion and voice packs.
+      date: 04/02 - 04/20
+      reward: Save 6 on 30 / Save 15 on 68
+      cta: 쿠폰 받기
+    home:
+      watermark: 홈
+      fallbackLabel: 방 테마
+      title: 봄 테마 업데이트
+      eventName: ........
+      date: 04/05 - 04/22
+      reward: Free Theme Draw Ticket on Sign-in
+      cta: 테마 보기
 waiting: 대기 중
+websocket-status:
+  connected: 웹소켓 연결됨
+  disconnected: 웹소켓 연결 끊김
+  open-settings: 웹소켓 설정 열기

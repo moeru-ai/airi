@@ -11,7 +11,7 @@ import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { Button, FieldInput, FieldValues } from '@proj-airi/ui'
-import { Select } from '@proj-airi/ui/components/form'
+import { ComboboxSelect } from '@proj-airi/ui/components/form'
 import { storeToRefs } from 'pinia'
 import {
   DialogContent,
@@ -191,7 +191,7 @@ const tabs: Tab[] = [
 const activeTab = computed({
   get: () => {
     // If current active tab is not in available tabs, reset to first tab
-    if (!tabs.find(tab => tab.id === activeTabId.value))
+    if (!tabs.some(tab => tab.id === activeTabId.value))
       return tabs[0]?.id || ''
     return activeTabId.value
   },
@@ -384,7 +384,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
   <DialogRoot :open="modelValue" @update:open="emit('update:modelValue', $event)">
     <DialogPortal>
       <DialogOverlay class="fixed inset-0 z-100 bg-black/50 backdrop-blur-sm data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn" />
-      <DialogContent class="fixed left-1/2 top-1/2 z-100 m-0 max-h-[90vh] max-w-6xl w-[92vw] flex flex-col overflow-auto border border-neutral-200 rounded-xl bg-white p-5 shadow-xl 2xl:w-[60vw] lg:w-[80vw] md:w-[85vw] xl:w-[70vw] -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:border-neutral-700 dark:bg-neutral-800 sm:p-6">
+      <DialogContent class="fixed left-1/2 top-1/2 z-100 m-0 max-h-[90vh] max-w-6xl w-[92vw] flex flex-col overflow-auto border border-neutral-200 rounded-xl bg-white p-5 shadow-xl 2xl:w-[60vw] lg:w-[80vw] md:w-[85vw] xl:w-[70vw] -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:border-neutral-700 dark:bg-neutral-800 sm:p-6" @interact-outside.prevent>
         <div class="w-full flex flex-col gap-5">
           <DialogTitle text-2xl font-normal class="from-primary-500 to-primary-400 bg-gradient-to-r bg-clip-text text-transparent">
             {{ isEditMode ? t("settings.pages.card.edit_card") : t("settings.pages.card.create_card") }}
@@ -456,7 +456,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   <div i-lucide:brain />
                   {{ t('settings.pages.card.chat.provider') }}
                 </label>
-                <Select
+                <ComboboxSelect
                   v-model="selectedConsciousnessProvider"
                   :options="consciousnessProviderOptions"
                   :placeholder="getDefaultPlaceholder(consciousnessProvider)"
@@ -470,7 +470,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   <div i-lucide:ghost />
                   {{ t('settings.pages.card.consciousness.model') }}
                 </label>
-                <Select
+                <ComboboxSelect
                   v-model="selectedConsciousnessModel"
                   :options="consciousnessModelOptions"
                   :placeholder="getDefaultPlaceholder(defaultConsciousnessModel)"
@@ -485,7 +485,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   <div i-lucide:radio />
                   {{ t('settings.pages.card.speech.provider') }}
                 </label>
-                <Select
+                <ComboboxSelect
                   v-model="selectedSpeechProvider"
                   :options="speechProviderOptions"
                   :placeholder="getDefaultPlaceholder(speechProvider)"
@@ -499,7 +499,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   <div i-lucide:mic />
                   {{ t('settings.pages.card.speech.model') }}
                 </label>
-                <Select
+                <ComboboxSelect
                   v-model="selectedSpeechModel"
                   :options="speechModelOptions"
                   :placeholder="getDefaultPlaceholder(defaultSpeechModel)"
@@ -514,7 +514,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   <div i-lucide:music />
                   {{ t('settings.pages.card.speech.voice') }}
                 </label>
-                <Select
+                <ComboboxSelect
                   v-model="selectedSpeechVoiceId"
                   :options="speechVoiceOptions"
                   :placeholder="getDefaultPlaceholder(defaultSpeechVoiceId)"
@@ -529,7 +529,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   <div i-solar:ghost-bold-duotone />
                   {{ t('settings.pages.card.body-model') }}
                 </label>
-                <Select
+                <ComboboxSelect
                   v-model="selectedDisplayModelId"
                   :options="displayModelOptions"
                   :placeholder="getDefaultPlaceholder(defaultDisplayModelId)"

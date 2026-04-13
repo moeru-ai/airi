@@ -5,10 +5,10 @@ export function vif(condition: boolean, a: string, b = '') {
 }
 
 export function vChoice(...args: [boolean | (() => boolean), string][]) {
-  let exp
-
   for (let i = 0; i < args.length; i++) {
-    if (typeof (exp = args[i][0]) === 'function' ? exp() : exp) {
+    const exp = args[i][0]
+
+    if (typeof exp === 'function' ? exp() : exp) {
       return args[i][1]
     }
   }

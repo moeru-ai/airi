@@ -19,20 +19,20 @@ docs:
   'drag-to-move-window': 拖动以移动窗口
   'switch-to-light-mode': 切换到亮色模式
   'switch-to-dark-mode': 切换到暗色模式
-  'pin-on-top': 置顶显示
+  'pin-on-top': 置顶窗口
   'unpin-from-top': 取消置顶
-  'switch-profile': Switch Profile
+  'switch-profile': 切换角色
   'close': 关闭
   'expand': 展开
   'collapse': 折叠
-'status-island':
-  connected: WebSocket connected
-  disconnected: WebSocket disconnected
-  'open-settings': Open WebSocket settings
+  'login': 登录
+  'logging-in': 登录中...
+  'account': 账号
+  'logout': 退出登录
 notice:
   'fade-on-hover':
     title: 悬停淡出
-    intro: 当光标靠近时自动让角色变淡，减少干扰又保持可见。
+    intro: 当光标靠近时自动让角色透明度变淡，减少干扰又保持可见。
     opacity: 开启后，当光标靠近时， {targets} 的不透明度会降到 {value}。
     toggle: 可以通过将光标移动到 {controls} 区域，再次点击 {icon} 来关闭此功能。
     controls-label: 控制岛
@@ -44,3 +44,48 @@ notice:
     preparing: 准备中…
     read-more: 阅读更多
     preview-title: 这是什么？
+about:
+  subtitle: 桌面版本
+  current-version: 当前版本
+  common:
+    cancel: 取消
+  links:
+    title: 网址
+    home: 首页
+    documentation: 文档
+    github: GitHub
+  update:
+    lane:
+      label: 更新频道
+      description: Choose channel release to follow
+      placeholder: 选择更新频道
+    channels:
+      auto: 自动
+      stable: 稳定版
+      alpha: Alpha 测试版
+      beta: Beta 测试版
+      nightly: 每夜构建
+      canary: 尝鲜版
+    status:
+      downloading: 正在下载更新......
+      error-prefix: 错误
+      latest: 已是最新版（v{version}）
+      downloaded:
+        windows: 已准备好静默更新版本至 v{version}
+        restart: 已准备好重启后安装版本 v{version}
+    actions:
+      download: 下载更新
+      download-short: 下载
+      confirm-download: 确认下载
+      check-for-updates: 检查更新
+      checking: 正在检查...
+      latest-version: 最新版本
+      disabled-dev: 已禁用开发环境时的更新
+      retry-check: 重新检查
+      restart-silent: 重新启动以静默更新
+      restart-install: 重启并安装更新
+      confirm-restart: 确认重新启动
+    dialog:
+      title: 有可用的更新
+      description: 有新的 v{version} 版本可用
+      no-release-notes-markdown: _无发布日志_

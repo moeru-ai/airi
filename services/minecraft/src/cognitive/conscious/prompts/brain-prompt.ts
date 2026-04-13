@@ -15,8 +15,7 @@ function loadTemplateFromDisk(): string {
 }
 
 function ensureTemplateLoaded(): string {
-  if (cachedTemplate == null)
-    cachedTemplate = loadTemplateFromDisk()
+  cachedTemplate ??= loadTemplateFromDisk()
   return cachedTemplate
 }
 

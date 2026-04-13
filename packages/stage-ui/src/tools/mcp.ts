@@ -5,55 +5,39 @@ import { getMcpToolBridge } from '../stores/mcp-tool-bridge'
 
 const tools = [
   tool({
-    name: 'mcp_list_tools',
-    description: 'List all tools available on the connected MCP servers',
-    execute: async (_, __) => {
+    name: 'builtIn_mcpListTools',
+    description: 'List all available MCP tools. Call this first to discover tool names before calling builtIn_mcpCallTool.',
+    execute: async () => {
       try {
         return await getMcpToolBridge().listTools()
       }
       catch (error) {
-        console.warn('[mcp_list_tools] failed to list tools:', error)
-        return []
+        console.warn('[builtIn_mcpListTools] failed to list tools:', error)
+        return ''
       }
     },
     parameters: z.object({}).strict(),
   }),
   tool({
-    name: 'mcp_call_tool',
-    description: 'Call a tool on the MCP server. The result is a list of content and a boolean indicating whether the tool call is an error.',
-    execute: async ({ name, parameters }) => {
+    name: 'builtIn_mcpCallTool',
+    description: 'Call an MCP tool by name. Use builtIn_mcpListTools first to get available tool names.',
+    execute: async ({ name, arguments: argsJson }) => {
       try {
-        const parametersObject = Object.fromEntries(parameters.map(({ name, value }) => [name, value]))
-        const result = await getMcpToolBridge().callTool({
-          name,
-          arguments: parametersObject,
-        })
-        return result satisfies {
-          content?: Record<string, unknown>[]
-          isError?: boolean
-          structuredContent?: Record<string, unknown>
-          toolResult?: unknown
-        }
+        const args = argsJson ? JSON.parse(argsJson) : {}
+        return await getMcpToolBridge().callTool({ name, arguments: args })
       }
       catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
         return {
           isError: true,
-          content: [
-            {
-              type: 'text',
-              text: message,
-            },
-          ],
+          content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }],
         }
       }
     },
+    // NOTICE: `arguments` is z.string() (JSON) because z.unknown() produces `{}` (no `type` key)
+    // and z.record() emits `propertyNames`, both rejected by OpenAI.
     parameters: z.object({
-      name: z.string().describe('The qualified tool name to call. Use format "<serverName>::<toolName>"'),
-      parameters: z.array(z.object({
-        name: z.string().describe('The name of the parameter'),
-        value: z.unknown().describe('The value of the parameter'),
-      }).strict()).describe('The parameters to pass to the tool'),
+      name: z.string().describe('Tool name in "<serverName>::<toolName>" format'),
+      arguments: z.string().describe('JSON object of tool arguments, e.g. {"query":"hello","limit":10}'),
     }).strict(),
   }),
 ]

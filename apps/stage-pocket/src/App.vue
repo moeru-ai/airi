@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { OnboardingDialog, ToasterRoot } from '@proj-airi/stage-ui/components'
-import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
+import { OnboardingDialog, OnboardingStepAnalyticsNotice, ToasterRoot } from '@proj-airi/stage-ui/components'
+import { isPosthogAvailableInBuild, useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
-import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
 import { storeToRefs } from 'pinia'
@@ -18,6 +18,8 @@ import { toast, Toaster } from 'vue-sonner'
 
 import OnboardingPermissionsStep from './components/onboarding/step-permissions.vue'
 
+import { getHostWebSocketConstructor } from './modules/websocket-bridge'
+
 const contextBridgeStore = useContextBridgeStore()
 const i18n = useI18n()
 const displayModelsStore = useDisplayModelsStore()
@@ -26,6 +28,7 @@ const settings = storeToRefs(settingsStore)
 const onboardingStore = useOnboardingStore()
 const serverChannelStore = useModsServerChannelStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
+const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { showingSetup } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
 const cardStore = useAiriCardStore()
@@ -68,18 +71,23 @@ watch(settings.themeColorsHueDynamic, () => {
 // Initialize first-time setup check when app mounts
 onMounted(async () => {
   analyticsStore.initialize()
+  await displayModelsStore.initialize()
   cardStore.initialize()
 
   if (onboardingStore.needsOnboarding) {
     onboardingStore.showingSetup = true
   }
 
-  await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
-  await contextBridgeStore.initialize()
+  await serverChannelStore.initialize({
+    possibleEvents: ['ui:configure'],
+    websocketConstructor: getHostWebSocketConstructor(),
+  }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
+  contextBridgeStore.initialize()
   characterOrchestratorStore.initialize()
 
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
+  await settingsAudioDeviceStore.initialize()
 })
 
 onUnmounted(() => {
@@ -96,6 +104,11 @@ function handleSetupSkipped() {
 }
 
 const extraSteps = computed(() => [
+  ...(
+    isPosthogAvailableInBuild()
+      ? [{ id: 'analytics-notice', component: OnboardingStepAnalyticsNotice }]
+      : []
+  ),
   {
     id: 'step-permissions',
     component: OnboardingPermissionsStep,
@@ -121,7 +134,7 @@ const extraSteps = computed(() => [
   </StageTransitionGroup>
 
   <ToasterRoot @close="id => toast.dismiss(id)">
-    <Toaster />
+    <Toaster rich-colors />
   </ToasterRoot>
 
   <!-- First Time Setup Dialog -->

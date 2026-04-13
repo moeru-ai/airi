@@ -1,25 +1,29 @@
 import type { MiddlewareHandler } from 'hono'
 
+import type { HttpMetrics } from '../libs/otel'
 import type { HonoEnv } from '../types/hono'
 
 import { context, SpanStatusCode, trace } from '@opentelemetry/api'
+
+import { errorMessageFromUnknown } from '../utils/error-message'
 
 const tracer = trace.getTracer('airi-server-hono')
 
 /**
  * Hono middleware that creates spans for each request and records
- * custom HTTP metrics (duration, active requests, status codes).
+ * active request counts.
+ *
+ * NOTICE: Request duration is intentionally NOT recorded here. The
+ * Node HTTP instrumentation already emits `http.server.request.duration`,
+ * and recording the same metric here would double-count every request in
+ * Grafana panels that read the histogram `_count` series as request rate.
  */
-export function otelMiddleware(otelMetrics: {
-  httpRequestDuration: { record: (value: number, attributes?: Record<string, string | number>) => void }
-  httpActiveRequests: { add: (value: number, attributes?: Record<string, string>) => void }
-}): MiddlewareHandler<HonoEnv> {
+export function otelMiddleware(http: HttpMetrics): MiddlewareHandler<HonoEnv> {
   return async (c, next) => {
-    const startTime = performance.now()
     const method = c.req.method
     const path = c.req.path
 
-    otelMetrics.httpActiveRequests.add(1, { 'http.request.method': method, 'http.route': path })
+    http.activeRequests.add(1, { 'http.request.method': method, 'http.route': path })
 
     const span = tracer.startSpan(`${method} ${path}`, {
       attributes: {
@@ -38,20 +42,15 @@ export function otelMiddleware(otelMetrics: {
       if (status >= 500) {
         span.setStatus({ code: SpanStatusCode.ERROR, message: `HTTP ${status}` })
       }
-
-      otelMetrics.httpRequestDuration.record(performance.now() - startTime, {
-        'http.request.method': method,
-        'http.route': path,
-        'http.response.status_code': status,
-      })
     }
     catch (err) {
-      span.setStatus({ code: SpanStatusCode.ERROR, message: err instanceof Error ? err.message : 'Unknown error' })
-      span.recordException(err instanceof Error ? err : new Error(String(err)))
+      const errorMessage = errorMessageFromUnknown(err)
+      span.setStatus({ code: SpanStatusCode.ERROR, message: errorMessage })
+      span.recordException(err instanceof Error ? err : new Error(errorMessage))
       throw err
     }
     finally {
-      otelMetrics.httpActiveRequests.add(-1, { 'http.request.method': method, 'http.route': path })
+      http.activeRequests.add(-1, { 'http.request.method': method, 'http.route': path })
       span.end()
     }
   }

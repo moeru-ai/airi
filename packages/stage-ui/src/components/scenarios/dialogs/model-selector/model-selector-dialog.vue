@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import type { DisplayModel } from '../../../../stores/display-models'
 
-import { useMediaQuery, useResizeObserver, useScreenSafeArea } from '@vueuse/core'
+import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, DialogTrigger, VisuallyHidden } from 'reka-ui'
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTrigger } from 'vaul-vue'
 import { onMounted } from 'vue'
 
 import ModelManager from './model-selector.vue'
+
+import { useBreakpoints } from '../../../../composables/use-breakpoints'
 
 const props = defineProps<{
   selectedModel?: DisplayModel
@@ -15,7 +17,7 @@ const emits = defineEmits<{
   (e: 'pick', value: DisplayModel | undefined): void
 }>()
 const showDialog = defineModel('show', { type: Boolean, default: false, required: false })
-const isDesktop = useMediaQuery('(min-width: 768px)')
+const { isDesktop } = useBreakpoints()
 const screenSafeArea = useScreenSafeArea()
 
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
@@ -43,7 +45,17 @@ onMounted(() => screenSafeArea.update())
     </DrawerTrigger>
     <DrawerPortal v-if="showDialog">
       <DrawerOverlay class="fixed inset-0" />
-      <DrawerContent class="fixed bottom-0 left-0 right-0 z-1000 mt-20 h-full max-h-[80%] flex flex-col rounded-t-2xl bg-neutral-50 px-4 pt-4 outline-none backdrop-blur-md sm:max-h-[75%] dark:bg-neutral-900/95" :style="{ paddingBottom: `${Math.max(Number.parseFloat(screenSafeArea.bottom.value.replace('px', '')), 24)}px` }">
+      <DrawerContent
+        :class="[
+          'fixed bottom-0 left-0 right-0 z-1000',
+          'mt-20 px-4 pt-4',
+          'flex flex-col',
+          'h-full max-h-170',
+          'rounded-t-[32px] outline-none backdrop-blur-md',
+          'bg-neutral-50/85 dark:bg-neutral-900/90',
+        ]"
+        :style="{ paddingBottom: `${Math.max(Number.parseFloat(screenSafeArea.bottom.value.replace('px', '')), 24)}px` }"
+      >
         <DrawerHandle />
         <ModelManager :selected-model="props.selectedModel" @close="showDialog = false" @pick="value => emits('pick', value)" />
       </DrawerContent>
