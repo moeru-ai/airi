@@ -542,6 +542,15 @@ export interface BrowserDomInteractiveElement {
 export interface BrowserDomFrameDom {
   url?: string
   title?: string
+  frameName?: string
+  frameOffset?: {
+    x: number
+    y: number
+  }
+  frameOffsetInParent?: {
+    x: number
+    y: number
+  }
   bodyText?: string
   frameRect?: {
     x: number

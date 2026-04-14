@@ -110,11 +110,13 @@ export function chromeElementsToTargetCandidates(
     // Read per-element frame ID if tagged by captureViaExtension,
     // otherwise fall back to the function parameter
     const elFrameId = (el as Record<string, unknown>)._frameId as number | undefined
+    const elFrameOffsetX = (el as Record<string, unknown>)._frameOffsetX as number | undefined
+    const elFrameOffsetY = (el as Record<string, unknown>)._frameOffsetY as number | undefined
 
     // Convert page-relative rect to screen-absolute bounds
     const bounds: Bounds = {
-      x: viewportOffsetX + el.rect.x,
-      y: viewportOffsetY + el.rect.y,
+      x: viewportOffsetX + (elFrameOffsetX ?? 0) + el.rect.x,
+      y: viewportOffsetY + (elFrameOffsetY ?? 0) + el.rect.y,
       width: el.rect.w,
       height: el.rect.h,
     }
@@ -183,11 +185,28 @@ async function captureViaExtension(
 
     const rawElements = dom.interactiveElements
       ?? (dom.data && typeof dom.data === 'object' && (dom.data as Record<string, unknown>).interactiveElements)
+    const rawFrameOffset = dom.frameOffset
+      ?? (dom.data && typeof dom.data === 'object' && (dom.data as Record<string, unknown>).frameOffset)
+    const frameOffset = (
+      rawFrameOffset
+      && typeof rawFrameOffset === 'object'
+      && typeof (rawFrameOffset as Record<string, unknown>).x === 'number'
+      && typeof (rawFrameOffset as Record<string, unknown>).y === 'number'
+    )
+      ? {
+          x: (rawFrameOffset as Record<string, unknown>).x as number,
+          y: (rawFrameOffset as Record<string, unknown>).y as number,
+        }
+      : undefined
     const elements = rawElements as BrowserDomInteractiveElement[] | undefined
     if (elements) {
       // Tag each element with its frame ID for downstream routing
       for (const el of elements) {
-        allElements.push({ ...el, _frameId: frame.frameId })
+        allElements.push({
+          ...el,
+          _frameId: frame.frameId,
+          ...(frameOffset ? { _frameOffsetX: frameOffset.x, _frameOffsetY: frameOffset.y } : {}),
+        })
       }
     }
   }

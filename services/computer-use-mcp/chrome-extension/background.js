@@ -18,6 +18,151 @@
  * setStorage, readCanvasData, injectCSS, executeScript, etc.)
  */
 
+const AIRI_BRIDGE_URL = 'ws://127.0.0.1:8765'
+const AIRI_BRIDGE_HELLO = {
+  type: 'hello',
+  source: 'airi-chrome-extension',
+  version: '1.1.0',
+}
+const BRIDGE_RECONNECT_MIN_MS = 1_000
+const BRIDGE_RECONNECT_MAX_MS = 10_000
+
+let bridgeSocket = null
+let bridgeReconnectDelayMs = BRIDGE_RECONNECT_MIN_MS
+let bridgeReconnectTimer = null
+
+function normalizeUrl(value) {
+  if (typeof value !== 'string' || value.trim() === '')
+    return ''
+
+  try {
+    const url = new URL(value)
+    url.hash = ''
+    return url.toString()
+  }
+  catch {
+    return value.trim()
+  }
+}
+
+function unwrapBridgePayload(value) {
+  if (!value || typeof value !== 'object')
+    return value
+
+  if (value.data && typeof value.data === 'object')
+    return value.data
+
+  return value
+}
+
+function mergePayloadWithFrameOffset(result, frameOffset) {
+  if (!frameOffset || typeof frameOffset.x !== 'number' || typeof frameOffset.y !== 'number')
+    return result
+
+  if (!result || typeof result !== 'object')
+    return result
+
+  if (result.data && typeof result.data === 'object') {
+    return {
+      ...result,
+      data: {
+        ...result.data,
+        frameOffset,
+      },
+    }
+  }
+
+  return {
+    ...result,
+    frameOffset,
+  }
+}
+
+function clearBridgeReconnectTimer() {
+  if (!bridgeReconnectTimer)
+    return
+
+  clearTimeout(bridgeReconnectTimer)
+  bridgeReconnectTimer = null
+}
+
+function scheduleBridgeReconnect() {
+  if (bridgeReconnectTimer)
+    return
+
+  const delay = bridgeReconnectDelayMs
+  bridgeReconnectDelayMs = Math.min(bridgeReconnectDelayMs * 2, BRIDGE_RECONNECT_MAX_MS)
+  bridgeReconnectTimer = setTimeout(() => {
+    bridgeReconnectTimer = null
+    ensureBridgeConnected().catch(() => {})
+  }, delay)
+}
+
+function sendBridgePayload(payload) {
+  if (!bridgeSocket || bridgeSocket.readyState !== WebSocket.OPEN)
+    return false
+
+  bridgeSocket.send(JSON.stringify(payload))
+  return true
+}
+
+async function handleBridgeSocketMessage(raw) {
+  let data
+  try {
+    data = JSON.parse(String(raw))
+  }
+  catch {
+    return
+  }
+
+  if (!data || typeof data !== 'object' || typeof data.id !== 'string')
+    return
+
+  const response = await handleCommand(data)
+  sendBridgePayload(response)
+}
+
+async function ensureBridgeConnected() {
+  if (bridgeSocket && (bridgeSocket.readyState === WebSocket.OPEN || bridgeSocket.readyState === WebSocket.CONNECTING)) {
+    return
+  }
+
+  clearBridgeReconnectTimer()
+
+  try {
+    const socket = new WebSocket(AIRI_BRIDGE_URL)
+    bridgeSocket = socket
+
+    socket.addEventListener('open', () => {
+      bridgeReconnectDelayMs = BRIDGE_RECONNECT_MIN_MS
+      sendBridgePayload(AIRI_BRIDGE_HELLO)
+    })
+
+    socket.addEventListener('message', (event) => {
+      handleBridgeSocketMessage(event.data).catch(() => {})
+    })
+
+    socket.addEventListener('close', () => {
+      if (bridgeSocket === socket) {
+        bridgeSocket = null
+      }
+      scheduleBridgeReconnect()
+    })
+
+    socket.addEventListener('error', () => {
+      try {
+        socket.close()
+      }
+      catch {
+        // Ignore close failures and rely on reconnect scheduling.
+      }
+    })
+  }
+  catch {
+    scheduleBridgeReconnect()
+  }
+}
+
 // ---- Tab / Frame utilities ----
 
 async function getActiveTab() {
@@ -82,6 +227,160 @@ async function runCUAction(tabId, frameIds, method, args) {
   )
 }
 
+async function readParentFrameAnchors(tabId, frameInfos, targetFrameIds) {
+  const targetIdSet = new Set(Array.isArray(targetFrameIds) ? targetFrameIds : frameInfos.map(frame => frame.frameId))
+  const parentFrameIds = [...new Set(
+    frameInfos
+      .filter(frame => targetIdSet.has(frame.frameId))
+      .map(frame => frame.parentFrameId)
+      .filter(parentFrameId => typeof parentFrameId === 'number' && parentFrameId >= 0),
+  )]
+
+  const anchorMap = new Map()
+  await Promise.all(parentFrameIds.map(async (parentFrameId) => {
+    const response = await sendCUAction(tabId, parentFrameId, 'collectChildFrames', [])
+    const payload = unwrapBridgePayload(response)
+    const childFrames = Array.isArray(payload?.childFrames) ? payload.childFrames : []
+    anchorMap.set(parentFrameId, childFrames)
+  }))
+
+  return anchorMap
+}
+
+function pickBestChildAnchor(parentAnchors, childMeta, siblingCount) {
+  if (!Array.isArray(parentAnchors) || parentAnchors.length === 0)
+    return null
+
+  // NOTICE: Chrome's extension frame tree does not expose iframe screen bounds.
+  // We reconstruct child-frame origins by matching the webNavigation frame tree
+  // back to iframe shells discovered in the parent document. URL/name/title
+  // matching is a heuristic, but it is materially better than treating every
+  // subframe rect as top-level viewport coordinates.
+  const childUrl = normalizeUrl(childMeta.url)
+  const childFrameName = typeof childMeta.frameName === 'string' ? childMeta.frameName.trim() : ''
+  const childTitle = typeof childMeta.title === 'string' ? childMeta.title.trim() : ''
+
+  let best = null
+  let bestScore = -1
+
+  for (const anchor of parentAnchors) {
+    if (!anchor || typeof anchor !== 'object' || !anchor.rect)
+      continue
+
+    let score = 0
+    const anchorSrc = normalizeUrl(anchor.src)
+    const anchorContentUrl = normalizeUrl(anchor.contentUrl)
+    const anchorName = typeof anchor.name === 'string' ? anchor.name.trim() : ''
+    const anchorTitle = typeof anchor.title === 'string' ? anchor.title.trim() : ''
+
+    if (childUrl && anchorContentUrl && anchorContentUrl === childUrl)
+      score += 100
+    else if (childUrl && anchorSrc && anchorSrc === childUrl)
+      score += 90
+    else if (childUrl && anchorSrc && childUrl.startsWith(anchorSrc))
+      score += 70
+
+    if (childFrameName && anchorName && anchorName === childFrameName)
+      score += 40
+
+    if (childTitle && anchorTitle && anchorTitle === childTitle)
+      score += 15
+
+    if (siblingCount === 1 && parentAnchors.length === 1)
+      score += 10
+
+    if (score > bestScore) {
+      bestScore = score
+      best = anchor
+    }
+  }
+
+  return bestScore > 0 ? best : null
+}
+
+function buildFrameOffsets(frameInfos, domResults, parentAnchorsByFrameId) {
+  const frameInfoById = new Map(frameInfos.map(frame => [frame.frameId, frame]))
+  const domPayloadByFrameId = new Map(domResults.map(entry => [entry.frameId, unwrapBridgePayload(entry.result)]))
+  const directChildCountByParentId = new Map()
+
+  for (const frame of frameInfos) {
+    if (typeof frame.parentFrameId !== 'number' || frame.parentFrameId < 0)
+      continue
+    directChildCountByParentId.set(frame.parentFrameId, (directChildCountByParentId.get(frame.parentFrameId) || 0) + 1)
+  }
+
+  const cache = new Map()
+
+  function resolve(frameId) {
+    if (cache.has(frameId))
+      return cache.get(frameId)
+
+    if (frameId === 0) {
+      const rootOffset = { x: 0, y: 0 }
+      cache.set(frameId, rootOffset)
+      return rootOffset
+    }
+
+    const frameInfo = frameInfoById.get(frameId)
+    if (!frameInfo || typeof frameInfo.parentFrameId !== 'number' || frameInfo.parentFrameId < 0) {
+      cache.set(frameId, null)
+      return null
+    }
+
+    const parentOffset = resolve(frameInfo.parentFrameId)
+    if (!parentOffset) {
+      cache.set(frameId, null)
+      return null
+    }
+
+    const payload = domPayloadByFrameId.get(frameId)
+    const directOffset = payload?.frameOffsetInParent
+    if (directOffset && typeof directOffset.x === 'number' && typeof directOffset.y === 'number') {
+      const resolved = {
+        x: parentOffset.x + directOffset.x,
+        y: parentOffset.y + directOffset.y,
+      }
+      cache.set(frameId, resolved)
+      return resolved
+    }
+
+    const parentAnchors = parentAnchorsByFrameId.get(frameInfo.parentFrameId) || []
+    const bestAnchor = pickBestChildAnchor(parentAnchors, payload || frameInfo, directChildCountByParentId.get(frameInfo.parentFrameId) || 0)
+
+    if (!bestAnchor?.rect) {
+      cache.set(frameId, null)
+      return null
+    }
+
+    const resolved = {
+      x: parentOffset.x + bestAnchor.rect.x,
+      y: parentOffset.y + bestAnchor.rect.y,
+    }
+    cache.set(frameId, resolved)
+    return resolved
+  }
+
+  return cache
+}
+
+async function readAllFramesDOMWithOffsets(tabId, frameIds, opts) {
+  const frameInfos = await chrome.webNavigation.getAllFrames({ tabId })
+  const targetIds = Array.isArray(frameIds) && frameIds.length > 0
+    ? frameIds
+    : frameInfos.map(frame => frame.frameId)
+  const domResults = await runCUAction(tabId, targetIds, 'collectFrameDOM', [opts || {}])
+  const parentAnchorsByFrameId = await readParentFrameAnchors(tabId, frameInfos, targetIds)
+  const frameOffsets = buildFrameOffsets(frameInfos, domResults, parentAnchorsByFrameId)
+
+  return domResults.map((entry) => {
+    const frameOffset = frameOffsets.get(entry.frameId) || null
+    return {
+      ...entry,
+      result: mergePayloadWithFrameOffset(entry.result, frameOffset),
+    }
+  })
+}
+
 // ---- Handle external commands (from AIRI extension bridge) ----
 
 /**
@@ -117,7 +416,7 @@ async function handleCommand(cmd) {
         break
 
       case 'readAllFramesDOM':
-        result = await runCUAction(tabId, cmd.frameIds || null, 'collectFrameDOM', [cmd.opts || {}])
+        result = await readAllFramesDOMWithOffsets(tabId, cmd.frameIds || null, cmd.opts || {})
         break
 
       case 'findElement':
@@ -174,3 +473,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   return false
 })
+
+chrome.runtime.onStartup?.addListener(() => {
+  ensureBridgeConnected().catch(() => {})
+})
+
+chrome.runtime.onInstalled?.addListener(() => {
+  ensureBridgeConnected().catch(() => {})
+})
+
+ensureBridgeConnected().catch(() => {})
