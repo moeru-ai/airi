@@ -1,5 +1,6 @@
 import type { Context } from 'hono'
 
+import type { Env } from '../../../libs/env'
 import type { MqService } from '../../../libs/mq'
 import type { GenAiMetrics } from '../../../libs/otel'
 import type { UsageInfo } from '../../../services/billing/billing'
@@ -70,7 +71,7 @@ function getLlmMetricAttributes(opts: { model: string, type: string, status: num
   }
 }
 
-export function createV1CompletionsRoutes(fluxService: FluxService, billingService: BillingService, configKV: ConfigKVService, billingMq: MqService<BillingEvent>, ttsMeter: FluxMeter, genAi?: GenAiMetrics | null) {
+export function createV1CompletionsRoutes(fluxService: FluxService, billingService: BillingService, configKV: ConfigKVService, billingMq: MqService<BillingEvent>, ttsMeter: FluxMeter, env: Env, genAi?: GenAiMetrics | null) {
   const logger = useLogger('v1-completions').useGlobalConfig()
   // TODO: Extract this compat route into smaller facades/modules.
   // It currently mixes auth, rate limiting, proxying, billing, telemetry, and event publishing in one transport layer entrypoint.
@@ -121,13 +122,12 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
     }
 
     const body = await c.req.json()
-    const gatewayBaseUrl = await configKV.getOrThrow('GATEWAY_BASE_URL')
-    const baseUrl = normalizeBaseUrl(gatewayBaseUrl)
+    const baseUrl = normalizeBaseUrl(env.GATEWAY_BASE_URL)
     const serverAttributes = getServerConnectionAttributes(baseUrl)
     let requestModel = body.model || 'auto'
 
     if (requestModel === 'auto') {
-      requestModel = await configKV.getOrThrow('DEFAULT_CHAT_MODEL')
+      requestModel = env.DEFAULT_CHAT_MODEL
     }
 
     const span = tracer.startSpan('llm.gateway.chat', {
@@ -324,19 +324,15 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
   //     throw createPaymentRequiredError('Insufficient flux')
   //   }
 
-  //   const body = await c.req.json()
-  //   const gatewayBaseUrl = await configKV.getOrThrow('GATEWAY_BASE_URL')
-  //   const baseUrl = normalizeBaseUrl(gatewayBaseUrl)
-  //   const serverAttributes = getServerConnectionAttributes(baseUrl)
-  //   const requestModel = body.model || 'auto'
+    const body = await c.req.json()
+    const baseUrl = normalizeBaseUrl(env.GATEWAY_BASE_URL)
+    const serverAttributes = getServerConnectionAttributes(baseUrl)
+    let requestModel = body.model || 'auto'
+    const inputText: string = body.input ?? ''
 
-  //   const span = tracer.startSpan('llm.gateway.tts', {
-  //     attributes: {
-  //       [GEN_AI_ATTR_REQUEST_MODEL]: requestModel,
-  //       [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'text_to_speech',
-  //       ...serverAttributes,
-  //     },
-  //   })
+    if (requestModel === 'auto') {
+      requestModel = env.DEFAULT_TTS_MODEL
+    }
 
     // Pre-flight: refuse before hitting upstream if this segment would push the
     // user past their balance. Cheap-path requests below the Flux threshold
@@ -407,13 +403,8 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
   //   const baseUrl = normalizeBaseUrl(gatewayBaseUrl)
   //   const serverAttributes = getServerConnectionAttributes(baseUrl)
 
-  //   const span = tracer.startSpan('llm.gateway.asr', {
-  //     attributes: {
-  //       [GEN_AI_ATTR_REQUEST_MODEL]: 'auto',
-  //       [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'speech_to_text',
-  //       ...serverAttributes,
-  //     },
-  //   })
+  async function handleListVoices(_c: Context<HonoEnv>) {
+    const baseUrl = normalizeBaseUrl(env.GATEWAY_BASE_URL)
 
   //   const startedAt = Date.now()
 
@@ -427,48 +418,15 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
   //       body: rawBody,
   //     }))
 
-  //   const durationMs = Date.now() - startedAt
-  //   span.setAttribute('http.response.status_code', response.status)
+  async function handleListTTSModels(_c: Context<HonoEnv>) {
+    const model = env.DEFAULT_TTS_MODEL
+    return Response.json({
+      models: [{ id: model, name: model }],
+    })
+  }
 
-  //   if (!response.ok) {
-  //     span.setStatus({ code: SpanStatusCode.ERROR, message: `Gateway ${response.status}` })
-  //     span.end()
-  //     recordMetrics({ model: 'auto', status: response.status, type: 'asr', durationMs, fluxConsumed: 0 })
-  //     return new Response(response.body, {
-  //       status: response.status,
-  //       headers: buildSafeResponseHeaders(response),
-  //     })
-  //   }
-
-  //   const fluxPerRequest = await configKV.getOrThrow('FLUX_PER_REQUEST_ASR')
-  //   await billingService.consumeFluxForLLM({
-  //     userId: user.id,
-  //     amount: fluxPerRequest,
-  //     requestId: nanoid(),
-  //     description: `asr:auto`,
-  //   })
-
-  //   span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxPerRequest)
-  //   span.end()
-  //   recordMetrics({ model: 'auto', status: response.status, type: 'asr', durationMs, fluxConsumed: fluxPerRequest })
-
-  //   publishRequestLog({
-  //     userId: user.id,
-  //     model: 'auto',
-  //     status: response.status,
-  //     durationMs,
-  //     fluxConsumed: fluxPerRequest,
-  //   })
-
-  //   return new Response(response.body, {
-  //     status: response.status,
-  //     headers: buildSafeResponseHeaders(response),
-  //   })
-  // }
-
-  const chatGuard = configGuard(configKV, ['FLUX_PER_REQUEST', 'GATEWAY_BASE_URL', 'DEFAULT_CHAT_MODEL'], 'Service is not available yet')
-  // const ttsGuard = configGuard(configKV, ['FLUX_PER_REQUEST_TTS', 'GATEWAY_BASE_URL'], 'TTS service is not available yet')
-  // const asrGuard = configGuard(configKV, ['FLUX_PER_REQUEST_ASR', 'GATEWAY_BASE_URL'], 'ASR service is not available yet')
+  const chatGuard = configGuard(configKV, ['FLUX_PER_REQUEST'], 'Service is not available yet')
+  const ttsGuard = configGuard(configKV, ['FLUX_PER_1K_CHARS_TTS'], 'TTS service is not available yet')
 
   // 60 requests per minute per user for LLM completions
   const completionsRateLimit = rateLimiter({ max: 60, windowSec: 60 })
@@ -477,6 +435,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
     .use('*', authGuard)
     .post('/chat/completions', completionsRateLimit, chatGuard, handleCompletion)
     .post('/chat/completion', completionsRateLimit, chatGuard, handleCompletion)
-    // .post('/audio/speech', ttsGuard, handleTTS)
-    // .post('/audio/transcriptions', bodyLimit({ maxSize: 25 * 1024 * 1024 }), asrGuard, handleTranscription)
+    .post('/audio/speech', ttsGuard, handleTTS)
+    .get('/audio/voices', handleListVoices)
+    .get('/audio/models', handleListTTSModels)
 }
