@@ -42,7 +42,7 @@ export const electronGetServerChannelConfig = defineInvokeEventa<ElectronServerC
 export const electronApplyServerChannelConfig = defineInvokeEventa<ElectronServerChannelConfig, Partial<ElectronServerChannelConfig>>('eventa:invoke:electron:server-channel:apply-config')
 export const electronGetServerChannelQrPayload = defineInvokeEventa<ServerChannelQrPayload>('eventa:invoke:electron:server-channel:get-qr-payload')
 
-export type ElectronUpdaterChannel = 'stable' | 'alpha' | 'beta' | 'nightly' | 'canary'
+export type ElectronUpdaterChannel = 'latest' | 'stable' | 'alpha' | 'beta' | 'nightly' | 'canary'
 
 export interface ElectronUpdaterPreferences {
   channel?: ElectronUpdaterChannel

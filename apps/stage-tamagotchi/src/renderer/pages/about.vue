@@ -56,12 +56,14 @@ const updaterErrorMessage = computed(() => {
 const showChangelog = ref(false)
 const showBugReportDialog = ref(false)
 const { isDesktop } = useBreakpoints()
-const updateChannelOptions = ['auto', 'stable', 'alpha', 'beta', 'nightly', 'canary'] as const
+const updateChannelOptions = ['auto', 'latest', 'stable', 'alpha', 'beta', 'nightly', 'canary'] as const
+type UpdateChannelOption = typeof updateChannelOptions[number]
 const updateChannelSelectOptions = computed(() => updateChannelOptions.map(channel => ({
-  label: t(`tamagotchi.stage.about.update.channels.${channel}`),
+  label: channel === 'latest'
+    ? 'Latest (any release)'
+    : t(`tamagotchi.stage.about.update.channels.${channel}`),
   value: channel,
 })))
-type UpdateChannelOption = typeof updateChannelOptions[number]
 const selectedUpdateChannel = ref<UpdateChannelOption>('auto')
 const isUpdateChannelUpdating = ref(false)
 const bugReportDescription = ref('')
@@ -88,6 +90,14 @@ const restartButtonLabel = computed(() => {
   return isWindowsUpdater.value
     ? t('tamagotchi.stage.about.update.actions.restart-silent')
     : t('tamagotchi.stage.about.update.actions.restart-install')
+})
+
+const requiresWindowsAdminUpdatePrompt = computed(() => {
+  return isWindowsUpdater.value && updateState.value.diagnostics?.requiresAdminForInstallPath === true
+})
+
+const updateInstallDirectory = computed(() => {
+  return updateState.value.diagnostics?.installDirectory ?? updateState.value.diagnostics?.executablePath ?? ''
 })
 
 function normalizeSemver(version: string | undefined) {
@@ -255,6 +265,16 @@ onMounted(() => {
 
             <!-- Update Logic -->
             <div :class="['flex flex-col gap-4']">
+              <div
+                v-if="requiresWindowsAdminUpdatePrompt"
+                :class="['text-sm rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-700 dark:text-amber-200']"
+              >
+                AIRI is installed in a protected Windows folder. Update install may require a UAC admin prompt.
+                <div :class="['mt-1 text-xs break-all text-amber-700/80 dark:text-amber-100/80']">
+                  Path: {{ updateInstallDirectory }}
+                </div>
+              </div>
+
               <!-- State: Available -->
               <div v-if="updateState.status === 'available'" :class="['flex flex-col gap-4']">
                 <div :class="['text-sm flex flex-wrap items-center gap-2']">
