@@ -38,14 +38,9 @@ const GITHUB_RELEASE_DOWNLOAD_BASE_URL = 'https://github.com/moeru-ai/airi/relea
 const UPDATE_CHANNEL_ENV_KEY = 'AIRI_UPDATE_CHANNEL'
 
 function getCacheRoot() {
-  switch (process.platform) {
-    case 'win32':
-      return process.env.LOCALAPPDATA || join(process.env.USERPROFILE || '', 'AppData', 'Local')
-    case 'darwin':
-      return join(process.env.HOME || '', 'Library', 'Caches')
-    default:
-      return process.env.XDG_CACHE_HOME || join(process.env.HOME || '', '.cache')
-  }
+  // NOTICE: Electron resolves the cache directory per platform/app, but the
+  // shipped type definitions here do not expose `cache`, so we cast the key.
+  return app.getPath('cache' as Parameters<typeof app.getPath>[0])
 }
 
 const UPDATER_DEBUG_CACHE_DIR = join(getCacheRoot(), 'stage-tamagotchi-updater')
