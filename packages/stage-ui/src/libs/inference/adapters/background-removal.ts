@@ -66,7 +66,7 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
         new URL('../../../workers/background-removal/worker.ts', import.meta.url),
         { type: 'module' },
       )
-      worker.addEventListener('error', (event) => {
+      worker.addEventListener('error', (_event) => {
         state = 'error'
         operationMutex.cancel()
       })
