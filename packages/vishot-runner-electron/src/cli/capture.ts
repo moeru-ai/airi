@@ -74,7 +74,6 @@ function parseCaptureFormat(format: string | undefined): CaptureFormat {
 
 function createAvifTransformer(): ArtifactTransformer {
   return async (artifact) => {
-    // eslint-disable-next-line e18e/prefer-static-regex
     const derivedFilePath = artifact.filePath.replace(/\.png$/i, '.avif')
 
     const transformer = new Transformer(await readFile(artifact.filePath))

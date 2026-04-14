@@ -20,13 +20,15 @@
     "./beat-sync": "./src/beat-sync/index.ts",
     "./server-channel-qr": "./src/server-channel-qr.ts",
     "./electron-renderer": "./src/electron-renderer.d.ts",
-    "./composables": "./src/composables/index.ts"
+    "./composables": "./src/composables/index.ts",
+    "./webgpu": "./src/webgpu/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@vueuse/core": "catalog:",
+    "gpuu": "^1.0.6",
     "pinia": "catalog:",
     "valibot": "catalog:",
     "vue": "catalog:"
