@@ -37,7 +37,7 @@
       name: el.name || '',
       type: el.type || '',
       className: typeof el.className === 'string' ? el.className.slice(0, 120) : '',
-      text: (el.innerText || el.textContent || '').slice(0, 120).trim(),
+      text: (el.textContent || '').slice(0, 120).trim(),
       value: el.value !== undefined ? String(el.value).slice(0, 60) : '',
       href: el.href || '',
       placeholder: el.placeholder || '',
@@ -150,7 +150,7 @@
         title: document.title || '',
         frameName: window.name || '',
         frameOffsetInParent: _readFrameOffsetInParent(),
-        bodyText: includeText ? (document.body ? document.body.innerText || '' : '').slice(0, 3000) : '',
+        bodyText: includeText ? (document.body?.textContent || '').slice(0, 3000) : '',
         interactiveElements: _collectInteractiveElements(maxElements),
       }
     },
@@ -212,6 +212,8 @@
         return {
           success: true,
           element: _describeElement(el),
+          x: Math.round(r.left + r.width / 2),
+          y: Math.round(r.top + r.height / 2),
           center: {
             x: Math.round(r.left + r.width / 2),
             y: Math.round(r.top + r.height / 2),

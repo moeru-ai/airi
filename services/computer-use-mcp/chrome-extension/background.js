@@ -18,6 +18,8 @@
  * setStorage, readCanvasData, injectCSS, executeScript, etc.)
  */
 
+/* global chrome */
+
 const AIRI_BRIDGE_URL = 'ws://127.0.0.1:8765'
 const AIRI_BRIDGE_HELLO = {
   type: 'hello',
@@ -358,6 +360,10 @@ function buildFrameOffsets(frameInfos, domResults, parentAnchorsByFrameId) {
     }
     cache.set(frameId, resolved)
     return resolved
+  }
+
+  for (const entry of domResults) {
+    resolve(entry.frameId)
   }
 
   return cache

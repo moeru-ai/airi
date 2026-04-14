@@ -64,4 +64,88 @@ describe('browserDomExtensionBridge', () => {
     expect(bridge.getStatus().connected).toBe(true)
     expect(bridge.getStatus().lastHello?.source).toBe('test-extension')
   })
+
+  it('uses top-level x/y from getClickTarget payload when dispatching clickSelector', async () => {
+    bridge = new BrowserDomExtensionBridge({
+      enabled: true,
+      host: '127.0.0.1',
+      port: 0,
+      requestTimeoutMs: 1_000,
+    })
+    await bridge.start()
+
+    const status = bridge.getStatus()
+    client = new WebSocket(`ws://${status.host}:${status.port}`)
+
+    client.on('message', (raw) => {
+      const data = JSON.parse(String(raw)) as Record<string, unknown>
+      if (typeof data.id !== 'string')
+        return
+
+      if (data.action === 'getClickTarget') {
+        client!.send(JSON.stringify({
+          id: data.id,
+          ok: true,
+          result: [
+            {
+              frameId: 5,
+              result: {
+                success: true,
+                x: 321,
+                y: 182,
+                element: {
+                  tag: 'button',
+                  text: 'Submit',
+                },
+                center: {
+                  x: 321,
+                  y: 182,
+                },
+              },
+            },
+          ],
+        }))
+        return
+      }
+
+      if (data.action === 'clickAt') {
+        client!.send(JSON.stringify({
+          id: data.id,
+          ok: true,
+          result: [
+            {
+              frameId: 5,
+              result: {
+                success: true,
+              },
+            },
+          ],
+        }))
+      }
+    })
+
+    await new Promise<void>((resolve, reject) => {
+      client!.once('open', () => {
+        client!.send(JSON.stringify({
+          type: 'hello',
+          source: 'test-extension',
+          version: 'bridge-test',
+        }))
+        resolve()
+      })
+      client!.once('error', reject)
+    })
+
+    const result = await bridge.clickSelector({
+      selector: '#submit',
+      frameIds: [5],
+    })
+
+    expect(result.targetFrameId).toBe(5)
+    expect(result.targetPoint).toEqual({ x: 321, y: 182 })
+    expect(result.targetElement).toEqual({
+      tag: 'button',
+      text: 'Submit',
+    })
+  })
 })
