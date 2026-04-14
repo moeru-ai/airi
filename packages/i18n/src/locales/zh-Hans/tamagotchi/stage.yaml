@@ -57,7 +57,7 @@ about:
   update:
     lane:
       label: 更新频道
-      description: Choose channel release to follow
+      description: 选择更新频道
       placeholder: 选择更新频道
     channels:
       auto: 自动

@@ -7,7 +7,7 @@ chat:
   reasoning: 思考
 message: 说点什么...
 send-mode:
-  title: Send key
+  title: 发送键值
   enter: Enter
   ctrl-enter: Ctrl + Enter
   double-enter: 双击Enter
