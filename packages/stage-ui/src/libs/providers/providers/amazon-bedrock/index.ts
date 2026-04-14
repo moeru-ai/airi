@@ -75,7 +75,7 @@ function createBedrockConverseProvider(config: {
       apiKey,
       baseURL,
       model,
-      fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+      fetch: async (_input: RequestInfo | URL, init?: RequestInit) => {
         // Parse xsai chat request body (messages array + model)
         const body = JSON.parse((init?.body as string) || '{}') as any
         const messages: any[] = body.messages || []

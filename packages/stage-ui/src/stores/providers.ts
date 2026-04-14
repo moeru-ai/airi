@@ -18,6 +18,7 @@ import type {
   VoiceProviderWithExtraOptions,
 } from 'unspeech'
 
+import type { ProviderOnboardingField } from '../libs/providers/types'
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 
 import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
