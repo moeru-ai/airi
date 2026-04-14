@@ -3065,6 +3065,9 @@ importers:
       animejs:
         specifier: ^4.3.6
         version: 4.3.6
+      async-mutex:
+        specifier: 'catalog:'
+        version: 0.5.0
       better-auth:
         specifier: 'catalog:'
         version: 1.6.2(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))(pg@8.20.0)(react@19.2.3)(vitest@4.1.4)(vue@3.5.32(typescript@5.9.3))
@@ -8733,6 +8736,7 @@ packages:
 
   '@simple-git/argv-parser@1.1.0':
     resolution: {integrity: sha512-sUKOu2lb5vGIWADNNLpscyj07DAeQZU3KLbnE2Tj53tW6BbDQKMly2CCfnR4oYzqtRELCPWfwaPg+Q0T8qfKBg==}
+    deprecated: Contains a breaking change that should be a major version bump
 
   '@sindresorhus/base62@1.0.0':
     resolution: {integrity: sha512-TeheYy0ILzBEI/CO55CP6zJCSdSWeRtGnHy8U8dWSUH4I68iqTsy7HkMktR4xakThc9jotkPQUXT4ITdbV7cHA==}

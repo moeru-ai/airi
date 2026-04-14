@@ -1,5 +1,3 @@
-// Core
-export { AsyncMutex } from './async-mutex'
 // Cache utilities
 export {
   clearModelCache,

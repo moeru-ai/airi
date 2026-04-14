@@ -2,7 +2,7 @@
  * Generic inference worker manager.
  *
  * Provides lifecycle management (start / restart / terminate), request
- * serialisation via AsyncMutex, timeout handling, and a unified
+ * serialisation via async-mutex, timeout handling, and a unified
  * message protocol for any inference worker.
  *
  * NOTICE: Currently not consumed by any adapter. Adapters implement their
@@ -20,8 +20,8 @@ import type {
 } from './protocol'
 
 import { errorMessageFrom } from '@moeru/std'
+import { Mutex } from 'async-mutex'
 
-import { AsyncMutex } from './async-mutex'
 import { createRequestId } from './protocol'
 
 // ---------------------------------------------------------------------------
@@ -158,8 +158,8 @@ export function createInferenceWorkerManager(
   let lastError: ErrorPayload | null = null
   let restartAttempts = 0
 
-  const operationMutex = new AsyncMutex()
-  const lifecycleMutex = new AsyncMutex()
+  const operationMutex = new Mutex()
+  const lifecycleMutex = new Mutex()
 
   // -- Worker lifecycle -----------------------------------------------------
 
@@ -181,7 +181,7 @@ export function createInferenceWorkerManager(
     state = 'error'
 
     // Reject all pending operations
-    operationMutex.reset(new Error(message))
+    operationMutex.cancel()
 
     // Clean up and try to restart
     destroyWorker()
@@ -223,7 +223,7 @@ export function createInferenceWorkerManager(
   }
 
   async function ensureStarted(): Promise<void> {
-    await lifecycleMutex.run(async () => {
+    await lifecycleMutex.runExclusive(async () => {
       if (!worker) {
         initializeWorker()
         state = 'idle'
@@ -239,7 +239,7 @@ export function createInferenceWorkerManager(
   ): Promise<ModelReadyResponse> {
     await ensureStarted()
 
-    return operationMutex.run(async () => {
+    return operationMutex.runExclusive(async () => {
       state = 'loading'
       const requestId = createRequestId()
 
@@ -278,7 +278,7 @@ export function createInferenceWorkerManager(
     input: TInput,
     onProgress?: (p: ProgressPayload) => void,
   ): Promise<TOutput> {
-    return operationMutex.run(async () => {
+    return operationMutex.runExclusive(async () => {
       if (!worker)
         throw new Error('Worker not initialized. Call loadModel() first.')
 
@@ -319,7 +319,7 @@ export function createInferenceWorkerManager(
   }
 
   async function unloadModel(): Promise<void> {
-    return operationMutex.run(async () => {
+    return operationMutex.runExclusive(async () => {
       if (!worker)
         return
 
@@ -341,7 +341,7 @@ export function createInferenceWorkerManager(
   }
 
   function terminateManager(): void {
-    operationMutex.reset(new Error('Manager terminated'))
+    operationMutex.cancel()
     destroyWorker()
     state = 'terminated'
   }

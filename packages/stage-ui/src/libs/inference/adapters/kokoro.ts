@@ -10,9 +10,9 @@ import type { AllocationToken } from '../gpu-resource-coordinator'
 import type { ProgressPayload } from '../protocol'
 
 import { defaultPerfTracer } from '@proj-airi/stage-shared'
+import { Mutex } from 'async-mutex'
 
 import { removeInferenceStatus, updateInferenceStatus } from '../../../composables/use-inference-status'
-import { AsyncMutex } from '../async-mutex'
 import { MAX_RESTARTS, MODEL_NAMES, RESTART_DELAY_MS, TIMEOUTS } from '../constants'
 import { getGPUCoordinator, getLoadQueue, MODEL_VRAM_ESTIMATES } from '../coordinator'
 import { LOAD_PRIORITY } from '../load-queue'
@@ -161,8 +161,8 @@ export function createKokoroAdapter(): KokoroAdapter {
   let allocationToken: AllocationToken | null = null
   let currentModelStatusId: string | null = null
 
-  const operationMutex = new AsyncMutex()
-  const lifecycleMutex = new AsyncMutex()
+  const operationMutex = new Mutex()
+  const lifecycleMutex = new Mutex()
 
   function initializeWorker(): void {
     worker = new Worker(
@@ -172,13 +172,9 @@ export function createKokoroAdapter(): KokoroAdapter {
     worker.addEventListener('error', handleWorkerError)
   }
 
-  function handleWorkerError(event: ErrorEvent | Error): void {
-    const message = event instanceof Error
-      ? event.message
-      : (event as ErrorEvent).message ?? 'Unknown worker error'
-
+  function handleWorkerError(_event: ErrorEvent | Error): void {
     state = 'error'
-    operationMutex.reset(new Error(message))
+    operationMutex.cancel()
     destroyWorker()
     scheduleRestart()
   }
@@ -218,7 +214,7 @@ export function createKokoroAdapter(): KokoroAdapter {
   }
 
   async function ensureStarted(): Promise<void> {
-    await lifecycleMutex.run(async () => {
+    await lifecycleMutex.runExclusive(async () => {
       if (!worker) {
         initializeWorker()
         state = 'idle'
@@ -235,7 +231,7 @@ export function createKokoroAdapter(): KokoroAdapter {
   ): Promise<Voices> {
     await ensureStarted()
 
-    return defaultPerfTracer.withMeasure('inference', 'kokoro-load-model', () => operationMutex.run(async () => {
+    return defaultPerfTracer.withMeasure('inference', 'kokoro-load-model', () => operationMutex.runExclusive(async () => {
       state = 'loading'
       const modelStatusId = `kokoro-${quantization}`
 
@@ -298,7 +294,7 @@ export function createKokoroAdapter(): KokoroAdapter {
   }
 
   async function generate(text: string, voice: VoiceKey): Promise<ArrayBuffer> {
-    return defaultPerfTracer.withMeasure('inference', 'kokoro-generate', () => operationMutex.run(async () => {
+    return defaultPerfTracer.withMeasure('inference', 'kokoro-generate', () => operationMutex.runExclusive(async () => {
       if (!worker)
         throw new Error('Worker not initialized. Call loadModel() first.')
 
@@ -341,7 +337,7 @@ export function createKokoroAdapter(): KokoroAdapter {
   }
 
   function terminateAdapter(): void {
-    operationMutex.reset(new Error('Adapter terminated'))
+    operationMutex.cancel()
     destroyWorker()
     if (allocationToken) {
       removeInferenceStatus(allocationToken.modelId)
@@ -366,14 +362,14 @@ export function createKokoroAdapter(): KokoroAdapter {
 // ---------------------------------------------------------------------------
 
 let globalAdapter: KokoroAdapter | null = null
-const singletonMutex = new AsyncMutex()
+const singletonMutex = new Mutex()
 
 /**
  * Get the global Kokoro adapter instance.
  * Creates and starts the worker on first call.
  */
 export async function getKokoroAdapter(): Promise<KokoroAdapter> {
-  return singletonMutex.run(async () => {
+  return singletonMutex.runExclusive(async () => {
     if (!globalAdapter)
       globalAdapter = createKokoroAdapter()
     return globalAdapter
