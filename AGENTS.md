@@ -161,3 +161,97 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - Maintain structured `README.md` documentation for each `packages/` and `apps/` entry, covering what it does, how to use it, when to use it, and when not to use it.
 - Always run `pnpm typecheck` and `pnpm lint:fix` after finishing a task.
 - Use Conventional Commits for commit messages (e.g., `feat: add runner reconnect backoff`).
+
+## TypeScript Coding Regulations
+
+These guidelines apply to all TypeScript code across the monorepo:
+
+- Do not create commits during implementation for this spec.
+- For implemented modules, use Vitest whenever possible to verify behavior and passing tests.
+- During test implementation, every workaround must include a clear and easy-to-understand `// NOTICE:` comment for reference.
+- Use the following workaround comment format whenever a workaround is introduced:
+  ```ts
+  // NOTICE:
+  // Why this workaround is needed.
+  // Root cause summary.
+  // Source/context (file, issue, URL, or node_modules reference).
+  // Removal condition (when it can be safely deleted).
+  ```
+- Prefer type generics wherever possible. Do not use `any`. Only use `as unknown as <target expected type>` when avoiding it is nearly impossible and the type cannot be fixed safely.
+- For every module export (internal or package-level), include clear `/** ... */` JSDoc that explains:
+  - What the function does.
+  - When to use it.
+  - What to expect.
+- Use the following JSDoc format for exported functions/classes/types:
+  ```ts
+  /**
+   * One-line summary of behavior.
+   *
+   * Use when:
+   * - Scenario A
+   * - Scenario B
+   *
+   * Expects:
+   * - Input assumptions and ordering guarantees
+   *
+   * Returns:
+   * - Output shape and guarantees
+   */
+  ```
+- For functions that include workarounds, include a `NOTICE:` explanation.
+- For `describe`, `it`, and all `expect*` usage in tests, include examples by using `@example`.
+- For all exported interfaces, especially configurable options, document:
+  - What each interface/option does.
+  - When to use it.
+  - The use cases it is intended for.
+  - `@default` for every option that has a default value.
+- For all runner, CLI, and high-level orchestrator code (exported or not), `/** ... */` JSDoc is required and must include a clear ASCII call-stack diagram using `{@link ...}` references where applicable.
+- Use this call-stack section format in orchestrator/runner/CLI JSDoc:
+  ```ts
+  /**
+   * ...
+   *
+   * Call stack:
+   *
+   * collectEvalEntries (../runner)
+   *   -> {@link createRunnerSchedule}
+   *     -> {@link createMatrixCombinations}
+   *       -> {@link VievalScheduledTask}[]
+   */
+  ```
+- Wherever math, OS, exec, process, args, networking, files, or directories are involved, add comments explaining the purpose and why the code is needed.
+- Prefer `es-toolkit` first when creating utilities.
+- For error handling, prefer `@moeru/std` patterns whenever possible.
+- For all normalizers (exported or not) that normalize outputs, formats, filenames, or values (excluding config default normalization), add `/** ... */` with before/after examples.
+- Use this normalizer documentation format:
+  ```ts
+  /**
+   * Normalizes <target>.
+   *
+   * Before:
+   * - "ExampleInput"
+   *
+   * After:
+   * - "example-output"
+   */
+  ```
+- Do not move everything into constants. One-time or two-time constants should remain near usage (typically near the top after imports) with clear `/** ... */` explaining why.
+- For configurable options with defaults, prefer `@moeru/std` merge functions and define defaults as documented objects when possible, instead of broad standalone constants.
+- For retry, backoff, and limit values, do not use one standalone constant to cover everything.
+- Avoid hardcoded Unix/macOS/Windows path literals; prefer path-safe array arguments and cross-platform handling.
+- For test cases, do not rely on smoke-only tests. Reproduce bugs/failures before patching, then keep comments explaining root cause and fix rationale.
+- Use this root-cause block format in regression tests when relevant:
+  ```ts
+  // ROOT CAUSE:
+  //
+  // If XXXX, some XXX case happens.
+  // This happens because where line ...
+  //
+  // <before-patch behavior/code>
+  //
+  // We fixed this by XXX, XXX, XXX.
+  // <after-patch behavior/code>
+  ```
+- Do not split modules into sections using separators like `========`; split into modules instead, except for types/interfaces used nowhere else.
+- Do not overuse table-driven style. In many cases, keep table arrays inline and map directly with `.map(...)`.
+- Prefer early returns, keep functions simple, and limit nesting to one or two levels.
