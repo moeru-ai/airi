@@ -172,7 +172,7 @@ export function createKokoroAdapter(): KokoroAdapter {
     worker.addEventListener('error', handleWorkerError)
   }
 
-  function handleWorkerError(event: ErrorEvent | Error): void {
+  function handleWorkerError(_event: ErrorEvent | Error): void {
     state = 'error'
     operationMutex.cancel()
     destroyWorker()
