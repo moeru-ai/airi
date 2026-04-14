@@ -1,3 +1,4 @@
+import type { Env } from '../../../libs/env'
 import type { MqService } from '../../../libs/mq'
 import type { BillingEvent } from '../../../services/billing/billing-events'
 import type { BillingService } from '../../../services/billing/billing-service'
@@ -34,13 +35,20 @@ function createMockBillingService(flux = 100): BillingService {
   } as any
 }
 
+function createMockEnv(overrides: Partial<Env> = {}): Env {
+  return {
+    GATEWAY_BASE_URL: 'http://mock-gateway/',
+    DEFAULT_CHAT_MODEL: 'openai/gpt-5-mini',
+    DEFAULT_TTS_MODEL: 'tts-1',
+    ...overrides,
+  } as Env
+}
+
 function createMockConfigKV(overrides: Record<string, any> = {}): ConfigKVService {
   const defaults: Record<string, any> = {
     FLUX_PER_REQUEST: 1,
     FLUX_PER_1K_CHARS_TTS: 2,
     TTS_DEBT_TTL_SECONDS: 86400,
-    GATEWAY_BASE_URL: 'http://mock-gateway/',
-    DEFAULT_CHAT_MODEL: 'openai/gpt-5-mini',
     ...overrides,
   }
   return {
@@ -87,6 +95,7 @@ function createTestApp(
   billingService?: BillingService,
   billingMq?: MqService<BillingEvent>,
   ttsMeter?: ReturnType<typeof createMockTtsMeter>,
+  env?: Env,
 ) {
   const routes = createV1CompletionsRoutes(
     fluxService,
@@ -94,6 +103,7 @@ function createTestApp(
     configKV,
     billingMq ?? createMockBillingMq(),
     ttsMeter ?? createMockTtsMeter(),
+    env ?? createMockEnv(),
     null,
   )
   const app = new Hono<HonoEnv>()
@@ -174,7 +184,7 @@ describe('v1CompletionsRoutes', () => {
 
       const fluxService = createMockFluxService(100)
       const billingService = createMockBillingService(100)
-      const configKV = createMockConfigKV({ GATEWAY_BASE_URL: 'http://mock-gateway/' })
+      const configKV = createMockConfigKV()
       const app = createTestApp(fluxService, configKV, billingService)
 
       const res = await app.fetch(
@@ -213,7 +223,11 @@ describe('v1CompletionsRoutes', () => {
 
       const app = createTestApp(
         createMockFluxService(),
-        createMockConfigKV({ DEFAULT_CHAT_MODEL: 'anthropic/claude-sonnet' }),
+        createMockConfigKV(),
+        undefined,
+        undefined,
+        undefined,
+        createMockEnv({ DEFAULT_CHAT_MODEL: 'anthropic/claude-sonnet' }),
       )
 
       await app.fetch(
@@ -409,7 +423,11 @@ describe('v1CompletionsRoutes', () => {
 
       const app = createTestApp(
         createMockFluxService(),
-        createMockConfigKV({ DEFAULT_TTS_MODEL: 'tts-1-hd' }),
+        createMockConfigKV(),
+        undefined,
+        undefined,
+        undefined,
+        createMockEnv({ DEFAULT_TTS_MODEL: 'tts-1-hd' }),
       )
 
       await app.fetch(
@@ -543,24 +561,14 @@ describe('v1CompletionsRoutes', () => {
 
   describe('gET /api/v1/openai/audio/models', () => {
     it('should return configured TTS model from config', async () => {
-      const app = createTestApp(createMockFluxService(), createMockConfigKV({ DEFAULT_TTS_MODEL: 'microsoft/v1' }))
-
-      const res = await app.fetch(
-        new Request('http://localhost/api/v1/openai/audio/models', { method: 'GET' }),
-        { user: testUser } as any,
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV(),
+        undefined,
+        undefined,
+        undefined,
+        createMockEnv({ DEFAULT_TTS_MODEL: 'microsoft/v1' }),
       )
-
-      expect(res.status).toBe(200)
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        'http://mock-gateway/audio/transcriptions',
-        expect.objectContaining({ method: 'POST' }),
-      )
-    })
-  })
-
-  describe('gET /api/v1/openai/audio/models', () => {
-    it('should return configured TTS model from config', async () => {
-      const app = createTestApp(createMockFluxService(), createMockConfigKV({ DEFAULT_TTS_MODEL: 'microsoft/v1' }))
 
       const res = await app.fetch(
         new Request('http://localhost/api/v1/openai/audio/models', { method: 'GET' }),
@@ -579,22 +587,35 @@ describe('v1CompletionsRoutes', () => {
       const res = await app.request('/api/v1/openai/audio/models', { method: 'GET' })
       expect(res.status).toBe(401)
     })
+  })
 
-    it('should return 503 when DEFAULT_TTS_MODEL is not configured', async () => {
-      const configKV = createMockConfigKV()
-      configKV.getOptional = vi.fn(async (key: string) => {
-        if (key === 'DEFAULT_TTS_MODEL')
-          return null
-        return (configKV as any).__defaults?.[key] ?? null
-      })
+  describe('gET /api/v1/openai/audio/voices', () => {
+    it('should proxy voice list from gateway', async () => {
+      const voicesResponse = { voices: [
+        { id: 'en-US-JennyNeural', name: 'Jenny', provider: 'MICROSOFT_SPEECH_SERVICE_V1', locale: 'en-US', gender: 'Female' },
+        { id: 'alloy', name: 'Alloy', provider: 'OPEN_AI', locale: '', gender: '' },
+      ] }
+      globalThis.fetch = vi.fn(async () => new Response(JSON.stringify(voicesResponse), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
 
-      const app = createTestApp(createMockFluxService(), configKV)
+      const app = createTestApp(createMockFluxService(), createMockConfigKV())
 
       const res = await app.fetch(
-        new Request('http://localhost/api/v1/openai/audio/models', { method: 'GET' }),
+        new Request('http://localhost/api/v1/openai/audio/voices', { method: 'GET' }),
         { user: testUser } as any,
       )
-      expect(res.status).toBe(503)
+
+      expect(res.status).toBe(200)
+      const data = await res.json() as typeof voicesResponse
+      expect(data.voices).toHaveLength(2)
+      expect(data.voices[0].id).toBe('en-US-JennyNeural')
+
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        'http://mock-gateway/audio/transcriptions',
+        expect.objectContaining({ method: 'POST' }),
+      )
     })
   })
 
