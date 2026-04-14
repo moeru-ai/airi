@@ -22,8 +22,6 @@ const ConfigEntrySchemas = {
   // Debt-ledger TTL: residual TTS chars below 1 Flux are forgiven on expiry.
   // 24h gives users a long-enough window for accumulated dust to settle naturally.
   TTS_DEBT_TTL_SECONDS: optional(number(), 86400),
-  GATEWAY_BASE_URL: string(),
-  DEFAULT_CHAT_MODEL: string(),
   AUTH_RATE_LIMIT_MAX: optional(number(), 20),
   AUTH_RATE_LIMIT_WINDOW_SEC: optional(number(), 60),
   // No default — absent means top-up is not available yet
