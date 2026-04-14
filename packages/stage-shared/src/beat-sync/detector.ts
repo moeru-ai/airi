@@ -47,7 +47,7 @@ export type CreateBeatSyncDetectorOptions
     | { env: StageEnvironment.Web }
     | { env: StageEnvironment.Capacitor }
 
-export async function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): BeatSyncDetector {
+export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): BeatSyncDetector {
   let context: AudioContext | undefined
   let analyser: Analyser | undefined
   let source: AudioNode | undefined
@@ -283,18 +283,7 @@ export async function createBeatSyncDetector(options: CreateBeatSyncDetectorOpti
     return inputAnalyserBuffer!
   }
   
-  return {
-    start: async () => {
-      // ✅ START THE FALLBACK ONLY WHEN START IS CALLED
-      syncMetronome(40, false);
-      
-      state.isActive = true;
-      // ... rest of your port.onmessage and wiring logic ...
-    },
-    stop: () => {
-      state.isActive = false;
-      // Ensure you stop the timer here too!
-    }
+
   };
 
   interface BpmEvent extends Event {
@@ -314,6 +303,17 @@ export async function createBeatSyncDetector(options: CreateBeatSyncDetectorOpti
   // ----------------------
 
   return {
+    start: async () => {
+      // ✅ START THE FALLBACK ONLY WHEN START IS CALLED
+      syncMetronome(40, false);
+      
+      state.isActive = true;
+      // ... rest of your port.onmessage and wiring logic ...
+      },
+    stop: () => {
+      state.isActive = false;
+      // Ensure you stop the timer here too!
+      }
     start,
     updateParameters,
     startScreenCapture,
