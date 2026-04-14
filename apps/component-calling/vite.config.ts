@@ -8,7 +8,6 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   plugins: [
-    // https://github.com/posva/unplugin-vue-router
     VueRouter({
       extensions: ['.vue', '.md'],
       dts: resolve(import.meta.dirname, 'src', 'typed-router.d.ts'),

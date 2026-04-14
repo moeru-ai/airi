@@ -13,7 +13,6 @@ export default defineConfig({
     outDir: resolve(import.meta.dirname, 'playground', 'dist'),
   },
   plugins: [
-    // https://github.com/posva/unplugin-vue-router
     VueRouter({
       root: 'playground',
       extensions: ['.vue', '.md'],
