@@ -449,23 +449,19 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         toolCalls: sessionMessagesForSend.filter(msg => msg.role === 'tool') as ToolMessage[],
       }, streamingMessageContext)
 
-      // TODO: Close turn span for zero-segment responses (tool-only, empty).
-      // Currently the bridge's tryCloseTurn() only fires after TTS playback,
-      // so turns without segments stay open until the next interaction.
-
       if (isForegroundSession()) {
         streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
       }
     }
     catch (error) {
-      if (!hadExistingTurn && activeTurnSpan.value) {
-        activeTurnSpan.value.end()
-        activeTurnSpan.value = undefined
-      }
       console.error('Error sending message:', error)
       throw error
     }
     finally {
+      if (!hadExistingTurn && activeTurnSpan.value) {
+        activeTurnSpan.value.end()
+        activeTurnSpan.value = undefined
+      }
       sending.value = false
     }
   }

@@ -111,14 +111,15 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
     const subsystem = readable.attributes[IOAttributes.Subsystem] as IOSubsystem | undefined
 
     if (!subsystem) {
-      if (readable.name === IOSpanNames.TTSSegment) {
-        const turn = getOrCreateTurn()
-        const text = readable.attributes[IOAttributes.TTSText]
-        if (typeof text === 'string' && !turn.outputText)
-          turn.outputText = text
-      }
       notifyUpdate()
       return
+    }
+
+    if (readable.name === IOSpanNames.TTSSynthesis) {
+      const turn = getOrCreateTurn()
+      const text = readable.attributes[IOAttributes.TTSText]
+      if (typeof text === 'string' && !turn.outputText)
+        turn.outputText = text
     }
 
     const turn = getOrCreateTurn()

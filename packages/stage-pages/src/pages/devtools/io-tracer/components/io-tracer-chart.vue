@@ -466,10 +466,10 @@ function autoFit() {
   hasUserInteracted = false
 }
 
-watch(() => props.turns, () => {
-  if (visibleSpans.value.length > 0 && !hasUserInteracted)
+watch(() => visibleSpans.value.length, (count) => {
+  if (count > 0 && !hasUserInteracted)
     autoFit()
-}, { deep: false })
+})
 
 defineExpose({ autoFit })
 
@@ -491,12 +491,7 @@ function spanDuration(span: IOSpan): string {
 
 function spanLabel(span: IOSpan): string {
   const subsystemLabel = SUBSYSTEM_CONFIG_MAP.get(span.subsystem)?.label ?? ''
-  const text = span.meta.text
-  if (text && typeof text === 'string') {
-    const short = text.length > 30 ? `${text.slice(0, 30)}…` : text
-    return `${subsystemLabel} · ${short}`
-  }
-  return `${subsystemLabel} · ${span.name}`
+  return `${subsystemLabel} / ${span.name}`
 }
 </script>
 
@@ -818,8 +813,8 @@ function spanLabel(span: IOSpan): string {
         <div v-if="hoveredSpan.span.meta.text" :class="['text-neutral-400 mt-1 break-words']">
           {{ hoveredSpan.span.meta.text.length > 80 ? `${hoveredSpan.span.meta.text.slice(0, 80)}…` : hoveredSpan.span.meta.text }}
         </div>
-        <div v-if="hoveredSpan.span.meta.reason" :class="['text-amber-300/80 mt-0.5']">
-          chunk: {{ hoveredSpan.span.meta.reason }}
+        <div v-if="hoveredSpan.span.meta.chunk_reason" :class="['text-amber-300/80 mt-0.5']">
+          chunk: {{ hoveredSpan.span.meta.chunk_reason }}
         </div>
       </div>
     </Teleport>

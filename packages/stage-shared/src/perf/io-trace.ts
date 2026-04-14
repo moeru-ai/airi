@@ -10,7 +10,6 @@ export const IOSpanNames = {
   InteractionTurn: 'Interaction turn',
   SpeechRecognition: 'Speech recognition',
   LLMInference: 'LLM inference',
-  TTSSegment: 'TTS segment',
   TTSSynthesis: 'TTS synthesis',
   AudioPlayback: 'Audio playback',
 } as const

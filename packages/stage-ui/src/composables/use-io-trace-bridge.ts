@@ -2,66 +2,29 @@ import type { Span } from '@opentelemetry/api'
 import type { createSpeechPipeline } from '@proj-airi/pipelines-audio'
 
 import { IOAttributes, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
-import { onScopeDispose, watch } from 'vue'
+import { onScopeDispose } from 'vue'
 
 import { activeTurnSpan, startSpan } from './use-io-tracer'
 
 export function useIOTraceBridge(pipeline: ReturnType<typeof createSpeechPipeline>) {
   const cleanupFns: (() => void)[] = []
 
-  const segmentSpans = new Map<string, Span>()
   const synthesisSpans = new Map<string, Span>()
   const playbackSpans = new Map<string, Span>()
   const segmentReasons = new Map<string, string>()
-
-  let currentParent: Span | undefined
-  let hadSegments = false
-
-  const stopWatch = watch(activeTurnSpan, (newSpan) => {
-    if (newSpan) {
-      currentParent = newSpan
-      hadSegments = false
-    }
-  }, { immediate: true })
-
-  function tryCloseTurn() {
-    if (hadSegments && segmentSpans.size === 0) {
-      activeTurnSpan.value?.end()
-      activeTurnSpan.value = undefined
-    }
-  }
-
-  function closeSegment(segmentId: string) {
-    const segSpan = segmentSpans.get(segmentId)
-    if (segSpan) {
-      segSpan.end()
-      segmentSpans.delete(segmentId)
-    }
-  }
 
   cleanupFns.push(pipeline.on('onSegment', (segment) => {
     segmentReasons.set(segment.segmentId, segment.reason)
   }))
 
   cleanupFns.push(pipeline.on('onTtsRequest', (request) => {
-    let ttsSegmentSpan = segmentSpans.get(request.segmentId)
-    if (!ttsSegmentSpan) {
-      hadSegments = true
-      ttsSegmentSpan = startSpan(IOSpanNames.TTSSegment, currentParent, {
-        [IOAttributes.Subsystem]: IOSubsystems.TTS,
-        [IOAttributes.TTSSegmentId]: request.segmentId,
-        [IOAttributes.TTSText]: request.text,
-        [IOAttributes.TTSChunkReason]: segmentReasons.get(request.segmentId) ?? '',
-      })
-      segmentReasons.delete(request.segmentId)
-      segmentSpans.set(request.segmentId, ttsSegmentSpan)
-    }
-
-    const ttsSynthesisSpan = startSpan(IOSpanNames.TTSSynthesis, ttsSegmentSpan, {
+    const ttsSynthesisSpan = startSpan(IOSpanNames.TTSSynthesis, activeTurnSpan.value, {
       [IOAttributes.Subsystem]: IOSubsystems.TTS,
       [IOAttributes.TTSSegmentId]: request.segmentId,
       [IOAttributes.TTSText]: request.text,
+      [IOAttributes.TTSChunkReason]: segmentReasons.get(request.segmentId) ?? '',
     })
+    segmentReasons.delete(request.segmentId)
     synthesisSpans.set(request.segmentId, ttsSynthesisSpan)
   }))
 
@@ -74,8 +37,7 @@ export function useIOTraceBridge(pipeline: ReturnType<typeof createSpeechPipelin
   }))
 
   cleanupFns.push(pipeline.on('onPlaybackStart', (event) => {
-    const segSpan = segmentSpans.get(event.item.segmentId)
-    const playbackSpan = startSpan(IOSpanNames.AudioPlayback, segSpan, {
+    const playbackSpan = startSpan(IOSpanNames.AudioPlayback, activeTurnSpan.value, {
       [IOAttributes.Subsystem]: IOSubsystems.Playback,
       [IOAttributes.TTSSegmentId]: event.item.segmentId,
       [IOAttributes.TTSText]: event.item.text,
@@ -89,8 +51,6 @@ export function useIOTraceBridge(pipeline: ReturnType<typeof createSpeechPipelin
       playbackSpan.end()
       playbackSpans.delete(event.item.segmentId)
     }
-    closeSegment(event.item.segmentId)
-    tryCloseTurn()
   }))
 
   cleanupFns.push(pipeline.on('onPlaybackInterrupt', (event) => {
@@ -101,34 +61,22 @@ export function useIOTraceBridge(pipeline: ReturnType<typeof createSpeechPipelin
       playbackSpan.end()
       playbackSpans.delete(event.item.segmentId)
     }
-    closeSegment(event.item.segmentId)
-    tryCloseTurn()
-  }))
-
-  cleanupFns.push(pipeline.on('onPlaybackReject', (event) => {
-    closeSegment(event.item.segmentId)
-    tryCloseTurn()
   }))
 
   cleanupFns.push(pipeline.on('onIntentCancel', () => {
-    for (const [segmentId, span] of segmentSpans) {
-      span.setAttribute(IOAttributes.TTSCanceled, true)
-      span.end()
-      segmentSpans.delete(segmentId)
-    }
     for (const [segmentId, span] of synthesisSpans) {
+      span.setAttribute(IOAttributes.TTSCanceled, true)
       span.end()
       synthesisSpans.delete(segmentId)
     }
     for (const [segmentId, span] of playbackSpans) {
+      span.setAttribute(IOAttributes.TTSCanceled, true)
       span.end()
       playbackSpans.delete(segmentId)
     }
-    tryCloseTurn()
   }))
 
   onScopeDispose(() => {
-    stopWatch()
     for (const cleanup of cleanupFns)
       cleanup()
   })
