@@ -36,7 +36,7 @@
     "@moeru/eventa": "catalog:",
     "@nekopaw/tempora": "catalog:",
     "@proj-airi/electron-screen-capture": "workspace:^",
-    "@types/audioworklet": "catalog:"
+    "@types/audioworklet": "catalog:",
 	"realtime-bpm-analyzer": "^3.3.0",
   }
 }
