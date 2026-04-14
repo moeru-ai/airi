@@ -18,7 +18,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./vue": "./src/vue/index.ts",
-    "./components/*": "./src/components/*.vue",
+    "./vue/components/*": "./src/vue/components/*.vue",
     "./runtime/*": "./src/runtime/*.ts",
     "./*": "./src/*.ts"
   },
@@ -28,7 +28,10 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "vue": "catalog:"
+    "@vueuse/core": "catalog:",
+    "reka-ui": "^2.9.5",
+    "vue": "catalog:",
+    "vue-router": "catalog:"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.5",

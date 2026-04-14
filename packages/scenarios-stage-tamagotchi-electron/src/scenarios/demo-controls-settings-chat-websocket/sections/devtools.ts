@@ -14,6 +14,7 @@ const screenCapturePattern = /Applications|Displays|Refetch|Share Window|Share S
 // so matching against those generics can pass against stale screen-capture DOM
 // and silently produce a mislabeled screenshot.
 const visionCapturePattern = /Capture interval|No vision output yet|vision capture/i
+const navHeaderSettleWaitMs = 1000
 
 export const devtoolsSection: ManualCaptureSection = {
   id: 'devtools',
@@ -26,6 +27,7 @@ export const devtoolsSection: ManualCaptureSection = {
       readyPattern: useWindowMousePattern,
       rawCaptureName: '17-devtools-use-window-mouse',
       docAssetFileName: 'manual-devtools-use-window-mouse.avif',
+      waitMs: navHeaderSettleWaitMs,
     },
     {
       id: 'displays',
@@ -34,6 +36,7 @@ export const devtoolsSection: ManualCaptureSection = {
       readyPattern: displaysPattern,
       rawCaptureName: '18-devtools-displays',
       docAssetFileName: 'manual-devtools-displays.avif',
+      waitMs: navHeaderSettleWaitMs,
     },
     {
       id: 'widgets-calling',
@@ -42,6 +45,7 @@ export const devtoolsSection: ManualCaptureSection = {
       readyPattern: widgetsCallingPattern,
       rawCaptureName: '19-devtools-widgets-calling',
       docAssetFileName: 'manual-devtools-widgets-calling.avif',
+      waitMs: navHeaderSettleWaitMs,
     },
     {
       id: 'context-flow',
@@ -50,6 +54,7 @@ export const devtoolsSection: ManualCaptureSection = {
       readyPattern: contextFlowPattern,
       rawCaptureName: '20-devtools-context-flow',
       docAssetFileName: 'manual-devtools-context-flow.avif',
+      waitMs: navHeaderSettleWaitMs,
     },
     {
       id: 'relative-mouse',
@@ -58,6 +63,7 @@ export const devtoolsSection: ManualCaptureSection = {
       readyPattern: relativeMousePattern,
       rawCaptureName: '21-devtools-relative-mouse',
       docAssetFileName: 'manual-devtools-relative-mouse.avif',
+      waitMs: navHeaderSettleWaitMs,
     },
     {
       id: 'beat-sync',
@@ -66,6 +72,7 @@ export const devtoolsSection: ManualCaptureSection = {
       readyPattern: beatSyncPattern,
       rawCaptureName: '22-devtools-beat-sync',
       docAssetFileName: 'manual-devtools-beat-sync.avif',
+      waitMs: navHeaderSettleWaitMs,
     },
     {
       id: 'websocket-inspector',
@@ -74,6 +81,7 @@ export const devtoolsSection: ManualCaptureSection = {
       readyPattern: websocketInspectorPattern,
       rawCaptureName: '23-devtools-websocket-inspector',
       docAssetFileName: 'manual-devtools-websocket-inspector.avif',
+      waitMs: navHeaderSettleWaitMs,
     },
     {
       id: 'plugin-host',
@@ -82,6 +90,7 @@ export const devtoolsSection: ManualCaptureSection = {
       readyPattern: pluginHostPattern,
       rawCaptureName: '24-devtools-plugin-host',
       docAssetFileName: 'manual-devtools-plugin-host.avif',
+      waitMs: navHeaderSettleWaitMs,
     },
     {
       id: 'screen-capture',
@@ -99,7 +108,7 @@ export const devtoolsSection: ManualCaptureSection = {
       readyPattern: visionCapturePattern,
       rawCaptureName: '26-devtools-vision-capture',
       docAssetFileName: 'manual-devtools-vision-capture.avif',
-      waitMs: 500,
+      waitMs: navHeaderSettleWaitMs,
     },
   ],
 }

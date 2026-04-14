@@ -47,6 +47,7 @@ catalog:
   '@iconify-json/logos': ^1.2.11
   '@iconify-json/material-symbols': ^1.2.66
   '@iconify-json/mdi': ^1.2.3
+  '@iconify-json/ph': ^1.2.2
   '@iconify-json/tabler': ^1.2.33
   '@intlify/core': ^11.3.2
   '@modelcontextprotocol/sdk': ^1.29.0
@@ -130,6 +131,7 @@ catalog:
   vite-plugin-inspect: 12.0.0-beta.1
   vite-plugin-mkcert: ^2.0.0
   vue: ^3.5.32
+  vue-router: ^5.0.4
   vue-sonner: 2.0.9
   web-haptics: ^0.0.6
   ws: ^8.20.0
