@@ -10,9 +10,9 @@ import type { AllocationToken } from '../gpu-resource-coordinator'
 import type { ProgressPayload } from '../protocol'
 
 import { defaultPerfTracer } from '@proj-airi/stage-shared'
+import { Mutex } from 'async-mutex'
 
 import { removeInferenceStatus, updateInferenceStatus } from '../../../composables/use-inference-status'
-import { AsyncMutex } from '../async-mutex'
 import { MODEL_IDS, MODEL_NAMES, TIMEOUTS } from '../constants'
 import { getGPUCoordinator, getLoadQueue, MODEL_VRAM_ESTIMATES } from '../coordinator'
 import { LOAD_PRIORITY } from '../load-queue'
@@ -58,7 +58,7 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
   let state: BackgroundRemovalAdapter['state'] = 'idle'
   let allocationToken: AllocationToken | null = null
 
-  const operationMutex = new AsyncMutex()
+  const operationMutex = new Mutex()
 
   function ensureWorker(): Worker {
     if (!worker) {
@@ -68,7 +68,7 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
       )
       worker.addEventListener('error', (event) => {
         state = 'error'
-        operationMutex.reset(new Error(event.message ?? 'Worker error'))
+        operationMutex.cancel()
       })
     }
     return worker
@@ -119,7 +119,7 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
   }
 
   async function load(onProgress?: (p: ProgressPayload) => void): Promise<void> {
-    return operationMutex.run(async () => {
+    return operationMutex.runExclusive(async () => {
       state = 'loading'
       updateInferenceStatus(MODEL_NAMES.BG_REMOVAL, { state: 'downloading', device: 'webgpu' })
 
@@ -172,7 +172,7 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
   }
 
   async function processImage(imageData: ImageData): Promise<ImageData> {
-    return defaultPerfTracer.withMeasure('inference', 'bg-removal-process', () => operationMutex.run(async () => {
+    return defaultPerfTracer.withMeasure('inference', 'bg-removal-process', () => operationMutex.runExclusive(async () => {
       if (!worker || (state !== 'ready' && state !== 'processing'))
         throw new Error('Model not loaded. Call load() first.')
 
@@ -222,7 +222,7 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
   }
 
   function terminateAdapter(): void {
-    operationMutex.reset(new Error('Adapter terminated'))
+    operationMutex.cancel()
     if (worker) {
       worker.terminate()
       worker = null

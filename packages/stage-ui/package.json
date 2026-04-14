@@ -103,6 +103,7 @@
     "@xsai/tool": "catalog:",
     "@xsai/utils-chat": "catalog:",
     "animejs": "^4.3.6",
+    "async-mutex": "catalog:",
     "better-auth": "catalog:",
     "culori": "^4.0.2",
     "d3": "catalog:",
