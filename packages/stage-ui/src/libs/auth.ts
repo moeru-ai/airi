@@ -34,7 +34,7 @@ export const authClient = createAuthClient({
 
 let initialized = false
 
-export function initializeAuth() {
+export async function initializeAuth() {
   if (initialized)
     return
 
@@ -42,18 +42,21 @@ export function initializeAuth() {
   // (e.g. /auth/callback). initializeAuth() only restores existing
   // sessions and refresh schedules — it does NOT consume the code.
 
-  fetchSession().catch(() => {})
+  initialized = true
 
-  // Restore OIDC token refresh scheduling from persisted state
+  // NOTICE: restoreRefreshSchedule must complete BEFORE fetchSession when
+  // the persisted access token is already expired. Otherwise fetchSession
+  // hits /get-session with the stale Bearer, gets 401, and wipes
+  // refreshToken + oidcClientId before the scheduled refresh can run —
+  // silently logging the user out on reload.
   const authStore = useAuthStore()
-  authStore.restoreRefreshSchedule()
-
   authStore.onTokenRefreshed(async (accessToken) => {
     authStore.token = accessToken
     await fetchSession()
   })
 
-  initialized = true
+  await authStore.restoreRefreshSchedule()
+  await fetchSession().catch(() => {})
 }
 
 /**
