@@ -21,6 +21,7 @@ import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { getMcpToolBridge } from '@proj-airi/stage-ui/stores/mcp-tool-bridge'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
+import { getDesktopOverlayReadinessContract } from '../../../main/windows/desktop-overlay/rpc/contracts'
 import { pointInOverlay, rectIntersectsOverlay, screenRectToLocal, screenToLocal } from './desktop-overlay-coordinates'
 import { createEmptyOverlayState, createOverlayPollController } from './desktop-overlay-polling'
 
@@ -29,6 +30,7 @@ import { createEmptyOverlayState, createOverlayPollController } from './desktop-
 // ---------------------------------------------------------------------------
 
 const getWindowBounds = useElectronEventaInvoke(electron.window.getBounds)
+const getReadiness = useElectronEventaInvoke(getDesktopOverlayReadinessContract)
 const overlayBounds = ref<Rect | null>(null)
 
 // ---------------------------------------------------------------------------
@@ -80,6 +82,7 @@ const controller = createOverlayPollController({
     }
     return getMcpToolBridge().callTool({ name })
   },
+  getReadiness: async () => getReadiness(),
   onState: (newState) => {
     state.value = newState
   },

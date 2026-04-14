@@ -40,6 +40,8 @@ export interface OverlayState {
   candidates: OverlayTargetCandidate[]
   staleFlags: OverlayStaleFlags
   pointerIntent: OverlayPointerIntent | null
+  bootstrapState: 'booting' | 'ready' | 'degraded'
+  lastBootstrapError?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -58,6 +60,7 @@ export function createEmptyOverlayState(): OverlayState {
     candidates: [],
     staleFlags: { ...EMPTY_STALE },
     pointerIntent: null,
+    bootstrapState: 'booting',
   }
 }
 
@@ -124,6 +127,8 @@ export interface OverlayPollConfig {
   callTool: (name: string) => Promise<McpCallToolResult>
   /** Callback with extracted state on each successful poll. */
   onState: (state: OverlayState) => void
+  /** Function to ping main process readiness contract via Eventa. */
+  getReadiness: () => Promise<{ state: 'booting' | 'ready' | 'degraded', error?: string }>
   /** Normal poll interval in ms. Default: 250. */
   intervalMs?: number
   /** Fallback interval on error in ms. Default: 500. */
@@ -150,7 +155,42 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
   const fallbackInterval = config.fallbackIntervalMs ?? DEFAULT_FALLBACK_INTERVAL
 
   let timer: ReturnType<typeof setTimeout> | null = null
+  let bootstrapTimer: ReturnType<typeof setTimeout> | null = null
   let running = false
+
+  let currentBootstrapState: 'booting' | 'ready' | 'degraded' = 'booting'
+  let currentBootstrapError: string | undefined
+
+  function emitEmptyState() {
+    const empty = createEmptyOverlayState()
+    empty.bootstrapState = currentBootstrapState
+    empty.lastBootstrapError = currentBootstrapError
+    config.onState(empty)
+  }
+
+  async function bootstrapPoll() {
+    try {
+      const res = await config.getReadiness()
+      currentBootstrapState = res.state
+      currentBootstrapError = res.error
+    }
+    catch (e) {
+      currentBootstrapState = 'degraded'
+      currentBootstrapError = e instanceof Error ? e.message : String(e)
+    }
+
+    if (!running)
+      return
+
+    if (currentBootstrapState === 'ready') {
+      emitEmptyState()
+      poll()
+    }
+    else {
+      emitEmptyState()
+      bootstrapTimer = setTimeout(bootstrapPoll, fallbackInterval)
+    }
+  }
 
   async function poll() {
     let nextInterval = normalInterval
@@ -168,7 +208,10 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
       const runState = extractRunStateFromResult(result)
 
       if (runState) {
-        config.onState(extractOverlayState(runState))
+        const state = extractOverlayState(runState)
+        state.bootstrapState = currentBootstrapState
+        state.lastBootstrapError = currentBootstrapError
+        config.onState(state)
       }
       else {
         nextInterval = fallbackInterval
@@ -189,8 +232,8 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
       if (running)
         return
       running = true
-      // Start first poll immediately
-      poll()
+      // First handshake with the host before starting actual MCP polling
+      bootstrapPoll()
     },
 
     stop() {
@@ -198,6 +241,10 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
       if (timer !== null) {
         clearTimeout(timer)
         timer = null
+      }
+      if (bootstrapTimer !== null) {
+        clearTimeout(bootstrapTimer)
+        bootstrapTimer = null
       }
     },
 

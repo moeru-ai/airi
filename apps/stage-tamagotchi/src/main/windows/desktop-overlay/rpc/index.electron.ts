@@ -14,12 +14,14 @@ import type { BrowserWindow } from 'electron'
 import type { I18n } from '../../../libs/i18n'
 import type { ServerChannel } from '../../../services/airi/channel-server'
 import type { McpStdioManager } from '../../../services/airi/mcp-servers'
+import type { DesktopOverlayReadiness } from './contracts'
 
-import { createContext } from '@moeru/eventa/adapters/electron/main'
+import { createContext, handle } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
 
 import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
+import { getDesktopOverlayReadinessContract } from './contracts'
 
 export async function setupDesktopOverlayElectronInvokes(params: {
   window: BrowserWindow
@@ -34,6 +36,23 @@ export async function setupDesktopOverlayElectronInvokes(params: {
 
   const { context } = createContext(ipcMain, params.window)
 
-  await setupBaseWindowElectronInvokes({ context, window: params.window, i18n: params.i18n, serverChannel: params.serverChannel })
-  createMcpServersService({ context, manager: params.mcpStdioManager })
+  let readiness: DesktopOverlayReadiness = { state: 'booting' }
+
+  handle(context, getDesktopOverlayReadinessContract, async () => {
+    return readiness
+  })
+
+  try {
+    await setupBaseWindowElectronInvokes({ context, window: params.window, i18n: params.i18n, serverChannel: params.serverChannel })
+    createMcpServersService({ context, manager: params.mcpStdioManager })
+    readiness = { state: 'ready' }
+  }
+  catch (error) {
+    readiness = {
+      state: 'degraded',
+      error: error instanceof Error ? error.message : String(error),
+    }
+    // We intentionally don't throw here so the window still opens and
+    // the renderer gracefully detects the degraded state via polling.
+  }
 }

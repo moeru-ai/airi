@@ -436,7 +436,7 @@ async function handleCommand(cmd) {
         break
 
       default:
-        result = { error: `unknown action: ${action}` }
+        return { id, ok: false, error: `unknown action: ${action}` }
     }
 
     return { id, ok: true, result }

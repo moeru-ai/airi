@@ -24,6 +24,7 @@ describe('extractOverlayState', () => {
     expect(result.candidates).toEqual([])
     expect(result.pointerIntent).toBeNull()
     expect(result.staleFlags).toEqual({ screenshot: false, ax: false, chromeSemantic: false })
+    expect(result.bootstrapState).toBe('booting')
   })
 
   it('extracts candidates from lastGroundingSnapshot', () => {
@@ -143,6 +144,7 @@ describe('createEmptyOverlayState', () => {
     expect(a.hasSnapshot).toBe(false)
     expect(a.candidates).toEqual([])
     expect(a.pointerIntent).toBeNull()
+    expect(a.bootstrapState).toBe('booting')
 
     // Should not be the same reference (no shared mutation)
     a.candidates.push({ id: 'x', source: 'raw', role: 'button', label: 'X', bounds: { x: 0, y: 0, width: 10, height: 10 }, confidence: 1 })
@@ -181,8 +183,11 @@ describe('createOverlayPollController', () => {
 
     const received: OverlayState[] = []
 
+    const getReadiness = vi.fn().mockResolvedValue({ state: 'ready' })
+
     const controller = createOverlayPollController({
       callTool,
+      getReadiness,
       onState: (s) => { received.push(s) },
       intervalMs: 100,
       fallbackIntervalMs: 200,
@@ -194,9 +199,11 @@ describe('createOverlayPollController', () => {
     await vi.advanceTimersByTimeAsync(0)
 
     expect(callTool).toHaveBeenCalledWith(MCP_TOOL_NAME)
-    expect(received).toHaveLength(1)
-    expect(received[0].hasSnapshot).toBe(true)
-    expect(received[0].candidates[0].id).toBe('t_0')
+    expect(received).toHaveLength(2)
+    expect(received[0].bootstrapState).toBe('ready')
+    expect(received[0].hasSnapshot).toBe(false)
+    expect(received[1].hasSnapshot).toBe(true)
+    expect(received[1].candidates[0].id).toBe('t_0')
 
     controller.stop()
   })
@@ -207,8 +214,11 @@ describe('createOverlayPollController', () => {
     const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
       .mockResolvedValue({ structuredContent: {} })
 
+    const getReadiness = vi.fn().mockResolvedValue({ state: 'ready' })
+
     const controller = createOverlayPollController({
       callTool,
+      getReadiness,
       onState: () => {},
       intervalMs: 100,
     })
@@ -244,8 +254,11 @@ describe('createOverlayPollController', () => {
 
     const received: OverlayState[] = []
 
+    const getReadiness = vi.fn().mockResolvedValue({ state: 'ready' })
+
     const controller = createOverlayPollController({
       callTool,
+      getReadiness,
       onState: (s) => { received.push(s) },
       intervalMs: 100,
       fallbackIntervalMs: 200,
@@ -253,16 +266,17 @@ describe('createOverlayPollController', () => {
 
     controller.start()
 
-    // First poll: fails
+    // First poll: fails (but empty ready state was emitted)
     await vi.advanceTimersByTimeAsync(0)
     expect(callTool).toHaveBeenCalledTimes(1)
-    expect(received).toHaveLength(0)
+    expect(received).toHaveLength(1)
+    expect(received[0].bootstrapState).toBe('ready')
 
     // Wait for fallback interval
     await vi.advanceTimersByTimeAsync(200)
     expect(callTool).toHaveBeenCalledTimes(2)
-    expect(received).toHaveLength(1)
-    expect(received[0].snapshotId).toBe('dg_recover')
+    expect(received).toHaveLength(2)
+    expect(received[1].snapshotId).toBe('dg_recover')
 
     controller.stop()
   })
@@ -273,8 +287,11 @@ describe('createOverlayPollController', () => {
     const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
       .mockResolvedValue({ structuredContent: {} })
 
+    const getReadiness = vi.fn().mockResolvedValue({ state: 'ready' })
+
     const controller = createOverlayPollController({
       callTool,
+      getReadiness,
       onState: () => {},
       intervalMs: 100,
     })
@@ -308,8 +325,11 @@ describe('createOverlayPollController', () => {
 
     const received: OverlayState[] = []
 
+    const getReadiness = vi.fn().mockResolvedValue({ state: 'ready' })
+
     const controller = createOverlayPollController({
       callTool,
+      getReadiness,
       onState: (s) => { received.push(s) },
       intervalMs: 100,
       fallbackIntervalMs: 200,
@@ -318,20 +338,77 @@ describe('createOverlayPollController', () => {
 
     controller.start()
 
-    // First poll fires immediately, callTool hangs
+    // First poll fires immediately (emits ready state), callTool hangs
     await vi.advanceTimersByTimeAsync(0)
     expect(callTool).toHaveBeenCalledTimes(1)
-    expect(received).toHaveLength(0)
+    expect(received).toHaveLength(1)
 
     // Advance past the 500ms timeout → catch triggers, schedules fallback
     await vi.advanceTimersByTimeAsync(500)
-    expect(received).toHaveLength(0)
+    expect(received).toHaveLength(1)
 
     // Advance past the 200ms fallback interval → second poll fires and succeeds
     await vi.advanceTimersByTimeAsync(200)
     expect(callTool).toHaveBeenCalledTimes(2)
-    expect(received).toHaveLength(1)
-    expect(received[0].snapshotId).toBe('dg_after_timeout')
+    expect(received).toHaveLength(2)
+    expect(received[1].snapshotId).toBe('dg_after_timeout')
+
+    controller.stop()
+  })
+
+  it('waits for readiness before entering main poll loop', async () => {
+    vi.useFakeTimers()
+    const callTool = vi.fn()
+    const getReadiness = vi.fn()
+      .mockResolvedValueOnce({ state: 'booting' })
+      .mockResolvedValueOnce({ state: 'booting' })
+      .mockResolvedValueOnce({ state: 'ready' })
+    const received: OverlayState[] = []
+
+    const controller = createOverlayPollController({
+      callTool,
+      getReadiness,
+      onState: s => received.push(s),
+      intervalMs: 100,
+      fallbackIntervalMs: 200,
+    })
+    controller.start()
+
+    await vi.advanceTimersByTimeAsync(0)
+    expect(callTool).not.toHaveBeenCalled()
+    expect(received[0].bootstrapState).toBe('booting')
+
+    // First retry
+    await vi.advanceTimersByTimeAsync(200)
+    expect(callTool).not.toHaveBeenCalled()
+
+    // Second retry triggers ready and immediately polls
+    await vi.advanceTimersByTimeAsync(200)
+    expect(callTool).toHaveBeenCalledTimes(1)
+    expect(received.at(-1).bootstrapState).toBe('ready')
+
+    controller.stop()
+  })
+
+  it('reports degraded state if getReadiness throws', async () => {
+    vi.useFakeTimers()
+    const callTool = vi.fn()
+    const getReadiness = vi.fn().mockRejectedValue(new Error('RPC failed'))
+    const received: OverlayState[] = []
+
+    const controller = createOverlayPollController({
+      callTool,
+      getReadiness,
+      onState: s => received.push(s),
+      intervalMs: 100,
+      fallbackIntervalMs: 200,
+    })
+    controller.start()
+
+    await vi.advanceTimersByTimeAsync(0)
+    expect(callTool).not.toHaveBeenCalled()
+    expect(received[0].bootstrapState).toBe('degraded')
+    expect(received[0].lastBootstrapError).toBe('RPC failed')
 
     controller.stop()
   })

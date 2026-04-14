@@ -268,7 +268,7 @@ export function registerDesktopGroundingTools(params: {
         const candidate = snapshot.targetCandidates.find(c => c.id === candidateId)
         const bridgeConnected = runtime.browserDomBridge?.getStatus().connected ?? false
         const routeDecision = candidate
-          ? decideBrowserAction(candidate, bridgeConnected)
+          ? decideBrowserAction(candidate, bridgeConnected, button, clickCount)
           : { route: 'os_input' as const, reason: 'candidate not found' }
 
         let executionRoute = routeDecision.route
