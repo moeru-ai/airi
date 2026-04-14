@@ -155,6 +155,23 @@ describe('chromeSessionManager', () => {
       expect(info.initialUrl).toBe('https://example.com')
     })
 
+    it('should pass URL to osascript as argv instead of interpolating it into script source', async () => {
+      const maliciousUrl = 'https://example.com/" & do shell script "touch /tmp/pwned" & "'
+      mockJoinFlow(33333, 'Terminal')
+
+      await manager.ensureAgentWindow({ url: maliciousUrl })
+
+      const createWindowCall = mockedRunProcess.mock.calls[2]
+      expect(createWindowCall?.[0]).toBe('/usr/bin/osascript')
+      expect(createWindowCall?.[1]).toEqual([
+        '-e',
+        expect.stringContaining('item 1 of argv'),
+        '--',
+        maliciousUrl,
+      ])
+      expect(createWindowCall?.[1]?.[1]).not.toContain(maliciousUrl)
+    })
+
     it('should use custom CDP port', async () => {
       mockLaunchFlow(44444)
 

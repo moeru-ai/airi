@@ -135,13 +135,23 @@ export function createChromeSessionManager(
   }
 
   async function createNewWindow(url?: string): Promise<void> {
-    // Use AppleScript to create a new window in existing Chrome
+    // NOTICE: Pass the URL as an `osascript` argv value instead of interpolating
+    // it into the AppleScript source. `desktop_ensure_chrome` accepts arbitrary
+    // strings, so direct interpolation creates an AppleScript injection path when
+    // the URL contains quotes. The review report on PR #1649 correctly called this
+    // out as a P1 command-injection issue.
     const script = url
-      ? `tell application "${CHROME_APP_NAME}" to make new window with properties {mode:"normal"}
-         tell application "${CHROME_APP_NAME}" to set URL of active tab of front window to "${url}"`
+      ? `on run argv
+tell application "${CHROME_APP_NAME}" to make new window with properties {mode:"normal"}
+tell application "${CHROME_APP_NAME}" to set URL of active tab of front window to item 1 of argv
+end run`
       : `tell application "${CHROME_APP_NAME}" to make new window`
 
-    await runProcess(config.binaries.osascript, ['-e', script], {
+    const args = url
+      ? ['-e', script, '--', url]
+      : ['-e', script]
+
+    await runProcess(config.binaries.osascript, args, {
       timeoutMs: config.timeoutMs,
     })
 

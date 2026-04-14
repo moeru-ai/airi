@@ -421,11 +421,14 @@ export class RunStateManager {
   }
 
   /**
-   * Store the last pointer snap intent and clicked candidate id.
+   * Store the last pointer snap intent and, optionally, the clicked candidate id
+   * once an execution path has actually succeeded.
    */
-  updatePointerIntent(intent: import('./desktop-grounding-types').PointerIntent, candidateId: string): void {
+  updatePointerIntent(intent: import('./desktop-grounding-types').PointerIntent, candidateId?: string): void {
     this.state.lastPointerIntent = intent
-    this.state.lastClickedCandidateId = candidateId
+    if (candidateId !== undefined) {
+      this.state.lastClickedCandidateId = candidateId
+    }
     this.touch()
   }
 

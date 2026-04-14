@@ -262,7 +262,7 @@ export function registerDesktopGroundingTools(params: {
 
         // Update RunState — pointer intent + clicked candidate (phase: executing)
         intent.phase = 'executing'
-        runtime.stateManager.updatePointerIntent(intent, candidateId)
+        runtime.stateManager.updatePointerIntent(intent)
 
         // Route the click: browser-dom for chrome_dom candidates, OS input for everything else
         const candidate = snapshot.targetCandidates.find(c => c.id === candidateId)
