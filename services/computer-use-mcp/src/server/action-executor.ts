@@ -448,7 +448,11 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           break
         }
         case 'type_text': {
-          if (typeof normalizedAction.input.x === 'number' && typeof normalizedAction.input.y === 'number') {
+          const hasExplicitCoordinates
+            = typeof normalizedAction.input.x === 'number'
+              && typeof normalizedAction.input.y === 'number'
+
+          if (hasExplicitCoordinates) {
             const pointerTrace = buildPointerTrace({
               from: runtime.session.getPointerPosition(),
               to: { x: normalizedAction.input.x, y: normalizedAction.input.y },
@@ -489,10 +493,14 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           const lastSnapshot = runState.lastGroundingSnapshot
           const lastClickedId = runState.lastClickedCandidateId
 <<<<<<< HEAD
+<<<<<<< HEAD
           if (!hasExplicitCoords && lastClickedId && lastSnapshot) {
 =======
           if (lastClickedId && lastSnapshot) {
 >>>>>>> c751ac56c (feat(computer-use-mcp): add type/checkbox browser-dom routing (v2 slice 2))
+=======
+          if (!hasExplicitCoordinates && lastClickedId && lastSnapshot) {
+>>>>>>> 847edd6e0 (fix(computer-use-mcp): bypass stale browser-dom typing route)
             const lastCandidate = lastSnapshot.targetCandidates.find(
               c => c.id === lastClickedId,
             )
