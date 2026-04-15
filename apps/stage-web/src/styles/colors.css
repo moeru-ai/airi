@@ -1,0 +1,48 @@
+:root {
+  /* Light mode defaults */
+  --chromatic-hue: 0;
+  --chromatic-chroma-900: 0.15;
+  --is-dark: 0;
+
+  --primary-color: color-mix(
+    in srgb,
+    oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + 0)) 90%,
+    oklch(90% 0 360)
+  );
+
+  --secondary-color: color-mix(
+    in srgb,
+    oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + 180)) 90%,
+    oklch(90% 0 360)
+  );
+
+  --tertiary-color: color-mix(
+    in srgb,
+    oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + 60)) 90%,
+    oklch(90% 0 360)
+  );
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --is-dark: 1;
+
+    --primary-color: color-mix(
+      in srgb,
+      oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + 0)) 70%,
+      oklch(50% 0 360)
+    );
+
+    --secondary-color: color-mix(
+      in srgb,
+      oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + 180)) 70%,
+      oklch(50% 0 360)
+    );
+
+    --tertiary-color: color-mix(
+      in srgb,
+      oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + 60)) 70%,
+      oklch(50% 0 360)
+    );
+  }
+}

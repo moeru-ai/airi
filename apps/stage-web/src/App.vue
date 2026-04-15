@@ -40,26 +40,15 @@ const cardStore = useAiriCardStore()
 const analyticsStore = useSharedAnalyticsStore()
 const inferencePreload = useInferencePreload()
 
-const primaryColor = computed(() => {
-  return isDark.value
-    ? `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${0})) 70%, oklch(50% 0 360))`
-    : `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${0})) 90%, oklch(90% 0 360))`
-})
-
-const secondaryColor = computed(() => {
-  return isDark.value
-    ? `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${180})) 70%, oklch(50% 0 360))`
-    : `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${180})) 90%, oklch(90% 0 360))`
-})
-
-const tertiaryColor = computed(() => {
-  return isDark.value
-    ? `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${60})) 70%, oklch(50% 0 360))`
-    : `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${60})) 90%, oklch(90% 0 360))`
-})
+const getCSSVariableColor = (variableName: string) => getComputedStyle(document.documentElement).getPropertyValue(variableName).trim()
 
 const colors = computed(() => {
-  return [primaryColor.value, secondaryColor.value, tertiaryColor.value, isDark.value ? '#121212' : '#FFFFFF']
+  return [
+    getCSSVariableColor('--primary-color'),
+    getCSSVariableColor('--secondary-color'),
+    getCSSVariableColor('--tertiary-color'),
+    isDark.value ? '#121212' : '#FFFFFF',
+  ]
 })
 
 const onboardingExtraSteps = computed(() => {
@@ -119,9 +108,6 @@ function handleSetupSkipped() {
 
 <template>
   <StageTransitionGroup
-    :primary-color="primaryColor"
-    :secondary-color="secondaryColor"
-    :tertiary-color="tertiaryColor"
     :colors="colors"
     :z-index="100"
     :disable-transitions="settings.disableTransitions.value"

@@ -264,16 +264,24 @@ router.beforeEach((to, _from, next) => {
     next()
     return
   }
-  if (typeof props.primaryColor !== 'undefined') {
-    stageTransition.primaryColor = props.primaryColor
+
+  const getCSSVariableColor = (variableName: string) => getComputedStyle(document.documentElement).getPropertyValue(variableName).trim()
+  // Priority: direct color assignment > colors array > css variable
+  const palette = {
+    primary: props.primaryColor || props.colors?.[0] || getCSSVariableColor('--primary-color'),
+    secondary: props.secondaryColor || props.colors?.[0] || getCSSVariableColor('--secondary-color'),
+    tertiary: props.tertiaryColor || props.colors?.[0] || getCSSVariableColor('--tertiary-color'),
   }
-  if (typeof props.secondaryColor !== 'undefined') {
-    stageTransition.secondaryColor = props.secondaryColor
+  if (palette.primary !== undefined) {
+    stageTransition.primaryColor = palette.primary
   }
-  if (typeof props.tertiaryColor !== 'undefined') {
-    stageTransition.tertiaryColor = props.tertiaryColor
+  if (palette.secondary !== undefined) {
+    stageTransition.secondaryColor = palette.secondary
   }
-  if (typeof props.colors !== 'undefined') {
+  if (palette.tertiary !== undefined) {
+    stageTransition.tertiaryColor = palette.tertiary
+  }
+  if (props.colors !== undefined) {
     stageTransition.colors = props.colors
   }
   if (typeof props.zIndex !== 'undefined') {
