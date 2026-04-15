@@ -1,26 +1,20 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import type { StageTransitionCommonParams } from '.'
 
-const props = defineProps<{
-  stageTransition?: {
-    primaryColor?: string
-    secondaryColor?: string
-    zIndex?: number
-  }
-}>()
+import { onMounted } from 'vue'
 
-const stageTransition = computed(() => props.stageTransition)
-const overlayColor1 = computed(() => stageTransition.value?.primaryColor ?? '#666')
-const overlayColor2 = computed(() => stageTransition.value?.secondaryColor ?? '#ccc')
+const { primaryColor = '#666', secondaryColor = '#ccc', zIndex = 100 }
+  = defineProps<Omit<StageTransitionCommonParams, 'name'>>()
 
 onMounted(() => {
-  document.documentElement.style.setProperty('--stage-transition-2-overlay-color-1', overlayColor1.value)
-  document.documentElement.style.setProperty('--stage-transition-2-overlay-color-2', overlayColor2.value)
+  const setCssVar = (name: string, val: string) => document.documentElement.style.setProperty(name, val)
+  setCssVar('--stage-transition-2-overlay-color-1', primaryColor)
+  setCssVar('--stage-transition-2-overlay-color-2', secondaryColor)
 })
 </script>
 
 <template>
-  <div class="stage-transition-2" :style="{ zIndex: stageTransition?.zIndex ?? 100 }" />
+  <div class="stage-transition-2" :style="{ zIndex }" />
 </template>
 
 <style scoped>

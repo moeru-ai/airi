@@ -1,28 +1,31 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { onMounted } from 'vue'
 
-const props = defineProps<{
-  stageTransition?: {
-    colors?: string[]
-    delay?: number
-    duration?: number
-    zIndex?: number
-  }
-}>()
+interface TransitionParams {
+  colors?: string[]
+  delay?: number
+  duration?: number
+  zIndex?: number
+}
 
-const colors = computed(() => props.stageTransition?.colors || ['#eee', '#ebcb8b', '#c56370', '#3f3b52'])
-
+const {
+  colors = ['#eee', '#ebcb8b', '#c56370', '#3f3b52'],
+  delay = 0,
+  duration = 0.4,
+  zIndex = 100,
+} = defineProps<TransitionParams>()
 onMounted(() => {
-  document.documentElement.style.setProperty('--circle-expansion-delay', `${props.stageTransition?.delay || 0}s`)
-  document.documentElement.style.setProperty('--circle-expansion-duration', `${props.stageTransition?.duration || 0.4}s`)
-  colors.value.forEach((color, index) => {
-    document.documentElement.style.setProperty(`--circle-expansion-color-${index + 1}`, color)
+  const setCssVar = (name: string, val: string) => document.documentElement.style.setProperty(name, val)
+  setCssVar('--circle-expansion-delay', `${delay}s`)
+  setCssVar('--circle-expansion-duration', `${duration}s`)
+  colors.forEach((color, index) => {
+    setCssVar(`--circle-expansion-color-${index + 1}`, color)
   })
 })
 </script>
 
 <template>
-  <div class="circle-expansion-transition" :style="{ zIndex: stageTransition?.zIndex || 100 }">
+  <div class="circle-expansion-transition" :style="{ zIndex }">
     <div v-for="(_, index) in colors" :key="index" />
   </div>
 </template>

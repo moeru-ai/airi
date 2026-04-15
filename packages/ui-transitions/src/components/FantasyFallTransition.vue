@@ -1,36 +1,46 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 
-const props = defineProps <{
-  stageTransition?: {
-    primaryColor?: string
-    duration?: number
-    delay?: number
-    direction?: 'up' | 'down' | 'left' | 'right'
-    borderRadius?: {
-      sm?: string
-      md?: string
-      lg?: string
-    }
-    zIndex?: number
+interface TransitionParams {
+  primaryColor?: string
+  duration?: number
+  delay?: number
+  direction?: 'up' | 'down' | 'left' | 'right'
+  borderRadius?: {
+    sm?: string
+    md?: string
+    lg?: string
   }
-}>()
+  zIndex?: number
+}
 
-const direction = computed(() => props.stageTransition?.direction || 'up')
-const directionClass = computed(() => `fantasy-fall-${direction.value}`)
+const {
+  direction = 'up',
+  primaryColor = '#eee',
+  duration = 0.6,
+  delay = 0,
+  borderRadius = { sm: '14rem', md: '14rem', lg: '50%' },
+  zIndex = 100,
+} = defineProps<TransitionParams>()
+const directionClass = computed(() => `fantasy-fall-${direction}`)
 
 onMounted(() => {
-  document.documentElement.style.setProperty('--fantasy-fall-color', props.stageTransition?.primaryColor || '#eee')
-  document.documentElement.style.setProperty('--fantasy-fall-duration', `${props.stageTransition?.duration || 0.6}s`)
-  document.documentElement.style.setProperty('--fantasy-fall-delay', `${props.stageTransition?.delay || 0}s`)
-  document.documentElement.style.setProperty('--fantasy-fall-radius-sm', `${props.stageTransition?.borderRadius?.sm || '14rem'}`)
-  document.documentElement.style.setProperty('--fantasy-fall-radius-md', `${props.stageTransition?.borderRadius?.md || '14rem'}`)
-  document.documentElement.style.setProperty('--fantasy-fall-radius-lg', `${props.stageTransition?.borderRadius?.lg || '50%'}`)
+  const setCssVar = (name: string, val: string) => document.documentElement.style.setProperty(name, val)
+  setCssVar('--fantasy-fall-color', primaryColor)
+  setCssVar('--fantasy-fall-duration', `${duration}s`)
+  setCssVar('--fantasy-fall-delay', `${delay}s`)
+  setCssVar('--fantasy-fall-radius-sm', `${borderRadius.sm}`)
+  setCssVar('--fantasy-fall-radius-md', `${borderRadius.md}`)
+  setCssVar('--fantasy-fall-radius-lg', `${borderRadius.lg}`)
 })
 </script>
 
 <template>
-  <div class="fantasy-fall-transition" :class="directionClass" :style="{ zIndex: stageTransition?.zIndex ?? 100 }" />
+  <div
+    class="fantasy-fall-transition"
+    :class="directionClass"
+    :style="{ zIndex }"
+  />
 </template>
 
 <style scoped>
@@ -42,7 +52,7 @@ onMounted(() => {
 
 /* Top direction (default) */
 .fantasy-fall-up::before {
-  content: '';
+  content: "";
   display: block;
   position: absolute;
   top: 0;
@@ -53,12 +63,13 @@ onMounted(() => {
   transform: translateY(-100%);
   border-bottom-left-radius: var(--fantasy-fall-radius-sm);
   border-bottom-right-radius: var(--fantasy-fall-radius-sm);
-  animation: fantasy-fall-up var(--fantasy-fall-duration) ease-out var(--fantasy-fall-delay) forwards;
+  animation: fantasy-fall-up var(--fantasy-fall-duration) ease-out
+    var(--fantasy-fall-delay) forwards;
 }
 
 /* Bottom direction */
 .fantasy-fall-down::before {
-  content: '';
+  content: "";
   display: block;
   position: absolute;
   top: 0;
@@ -69,12 +80,13 @@ onMounted(() => {
   transform: translateY(100%);
   border-top-left-radius: var(--fantasy-fall-radius-sm);
   border-top-right-radius: var(--fantasy-fall-radius-sm);
-  animation: fantasy-fall-down var(--fantasy-fall-duration) ease-out var(--fantasy-fall-delay) forwards;
+  animation: fantasy-fall-down var(--fantasy-fall-duration) ease-out
+    var(--fantasy-fall-delay) forwards;
 }
 
 /* Left direction */
 .fantasy-fall-left::before {
-  content: '';
+  content: "";
   display: block;
   position: absolute;
   top: 0;
@@ -85,12 +97,13 @@ onMounted(() => {
   transform: translateX(-100%);
   border-top-right-radius: var(--fantasy-fall-radius-sm);
   border-bottom-right-radius: var(--fantasy-fall-radius-sm);
-  animation: fantasy-fall-left var(--fantasy-fall-duration) ease-out var(--fantasy-fall-delay) forwards;
+  animation: fantasy-fall-left var(--fantasy-fall-duration) ease-out
+    var(--fantasy-fall-delay) forwards;
 }
 
 /* Right direction */
 .fantasy-fall-right::before {
-  content: '';
+  content: "";
   display: block;
   position: absolute;
   top: 0;
@@ -101,7 +114,8 @@ onMounted(() => {
   transform: translateX(100%);
   border-top-left-radius: var(--fantasy-fall-radius-sm);
   border-bottom-left-radius: var(--fantasy-fall-radius-sm);
-  animation: fantasy-fall-right var(--fantasy-fall-duration) ease-out var(--fantasy-fall-delay) forwards;
+  animation: fantasy-fall-right var(--fantasy-fall-duration) ease-out
+    var(--fantasy-fall-delay) forwards;
 }
 
 /* Responsive border radius adjustments */

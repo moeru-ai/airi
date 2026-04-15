@@ -5,3 +5,14 @@ export { default as MultipleBlocksRevealTransition } from './MultipleBlocksRevea
 export { default as SlideTransition } from './SlideTransition.vue'
 export { default as SlopeSlideTransition } from './SlopeSlideTransition.vue'
 export { default as StageTransitionGroup } from './StageTransitionGroup.vue'
+
+export interface StageTransitionCommonParams {
+  name: string
+  primaryColor?: string
+  secondaryColor?: string
+  tertiaryColor?: string
+  direction?: 'top' | 'bottom' | 'left' | 'right'
+  colors?: string[]
+  zIndex?: number
+  pageSpecificAvailable?: boolean
+}

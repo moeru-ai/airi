@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { StageTransitionCommonParams } from '.'
+
 import { ref, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -10,26 +12,11 @@ import RectanglesRotateTransition from './RectanglesRotateTransition.vue'
 import SlideTransition from './SlideTransition.vue'
 import SlopeSlideTransition from './SlopeSlideTransition.vue'
 
-const props = defineProps<{
-  primaryColor?: string
-  secondaryColor?: string
-  tertiaryColor?: string
-  colors?: string[]
-  zIndex?: number
-  disableTransitions?: boolean
-  usePageSpecificTransitions?: boolean
-}>()
-
-interface StageTransitionCommonParams {
-  name: string
-  primaryColor?: string
-  secondaryColor?: string
-  tertiaryColor?: string
-  direction?: 'top' | 'bottom' | 'left' | 'right'
-  colors?: string[]
-  zIndex?: number
-  pageSpecificAvailable?: boolean
-}
+const props = defineProps<Omit<StageTransitionCommonParams, 'name'>
+  & {
+    disableTransitions?: boolean
+    usePageSpecificTransitions?: boolean
+  }>()
 
 type TransitionComponent
   = | typeof SlideTransition
@@ -265,12 +252,12 @@ router.beforeEach((to, _from, next) => {
     return
   }
 
-  const getCSSVariableColor = (variableName: string) => getComputedStyle(document.documentElement).getPropertyValue(variableName).trim()
+  const getCSSVar = (variableName: string) => getComputedStyle(document.documentElement).getPropertyValue(variableName).trim()
   // Priority: direct color assignment > colors array > css variable
   const palette = {
-    primary: props.primaryColor || props.colors?.[0] || getCSSVariableColor('--primary-color'),
-    secondary: props.secondaryColor || props.colors?.[0] || getCSSVariableColor('--secondary-color'),
-    tertiary: props.tertiaryColor || props.colors?.[0] || getCSSVariableColor('--tertiary-color'),
+    primary: props.primaryColor || props.colors?.[0] || getCSSVar('--primary-color'),
+    secondary: props.secondaryColor || props.colors?.[1] || getCSSVar('--secondary-color'),
+    tertiary: props.tertiaryColor || props.colors?.[2] || getCSSVar('--tertiary-color'),
   }
   if (palette.primary !== undefined) {
     stageTransition.primaryColor = palette.primary
@@ -296,7 +283,7 @@ router.beforeEach((to, _from, next) => {
   <slot />
   <template v-if="showTransition">
     <template v-if="transitions[activeTransitionName]">
-      <component :is="transitions[activeTransitionName].component" :stage-transition="activeStageTransitionParams" />
+      <component :is="transitions[activeTransitionName].component" v-bind="activeStageTransitionParams" />
     </template>
   </template>
 </template>

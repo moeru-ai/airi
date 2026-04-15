@@ -1,33 +1,45 @@
 <script setup lang="ts">
+import type { StageTransitionCommonParams } from '.'
+
 import { onMounted } from 'vue'
 
-const props = defineProps<{
-  stageTransition?: {
-    primaryColor?: string
-    secondaryColor?: string
-    tertiaryColor?: string
-    duration?: number
-    delay?: number
-    rotation?: number
-    staggerDelay?: number
-    zIndex?: number
-  }
-}>()
+interface RecRotParams {
+  /** Duration of the rotation, in seconds. */
+  duration?: number
+  /** Delay, in seconds. */
+  delay?: number
+  /** Stagger delay, in seconds. */
+  staggerDelay?: number
+  /** Rotation angle of the rotation, in degrees. */
+  rotation?: number
+}
+
+const {
+  primaryColor = '#ebcb8b',
+  secondaryColor = '#c56370',
+  tertiaryColor = '#43445b',
+  duration = 0.6,
+  delay = 0,
+  staggerDelay = 0.1,
+  rotation = 270,
+  zIndex = 100,
+} = defineProps<Omit<StageTransitionCommonParams, 'name'> & RecRotParams>()
 
 onMounted(() => {
   // Set CSS variables for all three circles
-  document.documentElement.style.setProperty('--rectangle-rotate-1-color', props.stageTransition?.primaryColor || '#ebcb8b')
-  document.documentElement.style.setProperty('--rectangle-rotate-2-color', props.stageTransition?.secondaryColor || '#c56370')
-  document.documentElement.style.setProperty('--rectangle-rotate-3-color', props.stageTransition?.tertiaryColor || '#43445b')
-  document.documentElement.style.setProperty('--rectangle-rotate-duration', `${props.stageTransition?.duration || 0.6}s`)
-  document.documentElement.style.setProperty('--rectangle-rotate-delay', `${props.stageTransition?.delay || 0}s`)
-  document.documentElement.style.setProperty('--rectangle-rotate-stagger', `${props.stageTransition?.staggerDelay || 0.1}s`)
-  document.documentElement.style.setProperty('--rectangle-rotate-rotation', `${props.stageTransition?.rotation || 270}deg`)
+  const setCssVar = (name: string, val: string) => document.documentElement.style.setProperty(name, val)
+  setCssVar('--rectangle-rotate-1-color', primaryColor)
+  setCssVar('--rectangle-rotate-2-color', secondaryColor)
+  setCssVar('--rectangle-rotate-3-color', tertiaryColor)
+  setCssVar('--rectangle-rotate-duration', `${duration}s`)
+  setCssVar('--rectangle-rotate-delay', `${delay}s`)
+  setCssVar('--rectangle-rotate-stagger', `${staggerDelay}s`)
+  setCssVar('--rectangle-rotate-rotation', `${rotation}deg`)
 })
 </script>
 
 <template>
-  <div class="rectangle-rotate-transition" :style="{ zIndex: stageTransition?.zIndex ?? 100 }">
+  <div class="rectangle-rotate-transition" :style="{ zIndex }">
     <!-- First rectangle (top-left) -->
     <div class="rectangle rectangle-rotate-1">
       <div />

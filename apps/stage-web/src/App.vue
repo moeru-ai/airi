@@ -40,13 +40,13 @@ const cardStore = useAiriCardStore()
 const analyticsStore = useSharedAnalyticsStore()
 const inferencePreload = useInferencePreload()
 
-const getCSSVariableColor = (variableName: string) => getComputedStyle(document.documentElement).getPropertyValue(variableName).trim()
+const getCSSVar = (variableName: string) => getComputedStyle(document.documentElement).getPropertyValue(variableName).trim()
 
 const colors = computed(() => {
   return [
-    getCSSVariableColor('--primary-color'),
-    getCSSVariableColor('--secondary-color'),
-    getCSSVariableColor('--tertiary-color'),
+    getCSSVar('--primary-color'),
+    getCSSVar('--secondary-color'),
+    getCSSVar('--tertiary-color'),
     isDark.value ? '#121212' : '#FFFFFF',
   ]
 })
