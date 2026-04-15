@@ -14,6 +14,7 @@ beforeAll(() => {
     value: vi.fn(),
   })
 
+  // eslint-disable-next-line no-extend-native
   Object.defineProperty(Object.prototype, 'scrollIntoView', {
     configurable: true,
     value: vi.fn(),
@@ -28,10 +29,10 @@ afterAll(() => {
 
   if (originalObjectScrollIntoView === undefined) {
     // Keep Object prototype clean when this shim didn't exist before the test run.
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
     delete (Object.prototype as { scrollIntoView?: unknown }).scrollIntoView
   }
   else {
+    // eslint-disable-next-line no-extend-native
     Object.defineProperty(Object.prototype, 'scrollIntoView', {
       configurable: true,
       value: originalObjectScrollIntoView,
