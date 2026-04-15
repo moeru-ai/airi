@@ -1,8 +1,8 @@
 services:
   qq-bot:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: services/qq-bot/Dockerfile
     restart: unless-stopped
     env_file:
       - .env

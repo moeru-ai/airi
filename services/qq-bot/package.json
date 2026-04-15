@@ -23,6 +23,7 @@
   "scripts": {
     "start": "tsx --env-file=.env --env-file-if-exists=.env.local src/index.ts",
     "dev": "tsx watch --env-file=.env --env-file-if-exists=.env.local src/index.ts",
+    "build": "tsc --noEmit false --outDir dist",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
