@@ -18,6 +18,7 @@ export class RateLimitStage extends PipelineStage {
   private readonly perUserLimiter: SlidingWindowRateLimiter
   private readonly globalLimiter: SlidingWindowRateLimiter
   private readonly cooldownTracker: CooldownTracker
+  private cleanupTimer?: ReturnType<typeof setInterval>
 
   constructor(private readonly config: RateLimitConfig) {
     super()
@@ -28,11 +29,13 @@ export class RateLimitStage extends PipelineStage {
     this.globalLimiter = new SlidingWindowRateLimiter(config.global.max, config.global.windowMs)
     this.cooldownTracker = new CooldownTracker(config.cooldownMs)
 
-    setInterval(() => {
+    this.cleanupTimer = setInterval(() => {
       this.perSessionLimiter.cleanup()
       this.perUserLimiter.cleanup()
       this.globalLimiter.cleanup()
     }, 5 * 60 * 1000)
+
+    this.cleanupTimer.unref()
   }
 
   async execute(event: QQMessageEvent): Promise<StageResult> {
@@ -62,6 +65,11 @@ export class RateLimitStage extends PipelineStage {
 
   startCooldown(sessionKey: string): void {
     this.cooldownTracker.startCooldown(sessionKey)
+  }
+
+  dispose(): void {
+    if (this.cleanupTimer)
+      clearInterval(this.cleanupTimer)
   }
 
   private onLimited(event: QQMessageEvent, dimension: string): StageResult {
