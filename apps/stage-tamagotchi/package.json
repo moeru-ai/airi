@@ -185,7 +185,6 @@
     "superjson": "catalog:",
     "unocss-preset-scrollbar": "^4.0.0",
     "unplugin-info": "^1.3.2",
-    "unplugin-vue-router": "^0.19.2",
     "unplugin-yaml": "^4.1.0",
     "vite": "catalog:",
     "vite-bundle-visualizer": "^1.2.1",
