@@ -29,12 +29,12 @@
   },
   "dependencies": {
     "@vueuse/core": "catalog:",
-    "reka-ui": "^2.9.5",
+    "reka-ui": "^2.9.6",
     "vue": "catalog:",
     "vue-router": "catalog:"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^6.0.5",
+    "@vitejs/plugin-vue": "^6.0.6",
     "vue-tsc": "^3.2.6"
   }
 }
