@@ -120,6 +120,9 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - Mock IPC/services with `vi.fn`/`vi.mock`; do not rely on real Electron runtime.
 - For external providers/services, add both mock-based tests and integration-style tests (with env guards) when feasible. You can mock imports with Vitest.
 - Grow component/e2e coverage progressively (Vitest browser env where possible). Use `expect` and assert mock calls/params.
+- When writing tests, prefer line-by-line `expect` or assertion statements.
+- Avoid writing tests for impossible runtime states, such as `expect` against constants that never change, or asserting object mutations that can only happen inside the same Vitest case setup.
+- Avoid mocking `globalThis` or built-in modules by directly using `Object.defineProperty(...)`. If needed, use `node:worker_threads` to load another worker and simulate that situation, or build a mini CLI to reproduce and verify behavior. For DOM and Web Platform APIs, prefer Vitest browser mode instead of hard-mocking platform internals. If tests already use those patterns, progressively refactor them.
 
 ## TypeScript / IPC / Tools
 
@@ -161,6 +164,8 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - Maintain structured `README.md` documentation for each `packages/` and `apps/` entry, covering what it does, how to use it, when to use it, and when not to use it.
 - Always run `pnpm typecheck` and `pnpm lint:fix` after finishing a task.
 - Use Conventional Commits for commit messages (e.g., `feat: add runner reconnect backoff`).
+- For new feature requirements or requirement-related tasks involving `node:*` built-in modules, DOM operations, Vue composables, React hooks, Vite plugins, or GitHub Actions workflows, always do deep research for suitable existing libraries or open source modules first. Before choosing any library, always ask the user to choose and help judge which option is right. Never choose generalized utility libraries on your own (for example, `es-toolkit`, utilities from `github.com/unjs`, or tiny tools from `github.com/tinylib`) without explicit user confirmation. If the user is working spec-driven, list candidate choices in a clear and concise Markdown comparison table.
+- Before planning or writing new utilities/functions, always search for existing internal implementations first. If the logic could become shared utilities, proactively propose that shared approach to users and developers.
 
 ## TypeScript Coding Regulations
 
