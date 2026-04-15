@@ -1,0 +1,3 @@
+# Ignore the config file and data directory
+config.yaml
+data/*

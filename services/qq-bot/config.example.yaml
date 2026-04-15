@@ -1,0 +1,79 @@
+# AIRI server 连接
+airi:
+  url: ws://localhost:6121/ws
+  token: 'your-airi-token'
+  # 在 windows 下，这个 token 被配置在：%APPDATA%\Roaming\@proj-airi\server-channel-config.json 的 AuthToken 字段，复制过来即可
+
+# NapCat 连接
+naplink:
+  connection:
+    url: ws://localhost:3001
+    token: your-napcat-token
+
+# 各阶段配置（其余保持不变）
+filter:
+  blacklistUsers: []
+  blacklistGroups: []
+  whitelistMode: false
+  whitelistGroups: []
+  ignoreSystemUsers: []
+  ignoreEmptyMessages: true
+
+wake:
+  keywords: ['airi', '爱莉']
+  keywordMatchMode: contains
+  randomWakeRate: 0
+  alwaysWakeInPrivate: true
+
+rateLimit:
+  perSession: {max: 10, windowMs: 60000}
+  perUser: {max: 10, windowMs: 60000}
+  global: {max: 50, windowMs: 60000}
+  cooldownMs: 1000
+  onLimited: silent
+
+session:
+  maxHistoryPerSession: 50
+  contextWindow: 20
+  timeoutMs: 1800000
+  isolateByTopic: false
+
+process:
+  replyTimeoutMs: 120000 # 网络差时加大
+  sendMaxRetries: 5
+  commands:
+    prefix: '/'
+    enabled: [help, status, new, switch, history, clear]
+
+db:
+  path: data/qq-bot.db
+  maxHistoryRows: 500
+  pruneIntervalMs: 3600000
+
+embedding:
+  enabled: true
+  provider: bailian
+  apiKey: ${BAILIAN_API_KEY}
+  model: text-embedding-v4
+  dimension: 1024
+
+semanticRetrieval:
+  enabled: true
+  topK: 5
+
+decorate:
+  maxMessageLength: 4500
+  splitStrategy: multi-message
+  autoReply: true
+  contentFilter:
+    enabled: false
+    replacements: {}
+
+respond:
+  typingDelay: {min: 300, max: 800}
+  multiMessageDelay: 500
+  retryCount: 2
+  retryDelayMs: 1000
+
+logging:
+  level: info
