@@ -212,6 +212,8 @@ export default defineConfig({
               '**/settings/models/index.vue',
               '**/settings/system/general.vue',
               '**/settings/modules/mcp.vue',
+              '**/devtools/index.vue',
+              '**/settings/index.vue',
             ],
           },
           resolve(import.meta.dirname, 'src', 'renderer', 'pages'),
