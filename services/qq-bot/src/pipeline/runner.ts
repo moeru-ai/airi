@@ -154,7 +154,7 @@ export class PipelineRunner {
           return
 
         if (result.action === 'respond') {
-          if ((event.context.extensions as { _clearSession?: boolean })._clearSession)
+          if (event.context.extensions.proc_clearSession)
             this.clearSession(event.source.sessionId)
 
           await this.dispatcher.send(event, result.payload)
@@ -184,7 +184,7 @@ export class PipelineRunner {
     }
 
     if (event.context.response) {
-      if ((event.context.extensions as { _clearSession?: boolean })._clearSession)
+      if (event.context.extensions.proc_clearSession)
         this.clearSession(event.source.sessionId)
 
       await this.dispatcher.send(event, event.context.response)

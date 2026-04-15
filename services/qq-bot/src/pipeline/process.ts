@@ -316,7 +316,7 @@ export class ProcessStage extends PipelineStage {
           event.context.conversationHistory = []
         }
 
-        ;(event.context.extensions as any)._clearSession = true
+        event.context.extensions.proc_clearSession = true
         return {
           action: 'respond',
           payload: createTextResponse('已清空当前会话并创建新对话 ✓', event.id),

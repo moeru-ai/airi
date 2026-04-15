@@ -52,6 +52,8 @@ export interface PipelineExtensions {
   // ─── SessionStage 写入 ────────────────────────────────────
 
   // ─── ProcessStage 写入 ────────────────────────────────────
+  /** 标记当前会话需要在响应后清理。ProcessStage 写入，Runner 读取 */
+  proc_clearSession?: boolean
 
   // ─── DecorateStage 写入 ───────────────────────────────────
 
