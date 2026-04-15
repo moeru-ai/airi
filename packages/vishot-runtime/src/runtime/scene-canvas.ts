@@ -3,6 +3,7 @@ export interface ScenarioCanvasScaleOptions {
   viewportHeight: number
   canvasWidth: number
   canvasHeight: number
+  scaleMultiplier?: number
 }
 
 /**
@@ -20,12 +21,17 @@ export interface ScenarioCanvasScaleOptions {
  */
 export function computeScenarioCanvasScale(options: ScenarioCanvasScaleOptions): number {
   const { viewportWidth, viewportHeight, canvasWidth, canvasHeight } = options
+  const scaleMultiplier = options.scaleMultiplier && options.scaleMultiplier > 0
+    ? options.scaleMultiplier
+    : 1
 
   if (viewportWidth <= 0 || viewportHeight <= 0 || canvasWidth <= 0 || canvasHeight <= 0)
-    return 1
+    return scaleMultiplier
 
-  return Math.min(
+  const fittedScale = Math.min(
     viewportWidth / canvasWidth,
     viewportHeight / canvasHeight,
   )
+
+  return fittedScale * scaleMultiplier
 }

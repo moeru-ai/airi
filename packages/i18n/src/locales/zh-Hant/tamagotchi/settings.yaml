@@ -40,6 +40,8 @@ devtools:
     markdown-stress:
       title: Markdown Stress
       description: 使用大量聊天負載來進行 Markdown 解析與渲染的壓力測試
+    io-tracer:
+      title: IO Tracer
     widgets-calling:
       title: 小工具調用
 screen-capture:

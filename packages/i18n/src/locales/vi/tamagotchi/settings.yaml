@@ -40,6 +40,8 @@ devtools:
     markdown-stress:
       title: Kiểm thử áp lực Markdown
       description: Kiểm tra khả năng xử lý và hiển thị Markdown với dữ liệu hội thoại lớn
+    io-tracer:
+      title: IO Tracer
     widgets-calling:
       title: Gọi Widget
 screen-capture:

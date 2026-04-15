@@ -34,7 +34,7 @@ const requestedFormat = 'avif'
 
 await captureBrowserRoots({
   sceneAppRoot,
-  routePath: '/',
+  routePath: '/docs/setup-and-use',
   outputDir: path.resolve(sceneAppRoot, 'artifacts', 'final'),
   imageTransformers: requestedFormat === 'avif'
     ? [avifTransformer]
@@ -47,6 +47,7 @@ The capture primitive is still PNG because Playwright screenshots write PNG file
 ## Notes
 
 - `captureBrowserRoots()` accepts either `sceneAppRoot` or `baseUrl`.
+- Use `routePath` to target a specific page when a scene app has multiple routes.
 - Scene packages mark readiness through `window.__SCENARIO_CAPTURE_READY__`.
 - The CLI treats `<render-entry>` as the scene package root and captures the default `/` route.
 - The parser accepts repeated `--root` flags for named capture roots.
