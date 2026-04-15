@@ -40,6 +40,8 @@ devtools:
     markdown-stress:
       title: 마크다운 스트레스
       description: 스트레스 마크다운 구문 분석 및 대량 채팅 페이로드 렌더링
+    io-tracer:
+      title: IO Tracer
     widgets-calling:
       title: 위젯 호출
 screen-capture:
