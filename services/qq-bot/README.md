@@ -268,7 +268,7 @@ process:
 ```yaml
 airi:
   url: 'ws://localhost:6121/ws'
-  token: '' # Optional
+  token: 'your-airi-token'
 ```
 
 ### `decorate` — Response Post-processing
