@@ -23,6 +23,46 @@ interface ProactiveDecision {
   message?: string
 }
 
+type AiriMessageContent = string | Array<{
+  type?: string
+  text?: string
+  refusal?: string
+}>
+
+interface AiriChatOutputEvent {
+  data?: {
+    'message'?: {
+      content?: AiriMessageContent
+    }
+    'gen-ai:chat'?: {
+      input?: {
+        data?: {
+          overrides?: {
+            sessionId?: string
+          }
+        }
+      }
+    }
+  }
+}
+
+interface AiriInputTextPayload {
+  type: 'input:text'
+  data: {
+    text: string
+    textRaw: string
+    overrides: {
+      messagePrefix: string
+      sessionId: string
+    }
+    contextUpdates: Array<{
+      strategy: ContextUpdateStrategy
+      text: string
+      content: string
+    }>
+  }
+}
+
 const DEFAULT_REPLY_TIMEOUT_MS = 60_000
 const DEFAULT_SEND_MAX_RETRIES = 3
 const AGENT_SESSION_SUFFIX = ':agent-loop'
@@ -64,9 +104,9 @@ export class AgentLoop {
   }
 
   private registerOutputListener(): void {
-    this.airiClient.onEvent('output:gen-ai:chat:message', (event: any) => {
+    this.airiClient.onEvent('output:gen-ai:chat:message', (event: AiriChatOutputEvent) => {
       const sessionId = event.data?.['gen-ai:chat']?.input?.data?.overrides?.sessionId
-      const content: string | undefined = event.data?.message?.content
+      const content = this.normalizeMessageContent(event.data?.message?.content)
 
       if (!sessionId)
         return
@@ -76,8 +116,20 @@ export class AgentLoop {
         return
 
       this.pendingReplies.delete(sessionId)
-      resolve(content?.trim() ?? '')
+      resolve(content.trim())
     })
+  }
+
+  private normalizeMessageContent(content: AiriMessageContent | undefined): string {
+    if (!content)
+      return ''
+
+    if (typeof content === 'string')
+      return content
+
+    return content
+      .map(part => part.text ?? part.refusal ?? '')
+      .join('')
   }
 
   private async tick(): Promise<void> {
@@ -164,7 +216,7 @@ export class AgentLoop {
     const decisionSessionId = `${sessionId}${AGENT_SESSION_SUFFIX}`
     const prompt = this.buildDecisionPrompt(unread)
 
-    const payload = {
+    const payload: AiriInputTextPayload = {
       type: 'input:text' as const,
       data: {
         text: prompt,
@@ -180,7 +232,7 @@ export class AgentLoop {
             content: '你正在为 QQ 群消息做主动发言决策。',
           },
         ],
-      } as any,
+      },
     }
 
     const sent = await this.sendWithRetry(payload)
@@ -257,7 +309,7 @@ export class AgentLoop {
     return withoutFence
   }
 
-  private async sendWithRetry(payload: any): Promise<boolean> {
+  private async sendWithRetry(payload: AiriInputTextPayload): Promise<boolean> {
     for (let attempt = 1; attempt <= DEFAULT_SEND_MAX_RETRIES; attempt++) {
       try {
         await this.airiClient.ensureConnected({ timeout: 10_000 })
