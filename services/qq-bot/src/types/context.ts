@@ -38,7 +38,7 @@ import { createExtensions } from '../pipeline/extensions'
  *   - 后续阶段可据此调整行为（如 ProcessStage 对 'random'
  *     降低响应置信度或切换 prompt 策略）。
  */
-export type WakeReason = 'private' | 'at' | 'reply' | 'keyword' | 'random'
+export type WakeReason = 'private' | 'at' | 'reply' | 'keyword' | 'poke' | 'random'
 
 // ─── 阶段返回值 ─────────────────────────────────────────────
 

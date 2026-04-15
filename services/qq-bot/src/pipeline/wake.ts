@@ -50,6 +50,9 @@ export class WakeStage extends PipelineStage {
     if (!wakeReason && this.matchKeyword(text))
       wakeReason = 'keyword'
 
+    if (!wakeReason && hasSegmentType(event.chain, 'poke'))
+      wakeReason = 'poke'
+
     if (!wakeReason && source.type === 'group' && this.config.randomWakeRate > 0) {
       if (Math.random() < this.config.randomWakeRate)
         wakeReason = 'random'

@@ -26,6 +26,7 @@ import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 
 import { createSilentResponse, createTextResponse } from '../types/response'
 import { serializeChain } from '../utils/chain-serializer'
+import { normalizeContent } from '../utils/normalize-content'
 import { PipelineStage } from './stage'
 
 const COMMAND_SPLIT_RE = /\s+/u
@@ -66,7 +67,7 @@ export class ProcessStage extends PipelineStage {
       const correlationId
         = event.data?.['gen-ai:chat']?.input?.data?.overrides?.correlationId
           ?? event.data?.['gen-ai:chat']?.input?.data?.overrides?.sessionId
-      const content: string | undefined = event.data?.message?.content
+      const normalizedContent = normalizeContent(event.data?.message?.content)
 
       if (!correlationId) {
         this.logger.warn('output:gen-ai:chat:message missing correlationId/sessionId, dropping')
@@ -76,7 +77,7 @@ export class ProcessStage extends PipelineStage {
       const resolve = this.pendingReplies.get(correlationId)
       if (resolve) {
         this.pendingReplies.delete(correlationId)
-        resolve(content?.trim() ?? '')
+        resolve(normalizedContent.trim())
       }
       else {
         this.logger.warn(`No pending reply for correlationId=${correlationId}, dropping`)

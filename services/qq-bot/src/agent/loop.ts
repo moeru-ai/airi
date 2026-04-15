@@ -8,6 +8,7 @@ import { ContextUpdateStrategy } from '../airi-client'
 import { createDefaultContext } from '../types/context'
 import { createTextResponse } from '../types/response'
 import { createLogger } from '../utils/logger'
+import { normalizeContent } from '../utils/normalize-content'
 
 export interface AgentLoopConfig {
   enabled: boolean
@@ -23,16 +24,10 @@ interface ProactiveDecision {
   message?: string
 }
 
-type AiriMessageContent = string | Array<{
-  type?: string
-  text?: string
-  refusal?: string
-}>
-
 interface AiriChatOutputEvent {
   data?: {
     'message'?: {
-      content?: AiriMessageContent
+      content?: unknown
     }
     'gen-ai:chat'?: {
       input?: {
@@ -106,7 +101,7 @@ export class AgentLoop {
   private registerOutputListener(): void {
     this.airiClient.onEvent('output:gen-ai:chat:message', (event: AiriChatOutputEvent) => {
       const sessionId = event.data?.['gen-ai:chat']?.input?.data?.overrides?.sessionId
-      const content = this.normalizeMessageContent(event.data?.message?.content)
+      const content = normalizeContent(event.data?.message?.content)
 
       if (!sessionId)
         return
@@ -118,18 +113,6 @@ export class AgentLoop {
       this.pendingReplies.delete(sessionId)
       resolve(content.trim())
     })
-  }
-
-  private normalizeMessageContent(content: AiriMessageContent | undefined): string {
-    if (!content)
-      return ''
-
-    if (typeof content === 'string')
-      return content
-
-    return content
-      .map(part => part.text ?? part.refusal ?? '')
-      .join('')
   }
 
   private async tick(): Promise<void> {
