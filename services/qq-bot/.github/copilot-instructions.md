@@ -48,8 +48,7 @@ Design reference for the intended 7-stage pipeline (`Filter -> Wake -> RateLimit
 
 Current repository status to keep in mind while coding:
 
-- `src/index.ts` is currently empty.
-- `src/client.ts` imports `./dispatcher`, `./normalizer`, and `./pipeline/runner`, but those modules are not present yet.
+- Treat the checked-in source tree as the source of truth.
 
 ## Key conventions in this codebase
 

@@ -29,7 +29,7 @@
   "dependencies": {
     "@guiiai/logg": "catalog:",
     "@libsql/client": "catalog:",
-    "@naplink/naplink": "^0.0.10",
+    "@naplink/naplink": "~0.0.10",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/server-shared": "workspace:^",
     "@xsai/generate-text": "catalog:",

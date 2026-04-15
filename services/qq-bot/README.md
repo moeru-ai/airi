@@ -121,13 +121,10 @@ naplink:
     url: 'ws://localhost:3001' # ← change this to your NapCat address
     token: 'your_token_here' # ← remove this line if no token set
 
-# ② LLM API
-process:
-  llm:
-    endpoint: 'https://api.openai.com/v1' # ← your LLM endpoint
-    apiKey: 'sk-...' # ← your API key
-    model: 'gpt-4o' # ← model name
-    systemPrompt: 'You are AIRI, a friendly AI companion.'
+# ② AIRI server
+airi:
+  url: 'ws://localhost:6121/ws' # ← your AIRI server WebSocket address
+  token: 'your-airi-token' # ← remove this line if no token required
 
 # ③ Wake words (how to trigger the bot in group chats)
 wake:
@@ -140,15 +137,14 @@ Everything else has sensible defaults — you don't need to touch it.
 
 ### Step 4 — Set Environment Variables (Alternative to YAML)
 
-If you prefer not to put secrets in the YAML file:
+If you prefer not to hardcode values in YAML, use environment variables with your deployment/template tooling:
 
 ```bash
-export LLM_API_BASE_URL="https://api.openai.com/v1"
-export LLM_API_KEY="sk-..."
-export LLM_MODEL="gpt-4o"
+export AIRI_URL="ws://localhost:6121/ws"
+export AIRI_TOKEN="your-airi-token"
 ```
 
-Env vars are used as fallback when the YAML field is not set. Priority: **YAML > env vars > defaults**.
+Then reference them in your `config.yaml` values.
 
 ### Step 5 — Run
 
@@ -263,13 +259,16 @@ process:
   commands:
     prefix: '/'
     enabled: ['help', 'status', 'clear']
-  llm:
-    endpoint: '' # Or use LLM_API_BASE_URL env var
-    apiKey: '' # Or use LLM_API_KEY env var
-    model: '' # Or use LLM_MODEL env var
-    systemPrompt: 'You are AIRI...'
-    temperature: 0.8
-    maxTokens: 1024
+  replyTimeoutMs: 120000
+  sendMaxRetries: 5
+```
+
+### `airi` — AIRI Server Connection
+
+```yaml
+airi:
+  url: 'ws://localhost:6121/ws'
+  token: '' # Optional
 ```
 
 ### `decorate` — Response Post-processing
@@ -418,7 +417,7 @@ flowchart LR
 2. Implement `execute(event): Promise<StageResult>`
 3. Register in `pipeline/runner.ts` constructor
 
-```tsx
+```ts
 export class MyStage extends PipelineStage {
   readonly name = 'MyStage'
   constructor(private readonly config: MyConfig) {
@@ -435,7 +434,7 @@ export class MyStage extends PipelineStage {
 
 ### Logging
 
-```tsx
+```ts
 import { createLogger } from './utils/logger'
 
 const logger = createLogger('my-module')
@@ -451,9 +450,8 @@ Set `NO_COLOR=1` to disable colored output (e.g. in CI/CD).
 
 | Variable | Purpose |
 | --- | --- |
-| `LLM_API_BASE_URL` | LLM endpoint fallback |
-| `LLM_API_KEY` | LLM API key fallback |
-| `LLM_MODEL` | LLM model name fallback |
+| `AIRI_URL` | AIRI server WebSocket URL |
+| `AIRI_TOKEN` | AIRI server token |
 | `NO_COLOR` | Disable ANSI color output |
 
 ---
