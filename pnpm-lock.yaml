@@ -2375,6 +2375,15 @@ importers:
         specifier: ^1.6.0
         version: 1.6.0
 
+  nix/scripts:
+    dependencies:
+      '@pnpm/constants':
+        specifier: 'catalog:'
+        version: 1001.3.1
+      '@pnpm/store.cafs':
+        specifier: 1000.1.4
+        version: 1000.1.4
+
   packages/audio:
     dependencies:
       '@alexanderolsen/libsamplerate-js':

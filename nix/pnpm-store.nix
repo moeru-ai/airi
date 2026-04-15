@@ -3,7 +3,7 @@
 # Architecture:
 #   1. IFD: convert pnpm-lock.yaml → JSON via yj (tiny, cached after first eval)
 #   2. Pure Nix: extract package metadata (name, version, url, integrity)
-#   3. cafsScript: bundles the .ts source with its node_modules (from fetchurl)
+#   3. cafsScript: bundles the .ts source with its node_modules (from lockfile graph)
 #   4. makePkgStore: per-package derivation that runs the .ts script via Node
 #   5. Merge derivation: combines all fragments with cp -rn
 #
@@ -79,30 +79,42 @@ let
   packages = lib.filterAttrs (_: v: v != null) rawEntries;
 
   # ---------------------------------------------------------------------------
-  # Runtime dependencies of nix/scripts/pnpm-cafs-add.ts
-  # These are the npm packages needed to run the CAFS script directly (without
-  # bundling). Listed here so pnpm-store.nix can fetchurl + extract them into
-  # a node_modules for the script. Update this list when @pnpm/store.cafs or
-  # @pnpm/constants changes.
+  # Runtime dependencies of nix/scripts/pnpm-cafs-add.ts, derived automatically
+  # from the lockfile. The nix/scripts workspace declares @pnpm/constants and
+  # @pnpm/store.cafs as direct deps; this section walks the lockfile's snapshot
+  # graph to compute the full transitive closure. No manual version list needed.
   # ---------------------------------------------------------------------------
-  cafsScriptDeps = [
-    "@pnpm/constants@1001.3.1"
-    "@pnpm/graceful-fs@1000.1.0"
-    "@pnpm/store.cafs@1000.1.4"
-    "@zkochan/rimraf@3.0.2"
-    "better-path-resolve@1.0.0"
-    "fs-extra@11.3.0"
-    "graceful-fs@4.2.11"
-    "is-gzip@2.0.0"
-    "is-subdir@1.2.0"
-    "is-windows@1.0.2"
-    "jsonfile@6.2.0"
-    "minipass@7.1.3"
-    "rename-overwrite@6.0.6"
-    "ssri@10.0.5"
-    "strip-bom@4.0.0"
-    "universalify@2.0.1"
-  ];
+  snapshots = lockfile.snapshots or {};
+
+  # Read the nix/scripts workspace's resolved dependencies from the lockfile
+  scriptImporter = lockfile.importers."nix/scripts" or {};
+  scriptDirectDeps =
+    lib.mapAttrsToList (name: entry: "${name}@${entry.version}")
+      (scriptImporter.dependencies or {});
+
+  # Walk the snapshot dependency graph to collect the transitive closure.
+  # Each snapshot entry maps a package key to its runtime dependencies.
+  # Returns an attrset used as a visited set (keys = "name@version").
+  depClosure = visited: queue:
+    if queue == [] then visited
+    else
+      let
+        key = builtins.head queue;
+        rest = builtins.tail queue;
+      in
+      if visited ? ${key} then depClosure visited rest
+      else
+        let
+          snap = snapshots.${key} or {};
+          newDeps = lib.mapAttrsToList (n: v: "${n}@${v}") (snap.dependencies or {});
+        in
+        depClosure (visited // { ${key} = true; }) (rest ++ newDeps);
+
+  # Full transitive closure, filtered to packages that exist in the lockfile
+  # (skips @types/* and other declaration-only packages without tarballs).
+  cafsScriptDeps =
+    builtins.filter (key: packages ? ${key})
+      (builtins.attrNames (depClosure {} scriptDirectDeps));
 
   # Fetch a package tarball by its key
   fetchPkg = key:
@@ -110,7 +122,7 @@ let
     in fetchurl { url = pkg.url; hash = pkg.integrity; };
 
   # Build a node_modules directory with the CAFS script's runtime dependencies.
-  # This avoids checking in a bundled .mjs — only the auditable .ts source is in the repo.
+  # Extracts each transitive dep into a flat node_modules tree.
   cafsScript = stdenvNoCC.mkDerivation {
     name = "pnpm-cafs-add";
     dontUnpack = true;
@@ -122,7 +134,6 @@ let
       ${lib.concatStringsSep "\n" (map (key:
         let
           pkg = packages.${key};
-          # e.g. "@pnpm/store.cafs" → "@pnpm/store.cafs", "ssri" → "ssri"
           modPath = pkg.name;
           parentDir =
             if lib.hasPrefix "@" modPath

@@ -1,0 +1,9 @@
+{
+  "name": "@proj-airi/nix-scripts",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "@pnpm/constants": "catalog:",
+    "@pnpm/store.cafs": "1000.1.4"
+  }
+}
