@@ -20,6 +20,8 @@ import type { ConversationRepo } from '../db/conversation-repo'
 import type { StageResult } from '../types/context'
 import type { QQMessageEvent } from '../types/event'
 
+import { randomUUID } from 'node:crypto'
+
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 
 import { createSilentResponse, createTextResponse } from '../types/response'
@@ -36,7 +38,7 @@ export class ProcessStage extends PipelineStage {
   /** 发送重试次数 */
   private readonly sendMaxRetries: number
 
-  /** sessionId → resolve 函数，持久监听用于分发响应 */
+  /** correlationId → resolve 函数，持久监听用于分发响应 */
   private readonly pendingReplies = new Map<string, (text: string) => void>()
 
   constructor(
@@ -55,27 +57,29 @@ export class ProcessStage extends PipelineStage {
 
   /**
    * 注册持久的 output:gen-ai:chat:message 监听器。
-   * 收到响应后按 sessionId 分发给对应的 waitForReply Promise。
+   * 收到响应后按 correlationId 分发给对应的 waitForReply Promise。
    */
   private registerOutputListener(): void {
     this.airiClient.onEvent('output:gen-ai:chat:message', (event: any) => {
       this.logger.debug('[AIRI raw output]', JSON.stringify(event))
 
-      const sessionId = event.data?.['gen-ai:chat']?.input?.data?.overrides?.sessionId
+      const correlationId
+        = event.data?.['gen-ai:chat']?.input?.data?.overrides?.correlationId
+          ?? event.data?.['gen-ai:chat']?.input?.data?.overrides?.sessionId
       const content: string | undefined = event.data?.message?.content
 
-      if (!sessionId) {
-        this.logger.warn('output:gen-ai:chat:message missing sessionId, dropping')
+      if (!correlationId) {
+        this.logger.warn('output:gen-ai:chat:message missing correlationId/sessionId, dropping')
         return
       }
 
-      const resolve = this.pendingReplies.get(sessionId)
+      const resolve = this.pendingReplies.get(correlationId)
       if (resolve) {
-        this.pendingReplies.delete(sessionId)
+        this.pendingReplies.delete(correlationId)
         resolve(content?.trim() ?? '')
       }
       else {
-        this.logger.warn(`No pending reply for sessionId=${sessionId}, dropping`)
+        this.logger.warn(`No pending reply for correlationId=${correlationId}, dropping`)
       }
     })
   }
@@ -159,6 +163,8 @@ export class ProcessStage extends PipelineStage {
         : []),
     ]
 
+    const correlationId = randomUUID()
+
     const payload = {
       type: 'input:text' as const,
       data: {
@@ -167,6 +173,7 @@ export class ProcessStage extends PipelineStage {
         overrides: {
           messagePrefix: `(来自QQ用户 ${source.userName}): `,
           sessionId: source.sessionId,
+          correlationId,
         },
         contextUpdates: contextUpdates.length > 0 ? contextUpdates : undefined,
         qq: source,
@@ -183,7 +190,7 @@ export class ProcessStage extends PipelineStage {
     this.logger.debug(`Sent to AIRI: sessionId=${source.sessionId}, text="${text.slice(0, 50)}"`)
 
     // ─── 等待 AIRI 响应 ───────────────────────────────────────
-    const reply = await this.waitForReply(source.sessionId)
+    const reply = await this.waitForReply(correlationId)
 
     if (reply === null) {
       this.logger.warn(`AIRI reply timeout (${this.replyTimeoutMs}ms): sessionId=${source.sessionId}`)
@@ -369,14 +376,14 @@ export class ProcessStage extends PipelineStage {
    * @param sessionId - 当前会话 ID
    * @returns 响应文本（有内容时）或 null（超时时）
    */
-  private waitForReply(sessionId: string): Promise<string | null> {
+  private waitForReply(correlationId: string): Promise<string | null> {
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
-        this.pendingReplies.delete(sessionId)
+        this.pendingReplies.delete(correlationId)
         resolve(null)
       }, this.replyTimeoutMs)
 
-      this.pendingReplies.set(sessionId, (text) => {
+      this.pendingReplies.set(correlationId, (text: string) => {
         clearTimeout(timer)
         resolve(text.length > 0 ? text : null)
       })
