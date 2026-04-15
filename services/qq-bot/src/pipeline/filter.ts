@@ -53,7 +53,7 @@ export class FilterStage extends PipelineStage {
     if (this.config.ignoreEmptyMessages) {
       const isEmptyText = text.trim().length === 0
       const isOnlyFace = chain.length > 0 && chain.every(seg => seg.type === 'face')
-      if (isEmptyText && isOnlyFace)
+      if ((isEmptyText && chain.length === 0) || isOnlyFace)
         return { action: 'skip' }
     }
 
