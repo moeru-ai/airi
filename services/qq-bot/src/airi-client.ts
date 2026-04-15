@@ -45,20 +45,6 @@ export function createAiriClient(url: string, token?: string): AiriChannel {
     logger.info(`AIRI connection: ${previousStatus} → ${status}`)
   })
 
-  // 延迟一帧等 ws 建立
-  setTimeout(() => {
-    const ws = (client as any).websocket
-    if (ws) {
-      logger.debug('[airi-client] Found raw ws, attaching listener')
-      ws.addEventListener('message', (event: MessageEvent) => {
-        logger.debug('[AIRI raw ws ←]', typeof event.data === 'string' ? event.data : JSON.stringify(event.data))
-      })
-    }
-    else {
-      logger.warn('[airi-client] websocket is null/undefined')
-    }
-  }, 500)
-
   // 连接状态日志（AiriChannel 内部会自动重连）
   client.onEvent('module:configure', (event) => {
     logger.info('Received module:configure from AIRI server', event.data)
@@ -66,11 +52,6 @@ export function createAiriClient(url: string, token?: string): AiriChannel {
 
   client.onEvent('output:gen-ai:chat:message', (event) => {
     logger.debug('[AIRI ← output:gen-ai:chat:message]', JSON.stringify(event))
-  })
-
-  // 连接状态变化日志
-  client.onConnectionStateChange(({ previousStatus, status }) => {
-    logger.info(`AIRI connection: ${previousStatus} → ${status}`)
   })
 
   logger.info(`AIRI client created, target: ${url}`)
