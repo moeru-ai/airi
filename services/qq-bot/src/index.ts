@@ -3,7 +3,11 @@
 // 入口：初始化所有模块，启动 NapLink 连接
 // ─────────────────────────────────────────────────────────────
 
-import type { GroupMessageEvent, PrivateMessageEvent } from '@naplink/naplink'
+import type {
+  GroupMessageEvent,
+  PokeNotice,
+  PrivateMessageEvent,
+} from '@naplink/naplink'
 
 import process from 'node:process'
 
@@ -17,7 +21,11 @@ import { ConversationRepo } from './db/conversation-repo'
 import { initDb } from './db/index'
 import { MessageHistoryRepo } from './db/message-history-repo'
 import { createDispatcher } from './dispatcher'
-import { normalizeGroupMessage, normalizePrivateMessage } from './normalizer'
+import {
+  normalizeGroupMessage,
+  normalizePokeEvent,
+  normalizePrivateMessage,
+} from './normalizer'
 import { PipelineRunner } from './pipeline/runner'
 import { createLogger, initLoggers } from './utils/logger'
 
@@ -143,6 +151,17 @@ async function main() {
   client.on('message.private', (data: PrivateMessageEvent) => {
     runner.run(normalizePrivateMessage(data, botQQ)).catch(
       err => logger.error('Pipeline error (private)', err as Error),
+    )
+  })
+
+  client.on('notice.notify.poke', (data: PokeNotice) => {
+    const event = normalizePokeEvent(data, botQQ)
+
+    if (!event)
+      return
+
+    runner.run(event).catch(
+      err => logger.error('Pipeline error (poke)', err as Error),
     )
   })
 
