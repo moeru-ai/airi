@@ -49,6 +49,7 @@ catalog:
   '@iconify-json/ph': ^1.2.2
   '@iconify-json/tabler': ^1.2.33
   '@intlify/core': ^11.3.2
+  '@libsql/client': ^0.15.15
   '@modelcontextprotocol/sdk': ^1.29.0
   '@moeru/eslint-config': 0.1.0-beta.15
   '@moeru/eventa': 1.0.0-beta.3
@@ -97,6 +98,7 @@ catalog:
   embla-carousel-vue: 9.0.0-rc02
   es-toolkit: 1.43.0
   get-port-please: ^3.2.0
+  gpt-tokenizer: ^3.4.0
   histoire: 1.0.0-beta.1
   hono: 4.11.3
   hono-rate-limiter: ^0.5.3
@@ -116,6 +118,8 @@ catalog:
   pinia: ^3.0.4
   posthog-js: 1.306.1
   splitpanes: ^4.0.4
+  sql.js: ^1.13.0
+  sqlite-vec: ^0.1.7-alpha.2
   std-env: ^4.0.0
   superjson: ^2.2.6
   tsdown: ^0.21.8
