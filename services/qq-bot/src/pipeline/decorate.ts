@@ -30,8 +30,8 @@ export class DecorateStage extends PipelineStage {
 
     let segments = response.segments
     segments = this.applyContentFilter(segments)
-    segments = this.applySplitStrategy(segments)
     segments = mergeAdjacentText(segments)
+    segments = this.applySplitStrategy(segments)
 
     const replyTo = this.config.autoReply
       ? (response.replyTo ?? event.id)
