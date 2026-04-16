@@ -1,6 +1,6 @@
 import type { MaybeRefOrGetter } from 'vue'
 
-import { onScopeDispose, toValue, watchEffect } from 'vue'
+import { toValue, watchEffect } from 'vue'
 
 /**
  * Composable for managing CSS custom properties (variables) with reactivity and cleanup.
@@ -54,9 +54,8 @@ export function useCssVariables(
   variableGetter: MaybeRefOrGetter<Record<string, string | undefined>>,
   options?: { elementGetter?: MaybeRefOrGetter<HTMLElement | null>, prefix?: string },
 ) {
-  let varList: Set<string> = new Set()
-  const stopHandle = watchEffect(() => {
-    const newVarList: Set<string> = new Set()
+  const stopHandle = watchEffect((onCleanup) => {
+    const appliedVars: string[] = []
     let target: HTMLElement | null
     if (options?.elementGetter)
       target = toValue(options.elementGetter)
@@ -67,17 +66,11 @@ export function useCssVariables(
     validVariables.forEach(([name, val]) => {
       const varFullName = `${options?.prefix ?? ''}${name}`
       target.style.setProperty(varFullName, val)
-      newVarList.add(varFullName)
+      appliedVars.push(varFullName)
     })
-    varList.difference(newVarList).forEach(oldVar => target.style.removeProperty(oldVar))
-    varList = newVarList
-  })
-
-  // cleanup on unmount
-  onScopeDispose(() => {
-    const target = toValue(options?.elementGetter) || document.documentElement
-    varList.forEach(v => target.style.removeProperty(v))
-    stopHandle()
+    onCleanup(() => {
+      appliedVars.forEach(v => target.style.removeProperty(v))
+    })
   })
 
   return { stop: stopHandle }

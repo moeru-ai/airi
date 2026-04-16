@@ -179,4 +179,54 @@ describe('useCssVariables', () => {
     app.unmount()
     expect(document.documentElement.style.getPropertyValue('--color')).toBe('')
   })
+  it('cleanup on target element change', async () => {
+    const mockEl = document.getElementById('mock-target')
+    if (!mockEl)
+      throw new Error('Mock element not found')
+
+    const color = ref('purple')
+    const getter = () => ({ color: color.value })
+
+    const elementGetter = ref<HTMLElement | null>(mockEl)
+
+    app = mount({
+      setup() {
+        return useCssVariables(getter, { elementGetter, prefix: '--' })
+      },
+      template: '<div></div>',
+    })
+    await nextTick()
+    expect(mockEl.style.getPropertyValue('--color')).toBe('purple')
+    expect(document.documentElement.style.getPropertyValue('--color')).toBe('')
+
+    elementGetter.value = document.documentElement
+    await nextTick()
+    expect(mockEl.style.getPropertyValue('--color')).toBe('') // cleanup
+    expect(document.documentElement.style.getPropertyValue('--color')).toBe('purple') // reactivity
+  })
+  it('cleanup scoping', async () => {
+    const mockEl = document.getElementById('mock-target')
+    if (!mockEl)
+      throw new Error('Mock element not found')
+
+    const color = ref('purple')
+    const getter = () => ({ color: color.value })
+
+    const elementGetter = ref<HTMLElement | null>(mockEl)
+
+    app = mount({
+      setup() {
+        return useCssVariables(getter, { elementGetter, prefix: '--' })
+      },
+      template: '<div></div>',
+    })
+    document.documentElement.style.setProperty('--size', '16px')
+    mockEl.style.setProperty('--size', '10px')
+
+    elementGetter.value = document.documentElement
+    await nextTick()
+    expect(mockEl.style.getPropertyValue('--size')).toBe('10px') // no cleanup on unrelated variable
+    expect(mockEl.style.getPropertyValue('--color')).toBe('') // proper cleanup
+    expect(document.documentElement.style.getPropertyValue('--size')).toBe('16px') // not affecting pre-existing variable
+  })
 })
