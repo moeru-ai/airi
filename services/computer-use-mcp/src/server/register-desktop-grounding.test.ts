@@ -7,6 +7,7 @@ import type {
 
 import { describe, expect, it, vi } from 'vitest'
 
+import { getUnsupportedBrowserDomActions, isBrowserDomActionSupported } from '../browser-dom/capabilities'
 import { RunStateManager } from '../state'
 
 // ---------------------------------------------------------------------------
@@ -274,6 +275,7 @@ describe('desktop_click_target handler integration', () => {
     clickCount?: number
     browserDomBridge: {
       getStatus: () => { connected: boolean }
+      supportsAction?: (action: string) => boolean
       clickSelector: (args: { selector: string, frameIds?: number[] }) => Promise<void>
       checkCheckbox: (args: { selector: string, frameIds?: number[] }) => Promise<void>
     }
@@ -327,26 +329,44 @@ describe('desktop_click_target handler integration', () => {
 
       let executionRoute = routeDecision.route
       let routeNote = ''
+      let routeReason = routeDecision.reason
 
       if (routeDecision.route === 'browser_dom' && routeDecision.selector) {
-        try {
-          const frameIds = routeDecision.frameId !== undefined ? [routeDecision.frameId] : undefined
-          if (routeDecision.bridgeMethod === 'checkCheckbox') {
-            await browserDomBridge.checkCheckbox({ selector: routeDecision.selector, frameIds })
-          }
-          else {
-            await browserDomBridge.clickSelector({ selector: routeDecision.selector, frameIds })
-          }
-        }
-        catch (browserError) {
+        const requiredActions = routeDecision.bridgeMethod === 'checkCheckbox'
+          ? ['checkCheckbox']
+          : ['getClickTarget', 'clickAt']
+
+        if (!isBrowserDomActionSupported(browserDomBridge, ...requiredActions)) {
           executionRoute = 'os_input'
-          routeNote = `browser-dom failed: ${browserError instanceof Error ? browserError.message : String(browserError)}`
+          routeReason = `browser-dom extension transport does not support ${requiredActions.join(' + ')}`
+          routeNote = `browser-dom ${routeDecision.bridgeMethod ?? 'click'} is unavailable on the connected extension transport (${getUnsupportedBrowserDomActions(browserDomBridge, ...requiredActions).join(', ')} unsupported), fell back to OS input`
           await executor.click({
             x: snap.snappedPoint.x,
             y: snap.snappedPoint.y,
             button: button || 'left',
             clickCount: clickCount ?? 1,
           })
+        }
+        else {
+          try {
+            const frameIds = routeDecision.frameId !== undefined ? [routeDecision.frameId] : undefined
+            if (routeDecision.bridgeMethod === 'checkCheckbox') {
+              await browserDomBridge.checkCheckbox({ selector: routeDecision.selector, frameIds })
+            }
+            else {
+              await browserDomBridge.clickSelector({ selector: routeDecision.selector, frameIds })
+            }
+          }
+          catch (browserError) {
+            executionRoute = 'os_input'
+            routeNote = `browser-dom failed: ${browserError instanceof Error ? browserError.message : String(browserError)}`
+            await executor.click({
+              x: snap.snappedPoint.x,
+              y: snap.snappedPoint.y,
+              button: button || 'left',
+              clickCount: clickCount ?? 1,
+            })
+          }
         }
       }
       else {
@@ -360,7 +380,7 @@ describe('desktop_click_target handler integration', () => {
 
       intent.phase = 'completed'
       intent.executionResult = routeNote ? 'fallback' : 'success'
-      intent.executionRoute = `${executionRoute} (${routeDecision.reason})`
+      intent.executionRoute = `${executionRoute} (${routeReason})`
       stateManager.updatePointerIntent(intent, candidateId)
 
       const candidateDesc = candidate
@@ -371,13 +391,13 @@ describe('desktop_click_target handler integration', () => {
         `Clicked: ${candidateDesc}`,
         `  Snap: ${snap.reason}`,
         `  Point: (${snap.snappedPoint.x}, ${snap.snappedPoint.y})`,
-        `  Route: ${executionRoute} (${routeDecision.reason})`,
+        `  Route: ${executionRoute} (${routeReason})`,
         `  Button: ${button || 'left'}, clicks: ${clickCount ?? 1}`,
       ]
       if (routeNote)
         lines.push(`  ⚠ ${routeNote}`)
 
-      return { isError: false, text: lines.join('\n'), executionRoute, routeNote }
+      return { isError: false, text: lines.join('\n'), executionRoute, routeNote, routeReason }
     }
     catch (error) {
       const message = error instanceof Error ? error.message : String(error)
@@ -400,6 +420,7 @@ describe('desktop_click_target handler integration', () => {
   function makeMockBridge(connected: boolean) {
     return {
       getStatus: () => ({ connected }),
+      supportsAction: vi.fn().mockReturnValue(true),
       clickSelector: vi.fn().mockResolvedValue(undefined),
       checkCheckbox: vi.fn().mockResolvedValue(undefined),
     }
@@ -445,6 +466,35 @@ describe('desktop_click_target handler integration', () => {
     })
     expect(executor.click).not.toHaveBeenCalled()
     expect(result.text).toContain('Route: browser_dom')
+  })
+
+  it('falls back to OS click when the connected extension transport is read-only', async () => {
+    const sm = new RunStateManager()
+    const candidate = makeCandidate({
+      id: 't_0',
+      source: 'chrome_dom',
+      selector: '#login-btn',
+      frameId: 0,
+      isPageContent: true,
+    })
+    sm.updateGroundingSnapshot(freshSnapshot([candidate]))
+
+    const bridge = makeMockBridge(true)
+    bridge.supportsAction.mockImplementation((action: string) => action !== 'clickAt')
+    const executor = makeMockExecutor()
+
+    const result = await simulateClickTargetHandler({
+      stateManager: sm,
+      candidateId: 't_0',
+      browserDomBridge: bridge,
+      executor,
+    })
+
+    expect(result.isError).toBe(false)
+    expect(result.executionRoute).toBe('os_input')
+    expect(result.routeReason).toContain('does not support getClickTarget + clickAt')
+    expect(bridge.clickSelector).not.toHaveBeenCalled()
+    expect(executor.click).toHaveBeenCalledOnce()
   })
 
   // -----------------------------------------------------------------------

@@ -69,7 +69,9 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
       },
       browserDomBridge: {
         triggerEvent: vi.fn(),
+        clickSelector: vi.fn(),
         getStatus: vi.fn(() => ({ enabled: false, connected: false })),
+        supportsAction: vi.fn(() => true),
       },
       cdpBridgeManager: {
         getAvailability: vi.fn(),
@@ -169,6 +171,67 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
     expect(result.structuredContent).toMatchObject({
       status: 'invalid_params',
       field: 'optsJson',
+    })
+    expect((runtime.browserDomBridge.triggerEvent as any)).not.toHaveBeenCalled()
+  })
+
+  it('rejects browser_dom_click when the connected extension transport is read-only', async () => {
+    ;(runtime.browserDomBridge.getStatus as any).mockReturnValue({
+      enabled: true,
+      connected: true,
+      host: '127.0.0.1',
+      port: 8765,
+      pendingRequests: 0,
+    })
+    ;(runtime.browserDomBridge.supportsAction as any).mockImplementation((action: string) => action !== 'clickAt')
+
+    const { server, invoke } = createMockServer()
+    registerComputerUseTools({
+      server,
+      runtime,
+      executeAction: vi.fn(),
+      enableTestTools: false,
+    })
+
+    const result = await invoke('browser_dom_click', {
+      selector: '#submit',
+    })
+
+    expect(result.isError).toBe(true)
+    expect(result.structuredContent).toMatchObject({
+      status: 'unavailable',
+      unsupportedActions: ['clickAt'],
+    })
+    expect((runtime.browserDomBridge.clickSelector as any)).not.toHaveBeenCalled()
+  })
+
+  it('rejects browser_dom_trigger_event when the connected extension transport does not support writes', async () => {
+    ;(runtime.browserDomBridge.getStatus as any).mockReturnValue({
+      enabled: true,
+      connected: true,
+      host: '127.0.0.1',
+      port: 8765,
+      pendingRequests: 0,
+    })
+    ;(runtime.browserDomBridge.supportsAction as any).mockImplementation((action: string) => action !== 'triggerEvent')
+
+    const { server, invoke } = createMockServer()
+    registerComputerUseTools({
+      server,
+      runtime,
+      executeAction: vi.fn(),
+      enableTestTools: false,
+    })
+
+    const result = await invoke('browser_dom_trigger_event', {
+      selector: '#app',
+      eventName: 'click',
+    })
+
+    expect(result.isError).toBe(true)
+    expect(result.structuredContent).toMatchObject({
+      status: 'unavailable',
+      unsupportedActions: ['triggerEvent'],
     })
     expect((runtime.browserDomBridge.triggerEvent as any)).not.toHaveBeenCalled()
   })

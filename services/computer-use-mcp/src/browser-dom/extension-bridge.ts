@@ -11,6 +11,16 @@ import { randomUUID } from 'node:crypto'
 
 import { WebSocket, WebSocketServer } from 'ws'
 
+const SUPPORTED_ACTIONS = new Set([
+  'getActiveTab',
+  'getAllFrames',
+  'readAllFramesDOM',
+  'findElement',
+  'findElements',
+  'getClickTarget',
+  'getElementAttributes',
+])
+
 interface PendingBridgeRequest {
   reject: (error: Error) => void
   resolve: (value: unknown) => void
@@ -163,6 +173,10 @@ export class BrowserDomExtensionBridge {
       throw new Error('browser dom bridge is disabled')
     }
 
+    if (!this.supportsAction(action)) {
+      throw new Error(`browser dom bridge transport does not support action "${action}"`)
+    }
+
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
       throw new Error(this.status.lastError || 'browser dom bridge is not connected')
     }
@@ -204,6 +218,10 @@ export class BrowserDomExtensionBridge {
     })
 
     return result
+  }
+
+  supportsAction(action: string) {
+    return SUPPORTED_ACTIONS.has(action)
   }
 
   async getActiveTab() {

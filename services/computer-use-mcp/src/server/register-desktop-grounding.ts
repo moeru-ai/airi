@@ -21,6 +21,7 @@ import process from 'node:process'
 
 import { z } from 'zod'
 
+import { getUnsupportedBrowserDomActions, isBrowserDomActionSupported } from '../browser-dom/capabilities'
 import { decideBrowserAction } from '../browser-action-router'
 import { captureDesktopGrounding, formatGroundingForAgent } from '../desktop-grounding'
 import { resolveSnapByCandidate } from '../snap-resolver'
@@ -273,28 +274,17 @@ export function registerDesktopGroundingTools(params: {
 
         let executionRoute = routeDecision.route
         let routeNote = ''
+        let routeReason = routeDecision.reason
 
         if (routeDecision.route === 'browser_dom' && routeDecision.selector) {
-          // Try browser-dom bridge action first, dispatching by method
-          try {
-            const frameIds = routeDecision.frameId !== undefined ? [routeDecision.frameId] : undefined
-            if (routeDecision.bridgeMethod === 'checkCheckbox') {
-              await runtime.browserDomBridge!.checkCheckbox({
-                selector: routeDecision.selector,
-                frameIds,
-              })
-            }
-            else {
-              await runtime.browserDomBridge!.clickSelector({
-                selector: routeDecision.selector,
-                frameIds,
-              })
-            }
-          }
-          catch (browserError) {
-            // Fallback to OS input on browser-dom failure
+          const requiredActions = routeDecision.bridgeMethod === 'checkCheckbox'
+            ? ['checkCheckbox']
+            : ['getClickTarget', 'clickAt']
+
+          if (!isBrowserDomActionSupported(runtime.browserDomBridge, ...requiredActions)) {
             executionRoute = 'os_input'
-            routeNote = `browser-dom ${routeDecision.bridgeMethod ?? 'click'} failed (${browserError instanceof Error ? browserError.message : String(browserError)}), fell back to OS input`
+            routeReason = `browser-dom extension transport does not support ${requiredActions.join(' + ')}`
+            routeNote = `browser-dom ${routeDecision.bridgeMethod ?? 'click'} is unavailable on the connected extension transport (${getUnsupportedBrowserDomActions(runtime.browserDomBridge, ...requiredActions).join(', ')} unsupported), fell back to OS input`
             await runtime.executor.click({
               x: snap.snappedPoint.x,
               y: snap.snappedPoint.y,
@@ -302,6 +292,36 @@ export function registerDesktopGroundingTools(params: {
               clickCount: clickCount ?? 1,
               pointerTrace: intent.path,
             })
+          }
+          else {
+            // Try browser-dom bridge action first, dispatching by method
+            try {
+              const frameIds = routeDecision.frameId !== undefined ? [routeDecision.frameId] : undefined
+              if (routeDecision.bridgeMethod === 'checkCheckbox') {
+                await runtime.browserDomBridge!.checkCheckbox({
+                  selector: routeDecision.selector,
+                  frameIds,
+                })
+              }
+              else {
+                await runtime.browserDomBridge!.clickSelector({
+                  selector: routeDecision.selector,
+                  frameIds,
+                })
+              }
+            }
+            catch (browserError) {
+              // Fallback to OS input on browser-dom failure
+              executionRoute = 'os_input'
+              routeNote = `browser-dom ${routeDecision.bridgeMethod ?? 'click'} failed (${browserError instanceof Error ? browserError.message : String(browserError)}), fell back to OS input`
+              await runtime.executor.click({
+                x: snap.snappedPoint.x,
+                y: snap.snappedPoint.y,
+                button: button || 'left',
+                clickCount: clickCount ?? 1,
+                pointerTrace: intent.path,
+              })
+            }
           }
         }
         else {
@@ -318,7 +338,7 @@ export function registerDesktopGroundingTools(params: {
         // Phase: completed — update ghost pointer state for overlay fadeout
         intent.phase = 'completed'
         intent.executionResult = routeNote ? 'fallback' : 'success'
-        intent.executionRoute = `${executionRoute} (${routeDecision.reason})`
+        intent.executionRoute = `${executionRoute} (${routeReason})`
         runtime.stateManager.updatePointerIntent(intent, candidateId)
 
         const candidateDesc = candidate ? `${candidate.source} ${candidate.role} "${candidate.label}"` : candidateId
@@ -327,7 +347,7 @@ export function registerDesktopGroundingTools(params: {
           `Clicked: ${candidateDesc}`,
           `  Snap: ${snap.reason}`,
           `  Point: (${snap.snappedPoint.x}, ${snap.snappedPoint.y})`,
-          `  Route: ${executionRoute} (${routeDecision.reason})`,
+          `  Route: ${executionRoute} (${routeReason})`,
           `  Button: ${button || 'left'}, clicks: ${clickCount ?? 1}`,
         ]
 

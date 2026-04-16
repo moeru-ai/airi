@@ -372,4 +372,140 @@ describe('createExecuteAction', () => {
     expect(browserDomBridge.setInputValue).not.toHaveBeenCalled()
 >>>>>>> 847edd6e0 (fix(computer-use-mcp): bypass stale browser-dom typing route)
   })
+
+  it('falls back to OS typing when the connected extension transport does not support setInputValue', async () => {
+    const stateManager = new RunStateManager()
+    stateManager.updateGroundingSnapshot({
+      snapshotId: 'dg_1',
+      capturedAt: new Date().toISOString(),
+      foregroundApp: 'Google Chrome',
+      windows: [],
+      screenshot: { dataBase64: '', mimeType: 'image/png', path: '', capturedAt: new Date().toISOString() },
+      targetCandidates: [
+        {
+          id: 't_0',
+          source: 'chrome_dom',
+          appName: 'Google Chrome',
+          role: 'textbox',
+          label: 'Email',
+          bounds: { x: 100, y: 200, width: 140, height: 28 },
+          confidence: 0.98,
+          interactable: true,
+          tag: 'input',
+          inputType: 'text',
+          selector: '#email',
+          frameId: 0,
+          isPageContent: true,
+        },
+      ],
+      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
+    } as any)
+    stateManager.updatePointerIntent({
+      mode: 'execute',
+      candidateId: 't_0',
+      rawPoint: { x: 120, y: 214 },
+      snappedPoint: { x: 120, y: 214 },
+      source: 'chrome_dom',
+      confidence: 0.98,
+      path: [{ x: 120, y: 214, delayMs: 0 }],
+      phase: 'completed',
+      executionResult: 'success',
+    }, 't_0')
+
+    const session = {
+      listPendingActions: vi.fn().mockReturnValue([]),
+      getBudgetState: vi.fn().mockReturnValue({
+        operationsExecuted: 0,
+        operationUnitsConsumed: 0,
+      }),
+      record: vi.fn().mockResolvedValue(undefined),
+      createPendingAction: vi.fn(),
+      consumeOperation: vi.fn(),
+      getLastScreenshot: vi.fn().mockReturnValue(undefined),
+      setLastScreenshot: vi.fn(),
+      getTerminalState: vi.fn().mockReturnValue(createTerminalState()),
+      setTerminalState: vi.fn(),
+      getPointerPosition: vi.fn().mockReturnValue({ x: 0, y: 0 }),
+      setPointerPosition: vi.fn(),
+    }
+    const executor = {
+      kind: 'dry-run' as const,
+      describe: () => ({ kind: 'dry-run' as const, notes: [] }),
+      getExecutionTarget: vi.fn().mockResolvedValue(createLocalExecutionTarget()),
+      getForegroundContext: vi.fn().mockResolvedValue({
+        available: true,
+        appName: 'Google Chrome',
+        platform: 'darwin',
+      }),
+      getDisplayInfo: vi.fn().mockResolvedValue(createDisplayInfo({
+        platform: 'darwin',
+      })),
+      getPermissionInfo: vi.fn(),
+      observeWindows: vi.fn(),
+      takeScreenshot: vi.fn(),
+      openApp: vi.fn(),
+      focusApp: vi.fn(),
+      click: vi.fn(),
+      typeText: vi.fn().mockResolvedValue({
+        performed: true,
+        backend: 'dry-run' as const,
+        notes: [],
+      }),
+      pressKeys: vi.fn(),
+      scroll: vi.fn(),
+      wait: vi.fn(),
+    }
+    const terminalRunner = {
+      describe: () => ({ kind: 'local-shell-runner' as const, notes: [] }),
+      execute: vi.fn(),
+      getState: vi.fn().mockReturnValue(createTerminalState()),
+      resetState: vi.fn(),
+    }
+    const browserDomBridge = {
+      getStatus: vi.fn().mockReturnValue({
+        enabled: true,
+        host: '127.0.0.1',
+        port: 8765,
+        connected: true,
+        pendingRequests: 0,
+      }),
+      supportsAction: vi.fn().mockImplementation((action: string) => action !== 'setInputValue'),
+      setInputValue: vi.fn().mockResolvedValue(undefined),
+    }
+    const cdpBridgeManager = {
+      probeAvailability: vi.fn().mockResolvedValue({
+        endpoint: 'http://localhost:9222',
+        connected: false,
+        connectable: true,
+      }),
+    }
+
+    const runtime = {
+      config: createTestConfig({
+        executor: 'dry-run',
+        approvalMode: 'never',
+        defaultCaptureAfter: false,
+      }),
+      session,
+      executor,
+      terminalRunner,
+      browserDomBridge,
+      cdpBridgeManager,
+      stateManager,
+      taskMemory: {},
+    } as unknown as ComputerUseServerRuntime
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({
+      kind: 'type_text',
+      input: {
+        text: 'hello',
+        captureAfter: false,
+      },
+    }, 'desktop_type_text')
+
+    expect(result.isError).not.toBe(true)
+    expect(executor.typeText).toHaveBeenCalledOnce()
+    expect(browserDomBridge.setInputValue).not.toHaveBeenCalled()
+  })
 })

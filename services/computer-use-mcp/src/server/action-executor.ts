@@ -18,6 +18,7 @@ import { decideBrowserTypeAction } from '../browser-action-router'
 import { DESKTOP_CLICK_SNAPSHOT_MAX_AGE_MS } from '../desktop-grounding-types'
 =======
 import { normalizeConfiguredAppAction } from '../app-aliases'
+import { isBrowserDomActionSupported } from '../browser-dom/capabilities'
 import { decideBrowserTypeAction } from '../browser-action-router'
 >>>>>>> c751ac56c (feat(computer-use-mcp): add type/checkbox browser-dom routing (v2 slice 2))
 import { evaluateActionPolicy } from '../policy'
@@ -507,7 +508,11 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
             if (lastCandidate) {
               const bridgeConnected = runtime.browserDomBridge?.getStatus().connected ?? false
               const typeDecision = decideBrowserTypeAction(lastCandidate, bridgeConnected)
-              if (typeDecision.route === 'browser_dom' && typeDecision.selector) {
+              if (
+                typeDecision.route === 'browser_dom'
+                && typeDecision.selector
+                && isBrowserDomActionSupported(runtime.browserDomBridge, 'setInputValue')
+              ) {
                 try {
 <<<<<<< HEAD
                   const frameResults = await runtime.browserDomBridge!.setInputValue({
