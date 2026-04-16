@@ -3,9 +3,11 @@ import type { AutoUpdaterState } from '@proj-airi/electron-eventa/electron-updat
 import type { BrowserWindow } from 'electron'
 import type { UpdateInfo } from 'electron-updater'
 
-import fs from 'node:fs'
+import type { ElectronUpdaterChannel } from '../../../shared/eventa'
+
 import process from 'node:process'
 
+import { appendFile, mkdir, rm } from 'node:fs/promises'
 import { dirname, join, normalize } from 'node:path'
 
 import electronUpdater from 'electron-updater'
@@ -25,6 +27,7 @@ import {
   electronAutoUpdaterStateChanged,
   electronGetUpdaterPreferences,
   electronSetUpdaterPreferences,
+
 } from '../../../shared/eventa'
 import { MockAutoUpdater } from './mock-auto-updater'
 
@@ -44,11 +47,7 @@ function getCacheRoot() {
 }
 
 function getLegacyCacheRoot() {
-  import { app } from 'electron'
-
-  function getCacheRoot() {
-    return app.getPath('cache')
-  }
+  return getCacheRoot()
 }
 
 const UPDATER_DEBUG_CACHE_DIR = join(getCacheRoot(), 'stage-tamagotchi-updater')
@@ -61,17 +60,17 @@ const OFFICIAL_UPDATER_CACHE_DIRS = Array.from(new Set([
 ]))
 
 async function logToFile(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: string) {
-  await fs.promises.mkdir(UPDATER_DEBUG_CACHE_DIR, { recursive: true }).catch(() => {})
-  await fs.promises.appendFile(UPDATER_LOG_FILE, `${new Date().toISOString()} [${level}] ${message}\n`).catch(() => {})
+  await mkdir(UPDATER_DEBUG_CACHE_DIR, { recursive: true }).catch(() => {})
+  await appendFile(UPDATER_LOG_FILE, `${new Date().toISOString()} [${level}] ${message}\n`).catch(() => {})
 }
 
 async function cleanupStaleUpdateFiles() {
   // Remove both current and legacy updater cache roots so stale installers do not linger.
-  await Promise.allSettled(OFFICIAL_UPDATER_CACHE_DIRS.map(cacheDir => fs.promises.rm(cacheDir, { recursive: true, force: true })))
+  await Promise.allSettled(OFFICIAL_UPDATER_CACHE_DIRS.map(cacheDir => rm(cacheDir, { recursive: true, force: true })))
   await logToFile('INFO', `Updater cache cleanup attempted: ${OFFICIAL_UPDATER_CACHE_DIRS.join(', ')}`)
 }
 
-export type UpdateLane = 'latest' | 'stable' | 'alpha' | 'beta' | 'nightly' | 'canary'
+export type UpdateLane = ElectronUpdaterChannel
 interface GitHubReleaseRecord {
   tag_name?: string
   draft?: boolean
