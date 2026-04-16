@@ -53,7 +53,7 @@ useCssVariables(() => ({
 
 /* Top direction (default) */
 .fantasy-fall-up::before {
-  content: "";
+  content: '';
   display: block;
   position: absolute;
   top: 0;
@@ -70,7 +70,7 @@ useCssVariables(() => ({
 
 /* Bottom direction */
 .fantasy-fall-down::before {
-  content: "";
+  content: '';
   display: block;
   position: absolute;
   top: 0;
@@ -87,7 +87,7 @@ useCssVariables(() => ({
 
 /* Left direction */
 .fantasy-fall-left::before {
-  content: "";
+  content: '';
   display: block;
   position: absolute;
   top: 0;
@@ -104,7 +104,7 @@ useCssVariables(() => ({
 
 /* Right direction */
 .fantasy-fall-right::before {
-  content: "";
+  content: '';
   display: block;
   position: absolute;
   top: 0;
