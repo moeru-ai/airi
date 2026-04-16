@@ -147,7 +147,7 @@ function buildEmailShell(title: string, content: string): string {
         <table width="560" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(236,146,173,0.12);">
           <!-- Header -->
           <tr>
-            <td style="background:linear-gradient(135deg,#EC92AD 0%,#F3E2E7 100%);padding:28px 32px;">
+            <td style="background:linear-gradient(135deg,#EC92AD 0%,#D4768F 100%);padding:28px 32px;">
               <span style="color:#ffffff;font-size:22px;font-weight:800;letter-spacing:0.5px;font-family:'Nunito','DM Sans',sans-serif;">AIRI</span>
             </td>
           </tr>
