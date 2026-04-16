@@ -88,14 +88,14 @@ export class ProcessStage extends PipelineStage {
   // ─── 流水线主逻辑 ─────────────────────────────────────────────
 
   async execute(event: QQMessageEvent): Promise<StageResult> {
-    // 未唤醒的消息不走 LLM
-    if (!event.context.isWakeUp)
-      return { action: 'continue' }
-
     // ─── 内置命令前置处理 ─────────────────────────────────────
     const cmdResult = await this.handleCommand(event)
     if (cmdResult)
       return cmdResult
+
+    // 未唤醒的消息不走 LLM
+    if (!event.context.isWakeUp)
+      return { action: 'continue' }
 
     // ─── 发送给 AIRI server（带重试）──────────────────────────
     const { source, text } = event
