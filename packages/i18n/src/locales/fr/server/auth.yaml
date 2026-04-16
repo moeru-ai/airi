@@ -23,16 +23,60 @@ electronCallback:
   hint:
     closeTabManually: Some browsers do not allow this page to close itself automatically. You can close it manually.
 signIn:
-  title: Sign in
+  title: Connexion
+  or: ou
+  email: Adresse e-mail
+  password: Mot de passe
+  submit: Se connecter
+  forgotPassword: Mot de passe oublié ?
+  noAccount: Vous n'avez pas de compte ?
+  switchToSignUp: S'inscrire
   error:
-    fallback: Sign in failed
-    unknown: An unknown error occurred
-    authFailed: Authentication failed. Please try again.
+    fallback: Échec de la connexion
+    unknown: Une erreur inconnue s'est produite
+    authFailed: L'authentification a échoué. Veuillez réessayer.
   footer:
-    prefix: By continuing, you agree to our
-    terms: Terms
-    and: and
-    privacy: Privacy Policy
+    prefix: En continuant, vous acceptez nos
+    terms: Conditions d'utilisation
+    and: et
+    privacy: Politique de confidentialité
+signUp:
+  title: Inscription
+  name: Nom
+  submit: S'inscrire
+  hasAccount: Vous avez déjà un compte ?
+  switchToSignIn: Se connecter
+forgotPassword:
+  title: Mot de passe oublié
+  description: Entrez votre adresse e-mail et nous vous enverrons un lien de réinitialisation.
+  email: Adresse e-mail
+  submit: Envoyer le lien de réinitialisation
+  sent: Si un compte avec cette adresse e-mail existe, un lien de réinitialisation a été envoyé.
+  resend: Renvoyer
+  backToSignIn: Retour à la connexion
+  error:
+    emptyEmail: Veuillez entrer votre adresse e-mail
+resetPassword:
+  title: Réinitialiser le mot de passe
+  newPassword: Nouveau mot de passe
+  confirmPassword: Confirmer le nouveau mot de passe
+  submit: Réinitialiser le mot de passe
+  success: Mot de passe réinitialisé avec succès
+  invalidToken: Lien invalide ou expiré
+  backToForgot: Retour à mot de passe oublié
+  error:
+    tooShort: Le mot de passe doit contenir au moins 8 caractères
+    mismatch: Les mots de passe ne correspondent pas
+    unknown: Échec de la réinitialisation du mot de passe
+verifyEmail:
+  title: Vérification de l'adresse e-mail
+  loading: Vérification de votre adresse e-mail en cours...
+  success: Adresse e-mail vérifiée !
+  successDescription: Votre adresse e-mail a été vérifiée avec succès.
+  goHome: Aller à l'accueil
+  error: Échec de la vérification
+  errorDescription: Le lien de vérification est invalide ou a expiré.
+  backToSignIn: Retour à la connexion
 webCallback:
   title:
     signIn: Sign in

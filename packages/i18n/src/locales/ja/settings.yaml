@@ -146,12 +146,54 @@ pages:
   account:
     title: アカウント
     description: プロフィールを表示し、アカウントを管理します
-    notLoggedIn: アカウントにログインして、全機能をご利用ください
-    login: Sign in
-    logout: Sign out
+    signedInAs: サインイン中
     fluxBalance: Flux 残高
     viewFluxDetails: 詳細を見る
-    signedInAs: サインイン済み
+    login: サインイン
+    logout: サインアウト
+    notLoggedIn: サインインしてアカウント設定やプロバイダーの連携などを管理しましょう。
+    profile:
+      title: プロフィール
+      nameLabel: 表示名
+      namePlaceholder: お名前を入力
+      uploadNew: 新しい画像をアップロード
+      removeAvatar: 削除
+      saveButton: 保存
+      saveSuccess: プロフィールを更新しました
+    linkedAccounts:
+      title: 連携アカウント
+      unlink: 連携解除
+      linkGoogle: Google を連携
+      linkGithub: GitHub を連携
+      needPassword: OAuthプロバイダーの連携を解除するには、先にパスワードを設定する必要があります。
+      sendPasswordLink: パスワード設定リンクを送信
+      linkSent: パスワード設定リンクをメールに送信しました。
+    password:
+      title: パスワード
+      currentPassword: 現在のパスワード
+      newPassword: 新しいパスワード
+      confirmPassword: パスワードの確認
+      changePassword: パスワードを変更
+      setPassword: パスワードを設定
+      noPasswordSet: パスワードが設定されていません。メールでのサインインを有効にするにはパスワードを設定してください。
+      sendResetLink: パスワードリセットリンクを送信
+      resetLinkSent: パスワードリセットリンクをメールに送信しました。
+      passwordChanged: パスワードを変更しました
+    email:
+      title: メールアドレス
+      currentEmail: 現在のメールアドレス
+      newEmail: 新しいメールアドレス
+      changeEmail: メールアドレスを変更
+      verificationSent: 確認メールを送信しました
+    dangerZone:
+      title: 危険な操作
+      deleteAccount: アカウントを削除
+      deleteDescription: アカウントと関連するすべてのデータを完全に削除します。この操作は取り消せません。
+      confirmTitle: アカウントを削除しますか？
+      confirmDescription: アカウントは完全に削除されます。確認するには「DELETE」と入力してください。
+      typeDelete: DELETE と入力して確認
+      cancel: キャンセル
+      confirmDelete: アカウントを削除する
   card:
     activate: 有効化
     active: 有効

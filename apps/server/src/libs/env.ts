@@ -56,6 +56,19 @@ const EnvSchema = object({
   STRIPE_SECRET_KEY: optional(string()),
   STRIPE_WEBHOOK_SECRET: optional(string()),
 
+  // Cloudflare R2 object storage for user-uploaded assets (e.g. avatars).
+  // All optional — upload/delete endpoints will return 503 when not configured.
+  R2_ACCOUNT_ID: optional(string()),
+  R2_ACCESS_KEY_ID: optional(string()),
+  R2_SECRET_ACCESS_KEY: optional(string()),
+  R2_BUCKET_NAME: optional(string()),
+  R2_PUBLIC_URL: optional(string()),
+
+  // Resend transactional email (password reset, email change, etc.).
+  // Both optional — email features degrade gracefully when not configured.
+  RESEND_API_KEY: optional(string()),
+  RESEND_FROM_EMAIL: optional(string()),
+
   BILLING_EVENTS_STREAM: optional(string(), DEFAULT_BILLING_EVENTS_STREAM),
   BILLING_EVENTS_CONSUMER_NAME: optional(string()),
   BILLING_EVENTS_BATCH_SIZE: optionalIntegerFromString(10, 'BILLING_EVENTS_BATCH_SIZE', 1),

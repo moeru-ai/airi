@@ -145,13 +145,55 @@ models: Модель
 pages:
   account:
     title: Аккаунт
-    description: Просматривайте свой профиль и управляйте своей учетной записью
-    notLoggedIn: Войдите, чтобы просмотреть аккаунт и получить доступ ко всем функциям
-    login: Войти
-    logout: Выйти
+    description: Просматривайте свой профиль и управляйте своей учётной записью
+    signedInAs: Вы вошли как
     fluxBalance: Баланс Flux
     viewFluxDetails: Подробнее
-    signedInAs: Вы вошли как
+    login: Войти
+    logout: Выйти
+    notLoggedIn: Войдите, чтобы управлять настройками аккаунта, привязывать провайдеров и многое другое.
+    profile:
+      title: Профиль
+      nameLabel: Отображаемое имя
+      namePlaceholder: Введите ваше имя
+      uploadNew: Загрузить новое
+      removeAvatar: Удалить
+      saveButton: Сохранить
+      saveSuccess: Профиль успешно обновлён
+    linkedAccounts:
+      title: Привязанные аккаунты
+      unlink: Отвязать
+      linkGoogle: Привязать Google
+      linkGithub: Привязать GitHub
+      needPassword: Перед отвязкой OAuth-провайдера необходимо установить пароль.
+      sendPasswordLink: Отправить ссылку для установки пароля
+      linkSent: Ссылка для установки пароля отправлена на вашу электронную почту.
+    password:
+      title: Пароль
+      currentPassword: Текущий пароль
+      newPassword: Новый пароль
+      confirmPassword: Подтвердите пароль
+      changePassword: Изменить пароль
+      setPassword: Установить пароль
+      noPasswordSet: Пароль не установлен. Установите пароль для входа через электронную почту.
+      sendResetLink: Отправить ссылку для сброса пароля
+      resetLinkSent: Ссылка для сброса пароля отправлена на вашу электронную почту.
+      passwordChanged: Пароль успешно изменён
+    email:
+      title: Электронная почта
+      currentEmail: Текущая электронная почта
+      newEmail: Новая электронная почта
+      changeEmail: Изменить электронную почту
+      verificationSent: Письмо с подтверждением отправлено
+    dangerZone:
+      title: Опасная зона
+      deleteAccount: Удалить аккаунт
+      deleteDescription: Безвозвратно удалить ваш аккаунт и все связанные данные. Это действие нельзя отменить.
+      confirmTitle: Удалить ваш аккаунт?
+      confirmDescription: Ваш аккаунт будет безвозвратно удалён. Введите «DELETE» для подтверждения.
+      typeDelete: Введите DELETE для подтверждения
+      cancel: Отмена
+      confirmDelete: Удалить мой аккаунт
   card:
     activate: Активировать
     active: Активно

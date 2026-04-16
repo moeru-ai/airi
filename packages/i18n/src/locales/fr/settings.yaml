@@ -146,12 +146,54 @@ pages:
   account:
     title: Compte
     description: Consultez votre profil et gérez votre compte
-    notLoggedIn: Connectez-vous pour accéder à votre compte et à toutes les fonctionnalités
-    login: Sign in
-    logout: Sign out
+    signedInAs: Connecté en tant que
     fluxBalance: Solde de Flux
     viewFluxDetails: Voir les détails
-    signedInAs: Connecté en tant que
+    login: Se connecter
+    logout: Se déconnecter
+    notLoggedIn: Connectez-vous pour gérer les paramètres de votre compte, lier des fournisseurs, et plus encore.
+    profile:
+      title: Profil
+      nameLabel: Nom d'affichage
+      namePlaceholder: Entrez votre nom
+      uploadNew: Télécharger une nouvelle image
+      removeAvatar: Supprimer
+      saveButton: Enregistrer
+      saveSuccess: Profil mis à jour avec succès
+    linkedAccounts:
+      title: Comptes liés
+      unlink: Dissocier
+      linkGoogle: Lier Google
+      linkGithub: Lier GitHub
+      needPassword: Vous devez définir un mot de passe avant de dissocier un fournisseur OAuth.
+      sendPasswordLink: Envoyer le lien de configuration du mot de passe
+      linkSent: Lien de configuration du mot de passe envoyé à votre adresse e-mail.
+    password:
+      title: Mot de passe
+      currentPassword: Mot de passe actuel
+      newPassword: Nouveau mot de passe
+      confirmPassword: Confirmer le mot de passe
+      changePassword: Modifier le mot de passe
+      setPassword: Définir un mot de passe
+      noPasswordSet: Aucun mot de passe défini. Définissez-en un pour activer la connexion par e-mail.
+      sendResetLink: Envoyer le lien de réinitialisation du mot de passe
+      resetLinkSent: Lien de réinitialisation du mot de passe envoyé à votre adresse e-mail.
+      passwordChanged: Mot de passe modifié avec succès
+    email:
+      title: Adresse e-mail
+      currentEmail: Adresse e-mail actuelle
+      newEmail: Nouvelle adresse e-mail
+      changeEmail: Modifier l'adresse e-mail
+      verificationSent: E-mail de vérification envoyé
+    dangerZone:
+      title: Zone dangereuse
+      deleteAccount: Supprimer le compte
+      deleteDescription: Supprime définitivement votre compte et toutes les données associées. Cette action est irréversible.
+      confirmTitle: Supprimer votre compte ?
+      confirmDescription: Cette action supprimera définitivement votre compte. Tapez « DELETE » pour confirmer.
+      typeDelete: Tapez DELETE pour confirmer
+      cancel: Annuler
+      confirmDelete: Supprimer mon compte
   card:
     activate: Activer
     active: Actif

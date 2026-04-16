@@ -146,12 +146,54 @@ pages:
   account:
     title: 账号
     description: 查看您的个人资料并管理您的帐户
-    notLoggedIn: 登录以查看您的帐户并访问所有功能
-    login: Sign in
-    logout: Sign out
-    fluxBalance: 剩余通量
+    signedInAs: 已登录为
+    fluxBalance: Flux 余额
     viewFluxDetails: 查看详情
-    signedInAs: 登录 为
+    login: 登录
+    logout: 退出登录
+    notLoggedIn: 登录以管理您的账号设置、关联服务提供商等。
+    profile:
+      title: 个人资料
+      nameLabel: 显示名称
+      namePlaceholder: 输入您的名称
+      uploadNew: 上传新头像
+      removeAvatar: 移除
+      saveButton: 保存
+      saveSuccess: 个人资料更新成功
+    linkedAccounts:
+      title: 已关联账号
+      unlink: 取消关联
+      linkGoogle: 关联 Google
+      linkGithub: 关联 GitHub
+      needPassword: 取消关联 OAuth 提供商之前，您必须先设置密码。
+      sendPasswordLink: 发送密码设置链接
+      linkSent: 密码设置链接已发送至您的邮箱。
+    password:
+      title: 密码
+      currentPassword: 当前密码
+      newPassword: 新密码
+      confirmPassword: 确认密码
+      changePassword: 修改密码
+      setPassword: 设置密码
+      noPasswordSet: 尚未设置密码。设置密码以启用邮箱登录。
+      sendResetLink: 发送密码重置链接
+      resetLinkSent: 密码重置链接已发送至您的邮箱。
+      passwordChanged: 密码修改成功
+    email:
+      title: 邮箱
+      currentEmail: 当前邮箱
+      newEmail: 新邮箱
+      changeEmail: 修改邮箱
+      verificationSent: 验证邮件已发送
+    dangerZone:
+      title: 危险操作
+      deleteAccount: 删除账号
+      deleteDescription: 永久删除您的账号及所有相关数据。此操作不可撤销。
+      confirmTitle: 确定要删除您的账号吗？
+      confirmDescription: 此操作将永久删除您的账号。请输入"DELETE"以确认。
+      typeDelete: 输入 DELETE 以确认
+      cancel: 取消
+      confirmDelete: 删除我的账号
   card:
     activate: 激活
     active: 已激活

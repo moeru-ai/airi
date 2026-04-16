@@ -23,16 +23,60 @@ electronCallback:
   hint:
     closeTabManually: Some browsers do not allow this page to close itself automatically. You can close it manually.
 signIn:
-  title: Sign in
+  title: 登入
+  or: 或
+  email: 電子郵件
+  password: 密碼
+  submit: 登入
+  forgotPassword: 忘記密碼？
+  noAccount: 還沒有帳號？
+  switchToSignUp: 註冊
   error:
-    fallback: Sign in failed
-    unknown: An unknown error occurred
-    authFailed: Authentication failed. Please try again.
+    fallback: 登入失敗
+    unknown: 發生了未知錯誤
+    authFailed: 驗證失敗，請重試。
   footer:
-    prefix: By continuing, you agree to our
-    terms: Terms
-    and: and
-    privacy: Privacy Policy
+    prefix: 繼續即表示您同意我們的
+    terms: 服務條款
+    and: 和
+    privacy: 隱私政策
+signUp:
+  title: 註冊
+  name: 名稱
+  submit: 註冊
+  hasAccount: 已有帳號？
+  switchToSignIn: 登入
+forgotPassword:
+  title: 忘記密碼
+  description: 輸入您的電子郵件，我們將向您發送重設連結。
+  email: 電子郵件
+  submit: 傳送重設連結
+  sent: 如果該電子郵件對應的帳號存在，重設連結已發送。
+  resend: 重新傳送
+  backToSignIn: 返回登入
+  error:
+    emptyEmail: 請輸入您的電子郵件地址
+resetPassword:
+  title: 重設密碼
+  newPassword: 新密碼
+  confirmPassword: 確認新密碼
+  submit: 重設密碼
+  success: 密碼重設成功
+  invalidToken: 連結無效或已過期
+  backToForgot: 返回忘記密碼
+  error:
+    tooShort: 密碼至少需要8個字元
+    mismatch: 兩次輸入的密碼不一致
+    unknown: 密碼重設失敗
+verifyEmail:
+  title: 電子郵件驗證
+  loading: 正在驗證您的電子郵件…
+  success: 電子郵件驗證成功！
+  successDescription: 您的電子郵件已成功驗證。
+  goHome: 返回首頁
+  error: 驗證失敗
+  errorDescription: 驗證連結無效或已過期。
+  backToSignIn: 返回登入
 webCallback:
   title:
     signIn: Sign in

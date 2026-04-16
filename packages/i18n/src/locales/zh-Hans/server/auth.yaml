@@ -24,15 +24,59 @@ electronCallback:
     closeTabManually: 一些浏览器不允许自动关闭这个页面，你可以手动关掉它。
 signIn:
   title: 登录
+  or: 或
+  email: 邮箱
+  password: 密码
+  submit: 登录
+  forgotPassword: 忘记密码？
+  noAccount: 还没有账号？
+  switchToSignUp: 注册
   error:
     fallback: 登录失败
     unknown: 发生了未知错误
-    authFailed: Authentication failed. Please try again.
+    authFailed: 认证失败，请重试。
   footer:
     prefix: 继续之前，你需要同意我们的
     terms: 服务条款
     and: 和
     privacy: 隐私政策
+signUp:
+  title: 注册
+  name: 名称
+  submit: 注册
+  hasAccount: 已有账号？
+  switchToSignIn: 登录
+forgotPassword:
+  title: 忘记密码
+  description: 输入您的邮箱，我们将向您发送重置链接。
+  email: 邮箱
+  submit: 发送重置链接
+  sent: 如果该邮箱对应的账号存在，重置链接已发送。
+  resend: 重新发送
+  backToSignIn: 返回登录
+  error:
+    emptyEmail: 请输入您的邮箱地址
+resetPassword:
+  title: 重置密码
+  newPassword: 新密码
+  confirmPassword: 确认新密码
+  submit: 重置密码
+  success: 密码重置成功
+  invalidToken: 链接无效或已过期
+  backToForgot: 返回忘记密码
+  error:
+    tooShort: 密码至少需要8个字符
+    mismatch: 两次输入的密码不一致
+    unknown: 密码重置失败
+verifyEmail:
+  title: 邮箱验证
+  loading: 正在验证您的邮箱…
+  success: 邮箱验证成功！
+  successDescription: 您的邮箱已成功验证。
+  goHome: 返回首页
+  error: 验证失败
+  errorDescription: 验证链接无效或已过期。
+  backToSignIn: 返回登录
 webCallback:
   title:
     signIn: 登录

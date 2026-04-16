@@ -12,6 +12,7 @@ export const user = pgTable('user', {
     .defaultNow()
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
+  deletedAt: timestamp('deleted_at'),
 })
 
 export const session = pgTable(

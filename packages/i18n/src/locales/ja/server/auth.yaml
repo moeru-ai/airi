@@ -23,16 +23,60 @@ electronCallback:
   hint:
     closeTabManually: Some browsers do not allow this page to close itself automatically. You can close it manually.
 signIn:
-  title: Sign in
+  title: サインイン
+  or: または
+  email: メールアドレス
+  password: パスワード
+  submit: サインイン
+  forgotPassword: パスワードをお忘れですか？
+  noAccount: アカウントをお持ちでないですか？
+  switchToSignUp: 新規登録
   error:
-    fallback: Sign in failed
-    unknown: An unknown error occurred
-    authFailed: Authentication failed. Please try again.
+    fallback: サインインに失敗しました
+    unknown: 不明なエラーが発生しました
+    authFailed: 認証に失敗しました。もう一度お試しください。
   footer:
-    prefix: By continuing, you agree to our
-    terms: Terms
-    and: and
-    privacy: Privacy Policy
+    prefix: 続行すると、以下に同意したことになります
+    terms: 利用規約
+    and: および
+    privacy: プライバシーポリシー
+signUp:
+  title: 新規登録
+  name: 名前
+  submit: 登録する
+  hasAccount: すでにアカウントをお持ちですか？
+  switchToSignIn: サインイン
+forgotPassword:
+  title: パスワードをお忘れの場合
+  description: メールアドレスを入力すると、リセットリンクをお送りします。
+  email: メールアドレス
+  submit: リセットリンクを送信
+  sent: そのメールアドレスのアカウントが存在する場合、リセットリンクが送信されました。
+  resend: 再送信
+  backToSignIn: サインインに戻る
+  error:
+    emptyEmail: メールアドレスを入力してください
+resetPassword:
+  title: パスワードのリセット
+  newPassword: 新しいパスワード
+  confirmPassword: 新しいパスワードの確認
+  submit: パスワードをリセット
+  success: パスワードをリセットしました
+  invalidToken: 無効または期限切れのリンクです
+  backToForgot: パスワード再設定に戻る
+  error:
+    tooShort: パスワードは8文字以上で入力してください
+    mismatch: パスワードが一致しません
+    unknown: パスワードのリセットに失敗しました
+verifyEmail:
+  title: メール認証
+  loading: メールアドレスを確認中…
+  success: メール認証が完了しました！
+  successDescription: メールアドレスが正常に認証されました。
+  goHome: ホームへ戻る
+  error: 認証に失敗しました
+  errorDescription: 認証リンクが無効または期限切れです。
+  backToSignIn: サインインに戻る
 webCallback:
   title:
     signIn: Sign in

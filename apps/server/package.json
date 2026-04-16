@@ -15,6 +15,7 @@
     "db:push": "pnpm run apply:env -- drizzle-kit push"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.801.0",
     "@better-auth/drizzle-adapter": "^1.6.2",
     "@better-auth/oauth-provider": "catalog:",
     "@dotenvx/dotenvx": "^1.61.0",
@@ -51,14 +52,17 @@
     "hono-rate-limiter": "catalog:",
     "injeca": "catalog:",
     "ioredis": "^5.10.1",
+    "jdenticon": "catalog:",
     "jose": "catalog:",
     "pg": "^8.20.0",
+    "resend": "^4.5.2",
     "stripe": "^22.0.1",
     "valibot": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@better-auth/cli": "^1.4.21",
+    "@types/jdenticon": "catalog:",
     "@types/pg": "^8.20.0",
     "drizzle-kit": "catalog:"
   }

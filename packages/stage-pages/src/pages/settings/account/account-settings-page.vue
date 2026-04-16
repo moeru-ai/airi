@@ -1,4 +1,10 @@
 <script setup lang="ts">
+import DangerZoneSection from '@proj-airi/stage-ui/components/scenarios/settings/account/danger-zone-section.vue'
+import EmailSection from '@proj-airi/stage-ui/components/scenarios/settings/account/email-section.vue'
+import LinkedAccountsSection from '@proj-airi/stage-ui/components/scenarios/settings/account/linked-accounts-section.vue'
+import PasswordSection from '@proj-airi/stage-ui/components/scenarios/settings/account/password-section.vue'
+import ProfileSection from '@proj-airi/stage-ui/components/scenarios/settings/account/profile-section.vue'
+
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Button } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -80,6 +86,14 @@ const userAvatar = computed(() => user.value?.image ?? null)
           <div :class="['i-solar:alt-arrow-right-linear', 'size-4']" />
         </div>
       </RouterLink>
+
+      <div :class="['flex flex-col gap-6']">
+        <ProfileSection />
+        <LinkedAccountsSection />
+        <PasswordSection />
+        <EmailSection />
+        <DangerZoneSection />
+      </div>
 
       <Button
         variant="danger"

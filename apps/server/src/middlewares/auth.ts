@@ -1,12 +1,15 @@
 import type { MiddlewareHandler } from 'hono'
 
 import type { createAuth } from '../libs/auth'
+import type { Database } from '../libs/db'
 import type { Env } from '../libs/env'
 import type { HonoEnv } from '../types/hono'
 
 import { useLogger } from '@guiiai/logg'
+import { eq } from 'drizzle-orm'
 
 import { resolveRequestAuth } from '../libs/request-auth'
+import { user as userTable } from '../schemas/accounts'
 import { createUnauthorizedError } from '../utils/error'
 
 const logger = useLogger('auth')
@@ -16,8 +19,13 @@ type AuthInstance = ReturnType<typeof createAuth>
 /**
  * Session middleware injects the user and session into the Hono context.
  * It does not block unauthorized requests.
+ *
+ * Use when: mounting globally before route guards to populate `c.get('user')`.
+ *
+ * Expects: `db` to check `deletedAt` — soft-deleted users are treated as
+ * unauthenticated (user/session set to null) so `authGuard` blocks them.
  */
-export function sessionMiddleware(auth: AuthInstance, env: Env): MiddlewareHandler<HonoEnv> {
+export function sessionMiddleware(auth: AuthInstance, env: Env, db: Database): MiddlewareHandler<HonoEnv> {
   return async (c, next) => {
     // NOTICE: auth routes handle session lookup inside better-auth itself.
     // Running the global session middleware on `/api/auth/*`, `/sign-in`, and
@@ -36,6 +44,18 @@ export function sessionMiddleware(auth: AuthInstance, env: Env): MiddlewareHandl
     const session = await resolveRequestAuth(auth, env, c.req.raw.headers)
 
     if (!session) {
+      c.set('user', null)
+      c.set('session', null)
+      return await next()
+    }
+
+    const [dbUser] = await db
+      .select({ deletedAt: userTable.deletedAt })
+      .from(userTable)
+      .where(eq(userTable.id, session.user.id))
+
+    if (dbUser?.deletedAt) {
+      logger.withFields({ userId: session.user.id, path: c.req.path }).debug('Blocked soft-deleted user')
       c.set('user', null)
       c.set('session', null)
       return await next()

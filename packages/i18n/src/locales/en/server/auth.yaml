@@ -24,6 +24,13 @@ electronCallback:
     closeTabManually: Some browsers do not allow this page to close itself automatically. You can close it manually.
 signIn:
   title: Sign in
+  or: or
+  email: Email
+  password: Password
+  submit: Sign In
+  forgotPassword: Forgot Password?
+  noAccount: Don't have an account?
+  switchToSignUp: Sign Up
   error:
     fallback: Sign in failed
     unknown: An unknown error occurred
@@ -33,6 +40,43 @@ signIn:
     terms: Terms
     and: and
     privacy: Privacy Policy
+signUp:
+  title: Sign Up
+  name: Name
+  submit: Sign Up
+  hasAccount: Already have an account?
+  switchToSignIn: Sign In
+forgotPassword:
+  title: Forgot Password
+  description: Enter your email and we'll send you a reset link.
+  email: Email
+  submit: Send Reset Link
+  sent: If an account with that email exists, a reset link has been sent.
+  resend: Resend
+  backToSignIn: Back to Sign In
+  error:
+    emptyEmail: Please enter your email address
+resetPassword:
+  title: Reset Password
+  newPassword: New password
+  confirmPassword: Confirm new password
+  submit: Reset Password
+  success: Password reset successfully
+  invalidToken: Invalid or expired link
+  backToForgot: Back to Forgot Password
+  error:
+    tooShort: Password must be at least 8 characters
+    mismatch: Passwords do not match
+    unknown: Failed to reset password
+verifyEmail:
+  title: Email Verification
+  loading: Verifying your email...
+  success: Email Verified!
+  successDescription: Your email has been verified successfully.
+  goHome: Go to Home
+  error: Verification Failed
+  errorDescription: The verification link is invalid or has expired.
+  backToSignIn: Back to Sign In
 webCallback:
   title:
     signIn: Sign in

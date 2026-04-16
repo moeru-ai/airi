@@ -144,14 +144,56 @@ microphone: 麥克風
 models: 模型
 pages:
   account:
-    title: Account
-    description: View your profile and manage your account
-    notLoggedIn: Sign in to view your account and access all features
-    login: Sign in
-    logout: Sign out
-    fluxBalance: Flux Balance
-    viewFluxDetails: View details
-    signedInAs: Signed in as
+    title: 帳號
+    description: 查看您的個人檔案並管理您的帳號
+    signedInAs: 已登入為
+    fluxBalance: Flux 餘額
+    viewFluxDetails: 查看詳情
+    login: 登入
+    logout: 登出
+    notLoggedIn: 登入以管理您的帳號設定、連結服務供應商等。
+    profile:
+      title: 個人檔案
+      nameLabel: 顯示名稱
+      namePlaceholder: 輸入您的名稱
+      uploadNew: 上傳新頭像
+      removeAvatar: 移除
+      saveButton: 儲存
+      saveSuccess: 個人檔案更新成功
+    linkedAccounts:
+      title: 已連結帳號
+      unlink: 取消連結
+      linkGoogle: 連結 Google
+      linkGithub: 連結 GitHub
+      needPassword: 取消連結 OAuth 供應商之前，您必須先設定密碼。
+      sendPasswordLink: 傳送密碼設定連結
+      linkSent: 密碼設定連結已傳送至您的電子郵件。
+    password:
+      title: 密碼
+      currentPassword: 目前密碼
+      newPassword: 新密碼
+      confirmPassword: 確認密碼
+      changePassword: 變更密碼
+      setPassword: 設定密碼
+      noPasswordSet: 尚未設定密碼。設定密碼以啟用電子郵件登入。
+      sendResetLink: 傳送密碼重設連結
+      resetLinkSent: 密碼重設連結已傳送至您的電子郵件。
+      passwordChanged: 密碼變更成功
+    email:
+      title: 電子郵件
+      currentEmail: 目前的電子郵件
+      newEmail: 新的電子郵件
+      changeEmail: 變更電子郵件
+      verificationSent: 驗證郵件已傳送
+    dangerZone:
+      title: 危險操作
+      deleteAccount: 刪除帳號
+      deleteDescription: 永久刪除您的帳號及所有相關資料。此操作無法復原。
+      confirmTitle: 確定要刪除您的帳號嗎？
+      confirmDescription: 此操作將永久刪除您的帳號。請輸入「DELETE」以確認。
+      typeDelete: 輸入 DELETE 以確認
+      cancel: 取消
+      confirmDelete: 刪除我的帳號
   card:
     activate: 啟用
     active: 已啟用

@@ -154,12 +154,54 @@ pages:
   account:
     title: Account
     description: View your profile and manage your account
-    notLoggedIn: Sign in to view your account and access all features
-    login: Sign in
-    logout: Sign out
-    fluxBalance: Flux Balance
-    viewFluxDetails: View details
     signedInAs: Signed in as
+    fluxBalance: Flux Balance
+    viewFluxDetails: View Details
+    login: Sign In
+    logout: Sign Out
+    notLoggedIn: Sign in to manage your account settings, link providers, and more.
+    profile:
+      title: Profile
+      nameLabel: Display Name
+      namePlaceholder: Enter your name
+      uploadNew: Upload New
+      removeAvatar: Remove
+      saveButton: Save
+      saveSuccess: Profile updated successfully
+    linkedAccounts:
+      title: Linked Accounts
+      unlink: Unlink
+      linkGoogle: Link Google
+      linkGithub: Link GitHub
+      needPassword: You must set a password before unlinking an OAuth provider.
+      sendPasswordLink: Send Password Setup Link
+      linkSent: Password setup link sent to your email.
+    password:
+      title: Password
+      currentPassword: Current Password
+      newPassword: New Password
+      confirmPassword: Confirm Password
+      changePassword: Change Password
+      setPassword: Set Password
+      noPasswordSet: No password set. Set one to enable email sign-in.
+      sendResetLink: Send Password Reset Link
+      resetLinkSent: Password reset link sent to your email.
+      passwordChanged: Password changed successfully
+    email:
+      title: Email
+      currentEmail: Current Email
+      newEmail: New Email
+      changeEmail: Change Email
+      verificationSent: Verification email sent
+    dangerZone:
+      title: Danger Zone
+      deleteAccount: Delete Account
+      deleteDescription: Permanently delete your account and all associated data. This action cannot be undone.
+      confirmTitle: Delete Your Account?
+      confirmDescription: This will permanently delete your account. Type "DELETE" to confirm.
+      typeDelete: Type DELETE to confirm
+      cancel: Cancel
+      confirmDelete: Delete My Account
   card:
     activate: Activate
     active: Active

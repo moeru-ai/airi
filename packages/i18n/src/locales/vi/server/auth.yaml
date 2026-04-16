@@ -23,16 +23,60 @@ electronCallback:
   hint:
     closeTabManually: Some browsers do not allow this page to close itself automatically. You can close it manually.
 signIn:
-  title: Sign in
+  title: Đăng nhập
+  or: hoặc
+  email: Email
+  password: Mật khẩu
+  submit: Đăng nhập
+  forgotPassword: Quên mật khẩu?
+  noAccount: Chưa có tài khoản?
+  switchToSignUp: Đăng ký
   error:
-    fallback: Sign in failed
-    unknown: An unknown error occurred
-    authFailed: Authentication failed. Please try again.
+    fallback: Đăng nhập thất bại
+    unknown: Đã xảy ra lỗi không xác định
+    authFailed: Xác thực thất bại. Vui lòng thử lại.
   footer:
-    prefix: By continuing, you agree to our
-    terms: Terms
-    and: and
-    privacy: Privacy Policy
+    prefix: Bằng việc tiếp tục, bạn đồng ý với
+    terms: Điều khoản sử dụng
+    and: và
+    privacy: Chính sách bảo mật
+signUp:
+  title: Đăng ký
+  name: Tên
+  submit: Đăng ký
+  hasAccount: Đã có tài khoản?
+  switchToSignIn: Đăng nhập
+forgotPassword:
+  title: Quên mật khẩu
+  description: Nhập email của bạn và chúng tôi sẽ gửi liên kết đặt lại.
+  email: Email
+  submit: Gửi liên kết đặt lại
+  sent: Nếu tài khoản với email đó tồn tại, liên kết đặt lại đã được gửi.
+  resend: Gửi lại
+  backToSignIn: Quay lại đăng nhập
+  error:
+    emptyEmail: Vui lòng nhập địa chỉ email của bạn
+resetPassword:
+  title: Đặt lại mật khẩu
+  newPassword: Mật khẩu mới
+  confirmPassword: Xác nhận mật khẩu mới
+  submit: Đặt lại mật khẩu
+  success: Đặt lại mật khẩu thành công
+  invalidToken: Liên kết không hợp lệ hoặc đã hết hạn
+  backToForgot: Quay lại quên mật khẩu
+  error:
+    tooShort: Mật khẩu phải có ít nhất 8 ký tự
+    mismatch: Mật khẩu không khớp
+    unknown: Đặt lại mật khẩu thất bại
+verifyEmail:
+  title: Xác minh email
+  loading: Đang xác minh email của bạn...
+  success: Xác minh email thành công!
+  successDescription: Email của bạn đã được xác minh thành công.
+  goHome: Về trang chủ
+  error: Xác minh thất bại
+  errorDescription: Liên kết xác minh không hợp lệ hoặc đã hết hạn.
+  backToSignIn: Quay lại đăng nhập
 webCallback:
   title:
     signIn: Sign in

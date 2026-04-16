@@ -10,9 +10,11 @@ import type { BillingService } from './services/billing/billing-service'
 import type { CharacterService } from './services/characters'
 import type { ChatService } from './services/chats'
 import type { ConfigKVService } from './services/config-kv'
+import type { EmailService } from './services/email'
 import type { FluxService } from './services/flux'
 import type { FluxTransactionService } from './services/flux-transaction'
 import type { ProviderService } from './services/providers'
+import type { R2StorageService } from './services/r2'
 import type { StripeService } from './services/stripe'
 import type { HonoEnv } from './types/hono'
 
@@ -44,14 +46,17 @@ import { createFluxRoutes } from './routes/flux'
 import { createV1CompletionsRoutes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
+import { createUserRoutes } from './routes/user'
 import { createBillingMq } from './services/billing/billing-events'
 import { createBillingService } from './services/billing/billing-service'
 import { createCharacterService } from './services/characters'
 import { createChatService } from './services/chats'
 import { createConfigKVService } from './services/config-kv'
+import { createEmailService } from './services/email'
 import { createFluxService } from './services/flux'
 import { createFluxTransactionService } from './services/flux-transaction'
 import { createProviderService } from './services/providers'
+import { createR2StorageService } from './services/r2'
 import { createRequestLogService } from './services/request-log'
 import { createStripeService } from './services/stripe'
 import { ApiError, createInternalError, createUnauthorizedError } from './utils/error'
@@ -69,6 +74,8 @@ interface AppDeps {
   billingService: BillingService
   billingMq: MqService<BillingEvent>
   configKV: ConfigKVService
+  emailService: EmailService
+  r2StorageService: R2StorageService
   redis: Redis
   env: Env
   otel: OtelInstance | null
@@ -122,10 +129,10 @@ export async function buildApp(deps: AppDeps) {
   }))
 
   const builtApp = app
-    .use('*', sessionMiddleware(deps.auth, deps.env))
+    .use('*', sessionMiddleware(deps.auth, deps.env, deps.db))
     .use('*', async (c, next) => {
       // Skip global body limit for ASR transcription route (has its own 25MB limit)
-      if (c.req.path === '/api/v1/openai/audio/transcriptions') {
+      if (c.req.path === '/api/v1/openai/audio/transcriptions' || c.req.path === '/api/v1/user/avatar') {
         return next()
       }
       return bodyLimit({ maxSize: 1024 * 1024 })(c, next)
@@ -199,6 +206,11 @@ export async function buildApp(deps: AppDeps) {
      * Stripe routes.
      */
     .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue))
+
+    /**
+     * User routes for avatar management and account deletion.
+     */
+    .route('/api/v1/user', createUserRoutes({ r2StorageService: deps.r2StorageService, db: deps.db }))
 
   return { app: builtApp, injectWebSocket }
 }
@@ -295,8 +307,18 @@ export async function createApp() {
     }),
   })
 
+  const emailService = injeca.provide('services:email', {
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn }) => createEmailService(dependsOn.env),
+  })
+
+  const r2StorageService = injeca.provide('services:r2', {
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn }) => createR2StorageService(dependsOn.env),
+  })
+
   const auth = injeca.provide('services:auth', {
-    dependsOn: { db, env: parsedEnv, otel },
+    dependsOn: { db, env: parsedEnv, emailService, r2StorageService, otel },
     build: async ({ dependsOn }) => {
       // Seed trusted OIDC clients into DB so FK constraints on oauth_access_token are satisfied
       await seedTrustedClients(dependsOn.db, dependsOn.env)
@@ -309,7 +331,7 @@ export async function createApp() {
           redirectUris: client.redirectUris.join(', '),
         }).log('OIDC trusted client ready')
       }
-      return createAuth(dependsOn.db, dependsOn.env, dependsOn.otel?.auth)
+      return createAuth(dependsOn.db, dependsOn.env, dependsOn.emailService, dependsOn.r2StorageService, dependsOn.otel?.auth)
     },
   })
 
@@ -367,6 +389,8 @@ export async function createApp() {
     billingService,
     billingMq,
     configKV,
+    emailService,
+    r2StorageService,
     redis,
     env: parsedEnv,
     otel,
@@ -383,6 +407,8 @@ export async function createApp() {
     billingService: resolved.billingService,
     billingMq: resolved.billingMq,
     configKV: resolved.configKV,
+    emailService: resolved.emailService,
+    r2StorageService: resolved.r2StorageService,
     redis: resolved.redis,
     env: resolved.env,
     otel: resolved.otel,

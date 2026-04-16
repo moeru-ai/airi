@@ -1,3 +1,5 @@
+import type { EmailService } from '../services/email'
+import type { R2StorageService } from '../services/r2'
 import type { Database } from './db'
 import type { Env } from './env'
 import type { AuthMetrics } from './otel'
@@ -5,12 +7,15 @@ import type { AuthMetrics } from './otel'
 import { Buffer } from 'node:buffer'
 
 import { oauthProvider } from '@better-auth/oauth-provider'
+import { useLogger } from '@guiiai/logg'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { createAuthMiddleware } from 'better-auth/api'
 import { bearer, jwt } from 'better-auth/plugins'
 import { eq } from 'drizzle-orm'
 
+import { user as userTable } from '../schemas/accounts'
+import { generateIdenticon } from '../utils/identicon'
 import { getAuthTrustedOrigins, getTrustedOrigin } from '../utils/origin'
 
 import * as authSchema from '../schemas/accounts'
@@ -44,6 +49,7 @@ const OIDC_RESPONSE_TYPES = ['code'] as const
 export const OIDC_CLIENT_ID_WEB = 'airi-stage-web'
 export const OIDC_CLIENT_ID_ELECTRON = 'airi-stage-electron'
 export const OIDC_CLIENT_ID_POCKET = 'airi-stage-pocket'
+const logger = useLogger('auth-hooks')
 
 const DEFAULT_WEB_REDIRECT_URIS = [
   'https://airi.moeru.ai/auth/callback',
@@ -294,7 +300,13 @@ export async function seedTrustedClients(db: Database, env: Env): Promise<void> 
   }
 }
 
-export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null) {
+export function createAuth(
+  db: Database,
+  env: Env,
+  emailService: EmailService,
+  r2StorageService: R2StorageService,
+  metrics?: AuthMetrics | null,
+) {
   return betterAuth({
     secret: env.BETTER_AUTH_SECRET,
 
@@ -328,6 +340,27 @@ export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null)
 
     emailAndPassword: {
       enabled: true,
+      sendResetPassword: async ({ user, url }: { user: { email: string }, url: string }) => {
+        const { subject, html } = emailService.passwordResetEmail(url)
+        void emailService.sendEmail({ to: user.email, subject, html })
+      },
+    },
+
+    emailVerification: {
+      sendVerificationEmail: async ({ user, url }: { user: { email: string }, url: string }) => {
+        const { subject, html } = emailService.emailVerificationEmail(url)
+        void emailService.sendEmail({ to: user.email, subject, html })
+      },
+    },
+
+    user: {
+      changeEmail: {
+        enabled: true,
+        sendChangeEmailVerification: async ({ newEmail, url }: { user: { email: string }, newEmail: string, url: string }) => {
+          const { subject, html } = emailService.changeEmailVerificationEmail(url)
+          void emailService.sendEmail({ to: newEmail, subject, html })
+        },
+      },
     },
 
     session: {
@@ -398,8 +431,43 @@ export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null)
     databaseHooks: {
       user: {
         create: {
-          after: async () => {
+          after: async (user) => {
             metrics?.userRegistered.add(1)
+
+            // Fire-and-forget avatar processing: never block user creation.
+            void (async () => {
+              try {
+                if (!r2StorageService.isAvailable())
+                  return
+
+                let buffer: Buffer
+                let contentType: string
+
+                if (user.image) {
+                  const response = await fetch(user.image)
+                  if (!response.ok)
+                    throw new Error(`Failed to fetch avatar: ${response.status}`)
+
+                  buffer = Buffer.from(await response.arrayBuffer())
+                  contentType = response.headers.get('content-type') ?? 'image/jpeg'
+                }
+                else {
+                  buffer = await generateIdenticon(user.id)
+                  contentType = 'image/png'
+                }
+
+                const ext = contentType.split('/')[1]?.replace('jpeg', 'jpg') ?? 'png'
+                const key = `avatars/${user.id}/${Date.now()}.${ext}`
+                const publicUrl = await r2StorageService.upload(key, buffer, contentType)
+
+                await db.update(userTable)
+                  .set({ image: publicUrl })
+                  .where(eq(userTable.id, user.id))
+              }
+              catch (error) {
+                logger.withError(error).error('Failed to process user avatar on registration')
+              }
+            })()
           },
         },
       },
