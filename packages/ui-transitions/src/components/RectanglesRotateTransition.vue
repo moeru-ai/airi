@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { StageTransitionCommonParams } from '.'
 
-import { onMounted } from 'vue'
+import { useCssVariables } from './useCssVar'
 
-interface RecRotParams {
+interface TransitionParams {
   /** Duration of the rotation, in seconds. */
   duration?: number
   /** Delay, in seconds. */
@@ -23,19 +23,17 @@ const {
   staggerDelay = 0.1,
   rotation = 270,
   zIndex = 100,
-} = defineProps<Omit<StageTransitionCommonParams, 'name'> & RecRotParams>()
+} = defineProps<Omit<StageTransitionCommonParams, 'name'> & TransitionParams>()
 
-onMounted(() => {
-  // Set CSS variables for all three circles
-  const setCssVar = (name: string, val: string) => document.documentElement.style.setProperty(name, val)
-  setCssVar('--rectangle-rotate-1-color', primaryColor)
-  setCssVar('--rectangle-rotate-2-color', secondaryColor)
-  setCssVar('--rectangle-rotate-3-color', tertiaryColor)
-  setCssVar('--rectangle-rotate-duration', `${duration}s`)
-  setCssVar('--rectangle-rotate-delay', `${delay}s`)
-  setCssVar('--rectangle-rotate-stagger', `${staggerDelay}s`)
-  setCssVar('--rectangle-rotate-rotation', `${rotation}deg`)
-})
+useCssVariables(() => ({
+  '1-color': primaryColor,
+  '2-color': secondaryColor,
+  '3-color': tertiaryColor,
+  'duration': `${duration}s`,
+  'delay': `${delay}s`,
+  'stagger': `${staggerDelay}s`,
+  'rotation': `${rotation}deg`,
+}), { prefix: '--rectangle-rotate-' })
 </script>
 
 <template>

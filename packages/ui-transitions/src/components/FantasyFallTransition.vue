@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed } from 'vue'
+
+import { useCssVariables } from './useCssVar'
 
 interface TransitionParams {
   primaryColor?: string
@@ -24,15 +26,14 @@ const {
 } = defineProps<TransitionParams>()
 const directionClass = computed(() => `fantasy-fall-${direction}`)
 
-onMounted(() => {
-  const setCssVar = (name: string, val: string) => document.documentElement.style.setProperty(name, val)
-  setCssVar('--fantasy-fall-color', primaryColor)
-  setCssVar('--fantasy-fall-duration', `${duration}s`)
-  setCssVar('--fantasy-fall-delay', `${delay}s`)
-  setCssVar('--fantasy-fall-radius-sm', `${borderRadius.sm}`)
-  setCssVar('--fantasy-fall-radius-md', `${borderRadius.md}`)
-  setCssVar('--fantasy-fall-radius-lg', `${borderRadius.lg}`)
-})
+useCssVariables(() => ({
+  'color': primaryColor,
+  'duration': `${duration}s`,
+  'delay': `${delay}s`,
+  'radius-sm': borderRadius?.sm ?? '14rem',
+  'radius-md': borderRadius?.md ?? '14rem',
+  'radius-lg': borderRadius?.lg ?? '50%',
+}), { prefix: '--fantasy-fall-' })
 </script>
 
 <template>

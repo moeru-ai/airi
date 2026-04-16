@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { StageTransitionCommonParams } from '.'
 
-import { ref, shallowRef } from 'vue'
+import { useCssVar } from '@vueuse/core'
+import { computed, ref, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
 
 import ArrowTransition from './ArrowTransition.vue'
@@ -85,6 +86,16 @@ const transitions = shallowRef<Record<string, TransitionOptions>>({
     duration: 1000,
   },
 })
+
+const primaryColorCss = useCssVar('--primary-color')
+const secondaryColorCss = useCssVar('--secondary-color')
+const tertiaryColorCss = useCssVar('--tertiary-color')
+// Priority: direct color assignment > colors array > css variable
+const palette = computed(() => ({
+  primary: props.primaryColor || props.colors?.[0] || primaryColorCss.value,
+  secondary: props.secondaryColor || props.colors?.[1] || secondaryColorCss.value,
+  tertiary: props.tertiaryColor || props.colors?.[2] || tertiaryColorCss.value,
+}))
 
 // Hook system
 const lifecycleHooks = ref<TransitionHook[]>([])
@@ -252,21 +263,15 @@ router.beforeEach((to, _from, next) => {
     return
   }
 
-  const getCSSVar = (variableName: string) => getComputedStyle(document.documentElement).getPropertyValue(variableName).trim()
-  // Priority: direct color assignment > colors array > css variable
-  const palette = {
-    primary: props.primaryColor || props.colors?.[0] || getCSSVar('--primary-color'),
-    secondary: props.secondaryColor || props.colors?.[1] || getCSSVar('--secondary-color'),
-    tertiary: props.tertiaryColor || props.colors?.[2] || getCSSVar('--tertiary-color'),
+  const { primary, secondary, tertiary } = palette.value
+  if (primary) {
+    stageTransition.primaryColor = primary
   }
-  if (palette.primary !== undefined) {
-    stageTransition.primaryColor = palette.primary
+  if (palette.value.secondary) {
+    stageTransition.secondaryColor = secondary
   }
-  if (palette.secondary !== undefined) {
-    stageTransition.secondaryColor = palette.secondary
-  }
-  if (palette.tertiary !== undefined) {
-    stageTransition.tertiaryColor = palette.tertiary
+  if (palette.value.tertiary) {
+    stageTransition.tertiaryColor = tertiary
   }
   if (props.colors !== undefined) {
     stageTransition.colors = props.colors

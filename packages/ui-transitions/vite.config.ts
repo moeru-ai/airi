@@ -11,6 +11,10 @@ export default defineConfig({
   build: {
     outDir: resolve(import.meta.dirname, 'playground', 'dist'),
   },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+  },
   plugins: [
     VueRouter({
       root: 'playground',
