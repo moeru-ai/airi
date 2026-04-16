@@ -13,7 +13,7 @@ COPY packages/server-shared/package.json packages/server-shared/tsconfig.json ./
 COPY packages/server-shared/src ./packages/server-shared/src
 
 RUN pnpm install --frozen-lockfile
-RUN pnpm --filter @proj-airi/qq-bot build
+RUN pnpm --filter @proj-airi/qq-bot... build
 
 FROM node:22-alpine AS production
 

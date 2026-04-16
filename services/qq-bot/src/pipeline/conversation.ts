@@ -76,6 +76,7 @@ export class ConversationStage extends PipelineStage {
     finally {
       // 释放锁，允许下一个同 session 事件进入
       const release = event.context.extensions._conversationRelease as (() => void) | undefined
+      event.context.extensions._conversationRelease = undefined
       release?.()
     }
   }
