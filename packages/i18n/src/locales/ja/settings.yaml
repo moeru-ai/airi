@@ -892,6 +892,15 @@ pages:
               description: コンソールで取得できるプロジェクトのApp ID
               label: App ID
         title: Volcano Engine
+      volcengine-coding-plan:
+        description: Volcengine Coding Plan
+        title: Volcengine Coding Plan
+      byteplus:
+        description: byteplus.com
+        title: BytePlus
+      byteplus-coding-plan:
+        description: BytePlus Coding Plan
+        title: BytePlus Coding Plan
       xai:
         description: x.ai
         title: xAI
