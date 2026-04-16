@@ -28,6 +28,7 @@ signIn:
   email: Correo electrónico
   password: Contraseña
   submit: Iniciar sesión
+  withProvider: Iniciar sesión con {provider}
   forgotPassword: ¿Olvidaste tu contraseña?
   noAccount: ¿No tienes una cuenta?
   switchToSignUp: Registrarse
@@ -46,6 +47,9 @@ signUp:
   submit: Registrarse
   hasAccount: ¿Ya tienes una cuenta?
   switchToSignIn: Iniciar sesión
+  verifyTitle: Revisa tu correo electrónico
+  verifyDescription: Te hemos enviado un enlace de verificación. Por favor, verifica tu correo antes de iniciar sesión.
+  backToSignIn: Volver a iniciar sesión
 forgotPassword:
   title: Olvidé mi contraseña
   description: Introduce tu correo electrónico y te enviaremos un enlace de restablecimiento.

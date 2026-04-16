@@ -28,6 +28,7 @@ signIn:
   email: 邮箱
   password: 密码
   submit: 登录
+  withProvider: 使用 {provider} 登录
   forgotPassword: 忘记密码？
   noAccount: 还没有账号？
   switchToSignUp: 注册
@@ -46,6 +47,9 @@ signUp:
   submit: 注册
   hasAccount: 已有账号？
   switchToSignIn: 登录
+  verifyTitle: 请查看你的邮箱
+  verifyDescription: 我们已向你的邮箱发送了验证链接，请在登录前完成邮箱验证。
+  backToSignIn: 返回登录
 forgotPassword:
   title: 忘记密码
   description: 输入您的邮箱，我们将向您发送重置链接。

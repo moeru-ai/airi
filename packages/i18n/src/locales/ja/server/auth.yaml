@@ -28,6 +28,7 @@ signIn:
   email: メールアドレス
   password: パスワード
   submit: サインイン
+  withProvider: "{provider} でサインイン"
   forgotPassword: パスワードをお忘れですか？
   noAccount: アカウントをお持ちでないですか？
   switchToSignUp: 新規登録
@@ -46,6 +47,9 @@ signUp:
   submit: 登録する
   hasAccount: すでにアカウントをお持ちですか？
   switchToSignIn: サインイン
+  verifyTitle: メールをご確認ください
+  verifyDescription: 確認リンクをメールに送信しました。サインインする前にメールアドレスを認証してください。
+  backToSignIn: サインインに戻る
 forgotPassword:
   title: パスワードをお忘れの場合
   description: メールアドレスを入力すると、リセットリンクをお送りします。

@@ -28,6 +28,7 @@ signIn:
   email: 이메일
   password: 비밀번호
   submit: 로그인
+  withProvider: "{provider}(으)로 로그인"
   forgotPassword: 비밀번호를 잊으셨나요?
   noAccount: 계정이 없으신가요?
   switchToSignUp: 회원가입
@@ -46,6 +47,9 @@ signUp:
   submit: 가입하기
   hasAccount: 이미 계정이 있으신가요?
   switchToSignIn: 로그인
+  verifyTitle: 이메일을 확인해 주세요
+  verifyDescription: 인증 링크를 이메일로 보냈습니다. 로그인하기 전에 이메일을 인증해 주세요.
+  backToSignIn: 로그인으로 돌아가기
 forgotPassword:
   title: 비밀번호 찾기
   description: 이메일을 입력하시면 재설정 링크를 보내드립니다.

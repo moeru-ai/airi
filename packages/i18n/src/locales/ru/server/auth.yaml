@@ -28,6 +28,7 @@ signIn:
   email: Электронная почта
   password: Пароль
   submit: Войти
+  withProvider: Войти через {provider}
   forgotPassword: Забыли пароль?
   noAccount: Нет аккаунта?
   switchToSignUp: Зарегистрироваться
@@ -46,6 +47,9 @@ signUp:
   submit: Зарегистрироваться
   hasAccount: Уже есть аккаунт?
   switchToSignIn: Войти
+  verifyTitle: Проверьте вашу почту
+  verifyDescription: Мы отправили ссылку для подтверждения на вашу электронную почту. Пожалуйста, подтвердите почту перед входом.
+  backToSignIn: Назад ко входу
 forgotPassword:
   title: Забыли пароль
   description: Введите вашу электронную почту, и мы отправим вам ссылку для сброса.

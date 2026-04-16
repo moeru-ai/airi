@@ -28,6 +28,7 @@ signIn:
   email: Adresse e-mail
   password: Mot de passe
   submit: Se connecter
+  withProvider: Se connecter avec {provider}
   forgotPassword: Mot de passe oublié ?
   noAccount: Vous n'avez pas de compte ?
   switchToSignUp: S'inscrire
@@ -46,6 +47,9 @@ signUp:
   submit: S'inscrire
   hasAccount: Vous avez déjà un compte ?
   switchToSignIn: Se connecter
+  verifyTitle: Vérifiez votre e-mail
+  verifyDescription: Nous avons envoyé un lien de vérification à votre adresse e-mail. Veuillez vérifier votre e-mail avant de vous connecter.
+  backToSignIn: Retour à la connexion
 forgotPassword:
   title: Mot de passe oublié
   description: Entrez votre adresse e-mail et nous vous enverrons un lien de réinitialisation.

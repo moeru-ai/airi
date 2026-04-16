@@ -28,6 +28,7 @@ signIn:
   email: 電子郵件
   password: 密碼
   submit: 登入
+  withProvider: 使用 {provider} 登入
   forgotPassword: 忘記密碼？
   noAccount: 還沒有帳號？
   switchToSignUp: 註冊
@@ -46,6 +47,9 @@ signUp:
   submit: 註冊
   hasAccount: 已有帳號？
   switchToSignIn: 登入
+  verifyTitle: 請查看您的電子郵件
+  verifyDescription: 我們已向您的電子郵件發送了驗證連結，請在登入前完成驗證。
+  backToSignIn: 返回登入
 forgotPassword:
   title: 忘記密碼
   description: 輸入您的電子郵件，我們將向您發送重設連結。

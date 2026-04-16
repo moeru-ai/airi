@@ -28,6 +28,7 @@ signIn:
   email: Email
   password: Mật khẩu
   submit: Đăng nhập
+  withProvider: Đăng nhập bằng {provider}
   forgotPassword: Quên mật khẩu?
   noAccount: Chưa có tài khoản?
   switchToSignUp: Đăng ký
@@ -46,6 +47,9 @@ signUp:
   submit: Đăng ký
   hasAccount: Đã có tài khoản?
   switchToSignIn: Đăng nhập
+  verifyTitle: Kiểm tra email của bạn
+  verifyDescription: Chúng tôi đã gửi liên kết xác minh đến email của bạn. Vui lòng xác minh email trước khi đăng nhập.
+  backToSignIn: Quay lại đăng nhập
 forgotPassword:
   title: Quên mật khẩu
   description: Nhập email của bạn và chúng tôi sẽ gửi liên kết đặt lại.

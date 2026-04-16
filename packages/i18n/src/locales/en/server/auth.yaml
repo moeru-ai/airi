@@ -28,6 +28,7 @@ signIn:
   email: Email
   password: Password
   submit: Sign In
+  withProvider: Sign in with {provider}
   forgotPassword: Forgot Password?
   noAccount: Don't have an account?
   switchToSignUp: Sign Up
@@ -46,6 +47,9 @@ signUp:
   submit: Sign Up
   hasAccount: Already have an account?
   switchToSignIn: Sign In
+  verifyTitle: Check your email
+  verifyDescription: We sent a verification link to your email. Please verify your email before signing in.
+  backToSignIn: Back to Sign In
 forgotPassword:
   title: Forgot Password
   description: Enter your email and we'll send you a reset link.
