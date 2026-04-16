@@ -9,6 +9,7 @@ import type { RespondConfig } from '../config'
 import type { QQMessageEvent } from '../types/event'
 import type { OutputMessageSegment } from '../types/message'
 import type { ForwardNode, ResponsePayload } from '../types/response'
+import type { BotMessageTracker } from '../utils/bot-message-tracker'
 
 import { createLogger } from '../utils/logger'
 
@@ -20,6 +21,7 @@ export class ResponseDispatcher {
   constructor(
     private readonly client: NapLink,
     private readonly config: RespondConfig,
+    private readonly botMessageTracker?: BotMessageTracker,
   ) {}
 
   async send(event: QQMessageEvent, payload: ResponsePayload): Promise<void> {
@@ -72,10 +74,12 @@ export class ResponseDispatcher {
         if (event.source.type === 'group' && event.source.groupId) {
           const res = await this.client.sendGroupMessage(event.source.groupId, finalSegments)
           this.assertOneBotSuccess(res)
+          this.trackSentMessage(res)
         }
         else {
           const res = await this.client.sendPrivateMessage(event.source.userId, finalSegments)
           this.assertOneBotSuccess(res)
+          this.trackSentMessage(res)
         }
         return
       }
@@ -138,6 +142,20 @@ export class ResponseDispatcher {
     }
   }
 
+  private trackSentMessage(response: unknown): void {
+    if (!this.botMessageTracker || !response || typeof response !== 'object')
+      return
+
+    const result = response as {
+      message_id?: unknown
+      data?: { message_id?: unknown }
+    }
+
+    const messageId = result.message_id ?? result.data?.message_id
+    if (typeof messageId === 'string' || typeof messageId === 'number')
+      this.botMessageTracker.track(messageId)
+  }
+
   private isRetryableError(error: unknown): boolean {
     const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase()
     return [
@@ -164,14 +182,18 @@ export class ResponseDispatcher {
   }
 }
 
-export function createDispatcher(client: NapLink, config?: RespondConfig): ResponseDispatcher {
+export function createDispatcher(
+  client: NapLink,
+  config?: RespondConfig,
+  botMessageTracker?: BotMessageTracker,
+): ResponseDispatcher {
   const fallback: RespondConfig = config ?? {
     typingDelay: { min: 200, max: 1_000 },
     multiMessageDelay: 500,
     retryCount: 2,
     retryDelayMs: 1_000,
   }
-  return new ResponseDispatcher(client, fallback)
+  return new ResponseDispatcher(client, fallback, botMessageTracker)
 }
 
 export type { ForwardNode }

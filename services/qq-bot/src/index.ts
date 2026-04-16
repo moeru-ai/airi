@@ -27,6 +27,7 @@ import {
   normalizePrivateMessage,
 } from './normalizer'
 import { PipelineRunner } from './pipeline/runner'
+import { BotMessageTracker } from './utils/bot-message-tracker'
 import { createLogger, initLoggers } from './utils/logger'
 
 async function main() {
@@ -89,7 +90,8 @@ async function main() {
   }
 
   // ─── 创建 Pipeline Runner ──────────────────────────────────
-  const dispatcher = createDispatcher(client, config.respond)
+  const botMessageTracker = new BotMessageTracker()
+  const dispatcher = createDispatcher(client, config.respond, botMessageTracker)
   const runner = new PipelineRunner(
     config,
     airiClient,
@@ -97,6 +99,7 @@ async function main() {
     messageHistoryRepo,
     conversationRepo,
     semanticRetriever,
+    botMessageTracker,
   )
   await runner.preheatPassiveRecords(await runner.listKnownSessionIds())
 

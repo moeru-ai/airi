@@ -51,6 +51,7 @@ import { MessageHistoryRepo } from './db/message-history-repo'
 import { createDispatcher } from './dispatcher'
 import { normalizeGroupMessage, normalizePokeEvent, normalizePrivateMessage } from './normalizer'
 import { PipelineRunner } from './pipeline/runner'
+import { BotMessageTracker } from './utils/bot-message-tracker'
 import { createLogger } from './utils/logger'
 import { NapLinkLoggerAdapter } from './utils/naplink-logger-adapter'
 
@@ -143,7 +144,8 @@ export async function createBot(config: BotConfig): Promise<Bot> {
   //   - createDispatcher 是工厂函数（与 createBot 同模式），
   //     接收 NapLink client 作为唯一依赖。
 
-  const dispatcher = createDispatcher(client, config.respond)
+  const botMessageTracker = new BotMessageTracker()
+  const dispatcher = createDispatcher(client, config.respond, botMessageTracker)
   const airiClient = createAiriClient(airiConfig.url, airiConfig.token)
   const db = await initDb(config.db?.path ?? 'data/qq-bot.db')
   const messageHistoryRepo = new MessageHistoryRepo(db)
@@ -196,6 +198,7 @@ export async function createBot(config: BotConfig): Promise<Bot> {
     messageHistoryRepo,
     conversationRepo,
     semanticRetriever,
+    botMessageTracker,
   )
   await runner.preheatPassiveRecords(await runner.listKnownSessionIds())
 

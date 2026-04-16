@@ -6,6 +6,8 @@
 import type { WakeConfig } from '../config'
 import type { StageResult, WakeReason } from '../types/context'
 import type { QQMessageEvent } from '../types/event'
+import type { ReplySegment } from '../types/message'
+import type { BotMessageTracker } from '../utils/bot-message-tracker'
 
 import { findAtTarget, hasSegmentType, removeAtSegments } from '../types/message'
 import { PipelineStage } from './stage'
@@ -14,7 +16,10 @@ export class WakeStage extends PipelineStage {
   readonly name = 'WakeStage'
   private readonly regexKeywords: RegExp[]
 
-  constructor(private readonly config: WakeConfig) {
+  constructor(
+    private readonly config: WakeConfig,
+    private readonly botMessageTracker?: BotMessageTracker,
+  ) {
     super()
     this.initLogger()
     this.regexKeywords = config.keywordMatchMode === 'regex'
@@ -44,8 +49,13 @@ export class WakeStage extends PipelineStage {
       event.chain = removeAtSegments(event.chain, botQQ)
     }
 
-    if (!wakeReason && hasSegmentType(event.chain, 'reply'))
-      wakeReason = 'reply'
+    if (!wakeReason) {
+      const replySegment = event.chain.find(
+        (seg): seg is ReplySegment => seg.type === 'reply',
+      )
+      if (replySegment && this.botMessageTracker?.isBotMessage(replySegment.data.id))
+        wakeReason = 'reply'
+    }
 
     if (!wakeReason && this.matchKeyword(text))
       wakeReason = 'keyword'

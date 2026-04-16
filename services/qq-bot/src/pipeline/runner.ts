@@ -13,6 +13,7 @@ import type { QQMessageEvent } from '../types/event'
 import type { PipelineStage } from './stage'
 
 import { ContextCompressor } from '../context/compressor'
+import { BotMessageTracker } from '../utils/bot-message-tracker'
 import { createLogger } from '../utils/logger'
 import { ConversationStage } from './conversation'
 import { DecorateStage } from './decorate'
@@ -43,7 +44,10 @@ export class PipelineRunner {
     private readonly messageHistoryRepo: MessageHistoryRepo,
     conversationRepo: ConversationRepo,
     semanticRetriever?: SemanticRetriever,
+    botMessageTracker?: BotMessageTracker,
   ) {
+    const tracker = botMessageTracker ?? new BotMessageTracker()
+
     const sessionConfig = config.session ?? {
       maxHistoryPerSession: 50,
       contextWindow: 20,
@@ -124,7 +128,7 @@ export class PipelineRunner {
         keywordMatchMode: 'contains',
         randomWakeRate: 0,
         alwaysWakeInPrivate: true,
-      }),
+      }, tracker),
       this.rateLimitStage,
       this.contextInjectStage,
       this.conversationStage,
