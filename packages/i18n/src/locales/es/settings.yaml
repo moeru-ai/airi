@@ -18,30 +18,30 @@ dialogs:
     baseUrl: URL Base
     baseUrlHelp: URL del endpoint de la API (usa el predeterminado si no estás seguro)
     accountId: ID de Cuenta
-    validationRunning: Running tests
+    validationRunning: Ejecutando pruebas
     validationSuccess: La validación de la configuración fue exitosa
-    validationPartial: Configuration partially validated
+    validationPartial: Configuración parcialmente validada
     validationFailed: La validación de la configuración falló
     validationError: 'Error de validación: {error}'
-    testGeneration: Ping API
+    testGeneration: API Ping
     testGenerationRunning: Ping...
-    testGenerationFailed: Ping test failed
-    retryPingCheck: Retry
+    testGenerationFailed: Prueba de ping fallida
+    retryPingCheck: Reintentar
     skipForNow: Omitir por ahora
     saveAndContinue: Guardar y Continuar
     next: Siguiente
     retry: Volver a intentar
-    credentialsSafeLabel: Keep your API keys and credentials safe!
+    credentialsSafeLabel: '¡Mantén tus claves y credenciales API a salvo!'
     credentialsSafeLocal: >-
-      AIRI is running pure locally in your PC, and we will never steal your credentials for AI / LLM providers. But keep in mind that your API keys are sensitive information. Make sure to keep them safe and do not share them with anyone.
+      AIRI se está ejecutando localmente en su PC, y nunca robaremos sus credenciales para proveedores de IA / LLM. Pero tenga en cuenta que sus claves API son información confidencial. Asegúrese de mantenerlas seguras y no compartirlas con nadie.
     credentialsSafeOpenSource: >-
-      AIRI is open sourced at {github}, if you want to check how we handle your credentials, feel free to inspect our code.
+      AIRI es de código abierto en {github}, si desea comprobar cómo manejamos sus credenciales, no dude en inspeccionar nuestro código.
     enableChatCheck: >-
-      Allow airi to send a "ping" message to the first available chat model to check availability
+      Permitir a airi enviar un mensaje "ping" al primer modelo de chat disponible para comprobar la disponibilidad
     start: '¡Hagámoslo!'
     loginPrompt: Inicia sesión para utilizar el proveedor oficial de AIRI para obtener la mejor experiencia.
     loginAction: Iniciar sesión
-    setupWithoutSigningIn: Setup with your provider
+    setupWithoutSigningIn: Configurar con su proveedor
     flux: Flujo
     buyFlux: Flujo de Carga
     select-model: Elegir modelo
@@ -62,21 +62,21 @@ dialogs:
       stateGranted: Concedido
       stateNotGranted: No concedido
   bug-report:
-    title: Bug report (´;ω;`)ヾ(･∀･`)
-    subtitle: Oops, sorry we made something wrong. Would you mind telling us what happened?
-    trigger-label: Report a Bug
-    submit-label: Send Bug Report
-    triage-description: Include screenshot and page context to help us triage this issue.
-    description-placeholder: Steps to reproduce, expected behavior, and actual behavior
-    include-current-page-screenshot: Include current page screenshot
+    title: Informe de errores (´;ω;`)ヾ(･∀･`)
+    subtitle: Oops, perdón hemos hecho algo mal. ¿Te importaría decirnos lo que ha pasado?
+    trigger-label: Reportar un error
+    submit-label: Enviar informe de errores
+    triage-description: Incluye captura de pantalla y contexto de página para ayudarnos a probar este problema.
+    description-placeholder: Elija manualmente capturas de pantalla / grabaciones
+    include-current-page-screenshot: Incluye captura de pantalla de página actual
     manual-media:
-      label: Manually choose screenshots / recordings
-      optional: Optional.
+      label: Elija manualmente capturas de pantalla / grabaciones
+      optional: Opcional.
     media-files:
-      label: Media files
-      description: 'Optional: manually select.'
-      placeholder: Choose screenshot or video file
-      selected-count: '{count} file(s) selected'
+      label: Archivos multimedia
+      description: 'Opcional: selección manual.'
+      placeholder: Elegir captura de pantalla o video
+      selected-count: '{count} archivo(s) seleccionados'
     last-submitted-preview: Last Submitted Payload Preview
 language:
   title: Idioma
@@ -132,9 +132,9 @@ live2d:
   focus:
     title: Desactivar seguimiento del ratón del modelo
     button-disable:
-      title: Disable model mouse tracking
+      title: Desactivar seguimiento del ratón del modelo
   render-scale:
-    title: Render scale
+    title: Escala de renderizado
   fps:
     title: FPS
     description: Limitar velocidad de fotogramas
@@ -144,14 +144,14 @@ microphone: Micrófono
 models: Modelo
 pages:
   account:
-    title: Account
-    description: View your profile and manage your account
-    notLoggedIn: Sign in to view your account and access all features
-    login: Sign in
-    logout: Sign out
+    title: Cuenta
+    description: Ver tu perfil y administrar tu cuenta
+    notLoggedIn: Inicia sesión para ver tu cuenta y acceder a todas las funciones
+    login: Iniciar sesión
+    logout: Cerrar sesión
     fluxBalance: Flux Balance
-    viewFluxDetails: View details
-    signedInAs: Signed in as
+    viewFluxDetails: Ver detalles
+    signedInAs: Sesión iniciada como
   card:
     activate: Activar
     active: Activo
@@ -275,9 +275,9 @@ pages:
         description: Limpia cada configuración local, configuración del proveedor y del modelo.
         delete: Eliminar todos los datos
       desktop-folder:
-        title: Open app data folder
-        description: Open AIRI's data folder in your file manager.
-        open: Open folder
+        title: Abrir carpeta de datos de la aplicación
+        description: Abrir carpeta de datos de AIRI en tu explorador de archivos.
+        open: Abrir carpeta
       desktop:
         title: Restablecer ajustes de escritorio y estados
         description: Limpiar ajustes de escritorio y estado de ejecución de AIRI.
@@ -408,15 +408,15 @@ pages:
         Include Minecraft self-knowledge in Stage chat turns and keep passive runtime visibility enabled.
       configured: '¡Minecraft está configurado correctamente!'
       read-only:
-        title: Read-only shell
+        title: Consola de solo lectura
         description: >-
           Stage currently exposes Minecraft as a passive shell. Runtime status and traffic are visible here, but service configuration stays in the Minecraft service files.
       setup:
-        title: Setup
+        title: Configurar
         description: >-
-          You can find the instructions for setting up the bot in the following file
+          Puedes encontrar las instrucciones para configurar el bot en el siguiente archivo
       runtime:
-        title: Observed runtime
+        title:
         connection: Connection
         latest-context: Latest bot context
         waiting: Waiting for a fresh bot-originated context push.
