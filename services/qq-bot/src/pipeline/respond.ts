@@ -3,10 +3,10 @@
 // ⑦ RespondStage：触发 Dispatcher 发送，并回调限流冷却
 // ─────────────────────────────────────────────────────────────
 
-import type { StageResult } from '../types/context'
-import type { QQMessageEvent } from '../types/event'
+import type { StageResult } from '../types/context.js'
+import type { QQMessageEvent } from '../types/event.js'
 
-import { PipelineStage } from './stage'
+import { PipelineStage } from './stage.js'
 
 export class RespondStage extends PipelineStage {
   readonly name = 'RespondStage'

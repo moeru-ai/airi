@@ -3,14 +3,14 @@
 // ⑤ ContextInjectStage：注入会话历史上下文
 // ─────────────────────────────────────────────────────────────
 
-import type { SessionConfig } from '../config'
-import type { SemanticRetriever } from '../context/semantic-retriever'
-import type { MessageHistoryRepo } from '../db/message-history-repo'
-import type { StageResult } from '../types/context'
-import type { QQMessageEvent } from '../types/event'
-import type { PassiveRecordStage } from './passive-record'
+import type { SessionConfig } from '../config.js'
+import type { SemanticRetriever } from '../context/semantic-retriever.js'
+import type { MessageHistoryRepo } from '../db/message-history-repo.js'
+import type { StageResult } from '../types/context.js'
+import type { QQMessageEvent } from '../types/event.js'
+import type { PassiveRecordStage } from './passive-record.js'
 
-import { PipelineStage } from './stage'
+import { PipelineStage } from './stage.js'
 
 export class ContextInjectStage extends PipelineStage {
   readonly name = 'ContextInjectStage'

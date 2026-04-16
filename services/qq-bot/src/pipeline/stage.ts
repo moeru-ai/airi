@@ -1,12 +1,12 @@
 // ⚠️ 决策 ①：PipelineContext, WakeReason, StageResult 已迁移到 types/context.ts
 //    打破 event.ts ↔ stage.ts 循环依赖
-import type { StageResult } from '../types/context'
-import type { QQMessageEvent } from '../types/event'
-import type { LoggerInstance } from '../utils/logger'
+import type { StageResult } from '../types/context.js'
+import type { QQMessageEvent } from '../types/event.js'
+import type { LoggerInstance } from '../utils/logger.js'
 
 import { performance } from 'node:perf_hooks'
 
-import { createLogger } from '../utils/logger'
+import { createLogger } from '../utils/logger.js'
 
 // 阶段抽象基类
 // 每个 Stage 单独定义自己的 config 接口（如 FilterConfig、WakeConfig），

@@ -1,14 +1,14 @@
-import type { AiriClient } from '../airi-client'
-import type { MessageHistoryRow } from '../db/message-history-repo'
-import type { ResponseDispatcher } from '../dispatcher'
-import type { PassiveRecordStage } from '../pipeline/passive-record'
-import type { QQMessageEvent } from '../types/event'
+import type { AiriClient } from '../airi-client.js'
+import type { MessageHistoryRow } from '../db/message-history-repo.js'
+import type { ResponseDispatcher } from '../dispatcher/index.js'
+import type { PassiveRecordStage } from '../pipeline/passive-record.js'
+import type { QQMessageEvent } from '../types/event.js'
 
-import { ContextUpdateStrategy } from '../airi-client'
-import { createDefaultContext } from '../types/context'
-import { createTextResponse } from '../types/response'
-import { createLogger } from '../utils/logger'
-import { normalizeContent } from '../utils/normalize-content'
+import { ContextUpdateStrategy } from '../airi-client.js'
+import { createDefaultContext } from '../types/context.js'
+import { createTextResponse } from '../types/response.js'
+import { createLogger } from '../utils/logger.js'
+import { normalizeContent } from '../utils/normalize-content.js'
 
 export interface AgentLoopConfig {
   enabled: boolean

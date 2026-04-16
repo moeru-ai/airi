@@ -11,7 +11,7 @@
 
 import { Client as AiriChannel, ContextUpdateStrategy } from '@proj-airi/server-sdk'
 
-import { createLogger } from './utils/logger'
+import { createLogger } from './utils/logger.js'
 
 export { ContextUpdateStrategy }
 

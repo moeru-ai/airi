@@ -1,10 +1,10 @@
-import type { AiriClient } from '../airi-client'
-import type { Conversation } from '../db/conversation-repo'
-import type { OpenAIMessage } from '../types/context'
+import type { AiriClient } from '../airi-client.js'
+import type { Conversation } from '../db/conversation-repo.js'
+import type { OpenAIMessage } from '../types/context.js'
 
-import { createLogger } from '../utils/logger'
-import { normalizeContent } from '../utils/normalize-content'
-import { estimateTokens } from '../utils/token-estimator'
+import { createLogger } from '../utils/logger.js'
+import { normalizeContent } from '../utils/normalize-content.js'
+import { estimateTokens } from '../utils/token-estimator.js'
 
 export interface CompressorConfig {
   /** Trigger compression at threshold * maxContextWindow. */

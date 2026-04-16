@@ -3,14 +3,14 @@
 // ⑥ DecorateStage：内容替换、长文本拆分、自动 replyTo
 // ─────────────────────────────────────────────────────────────
 
-import type { DecorateConfig } from '../config'
-import type { StageResult } from '../types/context'
-import type { QQMessageEvent } from '../types/event'
-import type { OutputMessageSegment } from '../types/message'
-import type { MessageResponse } from '../types/response'
+import type { DecorateConfig } from '../config.js'
+import type { StageResult } from '../types/context.js'
+import type { QQMessageEvent } from '../types/event.js'
+import type { OutputMessageSegment } from '../types/message.js'
+import type { MessageResponse } from '../types/response.js'
 
-import { createMessageResponse, mergeAdjacentText } from '../types/response'
-import { PipelineStage } from './stage'
+import { createMessageResponse, mergeAdjacentText } from '../types/response.js'
+import { PipelineStage } from './stage.js'
 
 export class DecorateStage extends PipelineStage {
   readonly name = 'DecorateStage'

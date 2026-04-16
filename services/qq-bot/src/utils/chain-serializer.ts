@@ -9,7 +9,7 @@
 //   - senderName 存在时输出 "{senderName}: {内容}"，便于还原对话角色。
 // ─────────────────────────────────────────────────────────────
 
-import type { InputMessageSegment } from '../types/message'
+import type { InputMessageSegment } from '../types/message.js'
 
 const SINGLE_LINE_BREAK_RE = /\r?\n/gu
 

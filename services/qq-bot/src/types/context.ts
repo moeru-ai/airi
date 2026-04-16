@@ -19,12 +19,12 @@
 //   pipeline/extensions.ts → PipelineExtensions, createExtensions
 // ─────────────────────────────────────────────────────────────
 
-import type { MessageHistoryRow } from '../db/message-history-repo'
-import type { PipelineExtensions } from '../pipeline/extensions'
-import type { PassiveRecord } from '../pipeline/passive-record'
-import type { ResponsePayload } from './response'
+import type { MessageHistoryRow } from '../db/message-history-repo.js'
+import type { PipelineExtensions } from '../pipeline/extensions.js'
+import type { PassiveRecord } from '../pipeline/passive-record.js'
+import type { ResponsePayload } from './response.js'
 
-import { createExtensions } from '../pipeline/extensions'
+import { createExtensions } from '../pipeline/extensions.js'
 
 // ─── 唤醒原因 ────────────────────────────────────────────────
 

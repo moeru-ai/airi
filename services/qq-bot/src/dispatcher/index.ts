@@ -5,13 +5,13 @@
 
 import type { NapLink } from '@naplink/naplink'
 
-import type { RespondConfig } from '../config'
-import type { QQMessageEvent } from '../types/event'
-import type { OutputMessageSegment } from '../types/message'
-import type { ForwardNode, ResponsePayload } from '../types/response'
-import type { BotMessageTracker } from '../utils/bot-message-tracker'
+import type { RespondConfig } from '../config.js'
+import type { QQMessageEvent } from '../types/event.js'
+import type { OutputMessageSegment } from '../types/message.js'
+import type { ForwardNode, ResponsePayload } from '../types/response.js'
+import type { BotMessageTracker } from '../utils/bot-message-tracker.js'
 
-import { createLogger } from '../utils/logger'
+import { createLogger } from '../utils/logger.js'
 
 const logger = createLogger('dispatcher')
 

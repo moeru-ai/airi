@@ -3,14 +3,14 @@
 // ② WakeStage：唤醒判定（private > @bot > reply > keyword > random）
 // ─────────────────────────────────────────────────────────────
 
-import type { WakeConfig } from '../config'
-import type { StageResult, WakeReason } from '../types/context'
-import type { QQMessageEvent } from '../types/event'
-import type { ReplySegment } from '../types/message'
-import type { BotMessageTracker } from '../utils/bot-message-tracker'
+import type { WakeConfig } from '../config.js'
+import type { StageResult, WakeReason } from '../types/context.js'
+import type { QQMessageEvent } from '../types/event.js'
+import type { ReplySegment } from '../types/message.js'
+import type { BotMessageTracker } from '../utils/bot-message-tracker.js'
 
-import { findAtTarget, hasSegmentType, removeAtSegments } from '../types/message'
-import { PipelineStage } from './stage'
+import { findAtTarget, hasSegmentType, removeAtSegments } from '../types/message.js'
+import { PipelineStage } from './stage.js'
 
 export class WakeStage extends PipelineStage {
   readonly name = 'WakeStage'

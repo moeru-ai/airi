@@ -3,15 +3,15 @@
 // PassiveRecordStage：在 WakeStage 之前被动记录所有消息历史
 // ─────────────────────────────────────────────────────────────
 
-import type { SemanticRetriever } from '../context/semantic-retriever'
-import type { MessageHistoryRepo, MessageHistoryRow } from '../db/message-history-repo'
-import type { StageResult } from '../types/context'
-import type { QQMessageEvent } from '../types/event'
-import type { InputMessageSegment } from '../types/message'
+import type { SemanticRetriever } from '../context/semantic-retriever.js'
+import type { MessageHistoryRepo, MessageHistoryRow } from '../db/message-history-repo.js'
+import type { StageResult } from '../types/context.js'
+import type { QQMessageEvent } from '../types/event.js'
+import type { InputMessageSegment } from '../types/message.js'
 
-import { serializeChain } from '../utils/chain-serializer'
-import { MessageBuffer } from '../utils/message-buffer'
-import { PipelineStage } from './stage'
+import { serializeChain } from '../utils/chain-serializer.js'
+import { MessageBuffer } from '../utils/message-buffer.js'
+import { PipelineStage } from './stage.js'
 
 export interface PassiveRecord {
   senderId: string

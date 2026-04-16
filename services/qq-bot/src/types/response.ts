@@ -22,9 +22,9 @@
 //   - 工具：mergeAdjacentText
 // ─────────────────────────────────────────────────────────────
 
-import type { OutputMessageSegment } from './message'
+import type { OutputMessageSegment } from './message.js'
 
-import { createLogger } from '../utils/logger'
+import { createLogger } from '../utils/logger.js'
 
 // ─── 惰性 Logger ─────────────────────────────────────────────
 // 避免模块加载时 config 尚未就绪导致 createLogger 拿到默认配置。

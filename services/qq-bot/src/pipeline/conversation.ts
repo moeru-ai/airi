@@ -1,11 +1,11 @@
-import type { ContextCompressor } from '../context/compressor'
-import type { ConversationRepo } from '../db/conversation-repo'
-import type { OpenAIMessage, StageResult } from '../types/context'
-import type { QQMessageEvent } from '../types/event'
+import type { ContextCompressor } from '../context/compressor.js'
+import type { ConversationRepo } from '../db/conversation-repo.js'
+import type { OpenAIMessage, StageResult } from '../types/context.js'
+import type { QQMessageEvent } from '../types/event.js'
 
-import { KeyedMutex } from '../utils/async-mutex'
-import { estimateTokens } from '../utils/token-estimator'
-import { PipelineStage } from './stage'
+import { KeyedMutex } from '../utils/async-mutex.js'
+import { estimateTokens } from '../utils/token-estimator.js'
+import { PipelineStage } from './stage.js'
 
 export class ConversationStage extends PipelineStage {
   readonly name = 'ConversationStage'

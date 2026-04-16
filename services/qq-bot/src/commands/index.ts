@@ -1,9 +1,9 @@
-import type { CommandsConfig } from '../config'
-import type { CommandHandler } from './types'
+import type { CommandsConfig } from '../config.js'
+import type { CommandHandler } from './types.js'
 
-import { clearCommand } from './clear'
-import { helpCommand } from './help'
-import { statusCommand } from './status'
+import { clearCommand } from './clear.js'
+import { helpCommand } from './help.js'
+import { statusCommand } from './status.js'
 
 export interface CommandRegistry {
   prefix: string

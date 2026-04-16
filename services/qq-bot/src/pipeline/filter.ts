@@ -3,11 +3,11 @@
 // ① FilterStage：黑白名单、系统号、空消息过滤
 // ─────────────────────────────────────────────────────────────
 
-import type { FilterConfig } from '../config'
-import type { StageResult } from '../types/context'
-import type { QQMessageEvent } from '../types/event'
+import type { FilterConfig } from '../config.js'
+import type { StageResult } from '../types/context.js'
+import type { QQMessageEvent } from '../types/event.js'
 
-import { PipelineStage } from './stage'
+import { PipelineStage } from './stage.js'
 
 const DEFAULT_SYSTEM_USERS = ['2854196310']
 

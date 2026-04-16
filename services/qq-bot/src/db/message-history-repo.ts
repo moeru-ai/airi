@@ -73,7 +73,7 @@ export class MessageHistoryRepo {
       sql: `SELECT id, session_id, sender_id, sender_name, content, raw_text, created_at
             FROM message_history
             WHERE session_id = ? AND id > ?
-            ORDER BY created_at ASC
+            ORDER BY id ASC
             LIMIT ?`,
       args: [sessionId, afterId, limit],
     })

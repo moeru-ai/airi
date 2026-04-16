@@ -19,8 +19,8 @@
 //     共享初始化通过 createDefaultContext() 实现。
 // ─────────────────────────────────────────────────────────────
 
-import type { PipelineContext } from './context'
-import type { InputMessageSegment } from './message'
+import type { PipelineContext } from './context.js'
+import type { InputMessageSegment } from './message.js'
 
 // ─── 来源类型 ────────────────────────────────────────────────
 

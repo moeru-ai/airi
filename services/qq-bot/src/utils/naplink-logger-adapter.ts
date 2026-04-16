@@ -7,9 +7,9 @@
 
 import type { Logger as NapLinkLogger } from '@naplink/naplink'
 
-import type { LoggerInstance } from './logger'
+import type { LoggerInstance } from './logger.js'
 
-import { createLogger } from './logger'
+import { createLogger } from './logger.js'
 
 export class NapLinkLoggerAdapter implements NapLinkLogger {
   private logger: LoggerInstance

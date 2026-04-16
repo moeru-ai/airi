@@ -1,5 +1,5 @@
-import type { QQMessageEvent } from '../types/event'
-import type { ResponsePayload } from '../types/response'
+import type { QQMessageEvent } from '../types/event.js'
+import type { ResponsePayload } from '../types/response.js'
 
 export interface CommandContext {
   processedCount: number

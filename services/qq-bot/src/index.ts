@@ -11,24 +11,24 @@ import type {
 
 import process from 'node:process'
 
-import { AgentLoop } from './agent/loop'
-import { createAiriClient } from './airi-client'
-import { createNapLinkClient } from './client'
-import { loadConfig } from './config'
-import { BailianEmbeddingProvider } from './context/embedding-provider'
-import { SemanticRetriever } from './context/semantic-retriever'
-import { ConversationRepo } from './db/conversation-repo'
-import { initDb } from './db/index'
-import { MessageHistoryRepo } from './db/message-history-repo'
-import { createDispatcher } from './dispatcher'
+import { AgentLoop } from './agent/loop.js'
+import { createAiriClient } from './airi-client.js'
+import { createNapLinkClient } from './client.js'
+import { loadConfig } from './config.js'
+import { BailianEmbeddingProvider } from './context/embedding-provider.js'
+import { SemanticRetriever } from './context/semantic-retriever.js'
+import { ConversationRepo } from './db/conversation-repo.js'
+import { initDb } from './db/index.js'
+import { MessageHistoryRepo } from './db/message-history-repo.js'
+import { createDispatcher } from './dispatcher/index.js'
 import {
   normalizeGroupMessage,
   normalizePokeEvent,
   normalizePrivateMessage,
-} from './normalizer'
-import { PipelineRunner } from './pipeline/runner'
-import { BotMessageTracker } from './utils/bot-message-tracker'
-import { createLogger, initLoggers } from './utils/logger'
+} from './normalizer/index.js'
+import { PipelineRunner } from './pipeline/runner.js'
+import { BotMessageTracker } from './utils/bot-message-tracker.js'
+import { createLogger, initLoggers } from './utils/logger.js'
 
 async function main() {
   // ─── 加载配置 ──────────────────────────────────────────────
@@ -129,7 +129,9 @@ async function main() {
     }, dbConfig.pruneIntervalMs)
   }
 
-  let botQQ = ''
+  let botQQ = config.botQQ ?? ''
+  if (botQQ)
+    runner.setBotQQ(botQQ)
 
   // 获取 bot 自身 QQ 号，注入给 WakeStage（用于 @bot 检测）
   client.once('ready', async () => {
@@ -140,7 +142,7 @@ async function main() {
       logger.info(`Bot QQ: ${botQQ}`)
     }
     catch (err) {
-      logger.error('Failed to get login info, @bot detection may not work', err as Error)
+      logger.warn('getLoginInfo() failed, using config.botQQ fallback', err as Error)
     }
   })
 

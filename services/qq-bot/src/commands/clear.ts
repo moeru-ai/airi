@@ -1,6 +1,6 @@
-import type { CommandHandler } from './types'
+import type { CommandHandler } from './types.js'
 
-import { createTextResponse } from '../types/response'
+import { createTextResponse } from '../types/response.js'
 
 // NOTICE: 实际清理动作由 PipelineRunner 在发送前根据
 // event.context.extensions._clearSession 统一执行。

@@ -1,4 +1,4 @@
-import type { OpenAIMessage } from '../types/context'
+import type { OpenAIMessage } from '../types/context.js'
 
 import { encode } from 'gpt-tokenizer'
 

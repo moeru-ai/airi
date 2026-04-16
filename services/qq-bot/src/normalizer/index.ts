@@ -10,12 +10,12 @@ import type {
   PrivateMessageEvent,
 } from '@naplink/naplink'
 
-import type { QQMessageEvent } from '../types/event'
-import type { InputMessageSegment } from '../types/message'
+import type { QQMessageEvent } from '../types/event.js'
+import type { InputMessageSegment } from '../types/message.js'
 
-import { createDefaultContext } from '../types/context'
-import { buildSessionId } from '../types/event'
-import { createLogger } from '../utils/logger'
+import { createDefaultContext } from '../types/context.js'
+import { buildSessionId } from '../types/event.js'
+import { createLogger } from '../utils/logger.js'
 
 const logger = createLogger('normalizer')
 

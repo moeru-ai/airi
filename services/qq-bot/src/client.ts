@@ -36,24 +36,24 @@ import type {
   PrivateMessageEvent,
 } from '@naplink/naplink'
 
-import type { BotConfig } from './config'
+import type { BotConfig } from './config.js'
 
 import process from 'node:process'
 
 import { NapLink } from '@naplink/naplink'
 
-import { createAiriClient } from './airi-client'
-import { BailianEmbeddingProvider } from './context/embedding-provider'
-import { SemanticRetriever } from './context/semantic-retriever'
-import { ConversationRepo } from './db/conversation-repo'
-import { initDb } from './db/index'
-import { MessageHistoryRepo } from './db/message-history-repo'
-import { createDispatcher } from './dispatcher'
-import { normalizeGroupMessage, normalizePokeEvent, normalizePrivateMessage } from './normalizer'
-import { PipelineRunner } from './pipeline/runner'
-import { BotMessageTracker } from './utils/bot-message-tracker'
-import { createLogger } from './utils/logger'
-import { NapLinkLoggerAdapter } from './utils/naplink-logger-adapter'
+import { createAiriClient } from './airi-client.js'
+import { BailianEmbeddingProvider } from './context/embedding-provider.js'
+import { SemanticRetriever } from './context/semantic-retriever.js'
+import { ConversationRepo } from './db/conversation-repo.js'
+import { initDb } from './db/index.js'
+import { MessageHistoryRepo } from './db/message-history-repo.js'
+import { createDispatcher } from './dispatcher/index.js'
+import { normalizeGroupMessage, normalizePokeEvent, normalizePrivateMessage } from './normalizer/index.js'
+import { PipelineRunner } from './pipeline/runner.js'
+import { BotMessageTracker } from './utils/bot-message-tracker.js'
+import { createLogger } from './utils/logger.js'
+import { NapLinkLoggerAdapter } from './utils/naplink-logger-adapter.js'
 
 // ─── 模块级 Logger ──────────────────────────────────────────
 // client.ts 是顶层编排模块，日志命名空间 'client'，

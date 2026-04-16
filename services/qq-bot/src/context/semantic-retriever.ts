@@ -1,9 +1,9 @@
 import type { Client, InValue } from '@libsql/client'
 
-import type { MessageHistoryRow } from '../db/message-history-repo'
-import type { EmbeddingProvider } from './embedding-provider'
+import type { MessageHistoryRow } from '../db/message-history-repo.js'
+import type { EmbeddingProvider } from './embedding-provider.js'
 
-import { createLogger } from '../utils/logger'
+import { createLogger } from '../utils/logger.js'
 
 const logger = createLogger('semantic-retriever')
 

@@ -23,7 +23,7 @@ import { parse as parseYaml } from 'yaml'
 
 import * as v from 'valibot'
 
-import { createLogger } from './utils/logger'
+import { createLogger } from './utils/logger.js'
 
 // ─── 惰性 Logger ─────────────────────────────────────────────
 // 与 response.ts 同理：模块加载时 config 尚未就绪，

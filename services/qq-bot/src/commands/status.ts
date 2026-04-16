@@ -1,6 +1,6 @@
-import type { CommandHandler } from './types'
+import type { CommandHandler } from './types.js'
 
-import { createTextResponse } from '../types/response'
+import { createTextResponse } from '../types/response.js'
 
 export const statusCommand: CommandHandler = async (_event, _args, context) => {
   const uptimeSeconds = Math.floor((Date.now() - context.startedAt) / 1000)

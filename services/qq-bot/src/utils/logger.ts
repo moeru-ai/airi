@@ -81,14 +81,30 @@ export class LoggerInstance {
     }
   }
 
-  debug(msg: string, ...args: unknown[]) { this.output('debug', msg, args) }
-  info(msg: string, ...args: unknown[]) { this.output('info', msg, args) }
-  warn(msg: string, ...args: unknown[]) { this.output('warn', msg, args) }
-  error(msg: string, ...args: unknown[]) { this.output('error', msg, args) }
+  debug(msg: string, ...args: unknown[]) {
+    this.output('debug', msg, args)
+  }
+
+  info(msg: string, ...args: unknown[]) {
+    this.output('info', msg, args)
+  }
+
+  warn(msg: string, ...args: unknown[]) {
+    this.output('warn', msg, args)
+  }
+
+  error(msg: string, ...args: unknown[]) {
+    this.output('error', msg, args)
+  }
 }
 
-function pad(n: number): string { return String(n).padStart(2, '0') }
-function pad3(n: number): string { return String(n).padStart(3, '0') }
+function pad(n: number): string {
+  return String(n).padStart(2, '0')
+}
+
+function pad3(n: number): string {
+  return String(n).padStart(3, '0')
+}
 
 // ─── 公共 API ───
 

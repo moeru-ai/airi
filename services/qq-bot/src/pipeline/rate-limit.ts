@@ -3,13 +3,13 @@
 // ③ RateLimitStage：会话/用户/全局滑动窗口 + 冷却控制
 // ─────────────────────────────────────────────────────────────
 
-import type { RateLimitConfig } from '../config'
-import type { StageResult } from '../types/context'
-import type { QQMessageEvent } from '../types/event'
+import type { RateLimitConfig } from '../config.js'
+import type { StageResult } from '../types/context.js'
+import type { QQMessageEvent } from '../types/event.js'
 
-import { createTextResponse } from '../types/response'
-import { CooldownTracker, SlidingWindowRateLimiter } from '../utils/rate-limiter'
-import { PipelineStage } from './stage'
+import { createTextResponse } from '../types/response.js'
+import { CooldownTracker, SlidingWindowRateLimiter } from '../utils/rate-limiter.js'
+import { PipelineStage } from './stage.js'
 
 export class RateLimitStage extends PipelineStage {
   readonly name = 'RateLimitStage'

@@ -5,8 +5,8 @@
       "ESNext"
     ],
     "moduleDetection": "force",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "types": [
       "node"
     ],

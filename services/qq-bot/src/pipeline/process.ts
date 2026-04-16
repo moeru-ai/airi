@@ -14,20 +14,20 @@
 //     命中则直接 respond 不消耗 AIRI 资源。
 // ─────────────────────────────────────────────────────────────
 
-import type { AiriClient } from '../airi-client'
-import type { ProcessConfig } from '../config'
-import type { ConversationRepo } from '../db/conversation-repo'
-import type { StageResult } from '../types/context'
-import type { QQMessageEvent } from '../types/event'
+import type { AiriClient } from '../airi-client.js'
+import type { ProcessConfig } from '../config.js'
+import type { ConversationRepo } from '../db/conversation-repo.js'
+import type { StageResult } from '../types/context.js'
+import type { QQMessageEvent } from '../types/event.js'
 
 import { randomUUID } from 'node:crypto'
 
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 
-import { createSilentResponse, createTextResponse } from '../types/response'
-import { serializeChain } from '../utils/chain-serializer'
-import { normalizeContent } from '../utils/normalize-content'
-import { PipelineStage } from './stage'
+import { createSilentResponse, createTextResponse } from '../types/response.js'
+import { serializeChain } from '../utils/chain-serializer.js'
+import { normalizeContent } from '../utils/normalize-content.js'
+import { PipelineStage } from './stage.js'
 
 const COMMAND_SPLIT_RE = /\s+/u
 
@@ -374,7 +374,7 @@ export class ProcessStage extends PipelineStage {
    *   - 不自己 add/remove onEvent，避免竞态。
    *   - timeout 后从 Map 删除自身，避免内存泄漏。
    *
-   * @param sessionId - 当前会话 ID
+   * @param correlationId - 当前请求关联 ID
    * @returns 响应文本（有内容时）或 null（超时时）
    */
   private waitForReply(correlationId: string): Promise<string | null> {
