@@ -151,8 +151,12 @@ export function createRequestId(): string {
 /**
  * Classify an unknown error into an `InferenceErrorCode`.
  * Used by worker adapters to normalise caught exceptions.
+ *
+ * Specific error patterns (OOM, DEVICE_LOST, TIMEOUT) take priority
+ * over the `phase` hint. When no specific pattern matches, `phase`
+ * determines whether the code is `LOAD_FAILED` or `INFERENCE_FAILED`.
  */
-export function classifyError(error: unknown): InferenceErrorCode {
+export function classifyError(error: unknown, phase?: 'load' | 'inference'): InferenceErrorCode {
   const msg = error instanceof Error ? error.message : String(error)
   const lower = msg.toLowerCase()
 
@@ -163,5 +167,19 @@ export function classifyError(error: unknown): InferenceErrorCode {
   if (lower.includes('timeout'))
     return 'TIMEOUT'
 
+  if (phase === 'load')
+    return 'LOAD_FAILED'
+  if (phase === 'inference')
+    return 'INFERENCE_FAILED'
+
   return 'UNKNOWN'
+}
+
+/**
+ * Determine whether an error code represents a potentially recoverable
+ * condition. TIMEOUT and DEVICE_LOST may succeed on retry (e.g. with
+ * WASM fallback or after device re-acquisition).
+ */
+export function isRecoverable(code: InferenceErrorCode): boolean {
+  return code === 'TIMEOUT' || code === 'DEVICE_LOST'
 }

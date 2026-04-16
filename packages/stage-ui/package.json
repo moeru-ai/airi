@@ -69,6 +69,7 @@
     "@proj-airi/audio": "workspace:^",
     "@proj-airi/ccc": "workspace:^",
     "@proj-airi/chromatic": "^1.1.1",
+    "@proj-airi/core-agent": "workspace:^",
     "@proj-airi/core-character": "workspace:^",
     "@proj-airi/drizzle-duckdb-wasm": "catalog:",
     "@proj-airi/font-chillroundm": "workspace:^",

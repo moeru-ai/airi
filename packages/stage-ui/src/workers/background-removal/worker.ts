@@ -20,7 +20,7 @@ import type {
 import { AutoModel, AutoProcessor, env, RawImage } from '@huggingface/transformers'
 
 import { MODEL_IDS, MODEL_NAMES } from '../../libs/inference/constants'
-import { classifyError } from '../../libs/inference/protocol'
+import { classifyError, isRecoverable } from '../../libs/inference/protocol'
 
 // ---------------------------------------------------------------------------
 // Inference-specific input/output types
@@ -60,15 +60,16 @@ function sendProgress(requestId: string, percent: number, message?: string): voi
   globalThis.postMessage(msg)
 }
 
-function sendError(requestId: string, error: unknown): void {
+function sendError(requestId: string, error: unknown, phase?: 'load' | 'inference'): void {
   const message = error instanceof Error ? error.message : String(error)
+  const code = classifyError(error, phase)
   const msg: ErrorResponse = {
     type: 'error',
     requestId,
     payload: {
-      code: classifyError(error),
+      code,
       message,
-      recoverable: false,
+      recoverable: isRecoverable(code),
     },
   }
   globalThis.postMessage(msg)
@@ -137,7 +138,7 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
     globalThis.postMessage(ready)
   }
   catch (error) {
-    sendError(requestId, error)
+    sendError(requestId, error, 'load')
   }
 }
 
@@ -179,7 +180,7 @@ async function runInference(request: RunInferenceRequest<BackgroundRemovalInput>
     ;(globalThis as any).postMessage(result, [maskData.buffer])
   }
   catch (error) {
-    sendError(requestId, error)
+    sendError(requestId, error, 'inference')
   }
 }
 
