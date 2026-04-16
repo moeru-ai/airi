@@ -7,9 +7,9 @@ chat:
   reasoning: Razonamiento
 message: Dile algo...
 send-mode:
-  title: Send key
-  enter: Enter
-  ctrl-enter: Ctrl + Enter
+  title: Enviar tecla
+  enter: Intro
+  ctrl-enter: Ctrl + Intro
   double-enter: Double Enter
 operations:
   load-models: Cargar Modelos
@@ -44,47 +44,47 @@ profile-switcher:
 promo-banner:
   items:
     signin:
-      watermark: Moon
-      fallbackLabel: Moon Gift
-      title: 7-Day Sign-In
+      watermark: Luna
+      fallbackLabel: Regalo lunar
+      title: 7 días de inicio de sesión
       eventName: Sign in to claim stardust, avatar frames, and launch gifts.
       date: 03/28 - 04/10
-      reward: Up to 120 Stardust
-      cta: Sign In
+      reward: Hasta 120 Stardust
+      cta: Iniciar sesión
     build:
       watermark: Build
       fallbackLabel: Build Bonus
-      title: Supply Box Bonus
-      eventName: Finish construction tasks to earn bonus vouchers and double materials.
+      title: Bono de caja de suministro
+      eventName: Termina las tareas de construcción para ganar cupones de bonificación y materiales dobles.
       date: 03/30 - 04/12
-      reward: 5 Supply Vouchers + Upgrade Materials
-      cta: View Tasks
+      reward: 5 Cupones de Suministros + Materiales de Mejora
+      cta: Ver tareas
     spring:
-      watermark: Spring
-      fallbackLabel: Spring Draw
-      title: Capsule Carnival
+      watermark: Primavera
+      fallbackLabel: Dibujo Primaveral
+      title: Cápsula de Carnaval
       eventName: Join the spring draw to unlock bubbles, charms, and themed furniture.
       date: 04/01 - 04/18
-      reward: Half-Price First Pull + Rare Charm
+      reward: Primera tirada a mitad de precio + Talismán raro
       cta: Draw Now
     coupon:
-      watermark: Talk
-      fallbackLabel: Coupon
+      watermark: Hablar
+      fallbackLabel: Cupón
       title: Top-Up Coupon
-      eventName: Finish chat interactions to claim coupons for expansion and voice packs.
+      eventName: Termina las interacciones del chat para reclamar cupones para la expansión y los paquetes de voz.
       date: 04/02 - 04/20
-      reward: Save 6 on 30 / Save 15 on 68
-      cta: Claim Coupon
+      reward: Ahorre 6 en 30 / Ahorre 15 en 68
+      cta: Reclamar Cupón
     home:
-      watermark: Home
-      fallbackLabel: Room Theme
-      title: Spring Theme Update
-      eventName: Unlock window, desk, and night-lamp themes to refresh your room.
+      watermark: Inicio
+      fallbackLabel: Tema de sala
+      title: Actualización del tema primavera
+      eventName: Desbloquea los temas de ventana, escritorio y lámparas nocturnas para actualizar tu habitación.
       date: 04/05 - 04/22
       reward: Free Theme Draw Ticket on Sign-in
-      cta: View Theme
+      cta: Ver temas
 waiting: Esperando...
 websocket-status:
-  connected: WebSocket connected
-  disconnected: WebSocket disconnected
-  open-settings: Open WebSocket settings
+  connected: WebSocket conectado
+  disconnected: WebSocket desconectado
+  open-settings: Abrir ajustes de WebSocket

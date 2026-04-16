@@ -19,16 +19,23 @@ import { resolveElectronAppInfo } from '../utils/app-path'
 type CaptureFormat = 'png' | 'avif'
 
 /** Max width for AVIF output — anything wider is downscaled proportionally. */
-const AVIF_MAX_WIDTH = 1920
+const DEFAULT_AVIF_MAX_WIDTH = 1920
 /** AVIF quality (0-100, 100 = lossless). 50 is nearly indistinguishable for UI screenshots. */
-const AVIF_QUALITY = 50
+const DEFAULT_AVIF_QUALITY = 50
 /** rav1e speed preset (1 = slow/best, 10 = fast/worst). 6 balances size vs encode time. */
-const AVIF_SPEED = 6
+const DEFAULT_AVIF_SPEED = 6
+
+interface AvifCaptureOptions {
+  maxWidth: number
+  quality: number
+  speed: number
+}
 
 interface CaptureCliArguments {
   scenarioPath: string
   outputDir: string
   format: CaptureFormat
+  avif?: AvifCaptureOptions
 }
 
 const captureHelpText = `
@@ -40,6 +47,9 @@ const captureHelpText = `
   Options
     --output-dir, -o  Directory to write PNG screenshots into
     --format         Output format: png or avif
+    --avif-max-width Max width for AVIF output (default: 1920)
+    --avif-quality   AVIF quality between 0-100 (default: 50)
+    --avif-speed     AVIF speed between 1-10 (default: 6)
 
   Examples
     $ capture packages/scenarios-stage-tamagotchi-electron/src/scenarios/settings-connection.ts --output-dir ./artifacts/manual-run
@@ -72,22 +82,64 @@ function parseCaptureFormat(format: string | undefined): CaptureFormat {
   throw new Error(`Unsupported capture format "${format}". Expected "png" or "avif".`)
 }
 
-function createAvifTransformer(): ArtifactTransformer {
+function parsePositiveInteger(value: string, description: string): number {
+  if (!/^\d+$/.test(value)) {
+    throw new Error(`Unsupported ${description} "${value}". Expected a whole number.`)
+  }
+
+  return Number(value)
+}
+
+function parseAvifCaptureOptions(flags: {
+  avifMaxWidth?: string
+  avifQuality?: string
+  avifSpeed?: string
+}): AvifCaptureOptions {
+  const maxWidth = flags.avifMaxWidth === undefined
+    ? DEFAULT_AVIF_MAX_WIDTH
+    : parsePositiveInteger(flags.avifMaxWidth, 'AVIF max width')
+  const quality = flags.avifQuality === undefined
+    ? DEFAULT_AVIF_QUALITY
+    : parsePositiveInteger(flags.avifQuality, 'AVIF quality')
+  const speed = flags.avifSpeed === undefined
+    ? DEFAULT_AVIF_SPEED
+    : parsePositiveInteger(flags.avifSpeed, 'AVIF speed')
+
+  if (maxWidth < 1) {
+    throw new Error(`Unsupported AVIF max width "${maxWidth}". Expected an integer >= 1.`)
+  }
+
+  if (quality < 0 || quality > 100) {
+    throw new Error(`Unsupported AVIF quality "${quality}". Expected an integer between 0 and 100.`)
+  }
+
+  if (speed < 1 || speed > 10) {
+    throw new Error(`Unsupported AVIF speed "${speed}". Expected an integer between 1 and 10.`)
+  }
+
+  return {
+    maxWidth,
+    quality,
+    speed,
+  }
+}
+
+function createAvifTransformer(options: AvifCaptureOptions): ArtifactTransformer {
   return async (artifact) => {
     const derivedFilePath = artifact.filePath.replace(/\.png$/i, '.avif')
 
     const transformer = new Transformer(await readFile(artifact.filePath))
     const metadata = await transformer.metadata()
 
-    // Downscale images wider than AVIF_MAX_WIDTH, keeping aspect ratio
-    if (metadata.width > AVIF_MAX_WIDTH) {
-      const scale = AVIF_MAX_WIDTH / metadata.width
-      transformer.resize(AVIF_MAX_WIDTH, Math.round(metadata.height * scale))
+    // Downscale images wider than maxWidth, keeping aspect ratio.
+    if (metadata.width > options.maxWidth) {
+      const scale = options.maxWidth / metadata.width
+      transformer.resize(options.maxWidth, Math.round(metadata.height * scale))
     }
 
     const avifBuffer = await transformer.avif({
-      quality: AVIF_QUALITY,
-      speed: AVIF_SPEED,
+      quality: options.quality,
+      speed: options.speed,
     })
 
     await writeFile(derivedFilePath, avifBuffer)
@@ -113,6 +165,15 @@ export function parseCaptureCliArguments(argv: string[]): CaptureCliArguments {
       format: {
         type: 'string',
       },
+      avifMaxWidth: {
+        type: 'string',
+      },
+      avifQuality: {
+        type: 'string',
+      },
+      avifSpeed: {
+        type: 'string',
+      },
     },
   })
 
@@ -122,15 +183,24 @@ export function parseCaptureCliArguments(argv: string[]): CaptureCliArguments {
     throw new Error(captureUsageMessage)
   }
 
+  const format = parseCaptureFormat(cli.flags.format)
+
   return {
     scenarioPath: cli.input[0],
     outputDir: cli.flags.outputDir,
-    format: parseCaptureFormat(cli.flags.format),
+    format,
+    avif: format === 'avif'
+      ? parseAvifCaptureOptions({
+          avifMaxWidth: cli.flags.avifMaxWidth,
+          avifQuality: cli.flags.avifQuality,
+          avifSpeed: cli.flags.avifSpeed,
+        })
+      : undefined,
   }
 }
 
 async function main(): Promise<void> {
-  const { scenarioPath, outputDir, format } = parseCaptureCliArguments(process.argv.slice(2))
+  const { scenarioPath, outputDir, format, avif } = parseCaptureCliArguments(process.argv.slice(2))
   const resolvedOutputDir = path.resolve(process.cwd(), outputDir)
 
   await mkdir(resolvedOutputDir, { recursive: true })
@@ -151,7 +221,11 @@ async function main(): Promise<void> {
       resolvedOutputDir,
       format === 'avif'
         ? {
-            transformers: [createAvifTransformer()],
+            transformers: [createAvifTransformer(avif ?? {
+              maxWidth: DEFAULT_AVIF_MAX_WIDTH,
+              quality: DEFAULT_AVIF_QUALITY,
+              speed: DEFAULT_AVIF_SPEED,
+            })],
           }
         : undefined,
     )

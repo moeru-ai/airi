@@ -15,12 +15,12 @@
     "db:push": "pnpm run apply:env -- drizzle-kit push"
   },
   "dependencies": {
-    "@better-auth/drizzle-adapter": "^1.6.2",
+    "@better-auth/drizzle-adapter": "^1.6.3",
     "@better-auth/oauth-provider": "catalog:",
     "@dotenvx/dotenvx": "^1.61.0",
     "@electric-sql/pglite": "catalog:",
     "@guiiai/logg": "catalog:",
-    "@hono/node-server": "^1.19.13",
+    "@hono/node-server": "^1.19.14",
     "@hono/node-ws": "catalog:",
     "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
