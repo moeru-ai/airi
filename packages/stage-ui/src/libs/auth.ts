@@ -45,12 +45,29 @@ export async function initializeAuth() {
 
   initialized = true
 
+  const authStore = useAuthStore()
+
+  // Normalize "half-cleared" persisted state before anything reads it.
+  //
+  // Why: `refreshToken` was added to the auth store before `oidcClientId`
+  // (commit c73ceeb1f predates f1fe161bc), and `clearOIDCState` (now removed)
+  // used to clear only the OIDC pair. Browsers that saw either code path can
+  // end up with a refreshToken but no oidcClientId, which makes
+  // `refreshTokenNow()` early-return forever — 401s then silently accumulate
+  // on non-home pages until the user lands on a route that calls fetchSession.
+  //
+  // Treat any mismatch as an unauthenticated session; the user will get a
+  // fresh OIDC login prompt via the standard 401→needsLogin path.
+  const hasRefreshToken = !!authStore.refreshToken
+  const hasClientId = !!authStore.oidcClientId
+  if (hasRefreshToken !== hasClientId)
+    authStore.clearAllAuthState()
+
   // NOTICE: restoreRefreshSchedule must complete BEFORE fetchSession when
   // the persisted access token is already expired. Otherwise fetchSession
   // hits /get-session with the stale Bearer, gets 401, and wipes
   // refreshToken + oidcClientId before the scheduled refresh can run —
   // silently logging the user out on reload.
-  const authStore = useAuthStore()
   authStore.onTokenRefreshed(async (accessToken) => {
     authStore.token = accessToken
     await fetchSession()
@@ -94,11 +111,7 @@ export async function fetchSession() {
   }
 
   // Session expired or invalid — clear stale auth state from localStorage
-  authStore.user = null
-  authStore.session = null
-  authStore.token = null
-  authStore.refreshToken = null
-  authStore.clearOIDCState()
+  authStore.clearAllAuthState()
   return false
 }
 
@@ -162,11 +175,7 @@ export async function signOut() {
     // be wiped, so the local user has no way to spend it in the meantime.
   }
 
-  authStore.clearOIDCState()
-  authStore.user = null
-  authStore.session = null
-  authStore.token = null
-  authStore.refreshToken = null
+  authStore.clearAllAuthState()
 }
 
 /**
