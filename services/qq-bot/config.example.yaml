@@ -1,43 +1,72 @@
+# ═══════════════════════════════════════════════════════════════
 # AIRI server 连接
+# ═══════════════════════════════════════════════════════════════
 airi:
   url: ws://localhost:6121/ws
   token: 'your-airi-token'
-  # 在 windows 下，这个 token 被配置在：%APPDATA%\Roaming\@proj-airi\server-channel-config.json 的 AuthToken 字段，复制过来即可
+  # 在 windows 下，这个 token 被配置在：
+  # %APPDATA%\Roaming\@proj-airi\server-channel-config.json 的 AuthToken 字段，复制过来即可
 
+# ═══════════════════════════════════════════════════════════════
 # NapCat 连接
+# ═══════════════════════════════════════════════════════════════
 naplink:
   connection:
     url: ws://localhost:3001
     token: your-napcat-token
+    # timeout: 30000            # 连接超时 (ms)
+    # pingInterval: 30000       # 心跳间隔 (ms)，0 = 禁用
+  # reconnect:
+  #   enabled: true
+  #   maxAttempts: 10
+  #   backoff:
+  #     initial: 1000           # 初始退避 (ms)
+  #     max: 60000              # 最大退避 (ms)
+  #     multiplier: 2
+  # logging:
+  #   level: debug              # NapLink 内部日志级别: debug/info/warn/error/off
+  # api:
+  #   timeout: 30000            # API 调用超时 (ms)
+  #   retries: 3                # API 失败重试次数
 
-# 各阶段配置（其余保持不变）
+# ═══════════════════════════════════════════════════════════════
+# 各阶段配置
+# ═══════════════════════════════════════════════════════════════
+
+# ① FilterStage — 基础过滤
 filter:
   blacklistUsers: []
   blacklistGroups: []
   whitelistMode: false
   whitelistGroups: []
+  # whitelistUsers: []          # 白名单用户 QQ 号（whitelistMode = true 时生效）
   ignoreSystemUsers: []
   ignoreEmptyMessages: true
 
+# ② WakeStage — 唤醒判定
 wake:
   keywords: ['airi', '爱莉']
-  keywordMatchMode: contains
-  randomWakeRate: 0
+  keywordMatchMode: contains # prefix / contains / regex
+  randomWakeRate: 0 # 群聊随机唤醒概率 (0~1)
   alwaysWakeInPrivate: true
 
+# ③ RateLimitStage — 多维度限流
 rateLimit:
   perSession: {max: 10, windowMs: 60000}
   perUser: {max: 10, windowMs: 60000}
   global: {max: 50, windowMs: 60000}
   cooldownMs: 1000
-  onLimited: silent
+  onLimited: silent # silent / notify
+  # notifyMessage: '请稍后再试~' # 仅 onLimited: notify 时生效
 
+# ④ SessionStage — 会话上下文
 session:
   maxHistoryPerSession: 50
   contextWindow: 20
   timeoutMs: 1800000
-  isolateByTopic: false
+  isolateByTopic: false # 频道话题隔离（预留）
 
+# ⑤ ProcessStage — 核心处理
 process:
   replyTimeoutMs: 120000 # 网络差时加大
   sendMaxRetries: 5
@@ -45,11 +74,33 @@ process:
     prefix: '/'
     enabled: [help, status, new, switch, history, clear]
 
+# ⑥ DecorateStage — 响应装饰
+decorate:
+  maxMessageLength: 4500
+  splitStrategy: multi-message # truncate / multi-message
+  autoReply: true
+  contentFilter:
+    enabled: false
+    replacements: {}
+
+# ⑦ RespondStage — 发送行为
+respond:
+  typingDelay: {min: 300, max: 800}
+  multiMessageDelay: 500
+  retryCount: 2
+  retryDelayMs: 1000
+
+# ═══════════════════════════════════════════════════════════════
+# 持久化 & 语义
+# ═══════════════════════════════════════════════════════════════
+
+# SQLite 持久化
 db:
   path: data/qq-bot.db
   maxHistoryRows: 500
-  pruneIntervalMs: 3600000
+  pruneIntervalMs: 3600000 # 清理间隔 (ms)，0 = 禁用
 
+# Embedding 配置
 embedding:
   enabled: true
   provider: bailian
@@ -57,23 +108,38 @@ embedding:
   model: text-embedding-v4
   dimension: 1024
 
+# 语义检索
 semanticRetrieval:
   enabled: true
   topK: 5
 
-decorate:
-  maxMessageLength: 4500
-  splitStrategy: multi-message
-  autoReply: true
-  contentFilter:
-    enabled: false
-    replacements: {}
+# 上下文压缩
+# compression:
+#   enabled: true
+#   threshold: 0.82             # 触发阈值（占 maxContextWindow 比例）
+#   strategy: llm-summary       # truncate / llm-summary
+#   truncateRounds: 2           # truncate 每次丢弃轮数
+#   keepRecentRounds: 4         # summary 保留最近轮数
+#   maxContextWindow: 8192      # 模型上下文 token 上限
+#   summaryPrompt: |
+#     基于完整对话历史，生成关键要点和进展的简洁摘要：
+#     1. 系统性覆盖所有讨论的核心话题及最终结论
+#     2. 如果使用了工具，总结工具调用次数和关键发现
+#     3. 用用户的语言撰写摘要
 
-respond:
-  typingDelay: {min: 300, max: 800}
-  multiMessageDelay: 500
-  retryCount: 2
-  retryDelayMs: 1000
+# ═══════════════════════════════════════════════════════════════
+# Agent 主动发言（实验性）
+# ═══════════════════════════════════════════════════════════════
+# agentLoop:
+#   enabled: false
+#   intervalMs: 60000           # 检查间隔 (ms)
+#   minUnreadToCheck: 3         # 最小未读数才触发检查
+#   maxProactivePerHour: 5      # 每 session 每小时最大主动发言次数
 
+# ═══════════════════════════════════════════════════════════════
+# 全局
+# ═══════════════════════════════════════════════════════════════
 logging:
-  level: info
+  level: info # debug / info / warn / error / off
+
+# botQQ: '123456789'            # Bot QQ 号（用于检测 @ ）
