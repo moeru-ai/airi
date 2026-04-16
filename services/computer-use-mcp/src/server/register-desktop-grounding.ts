@@ -21,8 +21,8 @@ import process from 'node:process'
 
 import { z } from 'zod'
 
-import { getUnsupportedBrowserDomActions, isBrowserDomActionSupported } from '../browser-dom/capabilities'
 import { decideBrowserAction } from '../browser-action-router'
+import { getUnsupportedBrowserDomActions, isBrowserDomActionSupported } from '../browser-dom/capabilities'
 import { captureDesktopGrounding, formatGroundingForAgent } from '../desktop-grounding'
 import { resolveSnapByCandidate } from '../snap-resolver'
 import { sleep } from '../utils/sleep'

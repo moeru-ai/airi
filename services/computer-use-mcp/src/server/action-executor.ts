@@ -1,6 +1,5 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
-import type { PointerIntent } from '../desktop-grounding-types'
 import type {
   ActionInvocation,
   ComputerUseConfig,
@@ -12,19 +11,12 @@ import type {
 } from '../types'
 import type { ComputerUseServerRuntime } from './runtime'
 
-<<<<<<< HEAD
-import { appNamesMatch, normalizeConfiguredAppAction } from '../app-aliases'
-import { decideBrowserTypeAction } from '../browser-action-router'
-import { DESKTOP_CLICK_SNAPSHOT_MAX_AGE_MS } from '../desktop-grounding-types'
-=======
 import { normalizeConfiguredAppAction } from '../app-aliases'
-import { isBrowserDomActionSupported } from '../browser-dom/capabilities'
 import { decideBrowserTypeAction } from '../browser-action-router'
->>>>>>> c751ac56c (feat(computer-use-mcp): add type/checkbox browser-dom routing (v2 slice 2))
+import { isBrowserDomActionSupported } from '../browser-dom/capabilities'
 import { evaluateActionPolicy } from '../policy'
 import { getRuntimePreflight } from '../preflight'
 import { buildCoordinateSpaceInfo } from '../runtime-probes'
-import { resolveSnapByCandidate } from '../snap-resolver'
 import { evaluateStrategy, summarizeAdvisories } from '../strategy'
 import { buildPointerTrace } from '../trace'
 import {
@@ -123,21 +115,6 @@ function toTerminalStateContent(state: TerminalState) {
     approvalSessionActive: state.approvalSessionActive ?? false,
     approvalGrantedScope: state.approvalGrantedScope,
   }
-}
-
-function isPointWithinAllowedBounds(params: {
-  x: number
-  y: number
-  bounds: ComputerUseConfig['allowedBounds']
-}) {
-  const { bounds, x, y } = params
-  if (!bounds)
-    return true
-
-  return x >= bounds.x
-    && y >= bounds.y
-    && x <= (bounds.x + bounds.width)
-    && y <= (bounds.y + bounds.height)
 }
 
 export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteAction {
@@ -371,83 +348,6 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           }
           break
         }
-        case 'desktop_click_target': {
-          const state = runtime.stateManager.getState()
-          const snapshot = state.lastGroundingSnapshot
-          if (!snapshot) {
-            throw new Error('No desktop_observe snapshot available. Call desktop_observe first to get a list of target candidates.')
-          }
-
-          if (state.lastClickedCandidateId === normalizedAction.input.candidateId) {
-            throw new Error(`Candidate "${normalizedAction.input.candidateId}" was already clicked. Call desktop_observe again before clicking the same target.`)
-          }
-
-          const snapshotAge = Date.now() - new Date(snapshot.capturedAt).getTime()
-          if (snapshotAge > DESKTOP_CLICK_SNAPSHOT_MAX_AGE_MS) {
-            throw new Error(`Grounding snapshot "${snapshot.snapshotId}" is ${Math.round(snapshotAge / 1000)}s old. Call desktop_observe to get a fresh snapshot before clicking.`)
-          }
-
-          const currentForeground = await runtime.executor.getForegroundContext()
-          if (currentForeground.available && currentForeground.appName && !appNamesMatch(currentForeground.appName, snapshot.foregroundApp)) {
-            throw new Error(`Grounding snapshot "${snapshot.snapshotId}" was captured for "${snapshot.foregroundApp}", but the current foreground app is "${currentForeground.appName}". Call desktop_observe again before clicking.`)
-          }
-
-          if (
-            currentForeground.available
-            && currentForeground.windowTitle
-            && snapshot.foregroundWindowTitle
-            && currentForeground.windowTitle !== snapshot.foregroundWindowTitle
-          ) {
-            throw new Error(`Grounding snapshot "${snapshot.snapshotId}" was captured for window "${snapshot.foregroundWindowTitle}", but the current foreground window is "${currentForeground.windowTitle}". Call desktop_observe again before clicking.`)
-          }
-
-          const snap = resolveSnapByCandidate(normalizedAction.input.candidateId, snapshot)
-          if (snap.source === 'none' && !snap.candidateId) {
-            throw new Error(`Candidate "${normalizedAction.input.candidateId}" not found in snapshot "${snapshot.snapshotId}". Available candidates: ${snapshot.targetCandidates.map(c => c.id).join(', ')}`)
-          }
-
-          if (!isPointWithinAllowedBounds({
-            x: snap.snappedPoint.x,
-            y: snap.snappedPoint.y,
-            bounds: runtime.config.allowedBounds,
-          })) {
-            throw new Error(`Snap-resolved point (${snap.snappedPoint.x}, ${snap.snappedPoint.y}) is outside the allowed bounds.`)
-          }
-
-          const pointerTrace = buildPointerTrace({
-            from: runtime.session.getPointerPosition(),
-            to: { x: snap.snappedPoint.x, y: snap.snappedPoint.y },
-            bounds: runtime.config.allowedBounds,
-          })
-          const result = await runtime.executor.click({
-            x: snap.snappedPoint.x,
-            y: snap.snappedPoint.y,
-            button: normalizedAction.input.button ?? 'left',
-            clickCount: normalizedAction.input.clickCount ?? 1,
-            pointerTrace,
-          })
-          runtime.session.setPointerPosition({ x: snap.snappedPoint.x, y: snap.snappedPoint.y })
-
-          const candidate = snapshot.targetCandidates.find(c => c.id === normalizedAction.input.candidateId)
-          const intent: PointerIntent = {
-            mode: 'execute',
-            candidateId: normalizedAction.input.candidateId,
-            rawPoint: snap.rawPoint,
-            snappedPoint: snap.snappedPoint,
-            source: snap.source,
-            confidence: candidate?.confidence ?? 0,
-            path: pointerTrace,
-          }
-          runtime.stateManager.updatePointerIntent(intent, normalizedAction.input.candidateId)
-
-          backendResult = {
-            ...result,
-            candidateId: normalizedAction.input.candidateId,
-            snap,
-            pointerTrace,
-          }
-          break
-        }
         case 'type_text': {
           const hasExplicitCoordinates
             = typeof normalizedAction.input.x === 'number'
@@ -479,29 +379,12 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           }
 
           // Browser-dom type routing: if the last clicked grounding candidate
-<<<<<<< HEAD
-          // is a chrome_dom text input, use setInputValue for DOM precision.
-          // NOTICE: skip this path when explicit coordinates are provided.
-          // Coordinates mean the caller has targeted a specific screen position
-          // (possibly in a different app/window), so using lastClickedCandidateId
-          // would write into a stale Chrome selector instead of the current target.
-          const hasExplicitCoords = typeof normalizedAction.input.x === 'number' && typeof normalizedAction.input.y === 'number'
-=======
           // is a chrome_dom text input, use setInputValue for DOM precision
->>>>>>> c751ac56c (feat(computer-use-mcp): add type/checkbox browser-dom routing (v2 slice 2))
           let usedBrowserDom = false
           const runState = runtime.stateManager.getState()
           const lastSnapshot = runState.lastGroundingSnapshot
           const lastClickedId = runState.lastClickedCandidateId
-<<<<<<< HEAD
-<<<<<<< HEAD
-          if (!hasExplicitCoords && lastClickedId && lastSnapshot) {
-=======
-          if (lastClickedId && lastSnapshot) {
->>>>>>> c751ac56c (feat(computer-use-mcp): add type/checkbox browser-dom routing (v2 slice 2))
-=======
           if (!hasExplicitCoordinates && lastClickedId && lastSnapshot) {
->>>>>>> 847edd6e0 (fix(computer-use-mcp): bypass stale browser-dom typing route)
             const lastCandidate = lastSnapshot.targetCandidates.find(
               c => c.id === lastClickedId,
             )
@@ -514,11 +397,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
                 && isBrowserDomActionSupported(runtime.browserDomBridge, 'setInputValue')
               ) {
                 try {
-<<<<<<< HEAD
-                  const frameResults = await runtime.browserDomBridge!.setInputValue({
-=======
                   await runtime.browserDomBridge!.setInputValue({
->>>>>>> c751ac56c (feat(computer-use-mcp): add type/checkbox browser-dom routing (v2 slice 2))
                     selector: typeDecision.selector,
                     value: normalizedAction.input.text,
                     simulateKeystrokes: false,
@@ -527,18 +406,6 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
                       ? [typeDecision.frameId]
                       : undefined,
                   })
-<<<<<<< HEAD
-                  // NOTICE: bridge resolve ≠ DOM success. Frame results carry
-                  // per-frame { success, error } — if none succeeded the
-                  // selector/frame was stale and we must fall back to OS typeText.
-                  const anySucceeded = Array.isArray(frameResults) && frameResults.some(
-                    fr => (fr.result as Record<string, unknown>)?.success === true,
-                  )
-                  if (!anySucceeded) {
-                    throw new Error('setInputValue: no frame reported success')
-                  }
-=======
->>>>>>> c751ac56c (feat(computer-use-mcp): add type/checkbox browser-dom routing (v2 slice 2))
                   usedBrowserDom = true
                   backendResult.browserDomRoute = {
                     method: 'setInputValue',

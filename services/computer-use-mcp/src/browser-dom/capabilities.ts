@@ -1,5 +1,5 @@
 export interface BrowserDomCapabilitySource {
-  getStatus(): { connected: boolean }
+  getStatus: () => { connected: boolean }
   supportsAction?: (action: string) => boolean
 }
 
