@@ -29,6 +29,18 @@ export const authClient = createAuthClient({
       type: 'Bearer',
       token: () => getAuthToken() ?? '',
     },
+    // NOTICE: When using Bearer auth (credentials: "omit"), better-auth returns
+    // the session token via the `set-auth-token` response header instead of a
+    // cookie. We intercept every successful response to capture and persist this
+    // token so subsequent requests include it as `Authorization: Bearer <token>`.
+    // Without this, email/password sign-in works but all follow-up API calls
+    // (listAccounts, getSession, etc.) fail with 401.
+    onSuccess: (ctx) => {
+      const authToken = ctx.response.headers.get('set-auth-token')
+      if (authToken) {
+        localStorage.setItem('auth/v1/token', decodeURIComponent(authToken))
+      }
+    },
   },
 })
 

@@ -28,6 +28,7 @@ const form = reactive({
   password: '',
 })
 const emailLoading = ref(false)
+const signupSuccess = ref(false)
 
 async function handleSignIn(provider: OAuthProvider) {
   loading.value[provider] = true
@@ -58,17 +59,19 @@ async function handleEmailAuth() {
       if (error) {
         throw error
       }
-    }
-    else {
-      const { error } = await authClient.signIn.email({
-        email: form.email,
-        password: form.password,
-      })
-      if (error) {
-        throw error
-      }
+      signupSuccess.value = true
+      return
     }
 
+    const { error } = await authClient.signIn.email({
+      email: form.email,
+      password: form.password,
+    })
+    if (error) {
+      throw error
+    }
+
+    await fetchSession()
     router.replace('/')
   }
   catch (error) {
@@ -111,7 +114,24 @@ watch(isDesktop, (val) => {
       {{ mode === 'signin' ? (t('server.auth.signIn.title') || 'Sign In') : (t('server.auth.signUp.title') || 'Sign Up') }}
     </div>
     <div :class="['max-w-xs', 'w-full', 'flex', 'flex-col', 'gap-3']">
-      <Button
+      <template v-if="signupSuccess">
+        <div :class="['i-lucide-mail-check', 'text-4xl', 'text-green-500', 'mx-auto']" />
+        <div :class="['text-center', 'text-lg', 'font-semibold']">
+          {{ t('server.auth.signUp.verifyTitle') || 'Check your email' }}
+        </div>
+        <div :class="['text-center', 'text-sm', 'text-neutral-500']">
+          {{ t('server.auth.signUp.verifyDescription') || 'We sent a verification link to your email. Please verify your email before signing in.' }}
+        </div>
+        <Button
+          :class="['w-full', 'py-2', 'mt-2']"
+          @click="signupSuccess = false; mode = 'signin'"
+        >
+          <span>{{ t('server.auth.signUp.backToSignIn') || 'Back to Sign In' }}</span>
+        </Button>
+      </template>
+
+      <template v-else>
+        <Button
         :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']"
         icon="i-simple-icons-google"
         :loading="loading.google"
@@ -192,6 +212,7 @@ watch(isDesktop, (val) => {
           </button>
         </template>
       </div>
+      </template>
     </div>
     <div class="mt-8 text-xs text-gray-400">
       {{ t('server.auth.signIn.footer.prefix') }}

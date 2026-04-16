@@ -8,7 +8,7 @@ import { reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
-import { authClient, signInOIDC } from '../../libs/auth'
+import { authClient, fetchSession, signInOIDC } from '../../libs/auth'
 import { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } from '../../libs/auth-config'
 import { defaultSignInProviders } from './providers'
 
@@ -31,6 +31,7 @@ const form = reactive({
   password: '',
 })
 const emailLoading = ref(false)
+const signupSuccess = ref(false)
 
 async function handleSignIn(provider: OAuthProvider) {
   loading.value[provider] = true
@@ -61,17 +62,19 @@ async function handleEmailAuth() {
       if (error) {
         throw error
       }
-    }
-    else {
-      const { error } = await authClient.signIn.email({
-        email: form.email,
-        password: form.password,
-      })
-      if (error) {
-        throw error
-      }
+      signupSuccess.value = true
+      return
     }
 
+    const { error } = await authClient.signIn.email({
+      email: form.email,
+      password: form.password,
+    })
+    if (error) {
+      throw error
+    }
+
+    await fetchSession()
     window.location.href = '/'
   }
   catch (error) {
@@ -94,8 +97,25 @@ async function handleEmailAuth() {
         <div class="px-6 pt-2">
           <DrawerHandle class="mb-6" />
           <div class="mb-6 text-2xl font-bold">
-            {{ mode === 'signin' ? (t('server.auth.signIn.title') || 'Sign In') : (t('server.auth.signUp.title') || 'Sign Up') }}
+            {{ signupSuccess ? (t('server.auth.signUp.verifyTitle') || 'Check your email') : mode === 'signin' ? (t('server.auth.signIn.title') || 'Sign In') : (t('server.auth.signUp.title') || 'Sign Up') }}
           </div>
+
+          <template v-if="signupSuccess">
+            <div :class="['flex', 'flex-col', 'items-center', 'gap-4', 'py-4']">
+              <div :class="['i-lucide-mail-check', 'text-4xl', 'text-green-500']" />
+              <div :class="['text-center', 'text-sm', 'text-neutral-500']">
+                {{ t('server.auth.signUp.verifyDescription') || 'We sent a verification link to your email. Please verify your email before signing in.' }}
+              </div>
+              <Button
+                :class="['w-full', 'py-4', 'text-lg', 'rounded-2xl']"
+                @click="signupSuccess = false; mode = 'signin'"
+              >
+                <span>{{ t('server.auth.signUp.backToSignIn') || 'Back to Sign In' }}</span>
+              </Button>
+            </div>
+          </template>
+
+          <template v-else>
           <div class="flex flex-col gap-4">
             <Button
               v-for="provider in defaultSignInProviders"
@@ -165,6 +185,7 @@ async function handleEmailAuth() {
               </template>
             </div>
           </div>
+          </template>
 
           <div class="mt-6 pb-2 text-center text-xs text-gray-400">
             {{ t('server.auth.signIn.footer.prefix') || 'By continuing, you agree to our' }}

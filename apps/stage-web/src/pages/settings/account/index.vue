@@ -29,7 +29,7 @@ meta:
   subtitleKey: settings.title
   descriptionKey: settings.pages.account.description
   icon: i-solar:user-circle-bold-duotone
-  settingsEntry: false
+  settingsEntry: true
   order: 0
   stageTransition:
     name: slide

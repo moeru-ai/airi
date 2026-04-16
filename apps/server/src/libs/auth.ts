@@ -340,6 +340,7 @@ export function createAuth(
 
     emailAndPassword: {
       enabled: true,
+      requireEmailVerification: true,
       sendResetPassword: async ({ user, url }: { user: { email: string }, url: string }) => {
         const { subject, html } = emailService.passwordResetEmail(url)
         void emailService.sendEmail({ to: user.email, subject, html })

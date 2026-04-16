@@ -117,7 +117,7 @@ export function useAccountManagement() {
   async function uploadAvatar(file: File): Promise<string> {
     return withLoading(async () => {
       const formData = new FormData()
-      formData.append('avatar', file)
+      formData.append('file', file)
 
       const token = getAuthToken()
       const headers: HeadersInit = {}
