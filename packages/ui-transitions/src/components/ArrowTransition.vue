@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { StageTransitionCommonParams } from '.'
 
-import { onMounted } from 'vue'
+import { useCssVariables } from './useCssVar'
 
 const {
   primaryColor = '#666',
@@ -9,11 +9,10 @@ const {
   zIndex = 100,
 } = defineProps<Omit<StageTransitionCommonParams, 'name'>>()
 
-onMounted(() => {
-  const setCssVar = (name: string, val: string) => document.documentElement.style.setProperty(name, val)
-  setCssVar('--stage-transition-3-overlay-color-1', primaryColor)
-  setCssVar('--stage-transition-3-overlay-color-2', secondaryColor)
-})
+useCssVariables(() => ({
+  'overlay-color-1': primaryColor,
+  'overlay-color-2': secondaryColor,
+}), { prefix: '--stage-transition-3-' })
 </script>
 
 <template>

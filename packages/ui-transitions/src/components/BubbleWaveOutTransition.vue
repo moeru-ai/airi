@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { useCssVariables } from './useCssVar'
 
 interface TransitionParams {
   colors?: string[]
@@ -14,14 +14,19 @@ const {
   duration = 0.4,
   zIndex = 100,
 } = defineProps<TransitionParams>()
-onMounted(() => {
-  const setCssVar = (name: string, val: string) => document.documentElement.style.setProperty(name, val)
-  setCssVar('--circle-expansion-delay', `${delay}s`)
-  setCssVar('--circle-expansion-duration', `${duration}s`)
+
+function getCssVar() {
+  const record: Record<string, string> = {
+    delay: `${delay}s`,
+    duration: `${duration}s`,
+  }
   colors.forEach((color, index) => {
-    setCssVar(`--circle-expansion-color-${index + 1}`, color)
+    record[`color-${index + 1}`] = color
   })
-})
+  return record
+}
+
+useCssVariables(getCssVar, { prefix: '--circle-expansion-' })
 </script>
 
 <template>
