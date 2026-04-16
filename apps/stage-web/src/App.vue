@@ -43,6 +43,9 @@ const inferencePreload = useInferencePreload()
 const getCSSVar = (variableName: string) => getComputedStyle(document.documentElement).getPropertyValue(variableName).trim()
 
 const colors = computed(() => {
+  // required reactivity dependency.
+  // colors won't update when hue settings change if not depended upon.
+  settings.themeColorsHue.value
   return [
     getCSSVar('--primary-color'),
     getCSSVar('--secondary-color'),
