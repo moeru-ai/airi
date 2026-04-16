@@ -183,6 +183,9 @@ export class PipelineRunner {
       }
       catch (err) {
         logger.error(`Stage failed: ${stage.name} (event=${event.id})`, err as Error)
+        // 异常时释放 conversation 锁，防止死锁
+        const release = event.context.extensions._conversationRelease as (() => void) | undefined
+        release?.()
         return
       }
     }

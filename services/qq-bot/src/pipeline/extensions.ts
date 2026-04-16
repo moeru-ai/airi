@@ -60,6 +60,8 @@ export interface PipelineExtensions {
   // ─── Runner 注入（非阶段写入） ─────────────────────────────
   /** Bot QQ 号。Runner 在每次 run() 前注入，WakeStage 读取 */
   _botQQ?: string
+  /** ConversationStage 会话互斥锁释放函数。ConversationStage 写入，Runner/ConversationStage 释放 */
+  _conversationRelease?: () => void
 }
 
 /**
