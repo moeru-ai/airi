@@ -147,6 +147,20 @@ describe('route middleware', () => {
     expect(collectDestinations(event)).toEqual([])
   })
 
+  it('ignores primitive data payloads when checking destinations', () => {
+    const event = {
+      type: 'spark:notify',
+      data: 'not-an-object',
+      metadata: {
+        source: { kind: 'plugin', plugin: { id: 'server-runtime' }, id: 'test' },
+        event: { id: 'evt-primitive' },
+      },
+      route: undefined,
+    } as unknown as WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify'], any>
+
+    expect(collectDestinations(event)).toBeUndefined()
+  })
+
   it('matches destinations by label selector', () => {
     const peer = createPeer({
       id: 'peer-2',

@@ -135,8 +135,8 @@ export function collectDestinations(event: WebSocketEvent | (Omit<WebSocketEvent
     return event.route.destinations
   }
 
-  const data = event.data as { destinations?: Array<string | RouteTargetExpression> } | undefined
-  if (data && 'destinations' in data) {
+  const data = event.data as unknown
+  if (typeof data === 'object' && data !== null && 'destinations' in data) {
     return data.destinations
   }
 
