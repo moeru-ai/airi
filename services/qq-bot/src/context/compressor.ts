@@ -3,6 +3,7 @@ import type { Conversation } from '../db/conversation-repo'
 import type { OpenAIMessage } from '../types/context'
 
 import { createLogger } from '../utils/logger'
+import { normalizeContent } from '../utils/normalize-content'
 import { estimateTokens } from '../utils/token-estimator'
 
 export interface CompressorConfig {
@@ -129,7 +130,7 @@ export class ContextCompressor {
   private registerSummaryListener(): void {
     this.airiClient?.onEvent('output:gen-ai:chat:message', (event: any) => {
       const summarySessionId = event.data?.['gen-ai:chat']?.input?.data?.overrides?.sessionId
-      const content: string | undefined = event.data?.message?.content
+      const rawContent: unknown = event.data?.message?.content
 
       if (!summarySessionId || !summarySessionId.startsWith('ctx-summary:'))
         return
@@ -139,7 +140,8 @@ export class ContextCompressor {
         return
 
       this.pendingSummaries.delete(summarySessionId)
-      resolve(content?.trim() ?? '')
+      const content = normalizeContent(rawContent)
+      resolve(content.trim())
     })
   }
 
