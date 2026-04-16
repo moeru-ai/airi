@@ -44,11 +44,11 @@ function getCacheRoot() {
 }
 
 function getLegacyCacheRoot() {
-import { app } from 'electron'
+  import { app } from 'electron'
 
-function getCacheRoot() {
-  return app.getPath('cache')
-}
+  function getCacheRoot() {
+    return app.getPath('cache')
+  }
 }
 
 const UPDATER_DEBUG_CACHE_DIR = join(getCacheRoot(), 'stage-tamagotchi-updater')
