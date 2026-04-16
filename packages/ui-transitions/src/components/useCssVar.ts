@@ -9,8 +9,8 @@ import { toValue, watchEffect } from 'vue'
  * // Basic usage - sets variables on root element
  * const { stop } = useCssVariables({
  *   '--primary-color': '#ff0000',
- *   '--spacing-unit': 16,
- *   '--is-visible': true
+ *   '--spacing-unit': '16px',
+ *   '--is-visible': '1'
  * })
  *
  * @example
@@ -18,7 +18,7 @@ import { toValue, watchEffect } from 'vue'
  * const element = ref<HTMLElement>()
  * useCssVariables(
  *   { 'color-1': '#666', 'color-2': '#ccc' },
- *   { target: element.value } // or with prefix: `{ prefix: '--my-component-' }`
+ *   { elementGetter: element } // or with prefix: `{ prefix: '--my-component-' }`
  * )
  *
  * @example
