@@ -22,6 +22,7 @@ import '@proj-airi/font-xiaolai/index.css'
 import '@unocss/reset/tailwind.css'
 import 'splitpanes/dist/splitpanes.css'
 import 'vue-sonner/style.css'
+import './styles/colors.css'
 import './styles/main.css'
 import 'uno.css'
 
