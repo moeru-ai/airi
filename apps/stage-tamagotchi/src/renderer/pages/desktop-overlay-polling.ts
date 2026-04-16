@@ -26,6 +26,8 @@ export interface OverlayPointerIntent {
   source: string
   confidence: number
   mode: string
+  phase?: 'preview' | 'executing' | 'completed'
+  executionResult?: 'success' | 'fallback' | 'error'
 }
 
 export interface OverlayStaleFlags {

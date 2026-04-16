@@ -21,7 +21,7 @@ import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { getMcpToolBridge } from '@proj-airi/stage-ui/stores/mcp-tool-bridge'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
-import { getDesktopOverlayReadinessContract } from '../../../main/windows/desktop-overlay/rpc/contracts'
+import { getDesktopOverlayReadinessContract } from '../../shared/eventa'
 import { pointInOverlay, rectIntersectsOverlay, screenRectToLocal, screenToLocal } from './desktop-overlay-coordinates'
 import { createEmptyOverlayState, createOverlayPollController } from './desktop-overlay-polling'
 

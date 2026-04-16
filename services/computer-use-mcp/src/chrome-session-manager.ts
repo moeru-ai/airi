@@ -34,7 +34,10 @@ export interface ChromeSessionManager {
    * - Chrome not running → launch with CDP flag + new window
    * - Chrome running → create new window in existing instance
    *
-   * Idempotent: calling again returns the existing session if still alive.
+   * Reuses the cached session only when the agent launched a dedicated Chrome
+   * instance itself. When joining an existing user-owned Chrome process, a
+   * fresh window must be created on every ensure because this module does not
+   * track a verifiable OS window handle for the agent tab/window.
    */
   ensureAgentWindow: (options?: { url?: string, cdpPort?: number }) => Promise<ChromeSessionInfo>
 
@@ -182,15 +185,21 @@ end run`
 
   return {
     async ensureAgentWindow(options) {
-      // If we already have a session, check if Chrome is still alive
+      // If we already have a session, only reuse it when the agent launched a
+      // dedicated Chrome instance. Joined sessions only cache process metadata,
+      // not a verifiable OS window handle, so blindly reusing them after the
+      // user closes that window would redirect later focus/click flows onto a
+      // different Chrome window.
       if (session) {
         const stillRunning = await isChromeRunning()
-        if (stillRunning) {
+        if (stillRunning && !session.wasAlreadyRunning) {
           return session
         }
-        // Chrome died — clear stale session
+        if (!stillRunning) {
+          // Chrome died — clear stale session.
+          onSessionLost?.()
+        }
         session = null
-        onSessionLost?.()
       }
 
       // Record the user's current foreground app before we steal focus

@@ -16,12 +16,13 @@ import type { ServerChannel } from '../../../services/airi/channel-server'
 import type { McpStdioManager } from '../../../services/airi/mcp-servers'
 import type { DesktopOverlayReadiness } from './contracts'
 
-import { createContext, handle } from '@moeru/eventa/adapters/electron/main'
+import { defineInvokeHandler } from '@moeru/eventa'
+import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
 
+import { getDesktopOverlayReadinessContract } from '../../../../shared/eventa'
 import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
-import { getDesktopOverlayReadinessContract } from './contracts'
 
 export async function setupDesktopOverlayElectronInvokes(params: {
   window: BrowserWindow
@@ -38,7 +39,7 @@ export async function setupDesktopOverlayElectronInvokes(params: {
 
   let readiness: DesktopOverlayReadiness = { state: 'booting' }
 
-  handle(context, getDesktopOverlayReadinessContract, async () => {
+  defineInvokeHandler(context, getDesktopOverlayReadinessContract, async () => {
     return readiness
   })
 

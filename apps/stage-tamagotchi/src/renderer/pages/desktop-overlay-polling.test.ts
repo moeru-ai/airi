@@ -385,7 +385,7 @@ describe('createOverlayPollController', () => {
     // Second retry triggers ready and immediately polls
     await vi.advanceTimersByTimeAsync(200)
     expect(callTool).toHaveBeenCalledTimes(1)
-    expect(received.at(-1).bootstrapState).toBe('ready')
+    expect(received.at(-1)?.bootstrapState).toBe('ready')
 
     controller.stop()
   })

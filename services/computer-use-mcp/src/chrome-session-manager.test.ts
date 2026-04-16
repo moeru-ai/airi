@@ -122,7 +122,7 @@ describe('chromeSessionManager', () => {
       expect(info.cdpUrl).toBeUndefined()
     })
 
-    it('should be idempotent — return existing session on repeated calls', async () => {
+    it('should reuse an existing session when the agent launched a dedicated Chrome instance', async () => {
       mockLaunchFlow(11111)
       const first = await manager.ensureAgentWindow()
 
@@ -131,6 +131,25 @@ describe('chromeSessionManager', () => {
       const second = await manager.ensureAgentWindow()
 
       expect(second).toBe(first)
+    })
+
+    it('should create a fresh agent window on repeated calls when joining an existing Chrome instance', async () => {
+      mockJoinFlow(99999, 'Terminal')
+      const first = await manager.ensureAgentWindow()
+
+      vi.clearAllMocks()
+
+      mockedRunProcess
+        .mockResolvedValueOnce(ok('99999\n')) // session reuse check → Chrome still running
+      mockJoinFlow(99999, 'Terminal')
+
+      const second = await manager.ensureAgentWindow()
+
+      expect(second).not.toBe(first)
+      expect(second.wasAlreadyRunning).toBe(true)
+      expect(second.pid).toBe(99999)
+      expect(mockedRunProcess.mock.calls[3]?.[0]).toBe('/usr/bin/osascript')
+      expect(mockedRunProcess.mock.calls[3]?.[1]).toEqual(['-e', 'tell application "Google Chrome" to make new window'])
     })
 
     it('should recreate session if Chrome crashed between calls', async () => {
