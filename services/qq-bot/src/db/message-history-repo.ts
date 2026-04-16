@@ -60,7 +60,7 @@ export class MessageHistoryRepo {
       sql: `SELECT id, session_id, sender_id, sender_name, content, raw_text, created_at
             FROM message_history
             WHERE session_id = ?
-            ORDER BY created_at DESC
+            ORDER BY created_at DESC, id DESC
             LIMIT ?`,
       args: [sessionId, limit],
     })
@@ -87,7 +87,7 @@ export class MessageHistoryRepo {
             WHERE session_id = ? AND id NOT IN (
               SELECT id FROM message_history
               WHERE session_id = ?
-              ORDER BY created_at DESC
+              ORDER BY created_at DESC, id DESC
               LIMIT ?
             )`,
       args: [sessionId, sessionId, keepCount],
