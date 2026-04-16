@@ -150,56 +150,60 @@ export class PipelineRunner {
   async run(event: QQMessageEvent): Promise<void> {
     event.context.extensions._botQQ = this.botQQ
 
-    for (const stage of this.stages) {
-      try {
-        const result = await stage.run(event)
+    try {
+      for (const stage of this.stages) {
+        try {
+          const result = await stage.run(event)
 
-        if (result.action === 'skip')
-          return
+          if (result.action === 'skip')
+            return
 
-        if (result.action === 'respond') {
-          if (event.context.extensions.proc_clearSession)
-            this.clearSession(event.source.sessionId)
+          if (result.action === 'respond') {
+            if (event.context.extensions.proc_clearSession)
+              this.clearSession(event.source.sessionId)
 
-          await this.dispatcher.send(event, result.payload)
-          if (event.context.rateLimitPassed)
-            this.rateLimitStage.startCooldown(event.source.sessionId)
+            await this.dispatcher.send(event, result.payload)
+            if (event.context.rateLimitPassed)
+              this.rateLimitStage.startCooldown(event.source.sessionId)
+            return
+          }
+
+          if (stage === this.processStage && event.context.response?.kind === 'message') {
+            const assistantMessage = event.context.response.segments
+              .filter(segment => segment.type === 'text')
+              .map(segment => segment.data.text)
+              .join('')
+              .trim()
+
+            if (assistantMessage.length > 0)
+              await this.conversationStage.afterProcess(event, event.text, assistantMessage)
+          }
+
+          if (event.stopped)
+            return
+        }
+        catch (err) {
+          logger.error(`Stage failed: ${stage.name} (event=${event.id})`, err as Error)
           return
         }
-
-        if (stage === this.processStage && event.context.response?.kind === 'message') {
-          const assistantMessage = event.context.response.segments
-            .filter(segment => segment.type === 'text')
-            .map(segment => segment.data.text)
-            .join('')
-            .trim()
-
-          if (assistantMessage.length > 0)
-            await this.conversationStage.afterProcess(event, event.text, assistantMessage)
-        }
-
-        if (event.stopped)
-          return
       }
-      catch (err) {
-        logger.error(`Stage failed: ${stage.name} (event=${event.id})`, err as Error)
-        // 异常时释放 conversation 锁，防止死锁
-        const release = event.context.extensions._conversationRelease as (() => void) | undefined
-        release?.()
-        return
+
+      if (event.context.response) {
+        if (event.context.extensions.proc_clearSession)
+          this.clearSession(event.source.sessionId)
+
+        await this.dispatcher.send(event, event.context.response)
+        if (event.context.rateLimitPassed)
+          this.rateLimitStage.startCooldown(event.source.sessionId)
+      }
+      else {
+        logger.debug(`No response generated for event ${event.id}`)
       }
     }
-
-    if (event.context.response) {
-      if (event.context.extensions.proc_clearSession)
-        this.clearSession(event.source.sessionId)
-
-      await this.dispatcher.send(event, event.context.response)
-      if (event.context.rateLimitPassed)
-        this.rateLimitStage.startCooldown(event.source.sessionId)
-    }
-    else {
-      logger.debug(`No response generated for event ${event.id}`)
+    finally {
+      const release = event.context.extensions._conversationRelease as (() => void) | undefined
+      event.context.extensions._conversationRelease = undefined
+      release?.()
     }
   }
 
