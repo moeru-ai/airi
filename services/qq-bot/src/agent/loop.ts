@@ -72,6 +72,7 @@ export class AgentLoop {
 
   private readonly logger = createLogger('agent-loop')
   private readonly sessionCheckpoints = new Map<string, number>()
+  private readonly lastEvaluated = new Map<string, number>()
   private readonly proactiveCounters = new Map<string, number[]>()
   private readonly pendingReplies = new Map<string, (text: string) => void>()
 
@@ -154,6 +155,7 @@ export class AgentLoop {
       return
 
     const newestId = newest.id
+
     if (unread.length < this.config.minUnreadToCheck) {
       this.sessionCheckpoints.set(sessionId, newestId)
       return
@@ -164,17 +166,31 @@ export class AgentLoop {
       return
     }
 
+    // 如果这批消息已经评估过且没有新消息，跳过，不再调用 LLM
+    const lastEval = this.lastEvaluated.get(sessionId) ?? 0
+    if (newestId <= lastEval)
+      return
+
     const decision = await this.requestDecision(sessionId, unread)
+
     if (decision.action === 'respond' && decision.message?.trim()) {
       const syntheticEvent = this.buildSyntheticEvent(sessionId, newest)
       await this.dispatcher.send(syntheticEvent, createTextResponse(decision.message.trim()))
       this.recordProactive(sessionId)
       this.sessionCheckpoints.set(sessionId, newestId)
+      this.lastEvaluated.delete(sessionId)
       return
     }
 
-    if (decision.action === 'ignore')
+    if (decision.action === 'ignore') {
       this.sessionCheckpoints.set(sessionId, newestId)
+      this.lastEvaluated.delete(sessionId)
+      return
+    }
+
+    // action === 'wait'：不推进 checkpoint，但标记已评估
+    // 当有新消息到来时 (newestId > lastEval)，会重新评估
+    this.lastEvaluated.set(sessionId, newestId)
   }
 
   private withinProactiveQuota(sessionId: string): boolean {
