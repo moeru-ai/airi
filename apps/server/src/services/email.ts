@@ -120,7 +120,7 @@ export interface EmailService {
  * - HTML anchor styled as a button pointing to the provided URL
  */
 function buildActionButton(label: string, url: string): string {
-  return `<a href="${url}" style="display:inline-block;padding:12px 24px;background-color:#6366f1;color:#ffffff;font-family:sans-serif;font-size:14px;font-weight:600;text-decoration:none;border-radius:6px;">${label}</a>`
+  return `<a href="${url}" style="display:inline-block;padding:14px 32px;background-color:#EC92AD;color:#ffffff;font-family:'Nunito',sans-serif;font-size:15px;font-weight:700;text-decoration:none;border-radius:12px;letter-spacing:0.3px;">${label}</a>`
 }
 
 /**
@@ -140,27 +140,27 @@ function buildEmailShell(title: string, content: string): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${title}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f3f4f6;font-family:sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;padding:40px 0;">
+<body style="margin:0;padding:0;background-color:#FDF2F4;font-family:'Nunito','DM Sans',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#FDF2F4;padding:48px 0;">
     <tr>
       <td align="center">
-        <table width="560" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+        <table width="560" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(236,146,173,0.12);">
           <!-- Header -->
           <tr>
-            <td style="background-color:#6366f1;padding:24px 32px;">
-              <span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.3px;">AIRI</span>
+            <td style="background:linear-gradient(135deg,#EC92AD 0%,#F3E2E7 100%);padding:28px 32px;">
+              <span style="color:#ffffff;font-size:22px;font-weight:800;letter-spacing:0.5px;font-family:'Nunito','DM Sans',sans-serif;">AIRI</span>
             </td>
           </tr>
           <!-- Body -->
           <tr>
-            <td style="padding:32px;">
+            <td style="padding:36px 32px;">
               ${content}
             </td>
           </tr>
           <!-- Footer -->
           <tr>
-            <td style="padding:16px 32px;background-color:#f9fafb;border-top:1px solid #e5e7eb;">
-              <p style="margin:0;color:#9ca3af;font-size:12px;">
+            <td style="padding:20px 32px;background-color:#FDF2F4;border-top:1px solid #F3E2E7;">
+              <p style="margin:0;color:#b5a3a8;font-size:12px;font-family:'Nunito','DM Sans',sans-serif;">
                 This email was sent by AIRI. If you did not request this, you can safely ignore it.
               </p>
             </td>
@@ -226,13 +226,13 @@ export function createEmailService(env: Env): EmailService {
 
   function passwordResetEmail(url: string): EmailContent {
     const content = `
-      <h1 style="margin:0 0 16px;font-size:24px;font-weight:700;color:#111827;">Reset your password</h1>
-      <p style="margin:0 0 24px;color:#374151;font-size:15px;line-height:1.6;">
+      <h1 style="margin:0 0 16px;font-size:24px;font-weight:800;color:#2d2a2b;font-family:'Nunito','DM Sans',sans-serif;">Reset your password</h1>
+      <p style="margin:0 0 28px;color:#5a5456;font-size:15px;line-height:1.7;font-family:'Nunito','DM Sans',sans-serif;">
         We received a request to reset the password for your AIRI account.
         Click the button below to choose a new password.
       </p>
-      <p style="margin:0 0 24px;">${buildActionButton('Reset Password', url)}</p>
-      <p style="margin:0;color:#6b7280;font-size:13px;line-height:1.6;">
+      <p style="margin:0 0 28px;text-align:center;">${buildActionButton('Reset Password', url)}</p>
+      <p style="margin:0;color:#b5a3a8;font-size:13px;line-height:1.6;font-family:'Nunito','DM Sans',sans-serif;">
         This link expires in 1 hour. If you did not request a password reset, no action is needed.
       </p>`
     return {
@@ -243,12 +243,12 @@ export function createEmailService(env: Env): EmailService {
 
   function emailVerificationEmail(url: string): EmailContent {
     const content = `
-      <h1 style="margin:0 0 16px;font-size:24px;font-weight:700;color:#111827;">Verify your email address</h1>
-      <p style="margin:0 0 24px;color:#374151;font-size:15px;line-height:1.6;">
+      <h1 style="margin:0 0 16px;font-size:24px;font-weight:800;color:#2d2a2b;font-family:'Nunito','DM Sans',sans-serif;">Verify your email address</h1>
+      <p style="margin:0 0 28px;color:#5a5456;font-size:15px;line-height:1.7;font-family:'Nunito','DM Sans',sans-serif;">
         Thanks for signing up for AIRI! Please verify your email address to activate your account.
       </p>
-      <p style="margin:0 0 24px;">${buildActionButton('Verify Email', url)}</p>
-      <p style="margin:0;color:#6b7280;font-size:13px;line-height:1.6;">
+      <p style="margin:0 0 28px;text-align:center;">${buildActionButton('Verify Email', url)}</p>
+      <p style="margin:0;color:#b5a3a8;font-size:13px;line-height:1.6;font-family:'Nunito','DM Sans',sans-serif;">
         This link expires in 24 hours.
       </p>`
     return {
@@ -259,13 +259,13 @@ export function createEmailService(env: Env): EmailService {
 
   function changeEmailVerificationEmail(url: string): EmailContent {
     const content = `
-      <h1 style="margin:0 0 16px;font-size:24px;font-weight:700;color:#111827;">Confirm your new email address</h1>
-      <p style="margin:0 0 24px;color:#374151;font-size:15px;line-height:1.6;">
+      <h1 style="margin:0 0 16px;font-size:24px;font-weight:800;color:#2d2a2b;font-family:'Nunito','DM Sans',sans-serif;">Confirm your new email address</h1>
+      <p style="margin:0 0 28px;color:#5a5456;font-size:15px;line-height:1.7;font-family:'Nunito','DM Sans',sans-serif;">
         You recently requested to change the email address on your AIRI account.
         Click the button below to confirm your new address.
       </p>
-      <p style="margin:0 0 24px;">${buildActionButton('Confirm Email Change', url)}</p>
-      <p style="margin:0;color:#6b7280;font-size:13px;line-height:1.6;">
+      <p style="margin:0 0 28px;text-align:center;">${buildActionButton('Confirm Email Change', url)}</p>
+      <p style="margin:0;color:#b5a3a8;font-size:13px;line-height:1.6;font-family:'Nunito','DM Sans',sans-serif;">
         This link expires in 1 hour. If you did not request this change, please secure your account immediately.
       </p>`
     return {

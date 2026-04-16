@@ -81,18 +81,23 @@ async function handleRemoveAvatar() {
 </script>
 
 <template>
-  <div :class="['flex flex-col gap-6 p-6', 'border border-neutral-200 dark:border-neutral-800 rounded-xl', 'bg-white dark:bg-neutral-900']">
-    <h3 :class="['text-xl font-semibold']">
-      {{ t('settings.pages.account.profile.title') || 'Profile' }}
-    </h3>
+  <div :class="['flex flex-col gap-6 p-8', 'border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-sm', 'bg-white dark:bg-neutral-900']">
+    <div :class="['flex flex-col gap-1']">
+      <h3 :class="['text-xl font-bold text-neutral-900 dark:text-white']">
+        {{ t('settings.pages.account.profile.title') || 'Profile' }}
+      </h3>
+      <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
+        Manage your public profile details and avatar.
+      </p>
+    </div>
 
     <Callout v-if="error" theme="orange" :label="error" />
     <Callout v-if="saveSuccess" theme="lime" :label="t('settings.pages.account.profile.saveSuccess') || 'Profile saved successfully!'" />
 
-    <div :class="['flex flex-col md:flex-row gap-8 items-start']">
+    <div :class="['flex flex-col md:flex-row gap-10 items-start mt-2']">
       <!-- Avatar Section -->
-      <div :class="['flex flex-col items-center gap-4 min-w-[160px]']">
-        <div :class="['size-32 rounded-full overflow-hidden bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center border-4 border-white dark:border-neutral-900 shadow-sm']">
+      <div :class="['flex flex-col items-center gap-5 min-w-[180px]']">
+        <div :class="['size-36 rounded-full overflow-hidden bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center border-[6px] border-white dark:border-neutral-900 shadow-md transition-transform hover:scale-105 duration-300']">
           <img
             v-if="authStore.user?.image"
             :src="authStore.user.image"
@@ -101,11 +106,11 @@ async function handleRemoveAvatar() {
           >
           <div
             v-else
-            :class="['i-solar:user-circle-bold-duotone size-20 text-neutral-400']"
+            :class="['i-solar:user-circle-bold-duotone size-20 text-neutral-300 dark:text-neutral-600']"
           />
         </div>
 
-        <div :class="['flex flex-col w-full gap-2']">
+        <div :class="['flex flex-col w-full gap-3']">
           <InputFileCard
             v-model="fileInputModel"
             accept="image/png,image/jpeg,image/webp,image/gif"
@@ -113,12 +118,12 @@ async function handleRemoveAvatar() {
             @update:model-value="handleFileUpload"
           >
             <template #default="{ isDragging }">
-              <div :class="['flex flex-col items-center justify-center h-full w-full', isDragging ? 'text-primary-500' : 'text-neutral-500']">
-                <div :class="['i-solar:camera-add-bold-duotone text-2xl mb-1']" />
+              <div :class="['flex flex-col items-center justify-center py-4 w-full rounded-xl transition-colors border border-dashed', isDragging ? 'text-primary-500 border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'text-neutral-500 border-neutral-300 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800']">
+                <div :class="['i-solar:camera-add-bold-duotone text-2xl mb-1.5', isDragging ? 'text-primary-500' : 'text-neutral-400']" />
                 <span :class="['text-xs text-center font-medium']">
-                  {{ t('settings.pages.account.profile.uploadNew') || 'Upload New' }}
+                  {{ t('settings.pages.account.profile.uploadNew') || 'Upload Photo' }}
                 </span>
-                <span :class="['text-[10px] opacity-70 mt-1']">
+                <span :class="['text-[10px] opacity-60 mt-1']">
                   Max 5MB
                 </span>
               </div>
@@ -130,27 +135,34 @@ async function handleRemoveAvatar() {
             variant="danger"
             size="sm"
             block
+            :class="['rounded-xl py-2']"
             :disabled="loading"
             @click="handleRemoveAvatar"
           >
-            {{ t('settings.pages.account.profile.removeAvatar') || 'Remove avatar' }}
+            {{ t('settings.pages.account.profile.removeAvatar') || 'Remove Photo' }}
           </Button>
         </div>
       </div>
 
       <!-- Name Section -->
-      <div :class="['flex-1 flex flex-col gap-6 w-full pt-2']">
-        <FieldInput
-          v-model="name"
-          :label="t('settings.pages.account.profile.nameLabel') || 'Display Name'"
-          :placeholder="t('settings.pages.account.profile.namePlaceholder') || 'Enter your name'"
-          :disabled="loading"
-          required
-        />
+      <div :class="['flex-1 flex flex-col gap-6 w-full pt-1']">
+        <div :class="['flex flex-col gap-1']">
+          <FieldInput
+            v-model="name"
+            :label="t('settings.pages.account.profile.nameLabel') || 'Display Name'"
+            :placeholder="t('settings.pages.account.profile.namePlaceholder') || 'Enter your name'"
+            :disabled="loading"
+            required
+          />
+          <span :class="['text-xs text-neutral-500 dark:text-neutral-400 ml-1 mt-1']">
+            This is your public display name. It can be changed at any time.
+          </span>
+        </div>
 
-        <div :class="['flex justify-start']">
+        <div :class="['flex justify-start mt-2']">
           <Button
             variant="primary"
+            :class="['rounded-xl px-6 py-2 shadow-sm font-medium']"
             :loading="loading"
             :disabled="!name || name === authStore.user?.name"
             @click="saveName"

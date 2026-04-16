@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { OAuthProvider } from '../../libs/auth'
 
+import { errorMessageFrom } from '@moeru/std'
 import { Button, FieldInput } from '@proj-airi/ui'
 import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot } from 'vaul-vue'
@@ -43,7 +44,7 @@ async function handleSignIn(provider: OAuthProvider) {
     })
   }
   catch (error) {
-    toast.error(error instanceof Error ? error.message : 'An unknown error occurred')
+    toast.error(errorMessageFrom(error) ?? t('server.auth.signIn.error.unknown'))
   }
   finally {
     loading.value[provider] = false
@@ -78,7 +79,7 @@ async function handleEmailAuth() {
     window.location.href = '/'
   }
   catch (error) {
-    toast.error(error instanceof Error ? error.message : t('server.auth.signIn.error.unknown') || 'An unknown error occurred')
+    toast.error(errorMessageFrom(error) ?? t('server.auth.signIn.error.unknown'))
   }
   finally {
     emailLoading.value = false
@@ -116,25 +117,6 @@ async function handleEmailAuth() {
           </template>
 
           <template v-else>
-          <div class="flex flex-col gap-4">
-            <Button
-              v-for="provider in defaultSignInProviders"
-              :key="provider.id"
-              :class="['w-full', 'py-4', 'flex', 'items-center', 'justify-center', 'gap-3', 'text-lg', 'rounded-2xl']"
-              :icon="provider.icon"
-              :loading="loading[provider.id]"
-              @click="handleSignIn(provider.id)"
-            >
-              <span>{{ t('server.auth.signIn.withProvider', { provider: provider.name }) || `Sign in with ${provider.name}` }}</span>
-            </Button>
-          </div>
-
-          <div :class="['flex', 'items-center', 'gap-3', 'my-4']">
-            <div :class="['flex-1', 'h-px', 'bg-neutral-200', 'dark:bg-neutral-700']" />
-            <span :class="['text-xs', 'text-neutral-400']">{{ t('server.auth.signIn.or') || 'or' }}</span>
-            <div :class="['flex-1', 'h-px', 'bg-neutral-200', 'dark:bg-neutral-700']" />
-          </div>
-
           <div class="flex flex-col gap-3">
             <FieldInput
               v-if="mode === 'signup'"
@@ -163,6 +145,34 @@ async function handleEmailAuth() {
             >
               <span>{{ mode === 'signin' ? (t('server.auth.signIn.submit') || 'Sign In') : (t('server.auth.signUp.submit') || 'Sign Up') }}</span>
             </Button>
+
+            <div v-if="mode === 'signin'" :class="['text-center', 'mt-1']">
+              <router-link
+                to="/auth/forgot-password"
+                :class="['text-xs', 'text-neutral-400', 'hover:text-neutral-600', 'dark:hover:text-neutral-300', 'underline']"
+              >
+                {{ t('server.auth.signIn.forgotPassword') || 'Forgot Password?' }}
+              </router-link>
+            </div>
+
+            <div :class="['flex', 'items-center', 'gap-3', 'my-4']">
+              <div :class="['flex-1', 'h-px', 'bg-neutral-200', 'dark:bg-neutral-700']" />
+              <span :class="['text-xs', 'text-neutral-400']">{{ t('server.auth.signIn.or') || 'or' }}</span>
+              <div :class="['flex-1', 'h-px', 'bg-neutral-200', 'dark:bg-neutral-700']" />
+            </div>
+
+            <div class="flex flex-col gap-4">
+              <Button
+                v-for="provider in defaultSignInProviders"
+                :key="provider.id"
+                :class="['w-full', 'py-4', 'flex', 'items-center', 'justify-center', 'gap-3', 'text-lg', 'rounded-2xl']"
+                :icon="provider.icon"
+                :loading="loading[provider.id]"
+                @click="handleSignIn(provider.id)"
+              >
+                <span>{{ t('server.auth.signIn.withProvider', { provider: provider.name }) || `Sign in with ${provider.name}` }}</span>
+              </Button>
+            </div>
 
             <div :class="['text-center', 'text-sm', 'text-neutral-500', 'mt-1']">
               <template v-if="mode === 'signin'">

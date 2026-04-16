@@ -51,14 +51,19 @@ async function handleRequestReset() {
 </script>
 
 <template>
-  <div :class="['flex flex-col gap-6']">
+  <div :class="['flex flex-col gap-6 p-8', 'rounded-2xl border border-neutral-200 dark:border-neutral-800 shadow-sm', 'bg-white dark:bg-neutral-900']">
     <template v-if="hasCredential">
-      <div :class="['flex flex-col gap-4']">
-        <h3 :class="['text-lg font-semibold']">
-          Change Password
-        </h3>
+      <div :class="['flex flex-col gap-6']">
+        <div :class="['flex flex-col gap-1']">
+          <h3 :class="['text-xl font-bold text-neutral-900 dark:text-white']">
+            Change Password
+          </h3>
+          <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
+            Update your password associated with this account.
+          </p>
+        </div>
 
-        <form :class="['flex flex-col gap-4']" @submit.prevent="handleChangePassword">
+        <form :class="['flex flex-col gap-5 mt-2']" @submit.prevent="handleChangePassword">
           <FieldInput
             v-model="currentPwd"
             type="password"
@@ -81,40 +86,45 @@ async function handleRequestReset() {
             required
           />
 
-          <div v-if="error || localError" :class="['text-sm text-red-500 dark:text-red-400']">
+          <div v-if="error || localError" :class="['text-sm font-medium text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-950/30 p-3 rounded-lg border border-red-100 dark:border-red-900/50']">
             {{ error || localError }}
           </div>
-          <div v-if="passwordChanged" :class="['text-sm text-green-500 dark:text-green-400']">
+          <div v-if="passwordChanged" :class="['text-sm font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/30 p-3 rounded-lg border border-green-100 dark:border-green-900/50']">
             Password changed successfully.
           </div>
 
-          <div :class="['flex justify-end']">
+          <div :class="['flex justify-start mt-2']">
             <Button
               type="submit"
               variant="primary"
+              :class="['rounded-xl px-6 py-2 shadow-sm font-medium']"
               :loading="loading"
               :disabled="!currentPwd || !newPwd || !confirmPwd"
             >
-              Change Password
+              Update Password
             </Button>
           </div>
         </form>
 
-        <div :class="['mt-4 border-t border-neutral-200 pt-4 dark:border-neutral-800']">
-          <p :class="['mb-2 text-sm text-neutral-600 dark:text-neutral-400']">
-            Forgot your current password?
-          </p>
+        <div :class="['mt-4 border-t border-neutral-100 dark:border-neutral-800/80 pt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4']">
+          <div :class="['flex flex-col gap-1']">
+            <span :class="['text-sm font-semibold text-neutral-900 dark:text-white']">Forgot your password?</span>
+            <span :class="['text-sm text-neutral-500 dark:text-neutral-400']">
+              Send a password reset link to your email.
+            </span>
+          </div>
           <div :class="['flex items-center gap-4']">
             <Button
               variant="secondary"
               size="sm"
+              :class="['rounded-xl px-5 py-2 font-medium']"
               :loading="loading"
               @click="handleRequestReset"
             >
-              Send Password Reset Link
+              Reset Password
             </Button>
-            <span v-if="resetLinkSent" :class="['text-sm text-green-500 dark:text-green-400']">
-              Link sent to your email.
+            <span v-if="resetLinkSent" :class="['text-sm font-medium text-green-600 dark:text-green-400']">
+              Link sent!
             </span>
           </div>
         </div>
@@ -122,28 +132,31 @@ async function handleRequestReset() {
     </template>
 
     <template v-else>
-      <div :class="['flex flex-col gap-4']">
-        <h3 :class="['text-lg font-semibold']">
-          Set Password
-        </h3>
-        <p :class="['text-sm text-neutral-600 dark:text-neutral-400']">
-          Set a password to enable email/password login and to be able to unlink OAuth providers.
-        </p>
+      <div :class="['flex flex-col gap-5']">
+        <div :class="['flex flex-col gap-1']">
+          <h3 :class="['text-xl font-bold text-neutral-900 dark:text-white']">
+            Set Password
+          </h3>
+          <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
+            Set a password to enable email/password login and to be able to unlink social accounts.
+          </p>
+        </div>
 
-        <div v-if="error" :class="['text-sm text-red-500 dark:text-red-400']">
+        <div v-if="error" :class="['text-sm font-medium text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-950/30 p-3 rounded-lg border border-red-100 dark:border-red-900/50']">
           {{ error }}
         </div>
-        <div v-if="resetLinkSent" :class="['text-sm text-green-500 dark:text-green-400']">
-          Password setup link sent to your email.
+        <div v-if="resetLinkSent" :class="['text-sm font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/30 p-3 rounded-lg border border-green-100 dark:border-green-900/50']">
+          Password setup link sent to your email. Please check your inbox.
         </div>
 
-        <div :class="['flex']">
+        <div :class="['flex mt-2']">
           <Button
             variant="primary"
+            :class="['rounded-xl px-6 py-2 shadow-sm font-medium']"
             :loading="loading"
             @click="handleRequestReset"
           >
-            Send Password Setup Link
+            Send Setup Link
           </Button>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { LoginDrawer } from '@proj-airi/stage-ui/components/auth'
 import { useBreakpoints } from '@proj-airi/stage-ui/composables'
 import { authClient, fetchSession, signInOIDC } from '@proj-airi/stage-ui/libs/auth'
 import { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } from '@proj-airi/stage-ui/libs/auth-config'
+import { errorMessageFrom } from '@moeru/std'
 import { Button, FieldInput } from '@proj-airi/ui'
 import { onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -40,7 +41,7 @@ async function handleSignIn(provider: OAuthProvider) {
     })
   }
   catch (error) {
-    toast.error(error instanceof Error ? error.message : t('server.auth.signIn.error.unknown'))
+    toast.error(errorMessageFrom(error) ?? t('server.auth.signIn.error.unknown'))
   }
   finally {
     loading.value[provider] = false
@@ -75,7 +76,7 @@ async function handleEmailAuth() {
     router.replace('/')
   }
   catch (error) {
-    toast.error(error instanceof Error ? error.message : t('server.auth.signIn.error.unknown') || 'An unknown error occurred')
+    toast.error(errorMessageFrom(error) ?? t('server.auth.signIn.error.unknown'))
   }
   finally {
     emailLoading.value = false
@@ -131,87 +132,87 @@ watch(isDesktop, (val) => {
       </template>
 
       <template v-else>
+        <FieldInput
+          v-if="mode === 'signup'"
+          v-model="form.name"
+          type="text"
+          :placeholder="t('server.auth.signUp.name') || 'Name'"
+          :disabled="emailLoading"
+        />
+        <FieldInput
+          v-model="form.email"
+          type="email"
+          :placeholder="t('server.auth.signIn.email') || 'Email'"
+          :disabled="emailLoading"
+        />
+        <FieldInput
+          v-model="form.password"
+          type="password"
+          :placeholder="t('server.auth.signIn.password') || 'Password'"
+          :disabled="emailLoading"
+          @keydown.enter="handleEmailAuth"
+        />
+
         <Button
-        :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']"
-        icon="i-simple-icons-google"
-        :loading="loading.google"
-        @click="handleSignIn('google')"
-      >
-        <span>Google</span>
-      </Button>
-      <Button
-        :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']"
-        icon="i-simple-icons-github"
-        :loading="loading.github"
-        @click="handleSignIn('github')"
-      >
-        <span>GitHub</span>
-      </Button>
-
-      <div :class="['flex', 'items-center', 'gap-3', 'my-2']">
-        <div :class="['flex-1', 'h-px', 'bg-neutral-200', 'dark:bg-neutral-700']" />
-        <span :class="['text-xs', 'text-neutral-400']">{{ t('server.auth.signIn.or') || 'or' }}</span>
-        <div :class="['flex-1', 'h-px', 'bg-neutral-200', 'dark:bg-neutral-700']" />
-      </div>
-
-      <FieldInput
-        v-if="mode === 'signup'"
-        v-model="form.name"
-        type="text"
-        :placeholder="t('server.auth.signUp.name') || 'Name'"
-        :disabled="emailLoading"
-      />
-      <FieldInput
-        v-model="form.email"
-        type="email"
-        :placeholder="t('server.auth.signIn.email') || 'Email'"
-        :disabled="emailLoading"
-      />
-      <FieldInput
-        v-model="form.password"
-        type="password"
-        :placeholder="t('server.auth.signIn.password') || 'Password'"
-        :disabled="emailLoading"
-        @keydown.enter="handleEmailAuth"
-      />
-
-      <Button
-        :class="['w-full', 'py-2', 'mt-1']"
-        :loading="emailLoading"
-        @click="handleEmailAuth"
-      >
-        <span>{{ mode === 'signin' ? (t('server.auth.signIn.submit') || 'Sign In') : (t('server.auth.signUp.submit') || 'Sign Up') }}</span>
-      </Button>
-
-      <div v-if="mode === 'signin'" :class="['text-center', 'mt-1']">
-        <router-link
-          to="/auth/forgot-password"
-          :class="['text-xs', 'text-neutral-400', 'hover:text-neutral-600', 'dark:hover:text-neutral-300', 'underline']"
+          :class="['w-full', 'py-2', 'mt-1']"
+          :loading="emailLoading"
+          @click="handleEmailAuth"
         >
-          {{ t('server.auth.signIn.forgotPassword') || 'Forgot Password?' }}
-        </router-link>
-      </div>
+          <span>{{ mode === 'signin' ? (t('server.auth.signIn.submit') || 'Sign In') : (t('server.auth.signUp.submit') || 'Sign Up') }}</span>
+        </Button>
 
-      <div :class="['text-center', 'text-sm', 'text-neutral-500', 'mt-2']">
-        <template v-if="mode === 'signin'">
-          {{ t('server.auth.signIn.noAccount') || "Don't have an account?" }}
-          <button
-            :class="['underline', 'text-neutral-600', 'dark:text-neutral-300', 'cursor-pointer']"
-            @click="mode = 'signup'"
+        <div v-if="mode === 'signin'" :class="['text-center', 'mt-1']">
+          <router-link
+            to="/auth/forgot-password"
+            :class="['text-xs', 'text-neutral-400', 'hover:text-neutral-600', 'dark:hover:text-neutral-300', 'underline']"
           >
-            {{ t('server.auth.signIn.switchToSignUp') || 'Sign Up' }}
-          </button>
-        </template>
-        <template v-else>
-          {{ t('server.auth.signUp.hasAccount') || 'Already have an account?' }}
-          <button
-            :class="['underline', 'text-neutral-600', 'dark:text-neutral-300', 'cursor-pointer']"
-            @click="mode = 'signin'"
-          >
-            {{ t('server.auth.signUp.switchToSignIn') || 'Sign In' }}
-          </button>
-        </template>
-      </div>
+            {{ t('server.auth.signIn.forgotPassword') || 'Forgot Password?' }}
+          </router-link>
+        </div>
+
+        <div :class="['flex', 'items-center', 'gap-3', 'my-2']">
+          <div :class="['flex-1', 'h-px', 'bg-neutral-200', 'dark:bg-neutral-700']" />
+          <span :class="['text-xs', 'text-neutral-400']">{{ t('server.auth.signIn.or') || 'or' }}</span>
+          <div :class="['flex-1', 'h-px', 'bg-neutral-200', 'dark:bg-neutral-700']" />
+        </div>
+
+        <Button
+          :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']"
+          icon="i-simple-icons-google"
+          :loading="loading.google"
+          @click="handleSignIn('google')"
+        >
+          <span>Google</span>
+        </Button>
+        <Button
+          :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']"
+          icon="i-simple-icons-github"
+          :loading="loading.github"
+          @click="handleSignIn('github')"
+        >
+          <span>GitHub</span>
+        </Button>
+
+        <div :class="['text-center', 'text-sm', 'text-neutral-500', 'mt-2']">
+          <template v-if="mode === 'signin'">
+            {{ t('server.auth.signIn.noAccount') || "Don't have an account?" }}
+            <button
+              :class="['underline', 'text-neutral-600', 'dark:text-neutral-300', 'cursor-pointer']"
+              @click="mode = 'signup'"
+            >
+              {{ t('server.auth.signIn.switchToSignUp') || 'Sign Up' }}
+            </button>
+          </template>
+          <template v-else>
+            {{ t('server.auth.signUp.hasAccount') || 'Already have an account?' }}
+            <button
+              :class="['underline', 'text-neutral-600', 'dark:text-neutral-300', 'cursor-pointer']"
+              @click="mode = 'signin'"
+            >
+              {{ t('server.auth.signUp.switchToSignIn') || 'Sign In' }}
+            </button>
+          </template>
+        </div>
       </template>
     </div>
     <div class="mt-8 text-xs text-gray-400">
