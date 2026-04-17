@@ -36,6 +36,33 @@ signIn:
     fallback: Sign in failed
     unknown: An unknown error occurred
     authFailed: Authentication failed. Please try again.
+    rateLimited: Too many attempts. Please wait a moment and try again.
+    codes:
+      INVALID_EMAIL_OR_PASSWORD: Invalid email or password.
+      INVALID_EMAIL: Please enter a valid email address.
+      INVALID_PASSWORD: The password you entered is not valid.
+      INVALID_USER: We could not find an account for this request.
+      USER_NOT_FOUND: No account found with this email.
+      USER_EMAIL_NOT_FOUND: No account is associated with this email address.
+      USER_ALREADY_EXISTS: An account with this email already exists.
+      USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: This email is already in use. Please use another one.
+      EMAIL_NOT_VERIFIED: Please verify your email before signing in.
+      EMAIL_ALREADY_VERIFIED: This email has already been verified.
+      PASSWORD_TOO_SHORT: Password is too short.
+      PASSWORD_TOO_LONG: Password is too long.
+      PASSWORD_ALREADY_SET: A password is already set on this account.
+      USER_ALREADY_HAS_PASSWORD: This account already has a password set.
+      CREDENTIAL_ACCOUNT_NOT_FOUND: No password is set on this account yet.
+      ACCOUNT_NOT_FOUND: Account not found.
+      SESSION_EXPIRED: Your session has expired. Please sign in again.
+      SESSION_NOT_FRESH: For security, please sign in again before continuing.
+      INVALID_TOKEN: Invalid or expired link.
+      TOKEN_EXPIRED: This link has expired.
+      FAILED_TO_UNLINK_LAST_ACCOUNT: You cannot unlink your only sign-in method.
+      SOCIAL_ACCOUNT_ALREADY_LINKED: This account is already linked.
+      LINKED_ACCOUNT_ALREADY_EXISTS: This provider is already linked to another account.
+      MISSING_FIELD: Please fill in all required fields.
+      VALIDATION_ERROR: Some fields are invalid. Please check and try again.
   footer:
     prefix: By continuing, you agree to our
     terms: Terms

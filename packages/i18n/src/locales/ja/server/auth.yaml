@@ -28,7 +28,7 @@ signIn:
   email: メールアドレス
   password: パスワード
   submit: サインイン
-  withProvider: "{provider} でサインイン"
+  withProvider: '{provider} でサインイン'
   forgotPassword: パスワードをお忘れですか？
   noAccount: アカウントをお持ちでないですか？
   switchToSignUp: 新規登録
@@ -36,6 +36,33 @@ signIn:
     fallback: サインインに失敗しました
     unknown: 不明なエラーが発生しました
     authFailed: 認証に失敗しました。もう一度お試しください。
+    rateLimited: 試行回数が多すぎます。しばらくしてからもう一度お試しください。
+    codes:
+      INVALID_EMAIL_OR_PASSWORD: メールアドレスまたはパスワードが正しくありません。
+      INVALID_EMAIL: 有効なメールアドレスを入力してください。
+      INVALID_PASSWORD: 入力されたパスワードは無効です。
+      INVALID_USER: 該当するアカウントが見つかりません。
+      USER_NOT_FOUND: このメールアドレスのアカウントが見つかりません。
+      USER_EMAIL_NOT_FOUND: このメールアドレスに紐づくアカウントはありません。
+      USER_ALREADY_EXISTS: このメールアドレスはすでに登録されています。
+      USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: このメールアドレスは使用中です。別のものをお使いください。
+      EMAIL_NOT_VERIFIED: サインイン前にメールアドレスを確認してください。
+      EMAIL_ALREADY_VERIFIED: このメールアドレスはすでに確認済みです。
+      PASSWORD_TOO_SHORT: パスワードが短すぎます。
+      PASSWORD_TOO_LONG: パスワードが長すぎます。
+      PASSWORD_ALREADY_SET: このアカウントにはすでにパスワードが設定されています。
+      USER_ALREADY_HAS_PASSWORD: このアカウントにはすでにパスワードが設定されています。
+      CREDENTIAL_ACCOUNT_NOT_FOUND: このアカウントにはまだパスワードが設定されていません。
+      ACCOUNT_NOT_FOUND: アカウントが見つかりません。
+      SESSION_EXPIRED: セッションの有効期限が切れました。再度サインインしてください。
+      SESSION_NOT_FRESH: セキュリティのため、続行する前に再度サインインしてください。
+      INVALID_TOKEN: リンクが無効または期限切れです。
+      TOKEN_EXPIRED: このリンクは期限切れです。
+      FAILED_TO_UNLINK_LAST_ACCOUNT: 唯一のサインイン方法は解除できません。
+      SOCIAL_ACCOUNT_ALREADY_LINKED: このアカウントはすでに連携されています。
+      LINKED_ACCOUNT_ALREADY_EXISTS: このサインイン方法は別のアカウントに連携されています。
+      MISSING_FIELD: 必須項目をすべて入力してください。
+      VALIDATION_ERROR: 一部の項目が無効です。確認してから再度お試しください。
   footer:
     prefix: 続行すると、以下に同意したことになります
     terms: 利用規約

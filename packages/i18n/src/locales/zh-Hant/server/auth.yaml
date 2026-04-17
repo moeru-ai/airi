@@ -36,6 +36,33 @@ signIn:
     fallback: 登入失敗
     unknown: 發生了未知錯誤
     authFailed: 驗證失敗，請重試。
+    rateLimited: 嘗試次數過多，請稍候片刻後再試。
+    codes:
+      INVALID_EMAIL_OR_PASSWORD: 電子郵件或密碼錯誤。
+      INVALID_EMAIL: 請輸入有效的電子郵件地址。
+      INVALID_PASSWORD: 輸入的密碼無效。
+      INVALID_USER: 找不到對應的帳戶。
+      USER_NOT_FOUND: 找不到使用此電子郵件的帳戶。
+      USER_EMAIL_NOT_FOUND: 此電子郵件尚未關聯任何帳戶。
+      USER_ALREADY_EXISTS: 此電子郵件已被註冊。
+      USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: 此電子郵件已被使用，請更換其他電子郵件。
+      EMAIL_NOT_VERIFIED: 請先驗證電子郵件後再登入。
+      EMAIL_ALREADY_VERIFIED: 此電子郵件已通過驗證。
+      PASSWORD_TOO_SHORT: 密碼太短。
+      PASSWORD_TOO_LONG: 密碼太長。
+      PASSWORD_ALREADY_SET: 此帳戶已設定過密碼。
+      USER_ALREADY_HAS_PASSWORD: 此帳戶已設定密碼。
+      CREDENTIAL_ACCOUNT_NOT_FOUND: 此帳戶尚未設定密碼。
+      ACCOUNT_NOT_FOUND: 找不到帳戶。
+      SESSION_EXPIRED: 登入狀態已過期，請重新登入。
+      SESSION_NOT_FRESH: 為了帳戶安全，請重新登入後再繼續。
+      INVALID_TOKEN: 連結無效或已過期。
+      TOKEN_EXPIRED: 此連結已過期。
+      FAILED_TO_UNLINK_LAST_ACCOUNT: 無法解除您唯一的登入方式。
+      SOCIAL_ACCOUNT_ALREADY_LINKED: 此帳戶已綁定。
+      LINKED_ACCOUNT_ALREADY_EXISTS: 此登入方式已綁定到其他帳戶。
+      MISSING_FIELD: 請填寫所有必填欄位。
+      VALIDATION_ERROR: 部分欄位無效，請檢查後重試。
   footer:
     prefix: 繼續即表示您同意我們的
     terms: 服務條款

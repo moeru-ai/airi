@@ -5,7 +5,7 @@ import { LoginDrawer } from '@proj-airi/stage-ui/components/auth'
 import { useBreakpoints } from '@proj-airi/stage-ui/composables'
 import { authClient, fetchSession, signInOIDC } from '@proj-airi/stage-ui/libs/auth'
 import { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } from '@proj-airi/stage-ui/libs/auth-config'
-import { errorMessageFrom } from '@moeru/std'
+import { resolveAuthErrorMessage } from '@proj-airi/stage-ui/libs/auth-errors'
 import { Button, FieldInput } from '@proj-airi/ui'
 import { onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -41,7 +41,7 @@ async function handleSignIn(provider: OAuthProvider) {
     })
   }
   catch (error) {
-    toast.error(errorMessageFrom(error) ?? t('server.auth.signIn.error.unknown'))
+    toast.error(resolveAuthErrorMessage(error, t))
   }
   finally {
     loading.value[provider] = false
@@ -76,7 +76,7 @@ async function handleEmailAuth() {
     router.replace('/')
   }
   catch (error) {
-    toast.error(errorMessageFrom(error) ?? t('server.auth.signIn.error.unknown'))
+    toast.error(resolveAuthErrorMessage(error, t))
   }
   finally {
     emailLoading.value = false

@@ -36,6 +36,33 @@ signIn:
     fallback: Échec de la connexion
     unknown: Une erreur inconnue s'est produite
     authFailed: L'authentification a échoué. Veuillez réessayer.
+    rateLimited: Trop de tentatives. Veuillez patienter un instant avant de réessayer.
+    codes:
+      INVALID_EMAIL_OR_PASSWORD: E-mail ou mot de passe incorrect.
+      INVALID_EMAIL: Veuillez saisir une adresse e-mail valide.
+      INVALID_PASSWORD: Le mot de passe saisi n'est pas valide.
+      INVALID_USER: Aucun compte trouvé pour cette demande.
+      USER_NOT_FOUND: Aucun compte trouvé avec cet e-mail.
+      USER_EMAIL_NOT_FOUND: Aucun compte n'est associé à cette adresse e-mail.
+      USER_ALREADY_EXISTS: Un compte existe déjà avec cet e-mail.
+      USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: Cet e-mail est déjà utilisé. Veuillez en utiliser un autre.
+      EMAIL_NOT_VERIFIED: Veuillez vérifier votre e-mail avant de vous connecter.
+      EMAIL_ALREADY_VERIFIED: Cet e-mail a déjà été vérifié.
+      PASSWORD_TOO_SHORT: Le mot de passe est trop court.
+      PASSWORD_TOO_LONG: Le mot de passe est trop long.
+      PASSWORD_ALREADY_SET: Un mot de passe est déjà défini sur ce compte.
+      USER_ALREADY_HAS_PASSWORD: Ce compte a déjà un mot de passe défini.
+      CREDENTIAL_ACCOUNT_NOT_FOUND: Aucun mot de passe n'est défini sur ce compte.
+      ACCOUNT_NOT_FOUND: Compte introuvable.
+      SESSION_EXPIRED: Votre session a expiré. Veuillez vous reconnecter.
+      SESSION_NOT_FRESH: Pour des raisons de sécurité, veuillez vous reconnecter.
+      INVALID_TOKEN: Lien invalide ou expiré.
+      TOKEN_EXPIRED: Ce lien a expiré.
+      FAILED_TO_UNLINK_LAST_ACCOUNT: Vous ne pouvez pas dissocier votre seule méthode de connexion.
+      SOCIAL_ACCOUNT_ALREADY_LINKED: Ce compte est déjà lié.
+      LINKED_ACCOUNT_ALREADY_EXISTS: Ce fournisseur est déjà lié à un autre compte.
+      MISSING_FIELD: Veuillez remplir tous les champs obligatoires.
+      VALIDATION_ERROR: Certains champs ne sont pas valides. Veuillez vérifier et réessayer.
   footer:
     prefix: En continuant, vous acceptez nos
     terms: Conditions d'utilisation

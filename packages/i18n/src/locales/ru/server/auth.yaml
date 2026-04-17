@@ -36,6 +36,33 @@ signIn:
     fallback: Не удалось войти
     unknown: Произошла неизвестная ошибка
     authFailed: Аутентификация не пройдена. Пожалуйста, попробуйте снова.
+    rateLimited: Слишком много попыток. Пожалуйста, подождите немного и попробуйте снова.
+    codes:
+      INVALID_EMAIL_OR_PASSWORD: Неверный email или пароль.
+      INVALID_EMAIL: Пожалуйста, введите корректный email.
+      INVALID_PASSWORD: Введённый пароль недействителен.
+      INVALID_USER: Учётная запись для этого запроса не найдена.
+      USER_NOT_FOUND: Учётная запись с таким email не найдена.
+      USER_EMAIL_NOT_FOUND: С этим email не связана ни одна учётная запись.
+      USER_ALREADY_EXISTS: Учётная запись с таким email уже существует.
+      USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: Этот email уже используется. Пожалуйста, используйте другой.
+      EMAIL_NOT_VERIFIED: Подтвердите email перед входом.
+      EMAIL_ALREADY_VERIFIED: Этот email уже подтверждён.
+      PASSWORD_TOO_SHORT: Пароль слишком короткий.
+      PASSWORD_TOO_LONG: Пароль слишком длинный.
+      PASSWORD_ALREADY_SET: У этой учётной записи уже установлен пароль.
+      USER_ALREADY_HAS_PASSWORD: У этой учётной записи уже есть пароль.
+      CREDENTIAL_ACCOUNT_NOT_FOUND: Для этой учётной записи пароль ещё не задан.
+      ACCOUNT_NOT_FOUND: Учётная запись не найдена.
+      SESSION_EXPIRED: Срок действия сессии истёк. Пожалуйста, войдите снова.
+      SESSION_NOT_FRESH: В целях безопасности войдите снова перед продолжением.
+      INVALID_TOKEN: Ссылка недействительна или устарела.
+      TOKEN_EXPIRED: Срок действия ссылки истёк.
+      FAILED_TO_UNLINK_LAST_ACCOUNT: Невозможно отвязать единственный способ входа.
+      SOCIAL_ACCOUNT_ALREADY_LINKED: Эта учётная запись уже привязана.
+      LINKED_ACCOUNT_ALREADY_EXISTS: Этот способ входа уже привязан к другой учётной записи.
+      MISSING_FIELD: Пожалуйста, заполните все обязательные поля.
+      VALIDATION_ERROR: Некоторые поля недействительны. Проверьте и попробуйте снова.
   footer:
     prefix: Продолжая, вы соглашаетесь с нашими политиками
     terms: Условия использования

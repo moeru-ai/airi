@@ -30,12 +30,14 @@ const userAvatar = computed(() => user.value?.image ?? null)
   <div :class="['flex flex-col gap-6', 'p-4', 'max-w-4xl mx-auto w-full']">
     <template v-if="isAuthenticated">
       <!-- Welcome Header -->
-      <div :class="[
-        'flex flex-col md:flex-row items-center md:items-start gap-6',
-        'rounded-2xl p-8',
-        'bg-gradient-to-br from-primary-50 to-white dark:from-primary-950/40 dark:to-neutral-900',
-        'border border-primary-100 dark:border-primary-900/50 shadow-sm'
-      ]">
+      <div
+        :class="[
+          'flex flex-col md:flex-row items-center md:items-start gap-6',
+          'rounded-2xl p-8',
+          'bg-gradient-to-br from-primary-50 to-white dark:from-primary-950/40 dark:to-neutral-900',
+          'border border-primary-100 dark:border-primary-900/50 shadow-sm',
+        ]"
+      >
         <div :class="['size-24 rounded-full overflow-hidden', 'bg-white dark:bg-neutral-800', 'flex items-center justify-center', 'border-4 border-white dark:border-neutral-800 shadow-md']">
           <img
             v-if="userAvatar"
@@ -120,7 +122,9 @@ const userAvatar = computed(() => user.value?.image ?? null)
           <div :class="['i-solar:user-circle-bold-duotone', 'size-16 text-neutral-400 dark:text-neutral-500']" />
         </div>
         <div :class="['text-center max-w-sm']">
-          <h2 :class="['text-xl font-bold text-neutral-900 dark:text-white mb-2']">Authentication Required</h2>
+          <h2 :class="['text-xl font-bold text-neutral-900 dark:text-white mb-2']">
+            Authentication Required
+          </h2>
           <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
             {{ t('settings.pages.account.notLoggedIn') }}
           </p>

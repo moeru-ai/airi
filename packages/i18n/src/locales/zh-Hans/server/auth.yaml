@@ -36,6 +36,33 @@ signIn:
     fallback: 登录失败
     unknown: 发生了未知错误
     authFailed: 认证失败，请重试。
+    rateLimited: 尝试次数过多，请稍等片刻后再试。
+    codes:
+      INVALID_EMAIL_OR_PASSWORD: 邮箱或密码错误。
+      INVALID_EMAIL: 请输入有效的邮箱地址。
+      INVALID_PASSWORD: 输入的密码无效。
+      INVALID_USER: 找不到对应的账户。
+      USER_NOT_FOUND: 未找到使用此邮箱的账户。
+      USER_EMAIL_NOT_FOUND: 此邮箱尚未关联任何账户。
+      USER_ALREADY_EXISTS: 该邮箱已被注册。
+      USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: 该邮箱已被使用，请更换其他邮箱。
+      EMAIL_NOT_VERIFIED: 请先验证邮箱后再登录。
+      EMAIL_ALREADY_VERIFIED: 此邮箱已通过验证。
+      PASSWORD_TOO_SHORT: 密码太短。
+      PASSWORD_TOO_LONG: 密码太长。
+      PASSWORD_ALREADY_SET: 此账户已设置过密码。
+      USER_ALREADY_HAS_PASSWORD: 此账户已设置密码。
+      CREDENTIAL_ACCOUNT_NOT_FOUND: 此账户尚未设置密码。
+      ACCOUNT_NOT_FOUND: 找不到账户。
+      SESSION_EXPIRED: 登录状态已过期，请重新登录。
+      SESSION_NOT_FRESH: 为了账户安全，请重新登录后再继续。
+      INVALID_TOKEN: 链接无效或已过期。
+      TOKEN_EXPIRED: 此链接已过期。
+      FAILED_TO_UNLINK_LAST_ACCOUNT: 无法解绑唯一的登录方式。
+      SOCIAL_ACCOUNT_ALREADY_LINKED: 此账户已绑定。
+      LINKED_ACCOUNT_ALREADY_EXISTS: 此登录方式已绑定到其他账户。
+      MISSING_FIELD: 请填写所有必填项。
+      VALIDATION_ERROR: 部分字段无效，请检查后重试。
   footer:
     prefix: 继续之前，你需要同意我们的
     terms: 服务条款
