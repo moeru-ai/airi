@@ -1,0 +1,10 @@
+services:
+  qq-bot:
+    build:
+      context: ../..
+      dockerfile: services/qq-bot/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro

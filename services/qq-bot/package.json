@@ -1,0 +1,48 @@
+{
+  "name": "@proj-airi/qq-bot",
+  "type": "module",
+  "private": true,
+  "description": "QQ bot for AIRI via OneBot V11 protocol",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "contributors": [
+    {
+      "name": "Phoenix Lin",
+      "url": "https://github.com/PhoenixForrestLin"
+    }
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "services/qq-bot"
+  },
+  "scripts": {
+    "start": "tsx --env-file=.env --env-file-if-exists=.env.local src/index.ts",
+    "dev": "tsx watch --env-file=.env --env-file-if-exists=.env.local src/index.ts",
+    "build": "tsc --noEmit false --outDir dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@guiiai/logg": "catalog:",
+    "@libsql/client": "catalog:",
+    "@naplink/naplink": "~0.0.10",
+    "@proj-airi/server-sdk": "workspace:^",
+    "@proj-airi/server-shared": "workspace:^",
+    "@xsai/generate-text": "catalog:",
+    "@xsai/shared-chat": "catalog:",
+    "es-toolkit": "^1.45.1",
+    "gpt-tokenizer": "catalog:",
+    "sql.js": "catalog:",
+    "sqlite-vec": "catalog:",
+    "valibot": "catalog:",
+    "yaml": "^2.7.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.0",
+    "tsx": "^4.21.0"
+  }
+}
