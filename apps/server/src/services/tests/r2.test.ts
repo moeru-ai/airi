@@ -1,28 +1,44 @@
 import type { Env } from '../../libs/env'
 
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createR2StorageService } from '../r2'
 
 const mockSend = vi.fn().mockResolvedValue({})
 
+// NOTICE:
+// `S3Client`, `PutObjectCommand`, and `DeleteObjectCommand` are all invoked
+// with `new` in the service code, so the mocks must be real constructible
+// functions. `vi.fn(() => ...)` was previously used here and silently broke:
+// arrow functions cannot be used as constructors and `vi.fn(...)` does not
+// preserve `[[Construct]]` even for non-arrow factories — Vitest spies still
+// fail when called with `new`. Plain `function () {}` mocks attach the
+// constructor calls to a wrapping `vi.fn` so we keep call assertions while
+// remaining `new`-able.
+// Source: https://vitest.dev/api/mock.html#mockconstructor and
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/Arrow_functions#cannot_be_used_as_constructors
+// Removal condition: when the service no longer uses `new` on these classes,
+// or Vitest gains first-class constructor mocks we can use here.
+const S3ClientMock = vi.fn()
+const PutObjectCommandMock = vi.fn((input: unknown) => ({ input, _type: 'PutObjectCommand' }))
+const DeleteObjectCommandMock = vi.fn((input: unknown) => ({ input, _type: 'DeleteObjectCommand' }))
+
 vi.mock('@aws-sdk/client-s3', () => {
+  function S3Client(this: { send: typeof mockSend }, ...args: unknown[]) {
+    S3ClientMock(...args)
+    this.send = mockSend
+  }
+  function PutObjectCommand(this: Record<string, unknown>, input: unknown) {
+    Object.assign(this, PutObjectCommandMock(input))
+  }
+  function DeleteObjectCommand(this: Record<string, unknown>, input: unknown) {
+    Object.assign(this, DeleteObjectCommandMock(input))
+  }
+
   return {
-    // NOTICE:
-    // S3Client, PutObjectCommand, DeleteObjectCommand must all be mocked with 'function'
-    // (not arrow functions) because the service code calls them with `new`.
-    // Arrow functions cannot be used as constructors (TypeError: not a constructor).
-    // Removal condition: when the service no longer uses `new S3Client/PutObjectCommand/DeleteObjectCommand`.
-    S3Client: vi.fn(() => {
-      return { send: mockSend }
-    }),
-    PutObjectCommand: vi.fn((input: unknown) => {
-      return { input, _type: 'PutObjectCommand' }
-    }),
-    DeleteObjectCommand: vi.fn((input: unknown) => {
-      return { input, _type: 'DeleteObjectCommand' }
-    }),
+    S3Client,
+    PutObjectCommand,
+    DeleteObjectCommand,
   }
 })
 
@@ -41,12 +57,21 @@ describe('r2StorageService', () => {
   })
 
   describe('isAvailable', () => {
-    it('returns true when all R2 env vars are set', () => {
+    it('returns true when all R2 env vars are set (Cloudflare path via R2_ACCOUNT_ID)', () => {
       const service = createR2StorageService(FULL_ENV as Env)
       expect(service.isAvailable()).toBe(true)
     })
 
-    it('returns false when R2_ACCOUNT_ID is missing', () => {
+    it('returns true when R2_ENDPOINT is set without R2_ACCOUNT_ID (custom S3 provider)', () => {
+      const service = createR2StorageService({
+        ...FULL_ENV,
+        R2_ACCOUNT_ID: undefined,
+        R2_ENDPOINT: 'https://s3.example.com',
+      } as Env)
+      expect(service.isAvailable()).toBe(true)
+    })
+
+    it('returns false when both R2_ACCOUNT_ID and R2_ENDPOINT are missing', () => {
       const service = createR2StorageService({ ...FULL_ENV, R2_ACCOUNT_ID: undefined } as Env)
       expect(service.isAvailable()).toBe(false)
     })
@@ -95,7 +120,7 @@ describe('r2StorageService', () => {
       const body = Buffer.from('fake-image-data')
       await service.upload('avatars/user-1/123.png', body, 'image/png')
 
-      expect(PutObjectCommand).toHaveBeenCalledWith({
+      expect(PutObjectCommandMock).toHaveBeenCalledWith({
         Bucket: 'test-bucket',
         Key: 'avatars/user-1/123.png',
         Body: body,
@@ -111,13 +136,48 @@ describe('r2StorageService', () => {
       expect(url).toBe('https://cdn.example.com/avatars/user-2/456.webp')
     })
 
-    it('creates S3Client with correct endpoint and region', async () => {
+    it('creates S3Client with the Cloudflare R2 endpoint derived from R2_ACCOUNT_ID', async () => {
       const service = createR2StorageService(FULL_ENV as Env)
       await service.upload('avatars/x/y.png', Buffer.from('d'), 'image/png')
 
-      expect(S3Client).toHaveBeenCalledWith({
+      expect(S3ClientMock).toHaveBeenCalledWith({
         region: 'auto',
         endpoint: 'https://test-account.r2.cloudflarestorage.com',
+        credentials: {
+          accessKeyId: 'test-access-key',
+          secretAccessKey: 'test-secret',
+        },
+      })
+    })
+
+    it('prefers R2_ENDPOINT verbatim when set, allowing any S3-compatible provider', async () => {
+      const service = createR2StorageService({
+        ...FULL_ENV,
+        R2_ACCOUNT_ID: undefined,
+        R2_ENDPOINT: 'https://s3.us-west-001.backblazeb2.com',
+      } as Env)
+      await service.upload('avatars/x/y.png', Buffer.from('d'), 'image/png')
+
+      expect(S3ClientMock).toHaveBeenCalledWith({
+        region: 'auto',
+        endpoint: 'https://s3.us-west-001.backblazeb2.com',
+        credentials: {
+          accessKeyId: 'test-access-key',
+          secretAccessKey: 'test-secret',
+        },
+      })
+    })
+
+    it('uses R2_ENDPOINT over R2_ACCOUNT_ID when both are set', async () => {
+      const service = createR2StorageService({
+        ...FULL_ENV,
+        R2_ENDPOINT: 'https://custom.s3.local',
+      } as Env)
+      await service.upload('avatars/x/y.png', Buffer.from('d'), 'image/png')
+
+      expect(S3ClientMock).toHaveBeenCalledWith({
+        region: 'auto',
+        endpoint: 'https://custom.s3.local',
         credentials: {
           accessKeyId: 'test-access-key',
           secretAccessKey: 'test-secret',
@@ -138,7 +198,7 @@ describe('r2StorageService', () => {
       const service = createR2StorageService(FULL_ENV as Env)
       await service.deleteObject('avatars/user-1/123.png')
 
-      expect(DeleteObjectCommand).toHaveBeenCalledWith({
+      expect(DeleteObjectCommandMock).toHaveBeenCalledWith({
         Bucket: 'test-bucket',
         Key: 'avatars/user-1/123.png',
       })

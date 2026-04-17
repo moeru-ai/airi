@@ -71,6 +71,7 @@ function makeEnv(overrides: Partial<Env> = {}): Env {
     R2_SECRET_ACCESS_KEY: undefined,
     R2_BUCKET_NAME: undefined,
     R2_PUBLIC_URL: undefined,
+    R2_ENDPOINT: undefined,
     RESEND_API_KEY: undefined,
     RESEND_FROM_EMAIL: undefined,
     GATEWAY_BASE_URL: 'http://localhost:18080',

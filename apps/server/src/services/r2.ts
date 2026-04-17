@@ -3,17 +3,43 @@ import type { Env } from '../libs/env'
 import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 
 /**
- * Creates an R2 storage service backed by Cloudflare R2 (S3-compatible API).
+ * Resolves the S3-compatible endpoint URL.
  *
  * Use when:
- * - Uploading user assets (e.g. avatars) to Cloudflare R2
- * - Deleting previously uploaded assets from R2
+ * - Building the `S3Client` for upload/delete calls.
+ * - Validating availability — we still need either an explicit `R2_ENDPOINT`
+ *   or an `R2_ACCOUNT_ID` we can plug into the Cloudflare-hosted URL.
+ *
+ * Returns:
+ * - `R2_ENDPOINT` verbatim when set (full S3 endpoint URL).
+ * - `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com` when only the account
+ *   id is provided (Cloudflare R2 convenience).
+ * - `undefined` when neither is configured — caller treats that as "no
+ *   storage configured".
+ */
+function resolveEndpoint(env: Env): string | undefined {
+  if (env.R2_ENDPOINT)
+    return env.R2_ENDPOINT
+  if (env.R2_ACCOUNT_ID)
+    return `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
+  return undefined
+}
+
+/**
+ * Creates an S3-compatible storage service. Defaults to Cloudflare R2 but
+ * works with any S3-compatible backend (MinIO, B2, AWS S3, Tigris, ...) via
+ * `R2_ENDPOINT`.
+ *
+ * Use when:
+ * - Uploading user assets (e.g. avatars) to S3-compatible object storage
+ * - Deleting previously uploaded assets
  * - Deriving public CDN URLs for stored objects
  *
  * Expects:
- * - `env.R2_ACCOUNT_ID`, `env.R2_ACCESS_KEY_ID`, `env.R2_SECRET_ACCESS_KEY`,
- *   `env.R2_BUCKET_NAME`, and `env.R2_PUBLIC_URL` to be set for full operation.
- * - When any R2 env var is absent, `isAvailable()` returns false and
+ * - `env.R2_ACCESS_KEY_ID`, `env.R2_SECRET_ACCESS_KEY`, `env.R2_BUCKET_NAME`,
+ *   `env.R2_PUBLIC_URL`, and an endpoint source (either `env.R2_ENDPOINT` or
+ *   `env.R2_ACCOUNT_ID`) to be set for full operation.
+ * - When any required env var is absent, `isAvailable()` returns false and
  *   `upload()`/`deleteObject()` throw a configuration error.
  *
  * Returns:
@@ -22,6 +48,7 @@ import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client
  * Call stack:
  *
  * createR2StorageService (this file)
+ *   -> {@link resolveEndpoint}
  *   -> {@link upload} — PutObjectCommand via S3Client
  *   -> {@link deleteObject} — DeleteObjectCommand via S3Client
  *   -> {@link getPublicUrl} — pure URL concatenation
@@ -30,7 +57,7 @@ import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client
 export function createR2StorageService(env: Env) {
   function isAvailable(): boolean {
     return !!(
-      env.R2_ACCOUNT_ID
+      resolveEndpoint(env)
       && env.R2_ACCESS_KEY_ID
       && env.R2_SECRET_ACCESS_KEY
       && env.R2_BUCKET_NAME
@@ -41,7 +68,7 @@ export function createR2StorageService(env: Env) {
   function createClient(): S3Client {
     return new S3Client({
       region: 'auto',
-      endpoint: `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      endpoint: resolveEndpoint(env),
       credentials: {
         accessKeyId: env.R2_ACCESS_KEY_ID!,
         secretAccessKey: env.R2_SECRET_ACCESS_KEY!,
