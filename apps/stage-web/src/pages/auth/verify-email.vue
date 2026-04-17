@@ -12,12 +12,23 @@ const { t } = useI18n()
 const { isDesktop } = useBreakpoints()
 
 const token = route.query.token as string | undefined
+const errorCode = route.query.error as string | undefined
 
 const status = ref<'loading' | 'success' | 'error'>('loading')
 
 onMounted(async () => {
-  if (!token) {
+  // Better Auth's GET /api/auth/verify-email endpoint already verifies the
+  // token server-side (decoding the JWT, updating the user) and then redirects
+  // here. On success it redirects without any query params; on failure it
+  // redirects with `?error=<CODE>`. A `?token=` is only present if something
+  // linked directly to this page instead of going through the server endpoint.
+  if (errorCode) {
     status.value = 'error'
+    return
+  }
+
+  if (!token) {
+    status.value = 'success'
     return
   }
 
