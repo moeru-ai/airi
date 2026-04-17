@@ -110,7 +110,15 @@ watch(isDesktop, (val) => {
 </script>
 
 <template>
-  <div v-if="isDesktop" :class="['min-h-screen', 'flex', 'flex-col', 'items-center', 'justify-center', 'font-cuteen']">
+  <!--
+    Desktop and mobile show very different content (full email + OAuth form
+    vs `LoginDrawer`), so we keep two top-level branches but switch them via
+    UnoCSS responsive `hidden`/`md:hidden` instead of `v-if`. This keeps the
+    initial paint correct before `useMediaQuery` resolves on the client.
+    `useBreakpoints().isDesktop` is still used in `<script setup>` for the
+    route-side effect that redirects mobile users home.
+  -->
+  <div :class="['min-h-screen flex flex-col items-center justify-center font-cuteen', 'hidden md:flex']">
     <div class="mb-8 text-3xl font-bold">
       {{ mode === 'signin' ? t('server.auth.signIn.title') : t('server.auth.signUp.title') }}
     </div>
@@ -223,7 +231,7 @@ watch(isDesktop, (val) => {
     </div>
   </div>
 
-  <div v-else :class="['min-h-screen', 'flex', 'flex-col', 'items-center', 'justify-center', 'bg-neutral-100', 'dark:bg-neutral-950']">
+  <div :class="['min-h-screen flex flex-col items-center justify-center bg-neutral-100 dark:bg-neutral-950', 'md:hidden']">
     <div class="mb-12 flex flex-col items-center gap-4">
       <img src="../../assets/logo.svg" class="h-24 w-24 rounded-3xl shadow-lg">
       <div class="text-3xl font-bold">

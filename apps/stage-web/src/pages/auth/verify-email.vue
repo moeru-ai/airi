@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useBreakpoints } from '@proj-airi/stage-ui/composables'
 import { authClient } from '@proj-airi/stage-ui/libs/auth'
 import { Button } from '@proj-airi/ui'
 import { onMounted, ref } from 'vue'
@@ -9,7 +8,6 @@ import { useRoute, useRouter } from 'vue-router'
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
-const { isDesktop } = useBreakpoints()
 
 const token = route.query.token as string | undefined
 const errorCode = route.query.error as string | undefined
@@ -50,15 +48,28 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div :class="['min-h-screen', 'flex', 'flex-col', 'items-center', 'justify-center', isDesktop ? 'font-cuteen' : 'bg-neutral-100 dark:bg-neutral-950']">
-    <div v-if="!isDesktop" class="mb-12 flex flex-col items-center gap-4">
+  <!--
+    UnoCSS responsive (`md:` = `min-width: 768px`, the same query as
+    `useBreakpoints().isDesktop`) so the layout matches first paint without
+    waiting for `useMediaQuery` to settle on the client.
+  -->
+  <div :class="[
+    'min-h-screen flex flex-col items-center justify-center',
+    'bg-neutral-100 dark:bg-neutral-950',
+    'md:bg-transparent md:dark:bg-transparent md:font-cuteen',
+  ]">
+    <div :class="['mb-12 flex flex-col items-center gap-4', 'md:hidden']">
       <img src="../../assets/logo.svg" class="h-24 w-24 rounded-3xl shadow-lg">
       <div class="text-3xl font-bold">
         AIRI
       </div>
     </div>
 
-    <div :class="[isDesktop ? 'max-w-xs' : 'max-w-sm', 'w-full', 'flex', 'flex-col', 'gap-4', 'items-center', !isDesktop && 'bg-white dark:bg-neutral-900 p-6 rounded-2xl shadow-sm']">
+    <div :class="[
+      'w-full flex flex-col gap-4 items-center',
+      'max-w-sm bg-white dark:bg-neutral-900 p-6 rounded-2xl shadow-sm',
+      'md:max-w-xs md:bg-transparent md:dark:bg-transparent md:p-0 md:rounded-none md:shadow-none',
+    ]">
       <!-- Loading -->
       <template v-if="status === 'loading'">
         <div :class="['i-svg-spinners-ring-resize', 'text-4xl', 'text-neutral-400']" />
@@ -70,7 +81,7 @@ onMounted(async () => {
       <!-- Success -->
       <template v-else-if="status === 'success'">
         <div :class="['i-lucide-check-circle', 'text-4xl', 'text-green-500']" />
-        <div :class="['text-center', isDesktop ? 'text-3xl font-bold' : 'text-2xl font-bold']">
+        <div :class="['text-center font-bold', 'text-2xl', 'md:text-3xl']">
           {{ t('server.auth.verifyEmail.success') }}
         </div>
         <div :class="['text-center', 'text-sm', 'text-neutral-500']">
@@ -87,7 +98,7 @@ onMounted(async () => {
       <!-- Error -->
       <template v-else>
         <div :class="['i-lucide-x-circle', 'text-4xl', 'text-red-500']" />
-        <div :class="['text-center', isDesktop ? 'text-3xl font-bold' : 'text-2xl font-bold']">
+        <div :class="['text-center font-bold', 'text-2xl', 'md:text-3xl']">
           {{ t('server.auth.verifyEmail.error') }}
         </div>
         <div :class="['text-center', 'text-sm', 'text-neutral-500']">

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useBreakpoints } from '@proj-airi/stage-ui/composables'
 import { authClient } from '@proj-airi/stage-ui/libs/auth'
 import { Button, FieldInput } from '@proj-airi/ui'
 import { useIntervalFn } from '@vueuse/core'
@@ -8,7 +7,6 @@ import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
 const { t } = useI18n()
-const { isDesktop } = useBreakpoints()
 
 const email = ref('')
 const loading = ref(false)
@@ -55,16 +53,29 @@ async function handleSendResetLink() {
 </script>
 
 <template>
-  <div :class="['min-h-screen', 'flex', 'flex-col', 'items-center', 'justify-center', isDesktop ? 'font-cuteen' : 'bg-neutral-100 dark:bg-neutral-950']">
-    <div v-if="!isDesktop" class="mb-12 flex flex-col items-center gap-4">
+  <!--
+    Use UnoCSS responsive classes (`md:` = `min-width: 768px`, matching the
+    `useBreakpoints().isDesktop` query) so the layout renders correctly during
+    SSR/first paint without waiting for `useMediaQuery` to resolve client-side.
+  -->
+  <div :class="[
+    'min-h-screen flex flex-col items-center justify-center',
+    'bg-neutral-100 dark:bg-neutral-950',
+    'md:bg-transparent md:dark:bg-transparent md:font-cuteen',
+  ]">
+    <div :class="['mb-12 flex flex-col items-center gap-4', 'md:hidden']">
       <img src="../../assets/logo.svg" class="h-24 w-24 rounded-3xl shadow-lg">
       <div class="text-3xl font-bold">
         AIRI
       </div>
     </div>
 
-    <div :class="[isDesktop ? 'max-w-xs' : 'max-w-sm', 'w-full', 'flex', 'flex-col', 'gap-4', !isDesktop && 'bg-white dark:bg-neutral-900 p-6 rounded-2xl shadow-sm']">
-      <div :class="['text-center', isDesktop ? 'mb-4 text-3xl font-bold' : 'mb-2 text-2xl font-bold']">
+    <div :class="[
+      'w-full flex flex-col gap-4',
+      'max-w-sm bg-white dark:bg-neutral-900 p-6 rounded-2xl shadow-sm',
+      'md:max-w-xs md:bg-transparent md:dark:bg-transparent md:p-0 md:rounded-none md:shadow-none',
+    ]">
+      <div :class="['text-center font-bold', 'mb-2 text-2xl', 'md:mb-4 md:text-3xl']">
         {{ t('server.auth.forgotPassword.title') }}
       </div>
 
