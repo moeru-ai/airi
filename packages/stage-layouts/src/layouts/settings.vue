@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
-import { PageHeader } from '@proj-airi/stage-ui/components'
-import { LoginDrawer } from '@proj-airi/stage-ui/components/auth/index'
+import { LoginDrawer, PageHeader } from '@proj-airi/stage-ui/components'
 import { useBreakpoints } from '@proj-airi/stage-ui/composables'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
@@ -113,10 +112,8 @@ onMounted(() => updateThemeColor())
     </div>
   </div>
 
-  <Teleport to="body">
-    <LoginDrawer
-      v-if="isMobile"
-      v-model:open="needsLogin"
-    />
-  </Teleport>
+  <LoginDrawer
+    v-if="isMobile"
+    v-model:open="needsLogin"
+  />
 </template>
