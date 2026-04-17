@@ -38,6 +38,7 @@ vi.mock('@better-auth/oauth-provider', () => ({
 interface AuthConfigForTest {
   emailAndPassword?: {
     enabled?: boolean
+    requireEmailVerification?: boolean
     sendResetPassword?: (params: { user: { email: string }, url: string }) => Promise<void>
   }
   emailVerification?: {
@@ -126,6 +127,7 @@ function createEmailServiceMock() {
     passwordResetEmail,
     emailVerificationEmail,
     changeEmailVerificationEmail,
+    isAvailable,
   }
 }
 
@@ -140,6 +142,59 @@ function createAuthConfig(emailService: EmailService): AuthConfigForTest {
   }
   return createAuth(db, env, emailService, r2StorageService) as unknown as AuthConfigForTest
 }
+
+describe('createAuth requireEmailVerification gate', () => {
+  it('requires email verification only when the email service is configured', () => {
+    // @example RESEND_API_KEY is set in production → emailService.isAvailable() === true
+    const emailService = createEmailServiceMock()
+    emailService.isAvailable.mockReturnValue(true)
+    const config = createAuthConfig(emailService.service)
+
+    expect(config.emailAndPassword?.requireEmailVerification).toBe(true)
+  })
+
+  it('does NOT require email verification when the email service is unavailable, so users do not get locked out', () => {
+    // ROOT CAUSE:
+    //
+    // Hard-coding `requireEmailVerification: true` regardless of email
+    // configuration meant a self-hosted / local-dev deployment without
+    // RESEND_API_KEY would block every newly-registered email/password
+    // user — they could never receive the verification mail and therefore
+    // never finish the signup flow.
+    //
+    // Gating on `emailService.isAvailable()` keeps the strict behaviour
+    // for production while letting offline deployments still log in.
+    // @example RESEND_API_KEY is empty → emailService.isAvailable() === false
+    const emailService = createEmailServiceMock()
+    emailService.isAvailable.mockReturnValue(false)
+    const config = createAuthConfig(emailService.service)
+
+    expect(config.emailAndPassword?.requireEmailVerification).toBe(false)
+  })
+})
+
+describe('createAuth sendVerificationEmail availability guard', () => {
+  it('skips sending verification email when the email service is unavailable', async () => {
+    // Defence in depth: even if a future plugin invokes this hook directly,
+    // we must not generate a link nobody can deliver.
+    const emailService = createEmailServiceMock()
+    emailService.isAvailable.mockReturnValue(false)
+    const config = createAuthConfig(emailService.service)
+
+    const sendVerificationEmail = config.emailVerification?.sendVerificationEmail
+    expect(sendVerificationEmail).toBeTypeOf('function')
+    if (!sendVerificationEmail)
+      throw new Error('Expected emailVerification.sendVerificationEmail to be defined')
+
+    await sendVerificationEmail({
+      user: { email: 'user@example.com' },
+      url: 'https://airi.moeru.ai/verify-email?token=irrelevant',
+    })
+
+    expect(emailService.emailVerificationEmail).not.toHaveBeenCalled()
+    expect(emailService.sendEmail).not.toHaveBeenCalled()
+  })
+})
 
 describe('createAuth email hooks configuration', () => {
   it('wires sendResetPassword and sends reset email', async () => {

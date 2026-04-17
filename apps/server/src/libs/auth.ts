@@ -341,7 +341,17 @@ export function createAuth(
 
     emailAndPassword: {
       enabled: true,
-      requireEmailVerification: true,
+      // NOTICE:
+      // Gate `requireEmailVerification` on whether transactional email is
+      // actually configured. Setting it to `true` unconditionally locks
+      // every newly-registered email/password user out of their account
+      // when `RESEND_API_KEY` is not set, because the verification email
+      // never arrives. Tying it to `emailService.isAvailable()` keeps the
+      // strict behaviour for production (where Resend is wired up) but
+      // lets local/dev/self-hosted deployments without email still log in.
+      // Removal condition: if AIRI ever ships a non-Resend fallback email
+      // path, swap this for that capability check.
+      requireEmailVerification: emailService.isAvailable(),
       sendResetPassword: async ({ user, token }: { user: { email: string }, token: string }) => {
         const url = `${env.CLIENT_URL}/auth/reset-password?token=${encodeURIComponent(token)}`
         const { subject, html } = emailService.passwordResetEmail(url)
@@ -351,6 +361,15 @@ export function createAuth(
 
     emailVerification: {
       sendVerificationEmail: async ({ user, token }: { user: { email: string }, token: string }) => {
+        // NOTICE:
+        // Defence in depth alongside `requireEmailVerification` above.
+        // better-auth still calls this hook on signup even when verification
+        // is not required, and any plugin added later might call it
+        // independently. Bail out early when email is not configured so we
+        // do not generate links that nobody can deliver and do not log
+        // misleading "email failed to send" warnings.
+        if (!emailService.isAvailable())
+          return
         const url = `${env.CLIENT_URL}/auth/verify-email?token=${encodeURIComponent(token)}`
         const { subject, html } = emailService.emailVerificationEmail(url)
         void emailService.sendEmail({ to: user.email, subject, html })
