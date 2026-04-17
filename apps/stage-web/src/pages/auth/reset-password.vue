@@ -30,12 +30,12 @@ async function handleResetPassword() {
     return
 
   if (newPassword.value.length < 8) {
-    toast.error(t('server.auth.resetPassword.error.tooShort') || 'Password must be at least 8 characters')
+    toast.error(t('server.auth.resetPassword.error.tooShort'))
     return
   }
 
   if (newPassword.value !== confirmPassword.value) {
-    toast.error(t('server.auth.resetPassword.error.mismatch') || 'Passwords do not match')
+    toast.error(t('server.auth.resetPassword.error.mismatch'))
     return
   }
 
@@ -50,11 +50,11 @@ async function handleResetPassword() {
       throw error
     }
 
-    toast.success(t('server.auth.resetPassword.success') || 'Password reset successfully')
+    toast.success(t('server.auth.resetPassword.success'))
     router.push('/auth/sign-in?reset_success=1')
   }
   catch (error) {
-    toast.error(error instanceof Error ? error.message : t('server.auth.resetPassword.error.unknown') || 'Failed to reset password')
+    toast.error(error instanceof Error ? error.message : t('server.auth.resetPassword.error.unknown'))
   }
   finally {
     loading.value = false
@@ -73,18 +73,18 @@ async function handleResetPassword() {
 
     <div :class="[isDesktop ? 'max-w-xs' : 'max-w-sm', 'w-full', 'flex', 'flex-col', 'gap-4', !isDesktop && 'bg-white dark:bg-neutral-900 p-6 rounded-2xl shadow-sm']">
       <div :class="['text-center', isDesktop ? 'mb-4 text-3xl font-bold' : 'mb-2 text-2xl font-bold']">
-        {{ t('server.auth.resetPassword.title') || 'Reset Password' }}
+        {{ t('server.auth.resetPassword.title') }}
       </div>
 
       <template v-if="!hasValidToken">
         <div class="text-center text-red-500">
-          {{ t('server.auth.resetPassword.invalidToken') || 'Invalid or expired link' }}
+          {{ t('server.auth.resetPassword.invalidToken') }}
         </div>
         <Button
           :class="['w-full', 'py-2']"
           @click="router.push('/auth/forgot-password')"
         >
-          <span>{{ t('server.auth.resetPassword.backToForgot') || 'Back to Forgot Password' }}</span>
+          <span>{{ t('server.auth.resetPassword.backToForgot') }}</span>
         </Button>
       </template>
 
@@ -92,13 +92,13 @@ async function handleResetPassword() {
         <FieldInput
           v-model="newPassword"
           type="password"
-          :placeholder="t('server.auth.resetPassword.newPassword') || 'New password'"
+          :placeholder="t('server.auth.resetPassword.newPassword')"
           :disabled="loading"
         />
         <FieldInput
           v-model="confirmPassword"
           type="password"
-          :placeholder="t('server.auth.resetPassword.confirmPassword') || 'Confirm new password'"
+          :placeholder="t('server.auth.resetPassword.confirmPassword')"
           :disabled="loading"
           @keydown.enter="handleResetPassword"
         />
@@ -107,7 +107,7 @@ async function handleResetPassword() {
           :loading="loading"
           @click="handleResetPassword"
         >
-          <span>{{ t('server.auth.resetPassword.submit') || 'Reset Password' }}</span>
+          <span>{{ t('server.auth.resetPassword.submit') }}</span>
         </Button>
       </template>
     </div>

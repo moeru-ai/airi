@@ -112,22 +112,22 @@ watch(isDesktop, (val) => {
 <template>
   <div v-if="isDesktop" :class="['min-h-screen', 'flex', 'flex-col', 'items-center', 'justify-center', 'font-cuteen']">
     <div class="mb-8 text-3xl font-bold">
-      {{ mode === 'signin' ? (t('server.auth.signIn.title') || 'Sign In') : (t('server.auth.signUp.title') || 'Sign Up') }}
+      {{ mode === 'signin' ? t('server.auth.signIn.title') : t('server.auth.signUp.title') }}
     </div>
     <div :class="['max-w-xs', 'w-full', 'flex', 'flex-col', 'gap-3']">
       <template v-if="signupSuccess">
         <div :class="['i-lucide-mail-check', 'text-4xl', 'text-green-500', 'mx-auto']" />
         <div :class="['text-center', 'text-lg', 'font-semibold']">
-          {{ t('server.auth.signUp.verifyTitle') || 'Check your email' }}
+          {{ t('server.auth.signUp.verifyTitle') }}
         </div>
         <div :class="['text-center', 'text-sm', 'text-neutral-500']">
-          {{ t('server.auth.signUp.verifyDescription') || 'We sent a verification link to your email. Please verify your email before signing in.' }}
+          {{ t('server.auth.signUp.verifyDescription') }}
         </div>
         <Button
           :class="['w-full', 'py-2', 'mt-2']"
           @click="signupSuccess = false; mode = 'signin'"
         >
-          <span>{{ t('server.auth.signUp.backToSignIn') || 'Back to Sign In' }}</span>
+          <span>{{ t('server.auth.signUp.backToSignIn') }}</span>
         </Button>
       </template>
 
@@ -136,19 +136,19 @@ watch(isDesktop, (val) => {
           v-if="mode === 'signup'"
           v-model="form.name"
           type="text"
-          :placeholder="t('server.auth.signUp.name') || 'Name'"
+          :placeholder="t('server.auth.signUp.name')"
           :disabled="emailLoading"
         />
         <FieldInput
           v-model="form.email"
           type="email"
-          :placeholder="t('server.auth.signIn.email') || 'Email'"
+          :placeholder="t('server.auth.signIn.email')"
           :disabled="emailLoading"
         />
         <FieldInput
           v-model="form.password"
           type="password"
-          :placeholder="t('server.auth.signIn.password') || 'Password'"
+          :placeholder="t('server.auth.signIn.password')"
           :disabled="emailLoading"
           @keydown.enter="handleEmailAuth"
         />
@@ -158,7 +158,7 @@ watch(isDesktop, (val) => {
           :loading="emailLoading"
           @click="handleEmailAuth"
         >
-          <span>{{ mode === 'signin' ? (t('server.auth.signIn.submit') || 'Sign In') : (t('server.auth.signUp.submit') || 'Sign Up') }}</span>
+          <span>{{ mode === 'signin' ? t('server.auth.signIn.submit') : t('server.auth.signUp.submit') }}</span>
         </Button>
 
         <div v-if="mode === 'signin'" :class="['text-center', 'mt-1']">
@@ -166,13 +166,13 @@ watch(isDesktop, (val) => {
             to="/auth/forgot-password"
             :class="['text-xs', 'text-neutral-400', 'hover:text-neutral-600', 'dark:hover:text-neutral-300', 'underline']"
           >
-            {{ t('server.auth.signIn.forgotPassword') || 'Forgot Password?' }}
+            {{ t('server.auth.signIn.forgotPassword') }}
           </router-link>
         </div>
 
         <div :class="['flex', 'items-center', 'gap-3', 'my-2']">
           <div :class="['flex-1', 'h-px', 'bg-neutral-200', 'dark:bg-neutral-700']" />
-          <span :class="['text-xs', 'text-neutral-400']">{{ t('server.auth.signIn.or') || 'or' }}</span>
+          <span :class="['text-xs', 'text-neutral-400']">{{ t('server.auth.signIn.or') }}</span>
           <div :class="['flex-1', 'h-px', 'bg-neutral-200', 'dark:bg-neutral-700']" />
         </div>
 
@@ -195,21 +195,21 @@ watch(isDesktop, (val) => {
 
         <div :class="['text-center', 'text-sm', 'text-neutral-500', 'mt-2']">
           <template v-if="mode === 'signin'">
-            {{ t('server.auth.signIn.noAccount') || "Don't have an account?" }}
+            {{ t('server.auth.signIn.noAccount') }}
             <button
               :class="['underline', 'text-neutral-600', 'dark:text-neutral-300', 'cursor-pointer']"
               @click="mode = 'signup'"
             >
-              {{ t('server.auth.signIn.switchToSignUp') || 'Sign Up' }}
+              {{ t('server.auth.signIn.switchToSignUp') }}
             </button>
           </template>
           <template v-else>
-            {{ t('server.auth.signUp.hasAccount') || 'Already have an account?' }}
+            {{ t('server.auth.signUp.hasAccount') }}
             <button
               :class="['underline', 'text-neutral-600', 'dark:text-neutral-300', 'cursor-pointer']"
               @click="mode = 'signin'"
             >
-              {{ t('server.auth.signUp.switchToSignIn') || 'Sign In' }}
+              {{ t('server.auth.signUp.switchToSignIn') }}
             </button>
           </template>
         </div>

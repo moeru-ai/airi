@@ -63,7 +63,7 @@ onMounted(async () => {
       <template v-if="status === 'loading'">
         <div :class="['i-svg-spinners-ring-resize', 'text-4xl', 'text-neutral-400']" />
         <div :class="['text-center', 'text-lg', 'font-bold']">
-          {{ t('server.auth.verifyEmail.loading') || 'Verifying your email...' }}
+          {{ t('server.auth.verifyEmail.loading') }}
         </div>
       </template>
 
@@ -71,16 +71,16 @@ onMounted(async () => {
       <template v-else-if="status === 'success'">
         <div :class="['i-lucide-check-circle', 'text-4xl', 'text-green-500']" />
         <div :class="['text-center', isDesktop ? 'text-3xl font-bold' : 'text-2xl font-bold']">
-          {{ t('server.auth.verifyEmail.success') || 'Email Verified!' }}
+          {{ t('server.auth.verifyEmail.success') }}
         </div>
         <div :class="['text-center', 'text-sm', 'text-neutral-500']">
-          {{ t('server.auth.verifyEmail.successDescription') || 'Your email has been verified successfully.' }}
+          {{ t('server.auth.verifyEmail.successDescription') }}
         </div>
         <Button
           :class="['w-full', 'py-2', 'mt-2']"
           @click="router.push('/')"
         >
-          <span>{{ t('server.auth.verifyEmail.goHome') || 'Go to Home' }}</span>
+          <span>{{ t('server.auth.verifyEmail.goHome') }}</span>
         </Button>
       </template>
 
@@ -88,16 +88,16 @@ onMounted(async () => {
       <template v-else>
         <div :class="['i-lucide-x-circle', 'text-4xl', 'text-red-500']" />
         <div :class="['text-center', isDesktop ? 'text-3xl font-bold' : 'text-2xl font-bold']">
-          {{ t('server.auth.verifyEmail.error') || 'Verification Failed' }}
+          {{ t('server.auth.verifyEmail.error') }}
         </div>
         <div :class="['text-center', 'text-sm', 'text-neutral-500']">
-          {{ t('server.auth.verifyEmail.errorDescription') || 'The verification link is invalid or has expired.' }}
+          {{ t('server.auth.verifyEmail.errorDescription') }}
         </div>
         <Button
           :class="['w-full', 'py-2', 'mt-2']"
           @click="router.push('/auth/sign-in')"
         >
-          <span>{{ t('server.auth.verifyEmail.backToSignIn') || 'Back to Sign In' }}</span>
+          <span>{{ t('server.auth.verifyEmail.backToSignIn') }}</span>
         </Button>
       </template>
     </div>

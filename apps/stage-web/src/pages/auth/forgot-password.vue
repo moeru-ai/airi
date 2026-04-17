@@ -26,7 +26,7 @@ const { pause, resume } = useIntervalFn(() => {
 
 async function handleSendResetLink() {
   if (!email.value) {
-    toast.error(t('server.auth.forgotPassword.error.emptyEmail') || 'Please enter your email address')
+    toast.error(t('server.auth.forgotPassword.error.emptyEmail'))
     return
   }
 
@@ -65,17 +65,17 @@ async function handleSendResetLink() {
 
     <div :class="[isDesktop ? 'max-w-xs' : 'max-w-sm', 'w-full', 'flex', 'flex-col', 'gap-4', !isDesktop && 'bg-white dark:bg-neutral-900 p-6 rounded-2xl shadow-sm']">
       <div :class="['text-center', isDesktop ? 'mb-4 text-3xl font-bold' : 'mb-2 text-2xl font-bold']">
-        {{ t('server.auth.forgotPassword.title') || 'Forgot Password' }}
+        {{ t('server.auth.forgotPassword.title') }}
       </div>
 
       <template v-if="!sent">
         <div :class="['text-center', 'text-sm', 'text-neutral-500']">
-          {{ t('server.auth.forgotPassword.description') || 'Enter your email and we\'ll send you a reset link.' }}
+          {{ t('server.auth.forgotPassword.description') }}
         </div>
         <FieldInput
           v-model="email"
           type="email"
-          :placeholder="t('server.auth.forgotPassword.email') || 'Email'"
+          :placeholder="t('server.auth.forgotPassword.email')"
           :disabled="loading"
           @keydown.enter="handleSendResetLink"
         />
@@ -84,13 +84,13 @@ async function handleSendResetLink() {
           :loading="loading"
           @click="handleSendResetLink"
         >
-          <span>{{ t('server.auth.forgotPassword.submit') || 'Send Reset Link' }}</span>
+          <span>{{ t('server.auth.forgotPassword.submit') }}</span>
         </Button>
       </template>
 
       <template v-else>
         <div :class="['text-center', 'text-sm', 'text-neutral-500']">
-          {{ t('server.auth.forgotPassword.sent') || 'If an account with that email exists, a reset link has been sent.' }}
+          {{ t('server.auth.forgotPassword.sent') }}
         </div>
         <Button
           :class="['w-full', 'py-2', 'mt-2']"
@@ -100,8 +100,8 @@ async function handleSendResetLink() {
         >
           <span>
             {{ countdown > 0
-              ? `${t('server.auth.forgotPassword.resend') || 'Resend'} (${countdown}s)`
-              : (t('server.auth.forgotPassword.resend') || 'Resend')
+              ? `${t('server.auth.forgotPassword.resend')} (${countdown}s)`
+              : t('server.auth.forgotPassword.resend')
             }}
           </span>
         </Button>
@@ -112,7 +112,7 @@ async function handleSendResetLink() {
           to="/auth/sign-in"
           :class="['text-sm', 'text-neutral-400', 'hover:text-neutral-600', 'dark:hover:text-neutral-300', 'underline']"
         >
-          {{ t('server.auth.forgotPassword.backToSignIn') || 'Back to Sign In' }}
+          {{ t('server.auth.forgotPassword.backToSignIn') }}
         </router-link>
       </div>
     </div>
