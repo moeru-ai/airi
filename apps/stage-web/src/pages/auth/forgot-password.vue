@@ -34,7 +34,6 @@ async function handleSendResetLink() {
   try {
     const { error } = await authClient.requestPasswordReset({
       email: email.value,
-      redirectTo: `${window.location.origin}/auth/reset-password`,
     })
 
     if (error) {

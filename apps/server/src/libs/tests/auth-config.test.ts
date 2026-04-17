@@ -61,6 +61,7 @@ function makeEnv(overrides: Partial<Env> = {}): Env {
     HOST: '0.0.0.0',
     PORT: 3000,
     API_SERVER_URL: 'http://localhost:3000',
+    CLIENT_URL: 'http://localhost:5173',
     DATABASE_URL: 'postgres://localhost/test',
     REDIS_URL: 'redis://localhost:6379',
     BETTER_AUTH_SECRET: 'test-secret',

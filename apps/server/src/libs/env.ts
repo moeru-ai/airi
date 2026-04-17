@@ -40,6 +40,12 @@ const EnvSchema = object({
 
   API_SERVER_URL: optional(string(), 'http://localhost:3000'),
 
+  // Origin of the web/tamagotchi client. Used by the server to generate
+  // absolute links in transactional emails (password reset, email verification,
+  // change-email confirmation), so the frontend never has to supply URLs
+  // and cannot be tricked into pointing reset links at attacker-controlled hosts.
+  CLIENT_URL: optional(string(), 'http://localhost:5173'),
+
   DATABASE_URL: pipe(string(), nonEmpty('DATABASE_URL is required')),
   REDIS_URL: pipe(string(), nonEmpty('REDIS_URL is required')),
 

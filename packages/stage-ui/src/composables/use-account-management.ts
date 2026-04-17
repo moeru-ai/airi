@@ -244,7 +244,6 @@ export function useAccountManagement() {
 
       const { error: err } = await authClient.requestPasswordReset({
         email,
-        redirectTo: `${window.location.origin}/auth/reset-password`,
       })
       if (err) {
         throw new Error(err.message ?? 'Failed to request password reset')
@@ -260,7 +259,6 @@ export function useAccountManagement() {
     await withLoading(async () => {
       const { error: err } = await authClient.changeEmail({
         newEmail,
-        callbackURL: `${window.location.origin}/auth/verify-email`,
       })
       if (err) {
         throw new Error(err.message ?? 'Failed to change email')

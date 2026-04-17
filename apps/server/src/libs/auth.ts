@@ -341,14 +341,16 @@ export function createAuth(
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,
-      sendResetPassword: async ({ user, url }: { user: { email: string }, url: string }) => {
+      sendResetPassword: async ({ user, token }: { user: { email: string }, token: string }) => {
+        const url = `${env.CLIENT_URL}/auth/reset-password?token=${encodeURIComponent(token)}`
         const { subject, html } = emailService.passwordResetEmail(url)
         void emailService.sendEmail({ to: user.email, subject, html })
       },
     },
 
     emailVerification: {
-      sendVerificationEmail: async ({ user, url }: { user: { email: string }, url: string }) => {
+      sendVerificationEmail: async ({ user, token }: { user: { email: string }, token: string }) => {
+        const url = `${env.CLIENT_URL}/auth/verify-email?token=${encodeURIComponent(token)}`
         const { subject, html } = emailService.emailVerificationEmail(url)
         void emailService.sendEmail({ to: user.email, subject, html })
       },
@@ -357,7 +359,8 @@ export function createAuth(
     user: {
       changeEmail: {
         enabled: true,
-        sendChangeEmailVerification: async ({ newEmail, url }: { user: { email: string }, newEmail: string, url: string }) => {
+        sendChangeEmailVerification: async ({ newEmail, token }: { user: { email: string }, newEmail: string, token: string }) => {
+          const url = `${env.CLIENT_URL}/auth/verify-email?token=${encodeURIComponent(token)}`
           const { subject, html } = emailService.changeEmailVerificationEmail(url)
           void emailService.sendEmail({ to: newEmail, subject, html })
         },
