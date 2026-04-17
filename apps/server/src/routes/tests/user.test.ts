@@ -183,7 +183,11 @@ describe('userRoutes', () => {
       expect(res.status).toBe(401)
     })
 
-    it('should soft-delete account and revoke sessions', async () => {
+    it('should soft-delete account and revoke sessions and oauth issued tokens atomically', async () => {
+      // Insert a session plus a full OAuth token chain to prove the
+      // transactional cleanup wipes every issued token tied to this user.
+      // Otherwise external apps could still mint access tokens on behalf of
+      // the soft-deleted user via /oauth/token.
       await db.insert(schema.session).values({
         id: 'session-1',
         token: 'token-abc',
@@ -191,6 +195,29 @@ describe('userRoutes', () => {
         expiresAt: new Date(Date.now() + 86400000),
         updatedAt: new Date(),
       }).returning()
+
+      await db.insert(schema.oauthClient).values({
+        id: 'oauth-client-1',
+        clientId: 'oauth-client-1',
+        redirectUris: ['http://localhost/cb'],
+      })
+
+      await db.insert(schema.oauthRefreshToken).values({
+        id: 'refresh-1',
+        token: 'rt-abc',
+        clientId: 'oauth-client-1',
+        userId: testUser.id,
+        scopes: ['openid'],
+      })
+
+      await db.insert(schema.oauthAccessToken).values({
+        id: 'access-1',
+        token: 'at-abc',
+        clientId: 'oauth-client-1',
+        userId: testUser.id,
+        refreshId: 'refresh-1',
+        scopes: ['openid'],
+      })
 
       const res = await app.fetch(
         new Request('http://localhost/delete', { method: 'POST' }),
@@ -211,6 +238,18 @@ describe('userRoutes', () => {
         .from(schema.session)
         .where(eq(schema.session.userId, testUser.id))
       expect(remainingSessions).toHaveLength(0)
+
+      const remainingAccess = await db
+        .select()
+        .from(schema.oauthAccessToken)
+        .where(eq(schema.oauthAccessToken.userId, testUser.id))
+      expect(remainingAccess).toHaveLength(0)
+
+      const remainingRefresh = await db
+        .select()
+        .from(schema.oauthRefreshToken)
+        .where(eq(schema.oauthRefreshToken.userId, testUser.id))
+      expect(remainingRefresh).toHaveLength(0)
     })
   })
 })

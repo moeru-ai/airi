@@ -7,7 +7,7 @@ import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 
 import { authGuard } from '../../middlewares/auth'
-import { session, user } from '../../schemas/accounts'
+import { oauthAccessToken, oauthRefreshToken, session, user } from '../../schemas/accounts'
 import { createBadRequestError, createServiceUnavailableError } from '../../utils/error'
 import { gravatarUrl } from '../../utils/gravatar'
 import { ALLOWED_AVATAR_MIME_TYPES, MAX_AVATAR_SIZE, MIME_TO_EXT } from './schema'
@@ -23,8 +23,9 @@ import { ALLOWED_AVATAR_MIME_TYPES, MAX_AVATAR_SIZE, MIME_TO_EXT } from './schem
  * buildApp (../../app.ts)
  *   -> {@link createUserRoutes}
  *     -> POST /avatar — upload avatar to R2, update DB
- *     -> DELETE /avatar — reset to identicon
- *     -> POST /delete — soft-delete account, revoke sessions
+ *     -> DELETE /avatar — reset to Gravatar
+ *     -> POST /delete — soft-delete account in a single transaction
+ *                       (user.deletedAt + session + oauth issued tokens)
  */
 export function createUserRoutes(deps: {
   r2StorageService: R2StorageService
@@ -140,14 +141,39 @@ export function createUserRoutes(deps: {
     .post('/delete', async (c) => {
       const authUser = c.get('user')!
 
-      await deps.db
-        .update(user)
-        .set({ deletedAt: new Date() })
-        .where(eq(user.id, authUser.id))
+      // NOTICE:
+      // Soft-delete must be atomic across `user.deletedAt`, `session`, and the
+      // OAuth issued-token tables. If we mark the account deleted but leave a
+      // refresh token alive, an external relying party can still mint a new
+      // access token via /oauth/token and pretend to be the deleted user.
+      // Root cause: previous implementation issued three sequential statements
+      // outside of a transaction, so a crash between steps could leave any
+      // subset of these tables in a half-deleted state.
+      // Removal condition: never — this is a security invariant.
+      await deps.db.transaction(async (tx) => {
+        await tx
+          .update(user)
+          .set({ deletedAt: new Date() })
+          .where(eq(user.id, authUser.id))
 
-      await deps.db
-        .delete(session)
-        .where(eq(session.userId, authUser.id))
+        await tx
+          .delete(session)
+          .where(eq(session.userId, authUser.id))
+
+        // Revoke OAuth tokens issued *to other apps on this user's behalf*
+        // (Better Auth's OIDC provider plugin). The `account` table — which
+        // stores tokens we *received from* upstream IdPs (Google/GitHub) —
+        // cascades automatically via FK `onDelete: 'cascade'`, but only when
+        // the user row is hard-deleted. Soft-delete keeps the row, so we must
+        // explicitly clear issued tokens here.
+        await tx
+          .delete(oauthAccessToken)
+          .where(eq(oauthAccessToken.userId, authUser.id))
+
+        await tx
+          .delete(oauthRefreshToken)
+          .where(eq(oauthRefreshToken.userId, authUser.id))
+      })
 
       return c.json({ success: true })
     })
