@@ -43,7 +43,9 @@ function makeEnv(overrides: Partial<Env> = {}): Env {
     R2_PUBLIC_URL: undefined,
     R2_ENDPOINT: undefined,
     RESEND_API_KEY: undefined,
-    RESEND_FROM_EMAIL: undefined,
+    // Mirrors the schema default in `apps/server/src/libs/env.ts` so tests
+    // exercise the same `from` address production code receives after parsing.
+    RESEND_FROM_EMAIL: 'noreply@airi.moeru.ai',
     GATEWAY_BASE_URL: 'http://localhost:18080',
     DEFAULT_CHAT_MODEL: 'openai/gpt-5-mini',
     DEFAULT_TTS_MODEL: 'microsoft/v1',
@@ -106,7 +108,10 @@ describe('createEmailService', () => {
       })
     })
 
-    it('uses default from address when RESEND_FROM_EMAIL is not set', async () => {
+    it('uses the schema-default from address when RESEND_FROM_EMAIL is not overridden', async () => {
+      // The default `noreply@airi.moeru.ai` is provided by `EnvSchema` (see env.ts).
+      // `email.ts` no longer carries its own `?? 'noreply@...'` fallback, so this
+      // test pins the contract that the default flows through the env parser.
       mockSend.mockResolvedValueOnce({ data: { id: 'email-id' }, error: null })
       const service = createEmailService(makeEnv({ RESEND_API_KEY: 're_test_key' }))
 

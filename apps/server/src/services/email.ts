@@ -181,7 +181,8 @@ function buildEmailShell(title: string, content: string): string {
  *
  * Expects:
  * - `env.RESEND_API_KEY` — when absent, `sendEmail` logs a warning and no-ops silently
- * - `env.RESEND_FROM_EMAIL` — optional custom sender; falls back to `noreply@airi.moeru.ai`
+ * - `env.RESEND_FROM_EMAIL` — sender address; the env schema guarantees a default
+ *   of `noreply@airi.moeru.ai`, so this is always populated
  *
  * Returns:
  * - `EmailService` — factory object; no class instantiation
@@ -194,7 +195,9 @@ function buildEmailShell(title: string, content: string): string {
  */
 export function createEmailService(env: Env): EmailService {
   const logger = useLogger('email-service')
-  const from = env.RESEND_FROM_EMAIL ?? 'noreply@airi.moeru.ai'
+  // Default lives in `EnvSchema` (`RESEND_FROM_EMAIL: optional(string(), 'noreply@airi.moeru.ai')`),
+  // so we trust the parsed env here instead of re-defaulting on every send.
+  const from = env.RESEND_FROM_EMAIL
 
   // Lazily instantiate Resend only when the API key is available.
   // We capture it here so `sendEmail` does not re-read env on every call.

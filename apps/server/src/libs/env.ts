@@ -75,9 +75,12 @@ const EnvSchema = object({
   R2_ENDPOINT: optional(string()),
 
   // Resend transactional email (password reset, email change, etc.).
-  // Both optional — email features degrade gracefully when not configured.
+  // RESEND_API_KEY is optional — when absent, email features degrade gracefully
+  // (verification gate disabled, password reset returns success without sending).
+  // RESEND_FROM_EMAIL has a sensible default so operators only need to override
+  // when they want a custom branded sender.
   RESEND_API_KEY: optional(string()),
-  RESEND_FROM_EMAIL: optional(string()),
+  RESEND_FROM_EMAIL: optional(string(), 'noreply@airi.moeru.ai'),
 
   // LLM gateway (infrastructure config — baked per deployment)
   GATEWAY_BASE_URL: pipe(string(), nonEmpty('GATEWAY_BASE_URL is required')),

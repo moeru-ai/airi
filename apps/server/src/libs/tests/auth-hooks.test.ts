@@ -79,7 +79,7 @@ function makeEnv(overrides: Partial<Env> = {}): Env {
     R2_PUBLIC_URL: undefined,
     R2_ENDPOINT: undefined,
     RESEND_API_KEY: undefined,
-    RESEND_FROM_EMAIL: undefined,
+    RESEND_FROM_EMAIL: 'noreply@airi.moeru.ai',
     GATEWAY_BASE_URL: 'http://localhost:18080',
     DEFAULT_CHAT_MODEL: 'openai/gpt-5-mini',
     DEFAULT_TTS_MODEL: 'microsoft/v1',
