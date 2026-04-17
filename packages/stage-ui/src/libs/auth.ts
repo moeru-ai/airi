@@ -1,7 +1,9 @@
 import type { OIDCFlowParams, TokenResponse } from './auth-oidc'
 
 import { createAuthClient } from 'better-auth/vue'
+import { watch } from 'vue'
 
+import { resetAccountManagementState } from '../composables/use-account-management'
 import { useAuthStore } from '../stores/auth'
 import { buildAuthorizationURL, persistFlowState } from './auth-oidc'
 import { SERVER_URL } from './server'
@@ -86,6 +88,23 @@ export async function initializeAuth() {
 
   await authStore.restoreRefreshSchedule()
   await fetchSession().catch(() => {})
+
+  // NOTICE:
+  // The account-management composable holds module-scoped shared refs
+  // (accounts list, loading, error) that survive sign-out and account
+  // switches. Without this watcher, the next user to sign in would briefly
+  // see the previous user's linked providers, password state, etc. We watch
+  // the persisted user id and reset on every change (including null →
+  // populated and populated → null).
+  // Removal condition: if the composable is rewritten to scope its state
+  // per-component, this wiring becomes redundant.
+  watch(
+    () => authStore.user?.id ?? null,
+    (next, prev) => {
+      if (next !== prev)
+        resetAccountManagementState()
+    },
+  )
 }
 
 /**
@@ -138,6 +157,11 @@ export async function signOut() {
   }
 
   authStore.clearAllAuthState()
+  // The auth-store user id watcher in `initializeAuth` will also pick this
+  // up, but resetting eagerly here avoids a one-tick window where the next
+  // sign-in's UI could render stale providers/password state from the
+  // outgoing user.
+  resetAccountManagementState()
 }
 
 /**

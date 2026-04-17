@@ -27,7 +27,7 @@ vi.mock('../libs/server', () => ({
   SERVER_URL: 'http://localhost:3000',
 }))
 
-const { useAccountManagement } = await import('./use-account-management')
+const { useAccountManagement, resetAccountManagementState } = await import('./use-account-management')
 
 /**
  * Build a minimal Better-Auth `Account` shape for tests.
@@ -121,5 +121,36 @@ describe('useAccountManagement.unlinkProvider', () => {
 
     expect(result).toEqual({ needsPassword: true })
     expect(unlinkAccount).not.toHaveBeenCalled()
+  })
+})
+
+describe('resetAccountManagementState', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('Issue #1674: clears module-scoped accounts/loading/error so a new sign-in starts clean', () => {
+    // ROOT CAUSE:
+    //
+    // sharedAccounts/sharedLoading/sharedError live at module scope so all
+    // consumers of `useAccountManagement` see the same list. Without an
+    // explicit reset, those refs survived sign-out and account switches —
+    // the next user briefly saw the previous user's linked providers and
+    // password state in the settings UI.
+    //
+    // We fixed this by exposing `resetAccountManagementState` and calling
+    // it from the auth layer on sign-out and on user-id changes.
+    //
+    // Reference: PR #1674 review comment by Rainbowbird.
+    const { accounts, loading, error } = useAccountManagement()
+    accounts.value = [fakeAccount('google'), fakeAccount('github')]
+    loading.value = true
+    error.value = 'previous-failure'
+
+    resetAccountManagementState()
+
+    expect(accounts.value).toEqual([])
+    expect(loading.value).toBe(false)
+    expect(error.value).toBeNull()
   })
 })

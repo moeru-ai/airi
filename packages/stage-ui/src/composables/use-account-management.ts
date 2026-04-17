@@ -74,9 +74,36 @@ function createWithLoading(loading: ReturnType<typeof ref<boolean>>, error: Retu
 // actually called `loadAccounts()` (linked-accounts-section) saw the list —
 // `password-section` kept `hasCredential = false` forever and always rendered
 // "Set Password" even after a password had been set.
+//
+// Because the state is module-scoped, it survives sign-out and account
+// switches. We expose `resetAccountManagementState()` so the auth layer
+// can wipe these refs whenever the active identity changes.
 const sharedLoading = ref(false)
 const sharedError = ref<string | null>(null)
 const sharedAccounts = ref<Account[]>([])
+
+/**
+ * Clear the module-scoped account management state.
+ *
+ * Use when:
+ * - The user signs out (so the next sign-in does not see the previous
+ *   account's `accounts` list).
+ * - The active user id changes (account switching), which would otherwise
+ *   render the prior user's linked providers in the new session's UI.
+ *
+ * Expects:
+ * - Caller decides when to invoke this; the composable itself does not
+ *   subscribe to the auth store to avoid forcing a Pinia dependency on
+ *   every consumer. See `libs/auth.ts` for the wiring point.
+ *
+ * Returns:
+ * - Nothing. Resets `accounts` to `[]`, `loading` to `false`, `error` to `null`.
+ */
+export function resetAccountManagementState(): void {
+  sharedAccounts.value = []
+  sharedLoading.value = false
+  sharedError.value = null
+}
 
 export function useAccountManagement() {
   const loading = sharedLoading
