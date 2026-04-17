@@ -826,7 +826,7 @@ pages:
         title: MiniMax Global
       minimax-speech:
         description: minimax.io
-        title: MiniMax 语音合成
+        title: MiniMax Speech
       mistral:
         description: mistral.ai
         title: Mistral
