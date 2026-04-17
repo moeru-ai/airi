@@ -27,7 +27,8 @@ vi.mock('../libs/server', () => ({
   SERVER_URL: 'http://localhost:3000',
 }))
 
-const { useAccountManagement, resetAccountManagementState } = await import('./use-account-management')
+const { useAccountManagement } = await import('./use-account-management')
+const { resetAccountManagementState } = await import('./use-account-management-state')
 
 /**
  * Build a minimal Better-Auth `Account` shape for tests.
