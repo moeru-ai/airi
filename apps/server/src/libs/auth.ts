@@ -1,5 +1,5 @@
 import type { EmailService } from '../services/email'
-import type { R2StorageService } from '../services/r2'
+import type { S3StorageService } from '../services/s3'
 import type { Database } from './db'
 import type { Env } from './env'
 import type { AuthMetrics } from './otel'
@@ -305,7 +305,7 @@ export function createAuth(
   db: Database,
   env: Env,
   emailService: EmailService,
-  r2StorageService: R2StorageService,
+  s3StorageService: S3StorageService,
   metrics?: AuthMetrics | null,
 ) {
   return betterAuth({
@@ -482,7 +482,7 @@ export function createAuth(
             void (async () => {
               try {
                 // Users without an OAuth-provided image get a Gravatar URL
-                // assigned directly. No R2 dependency needed because Gravatar
+                // assigned directly. No S3 dependency needed because Gravatar
                 // serves the image and gracefully falls back to the
                 // `?d=identicon` default for emails without a profile.
                 if (!user.image) {
@@ -492,10 +492,10 @@ export function createAuth(
                   return
                 }
 
-                // OAuth-provided avatars: mirror to R2 when configured so we
+                // OAuth-provided avatars: mirror to S3 when configured so we
                 // do not depend on the provider's CDN long-term. Skip the
-                // mirror when R2 is unavailable; the OAuth URL stays in DB.
-                if (!r2StorageService.isAvailable())
+                // mirror when S3 is unavailable; the OAuth URL stays in DB.
+                if (!s3StorageService.isAvailable())
                   return
 
                 // NOTICE:
@@ -514,7 +514,7 @@ export function createAuth(
                 const contentType = response.headers.get('content-type') ?? 'image/jpeg'
                 const ext = contentType.split('/')[1]?.replace('jpeg', 'jpg') ?? 'png'
                 const key = `avatars/${user.id}/${Date.now()}.${ext}`
-                const publicUrl = await r2StorageService.upload(key, buffer, contentType)
+                const publicUrl = await s3StorageService.upload(key, buffer, contentType)
 
                 await db.update(userTable)
                   .set({ image: publicUrl })

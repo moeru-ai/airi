@@ -1,5 +1,5 @@
 import type { Database } from '../../libs/db'
-import type { R2StorageService } from '../../services/r2'
+import type { S3StorageService } from '../../services/s3'
 import type { HonoEnv } from '../../types/hono'
 
 import { createHash } from 'node:crypto'
@@ -14,11 +14,11 @@ import { createUserRoutes } from '../user'
 
 import * as schema from '../../schemas'
 
-function createMockR2Service(): R2StorageService {
+function createMockS3Service(): S3StorageService {
   return {
-    upload: vi.fn().mockResolvedValue('https://r2.example.com/avatars/user-1/123.png'),
+    upload: vi.fn().mockResolvedValue('https://s3.example.com/avatars/user-1/123.png'),
     deleteObject: vi.fn().mockResolvedValue(undefined),
-    getPublicUrl: vi.fn((key: string) => `https://r2.example.com/${key}`),
+    getPublicUrl: vi.fn((key: string) => `https://s3.example.com/${key}`),
     isAvailable: vi.fn().mockReturnValue(true),
   }
 }
@@ -34,7 +34,7 @@ function createTestFile(
 
 describe('userRoutes', () => {
   let db: Database
-  let r2: R2StorageService
+  let s3: S3StorageService
   let app: Hono<HonoEnv>
   let testUser: typeof schema.user.$inferSelect
 
@@ -50,9 +50,9 @@ describe('userRoutes', () => {
   })
 
   beforeEach(() => {
-    r2 = createMockR2Service()
+    s3 = createMockS3Service()
 
-    const routes = createUserRoutes({ r2StorageService: r2, db })
+    const routes = createUserRoutes({ s3StorageService: s3, db })
     app = new Hono<HonoEnv>()
 
     app.onError((err, c) => {
@@ -130,10 +130,10 @@ describe('userRoutes', () => {
       )
       expect(res.status).toBe(200)
       const body = await res.json() as { url: string }
-      expect(body.url).toBe('https://r2.example.com/avatars/user-1/123.png')
-      expect(r2.upload).toHaveBeenCalledOnce()
+      expect(body.url).toBe('https://s3.example.com/avatars/user-1/123.png')
+      expect(s3.upload).toHaveBeenCalledOnce()
 
-      const uploadCall = vi.mocked(r2.upload).mock.calls[0]
+      const uploadCall = vi.mocked(s3.upload).mock.calls[0]
       expect(uploadCall[0]).toMatch(/^avatars\/user-1\/\d+\.png$/)
       expect(uploadCall[2]).toBe('image/png')
     })
@@ -148,7 +148,7 @@ describe('userRoutes', () => {
       )
       expect(res.status).toBe(200)
 
-      const uploadCall = vi.mocked(r2.upload).mock.calls[0]
+      const uploadCall = vi.mocked(s3.upload).mock.calls[0]
       expect(uploadCall[0]).toMatch(/\.jpg$/)
     })
   })
@@ -159,7 +159,7 @@ describe('userRoutes', () => {
       expect(res.status).toBe(401)
     })
 
-    it('should reset avatar to a Gravatar URL keyed off the user email and skip R2 upload', async () => {
+    it('should reset avatar to a Gravatar URL keyed off the user email and skip S3 upload', async () => {
       const res = await app.fetch(
         new Request('http://localhost/avatar', { method: 'DELETE' }),
         { user: testUser } as Record<string, unknown>,
@@ -172,8 +172,8 @@ describe('userRoutes', () => {
       expect(body.url).toBe(expectedUrl)
 
       // Gravatar replaces the identicon flow — DELETE /avatar must not push
-      // an identicon PNG to R2 anymore.
-      expect(r2.upload).not.toHaveBeenCalled()
+      // an identicon PNG to S3 anymore.
+      expect(s3.upload).not.toHaveBeenCalled()
     })
   })
 

@@ -36,12 +36,11 @@ function makeEnv(overrides: Partial<Env> = {}): Env {
     AUTH_GITHUB_CLIENT_SECRET: 'ghsec',
     STRIPE_SECRET_KEY: undefined,
     STRIPE_WEBHOOK_SECRET: undefined,
-    R2_ACCOUNT_ID: undefined,
-    R2_ACCESS_KEY_ID: undefined,
-    R2_SECRET_ACCESS_KEY: undefined,
-    R2_BUCKET_NAME: undefined,
-    R2_PUBLIC_URL: undefined,
-    R2_ENDPOINT: undefined,
+    S3_ENDPOINT: undefined,
+    S3_ACCESS_KEY_ID: undefined,
+    S3_SECRET_ACCESS_KEY: undefined,
+    S3_BUCKET_NAME: undefined,
+    S3_PUBLIC_URL: undefined,
     RESEND_API_KEY: undefined,
     // Mirrors the schema default in `apps/server/src/libs/env.ts` so tests
     // exercise the same `from` address production code receives after parsing.

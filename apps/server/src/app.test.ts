@@ -66,7 +66,7 @@ function createTestDeps() {
     } as any,
     otel: null,
     emailService: {} as any,
-    r2StorageService: {} as any,
+    s3StorageService: {} as any,
   }
 
   return {

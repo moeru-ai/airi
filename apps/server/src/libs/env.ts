@@ -63,16 +63,16 @@ const EnvSchema = object({
   STRIPE_WEBHOOK_SECRET: optional(string()),
 
   // S3-compatible object storage for user-uploaded assets (e.g. avatars).
-  // Defaults to Cloudflare R2 (`https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`)
-  // but `R2_ENDPOINT` can be set to point at any other S3-compatible provider
-  // (MinIO, Backblaze B2, AWS S3, Tigris, etc.). All optional — upload/delete
-  // endpoints will return 503 when not configured.
-  R2_ACCOUNT_ID: optional(string()),
-  R2_ACCESS_KEY_ID: optional(string()),
-  R2_SECRET_ACCESS_KEY: optional(string()),
-  R2_BUCKET_NAME: optional(string()),
-  R2_PUBLIC_URL: optional(string()),
-  R2_ENDPOINT: optional(string()),
+  // Works with any S3-compatible provider (AWS S3, Cloudflare R2, MinIO,
+  // Backblaze B2, Tigris, etc.) — operators point `S3_ENDPOINT` at the
+  // provider's URL. For Cloudflare R2 build the endpoint as
+  // `https://<account-id>.r2.cloudflarestorage.com`.
+  // All optional — upload/delete endpoints will return 503 when not configured.
+  S3_ENDPOINT: optional(string()),
+  S3_ACCESS_KEY_ID: optional(string()),
+  S3_SECRET_ACCESS_KEY: optional(string()),
+  S3_BUCKET_NAME: optional(string()),
+  S3_PUBLIC_URL: optional(string()),
 
   // Resend transactional email (password reset, email change, etc.).
   // RESEND_API_KEY is optional — when absent, email features degrade gracefully

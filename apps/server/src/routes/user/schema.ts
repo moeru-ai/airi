@@ -17,7 +17,7 @@ export const ALLOWED_AVATAR_MIME_TYPES = new Set([
 export const MAX_AVATAR_SIZE = 5 * 1024 * 1024
 
 /**
- * Maps image MIME type to file extension for R2 object keys.
+ * Maps image MIME type to file extension for S3 object keys.
  *
  * Before:
  * - "image/jpeg"

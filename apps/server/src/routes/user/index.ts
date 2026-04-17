@@ -1,5 +1,5 @@
 import type { Database } from '../../libs/db'
-import type { R2StorageService } from '../../services/r2'
+import type { S3StorageService } from '../../services/s3'
 import type { HonoEnv } from '../../types/hono'
 
 import { eq } from 'drizzle-orm'
@@ -22,13 +22,13 @@ import { ALLOWED_AVATAR_MIME_TYPES, MAX_AVATAR_SIZE, MIME_TO_EXT } from './schem
  *
  * buildApp (../../app.ts)
  *   -> {@link createUserRoutes}
- *     -> POST /avatar — upload avatar to R2, update DB
+ *     -> POST /avatar — upload avatar to S3, update DB
  *     -> DELETE /avatar — reset to Gravatar
  *     -> POST /delete — soft-delete account in a single transaction
  *                       (user.deletedAt + session + oauth issued tokens)
  */
 export function createUserRoutes(deps: {
-  r2StorageService: R2StorageService
+  s3StorageService: S3StorageService
   db: Database
 }) {
   return new Hono<HonoEnv>()
@@ -40,7 +40,7 @@ export function createUserRoutes(deps: {
         throw createBadRequestError('File too large. Maximum size: 5MB', 'FILE_TOO_LARGE')
       },
     }), async (c) => {
-      if (!deps.r2StorageService.isAvailable()) {
+      if (!deps.s3StorageService.isAvailable()) {
         throw createServiceUnavailableError(
           'Avatar storage is not configured',
           'AVATAR_STORAGE_UNAVAILABLE',
@@ -71,15 +71,15 @@ export function createUserRoutes(deps: {
       const key = `avatars/${authUser.id}/${Date.now()}.${ext}`
       const buffer = Buffer.from(await file.arrayBuffer())
 
-      const publicUrl = await deps.r2StorageService.upload(key, buffer, file.type)
+      const publicUrl = await deps.s3StorageService.upload(key, buffer, file.type)
 
       try {
         await deps.db.update(user).set({ image: publicUrl }).where(eq(user.id, authUser.id))
       }
       catch {
-        // Rollback: delete uploaded R2 object on DB update failure
+        // Rollback: delete uploaded S3 object on DB update failure
         try {
-          await deps.r2StorageService.deleteObject(key)
+          await deps.s3StorageService.deleteObject(key)
         }
         catch {
           // Best-effort rollback — ignore cleanup failure
@@ -98,11 +98,11 @@ export function createUserRoutes(deps: {
         .from(user)
         .where(eq(user.id, authUser.id))
 
-      if (currentUser?.image && deps.r2StorageService.isAvailable()) {
+      if (currentUser?.image && deps.s3StorageService.isAvailable()) {
         // NOTICE:
         // `user.image` is user-controlled via profile updates. Without the
         // strict origin + key-prefix check below, a user could point their
-        // image at an arbitrary R2 URL and use this endpoint to delete
+        // image at an arbitrary S3-bucket URL and use this endpoint to delete
         // another user's objects (or any shared-bucket object).
         // Root cause: previous check used `String.includes('r2.cloudflarestorage')`
         // and only `startsWith(getPublicUrl(''))`, neither of which bind the
@@ -111,22 +111,22 @@ export function createUserRoutes(deps: {
         // or a signed-delete flow that can't address objects outside the user prefix.
         try {
           const parsed = new URL(currentUser.image)
-          const r2Origin = new URL(deps.r2StorageService.getPublicUrl('')).origin
+          const s3Origin = new URL(deps.s3StorageService.getPublicUrl('')).origin
           const key = parsed.pathname.replace(/^\/+/, '')
           const ownedPrefix = `avatars/${authUser.id}/`
 
-          if (parsed.origin === r2Origin && key.startsWith(ownedPrefix)) {
-            await deps.r2StorageService.deleteObject(key)
+          if (parsed.origin === s3Origin && key.startsWith(ownedPrefix)) {
+            await deps.s3StorageService.deleteObject(key)
           }
         }
         catch {
-          // Best-effort deletion — ignore invalid URLs or R2 failures
+          // Best-effort deletion — ignore invalid URLs or S3 failures
         }
       }
 
       // Reset to a Gravatar URL keyed off the user's email. Gravatar serves
       // the image directly (with `?d=identicon` fallback for emails without
-      // a profile), so we no longer depend on R2 being configured for the
+      // a profile), so we no longer depend on S3 being configured for the
       // "remove my avatar" flow.
       const fallbackUrl = gravatarUrl(authUser.email)
 

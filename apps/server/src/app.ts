@@ -15,7 +15,7 @@ import type { EmailService } from './services/email'
 import type { FluxService } from './services/flux'
 import type { FluxTransactionService } from './services/flux-transaction'
 import type { ProviderService } from './services/providers'
-import type { R2StorageService } from './services/r2'
+import type { S3StorageService } from './services/s3'
 import type { StripeService } from './services/stripe'
 import type { HonoEnv } from './types/hono'
 
@@ -58,8 +58,8 @@ import { createEmailService } from './services/email'
 import { createFluxService } from './services/flux'
 import { createFluxTransactionService } from './services/flux-transaction'
 import { createProviderService } from './services/providers'
-import { createR2StorageService } from './services/r2'
 import { createRequestLogService } from './services/request-log'
+import { createS3StorageService } from './services/s3'
 import { createStripeService } from './services/stripe'
 import { ApiError, createInternalError, createUnauthorizedError } from './utils/error'
 import { getTrustedOrigin } from './utils/origin'
@@ -78,7 +78,7 @@ interface AppDeps {
   billingMq: MqService<BillingEvent>
   configKV: ConfigKVService
   emailService: EmailService
-  r2StorageService: R2StorageService
+  s3StorageService: S3StorageService
   redis: Redis
   env: Env
   otel: OtelInstance | null
@@ -213,7 +213,7 @@ export async function buildApp(deps: AppDeps) {
     /**
      * User routes for avatar management and account deletion.
      */
-    .route('/api/v1/user', createUserRoutes({ r2StorageService: deps.r2StorageService, db: deps.db }))
+    .route('/api/v1/user', createUserRoutes({ s3StorageService: deps.s3StorageService, db: deps.db }))
 
   return { app: builtApp, injectWebSocket }
 }
@@ -315,13 +315,13 @@ export async function createApp() {
     build: ({ dependsOn }) => createEmailService(dependsOn.env),
   })
 
-  const r2StorageService = injeca.provide('services:r2', {
+  const s3StorageService = injeca.provide('services:s3', {
     dependsOn: { env: parsedEnv },
-    build: ({ dependsOn }) => createR2StorageService(dependsOn.env),
+    build: ({ dependsOn }) => createS3StorageService(dependsOn.env),
   })
 
   const auth = injeca.provide('services:auth', {
-    dependsOn: { db, env: parsedEnv, emailService, r2StorageService, otel },
+    dependsOn: { db, env: parsedEnv, emailService, s3StorageService, otel },
     build: async ({ dependsOn }) => {
       // Seed trusted OIDC clients into DB so FK constraints on oauth_access_token are satisfied
       await seedTrustedClients(dependsOn.db, dependsOn.env)
@@ -334,7 +334,7 @@ export async function createApp() {
           redirectUris: client.redirectUris.join(', '),
         }).log('OIDC trusted client ready')
       }
-      return createAuth(dependsOn.db, dependsOn.env, dependsOn.emailService, dependsOn.r2StorageService, dependsOn.otel?.auth)
+      return createAuth(dependsOn.db, dependsOn.env, dependsOn.emailService, dependsOn.s3StorageService, dependsOn.otel?.auth)
     },
   })
 
@@ -412,7 +412,7 @@ export async function createApp() {
     billingMq,
     configKV,
     emailService,
-    r2StorageService,
+    s3StorageService,
     redis,
     env: parsedEnv,
     otel,
@@ -431,7 +431,7 @@ export async function createApp() {
     billingMq: resolved.billingMq,
     configKV: resolved.configKV,
     emailService: resolved.emailService,
-    r2StorageService: resolved.r2StorageService,
+    s3StorageService: resolved.s3StorageService,
     redis: resolved.redis,
     env: resolved.env,
     otel: resolved.otel,

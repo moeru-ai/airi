@@ -1,5 +1,5 @@
 import type { EmailService } from '../../services/email'
-import type { R2StorageService } from '../../services/r2'
+import type { S3StorageService } from '../../services/s3'
 import type { Database } from '../db'
 import type { Env } from '../env'
 
@@ -45,7 +45,7 @@ vi.mock('@guiiai/logg', () => ({
   useLogger: mockUseLogger,
 }))
 
-vi.mock('../../services/r2', () => ({}))
+vi.mock('../../services/s3', () => ({}))
 
 interface AuthConfigForHooksTest {
   databaseHooks?: {
@@ -72,12 +72,11 @@ function makeEnv(overrides: Partial<Env> = {}): Env {
     AUTH_GITHUB_CLIENT_SECRET: 'ghsec',
     STRIPE_SECRET_KEY: undefined,
     STRIPE_WEBHOOK_SECRET: undefined,
-    R2_ACCOUNT_ID: undefined,
-    R2_ACCESS_KEY_ID: undefined,
-    R2_SECRET_ACCESS_KEY: undefined,
-    R2_BUCKET_NAME: undefined,
-    R2_PUBLIC_URL: undefined,
-    R2_ENDPOINT: undefined,
+    S3_ENDPOINT: undefined,
+    S3_ACCESS_KEY_ID: undefined,
+    S3_SECRET_ACCESS_KEY: undefined,
+    S3_BUCKET_NAME: undefined,
+    S3_PUBLIC_URL: undefined,
     RESEND_API_KEY: undefined,
     RESEND_FROM_EMAIL: 'noreply@airi.moeru.ai',
     GATEWAY_BASE_URL: 'http://localhost:18080',
@@ -112,18 +111,18 @@ function createEmailServiceMock(): EmailService {
   }
 }
 
-function createR2StorageServiceMock(isAvailable: boolean): {
-  service: R2StorageService
-  upload: ReturnType<typeof vi.fn<R2StorageService['upload']>>
-  isAvailable: ReturnType<typeof vi.fn<R2StorageService['isAvailable']>>
+function createS3StorageServiceMock(isAvailable: boolean): {
+  service: S3StorageService
+  upload: ReturnType<typeof vi.fn<S3StorageService['upload']>>
+  isAvailable: ReturnType<typeof vi.fn<S3StorageService['isAvailable']>>
 } {
-  const upload = vi.fn<R2StorageService['upload']>().mockResolvedValue('https://r2.example.com/avatars/user-1/123.jpg')
-  const isAvailableMock = vi.fn<R2StorageService['isAvailable']>().mockReturnValue(isAvailable)
+  const upload = vi.fn<S3StorageService['upload']>().mockResolvedValue('https://s3.example.com/avatars/user-1/123.jpg')
+  const isAvailableMock = vi.fn<S3StorageService['isAvailable']>().mockReturnValue(isAvailable)
 
-  const service: R2StorageService = {
+  const service: S3StorageService = {
     upload,
-    deleteObject: vi.fn<R2StorageService['deleteObject']>().mockResolvedValue(undefined),
-    getPublicUrl: vi.fn((key: string) => `https://r2.example.com/${key}`),
+    deleteObject: vi.fn<S3StorageService['deleteObject']>().mockResolvedValue(undefined),
+    getPublicUrl: vi.fn((key: string) => `https://s3.example.com/${key}`),
     isAvailable: isAvailableMock,
   }
 
@@ -171,7 +170,7 @@ describe('createAuth user create hook avatar processing', () => {
     vi.clearAllMocks()
   })
 
-  it('copies OAuth avatar to R2 and updates user image in DB', async () => {
+  it('copies OAuth avatar to S3 and updates user image in DB', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -181,8 +180,8 @@ describe('createAuth user create hook avatar processing', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const { db, update, set, where } = createDatabaseMock()
-    const { service: r2StorageService, upload, isAvailable } = createR2StorageServiceMock(true)
-    const config = createAuth(db, makeEnv(), createEmailServiceMock(), r2StorageService) as unknown as AuthConfigForHooksTest
+    const { service: s3StorageService, upload, isAvailable } = createS3StorageServiceMock(true)
+    const config = createAuth(db, makeEnv(), createEmailServiceMock(), s3StorageService) as unknown as AuthConfigForHooksTest
     const afterHook = getUserCreateAfterHook(config)
 
     await afterHook({ id: 'user-1', email: 'user-1@example.com', image: 'https://example.com/oauth-avatar.jpg' })
@@ -200,17 +199,17 @@ describe('createAuth user create hook avatar processing', () => {
     expect(uploadedContentType).toBe('image/jpeg')
 
     expect(update).toHaveBeenCalledOnce()
-    expect(set).toHaveBeenCalledWith({ image: 'https://r2.example.com/avatars/user-1/123.jpg' })
+    expect(set).toHaveBeenCalledWith({ image: 'https://s3.example.com/avatars/user-1/123.jpg' })
     expect(where).toHaveBeenCalledOnce()
   })
 
-  it('assigns a Gravatar URL when OAuth avatar is missing (no R2 upload)', async () => {
+  it('assigns a Gravatar URL when OAuth avatar is missing (no S3 upload)', async () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
 
     const { db, update, set, where } = createDatabaseMock()
-    const { service: r2StorageService, upload, isAvailable } = createR2StorageServiceMock(true)
-    const config = createAuth(db, makeEnv(), createEmailServiceMock(), r2StorageService) as unknown as AuthConfigForHooksTest
+    const { service: s3StorageService, upload, isAvailable } = createS3StorageServiceMock(true)
+    const config = createAuth(db, makeEnv(), createEmailServiceMock(), s3StorageService) as unknown as AuthConfigForHooksTest
     const afterHook = getUserCreateAfterHook(config)
 
     await afterHook({ id: 'user-2', email: 'user-2@example.com', image: null })
@@ -225,13 +224,13 @@ describe('createAuth user create hook avatar processing', () => {
     expect(where).toHaveBeenCalledOnce()
   })
 
-  it('skips R2 mirror but keeps OAuth image when R2 is unavailable', async () => {
+  it('skips S3 mirror but keeps OAuth image when S3 is unavailable', async () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
 
     const { db, update } = createDatabaseMock()
-    const { service: r2StorageService, upload, isAvailable } = createR2StorageServiceMock(false)
-    const config = createAuth(db, makeEnv(), createEmailServiceMock(), r2StorageService) as unknown as AuthConfigForHooksTest
+    const { service: s3StorageService, upload, isAvailable } = createS3StorageServiceMock(false)
+    const config = createAuth(db, makeEnv(), createEmailServiceMock(), s3StorageService) as unknown as AuthConfigForHooksTest
     const afterHook = getUserCreateAfterHook(config)
 
     await afterHook({ id: 'user-3', email: 'user-3@example.com', image: 'https://example.com/avatar.png' })
@@ -253,8 +252,8 @@ describe('createAuth user create hook avatar processing', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const { db, update } = createDatabaseMock()
-    const { service: r2StorageService, upload } = createR2StorageServiceMock(true)
-    const config = createAuth(db, makeEnv(), createEmailServiceMock(), r2StorageService) as unknown as AuthConfigForHooksTest
+    const { service: s3StorageService, upload } = createS3StorageServiceMock(true)
+    const config = createAuth(db, makeEnv(), createEmailServiceMock(), s3StorageService) as unknown as AuthConfigForHooksTest
     const afterHook = getUserCreateAfterHook(config)
 
     await expect(afterHook({ id: 'user-4', email: 'user-4@example.com', image: 'https://example.com/broken.jpg' })).resolves.toBeUndefined()

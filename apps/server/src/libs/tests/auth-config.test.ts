@@ -1,5 +1,5 @@
 import type { EmailService } from '../../services/email'
-import type { R2StorageService } from '../../services/r2'
+import type { S3StorageService } from '../../services/s3'
 import type { Database } from '../db'
 import type { Env } from '../env'
 
@@ -75,12 +75,11 @@ function makeEnv(overrides: Partial<Env> = {}): Env {
     AUTH_GITHUB_CLIENT_SECRET: 'ghsec',
     STRIPE_SECRET_KEY: undefined,
     STRIPE_WEBHOOK_SECRET: undefined,
-    R2_ACCOUNT_ID: undefined,
-    R2_ACCESS_KEY_ID: undefined,
-    R2_SECRET_ACCESS_KEY: undefined,
-    R2_BUCKET_NAME: undefined,
-    R2_PUBLIC_URL: undefined,
-    R2_ENDPOINT: undefined,
+    S3_ENDPOINT: undefined,
+    S3_ACCESS_KEY_ID: undefined,
+    S3_SECRET_ACCESS_KEY: undefined,
+    S3_BUCKET_NAME: undefined,
+    S3_PUBLIC_URL: undefined,
     RESEND_API_KEY: undefined,
     RESEND_FROM_EMAIL: 'noreply@airi.moeru.ai',
     GATEWAY_BASE_URL: 'http://localhost:18080',
@@ -142,13 +141,13 @@ function createEmailServiceMock() {
 function createAuthConfig(emailService: EmailService): AuthConfigForTest {
   const db = {} as unknown as Database
   const env = makeEnv()
-  const r2StorageService: R2StorageService = {
-    upload: vi.fn().mockResolvedValue('https://r2.example.com/avatars/user-1/avatar.png'),
+  const s3StorageService: S3StorageService = {
+    upload: vi.fn().mockResolvedValue('https://s3.example.com/avatars/user-1/avatar.png'),
     deleteObject: vi.fn().mockResolvedValue(undefined),
-    getPublicUrl: vi.fn((key: string) => `https://r2.example.com/${key}`),
+    getPublicUrl: vi.fn((key: string) => `https://s3.example.com/${key}`),
     isAvailable: vi.fn().mockReturnValue(false),
   }
-  return createAuth(db, env, emailService, r2StorageService) as unknown as AuthConfigForTest
+  return createAuth(db, env, emailService, s3StorageService) as unknown as AuthConfigForTest
 }
 
 describe('createAuth requireEmailVerification gate', () => {
