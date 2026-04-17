@@ -3,8 +3,6 @@ import type { R2StorageService } from '../../services/r2'
 import type { Database } from '../db'
 import type { Env } from '../env'
 
-import { Buffer } from 'node:buffer'
-
 import { describe, expect, it, vi } from 'vitest'
 
 import { createAuth } from '../auth'
@@ -15,7 +13,6 @@ const mockCreateAuthMiddleware = vi.hoisted(() => vi.fn((handler: unknown) => ha
 const mockBearer = vi.hoisted(() => vi.fn(() => ({ name: 'bearer' })))
 const mockJwt = vi.hoisted(() => vi.fn(() => ({ name: 'jwt' })))
 const mockOauthProvider = vi.hoisted(() => vi.fn(() => ({ name: 'oauthProvider' })))
-const mockGenerateIdenticon = vi.hoisted(() => vi.fn().mockResolvedValue(Buffer.from([137, 80, 78, 71])))
 
 vi.mock('better-auth', () => ({
   betterAuth: mockBetterAuth,
@@ -36,10 +33,6 @@ vi.mock('better-auth/plugins', () => ({
 
 vi.mock('@better-auth/oauth-provider', () => ({
   oauthProvider: mockOauthProvider,
-}))
-
-vi.mock('../../utils/identicon', () => ({
-  generateIdenticon: mockGenerateIdenticon,
 }))
 
 interface AuthConfigForTest {

@@ -2,6 +2,8 @@ import type { Database } from '../../libs/db'
 import type { R2StorageService } from '../../services/r2'
 import type { HonoEnv } from '../../types/hono'
 
+import { createHash } from 'node:crypto'
+
 import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -157,20 +159,21 @@ describe('userRoutes', () => {
       expect(res.status).toBe(401)
     })
 
-    it('should reset avatar to identicon and return new url', async () => {
-      vi.mocked(r2.upload).mockResolvedValue('https://r2.example.com/avatars/user-1/identicon.png')
-
+    it('should reset avatar to a Gravatar URL keyed off the user email and skip R2 upload', async () => {
       const res = await app.fetch(
         new Request('http://localhost/avatar', { method: 'DELETE' }),
         { user: testUser } as Record<string, unknown>,
       )
       expect(res.status).toBe(200)
       const body = await res.json() as { url: string }
-      expect(body.url).toBe('https://r2.example.com/avatars/user-1/identicon.png')
 
-      const uploadCall = vi.mocked(r2.upload).mock.calls[0]
-      expect(uploadCall[0]).toBe('avatars/user-1/identicon.png')
-      expect(uploadCall[2]).toBe('image/png')
+      const expectedHash = createHash('sha256').update(testUser.email.trim().toLowerCase()).digest('hex')
+      const expectedUrl = `https://www.gravatar.com/avatar/${expectedHash}?s=256&d=identicon`
+      expect(body.url).toBe(expectedUrl)
+
+      // Gravatar replaces the identicon flow — DELETE /avatar must not push
+      // an identicon PNG to R2 anymore.
+      expect(r2.upload).not.toHaveBeenCalled()
     })
   })
 

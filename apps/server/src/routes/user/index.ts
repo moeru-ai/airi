@@ -9,7 +9,7 @@ import { bodyLimit } from 'hono/body-limit'
 import { authGuard } from '../../middlewares/auth'
 import { session, user } from '../../schemas/accounts'
 import { createBadRequestError, createServiceUnavailableError } from '../../utils/error'
-import { generateIdenticon } from '../../utils/identicon'
+import { gravatarUrl } from '../../utils/gravatar'
 import { ALLOWED_AVATAR_MIME_TYPES, MAX_AVATAR_SIZE, MIME_TO_EXT } from './schema'
 
 /**
@@ -123,20 +123,18 @@ export function createUserRoutes(deps: {
         }
       }
 
-      const identiconBuffer = await generateIdenticon(authUser.id)
-      const identiconKey = `avatars/${authUser.id}/identicon.png`
-      const identiconUrl = await deps.r2StorageService.upload(
-        identiconKey,
-        identiconBuffer,
-        'image/png',
-      )
+      // Reset to a Gravatar URL keyed off the user's email. Gravatar serves
+      // the image directly (with `?d=identicon` fallback for emails without
+      // a profile), so we no longer depend on R2 being configured for the
+      // "remove my avatar" flow.
+      const fallbackUrl = gravatarUrl(authUser.email)
 
       await deps.db
         .update(user)
-        .set({ image: identiconUrl })
+        .set({ image: fallbackUrl })
         .where(eq(user.id, authUser.id))
 
-      return c.json({ url: identiconUrl })
+      return c.json({ url: fallbackUrl })
     })
 
     .post('/delete', async (c) => {

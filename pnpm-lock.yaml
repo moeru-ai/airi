@@ -117,9 +117,6 @@ catalogs:
     '@types/hast':
       specifier: ^3.0.4
       version: 3.0.4
-    '@types/jdenticon':
-      specifier: ^2.2.0
-      version: 2.2.0
     '@types/splitpanes':
       specifier: ^2.2.6
       version: 2.2.6
@@ -237,9 +234,6 @@ catalogs:
     isolated-vm:
       specifier: ^6.1.2
       version: 6.1.2
-    jdenticon:
-      specifier: ^3.3.0
-      version: 3.3.0
     jose:
       specifier: ^6.2.2
       version: 6.2.2
@@ -680,9 +674,6 @@ importers:
       ioredis:
         specifier: ^5.10.1
         version: 5.10.1
-      jdenticon:
-        specifier: 'catalog:'
-        version: 3.3.0
       jose:
         specifier: 'catalog:'
         version: 6.2.2
@@ -705,9 +696,6 @@ importers:
       '@better-auth/cli':
         specifier: ^1.4.21
         version: 1.4.21(@better-fetch/fetch@1.1.21)(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.3.6))(drizzle-kit@0.31.10)(jose@6.2.2)(kysely@0.28.14)(magicast@0.5.2)(nanostores@1.1.1)(postgres@3.4.9)(react-dom@19.2.5(react@19.2.3))(react@19.2.3)(vitest@4.1.4)(vue@3.5.32(typescript@5.9.3))
-      '@types/jdenticon':
-        specifier: 'catalog:'
-        version: 2.2.0
       '@types/pg':
         specifier: ^8.20.0
         version: 8.20.0
@@ -9629,10 +9617,6 @@ packages:
   '@types/http-cache-semantics@4.0.4':
     resolution: {integrity: sha512-1m0bIFVc7eJWyve9S0RnuRgcQqF/Xd5QsUZAZeQFr1Q3/p9JWoQQEqmVy+DPTNpGXwhgIetAoYF8JSc33q29QA==}
 
-  '@types/jdenticon@2.2.0':
-    resolution: {integrity: sha512-O5flTkCBu4a1N41V4ZmK/sVnrqwf46VEJvhmupdr7owUhoKUo0KVgPhAHq2eOTSQeIqxIQq+Ibj3+r8MoZWt0w==}
-    deprecated: This is a stub types definition. jdenticon provides its own type definitions, so you do not need this installed.
-
   '@types/jsesc@2.5.1':
     resolution: {integrity: sha512-9VN+6yxLOPLOav+7PwjZbxiID2bVaeq0ED4qSQmdQTdjnXJSaCVKTR58t15oqH1H5t8Ng2ZX1SabJVoN9Q34bw==}
 
@@ -11314,9 +11298,6 @@ packages:
 
   caniuse-lite@1.0.30001761:
     resolution: {integrity: sha512-JF9ptu1vP2coz98+5051jZ4PwQgd2ni8A+gYSN7EA7dPKIMf0pDlSUxhdmVOaV3/fYK5uWBkgSXJaRLr4+3A6g==}
-
-  canvas-renderer@2.2.1:
-    resolution: {integrity: sha512-RrBgVL5qCEDIXpJ6NrzyRNoTnXxYarqm/cS/W6ERhUJts5UQtt/XPEosGN3rqUkZ4fjBArlnCbsISJ+KCFnIAg==}
 
   canvas@3.2.3:
     resolution: {integrity: sha512-PzE5nJZPz72YUAfo8oTp0u3fqqY7IzlTubneAihqDYAUcBk7ryeCmBbdJBEdaH0bptSOe2VT2Zwcb3UaFyaSWw==}
@@ -13959,11 +13940,6 @@ packages:
   jake@10.9.4:
     resolution: {integrity: sha512-wpHYzhxiVQL+IV05BLE2Xn34zW1S223hvjtqk0+gsPrwd/8JNLXJgZZM/iPFsYc1xyphF+6M6EvdE5E9MBGkDA==}
     engines: {node: '>=10'}
-    hasBin: true
-
-  jdenticon@3.3.0:
-    resolution: {integrity: sha512-DhuBRNRIybGPeAjMjdHbkIfiwZCCmf8ggu7C49jhp6aJ7DYsZfudnvnTY5/1vgUhrGA7JaDAx1WevnpjCPvaGg==}
-    engines: {node: '>=6.4.0'}
     hasBin: true
 
   jiti@2.6.1:
@@ -24152,10 +24128,6 @@ snapshots:
 
   '@types/http-cache-semantics@4.0.4': {}
 
-  '@types/jdenticon@2.2.0':
-    dependencies:
-      jdenticon: 3.3.0
-
   '@types/jsesc@2.5.1': {}
 
   '@types/json-schema@7.0.15': {}
@@ -26432,10 +26404,6 @@ snapshots:
       three: 0.183.2
 
   caniuse-lite@1.0.30001761: {}
-
-  canvas-renderer@2.2.1:
-    dependencies:
-      '@types/node': 24.12.2
 
   canvas@3.2.3:
     dependencies:
@@ -29348,10 +29316,6 @@ snapshots:
       async: 3.2.6
       filelist: 1.0.4
       picocolors: 1.1.1
-
-  jdenticon@3.3.0:
-    dependencies:
-      canvas-renderer: 2.2.1
 
   jiti@2.6.1: {}
 

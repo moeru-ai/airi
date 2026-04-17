@@ -16,7 +16,7 @@ import { eq } from 'drizzle-orm'
 
 import { user as userTable } from '../schemas/accounts'
 import { createForbiddenError } from '../utils/error'
-import { generateIdenticon } from '../utils/identicon'
+import { gravatarUrl } from '../utils/gravatar'
 import { getAuthTrustedOrigins, getTrustedOrigin } from '../utils/origin'
 
 import * as authSchema from '../schemas/accounts'
@@ -442,33 +442,37 @@ export function createAuth(
             // Fire-and-forget avatar processing: never block user creation.
             void (async () => {
               try {
+                // Users without an OAuth-provided image get a Gravatar URL
+                // assigned directly. No R2 dependency needed because Gravatar
+                // serves the image and gracefully falls back to the
+                // `?d=identicon` default for emails without a profile.
+                if (!user.image) {
+                  await db.update(userTable)
+                    .set({ image: gravatarUrl(user.email) })
+                    .where(eq(userTable.id, user.id))
+                  return
+                }
+
+                // OAuth-provided avatars: mirror to R2 when configured so we
+                // do not depend on the provider's CDN long-term. Skip the
+                // mirror when R2 is unavailable; the OAuth URL stays in DB.
                 if (!r2StorageService.isAvailable())
                   return
 
-                let buffer: Buffer
-                let contentType: string
+                // NOTICE:
+                // External avatar URLs (OAuth provider CDN) may hang. Cap at 5s
+                // so this fire-and-forget promise can't live indefinitely.
+                // Root cause: default fetch() has no request timeout.
+                // Source: https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static
+                // Removal condition: move avatar ingestion into a queue with its own timeout policy.
+                const response = await fetch(user.image, {
+                  signal: AbortSignal.timeout(5000),
+                })
+                if (!response.ok)
+                  throw new Error(`Failed to fetch avatar: ${response.status}`)
 
-                if (user.image) {
-                  // NOTICE:
-                  // External avatar URLs (OAuth provider CDN) may hang. Cap at 5s
-                  // so this fire-and-forget promise can't live indefinitely.
-                  // Root cause: default fetch() has no request timeout.
-                  // Source: https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static
-                  // Removal condition: move avatar ingestion into a queue with its own timeout policy.
-                  const response = await fetch(user.image, {
-                    signal: AbortSignal.timeout(5000),
-                  })
-                  if (!response.ok)
-                    throw new Error(`Failed to fetch avatar: ${response.status}`)
-
-                  buffer = Buffer.from(await response.arrayBuffer())
-                  contentType = response.headers.get('content-type') ?? 'image/jpeg'
-                }
-                else {
-                  buffer = await generateIdenticon(user.id)
-                  contentType = 'image/png'
-                }
-
+                const buffer = Buffer.from(await response.arrayBuffer())
+                const contentType = response.headers.get('content-type') ?? 'image/jpeg'
                 const ext = contentType.split('/')[1]?.replace('jpeg', 'jpg') ?? 'png'
                 const key = `avatars/${user.id}/${Date.now()}.${ext}`
                 const publicUrl = await r2StorageService.upload(key, buffer, contentType)

@@ -4,6 +4,7 @@ import type { Database } from '../db'
 import type { Env } from '../env'
 
 import { Buffer } from 'node:buffer'
+import { createHash } from 'node:crypto'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -18,7 +19,6 @@ const mockOauthProvider = vi.hoisted(() => vi.fn(() => ({ name: 'oauthProvider' 
 const mockLoggerError = vi.hoisted(() => vi.fn())
 const mockLoggerWithError = vi.hoisted(() => vi.fn(() => ({ error: mockLoggerError })))
 const mockUseLogger = vi.hoisted(() => vi.fn(() => ({ withError: mockLoggerWithError, error: mockLoggerError })))
-const mockGenerateIdenticon = vi.hoisted(() => vi.fn().mockResolvedValue(Buffer.from([137, 80, 78, 71])))
 
 vi.mock('better-auth', () => ({
   betterAuth: mockBetterAuth,
@@ -45,17 +45,13 @@ vi.mock('@guiiai/logg', () => ({
   useLogger: mockUseLogger,
 }))
 
-vi.mock('../../utils/identicon', () => ({
-  generateIdenticon: mockGenerateIdenticon,
-}))
-
 vi.mock('../../services/r2', () => ({}))
 
 interface AuthConfigForHooksTest {
   databaseHooks?: {
     user?: {
       create?: {
-        after?: (user: { id: string, image?: string | null }) => Promise<void>
+        after?: (user: { id: string, email: string, image?: string | null }) => Promise<void>
       }
     }
   }
@@ -150,7 +146,7 @@ function createDatabaseMock(): {
   return { db, update, set, where }
 }
 
-function getUserCreateAfterHook(config: AuthConfigForHooksTest): (user: { id: string, image?: string | null }) => Promise<void> {
+function getUserCreateAfterHook(config: AuthConfigForHooksTest): (user: { id: string, email: string, image?: string | null }) => Promise<void> {
   const after = config.databaseHooks?.user?.create?.after
   if (!after) {
     throw new Error('Expected databaseHooks.user.create.after to be defined')
@@ -162,6 +158,11 @@ async function flushFireAndForgetTasks(): Promise<void> {
   await Promise.resolve()
   await new Promise(resolve => setTimeout(resolve, 0))
   await Promise.resolve()
+}
+
+function expectedGravatarUrl(email: string): string {
+  const hash = createHash('sha256').update(email.trim().toLowerCase()).digest('hex')
+  return `https://www.gravatar.com/avatar/${hash}?s=256&d=identicon`
 }
 
 describe('createAuth user create hook avatar processing', () => {
@@ -183,11 +184,13 @@ describe('createAuth user create hook avatar processing', () => {
     const config = createAuth(db, makeEnv(), createEmailServiceMock(), r2StorageService) as unknown as AuthConfigForHooksTest
     const afterHook = getUserCreateAfterHook(config)
 
-    await afterHook({ id: 'user-1', image: 'https://example.com/oauth-avatar.jpg' })
+    await afterHook({ id: 'user-1', email: 'user-1@example.com', image: 'https://example.com/oauth-avatar.jpg' })
     await flushFireAndForgetTasks()
 
     expect(isAvailable).toHaveBeenCalledOnce()
-    expect(fetchMock).toHaveBeenCalledWith('https://example.com/oauth-avatar.jpg')
+    expect(fetchMock).toHaveBeenCalledWith('https://example.com/oauth-avatar.jpg', expect.objectContaining({
+      signal: expect.any(AbortSignal),
+    }))
     expect(upload).toHaveBeenCalledOnce()
 
     const [uploadedKey, uploadedBuffer, uploadedContentType] = upload.mock.calls[0]
@@ -198,33 +201,30 @@ describe('createAuth user create hook avatar processing', () => {
     expect(update).toHaveBeenCalledOnce()
     expect(set).toHaveBeenCalledWith({ image: 'https://r2.example.com/avatars/user-1/123.jpg' })
     expect(where).toHaveBeenCalledOnce()
-    expect(mockGenerateIdenticon).not.toHaveBeenCalled()
   })
 
-  it('generates identicon fallback when OAuth avatar is missing', async () => {
+  it('assigns a Gravatar URL when OAuth avatar is missing (no R2 upload)', async () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
 
-    const { db, set } = createDatabaseMock()
-    const { service: r2StorageService, upload } = createR2StorageServiceMock(true)
+    const { db, update, set, where } = createDatabaseMock()
+    const { service: r2StorageService, upload, isAvailable } = createR2StorageServiceMock(true)
     const config = createAuth(db, makeEnv(), createEmailServiceMock(), r2StorageService) as unknown as AuthConfigForHooksTest
     const afterHook = getUserCreateAfterHook(config)
 
-    await afterHook({ id: 'user-2', image: null })
+    await afterHook({ id: 'user-2', email: 'user-2@example.com', image: null })
     await flushFireAndForgetTasks()
 
-    expect(mockGenerateIdenticon).toHaveBeenCalledWith('user-2')
     expect(fetchMock).not.toHaveBeenCalled()
-    expect(upload).toHaveBeenCalledOnce()
+    expect(upload).not.toHaveBeenCalled()
+    expect(isAvailable).not.toHaveBeenCalled()
 
-    const [uploadedKey, uploadedBuffer, uploadedContentType] = upload.mock.calls[0]
-    expect(uploadedKey).toMatch(/^avatars\/user-2\/\d+\.png$/)
-    expect(uploadedBuffer).toBeInstanceOf(Buffer)
-    expect(uploadedContentType).toBe('image/png')
-    expect(set).toHaveBeenCalledWith({ image: 'https://r2.example.com/avatars/user-1/123.jpg' })
+    expect(update).toHaveBeenCalledOnce()
+    expect(set).toHaveBeenCalledWith({ image: expectedGravatarUrl('user-2@example.com') })
+    expect(where).toHaveBeenCalledOnce()
   })
 
-  it('exits early when R2 is unavailable', async () => {
+  it('skips R2 mirror but keeps OAuth image when R2 is unavailable', async () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
 
@@ -233,7 +233,7 @@ describe('createAuth user create hook avatar processing', () => {
     const config = createAuth(db, makeEnv(), createEmailServiceMock(), r2StorageService) as unknown as AuthConfigForHooksTest
     const afterHook = getUserCreateAfterHook(config)
 
-    await afterHook({ id: 'user-3', image: 'https://example.com/avatar.png' })
+    await afterHook({ id: 'user-3', email: 'user-3@example.com', image: 'https://example.com/avatar.png' })
     await flushFireAndForgetTasks()
 
     expect(isAvailable).toHaveBeenCalledOnce()
@@ -256,10 +256,12 @@ describe('createAuth user create hook avatar processing', () => {
     const config = createAuth(db, makeEnv(), createEmailServiceMock(), r2StorageService) as unknown as AuthConfigForHooksTest
     const afterHook = getUserCreateAfterHook(config)
 
-    await expect(afterHook({ id: 'user-4', image: 'https://example.com/broken.jpg' })).resolves.toBeUndefined()
+    await expect(afterHook({ id: 'user-4', email: 'user-4@example.com', image: 'https://example.com/broken.jpg' })).resolves.toBeUndefined()
     await flushFireAndForgetTasks()
 
-    expect(fetchMock).toHaveBeenCalledWith('https://example.com/broken.jpg')
+    expect(fetchMock).toHaveBeenCalledWith('https://example.com/broken.jpg', expect.objectContaining({
+      signal: expect.any(AbortSignal),
+    }))
     expect(upload).not.toHaveBeenCalled()
     expect(update).not.toHaveBeenCalled()
     expect(mockLoggerWithError).toHaveBeenCalledOnce()
