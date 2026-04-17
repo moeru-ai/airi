@@ -358,6 +358,26 @@ export function createAuth(
     },
 
     user: {
+      // NOTICE:
+      // `deletedAt` is an AIRI-only field for soft-delete bookkeeping. It is
+      // declared here so that:
+      //   1. `@better-auth/cli generate` keeps emitting the `deleted_at`
+      //      column when `accounts.ts` is regenerated.
+      //   2. The User type returned by better-auth carries `deletedAt`,
+      //      which lets `databaseHooks.session.create.before` (and other
+      //      enforcement points) consult it without an extra cast.
+      // `input: false, returned: false` keeps it out of the public API
+      // surface — clients can never set or read it directly.
+      // Removal condition: only if soft-delete is replaced by a hard-delete flow.
+      additionalFields: {
+        deletedAt: {
+          type: 'date',
+          required: false,
+          input: false,
+          returned: false,
+          fieldName: 'deleted_at',
+        },
+      },
       changeEmail: {
         enabled: true,
         sendChangeEmailVerification: async ({ newEmail, token }: { user: { email: string }, newEmail: string, token: string }) => {
