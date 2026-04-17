@@ -145,13 +145,55 @@ models: Modelo
 pages:
   account:
     title: Cuenta
-    description: Ver tu perfil y administrar tu cuenta
-    notLoggedIn: Inicia sesión para ver tu cuenta y acceder a todas las funciones
+    description: Consulta tu perfil y gestiona tu cuenta
+    signedInAs: Conectado como
+    fluxBalance: Saldo de Flux
+    viewFluxDetails: Ver detalles
     login: Iniciar sesión
     logout: Cerrar sesión
-    fluxBalance: Flux Balance
-    viewFluxDetails: Ver detalles
-    signedInAs: Sesión iniciada como
+    notLoggedIn: Inicia sesión para gestionar la configuración de tu cuenta, vincular proveedores y más.
+    profile:
+      title: Perfil
+      nameLabel: Nombre visible
+      namePlaceholder: Introduce tu nombre
+      uploadNew: Subir nueva imagen
+      removeAvatar: Eliminar
+      saveButton: Guardar
+      saveSuccess: Perfil actualizado correctamente
+    linkedAccounts:
+      title: Cuentas vinculadas
+      unlink: Desvincular
+      linkGoogle: Vincular Google
+      linkGithub: Vincular GitHub
+      needPassword: Debes establecer una contraseña antes de desvincular un proveedor OAuth.
+      sendPasswordLink: Enviar enlace de configuración de contraseña
+      linkSent: Enlace de configuración de contraseña enviado a tu correo electrónico.
+    password:
+      title: Contraseña
+      currentPassword: Contraseña actual
+      newPassword: Nueva contraseña
+      confirmPassword: Confirmar contraseña
+      changePassword: Cambiar contraseña
+      setPassword: Establecer contraseña
+      noPasswordSet: No hay contraseña establecida. Configura una para habilitar el inicio de sesión con correo electrónico.
+      sendResetLink: Enviar enlace de restablecimiento de contraseña
+      resetLinkSent: Enlace de restablecimiento de contraseña enviado a tu correo electrónico.
+      passwordChanged: Contraseña cambiada correctamente
+    email:
+      title: Correo electrónico
+      currentEmail: Correo electrónico actual
+      newEmail: Nuevo correo electrónico
+      changeEmail: Cambiar correo electrónico
+      verificationSent: Correo de verificación enviado
+    dangerZone:
+      title: Zona de peligro
+      deleteAccount: Eliminar cuenta
+      deleteDescription: Elimina permanentemente tu cuenta y todos los datos asociados. Esta acción no se puede deshacer.
+      confirmTitle: ¿Eliminar tu cuenta?
+      confirmDescription: Esto eliminará permanentemente tu cuenta. Escribe "DELETE" para confirmar.
+      typeDelete: Escribe DELETE para confirmar
+      cancel: Cancelar
+      confirmDelete: Eliminar mi cuenta
   card:
     activate: Activar
     active: Activo

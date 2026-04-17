@@ -64,6 +64,13 @@
       "when": 1775032828818,
       "tag": "0008_gray_xavin",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1776245763808,
+      "tag": "0009_fearless_namorita",
+      "breakpoints": true
     }
   ]
 }

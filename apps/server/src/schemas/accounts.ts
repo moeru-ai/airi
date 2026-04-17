@@ -1,4 +1,22 @@
-import { relations } from 'drizzle-orm'
+/**
+ * Better-auth-managed account tables (drizzle-pg).
+ *
+ * Use when:
+ * - Better-auth or any of its plugins (jwt, oauth-provider) need to read or
+ *   write user, session, account, verification, JWKS, or OIDC tables.
+ *
+ * Expects:
+ * - This file stays as close as possible to the output of
+ *   `npx @better-auth/cli generate` so it can be safely regenerated. Pure
+ *   table definitions only — no relations, no app-side helpers.
+ *
+ * Where to put related code:
+ * - Drizzle relations for these tables → `accounts-extensions.ts`.
+ * - The `deletedAt` column on `user` is declared as a better-auth
+ *   `additionalFields` entry in `libs/auth.ts`, so the CLI keeps it in
+ *   sync on regeneration.
+ */
+
 import { boolean, index, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 
 export const user = pgTable('user', {
@@ -12,6 +30,13 @@ export const user = pgTable('user', {
     .defaultNow()
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
+  // NOTICE:
+  // `deletedAt` is registered with better-auth via
+  // `user.additionalFields.deletedAt` in `libs/auth.ts`. Keeping the
+  // declaration in sync there ensures `@better-auth/cli generate` will
+  // continue to emit this column when accounts.ts is regenerated.
+  // Removal condition: only if soft-delete is replaced by a hard-delete flow.
+  deletedAt: timestamp('deleted_at'),
 })
 
 export const session = pgTable(
@@ -164,90 +189,3 @@ export const oauthConsent = pgTable('oauth_consent', {
   createdAt: timestamp('created_at'),
   updatedAt: timestamp('updated_at'),
 })
-
-export const userRelations = relations(user, ({ many }) => ({
-  sessions: many(session),
-  accounts: many(account),
-  oauthClients: many(oauthClient),
-  oauthRefreshTokens: many(oauthRefreshToken),
-  oauthAccessTokens: many(oauthAccessToken),
-  oauthConsents: many(oauthConsent),
-}))
-
-export const sessionRelations = relations(session, ({ one, many }) => ({
-  user: one(user, {
-    fields: [session.userId],
-    references: [user.id],
-  }),
-  oauthRefreshTokens: many(oauthRefreshToken),
-  oauthAccessTokens: many(oauthAccessToken),
-}))
-
-export const accountRelations = relations(account, ({ one }) => ({
-  user: one(user, {
-    fields: [account.userId],
-    references: [user.id],
-  }),
-}))
-
-export const oauthClientRelations = relations(oauthClient, ({ one, many }) => ({
-  user: one(user, {
-    fields: [oauthClient.userId],
-    references: [user.id],
-  }),
-  oauthRefreshTokens: many(oauthRefreshToken),
-  oauthAccessTokens: many(oauthAccessToken),
-  oauthConsents: many(oauthConsent),
-}))
-
-export const oauthRefreshTokenRelations = relations(
-  oauthRefreshToken,
-  ({ one, many }) => ({
-    oauthClient: one(oauthClient, {
-      fields: [oauthRefreshToken.clientId],
-      references: [oauthClient.clientId],
-    }),
-    session: one(session, {
-      fields: [oauthRefreshToken.sessionId],
-      references: [session.id],
-    }),
-    user: one(user, {
-      fields: [oauthRefreshToken.userId],
-      references: [user.id],
-    }),
-    oauthAccessTokens: many(oauthAccessToken),
-  }),
-)
-
-export const oauthAccessTokenRelations = relations(
-  oauthAccessToken,
-  ({ one }) => ({
-    oauthClient: one(oauthClient, {
-      fields: [oauthAccessToken.clientId],
-      references: [oauthClient.clientId],
-    }),
-    session: one(session, {
-      fields: [oauthAccessToken.sessionId],
-      references: [session.id],
-    }),
-    user: one(user, {
-      fields: [oauthAccessToken.userId],
-      references: [user.id],
-    }),
-    oauthRefreshToken: one(oauthRefreshToken, {
-      fields: [oauthAccessToken.refreshId],
-      references: [oauthRefreshToken.id],
-    }),
-  }),
-)
-
-export const oauthConsentRelations = relations(oauthConsent, ({ one }) => ({
-  oauthClient: one(oauthClient, {
-    fields: [oauthConsent.clientId],
-    references: [oauthClient.clientId],
-  }),
-  user: one(user, {
-    fields: [oauthConsent.userId],
-    references: [user.id],
-  }),
-}))

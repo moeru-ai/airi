@@ -9,6 +9,7 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
 
 import { ensureDynamicFirstPartyRedirectUri } from '../../libs/auth'
+import { createAuthBridge } from '../../libs/auth-bridge'
 import { rateLimiter } from '../../middlewares/rate-limit'
 import { getServerAuthUiDistDir, renderServerAuthUiHtml, SERVER_AUTH_UI_BASE_PATH } from '../../utils/server-auth-ui'
 import { createElectronCallbackRelay } from '../oidc/electron-callback'
@@ -32,8 +33,11 @@ export interface AuthRoutesDeps {
  * (`/sign-in`, `/api/auth/*`, `/.well-known/*`).
  */
 export async function createAuthRoutes(deps: AuthRoutesDeps) {
+  const authBridge = createAuthBridge(deps.auth, deps.db, deps.env)
+
   async function handleAuthRequest(request: Request): Promise<Response> {
-    const response = await deps.auth.handler(request)
+    const bridged = await authBridge(request)
+    const response = await deps.auth.handler(bridged)
 
     if (!(response instanceof Response))
       throw new TypeError('Expected auth handler to return a Response')

@@ -23,16 +23,92 @@ electronCallback:
   hint:
     closeTabManually: Some browsers do not allow this page to close itself automatically. You can close it manually.
 signIn:
-  title: Sign in
+  title: Đăng nhập
+  or: hoặc
+  email: Email
+  password: Mật khẩu
+  submit: Đăng nhập
+  withProvider: Đăng nhập bằng {provider}
+  forgotPassword: Quên mật khẩu?
+  noAccount: Chưa có tài khoản?
+  switchToSignUp: Đăng ký
   error:
-    fallback: Sign in failed
-    unknown: An unknown error occurred
-    authFailed: Authentication failed. Please try again.
+    fallback: Đăng nhập thất bại
+    unknown: Đã xảy ra lỗi không xác định
+    authFailed: Xác thực thất bại. Vui lòng thử lại.
+    rateLimited: Quá nhiều lần thử. Vui lòng chờ một lát và thử lại.
+    codes:
+      INVALID_EMAIL_OR_PASSWORD: Email hoặc mật khẩu không chính xác.
+      INVALID_EMAIL: Vui lòng nhập địa chỉ email hợp lệ.
+      INVALID_PASSWORD: Mật khẩu không hợp lệ.
+      INVALID_USER: Không tìm thấy tài khoản phù hợp.
+      USER_NOT_FOUND: Không tìm thấy tài khoản với email này.
+      USER_EMAIL_NOT_FOUND: Không có tài khoản nào liên kết với email này.
+      USER_ALREADY_EXISTS: Đã tồn tại tài khoản với email này.
+      USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: Email này đã được sử dụng. Vui lòng dùng email khác.
+      EMAIL_NOT_VERIFIED: Vui lòng xác thực email trước khi đăng nhập.
+      EMAIL_ALREADY_VERIFIED: Email này đã được xác thực.
+      PASSWORD_TOO_SHORT: Mật khẩu quá ngắn.
+      PASSWORD_TOO_LONG: Mật khẩu quá dài.
+      PASSWORD_ALREADY_SET: Tài khoản này đã được đặt mật khẩu.
+      USER_ALREADY_HAS_PASSWORD: Tài khoản này đã có mật khẩu.
+      CREDENTIAL_ACCOUNT_NOT_FOUND: Tài khoản này chưa đặt mật khẩu.
+      ACCOUNT_NOT_FOUND: Không tìm thấy tài khoản.
+      SESSION_EXPIRED: Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.
+      SESSION_NOT_FRESH: Vì lý do bảo mật, vui lòng đăng nhập lại trước khi tiếp tục.
+      INVALID_TOKEN: Liên kết không hợp lệ hoặc đã hết hạn.
+      TOKEN_EXPIRED: Liên kết này đã hết hạn.
+      FAILED_TO_UNLINK_LAST_ACCOUNT: Bạn không thể hủy liên kết phương thức đăng nhập duy nhất.
+      SOCIAL_ACCOUNT_ALREADY_LINKED: Tài khoản này đã được liên kết.
+      LINKED_ACCOUNT_ALREADY_EXISTS: Nhà cung cấp này đã được liên kết với tài khoản khác.
+      MISSING_FIELD: Vui lòng điền đầy đủ các trường bắt buộc.
+      VALIDATION_ERROR: Một số trường không hợp lệ. Vui lòng kiểm tra và thử lại.
+      USER_DELETED: Tài khoản này đã bị xoá. Vui lòng liên hệ hỗ trợ nếu bạn cho rằng đây là nhầm lẫn.
   footer:
-    prefix: By continuing, you agree to our
-    terms: Terms
-    and: and
-    privacy: Privacy Policy
+    prefix: Bằng việc tiếp tục, bạn đồng ý với
+    terms: Điều khoản sử dụng
+    and: và
+    privacy: Chính sách bảo mật
+signUp:
+  title: Đăng ký
+  name: Tên
+  submit: Đăng ký
+  hasAccount: Đã có tài khoản?
+  switchToSignIn: Đăng nhập
+  verifyTitle: Kiểm tra email của bạn
+  verifyDescription: Chúng tôi đã gửi liên kết xác minh đến email của bạn. Vui lòng xác minh email trước khi đăng nhập.
+  backToSignIn: Quay lại đăng nhập
+forgotPassword:
+  title: Quên mật khẩu
+  description: Nhập email của bạn và chúng tôi sẽ gửi liên kết đặt lại.
+  email: Email
+  submit: Gửi liên kết đặt lại
+  sent: Nếu tài khoản với email đó tồn tại, liên kết đặt lại đã được gửi.
+  resend: Gửi lại
+  backToSignIn: Quay lại đăng nhập
+  error:
+    emptyEmail: Vui lòng nhập địa chỉ email của bạn
+resetPassword:
+  title: Đặt lại mật khẩu
+  newPassword: Mật khẩu mới
+  confirmPassword: Xác nhận mật khẩu mới
+  submit: Đặt lại mật khẩu
+  success: Đặt lại mật khẩu thành công
+  invalidToken: Liên kết không hợp lệ hoặc đã hết hạn
+  backToForgot: Quay lại quên mật khẩu
+  error:
+    tooShort: Mật khẩu phải có ít nhất 8 ký tự
+    mismatch: Mật khẩu không khớp
+    unknown: Đặt lại mật khẩu thất bại
+verifyEmail:
+  title: Xác minh email
+  loading: Đang xác minh email của bạn...
+  success: Xác minh email thành công!
+  successDescription: Email của bạn đã được xác minh thành công.
+  goHome: Về trang chủ
+  error: Xác minh thất bại
+  errorDescription: Liên kết xác minh không hợp lệ hoặc đã hết hạn.
+  backToSignIn: Quay lại đăng nhập
 webCallback:
   title:
     signIn: Sign in

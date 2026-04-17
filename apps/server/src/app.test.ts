@@ -65,6 +65,8 @@ function createTestDeps() {
       API_SERVER_URL: 'http://localhost:3000',
     } as any,
     otel: null,
+    emailService: {} as any,
+    s3StorageService: {} as any,
   }
 
   return {

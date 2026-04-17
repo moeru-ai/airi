@@ -23,16 +23,92 @@ electronCallback:
   hint:
     closeTabManually: Some browsers do not allow this page to close itself automatically. You can close it manually.
 signIn:
-  title: Sign in
+  title: Iniciar sesión
+  or: o
+  email: Correo electrónico
+  password: Contraseña
+  submit: Iniciar sesión
+  withProvider: Iniciar sesión con {provider}
+  forgotPassword: ¿Olvidaste tu contraseña?
+  noAccount: ¿No tienes una cuenta?
+  switchToSignUp: Registrarse
   error:
-    fallback: Sign in failed
-    unknown: An unknown error occurred
-    authFailed: Authentication failed. Please try again.
+    fallback: Error al iniciar sesión
+    unknown: Ocurrió un error desconocido
+    authFailed: La autenticación falló. Por favor, inténtalo de nuevo.
+    rateLimited: Demasiados intentos. Por favor, espera un momento y vuelve a intentarlo.
+    codes:
+      INVALID_EMAIL_OR_PASSWORD: Correo electrónico o contraseña no válidos.
+      INVALID_EMAIL: Por favor, introduce una dirección de correo válida.
+      INVALID_PASSWORD: La contraseña introducida no es válida.
+      INVALID_USER: No se encontró una cuenta para esta solicitud.
+      USER_NOT_FOUND: No se encontró ninguna cuenta con este correo.
+      USER_EMAIL_NOT_FOUND: No hay ninguna cuenta asociada a este correo.
+      USER_ALREADY_EXISTS: Ya existe una cuenta con este correo.
+      USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: Este correo ya está en uso. Usa otro.
+      EMAIL_NOT_VERIFIED: Por favor, verifica tu correo antes de iniciar sesión.
+      EMAIL_ALREADY_VERIFIED: Este correo ya ha sido verificado.
+      PASSWORD_TOO_SHORT: La contraseña es demasiado corta.
+      PASSWORD_TOO_LONG: La contraseña es demasiado larga.
+      PASSWORD_ALREADY_SET: Esta cuenta ya tiene una contraseña configurada.
+      USER_ALREADY_HAS_PASSWORD: Esta cuenta ya tiene una contraseña establecida.
+      CREDENTIAL_ACCOUNT_NOT_FOUND: Esta cuenta aún no tiene una contraseña.
+      ACCOUNT_NOT_FOUND: Cuenta no encontrada.
+      SESSION_EXPIRED: Tu sesión ha expirado. Por favor, inicia sesión de nuevo.
+      SESSION_NOT_FRESH: Por seguridad, inicia sesión de nuevo antes de continuar.
+      INVALID_TOKEN: Enlace no válido o expirado.
+      TOKEN_EXPIRED: Este enlace ha expirado.
+      FAILED_TO_UNLINK_LAST_ACCOUNT: No puedes desvincular tu único método de acceso.
+      SOCIAL_ACCOUNT_ALREADY_LINKED: Esta cuenta ya está vinculada.
+      LINKED_ACCOUNT_ALREADY_EXISTS: Este proveedor ya está vinculado a otra cuenta.
+      MISSING_FIELD: Por favor, rellena todos los campos obligatorios.
+      VALIDATION_ERROR: Algunos campos no son válidos. Revisa e inténtalo de nuevo.
+      USER_DELETED: Esta cuenta ha sido eliminada. Contacta con soporte si crees que es un error.
   footer:
-    prefix: By continuing, you agree to our
-    terms: Terms
-    and: and
-    privacy: Privacy Policy
+    prefix: Al continuar, aceptas nuestros
+    terms: Términos de servicio
+    and: y
+    privacy: Política de privacidad
+signUp:
+  title: Registrarse
+  name: Nombre
+  submit: Registrarse
+  hasAccount: ¿Ya tienes una cuenta?
+  switchToSignIn: Iniciar sesión
+  verifyTitle: Revisa tu correo electrónico
+  verifyDescription: Te hemos enviado un enlace de verificación. Por favor, verifica tu correo antes de iniciar sesión.
+  backToSignIn: Volver a iniciar sesión
+forgotPassword:
+  title: Olvidé mi contraseña
+  description: Introduce tu correo electrónico y te enviaremos un enlace de restablecimiento.
+  email: Correo electrónico
+  submit: Enviar enlace de restablecimiento
+  sent: Si existe una cuenta con ese correo electrónico, se ha enviado un enlace de restablecimiento.
+  resend: Reenviar
+  backToSignIn: Volver a iniciar sesión
+  error:
+    emptyEmail: Por favor, introduce tu dirección de correo electrónico
+resetPassword:
+  title: Restablecer contraseña
+  newPassword: Nueva contraseña
+  confirmPassword: Confirmar nueva contraseña
+  submit: Restablecer contraseña
+  success: Contraseña restablecida correctamente
+  invalidToken: Enlace inválido o expirado
+  backToForgot: Volver a olvidé mi contraseña
+  error:
+    tooShort: La contraseña debe tener al menos 8 caracteres
+    mismatch: Las contraseñas no coinciden
+    unknown: Error al restablecer la contraseña
+verifyEmail:
+  title: Verificación de correo electrónico
+  loading: Verificando tu correo electrónico...
+  success: ¡Correo electrónico verificado!
+  successDescription: Tu correo electrónico ha sido verificado correctamente.
+  goHome: Ir al inicio
+  error: Verificación fallida
+  errorDescription: El enlace de verificación es inválido o ha expirado.
+  backToSignIn: Volver a iniciar sesión
 webCallback:
   title:
     signIn: Sign in

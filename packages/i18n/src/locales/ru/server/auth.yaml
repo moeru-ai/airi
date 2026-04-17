@@ -23,16 +23,92 @@ electronCallback:
   hint:
     closeTabManually: Некоторые браузеры не позволяют закрыть эту страницу автоматически. Вы можете закрыть ее вручную.
 signIn:
-  title: Войти
+  title: Вход
+  or: или
+  email: Электронная почта
+  password: Пароль
+  submit: Войти
+  withProvider: Войти через {provider}
+  forgotPassword: Забыли пароль?
+  noAccount: Нет аккаунта?
+  switchToSignUp: Зарегистрироваться
   error:
-    fallback: Войти не удалось
+    fallback: Не удалось войти
     unknown: Произошла неизвестная ошибка
     authFailed: Аутентификация не пройдена. Пожалуйста, попробуйте снова.
+    rateLimited: Слишком много попыток. Пожалуйста, подождите немного и попробуйте снова.
+    codes:
+      INVALID_EMAIL_OR_PASSWORD: Неверный email или пароль.
+      INVALID_EMAIL: Пожалуйста, введите корректный email.
+      INVALID_PASSWORD: Введённый пароль недействителен.
+      INVALID_USER: Учётная запись для этого запроса не найдена.
+      USER_NOT_FOUND: Учётная запись с таким email не найдена.
+      USER_EMAIL_NOT_FOUND: С этим email не связана ни одна учётная запись.
+      USER_ALREADY_EXISTS: Учётная запись с таким email уже существует.
+      USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: Этот email уже используется. Пожалуйста, используйте другой.
+      EMAIL_NOT_VERIFIED: Подтвердите email перед входом.
+      EMAIL_ALREADY_VERIFIED: Этот email уже подтверждён.
+      PASSWORD_TOO_SHORT: Пароль слишком короткий.
+      PASSWORD_TOO_LONG: Пароль слишком длинный.
+      PASSWORD_ALREADY_SET: У этой учётной записи уже установлен пароль.
+      USER_ALREADY_HAS_PASSWORD: У этой учётной записи уже есть пароль.
+      CREDENTIAL_ACCOUNT_NOT_FOUND: Для этой учётной записи пароль ещё не задан.
+      ACCOUNT_NOT_FOUND: Учётная запись не найдена.
+      SESSION_EXPIRED: Срок действия сессии истёк. Пожалуйста, войдите снова.
+      SESSION_NOT_FRESH: В целях безопасности войдите снова перед продолжением.
+      INVALID_TOKEN: Ссылка недействительна или устарела.
+      TOKEN_EXPIRED: Срок действия ссылки истёк.
+      FAILED_TO_UNLINK_LAST_ACCOUNT: Невозможно отвязать единственный способ входа.
+      SOCIAL_ACCOUNT_ALREADY_LINKED: Эта учётная запись уже привязана.
+      LINKED_ACCOUNT_ALREADY_EXISTS: Этот способ входа уже привязан к другой учётной записи.
+      MISSING_FIELD: Пожалуйста, заполните все обязательные поля.
+      VALIDATION_ERROR: Некоторые поля недействительны. Проверьте и попробуйте снова.
+      USER_DELETED: Этот аккаунт был удалён. Если вы считаете это ошибкой, свяжитесь со службой поддержки.
   footer:
     prefix: Продолжая, вы соглашаетесь с нашими политиками
     terms: Условия использования
     and: и
     privacy: Политика конфиденциальности
+signUp:
+  title: Регистрация
+  name: Имя
+  submit: Зарегистрироваться
+  hasAccount: Уже есть аккаунт?
+  switchToSignIn: Войти
+  verifyTitle: Проверьте вашу почту
+  verifyDescription: Мы отправили ссылку для подтверждения на вашу электронную почту. Пожалуйста, подтвердите почту перед входом.
+  backToSignIn: Назад ко входу
+forgotPassword:
+  title: Забыли пароль
+  description: Введите вашу электронную почту, и мы отправим вам ссылку для сброса.
+  email: Электронная почта
+  submit: Отправить ссылку для сброса
+  sent: Если аккаунт с этой электронной почтой существует, ссылка для сброса отправлена.
+  resend: Отправить повторно
+  backToSignIn: Назад ко входу
+  error:
+    emptyEmail: Пожалуйста, введите адрес электронной почты
+resetPassword:
+  title: Сброс пароля
+  newPassword: Новый пароль
+  confirmPassword: Подтвердите новый пароль
+  submit: Сбросить пароль
+  success: Пароль успешно сброшен
+  invalidToken: Недействительная или просроченная ссылка
+  backToForgot: Назад к восстановлению пароля
+  error:
+    tooShort: Пароль должен содержать не менее 8 символов
+    mismatch: Пароли не совпадают
+    unknown: Не удалось сбросить пароль
+verifyEmail:
+  title: Подтверждение электронной почты
+  loading: Подтверждение вашей электронной почты...
+  success: Электронная почта подтверждена!
+  successDescription: Ваша электронная почта успешно подтверждена.
+  goHome: На главную
+  error: Ошибка подтверждения
+  errorDescription: Ссылка для подтверждения недействительна или истекла.
+  backToSignIn: Назад ко входу
 webCallback:
   title:
     signIn: Войти

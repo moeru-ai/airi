@@ -1,3 +1,5 @@
+import type { EmailService } from '../services/email'
+import type { S3StorageService } from '../services/s3'
 import type { Database } from './db'
 import type { Env } from './env'
 import type { AuthMetrics } from './otel'
@@ -5,12 +7,16 @@ import type { AuthMetrics } from './otel'
 import { Buffer } from 'node:buffer'
 
 import { oauthProvider } from '@better-auth/oauth-provider'
+import { useLogger } from '@guiiai/logg'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { createAuthMiddleware } from 'better-auth/api'
 import { bearer, jwt } from 'better-auth/plugins'
 import { eq } from 'drizzle-orm'
 
+import { user as userTable } from '../schemas/accounts'
+import { createForbiddenError } from '../utils/error'
+import { gravatarUrl } from '../utils/gravatar'
 import { getAuthTrustedOrigins, getTrustedOrigin } from '../utils/origin'
 
 import * as authSchema from '../schemas/accounts'
@@ -44,6 +50,7 @@ const OIDC_RESPONSE_TYPES = ['code'] as const
 export const OIDC_CLIENT_ID_WEB = 'airi-stage-web'
 export const OIDC_CLIENT_ID_ELECTRON = 'airi-stage-electron'
 export const OIDC_CLIENT_ID_POCKET = 'airi-stage-pocket'
+const logger = useLogger('auth-hooks')
 
 const DEFAULT_WEB_REDIRECT_URIS = [
   'https://airi.moeru.ai/auth/callback',
@@ -294,7 +301,13 @@ export async function seedTrustedClients(db: Database, env: Env): Promise<void> 
   }
 }
 
-export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null) {
+export function createAuth(
+  db: Database,
+  env: Env,
+  emailService: EmailService,
+  s3StorageService: S3StorageService,
+  metrics?: AuthMetrics | null,
+) {
   return betterAuth({
     secret: env.BETTER_AUTH_SECRET,
 
@@ -328,6 +341,70 @@ export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null)
 
     emailAndPassword: {
       enabled: true,
+      // NOTICE:
+      // Gate `requireEmailVerification` on whether transactional email is
+      // actually configured. Setting it to `true` unconditionally locks
+      // every newly-registered email/password user out of their account
+      // when `RESEND_API_KEY` is not set, because the verification email
+      // never arrives. Tying it to `emailService.isAvailable()` keeps the
+      // strict behaviour for production (where Resend is wired up) but
+      // lets local/dev/self-hosted deployments without email still log in.
+      // Removal condition: if AIRI ever ships a non-Resend fallback email
+      // path, swap this for that capability check.
+      requireEmailVerification: emailService.isAvailable(),
+      sendResetPassword: async ({ user, token }: { user: { email: string }, token: string }) => {
+        const url = `${env.CLIENT_URL}/auth/reset-password?token=${encodeURIComponent(token)}`
+        const { subject, html } = emailService.passwordResetEmail(url)
+        void emailService.sendEmail({ to: user.email, subject, html })
+      },
+    },
+
+    emailVerification: {
+      sendVerificationEmail: async ({ user, token }: { user: { email: string }, token: string }) => {
+        // NOTICE:
+        // Defence in depth alongside `requireEmailVerification` above.
+        // better-auth still calls this hook on signup even when verification
+        // is not required, and any plugin added later might call it
+        // independently. Bail out early when email is not configured so we
+        // do not generate links that nobody can deliver and do not log
+        // misleading "email failed to send" warnings.
+        if (!emailService.isAvailable())
+          return
+        const url = `${env.CLIENT_URL}/auth/verify-email?token=${encodeURIComponent(token)}`
+        const { subject, html } = emailService.emailVerificationEmail(url)
+        void emailService.sendEmail({ to: user.email, subject, html })
+      },
+    },
+
+    user: {
+      // NOTICE:
+      // `deletedAt` is an AIRI-only field for soft-delete bookkeeping. It is
+      // declared here so that:
+      //   1. `@better-auth/cli generate` keeps emitting the `deleted_at`
+      //      column when `accounts.ts` is regenerated.
+      //   2. The User type returned by better-auth carries `deletedAt`,
+      //      which lets `databaseHooks.session.create.before` (and other
+      //      enforcement points) consult it without an extra cast.
+      // `input: false, returned: false` keeps it out of the public API
+      // surface — clients can never set or read it directly.
+      // Removal condition: only if soft-delete is replaced by a hard-delete flow.
+      additionalFields: {
+        deletedAt: {
+          type: 'date',
+          required: false,
+          input: false,
+          returned: false,
+          fieldName: 'deleted_at',
+        },
+      },
+      changeEmail: {
+        enabled: true,
+        sendChangeEmailVerification: async ({ newEmail, token }: { user: { email: string }, newEmail: string, token: string }) => {
+          const url = `${env.CLIENT_URL}/auth/verify-email?token=${encodeURIComponent(token)}`
+          const { subject, html } = emailService.changeEmailVerificationEmail(url)
+          void emailService.sendEmail({ to: newEmail, subject, html })
+        },
+      },
     },
 
     session: {
@@ -398,13 +475,72 @@ export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null)
     databaseHooks: {
       user: {
         create: {
-          after: async () => {
+          after: async (user) => {
             metrics?.userRegistered.add(1)
+
+            // Fire-and-forget avatar processing: never block user creation.
+            void (async () => {
+              try {
+                // Users without an OAuth-provided image get a Gravatar URL
+                // assigned directly. No S3 dependency needed because Gravatar
+                // serves the image and gracefully falls back to the
+                // `?d=identicon` default for emails without a profile.
+                if (!user.image) {
+                  await db.update(userTable)
+                    .set({ image: gravatarUrl(user.email) })
+                    .where(eq(userTable.id, user.id))
+                  return
+                }
+
+                // OAuth-provided avatars: mirror to S3 when configured so we
+                // do not depend on the provider's CDN long-term. Skip the
+                // mirror when S3 is unavailable; the OAuth URL stays in DB.
+                if (!s3StorageService.isAvailable())
+                  return
+
+                // NOTICE:
+                // External avatar URLs (OAuth provider CDN) may hang. Cap at 5s
+                // so this fire-and-forget promise can't live indefinitely.
+                // Root cause: default fetch() has no request timeout.
+                // Source: https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static
+                // Removal condition: move avatar ingestion into a queue with its own timeout policy.
+                const response = await fetch(user.image, {
+                  signal: AbortSignal.timeout(5000),
+                })
+                if (!response.ok)
+                  throw new Error(`Failed to fetch avatar: ${response.status}`)
+
+                const buffer = Buffer.from(await response.arrayBuffer())
+                const contentType = response.headers.get('content-type') ?? 'image/jpeg'
+                const ext = contentType.split('/')[1]?.replace('jpeg', 'jpg') ?? 'png'
+                const key = `avatars/${user.id}/${Date.now()}.${ext}`
+                const publicUrl = await s3StorageService.upload(key, buffer, contentType)
+
+                await db.update(userTable)
+                  .set({ image: publicUrl })
+                  .where(eq(userTable.id, user.id))
+              }
+              catch (error) {
+                logger.withError(error).error('Failed to process user avatar on registration')
+              }
+            })()
           },
         },
       },
       session: {
         create: {
+          before: async (session) => {
+            // Block session creation for soft-deleted users across ALL auth
+            // paths (email/password, OAuth callback, OIDC bridge, admin impersonation).
+            // This is the single choke point for `deletedAt` enforcement.
+            const [u] = await db
+              .select({ deletedAt: userTable.deletedAt })
+              .from(userTable)
+              .where(eq(userTable.id, session.userId))
+              .limit(1)
+            if (u?.deletedAt)
+              throw createForbiddenError('User account has been deleted', 'USER_DELETED')
+          },
           after: async () => {
             metrics?.userLogin.add(1)
             metrics?.activeSessions.add(1)

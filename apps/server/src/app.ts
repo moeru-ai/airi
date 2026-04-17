@@ -11,9 +11,11 @@ import type { FluxMeter } from './services/billing/flux-meter'
 import type { CharacterService } from './services/characters'
 import type { ChatService } from './services/chats'
 import type { ConfigKVService } from './services/config-kv'
+import type { EmailService } from './services/email'
 import type { FluxService } from './services/flux'
 import type { FluxTransactionService } from './services/flux-transaction'
 import type { ProviderService } from './services/providers'
+import type { S3StorageService } from './services/s3'
 import type { StripeService } from './services/stripe'
 import type { HonoEnv } from './types/hono'
 
@@ -45,16 +47,19 @@ import { createFluxRoutes } from './routes/flux'
 import { createV1CompletionsRoutes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
+import { createUserRoutes } from './routes/user'
 import { createBillingMq } from './services/billing/billing-events'
 import { createBillingService } from './services/billing/billing-service'
 import { createFluxMeter } from './services/billing/flux-meter'
 import { createCharacterService } from './services/characters'
 import { createChatService } from './services/chats'
 import { createConfigKVService } from './services/config-kv'
+import { createEmailService } from './services/email'
 import { createFluxService } from './services/flux'
 import { createFluxTransactionService } from './services/flux-transaction'
 import { createProviderService } from './services/providers'
 import { createRequestLogService } from './services/request-log'
+import { createS3StorageService } from './services/s3'
 import { createStripeService } from './services/stripe'
 import { ApiError, createInternalError, createUnauthorizedError } from './utils/error'
 import { getTrustedOrigin } from './utils/origin'
@@ -72,6 +77,8 @@ interface AppDeps {
   ttsMeter: FluxMeter
   billingMq: MqService<BillingEvent>
   configKV: ConfigKVService
+  emailService: EmailService
+  s3StorageService: S3StorageService
   redis: Redis
   env: Env
   otel: OtelInstance | null
@@ -126,7 +133,13 @@ export async function buildApp(deps: AppDeps) {
 
   const builtApp = app
     .use('*', sessionMiddleware(deps.auth, deps.env))
-    .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
+    .use('*', async (c, next) => {
+      // Skip global body limit for ASR transcription route (has its own 25MB limit)
+      if (c.req.path === '/api/v1/openai/audio/transcriptions' || c.req.path === '/api/v1/user/avatar') {
+        return next()
+      }
+      return bodyLimit({ maxSize: 1024 * 1024 })(c, next)
+    })
     .onError((err, c) => {
       if (err instanceof ApiError) {
         if (err.statusCode >= 500) {
@@ -196,6 +209,11 @@ export async function buildApp(deps: AppDeps) {
      * Stripe routes.
      */
     .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue))
+
+    /**
+     * User routes for avatar management and account deletion.
+     */
+    .route('/api/v1/user', createUserRoutes({ s3StorageService: deps.s3StorageService, db: deps.db }))
 
   return { app: builtApp, injectWebSocket }
 }
@@ -292,8 +310,18 @@ export async function createApp() {
     }),
   })
 
+  const emailService = injeca.provide('services:email', {
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn }) => createEmailService(dependsOn.env),
+  })
+
+  const s3StorageService = injeca.provide('services:s3', {
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn }) => createS3StorageService(dependsOn.env),
+  })
+
   const auth = injeca.provide('services:auth', {
-    dependsOn: { db, env: parsedEnv, otel },
+    dependsOn: { db, env: parsedEnv, emailService, s3StorageService, otel },
     build: async ({ dependsOn }) => {
       // Seed trusted OIDC clients into DB so FK constraints on oauth_access_token are satisfied
       await seedTrustedClients(dependsOn.db, dependsOn.env)
@@ -306,7 +334,7 @@ export async function createApp() {
           redirectUris: client.redirectUris.join(', '),
         }).log('OIDC trusted client ready')
       }
-      return createAuth(dependsOn.db, dependsOn.env, dependsOn.otel?.auth)
+      return createAuth(dependsOn.db, dependsOn.env, dependsOn.emailService, dependsOn.s3StorageService, dependsOn.otel?.auth)
     },
   })
 
@@ -383,6 +411,8 @@ export async function createApp() {
     ttsMeter,
     billingMq,
     configKV,
+    emailService,
+    s3StorageService,
     redis,
     env: parsedEnv,
     otel,
@@ -400,6 +430,8 @@ export async function createApp() {
     ttsMeter: resolved.ttsMeter,
     billingMq: resolved.billingMq,
     configKV: resolved.configKV,
+    emailService: resolved.emailService,
+    s3StorageService: resolved.s3StorageService,
     redis: resolved.redis,
     env: resolved.env,
     otel: resolved.otel,

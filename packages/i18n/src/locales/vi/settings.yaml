@@ -144,14 +144,56 @@ microphone: Micro
 models: Mô hình
 pages:
   account:
-    title: Account
-    description: View your profile and manage your account
-    notLoggedIn: Sign in to view your account and access all features
-    login: Sign in
-    logout: Sign out
-    fluxBalance: Flux Balance
-    viewFluxDetails: View details
-    signedInAs: Signed in as
+    title: Tài khoản
+    description: Xem hồ sơ và quản lý tài khoản của bạn
+    signedInAs: Đã đăng nhập với
+    fluxBalance: Số dư Flux
+    viewFluxDetails: Xem chi tiết
+    login: Đăng nhập
+    logout: Đăng xuất
+    notLoggedIn: Đăng nhập để quản lý cài đặt tài khoản, liên kết nhà cung cấp và nhiều hơn nữa.
+    profile:
+      title: Hồ sơ
+      nameLabel: Tên hiển thị
+      namePlaceholder: Nhập tên của bạn
+      uploadNew: Tải lên ảnh mới
+      removeAvatar: Xóa
+      saveButton: Lưu
+      saveSuccess: Cập nhật hồ sơ thành công
+    linkedAccounts:
+      title: Tài khoản đã liên kết
+      unlink: Hủy liên kết
+      linkGoogle: Liên kết Google
+      linkGithub: Liên kết GitHub
+      needPassword: Bạn phải đặt mật khẩu trước khi hủy liên kết nhà cung cấp OAuth.
+      sendPasswordLink: Gửi liên kết đặt mật khẩu
+      linkSent: Liên kết đặt mật khẩu đã được gửi đến email của bạn.
+    password:
+      title: Mật khẩu
+      currentPassword: Mật khẩu hiện tại
+      newPassword: Mật khẩu mới
+      confirmPassword: Xác nhận mật khẩu
+      changePassword: Đổi mật khẩu
+      setPassword: Đặt mật khẩu
+      noPasswordSet: Chưa đặt mật khẩu. Hãy đặt mật khẩu để đăng nhập bằng email.
+      sendResetLink: Gửi liên kết đặt lại mật khẩu
+      resetLinkSent: Liên kết đặt lại mật khẩu đã được gửi đến email của bạn.
+      passwordChanged: Đổi mật khẩu thành công
+    email:
+      title: Email
+      currentEmail: Email hiện tại
+      newEmail: Email mới
+      changeEmail: Đổi email
+      verificationSent: Email xác minh đã được gửi
+    dangerZone:
+      title: Vùng nguy hiểm
+      deleteAccount: Xóa tài khoản
+      deleteDescription: Xóa vĩnh viễn tài khoản và tất cả dữ liệu liên quan. Hành động này không thể hoàn tác.
+      confirmTitle: Xóa tài khoản của bạn?
+      confirmDescription: Tài khoản sẽ bị xóa vĩnh viễn. Nhập "DELETE" để xác nhận.
+      typeDelete: Nhập DELETE để xác nhận
+      cancel: Hủy
+      confirmDelete: Xóa tài khoản của tôi
   card:
     activate: Kích hoạt
     active: Đang hoạt động

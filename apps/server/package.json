@@ -15,6 +15,7 @@
     "db:push": "pnpm run apply:env -- drizzle-kit push"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.801.0",
     "@better-auth/drizzle-adapter": "^1.6.3",
     "@better-auth/oauth-provider": "catalog:",
     "@dotenvx/dotenvx": "^1.61.0",
@@ -53,6 +54,7 @@
     "ioredis": "^5.10.1",
     "jose": "catalog:",
     "pg": "^8.20.0",
+    "resend": "^4.5.2",
     "stripe": "^22.0.1",
     "valibot": "catalog:",
     "zod": "catalog:"

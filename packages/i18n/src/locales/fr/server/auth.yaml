@@ -23,16 +23,92 @@ electronCallback:
   hint:
     closeTabManually: Some browsers do not allow this page to close itself automatically. You can close it manually.
 signIn:
-  title: Sign in
+  title: Connexion
+  or: ou
+  email: Adresse e-mail
+  password: Mot de passe
+  submit: Se connecter
+  withProvider: Se connecter avec {provider}
+  forgotPassword: Mot de passe oublié ?
+  noAccount: Vous n'avez pas de compte ?
+  switchToSignUp: S'inscrire
   error:
-    fallback: Sign in failed
-    unknown: An unknown error occurred
-    authFailed: Authentication failed. Please try again.
+    fallback: Échec de la connexion
+    unknown: Une erreur inconnue s'est produite
+    authFailed: L'authentification a échoué. Veuillez réessayer.
+    rateLimited: Trop de tentatives. Veuillez patienter un instant avant de réessayer.
+    codes:
+      INVALID_EMAIL_OR_PASSWORD: E-mail ou mot de passe incorrect.
+      INVALID_EMAIL: Veuillez saisir une adresse e-mail valide.
+      INVALID_PASSWORD: Le mot de passe saisi n'est pas valide.
+      INVALID_USER: Aucun compte trouvé pour cette demande.
+      USER_NOT_FOUND: Aucun compte trouvé avec cet e-mail.
+      USER_EMAIL_NOT_FOUND: Aucun compte n'est associé à cette adresse e-mail.
+      USER_ALREADY_EXISTS: Un compte existe déjà avec cet e-mail.
+      USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: Cet e-mail est déjà utilisé. Veuillez en utiliser un autre.
+      EMAIL_NOT_VERIFIED: Veuillez vérifier votre e-mail avant de vous connecter.
+      EMAIL_ALREADY_VERIFIED: Cet e-mail a déjà été vérifié.
+      PASSWORD_TOO_SHORT: Le mot de passe est trop court.
+      PASSWORD_TOO_LONG: Le mot de passe est trop long.
+      PASSWORD_ALREADY_SET: Un mot de passe est déjà défini sur ce compte.
+      USER_ALREADY_HAS_PASSWORD: Ce compte a déjà un mot de passe défini.
+      CREDENTIAL_ACCOUNT_NOT_FOUND: Aucun mot de passe n'est défini sur ce compte.
+      ACCOUNT_NOT_FOUND: Compte introuvable.
+      SESSION_EXPIRED: Votre session a expiré. Veuillez vous reconnecter.
+      SESSION_NOT_FRESH: Pour des raisons de sécurité, veuillez vous reconnecter.
+      INVALID_TOKEN: Lien invalide ou expiré.
+      TOKEN_EXPIRED: Ce lien a expiré.
+      FAILED_TO_UNLINK_LAST_ACCOUNT: Vous ne pouvez pas dissocier votre seule méthode de connexion.
+      SOCIAL_ACCOUNT_ALREADY_LINKED: Ce compte est déjà lié.
+      LINKED_ACCOUNT_ALREADY_EXISTS: Ce fournisseur est déjà lié à un autre compte.
+      MISSING_FIELD: Veuillez remplir tous les champs obligatoires.
+      VALIDATION_ERROR: Certains champs ne sont pas valides. Veuillez vérifier et réessayer.
+      USER_DELETED: Ce compte a été supprimé. Contactez le support si vous pensez qu’il s’agit d’une erreur.
   footer:
-    prefix: By continuing, you agree to our
-    terms: Terms
-    and: and
-    privacy: Privacy Policy
+    prefix: En continuant, vous acceptez nos
+    terms: Conditions d'utilisation
+    and: et
+    privacy: Politique de confidentialité
+signUp:
+  title: Inscription
+  name: Nom
+  submit: S'inscrire
+  hasAccount: Vous avez déjà un compte ?
+  switchToSignIn: Se connecter
+  verifyTitle: Vérifiez votre e-mail
+  verifyDescription: Nous avons envoyé un lien de vérification à votre adresse e-mail. Veuillez vérifier votre e-mail avant de vous connecter.
+  backToSignIn: Retour à la connexion
+forgotPassword:
+  title: Mot de passe oublié
+  description: Entrez votre adresse e-mail et nous vous enverrons un lien de réinitialisation.
+  email: Adresse e-mail
+  submit: Envoyer le lien de réinitialisation
+  sent: Si un compte avec cette adresse e-mail existe, un lien de réinitialisation a été envoyé.
+  resend: Renvoyer
+  backToSignIn: Retour à la connexion
+  error:
+    emptyEmail: Veuillez entrer votre adresse e-mail
+resetPassword:
+  title: Réinitialiser le mot de passe
+  newPassword: Nouveau mot de passe
+  confirmPassword: Confirmer le nouveau mot de passe
+  submit: Réinitialiser le mot de passe
+  success: Mot de passe réinitialisé avec succès
+  invalidToken: Lien invalide ou expiré
+  backToForgot: Retour à mot de passe oublié
+  error:
+    tooShort: Le mot de passe doit contenir au moins 8 caractères
+    mismatch: Les mots de passe ne correspondent pas
+    unknown: Échec de la réinitialisation du mot de passe
+verifyEmail:
+  title: Vérification de l'adresse e-mail
+  loading: Vérification de votre adresse e-mail en cours...
+  success: Adresse e-mail vérifiée !
+  successDescription: Votre adresse e-mail a été vérifiée avec succès.
+  goHome: Aller à l'accueil
+  error: Échec de la vérification
+  errorDescription: Le lien de vérification est invalide ou a expiré.
+  backToSignIn: Retour à la connexion
 webCallback:
   title:
     signIn: Sign in

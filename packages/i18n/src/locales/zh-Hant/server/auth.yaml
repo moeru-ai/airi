@@ -23,16 +23,92 @@ electronCallback:
   hint:
     closeTabManually: Some browsers do not allow this page to close itself automatically. You can close it manually.
 signIn:
-  title: Sign in
+  title: 登入
+  or: 或
+  email: 電子郵件
+  password: 密碼
+  submit: 登入
+  withProvider: 使用 {provider} 登入
+  forgotPassword: 忘記密碼？
+  noAccount: 還沒有帳號？
+  switchToSignUp: 註冊
   error:
-    fallback: Sign in failed
-    unknown: An unknown error occurred
-    authFailed: Authentication failed. Please try again.
+    fallback: 登入失敗
+    unknown: 發生了未知錯誤
+    authFailed: 驗證失敗，請重試。
+    rateLimited: 嘗試次數過多，請稍候片刻後再試。
+    codes:
+      INVALID_EMAIL_OR_PASSWORD: 電子郵件或密碼錯誤。
+      INVALID_EMAIL: 請輸入有效的電子郵件地址。
+      INVALID_PASSWORD: 輸入的密碼無效。
+      INVALID_USER: 找不到對應的帳戶。
+      USER_NOT_FOUND: 找不到使用此電子郵件的帳戶。
+      USER_EMAIL_NOT_FOUND: 此電子郵件尚未關聯任何帳戶。
+      USER_ALREADY_EXISTS: 此電子郵件已被註冊。
+      USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: 此電子郵件已被使用，請更換其他電子郵件。
+      EMAIL_NOT_VERIFIED: 請先驗證電子郵件後再登入。
+      EMAIL_ALREADY_VERIFIED: 此電子郵件已通過驗證。
+      PASSWORD_TOO_SHORT: 密碼太短。
+      PASSWORD_TOO_LONG: 密碼太長。
+      PASSWORD_ALREADY_SET: 此帳戶已設定過密碼。
+      USER_ALREADY_HAS_PASSWORD: 此帳戶已設定密碼。
+      CREDENTIAL_ACCOUNT_NOT_FOUND: 此帳戶尚未設定密碼。
+      ACCOUNT_NOT_FOUND: 找不到帳戶。
+      SESSION_EXPIRED: 登入狀態已過期，請重新登入。
+      SESSION_NOT_FRESH: 為了帳戶安全，請重新登入後再繼續。
+      INVALID_TOKEN: 連結無效或已過期。
+      TOKEN_EXPIRED: 此連結已過期。
+      FAILED_TO_UNLINK_LAST_ACCOUNT: 無法解除您唯一的登入方式。
+      SOCIAL_ACCOUNT_ALREADY_LINKED: 此帳戶已綁定。
+      LINKED_ACCOUNT_ALREADY_EXISTS: 此登入方式已綁定到其他帳戶。
+      MISSING_FIELD: 請填寫所有必填欄位。
+      VALIDATION_ERROR: 部分欄位無效，請檢查後重試。
+      USER_DELETED: 該帳號已被註銷。如有疑問，請聯絡客服。
   footer:
-    prefix: By continuing, you agree to our
-    terms: Terms
-    and: and
-    privacy: Privacy Policy
+    prefix: 繼續即表示您同意我們的
+    terms: 服務條款
+    and: 和
+    privacy: 隱私政策
+signUp:
+  title: 註冊
+  name: 名稱
+  submit: 註冊
+  hasAccount: 已有帳號？
+  switchToSignIn: 登入
+  verifyTitle: 請查看您的電子郵件
+  verifyDescription: 我們已向您的電子郵件發送了驗證連結，請在登入前完成驗證。
+  backToSignIn: 返回登入
+forgotPassword:
+  title: 忘記密碼
+  description: 輸入您的電子郵件，我們將向您發送重設連結。
+  email: 電子郵件
+  submit: 傳送重設連結
+  sent: 如果該電子郵件對應的帳號存在，重設連結已發送。
+  resend: 重新傳送
+  backToSignIn: 返回登入
+  error:
+    emptyEmail: 請輸入您的電子郵件地址
+resetPassword:
+  title: 重設密碼
+  newPassword: 新密碼
+  confirmPassword: 確認新密碼
+  submit: 重設密碼
+  success: 密碼重設成功
+  invalidToken: 連結無效或已過期
+  backToForgot: 返回忘記密碼
+  error:
+    tooShort: 密碼至少需要8個字元
+    mismatch: 兩次輸入的密碼不一致
+    unknown: 密碼重設失敗
+verifyEmail:
+  title: 電子郵件驗證
+  loading: 正在驗證您的電子郵件…
+  success: 電子郵件驗證成功！
+  successDescription: 您的電子郵件已成功驗證。
+  goHome: 返回首頁
+  error: 驗證失敗
+  errorDescription: 驗證連結無效或已過期。
+  backToSignIn: 返回登入
 webCallback:
   title:
     signIn: Sign in

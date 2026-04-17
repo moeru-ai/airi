@@ -40,6 +40,12 @@ const EnvSchema = object({
 
   API_SERVER_URL: optional(string(), 'http://localhost:3000'),
 
+  // Origin of the web/tamagotchi client. Used by the server to generate
+  // absolute links in transactional emails (password reset, email verification,
+  // change-email confirmation), so the frontend never has to supply URLs
+  // and cannot be tricked into pointing reset links at attacker-controlled hosts.
+  CLIENT_URL: optional(string(), 'http://localhost:5173'),
+
   DATABASE_URL: pipe(string(), nonEmpty('DATABASE_URL is required')),
   REDIS_URL: pipe(string(), nonEmpty('REDIS_URL is required')),
 
@@ -55,6 +61,26 @@ const EnvSchema = object({
 
   STRIPE_SECRET_KEY: optional(string()),
   STRIPE_WEBHOOK_SECRET: optional(string()),
+
+  // S3-compatible object storage for user-uploaded assets (e.g. avatars).
+  // Works with any S3-compatible provider (AWS S3, Cloudflare R2, MinIO,
+  // Backblaze B2, Tigris, etc.) — operators point `S3_ENDPOINT` at the
+  // provider's URL. For Cloudflare R2 build the endpoint as
+  // `https://<account-id>.r2.cloudflarestorage.com`.
+  // All optional — upload/delete endpoints will return 503 when not configured.
+  S3_ENDPOINT: optional(string()),
+  S3_ACCESS_KEY_ID: optional(string()),
+  S3_SECRET_ACCESS_KEY: optional(string()),
+  S3_BUCKET_NAME: optional(string()),
+  S3_PUBLIC_URL: optional(string()),
+
+  // Resend transactional email (password reset, email change, etc.).
+  // RESEND_API_KEY is optional — when absent, email features degrade gracefully
+  // (verification gate disabled, password reset returns success without sending).
+  // RESEND_FROM_EMAIL has a sensible default so operators only need to override
+  // when they want a custom branded sender.
+  RESEND_API_KEY: optional(string()),
+  RESEND_FROM_EMAIL: optional(string(), 'noreply@airi.moeru.ai'),
 
   // LLM gateway (infrastructure config — baked per deployment)
   GATEWAY_BASE_URL: pipe(string(), nonEmpty('GATEWAY_BASE_URL is required')),

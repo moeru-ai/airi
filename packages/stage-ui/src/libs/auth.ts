@@ -1,7 +1,9 @@
 import type { OIDCFlowParams, TokenResponse } from './auth-oidc'
 
 import { createAuthClient } from 'better-auth/vue'
+import { effectScope, watch } from 'vue'
 
+import { resetAccountManagementState } from '../composables/use-account-management-state'
 import { useAuthStore } from '../stores/auth'
 import { buildAuthorizationURL, persistFlowState } from './auth-oidc'
 import { SERVER_URL } from './server'
@@ -29,10 +31,68 @@ export const authClient = createAuthClient({
       type: 'Bearer',
       token: () => getAuthToken() ?? '',
     },
+    // NOTICE: When using Bearer auth (credentials: "omit"), better-auth returns
+    // the session token via the `set-auth-token` response header instead of a
+    // cookie. We intercept every successful response to capture and persist this
+    // token so subsequent requests include it as `Authorization: Bearer <token>`.
+    // Without this, email/password sign-in works but all follow-up API calls
+    // (listAccounts, getSession, etc.) fail with 401.
+    onSuccess: (ctx) => {
+      const authToken = ctx.response.headers.get('set-auth-token')
+      if (authToken) {
+        localStorage.setItem('auth/v1/token', decodeURIComponent(authToken))
+      }
+    },
   },
 })
 
 let initialized = false
+
+// NOTICE:
+// Detached EffectScope so any reactive effect we register from
+// `initializeAuth()` survives the unmount of whichever component first
+// invokes the helper (typically the stage shell via `useAuthProviderSync`).
+// Without `detached: true`, those effects would inherit the calling
+// component's scope and stop firing the moment the component is destroyed
+// (route changes, HMR, layout swap). The scope intentionally lives for the
+// app lifetime and is never stopped — see `bindAccountManagementResetToAuth`.
+const authBackgroundScope = effectScope(true)
+
+/**
+ * Wire the account-management state reset to the auth store's user id.
+ *
+ * Use when:
+ * - Initializing the frontend auth layer. Called from {@link initializeAuth}
+ *   in production and from unit tests that exercise the watcher contract
+ *   without spinning up the full init pipeline.
+ *
+ * Expects:
+ * - `authStore` is an active Pinia store (`setActivePinia` has been called).
+ *
+ * Returns:
+ * - Nothing. Registers a `watch` inside the module's detached EffectScope
+ *   so it cannot be torn down by component lifecycle. Subsequent calls are
+ *   additive — every invocation registers another watcher. Production code
+ *   only calls this once via the `initialized` guard in `initializeAuth`.
+ *
+ * Call stack:
+ *
+ * initializeAuth
+ * -> {@link bindAccountManagementResetToAuth}
+ * -> watch(authStore.user.id)
+ * -> {@link resetAccountManagementState}
+ */
+export function bindAccountManagementResetToAuth(authStore: ReturnType<typeof useAuthStore>): void {
+  authBackgroundScope.run(() => {
+    // NOTICE: no `next !== prev` guard inside the callback — Vue's `watch`
+    // already compares with `Object.is` for primitives and only fires on a
+    // real change.
+    watch(
+      () => authStore.user?.id ?? null,
+      () => resetAccountManagementState(),
+    )
+  })
+}
 
 export async function initializeAuth() {
   if (initialized)
@@ -45,6 +105,14 @@ export async function initializeAuth() {
   initialized = true
 
   const authStore = useAuthStore()
+
+  // NOTICE:
+  // Bind the user-id watcher BEFORE the half-cleared check, refresh restore,
+  // and fetchSession below. Each of those can mutate `authStore.user`
+  // (clearAllAuthState on mismatch, fetchSession returning a different user
+  // or null on invalid session). Registering the watcher first guarantees
+  // we observe every transition, including the ones that happen during init.
+  bindAccountManagementResetToAuth(authStore)
 
   // Normalize "half-cleared" persisted state before anything reads it.
   //
@@ -125,6 +193,14 @@ export async function signOut() {
     // Swallow — local cleanup below ensures the user is signed out client-side.
   }
 
+  // NOTICE:
+  // We deliberately do NOT call `resetAccountManagementState()` here.
+  // `clearAllAuthState()` nulls `authStore.user`, which fires the watcher
+  // registered by `bindAccountManagementResetToAuth` and resets the shared
+  // account-management state on the next reactivity flush — before any
+  // component re-renders. Keeping the reset in exactly one place prevents
+  // drift between the signOut path and the OIDC bridge / session-expiry
+  // paths, which have no signOut() call to piggyback on.
   authStore.clearAllAuthState()
 }
 

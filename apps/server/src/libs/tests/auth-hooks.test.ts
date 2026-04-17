@@ -1,0 +1,270 @@
+import type { EmailService } from '../../services/email'
+import type { S3StorageService } from '../../services/s3'
+import type { Database } from '../db'
+import type { Env } from '../env'
+
+import { Buffer } from 'node:buffer'
+import { createHash } from 'node:crypto'
+
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { createAuth } from '../auth'
+
+const mockBetterAuth = vi.hoisted(() => vi.fn((config: unknown) => config))
+const mockDrizzleAdapter = vi.hoisted(() => vi.fn(() => ({ adapter: 'drizzle' })))
+const mockCreateAuthMiddleware = vi.hoisted(() => vi.fn((handler: unknown) => handler))
+const mockBearer = vi.hoisted(() => vi.fn(() => ({ name: 'bearer' })))
+const mockJwt = vi.hoisted(() => vi.fn(() => ({ name: 'jwt' })))
+const mockOauthProvider = vi.hoisted(() => vi.fn(() => ({ name: 'oauthProvider' })))
+const mockLoggerError = vi.hoisted(() => vi.fn())
+const mockLoggerWithError = vi.hoisted(() => vi.fn(() => ({ error: mockLoggerError })))
+const mockUseLogger = vi.hoisted(() => vi.fn(() => ({ withError: mockLoggerWithError, error: mockLoggerError })))
+
+vi.mock('better-auth', () => ({
+  betterAuth: mockBetterAuth,
+}))
+
+vi.mock('better-auth/adapters/drizzle', () => ({
+  drizzleAdapter: mockDrizzleAdapter,
+}))
+
+vi.mock('better-auth/api', () => ({
+  createAuthMiddleware: mockCreateAuthMiddleware,
+}))
+
+vi.mock('better-auth/plugins', () => ({
+  bearer: mockBearer,
+  jwt: mockJwt,
+}))
+
+vi.mock('@better-auth/oauth-provider', () => ({
+  oauthProvider: mockOauthProvider,
+}))
+
+vi.mock('@guiiai/logg', () => ({
+  useLogger: mockUseLogger,
+}))
+
+vi.mock('../../services/s3', () => ({}))
+
+interface AuthConfigForHooksTest {
+  databaseHooks?: {
+    user?: {
+      create?: {
+        after?: (user: { id: string, email: string, image?: string | null }) => Promise<void>
+      }
+    }
+  }
+}
+
+function makeEnv(overrides: Partial<Env> = {}): Env {
+  return {
+    HOST: '0.0.0.0',
+    PORT: 3000,
+    API_SERVER_URL: 'http://localhost:3000',
+    CLIENT_URL: 'http://localhost:5173',
+    DATABASE_URL: 'postgres://localhost/test',
+    REDIS_URL: 'redis://localhost:6379',
+    BETTER_AUTH_SECRET: 'test-secret',
+    AUTH_GOOGLE_CLIENT_ID: 'gid',
+    AUTH_GOOGLE_CLIENT_SECRET: 'gsec',
+    AUTH_GITHUB_CLIENT_ID: 'ghid',
+    AUTH_GITHUB_CLIENT_SECRET: 'ghsec',
+    STRIPE_SECRET_KEY: undefined,
+    STRIPE_WEBHOOK_SECRET: undefined,
+    S3_ENDPOINT: undefined,
+    S3_ACCESS_KEY_ID: undefined,
+    S3_SECRET_ACCESS_KEY: undefined,
+    S3_BUCKET_NAME: undefined,
+    S3_PUBLIC_URL: undefined,
+    RESEND_API_KEY: undefined,
+    RESEND_FROM_EMAIL: 'noreply@airi.moeru.ai',
+    GATEWAY_BASE_URL: 'http://localhost:18080',
+    DEFAULT_CHAT_MODEL: 'openai/gpt-5-mini',
+    DEFAULT_TTS_MODEL: 'microsoft/v1',
+    BILLING_EVENTS_STREAM: 'billing-events',
+    BILLING_EVENTS_CONSUMER_NAME: undefined,
+    BILLING_EVENTS_BATCH_SIZE: 10,
+    BILLING_EVENTS_BLOCK_MS: 5000,
+    BILLING_EVENTS_MIN_IDLE_MS: 30000,
+    DB_POOL_MAX: 20,
+    DB_POOL_IDLE_TIMEOUT_MS: 30000,
+    DB_POOL_CONNECTION_TIMEOUT_MS: 5000,
+    DB_POOL_KEEPALIVE_INITIAL_DELAY_MS: 10000,
+    OTEL_SERVICE_NAMESPACE: 'airi',
+    OTEL_SERVICE_NAME: 'server',
+    OTEL_TRACES_SAMPLING_RATIO: 1,
+    OTEL_EXPORTER_OTLP_ENDPOINT: undefined,
+    OTEL_EXPORTER_OTLP_HEADERS: undefined,
+    OTEL_DEBUG: undefined,
+    ...overrides,
+  }
+}
+
+function createEmailServiceMock(): EmailService {
+  return {
+    sendEmail: vi.fn<EmailService['sendEmail']>().mockResolvedValue(undefined),
+    passwordResetEmail: vi.fn<EmailService['passwordResetEmail']>().mockReturnValue({ subject: 'Reset', html: '<p>reset</p>' }),
+    emailVerificationEmail: vi.fn<EmailService['emailVerificationEmail']>().mockReturnValue({ subject: 'Verify', html: '<p>verify</p>' }),
+    changeEmailVerificationEmail: vi.fn<EmailService['changeEmailVerificationEmail']>().mockReturnValue({ subject: 'Change', html: '<p>change</p>' }),
+    isAvailable: vi.fn<EmailService['isAvailable']>().mockReturnValue(true),
+  }
+}
+
+function createS3StorageServiceMock(isAvailable: boolean): {
+  service: S3StorageService
+  upload: ReturnType<typeof vi.fn<S3StorageService['upload']>>
+  isAvailable: ReturnType<typeof vi.fn<S3StorageService['isAvailable']>>
+} {
+  const upload = vi.fn<S3StorageService['upload']>().mockResolvedValue('https://s3.example.com/avatars/user-1/123.jpg')
+  const isAvailableMock = vi.fn<S3StorageService['isAvailable']>().mockReturnValue(isAvailable)
+
+  const service: S3StorageService = {
+    upload,
+    deleteObject: vi.fn<S3StorageService['deleteObject']>().mockResolvedValue(undefined),
+    getPublicUrl: vi.fn((key: string) => `https://s3.example.com/${key}`),
+    isAvailable: isAvailableMock,
+  }
+
+  return {
+    service,
+    upload,
+    isAvailable: isAvailableMock,
+  }
+}
+
+function createDatabaseMock(): {
+  db: Database
+  update: ReturnType<typeof vi.fn>
+  set: ReturnType<typeof vi.fn>
+  where: ReturnType<typeof vi.fn>
+} {
+  const where = vi.fn().mockResolvedValue(undefined)
+  const set = vi.fn(() => ({ where }))
+  const update = vi.fn(() => ({ set }))
+  const db = { update } as unknown as Database
+  return { db, update, set, where }
+}
+
+function getUserCreateAfterHook(config: AuthConfigForHooksTest): (user: { id: string, email: string, image?: string | null }) => Promise<void> {
+  const after = config.databaseHooks?.user?.create?.after
+  if (!after) {
+    throw new Error('Expected databaseHooks.user.create.after to be defined')
+  }
+  return after
+}
+
+async function flushFireAndForgetTasks(): Promise<void> {
+  await Promise.resolve()
+  await new Promise(resolve => setTimeout(resolve, 0))
+  await Promise.resolve()
+}
+
+function expectedGravatarUrl(email: string): string {
+  const hash = createHash('sha256').update(email.trim().toLowerCase()).digest('hex')
+  return `https://www.gravatar.com/avatar/${hash}?s=256&d=identicon`
+}
+
+describe('createAuth user create hook avatar processing', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('copies OAuth avatar to S3 and updates user image in DB', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      arrayBuffer: async () => Uint8Array.from([1, 2, 3]).buffer,
+      headers: { get: () => 'image/jpeg' },
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { db, update, set, where } = createDatabaseMock()
+    const { service: s3StorageService, upload, isAvailable } = createS3StorageServiceMock(true)
+    const config = createAuth(db, makeEnv(), createEmailServiceMock(), s3StorageService) as unknown as AuthConfigForHooksTest
+    const afterHook = getUserCreateAfterHook(config)
+
+    await afterHook({ id: 'user-1', email: 'user-1@example.com', image: 'https://example.com/oauth-avatar.jpg' })
+    await flushFireAndForgetTasks()
+
+    expect(isAvailable).toHaveBeenCalledOnce()
+    expect(fetchMock).toHaveBeenCalledWith('https://example.com/oauth-avatar.jpg', expect.objectContaining({
+      signal: expect.any(AbortSignal),
+    }))
+    expect(upload).toHaveBeenCalledOnce()
+
+    const [uploadedKey, uploadedBuffer, uploadedContentType] = upload.mock.calls[0]
+    expect(uploadedKey).toMatch(/^avatars\/user-1\/\d+\.jpg$/)
+    expect(uploadedBuffer).toBeInstanceOf(Buffer)
+    expect(uploadedContentType).toBe('image/jpeg')
+
+    expect(update).toHaveBeenCalledOnce()
+    expect(set).toHaveBeenCalledWith({ image: 'https://s3.example.com/avatars/user-1/123.jpg' })
+    expect(where).toHaveBeenCalledOnce()
+  })
+
+  it('assigns a Gravatar URL when OAuth avatar is missing (no S3 upload)', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { db, update, set, where } = createDatabaseMock()
+    const { service: s3StorageService, upload, isAvailable } = createS3StorageServiceMock(true)
+    const config = createAuth(db, makeEnv(), createEmailServiceMock(), s3StorageService) as unknown as AuthConfigForHooksTest
+    const afterHook = getUserCreateAfterHook(config)
+
+    await afterHook({ id: 'user-2', email: 'user-2@example.com', image: null })
+    await flushFireAndForgetTasks()
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(upload).not.toHaveBeenCalled()
+    expect(isAvailable).not.toHaveBeenCalled()
+
+    expect(update).toHaveBeenCalledOnce()
+    expect(set).toHaveBeenCalledWith({ image: expectedGravatarUrl('user-2@example.com') })
+    expect(where).toHaveBeenCalledOnce()
+  })
+
+  it('skips S3 mirror but keeps OAuth image when S3 is unavailable', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { db, update } = createDatabaseMock()
+    const { service: s3StorageService, upload, isAvailable } = createS3StorageServiceMock(false)
+    const config = createAuth(db, makeEnv(), createEmailServiceMock(), s3StorageService) as unknown as AuthConfigForHooksTest
+    const afterHook = getUserCreateAfterHook(config)
+
+    await afterHook({ id: 'user-3', email: 'user-3@example.com', image: 'https://example.com/avatar.png' })
+    await flushFireAndForgetTasks()
+
+    expect(isAvailable).toHaveBeenCalledOnce()
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(upload).not.toHaveBeenCalled()
+    expect(update).not.toHaveBeenCalled()
+  })
+
+  it('logs errors when OAuth avatar fetch fails', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 502,
+      arrayBuffer: async () => new ArrayBuffer(0),
+      headers: { get: () => 'image/jpeg' },
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { db, update } = createDatabaseMock()
+    const { service: s3StorageService, upload } = createS3StorageServiceMock(true)
+    const config = createAuth(db, makeEnv(), createEmailServiceMock(), s3StorageService) as unknown as AuthConfigForHooksTest
+    const afterHook = getUserCreateAfterHook(config)
+
+    await expect(afterHook({ id: 'user-4', email: 'user-4@example.com', image: 'https://example.com/broken.jpg' })).resolves.toBeUndefined()
+    await flushFireAndForgetTasks()
+
+    expect(fetchMock).toHaveBeenCalledWith('https://example.com/broken.jpg', expect.objectContaining({
+      signal: expect.any(AbortSignal),
+    }))
+    expect(upload).not.toHaveBeenCalled()
+    expect(update).not.toHaveBeenCalled()
+    expect(mockLoggerWithError).toHaveBeenCalledOnce()
+    expect(mockLoggerError).toHaveBeenCalledWith('Failed to process user avatar on registration')
+  })
+})

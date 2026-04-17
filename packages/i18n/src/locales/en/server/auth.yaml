@@ -24,15 +24,91 @@ electronCallback:
     closeTabManually: Some browsers do not allow this page to close itself automatically. You can close it manually.
 signIn:
   title: Sign in
+  or: or
+  email: Email
+  password: Password
+  submit: Sign In
+  withProvider: Sign in with {provider}
+  forgotPassword: Forgot Password?
+  noAccount: Don't have an account?
+  switchToSignUp: Sign Up
   error:
     fallback: Sign in failed
     unknown: An unknown error occurred
     authFailed: Authentication failed. Please try again.
+    rateLimited: Too many attempts. Please wait a moment and try again.
+    codes:
+      INVALID_EMAIL_OR_PASSWORD: Invalid email or password.
+      INVALID_EMAIL: Please enter a valid email address.
+      INVALID_PASSWORD: The password you entered is not valid.
+      INVALID_USER: We could not find an account for this request.
+      USER_NOT_FOUND: No account found with this email.
+      USER_EMAIL_NOT_FOUND: No account is associated with this email address.
+      USER_ALREADY_EXISTS: An account with this email already exists.
+      USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: This email is already in use. Please use another one.
+      EMAIL_NOT_VERIFIED: Please verify your email before signing in.
+      EMAIL_ALREADY_VERIFIED: This email has already been verified.
+      PASSWORD_TOO_SHORT: Password is too short.
+      PASSWORD_TOO_LONG: Password is too long.
+      PASSWORD_ALREADY_SET: A password is already set on this account.
+      USER_ALREADY_HAS_PASSWORD: This account already has a password set.
+      CREDENTIAL_ACCOUNT_NOT_FOUND: No password is set on this account yet.
+      ACCOUNT_NOT_FOUND: Account not found.
+      SESSION_EXPIRED: Your session has expired. Please sign in again.
+      SESSION_NOT_FRESH: For security, please sign in again before continuing.
+      INVALID_TOKEN: Invalid or expired link.
+      TOKEN_EXPIRED: This link has expired.
+      FAILED_TO_UNLINK_LAST_ACCOUNT: You cannot unlink your only sign-in method.
+      SOCIAL_ACCOUNT_ALREADY_LINKED: This account is already linked.
+      LINKED_ACCOUNT_ALREADY_EXISTS: This provider is already linked to another account.
+      MISSING_FIELD: Please fill in all required fields.
+      VALIDATION_ERROR: Some fields are invalid. Please check and try again.
+      USER_DELETED: This account has been deleted. Please contact support if you believe this is a mistake.
   footer:
     prefix: By continuing, you agree to our
     terms: Terms
     and: and
     privacy: Privacy Policy
+signUp:
+  title: Sign Up
+  name: Name
+  submit: Sign Up
+  hasAccount: Already have an account?
+  switchToSignIn: Sign In
+  verifyTitle: Check your email
+  verifyDescription: We sent a verification link to your email. Please verify your email before signing in.
+  backToSignIn: Back to Sign In
+forgotPassword:
+  title: Forgot Password
+  description: Enter your email and we'll send you a reset link.
+  email: Email
+  submit: Send Reset Link
+  sent: If an account with that email exists, a reset link has been sent.
+  resend: Resend
+  backToSignIn: Back to Sign In
+  error:
+    emptyEmail: Please enter your email address
+resetPassword:
+  title: Reset Password
+  newPassword: New password
+  confirmPassword: Confirm new password
+  submit: Reset Password
+  success: Password reset successfully
+  invalidToken: Invalid or expired link
+  backToForgot: Back to Forgot Password
+  error:
+    tooShort: Password must be at least 8 characters
+    mismatch: Passwords do not match
+    unknown: Failed to reset password
+verifyEmail:
+  title: Email Verification
+  loading: Verifying your email...
+  success: Email Verified!
+  successDescription: Your email has been verified successfully.
+  goHome: Go to Home
+  error: Verification Failed
+  errorDescription: The verification link is invalid or has expired.
+  backToSignIn: Back to Sign In
 webCallback:
   title:
     signIn: Sign in
