@@ -2,10 +2,10 @@ import type { AuthInstance } from './auth'
 import type { Database } from './db'
 import type { Env } from './env'
 
-import { and, desc, eq, gt } from 'drizzle-orm'
+import { and, desc, eq, gt, isNull } from 'drizzle-orm'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
 
-import { session as sessionTable } from '../schemas/accounts'
+import { session as sessionTable, user as userTable } from '../schemas/accounts'
 
 let cachedJWKS: ReturnType<typeof createRemoteJWKSet> | null = null
 
@@ -55,29 +55,46 @@ async function verifyOIDCAccessToken(env: Env, token: string): Promise<string | 
  *
  * Returns:
  * - A bearer token string that Better Auth's bearer() plugin will accept.
+ * - `null` when the user has been soft-deleted (no session will be minted).
  *
  * NOTICE:
  * Reuses the longest-lived non-expired session to avoid spamming the session
  * table. Better Auth's own session cleanup task will reap expired rows.
+ *
+ * Defense-in-depth: the `session.create.before` database hook in `auth.ts`
+ * also blocks session creation for soft-deleted users across all auth paths.
+ * This check avoids even attempting to mint a session for a deleted user,
+ * and prevents re-issuing an existing stale session token to them.
  */
 async function ensureBetterAuthSession(
   auth: AuthInstance,
   db: Database,
   userId: string,
-): Promise<string> {
+): Promise<string | null> {
   const now = new Date()
   const [existing] = await db
     .select({ token: sessionTable.token })
     .from(sessionTable)
+    .innerJoin(userTable, eq(userTable.id, sessionTable.userId))
     .where(and(
       eq(sessionTable.userId, userId),
       gt(sessionTable.expiresAt, now),
+      isNull(userTable.deletedAt),
     ))
     .orderBy(desc(sessionTable.expiresAt))
     .limit(1)
 
   if (existing?.token)
     return existing.token
+
+  const [u] = await db
+    .select({ deletedAt: userTable.deletedAt })
+    .from(userTable)
+    .where(eq(userTable.id, userId))
+    .limit(1)
+
+  if (!u || u.deletedAt)
+    return null
 
   const ctx = await auth.$context
   const created = await ctx.internalAdapter.createSession(userId, false)
@@ -127,6 +144,21 @@ export function createAuthBridge(auth: AuthInstance, db: Database, env: Env) {
       return request
 
     const bearerToken = await ensureBetterAuthSession(auth, db, userId)
+    if (!bearerToken) {
+      // User soft-deleted between OIDC token issuance and this request.
+      // Strip the Authorization header so Better Auth returns 401 instead of
+      // granting access via the OIDC token.
+      return new Request(request.url, {
+        method: request.method,
+        headers: (() => {
+          const h = new Headers(request.headers)
+          h.delete('authorization')
+          return h
+        })(),
+        body: request.body,
+        ...(request.body ? { duplex: 'half' } : {}),
+      } as RequestInit)
+    }
 
     const headers = new Headers(request.headers)
     headers.set('authorization', `Bearer ${bearerToken}`)

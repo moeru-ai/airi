@@ -63,6 +63,7 @@ signIn:
       LINKED_ACCOUNT_ALREADY_EXISTS: Nhà cung cấp này đã được liên kết với tài khoản khác.
       MISSING_FIELD: Vui lòng điền đầy đủ các trường bắt buộc.
       VALIDATION_ERROR: Một số trường không hợp lệ. Vui lòng kiểm tra và thử lại.
+      USER_DELETED: Tài khoản này đã bị xoá. Vui lòng liên hệ hỗ trợ nếu bạn cho rằng đây là nhầm lẫn.
   footer:
     prefix: Bằng việc tiếp tục, bạn đồng ý với
     terms: Điều khoản sử dụng

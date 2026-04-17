@@ -63,6 +63,7 @@ signIn:
       LINKED_ACCOUNT_ALREADY_EXISTS: 此登入方式已綁定到其他帳戶。
       MISSING_FIELD: 請填寫所有必填欄位。
       VALIDATION_ERROR: 部分欄位無效，請檢查後重試。
+      USER_DELETED: 該帳號已被註銷。如有疑問，請聯絡客服。
   footer:
     prefix: 繼續即表示您同意我們的
     terms: 服務條款

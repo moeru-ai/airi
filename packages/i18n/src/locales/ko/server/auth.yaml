@@ -63,6 +63,7 @@ signIn:
       LINKED_ACCOUNT_ALREADY_EXISTS: 이 로그인 수단은 이미 다른 계정에 연결되어 있습니다.
       MISSING_FIELD: 모든 필수 항목을 입력해 주세요.
       VALIDATION_ERROR: 일부 항목이 유효하지 않습니다. 확인 후 다시 시도해 주세요.
+      USER_DELETED: 이 계정은 삭제되었습니다. 오류라고 생각되시면 고객센터에 문의해 주세요.
   footer:
     prefix: 계속하면 다음에 동의하는 것입니다
     terms: 이용약관

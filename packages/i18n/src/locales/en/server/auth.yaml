@@ -63,6 +63,7 @@ signIn:
       LINKED_ACCOUNT_ALREADY_EXISTS: This provider is already linked to another account.
       MISSING_FIELD: Please fill in all required fields.
       VALIDATION_ERROR: Some fields are invalid. Please check and try again.
+      USER_DELETED: This account has been deleted. Please contact support if you believe this is a mistake.
   footer:
     prefix: By continuing, you agree to our
     terms: Terms

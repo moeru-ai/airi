@@ -27,6 +27,7 @@ async function saveName() {
 function resizeImage(file: File, maxSize: number): Promise<File> {
   return new Promise((resolve, reject) => {
     const img = new Image()
+    const objectUrl = URL.createObjectURL(file)
     img.onload = () => {
       const canvas = document.createElement('canvas')
       const ratio = Math.min(maxSize / img.width, maxSize / img.height)
@@ -35,11 +36,13 @@ function resizeImage(file: File, maxSize: number): Promise<File> {
 
       const ctx = canvas.getContext('2d')
       if (!ctx) {
+        URL.revokeObjectURL(objectUrl)
         reject(new Error('Failed to get canvas context'))
         return
       }
 
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      URL.revokeObjectURL(objectUrl)
       canvas.toBlob((blob) => {
         if (blob) {
           resolve(new File([blob], file.name, { type: file.type }))
@@ -50,9 +53,10 @@ function resizeImage(file: File, maxSize: number): Promise<File> {
       }, file.type)
     }
     img.onerror = () => {
+      URL.revokeObjectURL(objectUrl)
       reject(new Error('Failed to load image'))
     }
-    img.src = URL.createObjectURL(file)
+    img.src = objectUrl
   })
 }
 

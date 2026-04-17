@@ -8,7 +8,7 @@ import { bodyLimit } from 'hono/body-limit'
 
 import { authGuard } from '../../middlewares/auth'
 import { session, user } from '../../schemas/accounts'
-import { createBadRequestError } from '../../utils/error'
+import { createBadRequestError, createServiceUnavailableError } from '../../utils/error'
 import { generateIdenticon } from '../../utils/identicon'
 import { ALLOWED_AVATAR_MIME_TYPES, MAX_AVATAR_SIZE, MIME_TO_EXT } from './schema'
 
@@ -39,6 +39,13 @@ export function createUserRoutes(deps: {
         throw createBadRequestError('File too large. Maximum size: 5MB', 'FILE_TOO_LARGE')
       },
     }), async (c) => {
+      if (!deps.r2StorageService.isAvailable()) {
+        throw createServiceUnavailableError(
+          'Avatar storage is not configured',
+          'AVATAR_STORAGE_UNAVAILABLE',
+        )
+      }
+
       const authUser = c.get('user')!
 
       const body = await c.req.parseBody()

@@ -63,6 +63,7 @@ signIn:
       LINKED_ACCOUNT_ALREADY_EXISTS: このサインイン方法は別のアカウントに連携されています。
       MISSING_FIELD: 必須項目をすべて入力してください。
       VALIDATION_ERROR: 一部の項目が無効です。確認してから再度お試しください。
+      USER_DELETED: このアカウントは削除されています。誤りと思われる場合はサポートにお問い合わせください。
   footer:
     prefix: 続行すると、以下に同意したことになります
     terms: 利用規約

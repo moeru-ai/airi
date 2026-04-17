@@ -15,6 +15,7 @@ import { bearer, jwt } from 'better-auth/plugins'
 import { eq } from 'drizzle-orm'
 
 import { user as userTable } from '../schemas/accounts'
+import { createForbiddenError } from '../utils/error'
 import { generateIdenticon } from '../utils/identicon'
 import { getAuthTrustedOrigins, getTrustedOrigin } from '../utils/origin'
 
@@ -448,7 +449,15 @@ export function createAuth(
                 let contentType: string
 
                 if (user.image) {
-                  const response = await fetch(user.image)
+                  // NOTICE:
+                  // External avatar URLs (OAuth provider CDN) may hang. Cap at 5s
+                  // so this fire-and-forget promise can't live indefinitely.
+                  // Root cause: default fetch() has no request timeout.
+                  // Source: https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static
+                  // Removal condition: move avatar ingestion into a queue with its own timeout policy.
+                  const response = await fetch(user.image, {
+                    signal: AbortSignal.timeout(5000),
+                  })
                   if (!response.ok)
                     throw new Error(`Failed to fetch avatar: ${response.status}`)
 
@@ -477,6 +486,18 @@ export function createAuth(
       },
       session: {
         create: {
+          before: async (session) => {
+            // Block session creation for soft-deleted users across ALL auth
+            // paths (email/password, OAuth callback, OIDC bridge, admin impersonation).
+            // This is the single choke point for `deletedAt` enforcement.
+            const [u] = await db
+              .select({ deletedAt: userTable.deletedAt })
+              .from(userTable)
+              .where(eq(userTable.id, session.userId))
+              .limit(1)
+            if (u?.deletedAt)
+              throw createForbiddenError('User account has been deleted', 'USER_DELETED')
+          },
           after: async () => {
             metrics?.userLogin.add(1)
             metrics?.activeSessions.add(1)

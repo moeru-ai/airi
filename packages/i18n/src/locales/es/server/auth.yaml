@@ -63,6 +63,7 @@ signIn:
       LINKED_ACCOUNT_ALREADY_EXISTS: Este proveedor ya está vinculado a otra cuenta.
       MISSING_FIELD: Por favor, rellena todos los campos obligatorios.
       VALIDATION_ERROR: Algunos campos no son válidos. Revisa e inténtalo de nuevo.
+      USER_DELETED: Esta cuenta ha sido eliminada. Contacta con soporte si crees que es un error.
   footer:
     prefix: Al continuar, aceptas nuestros
     terms: Términos de servicio

@@ -63,6 +63,7 @@ signIn:
       LINKED_ACCOUNT_ALREADY_EXISTS: 此登录方式已绑定到其他账户。
       MISSING_FIELD: 请填写所有必填项。
       VALIDATION_ERROR: 部分字段无效，请检查后重试。
+      USER_DELETED: 该账户已被注销。如有疑问，请联系客服。
   footer:
     prefix: 继续之前，你需要同意我们的
     terms: 服务条款
