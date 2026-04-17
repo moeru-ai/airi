@@ -98,20 +98,28 @@ export function createUserRoutes(deps: {
         .where(eq(user.id, authUser.id))
 
       if (currentUser?.image && deps.r2StorageService.isAvailable()) {
-        const r2BaseUrl = deps.r2StorageService.getPublicUrl('')
-        if (
-          currentUser.image.startsWith(r2BaseUrl)
-          || currentUser.image.includes('r2.cloudflarestorage')
-        ) {
-          try {
-            const url = new URL(currentUser.image)
-            // pathname starts with '/' — strip it to get the R2 key
-            const key = url.pathname.slice(1)
+        // NOTICE:
+        // `user.image` is user-controlled via profile updates. Without the
+        // strict origin + key-prefix check below, a user could point their
+        // image at an arbitrary R2 URL and use this endpoint to delete
+        // another user's objects (or any shared-bucket object).
+        // Root cause: previous check used `String.includes('r2.cloudflarestorage')`
+        // and only `startsWith(getPublicUrl(''))`, neither of which bind the
+        // object back to the calling user's namespace.
+        // Removal condition: when per-user avatars move to scoped credentials
+        // or a signed-delete flow that can't address objects outside the user prefix.
+        try {
+          const parsed = new URL(currentUser.image)
+          const r2Origin = new URL(deps.r2StorageService.getPublicUrl('')).origin
+          const key = parsed.pathname.replace(/^\/+/, '')
+          const ownedPrefix = `avatars/${authUser.id}/`
+
+          if (parsed.origin === r2Origin && key.startsWith(ownedPrefix)) {
             await deps.r2StorageService.deleteObject(key)
           }
-          catch {
-            // Best-effort deletion — ignore failure
-          }
+        }
+        catch {
+          // Best-effort deletion — ignore invalid URLs or R2 failures
         }
       }
 
