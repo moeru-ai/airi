@@ -35,19 +35,27 @@ vi.mock('@better-auth/oauth-provider', () => ({
   oauthProvider: mockOauthProvider,
 }))
 
+// NOTICE:
+// The production hooks in `createAuth` receive `{ user, token }` from
+// better-auth and build the redirect URL themselves from `env.CLIENT_URL`.
+// Earlier revisions of these tests stubbed the call signatures with `url`
+// instead of `token`, which silently produced URLs containing
+// `?token=undefined` and made the assertions test the wrong contract.
+// Mirror the real shape here so we exercise the URL construction logic.
+// Reference: PR #1674 review comment by Rainbowbird.
 interface AuthConfigForTest {
   emailAndPassword?: {
     enabled?: boolean
     requireEmailVerification?: boolean
-    sendResetPassword?: (params: { user: { email: string }, url: string }) => Promise<void>
+    sendResetPassword?: (params: { user: { email: string }, token: string }) => Promise<void>
   }
   emailVerification?: {
-    sendVerificationEmail?: (params: { user: { email: string }, url: string }) => Promise<void>
+    sendVerificationEmail?: (params: { user: { email: string }, token: string }) => Promise<void>
   }
   user?: {
     changeEmail?: {
       enabled?: boolean
-      sendChangeEmailVerification?: (params: { user: { email: string }, newEmail: string, url: string }) => Promise<void>
+      sendChangeEmailVerification?: (params: { user: { email: string }, newEmail: string, token: string }) => Promise<void>
     }
   }
 }
@@ -188,7 +196,7 @@ describe('createAuth sendVerificationEmail availability guard', () => {
 
     await sendVerificationEmail({
       user: { email: 'user@example.com' },
-      url: 'https://airi.moeru.ai/verify-email?token=irrelevant',
+      token: 'irrelevant',
     })
 
     expect(emailService.emailVerificationEmail).not.toHaveBeenCalled()
@@ -196,8 +204,25 @@ describe('createAuth sendVerificationEmail availability guard', () => {
   })
 })
 
+// NOTICE:
+// The hooks in `createAuth` build redirect URLs from `env.CLIENT_URL`
+// (currently `http://localhost:5173` in `makeEnv`). Keep this constant
+// in lockstep with `makeEnv().CLIENT_URL` so the URL assertions below
+// match what the production code would actually generate.
+const TEST_CLIENT_URL = 'http://localhost:5173'
+
 describe('createAuth email hooks configuration', () => {
-  it('wires sendResetPassword and sends reset email', async () => {
+  it('wires sendResetPassword and sends reset email with the URL it builds from CLIENT_URL + token', async () => {
+    // ROOT CAUSE:
+    //
+    // better-auth invokes these hooks with `{ user, token }`, not `{ user, url }`.
+    // The previous tests stubbed in a hand-built `url` and asserted the
+    // hook forwarded it verbatim — which was a no-op assertion that did
+    // not exercise the URL construction in `auth.ts`. With a token-encoded
+    // input we now also catch regressions in the path / param shape /
+    // encoding strategy.
+    //
+    // Reference: PR #1674 review comment by Rainbowbird.
     const emailService = createEmailServiceMock()
     const config = createAuthConfig(emailService.service)
 
@@ -208,13 +233,16 @@ describe('createAuth email hooks configuration', () => {
     if (!sendResetPassword)
       throw new Error('Expected emailAndPassword.sendResetPassword to be defined')
 
-    const url = 'https://airi.moeru.ai/reset?token=token-1'
+    // Use a token containing characters that must be URL-encoded so the
+    // test fails if `auth.ts` ever drops `encodeURIComponent`.
+    const token = 'reset-token/with+special chars'
     await sendResetPassword({
       user: { email: 'user@example.com' },
-      url,
+      token,
     })
 
-    expect(emailService.passwordResetEmail).toHaveBeenCalledWith(url)
+    const expectedUrl = `${TEST_CLIENT_URL}/auth/reset-password?token=${encodeURIComponent(token)}`
+    expect(emailService.passwordResetEmail).toHaveBeenCalledWith(expectedUrl)
     expect(emailService.sendEmail).toHaveBeenCalledWith({
       to: 'user@example.com',
       subject: 'Reset your AIRI password',
@@ -222,7 +250,7 @@ describe('createAuth email hooks configuration', () => {
     })
   })
 
-  it('wires email verification and sends verification email', async () => {
+  it('wires email verification and sends verification email with the URL it builds from CLIENT_URL + token', async () => {
     const emailService = createEmailServiceMock()
     const config = createAuthConfig(emailService.service)
 
@@ -232,13 +260,14 @@ describe('createAuth email hooks configuration', () => {
     if (!sendVerificationEmail)
       throw new Error('Expected emailVerification.sendVerificationEmail to be defined')
 
-    const url = 'https://airi.moeru.ai/verify-email?token=token-2'
+    const token = 'verify-token/with+special chars'
     await sendVerificationEmail({
       user: { email: 'verify@example.com' },
-      url,
+      token,
     })
 
-    expect(emailService.emailVerificationEmail).toHaveBeenCalledWith(url)
+    const expectedUrl = `${TEST_CLIENT_URL}/auth/verify-email?token=${encodeURIComponent(token)}`
+    expect(emailService.emailVerificationEmail).toHaveBeenCalledWith(expectedUrl)
     expect(emailService.sendEmail).toHaveBeenCalledWith({
       to: 'verify@example.com',
       subject: 'Verify your AIRI email address',
@@ -246,7 +275,7 @@ describe('createAuth email hooks configuration', () => {
     })
   })
 
-  it('enables change email and sends change-email verification to the new email', async () => {
+  it('enables change email and sends change-email verification to the new email using the URL it builds from CLIENT_URL + token', async () => {
     const emailService = createEmailServiceMock()
     const config = createAuthConfig(emailService.service)
 
@@ -257,14 +286,15 @@ describe('createAuth email hooks configuration', () => {
     if (!sendChangeEmailVerification)
       throw new Error('Expected user.changeEmail.sendChangeEmailVerification to be defined')
 
-    const url = 'https://airi.moeru.ai/change-email?token=token-3'
+    const token = 'change-token/with+special chars'
     await sendChangeEmailVerification({
       user: { email: 'old@example.com' },
       newEmail: 'new@example.com',
-      url,
+      token,
     })
 
-    expect(emailService.changeEmailVerificationEmail).toHaveBeenCalledWith(url)
+    const expectedUrl = `${TEST_CLIENT_URL}/auth/verify-email?token=${encodeURIComponent(token)}`
+    expect(emailService.changeEmailVerificationEmail).toHaveBeenCalledWith(expectedUrl)
     expect(emailService.sendEmail).toHaveBeenCalledWith({
       to: 'new@example.com',
       subject: 'Confirm your new AIRI email address',
