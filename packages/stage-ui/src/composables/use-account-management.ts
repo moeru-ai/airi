@@ -67,10 +67,21 @@ function createWithLoading(loading: ReturnType<typeof ref<boolean>>, error: Retu
  *   -> {@link changeEmail} (authClient.changeEmail)
  *   -> {@link deleteAccount} (fetch POST /api/v1/user/delete → signOut)
  */
+// NOTICE:
+// These refs are hoisted to module scope so every component that calls
+// `useAccountManagement()` shares the same reactive state. Previously each
+// call created its own `accounts` ref, which meant only the component that
+// actually called `loadAccounts()` (linked-accounts-section) saw the list —
+// `password-section` kept `hasCredential = false` forever and always rendered
+// "Set Password" even after a password had been set.
+const sharedLoading = ref(false)
+const sharedError = ref<string | null>(null)
+const sharedAccounts = ref<Account[]>([])
+
 export function useAccountManagement() {
-  const loading = ref(false)
-  const error = ref<string | null>(null)
-  const accounts = ref<Account[]>([])
+  const loading = sharedLoading
+  const error = sharedError
+  const accounts = sharedAccounts
 
   const withLoading = createWithLoading(loading, error)
 
