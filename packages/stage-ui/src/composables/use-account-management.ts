@@ -200,15 +200,38 @@ export function useAccountManagement() {
   /**
    * Unlink a social/OAuth provider from the current user.
    *
-   * Returns:
-   * - `{ needsPassword: true }` if the user has no credential account and cannot unlink safely.
-   * - `{ needsPassword: false }` if unlink succeeded.
+   * Use when:
+   * - The user clicks "Unlink" on a connected provider in account settings.
    *
-   * Safety: If the user only has OAuth (no credential account), we block unlinking
-   * so they don't lose all access. The caller should prompt them to set a password first.
+   * Expects:
+   * - `accounts` has been loaded (via {@link loadAccounts}); otherwise the
+   *   safety check below is degenerate.
+   *
+   * Returns:
+   * - `{ needsPassword: true }` if removing this provider would leave the
+   *   user with NO remaining login method (no other social provider AND no
+   *   password credential). The caller is expected to prompt them to set a
+   *   password (or link another provider) first.
+   * - `{ needsPassword: false }` if unlink succeeded — at least one other
+   *   login method remains.
+   *
+   * ROOT CAUSE:
+   *
+   * The previous check was `if (!hasCredential) return { needsPassword: true }`,
+   * which only looked for the password (`credential`) provider. A user with
+   * Google + GitHub linked but no password could never unlink either one
+   * because the gate insisted they "set a password" first — even though
+   * removing one social provider would still leave the other as a working
+   * login method.
+   *
+   * The fix: check whether ANY login method survives after this unlink, not
+   * just whether a password exists. We require at least one remaining
+   * provider in the account list (could be `credential`, another social
+   * provider, etc.).
    */
   async function unlinkProvider(providerId: string): Promise<{ needsPassword: boolean }> {
-    if (!hasCredential.value) {
+    const remaining = accounts.value.filter(a => a.providerId !== providerId)
+    if (remaining.length === 0) {
       return { needsPassword: true }
     }
 
