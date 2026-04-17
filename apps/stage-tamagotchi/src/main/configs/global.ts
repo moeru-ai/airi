@@ -4,7 +4,7 @@ import { createConfig } from '../libs/electron/persistence'
 
 export const globalAppConfigSchema = object({
   language: optional(string(), 'en'),
-  updateChannel: optional(picklist(['stable', 'alpha', 'beta', 'nightly', 'canary'])),
+  updateChannel: optional(picklist(['latest', 'stable', 'alpha', 'beta', 'nightly', 'canary'])),
 })
 
 export function createGlobalAppConfig() {

@@ -33,7 +33,7 @@ import {
 } from '@huggingface/transformers'
 
 import { MODEL_IDS, MODEL_NAMES } from '../inference/constants'
-import { classifyError } from '../inference/protocol'
+import { classifyError, isRecoverable } from '../inference/protocol'
 
 // ---------------------------------------------------------------------------
 // Inference-specific input/output types
@@ -116,16 +116,35 @@ class AutomaticSpeechRecognitionPipeline {
       progress_callback,
     })
 
-    this.model ??= WhisperForConditionalGeneration.from_pretrained(this.model_id, {
-      dtype: {
-        // [v3.x] Cannot load whisper-v3-large-turbo · Issue #989 · huggingface/transformers.js
-        // https://github.com/huggingface/transformers.js/issues/989
-        encoder_model: 'fp16',
-        decoder_model_merged: 'q4', // 'fp16' is broken for decoder
-      },
-      device: actualDevice,
-      progress_callback,
-    })
+    // NOTICE: fp16 encoder may fail on some devices/browsers. Fall back to fp32
+    // if the initial load fails. Decoder fp16 is known broken (see Issue #989).
+    // https://github.com/huggingface/transformers.js/issues/989
+    this.model ??= (async () => {
+      try {
+        return await WhisperForConditionalGeneration.from_pretrained(this.model_id!, {
+          dtype: {
+            encoder_model: 'fp16',
+            decoder_model_merged: 'q4',
+          },
+          device: actualDevice,
+          progress_callback,
+        })
+      }
+      catch (error) {
+        console.warn(
+          '[Whisper Worker] fp16 encoder failed, falling back to fp32:',
+          error instanceof Error ? error.message : error,
+        )
+        return await WhisperForConditionalGeneration.from_pretrained(this.model_id!, {
+          dtype: {
+            encoder_model: 'fp32',
+            decoder_model_merged: 'q4',
+          },
+          device: actualDevice,
+          progress_callback,
+        })
+      }
+    })()
 
     return Promise.all([this.tokenizer, this.processor, this.model])
   }
@@ -169,15 +188,16 @@ function sendProgress(requestId: string, phase: 'download' | 'compile' | 'warmup
   globalThis.postMessage(msg)
 }
 
-function sendError(requestId: string, error: unknown): void {
+function sendError(requestId: string, error: unknown, phase?: 'load' | 'inference'): void {
   const message = error instanceof Error ? error.message : String(error)
+  const code = classifyError(error, phase)
   const msg: ErrorResponse = {
     type: 'error',
     requestId,
     payload: {
-      code: classifyError(error),
+      code,
       message,
-      recoverable: false,
+      recoverable: isRecoverable(code),
     },
   }
   globalThis.postMessage(msg)
@@ -232,7 +252,7 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
     globalThis.postMessage(ready)
   }
   catch (error) {
-    sendError(requestId, error)
+    sendError(requestId, error, 'load')
   }
   finally {
     currentLoadRequestId = null
@@ -248,8 +268,10 @@ let processing = false
 async function runInference(request: RunInferenceRequest<WhisperInput>): Promise<void> {
   const { requestId, input } = request
 
-  if (processing)
+  if (processing) {
+    sendError(requestId, new Error('Worker is busy processing another request'), 'inference')
     return
+  }
   processing = true
 
   try {
@@ -297,7 +319,7 @@ async function runInference(request: RunInferenceRequest<WhisperInput>): Promise
     globalThis.postMessage(result)
   }
   catch (error) {
-    sendError(requestId, error)
+    sendError(requestId, error, 'inference')
   }
   finally {
     processing = false

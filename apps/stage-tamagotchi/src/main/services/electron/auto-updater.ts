@@ -3,7 +3,12 @@ import type { AutoUpdaterState } from '@proj-airi/electron-eventa/electron-updat
 import type { BrowserWindow } from 'electron'
 import type { UpdateInfo } from 'electron-updater'
 
+import type { ElectronUpdaterChannel } from '../../../shared/eventa'
+
 import process from 'node:process'
+
+import { appendFile, mkdir, rm } from 'node:fs/promises'
+import { dirname, join, normalize } from 'node:path'
 
 import electronUpdater from 'electron-updater'
 import semver from 'semver'
@@ -22,6 +27,7 @@ import {
   electronAutoUpdaterStateChanged,
   electronGetUpdaterPreferences,
   electronSetUpdaterPreferences,
+
 } from '../../../shared/eventa'
 import { MockAutoUpdater } from './mock-auto-updater'
 
@@ -34,7 +40,37 @@ const GITHUB_RELEASES_ATOM_URL = 'https://github.com/moeru-ai/airi/releases.atom
 const GITHUB_RELEASE_DOWNLOAD_BASE_URL = 'https://github.com/moeru-ai/airi/releases/download'
 const UPDATE_CHANNEL_ENV_KEY = 'AIRI_UPDATE_CHANNEL'
 
-export type UpdateLane = 'stable' | 'alpha' | 'beta' | 'nightly' | 'canary'
+function getCacheRoot() {
+  // NOTICE: Electron resolves the cache directory per platform/app, but the
+  // shipped type definitions here do not expose `cache`, so we cast the key.
+  return app.getPath('cache' as Parameters<typeof app.getPath>[0])
+}
+
+function getLegacyCacheRoot() {
+  return getCacheRoot()
+}
+
+const UPDATER_DEBUG_CACHE_DIR = join(getCacheRoot(), 'stage-tamagotchi-updater')
+const UPDATER_LOG_FILE = join(UPDATER_DEBUG_CACHE_DIR, 'updater-log.txt')
+const OFFICIAL_UPDATER_CACHE_DIR = join(getCacheRoot(), 'ai.moeru.airi-updater')
+const LEGACY_OFFICIAL_UPDATER_CACHE_DIR = join(getLegacyCacheRoot(), 'ai.moeru.airi-updater')
+const OFFICIAL_UPDATER_CACHE_DIRS = Array.from(new Set([
+  OFFICIAL_UPDATER_CACHE_DIR,
+  LEGACY_OFFICIAL_UPDATER_CACHE_DIR,
+]))
+
+async function logToFile(level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG', message: string) {
+  await mkdir(UPDATER_DEBUG_CACHE_DIR, { recursive: true }).catch(() => {})
+  await appendFile(UPDATER_LOG_FILE, `${new Date().toISOString()} [${level}] ${message}\n`).catch(() => {})
+}
+
+async function cleanupStaleUpdateFiles() {
+  // Remove both current and legacy updater cache roots so stale installers do not linger.
+  await Promise.allSettled(OFFICIAL_UPDATER_CACHE_DIRS.map(cacheDir => rm(cacheDir, { recursive: true, force: true })))
+  await logToFile('INFO', `Updater cache cleanup attempted: ${OFFICIAL_UPDATER_CACHE_DIRS.join(', ')}`)
+}
+
+export type UpdateLane = ElectronUpdaterChannel
 interface GitHubReleaseRecord {
   tag_name?: string
   draft?: boolean
@@ -57,6 +93,7 @@ function normalizeLane(value: string | undefined): UpdateLane | undefined {
 
   switch (value.toLowerCase()) {
     case 'stable':
+    case 'latest':
     case 'alpha':
     case 'beta':
     case 'nightly':
@@ -85,11 +122,41 @@ function isTagInLane(tag: string, lane: UpdateLane) {
   if (!version)
     return false
 
+  if (lane === 'latest')
+    return true
+
   const prerelease = semver.prerelease(version)?.[0]?.toString().toLowerCase()
   if (lane === 'stable')
     return !prerelease
 
   return prerelease === lane
+}
+
+function isPathInside(parentPath: string, targetPath: string) {
+  const normalizedParent = normalize(parentPath)
+  const normalizedTarget = normalize(targetPath)
+  const parentWithSeparator = normalizedParent.endsWith('\\') ? normalizedParent : `${normalizedParent}\\`
+  return normalizedTarget === normalizedParent || normalizedTarget.startsWith(parentWithSeparator)
+}
+
+function getWindowsProtectedInstallRoots() {
+  return [
+    process.env.ProgramFiles,
+    process.env['ProgramFiles(x86)'],
+    process.env.ProgramW6432,
+    process.env.SystemRoot,
+    process.env.windir,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .map(value => normalize(value))
+}
+
+function requiresAdminForInstallPath(executablePath: string) {
+  if (!isWindows)
+    return false
+
+  const installDirectory = dirname(executablePath)
+  return getWindowsProtectedInstallRoots().some(root => isPathInside(root, installDirectory))
 }
 
 function selectLatestTagForLane(releases: GitHubReleaseRecord[], lane: UpdateLane) {
@@ -208,14 +275,27 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
 
   autoUpdater.allowPrerelease = isPrereleaseBuild
   autoUpdater.autoDownload = false
+  void cleanupStaleUpdateFiles()
   if (activeFeedUrlOverride)
     autoUpdater.channel = releaseChannelName
   autoUpdater.forceDevUpdateConfig = !!feedUrlOverride && !app.isPackaged
   autoUpdater.logger = {
-    info: (message: string) => log.log(message),
-    warn: (message: string) => log.warn(message),
-    error: (message: string) => log.error(message),
-    debug: (message: string) => log.debug(message),
+    info: (message: string) => {
+      log.log(message)
+      void logToFile('INFO', message)
+    },
+    warn: (message: string) => {
+      log.warn(message)
+      void logToFile('WARN', message)
+    },
+    error: (message: string) => {
+      log.error(message)
+      void logToFile('ERROR', message)
+    },
+    debug: (message: string) => {
+      log.debug(message)
+      void logToFile('DEBUG', message)
+    },
   }
 
   if (activeFeedUrlOverride)
@@ -227,8 +307,10 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
       platform: process.platform,
       arch: process.arch,
       channel: autoUpdater.channel || releaseChannelName,
-      logFilePath: app.getPath('logs'),
+      logFilePath: UPDATER_LOG_FILE,
       executablePath: process.execPath,
+      installDirectory: dirname(process.execPath),
+      requiresAdminForInstallPath: requiresAdminForInstallPath(process.execPath),
       isOverrideActive: !!activeFeedUrlOverride,
       ...(activeFeedUrlOverride ? { feedUrl: activeFeedUrlOverride } : {}),
     },

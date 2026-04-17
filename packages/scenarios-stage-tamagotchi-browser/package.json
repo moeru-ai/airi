@@ -28,7 +28,7 @@
     "@proj-airi/vishot-runtime": "workspace:^",
     "@vueuse/core": "catalog:",
     "date-fns": "catalog:",
-    "reka-ui": "^2.9.5",
+    "reka-ui": "^2.9.6",
     "vue": "catalog:",
     "vue-router": "catalog:"
   },
@@ -38,7 +38,7 @@
     "@iconify-json/mdi": "catalog:",
     "@iconify-json/ph": "catalog:",
     "@unocss/reset": "^66.6.8",
-    "@vitejs/plugin-vue": "^6.0.5",
+    "@vitejs/plugin-vue": "^6.0.6",
     "unplugin-vue-router": "^0.19.2",
     "vue-tsc": "^3.2.6"
   }

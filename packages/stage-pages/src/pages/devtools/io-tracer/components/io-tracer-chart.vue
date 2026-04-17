@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { IOSpan, IOSubsystem, IOTurn } from '@proj-airi/stage-shared'
 
-import { useElementSize } from '@vueuse/core'
+import { useElementBounding, useElementSize, useEventListener } from '@vueuse/core'
 import { computed, ref, watch } from 'vue'
 
 import {
@@ -27,7 +27,10 @@ const emit = defineEmits<{
 
 const containerRef = ref<HTMLDivElement>()
 const scrollAreaRef = ref<HTMLDivElement>()
+const minimapRef = ref<HTMLDivElement>()
 const { width: containerWidth } = useElementSize(containerRef)
+const { left: containerLeft } = useElementBounding(containerRef)
+const { left: minimapLeft } = useElementBounding(minimapRef)
 const hoveredSpan = ref<{ span: IOSpan, turn: IOTurn, x: number, y: number } | null>(null)
 
 const turns = computed(() => {
@@ -301,12 +304,15 @@ const minimapViewportW = computed(() => {
   return ((viewEnd.value - viewStart.value) / dur) * chartWidth.value
 })
 
+let hasUserInteracted = false
 const isDragging = ref(false)
 let dragStartX = 0
 let dragStartY = 0
 let dragStartScrollTop = 0
 let dragViewStart = 0
 let dragViewEnd = 0
+let stopChartMove: (() => void) | undefined
+let stopChartUp: (() => void) | undefined
 
 function onChartMouseDown(e: MouseEvent) {
   hasUserInteracted = true
@@ -317,6 +323,10 @@ function onChartMouseDown(e: MouseEvent) {
   dragViewStart = viewStart.value
   dragViewEnd = viewEnd.value
   e.preventDefault()
+
+  // Handle dragging outside
+  stopChartMove = useEventListener(window, 'mousemove', onChartMouseMove)
+  stopChartUp = useEventListener(window, 'mouseup', onChartMouseUp)
 }
 
 function onChartMouseMove(e: MouseEvent) {
@@ -333,14 +343,15 @@ function onChartMouseMove(e: MouseEvent) {
 
 function onChartMouseUp() {
   isDragging.value = false
+  stopChartMove?.()
+  stopChartUp?.()
+  stopChartMove = undefined
+  stopChartUp = undefined
 }
 
 function onChartWheel(e: WheelEvent) {
   e.preventDefault()
   hasUserInteracted = true
-  const rect = containerRef.value?.getBoundingClientRect()
-  if (!rect)
-    return
 
   const absDx = Math.abs(e.deltaX)
   const absDy = Math.abs(e.deltaY)
@@ -354,7 +365,7 @@ function onChartWheel(e: WheelEvent) {
 
   if (absDy > 1) {
     const factor = e.deltaY > 0 ? 1.15 : 1 / 1.15
-    const mouseX = e.clientX - rect.left - LABEL_COL_WIDTH
+    const mouseX = e.clientX - containerLeft.value - LABEL_COL_WIDTH
     const pivot = xToTime(mouseX)
     setViewport(
       pivot - (pivot - viewStart.value) * factor,
@@ -368,6 +379,9 @@ let minimapDragMode: MinimapDragMode = null
 let minimapDragStartX = 0
 let minimapDragStartViewStart = 0
 let minimapDragStartViewEnd = 0
+
+let stopMinimapMove: (() => void) | undefined
+let stopMinimapUp: (() => void) | undefined
 
 const HANDLE_HIT_WIDTH = 8
 
@@ -395,13 +409,16 @@ function onMinimapMouseDown(e: MouseEvent) {
     viewEnd.value = t
   }
   e.preventDefault()
+
+  // Bind to window so drag keeps tracking when mouse leaves minimap.
+  stopMinimapMove = useEventListener(window, 'mousemove', onMinimapMouseMove)
+  stopMinimapUp = useEventListener(window, 'mouseup', onMinimapMouseUp)
 }
 
 function onMinimapMouseMove(e: MouseEvent) {
   if (!minimapDragMode)
     return
-  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-  const x = Math.max(0, Math.min(e.clientX - rect.left, chartWidth.value))
+  const x = Math.max(0, Math.min(e.clientX - minimapLeft.value, chartWidth.value))
   const range = globalRange.value
   const dur = range.max - range.min
   const t = range.min + (x / chartWidth.value) * dur
@@ -424,6 +441,10 @@ function onMinimapMouseUp() {
       autoFit()
     minimapDragMode = null
   }
+  stopMinimapMove?.()
+  stopMinimapUp?.()
+  stopMinimapMove = undefined
+  stopMinimapUp = undefined
 }
 
 const minimapCursor = ref<string>('crosshair')
@@ -457,8 +478,6 @@ function onSpanLeave() {
 function onSpanClick(span: IOSpan) {
   emit('selectSpan', span.id === props.selectedSpanId ? null : span.id)
 }
-
-let hasUserInteracted = false
 
 function autoFit() {
   const { min, max } = globalRange.value
@@ -499,12 +518,10 @@ function spanLabel(span: IOSpan): string {
   <div
     ref="containerRef"
     :class="['flex-1 flex flex-col overflow-hidden', 'select-none']"
-    @mousemove="onChartMouseMove"
-    @mouseup="onChartMouseUp"
-    @mouseleave="onChartMouseUp"
   >
     <!-- ═══ Minimap ═══ -->
     <div
+      ref="minimapRef"
       :class="[
         'relative flex-shrink-0',
         'border-b border-neutral-200 dark:border-neutral-700',
@@ -512,9 +529,7 @@ function spanLabel(span: IOSpan): string {
       ]"
       :style="{ height: `${MINIMAP_HEIGHT}px`, marginLeft: `${LABEL_COL_WIDTH}px`, cursor: minimapCursor }"
       @mousedown="onMinimapMouseDown"
-      @mousemove="(e) => { onMinimapMouseMove(e); onMinimapHover(e) }"
-      @mouseup="onMinimapMouseUp"
-      @mouseleave="onMinimapMouseUp"
+      @mousemove="onMinimapHover"
     >
       <div
         v-for="{ span } in visibleSpans"

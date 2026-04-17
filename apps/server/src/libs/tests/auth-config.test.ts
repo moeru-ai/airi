@@ -3,6 +3,8 @@ import type { R2StorageService } from '../../services/r2'
 import type { Database } from '../db'
 import type { Env } from '../env'
 
+import { Buffer } from 'node:buffer'
+
 import { describe, expect, it, vi } from 'vitest'
 
 import { createAuth } from '../auth'
@@ -78,6 +80,9 @@ function makeEnv(overrides: Partial<Env> = {}): Env {
     R2_PUBLIC_URL: undefined,
     RESEND_API_KEY: undefined,
     RESEND_FROM_EMAIL: undefined,
+    GATEWAY_BASE_URL: 'http://localhost:18080',
+    DEFAULT_CHAT_MODEL: 'openai/gpt-5-mini',
+    DEFAULT_TTS_MODEL: 'microsoft/v1',
     BILLING_EVENTS_STREAM: 'billing-events',
     BILLING_EVENTS_CONSUMER_NAME: undefined,
     BILLING_EVENTS_BATCH_SIZE: 10,

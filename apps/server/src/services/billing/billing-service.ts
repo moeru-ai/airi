@@ -127,7 +127,7 @@ export function createBillingService(
 
   return {
     /**
-     * Debit flux for an LLM API request (chat, TTS, ASR).
+     * Debit flux for an LLM API request (chat, TTS).
      * Passes token usage as opaque metadata carried through the flux.debited event
      * so the billing-mq consumer can write it to the transaction log.
      */

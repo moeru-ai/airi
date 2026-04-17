@@ -160,6 +160,7 @@ export function createKokoroAdapter(): KokoroAdapter {
   let restartAttempts = 0
   let allocationToken: AllocationToken | null = null
   let currentModelStatusId: string | null = null
+  let errorListener: ((event: ErrorEvent) => void) | null = null
 
   const operationMutex = new Mutex()
   const lifecycleMutex = new Mutex()
@@ -169,7 +170,8 @@ export function createKokoroAdapter(): KokoroAdapter {
       new URL('../../../workers/kokoro/worker.ts', import.meta.url),
       { type: 'module' },
     )
-    worker.addEventListener('error', handleWorkerError)
+    errorListener = (event: ErrorEvent) => handleWorkerError(event)
+    worker.addEventListener('error', errorListener)
   }
 
   function handleWorkerError(_event: ErrorEvent | Error): void {
@@ -181,6 +183,9 @@ export function createKokoroAdapter(): KokoroAdapter {
 
   function destroyWorker(): void {
     if (worker) {
+      if (errorListener)
+        worker.removeEventListener('error', errorListener)
+      errorListener = null
       worker.terminate()
       worker = null
     }
@@ -191,6 +196,9 @@ export function createKokoroAdapter(): KokoroAdapter {
       console.error(
         `[KokoroAdapter] Max restart attempts (${MAX_RESTARTS}) reached.`,
       )
+      // NOTICE: Transition to 'terminated' so getKokoroAdapter() can detect
+      // the dead singleton and create a fresh adapter on next access.
+      state = 'terminated'
       return
     }
 
@@ -285,7 +293,9 @@ export function createKokoroAdapter(): KokoroAdapter {
         state = 'ready'
         updateInferenceStatus(modelStatusId, { state: 'ready', device: (response.device ?? device) as any })
         onSuccess()
-        return voices!
+        if (!voices)
+          throw new Error('Kokoro worker did not return voice metadata')
+        return voices
       })
     }), { quantization, device }).catch((error) => {
       handleWorkerError(error instanceof Error ? error : new Error(String(error)))
@@ -367,11 +377,18 @@ const singletonMutex = new Mutex()
 /**
  * Get the global Kokoro adapter instance.
  * Creates and starts the worker on first call.
+ * Automatically re-creates the adapter if it has entered a terminal state
+ * ('terminated' or 'error' after max restarts exhausted).
  */
 export async function getKokoroAdapter(): Promise<KokoroAdapter> {
   return singletonMutex.runExclusive(async () => {
-    if (!globalAdapter)
+    if (
+      !globalAdapter
+      || globalAdapter.state === 'terminated'
+      || globalAdapter.state === 'error'
+    ) {
       globalAdapter = createKokoroAdapter()
+    }
     return globalAdapter
   })
 }

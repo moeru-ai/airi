@@ -24,9 +24,8 @@ patchedDependencies:
   '@xsai/generate-text@0.5.0-beta.2': patches/@xsai__generate-text@0.5.0-beta.2.patch
   '@xsai/shared-chat@0.5.0-beta.2': patches/@xsai__shared-chat@0.5.0-beta.2.patch
   '@xsai/stream-text@0.5.0-beta.2': patches/@xsai__stream-text@0.5.0-beta.2.patch
-  crossws@0.4.4: patches/crossws@0.4.4.patch
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
-  # mineflayer@4.33.0: patches/mineflayer@4.33.0.patch
+  mineflayer@4.33.0: patches/mineflayer@4.33.0.patch
   pixi-live2d-display: patches/pixi-live2d-display.patch
 catalog:
   '@better-auth/oauth-provider': 1.5.6
@@ -86,11 +85,10 @@ catalog:
   alien-signals: ^3.1.2
   async-mutex: 0.5.0
   better-auth: ^1.6.2
-  better-call: ^2.0.3
   builder-util-runtime: ^9.5.1
   cac: ^7.0.0
   capacitor-native-settings: ^8.1.0
-  crossws: ^0.4.4
+  crossws: ^0.4.5
   d3: 7.9.0
   date-fns: ^4.1.0
   drizzle-kit: ^0.31.10
@@ -109,20 +107,20 @@ catalog:
   isolated-vm: ^6.1.2
   jdenticon: ^3.3.0
   jose: ^6.2.2
-  knip: ^6.3.1
+  knip: ^6.4.1
   meow: ^14.1.0
   mkcert: ^3.2.0
   nano-staged: ^1.0.2
   nanoid: 5.1.6
   node-pty: ^1.1.0
   ofetch: ^1.5.1
-  oxc-minify: ^0.124.0
+  oxc-minify: ^0.125.0
   pinia: ^3.0.4
   posthog-js: 1.306.1
   splitpanes: ^4.0.4
   std-env: ^4.0.0
   superjson: ^2.2.6
-  tsdown: ^0.21.7
+  tsdown: ^0.21.8
   tsx: ^4.21.0
   uncrypto: ^0.1.3
   unplugin-info: ^1.3.2

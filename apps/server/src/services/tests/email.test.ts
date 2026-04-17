@@ -1,3 +1,5 @@
+import type { Env } from '../../libs/env'
+
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createEmailService } from '../email'
@@ -19,10 +21,10 @@ vi.mock('resend', () => {
   return { Resend: MockResend }
 })
 
-function makeEnv(overrides: Record<string, string | undefined> = {}) {
+function makeEnv(overrides: Partial<Env> = {}): Env {
   return {
     HOST: '0.0.0.0',
-    PORT: '3000',
+    PORT: 3000,
     API_SERVER_URL: 'http://localhost:3000',
     CLIENT_URL: 'http://localhost:5173',
     DATABASE_URL: 'postgres://localhost/test',
@@ -41,23 +43,26 @@ function makeEnv(overrides: Record<string, string | undefined> = {}) {
     R2_PUBLIC_URL: undefined,
     RESEND_API_KEY: undefined,
     RESEND_FROM_EMAIL: undefined,
+    GATEWAY_BASE_URL: 'http://localhost:18080',
+    DEFAULT_CHAT_MODEL: 'openai/gpt-5-mini',
+    DEFAULT_TTS_MODEL: 'microsoft/v1',
     BILLING_EVENTS_STREAM: 'billing-events',
     BILLING_EVENTS_CONSUMER_NAME: undefined,
-    BILLING_EVENTS_BATCH_SIZE: '10',
-    BILLING_EVENTS_BLOCK_MS: '5000',
-    BILLING_EVENTS_MIN_IDLE_MS: '30000',
-    DB_POOL_MAX: '20',
-    DB_POOL_IDLE_TIMEOUT_MS: '30000',
-    DB_POOL_CONNECTION_TIMEOUT_MS: '5000',
-    DB_POOL_KEEPALIVE_INITIAL_DELAY_MS: '10000',
+    BILLING_EVENTS_BATCH_SIZE: 10,
+    BILLING_EVENTS_BLOCK_MS: 5000,
+    BILLING_EVENTS_MIN_IDLE_MS: 30000,
+    DB_POOL_MAX: 20,
+    DB_POOL_IDLE_TIMEOUT_MS: 30000,
+    DB_POOL_CONNECTION_TIMEOUT_MS: 5000,
+    DB_POOL_KEEPALIVE_INITIAL_DELAY_MS: 10000,
     OTEL_SERVICE_NAMESPACE: 'airi',
     OTEL_SERVICE_NAME: 'server',
-    OTEL_TRACES_SAMPLING_RATIO: '1',
+    OTEL_TRACES_SAMPLING_RATIO: 1,
     OTEL_EXPORTER_OTLP_ENDPOINT: undefined,
     OTEL_EXPORTER_OTLP_HEADERS: undefined,
     OTEL_DEBUG: undefined,
     ...overrides,
-  } as ReturnType<typeof import('../../libs/env').parseEnv>
+  }
 }
 
 describe('createEmailService', () => {

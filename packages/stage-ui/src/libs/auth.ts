@@ -46,7 +46,7 @@ export const authClient = createAuthClient({
 
 let initialized = false
 
-export function initializeAuth() {
+export async function initializeAuth() {
   if (initialized)
     return
 
@@ -54,18 +54,38 @@ export function initializeAuth() {
   // (e.g. /auth/callback). initializeAuth() only restores existing
   // sessions and refresh schedules — it does NOT consume the code.
 
-  fetchSession().catch(() => {})
+  initialized = true
 
-  // Restore OIDC token refresh scheduling from persisted state
   const authStore = useAuthStore()
-  authStore.restoreRefreshSchedule()
 
+  // Normalize "half-cleared" persisted state before anything reads it.
+  //
+  // Why: `refreshToken` was added to the auth store before `oidcClientId`
+  // (commit c73ceeb1f predates f1fe161bc), and `clearOIDCState` (now removed)
+  // used to clear only the OIDC pair. Browsers that saw either code path can
+  // end up with a refreshToken but no oidcClientId, which makes
+  // `refreshTokenNow()` early-return forever — 401s then silently accumulate
+  // on non-home pages until the user lands on a route that calls fetchSession.
+  //
+  // Treat any mismatch as an unauthenticated session; the user will get a
+  // fresh OIDC login prompt via the standard 401→needsLogin path.
+  const hasRefreshToken = !!authStore.refreshToken
+  const hasClientId = !!authStore.oidcClientId
+  if (hasRefreshToken !== hasClientId)
+    authStore.clearAllAuthState()
+
+  // NOTICE: restoreRefreshSchedule must complete BEFORE fetchSession when
+  // the persisted access token is already expired. Otherwise fetchSession
+  // hits /get-session with the stale Bearer, gets 401, and wipes
+  // refreshToken + oidcClientId before the scheduled refresh can run —
+  // silently logging the user out on reload.
   authStore.onTokenRefreshed(async (accessToken) => {
     authStore.token = accessToken
     await fetchSession()
   })
 
-  initialized = true
+  await authStore.restoreRefreshSchedule()
+  await fetchSession().catch(() => {})
 }
 
 /**
@@ -96,11 +116,7 @@ export async function fetchSession() {
   }
 
   // Session expired or invalid — clear stale auth state from localStorage
-  authStore.user = null
-  authStore.session = null
-  authStore.token = null
-  authStore.refreshToken = null
-  authStore.clearOIDCState()
+  authStore.clearAllAuthState()
   return false
 }
 
@@ -110,7 +126,6 @@ export async function listSessions() {
 
 export async function signOut() {
   const authStore = useAuthStore()
-  authStore.clearOIDCState()
 
   // NOTICE: Server signOut is wrapped in try/catch so that local state cleanup
   // always runs regardless of server errors (e.g. network unreachable). User
@@ -122,10 +137,7 @@ export async function signOut() {
     // Swallow — local cleanup below ensures the user is signed out client-side.
   }
 
-  authStore.user = null
-  authStore.session = null
-  authStore.token = null
-  authStore.refreshToken = null
+  authStore.clearAllAuthState()
 }
 
 /**

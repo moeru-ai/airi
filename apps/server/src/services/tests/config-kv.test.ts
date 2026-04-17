@@ -24,7 +24,7 @@ describe('configKVService', () => {
   // --- get ---
 
   it('get should throw 503 when key is not set', async () => {
-    await expect(service.getOrThrow('GATEWAY_BASE_URL'))
+    await expect(service.getOrThrow('FLUX_PER_1K_CHARS_TTS'))
       .rejects
       .toThrow('Service configuration is incomplete')
   })
@@ -51,7 +51,7 @@ describe('configKVService', () => {
   })
 
   it('getOptional should return null when required key is not set', async () => {
-    const value = await service.getOptional('GATEWAY_BASE_URL')
+    const value = await service.getOptional('FLUX_PER_1K_CHARS_TTS')
     expect(value).toBeNull()
   })
 
@@ -72,7 +72,7 @@ describe('configKVService', () => {
   })
 
   it('set should reject invalid values for string config keys', async () => {
-    await expect(service.set('GATEWAY_BASE_URL', { url: 'https://example.com' } as any))
+    await expect(service.set('STRIPE_FLUX_PRODUCT_ID', { id: 'prod_123' } as any))
       .rejects
       .toThrow()
   })
@@ -85,8 +85,8 @@ describe('configKVService', () => {
   })
 
   it('set should store string values as JSON strings', async () => {
-    await service.set('GATEWAY_BASE_URL', 'https://gateway.example.com')
+    await service.set('STRIPE_FLUX_PRODUCT_ID', 'prod_abc123')
 
-    expect(redis._store.get(configRedisKey('GATEWAY_BASE_URL'))).toBe(JSON.stringify('https://gateway.example.com'))
+    expect(redis._store.get(configRedisKey('STRIPE_FLUX_PRODUCT_ID'))).toBe(JSON.stringify('prod_abc123'))
   })
 })
