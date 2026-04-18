@@ -58,7 +58,7 @@
     "@unocss/preset-web-fonts": "^66.6.8",
     "@vitest/coverage-v8": "catalog:vitest",
     "bumpp": "^11.0.1",
-    "eslint": "^10.2.0",
+    "eslint": "^10.2.1",
     "eslint-plugin-oxlint": "^1.60.0",
     "knip": "catalog:",
     "nano-staged": "catalog:",
