@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { classifyDeviceLossReason, classifyError, isRecoverable } from './protocol'
+import { classifyDeviceLossReason, classifyError, InferenceAbortError, isRecoverable, throwIfAborted } from './protocol'
 
 describe('classifyError', () => {
   it('should classify OOM errors', () => {
@@ -78,6 +78,74 @@ describe('isRecoverable', () => {
 
   it('should mark UNKNOWN as not recoverable', () => {
     expect(isRecoverable('UNKNOWN')).toBe(false)
+  })
+
+  it('should mark CANCELLED as not recoverable', () => {
+    expect(isRecoverable('CANCELLED')).toBe(false)
+  })
+})
+
+describe('inferenceAbortError', () => {
+  it('should have name "AbortError" for DOM compatibility', () => {
+    const err = new InferenceAbortError()
+    expect(err.name).toBe('AbortError')
+  })
+
+  it('should carry code "CANCELLED"', () => {
+    const err = new InferenceAbortError()
+    expect(err.code).toBe('CANCELLED')
+  })
+
+  it('should accept a custom message', () => {
+    const err = new InferenceAbortError('user cancelled')
+    expect(err.message).toBe('user cancelled')
+  })
+
+  it('should use a default message when none provided', () => {
+    const err = new InferenceAbortError()
+    expect(err.message).toBe('The operation was aborted')
+  })
+
+  it('should be instanceof Error', () => {
+    expect(new InferenceAbortError()).toBeInstanceOf(Error)
+  })
+})
+
+describe('throwIfAborted', () => {
+  it('should be a no-op when signal is undefined', () => {
+    expect(() => throwIfAborted(undefined)).not.toThrow()
+  })
+
+  it('should be a no-op when signal is not aborted', () => {
+    const controller = new AbortController()
+    expect(() => throwIfAborted(controller.signal)).not.toThrow()
+  })
+
+  it('should throw when signal is already aborted', () => {
+    const controller = new AbortController()
+    controller.abort()
+    expect(() => throwIfAborted(controller.signal)).toThrow()
+  })
+
+  it('should throw the signal\'s reason if it is an Error', () => {
+    const controller = new AbortController()
+    const reason = new Error('custom reason')
+    controller.abort(reason)
+    expect(() => throwIfAborted(controller.signal)).toThrow(reason)
+  })
+
+  it('should throw InferenceAbortError when reason is a string', () => {
+    const controller = new AbortController()
+    controller.abort('cancelled by string')
+    try {
+      throwIfAborted(controller.signal)
+    }
+    catch (err) {
+      expect((err as Error).name).toBe('AbortError')
+      expect((err as Error).message).toBe('cancelled by string')
+      return
+    }
+    throw new Error('should have thrown')
   })
 })
 

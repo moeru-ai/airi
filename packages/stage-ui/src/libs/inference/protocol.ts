@@ -53,6 +53,7 @@ export type InferenceErrorCode
     | 'DEVICE_LOST'
     | 'LOAD_FAILED'
     | 'INFERENCE_FAILED'
+    | 'CANCELLED'
     | 'UNKNOWN'
 
 export interface ErrorPayload {
@@ -87,10 +88,31 @@ export interface UnloadModelRequest {
   requestId: string
 }
 
+/**
+ * Cancel an in-flight or queued request. The worker should stop any
+ * ongoing work tied to `targetRequestId` and must NOT send a normal
+ * `model-ready` / `inference-result` response for that request; instead
+ * it should send an `ErrorResponse` with code `'CANCELLED'` so the
+ * adapter can reject the caller's promise deterministically.
+ *
+ * NOTE: Cancellation is best-effort. We cannot interrupt a synchronous
+ * transformers.js / ONNX Runtime call that is already executing on the
+ * worker thread. What the cancel signal does guarantee is that the
+ * adapter stops waiting and the worker discards the result when it
+ * eventually arrives.
+ */
+export interface CancelRequest {
+  type: 'cancel'
+  requestId: string
+  /** The requestId of the operation to cancel */
+  targetRequestId: string
+}
+
 export type WorkerInboundMessage<TInput = unknown>
   = | LoadModelRequest
     | RunInferenceRequest<TInput>
     | UnloadModelRequest
+    | CancelRequest
 
 // ---------------------------------------------------------------------------
 // Worker → Main responses
@@ -227,4 +249,28 @@ export function classifyDeviceLossReason(error: unknown): DeviceLossReason {
  */
 export function isRecoverable(code: InferenceErrorCode): boolean {
   return code === 'TIMEOUT' || code === 'DEVICE_LOST'
+}
+
+/**
+ * Canonical error thrown by inference adapters when an operation is
+ * cancelled via AbortSignal. Matches the DOM convention of `name === 'AbortError'`
+ * so existing `if (err.name === 'AbortError')` checks work unchanged.
+ */
+export class InferenceAbortError extends Error {
+  override readonly name = 'AbortError'
+  readonly code = 'CANCELLED' as const
+
+  constructor(message = 'The operation was aborted') {
+    super(message)
+  }
+}
+
+/** Throw `InferenceAbortError` if the signal is already aborted. */
+export function throwIfAborted(signal: AbortSignal | undefined): void {
+  if (signal?.aborted) {
+    const reason = signal.reason
+    if (reason instanceof Error)
+      throw reason
+    throw new InferenceAbortError(typeof reason === 'string' ? reason : undefined)
+  }
 }
