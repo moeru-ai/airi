@@ -16,6 +16,7 @@ import { Buffer } from 'node:buffer'
 import { timingSafeEqual } from 'node:crypto'
 
 import { availableLogLevelStrings, Format, LogLevelString, logLevelStringToLogLevelMap, useLogg } from '@guiiai/logg'
+import { errorMessageFrom } from '@moeru/std'
 import {
   createInvalidJsonServerErrorMessage,
   ServerErrorMessages,
@@ -26,7 +27,6 @@ import {
   MessageHeartbeatKind,
   WebSocketEventSource,
 } from '@proj-airi/server-shared/types'
-import { errorMessageFrom } from '@moeru/std'
 import { defineWebSocketHandler, H3 } from 'h3'
 import { nanoid } from 'nanoid'
 import { parse, stringify } from 'superjson'
