@@ -3889,6 +3889,55 @@ importers:
         specifier: ^11.0.0
         version: 11.0.0
 
+  services/discord-companion:
+    dependencies:
+      '@discordjs/voice':
+        specifier: ^0.19.2
+        version: 0.19.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(bufferutil@4.1.0)(opusscript@0.1.1)(utf-8-validate@5.0.10)
+      '@guiiai/logg':
+        specifier: 'catalog:'
+        version: 1.2.11
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
+      '@proj-airi/server-sdk':
+        specifier: workspace:^
+        version: link:../../packages/server-sdk
+      '@proj-airi/server-shared':
+        specifier: workspace:^
+        version: link:../../packages/server-shared
+      '@snazzah/davey':
+        specifier: ^0.1.11
+        version: 0.1.11(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)
+      '@xsai-ext/providers':
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2
+      '@xsai/generate-transcription':
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2
+      discord.js:
+        specifier: ^14.26.3
+        version: 14.26.3(bufferutil@4.1.0)(utf-8-validate@5.0.10)
+      es-toolkit:
+        specifier: 'catalog:'
+        version: 1.43.0
+      libsodium-wrappers:
+        specifier: ^0.8.3
+        version: 0.8.3
+      opusscript:
+        specifier: ^0.1.1
+        version: 0.1.1
+      tsx:
+        specifier: 'catalog:'
+        version: 4.21.0
+      valibot:
+        specifier: 'catalog:'
+        version: 1.2.0(typescript@5.9.3)
+    devDependencies:
+      vitest:
+        specifier: catalog:vitest
+        version: 4.1.4(@opentelemetry/api@1.9.1)(@types/node@25.6.0)(@vitest/browser-playwright@4.1.4)(@vitest/coverage-v8@4.1.4)(jsdom@27.4.0(bufferutil@4.1.0)(canvas@3.2.3)(utf-8-validate@5.0.10))(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
+
   services/minecraft:
     dependencies:
       '@guiiai/logg':

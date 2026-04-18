@@ -1,0 +1,41 @@
+{
+  "name": "@proj-airi/discord-companion",
+  "type": "module",
+  "private": true,
+  "description": "Discord companion service for AIRI: bridges Discord voice + text chat to the AIRI stage",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "services/discord-companion"
+  },
+  "scripts": {
+    "start": "tsx --env-file=.env --env-file-if-exists=.env.local src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@discordjs/voice": "^0.19.2",
+    "@guiiai/logg": "catalog:",
+    "@moeru/std": "catalog:",
+    "@proj-airi/server-sdk": "workspace:^",
+    "@proj-airi/server-shared": "workspace:^",
+    "@snazzah/davey": "^0.1.11",
+    "@xsai-ext/providers": "catalog:",
+    "@xsai/generate-transcription": "catalog:",
+    "discord.js": "^14.26.3",
+    "es-toolkit": "catalog:",
+    "libsodium-wrappers": "^0.8.3",
+    "opusscript": "^0.1.1",
+    "tsx": "catalog:",
+    "valibot": "catalog:"
+  },
+  "devDependencies": {
+    "vitest": "catalog:vitest"
+  }
+}
