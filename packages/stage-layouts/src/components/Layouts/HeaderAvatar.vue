@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import { signOut } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
+import { isLessonRouteLike } from '@proj-airi/stage-ui/utils'
 import { onClickOutside } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 
+const route = useRoute()
+const isLessonRoute = computed(() => isLessonRouteLike(route))
 const authStore = useAuthStore()
-const { isAuthenticated, user, credits } = storeToRefs(authStore)
+const { isAuthenticated, user, credits, needsLogin } = storeToRefs(authStore)
 
-const userName = computed(() => user.value?.name)
-const userAvatar = computed(() => user.value?.image)
+const userName = computed(() => isLessonRoute.value ? undefined : user.value?.name)
+const userAvatar = computed(() => isLessonRoute.value ? undefined : user.value?.image)
 const showDropdown = ref(false)
 const dropdownRef = ref(null)
 
@@ -21,9 +24,20 @@ onClickOutside(dropdownRef, () => {
 
 <template>
   <div flex items-center gap-2>
+    <template v-if="isLessonRoute">
+      <RouterLink
+        border="2 solid neutral-100/60 dark:neutral-800/30"
+        bg="neutral-50/70 dark:neutral-800/70"
+        w-fit flex items-center justify-center rounded-xl p-2 backdrop-blur-md
+        title="Settings"
+        to="/settings"
+      >
+        <div i-solar:settings-minimalistic-bold-duotone size-5 text="neutral-500 dark:neutral-400" />
+      </RouterLink>
+    </template>
     <!-- Non-authenticated: Settings & Sign in -->
     <!-- NOTICE: The avatar is stored in the localstorage, it will be shown at the first time of the page load, so we do not need the skeleton loading here -->
-    <template v-if="!isAuthenticated">
+    <template v-else-if="!isAuthenticated">
       <RouterLink
         border="2 solid neutral-100/60 dark:neutral-800/30"
         bg="neutral-50/70 dark:neutral-800/70"
@@ -40,7 +54,7 @@ onClickOutside(dropdownRef, () => {
         w-fit flex items-center justify-center rounded-xl p-2 backdrop-blur-md
         title="Sign in"
         type="button"
-        @click="authStore.needsLogin = true"
+        @click="needsLogin = true"
       >
         <div i-solar:user-bold-duotone />
       </button>

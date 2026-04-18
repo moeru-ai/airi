@@ -1884,6 +1884,9 @@ importers:
       '@types/three':
         specifier: ^0.183.1
         version: 0.183.1
+      '@types/ws':
+        specifier: 'catalog:'
+        version: 8.18.1
       '@types/yauzl':
         specifier: ^2.10.3
         version: 2.10.3
@@ -1893,6 +1896,9 @@ importers:
       '@vitejs/plugin-vue':
         specifier: ^6.0.6
         version: 6.0.6(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vue@3.5.32(typescript@5.9.3))
+      '@vitest/browser-playwright':
+        specifier: catalog:vitest
+        version: 4.1.4(bufferutil@4.1.0)(playwright@1.59.1)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)
       '@vue-macros/volar':
         specifier: ^3.1.2
         version: 3.1.2(typescript@5.9.3)(vue-tsc@3.2.6(typescript@5.9.3))(vue@3.5.32(typescript@5.9.3))
@@ -1938,6 +1944,9 @@ importers:
       vue-tsc:
         specifier: ^3.2.6
         version: 3.2.6(typescript@5.9.3)
+      ws:
+        specifier: 'catalog:'
+        version: 8.20.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
 
   apps/ui-server-auth:
     dependencies:

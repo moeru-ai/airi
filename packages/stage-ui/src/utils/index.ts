@@ -1,2 +1,5 @@
 export { getEventSourceKey } from './event-source'
+export type { LessonRouteLike } from './lesson-route'
+export { isLessonPath, isLessonRouteLike, lessonRouteName } from './lesson-route'
+export { resolveLessonStageView } from './lesson-stage-view'
 export { randomSaccadeInterval } from '@proj-airi/stage-ui-live2d/utils/eye-motions'

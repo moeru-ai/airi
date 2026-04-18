@@ -45,7 +45,9 @@ const props = withDefaults(defineProps<{
   xOffset?: number | string
   yOffset?: number | string
   scale?: number
-}>(), { paused: false, scale: 1 })
+  lessonSafe?: boolean
+  lessonSpeech?: boolean
+}>(), { paused: false, scale: 1, lessonSafe: false, lessonSpeech: false })
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 
@@ -76,16 +78,21 @@ const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const { audioContext } = useAudioContext()
 const currentAudioSource = ref<AudioBufferSourceNode>()
 
-const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatOrchestratorStore()
 const chatHookCleanups: Array<() => void> = []
 // WORKAROUND: clear previous handlers on unmount to avoid duplicate calls when this component remounts.
 //             We keep per-hook disposers instead of wiping the global chat hooks to play nicely with
 //             cross-window broadcast wiring.
 
-const providersStore = useProvidersStore()
-useAuthProviderSync()
+const chatRuntimeEnabled = !props.lessonSafe
+const speechRuntimeEnabled = !props.lessonSafe || props.lessonSpeech
+const chatOrchestratorStore = chatRuntimeEnabled ? useChatOrchestratorStore() : null
+const providersStore = speechRuntimeEnabled ? useProvidersStore() : null
+if (speechRuntimeEnabled) {
+  useAuthProviderSync()
+}
 const live2dStore = useLive2d()
 const showStage = ref(true)
+const stageModelRecoveryInFlight = ref(false)
 const viewUpdateCleanups: Array<() => void> = []
 
 // Caption + Presentation broadcast channels
@@ -115,11 +122,14 @@ const lipSyncLoopId = ref<number>()
 const live2dLipSync = ref<Live2DLipSync>()
 const live2dLipSyncOptions: Live2DLipSyncOptions = { mouthUpdateIntervalMs: 50, mouthLerpWindowMs: 50 }
 
-const { activeCard } = storeToRefs(useAiriCardStore())
-const speechStore = useSpeechStore()
-const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
-const activeCardId = computed(() => activeCard.value?.name ?? 'default')
-const speechRuntimeStore = useSpeechRuntimeStore()
+const speechStore = speechRuntimeEnabled ? useSpeechStore() : null
+const activeCardId = computed(() => props.lessonSafe ? 'lesson' : useAiriCardStore().activeCard?.name ?? 'default')
+const speechRuntimeStore = speechRuntimeEnabled ? useSpeechRuntimeStore() : null
+const ssmlEnabled = computed(() => speechStore?.ssmlEnabled ?? false)
+const activeSpeechProvider = computed(() => speechStore?.activeSpeechProvider ?? 'speech-noop')
+const activeSpeechModel = computed(() => speechStore?.activeSpeechModel ?? '')
+const activeSpeechVoice = computed(() => speechStore?.activeSpeechVoice)
+const pitch = computed(() => speechStore?.pitch ?? 0)
 
 const { currentMotion } = storeToRefs(useLive2d())
 
@@ -224,141 +234,143 @@ async function playFunction(item: Parameters<Parameters<typeof createPlaybackMan
   })
 }
 
-const playbackManager = createPlaybackManager<AudioBuffer>({
-  play: playFunction,
-  maxVoices: 1,
-  maxVoicesPerOwner: 1,
-  overflowPolicy: 'queue',
-  ownerOverflowPolicy: 'steal-oldest',
-})
+const playbackManager = !speechRuntimeEnabled
+  ? null
+  : createPlaybackManager<AudioBuffer>({
+      play: playFunction,
+      maxVoices: 1,
+      maxVoicesPerOwner: 1,
+      overflowPolicy: 'queue',
+      ownerOverflowPolicy: 'steal-oldest',
+    })
 
-const speechPipeline = createSpeechPipeline<AudioBuffer>({
-  tts: async (request, signal) => {
-    if (signal.aborted)
-      return null
+const speechPipeline = !speechRuntimeEnabled || !playbackManager
+  ? null
+  : createSpeechPipeline<AudioBuffer>({
+      tts: async (request, signal) => {
+        if (signal.aborted || !providersStore || !speechStore)
+          return null
 
-    if (activeSpeechProvider.value === 'speech-noop')
-      return null
+        if (activeSpeechProvider.value === 'speech-noop' || !activeSpeechProvider.value)
+          return null
 
-    if (!activeSpeechProvider.value)
-      return null
-
-    const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
-    if (!provider) {
-      console.error('Failed to initialize speech provider')
-      return null
-    }
-
-    if (!request.text && !request.special)
-      return null
-
-    const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
-
-    // For OpenAI Compatible providers, always use provider config for model and voice
-    // since these are manually configured in provider settings
-    let model = activeSpeechModel.value
-    let voice = activeSpeechVoice.value
-
-    if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
-      // Always prefer provider config for OpenAI Compatible (user configured it there)
-      if (providerConfig?.model) {
-        model = providerConfig.model as string
-      }
-      else {
-        // Fallback to default if not in provider config
-        model = 'tts-1'
-        console.warn('[Speech Pipeline] OpenAI Compatible: No model in provider config, using default', { providerConfig })
-      }
-
-      if (providerConfig?.voice) {
-        voice = {
-          id: providerConfig.voice as string,
-          name: providerConfig.voice as string,
-          description: providerConfig.voice as string,
-          previewURL: '',
-          languages: [{ code: 'en', title: 'English' }],
-          provider: activeSpeechProvider.value,
-          gender: 'neutral',
+        const provider = await providersStore.getProviderInstance(activeSpeechProvider.value) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
+        if (!provider) {
+          console.error('Failed to initialize speech provider')
+          return null
         }
-      }
-      else {
-        // Fallback to default if not in provider config
-        voice = {
-          id: 'alloy',
-          name: 'alloy',
-          description: 'alloy',
-          previewURL: '',
-          languages: [{ code: 'en', title: 'English' }],
-          provider: activeSpeechProvider.value,
-          gender: 'neutral',
+
+        if (!request.text && !request.special)
+          return null
+
+        const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
+
+        // For OpenAI Compatible providers, always use provider config for model and voice
+        // since these are manually configured in provider settings
+        let model = activeSpeechModel.value
+        let voice = activeSpeechVoice.value
+
+        if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
+          if (providerConfig?.model) {
+            model = providerConfig.model as string
+          }
+          else {
+            model = 'tts-1'
+            console.warn('[Speech Pipeline] OpenAI Compatible: No model in provider config, using default', { providerConfig })
+          }
+
+          if (providerConfig?.voice) {
+            voice = {
+              id: providerConfig.voice as string,
+              name: providerConfig.voice as string,
+              description: providerConfig.voice as string,
+              previewURL: '',
+              languages: [{ code: 'en', title: 'English' }],
+              provider: activeSpeechProvider.value,
+              gender: 'neutral',
+            }
+          }
+          else {
+            voice = {
+              id: 'alloy',
+              name: 'alloy',
+              description: 'alloy',
+              previewURL: '',
+              languages: [{ code: 'en', title: 'English' }],
+              provider: activeSpeechProvider.value,
+              gender: 'neutral',
+            }
+            console.warn('[Speech Pipeline] OpenAI Compatible: No voice in provider config, using default', { providerConfig })
+          }
         }
-        console.warn('[Speech Pipeline] OpenAI Compatible: No voice in provider config, using default', { providerConfig })
-      }
-    }
 
-    if (!model || !voice)
-      return null
+        if (!model || !voice)
+          return null
 
-    const input = ssmlEnabled.value
-      ? speechStore.generateSSML(request.text, voice, { ...providerConfig, pitch: pitch.value })
-      : request.text
+        const input = ssmlEnabled.value
+          ? speechStore.generateSSML(request.text, voice, { ...providerConfig, pitch: pitch.value })
+          : request.text
 
+        try {
+          const res = await generateSpeech({
+            ...provider.speech(model, providerConfig),
+            input,
+            voice: voice.id,
+          })
+
+          if (signal.aborted || !res || res.byteLength === 0)
+            return null
+
+          const audioBuffer = await audioContext.decodeAudioData(res)
+          return audioBuffer
+        }
+        catch {
+          return null
+        }
+      },
+      playback: playbackManager,
+    })
+
+if (speechPipeline) {
+  initIOTracer()
+  useIOTraceBridge(speechPipeline)
+}
+
+if (speechRuntimeStore && playbackManager && speechPipeline) {
+  void speechRuntimeStore.registerHost(speechPipeline)
+  speechRuntimeStore.registerPlaybackController({
+    stopByOwner: playbackManager.stopByOwner,
+    stopAll: playbackManager.stopAll,
+  })
+
+  speechPipeline.on('onSpecial', (segment) => {
+    if (segment.special)
+      playSpecialToken(segment.special)
+  })
+
+  playbackManager.onEnd(({ item }) => {
+    if (item.special)
+      playSpecialToken(item.special)
+
+    nowSpeaking.value = false
+    mouthOpenSize.value = 0
+  })
+
+  playbackManager.onStart(({ item }) => {
+    nowSpeaking.value = true
+    assistantCaption.value += ` ${item.text}`
     try {
-      const res = await generateSpeech({
-        ...provider.speech(model, providerConfig),
-        input,
-        voice: voice.id,
-      })
-
-      if (signal.aborted || !res || res.byteLength === 0)
-        return null
-
-      const audioBuffer = await audioContext.decodeAudioData(res)
-      return audioBuffer
+      postCaption({ type: 'caption-assistant', text: assistantCaption.value })
     }
     catch {
-      return null
     }
-  },
-  playback: playbackManager,
-})
-
-initIOTracer()
-useIOTraceBridge(speechPipeline)
-void speechRuntimeStore.registerHost(speechPipeline)
-
-speechPipeline.on('onSpecial', (segment) => {
-  if (segment.special)
-    playSpecialToken(segment.special)
-})
-
-playbackManager.onEnd(({ item }) => {
-  if (item.special)
-    playSpecialToken(item.special)
-
-  nowSpeaking.value = false
-  mouthOpenSize.value = 0
-})
-
-playbackManager.onStart(({ item }) => {
-  nowSpeaking.value = true
-  // NOTICE: postCaption and postPresent may throw errors if the BroadcastChannel is closed
-  // (e.g., when navigating away from the page). We wrap these in try-catch to prevent
-  // breaking playback when the channel is unavailable.
-  assistantCaption.value += ` ${item.text}`
-  try {
-    postCaption({ type: 'caption-assistant', text: assistantCaption.value })
-  }
-  catch {
-    // BroadcastChannel may be closed - don't break playback
-  }
-  try {
-    postPresent({ type: 'assistant-append', text: item.text })
-  }
-  catch {
-    // BroadcastChannel may be closed - don't break playback
-  }
-})
+    try {
+      postPresent({ type: 'assistant-append', text: item.text })
+    }
+    catch {
+    }
+  })
+}
 
 function startLipSyncLoop() {
   if (lipSyncLoopId.value)
@@ -442,70 +454,68 @@ function setupAnalyser() {
   }
 }
 
-let currentChatIntent: ReturnType<typeof speechRuntimeStore.openIntent> | null = null
+let currentChatIntent: ReturnType<ReturnType<typeof useSpeechRuntimeStore>['openIntent']> | null = null
 
-chatHookCleanups.push(onBeforeMessageComposed(async () => {
-  playbackManager.stopAll('new-message')
+if (chatOrchestratorStore && speechRuntimeStore && playbackManager) {
+  chatHookCleanups.push(chatOrchestratorStore.onBeforeMessageComposed(async () => {
+    playbackManager.stopAll('new-message')
 
-  setupAnalyser()
-  await setupLipSync()
-  // Reset assistant caption for a new message
-  assistantCaption.value = ''
-  try {
-    postCaption({ type: 'caption-assistant', text: '' })
-  }
-  catch (error) {
-    // BroadcastChannel may be closed if user navigated away - don't break flow
-    console.warn('[Stage] Failed to post caption reset (channel may be closed)', { error })
-  }
-  try {
-    postPresent({ type: 'assistant-reset' })
-  }
-  catch (error) {
-    // BroadcastChannel may be closed if user navigated away - don't break flow
-    console.warn('[Stage] Failed to post present reset (channel may be closed)', { error })
-  }
+    setupAnalyser()
+    await setupLipSync()
+    assistantCaption.value = ''
+    try {
+      postCaption({ type: 'caption-assistant', text: '' })
+    }
+    catch (error) {
+      console.warn('[Stage] Failed to post caption reset (channel may be closed)', { error })
+    }
+    try {
+      postPresent({ type: 'assistant-reset' })
+    }
+    catch (error) {
+      console.warn('[Stage] Failed to post present reset (channel may be closed)', { error })
+    }
 
-  if (currentChatIntent) {
-    currentChatIntent.cancel('new-message')
+    if (currentChatIntent) {
+      currentChatIntent.cancel('new-message')
+      currentChatIntent = null
+    }
+
+    currentChatIntent = speechRuntimeStore.openIntent({
+      ownerId: activeCardId.value,
+      priority: 'normal',
+      behavior: 'queue',
+    })
+  }))
+
+  chatHookCleanups.push(chatOrchestratorStore.onBeforeSend(async () => {
+    currentMotion.value = { group: EmotionThinkMotionName }
+  }))
+
+  chatHookCleanups.push(chatOrchestratorStore.onTokenLiteral(async (literal) => {
+    currentChatIntent?.writeLiteral(literal)
+  }))
+
+  chatHookCleanups.push(chatOrchestratorStore.onTokenSpecial(async (special) => {
+    currentChatIntent?.writeSpecial(special)
+  }))
+
+  chatHookCleanups.push(chatOrchestratorStore.onStreamEnd(async () => {
+    delaysQueue.enqueue(llmInferenceEndToken)
+    currentChatIntent?.writeFlush()
+  }))
+
+  chatHookCleanups.push(chatOrchestratorStore.onAssistantResponseEnd(async (_message) => {
+    currentChatIntent?.end()
     currentChatIntent = null
-  }
+    // const res = await embed({
+    //   ...transformersProvider.embed('Xenova/nomic-embed-text-v1'),
+    //   input: message,
+    // })
 
-  currentChatIntent = speechRuntimeStore.openIntent({
-    ownerId: activeCardId.value,
-    priority: 'normal',
-    behavior: 'queue',
-  })
-}))
-
-chatHookCleanups.push(onBeforeSend(async () => {
-  currentMotion.value = { group: EmotionThinkMotionName }
-}))
-
-chatHookCleanups.push(onTokenLiteral(async (literal) => {
-  currentChatIntent?.writeLiteral(literal)
-}))
-
-chatHookCleanups.push(onTokenSpecial(async (special) => {
-  // console.debug('Stage received special token:', special)
-  currentChatIntent?.writeSpecial(special)
-}))
-
-chatHookCleanups.push(onStreamEnd(async () => {
-  delaysQueue.enqueue(llmInferenceEndToken)
-  currentChatIntent?.writeFlush()
-}))
-
-chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
-  currentChatIntent?.end()
-  currentChatIntent = null
-  // const res = await embed({
-  //   ...transformersProvider.embed('Xenova/nomic-embed-text-v1'),
-  //   input: message,
-  // })
-
-  // await db.value?.execute(`INSERT INTO memory_test (vec) VALUES (${JSON.stringify(res.embedding)});`)
-}))
+    // await db.value?.execute(`INSERT INTO memory_test (vec) VALUES (${JSON.stringify(res.embedding)});`)
+  }))
+}
 
 // Resume audio context on first user interaction (browser requirement)
 let audioContextResumed = false
@@ -527,6 +537,10 @@ if (typeof window !== 'undefined') {
 }
 
 onMounted(async () => {
+  if (props.lessonSafe) {
+    return
+  }
+
   db.value = drizzle({ connection: { bundles: getImportUrlBundles() } })
   await db.value.execute(`CREATE TABLE memory_test (vec FLOAT[768]);`)
 })
@@ -539,6 +553,26 @@ watch([stageModelRenderer, () => props.paused], ([renderer]) => {
 
   syncLipSyncLoop()
 }, { immediate: true })
+
+async function handleStageModelError(error: unknown) {
+  console.error('[Stage] Failed to load stage model:', error)
+
+  if (stageModelRecoveryInFlight.value) {
+    return
+  }
+
+  stageModelRecoveryInFlight.value = true
+
+  try {
+    await settingsStore.fallbackStageModel(stageModelSelected.value)
+  }
+  catch (fallbackError) {
+    console.error('[Stage] Failed to recover stage model:', fallbackError)
+  }
+  finally {
+    stageModelRecoveryInFlight.value = false
+  }
+}
 
 function canvasElement() {
   if (stageModelRenderer.value === 'live2d')
@@ -559,6 +593,7 @@ onUnmounted(() => {
   resetLive2dLipSync()
   chatHookCleanups.forEach(dispose => dispose?.())
   viewUpdateCleanups.forEach(dispose => dispose?.())
+  speechRuntimeStore?.clearPlaybackController()
 })
 
 defineExpose({
@@ -594,6 +629,7 @@ defineExpose({
         :live2d-shadow-enabled="live2dShadowEnabled"
         :live2d-max-fps="live2dMaxFps"
         :live2d-render-scale="live2dRenderScale"
+        @error="handleStageModelError"
       />
       <ThreeScene
         v-if="stageModelRenderer === 'vrm' && showStage"
@@ -605,7 +641,7 @@ defineExpose({
         :paused="paused"
         :show-axes="stageViewControlsEnabled"
         :current-audio-source="currentAudioSource"
-        @error="console.error"
+        @error="handleStageModelError"
       />
     </div>
   </div>

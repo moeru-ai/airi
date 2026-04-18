@@ -6,6 +6,56 @@ interface ImportMetaEnv {
   readonly VITE_POSTHOG_PROJECT_KEY_DESKTOP?: string
   readonly VITE_POSTHOG_PROJECT_KEY_POCKET?: string
   readonly VITE_POSTHOG_PROJECT_KEY_DOCS?: string
+  readonly VITE_PEPTUTOR_LESSON_API_URL?: string
+  readonly VITE_PEPTUTOR_LESSON_API_KEY?: string
+  readonly VITE_PEPTUTOR_LESSON_ACCESS_TOKEN?: string
+  readonly VITE_PEPTUTOR_LESSON_BEARER_TOKEN?: string
+  readonly VITE_PEPTUTOR_LESSON_AUTH_USERNAME?: string
+  readonly VITE_PEPTUTOR_LESSON_AUTH_PASSWORD?: string
+  readonly VITE_PEPTUTOR_TTS_PROVIDER?: string
+  readonly VITE_PEPTUTOR_TTS_API_KEY?: string
+  readonly VITE_PEPTUTOR_TTS_BASE_URL?: string
+  readonly VITE_PEPTUTOR_TTS_MODEL?: string
+  readonly VITE_PEPTUTOR_TTS_VOICE?: string
+  readonly VITE_PEPTUTOR_TTS_APP_ID?: string
+  readonly VITE_PEPTUTOR_TTS_CLUSTER?: string
+  readonly VITE_PEPTUTOR_TTS_PROXY_URL?: string
+  readonly VITE_DOUBAO_TTS_API_KEY?: string
+  readonly VITE_DOUBAO_TTS_APP_ID?: string
+  readonly VITE_DOUBAO_TTS_BASE_URL?: string
+  readonly VITE_DOUBAO_TTS_CLUSTER?: string
+  readonly VITE_DOUBAO_TTS_PROXY_URL?: string
+  readonly VITE_DOUBAO_ASR_API_KEY?: string
+  readonly VITE_DOUBAO_ASR_APP_ID?: string
+  readonly VITE_DOUBAO_ASR_MODEL?: string
+  readonly VITE_DOUBAO_ASR_PROXY_URL?: string
+  readonly VITE_DOUBAO_ASR_RESOURCE_ID?: string
+  readonly VITE_DOUBAO_ASR_APP_KEY?: string
+  readonly VITE_PEPTUTOR_ASR_PROVIDER?: string
+  readonly VITE_PEPTUTOR_ASR_API_KEY?: string
+  readonly VITE_PEPTUTOR_ASR_BASE_URL?: string
+  readonly VITE_PEPTUTOR_ASR_MODEL?: string
+  readonly VITE_PEPTUTOR_ASR_APP_ID?: string
+  readonly VITE_PEPTUTOR_ASR_PROXY_URL?: string
+  readonly VITE_PEPTUTOR_ASR_RESOURCE_ID?: string
+  readonly VITE_PEPTUTOR_ASR_APP_KEY?: string
+  readonly VITE_PEPTUTOR_ALIYUN_NLS_ACCESS_KEY_ID?: string
+  readonly VITE_PEPTUTOR_ALIYUN_NLS_ACCESS_KEY_SECRET?: string
+  readonly VITE_PEPTUTOR_ALIYUN_NLS_APP_KEY?: string
+  readonly VITE_PEPTUTOR_ALIYUN_NLS_REGION?: string
+  readonly ALIYUN_AK_ID?: string
+  readonly ALIYUN_AK_SECRET?: string
+  readonly ALIYUN_APP_KEY?: string
+  readonly ALIYUN_NLS_APP_KEY?: string
+  readonly ALIYUN_NLS_REGION?: string
+  readonly OPENAI_API_KEY?: string
+  readonly OPENAI_API_BASE_URL?: string
+  readonly OPENAI_STT_API_KEY?: string
+  readonly OPENAI_STT_API_BASE_URL?: string
+  readonly OPENAI_STT_MODEL?: string
+  readonly ELEVENLABS_API_KEY?: string
+  readonly ELEVENLABS_API_BASE_URL?: string
+  readonly ELEVENLABS_VOICE_ID?: string
 }
 
 interface ImportMeta {

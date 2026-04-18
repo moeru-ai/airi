@@ -9,12 +9,21 @@ import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
 
 export type StageModelRenderer = 'live2d' | 'vrm' | 'disabled' | undefined
 
+const defaultStageModelId = 'preset-live2d-1'
+const stageModelFallbackOrder = [
+  'preset-live2d-2',
+  'preset-live2d-1',
+  'preset-vrm-1',
+  'preset-vrm-2',
+]
+
 export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const displayModelsStore = useDisplayModelsStore()
   let stageModelUpdateSequence = 0
   const stageModelStorageKey = 'settings/stage/model'
+  const presetAvailabilityCache = new Map<string, boolean>()
 
-  const stageModelSelectedState = useLocalStorageManualReset<string>(stageModelStorageKey, 'preset-live2d-1')
+  const stageModelSelectedState = useLocalStorageManualReset<string>(stageModelStorageKey, defaultStageModelId)
   const stageModelSelected = computed<string>({
     get: () => stageModelSelectedState.value,
     set: (value) => {
@@ -40,28 +49,64 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     stageModelSelectedUrl.value = nextUrl
   }
 
-  async function updateStageModel() {
-    const requestId = ++stageModelUpdateSequence
-    const selectedModelId = stageModelSelectedState.value
+  function clearStageModelSelection() {
+    replaceStageModelUrl(undefined)
+    stageModelSelectedDisplayModel.value = undefined
+    stageModelRenderer.value = 'disabled'
+  }
 
-    if (!selectedModelId) {
-      replaceStageModelUrl(undefined)
-      stageModelSelectedDisplayModel.value = undefined
-      stageModelRenderer.value = 'disabled'
-      return
+  async function isPresetModelAvailable(model: DisplayModel) {
+    if (model.type !== 'url') {
+      return true
     }
 
-    const model = await displayModelsStore.getDisplayModel(selectedModelId)
-    if (requestId !== stageModelUpdateSequence)
-      return
-
-    if (!model) {
-      replaceStageModelUrl(undefined)
-      stageModelSelectedDisplayModel.value = undefined
-      stageModelRenderer.value = 'disabled'
-      return
+    if (!model.id.startsWith('preset-')) {
+      return true
     }
 
+    const cached = presetAvailabilityCache.get(model.id)
+    if (cached !== undefined) {
+      return cached
+    }
+
+    try {
+      const response = await fetch(model.url, {
+        method: 'HEAD',
+        cache: 'no-store',
+      })
+      presetAvailabilityCache.set(model.id, response.ok)
+      return response.ok
+    }
+    catch {
+      presetAvailabilityCache.set(model.id, false)
+      return false
+    }
+  }
+
+  async function resolveStageModel(preferredModelId: string, excludedIds: string[] = []) {
+    const candidateIds = [...new Set([
+      preferredModelId,
+      ...stageModelFallbackOrder,
+    ])].filter((modelId): modelId is string => Boolean(modelId) && !excludedIds.includes(modelId))
+
+    for (const modelId of candidateIds) {
+      const model = await displayModelsStore.getDisplayModel(modelId)
+      if (!model) {
+        continue
+      }
+
+      if (await isPresetModelAvailable(model)) {
+        return {
+          modelId,
+          model,
+        }
+      }
+    }
+
+    return undefined
+  }
+
+  function applyStageModel(model: DisplayModel, requestId: number) {
     switch (model.format) {
       case DisplayModelFormat.Live2dZip:
         stageModelRenderer.value = 'live2d'
@@ -90,8 +135,55 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     stageModelSelectedDisplayModel.value = model
   }
 
+  async function updateStageModel() {
+    const requestId = ++stageModelUpdateSequence
+    const selectedModelId = stageModelSelectedState.value
+
+    if (!selectedModelId) {
+      clearStageModelSelection()
+      return
+    }
+
+    const resolved = await resolveStageModel(selectedModelId)
+    if (requestId !== stageModelUpdateSequence)
+      return
+
+    if (!resolved) {
+      clearStageModelSelection()
+      return
+    }
+
+    if (resolved.modelId !== selectedModelId) {
+      stageModelSelectedState.value = resolved.modelId
+    }
+
+    applyStageModel(resolved.model, requestId)
+  }
+
   async function initializeStageModel() {
     await updateStageModel()
+  }
+
+  async function fallbackStageModel(failedModelId = stageModelSelectedState.value) {
+    const requestId = ++stageModelUpdateSequence
+    const preferredModelId = stageModelSelectedState.value || defaultStageModelId
+    const resolved = await resolveStageModel(preferredModelId, failedModelId ? [failedModelId] : [])
+
+    if (requestId !== stageModelUpdateSequence) {
+      return undefined
+    }
+
+    if (!resolved) {
+      clearStageModelSelection()
+      return undefined
+    }
+
+    if (resolved.modelId !== stageModelSelectedState.value) {
+      stageModelSelectedState.value = resolved.modelId
+    }
+
+    applyStageModel(resolved.model, requestId)
+    return resolved.modelId
   }
 
   useEventListener('unload', () => {
@@ -123,6 +215,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
 
     initializeStageModel,
     updateStageModel,
+    fallbackStageModel,
     resetState,
   }
 })

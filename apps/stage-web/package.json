@@ -15,6 +15,11 @@
     "dev:https": "vite --host -- --mkcert",
     "lint": "eslint .",
     "preview": "vite preview",
+    "test": "vitest",
+    "test:browser": "vitest -c vitest.browser.config.ts",
+    "test:run": "vitest run",
+    "test:run:browser": "vitest run -c vitest.browser.config.ts",
+    "test:run:browser:real": "bash ../../scripts/run-lesson-browser-real-smoke.sh",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
@@ -126,9 +131,11 @@
     "@types/nprogress": "^0.2.3",
     "@types/splitpanes": "catalog:",
     "@types/three": "^0.183.1",
+    "@types/ws": "catalog:",
     "@types/yauzl": "^2.10.3",
     "@unocss/reset": "^66.6.8",
     "@vitejs/plugin-vue": "^6.0.6",
+    "@vitest/browser-playwright": "catalog:vitest",
     "@vue-macros/volar": "^3.1.2",
     "@vueuse/motion": "^3.0.3",
     "csstype": "^3.2.3",
@@ -143,6 +150,7 @@
     "vite-plugin-vue-devtools": "^8.1.1",
     "vite-plugin-vue-layouts": "^0.11.0",
     "vue-macros": "^3.1.2",
-    "vue-tsc": "^3.2.6"
+    "vue-tsc": "^3.2.6",
+    "ws": "catalog:"
   }
 }

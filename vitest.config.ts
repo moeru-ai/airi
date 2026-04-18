@@ -5,6 +5,9 @@ export default defineConfig({
     projects: [
       'apps/server',
       'apps/ui-server-auth',
+      'apps/stage-web',
+      'apps/stage-web/vitest.browser.config.ts',
+      'apps/ui-server-auth',
       'apps/stage-tamagotchi',
       'packages/audio-pipelines-transcribe',
       'packages/cap-vite',

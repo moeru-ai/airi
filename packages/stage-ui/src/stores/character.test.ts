@@ -1,7 +1,6 @@
 import type { AiriCard } from './modules'
 
-import { createTestingPinia } from '@pinia/testing'
-import { setActivePinia } from 'pinia'
+import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { setCharacterLlmMarkerParserFactoryForTest, useCharacterStore } from './character'
@@ -11,6 +10,13 @@ import { useSpeechRuntimeStore } from './speech-runtime'
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
     t: (key: string) => key,
+  }),
+}))
+
+vi.mock('./settings/stage-model', () => ({
+  useSettingsStageModel: () => ({
+    stageModelSelected: 'preset-live2d-1',
+    updateStageModel: vi.fn(async () => {}),
   }),
 }))
 
@@ -35,7 +41,7 @@ const openSpeechIntentSpy = vi.fn(() => ({
 
 describe('store character', () => {
   beforeEach(() => {
-    const pinia = createTestingPinia({ createSpy: vi.fn, stubActions: false })
+    const pinia = createPinia()
     setActivePinia(pinia)
 
     setCharacterLlmMarkerParserFactoryForTest(options => ({
@@ -61,12 +67,10 @@ describe('store character', () => {
     speechRuntimeStore.openIntent = openSpeechIntentSpy
 
     const airiCardStore = useAiriCardStore(pinia)
-    // @ts-expect-error - testing purpose
-    airiCardStore.systemPrompt = 'You are a brave adventurer in Minecraft.'
-    // @ts-expect-error - testing purpose
-    airiCardStore.activeCard = {
+    airiCardStore.cards.set('hero', {
       name: 'Hero',
       version: '1.0',
+      systemPrompt: 'You are a brave adventurer in Minecraft.',
       extensions: {
         airi: {
           agents: {},
@@ -76,14 +80,15 @@ describe('store character', () => {
               model: 'mock-model',
             },
             speech: {
-              provider: 'mock-speech-provider',
-              model: 'mock-speech-model',
-              voice_id: 'alloy',
+              provider: 'speech-noop',
+              model: '',
+              voice_id: '',
             },
           },
         },
       },
-    } satisfies AiriCard
+    } satisfies AiriCard)
+    airiCardStore.activeCardId = 'hero'
   })
 
   it('exposes name and system prompt from the active card', () => {
