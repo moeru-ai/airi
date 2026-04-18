@@ -26,7 +26,7 @@ patchedDependencies:
   '@xsai/shared-chat@0.5.0-beta.2': patches/@xsai__shared-chat@0.5.0-beta.2.patch
   '@xsai/stream-text@0.5.0-beta.2': patches/@xsai__stream-text@0.5.0-beta.2.patch
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
-  mineflayer@4.33.0: patches/mineflayer@4.33.0.patch
+  mineflayer@4.37.0: patches/mineflayer@4.37.0.patch
   pixi-live2d-display: patches/pixi-live2d-display.patch
 catalog:
   '@ax-llm/ax': ^19.0.43
