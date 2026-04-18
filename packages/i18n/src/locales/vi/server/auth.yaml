@@ -1,14 +1,14 @@
 electronCallback:
   title:
     loading: Completing sign-in
-    openingAiri: Opening AIRI
-    signedIn: You are signed in
-    signInFailed: Sign-in failed
-    finishSignInInAiri: Finish sign-in in AIRI
-    openAiriToContinue: Open AIRI to continue
+    openingAiri: Đang mở AIRI
+    signedIn: Bạn đã đăng nhập
+    signInFailed: Đăng nhập thất bại
+    finishSignInInAiri: Hoàn tất đăng nhập vào AIRI
+    openAiriToContinue: Mở AIRI để tiếp tục
   message:
-    checkingResponse: Checking your sign-in response and preparing the handoff to AIRI.
-    passingToAiri: Passing your sign-in back to AIRI now. This page should close in a moment.
+    checkingResponse: Đang kiểm tra phản hồi đăng nhập của bạn và chuẩn bị chuyển giao cho AIRI.
+    passingToAiri: Đang chuyển thông tin đăng nhập của bạn cho AIRI. Trang này sẽ tự động đóng trong giây lát.
     syncedAndSafeToClose: We notified AIRI client you signed from.
     invalidResponse: We could not use this sign-in response.
     loopbackUnreachable: The browser could not reach AIRI through the local callback port.
