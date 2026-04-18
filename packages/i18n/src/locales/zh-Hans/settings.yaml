@@ -810,6 +810,34 @@ pages:
               description: 服务 Endpoint 地区（比如亚太 eastasia 区域）
               label: Endpoint 地区
         title: Microsoft / Azure 语音服务
+      gpt-sovits:
+        description: github.com/RVC-Boss/GPT-SoVITS
+        title: GPT-SoVITS
+        callout_no_model_title: 不支持请求内模型字段
+        callout_model_switch: GPT-SoVITS 不使用标准 TTS 的 model 字段；如需切换模型，请填写下方 GPT / SoVITS 权重路径，AIRI 会调用 api_v2.py 的切换接口。
+        callout_no_api_key: GPT-SoVITS 不需要 API Key，上方字段留空即可。
+        fields:
+          baseUrl:
+            description: GPT-SoVITS api_v2.py 服务器的 Base URL
+            label: Base URL
+          refAudioPath:
+            description: 服务器上参考音频文件的绝对路径
+            label: 参考音频路径
+          promptText:
+            description: 参考音频中说的文字内容，可留空
+            label: 参考音频文本
+          promptLang:
+            description: 参考音频的语言（zh / en / ja / ko / yue）
+            label: 参考音频语言
+          textLang:
+            description: 需要合成的文本语言（zh / en / ja / ko / yue）
+            label: 合成语言
+          gptWeightsPath:
+            description: GPT 权重路径；填写后会调用 /set_gpt_weights 切换
+            label: GPT 权重路径
+          sovitsWeightsPath:
+            description: SoVITS 权重路径；填写后会调用 /set_sovits_weights 切换
+            label: SoVITS 权重路径
       index-tts-vllm:
         description: https://index-tts.github.io/
         title: Bilibili / IndexTTS

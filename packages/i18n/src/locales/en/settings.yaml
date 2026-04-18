@@ -857,6 +857,34 @@ pages:
               description: Speech Service region
               label: Region
         title: Microsoft / Azure Speech
+      gpt-sovits:
+        description: github.com/RVC-Boss/GPT-SoVITS
+        title: GPT-SoVITS
+        callout_no_model_title: No model field support
+        callout_model_switch: GPT-SoVITS does not use the standard TTS model field. To switch models, fill in the GPT / SoVITS weight paths below and AIRI will call the api_v2.py switching endpoints.
+        callout_no_api_key: GPT-SoVITS does not require an API key. The field above can be left blank.
+        fields:
+          baseUrl:
+            description: Base URL of the GPT-SoVITS api_v2.py server
+            label: Base URL
+          refAudioPath:
+            description: Absolute path to reference audio file on the server
+            label: Reference Audio Path
+          promptText:
+            description: The text spoken in the reference audio, optional
+            label: Reference Audio Text
+          promptLang:
+            description: Language of the reference audio (zh / en / ja / ko / yue)
+            label: Reference Audio Language
+          textLang:
+            description: Language of the text to synthesize (zh / en / ja / ko / yue)
+            label: Synthesis Language
+          gptWeightsPath:
+            description: GPT weights path. If filled, AIRI will call /set_gpt_weights.
+            label: GPT Weights Path
+          sovitsWeightsPath:
+            description: SoVITS weights path. If filled, AIRI will call /set_sovits_weights.
+            label: SoVITS Weights Path
       index-tts-vllm:
         description: https://index-tts.github.io/
         title: Bilibili / IndexTTS

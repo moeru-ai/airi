@@ -16,7 +16,7 @@ import { electronOpenDevtoolsWindow, electronOpenSettingsDevtools } from '../../
 import { createAuthService } from '../../../services/airi/auth'
 import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { createWidgetsService } from '../../../services/airi/widgets'
-import { createAutoUpdaterService } from '../../../services/electron'
+import { createAutoUpdaterService } from '../../../services/electron/auto-updater'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
 export async function setupSettingsWindowInvokes(params: {
