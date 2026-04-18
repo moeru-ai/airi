@@ -47,7 +47,7 @@
     "colorjs.io": "^0.6.1",
     "dompurify": "^3.4.0",
     "localforage": "^1.10.0",
-    "nanoid": "^5.1.7",
+    "nanoid": "^5.1.9",
     "node-vibrant": "^4.0.4",
     "pinia": "^3.0.4",
     "posthog-js": "catalog:",
@@ -62,7 +62,7 @@
     "@nekopaw/tempora": "catalog:",
     "@proj-airi/stage-shared": "workspace:^",
     "@types/audioworklet": "catalog:",
-    "@types/three": "^0.183.1",
+    "@types/three": "^0.184.0",
     "unplugin-info": "catalog:",
     "vue-tsc": "^3.2.6"
   }
