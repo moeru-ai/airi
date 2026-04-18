@@ -41,7 +41,7 @@ describe('useDuckDB (Singleton)', () => {
     expect(instance1).toBe(instance2)
     expect(vi.mocked(drizzle).mock.calls.length).toBe(1)
 
-    closeDb() // manual reset of the singleton
+    await closeDb() // manual reset of the singleton
   })
 
   it('should handle concurrent getDb calls without duplicate initialization', async () => {
@@ -55,7 +55,7 @@ describe('useDuckDB (Singleton)', () => {
     expect(instance1).toBe(instance2)
     expect(vi.mocked(drizzle).mock.calls.length).toBe(1)
 
-    closeDb()
+    await closeDb()
   })
 
   it('should allow re-initialization after closeDb is called', async () => {
@@ -76,6 +76,6 @@ describe('useDuckDB (Singleton)', () => {
     expect(instance1).not.toBe(instance2)
     expect(vi.mocked(drizzle).mock.calls.length).toBe(2)
 
-    closeDb()
+    await closeDb()
   })
 })
