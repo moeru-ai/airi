@@ -41,5 +41,5 @@ bash "${WAIT_SCRIPT}" --url "${BACKEND_URL}" --timeout "${WAIT_TIMEOUT}"
   VITE_PEPTUTOR_LESSON_REAL_BACKEND_URL="${BACKEND_URL}" \
   VITE_PEPTUTOR_LESSON_API_URL="${LESSON_API_URL}" \
   VITE_PEPTUTOR_LESSON_EXPECT_DEBUG_SIGNALS="${EXPECT_DEBUG_SIGNALS}" \
-  vitest run -c vitest.browser.config.ts src/pages/lesson/index.browser.test.ts --reporter verbose
+  pnpm exec vitest run -c vitest.browser.config.ts src/pages/lesson/index.browser.test.ts --reporter verbose
 )
