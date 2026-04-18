@@ -261,7 +261,7 @@ watch(sendMode, () => {
               :title="t('settings.hearing.title')"
             >
               <Transition name="fade" mode="out-in">
-                <IndicatorMicVolume v-if="enabled" class="h-5 w-5" />
+                <IndicatorMicVolume v-if="enabled" class="h-5 w-5" :color-class="isListening ? undefined : 'text-neutral-500 dark:text-neutral-400'" />
                 <div v-else class="i-ph:microphone-slash h-5 w-5" />
               </Transition>
             </button>

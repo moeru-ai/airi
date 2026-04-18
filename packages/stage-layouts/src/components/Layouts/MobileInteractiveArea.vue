@@ -24,6 +24,7 @@ import ActionAbout from './InteractiveArea/Actions/About.vue'
 import ActionViewControls from './InteractiveArea/Actions/ViewControls.vue'
 import ViewControlInputs from './ViewControls/Inputs.vue'
 
+import { useTranscriptions } from '../../composables/use-transcriptions'
 import { BackgroundDialogPicker } from '../Backgrounds'
 
 const { isDark, toggleDark } = useTheme()
@@ -65,6 +66,16 @@ let analyzerSource: MediaStreamAudioSourceNode | undefined
 function isMobileDevice() {
   return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 }
+
+const isListening = ref(false)
+useTranscriptions(
+  {
+    messageInputRef: messageInput,
+    sendMessage: handleSend,
+    isListeningRef: isListening,
+    isStageTamagotchi: isMobileDevice,
+  },
+)
 
 async function handleSubmit() {
   if (!isMobileDevice()) {
@@ -191,7 +202,7 @@ onMounted(() => {
               title="Hearing"
             >
               <Transition name="fade" mode="out-in">
-                <IndicatorMicVolume v-if="enabled" size-5 color-class="text-neutral-500 dark:text-neutral-400" />
+                <IndicatorMicVolume v-if="enabled" size-5 :color-class="isListening ? undefined : 'text-neutral-500 dark:text-neutral-400'" />
                 <div v-else i-solar:microphone-3-outline size-5 text="neutral-500 dark:neutral-400" />
               </Transition>
             </button>
