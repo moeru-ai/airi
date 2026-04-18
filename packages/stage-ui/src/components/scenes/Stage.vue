@@ -525,7 +525,7 @@ if (typeof window !== 'undefined') {
 }
 
 onMounted(async () => {
-  getDb() // stub for future update
+  await getDb() // stub for future update
 })
 
 watch([stageModelRenderer, () => props.paused], ([renderer]) => {
