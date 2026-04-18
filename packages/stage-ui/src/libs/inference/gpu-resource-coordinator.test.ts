@@ -91,4 +91,51 @@ describe('gpuResourceCoordinator', () => {
     coordinator.requestAllocation('model', 700 * 1024 * 1024)
     expect(handler).not.toHaveBeenCalled()
   })
+
+  describe('device loss telemetry', () => {
+    it('should start with zero device-loss metrics', () => {
+      const coordinator = createGPUResourceCoordinator(VRAM)
+      const metrics = coordinator.getDeviceLossMetrics()
+
+      expect(metrics.totalCount).toBe(0)
+      expect(metrics.byModel).toEqual({})
+      expect(metrics.lastEvent).toBeNull()
+    })
+
+    it('should aggregate device-loss events across models', () => {
+      const coordinator = createGPUResourceCoordinator(VRAM)
+
+      coordinator.recordDeviceLoss({ modelId: 'kokoro', reason: 'unknown', occurredAt: 100 })
+      coordinator.recordDeviceLoss({ modelId: 'kokoro', reason: 'unknown', occurredAt: 200 })
+      coordinator.recordDeviceLoss({ modelId: 'whisper', reason: 'destroyed', occurredAt: 300 })
+
+      const metrics = coordinator.getDeviceLossMetrics()
+      expect(metrics.totalCount).toBe(3)
+      expect(metrics.byModel).toEqual({ kokoro: 2, whisper: 1 })
+      expect(metrics.lastEvent).toEqual({ modelId: 'whisper', reason: 'destroyed', occurredAt: 300 })
+    })
+
+    it('should notify subscribers on device-loss events', () => {
+      const coordinator = createGPUResourceCoordinator(VRAM)
+      const handler = vi.fn()
+      coordinator.onDeviceLoss(handler)
+
+      const event = { modelId: 'kokoro', reason: 'unknown' as const, occurredAt: 100 }
+      coordinator.recordDeviceLoss(event)
+
+      expect(handler).toHaveBeenCalledTimes(1)
+      expect(handler).toHaveBeenCalledWith(event)
+    })
+
+    it('should allow unsubscribing from device-loss events', () => {
+      const coordinator = createGPUResourceCoordinator(VRAM)
+      const handler = vi.fn()
+      const unsub = coordinator.onDeviceLoss(handler)
+
+      unsub()
+      coordinator.recordDeviceLoss({ modelId: 'x', reason: 'unknown', occurredAt: 1 })
+
+      expect(handler).not.toHaveBeenCalled()
+    })
+  })
 })

@@ -148,6 +148,26 @@ export function createRequestId(): string {
   return `req_${Date.now().toString(36)}_${(counter++).toString(36)}`
 }
 
+// NOTICE: Patterns observed in WebGPU device loss errors across Chromium,
+// Firefox, Safari, and ONNX Runtime Web / transformers.js. Because we do not
+// own the GPUDevice (it is created internally by transformers.js / ORT-web),
+// we cannot attach a `device.lost` promise handler directly — string matching
+// on thrown errors is the only available detection signal.
+// References:
+//   - https://gpuweb.github.io/gpuweb/#gpudevicelostinfo
+//   - https://github.com/huggingface/transformers.js/issues/715
+const DEVICE_LOSS_PATTERNS = [
+  'device was lost',
+  'device lost',
+  'gpu device lost',
+  'gpudevice was invalidated',
+  'gpudevice is invalid',
+  'device destroyed',
+  'gpu process crashed',
+  'gpu process lost',
+  'webgpu device is invalid',
+] as const
+
 /**
  * Classify an unknown error into an `InferenceErrorCode`.
  * Used by worker adapters to normalise caught exceptions.
@@ -162,7 +182,7 @@ export function classifyError(error: unknown, phase?: 'load' | 'inference'): Inf
 
   if (lower.includes('out of memory') || lower.includes('allocation failed'))
     return 'OOM'
-  if (lower.includes('device was lost') || lower.includes('device lost'))
+  if (DEVICE_LOSS_PATTERNS.some(p => lower.includes(p)))
     return 'DEVICE_LOST'
   if (lower.includes('timeout'))
     return 'TIMEOUT'
@@ -173,6 +193,31 @@ export function classifyError(error: unknown, phase?: 'load' | 'inference'): Inf
     return 'INFERENCE_FAILED'
 
   return 'UNKNOWN'
+}
+
+/** Reason classification for a device-loss event, following `GPUDeviceLostInfo.reason`. */
+export type DeviceLossReason = 'destroyed' | 'unknown'
+
+/**
+ * Best-effort classification of a device-loss reason from an error message
+ * or a `GPUDeviceLostInfo`-shaped object. 'destroyed' implies intentional
+ * termination (no recovery); 'unknown' implies a transient event that may
+ * be recoverable via adapter restart or WASM fallback.
+ */
+export function classifyDeviceLossReason(error: unknown): DeviceLossReason {
+  // Prefer structured info when available (some browsers attach GPUDeviceLostInfo)
+  if (error && typeof error === 'object' && 'reason' in error) {
+    const reason = (error as { reason?: unknown }).reason
+    if (reason === 'destroyed')
+      return 'destroyed'
+    return 'unknown'
+  }
+
+  const msg = error instanceof Error ? error.message : String(error)
+  const lower = msg.toLowerCase()
+  if (lower.includes('destroyed'))
+    return 'destroyed'
+  return 'unknown'
 }
 
 /**

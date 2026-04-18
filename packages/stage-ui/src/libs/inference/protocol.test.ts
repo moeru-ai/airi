@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { classifyError, isRecoverable } from './protocol'
+import { classifyDeviceLossReason, classifyError, isRecoverable } from './protocol'
 
 describe('classifyError', () => {
   it('should classify OOM errors', () => {
@@ -11,6 +11,16 @@ describe('classifyError', () => {
   it('should classify DEVICE_LOST errors', () => {
     expect(classifyError(new Error('device was lost'))).toBe('DEVICE_LOST')
     expect(classifyError(new Error('WebGPU device lost unexpectedly'))).toBe('DEVICE_LOST')
+  })
+
+  it('should classify extended DEVICE_LOST patterns', () => {
+    expect(classifyError(new Error('GPU device lost'))).toBe('DEVICE_LOST')
+    expect(classifyError(new Error('GPUDevice was invalidated'))).toBe('DEVICE_LOST')
+    expect(classifyError(new Error('GPUDevice is invalid'))).toBe('DEVICE_LOST')
+    expect(classifyError(new Error('Device destroyed by user agent'))).toBe('DEVICE_LOST')
+    expect(classifyError(new Error('GPU process crashed'))).toBe('DEVICE_LOST')
+    expect(classifyError(new Error('GPU process lost'))).toBe('DEVICE_LOST')
+    expect(classifyError(new Error('WebGPU device is invalid'))).toBe('DEVICE_LOST')
   })
 
   it('should classify TIMEOUT errors', () => {
@@ -68,5 +78,29 @@ describe('isRecoverable', () => {
 
   it('should mark UNKNOWN as not recoverable', () => {
     expect(isRecoverable('UNKNOWN')).toBe(false)
+  })
+})
+
+describe('classifyDeviceLossReason', () => {
+  it('should return destroyed for GPUDeviceLostInfo-shaped object', () => {
+    expect(classifyDeviceLossReason({ reason: 'destroyed', message: 'user requested' })).toBe('destroyed')
+  })
+
+  it('should return unknown for non-destroyed structured reason', () => {
+    expect(classifyDeviceLossReason({ reason: 'unknown', message: 'driver reset' })).toBe('unknown')
+  })
+
+  it('should return destroyed when error message contains "destroyed"', () => {
+    expect(classifyDeviceLossReason(new Error('Device destroyed by user agent'))).toBe('destroyed')
+  })
+
+  it('should return unknown for generic device-loss messages', () => {
+    expect(classifyDeviceLossReason(new Error('GPU device lost'))).toBe('unknown')
+    expect(classifyDeviceLossReason(new Error('WebGPU device lost unexpectedly'))).toBe('unknown')
+  })
+
+  it('should return unknown for non-device-loss inputs', () => {
+    expect(classifyDeviceLossReason(new Error('out of memory'))).toBe('unknown')
+    expect(classifyDeviceLossReason('random string')).toBe('unknown')
   })
 })
