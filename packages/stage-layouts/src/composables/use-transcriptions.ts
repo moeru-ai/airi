@@ -51,161 +51,149 @@ export function useTranscriptions(options: TranscriptionOptions) {
         clearPendingAutoSend()
         return
       }
-      try {
-        sendMessage()
-      }
-      catch (err) {
-        console.error('[ChatArea] Auto-send error:', err)
-        // Preserve any transcription that arrived while ingest was in flight (see PR review).
-        // options.messageInputRef.value = [textToSend, options.messageInputRef.value.trim()].filter(Boolean).join(' ')
-        // pendingAutoSendText.value = [textToSend, pendingAutoSendText.value.trim()].filter(Boolean).join(' ')
-      }
+      sendMessage()
       autoSendTimeout = undefined
     }, autoSendDelay.value)
   }
 
-  const startListening = async () => {
-  // Allow calling this even if already listening - transcribeForMediaStream will handle session reuse/restart
-    try {
-      console.info('[ChatArea] Starting listening...', {
-        enabled: enabled.value,
-        hasStream: !!stream.value,
-        supportsStreamInput: supportsStreamInput.value,
-        hearingConfigured: hearingConfigured.value,
-      })
+  const stopStreaming = async () => {
+    if (!isListening.value)
+      return
 
-      // Auto-configure Web Speech API as default if no provider is configured
-      if (!hearingConfigured.value) {
+    try {
+      console.info('Stopping transcription...', { source: 'useTranscriptions' })
+      clearPendingAutoSend()
+      await stopStreamingTranscription(true)
+      isListening.value = false
+      console.info('Transcription stopped', { source: 'useTranscriptions' })
+    }
+    catch (err) {
+      console.error('Error stopping transcription:', err, { source: 'useTranscriptions' })
+      isListening.value = false
+    }
+  }
+
+  const startStreaming = async () => {
+    console.info('Starting streaming transcription', {
+      enabled: enabled.value,
+      hasStream: !!stream.value,
+      supportsStreamInput: supportsStreamInput.value,
+      hearingConfigured: hearingConfigured.value,
+    }, { source: 'useTranscriptions' })
+
+    // Auto-configure Web Speech API as default if no provider is configured
+    if (!hearingConfigured.value) {
+      console.info('No transcription provider configured. Auto-configuring Web Speech API as default', { source: 'useTranscriptions' })
       // Check if Web Speech API is available in the browser
       // Web Speech API is NOT available in Electron (stage-tamagotchi) - it requires Google's embedded API keys
       // which are not available in Electron, causing it to fail at runtime
-        const isWebSpeechAvailable = typeof window !== 'undefined'
-          && !toValue(isStageTamagotchi) // Explicitly exclude Electron
-          && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
+      const isWebSpeechAvailable = typeof window !== 'undefined'
+        && !toValue(isStageTamagotchi) // Explicitly exclude Electron
+        && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
 
-        if (isWebSpeechAvailable) {
-          console.info('[ChatArea] No transcription provider configured. Auto-configuring Web Speech API as default...')
-
-          // Initialize the provider in the providers store first
-          try {
-            providersStore.initializeProvider('browser-web-speech-api')
-          }
-          catch (err) {
-            console.warn('[ChatArea] Error initializing Web Speech API provider:', err)
-          }
-          hearingStore.activeTranscriptionProvider = 'browser-web-speech-api'
-
-          // Wait for reactivity to update
-          await nextTick()
-
-          // Verify the provider was set correctly
-          if (hearingStore.activeTranscriptionProvider === 'browser-web-speech-api') {
-            console.info('[ChatArea] Web Speech API configured as default provider')
-          }
-          else {
-            console.error('[ChatArea] Failed to set Web Speech API as default provider')
-            isListening.value = false
-            return
-          }
-        }
-        else {
-          console.error('[ChatArea] Web Speech API not available. No transcription provider configured and Web Speech API is not available in this browser. Please go to Settings > Modules > Hearing to configure a transcription provider. Browser support:', {
-            hasWindow: typeof window !== 'undefined',
-            hasWebkitSpeechRecognition: typeof window !== 'undefined' && 'webkitSpeechRecognition' in window,
-            hasSpeechRecognition: typeof window !== 'undefined' && 'SpeechRecognition' in window,
-          })
-          isListening.value = false
-          return
-        }
+      if (!isWebSpeechAvailable) {
+        console.error('Web Speech API is not available and no transcription provider is configured. Please go to Settings > Modules > Hearing to configure a transcription provider. Browser support:', {
+          hasWindow: typeof window !== 'undefined',
+          hasWebkitSpeechRecognition: typeof window !== 'undefined' && 'webkitSpeechRecognition' in window,
+          hasSpeechRecognition: typeof window !== 'undefined' && 'SpeechRecognition' in window,
+        }, { source: 'useTranscriptions' })
+        isListening.value = false
+        return
       }
 
+      // Initialize the provider in the providers store first
+      try {
+        providersStore.initializeProvider('browser-web-speech-api')
+        hearingStore.activeTranscriptionProvider = 'browser-web-speech-api'
+      }
+      catch (err) {
+        console.warn('Error initializing Web Speech API provider:', err, { source: 'useTranscriptions' })
+      }
+      // Wait for reactivity to update
+      await nextTick()
+
+      // Verify the provider was set to Web Speech API
+      if (hearingStore.activeTranscriptionProvider !== 'browser-web-speech-api') {
+        console.error('Failed to set Web Speech API as default provider', { source: 'useTranscriptions' })
+        isListening.value = false
+        return
+      }
+      console.info('Web Speech API configured as default provider', { source: 'useTranscriptions' })
+    }
+
+    // Check if streaming input is supported
+    // TODO: implement non-streaming transcription
+    if (!shouldUseStreamInput.value) {
+      const errorMsg = 'Streaming input not supported by the selected transcription provider. Please select a provider that supports streaming (e.g., Web Speech API).'
+      console.warn(errorMsg, { source: 'useTranscriptions' })
+      // Clean up any existing sessions from other pages (e.g., test page) that might interfere
+      await stopStreamingTranscription(true)
+      isListening.value = false
+      return
+    }
+
+    try {
       // Request microphone permission if needed (microphone should already be enabled by the user)
       if (!stream.value) {
-        console.info('[ChatArea] Requesting microphone permission...')
+        console.info('Requesting microphone permission', { source: 'useTranscriptions' })
         await askPermission()
 
         // If still no stream, try starting it manually
         if (!stream.value && enabled.value) {
-          console.info('[ChatArea] Attempting to start stream manually...')
+          console.info('Attempting to start stream manually', { source: 'useTranscriptions' })
           startStream()
           // Wait for the stream to become available with a timeout.
           try {
             await until(stream).toBeTruthy({ timeout: 3000, throwOnTimeout: true })
           }
           catch {
-            console.error('[ChatArea] Timed out waiting for audio stream.')
+            console.error('Timed out waiting for audio stream. Stopping transcription.', { source: 'useTranscriptions' })
             isListening.value = false
             return
           }
         }
       }
-
-      if (!stream.value) {
-        const errorMsg = 'Failed to get audio stream for transcription. Please check microphone permissions and ensure a device is selected.'
-        console.error('[ChatArea]', errorMsg)
-        isListening.value = false
-        return
-      }
-
-      // Check if streaming input is supported
-      if (!shouldUseStreamInput.value) {
-        const errorMsg = 'Streaming input not supported by the selected transcription provider. Please select a provider that supports streaming (e.g., Web Speech API).'
-        console.warn('[ChatArea]', errorMsg)
-        // Clean up any existing sessions from other pages (e.g., test page) that might interfere
-        await stopStreamingTranscription(true)
-        isListening.value = false
-        return
-      }
-
-      console.info('[ChatArea] Starting streaming transcription with stream:', stream.value.id)
-
-      // Call transcribeForMediaStream - it's async so we await it
-      // Set listening state AFTER successful call
-      try {
-        await transcribeForMediaStream(stream.value, {
-          onSentenceEnd: (delta) => {
-            if (delta && delta.trim()) {
-              console.info('[ChatArea] Received transcription delta:', delta)
-              // Append transcribed text to message input
-              const currentText = messageInput.value.trim()
-              messageInput.value = currentText ? `${currentText} ${delta}` : delta
-              debouncedAutoSend()
-            }
-          },
-        // Omit onSpeechEnd to avoid re-adding user-deleted text; use sentence deltas only.
-        })
-
-        // Only set listening to true if transcription started successfully
-        // (transcribeForMediaStream might return early if session already exists)
-        isListening.value = true
-        console.info('[ChatArea] Streaming transcription initiated successfully')
-      }
-      catch (err) {
-        console.error('[ChatArea] Transcription error:', err)
-        isListening.value = false
-        throw err
-      }
     }
     catch (err) {
-      console.error('[ChatArea] Failed to start transcription:', err)
+      console.error('Failed to request microphone permission:', err, { source: 'useTranscriptions' })
       isListening.value = false
     }
-  }
 
-  const stopListening = async () => {
-    if (!isListening.value)
+    if (!stream.value) {
+      const errorMsg = 'Failed to get audio stream for transcription. Please check microphone permissions and ensure a device is selected.'
+      console.error(errorMsg, { source: 'useTranscriptions' })
+      isListening.value = false
       return
+    }
 
+    console.info('Starting streaming transcription with stream:', stream.value.id, { source: 'useTranscriptions' })
+
+    // Allow calling this even if already listening - transcribeForMediaStream will handle session reuse/restart
+    // Call transcribeForMediaStream - it's async so we await it
+    // Set listening state AFTER successful call
     try {
-      console.info('[ChatArea] Stopping transcription...')
-      clearPendingAutoSend()
-      await stopStreamingTranscription(true)
-      isListening.value = false
-      console.info('[ChatArea] Transcription stopped')
+      await transcribeForMediaStream(stream.value, {
+        onSentenceEnd: (delta) => {
+          if (delta && delta.trim()) {
+            console.info('Received transcription delta:', delta, { source: 'useTranscriptions' })
+            // Append transcribed text to message input
+            const currentText = messageInput.value.trim()
+            messageInput.value = currentText ? `${currentText} ${delta}` : delta
+            debouncedAutoSend()
+          }
+        },
+        // Omit onSpeechEnd to avoid re-adding user-deleted text; use sentence deltas only.
+      })
+
+      // Only set listening to true if transcription started successfully
+      // (transcribeForMediaStream might return early if session already exists)
+      isListening.value = true
+      console.info('Streaming transcription initiated successfully', { source: 'useTranscriptions' })
     }
     catch (err) {
-      console.error('[ChatArea] Error stopping transcription:', err)
+      console.error('Transcription error:', err, { source: 'useTranscriptions' })
       isListening.value = false
+      throw err
     }
   }
 
@@ -213,7 +201,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
   watch(autoSendEnabled, (enabled) => {
     if (!enabled) {
       clearPendingAutoSend()
-      console.info('[ChatArea] Auto-send disabled')
+      console.info('Auto-send disabled', { source: 'useTranscriptions' })
     }
   })
 
@@ -221,11 +209,11 @@ export function useTranscriptions(options: TranscriptionOptions) {
   watch(enabled, async (enabled) => {
     if (enabled && stream.value) {
     // Microphone was just enabled and we have a stream, start transcription
-      await startListening()
+      await startStreaming()
     }
     else if (!enabled && isListening.value) {
     // Microphone was disabled, stop transcription
-      await stopListening()
+      await stopStreaming()
     }
   })
 
@@ -233,21 +221,21 @@ export function useTranscriptions(options: TranscriptionOptions) {
   watch(stream, async (stream) => {
     if (stream && enabled.value && !isListening.value) {
     // Stream became available and microphone is enabled, start transcription
-      await startListening()
+      await startStreaming()
     }
     else if (!stream && isListening.value) {
     // Stream was lost, stop transcription
-      await stopListening()
+      await stopStreaming()
     }
   })
 
   onScopeDispose(() => {
     clearPendingAutoSend()
-    stopListening()
+    stopStreaming()
   })
 
   return {
-    startListening,
-    stopListening,
+    startListening: startStreaming,
+    stopListening: stopStreaming,
   }
 }
