@@ -75,9 +75,16 @@ const MODEL_ID = MODEL_IDS.WHISPER
  */
 async function detectWebGPUInWorker(): Promise<boolean> {
   try {
-    if (typeof navigator === 'undefined' || !navigator.gpu)
+    if (typeof navigator === 'undefined' || !('gpu' in navigator))
       return false
-    const adapter = await navigator.gpu.requestAdapter()
+    // NOTICE:
+    // `navigator.gpu` is a WebGPU API not present in the standard TypeScript DOM lib.
+    // The `'gpu' in navigator` guard above confirms presence at runtime.
+    // Casting to a minimal structural type avoids requiring @webgpu/types or the
+    // webgpu lib (which TypeScript does not ship) across all tsconfigs that include
+    // this file via path aliases.
+    const gpu = (navigator as Navigator & { gpu: { requestAdapter: () => Promise<unknown> } }).gpu
+    const adapter = await gpu.requestAdapter()
     return adapter != null
   }
   catch {
