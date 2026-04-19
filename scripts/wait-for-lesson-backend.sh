@@ -5,6 +5,27 @@ set -euo pipefail
 LESSON_BACKEND_URL="http://127.0.0.1:9625"
 LESSON_BACKEND_TIMEOUT_SECONDS=60
 
+append_lesson_backend_auth_args() {
+  local bearer_token="${VITE_PEPTUTOR_LESSON_BEARER_TOKEN:-${VITE_PEPTUTOR_LESSON_ACCESS_TOKEN:-}}"
+  local api_key="${VITE_PEPTUTOR_LESSON_API_KEY:-}"
+  local username="${VITE_PEPTUTOR_LESSON_AUTH_USERNAME:-}"
+  local password="${VITE_PEPTUTOR_LESSON_AUTH_PASSWORD:-}"
+
+  if [[ -n "${bearer_token}" ]]; then
+    printf '%s\0' -H "Authorization: Bearer ${bearer_token}"
+    return
+  fi
+
+  if [[ -n "${api_key}" ]]; then
+    printf '%s\0' -H "X-API-Key: ${api_key}"
+    return
+  fi
+
+  if [[ -n "${username}" && -n "${password}" ]]; then
+    printf '%s\0' -u "${username}:${password}"
+  fi
+}
+
 should_bypass_proxy() {
   local url="$1"
   local authority="${url#*://}"
@@ -63,6 +84,10 @@ curl_args=()
 if should_bypass_proxy "${lesson_catalog_url}"; then
   curl_args+=(--noproxy '*')
 fi
+
+while IFS= read -r -d '' auth_arg; do
+  curl_args+=("${auth_arg}")
+done < <(append_lesson_backend_auth_args)
 
 while true; do
   if curl -fsS --max-time 5 "${curl_args[@]}" "${lesson_catalog_url}" >/dev/null 2>&1; then
