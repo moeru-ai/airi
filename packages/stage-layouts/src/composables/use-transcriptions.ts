@@ -5,7 +5,7 @@ import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { until } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, onScopeDispose, ref, toValue, watch } from 'vue'
+import { nextTick, onScopeDispose, ref, toValue, watch } from 'vue'
 
 interface TranscriptionOptions {
   messageInputRef: Ref<string>
@@ -22,7 +22,6 @@ export function useTranscriptions(options: TranscriptionOptions) {
   const { supportsStreamInput } = storeToRefs(hearingPipeline)
   const { configured: hearingConfigured, autoSendEnabled, autoSendDelay } = storeToRefs(hearingStore)
   const { enabled, stream } = storeToRefs(useSettingsAudioDevice())
-  const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
   const providersStore = useProvidersStore()
   const { askPermission, startStream } = useSettingsAudioDevice()
 
@@ -93,7 +92,9 @@ export function useTranscriptions(options: TranscriptionOptions) {
         && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
 
       if (!isWebSpeechAvailable) {
-        console.error('Web Speech API is not available and no transcription provider is configured. Please go to Settings > Modules > Hearing to configure a transcription provider. Browser support:', {
+        // TODO: also propagate to user
+        const errorMsg = 'Web Speech API is not available and no transcription provider is configured. Please go to Settings > Modules > Hearing to configure a transcription provider. '
+        console.error(errorMsg, 'Browser support:', {
           hasWindow: typeof window !== 'undefined',
           hasWebkitSpeechRecognition: typeof window !== 'undefined' && 'webkitSpeechRecognition' in window,
           hasSpeechRecognition: typeof window !== 'undefined' && 'SpeechRecognition' in window,
@@ -124,7 +125,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
 
     // Check if streaming input is supported
     // TODO: implement non-streaming transcription
-    if (!shouldUseStreamInput.value) {
+    if (!supportsStreamInput.value) {
       const errorMsg = 'Streaming input not supported by the selected transcription provider. Please select a provider that supports streaming (e.g., Web Speech API).'
       console.warn(errorMsg, { source: 'useTranscriptions' })
       // Clean up any existing sessions from other pages (e.g., test page) that might interfere
