@@ -950,6 +950,7 @@ export const useProvidersStore = defineStore('providers', () => {
             valid: errors.length === 0,
           }
         },
+        chatPingCheckAvailable: false,
       },
     },
     'browser-web-speech-api': {
