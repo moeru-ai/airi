@@ -20,7 +20,7 @@ import type {
 
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 
-import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
+import { isStageCapacitor, isStageTamagotchi, isStageWeb, isUrl } from '@proj-airi/stage-shared'
 import { getCachedWebGPUCapabilities, isWebGPUSupported } from '@proj-airi/stage-shared/webgpu'
 import { computedAsync, useIntervalFn, useLocalStorage } from '@vueuse/core'
 import {
@@ -1881,7 +1881,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
       defaultOptions: () => {
         const capabilities = getCachedWebGPUCapabilities()
-        const hasWebGPU = capabilities?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
+        const hasWebGPU = capabilities?.supported ?? (typeof navigator !== 'undefined' && 'gpu' in navigator)
         const fp16Supported = capabilities?.fp16Supported ?? false
         const model = getDefaultKokoroModel(hasWebGPU, fp16Supported)
         return {
@@ -1938,7 +1938,7 @@ export const useProvidersStore = defineStore('providers', () => {
       capabilities: {
         listModels: async (_config: Record<string, unknown>) => {
           const caps = getCachedWebGPUCapabilities()
-          const hasWebGPU = caps?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
+          const hasWebGPU = caps?.supported ?? (typeof navigator !== 'undefined' && 'gpu' in navigator)
           const fp16Supported = caps?.fp16Supported ?? false
           return kokoroModelsToModelInfo(hasWebGPU, t, fp16Supported)
         },
@@ -1957,7 +1957,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
           // Validate platform requirements
           if (modelDef.platform === 'webgpu') {
-            const hasWebGPU = getCachedWebGPUCapabilities()?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
+            const hasWebGPU = getCachedWebGPUCapabilities()?.supported ?? (typeof navigator !== 'undefined' && 'gpu' in navigator)
             if (!hasWebGPU) {
               throw new Error('WebGPU is required for this model but is not available in your browser')
             }
@@ -2001,7 +2001,7 @@ export const useProvidersStore = defineStore('providers', () => {
                   const modelDef = KOKORO_MODELS.find(m => m.id === modelId)
                   if (modelDef) {
                     if (modelDef.platform === 'webgpu') {
-                      const hasWebGPU = getCachedWebGPUCapabilities()?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
+                      const hasWebGPU = getCachedWebGPUCapabilities()?.supported ?? (typeof navigator !== 'undefined' && 'gpu' in navigator)
                       if (!hasWebGPU) {
                         throw new Error('WebGPU is required for this model but is not available in your browser')
                       }
