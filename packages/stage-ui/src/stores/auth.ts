@@ -115,13 +115,20 @@ export const useAuthStore = defineStore('auth', () => {
   type TokenRefreshedHook = (accessToken: string) => void | Promise<void>
   const tokenRefreshedHooks: TokenRefreshedHook[] = []
 
-  const { start: startRefreshTimer, stop: stopRefreshTimer } = useTimeoutFn(
-    async () => {
-      if (!refreshToken.value || !oidcClientId.value)
-        return
+  // Single-flight refresh: multiple concurrent callers (timer + 401 retry + restore)
+  // must not trigger multiple token exchanges. All share one in-flight promise.
+  let inflightRefresh: Promise<string | null> | null = null
 
+  async function refreshTokenNow(): Promise<string | null> {
+    if (inflightRefresh)
+      return inflightRefresh
+
+    if (!refreshToken.value || !oidcClientId.value)
+      return null
+
+    inflightRefresh = (async () => {
       try {
-        const tokens = await refreshAccessToken(oidcClientId.value, refreshToken.value)
+        const tokens = await refreshAccessToken(oidcClientId.value!, refreshToken.value!)
         token.value = tokens.access_token
         if (tokens.refresh_token)
           refreshToken.value = tokens.refresh_token
@@ -138,6 +145,8 @@ export const useAuthStore = defineStore('auth', () => {
             console.error('token refresh hook error', e)
           }
         }
+
+        return tokens.access_token
       }
       catch {
         user.value = null
@@ -146,8 +155,18 @@ export const useAuthStore = defineStore('auth', () => {
         refreshToken.value = null
         oidcClientId.value = null
         tokenExpiry.value = null
+        return null
       }
-    },
+      finally {
+        inflightRefresh = null
+      }
+    })()
+
+    return inflightRefresh
+  }
+
+  const { start: startRefreshTimer, stop: stopRefreshTimer } = useTimeoutFn(
+    () => { refreshTokenNow() },
     refreshDelayMs,
     { immediate: false },
   )
@@ -161,8 +180,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   /**
    * Restore refresh scheduling from persisted state after page reload.
+   * Returns a promise that resolves after an immediate refresh completes
+   * (when the persisted token is already expired) so callers can avoid
+   * racing `fetchSession()` against a stale Bearer token.
    */
-  function restoreRefreshSchedule(): void {
+  async function restoreRefreshSchedule(): Promise<void> {
     if (!refreshToken.value || !oidcClientId.value)
       return
 
@@ -174,8 +196,8 @@ export const useAuthStore = defineStore('auth', () => {
       }
     }
 
-    // Token already expired or no expiry info — refresh immediately
-    scheduleTokenRefresh(0)
+    // Already expired — refresh synchronously so subsequent requests use fresh token
+    await refreshTokenNow()
   }
 
   function onTokenRefreshed(hook: TokenRefreshedHook) {
@@ -232,6 +254,7 @@ export const useAuthStore = defineStore('auth', () => {
     tokenExpiry,
     scheduleTokenRefresh,
     restoreRefreshSchedule,
+    refreshTokenNow,
     clearOIDCState,
     onTokenRefreshed,
   }

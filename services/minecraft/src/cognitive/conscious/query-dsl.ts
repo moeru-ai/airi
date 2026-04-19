@@ -131,6 +131,12 @@ class BlockQueryChain {
     })
   }
 
+  public where(predicate: (block: BlockRecord) => boolean): BlockQueryChain {
+    return this.clone({
+      predicates: [...this.state.predicates, predicate],
+    })
+  }
+
   public sortByDistance(): BlockQueryChain {
     return this
   }
@@ -202,6 +208,13 @@ class EntityQueryChain {
     })
   }
 
+  public whereName(nameOrNames: string | string[]): EntityQueryChain {
+    const names = new Set((Array.isArray(nameOrNames) ? nameOrNames : [nameOrNames]).map(name => name.toLowerCase()))
+    return this.clone({
+      predicates: [...this.state.predicates, entity => names.has(entity.name.toLowerCase())],
+    })
+  }
+
   public names(): NameQueryChain {
     return new NameQueryChain(this.list().map(entity => entity.name))
   }
@@ -269,6 +282,8 @@ class InventoryQueryChain {
   }
 
   public count(name: string): number {
+    if (!name)
+      return 0
     const needle = name.toLowerCase()
     return this.list()
       .filter(item => item.name.toLowerCase() === needle)

@@ -16,8 +16,7 @@ import App from './App.vue'
 
 import { i18n } from './modules/i18n'
 
-import '@proj-airi/font-cjkfonts-allseto/index.css'
-import '@proj-airi/font-xiaolai/index.css'
+import '@proj-airi/font-chillroundm/index.css'
 import '@unocss/reset/tailwind.css'
 import 'vue-sonner/style.css'
 import './styles/main.css'
@@ -30,9 +29,9 @@ const routeRecords = setupLayouts(routes as RouteRecordRaw[])
 
 let router: Router
 if (isEnvTruthy(import.meta.env.VITE_APP_TARGET_HUGGINGFACE_SPACE))
-  router = createRouter({ routes: routeRecords, history: createWebHashHistory() })
+  router = createRouter({ routes: routeRecords, history: createWebHashHistory('/_ui/server-auth/') })
 else
-  router = createRouter({ routes: routeRecords, history: createWebHistory() })
+  router = createRouter({ routes: routeRecords, history: createWebHistory('/_ui/server-auth/') })
 
 router.beforeEach((to, from) => {
   if (to.path !== from.path)

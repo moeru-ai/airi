@@ -1,3 +1,5 @@
+import type Redis from 'ioredis'
+
 import type { Env } from '../../libs/env'
 import type { RevenueMetrics } from '../../libs/otel'
 import type { BillingService } from '../../services/billing/billing-service'
@@ -13,14 +15,31 @@ import { Hono } from 'hono'
 import { safeParse } from 'valibot'
 
 import { authGuard } from '../../middlewares/auth'
-import { configGuard } from '../../middlewares/config-guard'
 import { rateLimiter } from '../../middlewares/rate-limit'
 import { createBadRequestError, createServiceUnavailableError } from '../../utils/error'
 import { errorMessageFromUnknown } from '../../utils/error-message'
 import { resolveTrustedRequestOrigin } from '../../utils/origin'
+import { createRedisKey } from '../../utils/redis-keys'
 import { CheckoutBodySchema } from './schema'
 
 const logger = useLogger('stripe')
+
+const PRICES_CACHE_KEY = createRedisKey('cache', 'stripe', 'prices')
+const PRICES_CACHE_TTL_SEC = 5 * 60
+
+interface CachedCurrencyOption {
+  unitAmount: number | null
+}
+
+interface CachedPrice {
+  id: string
+  unitAmount: number | null
+  currency: string
+  product: string
+  active: boolean
+  metadata: Record<string, string>
+  currencyOptions: Record<string, CachedCurrencyOption>
+}
 
 export function createStripeRoutes(
   fluxService: FluxService,
@@ -28,42 +47,126 @@ export function createStripeRoutes(
   billingService: BillingService,
   configKV: ConfigKVService,
   env: Env,
+  redis: Redis,
   metrics?: RevenueMetrics | null,
 ) {
   const stripe = env.STRIPE_SECRET_KEY ? new Stripe(env.STRIPE_SECRET_KEY) : null
 
-  const fluxConfigGuard = configGuard(configKV, ['FLUX_PACKAGES'], 'Top-up is not available yet')
+  async function getActivePrices(productId: string): Promise<CachedPrice[]> {
+    // Try Redis cache first
+    const cached = await redis.get(PRICES_CACHE_KEY)
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached) as { productId: string, prices: CachedPrice[] }
+        if (parsed.productId === productId)
+          return parsed.prices
+      }
+      catch { /* corrupted cache, refetch */ }
+    }
+
+    let result: Stripe.ApiList<Stripe.Price>
+    try {
+      result = await stripe!.prices.list({ product: productId, active: true, expand: ['data.currency_options'] })
+    }
+    catch (err) {
+      logger.withError(err).warn('Failed to fetch prices from Stripe')
+      return []
+    }
+    const prices: CachedPrice[] = result.data
+      .sort((a, b) => (a.unit_amount ?? 0) - (b.unit_amount ?? 0))
+      .map(p => ({
+        id: p.id,
+        unitAmount: p.unit_amount,
+        currency: p.currency,
+        product: typeof p.product === 'string' ? p.product : p.product.id,
+        active: p.active,
+        metadata: p.metadata,
+        currencyOptions: Object.fromEntries(
+          Object.entries(p.currency_options ?? {}).map(([cur, opt]) => [cur, { unitAmount: opt.unit_amount }]),
+        ),
+      }))
+
+    await redis.set(PRICES_CACHE_KEY, JSON.stringify({ productId, prices }), 'EX', PRICES_CACHE_TTL_SEC)
+    return prices
+  }
 
   return new Hono<HonoEnv>()
     .get('/packages', async (c) => {
-      const packages = await configKV.get('FLUX_PACKAGES')
-      return c.json(packages)
+      const fluxProductId = await configKV.getOptional('STRIPE_FLUX_PRODUCT_ID')
+      if (!stripe || !fluxProductId)
+        return c.json([])
+
+      const prices = await getActivePrices(fluxProductId)
+
+      // Build per-currency price map for each package
+      return c.json(prices.map((p) => {
+        const currencies: Record<string, string> = {
+          [p.currency]: formatPrice(p.unitAmount, p.currency),
+        }
+        for (const [cur, opt] of Object.entries(p.currencyOptions)) {
+          currencies[cur] = formatPrice(opt.unitAmount, cur)
+        }
+
+        return {
+          stripePriceId: p.id,
+          label: `${p.metadata.fluxAmount ?? '?'} Flux`,
+          defaultCurrency: p.currency,
+          currencies,
+          recommended: p.metadata.recommended === 'true',
+        }
+      }))
     })
-    .post('/checkout', authGuard, rateLimiter({ max: 10, windowSec: 60 }), fluxConfigGuard, async (c) => {
-      if (!stripe)
+    .post('/checkout', authGuard, rateLimiter({ max: 10, windowSec: 60 }), async (c) => {
+      const fluxProductId = await configKV.getOptional('STRIPE_FLUX_PRODUCT_ID')
+      if (!stripe || !fluxProductId)
         throw createServiceUnavailableError('Stripe is not configured', 'STRIPE_NOT_CONFIGURED')
 
       const user = c.get('user')!
       const body = await c.req.json()
-      const maxCheckoutAmount = await configKV.get('MAX_CHECKOUT_AMOUNT_CENTS')
 
       const result = safeParse(CheckoutBodySchema, body)
       if (!result.success)
-        throw createBadRequestError('Invalid checkout amount', 'INVALID_REQUEST', result.issues)
+        throw createBadRequestError('Invalid checkout request', 'INVALID_REQUEST', result.issues)
 
-      const { amount } = result.output
-      if (amount > maxCheckoutAmount) {
-        throw createBadRequestError('Invalid checkout amount', 'INVALID_REQUEST', {
-          amount,
-          maxCheckoutAmount,
-        })
+      const { stripePriceId, currency } = result.output
+
+      // Validate against cached prices first, fall back to direct Stripe API
+      const cachedPrices = await getActivePrices(fluxProductId)
+      let price = cachedPrices.find(p => p.id === stripePriceId)
+
+      if (!price) {
+        // Cache miss — price may have just been created
+        let fetched: Stripe.Price
+        try {
+          fetched = await stripe.prices.retrieve(stripePriceId)
+        }
+        catch {
+          throw createBadRequestError('Invalid price', 'INVALID_PACKAGE', { stripePriceId })
+        }
+
+        if (!fetched.active || (typeof fetched.product === 'string' ? fetched.product : fetched.product.id) !== fluxProductId) {
+          throw createBadRequestError('Invalid price', 'INVALID_PACKAGE', { stripePriceId })
+        }
+
+        price = {
+          id: fetched.id,
+          unitAmount: fetched.unit_amount,
+          currency: fetched.currency,
+          product: typeof fetched.product === 'string' ? fetched.product : fetched.product.id,
+          active: fetched.active,
+          metadata: fetched.metadata,
+          currencyOptions: Object.fromEntries(
+            Object.entries(fetched.currency_options ?? {}).map(([cur, opt]) => [cur, { unitAmount: opt.unit_amount }]),
+          ),
+        }
+
+        // Invalidate cache so all instances pick up the new price
+        await redis.del(PRICES_CACHE_KEY)
       }
 
-      // Match amount to a configured package so we know the fluxAmount
-      const packages = await configKV.get('FLUX_PACKAGES')
-      const pkg = packages.find(p => p.amount === amount)
-      if (!pkg) {
-        throw createBadRequestError('No matching package for the given amount', 'INVALID_PACKAGE', { amount })
+      const fluxAmount = Number(price.metadata.fluxAmount)
+      if (!Number.isFinite(fluxAmount) || fluxAmount <= 0) {
+        throw createBadRequestError('Price is missing fluxAmount metadata', 'INVALID_PACKAGE', { stripePriceId })
       }
 
       // Reuse existing stripe customer if available
@@ -75,20 +178,17 @@ export function createStripeRoutes(
         throw createBadRequestError('Missing trusted request origin', 'INVALID_ORIGIN')
       }
 
+      const paymentMethods = await configKV.getOptional('STRIPE_PAYMENT_METHODS')
+      const paymentMethodOptions = await configKV.getOptional('STRIPE_PAYMENT_METHOD_OPTIONS') ?? {}
+
       const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        line_items: [
-          {
-            price_data: {
-              currency: 'usd',
-              product_data: {
-                name: 'Flux Top-up',
-              },
-              unit_amount: amount,
-            },
-            quantity: 1,
-          },
-        ],
+        // When STRIPE_PAYMENT_METHODS is not set, omit payment_method_types to let Stripe
+        // automatically determine available methods based on currency and Dashboard settings
+        ...(paymentMethods && { payment_method_types: paymentMethods as any }),
+        ...(Object.keys(paymentMethodOptions).length > 0 && { payment_method_options: paymentMethodOptions as any }),
+        // When currency is specified, Stripe uses the matching currency_options on the Price
+        ...(currency && { currency }),
+        line_items: [{ price: stripePriceId, quantity: 1 }],
         mode: 'payment',
         allow_promotion_codes: true,
         success_url: `${redirectBase}/settings/flux?success=true`,
@@ -97,7 +197,7 @@ export function createStripeRoutes(
         customer_email: stripeCustomerId ? undefined : user.email,
         metadata: {
           userId: user.id,
-          fluxAmount: String(pkg.fluxAmount),
+          fluxAmount: String(fluxAmount),
         },
       })
 
@@ -375,5 +475,21 @@ async function handleInvoiceEvent(
   // TODO: implement subscription-based flux crediting when subscriptions are enabled
   if (invoice.status === 'paid' && invoice.amount_paid && subscriptionId) {
     logger.withFields({ userId: customer.userId, invoiceId: invoice.id, amountPaid: invoice.amount_paid }).warn('Subscription invoice paid but flux crediting for subscriptions is not yet implemented')
+  }
+}
+
+/** Format Stripe smallest-unit amount into a human-readable price string */
+export function formatPrice(unitAmount: number | null, currency: string): string {
+  if (unitAmount == null)
+    return currency.toUpperCase()
+
+  try {
+    const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency })
+    const fractionDigits = formatter.resolvedOptions().minimumFractionDigits ?? 2
+    const amount = unitAmount / (10 ** fractionDigits)
+    return formatter.format(amount)
+  }
+  catch {
+    return `${unitAmount / 100} ${currency.toUpperCase()}`
   }
 }

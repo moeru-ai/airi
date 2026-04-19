@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
-import { PageHeader } from '@proj-airi/stage-ui/components'
+import { LoginDrawer, PageHeader } from '@proj-airi/stage-ui/components'
+import { useBreakpoints } from '@proj-airi/stage-ui/composables'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useTheme } from '@proj-airi/ui'
+import { storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute } from 'vue-router'
@@ -12,6 +15,8 @@ import HeaderLink from '../components/Layouts/HeaderLink.vue'
 import { themeColorFromValue, useThemeColor } from '../composables/theme-color'
 
 const route = useRoute()
+const { isMobile } = useBreakpoints()
+const { needsLogin } = storeToRefs(useAuthStore())
 const { isDark: dark } = useTheme()
 const { t } = useI18n()
 const providersStore = useProvidersStore()
@@ -20,6 +25,7 @@ const routeMeta = computed(() => route.meta as {
   subtitleKey?: string
   title?: string
   subtitle?: string
+  disableBackButton?: boolean
 })
 
 const providerTitle = computed(() => {
@@ -98,11 +104,16 @@ onMounted(() => updateThemeColor())
       <PageHeader
         :title="routeHeaderMetadata?.title || ''"
         :subtitle="routeHeaderMetadata?.subtitle"
-        :disable-back-button="isStageTamagotchi() && route.path === '/settings'"
+        :disable-back-button="routeMeta.disableBackButton || (isStageTamagotchi() && route.path === '/settings')"
       />
       <div id="settings-scroll-container" :class="['relative', 'min-h-0', 'flex-1', 'overflow-y-auto', 'scrollbar-none']">
         <RouterView />
       </div>
     </div>
   </div>
+
+  <LoginDrawer
+    v-if="isMobile"
+    v-model:open="needsLogin"
+  />
 </template>

@@ -44,3 +44,48 @@ notice:
     preparing: Đang chuẩn bị…
     read-more: Xem thêm
     preview-title: Đây là gì?
+about:
+  subtitle: Desktop ver.
+  current-version: Current Version
+  common:
+    cancel: Cancel
+  links:
+    title: Links
+    home: Home
+    documentation: Documentations
+    github: GitHub
+  update:
+    lane:
+      label: Update lane
+      description: Choose channel release to follow
+      placeholder: Choose update lane
+    channels:
+      auto: Auto
+      stable: Stable
+      alpha: Alpha
+      beta: Beta
+      nightly: Nightly
+      canary: Canary
+    status:
+      downloading: Downloading update...
+      error-prefix: Error
+      latest: Up to date (v{version}).
+      downloaded:
+        windows: Update ready to install silently (v{version}).
+        restart: Update ready to install on restart (v{version}).
+    actions:
+      download: Download Update
+      download-short: Download
+      confirm-download: Confirm Download
+      check-for-updates: Check for updates
+      checking: Checking...
+      latest-version: Latest version
+      disabled-dev: Updates disabled in Dev
+      retry-check: Retry Check
+      restart-silent: Restart to update silently
+      restart-install: Restart to install update
+      confirm-restart: Confirm Restart
+    dialog:
+      title: Update Available
+      description: A new version (v{version}) is available.
+      no-release-notes-markdown: _No release notes provided._

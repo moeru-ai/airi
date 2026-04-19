@@ -61,6 +61,23 @@ dialogs:
       stateRequesting: Requesting...
       stateGranted: Granted
       stateNotGranted: Not granted
+  bug-report:
+    title: Bug report (´;ω;`)ヾ(･∀･`)
+    subtitle: Oops, sorry we made something wrong. Would you mind telling us what happened?
+    trigger-label: Report a Bug
+    submit-label: Send Bug Report
+    triage-description: Include screenshot and page context to help us triage this issue.
+    description-placeholder: Steps to reproduce, expected behavior, and actual behavior
+    include-current-page-screenshot: Include current page screenshot
+    manual-media:
+      label: Manually choose screenshots / recordings
+      optional: Optional.
+    media-files:
+      label: Media files
+      description: 'Optional: manually select.'
+      placeholder: Choose screenshot or video file
+      selected-count: '{count} file(s) selected'
+    last-submitted-preview: Last Submitted Payload Preview
 language:
   title: 語言
   description: |
@@ -130,8 +147,8 @@ pages:
     title: Account
     description: View your profile and manage your account
     notLoggedIn: Sign in to view your account and access all features
-    login: Log in
-    logout: Log out
+    login: Sign in
+    logout: Sign out
     fluxBalance: Flux Balance
     viewFluxDetails: View details
     signedInAs: Signed in as
@@ -521,6 +538,7 @@ pages:
   flux:
     title: Flux
     buy: Charge
+    currency: Currency
     description: Current Flux
     packagesError: Failed to load packages. Please try again later.
     checkout:
@@ -540,6 +558,7 @@ pages:
       empty: No transaction records yet.
       loadMore: Load More
       delayHint: Usage records may be delayed by up to 1 minute
+      ttsRequests: requests
     packages:
       title: Flux Packages
       buy: Charge
@@ -808,6 +827,9 @@ pages:
       minimax-global:
         description: minimax.io
         title: MiniMax Global
+      minimax-speech:
+        description: minimax.io
+        title: MiniMax Speech
       mistral:
         description: mistral.ai
         title: Mistral

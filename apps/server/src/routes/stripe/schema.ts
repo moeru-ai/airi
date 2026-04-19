@@ -1,5 +1,6 @@
-import { integer, minValue, number, object, pipe } from 'valibot'
+import { minLength, object, optional, pipe, string } from 'valibot'
 
 export const CheckoutBodySchema = object({
-  amount: pipe(number(), integer(), minValue(1)),
+  stripePriceId: pipe(string(), minLength(1)),
+  currency: optional(string()),
 })

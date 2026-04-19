@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIRI Computer Use Text Target</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "SF Pro Text", "Helvetica Neue", sans-serif;
+        background:
+          radial-gradient(circle at top left, #fff7d9 0%, #f7f3e8 38%, #efe7da 100%);
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+      }
+
+      main {
+        width: min(880px, calc(100vw - 48px));
+        padding: 28px;
+        border: 1px solid rgba(72, 59, 42, 0.12);
+        border-radius: 24px;
+        background: rgba(255, 252, 244, 0.92);
+        box-shadow: 0 18px 60px rgba(88, 69, 40, 0.15);
+      }
+
+      h1 {
+        margin: 0 0 12px;
+        font-size: clamp(28px, 3vw, 40px);
+      }
+
+      p {
+        margin: 0 0 20px;
+        color: #5c4e39;
+        line-height: 1.5;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 320px;
+        padding: 20px;
+        border: 2px solid #d4c8b3;
+        border-radius: 18px;
+        font: 500 18px/1.6 "SF Mono", "Menlo", monospace;
+        resize: vertical;
+        background: #fffef9;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>AIRI Text Target</h1>
+      <p>Use this page as the low-noise fallback target when TextEdit is unavailable inside the VM.</p>
+      <textarea autofocus spellcheck="false">Click inside this textarea and type the validation sentence here.</textarea>
+    </main>
+  </body>
+</html>

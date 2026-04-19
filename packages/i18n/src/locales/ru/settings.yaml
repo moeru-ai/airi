@@ -61,6 +61,23 @@ dialogs:
       stateRequesting: Запрашивается...
       stateGranted: Предоставлено
       stateNotGranted: Не предоставлено
+  bug-report:
+    title: Отчет об ошибке (´;ω;`)ヾ(･∀･`)
+    subtitle: Ой, извините, мы сделали что-то не так. Не могли бы вы рассказать нам, что произошло?
+    trigger-label: Сообщить об ошибке
+    submit-label: Отправить сообщение об ошибке
+    triage-description: Добавьте скриншот и контекст страницы, чтобы помочь нам воспроизвести эту проблему.
+    description-placeholder: Шаги воспроизведения, ожидаемого поведения и фактического поведения
+    include-current-page-screenshot: Добавить скриншот текущей страницы
+    manual-media:
+      label: Выберите скриншоты / записи вручную
+      optional: Необязательно.
+    media-files:
+      label: Медиа файлы
+      description: 'Опционально: выбрать вручную.'
+      placeholder: Выберите скриншот или видео файл
+      selected-count: '{count} Файл(ов) выбрано'
+    last-submitted-preview: Предпросмотр последней отправленной полезной нагрузки
 language:
   title: Язык
   description: |
@@ -521,6 +538,7 @@ pages:
   flux:
     title: Flux
     buy: Пополнить
+    currency: Валюта
     description: Текущий Flux
     packagesError: Не удалось загрузить пакеты. Пожалуйста, повторите попытку позже.
     checkout:
@@ -540,6 +558,7 @@ pages:
       empty: Пока нет записей транзакций.
       loadMore: Загрузить ещё
       delayHint: Записи об использовании могут задерживаться до 1 минуты
+      ttsRequests: запросы
     packages:
       title: Flux пакеты
       buy: Пополнить
@@ -808,6 +827,9 @@ pages:
       minimax-global:
         description: Minimax.io
         title: MiniMax Глобальный
+      minimax-speech:
+        description: Minimax.io
+        title: MiniMax речь
       mistral:
         description: Mistral.ai
         title: Mistral

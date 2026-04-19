@@ -229,6 +229,18 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     chatSession.setSessionMessages(sessionId, nextMessages)
   }
 
+  function appendIngestErrorMessage(payload: IngestCommandPayload, message: string) {
+    const sessionId = payload.sessionId || chatSession.activeSessionId
+    const nextMessages = [
+      ...chatSession.getSessionMessages(sessionId),
+      {
+        role: 'error',
+        content: message,
+      } satisfies ChatHistoryItem,
+    ]
+    chatSession.setSessionMessages(sessionId, nextMessages)
+  }
+
   async function handleCommand(message: Extract<ChatSyncMessage, { type: 'command' }>) {
     if (mode.value !== 'authority')
       return
@@ -259,7 +271,12 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       respond(true)
     }
     catch (error) {
-      respond(false, errorMessageFrom(error) ?? 'Unknown chat sync command failure')
+      const errorMessage = errorMessageFrom(error) ?? 'Unknown chat sync command failure'
+
+      if (message.command === 'ingest')
+        appendIngestErrorMessage(message.payload, errorMessage)
+
+      respond(false, errorMessage)
     }
   }
 

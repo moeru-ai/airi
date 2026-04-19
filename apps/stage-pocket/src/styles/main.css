@@ -32,6 +32,12 @@ html {
   transition: all 0.3s ease-in-out;
 }
 
+html:has(.airi-native-transparent-surface),
+body:has(.airi-native-transparent-surface),
+#app:has(.airi-native-transparent-surface) {
+  background: transparent !important;
+}
+
 html.dark {
   --bg-color: var(--bg-color-dark);
   color-scheme: dark;

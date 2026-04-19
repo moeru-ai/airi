@@ -59,7 +59,7 @@ about:
   update:
     lane:
       label: Update lane
-      description: Choose which release lane updater checks against. Auto follows the current app prerelease lane.
+      description: Choose channel release to follow
       placeholder: Choose update lane
     channels:
       auto: Auto

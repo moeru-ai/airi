@@ -1,0 +1,47 @@
+electronCallback:
+  title:
+    loading: Completing sign-in
+    openingAiri: Đang mở AIRI
+    signedIn: Bạn đã đăng nhập
+    signInFailed: Đăng nhập thất bại
+    finishSignInInAiri: Hoàn tất đăng nhập vào AIRI
+    openAiriToContinue: Mở AIRI để tiếp tục
+  message:
+    checkingResponse: Đang kiểm tra phản hồi đăng nhập của bạn và chuẩn bị chuyển giao cho AIRI.
+    passingToAiri: Đang chuyển thông tin đăng nhập của bạn cho AIRI. Trang này sẽ tự động đóng trong giây lát.
+    syncedAndSafeToClose: We notified AIRI client you signed from.
+    invalidResponse: We could not use this sign-in response.
+    loopbackUnreachable: The browser could not reach AIRI through the local callback port.
+    tryOpenDirectly: We will try opening the local handoff directly. If that still fails, use the button below.
+    automaticHandoffFailed: Automatic handoff did not finish in this browser session.
+  label:
+    signIn: Sign in
+    safeToClose: It is safe to close this tab now.
+    whyStillHere: Why this tab still here?
+  action:
+    openAiriManually: Open AIRI manually
+  hint:
+    closeTabManually: Some browsers do not allow this page to close itself automatically. You can close it manually.
+signIn:
+  title: Sign in
+  error:
+    fallback: Sign in failed
+    unknown: An unknown error occurred
+    authFailed: Authentication failed. Please try again.
+  footer:
+    prefix: By continuing, you agree to our
+    terms: Terms
+    and: and
+    privacy: Privacy Policy
+webCallback:
+  title:
+    signIn: Sign in
+    errorLabel: We encountered an error while signing you in
+    loading: Signing in...
+  message:
+    missingCodeOrState: Missing authorization code or state
+    missingFlowState: Missing OIDC flow state - please try logging in again
+    tokenExchangeFailed: Token exchange failed
+    finalizing: Finalizing authentication with AIRI.
+  action:
+    tryAgain: Try again
