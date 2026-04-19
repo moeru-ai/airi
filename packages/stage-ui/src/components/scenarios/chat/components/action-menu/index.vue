@@ -4,6 +4,7 @@ import type { ComponentPublicInstance } from 'vue'
 
 import type { ChatActionMenuAction } from '.'
 
+import { errorMessageFrom } from '@moeru/std'
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
 import { useElementVisibility, useIntervalFn } from '@vueuse/core'
 import { createTimeline } from 'animejs'
@@ -240,13 +241,20 @@ const { trigger: triggerCopyFeedbackReset, clear: clearCopyFeedbackReset } = use
 
 async function handleAction(action: ChatActionMenuAction) {
   if (action === 'copy') {
-    if (props.copyText.trim()) {
+    if (!props.copyText.trim())
+      return
+
+    try {
       await navigator.clipboard.writeText(props.copyText)
       copyFeedbackActive.value = true
       clearCopyFeedbackReset()
       emit('copy')
       triggerCopyFeedbackReset()
     }
+    catch (error) {
+      console.error('Failed to copy text:', errorMessageFrom(error) ?? String(error))
+    }
+
     return
   }
 
