@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
-import { PageHeader } from '@proj-airi/stage-ui/components'
+import { LoginDrawer, PageHeader } from '@proj-airi/stage-ui/components'
+import { useBreakpoints } from '@proj-airi/stage-ui/composables'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useTheme } from '@proj-airi/ui'
+import { storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute } from 'vue-router'
@@ -12,6 +15,8 @@ import HeaderLink from '../components/Layouts/HeaderLink.vue'
 import { themeColorFromValue, useThemeColor } from '../composables/theme-color'
 
 const route = useRoute()
+const { isMobile } = useBreakpoints()
+const { needsLogin } = storeToRefs(useAuthStore())
 const { isDark: dark } = useTheme()
 const { t } = useI18n()
 const providersStore = useProvidersStore()
@@ -106,4 +111,9 @@ onMounted(() => updateThemeColor())
       </div>
     </div>
   </div>
+
+  <LoginDrawer
+    v-if="isMobile"
+    v-model:open="needsLogin"
+  />
 </template>
