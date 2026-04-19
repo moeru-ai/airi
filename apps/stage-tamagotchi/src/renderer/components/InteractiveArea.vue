@@ -257,7 +257,7 @@ async function handleDeleteMessage(index: number) {
       border="solid 2 primary-200/20 dark:primary-400/20"
       bg="primary-100/50 dark:primary-900/70"
       max-h="[10lh]" min-h="[1lh]"
-      w-full shrink-0 resize-none overflow-y-auto rounded-xl p-2 font-medium outline-none [scrollbar-gutter:stable]
+      [scrollbar-gutter:stable] w-full shrink-0 resize-none overflow-y-auto rounded-xl p-2 font-medium outline-none
       transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
       @compositionstart="isComposing = true"
       @compositionend="isComposing = false"
