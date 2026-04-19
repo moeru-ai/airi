@@ -26,7 +26,6 @@ const messageInput = ref<string>('')
 const hearingPopoverOpen = ref(false)
 const sessionsDrawerOpen = ref(false)
 const isComposing = ref(false)
-const isListening = ref(false) // Transcription listening state (separate from microphone enabled)
 const DOUBLE_ENTER_INTERVAL_MS = 300
 const TRAILING_NEWLINES_REGEX = /[\r\n]+$/
 const SEND_MODES = ['enter', 'ctrl-enter', 'double-enter'] as const
@@ -52,11 +51,10 @@ const sendModeLabels = computed<Record<SendMode, string>>(() => ({
   'double-enter': t('stage.send-mode.double-enter'),
 }))
 
-useTranscriptions(
+const { isListening } = useTranscriptions(
   {
     messageInputRef: messageInput,
     sendMessage: handleSend,
-    isListeningRef: isListening,
     isStageTamagotchi,
   },
 )

@@ -5,17 +5,16 @@ import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { until } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, onScopeDispose, toValue, watch } from 'vue'
+import { computed, nextTick, onScopeDispose, ref, toValue, watch } from 'vue'
 
 interface TranscriptionOptions {
   messageInputRef: Ref<string>
   sendMessage: () => void
-  isListeningRef: Ref<boolean>
   isStageTamagotchi: MaybeRefOrGetter<boolean>
 }
 
 export function useTranscriptions(options: TranscriptionOptions) {
-  const { messageInputRef: messageInput, sendMessage, isListeningRef: isListening, isStageTamagotchi } = options
+  const { messageInputRef: messageInput, sendMessage, isStageTamagotchi } = options
 
   const hearingStore = useHearingStore()
   const hearingPipeline = useHearingSpeechInputPipeline()
@@ -26,6 +25,8 @@ export function useTranscriptions(options: TranscriptionOptions) {
   const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
   const providersStore = useProvidersStore()
   const { askPermission, startStream } = useSettingsAudioDevice()
+
+  const isListening = ref(false)
 
   // Auto-send logic
   let autoSendTimeout: ReturnType<typeof setTimeout> | undefined
@@ -237,5 +238,6 @@ export function useTranscriptions(options: TranscriptionOptions) {
   return {
     startListening: startStreaming,
     stopListening: stopStreaming,
+    isListening,
   }
 }
