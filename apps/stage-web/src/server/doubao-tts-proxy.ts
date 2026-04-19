@@ -4,14 +4,11 @@ import type { Plugin, PreviewServer, ViteDevServer } from 'vite'
 
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 
 export const DOUBAO_TTS_PROXY_PATH = '/api/peptutor/doubao-tts'
 const DOUBAO_TTS_HTTP_URL = 'https://openspeech.bytedance.com/api/v1/tts'
 const DOUBAO_TTS_DEFAULT_CLUSTER = 'volcano_tts'
 const DOUBAO_TTS_DEFAULT_ENCODING = 'mp3'
-export const REPO_ENV_PATH = resolve(import.meta.dirname, '../../../../.env')
 
 interface DoubaoTtsProxyRequest {
   input?: string
@@ -43,31 +40,6 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error)
 }
 
-function readRepoEnvFallback() {
-  try {
-    const text = readFileSync(REPO_ENV_PATH, 'utf8')
-    const env: Record<string, string> = {}
-    for (const rawLine of text.split(/\r?\n/)) {
-      const line = rawLine.trim()
-      if (!line || line.startsWith('#')) {
-        continue
-      }
-
-      const separatorIndex = line.indexOf('=')
-      if (separatorIndex === -1) {
-        continue
-      }
-
-      env[line.slice(0, separatorIndex)] = line.slice(separatorIndex + 1)
-    }
-
-    return env
-  }
-  catch {
-    return {}
-  }
-}
-
 export function resolveDoubaoTtsContentType(encoding?: string) {
   if (encoding === 'wav')
     return 'audio/wav'
@@ -91,16 +63,11 @@ function resolveCredentials(
   requestBody: DoubaoTtsProxyRequest,
   env: Record<string, string | undefined>,
 ) {
-  const envFallback = readRepoEnvFallback()
   const appId = requestBody.appId
     || env.VITE_PEPTUTOR_TTS_APP_ID
     || env.VITE_DOUBAO_TTS_APP_ID
     || env.VITE_PEPTUTOR_ASR_APP_ID
     || env.VITE_DOUBAO_ASR_APP_ID
-    || envFallback.VITE_PEPTUTOR_TTS_APP_ID
-    || envFallback.VITE_DOUBAO_TTS_APP_ID
-    || envFallback.VITE_PEPTUTOR_ASR_APP_ID
-    || envFallback.VITE_DOUBAO_ASR_APP_ID
     || ''
 
   const apiKey = requestBody.apiKey
@@ -108,17 +75,11 @@ function resolveCredentials(
     || env.VITE_DOUBAO_TTS_API_KEY
     || env.VITE_PEPTUTOR_ASR_API_KEY
     || env.VITE_DOUBAO_ASR_API_KEY
-    || envFallback.VITE_PEPTUTOR_TTS_API_KEY
-    || envFallback.VITE_DOUBAO_TTS_API_KEY
-    || envFallback.VITE_PEPTUTOR_ASR_API_KEY
-    || envFallback.VITE_DOUBAO_ASR_API_KEY
     || ''
 
   const cluster = requestBody.cluster
     || env.VITE_PEPTUTOR_TTS_CLUSTER
     || env.VITE_DOUBAO_TTS_CLUSTER
-    || envFallback.VITE_PEPTUTOR_TTS_CLUSTER
-    || envFallback.VITE_DOUBAO_TTS_CLUSTER
     || DOUBAO_TTS_DEFAULT_CLUSTER
 
   if (!appId || !apiKey) {
