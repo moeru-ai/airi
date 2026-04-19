@@ -20,7 +20,7 @@ import type {
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 import type { DoubaoRealtimeSpeechExtraOptions } from './providers/volcengine/stream-transcription'
 
-import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
+import { isStageTamagotchi, isStageWeb, isUrl } from '@proj-airi/stage-shared'
 import { getCachedWebGPUCapabilities, isWebGPUSupported } from '@proj-airi/stage-shared/webgpu'
 import { computedAsync, useIntervalFn, useLocalStorage } from '@vueuse/core'
 import {
@@ -1453,6 +1453,12 @@ export const useProvidersStore = defineStore('providers', () => {
           cluster: 'volcano_tts',
         },
       }),
+      isAvailableBy: async () => {
+        if (typeof window === 'undefined')
+          return false
+
+        return isStageWeb()
+      },
       createProvider: async config => createOfficialVolcengineSpeechProvider(config),
       capabilities: {
         listVoices: async () => listOfficialVolcengineVoices(),
