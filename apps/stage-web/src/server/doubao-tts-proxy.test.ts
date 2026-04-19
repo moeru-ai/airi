@@ -1,6 +1,9 @@
+import { Buffer } from 'node:buffer'
+import { resolve } from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
-import { buildDoubaoTtsHttpBody, decodeDoubaoTtsAudio } from './doubao-tts-proxy'
+import { buildDoubaoTtsHttpBody, decodeDoubaoTtsAudio, REPO_ENV_PATH, resolveDoubaoTtsContentType } from './doubao-tts-proxy'
 
 describe('doubao tts proxy helpers', () => {
   it('builds official Doubao TTS payload with default cluster and encoding', () => {
@@ -43,5 +46,15 @@ describe('doubao tts proxy helpers', () => {
     })
 
     expect(audio.toString('utf8')).toBe('hello')
+  })
+
+  it('resolves the repo env fallback path to the frontend repo root', () => {
+    expect(REPO_ENV_PATH).toBe(resolve(import.meta.dirname, '../../../../.env'))
+  })
+
+  it('maps pcm encoding to a raw audio content type', () => {
+    expect(resolveDoubaoTtsContentType('pcm')).toBe('audio/L16; rate=16000')
+    expect(resolveDoubaoTtsContentType('wav')).toBe('audio/wav')
+    expect(resolveDoubaoTtsContentType('mp3')).toBe('audio/mpeg')
   })
 })

@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 
 import type { Plugin, PreviewServer, ViteDevServer } from 'vite'
 
+import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -10,7 +11,7 @@ export const DOUBAO_TTS_PROXY_PATH = '/api/peptutor/doubao-tts'
 const DOUBAO_TTS_HTTP_URL = 'https://openspeech.bytedance.com/api/v1/tts'
 const DOUBAO_TTS_DEFAULT_CLUSTER = 'volcano_tts'
 const DOUBAO_TTS_DEFAULT_ENCODING = 'mp3'
-const REPO_ENV_PATH = resolve(import.meta.dirname, '../../../../../../.env')
+export const REPO_ENV_PATH = resolve(import.meta.dirname, '../../../../.env')
 
 interface DoubaoTtsProxyRequest {
   input?: string
@@ -65,6 +66,15 @@ function readRepoEnvFallback() {
   catch {
     return {}
   }
+}
+
+export function resolveDoubaoTtsContentType(encoding?: string) {
+  if (encoding === 'wav')
+    return 'audio/wav'
+  if (encoding === 'pcm')
+    return 'audio/L16; rate=16000'
+
+  return 'audio/mpeg'
 }
 
 async function readJsonBody<T>(request: IncomingMessage): Promise<T> {
@@ -201,7 +211,7 @@ async function handleTtsProxyRequest(
 
     const audio = decodeDoubaoTtsAudio(upstreamJson)
     const encoding = officialBody.audio.encoding || DOUBAO_TTS_DEFAULT_ENCODING
-    const contentType = encoding === 'wav' ? 'audio/wav' : 'audio/mpeg'
+    const contentType = resolveDoubaoTtsContentType(encoding)
 
     response.statusCode = 200
     response.setHeader('Content-Type', contentType)

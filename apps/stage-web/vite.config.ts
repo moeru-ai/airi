@@ -26,6 +26,7 @@ import { LFS, SpaceCard } from 'hfup/vite'
 import { defineConfig, loadEnv } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+import { buildPepTutorVoiceEnvDefines } from './src/peptutor-voice-env-defines'
 import { serveDoubaoRealtimeAsrProxy } from './src/server/doubao-realtime-asr-proxy'
 import { serveDoubaoTtsProxy } from './src/server/doubao-tts-proxy'
 
@@ -37,53 +38,6 @@ const presetLive2dAssetRoutes = {
   '/__airi/live2d/preset/hiyori_free_zh': resolve(stageUIAssetsRoot, 'live2d', 'models', 'hiyori_free_zh.zip'),
   '/__airi/live2d/preset/hiyori_pro_zh': resolve(stageUIAssetsRoot, 'live2d', 'models', 'hiyori_pro_zh.zip'),
 } as const
-const pepTutorVoiceEnvKeys = [
-  'VITE_PEPTUTOR_TTS_PROVIDER',
-  'VITE_PEPTUTOR_TTS_API_KEY',
-  'VITE_PEPTUTOR_TTS_BASE_URL',
-  'VITE_PEPTUTOR_TTS_MODEL',
-  'VITE_PEPTUTOR_TTS_VOICE',
-  'VITE_PEPTUTOR_TTS_APP_ID',
-  'VITE_PEPTUTOR_TTS_CLUSTER',
-  'VITE_PEPTUTOR_TTS_PROXY_URL',
-  'VITE_DOUBAO_TTS_API_KEY',
-  'VITE_DOUBAO_TTS_APP_ID',
-  'VITE_DOUBAO_TTS_BASE_URL',
-  'VITE_DOUBAO_TTS_CLUSTER',
-  'VITE_DOUBAO_TTS_PROXY_URL',
-  'VITE_DOUBAO_ASR_API_KEY',
-  'VITE_DOUBAO_ASR_APP_ID',
-  'VITE_DOUBAO_ASR_MODEL',
-  'VITE_DOUBAO_ASR_PROXY_URL',
-  'VITE_DOUBAO_ASR_RESOURCE_ID',
-  'VITE_DOUBAO_ASR_APP_KEY',
-  'VITE_PEPTUTOR_ASR_PROVIDER',
-  'VITE_PEPTUTOR_ASR_API_KEY',
-  'VITE_PEPTUTOR_ASR_BASE_URL',
-  'VITE_PEPTUTOR_ASR_MODEL',
-  'VITE_PEPTUTOR_ASR_APP_ID',
-  'VITE_PEPTUTOR_ASR_PROXY_URL',
-  'VITE_PEPTUTOR_ASR_RESOURCE_ID',
-  'VITE_PEPTUTOR_ASR_APP_KEY',
-  'VITE_PEPTUTOR_ALIYUN_NLS_ACCESS_KEY_ID',
-  'VITE_PEPTUTOR_ALIYUN_NLS_ACCESS_KEY_SECRET',
-  'VITE_PEPTUTOR_ALIYUN_NLS_APP_KEY',
-  'VITE_PEPTUTOR_ALIYUN_NLS_REGION',
-  'ALIYUN_AK_ID',
-  'ALIYUN_AK_SECRET',
-  'ALIYUN_APP_KEY',
-  'ALIYUN_NLS_APP_KEY',
-  'ALIYUN_NLS_REGION',
-  'OPENAI_API_KEY',
-  'OPENAI_API_BASE_URL',
-  'OPENAI_STT_API_KEY',
-  'OPENAI_STT_API_BASE_URL',
-  'OPENAI_STT_MODEL',
-  'ELEVENLABS_API_KEY',
-  'ELEVENLABS_API_BASE_URL',
-  'ELEVENLABS_VOICE_ID',
-] as const
-
 function hasFlagEnableMkcert(): boolean {
   if (process.argv.includes('--mkcert')) {
     return true
@@ -93,10 +47,6 @@ function hasFlagEnableMkcert(): boolean {
   }
 
   return false
-}
-
-function buildPepTutorVoiceEnvDefines(mergedEnv: Record<string, string | undefined>) {
-  return Object.fromEntries(pepTutorVoiceEnvKeys.map(key => [`import.meta.env.${key}`, JSON.stringify(mergedEnv[key] ?? '')]))
 }
 
 function servePresetLive2dAssets(): Plugin {

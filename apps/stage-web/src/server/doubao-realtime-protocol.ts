@@ -1,7 +1,7 @@
 export const DOUBAO_REALTIME_PROTOCOL_VERSION = 0x1
 export const DOUBAO_REALTIME_HEADER_SIZE_WORDS = 0x1
 
-export const enum DoubaoRealtimeMessageType {
+export enum DoubaoRealtimeMessageType {
   FullClientRequest = 0x1,
   AudioOnlyRequest = 0x2,
   FullServerResponse = 0x9,
@@ -9,12 +9,12 @@ export const enum DoubaoRealtimeMessageType {
   ErrorInformation = 0xF,
 }
 
-export const enum DoubaoRealtimeSerializationMethod {
+export enum DoubaoRealtimeSerializationMethod {
   Raw = 0x0,
   JSON = 0x1,
 }
 
-export const enum DoubaoRealtimeCompressionMethod {
+export enum DoubaoRealtimeCompressionMethod {
   None = 0x0,
   Gzip = 0x1,
 }
@@ -77,6 +77,17 @@ function readInt32(buffer: Uint8Array, offset: number): number {
   return new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength).getInt32(offset, false)
 }
 
+function ensureReadableBytes(buffer: Uint8Array, offset: number, size: number, context: string) {
+  if (offset < 0 || size < 0 || offset + size > buffer.byteLength) {
+    throw new Error(`Doubao realtime frame is truncated while reading ${context}.`)
+  }
+}
+
+function readFrameInt32(buffer: Uint8Array, offset: number, context: string): number {
+  ensureReadableBytes(buffer, offset, 4, context)
+  return readInt32(buffer, offset)
+}
+
 function maybeEncodeString(value?: string): Uint8Array {
   return value ? textEncoder.encode(value) : new Uint8Array(0)
 }
@@ -85,6 +96,53 @@ function hasSequenceField(messageFlags: number) {
   const sequenceMode = messageFlags & 0b0011
   return sequenceMode === 0b0001 || sequenceMode === 0b0011
 }
+
+export const DOUBAO_REALTIME_CONNECT_EVENT_IDS = new Set<number>([
+  1,
+  2,
+  50,
+  51,
+  52,
+])
+
+export const DOUBAO_REALTIME_SESSION_EVENT_IDS = new Set<number>([
+  100,
+  102,
+  150,
+  152,
+  153,
+  154,
+  200,
+  201,
+  251,
+  300,
+  350,
+  351,
+  352,
+  359,
+  400,
+  450,
+  451,
+  459,
+  500,
+  501,
+  502,
+  510,
+  511,
+  512,
+  513,
+  514,
+  515,
+  550,
+  553,
+  559,
+  567,
+  568,
+  569,
+  570,
+  571,
+  599,
+])
 
 export function buildDoubaoRealtimeFrame(options: BuildDoubaoRealtimeFrameOptions): Uint8Array {
   const messageFlags = options.messageFlags ?? 0
@@ -158,6 +216,7 @@ export function parseDoubaoRealtimeFrame(input: ArrayBuffer | Uint8Array): Parse
   const hasEvent = (messageFlags & DOUBAO_REALTIME_EVENT_FLAG) !== 0
 
   let offset = headerSizeWords * 4
+  ensureReadableBytes(bytes, 0, offset, 'header')
   let errorCode: number | undefined
   let sequence: number | undefined
   let event: number | undefined
@@ -165,38 +224,53 @@ export function parseDoubaoRealtimeFrame(input: ArrayBuffer | Uint8Array): Parse
   let sessionId: string | undefined
 
   if (messageType === DoubaoRealtimeMessageType.ErrorInformation) {
-    errorCode = readInt32(bytes, offset)
+    errorCode = readFrameInt32(bytes, offset, 'error code')
     offset += 4
   }
   if (hasSequenceField(messageFlags)) {
-    sequence = readInt32(bytes, offset)
+    sequence = readFrameInt32(bytes, offset, 'sequence')
     offset += 4
   }
   if (hasEvent) {
-    event = readInt32(bytes, offset)
+    event = readFrameInt32(bytes, offset, 'event')
     offset += 4
   }
 
   if (event != null && DOUBAO_REALTIME_CONNECT_EVENT_IDS.has(event)) {
-    const connectIdSize = readInt32(bytes, offset)
+    const connectIdSize = readFrameInt32(bytes, offset, 'connect id size')
+    if (connectIdSize < 0)
+      throw new Error('Doubao realtime frame has a negative connect id size.')
     if (connectIdSize > 0) {
       offset += 4
+      ensureReadableBytes(bytes, offset, connectIdSize, 'connect id')
       connectId = textDecoder.decode(bytes.subarray(offset, offset + connectIdSize))
       offset += connectIdSize
+    }
+    else {
+      offset += 4
     }
   }
 
   if (event != null && DOUBAO_REALTIME_SESSION_EVENT_IDS.has(event)) {
-    const sessionIdSize = readInt32(bytes, offset)
+    const sessionIdSize = readFrameInt32(bytes, offset, 'session id size')
+    if (sessionIdSize < 0)
+      throw new Error('Doubao realtime frame has a negative session id size.')
     if (sessionIdSize > 0) {
       offset += 4
+      ensureReadableBytes(bytes, offset, sessionIdSize, 'session id')
       sessionId = textDecoder.decode(bytes.subarray(offset, offset + sessionIdSize))
       offset += sessionIdSize
     }
+    else {
+      offset += 4
+    }
   }
 
-  const payloadSize = readInt32(bytes, offset)
+  const payloadSize = readFrameInt32(bytes, offset, 'payload size')
+  if (payloadSize < 0)
+    throw new Error('Doubao realtime frame has a negative payload size.')
   offset += 4
+  ensureReadableBytes(bytes, offset, payloadSize, 'payload')
   const payload = bytes.subarray(offset, offset + payloadSize)
 
   return {
@@ -219,50 +293,3 @@ export function parseDoubaoRealtimeFrame(input: ArrayBuffer | Uint8Array): Parse
 export function decodeDoubaoRealtimeTextPayload(payload: Uint8Array) {
   return textDecoder.decode(payload)
 }
-
-export const DOUBAO_REALTIME_CONNECT_EVENT_IDS = new Set<number>([
-  1,
-  2,
-  50,
-  51,
-  52,
-])
-
-export const DOUBAO_REALTIME_SESSION_EVENT_IDS = new Set<number>([
-  100,
-  102,
-  150,
-  152,
-  153,
-  154,
-  200,
-  201,
-  251,
-  300,
-  350,
-  351,
-  352,
-  359,
-  400,
-  450,
-  451,
-  459,
-  500,
-  501,
-  502,
-  510,
-  511,
-  512,
-  513,
-  514,
-  515,
-  550,
-  553,
-  559,
-  567,
-  568,
-  569,
-  570,
-  571,
-  599,
-])

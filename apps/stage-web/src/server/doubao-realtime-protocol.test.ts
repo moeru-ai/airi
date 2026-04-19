@@ -78,4 +78,19 @@ describe('doubao realtime protocol', () => {
     expect(parsed.sessionId).toBe('session-id')
     expect(Array.from(parsed.payload)).toEqual(Array.from(payload))
   })
+
+  it('rejects truncated frames with a stable parser error', () => {
+    const frame = buildDoubaoRealtimeFrame({
+      messageType: DoubaoRealtimeMessageType.FullClientRequest,
+      messageFlags: DOUBAO_REALTIME_EVENT_FLAG,
+      serialization: DoubaoRealtimeSerializationMethod.JSON,
+      event: 100,
+      sessionId: 'session-id',
+      payload: '{}',
+    })
+
+    expect(() => parseDoubaoRealtimeFrame(frame.subarray(0, frame.byteLength - 2))).toThrow(
+      'Doubao realtime frame is truncated while reading payload.',
+    )
+  })
 })

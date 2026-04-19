@@ -4,6 +4,7 @@ import type { Duplex } from 'node:stream'
 import type { Plugin, PreviewServer, ViteDevServer } from 'vite'
 import type { RawData } from 'ws'
 
+import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import { gunzipSync } from 'node:zlib'
 
@@ -60,18 +61,23 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error)
 }
 
-function readJSONMessage(data: RawData): BrowserClientMessage | null {
-  if (typeof data === 'string')
-    return JSON.parse(data) as BrowserClientMessage
+export function readJSONMessage(data: RawData): BrowserClientMessage | null {
+  try {
+    if (typeof data === 'string')
+      return JSON.parse(data) as BrowserClientMessage
 
-  if (data instanceof ArrayBuffer)
-    return JSON.parse(Buffer.from(data).toString('utf8')) as BrowserClientMessage
+    if (data instanceof ArrayBuffer)
+      return JSON.parse(Buffer.from(data).toString('utf8')) as BrowserClientMessage
 
-  if (Array.isArray(data))
-    return JSON.parse(Buffer.concat(data.map(item => Buffer.from(item))).toString('utf8')) as BrowserClientMessage
+    if (Array.isArray(data))
+      return JSON.parse(Buffer.concat(data.map(item => Buffer.from(item))).toString('utf8')) as BrowserClientMessage
 
-  if (Buffer.isBuffer(data))
-    return JSON.parse(data.toString('utf8')) as BrowserClientMessage
+    if (Buffer.isBuffer(data))
+      return JSON.parse(data.toString('utf8')) as BrowserClientMessage
+  }
+  catch {
+    return null
+  }
 
   return null
 }
@@ -210,8 +216,13 @@ function createProxyWSServer(env: Record<string, string | undefined>) {
       }
 
       const message = readJSONMessage(data)
-      if (!message)
+      if (!message) {
+        sendJSON(client, {
+          type: 'error',
+          error: 'Malformed ASR control frame.',
+        })
         return
+      }
 
       if (message.type === 'end_asr') {
         if (!upstream || upstream.readyState !== UpstreamWebSocket.OPEN || !sessionId || !sessionStarted)
