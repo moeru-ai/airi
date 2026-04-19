@@ -18,11 +18,8 @@ export type DisplayModel
   = | DisplayModelFile
     | DisplayModelURL
 
-const assetBase = import.meta.env.BASE_URL.endsWith('/')
-  ? import.meta.env.BASE_URL
-  : `${import.meta.env.BASE_URL}/`
-const presetLive2dProUrl = `${assetBase}__airi/live2d/preset/hiyori_pro_zh`
-const presetLive2dFreeUrl = `${assetBase}__airi/live2d/preset/hiyori_free_zh`
+const presetLive2dProUrl = new URL('../assets/live2d/models/hiyori_pro_zh.zip', import.meta.url).href
+const presetLive2dFreeUrl = new URL('../assets/live2d/models/hiyori_free_zh.zip', import.meta.url).href
 const presetLive2dPreview = new URL('../assets/live2d/models/hiyori/preview.png', import.meta.url).href
 const presetVrmAvatarAUrl = new URL('../assets/vrm/models/AvatarSample-A/AvatarSample_A.vrm', import.meta.url).href
 const presetVrmAvatarAPreview = new URL('../assets/vrm/models/AvatarSample-A/preview.png', import.meta.url).href
