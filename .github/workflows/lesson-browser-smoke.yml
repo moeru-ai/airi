@@ -63,7 +63,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Chromium for Vitest browser mode
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm dlx playwright install --with-deps chromium
 
       - name: Run /lesson real-browser smoke
         run: |
