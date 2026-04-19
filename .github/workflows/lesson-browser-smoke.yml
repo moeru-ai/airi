@@ -11,10 +11,9 @@ on:
       - apps/stage-web/src/testing/**
       - apps/stage-web/vitest.browser.config.ts
       - apps/stage-web/vitest.browser.sanity.config.ts
-      - packages/stage-ui/src/stores/lesson.ts
-      - packages/stage-ui/src/stores/peptutor-backend-auth.ts
-      - packages/stage-ui/src/utils/lesson-route.ts
-      - packages/stage-ui/src/utils/peptutor-backend-auth.ts
+      - packages/stage-layouts/**
+      - packages/stage-ui/src/**
+      - packages/stage-ui-live2d/src/**
       - scripts/run-lesson-browser-real-smoke.sh
       - scripts/wait-for-lesson-backend.sh
   workflow_dispatch:

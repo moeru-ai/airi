@@ -32,7 +32,7 @@ import { serveDoubaoTtsProxy } from './src/server/doubao-tts-proxy'
 
 const stageUIRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui'))
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
-const repoRoot = resolve(join(import.meta.dirname, '..', '..', '..'))
+const repoRoot = resolve(join(import.meta.dirname, '..', '..'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 const presetLive2dAssetRoutes = {
   '/__airi/live2d/preset/hiyori_free_zh': resolve(stageUIAssetsRoot, 'live2d', 'models', 'hiyori_free_zh.zip'),
