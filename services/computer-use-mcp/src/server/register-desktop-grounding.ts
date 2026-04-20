@@ -14,15 +14,14 @@
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 
-import type { PointerIntent } from '../desktop-grounding-types'
 import type { ComputerUseServerRuntime } from './runtime'
+import type { ExecuteAction } from './action-executor'
 
 import process from 'node:process'
 
 import { z } from 'zod'
 
 import { captureDesktopGrounding, formatGroundingForAgent } from '../desktop-grounding'
-import { resolveSnapByCandidate } from '../snap-resolver'
 import { textContent } from './content'
 import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptors/register-helper'
 
@@ -37,8 +36,9 @@ import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptor
 export function registerDesktopGroundingTools(params: {
   server: McpServer
   runtime: ComputerUseServerRuntime
+  executeAction: ExecuteAction
 }) {
-  const { server, runtime } = params
+  const { server, runtime, executeAction } = params
 
   // -----------------------------------------------------------------------
   // desktop_observe
@@ -115,6 +115,7 @@ export function registerDesktopGroundingTools(params: {
         return { content }
       }
       catch (error) {
+        runtime.stateManager.clearGroundingState()
         const message = error instanceof Error ? error.message : String(error)
         return {
           content: [textContent(`desktop_observe failed: ${message}`)],
@@ -138,96 +139,14 @@ export function registerDesktopGroundingTools(params: {
     },
 
     handler: async ({ candidateId, clickCount, button }) => {
-      try {
-        const state = runtime.stateManager.getState()
-
-        // Validate: must have a recent grounding snapshot
-        if (!state.lastGroundingSnapshot) {
-          return {
-            content: [textContent('ERROR: No desktop_observe snapshot available. Call desktop_observe first to get a list of target candidates.')],
-            isError: true,
-          }
-        }
-
-        const snapshot = state.lastGroundingSnapshot
-
-        // Validate: check for duplicate clicks on same candidate without re-observe
-        if (state.lastClickedCandidateId === candidateId) {
-          return {
-            content: [textContent(`WARNING: You already clicked candidate "${candidateId}" without calling desktop_observe again. Call desktop_observe to refresh the state before clicking the same target.`)],
-            isError: true,
-          }
-        }
-
-        // Validate: check snapshot staleness (>5s)
-        const snapshotAge = Date.now() - new Date(snapshot.capturedAt).getTime()
-        if (snapshotAge > 5000) {
-          return {
-            content: [textContent(`WARNING: Grounding snapshot "${snapshot.snapshotId}" is ${Math.round(snapshotAge / 1000)}s old. Call desktop_observe to get a fresh snapshot before clicking.`)],
-            isError: true,
-          }
-        }
-
-        // Resolve snap
-        const snap = resolveSnapByCandidate(candidateId, snapshot)
-
-        if (snap.source === 'none' && !snap.candidateId) {
-          return {
-            content: [textContent(`ERROR: Candidate "${candidateId}" not found in snapshot "${snapshot.snapshotId}". Available candidates: ${snapshot.targetCandidates.map(c => c.id).join(', ')}`)],
-            isError: true,
-          }
-        }
-
-        // Build pointer intent
-        const intent: PointerIntent = {
-          mode: 'execute',
+      return await executeAction({
+        kind: 'desktop_click_target',
+        input: {
           candidateId,
-          rawPoint: snap.rawPoint,
-          snappedPoint: snap.snappedPoint,
-          source: snap.source,
-          confidence: snapshot.targetCandidates.find(c => c.id === candidateId)?.confidence ?? 0,
-          path: [
-            { x: snap.snappedPoint.x, y: snap.snappedPoint.y, delayMs: 0 },
-          ],
-        }
-
-        // Update RunState — pointer intent + clicked candidate
-        runtime.stateManager.updatePointerIntent(intent, candidateId)
-
-        // Execute the click via the macOS executor
-        await runtime.executor.click({
-          x: snap.snappedPoint.x,
-          y: snap.snappedPoint.y,
-          button: button || 'left',
-          clickCount: clickCount ?? 1,
-          pointerTrace: intent.path,
-        })
-
-        const candidate = snapshot.targetCandidates.find(c => c.id === candidateId)
-        const candidateDesc = candidate ? `${candidate.source} ${candidate.role} "${candidate.label}"` : candidateId
-
-        const lines = [
-          `Clicked: ${candidateDesc}`,
-          `  Snap: ${snap.reason}`,
-          `  Point: (${snap.snappedPoint.x}, ${snap.snappedPoint.y})`,
-          `  Button: ${button || 'left'}, clicks: ${clickCount ?? 1}`,
-        ]
-
-        if (snap.reason.includes('stale')) {
-          lines.push('  ⚠ WARNING: Target source is stale. Consider calling desktop_observe again.')
-        }
-
-        return {
-          content: [textContent(lines.join('\n'))],
-        }
-      }
-      catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        return {
-          content: [textContent(`desktop_click_target failed: ${message}`)],
-          isError: true,
-        }
-      }
+          clickCount,
+          button,
+        },
+      }, 'desktop_click_target')
     },
   })
 }

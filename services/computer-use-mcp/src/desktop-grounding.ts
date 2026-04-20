@@ -25,8 +25,10 @@ import type {
   WindowObservation,
 } from './types'
 
+import { appNamesMatch } from './app-aliases'
 import { captureAXTree } from './accessibility'
 import { captureChromeSemantics, chromeElementsToTargetCandidates } from './chrome-semantic-adapter'
+import { TARGET_SOURCE_PRIORITY } from './desktop-grounding-types'
 import { boundsIoU } from './snap-resolver'
 
 /**
@@ -64,7 +66,6 @@ export async function captureDesktopGrounding(params: {
   cdpBridge?: CdpBridge
 }): Promise<DesktopGroundingSnapshot> {
   const { config, executor, input, extensionBridge, cdpBridge } = params
-  const assemblyStart = Date.now()
 
   // Phase 1: Parallel capture of all observation sources
   const [screenshotResult, windowsResult, axResult] = await Promise.allSettled([
@@ -98,6 +99,7 @@ export async function captureDesktopGrounding(params: {
 
   // Phase 4: Compute staleness
   const now = Date.now()
+  const capturedAt = new Date(now).toISOString()
   const staleFlags = computeStaleness({
     screenshot,
     axSnapshot,
@@ -110,7 +112,7 @@ export async function captureDesktopGrounding(params: {
 
   return {
     snapshotId,
-    capturedAt: new Date(assemblyStart).toISOString(),
+    capturedAt,
     foregroundApp,
     windows: windowObs.windows,
     screenshot,
@@ -173,8 +175,10 @@ export function buildTargetCandidates(params: {
   // Sort: chrome_dom first, then ax, then by confidence desc
   merged.sort((a, b) => {
     if (a.source !== b.source) {
-      const sourceOrder: Record<string, number> = { chrome_dom: 0, ax: 1, vision: 2, raw: 3 }
-      return (sourceOrder[a.source] ?? 3) - (sourceOrder[b.source] ?? 3)
+      const aPriority = TARGET_SOURCE_PRIORITY.indexOf(a.source)
+      const bPriority = TARGET_SOURCE_PRIORITY.indexOf(b.source)
+      return (aPriority === -1 ? TARGET_SOURCE_PRIORITY.length : aPriority)
+        - (bPriority === -1 ? TARGET_SOURCE_PRIORITY.length : bPriority)
     }
     return b.confidence - a.confidence
   })
@@ -320,12 +324,31 @@ function isChromeApp(appName: string): boolean {
 
 function findChromeWindowBounds(
   observation: WindowObservation,
-  _foregroundApp: string,
+  foregroundApp: string,
 ): Bounds | undefined {
-  const chromeWindow = observation.windows.find(w =>
-    w.appName.toLowerCase().includes('chrome') && w.bounds,
+  if (!isChromeApp(foregroundApp))
+    return undefined
+
+  const chromeWindows = observation.windows.filter(window =>
+    window.bounds
+    && window.isOnScreen !== false
+    && isChromeApp(window.appName),
   )
-  return chromeWindow?.bounds
+  if (chromeWindows.length === 0)
+    return undefined
+
+  const foregroundChromeWindows = chromeWindows.filter(window => appNamesMatch(window.appName, foregroundApp))
+  const preferredWindows = foregroundChromeWindows.length > 0 ? foregroundChromeWindows : chromeWindows
+
+  const frontmostTitle = observation.frontmostWindowTitle?.trim()
+  if (frontmostTitle) {
+    const frontmostWindow = preferredWindows.find(window => window.title?.trim() === frontmostTitle)
+    if (frontmostWindow?.bounds) {
+      return frontmostWindow.bounds
+    }
+  }
+
+  return preferredWindows[0]?.bounds
 }
 
 function computeStaleness(params: {

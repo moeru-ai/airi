@@ -201,6 +201,28 @@ describe('createOverlayPollController', () => {
     controller.stop()
   })
 
+  it('clears the per-call timeout when the tool resolves before the timeout fires', async () => {
+    vi.useFakeTimers()
+
+    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
+      .mockResolvedValue({ structuredContent: {} })
+
+    const controller = createOverlayPollController({
+      callTool,
+      onState: () => {},
+      intervalMs: 100,
+      callTimeoutMs: 500,
+    })
+
+    controller.start()
+    await vi.advanceTimersByTimeAsync(0)
+
+    // Only the next poll should remain scheduled. The per-call timeout must be cleared.
+    expect(vi.getTimerCount()).toBe(1)
+
+    controller.stop()
+  })
+
   it('stops polling after stop() is called', async () => {
     vi.useFakeTimers()
 

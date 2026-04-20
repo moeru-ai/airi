@@ -151,6 +151,32 @@ describe('captureChromeSemantics', () => {
     expect(result!.interactiveElements).toHaveLength(1)
   })
 
+  it('unwraps extension frame payloads nested under result.data', async () => {
+    const mockExtension = {
+      getStatus: () => ({ connected: true, enabled: true, host: 'localhost', port: 8080, pendingRequests: 0 }),
+      readAllFramesDom: vi.fn().mockResolvedValue([
+        {
+          frameId: 0,
+          result: {
+            data: {
+              url: 'https://nested.example.com',
+              title: 'Nested Example',
+              interactiveElements: [
+                { tag: 'button', text: 'Nested click', rect: { x: 0, y: 0, w: 50, h: 20 } },
+              ],
+            },
+          },
+        },
+      ]),
+    }
+
+    const result = await captureChromeSemantics(mockExtension as any, undefined)
+    expect(result).not.toBeNull()
+    expect(result!.pageUrl).toBe('https://nested.example.com')
+    expect(result!.pageTitle).toBe('Nested Example')
+    expect(result!.interactiveElements).toHaveLength(1)
+  })
+
   it('falls back to CDP when extension is disconnected', async () => {
     const mockExtension = {
       getStatus: () => ({ connected: false, enabled: true, host: 'localhost', port: 8080, pendingRequests: 0 }),

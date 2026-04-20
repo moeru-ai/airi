@@ -143,6 +143,17 @@ export function chromeElementsToTargetCandidates(
 // Internal helpers
 // ---------------------------------------------------------------------------
 
+function toRecord(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    return undefined
+
+  return value as Record<string, unknown>
+}
+
+function getExtensionFramePayload(result: Record<string, unknown>) {
+  return toRecord(result.data) ?? result
+}
+
 async function captureViaExtension(
   bridge: BrowserDomExtensionBridge,
 ): Promise<ChromeSemanticSnapshot> {
@@ -161,13 +172,14 @@ async function captureViaExtension(
     if (!dom)
       continue
 
+    const payload = getExtensionFramePayload(dom)
+
     if (frame.frameId === 0) {
-      pageUrl = (dom.url as string) || ''
-      pageTitle = (dom.title as string) || ''
+      pageUrl = (payload.url as string) || ''
+      pageTitle = (payload.title as string) || ''
     }
 
-    const rawElements = dom.interactiveElements
-      ?? (dom.data && typeof dom.data === 'object' && (dom.data as Record<string, unknown>).interactiveElements)
+    const rawElements = payload.interactiveElements
     const elements = rawElements as BrowserDomInteractiveElement[] | undefined
     if (elements) {
       allElements.push(...elements)

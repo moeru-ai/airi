@@ -18,6 +18,101 @@
  * setStorage, readCanvasData, injectCSS, executeScript, etc.)
  */
 
+// ---- Bridge connection ----
+
+const BRIDGE_HOST = '127.0.0.1'
+const BRIDGE_PORT = 8765
+const BRIDGE_RECONNECT_DELAY_MS = 1000
+
+let bridgeSocket = null
+let reconnectTimer = null
+let connecting = false
+
+function clearReconnectTimer() {
+  if (reconnectTimer !== null) {
+    clearTimeout(reconnectTimer)
+    reconnectTimer = null
+  }
+}
+
+function scheduleReconnect(delayMs = BRIDGE_RECONNECT_DELAY_MS) {
+  if (reconnectTimer !== null)
+    return
+
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null
+    connectBridge().catch(() => {})
+  }, delayMs)
+}
+
+function sendBridgeMessage(payload) {
+  if (!bridgeSocket || bridgeSocket.readyState !== WebSocket.OPEN)
+    return false
+
+  bridgeSocket.send(JSON.stringify(payload))
+  return true
+}
+
+async function handleBridgeMessage(raw) {
+  let data
+  try {
+    data = JSON.parse(String(raw))
+  }
+  catch {
+    return
+  }
+
+  const response = await handleCommand(data)
+  sendBridgeMessage(response)
+}
+
+async function connectBridge() {
+  if (connecting)
+    return
+  if (bridgeSocket && (bridgeSocket.readyState === WebSocket.OPEN || bridgeSocket.readyState === WebSocket.CONNECTING))
+    return
+
+  connecting = true
+  try {
+    const socket = new WebSocket(`ws://${BRIDGE_HOST}:${BRIDGE_PORT}`)
+    bridgeSocket = socket
+
+    socket.addEventListener('open', () => {
+      connecting = false
+      clearReconnectTimer()
+      sendBridgeMessage({
+        type: 'hello',
+        source: 'airi-desktop-grounding-extension',
+        version: chrome.runtime.getManifest().version,
+      })
+    })
+
+    socket.addEventListener('message', (event) => {
+      void handleBridgeMessage(event.data)
+    })
+
+    socket.addEventListener('close', () => {
+      if (bridgeSocket === socket) {
+        bridgeSocket = null
+      }
+      connecting = false
+      scheduleReconnect()
+    })
+
+    socket.addEventListener('error', () => {
+      connecting = false
+      try {
+        socket.close()
+      }
+      catch {}
+    })
+  }
+  catch {
+    connecting = false
+    scheduleReconnect()
+  }
+}
+
 // ---- Tab / Frame utilities ----
 
 async function getActiveTab() {
@@ -137,7 +232,7 @@ async function handleCommand(cmd) {
         break
 
       default:
-        result = { error: `unknown action: ${action}` }
+        return { id, ok: false, error: `unknown action: ${action}` }
     }
 
     return { id, ok: true, result }
@@ -152,6 +247,8 @@ async function handleCommand(cmd) {
 // or through the existing WebSocket bridge mechanism
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  void connectBridge()
+
   if (msg.type === 'AIRI_DG_COMMAND') {
     handleCommand(msg.data)
       .then(resp => sendResponse(resp))
@@ -174,3 +271,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   return false
 })
+
+chrome.runtime.onStartup.addListener(() => {
+  void connectBridge()
+})
+
+chrome.runtime.onInstalled.addListener(() => {
+  void connectBridge()
+})
+
+void connectBridge()

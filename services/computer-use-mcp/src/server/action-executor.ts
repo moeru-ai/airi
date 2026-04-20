@@ -12,9 +12,11 @@ import type {
 import type { ComputerUseServerRuntime } from './runtime'
 
 import { normalizeConfiguredAppAction } from '../app-aliases'
+import { DESKTOP_CLICK_SNAPSHOT_MAX_AGE_MS, type PointerIntent } from '../desktop-grounding-types'
 import { evaluateActionPolicy } from '../policy'
 import { getRuntimePreflight } from '../preflight'
 import { buildCoordinateSpaceInfo } from '../runtime-probes'
+import { resolveSnapByCandidate } from '../snap-resolver'
 import { evaluateStrategy, summarizeAdvisories } from '../strategy'
 import { buildPointerTrace } from '../trace'
 import {
@@ -113,6 +115,21 @@ function toTerminalStateContent(state: TerminalState) {
     approvalSessionActive: state.approvalSessionActive ?? false,
     approvalGrantedScope: state.approvalGrantedScope,
   }
+}
+
+function isPointWithinAllowedBounds(params: {
+  x: number
+  y: number
+  bounds: ComputerUseConfig['allowedBounds']
+}) {
+  const { bounds, x, y } = params
+  if (!bounds)
+    return true
+
+  return x >= bounds.x
+    && y >= bounds.y
+    && x <= (bounds.x + bounds.width)
+    && y <= (bounds.y + bounds.height)
 }
 
 export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteAction {
@@ -342,6 +359,69 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           runtime.session.setPointerPosition({ x: normalizedAction.input.x, y: normalizedAction.input.y })
           backendResult = {
             ...result,
+            pointerTrace,
+          }
+          break
+        }
+        case 'desktop_click_target': {
+          const state = runtime.stateManager.getState()
+          const snapshot = state.lastGroundingSnapshot
+          if (!snapshot) {
+            throw new Error('No desktop_observe snapshot available. Call desktop_observe first to get a list of target candidates.')
+          }
+
+          if (state.lastClickedCandidateId === normalizedAction.input.candidateId) {
+            throw new Error(`Candidate "${normalizedAction.input.candidateId}" was already clicked. Call desktop_observe again before clicking the same target.`)
+          }
+
+          const snapshotAge = Date.now() - new Date(snapshot.capturedAt).getTime()
+          if (snapshotAge > DESKTOP_CLICK_SNAPSHOT_MAX_AGE_MS) {
+            throw new Error(`Grounding snapshot "${snapshot.snapshotId}" is ${Math.round(snapshotAge / 1000)}s old. Call desktop_observe to get a fresh snapshot before clicking.`)
+          }
+
+          const snap = resolveSnapByCandidate(normalizedAction.input.candidateId, snapshot)
+          if (snap.source === 'none' && !snap.candidateId) {
+            throw new Error(`Candidate "${normalizedAction.input.candidateId}" not found in snapshot "${snapshot.snapshotId}". Available candidates: ${snapshot.targetCandidates.map(c => c.id).join(', ')}`)
+          }
+
+          if (!isPointWithinAllowedBounds({
+            x: snap.snappedPoint.x,
+            y: snap.snappedPoint.y,
+            bounds: runtime.config.allowedBounds,
+          })) {
+            throw new Error(`Snap-resolved point (${snap.snappedPoint.x}, ${snap.snappedPoint.y}) is outside the allowed bounds.`)
+          }
+
+          const pointerTrace = buildPointerTrace({
+            from: runtime.session.getPointerPosition(),
+            to: { x: snap.snappedPoint.x, y: snap.snappedPoint.y },
+            bounds: runtime.config.allowedBounds,
+          })
+          const result = await runtime.executor.click({
+            x: snap.snappedPoint.x,
+            y: snap.snappedPoint.y,
+            button: normalizedAction.input.button ?? 'left',
+            clickCount: normalizedAction.input.clickCount ?? 1,
+            pointerTrace,
+          })
+          runtime.session.setPointerPosition({ x: snap.snappedPoint.x, y: snap.snappedPoint.y })
+
+          const candidate = snapshot.targetCandidates.find(c => c.id === normalizedAction.input.candidateId)
+          const intent: PointerIntent = {
+            mode: 'execute',
+            candidateId: normalizedAction.input.candidateId,
+            rawPoint: snap.rawPoint,
+            snappedPoint: snap.snappedPoint,
+            source: snap.source,
+            confidence: candidate?.confidence ?? 0,
+            path: pointerTrace,
+          }
+          runtime.stateManager.updatePointerIntent(intent, normalizedAction.input.candidateId)
+
+          backendResult = {
+            ...result,
+            candidateId: normalizedAction.input.candidateId,
+            snap,
             pointerTrace,
           }
           break

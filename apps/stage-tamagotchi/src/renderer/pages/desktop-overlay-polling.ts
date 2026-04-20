@@ -154,6 +154,7 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
 
   async function poll() {
     let nextInterval = normalInterval
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
 
     try {
       // NOTICE: Wrap callTool with a timeout to prevent the poll loop from
@@ -162,7 +163,7 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
       const result = await Promise.race([
         config.callTool(MCP_TOOL_NAME),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('callTool timeout')), config.callTimeoutMs ?? DEFAULT_CALL_TIMEOUT),
+          timeoutId = setTimeout(() => reject(new Error('callTool timeout')), config.callTimeoutMs ?? DEFAULT_CALL_TIMEOUT),
         ),
       ])
       const runState = extractRunStateFromResult(result)
@@ -177,6 +178,11 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
     catch {
       // MCP server not running, bridge disconnected, or timeout — graceful degradation
       nextInterval = fallbackInterval
+    }
+    finally {
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId)
+      }
     }
 
     if (running) {

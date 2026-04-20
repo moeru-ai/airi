@@ -25,7 +25,7 @@ import { pointInOverlay, rectIntersectsOverlay, screenRectToLocal, screenToLocal
 import { createEmptyOverlayState, createOverlayPollController } from './desktop-overlay-polling'
 
 // ---------------------------------------------------------------------------
-// Overlay window bounds — read once on mount from main process
+// Overlay window bounds
 // ---------------------------------------------------------------------------
 
 const getWindowBounds = useElectronEventaInvoke(electron.window.getBounds)
@@ -135,14 +135,11 @@ const targetBoxStyle = computed(() => {
 // Lifecycle
 // ---------------------------------------------------------------------------
 
-onMounted(async () => {
-  // Read overlay window bounds from main process (one-time)
+async function syncOverlayBounds() {
   try {
-    const bounds = await getWindowBounds()
-    overlayBounds.value = bounds
+    overlayBounds.value = await getWindowBounds()
   }
   catch {
-    // Fallback: assume bounds start at (0,0) with window inner size
     overlayBounds.value = {
       x: 0,
       y: 0,
@@ -150,11 +147,20 @@ onMounted(async () => {
       height: window.innerHeight,
     }
   }
+}
 
+function handleResize() {
+  void syncOverlayBounds()
+}
+
+onMounted(async () => {
+  await syncOverlayBounds()
+  window.addEventListener('resize', handleResize)
   controller.start()
 })
 
 onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
   controller.stop()
 })
 </script>
