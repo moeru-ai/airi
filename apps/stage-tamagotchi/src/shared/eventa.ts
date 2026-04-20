@@ -53,10 +53,12 @@ export const electronSetUpdaterPreferences = defineInvokeEventa<ElectronUpdaterP
 
 export const electronPluginList = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:list')
 export const electronPluginSetEnabled = defineInvokeEventa<PluginRegistrySnapshot, { name: string, enabled: boolean, path?: string }>('eventa:invoke:electron:plugins:set-enabled')
+export const electronPluginSetAutoReload = defineInvokeEventa<PluginRegistrySnapshot, { name: string, enabled: boolean }>('eventa:invoke:electron:plugins:set-auto-reload')
 export const electronPluginLoadEnabled = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:load-enabled')
 export const electronPluginLoad = defineInvokeEventa<PluginRegistrySnapshot, { name: string }>('eventa:invoke:electron:plugins:load')
 export const electronPluginUnload = defineInvokeEventa<PluginRegistrySnapshot, { name: string }>('eventa:invoke:electron:plugins:unload')
 export const electronPluginInspect = defineInvokeEventa<PluginHostDebugSnapshot>('eventa:invoke:electron:plugins:inspect')
+export const electronPluginGetAssetBaseUrl = defineInvokeEventa<string>('eventa:invoke:electron:plugins:asset-base-url')
 export const electronPluginUpdateCapability = defineInvokeEventa<PluginCapabilityState, PluginCapabilityPayload>('eventa:invoke:electron:plugins:capability:update')
 
 export const pluginProtocolListProvidersEventName = 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers'
@@ -95,12 +97,31 @@ export function createRequestWindowEventa(namespace: string) {
 export const noticeWindowEventa = createRequestWindowEventa('notice')
 
 // Widgets / Adhoc window events
+export interface WidgetWindowSize {
+  width: number
+  height: number
+  minWidth?: number
+  minHeight?: number
+  maxWidth?: number
+  maxHeight?: number
+}
+
+export interface PluginModuleWidgetPayload {
+  moduleId: string
+  title?: string
+  widgetComponent?: string
+  componentProps?: Record<string, any>
+  payload?: Record<string, any>
+  windowSize?: WidgetWindowSize
+}
+
 export interface WidgetsAddPayload {
   id?: string
   componentName: string
   componentProps?: Record<string, any>
   // size presets or explicit spans; renderer decides mapping
   size?: 's' | 'm' | 'l' | { cols?: number, rows?: number }
+  windowSize?: WidgetWindowSize
   // auto-dismiss in ms; if omitted, persistent until closed by user
   ttlMs?: number
 }
@@ -110,7 +131,16 @@ export interface WidgetSnapshot {
   componentName: string
   componentProps: Record<string, any>
   size: 's' | 'm' | 'l' | { cols?: number, rows?: number }
+  windowSize?: WidgetWindowSize
   ttlMs: number
+}
+
+export interface WidgetsUpdatePayload {
+  id: string
+  componentProps?: Record<string, any>
+  size?: 's' | 'm' | 'l' | { cols?: number, rows?: number }
+  windowSize?: WidgetWindowSize
+  ttlMs?: number
 }
 
 export interface PluginManifestSummary {
@@ -118,6 +148,7 @@ export interface PluginManifestSummary {
   entrypoints: Record<string, string | undefined>
   path: string
   enabled: boolean
+  autoReload: boolean
   loaded: boolean
   isNew: boolean
 }
@@ -151,11 +182,55 @@ export interface PluginHostSessionSummary {
   moduleId: string
 }
 
+export interface PluginHostKitCapabilitySummary {
+  key: string
+  actions: string[]
+}
+
+export interface PluginHostKitSummary {
+  kitId: string
+  version: string
+  capabilities: PluginHostKitCapabilitySummary[]
+  runtimes: Array<'electron' | 'node' | 'web'>
+}
+
+export interface PluginHostModuleSummary {
+  moduleId: string
+  ownerSessionId: string
+  ownerPluginId: string
+  kitId: string
+  kitModuleType: string
+  state: 'announced' | 'active' | 'degraded' | 'withdrawn'
+  runtime: 'electron' | 'node' | 'web'
+  revision: number
+  updatedAt: number
+  config: Record<string, unknown>
+}
+
 export interface PluginHostDebugSnapshot {
   registry: PluginRegistrySnapshot
   sessions: PluginHostSessionSummary[]
+  kits: PluginHostKitSummary[]
+  modules: PluginHostModuleSummary[]
   capabilities: PluginCapabilityState[]
   refreshedAt: number
+}
+
+export interface ElectronPluginToolDescriptor {
+  id: string
+  title: string
+  description: string
+  activation: {
+    keywords: string[]
+    patterns: string[]
+  }
+}
+
+export interface ElectronPluginXsaiToolDefinition {
+  ownerPluginId: string
+  name: string
+  description: string
+  parameters: Record<string, unknown>
 }
 
 export interface ElectronMcpStdioServerConfig {
@@ -217,12 +292,19 @@ export const electronMcpApplyAndRestart = defineInvokeEventa<ElectronMcpStdioApp
 export const electronMcpGetRuntimeStatus = defineInvokeEventa<ElectronMcpStdioRuntimeStatus>('eventa:invoke:electron:mcp:get-runtime-status')
 export const electronMcpListTools = defineInvokeEventa<ElectronMcpToolDescriptor[]>('eventa:invoke:electron:mcp:list-tools')
 export const electronMcpCallTool = defineInvokeEventa<ElectronMcpCallToolResult, ElectronMcpCallToolPayload>('eventa:invoke:electron:mcp:call-tool')
+export const electronPluginListAgentTools = defineInvokeEventa<ElectronPluginToolDescriptor[]>('eventa:invoke:electron:plugins:tools:list')
+export const electronPluginListXsaiTools = defineInvokeEventa<ElectronPluginXsaiToolDefinition[]>('eventa:invoke:electron:plugins:tools:list-xsai')
+export const electronPluginInvokeTool = defineInvokeEventa<unknown, {
+  ownerPluginId: string
+  name: string
+  input: unknown
+}>('eventa:invoke:electron:plugins:tools:invoke')
 
 export const widgetsOpenWindow = defineInvokeEventa<void, { id?: string }>('eventa:invoke:electron:windows:widgets:open')
 export const widgetsAdd = defineInvokeEventa<string | undefined, WidgetsAddPayload>('eventa:invoke:electron:windows:widgets:add')
 export const widgetsRemove = defineInvokeEventa<void, { id: string }>('eventa:invoke:electron:windows:widgets:remove')
 export const widgetsClear = defineInvokeEventa('eventa:invoke:electron:windows:widgets:clear')
-export const widgetsUpdate = defineInvokeEventa<void, { id: string, componentProps?: Record<string, any> }>('eventa:invoke:electron:windows:widgets:update')
+export const widgetsUpdate = defineInvokeEventa<void, WidgetsUpdatePayload>('eventa:invoke:electron:windows:widgets:update')
 export const widgetsFetch = defineInvokeEventa<WidgetSnapshot | void, { id: string }>('eventa:invoke:electron:windows:widgets:fetch')
 export const widgetsPrepareWindow = defineInvokeEventa<string | undefined, { id?: string }>('eventa:invoke:electron:windows:widgets:prepare')
 
@@ -278,7 +360,7 @@ export const stageThreeRuntimeTraceRemoteDisableEvent = defineEventa<StageThreeR
 export const widgetsRenderEvent = defineEventa<WidgetSnapshot>('eventa:event:electron:windows:widgets:render')
 export const widgetsRemoveEvent = defineEventa<{ id: string }>('eventa:event:electron:windows:widgets:remove')
 export const widgetsClearEvent = defineEventa('eventa:event:electron:windows:widgets:clear')
-export const widgetsUpdateEvent = defineEventa<{ id: string, componentProps?: Record<string, any> }>('eventa:event:electron:windows:widgets:update')
+export const widgetsUpdateEvent = defineEventa<WidgetsUpdatePayload>('eventa:event:electron:windows:widgets:update')
 
 // Onboarding window events
 export const electronOnboardingClose = defineInvokeEventa('eventa:invoke:electron:windows:onboarding:close')
