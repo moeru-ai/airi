@@ -3,6 +3,7 @@ import { Screen } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 
+import Inputs from '../ViewControls/Inputs.vue'
 import Live2DCanvas from './live2d/Canvas.vue'
 import Live2DModel from './live2d/Model.vue'
 
@@ -52,7 +53,7 @@ const componentStateModel = defineModel<'pending' | 'loading' | 'mounted'>('mode
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 
 const live2d = useLive2d()
-const { position } = storeToRefs(live2d)
+const { position, viewControlMode } = storeToRefs(live2d)
 
 watch([componentStateModel, componentStateCanvas], () => {
   componentState.value = (componentStateModel.value === 'mounted' && componentStateCanvas.value === 'mounted')
@@ -69,6 +70,9 @@ defineExpose({
 
 <template>
   <Screen v-slot="{ width, height }" relative>
+    <div top="50%" translate-y="[-50%]" fixed z-15 px-3>
+      <Inputs :mode="viewControlMode" />
+    </div>
     <Live2DCanvas
       ref="live2dCanvasRef"
       v-slot="{ app }"

@@ -1,40 +1,49 @@
 <script lang="ts" setup>
+import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { Button } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
+import { computed, ref } from 'vue'
 
 const emits = defineEmits<{
   (e: 'reset'): void
 }>()
 
-const { stageModelRenderer, stageViewControlsEnabled } = storeToRefs(useSettings())
+const { stageModelRenderer, stageViewControlsEnabled: vrmViewCtrlEnabled } = storeToRefs(useSettings())
+const { viewControlsEnabled: l2dViewCtrlEnabled, viewControlMode: l2dViewCtrlMode, supportedControl: l2dSupportedCtrl } = storeToRefs(useLive2d())
+const controlEnabled = computed(() => {
+  if (stageModelRenderer.value === 'live2d')
+    return { enabled: l2dViewCtrlEnabled, mode: l2dViewCtrlMode, supported: l2dSupportedCtrl }
+  if (stageModelRenderer.value === 'vrm')
+    return { enabled: vrmViewCtrlEnabled, mode: ref('scale'), supported: ref(['scale']) }
+  return null
+})
 
-const mode = defineModel<'x' | 'y' | 'z' | 'scale'>({ required: true })
-
-function handleViewControlsToggle(targetMode: 'x' | 'y' | 'z' | 'scale') {
-  if (mode.value === targetMode) {
+function handleViewControlsToggle(targetMode: string) {
+  if (!controlEnabled.value || !controlEnabled.value.supported.value.includes(targetMode as any))
+    return
+  if (controlEnabled.value.mode.value === targetMode) {
     emits('reset')
     return
   }
-
-  mode.value = targetMode
+  controlEnabled.value.mode.value = targetMode
 }
 </script>
 
 <template>
   <div w-full flex flex-1 items-center self-end justify-end gap-2>
     <Transition name="fade">
-      <div v-if="stageViewControlsEnabled" w-full flex justify-between gap-2>
-        <Button variant="secondary-muted" :toggled="mode === 'x'" w-full @click="handleViewControlsToggle('x')">
+      <div v-if="controlEnabled" w-full flex justify-between gap-2>
+        <Button variant="secondary-muted" :toggled="controlEnabled.mode.value === 'x'" w-full @click="handleViewControlsToggle('x')">
           X
         </Button>
-        <Button variant="secondary-muted" :toggled="mode === 'y'" w-full @click="handleViewControlsToggle('y')">
+        <Button variant="secondary-muted" :toggled="controlEnabled.mode.value === 'y'" w-full @click="handleViewControlsToggle('y')">
           Y
         </Button>
-        <Button v-if="stageModelRenderer === 'vrm'" variant="secondary-muted" :toggled="mode === 'z'" w-full @click="handleViewControlsToggle('z')">
+        <Button v-if="controlEnabled.supported.value.includes('y')" variant="secondary-muted" :toggled="controlEnabled.mode.value === 'z'" w-full @click="handleViewControlsToggle('z')">
           Z
         </Button>
-        <Button variant="secondary-muted" :toggled="mode === 'scale'" w-full @click="handleViewControlsToggle('scale')">
+        <Button variant="secondary-muted" :toggled="controlEnabled.mode.value === 'scale'" w-full @click="handleViewControlsToggle('scale')">
           Scale
         </Button>
       </div>
@@ -45,11 +54,11 @@ function handleViewControlsToggle(targetMode: 'x' | 'y' | 'z' | 'scale') {
       bg="neutral-50/70 dark:neutral-800/70"
       title="View"
       text="neutral-500 dark:neutral-400"
-      @click="stageViewControlsEnabled = !stageViewControlsEnabled"
+      @click="controlEnabled && (controlEnabled.enabled.value = !controlEnabled.enabled.value)"
     >
       <Transition name="fade" mode="out-in">
-        <div v-if="!stageViewControlsEnabled" i-solar:tuning-outline size-5 />
-        <div v-else i-solar:alt-arrow-right-outline size-5 />
+        <div v-if="controlEnabled?.enabled.value" i-solar:alt-arrow-right-outline size-5 />
+        <div v-else i-solar:tuning-outline size-5 />
       </Transition>
     </button>
   </div>

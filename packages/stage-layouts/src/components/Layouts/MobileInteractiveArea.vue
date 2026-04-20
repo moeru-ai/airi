@@ -2,6 +2,8 @@
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
+import type ViewControlInputs from './ViewControls/Inputs.vue'
+
 import { ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
@@ -9,6 +11,7 @@ import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
+import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -22,7 +25,6 @@ import { RouterLink } from 'vue-router'
 import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
 import ActionAbout from './InteractiveArea/Actions/About.vue'
 import ActionViewControls from './InteractiveArea/Actions/ViewControls.vue'
-import ViewControlInputs from './ViewControls/Inputs.vue'
 
 import { BackgroundDialogPicker } from '../Backgrounds'
 
@@ -54,6 +56,7 @@ const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
 const { themeColorsHueDynamic, stageViewControlsEnabled } = storeToRefs(useSettings())
+const { viewControlsEnabled: l2dViewCtrlEnabled } = storeToRefs(useLive2d())
 const settingsAudioDevice = useSettingsAudioDevice()
 const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(settingsAudioDevice)
 const { ingest, onAfterMessageComposed } = chatOrchestrator
@@ -149,7 +152,7 @@ onMounted(() => {
     <KeepAlive>
       <Transition name="fade">
         <ChatHistory
-          v-if="!stageViewControlsEnabled"
+          v-if="!stageViewControlsEnabled && !l2dViewCtrlEnabled"
           variant="mobile"
           :messages="historyMessages"
           :sending="sending"
@@ -165,9 +168,6 @@ onMounted(() => {
       </Transition>
     </KeepAlive>
     <div relative w-full self-end>
-      <div top="50%" translate-y="[-50%]" fixed z-15 px-3>
-        <ViewControlInputs ref="viewControlsInputs" :mode="viewControlsActiveMode" />
-      </div>
       <div translate-y="[-100%]" absolute left-0 px-3 pb-3 font-sans>
         <div flex="~ col" gap-1>
           <slot name="status" />

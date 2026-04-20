@@ -5,6 +5,8 @@ import { computed, ref, watch } from 'vue'
 
 type BroadcastChannelEvents
   = | BroadcastChannelEventShouldUpdateView
+const supportedControl = ['x', 'y', 'scale'] as const
+type SupportedControl = typeof supportedControl[number]
 
 interface BroadcastChannelEventShouldUpdateView {
   type: 'live2d-should-update-view'
@@ -66,6 +68,8 @@ export const useLive2d = defineStore('live2d', () => {
   const availableMotions = useLocalStorageManualReset<{ motionName: string, motionIndex: number, fileName: string }[]>('settings/live2d/available-motions', () => [])
   const motionMap = useLocalStorageManualReset<Record<string, string>>('settings/live2d/motion-map', {})
   const scale = useLocalStorageManualReset('settings/live2d/scale', 1)
+  const viewControlsEnabled = ref(false)
+  const viewControlMode = ref<SupportedControl>('scale')
 
   // Live2D model parameters
   const modelParameters = useLocalStorageManualReset<Record<string, number>>('settings/live2d/parameters', defaultModelParameters)
@@ -87,6 +91,9 @@ export const useLive2d = defineStore('live2d', () => {
     availableMotions,
     motionMap,
     scale,
+    viewControlsEnabled,
+    viewControlMode,
+    supportedControl,
     modelParameters,
 
     onShouldUpdateView,

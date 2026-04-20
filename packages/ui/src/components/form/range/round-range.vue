@@ -66,21 +66,23 @@ function handleInput(e: Event) {
 /*generated with Input range slider CSS style generator (version 20211225)
 https://toughengineer.github.io/demo/slider-styler*/
 .form_input-round-range {
-  --height: 2em;
+  --height: 50vh;
+  --width: 2rem;
 
   min-height: var(--height);
   appearance: none;
   background: transparent;
   transition: background-color 0.2s ease;
 
-  --thumb-width: var(--height);
-  --thumb-height: var(--height);
+  --thumb-width: var(--width);
+  --thumb-height: var(--width);
   --thumb-box-shadow: none;
   --thumb-border: none;
   --thumb-border-radius: 0px;
   --thumb-background: transparent;
 
   --track-height: calc(var(--height) - var(--track-value-padding) * 2);
+  --track-width: var(--width);
   --track-box-shadow: 0 0 12px -2px rgb(0 0 0 / 22%);
   --track-border: none;
   --track-border-radius: 16px;
@@ -88,10 +90,6 @@ https://toughengineer.github.io/demo/slider-styler*/
 
   --track-value-background: rgb(255, 255, 255);
   --track-value-padding: 0px;
-}
-
-[data-direction="vertical"].form_input-round-range {
-  transform: rotate(180deg);
 }
 
 .dark .form_input-round-range {
@@ -102,6 +100,10 @@ https://toughengineer.github.io/demo/slider-styler*/
   --track-box-shadow: 0 0 12px -2px rgb(0 0 0 / 22%);
 
   --track-value-background: rgb(238, 238, 238);
+}
+
+[data-direction="vertical"].form_input-round-range {
+  transform: rotate(180deg);
 }
 
 /*progress support*/
@@ -152,6 +154,9 @@ https://toughengineer.github.io/demo/slider-styler*/
 [data-direction="vertical"]::-webkit-slider-thumb {
   cursor: ns-resize;
 }
+[data-direction="horizontal"]::-webkit-slider-thumb {
+  cursor: ew-resize;
+}
 
 .form_input-round-range::-webkit-slider-runnable-track {
   height: var(--track-height);
@@ -171,6 +176,9 @@ https://toughengineer.github.io/demo/slider-styler*/
 [data-direction="vertical"]::-webkit-slider-runnable-track {
   cursor: ns-resize;
 }
+[data-direction="vertical"]::-webkit-slider-runnable-track {
+  cursor: ew-resize;
+}
 
 .form_input-round-range.slider-progress::-webkit-slider-runnable-track {
   background:
@@ -179,6 +187,9 @@ https://toughengineer.github.io/demo/slider-styler*/
 }
 
 [data-direction="vertical"].form_input-round-range.slider-progress::-webkit-slider-runnable-track {
+  background: linear-gradient(var(--track-value-background) var(--sx), var(--track-background) var(--sx)) no-repeat;
+}
+[data-direction="horizontal"].form_input-round-range.slider-progress::-webkit-slider-runnable-track {
   background: linear-gradient(var(--track-value-background) var(--sx), var(--track-background) var(--sx)) no-repeat;
 }
 

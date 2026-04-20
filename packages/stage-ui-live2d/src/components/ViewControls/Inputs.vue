@@ -1,0 +1,83 @@
+<script setup lang="ts">
+import { RoundRange } from '@proj-airi/ui'
+import { storeToRefs } from 'pinia'
+
+import { useLive2d } from '../../stores'
+
+const props = defineProps<{
+  mode: 'x' | 'y' | 'scale'
+}>()
+
+const { scale, position, viewControlsEnabled } = storeToRefs(useLive2d())
+
+const xMin = -1000
+const xMax = 1000
+const yMin = -1000
+const yMax = 1000
+
+function resetOnMode() {
+  switch (props.mode) {
+    case 'x':
+      position.value.x = 0
+      break
+    case 'y':
+      position.value.y = 0
+      break
+    case 'scale':
+      scale.value = 1
+      break
+  }
+}
+
+defineExpose({
+  resetOnMode,
+})
+</script>
+
+<template>
+  <Transition name="fade-side-pops-in">
+    <div v-if="viewControlsEnabled">
+      <Transition name="fade-side-pops-in" mode="out-in">
+        <div v-if="props.mode !== 'scale'">
+          <div relative class="[&_.round-range-tooltip]:hover:opacity-100">
+            <RoundRange v-model="position.x" :min="xMin" :max="xMax" :step="0.01" data-direction="horizontal" h="50%" write-horizontal-left />
+            <div class="round-range-tooltip" top="50%" translate-y="[-50%]" absolute left-10 font-mono op-0 transition="all duration-200 ease-in-out">
+              {{ position.x.toFixed(2) }}
+            </div>
+          </div>
+          <div relative class="[&_.round-range-tooltip]:hover:opacity-100">
+            <RoundRange v-model="position.y" :min="yMin" :max="yMax" :step="0.01" write-vertical-bottom h="90%" w="50%" data-direction="vertical" />
+            <div class="round-range-tooltip" top="50%" translate-y="[-50%]" absolute left-10 font-mono op-0 transition="all duration-200 ease-in-out">
+              {{ position.y.toFixed(2) }}
+            </div>
+          </div>
+        </div>
+        <div v-else relative class="[&_.round-range-tooltip]:hover:opacity-100">
+          <RoundRange v-model="scale" :min="0" :max="3" :step="0.0001" write-vertical-left h="50%" data-direction="vertical" />
+          <div class="round-range-tooltip" top="50%" translate-y="[-50%]" absolute left-10 font-mono op-0 transition="all duration-200 ease-in-out">
+            {{ scale.toFixed(2) }}
+          </div>
+        </div>
+      </Transition>
+    </div>
+  </Transition>
+</template>
+
+<style scoped>
+.fade-side-pops-in-enter-active,
+.fade-side-pops-in-leave-active {
+  transition: all 0.2s ease-in-out;
+}
+
+.fade-side-pops-in-enter-from,
+.fade-side-pops-in-leave-to {
+  opacity: 0;
+  transform: translateX(-100%) scale(0.8);
+}
+
+.fade-side-pops-in-enter-to,
+.fade-side-pops-in-leave-from {
+  opacity: 1;
+  transform: translateX(0) scale(1);
+}
+</style>
