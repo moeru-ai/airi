@@ -2,8 +2,6 @@
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
-import type ViewControlInputs from './ViewControls/Inputs.vue'
-
 import { ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
@@ -18,13 +16,13 @@ import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/
 import { BasicTextarea, useTheme } from '@proj-airi/ui'
 import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
+import ViewControls from '../Layouts/InteractiveArea/Actions/ViewControls.vue'
 import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
 import ActionAbout from './InteractiveArea/Actions/About.vue'
-import ActionViewControls from './InteractiveArea/Actions/ViewControls.vue'
 
 import { BackgroundDialogPicker } from '../Backgrounds'
 
@@ -42,9 +40,6 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
 function handleDeleteMessage(index: number) {
   messages.value = messages.value.filter((_, messageIndex) => messageIndex !== index)
 }
-
-const viewControlsActiveMode = ref<'x' | 'y' | 'z' | 'scale'>('scale')
-const viewControlsInputsRef = useTemplateRef<InstanceType<typeof ViewControlInputs>>('viewControlsInputs')
 
 const messageInput = ref('')
 const isComposing = ref(false)
@@ -223,7 +218,7 @@ onMounted(() => {
           >
             <div class="i-solar:trash-bin-2-bold-duotone" />
           </button>
-          <ActionViewControls v-model="viewControlsActiveMode" @reset="() => viewControlsInputsRef?.resetOnMode()" />
+          <ViewControls />
         </div>
       </div>
       <div bg="white dark:neutral-800" max-h-100dvh max-w-100dvw w-full flex gap-1 overflow-auto px-3 pt-2 :style="{ paddingBottom: `${Math.max(Number.parseFloat(screenSafeArea.bottom.value.replace('px', '')), 12)}px` }">
