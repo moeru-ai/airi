@@ -17,8 +17,8 @@ import type {
   DesktopTargetCandidate,
 } from './desktop-grounding-types'
 import type {
-  BrowserDomFrameDom,
   Bounds,
+  BrowserDomFrameDom,
   BrowserDomInteractiveElement,
 } from './types'
 
