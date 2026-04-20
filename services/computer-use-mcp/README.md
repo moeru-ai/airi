@@ -271,6 +271,11 @@ For browser DOM automation, `computer-use-mcp` also exposes a local WebSocket br
 2. the unpacked browser extension background service worker connects to that socket
 3. AIRI can then call `browser_dom_*` MCP tools against the active browser tab
 
+If you override `COMPUTER_USE_BROWSER_DOM_BRIDGE_HOST` or
+`COMPUTER_USE_BROWSER_DOM_BRIDGE_PORT`, mirror the same endpoint in the Chrome
+extension via `chrome.storage.local.set({ browserDomBridgeHost, browserDomBridgePort })`
+so the background worker reconnects to the correct socket.
+
 Use the two surfaces differently:
 
 - `desktop_*` for AIRI itself, native macOS apps, Electron windows, Finder, Terminal, VS Code

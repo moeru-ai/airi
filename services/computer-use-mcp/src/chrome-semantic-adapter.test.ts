@@ -177,6 +177,80 @@ describe('captureChromeSemantics', () => {
     expect(result!.interactiveElements).toHaveLength(1)
   })
 
+  it('applies iframe offsets before returning extension frame elements', async () => {
+    const mockExtension = {
+      getStatus: () => ({ connected: true, enabled: true, host: 'localhost', port: 8080, pendingRequests: 0 }),
+      getAllFrames: vi.fn().mockResolvedValue([
+        { frameId: 0, parentFrameId: -1 },
+        { frameId: 7, parentFrameId: 0 },
+      ]),
+      readAllFramesDom: vi.fn().mockResolvedValue([
+        {
+          frameId: 0,
+          result: {
+            url: 'https://example.com',
+            title: 'Example',
+            interactiveElements: [],
+          },
+        },
+        {
+          frameId: 7,
+          result: {
+            frameRect: { x: 120, y: 80, w: 640, h: 480 },
+            interactiveElements: [
+              { tag: 'button', text: 'Iframe CTA', rect: { x: 10, y: 20, w: 50, h: 20 } },
+            ],
+          },
+        },
+      ]),
+    }
+
+    const result = await captureChromeSemantics(mockExtension as any, undefined)
+    expect(result).not.toBeNull()
+    expect(result!.interactiveElements).toHaveLength(1)
+    expect(result!.interactiveElements[0].rect).toEqual({
+      x: 130,
+      y: 100,
+      w: 50,
+      h: 20,
+    })
+  })
+
+  it('skips subframe elements when iframe offsets are unavailable', async () => {
+    const mockExtension = {
+      getStatus: () => ({ connected: true, enabled: true, host: 'localhost', port: 8080, pendingRequests: 0 }),
+      getAllFrames: vi.fn().mockResolvedValue([
+        { frameId: 0, parentFrameId: -1 },
+        { frameId: 9, parentFrameId: 0 },
+      ]),
+      readAllFramesDom: vi.fn().mockResolvedValue([
+        {
+          frameId: 0,
+          result: {
+            url: 'https://example.com',
+            title: 'Example',
+            interactiveElements: [
+              { tag: 'button', text: 'Root CTA', rect: { x: 0, y: 0, w: 20, h: 20 } },
+            ],
+          },
+        },
+        {
+          frameId: 9,
+          result: {
+            interactiveElements: [
+              { tag: 'button', text: 'Iframe CTA', rect: { x: 10, y: 20, w: 50, h: 20 } },
+            ],
+          },
+        },
+      ]),
+    }
+
+    const result = await captureChromeSemantics(mockExtension as any, undefined)
+    expect(result).not.toBeNull()
+    expect(result!.interactiveElements).toHaveLength(1)
+    expect(result!.interactiveElements[0].text).toBe('Root CTA')
+  })
+
   it('falls back to CDP when extension is disconnected', async () => {
     const mockExtension = {
       getStatus: () => ({ connected: false, enabled: true, host: 'localhost', port: 8080, pendingRequests: 0 }),

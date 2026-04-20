@@ -516,6 +516,12 @@ export interface BrowserDomFrameDom {
   url?: string
   title?: string
   bodyText?: string
+  frameRect?: {
+    x: number
+    y: number
+    w: number
+    h: number
+  }
   interactiveElements?: BrowserDomInteractiveElement[]
 }
 

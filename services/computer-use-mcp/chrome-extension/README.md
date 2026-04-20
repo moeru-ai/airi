@@ -35,6 +35,23 @@ content.js (MAIN world, window.__AIRI_DG__)
 4. Select this `chrome-extension/` directory
 5. The extension will auto-inject into all pages
 
+## Bridge endpoint override
+
+By default the background worker connects to `ws://127.0.0.1:8765`.
+
+If `computer-use-mcp` is running with a non-default
+`COMPUTER_USE_BROWSER_DOM_BRIDGE_HOST` or `COMPUTER_USE_BROWSER_DOM_BRIDGE_PORT`,
+override the extension endpoint through `chrome.storage.local`:
+
+```js
+await chrome.storage.local.set({
+  browserDomBridgeHost: '127.0.0.1',
+  browserDomBridgePort: 8876,
+})
+```
+
+The service worker watches these keys and reconnects automatically.
+
 ## Supported commands
 
 | Command | Description |
