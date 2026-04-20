@@ -77,9 +77,10 @@ onClickOutside(dropdownRef, () => {
         />
       </button>
 
+      <!-- NOTICE: Transition removed — v-show keeps the panel in the DOM; v-if mount timing broke the menu on Capacitor/WKWebView. -->
       <div
-        v-if="showDropdown"
-        class="absolute right-0 top-full z-50 mt-2 w-60 origin-top-right border border-neutral-200/60 rounded-xl bg-white/90 p-1 shadow-xl backdrop-blur-xl divide-y divide-neutral-100 dark:border-neutral-800/60 dark:bg-neutral-900/90 dark:divide-neutral-800"
+        v-show="showDropdown"
+        class="absolute right-0 top-full z-50 mt-2 w-60 border border-neutral-200/60 rounded-xl bg-white/90 p-1 shadow-xl backdrop-blur-xl divide-y divide-neutral-100 dark:border-neutral-800/60 dark:bg-neutral-900/90 dark:divide-neutral-800"
       >
         <div class="px-3 py-2">
           <p class="text-xs text-neutral-500 dark:text-neutral-400">
@@ -116,6 +117,7 @@ onClickOutside(dropdownRef, () => {
 
         <div class="py-1">
           <button
+            type="button"
             class="group w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
             @click="signOut"
           >
