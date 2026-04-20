@@ -1,5 +1,6 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
+import type { PointerIntent } from '../desktop-grounding-types'
 import type {
   ActionInvocation,
   ComputerUseConfig,
@@ -12,7 +13,7 @@ import type {
 import type { ComputerUseServerRuntime } from './runtime'
 
 import { normalizeConfiguredAppAction } from '../app-aliases'
-import { DESKTOP_CLICK_SNAPSHOT_MAX_AGE_MS, type PointerIntent } from '../desktop-grounding-types'
+import { DESKTOP_CLICK_SNAPSHOT_MAX_AGE_MS } from '../desktop-grounding-types'
 import { evaluateActionPolicy } from '../policy'
 import { getRuntimePreflight } from '../preflight'
 import { buildCoordinateSpaceInfo } from '../runtime-probes'

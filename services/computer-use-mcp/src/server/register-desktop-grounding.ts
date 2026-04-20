@@ -14,8 +14,8 @@
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 
-import type { ComputerUseServerRuntime } from './runtime'
 import type { ExecuteAction } from './action-executor'
+import type { ComputerUseServerRuntime } from './runtime'
 
 import process from 'node:process'
 

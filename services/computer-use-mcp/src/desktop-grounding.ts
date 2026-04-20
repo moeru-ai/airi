@@ -25,8 +25,8 @@ import type {
   WindowObservation,
 } from './types'
 
-import { appNamesMatch } from './app-aliases'
 import { captureAXTree } from './accessibility'
+import { appNamesMatch } from './app-aliases'
 import { captureChromeSemantics, chromeElementsToTargetCandidates } from './chrome-semantic-adapter'
 import { TARGET_SOURCE_PRIORITY } from './desktop-grounding-types'
 import { boundsIoU } from './snap-resolver'
