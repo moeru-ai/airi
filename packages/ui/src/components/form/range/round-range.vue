@@ -93,8 +93,6 @@ https://toughengineer.github.io/demo/slider-styler*/
 }
 
 .dark .form_input-round-range {
-  --thumb-background: rgb(238, 238, 238);
-
   --track-border: none;
   --track-background: rgba(64, 64, 64, 0.7);
   --track-box-shadow: 0 0 12px -2px rgb(0 0 0 / 22%);
