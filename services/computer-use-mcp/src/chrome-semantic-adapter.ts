@@ -288,7 +288,6 @@ async function captureViaExtension(
       pageUrl = (payload.url as string) || ''
       pageTitle = (payload.title as string) || ''
     }
-
   }
 
   for (const frame of frames) {
