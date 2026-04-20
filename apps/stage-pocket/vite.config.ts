@@ -22,7 +22,19 @@ import VueRouter from 'vue-router/vite'
 import { tryCatch } from '@moeru/std'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
+
+function resolveDevApiProxyTarget(): string {
+  if (process.env.VITE_DEV_API_PROXY_TARGET)
+    return process.env.VITE_DEV_API_PROXY_TARGET
+  const loaded = loadEnv('development', import.meta.dirname, '')
+  if (loaded.VITE_SERVER_URL?.trim())
+    return loaded.VITE_SERVER_URL.trim()
+  return 'https://api.airi.build'
+}
+
+const devApiProxyTarget = resolveDevApiProxyTarget()
+const devApiProxySecure = devApiProxyTarget.startsWith('https:')
 
 // import { isEnvTruthy } from '@proj-airi/stage-shared'
 function isEnvTruthy(value: string | undefined | null): boolean {
@@ -76,6 +88,13 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5273,
+    proxy: {
+      '/api': {
+        target: devApiProxyTarget,
+        changeOrigin: true,
+        secure: devApiProxySecure,
+      },
+    },
     fs: {
       // To mute errors like:
       //   The request id ".../node_modules/@fontsource/sniglet/files/sniglet-latin-400-normal.woff" is outside of Vite serving allow list.
