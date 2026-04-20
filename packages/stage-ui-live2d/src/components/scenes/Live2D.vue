@@ -92,7 +92,7 @@ defineExpose({
         :paused="paused"
         :focus-at="focusAt"
         :x-offset="position.x"
-        :y-offset="position.y"
+        :y-offset="-position.y"
         :scale="scale"
         :disable-focus-at="disableFocusAt"
         :theme-colors-hue="themeColorsHue"
