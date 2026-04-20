@@ -12,10 +12,10 @@
  * read the latest grounding/pointer data.
  */
 
-import type { ExecuteAction } from './action-executor'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 
 import type { PointerIntent } from '../desktop-grounding-types'
+import type { ExecuteAction } from './action-executor'
 import type { ComputerUseServerRuntime } from './runtime'
 
 import process from 'node:process'

@@ -22,7 +22,6 @@ import type {
   ComputerUseConfig,
   DesktopExecutor,
   ScreenshotArtifact,
-  WindowInfo,
   WindowObservation,
 } from './types'
 
