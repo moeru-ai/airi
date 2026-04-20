@@ -12,6 +12,7 @@
  * read the latest grounding/pointer data.
  */
 
+import type { ExecuteAction } from './action-executor'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 
 import type { PointerIntent } from '../desktop-grounding-types'
@@ -38,8 +39,9 @@ import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptor
 export function registerDesktopGroundingTools(params: {
   server: McpServer
   runtime: ComputerUseServerRuntime
+  executeAction: ExecuteAction
 }) {
-  const { server, runtime } = params
+  const { server, runtime, executeAction } = params
 
   // -----------------------------------------------------------------------
   // desktop_observe
@@ -195,11 +197,13 @@ export function registerDesktopGroundingTools(params: {
         // Update RunState — pointer intent + clicked candidate
         runtime.stateManager.updatePointerIntent(intent, candidateId)
 
-        // Route the click: browser-dom for chrome_dom candidates, OS input for everything else
+        // Route the click: browser-dom for chrome_dom candidates, OS input for everything else.
+        // Pass button and clickCount so non-left or multi-click requests fall through to OS input
+        // rather than silently degrading to a single left click on the browser-dom path.
         const candidate = snapshot.targetCandidates.find(c => c.id === candidateId)
         const bridgeConnected = runtime.browserDomBridge?.getStatus().connected ?? false
         const routeDecision = candidate
-          ? decideBrowserAction(candidate, bridgeConnected)
+          ? decideBrowserAction(candidate, bridgeConnected, button, clickCount)
           : { route: 'os_input' as const, reason: 'candidate not found' }
 
         let executionRoute = routeDecision.route
@@ -223,27 +227,33 @@ export function registerDesktopGroundingTools(params: {
             }
           }
           catch (browserError) {
-            // Fallback to OS input on browser-dom failure
+            // Fallback to OS input on browser-dom failure; still goes through policy pipeline
             executionRoute = 'os_input'
             routeNote = `browser-dom ${routeDecision.bridgeMethod ?? 'click'} failed (${browserError instanceof Error ? browserError.message : String(browserError)}), fell back to OS input`
-            await runtime.executor.click({
+            await executeAction({
+              kind: 'click',
+              input: {
+                x: snap.snappedPoint.x,
+                y: snap.snappedPoint.y,
+                button: button || 'left',
+                clickCount: clickCount ?? 1,
+                pointerTrace: intent.path,
+              },
+            }, 'desktop_click_target')
+          }
+        }
+        else {
+          // OS-level click through policy pipeline — respects approvalMode and policy gates
+          await executeAction({
+            kind: 'click',
+            input: {
               x: snap.snappedPoint.x,
               y: snap.snappedPoint.y,
               button: button || 'left',
               clickCount: clickCount ?? 1,
               pointerTrace: intent.path,
-            })
-          }
-        }
-        else {
-          // OS-level click (existing path)
-          await runtime.executor.click({
-            x: snap.snappedPoint.x,
-            y: snap.snappedPoint.y,
-            button: button || 'left',
-            clickCount: clickCount ?? 1,
-            pointerTrace: intent.path,
-          })
+            },
+          }, 'desktop_click_target')
         }
 
         const candidateDesc = candidate ? `${candidate.source} ${candidate.role} "${candidate.label}"` : candidateId

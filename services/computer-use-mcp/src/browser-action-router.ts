@@ -61,14 +61,28 @@ function checkBrowserDomPreconditions(
 /**
  * Decide whether a click on a candidate should go through browser-dom
  * bridge or OS-level input. Also handles checkbox toggling via checkCheckbox.
+ *
+ * Non-left-button clicks and multi-click requests are not supported by the
+ * browser-dom bridge and will always be routed to os_input.
  */
 export function decideBrowserAction(
   candidate: DesktopTargetCandidate,
   bridgeAvailable: boolean,
+  actionButton: 'left' | 'right' | 'middle' = 'left',
+  clickCount: number = 1,
 ): BrowserActionDecision {
   const rejection = checkBrowserDomPreconditions(candidate, bridgeAvailable)
   if (rejection)
     return rejection
+
+  // Right-click and multi-click are not supported by the browser-dom bridge;
+  // fall through to OS input so the caller's arguments are honoured.
+  if (actionButton !== 'left' || clickCount !== 1) {
+    return {
+      route: 'os_input',
+      reason: `browser-dom click only supports left single-click; got button='${actionButton}' clickCount=${clickCount}`,
+    }
+  }
 
   // Checkbox: route to checkCheckbox instead of generic click
   if (isCheckboxCandidate(candidate)) {
