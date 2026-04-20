@@ -28,6 +28,7 @@ patchedDependencies:
   mineflayer@4.33.0: patches/mineflayer@4.33.0.patch
   pixi-live2d-display: patches/pixi-live2d-display.patch
 catalog:
+  '@ax-llm/ax': ^19.0.43
   '@better-auth/oauth-provider': 1.5.6
   '@capacitor/android': ^8.3.1
   '@capacitor/barcode-scanner': ^3.0.2
@@ -67,6 +68,7 @@ catalog:
   '@types/hast': ^3.0.4
   '@types/splitpanes': ^2.2.6
   '@types/unist': ^3.0.3
+  '@types/whatwg-mimetype': ^5.0.0
   '@types/ws': ^8.18.1
   '@vueuse/core': 14.1.0
   '@xsai-ext/providers': 0.5.0-beta.2
@@ -87,6 +89,7 @@ catalog:
   builder-util-runtime: ^9.5.1
   cac: ^7.0.0
   capacitor-native-settings: ^8.1.0
+  chess.js: ^1.4.0
   crossws: ^0.4.5
   d3: 7.9.0
   date-fns: ^4.1.0
@@ -115,8 +118,10 @@ catalog:
   oxc-minify: ^0.126.0
   pinia: ^3.0.4
   posthog-js: 1.306.1
+  reka-ui: ^2.9.2
   splitpanes: ^4.0.4
   std-env: ^4.1.0
+  stockfish: ^18.0.7
   superjson: ^2.2.6
   tsdown: ^0.21.9
   tsx: ^4.21.0
@@ -125,6 +130,7 @@ catalog:
   unstorage: ^1.17.5
   uqr: ^0.1.3
   valibot: 1.2.0
+  vieval: ^0.0.1
   vite: ^8.0.8
   vite-plugin-inspect: 12.0.0-beta.1
   vite-plugin-mkcert: ^2.0.0
@@ -132,6 +138,7 @@ catalog:
   vue-router: ^5.0.4
   vue-sonner: 2.0.9
   web-haptics: ^0.0.6
+  whatwg-mimetype: ^5.0.0
   ws: ^8.20.0
   xsschema: 0.5.0-beta.2
   yaml: ^2.8.3
@@ -173,6 +180,7 @@ onlyBuiltDependencies:
   - protobufjs
   - sharp
   - spawn-sync
+  - stockfish
   - utf-8-validate
   - vue-demi
 packageExtensions:
