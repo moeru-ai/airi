@@ -1,9 +1,17 @@
 <script setup lang="ts">
-import IntroManualScene from './scenes/intro-manual-scene.vue'
+import { ScreenNavigator, ScreenRouterProvider } from '@proj-airi/vishot-runtime/vue'
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+const sceneNavigatorEnabled = computed(() => route.meta.sceneNavigator !== false)
 </script>
 
 <template>
-  <IntroManualScene />
+  <ScreenRouterProvider>
+    <RouterView />
+    <ScreenNavigator v-if="sceneNavigatorEnabled" />
+  </ScreenRouterProvider>
 </template>
 
 <style>

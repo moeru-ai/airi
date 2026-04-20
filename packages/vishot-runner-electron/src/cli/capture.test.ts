@@ -49,6 +49,55 @@ describe('parseCaptureCliArguments', () => {
       scenarioPath: 'packages/scenarios-stage-tamagotchi-electron/src/scenarios/settings-connection.ts',
       outputDir: './artifacts/manual-run',
       format: 'avif',
+      avif: {
+        maxWidth: 1920,
+        quality: 50,
+        speed: 6,
+      },
+    })
+  })
+
+  it('accepts optional AVIF tuning flags', () => {
+    expect(parseCaptureCliArguments([
+      'packages/scenarios-stage-tamagotchi-electron/src/scenarios/settings-connection.ts',
+      '--output-dir',
+      './artifacts/manual-run',
+      '--format',
+      'avif',
+      '--avif-max-width',
+      '1200',
+      '--avif-quality',
+      '35',
+      '--avif-speed',
+      '4',
+    ])).toEqual({
+      scenarioPath: 'packages/scenarios-stage-tamagotchi-electron/src/scenarios/settings-connection.ts',
+      outputDir: './artifacts/manual-run',
+      format: 'avif',
+      avif: {
+        maxWidth: 1200,
+        quality: 35,
+        speed: 4,
+      },
+    })
+  })
+
+  it('applies default AVIF settings when format is avif', () => {
+    expect(parseCaptureCliArguments([
+      'packages/scenarios-stage-tamagotchi-electron/src/scenarios/settings-connection.ts',
+      '--output-dir',
+      './artifacts/manual-run',
+      '--format',
+      'avif',
+    ])).toEqual({
+      scenarioPath: 'packages/scenarios-stage-tamagotchi-electron/src/scenarios/settings-connection.ts',
+      outputDir: './artifacts/manual-run',
+      format: 'avif',
+      avif: {
+        maxWidth: 1920,
+        quality: 50,
+        speed: 6,
+      },
     })
   })
 
@@ -73,6 +122,42 @@ describe('parseCaptureCliArguments', () => {
       '--format',
       'webp',
     ])).toThrow('Unsupported capture format "webp". Expected "png" or "avif".')
+  })
+
+  it('rejects invalid AVIF quality values', () => {
+    expect(() => parseCaptureCliArguments([
+      'packages/scenarios-stage-tamagotchi-electron/src/scenarios/settings-connection.ts',
+      '--output-dir',
+      './artifacts/manual-run',
+      '--format',
+      'avif',
+      '--avif-quality',
+      '200',
+    ])).toThrow('Unsupported AVIF quality "200". Expected an integer between 0 and 100.')
+  })
+
+  it('rejects invalid AVIF speed values', () => {
+    expect(() => parseCaptureCliArguments([
+      'packages/scenarios-stage-tamagotchi-electron/src/scenarios/settings-connection.ts',
+      '--output-dir',
+      './artifacts/manual-run',
+      '--format',
+      'avif',
+      '--avif-speed',
+      '0',
+    ])).toThrow('Unsupported AVIF speed "0". Expected an integer between 1 and 10.')
+  })
+
+  it('rejects invalid AVIF max width values', () => {
+    expect(() => parseCaptureCliArguments([
+      'packages/scenarios-stage-tamagotchi-electron/src/scenarios/settings-connection.ts',
+      '--output-dir',
+      './artifacts/manual-run',
+      '--format',
+      'avif',
+      '--avif-max-width',
+      '0',
+    ])).toThrow('Unsupported AVIF max width "0". Expected an integer >= 1.')
   })
 
   it('rejects extra positional arguments', () => {

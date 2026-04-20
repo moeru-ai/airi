@@ -82,6 +82,8 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
   let state: WhisperState = 'idle'
   let allocationToken: AllocationToken | null = null
   let restartAttempts = 0
+  let messageListener: ((event: MessageEvent) => void) | null = null
+  let errorListener: ((event: ErrorEvent) => void) | null = null
   const messageHandlers = new Set<(event: WhisperEvent) => void>()
 
   const operationMutex = new Mutex()
@@ -95,6 +97,12 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
 
   function destroyWorker(): void {
     if (worker) {
+      if (messageListener)
+        worker.removeEventListener('message', messageListener)
+      if (errorListener)
+        worker.removeEventListener('error', errorListener)
+      messageListener = null
+      errorListener = null
       worker.terminate()
       worker = null
     }
@@ -103,6 +111,9 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
   function scheduleRestart(): void {
     if (restartAttempts >= MAX_RESTARTS) {
       console.error(`[WhisperAdapter] Max restart attempts (${MAX_RESTARTS}) reached.`)
+      // NOTICE: Transition to 'terminated' so callers can detect the dead adapter
+      // instead of being stuck in 'error' state indefinitely.
+      state = 'terminated'
       return
     }
 
@@ -122,7 +133,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
   function ensureWorker(): Worker {
     if (!worker) {
       worker = new Worker(workerUrl, { type: 'module' })
-      worker.addEventListener('message', (event: MessageEvent) => {
+      messageListener = (event: MessageEvent) => {
         const data = event.data
         // Forward unified protocol messages to subscribers
         if (data.type === 'progress') {
@@ -141,10 +152,12 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
           const evt: WhisperEvent = { type: 'error', payload: data.payload }
           for (const handler of messageHandlers) handler(evt)
         }
-      })
-      worker.addEventListener('error', (event) => {
+      }
+      errorListener = (event: ErrorEvent) => {
         handleWorkerError(event)
-      })
+      }
+      worker.addEventListener('message', messageListener)
+      worker.addEventListener('error', errorListener)
     }
     return worker
   }
@@ -283,10 +296,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
 
   function terminateAdapter(): void {
     operationMutex.cancel()
-    if (worker) {
-      worker.terminate()
-      worker = null
-    }
+    destroyWorker()
     if (allocationToken) {
       removeInferenceStatus(MODEL_NAMES.WHISPER)
       getGPUCoordinator().release(allocationToken)

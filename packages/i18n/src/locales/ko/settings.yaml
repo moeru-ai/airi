@@ -824,6 +824,9 @@ pages:
       minimax-global:
         description: minimax.io
         title: MiniMax 글로벌
+      minimax-speech:
+        description: minimax.io
+        title: MiniMax Speech
       mistral:
         description: mistral.ai
         title: Mistral

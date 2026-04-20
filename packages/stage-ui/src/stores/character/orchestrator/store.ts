@@ -99,7 +99,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     for (const command of result.commands) {
       modsServerChannelStore.send({
         type: 'spark:command',
-        data: command,
+        data: command as WebSocketEvents['spark:command'],
       })
     }
 

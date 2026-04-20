@@ -1379,6 +1379,391 @@
         "title": "Completion Tokens by Model",
         "vizConfig": { "group": "timeseries", "kind": "VizConfig", "spec": { "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "axisBorderShow": false, "axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto", "barAlignment": 0, "barWidthFactor": 0.6, "drawStyle": "line", "fillOpacity": 20, "gradientMode": "none", "hideFrom": { "legend": false, "tooltip": false, "viz": false }, "insertNulls": false, "lineInterpolation": "smooth", "lineWidth": 1, "pointSize": 5, "scaleDistribution": { "type": "linear" }, "showPoints": "auto", "showValues": false, "spanNulls": false, "stacking": { "group": "A", "mode": "none" }, "thresholdsStyle": { "mode": "off" } }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": 0 }, { "color": "red", "value": 80 }] }, "unit": "short" }, "overrides": [] }, "options": { "annotations": { "clustering": -1, "multiLane": false }, "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "hideZeros": false, "mode": "single", "sort": "none" } } }, "version": "13.0.0-23630096546" }
       }
+    },
+    "panel-40": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": { "name": "grafanacloud-projairi-prom" },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "sum(rate(gen_ai_client_token_usage_input_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval])) * 3600 * 0.003 / 1000 + sum(rate(gen_ai_client_token_usage_output_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval])) * 3600 * 0.015 / 1000",
+                      "legendFormat": "est. $/hr"
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "",
+        "id": 40,
+        "links": [],
+        "title": "Est. LLM Cost ($/hr)",
+        "vizConfig": {
+          "group": "stat",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": { "mode": "palette-classic" },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": 0 },
+                    { "color": "yellow", "value": 1 },
+                    { "color": "red", "value": 10 }
+                  ]
+                },
+                "unit": "currencyUSD"
+              },
+              "overrides": []
+            },
+            "options": {
+              "colorMode": "value",
+              "graphMode": "area",
+              "justifyMode": "auto",
+              "orientation": "auto",
+              "percentChangeColorMode": "standard",
+              "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+              "showPercentChange": false,
+              "textMode": "auto",
+              "wideLayout": true
+            }
+          },
+          "version": "13.0.0-23630096546"
+        }
+      }
+    },
+    "panel-41": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": { "name": "grafanacloud-projairi-prom" },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "sum(increase(stripe_checkout_completed_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__range]))",
+                      "legendFormat": "checkouts"
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "",
+        "id": 41,
+        "links": [],
+        "title": "Checkouts Completed",
+        "vizConfig": {
+          "group": "stat",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": { "mode": "palette-classic" },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": 0 }
+                  ]
+                },
+                "unit": "short"
+              },
+              "overrides": []
+            },
+            "options": {
+              "colorMode": "value",
+              "graphMode": "area",
+              "justifyMode": "auto",
+              "orientation": "auto",
+              "percentChangeColorMode": "standard",
+              "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+              "showPercentChange": false,
+              "textMode": "auto",
+              "wideLayout": true
+            }
+          },
+          "version": "13.0.0-23630096546"
+        }
+      }
+    },
+    "panel-42": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": { "name": "grafanacloud-projairi-prom" },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "sum(rate(airi_billing_flux_consumed_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+                      "legendFormat": "flux/s"
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "",
+        "id": 42,
+        "links": [],
+        "title": "Flux Burn Rate",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": { "mode": "palette-classic" },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 20,
+                  "gradientMode": "none",
+                  "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "scaleDistribution": { "type": "linear" },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": { "group": "A", "mode": "none" },
+                  "thresholdsStyle": { "mode": "off" }
+                },
+                "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": 0 }, { "color": "red", "value": 80 }] },
+                "unit": "short"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": { "clustering": -1, "multiLane": false },
+              "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+              "tooltip": { "hideZeros": false, "mode": "single", "sort": "none" }
+            }
+          },
+          "version": "13.0.0-23630096546"
+        }
+      }
+    },
+    "panel-43": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": { "name": "grafanacloud-projairi-prom" },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "sum(rate(flux_insufficient_balance_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+                      "legendFormat": "events/s"
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "",
+        "id": 43,
+        "links": [],
+        "title": "Insufficient Balance Events",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": { "mode": "palette-classic" },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 20,
+                  "gradientMode": "none",
+                  "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "scaleDistribution": { "type": "linear" },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": { "group": "A", "mode": "none" },
+                  "thresholdsStyle": { "mode": "off" }
+                },
+                "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": 0 }, { "color": "red", "value": 80 }] },
+                "unit": "short"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": { "clustering": -1, "multiLane": false },
+              "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+              "tooltip": { "hideZeros": false, "mode": "single", "sort": "none" }
+            }
+          },
+          "version": "13.0.0-23630096546"
+        }
+      }
+    },
+    "panel-44": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": { "name": "grafanacloud-projairi-prom" },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "sum(rate(gen_ai_client_token_usage_input_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+                      "legendFormat": "Input tokens/s"
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              },
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": { "name": "grafanacloud-projairi-prom" },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "sum(rate(gen_ai_client_token_usage_output_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+                      "legendFormat": "Output tokens/s"
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "B"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "",
+        "id": 44,
+        "links": [],
+        "title": "Input vs Output Tokens",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": { "mode": "palette-classic" },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 20,
+                  "gradientMode": "none",
+                  "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "scaleDistribution": { "type": "linear" },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": { "group": "A", "mode": "none" },
+                  "thresholdsStyle": { "mode": "off" }
+                },
+                "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": 0 }, { "color": "red", "value": 80 }] },
+                "unit": "short"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": { "clustering": -1, "multiLane": false },
+              "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+              "tooltip": { "hideZeros": false, "mode": "single", "sort": "none" }
+            }
+          },
+          "version": "13.0.0-23630096546"
+        }
+      }
     }
   },
   "layout": {
@@ -1421,6 +1806,25 @@
               }
             },
             "title": "Auth & Users"
+          }
+        },
+        {
+          "kind": "RowsLayoutRow",
+          "spec": {
+            "collapse": false,
+            "layout": {
+              "kind": "GridLayout",
+              "spec": {
+                "items": [
+                  { "kind": "GridLayoutItem", "spec": { "element": { "kind": "ElementReference", "name": "panel-40" }, "height": 8, "width": 8, "x": 0, "y": 0 } },
+                  { "kind": "GridLayoutItem", "spec": { "element": { "kind": "ElementReference", "name": "panel-41" }, "height": 8, "width": 8, "x": 8, "y": 0 } },
+                  { "kind": "GridLayoutItem", "spec": { "element": { "kind": "ElementReference", "name": "panel-44" }, "height": 8, "width": 8, "x": 16, "y": 0 } },
+                  { "kind": "GridLayoutItem", "spec": { "element": { "kind": "ElementReference", "name": "panel-42" }, "height": 8, "width": 12, "x": 0, "y": 8 } },
+                  { "kind": "GridLayoutItem", "spec": { "element": { "kind": "ElementReference", "name": "panel-43" }, "height": 8, "width": 12, "x": 12, "y": 8 } }
+                ]
+              }
+            },
+            "title": "Business Metrics"
           }
         },
         {

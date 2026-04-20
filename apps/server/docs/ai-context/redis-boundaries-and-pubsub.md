@@ -23,13 +23,17 @@
 当前 `apps/server` 中 Redis 主要承担四类职责：
 
 - cache
-  - 例如 `user:{userId}:flux`
+  - 用户 Flux 余额读缓存 `user:{userId}:flux`
+  - TTS voices 上游响应（按 model 分片）`tts:voices:upstream:{model}` —— TTL 600s，仅 200 响应入缓存，见 `src/routes/openai/v1/index.ts::handleListVoices`
 - config KV
   - 例如 `config:{key}`
 - Pub/Sub
   - 例如聊天跨实例广播 `chat:{userId}:broadcast`
 - Streams
   - 例如 `billing-events`
+- 计量债务账本（atomic counter + TTL）
+  - 例如 TTS 累计字符 `user:{userId}:flux-meter:tts:debt`
+  - 见 [flux-meter.md](flux-meter.md)
 
 其中：
 

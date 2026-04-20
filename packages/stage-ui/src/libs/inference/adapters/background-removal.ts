@@ -57,8 +57,19 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
   let worker: Worker | null = null
   let state: BackgroundRemovalAdapter['state'] = 'idle'
   let allocationToken: AllocationToken | null = null
+  let errorListener: ((event: Event) => void) | null = null
 
   const operationMutex = new Mutex()
+
+  function destroyWorker(): void {
+    if (worker) {
+      if (errorListener)
+        worker.removeEventListener('error', errorListener)
+      errorListener = null
+      worker.terminate()
+      worker = null
+    }
+  }
 
   function ensureWorker(): Worker {
     if (!worker) {
@@ -66,10 +77,11 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
         new URL('../../../workers/background-removal/worker.ts', import.meta.url),
         { type: 'module' },
       )
-      worker.addEventListener('error', (_event) => {
+      errorListener = (_event: Event) => {
         state = 'error'
         operationMutex.cancel()
-      })
+      }
+      worker.addEventListener('error', errorListener)
     }
     return worker
   }
@@ -223,10 +235,7 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
 
   function terminateAdapter(): void {
     operationMutex.cancel()
-    if (worker) {
-      worker.terminate()
-      worker = null
-    }
+    destroyWorker()
     if (allocationToken) {
       removeInferenceStatus(MODEL_NAMES.BG_REMOVAL)
       getGPUCoordinator().release(allocationToken)

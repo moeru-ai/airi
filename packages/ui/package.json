@@ -29,7 +29,7 @@
     "@moeru/std": "catalog:",
     "@vueuse/core": "^14.2.1",
     "floating-vue": "^5.2.2",
-    "reka-ui": "^2.9.5",
+    "reka-ui": "^2.9.6",
     "vue": "catalog:"
   },
   "devDependencies": {

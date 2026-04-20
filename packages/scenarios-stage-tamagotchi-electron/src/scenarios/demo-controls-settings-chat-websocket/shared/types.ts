@@ -27,12 +27,6 @@ export interface ManualRuntime {
   settingsWindowSnapshot?: StageWindowSnapshotLike
 }
 
-export interface PublishedArtifacts {
-  docsAssetPath: string
-  rawArtifactPaths: string[]
-}
-
 export interface CaptureExecutionResult {
   artifacts: VishotArtifact[]
-  publishedArtifacts: PublishedArtifacts
 }
