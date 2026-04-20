@@ -6,7 +6,7 @@ import { useBreakpoints } from '@proj-airi/stage-ui/composables'
 import { fetchSession, signInOIDC } from '@proj-airi/stage-ui/libs/auth'
 import { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } from '@proj-airi/stage-ui/libs/auth-config'
 import { Button } from '@proj-airi/ui'
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
@@ -15,6 +15,8 @@ const router = useRouter()
 const { t } = useI18n()
 
 const { isDesktop } = useBreakpoints()
+
+const loginDrawerOpen = ref(true)
 
 const loading = ref<Record<OAuthProvider, boolean>>({
   google: false,
@@ -49,17 +51,12 @@ onMounted(() => {
 
   fetchSession()
     .then((authenticated) => {
-      if (authenticated || !isDesktop.value) {
+      // Do not redirect on !isDesktop — Pocket needs /auth/sign-in on mobile (OIDC + callback retry).
+      if (authenticated) {
         router.replace('/')
       }
     })
     .catch(() => {})
-})
-
-watch(isDesktop, (val) => {
-  if (!val) {
-    router.replace('/')
-  }
 })
 </script>
 
@@ -102,6 +99,15 @@ watch(isDesktop, (val) => {
       </div>
     </div>
 
-    <LoginDrawer :open="true" />
+    <button
+      v-if="!loginDrawerOpen"
+      type="button"
+      class="mt-8 rounded-xl bg-primary-500 px-8 py-3 text-sm text-white font-medium shadow-md"
+      @click="loginDrawerOpen = true"
+    >
+      {{ t('server.auth.signIn.title') }}
+    </button>
+
+    <LoginDrawer v-model:open="loginDrawerOpen" />
   </div>
 </template>
