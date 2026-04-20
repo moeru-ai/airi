@@ -251,6 +251,53 @@ describe('captureChromeSemantics', () => {
     expect(result!.interactiveElements[0].text).toBe('Root CTA')
   })
 
+  it('resolves nested iframe offsets even when frame results arrive out of order', async () => {
+    const mockExtension = {
+      getStatus: () => ({ connected: true, enabled: true, host: 'localhost', port: 8080, pendingRequests: 0 }),
+      getAllFrames: vi.fn().mockResolvedValue([
+        { frameId: 0, parentFrameId: -1 },
+        { frameId: 7, parentFrameId: 0 },
+        { frameId: 12, parentFrameId: 7 },
+      ]),
+      readAllFramesDom: vi.fn().mockResolvedValue([
+        {
+          frameId: 12,
+          result: {
+            frameRect: { x: 15, y: 25, w: 320, h: 200 },
+            interactiveElements: [
+              { tag: 'button', text: 'Nested CTA', rect: { x: 3, y: 4, w: 40, h: 20 } },
+            ],
+          },
+        },
+        {
+          frameId: 0,
+          result: {
+            url: 'https://example.com',
+            title: 'Example',
+            interactiveElements: [],
+          },
+        },
+        {
+          frameId: 7,
+          result: {
+            frameRect: { x: 120, y: 80, w: 640, h: 480 },
+            interactiveElements: [],
+          },
+        },
+      ]),
+    }
+
+    const result = await captureChromeSemantics(mockExtension as any, undefined)
+    expect(result).not.toBeNull()
+    expect(result!.interactiveElements).toHaveLength(1)
+    expect(result!.interactiveElements[0].rect).toEqual({
+      x: 138,
+      y: 109,
+      w: 40,
+      h: 20,
+    })
+  })
+
   it('falls back to CDP when extension is disconnected', async () => {
     const mockExtension = {
       getStatus: () => ({ connected: false, enabled: true, host: 'localhost', port: 8080, pendingRequests: 0 }),

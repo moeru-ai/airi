@@ -74,7 +74,15 @@ export function registerDesktopGroundingTools(params: {
         })
 
         // Update RunState — grounding snapshot
-        runtime.stateManager.updateGroundingSnapshot(snapshot)
+        runtime.stateManager.updateGroundingSnapshot({
+          ...snapshot,
+          screenshot: snapshot.screenshot
+            ? {
+                ...snapshot.screenshot,
+                dataBase64: '',
+              }
+            : snapshot.screenshot,
+        })
 
         // Also update screenshot state so desktop_get_state and other
         // tools can see the latest screenshot from this observation

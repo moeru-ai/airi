@@ -217,7 +217,6 @@ function resolveFrameOffset(
   }
 
   if (visiting.has(frameId)) {
-    cache.set(frameId, null)
     return null
   }
 
@@ -227,14 +226,12 @@ function resolveFrameOffset(
   const frameRect = payload ? getFrameRect(payload) : undefined
   const parentFrameId = parentIds.get(frameId)
   if (!frameRect || parentFrameId === undefined) {
-    cache.set(frameId, null)
     visiting.delete(frameId)
     return null
   }
 
   const parentOffset = resolveFrameOffset(parentFrameId, parentIds, payloads, cache, visiting)
   if (!parentOffset) {
-    cache.set(frameId, null)
     visiting.delete(frameId)
     return null
   }
@@ -291,6 +288,13 @@ async function captureViaExtension(
       pageUrl = (payload.url as string) || ''
       pageTitle = (payload.title as string) || ''
     }
+
+  }
+
+  for (const frame of frames) {
+    const payload = payloadsByFrameId.get(frame.frameId)
+    if (!payload)
+      continue
 
     const rawElements = payload.interactiveElements
     const elements = rawElements as BrowserDomInteractiveElement[] | undefined

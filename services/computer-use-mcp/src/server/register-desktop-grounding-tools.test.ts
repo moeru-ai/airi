@@ -119,4 +119,45 @@ describe('registerDesktopGroundingTools', () => {
     expect(runtime.stateManager.getState().lastPointerIntent).toBeUndefined()
     expect(runtime.stateManager.getState().lastClickedCandidateId).toBeUndefined()
   })
+
+  it('stores grounding snapshot without screenshot bytes but still returns image content', async () => {
+    const runtime = createRuntime()
+    captureDesktopGroundingMock.mockResolvedValueOnce({
+      snapshotId: 'dg_new',
+      capturedAt: new Date().toISOString(),
+      foregroundApp: 'Google Chrome',
+      windows: [],
+      screenshot: {
+        dataBase64: 'ZmFrZS1wbmc=',
+        mimeType: 'image/png',
+        path: '/tmp/shot.png',
+        capturedAt: new Date().toISOString(),
+        width: 1280,
+        height: 720,
+      },
+      targetCandidates: [],
+      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
+    } as any)
+
+    const { server, invoke } = createMockServer()
+
+    registerDesktopGroundingTools({
+      server,
+      runtime,
+      executeAction: vi.fn(),
+    })
+
+    const result = await invoke('desktop_observe', {})
+    const state = runtime.stateManager.getState()
+
+    expect(state.lastGroundingSnapshot?.screenshot.dataBase64).toBe('')
+    expect(result.content).toEqual([
+      expect.objectContaining({ type: 'text' }),
+      expect.objectContaining({
+        type: 'image',
+        data: 'ZmFrZS1wbmc=',
+        mimeType: 'image/png',
+      }),
+    ])
+  })
 })
