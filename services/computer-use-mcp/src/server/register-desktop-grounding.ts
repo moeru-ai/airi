@@ -230,30 +230,40 @@ export function registerDesktopGroundingTools(params: {
             // Fallback to OS input on browser-dom failure; still goes through policy pipeline
             executionRoute = 'os_input'
             routeNote = `browser-dom ${routeDecision.bridgeMethod ?? 'click'} failed (${browserError instanceof Error ? browserError.message : String(browserError)}), fell back to OS input`
-            await executeAction({
+            const actionResult = await executeAction({
               kind: 'click',
               input: {
                 x: snap.snappedPoint.x,
                 y: snap.snappedPoint.y,
                 button: button || 'left',
                 clickCount: clickCount ?? 1,
-                pointerTrace: intent.path,
               },
             }, 'desktop_click_target')
+            // If the action was denied or queued for approval, relay the policy result
+            // and do not report a false success or update post-click state.
+            const status = (actionResult.structuredContent as Record<string, unknown> | undefined)?.status
+            if (actionResult.isError || status === 'approval_required' || status === 'denied') {
+              return actionResult
+            }
           }
         }
         else {
           // OS-level click through policy pipeline — respects approvalMode and policy gates
-          await executeAction({
+          const actionResult = await executeAction({
             kind: 'click',
             input: {
               x: snap.snappedPoint.x,
               y: snap.snappedPoint.y,
               button: button || 'left',
               clickCount: clickCount ?? 1,
-              pointerTrace: intent.path,
             },
           }, 'desktop_click_target')
+          // If the action was denied or queued for approval, relay the policy result
+          // and do not report a false success or update post-click state.
+          const status = (actionResult.structuredContent as Record<string, unknown> | undefined)?.status
+          if (actionResult.isError || status === 'approval_required' || status === 'denied') {
+            return actionResult
+          }
         }
 
         const candidateDesc = candidate ? `${candidate.source} ${candidate.role} "${candidate.label}"` : candidateId
