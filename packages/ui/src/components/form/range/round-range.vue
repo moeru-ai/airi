@@ -92,16 +92,16 @@ https://toughengineer.github.io/demo/slider-styler*/
   --track-value-padding: 0px;
 }
 
+[data-direction="vertical"].form_input-round-range {
+  transform: rotate(180deg);
+}
+
 .dark .form_input-round-range {
   --track-border: none;
   --track-background: rgba(64, 64, 64, 0.7);
   --track-box-shadow: 0 0 12px -2px rgb(0 0 0 / 22%);
 
   --track-value-background: rgb(238, 238, 238);
-}
-
-[data-direction="vertical"].form_input-round-range {
-  transform: rotate(180deg);
 }
 
 /*progress support*/
@@ -152,9 +152,6 @@ https://toughengineer.github.io/demo/slider-styler*/
 [data-direction="vertical"]::-webkit-slider-thumb {
   cursor: ns-resize;
 }
-[data-direction="horizontal"]::-webkit-slider-thumb {
-  cursor: ew-resize;
-}
 
 .form_input-round-range::-webkit-slider-runnable-track {
   height: var(--track-height);
@@ -174,9 +171,6 @@ https://toughengineer.github.io/demo/slider-styler*/
 [data-direction="vertical"]::-webkit-slider-runnable-track {
   cursor: ns-resize;
 }
-[data-direction="vertical"]::-webkit-slider-runnable-track {
-  cursor: ew-resize;
-}
 
 .form_input-round-range.slider-progress::-webkit-slider-runnable-track {
   background:
@@ -185,9 +179,6 @@ https://toughengineer.github.io/demo/slider-styler*/
 }
 
 [data-direction="vertical"].form_input-round-range.slider-progress::-webkit-slider-runnable-track {
-  background: linear-gradient(var(--track-value-background) var(--sx), var(--track-background) var(--sx)) no-repeat;
-}
-[data-direction="horizontal"].form_input-round-range.slider-progress::-webkit-slider-runnable-track {
   background: linear-gradient(var(--track-value-background) var(--sx), var(--track-background) var(--sx)) no-repeat;
 }
 
