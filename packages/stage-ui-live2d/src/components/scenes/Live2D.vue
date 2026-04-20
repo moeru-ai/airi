@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { Screen } from '@proj-airi/ui'
-import { storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 
 import Inputs from '../ViewControls/Inputs.vue'
 import Live2DCanvas from './live2d/Canvas.vue'
 import Live2DModel from './live2d/Model.vue'
 
-import { useLive2d } from '../../stores/live2d'
+import { useL2dViewControl } from '../../stores/live2d'
 
 import '../../utils/live2d-zip-loader'
 import '../../utils/live2d-opfs-registration'
@@ -52,8 +51,7 @@ const componentStateModel = defineModel<'pending' | 'loading' | 'mounted'>('mode
 
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 
-const live2d = useLive2d()
-const { position, viewControlMode } = storeToRefs(live2d)
+const { position, viewControlMode } = useL2dViewControl()
 
 watch([componentStateModel, componentStateCanvas], () => {
   componentState.value = (componentStateModel.value === 'mounted' && componentStateCanvas.value === 'mounted')

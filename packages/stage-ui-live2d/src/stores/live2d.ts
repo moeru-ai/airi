@@ -1,12 +1,12 @@
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { useBroadcastChannel } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
+
+import { useL2dViewControl } from './view-control'
 
 type BroadcastChannelEvents
   = | BroadcastChannelEventShouldUpdateView
-const supportedControl = ['x', 'y', 'scale'] as const
-type SupportedControl = typeof supportedControl[number]
 
 interface BroadcastChannelEventShouldUpdateView {
   type: 'live2d-should-update-view'
@@ -59,17 +59,10 @@ export const useLive2d = defineStore('live2d', () => {
     }
   })
 
-  const position = useLocalStorageManualReset<{ x: number, y: number }>('settings/live2d/position', { x: 0, y: 0 }) // position is relative to the center of the screen, units are %
-  const positionInPercentageString = computed(() => ({
-    x: `${position.value.x}%`,
-    y: `${position.value.y}%`,
-  }))
   const currentMotion = useLocalStorageManualReset<{ group: string, index?: number }>('settings/live2d/current-motion', () => ({ group: 'Idle', index: 0 }))
   const availableMotions = useLocalStorageManualReset<{ motionName: string, motionIndex: number, fileName: string }[]>('settings/live2d/available-motions', () => [])
   const motionMap = useLocalStorageManualReset<Record<string, string>>('settings/live2d/motion-map', {})
-  const scale = useLocalStorageManualReset('settings/live2d/scale', 1)
-  const viewControlsEnabled = ref(false)
-  const viewControlMode = ref<SupportedControl>('scale')
+  const { position, positionInPercentageString, scale } = useL2dViewControl()
 
   // Live2D model parameters
   const modelParameters = useLocalStorageManualReset<Record<string, number>>('settings/live2d/parameters', defaultModelParameters)
@@ -91,9 +84,6 @@ export const useLive2d = defineStore('live2d', () => {
     availableMotions,
     motionMap,
     scale,
-    viewControlsEnabled,
-    viewControlMode,
-    supportedControl,
     modelParameters,
 
     onShouldUpdateView,
@@ -101,3 +91,4 @@ export const useLive2d = defineStore('live2d', () => {
     resetState,
   }
 })
+export { useL2dViewControl }
