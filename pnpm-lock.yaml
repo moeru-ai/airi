@@ -1042,6 +1042,9 @@ importers:
       '@vueuse/motion':
         specifier: ^3.0.3
         version: 3.0.3(magicast@0.5.2)(vue@3.5.32(typescript@5.9.3))
+      '@webgpu/types':
+        specifier: 'catalog:'
+        version: 0.1.69
       csstype:
         specifier: ^3.2.3
         version: 3.2.3
@@ -1484,6 +1487,9 @@ importers:
       '@vue-macros/volar':
         specifier: ^3.1.2
         version: 3.1.2(typescript@5.9.3)(vue-tsc@3.2.6(typescript@5.9.3))(vue@3.5.32(typescript@5.9.3))
+      '@webgpu/types':
+        specifier: 'catalog:'
+        version: 0.1.69
       builder-util-runtime:
         specifier: 'catalog:'
         version: 9.5.1
@@ -1902,6 +1908,9 @@ importers:
       '@vueuse/motion':
         specifier: ^3.0.3
         version: 3.0.3(magicast@0.5.2)(vue@3.5.32(typescript@5.9.3))
+      '@webgpu/types':
+        specifier: 'catalog:'
+        version: 0.1.69
       csstype:
         specifier: ^3.2.3
         version: 3.2.3
@@ -2821,6 +2830,9 @@ importers:
       '@types/three':
         specifier: ^0.184.0
         version: 0.184.0
+      '@webgpu/types':
+        specifier: 'catalog:'
+        version: 0.1.69
       unplugin-info:
         specifier: 'catalog:'
         version: 1.3.2(esbuild@0.27.2)(rollup@4.60.1)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
@@ -2942,6 +2954,9 @@ importers:
       '@types/three':
         specifier: ^0.184.0
         version: 0.184.0
+      '@webgpu/types':
+        specifier: 'catalog:'
+        version: 0.1.69
       unplugin-info:
         specifier: 'catalog:'
         version: 1.3.2(esbuild@0.27.2)(rollup@4.60.1)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))

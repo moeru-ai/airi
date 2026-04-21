@@ -168,6 +168,7 @@
     "@types/yauzl": "^2.10.3",
     "@vitejs/plugin-vue": "^6.0.6",
     "@vue-macros/volar": "^3.1.2",
+    "@webgpu/types": "catalog:",
     "builder-util-runtime": "catalog:",
     "cac": "^7.0.0",
     "crossws": "^0.4.5",
