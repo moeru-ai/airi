@@ -11,7 +11,8 @@ app = Flask(__name__)
 # Securely load API key from environment, with your placeholder as a fallback
 API_KEY = os.getenv("FISH_AUDIO_API_KEY", "YOUR_API_KEY_HERE")
 FISH_URL = "https://api.302.ai/fish-audio/v1/tts"
-TERMINAL_PUNC = ("。", "！", "？", "…", "!", "?")
+TERMINAL_PUNC = ("。", "！", "？", "…", "!", "?", ".")
+MAX_CACHE_SIZE = 100  # Bound the cache to prevent memory leaks
 
 VOICE_MAP = {
     # place your voice ids in here, and give it a preferred name
@@ -30,24 +31,39 @@ def get_voices():
 
 @app.route('/tts/audio/speech', methods=['POST'])
 def handle_speech():
-    # Localized state to prevent multi-threading race conditions
-    in_action = False
     data = request.json
+
+    # FIX: Validate JSON shape to prevent runtime errors
+    if not isinstance(data, dict):
+        return Response("Bad Request: Payload must be a JSON object", status=400)
+
     text_raw = data.get('input', '')
+
+    # Ensure text_raw is a string (handles cases where input is explicitly null/None)
+    if text_raw is None:
+        text_raw = ''
+    elif not isinstance(text_raw, str):
+        text_raw = str(text_raw)
 
     default_voice_name = next(iter(VOICE_MAP), "")
     requested_voice = data.get("voice", default_voice_name)
     target_voice_id = VOICE_MAP.get(requested_voice, VOICE_MAP.get(default_voice_name))
 
-    # --- 1. Clean Text ---
+    # --- 1. Clean Text (Handles Nested Parentheses) ---
     text_clean = ""
+    action_depth = 0
     for char in text_raw:
-        if char in ('(', '（'): in_action = True; continue
-        if char in (')', '）'): in_action = False; continue
-        if not in_action: text_clean += char
+        if char in ('(', '（'):
+            action_depth += 1
+            continue
+        if char in (')', '）'):
+            action_depth = max(0, action_depth - 1)
+            continue
+        if action_depth == 0:
+            text_clean += char
 
     # --- 2. Improved Regex: Only split on terminal punctuation ---
-    raw_parts = re.split(r'([。！？…!?\n]+)', text_clean.strip())
+    raw_parts = re.split(r'([。！？…!?.\n]+)', text_clean.strip())
 
     sentences = []
     for i in range(0, len(raw_parts), 2):
@@ -55,7 +71,8 @@ def handle_speech():
         punc = raw_parts[i + 1] if i + 1 < len(raw_parts) else ""
         combined = text + punc
 
-        if re.search(r'[\u4e00-\u9fa5a-zA-Z0-9]', combined):
+        # Use \w to support all Unicode languages
+        if re.search(r'\w', combined):
             sentences.append(combined)
 
     if not sentences: return Response(b"", status=204)
@@ -112,14 +129,23 @@ def get_audio_bytes(text, voice_id):
     payload = {"text": text, "reference_id": voice_id, "latency": "low", "temperature": 0.9, "top_p": 0.7,
                "format": "wav"}
 
-    response = http_session.post(FISH_URL, headers=headers, json=payload, timeout=20)
-    if response.status_code == 200:
-        audio_url = response.json().get("url")
-        audio_res = http_session.get(audio_url, timeout=10)
-        if audio_res.status_code == 200:
-            with cache_lock:
-                audio_cache[cache_key] = audio_res.content
-            return audio_res.content
+    # Catch upstream request failures gracefully
+    try:
+        response = http_session.post(FISH_URL, headers=headers, json=payload, timeout=20)
+        if response.status_code == 200:
+            audio_url = response.json().get("url")
+            audio_res = http_session.get(audio_url, timeout=10)
+            if audio_res.status_code == 200:
+                with cache_lock:
+                    audio_cache[cache_key] = audio_res.content
+                    # Bound the cache to prevent RAM growth
+                    if len(audio_cache) > MAX_CACHE_SIZE:
+                        audio_cache.pop(next(iter(audio_cache)))
+                return audio_res.content
+    except (requests.exceptions.RequestException, ValueError) as e:
+        print(f"Network, API, or JSON parsing error when fetching audio: {e}")
+        return None
+
     return None
 
 
