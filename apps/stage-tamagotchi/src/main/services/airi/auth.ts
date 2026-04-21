@@ -17,7 +17,7 @@ import {
   electronAuthLogout,
   electronAuthStartLogin,
 } from '../../../shared/eventa'
-import { startLoopbackServer } from '../electron/loopback-server'
+import { startLoopbackServer } from './http-server/http/auth'
 
 const log = useLogg('auth-service').useGlobalConfig()
 

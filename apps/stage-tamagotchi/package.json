@@ -87,6 +87,7 @@
     "alien-signals": "catalog:",
     "animejs": "^4.3.6",
     "async-mutex": "catalog:",
+    "chess.js": "catalog:",
     "colorjs.io": "^0.6.1",
     "culori": "^4.0.2",
     "d3": "catalog:",
@@ -127,6 +128,7 @@
     "vue-router": "^5.0.4",
     "vue-sonner": "catalog:",
     "web-haptics": "catalog:",
+    "whatwg-mimetype": "catalog:",
     "xsschema": "catalog:",
     "zod": "^4.3.6"
   },
@@ -165,6 +167,7 @@
     "@types/semver": "^7.7.1",
     "@types/splitpanes": "catalog:",
     "@types/three": "^0.184.0",
+    "@types/whatwg-mimetype": "catalog:",
     "@types/yauzl": "^2.10.3",
     "@vitejs/plugin-vue": "^6.0.6",
     "@vue-macros/volar": "^3.1.2",
