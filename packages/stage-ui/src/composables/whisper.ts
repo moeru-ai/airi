@@ -1,111 +1,119 @@
-import type { MessageEvents, MessageGenerate, ProgressMessageEvents } from '../libs/workers/types'
+import type { WhisperEvent } from '../libs/inference/adapters/whisper'
+import type { ProgressPayload } from '../libs/inference/protocol'
 
 import { merge } from '@moeru/std'
-import { useWebWorker } from '@vueuse/core'
-import { onUnmounted, ref, watch } from 'vue'
+import { onUnmounted, ref } from 'vue'
+
+import { createWhisperAdapter } from '../libs/inference/adapters/whisper'
 
 export interface UseWhisperOptions {
   onLoading: (message: string) => void
-  onInitiate: (message: ProgressMessageEvents) => void
-  onProgress: (message: ProgressMessageEvents) => void
-  onDone: (message: ProgressMessageEvents) => void
+  onProgress: (payload: ProgressPayload) => void
   onReady: () => void
   onStart: () => void
   onUpdate: (tps: number) => void
   onComplete: (output: string) => void
+  onError: (message: string) => void
 }
 
 export function useWhisper(url: string, options?: Partial<UseWhisperOptions>) {
   const opts = merge<UseWhisperOptions>({
     onLoading: () => {},
-    onInitiate: () => {},
     onProgress: () => {},
-    onDone: () => {},
     onReady: () => {},
     onStart: () => {},
     onUpdate: () => {},
     onComplete: () => {},
+    onError: () => {},
   }, options)
 
-  const {
-    post: whisperPost,
-    data: whisperData,
-    terminate,
-  } = useWebWorker<MessageEvents>(url, { type: 'module' })
+  const adapter = createWhisperAdapter(url)
 
   const status = ref<'loading' | 'ready' | null>(null)
   const loadingMessage = ref('')
-  const loadingProgress = ref<ProgressMessageEvents[]>([])
+  const loadingProgress = ref<ProgressPayload[]>([])
   const transcribing = ref(false)
   const tps = ref<number>(0)
   const result = ref('')
 
-  watch(whisperData, (e) => {
-    switch (e.status) {
-      case 'loading':
-        status.value = 'loading'
-        loadingMessage.value = e.data
-        opts.onLoading?.(e.data)
-        break
+  // Subscribe to unified protocol events for streaming UI updates
+  adapter.onMessage((e: WhisperEvent) => {
+    switch (e.type) {
+      case 'progress': {
+        const payload = e.payload
+        if (payload.phase === 'download' || payload.phase === 'compile' || payload.phase === 'warmup') {
+          status.value = 'loading'
+          loadingMessage.value = payload.message ?? ''
+          opts.onLoading?.(payload.message ?? '')
 
-      case 'initiate':
-        loadingProgress.value.push(e)
-        opts.onInitiate?.(e)
-        break
-
-      case 'progress':
-        loadingProgress.value = loadingProgress.value.map((item) => {
-          if (item.file === e.file) {
-            return { ...item, ...e }
+          if (payload.phase === 'download' && payload.file) {
+            // Update or add file progress
+            const existing = loadingProgress.value.findIndex(p => p.file === payload.file)
+            if (existing >= 0) {
+              loadingProgress.value[existing] = payload
+            }
+            else {
+              loadingProgress.value.push(payload)
+            }
           }
-          return item
-        })
-        opts.onProgress?.(e)
+          opts.onProgress?.(payload)
+        }
+        else if (payload.phase === 'inference') {
+          // Streaming transcription updates
+          const extra = payload as any
+          if (extra.tps != null) {
+            tps.value = extra.tps
+            opts.onUpdate?.(extra.tps)
+          }
+        }
         break
+      }
 
-      case 'done':
-        loadingProgress.value = loadingProgress.value.filter(item => item.file !== e.file)
-        opts.onDone?.(e)
-        break
-
-      case 'ready':
+      case 'model-ready':
         status.value = 'ready'
+        loadingProgress.value = []
         opts.onReady?.()
         break
 
-      case 'start':
-        transcribing.value = true
-        opts.onStart?.()
-        break
-
-      case 'update':
-        tps.value = e.tps
-        opts.onUpdate?.(e.tps)
-        break
-
-      case 'complete':
+      case 'inference-result':
         transcribing.value = false
-        result.value = e.output[0] || ''
+        result.value = e.output?.text?.[0] ?? ''
         // eslint-disable-next-line no-console
         console.debug('Whisper result:', result.value)
-        opts.onComplete?.(e.output[0])
+        opts.onComplete?.(result.value)
+        break
+
+      case 'error':
+        opts.onError?.(e.payload.message)
         break
     }
   })
 
   onUnmounted(() => {
-    terminate()
+    adapter.terminate()
   })
 
   return {
-    transcribe: (message: MessageGenerate) => whisperPost(message),
+    transcribe: (input: { audio?: string, audioFloat32?: Float32Array, language: string }) => {
+      transcribing.value = true
+      opts.onStart?.()
+      adapter.transcribe({
+        audio: input.audio,
+        audioFloat32: input.audioFloat32,
+        language: input.language,
+      }).catch((err) => {
+        console.error('Whisper transcription error:', err)
+        transcribing.value = false
+        opts.onError?.(err instanceof Error ? err.message : String(err))
+      })
+    },
     status,
     loadingMessage,
     loadingProgress,
     transcribing,
     tps,
     result,
-    load: () => whisperPost({ type: 'load' }),
-    terminate,
+    load: () => adapter.load(),
+    terminate: () => adapter.terminate(),
   }
 }

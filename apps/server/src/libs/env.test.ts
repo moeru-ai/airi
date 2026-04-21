@@ -7,6 +7,7 @@ describe('parseEnv', () => {
     const env = parseEnv({
       DATABASE_URL: 'postgres://example',
       REDIS_URL: 'redis://example',
+      BETTER_AUTH_SECRET: 'test-secret-at-least-32-characters-long',
       AUTH_GOOGLE_CLIENT_ID: 'google-client',
       AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
       AUTH_GITHUB_CLIENT_ID: 'github-client',

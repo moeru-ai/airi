@@ -22,8 +22,8 @@
       "vite/client",
       "vite-plugin-vue-layouts/client",
       "vue-macros/macros-global",
-      "unplugin-vue-router/client",
-      "unplugin-info/client"
+      "unplugin-info/client",
+      "@webgpu/types"
     ],
     "allowJs": true,
     "strict": true,

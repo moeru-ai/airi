@@ -26,6 +26,8 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { useDelayMessageQueue, useEmotionsMessageQueue } from '../../composables/queues'
 import { useAuthProviderSync } from '../../composables/use-auth-provider-sync'
+import { useIOTraceBridge } from '../../composables/use-io-trace-bridge'
+import { initIOTracer } from '../../composables/use-io-tracer'
 import { llmInferenceEndToken } from '../../constants'
 import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
@@ -321,6 +323,8 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
   playback: playbackManager,
 })
 
+initIOTracer()
+useIOTraceBridge(speechPipeline)
 void speechRuntimeStore.registerHost(speechPipeline)
 
 speechPipeline.on('onSpecial', (segment) => {

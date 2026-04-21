@@ -45,7 +45,7 @@ const floatingTop = computed(() => {
 </script>
 
 <template>
-  <div class="h-[30rem] w-full border border-neutral-200/70 rounded-2xl bg-white/70 p-4 dark:border-neutral-800 dark:bg-neutral-950/70">
+  <div class="h-[30rem] w-full flex flex-col border border-neutral-200/70 rounded-2xl bg-white/70 p-4 dark:border-neutral-800 dark:bg-neutral-950/70">
     <div class="grid grid-cols-2 mb-3 gap-2 text-xs text-neutral-500 md:grid-cols-4 dark:text-neutral-400">
       <div>scrollOffset: {{ scrollOffset }}</div>
       <div>viewportHeight: {{ viewportHeight }}</div>
@@ -59,7 +59,7 @@ const floatingTop = computed(() => {
 
     <div
       ref="scrollerRef"
-      class="relative h-[24rem] overflow-y-auto border border-primary-200/70 rounded-xl bg-primary-50/50 p-6 dark:border-primary-900/70 dark:bg-primary-950/20"
+      class="relative min-h-0 flex-1 overflow-y-auto border border-primary-200/70 rounded-xl bg-primary-50/50 p-6 dark:border-primary-900/70 dark:bg-primary-950/20"
     >
       <div class="h-32 border border-neutral-300/70 rounded-xl border-dashed bg-white/70 p-4 text-sm text-neutral-500 dark:border-neutral-700 dark:bg-neutral-900/50 dark:text-neutral-400">
         Scroll down until the top sentinel leaves the viewport, then the marker should stay in the visible middle.

@@ -21,7 +21,6 @@ export async function getVersion(options: { release: boolean, autoTag: boolean, 
 
   // If --tag is specified, use the provided tag
   if (options.tag[0] !== 'true') {
-    // eslint-disable-next-line e18e/prefer-static-regex
     version = String(options.tag[0]).replace(/^v/, '').trim()
   }
   // Otherwise, even for --tag option (true / enabled), ignore the input
@@ -42,7 +41,7 @@ export async function getVersion(options: { release: boolean, autoTag: boolean, 
   // fetch the latest git ref
   try {
     const res = await x('git', ['describe', '--tags', '--abbrev=0'])
-    // eslint-disable-next-line e18e/prefer-static-regex
+
     return String(res.stdout).replace(/^v/, '').trim()
   }
   catch {

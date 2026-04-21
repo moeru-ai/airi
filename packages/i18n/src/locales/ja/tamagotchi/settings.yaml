@@ -40,6 +40,8 @@ devtools:
     markdown-stress:
       title: Markdown ストレス
       description: 大量のチャットデータを含むMarkdownの解析とレンダリング負荷のテスト
+    io-tracer:
+      title: IO Tracer
     widgets-calling:
       title: ウィジェット呼び出し
 screen-capture:

@@ -6,7 +6,6 @@ function isEnvFlagEnabled(value: string | undefined): boolean {
   if (value == null)
     return false
 
-  // eslint-disable-next-line e18e/prefer-static-regex
   return /^(?:1|true|t|yes|y|on)$/i.test(value.trim())
 }
 

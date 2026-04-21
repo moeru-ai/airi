@@ -1,8 +1,10 @@
+import type { Span } from '@opentelemetry/api'
 import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { WithUnknown } from '@xsai/shared'
 import type { StreamTranscriptionResult, StreamTranscriptionOptions as XSAIStreamTranscriptionOptions } from '@xsai/stream-transcription'
 
 import { errorMessageFrom, tryCatch } from '@moeru/std'
+import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
@@ -11,6 +13,7 @@ import { computed, ref, shallowRef, watch } from 'vue'
 
 import vadWorkletUrl from '../../workers/vad/process.worklet?worker&url'
 
+import { activeTurnSpan, startSpan } from '../../composables/use-io-tracer'
 import { useProvidersStore } from '../providers'
 import { streamAliyunTranscription } from '../providers/aliyun/stream-transcription'
 import { streamWebSpeechAPITranscription } from '../providers/web-speech-api'
@@ -310,6 +313,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     }
   }>()
 
+  let asrSpan: Span | undefined
+
   const supportsStreamInput = computed(() => {
     const providerId = activeTranscriptionProvider.value
     if (!providerId)
@@ -387,6 +392,12 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     const session = streamingSession.value
     if (!session)
       return
+
+    if (asrSpan) {
+      asrSpan.setAttribute(IOAttributes.ASRAbort, !!abort)
+      asrSpan.end()
+      asrSpan = undefined
+    }
 
     // Special handling for Web Speech API
     if (session.providerId === 'browser-web-speech-api') {
@@ -492,6 +503,14 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     onSentenceEnd?: (delta: string) => void
     onSpeechEnd?: (text: string) => void
   }) {
+    activeTurnSpan.value?.end()
+    const turnSpan = startSpan(IOSpanNames.InteractionTurn)
+    activeTurnSpan.value = turnSpan
+    asrSpan = startSpan(IOSpanNames.SpeechRecognition, turnSpan, {
+      [IOAttributes.Subsystem]: IOSubsystems.ASR,
+      [IOAttributes.GenAIRequestModel]: activeTranscriptionProvider.value ?? '',
+    })
+
     console.info('[Hearing Pipeline] transcribeForMediaStream called', {
       supportsStreamInput: supportsStreamInput.value,
       hasStream: !!stream,
@@ -605,10 +624,17 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           abortSignal: abortController.signal,
           onSentenceEnd: (delta) => {
             bumpIdle() // Bump idle timer on activity (only if enabled)
+            if (asrSpan)
+              asrSpan.addEvent(IOEvents.ASRSentenceEnd, { [IOAttributes.ASRText]: delta })
             // Call the options callback
             options?.onSentenceEnd?.(delta)
           },
           onSpeechEnd: (text) => {
+            if (asrSpan) {
+              asrSpan.setAttribute(IOAttributes.ASRText, text)
+              asrSpan.end()
+              asrSpan = undefined
+            }
             // Call the options callback
             options?.onSpeechEnd?.(text)
           },
@@ -766,6 +792,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
                 break
               if (value) {
                 fullText += value
+                if (asrSpan)
+                  asrSpan.addEvent(IOEvents.ASRSentenceEnd, { [IOAttributes.ASRText]: value })
                 // Use captured callbacks to avoid cross-session leakage
                 sessionCallbacks.onSentenceEnd?.(value)
               }
@@ -776,6 +804,11 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
               console.error('Error reading text stream:', err)
           }
           finally {
+            if (asrSpan) {
+              asrSpan.setAttribute(IOAttributes.ASRText, fullText)
+              asrSpan.end()
+              asrSpan = undefined
+            }
             // Use captured callbacks to avoid cross-session leakage
             sessionCallbacks.onSpeechEnd?.(fullText)
           }

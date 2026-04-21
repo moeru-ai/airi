@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import type { CSSProperties } from 'vue'
+import type { CSSProperties, StyleValue } from 'vue'
 
-import { inject, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, useAttrs, watch } from 'vue'
 
 import { injectPlatformLayout } from '../../constants'
 import { computeElementAnchorStyle, createContainerAnchorStyle, createWorkAreaRect } from './window-anchor'
+
+defineOptions({
+  inheritAttrs: false,
+})
 
 const props = withDefaults(defineProps<{
   title?: string
@@ -26,8 +30,14 @@ const props = withDefaults(defineProps<{
 })
 
 const platformLayout = inject(injectPlatformLayout, null)
+const attrs = useAttrs()
 const windowRoot = ref<HTMLElement | null>(null)
 const anchorStyle = shallowRef<CSSProperties | undefined>()
+const incomingStyle = computed<StyleValue | undefined>(() => attrs.style as StyleValue | undefined)
+const forwardedAttrs = computed(() => {
+  const { style: _style, ...rest } = attrs
+  return rest
+})
 
 let resizeObserver: ResizeObserver | null = null
 let animationFrameId: number | null = null
@@ -66,9 +76,13 @@ function updateAnchorStyle() {
   const platformRect = currentPlatformRoot?.getBoundingClientRect()
   // When anchoring against the container, we can optionally shrink the usable
   // bounds to the platform work area so windows avoid overlapping the dock.
+  const dockRect = platformLayout?.dock.value
+    ? platformLayout.dock.value.getBoundingClientRect()
+    : null
+
   const workAreaRect = platformRect
     ? createWorkAreaRect({
-        dockRect: props.anchorBounds === 'workarea' ? platformLayout?.dock.value?.getBoundingClientRect() ?? null : null,
+        dockRect: props.anchorBounds === 'workarea' ? dockRect : null,
         platformRect,
       })
     : undefined
@@ -131,7 +145,14 @@ onMounted(async () => {
   refreshResizeObserver()
 })
 
-watch(() => [props.anchorBounds, props.anchorTo, props.anchorEl], async () => {
+watch(() => [
+  props.anchorBounds,
+  props.anchorTo,
+  props.anchorEl,
+  platformLayout?.uiScale.value,
+  platformLayout?.dock.value,
+  platformLayout?.root.value,
+], async () => {
   await nextTick()
   queueAnchorUpdate()
   refreshResizeObserver()
@@ -146,13 +167,14 @@ onBeforeUnmount(() => {
 <template>
   <div
     ref="windowRoot"
+    v-bind="forwardedAttrs"
     :class="[
       'absolute',
       'flex flex-col',
       'rounded-2xl overflow-hidden',
       props.hasShadow ? 'shadow-xl' : '',
     ]"
-    :style="anchorStyle"
+    :style="[incomingStyle, anchorStyle]"
   >
     <div
       v-if="!!props.frame"

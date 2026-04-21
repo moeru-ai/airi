@@ -31,7 +31,7 @@
     "@xsai/generate-text": "catalog:",
     "@xsai/generate-transcription": "catalog:",
     "@xsai/shared-chat": "catalog:",
-    "discord.js": "^14.26.2",
+    "discord.js": "^14.26.3",
     "libsodium-wrappers": "^0.8.3",
     "opusscript": "^0.1.1",
     "tsx": "^4.21.0",

@@ -7,6 +7,20 @@ type RectSize = Pick<DOMRect, 'width' | 'height'>
 type RectLike = RectPosition & RectSize
 type RelativeRect = RectLike
 
+export function normalizeRectForScale<T extends RectLike>(rect: T, uiScale: number): T {
+  if (uiScale <= 0 || uiScale === 1) {
+    return rect
+  }
+
+  return {
+    ...rect,
+    left: rect.left / uiScale,
+    top: rect.top / uiScale,
+    width: rect.width / uiScale,
+    height: rect.height / uiScale,
+  }
+}
+
 function toRelativeRect(rect: RectLike, platformRect: RectPosition): RelativeRect {
   // All anchor math is done in the platform's own coordinate system so callers
   // can mix measured DOM rects with the logical scene layout consistently.

@@ -1,5 +1,18 @@
 import type { CapabilityDescriptor } from '../../../../plugin/apis/protocol'
 
+/**
+ * Tracks capability lifecycle state and waits for readiness across plugin sessions.
+ *
+ * Use when:
+ * - The host needs to announce, ready, degrade, or withdraw named capabilities
+ * - Plugins need to wait for another capability before continuing startup
+ *
+ * Expects:
+ * - Capability keys are stable across lifecycle transitions
+ *
+ * Returns:
+ * - An in-memory dependency registry with snapshot and wait primitives
+ */
 export class DependencyService {
   private readonly capabilities = new Map<string, CapabilityDescriptor>()
   private readonly capabilityWaiters = new Map<string, Set<(descriptor: CapabilityDescriptor) => void>>()
