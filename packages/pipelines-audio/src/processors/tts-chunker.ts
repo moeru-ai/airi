@@ -212,6 +212,7 @@ export async function chunkEmitter(
     text
       .replaceAll(TTS_SPECIAL_TOKEN, '')
       .replaceAll(TTS_FLUSH_INSTRUCTION, '')
+      .replace(/\*.*?\*|\[.*?\]|\(.*?\)|（.*?）|【.*?】|<.*?>/g, '')
       .trim()
 
   try {
