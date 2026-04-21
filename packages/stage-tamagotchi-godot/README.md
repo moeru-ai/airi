@@ -45,3 +45,27 @@ Godot-native desktop stage runtime project for `stage-tamagotchi`.
 - `pnpm -F @proj-airi/stage-tamagotchi-godot typecheck`
 
 Both commands currently run `dotnet build` against the Godot-generated C# project file.
+
+## Notes
+
+### Environment Management
+
+Recommended to use [GodotEnv](https://github.com/chickensoft-games/GodotEnv) to manage Godot versions.
+
+You can use the command below to set current Godot version for this project:
+
+```bash
+godotenv godot use 4.6.2
+```
+
+Then run the Godot editor with the current project:
+
+```bash
+"$(godotenv godot env path)" ./packages/stage-tamagotchi-godot/project.godot
+```
+
+You can also run the game directly from the command line:
+
+```bash
+"$(godotenv godot env path)" --path ./packages/stage-tamagotchi-godot
+```
