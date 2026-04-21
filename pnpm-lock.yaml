@@ -2624,6 +2624,22 @@ importers:
       xstate:
         specifier: ^5.30.0
         version: 5.30.0
+    devDependencies:
+      es-toolkit:
+        specifier: 'catalog:'
+        version: 1.43.0
+
+  packages/plugin-sdk-tamagotchi:
+    dependencies:
+      '@proj-airi/plugin-sdk':
+        specifier: workspace:*
+        version: link:../plugin-sdk
+      valibot:
+        specifier: 'catalog:'
+        version: 1.2.0(typescript@5.9.3)
+      xsschema:
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.3.1(typescript@5.9.3)))(zod-to-json-schema@3.25.2(zod@4.3.6))(zod@4.3.6)
 
   packages/scenarios-stage-tamagotchi-browser:
     dependencies:
@@ -3803,6 +3819,9 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@proj-airi/plugin-sdk-tamagotchi':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk-tamagotchi
       '@proj-airi/ui':
         specifier: workspace:^
         version: link:../../packages/ui
@@ -3825,6 +3844,9 @@ importers:
       '@ax-llm/ax':
         specifier: 'catalog:'
         version: 19.0.45(zod@4.3.6)
+      '@proj-airi/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
       '@proj-airi/stage-ui':
         specifier: workspace:^
         version: link:../../packages/stage-ui
@@ -3858,9 +3880,6 @@ importers:
       vieval:
         specifier: 'catalog:'
         version: 0.0.1(@types/node@25.6.0)(chokidar@5.0.0)(dotenv@17.4.2)(esbuild@0.27.2)(giget@2.0.0)(jiti@2.6.1)(less@4.6.4)(magicast@0.5.2)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
-      vue-tsc:
-        specifier: ^3.1.1
-        version: 3.2.6(typescript@5.9.3)
 
   plugins/airi-plugin-homeassistant:
     dependencies:

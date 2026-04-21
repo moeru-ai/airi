@@ -10,6 +10,7 @@ export default defineConfig({
       'packages/cap-vite',
       'packages/vishot-runner-browser',
       'packages/plugin-sdk',
+      'packages/plugin-sdk-tamagotchi',
       'packages/server-runtime',
       'packages/server-sdk',
       'packages/stage-shared',
