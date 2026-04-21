@@ -28,7 +28,7 @@
   },
   "dependencies": {
     "@vueuse/core": "catalog:",
-    "gpuu": "^1.0.6",
+    "gpuu": "^1.0.7",
     "pinia": "catalog:",
     "valibot": "catalog:",
     "vue": "catalog:"

@@ -54,7 +54,7 @@
     "markdown-it": "^14.1.1",
     "markdown-it-anchor": "^9.2.0",
     "minisearch": "^7.2.0",
-    "postcss": "^8.5.9",
+    "postcss": "^8.5.10",
     "shiki": "^4.0.2",
     "tinyglobby": "^0.2.16",
     "tsx": "^4.21.0",

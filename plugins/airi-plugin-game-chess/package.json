@@ -1,0 +1,37 @@
+{
+  "name": "@proj-airi/airi-plugin-game-chess",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Chess plugin for AIRI gamelet/widget runtime",
+  "scripts": {
+    "test": "vitest run --root . --config vitest.config.ts",
+    "eval:run": "vieval run --root . --config ./vieval.config.ts",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@moeru/std": "catalog:",
+    "@proj-airi/plugin-sdk-tamagotchi": "workspace:*",
+    "@proj-airi/ui": "workspace:^",
+    "animejs": "^4.3.6",
+    "chess.js": "catalog:",
+    "reka-ui": "catalog:",
+    "stockfish": "catalog:",
+    "vue": "catalog:"
+  },
+  "devDependencies": {
+    "@ax-llm/ax": "catalog:",
+    "@proj-airi/plugin-sdk": "workspace:*",
+    "@proj-airi/stage-ui": "workspace:^",
+    "@proj-airi/unocss-preset-chromatic": "^1.0.2",
+    "@unocss/reset": "^66.6.7",
+    "@vitejs/plugin-vue": "^6.0.5",
+    "@xsai-ext/providers": "catalog:",
+    "@xsai/generate-text": "catalog:",
+    "@xsai/shared-chat": "catalog:",
+    "@xsai/stream-text": "catalog:",
+    "pinia": "catalog:",
+    "unocss": "^66.6.7",
+    "vieval": "catalog:"
+  }
+}

@@ -185,6 +185,9 @@ describe('for FileSystemPluginHost', () => {
 
 describe('for PluginHost', () => {
   const providersCapability = 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers'
+  const kitRegistryResourceKey = 'proj-airi:plugin-sdk:resources:kits'
+  const toolRegistryResourceKey = 'proj-airi:plugin-sdk:resources:tools'
+  const widgetKitBindingsResourceKey = 'proj-airi:plugin-sdk:resources:kits:kit.widget:bindings'
   const testManifest = {
     apiVersion: 'v1' as const,
     kind: 'manifest.plugin.airi.moeru.ai' as const,
@@ -204,6 +207,52 @@ describe('for PluginHost', () => {
     entrypoints: {
       electron: join(import.meta.dirname, 'testdata', 'test-normal-plugin.ts'),
     },
+  }
+  const dynamicApiManifest = {
+    ...testManifest,
+    permissions: {
+      ...testManifest.permissions,
+      apis: [
+        ...(testManifest.permissions.apis ?? []),
+        { key: 'proj-airi:plugin-sdk:apis:client:kits:list', actions: ['invoke'] },
+        { key: 'proj-airi:plugin-sdk:apis:client:kits:get-capabilities', actions: ['invoke'] },
+        { key: 'proj-airi:plugin-sdk:apis:client:bindings:list', actions: ['invoke'] },
+        { key: 'proj-airi:plugin-sdk:apis:client:bindings:announce', actions: ['invoke'] },
+        { key: 'proj-airi:plugin-sdk:apis:client:bindings:activate', actions: ['invoke'] },
+        { key: 'proj-airi:plugin-sdk:apis:client:bindings:update', actions: ['invoke'] },
+        { key: 'proj-airi:plugin-sdk:apis:client:bindings:withdraw', actions: ['invoke'] },
+        { key: 'proj-airi:plugin-sdk:apis:client:tools:register', actions: ['invoke'] },
+      ],
+      resources: [
+        ...(testManifest.permissions.resources ?? []),
+        { key: kitRegistryResourceKey, actions: ['read'] },
+        { key: toolRegistryResourceKey, actions: ['write'] },
+        { key: 'proj-airi:plugin-sdk:resources:bindings', actions: ['read'] },
+        { key: widgetKitBindingsResourceKey, actions: ['read', 'write'] },
+      ],
+    } satisfies ModulePermissionDeclaration,
+  }
+  const deniedKitReadManifest = {
+    ...testManifest,
+    permissions: {
+      ...testManifest.permissions,
+      apis: [
+        ...(testManifest.permissions.apis ?? []),
+        { key: 'proj-airi:plugin-sdk:apis:client:kits:list', actions: ['invoke'] },
+      ],
+    } satisfies ModulePermissionDeclaration,
+  }
+
+  function registerWidgetKit(host: PluginHost) {
+    return host.registerKit({
+      kitId: 'kit.widget',
+      version: '1.0.0',
+      capabilities: [
+        { key: 'kit.widget.module', actions: ['announce', 'activate', 'update', 'withdraw'] },
+        { key: 'kit.widget.channel', actions: ['publish', 'subscribe'] },
+      ],
+      runtimes: ['electron', 'web'],
+    })
   }
 
   it('should run plugin lifecycle to ready in-memory', async () => {
@@ -257,6 +306,380 @@ describe('for PluginHost', () => {
 
     const latest = host.getSession(session.id)
     expect(latest?.phase).toBe('failed')
+  })
+
+  it('should expose runtime-compatible kits through bound plugin apis', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+    })
+    const widgetKit = registerWidgetKit(host)
+    host.registerKit({
+      kitId: 'kit.node-only',
+      version: '1.0.0',
+      capabilities: [{ key: 'kit.node-only.module', actions: ['announce'] }],
+      runtimes: ['node'],
+    })
+    reportPluginCapability(host, {
+      key: providersCapability,
+      state: 'ready',
+      metadata: { source: 'test' },
+    })
+
+    const session = await host.start(dynamicApiManifest, { cwd: '' })
+    const kits = await session.apis.kits.list()
+    const capabilities = await session.apis.kits.getCapabilities('kit.widget')
+
+    expect(kits).toEqual([widgetKit])
+    expect(capabilities).toEqual(widgetKit.capabilities)
+  })
+
+  it('should expose plugin tool client bindings on the plugin session api surface', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+    })
+    reportPluginCapability(host, {
+      key: providersCapability,
+      state: 'ready',
+      metadata: { source: 'test' },
+    })
+
+    const session = await host.start(dynamicApiManifest, { cwd: '' })
+
+    expect(session.apis.tools).toBeDefined()
+    await expect(session.apis.tools.register({
+      tool: {
+        id: 'play_chess',
+        title: 'Play Chess',
+        description: 'Open chess.',
+        activation: {
+          keywords: ['chess'],
+          patterns: ['play.*chess'],
+        },
+        parameters: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      execute: async () => ({ ok: true }),
+    })).resolves.toBeUndefined()
+  })
+
+  it('should register available plugin tools and expose serialized xsai schemas', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+    })
+    reportPluginCapability(host, {
+      key: providersCapability,
+      state: 'ready',
+      metadata: { source: 'test' },
+    })
+
+    const session = await host.start(dynamicApiManifest, { cwd: '' })
+
+    await session.apis.tools.register({
+      tool: {
+        id: 'play_chess',
+        title: 'Play Chess',
+        description: 'Open chess.',
+        activation: {
+          keywords: ['chess'],
+          patterns: ['play.*chess'],
+        },
+        parameters: {
+          type: 'object',
+          properties: {
+            opening: {
+              type: 'string',
+            },
+          },
+        },
+      },
+      availability: () => true,
+      execute: async input => ({ ok: true, input }),
+    })
+
+    await session.apis.tools.register({
+      tool: {
+        id: 'end_play_chess',
+        title: 'End Play Chess',
+        description: 'End chess.',
+        activation: {
+          keywords: ['end chess'],
+          patterns: ['end.*chess'],
+        },
+        parameters: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      availability: () => false,
+      execute: async () => ({ ok: true, ended: true }),
+    })
+
+    await expect(host.listAvailableToolDescriptors()).resolves.toEqual([
+      {
+        id: 'play_chess',
+        title: 'Play Chess',
+        description: 'Open chess.',
+        activation: {
+          keywords: ['chess'],
+          patterns: ['play.*chess'],
+        },
+      },
+    ])
+    await expect(host.listSerializedXsaiTools()).resolves.toEqual([
+      {
+        ownerPluginId: session.identity.plugin.id,
+        name: 'play_chess',
+        description: 'Open chess.',
+        parameters: {
+          type: 'object',
+          properties: {
+            opening: {
+              type: 'string',
+            },
+          },
+        },
+      },
+    ])
+    await expect(host.invokeTool(session.identity.plugin.id, 'play_chess', { opening: 'sicilian' })).resolves.toEqual({
+      ok: true,
+      input: { opening: 'sicilian' },
+    })
+    await expect(host.invokeTool(session.identity.plugin.id, 'missing_tool', {})).rejects.toThrow(
+      `Plugin tool not found: ${session.identity.plugin.id}:missing_tool`,
+    )
+  })
+
+  it('should allow plugin to announce update activate and withdraw dynamic bindings through bound apis', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+    })
+    registerWidgetKit(host)
+    reportPluginCapability(host, {
+      key: providersCapability,
+      state: 'ready',
+      metadata: { source: 'test' },
+    })
+
+    const session = await host.start(dynamicApiManifest, { cwd: '' })
+    expect('degrade' in session.apis.bindings).toBe(false)
+    expect(await session.apis.bindings.list()).toEqual([])
+
+    const announced = await session.apis.bindings.announce({
+      moduleId: 'module-a',
+      kitId: 'kit.widget',
+      kitModuleType: 'window',
+      config: { route: '/widgets' },
+    })
+    const listedAfterAnnounce = await session.apis.bindings.list()
+
+    expect(announced.moduleId).toBe('module-a')
+    expect(host.listBindings().some(item => item.moduleId === 'module-a')).toBe(true)
+    expect(listedAfterAnnounce).toEqual([
+      expect.objectContaining({
+        moduleId: 'module-a',
+        state: 'announced',
+        config: { route: '/widgets' },
+      }),
+    ])
+
+    const activated = await session.apis.bindings.activate({ moduleId: 'module-a' })
+    const listedAfterActivate = await session.apis.bindings.list()
+    const updated = await session.apis.bindings.update({
+      moduleId: 'module-a',
+      config: {
+        route: '/widgets/main',
+        width: 420,
+      },
+    })
+    const listedAfterUpdate = await session.apis.bindings.list()
+    const withdrawn = await session.apis.bindings.withdraw({ moduleId: 'module-a' })
+    const listedAfterWithdraw = await session.apis.bindings.list()
+
+    expect(activated.state).toBe('active')
+    expect(listedAfterActivate).toEqual([
+      expect.objectContaining({
+        moduleId: 'module-a',
+        state: 'active',
+      }),
+    ])
+    expect(updated.config).toEqual({
+      route: '/widgets/main',
+      width: 420,
+    })
+    expect(listedAfterUpdate).toEqual([
+      expect.objectContaining({
+        moduleId: 'module-a',
+        state: 'active',
+        config: {
+          route: '/widgets/main',
+          width: 420,
+        },
+      }),
+    ])
+    expect(withdrawn.state).toBe('withdrawn')
+    expect(listedAfterWithdraw).toEqual([
+      expect.objectContaining({
+        moduleId: 'module-a',
+        state: 'withdrawn',
+        config: {
+          route: '/widgets/main',
+          width: 420,
+        },
+      }),
+    ])
+  })
+
+  it('should let a test plugin consume injected kit and binding apis during init', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+    })
+
+    registerWidgetKit(host)
+
+    const session = await host.start({
+      ...dynamicApiManifest,
+      name: 'test-plugin-injected-host-apis',
+      entrypoints: {
+        electron: join(import.meta.dirname, 'testdata', 'test-injected-host-apis-plugin.ts'),
+      },
+    }, { cwd: '' })
+
+    expect(session.phase).toBe('ready')
+    expect(host.listBindings()).toEqual([
+      expect.objectContaining({
+        moduleId: 'test-injected-host-apis-module',
+        ownerSessionId: session.id,
+        ownerPluginId: session.identity.plugin.id,
+        kitId: 'kit.widget',
+        kitModuleType: 'window',
+        state: 'active',
+        config: {
+          route: '/widgets/injected-host-apis',
+          observedKitIds: ['kit.widget'],
+          observedCapabilityKeys: ['kit.widget.channel', 'kit.widget.module'],
+        },
+      }),
+    ])
+  })
+
+  it('should reuse dynamic binding ids after stop cleanup and reload', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+    })
+    registerWidgetKit(host)
+    reportPluginCapability(host, {
+      key: providersCapability,
+      state: 'ready',
+      metadata: { source: 'test' },
+    })
+
+    const session = await host.start(dynamicApiManifest, { cwd: '' })
+    await session.apis.bindings.announce({
+      moduleId: 'module-reuse',
+      kitId: 'kit.widget',
+      kitModuleType: 'window',
+      config: { route: '/widgets/reuse' },
+    })
+
+    const reloaded = await host.reload(session.id, { cwd: '' })
+
+    expect(host.getBinding('module-reuse')).toBeUndefined()
+    expect(host.listBindings().some(item => item.moduleId === 'module-reuse')).toBe(false)
+
+    const reused = await reloaded.apis.bindings.announce({
+      moduleId: 'module-reuse',
+      kitId: 'kit.widget',
+      kitModuleType: 'window',
+      config: { route: '/widgets/reuse-2' },
+    })
+
+    expect(reused.ownerSessionId).toBe(reloaded.id)
+    expect(reused.config).toEqual({ route: '/widgets/reuse-2' })
+  })
+
+  it('should isolate plugin-facing kit and module snapshots from plugin-side mutation', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+    })
+    registerWidgetKit(host)
+    reportPluginCapability(host, {
+      key: providersCapability,
+      state: 'ready',
+      metadata: { source: 'test' },
+    })
+
+    const session = await host.start(dynamicApiManifest, { cwd: '' })
+    const listedKits = await session.apis.kits.list()
+    listedKits[0].kitId = 'kit.mutated'
+    listedKits[0].capabilities[0].actions.push('tampered')
+    listedKits[0].runtimes.push('node')
+
+    const listedCapabilities = await session.apis.kits.getCapabilities('kit.widget')
+    listedCapabilities[0].actions.push('shadow-write')
+
+    const announced = await session.apis.bindings.announce({
+      moduleId: 'module-snapshot',
+      kitId: 'kit.widget',
+      kitModuleType: 'window',
+      config: { route: '/widgets/snapshot' },
+    })
+    announced.config.route = '/widgets/tampered'
+
+    const listedModules = await session.apis.bindings.list()
+    listedModules[0].config.route = '/widgets/list-tampered'
+
+    expect(await session.apis.kits.list()).toEqual([
+      expect.objectContaining({
+        kitId: 'kit.widget',
+        capabilities: [
+          expect.objectContaining({
+            key: 'kit.widget.module',
+            actions: ['announce', 'activate', 'update', 'withdraw'],
+          }),
+          expect.objectContaining({
+            key: 'kit.widget.channel',
+            actions: ['publish', 'subscribe'],
+          }),
+        ],
+        runtimes: ['electron', 'web'],
+      }),
+    ])
+    expect(await session.apis.kits.getCapabilities('kit.widget')).toEqual([
+      { key: 'kit.widget.module', actions: ['announce', 'activate', 'update', 'withdraw'] },
+      { key: 'kit.widget.channel', actions: ['publish', 'subscribe'] },
+    ])
+    expect(await session.apis.bindings.list()).toEqual([
+      expect.objectContaining({
+        moduleId: 'module-snapshot',
+        config: { route: '/widgets/snapshot' },
+      }),
+    ])
+  })
+
+  it('should deny new kit apis when resource read permission is missing', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+    })
+    registerWidgetKit(host)
+    reportPluginCapability(host, {
+      key: providersCapability,
+      state: 'ready',
+      metadata: { source: 'test' },
+    })
+
+    const session = await host.start(deniedKitReadManifest, { cwd: '' })
+
+    await expect(session.apis.kits.list()).rejects.toThrow('Permission denied: resources.read "proj-airi:plugin-sdk:resources:kits"')
   })
 
   it('should reject non in-memory transport for MVP', async () => {
