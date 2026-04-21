@@ -71,6 +71,7 @@ function goToModelSelection() {
         <ProviderApiKeyInput
           v-model="apiKey"
           :label="t('settings.pages.providers.provider.amazon-bedrock.config.api-key.label')"
+          :provider-name="providerMetadata?.localizedName"
           :description="t('settings.pages.providers.provider.amazon-bedrock.config.api-key.description')"
           :placeholder="t('settings.pages.providers.provider.amazon-bedrock.config.api-key.placeholder')"
           required
