@@ -147,8 +147,8 @@ pages:
     title: Account
     description: View your profile and manage your account
     notLoggedIn: Sign in to view your account and access all features
-    login: Log in
-    logout: Log out
+    login: Sign in
+    logout: Sign out
     fluxBalance: Flux Balance
     viewFluxDetails: View details
     signedInAs: Signed in as
@@ -538,6 +538,7 @@ pages:
   flux:
     title: Flux
     buy: Charge
+    currency: Currency
     description: Current Flux
     packagesError: Failed to load packages. Please try again later.
     checkout:
@@ -557,6 +558,7 @@ pages:
       empty: No transaction records yet.
       loadMore: Load More
       delayHint: Usage records may be delayed by up to 1 minute
+      ttsRequests: requests
     packages:
       title: Flux Packages
       buy: Charge
@@ -822,6 +824,9 @@ pages:
       minimax-global:
         description: minimax.io
         title: MiniMax Global
+      minimax-speech:
+        description: minimax.io
+        title: MiniMax Speech
       mistral:
         description: mistral.ai
         title: Mistral

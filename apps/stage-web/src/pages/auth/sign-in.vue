@@ -7,10 +7,12 @@ import { fetchSession, signInOIDC } from '@proj-airi/stage-ui/libs/auth'
 import { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } from '@proj-airi/stage-ui/libs/auth-config'
 import { Button } from '@proj-airi/ui'
 import { onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
 const router = useRouter()
+const { t } = useI18n()
 
 const { isDesktop } = useBreakpoints()
 
@@ -29,7 +31,7 @@ async function handleSignIn(provider: OAuthProvider) {
     })
   }
   catch (error) {
-    toast.error(error instanceof Error ? error.message : 'An unknown error occurred')
+    toast.error(error instanceof Error ? error.message : t('server.auth.signIn.error.unknown'))
   }
   finally {
     loading.value[provider] = false
@@ -41,7 +43,7 @@ onMounted(() => {
   const url = new URL(window.location.href)
   const error = url.searchParams.get('error')
   if (error) {
-    toast.error(error === 'auth_failed' ? 'Authentication failed. Please try again.' : error)
+    toast.error(error === 'auth_failed' ? t('server.auth.signIn.error.authFailed') : error)
     url.searchParams.delete('error')
     window.history.replaceState(null, '', url.pathname)
   }
@@ -63,9 +65,9 @@ watch(isDesktop, (val) => {
 </script>
 
 <template>
-  <div v-if="isDesktop" class="min-h-screen flex flex-col items-center justify-center">
+  <div v-if="isDesktop" class="min-h-screen flex flex-col items-center justify-center font-cuteen">
     <div class="mb-8 text-3xl font-bold">
-      Sign in
+      {{ t('server.auth.signIn.title') }}
     </div>
     <div class="max-w-xs w-full flex flex-col gap-3">
       <Button
@@ -86,7 +88,10 @@ watch(isDesktop, (val) => {
       </Button>
     </div>
     <div class="mt-8 text-xs text-gray-400">
-      By continuing, you agree to our <a href="https://airi.moeru.ai/docs/en/about/terms" class="underline">Terms</a> and <a href="https://airi.moeru.ai/docs/en/about/privacy" class="underline">Privacy Policy</a>.
+      {{ t('server.auth.signIn.footer.prefix') }}
+      <a href="https://airi.moeru.ai/docs/en/about/terms" class="underline">{{ t('server.auth.signIn.footer.terms') }}</a>
+      {{ t('server.auth.signIn.footer.and') }}
+      <a href="https://airi.moeru.ai/docs/en/about/privacy" class="underline">{{ t('server.auth.signIn.footer.privacy') }}</a>.
     </div>
   </div>
 

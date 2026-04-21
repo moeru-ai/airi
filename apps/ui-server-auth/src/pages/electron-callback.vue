@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { Button } from '@proj-airi/ui'
 import { onMounted, shallowRef } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { parseElectronCallbackQuery } from '../composables/electron-callback.shared'
+import { getServerAuthBootstrapContext } from '../modules/server-auth-context'
 
 type CallbackStatus = 'loading' | 'success' | 'fallback' | 'error'
 
@@ -11,16 +14,18 @@ interface CallbackViewModel {
   description: string
   detail?: string
   primaryActionLabel?: string
-  secondaryActionLabel?: string
   primaryActionDisabled?: boolean
   relayUrl?: string
+  showCloseTabHint?: boolean
 }
 
+const { t } = useI18n()
+
 const viewModel = shallowRef<CallbackViewModel>({
-  description: 'Checking your sign-in response and preparing the handoff to AIRI.',
+  description: t('server.auth.electronCallback.message.checkingResponse'),
   primaryActionDisabled: true,
   status: 'loading',
-  title: 'Completing sign-in',
+  title: t('server.auth.electronCallback.title.loading'),
 })
 
 function setViewModel(next: CallbackViewModel) {
@@ -34,43 +39,48 @@ function openRelayUrl() {
   window.location.assign(viewModel.value.relayUrl)
 }
 
-function copyRelayUrl() {
-  if (!viewModel.value.relayUrl)
-    return
-
-  void navigator.clipboard?.writeText(viewModel.value.relayUrl)
-}
-
 async function runRelayFlow() {
-  const parsed = parseElectronCallbackQuery(new URLSearchParams(window.location.search))
+  const bootstrapContext = getServerAuthBootstrapContext()
+  const callbackContext = bootstrapContext?.oidcCallback
+
+  const query = callbackContext
+    ? new URLSearchParams({
+        code: callbackContext.code,
+        error: callbackContext.error,
+        error_description: callbackContext.errorDescription,
+        state: callbackContext.state,
+      })
+    : new URLSearchParams(window.location.search)
+
+  const parsed = parseElectronCallbackQuery(query)
 
   if (parsed.status === 'error') {
     setViewModel({
-      description: 'We could not use this sign-in response.',
+      description: t('server.auth.electronCallback.message.invalidResponse'),
       detail: parsed.message,
       status: 'error',
-      title: 'Sign-in failed',
+      title: t('server.auth.electronCallback.title.signInFailed'),
     })
     return
   }
 
   setViewModel({
-    description: 'Passing your sign-in back to AIRI now. This page should close in a moment.',
+    description: t('server.auth.electronCallback.message.passingToAiri'),
     primaryActionDisabled: true,
     relayUrl: parsed.relayUrl,
     status: 'loading',
-    title: 'Opening AIRI',
+    title: t('server.auth.electronCallback.title.openingAiri'),
   })
 
   try {
     await fetch(parsed.relayUrl)
 
     setViewModel({
-      description: 'AIRI accepted the sign-in response. This tab will try to close itself now.',
-      detail: 'If nothing happens, you can close this tab manually and return to AIRI.',
+      description: t('server.auth.electronCallback.message.syncedAndSafeToClose'),
       relayUrl: parsed.relayUrl,
+      showCloseTabHint: false,
       status: 'success',
-      title: 'You are signed in',
+      title: t('server.auth.electronCallback.title.signedIn'),
     })
 
     window.setTimeout(() => {
@@ -79,24 +89,23 @@ async function runRelayFlow() {
 
     window.setTimeout(() => {
       setViewModel({
-        description: 'AIRI accepted the sign-in response. You can close this tab and continue in the app.',
-        detail: 'Some browsers do not allow this page to close itself automatically.',
+        description: t('server.auth.electronCallback.message.syncedAndSafeToClose'),
         relayUrl: parsed.relayUrl,
-        secondaryActionLabel: 'Copy callback link',
+        showCloseTabHint: true,
         status: 'success',
-        title: 'You are signed in',
+        title: t('server.auth.electronCallback.title.signedIn'),
       })
     }, 1200)
   }
   catch {
     setViewModel({
-      description: 'The browser could not reach AIRI through the local callback port.',
-      detail: 'We will try opening the local handoff directly. If that still fails, use the button below.',
+      description: t('server.auth.electronCallback.message.loopbackUnreachable'),
+      detail: t('server.auth.electronCallback.message.tryOpenDirectly'),
       primaryActionDisabled: false,
-      primaryActionLabel: 'Open AIRI manually',
+      primaryActionLabel: t('server.auth.electronCallback.action.openAiriManually'),
       relayUrl: parsed.relayUrl,
       status: 'fallback',
-      title: 'Finish sign-in in AIRI',
+      title: t('server.auth.electronCallback.title.finishSignInInAiri'),
     })
 
     window.setTimeout(() => {
@@ -105,14 +114,13 @@ async function runRelayFlow() {
 
     window.setTimeout(() => {
       setViewModel({
-        description: 'Automatic handoff did not finish in this browser session.',
+        description: t('server.auth.electronCallback.message.automaticHandoffFailed'),
         detail: parsed.relayUrl,
         primaryActionDisabled: false,
-        primaryActionLabel: 'Open AIRI manually',
+        primaryActionLabel: t('server.auth.electronCallback.action.openAiriManually'),
         relayUrl: parsed.relayUrl,
-        secondaryActionLabel: 'Copy callback link',
         status: 'fallback',
-        title: 'Open AIRI to continue',
+        title: t('server.auth.electronCallback.title.openAiriToContinue'),
       })
     }, 960)
   }
@@ -124,72 +132,113 @@ onMounted(() => {
 </script>
 
 <template>
-  <main
-    :class="[
-      'min-h-screen flex items-center justify-center px-6 py-10',
-    ]"
-  >
-    <div
-      :class="[
-        'max-w-xl w-full rounded-xl border border-neutral-200 bg-white p-6',
-        'dark:border-neutral-800 dark:bg-neutral-900',
-      ]"
-    >
+  <main :class="['min-h-screen', 'flex flex-col items-center justify-center', 'px-6 py-10', 'font-cuteen']">
+    <div v-if="viewModel.status === 'loading'" :class="['text-center']">
       <div
+        aria-hidden="true"
         :class="[
-          'text-2xl font-bold',
+          'mx-auto mb-3',
+          'h-15 w-15',
+          'i-svg-spinners:ring-resize',
+          'text-primary-500',
         ]"
-      >
+      />
+      <div :class="['text-lg']">
         {{ viewModel.title }}
       </div>
-
-      <p
-        :class="[
-          'mt-3 text-sm text-neutral-600 dark:text-neutral-300',
-        ]"
-      >
+      <p :class="['mt-2 text-sm text-neutral-600 dark:text-neutral-300']">
         {{ viewModel.description }}
       </p>
+    </div>
 
-      <p
-        v-if="viewModel.detail"
-        :class="[
-          'mt-3 break-all text-xs text-neutral-500 dark:text-neutral-400',
-        ]"
-      >
-        {{ viewModel.detail }}
-      </p>
+    <div v-else :class="['sm:max-w-md md:max-w-md', 'flex w-full flex-col items-center']">
+      <div :class="['mb-8 text-3xl font-bold']">
+        Project AIRI
+      </div>
 
       <div
+        v-if="viewModel.status === 'success'"
         :class="[
-          'mt-6 flex flex-wrap items-center gap-2',
+          'w-full rounded-xl p-5',
+          'relative', 'overflow-hidden',
+          'bg-lime-50/80 dark:bg-lime-900/50',
         ]"
       >
-        <button
+        <div :class="['flex items-start gap-3']">
+          <div
+            aria-hidden="true"
+            :class="[
+              'absolute',
+              'size-24 flex-shrink-0',
+              'right-0 top-0 translate-x-[calc(25%)] translate-y-[-25%]',
+              'i-solar:check-circle-line-duotone text-lime-500/30 dark:text-lime-200/20',
+            ]"
+          />
+          <div :class="['min-w-0']">
+            <div :class="['text-xl font-semibold text-lime-800 dark:text-lime-200', 'mb-4']">
+              {{ viewModel.title }}
+            </div>
+            <div :class="['mt-1 text-sm text-lime-700 dark:text-lime-300']">
+              {{ viewModel.description }}
+            </div>
+            <div :class="['mt-2 text-xs text-lime-700/90 dark:text-lime-300/90']">
+              {{ t('server.auth.electronCallback.label.safeToClose') }}
+            </div>
+            <div
+              v-if="viewModel.detail"
+              :class="['mt-2 break-all text-xs text-lime-700/85 dark:text-lime-300/85']"
+            >
+              {{ viewModel.detail }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-else
+        :class="[
+          'w-full rounded-xl p-4',
+          'relative', 'overflow-hidden',
+          'bg-orange-100/60 dark:bg-orange-900/50',
+        ]"
+      >
+        <div :class="['flex items-start gap-3']">
+          <div
+            aria-hidden="true"
+            :class="[
+              'absolute',
+              'size-24 flex-shrink-0',
+              'right-0 top-0 translate-x-[calc(25%)] translate-y-[-25%]',
+              'i-solar:danger-circle-line-duotone text-orange-500/30 dark:text-orange-200/20',
+            ]"
+          />
+          <div :class="['min-w-0']">
+            <div :class="['text-xl font-semibold text-orange-800 dark:text-orange-200', 'mb-4']">
+              {{ viewModel.title }}
+            </div>
+            <div :class="['mt-1 text-sm text-orange-700 dark:text-orange-300']">
+              {{ viewModel.description }}
+            </div>
+            <div
+              v-if="viewModel.detail"
+              :class="['mt-2 break-all text-xs text-orange-700/90 dark:text-orange-300/90']"
+            >
+              {{ viewModel.detail }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div :class="['mt-3 flex flex-wrap items-center justify-center gap-2']">
+        <Button
           v-if="viewModel.primaryActionLabel"
-          type="button"
           :disabled="viewModel.primaryActionDisabled"
-          :class="[
-            'rounded-md border border-neutral-300 px-3 py-2 text-sm',
-            'disabled:cursor-not-allowed disabled:opacity-50',
-            'dark:border-neutral-700',
-          ]"
+          :class="['inline-flex']"
+          variant="secondary"
           @click="openRelayUrl"
         >
           {{ viewModel.primaryActionLabel }}
-        </button>
-
-        <button
-          v-if="viewModel.secondaryActionLabel"
-          type="button"
-          :class="[
-            'rounded-md border border-neutral-300 px-3 py-2 text-sm',
-            'dark:border-neutral-700',
-          ]"
-          @click="copyRelayUrl"
-        >
-          {{ viewModel.secondaryActionLabel }}
-        </button>
+        </Button>
       </div>
 
       <a
@@ -207,6 +256,9 @@ onMounted(() => {
 </template>
 
 <route lang="yaml">
+alias:
+  - /electron-callback
 meta:
   layout: plain
+path: /api/auth/oidc/electron-callback
 </route>

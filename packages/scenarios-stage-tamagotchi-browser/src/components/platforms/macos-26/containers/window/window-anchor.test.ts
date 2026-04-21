@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { computeElementAnchorStyle, createContainerAnchorStyle, createWorkAreaRect } from './window-anchor'
+import { computeElementAnchorStyle, createContainerAnchorStyle, createWorkAreaRect, normalizeRectForScale } from './window-anchor'
 
 describe('createContainerAnchorStyle', () => {
   it('anchors a window to the platform top-right corner', () => {
@@ -79,6 +79,22 @@ describe('computeElementAnchorStyle', () => {
     })).toEqual({
       left: '150px',
       top: '100px',
+    })
+  })
+})
+
+describe('normalizeRectForScale', () => {
+  it('converts measured rect values into logical coordinates for scaled platform UI', () => {
+    expect(normalizeRectForScale({
+      left: 960,
+      top: 240,
+      width: 640,
+      height: 360,
+    }, 2)).toEqual({
+      left: 480,
+      top: 120,
+      width: 320,
+      height: 180,
     })
   })
 })

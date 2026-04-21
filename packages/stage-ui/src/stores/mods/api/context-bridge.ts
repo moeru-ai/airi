@@ -58,11 +58,15 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
   const disposeHookFns = ref<Array<() => void>>([])
   let remoteStreamGuard: { sessionId: string, generation: number } | null = null
+  let initialized = false
 
   async function initialize() {
     await mutex.acquire()
 
     try {
+      if (initialized)
+        return
+
       const registerConsumers = () => {
         for (const consumerEvent of consumerRegistrationEvents) {
           serverChannelStore.send({
@@ -173,6 +177,13 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         })
       }))
 
+      function withContextBridgeLock<T>(key: string, callback: () => Promise<T>) {
+        if (typeof navigator !== 'undefined' && 'locks' in navigator && typeof navigator.locks.request === 'function') {
+          return navigator.locks.request(key, callback)
+        }
+        return callback()
+      }
+
       disposeHookFns.value.push(serverChannelStore.onEvent('input:text', async (event) => {
         const {
           text,
@@ -275,7 +286,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           // - https://chromestatus.com/feature/6265472244514816
           // - https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker
           // - https://developer.mozilla.org/en-US/docs/Web/API/Web_Locks_API
-          navigator.locks.request('context-bridge:event:input:text', async () => {
+          await withContextBridgeLock('context-bridge:event:input:text', async () => {
             try {
               await chatOrchestrator.ingest(messageText, {
                 model: activeModel.value,
@@ -472,6 +483,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }
       })
       disposeHookFns.value.push(stopIncomingStreamWatch)
+      initialized = true
     }
     finally {
       mutex.release()
@@ -482,6 +494,9 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     await mutex.acquire()
 
     try {
+      if (!initialized)
+        return
+
       for (const consumerEvent of consumerRegistrationEvents) {
         serverChannelStore.send({
           type: 'module:consumer:unregister',
@@ -496,6 +511,9 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       for (const fn of disposeHookFns.value) {
         fn()
       }
+
+      initialized = false
+      remoteStreamGuard = null
     }
     finally {
       mutex.release()

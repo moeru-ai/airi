@@ -14,6 +14,7 @@ class DevBridgeViewController: CAPBridgeViewController {
 
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
+        configureTransparentBackground()
         webView?.allowsBackForwardNavigationGestures = true
         installWebSocketBridge()
     }
@@ -42,6 +43,20 @@ class DevBridgeViewController: CAPBridgeViewController {
         }
 
         webView.configuration.userContentController.add(hostBridgeMessageHandler, name: hostBridgeName)
+    }
+
+    private func configureTransparentBackground() {
+        view.isOpaque = false
+        view.backgroundColor = .clear
+
+        guard let webView = bridge?.webView else {
+            return
+        }
+
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.backgroundColor = .clear
+        webView.superview?.backgroundColor = .clear
     }
 
     private func dispatchWebSocketBridgeEvent(_ payload: String) {

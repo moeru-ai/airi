@@ -18,70 +18,70 @@ dialogs:
     baseUrl: 기본 URL
     baseUrlHelp: API 엔드포인트 URL(확실하지 않은 경우 기본값 사용)
     accountId: 계정 ID
-    validationRunning: Running tests
+    validationRunning: 테스트 실행
     validationSuccess: 구성 검증 성공
     validationPartial: Configuration partially validated
     validationFailed: 구성 검증 실패
     validationError: '검증 오류: {error}'
-    testGeneration: Ping API
+    testGeneration: API 핑
     testGenerationRunning: Ping...
-    testGenerationFailed: Ping test failed
-    retryPingCheck: Retry
+    testGenerationFailed: Ping 테스트 실패
+    retryPingCheck: 재 시도
     skipForNow: 지금은 건너뛰기
     saveAndContinue: 저장 및 계속
     next: 다음
     retry: 다시 시도
     credentialsSafeLabel: Keep your API keys and credentials safe!
     credentialsSafeLocal: >-
-      AIRI is running pure locally in your PC, and we will never steal your credentials for AI / LLM providers. But keep in mind that your API keys are sensitive information. Make sure to keep them safe and do not share them with anyone.
+      AIRI는 PC에서 온전히 로컬에서 실행되며 AI / LLM 제공 업체에 대한 자격 증명을 절대 훔치지 않아요. 당신의 API 키는 민감한 정보라는 점을 명심해주세요. 보안에 신경써주시고 절대 누구와도 공유하지 마세요.
     credentialsSafeOpenSource: >-
-      AIRI is open sourced at {github}, if you want to check how we handle your credentials, feel free to inspect our code.
+      AIRI는 {github}에서 오픈 소스입니다. 당신의 자격 증명을 처리하는 방법을 확인하려면 언제든지 코드를 검사하실 수 있어요.
     enableChatCheck: >-
-      Allow airi to send a "ping" message to the first available chat model to check availability
+      Airi가 첫 모델에게 "Ping" 메시지를 보낼 수 있도록 허용하기
     start: 그럼 시작합시다!
-    loginPrompt: Sign in to use the official AIRI provider for the best experience.
-    loginAction: Sign in
-    setupWithoutSigningIn: Setup with your provider
-    flux: Flux
-    buyFlux: Charge Flux
+    loginPrompt: 최고의 경험을 위해 공식 AIFI 제공업체를 이용하려면 로그인하세요.
+    loginAction: 가입하기
+    setupWithoutSigningIn: 당신의 제공업자로 설정하기
+    flux: 플럭스
+    buyFlux: 플럭스 충전하기
     select-model: 모델 선택
     no-models: 사용 가능한 모델 없음
     no-models-help: >-
       이전 단계로 돌아가서 API 키를 확인하거나 네트워크 연결을 확인해 주세요.
     permissions:
-      title: Notifications
-      description: You can allow notifications now or continue and set it up later.
-      notificationsTitle: Notifications
+      title: 알림
+      description: 지금 알림을 받도록 허용할 수 있고 나중에 허용할 수 있어요.
+      notificationsTitle: 알림
       notificationsDescription: Allow reminders and important status updates.
       notificationsAction: Request notification permission
       notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
-      openSettings: Open iOS Settings
+      openSettings: iOS 설정 열기
       optionalHint: You can continue even if notification permission is not granted.
-      stateUnknown: Not requested
-      stateRequesting: Requesting...
-      stateGranted: Granted
-      stateNotGranted: Not granted
+      stateUnknown: 요청 전
+      stateRequesting: 요청 중...
+      stateGranted: 허용됨
+      stateNotGranted: 허용되지 않음
   bug-report:
-    title: Bug report (´;ω;`)ヾ(･∀･`)
-    subtitle: Oops, sorry we made something wrong. Would you mind telling us what happened?
-    trigger-label: Report a Bug
-    submit-label: Send Bug Report
+    title: 버그 리포트 (´;ω;`)ヾ(･∀･`)
+    subtitle: 이런, 문제가 생겼나 봐요. 혹시 어쩌다 이렇게 됐는지 저희에게 설명해주실 수 있나요?
+    trigger-label: 버그 제보하기
+    submit-label: 버그 리포트 전송
     triage-description: Include screenshot and page context to help us triage this issue.
     description-placeholder: Steps to reproduce, expected behavior, and actual behavior
     include-current-page-screenshot: Include current page screenshot
     manual-media:
       label: Manually choose screenshots / recordings
-      optional: Optional.
+      optional: 선택 사항.
     media-files:
-      label: Media files
-      description: 'Optional: manually select.'
+      label: 미디어 파일
+      description: '선택 사항: 수동으로 선택하기.'
       placeholder: Choose screenshot or video file
-      selected-count: '{count} file(s) selected'
+      selected-count: '{count}개의 파일이 선택 됨'
     last-submitted-preview: Last Submitted Payload Preview
 language:
   title: 언어
   description: |
-    UI language. You can set characters' language later.
+    UI 언어에요. 캐릭터의 언어는 나중에 바꿀 수 있어요.
 controls-island:
   icon-size:
     title: 아일랜드 아이콘 크기 조정
@@ -91,16 +91,16 @@ controls-island:
     small: 작게
 analytics:
   notice:
-    title: Usage analytics
+    title: 사용량 분석
     description: >-
       AIRI collects anonymous usage analytics to help us understand how the app is used and improve stability. No personal data is collected.
-    privacyPrefix: Read the
-    privacyLink: privacy policy
-    onboardingHint: You can turn analytics off later in Settings > System > General.
-    settingsHint: You can turn analytics off at any time.
+    privacyPrefix: 읽으세요
+    privacyLink: 개인 정보 정책
+    onboardingHint: 설정 > 시스템 > 일반에서 분석을 끌 수 있어요.
+    settingsHint: 분석은 언제나 끌 수 있어요.
   toggle:
-    title: Enable usage analytics
-    description: Turn this off to opt out of analytics collection.
+    title: 사용 분석 켜기
+    description: 분석 수집을 거부하려면 꺼주세요................
   disabled:
     title: Analytics disabled for this development build
 live2d:
@@ -147,8 +147,8 @@ pages:
     title: Account
     description: View your profile and manage your account
     notLoggedIn: Sign in to view your account and access all features
-    login: Log in
-    logout: Log out
+    login: Sign in
+    logout: Sign out
     fluxBalance: Flux Balance
     viewFluxDetails: View details
     signedInAs: Signed in as
@@ -538,6 +538,7 @@ pages:
   flux:
     title: Flux
     buy: Charge
+    currency: Currency
     description: Current Flux
     packagesError: Failed to load packages. Please try again later.
     checkout:
@@ -557,6 +558,7 @@ pages:
       empty: No transaction records yet.
       loadMore: Load More
       delayHint: Usage records may be delayed by up to 1 minute
+      ttsRequests: requests
     packages:
       title: Flux Packages
       buy: Charge
@@ -822,6 +824,9 @@ pages:
       minimax-global:
         description: minimax.io
         title: MiniMax 글로벌
+      minimax-speech:
+        description: minimax.io
+        title: MiniMax Speech
       mistral:
         description: mistral.ai
         title: Mistral

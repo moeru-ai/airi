@@ -7,7 +7,7 @@ chat:
   reasoning: 思考
 message: 说点什么...
 send-mode:
-  title: Send key
+  title: 发送键值
   enter: Enter
   ctrl-enter: Ctrl + Enter
   double-enter: 双击Enter
@@ -81,7 +81,7 @@ promo-banner:
       title: Spring Theme Update
       eventName: Unlock window, desk, and night-lamp themes to refresh your room.
       date: 04/05 - 04/22
-      reward: Free Theme Draw Ticket on Login
+      reward: Free Theme Draw Ticket on Sign-in
       cta: 查看主题
 waiting: 等待中
 websocket-status:

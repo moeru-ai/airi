@@ -9,8 +9,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "types": [
-      "vite/client",
-      "unplugin-vue-router/client"
+      "vite/client"
     ],
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,

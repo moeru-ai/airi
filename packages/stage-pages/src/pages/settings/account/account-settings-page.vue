@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
+import { Button } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -57,7 +58,7 @@ const userAvatar = computed(() => user.value?.image ?? null)
         :class="[
           'flex items-center justify-between',
           'rounded-xl p-4',
-          'border border-neutral-200 dark:border-neutral-800',
+          'border-2 border-neutral-200 dark:border-neutral-800',
           'hover:bg-neutral-50 dark:hover:bg-neutral-800/50',
           'transition-colors',
           'no-underline text-inherit',
@@ -80,19 +81,11 @@ const userAvatar = computed(() => user.value?.image ?? null)
         </div>
       </RouterLink>
 
-      <button
-        :class="[
-          'mt-4 w-full rounded-lg py-2.5 px-4',
-          'text-sm font-medium',
-          'text-red-600 dark:text-red-400',
-          'bg-red-500/10 hover:bg-red-500/20',
-          'border border-red-200 dark:border-red-800/50',
-          'transition-colors cursor-pointer',
-        ]"
+      <Button
+        variant="danger"
+        :label="t('settings.pages.account.logout')"
         @click="emit('logout')"
-      >
-        {{ t('settings.pages.account.logout') }}
-      </button>
+      />
     </template>
 
     <template v-else>

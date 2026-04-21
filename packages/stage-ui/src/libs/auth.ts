@@ -34,7 +34,7 @@ export const authClient = createAuthClient({
 
 let initialized = false
 
-export function initializeAuth() {
+export async function initializeAuth() {
   if (initialized)
     return
 
@@ -42,18 +42,21 @@ export function initializeAuth() {
   // (e.g. /auth/callback). initializeAuth() only restores existing
   // sessions and refresh schedules — it does NOT consume the code.
 
-  fetchSession().catch(() => {})
+  initialized = true
 
-  // Restore OIDC token refresh scheduling from persisted state
+  // NOTICE: restoreRefreshSchedule must complete BEFORE fetchSession when
+  // the persisted access token is already expired. Otherwise fetchSession
+  // hits /get-session with the stale Bearer, gets 401, and wipes
+  // refreshToken + oidcClientId before the scheduled refresh can run —
+  // silently logging the user out on reload.
   const authStore = useAuthStore()
-  authStore.restoreRefreshSchedule()
-
   authStore.onTokenRefreshed(async (accessToken) => {
     authStore.token = accessToken
     await fetchSession()
   })
 
-  initialized = true
+  await authStore.restoreRefreshSchedule()
+  await fetchSession().catch(() => {})
 }
 
 /**
@@ -102,12 +105,12 @@ export async function signOut() {
 
   // NOTICE: Server signOut is wrapped in try/catch so that local state cleanup
   // always runs regardless of server errors (e.g. network unreachable). User
-  // intent to log out is respected even if token revocation fails server-side.
+  // intent to sign out is respected even if token revocation fails server-side.
   try {
     await authClient.signOut()
   }
   catch {
-    // Swallow — local cleanup below ensures the user is logged out client-side.
+    // Swallow — local cleanup below ensures the user is signed out client-side.
   }
 
   authStore.user = null
@@ -117,7 +120,7 @@ export async function signOut() {
 }
 
 /**
- * Initiate OIDC Authorization Code + PKCE login flow.
+ * Initiate OIDC Authorization Code + PKCE sign-in flow.
  * Builds the authorization URL, persists PKCE state, and navigates.
  */
 export async function signInOIDC(params: OIDCFlowParams) {

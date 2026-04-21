@@ -1,4 +1,3 @@
-/* eslint-disable e18e/prefer-static-regex */
 import type { OutputAsset } from 'rollup'
 import type { Plugin, RenderBuiltAssetUrl, ResolvedConfig } from 'vite'
 

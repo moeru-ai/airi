@@ -35,11 +35,17 @@ export async function expandControlsIsland(page: Page): Promise<void> {
 }
 
 export async function openSettingsFromControlsIsland(page: Page): Promise<void> {
-  await controlButtonsByIcon(page, 'i-solar:settings-minimalistic-outline')
-    .first()
-    .click({ force: true, timeout: controlsIslandReadyTimeoutMs })
+  await waitForControlsIslandReady(page)
 
-  await sleep(100)
+  try {
+    await clickControlButtonByIcon(page, 'i-solar:settings-minimalistic-outline')
+  }
+  catch {
+    // NOTICE: The island can report ready while still collapsed on slower frames.
+    // Expand once and retry settings click to reduce flakiness during capture.
+    await expandControlsIsland(page).catch(() => {})
+    await clickControlButtonByIcon(page, 'i-solar:settings-minimalistic-outline')
+  }
 }
 
 export async function openChatFromControlsIsland(page: Page): Promise<void> {

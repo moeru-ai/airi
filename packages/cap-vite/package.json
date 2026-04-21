@@ -41,6 +41,6 @@
   },
   "dependencies": {
     "cac": "^7.0.0",
-    "tinyexec": "^1.0.4"
+    "tinyexec": "^1.1.1"
   }
 }

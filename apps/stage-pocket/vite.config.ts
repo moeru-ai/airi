@@ -12,12 +12,12 @@ import templateCompilerOptions from '@tresjs/core/template-compiler-options'
 import Vue from '@vitejs/plugin-vue'
 import Unocss from 'unocss/vite'
 import Info from 'unplugin-info/vite'
-import VueRouter from 'unplugin-vue-router/vite'
 import Yaml from 'unplugin-yaml/vite'
 import mkcert from 'vite-plugin-mkcert'
 import VueDevTools from 'vite-plugin-vue-devtools'
 import Layouts from 'vite-plugin-vue-layouts'
 import VueMacros from 'vue-macros/vite'
+import VueRouter from 'vue-router/vite'
 
 import { tryCatch } from '@moeru/std'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
@@ -28,7 +28,7 @@ import { defineConfig } from 'vite'
 function isEnvTruthy(value: string | undefined | null): boolean {
   if (value == null)
     return false
-  // eslint-disable-next-line e18e/prefer-static-regex
+
   return /^(?:1|true|t|yes|y|on)$/i.test(value.trim())
 }
 
@@ -109,7 +109,7 @@ export default defineConfig({
       : [mkcert((() => {
           // Workaround: plugin's bundled downloader has a feaxios bug, prefer system mkcert
           const command = process.platform === 'win32' ? 'where' : 'which'
-          // eslint-disable-next-line e18e/prefer-static-regex
+
           const { data } = tryCatch(() => ({ mkcertPath: execSync(`${command} mkcert`, { stdio: 'pipe' }).toString().trim().split(/\r?\n/)[0] }))
           return data
         })())],
@@ -129,7 +129,6 @@ export default defineConfig({
       betterDefine: false,
     }),
 
-    // https://github.com/posva/unplugin-vue-router
     VueRouter({
       extensions: ['.vue', '.md'],
       dts: resolve(import.meta.dirname, 'src/typed-router.d.ts'),

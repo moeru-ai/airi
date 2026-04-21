@@ -40,6 +40,8 @@ devtools:
     markdown-stress:
       title: Test de charge Markdown
       description: Tester l'analyse et le rendu Markdown avec des charges de chat lourdes
+    io-tracer:
+      title: IO Tracer
     widgets-calling:
       title: Appel de widgets
 screen-capture:
