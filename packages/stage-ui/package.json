@@ -183,6 +183,7 @@
     "@types/unist": "catalog:",
     "@unocss/reset": "^66.6.8",
     "@vitejs/plugin-vue": "^6.0.6",
+    "@webgpu/types": "catalog:",
     "clustr": "^1.0.2",
     "csstype": "^3.2.3",
     "histoire": "catalog:",

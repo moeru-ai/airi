@@ -26,7 +26,8 @@
       "vite-plugin-pwa/client",
       "vue-macros/macros-global",
       "@types/audioworklet",
-      "unplugin-info/client"
+      "unplugin-info/client",
+      "@webgpu/types"
     ],
     "allowJs": true,
     "strict": true,
