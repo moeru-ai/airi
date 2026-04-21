@@ -71,6 +71,7 @@ catalog:
   '@types/whatwg-mimetype': ^5.0.0
   '@types/ws': ^8.18.1
   '@vueuse/core': 14.1.0
+  '@webgpu/types': ^0.1.69
   '@xsai-ext/providers': 0.5.0-beta.2
   '@xsai/embed': 0.5.0-beta.2
   '@xsai/generate-speech': 0.5.0-beta.2
@@ -152,6 +153,7 @@ catalogs:
     unspeech: ^0.1.13
 
 ignoredBuiltDependencies:
+  - '@ax-llm/ax'
   - '@prisma/client'
   - better-sqlite3
   - simple-git-hooks # [workaround] postinstall script bundled in simple-git-hooks fails to execute with `enableGlobalVirtualStore: true`. Using local postinstall script to run `npx simple-git-hooks` instead.

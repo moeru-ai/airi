@@ -17,6 +17,7 @@
     "chess.js": "catalog:",
     "reka-ui": "catalog:",
     "stockfish": "catalog:",
+    "valibot": "catalog:",
     "vue": "catalog:"
   },
   "devDependencies": {
@@ -32,6 +33,7 @@
     "@xsai/stream-text": "catalog:",
     "pinia": "catalog:",
     "unocss": "^66.6.7",
-    "vieval": "catalog:"
+    "vieval": "catalog:",
+    "xsschema": "catalog:"
   }
 }

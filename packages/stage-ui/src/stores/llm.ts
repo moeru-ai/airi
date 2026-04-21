@@ -1,22 +1,36 @@
 import type { StreamOptions } from '@proj-airi/core-agent'
 import type { WebSocketEvents } from '@proj-airi/server-sdk'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
-import type { Message } from '@xsai/shared-chat'
+import type { Message, Tool } from '@xsai/shared-chat'
 
 import { streamFrom as coreStreamFrom, isToolRelatedError, modelKey } from '@proj-airi/core-agent'
 import { listModels } from '@xsai/model'
+import { uniqBy } from 'es-toolkit'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 import { createSparkCommandTool, debug, mcp } from '../tools'
+import { useLlmToolsStore } from './llm-tools'
 import { useModsServerChannelStore } from './mods/api/channel-server'
 
 export type { StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 export { isToolRelatedError } from '@proj-airi/core-agent'
 
+function toolNameFrom(tool: Tool) {
+  const candidate = tool as Tool & {
+    name?: string
+    function?: {
+      name?: string
+    }
+  }
+
+  return candidate.function?.name ?? candidate.name
+}
+
 export const useLLM = defineStore('llm', () => {
   const toolsCompatibility = ref<Map<string, boolean>>(new Map())
   const modsServerChannelStore = useModsServerChannelStore()
+  const llmToolsStore = useLlmToolsStore()
 
   async function stream(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
     const key = modelKey(model, chatProvider)
@@ -42,11 +56,19 @@ export const useLLM = defineStore('llm', () => {
         chatProvider,
         messages,
         options: { ...options, toolsCompatibility: toolsCompatibility.value },
-        builtinToolsResolver: async () => [
-          ...await mcp(),
-          ...await debug(),
-          await createSparkCommandTool({ sendSparkCommand }),
-        ],
+        builtinToolsResolver: async () => {
+          await llmToolsStore.awaitPendingRegistrations()
+
+          // Reverse twice so later runtime registrations win while original tool order stays stable.
+          return uniqBy(
+            [
+              ...await mcp(),
+              ...await debug(),
+              ...await createSparkCommandTool({ sendSparkCommand }),
+            ].toReversed(),
+            tool => toolNameFrom(tool) ?? tool,
+          ).toReversed()
+        },
       })
     }
     catch (err) {
