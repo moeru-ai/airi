@@ -25,7 +25,8 @@
       "vue-macros/macros-global",
       "@types/audioworklet",
       "unplugin-info/client",
-      "node"
+      "node",
+      "@webgpu/types"
     ],
     "allowJs": true,
     "strict": true,

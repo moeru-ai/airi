@@ -1,8 +1,13 @@
 import type { ActorRefFrom } from 'xstate'
 
 import type { createApis } from '../plugin/apis/client'
+import type { AnnounceBindingInput, UpdateBindingInput } from '../plugin/apis/client/bindings'
+import type { RegisterToolInput } from '../plugin/apis/client/tools'
 import type { Plugin } from '../plugin/shared'
+import type { BindingRecord, KitCapabilityDescriptor, KitDescriptor } from './shared'
 import type {
+  HostDataRecord,
+  HostDataValue,
   ManifestV1,
   ModuleCompatibilityRequest,
   ModuleConfigEnvelope,
@@ -42,6 +47,25 @@ import { createActor, createMachine } from 'xstate'
 
 import { createApis as createBoundApis } from '../plugin/apis/client'
 import {
+  getKitBindingResourceKey,
+  pluginBindingApiActivateEventName,
+  pluginBindingApiAnnounceEventName,
+  pluginBindingApiListEventName,
+  pluginBindingApiUpdateEventName,
+  pluginBindingApiWithdrawEventName,
+  pluginBindingRegistryResourceKey,
+} from '../plugin/apis/client/bindings'
+import {
+  pluginKitApiGetCapabilitiesEventName,
+  pluginKitApiListEventName,
+  pluginKitRegistryResourceKey,
+} from '../plugin/apis/client/kits'
+import {
+  pluginToolApiRegisterEventName,
+  pluginToolRegistryResourceKey,
+
+} from '../plugin/apis/client/tools'
+import {
   protocolCapabilitySnapshot,
   protocolCapabilitySnapshotEventName,
   protocolCapabilityWait,
@@ -54,10 +78,13 @@ import {
 import { createPluginContext } from './runtimes/node'
 import { FileSystemLoader } from './runtimes/node/loaders'
 import {
+  BindingsRegistryService,
   DependencyService,
+  KitRegistryService,
   PermissionService,
   PluginSessionService,
   ResourceService,
+  ToolRegistryService,
 } from './runtimes/shared'
 
 /**
@@ -495,44 +522,153 @@ class PermissionDeniedError extends Error {
   }
 }
 
+/**
+ * Describes the host-owned state tracked for one plugin session.
+ *
+ * Use when:
+ * - Reading session snapshots from `PluginHost`
+ * - Passing session state through host tests or orchestration code
+ *
+ * Expects:
+ * - `id` and `identity` stay stable for the lifetime of the session
+ *
+ * Returns:
+ * - The full session snapshot including transport, phase, bound APIs, and granted permissions
+ */
 export interface PluginHostSession {
+  /** Manifest used to load the plugin. */
   manifest: ManifestV1
+  /** Loaded plugin hooks for the active session. */
   plugin: Plugin
+  /** Unique host-generated session id. */
   id: string
+  /** Monotonic index assigned when the session was created. */
   index: number
+  /** Working directory used to resolve relative entrypoints. */
   cwd: string
+  /** Protocol identity emitted on plugin lifecycle events. */
   identity: ModuleIdentity
+  /** Current host lifecycle phase for the session. */
   phase: PluginSessionPhase
+  /** XState actor that drives the session lifecycle transitions. */
   lifecycle: ActorRefFrom<typeof pluginLifecycleMachine>
+  /** Transport used by the session Eventa context. */
   transport: PluginTransport
+  /** Runtime used to load and run the plugin. */
   runtime: PluginRuntime
+  /** Host-owned Eventa channels injected into the plugin context. */
   channels: {
+    /** Control-plane Eventa context used for lifecycle and RPC traffic. */
     host: ReturnType<typeof createPluginContext>
   }
+  /** Bound plugin SDK APIs exposed to plugin code. */
   apis: ReturnType<typeof createApis>
+  /** Requested and granted permissions for the session. */
   permissions: {
+    /** Permissions requested by the manifest and runtime declarations. */
     requested: ModulePermissionDeclaration
+    /** Permissions actually granted by the host. */
     granted: ModulePermissionGrant
+    /** Permission snapshot revision number. */
     revision: number
   }
 }
 
 /**
- * In-memory Plugin Host MVP.
+ * Filters the binding list returned by `PluginHost.listBindings(...)`.
  *
- * Procedure placement:
- * - `load(...)` covers step 0 and step 1 preparation:
- *   - create channel gateway/context
- *   - prepare per-plugin isolated runtime resources
- *   - load plugin module from manifest entrypoint
- * - `init(...)` covers protocol/lifecycle step 2 onwards:
- *   - authentication
- *   - compatibility negotiation
- *   - registry sync + announce/prepare/configure/ready flow
+ * Use when:
+ * - Narrowing the host binding snapshot by owner session or kit
  *
- * The design intentionally keeps `load` and `init` separate so callers can:
- * - inspect/patch session state before booting,
- * - batch-load many plugins first, then initialize deterministically.
+ * Expects:
+ * - Omitted fields mean "do not filter by this dimension"
+ *
+ * Returns:
+ * - Optional filter criteria for the in-memory binding registry
+ */
+export interface PluginHostBindingListOptions {
+  /** Limit results to bindings owned by one plugin session. */
+  ownerSessionId?: string
+  /** Limit results to bindings declared against one kit. */
+  kitId?: string
+}
+
+type BoundAnnounceBindingInput<C extends HostDataRecord = HostDataRecord> = AnnounceBindingInput<C>
+type BoundUpdateBindingInput<C extends HostDataRecord = HostDataRecord> = UpdateBindingInput<C>
+
+function omitModuleId<C extends HostDataRecord>(input: BoundUpdateBindingInput<C>) {
+  return {
+    state: input.state,
+    config: input.config,
+  }
+}
+
+function cloneHostDataValue<T extends HostDataValue>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map(item => cloneHostDataValue(item)) as T
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, cloneHostDataValue(item as HostDataValue)]),
+    ) as T
+  }
+
+  return value
+}
+
+function cloneHostDataRecord<T extends HostDataRecord>(record: T): T {
+  return cloneHostDataValue(record)
+}
+
+function cloneKitCapabilities(capabilities: KitCapabilityDescriptor[]): KitCapabilityDescriptor[] {
+  return capabilities.map(capability => ({
+    key: capability.key,
+    actions: [...capability.actions],
+  }))
+}
+
+function cloneKitDescriptor<TKit extends KitDescriptor>(kit: TKit): TKit {
+  return {
+    ...kit,
+    runtimes: [...kit.runtimes],
+    capabilities: cloneKitCapabilities(kit.capabilities),
+  }
+}
+
+function cloneBindingRecord<C extends HostDataRecord>(module: BindingRecord<C>): BindingRecord<C> {
+  return {
+    ...module,
+    config: cloneHostDataRecord(module.config),
+  }
+}
+
+/**
+ * Orchestrates plugin loading, session lifecycle, bindings, tools, resources, and permissions.
+ *
+ * Use when:
+ * - Running plugins inside the in-memory host implementation
+ * - Tests or applications need one place to load, initialize, start, stop, and query plugin sessions
+ *
+ * Expects:
+ * - Plugins are loaded from manifest entrypoints through {@link FileSystemLoader}
+ * - Each session gets its own Eventa context, permission scope, and lifecycle actor
+ *
+ * Returns:
+ * - A host instance that exposes session management plus access to kits, bindings, tools, and capabilities
+ *
+ * Call stack:
+ *
+ * caller
+ *   -> {@link PluginHost.load}
+ *     -> {@link FileSystemLoader.resolveEntrypointFor}
+ *     -> {@link FileSystemLoader.loadPluginFor}
+ *   -> {@link PluginHost.init}
+ *     -> permission resolution + protocol negotiation
+ *     -> binding of {@link createApis} into plugin context
+ *   -> {@link PluginHost.start}
+ *     -> {@link PluginHost.load}
+ *     -> {@link PluginHost.init}
  */
 export class PluginHost {
   private readonly loader: FileSystemLoader
@@ -544,6 +680,9 @@ export class PluginHost {
   private readonly supportedProtocolVersions: string[]
   private readonly supportedApiVersions: string[]
   private readonly dependencies = new DependencyService()
+  private readonly kits = new KitRegistryService()
+  private readonly modules = new BindingsRegistryService()
+  private readonly tools = new ToolRegistryService()
   private readonly permissions = new PermissionService()
   private readonly permissionResolver?: PluginHostOptions['permissionResolver']
   private readonly persistedPermissionGrants = new Map<string, ModulePermissionGrant>()
@@ -600,12 +739,244 @@ export class PluginHost {
     throw error
   }
 
+  private getSessionOrThrow(sessionId: string) {
+    const session = this.sessionService.get(sessionId)
+    if (!session) {
+      throw new Error(`Unknown plugin session: ${sessionId}`)
+    }
+
+    return session
+  }
+
+  private getModuleOrThrow(moduleId: string) {
+    const module = this.modules.get(moduleId)
+    if (!module) {
+      throw new Error(`Module \`${moduleId}\` was not found.`)
+    }
+
+    return module
+  }
+
+  private assertKitAvailableForSession(session: PluginHostSession, kitId: string) {
+    const kit = this.kits.get(kitId)
+    if (!kit) {
+      throw new Error(`Kit \`${kitId}\` is not registered.`)
+    }
+
+    if (!kit.runtimes.includes(session.runtime)) {
+      throw new Error(`Kit \`${kitId}\` is not available for runtime \`${session.runtime}\`.`)
+    }
+
+    return kit
+  }
+
   listSessions() {
     return this.sessionService.list()
   }
 
   getSession(sessionId: string) {
     return this.sessionService.get(sessionId)
+  }
+
+  registerKit(kit: KitDescriptor) {
+    return this.kits.register(kit)
+  }
+
+  unregisterKit(kitId: string) {
+    return this.kits.remove(kitId)
+  }
+
+  getKit(kitId: string) {
+    const kit = this.kits.get(kitId)
+    if (!kit) {
+      return undefined
+    }
+
+    return cloneKitDescriptor(kit)
+  }
+
+  listKits(runtime?: PluginRuntime) {
+    const kits = runtime
+      ? this.kits.listByRuntime(runtime)
+      : this.kits.list()
+
+    return kits.map(kit => cloneKitDescriptor(kit))
+  }
+
+  getKitCapabilities(kitId: string): KitCapabilityDescriptor[] {
+    const capabilities = this.kits.get(kitId)?.capabilities
+    if (!capabilities) {
+      return []
+    }
+
+    return cloneKitCapabilities(capabilities)
+  }
+
+  getBinding(moduleId: string) {
+    const module = this.modules.get(moduleId)
+    if (!module) {
+      return undefined
+    }
+
+    return cloneBindingRecord(module)
+  }
+
+  listBindings(options: PluginHostBindingListOptions = {}) {
+    return this.modules.list().filter((module) => {
+      if (options.ownerSessionId && module.ownerSessionId !== options.ownerSessionId) {
+        return false
+      }
+
+      if (options.kitId && module.kitId !== options.kitId) {
+        return false
+      }
+
+      return true
+    }).map(module => cloneBindingRecord(module))
+  }
+
+  async listAvailableToolDescriptors() {
+    return await this.tools.listAvailableDescriptors()
+  }
+
+  async listSerializedXsaiTools() {
+    return await this.tools.listSerializedXsaiTools()
+  }
+
+  async invokeTool(ownerPluginId: string, toolId: string, input: unknown) {
+    return await this.tools.invoke(ownerPluginId, toolId, input)
+  }
+
+  announceBinding<C extends HostDataRecord = HostDataRecord>(
+    sessionId: string,
+    input: BoundAnnounceBindingInput<C>,
+  ): BindingRecord<C> {
+    const session = this.getSessionOrThrow(sessionId)
+    const kit = this.assertKitAvailableForSession(session, input.kitId)
+
+    this.assertPermission(session, {
+      area: 'apis',
+      action: 'invoke',
+      key: pluginBindingApiAnnounceEventName,
+    })
+    this.assertPermission(session, {
+      area: 'resources',
+      action: 'write',
+      key: getKitBindingResourceKey(kit.kitId),
+      reason: `Module announce requires write access to kit \`${kit.kitId}\`.`,
+    })
+
+    return cloneBindingRecord(this.modules.bind({
+      ...input,
+      ownerSessionId: session.id,
+      ownerPluginId: session.identity.plugin.id,
+      runtime: session.runtime,
+    }) as BindingRecord<C>)
+  }
+
+  activateBinding(sessionId: string, moduleId: string) {
+    const session = this.getSessionOrThrow(sessionId)
+    const module = this.getModuleOrThrow(moduleId)
+
+    this.assertPermission(session, {
+      area: 'apis',
+      action: 'invoke',
+      key: pluginBindingApiActivateEventName,
+    })
+    this.assertPermission(session, {
+      area: 'resources',
+      action: 'write',
+      key: getKitBindingResourceKey(module.kitId),
+      reason: `Module activation requires write access to kit \`${module.kitId}\`.`,
+    })
+
+    return cloneBindingRecord(this.modules.activate(session.id, session.identity.plugin.id, moduleId))
+  }
+
+  updateBinding<C extends HostDataRecord = HostDataRecord>(
+    sessionId: string,
+    moduleId: string,
+    patch: UpdateBindingInput<C> | Omit<UpdateBindingInput<C>, 'moduleId'>,
+  ) {
+    const session = this.getSessionOrThrow(sessionId)
+    const module = this.getModuleOrThrow(moduleId)
+
+    this.assertPermission(session, {
+      area: 'apis',
+      action: 'invoke',
+      key: pluginBindingApiUpdateEventName,
+    })
+    this.assertPermission(session, {
+      area: 'resources',
+      action: 'write',
+      key: getKitBindingResourceKey(module.kitId),
+      reason: `Module update requires write access to kit \`${module.kitId}\`.`,
+    })
+
+    const normalizedPatch = 'moduleId' in patch ? omitModuleId(patch) : patch
+    return cloneBindingRecord(this.modules.update(session.id, session.identity.plugin.id, moduleId, normalizedPatch))
+  }
+
+  degradeBinding(sessionId: string, moduleId: string) {
+    const session = this.getSessionOrThrow(sessionId)
+    const module = this.getModuleOrThrow(moduleId)
+    this.assertPermission(session, {
+      area: 'resources',
+      action: 'write',
+      key: getKitBindingResourceKey(module.kitId),
+      reason: `Module degradation requires write access to kit \`${module.kitId}\`.`,
+    })
+
+    return cloneBindingRecord(this.modules.degrade(session.id, session.identity.plugin.id, moduleId))
+  }
+
+  withdrawBinding(sessionId: string, moduleId: string) {
+    const session = this.getSessionOrThrow(sessionId)
+    const module = this.getModuleOrThrow(moduleId)
+
+    this.assertPermission(session, {
+      area: 'apis',
+      action: 'invoke',
+      key: pluginBindingApiWithdrawEventName,
+    })
+    this.assertPermission(session, {
+      area: 'resources',
+      action: 'write',
+      key: getKitBindingResourceKey(module.kitId),
+      reason: `Module withdrawal requires write access to kit \`${module.kitId}\`.`,
+    })
+
+    return cloneBindingRecord(this.modules.withdraw(session.id, session.identity.plugin.id, moduleId))
+  }
+
+  registerTool(sessionId: string, input: RegisterToolInput) {
+    const session = this.getSessionOrThrow(sessionId)
+
+    this.assertPermission(session, {
+      area: 'apis',
+      action: 'invoke',
+      key: pluginToolApiRegisterEventName,
+    })
+    this.assertPermission(session, {
+      area: 'resources',
+      action: 'write',
+      key: pluginToolRegistryResourceKey,
+    })
+
+    this.tools.register({
+      ownerSessionId: session.id,
+      ownerPluginId: session.identity.plugin.id,
+      tool: {
+        ...input.tool,
+        activation: {
+          keywords: [...input.tool.activation.keywords],
+          patterns: [...input.tool.activation.patterns],
+        },
+        parameters: cloneHostDataRecord(input.tool.parameters),
+      },
+      availability: input.availability,
+      execute: input.execute,
+    })
   }
 
   async load(manifest: ManifestV1, options: PluginLoadOptions = {}): Promise<PluginHostSession> {
@@ -641,7 +1012,65 @@ export class PluginHost {
       },
     )
 
-    const session: PluginHostSession = {
+    let session!: PluginHostSession
+    const apis = createBoundApis(hostChannel, {
+      kits: {
+        list: () => {
+          this.assertPermission(session, {
+            area: 'apis',
+            action: 'invoke',
+            key: pluginKitApiListEventName,
+          })
+          this.assertPermission(session, {
+            area: 'resources',
+            action: 'read',
+            key: pluginKitRegistryResourceKey,
+          })
+
+          return this.listKits(session.runtime)
+        },
+        getCapabilities: (kitId) => {
+          this.assertPermission(session, {
+            area: 'apis',
+            action: 'invoke',
+            key: pluginKitApiGetCapabilitiesEventName,
+          })
+          this.assertPermission(session, {
+            area: 'resources',
+            action: 'read',
+            key: pluginKitRegistryResourceKey,
+          })
+          this.assertKitAvailableForSession(session, kitId)
+
+          return this.getKitCapabilities(kitId)
+        },
+      },
+      bindings: {
+        list: () => {
+          this.assertPermission(session, {
+            area: 'apis',
+            action: 'invoke',
+            key: pluginBindingApiListEventName,
+          })
+          this.assertPermission(session, {
+            area: 'resources',
+            action: 'read',
+            key: pluginBindingRegistryResourceKey,
+          })
+
+          return this.listBindings({ ownerSessionId: session.id })
+        },
+        announce: input => this.announceBinding(session.id, input),
+        activate: input => this.activateBinding(session.id, input.moduleId),
+        update: input => this.updateBinding(session.id, input.moduleId, input),
+        withdraw: input => this.withdrawBinding(session.id, input.moduleId),
+      },
+      tools: {
+        register: input => this.registerTool(session.id, input),
+      },
+    })
+
+    session = {
       manifest,
       plugin: {},
       id,
@@ -655,7 +1084,7 @@ export class PluginHost {
       channels: {
         host: hostChannel,
       },
-      apis: createBoundApis(hostChannel),
+      apis,
       permissions: {
         requested: permissionSnapshot.requested,
         granted: permissionSnapshot.granted,
@@ -1171,6 +1600,11 @@ export class PluginHost {
       else {
         session.phase = 'stopped'
       }
+    }
+
+    for (const module of this.modules.listByOwner(session.id)) {
+      this.modules.withdraw(session.id, session.identity.plugin.id, module.moduleId)
+      this.modules.unbind(session.id, session.identity.plugin.id, module.moduleId)
     }
 
     session.lifecycle.stop()

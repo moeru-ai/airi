@@ -243,6 +243,16 @@ function applyMapPreset() {
   form.ttlSeconds = ''
   resetFeedback()
 }
+
+function applyExtensionUiPreset() {
+  form.componentName = 'extension-ui'
+  form.sizePreset = 'custom'
+  form.customCols = '4'
+  form.customRows = '3'
+  form.componentProps = JSON.stringify({}, null, 2)
+  form.ttlSeconds = ''
+  resetFeedback()
+}
 </script>
 
 <template>
@@ -270,6 +280,13 @@ function applyMapPreset() {
           @click="applyMapPreset"
         >
           Map Preset
+        </Button>
+        <Button
+          variant="secondary"
+          :disabled="busy"
+          @click="applyExtensionUiPreset"
+        >
+          Extension UI Preset
         </Button>
       </div>
     </div>
