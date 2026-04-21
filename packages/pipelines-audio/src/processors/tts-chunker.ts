@@ -215,7 +215,7 @@ export async function chunkEmitter(
       .replaceAll(TTS_SPECIAL_TOKEN, '')
       .replaceAll(TTS_FLUSH_INSTRUCTION, '')
 
-    cleanedText = processNarrative(cleanedText, options || {})
+    cleanedText = processNarrative(cleanedText, options)
 
     return cleanedText.trim()
   }
@@ -223,14 +223,18 @@ export async function chunkEmitter(
   try {
     for await (const chunk of chunkTtsInput(reader, options)) {
       // TODO: remove later
+      const cleanedText = sanitizeChunk(chunk.text)
+      if (!cleanedText && chunk.reason !== 'special') {
+        continue
+      }
 
       if (chunk.reason === 'special') {
         const specialToken = pendingSpecials.shift()
         // console.debug("special yield:", specialToken)
-        await handler({ chunk: sanitizeChunk(chunk.text), special: specialToken ?? null, reason: chunk.reason })
+        await handler({ chunk: cleanedText, special: specialToken ?? null, reason: chunk.reason })
       }
       else {
-        await handler({ chunk: sanitizeChunk(chunk.text), special: null, reason: chunk.reason })
+        await handler({ chunk: cleanedText, special: null, reason: chunk.reason })
       }
     }
   }
@@ -239,14 +243,14 @@ export async function chunkEmitter(
   }
 }
 
-export function processNarrative(text: string, options: TtsInputChunkOptions) {
-  if (!options.stripNarrative)
+export function processNarrative(text: string, options?: TtsInputChunkOptions) {
+  if (!options?.stripNarrative)
     return text
 
   const regex = /\*(.*?)\*|\[(.*?)\]|\((.*?)\)|（(.*?)）|【(.*?)】|<(.*?)>/g
 
   return text.replace(regex, (match, g1, g2, g3, g4, g5, g6) => {
-    if (options.keepNarrativeText) {
+    if (options?.keepNarrativeText) {
       const innerWord = g1 || g2 || g3 || g4 || g5 || g6 || ''
       return innerWord
     }
