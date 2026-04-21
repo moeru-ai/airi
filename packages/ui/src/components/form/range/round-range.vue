@@ -66,10 +66,10 @@ function handleInput(e: Event) {
 /*generated with Input range slider CSS style generator (version 20211225)
 https://toughengineer.github.io/demo/slider-styler*/
 .form_input-round-range {
-  --height: 50vh;
+  --height: 100%;
   --width: 2rem;
 
-  min-height: var(--height);
+  min-height: var(--width);
   appearance: none;
   background: transparent;
   transition: background-color 0.2s ease;

@@ -3,11 +3,7 @@ import { RoundRange } from '@proj-airi/ui'
 
 import { useL2dViewControl } from '../../stores'
 
-const props = defineProps<{
-  mode: 'x' | 'y' | 'scale'
-}>()
-
-const { scale, position, viewControlsEnabled } = useL2dViewControl()
+const { scale, position, viewControlsEnabled, viewControlMode } = useL2dViewControl()
 
 const xMin = -1000
 const xMax = 1000
@@ -19,19 +15,19 @@ const yMax = 1000
   <Transition name="fade-side-pops-in">
     <div v-if="viewControlsEnabled">
       <Transition name="fade-side-pops-in" mode="out-in">
-        <div v-if="props.mode === 'x'" relative class="[&_.round-range-tooltip]:hover:opacity-100">
+        <div v-if="viewControlMode === 'x'" relative class="[&_.round-range-tooltip]:hover:opacity-100">
           <RoundRange v-model="position.x" :min="xMin" :max="xMax" :step="0.01" data-direction="vertical" h="50%" write-vertical-left />
           <div class="round-range-tooltip" top="50%" translate-y="[-50%]" absolute left-10 font-mono op-0 transition="all duration-200 ease-in-out">
             {{ position.x.toFixed(2) }}
           </div>
         </div>
-        <div v-else-if="props.mode === 'y'" relative class="[&_.round-range-tooltip]:hover:opacity-100">
+        <div v-else-if="viewControlMode === 'y'" relative class="[&_.round-range-tooltip]:hover:opacity-100">
           <RoundRange v-model="position.y" :min="yMin" :max="yMax" :step="0.01" data-direction="vertical" h="50%" write-vertical-left />
           <div class="round-range-tooltip" top="50%" translate-y="[-50%]" absolute left-10 font-mono op-0 transition="all duration-200 ease-in-out">
             {{ position.y.toFixed(2) }}
           </div>
         </div>
-        <div v-else-if="props.mode === 'scale'" relative class="[&_.round-range-tooltip]:hover:opacity-100">
+        <div v-else-if="viewControlMode === 'scale'" relative class="[&_.round-range-tooltip]:hover:opacity-100">
           <RoundRange v-model="scale" :min="0" :max="3" :step="0.0001" data-direction="vertical" h="50%" write-vertical-left />
           <div class="round-range-tooltip" top="50%" translate-y="[-50%]" absolute left-10 font-mono op-0 transition="all duration-200 ease-in-out">
             {{ scale.toFixed(2) }}

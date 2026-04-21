@@ -2,6 +2,7 @@
 /*
   * - Extend OrbitControls from three
   * - Define camera behavior
+  * - TODO: implement the control elements and replace the <slot/>
 */
 
 import type { Vec3 } from '../../stores/model-store'

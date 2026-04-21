@@ -51,7 +51,7 @@ const componentStateModel = defineModel<'pending' | 'loading' | 'mounted'>('mode
 
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 
-const { position, viewControlMode } = useL2dViewControl()
+const { position } = useL2dViewControl()
 
 watch([componentStateModel, componentStateCanvas], () => {
   componentState.value = (componentStateModel.value === 'mounted' && componentStateCanvas.value === 'mounted')
@@ -68,8 +68,8 @@ defineExpose({
 
 <template>
   <Screen v-slot="{ width, height }" relative>
-    <div top="50%" translate-y="[-50%]" fixed z-15 px-3>
-      <Inputs :mode="viewControlMode" />
+    <div absolute top-0 z-15 h-full px-3 py="20vh">
+      <Inputs />
     </div>
     <Live2DCanvas
       ref="live2dCanvasRef"

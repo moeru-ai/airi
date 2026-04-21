@@ -1,17 +1,19 @@
 <script lang="ts" setup>
+import { supportedControl as threeSupportedControl, useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { supportedControl as l2dSupportedCtrl, useL2dViewControl } from '@proj-airi/stage-ui/stores/live2d'
-import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { Button } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 
-const { stageModelRenderer, stageViewControlsEnabled: vrmViewCtrlEnabled } = storeToRefs(useSettings())
-const { viewControlsEnabled: l2dViewCtrlEnabled, viewControlMode: l2dViewCtrlMode, reset: l2dReset } = useL2dViewControl()
+const { stageModelRenderer } = storeToRefs(useSettingsStageModel())
+const { viewControlsEnabled: l2dViewCtrlEnabled, viewControlMode: l2dCtrlMode, reset: l2dReset } = useL2dViewControl()
+const { viewControlsEnabled: threePlainCtrlEnabled, viewControlMode: threeCtrlMode, reset: threeReset } = useThreeViewControl()
 const controlEnabled = computed(() => {
   if (stageModelRenderer.value === 'live2d')
-    return { enabled: l2dViewCtrlEnabled, mode: l2dViewCtrlMode, supported: l2dSupportedCtrl, reset: l2dReset }
+    return { enabled: l2dViewCtrlEnabled, mode: l2dCtrlMode, supported: l2dSupportedCtrl, reset: l2dReset }
   if (stageModelRenderer.value === 'vrm')
-    return { enabled: vrmViewCtrlEnabled, mode: ref('scale'), supported: ['x', 'y', 'z', 'scale'], reset: () => {} }
+    return { enabled: threePlainCtrlEnabled, mode: threeCtrlMode, supported: threeSupportedControl, reset: threeReset }
   return null
 })
 
@@ -19,10 +21,10 @@ function handleViewControlsToggle(targetMode: string) {
   if (!controlEnabled.value || !controlEnabled.value.supported.includes(targetMode as any))
     return
   if (controlEnabled.value.mode.value === targetMode) {
-    controlEnabled.value.reset(controlEnabled.value.mode.value as any) // already guarded
+    controlEnabled.value.reset(controlEnabled.value.mode.value as any)
     return
   }
-  controlEnabled.value.mode.value = targetMode
+  controlEnabled.value.mode.value = targetMode as any
 }
 
 // watch()
@@ -41,8 +43,14 @@ function handleViewControlsToggle(targetMode: string) {
         <Button v-if="controlEnabled.supported.includes('z' as any)" variant="secondary-muted" :toggled="controlEnabled.mode.value === 'z'" w-full @click="handleViewControlsToggle('z')">
           Z
         </Button>
-        <Button variant="secondary-muted" :toggled="controlEnabled.mode.value === 'scale'" w-full @click="handleViewControlsToggle('scale')">
+        <Button v-if="controlEnabled.supported.includes('cameraFOV' as any)" variant="secondary-muted" :toggled="controlEnabled.mode.value === 'cameraFOV'" w-full @click="handleViewControlsToggle('cameraFOV')">
+          FOV
+        </Button>
+        <Button v-if="controlEnabled.supported.includes('scale' as any)" variant="secondary-muted" :toggled="controlEnabled.mode.value === 'scale'" w-full @click="handleViewControlsToggle('scale')">
           Scale
+        </Button>
+        <Button v-if="controlEnabled.supported.includes('cameraDistance' as any)" variant="secondary-muted" :toggled="controlEnabled.mode.value === 'cameraDistance'" w-full @click="handleViewControlsToggle('cameraDistance')">
+          Dis
         </Button>
       </div>
     </Transition>
