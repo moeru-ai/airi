@@ -10,7 +10,7 @@ from flask import Flask, request, Response, jsonify
 app = Flask(__name__)
 # Securely load API key from environment, with your placeholder as a fallback
 API_KEY = os.getenv("FISH_AUDIO_API_KEY", "YOUR_API_KEY_HERE")
-FISH_URL = "https://api.302.ai/fish-audio/v1/tts"
+FISH_URL = "https://api.fish.audio/v1"
 TERMINAL_PUNC = ("。", "！", "？", "…", "!", "?", ".")
 MAX_CACHE_SIZE = 100  # Bound the cache to prevent memory leaks
 
