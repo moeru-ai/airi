@@ -10,7 +10,7 @@ from flask import Flask, request, Response, jsonify
 app = Flask(__name__)
 # Securely load API key from environment, with your placeholder as a fallback
 API_KEY = os.getenv("FISH_AUDIO_API_KEY", "YOUR_API_KEY_HERE")
-FISH_URL = "https://api.fish.audio/v1"
+FISH_URL = "https://api.fish.audio/v1/tts"
 TERMINAL_PUNC = ("。", "！", "？", "…", "!", "?", ".")
 MAX_CACHE_SIZE = 100  # Bound the cache to prevent memory leaks
 
@@ -135,15 +135,7 @@ def get_audio_bytes(text, voice_id):
     try:
         response = http_session.post(FISH_URL, headers=headers, json=payload, timeout=20)
         if response.status_code == 200:
-            audio_url = response.json().get("url")
-            audio_res = http_session.get(audio_url, timeout=10)
-            if audio_res.status_code == 200:
-                with cache_lock:
-                    audio_cache[cache_key] = audio_res.content
-                    # Bound the cache to prevent RAM growth
-                    if len(audio_cache) > MAX_CACHE_SIZE:
-                        audio_cache.pop(next(iter(audio_cache)))
-                return audio_res.content
+            return response.content
     except (requests.exceptions.RequestException, ValueError) as e:
         print(f"Network, API, or JSON parsing error when fetching audio: {e}")
         return None
