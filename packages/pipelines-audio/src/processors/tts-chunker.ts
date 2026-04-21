@@ -25,6 +25,8 @@ export interface TtsInputChunkOptions {
   boost?: number
   minimumWords?: number
   maximumWords?: number
+  stripNarrative?: boolean
+  keepNarrativeText?: boolean
 }
 
 export interface TtsChunkItem {
@@ -208,12 +210,15 @@ export async function chunkEmitter(
   options: TtsInputChunkOptions | undefined,
   handler: (ttsSegment: TtsChunkItem) => Promise<void> | void,
 ) {
-  const sanitizeChunk = (text: string) =>
-    text
+  const sanitizeChunk = (text: string) => {
+    let cleanedText = text
       .replaceAll(TTS_SPECIAL_TOKEN, '')
       .replaceAll(TTS_FLUSH_INSTRUCTION, '')
-      .replace(/\*.*?\*|\[.*?\]|\(.*?\)|（.*?）|【.*?】|<.*?>/g, '')
-      .trim()
+
+    cleanedText = processNarrative(cleanedText, options || {})
+
+    return cleanedText.trim()
+  }
 
   try {
     for await (const chunk of chunkTtsInput(reader, options)) {
@@ -232,6 +237,26 @@ export async function chunkEmitter(
   catch (e) {
     console.error('Error chunking stream to TTS queue:', e)
   }
+}
+
+export function processNarrative(text: string, options: TtsInputChunkOptions) {
+  if (!options.stripNarrative)
+    return text
+
+  // 使用 (.*?) 将括号内的内容作为“捕获组”提取出来
+  // 包含了全角/半角、中英文的括号和星号
+  const regex = /\*(.*?)\*|\[(.*?)\]|\((.*?)\)|（(.*?)）|【(.*?)】|<(.*?)>/g
+
+  return text.replace(regex, (match, g1, g2, g3, g4, g5, g6) => {
+    // 如果用户开启了“保留文字”开关
+    if (options.keepNarrativeText) {
+      // 提取匹配到的那个捕获组里的文字 (非空的那个)
+      const innerWord = g1 || g2 || g3 || g4 || g5 || g6 || ''
+      return innerWord
+    }
+    // 否则，默认删掉整个内容（模式 A）
+    return ''
+  })
 }
 
 export function createTtsSegmentStream(
