@@ -46,7 +46,9 @@ def handle_speech():
         text_raw = str(text_raw)
 
     default_voice_name = next(iter(VOICE_MAP), "")
-    requested_voice = data.get("voice", default_voice_name)
+    requested_voice = data.get("voice")
+    if not isinstance(requested_voice, str):
+        requested_voice = default_voice_name
     target_voice_id = VOICE_MAP.get(requested_voice, VOICE_MAP.get(default_voice_name))
 
     # --- 1. Clean Text (Handles Nested Parentheses) ---
