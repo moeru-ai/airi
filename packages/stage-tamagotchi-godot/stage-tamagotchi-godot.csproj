@@ -3,6 +3,6 @@
     <TargetFramework>net8.0</TargetFramework>
     <TargetFramework Condition=" '$(GodotTargetPlatform)' == 'android' ">net9.0</TargetFramework>
     <EnableDynamicLoading>true</EnableDynamicLoading>
-    <RootNamespace>stagetamagotchigodot</RootNamespace>
+    <RootNamespace>StageTamagotchiGodot</RootNamespace>
   </PropertyGroup>
 </Project>
