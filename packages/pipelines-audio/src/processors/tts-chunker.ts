@@ -281,7 +281,26 @@ export function createTtsSegmentStream(
         if (value.type === 'literal') {
           if (value.value) {
             pendingText += value.value
-            const hasUnclosed = /[*[(（【<][^\])*）】>]*$/.test(pendingText)
+            const lastOpen = Math.max(
+              pendingText.lastIndexOf('['),
+              pendingText.lastIndexOf('('),
+              pendingText.lastIndexOf('（'),
+              pendingText.lastIndexOf('【'),
+              pendingText.lastIndexOf('<'),
+            )
+            const lastClose = Math.max(
+              pendingText.lastIndexOf(']'),
+              pendingText.lastIndexOf(')'),
+              pendingText.lastIndexOf('）'),
+              pendingText.lastIndexOf('】'),
+              pendingText.lastIndexOf('>'),
+            )
+            const bracketsUnclosed = lastOpen > lastClose
+
+            const starCount = (pendingText.match(/\*/g) || []).length
+            const starsUnclosed = starCount % 2 !== 0
+
+            const hasUnclosed = bracketsUnclosed || starsUnclosed
 
             if (!hasUnclosed || pendingText.length > 200) {
               let textToEmit = pendingText
@@ -289,7 +308,7 @@ export function createTtsSegmentStream(
                 textToEmit = processNarrative(textToEmit, options)
               }
               writeBytes(encoder.encode(textToEmit))
-              pendingText = '' // 发送后清空缓冲区
+              pendingText = ''
             }
           }
         }
