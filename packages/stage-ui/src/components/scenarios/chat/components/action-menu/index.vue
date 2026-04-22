@@ -58,6 +58,7 @@ const bottomSentinelRef = useTemplateRef<HTMLDivElement>('bottomSentinel')
 const injectedScrollContainer = inject(chatScrollContainerKey, undefined)
 const scrollTarget = computed(() => injectedScrollContainer?.value ?? null)
 const contextMenuOpen = shallowRef(false)
+const dropdownMenuOpen = shallowRef(false)
 const {
   innerHeight,
   innerTop,
@@ -91,7 +92,7 @@ const triggerState = computed(() => createChatActionMenuTriggerState({
   copyFeedbackActive: copyFeedbackActive.value,
 }))
 const hasMenuItems = computed(() => menuItems.value.length > 0)
-const forceVisible = computed(() => contextMenuOpen.value)
+const forceVisible = computed(() => contextMenuOpen.value || dropdownMenuOpen.value)
 
 const contentClasses = [
   'z-10000 min-w-36 rounded-xl p-1 shadow-md outline-none',
@@ -130,6 +131,10 @@ const triggerStyle = computed(() => (
 
 function handleContextMenuOpenChange(open: boolean) {
   contextMenuOpen.value = open
+}
+
+function handleDropdownMenuOpenChange(open: boolean) {
+  dropdownMenuOpen.value = open
 }
 
 function setMeasuredElement(element: Element | ComponentPublicInstance | null) {
@@ -314,7 +319,7 @@ watch(isTouching, (val) => {
           class="pointer-events-none absolute inset-x-0 bottom-0 h-px opacity-0"
         />
 
-        <DropdownMenuRoot>
+        <DropdownMenuRoot @update:open="handleDropdownMenuOpenChange">
           <DropdownMenuTrigger
             v-if="hasMenuItems && !shouldDisableDropdownMenu"
             as-child
