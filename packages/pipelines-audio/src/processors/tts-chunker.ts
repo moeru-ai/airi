@@ -307,7 +307,7 @@ export function createTtsSegmentStream(
                     continue
                   }
 
-                  if (/^[a-z]([^a-z>]|$)/i.test(remainder)) {
+                  if (/^[a-z][^a-z>]|\s/i.test(remainder)) {
                     continue
                   }
                 }
@@ -328,8 +328,9 @@ export function createTtsSegmentStream(
               && starMatch !== null && !starMatch[1].startsWith(' ')
             const hasUnclosed = bracketsUnclosed || starsUnclosed
             const isStrippingActive = options?.stripNarrative && hasUnclosed
+            const fallbackLimit = isStrippingActive ? 800 : 200
 
-            if (!hasUnclosed || (!isStrippingActive && pendingText.length > 200)) {
+            if (!hasUnclosed || pendingText.length > fallbackLimit) {
               const textToEmit = processNarrative(pendingText, options)
               writeBytes(encoder.encode(textToEmit))
               pendingText = ''
