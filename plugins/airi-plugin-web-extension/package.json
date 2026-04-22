@@ -23,9 +23,9 @@
     "@unocss/reset": "^66.6.8",
     "@vueuse/core": "catalog:",
     "@wxt-dev/module-vue": "^1.0.3",
-    "nanoid": "^5.1.7",
+    "nanoid": "^5.1.9",
     "vue": "catalog:",
     "vue-tsc": "^3.2.6",
-    "wxt": "^0.20.22"
+    "wxt": "^0.20.24"
   }
 }

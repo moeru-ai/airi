@@ -8,6 +8,18 @@ export * from '../../core'
 export * from '../../shared'
 export * from '../../transports'
 
+/**
+ * Creates the Eventa context used by web-side plugin host sessions.
+ *
+ * Use when:
+ * - Bootstrapping a web runtime plugin session
+ *
+ * Expects:
+ * - `transport` describes a transport supported by the web runtime
+ *
+ * Returns:
+ * - A web-compatible Eventa context, or throws if the transport is not implemented
+ */
 export function createPluginContext(transport: PluginTransport): EventContext<any, any> {
   switch (transport.kind) {
     case 'in-memory':
