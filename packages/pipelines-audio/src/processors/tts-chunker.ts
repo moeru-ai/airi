@@ -286,22 +286,41 @@ export function createTtsSegmentStream(
             }
 
             pendingText += value.value
-            const lastOpen = Math.max(
-              pendingText.lastIndexOf('['),
-              pendingText.lastIndexOf('('),
-              pendingText.lastIndexOf('（'),
-              pendingText.lastIndexOf('【'),
-              pendingText.lastIndexOf('<'),
-            )
-            const lastClose = Math.max(
-              pendingText.lastIndexOf(']'),
-              pendingText.lastIndexOf(')'),
-              pendingText.lastIndexOf('）'),
-              pendingText.lastIndexOf('】'),
-              pendingText.lastIndexOf('>'),
-            )
-            const bracketsUnclosed = lastOpen > lastClose
+            const stack: string[] = []
+            const pairs: Record<string, string> = {
+              '[': ']',
+              '(': ')',
+              '（': '）',
+              '【': '】',
+              '<': '>',
+            }
+            const openers = Object.keys(pairs)
+            const closers = Object.values(pairs)
 
+            for (let i = 0; i < pendingText.length; i++) {
+              const char = pendingText[i]
+              if (openers.includes(char)) {
+                // 尖括号启发式过滤：如果是 <3 或 1 < 2，不入栈
+                if (char === '<') {
+                  const nextChar = pendingText[i + 1]
+                  if (nextChar && /[0-9\s]/.test(nextChar))
+                    continue
+                }
+                stack.push(char)
+              }
+              else if (closers.includes(char)) {
+                // 尝试匹配并弹出栈顶
+                const lastOpen = stack[stack.length - 1]
+                if (pairs[lastOpen] === char) {
+                  stack.pop()
+                }
+              }
+            }
+
+            // 括号是否未闭合：看栈里是否还有剩
+            const bracketsUnclosed = stack.length > 0
+
+            // 星号奇偶校验（保留你之前写好的启发式逻辑）
             const starMatch = pendingText.match(/\*([^*]*)$/)
             const starsUnclosed = (pendingText.match(/\*/g) || []).length % 2 !== 0
               && starMatch !== null && !starMatch[1].startsWith(' ')
