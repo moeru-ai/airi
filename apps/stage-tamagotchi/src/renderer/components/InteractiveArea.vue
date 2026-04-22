@@ -158,6 +158,13 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
 async function handleDeleteMessage(index: number) {
   await chatSyncStore.requestDeleteMessage({ index })
 }
+
+async function handleRetryMessage(index: number) {
+  await chatSyncStore.requestRetry({
+    sessionId: chatSession.activeSessionId,
+    index,
+  })
+}
 </script>
 
 <template>
@@ -168,6 +175,7 @@ async function handleDeleteMessage(index: number) {
         :sending="sending"
         :streaming-message="streamingMessage"
         @delete-message="handleDeleteMessage($event.index)"
+        @retry-message="handleRetryMessage($event.index)"
       />
     </div>
     <div
@@ -210,9 +218,13 @@ async function handleDeleteMessage(index: number) {
             side="top"
             :side-offset="8"
             :class="[
-              'z-50 min-w-[180px] rounded-lg border border-primary-200 bg-white p-1 shadow-xl',
-              'dark:border-primary-700 dark:bg-neutral-800',
+              'z-50 min-w-[180px] rounded-xl p-1 shadow',
+              'bg-white dark:bg-neutral-800',
               'flex flex-col gap-1',
+              'data-[side=top]:animate-slideDownAndFade',
+              'data-[side=left]:animate-none',
+              'data-[side=bottom]:animate-none',
+              'data-[side=right]:animate-none',
             ]"
           >
             <DropdownMenuItem
@@ -220,7 +232,7 @@ async function handleDeleteMessage(index: number) {
               :key="mode"
               :class="[
                 'w-full flex cursor-pointer items-center rounded-md px-3 py-2 text-left text-xs outline-none transition-colors',
-                'hover:bg-primary-100 dark:hover:bg-primary-900/50',
+                'hover:bg-primary-50 dark:hover:bg-primary-900/20',
                 sendMode === mode ? 'bg-primary-50 text-primary-600 font-semibold dark:bg-primary-900/20 dark:text-primary-300' : 'text-neutral-500',
               ]"
               @select="sendMode = mode"

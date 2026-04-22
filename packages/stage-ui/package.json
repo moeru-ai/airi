@@ -195,6 +195,7 @@
     "unplugin-info": "catalog:",
     "unplugin-yaml": "^4.1.0",
     "vite": "^6.4.2",
+    "vitest-browser-vue": "catalog:",
     "vue": "catalog:",
     "vue-tsc": "^3.2.6"
   }
