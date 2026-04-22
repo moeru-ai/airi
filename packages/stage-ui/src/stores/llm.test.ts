@@ -1,10 +1,11 @@
 import type { ChatProvider } from '@xsai-ext/providers/utils'
-import type { Message } from '@xsai/shared-chat'
+import type { Message, Tool } from '@xsai/shared-chat'
 
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { isToolRelatedError, useLLM } from './llm'
+import { useLlmToolsStore } from './llm-tools'
 
 const {
   streamTextMock,
@@ -13,9 +14,9 @@ const {
   createSparkCommandToolMock,
 } = vi.hoisted(() => ({
   streamTextMock: vi.fn(),
-  mcpMock: vi.fn(async () => []),
-  debugMock: vi.fn(async () => []),
-  createSparkCommandToolMock: vi.fn(async () => ({
+  mcpMock: vi.fn(async (): Promise<Tool[]> => []),
+  debugMock: vi.fn(async (): Promise<Tool[]> => []),
+  createSparkCommandToolMock: vi.fn(async (): Promise<unknown> => ({
     name: 'spark',
     description: '',
     parameters: {},
@@ -54,6 +55,20 @@ function createMockStreamResult() {
     usage: Promise.resolve({}),
     totalUsage: Promise.resolve({}),
   }
+}
+
+function toolNameFrom(tool: unknown) {
+  if (typeof tool !== 'object' || tool === null)
+    return undefined
+
+  const candidate = tool as {
+    name?: string
+    function?: {
+      name?: string
+    }
+  }
+
+  return candidate.function?.name ?? candidate.name
 }
 
 describe('isToolRelatedError', () => {
@@ -158,7 +173,18 @@ describe('isToolRelatedError', () => {
 
   it('keeps builtin tools and auto-disables tools after tool-related errors', async () => {
     const store = useLLM()
+    const llmToolsStore = useLlmToolsStore()
     const customTool = { name: 'custom-tool' } as any
+    const runtimeTool = {
+      function: {
+        name: 'runtime_play_chess_match',
+        description: 'Start a runtime chess match.',
+        parameters: { type: 'object', properties: {} },
+      },
+      execute: vi.fn(),
+    }
+
+    llmToolsStore.registerTools('plugin-tools', [runtimeTool as any])
 
     streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => Promise<void>, tools?: unknown[] }) => {
       queueMicrotask(async () => {
@@ -176,6 +202,7 @@ describe('isToolRelatedError', () => {
     expect(mcpMock).toHaveBeenCalledTimes(1)
     expect(debugMock).toHaveBeenCalledTimes(1)
     expect(firstCallTools).toContain(customTool)
+    expect(firstCallTools?.map(toolNameFrom)).toContain('runtime_play_chess_match')
 
     streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => Promise<void>, tools?: unknown[] }) => {
       queueMicrotask(async () => {
@@ -190,5 +217,127 @@ describe('isToolRelatedError', () => {
 
     const secondCallTools = streamTextMock.mock.calls[1]?.[0]?.tools
     expect(secondCallTools).toBeUndefined()
+  })
+
+  it('merges runtime-registered tools from the llm-tools store into the builtin tool resolver', async () => {
+    const store = useLLM()
+    const llmToolsStore = useLlmToolsStore()
+    const playChessTool = {
+      function: {
+        name: 'runtime_open_chess_board',
+        description: 'Open the runtime chess board.',
+        parameters: { type: 'object', properties: {} },
+      },
+      execute: vi.fn(),
+    }
+    const runtimeMcpStatusTool = {
+      function: {
+        name: 'runtime_sync_mcp_status',
+        description: 'Sync runtime MCP status.',
+        parameters: { type: 'object', properties: {} },
+      },
+      execute: vi.fn(),
+    }
+
+    llmToolsStore.registerTools('mcp', [runtimeMcpStatusTool as any])
+    llmToolsStore.registerTools('plugin-tools', [playChessTool as any])
+
+    streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => Promise<void>, tools?: unknown[] }) => {
+      queueMicrotask(async () => {
+        await options.onEvent({ type: 'finish', finishReason: 'stop' })
+      })
+      return createMockStreamResult()
+    })
+
+    await store.stream('model-a', provider, [{ role: 'user', content: 'play chess' }] as Message[])
+
+    const mergedTools = streamTextMock.mock.calls[0]?.[0]?.tools
+    expect(mergedTools).toEqual(expect.arrayContaining([runtimeMcpStatusTool, playChessTool]))
+  })
+
+  it('prefers runtime-registered tools when duplicate tool names collide with builtin tools', async () => {
+    const store = useLLM()
+    const llmToolsStore = useLlmToolsStore()
+    const builtinTool = {
+      function: {
+        name: 'duplicate_runtime_tool',
+        description: 'Builtin version.',
+        parameters: { type: 'object', properties: {} },
+      },
+      execute: vi.fn(),
+    } as unknown as Tool
+    const runtimeTool = {
+      function: {
+        name: 'duplicate_runtime_tool',
+        description: 'Runtime version.',
+        parameters: { type: 'object', properties: {} },
+      },
+      execute: vi.fn(),
+    }
+
+    mcpMock.mockResolvedValueOnce([builtinTool] as Tool[])
+    llmToolsStore.registerTools('plugin-tools', [runtimeTool as any])
+
+    streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => Promise<void>, tools?: unknown[] }) => {
+      queueMicrotask(async () => {
+        await options.onEvent({ type: 'finish', finishReason: 'stop' })
+      })
+      return createMockStreamResult()
+    })
+
+    await store.stream('model-a', provider, [{ role: 'user', content: 'play chess' }] as Message[])
+
+    const mergedTools = streamTextMock.mock.calls[0]?.[0]?.tools as Array<{ function?: { name?: string } }>
+    const duplicateNameTools = mergedTools.filter(tool => tool.function?.name === 'duplicate_runtime_tool')
+
+    expect(duplicateNameTools).toHaveLength(1)
+    expect(duplicateNameTools[0]).toMatchObject({
+      function: {
+        name: 'duplicate_runtime_tool',
+        description: 'Runtime version.',
+      },
+    })
+  })
+
+  /**
+   * @example
+   * llmToolsStore.registerTools('plugin-tools', pendingRuntimeTools)
+   * await store.stream('model-a', provider, messages)
+   */
+  it('waits for pending runtime tool registrations before building stream tools', async () => {
+    const store = useLLM()
+    const llmToolsStore = useLlmToolsStore()
+    const runtimeTool = {
+      function: {
+        name: 'runtime_pending_tool',
+        description: 'Pending runtime tool.',
+        parameters: { type: 'object', properties: {} },
+      },
+      execute: vi.fn(),
+    }
+    let resolveTools: ((tools: unknown[]) => void) | undefined
+    const pendingTools = new Promise<unknown[]>((resolve) => {
+      resolveTools = resolve
+    })
+
+    llmToolsStore.registerTools('plugin-tools', pendingTools as Promise<any[]>)
+
+    streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => Promise<void>, tools?: unknown[] }) => {
+      queueMicrotask(async () => {
+        await options.onEvent({ type: 'finish', finishReason: 'stop' })
+      })
+      return createMockStreamResult()
+    })
+
+    const pendingStream = store.stream('model-a', provider, [{ role: 'user', content: 'play chess' }] as Message[])
+    await Promise.resolve()
+
+    expect(streamTextMock).not.toHaveBeenCalled()
+
+    resolveTools?.([runtimeTool])
+    await pendingStream
+
+    const mergedTools = streamTextMock.mock.calls[0]?.[0]?.tools
+    expect(mergedTools?.map(toolNameFrom)).toContain('runtime_pending_tool')
   })
 })

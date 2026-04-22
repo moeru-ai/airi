@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Browser Electron"
+  short_description: "Attach agent-browser to Electron CDP windows"
+  default_prompt: "Use $agent-browser-electron to inspect the correct Electron window over CDP."

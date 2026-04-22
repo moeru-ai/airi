@@ -25,6 +25,7 @@ import { setElectronMainDirname } from './libs/electron/location'
 import { createI18n } from './libs/i18n'
 import { createWindowAuthManagerService } from './services/airi/auth'
 import { setupServerChannel } from './services/airi/channel-server'
+import { setupBuiltInServer } from './services/airi/http-server'
 import { setupMcpStdioManager } from './services/airi/mcp-servers'
 import { setupPluginHost } from './services/airi/plugins'
 import { setupAutoUpdater } from './services/electron/auto-updater'
@@ -125,13 +126,12 @@ app.whenReady().then(async () => {
     build: async ({ dependsOn }) => setupServerChannel(dependsOn),
   })
 
-  const mcpStdioManager = injeca.provide('modules:mcp-stdio-manager', {
-    build: async () => setupMcpStdioManager(),
+  const airiHttpServer = injeca.provide('modules:airi-http-server', {
+    build: async () => setupBuiltInServer({ servers: [] }),
   })
 
-  const pluginHost = injeca.provide('modules:plugin-host', {
-    dependsOn: { serverChannel },
-    build: () => setupPluginHost(),
+  const mcpStdioManager = injeca.provide('modules:mcp-stdio-manager', {
+    build: async () => setupMcpStdioManager(),
   })
 
   const windowAuthManager = injeca.provide('services:window-auth-manager', () => createWindowAuthManagerService())
@@ -154,6 +154,11 @@ app.whenReady().then(async () => {
   const widgetsManager = injeca.provide('windows:widgets', {
     dependsOn: { serverChannel, i18n },
     build: ({ dependsOn }) => setupWidgetsWindowManager(dependsOn),
+  })
+
+  const pluginHost = injeca.provide('modules:plugin-host', {
+    dependsOn: { serverChannel, widgetsManager },
+    build: ({ dependsOn }) => setupPluginHost({ widgetsManager: dependsOn.widgetsManager }),
   })
 
   const aboutWindow = injeca.provide('windows:about', {
@@ -187,7 +192,7 @@ app.whenReady().then(async () => {
   })
 
   injeca.invoke({
-    dependsOn: { mainWindow, tray, serverChannel, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager },
+    dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager },
     callback: noop,
   })
 

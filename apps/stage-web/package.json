@@ -131,6 +131,7 @@
     "@vitejs/plugin-vue": "^6.0.6",
     "@vue-macros/volar": "^3.1.2",
     "@vueuse/motion": "^3.0.3",
+    "@webgpu/types": "catalog:",
     "csstype": "^3.2.3",
     "hfup": "^1.0.4",
     "less": "^4.6.4",

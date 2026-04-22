@@ -252,6 +252,20 @@ function mergePermissionDeclarations(
   }
 }
 
+/**
+ * Tracks requested and granted permissions for plugin sessions.
+ *
+ * Use when:
+ * - The host needs to initialize permission state for a session
+ * - Runtime-declared permissions must be merged with persisted or host-granted scopes
+ * - Callers need to check whether one action is allowed for one scope
+ *
+ * Expects:
+ * - Permission declarations use the protocol key and action model
+ *
+ * Returns:
+ * - An in-memory permission store with initialize, merge, and query helpers
+ */
 export class PermissionService {
   private readonly store = new Map<string, PermissionSnapshot>()
 
