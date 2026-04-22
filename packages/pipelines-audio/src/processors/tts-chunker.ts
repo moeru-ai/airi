@@ -211,11 +211,9 @@ export async function chunkEmitter(
   handler: (ttsSegment: TtsChunkItem) => Promise<void> | void,
 ) {
   const sanitizeChunk = (text: string) => {
-    let cleanedText = text
+    const cleanedText = text
       .replaceAll(TTS_SPECIAL_TOKEN, '')
       .replaceAll(TTS_FLUSH_INSTRUCTION, '')
-
-    cleanedText = processNarrative(cleanedText, options)
 
     return cleanedText.trim()
   }
@@ -280,8 +278,15 @@ export function createTtsSegmentStream(
           continue
 
         if (value.type === 'literal') {
-          if (value.value)
-            writeBytes(encoder.encode(value.value))
+          if (value.value) {
+            if (value.value) {
+              let text = value.value
+              if (options?.stripNarrative) {
+                text = processNarrative(text, options)
+              }
+              writeBytes(encoder.encode(text))
+            }
+          }
         }
         else if (value.type === 'special') {
           pendingSpecials.push(value.value ?? '')
