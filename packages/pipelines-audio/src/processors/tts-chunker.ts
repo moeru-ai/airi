@@ -269,6 +269,7 @@ export function createTtsSegmentStream(
 
   void (async () => {
     const reader = tokens.getReader()
+    let pendingText = ''
     try {
       while (true) {
         const { value, done } = await reader.read()
@@ -279,12 +280,16 @@ export function createTtsSegmentStream(
 
         if (value.type === 'literal') {
           if (value.value) {
-            if (value.value) {
-              let text = value.value
+            pendingText += value.value
+            const hasUnclosed = /[*[(（【<][^\])*）】>]*$/.test(pendingText)
+
+            if (!hasUnclosed || pendingText.length > 200) {
+              let textToEmit = pendingText
               if (options?.stripNarrative) {
-                text = processNarrative(text, options)
+                textToEmit = processNarrative(textToEmit, options)
               }
-              writeBytes(encoder.encode(text))
+              writeBytes(encoder.encode(textToEmit))
+              pendingText = '' // 发送后清空缓冲区
             }
           }
         }
@@ -295,6 +300,13 @@ export function createTtsSegmentStream(
         else if (value.type === 'flush') {
           writeBytes(encoder.encode(TTS_FLUSH_INSTRUCTION))
         }
+      }
+      if (pendingText) {
+        let finalPunt = pendingText
+        if (options?.stripNarrative) {
+          finalPunt = processNarrative(finalPunt, options)
+        }
+        writeBytes(encoder.encode(finalPunt))
       }
       closeBytes()
     }
