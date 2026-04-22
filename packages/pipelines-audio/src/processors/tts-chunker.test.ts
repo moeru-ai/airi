@@ -102,7 +102,7 @@ describe('tTS Chunker - Narrative Stripping', () => {
 
             if (remainder.length > 0 && /[0-9\s=]/.test(remainder[0]))
               continue
-            if (/^[a-z][^a-z\s>]/i.test(remainder))
+            if (/^[a-z][^a-z0-9\s>]/i.test(remainder))
               continue
             if (/^[a-z]$/i.test(remainder) && /(^|[^a-z])[a-z]$/i.test(leftStr))
               continue

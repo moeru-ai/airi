@@ -333,7 +333,7 @@ export function createTtsSegmentStream(
               && starMatch !== null && !starMatch[1].startsWith(' ')
             const hasUnclosed = bracketsUnclosed || starsUnclosed
             const isStrippingActive = options?.stripNarrative && hasUnclosed
-            const fallbackLimit = isStrippingActive ? 800 : 200
+            const fallbackLimit = (isStrippingActive && bracketsUnclosed) ? 800 : 200
 
             if (!hasUnclosed || pendingText.length > fallbackLimit) {
               const textToEmit = processNarrative(pendingText, options)
