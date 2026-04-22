@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { RoundRange } from '@proj-airi/ui'
+import { onUnmounted } from 'vue'
 
 import { useL2dViewControl } from '../../stores'
 
@@ -9,6 +10,10 @@ const xMin = -1000
 const xMax = 1000
 const yMin = -1000
 const yMax = 1000
+
+onUnmounted(() => {
+  viewControlsEnabled.value = false
+})
 </script>
 
 <template>

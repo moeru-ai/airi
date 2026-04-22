@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import { RoundRange } from '@proj-airi/ui'
+import { onUnmounted } from 'vue'
 
 import { controlConfig as conf, useThreeViewControl } from '../../stores/view-controls'
 
 const { cameraDistance, cameraFOV, modelOffset, viewControlsEnabled, viewControlMode } = useThreeViewControl()
+
+onUnmounted(() => {
+  viewControlsEnabled.value = false
+})
 </script>
 
 <template>
