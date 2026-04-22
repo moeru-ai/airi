@@ -1,7 +1,7 @@
 import { createOpenAI } from '@xsai-ext/providers/create'
 
 import { getAuthToken } from '../../../../libs/auth'
-import { getBrowserApiOrigin } from '../../../../libs/server'
+import { SERVER_URL } from '../../../../libs/server'
 
 export const OFFICIAL_ICON = 'i-solar:star-bold-duotone'
 
@@ -21,7 +21,7 @@ export function withCredentials() {
 }
 
 export function createOfficialOpenAIProvider() {
-  return createOpenAI('', `${getBrowserApiOrigin()}/api/v1/openai/`)
+  return createOpenAI('', `${SERVER_URL}/api/v1/openai/`)
 }
 
 /**

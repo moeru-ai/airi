@@ -5,7 +5,7 @@ import { createAuthClient } from 'better-auth/vue'
 import { useAuthStore } from '../stores/auth'
 import { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } from './auth-config'
 import { buildAuthorizationURL, persistFlowState } from './auth-oidc'
-import { getBrowserApiOrigin } from './server'
+import { SERVER_URL } from './server'
 
 export type OAuthProvider = 'google' | 'github'
 
@@ -19,7 +19,7 @@ export function getAuthToken(): string | null {
 }
 
 export const authClient = createAuthClient({
-  baseURL: getBrowserApiOrigin(),
+  baseURL: SERVER_URL,
   fetchOptions: {
     // NOTICE: better-auth's client hardcodes `credentials: "include"` by default
     // (config.mjs L40), which causes cookies to be sent alongside the Authorization
@@ -192,18 +192,10 @@ export async function signInOIDC(params: OIDCFlowParams) {
     return
   }
 
-  const socialResult = await authClient.signIn.social({
+  await authClient.signIn.social({
     provider,
     callbackURL: url.toString(),
   })
-  const nested = socialResult && typeof socialResult === 'object' && 'data' in socialResult && socialResult.data && typeof socialResult.data === 'object'
-    ? socialResult.data as Record<string, unknown>
-    : null
-  const oauthRedirectUrl = nested?.redirect === true && typeof nested.url === 'string'
-    ? nested.url
-    : null
-  if (oauthRedirectUrl)
-    window.location.assign(oauthRedirectUrl)
 }
 
 /**

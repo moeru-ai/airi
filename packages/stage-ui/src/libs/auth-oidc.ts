@@ -1,6 +1,6 @@
 import { generateCodeChallenge, generateCodeVerifier, generateState } from '@proj-airi/stage-shared/auth'
 
-import { getBrowserApiOrigin, SERVER_URL } from './server'
+import { SERVER_URL } from './server'
 
 // OIDC Authorization Code + PKCE client for all platforms.
 
@@ -95,7 +95,7 @@ export async function exchangeCodeForTokens(
 
   const body = new URLSearchParams(bodyParams)
 
-  const response = await fetch(new URL(OIDC_TOKEN_PATH, getBrowserApiOrigin()), {
+  const response = await fetch(new URL(OIDC_TOKEN_PATH, SERVER_URL), {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
@@ -130,7 +130,7 @@ export async function refreshAccessToken(
 
   const body = new URLSearchParams(params)
 
-  const response = await fetch(new URL(OIDC_TOKEN_PATH, getBrowserApiOrigin()), {
+  const response = await fetch(new URL(OIDC_TOKEN_PATH, SERVER_URL), {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
