@@ -91,7 +91,7 @@ describe('tTS Chunker - Narrative Stripping', () => {
     })
 
     it('should distinguish attached narrative tags from tight math variables', () => {
-      const narrativeTexts = ['<s', 'hello<y']
+      const narrativeTexts = ['<s', 'hello<y', '<h2']
 
       for (const text of narrativeTexts) {
         let hasUnclosedNarrative = false
