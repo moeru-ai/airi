@@ -280,6 +280,11 @@ export function createTtsSegmentStream(
 
         if (value.type === 'literal') {
           if (value.value) {
+            if (!options?.stripNarrative) {
+              writeBytes(encoder.encode(value.value))
+              continue
+            }
+
             pendingText += value.value
             const lastOpen = Math.max(
               pendingText.lastIndexOf('['),
@@ -303,21 +308,26 @@ export function createTtsSegmentStream(
             const hasUnclosed = bracketsUnclosed || starsUnclosed
 
             if (!hasUnclosed || pendingText.length > 200) {
-              let textToEmit = pendingText
-              if (options?.stripNarrative) {
-                textToEmit = processNarrative(textToEmit, options)
-              }
+              const textToEmit = pendingText
               writeBytes(encoder.encode(textToEmit))
               pendingText = ''
             }
           }
         }
-        else if (value.type === 'special') {
-          pendingSpecials.push(value.value ?? '')
-          writeBytes(encoder.encode(TTS_SPECIAL_TOKEN))
-        }
-        else if (value.type === 'flush') {
-          writeBytes(encoder.encode(TTS_FLUSH_INSTRUCTION))
+        else if (value.type === 'special' || value.type === 'flush') {
+          if (pendingText) {
+            const textToEmit = processNarrative(pendingText, options)
+            writeBytes(encoder.encode(textToEmit))
+            pendingText = ''
+          }
+
+          if (value.type === 'special') {
+            pendingSpecials.push(value.value ?? '')
+            writeBytes(encoder.encode(TTS_SPECIAL_TOKEN))
+          }
+          else if (value.type === 'flush') {
+            writeBytes(encoder.encode(TTS_FLUSH_INSTRUCTION))
+          }
         }
       }
       if (pendingText) {
