@@ -2,11 +2,15 @@
 import { LoginDrawer } from '@proj-airi/stage-ui/components'
 import { useBreakpoints } from '@proj-airi/stage-ui/composables'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
+import { isLessonRouteLike } from '@proj-airi/stage-ui/utils'
 import { storeToRefs } from 'pinia'
-import { RouterView } from 'vue-router'
+import { computed } from 'vue'
+import { RouterView, useRoute } from 'vue-router'
 
+const route = useRoute()
 const { isMobile } = useBreakpoints()
 const { needsLogin } = storeToRefs(useAuthStore())
+const isLessonRoute = computed(() => isLessonRouteLike(route))
 </script>
 
 <template>
@@ -14,7 +18,7 @@ const { needsLogin } = storeToRefs(useAuthStore())
     <RouterView />
 
     <LoginDrawer
-      v-if="isMobile"
+      v-if="isMobile && !isLessonRoute"
       v-model:open="needsLogin"
     />
   </main>

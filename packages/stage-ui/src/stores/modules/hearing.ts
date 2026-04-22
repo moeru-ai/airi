@@ -16,6 +16,7 @@ import vadWorkletUrl from '../../workers/vad/process.worklet?worker&url'
 import { activeTurnSpan, startSpan } from '../../composables/use-io-tracer'
 import { useProvidersStore } from '../providers'
 import { streamAliyunTranscription } from '../providers/aliyun/stream-transcription'
+import { streamDoubaoRealtimeTranscription } from '../providers/volcengine/stream-transcription'
 import { streamWebSpeechAPITranscription } from '../providers/web-speech-api'
 
 function errorMessage(err: unknown): string {
@@ -94,6 +95,7 @@ export function filterTranscriptionByConfidence(
 
 const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
   'aliyun-nls-transcription': streamAliyunTranscription,
+  'volcengine-realtime-transcription': streamDoubaoRealtimeTranscription,
   // Web Speech API is handled specially in transcribeForMediaStream since it works directly with MediaStream
 }
 

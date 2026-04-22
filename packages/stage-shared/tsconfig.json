@@ -8,6 +8,14 @@
     ],
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "paths": {
+      "@proj-airi/electron-screen-capture": [
+        "../electron-screen-capture/src/index.ts"
+      ],
+      "@proj-airi/electron-screen-capture/renderer": [
+        "../electron-screen-capture/src/renderer.ts"
+      ]
+    },
     "resolveJsonModule": true,
     "types": [
       "vitest",

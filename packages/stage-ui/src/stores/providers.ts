@@ -14,13 +14,13 @@ import type {
   UnDeepgramOptions,
   UnElevenLabsOptions,
   UnMicrosoftOptions,
-  UnVolcengineOptions,
   VoiceProviderWithExtraOptions,
 } from 'unspeech'
 
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
+import type { DoubaoRealtimeSpeechExtraOptions } from './providers/volcengine/stream-transcription'
 
-import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
+import { isStageTamagotchi, isStageWeb, isUrl } from '@proj-airi/stage-shared'
 import { getCachedWebGPUCapabilities, isWebGPUSupported } from '@proj-airi/stage-shared/webgpu'
 import { computedAsync, useIntervalFn, useLocalStorage } from '@vueuse/core'
 import {
@@ -41,7 +41,6 @@ import {
   createUnDeepgram,
   createUnElevenLabs,
   createUnMicrosoft,
-  createUnVolcengine,
   listVoices,
 } from 'unspeech'
 import { computed, ref, watch } from 'vue'
@@ -56,6 +55,8 @@ import { convertProviderDefinitionsToMetadata } from './providers/converters'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 import { buildOpenRouterAudioSpeechProvider } from './providers/openrouter/audio-speech'
+import { createOfficialVolcengineSpeechProvider } from './providers/volcengine/audio-speech'
+import { listOfficialVolcengineVoices } from './providers/volcengine/voice-catalog'
 import { createWebSpeechAPIProvider } from './providers/web-speech-api'
 
 const ALIYUN_NLS_REGIONS = [
@@ -66,6 +67,10 @@ const ALIYUN_NLS_REGIONS = [
   'cn-shenzhen',
   'cn-shenzhen-internal',
 ] as const
+
+const DOUBAO_REALTIME_APP_KEY = 'PlgvMymc7f3tQnJ6'
+const DOUBAO_REALTIME_RESOURCE_ID = 'volc.speech.dialog'
+const DOUBAO_REALTIME_DEFAULT_PROXY_URL = '/api/peptutor/doubao-realtime-asr'
 
 type AliyunNlsRegion = typeof ALIYUN_NLS_REGIONS[number]
 
@@ -834,6 +839,120 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'volcengine-realtime-transcription': {
+      id: 'volcengine-realtime-transcription',
+      category: 'transcription',
+      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt', 'streaming-transcription'],
+      nameKey: 'settings.pages.providers.provider.volcengine-realtime-transcription.title',
+      name: 'Doubao Realtime ASR',
+      descriptionKey: 'settings.pages.providers.provider.volcengine-realtime-transcription.description',
+      description: 'Volcengine / Doubao realtime speech transcription via local websocket proxy.',
+      iconColor: 'i-lobe-icons:volcengine',
+      defaultOptions: () => ({
+        proxyUrl: DOUBAO_REALTIME_DEFAULT_PROXY_URL,
+        model: '1.2.1.1',
+        resourceId: DOUBAO_REALTIME_RESOURCE_ID,
+        appKey: DOUBAO_REALTIME_APP_KEY,
+        app: {
+          appId: '',
+        },
+      }),
+      transcriptionFeatures: {
+        supportsGenerate: false,
+        supportsStreamOutput: true,
+        supportsStreamInput: true,
+      },
+      isAvailableBy: async () => {
+        if (typeof window === 'undefined')
+          return false
+
+        if (isStageTamagotchi())
+          return false
+
+        return 'WebSocket' in window
+      },
+      createProvider: async (config) => {
+        const proxyUrl = typeof config.proxyUrl === 'string' && config.proxyUrl.trim()
+          ? config.proxyUrl.trim()
+          : DOUBAO_REALTIME_DEFAULT_PROXY_URL
+        const appId = typeof (config.app as any)?.appId === 'string'
+          ? ((config.app as any).appId as string).trim()
+          : ''
+        const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+        const defaultModel = typeof config.model === 'string' && config.model.trim()
+          ? config.model.trim()
+          : '1.2.1.1'
+        const appKey = typeof config.appKey === 'string' && config.appKey.trim()
+          ? config.appKey.trim()
+          : DOUBAO_REALTIME_APP_KEY
+        const resourceId = typeof config.resourceId === 'string' && config.resourceId.trim()
+          ? config.resourceId.trim()
+          : DOUBAO_REALTIME_RESOURCE_ID
+
+        return {
+          transcription: (model: string, extraOptions?: DoubaoRealtimeSpeechExtraOptions) => ({
+            baseURL: proxyUrl,
+            model: model || defaultModel,
+            apiKey,
+            appId,
+            appKey,
+            resourceId,
+            ...extraOptions,
+          }),
+        } as TranscriptionProviderWithExtraOptions<string, DoubaoRealtimeSpeechExtraOptions>
+      },
+      capabilities: {
+        listModels: async () => {
+          return [
+            {
+              id: '1.2.1.1',
+              name: 'Doubao Realtime O2.0',
+              provider: 'volcengine-realtime-transcription',
+              description: 'Realtime end-to-end speech model O2.0.',
+              contextLength: 0,
+              deprecated: false,
+            },
+            {
+              id: '2.2.0.0',
+              name: 'Doubao Realtime SC2.0',
+              provider: 'volcengine-realtime-transcription',
+              description: 'Realtime end-to-end speech model SC2.0.',
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
+        },
+      },
+      validators: {
+        validateProviderConfig: (config) => {
+          const errors: Error[] = []
+          const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+          const appId = typeof (config.app as any)?.appId === 'string' ? ((config.app as any).appId as string).trim() : ''
+          const proxyUrl = typeof config.proxyUrl === 'string' ? config.proxyUrl.trim() : ''
+
+          if (!apiKey)
+            errors.push(new Error('API key is required.'))
+          if (!appId)
+            errors.push(new Error('App ID is required.'))
+          if (!proxyUrl)
+            errors.push(new Error('Proxy URL is required.'))
+
+          if (proxyUrl) {
+            const isRelative = proxyUrl.startsWith('/')
+            const isAbsolute = /^(?:https?|wss?):\/\//.test(proxyUrl)
+            if (!isRelative && !isAbsolute)
+              errors.push(new Error('Proxy URL must be relative (/api/...) or absolute (http(s)/ws(s)).'))
+          }
+
+          return {
+            errors,
+            reason: errors.map(error => error.message).join(', '),
+            valid: errors.length === 0,
+          }
+        },
+        chatPingCheckAvailable: false,
+      },
+    },
     'browser-web-speech-api': {
       id: 'browser-web-speech-api',
       category: 'transcription',
@@ -1329,28 +1448,20 @@ export const useProvidersStore = defineStore('providers', () => {
       description: 'volcengine.com',
       iconColor: 'i-lobe-icons:volcengine',
       defaultOptions: () => ({
-        baseUrl: 'https://unspeech.hyp3r.link/v1/',
-      }),
-      createProvider: async config => createUnVolcengine((config.apiKey as string).trim(), (config.baseUrl as string).trim()),
-      capabilities: {
-        listVoices: async (config) => {
-          const provider = createUnVolcengine((config.apiKey as string).trim(), (config.baseUrl as string).trim()) as VoiceProviderWithExtraOptions<UnVolcengineOptions>
-
-          const voices = await listVoices({
-            ...provider.voice(),
-          })
-
-          return voices.map((voice) => {
-            return {
-              id: voice.id,
-              name: voice.name,
-              provider: 'volcano-engine',
-              previewURL: voice.preview_audio_url,
-              languages: voice.languages,
-              gender: voice.labels?.gender,
-            }
-          })
+        proxyUrl: '/api/peptutor/doubao-tts',
+        app: {
+          cluster: 'volcano_tts',
         },
+      }),
+      isAvailableBy: async () => {
+        if (typeof window === 'undefined')
+          return false
+
+        return isStageWeb()
+      },
+      createProvider: async config => createOfficialVolcengineSpeechProvider(config),
+      capabilities: {
+        listVoices: async () => listOfficialVolcengineVoices(),
         listModels: async () => {
           return [
             {
@@ -1369,19 +1480,15 @@ export const useProvidersStore = defineStore('providers', () => {
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API key is required.'),
-            !config.baseUrl && new Error('Base URL is required.'),
+            !config.proxyUrl && new Error('Proxy URL is required.'),
             !((config.app as any)?.appId) && new Error('App ID is required.'),
+            !((config.app as any)?.cluster) && new Error('Cluster is required.'),
           ].filter(Boolean)
-
-          const res = baseUrlValidator.value(config.baseUrl)
-          if (res) {
-            return res
-          }
 
           return {
             errors,
             reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
-            valid: !!config.apiKey && !!config.baseUrl && !!config.app && !!(config.app as any).appId,
+            valid: !!config.apiKey && !!config.proxyUrl && !!config.app && !!(config.app as any).appId && !!(config.app as any).cluster,
           }
         },
       },

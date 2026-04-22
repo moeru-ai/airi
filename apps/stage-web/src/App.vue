@@ -9,36 +9,48 @@ import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/c
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
+import { bootstrapPepTutorVoiceEnvDefaults } from '@proj-airi/stage-ui/stores/provider-env-bootstrap'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { isLessonPath, isLessonRouteLike } from '@proj-airi/stage-ui/utils'
 import { useTheme } from '@proj-airi/ui'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterView } from 'vue-router'
+import { RouterView, useRoute } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
 
 import PerformanceOverlay from './components/Devtools/PerformanceOverlay.vue'
 
 import { usePWAStore } from './stores/pwa'
+import { shouldSuppressOnboardingForRoute } from './utils/onboarding-route'
 
 usePWAStore()
 
-const contextBridgeStore = useContextBridgeStore()
+const route = useRoute()
 const i18n = useI18n()
 const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
-const settings = storeToRefs(settingsStore)
-const onboardingStore = useOnboardingStore()
-const chatSessionStore = useChatSessionStore()
-const serverChannelStore = useModsServerChannelStore()
-const characterOrchestratorStore = useCharacterOrchestratorStore()
 const settingsAudioDeviceStore = useSettingsAudioDevice()
-const { showingSetup } = storeToRefs(onboardingStore)
+const settings = storeToRefs(settingsStore)
 const { isDark } = useTheme()
-const cardStore = useAiriCardStore()
 const analyticsStore = useSharedAnalyticsStore()
 const inferencePreload = useInferencePreload()
+const lessonLiteEnabled = computed(() =>
+  isLessonRouteLike(route)
+  || (typeof window !== 'undefined' && isLessonPath(window.location.pathname)),
+)
+const showingSetup = ref(false)
+const needsOnboarding = ref(false)
+let voiceEnvBootstrapped = false
+let globalRuntimeInitialized = false
+let onboardingStoreInitialized = false
+let onboardingStore: ReturnType<typeof useOnboardingStore> | null = null
+let cardStore: ReturnType<typeof useAiriCardStore> | null = null
+let chatSessionStore: ReturnType<typeof useChatSessionStore> | null = null
+let serverChannelStore: ReturnType<typeof useModsServerChannelStore> | null = null
+let contextBridgeStore: ReturnType<typeof useContextBridgeStore> | null = null
+let characterOrchestratorStore: ReturnType<typeof useCharacterOrchestratorStore> | null = null
 
 const primaryColor = computed(() => {
   return isDark.value
@@ -80,40 +92,99 @@ watch(settings.themeColorsHueDynamic, () => {
   document.documentElement.classList.toggle('dynamic-hue', settings.themeColorsHueDynamic.value)
 }, { immediate: true })
 
-// Initialize first-time setup check when app mounts
-onMounted(async () => {
-  analyticsStore.initialize()
-  await displayModelsStore.initialize()
-  cardStore.initialize()
+const suppressOnboardingForCurrentRoute = computed(() => shouldSuppressOnboardingForRoute(route))
 
-  if (onboardingStore.needsOnboarding) {
-    onboardingStore.showingSetup = true
+watch([needsOnboarding, suppressOnboardingForCurrentRoute], ([needSetup, suppress]) => {
+  if (!lessonLiteEnabled.value) {
+    showingSetup.value = needSetup && !suppress
+  }
+}, { immediate: true })
+
+function ensureCardStore() {
+  cardStore ??= useAiriCardStore()
+  cardStore.initialize()
+  return cardStore
+}
+
+function ensureOnboardingStore() {
+  onboardingStore ??= useOnboardingStore()
+
+  if (!onboardingStoreInitialized) {
+    onboardingStoreInitialized = true
+    const onboardingRefs = storeToRefs(onboardingStore)
+
+    watch(onboardingRefs.needsOnboarding, (value) => {
+      needsOnboarding.value = value
+    }, { immediate: true })
+
+    watch(onboardingRefs.showingSetup, (value) => {
+      if (showingSetup.value !== value) {
+        showingSetup.value = value
+      }
+    }, { immediate: true })
+
+    watch(showingSetup, (value) => {
+      if (onboardingRefs.showingSetup.value !== value) {
+        onboardingRefs.showingSetup.value = value
+      }
+    })
+  }
+
+  return onboardingStore
+}
+
+async function initializeGlobalRuntime() {
+  if (lessonLiteEnabled.value || globalRuntimeInitialized) {
+    return
+  }
+
+  ensureOnboardingStore()
+  ensureCardStore()
+  chatSessionStore ??= useChatSessionStore()
+  serverChannelStore ??= useModsServerChannelStore()
+  contextBridgeStore ??= useContextBridgeStore()
+  characterOrchestratorStore ??= useCharacterOrchestratorStore()
+
+  if (!voiceEnvBootstrapped) {
+    await bootstrapPepTutorVoiceEnvDefaults()
+    voiceEnvBootstrapped = true
   }
 
   await chatSessionStore.initialize()
   await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
   contextBridgeStore.initialize()
   characterOrchestratorStore.initialize()
+  globalRuntimeInitialized = true
+}
+
+onMounted(async () => {
+  analyticsStore.initialize()
+  await displayModelsStore.initialize()
+  await initializeGlobalRuntime()
 
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
   await settingsAudioDeviceStore.initialize()
 
-  // Preload local inference models (Kokoro TTS, etc.) in background after a delay
   inferencePreload.triggerPreload()
 })
 
-onUnmounted(() => {
-  contextBridgeStore.dispose()
+watch(lessonLiteEnabled, (enabled) => {
+  if (!enabled) {
+    void initializeGlobalRuntime()
+  }
 })
 
-// Handle first-time setup events
+onUnmounted(() => {
+  contextBridgeStore?.dispose()
+})
+
 function handleSetupConfigured() {
-  onboardingStore.markSetupCompleted()
+  ensureOnboardingStore().markSetupCompleted()
 }
 
 function handleSetupSkipped() {
-  onboardingStore.markSetupSkipped()
+  ensureOnboardingStore().markSetupSkipped()
 }
 </script>
 
@@ -136,8 +207,8 @@ function handleSetupSkipped() {
     <Toaster />
   </ToasterRoot>
 
-  <!-- First Time Setup Dialog -->
   <OnboardingDialog
+    v-if="!lessonLiteEnabled"
     v-model="showingSetup"
     :extra-steps="onboardingExtraSteps"
     @configured="handleSetupConfigured"
@@ -148,7 +219,6 @@ function handleSetupSkipped() {
 </template>
 
 <style>
-/* We need this to properly animate the CSS variable */
 @property --chromatic-hue {
   syntax: '<number>';
   initial-value: 0;

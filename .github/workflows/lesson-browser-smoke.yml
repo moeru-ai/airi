@@ -1,0 +1,80 @@
+name: Lesson Browser Smoke
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/lesson-browser-smoke.yml
+      - apps/stage-web/package.json
+      - apps/stage-web/src/pages/lesson/**
+      - apps/stage-web/src/testing/**
+      - apps/stage-web/vitest.browser.config.ts
+      - apps/stage-web/vitest.browser.sanity.config.ts
+      - packages/stage-layouts/**
+      - packages/stage-ui/src/**
+      - packages/stage-ui-live2d/src/**
+      - scripts/run-lesson-browser-real-smoke.sh
+      - scripts/wait-for-lesson-backend.sh
+  workflow_dispatch:
+  schedule:
+    - cron: '23 2 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: /lesson Real Browser Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PEPTUTOR_LESSON_REAL_BACKEND_URL: ${{ secrets.PEPTUTOR_LESSON_REAL_BACKEND_URL }}
+      PEPTUTOR_LESSON_REAL_BACKEND_WAIT_TIMEOUT: '120'
+      VITE_PEPTUTOR_LESSON_API_URL: ${{ secrets.PEPTUTOR_LESSON_REAL_BACKEND_URL }}
+      VITE_PEPTUTOR_LESSON_API_KEY: ${{ secrets.PEPTUTOR_LESSON_API_KEY }}
+      VITE_PEPTUTOR_LESSON_BEARER_TOKEN: ${{ secrets.PEPTUTOR_LESSON_BEARER_TOKEN }}
+      VITE_PEPTUTOR_LESSON_AUTH_USERNAME: ${{ secrets.PEPTUTOR_LESSON_AUTH_USERNAME }}
+      VITE_PEPTUTOR_LESSON_AUTH_PASSWORD: ${{ secrets.PEPTUTOR_LESSON_AUTH_PASSWORD }}
+      VITE_PEPTUTOR_LESSON_EXPECT_DEBUG_SIGNALS: '1'
+      VITE_PEPTUTOR_SKIP_REMOTE_ASSET_DOWNLOADS: '1'
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - name: Verify smoke configuration
+        run: |
+          if [[ -z "${PEPTUTOR_LESSON_REAL_BACKEND_URL:-}" ]]; then
+            echo "Missing required secret: PEPTUTOR_LESSON_REAL_BACKEND_URL" >&2
+            exit 1
+          fi
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium for Vitest browser mode
+        run: pnpm dlx playwright install --with-deps chromium
+
+      - name: Run /lesson real-browser smoke
+        run: |
+          mkdir -p .artifacts
+          set -o pipefail
+          pnpm -F @proj-airi/stage-web test:run:browser:real | tee .artifacts/lesson-browser-smoke.log
+
+      - name: Upload smoke logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lesson-browser-smoke-${{ github.run_id }}
+          path: .artifacts/lesson-browser-smoke.log
+          if-no-files-found: ignore
+          retention-days: 7

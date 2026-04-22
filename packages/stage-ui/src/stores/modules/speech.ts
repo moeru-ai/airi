@@ -174,7 +174,6 @@ export const useSpeechStore = defineStore('speech', () => {
     selectedLanguage,
     uiLocale: locale,
   })
-
   watch([activeSpeechVoiceId, availableVoices], ([voiceId, voices]) => {
     if (voiceId) {
       // For OpenAI Compatible, create a custom voice object (no voices available from API)
