@@ -303,6 +303,10 @@ export function createTtsSegmentStream(
                 if (char === '<') {
                   const remainder = pendingText.slice(i + 1)
 
+                  if (remainder.length > 0 && /[0-9\s=]/.test(remainder[0])) {
+                    continue
+                  }
+
                   if (/^[a-z]([^a-z>]|$)/i.test(remainder)) {
                     continue
                   }

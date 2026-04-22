@@ -87,38 +87,38 @@ describe('tTS Chunker - Narrative Stripping', () => {
       const shouldFlush = !hasUnclosed || (!isStrippingActive && pendingText.length > 200)
 
       expect(shouldFlush).toBe(false)
+    })
 
-      it('should distinguish attached narrative tags from tight math variables', () => {
-        const narrativeText = 'hello<sigh'
-        let hasUnclosedNarrative = false
-        for (let i = 0; i < narrativeText.length; i++) {
-          const char = narrativeText[i]
-          if (char === '<') {
-            const remainder = narrativeText.slice(i + 1)
-            if (remainder.length > 0 && /[0-9\s=]/.test(remainder[0]))
-              continue
-            if (/^[a-z]([^a-z>]|$)/i.test(remainder))
-              continue
-            hasUnclosedNarrative = true
-          }
+    it('should distinguish attached narrative tags from tight math variables', () => {
+      const narrativeText = 'hello<sigh'
+      let hasUnclosedNarrative = false
+      for (let i = 0; i < narrativeText.length; i++) {
+        const char = narrativeText[i]
+        if (char === '<') {
+          const remainder = narrativeText.slice(i + 1)
+          if (remainder.length > 0 && /[0-9\s=]/.test(remainder[0]))
+            continue
+          if (/^[a-z]([^a-z>]|$)/i.test(remainder))
+            continue
+          hasUnclosedNarrative = true
         }
-        expect(hasUnclosedNarrative).toBe(true)
+      }
+      expect(hasUnclosedNarrative).toBe(true)
 
-        const mathText = 'x<y'
-        let hasUnclosedMath = false
-        for (let i = 0; i < mathText.length; i++) {
-          const char = mathText[i]
-          if (char === '<') {
-            const remainder = mathText.slice(i + 1)
-            if (remainder.length > 0 && /[0-9\s=]/.test(remainder[0]))
-              continue
-            if (/^[a-z]([^a-z>]|$)/i.test(remainder))
-              continue
-            hasUnclosedMath = true
-          }
+      const mathText = 'x<y'
+      let hasUnclosedMath = false
+      for (let i = 0; i < mathText.length; i++) {
+        const char = mathText[i]
+        if (char === '<') {
+          const remainder = mathText.slice(i + 1)
+          if (remainder.length > 0 && /[0-9\s=]/.test(remainder[0]))
+            continue
+          if (/^[a-z]([^a-z>]|$)/i.test(remainder))
+            continue
+          hasUnclosedMath = true
         }
-        expect(hasUnclosedMath).toBe(false)
-      })
+      }
+      expect(hasUnclosedMath).toBe(false)
     })
   })
 })
