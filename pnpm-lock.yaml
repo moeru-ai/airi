@@ -3044,6 +3044,8 @@ importers:
         specifier: 'catalog:'
         version: 0.0.97
 
+  packages/stage-tamagotchi-godot: {}
+
   packages/stage-ui:
     dependencies:
       '@date-fns/utc':
