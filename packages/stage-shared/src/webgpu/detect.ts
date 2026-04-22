@@ -7,14 +7,6 @@
 
 import { check as gpuuCheck, isWebGPUSupported as gpuuIsSupported } from 'gpuu/webgpu'
 
-interface NavigatorWebGPU {
-  requestAdapter: () => Promise<unknown>
-}
-
-interface NavigatorWithOptionalWebGPU extends Navigator {
-  gpu?: NavigatorWebGPU
-}
-
 export interface WebGPUCapabilities {
   /** Whether WebGPU is available in this environment */
   supported: boolean
@@ -28,50 +20,6 @@ export interface WebGPUCapabilities {
 
 let cachedResult: WebGPUCapabilities | null = null
 let pendingDetection: Promise<WebGPUCapabilities> | null = null
-
-/**
- * Returns the WebGPU navigator entry point when the current runtime exposes it.
- *
- * Use when:
- * - browser or worker code needs guarded access to WebGPU
- * - a caller only needs the `navigator.gpu` entry point, not a full capability probe
- *
- * Expects:
- * - browser-like runtimes where `navigator` may be unavailable during SSR or tests
- *
- * Returns:
- * - the WebGPU navigator entry point when available, otherwise `null`
- */
-export function getNavigatorWebGPU(): NavigatorWebGPU | null {
-  // NOTICE:
-  // TypeScript's default DOM libs in this repo do not declare `Navigator.gpu`.
-  // Direct `navigator.gpu` access fails in consumers like `@proj-airi/ui-server-auth`
-  // and in `@proj-airi/stage-ui` worker compilation even though the runtime guard is valid.
-  // We centralize the structural cast here until the repo opts into WebGPU ambient types.
-  // Removal condition: remove this helper once the workspace TypeScript config includes
-  // WebGPU navigator typings everywhere that imports these modules.
-  if (typeof navigator === 'undefined' || !('gpu' in navigator))
-    return null
-
-  return (navigator as NavigatorWithOptionalWebGPU).gpu ?? null
-}
-
-/**
- * Returns whether the current runtime exposes a WebGPU entry point on `navigator`.
- *
- * Use when:
- * - synchronous code only needs a fast boolean feature probe
- * - cached capability detection has not completed yet
- *
- * Expects:
- * - browser-like runtimes where `navigator` may be unavailable
- *
- * Returns:
- * - `true` when `navigator.gpu` is available, otherwise `false`
- */
-export function hasNavigatorWebGPU(): boolean {
-  return getNavigatorWebGPU() != null
-}
 
 /**
  * Detect WebGPU capabilities. The result is cached as a singleton

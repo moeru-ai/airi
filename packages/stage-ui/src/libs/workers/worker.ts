@@ -31,7 +31,6 @@ import {
   TextStreamer,
   WhisperForConditionalGeneration,
 } from '@huggingface/transformers'
-import { getNavigatorWebGPU } from '@proj-airi/stage-shared/webgpu'
 
 import { MODEL_IDS, MODEL_NAMES } from '../inference/constants'
 import { classifyError, isRecoverable } from '../inference/protocol'
@@ -76,10 +75,9 @@ const MODEL_ID = MODEL_IDS.WHISPER
  */
 async function detectWebGPUInWorker(): Promise<boolean> {
   try {
-    const webgpu = getNavigatorWebGPU()
-    if (!webgpu)
+    if (typeof navigator === 'undefined' || !navigator.gpu)
       return false
-    const adapter = await webgpu.requestAdapter()
+    const adapter = await navigator.gpu.requestAdapter()
     return adapter != null
   }
   catch {
