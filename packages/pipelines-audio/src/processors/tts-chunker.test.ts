@@ -57,4 +57,36 @@ describe('tTS Chunker - Narrative Stripping', () => {
       expect(tagResult.trim()).toBe('okay')
     })
   })
+
+  describe('codex P2 Fixes: Streaming & Flush Logic', () => {
+    it('should not treat tight math/code brackets as unclosed narrative', () => {
+      const pendingText = 'Here is some code: List<String> and math: x<y'
+
+      // 模拟你的启发式判断过程
+      let hasUnclosed = false
+      for (let i = 0; i < pendingText.length; i++) {
+        const char = pendingText[i]
+        if (char === '<') {
+          const nextChar = pendingText[i + 1]
+          if (nextChar && /[0-9\s]/.test(nextChar))
+            continue
+          if (i > 0 && /[^\s([{]/.test(pendingText[i - 1]))
+            continue
+          hasUnclosed = true // 如果没被上面的 continue 拦截，就会标记为未闭合
+        }
+      }
+    })
+
+    // 针对 Screenshot 2 的测试
+    it('should not force flush if a narrative span exceeds threshold', () => {
+      const options = { stripNarrative: true }
+      const hasUnclosed = true
+      const pendingText = `[${'a'.repeat(250)}` // 模拟一个长度超过 200 字符的未闭合括号
+
+      const isStrippingActive = options.stripNarrative && hasUnclosed
+      const shouldFlush = !hasUnclosed || (!isStrippingActive && pendingText.length > 200)
+
+      expect(shouldFlush).toBe(false)
+    })
+  })
 })

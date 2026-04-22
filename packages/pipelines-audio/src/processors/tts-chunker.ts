@@ -300,10 +300,14 @@ export function createTtsSegmentStream(
             for (let i = 0; i < pendingText.length; i++) {
               const char = pendingText[i]
               if (openers.includes(char)) {
-                // 尖括号启发式过滤：如果是 <3 或 1 < 2，不入栈
                 if (char === '<') {
                   const nextChar = pendingText[i + 1]
+                  // 1. 向后看：如果是数字或空格，放行 (例如: 1 < 2)
                   if (nextChar && /[0-9\s]/.test(nextChar))
+                    continue
+
+                  // 2. 向前看 (Codex 修复): 如果紧贴着非空白字符/非左括号，大概率是代码或紧凑公式 (例如: x<y)
+                  if (i > 0 && /[^\s([{（【]/.test(pendingText[i - 1]))
                     continue
                 }
                 stack.push(char)
@@ -317,17 +321,14 @@ export function createTtsSegmentStream(
               }
             }
 
-            // 括号是否未闭合：看栈里是否还有剩
             const bracketsUnclosed = stack.length > 0
-
-            // 星号奇偶校验（保留你之前写好的启发式逻辑）
             const starMatch = pendingText.match(/\*([^*]*)$/)
             const starsUnclosed = (pendingText.match(/\*/g) || []).length % 2 !== 0
               && starMatch !== null && !starMatch[1].startsWith(' ')
-
             const hasUnclosed = bracketsUnclosed || starsUnclosed
+            const isStrippingActive = options?.stripNarrative && hasUnclosed
 
-            if (!hasUnclosed || pendingText.length > 200) {
+            if (!hasUnclosed || (!isStrippingActive && pendingText.length > 200)) {
               const textToEmit = processNarrative(pendingText, options)
               writeBytes(encoder.encode(textToEmit))
               pendingText = ''
