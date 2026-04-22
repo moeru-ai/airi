@@ -2,11 +2,11 @@ import type { BrowserWindow, Rectangle } from 'electron'
 import type { InferOutput } from 'valibot'
 
 import type {
-  PluginModuleWidgetPayload,
   WidgetsAddPayload,
   WidgetSnapshot,
   WidgetsUpdatePayload,
 } from '../../../shared/eventa'
+import type { PluginModuleWidgetPayload } from '../../../shared/eventa/plugin/host'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 

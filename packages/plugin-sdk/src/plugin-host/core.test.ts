@@ -188,6 +188,7 @@ describe('for PluginHost', () => {
   const kitRegistryResourceKey = 'proj-airi:plugin-sdk:resources:kits'
   const toolRegistryResourceKey = 'proj-airi:plugin-sdk:resources:tools'
   const widgetKitBindingsResourceKey = 'proj-airi:plugin-sdk:resources:kits:kit.widget:bindings'
+  const customSessionApiPingEventName = 'proj-airi:plugin-sdk:apis:client:test-session-api:ping'
   const testManifest = {
     apiVersion: 'v1' as const,
     kind: 'manifest.plugin.airi.moeru.ai' as const,
@@ -229,6 +230,16 @@ describe('for PluginHost', () => {
         { key: toolRegistryResourceKey, actions: ['write'] },
         { key: 'proj-airi:plugin-sdk:resources:bindings', actions: ['read'] },
         { key: widgetKitBindingsResourceKey, actions: ['read', 'write'] },
+      ],
+    } satisfies ModulePermissionDeclaration,
+  }
+  const customSessionApiManifest = {
+    ...testManifest,
+    permissions: {
+      ...testManifest.permissions,
+      apis: [
+        ...(testManifest.permissions.apis ?? []),
+        { key: customSessionApiPingEventName, actions: ['invoke'] },
       ],
     } satisfies ModulePermissionDeclaration,
   }
@@ -304,8 +315,8 @@ describe('for PluginHost', () => {
 
     await expect(host.init(session.id)).rejects.toThrow('Plugin initialization aborted by plugin: test-plugin-no-connect')
 
-    const latest = host.getSession(session.id)
-    expect(latest?.phase).toBe('failed')
+    expect(session.phase).toBe('stopped')
+    expect(host.getSession(session.id)).toBeUndefined()
   })
 
   it('should expose runtime-compatible kits through bound plugin apis', async () => {
@@ -364,6 +375,54 @@ describe('for PluginHost', () => {
       },
       execute: async () => ({ ok: true }),
     })).resolves.toBeUndefined()
+  })
+
+  it('should let contributions install custom session api namespaces', async () => {
+    const installContribution = vi.fn()
+    const callCustomNamespace = vi.fn(({ ownerPluginId, message }: { ownerPluginId: string, message: string }) => {
+      return `${ownerPluginId}:${message}`
+    })
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+      contributions: [{
+        install(context) {
+          installContribution()
+          context.registerSessionApi('testSessionApi', ({ session, assertPermission }) => ({
+            async ping(message: string) {
+              assertPermission({
+                area: 'apis',
+                action: 'invoke',
+                key: customSessionApiPingEventName,
+              })
+
+              return callCustomNamespace({
+                ownerPluginId: session.ownerPluginId,
+                message,
+              })
+            },
+          }))
+        },
+      }],
+    })
+    reportPluginCapability(host, {
+      key: providersCapability,
+      state: 'ready',
+      metadata: { source: 'test' },
+    })
+
+    const session = await host.start(customSessionApiManifest, { cwd: '' })
+    const testSessionApi = (session.apis as Record<string, unknown>).testSessionApi as {
+      ping: (message: string) => Promise<string>
+    }
+
+    expect(installContribution).toHaveBeenCalledTimes(1)
+    expect(testSessionApi).toBeDefined()
+    await expect(testSessionApi.ping('hello')).resolves.toBe(`${session.identity.plugin.id}:hello`)
+    expect(callCustomNamespace).toHaveBeenCalledWith({
+      ownerPluginId: session.identity.plugin.id,
+      message: 'hello',
+    })
   })
 
   it('should register available plugin tools and expose serialized xsai schemas', async () => {
@@ -451,6 +510,167 @@ describe('for PluginHost', () => {
     })
     await expect(host.invokeTool(session.identity.plugin.id, 'missing_tool', {})).rejects.toThrow(
       `Plugin tool not found: ${session.identity.plugin.id}:missing_tool`,
+    )
+  })
+
+  it('should hide and reject tools registered by stopped sessions', async () => {
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+    })
+    reportPluginCapability(host, {
+      key: providersCapability,
+      state: 'ready',
+      metadata: { source: 'test' },
+    })
+
+    const session = await host.start(dynamicApiManifest, { cwd: '' })
+
+    await session.apis.tools.register({
+      tool: {
+        id: 'play_chess',
+        title: 'Play Chess',
+        description: 'Open chess.',
+        activation: {
+          keywords: ['chess'],
+          patterns: ['play.*chess'],
+        },
+        parameters: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      execute: async () => ({ ok: true }),
+    })
+
+    await expect(host.listAvailableToolDescriptors()).resolves.toEqual([
+      expect.objectContaining({ id: 'play_chess' }),
+    ])
+
+    host.stop(session.id)
+
+    await expect(host.listAvailableToolDescriptors()).resolves.toEqual([])
+    await expect(host.listSerializedXsaiTools()).resolves.toEqual([])
+    await expect(host.invokeTool(session.identity.plugin.id, 'play_chess', {})).rejects.toThrow(
+      `Plugin tool not found: ${session.identity.plugin.id}:play_chess`,
+    )
+  })
+
+  it('should clean up sessions modules and tools when a session-ready hook throws during init', async () => {
+    const readyHookError = new Error('session-ready hook failed')
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+      contributions: [{
+        install(context) {
+          context.registerLifecycleHook('session-ready', () => {
+            throw readyHookError
+          })
+        },
+      }],
+    })
+    registerWidgetKit(host)
+    reportPluginCapability(host, {
+      key: providersCapability,
+      state: 'ready',
+      metadata: { source: 'test' },
+    })
+
+    const session = await host.load(dynamicApiManifest, { cwd: '' })
+    session.plugin = {
+      ...session.plugin,
+      setupModules: async ({ apis }) => {
+        await apis.tools.register({
+          tool: {
+            id: 'ready_hook_tool',
+            title: 'Ready Hook Tool',
+            description: 'Registered before the ready hook throws.',
+            activation: {
+              keywords: ['ready'],
+              patterns: ['ready'],
+            },
+            parameters: {
+              type: 'object',
+              properties: {},
+            },
+          },
+          execute: async () => ({ ok: true }),
+        })
+
+        await apis.bindings.announce({
+          moduleId: 'module-ready-hook-failure',
+          kitId: 'kit.widget',
+          kitModuleType: 'window',
+          config: { route: '/widgets/ready-hook-failure' },
+        })
+      },
+    }
+
+    await expect(host.init(session.id)).rejects.toThrow('session-ready hook failed')
+
+    expect(session.phase).toBe('stopped')
+    expect(host.getSession(session.id)).toBeUndefined()
+    expect(host.getBinding('module-ready-hook-failure')).toBeUndefined()
+    await expect(host.listAvailableToolDescriptors()).resolves.toEqual([])
+    await expect(host.listSerializedXsaiTools()).resolves.toEqual([])
+    await expect(host.invokeTool(session.identity.plugin.id, 'ready_hook_tool', {})).rejects.toThrow(
+      `Plugin tool not found: ${session.identity.plugin.id}:ready_hook_tool`,
+    )
+  })
+
+  it('should finish stop cleanup before rethrowing a session-stopped hook failure', async () => {
+    const stoppedHookError = new Error('session-stopped hook failed')
+    const host = new PluginHost({
+      runtime: 'electron',
+      transport: { kind: 'in-memory' },
+      contributions: [{
+        install(context) {
+          context.registerLifecycleHook('session-stopped', () => {
+            throw stoppedHookError
+          })
+        },
+      }],
+    })
+    registerWidgetKit(host)
+    reportPluginCapability(host, {
+      key: providersCapability,
+      state: 'ready',
+      metadata: { source: 'test' },
+    })
+
+    const session = await host.start(dynamicApiManifest, { cwd: '' })
+    await session.apis.tools.register({
+      tool: {
+        id: 'stopped_hook_tool',
+        title: 'Stopped Hook Tool',
+        description: 'Should be cleaned up before stop rethrows.',
+        activation: {
+          keywords: ['stop'],
+          patterns: ['stop'],
+        },
+        parameters: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      execute: async () => ({ ok: true }),
+    })
+    await session.apis.bindings.announce({
+      moduleId: 'module-stopped-hook-failure',
+      kitId: 'kit.widget',
+      kitModuleType: 'window',
+      config: { route: '/widgets/stopped-hook-failure' },
+    })
+
+    expect(() => host.stop(session.id)).toThrow('session-stopped hook failed')
+
+    expect(session.phase).toBe('stopped')
+    expect(host.getSession(session.id)).toBeUndefined()
+    expect(host.getBinding('module-stopped-hook-failure')).toBeUndefined()
+    await expect(host.listAvailableToolDescriptors()).resolves.toEqual([])
+    await expect(host.listSerializedXsaiTools()).resolves.toEqual([])
+    await expect(host.invokeTool(session.identity.plugin.id, 'stopped_hook_tool', {})).rejects.toThrow(
+      `Plugin tool not found: ${session.identity.plugin.id}:stopped_hook_tool`,
     )
   })
 
@@ -999,7 +1219,8 @@ describe('for PluginHost', () => {
       },
     })).rejects.toThrow('Negotiation rejected:')
 
-    expect(host.getSession(session.id)?.phase).toBe('failed')
+    expect(session.phase).toBe('stopped')
+    expect(host.getSession(session.id)).toBeUndefined()
   })
 
   it('should isolate module status events between plugin sessions', async () => {

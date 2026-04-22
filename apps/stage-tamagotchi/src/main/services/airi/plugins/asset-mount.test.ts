@@ -10,6 +10,7 @@ import {
   parsePluginAssetRequestPath,
   resolvePluginAssetFilePath,
 } from './asset-mount'
+import { resolveWidgetAssetRoute } from './kits/widget'
 
 describe('asset-mount', () => {
   const tempRoots: string[] = []
@@ -53,5 +54,27 @@ describe('asset-mount', () => {
 
     await expect(resolvePluginAssetFilePath(root, 'dist/ui/index.html')).resolves.toContain('dist/ui/index.html')
     await expect(resolvePluginAssetFilePath(root, '../outside.txt')).resolves.toBeUndefined()
+  })
+
+  it('derives widget route asset path and token prefix with /ui semantics', () => {
+    expect(resolveWidgetAssetRoute('./ui/index.html')).toEqual({
+      routeAssetPath: 'index.html',
+      tokenPathPrefix: 'index.html',
+    })
+
+    expect(resolveWidgetAssetRoute('ui/index.html')).toEqual({
+      routeAssetPath: 'index.html',
+      tokenPathPrefix: 'index.html',
+    })
+
+    expect(resolveWidgetAssetRoute('ui/assets/index.html')).toEqual({
+      routeAssetPath: 'assets/index.html',
+      tokenPathPrefix: 'assets/',
+    })
+
+    expect(resolveWidgetAssetRoute('assets/index.html')).toEqual({
+      routeAssetPath: 'assets/index.html',
+      tokenPathPrefix: 'assets/',
+    })
   })
 })

@@ -7,6 +7,46 @@ import { parse } from 'valibot'
 import { toJsonSchema } from 'xsschema'
 
 /**
+ * Describes the stage-tamagotchi gamelet API expected on `ctx.apis`.
+ *
+ * Use when:
+ * - Tool execution wants to open, configure, close, or inspect host-managed gamelet surfaces
+ * - Runtime validation needs a structural contract independent from `@proj-airi/plugin-sdk`
+ *
+ * Expects:
+ * - The stage-tamagotchi host contribution installs `gamelets` on the plugin session API object
+ *
+ * Returns:
+ * - The host-backed gamelet control surface exposed to tool callbacks
+ */
+export interface ToolExecutionGameletApi {
+  open: (id: string, params?: HostDataRecord) => Promise<void>
+  configure: (id: string, patch: HostDataRecord) => Promise<void>
+  close: (id: string) => Promise<void>
+  isOpen: (id: string) => Promise<boolean> | boolean
+}
+
+/**
+ * Describes the tamagotchi-flavored plugin context accepted by {@link defineToolset}.
+ *
+ * Use when:
+ * - A plugin host exposes tool registration plus the stage-owned `gamelets` surface
+ * - Tests want to model the runtime shape without relying on baked-in SDK typing
+ *
+ * Expects:
+ * - `apis.tools.register` is available
+ * - `apis.gamelets` is installed by the stage-tamagotchi host contribution
+ *
+ * Returns:
+ * - A context shape compatible with the tamagotchi tool helper
+ */
+export interface TamagotchiToolContext {
+  apis: Pick<ContextInit['apis'], 'tools'> & {
+    gamelets: ToolExecutionGameletApi
+  }
+}
+
+/**
  * Describes the host services available while checking or executing a plugin tool.
  *
  * Use when:
@@ -19,12 +59,7 @@ import { toJsonSchema } from 'xsschema'
  * - A runtime capability surface for tool execution
  */
 export interface ToolExecutionContext {
-  gamelets: {
-    open: (id: string, params?: Record<string, unknown>) => Promise<void>
-    configure: (id: string, patch: Record<string, unknown>) => Promise<void>
-    close: (id: string) => Promise<void>
-    isOpen: (id: string) => boolean
-  }
+  gamelets: ToolExecutionGameletApi
 
   // TODO:
   // Add character/runtime orchestration APIs after the gamelet/tool path is stable.
@@ -85,14 +120,36 @@ export interface DefineToolsetOptions<TInputSchema = unknown> {
   tools: Array<PluginToolDefinition<TInputSchema>>
 }
 
-function createToolExecutionContext(): ToolExecutionContext {
+function isToolExecutionGameletApi(value: unknown): value is ToolExecutionGameletApi {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const candidate = value as Partial<Record<keyof ToolExecutionGameletApi, unknown>>
+
+  return typeof candidate.open === 'function'
+    && typeof candidate.configure === 'function'
+    && typeof candidate.close === 'function'
+    && typeof candidate.isOpen === 'function'
+}
+
+function getToolExecutionGameletApi(
+  ctx: Pick<ContextInit, 'apis'> | TamagotchiToolContext,
+): ToolExecutionGameletApi {
+  const gamelets = (ctx.apis as Record<string, unknown>).gamelets
+
+  if (!isToolExecutionGameletApi(gamelets)) {
+    throw new Error('stage-tamagotchi gamelet API is not available on `ctx.apis.gamelets`.')
+  }
+
+  return gamelets
+}
+
+function createToolExecutionContext(
+  ctx: Pick<ContextInit, 'apis'> | TamagotchiToolContext,
+): ToolExecutionContext {
   return {
-    gamelets: {
-      async open() {},
-      async configure() {},
-      async close() {},
-      isOpen: () => false,
-    },
+    gamelets: getToolExecutionGameletApi(ctx),
   }
 }
 
@@ -185,10 +242,10 @@ async function serializeToolParameters(inputSchema: unknown): Promise<HostDataRe
  * - Resolves after all tool registrations complete
  */
 export async function defineToolset(
-  ctx: Pick<ContextInit, 'apis'>,
+  ctx: Pick<ContextInit, 'apis'> | TamagotchiToolContext,
   options: DefineToolsetOptions,
 ): Promise<void> {
-  const executionContext = createToolExecutionContext()
+  const executionContext = createToolExecutionContext(ctx)
 
   for (const definition of options.tools) {
     await ctx.apis.tools.register({
