@@ -477,8 +477,14 @@ pages:
       description: Long-term memory specific settings and management
       title: Long-Term Memory
     memory-short-term:
-      description: Short-term memory specific settings and management
       title: Short-Term Memory
+      description: Specific settings for managing immediate conversation context.
+      enable:
+        title: Enable Memory
+        description: If on, AI will remember your previous messages in this session.
+      window-size:
+        title: Context Limit
+        description: 'How many messages should the AI look back at? (Recommended: 10-20)'
     messaging-discord:
       description: Chat & voice chat over Discord
       title: Discord

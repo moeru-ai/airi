@@ -5,6 +5,7 @@ import { useSettingsControlsIsland } from './controls-island'
 import { useSettingsDeveloper } from './developer'
 import { useSettingsGeneral } from './general'
 import { useSettingsLive2d } from './live2d'
+import { useSettingsMemory } from './memory'
 import { useSettingsStageModel } from './stage-model'
 import { useSettingsTheme } from './theme'
 
@@ -36,6 +37,7 @@ export const useSettings = defineStore('settings', () => {
   const theme = useSettingsTheme()
   const controlsIsland = useSettingsControlsIsland()
   const developer = useSettingsDeveloper()
+  const memory = useSettingsMemory()
 
   async function resetState() {
     await stageModel.resetState()
@@ -45,6 +47,7 @@ export const useSettings = defineStore('settings', () => {
     theme.resetState()
     controlsIsland.resetState()
     developer.resetState()
+    memory.resetState()
   }
 
   // Extract refs from sub-stores to maintain proper reactivity
@@ -55,6 +58,7 @@ export const useSettings = defineStore('settings', () => {
   const themeRefs = storeToRefs(theme)
   const controlsIslandRefs = storeToRefs(controlsIsland)
   const developerRefs = storeToRefs(developer)
+  const memoryRefs = storeToRefs(memory)
 
   return {
     // Core settings
@@ -97,6 +101,7 @@ export const useSettings = defineStore('settings', () => {
     isColorSelectedForPrimary: theme.isColorSelectedForPrimary,
     initializeStageModel: stageModel.initializeStageModel,
     updateStageModel: stageModel.updateStageModel,
+    memory: memoryRefs,
     resetState,
   }
 })

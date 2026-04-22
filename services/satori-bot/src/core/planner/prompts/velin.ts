@@ -8,8 +8,14 @@ export interface VelinModule {
 
 export function importVelin(module: string, base: string): VelinModule {
   return {
-    render: async (_data) => {
-      const content = (await readFile(relativeOf(module, base))).toString('utf-8')
+    render: async (data) => {
+      let content = (await readFile(relativeOf(module, base))).toString('utf-8')
+
+      if (data && typeof data === 'object') {
+        for (const [key, value] of Object.entries(data)) {
+          content = content.replace(new RegExp(`{{${key}}}`, 'g'), String(value))
+        }
+      }
       return content
     },
   }

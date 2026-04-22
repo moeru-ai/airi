@@ -24,6 +24,7 @@ import { useChatStreamStore } from './chat/stream-store'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useLLM } from './llm'
 import { useConsciousnessStore } from './modules/consciousness'
+import { useSettingsMemory } from './settings/memory'
 
 function cloneStreamingMessage(message: StreamingAssistantMessage): StreamingAssistantMessage {
   try {
@@ -83,6 +84,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const contextObservability = useContextObservabilityStore()
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
+  const memorySettings = useSettingsMemory()
 
   const sending = ref(false)
   const pendingQueuedSends = ref<QueuedSend[]>([])
@@ -216,7 +218,13 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         createdAt: sendingCreatedAt,
         id: nanoid(),
       })
-      const sessionMessagesForSend = chatSession.getSessionMessages(sessionId)
+      let sessionMessagesForSend = chatSession.getSessionMessages(sessionId)
+      if (memorySettings.shortTermEnabled) {
+        sessionMessagesForSend = sessionMessagesForSend.slice(-memorySettings.shortTermSize)
+      }
+
+      // 验证截取是否成功 (可选，用于在控制台调试)
+      // console.log(`[Memory] 发送给 LLM 的消息数量: ${sessionMessagesForSend.length}`)
 
       const categorizer = createStreamingCategorizer(activeProvider.value)
       let streamPosition = 0
