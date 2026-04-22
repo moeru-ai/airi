@@ -9,6 +9,7 @@ import type {
 } from '@proj-airi/plugin-protocol/types'
 
 import type { PluginTransport } from '../transports'
+import type { KitDescriptor } from './kits'
 
 import { isPlainObject } from 'es-toolkit'
 import {
@@ -476,6 +477,169 @@ export interface PluginHostOptions {
     requested: ModulePermissionDeclaration
     persisted?: ModulePermissionGrant
   }) => ModulePermissionGrant | Promise<ModulePermissionGrant>
+  /** Installable host features that can extend session APIs and register host behavior. @default [] */
+  contributions?: PluginHostContribution[]
+}
+
+/**
+ * Describes the stable session metadata exposed to host-installed contributions.
+ *
+ * Use when:
+ * - Building contribution-owned session APIs
+ * - Hooking plugin-session lifecycle work outside the core `PluginHost`
+ *
+ * Expects:
+ * - Values come from the currently executing plugin session
+ *
+ * Returns:
+ * - A minimal session context safe to pass outside `PluginHost`
+ */
+export interface PluginHostSessionContext {
+  sessionId: string
+  ownerPluginId: string
+  runtime: PluginRuntime
+}
+
+/**
+ * Describes one permission gate that a contribution-owned session API can enforce.
+ *
+ * Use when:
+ * - A contribution method must check host-granted API, resource, or capability access
+ *
+ * Expects:
+ * - The permission key/action pair matches the manifest permission contract
+ *
+ * Returns:
+ * - The permission request consumed by `PluginHost.assertPermission(...)`
+ */
+export interface PluginHostPermissionRequest {
+  area: 'apis' | 'resources' | 'capabilities' | 'processors' | 'pipelines'
+  action: string
+  key: string
+  reason?: string
+}
+
+/**
+ * Provides the host-owned registration surface that contributions can use during installation.
+ *
+ * Use when:
+ * - Installing a host feature into `PluginHost`
+ * - Registering session API namespaces, kits, resources, capabilities, or lifecycle hooks
+ *
+ * Expects:
+ * - Installation happens during `PluginHost` construction
+ * - Session API namespace names are unique across all contributions and built-in namespaces
+ *
+ * Returns:
+ * - Registration helpers that keep `PluginHost` generic while allowing extensions
+ */
+export interface PluginHostInstallContext {
+  registerSessionApi: (namespace: string, factory: PluginSessionApiFactory) => void
+  registerLifecycleHook: (event: PluginHostLifecycleEvent, hook: PluginHostLifecycleHook) => void
+  registerKit: (kit: KitDescriptor) => KitDescriptor
+  unregisterKit: (kitId: string) => KitDescriptor | undefined
+  setResourceResolver: <T>(key: string, resolver: () => Promise<T> | T) => void
+  setResourceValue: <T>(key: string, value: T) => void
+  announceCapability: (key: string, metadata?: Record<string, unknown>) => void
+  markCapabilityReady: (key: string, metadata?: Record<string, unknown>) => void
+  markCapabilityDegraded: (key: string, metadata?: Record<string, unknown>) => void
+  withdrawCapability: (key: string, metadata?: Record<string, unknown>) => void
+}
+
+/**
+ * Describes the context passed into one contribution-owned session API factory.
+ *
+ * Use when:
+ * - Creating a custom namespace that will be attached to `session.apis`
+ *
+ * Expects:
+ * - `session` refers to the plugin session currently being assembled
+ * - `assertPermission` is called inside contribution methods before privileged work
+ *
+ * Returns:
+ * - The context needed to build one session API namespace
+ */
+export interface PluginSessionApiFactoryContext {
+  host: PluginHostInstallContext
+  session: PluginHostSessionContext
+  assertPermission: (input: PluginHostPermissionRequest) => void
+}
+
+/**
+ * Builds one custom session API namespace installed by a host contribution.
+ *
+ * Use when:
+ * - Extending `session.apis` with a plugin-host-specific namespace
+ *
+ * Expects:
+ * - The returned value is an object-like namespace safe to expose to plugin code
+ *
+ * Returns:
+ * - The namespace object attached to `session.apis[namespace]`
+ */
+export type PluginSessionApiFactory<TNamespace = unknown> = (context: PluginSessionApiFactoryContext) => TNamespace
+
+/**
+ * Enumerates the host lifecycle moments contributions may observe.
+ *
+ * Use when:
+ * - Registering contribution hooks tied to session load, readiness, or stop events
+ *
+ * Expects:
+ * - Hooks are synchronous and should stay lightweight
+ *
+ * Returns:
+ * - The supported lifecycle event names for `registerLifecycleHook(...)`
+ */
+export type PluginHostLifecycleEvent = 'session-loaded' | 'session-ready' | 'session-stopped'
+
+/**
+ * Describes the context passed into one contribution lifecycle hook.
+ *
+ * Use when:
+ * - Reacting to a plugin session lifecycle event outside the generic host core
+ *
+ * Expects:
+ * - `session` and `manifest` refer to the active session at the time of the hook
+ *
+ * Returns:
+ * - The snapshot available to contribution lifecycle hooks
+ */
+export interface PluginHostLifecycleHookContext {
+  host: PluginHostInstallContext
+  session: PluginHostSessionContext
+  manifest: ManifestV1
+}
+
+/**
+ * Handles one contribution-owned lifecycle event emitted by `PluginHost`.
+ *
+ * Use when:
+ * - A contribution needs to observe session loading, readiness, or teardown
+ *
+ * Expects:
+ * - Hooks are synchronous and should throw only for deterministic setup failures
+ *
+ * Returns:
+ * - No value; side effects are owned by the contribution
+ */
+export type PluginHostLifecycleHook = (context: PluginHostLifecycleHookContext) => void
+
+/**
+ * Installs one generic host feature into `PluginHost`.
+ *
+ * Use when:
+ * - The host should register extra session APIs or bootstrap runtime-specific behavior
+ *
+ * Expects:
+ * - Installation is idempotent for one host instance
+ * - Contributions keep domain-specific behavior out of the low-level host core
+ *
+ * Returns:
+ * - No value; the contribution mutates the provided install context
+ */
+export interface PluginHostContribution {
+  install: (context: PluginHostInstallContext) => void
 }
 
 /**

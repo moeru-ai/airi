@@ -23,7 +23,7 @@ function normalizePathPrefix(pathPrefix: string) {
     return ''
   }
 
-  return normalized.endsWith('/') ? normalized : `${normalized}/`
+  return normalized
 }
 
 function createOpaqueToken() {
@@ -103,8 +103,15 @@ export function createExtensionAssetTokenStore(options: { now?: () => number } =
       return unauthorized('EXTENSION_ASSET_PATH_EMPTY', 'asset path is empty')
     }
 
-    if (record.pathPrefix && !normalizedAssetPath.startsWith(record.pathPrefix)) {
-      return unauthorized('EXTENSION_ASSET_PATH_PREFIX_MISMATCH', 'asset path is outside allowed prefix')
+    if (record.pathPrefix) {
+      const isDirectoryPrefix = record.pathPrefix.endsWith('/')
+      const isAllowed = isDirectoryPrefix
+        ? normalizedAssetPath.startsWith(record.pathPrefix)
+        : normalizedAssetPath === record.pathPrefix
+
+      if (!isAllowed) {
+        return unauthorized('EXTENSION_ASSET_PATH_PREFIX_MISMATCH', 'asset path is outside allowed prefix')
+      }
     }
 
     return { ok: true }

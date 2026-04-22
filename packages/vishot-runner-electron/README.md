@@ -44,6 +44,23 @@ pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture
 
 In this environment, the raw capture command worked end-to-end after running outside the sandbox because `tsx` pipe creation was denied inside the sandbox (`listen EPERM` on the temporary `tsx` IPC pipe).
 
+## Electron Profile Note (Plugin Host Root)
+
+`vishot-runner-electron` launches the built Electron app entrypoint. In local development this can resolve `app.getPath('userData')` to the `Electron` profile directory, which means plugin discovery happens under:
+
+- `~/Library/Application Support/Electron/plugins/v1`
+
+This may differ from `dev:tamagotchi`, which often uses:
+
+- `~/Library/Application Support/@proj-airi/stage-tamagotchi/plugins/v1`
+
+If plugin-host devtools shows `Discovered 0`, `Plugin manifest not found`, or module registration errors during Vishot scenarios, mirror your plugin symlink into the Electron profile plugins directory:
+
+```bash
+mkdir -p "$HOME/Library/Application Support/Electron/plugins/v1"
+ln -sfn "/absolute/path/to/airi-plugin-game-chess/dist" "$HOME/Library/Application Support/Electron/plugins/v1/airi-plugin-game-chess"
+```
+
 ## Additional Examples
 
 To verify the controls-island hearing button specifically:

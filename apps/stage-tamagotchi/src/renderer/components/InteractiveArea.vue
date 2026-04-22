@@ -252,12 +252,12 @@ async function handleDeleteMessage(index: number) {
       v-model="messageInput"
       :submit-on-enter="false"
       :placeholder="t('stage.message')"
-      class="ph-no-capture"
+      class="ph-no-capture [scrollbar-gutter:stable]"
       text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
       border="solid 2 primary-200/20 dark:primary-400/20"
       bg="primary-100/50 dark:primary-900/70"
       max-h="[10lh]" min-h="[1lh]"
-      w-full shrink-0 resize-none overflow-y-scroll rounded-xl p-2 font-medium outline-none
+      w-full shrink-0 resize-none overflow-y-auto rounded-xl p-2 font-medium outline-none
       transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
       @compositionstart="isComposing = true"
       @compositionend="isComposing = false"

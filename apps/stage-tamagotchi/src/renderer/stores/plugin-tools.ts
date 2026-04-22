@@ -3,7 +3,7 @@ import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/llm-tools'
 import { rawTool } from '@xsai/tool'
 import { defineStore } from 'pinia'
 
-import { electronPluginInvokeTool, electronPluginListXsaiTools } from '../../shared/eventa'
+import { electronPluginInvokeTool, electronPluginListXsaiTools } from '../../shared/eventa/plugin/tools'
 
 /**
  * Registers Electron-backed plugin xsai tools into the shared LLM tools store.
