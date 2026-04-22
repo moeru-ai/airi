@@ -31,7 +31,7 @@ vi.mock('@proj-airi/electron-vueuse', () => ({
 }))
 
 describe('useTamagotchiPluginToolsStore', async () => {
-  const { useTamagotchiPluginToolsStore } = await import('./tools')
+  const { useTamagotchiPluginToolsStore } = await import('./plugin-tools')
 
   beforeEach(() => {
     setActivePinia(createPinia())
