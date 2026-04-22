@@ -308,7 +308,7 @@ export function createTtsSegmentStream(
             const hasUnclosed = bracketsUnclosed || starsUnclosed
 
             if (!hasUnclosed || pendingText.length > 200) {
-              const textToEmit = pendingText
+              const textToEmit = processNarrative(pendingText, options)
               writeBytes(encoder.encode(textToEmit))
               pendingText = ''
             }
