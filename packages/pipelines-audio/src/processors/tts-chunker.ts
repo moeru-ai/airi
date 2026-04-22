@@ -310,6 +310,11 @@ export function createTtsSegmentStream(
                   if (/^[a-z][^a-z\s>]/i.test(remainder)) {
                     continue
                   }
+
+                  const leftStr = pendingText.slice(0, i)
+                  if (/^[a-z]$/i.test(remainder) && /(^|[^a-z])[a-z]$/i.test(leftStr)) {
+                    continue
+                  }
                 }
                 stack.push(char)
               }

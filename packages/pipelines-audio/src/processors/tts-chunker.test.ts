@@ -91,31 +91,42 @@ describe('tTS Chunker - Narrative Stripping', () => {
     })
 
     it('should distinguish attached narrative tags from tight math variables', () => {
-      const narrativeText = 'hello<sigh'
-      let hasUnclosedNarrative = false
-      for (let i = 0; i < narrativeText.length; i++) {
-        const char = narrativeText[i]
-        if (char === '<') {
-          const remainder = narrativeText.slice(i + 1)
-          if (remainder.length > 0 && /[0-9\s=]/.test(remainder[0]))
-            continue
-          if (/^[a-z]([^a-z>]|$)/i.test(remainder))
-            continue
-          hasUnclosedNarrative = true
+      const narrativeTexts = ['<s', 'hello<y']
+
+      for (const text of narrativeTexts) {
+        let hasUnclosedNarrative = false
+        for (let i = 0; i < text.length; i++) {
+          if (text[i] === '<') {
+            const remainder = text.slice(i + 1)
+            const leftStr = text.slice(0, i)
+
+            if (remainder.length > 0 && /[0-9\s=]/.test(remainder[0]))
+              continue
+            if (/^[a-z][^a-z\s>]/i.test(remainder))
+              continue
+            if (/^[a-z]$/i.test(remainder) && /(^|[^a-z])[a-z]$/i.test(leftStr))
+              continue
+
+            hasUnclosedNarrative = true
+          }
         }
+        expect(hasUnclosedNarrative).toBe(true)
       }
-      expect(hasUnclosedNarrative).toBe(true)
 
       const mathText = 'x<y'
       let hasUnclosedMath = false
       for (let i = 0; i < mathText.length; i++) {
-        const char = mathText[i]
-        if (char === '<') {
+        if (mathText[i] === '<') {
           const remainder = mathText.slice(i + 1)
+          const leftStr = mathText.slice(0, i)
+
           if (remainder.length > 0 && /[0-9\s=]/.test(remainder[0]))
             continue
-          if (/^[a-z]([^a-z>]|$)/i.test(remainder))
+          if (/^[a-z][^a-z\s>]/i.test(remainder))
             continue
+          if (/^[a-z]$/i.test(remainder) && /(^|[^a-z])[a-z]$/i.test(leftStr))
+            continue
+
           hasUnclosedMath = true
         }
       }
