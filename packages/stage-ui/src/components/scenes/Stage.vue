@@ -40,9 +40,6 @@ import { shouldRunLive2dLipSyncLoop } from './runtime'
 const props = withDefaults(defineProps<{
   paused?: boolean
   focusAt: { x: number, y: number }
-  xOffset?: number | string
-  yOffset?: number | string
-  scale?: number
 }>(), { paused: false, scale: 1 })
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
@@ -578,9 +575,6 @@ defineExpose({
         :focus-at="focusAt"
         :mouth-open-size="mouthOpenSize"
         :paused="paused"
-        :x-offset="xOffset"
-        :y-offset="yOffset"
-        :scale="scale"
         :disable-focus-at="live2dDisableFocus"
         :theme-colors-hue="themeColorsHue"
         :theme-colors-hue-dynamic="themeColorsHueDynamic"

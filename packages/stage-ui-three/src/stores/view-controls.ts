@@ -8,6 +8,7 @@ interface ControlConfig { min: number, max: number, step: number, format: (val: 
 const formatDecimal2 = (val: number) => val.toFixed(2)
 
 export const controlConfig: Record<SupportedControl, ControlConfig> = {
+  // TODO: allow user to set the min/max value
   x: {
     min: -10,
     max: 10,

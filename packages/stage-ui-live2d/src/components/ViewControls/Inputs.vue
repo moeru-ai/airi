@@ -2,14 +2,9 @@
 import { RoundRange } from '@proj-airi/ui'
 import { onUnmounted } from 'vue'
 
-import { useL2dViewControl } from '../../stores'
+import { controlConfig, useL2dViewControl } from '../../stores'
 
 const { scale, position, viewControlsEnabled, viewControlMode } = useL2dViewControl()
-
-const xMin = -1000
-const xMax = 1000
-const yMin = -1000
-const yMax = 1000
 
 onUnmounted(() => {
   viewControlsEnabled.value = false
@@ -21,21 +16,21 @@ onUnmounted(() => {
     <div v-if="viewControlsEnabled">
       <Transition name="fade-side-pops-in" mode="out-in">
         <div v-if="viewControlMode === 'x'" relative class="[&_.round-range-tooltip]:hover:opacity-100">
-          <RoundRange v-model="position.x" :min="xMin" :max="xMax" :step="0.01" data-direction="vertical" h="50%" write-vertical-left />
+          <RoundRange v-model="position.x" :min="controlConfig.x.min" :max="controlConfig.x.max" :step="controlConfig.x.step" data-direction="vertical" h="50%" write-vertical-left />
           <div class="round-range-tooltip" top="50%" translate-y="[-50%]" absolute left-10 font-mono op-0 transition="all duration-200 ease-in-out">
-            {{ position.x.toFixed(2) }}
+            {{ controlConfig.x.format(position.x) }}
           </div>
         </div>
         <div v-else-if="viewControlMode === 'y'" relative class="[&_.round-range-tooltip]:hover:opacity-100">
-          <RoundRange v-model="position.y" :min="yMin" :max="yMax" :step="0.01" data-direction="vertical" h="50%" write-vertical-left />
+          <RoundRange v-model="position.y" :min="controlConfig.y.min" :max="controlConfig.y.max" :step="controlConfig.y.step" data-direction="vertical" h="50%" write-vertical-left />
           <div class="round-range-tooltip" top="50%" translate-y="[-50%]" absolute left-10 font-mono op-0 transition="all duration-200 ease-in-out">
-            {{ position.y.toFixed(2) }}
+            {{ controlConfig.y.format(position.y) }}
           </div>
         </div>
         <div v-else-if="viewControlMode === 'scale'" relative class="[&_.round-range-tooltip]:hover:opacity-100">
-          <RoundRange v-model="scale" :min="0" :max="3" :step="0.0001" data-direction="vertical" h="50%" write-vertical-left />
+          <RoundRange v-model="scale" :min="controlConfig.scale.min" :max="controlConfig.scale.max" :step="controlConfig.scale.step" data-direction="vertical" h="50%" write-vertical-left />
           <div class="round-range-tooltip" top="50%" translate-y="[-50%]" absolute left-10 font-mono op-0 transition="all duration-200 ease-in-out">
-            {{ scale.toFixed(2) }}
+            {{ controlConfig.scale.format(scale) }}
           </div>
         </div>
       </Transition>

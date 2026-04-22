@@ -2,6 +2,7 @@
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
+import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
@@ -50,8 +51,9 @@ const providersStore = useProvidersStore()
 const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
-const { themeColorsHueDynamic, stageViewControlsEnabled } = storeToRefs(useSettings())
+const { themeColorsHueDynamic } = storeToRefs(useSettings())
 const { viewControlsEnabled: l2dViewCtrlEnabled } = useL2dViewControl()
+const { viewControlsEnabled: threeViewCtrlEnabled } = useThreeViewControl()
 const settingsAudioDevice = useSettingsAudioDevice()
 const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(settingsAudioDevice)
 const { ingest, onAfterMessageComposed } = chatOrchestrator
@@ -147,7 +149,7 @@ onMounted(() => {
     <KeepAlive>
       <Transition name="fade">
         <ChatHistory
-          v-if="!stageViewControlsEnabled && !l2dViewCtrlEnabled"
+          v-if="!threeViewCtrlEnabled && !l2dViewCtrlEnabled"
           variant="mobile"
           :messages="historyMessages"
           :sending="sending"
