@@ -301,14 +301,11 @@ export function createTtsSegmentStream(
               const char = pendingText[i]
               if (openers.includes(char)) {
                 if (char === '<') {
-                  const nextChar = pendingText[i + 1]
-                  // 1. 向后看：如果是数字或空格，放行 (例如: 1 < 2)
-                  if (nextChar && /[0-9\s]/.test(nextChar))
-                    continue
+                  const remainder = pendingText.slice(i + 1)
 
-                  // 2. 向前看 (Codex 修复): 如果紧贴着非空白字符/非左括号，大概率是代码或紧凑公式 (例如: x<y)
-                  if (i > 0 && /[^\s([{（【]/.test(pendingText[i - 1]))
+                  if (/^[a-z]([^a-z>]|$)/i.test(remainder)) {
                     continue
+                  }
                 }
                 stack.push(char)
               }

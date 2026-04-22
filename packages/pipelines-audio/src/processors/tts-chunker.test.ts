@@ -25,21 +25,18 @@ describe('tTS Chunker - Narrative Stripping', () => {
   })
 
   describe('edge Cases (Codex Review)', () => {
-    // 1. 测试嵌套括号
     it('should handle nested brackets correctly', () => {
       const input = '[laughs (quietly)] Hello'
       const result = processNarrative(input, { stripNarrative: true })
       expect(result.trim()).toBe('Hello')
     })
 
-    // 2. 测试带标点符号的闭合
     it('should strip narrative even with trailing punctuation inside brackets', () => {
       const input = 'This is a test [note.]'
       const result = processNarrative(input, { stripNarrative: true })
       expect(result.trim()).toBe('This is a test')
     })
 
-    // 3. 测试星号歧义 (Markdown 列表 vs 动作描写)
     it('should preserve markdown bullets but strip narrative asterisks', () => {
       const markdownInput = '* item 1'
       const narrativeInput = '*giggles* hello'
@@ -51,7 +48,6 @@ describe('tTS Chunker - Narrative Stripping', () => {
       expect(narrativeResult.trim()).toBe('hello')
     })
 
-    // 4. 测试尖括号歧义 (数学公式 vs 剧本标签)
     it('should preserve math operators but strip narrative tags', () => {
       const mathInput = 'if 1 < 2 then success'
       const tagInput = '<sigh> okay'
@@ -64,11 +60,10 @@ describe('tTS Chunker - Narrative Stripping', () => {
     })
   })
 
-  describe('codex P2 Fixes: Streaming & Flush Logic', () => {
+  describe('streaming & Flush Logic', () => {
     it('should not treat tight math/code brackets as unclosed narrative', () => {
       const pendingText = 'Here is some code: List<String> and math: x<y'
 
-      // 模拟你的启发式判断过程
       let hasUnclosed = false
       for (let i = 0; i < pendingText.length; i++) {
         const char = pendingText[i]
@@ -78,21 +73,52 @@ describe('tTS Chunker - Narrative Stripping', () => {
             continue
           if (i > 0 && /[^\s([{]/.test(pendingText[i - 1]))
             continue
-          hasUnclosed = true // 如果没被上面的 continue 拦截，就会标记为未闭合
+          hasUnclosed = true
         }
       }
     })
 
-    // 针对 Screenshot 2 的测试
     it('should not force flush if a narrative span exceeds threshold', () => {
       const options = { stripNarrative: true }
       const hasUnclosed = true
-      const pendingText = `[${'a'.repeat(250)}` // 模拟一个长度超过 200 字符的未闭合括号
+      const pendingText = `[${'a'.repeat(250)}`
 
       const isStrippingActive = options.stripNarrative && hasUnclosed
       const shouldFlush = !hasUnclosed || (!isStrippingActive && pendingText.length > 200)
 
       expect(shouldFlush).toBe(false)
+
+      it('should distinguish attached narrative tags from tight math variables', () => {
+        const narrativeText = 'hello<sigh'
+        let hasUnclosedNarrative = false
+        for (let i = 0; i < narrativeText.length; i++) {
+          const char = narrativeText[i]
+          if (char === '<') {
+            const remainder = narrativeText.slice(i + 1)
+            if (remainder.length > 0 && /[0-9\s=]/.test(remainder[0]))
+              continue
+            if (/^[a-z]([^a-z>]|$)/i.test(remainder))
+              continue
+            hasUnclosedNarrative = true
+          }
+        }
+        expect(hasUnclosedNarrative).toBe(true)
+
+        const mathText = 'x<y'
+        let hasUnclosedMath = false
+        for (let i = 0; i < mathText.length; i++) {
+          const char = mathText[i]
+          if (char === '<') {
+            const remainder = mathText.slice(i + 1)
+            if (remainder.length > 0 && /[0-9\s=]/.test(remainder[0]))
+              continue
+            if (/^[a-z]([^a-z>]|$)/i.test(remainder))
+              continue
+            hasUnclosedMath = true
+          }
+        }
+        expect(hasUnclosedMath).toBe(false)
+      })
     })
   })
 })
