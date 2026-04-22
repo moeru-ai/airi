@@ -24,6 +24,8 @@ const emit = defineEmits<{
 }>()
 
 const boxClasses = computed(() => [
+  'min-w-0',
+  'max-w-full',
   props.variant === 'mobile' ? 'px-2 py-2 text-sm' : 'px-3 py-3',
 ])
 const copyText = computed(() => getChatHistoryItemCopyText(props.message as ChatHistoryItem))
@@ -58,7 +60,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
           <MarkdownRenderer
             v-else
             :content="message.content"
-            class="break-words text-violet-500 dark:text-violet-300"
+            class="whitespace-pre-wrap break-all text-violet-500 dark:text-violet-300"
           />
         </div>
       </template>
