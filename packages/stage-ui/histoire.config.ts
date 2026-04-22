@@ -97,16 +97,20 @@ export default defineConfig({
         title: 'Form',
       },
       {
+        id: 'dialogs',
+        title: 'Dialogs',
+      },
+      {
+        id: 'menu',
+        title: 'Menu',
+      },
+      {
         id: 'misc',
         title: 'Misc',
       },
       {
         id: 'data-pane',
         title: 'Data Pane',
-      },
-      {
-        id: 'menu',
-        title: 'Menu',
       },
       {
         id: 'widgets',

@@ -38,7 +38,7 @@ export interface PluginApiBindings {
  * - `bindings` contains the host-backed callbacks for each enabled API group
  *
  * Returns:
- * - The composed plugin client APIs for resources, kits, bindings, and tools
+ * - The composed built-in plugin client APIs for resources, kits, bindings, and tools
  */
 export function createApis(ctx: EventContext<any, any>, bindings: PluginApiBindings = {}) {
   return {

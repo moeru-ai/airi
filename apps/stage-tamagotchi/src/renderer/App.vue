@@ -26,6 +26,16 @@ import ResizeHandler from './components/ResizeHandler.vue'
 
 import {
   electronGetServerChannelConfig,
+  electronSettingsNavigate,
+  electronStartTrackMousePosition,
+  i18nSetLocale,
+} from '../shared/eventa'
+import {
+  electronPluginUpdateCapability,
+  pluginProtocolListProviders,
+  pluginProtocolListProvidersEventName,
+} from '../shared/eventa/plugin/capabilities'
+import {
   electronPluginInspect,
   electronPluginList,
   electronPluginLoad,
@@ -33,13 +43,7 @@ import {
   electronPluginSetAutoReload,
   electronPluginSetEnabled,
   electronPluginUnload,
-  electronPluginUpdateCapability,
-  electronSettingsNavigate,
-  electronStartTrackMousePosition,
-  i18nSetLocale,
-  pluginProtocolListProviders,
-  pluginProtocolListProvidersEventName,
-} from '../shared/eventa'
+} from '../shared/eventa/plugin/host'
 import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-callback'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useTamagotchiMcpToolsStore } from './stores/mcp-tools'

@@ -27,11 +27,12 @@ export interface ExtensionStaticAssetServer extends ServerManager {
 }
 
 /**
- * Creates the standalone extension static asset server.
+ * Creates the low-level extension static asset transport server.
  *
  * Use when:
  * - Main process must serve plugin iframe assets via local loopback HTTP
  * - Tokenized auth is required for all plugin asset requests
+ * - A higher-level plugin asset service needs an HTTP transport adapter
  *
  * Expects:
  * - `getManifestEntryByName` returns up-to-date plugin root/version map

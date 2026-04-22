@@ -1,7 +1,7 @@
 import type { MaybeElementRef } from '@vueuse/core'
 import type { ComputedRef } from 'vue'
 
-import type { PluginHostModuleSummary } from '../../../../shared/eventa'
+import type { PluginHostModuleSummary } from '../../../../shared/eventa/plugin/host'
 
 import { unrefElement } from '@vueuse/core'
 import { onBeforeUnmount, shallowRef, watch } from 'vue'

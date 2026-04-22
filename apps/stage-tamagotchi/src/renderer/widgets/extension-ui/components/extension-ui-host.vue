@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import type { ComponentPublicInstance } from 'vue'
 
-import type { PluginHostModuleSummary, PluginModuleWidgetPayload } from '../../../../shared/eventa'
+import type { PluginHostModuleSummary, PluginModuleWidgetPayload } from '../../../../shared/eventa/plugin/host'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { isPlainObject } from 'es-toolkit'
 import { computed, shallowRef } from 'vue'
 
-import { electronPluginGetAssetBaseUrl, electronPluginInspect } from '../../../../shared/eventa'
+import { electronPluginGetAssetBaseUrl } from '../../../../shared/eventa/plugin/assets'
+import { electronPluginInspect } from '../../../../shared/eventa/plugin/host'
 import { useExtensionUIForModule } from '../composables/use-extension-ui-for-module'
 import { useIframeMessagePort } from '../composables/use-iframe-message-port'
 import { canRenderExtensionUi, sanitizeExtensionUiRenderProps } from '../host'
