@@ -18,6 +18,7 @@ import type {
 } from '../../libs/inference/protocol'
 
 import { AutoModel, AutoProcessor, env, RawImage } from '@huggingface/transformers'
+import { getNavigatorWebGPU } from '@proj-airi/stage-shared/webgpu'
 
 import { MODEL_IDS, MODEL_NAMES } from '../../libs/inference/constants'
 import { classifyError, isRecoverable } from '../../libs/inference/protocol'
@@ -80,9 +81,10 @@ function sendError(requestId: string, error: unknown, phase?: 'load' | 'inferenc
  */
 async function detectWebGPUInWorker(): Promise<boolean> {
   try {
-    if (typeof navigator === 'undefined' || !navigator.gpu)
+    const webgpu = getNavigatorWebGPU()
+    if (!webgpu)
       return false
-    const adapter = await navigator.gpu.requestAdapter()
+    const adapter = await webgpu.requestAdapter()
     return adapter != null
   }
   catch {

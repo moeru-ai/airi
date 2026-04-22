@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { SpeechProvider } from '@xsai-ext/providers/utils'
 
-import { getCachedWebGPUCapabilities } from '@proj-airi/stage-shared/webgpu'
+import { getCachedWebGPUCapabilities, hasNavigatorWebGPU } from '@proj-airi/stage-shared/webgpu'
 import {
   SpeechPlayground,
   SpeechProviderSettings,
@@ -104,7 +104,7 @@ onMounted(async () => {
   // NOTICE: Uses synchronous check for initial render. The cached result from
   // detectWebGPU() is populated by the providers store during initialization.
   const capabilities = getCachedWebGPUCapabilities()
-  hasWebGPU.value = capabilities?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
+  hasWebGPU.value = capabilities?.supported ?? hasNavigatorWebGPU()
   fp16Supported.value = capabilities?.fp16Supported ?? false
 
   try {

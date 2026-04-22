@@ -1,6 +1,8 @@
 export {
   detectWebGPU,
   getCachedWebGPUCapabilities,
+  getNavigatorWebGPU,
+  hasNavigatorWebGPU,
   isWebGPUSupported,
   resetWebGPUCache,
 } from './detect'
