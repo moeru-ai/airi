@@ -25,6 +25,8 @@ export interface TtsInputChunkOptions {
   boost?: number
   minimumWords?: number
   maximumWords?: number
+  stripNarrative?: boolean
+  keepNarrativeText?: boolean
 }
 
 export interface TtsChunkItem {
@@ -208,29 +210,50 @@ export async function chunkEmitter(
   options: TtsInputChunkOptions | undefined,
   handler: (ttsSegment: TtsChunkItem) => Promise<void> | void,
 ) {
-  const sanitizeChunk = (text: string) =>
-    text
+  const sanitizeChunk = (text: string) => {
+    const cleanedText = text
       .replaceAll(TTS_SPECIAL_TOKEN, '')
       .replaceAll(TTS_FLUSH_INSTRUCTION, '')
-      .trim()
+
+    return cleanedText.trim()
+  }
 
   try {
     for await (const chunk of chunkTtsInput(reader, options)) {
       // TODO: remove later
+      const cleanedText = sanitizeChunk(chunk.text)
+      if (!cleanedText && chunk.reason !== 'special') {
+        continue
+      }
 
       if (chunk.reason === 'special') {
         const specialToken = pendingSpecials.shift()
         // console.debug("special yield:", specialToken)
-        await handler({ chunk: sanitizeChunk(chunk.text), special: specialToken ?? null, reason: chunk.reason })
+        await handler({ chunk: cleanedText, special: specialToken ?? null, reason: chunk.reason })
       }
       else {
-        await handler({ chunk: sanitizeChunk(chunk.text), special: null, reason: chunk.reason })
+        await handler({ chunk: cleanedText, special: null, reason: chunk.reason })
       }
     }
   }
   catch (e) {
     console.error('Error chunking stream to TTS queue:', e)
   }
+}
+
+export function processNarrative(text: string, options?: TtsInputChunkOptions) {
+  if (!options?.stripNarrative)
+    return text
+
+  const regex = /\*(.*?)\*|\[(.*?)\]|\((.*?)\)|（(.*?)）|【(.*?)】|<([^>0-9\s][^>]*)>/g
+
+  return text.replace(regex, (match, g1, g2, g3, g4, g5, g6) => {
+    if (options?.keepNarrativeText) {
+      const innerWord = g1 || g2 || g3 || g4 || g5 || g6 || ''
+      return innerWord
+    }
+    return ''
+  })
 }
 
 export function createTtsSegmentStream(
@@ -246,6 +269,7 @@ export function createTtsSegmentStream(
 
   void (async () => {
     const reader = tokens.getReader()
+    let pendingText = ''
     try {
       while (true) {
         const { value, done } = await reader.read()
@@ -255,16 +279,83 @@ export function createTtsSegmentStream(
           continue
 
         if (value.type === 'literal') {
-          if (value.value)
-            writeBytes(encoder.encode(value.value))
+          if (value.value) {
+            if (!options?.stripNarrative) {
+              writeBytes(encoder.encode(value.value))
+              continue
+            }
+
+            pendingText += value.value
+            const stack: string[] = []
+            const pairs: Record<string, string> = {
+              '[': ']',
+              '(': ')',
+              '（': '）',
+              '【': '】',
+              '<': '>',
+            }
+            const openers = Object.keys(pairs)
+            const closers = Object.values(pairs)
+
+            for (let i = 0; i < pendingText.length; i++) {
+              const char = pendingText[i]
+              if (openers.includes(char)) {
+                // 尖括号启发式过滤：如果是 <3 或 1 < 2，不入栈
+                if (char === '<') {
+                  const nextChar = pendingText[i + 1]
+                  if (nextChar && /[0-9\s]/.test(nextChar))
+                    continue
+                }
+                stack.push(char)
+              }
+              else if (closers.includes(char)) {
+                // 尝试匹配并弹出栈顶
+                const lastOpen = stack[stack.length - 1]
+                if (pairs[lastOpen] === char) {
+                  stack.pop()
+                }
+              }
+            }
+
+            // 括号是否未闭合：看栈里是否还有剩
+            const bracketsUnclosed = stack.length > 0
+
+            // 星号奇偶校验（保留你之前写好的启发式逻辑）
+            const starMatch = pendingText.match(/\*([^*]*)$/)
+            const starsUnclosed = (pendingText.match(/\*/g) || []).length % 2 !== 0
+              && starMatch !== null && !starMatch[1].startsWith(' ')
+
+            const hasUnclosed = bracketsUnclosed || starsUnclosed
+
+            if (!hasUnclosed || pendingText.length > 200) {
+              const textToEmit = processNarrative(pendingText, options)
+              writeBytes(encoder.encode(textToEmit))
+              pendingText = ''
+            }
+          }
         }
-        else if (value.type === 'special') {
-          pendingSpecials.push(value.value ?? '')
-          writeBytes(encoder.encode(TTS_SPECIAL_TOKEN))
+        else if (value.type === 'special' || value.type === 'flush') {
+          if (pendingText) {
+            const textToEmit = processNarrative(pendingText, options)
+            writeBytes(encoder.encode(textToEmit))
+            pendingText = ''
+          }
+
+          if (value.type === 'special') {
+            pendingSpecials.push(value.value ?? '')
+            writeBytes(encoder.encode(TTS_SPECIAL_TOKEN))
+          }
+          else if (value.type === 'flush') {
+            writeBytes(encoder.encode(TTS_FLUSH_INSTRUCTION))
+          }
         }
-        else if (value.type === 'flush') {
-          writeBytes(encoder.encode(TTS_FLUSH_INSTRUCTION))
+      }
+      if (pendingText) {
+        let finalPunt = pendingText
+        if (options?.stripNarrative) {
+          finalPunt = processNarrative(finalPunt, options)
         }
+        writeBytes(encoder.encode(finalPunt))
       }
       closeBytes()
     }

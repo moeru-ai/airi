@@ -3051,9 +3051,6 @@ importers:
       '@date-fns/utc':
         specifier: ^2.1.1
         version: 2.1.1
-      '@fontsource-variable/nunito':
-        specifier: 'catalog:'
-        version: 5.2.7
       '@formkit/auto-animate':
         specifier: ^0.9.0
         version: 0.9.0(vue@3.5.32(typescript@5.9.3))
@@ -3325,11 +3322,17 @@ importers:
         specifier: ^4.3.6
         version: 4.3.6
     devDependencies:
+      '@fontsource-variable/comfortaa':
+        specifier: ^5.2.8
+        version: 5.2.8
       '@fontsource-variable/dm-sans':
         specifier: ^5.2.8
         version: 5.2.8
       '@fontsource-variable/jura':
         specifier: ^5.2.7
+        version: 5.2.7
+      '@fontsource-variable/nunito':
+        specifier: 'catalog:'
         version: 5.2.7
       '@fontsource-variable/quicksand':
         specifier: ^5.2.10
