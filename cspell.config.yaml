@@ -31,6 +31,7 @@ words:
   - baichuan
   - baiducloud
   - bailian
+  - bestmove
   - bigserial
   - bilibili
   - Bitstream
@@ -110,6 +111,8 @@ words:
   - flexsearch
   - formkit
   - frontmatter
+  - gamelet
+  - gamelets
   - Genshin
   - giteeai
   - gltf
@@ -289,6 +292,7 @@ words:
   - ssml
   - staticlib
   - stepfun
+  - stockfish
   - sumimakito
   - supergroup
   - superjson
@@ -322,6 +326,7 @@ words:
   - valibot
   - vaul
   - velin
+  - vieval
   - vishot
   - VITE
   - vitepress

@@ -14,7 +14,8 @@
       "vitest",
       "vite/client",
       "unplugin-info/client",
-      "@types/audioworklet"
+      "@types/audioworklet",
+      "@webgpu/types"
     ],
     "allowJs": true,
     "strict": true,

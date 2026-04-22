@@ -105,7 +105,9 @@ export async function streamFrom({
         headers: options?.headers,
         stopWhen: stepCountAtLeast(10),
         tools,
-        captureToolErrors: true,
+        // NOTICE: Some OpenAI-compatible gateways reject the wire-level
+        // `capture_tool_errors` parameter with 400 unknown_parameter.
+        // Keep this unset here so the request remains provider-compatible.
         onEvent,
       })
 
