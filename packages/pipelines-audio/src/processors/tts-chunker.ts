@@ -241,19 +241,58 @@ export async function chunkEmitter(
   }
 }
 
-export function processNarrative(text: string, options?: TtsInputChunkOptions) {
+export function processNarrative(text: string, options?: TtsInputChunkOptions): string {
   if (!options?.stripNarrative)
     return text
 
-  const regex = /\*(.*?)\*|\[(.*?)\]|\((.*?)\)|（(.*?)）|【(.*?)】|<([^>0-9\s][^>]*)>/g
+  let result = ''
+  const stack: string[] = []
 
-  return text.replace(regex, (match, g1, g2, g3, g4, g5, g6) => {
-    if (options?.keepNarrativeText) {
-      const innerWord = g1 || g2 || g3 || g4 || g5 || g6 || ''
-      return innerWord
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i]
+
+    if (['[', '(', '*', '<'].includes(char)) {
+      if (char === '<' && !isProbablyAngleTag(i, text)) {
+        if (stack.length === 0)
+          result += char
+        continue
+      }
+      stack.push(char)
+      continue
     }
-    return ''
-  })
+
+    if ([']', ')', '*', '>'].includes(char)) {
+      if (stack.length > 0) {
+        stack.pop()
+        continue
+      }
+    }
+
+    if (stack.length === 0) {
+      result += char
+    }
+  }
+
+  return options?.keepNarrativeText ? text.replace(/[[\]()*<>]/g, '') : result
+}
+
+export function isProbablyAngleTag(index: number, text: string): boolean {
+  if (text[index] !== '<')
+    return false
+
+  const nextChar = text[index + 1]
+  const prevChar = index > 0 ? text[index - 1] : ''
+
+  // Lookahead: 如果后面跟着数字、空格或等号 (1 < 2, < 3, <=)，不是标签
+  if (nextChar && /[0-9\s=]/.test(nextChar))
+    return false
+
+  // Lookbehind (High Priority Fix):
+  // 如果前面紧跟着非空白/非括号字符 (如 List<T> 中的 't')，判定为代码或泛型，不是标签
+  if (prevChar && /[^\s([{（【]/.test(prevChar))
+    return false
+
+  return true
 }
 
 export function createTtsSegmentStream(
@@ -300,26 +339,12 @@ export function createTtsSegmentStream(
             for (let i = 0; i < pendingText.length; i++) {
               const char = pendingText[i]
               if (openers.includes(char)) {
-                if (char === '<') {
-                  const remainder = pendingText.slice(i + 1)
-
-                  if (remainder.length > 0 && /[0-9\s=]/.test(remainder[0])) {
-                    continue
-                  }
-
-                  if (/^[a-z][^a-z0-9\s>-]/i.test(remainder)) {
-                    continue
-                  }
-
-                  const leftStr = pendingText.slice(0, i)
-                  if (/^[a-z]$/i.test(remainder) && /(^|[^a-z])[a-z]$/i.test(leftStr)) {
-                    continue
-                  }
+                if (char === '<' && !isProbablyAngleTag(i, pendingText)) {
+                  continue
                 }
                 stack.push(char)
               }
               else if (closers.includes(char)) {
-                // 尝试匹配并弹出栈顶
                 const lastOpen = stack[stack.length - 1]
                 if (pairs[lastOpen] === char) {
                   stack.pop()
