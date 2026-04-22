@@ -71,3 +71,19 @@ Important:
 - Scenario entrypoints should point at `index.ts` when the workflow is organized as a section folder.
 - Keep this package focused on Electron capture flows for docs screenshots.
 - Paths in these `pnpm -F` examples are resolved from the filtered package working directory.
+
+## Electron Profile Note (Plugin Discovery)
+
+When running scenarios through `@proj-airi/vishot-runner-electron`, the built Electron app can use a different `userData` profile than `dev:tamagotchi`.
+
+- `dev:tamagotchi` plugin root commonly resolves to:
+  - `~/Library/Application Support/@proj-airi/stage-tamagotchi/plugins/v1`
+- Vishot/Electron capture runs can resolve plugin root to:
+  - `~/Library/Application Support/Electron/plugins/v1`
+
+If the chess plugin appears in dev but not in Vishot (`Discovered 0` or `Plugin manifest not found`), link the plugin `dist` directory into the Electron profile plugins root too:
+
+```bash
+mkdir -p "$HOME/Library/Application Support/Electron/plugins/v1"
+ln -sfn "/absolute/path/to/airi-plugin-game-chess/dist" "$HOME/Library/Application Support/Electron/plugins/v1/airi-plugin-game-chess"
+```
