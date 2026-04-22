@@ -245,7 +245,7 @@ export function processNarrative(text: string, options?: TtsInputChunkOptions) {
   if (!options?.stripNarrative)
     return text
 
-  const regex = /\*(.*?)\*|\[(.*?)\]|\((.*?)\)|（(.*?)）|【(.*?)】|<(.*?)>/g
+  const regex = /\*(.*?)\*|\[(.*?)\]|\((.*?)\)|（(.*?)）|【(.*?)】|<([^>0-9\s][^>]*)>/g
 
   return text.replace(regex, (match, g1, g2, g3, g4, g5, g6) => {
     if (options?.keepNarrativeText) {
@@ -302,8 +302,9 @@ export function createTtsSegmentStream(
             )
             const bracketsUnclosed = lastOpen > lastClose
 
-            const starCount = (pendingText.match(/\*/g) || []).length
-            const starsUnclosed = starCount % 2 !== 0
+            const starMatch = pendingText.match(/\*([^*]*)$/)
+            const starsUnclosed = (pendingText.match(/\*/g) || []).length % 2 !== 0
+              && starMatch !== null && !starMatch[1].startsWith(' ')
 
             const hasUnclosed = bracketsUnclosed || starsUnclosed
 
