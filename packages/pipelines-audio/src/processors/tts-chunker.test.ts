@@ -16,6 +16,12 @@ describe('tTS Chunker - Narrative Stripping', () => {
       const result = processNarrative(input, { stripNarrative: false })
       expect(result).toBe('Hello [laughs] world')
     })
+
+    it('should keep narrative text when keepNarrativeText is true', () => {
+      const input = 'Hello [laughs] world'
+      const result = processNarrative(input, { stripNarrative: true, keepNarrativeText: true })
+      expect(result).toBe('Hello laughs world')
+    })
   })
 
   describe('edge Cases (Codex Review)', () => {
