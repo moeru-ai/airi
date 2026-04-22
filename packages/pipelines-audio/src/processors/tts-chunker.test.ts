@@ -76,6 +76,7 @@ describe('tTS Chunker - Narrative Stripping', () => {
           hasUnclosed = true
         }
       }
+      expect(hasUnclosed).toBe(false)
     })
 
     it('should not force flush if a narrative span exceeds threshold', () => {

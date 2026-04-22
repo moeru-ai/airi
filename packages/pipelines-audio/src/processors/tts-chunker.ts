@@ -307,7 +307,7 @@ export function createTtsSegmentStream(
                     continue
                   }
 
-                  if (/^[a-z][^a-z>]|\s/i.test(remainder)) {
+                  if (/^[a-z]([^a-z\s>]|$)/i.test(remainder)) {
                     continue
                   }
                 }
