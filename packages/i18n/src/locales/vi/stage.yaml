@@ -1,4 +1,6 @@
 chat:
+  actions:
+    retry: Thử lại
   message:
     character-name:
       airi: AIRI

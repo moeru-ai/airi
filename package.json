@@ -56,6 +56,7 @@
     "@unocss/eslint-plugin": "^66.6.8",
     "@unocss/preset-mini": "^66.6.8",
     "@unocss/preset-web-fonts": "^66.6.8",
+    "@vitest/browser-playwright": "catalog:vitest",
     "@vitest/coverage-v8": "catalog:vitest",
     "bumpp": "^11.0.1",
     "eslint": "^10.2.1",
@@ -85,6 +86,7 @@
     "vite": "^8.0.8",
     "vite-plugin-inspect": "catalog:",
     "vitest": "^4.1.4",
+    "vitest-browser-vue": "catalog:",
     "yaml": "^2.8.3"
   },
   "workspaces": [

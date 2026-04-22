@@ -1,4 +1,4 @@
-import type { PluginHostModuleSummary } from '../../../shared/eventa'
+import type { PluginHostModuleSummary } from '../../../shared/eventa/plugin/host'
 
 const extensionUiDispatchReservedPropKeys = new Set([
   'modelValue',

@@ -327,6 +327,9 @@ catalogs:
     vite-plugin-mkcert:
       specifier: ^2.0.0
       version: 2.0.0
+    vitest-browser-vue:
+      specifier: ^2.1.0
+      version: 2.1.0
     vue:
       specifier: ^3.5.32
       version: 3.5.32
@@ -359,9 +362,6 @@ catalogs:
       specifier: ^4.1.4
       version: 4.1.4
     '@vitest/coverage-v8':
-      specifier: ^4.1.4
-      version: 4.1.4
-    vitest:
       specifier: ^4.1.4
       version: 4.1.4
   xsai:
@@ -442,6 +442,9 @@ importers:
       '@unocss/preset-web-fonts':
         specifier: ^66.6.8
         version: 66.6.8
+      '@vitest/browser-playwright':
+        specifier: catalog:vitest
+        version: 4.1.4(bufferutil@4.1.0)(playwright@1.59.1)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)
       '@vitest/coverage-v8':
         specifier: catalog:vitest
         version: 4.1.4(@vitest/browser@4.1.4)(vitest@4.1.4)
@@ -529,6 +532,9 @@ importers:
       vitest:
         specifier: ^4.1.4
         version: 4.1.4(@opentelemetry/api@1.9.1)(@types/node@24.12.2)(@vitest/browser-playwright@4.1.4)(@vitest/coverage-v8@4.1.4)(jsdom@27.4.0(bufferutil@4.1.0)(canvas@3.2.3)(utf-8-validate@5.0.10))(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
+      vitest-browser-vue:
+        specifier: 'catalog:'
+        version: 2.1.0(vitest@4.1.4)(vue@3.5.32(typescript@5.9.3))
       yaml:
         specifier: ^2.8.3
         version: 2.8.3
@@ -2373,13 +2379,6 @@ importers:
       uncrypto:
         specifier: 'catalog:'
         version: 0.1.3
-    devDependencies:
-      '@vitest/browser-playwright':
-        specifier: catalog:vitest
-        version: 4.1.4(bufferutil@4.1.0)(playwright@1.59.1)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)
-      vitest:
-        specifier: catalog:vitest
-        version: 4.1.4(@opentelemetry/api@1.9.1)(@types/node@25.6.0)(@vitest/browser-playwright@4.1.4)(@vitest/coverage-v8@4.1.4)(jsdom@27.4.0(bufferutil@4.1.0)(canvas@3.2.3)(utf-8-validate@5.0.10))(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
 
   packages/cap-vite:
     dependencies:
@@ -3044,14 +3043,13 @@ importers:
         specifier: 'catalog:'
         version: 0.0.97
 
+  packages/stage-tamagotchi-godot: {}
+
   packages/stage-ui:
     dependencies:
       '@date-fns/utc':
         specifier: ^2.1.1
         version: 2.1.1
-      '@fontsource-variable/nunito':
-        specifier: 'catalog:'
-        version: 5.2.7
       '@formkit/auto-animate':
         specifier: ^0.9.0
         version: 0.9.0(vue@3.5.32(typescript@5.9.3))
@@ -3323,11 +3321,17 @@ importers:
         specifier: ^4.3.6
         version: 4.3.6
     devDependencies:
+      '@fontsource-variable/comfortaa':
+        specifier: ^5.2.8
+        version: 5.2.8
       '@fontsource-variable/dm-sans':
         specifier: ^5.2.8
         version: 5.2.8
       '@fontsource-variable/jura':
         specifier: ^5.2.7
+        version: 5.2.7
+      '@fontsource-variable/nunito':
+        specifier: 'catalog:'
         version: 5.2.7
       '@fontsource-variable/quicksand':
         specifier: ^5.2.10
@@ -3443,6 +3447,9 @@ importers:
       vite:
         specifier: ^6.4.2
         version: 6.4.2(@types/node@25.6.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
+      vitest-browser-vue:
+        specifier: 'catalog:'
+        version: 2.1.0(vitest@4.1.4)(vue@3.5.32(typescript@5.9.3))
       vue:
         specifier: 'catalog:'
         version: 3.5.32(typescript@5.9.3)
@@ -6921,6 +6928,9 @@ packages:
   '@nxg-org/mineflayer-util-plugin@1.8.4':
     resolution: {integrity: sha512-hPaCZxU0Aq+gUSi/l6x7n32hUG6bnDugAMoQXD2dFE/gyNkmRSpmgH5+Y6G41w3H8P3Nl++upGCOlaxvZ7RuoA==}
 
+  '@one-ini/wasm@0.1.1':
+    resolution: {integrity: sha512-XuySG1E38YScSJoMlqovLru4KTUNSjgVTIjyh7qMX6aNN5HY5Ct5LhRJdxO79JtTzKfzV/bnWpz+zquYrISsvw==}
+
   '@opentelemetry/api-logs@0.215.0':
     resolution: {integrity: sha512-xrFlqhdhUyO8wSRn6DjE0145/HPWSJ5Nm0C7vWua6TdL/FSEAZvEyvdsa9CRXuxo9ebb7j/NEPhEcO62IJ0qUA==}
     engines: {node: '>=8.0.0'}
@@ -10387,6 +10397,9 @@ packages:
   '@vue/shared@3.5.32':
     resolution: {integrity: sha512-ksNyrmRQzWJJ8n3cRDuSF7zNNontuJg1YHnmWRJd2AMu8Ij2bqwiiri2lH5rHtYPZjj4STkNcgcmiQqlOjiYGg==}
 
+  '@vue/test-utils@2.4.6':
+    resolution: {integrity: sha512-FMxEjOpYNYiFe0GkaHsnJPXFHxQ6m4t8vI/ElPGpMWxZKpmRvQ33OIrvRXemy6yha03RxhOlQuy+gZMC3CQSow==}
+
   '@vue/tsconfig@0.9.1':
     resolution: {integrity: sha512-buvjm+9NzLCJL29KY1j1991YYJ5e6275OiK+G4jtmfIb+z4POywbdm0wXusT9adVWqe0xqg70TbI7+mRx4uU9w==}
     peerDependencies:
@@ -10600,6 +10613,10 @@ packages:
 
   '@xsai/utils-chat@0.5.0-beta.2':
     resolution: {integrity: sha512-WSjoxY0w+3oRSZQkAWHdhOuidRlaYJR3y6bvELmJje6lCh86a4PQtMIPwJIoTmtuVY13ZgGvvKqoQz/0xS32LA==}
+
+  abbrev@2.0.0:
+    resolution: {integrity: sha512-6/mh1E2u2YgEsCHdY0Yx5oW+61gZU+1vXaoiHHrpKeuRNNgFvS+/jrwHiQhB5apAf5oB7UB7E19ol2R2LKH8hQ==}
+    engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
 
   abbrev@3.0.1:
     resolution: {integrity: sha512-AO2ac6pjRB3SJmGJo+v5/aK6Omggp6fsLrs6wN9bd35ulu4cCwaAU9+7ZhXjeqHVkaHThLuzH0nZr0YpCDhygg==}
@@ -11437,6 +11454,10 @@ packages:
     resolution: {integrity: sha512-PqMLy5+YGwhMh1wS04mVG44oqDsgyLRSKJBdOo1bnYhMKBW65gZF1dRp2OZRhiTjgUHljy99qkO7bsctLaw35Q==}
     engines: {node: '>=12.20.0'}
 
+  commander@10.0.1:
+    resolution: {integrity: sha512-y4Mg2tXshplEbSGzx7amzPwKKOCGuoSRP/CjEdwwk0FOGlUbq6lKuoyDZTNZkmxHdJtp54hdfY/JUrdL7Xfdug==}
+    engines: {node: '>=14'}
+
   commander@11.1.0:
     resolution: {integrity: sha512-yPVavfyCcRhmorC7rWlkHn15b4wDVgVmBA7kV4QVBsF7kv/9TKJAbAXVTxvTnwP8HHKjRCJDClKbciiYS7p0DQ==}
     engines: {node: '>=16'}
@@ -12232,6 +12253,11 @@ packages:
   eciesjs@0.4.16:
     resolution: {integrity: sha512-dS5cbA9rA2VR4Ybuvhg6jvdmp46ubLn3E+px8cG/35aEDNclrqoCjg6mt0HYZ/M+OoESS3jSkCrqk1kWAEhWAw==}
     engines: {bun: '>=1', deno: '>=2', node: '>=16'}
+
+  editorconfig@1.0.7:
+    resolution: {integrity: sha512-e0GOtq/aTQhVdNyDU9e02+wz9oDDM+SIOQxWME2QRjzRX5yyLAuHDE+0aE8vHb9XRC8XD37eO2u57+F09JqFhw==}
+    engines: {node: '>=14'}
+    hasBin: true
 
   ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
@@ -13895,6 +13921,15 @@ packages:
   jpeg-js@0.4.4:
     resolution: {integrity: sha512-WZzeDOEtTOBK4Mdsar0IqEU5sMr3vSV2RqkAIzUEV2BHnUfKGyswWFPFwK5EeDo93K3FohSHbLAjj0s1Wzd+dg==}
 
+  js-beautify@1.15.4:
+    resolution: {integrity: sha512-9/KXeZUKKJwqCXUdBxFJ3vPh467OCckSBmYDwSK/EtV090K+iMJ7zx2S3HLVDIWFQdqMIsZWbnaGiba18aWhaA==}
+    engines: {node: '>=14'}
+    hasBin: true
+
+  js-cookie@3.0.5:
+    resolution: {integrity: sha512-cEiJEAEoIbWfCZYKWhVwFuvPX1gETRYPw6LlaTKoxD3s2AkXzkCjnp6h0V77ozyqj0jakteJ4YqDJT830+lVGw==}
+    engines: {node: '>=14'}
+
   js-tokens@10.0.0:
     resolution: {integrity: sha512-lM/UBzQmfJRo9ABXbPWemivdCW8V2G8FHaHdypQaIy523snUjog0W71ayWXTjiR+ixeMyVHN2XcpnTd/liPg/Q==}
 
@@ -14946,6 +14981,11 @@ packages:
 
   node-vibrant@4.0.4:
     resolution: {integrity: sha512-hA/pUXBE9TJ41G9FlTkzeqD5JdxgvvPGYZb/HNpdkaxxXUEnP36imSolZ644JuPun+lTd+FpWWtBpTYdp2noQA==}
+
+  nopt@7.2.1:
+    resolution: {integrity: sha512-taM24ViiimT/XntxbPyJQzCG+p4EKOpgD3mxFwW38mGjVUrfERQOeY4EDHjdnptttfHuHQXFx+lTP08Q+mLa/w==}
+    engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
+    hasBin: true
 
   nopt@8.1.0:
     resolution: {integrity: sha512-ieGu42u/Qsa4TFktmaKEwM6MQH0pOWnaB3htzh0JRtx84+Mebc0cbZYN5bC+6WTZ4+77xrL9Pn5m7CV6VIkV7A==}
@@ -17626,6 +17666,12 @@ packages:
       postcss:
         optional: true
 
+  vitest-browser-vue@2.1.0:
+    resolution: {integrity: sha512-K3H/oxIOY4EjXx2bxwrLsPg4jTMvzpRW6Jb6T8XZRoxUvmDVwGkd8mua130F8GZezE7H5QYoXd/S8hYijw7j5g==}
+    peerDependencies:
+      vitest: ^4.0.0-0
+      vue: ^3.0.0
+
   vitest@4.1.4:
     resolution: {integrity: sha512-tFuJqTxKb8AvfyqMfnavXdzfy3h3sWZRWwfluGbkeR7n0HUev+FmNgZ8SDrRBTVrVCjgH5cA21qGbCffMNtWvg==}
     engines: {node: ^20.0.0 || ^22.0.0 || >=24.0.0}
@@ -17673,6 +17719,9 @@ packages:
 
   vscode-uri@3.1.0:
     resolution: {integrity: sha512-/BpdSx+yCQGnCvecbyXdxHDkuk55/G3xwnC0GqY4gmQ3j+A+g8kzzgB4Nk/SINjqn6+waqw3EgbVF2QKExkRxQ==}
+
+  vue-component-type-helpers@2.2.12:
+    resolution: {integrity: sha512-YbGqHZ5/eW4SnkPNR44mKVc6ZKQoRs/Rux1sxC6rdwXb4qpbOSYfDr9DsTHolOTGmIKgM9j141mZbBeg05R1pw==}
 
   vue-demi@0.14.10:
     resolution: {integrity: sha512-nMZBOwuzabUO0nLgIcc6rycZEebF6eeUfaiQx9+WSk8e29IbLvPU9feI6tqW4kTo3hvoYAJkMh8n8D0fuISphg==}
@@ -21040,6 +21089,8 @@ snapshots:
 
   '@nxg-org/mineflayer-util-plugin@1.8.4': {}
 
+  '@one-ini/wasm@0.1.1': {}
+
   '@opentelemetry/api-logs@0.215.0':
     dependencies:
       '@opentelemetry/api': 1.9.1
@@ -24142,7 +24193,6 @@ snapshots:
       - msw
       - utf-8-validate
       - vite
-    optional: true
 
   '@vitest/browser-playwright@4.1.4(bufferutil@4.1.0)(playwright@1.59.1)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)':
     dependencies:
@@ -24156,6 +24206,7 @@ snapshots:
       - msw
       - utf-8-validate
       - vite
+    optional: true
 
   '@vitest/browser@4.1.4(bufferutil@4.1.0)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)':
     dependencies:
@@ -24173,7 +24224,6 @@ snapshots:
       - msw
       - utf-8-validate
       - vite
-    optional: true
 
   '@vitest/browser@4.1.4(bufferutil@4.1.0)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)':
     dependencies:
@@ -24191,6 +24241,7 @@ snapshots:
       - msw
       - utf-8-validate
       - vite
+    optional: true
 
   '@vitest/coverage-v8@4.1.4(@vitest/browser@4.1.4)(vitest@4.1.4)':
     dependencies:
@@ -24244,6 +24295,7 @@ snapshots:
       magic-string: 0.30.21
     optionalDependencies:
       vite: 8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
+    optional: true
 
   '@vitest/pretty-format@4.1.4':
     dependencies:
@@ -24764,6 +24816,11 @@ snapshots:
 
   '@vue/shared@3.5.32': {}
 
+  '@vue/test-utils@2.4.6':
+    dependencies:
+      js-beautify: 1.15.4
+      vue-component-type-helpers: 2.2.12
+
   '@vue/tsconfig@0.9.1(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3))':
     optionalDependencies:
       typescript: 5.9.3
@@ -25015,6 +25072,8 @@ snapshots:
   '@xsai/utils-chat@0.5.0-beta.2':
     dependencies:
       '@xsai/shared-chat': 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
+
+  abbrev@2.0.0: {}
 
   abbrev@3.0.1: {}
 
@@ -25859,6 +25918,8 @@ snapshots:
       table-layout: 4.1.1
       typical: 7.3.0
 
+  commander@10.0.1: {}
+
   commander@11.1.0: {}
 
   commander@12.1.0: {}
@@ -26491,6 +26552,13 @@ snapshots:
       '@noble/ciphers': 1.3.0
       '@noble/curves': 1.9.7
       '@noble/hashes': 1.8.0
+
+  editorconfig@1.0.7:
+    dependencies:
+      '@one-ini/wasm': 0.1.1
+      commander: 10.0.1
+      minimatch: 9.0.5
+      semver: 7.7.4
 
   ee-first@1.1.1: {}
 
@@ -28569,6 +28637,16 @@ snapshots:
 
   jpeg-js@0.4.4: {}
 
+  js-beautify@1.15.4:
+    dependencies:
+      config-chain: 1.1.13
+      editorconfig: 1.0.7
+      glob: 10.5.0
+      js-cookie: 3.0.5
+      nopt: 7.2.1
+
+  js-cookie@3.0.5: {}
+
   js-tokens@10.0.0: {}
 
   js-tokens@4.0.0: {}
@@ -29933,6 +30011,10 @@ snapshots:
       '@vibrant/quantizer-mmcq': 4.0.4
     transitivePeerDependencies:
       - encoding
+
+  nopt@7.2.1:
+    dependencies:
+      abbrev: 2.0.0
 
   nopt@8.1.0:
     dependencies:
@@ -33325,6 +33407,12 @@ snapshots:
       - sortablejs
       - universal-cookie
 
+  vitest-browser-vue@2.1.0(vitest@4.1.4)(vue@3.5.32(typescript@5.9.3)):
+    dependencies:
+      '@vue/test-utils': 2.4.6
+      vitest: 4.1.4(@opentelemetry/api@1.9.1)(@types/node@24.12.2)(@vitest/browser-playwright@4.1.4)(@vitest/coverage-v8@4.1.4)(jsdom@27.4.0(bufferutil@4.1.0)(canvas@3.2.3)(utf-8-validate@5.0.10))(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
+      vue: 3.5.32(typescript@5.9.3)
+
   vitest@4.1.4(@opentelemetry/api@1.9.1)(@types/node@24.12.2)(@vitest/browser-playwright@4.1.4)(@vitest/coverage-v8@4.1.4)(jsdom@27.4.0(bufferutil@4.1.0)(canvas@3.2.3)(utf-8-validate@5.0.10))(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)):
     dependencies:
       '@vitest/expect': 4.1.4
@@ -33386,6 +33474,7 @@ snapshots:
       jsdom: 27.4.0(bufferutil@4.1.0)(canvas@3.2.3)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
       - msw
+    optional: true
 
   vscode-ext-gen@1.6.0:
     dependencies:
@@ -33393,6 +33482,8 @@ snapshots:
       tinyglobby: 0.2.16
 
   vscode-uri@3.1.0: {}
+
+  vue-component-type-helpers@2.2.12: {}
 
   vue-demi@0.14.10(vue@3.5.32(typescript@5.9.3)):
     dependencies:
