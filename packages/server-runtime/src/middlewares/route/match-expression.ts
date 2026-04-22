@@ -18,7 +18,10 @@ function matchesGlob(glob: string, value?: string) {
 }
 
 export function matchesLabelSelector(selector: string, labels: Record<string, string>) {
-  const [key, value] = selector.split('=', 2)
+  const [rawKey, rawValue] = selector.split('=', 2)
+  const key = rawKey?.trim()
+  const value = rawValue?.trim()
+
   if (!key) {
     return false
   }

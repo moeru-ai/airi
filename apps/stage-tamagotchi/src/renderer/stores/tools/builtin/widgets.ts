@@ -1,11 +1,15 @@
 import type { Tool } from '@xsai/shared-chat'
 
+import type { WidgetWindowSize } from '../../../../shared/eventa'
+
 import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { tool } from '@xsai/tool'
 import { z } from 'zod'
 
 import { widgetsAdd, widgetsClear, widgetsOpenWindow, widgetsPrepareWindow, widgetsRemove, widgetsUpdate } from '../../../../shared/eventa'
+import { normalizeWidgetWindowSize } from '../../../../shared/utils/electron/windows/window-size'
+import { sanitizeExtensionUiDispatchProps } from '../../../widgets/extension-ui/host'
 
 type SizePreset = 's' | 'm' | 'l'
 
@@ -16,6 +20,7 @@ type WidgetActionInput
     componentName: string
     componentProps: string | Record<string, any>
     size: SizePreset
+    windowSize?: WidgetWindowSize
     ttlSeconds: number
   }
   | {
@@ -24,6 +29,7 @@ type WidgetActionInput
     componentProps: string | Record<string, any>
     componentName?: string
     size?: SizePreset
+    windowSize?: WidgetWindowSize
     ttlSeconds?: number
   }
   | {
@@ -32,6 +38,7 @@ type WidgetActionInput
     componentName?: string
     componentProps?: string | Record<string, any>
     size?: SizePreset
+    windowSize?: WidgetWindowSize
     ttlSeconds?: number
   }
   | {
@@ -40,6 +47,7 @@ type WidgetActionInput
     componentName?: string
     componentProps?: string | Record<string, any>
     size?: SizePreset
+    windowSize?: WidgetWindowSize
     ttlSeconds?: number
   }
   | {
@@ -48,6 +56,7 @@ type WidgetActionInput
     componentName?: string
     componentProps?: string | Record<string, any>
     size?: SizePreset
+    windowSize?: WidgetWindowSize
     ttlSeconds?: number
   }
 
@@ -76,12 +85,22 @@ function resolveInvokers(override?: WidgetInvokers): WidgetInvokers {
   return cachedInvokers
 }
 
+const widgetWindowSizeParams = z.object({
+  width: z.number().positive(),
+  height: z.number().positive(),
+  minWidth: z.number().positive().optional(),
+  minHeight: z.number().positive().optional(),
+  maxWidth: z.number().positive().optional(),
+  maxHeight: z.number().positive().optional(),
+}).strict()
+
 const widgetParams = z.object({
   action: z.enum(['spawn', 'update', 'remove', 'clear', 'open']).describe('Choose one: spawn, update, remove, clear, open'),
   id: z.string().describe('Widget id; required for update/remove, optional for spawn/open'),
   componentName: z.string().describe('Widget component to render, e.g. weather (required for spawn)'),
   componentProps: z.string().describe('Widget props as JSON string (e.g. {"city":"Tokyo"})'),
   size: z.enum(['s', 'm', 'l']),
+  windowSize: widgetWindowSizeParams.optional().describe('Optional pixel window size and constraints, e.g. {"width":620,"height":760,"minWidth":480}'),
   ttlSeconds: z.number().int().nonnegative().describe('Auto-close timer in seconds (spawn only)'),
 }).strict()
 
@@ -108,6 +127,28 @@ export function normalizeComponentProps(raw?: string | Record<string, any>) {
   return {}
 }
 
+function resolveWindowSize(
+  componentName: string | undefined,
+  componentProps: Record<string, any>,
+  windowSize?: WidgetWindowSize,
+) {
+  const explicitWindowSize = normalizeWidgetWindowSize(windowSize)
+  if (explicitWindowSize)
+    return explicitWindowSize
+
+  if (componentName?.trim().toLowerCase() !== 'extension-ui')
+    return undefined
+
+  return normalizeWidgetWindowSize(componentProps.windowSize)
+}
+
+function sanitizeComponentPropsForDispatch(componentName: string | undefined, componentProps: Record<string, any>) {
+  if (componentName?.trim().toLowerCase() !== 'extension-ui')
+    return componentProps
+
+  return sanitizeExtensionUiDispatchProps(componentProps)
+}
+
 export async function executeWidgetAction(input: WidgetActionInput, deps?: { invokers?: WidgetInvokers }) {
   const invokers = resolveInvokers(deps?.invokers)
   const normalizedId = input.id?.trim() || undefined
@@ -118,12 +159,15 @@ export async function executeWidgetAction(input: WidgetActionInput, deps?: { inv
         throw new Error('componentName is required to spawn a widget.')
 
       const componentProps = normalizeComponentProps(input.componentProps)
+      const sanitizedComponentProps = sanitizeComponentPropsForDispatch(input.componentName, componentProps)
+      const windowSize = resolveWindowSize(input.componentName, sanitizedComponentProps, input.windowSize)
       const ttlMs = input.ttlSeconds ? Math.floor(input.ttlSeconds * 1000) : 0
       const id = await invokers.addWidget({
         id: normalizedId,
         componentName: input.componentName,
-        componentProps,
+        componentProps: sanitizedComponentProps,
         size: input.size ?? 'm',
+        windowSize,
         ttlMs,
       })
 
@@ -134,9 +178,12 @@ export async function executeWidgetAction(input: WidgetActionInput, deps?: { inv
         throw new Error('id is required to update a widget.')
 
       const componentProps = normalizeComponentProps(input.componentProps)
+      const sanitizedComponentProps = sanitizeComponentPropsForDispatch(input.componentName, componentProps)
+      const windowSize = resolveWindowSize(input.componentName, sanitizedComponentProps, input.windowSize)
       await invokers.updateWidget({
         id: normalizedId,
-        componentProps,
+        componentProps: sanitizedComponentProps,
+        windowSize,
       })
 
       return `Updated widget (${normalizedId}).`

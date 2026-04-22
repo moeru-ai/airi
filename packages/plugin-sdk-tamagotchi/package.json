@@ -1,0 +1,49 @@
+{
+  "name": "@proj-airi/plugin-sdk-tamagotchi",
+  "type": "module",
+  "version": "0.9.0",
+  "private": true,
+  "description": "Tamagotchi-specific DX helpers for Project AIRI plugins",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/plugin-sdk-tamagotchi"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./gamelet": {
+      "types": "./dist/gamelet/index.d.mts",
+      "default": "./dist/gamelet/index.mjs"
+    },
+    "./tools": {
+      "types": "./dist/tools/index.d.mts",
+      "default": "./dist/tools/index.mjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "test": "vitest",
+    "typecheck": "tsc --noEmit",
+    "build": "tsdown"
+  },
+  "dependencies": {
+    "@proj-airi/plugin-sdk": "workspace:*",
+    "valibot": "catalog:",
+    "xsschema": "catalog:"
+  }
+}

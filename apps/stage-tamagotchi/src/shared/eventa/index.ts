@@ -51,17 +51,6 @@ export interface ElectronUpdaterPreferences {
 export const electronGetUpdaterPreferences = defineInvokeEventa<ElectronUpdaterPreferences>('eventa:invoke:electron:auto-updater:get-preferences')
 export const electronSetUpdaterPreferences = defineInvokeEventa<ElectronUpdaterPreferences, ElectronUpdaterPreferences>('eventa:invoke:electron:auto-updater:set-preferences')
 
-export const electronPluginList = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:list')
-export const electronPluginSetEnabled = defineInvokeEventa<PluginRegistrySnapshot, { name: string, enabled: boolean, path?: string }>('eventa:invoke:electron:plugins:set-enabled')
-export const electronPluginLoadEnabled = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:load-enabled')
-export const electronPluginLoad = defineInvokeEventa<PluginRegistrySnapshot, { name: string }>('eventa:invoke:electron:plugins:load')
-export const electronPluginUnload = defineInvokeEventa<PluginRegistrySnapshot, { name: string }>('eventa:invoke:electron:plugins:unload')
-export const electronPluginInspect = defineInvokeEventa<PluginHostDebugSnapshot>('eventa:invoke:electron:plugins:inspect')
-export const electronPluginUpdateCapability = defineInvokeEventa<PluginCapabilityState, PluginCapabilityPayload>('eventa:invoke:electron:plugins:capability:update')
-
-export const pluginProtocolListProvidersEventName = 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers'
-export const pluginProtocolListProviders = defineInvokeEventa<Array<{ name: string }>>(pluginProtocolListProvidersEventName)
-
 export const captionIsFollowingWindowChanged = defineEventa<boolean>('eventa:event:electron:windows:caption-overlay:is-following-window-changed')
 export const captionGetIsFollowingWindow = defineInvokeEventa<boolean>('eventa:invoke:electron:windows:caption-overlay:get-is-following-window')
 
@@ -95,12 +84,22 @@ export function createRequestWindowEventa(namespace: string) {
 export const noticeWindowEventa = createRequestWindowEventa('notice')
 
 // Widgets / Adhoc window events
+export interface WidgetWindowSize {
+  width: number
+  height: number
+  minWidth?: number
+  minHeight?: number
+  maxWidth?: number
+  maxHeight?: number
+}
+
 export interface WidgetsAddPayload {
   id?: string
   componentName: string
   componentProps?: Record<string, any>
   // size presets or explicit spans; renderer decides mapping
   size?: 's' | 'm' | 'l' | { cols?: number, rows?: number }
+  windowSize?: WidgetWindowSize
   // auto-dismiss in ms; if omitted, persistent until closed by user
   ttlMs?: number
 }
@@ -110,52 +109,16 @@ export interface WidgetSnapshot {
   componentName: string
   componentProps: Record<string, any>
   size: 's' | 'm' | 'l' | { cols?: number, rows?: number }
+  windowSize?: WidgetWindowSize
   ttlMs: number
 }
 
-export interface PluginManifestSummary {
-  name: string
-  entrypoints: Record<string, string | undefined>
-  path: string
-  enabled: boolean
-  loaded: boolean
-  isNew: boolean
-}
-
-export interface PluginRegistrySnapshot {
-  root: string
-  plugins: PluginManifestSummary[]
-}
-
-// TODO: Replace these manually duplicated IPC types with re-exports from
-// @proj-airi/plugin-sdk (CapabilityDescriptor) once stage-ui and the shared
-// eventa layer can depend on the SDK without introducing unwanted coupling.
-export interface PluginCapabilityPayload {
-  key: string
-  state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
-  metadata?: Record<string, unknown>
-}
-
-export interface PluginCapabilityState {
-  key: string
-  state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
-  metadata?: Record<string, unknown>
-  updatedAt: number
-}
-
-export interface PluginHostSessionSummary {
+export interface WidgetsUpdatePayload {
   id: string
-  manifestName: string
-  phase: string
-  runtime: 'electron' | 'node' | 'web'
-  moduleId: string
-}
-
-export interface PluginHostDebugSnapshot {
-  registry: PluginRegistrySnapshot
-  sessions: PluginHostSessionSummary[]
-  capabilities: PluginCapabilityState[]
-  refreshedAt: number
+  componentProps?: Record<string, any>
+  size?: 's' | 'm' | 'l' | { cols?: number, rows?: number }
+  windowSize?: WidgetWindowSize
+  ttlMs?: number
 }
 
 export interface ElectronMcpStdioServerConfig {
@@ -222,7 +185,7 @@ export const widgetsOpenWindow = defineInvokeEventa<void, { id?: string }>('even
 export const widgetsAdd = defineInvokeEventa<string | undefined, WidgetsAddPayload>('eventa:invoke:electron:windows:widgets:add')
 export const widgetsRemove = defineInvokeEventa<void, { id: string }>('eventa:invoke:electron:windows:widgets:remove')
 export const widgetsClear = defineInvokeEventa('eventa:invoke:electron:windows:widgets:clear')
-export const widgetsUpdate = defineInvokeEventa<void, { id: string, componentProps?: Record<string, any> }>('eventa:invoke:electron:windows:widgets:update')
+export const widgetsUpdate = defineInvokeEventa<void, WidgetsUpdatePayload>('eventa:invoke:electron:windows:widgets:update')
 export const widgetsFetch = defineInvokeEventa<WidgetSnapshot | void, { id: string }>('eventa:invoke:electron:windows:widgets:fetch')
 export const widgetsPrepareWindow = defineInvokeEventa<string | undefined, { id?: string }>('eventa:invoke:electron:windows:widgets:prepare')
 
@@ -278,7 +241,7 @@ export const stageThreeRuntimeTraceRemoteDisableEvent = defineEventa<StageThreeR
 export const widgetsRenderEvent = defineEventa<WidgetSnapshot>('eventa:event:electron:windows:widgets:render')
 export const widgetsRemoveEvent = defineEventa<{ id: string }>('eventa:event:electron:windows:widgets:remove')
 export const widgetsClearEvent = defineEventa('eventa:event:electron:windows:widgets:clear')
-export const widgetsUpdateEvent = defineEventa<{ id: string, componentProps?: Record<string, any> }>('eventa:event:electron:windows:widgets:update')
+export const widgetsUpdateEvent = defineEventa<WidgetsUpdatePayload>('eventa:event:electron:windows:widgets:update')
 
 // Onboarding window events
 export const electronOnboardingClose = defineInvokeEventa('eventa:invoke:electron:windows:onboarding:close')
@@ -299,5 +262,9 @@ export const electronAuthLogout = defineInvokeEventa<void>('eventa:invoke:electr
 export const i18nSetLocale = defineInvokeEventa<void, Locale>('eventa:invoke:electron:i18n:set-locale')
 export const i18nGetLocale = defineInvokeEventa<Locale>('eventa:invoke:electron:i18n:get-locale')
 
+export * from './plugin/assets'
+export * from './plugin/capabilities'
+export * from './plugin/host'
+export * from './plugin/tools'
 export { electron } from '@proj-airi/electron-eventa'
 export * from '@proj-airi/electron-eventa/electron-updater'
