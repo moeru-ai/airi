@@ -1,3 +1,5 @@
+import Info from 'unplugin-info/vite'
+
 import { HstVue } from '@histoire/plugin-vue'
 import { defineConfig } from 'histoire'
 
@@ -71,6 +73,12 @@ export default defineConfig({
   ],
   vite: {
     base: '/ui/',
+    plugins: [
+      Info(),
+    ],
+    build: {
+      target: 'esnext',
+    },
   },
   setupFile: {
     browser: 'stories/setup.ts',

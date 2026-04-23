@@ -70,7 +70,8 @@ dialogs:
       stateNotGranted: Not granted
   bug-report:
     title: Bug report (´;ω;`)ヾ(･∀･`)
-    subtitle: Oops, sorry we made something wrong. Would you mind telling us what happened?
+    subtitle: Oops, sorry we made something wrong. Would you mind telling us what
+      happened?
     trigger-label: Report a Bug
     submit-label: Send Bug Report
     triage-description: Include screenshot and page context to help us triage this issue.
@@ -234,6 +235,7 @@ pages:
         scenario: 'Error: A scenario is required.'
         systemprompt: 'Error: Please, provide a system prompt.'
         posthistoryinstructions: 'Error: Post history prompt is required.'
+        invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
     modules: Modules
     name_asc: Name (A-Z)
     name_desc: Name (Z-A)
@@ -372,6 +374,41 @@ pages:
             warmup:
               description: Whether to warm up before detecting beats for better accuracy.
               label: Warmup
+    artistry:
+      title: Artistry
+      description: Image generation, scene background and drawing.
+      provider: Artistry Provider
+      spawn_mode:
+        label: Manifestation Mode (Spawn Mode)
+        description: Choose how images are delivered to the interface.
+        options:
+          bg: Background Environment
+          inline: Inline Chat
+          widget: Overlay Widget
+          bg_widget: Dual (Background + Widget)
+      autonomous:
+        title: Cinematic Autonomy (Autonomous Artist)
+        description: When enabled, the "Producer" runs in parallel to the character to decide if a visual is needed. This prevents the character from forgetting to manifest scenes.
+        threshold: Manifestation Threshold
+        threshold_min: Always Generate (0%)
+        threshold_max: Strict (100%)
+      model:
+        label: Artistry Model (Optional Override)
+        description: Model identifier if needed by provider
+      prompt-prefix:
+        label: Artistry Prompt Default Prefix
+        description: Pre-pended to every prompt sent to the image generator.
+      options:
+        label: Artistry Provider Options (JSON)
+      widget-instructions:
+        label: Widget System Prompt
+        description: Custom instructions for the AI on how to use the generation
+          capabilities.
+    categories:
+      essential: Essential
+      messaging: Messaging
+      gaming: Gaming
+      artistry: Artistry
     consciousness:
       description: Personality, desired model, etc.
       sections:
@@ -594,6 +631,14 @@ pages:
       buy: Charge
       description: Flux packages to choose from.
   providers:
+    labels:
+      recommended: Recommended
+    filters:
+      free: Free
+      paid: Paid
+      internal: Internal
+      local: Local
+      cloud: Cloud
     explained:
       chat: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
       Speech: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
@@ -789,6 +834,15 @@ pages:
       speech-noop:
         title: None
         description: No speech output.
+      comfyui:
+        settings:
+          title: ComfyUI (Local)
+      replicate:
+        settings:
+          title: Replicate.ai
+      nanobanana:
+        settings:
+          title: Nano Banana
       deepseek:
         description: deepseek.com
         title: DeepSeek
@@ -1039,9 +1093,6 @@ pages:
       errors:
         title: QR scan failed
         failed: Failed to scan or connect with the QR code.
-  scene:
-    description: Configure the environment where the character lives
-    title: Scene
   system:
     color-scheme:
       description: Change the color scheme of the stage.
@@ -1193,6 +1244,32 @@ pages:
         button: Open
   credits:
     buy: Buy
+  scene:
+    title: Scenes
+    description: Customize the virtual environment for your characters.
+    beta_label: Scenes System
+    beta_description: Each character card specifies its own preferred background
+      from this gallery. Setting it here will set it as the default for the
+      currently active character.
+    background_image:
+      title: Active Character Background
+      no_background: No background active for this character. Upload a square or
+        landscape image for best results.
+      upload: Upload to Gallery
+      change: Change Background
+      clear: Clear Default
+    gallery:
+      title: Scene Gallery
+      empty: No images in gallery yet. Upload one above!
+      set_as_global: Set as Character Default
+      delete: Delete from Gallery
+      global_badge: Character Default
+      active_badge: Current Scene
+      delete_confirm: Are you sure you want to delete this background?
+    tip:
+      label: Tip!
+      description: Using a square image will leverage <b>cover</b> cropping in
+        portrait mode, focusing on the center of the scene.
 sections:
   section:
     general:

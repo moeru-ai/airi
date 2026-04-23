@@ -163,6 +163,7 @@ const Registry: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'extension-ui': defineAsyncComponent(async () => (await import('../widgets/extension-ui')).ExtensionUi),
   'map': defineAsyncComponent(async () => (await import('../widgets/map')).Map),
   'weather': defineAsyncComponent(async () => (await import('../widgets/weather')).Weather),
+  'artistry': defineAsyncComponent(async () => (await import('../widgets/artistry')).Artistry),
 }
 
 const GenericWidget = defineComponent({
@@ -221,6 +222,7 @@ function handleClose() {
     <div v-else-if="widget" class="relative h-full">
       <component
         :is="resolveWidgetComponent(widget.componentName)"
+        :id="widget.id"
         :key="widget.id"
         :title="widget.componentName"
         :model-value="widget.componentProps"
