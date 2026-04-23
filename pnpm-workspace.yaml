@@ -7,6 +7,7 @@ packages:
   - services/**
   - examples/**
   - docs/**
+  - engines/**
   - apps/**
   - '!**/dist/**'
 overrides:
