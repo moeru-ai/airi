@@ -6,7 +6,7 @@ Godot-native desktop stage runtime project for `stage-tamagotchi`.
 
 - Hosts the Godot project used as the desktop-only stage runtime baseline.
 - Provides the minimal scene, script, and .NET project structure for G0 stage work.
-- Keeps Godot-owned assets, scenes, scripts, and future add-ons local to one workspace package.
+- Keeps Godot-owned assets, scenes, scripts, and future add-ons local to one workspace engine.
 
 ## What It Is Not
 
@@ -31,7 +31,7 @@ Godot-native desktop stage runtime project for `stage-tamagotchi`.
 
 - Use it when working on the Godot-backed desktop stage runtime.
 - Use it for Godot scene, asset, rendering, and character-runtime work.
-- Use it as the package boundary for the desktop Godot stage project itself.
+- Use it as the engine boundary for the desktop Godot stage project itself.
 
 ## When Not To Use It
 
@@ -61,11 +61,11 @@ godotenv godot use 4.6.2
 Then run the Godot editor with the current project:
 
 ```bash
-"$(godotenv godot env path)" ./packages/stage-tamagotchi-godot/project.godot
+"$(godotenv godot env path)" ./engines/stage-tamagotchi-godot/project.godot
 ```
 
 You can also run the game directly from the command line:
 
 ```bash
-"$(godotenv godot env path)" --path ./packages/stage-tamagotchi-godot
+"$(godotenv godot env path)" --path ./engines/stage-tamagotchi-godot
 ```
