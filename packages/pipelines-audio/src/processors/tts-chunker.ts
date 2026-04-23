@@ -251,9 +251,8 @@ const BRACKET_MAP: Record<string, string> = {
 
 const OPENERS = Object.keys(BRACKET_MAP)
 const CLOSERS = Object.values(BRACKET_MAP)
-function isCJK(char: string) {
-  return /[\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]/.test(char)
-}
+const isUnicodeLetter = (char: string) => /\p{L}/u.test(char)
+
 const NARRATIVE_KEYWORDS = [
   'laugh',
   'sigh',
@@ -274,26 +273,24 @@ export function isProbablyAngleTag(index: number, text: string): boolean {
   if (text[index + 1] === '/')
     return true
 
-  const nextChar = text[index + 1]
+  const remainder = text.slice(index + 1).toLowerCase()
+  const nextChar = remainder[0]
   const prevChar = index > 0 ? text[index - 1] : ''
+
+  // 1. 闭合标签 </... 永远判定为标签
+  if (nextChar === '/')
+    return true
 
   // Lookahead: if followed by num, space or equals, not a label
   if (nextChar && /[0-9\s=]/.test(nextChar))
     return false
 
-  if (prevChar && isCJK(prevChar))
-    return true
-
-  const remainder = text.slice(index + 1).toLowerCase()
-  if (prevChar && /[a-z0-9]/i.test(prevChar)) {
+  if (prevChar && (isUnicodeLetter(prevChar) || /\d/.test(prevChar))) {
     // fix: check whether remainder is piefix with any keywords, or contains the whole keyword
     const isLikelyNarrative = NARRATIVE_KEYWORDS.some(kw =>
-      kw.startsWith(remainder) || remainder.startsWith(kw),
+      (remainder.length > 1 && kw.startsWith(remainder)) || remainder.startsWith(kw),
     )
-
-    if (isLikelyNarrative)
-      return true
-    return false
+    return isLikelyNarrative
   }
 
   // Lookbehind: if before is non-empty/non-bracket character, then determine as code or any instead of a label

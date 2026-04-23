@@ -77,4 +77,17 @@ describe('tTS Chunker Logic Cleanup', () => {
       expect(isProbablyAngleTag(4, 'List<Str')).toBe(false)
     })
   })
+
+  describe('edge Cases test', () => {
+    it('should not treat single-letter operands as narrative prefixes', () => {
+      // 修复 20:32: a<b 不应命中 breath
+      expect(isProbablyAngleTag(1, 'a<b')).toBe(false)
+      expect(isProbablyAngleTag(1, 'x<s')).toBe(false)
+    })
+
+    it('should support non-CJK Unicode letters as tag context', () => {
+      expect(isProbablyAngleTag(4, 'café<laugh>')).toBe(true)
+      expect(isProbablyAngleTag(6, 'привет<sigh>')).toBe(true)
+    })
+  })
 })
