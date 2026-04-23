@@ -264,7 +264,7 @@ export function isProbablyAngleTag(index: number, text: string): boolean {
     return false
 
   // Lookbehind: if before is non-empty/non-bracket character, then determine as code or any instead of a label
-  if (prevChar && /[^\s([{（【<]/.test(prevChar))
+  if (prevChar && /[^\s([{（【<\])}>）】]/.test(prevChar))
     return false
 
   return true
@@ -295,10 +295,7 @@ export function processNarrative(text: string, options?: TtsInputChunkOptions): 
         starOpenIndex = -1
       }
       else {
-        if (/\s/.test(text[i + 1] || '')) {
-          charsToRemove.add(i)
-        }
-        else {
+        if (!/\s/.test(text[i + 1] || '')) {
           starOpenIndex = i
         }
       }
