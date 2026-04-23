@@ -76,7 +76,9 @@ export class ReplicateProvider implements ArtistryProvider {
     // 2. Merge overrides from the "JSON Parameters" textarea if present
     if (request.extra) {
       const { image, internalJobId, remixId, ...rest } = request.extra
-      inputOptions = { ...inputOptions, ...rest }
+      // [BY DESIGN]: Strip 'prompt' from rest to avoid overwriting the prefixed version from the bridge.
+      const { prompt: _overriddenPrompt, ...safeRest } = rest as any
+      inputOptions = { ...inputOptions, ...safeRest }
     }
 
     // 3. Recursive placeholder replacement for {{IMAGE}} and {{PROMPT}}
