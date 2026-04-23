@@ -13,16 +13,19 @@ import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const providerId = 'minimax-speech'
-const defaultModel = 'speech-2.8-hd'
 
-const defaultVoiceSettings = {
-  speed: 1,
-  volume: 1,
-  pitch: 0,
-  sampleRate: 32000,
-  bitrate: 128000,
-  channel: 1,
-  languageBoost: 'auto',
+interface MinimaxSpeechProviderConfig {
+  apiKey?: string
+  baseUrl?: string
+  model?: string
+  voice?: string
+  speed?: number
+  volume?: number
+  pitch?: number
+  sampleRate?: number
+  bitrate?: number
+  channel?: number
+  languageBoost?: string
 }
 
 const { t } = useI18n()
@@ -30,93 +33,64 @@ const { t } = useI18n()
 const speechStore = useSpeechStore()
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore)
+const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
+const defaultProviderConfig = computed(() => providerMetadata.value.defaultOptions?.() as MinimaxSpeechProviderConfig)
+const defaultVoiceSettings = computed(() => ({
+  speed: defaultProviderConfig.value.speed ?? 1,
+  volume: defaultProviderConfig.value.volume ?? 1,
+  pitch: defaultProviderConfig.value.pitch ?? 0,
+  sampleRate: defaultProviderConfig.value.sampleRate ?? 32000,
+  bitrate: defaultProviderConfig.value.bitrate ?? 128000,
+  channel: defaultProviderConfig.value.channel ?? 1,
+  languageBoost: defaultProviderConfig.value.languageBoost ?? 'auto',
+}))
+const defaultModel = computed(() => defaultProviderConfig.value.model ?? 'speech-2.8-hd')
+const providerConfig = computed(() => (providers.value[providerId] ?? {}) as MinimaxSpeechProviderConfig)
+const normalizedProviderConfig = computed<MinimaxSpeechProviderConfig>(() => ({
+  ...defaultProviderConfig.value,
+  ...providerConfig.value,
+}))
+type MinimaxNumberSettingKey
+  = 'speed'
+    | 'volume'
+    | 'pitch'
+    | 'sampleRate'
+    | 'bitrate'
+    | 'channel'
+
+function ensureProviderConfig() {
+  providers.value[providerId] ??= {}
+  return providers.value[providerId] as MinimaxSpeechProviderConfig
+}
+
+function createNumberField(key: MinimaxNumberSettingKey) {
+  return computed({
+    get: () => normalizedProviderConfig.value[key] as number,
+    set: (value: number) => {
+      ensureProviderConfig()[key] = value
+    },
+  })
+}
 
 const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 const model = computed({
-  get: () => {
-    const raw = providers.value[providerId]?.model as string | undefined | null
-    return raw ?? defaultModel
-  },
+  get: () => normalizedProviderConfig.value.model ?? defaultModel.value,
   set: (value) => {
-    providers.value[providerId] ??= {}
-    providers.value[providerId].model = value
+    ensureProviderConfig().model = value
   },
 })
 
-const speed = computed({
-  get: () => {
-    const raw = providers.value[providerId]?.speed
-    return typeof raw === 'number' ? raw : defaultVoiceSettings.speed
-  },
-  set: (value) => {
-    providers.value[providerId] ??= {}
-    providers.value[providerId].speed = value
-  },
-})
-
-const volume = computed({
-  get: () => {
-    const raw = providers.value[providerId]?.volume
-    return typeof raw === 'number' ? raw : defaultVoiceSettings.volume
-  },
-  set: (value) => {
-    providers.value[providerId] ??= {}
-    providers.value[providerId].volume = value
-  },
-})
-
-const pitch = computed({
-  get: () => {
-    const raw = providers.value[providerId]?.pitch
-    return typeof raw === 'number' ? raw : defaultVoiceSettings.pitch
-  },
-  set: (value) => {
-    providers.value[providerId] ??= {}
-    providers.value[providerId].pitch = value
-  },
-})
-
-const sampleRate = computed({
-  get: () => {
-    const raw = providers.value[providerId]?.sampleRate
-    return typeof raw === 'number' ? raw : defaultVoiceSettings.sampleRate
-  },
-  set: (value) => {
-    providers.value[providerId] ??= {}
-    providers.value[providerId].sampleRate = value
-  },
-})
-
-const bitrate = computed({
-  get: () => {
-    const raw = providers.value[providerId]?.bitrate
-    return typeof raw === 'number' ? raw : defaultVoiceSettings.bitrate
-  },
-  set: (value) => {
-    providers.value[providerId] ??= {}
-    providers.value[providerId].bitrate = value
-  },
-})
-
-const channel = computed({
-  get: () => {
-    const raw = providers.value[providerId]?.channel
-    return typeof raw === 'number' ? raw : defaultVoiceSettings.channel
-  },
-  set: (value) => {
-    providers.value[providerId] ??= {}
-    providers.value[providerId].channel = value
-  },
-})
+const speed = createNumberField('speed')
+const volume = createNumberField('volume')
+const pitch = createNumberField('pitch')
+const sampleRate = createNumberField('sampleRate')
+const bitrate = createNumberField('bitrate')
+const channel = createNumberField('channel')
 
 const languageBoost = computed({
-  get: () => {
-    const raw = providers.value[providerId]?.languageBoost as string | undefined | null
-    return raw ?? defaultVoiceSettings.languageBoost
-  },
+  get: () => normalizedProviderConfig.value.languageBoost ?? defaultProviderConfig.value.languageBoost ?? 'auto',
   set: (value) => {
-    providers.value[providerId] ??= {}
-    providers.value[providerId].languageBoost = value
+    ensureProviderConfig().languageBoost = value
   },
 })
 
@@ -133,16 +107,7 @@ const isLoadingModels = computed(() => {
 })
 
 onMounted(async () => {
-  providers.value[providerId] ??= {}
-  providers.value[providerId].model ??= defaultModel
-  providers.value[providerId].speed ??= defaultVoiceSettings.speed
-  providers.value[providerId].volume ??= defaultVoiceSettings.volume
-  providers.value[providerId].pitch ??= defaultVoiceSettings.pitch
-  providers.value[providerId].sampleRate ??= defaultVoiceSettings.sampleRate
-  providers.value[providerId].bitrate ??= defaultVoiceSettings.bitrate
-  providers.value[providerId].channel ??= defaultVoiceSettings.channel
-  providers.value[providerId].languageBoost ??= defaultVoiceSettings.languageBoost
-
+  providersStore.initializeProvider(providerId)
   await providersStore.fetchModelsForProvider(providerId)
 })
 
@@ -152,19 +117,15 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
     throw new Error('Failed to initialize speech provider')
   }
 
-  const providerConfig = providersStore.getProviderConfig(providerId)
-
-  const model = providerConfig.model as string | undefined || defaultModel
+  const providerConfig = normalizedProviderConfig.value
+  const model = providerConfig.model || defaultModel.value
 
   return await speechStore.speech(
     provider,
     model,
     input,
     voiceId,
-    {
-      ...defaultVoiceSettings,
-      ...providerConfig,
-    },
+    providerConfig,
   )
 }
 
@@ -173,8 +134,7 @@ watch(() => providers.value[providerId], async (providerConfig) => {
     return
   }
 
-  const providerMetadata = providersStore.getProviderMetadata(providerId)
-  if ((await providerMetadata.validators.validateProviderConfig(providerConfig)).valid) {
+  if ((await providerMetadata.value.validators.validateProviderConfig(providerConfig)).valid) {
     await speechStore.loadVoicesForProvider(providerId)
   }
   else {

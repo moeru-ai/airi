@@ -1412,13 +1412,13 @@ export const useProvidersStore = defineStore('providers', () => {
         languageBoost: 'auto',
       }),
       createProvider: async (config) => {
-        const apiKey = (config.apiKey as string).trim()
+        const apiKey = ((config.apiKey as string) || '').trim()
         const baseUrl = ((config.baseUrl as string) || 'https://api.minimax.io').replace(/\/$/, '')
 
         const provider: SpeechProvider = {
           speech: () => ({
             baseURL: `${baseUrl}/v1/`,
-            model: 'speech-2.8-hd',
+            model: (config.model as string) || 'speech-2.8-hd',
             fetch: async (_input: RequestInfo | URL, init?: RequestInit) => {
               if (!init?.body || typeof init.body !== 'string') {
                 throw new Error('Invalid request body')
