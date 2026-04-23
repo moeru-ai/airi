@@ -1,4 +1,4 @@
-import type { McpCallToolResult } from '@proj-airi/stage-ui/stores/mcp-tool-bridge'
+import type { ElectronElectronMcpCallToolResult } from '../../../shared/eventa'
 
 import type { OverlayState } from './desktop-overlay-polling'
 
@@ -162,7 +162,7 @@ describe('createOverlayPollController', () => {
   it('calls tool and delivers state on successful poll', async () => {
     vi.useFakeTimers()
 
-    const mockResult: McpCallToolResult = {
+    const mockResult: ElectronMcpCallToolResult = {
       structuredContent: {
         runState: {
           lastGroundingSnapshot: {
@@ -176,7 +176,7 @@ describe('createOverlayPollController', () => {
       },
     }
 
-    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
+    const callTool = vi.fn<(name: string) => Promise<ElectronMcpCallToolResult>>()
       .mockResolvedValue(mockResult)
 
     const received: OverlayState[] = []
@@ -204,7 +204,7 @@ describe('createOverlayPollController', () => {
   it('stops polling after stop() is called', async () => {
     vi.useFakeTimers()
 
-    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
+    const callTool = vi.fn<(name: string) => Promise<ElectronMcpCallToolResult>>()
       .mockResolvedValue({ structuredContent: {} })
 
     const controller = createOverlayPollController({
@@ -228,7 +228,7 @@ describe('createOverlayPollController', () => {
   it('continues polling after a single failure', async () => {
     vi.useFakeTimers()
 
-    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
+    const callTool = vi.fn<(name: string) => Promise<ElectronMcpCallToolResult>>()
       .mockRejectedValueOnce(new Error('MCP down'))
       .mockResolvedValue({
         structuredContent: {
@@ -270,7 +270,7 @@ describe('createOverlayPollController', () => {
   it('is a no-op to call start() twice', async () => {
     vi.useFakeTimers()
 
-    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
+    const callTool = vi.fn<(name: string) => Promise<ElectronMcpCallToolResult>>()
       .mockResolvedValue({ structuredContent: {} })
 
     const controller = createOverlayPollController({
@@ -292,7 +292,7 @@ describe('createOverlayPollController', () => {
     vi.useFakeTimers()
 
     // First call hangs forever (simulates startup race when RPC not ready)
-    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
+    const callTool = vi.fn<(name: string) => Promise<ElectronMcpCallToolResult>>()
       .mockImplementationOnce(() => new Promise(() => {})) // never resolves
       .mockResolvedValue({
         structuredContent: {
