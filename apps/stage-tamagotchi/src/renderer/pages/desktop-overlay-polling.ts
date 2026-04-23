@@ -130,11 +130,14 @@ export interface OverlayPollConfig {
   fallbackIntervalMs?: number
   /** Per-call timeout in ms. Default: 5000. Prevents poll loop hang on startup race. */
   callTimeoutMs?: number
+  /** How long a timed-out background call occupies a recovery slot before we probe again. */
+  hungCallLeaseMs?: number
 }
 
 const DEFAULT_INTERVAL = 250
 const DEFAULT_FALLBACK_INTERVAL = 500
 const DEFAULT_CALL_TIMEOUT = 5000
+const DEFAULT_HUNG_CALL_LEASE = 5000
 const MAX_BACKGROUND_HUNG_CALLS = 2
 
 /**
@@ -149,11 +152,12 @@ export const MCP_TOOL_NAME = 'computer_use::desktop_get_state'
 export function createOverlayPollController(config: OverlayPollConfig): OverlayPollController {
   const normalInterval = config.intervalMs ?? DEFAULT_INTERVAL
   const fallbackInterval = config.fallbackIntervalMs ?? DEFAULT_FALLBACK_INTERVAL
+  const hungCallLeaseMs = config.hungCallLeaseMs ?? DEFAULT_HUNG_CALL_LEASE
 
   let timer: ReturnType<typeof setTimeout> | null = null
   let running = false
   let inFlightCall: Promise<McpCallToolResult> | null = null
-  let backgroundHungCalls = 0
+  let backgroundHungSlots: Array<{ expiresAt: number }> = []
 
   function scheduleNext(nextInterval: number) {
     if (running) {
@@ -161,8 +165,14 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
     }
   }
 
+  function pruneHungCallSlots(now: number) {
+    backgroundHungSlots = backgroundHungSlots.filter(slot => slot.expiresAt > now)
+  }
+
   async function poll() {
-    if (inFlightCall || backgroundHungCalls >= MAX_BACKGROUND_HUNG_CALLS) {
+    pruneHungCallSlots(Date.now())
+
+    if (inFlightCall || backgroundHungSlots.length >= MAX_BACKGROUND_HUNG_CALLS) {
       scheduleNext(fallbackInterval)
       return
     }
@@ -175,22 +185,23 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
       // hanging forever if the eventa invoke never resolves (e.g. during
       // startup when the main-process RPC handlers may not be ready yet).
       // NOTICE: The bridge does not expose abort semantics, so a timed-out
-      // call may still be pending in the background. We therefore allow a
-      // bounded number of recovery retries while capping unresolved timed-out
-      // invokes to avoid unbounded Eventa/MCP buildup in the overlay process.
-      let timedOut = false
+      // call may still be pending in the background. We therefore track
+      // timed-out calls as expiring lease slots: the cap bounds how many
+      // unrecoverable invokes we tolerate at once, while lease expiry still
+      // lets the overlay probe again after a cooling-off window.
+      let timedOutSlot: { expiresAt: number } | null = null
       const currentCall = config.callTool(MCP_TOOL_NAME)
       inFlightCall = currentCall
       currentCall.then(() => {
-        if (timedOut) {
-          backgroundHungCalls = Math.max(0, backgroundHungCalls - 1)
+        if (timedOutSlot) {
+          backgroundHungSlots = backgroundHungSlots.filter(slot => slot !== timedOutSlot)
         }
         else if (inFlightCall === currentCall) {
           inFlightCall = null
         }
       }, () => {
-        if (timedOut) {
-          backgroundHungCalls = Math.max(0, backgroundHungCalls - 1)
+        if (timedOutSlot) {
+          backgroundHungSlots = backgroundHungSlots.filter(slot => slot !== timedOutSlot)
         }
         else if (inFlightCall === currentCall) {
           inFlightCall = null
@@ -201,8 +212,10 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
         currentCall,
         new Promise<never>((_, reject) =>
           timeoutId = setTimeout(() => {
-            timedOut = true
-            backgroundHungCalls += 1
+            timedOutSlot = {
+              expiresAt: Date.now() + hungCallLeaseMs,
+            }
+            backgroundHungSlots = [...backgroundHungSlots, timedOutSlot]
             if (inFlightCall === currentCall) {
               inFlightCall = null
             }

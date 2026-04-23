@@ -385,4 +385,57 @@ describe('createOverlayPollController', () => {
 
     controller.stop()
   })
+
+  it('recovers again once a timed-out hung-call slot lease expires', async () => {
+    vi.useFakeTimers()
+
+    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
+      .mockImplementationOnce(() => new Promise<McpCallToolResult>(() => {}))
+      .mockImplementationOnce(() => new Promise<McpCallToolResult>(() => {}))
+      .mockResolvedValue({
+        structuredContent: {
+          runState: {
+            lastGroundingSnapshot: {
+              snapshotId: 'dg_after_lease',
+              targetCandidates: [],
+              staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
+            },
+          },
+        },
+      })
+
+    const received: OverlayState[] = []
+
+    const controller = createOverlayPollController({
+      callTool,
+      onState: (state) => {
+        received.push(state)
+      },
+      intervalMs: 100,
+      fallbackIntervalMs: 200,
+      callTimeoutMs: 500,
+      hungCallLeaseMs: 1000,
+    })
+
+    controller.start()
+
+    await vi.advanceTimersByTimeAsync(0)
+    expect(callTool).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(500)
+    await vi.advanceTimersByTimeAsync(200)
+    expect(callTool).toHaveBeenCalledTimes(2)
+
+    await vi.advanceTimersByTimeAsync(500)
+    await vi.advanceTimersByTimeAsync(200)
+    expect(callTool).toHaveBeenCalledTimes(2)
+    expect(received).toHaveLength(0)
+
+    await vi.advanceTimersByTimeAsync(200)
+    expect(callTool).toHaveBeenCalledTimes(3)
+    expect(received).toHaveLength(1)
+    expect(received[0].snapshotId).toBe('dg_after_lease')
+
+    controller.stop()
+  })
 })
