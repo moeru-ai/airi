@@ -137,11 +137,15 @@ export interface OverlayPollConfig {
   fallbackIntervalMs?: number
   /** Per-call timeout in ms. Default: 5000. Prevents poll loop hang on startup race. */
   callTimeoutMs?: number
+  /** How long a timed-out background call occupies a recovery slot before we probe again. */
+  hungCallLeaseMs?: number
 }
 
 const DEFAULT_INTERVAL = 250
 const DEFAULT_FALLBACK_INTERVAL = 500
 const DEFAULT_CALL_TIMEOUT = 5000
+const DEFAULT_HUNG_CALL_LEASE = 5000
+const MAX_BACKGROUND_HUNG_CALLS = 2
 
 /**
  * MCP server name for computer-use-mcp. Matches the key in mcp.json.
@@ -155,13 +159,26 @@ export const MCP_TOOL_NAME = 'computer_use::desktop_get_state'
 export function createOverlayPollController(config: OverlayPollConfig): OverlayPollController {
   const normalInterval = config.intervalMs ?? DEFAULT_INTERVAL
   const fallbackInterval = config.fallbackIntervalMs ?? DEFAULT_FALLBACK_INTERVAL
+  const hungCallLeaseMs = config.hungCallLeaseMs ?? DEFAULT_HUNG_CALL_LEASE
 
   let timer: ReturnType<typeof setTimeout> | null = null
   let bootstrapTimer: ReturnType<typeof setTimeout> | null = null
   let running = false
+  let inFlightCall: Promise<ElectronMcpCallToolResult> | null = null
+  let backgroundHungSlots: Array<{ expiresAt: number }> = []
 
   let currentBootstrapState: 'booting' | 'ready' | 'degraded' = 'booting'
   let currentBootstrapError: string | undefined
+
+  function scheduleNext(nextInterval: number) {
+    if (running) {
+      timer = setTimeout(poll, nextInterval)
+    }
+  }
+
+  function pruneHungCallSlots(now: number) {
+    backgroundHungSlots = backgroundHungSlots.filter(slot => slot.expiresAt > now)
+  }
 
   function emitEmptyState() {
     const empty = createEmptyOverlayState()
@@ -195,16 +212,56 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
   }
 
   async function poll() {
+    pruneHungCallSlots(Date.now())
+
+    if (inFlightCall || backgroundHungSlots.length >= MAX_BACKGROUND_HUNG_CALLS) {
+      scheduleNext(fallbackInterval)
+      return
+    }
+
     let nextInterval = normalInterval
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
 
     try {
       // NOTICE: Wrap callTool with a timeout to prevent the poll loop from
       // hanging forever if the eventa invoke never resolves (e.g. during
       // startup when the main-process RPC handlers may not be ready yet).
+      // NOTICE: Eventa does not expose abort semantics here, so a timed-out
+      // invoke can still be unresolved in the background. Timed-out calls are
+      // therefore tracked as expiring lease slots: the cap bounds pending
+      // backlog, while lease expiry still lets the overlay probe again later.
+      let timedOutSlot: { expiresAt: number } | null = null
+      const currentCall = config.callTool(MCP_TOOL_NAME)
+      inFlightCall = currentCall
+      currentCall.then(() => {
+        if (timedOutSlot) {
+          backgroundHungSlots = backgroundHungSlots.filter(slot => slot !== timedOutSlot)
+        }
+        else if (inFlightCall === currentCall) {
+          inFlightCall = null
+        }
+      }, () => {
+        if (timedOutSlot) {
+          backgroundHungSlots = backgroundHungSlots.filter(slot => slot !== timedOutSlot)
+        }
+        else if (inFlightCall === currentCall) {
+          inFlightCall = null
+        }
+      })
+
       const result = await Promise.race([
-        config.callTool(MCP_TOOL_NAME),
+        currentCall,
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('callTool timeout')), config.callTimeoutMs ?? DEFAULT_CALL_TIMEOUT),
+          timeoutId = setTimeout(() => {
+            timedOutSlot = {
+              expiresAt: Date.now() + hungCallLeaseMs,
+            }
+            backgroundHungSlots = [...backgroundHungSlots, timedOutSlot]
+            if (inFlightCall === currentCall) {
+              inFlightCall = null
+            }
+            reject(new Error('callTool timeout'))
+          }, config.callTimeoutMs ?? DEFAULT_CALL_TIMEOUT),
         ),
       ])
       const runState = extractRunStateFromResult(result)
@@ -223,10 +280,13 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
       // MCP server not running, bridge disconnected, or timeout — graceful degradation
       nextInterval = fallbackInterval
     }
-
-    if (running) {
-      timer = setTimeout(poll, nextInterval)
+    finally {
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId)
+      }
     }
+
+    scheduleNext(nextInterval)
   }
 
   return {

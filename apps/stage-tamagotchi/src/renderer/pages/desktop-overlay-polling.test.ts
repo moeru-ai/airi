@@ -356,6 +356,92 @@ describe('createOverlayPollController', () => {
     controller.stop()
   })
 
+  it('caps outstanding timed-out polls to avoid unbounded buildup', async () => {
+    vi.useFakeTimers()
+
+    const callTool = vi.fn<(name: string) => Promise<ElectronMcpCallToolResult>>()
+      .mockImplementation(() => new Promise<ElectronMcpCallToolResult>(() => {}))
+
+    const controller = createOverlayPollController({
+      callTool,
+      getReadiness: vi.fn().mockResolvedValue({ state: 'ready' }),
+      onState: () => {},
+      intervalMs: 100,
+      fallbackIntervalMs: 200,
+      callTimeoutMs: 500,
+    })
+
+    controller.start()
+
+    await vi.advanceTimersByTimeAsync(0)
+    expect(callTool).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(500)
+    await vi.advanceTimersByTimeAsync(200)
+    expect(callTool).toHaveBeenCalledTimes(2)
+
+    await vi.advanceTimersByTimeAsync(500)
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(callTool).toHaveBeenCalledTimes(2)
+
+    controller.stop()
+  })
+
+  it('recovers again once a timed-out hung-call lease expires', async () => {
+    vi.useFakeTimers()
+
+    const callTool = vi.fn<(name: string) => Promise<ElectronMcpCallToolResult>>()
+      .mockImplementationOnce(() => new Promise<ElectronMcpCallToolResult>(() => {}))
+      .mockImplementationOnce(() => new Promise<ElectronMcpCallToolResult>(() => {}))
+      .mockResolvedValue({
+        structuredContent: {
+          runState: {
+            lastGroundingSnapshot: {
+              snapshotId: 'dg_after_lease',
+              targetCandidates: [],
+              staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
+            },
+          },
+        },
+      })
+
+    const received: OverlayState[] = []
+
+    const controller = createOverlayPollController({
+      callTool,
+      getReadiness: vi.fn().mockResolvedValue({ state: 'ready' }),
+      onState: (state) => {
+        received.push(state)
+      },
+      intervalMs: 100,
+      fallbackIntervalMs: 200,
+      callTimeoutMs: 500,
+      hungCallLeaseMs: 1000,
+    })
+
+    controller.start()
+
+    await vi.advanceTimersByTimeAsync(0)
+    expect(callTool).toHaveBeenCalledTimes(1)
+    expect(received).toHaveLength(1)
+
+    await vi.advanceTimersByTimeAsync(500)
+    await vi.advanceTimersByTimeAsync(200)
+    expect(callTool).toHaveBeenCalledTimes(2)
+
+    await vi.advanceTimersByTimeAsync(500)
+    await vi.advanceTimersByTimeAsync(200)
+    expect(callTool).toHaveBeenCalledTimes(2)
+    expect(received).toHaveLength(1)
+
+    await vi.advanceTimersByTimeAsync(200)
+    expect(callTool).toHaveBeenCalledTimes(3)
+    expect(received).toHaveLength(2)
+    expect(received[1].snapshotId).toBe('dg_after_lease')
+
+    controller.stop()
+  })
+
   it('waits for readiness before entering main poll loop', async () => {
     vi.useFakeTimers()
     const callTool = vi.fn()
