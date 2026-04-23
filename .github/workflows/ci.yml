@@ -1,5 +1,4 @@
 name: CI
-
 on:
   push:
     branches:
@@ -31,7 +30,7 @@ jobs:
 
     # Lint Godot C# code
       - name: Lint Godot C#
-        working-directory: ./engine/stage-tamagotchi-godot
+        working-directory: ./engines/stage-tamagotchi-godot
         run: dotnet format stage-tamagotchi-godot.sln --verify-no-changes
 
       - run: docker run -v `pwd`:`pwd` -w `pwd` ghcr.io/realm/swiftlint:latest
