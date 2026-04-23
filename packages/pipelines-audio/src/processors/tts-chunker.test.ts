@@ -43,6 +43,10 @@ describe('tTS Chunker Logic Cleanup', () => {
       expect(processNarrative('Version (beta', options)).toBe('Version (beta')
     })
 
+    it('should handle valid narritive tag', () => {
+      expect(processNarrative('Hello,<laugh>', options)).toBe('Hello,')
+    })
+
     it('should preserve code literals in keepNarrativeText mode', () => {
       const keepOptions = { stripNarrative: true, keepNarrativeText: true }
       expect(processNarrative('Value is List<String> [action]', keepOptions)).toContain('List<String>')

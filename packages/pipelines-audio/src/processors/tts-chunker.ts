@@ -264,7 +264,7 @@ export function isProbablyAngleTag(index: number, text: string): boolean {
     return false
 
   // Lookbehind: if before is non-empty/non-bracket character, then determine as code or any instead of a label
-  if (prevChar && /[^\s([{（【<\])}>）】]/.test(prevChar))
+  if (prevChar && /[^\s([{（【<\])}>）】.,!?;:，。！？；：'"\-_]/.test(prevChar))
     return false
 
   return true
@@ -405,11 +405,7 @@ export function createTtsSegmentStream(
             const starsUnclosed = (pendingText.match(/\*/g) || []).length % 2 !== 0
               && starMatch !== null && !starMatch[1].startsWith(' ')
             const hasUnclosed = bracketsUnclosed || starsUnclosed
-
-            const isStrippingActive = options?.stripNarrative && hasUnclosed
-
-            // 响应 Medium Priority: 对所有未闭合的叙事标签统一提供高 fallbackLimit
-            const fallbackLimit = isStrippingActive ? 800 : 200
+            const fallbackLimit = (options?.stripNarrative && bracketsUnclosed) ? 800 : 200
 
             if (!hasUnclosed || pendingText.length > fallbackLimit) {
               const textToEmit = processNarrative(pendingText, options)
