@@ -151,6 +151,38 @@ describe('captureChromeSemantics', () => {
     expect(result!.interactiveElements).toHaveLength(1)
   })
 
+  it('falls back to CDP when extension capture returns no interactive elements', async () => {
+    const mockExtension = {
+      getStatus: () => ({ connected: true, enabled: true, host: 'localhost', port: 8080, pendingRequests: 0 }),
+      readAllFramesDom: vi.fn().mockResolvedValue([
+        {
+          frameId: 0,
+          result: {
+            url: 'https://example.com',
+            title: 'Example',
+            interactiveElements: [],
+          },
+        },
+      ]),
+    }
+    const mockCdp = {
+      getStatus: vi.fn().mockReturnValue({
+        connected: true,
+        pageUrl: 'https://example.com',
+        pageTitle: 'Example',
+      }),
+      collectInteractiveElements: vi.fn().mockResolvedValue([
+        { tag: 'button', text: 'Fallback CTA', rect: { x: 0, y: 0, w: 50, h: 20 } },
+      ]),
+    }
+
+    const result = await captureChromeSemantics(mockExtension as any, mockCdp as any)
+    expect(result).not.toBeNull()
+    expect(result!.source).toBe('cdp')
+    expect(result!.interactiveElements).toHaveLength(1)
+    expect(result!.interactiveElements[0].text).toBe('Fallback CTA')
+  })
+
   it('unwraps extension frame payloads nested under result.data', async () => {
     const mockExtension = {
       getStatus: () => ({ connected: true, enabled: true, host: 'localhost', port: 8080, pendingRequests: 0 }),

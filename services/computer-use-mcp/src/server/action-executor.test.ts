@@ -195,4 +195,41 @@ describe('createExecuteAction', () => {
     expect(stateManager.getState().lastClickedCandidateId).toBeUndefined()
     expect(stateManager.getState().lastPointerIntent).toBeUndefined()
   })
+
+  it('rejects desktop_click_target when the foreground app changed after desktop_observe', async () => {
+    const { runtime, executor, stateManager } = createRuntimeForActionTest()
+    stateManager.updateGroundingSnapshot({
+      snapshotId: 'dg_1',
+      capturedAt: new Date().toISOString(),
+      foregroundApp: 'Google Chrome',
+      windows: [],
+      screenshot: { dataBase64: '', mimeType: 'image/png', path: '', capturedAt: new Date().toISOString() },
+      targetCandidates: [{
+        id: 't_0',
+        source: 'chrome_dom',
+        appName: 'Google Chrome',
+        role: 'button',
+        label: 'Submit',
+        bounds: { x: 100, y: 200, width: 40, height: 20 },
+        confidence: 0.95,
+        interactable: true,
+      }],
+      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
+    } as any)
+    ;(executor.getForegroundContext as any).mockResolvedValue({
+      available: true,
+      appName: 'Terminal',
+      platform: 'darwin',
+    })
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({
+      kind: 'desktop_click_target',
+      input: { candidateId: 't_0' },
+    }, 'desktop_click_target')
+
+    expect(result.isError).toBe(true)
+    expect(executor.click).not.toHaveBeenCalled()
+    expect(result.content.find(item => item.type === 'text')?.text ?? '').toContain('current foreground app is "Terminal"')
+  })
 })

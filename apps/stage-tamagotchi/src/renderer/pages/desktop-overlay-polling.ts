@@ -5,7 +5,7 @@
  * without a DOM environment or Vue test-utils.
  */
 
-import type { McpCallToolResult } from '@proj-airi/stage-ui/stores'
+import type { McpCallToolResult } from '@proj-airi/stage-ui/tools/mcp'
 
 // ---------------------------------------------------------------------------
 // Types — minimal shapes matching RunState fields the overlay consumes

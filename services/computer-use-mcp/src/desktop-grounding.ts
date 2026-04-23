@@ -114,6 +114,7 @@ export async function captureDesktopGrounding(params: {
     snapshotId,
     capturedAt,
     foregroundApp,
+    foregroundWindowTitle: windowObs.frontmostWindowTitle,
     windows: windowObs.windows,
     screenshot,
     axSnapshot,

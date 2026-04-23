@@ -18,17 +18,18 @@ import type { OverlayState } from './desktop-overlay-polling'
 
 import { electron } from '@proj-airi/electron-eventa'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { getMcpToolBridge } from '@proj-airi/stage-ui/stores'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import { pointInOverlay, rectIntersectsOverlay, screenRectToLocal, screenToLocal } from './desktop-overlay-coordinates'
 import { createEmptyOverlayState, createOverlayPollController } from './desktop-overlay-polling'
+import { electronMcpCallTool } from '../../shared/eventa'
 
 // ---------------------------------------------------------------------------
 // Overlay window bounds
 // ---------------------------------------------------------------------------
 
 const getWindowBounds = useElectronEventaInvoke(electron.window.getBounds)
+const callMcpTool = useElectronEventaInvoke(electronMcpCallTool)
 const overlayBounds = ref<Rect | null>(null)
 
 // ---------------------------------------------------------------------------
@@ -65,21 +66,8 @@ const matchedCandidate = computed(() => {
   return visibleCandidates.value.find(c => c.id === pointerIntent.value!.candidateId) ?? null
 })
 
-// ---------------------------------------------------------------------------
-// Polling controller
-// ---------------------------------------------------------------------------
-
-let bridgeAvailable = false
-
 const controller = createOverlayPollController({
-  callTool: async (name) => {
-    // Probe bridge availability lazily
-    if (!bridgeAvailable) {
-      getMcpToolBridge() // Throws if not set
-      bridgeAvailable = true
-    }
-    return getMcpToolBridge().callTool({ name })
-  },
+  callTool: name => callMcpTool({ name }),
   onState: (newState) => {
     state.value = newState
   },

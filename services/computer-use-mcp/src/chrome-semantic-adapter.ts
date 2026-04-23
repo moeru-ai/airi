@@ -53,7 +53,10 @@ export async function captureChromeSemantics(
     try {
       const status = extensionBridge.getStatus()
       if (status.connected) {
-        return await captureViaExtension(extensionBridge)
+        const extensionSnapshot = await captureViaExtension(extensionBridge)
+        if (extensionSnapshot.interactiveElements.length > 0 || !cdpBridge?.getStatus().connected) {
+          return extensionSnapshot
+        }
       }
     }
     catch {

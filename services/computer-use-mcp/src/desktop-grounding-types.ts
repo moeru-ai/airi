@@ -140,6 +140,8 @@ export interface DesktopGroundingSnapshot {
   capturedAt: string
   /** Name of the foreground application */
   foregroundApp: string
+  /** Title of the foreground window when available */
+  foregroundWindowTitle?: string
   /** Current window list */
   windows: WindowInfo[]
   /** Latest screenshot artifact */

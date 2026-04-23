@@ -1,4 +1,4 @@
-import type { McpCallToolResult } from '@proj-airi/stage-ui/stores'
+import type { McpCallToolResult } from '@proj-airi/stage-ui/tools/mcp'
 
 import type { OverlayState } from './desktop-overlay-polling'
 

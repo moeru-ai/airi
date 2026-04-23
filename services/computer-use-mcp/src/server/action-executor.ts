@@ -12,7 +12,7 @@ import type {
 } from '../types'
 import type { ComputerUseServerRuntime } from './runtime'
 
-import { normalizeConfiguredAppAction } from '../app-aliases'
+import { appNamesMatch, normalizeConfiguredAppAction } from '../app-aliases'
 import { DESKTOP_CLICK_SNAPSHOT_MAX_AGE_MS } from '../desktop-grounding-types'
 import { evaluateActionPolicy } from '../policy'
 import { getRuntimePreflight } from '../preflight'
@@ -378,6 +378,20 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           const snapshotAge = Date.now() - new Date(snapshot.capturedAt).getTime()
           if (snapshotAge > DESKTOP_CLICK_SNAPSHOT_MAX_AGE_MS) {
             throw new Error(`Grounding snapshot "${snapshot.snapshotId}" is ${Math.round(snapshotAge / 1000)}s old. Call desktop_observe to get a fresh snapshot before clicking.`)
+          }
+
+          const currentForeground = await runtime.executor.getForegroundContext()
+          if (currentForeground.available && currentForeground.appName && !appNamesMatch(currentForeground.appName, snapshot.foregroundApp)) {
+            throw new Error(`Grounding snapshot "${snapshot.snapshotId}" was captured for "${snapshot.foregroundApp}", but the current foreground app is "${currentForeground.appName}". Call desktop_observe again before clicking.`)
+          }
+
+          if (
+            currentForeground.available
+            && currentForeground.windowTitle
+            && snapshot.foregroundWindowTitle
+            && currentForeground.windowTitle !== snapshot.foregroundWindowTitle
+          ) {
+            throw new Error(`Grounding snapshot "${snapshot.snapshotId}" was captured for window "${snapshot.foregroundWindowTitle}", but the current foreground window is "${currentForeground.windowTitle}". Call desktop_observe again before clicking.`)
           }
 
           const snap = resolveSnapByCandidate(normalizedAction.input.candidateId, snapshot)

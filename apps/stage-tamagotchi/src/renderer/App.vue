@@ -27,8 +27,6 @@ import ResizeHandler from './components/ResizeHandler.vue'
 
 import {
   electronGetServerChannelConfig,
-  electronMcpCallTool,
-  electronMcpListTools,
   electronSettingsNavigate,
   electronStartTrackMousePosition,
   i18nSetLocale,
@@ -89,8 +87,6 @@ const unloadPlugin = useElectronEventaInvoke(electronPluginUnload)
 const inspectPluginHost = useElectronEventaInvoke(electronPluginInspect)
 const startTrackingCursorPoint = useElectronEventaInvoke(electronStartTrackMousePosition)
 const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapability)
-const listMcpTools = useElectronEventaInvoke(electronMcpListTools)
-const callMcpTool = useElectronEventaInvoke(electronMcpCallTool)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
 const isChatWindowRoute = () => route.path === '/chat'
 const isWidgetsWindowRoute = () => route.path === '/widgets'
@@ -137,11 +133,6 @@ pluginHostInspectorStore.setBridge({
 
 // NOTICE: Runtime tool stores must register during setup so renderer consumers can see them
 // before `onMounted()` finishes the rest of the startup flow.
-setMcpToolBridge({
-  listTools: () => listMcpTools(),
-  callTool: payload => callMcpTool(payload),
-})
-
 void mcpToolsStore.refresh().catch((error) => {
   console.warn('[App] Failed to refresh MCP runtime tools:', error)
 })
@@ -224,7 +215,6 @@ onUnmounted(() => {
   if (!isChatWindowRoute()) {
     contextBridgeStore.dispose()
   }
-  clearMcpToolBridge()
   mcpToolsStore.dispose()
   pluginToolsStore.dispose()
 })
