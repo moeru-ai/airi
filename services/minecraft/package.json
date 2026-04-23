@@ -4,12 +4,12 @@
   "private": true,
   "description": "An intelligent Minecraft bot powered by LLM. AIRI can understand natural language commands, interact with the world, and assist players in various tasks.",
   "scripts": {
-    "dev": "tsx --env-file=.env --env-file-if-exists=.env.local src/main.ts",
-    "start": "tsx --env-file=.env --env-file-if-exists=.env.local src/main.ts",
+    "dev": "NODE_OPTIONS=--no-node-snapshot tsx --env-file=.env --env-file-if-exists=.env.local src/main.ts",
+    "start": "NODE_OPTIONS=--no-node-snapshot tsx --env-file=.env --env-file-if-exists=.env.local src/main.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
-    "test": "vitest"
+    "test": "NODE_OPTIONS=--no-node-snapshot vitest"
   },
   "dependencies": {
     "@guiiai/logg": "catalog:",
@@ -20,10 +20,11 @@
     "@xsai/shared-chat": "catalog:",
     "alien-signals": "^3.1.2",
     "awilix": "^13.0.3",
-    "canvas": "^3.2.2",
+    "canvas": "^3.2.3",
     "crossws": "catalog:",
     "es-toolkit": "^1.45.1",
     "eventemitter3": "^5.0.4",
+    "isolated-vm": "catalog:",
     "minecraft-data": "3.102.3",
     "mineflayer": "^4.33.0",
     "mineflayer-armor-manager": "^2.0.1",
@@ -33,18 +34,18 @@
     "mineflayer-pvp": "^1.3.2",
     "mineflayer-tool": "^1.2.0",
     "nanoid": "catalog:",
-    "prismarine-block": "^1.22.0",
-    "prismarine-entity": "^2.5.0",
-    "prismarine-item": "^1.17.0",
-    "prismarine-recipe": "^1.3.1",
+    "prismarine-block": "^1.23.0",
+    "prismarine-entity": "^2.6.0",
+    "prismarine-item": "^1.18.0",
+    "prismarine-recipe": "^1.5.0",
     "prismarine-viewer": "^1.33.0",
-    "prismarine-windows": "^2.9.0",
+    "prismarine-windows": "^2.10.0",
     "valibot": "^1.3.1",
-    "vec3": "^0.1.10",
+    "vec3": "^0.2.0",
     "ws": "catalog:",
     "yaml": "catalog:",
     "zod": "^4.3.6",
-    "zod-to-json-schema": "^3.25.1"
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
     "@types/ws": "catalog:"

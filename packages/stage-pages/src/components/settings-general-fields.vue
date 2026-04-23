@@ -55,6 +55,7 @@ const languages = computed(() => {
       :class="['transition-all', 'ease-in-out', 'duration-250']"
       :label="t('settings.language.title')"
       :description="t('settings.language.description')"
+      layout="horizontal"
       :options="languages"
     />
 

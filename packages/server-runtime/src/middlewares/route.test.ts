@@ -13,10 +13,16 @@ function createPeer(options: {
   plugin?: string
   instanceId?: string
   labels?: Record<string, string>
+  authenticated?: boolean
 }): AuthenticatedPeer {
   return {
-    peer: { id: options.id, send: () => 0 },
-    authenticated: true,
+    peer: {
+      id: options.id,
+      send: () => 0,
+      request: { url: 'http://localhost', headers: new Headers() },
+      remoteAddress: '127.0.0.1',
+    },
+    authenticated: options.authenticated ?? true,
     name: options.name,
     identity: options.plugin && options.instanceId
       ? { kind: 'plugin', plugin: { id: options.plugin }, id: options.instanceId, labels: options.labels }
@@ -52,6 +58,7 @@ describe('match-expression', () => {
     expect(matchesLabelSelector('env=prod', { env: 'dev' })).toBe(false)
     expect(matchesLabelSelector('feature', { feature: 'on' })).toBe(true)
     expect(matchesLabelSelector('missing', { env: 'prod' })).toBe(false)
+    expect(matchesLabelSelector(' env = prod ', { env: 'prod' })).toBe(true)
   })
 
   it('matches label selector list', () => {
@@ -91,6 +98,21 @@ describe('route middleware', () => {
     })
 
     expect(collectDestinations(event)).toEqual(['label:env=prod'])
+  })
+  it('respects explicit empty destinations as an override', () => {
+    const event = createSparkNotifyEvent({
+      data: {
+        id: 'evt-3',
+        eventId: 'spark-3',
+        kind: 'ping',
+        urgency: 'soon',
+        headline: 'hello',
+        destinations: ['module:character'],
+      },
+      route: { destinations: [] },
+    })
+
+    expect(collectDestinations(event)).toEqual([])
   })
 
   it('treats an explicit empty route destination list as the override', () => {
@@ -145,6 +167,48 @@ describe('route middleware', () => {
       return
 
     expect([...decision!.targetIds]).toEqual(['peer-1'])
+  })
+
+  it('policy middleware excludes unauthenticated peers', () => {
+    const peers = new Map<string, AuthenticatedPeer>([
+      ['peer-1', createPeer({ id: 'peer-1', name: 'telegram', plugin: 'telegram-bot', instanceId: 'telegram-1', labels: { env: 'prod' } })],
+      ['peer-2', createPeer({ id: 'peer-2', name: 'stage-ui', plugin: 'stage-ui', instanceId: 'stage-ui-1', labels: { env: 'prod' }, authenticated: false })],
+    ])
+
+    const policy = createPolicyMiddleware({ allowLabels: ['env=prod'] })
+    const decision = policy({
+      event: createSparkNotifyEvent(),
+      fromPeer: peers.get('peer-1')!,
+      peers,
+      destinations: undefined,
+    })
+
+    expect(decision).toBeDefined()
+    if (!decision || decision.type !== 'targets')
+      return
+
+    expect([...decision.targetIds]).toEqual(['peer-1'])
+  })
+
+  it('policy middleware does not authorize bypass by itself', () => {
+    const peers = new Map<string, AuthenticatedPeer>([
+      ['peer-1', createPeer({ id: 'peer-1', name: 'telegram', plugin: 'telegram-bot', instanceId: 'telegram-1', labels: { env: 'prod' } })],
+      ['peer-2', createPeer({ id: 'peer-2', name: 'stage-ui', plugin: 'stage-ui', instanceId: 'stage-ui-1', labels: { env: 'dev' } })],
+    ])
+
+    const policy = createPolicyMiddleware({ allowLabels: ['env=prod'] })
+    const decision = policy({
+      event: createSparkNotifyEvent({ route: { bypass: true } }),
+      fromPeer: peers.get('peer-1')!,
+      peers,
+      destinations: undefined,
+    })
+
+    expect(decision).toBeDefined()
+    if (!decision || decision.type !== 'targets')
+      return
+
+    expect([...decision.targetIds]).toEqual(['peer-1'])
   })
 
   it('devtools peer detection uses label', () => {

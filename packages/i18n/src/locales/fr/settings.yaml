@@ -18,17 +18,30 @@ dialogs:
     baseUrl: URL de base
     baseUrlHelp: URL de l'endpoint API (utilisez la valeur par défaut si vous n’êtes pas sûr)
     accountId: ID du compte
+    validationRunning: Tests en cours
     validationSuccess: Validation de la configuration réussie
+    validationPartial: Configuration partiellement validée
     validationFailed: La validation de la configuration a échouée.
     validationError: 'Erreur de validation: {error}'
+    testGeneration: Tester l’API
+    testGenerationRunning: Test en cours...
+    testGenerationFailed: Échec du test
+    retryPingCheck: Réessayer
     skipForNow: Passer pour l'instant
     saveAndContinue: Sauvegarder et Continuer
     next: Suivant
     retry: Réessayer
+    credentialsSafeLabel: Gardez vos clés API et identifiants en sécurité !
+    credentialsSafeLocal: >-
+      AIRI fonctionne entièrement en local sur votre PC et nous ne volerons jamais vos identifiants pour les fournisseurs d'IA / LLM. Gardez toutefois à l'esprit que vos clés API sont des informations sensibles. Veillez à les conserver en lieu sûr et à ne les partager avec personne.
+    credentialsSafeOpenSource: >-
+      AIRI est open source sur {github}, si vous souhaitez vérifier comment nous gérons vos identifiants, n'hésitez pas à inspecter notre code.
+    enableChatCheck: >-
+      Autoriser AIRI à envoyer un message "ping" au premier modèle de chat disponible pour vérifier sa disponibilité
     start: Commençons !
-    loginPrompt: Sign in to use the official AIRI provider for the best experience.
-    loginAction: Sign in
-    setupWithoutSigningIn: Setup with your provider
+    loginPrompt: Connectez-vous pour utiliser le fournisseur officiel AIRI et bénéficier de la meilleure expérience.
+    loginAction: Se connecter
+    setupWithoutSigningIn: Configurer avec votre fournisseur
     flux: Flux
     buyFlux: Charge Flux
     select-model: Choisissez un modèle
@@ -48,10 +61,27 @@ dialogs:
       stateRequesting: Demande en cours...
       stateGranted: Accordée
       stateNotGranted: Non accordée
+  bug-report:
+    title: Bug report (´;ω;`)ヾ(･∀･`)
+    subtitle: Oops, sorry we made something wrong. Would you mind telling us what happened?
+    trigger-label: Report a Bug
+    submit-label: Send Bug Report
+    triage-description: Include screenshot and page context to help us triage this issue.
+    description-placeholder: Steps to reproduce, expected behavior, and actual behavior
+    include-current-page-screenshot: Include current page screenshot
+    manual-media:
+      label: Manually choose screenshots / recordings
+      optional: Optional.
+    media-files:
+      label: Media files
+      description: 'Optional: manually select.'
+      placeholder: Choose screenshot or video file
+      selected-count: '{count} file(s) selected'
+    last-submitted-preview: Last Submitted Payload Preview
 language:
   title: Langage
-  description: >
-    UI language. You can set characters' language later.
+  description: |
+    Langue de l'interface. Vous pourrez définir la langue des personnages plus tard.
 controls-island:
   icon-size:
     title: Taille des icônes de l'îlot de contrôle
@@ -61,17 +91,18 @@ controls-island:
     small: Petite
 analytics:
   notice:
-    title: Usage analytics
-    description: AIRI collects anonymous usage analytics to help us understand how the app is used and improve stability. No personal data is collected.
+    title: Statistiques d'utilisation
+    description: >-
+      AIRI collecte des statistiques d'utilisation anonymes pour nous aider à comprendre comment l'application est utilisée et améliorer sa stabilité. Aucune donnée personnelle n'est collectée.
     privacyPrefix: Read the
-    privacyLink: privacy policy
-    onboardingHint: You can turn analytics off later in Settings > System > General.
-    settingsHint: You can turn analytics off at any time.
+    privacyLink: politique de confidentialité
+    onboardingHint: Vous pouvez désactiver les statistiques plus tard dans Paramètres > Système > Général.
+    settingsHint: Vous pouvez désactiver les statistiques à tout moment.
   toggle:
-    title: Enable usage analytics
-    description: Turn this off to opt out of analytics collection.
+    title: Activer les statistiques d'utilisation
+    description: Désactivez cette option pour ne plus participer à la collecte de statistiques.
   disabled:
-    title: Analytics disabled for this development build
+    title: Statistiques désactivées pour cette version de développement
 live2d:
   change-model:
     from-file: Charger depuis un Fichier
@@ -101,15 +132,26 @@ live2d:
   focus:
     title: Désactiver le suivi du modèle par la souris
     button-disable:
-      title: Désactiver
+      title: Désactiver le suivi souris du modèle
+  render-scale:
+    title: Échelle de rendu
   fps:
     title: FPS
     description: Limiter la fréquence d'image du rendu
     options:
-      unlimited: Aucune Limite
+      unlimited: '∞'
 microphone: Microphone
 models: Modèle
 pages:
+  account:
+    title: Compte
+    description: Consultez votre profil et gérez votre compte
+    notLoggedIn: Connectez-vous pour accéder à votre compte et à toutes les fonctionnalités
+    login: Sign in
+    logout: Sign out
+    fluxBalance: Solde de Flux
+    viewFluxDetails: Voir les détails
+    signedInAs: Connecté en tant que
   card:
     activate: Activer
     active: Actif
@@ -232,6 +274,10 @@ pages:
         title: Supprimer toutes les données
         description: Effacer tous les réglages, configurations de fournisseurs et modèles locaux.
         delete: Supprimer toutes les données
+      desktop-folder:
+        title: Ouvrir le dossier app data
+        description: Ouvrez le dossier de données d'AIRI dans votre gestionnaire de fichiers.
+        open: Ouvrir le dossier
       desktop:
         title: Réinitialiser les paramètres et états du bureau
         description: Effacer les paramètres du bureau AIRI et l'état d'exécution.
@@ -358,16 +404,33 @@ pages:
       description: Jouer à Minecraft !
       title: Minecraft
       enable: Activer l'intégration Minecraft
-      enable-description: Autoriser AIRI à interagir avec le jeu Minecraft
-      server-address: Adresse du serveur
-      server-address-description: L'adresse IP ou le nom d'hôte du serveur Minecraft
-      server-address-placeholder: Entrez l'adresse du serveur (ex. localhost ou play.exemple.com)
-      server-port: Port du serveur
-      server-port-description: Le numéro de port du serveur Minecraft (par défaut 25565)
-      username: Nom d'utilisateur
-      username-description: Votre nom d'utilisateur sur le serveur Minecraft
-      username-placeholder: Entrez votre nom d'utilisateur Minecraft
+      enable-description: >-
+        Include Minecraft self-knowledge in Stage chat turns and keep passive runtime visibility enabled.
       configured: Minecraft est correctement configuré !
+      read-only:
+        title: Shell en lecture seule
+        description: >-
+          Stage currently exposes Minecraft as a passive shell. Runtime status and traffic are visible here, but service configuration stays in the Minecraft service files.
+      setup:
+        title: Configuration
+        description: >-
+          Vous pouvez trouver les instructions de configuration du bot dans le fichier suivant
+      runtime:
+        title: Observed runtime
+        connection: Connexion
+        latest-context: Dernier contexte du bot
+        waiting: En attente d'un nouvel envoi de contexte provenant du bot.
+        unknown: Inconnu
+      debug:
+        title: Trafic Minecraft
+        empty: Aucun trafic Minecraft observé pour l'instant.
+        source: 'Source : {source}'
+      status:
+        service-online: Service en ligne
+        service-offline: Service hors ligne
+        no-runtime-context: Aucun contexte de bot observé pour l'instant
+        last-context-seconds: 'Dernier contexte du bot : il y a {seconds}s'
+        last-context-stale: 'Dernier contexte du bot : Obsolète'
     hearing:
       description: Configurer la reconnaissance vocale
       title: Audition
@@ -375,6 +438,15 @@ pages:
         section:
           provider-selection:
             description: Sélectionnez le fournisseur de reconnaissance vocale approprié
+          confidence-threshold:
+            title: Confidence Threshold
+            description: >-
+              Filter out low-confidence transcriptions to reduce Whisper hallucinations. Values closer to 0 are more strict; drag to the leftmost to disable. Only effective for providers supporting Whisper API (e.g., OpenAI, Groq).
+            disabled: Désactivé
+            verbose-json-note: >-
+              Remarque : Si votre fournisseur ne prend pas en charge les réponses verbose_json, ce paramètre n'aura aucun effet.
+            verbose-json-unsupported: >-
+              Your provider did not return verbose_json segments. Confidence filtering had no effect on the last transcription.
     memory-long-term:
       description: Paramètres et gestion de la mémoire à long terme
       title: Mémoire à long terme
@@ -461,33 +533,36 @@ pages:
         apply-and-restart: Enregistrer et redémarrer stdio MCP
       messages:
         opened: 'Fichier de configuration ouvert à : {path}'
-        restarted: 'Serveurs MCP redémarrés. Lancés : {started}, en échec : {failed}, ignorés : {skipped}'
+        restarted: >-
+          Serveurs MCP redémarrés. Lancés : {started}, en échec : {failed}, ignorés : {skipped}
   flux:
     title: Flux
     buy: Charge
-    description: Current Flux
-    packagesError: Failed to load packages. Please try again later.
+    currency: Currency
+    description: Flux actuel
+    packagesError: Échec du chargement des offres. Veuillez réessayer plus tard.
     checkout:
       success: Payment successful! Your Flux has been topped up.
-      canceled: Payment was canceled.
-      error: Something went wrong. Please try again later.
+      canceled: Le paiement a été annulé.
+      error: Une erreur est survenue. Veuillez réessayer plus tard.
     audit:
-      title: Transaction History
-      time: Time
+      title: Historique des transactions
+      time: Heure
       type: Type
-      detail: Detail
-      amount: Amount
-      typeAddition: Top-up
-      typeConsumption: Usage
-      typeInitial: Initial Grant
-      loading: Loading history...
-      empty: No transaction records yet.
-      loadMore: Load More
-      delayHint: Usage records may be delayed by up to 1 minute
+      detail: Détail
+      amount: Montant
+      typeAddition: Recharge
+      typeConsumption: Utilisation
+      typeInitial: Allocation initiale
+      loading: Chargement de l'historique...
+      empty: Aucune transaction pour l'instant.
+      loadMore: Charger plus
+      delayHint: Les enregistrements d'utilisation peuvent être retardés jusqu'à 1 minute
+      ttsRequests: requests
     packages:
-      title: Flux Packages
+      title: Offres de Flux
       buy: Charge
-      description: Flux packages to choose from.
+      description: Offres Flux disponibles.
   providers:
     explained:
       chat: Fournisseurs de modèles de génération de texte, par ex. OpenRouter, OpenAI, Ollama.
@@ -571,7 +646,7 @@ pages:
                       Nous sommes désolés que le test de connectivité pour Ollama ait échoué. Ne vous inquiétez pas, une configuration supplémentaire est nécessaire pour les instances Ollama. Vous devez définir explicitement <code>OLLAMA_HOST</code> lors du lancement de l'application ou du serveur CLI Ollama. Pour plus d'informations, consultez le <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">guide d'intégration Ollama</a>.
     common:
       continueAnyway: Continuer quand même
-      goToModelSelection: 'Sélectionnez un Modèle'
+      goToModelSelection: Sélectionnez un Modèle
       fields:
         field:
           api-key:
@@ -749,6 +824,9 @@ pages:
       minimax-global:
         description: minimax.io
         title: MiniMax Global
+      minimax-speech:
+        description: minimax.io
+        title: MiniMax Speech
       mistral:
         description: mistral.ai
         title: Mistral
@@ -767,6 +845,9 @@ pages:
       openai:
         description: openai.com
         title: OpenAI
+      azure-openai:
+        description: API Azure OpenAI
+        title: Azure OpenAI
       openai-compatible:
         description: Compatible avec OpenAI
         title: Compatible avec OpenAI
@@ -777,6 +858,9 @@ pages:
         description: n1n.ai - Fournisseur d'API d'IA haute performance.
         title: n1n
       openrouter:
+        description: openrouter.ai
+        title: OpenRouter
+      openrouter-audio-speech:
         description: openrouter.ai
         title: OpenRouter
       perplexity:
@@ -833,12 +917,12 @@ pages:
         description: STT natif du navigateur (requiert Chrome/Edge/Safari)
         title: Web Speech API
       official:
-        title: Official Provider
-        description: Official AI provider by AIRI.
-        speech-title: Official Speech Provider
-        speech-description: Official text-to-speech provider by AIRI.
-        transcription-title: Official Transcription Provider
-        transcription-description: Official speech-to-text provider by AIRI.
+        title: Fournisseur officiel
+        description: Fournisseur d'IA officiel par AIRI.
+        speech-title: Fournisseur vocal officiel
+        speech-description: Fournisseur texte-to-speech officiel par AIRI.
+        transcription-title: Fournisseur de transcription officiel
+        transcription-description: Fournisseur speech-to-text officiel par AIRI.
       transcriptions:
         playground:
           title: Terrain de test de transcription
@@ -853,6 +937,45 @@ pages:
       description: 'Adresse complète du serveur WebSocket (ex: ws://localhost:6121/ws)'
       label: Adresse du serveur WebSocket
       placeholder: ws://localhost:6121/ws
+    server-hostname:
+      label: Expose On Network
+      description: >-
+        Choose whether the AIRI gateway only listens on this device or can be reached from your local network.
+      advanced-label: Bind Hostname
+      advanced-description: >-
+        Use a specific hostname or IP address when you need manual network binding.
+      options:
+        this-device: This device
+        all: All
+        advanced: Advanced
+    server-auth-token:
+      label: Auth Token
+      description: >-
+        Security token required by remote clients that connect to this gateway. When left empty, AIRI generates a new token automatically.
+      placeholder: Auto-generate
+    qr:
+      title: Connect from Stage Pocket
+      description: >-
+        Scan this QR code from Stage Pocket to try all reachable local network addresses and save the first working one.
+      refresh: Refresh
+      image-alt: AIRI server channel connection QR code
+      candidates: Candidate addresses
+      token-hint: >-
+        The QR code includes the auth token so Stage Pocket can authenticate after connecting. Do not share it publicly.
+      errors:
+        title: QR code unavailable
+        unavailable: Failed to prepare the connection QR code.
+    qr-scan:
+      title: Quick Connect
+      description: Scan the QR code from Tamagotchi to quick connect
+      instructions: Point the camera at the AIRI connection QR code.
+      action: Scan
+      success:
+        title: Connected address saved
+        description: 'URL been used: {url}'
+      errors:
+        title: QR scan failed
+        failed: Failed to scan or connect with the QR code.
   scene:
     description: Configurer l’environnement où vit le personnage
     title: Scène
@@ -926,7 +1049,7 @@ pages:
                   Diffuser l'audio du microphone vers Aliyun NLS et inspecter les transcriptions en direct
               performance-playground:
                 title: Zone d'essai de performance
-                description: 'Expressions VRM + synchro labiale TTS'
+                description: Expressions VRM + synchro labiale TTS
         theme-presets:
           presets:
             default:
@@ -1003,7 +1126,7 @@ pages:
         title: Ouvrir les Outils de Développement
         button: Ouvrir
   credits:
-    buy: Buy
+    buy: Acheter
 sections:
   section:
     general:
@@ -1015,6 +1138,8 @@ theme:
 title: Paramètres
 voices: Voix
 vrm:
+  render-scale:
+    title: Échelle de rendu
   change-model:
     from-file: Charger depuis un fichier
     from-file-select: Sélectionner

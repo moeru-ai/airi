@@ -12,13 +12,14 @@ import templateCompilerOptions from '@tresjs/core/template-compiler-options'
 import Vue from '@vitejs/plugin-vue'
 import Unocss from 'unocss/vite'
 import Info from 'unplugin-info/vite'
-import VueRouter from 'unplugin-vue-router/vite'
 import Yaml from 'unplugin-yaml/vite'
 import mkcert from 'vite-plugin-mkcert'
 import VueDevTools from 'vite-plugin-vue-devtools'
 import Layouts from 'vite-plugin-vue-layouts'
 import VueMacros from 'vue-macros/vite'
+import VueRouter from 'vue-router/vite'
 
+import { tryCatch } from '@moeru/std'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
 import { defineConfig } from 'vite'
@@ -27,6 +28,7 @@ import { defineConfig } from 'vite'
 function isEnvTruthy(value: string | undefined | null): boolean {
   if (value == null)
     return false
+
   return /^(?:1|true|t|yes|y|on)$/i.test(value.trim())
 }
 
@@ -107,12 +109,9 @@ export default defineConfig({
       : [mkcert((() => {
           // Workaround: plugin's bundled downloader has a feaxios bug, prefer system mkcert
           const command = process.platform === 'win32' ? 'where' : 'which'
-          try {
-            return { mkcertPath: execSync(`${command} mkcert`, { stdio: 'pipe' }).toString().trim().split(/\r?\n/)[0] }
-          }
-          catch {
-            return {}
-          }
+
+          const { data } = tryCatch(() => ({ mkcertPath: execSync(`${command} mkcert`, { stdio: 'pipe' }).toString().trim().split(/\r?\n/)[0] }))
+          return data
         })())],
 
     Info(),
@@ -130,14 +129,19 @@ export default defineConfig({
       betterDefine: false,
     }),
 
-    // https://github.com/posva/unplugin-vue-router
     VueRouter({
       extensions: ['.vue', '.md'],
       dts: resolve(import.meta.dirname, 'src/typed-router.d.ts'),
       importMode: 'async',
       routesFolder: [
         resolve(import.meta.dirname, 'src', 'pages'),
-        resolve(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src', 'pages'),
+        {
+          src: resolve(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src', 'pages'),
+          exclude: base => [
+            ...base,
+            '**/settings/connection/index.vue',
+          ],
+        },
       ],
       exclude: ['**/components/**'],
     }),

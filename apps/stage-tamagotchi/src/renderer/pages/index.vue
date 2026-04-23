@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { ModelSettingsRuntimeSnapshot } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
-import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import type { ModelSettingsRuntimeChannelEvent } from '../../shared/model-settings-runtime'
 
@@ -16,6 +15,7 @@ import {
   useElectronRelativeMouse,
 } from '@proj-airi/electron-vueuse'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
+import { HoloCoupon } from '@proj-airi/stage-ui/components'
 import {
   createEmptyModelSettingsRuntimeSnapshot,
   resolveComponentStateToRuntimePhase,
@@ -24,12 +24,9 @@ import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
 import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
-import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useLive2d } from '@proj-airi/stage-ui/stores/live2d'
-import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { refDebounced, useBroadcastChannel } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -40,9 +37,8 @@ import ResourceStatusIsland from '../components/stage-islands/resource-status-is
 import StatusIsland from '../components/stage-islands/status-island/index.vue'
 
 import { electronOpenOnboarding } from '../../shared/eventa'
-import {
-  modelSettingsRuntimeSnapshotChannelName,
-} from '../../shared/model-settings-runtime'
+import { modelSettingsRuntimeSnapshotChannelName } from '../../shared/model-settings-runtime'
+import { useChatSyncStore } from '../stores/chat-sync'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
 import { useWindowStore } from '../stores/window'
@@ -111,7 +107,7 @@ const isTransparent = computed(() => {
   return true
 })
 
-const { isNearAnyBorder: isAroundWindowBorder } = useElectronMouseAroundWindowBorder({ threshold: 30 })
+const { isNearAnyBorder: isAroundWindowBorder } = useElectronMouseAroundWindowBorder({ threshold: 10 })
 const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
@@ -223,10 +219,7 @@ const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
 const { transcribeForRecording, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
-const providersStore = useProvidersStore()
-const consciousnessStore = useConsciousnessStore()
-const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
-const chatStore = useChatOrchestratorStore()
+const chatSyncStore = useChatSyncStore()
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
 const { init: initVAD, dispose: disposeVAD, start: startVAD, loaded: vadLoaded } = useVAD(workletUrl, {
@@ -259,14 +252,8 @@ function handleStreamingSentenceEnd(delta: string) {
 
   void (async () => {
     try {
-      const provider = await providersStore.getProviderInstance(activeChatProvider.value)
-      if (!provider || !activeChatModel.value) {
-        console.warn('[Main Page] No provider or model available, skipping chat send')
-        return
-      }
-
       console.info('[Main Page] Sending transcription to chat:', finalText)
-      await chatStore.ingest(finalText, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+      await chatSyncStore.requestIngest({ text: finalText })
     }
     catch (err) {
       console.error('[Main Page] Failed to send chat from voice:', err)
@@ -371,11 +358,7 @@ async function startAudioInteraction() {
         postCaption({ type: 'caption-speaker', text })
 
         try {
-          const provider = await providersStore.getProviderInstance(activeChatProvider.value)
-          if (!provider || !activeChatModel.value)
-            return
-
-          await chatStore.ingest(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+          await chatSyncStore.requestIngest({ text })
         }
         catch (err) {
           console.error('Failed to send chat from voice:', err)
@@ -413,6 +396,7 @@ watch(enabled, async (val) => {
 }, { immediate: true })
 
 onMounted(() => {
+  chatSyncStore.initialize('authority')
   if (onboardingStore.needsOnboarding) {
     openOnboarding()
   }
@@ -424,6 +408,7 @@ onUnmounted(() => {
     ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
   })
   stopAudioInteraction()
+  chatSyncStore.dispose()
 })
 
 watch(stream, async (currentStream) => {
@@ -489,8 +474,8 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
           :scale="scale"
           :x-offset="positionInPercentageString.x"
           :y-offset="positionInPercentageString.y"
-          mb="<md:18"
         />
+        <HoloCoupon />
         <ControlsIsland
           ref="controlsIslandRef"
         />

@@ -40,6 +40,8 @@ devtools:
     markdown-stress:
       title: Markdown 压力测试
       description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
+    io-tracer:
+      title: IO Tracer
     widgets-calling:
       title: 小组件调用
 screen-capture:

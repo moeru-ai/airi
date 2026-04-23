@@ -18,19 +18,32 @@ dialogs:
     baseUrl: 基础 URL
     baseUrlHelp: API 端点 URL（如果不确定请使用默认值）
     accountId: 账户 ID
+    validationRunning: 运行测试
     validationSuccess: 配置验证成功
+    validationPartial: 配置部分验证
     validationFailed: 配置验证失败
     validationError: '验证错误：{error}'
+    testGeneration: Ping API
+    testGenerationRunning: Ping...
+    testGenerationFailed: Ping 测试失败
+    retryPingCheck: 重试
     skipForNow: 暂时跳过
     saveAndContinue: 保存并继续
     next: 下一步
     retry: 重试
+    credentialsSafeLabel: 保证您的 API 密钥和凭据的安全！
+    credentialsSafeLocal: >-
+      AIRI 完全本地运行在您的电脑中，我们绝不窃取您对大模型提供商的凭据。但请牢记，您的 API 密钥属于敏感信息。务必妥善保管，切勿与他人分享。
+    credentialsSafeOpenSource: >-
+      AIRI 在 {github} 开源，如果您想确认我们如何存储您的凭据，您可以自由浏览源码。
+    enableChatCheck: >-
+      允许 AIRI 向第一个可用的聊天模式发送「ping」消息以检查可用性
     start: 开始吧！
-    loginPrompt: Sign in to use the official AIRI provider for the best experience.
-    loginAction: Sign in
-    setupWithoutSigningIn: Setup with your provider
-    flux: Flux
-    buyFlux: Charge Flux
+    loginPrompt: 登录并使用 AIRI 官方提供的服务以获得最佳体验。
+    loginAction: 登录
+    setupWithoutSigningIn: 配置您自己的 AI 服务来源
+    flux: Flux 电量
+    buyFlux: 补充 Flux 电量
     select-model: 选择模型
     no-models: 找不到可用模型
     no-models-help: >-
@@ -48,10 +61,27 @@ dialogs:
       stateRequesting: 正在获取...
       stateGranted: 已授权
       stateNotGranted: 未授权
+  bug-report:
+    title: Bug 汇报 (´;ω;`)ヾ(･∀･`)
+    subtitle: 坏哦，看起来我们不小心搞砸了一些东西。可以分享一下遇到了什么问题吗？
+    trigger-label: 报告程序错误
+    submit-label: 发送错误报告
+    triage-description: 包括屏幕截图和页面上的上下文来帮助我们对这个问题进行分析。
+    description-placeholder: 复制的步骤，预期的行为和实际行为
+    include-current-page-screenshot: 包含当前页面截图
+    manual-media:
+      label: 手动选择屏幕截图/录屏
+      optional: 可选的。
+    media-files:
+      label: 媒体文件
+      description: '可选：手动选择。'
+      placeholder: 选择屏幕截图或视频文件
+      selected-count: '已选择 {count} 个文件'
+    last-submitted-preview: 提交前预览
 language:
   title: 语言
-  description: >
-    UI language. You can set characters' language later.
+  description: |
+    界面语言。你也可以稍后再设置角色语言。
 controls-island:
   icon-size:
     title: 控制岛图标大小
@@ -62,7 +92,8 @@ controls-island:
 analytics:
   notice:
     title: 使用数据及崩溃分析
-    description: AIRI 开发者将会收集脱敏的匿名使用数据，以及崩溃及错误细节，以帮助我们了解应用程序是如何使用和提高稳定性的，不会收集任何个人数据。
+    description: >-
+      AIRI 开发者将会收集脱敏的匿名使用数据，以及崩溃及错误细节，以帮助我们了解应用程序是如何使用和提高稳定性的，不会收集任何个人数据。
     privacyPrefix: 阅读
     privacyLink: 隐私政策
     onboardingHint: 您可以稍后在「设置」>「系统」>「通用」中关闭使用数据及崩溃分析。
@@ -101,7 +132,9 @@ live2d:
   focus:
     title: 禁用模型鼠标跟踪
     button-disable:
-      title: 禁用
+      title: 禁用 Live2D 模型的鼠标追踪
+  render-scale:
+    title: 渲染精度
   fps:
     title: 帧率
     description: 限制渲染帧率
@@ -110,6 +143,15 @@ live2d:
 microphone: 麦克风
 models: 模型
 pages:
+  account:
+    title: 账号
+    description: 查看您的个人资料并管理您的帐户
+    notLoggedIn: 登录以查看您的帐户并访问所有功能
+    login: Sign in
+    logout: Sign out
+    fluxBalance: 剩余通量
+    viewFluxDetails: 查看详情
+    signedInAs: 登录 为
   card:
     activate: 激活
     active: 已激活
@@ -232,6 +274,10 @@ pages:
         title: 删除所有数据
         description: 清除每个本地设置、提供商配置和模型。
         delete: 删除所有数据
+      desktop-folder:
+        title: 打开应用数据文件夹
+        description: 在文件管理器中打开 AIRI 的数据文件夹。
+        open: 打开文件夹
       desktop:
         title: 重置桌面设置和状态
         description: 清除 AIRI 桌面设置和运行状态。
@@ -358,16 +404,33 @@ pages:
       description: 一起玩 Minecraft！
       title: 我的世界 Minecraft
       enable: 启用我的世界集成
-      enable-description: 允许AIRI与我的世界游戏互动
-      server-address: 服务器地址
-      server-address-description: 我的世界服务器的IP地址或主机名
-      server-address-placeholder: 输入服务器地址（例如：localhost或play.example.com）
-      server-port: 服务器端口
-      server-port-description: 我的世界服务器的端口号（默认 25565）
-      username: 用户名
-      username-description: 您在我的世界服务器中的用户名
-      username-placeholder: 输入您的我的世界用户名
+      enable-description: >-
+        在 Chat 界面 中包含 Minecraft 自己的上下文和认知，并保持 Passive runtime visibility 启用。
       configured: 我的世界已正确配置！
+      read-only:
+        title: 只读外壳
+        description: >-
+          目前此 Minecraft 管理界面将作为一个被动的外壳。你可以在这里观察运行状态，但服务配置仍然存在于 Minecraft 服务文件中。
+      setup:
+        title: 配置
+        description: >-
+          你可以在下面的文件中找到设置 Minecraft bot 的说明
+      runtime:
+        title: 可观测
+        connection: 连接
+        latest-context: 最后的 Bot 状态
+        waiting: 等待一个新的 Bot 上下文推送。
+        unknown: 未知
+      debug:
+        title: Minecraft流量
+        empty: 还没有观察到任何 Minecraft 流量。
+        source: '来源: {source}'
+      status:
+        service-online: 服务已上线
+        service-offline: 服务已离线
+        no-runtime-context: 尚未观察到 Bot 状态
+        last-context-seconds: '最后一次 Bot 状态更新：{seconds} 秒之前'
+        last-context-stale: '最后一次 Bot 状态：挂起'
     hearing:
       description: 语音识别
       title: 听觉
@@ -375,6 +438,15 @@ pages:
         section:
           provider-selection:
             description: 选择合适的语音转文本的服务来源
+          confidence-threshold:
+            title: 置信度阈值
+            description: >-
+              筛选低信任的文字记录以减少语音识别的幻觉。值靠近 0 更严格；拖动到左边以禁用。 仅对支持 Whisper API 的提供者有效（例如，OpenAI，Groq）。
+            disabled: 禁用
+            verbose-json-note: >-
+              注意：如果您的提供商不支持 verbose_json 结果处理，此设置将不会有任何效果。
+            verbose-json-unsupported: >-
+              如果您的提供商没有返回 verbose_json 结果。置信度阈值将不会影响转录。
     memory-long-term:
       description: 长期记忆
       title: 长期记忆
@@ -461,33 +533,36 @@ pages:
         apply-and-restart: 保存并重启 Stdio 协议的 MCP
       messages:
         opened: 配置文件已于 {path} 打开
-        restarted: MCP 服务已重新启动，启动了 {started}，未启动 {failed}，跳过 {skipped}
+        restarted: >-
+          MCP 服务已重新启动，启动了 {started}，未启动 {failed}，跳过 {skipped}
   flux:
     title: Flux
-    buy: Charge
-    description: Current Flux
-    packagesError: Failed to load packages. Please try again later.
+    buy: 充值
+    currency: Currency
+    description: 充值 Flux
+    packagesError: 暂时无法获取可用的 Flux 电量包。可以之后再试试吗？
     checkout:
-      success: Payment successful! Your Flux has been topped up.
-      canceled: Payment was canceled.
-      error: Something went wrong. Please try again later.
+      success: 谢谢你！你的 Flux 通量已经更新好啦～
+      canceled: 支付被取消
+      error: 哎呀，出错了，请稍后再试
     audit:
-      title: Transaction History
-      time: Time
-      type: Type
-      detail: Detail
-      amount: Amount
-      typeAddition: Top-up
-      typeConsumption: Usage
-      typeInitial: Initial Grant
-      loading: Loading history...
-      empty: No transaction records yet.
-      loadMore: Load More
-      delayHint: Usage records may be delayed by up to 1 minute
+      title: 使用记录
+      time: 时间
+      type: 类型
+      detail: 明细
+      amount: 金额
+      typeAddition: 充电
+      typeConsumption: 用量
+      typeInitial: 初始额度
+      loading: 加载历史...
+      empty: 暂无消耗记录
+      loadMore: 更多信息
+      delayHint: Flux 电量历史记录是缓慢更新的，可能有延迟
+      ttsRequests: requests
     packages:
-      title: Flux Packages
-      buy: Charge
-      description: Flux packages to choose from.
+      title: Flux 电池包
+      buy: 充值
+      description: 可以选择购入的 Flux 电池包
   providers:
     explained:
       chat: 文本生成模型服务来源，例如 OpenRouter, OpenAI, Ollama
@@ -571,7 +646,7 @@ pages:
                       很抱歉，Ollama 连接检查失败。不要担心，如果是 Ollama，需要额外配置才能通过 Ollama。 您需要在启动 Olama 应用程序或 Ollama CLI 服务器时明确设置 <code>OLLAMA_HOST</code> 详情，请检查 <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama 集成指南</a>。
     common:
       continueAnyway: 仍然继续
-      goToModelSelection: '选择模型→'
+      goToModelSelection: 选择模型→
       fields:
         field:
           api-key:
@@ -749,6 +824,9 @@ pages:
       minimax-global:
         description: minimax.io
         title: MiniMax Global
+      minimax-speech:
+        description: minimax.io
+        title: MiniMax Speech
       mistral:
         description: mistral.ai
         title: Mistral
@@ -767,6 +845,9 @@ pages:
       openai:
         description: OpenAi.com
         title: OpenAI
+      azure-openai:
+        description: Azure OpenAI API
+        title: Azure OpenAI
       openai-compatible:
         description: OpenAI 兼容 API
         title: OpenAI 兼容 API
@@ -778,6 +859,9 @@ pages:
         title: n1n
       openrouter:
         description: OpenRouter.ai
+        title: OpenRouter
+      openrouter-audio-speech:
+        description: openrouter.ai
         title: OpenRouter
       perplexity:
         description: perplexity.ai
@@ -833,12 +917,12 @@ pages:
         description: 浏览器原生STT (需要 Chrome/Edge/Safari)
         title: Web 语音API
       official:
-        title: Official Provider
-        description: Official AI provider by AIRI.
-        speech-title: Official Speech Provider
-        speech-description: Official text-to-speech provider by AIRI.
-        transcription-title: Official Transcription Provider
-        transcription-description: Official speech-to-text provider by AIRI.
+        title: AIRI官方提供商
+        description: 登录后即可使用的服务来源
+        speech-title: AIRI 官方语音合成服务
+        speech-description: 登录后即可使用的发声单元服务
+        transcription-title: AIRI 官方语音识别服务
+        transcription-description: 登录后即可使用的听觉单元服务
       transcriptions:
         playground:
           title: 实验平台
@@ -853,6 +937,45 @@ pages:
       description: WebSocket 服务器的完整地址(例如，ws://localhost:6121/ws)
       label: WebSocket 服务器地址
       placeholder: ws://localhost:6121/ws
+    server-hostname:
+      label: 是否暴露在连接的网络下（WiFi，有线）
+      description: >-
+        选择是否只允许此设备与 AIRI 进行配对，或是也允许来自其他本地网络的设备进行配对
+      advanced-label: 会监听的 hostname
+      advanced-description: >-
+        当您需要手动绑定时，使用指定的主机名或 IP 地址。
+      options:
+        this-device: 仅此设备
+        all: 本地网络所有人
+        advanced: 高级配置
+    server-auth-token:
+      label: 认证凭据
+      description: >-
+        连接和配对需要安全令牌。如果留空，AIRI 自动生成一个新的令牌。
+      placeholder: 自动生成
+    qr:
+      title: 从 Pocket（口袋）版配对
+      description: >-
+        从 Pocket（口袋）版扫描此二维码以进行配对
+      refresh: 刷新
+      image-alt: AIRI 配对码
+      candidates: 备选连接地址
+      token-hint: >-
+        二维码包含了认证凭据，所以 Pocket（口袋）版可以自动配对，请不要公开分享此二维码。
+      errors:
+        title: 二维码暂不可用
+        unavailable: 无法生成配对二维码
+    qr-scan:
+      title: 快速连接
+      description: 扫描桌面端的配对码以快速配对
+      instructions: 将相机中心位置对准配对码
+      action: 扫描
+      success:
+        title: 连接地址已更新
+        description: '现在配对到的 AIRI 主端 {url}'
+      errors:
+        title: 二维码扫描失败
+        failed: 扫描或连接二维码失败。
   scene:
     description: 配置角色所在环境
     title: 场景
@@ -926,7 +1049,7 @@ pages:
                   将麦克风音频流式传输到阿里云 NLS 并检查实时转写
               performance-playground:
                 title: 性能测试场地
-                description: 'VRM 表情 + TTS lip sync 实验平台'
+                description: VRM 表情 + TTS lip sync 实验平台
         theme-presets:
           presets:
             default:
@@ -1003,7 +1126,7 @@ pages:
         title: 打开开发者工具
         button: 打开
   credits:
-    buy: Buy
+    buy: 购买
 sections:
   section:
     general:
@@ -1015,6 +1138,8 @@ theme:
 title: 设置
 voices: 声线
 vrm:
+  render-scale:
+    title: 渲染精度
   change-model:
     from-file: 从文件加载
     from-file-select: 选择

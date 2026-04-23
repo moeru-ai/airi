@@ -1,10 +1,10 @@
-<script setup lang="ts">
+<script setup lang="ts" generic="T extends string | number">
 import { RadioGroupItem, RadioGroupRoot } from 'reka-ui'
 import { computed } from 'vue'
 
 interface SelectTabOption {
   label: string
-  value: string | number
+  value: T
   description?: string
   icon?: string
 }
@@ -13,23 +13,33 @@ const props = withDefaults(defineProps<{
   options: SelectTabOption[]
   disabled?: boolean
   readonly?: boolean
-  size?: 'sm' | 'md'
+  size?: 'xs' | 'sm' | 'md' | 'w-xs' | 'w-sm' | 'w-md'
+  tabSpace?: 'compact' | 'spaced'
 }>(), {
   disabled: false,
   readonly: false,
   size: 'md',
+  tabSpace: 'spaced',
 })
 
-const modelValue = defineModel<string | number>({ required: true })
+const modelValue = defineModel<T>({ required: true })
 
 const activeIndex = computed(() => props.options.findIndex(option => option.value === modelValue.value))
 const itemCount = computed(() => props.options.length || 1)
 const isDisabled = computed(() => props.disabled || props.readonly)
 
 const sizeClasses = computed(() =>
-  props.size === 'sm'
-    ? ['py-2', 'px-3', 'text-xs', 'rounded-md']
-    : ['py-2.5', 'px-3.5', 'text-sm', 'rounded-md'],
+  props.size === 'xs'
+    ? props.tabSpace === 'compact'
+      ? ['py-1', 'px-2', 'text-xs', 'rounded-md']
+      : ['py-1', 'px-2', 'text-xs', 'rounded-md', 'min-w-20']
+    : props.size === 'sm'
+      ? props.tabSpace === 'compact'
+        ? ['py-2', 'px-3', 'text-xs', 'rounded-md']
+        : ['py-2', 'px-3', 'text-xs', 'rounded-md', 'min-w-24']
+      : props.tabSpace === 'compact'
+        ? ['py-2.5', 'px-3.5', 'text-sm', 'rounded-md']
+        : ['py-2.5', 'px-3.5', 'text-sm', 'rounded-md', 'min-w-32'],
 )
 
 const rootStyle = computed(() => ({
@@ -49,11 +59,13 @@ const rootStyle = computed(() => ({
     :class="[
       'select-tab',
       'is-interacting',
-      'relative', 'flex', 'w-full', 'items-stretch', 'rounded-lg',
+      'relative', 'flex', 'items-stretch', 'rounded-lg',
       'overflow-hidden',
-      'bg-white-400/6', 'dark:bg-neutral-950/70',
-      'transition-[border-color,box-shadow,opacity]', 'duration-200', 'ease-out',
-      isDisabled ? ['cursor-not-allowed', 'opacity-60'] : ['shadow-[0_14px_50px_-32px_rgba(0,0,0,0.55)]', 'backdrop-blur-sm'],
+      'bg-neutral-400/6 dark:bg-neutral-950/70',
+      'transition-[border-color,box-shadow,opacity] duration-200 ease-out',
+      isDisabled
+        ? ['cursor-not-allowed', 'opacity-60']
+        : ['shadow-[0_14px_50px_-32px_rgba(0,0,0,0.55)]', 'backdrop-blur-sm'],
       // before
       'before:bg-primary-300/50', 'dark:before:bg-primary-400/50',
       'before:rounded-md', 'sm:before:rounded-lg',
@@ -82,7 +94,9 @@ const rootStyle = computed(() => ({
         'transition-[color,background-color,border-color,transform]', 'duration-200', 'ease-out',
         'focus-visible:border-none', 'focus-visible:outline-none',
         sizeClasses,
-        isDisabled ? 'pointer-events-none' : 'cursor-pointer',
+        isDisabled
+          ? 'pointer-events-none'
+          : 'cursor-pointer',
         // checked
         'data-[state=checked]:text-primary-950', 'dark:data-[state=checked]:text-primary-50',
         // unchecked

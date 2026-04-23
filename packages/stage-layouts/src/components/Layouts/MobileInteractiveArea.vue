@@ -37,6 +37,10 @@ const { streamingMessage } = storeToRefs(chatStream)
 const { sending } = storeToRefs(chatOrchestrator)
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 
+function handleDeleteMessage(index: number) {
+  messages.value = messages.value.filter((_, messageIndex) => messageIndex !== index)
+}
+
 const viewControlsActiveMode = ref<'x' | 'y' | 'z' | 'scale'>('scale')
 const viewControlsInputsRef = useTemplateRef<InstanceType<typeof ViewControlInputs>>('viewControlsInputs')
 
@@ -156,6 +160,7 @@ onMounted(() => {
           :class="[
             'relative z-20',
           ]"
+          @delete-message="handleDeleteMessage($event.index)"
         />
       </Transition>
     </KeepAlive>
@@ -163,8 +168,13 @@ onMounted(() => {
       <div top="50%" translate-y="[-50%]" fixed z-15 px-3>
         <ViewControlInputs ref="viewControlsInputs" :mode="viewControlsActiveMode" />
       </div>
-      <div translate-y="[-100%]" absolute right-0 w-full px-3 pb-3 font-sans>
-        <div flex="~ col" w-full gap-1>
+      <div translate-y="[-100%]" absolute left-0 px-3 pb-3 font-sans>
+        <div flex="~ col" gap-1>
+          <slot name="status" />
+        </div>
+      </div>
+      <div translate-y="[-100%]" absolute right-0 px-3 pb-3 font-sans>
+        <div flex="~ col" gap-1>
           <ActionAbout />
           <HearingConfigDialog
             v-model:show="hearingDialogOpen"

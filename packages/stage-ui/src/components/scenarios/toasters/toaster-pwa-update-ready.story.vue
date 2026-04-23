@@ -16,7 +16,7 @@ function handlePopToast() {
   const id = nanoid()
 
   // eslint-disable-next-line no-console
-  toast(markRaw(h(ToasterPWAUpdateReady, { id, onUpdate: () => console.debug('Update initiated', id) })), {
+  toast.custom(markRaw(h(ToasterPWAUpdateReady, { id, onUpdate: () => console.debug('Update initiated', id) })), {
     id,
     duration: 30000,
     position: isMobile.value ? 'top-center' : 'bottom-right',

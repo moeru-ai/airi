@@ -8,7 +8,7 @@ import type { HonoEnv } from '../../types/hono'
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
 
-import { createStripeRoutes } from '.'
+import { createStripeRoutes, formatPrice } from '.'
 import { ApiError } from '../../utils/error'
 
 // --- Mock helpers ---
@@ -46,8 +46,8 @@ function createMockBillingService(): BillingService {
 
 function createMockConfigKV(overrides: Record<string, any> = {}): ConfigKVService {
   const defaults: Record<string, any> = {
-    FLUX_PACKAGES: [{ amount: 500, fluxAmount: 5000, label: '5000 Flux', price: '$5' }],
-    MAX_CHECKOUT_AMOUNT_CENTS: 1_000_000,
+    STRIPE_FLUX_PRODUCT_ID: 'prod_test_flux',
+    STRIPE_PAYMENT_METHODS: ['card'],
     ...overrides,
   }
   return {
@@ -60,6 +60,15 @@ function createMockConfigKV(overrides: Record<string, any> = {}): ConfigKVServic
     get: vi.fn(async (key: string) => defaults[key]),
     set: vi.fn(),
   } as any
+}
+
+function createMockRedis(): any {
+  const store = new Map<string, string>()
+  return {
+    get: vi.fn(async (key: string) => store.get(key) ?? null),
+    set: vi.fn(async (key: string, value: string) => { store.set(key, value) }),
+    del: vi.fn(async (key: string) => { store.delete(key) }),
+  }
 }
 
 const testEnv = {
@@ -123,8 +132,9 @@ function createTestApp(
   stripeService: StripeService,
   billingService: BillingService,
   configKV: ConfigKVService,
+  envOverrides: Record<string, any> = {},
 ) {
-  const routes = createStripeRoutes(fluxService, stripeService, billingService, configKV, testEnv)
+  const routes = createStripeRoutes(fluxService, stripeService, billingService, configKV, { ...testEnv, ...envOverrides }, createMockRedis())
   const app = new Hono<HonoEnv>()
 
   app.onError((err, c) => {
@@ -153,30 +163,43 @@ function createTestApp(
 
 // --- Tests ---
 
+describe('formatPrice', () => {
+  it('formats USD cents correctly', () => {
+    expect(formatPrice(300, 'usd')).toBe('$3.00')
+    expect(formatPrice(1200, 'usd')).toBe('$12.00')
+    expect(formatPrice(2500, 'usd')).toBe('$25.00')
+  })
+
+  it('formats CNY cents correctly', () => {
+    expect(formatPrice(2100, 'cny')).toBe('CN¥21.00')
+  })
+
+  it('formats JPY (zero-decimal currency) correctly', () => {
+    expect(formatPrice(500, 'jpy')).toBe('¥500')
+  })
+
+  it('formats GBP correctly', () => {
+    expect(formatPrice(1599, 'gbp')).toBe('£15.99')
+  })
+
+  it('returns currency code for null amount', () => {
+    expect(formatPrice(null, 'usd')).toBe('USD')
+  })
+
+  it('handles zero amount', () => {
+    expect(formatPrice(0, 'usd')).toBe('$0.00')
+  })
+})
+
 describe('stripeRoutes', () => {
   describe('gET /api/v1/stripe/packages', () => {
-    it('returns configured packages', async () => {
+    it('returns empty array when Stripe is not configured', async () => {
       const app = createTestApp(
         createMockFluxService(),
         createMockStripeService(),
         createMockBillingService(),
-        createMockConfigKV(),
-      )
-
-      const res = await app.request('/api/v1/stripe/packages')
-      expect(res.status).toBe(200)
-
-      const data = await res.json()
-      expect(data).toEqual([{ amount: 500, fluxAmount: 5000, label: '5000 Flux', price: '$5' }])
-    })
-
-    it('returns empty array when no packages configured', async () => {
-      const configKV = createMockConfigKV({ FLUX_PACKAGES: [] })
-      const app = createTestApp(
-        createMockFluxService(),
-        createMockStripeService(),
-        createMockBillingService(),
-        configKV,
+        createMockConfigKV({ STRIPE_FLUX_PRODUCT_ID: undefined }),
+        { STRIPE_SECRET_KEY: '' },
       )
 
       const res = await app.request('/api/v1/stripe/packages')
@@ -197,12 +220,12 @@ describe('stripeRoutes', () => {
       const res = await app.request('/api/v1/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: 500 }),
+        body: JSON.stringify({ stripePriceId: 'price_test_500' }),
       })
       expect(res.status).toBe(401)
     })
 
-    it('returns 400 for invalid amount (zero)', async () => {
+    it('returns 400 for empty stripePriceId', async () => {
       const app = createTestApp(
         createMockFluxService(),
         createMockStripeService(),
@@ -214,14 +237,14 @@ describe('stripeRoutes', () => {
         new Request('http://localhost/api/v1/stripe/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount: 0 }),
+          body: JSON.stringify({ stripePriceId: '' }),
         }),
         { user: testUser } as any,
       )
       expect(res.status).toBe(400)
     })
 
-    it('returns 400 for invalid amount (negative)', async () => {
+    it('returns 400 for missing stripePriceId', async () => {
       const app = createTestApp(
         createMockFluxService(),
         createMockStripeService(),
@@ -233,65 +256,7 @@ describe('stripeRoutes', () => {
         new Request('http://localhost/api/v1/stripe/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount: -100 }),
-        }),
-        { user: testUser } as any,
-      )
-      expect(res.status).toBe(400)
-    })
-
-    it('returns 400 for amount exceeding max ($10,000)', async () => {
-      const app = createTestApp(
-        createMockFluxService(),
-        createMockStripeService(),
-        createMockBillingService(),
-        createMockConfigKV(),
-      )
-
-      const res = await app.fetch(
-        new Request('http://localhost/api/v1/stripe/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount: 1_000_001 }),
-        }),
-        { user: testUser } as any,
-      )
-      expect(res.status).toBe(400)
-    })
-
-    it('respects configured max checkout amount', async () => {
-      const app = createTestApp(
-        createMockFluxService(),
-        createMockStripeService(),
-        createMockBillingService(),
-        createMockConfigKV({ MAX_CHECKOUT_AMOUNT_CENTS: 500 }),
-      )
-
-      const res = await app.fetch(
-        new Request('http://localhost/api/v1/stripe/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount: 501 }),
-        }),
-        { user: testUser } as any,
-      )
-
-      expect(res.status).toBe(400)
-    })
-
-    it('returns 400 for non-integer amount', async () => {
-      const app = createTestApp(
-        createMockFluxService(),
-        createMockStripeService(),
-        createMockBillingService(),
-        createMockConfigKV(),
-      )
-
-      const res = await app.fetch(
-        new Request('http://localhost/api/v1/stripe/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount: 9.99 }),
+          body: JSON.stringify({}),
         }),
         { user: testUser } as any,
       )
@@ -299,30 +264,22 @@ describe('stripeRoutes', () => {
     })
 
     it('returns 503 when Stripe is not configured', async () => {
-      const routes = createStripeRoutes(
+      const app = createTestApp(
         createMockFluxService(),
         createMockStripeService(),
         createMockBillingService(),
-        createMockConfigKV(),
-        { ...testEnv, STRIPE_SECRET_KEY: '' } as any,
+        createMockConfigKV({ STRIPE_FLUX_PRODUCT_ID: undefined }),
+        { STRIPE_SECRET_KEY: '' },
       )
-      const app = new Hono<HonoEnv>()
-      app.onError((err, c) => {
-        if (err instanceof ApiError)
-          return c.json({ error: err.errorCode }, err.statusCode)
-        return c.json({ error: 'Internal Server Error' }, 500)
-      })
-      app.use('*', async (c, next) => {
-        c.set('user', testUser as any)
-        await next()
-      })
-      app.route('/api/v1/stripe', routes)
 
-      const res = await app.request('/api/v1/stripe/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: 500 }),
-      })
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/stripe/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ stripePriceId: 'price_test_500' }),
+        }),
+        { user: testUser } as any,
+      )
       expect(res.status).toBe(503)
     })
   })
@@ -478,20 +435,13 @@ describe('stripeRoutes', () => {
     })
 
     it('returns 503 when Stripe is not configured', async () => {
-      const routes = createStripeRoutes(
+      const app = createTestApp(
         createMockFluxService(),
         createMockStripeService(),
         createMockBillingService(),
         createMockConfigKV(),
-        { ...testEnv, STRIPE_SECRET_KEY: '', STRIPE_WEBHOOK_SECRET: '' } as any,
+        { STRIPE_SECRET_KEY: '', STRIPE_WEBHOOK_SECRET: '' },
       )
-      const app = new Hono<HonoEnv>()
-      app.onError((err, c) => {
-        if (err instanceof ApiError)
-          return c.json({ error: err.errorCode }, err.statusCode)
-        return c.json({ error: 'Internal Server Error' }, 500)
-      })
-      app.route('/api/v1/stripe', routes)
 
       const res = await app.request('/api/v1/stripe/webhook', {
         method: 'POST',

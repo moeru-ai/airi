@@ -1,21 +1,19 @@
 <script setup lang="ts">
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
-import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import { errorMessageFrom } from '@moeru/std'
 import { ChatHistory } from '@proj-airi/stage-ui/components'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
-import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
-import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { BasicTextarea } from '@proj-airi/ui'
+import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, ref } from 'vue'
+import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { widgetsTools } from '../stores/tools/builtin/widgets'
+import { useChatSyncStore } from '../stores/chat-sync'
 
 const messageInput = ref('')
 const attachments = ref<{ type: 'image', data: string, mimeType: string, url: string }[]>([])
@@ -23,15 +21,23 @@ const attachments = ref<{ type: 'image', data: string, mimeType: string, url: st
 const chatOrchestrator = useChatOrchestratorStore()
 const chatSession = useChatSessionStore()
 const chatStream = useChatStreamStore()
-const { cleanupMessages } = useChatMaintenanceStore()
-const { ingest, onAfterMessageComposed } = chatOrchestrator
+const chatSyncStore = useChatSyncStore()
 const { messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
 const { sending } = storeToRefs(chatOrchestrator)
 const { t } = useI18n()
-const providersStore = useProvidersStore()
-const { activeModel, activeProvider } = storeToRefs(useConsciousnessStore())
 const isComposing = ref(false)
+const DOUBLE_ENTER_INTERVAL_MS = 300
+const TRAILING_NEWLINES_REGEX = /[\r\n]+$/
+const SEND_MODES = ['enter', 'ctrl-enter', 'double-enter'] as const
+type SendMode = (typeof SEND_MODES)[number]
+const sendMode = useLocalStorage<SendMode>('ui/chat/settings/send-mode', 'enter')
+const lastEnterTime = ref(0)
+const sendModeLabels = computed<Record<SendMode, string>>(() => ({
+  'enter': t('stage.send-mode.enter'),
+  'ctrl-enter': t('stage.send-mode.ctrl-enter'),
+  'double-enter': t('stage.send-mode.double-enter'),
+}))
 
 async function handleSend() {
   if (isComposing.value) {
@@ -50,13 +56,10 @@ async function handleSend() {
   attachments.value = []
 
   try {
-    const providerConfig = providersStore.getProviderConfig(activeProvider.value)
-    await ingest(textToSend, {
-      model: activeModel.value,
-      chatProvider: await providersStore.getProviderInstance<ChatProvider>(activeProvider.value),
-      providerConfig,
+    await chatSyncStore.requestIngest({
+      text: textToSend,
       attachments: attachmentsToSend,
-      tools: widgetsTools,
+      toolset: 'widgets',
     })
 
     attachmentsToSend.forEach(att => URL.revokeObjectURL(att.url))
@@ -69,12 +72,52 @@ async function handleSend() {
       url: URL.createObjectURL(new Blob([Uint8Array.from(atob(att.data), c => c.charCodeAt(0))], { type: att.mimeType })),
     }))
     chatSession.setSessionMessages(chatSession.activeSessionId, [
-      ...messages.value.slice(0, -1),
+      ...messages.value,
       {
         role: 'error',
         content: errorMessageFrom(error) ?? 'Failed to send message',
       },
     ])
+  }
+}
+
+function sendFromKeyboard() {
+  messageInput.value = messageInput.value.replace(TRAILING_NEWLINES_REGEX, '')
+  void handleSend()
+}
+
+function handleMessageInputKeydown(event: KeyboardEvent) {
+  if (isComposing.value || event.key !== 'Enter')
+    return
+
+  const hasControl = event.ctrlKey || event.metaKey
+  const hasShift = event.shiftKey
+
+  switch (sendMode.value) {
+    case 'enter':
+      if (!hasShift && !hasControl) {
+        event.preventDefault()
+        sendFromKeyboard()
+      }
+      return
+    case 'ctrl-enter':
+      if (hasControl) {
+        event.preventDefault()
+        sendFromKeyboard()
+      }
+      return
+    case 'double-enter':
+      if (!hasShift && !hasControl) {
+        const now = Date.now()
+        if (now - lastEnterTime.value < DOUBLE_ENTER_INTERVAL_MS) {
+          event.preventDefault()
+          sendFromKeyboard()
+          lastEnterTime.value = 0
+        }
+        else {
+          lastEnterTime.value = now
+        }
+      }
   }
 }
 
@@ -106,13 +149,22 @@ function removeAttachment(index: number) {
   }
 }
 
-onAfterMessageComposed(async () => {
-  messageInput.value = ''
-  attachments.value.forEach(att => URL.revokeObjectURL(att.url))
-  attachments.value = []
+watch(sendMode, () => {
+  lastEnterTime.value = 0
 })
 
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
+
+async function handleDeleteMessage(index: number) {
+  await chatSyncStore.requestDeleteMessage({ index })
+}
+
+async function handleRetryMessage(index: number) {
+  await chatSyncStore.requestRetry({
+    sessionId: chatSession.activeSessionId,
+    index,
+  })
+}
 </script>
 
 <template>
@@ -122,42 +174,106 @@ const historyMessages = computed(() => messages.value as unknown as ChatHistoryI
         :messages="historyMessages"
         :sending="sending"
         :streaming-message="streamingMessage"
+        @delete-message="handleDeleteMessage($event.index)"
+        @retry-message="handleRetryMessage($event.index)"
       />
     </div>
-    <div v-if="attachments.length > 0" class="flex flex-wrap gap-2 border-t border-primary-100 p-2">
+    <div
+      v-if="attachments.length > 0"
+      :class="[
+        'flex flex-wrap gap-2 border-t border-primary-100 p-2',
+      ]"
+    >
       <div v-for="(attachment, index) in attachments" :key="index" class="relative">
-        <img :src="attachment.url" class="h-20 w-20 rounded-md object-cover">
-        <button class="absolute right-1 top-1 h-5 w-5 flex items-center justify-center rounded-full bg-red-500 text-xs text-white" @click="removeAttachment(index)">
+        <img :src="attachment.url" :class="['h-20 w-20 rounded-md object-cover']">
+        <button
+          :class="[
+            'absolute right-1 top-1 h-5 w-5 flex items-center justify-center rounded-full',
+            'bg-red-500 text-xs text-white',
+          ]"
+          @click="removeAttachment(index)"
+        >
           &times;
         </button>
       </div>
     </div>
-    <div class="flex items-center justify-end gap-2 py-1">
+    <div :class="['flex items-center justify-end gap-2 py-1']">
+      <DropdownMenuRoot>
+        <DropdownMenuTrigger as-child>
+          <button
+            :class="[
+              'max-h-[10lh] min-h-[1lh] flex items-center justify-center rounded-md p-2 outline-none',
+              'transition-colors transition-transform active:scale-95',
+            ]"
+            bg="neutral-100 dark:neutral-800"
+            text="lg neutral-500 dark:neutral-400"
+            :title="t('stage.send-mode.title')"
+          >
+            <div class="i-solar:keyboard-bold-duotone" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuPortal>
+          <DropdownMenuContent
+            align="end"
+            side="top"
+            :side-offset="8"
+            :class="[
+              'z-50 min-w-[180px] rounded-xl p-1 shadow',
+              'bg-white dark:bg-neutral-800',
+              'flex flex-col gap-1',
+              'data-[side=top]:animate-slideDownAndFade',
+              'data-[side=left]:animate-none',
+              'data-[side=bottom]:animate-none',
+              'data-[side=right]:animate-none',
+            ]"
+          >
+            <DropdownMenuItem
+              v-for="mode in SEND_MODES"
+              :key="mode"
+              :class="[
+                'w-full flex cursor-pointer items-center rounded-md px-3 py-2 text-left text-xs outline-none transition-colors',
+                'hover:bg-primary-50 dark:hover:bg-primary-900/20',
+                sendMode === mode ? 'bg-primary-50 text-primary-600 font-semibold dark:bg-primary-900/20 dark:text-primary-300' : 'text-neutral-500',
+              ]"
+              @select="sendMode = mode"
+            >
+              <div class="mr-2 h-4 w-4 flex shrink-0 items-center justify-center">
+                <div v-if="sendMode === mode" class="i-ph:check-bold text-base" />
+              </div>
+              <span>{{ sendModeLabels[mode] }}</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenuPortal>
+      </DropdownMenuRoot>
+
       <button
-        class="max-h-[10lh] min-h-[1lh]"
+        :class="[
+          'max-h-[10lh] min-h-[1lh]',
+        ]"
         bg="neutral-100 dark:neutral-800"
         text="lg neutral-500 dark:neutral-400"
         hover:text="red-500 dark:red-400"
         flex items-center justify-center rounded-md p-2 outline-none
         transition-colors transition-transform active:scale-95
-        @click="() => cleanupMessages()"
+        @click="() => chatSyncStore.requestCleanup()"
       >
         <div class="i-solar:trash-bin-2-bold-duotone" />
       </button>
     </div>
     <BasicTextarea
       v-model="messageInput"
+      :submit-on-enter="false"
       :placeholder="t('stage.message')"
-      class="ph-no-capture"
+      class="ph-no-capture [scrollbar-gutter:stable]"
       text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
       border="solid 2 primary-200/20 dark:primary-400/20"
       bg="primary-100/50 dark:primary-900/70"
       max-h="[10lh]" min-h="[1lh]"
-      w-full shrink-0 resize-none overflow-y-scroll rounded-xl p-2 font-medium outline-none
+      w-full shrink-0 resize-none overflow-y-auto rounded-xl p-2 font-medium outline-none
       transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
       @compositionstart="isComposing = true"
       @compositionend="isComposing = false"
-      @keydown.enter.exact.prevent="handleSend"
+      @keydown="handleMessageInputKeydown"
       @paste-file="handleFilePaste"
     />
   </div>

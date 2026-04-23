@@ -1,16 +1,19 @@
+import type { Span } from '@opentelemetry/api'
 import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { WithUnknown } from '@xsai/shared'
 import type { StreamTranscriptionResult, StreamTranscriptionOptions as XSAIStreamTranscriptionOptions } from '@xsai/stream-transcription'
 
 import { errorMessageFrom, tryCatch } from '@moeru/std'
+import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, ref, shallowRef } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 
 import vadWorkletUrl from '../../workers/vad/process.worklet?worker&url'
 
+import { activeTurnSpan, startSpan } from '../../composables/use-io-tracer'
 import { useProvidersStore } from '../providers'
 import { streamAliyunTranscription } from '../providers/aliyun/stream-transcription'
 import { streamWebSpeechAPITranscription } from '../providers/web-speech-api'
@@ -76,6 +79,19 @@ interface HearingTranscriptionInvokeOptions {
   providerOptions?: Record<string, unknown>
 }
 
+export const CONFIDENCE_THRESHOLD_DISABLED = -3
+
+export function filterTranscriptionByConfidence(
+  segments: Array<{ text?: string, avg_logprob?: number }>,
+  threshold: number,
+): string {
+  if (!segments.some(s => s?.avg_logprob != null && s?.text != null)) {
+    return ''
+  }
+
+  return segments.filter(s => (s?.avg_logprob ?? -Infinity) >= threshold).map(s => s?.text ?? '').join('').trim()
+}
+
 const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
   'aliyun-nls-transcription': streamAliyunTranscription,
   // Web Speech API is handled specially in transcribeForMediaStream since it works directly with MediaStream
@@ -92,6 +108,12 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const transcriptionModelSearchQuery = refManualReset<string>('')
   const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false)
   const autoSendDelay = useLocalStorageManualReset<number>('settings/hearing/auto-send-delay', 2000) // Default 2 seconds
+  const confidenceThreshold = useLocalStorageManualReset<number>('settings/hearing/confidence-threshold', CONFIDENCE_THRESHOLD_DISABLED)
+  const verboseJsonNotSupported = ref(false)
+
+  watch(activeTranscriptionProvider, () => {
+    verboseJsonNotSupported.value = false
+  })
 
   // Computed properties
   const availableProvidersMetadata = computed(() => allAudioTranscriptionProvidersMetadata.value)
@@ -154,6 +176,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     transcriptionModelSearchQuery.reset()
     autoSendEnabled.reset()
     autoSendDelay.reset()
+    confidenceThreshold.reset()
   }
 
   async function transcription(
@@ -217,11 +240,27 @@ export const useHearingStore = defineStore('hearing-store', () => {
       throw new Error('File input is required for transcription.')
     }
 
+    const useVerboseJson = !format && confidenceThreshold.value > CONFIDENCE_THRESHOLD_DISABLED
     const response = await generateTranscription({
       ...provider.transcription(model, options?.providerOptions),
       file: normalizedInput.file,
-      responseFormat: format,
+      responseFormat: useVerboseJson ? 'verbose_json' : format,
     })
+
+    if (useVerboseJson) {
+      if (response.segments) {
+        verboseJsonNotSupported.value = false
+        return {
+          mode: 'generate',
+          ...response,
+          text: filterTranscriptionByConfidence(response.segments, confidenceThreshold.value),
+        }
+      }
+      else {
+        verboseJsonNotSupported.value = true
+        console.warn('[Hearing] Confidence filter is enabled but the provider did not return verbose_json segments. Filtering has no effect.')
+      }
+    }
 
     return {
       mode: 'generate',
@@ -237,6 +276,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
     transcriptionModelSearchQuery,
     autoSendEnabled,
     autoSendDelay,
+    confidenceThreshold,
+    verboseJsonNotSupported,
 
     supportsModelListing,
     providerModels,
@@ -271,6 +312,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       onSpeechEnd?: (text: string) => void
     }
   }>()
+
+  let asrSpan: Span | undefined
 
   const supportsStreamInput = computed(() => {
     const providerId = activeTranscriptionProvider.value
@@ -349,6 +392,12 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     const session = streamingSession.value
     if (!session)
       return
+
+    if (asrSpan) {
+      asrSpan.setAttribute(IOAttributes.ASRAbort, !!abort)
+      asrSpan.end()
+      asrSpan = undefined
+    }
 
     // Special handling for Web Speech API
     if (session.providerId === 'browser-web-speech-api') {
@@ -454,6 +503,14 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     onSentenceEnd?: (delta: string) => void
     onSpeechEnd?: (text: string) => void
   }) {
+    activeTurnSpan.value?.end()
+    const turnSpan = startSpan(IOSpanNames.InteractionTurn)
+    activeTurnSpan.value = turnSpan
+    asrSpan = startSpan(IOSpanNames.SpeechRecognition, turnSpan, {
+      [IOAttributes.Subsystem]: IOSubsystems.ASR,
+      [IOAttributes.GenAIRequestModel]: activeTranscriptionProvider.value ?? '',
+    })
+
     console.info('[Hearing Pipeline] transcribeForMediaStream called', {
       supportsStreamInput: supportsStreamInput.value,
       hasStream: !!stream,
@@ -567,10 +624,17 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           abortSignal: abortController.signal,
           onSentenceEnd: (delta) => {
             bumpIdle() // Bump idle timer on activity (only if enabled)
+            if (asrSpan)
+              asrSpan.addEvent(IOEvents.ASRSentenceEnd, { [IOAttributes.ASRText]: delta })
             // Call the options callback
             options?.onSentenceEnd?.(delta)
           },
           onSpeechEnd: (text) => {
+            if (asrSpan) {
+              asrSpan.setAttribute(IOAttributes.ASRText, text)
+              asrSpan.end()
+              asrSpan = undefined
+            }
             // Call the options callback
             options?.onSpeechEnd?.(text)
           },
@@ -728,6 +792,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
                 break
               if (value) {
                 fullText += value
+                if (asrSpan)
+                  asrSpan.addEvent(IOEvents.ASRSentenceEnd, { [IOAttributes.ASRText]: value })
                 // Use captured callbacks to avoid cross-session leakage
                 sessionCallbacks.onSentenceEnd?.(value)
               }
@@ -738,6 +804,11 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
               console.error('Error reading text stream:', err)
           }
           finally {
+            if (asrSpan) {
+              asrSpan.setAttribute(IOAttributes.ASRText, fullText)
+              asrSpan.end()
+              asrSpan = undefined
+            }
             // Use captured callbacks to avoid cross-session leakage
             sessionCallbacks.onSpeechEnd?.(fullText)
           }

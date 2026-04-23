@@ -2,6 +2,7 @@ import type { Rectangle } from 'electron'
 import type { InferOutput } from 'valibot'
 
 import type { I18n } from '../../libs/i18n'
+import type { WindowAuthManager } from '../../services/airi/auth'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { McpStdioManager } from '../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
@@ -28,6 +29,7 @@ import { array, number, object, optional, string } from 'valibot'
 import icon from '../../../../resources/icon.png?asset'
 
 import { electronStartDraggingWindow } from '../../../shared/eventa'
+import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
 import { baseUrl, getElectronMainDirname, load } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { transparentWindowConfig } from '../shared'
@@ -57,6 +59,7 @@ export async function setupMainWindow(params: {
   mcpStdioManager: McpStdioManager
   i18n: I18n
   onboardingWindowManager: OnboardingWindowManager
+  windowAuthManager: WindowAuthManager
 }) {
   const {
     setup: setupConfig,
@@ -95,6 +98,11 @@ export async function setupMainWindow(params: {
   if (params.onWindowCreated) {
     params.onWindowCreated(window)
   }
+
+  let allowClose = false
+  onAppBeforeQuit(() => {
+    allowClose = true
+  })
 
   // NOTICE: in development mode, open devtools by default
   if (is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG) {
@@ -140,6 +148,14 @@ export async function setupMainWindow(params: {
 
   window.on('resize', () => handleNewBounds(window.getBounds()))
   window.on('move', () => handleNewBounds(window.getBounds()))
+  window.on('close', (event) => {
+    if (allowClose) {
+      return
+    }
+
+    event.preventDefault()
+    window.hide()
+  })
 
   // Thanks to [@HeartArmy](https://github.com/HeartArmy) for the tip implementation.
   //
@@ -171,6 +187,7 @@ export async function setupMainWindow(params: {
     mcpStdioManager: params.mcpStdioManager,
     i18n: params.i18n,
     onboardingWindowManager: params.onboardingWindowManager,
+    windowAuthManager: params.windowAuthManager,
   })
 
   /**

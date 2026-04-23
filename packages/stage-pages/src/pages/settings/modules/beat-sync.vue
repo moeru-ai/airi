@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import type { AnalyserWorkletParameters } from '@nekopaw/tempora'
 import type { BeatSyncDetectorState } from '@proj-airi/stage-shared/beat-sync'
 
-import { DEFAULT_ANALYSER_WORKLET_PARAMS } from '@nekopaw/tempora'
 import {
+  DEFAULT_BEAT_SYNC_PARAMETERS,
   getBeatSyncInputByteFrequencyData,
   getBeatSyncState,
   listenBeatSyncBeatSignal,
@@ -12,9 +11,11 @@ import {
   updateBeatSyncParameters,
 } from '@proj-airi/stage-shared/beat-sync'
 import { Alert, AudioSpectrumVisualizer } from '@proj-airi/stage-ui/components'
+import { useSettingsBeatSync } from '@proj-airi/stage-ui/stores/settings'
 import { Button, FieldCheckbox, FieldRange, SelectTab } from '@proj-airi/ui'
 import { createTimeline } from 'animejs'
 import { nanoid } from 'nanoid'
+import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -22,7 +23,8 @@ const state = ref<BeatSyncDetectorState>()
 const frequencies = ref<number[]>([])
 const totalFreqHistory = ref<number[]>([])
 const isUpdatingFrequencies = ref(false)
-const spectrumScale = ref<'linear' | 'logarithm'>('logarithm')
+const beatSyncSettings = useSettingsBeatSync()
+const { parameters, spectrumScale } = storeToRefs(beatSyncSettings)
 const spectrumScaleOptions = [
   { label: 'Linear', value: 'linear' as const, icon: 'i-solar:chart-2-bold-duotone' },
   { label: 'Logarithm', value: 'logarithm' as const, icon: 'i-solar:chart-bold-duotone' },
@@ -35,15 +37,6 @@ const beatsHistory = ref<Array<{
   energy: number
   normalizedEnergy: number
 }>>([])
-
-const parameters = ref<AnalyserWorkletParameters>({
-  ...DEFAULT_ANALYSER_WORKLET_PARAMS,
-  // Loosen the parameters for easier beat detection by default.
-  // Also makes life easier :)
-  warmup: false,
-  spectralFlux: false,
-  adaptiveThreshold: false,
-})
 
 watch([state, parameters], ([newState, newParameters]) => {
   if (newState?.isActive) {
@@ -84,7 +77,7 @@ function onRippleEnter(el: Element, done: () => void) {
 }
 
 function resetDefaultParameters() {
-  parameters.value = { ...DEFAULT_ANALYSER_WORKLET_PARAMS }
+  parameters.value = { ...DEFAULT_BEAT_SYNC_PARAMETERS }
 }
 
 async function updateFrequencies() {

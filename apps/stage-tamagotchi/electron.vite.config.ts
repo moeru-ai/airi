@@ -5,12 +5,12 @@ import templateCompilerOptions from '@tresjs/core/template-compiler-options'
 import Vue from '@vitejs/plugin-vue'
 import UnoCss from 'unocss/vite'
 import Info from 'unplugin-info/vite'
-import VueRouter from 'unplugin-vue-router/vite'
 import Yaml from 'unplugin-yaml/vite'
 import Inspect from 'vite-plugin-inspect'
 import VitePluginVueDevTools from 'vite-plugin-vue-devtools'
 import Layouts from 'vite-plugin-vue-layouts'
 import VueMacros from 'vue-macros/vite'
+import VueRouter from 'vue-router/vite'
 
 import { Download } from '@proj-airi/unplugin-fetch'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
@@ -206,11 +206,14 @@ export default defineConfig({
             src: resolve(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src', 'pages'),
             exclude: base => [
               ...base,
+              '**/settings/account/index.vue',
               '**/settings/connection/index.vue',
               '**/settings/data/index.vue',
               '**/settings/models/index.vue',
               '**/settings/system/general.vue',
               '**/settings/modules/mcp.vue',
+              '**/devtools/index.vue',
+              '**/settings/index.vue',
             ],
           },
           resolve(import.meta.dirname, 'src', 'renderer', 'pages'),

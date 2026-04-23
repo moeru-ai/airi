@@ -15,15 +15,19 @@ on:
         required: false
         default: false
         type: boolean
+      tag:
+        description: Specific tag for the release upload
+        required: false
+        type: string
   schedule:
     - cron: '0 1 * * *'
 
 jobs:
   build:
-    # TODO: build release APK
-    name: Build Debuggable Android APK
+    name: Build Android APK
     runs-on: ubuntu-latest
     env:
+      PRODUCT_NAME: 'AIRI'
       # Every current trigger path produces an installable APK artifact, so ship the analytics-enabled build consistently.
       VITE_ENABLE_POSTHOG: 'true'
     steps:
@@ -34,6 +38,9 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - uses: pnpm/action-setup@v4
         with:
           run_install: false
@@ -42,8 +49,19 @@ jobs:
           node-version: lts/*
           cache: pnpm
 
+      - name: Install Android build tools
+        run: |
+          sdkmanager "build-tools;36.1.0"
+          echo "${ANDROID_SDK_ROOT:-$ANDROID_HOME}/build-tools/36.1.0" >> "$GITHUB_PATH"
+
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build:packages
+
+      - name: Validate workflow dispatch release tag
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.tag == '' }}
+        run: |
+          echo "workflow_dispatch release uploads require the tag input"
+          exit 1
 
       - name: Build web assets
         run: pnpm -F @proj-airi/stage-pocket run build
@@ -51,21 +69,58 @@ jobs:
       - name: Capacitor sync
         run: pnpm -F @proj-airi/stage-pocket exec cap sync android
 
-      - name: Build debug APK
+      - name: Extract android keystore
+        run: echo "${{ secrets.CAPACITOR_ANDROID_KEYSTORE_BASE64 }}" | base64 -d > ${{ github.workspace }}/apps/stage-pocket/airi-pocket.jks
+
+      - name: Build APK
         working-directory: apps/stage-pocket/android
-        run: ./gradlew assembleDebug
+        run: pnpm -F @proj-airi/stage-pocket exec cap build android
+        env:
+          CAPACITOR_ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/apps/stage-pocket/airi-pocket.jks
+          CAPACITOR_ANDROID_KEYSTORE_ALIAS: ${{ secrets.CAPACITOR_ANDROID_KEYSTORE_ALIAS }}
+          CAPACITOR_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.CAPACITOR_ANDROID_KEYSTORE_PASSWORD }}
+          CAPACITOR_ANDROID_KEYSTORE_ALIAS_PASSWORD: ${{ secrets.CAPACITOR_ANDROID_KEYSTORE_ALIAS_PASSWORD }}
+
+      - name: Rename APK for distribution
+        env:
+          RELEASE_TAG_NAME: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          VERSION="${RELEASE_TAG_NAME#v}"
+          if [ -z "$VERSION" ]; then
+            VERSION="$(sed -n 's/^AIRI_VERSION_NAME=//p' apps/stage-pocket/android/app-version.properties)"
+          fi
+
+          APK_NAME="${PRODUCT_NAME}-${VERSION}-android.apk"
+          APK_SOURCE="apps/stage-pocket/android/app/build/outputs/apk/release/app-release-signed.apk"
+          APK_BUNDLE_DIR="apps/stage-pocket/android/bundle"
+
+          mkdir -p "$APK_BUNDLE_DIR"
+          mv "$APK_SOURCE" "$APK_BUNDLE_DIR/$APK_NAME"
+
+          echo "APK_NAME=$APK_NAME" >> "$GITHUB_ENV"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: airi-pocket-android-debug
-          path: apps/stage-pocket/android/app/build/outputs/apk/debug/app-debug.apk
+          name: ${{ env.APK_NAME }}
+          path: apps/stage-pocket/android/bundle/${{ env.APK_NAME }}
           if-no-files-found: error
 
       - name: Upload to GitHub Releases
         if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && !inputs.build_only) }}
         uses: softprops/action-gh-release@v2
         with:
-          files: apps/stage-pocket/android/app/build/outputs/apk/debug/app-debug.apk
+          files: apps/stage-pocket/android/bundle/${{ env.APK_NAME }}
           append_body: true
-          tag_name: ${{ github.event.release.tag_name }}
+          tag_name: ${{ github.event.release.tag_name || inputs.tag }}
+
+      - name: Setup butler
+        uses: remarkablegames/setup-butler@v2
+
+      # https://itch.io/docs/butler/pushing.html
+      - name: Upload Android to itch.io
+        if: ${{ github.event_name == 'release' }}
+        run: butler push apps/stage-pocket/android/bundle/${{ env.APK_NAME }} nekomeowww/airi:android --userversion ${{ env.VERSION }}
+        env:
+          BUTLER_API_KEY: ${{ secrets.GAME_PUBLISHING_ITCHIO }}

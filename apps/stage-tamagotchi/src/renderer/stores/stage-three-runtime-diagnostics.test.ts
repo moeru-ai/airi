@@ -47,6 +47,7 @@ describe('stage three runtime diagnostics helpers', () => {
       nodeConstraintMs: 16.7,
       ts: 20,
       vrmFrameHookMs: 9,
+      vrmRuntimeHookMs: 10,
     })
 
     const hitTest = applyHitTestTracePayload(createDefaultStageHitTestDiagnostics(), {
@@ -60,6 +61,7 @@ describe('stage three runtime diagnostics helpers', () => {
     expect(vrmUpdate.frameCount).toBe(1)
     expect(vrmUpdate.totalMs).toBe(9.5)
     expect(vrmUpdate.springBoneMs).toBe(8)
+    expect(vrmUpdate.vrmRuntimeHookMs).toBe(10)
     expect(hitTest.readCount).toBe(1)
     expect(hitTest.totalDurationMs).toBe(4.5)
     expect(hitTest.lastReadWidth).toBe(30)

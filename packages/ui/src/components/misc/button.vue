@@ -19,6 +19,7 @@ interface ButtonProps {
   loading?: boolean // Loading state
   variant?: ButtonVariant // Button style variant
   size?: ButtonSize // Button size variant
+  shape?: 'rounded' | 'pill' | 'square' // Button shape
   theme?: ButtonTheme // Button theme
   block?: boolean // Full width button
 }
@@ -29,6 +30,7 @@ const props = withDefaults(defineProps<ButtonProps>(), {
   disabled: false,
   loading: false,
   size: 'md',
+  shape: 'pill',
   theme: 'default',
   block: false,
 })
@@ -107,6 +109,7 @@ const variantClasses: Record<ButtonVariant, Record<ButtonTheme, {
   'pure': {
     default: {
       default: [
+        'rounded-lg',
         'bg-transparent',
         'text-neutral-900 dark:text-neutral-50',
         '!px-0 !py-0',
@@ -116,10 +119,11 @@ const variantClasses: Record<ButtonVariant, Record<ButtonTheme, {
   'ghost': {
     default: {
       default: [
+        'rounded-lg',
         'bg-transparent',
         'hover:bg-neutral-100/50 dark:hover:bg-neutral-800/50',
         'text-neutral-500 dark:text-neutral-400',
-        'focus:ring-2 focus:ring-neutral-300/30 dark:focus:ring-neutral-600/30',
+        'focus:ring-none',
       ],
     },
   },
@@ -127,9 +131,21 @@ const variantClasses: Record<ButtonVariant, Record<ButtonTheme, {
 
 // Extract size styles for better organization
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'px-3 py-1.5 text-xs',
-  md: 'px-4 py-2 text-sm',
-  lg: 'px-6 py-3 text-base',
+  sm: props.shape === 'pill'
+    ? 'px-3 py-1.5 text-xs'
+    : props.shape === 'square'
+      ? 'p-2 text-xs'
+      : 'px-4 py-2 text-sm',
+  md: props.shape === 'pill'
+    ? 'px-4 py-2 text-sm'
+    : props.shape === 'square'
+      ? 'p-3 text-sm'
+      : 'px-5 py-3 text-base',
+  lg: props.shape === 'pill'
+    ? 'px-6 py-3 text-base'
+    : props.shape === 'square'
+      ? 'p-4 text-base'
+      : 'px-6 py-3 text-base',
 }
 
 // Base classes that are always applied
@@ -138,7 +154,7 @@ const baseClasses = computed(() => {
   const theme = variant[props.theme] || variant.default
 
   return [
-    'rounded-lg font-medium outline-none',
+    'font-medium outline-none',
     'transition-all duration-200 ease-in-out',
     'disabled:cursor-not-allowed disabled:opacity-50',
     'backdrop-blur-md',

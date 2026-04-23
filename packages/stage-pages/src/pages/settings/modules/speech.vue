@@ -44,6 +44,7 @@ const {
   speechProviderError,
   ssmlEnabled,
   availableVoices,
+  selectedLanguage,
 } = storeToRefs(speechStore)
 
 const { trackProviderClick } = useAnalytics()
@@ -286,7 +287,7 @@ function handleDeleteProvider(providerId: string) {
               >
                 <template #topRight>
                   <button
-                    v-if="metadata.id !== 'speech-noop'"
+                    v-if="metadata.id !== 'speech-noop' && !metadata.id.startsWith('official-provider')"
                     type="button"
                     class="rounded bg-neutral-100 p-1 text-neutral-600 transition-colors dark:bg-neutral-800/60 hover:bg-neutral-200 dark:text-neutral-300 dark:hover:bg-neutral-700/60"
                     @click.stop.prevent="handleDeleteProvider(metadata.id)"
@@ -412,6 +413,7 @@ function handleDeleteProvider(providerId: string) {
                     :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
                     :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
                     :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
+                    expanded-class="mb-12"
                     @update:custom-value="updateCustomModelName"
                   />
                 </template>
@@ -465,6 +467,8 @@ function handleDeleteProvider(providerId: string) {
             <VoiceCardManySelect
               v-model:search-query="voiceSearchQuery"
               v-model:voice-id="activeSpeechVoiceId"
+              v-model:language-filter="selectedLanguage"
+              :show-visualizer="false"
               :voices="availableVoices[activeSpeechProvider]?.filter(voice => {
                 // If no model is selected, show all voices
                 if (!activeSpeechModel) {
@@ -472,14 +476,30 @@ function handleDeleteProvider(providerId: string) {
                 }
                 // If a model is selected, filter by compatibility
                 return !voice.compatibleModels || voice.compatibleModels.includes(activeSpeechModel)
-              }).map(voice => ({
-                id: voice.id,
-                name: voice.name,
-                description: voice.description,
-                previewURL: voice.previewURL,
-                customizable: false,
-              }))"
+              }).map(voice => {
+                // Promote the voice's own-language display name (e.g. 晓甄, なのみ)
+                // to the card title when it actually differs from the romanized
+                // fallback. Upstreams put this name in languages[].title keyed by
+                // locale code; pick the entry matching the currently-filtered
+                // language so multilingual voices resolve correctly.
+                const localized = (voice.languages || []).find(l => l.code === selectedLanguage)
+                const displayName = localized && localized.title && localized.title !== voice.name
+                  ? localized.title
+                  : voice.name
+                return {
+                  id: voice.id,
+                  name: displayName,
+                  description: voice.description,
+                  previewURL: voice.previewURL,
+                  customizable: false,
+                  // Show plain locale codes in the tag row; the localized name
+                  // that used to surface here is now the card title.
+                  languages: (voice.languages || []).map(l => ({ name: l.code, code: l.code })),
+                  labels: voice.gender ? { gender: voice.gender } : undefined,
+                }
+              })"
               :searchable="true"
+              :filterable-by-language="true"
               :search-placeholder="t('settings.pages.modules.speech.sections.section.provider-voice-selection.search_voices_placeholder')"
               :search-no-results-title="t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices')"
               :search-no-results-description="t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices_description')"

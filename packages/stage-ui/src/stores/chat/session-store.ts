@@ -46,8 +46,17 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return persistQueue
   }
 
+  function cloneDeep<T>(value: T): T {
+    try {
+      return structuredClone(value)
+    }
+    catch {
+      return JSON.parse(JSON.stringify(value)) as T
+    }
+  }
+
   function snapshotMessages(messages: ChatHistoryItem[]) {
-    return JSON.parse(JSON.stringify(messages)) as ChatHistoryItem[]
+    return cloneDeep(messages)
   }
 
   function ensureSessionMessageIds(sessionId: string) {
@@ -106,7 +115,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   async function persistIndex() {
     if (!index.value)
       return
-    const snapshot = JSON.parse(JSON.stringify(index.value)) as ChatSessionsIndex
+    const snapshot = cloneDeep(index.value)
     await enqueuePersist(() => chatSessionsRepo.saveIndex(snapshot))
   }
 
@@ -136,7 +145,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       await chatSessionsRepo.saveSession(sessionId, record)
 
       if (index.value) {
-        const snapshot = JSON.parse(JSON.stringify(index.value)) as ChatSessionsIndex
+        const snapshot = cloneDeep(index.value)
         await chatSessionsRepo.saveIndex(snapshot)
       }
     })
@@ -148,7 +157,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   function replaceSessionMessages(sessionId: string, next: ChatHistoryItem[], options?: { persist?: boolean }) {
     sessionMessages.value[sessionId] = next
-    loadedSessions.add(sessionId)
 
     if (options?.persist !== false)
       void persistSession(sessionId)
@@ -209,10 +217,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       updatedAt: now,
     }
 
-    const initialMessages = options?.messages?.length ? options.messages : [generateInitialMessage()]
+    const initialMessages = options?.messages?.length ? cloneDeep(options.messages) : [generateInitialMessage()]
 
     sessionMetas.value[sessionId] = meta
     replaceSessionMessages(sessionId, initialMessages, { persist: false })
+    loadedSessions.add(sessionId)
     ensureGeneration(sessionId)
 
     if (!index.value)
@@ -285,8 +294,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function ensureSession(sessionId: string) {
     ensureGeneration(sessionId)
     if (!sessionMessages.value[sessionId] || sessionMessages.value[sessionId].length === 0) {
-      replaceSessionMessages(sessionId, [generateInitialMessage()])
+      replaceSessionMessages(sessionId, [generateInitialMessage()], { persist: false })
     }
+  }
+
+  function hasKnownSession(sessionId: string) {
+    return !!sessionMetas.value[sessionId]
+      || !!Object.values(index.value?.characters ?? {}).some(character => character.sessions[sessionId])
   }
 
   const messages = computed<ChatHistoryItem[]>({
@@ -294,7 +308,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       if (!activeSessionId.value) {
         return []
       }
-      ensureSession(activeSessionId.value)
+      if (!loadedSessions.has(activeSessionId.value) && !sessionMessages.value[activeSessionId.value] && hasKnownSession(activeSessionId.value)) {
+        return []
+      }
       return sessionMessages.value[activeSessionId.value] ?? []
     },
     set: (value) => {
@@ -306,7 +322,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   function setActiveSession(sessionId: string) {
     activeSessionId.value = sessionId
-    ensureSession(sessionId)
 
     const characterId = getCurrentCharacterId()
     const characterIndex = index.value?.characters[characterId]
@@ -315,8 +330,42 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       void persistIndex()
     }
 
-    if (ready.value)
+    if (ready.value) {
       void loadSession(sessionId)
+    }
+    else if (!hasKnownSession(sessionId)) {
+      ensureSession(sessionId)
+    }
+  }
+
+  function applyRemoteSnapshot(snapshot: {
+    activeSessionId: string
+    sessionMessages: Record<string, ChatHistoryItem[]>
+    sessionMetas: Record<string, ChatSessionMeta>
+    index?: ChatSessionsIndex | null
+  }) {
+    activeSessionId.value = snapshot.activeSessionId
+    sessionMessages.value = cloneDeep(snapshot.sessionMessages)
+    sessionMetas.value = cloneDeep(snapshot.sessionMetas)
+    if (snapshot.index !== undefined) {
+      index.value = cloneDeep(snapshot.index)
+    }
+    sessionGenerations.value = Object.fromEntries(
+      Object.keys(snapshot.sessionMessages).map(sessionId => [sessionId, sessionGenerations.value[sessionId] ?? 0]),
+    )
+    loadedSessions.clear()
+    for (const sessionId of Object.keys(snapshot.sessionMessages)) {
+      loadedSessions.add(sessionId)
+    }
+  }
+
+  function getSnapshot() {
+    return {
+      activeSessionId: activeSessionId.value,
+      sessionMessages: cloneDeep(sessionMessages.value),
+      sessionMetas: cloneDeep(sessionMetas.value),
+      index: cloneDeep(index.value),
+    }
   }
 
   function cleanupMessages(sessionId = activeSessionId.value) {
@@ -326,7 +375,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   function getAllSessions() {
-    return JSON.parse(JSON.stringify(sessionMessages.value)) as Record<string, ChatHistoryItem[]>
+    return cloneDeep(sessionMessages.value)
   }
 
   async function resetAllSessions() {
@@ -417,8 +466,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
     return {
       format: 'chat-sessions-index:v1',
-      index: index.value,
-      sessions,
+      index: cloneDeep(index.value),
+      sessions: cloneDeep(sessions),
     }
   }
 
@@ -426,20 +475,23 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (payload.format !== 'chat-sessions-index:v1')
       return
 
-    index.value = payload.index
+    index.value = cloneDeep(payload.index)
     sessionMessages.value = {}
     sessionMetas.value = {}
     sessionGenerations.value = {}
     loadedSessions.clear()
     loadingSessions.clear()
 
-    await enqueuePersist(() => chatSessionsRepo.saveIndex(payload.index))
+    await enqueuePersist(() => chatSessionsRepo.saveIndex(cloneDeep(payload.index)))
 
     for (const [sessionId, record] of Object.entries(payload.sessions)) {
-      sessionMetas.value[sessionId] = record.meta
-      sessionMessages.value[sessionId] = record.messages
+      sessionMetas.value[sessionId] = cloneDeep(record.meta)
+      sessionMessages.value[sessionId] = cloneDeep(record.messages)
       ensureGeneration(sessionId)
-      await enqueuePersist(() => chatSessionsRepo.saveSession(sessionId, record))
+      await enqueuePersist(() => chatSessionsRepo.saveSession(sessionId, {
+        meta: cloneDeep(record.meta),
+        messages: cloneDeep(record.messages),
+      }))
     }
 
     await ensureActiveSessionForCharacter()
@@ -460,6 +512,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     messages,
 
     setActiveSession,
+    applyRemoteSnapshot,
+    getSnapshot,
     cleanupMessages,
     getAllSessions,
     resetAllSessions,

@@ -1,0 +1,45 @@
+{
+  "name": "@proj-airi/scenarios-stage-tamagotchi-browser",
+  "type": "module",
+  "version": "0.9.0",
+  "private": true,
+  "description": "Vite/Vue scene app for stage tamagotchi browser captures",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/scenarios-stage-tamagotchi-browser"
+  },
+  "scripts": {
+    "capture": "tsx scripts/capture.ts",
+    "scenario:build": "vite build",
+    "scenario:dev": "vite",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@moeru/std": "catalog:",
+    "@napi-rs/image": "^1.12.0",
+    "@proj-airi/vishot-runner-browser": "workspace:^",
+    "@proj-airi/vishot-runtime": "workspace:^",
+    "@vueuse/core": "catalog:",
+    "date-fns": "catalog:",
+    "reka-ui": "^2.9.6",
+    "vue": "catalog:",
+    "vue-router": "catalog:"
+  },
+  "devDependencies": {
+    "@iconify-json/line-md": "catalog:",
+    "@iconify-json/material-symbols": "catalog:",
+    "@iconify-json/mdi": "catalog:",
+    "@iconify-json/ph": "catalog:",
+    "@unocss/reset": "^66.6.8",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "unplugin-vue-router": "^0.19.2",
+    "vue-tsc": "^3.2.6"
+  }
+}

@@ -1,11 +1,18 @@
 chat:
+  actions:
+    retry: Thử lại
   message:
     character-name:
       airi: AIRI
       core-system: Hệ thống lõi
       you: Bạn
-  reasoning: Suy nghĩ
+  reasoning: Đang suy nghĩ
 message: Nói gì đó...
+send-mode:
+  title: Gửi key
+  enter: Nhập
+  ctrl-enter: Ctrl + Enter
+  double-enter: Nhập hai lần
 operations:
   load-models: Tải mô hình
   load-models-status:
@@ -31,9 +38,55 @@ viewers:
       model:
         title: Mô hình
 profile-switcher:
-  no-profile: No Profile
-  no-profiles: No profiles yet
-  save-as-new: Save as New Profile
-  new-profile-name: Profile name
-  manage: Manage Profiles
+  no-profile: Không có hồ sơ
+  no-profiles: Không có hồ sơ nào
+  save-as-new: Lưu hồ sơ nhân vật mới
+  new-profile-name: Tên nhân vật
+  manage: Quản lý hồ sơ
+promo-banner:
+  items:
+    signin:
+      watermark: Moon
+      fallbackLabel: Moon Gift
+      title: Đăng nhập 7 ngày
+      eventName: Đăng nhập để nhận bụi sao, khung ảnh đại diện và quà tặng khi ra mắt.
+      date: 28/3 đến 10/4
+      reward: Lên tới 120 Bụi sao
+      cta: Đăng nhập
+    build:
+      watermark: Xây dựng
+      fallbackLabel: Ưu đãi xây dựng
+      title: Quà tặng kèm hộp đồ dùng
+      eventName: Hoàn thành các nhiệm vụ xây dựng để nhận phiếu thưởng và gấp đôi vật liệu.
+      date: 30/3 đến 12/04
+      reward: 5 Phiếu cung cấp vật phẩm + Vật liệu nâng cấp
+      cta: Xem Nhiệm vụ
+    spring:
+      watermark: Mùa xuân
+      fallbackLabel: Rút thăm mùa xuân
+      title: Lễ hội Capsule
+      eventName: Hãy tham gia chương trình rút thăm mùa xuân để nhận được bong bóng, bùa may mắn và đồ nội thất theo chủ đề.
+      date: 01/04 đến 18/04
+      reward: Giảm 50% rút lần đầu + Bùa may mắn hiếm
+      cta: Rút thăm ngay
+    coupon:
+      watermark: Trò chuyện
+      fallbackLabel: Phiếu giảm giá
+      title: Phiếu nạp tiền
+      eventName: Hoàn tất các cuộc trò chuyện để nhận phiếu giảm giá cho các gói mở rộng và gói thoại.
+      date: 02/04 đến 20/04
+      reward: Giảm giá 6 khi mua 30 / Giảm giá 15 khi mua 68
+      cta: Nhận phiếu giảm giá
+    home:
+      watermark: Trang chủ
+      fallbackLabel: Chủ đề phòng
+      title: Cập nhật chủ đề mùa xuân
+      eventName: Mở khóa các chủ đề cửa sổ, bàn và đèn ngủ để làm mới căn phòng của bạn.
+      date: 05/04 đến 22/04
+      reward: Nhận vé rút thưởng theo chủ đề miễn phí khi đăng nhập
+      cta: Xem Chủ đề
 waiting: Đang chờ
+websocket-status:
+  connected: Đã kết nối WebSocket
+  disconnected: Đã ngắt kết nối WebSocket
+  open-settings: Mở cài đặt WebSocket

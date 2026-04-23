@@ -86,7 +86,7 @@ function handleDeleteProvider(providerId: string) {
               :description="metadata.localizedDescription"
               @click="trackProviderClick(metadata.id, 'consciousness')"
             >
-              <template #topRight>
+              <template v-if="!metadata.id.startsWith('official-provider')" #topRight>
                 <button
                   type="button"
                   class="rounded bg-neutral-100 p-1 text-neutral-600 transition-colors dark:bg-neutral-800/60 hover:bg-neutral-200 dark:text-neutral-300 dark:hover:bg-neutral-700/60"
@@ -223,6 +223,7 @@ function handleDeleteProvider(providerId: string) {
             :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
             :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
             :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
+            expanded-class="mb-12"
             @update:custom-value="updateCustomModelName"
           />
         </template>

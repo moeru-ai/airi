@@ -99,7 +99,7 @@ describe('providers converters', () => {
     } as any
 
     const metadata = convertProviderDefinitionToMetadata(definition, ((key: string) => key) as any)
-    const result = await metadata.validators.validateProviderConfig({ apiKey: 'k' })
+    const result = await metadata.validators.validateProviderConfig({ apiKey: 'k' }, { skipChatPingCheck: true })
 
     expect(result.valid).toBe(false)
     expect(result.reason).toContain('Base URL is required.')

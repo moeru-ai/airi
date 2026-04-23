@@ -9,24 +9,33 @@ function getOriginFromUrl(url: string): string | undefined {
   }
 }
 
+const TRUSTED_EXACT_ORIGINS = [
+  'capacitor://localhost', // Capacitor mobile (iOS)
+  'https://airi.moeru.ai', // Production
+]
+
+const TRUSTED_ORIGIN_PATTERNS = [
+  // Localhost dev (any port)
+  /^http:\/\/localhost(:\d+)?$/,
+  // Loopback interface for Electron OIDC callbacks (RFC 8252 S7.3)
+  /^http:\/\/127\.0\.0\.1(:\d+)?$/,
+  // Vite + mkcert (https://localhost:5273, etc.)
+  /^https:\/\/localhost(:\d+)?$/,
+  /^https:\/\/127\.0\.0\.1(:\d+)?$/,
+  // Cloudflare Workers subdomains
+  /^https:\/\/.*\.kwaa\.workers\.dev$/,
+]
+
 export function getTrustedOrigin(origin: string): string {
-  // 1. Allow Dev (Localhost with any port)
-  if (!origin || origin.startsWith('http://localhost:')) {
+  if (!origin)
     return origin
-  }
 
-  // 2. Allow Production (Exact Match)
-  if (origin === 'https://airi.moeru.ai') {
+  if (TRUSTED_EXACT_ORIGINS.includes(origin))
     return origin
-  }
 
-  // 3. Allow Dynamic Subdomains (Strict Regex)
-  // Matches: https://foo.kwaa.workers.dev
-  if (/^https:\/\/.*\.kwaa\.workers\.dev$/.test(origin)) {
+  if (TRUSTED_ORIGIN_PATTERNS.some(pattern => pattern.test(origin)))
     return origin
-  }
 
-  // Default: Block
   return ''
 }
 

@@ -1,4 +1,6 @@
 chat:
+  actions:
+    retry: Повторить
   message:
     character-name:
       airi: AIRI
@@ -6,6 +8,11 @@ chat:
       you: Ты
   reasoning: Причина
 message: Спроси что-нибудь
+send-mode:
+  title: Отправить ключ
+  enter: Enter
+  ctrl-enter: Ctrl + Enter
+  double-enter: Двойной Enter
 operations:
   load-models: Загрузить модели
   load-models-status:
@@ -34,6 +41,52 @@ profile-switcher:
   no-profile: Профиль отсутствует
   no-profiles: Нет профилей
   save-as-new: Сохранить как Новый Профиль
-  new-profile-name: Profile name
+  new-profile-name: Имя профиля
   manage: Управление профилями
+promo-banner:
+  items:
+    signin:
+      watermark: Луна
+      fallbackLabel: Лунный подарок
+      title: 7-дневный вход
+      eventName: Войдите, чтобы получить звездную пыль, рамки аватара и подарки к запуску.
+      date: 03/28 - 04/10
+      reward: До 120 звёздной пыли
+      cta: Войти
+    build:
+      watermark: Сборка
+      fallbackLabel: Бонус сборки
+      title: Бонус от ящика с припасами
+      eventName: Выполняйте строительные задания, чтобы получать бонусные ваучеры и двойные материалы.
+      date: 03/30 - 04/12
+      reward: 5 ваучеров на припасы + улучшающие материалы
+      cta: Просмотреть задания
+    spring:
+      watermark: Весна
+      fallbackLabel: Весенний розыгрыш
+      title: Карнавал капсул
+      eventName: Участвуйте в весеннем розыгрыше, чтобы открывать пузырьки, подвески и тематическую мебель.
+      date: 04/01 - 04/18
+      reward: Первое привлечение за полцены + редкая подвеска
+      cta: Участвовать сейчас
+    coupon:
+      watermark: Диалог
+      fallbackLabel: Купон
+      title: Купон пополнения
+      eventName: Выполняйте чат взаимодействия, чтобы получать купоны на наборы расширения и голосовые пакеты.
+      date: 04/02 - 04/20
+      reward: Экономьте 6 на 30 / Экономьте 15 на 68
+      cta: Подтвердить промокод
+    home:
+      watermark: Главная
+      fallbackLabel: Тема комнаты
+      title: Весеннее тематическое обновление
+      eventName: Открывайте темы для окна, стола и ночника, чтобы обновить свою комнату.
+      date: 04/05 - 04/22
+      reward: Бесплатный билет на тематический розыгрыш при входе
+      cta: Просмотр тем
 waiting: Ожидание
+websocket-status:
+  connected: WebSocket подключен
+  disconnected: WebSocket отключен
+  open-settings: Открыть настройки WebSocket

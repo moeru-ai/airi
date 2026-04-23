@@ -291,13 +291,13 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' && matrix.os != 'windows-latest' }}
         working-directory: ./apps/stage-tamagotchi
         run: |
-          echo "VERSION=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-version --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" > $GITHUB_ENV
+          echo "VERSION=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-version --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $GITHUB_ENV
 
       - name: Get Artifacts Envs (Manual + macOS Only)
         if: ${{ github.event_name == 'workflow_dispatch' && (matrix.os == 'macos-26' || matrix.os == 'macos-15-intel') }}
         working-directory: ./apps/stage-tamagotchi
         run: |
-          echo "BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-bundle-name --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" > $GITHUB_ENV
+          echo "BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-bundle-name --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $GITHUB_ENV
 
       - name: Rename Artifacts (Manual)
         if: ${{ github.event_name == 'workflow_dispatch' }}
@@ -408,6 +408,12 @@ jobs:
           echo "BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-bundle-name --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $env:GITHUB_ENV
           echo "VERSION=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-version --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $env:GITHUB_ENV
 
+      - name: Get Artifacts Envs (Automatic + Non-Windows)
+        if: ${{ github.event_name == 'release' && matrix.os != 'windows-latest' }}
+        working-directory: ./apps/stage-tamagotchi
+        run: |
+          echo "BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-bundle-name --release --auto-tag)" >> $GITHUB_ENV
+
       - name: Upload Artifacts (Automatic + Windows Only)
         if: ${{ github.event_name == 'release' && matrix.os == 'windows-latest' }}
         id: unsigned-artifacts-release
@@ -445,6 +451,34 @@ jobs:
         run: |
           pnpm -F @proj-airi/stage-tamagotchi run regenerate-windows-latest --input apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }} --output apps/stage-tamagotchi/bundle/latest-x64.yml --version ${{ env.VERSION }}
 
+      - name: Upload Distribution Artifact (Automatic + macOS arm64 Only)
+        if: ${{ github.event_name == 'release' && matrix.os == 'macos-26' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: distribution-osx
+          path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
+
+      - name: Upload Distribution Artifact (Automatic + Windows Only)
+        if: ${{ github.event_name == 'release' && matrix.os == 'windows-latest' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: distribution-win
+          path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
+
+      - name: Upload Distribution Artifact (Automatic + Linux x64 Only)
+        if: ${{ github.event_name == 'release' && matrix.os == 'ubuntu-latest' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: distribution-linux-x64
+          path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
+
+      - name: Upload Distribution Artifact (Automatic + Linux arm64 Only)
+        if: ${{ github.event_name == 'release' && matrix.os == 'ubuntu-24.04-arm' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: distribution-linux-arm64
+          path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
+
       - name: Upload To GitHub Releases (Automatic)
         if: ${{ github.event_name == 'release' }}
         uses: softprops/action-gh-release@v2
@@ -462,3 +496,43 @@ jobs:
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.flatpak
             apps/stage-tamagotchi/bundle/latest-*.yml
           append_body: true
+
+  publish-distribution:
+    name: Publish Distribution
+    needs: build
+    if: ${{ github.event_name == 'release' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - artifact_name: distribution-osx
+            platform: osx
+          - artifact_name: distribution-win
+            platform: win
+          - artifact_name: distribution-linux-x64
+            platform: linux
+          - artifact_name: distribution-linux-arm64
+            platform: linux
+    steps:
+      - name: Resolve release version
+        run: |
+          echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+
+      - name: Download distribution artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist/${{ matrix.artifact_name }}
+
+      - name: Resolve artifact path
+        run: |
+          echo "ARTIFACT_PATH=$(find dist/${{ matrix.artifact_name }} -maxdepth 1 -mindepth 1 | head -n 1)" >> $GITHUB_ENV
+
+      - name: Setup butler
+        uses: remarkablegames/setup-butler@v2
+
+      # https://itch.io/docs/butler/pushing.html
+      - name: Publish distribution artifact to itch.io
+        run: butler push "${{ env.ARTIFACT_PATH }}" nekomeowww/airi:${{ matrix.platform }} --userversion "${{ env.VERSION }}"
+        env:
+          BUTLER_API_KEY: ${{ secrets.GAME_PUBLISHING_ITCHIO }}

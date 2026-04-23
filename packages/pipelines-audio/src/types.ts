@@ -27,6 +27,7 @@ export interface TtsRequest {
   streamId: string
   intentId: string
   segmentId: string
+  sequence: number
   text: string
   special: string | null
   priority: number
@@ -37,6 +38,7 @@ export interface TtsResult<TAudio> {
   streamId: string
   intentId: string
   segmentId: string
+  sequence: number
   text: string
   special: string | null
   audio: TAudio
@@ -48,6 +50,7 @@ export interface PlaybackItem<TAudio> {
   streamId: string
   intentId: string
   segmentId: string
+  sequence: number
   ownerId?: string
   priority: number
   text: string

@@ -1,10 +1,13 @@
 import type Redis from 'ioredis'
 
+import type { AuthInstance } from './libs/auth'
+import type { Database } from './libs/db'
 import type { Env } from './libs/env'
 import type { MqService } from './libs/mq'
 import type { OtelInstance } from './libs/otel'
 import type { BillingEvent } from './services/billing/billing-events'
 import type { BillingService } from './services/billing/billing-service'
+import type { FluxMeter } from './services/billing/flux-meter'
 import type { CharacterService } from './services/characters'
 import type { ChatService } from './services/chats'
 import type { ConfigKVService } from './services/config-kv'
@@ -25,15 +28,16 @@ import { cors } from 'hono/cors'
 import { logger as honoLogger } from 'hono/logger'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
 
-import { createAuth } from './libs/auth'
+import { createAuth, getTrustedClientSeedSummaries, seedTrustedClients } from './libs/auth'
 import { createDrizzle, migrateDatabase } from './libs/db'
 import { parsedEnv } from './libs/env'
 import { initializeExternalDependency } from './libs/external-dependency'
 import { emitOtelLog, initOtel } from './libs/otel'
 import { createRedis } from './libs/redis'
+import { resolveRequestAuth } from './libs/request-auth'
 import { sessionMiddleware } from './middlewares/auth'
 import { otelMiddleware } from './middlewares/otel'
-import { rateLimiter } from './middlewares/rate-limit'
+import { createAuthRoutes } from './routes/auth'
 import { createCharacterRoutes } from './routes/characters'
 import { createChatWsHandlers } from './routes/chat-ws'
 import { createChatRoutes } from './routes/chats'
@@ -43,6 +47,7 @@ import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
 import { createBillingMq } from './services/billing/billing-events'
 import { createBillingService } from './services/billing/billing-service'
+import { createFluxMeter } from './services/billing/flux-meter'
 import { createCharacterService } from './services/characters'
 import { createChatService } from './services/chats'
 import { createConfigKVService } from './services/config-kv'
@@ -55,7 +60,8 @@ import { ApiError, createInternalError, createUnauthorizedError } from './utils/
 import { getTrustedOrigin } from './utils/origin'
 
 interface AppDeps {
-  auth: ReturnType<typeof createAuth>
+  auth: AuthInstance
+  db: Database
   characterService: CharacterService
   chatService: ChatService
   providerService: ProviderService
@@ -63,6 +69,7 @@ interface AppDeps {
   fluxTransactionService: FluxTransactionService
   stripeService: StripeService
   billingService: BillingService
+  ttsMeter: FluxMeter
   billingMq: MqService<BillingEvent>
   configKV: ConfigKVService
   redis: Redis
@@ -70,10 +77,20 @@ interface AppDeps {
   otel: OtelInstance | null
 }
 
-async function buildApp(deps: AppDeps) {
+export async function buildApp(deps: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
 
   const app = new Hono<HonoEnv>()
+    .use('*', async (c, next) => {
+      await next()
+
+      // NOTICE: All API responses should be non-cacheable. Auth responses can
+      // carry session state through redirects, and stale API payloads are not
+      // safe to serve from edge caches after user/account mutations.
+      c.res.headers.set('Cache-Control', 'no-store, no-cache, private, max-age=0')
+      c.res.headers.set('Pragma', 'no-cache')
+      c.res.headers.set('Expires', '0')
+    })
     .use(
       '/api/*',
       cors({
@@ -96,9 +113,11 @@ async function buildApp(deps: AppDeps) {
     if (!token) {
       throw createUnauthorizedError('Missing token')
     }
-    const session = await deps.auth.api.getSession({
-      headers: new Headers({ Authorization: `Bearer ${token}` }),
-    })
+    const session = await resolveRequestAuth(
+      deps.auth,
+      deps.env,
+      new Headers({ Authorization: `Bearer ${token}` }),
+    )
     if (!session?.user) {
       throw createUnauthorizedError('Invalid token')
     }
@@ -106,17 +125,16 @@ async function buildApp(deps: AppDeps) {
   }))
 
   const builtApp = app
-    .use('*', sessionMiddleware(deps.auth))
-    .use('*', async (c, next) => {
-      // Skip global body limit for ASR transcription route (has its own 25MB limit)
-      if (c.req.path === '/api/v1/openai/audio/transcriptions') {
-        return next()
-      }
-      return bodyLimit({ maxSize: 1024 * 1024 })(c, next)
-    })
+    .use('*', sessionMiddleware(deps.auth, deps.env))
+    .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
     .onError((err, c) => {
       if (err instanceof ApiError) {
-        logger.withError(err).warn('API error occurred')
+        if (err.statusCode >= 500) {
+          logger.withError(err).error('API error occurred')
+        }
+        else if (err.statusCode !== 401) {
+          logger.withError(err).warn('API error occurred')
+        }
 
         return c.json({
           error: err.errorCode,
@@ -139,16 +157,15 @@ async function buildApp(deps: AppDeps) {
     .on('GET', '/health', c => c.json({ status: 'ok' }))
 
     /**
-     * Auth routes are handled by the auth instance directly,
-     * Powered by better-auth.
-     * Rate limited by IP: 20 requests per minute.
+     * Auth routes: sign-in page, token auth helpers, electron callback
+     * relay, well-known metadata, and better-auth catch-all.
      */
-    .use('/api/auth/*', rateLimiter({
-      max: await deps.configKV.getOrThrow('AUTH_RATE_LIMIT_MAX'),
-      windowSec: await deps.configKV.getOrThrow('AUTH_RATE_LIMIT_WINDOW_SEC'),
-      keyGenerator: c => c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'unknown',
+    .route('/', await createAuthRoutes({
+      auth: deps.auth,
+      db: deps.db,
+      env: deps.env,
+      configKV: deps.configKV,
     }))
-    .on(['POST', 'GET'], '/api/auth/*', c => deps.auth.handler(c.req.raw))
 
     /**
      * Character routes are handled by the character service.
@@ -168,7 +185,7 @@ async function buildApp(deps: AppDeps) {
     /**
      * V1 routes for official provider.
      */
-    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.billingMq, deps.otel?.genAi))
+    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.billingMq, deps.ttsMeter, deps.redis, deps.env, deps.otel?.genAi))
 
     /**
      * Flux routes.
@@ -178,7 +195,7 @@ async function buildApp(deps: AppDeps) {
     /**
      * Stripe routes.
      */
-    .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.otel?.revenue))
+    .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue))
 
   return { app: builtApp, injectWebSocket }
 }
@@ -277,7 +294,20 @@ export async function createApp() {
 
   const auth = injeca.provide('services:auth', {
     dependsOn: { db, env: parsedEnv, otel },
-    build: ({ dependsOn }) => createAuth(dependsOn.db, dependsOn.env, dependsOn.otel?.auth),
+    build: async ({ dependsOn }) => {
+      // Seed trusted OIDC clients into DB so FK constraints on oauth_access_token are satisfied
+      await seedTrustedClients(dependsOn.db, dependsOn.env)
+      const trustedClients = getTrustedClientSeedSummaries(dependsOn.env)
+      logger.withField('apiServerUrl', dependsOn.env.API_SERVER_URL).log('OIDC startup configuration')
+      for (const client of trustedClients) {
+        logger.withFields({
+          clientId: client.clientId,
+          clientName: client.name,
+          redirectUris: client.redirectUris.join(', '),
+        }).log('OIDC trusted client ready')
+      }
+      return createAuth(dependsOn.db, dependsOn.env, dependsOn.otel?.auth)
+    },
   })
 
   const characterService = injeca.provide('services:characters', {
@@ -320,6 +350,24 @@ export async function createApp() {
     build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.billingMq, dependsOn.configKV, dependsOn.otel?.revenue),
   })
 
+  const ttsMeter = injeca.provide('services:ttsMeter', {
+    dependsOn: { redis, billingService, configKV },
+    build: ({ dependsOn }) => createFluxMeter(dependsOn.redis, dependsOn.billingService, {
+      name: 'tts',
+      // Lazy config read: missing FLUX_PER_1K_CHARS_TTS surfaces as a
+      // per-request 503 (via route-level configGuard), not a server boot
+      // failure that would take chat/auth/stripe down with it.
+      resolveRuntime: async () => {
+        const fluxPer1kChars = await dependsOn.configKV.getOrThrow('FLUX_PER_1K_CHARS_TTS')
+        const ttl = await dependsOn.configKV.get('TTS_DEBT_TTL_SECONDS')
+        return {
+          unitsPerFlux: Math.max(1, Math.floor(1000 / fluxPer1kChars)),
+          debtTtlSeconds: ttl,
+        }
+      },
+    }),
+  })
+
   await injeca.start()
   const resolved = await injeca.resolve({
     db,
@@ -332,6 +380,7 @@ export async function createApp() {
     requestLogService,
     stripeService,
     billingService,
+    ttsMeter,
     billingMq,
     configKV,
     redis,
@@ -340,6 +389,7 @@ export async function createApp() {
   })
   const { app, injectWebSocket } = await buildApp({
     auth: resolved.auth,
+    db: resolved.db,
     characterService: resolved.characterService,
     chatService: resolved.chatService,
     providerService: resolved.providerService,
@@ -347,6 +397,7 @@ export async function createApp() {
     fluxTransactionService: resolved.fluxTransactionService,
     stripeService: resolved.stripeService,
     billingService: resolved.billingService,
+    ttsMeter: resolved.ttsMeter,
     billingMq: resolved.billingMq,
     configKV: resolved.configKV,
     redis: resolved.redis,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LoginDrawer } from '@proj-airi/stage-ui/components/auth/index'
+import { LoginDrawer } from '@proj-airi/stage-ui/components'
 import { useBreakpoints } from '@proj-airi/stage-ui/composables'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { storeToRefs } from 'pinia'
@@ -13,11 +13,9 @@ const { needsLogin } = storeToRefs(useAuthStore())
   <main h-full font-cute>
     <RouterView />
 
-    <Teleport to="body">
-      <LoginDrawer
-        v-if="isMobile"
-        v-model:open="needsLogin"
-      />
-    </Teleport>
+    <LoginDrawer
+      v-if="isMobile"
+      v-model:open="needsLogin"
+    />
   </main>
 </template>

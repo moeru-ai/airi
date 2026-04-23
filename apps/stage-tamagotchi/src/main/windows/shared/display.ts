@@ -141,6 +141,80 @@ export function widthFrom(bounds: Rectangle, sizeOptions: Size & { min?: Size, m
   return val
 }
 
+export interface AdjacentPositionResult {
+  x: number
+  y: number
+  width: number
+  height: number
+  scale: number
+}
+
+/**
+ * Compute a position for `target` adjacent to `anchor`, staying within `workArea`.
+ *
+ * Compares available space on right, left, and bottom of the anchor and picks the
+ * side with the most room. Tie-breaking preference: right > left > bottom.
+ *
+ * If the target doesn't fit at full size on the best side, it is scaled down
+ * (preserving aspect ratio) to fit, respecting `minScale`.
+ */
+export function computeAdjacentPosition(
+  anchorBounds: Rectangle,
+  targetSize: { width: number, height: number },
+  workArea: Rectangle,
+  options?: { margin?: number, minScale?: number },
+): AdjacentPositionResult {
+  const margin = options?.margin ?? 16
+  const minScale = options?.minScale ?? 0.5
+
+  const waRight = workArea.x + workArea.width
+  const waBottom = workArea.y + workArea.height
+
+  const rightSpace = { w: waRight - (anchorBounds.x + anchorBounds.width + margin), h: workArea.height }
+  const leftSpace = { w: anchorBounds.x - workArea.x - margin, h: workArea.height }
+  const bottomSpace = { w: workArea.width, h: waBottom - (anchorBounds.y + anchorBounds.height + margin) }
+
+  function maxScale(space: { w: number, h: number }): number {
+    if (space.w <= 0 || space.h <= 0)
+      return 0
+    return Math.min(space.w / targetSize.width, space.h / targetSize.height, 1)
+  }
+
+  const candidates: { side: 'right' | 'left' | 'bottom', scale: number }[] = [
+    { side: 'right', scale: maxScale(rightSpace) },
+    { side: 'left', scale: maxScale(leftSpace) },
+    { side: 'bottom', scale: maxScale(bottomSpace) },
+  ]
+
+  candidates.sort((a, b) => b.scale - a.scale)
+  const best = candidates[0]!
+
+  const scale = Math.max(best.scale, minScale)
+  const w = Math.round(targetSize.width * scale)
+  const h = Math.round(targetSize.height * scale)
+
+  const clampX = (x: number) => Math.min(Math.max(x, workArea.x), waRight - w)
+  const clampY = (y: number) => Math.min(Math.max(y, workArea.y), waBottom - h)
+
+  const centerY = anchorBounds.y + Math.floor((anchorBounds.height - h) / 2)
+
+  switch (best.side) {
+    case 'right': {
+      const x = anchorBounds.x + anchorBounds.width + margin
+      return { x: clampX(x), y: clampY(centerY), width: w, height: h, scale }
+    }
+    case 'left': {
+      const x = anchorBounds.x - w - margin
+      return { x: clampX(x), y: clampY(centerY), width: w, height: h, scale }
+    }
+    case 'bottom': {
+      const y = anchorBounds.y + anchorBounds.height + margin
+      const x = anchorBounds.x + Math.floor((anchorBounds.width - w) / 2)
+      return { x: clampX(x), y: clampY(y), width: w, height: h, scale }
+    }
+  }
+}
+
 /**
  * Calculate height based on options similar to how Web CSS does it.
  *

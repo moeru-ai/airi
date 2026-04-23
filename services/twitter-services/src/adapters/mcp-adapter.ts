@@ -3,11 +3,12 @@ import type { Tweet } from '../core/services/tweet'
 import type { TwitterServices } from '../types/services'
 
 import { Buffer } from 'node:buffer'
-import { createServer } from 'node:http'
+import { createServer, ServerResponse } from 'node:http'
 
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js'
-import { createApp, createRouter, defineEventHandler, toNodeListener } from 'h3'
+import { createRouter, defineEventHandler, H3 } from 'h3'
+import { toNodeHandler } from 'h3/node'
 import { z } from 'zod'
 
 import { useTwitterTimelineServices } from '../core/services/timeline'
@@ -23,7 +24,7 @@ import { logger } from '../utils/logger'
  */
 export class MCPAdapter {
   private mcpServer: McpServer
-  private app: ReturnType<typeof createApp>
+  private app: H3
   private server: ReturnType<typeof createServer> | null = null
   private port: number
   private activeTransports: SSEServerTransport[] = []
@@ -49,7 +50,7 @@ export class MCPAdapter {
     })
 
     // Create H3 app
-    this.app = createApp()
+    this.app = new H3()
 
     // Configure resources and tools
     this.configureServer()
@@ -425,19 +426,31 @@ export class MCPAdapter {
 
     // Set up CORS
     router.use('*', defineEventHandler((event) => {
-      event.node.res.setHeader('Access-Control-Allow-Origin', '*')
-      event.node.res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-      event.node.res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+      const node = event.node
+      if (!node?.res || !node.req) {
+        return
+      }
 
-      if (event.node.req.method === 'OPTIONS') {
-        event.node.res.statusCode = 204
-        event.node.res.end()
+      node.res.setHeader('Access-Control-Allow-Origin', '*')
+      node.res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+      node.res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+
+      if (node.req.method === 'OPTIONS') {
+        node.res.statusCode = 204
+        node.res.end()
       }
     }))
 
     // SSE endpoint
     router.get('/sse', defineEventHandler(async (event) => {
-      const { req, res } = event.node
+      const node = event.node
+      if (!node?.res || !node.req) {
+        return { error: 'Node response is unavailable' }
+      }
+      const { req, res } = node
+      if (!(res instanceof ServerResponse)) {
+        return { error: 'HTTP ServerResponse is required for SSE transport' }
+      }
 
       res.setHeader('Content-Type', 'text/event-stream')
       res.setHeader('Cache-Control', 'no-cache')
@@ -461,9 +474,14 @@ export class MCPAdapter {
 
     // Messages endpoint - receive client requests
     router.post('/messages', defineEventHandler(async (event) => {
+      const node = event.node
+      if (!node?.res) {
+        return { error: 'Node response is unavailable' }
+      }
+
       if (this.activeTransports.length === 0) {
         logger.mcp.warn('Received message request but no active SSE connections')
-        event.node.res.statusCode = 503
+        node.res.statusCode = 503
         return { error: 'No active SSE connections' }
       }
 
@@ -475,6 +493,10 @@ export class MCPAdapter {
         // Simple handling - send to most recent transport
         // Note: In production, should use session ID to route to correct transport
         const transport = this.activeTransports.at(-1)
+        if (!transport) {
+          node.res.statusCode = 503
+          return { error: 'No active transport' }
+        }
 
         // Manually handle POST message, as H3 is not Express-compatible
         const response = await transport.handleMessage(body)
@@ -486,7 +508,7 @@ export class MCPAdapter {
       }
       catch (error) {
         logger.mcp.errorWithError('Error handling MCP message:', error)
-        event.node.res.statusCode = 500
+        node.res.statusCode = 500
         return { error: errorToMessage(error) }
       }
     }))
@@ -520,7 +542,7 @@ export class MCPAdapter {
 
       try {
         // Create Node.js HTTP server
-        this.server = createServer(toNodeListener(this.app))
+        this.server = createServer(toNodeHandler(this.app))
 
         // Add error event handlers
         this.server.on('error', (error) => {

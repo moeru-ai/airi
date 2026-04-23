@@ -24,6 +24,8 @@
     "./constants/emotions": "./src/constants/emotions.ts",
     "./stores": "./src/stores/index.ts",
     "./stores/live2d": "./src/stores/live2d.ts",
+    "./stores/expression-store": "./src/stores/expression-store.ts",
+    "./tools/expression-tools": "./src/tools/expression-tools.ts",
     "./utils/eye-motions": "./src/utils/eye-motions.ts",
     "./utils/live2d-preview": "./src/utils/live2d-preview.ts",
     "./utils/live2d-zip-loader": "./src/utils/live2d-zip-loader.ts",
@@ -52,19 +54,21 @@
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "@vueuse/core": "^14.2.1",
+    "@xsai/tool": "catalog:",
     "animejs": "^4.3.6",
     "culori": "^4.0.2",
     "es-toolkit": "catalog:",
     "jszip": "^3.10.1",
     "pinia": "^3.0.4",
-    "pixi-filters": "4",
+    "pixi-filters": "^4.2.0",
     "pixi-live2d-display": "^0.4.0",
-    "three": "^0.183.2",
-    "vue": "catalog:"
+    "three": "^0.184.0",
+    "vue": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/culori": "^4.0.1",
-    "@types/three": "^0.183.1",
+    "@types/three": "^0.184.0",
     "vue-tsc": "^3.2.6"
   }
 }
