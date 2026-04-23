@@ -104,6 +104,17 @@ const errorMessages = ref<ChatHistoryItem[]>([
   },
 ])
 
+const errorOverflowMessages = ref<ChatHistoryItem[]>([
+  {
+    role: 'user',
+    content: 'Retry the provider call and tell me exactly what failed.',
+  },
+  {
+    role: 'error',
+    content: 'Remote sent 400 response: {"error":{"message":"This model is not available in your region.","type":"invalid_request_error","param":"model","code":"region_not_supported"},"request_id":"req_01K8F0R7X1W2Y3Z4A5B6C7D8E9","endpoint":"https://api.example.invalid/v1/chat/completions","provider":"openai-compatible"}',
+  },
+])
+
 const streamingMessage = ref<ChatAssistantMessage>({
   role: 'assistant',
   content: '',
@@ -192,6 +203,18 @@ const streamingMessage = ref<ChatAssistantMessage>({
       <div class="font-cute">
         <ChatHistory
           :messages="errorMessages"
+        />
+      </div>
+    </Variant>
+
+    <Variant
+      id="error-overflow"
+      title="Error (Overflow)"
+    >
+      <div :class="['font-cute', 'w-72', 'max-w-full']">
+        <ChatHistory
+          :messages="errorOverflowMessages"
+          variant="mobile"
         />
       </div>
     </Variant>

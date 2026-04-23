@@ -7,6 +7,7 @@ packages:
   - services/**
   - examples/**
   - docs/**
+  - engines/**
   - apps/**
   - '!**/dist/**'
 overrides:
@@ -135,6 +136,7 @@ catalog:
   vite: ^8.0.8
   vite-plugin-inspect: 12.0.0-beta.1
   vite-plugin-mkcert: ^2.0.0
+  vitest-browser-vue: ^2.1.0
   vue: ^3.5.32
   vue-router: ^5.0.4
   vue-sonner: 2.0.9
@@ -153,6 +155,7 @@ catalogs:
     unspeech: ^0.1.13
 
 ignoredBuiltDependencies:
+  - '@ax-llm/ax'
   - '@prisma/client'
   - better-sqlite3
   - simple-git-hooks # [workaround] postinstall script bundled in simple-git-hooks fails to execute with `enableGlobalVirtualStore: true`. Using local postinstall script to run `npx simple-git-hooks` instead.

@@ -152,6 +152,7 @@ export default defineConfig<ThemeConfig>({
                   { text: 'Web Version', link: withBase('/en/docs/manual/web/') },
                 ],
               },
+              { text: 'Setup and Use', link: withBase('/en/docs/manual/tamagotchi/setup-and-use/') },
               {
                 text: 'Configuration',
                 items: [
@@ -292,6 +293,10 @@ export default defineConfig<ThemeConfig>({
                   { text: '桌面版', link: withBase('/zh-Hans/docs/manual/tamagotchi/') },
                   { text: '网页版', link: withBase('/zh-Hans/docs/manual/web/') },
                 ],
+              },
+              {
+                text: '安装与使用',
+                link: withBase('/zh-Hans/docs/manual/tamagotchi/setup-and-use/'),
               },
               {
                 text: '配置',

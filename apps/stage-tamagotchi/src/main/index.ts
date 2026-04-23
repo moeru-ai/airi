@@ -134,11 +134,6 @@ app.whenReady().then(async () => {
     build: async () => setupMcpStdioManager(),
   })
 
-  const pluginHost = injeca.provide('modules:plugin-host', {
-    dependsOn: { serverChannel },
-    build: () => setupPluginHost(),
-  })
-
   const windowAuthManager = injeca.provide('services:window-auth-manager', () => createWindowAuthManagerService())
 
   // BeatSync will create a background window to capture and process audio.
@@ -159,6 +154,11 @@ app.whenReady().then(async () => {
   const widgetsManager = injeca.provide('windows:widgets', {
     dependsOn: { serverChannel, i18n },
     build: ({ dependsOn }) => setupWidgetsWindowManager(dependsOn),
+  })
+
+  const pluginHost = injeca.provide('modules:plugin-host', {
+    dependsOn: { serverChannel, widgetsManager },
+    build: ({ dependsOn }) => setupPluginHost({ widgetsManager: dependsOn.widgetsManager }),
   })
 
   const aboutWindow = injeca.provide('windows:about', {

@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from 'reka-ui'
 import { computed, inject, reactive, ref, shallowRef, toRef, useTemplateRef, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useWebHaptics } from 'web-haptics/vue'
 
 import { createChatActionMenuItems } from '.'
@@ -30,12 +31,14 @@ import { chatScrollContainerKey } from '../../constants'
 
 const props = withDefaults(defineProps<{
   canCopy?: boolean
+  canRetry?: boolean
   canDelete?: boolean
   copyText?: string
   menuLabel?: string
   placement?: 'left' | 'right'
 }>(), {
   canCopy: true,
+  canRetry: false,
   canDelete: true,
   copyText: '',
   menuLabel: 'Message actions',
@@ -44,6 +47,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   (e: 'copy'): void
+  (e: 'retry'): void
   (e: 'delete'): void
 }>()
 defineSlots<{
@@ -79,11 +83,14 @@ const bottomSentinelVisible = useElementVisibility(bottomSentinelRef, {
 
 const { trigger } = useWebHaptics()
 const { isMobile } = useBreakpoints()
+const { t } = useI18n()
 const shouldDisableDropdownMenu = computed(() => (isStageWeb() || isStageCapacitor()) && isMobile.value)
 
 const menuItems = computed(() => createChatActionMenuItems({
   canCopy: props.canCopy && props.copyText.trim().length > 0,
+  canRetry: props.canRetry,
   canDelete: props.canDelete,
+  retryLabel: t('stage.chat.actions.retry'),
 }))
 const hasMenuItems = computed(() => menuItems.value.length > 0)
 const forceVisible = computed(() => contextMenuOpen.value)
@@ -140,6 +147,11 @@ async function handleAction(action: ChatActionMenuAction) {
       await navigator.clipboard.writeText(props.copyText)
       emit('copy')
     }
+    return
+  }
+
+  if (action === 'retry') {
+    emit('retry')
     return
   }
 

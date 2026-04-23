@@ -29,11 +29,13 @@
     "./libs/inference": "./src/libs/inference/index.ts",
     "./libs/*": "./src/libs/*.ts",
     "./libs": "./src/libs/index.ts",
+    "./tools/mcp": "./src/tools/mcp.ts",
     "./stores/providers/aliyun": "./src/stores/providers/aliyun/index.ts",
     "./stores/analytics": "./src/stores/analytics/index.ts",
     "./stores/analytics/posthog": "./src/stores/analytics/posthog.ts",
     "./stores/analytics/privacy-policy": "./src/stores/analytics/privacy-policy.ts",
     "./stores/character": "./src/stores/character/index.ts",
+    "./stores/character/orchestrator/spark-notify-agent": "./src/stores/character/orchestrator/spark-notify-agent.ts",
     "./stores/settings/analytics": "./src/stores/settings/analytics.ts",
     "./stores/settings": "./src/stores/settings/index.ts",
     "./stores/modules/vision": "./src/stores/modules/vision/index.ts",
@@ -59,7 +61,6 @@
   },
   "dependencies": {
     "@date-fns/utc": "^2.1.1",
-    "@fontsource-variable/nunito": "catalog:",
     "@formkit/auto-animate": "^0.9.0",
     "@huggingface/transformers": "^3.8.1",
     "@moeru/eventa": "catalog:",
@@ -152,8 +153,10 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@fontsource-variable/comfortaa": "^5.2.8",
     "@fontsource-variable/dm-sans": "^5.2.8",
     "@fontsource-variable/jura": "^5.2.7",
+    "@fontsource-variable/nunito": "catalog:",
     "@fontsource-variable/quicksand": "^5.2.10",
     "@fontsource-variable/urbanist": "^5.2.7",
     "@fontsource/dm-mono": "^5.2.7",
@@ -192,6 +195,7 @@
     "unplugin-info": "catalog:",
     "unplugin-yaml": "^4.1.0",
     "vite": "^6.4.2",
+    "vitest-browser-vue": "catalog:",
     "vue": "catalog:",
     "vue-tsc": "^3.2.6"
   }

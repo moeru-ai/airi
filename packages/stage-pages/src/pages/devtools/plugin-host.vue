@@ -106,6 +106,18 @@ async function loadEnabled() {
   }
 }
 
+async function setAutoReload(plugin: PluginManifestSummary, enabled: boolean) {
+  try {
+    await store.setAutoReload({
+      name: plugin.name,
+      enabled,
+    })
+  }
+  catch (error) {
+    toast.error(error instanceof Error ? error.message : `Failed to update auto-reload state for ${plugin.name}.`)
+  }
+}
+
 async function setEnabled(plugin: PluginManifestSummary, enabled: boolean) {
   try {
     await store.setEnabled({
@@ -173,7 +185,7 @@ onMounted(async () => {
       :description="store.error"
     />
 
-    <div :class="['grid', 'gap-2', 'sm:grid-cols-2', 'xl:grid-cols-4']">
+    <div :class="['grid', 'gap-2', 'sm:grid-cols-2', 'xl:grid-cols-6']">
       <div :class="['rounded-xl', 'bg-neutral-100', 'p-3', 'dark:bg-neutral-900/70']">
         <div :class="['text-xs', 'uppercase', 'opacity-70']">
           Discovered
@@ -204,6 +216,14 @@ onMounted(async () => {
         </div>
         <div :class="['text-2xl', 'font-semibold']">
           {{ readyCapabilitiesCount }} / {{ store.capabilities.length }}
+        </div>
+      </div>
+      <div :class="['rounded-xl', 'bg-neutral-100', 'p-3', 'dark:bg-neutral-900/70']">
+        <div :class="['text-xs', 'uppercase', 'opacity-70']">
+          Kits
+        </div>
+        <div :class="['text-2xl', 'font-semibold']">
+          {{ store.kits.length }}
         </div>
       </div>
     </div>
@@ -272,6 +292,9 @@ onMounted(async () => {
               <span :class="['rounded-full', 'border', 'px-2', 'py-0.5', 'text-xs', ...chipClasses(plugin.enabled ? 'emerald' : 'neutral')]">
                 {{ plugin.enabled ? 'enabled' : 'disabled' }}
               </span>
+              <span :class="['rounded-full', 'border', 'px-2', 'py-0.5', 'text-xs', ...chipClasses(plugin.autoReload ? 'amber' : 'neutral')]">
+                {{ plugin.autoReload ? 'auto reload on' : 'auto reload off' }}
+              </span>
               <span :class="['rounded-full', 'border', 'px-2', 'py-0.5', 'text-xs', ...chipClasses(plugin.loaded ? 'emerald' : 'neutral')]">
                 {{ plugin.loaded ? 'loaded' : 'not loaded' }}
               </span>
@@ -280,6 +303,14 @@ onMounted(async () => {
               </span>
             </div>
             <div :class="['flex', 'flex-wrap', 'items-center', 'gap-2']">
+              <Button
+                size="sm"
+                variant="secondary"
+                :label="plugin.autoReload ? 'Auto Reload Off' : 'Auto Reload On'"
+                :icon="plugin.autoReload ? 'i-solar:refresh-circle-bold' : 'i-solar:refresh-bold-duotone'"
+                :loading="store.loading"
+                @click="setAutoReload(plugin, !plugin.autoReload)"
+              />
               <Button
                 size="sm"
                 variant="secondary"
@@ -368,6 +399,37 @@ onMounted(async () => {
               {{ sessionByPluginName.get(plugin.name)?.phase ?? 'unknown' }}
             </span>
           </div>
+        </div>
+      </div>
+    </Section>
+
+    <Section
+      title="Kits"
+      icon="i-solar:box-bold-duotone"
+      inner-class="gap-2"
+    >
+      <div
+        v-if="store.kits.length === 0"
+        :class="['text-sm', 'opacity-70']"
+      >
+        No kits registered.
+      </div>
+      <div v-else :class="['grid', 'gap-2']">
+        <div
+          v-for="kit in store.kits"
+          :key="kit.kitId"
+          :class="['rounded-lg', 'border', 'border-neutral-300', 'bg-white/60', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-950/60']"
+        >
+          <div :class="['flex', 'flex-wrap', 'items-center', 'justify-between', 'gap-2']">
+            <span :class="['font-mono', 'text-xs', 'sm:text-sm']">{{ kit.kitId }}</span>
+            <span :class="['rounded-full', 'border', 'px-2', 'py-0.5', 'text-xs', ...chipClasses('neutral')]">
+              v{{ kit.version }}
+            </span>
+          </div>
+          <div :class="['mt-2', 'text-xs', 'opacity-70']">
+            runtimes: {{ kit.runtimes.join(', ') || '-' }}
+          </div>
+          <pre :class="['mt-2', 'overflow-auto', 'rounded-lg', 'bg-neutral-100', 'p-2', 'text-xs', 'dark:bg-neutral-900/70']">{{ JSON.stringify(kit.capabilities, null, 2) }}</pre>
         </div>
       </div>
     </Section>

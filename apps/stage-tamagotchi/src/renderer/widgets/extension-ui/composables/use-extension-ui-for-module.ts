@@ -1,6 +1,6 @@
 import type { ComputedRef } from 'vue'
 
-import type { PluginHostModuleSummary } from '../../../../shared/eventa'
+import type { PluginHostModuleSummary } from '../../../../shared/eventa/plugin/host'
 
 import { errorMessageFrom } from '@moeru/std'
 import { isPlainObject } from 'es-toolkit'
@@ -22,6 +22,7 @@ function firstString(...values: unknown[]) {
 }
 
 const trailingSlashesPattern = /\/+$/
+const mountedPluginAssetPathPrefix = '/_airi/extensions/'
 
 /**
  * Resolves the inspected extension UI module snapshot and derives iframe-facing config for the host.
@@ -123,7 +124,7 @@ export function useExtensionUIForModule(options: {
       return undefined
     }
 
-    if (src.startsWith('/_airi/plugins/')) {
+    if (src.startsWith(mountedPluginAssetPathPrefix)) {
       const baseUrl = pluginAssetBaseUrl.value
       if (!baseUrl) {
         return undefined
@@ -136,7 +137,7 @@ export function useExtensionUIForModule(options: {
   })
 
   const iframeMountError = computed(() => {
-    if (!iframeSrc.value?.startsWith('/_airi/plugins/')) {
+    if (!iframeSrc.value?.startsWith(mountedPluginAssetPathPrefix)) {
       return undefined
     }
 

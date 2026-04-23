@@ -14,9 +14,16 @@ import type {
   ModuleIdentity,
   ModulePermissionDeclaration,
   ModulePermissionGrant,
+  PluginHostContribution,
+  PluginHostInstallContext,
+  PluginHostLifecycleEvent,
+  PluginHostLifecycleHook,
   PluginHostOptions,
+  PluginHostPermissionRequest,
+  PluginHostSessionContext,
   PluginLoadOptions,
   PluginRuntime,
+  PluginSessionApiFactory,
   PluginSessionPhase,
   PluginStartOptions,
 } from './shared/types'
@@ -562,7 +569,7 @@ export interface PluginHostSession {
     host: ReturnType<typeof createPluginContext>
   }
   /** Bound plugin SDK APIs exposed to plugin code. */
-  apis: ReturnType<typeof createApis>
+  apis: PluginHostSessionApis
   /** Requested and granted permissions for the session. */
   permissions: {
     /** Permissions requested by the manifest and runtime declarations. */
@@ -595,6 +602,10 @@ export interface PluginHostBindingListOptions {
 
 type BoundAnnounceBindingInput<C extends HostDataRecord = HostDataRecord> = AnnounceBindingInput<C>
 type BoundUpdateBindingInput<C extends HostDataRecord = HostDataRecord> = UpdateBindingInput<C>
+
+const builtInSessionApiNamespaces = new Set(['providers', 'kits', 'bindings', 'tools'])
+
+type PluginHostSessionApis = ReturnType<typeof createApis> & Record<string, unknown>
 
 function omitModuleId<C extends HostDataRecord>(input: BoundUpdateBindingInput<C>) {
   return {
@@ -687,6 +698,14 @@ export class PluginHost {
   private readonly permissionResolver?: PluginHostOptions['permissionResolver']
   private readonly persistedPermissionGrants = new Map<string, ModulePermissionGrant>()
   private readonly resources = new ResourceService()
+  private readonly sessionApiFactories = new Map<string, PluginSessionApiFactory>()
+  private readonly lifecycleHooks: Record<PluginHostLifecycleEvent, PluginHostLifecycleHook[]> = {
+    'session-loaded': [],
+    'session-ready': [],
+    'session-stopped': [],
+  }
+
+  private readonly installContext: PluginHostInstallContext
 
   constructor(options: PluginHostOptions = {}) {
     this.loader = new FileSystemLoader()
@@ -699,6 +718,11 @@ export class PluginHost {
     this.permissionResolver = options.permissionResolver
     this.resources.setValue(protocolListProvidersEventName, [] as Array<{ name: string }>)
     this.markCapabilityReady(protocolListProvidersEventName, { source: 'plugin-host' })
+    this.installContext = this.createInstallContext()
+
+    for (const contribution of options.contributions ?? []) {
+      this.installContribution(contribution)
+    }
   }
 
   private getPermissionScopeKey(session: PluginHostSession) {
@@ -707,12 +731,7 @@ export class PluginHost {
 
   private assertPermission(
     session: PluginHostSession,
-    input: {
-      area: 'apis' | 'resources' | 'capabilities' | 'processors' | 'pipelines'
-      action: string
-      key: string
-      reason?: string
-    },
+    input: PluginHostPermissionRequest,
   ) {
     const allowed = this.permissions.isAllowed(this.getPermissionScopeKey(session), input.area, input.action, input.key)
     if (allowed) {
@@ -746,6 +765,173 @@ export class PluginHost {
     }
 
     return session
+  }
+
+  private createSessionContext(session: PluginHostSession): PluginHostSessionContext {
+    return {
+      sessionId: session.id,
+      ownerPluginId: session.identity.plugin.id,
+      runtime: session.runtime,
+    }
+  }
+
+  private createInstallContext(): PluginHostInstallContext {
+    return {
+      registerSessionApi: (namespace, factory) => {
+        if (builtInSessionApiNamespaces.has(namespace)) {
+          throw new Error(`Session API namespace \`${namespace}\` is reserved by PluginHost.`)
+        }
+
+        const currentFactory = this.sessionApiFactories.get(namespace)
+        if (currentFactory && currentFactory !== factory) {
+          throw new Error(`Duplicate session API namespace registration for \`${namespace}\`.`)
+        }
+
+        this.sessionApiFactories.set(namespace, factory)
+      },
+      registerLifecycleHook: (event, hook) => {
+        this.lifecycleHooks[event].push(hook)
+      },
+      registerKit: kit => this.registerKit(kit),
+      unregisterKit: kitId => this.unregisterKit(kitId),
+      setResourceResolver: (key, resolver) => this.setResourceResolver(key, resolver),
+      setResourceValue: (key, value) => this.setResourceValue(key, value),
+      announceCapability: (key, metadata) => {
+        this.announceCapability(key, metadata)
+      },
+      markCapabilityReady: (key, metadata) => {
+        this.markCapabilityReady(key, metadata)
+      },
+      markCapabilityDegraded: (key, metadata) => {
+        this.markCapabilityDegraded(key, metadata)
+      },
+      withdrawCapability: (key, metadata) => {
+        this.withdrawCapability(key, metadata)
+      },
+    }
+  }
+
+  private installContribution(contribution: PluginHostContribution) {
+    contribution.install(this.installContext)
+  }
+
+  private createSessionApis(
+    session: PluginHostSession,
+    hostChannel: ReturnType<typeof createPluginContext>,
+  ): PluginHostSessionApis {
+    const baseApis = createBoundApis(hostChannel, {
+      kits: {
+        list: () => {
+          this.assertPermission(session, {
+            area: 'apis',
+            action: 'invoke',
+            key: pluginKitApiListEventName,
+          })
+          this.assertPermission(session, {
+            area: 'resources',
+            action: 'read',
+            key: pluginKitRegistryResourceKey,
+          })
+
+          return this.listKits(session.runtime)
+        },
+        getCapabilities: (kitId) => {
+          this.assertPermission(session, {
+            area: 'apis',
+            action: 'invoke',
+            key: pluginKitApiGetCapabilitiesEventName,
+          })
+          this.assertPermission(session, {
+            area: 'resources',
+            action: 'read',
+            key: pluginKitRegistryResourceKey,
+          })
+          this.assertKitAvailableForSession(session, kitId)
+
+          return this.getKitCapabilities(kitId)
+        },
+      },
+      bindings: {
+        list: () => {
+          this.assertPermission(session, {
+            area: 'apis',
+            action: 'invoke',
+            key: pluginBindingApiListEventName,
+          })
+          this.assertPermission(session, {
+            area: 'resources',
+            action: 'read',
+            key: pluginBindingRegistryResourceKey,
+          })
+
+          return this.listBindings({ ownerSessionId: session.id })
+        },
+        announce: input => this.announceBinding(session.id, input),
+        activate: input => this.activateBinding(session.id, input.moduleId),
+        update: input => this.updateBinding(session.id, input.moduleId, input),
+        withdraw: input => this.withdrawBinding(session.id, input.moduleId),
+      },
+      tools: {
+        register: input => this.registerTool(session.id, input),
+      },
+    })
+
+    const contributionApis = Object.fromEntries(
+      [...this.sessionApiFactories.entries()].map(([namespace, factory]) => [
+        namespace,
+        factory({
+          host: this.installContext,
+          session: this.createSessionContext(session),
+          assertPermission: input => this.assertPermission(session, input),
+        }),
+      ]),
+    )
+
+    return {
+      ...baseApis,
+      ...contributionApis,
+    }
+  }
+
+  private runLifecycleHooks(event: PluginHostLifecycleEvent, session: PluginHostSession) {
+    for (const hook of this.lifecycleHooks[event]) {
+      hook({
+        host: this.installContext,
+        session: this.createSessionContext(session),
+        manifest: session.manifest,
+      })
+    }
+  }
+
+  private cleanupSession(session: PluginHostSession) {
+    let lifecycleHookError: unknown
+
+    if (session.phase !== 'stopped') {
+      const canStop = session.lifecycle.getSnapshot().can({ type: 'STOP' })
+      if (canStop) {
+        assertTransition(session, 'stopped')
+      }
+      else {
+        session.phase = 'stopped'
+      }
+    }
+
+    for (const module of this.modules.listByOwner(session.id)) {
+      this.modules.withdraw(session.id, session.identity.plugin.id, module.moduleId)
+      this.modules.unbind(session.id, session.identity.plugin.id, module.moduleId)
+    }
+
+    try {
+      this.runLifecycleHooks('session-stopped', session)
+    }
+    catch (error) {
+      lifecycleHookError = error
+    }
+
+    session.lifecycle.stop()
+    this.sessionService.remove(session.id)
+
+    return lifecycleHookError
   }
 
   private getModuleOrThrow(moduleId: string) {
@@ -812,7 +998,7 @@ export class PluginHost {
     return cloneKitCapabilities(capabilities)
   }
 
-  getBinding(moduleId: string) {
+  getBinding(moduleId: string): BindingRecord<HostDataRecord> | undefined {
     const module = this.modules.get(moduleId)
     if (!module) {
       return undefined
@@ -974,8 +1160,20 @@ export class PluginHost {
         },
         parameters: cloneHostDataRecord(input.tool.parameters),
       },
-      availability: input.availability,
-      execute: input.execute,
+      availability: async () => {
+        if (!this.getSession(session.id)) {
+          return false
+        }
+
+        return await input.availability?.() ?? true
+      },
+      execute: async (toolInput) => {
+        if (!this.getSession(session.id)) {
+          throw new Error(`Plugin tool not found: ${session.identity.plugin.id}:${input.tool.id}`)
+        }
+
+        return await input.execute(toolInput)
+      },
     })
   }
 
@@ -1012,65 +1210,7 @@ export class PluginHost {
       },
     )
 
-    let session!: PluginHostSession
-    const apis = createBoundApis(hostChannel, {
-      kits: {
-        list: () => {
-          this.assertPermission(session, {
-            area: 'apis',
-            action: 'invoke',
-            key: pluginKitApiListEventName,
-          })
-          this.assertPermission(session, {
-            area: 'resources',
-            action: 'read',
-            key: pluginKitRegistryResourceKey,
-          })
-
-          return this.listKits(session.runtime)
-        },
-        getCapabilities: (kitId) => {
-          this.assertPermission(session, {
-            area: 'apis',
-            action: 'invoke',
-            key: pluginKitApiGetCapabilitiesEventName,
-          })
-          this.assertPermission(session, {
-            area: 'resources',
-            action: 'read',
-            key: pluginKitRegistryResourceKey,
-          })
-          this.assertKitAvailableForSession(session, kitId)
-
-          return this.getKitCapabilities(kitId)
-        },
-      },
-      bindings: {
-        list: () => {
-          this.assertPermission(session, {
-            area: 'apis',
-            action: 'invoke',
-            key: pluginBindingApiListEventName,
-          })
-          this.assertPermission(session, {
-            area: 'resources',
-            action: 'read',
-            key: pluginBindingRegistryResourceKey,
-          })
-
-          return this.listBindings({ ownerSessionId: session.id })
-        },
-        announce: input => this.announceBinding(session.id, input),
-        activate: input => this.activateBinding(session.id, input.moduleId),
-        update: input => this.updateBinding(session.id, input.moduleId, input),
-        withdraw: input => this.withdrawBinding(session.id, input.moduleId),
-      },
-      tools: {
-        register: input => this.registerTool(session.id, input),
-      },
-    })
-
-    session = {
+    const session: PluginHostSession = {
       manifest,
       plugin: {},
       id,
@@ -1084,13 +1224,14 @@ export class PluginHost {
       channels: {
         host: hostChannel,
       },
-      apis,
+      apis: {} as PluginHostSessionApis,
       permissions: {
         requested: permissionSnapshot.requested,
         granted: permissionSnapshot.granted,
         revision: permissionSnapshot.revision,
       },
     }
+    session.apis = this.createSessionApis(session, hostChannel)
 
     defineInvokeHandler(hostChannel, protocolCapabilityWait, async (payload) => {
       this.assertPermission(session, {
@@ -1146,6 +1287,7 @@ export class PluginHost {
       // Assert lifecycle progression (`loading` -> `loaded`) to keep transition rules explicit.
       // This prevents accidental phase drift if the method evolves later.
       assertTransition(session, 'loaded')
+      this.runLifecycleHooks('session-loaded', session)
       return session
     }
     catch (error) {
@@ -1392,6 +1534,7 @@ export class PluginHost {
         identity: session.identity,
         phase: 'ready',
       })
+      this.runLifecycleHooks('session-ready', session)
 
       return session
     }
@@ -1404,6 +1547,8 @@ export class PluginHost {
         phase: 'failed',
         reason: error instanceof Error ? error.message : 'Plugin host initialization failed.',
       })
+
+      this.cleanupSession(session)
 
       throw error
     }
@@ -1591,24 +1736,11 @@ export class PluginHost {
       return undefined
     }
 
-    // Prefer guarded transition when allowed; otherwise force-close as a safety fallback.
-    if (session.phase !== 'stopped') {
-      const canStop = session.lifecycle.getSnapshot().can({ type: 'STOP' })
-      if (canStop) {
-        assertTransition(session, 'stopped')
-      }
-      else {
-        session.phase = 'stopped'
-      }
+    const lifecycleHookError = this.cleanupSession(session)
+    if (lifecycleHookError) {
+      throw lifecycleHookError
     }
 
-    for (const module of this.modules.listByOwner(session.id)) {
-      this.modules.withdraw(session.id, session.identity.plugin.id, module.moduleId)
-      this.modules.unbind(session.id, session.identity.plugin.id, module.moduleId)
-    }
-
-    session.lifecycle.stop()
-    this.sessionService.remove(session.id)
     return session
   }
 

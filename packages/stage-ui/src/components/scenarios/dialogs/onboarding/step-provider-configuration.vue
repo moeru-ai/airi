@@ -26,9 +26,12 @@ const apiKey = ref('')
 const baseUrl = ref('')
 const accountId = ref('')
 const enableChatCheck = ref(true)
+const customFieldValues = ref<Record<string, string>>({})
 
 const validation = ref<'unchecked' | 'pending' | 'succeed' | 'failed'>('unchecked')
 const validationError = ref<any>()
+
+const hasOnboardingFields = computed(() => (props.selectedProvider?.onboardingFields?.length ?? 0) > 0)
 
 // Initialize form with default values when provider changes
 function initializeForm() {
@@ -41,6 +44,13 @@ function initializeForm() {
   apiKey.value = ''
   accountId.value = ''
 
+  // Initialize custom fields with their default values
+  const fields: Record<string, string> = {}
+  for (const field of provider.onboardingFields ?? []) {
+    fields[field.key] = field.defaultValue ?? ''
+  }
+  customFieldValues.value = fields
+
   // Reset validation and chat check
   validation.value = 'unchecked'
   validationError.value = undefined
@@ -50,22 +60,28 @@ function initializeForm() {
 // Watch for provider changes
 watch(() => props.selectedProvider?.id, initializeForm)
 
-watch([apiKey, baseUrl, accountId], () => {
+watch([apiKey, baseUrl, accountId, customFieldValues], () => {
   if (validation.value === 'failed' || validation.value === 'succeed') {
     validation.value = 'unchecked'
     validationError.value = undefined
   }
-})
+}, { deep: true })
 
 // Computed properties
 const needsApiKey = computed(() => {
   if (!props.selectedProvider)
+    return false
+  // Providers with custom onboarding fields handle their own auth
+  if (hasOnboardingFields.value)
     return false
   return props.selectedProvider.id !== 'ollama' && props.selectedProvider.id !== 'player2'
 })
 
 const needsBaseUrl = computed(() => {
   if (!props.selectedProvider)
+    return false
+  // Providers with custom onboarding fields handle their own endpoints
+  if (hasOnboardingFields.value)
     return false
   return props.selectedProvider.id !== 'cloudflare-workers-ai'
 })
@@ -78,8 +94,16 @@ const canProceed = computed(() => {
   if (!props.selectedProviderId)
     return false
 
-  if (needsApiKey.value && !apiKey.value.trim())
+  if (hasOnboardingFields.value) {
+    const fields = props.selectedProvider?.onboardingFields ?? []
+    for (const field of fields) {
+      if (field.required && !customFieldValues.value[field.key]?.trim())
+        return false
+    }
+  }
+  else if (needsApiKey.value && !apiKey.value.trim()) {
     return false
+  }
 
   return validation.value !== 'pending'
 })
@@ -101,12 +125,20 @@ async function validateConfiguration() {
     // Prepare config object
     const config: Record<string, unknown> = {}
 
-    if (needsApiKey.value)
-      config.apiKey = apiKey.value.trim()
-    if (needsBaseUrl.value)
-      config.baseUrl = baseUrl.value.trim()
-    if (props.selectedProvider.id === 'cloudflare-workers-ai')
-      config.accountId = accountId.value.trim()
+    if (hasOnboardingFields.value) {
+      for (const [key, value] of Object.entries(customFieldValues.value)) {
+        if (value)
+          config[key] = value.trim()
+      }
+    }
+    else {
+      if (needsApiKey.value)
+        config.apiKey = apiKey.value.trim()
+      if (needsBaseUrl.value)
+        config.baseUrl = baseUrl.value.trim()
+      if (props.selectedProvider.id === 'cloudflare-workers-ai')
+        config.accountId = accountId.value.trim()
+    }
 
     // Validate using provider's validator
     const metadata = providersStore.getProviderMetadata(props.selectedProvider.id)
@@ -132,6 +164,7 @@ async function handleNext() {
       apiKey: apiKey.value,
       baseUrl: baseUrl.value,
       accountId: accountId.value,
+      customFields: hasOnboardingFields.value ? { ...customFieldValues.value } : undefined,
     })
   }
 }
@@ -144,6 +177,7 @@ async function handleContinueAnyway() {
     apiKey: apiKey.value,
     baseUrl: baseUrl.value,
     accountId: accountId.value,
+    customFields: hasOnboardingFields.value ? { ...customFieldValues.value } : undefined,
   })
   providersStore.forceProviderConfigured(props.selectedProvider.id)
 }
@@ -209,33 +243,50 @@ initializeForm()
         </div>
       </Callout>
       <div class="space-y-4">
-        <!-- API Key Input -->
-        <div v-if="needsApiKey">
+        <!-- Custom onboarding fields (provider-specific, e.g. Amazon Bedrock SigV4) -->
+        <template v-if="hasOnboardingFields">
           <FieldInput
-            v-model="apiKey"
-            :placeholder="getApiKeyPlaceholder(props.selectedProvider.id)"
-            type="password"
-            label="API Key"
-            description="Enter your API key for the selected provider."
-            required
+            v-for="field in props.selectedProvider.onboardingFields"
+            :key="field.key"
+            v-model="customFieldValues[field.key]"
+            :type="field.type"
+            :label="field.label"
+            :description="field.description"
+            :placeholder="field.placeholder || ''"
+            :required="field.required"
           />
-        </div>
+        </template>
 
-        <!-- Base URL Input -->
-        <div v-if="needsBaseUrl">
-          <FieldInput
-            v-model="baseUrl"
-            :placeholder="getBaseUrlPlaceholder(props.selectedProvider.id)"
-            type="text"
-            label="Base URL"
-            description="Enter the base URL for the provider's API."
-          />
-        </div>
+        <!-- Standard fields for other providers -->
+        <template v-else>
+          <!-- API Key Input -->
+          <div v-if="needsApiKey">
+            <FieldInput
+              v-model="apiKey"
+              :placeholder="getApiKeyPlaceholder(props.selectedProvider.id)"
+              type="password"
+              label="API Key"
+              description="Enter your API key for the selected provider."
+              required
+            />
+          </div>
 
-        <!-- Account ID for Cloudflare -->
-        <div v-if="props.selectedProvider.id === 'cloudflare-workers-ai'">
-          <ProviderAccountIdInput v-model="accountId" />
-        </div>
+          <!-- Base URL Input -->
+          <div v-if="needsBaseUrl">
+            <FieldInput
+              v-model="baseUrl"
+              :placeholder="getBaseUrlPlaceholder(props.selectedProvider.id)"
+              type="text"
+              label="Base URL"
+              description="Enter the base URL for the provider's API."
+            />
+          </div>
+
+          <!-- Account ID for Cloudflare -->
+          <div v-if="props.selectedProvider.id === 'cloudflare-workers-ai'">
+            <ProviderAccountIdInput v-model="accountId" />
+          </div>
+        </template>
       </div>
 
       <!-- Chat Ping Check Option -->
