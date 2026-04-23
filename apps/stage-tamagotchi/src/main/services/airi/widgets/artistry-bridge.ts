@@ -375,9 +375,13 @@ async function handleArtistryTrigger(params: {
       if (supportsJobCallback(provider)) {
         provider.setJobCallback(runId, (statusUpdate) => {
           updateIfActive(statusUpdate as Record<string, any>)
-          if (statusUpdate.status === 'succeeded' || statusUpdate.status === 'failed') {
+          if (statusUpdate.status === 'succeeded') {
             log.log(`🎉 Job complete (via callback) for ${params.id}. Sending final status: done`)
             updateIfActive({ status: 'done', progress: 100, actionLabel: undefined })
+          }
+          else if (statusUpdate.status === 'failed') {
+            log.log(`🔴 Job failed (via callback) for ${params.id}. Preserving error status.`)
+            // [BY DESIGN]: Don't send status: 'done' here to avoid clearing the error message (Issue #56)
           }
         })
       }
@@ -418,8 +422,14 @@ async function handleArtistryTrigger(params: {
         }
 
         if (isDone) {
-          log.log(`🎉 Job complete (via polling) for ${params.id}. Sending final status: done`)
-          updateIfActive({ status: 'done', progress: 100, actionLabel: undefined })
+          const finalStatus = await provider.getStatus(job.jobId)
+          if (finalStatus.status === 'succeeded') {
+            log.log(`🎉 Job complete (via polling) for ${params.id}. Sending final status: done`)
+            updateIfActive({ status: 'done', progress: 100, actionLabel: undefined })
+          }
+          else {
+            log.log(`🔴 Job failed (via polling) for ${params.id}. Preserving error status.`)
+          }
         }
       }
     }
