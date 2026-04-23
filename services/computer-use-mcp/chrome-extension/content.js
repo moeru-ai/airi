@@ -212,7 +212,11 @@
 
     /**
      * Check or uncheck a checkbox/radio input.
-     * Dispatches a click event to trigger framework listeners.
+     * Sets checked programmatically and dispatches a change event so framework
+     * bindings (React onChange, Vue @change) pick up the update.
+     * NOTICE: we do NOT dispatch a fake click event — the browser's true event
+     * order is click→change, and a synthetic click after we've already set
+     * el.checked can cause React controlled-component handlers to toggle back.
      */
     checkCheckbox(selector, checked) {
       try {
@@ -223,7 +227,6 @@
         if (el.checked !== target) {
           el.checked = target
           el.dispatchEvent(new Event('change', { bubbles: true }))
-          el.dispatchEvent(new Event('click', { bubbles: true }))
         }
         return { success: true, checked: el.checked }
       }
