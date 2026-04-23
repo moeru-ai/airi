@@ -65,6 +65,7 @@ export const useLLM = defineStore('llm', () => {
               ...await mcp(),
               ...await debug(),
               ...await createSparkCommandTool({ sendSparkCommand }),
+              ...llmToolsStore.activeTools,
             ].toReversed(),
             tool => toolNameFrom(tool) ?? tool,
           ).toReversed()

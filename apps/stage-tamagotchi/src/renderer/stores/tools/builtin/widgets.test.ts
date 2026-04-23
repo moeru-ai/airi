@@ -1,11 +1,51 @@
+import type { JsonSchema } from 'xsschema'
+
 import type { WidgetInvokers } from './widgets'
 
 import { describe, expect, it, vi } from 'vitest'
 
 import { canRenderExtensionUi, sanitizeExtensionUiRenderProps } from '../../../widgets/extension-ui/host'
-import { executeWidgetAction, normalizeComponentProps } from './widgets'
+import { executeWidgetAction, normalizeComponentProps, widgetsTools } from './widgets'
 
 describe('widgets tool helpers', () => {
+  describe('widgetsTools schema', () => {
+    it('emits provider-safe nullable windowSize constraints for stage_widgets', async () => {
+      const tools = await widgetsTools()
+      const widgetTool = tools.find(tool => tool.function.name === 'stage_widgets')
+
+      expect(widgetTool).toBeDefined()
+
+      const parameters = widgetTool!.function.parameters as JsonSchema
+      const windowSize = parameters.properties?.windowSize as JsonSchema
+      const windowSizeObject = (windowSize.anyOf as JsonSchema[]).find(
+        candidate => candidate.type === 'object',
+      ) as JsonSchema
+      const windowSizeProperties = windowSizeObject.properties!
+
+      expect(parameters.required).toEqual([
+        'action',
+        'id',
+        'componentName',
+        'componentProps',
+        'size',
+        'windowSize',
+        'ttlSeconds',
+      ])
+      expect(windowSizeObject.required).toEqual([
+        'width',
+        'height',
+        'minWidth',
+        'minHeight',
+        'maxWidth',
+        'maxHeight',
+      ])
+      expect((windowSizeProperties.minWidth as JsonSchema).type).toEqual(['number', 'null'])
+      expect((windowSizeProperties.minHeight as JsonSchema).type).toEqual(['number', 'null'])
+      expect((windowSizeProperties.maxWidth as JsonSchema).type).toEqual(['number', 'null'])
+      expect((windowSizeProperties.maxHeight as JsonSchema).type).toEqual(['number', 'null'])
+    })
+  })
+
   describe('normalizeComponentProps', () => {
     it('parses JSON strings into objects', () => {
       const result = normalizeComponentProps('{"city":"Tokyo","temp":15}')

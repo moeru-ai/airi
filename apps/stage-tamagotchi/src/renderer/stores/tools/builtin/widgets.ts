@@ -1,10 +1,12 @@
 import type { Tool } from '@xsai/shared-chat'
+import type { JsonSchema } from 'xsschema'
 
 import type { WidgetWindowSize } from '../../../../shared/eventa'
 
 import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
-import { tool } from '@xsai/tool'
+import { rawTool } from '@xsai/tool'
+import { toJsonSchema } from 'xsschema'
 import { z } from 'zod'
 
 import { widgetsAdd, widgetsClear, widgetsOpenWindow, widgetsPrepareWindow, widgetsRemove, widgetsUpdate } from '../../../../shared/eventa'
@@ -63,6 +65,7 @@ type WidgetActionInput
 export type WidgetInvokers = ReturnType<typeof createInvokers>
 
 let cachedInvokers: WidgetInvokers | undefined
+const JSON_SCHEMA_NULLABLE_SCALAR_TYPES = new Set(['string', 'number', 'integer', 'boolean', 'null'])
 
 function createInvokers() {
   const { context } = createContext(window.electron.ipcRenderer)
@@ -88,10 +91,14 @@ function resolveInvokers(override?: WidgetInvokers): WidgetInvokers {
 const widgetWindowSizeParams = z.object({
   width: z.number().positive(),
   height: z.number().positive(),
-  minWidth: z.number().positive().optional(),
-  minHeight: z.number().positive().optional(),
-  maxWidth: z.number().positive().optional(),
-  maxHeight: z.number().positive().optional(),
+  // NOTICE: OpenAI-compatible tool validators reject strict object schemas when
+  // some nested properties are omitted from `required`. Keep these fields
+  // required-but-nullable for the provider, then collapse `null` back to omitted
+  // runtime fields before dispatching widget window updates.
+  minWidth: z.union([z.number().positive(), z.null()]),
+  minHeight: z.union([z.number().positive(), z.null()]),
+  maxWidth: z.union([z.number().positive(), z.null()]),
+  maxHeight: z.union([z.number().positive(), z.null()]),
 }).strict()
 
 const widgetParams = z.object({
@@ -100,9 +107,82 @@ const widgetParams = z.object({
   componentName: z.string().describe('Widget component to render, e.g. weather (required for spawn)'),
   componentProps: z.string().describe('Widget props as JSON string (e.g. {"city":"Tokyo"})'),
   size: z.enum(['s', 'm', 'l']),
-  windowSize: widgetWindowSizeParams.optional().describe('Optional pixel window size and constraints, e.g. {"width":620,"height":760,"minWidth":480}'),
+  windowSize: z.union([widgetWindowSizeParams, z.null()]).describe('Optional pixel window size and constraints, e.g. {"width":620,"height":760,"minWidth":480}'),
   ttlSeconds: z.number().int().nonnegative().describe('Auto-close timer in seconds (spawn only)'),
 }).strict()
+
+type WidgetToolInput = z.infer<typeof widgetParams>
+
+function isJsonSchema(value: JsonSchema | boolean | JsonSchema[] | undefined): value is JsonSchema {
+  return Boolean(value && !Array.isArray(value) && typeof value === 'object')
+}
+
+function normalizeNullableAnyOf(schema: JsonSchema): JsonSchema {
+  const next: JsonSchema = { ...schema }
+
+  if (next.properties) {
+    next.properties = Object.fromEntries(
+      Object.entries(next.properties).map(([key, value]) => {
+        if (!isJsonSchema(value))
+          return [key, value]
+        return [key, normalizeNullableAnyOf(value)]
+      }),
+    )
+  }
+
+  if (Array.isArray(next.items)) {
+    next.items = next.items.map(item => isJsonSchema(item) ? normalizeNullableAnyOf(item) : item)
+  }
+  else if (isJsonSchema(next.items)) {
+    next.items = normalizeNullableAnyOf(next.items)
+  }
+
+  if (next.anyOf) {
+    next.anyOf = next.anyOf.map(value => isJsonSchema(value) ? normalizeNullableAnyOf(value) : value)
+
+    const normalizedEntries = next.anyOf.filter(isJsonSchema)
+    const primitiveTypes = normalizedEntries
+      .map(entry => entry.type)
+      .filter((type): type is Exclude<JsonSchema['type'], JsonSchema['type'][]> => typeof type === 'string')
+    const dedupedPrimitiveTypes = [...new Set(primitiveTypes)]
+
+    if (
+      primitiveTypes.length === normalizedEntries.length
+      && dedupedPrimitiveTypes.length > 0
+      && dedupedPrimitiveTypes.every(type => type !== undefined && JSON_SCHEMA_NULLABLE_SCALAR_TYPES.has(type))
+    ) {
+      delete next.anyOf
+      next.type = dedupedPrimitiveTypes as JsonSchema['type']
+    }
+  }
+
+  if (next.oneOf) {
+    next.oneOf = next.oneOf.map(value => isJsonSchema(value) ? normalizeNullableAnyOf(value) : value)
+  }
+
+  return next
+}
+
+function normalizeWidgetWindowSizeInput(windowSize: WidgetToolInput['windowSize']): WidgetWindowSize | undefined {
+  if (!windowSize)
+    return undefined
+
+  return {
+    width: windowSize.width,
+    height: windowSize.height,
+    ...(windowSize.minWidth == null ? {} : { minWidth: windowSize.minWidth }),
+    ...(windowSize.minHeight == null ? {} : { minHeight: windowSize.minHeight }),
+    ...(windowSize.maxWidth == null ? {} : { maxWidth: windowSize.maxWidth }),
+    ...(windowSize.maxHeight == null ? {} : { maxHeight: windowSize.maxHeight }),
+  }
+}
+
+function normalizeWidgetToolInput(input: WidgetToolInput): WidgetActionInput {
+  return {
+    ...input,
+    windowSize: normalizeWidgetWindowSizeInput(input.windowSize),
+  }
+}
 
 export function normalizeComponentProps(raw?: string | Record<string, any>) {
   if (raw === undefined || raw === null)
@@ -210,12 +290,12 @@ export async function executeWidgetAction(input: WidgetActionInput, deps?: { inv
 }
 
 const tools: Promise<Tool>[] = [
-  tool({
+  (async () => rawTool({
     name: 'stage_widgets',
     description: 'Manage overlay widgets in the Stage desktop app (spawn, update, remove, clear, or open the widgets window).',
-    execute: params => executeWidgetAction(params as WidgetActionInput),
-    parameters: widgetParams,
-  }),
+    execute: params => executeWidgetAction(normalizeWidgetToolInput(params as WidgetToolInput)),
+    parameters: normalizeNullableAnyOf(await toJsonSchema(widgetParams) as JsonSchema),
+  }))(),
 ]
 
 export const widgetsTools = async () => Promise.all(tools)
