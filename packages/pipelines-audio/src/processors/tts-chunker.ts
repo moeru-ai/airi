@@ -241,40 +241,16 @@ export async function chunkEmitter(
   }
 }
 
-export function processNarrative(text: string, options?: TtsInputChunkOptions): string {
-  if (!options?.stripNarrative)
-    return text
-
-  let result = ''
-  const stack: string[] = []
-
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i]
-
-    if (['[', '(', '*', '<'].includes(char)) {
-      if (char === '<' && !isProbablyAngleTag(i, text)) {
-        if (stack.length === 0)
-          result += char
-        continue
-      }
-      stack.push(char)
-      continue
-    }
-
-    if ([']', ')', '*', '>'].includes(char)) {
-      if (stack.length > 0) {
-        stack.pop()
-        continue
-      }
-    }
-
-    if (stack.length === 0) {
-      result += char
-    }
-  }
-
-  return options?.keepNarrativeText ? text.replace(/[[\]()*<>]/g, '') : result
+const BRACKET_MAP: Record<string, string> = {
+  '[': ']',
+  '(': ')',
+  '（': '）',
+  '【': '】',
+  '<': '>',
 }
+
+const OPENERS = Object.keys(BRACKET_MAP)
+const CLOSERS = Object.values(BRACKET_MAP)
 
 export function isProbablyAngleTag(index: number, text: string): boolean {
   if (text[index] !== '<')
@@ -283,17 +259,75 @@ export function isProbablyAngleTag(index: number, text: string): boolean {
   const nextChar = text[index + 1]
   const prevChar = index > 0 ? text[index - 1] : ''
 
-  // Lookahead: 如果后面跟着数字、空格或等号 (1 < 2, < 3, <=)，不是标签
+  // Lookahead: if followed by num, space or equals, not a label
   if (nextChar && /[0-9\s=]/.test(nextChar))
     return false
 
-  // Lookbehind (High Priority Fix):
-  // 如果前面紧跟着非空白/非括号字符 (如 List<T> 中的 't')，判定为代码或泛型，不是标签
+  // Lookbehind: if before is non-empty/non-bracket character, then determine as code or any instead of a label
   if (prevChar && /[^\s([{（【]/.test(prevChar))
     return false
 
   return true
 }
+
+export function processNarrative(text: string, options?: TtsInputChunkOptions): string {
+  if (!options?.stripNarrative)
+    return text
+
+  let result = ''
+  const stack: string[] = []
+  let asteriskActive = false
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i]
+
+    // fix Asterisk Bug: use boolean status instead of stacking forever
+    if (char === '*') {
+      if (!asteriskActive && text[i + 1] === ' ') {
+        continue
+      }
+      asteriskActive = !asteriskActive
+      continue
+    }
+
+    // process opening brackets including Chinese and English brackets
+    if (OPENERS.includes(char)) {
+      if (char === '<' && !isProbablyAngleTag(i, text)) {
+        if (stack.length === 0 && !asteriskActive) {
+          result += char
+        }
+        else if (options?.keepNarrativeText) {
+          result += char
+        }
+        continue
+      }
+      stack.push(char)
+      continue
+    }
+
+    // process closing brackets
+    if (CLOSERS.includes(char)) {
+      const lastOpener = stack[stack.length - 1]
+      if (lastOpener && BRACKET_MAP[lastOpener] === char) {
+        stack.pop()
+        continue
+      }
+    }
+
+    if (stack.length === 0 && !asteriskActive) {
+      result += char
+    }
+    else if (options?.keepNarrativeText) {
+      result += char
+    }
+  }
+
+  return result
+}
+
+// ------------------------------------------------------------------
+// Data flow processor
+// ------------------------------------------------------------------
 
 export function createTtsSegmentStream(
   tokens: ReadableStream<TextToken>,
@@ -326,27 +360,18 @@ export function createTtsSegmentStream(
 
             pendingText += value.value
             const stack: string[] = []
-            const pairs: Record<string, string> = {
-              '[': ']',
-              '(': ')',
-              '（': '）',
-              '【': '】',
-              '<': '>',
-            }
-            const openers = Object.keys(pairs)
-            const closers = Object.values(pairs)
 
             for (let i = 0; i < pendingText.length; i++) {
               const char = pendingText[i]
-              if (openers.includes(char)) {
+              if (OPENERS.includes(char)) {
                 if (char === '<' && !isProbablyAngleTag(i, pendingText)) {
                   continue
                 }
                 stack.push(char)
               }
-              else if (closers.includes(char)) {
+              else if (CLOSERS.includes(char)) {
                 const lastOpen = stack[stack.length - 1]
-                if (pairs[lastOpen] === char) {
+                if (lastOpen && BRACKET_MAP[lastOpen] === char) {
                   stack.pop()
                 }
               }
@@ -357,9 +382,11 @@ export function createTtsSegmentStream(
             const starsUnclosed = (pendingText.match(/\*/g) || []).length % 2 !== 0
               && starMatch !== null && !starMatch[1].startsWith(' ')
             const hasUnclosed = bracketsUnclosed || starsUnclosed
-            const hasUnclosedSquareBracket = stack.includes('[')
+
             const isStrippingActive = options?.stripNarrative && hasUnclosed
-            const fallbackLimit = (isStrippingActive && hasUnclosedSquareBracket) ? 800 : 200
+
+            // 响应 Medium Priority: 对所有未闭合的叙事标签统一提供高 fallbackLimit
+            const fallbackLimit = isStrippingActive ? 800 : 200
 
             if (!hasUnclosed || pendingText.length > fallbackLimit) {
               const textToEmit = processNarrative(pendingText, options)
