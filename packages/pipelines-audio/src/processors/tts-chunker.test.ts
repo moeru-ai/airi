@@ -48,6 +48,7 @@ describe('tTS Chunker Logic Cleanup', () => {
       expect(processNarrative('Hello<laugh>', options)).toBe('Hello')
       expect(processNarrative('<laughs>Hello', options)).toBe('Hello')
       expect(processNarrative('Hello<laughs>', options)).toBe('Hello')
+      expect(processNarrative('你好<laughs>', options)).toBe('你好')
       expect(processNarrative('List<T>', options)).toBe('List<T>')
     })
 
@@ -56,6 +57,13 @@ describe('tTS Chunker Logic Cleanup', () => {
       expect(processNarrative('Value is List<String> [action]', keepOptions)).toContain('List<String>')
       expect(processNarrative('x < y (sigh)', keepOptions)).toContain('x < y')
       expect(processNarrative('price<limit', keepOptions)).toContain('price<limit')
+    })
+
+    it('should be case-insensitive for narrative tags', () => {
+      const options = { stripNarrative: true }
+      expect(processNarrative('Hello<LAUGHs>', options)).toBe('Hello')
+      expect(processNarrative('abc<Action>', options)).toBe('abc')
+      expect(processNarrative('List<String>', options)).toBe('List<String>')
     })
   })
 

@@ -251,6 +251,9 @@ const BRACKET_MAP: Record<string, string> = {
 
 const OPENERS = Object.keys(BRACKET_MAP)
 const CLOSERS = Object.values(BRACKET_MAP)
+function isCJK(char: string) {
+  return /[\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]/.test(char)
+}
 const NARRATIVE_KEYWORDS = [
   'laugh',
   'sigh',
@@ -278,7 +281,10 @@ export function isProbablyAngleTag(index: number, text: string): boolean {
   if (nextChar && /[0-9\s=]/.test(nextChar))
     return false
 
-  const remainder = text.slice(index + 1)
+  if (prevChar && isCJK(prevChar))
+    return true
+
+  const remainder = text.slice(index + 1).toLowerCase()
   if (prevChar && /[a-z0-9]/i.test(prevChar)) {
     // fix: check whether remainder is piefix with any keywords, or contains the whole keyword
     const isLikelyNarrative = NARRATIVE_KEYWORDS.some(kw =>
