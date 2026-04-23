@@ -21,7 +21,6 @@ import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import { electronMcpCallTool } from '../../../shared/eventa'
-
 import { pointInOverlay, rectIntersectsOverlay, screenRectToLocal, screenToLocal } from './desktop-overlay-coordinates'
 import { createEmptyOverlayState, createOverlayPollController } from './desktop-overlay-polling'
 
@@ -76,7 +75,7 @@ const matchedCandidate = computed(() => {
 // ---------------------------------------------------------------------------
 
 const controller = createOverlayPollController({
-  callTool: async (name) => mcpCallTool({ name }),
+  callTool: async name => mcpCallTool({ name }),
   onState: (newState) => {
     state.value = newState
   },
