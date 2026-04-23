@@ -1401,6 +1401,15 @@ export const useProvidersStore = defineStore('providers', () => {
       defaultOptions: () => ({
         apiKey: '',
         baseUrl: 'https://api.minimax.io',
+        model: 'speech-2.8-hd',
+        voice: '',
+        speed: 1,
+        volume: 1,
+        pitch: 0,
+        sampleRate: 32000,
+        bitrate: 128000,
+        channel: 1,
+        languageBoost: 'auto',
       }),
       createProvider: async (config) => {
         const apiKey = (config.apiKey as string).trim()
@@ -1417,8 +1426,17 @@ export const useProvidersStore = defineStore('providers', () => {
 
               const body = JSON.parse(init.body)
               const text = body.input as string
-              const voiceId = (body.voice as string) || 'English_Graceful_Lady'
-              const model = (body.model as string) || 'speech-2.8-hd'
+              const voiceId = (body.voice as string) || (config.voice as string) || 'English_Graceful_Lady'
+              const model = (body.model as string) || (config.model as string) || 'speech-2.8-hd'
+              const speed = typeof config.speed === 'number' ? config.speed : 1
+              const volume = typeof config.volume === 'number' ? config.volume : 1
+              const pitch = typeof config.pitch === 'number' ? config.pitch : 0
+              const sampleRate = typeof config.sampleRate === 'number' ? config.sampleRate : 32000
+              const bitrate = typeof config.bitrate === 'number' ? config.bitrate : 128000
+              const channel = typeof config.channel === 'number' ? config.channel : 1
+              const languageBoost = typeof config.languageBoost === 'string' && config.languageBoost.trim().length > 0
+                ? config.languageBoost.trim()
+                : 'auto'
 
               const response = await fetch(`${baseUrl}/v1/t2a_v2`, {
                 method: 'POST',
@@ -1429,18 +1447,19 @@ export const useProvidersStore = defineStore('providers', () => {
                 body: JSON.stringify({
                   model,
                   text,
+                  language_boost: languageBoost,
                   stream: true,
                   voice_setting: {
                     voice_id: voiceId,
-                    speed: 1,
-                    vol: 1,
-                    pitch: 0,
+                    speed,
+                    vol: volume,
+                    pitch,
                   },
                   audio_setting: {
-                    sample_rate: 32000,
-                    bitrate: 128000,
+                    sample_rate: sampleRate,
+                    bitrate,
                     format: 'mp3',
-                    channel: 1,
+                    channel,
                   },
                 }),
               })
@@ -1523,18 +1542,68 @@ export const useProvidersStore = defineStore('providers', () => {
             deprecated: false,
           },
         ],
-        listVoices: async () => [
-          { id: 'English_Graceful_Lady', name: 'Graceful Lady', provider: 'minimax-speech', gender: 'female', languages: [{ code: 'en', title: 'English' }] },
-          { id: 'English_Insightful_Speaker', name: 'Insightful Speaker', provider: 'minimax-speech', gender: 'male', languages: [{ code: 'en', title: 'English' }] },
-          { id: 'English_radiant_girl', name: 'Radiant Girl', provider: 'minimax-speech', gender: 'female', languages: [{ code: 'en', title: 'English' }] },
-          { id: 'English_Persuasive_Man', name: 'Persuasive Man', provider: 'minimax-speech', gender: 'male', languages: [{ code: 'en', title: 'English' }] },
-          { id: 'English_Lucky_Robot', name: 'Lucky Robot', provider: 'minimax-speech', gender: 'neutral', languages: [{ code: 'en', title: 'English' }] },
-          { id: 'English_expressive_narrator', name: 'Expressive Narrator', provider: 'minimax-speech', gender: 'neutral', languages: [{ code: 'en', title: 'English' }] },
-          { id: 'Mandarin_Gentle_Woman', name: 'Gentle Woman', provider: 'minimax-speech', gender: 'female', languages: [{ code: 'zh', title: 'Chinese' }] },
-          { id: 'Mandarin_Steadfast_Man', name: 'Steadfast Man', provider: 'minimax-speech', gender: 'male', languages: [{ code: 'zh', title: 'Chinese' }] },
-          { id: 'Mandarin_Sweet_Girl', name: 'Sweet Girl', provider: 'minimax-speech', gender: 'female', languages: [{ code: 'zh', title: 'Chinese' }] },
-          { id: 'Mandarin_Magnetic_Gentleman', name: 'Magnetic Gentleman', provider: 'minimax-speech', gender: 'male', languages: [{ code: 'zh', title: 'Chinese' }] },
-        ],
+        listVoices: async (config) => {
+          const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
+          const configuredBaseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
+          const normalizedBaseUrl = (configuredBaseUrl || 'https://api.minimax.io').replace(/\/+$/, '')
+          const voicesUrl = normalizedBaseUrl.endsWith('/v1')
+            ? `${normalizedBaseUrl}/get_voice`
+            : `${normalizedBaseUrl}/v1/get_voice`
+
+          if (!apiKey) {
+            return []
+          }
+
+          const response = await fetch(voicesUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              voice_type: 'all',
+            }),
+          })
+
+          if (!response.ok) {
+            throw new Error(`Failed to fetch MiniMax voices: ${response.status} ${response.statusText}`)
+          }
+
+          const data = await response.json() as {
+            system_voice?: {
+              voice_id: string
+              voice_name?: string
+              description?: string[]
+            }[]
+            voice_cloning?: {
+              voice_id: string
+              voice_name?: string
+              description?: string[]
+            }[]
+          }
+
+          const remoteVoices = [
+            ...(Array.isArray(data.system_voice) ? data.system_voice : []),
+            ...(Array.isArray(data.voice_cloning) ? data.voice_cloning : []),
+          ]
+
+          return uniqBy(
+            remoteVoices.map((voice) => {
+              const description = Array.isArray(voice.description)
+                ? voice.description.filter(item => typeof item === 'string' && item.trim().length > 0).join(' ')
+                : ''
+
+              return {
+                id: voice.voice_id,
+                name: voice.voice_name?.trim() || voice.voice_id,
+                provider: 'minimax-speech',
+                description: description || undefined,
+                languages: [{ code: 'und', title: 'Unknown' }],
+              }
+            }),
+            voice => voice.id,
+          )
+        },
       },
       validators: {
         chatPingCheckAvailable: false,
