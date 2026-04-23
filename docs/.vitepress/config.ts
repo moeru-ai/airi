@@ -295,7 +295,7 @@ export default defineConfig<ThemeConfig>({
                 ],
               },
               {
-                text: '用户手册',
+                text: '安装与使用',
                 link: withBase('/zh-Hans/docs/manual/tamagotchi/setup-and-use/'),
               },
               {
