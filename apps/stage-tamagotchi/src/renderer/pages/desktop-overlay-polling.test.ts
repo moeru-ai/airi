@@ -1,3 +1,5 @@
+import type { ElectronMcpCallToolResult } from '../../shared/eventa'
+
 import type { OverlayState } from './desktop-overlay-polling'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'

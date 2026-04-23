@@ -20,7 +20,7 @@ import { electron } from '@proj-airi/electron-eventa'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
-import { electronMcpCallTool } from '../../../shared/eventa'
+import { electronMcpCallTool } from '../../shared/eventa'
 import { pointInOverlay, rectIntersectsOverlay, screenRectToLocal, screenToLocal } from './desktop-overlay-coordinates'
 import { createEmptyOverlayState, createOverlayPollController } from './desktop-overlay-polling'
 

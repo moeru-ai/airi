@@ -5,7 +5,7 @@
  * without a DOM environment or Vue test-utils.
  */
 
-import type { ElectronMcpCallToolResult } from '../../../shared/eventa'
+import type { ElectronMcpCallToolResult } from '../../shared/eventa'
 
 // ---------------------------------------------------------------------------
 // Types — minimal shapes matching RunState fields the overlay consumes
