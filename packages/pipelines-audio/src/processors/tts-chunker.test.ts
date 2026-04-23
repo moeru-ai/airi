@@ -80,7 +80,6 @@ describe('tTS Chunker Logic Cleanup', () => {
 
   describe('edge Cases test', () => {
     it('should not treat single-letter operands as narrative prefixes', () => {
-      // 修复 20:32: a<b 不应命中 breath
       expect(isProbablyAngleTag(1, 'a<b')).toBe(false)
       expect(isProbablyAngleTag(1, 'x<s')).toBe(false)
     })
