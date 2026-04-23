@@ -488,7 +488,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
               const typeDecision = decideBrowserTypeAction(lastCandidate, bridgeConnected)
               if (typeDecision.route === 'browser_dom' && typeDecision.selector) {
                 try {
-                  await runtime.browserDomBridge!.setInputValue({
+                  const frameResults = await runtime.browserDomBridge!.setInputValue({
                     selector: typeDecision.selector,
                     value: normalizedAction.input.text,
                     simulateKeystrokes: false,
@@ -497,6 +497,15 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
                       ? [typeDecision.frameId]
                       : undefined,
                   })
+                  // NOTICE: bridge resolve ≠ DOM success. Frame results carry
+                  // per-frame { success, error } — if none succeeded the
+                  // selector/frame was stale and we must fall back to OS typeText.
+                  const anySucceeded = Array.isArray(frameResults) && frameResults.some(
+                    fr => (fr.result as Record<string, unknown>)?.success === true,
+                  )
+                  if (!anySucceeded) {
+                    throw new Error('setInputValue: no frame reported success')
+                  }
                   usedBrowserDom = true
                   backendResult.browserDomRoute = {
                     method: 'setInputValue',

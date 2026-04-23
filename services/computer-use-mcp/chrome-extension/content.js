@@ -186,8 +186,13 @@
         const el = document.querySelector(selector)
         if (!el)
           return { success: false, error: 'not found' }
-        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')
-          || Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')
+        // NOTICE: must pick the setter matching the element's prototype —
+        // calling HTMLInputElement.prototype.value.set on a <textarea> (or
+        // vice-versa) throws "Illegal invocation" in Chromium.
+        const proto = el instanceof HTMLTextAreaElement
+          ? window.HTMLTextAreaElement.prototype
+          : window.HTMLInputElement.prototype
+        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(proto, 'value')
         if (nativeInputValueSetter && nativeInputValueSetter.set) {
           nativeInputValueSetter.set.call(el, value)
         }

@@ -214,10 +214,19 @@ export function registerDesktopGroundingTools(params: {
           try {
             const frameIds = routeDecision.frameId !== undefined ? [routeDecision.frameId] : undefined
             if (routeDecision.bridgeMethod === 'checkCheckbox') {
-              await runtime.browserDomBridge!.checkCheckbox({
+              const frameResults = await runtime.browserDomBridge!.checkCheckbox({
                 selector: routeDecision.selector,
                 frameIds,
               })
+              // NOTICE: bridge resolve ≠ DOM success. Each frame returns
+              // { success, error } — if none succeeded the selector/frame was
+              // stale and we must fall back to OS click.
+              const anySucceeded = Array.isArray(frameResults) && frameResults.some(
+                fr => (fr.result as Record<string, unknown>)?.success === true,
+              )
+              if (!anySucceeded) {
+                throw new Error('checkCheckbox: no frame reported success')
+              }
             }
             else {
               await runtime.browserDomBridge!.clickSelector({
