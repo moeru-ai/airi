@@ -156,8 +156,8 @@ export class ReplicateProvider implements ArtistryProvider {
           imageUrl = first
         }
 
-        if (imageUrl && imageUrl.startsWith('http')) {
-          log.log(`[Replicate] EXTRACTED IMAGE: ${imageUrl}`)
+        if (imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('data:'))) {
+          log.log(`[Replicate] EXTRACTED IMAGE: ${imageUrl.startsWith('data:') ? 'DATA_URL' : imageUrl}`)
           this.updateStatus(jobId, { status: 'succeeded', progress: 100, imageUrl })
         }
         else {

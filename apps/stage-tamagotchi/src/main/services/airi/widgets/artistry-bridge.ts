@@ -87,7 +87,9 @@ async function downloadImageAsBase64(url: string): Promise<string> {
     if (!response.ok)
       throw new Error(`Failed to fetch image: ${response.statusText}`)
     const buffer = await response.arrayBuffer()
-    return Buffer.from(buffer).toString('base64')
+    const base64 = Buffer.from(buffer).toString('base64')
+    // NOTICE: Downstream renderer paths consume this via fetch(), which requires a data URL.
+    return `data:image/png;base64,${base64}`
   }
   catch (error: unknown) {
     log.error(`[Artistry Bridge] Failed to download image: ${errorMessageFrom(error)}`)
@@ -344,7 +346,8 @@ async function handleArtistryTrigger(params: {
         model: config.model,
         extra: {
           ...options,
-          ...payload, // Include top-level payload fields (template, overrides)
+          ...props, // Include root componentProps overrides (template, node overrides)
+          ...payload, // Payload takes precedence
           internalJobId: runId, // Track each generation independently, even on the same widget.
           remixId,
         },
@@ -356,9 +359,15 @@ async function handleArtistryTrigger(params: {
         if (activeRunMap.get(params.id) !== runId)
           return
 
+        // [BY DESIGN]: Merging status updates into existing props preserves fields like imageUrl
+        // that would otherwise be lost when the final 'done' status is sent.
+        const existing = params.widgetsManager.getWidgetSnapshot(params.id)
         params.widgetsManager.updateWidget({
           id: params.id,
-          componentProps: statusUpdate,
+          componentProps: {
+            ...(existing?.componentProps as any || {}),
+            ...statusUpdate,
+          },
         })
       }
 
@@ -418,6 +427,7 @@ async function handleArtistryTrigger(params: {
       const message = errorMessageFrom(error) ?? 'Unknown generation error'
       log.error(`🔴 Generation failed: ${message}`)
       if (activeRunMap.get(params.id) === runId) {
+        lastTriggerMap.delete(params.id) // [BY DESIGN]: Clear fingerprint on failure to allow retry (Issue #44)
         params.widgetsManager.updateWidget({
           id: params.id,
           componentProps: { status: 'error', actionLabel: message },

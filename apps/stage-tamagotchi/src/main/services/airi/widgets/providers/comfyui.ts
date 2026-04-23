@@ -324,7 +324,7 @@ export class ComfyUIProvider implements ArtistryProvider {
 
     // Auto-randomize seed if it's exposed and not explicitly set
     for (const [nodeTitle, fields] of Object.entries(template.exposedFields)) {
-      if (fields.includes('seed') && !overrides[nodeTitle]?.seed) {
+      if (fields.includes('seed') && (overrides[nodeTitle]?.seed === undefined || overrides[nodeTitle]?.seed === null)) {
         for (const nodeId in prompt) {
           const node = prompt[nodeId]
           if (node._meta?.title === nodeTitle) {
