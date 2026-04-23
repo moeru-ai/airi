@@ -43,14 +43,19 @@ describe('tTS Chunker Logic Cleanup', () => {
       expect(processNarrative('Version (beta', options)).toBe('Version (beta')
     })
 
-    it('should handle valid narritive tag', () => {
+    it('should handle valid narrative tag', () => {
       expect(processNarrative('Hello,<laugh>', options)).toBe('Hello,')
+      expect(processNarrative('Hello<laugh>', options)).toBe('Hello')
+      expect(processNarrative('<laughs>Hello', options)).toBe('Hello')
+      expect(processNarrative('Hello<laughs>', options)).toBe('Hello')
+      expect(processNarrative('List<T>', options)).toBe('List<T>')
     })
 
     it('should preserve code literals in keepNarrativeText mode', () => {
       const keepOptions = { stripNarrative: true, keepNarrativeText: true }
       expect(processNarrative('Value is List<String> [action]', keepOptions)).toContain('List<String>')
       expect(processNarrative('x < y (sigh)', keepOptions)).toContain('x < y')
+      expect(processNarrative('price<limit', keepOptions)).toContain('price<limit')
     })
   })
 })

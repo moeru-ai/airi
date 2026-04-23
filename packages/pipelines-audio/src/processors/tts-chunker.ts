@@ -251,6 +251,7 @@ const BRACKET_MAP: Record<string, string> = {
 
 const OPENERS = Object.keys(BRACKET_MAP)
 const CLOSERS = Object.values(BRACKET_MAP)
+const NARRATIVE_KEYWORDS = /^(laugh|sigh|action|note|breath|giggle|whisper|cry|smile|thought)/i
 
 export function isProbablyAngleTag(index: number, text: string): boolean {
   if (text[index] !== '<')
@@ -265,6 +266,13 @@ export function isProbablyAngleTag(index: number, text: string): boolean {
   // Lookahead: if followed by num, space or equals, not a label
   if (nextChar && /[0-9\s=]/.test(nextChar))
     return false
+
+  const remainder = text.slice(index + 1)
+  if (prevChar && /[a-z0-9]/i.test(prevChar)) {
+    if (NARRATIVE_KEYWORDS.test(remainder))
+      return true
+    return false
+  }
 
   // Lookbehind: if before is non-empty/non-bracket character, then determine as code or any instead of a label
   if (prevChar && /[^\s([{（【<\])}>）】.,!?;:，。！？；：'"\-_]/.test(prevChar))
