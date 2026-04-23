@@ -151,8 +151,20 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
 
   let timer: ReturnType<typeof setTimeout> | null = null
   let running = false
+  let inFlightCall: Promise<McpCallToolResult> | null = null
+
+  function scheduleNext(nextInterval: number) {
+    if (running) {
+      timer = setTimeout(poll, nextInterval)
+    }
+  }
 
   async function poll() {
+    if (inFlightCall) {
+      scheduleNext(fallbackInterval)
+      return
+    }
+
     let nextInterval = normalInterval
     let timeoutId: ReturnType<typeof setTimeout> | undefined
 
@@ -160,8 +172,25 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
       // NOTICE: Wrap callTool with a timeout to prevent the poll loop from
       // hanging forever if the eventa invoke never resolves (e.g. during
       // startup when the main-process RPC handlers may not be ready yet).
+      // NOTICE: We intentionally gate to a single in-flight MCP call. The
+      // bridge does not expose abort semantics, so issuing a second call after
+      // timeout would only pile up hung Eventa/MCP invocations in the overlay
+      // process. We keep retrying on the timer, but until the old call settles
+      // those retry ticks only check again instead of starting another invoke.
+      const currentCall = config.callTool(MCP_TOOL_NAME)
+      inFlightCall = currentCall
+      currentCall.then(() => {
+        if (inFlightCall === currentCall) {
+          inFlightCall = null
+        }
+      }, () => {
+        if (inFlightCall === currentCall) {
+          inFlightCall = null
+        }
+      })
+
       const result = await Promise.race([
-        config.callTool(MCP_TOOL_NAME),
+        currentCall,
         new Promise<never>((_, reject) =>
           timeoutId = setTimeout(() => reject(new Error('callTool timeout')), config.callTimeoutMs ?? DEFAULT_CALL_TIMEOUT),
         ),
@@ -185,9 +214,7 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
       }
     }
 
-    if (running) {
-      timer = setTimeout(poll, nextInterval)
-    }
+    scheduleNext(nextInterval)
   }
 
   return {

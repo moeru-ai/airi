@@ -313,9 +313,12 @@ describe('createOverlayPollController', () => {
   it('recovers from a hanging callTool via per-call timeout', async () => {
     vi.useFakeTimers()
 
-    // First call hangs forever (simulates startup race when RPC not ready)
+    let resolveFirstCall: ((value: McpCallToolResult) => void) | null = null
+
     const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
-      .mockImplementationOnce(() => new Promise(() => {})) // never resolves
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveFirstCall = resolve
+      }))
       .mockResolvedValue({
         structuredContent: {
           runState: {
@@ -345,11 +348,28 @@ describe('createOverlayPollController', () => {
     expect(callTool).toHaveBeenCalledTimes(1)
     expect(received).toHaveLength(0)
 
-    // Advance past the 500ms timeout → catch triggers, schedules fallback
+    // Advance past the timeout and several fallback windows. The controller
+    // should not start a second MCP invoke while the first one is still hung.
     await vi.advanceTimersByTimeAsync(500)
+    await vi.advanceTimersByTimeAsync(600)
+    expect(callTool).toHaveBeenCalledTimes(1)
     expect(received).toHaveLength(0)
 
-    // Advance past the 200ms fallback interval → second poll fires and succeeds
+    // Once the original call finally settles, the next fallback tick can issue
+    // a fresh poll and recover normally.
+    if (resolveFirstCall) {
+      resolveFirstCall({
+        structuredContent: {
+          runState: {
+            lastGroundingSnapshot: {
+              snapshotId: 'dg_late_settle',
+              targetCandidates: [],
+              staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
+            },
+          },
+        },
+      })
+    }
     await vi.advanceTimersByTimeAsync(200)
     expect(callTool).toHaveBeenCalledTimes(2)
     expect(received).toHaveLength(1)
