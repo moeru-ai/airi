@@ -405,7 +405,8 @@ export function createTtsSegmentStream(
             const starsUnclosed = (pendingText.match(/\*/g) || []).length % 2 !== 0
               && starMatch !== null && !starMatch[1].startsWith(' ')
             const hasUnclosed = bracketsUnclosed || starsUnclosed
-            const fallbackLimit = (options?.stripNarrative && bracketsUnclosed) ? 800 : 200
+            const hasNarrativeUnclosed = stack.some(char => ['[', '【', '<'].includes(char))
+            const fallbackLimit = (options?.stripNarrative && hasNarrativeUnclosed) ? 800 : 200
 
             if (!hasUnclosed || pendingText.length > fallbackLimit) {
               const textToEmit = processNarrative(pendingText, options)
