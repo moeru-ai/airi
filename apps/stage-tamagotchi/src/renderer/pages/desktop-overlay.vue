@@ -18,7 +18,7 @@ import type { OverlayState } from './desktop-overlay-polling'
 
 import { electron } from '@proj-airi/electron-eventa'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { getMcpToolBridge } from '@proj-airi/stage-ui/stores/mcp-tool-bridge'
+import { getMcpToolBridge } from '@proj-airi/stage-ui/stores'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import { pointInOverlay, rectIntersectsOverlay, screenRectToLocal, screenToLocal } from './desktop-overlay-coordinates'

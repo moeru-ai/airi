@@ -1,4 +1,4 @@
-import type { McpCallToolResult } from '@proj-airi/stage-ui/stores/mcp-tool-bridge'
+import type { McpCallToolResult } from '@proj-airi/stage-ui/stores'
 
 import type { OverlayState } from './desktop-overlay-polling'
 
@@ -316,7 +316,7 @@ describe('createOverlayPollController', () => {
     let resolveFirstCall: ((value: McpCallToolResult) => void) | null = null
 
     const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
-      .mockImplementationOnce(() => new Promise((resolve) => {
+      .mockImplementationOnce(() => new Promise<McpCallToolResult>((resolve) => {
         resolveFirstCall = resolve
       }))
       .mockResolvedValue({
