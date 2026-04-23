@@ -251,7 +251,18 @@ const BRACKET_MAP: Record<string, string> = {
 
 const OPENERS = Object.keys(BRACKET_MAP)
 const CLOSERS = Object.values(BRACKET_MAP)
-const NARRATIVE_KEYWORDS = /^(laugh|sigh|action|note|breath|giggle|whisper|cry|smile|thought)/i
+const NARRATIVE_KEYWORDS = [
+  'laugh',
+  'sigh',
+  'action',
+  'note',
+  'breath',
+  'giggle',
+  'whisper',
+  'cry',
+  'smile',
+  'thought',
+]
 
 export function isProbablyAngleTag(index: number, text: string): boolean {
   if (text[index] !== '<')
@@ -269,7 +280,12 @@ export function isProbablyAngleTag(index: number, text: string): boolean {
 
   const remainder = text.slice(index + 1)
   if (prevChar && /[a-z0-9]/i.test(prevChar)) {
-    if (NARRATIVE_KEYWORDS.test(remainder))
+    // fix: check whether remainder is piefix with any keywords, or contains the whole keyword
+    const isLikelyNarrative = NARRATIVE_KEYWORDS.some(kw =>
+      kw.startsWith(remainder) || remainder.startsWith(kw),
+    )
+
+    if (isLikelyNarrative)
       return true
     return false
   }

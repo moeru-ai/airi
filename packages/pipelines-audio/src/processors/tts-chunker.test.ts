@@ -58,4 +58,15 @@ describe('tTS Chunker Logic Cleanup', () => {
       expect(processNarrative('price<limit', keepOptions)).toContain('price<limit')
     })
   })
+
+  describe('isProbablyAngleTag Stream Prefix Handling', () => {
+    it('should identify partial prefixes of narrative keywords', () => {
+      expect(isProbablyAngleTag(5, 'hello<sm')).toBe(true)
+      expect(isProbablyAngleTag(5, 'hello<la')).toBe(true) // laugh 的前缀
+    })
+
+    it('should not identify non-narrative prefixes as tags', () => {
+      expect(isProbablyAngleTag(4, 'List<Str')).toBe(false)
+    })
+  })
 })
