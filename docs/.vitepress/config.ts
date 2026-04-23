@@ -152,7 +152,7 @@ export default defineConfig<ThemeConfig>({
                   { text: 'Web Version', link: withBase('/en/docs/manual/web/') },
                 ],
               },
-              { text: 'Project AIRI Manual', link: withBase('/en/docs/manual/tamagotchi/setup-and-use/') },
+              { text: 'Setup and Use', link: withBase('/en/docs/manual/tamagotchi/setup-and-use/') },
               {
                 text: 'Configuration',
                 items: [
