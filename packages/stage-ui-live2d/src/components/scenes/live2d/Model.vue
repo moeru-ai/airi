@@ -26,7 +26,7 @@ import {
   useMotionUpdatePluginIdleFocus,
 } from '../../../composables/live2d'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
-import { useLive2d } from '../../../stores/live2d'
+import { useL2dViewControl, useLive2d } from '../../../stores/live2d'
 
 const props = withDefaults(defineProps<{
   modelSrc?: string
@@ -39,9 +39,6 @@ const props = withDefaults(defineProps<{
   paused?: boolean
   focusAt?: { x: number, y: number }
   disableFocusAt?: boolean
-  xOffset?: number | string
-  yOffset?: number | string
-  scale?: number
   themeColorsHue?: number
   themeColorsHueDynamic?: boolean
   live2dIdleAnimationEnabled?: boolean
@@ -70,17 +67,11 @@ const emits = defineEmits<{
 }>()
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
+const { position, scale } = useL2dViewControl()
 
 function parsePropsOffset() {
-  let xOffset = Number.parseFloat(String(props.xOffset)) || 0
-  let yOffset = Number.parseFloat(String(props.yOffset)) || 0
-
-  if (String(props.xOffset).endsWith('%')) {
-    xOffset = (Number.parseFloat(String(props.xOffset).replace('%', '')) / 100) * props.width
-  }
-  if (String(props.yOffset).endsWith('%')) {
-    yOffset = (Number.parseFloat(String(props.yOffset).replace('%', '')) / 100) * props.height
-  }
+  const xOffset = (position.value.x / 100) * props.width
+  const yOffset = -(position.value.y / 100) * props.height
 
   return {
     xOffset,
@@ -131,14 +122,14 @@ function computeScaleAndPosition() {
 
   const heightScale = (props.height * 0.95 / initialModelHeight.value * offsetFactor)
   const widthScale = (props.width * 0.95 / initialModelWidth.value * offsetFactor)
-  let scale = Math.min(heightScale, widthScale)
+  let minScale = Math.min(heightScale, widthScale)
 
-  if (Number.isNaN(scale) || scale <= 0) {
-    scale = 1e-6
+  if (Number.isNaN(minScale) || minScale <= 0) {
+    minScale = 1e-6
   }
 
   return {
-    scale: scale * props.scale,
+    scale: minScale * scale.value,
     x: (props.width / 2) + offset.value.xOffset,
     y: props.height + offset.value.yOffset,
   }
@@ -550,7 +541,7 @@ watch(dark, updateDropShadowFilter, { immediate: true })
 watch([model, themeColorsHue], updateDropShadowFilter)
 watch(live2dShadowEnabled, updateDropShadowFilter)
 watch(offset, () => setScaleAndPosition())
-watch(() => props.scale, () => setScaleAndPosition())
+watch(() => scale, () => setScaleAndPosition())
 
 // TODO: This is hacky!
 function updateDropShadowFilterLoop() {

@@ -14,28 +14,28 @@ const position = useLocalStorageManualReset<{ x: number, y: number }>('settings/
 /** model scaling. `1` means no scaling. */
 const scale = useLocalStorageManualReset('settings/live2d/scale', 1)
 
-const formatDecimalPx = (val: number) => `${val.toFixed(0)}px`
-const formatPercent = (val: number) => `${(val * 100).toFixed(0)}%`
+const formatPercentD1 = (val: number) => `${val.toFixed(1)}%`
+const formatToPercent = (val: number) => `${(val * 100).toFixed(0)}%`
 
 export const controlConfig: Record<SupportedControl, ControlConfig> = {
   // TODO: calculate the min and max value dynamically according to window height/width, or allow user to set it
   x: {
-    min: -1000,
-    max: 1000,
-    step: 1,
-    format: formatDecimalPx,
+    min: -500,
+    max: 500,
+    step: 0.1,
+    format: formatPercentD1,
   },
   y: {
-    min: -1000,
-    max: 1000,
-    step: 1,
-    format: formatDecimalPx,
+    min: -500,
+    max: 500,
+    step: 0.1,
+    format: formatPercentD1,
   },
   scale: {
     min: 0.01,
     max: 3,
     step: 0.01,
-    format: formatPercent,
+    format: formatToPercent,
   },
 }
 

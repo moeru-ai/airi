@@ -6,8 +6,6 @@ import SliderControls from '../ViewControls/SliderControls.vue'
 import Live2DCanvas from './live2d/Canvas.vue'
 import Live2DModel from './live2d/Model.vue'
 
-import { useL2dViewControl } from '../../stores/live2d'
-
 import '../../utils/live2d-zip-loader'
 import '../../utils/live2d-opfs-registration'
 
@@ -49,8 +47,6 @@ const componentStateModel = defineModel<'pending' | 'loading' | 'mounted'>('mode
 
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 
-const { position, scale } = useL2dViewControl()
-
 watch([componentStateModel, componentStateCanvas], () => {
   componentState.value = (componentStateModel.value === 'mounted' && componentStateCanvas.value === 'mounted')
     ? 'mounted'
@@ -89,9 +85,6 @@ defineExpose({
         :height="height"
         :paused="paused"
         :focus-at="focusAt"
-        :x-offset="position.x"
-        :y-offset="-position.y"
-        :scale="scale"
         :disable-focus-at="disableFocusAt"
         :theme-colors-hue="themeColorsHue"
         :theme-colors-hue-dynamic="themeColorsHueDynamic"

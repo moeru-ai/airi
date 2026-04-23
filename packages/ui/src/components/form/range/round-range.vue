@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useKeyModifier } from '@vueuse/core'
 import { computed, onMounted, ref, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
@@ -6,6 +7,7 @@ const props = withDefaults(defineProps<{
   max?: number
   step?: number
   disabled?: boolean
+  handleWheel?: boolean
 }>(), {
   min: 0,
   max: 100,
@@ -13,22 +15,36 @@ const props = withDefaults(defineProps<{
   disabled: false,
 })
 
+const smoothingFactor = 10000
+
 const modelValue = defineModel<number>({ required: true })
 
-const scaledMin = computed(() => props.min * 10000)
-const scaledMax = computed(() => props.max * 10000)
-const scaledStep = computed(() => props.step * 10000)
+const scaledMin = computed(() => props.min * smoothingFactor)
+const scaledMax = computed(() => props.max * smoothingFactor)
+const scaledStep = computed(() => props.step * smoothingFactor)
+const shiftPressed = useKeyModifier('Shift')
 
 const sliderRef = ref<HTMLInputElement>()
 const sliderValue = computed({
-  get: () => modelValue.value * 10000,
+  get: () => modelValue.value * smoothingFactor,
   set: (value: number) => {
-    modelValue.value = value / 10000
+    modelValue.value = value / smoothingFactor
     updateTrackColor()
   },
 })
 
 onMounted(() => updateTrackColor())
+onMounted(() => {
+  if (props.handleWheel) {
+    sliderRef.value?.addEventListener('wheel', (ev) => {
+      console.info(ev, sliderValue.value)
+      if (ev.deltaY < 0)
+        sliderValue.value += props.step * smoothingFactor * (shiftPressed.value ? 50 : 1)
+      if (ev.deltaY > 0)
+        sliderValue.value -= props.step * smoothingFactor * (shiftPressed.value ? 50 : 1)
+    })
+  }
+})
 watch(sliderValue, () => updateTrackColor(), { immediate: true })
 watch([scaledMin, scaledMax, scaledStep], () => updateTrackColor(), { immediate: true })
 
