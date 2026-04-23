@@ -3,6 +3,19 @@ title: 配置指南
 description: 如何使用桌面版的 Project AIRI
 ---
 
+## API 与服务商配置 (核心对话功能)
+
+仅仅有模型是不够的，你需要配置“大脑”（大语言模型 LLM）和“感官”（语音识别 ASR 与合成 TTS）才能开始对话。
+
+我们支持多种提供商，你可以根据你的网络环境和预算进行选择：
+
+* **[通用配置指南](./common.md)**：了解如何设置全局代理、断句逻辑以及文本处理。
+* **[大语言模型 (LLM)](./llm.md)**：配置 OpenAI, OpenRouter, 302.ai 或 DeepSeek。
+* **[语音识别与合成 (ASR/TTS)](./audio.md)**：配置阿里云、OpenAI 语音或其他本地服务。
+
+> [!TIP]
+> **新手推荐：** 如果你不想折腾复杂的云平台权限，建议优先尝试 **302.ai** 或 **OpenRouter**，它们通常只需一个 Key 即可跑通所有功能。
+
 ## 设置
 
 你可以在系统托盘中打开设置以进行更多自定义，例如：
@@ -38,3 +51,5 @@ description: 如何使用桌面版的 Project AIRI
 <video autoplay loop muted>
  <source src="/assets/tutorial-settings-change-model.mp4" type="video/mp4">
 </video>
+
+
