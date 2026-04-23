@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.9.0",
   "private": true,
-  "description": "Godot-native desktop stage runtime workspace package for stage-tamagotchi",
+  "description": "Godot-native desktop stage runtime workspace engine for stage-tamagotchi",
   "author": {
     "name": "Moeru AI Project AIRI Team",
     "email": "airi@moeru.ai",
@@ -13,7 +13,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/moeru-ai/airi.git",
-    "directory": "packages/stage-tamagotchi-godot"
+    "directory": "engines/stage-tamagotchi-godot"
   },
   "scripts": {
     "build": "dotnet build ./stage-tamagotchi-godot.csproj",
