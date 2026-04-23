@@ -135,6 +135,7 @@ export interface OverlayPollConfig {
 const DEFAULT_INTERVAL = 250
 const DEFAULT_FALLBACK_INTERVAL = 500
 const DEFAULT_CALL_TIMEOUT = 5000
+const MAX_BACKGROUND_HUNG_CALLS = 2
 
 /**
  * MCP server name for computer-use-mcp. Matches the key in mcp.json.
@@ -152,6 +153,7 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
   let timer: ReturnType<typeof setTimeout> | null = null
   let running = false
   let inFlightCall: Promise<McpCallToolResult> | null = null
+  let backgroundHungCalls = 0
 
   function scheduleNext(nextInterval: number) {
     if (running) {
@@ -160,7 +162,7 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
   }
 
   async function poll() {
-    if (inFlightCall) {
+    if (inFlightCall || backgroundHungCalls >= MAX_BACKGROUND_HUNG_CALLS) {
       scheduleNext(fallbackInterval)
       return
     }
@@ -172,19 +174,25 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
       // NOTICE: Wrap callTool with a timeout to prevent the poll loop from
       // hanging forever if the eventa invoke never resolves (e.g. during
       // startup when the main-process RPC handlers may not be ready yet).
-      // NOTICE: We intentionally gate to a single in-flight MCP call. The
-      // bridge does not expose abort semantics, so issuing a second call after
-      // timeout would only pile up hung Eventa/MCP invocations in the overlay
-      // process. We keep retrying on the timer, but until the old call settles
-      // those retry ticks only check again instead of starting another invoke.
+      // NOTICE: The bridge does not expose abort semantics, so a timed-out
+      // call may still be pending in the background. We therefore allow a
+      // bounded number of recovery retries while capping unresolved timed-out
+      // invokes to avoid unbounded Eventa/MCP buildup in the overlay process.
+      let timedOut = false
       const currentCall = config.callTool(MCP_TOOL_NAME)
       inFlightCall = currentCall
       currentCall.then(() => {
-        if (inFlightCall === currentCall) {
+        if (timedOut) {
+          backgroundHungCalls = Math.max(0, backgroundHungCalls - 1)
+        }
+        else if (inFlightCall === currentCall) {
           inFlightCall = null
         }
       }, () => {
-        if (inFlightCall === currentCall) {
+        if (timedOut) {
+          backgroundHungCalls = Math.max(0, backgroundHungCalls - 1)
+        }
+        else if (inFlightCall === currentCall) {
           inFlightCall = null
         }
       })
@@ -192,7 +200,14 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
       const result = await Promise.race([
         currentCall,
         new Promise<never>((_, reject) =>
-          timeoutId = setTimeout(() => reject(new Error('callTool timeout')), config.callTimeoutMs ?? DEFAULT_CALL_TIMEOUT),
+          timeoutId = setTimeout(() => {
+            timedOut = true
+            backgroundHungCalls += 1
+            if (inFlightCall === currentCall) {
+              inFlightCall = null
+            }
+            reject(new Error('callTool timeout'))
+          }, config.callTimeoutMs ?? DEFAULT_CALL_TIMEOUT),
         ),
       ])
       const runState = extractRunStateFromResult(result)

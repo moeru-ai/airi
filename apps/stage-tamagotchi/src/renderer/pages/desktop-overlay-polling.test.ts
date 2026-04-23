@@ -313,12 +313,8 @@ describe('createOverlayPollController', () => {
   it('recovers from a hanging callTool via per-call timeout', async () => {
     vi.useFakeTimers()
 
-    let resolveFirstCall: ((value: McpCallToolResult) => void) | null = null
-
     const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
-      .mockImplementationOnce(() => new Promise<McpCallToolResult>((resolve) => {
-        resolveFirstCall = resolve
-      }))
+      .mockImplementationOnce(() => new Promise<McpCallToolResult>(() => {}))
       .mockResolvedValue({
         structuredContent: {
           runState: {
@@ -349,31 +345,43 @@ describe('createOverlayPollController', () => {
     expect(received).toHaveLength(0)
 
     // Advance past the timeout and several fallback windows. The controller
-    // should not start a second MCP invoke while the first one is still hung.
+    // should allow a bounded recovery retry even though the original invoke
+    // is still hung in the background.
     await vi.advanceTimersByTimeAsync(500)
-    await vi.advanceTimersByTimeAsync(600)
-    expect(callTool).toHaveBeenCalledTimes(1)
-    expect(received).toHaveLength(0)
-
-    // Once the original call finally settles, the next fallback tick can issue
-    // a fresh poll and recover normally.
-    if (resolveFirstCall) {
-      resolveFirstCall({
-        structuredContent: {
-          runState: {
-            lastGroundingSnapshot: {
-              snapshotId: 'dg_late_settle',
-              targetCandidates: [],
-              staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
-            },
-          },
-        },
-      })
-    }
     await vi.advanceTimersByTimeAsync(200)
     expect(callTool).toHaveBeenCalledTimes(2)
     expect(received).toHaveLength(1)
     expect(received[0].snapshotId).toBe('dg_after_timeout')
+
+    controller.stop()
+  })
+
+  it('caps outstanding timed-out polls to avoid unbounded buildup', async () => {
+    vi.useFakeTimers()
+
+    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
+      .mockImplementation(() => new Promise<McpCallToolResult>(() => {}))
+
+    const controller = createOverlayPollController({
+      callTool,
+      onState: () => {},
+      intervalMs: 100,
+      fallbackIntervalMs: 200,
+      callTimeoutMs: 500,
+    })
+
+    controller.start()
+
+    await vi.advanceTimersByTimeAsync(0)
+    expect(callTool).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(500)
+    await vi.advanceTimersByTimeAsync(200)
+    expect(callTool).toHaveBeenCalledTimes(2)
+
+    await vi.advanceTimersByTimeAsync(500)
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(callTool).toHaveBeenCalledTimes(2)
 
     controller.stop()
   })
