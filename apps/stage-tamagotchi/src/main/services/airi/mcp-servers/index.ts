@@ -5,9 +5,12 @@ import type {
   ElectronMcpCallToolResult,
   ElectronMcpStdioApplyResult,
   ElectronMcpStdioConfigFile,
+  ElectronMcpStdioConfigText,
   ElectronMcpStdioRuntimeStatus,
   ElectronMcpStdioServerConfig,
   ElectronMcpStdioServerRuntimeStatus,
+  ElectronMcpStdioTestPayload,
+  ElectronMcpStdioTestResult,
   ElectronMcpToolDescriptor,
 } from '../../../../shared/eventa'
 
@@ -19,7 +22,6 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { app, shell } from 'electron'
-import { z } from 'zod'
 
 import {
   electronMcpApplyAndRestart,
@@ -27,7 +29,11 @@ import {
   electronMcpGetRuntimeStatus,
   electronMcpListTools,
   electronMcpOpenConfigFile,
+  electronMcpReadConfigText,
+  electronMcpTestServer,
+  electronMcpWriteConfigText,
 } from '../../../../shared/eventa'
+import { parseElectronMcpConfigText } from '../../../../shared/mcp-config'
 import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
 
 interface McpServerSession {
@@ -44,19 +50,10 @@ export interface McpStdioManager {
   callTool: (payload: ElectronMcpCallToolPayload) => Promise<ElectronMcpCallToolResult>
   stopAll: () => Promise<void>
   getRuntimeStatus: () => ElectronMcpStdioRuntimeStatus
+  readConfigText: () => Promise<ElectronMcpStdioConfigText>
+  writeConfigText: (text: string) => Promise<ElectronMcpStdioConfigText>
+  testServer: (payload: ElectronMcpStdioTestPayload) => Promise<ElectronMcpStdioTestResult>
 }
-
-const mcpServerConfigSchema = z.object({
-  command: z.string().min(1),
-  args: z.array(z.string()).optional(),
-  env: z.record(z.string(), z.string()).optional(),
-  cwd: z.string().optional(),
-  enabled: z.boolean().optional(),
-}).strict()
-
-const mcpConfigSchema = z.object({
-  mcpServers: z.record(z.string(), mcpServerConfigSchema),
-}).strict()
 
 const defaultMcpConfig: ElectronMcpStdioConfigFile = {
   mcpServers: {},
@@ -141,21 +138,13 @@ export function createMcpStdioManager(): McpStdioManager {
 
   const openConfigFile = async () => {
     const { path } = await ensureConfigFile()
-    const openResult = await shell.openPath(path)
-    if (openResult) {
-      throw new Error(openResult)
-    }
+    shell.showItemInFolder(path)
     return { path }
   }
 
   const readConfigFile = async (path: string): Promise<ElectronMcpStdioConfigFile> => {
     const raw = await readFile(path, 'utf-8')
-    const parsed = JSON.parse(raw) as unknown
-    const validated = mcpConfigSchema.safeParse(parsed)
-    if (!validated.success) {
-      throw new Error(validated.error.issues.map(issue => issue.message).join('; '))
-    }
-    return validated.data
+    return parseElectronMcpConfigText(raw)
   }
 
   const stopAll = async () => {
@@ -347,6 +336,90 @@ export function createMcpStdioManager(): McpStdioManager {
     }
   }
 
+  const readConfigText = async (): Promise<ElectronMcpStdioConfigText> => {
+    const { path } = await ensureConfigFile()
+    const text = await readFile(path, 'utf-8')
+    return { path, text }
+  }
+
+  const writeConfigText = async (text: string): Promise<ElectronMcpStdioConfigText> => {
+    const { path } = await ensureConfigFile()
+    const validated = parseElectronMcpConfigText(text)
+    const normalized = `${JSON.stringify(validated, null, 2)}\n`
+    await writeFile(path, normalized)
+    return { path, text: normalized }
+  }
+
+  const testServer = async (payload: ElectronMcpStdioTestPayload): Promise<ElectronMcpStdioTestResult> => {
+    const startedAt = Date.now()
+    let transport: StdioClientTransport | null = null
+    let client: Client | null = null
+
+    const withDeadline = <V>(promise: Promise<V>, ms: number, label: string): Promise<V> => {
+      let timer: NodeJS.Timeout | undefined
+      const timeout = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+      })
+      return Promise.race([promise, timeout]).finally(() => {
+        if (timer)
+          clearTimeout(timer)
+      })
+    }
+
+    try {
+      transport = new StdioClientTransport({
+        command: payload.config.command,
+        args: payload.config.args ?? [],
+        env: payload.config.env,
+        cwd: payload.config.cwd,
+        stderr: 'pipe',
+      })
+      client = new Client({
+        name: `proj-airi:stage-tamagotchi:mcp:test:${payload.name}`,
+        version: app.getVersion(),
+      })
+
+      await withDeadline(client.connect(transport), mcpRequestMaxTotalTimeoutMsec, 'connect')
+
+      const stderrChunks: string[] = []
+      transport.stderr?.on('data', (data) => {
+        const text = data.toString('utf-8')
+        if (text)
+          stderrChunks.push(text)
+      })
+
+      const response = await client.listTools(undefined, {
+        timeout: mcpRequestTimeoutMsec,
+        maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
+      })
+
+      if (stderrChunks.length > 0) {
+        log.withFields({ serverName: payload.name }).debug(stderrChunks.join('').trim())
+      }
+
+      return {
+        ok: true,
+        tools: response.tools.map(tool => tool.name),
+        durationMs: Date.now() - startedAt,
+      }
+    }
+    catch (error) {
+      return {
+        ok: false,
+        error: stringifyError(error),
+        durationMs: Date.now() - startedAt,
+      }
+    }
+    finally {
+      if (client) {
+        await client.close().catch(() => {})
+      }
+      if (transport) {
+        await transport.close().catch(() => {})
+      }
+    }
+  }
+
   return {
     ensureConfigFile,
     openConfigFile,
@@ -355,6 +428,9 @@ export function createMcpStdioManager(): McpStdioManager {
     callTool,
     stopAll,
     getRuntimeStatus,
+    readConfigText,
+    writeConfigText,
+    testServer,
   }
 }
 
@@ -397,5 +473,17 @@ export function createMcpServersService(params: { context: ReturnType<typeof cre
 
   defineInvokeHandler(params.context, electronMcpCallTool, async (payload) => {
     return params.manager.callTool(payload)
+  })
+
+  defineInvokeHandler(params.context, electronMcpReadConfigText, async () => {
+    return params.manager.readConfigText()
+  })
+
+  defineInvokeHandler(params.context, electronMcpWriteConfigText, async (payload) => {
+    return params.manager.writeConfigText(payload.text)
+  })
+
+  defineInvokeHandler(params.context, electronMcpTestServer, async (payload) => {
+    return params.manager.testServer(payload)
   })
 }

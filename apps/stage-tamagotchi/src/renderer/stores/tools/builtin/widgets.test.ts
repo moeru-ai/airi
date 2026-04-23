@@ -213,6 +213,7 @@ describe('widgets tool helpers', () => {
       const stageWidgetsTool = await getStageWidgetsTool()
       const schema = stageWidgetsTool.function.parameters as JsonSchema
       const windowSize = getObjectSchema(schema.properties?.windowSize as JsonSchema | undefined)
+      const windowSizeProperties = windowSize?.properties ?? {}
 
       // ROOT CAUSE:
       //
@@ -244,7 +245,11 @@ describe('widgets tool helpers', () => {
         'maxWidth',
         'maxHeight',
       ])
-      expect(windowSize?.required).toEqual(Object.keys(windowSize?.properties ?? {}))
+      expect(windowSize?.required).toEqual(Object.keys(windowSizeProperties))
+      expect((windowSizeProperties.minWidth as JsonSchema).type).toEqual(['number', 'null'])
+      expect((windowSizeProperties.minHeight as JsonSchema).type).toEqual(['number', 'null'])
+      expect((windowSizeProperties.maxWidth as JsonSchema).type).toEqual(['number', 'null'])
+      expect((windowSizeProperties.maxHeight as JsonSchema).type).toEqual(['number', 'null'])
     })
 
     describe('live AIHubMix repro', () => {
