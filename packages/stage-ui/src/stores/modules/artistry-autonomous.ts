@@ -52,7 +52,6 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
       artistLog('Skipping task: Already processing another task.')
       return
     }
-
     const { activeCard } = cardStore
     const artistry = activeCard?.extensions?.airi?.modules?.artistry
     const autonomousEnabled = artistry?.autonomousEnabled ?? false
