@@ -469,12 +469,17 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           }
 
           // Browser-dom type routing: if the last clicked grounding candidate
-          // is a chrome_dom text input, use setInputValue for DOM precision
+          // is a chrome_dom text input, use setInputValue for DOM precision.
+          // NOTICE: skip this path when explicit coordinates are provided.
+          // Coordinates mean the caller has targeted a specific screen position
+          // (possibly in a different app/window), so using lastClickedCandidateId
+          // would write into a stale Chrome selector instead of the current target.
+          const hasExplicitCoords = typeof normalizedAction.input.x === 'number' && typeof normalizedAction.input.y === 'number'
           let usedBrowserDom = false
           const runState = runtime.stateManager.getState()
           const lastSnapshot = runState.lastGroundingSnapshot
           const lastClickedId = runState.lastClickedCandidateId
-          if (lastClickedId && lastSnapshot) {
+          if (!hasExplicitCoords && lastClickedId && lastSnapshot) {
             const lastCandidate = lastSnapshot.targetCandidates.find(
               c => c.id === lastClickedId,
             )

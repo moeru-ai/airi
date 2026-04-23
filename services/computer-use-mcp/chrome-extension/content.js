@@ -4,15 +4,17 @@
  * Injected into every frame (including cross-origin iframes) in the MAIN world.
  * Namespace: window.__AIRI_DG__
  *
- * IMPORTANT: This script is READ-ONLY. It does NOT perform any DOM mutations,
- * clicks, typing, or navigation. All execution is done via real macOS OS-level
- * input events through the desktop grounding executor.
+ * IMPORTANT: Direct DOM mutations here are limited to bridge-triggered write
+ * actions (setInputValue, checkCheckbox, selectOption) that are only reachable
+ * via a WebSocket command from the AIRI computer-use-mcp service. Physical
+ * pointer/keyboard actions still go through real macOS OS-level input.
  *
  * Adapted from /Users/liuziheng/computer_use/chrome-extension/content.js.
  * Stripped: clickAt, typeAt, hoverAt, scrollAt, simulateDragDrop, readStorage,
- * setStorage, readCanvasData, injectCSS, and all other DOM-mutating methods.
+ * setStorage, readCanvasData, injectCSS, and all other untracked DOM mutations.
  * Kept: collectFrameDOM, _describeElement, _collectInteractiveElements,
  * findElement, findElements, getClickTarget.
+ * Added: setInputValue, checkCheckbox, selectOption.
  */
 (function () {
   'use strict'
@@ -167,6 +169,76 @@
           attrs[attr.name] = attr.value
         }
         return { success: true, attributes: attrs }
+      }
+      catch (e) {
+        return { success: false, error: e.message }
+      }
+    },
+
+    /**
+     * Set the value of a text input or textarea via the DOM.
+     * Dispatches input + change events so frameworks (React, Vue, etc.) detect
+     * the change. Optionally blurs the element when done.
+     */
+    setInputValue(selector, value, opts) {
+      try {
+        opts = opts || {}
+        const el = document.querySelector(selector)
+        if (!el)
+          return { success: false, error: 'not found' }
+        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')
+          || Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')
+        if (nativeInputValueSetter && nativeInputValueSetter.set) {
+          nativeInputValueSetter.set.call(el, value)
+        }
+        else {
+          el.value = value
+        }
+        el.dispatchEvent(new Event('input', { bubbles: true }))
+        el.dispatchEvent(new Event('change', { bubbles: true }))
+        if (opts.blur)
+          el.blur()
+        return { success: true }
+      }
+      catch (e) {
+        return { success: false, error: e.message }
+      }
+    },
+
+    /**
+     * Check or uncheck a checkbox/radio input.
+     * Dispatches a click event to trigger framework listeners.
+     */
+    checkCheckbox(selector, checked) {
+      try {
+        const el = document.querySelector(selector)
+        if (!el)
+          return { success: false, error: 'not found' }
+        const target = checked !== undefined ? !!checked : !el.checked
+        if (el.checked !== target) {
+          el.checked = target
+          el.dispatchEvent(new Event('change', { bubbles: true }))
+          el.dispatchEvent(new Event('click', { bubbles: true }))
+        }
+        return { success: true, checked: el.checked }
+      }
+      catch (e) {
+        return { success: false, error: e.message }
+      }
+    },
+
+    /**
+     * Select an option in a <select> element by value.
+     * Dispatches change event so framework bindings update.
+     */
+    selectOption(selector, value) {
+      try {
+        const el = document.querySelector(selector)
+        if (!el)
+          return { success: false, error: 'not found' }
+        el.value = value
+        el.dispatchEvent(new Event('change', { bubbles: true }))
+        return { success: true, selectedValue: el.value }
       }
       catch (e) {
         return { success: false, error: e.message }

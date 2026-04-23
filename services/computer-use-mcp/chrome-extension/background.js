@@ -136,6 +136,28 @@ async function handleCommand(cmd) {
         result = await runCUAction(tabId, cmd.frameIds || null, 'getElementAttributes', [cmd.selector || ''])
         break
 
+      case 'setInputValue':
+        result = await runCUAction(tabId, cmd.frameIds || null, 'setInputValue', [
+          cmd.selector || '',
+          cmd.value || '',
+          { blur: cmd.blur !== false, simulateKeystrokes: !!cmd.simulateKeystrokes },
+        ])
+        break
+
+      case 'checkCheckbox':
+        result = await runCUAction(tabId, cmd.frameIds || null, 'checkCheckbox', [
+          cmd.selector || '',
+          cmd.checked,
+        ])
+        break
+
+      case 'selectOption':
+        result = await runCUAction(tabId, cmd.frameIds || null, 'selectOption', [
+          cmd.selector || '',
+          cmd.value || '',
+        ])
+        break
+
       default:
         // NOTICE: unknown actions must return ok:false so BrowserDomExtensionBridge
         // rejects the pending promise; returning ok:true would make callers like
