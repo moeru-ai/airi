@@ -48,6 +48,11 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
    * Analyzes the context in parallel and triggers a visual if threshold is met.
    */
   async function runArtistTask(inputText: string, history: Message[] = [], targetOverride?: 'user' | 'assistant') {
+    if (isProcessing.value) {
+      artistLog('Skipping task: Already processing another task.')
+      return
+    }
+
     const { activeCard } = cardStore
     const artistry = activeCard?.extensions?.airi?.modules?.artistry
     const autonomousEnabled = artistry?.autonomousEnabled ?? false

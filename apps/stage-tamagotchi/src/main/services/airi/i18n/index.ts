@@ -17,10 +17,7 @@ export async function createI18nService(params: { context: ReturnType<typeof cre
   params.i18n.locale(config.get()?.language || 'en')
 
   defineInvokeHandler(params.context, i18nSetLocale, (locale) => {
-    const current = config.get()
-    if (current) {
-      config.update({ ...current, language: locale as string })
-    }
+    config.update({ ...config.get(), language: locale as string })
     params.i18n.locale(locale)
   })
 
