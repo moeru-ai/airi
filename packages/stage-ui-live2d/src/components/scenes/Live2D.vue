@@ -2,7 +2,7 @@
 import { Screen } from '@proj-airi/ui'
 import { ref, watch } from 'vue'
 
-import Inputs from '../ViewControls/Inputs.vue'
+import SliderControls from '../ViewControls/SliderControls.vue'
 import Live2DCanvas from './live2d/Canvas.vue'
 import Live2DModel from './live2d/Model.vue'
 
@@ -67,7 +67,7 @@ defineExpose({
 <template>
   <Screen v-slot="{ width, height }" relative>
     <div absolute top-0 z-15 h-full px-3 py="20vh">
-      <Inputs />
+      <SliderControls />
     </div>
     <Live2DCanvas
       ref="live2dCanvasRef"

@@ -29,8 +29,6 @@ import {
 } from 'three'
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 
-import PlainControls from './Controls/PlainControls.vue'
-
 // From stage-ui-three package
 import { useRenderTargetRegionAtClientPoint } from '../composables/render-target'
 // pinia store
@@ -45,7 +43,7 @@ import {
   stageThreeTraceThreeSceneSubtreeEvent,
   stageThreeTraceThreeSceneTransactionEvent,
 } from '../trace'
-import { OrbitControls } from './Controls'
+import { OrbitControls, SliderControls } from './Controls'
 import { SkyBox } from './Environment'
 import { VRMModel } from './Model'
 
@@ -701,7 +699,7 @@ defineExpose({
 <template>
   <Screen v-slot="{ width, height }" relative>
     <div top="50%" translate-y="[-50%]" fixed z-15 px-3>
-      <PlainControls />
+      <SliderControls />
     </div>
     <TresCanvas
       :width="width"

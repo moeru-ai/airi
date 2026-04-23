@@ -6,7 +6,7 @@ import { computed, ref, watch } from 'vue'
 
 import defaultSkyBoxSrc from '../components/Environment/assets/sky_linekotsi_23_HDRI.hdr?url'
 
-import { useThreeViewControl } from './view-controls'
+import { useThreeViewControl } from './view-control'
 
 // TODO: this is for future type injection features
 // TODO: make a separate type.ts

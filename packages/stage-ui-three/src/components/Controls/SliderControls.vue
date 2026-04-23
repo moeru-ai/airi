@@ -2,7 +2,7 @@
 import { RoundRange } from '@proj-airi/ui'
 import { onUnmounted } from 'vue'
 
-import { controlConfig as conf, useThreeViewControl } from '../../stores/view-controls'
+import { controlConfig as conf, useThreeViewControl } from '../../stores/view-control'
 
 const { cameraDistance, cameraFOV, modelOffset, viewControlsEnabled, viewControlMode } = useThreeViewControl()
 
