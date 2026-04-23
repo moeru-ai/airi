@@ -2319,6 +2319,8 @@ importers:
         specifier: ^3.2.6
         version: 3.2.6(typescript@5.9.3)
 
+  engines/stage-tamagotchi-godot: {}
+
   integrations/vscode/airi-plugin-vscode:
     devDependencies:
       '@proj-airi/plugin-sdk':
@@ -3042,8 +3044,6 @@ importers:
       '@types/audioworklet':
         specifier: 'catalog:'
         version: 0.0.97
-
-  packages/stage-tamagotchi-godot: {}
 
   packages/stage-ui:
     dependencies:
