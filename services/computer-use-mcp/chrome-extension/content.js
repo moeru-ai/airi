@@ -126,6 +126,10 @@
     /**
      * Get the center point of an element for click targeting.
      * Returns the element description with center coordinates.
+     *
+     * Coordinates are exposed both at the top level (x, y) and under
+     * `center` for backward compatibility. The extension bridge reads
+     * top-level x/y via unwrapResultPayload.
      */
     getClickTarget(selector) {
       try {
@@ -133,13 +137,16 @@
         if (!el)
           return { success: false, error: 'not found' }
         const r = el.getBoundingClientRect()
+        const x = Math.round(r.left + r.width / 2)
+        const y = Math.round(r.top + r.height / 2)
         return {
           success: true,
           element: _describeElement(el),
-          center: {
-            x: Math.round(r.left + r.width / 2),
-            y: Math.round(r.top + r.height / 2),
-          },
+          // Top-level x/y are read by extension-bridge.ts → clickSelector
+          x,
+          y,
+          // Keep center for any callers that read it directly
+          center: { x, y },
         }
       }
       catch (e) {

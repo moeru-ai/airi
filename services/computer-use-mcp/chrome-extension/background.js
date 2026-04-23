@@ -137,7 +137,10 @@ async function handleCommand(cmd) {
         break
 
       default:
-        result = { error: `unknown action: ${action}` }
+        // NOTICE: unknown actions must return ok:false so BrowserDomExtensionBridge
+        // rejects the pending promise; returning ok:true would make callers like
+        // setInputValue/checkCheckbox see a resolved promise and skip fallback paths.
+        return { id, ok: false, error: `unknown action: ${action}` }
     }
 
     return { id, ok: true, result }
