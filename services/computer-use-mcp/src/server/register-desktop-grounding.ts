@@ -194,8 +194,8 @@ export function registerDesktopGroundingTools(params: {
           ],
         }
 
-        // Update RunState — pointer intent + clicked candidate
-        runtime.stateManager.updatePointerIntent(intent, candidateId)
+        // Update RunState — pointer intent
+        runtime.stateManager.updatePointerIntent(intent)
 
         // Route the click: browser-dom for chrome_dom candidates, OS input for everything else.
         // Pass button and clickCount so non-left or multi-click requests fall through to OS input
@@ -274,6 +274,9 @@ export function registerDesktopGroundingTools(params: {
             return actionResult
           }
         }
+
+        // Record the candidate as clicked only after execution succeeds or bypasses policy
+        runtime.stateManager.recordClickedCandidate(candidateId)
 
         const candidateDesc = candidate ? `${candidate.source} ${candidate.role} "${candidate.label}"` : candidateId
 

@@ -140,7 +140,7 @@ async function handleCommand(cmd) {
         result = await runCUAction(tabId, cmd.frameIds || null, 'setInputValue', [
           cmd.selector || '',
           cmd.value || '',
-          { blur: cmd.blur !== false, simulateKeystrokes: !!cmd.simulateKeystrokes },
+          { blur: cmd.opts?.blur !== false, simulateKeystrokes: !!cmd.opts?.simulateKeystrokes },
         ])
         break
 
@@ -184,18 +184,60 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true // Keep sendResponse async
   }
 
-  // Support the existing ws-incoming format from BrowserDomExtensionBridge
-  if (msg.type === 'ws-incoming') {
-    handleCommand(msg.data)
-      .then((resp) => {
-        // Send response back via the same channel
-        chrome.runtime.sendMessage({ type: 'ws-send', data: resp })
-      })
-      .catch((e) => {
-        chrome.runtime.sendMessage({ type: 'ws-send', data: { id: msg.data?.id, ok: false, error: String(e) } })
-      })
-    return false
-  }
-
   return false
 })
+
+// ---- WebSocket Relay ----
+// Injects the WebSocket connection directly in the background worker,
+// replacing the deleted offscreen document.
+const WS_URL = 'ws://localhost:8765'
+const BRIDGE_VERSION = 'cu-bridge-2026-02-06-no-eval'
+let ws = null
+let reconnectDelay = 1000
+const MAX_DELAY = 30000
+
+function connectWS() {
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return
+
+  ws = new WebSocket(WS_URL)
+
+  ws.onopen = () => {
+    console.log('[background] WebSocket connected')
+    reconnectDelay = 1000
+    ws.send(JSON.stringify({ type: 'hello', source: 'chrome-extension', version: BRIDGE_VERSION }))
+  }
+
+  ws.onmessage = (evt) => {
+    try {
+      const data = JSON.parse(evt.data)
+      handleCommand(data)
+        .then((resp) => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify(resp))
+          }
+        })
+        .catch((e) => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ id: data?.id, ok: false, error: String(e) }))
+          }
+        })
+    }
+    catch (e) {
+      console.error('[background] parse error:', e)
+    }
+  }
+
+  ws.onclose = () => {
+    console.log(`[background] WebSocket closed, reconnect in ${reconnectDelay}ms`)
+    ws = null
+    setTimeout(connectWS, reconnectDelay)
+    reconnectDelay = Math.min(reconnectDelay * 2, MAX_DELAY)
+  }
+
+  ws.onerror = (e) => {
+    console.error('[background] WebSocket error:', e)
+    ws?.close()
+  }
+}
+
+connectWS()

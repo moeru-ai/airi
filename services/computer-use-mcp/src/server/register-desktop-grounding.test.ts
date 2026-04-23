@@ -68,7 +68,8 @@ describe('runStateManager grounding state', () => {
       source: 'chrome_dom' as TargetSource,
       confidence: 0.95,
       path: [{ x: 140, y: 215, delayMs: 0 }],
-    }, 't_0')
+    })
+    sm.recordClickedCandidate('t_0')
 
     expect(sm.getState().lastClickedCandidateId).toBe('t_0')
 
@@ -88,7 +89,8 @@ describe('runStateManager grounding state', () => {
       confidence: 0.9,
       path: [{ x: 330, y: 213, delayMs: 0 }],
     }
-    sm.updatePointerIntent(intent, 't_1')
+    sm.updatePointerIntent(intent)
+    sm.recordClickedCandidate('t_1')
 
     const state = sm.getState()
     expect(state.lastPointerIntent).toBe(intent)
@@ -106,7 +108,8 @@ describe('runStateManager grounding state', () => {
       source: 'chrome_dom' as TargetSource,
       confidence: 0.95,
       path: [{ x: 140, y: 215, delayMs: 0 }],
-    }, 't_0')
+    })
+    sm.recordClickedCandidate('t_0')
 
     sm.clearGroundingState()
 
@@ -135,7 +138,8 @@ describe('desktop_click_target preconditions via RunStateManager', () => {
       source: 'chrome_dom' as TargetSource,
       confidence: 0.95,
       path: [{ x: 140, y: 215, delayMs: 0 }],
-    }, 't_0')
+    })
+    sm.recordClickedCandidate('t_0')
 
     expect(sm.getState().lastClickedCandidateId === 't_0').toBe(true)
   })
@@ -154,7 +158,8 @@ describe('desktop_click_target preconditions via RunStateManager', () => {
       source: 'chrome_dom' as TargetSource,
       confidence: 0.95,
       path: [{ x: 140, y: 215, delayMs: 0 }],
-    }, 't_0')
+    })
+    sm.recordClickedCandidate('t_0')
 
     expect(sm.getState().lastClickedCandidateId === 't_1').toBe(false)
   })
@@ -170,7 +175,8 @@ describe('desktop_click_target preconditions via RunStateManager', () => {
       source: 'chrome_dom' as TargetSource,
       confidence: 0.95,
       path: [{ x: 140, y: 215, delayMs: 0 }],
-    }, 't_0')
+    })
+    sm.recordClickedCandidate('t_0')
 
     // Re-observe resets clicked candidate
     sm.updateGroundingSnapshot(makeSnapshot())
@@ -235,7 +241,8 @@ describe('overlay polling contract: desktop_get_state exposes grounding data', (
       source: 'chrome_dom' as TargetSource,
       confidence: 0.95,
       path: [{ x: 140, y: 215, delayMs: 0 }],
-    }, 't_0')
+    })
+    sm.recordClickedCandidate('t_0')
 
     const state = sm.getState()
     expect(state.lastPointerIntent).toBeDefined()
@@ -315,7 +322,8 @@ describe('desktop_click_target handler integration', () => {
       confidence: snapshot.targetCandidates.find(c => c.id === candidateId)?.confidence ?? 0,
       path: [{ x: snap.snappedPoint.x, y: snap.snappedPoint.y, delayMs: 0 }],
     }
-    stateManager.updatePointerIntent(intent, candidateId)
+    stateManager.updatePointerIntent(intent)
+    stateManager.recordClickedCandidate(candidateId)
 
     const candidate = snapshot.targetCandidates.find(c => c.id === candidateId)
     const bridgeConnected = browserDomBridge.getStatus().connected
