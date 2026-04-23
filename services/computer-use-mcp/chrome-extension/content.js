@@ -211,9 +211,16 @@
     },
 
     /**
-     * Check or uncheck a checkbox/radio input.
+     * Check or uncheck a native checkbox or radio input.
      * Sets checked programmatically and dispatches a change event so framework
      * bindings (React onChange, Vue @change) pick up the update.
+     *
+     * NOTICE: only works on real <input type="checkbox|radio"> elements.
+     * Custom ARIA checkboxes (e.g. <div role="checkbox">) do not have a native
+     * .checked property — writing to it just adds an expando attribute and
+     * changes nothing visible. Return success:false in that case so the caller
+     * falls back to an OS-level click.
+     *
      * NOTICE: we do NOT dispatch a fake click event — the browser's true event
      * order is click→change, and a synthetic click after we've already set
      * el.checked can cause React controlled-component handlers to toggle back.
@@ -223,6 +230,9 @@
         const el = document.querySelector(selector)
         if (!el)
           return { success: false, error: 'not found' }
+        // Guard: only native checkbox/radio inputs have a meaningful .checked
+        if (!(el instanceof HTMLInputElement) || (el.type !== 'checkbox' && el.type !== 'radio'))
+          return { success: false, error: 'not a native checkbox or radio input' }
         const target = checked !== undefined ? !!checked : !el.checked
         if (el.checked !== target) {
           el.checked = target
