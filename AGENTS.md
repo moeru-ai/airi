@@ -206,10 +206,12 @@ These guidelines apply to all TypeScript code across the monorepo:
 - For functions that include workarounds, include a `NOTICE:` explanation.
 - For `describe`, `it`, and all `expect*` usage in tests, include examples by using `@example`.
 - For all exported interfaces, especially configurable options, document:
-  - What each interface/option does.
-  - When to use it.
-  - The use cases it is intended for.
+  - What each interface/type represents.
+  - Put detailed field semantics on the fields themselves instead of repeating them in one large interface-level comment block.
+  - If the interface or type uses generic parameters, document them with `@param`.
   - `@default` for every option that has a default value.
+- For interface and type JSDoc, keep the top-level comment focused on what the type represents. Do not use function-style `Use when`, `Expects`, or `Returns` sections on interfaces or type aliases. Put detailed meaning, defaults, and behavioral notes on the individual fields or methods instead of restating every field in the interface-level block.
+- For generic type parameters in JSDoc, use `@param` entries to explain what each type parameter represents.
 - For all runner, CLI, and high-level orchestrator code (exported or not), `/** ... */` JSDoc is required and must include a clear ASCII call-stack diagram using `{@link ...}` references where applicable.
 - Use this call-stack section format in orchestrator/runner/CLI JSDoc:
   ```ts
