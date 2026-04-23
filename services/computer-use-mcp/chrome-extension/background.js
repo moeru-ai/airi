@@ -197,7 +197,8 @@ let reconnectDelay = 1000
 const MAX_DELAY = 30000
 
 function connectWS() {
-  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING))
+    return
 
   ws = new WebSocket(WS_URL)
 
