@@ -21,6 +21,7 @@ describe('tTS Chunker Logic Cleanup', () => {
 
     it('should strip standard bracketed narrative', () => {
       expect(processNarrative('Hello [sighs] world', options)).toBe('Hello  world')
+      expect(processNarrative('<<tag>>', options)).toBe('')
     })
 
     it('should restore stripping for CJK brackets', () => {
@@ -29,12 +30,17 @@ describe('tTS Chunker Logic Cleanup', () => {
     })
 
     it('should fix asterisk bullet leakage', () => {
-      expect(processNarrative('* item 1', options)).toBe(' item 1')
+      expect(processNarrative('* item 1', options)).toBe('* item 1')
       expect(processNarrative('*bold text*', options)).toBe('')
+      expect(processNarrative('a*b', options)).toBe('a*b')
     })
 
     it('should handle complex nesting correctly', () => {
       expect(processNarrative('Normal (nested [action]) text', options)).toBe('Normal  text')
+    })
+
+    it('should handle open bracket correctly', () => {
+      expect(processNarrative('Version (beta', options)).toBe('Version (beta')
     })
 
     it('should preserve code literals in keepNarrativeText mode', () => {

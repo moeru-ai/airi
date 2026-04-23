@@ -264,7 +264,7 @@ export function isProbablyAngleTag(index: number, text: string): boolean {
     return false
 
   // Lookbehind: if before is non-empty/non-bracket character, then determine as code or any instead of a label
-  if (prevChar && /[^\s([{（【]/.test(prevChar))
+  if (prevChar && /[^\s([{（【<]/.test(prevChar))
     return false
 
   return true
@@ -274,51 +274,77 @@ export function processNarrative(text: string, options?: TtsInputChunkOptions): 
   if (!options?.stripNarrative)
     return text
 
-  let result = ''
-  const stack: string[] = []
-  let asteriskActive = false
+  const rangesToRemove: [number, number][] = []
+  const charsToRemove = new Set<number>()
+
+  const stack: { char: string, index: number }[] = []
+  let starOpenIndex = -1
 
   for (let i = 0; i < text.length; i++) {
     const char = text[i]
 
-    // fix Asterisk Bug: use boolean status instead of stacking forever
     if (char === '*') {
-      if (!asteriskActive && text[i + 1] === ' ') {
-        continue
+      if (starOpenIndex !== -1) {
+        if (options?.keepNarrativeText) {
+          charsToRemove.add(starOpenIndex)
+          charsToRemove.add(i)
+        }
+        else {
+          rangesToRemove.push([starOpenIndex, i])
+        }
+        starOpenIndex = -1
       }
-      asteriskActive = !asteriskActive
+      else {
+        if (/\s/.test(text[i + 1] || '')) {
+          charsToRemove.add(i)
+        }
+        else {
+          starOpenIndex = i
+        }
+      }
       continue
     }
 
-    // process opening brackets including Chinese and English brackets
     if (OPENERS.includes(char)) {
-      if (char === '<' && !isProbablyAngleTag(i, text)) {
-        if (stack.length === 0 && !asteriskActive) {
-          result += char
-        }
-        else if (options?.keepNarrativeText) {
-          result += char
-        }
+      if (char === '<' && !isProbablyAngleTag(i, text))
         continue
-      }
-      stack.push(char)
+      stack.push({ char, index: i })
       continue
     }
 
-    // process closing brackets
     if (CLOSERS.includes(char)) {
-      const lastOpener = stack[stack.length - 1]
-      if (lastOpener && BRACKET_MAP[lastOpener] === char) {
+      const last = stack[stack.length - 1]
+      if (last && BRACKET_MAP[last.char] === char) {
         stack.pop()
-        continue
+        if (options?.keepNarrativeText) {
+          charsToRemove.add(last.index)
+          charsToRemove.add(i)
+        }
+        else {
+          rangesToRemove.push([last.index, i])
+        }
       }
     }
+  }
 
-    if (stack.length === 0 && !asteriskActive) {
-      result += char
+  let result = ''
+  for (let i = 0; i < text.length; i++) {
+    if (options?.keepNarrativeText) {
+      if (!charsToRemove.has(i)) {
+        result += text[i]
+      }
     }
-    else if (options?.keepNarrativeText) {
-      result += char
+    else {
+      let inRange = false
+      for (const [start, end] of rangesToRemove) {
+        if (i >= start && i <= end) {
+          inRange = true
+          break
+        }
+      }
+      if (!inRange) {
+        result += text[i]
+      }
     }
   }
 
