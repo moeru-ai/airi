@@ -256,6 +256,9 @@ export function isProbablyAngleTag(index: number, text: string): boolean {
   if (text[index] !== '<')
     return false
 
+  if (text[index + 1] === '/')
+    return true
+
   const nextChar = text[index + 1]
   const prevChar = index > 0 ? text[index - 1] : ''
 
@@ -405,7 +408,7 @@ export function createTtsSegmentStream(
             const starsUnclosed = (pendingText.match(/\*/g) || []).length % 2 !== 0
               && starMatch !== null && !starMatch[1].startsWith(' ')
             const hasUnclosed = bracketsUnclosed || starsUnclosed
-            const hasNarrativeUnclosed = stack.some(char => ['[', '【', '<'].includes(char))
+            const hasNarrativeUnclosed = stack.some(char => ['[', '【', '<', '（'].includes(char))
             const fallbackLimit = (options?.stripNarrative && hasNarrativeUnclosed) ? 800 : 200
 
             if (!hasUnclosed || pendingText.length > fallbackLimit) {
