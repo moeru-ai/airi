@@ -26,6 +26,7 @@ import { setElectronMainDirname } from './libs/electron/location'
 import { createI18n } from './libs/i18n'
 import { createWindowAuthManagerService } from './services/airi/auth'
 import { setupServerChannel } from './services/airi/channel-server'
+import { setupGodotStageManager } from './services/airi/godot-stage'
 import { setupBuiltInServer } from './services/airi/http-server'
 import { setupMcpStdioManager } from './services/airi/mcp-servers'
 import { setupPluginHost } from './services/airi/plugins'
@@ -134,6 +135,10 @@ app.whenReady().then(async () => {
     build: async () => setupBuiltInServer({ servers: [] }),
   })
 
+  const godotStageManager = injeca.provide('modules:godot-stage-manager', {
+    build: async () => setupGodotStageManager(),
+  })
+
   const mcpStdioManager = injeca.provide('modules:mcp-stdio-manager', {
     build: async () => setupMcpStdioManager(),
   })
@@ -176,12 +181,12 @@ app.whenReady().then(async () => {
   })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow, serverChannel, mcpStdioManager, i18n, windowAuthManager },
+    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow, serverChannel, godotStageManager, mcpStdioManager, i18n, windowAuthManager },
     build: async ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, mcpStdioManager, i18n, onboardingWindowManager, windowAuthManager },
+    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpStdioManager, i18n, onboardingWindowManager, windowAuthManager },
     build: async ({ dependsOn }) => setupMainWindow(dependsOn),
   })
 
@@ -212,7 +217,7 @@ app.whenReady().then(async () => {
   }
 
   injeca.invoke({
-    dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, artistryConfig },
+    dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, godotStageManager, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, artistryConfig },
     callback: async (deps) => {
       const { context } = createContext(ipcMain)
       await setupArtistryBridge({

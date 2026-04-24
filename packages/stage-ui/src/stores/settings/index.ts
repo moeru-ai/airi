@@ -96,6 +96,8 @@ export const useSettings = defineStore('settings', () => {
     applyPrimaryColorFrom: theme.applyPrimaryColorFrom,
     isColorSelectedForPrimary: theme.isColorSelectedForPrimary,
     initializeStageModel: stageModel.initializeStageModel,
+    restoreBuiltInStageModelRenderer: stageModel.restoreBuiltInStageModelRenderer,
+    setStageModelRenderer: stageModel.setStageModelRenderer,
     updateStageModel: stageModel.updateStageModel,
     resetState,
   }
