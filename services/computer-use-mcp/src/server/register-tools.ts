@@ -561,6 +561,29 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         tabId,
         frameIds,
       })
+
+      // NOTICE: clickSelector resolves even when the clickAt step misses
+      // (e.g. reflow between target lookup and click dispatch). Inspect
+      // per-frame results before reporting success.
+      const clickFrames = result?.clickResults
+      const anyClickSucceeded = Array.isArray(clickFrames) && clickFrames.some(
+        fr => (fr.result as Record<string, unknown>)?.success === true,
+      )
+      if (!anyClickSucceeded) {
+        return {
+          isError: true,
+          content: [
+            textContent(`browser_dom_click: clicked at (${result.targetPoint.x}, ${result.targetPoint.y}) in frame ${result.targetFrameId} but no frame reported a successful DOM click for "${selector}".`),
+          ],
+          structuredContent: {
+            status: 'click_miss',
+            selector,
+            ...result,
+            bridge: runtime.browserDomBridge.getStatus(),
+          },
+        }
+      }
+
       return {
         content: [
           textContent(`Clicked selector "${selector}" in frame ${result.targetFrameId} at (${result.targetPoint.x}, ${result.targetPoint.y}).`),

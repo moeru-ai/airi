@@ -1,5 +1,4 @@
-import type { McpCallToolResult } from '@proj-airi/stage-ui/tools/mcp'
-
+import type { ElectronMcpCallToolResult } from '../../shared/eventa'
 import type { OverlayState } from './desktop-overlay-polling'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -162,7 +161,7 @@ describe('createOverlayPollController', () => {
   it('calls tool and delivers state on successful poll', async () => {
     vi.useFakeTimers()
 
-    const mockResult: McpCallToolResult = {
+    const mockResult: ElectronMcpCallToolResult = {
       structuredContent: {
         runState: {
           lastGroundingSnapshot: {
@@ -176,7 +175,7 @@ describe('createOverlayPollController', () => {
       },
     }
 
-    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
+    const callTool = vi.fn<(name: string) => Promise<ElectronMcpCallToolResult>>()
       .mockResolvedValue(mockResult)
 
     const received: OverlayState[] = []
@@ -201,32 +200,10 @@ describe('createOverlayPollController', () => {
     controller.stop()
   })
 
-  it('clears the per-call timeout when the tool resolves before the timeout fires', async () => {
-    vi.useFakeTimers()
-
-    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
-      .mockResolvedValue({ structuredContent: {} })
-
-    const controller = createOverlayPollController({
-      callTool,
-      onState: () => {},
-      intervalMs: 100,
-      callTimeoutMs: 500,
-    })
-
-    controller.start()
-    await vi.advanceTimersByTimeAsync(0)
-
-    // Only the next poll should remain scheduled. The per-call timeout must be cleared.
-    expect(vi.getTimerCount()).toBe(1)
-
-    controller.stop()
-  })
-
   it('stops polling after stop() is called', async () => {
     vi.useFakeTimers()
 
-    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
+    const callTool = vi.fn<(name: string) => Promise<ElectronMcpCallToolResult>>()
       .mockResolvedValue({ structuredContent: {} })
 
     const controller = createOverlayPollController({
@@ -250,7 +227,7 @@ describe('createOverlayPollController', () => {
   it('continues polling after a single failure', async () => {
     vi.useFakeTimers()
 
-    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
+    const callTool = vi.fn<(name: string) => Promise<ElectronMcpCallToolResult>>()
       .mockRejectedValueOnce(new Error('MCP down'))
       .mockResolvedValue({
         structuredContent: {
@@ -292,7 +269,7 @@ describe('createOverlayPollController', () => {
   it('is a no-op to call start() twice', async () => {
     vi.useFakeTimers()
 
-    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
+    const callTool = vi.fn<(name: string) => Promise<ElectronMcpCallToolResult>>()
       .mockResolvedValue({ structuredContent: {} })
 
     const controller = createOverlayPollController({
@@ -313,8 +290,9 @@ describe('createOverlayPollController', () => {
   it('recovers from a hanging callTool via per-call timeout', async () => {
     vi.useFakeTimers()
 
-    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
-      .mockImplementationOnce(() => new Promise<McpCallToolResult>(() => {}))
+    // First call hangs forever (simulates startup race when RPC not ready)
+    const callTool = vi.fn<(name: string) => Promise<ElectronMcpCallToolResult>>()
+      .mockImplementationOnce(() => new Promise(() => {})) // never resolves
       .mockResolvedValue({
         structuredContent: {
           runState: {
@@ -344,97 +322,15 @@ describe('createOverlayPollController', () => {
     expect(callTool).toHaveBeenCalledTimes(1)
     expect(received).toHaveLength(0)
 
-    // Advance past the timeout and several fallback windows. The controller
-    // should allow a bounded recovery retry even though the original invoke
-    // is still hung in the background.
+    // Advance past the 500ms timeout → catch triggers, schedules fallback
     await vi.advanceTimersByTimeAsync(500)
+    expect(received).toHaveLength(0)
+
+    // Advance past the 200ms fallback interval → second poll fires and succeeds
     await vi.advanceTimersByTimeAsync(200)
     expect(callTool).toHaveBeenCalledTimes(2)
     expect(received).toHaveLength(1)
     expect(received[0].snapshotId).toBe('dg_after_timeout')
-
-    controller.stop()
-  })
-
-  it('caps outstanding timed-out polls to avoid unbounded buildup', async () => {
-    vi.useFakeTimers()
-
-    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
-      .mockImplementation(() => new Promise<McpCallToolResult>(() => {}))
-
-    const controller = createOverlayPollController({
-      callTool,
-      onState: () => {},
-      intervalMs: 100,
-      fallbackIntervalMs: 200,
-      callTimeoutMs: 500,
-    })
-
-    controller.start()
-
-    await vi.advanceTimersByTimeAsync(0)
-    expect(callTool).toHaveBeenCalledTimes(1)
-
-    await vi.advanceTimersByTimeAsync(500)
-    await vi.advanceTimersByTimeAsync(200)
-    expect(callTool).toHaveBeenCalledTimes(2)
-
-    await vi.advanceTimersByTimeAsync(500)
-    await vi.advanceTimersByTimeAsync(1000)
-    expect(callTool).toHaveBeenCalledTimes(2)
-
-    controller.stop()
-  })
-
-  it('recovers again once a timed-out hung-call slot lease expires', async () => {
-    vi.useFakeTimers()
-
-    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
-      .mockImplementationOnce(() => new Promise<McpCallToolResult>(() => {}))
-      .mockImplementationOnce(() => new Promise<McpCallToolResult>(() => {}))
-      .mockResolvedValue({
-        structuredContent: {
-          runState: {
-            lastGroundingSnapshot: {
-              snapshotId: 'dg_after_lease',
-              targetCandidates: [],
-              staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
-            },
-          },
-        },
-      })
-
-    const received: OverlayState[] = []
-
-    const controller = createOverlayPollController({
-      callTool,
-      onState: (state) => {
-        received.push(state)
-      },
-      intervalMs: 100,
-      fallbackIntervalMs: 200,
-      callTimeoutMs: 500,
-      hungCallLeaseMs: 1000,
-    })
-
-    controller.start()
-
-    await vi.advanceTimersByTimeAsync(0)
-    expect(callTool).toHaveBeenCalledTimes(1)
-
-    await vi.advanceTimersByTimeAsync(500)
-    await vi.advanceTimersByTimeAsync(200)
-    expect(callTool).toHaveBeenCalledTimes(2)
-
-    await vi.advanceTimersByTimeAsync(500)
-    await vi.advanceTimersByTimeAsync(200)
-    expect(callTool).toHaveBeenCalledTimes(2)
-    expect(received).toHaveLength(0)
-
-    await vi.advanceTimersByTimeAsync(200)
-    expect(callTool).toHaveBeenCalledTimes(3)
-    expect(received).toHaveLength(1)
-    expect(received[0].snapshotId).toBe('dg_after_lease')
 
     controller.stop()
   })

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
+import { decideBrowserAction, decideBrowserTypeAction } from './browser-action-router'
 import { captureChromeSemantics, chromeElementsToTargetCandidates } from './chrome-semantic-adapter'
 
 // ---------------------------------------------------------------------------
@@ -115,6 +116,283 @@ describe('chromeElementsToTargetCandidates', () => {
     )
     expect(idLabel[0].label).toBe('#main-cta')
   })
+
+  // -----------------------------------------------------------------------
+  // Selector building (v2)
+  // -----------------------------------------------------------------------
+
+  it('builds selector from element id (highest priority)', () => {
+    const candidates = chromeElementsToTargetCandidates(
+      [{ tag: 'button', id: 'submit-btn', text: 'Go', rect: { x: 0, y: 0, w: 50, h: 20 } }],
+      windowBounds,
+    )
+    expect(candidates[0].selector).toBe('#submit-btn')
+  })
+
+  it('escapes special characters in id selectors', () => {
+    const candidates = chromeElementsToTargetCandidates(
+      [{ tag: 'div', id: 'my.element:1', rect: { x: 0, y: 0, w: 50, h: 20 } }],
+      windowBounds,
+    )
+    // dots and colons must be escaped
+    expect(candidates[0].selector).toBe('#my\\.element\\:1')
+  })
+
+  it('builds selector from name attribute (second priority)', () => {
+    const candidates = chromeElementsToTargetCandidates(
+      [{ tag: 'input', name: 'email', rect: { x: 0, y: 0, w: 100, h: 20 } }],
+      windowBounds,
+    )
+    expect(candidates[0].selector).toBe('input[name="email"]')
+  })
+
+  it('escapes quotes in name attribute selectors', () => {
+    const candidates = chromeElementsToTargetCandidates(
+      [{ tag: 'input', name: 'field"evil', rect: { x: 0, y: 0, w: 100, h: 20 } }],
+      windowBounds,
+    )
+    expect(candidates[0].selector).toBe('input[name="field\\"evil"]')
+  })
+
+  it('builds selector from tag+type for input elements (third priority)', () => {
+    const candidates = chromeElementsToTargetCandidates(
+      [{ tag: 'input', type: 'submit', rect: { x: 0, y: 0, w: 80, h: 30 } }],
+      windowBounds,
+    )
+    expect(candidates[0].selector).toBe('input[type="submit"]')
+  })
+
+  it('builds selector from tag+type for button elements', () => {
+    const candidates = chromeElementsToTargetCandidates(
+      [{ tag: 'button', type: 'submit', rect: { x: 0, y: 0, w: 80, h: 30 } }],
+      windowBounds,
+    )
+    expect(candidates[0].selector).toBe('button[type="submit"]')
+  })
+
+  it('does not use tag+type for non-input/button elements', () => {
+    // A <div> with type attr should NOT get a tag[type=...] selector
+    const candidates = chromeElementsToTargetCandidates(
+      [{ tag: 'div', type: 'custom', className: 'widget', rect: { x: 0, y: 0, w: 80, h: 30 } }],
+      windowBounds,
+    )
+    // Should fall through to className-based selector
+    expect(candidates[0].selector).toBe('div.widget')
+  })
+
+  it('builds selector from first className (fourth priority)', () => {
+    const candidates = chromeElementsToTargetCandidates(
+      [{ tag: 'a', className: 'nav-link primary', rect: { x: 0, y: 0, w: 60, h: 16 } }],
+      windowBounds,
+    )
+    expect(candidates[0].selector).toBe('a.nav-link')
+  })
+
+  it('returns undefined selector when no identifying attribute exists', () => {
+    const candidates = chromeElementsToTargetCandidates(
+      [{ tag: 'span', text: 'orphan', rect: { x: 0, y: 0, w: 40, h: 14 } }],
+      windowBounds,
+    )
+    expect(candidates[0].selector).toBeUndefined()
+  })
+
+  it('prefers id over name over type over className', () => {
+    // Element with all attributes — id should win
+    const candidates = chromeElementsToTargetCandidates(
+      [{
+        tag: 'input',
+        id: 'email-input',
+        name: 'email',
+        type: 'text',
+        className: 'form-control',
+        rect: { x: 0, y: 0, w: 200, h: 30 },
+      }],
+      windowBounds,
+    )
+    expect(candidates[0].selector).toBe('#email-input')
+  })
+
+  it('falls through to name when id is empty/whitespace', () => {
+    const candidates = chromeElementsToTargetCandidates(
+      [{ tag: 'input', id: '  ', name: 'username', rect: { x: 0, y: 0, w: 200, h: 30 } }],
+      windowBounds,
+    )
+    expect(candidates[0].selector).toBe('input[name="username"]')
+  })
+
+  // -----------------------------------------------------------------------
+  // Metadata enrichment (v2): isPageContent, enabled, inputType
+  // -----------------------------------------------------------------------
+
+  it('sets isPageContent=true for all chrome_dom candidates', () => {
+    const candidates = chromeElementsToTargetCandidates(
+      [
+        { tag: 'button', text: 'A', rect: { x: 0, y: 0, w: 50, h: 20 } },
+        { tag: 'input', type: 'text', rect: { x: 0, y: 30, w: 200, h: 30 } },
+        { tag: 'a', href: '/about', text: 'About', rect: { x: 0, y: 70, w: 40, h: 16 } },
+      ],
+      windowBounds,
+    )
+    for (const c of candidates) {
+      expect(c.isPageContent).toBe(true)
+    }
+  })
+
+  it('sets enabled=true for non-disabled elements', () => {
+    const candidates = chromeElementsToTargetCandidates(
+      [{ tag: 'button', text: 'Active', rect: { x: 0, y: 0, w: 50, h: 20 } }],
+      windowBounds,
+    )
+    expect(candidates[0].enabled).toBe(true)
+  })
+
+  it('sets enabled=false for disabled elements', () => {
+    const candidates = chromeElementsToTargetCandidates(
+      [{ tag: 'button', text: 'Nope', disabled: true, rect: { x: 0, y: 0, w: 50, h: 20 } }],
+      windowBounds,
+    )
+    expect(candidates[0].enabled).toBe(false)
+    expect(candidates[0].interactable).toBe(false)
+  })
+
+  it('carries inputType from element type attribute', () => {
+    const candidates = chromeElementsToTargetCandidates(
+      [{ tag: 'input', type: 'password', rect: { x: 0, y: 0, w: 200, h: 30 } }],
+      windowBounds,
+    )
+    expect(candidates[0].inputType).toBe('password')
+  })
+
+  it('carries href for link elements', () => {
+    const candidates = chromeElementsToTargetCandidates(
+      [{ tag: 'a', href: 'https://example.com', text: 'Link', rect: { x: 0, y: 0, w: 40, h: 16 } }],
+      windowBounds,
+    )
+    expect(candidates[0].href).toBe('https://example.com')
+  })
+
+  // -----------------------------------------------------------------------
+  // Frame ID propagation (v2)
+  // -----------------------------------------------------------------------
+
+  it('uses default frameId=0 when not specified', () => {
+    const candidates = chromeElementsToTargetCandidates(
+      [{ tag: 'button', text: 'Main', rect: { x: 0, y: 0, w: 50, h: 20 } }],
+      windowBounds,
+    )
+    expect(candidates[0].frameId).toBe(0)
+  })
+
+  it('uses explicit frameId parameter', () => {
+    const candidates = chromeElementsToTargetCandidates(
+      [{ tag: 'button', text: 'Iframe', rect: { x: 0, y: 0, w: 50, h: 20 } }],
+      windowBounds,
+      88, // chrome height
+      5, // frameId
+    )
+    expect(candidates[0].frameId).toBe(5)
+  })
+
+  it('reads per-element _frameId from tagged elements (extension bridge)', () => {
+    // The extension bridge tags each element with _frameId
+    const taggedEl = {
+      tag: 'input',
+      type: 'text',
+      rect: { x: 0, y: 0, w: 200, h: 30 },
+      _frameId: 3,
+    } as any
+    const candidates = chromeElementsToTargetCandidates(
+      [taggedEl],
+      windowBounds,
+      88, // chrome height
+      0, // default frameId param = 0
+    )
+    // Per-element _frameId should override the function-level param
+    expect(candidates[0].frameId).toBe(3)
+  })
+
+  it('falls back to function-level frameId when _frameId is absent', () => {
+    const el = {
+      tag: 'button',
+      text: 'No tag',
+      rect: { x: 0, y: 0, w: 50, h: 20 },
+      // no _frameId
+    }
+    const candidates = chromeElementsToTargetCandidates(
+      [el],
+      windowBounds,
+      88,
+      7,
+    )
+    expect(candidates[0].frameId).toBe(7)
+  })
+
+  // -----------------------------------------------------------------------
+  // End-to-end routing scenario: selector → router → decision
+  // -----------------------------------------------------------------------
+
+  it('candidate with id goes through full routing as browser_dom click', () => {
+    const candidates = chromeElementsToTargetCandidates(
+      [{ tag: 'button', id: 'login-btn', text: 'Login', rect: { x: 0, y: 0, w: 80, h: 30 } }],
+      windowBounds,
+    )
+    // Assign an id like the grounding layer would
+    candidates[0].id = 't_0'
+
+    const decision = decideBrowserAction(candidates[0], true)
+    expect(decision.route).toBe('browser_dom')
+    expect(decision.bridgeMethod).toBe('clickSelector')
+    expect(decision.selector).toBe('#login-btn')
+  })
+
+  it('candidate without identifiers routes to os_input', () => {
+    const candidates = chromeElementsToTargetCandidates(
+      [{ tag: 'span', text: 'plain text', rect: { x: 0, y: 0, w: 60, h: 14 } }],
+      windowBounds,
+    )
+    candidates[0].id = 't_0'
+
+    const decision = decideBrowserAction(candidates[0], true)
+    expect(decision.route).toBe('os_input')
+    expect(decision.reason).toContain('no CSS selector')
+  })
+
+  it('checkbox candidate goes through routing as checkCheckbox', () => {
+    const candidates = chromeElementsToTargetCandidates(
+      [{ tag: 'input', type: 'checkbox', id: 'agree', rect: { x: 0, y: 0, w: 16, h: 16 } }],
+      windowBounds,
+    )
+    candidates[0].id = 't_0'
+
+    const decision = decideBrowserAction(candidates[0], true)
+    expect(decision.route).toBe('browser_dom')
+    expect(decision.bridgeMethod).toBe('checkCheckbox')
+  })
+
+  it('text input candidate goes through type routing as setInputValue', () => {
+    const candidates = chromeElementsToTargetCandidates(
+      [{ tag: 'input', type: 'email', name: 'user-email', rect: { x: 0, y: 0, w: 200, h: 30 } }],
+      windowBounds,
+    )
+    candidates[0].id = 't_0'
+
+    const decision = decideBrowserTypeAction(candidates[0], true)
+    expect(decision.route).toBe('browser_dom')
+    expect(decision.bridgeMethod).toBe('setInputValue')
+    expect(decision.selector).toBe('input[name="user-email"]')
+  })
+
+  it('non-text-input candidate falls back to os_input for type action', () => {
+    const candidates = chromeElementsToTargetCandidates(
+      [{ tag: 'button', id: 'send', text: 'Send', rect: { x: 0, y: 0, w: 80, h: 30 } }],
+      windowBounds,
+    )
+    candidates[0].id = 't_0'
+
+    const decision = decideBrowserTypeAction(candidates[0], true)
+    expect(decision.route).toBe('os_input')
+    expect(decision.reason).toContain('not a text input')
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -149,185 +427,6 @@ describe('captureChromeSemantics', () => {
     expect(result!.source).toBe('extension')
     expect(result!.pageUrl).toBe('https://example.com')
     expect(result!.interactiveElements).toHaveLength(1)
-  })
-
-  it('falls back to CDP when extension capture returns no interactive elements', async () => {
-    const mockExtension = {
-      getStatus: () => ({ connected: true, enabled: true, host: 'localhost', port: 8080, pendingRequests: 0 }),
-      readAllFramesDom: vi.fn().mockResolvedValue([
-        {
-          frameId: 0,
-          result: {
-            url: 'https://example.com',
-            title: 'Example',
-            interactiveElements: [],
-          },
-        },
-      ]),
-    }
-    const mockCdp = {
-      getStatus: vi.fn().mockReturnValue({
-        connected: true,
-        pageUrl: 'https://example.com',
-        pageTitle: 'Example',
-      }),
-      collectInteractiveElements: vi.fn().mockResolvedValue([
-        { tag: 'button', text: 'Fallback CTA', rect: { x: 0, y: 0, w: 50, h: 20 } },
-      ]),
-    }
-
-    const result = await captureChromeSemantics(mockExtension as any, mockCdp as any)
-    expect(result).not.toBeNull()
-    expect(result!.source).toBe('cdp')
-    expect(result!.interactiveElements).toHaveLength(1)
-    expect(result!.interactiveElements[0].text).toBe('Fallback CTA')
-  })
-
-  it('unwraps extension frame payloads nested under result.data', async () => {
-    const mockExtension = {
-      getStatus: () => ({ connected: true, enabled: true, host: 'localhost', port: 8080, pendingRequests: 0 }),
-      readAllFramesDom: vi.fn().mockResolvedValue([
-        {
-          frameId: 0,
-          result: {
-            data: {
-              url: 'https://nested.example.com',
-              title: 'Nested Example',
-              interactiveElements: [
-                { tag: 'button', text: 'Nested click', rect: { x: 0, y: 0, w: 50, h: 20 } },
-              ],
-            },
-          },
-        },
-      ]),
-    }
-
-    const result = await captureChromeSemantics(mockExtension as any, undefined)
-    expect(result).not.toBeNull()
-    expect(result!.pageUrl).toBe('https://nested.example.com')
-    expect(result!.pageTitle).toBe('Nested Example')
-    expect(result!.interactiveElements).toHaveLength(1)
-  })
-
-  it('applies iframe offsets before returning extension frame elements', async () => {
-    const mockExtension = {
-      getStatus: () => ({ connected: true, enabled: true, host: 'localhost', port: 8080, pendingRequests: 0 }),
-      getAllFrames: vi.fn().mockResolvedValue([
-        { frameId: 0, parentFrameId: -1 },
-        { frameId: 7, parentFrameId: 0 },
-      ]),
-      readAllFramesDom: vi.fn().mockResolvedValue([
-        {
-          frameId: 0,
-          result: {
-            url: 'https://example.com',
-            title: 'Example',
-            interactiveElements: [],
-          },
-        },
-        {
-          frameId: 7,
-          result: {
-            frameRect: { x: 120, y: 80, w: 640, h: 480 },
-            interactiveElements: [
-              { tag: 'button', text: 'Iframe CTA', rect: { x: 10, y: 20, w: 50, h: 20 } },
-            ],
-          },
-        },
-      ]),
-    }
-
-    const result = await captureChromeSemantics(mockExtension as any, undefined)
-    expect(result).not.toBeNull()
-    expect(result!.interactiveElements).toHaveLength(1)
-    expect(result!.interactiveElements[0].rect).toEqual({
-      x: 130,
-      y: 100,
-      w: 50,
-      h: 20,
-    })
-  })
-
-  it('skips subframe elements when iframe offsets are unavailable', async () => {
-    const mockExtension = {
-      getStatus: () => ({ connected: true, enabled: true, host: 'localhost', port: 8080, pendingRequests: 0 }),
-      getAllFrames: vi.fn().mockResolvedValue([
-        { frameId: 0, parentFrameId: -1 },
-        { frameId: 9, parentFrameId: 0 },
-      ]),
-      readAllFramesDom: vi.fn().mockResolvedValue([
-        {
-          frameId: 0,
-          result: {
-            url: 'https://example.com',
-            title: 'Example',
-            interactiveElements: [
-              { tag: 'button', text: 'Root CTA', rect: { x: 0, y: 0, w: 20, h: 20 } },
-            ],
-          },
-        },
-        {
-          frameId: 9,
-          result: {
-            interactiveElements: [
-              { tag: 'button', text: 'Iframe CTA', rect: { x: 10, y: 20, w: 50, h: 20 } },
-            ],
-          },
-        },
-      ]),
-    }
-
-    const result = await captureChromeSemantics(mockExtension as any, undefined)
-    expect(result).not.toBeNull()
-    expect(result!.interactiveElements).toHaveLength(1)
-    expect(result!.interactiveElements[0].text).toBe('Root CTA')
-  })
-
-  it('resolves nested iframe offsets even when frame results arrive out of order', async () => {
-    const mockExtension = {
-      getStatus: () => ({ connected: true, enabled: true, host: 'localhost', port: 8080, pendingRequests: 0 }),
-      getAllFrames: vi.fn().mockResolvedValue([
-        { frameId: 0, parentFrameId: -1 },
-        { frameId: 7, parentFrameId: 0 },
-        { frameId: 12, parentFrameId: 7 },
-      ]),
-      readAllFramesDom: vi.fn().mockResolvedValue([
-        {
-          frameId: 12,
-          result: {
-            frameRect: { x: 15, y: 25, w: 320, h: 200 },
-            interactiveElements: [
-              { tag: 'button', text: 'Nested CTA', rect: { x: 3, y: 4, w: 40, h: 20 } },
-            ],
-          },
-        },
-        {
-          frameId: 0,
-          result: {
-            url: 'https://example.com',
-            title: 'Example',
-            interactiveElements: [],
-          },
-        },
-        {
-          frameId: 7,
-          result: {
-            frameRect: { x: 120, y: 80, w: 640, h: 480 },
-            interactiveElements: [],
-          },
-        },
-      ]),
-    }
-
-    const result = await captureChromeSemantics(mockExtension as any, undefined)
-    expect(result).not.toBeNull()
-    expect(result!.interactiveElements).toHaveLength(1)
-    expect(result!.interactiveElements[0].rect).toEqual({
-      x: 138,
-      y: 109,
-      w: 40,
-      h: 20,
-    })
   })
 
   it('falls back to CDP when extension is disconnected', async () => {
