@@ -212,6 +212,31 @@ function pathEndsWithSegments(filePath: string, suffix: string[]) {
   return normalized.endsWith(suffix.join('/'))
 }
 
+/**
+ * Normalizes a cac string option returned through `type: [String]`.
+ *
+ * Before:
+ * - ["dist"]
+ *
+ * After:
+ * - "dist"
+ */
+function normalizeCliStringOption(value: unknown, optionName: string) {
+  if (Array.isArray(value)) {
+    if (value.length === 1 && typeof value[0] === 'string' && value[0].length > 0) {
+      return value[0]
+    }
+
+    throw new TypeError(`${optionName} must resolve to a single non-empty string.`)
+  }
+
+  if (typeof value === 'string' && value.length > 0) {
+    return value
+  }
+
+  throw new TypeError(`${optionName} must be a non-empty string.`)
+}
+
 async function verifyPackagedSidecar(distDirectory: string) {
   const resolvedDistDirectory = resolve(distDirectory)
 
@@ -272,14 +297,14 @@ async function main() {
 
   const args = cli.parse()
   const options = args.options as {
-    distDir: string
+    distDir: unknown
     packaged: boolean
   }
 
   await verifyExportPresetAlignment()
 
   if (options.packaged) {
-    await verifyPackagedSidecar(options.distDir)
+    await verifyPackagedSidecar(normalizeCliStringOption(options.distDir, '--dist-dir'))
   }
 }
 
