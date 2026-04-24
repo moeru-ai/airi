@@ -262,12 +262,132 @@
         return { success: false, error: e.message }
       }
     },
+
+    /**
+     * Read the current value of an input, textarea, or select element.
+     */
+    readInputValue(selector) {
+      try {
+        const el = document.querySelector(selector)
+        if (!el)
+          return { success: false, error: 'not found' }
+        return { success: true, value: el.value, tagName: el.tagName.toLowerCase() }
+      }
+      catch (e) {
+        return { success: false, error: e.message }
+      }
+    },
+
+    /**
+     * Get computed CSS styles for an element.
+     * If properties is a non-empty array, only those properties are returned.
+     * Otherwise all computed styles are returned.
+     */
+    getComputedStyles(selector, properties) {
+      try {
+        const el = document.querySelector(selector)
+        if (!el)
+          return { success: false, error: 'not found' }
+        const computed = window.getComputedStyle(el)
+        const styles = {}
+        if (Array.isArray(properties) && properties.length > 0) {
+          for (const prop of properties) {
+            styles[prop] = computed.getPropertyValue(prop)
+          }
+        }
+        else {
+          // Return a small useful subset to avoid serializing 300+ properties
+          const useful = ['display', 'visibility', 'opacity', 'position',
+            'width', 'height', 'color', 'background-color', 'font-size',
+            'overflow', 'pointer-events', 'z-index', 'cursor']
+          for (const prop of useful) {
+            styles[prop] = computed.getPropertyValue(prop)
+          }
+        }
+        return { success: true, styles }
+      }
+      catch (e) {
+        return { success: false, error: e.message }
+      }
+    },
+
+    /**
+     * Dispatch a DOM event on the element matching the selector.
+     * opts.type overrides the Event constructor (default: 'Event').
+     */
+    triggerEvent(selector, eventName, opts) {
+      try {
+        opts = opts || {}
+        const el = document.querySelector(selector)
+        if (!el)
+          return { success: false, error: 'not found' }
+        const EventCtor = opts.type === 'MouseEvent' ? MouseEvent
+          : opts.type === 'KeyboardEvent' ? KeyboardEvent
+            : opts.type === 'FocusEvent' ? FocusEvent
+              : Event
+        const eventOpts = { bubbles: true, cancelable: true, ...opts }
+        delete eventOpts.type
+        el.dispatchEvent(new EventCtor(eventName, eventOpts))
+        return { success: true }
+      }
+      catch (e) {
+        return { success: false, error: e.message }
+      }
+    },
+
+    /**
+     * Wait for an element matching the selector to appear in the DOM.
+     * Returns a promise. The message handler awaits it.
+     */
+    waitForElement(selector, timeoutMs) {
+      timeoutMs = timeoutMs || 5000
+      const existing = document.querySelector(selector)
+      if (existing)
+        return { success: true, found: true }
+
+      return new Promise((resolve) => {
+        let timer
+        const observer = new MutationObserver(() => {
+          if (document.querySelector(selector)) {
+            observer.disconnect()
+            clearTimeout(timer)
+            resolve({ success: true, found: true })
+          }
+        })
+        observer.observe(document.documentElement, { childList: true, subtree: true })
+        timer = setTimeout(() => {
+          observer.disconnect()
+          resolve({ success: false, error: 'timeout' })
+        }, timeoutMs)
+      })
+    },
+
+    /**
+     * Dispatch a click event at viewport coordinates (x, y).
+     * Used by clickSelector as the final step after getClickTarget resolves
+     * the element center.
+     */
+    clickAt(x, y) {
+      try {
+        const el = document.elementFromPoint(x, y)
+        if (!el)
+          return { success: false, error: 'no element at point' }
+        el.dispatchEvent(new MouseEvent('click', {
+          bubbles: true, cancelable: true, clientX: x, clientY: y,
+        }))
+        return { success: true, tagName: el.tagName.toLowerCase() }
+      }
+      catch (e) {
+        return { success: false, error: e.message }
+      }
+    },
   }
 
   window.__AIRI_DG__ = __AIRI_DG__
 
   // ---- Message handler: ISOLATED world bridge → MAIN world ----
-  window.addEventListener('message', (evt) => {
+  // NOTICE: handler is async-aware so waitForElement (returns Promise) works.
+  window.addEventListener('message', async (evt) => {
     if (evt.source !== window)
       return
     const data = evt.data
@@ -280,7 +400,10 @@
 
     if (typeof fn === 'function') {
       try {
-        result = { success: true, data: fn.apply(__AIRI_DG__, args || []) }
+        const ret = fn.apply(__AIRI_DG__, args || [])
+        // Support async methods (e.g. waitForElement)
+        const resolved = ret && typeof ret.then === 'function' ? await ret : ret
+        result = { success: true, data: resolved }
       }
       catch (e) {
         result = { success: false, error: e.message || String(e) }

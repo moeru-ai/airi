@@ -87,7 +87,7 @@ async function runCUAction(tabId, frameIds, method, args) {
 /**
  * Handle a command from the AIRI BrowserDomExtensionBridge.
  *
- * Only read-only observation commands are supported:
+ * Supported actions:
  * - getActiveTab: get the active tab info
  * - getAllFrames: list all frames in the active tab
  * - readAllFramesDOM: collect interactive elements from all frames
@@ -95,6 +95,14 @@ async function runCUAction(tabId, frameIds, method, args) {
  * - findElements: find multiple elements by CSS selector
  * - getClickTarget: get center point of an element for click targeting
  * - getElementAttributes: get all attributes of an element
+ * - setInputValue: set value of a text input or textarea
+ * - checkCheckbox: check or uncheck a native checkbox/radio
+ * - selectOption: select an option in a <select> element
+ * - readInputValue: read the current value of an input/textarea/select
+ * - getComputedStyles: get computed CSS styles for an element
+ * - triggerEvent: dispatch a DOM event on an element
+ * - waitForElement: wait for an element to appear in the DOM
+ * - clickAt: dispatch a click event at viewport coordinates
  */
 async function handleCommand(cmd) {
   const { action, id } = cmd
@@ -155,6 +163,41 @@ async function handleCommand(cmd) {
         result = await runCUAction(tabId, cmd.frameIds || null, 'selectOption', [
           cmd.selector || '',
           cmd.value || '',
+        ])
+        break
+
+      case 'readInputValue':
+        result = await runCUAction(tabId, cmd.frameIds || null, 'readInputValue', [
+          cmd.selector || '',
+        ])
+        break
+
+      case 'getComputedStyles':
+        result = await runCUAction(tabId, cmd.frameIds || null, 'getComputedStyles', [
+          cmd.selector || '',
+          cmd.properties || [],
+        ])
+        break
+
+      case 'triggerEvent':
+        result = await runCUAction(tabId, cmd.frameIds || null, 'triggerEvent', [
+          cmd.selector || '',
+          cmd.eventName || '',
+          cmd.opts || {},
+        ])
+        break
+
+      case 'waitForElement':
+        result = await runCUAction(tabId, cmd.frameIds || null, 'waitForElement', [
+          cmd.selector || '',
+          cmd.timeoutMs || 5000,
+        ])
+        break
+
+      case 'clickAt':
+        result = await runCUAction(tabId, cmd.frameIds || null, 'clickAt', [
+          cmd.x ?? 0,
+          cmd.y ?? 0,
         ])
         break
 
