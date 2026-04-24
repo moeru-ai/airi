@@ -57,6 +57,9 @@ function createRuntime() {
     },
     browserDomBridge: {},
     executor: {},
+    session: {
+      setLastScreenshot: vi.fn(),
+    },
     desktopSessionController: {
       getSession: vi.fn().mockReturnValue(undefined),
       getSessionInfo: vi.fn().mockReturnValue(undefined),
@@ -130,6 +133,10 @@ describe('registerDesktopGroundingTools', () => {
         capturedAt: new Date().toISOString(),
         width: 1280,
         height: 720,
+        executionTargetMode: 'remote',
+        sourceHostName: 'fake-remote',
+        sourceDisplayId: ':99',
+        sourceSessionTag: 'vm-local-1',
       },
       targetCandidates: [],
       staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
@@ -142,6 +149,13 @@ describe('registerDesktopGroundingTools', () => {
     const state = runtime.stateManager.getState()
 
     expect(state.lastGroundingSnapshot?.screenshot.dataBase64).toBe('ZmFrZS1wbmc=')
+    expect(runtime.session.setLastScreenshot).toHaveBeenCalledWith(expect.objectContaining({
+      path: '/tmp/shot.png',
+      executionTargetMode: 'remote',
+      sourceHostName: 'fake-remote',
+      sourceDisplayId: ':99',
+      sourceSessionTag: 'vm-local-1',
+    }))
     expect(result.content).toEqual([
       expect.objectContaining({ type: 'text' }),
       expect.objectContaining({

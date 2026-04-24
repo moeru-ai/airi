@@ -126,6 +126,7 @@ export function registerDesktopGroundingTools(params: {
         // Also update screenshot state so desktop_get_state and other
         // tools can see the latest screenshot from this observation
         if (snapshot.screenshot && !snapshot.screenshot.placeholder) {
+          runtime.session.setLastScreenshot(snapshot.screenshot)
           runtime.stateManager.updateLastScreenshot({
             path: snapshot.screenshot.path || '',
             width: snapshot.screenshot.width,
