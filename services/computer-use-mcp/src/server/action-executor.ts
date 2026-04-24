@@ -33,6 +33,7 @@ import {
   maskEnvValuePreview,
   readEnvValue,
 } from '../utils/env-file'
+import { executeDesktopClickTarget } from './desktop-grounding-actions'
 import { describeExecutionTarget } from './formatters'
 import { refreshRuntimeRunState } from './refresh-run-state'
 import {
@@ -255,6 +256,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       let backendResult: Record<string, unknown> = {}
       let clipboardStructuredContent: Record<string, unknown> | undefined
       let secretStructuredContent: Record<string, unknown> | undefined
+      let summaryOverride: string | undefined
 
       switch (normalizedAction.kind) {
         case 'screenshot': {
@@ -515,6 +517,12 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           }
           break
         }
+        case 'desktop_click_target': {
+          const result = await executeDesktopClickTarget(runtime, normalizedAction.input)
+          backendResult = result.backendResult
+          summaryOverride = result.summary
+          break
+        }
       }
 
       runtime.session.consumeOperation(decision.estimatedOperationUnits)
@@ -562,7 +570,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       })
 
       return buildSuccessResponse({
-        summary: `${intent} ${outcome}${advisorySummary ? ` Strategy: ${advisorySummary}` : ''}`,
+        summary: summaryOverride ?? `${intent} ${outcome}${advisorySummary ? ` Strategy: ${advisorySummary}` : ''}`,
         screenshot,
         structuredContent: {
           status: 'executed',

@@ -45,7 +45,7 @@ function createMockServer() {
 }
 
 function createRuntime() {
-  return {
+  const runtime = {
     config: createTestConfig(),
     stateManager: new RunStateManager(),
     cdpBridgeManager: {
@@ -64,6 +64,12 @@ function createRuntime() {
       ensureControlledAppInForeground: vi.fn(),
     },
   } as unknown as ComputerUseServerRuntime
+
+  const executeAction = vi.fn().mockResolvedValue({
+    content: [{ type: 'text', text: 'executed' }],
+  })
+
+  return { runtime, executeAction }
 }
 
 describe('registerDesktopGroundingTools', () => {
@@ -71,39 +77,36 @@ describe('registerDesktopGroundingTools', () => {
     captureDesktopGroundingMock.mockReset()
   })
 
-  it('registers desktop_click_target and handles missing candidate gracefully', async () => {
-    const runtime = createRuntime()
+  it('registers desktop_click_target through the action executor', async () => {
+    const { runtime, executeAction } = createRuntime()
 
     const { server, invoke } = createMockServer()
 
-    registerDesktopGroundingTools({ server, runtime })
-
-    runtime.stateManager.updateGroundingSnapshot({
-      snapshotId: 'dg_1',
-      capturedAt: new Date().toISOString(),
-      foregroundApp: 'Google Chrome',
-      windows: [],
-      screenshot: { dataBase64: '', mimeType: 'image/png', path: '', capturedAt: new Date().toISOString() },
-      targetCandidates: [],
-      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
-    } as any)
+    registerDesktopGroundingTools({ server, runtime, executeAction })
 
     const result = await invoke('desktop_click_target', {
-      candidateId: 't_missing',
+      candidateId: 't_0',
+      clickCount: 2,
+      button: 'right',
     })
 
-    expect(result.isError).toBe(true)
-    expect(result.content).toEqual([
-      expect.objectContaining({ text: expect.stringContaining('Candidate "t_missing" not found in snapshot') }),
-    ])
+    expect(result.isError).not.toBe(true)
+    expect(executeAction).toHaveBeenCalledWith({
+      kind: 'desktop_click_target',
+      input: {
+        candidateId: 't_0',
+        clickCount: 2,
+        button: 'right',
+      },
+    }, 'desktop_click_target')
   })
 
   it('returns observe error content when captureDesktopGrounding fails', async () => {
-    const runtime = createRuntime()
+    const { runtime, executeAction } = createRuntime()
     captureDesktopGroundingMock.mockRejectedValueOnce(new Error('observe boom'))
 
     const { server, invoke } = createMockServer()
-    registerDesktopGroundingTools({ server, runtime })
+    registerDesktopGroundingTools({ server, runtime, executeAction })
 
     const result = await invoke('desktop_observe', {})
 
@@ -114,7 +117,7 @@ describe('registerDesktopGroundingTools', () => {
   })
 
   it('stores grounding snapshot and returns image content', async () => {
-    const runtime = createRuntime()
+    const { runtime, executeAction } = createRuntime()
     captureDesktopGroundingMock.mockResolvedValueOnce({
       snapshotId: 'dg_new',
       capturedAt: new Date().toISOString(),
@@ -133,7 +136,7 @@ describe('registerDesktopGroundingTools', () => {
     } as any)
 
     const { server, invoke } = createMockServer()
-    registerDesktopGroundingTools({ server, runtime })
+    registerDesktopGroundingTools({ server, runtime, executeAction })
 
     const result = await invoke('desktop_observe', {})
     const state = runtime.stateManager.getState()
