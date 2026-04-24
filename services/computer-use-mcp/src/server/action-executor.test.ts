@@ -120,20 +120,14 @@ describe('createExecuteAction', () => {
     }))
   })
 
-<<<<<<< HEAD
   it('updates pointer state only after desktop_click_target executes successfully', async () => {
     const { runtime, executor, session, stateManager } = createRuntimeForActionTest()
-=======
-  it('does not reuse stale browser-dom typing route when explicit coordinates are provided', async () => {
-    const stateManager = new RunStateManager()
->>>>>>> 847edd6e0 (fix(computer-use-mcp): bypass stale browser-dom typing route)
     stateManager.updateGroundingSnapshot({
       snapshotId: 'dg_1',
       capturedAt: new Date().toISOString(),
       foregroundApp: 'Google Chrome',
       windows: [],
       screenshot: { dataBase64: '', mimeType: 'image/png', path: '', capturedAt: new Date().toISOString() },
-<<<<<<< HEAD
       targetCandidates: [{
         id: 't_0',
         source: 'chrome_dom',
@@ -237,7 +231,16 @@ describe('createExecuteAction', () => {
     expect(result.isError).toBe(true)
     expect(executor.click).not.toHaveBeenCalled()
     expect(result.content.find(item => item.type === 'text')?.text ?? '').toContain('current foreground app is "Terminal"')
-=======
+  })
+
+  it('does not reuse stale browser-dom typing route when explicit coordinates are provided', async () => {
+    const stateManager = new RunStateManager()
+    stateManager.updateGroundingSnapshot({
+      snapshotId: 'dg_1',
+      capturedAt: new Date().toISOString(),
+      foregroundApp: 'Google Chrome',
+      windows: [],
+      screenshot: { dataBase64: '', mimeType: 'image/png', path: '', capturedAt: new Date().toISOString() },
       targetCandidates: [
         {
           id: 't_0',
@@ -370,7 +373,6 @@ describe('createExecuteAction', () => {
     expect(executor.click).toHaveBeenCalledOnce()
     expect(executor.typeText).toHaveBeenCalledOnce()
     expect(browserDomBridge.setInputValue).not.toHaveBeenCalled()
->>>>>>> 847edd6e0 (fix(computer-use-mcp): bypass stale browser-dom typing route)
   })
 
   it('falls back to OS typing when the connected extension transport does not support setInputValue', async () => {
