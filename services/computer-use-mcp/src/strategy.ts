@@ -37,6 +37,10 @@ export type AdvisoryKind
     | 'use_browser_surface'
     | 'use_pty_surface'
     | 'enumerate_displays_first'
+    // Desktop grounding advisories
+    | 'click_likely_duplicate'
+    | 'observe_first_required'
+    | 'grounding_stale'
 
 /** Broad category for classifying advisories. */
 export type AdvisoryCategory = 'prep' | 'reroute' | 'recovery' | 'informational'
@@ -93,6 +97,11 @@ export const ADVISORY_CATEGORY_MAP: Record<AdvisoryKind, AdvisoryCategory> = {
   wait_and_retry: 'recovery',
   abort_task: 'recovery',
   approval_rejected_replan: 'recovery',
+  click_likely_duplicate: 'recovery',
+
+  // Desktop grounding
+  observe_first_required: 'prep',
+  grounding_stale: 'prep',
 
   // Informational: no action needed, safe to proceed
   proceed: 'informational',
@@ -114,6 +123,11 @@ export const ADVISORY_SURFACE_MAP: Record<AdvisoryKind, RecommendedSurface> = {
   wait_and_retry: 'none',
   abort_task: 'none',
   approval_rejected_replan: 'none',
+  click_likely_duplicate: 'desktop',
+
+  // Desktop grounding
+  observe_first_required: 'desktop',
+  grounding_stale: 'desktop',
 
   proceed: 'none',
 }
@@ -369,6 +383,54 @@ export function evaluateStrategy(params: {
       kind: 'enumerate_displays_first',
       reason: 'Display configuration is unknown. Enumerate displays to ensure correct coordinate targeting on multi-monitor setups.',
       suggestedToolName: 'display_enumerate',
+    }))
+  }
+
+  // -----------------------------------------------------------------------
+  // Rule 12: desktop_click_target requires a fresh grounding snapshot.
+  // -----------------------------------------------------------------------
+  if (
+    proposedAction.kind === 'desktop_click_target'
+    && !state.lastGroundingSnapshot
+  ) {
+    advisories.push(advisory({
+      kind: 'observe_first_required',
+      reason: 'No desktop grounding snapshot available. Call desktop_observe first to discover interactable targets.',
+      suggestedToolName: 'desktop_observe',
+    }))
+  }
+
+  // -----------------------------------------------------------------------
+  // Rule 13: stale grounding snapshots must be refreshed before clicking.
+  // -----------------------------------------------------------------------
+  if (
+    proposedAction.kind === 'desktop_click_target'
+    && state.lastGroundingSnapshot
+  ) {
+    const snapshotAge = Date.now() - new Date(state.lastGroundingSnapshot.capturedAt).getTime()
+    if (snapshotAge > 5000) {
+      advisories.push(advisory({
+        kind: 'grounding_stale',
+        reason: `Desktop grounding snapshot is ${Math.round(snapshotAge / 1000)}s old. Refresh with desktop_observe before clicking.`,
+        suggestedToolName: 'desktop_observe',
+      }))
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // Rule 14: repeated target clicks need a fresh observe in between.
+  // -----------------------------------------------------------------------
+  if (
+    proposedAction.kind === 'desktop_click_target'
+    && state.lastGroundingSnapshot
+    && state.lastClickedCandidateId
+    && 'candidateId' in proposedAction.input
+    && proposedAction.input.candidateId === state.lastClickedCandidateId
+  ) {
+    advisories.push(advisory({
+      kind: 'click_likely_duplicate',
+      reason: `Candidate "${state.lastClickedCandidateId}" was already clicked. Call desktop_observe to verify the UI changed before clicking again.`,
+      suggestedToolName: 'desktop_observe',
     }))
   }
 

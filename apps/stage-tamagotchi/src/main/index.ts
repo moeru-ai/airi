@@ -36,6 +36,7 @@ import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
 import { setupCaptionWindowManager } from './windows/caption'
 import { setupChatWindowReusableFunc } from './windows/chat'
+import { isDesktopOverlayEnabled, setupDesktopOverlayWindow } from './windows/desktop-overlay'
 import { setupDevtoolsWindow } from './windows/devtools'
 import { setupMainWindow } from './windows/main'
 import { setupNoticeWindowManager } from './windows/notice'
@@ -193,6 +194,22 @@ app.whenReady().then(async () => {
     dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, serverChannel, beatSyncBgWindow: beatSync, aboutWindow, i18n },
     build: async ({ dependsOn }) => setupTray(dependsOn),
   })
+
+  // Desktop grounding overlay — gated by AIRI_DESKTOP_OVERLAY=1
+  if (isDesktopOverlayEnabled()) {
+    const desktopOverlay = injeca.provide('windows:desktop-overlay', {
+      dependsOn: { mcpStdioManager, serverChannel, i18n },
+      build: async ({ dependsOn }) => setupDesktopOverlayWindow(dependsOn),
+    })
+
+    // NOTICE: Separate invoke ensures the overlay is eagerly built.
+    // Without this, injeca.start() would skip it because no other
+    // provider depends on 'windows:desktop-overlay'.
+    injeca.invoke({
+      dependsOn: { desktopOverlay },
+      callback: noop,
+    })
+  }
 
   injeca.invoke({
     dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, artistryConfig },
