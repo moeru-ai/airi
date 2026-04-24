@@ -20,7 +20,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "postinstall": "electron-builder install-app-deps",
-    "build:unpack": "pnpm run build && electron-builder --dir",
+    "build:unpack": "pnpm run build && electron-builder --dir && pnpm run verify:godot-stage-sidecar:packaged",
     "build:win": "pnpm run build && electron-builder --win",
     "build:mac": "pnpm run build && electron-builder --mac",
     "build:linux": "pnpm run build && electron-builder --linux",
@@ -30,7 +30,9 @@
     "artifacts-metadata": "tsx scripts/artifacts-metadata.ts",
     "update-test:generate": "tsx scripts/update-test/generate-manifest.ts",
     "update-test:server": "tsx scripts/update-test/start-server.ts",
-    "update-test:matrix": "bash scripts/update-test/run-matrix.sh"
+    "update-test:matrix": "bash scripts/update-test/run-matrix.sh",
+    "verify:godot-stage-sidecar": "tsx scripts/verify-godot-stage-sidecar.ts",
+    "verify:godot-stage-sidecar:packaged": "tsx scripts/verify-godot-stage-sidecar.ts --packaged"
   },
   "dependencies": {
     "@date-fns/utc": "^2.1.1",

@@ -26,6 +26,8 @@ import ResizeHandler from './components/ResizeHandler.vue'
 
 import {
   electronGetServerChannelConfig,
+  electronGodotStageGetStatus,
+  electronGodotStageStatusChanged,
   electronSettingsNavigate,
   electronStartTrackMousePosition,
   i18nSetLocale,
@@ -87,8 +89,20 @@ const inspectPluginHost = useElectronEventaInvoke(electronPluginInspect)
 const startTrackingCursorPoint = useElectronEventaInvoke(electronStartTrackMousePosition)
 const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapability)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
+const getGodotStageStatus = useElectronEventaInvoke(electronGodotStageGetStatus)
 const isChatWindowRoute = () => route.path === '/chat'
+const isGodotStageRoute = () => route.path === '/' || route.path.startsWith('/settings')
 const isWidgetsWindowRoute = () => route.path === '/widgets'
+
+function syncGodotStageRenderer(state: { state: 'stopped' | 'starting' | 'running' | 'stopping' | 'error' }) {
+  if (state.state === 'running') {
+    settingsStore.setStageModelRenderer('godot')
+    return
+  }
+
+  if ((state.state === 'stopped' || state.state === 'error') && settingsStore.stageModelRenderer === 'godot')
+    settingsStore.restoreBuiltInStageModelRenderer()
+}
 
 async function refreshPluginRuntimeTools() {
   try {
@@ -158,6 +172,14 @@ context.value.on(electronSettingsNavigate, (event) => {
   })
 })
 
+context.value.on(electronGodotStageStatusChanged, (event) => {
+  if (!isGodotStageRoute() || !event.body) {
+    return
+  }
+
+  syncGodotStageRenderer(event.body)
+})
+
 onMounted(async () => {
   analyticsStore.initialize()
   await displayModelsStore.initialize()
@@ -167,6 +189,15 @@ onMounted(async () => {
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
   await settingsAudioDeviceStore.initialize()
+
+  if (isGodotStageRoute()) {
+    try {
+      syncGodotStageRenderer(await getGodotStageStatus())
+    }
+    catch (error) {
+      console.warn('[App] Failed to fetch Godot stage status:', error)
+    }
+  }
 
   const serverChannelConfig = await getServerChannelConfig()
   serverChannelSettingsStore.tlsConfig = serverChannelConfig.tlsConfig ?? null

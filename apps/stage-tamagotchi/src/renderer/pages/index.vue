@@ -153,6 +153,18 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
     })
   }
 
+  if (stageModelRenderer.value === 'godot') {
+    return createEmptyModelSettingsRuntimeSnapshot({
+      ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
+      renderer: 'godot',
+      phase: hasModel ? 'mounted' : 'no-model',
+      controlsLocked: false,
+      previewAvailable: false,
+      canCapturePreview: false,
+      updatedAt: Date.now(),
+    })
+  }
+
   return createEmptyModelSettingsRuntimeSnapshot({
     ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
     updatedAt: Date.now(),
