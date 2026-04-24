@@ -74,6 +74,33 @@ const DEVICE_FALLBACK: Record<string, string[]> = {
   cpu: [],
 }
 
+// NOTICE: Cancellation tracking — see Whisper worker for the full rationale.
+// We cannot interrupt a transformers.js call synchronously; this set lets us
+// drop stale results when they arrive.
+const cancelledRequestIds = new Set<string>()
+
+function markCancelled(targetRequestId: string): void {
+  cancelledRequestIds.add(targetRequestId)
+  const msg: ErrorResponse = {
+    type: 'error',
+    requestId: targetRequestId,
+    payload: {
+      code: 'CANCELLED',
+      message: 'Operation cancelled by caller',
+      recoverable: false,
+    },
+  }
+  globalThis.postMessage(msg)
+}
+
+function isCancelled(requestId: string): boolean {
+  return cancelledRequestIds.has(requestId)
+}
+
+function clearCancelled(requestId: string): void {
+  cancelledRequestIds.delete(requestId)
+}
+
 function sendError(requestId: string, error: unknown, phase?: 'load' | 'inference'): void {
   const message = error instanceof Error ? error.message : String(error)
   const code = classifyError(error, phase)
@@ -96,6 +123,10 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
   try {
     // Check if we already have the correct model loaded
     if (ttsModel && currentQuantization === quantization && currentDevice === device) {
+      if (isCancelled(requestId)) {
+        clearCancelled(requestId)
+        return
+      }
       const ready: ModelReadyResponse = {
         type: 'model-ready',
         requestId,
@@ -151,6 +182,10 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
         currentQuantization = quantization
         currentDevice = attempt.device
 
+        if (isCancelled(requestId)) {
+          clearCancelled(requestId)
+          return
+        }
         const ready: ModelReadyResponse = {
           type: 'model-ready',
           requestId,
@@ -175,10 +210,16 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
     }
 
     // All attempts exhausted
-    sendError(requestId, lastError ?? new Error('All dtype/device combinations failed'), 'load')
+    if (isCancelled(requestId))
+      clearCancelled(requestId)
+    else
+      sendError(requestId, lastError ?? new Error('All dtype/device combinations failed'), 'load')
   }
   catch (error) {
-    sendError(requestId, error, 'load')
+    if (isCancelled(requestId))
+      clearCancelled(requestId)
+    else
+      sendError(requestId, error, 'load')
   }
 }
 
@@ -189,6 +230,11 @@ async function runInference(request: RunInferenceRequest<KokoroInferenceInput>):
     if (input.action === 'getVoices') {
       if (!ttsModel)
         throw new Error('Model not loaded. Send load-model first.')
+
+      if (isCancelled(requestId)) {
+        clearCancelled(requestId)
+        return
+      }
 
       const result: InferenceResultResponse<KokoroVoicesOutput> = {
         type: 'inference-result',
@@ -206,6 +252,11 @@ async function runInference(request: RunInferenceRequest<KokoroInferenceInput>):
     const { text, voice } = input
     const audioResult = await ttsModel.generate(text, { voice })
 
+    if (isCancelled(requestId)) {
+      clearCancelled(requestId)
+      return
+    }
+
     // Transfer raw PCM Float32Array directly — avoids WAV blob encode/decode overhead.
     const samples = audioResult.audio
     const result: InferenceResultResponse<KokoroGenerateOutput> = {
@@ -216,7 +267,10 @@ async function runInference(request: RunInferenceRequest<KokoroInferenceInput>):
     ;(globalThis as any).postMessage(result, [samples.buffer])
   }
   catch (error) {
-    sendError(requestId, error, 'inference')
+    if (isCancelled(requestId))
+      clearCancelled(requestId)
+    else
+      sendError(requestId, error, 'inference')
   }
 }
 
@@ -239,6 +293,9 @@ globalThis.addEventListener('message', async (event: MessageEvent<WorkerInboundM
       currentQuantization = null
       currentDevice = null
       globalThis.postMessage({ type: 'model-unloaded', requestId: message.requestId })
+      break
+    case 'cancel':
+      markCancelled(message.targetRequestId)
       break
     default:
       console.warn('[Kokoro Worker] Unknown message type:', (message as any).type)

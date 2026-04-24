@@ -16,22 +16,36 @@ import { removeInferenceStatus, updateInferenceStatus } from '../../../composabl
 import { DEVICE_LOSS_WASM_THRESHOLD, MAX_RESTARTS, MODEL_NAMES, RESTART_DELAY_MS, TIMEOUTS } from '../constants'
 import { getGPUCoordinator, getLoadQueue, MODEL_VRAM_ESTIMATES } from '../coordinator'
 import { LOAD_PRIORITY } from '../load-queue'
-import { classifyDeviceLossReason, classifyError, createRequestId } from '../protocol'
+import { classifyDeviceLossReason, classifyError, createRequestId, InferenceAbortError, throwIfAborted } from '../protocol'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 export interface KokoroAdapter {
-  /** Load a TTS model with the given quantization and device */
+  /**
+   * Load a TTS model with the given quantization and device.
+   * Pass `options.signal` to cancel the load; the returned promise will
+   * reject with `InferenceAbortError` (name: `'AbortError'`).
+   */
   loadModel: (
     quantization: string,
     device: string,
-    options?: { onProgress?: (p: ProgressPayload) => void },
+    options?: {
+      onProgress?: (p: ProgressPayload) => void
+      signal?: AbortSignal
+    },
   ) => Promise<Voices>
 
-  /** Generate speech audio from text */
-  generate: (text: string, voice: VoiceKey) => Promise<ArrayBuffer>
+  /**
+   * Generate speech audio from text.
+   * Pass `options.signal` to cancel; rejects with `InferenceAbortError`.
+   */
+  generate: (
+    text: string,
+    voice: VoiceKey,
+    options?: { signal?: AbortSignal },
+  ) => Promise<ArrayBuffer>
 
   /** Get the voices from the last loaded model */
   getVoices: () => Voices
@@ -118,6 +132,10 @@ function writeString(view: DataView, offset: number, str: string): void {
 /**
  * Wait for a specific message type from the worker, filtered by requestId.
  * Calls `callback` for interleaved messages (e.g. progress).
+ *
+ * If `signal` is provided and aborts, the returned Promise rejects with
+ * `InferenceAbortError` and a `cancel` message is sent to the worker so
+ * it can discard the result when it eventually arrives.
  */
 function waitForWorkerMessage<T = any>(
   worker: Worker,
@@ -125,25 +143,35 @@ function waitForWorkerMessage<T = any>(
   targetType: string,
   timeout: number,
   callback?: (data: any) => void,
+  signal?: AbortSignal,
 ): Promise<T> {
   return new Promise((resolve, reject) => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined
+    let abortListener: (() => void) | null = null
 
-    const handler = (event: MessageEvent) => {
+    const cleanup = (): void => {
+      if (timeoutId !== undefined)
+        clearTimeout(timeoutId)
+      worker.removeEventListener('message', handler)
+      if (abortListener && signal)
+        signal.removeEventListener('abort', abortListener)
+    }
+
+    const handler = (event: MessageEvent): void => {
       if (event.data.requestId !== requestId)
         return
 
       if (event.data.type === targetType) {
-        if (timeoutId !== undefined)
-          clearTimeout(timeoutId)
-        worker.removeEventListener('message', handler)
+        cleanup()
         resolve(event.data as T)
       }
       else if (event.data.type === 'error') {
-        if (timeoutId !== undefined)
-          clearTimeout(timeoutId)
-        worker.removeEventListener('message', handler)
-        reject(new Error(event.data.payload?.message ?? 'Worker error'))
+        cleanup()
+        const code = event.data.payload?.code
+        if (code === 'CANCELLED')
+          reject(new InferenceAbortError(event.data.payload?.message))
+        else
+          reject(new Error(event.data.payload?.message ?? 'Worker error'))
       }
       else {
         callback?.(event.data)
@@ -153,9 +181,26 @@ function waitForWorkerMessage<T = any>(
     worker.addEventListener('message', handler)
 
     timeoutId = setTimeout(() => {
-      worker.removeEventListener('message', handler)
+      cleanup()
       reject(new Error(`Kokoro: timeout after ${timeout}ms waiting for '${targetType}'`))
     }, timeout)
+
+    if (signal) {
+      if (signal.aborted) {
+        cleanup()
+        // Tell the worker to discard the result when it arrives
+        worker.postMessage({ type: 'cancel', requestId: createRequestId(), targetRequestId: requestId })
+        reject(new InferenceAbortError(typeof signal.reason === 'string' ? signal.reason : undefined))
+        return
+      }
+      abortListener = () => {
+        cleanup()
+        worker.postMessage({ type: 'cancel', requestId: createRequestId(), targetRequestId: requestId })
+        const reason = signal.reason
+        reject(reason instanceof Error ? reason : new InferenceAbortError(typeof reason === 'string' ? reason : undefined))
+      }
+      signal.addEventListener('abort', abortListener)
+    }
   })
 }
 
@@ -270,7 +315,10 @@ export function createKokoroAdapter(): KokoroAdapter {
   async function loadModel(
     quantization: string,
     device: string,
-    options?: { onProgress?: (p: ProgressPayload) => void },
+    options?: {
+      onProgress?: (p: ProgressPayload) => void
+      signal?: AbortSignal
+    },
   ): Promise<Voices> {
     // NOTICE: Proactive WASM promotion. If this adapter has suffered repeated
     // WebGPU device-loss events, webgpu is unreliable on this device and we
@@ -287,10 +335,11 @@ export function createKokoroAdapter(): KokoroAdapter {
       )
       effectiveDevice = 'wasm'
     }
-
+    throwIfAborted(options?.signal)
     await ensureStarted()
 
     return defaultPerfTracer.withMeasure('inference', 'kokoro-load-model', () => operationMutex.runExclusive(async () => {
+      throwIfAborted(options?.signal)
       state = 'loading'
       const modelStatusId = `kokoro-${quantization}`
 
@@ -303,7 +352,9 @@ export function createKokoroAdapter(): KokoroAdapter {
 
       // Use the global load queue to serialize model loads across all adapters
       return getLoadQueue().enqueue(modelStatusId, LOAD_PRIORITY.TTS, async () => {
+        throwIfAborted(options?.signal)
         const requestId = createRequestId()
+        // Signal is also passed to the queue below for pending-entry removal
 
         const readyPromise = waitForWorkerMessage<any>(worker!, requestId, 'model-ready', LOAD_MODEL_TIMEOUT, (data) => {
           if (data.type === 'progress') {
@@ -320,7 +371,7 @@ export function createKokoroAdapter(): KokoroAdapter {
             updateInferenceStatus(modelStatusId, { progress })
             options?.onProgress?.(progress)
           }
-        })
+        }, options?.signal)
 
         worker!.postMessage({
           type: 'load-model',
@@ -351,15 +402,25 @@ export function createKokoroAdapter(): KokoroAdapter {
         if (!voices)
           throw new Error('Kokoro worker did not return voice metadata')
         return voices
-      })
+      }, { signal: options?.signal })
     }), { quantization, device: effectiveDevice }).catch((error) => {
+      // Don't route AbortError through handleWorkerError — cancellation is
+      // not a worker failure and shouldn't trigger restart logic.
+      if ((error as Error)?.name === 'AbortError')
+        throw error
       handleWorkerError(error instanceof Error ? error : new Error(String(error)))
       throw error
     })
   }
 
-  async function generate(text: string, voice: VoiceKey): Promise<ArrayBuffer> {
+  async function generate(
+    text: string,
+    voice: VoiceKey,
+    options?: { signal?: AbortSignal },
+  ): Promise<ArrayBuffer> {
+    throwIfAborted(options?.signal)
     return defaultPerfTracer.withMeasure('inference', 'kokoro-generate', () => operationMutex.runExclusive(async () => {
+      throwIfAborted(options?.signal)
       if (!worker)
         throw new Error('Worker not initialized. Call loadModel() first.')
 
@@ -370,7 +431,14 @@ export function createKokoroAdapter(): KokoroAdapter {
       state = 'running'
       const requestId = createRequestId()
 
-      const resultPromise = waitForWorkerMessage<any>(worker, requestId, 'inference-result', GENERATE_TIMEOUT)
+      const resultPromise = waitForWorkerMessage<any>(
+        worker,
+        requestId,
+        'inference-result',
+        GENERATE_TIMEOUT,
+        undefined,
+        options?.signal,
+      )
 
       worker.postMessage({
         type: 'run-inference',
