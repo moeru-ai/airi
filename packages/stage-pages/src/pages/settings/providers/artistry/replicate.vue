@@ -2,8 +2,10 @@
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { FieldInput, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
+import { useI18n } from 'vue-i18n'
 
 const artistryStore = useArtistryStore()
+const { t } = useI18n()
 
 const {
   replicateApiKey,
@@ -17,40 +19,40 @@ const {
   <div class="flex flex-col gap-6">
     <div>
       <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
-        Replicate.ai Configuration
+        {{ t('settings.pages.providers.provider.replicate.settings.heading') }}
       </h2>
       <div class="text-neutral-400 dark:text-neutral-500">
-        Configure your cloud image generation settings.
+        {{ t('settings.pages.providers.provider.replicate.settings.description') }}
       </div>
     </div>
 
     <div class="flex flex-col gap-4">
       <FieldInput
         v-model="replicateApiKey"
-        label="API Key"
-        description="Your Replicate API token (starts with r8_)"
-        placeholder="r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+        :label="t('settings.pages.providers.provider.replicate.settings.api_key.label')"
+        :description="t('settings.pages.providers.provider.replicate.settings.api_key.description')"
+        :placeholder="t('settings.pages.providers.provider.replicate.settings.api_key.placeholder')"
         type="password"
       />
 
       <FieldInput
         v-model="replicateDefaultModel"
-        label="Default Model"
-        description="Fallback owner/model string to use if the character card doesn't specify one"
-        placeholder="black-forest-labs/flux-schnell"
+        :label="t('settings.pages.providers.provider.replicate.settings.default_model.label')"
+        :description="t('settings.pages.providers.provider.replicate.settings.default_model.description')"
+        :placeholder="t('settings.pages.providers.provider.replicate.settings.default_model.placeholder')"
       />
 
       <FieldInput
         v-model="replicateAspectRatio"
-        label="Aspect Ratio"
-        description="Default image aspect ratio (e.g. 16:9, 1:1, 9:16)"
-        placeholder="16:9"
+        :label="t('settings.pages.providers.provider.replicate.settings.aspect_ratio.label')"
+        :description="t('settings.pages.providers.provider.replicate.settings.aspect_ratio.description')"
+        :placeholder="t('settings.pages.providers.provider.replicate.settings.aspect_ratio.placeholder')"
       />
 
       <FieldRange
         v-model="replicateInferenceSteps"
-        label="Inference Steps"
-        description="Number of steps for the diffusion process (lower is faster, higher is better quality)"
+        :label="t('settings.pages.providers.provider.replicate.settings.inference_steps.label')"
+        :description="t('settings.pages.providers.provider.replicate.settings.inference_steps.description')"
         :min="1"
         :max="50"
         :step="1"

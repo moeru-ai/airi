@@ -3,7 +3,7 @@ import type { ComfyUIWorkflowTemplate } from '@proj-airi/stage-ui/stores/modules
 
 import { REPLICATE_IMAGEGEN_PRESETS } from '@proj-airi/stage-shared'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
-import { FieldInput, Select } from '@proj-airi/ui'
+import { Button, Checkbox, FieldInput, FieldRange, Select } from '@proj-airi/ui'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -106,60 +106,35 @@ function openReplicateModel() {
 <template>
   <div class="tab-content ml-auto mr-auto w-95%">
     <p class="mb-3">
-      Configure how AIRI generates images and visual content.
+      {{ t('settings.pages.modules.artistry.card.description') }}
     </p>
 
     <!-- Autonomous Artist Section -->
-    <div :class="['mb-6', 'p-4', 'rounded-2xl', 'bg-primary-500/5', 'border', 'border-primary-500/10']">
+    <div :class="['mb-6', 'p-4', 'rounded-2xl', 'bg-primary-500/5', 'border-2', 'border-primary-500/10']">
       <div :class="['flex', 'items-center', 'justify-between', 'mb-2']">
         <label :class="['flex', 'items-center', 'gap-2', 'font-bold', 'text-primary-600', 'dark:text-primary-400']">
           <div i-solar:magic-stick-bold-duotone />
           {{ t('settings.pages.modules.artistry.autonomous.title') }}
         </label>
-        <button
-          type="button"
-          :class="[
-            'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none',
-            selectedArtistryAutonomousEnabled ? 'bg-primary-600' : 'bg-neutral-200 dark:bg-neutral-700',
-          ]"
-          @click="selectedArtistryAutonomousEnabled = !selectedArtistryAutonomousEnabled"
-        >
-          <span
-            aria-hidden="true"
-            :class="[
-              'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-              selectedArtistryAutonomousEnabled ? 'translate-x-5' : 'translate-x-0',
-            ]"
-          />
-        </button>
+        <Checkbox v-model="selectedArtistryAutonomousEnabled" />
       </div>
       <p :class="['text-xs', 'text-neutral-500', 'mb-4']">
         {{ t('settings.pages.modules.artistry.autonomous.description') }}
       </p>
 
       <div v-if="selectedArtistryAutonomousEnabled" :class="['space-y-4', 'animate-in', 'fade-in', 'slide-in-from-top-2']">
-        <div :class="['flex', 'flex-col', 'gap-2']">
-          <div :class="['flex', 'justify-between', 'items-center']">
-            <label :class="['text-sm', 'font-medium', 'text-neutral-700', 'dark:text-neutral-300']">
-              {{ t('settings.pages.modules.artistry.autonomous.threshold') }}
-            </label>
-            <span :class="['text-xs', 'font-mono', 'bg-primary-500/10', 'text-primary-600', 'px-2', 'py-0.5', 'rounded']">
-              {{ selectedArtistryAutonomousThreshold }}%
-            </span>
-          </div>
-          <input
-            v-model.number="selectedArtistryAutonomousThreshold"
-            type="range"
-            min="0"
-            max="100"
-            step="1"
-            :class="['w-full', 'h-2', 'bg-neutral-200', 'dark:bg-neutral-700', 'rounded-lg', 'appearance-none', 'cursor-pointer', 'accent-primary-500']"
-          >
-          <div :class="['flex', 'justify-between', 'text-[10px]', 'text-neutral-400', 'uppercase', 'tracking-tighter']">
-            <span>{{ t('settings.pages.modules.artistry.autonomous.threshold_min') }}</span>
-            <span>{{ t('settings.pages.modules.artistry.autonomous.threshold_max') }}</span>
-          </div>
-        </div>
+        <FieldRange
+          v-model="selectedArtistryAutonomousThreshold"
+          :label="t('settings.pages.modules.artistry.autonomous.threshold')"
+          :description="t('settings.pages.modules.artistry.autonomous.threshold_description', {
+            min: t('settings.pages.modules.artistry.autonomous.threshold_min'),
+            max: t('settings.pages.modules.artistry.autonomous.threshold_max'),
+          })"
+          :min="0"
+          :max="100"
+          :step="1"
+          :format-value="value => `${value}%`"
+        />
       </div>
     </div>
 
@@ -193,12 +168,12 @@ function openReplicateModel() {
       </div>
 
       <div v-if="selectedArtistryProvider === 'replicate'" class="grid grid-cols-3 mb-2 gap-3">
-        <button
+        <Button
           v-for="model in REPLICATE_IMAGEGEN_PRESETS"
           :key="model.id"
-          type="button"
+          variant="secondary"
           :class="[
-            'flex flex-col items-center justify-center rounded-xl border p-3 transition-all',
+            'h-auto min-h-20 flex flex-col items-center justify-center rounded-xl border p-3 transition-all',
             selectedArtistryModel === model.id
               ? 'border-primary-500 bg-primary-500/10 text-primary-600 dark:text-primary-400'
               : 'border-neutral-200 bg-white hover:border-primary-300 dark:border-neutral-700 dark:bg-neutral-800',
@@ -207,7 +182,7 @@ function openReplicateModel() {
         >
           <span class="text-xs font-bold">{{ model.label }}</span>
           <span class="mt-1 text-[10px] opacity-60">{{ model.cost }}</span>
-        </button>
+        </Button>
       </div>
 
       <div
@@ -216,20 +191,20 @@ function openReplicateModel() {
       >
         <div
           v-if="comfyuiWorkflows.length === 0"
-          :class="['flex flex-row items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-sm text-amber-600 dark:text-amber-400']"
+          :class="['flex flex-row items-center gap-3 rounded-xl border-2 border-amber-500/20 bg-amber-500/5 p-4 text-sm text-amber-600 dark:text-amber-400']"
         >
           <div i-solar:info-circle-bold-duotone class="shrink-0 text-lg" />
           <p>
-            No ComfyUI workflows configured. Go to Settings → Providers → ComfyUI to upload a workflow template.
+            {{ t('settings.pages.modules.artistry.card.comfyui_empty') }}
           </p>
         </div>
         <div v-else class="grid grid-cols-2 gap-3">
-          <button
+          <Button
             v-for="wf in comfyuiWorkflows"
             :key="wf.id"
-            type="button"
+            variant="secondary"
             :class="[
-              'flex flex-col items-center justify-center rounded-xl border p-3 transition-all',
+              'h-auto min-h-20 flex flex-col items-center justify-center rounded-xl border p-3 transition-all',
               selectedArtistryModel === wf.id
                 ? 'border-primary-500 bg-primary-500/10 text-primary-600 dark:text-primary-400'
                 : 'border-neutral-200 bg-white hover:border-primary-300 dark:border-neutral-700 dark:bg-neutral-800',
@@ -237,8 +212,8 @@ function openReplicateModel() {
             @click="handleComfyWorkflowSelect(wf)"
           >
             <span class="text-xs font-bold">{{ wf.name }}</span>
-            <span class="mt-1 text-[10px] opacity-60">{{ getExposedFieldsCount(wf) }} exposed fields</span>
-          </button>
+            <span class="mt-1 text-[10px] opacity-60">{{ t('settings.pages.modules.artistry.card.exposed_fields', { count: getExposedFieldsCount(wf) }) }}</span>
+          </Button>
         </div>
       </div>
 
@@ -250,44 +225,47 @@ function openReplicateModel() {
             :description="t('settings.pages.modules.artistry.model.description')"
             placeholder="e.g. black-forest-labs/flux-schnell"
           />
-          <button
+          <Button
             v-if="selectedArtistryProvider === 'replicate' && selectedArtistryModel"
-            type="button"
+            variant="ghost"
+            size="sm"
+            shape="square"
             :class="[
-              'absolute right-3 top-9 rounded-md p-1 transition-colors',
-              'text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800',
+              'absolute right-3 top-9',
             ]"
-            title="Open on Replicate"
+            :title="t('settings.pages.modules.artistry.card.open_on_replicate')"
             @click="openReplicateModel"
           >
             <div i-solar:link-round-bold-duotone class="text-xl" />
-          </button>
+          </Button>
         </div>
 
         <div
           v-if="pendingInstructionWf"
-          class="flex flex-col gap-3 border border-indigo-500/20 rounded-xl bg-indigo-500/5 p-4"
+          class="flex flex-col gap-3 border-2 border-indigo-500/20 rounded-xl bg-indigo-500/5 p-4"
         >
           <div class="flex items-center gap-2 text-sm text-indigo-600 font-bold dark:text-indigo-400">
             <div i-solar:magic-stick-bold-duotone />
-            ComfyUI Instruction Sync
+            {{ t('settings.pages.modules.artistry.card.instruction_sync.title') }}
           </div>
           <p class="text-xs text-neutral-600 dark:text-neutral-400">
-            A specialized prompt is ready for your <strong>{{ pendingInstructionWf.name }}</strong> workflow. Applying this will overwrite current widget instructions so the AI knows how to use this specific template.
+            {{ t('settings.pages.modules.artistry.card.instruction_sync.description', { workflowName: pendingInstructionWf.name }) }}
           </p>
           <div class="flex items-center gap-2">
-            <button
-              class="rounded-lg bg-indigo-500 px-3 py-1.5 text-xs text-white font-medium transition-colors hover:bg-indigo-600"
+            <Button
+              variant="primary"
+              size="sm"
               @click="applyRecommendedInstructions"
             >
-              Apply Recommended Prompt
-            </button>
-            <button
-              class="rounded-lg bg-neutral-200 px-3 py-1.5 text-xs text-neutral-600 font-medium transition-colors dark:bg-neutral-800 hover:bg-neutral-300 dark:text-neutral-400 dark:hover:bg-neutral-700"
+              {{ t('settings.pages.modules.artistry.card.instruction_sync.apply') }}
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
               @click="pendingInstructionWf = null"
             >
-              Keep Existing
-            </button>
+              {{ t('settings.pages.modules.artistry.card.instruction_sync.keep') }}
+            </Button>
           </div>
         </div>
 

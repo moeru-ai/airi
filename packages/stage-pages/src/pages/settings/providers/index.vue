@@ -6,10 +6,12 @@ import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const providersStore = useProvidersStore()
 const artistryStore = useArtistryStore()
 const { lastClickedIndex, setLastClickedIndex } = useRippleGridState()
@@ -30,8 +32,8 @@ const allArtistryProvidersMetadata = computed(() => {
       iconColor: 'text-indigo-500',
       name: 'ComfyUI',
       localizedName: 'ComfyUI',
-      description: 'Local image generation runner.',
-      localizedDescription: 'Local image generation runner.',
+      description: t('settings.pages.providers.categories.artistry.items.comfyui.description'),
+      localizedDescription: t('settings.pages.providers.categories.artistry.items.comfyui.description'),
       configured: !!artistryStore.comfyuiServerUrl,
       to: '/settings/providers/artistry/comfyui',
       pricing: 'free',
@@ -46,8 +48,8 @@ const allArtistryProvidersMetadata = computed(() => {
       iconColor: 'i-lobe-icons:replicate-color',
       name: 'Replicate',
       localizedName: 'Replicate',
-      description: 'Cloud-based model inference service.',
-      localizedDescription: 'Cloud-based model inference service.',
+      description: t('settings.pages.providers.categories.artistry.items.replicate.description'),
+      localizedDescription: t('settings.pages.providers.categories.artistry.items.replicate.description'),
       configured: !!artistryStore.replicateApiKey,
       to: '/settings/providers/artistry/replicate',
       pricing: 'paid',
@@ -62,8 +64,8 @@ const allArtistryProvidersMetadata = computed(() => {
       iconColor: 'text-amber-500',
       name: 'Nano Banana',
       localizedName: 'Nano Banana',
-      description: 'Google AI Studio Image Preview.',
-      localizedDescription: 'Google AI Studio Image Preview.',
+      description: t('settings.pages.providers.categories.artistry.items.nanobanana.description'),
+      localizedDescription: t('settings.pages.providers.categories.artistry.items.nanobanana.description'),
       configured: !!artistryStore.nanobananaApiKey,
       to: '/settings/providers/artistry/nanobanana',
       pricing: 'free',
@@ -78,29 +80,29 @@ const providerBlocksConfig = [
   {
     id: 'chat',
     icon: 'i-solar:chat-square-like-bold-duotone',
-    title: 'Chat',
-    description: 'Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.',
+    title: t('settings.pages.providers.categories.chat.title'),
+    description: t('settings.pages.providers.categories.chat.description'),
     providersRef: allChatProvidersMetadata,
   },
   {
     id: 'speech',
     icon: 'i-solar:user-speak-rounded-bold-duotone',
-    title: 'Speech',
-    description: 'Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.',
+    title: t('settings.pages.providers.categories.speech.title'),
+    description: t('settings.pages.providers.categories.speech.description'),
     providersRef: allAudioSpeechProvidersMetadata,
   },
   {
     id: 'transcription',
     icon: 'i-solar:microphone-3-bold-duotone',
-    title: 'Transcription',
-    description: 'Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech',
+    title: t('settings.pages.providers.categories.transcription.title'),
+    description: t('settings.pages.providers.categories.transcription.description'),
     providersRef: allAudioTranscriptionProvidersMetadata,
   },
   {
     id: 'artistry',
     icon: 'i-solar:palette-bold-duotone',
-    title: 'Artistry',
-    description: 'Image generation and design model providers. e.g. ComfyUI, Replicate.',
+    title: t('settings.pages.providers.categories.artistry.title'),
+    description: t('settings.pages.providers.categories.artistry.description'),
     providersRef: allArtistryProvidersMetadata,
   },
 ]

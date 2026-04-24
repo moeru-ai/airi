@@ -2,8 +2,11 @@
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { FieldInput, FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const artistryStore = useArtistryStore()
+const { t } = useI18n()
 
 const {
   nanobananaApiKey,
@@ -11,17 +14,17 @@ const {
   nanobananaResolution,
 } = storeToRefs(artistryStore)
 
-const modelOptions = [
-  { label: 'Nano Banana 2 (Gemini 3.1 Flash Image)', value: 'gemini-3.1-flash-image-preview' },
-  { label: 'Nano Banana Pro (Gemini 3 Pro Image)', value: 'gemini-3-pro-image-preview' },
-  { label: 'Nano Banana (Gemini 2.5 Flash Image)', value: 'gemini-2.5-flash-image' },
-]
+const modelOptions = computed(() => [
+  { label: t('settings.pages.providers.provider.nanobanana.settings.model_options.nano_banana_2'), value: 'gemini-3.1-flash-image-preview' },
+  { label: t('settings.pages.providers.provider.nanobanana.settings.model_options.nano_banana_pro'), value: 'gemini-3-pro-image-preview' },
+  { label: t('settings.pages.providers.provider.nanobanana.settings.model_options.nano_banana'), value: 'gemini-2.5-flash-image' },
+])
 
-const resolutionOptions = [
+const resolutionOptions = computed(() => [
   { label: '1K', value: '1K' },
   { label: '2K', value: '2K' },
   { label: '4K', value: '4K' },
-]
+])
 </script>
 
 <template>
@@ -31,10 +34,10 @@ const resolutionOptions = [
         <div class="i-solar:gallery-round-bold-duotone text-3xl text-amber-500" />
         <div>
           <h2 class="text-xl text-neutral-800 font-semibold dark:text-neutral-100">
-            Nano Banana (Google AI Studio)
+            {{ t('settings.pages.providers.provider.nanobanana.settings.heading') }}
           </h2>
           <p class="text-sm text-neutral-500 dark:text-neutral-400">
-            Configure Google Gemini's native image generation capabilities.
+            {{ t('settings.pages.providers.provider.nanobanana.settings.description') }}
           </p>
         </div>
       </div>
@@ -43,23 +46,23 @@ const resolutionOptions = [
     <div class="flex flex-col gap-4">
       <FieldInput
         v-model="nanobananaApiKey"
-        label="API Key"
-        description="Your Google AI Studio API Key"
-        placeholder="AIpk..."
+        :label="t('settings.pages.providers.provider.nanobanana.settings.api_key.label')"
+        :description="t('settings.pages.providers.provider.nanobanana.settings.api_key.description')"
+        :placeholder="t('settings.pages.providers.provider.nanobanana.settings.api_key.placeholder')"
         type="password"
       />
 
       <FieldSelect
         v-model="nanobananaModel"
-        label="Preferred Model"
-        description="The specific Gemini image preview model to use"
+        :label="t('settings.pages.providers.provider.nanobanana.settings.preferred_model.label')"
+        :description="t('settings.pages.providers.provider.nanobanana.settings.preferred_model.description')"
         :options="modelOptions"
       />
 
       <FieldSelect
         v-model="nanobananaResolution"
-        label="Default Resolution"
-        description="The target resolution for generated images"
+        :label="t('settings.pages.providers.provider.nanobanana.settings.default_resolution.label')"
+        :description="t('settings.pages.providers.provider.nanobanana.settings.default_resolution.description')"
         :options="resolutionOptions"
       />
     </div>

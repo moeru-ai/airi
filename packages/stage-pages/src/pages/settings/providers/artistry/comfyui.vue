@@ -6,11 +6,13 @@ import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { errorMessageFrom } from '@moeru/std'
 import { artistryTestComfyUIConnection, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
-import { FieldInput } from '@proj-airi/ui'
+import { Button, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const artistryStore = useArtistryStore()
+const { t } = useI18n()
 
 const {
   comfyuiServerUrl,
@@ -50,11 +52,11 @@ async function testConnection() {
         url: comfyuiServerUrl.value,
       })
       if (result.ok) {
-        connectionInfo.value = result.info || 'Connected'
+        connectionInfo.value = result.info || t('settings.pages.providers.provider.comfyui.settings.connection.connected')
         connectionStatus.value = 'connected'
       }
       else {
-        connectionInfo.value = result.info || 'Connection failed'
+        connectionInfo.value = result.info || t('settings.pages.providers.provider.comfyui.settings.connection.failed')
         connectionStatus.value = 'failed'
       }
     }
@@ -67,14 +69,14 @@ async function testConnection() {
         throw new Error(`HTTP ${resp.status}`)
 
       const data = await resp.json() as { devices?: Array<{ name?: string }> }
-      const gpus = data.devices?.map(d => d.name).join(', ') || 'Unknown GPU'
-      connectionInfo.value = `Connected — ${gpus}`
+      const gpus = data.devices?.map(d => d.name).join(', ') || t('settings.pages.providers.provider.comfyui.settings.connection.unknown_gpu')
+      connectionInfo.value = `${t('settings.pages.providers.provider.comfyui.settings.connection.connected')} — ${gpus}`
       connectionStatus.value = 'connected'
     }
   }
   catch (e: unknown) {
-    const errorMessage = errorMessageFrom(e) ?? 'Unknown connection error'
-    connectionInfo.value = `Error: ${errorMessage}`
+    const errorMessage = errorMessageFrom(e) ?? t('settings.pages.providers.provider.comfyui.settings.connection.unknown_error')
+    connectionInfo.value = `${t('settings.pages.providers.provider.comfyui.settings.connection.error_prefix')}: ${errorMessage}`
     connectionStatus.value = 'failed'
     if (errorMessage.includes('fetch') || errorMessage.includes('CORS')) {
       isCorsError.value = true
@@ -129,7 +131,7 @@ function handleFileUpload(event: Event) {
       parsedWorkflow.value = { nodes }
     }
     catch (err: unknown) {
-      uploadError.value = `Invalid JSON: ${errorMessageFrom(err)}`
+      uploadError.value = `${t('settings.pages.providers.provider.comfyui.settings.upload.invalid_json')}: ${errorMessageFrom(err)}`
     }
   }
   reader.readAsText(file)
@@ -245,10 +247,10 @@ function copyToClipboard(text: string) {
         <div class="i-solar:gallery-bold-duotone text-3xl text-indigo-500" />
         <div>
           <h2 class="text-xl text-neutral-800 font-semibold dark:text-neutral-100">
-            ComfyUI Native API
+            {{ t('settings.pages.providers.provider.comfyui.settings.heading') }}
           </h2>
           <p class="text-sm text-neutral-500 dark:text-neutral-400">
-            Connect to your local ComfyUI and bring your own workflows.
+            {{ t('settings.pages.providers.provider.comfyui.settings.description') }}
           </p>
         </div>
       </div>
@@ -256,26 +258,26 @@ function copyToClipboard(text: string) {
       <div class="grid grid-cols-1 mt-4 gap-3 sm:grid-cols-3">
         <div class="rounded-lg bg-white/60 p-3 dark:bg-neutral-800/60">
           <div class="mb-1 text-xs text-neutral-400 font-medium dark:text-neutral-500">
-            What You Need
+            {{ t('settings.pages.providers.provider.comfyui.settings.info.what_you_need.label') }}
           </div>
           <div class="text-sm text-neutral-700 dark:text-neutral-300">
-            ComfyUI running locally or on your network.
+            {{ t('settings.pages.providers.provider.comfyui.settings.info.what_you_need.value') }}
           </div>
         </div>
         <div class="rounded-lg bg-white/60 p-3 dark:bg-neutral-800/60">
           <div class="mb-1 text-xs text-neutral-400 font-medium dark:text-neutral-500">
-            How To Export
+            {{ t('settings.pages.providers.provider.comfyui.settings.info.how_to_export.label') }}
           </div>
           <div class="text-sm text-neutral-700 dark:text-neutral-300">
-            Enable Dev Mode → "Save (API Format)".
+            {{ t('settings.pages.providers.provider.comfyui.settings.info.how_to_export.value') }}
           </div>
         </div>
         <div class="rounded-lg bg-white/60 p-3 dark:bg-neutral-800/60">
           <div class="mb-1 text-xs text-neutral-400 font-medium dark:text-neutral-500">
-            Scope Boundary
+            {{ t('settings.pages.providers.provider.comfyui.settings.info.scope_boundary.label') }}
           </div>
           <div class="text-sm text-neutral-700 dark:text-neutral-300">
-            Model downloads & node installs are your job.
+            {{ t('settings.pages.providers.provider.comfyui.settings.info.scope_boundary.value') }}
           </div>
         </div>
       </div>
@@ -284,28 +286,30 @@ function copyToClipboard(text: string) {
     <!-- Connection -->
     <div class="flex flex-col gap-4">
       <h3 class="text-lg text-neutral-700 font-medium dark:text-neutral-300">
-        Connection
+        {{ t('settings.pages.providers.provider.comfyui.settings.connection.title') }}
       </h3>
       <div class="flex items-end gap-3">
         <div class="flex-1">
           <FieldInput
             v-model="comfyuiServerUrl"
-            label="Server URL"
-            description="The address where ComfyUI is running"
-            placeholder="http://localhost:8188"
+            :label="t('settings.pages.providers.provider.comfyui.settings.connection.server_url.label')"
+            :description="t('settings.pages.providers.provider.comfyui.settings.connection.server_url.description')"
+            :placeholder="t('settings.pages.providers.provider.comfyui.settings.connection.server_url.placeholder')"
           />
         </div>
-        <button
-          class="mb-0.5 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors duration-200"
-          :class="{
-            'bg-indigo-500 text-white hover:bg-indigo-600': connectionStatus !== 'testing',
-            'bg-neutral-300 text-neutral-500 cursor-wait': connectionStatus === 'testing',
-          }"
+        <Button
+          class="mb-0.5"
+          variant="primary"
+          size="md"
+          :icon="connectionStatus === 'testing' ? undefined : 'i-solar:plug-circle-bold-duotone'"
+          :loading="connectionStatus === 'testing'"
           :disabled="connectionStatus === 'testing'"
           @click="testConnection"
         >
-          {{ connectionStatus === 'testing' ? 'Testing...' : '🔌 Test' }}
-        </button>
+          {{ connectionStatus === 'testing'
+            ? t('settings.pages.providers.provider.comfyui.settings.connection.testing')
+            : t('settings.pages.providers.provider.comfyui.settings.connection.test') }}
+        </Button>
       </div>
       <div
         v-if="connectionInfo"
@@ -321,17 +325,17 @@ function copyToClipboard(text: string) {
       <!-- CORS Troubleshooting -->
       <div
         v-if="isCorsError"
-        class="flex flex-col gap-2 border border-amber-500/20 rounded-xl bg-amber-500/10 p-4"
+        class="flex flex-col gap-2 border-2 border-amber-500/20 rounded-xl bg-amber-500/10 p-4"
       >
         <div class="flex items-center gap-2 text-sm text-amber-600 font-bold dark:text-amber-400">
           <div i-solar:shield-warning-bold-duotone />
-          CORS Block Detected
+          {{ t('settings.pages.providers.provider.comfyui.settings.cors.title') }}
         </div>
         <p class="text-xs text-neutral-600 leading-relaxed dark:text-neutral-400">
-          ComfyUI blocks requests from other applications by default. To allow AIRI to connect, you must start ComfyUI with the <code class="rounded bg-neutral-200 px-1 dark:bg-neutral-800">--enable-cors-header "*"</code> flag.
+          {{ t('settings.pages.providers.provider.comfyui.settings.cors.description') }}
         </p>
         <div class="break-all rounded bg-black/5 p-2 text-[10px] text-neutral-500 font-mono dark:bg-black/20 dark:text-neutral-400">
-          python main.py --enable-cors-header "*"
+          {{ t('settings.pages.providers.provider.comfyui.settings.cors.command') }}
         </div>
       </div>
     </div>
@@ -340,19 +344,22 @@ function copyToClipboard(text: string) {
     <div class="flex flex-col gap-4">
       <div class="flex items-center justify-between">
         <h3 class="text-lg text-neutral-700 font-medium dark:text-neutral-300">
-          Workflow Templates
+          {{ t('settings.pages.providers.provider.comfyui.settings.workflows.title') }}
         </h3>
-        <button
-          class="rounded-lg bg-indigo-500/10 px-3 py-1.5 text-sm text-indigo-600 font-medium transition-colors hover:bg-indigo-500/20 dark:text-indigo-400"
+        <Button
+          variant="secondary"
+          size="sm"
           @click="showUploadSection = !showUploadSection"
         >
-          {{ showUploadSection ? '✕ Cancel' : '+ Upload Workflow' }}
-        </button>
+          {{ showUploadSection
+            ? t('settings.pages.providers.provider.comfyui.settings.workflows.cancel_upload')
+            : t('settings.pages.providers.provider.comfyui.settings.workflows.upload') }}
+        </Button>
       </div>
 
       <!-- Workflow List -->
       <div v-if="comfyuiSavedWorkflows.length === 0 && !showUploadSection" class="text-sm text-neutral-400 italic dark:text-neutral-500">
-        No workflows uploaded yet. Click "Upload Workflow" to import a workflow_api.json from ComfyUI.
+        {{ t('settings.pages.providers.provider.comfyui.settings.workflows.empty') }}
       </div>
 
       <div v-for="wf in comfyuiSavedWorkflows" :key="wf.id" class="flex flex-col gap-2 border border-neutral-200 rounded-lg p-3 dark:border-neutral-700">
@@ -371,15 +378,20 @@ function copyToClipboard(text: string) {
               <div v-else class="i-solar:alt-arrow-right-linear text-xs opacity-50" />
             </div>
             <div class="text-xs text-neutral-400 dark:text-neutral-500">
-              {{ Object.keys(wf.workflow).length }} nodes · {{ Object.values(wf.exposedFields).reduce((n, arr) => n + arr.length, 0) }} exposed fields
+              {{ t('settings.pages.providers.provider.comfyui.settings.workflows.summary', {
+                nodes: Object.keys(wf.workflow).length,
+                fields: Object.values(wf.exposedFields).reduce((n, arr) => n + arr.length, 0),
+              }) }}
             </div>
           </div>
-          <button
-            class="text-xs text-red-400 transition-colors hover:text-red-500"
+          <Button
+            variant="ghost"
+            size="sm"
+            class="!text-red-400 hover:!text-red-500"
             @click="removeWorkflow(wf.id)"
           >
-            Remove
-          </button>
+            {{ t('settings.pages.providers.provider.comfyui.settings.workflows.remove') }}
+          </Button>
         </div>
 
         <!-- Expanded Details -->
@@ -387,7 +399,7 @@ function copyToClipboard(text: string) {
           <!-- Exposed Fields Visualization -->
           <div class="flex flex-col gap-2">
             <div class="text-[10px] text-neutral-400 font-bold tracking-wider uppercase dark:text-neutral-500">
-              Exposed Parameters
+              {{ t('settings.pages.providers.provider.comfyui.settings.workflows.exposed_parameters') }}
             </div>
             <div class="flex flex-wrap gap-3">
               <div v-for="(fields, nodeTitle) in wf.exposedFields" :key="nodeTitle" class="flex flex-col gap-1.5">
@@ -409,14 +421,15 @@ function copyToClipboard(text: string) {
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2 text-xs text-indigo-600 font-bold dark:text-indigo-400">
                 <div i-solar:code-bold-duotone />
-                Artistry Config Snippet
+                {{ t('settings.pages.providers.provider.comfyui.settings.workflows.config_snippet') }}
               </div>
-              <button
-                class="rounded bg-indigo-500/10 px-2 py-1 text-[10px] text-indigo-600 transition-colors hover:bg-indigo-500/20 dark:text-indigo-400"
+              <Button
+                variant="secondary"
+                size="sm"
                 @click="copyToClipboard(generateExampleJson(wf))"
               >
-                Copy JSON
-              </button>
+                {{ t('settings.pages.providers.provider.comfyui.settings.workflows.copy_json') }}
+              </Button>
             </div>
 
             <div class="text-[11px] text-neutral-700 leading-relaxed font-mono dark:text-neutral-300">
@@ -440,7 +453,7 @@ function copyToClipboard(text: string) {
 
             <div class="mt-1 flex items-center gap-2 pb-1 text-[10px] text-neutral-400 italic">
               <div i-solar:info-circle-linear />
-              Paste this into your AIRI Card artistry config to override these nodes.
+              {{ t('settings.pages.providers.provider.comfyui.settings.workflows.paste_hint') }}
             </div>
           </div>
         </div>
@@ -453,7 +466,7 @@ function copyToClipboard(text: string) {
             📋
           </div>
           <div class="text-sm text-neutral-600 dark:text-neutral-400">
-            Drop or select a <code class="rounded bg-neutral-100 px-1 dark:bg-neutral-800">workflow_api.json</code> file
+            {{ t('settings.pages.providers.provider.comfyui.settings.upload.prompt') }}
           </div>
           <input
             type="file"
@@ -471,13 +484,13 @@ function copyToClipboard(text: string) {
         <div v-if="parsedWorkflow" class="flex flex-col gap-3">
           <FieldInput
             v-model="pendingWorkflowName"
-            label="Workflow Name"
-            description="Give this workflow a recognizable name"
-            placeholder="e.g. Anime Text2Img"
+            :label="t('settings.pages.providers.provider.comfyui.settings.upload.workflow_name.label')"
+            :description="t('settings.pages.providers.provider.comfyui.settings.upload.workflow_name.description')"
+            :placeholder="t('settings.pages.providers.provider.comfyui.settings.upload.workflow_name.placeholder')"
           />
 
           <div class="text-sm text-neutral-600 font-medium dark:text-neutral-400">
-            Select fields to expose to the AI agent:
+            {{ t('settings.pages.providers.provider.comfyui.settings.upload.select_fields') }}
           </div>
 
           <div class="max-h-80 flex flex-col gap-2 overflow-y-auto">
@@ -510,14 +523,15 @@ function copyToClipboard(text: string) {
           </div>
 
           <div class="mt-2 flex items-center justify-between">
-            <span class="text-xs text-neutral-400">{{ totalExposed }} field(s) exposed</span>
-            <button
-              class="rounded-lg bg-indigo-500 px-4 py-2 text-sm text-white font-medium transition-colors disabled:cursor-not-allowed hover:bg-indigo-600 disabled:opacity-40"
+            <span class="text-xs text-neutral-400">{{ t('settings.pages.providers.provider.comfyui.settings.upload.fields_exposed', { count: totalExposed }) }}</span>
+            <Button
+              variant="primary"
+              size="sm"
               :disabled="!pendingWorkflowName.trim() || totalExposed === 0"
               @click="saveWorkflow"
             >
-              Save Workflow
-            </button>
+              {{ t('settings.pages.providers.provider.comfyui.settings.upload.save') }}
+            </Button>
           </div>
         </div>
       </div>

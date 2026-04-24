@@ -2,42 +2,45 @@
 import { RadioCardSimple } from '@proj-airi/stage-ui/components'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { storeToRefs } from 'pinia'
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+const { t } = useI18n()
 const artistryStore = useArtistryStore()
 const { globalProvider } = storeToRefs(artistryStore)
 
-const availableProviders = [
+const availableProviders = computed(() => [
   {
     id: 'none',
-    name: 'None',
-    description: 'Bypass and disable the image generation module globally.',
+    name: t('settings.pages.modules.artistry.providers.none.name'),
+    description: t('settings.pages.modules.artistry.providers.none.description'),
     icon: 'i-solar:forbidden-circle-bold-duotone',
     configRoute: '/settings/modules/artistry',
   },
   {
     id: 'comfyui',
-    name: 'ComfyUI (Local)',
-    description: 'Use a local ComfyUI instance via WSL for image generation.',
+    name: t('settings.pages.modules.artistry.providers.comfyui.name'),
+    description: t('settings.pages.modules.artistry.providers.comfyui.description'),
     icon: 'i-solar:monitor-camera-bold-duotone',
     configRoute: '/settings/providers/artistry/comfyui',
   },
   {
     id: 'replicate',
-    name: 'Replicate.ai (Cloud)',
-    description: 'Use cloud-based models via the Replicate API.',
+    name: t('settings.pages.modules.artistry.providers.replicate.name'),
+    description: t('settings.pages.modules.artistry.providers.replicate.description'),
     icon: 'i-solar:cloud-upload-bold-duotone',
     configRoute: '/settings/providers/artistry/replicate',
   },
   {
     id: 'nanobanana',
-    name: 'Nano Banana (Preview)',
-    description: 'Use Google AI Studio for image preview and reactions.',
+    name: t('settings.pages.modules.artistry.providers.nanobanana.name'),
+    description: t('settings.pages.modules.artistry.providers.nanobanana.description'),
     icon: 'i-solar:gallery-round-bold-duotone',
     configRoute: '/settings/providers/artistry/nanobanana',
   },
-]
+])
 </script>
 
 <template>
@@ -45,10 +48,10 @@ const availableProviders = [
     <div class="h-fit w-full flex flex-col gap-4 rounded-xl bg-neutral-100 p-4 dark:bg-[rgba(0,0,0,0.3)]">
       <div>
         <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
-          Artistry Provider Configuration
+          {{ t('settings.pages.modules.artistry.page.title') }}
         </h2>
         <div class="text-neutral-400 dark:text-neutral-500">
-          Select the active backend provider for image generation. Characters can override this in their Card settings.
+          {{ t('settings.pages.modules.artistry.page.description') }}
         </div>
       </div>
 
