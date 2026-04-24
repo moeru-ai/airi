@@ -229,10 +229,19 @@ export function registerDesktopGroundingTools(params: {
               }
             }
             else {
-              await runtime.browserDomBridge!.clickSelector({
+              const clickResult = await runtime.browserDomBridge!.clickSelector({
                 selector: routeDecision.selector,
                 frameIds,
               })
+              // NOTICE: clickSelector resolves even when clickAt hits no element.
+              // Check per-frame results; if none succeeded, fall back to OS click.
+              const clickFrames = clickResult?.clickResults
+              const anyClickSucceeded = Array.isArray(clickFrames) && clickFrames.some(
+                fr => (fr.result as Record<string, unknown>)?.success === true,
+              )
+              if (!anyClickSucceeded) {
+                throw new Error('clickSelector: no frame reported a successful click')
+              }
             }
           }
           catch (browserError) {
