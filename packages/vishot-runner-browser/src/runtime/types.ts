@@ -9,6 +9,7 @@ export interface BrowserCaptureRequest {
   baseUrl?: string
   routePath: string
   outputDir: string
+  settleMs?: number
   rootNames?: string[]
   imageTransformers?: ArtifactTransformer[]
   viewport?: {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Button, Callout } from '@proj-airi/ui'
+import { Button } from '@proj-airi/ui'
 import { onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -151,17 +151,17 @@ onMounted(() => {
       </p>
     </div>
 
-    <div v-else :class="['sm:max-w-md md:max-w-lg', 'flex w-full flex-col items-center']">
+    <div v-else :class="['sm:max-w-md md:max-w-md', 'flex w-full flex-col items-center']">
       <div :class="['mb-8 text-3xl font-bold']">
-        {{ t('server.auth.electronCallback.label.signIn') }}
+        Project AIRI
       </div>
 
       <div
         v-if="viewModel.status === 'success'"
         :class="[
-          'w-full rounded-xl border-2 border-green-200/45 bg-green-50/70 p-4',
+          'w-full rounded-xl p-5',
           'relative', 'overflow-hidden',
-          'dark:border-green-800/30 dark:bg-green-950/30',
+          'bg-lime-50/80 dark:bg-lime-900/50',
         ]"
       >
         <div :class="['flex items-start gap-3']">
@@ -169,24 +169,24 @@ onMounted(() => {
             aria-hidden="true"
             :class="[
               'absolute',
-              'size-30 flex-shrink-0',
+              'size-24 flex-shrink-0',
               'right-0 top-0 translate-x-[calc(25%)] translate-y-[-25%]',
-              'i-solar:check-circle-line-duotone text-green-500 dark:text-green-400 op-25',
+              'i-solar:check-circle-line-duotone text-lime-500/30 dark:text-lime-200/20',
             ]"
           />
           <div :class="['min-w-0']">
-            <div :class="['text-lg font-semibold text-green-800 dark:text-green-200', 'mb-4']">
+            <div :class="['text-xl font-semibold text-lime-800 dark:text-lime-200', 'mb-4']">
               {{ viewModel.title }}
             </div>
-            <div :class="['mt-1 text-sm text-green-700 dark:text-green-300']">
+            <div :class="['mt-1 text-sm text-lime-700 dark:text-lime-300']">
               {{ viewModel.description }}
             </div>
-            <div :class="['mt-2 text-xs text-green-700/90 dark:text-green-300/90']">
+            <div :class="['mt-2 text-xs text-lime-700/90 dark:text-lime-300/90']">
               {{ t('server.auth.electronCallback.label.safeToClose') }}
             </div>
             <div
               v-if="viewModel.detail"
-              :class="['mt-2 break-all text-xs text-green-700/85 dark:text-green-300/85']"
+              :class="['mt-2 break-all text-xs text-lime-700/85 dark:text-lime-300/85']"
             >
               {{ viewModel.detail }}
             </div>
@@ -197,9 +197,9 @@ onMounted(() => {
       <div
         v-else
         :class="[
-          'w-full rounded-xl border-2 border-orange-200/45 bg-orange-50/70 p-4',
+          'w-full rounded-xl p-4',
           'relative', 'overflow-hidden',
-          'dark:border-orange-800/30 dark:bg-orange-950/30',
+          'bg-orange-100/60 dark:bg-orange-900/50',
         ]"
       >
         <div :class="['flex items-start gap-3']">
@@ -207,13 +207,13 @@ onMounted(() => {
             aria-hidden="true"
             :class="[
               'absolute',
-              'size-30 flex-shrink-0',
+              'size-24 flex-shrink-0',
               'right-0 top-0 translate-x-[calc(25%)] translate-y-[-25%]',
-              'i-solar:danger-circle-line-duotone text-orange-500 dark:text-orange-400 op-25',
+              'i-solar:danger-circle-line-duotone text-orange-500/30 dark:text-orange-200/20',
             ]"
           />
           <div :class="['min-w-0']">
-            <div :class="['text-lg font-semibold text-orange-800 dark:text-orange-200', 'mb-4']">
+            <div :class="['text-xl font-semibold text-orange-800 dark:text-orange-200', 'mb-4']">
               {{ viewModel.title }}
             </div>
             <div :class="['mt-1 text-sm text-orange-700 dark:text-orange-300']">
@@ -229,22 +229,12 @@ onMounted(() => {
         </div>
       </div>
 
-      <Callout
-        v-if="viewModel.status === 'success' && viewModel.showCloseTabHint"
-        theme="primary"
-        :class="['mt-3 w-full']"
-        :label="t('server.auth.electronCallback.label.whyStillHere')"
-      >
-        <div :class="['mt-1 text-sm']">
-          {{ t('server.auth.electronCallback.hint.closeTabManually') }}
-        </div>
-      </Callout>
-
       <div :class="['mt-3 flex flex-wrap items-center justify-center gap-2']">
         <Button
           v-if="viewModel.primaryActionLabel"
           :disabled="viewModel.primaryActionDisabled"
           :class="['inline-flex']"
+          variant="secondary"
           @click="openRelayUrl"
         >
           {{ viewModel.primaryActionLabel }}

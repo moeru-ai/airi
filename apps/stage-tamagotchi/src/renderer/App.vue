@@ -3,12 +3,12 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
+import { useInferencePreload } from '@proj-airi/stage-ui/composables'
 import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { usePluginHostInspectorStore } from '@proj-airi/stage-ui/stores/devtools/plugin-host-debug'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
-import { clearMcpToolBridge, setMcpToolBridge } from '@proj-airi/stage-ui/stores/mcp-tool-bridge'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
@@ -26,23 +26,28 @@ import ResizeHandler from './components/ResizeHandler.vue'
 
 import {
   electronGetServerChannelConfig,
-  electronMcpCallTool,
-  electronMcpListTools,
+  electronSettingsNavigate,
+  electronStartTrackMousePosition,
+  i18nSetLocale,
+} from '../shared/eventa'
+import {
+  electronPluginUpdateCapability,
+  pluginProtocolListProviders,
+  pluginProtocolListProvidersEventName,
+} from '../shared/eventa/plugin/capabilities'
+import {
   electronPluginInspect,
   electronPluginList,
   electronPluginLoad,
   electronPluginLoadEnabled,
+  electronPluginSetAutoReload,
   electronPluginSetEnabled,
   electronPluginUnload,
-  electronPluginUpdateCapability,
-  electronSettingsNavigate,
-  electronStartTrackMousePosition,
-  i18nSetLocale,
-  pluginProtocolListProviders,
-  pluginProtocolListProvidersEventName,
-} from '../shared/eventa'
+} from '../shared/eventa/plugin/host'
 import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-callback'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
+import { useTamagotchiMcpToolsStore } from './stores/mcp-tools'
+import { useTamagotchiPluginToolsStore } from './stores/plugin-tools'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 
@@ -60,7 +65,10 @@ const chatSessionStore = useChatSessionStore()
 const serverChannelStore = useModsServerChannelStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
 const analyticsStore = useSharedAnalyticsStore()
+const inferencePreload = useInferencePreload()
 const pluginHostInspectorStore = usePluginHostInspectorStore()
+const mcpToolsStore = useTamagotchiMcpToolsStore()
+const pluginToolsStore = useTamagotchiPluginToolsStore()
 const stageWindowLifecycleStore = useStageWindowLifecycleStore()
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const context = useElectronEventaContext()
@@ -71,33 +79,63 @@ void stageWindowLifecycleStore.initializeWindowLifecycleBridge()
 const getServerChannelConfig = useElectronEventaInvoke(electronGetServerChannelConfig)
 const listPlugins = useElectronEventaInvoke(electronPluginList)
 const setPluginEnabled = useElectronEventaInvoke(electronPluginSetEnabled)
+const setPluginAutoReload = useElectronEventaInvoke(electronPluginSetAutoReload)
 const loadEnabledPlugins = useElectronEventaInvoke(electronPluginLoadEnabled)
 const loadPlugin = useElectronEventaInvoke(electronPluginLoad)
 const unloadPlugin = useElectronEventaInvoke(electronPluginUnload)
 const inspectPluginHost = useElectronEventaInvoke(electronPluginInspect)
 const startTrackingCursorPoint = useElectronEventaInvoke(electronStartTrackMousePosition)
 const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapability)
-const listMcpTools = useElectronEventaInvoke(electronMcpListTools)
-const callMcpTool = useElectronEventaInvoke(electronMcpCallTool)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
 const isChatWindowRoute = () => route.path === '/chat'
+const isWidgetsWindowRoute = () => route.path === '/widgets'
+
+async function refreshPluginRuntimeTools() {
+  try {
+    await pluginToolsStore.refresh()
+  }
+  catch (error) {
+    console.warn('[App] Failed to refresh plugin runtime tools:', error)
+  }
+}
+
+watch(() => route.path, () => {
+  contextBridgeStore.setSparkNotifyHostRole(isWidgetsWindowRoute() ? 'client' : 'main')
+}, { immediate: true })
 
 // NOTICE: register plugin host bridge during setup to avoid race with pages using it in immediate watchers.
 pluginHostInspectorStore.setBridge({
   list: () => listPlugins(),
-  setEnabled: payload => setPluginEnabled(payload),
-  loadEnabled: () => loadEnabledPlugins(),
-  load: payload => loadPlugin(payload),
-  unload: payload => unloadPlugin(payload),
+  setEnabled: async (payload) => {
+    const result = await setPluginEnabled(payload)
+    await refreshPluginRuntimeTools()
+    return result
+  },
+  setAutoReload: payload => setPluginAutoReload(payload),
+  loadEnabled: async () => {
+    const result = await loadEnabledPlugins()
+    await refreshPluginRuntimeTools()
+    return result
+  },
+  load: async (payload) => {
+    const result = await loadPlugin(payload)
+    await refreshPluginRuntimeTools()
+    return result
+  },
+  unload: async (payload) => {
+    const result = await unloadPlugin(payload)
+    await refreshPluginRuntimeTools()
+    return result
+  },
   inspect: () => inspectPluginHost(),
 })
 
-// NOTICE: MCP tools are declared from stage-ui and executed during model streaming.
-// Register runtime bridge during setup to avoid missing bridge in early tool invocations.
-setMcpToolBridge({
-  listTools: () => listMcpTools(),
-  callTool: payload => callMcpTool(payload),
+// NOTICE: Runtime tool stores must register during setup so renderer consumers can see them
+// before `onMounted()` finishes the rest of the startup flow.
+void mcpToolsStore.refresh().catch((error) => {
+  console.warn('[App] Failed to refresh MCP runtime tools:', error)
 })
+void refreshPluginRuntimeTools()
 
 watch(language, () => {
   i18n.locale.value = language.value
@@ -141,8 +179,10 @@ onMounted(async () => {
   }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
   if (!isChatWindowRoute()) {
     contextBridgeStore.initialize()
-    characterOrchestratorStore.initialize()
-    await startTrackingCursorPoint()
+    if (!isWidgetsWindowRoute()) {
+      characterOrchestratorStore.initialize()
+      await startTrackingCursorPoint()
+    }
   }
 
   // Expose stage provider definitions to plugin host APIs.
@@ -157,6 +197,9 @@ onMounted(async () => {
       },
     })
   }
+
+  // Preload local inference models (Kokoro TTS, etc.) in background after a delay
+  inferencePreload.triggerPreload()
 })
 
 watch(themeColorsHue, () => {
@@ -171,7 +214,8 @@ onUnmounted(() => {
   if (!isChatWindowRoute()) {
     contextBridgeStore.dispose()
   }
-  clearMcpToolBridge()
+  mcpToolsStore.dispose()
+  pluginToolsStore.dispose()
 })
 </script>
 

@@ -115,15 +115,29 @@ Never add or remove any label outside that managed set.
 
 ## Required inputs
 
-Inspect, in order:
+Inspect the PR step by step. **Do NOT issue multiple tool calls in parallel — wait for each call to return before making the next one.**
 
-1. PR title
-2. PR body
-3. Linked issues explicitly referenced in the PR title or body
-4. Changed files
-5. Existing labels on the PR
+**Step 1** — Call `pull_request_read` with `method: "get_files"` to retrieve:
+1. Changed files
 
-Do not use web search. Do not use bash or edit tools. Do not post comments. Do not update the PR body or title. Do not request reviewers.
+**Step 2** — Call `pull_request_read` with `method: "get"` to retrieve:
+2. PR title
+3. PR body
+4. Existing labels on the PR
+
+**Step 3** — If the PR title or body references linked issues, read those issues for additional context.
+
+### If MCP calls fail
+
+If any `pull_request_read` call returns an MCP error (e.g. WASM trap, guard failure), do NOT retry the same call. Instead:
+
+1. For file data: if Step 1 succeeded, read the saved tool output file using shell (`cat` + `jq`).
+2. For PR metadata: fall back to shell with `curl -s "https://api.github.com/repos/moeru-ai/airi/pulls/${{ github.event.inputs.pull_request_number }}"` and parse the JSON with `jq`.
+3. Continue classification with whatever data you can gather.
+4. Use `safeoutputs` tools (add_labels / remove_labels) for the final label application — these are unaffected by MCP server failures.
+5. Only report `missing_tool` if you cannot retrieve ANY data after trying all fallback paths.
+
+Do not use web search. Do not use bash to modify files, create branches, post comments, update the PR body or title, or request reviewers. Read-only shell commands for data retrieval are allowed.
 
 ## Classification rules
 

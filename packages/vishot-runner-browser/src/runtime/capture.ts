@@ -40,6 +40,14 @@ async function waitForScenarioReady(page: Page): Promise<void> {
   })
 }
 
+async function waitForPostReadySettle(page: Page, settleMs: number | undefined): Promise<void> {
+  if (!settleMs || settleMs <= 0) {
+    return
+  }
+
+  await page.waitForTimeout(settleMs)
+}
+
 async function captureRoot(page: Page, outputDir: string, rootName: string): Promise<VishotArtifact> {
   const filePath = captureFilePath(outputDir, rootName)
   const locator = page.locator(captureRootSelector(rootName))
@@ -140,6 +148,7 @@ export async function captureBrowserRoots(request: BrowserCaptureRequest): Promi
 
       await page.goto(targetUrl)
       await waitForScenarioReady(page)
+      await waitForPostReadySettle(page, request.settleMs)
       await mkdir(path.resolve(request.outputDir), { recursive: true })
 
       const rootNames = request.rootNames?.length

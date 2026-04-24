@@ -1,9 +1,9 @@
 electronCallback:
   title:
-    loading: Completing sign-in
-    openingAiri: Opening AIRI
-    signedIn: You are signed in
-    signInFailed: Sign-in failed
+    loading: 正在完成登入
+    openingAiri: 正在打開 AIRI
+    signedIn: 您已登入
+    signInFailed: 登入失敗
     finishSignInInAiri: Finish sign-in in AIRI
     openAiriToContinue: Open AIRI to continue
   message:
@@ -44,4 +44,4 @@ webCallback:
     tokenExchangeFailed: Token exchange failed
     finalizing: Finalizing authentication with AIRI.
   action:
-    tryAgain: Try again
+    tryAgain: 再試一次

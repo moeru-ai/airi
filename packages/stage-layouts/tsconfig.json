@@ -13,7 +13,8 @@
     "types": [
       "vitest",
       "vite/client",
-      "unplugin-info/client"
+      "unplugin-info/client",
+      "@webgpu/types"
     ],
     "allowJs": true,
     "strict": true,

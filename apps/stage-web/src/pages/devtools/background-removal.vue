@@ -1,13 +1,10 @@
 <script setup lang="ts">
-import type { PreTrainedModel, Processor } from '@huggingface/transformers'
+import { createBackgroundRemovalAdapter } from '@proj-airi/stage-ui/libs/inference/adapters/background-removal'
+import { Button, Checkbox, InputFile } from '@proj-airi/ui'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
-import { AutoModel, AutoProcessor, env, RawImage } from '@huggingface/transformers'
-import { Button, Checkbox, InputFileCard } from '@proj-airi/ui'
-import { check } from 'gpuu/webgpu'
-import { computed, onMounted, ref, watch } from 'vue'
+const adapter = createBackgroundRemovalAdapter()
 
-const model = ref<PreTrainedModel>()
-const processor = ref<Processor>()
 const error = ref<unknown>()
 const loading = ref(true)
 const processing = ref(false)
@@ -62,17 +59,8 @@ watch(autoProcess, (enabled) => {
 
 onMounted(async () => {
   try {
-    if (!((await check()).supported)) {
-      throw new Error('WebGPU is not supported in this browser.')
-    }
-
-    const model_id = 'Xenova/modnet'
-    env.backends.onnx.wasm!.proxy = false
-    model.value ??= await AutoModel.from_pretrained(model_id, {
-      device: 'webgpu',
-    })
-
-    processor.value ??= await AutoProcessor.from_pretrained(model_id, {})
+    // Worker auto-detects WebGPU and falls back to WASM if unavailable
+    await adapter.load()
   }
   catch (err) {
     error.value = err
@@ -81,26 +69,26 @@ onMounted(async () => {
   loading.value = false
 })
 
+onUnmounted(() => {
+  adapter.terminate()
+})
+
 async function processImage(item: ImageItem, index: number): Promise<void> {
-  if (!model.value || !processor.value)
+  if (adapter.state !== 'ready')
     return
 
   try {
     item.status = 'processing'
     currentProcessingIndex.value = index
 
-    // Load image
-    const img = await RawImage.fromURL(item.originalUrl)
+    // Load image into a canvas to get ImageData
+    const img = new Image()
+    img.src = item.originalUrl
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve()
+      img.onerror = () => reject(new Error('Failed to load image'))
+    })
 
-    // Pre-process image
-    const { pixel_values } = await processor.value(img)
-
-    // Predict alpha matte
-    const { output } = await model.value({ input: pixel_values })
-
-    const maskData = (await RawImage.fromTensor(output[0].mul(255).to('uint8')).resize(img.width, img.height)).data
-
-    // Create new canvas
     const canvas = document.createElement('canvas')
     canvas.width = img.width
     canvas.height = img.height
@@ -108,16 +96,14 @@ async function processImage(item: ImageItem, index: number): Promise<void> {
     if (!ctx)
       return
 
-    // Draw original image output to canvas
-    ctx.drawImage(img.toCanvas(), 0, 0)
+    ctx.drawImage(img, 0, 0)
+    const imageData = ctx.getImageData(0, 0, img.width, img.height)
 
-    // Update alpha channel
-    const pixelData = ctx.getImageData(0, 0, img.width, img.height)
-    for (let j = 0; j < maskData.length; ++j) {
-      pixelData.data[4 * j + 3] = maskData[j]
-    }
+    // Process in worker (off main thread!)
+    const resultData = await adapter.processImage(imageData)
 
-    ctx.putImageData(pixelData, 0, 0)
+    // Draw result to canvas for export
+    ctx.putImageData(resultData, 0, 0)
     item.processedUrl = canvas.toDataURL('image/png')
     item.status = 'done'
   }
@@ -127,7 +113,7 @@ async function processImage(item: ImageItem, index: number): Promise<void> {
 }
 
 async function processAllImages() {
-  if (!model.value || !processor.value || processing.value)
+  if (adapter.state !== 'ready' || processing.value)
     return
 
   processing.value = true
@@ -222,7 +208,7 @@ function hidePreview() {
     <!-- Main content -->
     <template v-else>
       <!-- File upload area -->
-      <InputFileCard v-model="imageFiles" accept="image/*" multiple w-full />
+      <InputFile v-model="imageFiles" accept="image/*" multiple w-full />
 
       <!-- Controls -->
       <div flex flex-wrap items-center justify-between gap-4>
@@ -236,7 +222,7 @@ function hidePreview() {
           <Button
             v-if="pendingCount > 0"
             :label="processing ? `Processing... ${progressPercent}%` : `Process ${pendingCount} image${pendingCount > 1 ? 's' : ''}`"
-            :disabled="processing || !model"
+            :disabled="processing"
             :loading="processing"
             @click="processAllImages"
           />

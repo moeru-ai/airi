@@ -12,15 +12,16 @@
  * exercising the real PTY read/write/lifecycle path.
  */
 
+import { exit, stdin, stdout } from 'node:process'
 import { createInterface } from 'node:readline'
 
-const rl = createInterface({ input: process.stdin, output: process.stdout })
+const rl = createInterface({ input: stdin, output: stdout })
 
-process.stdout.write('READY> ')
+stdout.write('READY> ')
 
 rl.once('line', (line) => {
-  process.stdout.write(`ECHO: ${line}\n`)
-  process.stdout.write('DONE\n')
+  stdout.write(`ECHO: ${line}\n`)
+  stdout.write('DONE\n')
   rl.close()
-  process.exit(0)
+  exit(0)
 })

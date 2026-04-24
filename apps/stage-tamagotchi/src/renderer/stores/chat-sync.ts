@@ -44,12 +44,18 @@ interface IngestCommandPayload {
   toolset?: ToolsetId
 }
 
+interface RetryCommandPayload {
+  sessionId?: string
+  index: number
+}
+
 type ChatSyncMessage
   = | { type: 'authority-announcement', authorityId: string, sentAt: number }
     | { type: 'request-snapshot', requestId: string, senderId: string }
     | { type: 'session-snapshot', authorityId: string, snapshot: SessionSnapshotPayload }
     | { type: 'stream-snapshot', authorityId: string, snapshot: StreamSnapshotPayload }
     | { type: 'command', authorityId?: string, requestId: string, senderId: string, command: 'ingest', payload: IngestCommandPayload }
+    | { type: 'command', authorityId?: string, requestId: string, senderId: string, command: 'retry', payload: RetryCommandPayload }
     | { type: 'command', authorityId?: string, requestId: string, senderId: string, command: 'cleanup', payload: { sessionId?: string } }
     | { type: 'command', authorityId?: string, requestId: string, senderId: string, command: 'delete-message', payload: { sessionId?: string, messageId?: string, index?: number } }
     | { type: 'response', requestId: string, authorityId: string, ok: boolean, error?: string }
@@ -66,6 +72,50 @@ const REQUEST_TIMEOUT_MS = 30000
 
 function createRequestId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+function getRetryText(message: ChatHistoryItem | undefined): string | null {
+  if (!message || message.role !== 'user')
+    return null
+
+  if (typeof message.content === 'string') {
+    const text = message.content.trim()
+    return text || null
+  }
+
+  if (!Array.isArray(message.content))
+    return null
+
+  const text = message.content.reduce<string[]>((texts, part) => {
+    if (part.type !== 'text')
+      return texts
+
+    const value = part.text?.trim()
+    if (value)
+      texts.push(value)
+
+    return texts
+  }, []).join('\n\n')
+
+  return text || null
+}
+
+function resolveRetrySourceIndex(messages: ChatHistoryItem[], index: number): number {
+  const targetMessage = messages[index]
+  if (!targetMessage)
+    return -1
+
+  if (targetMessage.role === 'user')
+    return index
+
+  if (targetMessage.role === 'assistant' || targetMessage.role === 'error') {
+    for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+      if (messages[cursor]?.role === 'user')
+        return cursor
+    }
+  }
+
+  return -1
 }
 
 export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => {
@@ -169,7 +219,17 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
   }
 
   function applySessionSnapshot(snapshot: SessionSnapshotPayload) {
-    chatSession.applyRemoteSnapshot(snapshot)
+    const localActiveSessionId = activeSessionId.value
+    const shouldPreserveLocalActiveSession = mode.value === 'follower'
+      && !!localActiveSessionId
+      && !!snapshot.sessionMessages[localActiveSessionId]
+
+    chatSession.applyRemoteSnapshot({
+      ...snapshot,
+      activeSessionId: shouldPreserveLocalActiveSession
+        ? localActiveSessionId
+        : snapshot.activeSessionId,
+    })
   }
 
   function applyStreamSnapshot(snapshot: StreamSnapshotPayload) {
@@ -216,6 +276,27 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     }, payload.sessionId)
   }
 
+  async function executeRetry(payload: RetryCommandPayload) {
+    const sessionId = payload.sessionId || chatSession.activeSessionId
+    const currentMessages = chatSession.getSessionMessages(sessionId)
+    const sourceIndex = resolveRetrySourceIndex(currentMessages, payload.index)
+    if (sourceIndex < 0)
+      throw new Error('Retry target has no retriable source message')
+
+    const text = getRetryText(currentMessages[sourceIndex])
+    if (!text)
+      throw new Error('Retry target has no retriable user message')
+
+    const nextMessages = currentMessages.slice(0, sourceIndex)
+    chatSession.setSessionMessages(sessionId, nextMessages)
+
+    await executeIngest({
+      text,
+      sessionId,
+      toolset: 'widgets',
+    })
+  }
+
   function executeDeleteMessage(payload: { sessionId?: string, messageId?: string, index?: number }) {
     const sessionId = payload.sessionId || chatSession.activeSessionId
     const nextMessages = chatSession.getSessionMessages(sessionId).filter((message, index) => {
@@ -226,6 +307,18 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       return true
     })
 
+    chatSession.setSessionMessages(sessionId, nextMessages)
+  }
+
+  function appendIngestErrorMessage(payload: IngestCommandPayload, message: string) {
+    const sessionId = payload.sessionId || chatSession.activeSessionId
+    const nextMessages = [
+      ...chatSession.getSessionMessages(sessionId),
+      {
+        role: 'error',
+        content: message,
+      } satisfies ChatHistoryItem,
+    ]
     chatSession.setSessionMessages(sessionId, nextMessages)
   }
 
@@ -248,6 +341,9 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
         case 'ingest':
           await executeIngest(message.payload)
           break
+        case 'retry':
+          await executeRetry(message.payload)
+          break
         case 'cleanup':
           cleanupMessages(message.payload.sessionId)
           break
@@ -259,7 +355,12 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       respond(true)
     }
     catch (error) {
-      respond(false, errorMessageFrom(error) ?? 'Unknown chat sync command failure')
+      const errorMessage = errorMessageFrom(error) ?? 'Unknown chat sync command failure'
+
+      if (message.command === 'ingest')
+        appendIngestErrorMessage(message.payload, errorMessage)
+
+      respond(false, errorMessage)
     }
   }
 
@@ -385,6 +486,21 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     })
   }
 
+  async function requestRetry(payload: RetryCommandPayload) {
+    if (mode.value === 'authority') {
+      await executeRetry(payload)
+      return
+    }
+
+    return await dispatchCommand({
+      type: 'command',
+      requestId: createRequestId(),
+      senderId: instanceId,
+      command: 'retry',
+      payload,
+    })
+  }
+
   async function requestCleanup(sessionId?: string) {
     if (mode.value === 'authority') {
       cleanupMessages(sessionId)
@@ -430,6 +546,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     initialize,
     dispose,
     requestIngest,
+    requestRetry,
     requestCleanup,
     requestDeleteMessage,
   }

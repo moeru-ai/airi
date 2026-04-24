@@ -9,9 +9,11 @@ import { Appearance, Dock, MenuBar } from './ui'
 const props = withDefaults(defineProps<{
   aspectRatio?: string | number
   dockSize?: number
+  uiScale?: number
 }>(), {
   aspectRatio: '16:9',
   dockSize: 1.5,
+  uiScale: 1,
 })
 
 const aspectRatio = computed(() => {
@@ -25,18 +27,19 @@ const aspectRatio = computed(() => {
   return props.aspectRatio.split(':').map(Number).reduce((a, b) => a / b)
 })
 
-const platformRoot = ref<HTMLElement | null>(null)
+const platformSurface = ref<HTMLElement | null>(null)
 const dockRoot = ref<HTMLElement | null>(null)
+const normalizedUiScale = computed(() => props.uiScale > 0 ? props.uiScale : 1)
 
 provide(injectPlatformLayout, {
   dock: dockRoot,
-  root: readonly(platformRoot) as Readonly<Ref<HTMLElement | null>>,
+  root: readonly(platformSurface) as Readonly<Ref<HTMLElement | null>>,
+  uiScale: normalizedUiScale,
 })
 </script>
 
 <template>
   <div
-    ref="platformRoot"
     :class="[
       'relative overflow-hidden',
       'font-macos',
@@ -46,16 +49,27 @@ provide(injectPlatformLayout, {
     }"
   >
     <div
+      ref="platformSurface"
       :class="[
         'relative z-999',
         'w-full h-full',
       ]"
+      :style="{
+        width: `${100 / normalizedUiScale}%`,
+        height: `${100 / normalizedUiScale}%`,
+        transform: `scale(${normalizedUiScale})`,
+        transformOrigin: 'top left',
+      }"
     >
+      <Appearance />
       <slot name="windows" />
+      <MenuBar />
+      <Dock :size="props.dockSize">
+        <template #dock>
+          <slot name="dock" />
+        </template>
+      </Dock>
     </div>
-    <Appearance />
-    <MenuBar />
-    <Dock :size="props.dockSize" />
   </div>
 </template>
 
