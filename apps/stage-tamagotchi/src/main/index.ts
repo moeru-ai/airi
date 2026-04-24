@@ -171,8 +171,6 @@ app.whenReady().then(async () => {
     build: ({ dependsOn }) => setupNoticeWindowManager(dependsOn),
   })
 
-
-
   const aboutWindow = injeca.provide('windows:about', {
     dependsOn: { autoUpdater, i18n, serverChannel },
     build: ({ dependsOn }) => setupAboutWindowReusable(dependsOn),
