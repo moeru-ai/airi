@@ -411,8 +411,11 @@
       try {
         const ret = fn.apply(__AIRI_DG__, args || [])
         // Support async methods (e.g. waitForElement)
-        const resolved = ret && typeof ret.then === 'function' ? await ret : ret
-        result = { success: true, data: resolved }
+        // NOTICE: return the method result directly — each method already
+        // returns its own { success, data/error } shape. Wrapping it again
+        // as { success: true, data: <result> } created a double-envelope
+        // that made transport-level success hide DOM-level failures.
+        result = ret && typeof ret.then === 'function' ? await ret : ret
       }
       catch (e) {
         result = { success: false, error: e.message || String(e) }
