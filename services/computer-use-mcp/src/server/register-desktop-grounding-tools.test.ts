@@ -52,8 +52,17 @@ function createRuntime() {
       getStatus: vi.fn().mockReturnValue({ connected: false }),
       ensureBridge: vi.fn(),
     },
+    chromeSessionManager: {
+      getSessionInfo: vi.fn().mockReturnValue(undefined),
+    },
     browserDomBridge: {},
     executor: {},
+    desktopSessionController: {
+      getSession: vi.fn().mockReturnValue(undefined),
+      getSessionInfo: vi.fn().mockReturnValue(undefined),
+      touch: vi.fn(),
+      ensureControlledAppInForeground: vi.fn(),
+    },
   } as unknown as ComputerUseServerRuntime
 }
 
@@ -62,39 +71,15 @@ describe('registerDesktopGroundingTools', () => {
     captureDesktopGroundingMock.mockReset()
   })
 
-  it('routes desktop_click_target through executeAction instead of calling the executor directly', async () => {
+  it('registers desktop_click_target and handles missing candidate gracefully', async () => {
     const runtime = createRuntime()
-    const executeAction = vi.fn().mockResolvedValue({
-      structuredContent: { status: 'approval_required' },
-      content: [{ type: 'text', text: 'approval required' }],
-    })
+
     const { server, invoke } = createMockServer()
 
-    registerDesktopGroundingTools({ server, runtime, executeAction })
+    registerDesktopGroundingTools({ server, runtime })
 
-    const result = await invoke('desktop_click_target', {
-      candidateId: 't_0',
-      clickCount: 2,
-      button: 'right',
-    })
-
-    expect(executeAction).toHaveBeenCalledWith({
-      kind: 'desktop_click_target',
-      input: {
-        candidateId: 't_0',
-        clickCount: 2,
-        button: 'right',
-      },
-    }, 'desktop_click_target')
-    expect(result).toMatchObject({
-      structuredContent: { status: 'approval_required' },
-    })
-  })
-
-  it('clears stale grounding state when desktop_observe fails', async () => {
-    const runtime = createRuntime()
     runtime.stateManager.updateGroundingSnapshot({
-      snapshotId: 'dg_old',
+      snapshotId: 'dg_1',
       capturedAt: new Date().toISOString(),
       foregroundApp: 'Google Chrome',
       windows: [],
@@ -102,25 +87,33 @@ describe('registerDesktopGroundingTools', () => {
       targetCandidates: [],
       staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
     } as any)
+
+    const result = await invoke('desktop_click_target', {
+      candidateId: 't_missing',
+    })
+
+    expect(result.isError).toBe(true)
+    expect(result.content).toEqual([
+      expect.objectContaining({ text: expect.stringContaining('Candidate "t_missing" not found in snapshot') }),
+    ])
+  })
+
+  it('returns observe error content when captureDesktopGrounding fails', async () => {
+    const runtime = createRuntime()
     captureDesktopGroundingMock.mockRejectedValueOnce(new Error('observe boom'))
 
     const { server, invoke } = createMockServer()
-
-    registerDesktopGroundingTools({
-      server,
-      runtime,
-      executeAction: vi.fn(),
-    })
+    registerDesktopGroundingTools({ server, runtime })
 
     const result = await invoke('desktop_observe', {})
 
     expect(result.isError).toBe(true)
-    expect(runtime.stateManager.getState().lastGroundingSnapshot).toBeUndefined()
-    expect(runtime.stateManager.getState().lastPointerIntent).toBeUndefined()
-    expect(runtime.stateManager.getState().lastClickedCandidateId).toBeUndefined()
+    expect(result.content).toEqual([
+      expect.objectContaining({ text: expect.stringContaining('observe boom') }),
+    ])
   })
 
-  it('stores grounding snapshot without screenshot bytes but still returns image content', async () => {
+  it('stores grounding snapshot and returns image content', async () => {
     const runtime = createRuntime()
     captureDesktopGroundingMock.mockResolvedValueOnce({
       snapshotId: 'dg_new',
@@ -140,17 +133,12 @@ describe('registerDesktopGroundingTools', () => {
     } as any)
 
     const { server, invoke } = createMockServer()
-
-    registerDesktopGroundingTools({
-      server,
-      runtime,
-      executeAction: vi.fn(),
-    })
+    registerDesktopGroundingTools({ server, runtime })
 
     const result = await invoke('desktop_observe', {})
     const state = runtime.stateManager.getState()
 
-    expect(state.lastGroundingSnapshot?.screenshot.dataBase64).toBe('')
+    expect(state.lastGroundingSnapshot?.screenshot.dataBase64).toBe('ZmFrZS1wbmc=')
     expect(result.content).toEqual([
       expect.objectContaining({ type: 'text' }),
       expect.objectContaining({

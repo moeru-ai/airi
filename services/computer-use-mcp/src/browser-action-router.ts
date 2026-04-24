@@ -61,26 +61,21 @@ function checkBrowserDomPreconditions(
 /**
  * Decide whether a click on a candidate should go through browser-dom
  * bridge or OS-level input. Also handles checkbox toggling via checkCheckbox.
- *
- * Non-left-button clicks and multi-click requests are not supported by the
- * browser-dom bridge and will always be routed to os_input.
  */
 export function decideBrowserAction(
   candidate: DesktopTargetCandidate,
   bridgeAvailable: boolean,
   actionButton: 'left' | 'right' | 'middle' = 'left',
-  clickCount: number = 1,
+  clickCount = 1,
 ): BrowserActionDecision {
   const rejection = checkBrowserDomPreconditions(candidate, bridgeAvailable)
   if (rejection)
     return rejection
 
-  // Right-click and multi-click are not supported by the browser-dom bridge;
-  // fall through to OS input so the caller's arguments are honoured.
   if (actionButton !== 'left' || clickCount !== 1) {
     return {
       route: 'os_input',
-      reason: `browser-dom click only supports left single-click; got button='${actionButton}' clickCount=${clickCount}`,
+      reason: `browser-dom click routing only supports left single-click, got ${actionButton} with count ${clickCount}`,
     }
   }
 
@@ -159,10 +154,9 @@ function isTextInputCandidate(candidate: DesktopTargetCandidate): boolean {
     const inputType = candidate.inputType?.toLowerCase() || 'text'
     return TEXT_INPUT_TYPES.has(inputType)
   }
-  // NOTICE: contenteditable elements are surfaced with role="textbox" but lack
-  // a native .value property, so setInputValue (which uses input/textarea value
-  // setters) silently fails on them. Only route actual <input>/<textarea> here;
-  // contenteditable targets will fall through to OS typing via desktop_type_text.
+  // contenteditable elements surfaced with role="textbox"
+  if (candidate.role === 'textbox')
+    return true
   return false
 }
 

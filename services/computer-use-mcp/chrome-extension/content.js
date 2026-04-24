@@ -4,17 +4,15 @@
  * Injected into every frame (including cross-origin iframes) in the MAIN world.
  * Namespace: window.__AIRI_DG__
  *
- * IMPORTANT: Direct DOM mutations here are limited to bridge-triggered write
- * actions (setInputValue, checkCheckbox, selectOption) that are only reachable
- * via a WebSocket command from the AIRI computer-use-mcp service. Physical
- * pointer/keyboard actions still go through real macOS OS-level input.
+ * IMPORTANT: This script is READ-ONLY. It does NOT perform any DOM mutations,
+ * clicks, typing, or navigation. All execution is done via real macOS OS-level
+ * input events through the desktop grounding executor.
  *
- * Adapted from the upstream computer-use chrome-extension.
+ * Adapted from the repository's Chrome extension source.
  * Stripped: clickAt, typeAt, hoverAt, scrollAt, simulateDragDrop, readStorage,
- * setStorage, readCanvasData, injectCSS, and all other untracked DOM mutations.
+ * setStorage, readCanvasData, injectCSS, and all other DOM-mutating methods.
  * Kept: collectFrameDOM, _describeElement, _collectInteractiveElements,
  * findElement, findElements, getClickTarget.
- * Added: setInputValue, checkCheckbox, selectOption.
  */
 (function () {
   'use strict'
@@ -39,8 +37,7 @@
       name: el.name || '',
       type: el.type || '',
       className: typeof el.className === 'string' ? el.className.slice(0, 120) : '',
-      // eslint-disable-next-line unicorn/prefer-dom-node-text-content -- intentional: innerText returns visible text only
-      text: (el.innerText || el.textContent || '').slice(0, 120).trim(),
+      text: (el.textContent || '').slice(0, 120).trim(),
       value: el.value !== undefined ? String(el.value).slice(0, 60) : '',
       href: el.href || '',
       placeholder: el.placeholder || '',
@@ -70,6 +67,71 @@
     return els
   }
 
+  /**
+   * Collect direct child frame anchors in the current frame.
+   *
+   * NOTICE: This only describes the iframe/frame shell that lives in the
+   * current document. The background worker uses these anchors together with
+   * the Chrome frame tree to reconstruct per-frame viewport offsets.
+   */
+  function _collectChildFrames() {
+    const nodes = document.querySelectorAll('iframe,frame')
+    const frames = []
+
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i]
+      const r = node.getBoundingClientRect()
+      if (r.width <= 0 || r.height <= 0)
+        continue
+
+      let contentUrl = ''
+      try {
+        contentUrl = node.contentWindow?.location?.href || ''
+      }
+      catch {
+        // Cross-origin child frames cannot reveal contentWindow.location here.
+      }
+
+      frames.push({
+        index: i,
+        id: node.id || '',
+        name: node.name || '',
+        title: node.getAttribute('title') || '',
+        src: node.getAttribute('src') || '',
+        contentUrl,
+        rect: {
+          x: Math.round(r.left),
+          y: Math.round(r.top),
+          w: Math.round(r.width),
+          h: Math.round(r.height),
+        },
+      })
+    }
+
+    return frames
+  }
+
+  function _readFrameOffsetInParent() {
+    if (window.top === window) {
+      return { x: 0, y: 0 }
+    }
+
+    try {
+      const frameEl = window.frameElement
+      if (!frameEl)
+        return null
+
+      const r = frameEl.getBoundingClientRect()
+      return {
+        x: Math.round(r.left),
+        y: Math.round(r.top),
+      }
+    }
+    catch {
+      return null
+    }
+  }
+
   // ---- Core API (read-only) ----
 
   const __AIRI_DG__ = {
@@ -86,9 +148,19 @@
       return {
         url: location.href,
         title: document.title || '',
-        // eslint-disable-next-line unicorn/prefer-dom-node-text-content -- intentional: innerText returns visible text only
-        bodyText: includeText ? (document.body ? document.body.innerText || '' : '').slice(0, 3000) : '',
+        frameName: window.name || '',
+        frameOffsetInParent: _readFrameOffsetInParent(),
+        bodyText: includeText ? (document.body?.textContent || '').slice(0, 3000) : '',
         interactiveElements: _collectInteractiveElements(maxElements),
+      }
+    },
+
+    /**
+     * Describe direct child iframe/frame shells in the current document.
+     */
+    collectChildFrames() {
+      return {
+        childFrames: _collectChildFrames(),
       }
     },
 
@@ -130,10 +202,6 @@
     /**
      * Get the center point of an element for click targeting.
      * Returns the element description with center coordinates.
-     *
-     * Coordinates are exposed both at the top level (x, y) and under
-     * `center` for backward compatibility. The extension bridge reads
-     * top-level x/y via unwrapResultPayload.
      */
     getClickTarget(selector) {
       try {
@@ -141,16 +209,15 @@
         if (!el)
           return { success: false, error: 'not found' }
         const r = el.getBoundingClientRect()
-        const x = Math.round(r.left + r.width / 2)
-        const y = Math.round(r.top + r.height / 2)
         return {
           success: true,
           element: _describeElement(el),
-          // Top-level x/y are read by extension-bridge.ts → clickSelector
-          x,
-          y,
-          // Keep center for any callers that read it directly
-          center: { x, y },
+          x: Math.round(r.left + r.width / 2),
+          y: Math.round(r.top + r.height / 2),
+          center: {
+            x: Math.round(r.left + r.width / 2),
+            y: Math.round(r.top + r.height / 2),
+          },
         }
       }
       catch (e) {
@@ -176,227 +243,12 @@
         return { success: false, error: e.message }
       }
     },
-
-    /**
-     * Set the value of a text input or textarea via the DOM.
-     * Dispatches input + change events so frameworks (React, Vue, etc.) detect
-     * the change. Optionally blurs the element when done.
-     */
-    setInputValue(selector, value, opts) {
-      try {
-        opts = opts || {}
-        // TODO: opts.simulateKeystrokes is accepted but ignored — we always do
-        // a single direct value assignment. Implement per-character KeyboardEvent
-        // dispatch for autocomplete/masker/validation flows that depend on keydown/keyup.
-        const el = document.querySelector(selector)
-        if (!el)
-          return { success: false, error: 'not found' }
-        // NOTICE: must pick the setter matching the element's prototype —
-        // calling HTMLInputElement.prototype.value.set on a <textarea> (or
-        // vice-versa) throws "Illegal invocation" in Chromium.
-        const proto = el instanceof HTMLTextAreaElement
-          ? window.HTMLTextAreaElement.prototype
-          : window.HTMLInputElement.prototype
-        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(proto, 'value')
-        if (nativeInputValueSetter && nativeInputValueSetter.set) {
-          nativeInputValueSetter.set.call(el, value)
-        }
-        else {
-          el.value = value
-        }
-        el.dispatchEvent(new Event('input', { bubbles: true }))
-        el.dispatchEvent(new Event('change', { bubbles: true }))
-        if (opts.blur)
-          el.blur()
-        return { success: true }
-      }
-      catch (e) {
-        return { success: false, error: e.message }
-      }
-    },
-
-    /**
-     * Check or uncheck a native checkbox or radio input.
-     * Sets checked programmatically and dispatches a change event so framework
-     * bindings (React onChange, Vue @change) pick up the update.
-     *
-     * NOTICE: only works on real <input type="checkbox|radio"> elements.
-     * Custom ARIA checkboxes (e.g. <div role="checkbox">) do not have a native
-     * .checked property — writing to it just adds an expando attribute and
-     * changes nothing visible. Return success:false in that case so the caller
-     * falls back to an OS-level click.
-     *
-     * NOTICE: we do NOT dispatch a fake click event — the browser's true event
-     * order is click→change, and a synthetic click after we've already set
-     * el.checked can cause React controlled-component handlers to toggle back.
-     */
-    checkCheckbox(selector, checked) {
-      try {
-        const el = document.querySelector(selector)
-        if (!el)
-          return { success: false, error: 'not found' }
-        // Guard: only native checkbox/radio inputs have a meaningful .checked
-        if (!(el instanceof HTMLInputElement) || (el.type !== 'checkbox' && el.type !== 'radio'))
-          return { success: false, error: 'not a native checkbox or radio input' }
-        const target = checked !== undefined ? !!checked : !el.checked
-        if (el.checked !== target) {
-          el.checked = target
-          el.dispatchEvent(new Event('change', { bubbles: true }))
-        }
-        return { success: true, checked: el.checked }
-      }
-      catch (e) {
-        return { success: false, error: e.message }
-      }
-    },
-
-    /**
-     * Select an option in a <select> element by value.
-     * Dispatches change event so framework bindings update.
-     */
-    selectOption(selector, value) {
-      try {
-        const el = document.querySelector(selector)
-        if (!el)
-          return { success: false, error: 'not found' }
-        el.value = value
-        el.dispatchEvent(new Event('change', { bubbles: true }))
-        return { success: true, selectedValue: el.value }
-      }
-      catch (e) {
-        return { success: false, error: e.message }
-      }
-    },
-
-    /**
-     * Read the current value of an input, textarea, or select element.
-     */
-    readInputValue(selector) {
-      try {
-        const el = document.querySelector(selector)
-        if (!el)
-          return { success: false, error: 'not found' }
-        return { success: true, value: el.value, tagName: el.tagName.toLowerCase() }
-      }
-      catch (e) {
-        return { success: false, error: e.message }
-      }
-    },
-
-    /**
-     * Get computed CSS styles for an element.
-     * If properties is a non-empty array, only those properties are returned.
-     * Otherwise all computed styles are returned.
-     */
-    getComputedStyles(selector, properties) {
-      try {
-        const el = document.querySelector(selector)
-        if (!el)
-          return { success: false, error: 'not found' }
-        const computed = window.getComputedStyle(el)
-        const styles = {}
-        if (Array.isArray(properties) && properties.length > 0) {
-          for (const prop of properties) {
-            styles[prop] = computed.getPropertyValue(prop)
-          }
-        }
-        else {
-          // Return a small useful subset to avoid serializing 300+ properties
-          const useful = ['display', 'visibility', 'opacity', 'position', 'width', 'height', 'color', 'background-color', 'font-size', 'overflow', 'pointer-events', 'z-index', 'cursor']
-          for (const prop of useful) {
-            styles[prop] = computed.getPropertyValue(prop)
-          }
-        }
-        return { success: true, styles }
-      }
-      catch (e) {
-        return { success: false, error: e.message }
-      }
-    },
-
-    /**
-     * Dispatch a DOM event on the element matching the selector.
-     * opts.type overrides the Event constructor (default: 'Event').
-     */
-    triggerEvent(selector, eventName, opts) {
-      try {
-        opts = opts || {}
-        const el = document.querySelector(selector)
-        if (!el)
-          return { success: false, error: 'not found' }
-        const EventCtor = opts.type === 'MouseEvent'
-          ? MouseEvent
-          : opts.type === 'KeyboardEvent'
-            ? KeyboardEvent
-            : opts.type === 'FocusEvent'
-              ? FocusEvent
-              : Event
-        const eventOpts = { bubbles: true, cancelable: true, ...opts }
-        delete eventOpts.type
-        el.dispatchEvent(new EventCtor(eventName, eventOpts))
-        return { success: true }
-      }
-      catch (e) {
-        return { success: false, error: e.message }
-      }
-    },
-
-    /**
-     * Wait for an element matching the selector to appear in the DOM.
-     * Returns a promise. The message handler awaits it.
-     */
-    waitForElement(selector, timeoutMs) {
-      timeoutMs = timeoutMs || 5000
-      const existing = document.querySelector(selector)
-      if (existing)
-        return { success: true, found: true }
-
-      return new Promise((resolve) => {
-        let timer
-        const observer = new MutationObserver(() => {
-          if (document.querySelector(selector)) {
-            observer.disconnect()
-            clearTimeout(timer)
-            resolve({ success: true, found: true })
-          }
-        })
-        observer.observe(document.documentElement, { childList: true, subtree: true })
-        timer = setTimeout(() => {
-          observer.disconnect()
-          resolve({ success: false, error: 'timeout' })
-        }, timeoutMs)
-      })
-    },
-
-    /**
-     * Dispatch a click event at viewport coordinates (x, y).
-     * Used by clickSelector as the final step after getClickTarget resolves
-     * the element center.
-     */
-    clickAt(x, y) {
-      try {
-        const el = document.elementFromPoint(x, y)
-        if (!el)
-          return { success: false, error: 'no element at point' }
-        el.dispatchEvent(new MouseEvent('click', {
-          bubbles: true,
-          cancelable: true,
-          clientX: x,
-          clientY: y,
-        }))
-        return { success: true, tagName: el.tagName.toLowerCase() }
-      }
-      catch (e) {
-        return { success: false, error: e.message }
-      }
-    },
   }
 
   window.__AIRI_DG__ = __AIRI_DG__
 
   // ---- Message handler: ISOLATED world bridge → MAIN world ----
-  // NOTICE: handler is async-aware so waitForElement (returns Promise) works.
-  window.addEventListener('message', async (evt) => {
+  window.addEventListener('message', (evt) => {
     if (evt.source !== window)
       return
     const data = evt.data
@@ -409,13 +261,7 @@
 
     if (typeof fn === 'function') {
       try {
-        const ret = fn.apply(__AIRI_DG__, args || [])
-        // Support async methods (e.g. waitForElement)
-        // NOTICE: return the method result directly — each method already
-        // returns its own { success, data/error } shape. Wrapping it again
-        // as { success: true, data: <result> } created a double-envelope
-        // that made transport-level success hide DOM-level failures.
-        result = ret && typeof ret.then === 'function' ? await ret : ret
+        result = { success: true, data: fn.apply(__AIRI_DG__, args || []) }
       }
       catch (e) {
         result = { success: false, error: e.message || String(e) }

@@ -15,6 +15,7 @@ import type { ComputerUseServerRuntime } from './runtime'
 
 import { z } from 'zod'
 
+import { getUnsupportedBrowserDomActions, isBrowserDomActionSupported } from '../browser-dom/capabilities'
 import { getRuntimePreflight } from '../preflight'
 import { summarizeRunState } from '../transparency'
 import {
@@ -34,6 +35,7 @@ import {
   summarizeCoordinateSpace,
 } from './formatters'
 import { refreshRuntimeRunState } from './refresh-run-state'
+import { executeChromeEnsure } from './register-chrome-session'
 import { createAcquirePtyCallback, executeApprovedPtyCreate } from './register-pty'
 import { formatWorkflowStructuredContent } from './workflow-formatter'
 import { createWorkflowPrepToolExecutor } from './workflow-prep-tools'
@@ -82,16 +84,20 @@ function summarizeBrowserDomFrameResults(label: string, results: Array<BrowserDo
   return `${label}: ${successfulFrames.length}/${results.length} frame(s) succeeded.`
 }
 
-function buildBrowserDomUnavailableResponse(runtime: ComputerUseServerRuntime) {
+function buildBrowserDomUnavailableResponse(runtime: ComputerUseServerRuntime, unsupportedActions?: string[]) {
   const status = runtime.browserDomBridge.getStatus()
+  const detail = unsupportedActions?.length
+    ? `connected extension transport does not support ${unsupportedActions.join(', ')}`
+    : status.lastError || 'the browser extension is not connected yet'
   return {
     isError: true,
     content: [
-      textContent(`Browser DOM bridge is unavailable: ${status.lastError || 'the browser extension is not connected yet'}.`),
+      textContent(`Browser DOM bridge is unavailable: ${detail}.`),
     ],
     structuredContent: {
       status: 'unavailable',
       bridge: status,
+      unsupportedActions,
     },
   }
 }
@@ -555,6 +561,9 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     async ({ selector, tabId, frameIds }) => {
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
+      const requiredActions = ['getClickTarget', 'clickAt']
+      if (!isBrowserDomActionSupported(runtime.browserDomBridge, ...requiredActions))
+        return buildBrowserDomUnavailableResponse(runtime, getUnsupportedBrowserDomActions(runtime.browserDomBridge, ...requiredActions))
 
       const result = await runtime.browserDomBridge.clickSelector({
         selector,
@@ -608,6 +617,9 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     async ({ selector, tabId, frameIds }) => {
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
+      const requiredActions = ['readInputValue']
+      if (!isBrowserDomActionSupported(runtime.browserDomBridge, ...requiredActions))
+        return buildBrowserDomUnavailableResponse(runtime, getUnsupportedBrowserDomActions(runtime.browserDomBridge, ...requiredActions))
 
       const results = await runtime.browserDomBridge.readInputValue({
         selector,
@@ -641,6 +653,9 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     async ({ selector, value, simulateKeystrokes, blur, tabId, frameIds }) => {
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
+      const requiredActions = ['setInputValue']
+      if (!isBrowserDomActionSupported(runtime.browserDomBridge, ...requiredActions))
+        return buildBrowserDomUnavailableResponse(runtime, getUnsupportedBrowserDomActions(runtime.browserDomBridge, ...requiredActions))
 
       const results = await runtime.browserDomBridge.setInputValue({
         selector,
@@ -676,6 +691,9 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     async ({ selector, checked, tabId, frameIds }) => {
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
+      const requiredActions = ['checkCheckbox']
+      if (!isBrowserDomActionSupported(runtime.browserDomBridge, ...requiredActions))
+        return buildBrowserDomUnavailableResponse(runtime, getUnsupportedBrowserDomActions(runtime.browserDomBridge, ...requiredActions))
 
       const results = await runtime.browserDomBridge.checkCheckbox({
         selector,
@@ -709,6 +727,9 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     async ({ selector, value, tabId, frameIds }) => {
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
+      const requiredActions = ['selectOption']
+      if (!isBrowserDomActionSupported(runtime.browserDomBridge, ...requiredActions))
+        return buildBrowserDomUnavailableResponse(runtime, getUnsupportedBrowserDomActions(runtime.browserDomBridge, ...requiredActions))
 
       const results = await runtime.browserDomBridge.selectOption({
         selector,
@@ -742,6 +763,9 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     async ({ selector, timeoutMs, tabId, frameIds }) => {
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
+      const requiredActions = ['waitForElement']
+      if (!isBrowserDomActionSupported(runtime.browserDomBridge, ...requiredActions))
+        return buildBrowserDomUnavailableResponse(runtime, getUnsupportedBrowserDomActions(runtime.browserDomBridge, ...requiredActions))
 
       const results = await runtime.browserDomBridge.waitForElement({
         selector,
@@ -805,6 +829,9 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     async ({ selector, properties, tabId, frameIds }) => {
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
+      const requiredActions = ['getComputedStyles']
+      if (!isBrowserDomActionSupported(runtime.browserDomBridge, ...requiredActions))
+        return buildBrowserDomUnavailableResponse(runtime, getUnsupportedBrowserDomActions(runtime.browserDomBridge, ...requiredActions))
 
       const results = await runtime.browserDomBridge.getComputedStyles({
         selector,
@@ -839,6 +866,9 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     async ({ selector, eventName, eventType, optsJson, tabId, frameIds }) => {
       if (!runtime.browserDomBridge.getStatus().connected)
         return buildBrowserDomUnavailableResponse(runtime)
+      const requiredActions = ['triggerEvent']
+      if (!isBrowserDomActionSupported(runtime.browserDomBridge, ...requiredActions))
+        return buildBrowserDomUnavailableResponse(runtime, getUnsupportedBrowserDomActions(runtime.browserDomBridge, ...requiredActions))
 
       let opts: Record<string, unknown> | undefined
       if (optsJson?.trim()) {
@@ -945,6 +975,30 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
 
       if (pending.action.kind === 'pty_create') {
         const result = await executeApprovedPtyCreate(runtime, pending.action.input)
+
+        await runtime.session.record({
+          event: result.isError === true ? 'failed' : 'executed',
+          toolName: pending.toolName,
+          action: pending.action,
+          context: pending.context,
+          policy: pending.policy,
+          result: {
+            pendingActionId: id,
+            ...(typeof result.structuredContent === 'object' && result.structuredContent !== null
+              ? result.structuredContent as Record<string, unknown>
+              : {}),
+          },
+        })
+
+        return result
+      }
+
+      if (pending.action.kind === 'desktop_ensure_chrome') {
+        const result = await executeChromeEnsure(
+          runtime,
+          pending.action.input,
+          pending.policy.estimatedOperationUnits,
+        )
 
         await runtime.session.record({
           event: result.isError === true ? 'failed' : 'executed',

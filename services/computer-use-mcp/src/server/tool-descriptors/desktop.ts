@@ -73,6 +73,19 @@ export const desktopDescriptors: ToolDescriptor[] = [
     public: true,
     defaultDeferred: false,
   },
+  {
+    canonicalName: 'desktop_ensure_chrome',
+    displayName: 'Desktop Ensure Chrome',
+    summary: 'Ensure the agent has a dedicated Chrome window. Launches Chrome if not running, creates a new window if already running. Returns session info with PID and CDP URL. Idempotent — repeated calls return the existing session.',
+    lane: 'desktop',
+    kind: 'control',
+    readOnly: false,
+    destructive: false,
+    concurrencySafe: false,
+    requiresApprovalByDefault: false,
+    public: true,
+    defaultDeferred: false,
+  },
 
   // Desktop interaction tools
   {

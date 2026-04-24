@@ -1,11 +1,13 @@
 import type {
   DesktopGroundingSnapshot,
   DesktopTargetCandidate,
+  PointerIntent,
   TargetSource,
 } from '../desktop-grounding-types'
 
 import { describe, expect, it, vi } from 'vitest'
 
+import { getUnsupportedBrowserDomActions, isBrowserDomActionSupported } from '../browser-dom/capabilities'
 import { RunStateManager } from '../state'
 
 // ---------------------------------------------------------------------------
@@ -68,8 +70,7 @@ describe('runStateManager grounding state', () => {
       source: 'chrome_dom' as TargetSource,
       confidence: 0.95,
       path: [{ x: 140, y: 215, delayMs: 0 }],
-    }, 't_test')
-    sm.recordClickedCandidate('t_0')
+    }, 't_0')
 
     expect(sm.getState().lastClickedCandidateId).toBe('t_0')
 
@@ -89,8 +90,7 @@ describe('runStateManager grounding state', () => {
       confidence: 0.9,
       path: [{ x: 330, y: 213, delayMs: 0 }],
     }
-    sm.updatePointerIntent(intent, 't_test')
-    sm.recordClickedCandidate('t_1')
+    sm.updatePointerIntent(intent, 't_1')
 
     const state = sm.getState()
     expect(state.lastPointerIntent).toBe(intent)
@@ -108,8 +108,7 @@ describe('runStateManager grounding state', () => {
       source: 'chrome_dom' as TargetSource,
       confidence: 0.95,
       path: [{ x: 140, y: 215, delayMs: 0 }],
-    }, 't_test')
-    sm.recordClickedCandidate('t_0')
+    }, 't_0')
 
     sm.clearGroundingState()
 
@@ -138,8 +137,7 @@ describe('desktop_click_target preconditions via RunStateManager', () => {
       source: 'chrome_dom' as TargetSource,
       confidence: 0.95,
       path: [{ x: 140, y: 215, delayMs: 0 }],
-    }, 't_test')
-    sm.recordClickedCandidate('t_0')
+    }, 't_0')
 
     expect(sm.getState().lastClickedCandidateId === 't_0').toBe(true)
   })
@@ -158,8 +156,7 @@ describe('desktop_click_target preconditions via RunStateManager', () => {
       source: 'chrome_dom' as TargetSource,
       confidence: 0.95,
       path: [{ x: 140, y: 215, delayMs: 0 }],
-    }, 't_test')
-    sm.recordClickedCandidate('t_0')
+    }, 't_0')
 
     expect(sm.getState().lastClickedCandidateId === 't_1').toBe(false)
   })
@@ -175,8 +172,7 @@ describe('desktop_click_target preconditions via RunStateManager', () => {
       source: 'chrome_dom' as TargetSource,
       confidence: 0.95,
       path: [{ x: 140, y: 215, delayMs: 0 }],
-    }, 't_test')
-    sm.recordClickedCandidate('t_0')
+    }, 't_0')
 
     // Re-observe resets clicked candidate
     sm.updateGroundingSnapshot(makeSnapshot())
@@ -241,8 +237,7 @@ describe('overlay polling contract: desktop_get_state exposes grounding data', (
       source: 'chrome_dom' as TargetSource,
       confidence: 0.95,
       path: [{ x: 140, y: 215, delayMs: 0 }],
-    }, 't_test')
-    sm.recordClickedCandidate('t_0')
+    }, 't_0')
 
     const state = sm.getState()
     expect(state.lastPointerIntent).toBeDefined()
@@ -280,6 +275,7 @@ describe('desktop_click_target handler integration', () => {
     clickCount?: number
     browserDomBridge: {
       getStatus: () => { connected: boolean }
+      supportsAction?: (action: string) => boolean
       clickSelector: (args: { selector: string, frameIds?: number[] }) => Promise<void>
       checkCheckbox: (args: { selector: string, frameIds?: number[] }) => Promise<void>
     }
@@ -308,45 +304,72 @@ describe('desktop_click_target handler integration', () => {
       return { isError: true, text: `Stale snapshot (${Math.round(snapshotAge / 1000)}s)` }
     }
 
-    const snap = resolveSnapByCandidate(candidateId, snapshot)
-    if (snap.source === 'none' && !snap.candidateId) {
-      return { isError: true, text: `Not found: ${candidateId}` }
-    }
+    try {
+      const snap = resolveSnapByCandidate(candidateId, snapshot)
+      if (snap.source === 'none' && !snap.candidateId) {
+        return { isError: true, text: `Not found: ${candidateId}` }
+      }
 
-    const intent = {
-      mode: 'execute' as const,
-      candidateId,
-      rawPoint: snap.rawPoint,
-      snappedPoint: snap.snappedPoint,
-      source: snap.source,
-      confidence: snapshot.targetCandidates.find(c => c.id === candidateId)?.confidence ?? 0,
-      path: [{ x: snap.snappedPoint.x, y: snap.snappedPoint.y, delayMs: 0 }],
-    }
-    stateManager.updatePointerIntent(intent, 't_test')
-    stateManager.recordClickedCandidate(candidateId)
+      const intent: PointerIntent = {
+        mode: 'execute' as const,
+        candidateId,
+        rawPoint: snap.rawPoint,
+        snappedPoint: snap.snappedPoint,
+        source: snap.source,
+        confidence: snapshot.targetCandidates.find(c => c.id === candidateId)?.confidence ?? 0,
+        path: [{ x: snap.snappedPoint.x, y: snap.snappedPoint.y, delayMs: 0 }],
+      }
+      stateManager.updatePointerIntent(intent)
 
-    const candidate = snapshot.targetCandidates.find(c => c.id === candidateId)
-    const bridgeConnected = browserDomBridge.getStatus().connected
-    const routeDecision = candidate
-      ? decideBrowserAction(candidate, bridgeConnected)
-      : { route: 'os_input' as const, reason: 'candidate not found' }
+      const candidate = snapshot.targetCandidates.find(c => c.id === candidateId)
+      const bridgeConnected = browserDomBridge.getStatus().connected
+      const routeDecision = candidate
+        ? decideBrowserAction(candidate, bridgeConnected)
+        : { route: 'os_input' as const, reason: 'candidate not found' }
 
-    let executionRoute = routeDecision.route
-    let routeNote = ''
+      let executionRoute = routeDecision.route
+      let routeNote = ''
+      let routeReason = routeDecision.reason
 
-    if (routeDecision.route === 'browser_dom' && routeDecision.selector) {
-      try {
-        const frameIds = routeDecision.frameId !== undefined ? [routeDecision.frameId] : undefined
-        if (routeDecision.bridgeMethod === 'checkCheckbox') {
-          await browserDomBridge.checkCheckbox({ selector: routeDecision.selector, frameIds })
+      if (routeDecision.route === 'browser_dom' && routeDecision.selector) {
+        const requiredActions = routeDecision.bridgeMethod === 'checkCheckbox'
+          ? ['checkCheckbox']
+          : ['getClickTarget', 'clickAt']
+
+        if (!isBrowserDomActionSupported(browserDomBridge, ...requiredActions)) {
+          executionRoute = 'os_input'
+          routeReason = `browser-dom extension transport does not support ${requiredActions.join(' + ')}`
+          routeNote = `browser-dom ${routeDecision.bridgeMethod ?? 'click'} is unavailable on the connected extension transport (${getUnsupportedBrowserDomActions(browserDomBridge, ...requiredActions).join(', ')} unsupported), fell back to OS input`
+          await executor.click({
+            x: snap.snappedPoint.x,
+            y: snap.snappedPoint.y,
+            button: button || 'left',
+            clickCount: clickCount ?? 1,
+          })
         }
         else {
-          await browserDomBridge.clickSelector({ selector: routeDecision.selector, frameIds })
+          try {
+            const frameIds = routeDecision.frameId !== undefined ? [routeDecision.frameId] : undefined
+            if (routeDecision.bridgeMethod === 'checkCheckbox') {
+              await browserDomBridge.checkCheckbox({ selector: routeDecision.selector, frameIds })
+            }
+            else {
+              await browserDomBridge.clickSelector({ selector: routeDecision.selector, frameIds })
+            }
+          }
+          catch (browserError) {
+            executionRoute = 'os_input'
+            routeNote = `browser-dom failed: ${browserError instanceof Error ? browserError.message : String(browserError)}`
+            await executor.click({
+              x: snap.snappedPoint.x,
+              y: snap.snappedPoint.y,
+              button: button || 'left',
+              clickCount: clickCount ?? 1,
+            })
+          }
         }
       }
-      catch (browserError) {
-        executionRoute = 'os_input'
-        routeNote = `browser-dom failed: ${browserError instanceof Error ? browserError.message : String(browserError)}`
+      else {
         await executor.click({
           x: snap.snappedPoint.x,
           y: snap.snappedPoint.y,
@@ -354,31 +377,32 @@ describe('desktop_click_target handler integration', () => {
           clickCount: clickCount ?? 1,
         })
       }
+
+      intent.phase = 'completed'
+      intent.executionResult = routeNote ? 'fallback' : 'success'
+      intent.executionRoute = `${executionRoute} (${routeReason})`
+      stateManager.updatePointerIntent(intent, candidateId)
+
+      const candidateDesc = candidate
+        ? `${candidate.source} ${candidate.role} "${candidate.label}"`
+        : candidateId
+
+      const lines = [
+        `Clicked: ${candidateDesc}`,
+        `  Snap: ${snap.reason}`,
+        `  Point: (${snap.snappedPoint.x}, ${snap.snappedPoint.y})`,
+        `  Route: ${executionRoute} (${routeReason})`,
+        `  Button: ${button || 'left'}, clicks: ${clickCount ?? 1}`,
+      ]
+      if (routeNote)
+        lines.push(`  ⚠ ${routeNote}`)
+
+      return { isError: false, text: lines.join('\n'), executionRoute, routeNote, routeReason }
     }
-    else {
-      await executor.click({
-        x: snap.snappedPoint.x,
-        y: snap.snappedPoint.y,
-        button: button || 'left',
-        clickCount: clickCount ?? 1,
-      })
+    catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      return { isError: true, text: `desktop_click_target failed: ${message}` }
     }
-
-    const candidateDesc = candidate
-      ? `${candidate.source} ${candidate.role} "${candidate.label}"`
-      : candidateId
-
-    const lines = [
-      `Clicked: ${candidateDesc}`,
-      `  Snap: ${snap.reason}`,
-      `  Point: (${snap.snappedPoint.x}, ${snap.snappedPoint.y})`,
-      `  Route: ${executionRoute} (${routeDecision.reason})`,
-      `  Button: ${button || 'left'}, clicks: ${clickCount ?? 1}`,
-    ]
-    if (routeNote)
-      lines.push(`  ⚠ ${routeNote}`)
-
-    return { isError: false, text: lines.join('\n'), executionRoute, routeNote }
   }
 
   function freshSnapshot(candidates: DesktopTargetCandidate[]): DesktopGroundingSnapshot {
@@ -396,6 +420,7 @@ describe('desktop_click_target handler integration', () => {
   function makeMockBridge(connected: boolean) {
     return {
       getStatus: () => ({ connected }),
+      supportsAction: vi.fn().mockReturnValue(true),
       clickSelector: vi.fn().mockResolvedValue(undefined),
       checkCheckbox: vi.fn().mockResolvedValue(undefined),
     }
@@ -443,6 +468,35 @@ describe('desktop_click_target handler integration', () => {
     expect(result.text).toContain('Route: browser_dom')
   })
 
+  it('falls back to OS click when the connected extension transport is read-only', async () => {
+    const sm = new RunStateManager()
+    const candidate = makeCandidate({
+      id: 't_0',
+      source: 'chrome_dom',
+      selector: '#login-btn',
+      frameId: 0,
+      isPageContent: true,
+    })
+    sm.updateGroundingSnapshot(freshSnapshot([candidate]))
+
+    const bridge = makeMockBridge(true)
+    bridge.supportsAction.mockImplementation((action: string) => action !== 'clickAt')
+    const executor = makeMockExecutor()
+
+    const result = await simulateClickTargetHandler({
+      stateManager: sm,
+      candidateId: 't_0',
+      browserDomBridge: bridge,
+      executor,
+    })
+
+    expect(result.isError).toBe(false)
+    expect(result.executionRoute).toBe('os_input')
+    expect(result.routeReason).toContain('does not support getClickTarget + clickAt')
+    expect(bridge.clickSelector).not.toHaveBeenCalled()
+    expect(executor.click).toHaveBeenCalledOnce()
+  })
+
   // -----------------------------------------------------------------------
   // browser_dom fallback: clickSelector fails → executor.click
   // -----------------------------------------------------------------------
@@ -475,6 +529,40 @@ describe('desktop_click_target handler integration', () => {
     expect(result.text).toContain('Route: os_input')
     expect(result.text).toContain('browser-dom failed')
     expect(result.text).toContain('Element not found')
+  })
+
+  it('does not poison duplicate-click guard when the click path fails', async () => {
+    const sm = new RunStateManager()
+    const candidate = makeCandidate({
+      id: 't_0',
+      source: 'ax',
+      selector: undefined,
+    })
+    sm.updateGroundingSnapshot(freshSnapshot([candidate]))
+
+    const bridge = makeMockBridge(true)
+    const executor = {
+      click: vi.fn().mockRejectedValue(new Error('transient click failure')),
+    }
+
+    const first = await simulateClickTargetHandler({
+      stateManager: sm,
+      candidateId: 't_0',
+      browserDomBridge: bridge,
+      executor,
+    })
+    expect(first.isError).toBe(true)
+    expect(sm.getState().lastClickedCandidateId).toBeUndefined()
+
+    executor.click.mockResolvedValueOnce({})
+    const second = await simulateClickTargetHandler({
+      stateManager: sm,
+      candidateId: 't_0',
+      browserDomBridge: bridge,
+      executor,
+    })
+    expect(second.isError).toBe(false)
+    expect(sm.getState().lastClickedCandidateId).toBe('t_0')
   })
 
   // -----------------------------------------------------------------------

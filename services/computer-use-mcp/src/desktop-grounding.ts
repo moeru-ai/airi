@@ -320,18 +320,10 @@ function isChromeApp(appName: string): boolean {
 
 function findChromeWindowBounds(
   observation: WindowObservation,
-  foregroundApp: string,
+  _foregroundApp: string,
 ): Bounds | undefined {
-  const normalizedFg = foregroundApp.trim().toLowerCase().replace(APP_SUFFIX_RE, '')
-  // Prefer exact match on the foreground app name
-  const exactMatch = observation.windows.find(w =>
-    w.appName.trim().toLowerCase().replace(APP_SUFFIX_RE, '') === normalizedFg && w.bounds,
-  )
-  if (exactMatch?.bounds)
-    return exactMatch.bounds
-  // Fallback: any Chrome-like window
   const chromeWindow = observation.windows.find(w =>
-    isChromeApp(w.appName) && w.bounds,
+    w.appName.toLowerCase().includes('chrome') && w.bounds,
   )
   return chromeWindow?.bounds
 }

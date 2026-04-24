@@ -311,6 +311,27 @@ describe('chromeElementsToTargetCandidates', () => {
     expect(candidates[0].frameId).toBe(3)
   })
 
+  it('applies tagged frame offsets before converting to screen coordinates', () => {
+    const taggedEl = {
+      tag: 'button',
+      text: 'Iframe CTA',
+      rect: { x: 12, y: 24, w: 90, h: 32 },
+      _frameId: 3,
+      _frameOffsetX: 220,
+      _frameOffsetY: 140,
+    } as any
+
+    const candidates = chromeElementsToTargetCandidates(
+      [taggedEl],
+      windowBounds,
+      88,
+      0,
+    )
+
+    expect(candidates[0].bounds.x).toBe(100 + 220 + 12)
+    expect(candidates[0].bounds.y).toBe(50 + 88 + 140 + 24)
+  })
+
   it('falls back to function-level frameId when _frameId is absent', () => {
     const el = {
       tag: 'button',
@@ -419,6 +440,17 @@ describe('captureChromeSemantics', () => {
             ],
           },
         },
+        {
+          frameId: 5,
+          result: {
+            url: 'https://example.com/iframe',
+            title: 'Iframe',
+            frameOffset: { x: 320, y: 180 },
+            interactiveElements: [
+              { tag: 'input', name: 'email', rect: { x: 16, y: 22, w: 140, h: 28 } },
+            ],
+          },
+        },
       ]),
     }
 
@@ -426,7 +458,11 @@ describe('captureChromeSemantics', () => {
     expect(result).not.toBeNull()
     expect(result!.source).toBe('extension')
     expect(result!.pageUrl).toBe('https://example.com')
-    expect(result!.interactiveElements).toHaveLength(1)
+    expect(result!.interactiveElements).toHaveLength(2)
+    const iframeElement = result!.interactiveElements[1] as Record<string, unknown>
+    expect(iframeElement._frameId).toBe(5)
+    expect(iframeElement._frameOffsetX).toBe(320)
+    expect(iframeElement._frameOffsetY).toBe(180)
   })
 
   it('falls back to CDP when extension is disconnected', async () => {

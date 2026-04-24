@@ -9,6 +9,7 @@ import { resolveComputerUseConfig } from './config'
 import { createExecuteAction } from './server/action-executor'
 import { registerAccessibilityTools } from './server/register-accessibility'
 import { registerCdpTools } from './server/register-cdp'
+import { registerChromeSessionTools } from './server/register-chrome-session'
 import { registerDesktopGroundingTools } from './server/register-desktop-grounding'
 import { registerDisplayTools } from './server/register-display'
 import { destroyAllPtySessions, registerPtyTools } from './server/register-pty'
@@ -50,7 +51,8 @@ export async function createComputerUseMcpServer(config = resolveComputerUseConf
     },
   })
   const cdpCleanup = registerCdpTools({ server, runtime })
-  registerDesktopGroundingTools({ server, runtime, executeAction })
+  registerDesktopGroundingTools({ server, runtime })
+  registerChromeSessionTools({ server, runtime })
 
   return {
     server,

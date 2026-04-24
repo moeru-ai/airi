@@ -18,9 +18,10 @@ import type { OverlayState } from './desktop-overlay-polling'
 
 import { electron } from '@proj-airi/electron-eventa'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { getMcpToolBridge } from '@proj-airi/stage-ui/stores/mcp-tool-bridge'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
-import { electronMcpCallTool } from '../../shared/eventa'
+import { getDesktopOverlayReadinessContract } from '../../shared/eventa'
 import { pointInOverlay, rectIntersectsOverlay, screenRectToLocal, screenToLocal } from './desktop-overlay-coordinates'
 import { createEmptyOverlayState, createOverlayPollController } from './desktop-overlay-polling'
 
@@ -29,11 +30,7 @@ import { createEmptyOverlayState, createOverlayPollController } from './desktop-
 // ---------------------------------------------------------------------------
 
 const getWindowBounds = useElectronEventaInvoke(electron.window.getBounds)
-// Use Eventa invoke for MCP tool calls — McpToolBridge requires a
-// setMcpToolBridge() caller that does not exist in the overlay renderer.
-// electronMcpCallTool is already wired in setupDesktopOverlayElectronInvokes
-// via createMcpServersService, so it works without any extra bootstrap.
-const mcpCallTool = useElectronEventaInvoke(electronMcpCallTool)
+const getReadiness = useElectronEventaInvoke(getDesktopOverlayReadinessContract)
 const overlayBounds = ref<Rect | null>(null)
 
 // ---------------------------------------------------------------------------
@@ -74,8 +71,18 @@ const matchedCandidate = computed(() => {
 // Polling controller
 // ---------------------------------------------------------------------------
 
+let bridgeAvailable = false
+
 const controller = createOverlayPollController({
-  callTool: async name => mcpCallTool({ name }),
+  callTool: async (name) => {
+    // Probe bridge availability lazily
+    if (!bridgeAvailable) {
+      getMcpToolBridge() // Throws if not set
+      bridgeAvailable = true
+    }
+    return getMcpToolBridge().callTool({ name })
+  },
+  getReadiness: async () => getReadiness(),
   onState: (newState) => {
     state.value = newState
   },
@@ -94,6 +101,25 @@ function sourceColor(source: string): string {
   }
 }
 
+const pointerPhase = computed(() => pointerIntent.value?.phase ?? 'preview')
+const executionResult = computed(() => pointerIntent.value?.executionResult)
+
+function phaseColor(phase: string, result?: string): { bg: string, shadow: string } {
+  if (phase === 'completed') {
+    switch (result) {
+      case 'success': return { bg: '#22c55e', shadow: 'rgba(34, 197, 94, 0.5)' }
+      case 'fallback': return { bg: '#f59e0b', shadow: 'rgba(245, 158, 11, 0.5)' }
+      case 'error': return { bg: '#ef4444', shadow: 'rgba(239, 68, 68, 0.5)' }
+      default: return { bg: '#6b7280', shadow: 'rgba(107, 114, 128, 0.5)' }
+    }
+  }
+  if (phase === 'executing') {
+    return { bg: '#ef4444', shadow: 'rgba(239, 68, 68, 0.6)' }
+  }
+  // preview / default
+  return { bg: '#3b82f6', shadow: 'rgba(59, 130, 246, 0.5)' }
+}
+
 const pointerStyle = computed(() => {
   if (!pointerIntent.value || !overlayBounds.value)
     return { display: 'none' }
@@ -102,15 +128,41 @@ const pointerStyle = computed(() => {
   if (!pointInOverlay(screenPoint, ob))
     return { display: 'none' }
   const local = screenToLocal(screenPoint, ob)
-  const isExecute = pointerIntent.value.mode === 'execute'
+  const phase = pointerPhase.value
+  const colors = phaseColor(phase, executionResult.value)
   return {
     left: `${local.x - 8}px`,
     top: `${local.y - 8}px`,
     display: 'block',
-    backgroundColor: isExecute ? '#ef4444' : '#3b82f6',
-    boxShadow: isExecute
-      ? '0 0 12px 4px rgba(239, 68, 68, 0.5)'
-      : '0 0 12px 4px rgba(59, 130, 246, 0.5)',
+    backgroundColor: colors.bg,
+    boxShadow: `0 0 12px 4px ${colors.shadow}`,
+  }
+})
+
+// Click ripple — shown briefly when phase transitions to 'completed'
+const showRipple = ref(false)
+const rippleStyle = computed(() => {
+  if (!pointerIntent.value || !overlayBounds.value || !showRipple.value)
+    return { display: 'none' }
+  const ob = overlayBounds.value
+  const screenPoint = pointerIntent.value.snappedPoint
+  if (!pointInOverlay(screenPoint, ob))
+    return { display: 'none' }
+  const local = screenToLocal(screenPoint, ob)
+  const colors = phaseColor('completed', executionResult.value)
+  return {
+    left: `${local.x - 20}px`,
+    top: `${local.y - 20}px`,
+    display: 'block',
+    borderColor: colors.bg,
+  }
+})
+
+// Watch for phase changes to trigger ripple
+watch(pointerPhase, (newPhase) => {
+  if (newPhase === 'completed') {
+    showRipple.value = true
+    setTimeout(() => { showRipple.value = false }, 600)
   }
 })
 
@@ -168,8 +220,19 @@ onUnmounted(() => {
     <!-- Ghost pointer dot -->
     <div
       v-if="pointerIntent"
-      :class="['ghost-pointer']"
+      :class="[
+        'ghost-pointer',
+        pointerPhase === 'executing' && 'ghost-pointer--executing',
+        pointerPhase === 'completed' && 'ghost-pointer--completed',
+      ]"
       :style="pointerStyle"
+    />
+
+    <!-- Click ripple (brief expanding ring on click completion) -->
+    <div
+      v-if="showRipple"
+      :class="['click-ripple']"
+      :style="rippleStyle"
     />
 
     <!-- Target bounding box (matched candidate from pointer intent) -->
@@ -238,8 +301,46 @@ onUnmounted(() => {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  transition: left 0.15s ease, top 0.15s ease;
+  transition: left 0.15s ease, top 0.15s ease, background-color 0.2s ease, box-shadow 0.2s ease;
   z-index: 10;
+}
+
+/* Pulsing animation when the agent is executing a click */
+.ghost-pointer--executing {
+  animation: ghost-pulse 0.6s ease-in-out infinite;
+}
+
+/* Fade out after execution completes */
+.ghost-pointer--completed {
+  animation: ghost-fadeout 0.8s ease-out forwards;
+}
+
+@keyframes ghost-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.7; }
+}
+
+@keyframes ghost-fadeout {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.6; }
+  100% { transform: scale(0.8); opacity: 0; }
+}
+
+/* Expanding ring ripple on click */
+.click-ripple {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid;
+  animation: ripple-expand 0.6s ease-out forwards;
+  pointer-events: none;
+  z-index: 9;
+}
+
+@keyframes ripple-expand {
+  0% { transform: scale(0.5); opacity: 1; }
+  100% { transform: scale(2); opacity: 0; }
 }
 
 .target-box {

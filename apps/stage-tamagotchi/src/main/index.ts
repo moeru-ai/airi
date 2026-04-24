@@ -12,6 +12,7 @@ import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLe
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
 import { app, ipcMain } from 'electron'
+import { noop } from 'es-toolkit'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
 import { isLinux } from 'std-env'
 
@@ -112,9 +113,9 @@ app.whenReady().then(async () => {
     build: ({ dependsOn }) => setupAutoUpdater({
       getStoredUpdateLane: () => dependsOn.appConfig.get()?.updateChannel,
       setStoredUpdateLane: (lane) => {
-        const current = dependsOn.appConfig.get()
+        const currentConfig = dependsOn.appConfig.get()
         dependsOn.appConfig.update({
-          language: current?.language ?? 'en',
+          language: currentConfig?.language ?? 'en',
           updateChannel: lane,
         })
       },
@@ -143,12 +144,22 @@ app.whenReady().then(async () => {
     build: async () => setupMcpStdioManager(),
   })
 
+  const widgetsManager = injeca.provide('windows:widgets', {
+    dependsOn: { serverChannel, i18n },
+    build: ({ dependsOn }) => setupWidgetsWindowManager(dependsOn),
+  })
+
+  const pluginHost = injeca.provide('modules:plugin-host', {
+    dependsOn: { serverChannel, widgetsManager },
+    build: ({ dependsOn }) => setupPluginHost(dependsOn),
+  })
+
   const windowAuthManager = injeca.provide('services:window-auth-manager', () => createWindowAuthManagerService())
 
   // BeatSync will create a background window to capture and process audio.
   const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
 
-  const devtoolsWindow = injeca.provide('windows:devtools', () => setupDevtoolsWindow())
+  const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())
 
   const onboardingWindowManager = injeca.provide('windows:onboarding', {
     dependsOn: { serverChannel, i18n, windowAuthManager },
@@ -158,16 +169,6 @@ app.whenReady().then(async () => {
   const noticeWindow = injeca.provide('windows:notice', {
     dependsOn: { i18n, serverChannel },
     build: ({ dependsOn }) => setupNoticeWindowManager(dependsOn),
-  })
-
-  const widgetsManager = injeca.provide('windows:widgets', {
-    dependsOn: { serverChannel, i18n },
-    build: ({ dependsOn }) => setupWidgetsWindowManager(dependsOn),
-  })
-
-  const pluginHost = injeca.provide('modules:plugin-host', {
-    dependsOn: { serverChannel, widgetsManager },
-    build: ({ dependsOn }) => setupPluginHost({ widgetsManager: dependsOn.widgetsManager }),
   })
 
   const aboutWindow = injeca.provide('windows:about', {
@@ -181,7 +182,7 @@ app.whenReady().then(async () => {
   })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow, serverChannel, godotStageManager, mcpStdioManager, i18n, windowAuthManager },
+    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpStdioManager, i18n, windowAuthManager },
     build: async ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
   })
 
@@ -212,7 +213,7 @@ app.whenReady().then(async () => {
     // provider depends on 'windows:desktop-overlay'.
     injeca.invoke({
       dependsOn: { desktopOverlay },
-      callback: () => {},
+      callback: noop,
     })
   }
 

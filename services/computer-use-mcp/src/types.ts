@@ -121,6 +121,33 @@ export interface ForegroundContext {
   windowBounds?: Bounds
   platform: NodeJS.Platform
   unavailableReason?: string
+  /** Whether the current foreground app is agent-owned (launched/managed by the agent). */
+  agentOwned?: boolean
+  /** PID of the agent-owned window (if any). */
+  agentWindowPid?: number
+}
+
+/**
+ * State of the agent's dedicated Chrome session.
+ *
+ * Created by `ChromeSessionManager.ensureAgentWindow()` and persisted in
+ * `RunState.chromeSession` for the lifetime of the agent session.
+ */
+export interface ChromeSessionInfo {
+  /** Whether Chrome was already running before the agent launched it. */
+  wasAlreadyRunning: boolean
+  /** Window identity string from observe-windows (ownerPid:layer:title). */
+  windowId: string
+  /** CDP WebSocket URL if Chrome was launched with --remote-debugging-port. */
+  cdpUrl?: string
+  /** Chrome process PID. */
+  pid: number
+  /** Whether the agent started this Chrome instance. */
+  agentOwned: boolean
+  /** The URL navigated to (if any). */
+  initialUrl?: string
+  /** ISO timestamp of session creation. */
+  createdAt: string
 }
 
 export interface WindowInfo {
@@ -235,6 +262,11 @@ export interface DesktopClickTargetInput {
   button?: MouseButton
 }
 
+export interface DesktopEnsureChromeApprovalInput {
+  url?: string
+  cdpPort?: number
+}
+
 export interface ScreenshotRequest {
   label?: string
 }
@@ -338,6 +370,7 @@ export type ActionInvocation
 
 export type PendingExecutableAction
   = | ActionInvocation
+    | { kind: 'desktop_ensure_chrome', input: DesktopEnsureChromeApprovalInput }
     | { kind: 'pty_create', input: PtyCreateApprovalInput }
 
 export interface PolicyDecision {
@@ -515,6 +548,15 @@ export interface BrowserDomInteractiveElement {
 export interface BrowserDomFrameDom {
   url?: string
   title?: string
+  frameName?: string
+  frameOffset?: {
+    x: number
+    y: number
+  }
+  frameOffsetInParent?: {
+    x: number
+    y: number
+  }
   bodyText?: string
   frameRect?: {
     x: number

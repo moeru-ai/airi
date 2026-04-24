@@ -435,8 +435,8 @@ export function setupWidgetsWindowManager(params: {
     const minHeight = clamp(windowSize.minHeight ?? 160, 1, work.height)
     const maxWidth = clamp(windowSize.maxWidth ?? work.width, minWidth, work.width)
     const maxHeight = clamp(windowSize.maxHeight ?? work.height, minHeight, work.height)
-    const width = clamp(windowSize.width, minWidth, maxWidth)
-    const height = clamp(windowSize.height, minHeight, maxHeight)
+    const width = clamp(windowSize.width ?? minWidth, minWidth, maxWidth)
+    const height = clamp(windowSize.height ?? minHeight, minHeight, maxHeight)
     const currentBounds = window.getBounds()
 
     window.setMinimumSize(minWidth, minHeight)
