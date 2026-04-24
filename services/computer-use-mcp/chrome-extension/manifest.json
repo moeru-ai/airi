@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "AIRI Desktop Grounding Bridge",
+  "version": "1.0.0",
+  "description": "Read-only DOM observation bridge for AIRI desktop grounding (no DOM mutation, no eval)",
+
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "webNavigation",
+    "storage"
+  ],
+  "host_permissions": ["<all_urls>"],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": true,
+      "match_about_blank": true,
+      "world": "MAIN"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["msg_bridge.js"],
+      "run_at": "document_idle",
+      "all_frames": true,
+      "match_about_blank": true,
+      "world": "ISOLATED"
+    }
+  ],
+
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}

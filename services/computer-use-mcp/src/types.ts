@@ -7,6 +7,8 @@ export type MouseButton = 'left' | 'right' | 'middle'
 export type ActionKind
   = | 'screenshot'
     | 'observe_windows'
+    | 'desktop_observe'
+    | 'desktop_click_target'
     | 'open_app'
     | 'focus_app'
     | 'secret_read_env_value'
@@ -223,6 +225,16 @@ export interface ClipboardWriteTextActionInput {
   text: string
 }
 
+export interface DesktopObserveInput {
+  includeChrome?: boolean
+}
+
+export interface DesktopClickTargetInput {
+  candidateId: string
+  clickCount?: number
+  button?: MouseButton
+}
+
 export interface ScreenshotRequest {
   label?: string
 }
@@ -309,6 +321,8 @@ export interface TestTargetLaunchResult {
 export type ActionInvocation
   = | { kind: 'screenshot', input: ScreenshotRequest }
     | { kind: 'observe_windows', input: ObserveWindowsRequest }
+    | { kind: 'desktop_observe', input: DesktopObserveInput }
+    | { kind: 'desktop_click_target', input: DesktopClickTargetInput }
     | { kind: 'open_app', input: OpenAppActionInput }
     | { kind: 'focus_app', input: FocusAppActionInput }
     | { kind: 'secret_read_env_value', input: SecretReadEnvValueActionInput }
@@ -482,6 +496,7 @@ export interface BrowserDomInteractiveElement {
   value?: string
   href?: string
   placeholder?: string
+  role?: string
   disabled?: boolean
   checked?: boolean
   visible?: boolean
@@ -501,6 +516,12 @@ export interface BrowserDomFrameDom {
   url?: string
   title?: string
   bodyText?: string
+  frameRect?: {
+    x: number
+    y: number
+    w: number
+    h: number
+  }
   interactiveElements?: BrowserDomInteractiveElement[]
 }
 

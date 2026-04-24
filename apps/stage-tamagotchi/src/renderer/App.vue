@@ -2,6 +2,7 @@
 import { defineInvokeHandler } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
+import { artistrySyncConfig } from '@proj-airi/stage-shared'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useInferencePreload } from '@proj-airi/stage-ui/composables'
 import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
@@ -12,6 +13,7 @@ import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { usePerfTracerBridgeStore } from '@proj-airi/stage-ui/stores/perf-tracer-bridge'
 import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from '@proj-airi/stage-ui/stores/plugin-host-capabilities'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -73,6 +75,8 @@ const mcpToolsStore = useTamagotchiMcpToolsStore()
 const pluginToolsStore = useTamagotchiPluginToolsStore()
 const stageWindowLifecycleStore = useStageWindowLifecycleStore()
 const settingsAudioDeviceStore = useSettingsAudioDevice()
+const artistryStore = useArtistryStore()
+const { activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions } = storeToRefs(artistryStore)
 const context = useElectronEventaContext()
 usePerfTracerBridgeStore()
 initializeStageThreeRuntimeTraceBridge()
@@ -90,6 +94,7 @@ const startTrackingCursorPoint = useElectronEventaInvoke(electronStartTrackMouse
 const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapability)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
 const getGodotStageStatus = useElectronEventaInvoke(electronGodotStageGetStatus)
+const syncArtistryConfig = useElectronEventaInvoke(artistrySyncConfig)
 const isChatWindowRoute = () => route.path === '/chat'
 const isGodotStageRoute = () => route.path === '/' || route.path.startsWith('/settings')
 const isWidgetsWindowRoute = () => route.path === '/widgets'
@@ -152,9 +157,21 @@ void mcpToolsStore.refresh().catch((error) => {
 void refreshPluginRuntimeTools()
 
 watch(language, () => {
-  i18n.locale.value = language.value
-  setLocale(language.value)
+  i18n.locale.value = language.value || 'en'
+  setLocale(language.value || 'en')
 })
+
+watch([activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions], () => {
+  if (activeProvider.value) {
+    void syncArtistryConfig({
+      provider: activeProvider.value as string,
+      globals: JSON.parse(JSON.stringify(artistryGlobals.value)),
+      model: activeModel.value,
+      promptPrefix: defaultPromptPrefix.value,
+      options: providerOptions.value,
+    })
+  }
+}, { deep: true, immediate: true })
 
 const { updateThemeColor } = useThemeColor(themeColorFromValue({ light: 'rgb(255 255 255)', dark: 'rgb(18 18 18)' }))
 watch(dark, () => updateThemeColor(), { immediate: true })

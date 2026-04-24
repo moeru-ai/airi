@@ -9,6 +9,7 @@ import messages from '@proj-airi/i18n/locales'
 
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLevel, useLogg } from '@guiiai/logg'
+import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
 import { app, ipcMain } from 'electron'
 import { noop } from 'es-toolkit'
@@ -19,6 +20,7 @@ import icon from '../../resources/icon.png?asset'
 
 import { openDebugger, setupDebugger } from './app/debugger'
 import { nullFileLoggerHandle, setupFileLogger } from './app/file-logger'
+import { createArtistryConfig } from './configs/artistry'
 import { createGlobalAppConfig } from './configs/global'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
@@ -29,12 +31,14 @@ import { setupGodotStageManager } from './services/airi/godot-stage'
 import { setupBuiltInServer } from './services/airi/http-server'
 import { setupMcpStdioManager } from './services/airi/mcp-servers'
 import { setupPluginHost } from './services/airi/plugins'
+import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { setupAutoUpdater } from './services/electron/auto-updater'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
 import { setupCaptionWindowManager } from './windows/caption'
 import { setupChatWindowReusableFunc } from './windows/chat'
+import { isDesktopOverlayEnabled, setupDesktopOverlayWindow } from './windows/desktop-overlay'
 import { setupDevtoolsWindow } from './windows/devtools'
 import { setupMainWindow } from './windows/main'
 import { setupNoticeWindowManager } from './windows/notice'
@@ -102,15 +106,16 @@ app.whenReady().then(async () => {
   injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
 
   const appConfig = injeca.provide('configs:app', () => createGlobalAppConfig())
+  const artistryConfig = injeca.provide('configs:artistry', () => createArtistryConfig())
   const electronApp = injeca.provide('host:electron:app', () => app)
   const autoUpdater = injeca.provide('services:auto-updater', {
     dependsOn: { appConfig },
     build: ({ dependsOn }) => setupAutoUpdater({
       getStoredUpdateLane: () => dependsOn.appConfig.get()?.updateChannel,
       setStoredUpdateLane: (lane) => {
-        const currentConfig = dependsOn.appConfig.get()
+        const current = dependsOn.appConfig.get()
         dependsOn.appConfig.update({
-          language: currentConfig?.language ?? 'en',
+          language: current?.language ?? 'en',
           updateChannel: lane,
         })
       },
@@ -196,9 +201,32 @@ app.whenReady().then(async () => {
     build: async ({ dependsOn }) => setupTray(dependsOn),
   })
 
+  // Desktop grounding overlay — gated by AIRI_DESKTOP_OVERLAY=1
+  if (isDesktopOverlayEnabled()) {
+    const desktopOverlay = injeca.provide('windows:desktop-overlay', {
+      dependsOn: { mcpStdioManager, serverChannel, i18n },
+      build: async ({ dependsOn }) => setupDesktopOverlayWindow(dependsOn),
+    })
+
+    // NOTICE: Separate invoke ensures the overlay is eagerly built.
+    // Without this, injeca.start() would skip it because no other
+    // provider depends on 'windows:desktop-overlay'.
+    injeca.invoke({
+      dependsOn: { desktopOverlay },
+      callback: noop,
+    })
+  }
+
   injeca.invoke({
-    dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, godotStageManager, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager },
-    callback: noop,
+    dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, godotStageManager, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, artistryConfig },
+    callback: async (deps) => {
+      const { context } = createContext(ipcMain)
+      await setupArtistryBridge({
+        widgetsManager: deps.widgetsWindow,
+        context,
+        artistryConfig: deps.artistryConfig,
+      })
+    },
   })
 
   injeca.start().catch(err => console.error(err))
