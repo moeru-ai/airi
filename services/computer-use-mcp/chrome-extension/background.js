@@ -12,7 +12,7 @@
  * All DOM-mutating actions (click, type, hover, scroll) have been removed
  * because the desktop lane uses real macOS OS-level input events.
  *
- * Adapted from /Users/liuziheng/computer_use/chrome-extension/background.js.
+ * Adapted from the upstream computer-use chrome-extension.
  * Stripped: offscreen management, Python bridge, all DOM-action commands
  * (clickAt, typeAt, hoverAt, scrollAt, simulateDragDrop, readStorage,
  * setStorage, readCanvasData, injectCSS, executeScript, etc.)
@@ -233,6 +233,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 // ---- WebSocket Relay ----
 // Injects the WebSocket connection directly in the background worker,
 // replacing the deleted offscreen document.
+// TODO: Add shared-secret auth handshake to prevent rogue localhost processes
+// from hijacking the bridge. The bridge server should generate a token and
+// inject it into chrome.storage.local so the extension can present it on hello.
 const WS_URL = 'ws://localhost:8765'
 const BRIDGE_VERSION = 'cu-bridge-2026-02-06-no-eval'
 let ws = null

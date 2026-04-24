@@ -9,7 +9,7 @@
  * via a WebSocket command from the AIRI computer-use-mcp service. Physical
  * pointer/keyboard actions still go through real macOS OS-level input.
  *
- * Adapted from /Users/liuziheng/computer_use/chrome-extension/content.js.
+ * Adapted from the upstream computer-use chrome-extension.
  * Stripped: clickAt, typeAt, hoverAt, scrollAt, simulateDragDrop, readStorage,
  * setStorage, readCanvasData, injectCSS, and all other untracked DOM mutations.
  * Kept: collectFrameDOM, _describeElement, _collectInteractiveElements,
