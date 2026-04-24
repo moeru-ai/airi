@@ -143,6 +143,7 @@ const DEFAULT_INTERVAL = 250
 const DEFAULT_FALLBACK_INTERVAL = 500
 const DEFAULT_CALL_TIMEOUT = 5000
 const MAX_BACKGROUND_HUNG_CALLS = 2
+const HUNG_CALL_RECOVERY_INTERVAL_MS = 10_000
 
 /**
  * MCP server name for computer-use-mcp. Matches the key in mcp.json.
@@ -161,7 +162,11 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
   let bootstrapTimer: ReturnType<typeof setTimeout> | null = null
   let running = false
   let inFlightCall: Promise<ElectronMcpCallToolResult> | null = null
-  const backgroundHungCalls = new Set<Promise<ElectronMcpCallToolResult>>()
+  let backgroundHungCalls: Array<{
+    call: Promise<ElectronMcpCallToolResult>
+    timedOutAt: number
+  }> = []
+  let lastHungRecoveryProbeAt: number | null = null
 
   let currentBootstrapState: 'booting' | 'ready' | 'degraded' = 'booting'
   let currentBootstrapError: string | undefined
@@ -177,6 +182,38 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
     empty.bootstrapState = currentBootstrapState
     empty.lastBootstrapError = currentBootstrapError
     config.onState(empty)
+  }
+
+  function removeHungCall(call: Promise<ElectronMcpCallToolResult>) {
+    backgroundHungCalls = backgroundHungCalls.filter(slot => slot.call !== call)
+    if (backgroundHungCalls.length < MAX_BACKGROUND_HUNG_CALLS) {
+      lastHungRecoveryProbeAt = null
+    }
+  }
+
+  function canStartPoll(now: number) {
+    if (inFlightCall)
+      return false
+
+    if (backgroundHungCalls.length < MAX_BACKGROUND_HUNG_CALLS)
+      return true
+
+    if (lastHungRecoveryProbeAt === null) {
+      lastHungRecoveryProbeAt = now
+      return false
+    }
+
+    if ((now - lastHungRecoveryProbeAt) < HUNG_CALL_RECOVERY_INTERVAL_MS)
+      return false
+
+    // NOTICE: Eventa does not expose abort semantics for callTool here. If all
+    // tracked calls are permanently hung, waiting for settlement also makes the
+    // overlay permanently stale. Drop one old tracking slot only after a long
+    // recovery interval so the overlay can probe again without returning to a
+    // per-poll unbounded RPC backlog.
+    backgroundHungCalls = backgroundHungCalls.slice(1)
+    lastHungRecoveryProbeAt = now
+    return true
   }
 
   async function bootstrapPoll() {
@@ -204,7 +241,7 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
   }
 
   async function poll() {
-    if (inFlightCall || backgroundHungCalls.size >= MAX_BACKGROUND_HUNG_CALLS) {
+    if (!canStartPoll(Date.now())) {
       scheduleNext(fallbackInterval)
       return
     }
@@ -217,22 +254,22 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
       // hanging forever if the eventa invoke never resolves (e.g. during
       // startup when the main-process RPC handlers may not be ready yet).
       // NOTICE: Eventa does not expose abort semantics here, so a timed-out
-      // invoke can still be unresolved in the background. Keep timed-out calls
-      // in a Set until they settle so the renderer never builds an unbounded
-      // backlog of pending IPC/RPC work.
+      // invoke can still be unresolved in the background. Track timed-out calls
+      // and allow only a low-frequency recovery probe when all tracked slots
+      // are hung, balancing bounded IPC pressure with eventual overlay recovery.
       let timedOut = false
       const currentCall = config.callTool(MCP_TOOL_NAME)
       inFlightCall = currentCall
       currentCall.then(() => {
         if (timedOut) {
-          backgroundHungCalls.delete(currentCall)
+          removeHungCall(currentCall)
         }
         else if (inFlightCall === currentCall) {
           inFlightCall = null
         }
       }, () => {
         if (timedOut) {
-          backgroundHungCalls.delete(currentCall)
+          removeHungCall(currentCall)
         }
         else if (inFlightCall === currentCall) {
           inFlightCall = null
@@ -244,7 +281,10 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
         new Promise<never>((_, reject) =>
           timeoutId = setTimeout(() => {
             timedOut = true
-            backgroundHungCalls.add(currentCall)
+            backgroundHungCalls = [...backgroundHungCalls, {
+              call: currentCall,
+              timedOutAt: Date.now(),
+            }]
             if (inFlightCall === currentCall) {
               inFlightCall = null
             }

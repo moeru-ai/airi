@@ -130,13 +130,22 @@ describe('registerChromeSessionTools', () => {
     const structured = result.structuredContent as Record<string, any>
     expect(structured.status).toBe('approval_required')
     expect(structured.action).toEqual({
-      kind: 'open_app',
+      kind: 'desktop_ensure_chrome',
       input: {
-        app: 'Google Chrome',
+        url: 'https://example.com',
       },
     })
+    expect(structured.transparency.intent).toBe('Open an agent Chrome window with CDP support')
     expect(runtime.chromeSessionManager.ensureAgentWindow).not.toHaveBeenCalled()
     expect(runtime.session.createPendingAction).toHaveBeenCalledTimes(1)
+    expect(runtime.session.createPendingAction).toHaveBeenCalledWith(expect.objectContaining({
+      action: {
+        kind: 'desktop_ensure_chrome',
+        input: {
+          url: 'https://example.com',
+        },
+      },
+    }))
     expect(runtime.session.consumeOperation).not.toHaveBeenCalled()
     expect(runtime.stateManager.getState().pendingApprovalCount).toBe(1)
   })
@@ -162,11 +171,10 @@ describe('registerChromeSessionTools', () => {
     const structured = result.structuredContent as Record<string, any>
     expect(structured.status).toBe('approval_required')
     expect(structured.action).toEqual({
-      kind: 'open_app',
-      input: {
-        app: 'Google Chrome',
-      },
+      kind: 'desktop_ensure_chrome',
+      input: {},
     })
+    expect(structured.transparency.intent).toBe('Open an agent Chrome window with CDP support')
     expect(runtime.chromeSessionManager.ensureAgentWindow).not.toHaveBeenCalled()
   })
 

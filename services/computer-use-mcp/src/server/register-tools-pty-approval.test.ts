@@ -58,6 +58,7 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
         listPendingActions: vi.fn(() => [...pendingActions.values()]),
         removePendingAction: vi.fn((id: string) => pendingActions.delete(id)),
         record: vi.fn().mockResolvedValue(undefined),
+        consumeOperation: vi.fn(),
         getBudgetState: vi.fn(() => ({ operationsExecuted: 0, operationUnitsConsumed: 0 })),
         getLastScreenshot: vi.fn(() => undefined),
       },
@@ -75,6 +76,21 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
       },
       cdpBridgeManager: {
         getAvailability: vi.fn(),
+        probeAvailability: vi.fn().mockResolvedValue({
+          endpoint: undefined,
+          connected: false,
+          connectable: false,
+          lastError: 'CDP unavailable',
+        }),
+        ensureBridge: vi.fn(),
+      },
+      chromeSessionManager: {
+        ensureAgentWindow: vi.fn(),
+      },
+      desktopSessionController: {
+        getSession: vi.fn(() => null),
+        begin: vi.fn(() => ({ id: 'desktop-session-1' })),
+        addOwnedWindow: vi.fn(),
       },
       taskMemory: {},
     } as unknown as ComputerUseServerRuntime
@@ -142,6 +158,73 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
       }),
     ])
     expect((runtime.session.getPendingAction as any)('pending-pty-1')).toBeUndefined()
+  })
+
+  it('executes approved pending desktop_ensure_chrome through the Chrome session manager', async () => {
+    ;(runtime.chromeSessionManager.ensureAgentWindow as any).mockResolvedValue({
+      wasAlreadyRunning: false,
+      windowId: 'chrome-window-1',
+      pid: 4242,
+      agentOwned: true,
+      cdpUrl: 'http://127.0.0.1:9333',
+      initialUrl: 'https://example.com',
+      createdAt: new Date().toISOString(),
+    })
+    ;(runtime.cdpBridgeManager.probeAvailability as any).mockResolvedValue({
+      endpoint: 'ws://127.0.0.1/devtools/browser/1',
+      connected: false,
+      connectable: true,
+    })
+
+    pendingActions.set('pending-chrome-1', {
+      id: 'pending-chrome-1',
+      createdAt: new Date().toISOString(),
+      toolName: 'desktop_ensure_chrome',
+      action: {
+        kind: 'desktop_ensure_chrome',
+        input: {
+          url: 'https://example.com',
+          cdpPort: 9333,
+        },
+      },
+      policy: {
+        allowed: true,
+        requiresApproval: true,
+        reasons: ['Opening Chrome requires approval.'],
+        riskLevel: 'medium',
+        estimatedOperationUnits: 2,
+      },
+      context: {
+        available: true,
+        appName: 'Finder',
+        platform: 'darwin',
+      },
+    })
+
+    const executeAction = vi.fn()
+    const { server, invoke } = createMockServer()
+    registerComputerUseTools({
+      server,
+      runtime,
+      executeAction,
+      enableTestTools: false,
+    })
+
+    const result = await invoke('desktop_approve_pending_action', { id: 'pending-chrome-1' })
+
+    expect(result.isError).not.toBe(true)
+    expect(runtime.chromeSessionManager.ensureAgentWindow).toHaveBeenCalledWith({
+      url: 'https://example.com',
+      cdpPort: 9333,
+    })
+    expect(runtime.cdpBridgeManager.ensureBridge).toHaveBeenCalledWith('http://127.0.0.1:9333')
+    expect(runtime.stateManager.getState().chromeSession).toMatchObject({
+      windowId: 'chrome-window-1',
+      pid: 4242,
+    })
+    expect(runtime.session.consumeOperation).toHaveBeenCalledWith(2)
+    expect(executeAction).not.toHaveBeenCalled()
+    expect((runtime.session.getPendingAction as any)('pending-chrome-1')).toBeUndefined()
   })
 
   it('returns a structured error when browser_dom_trigger_event receives malformed optsJson', async () => {

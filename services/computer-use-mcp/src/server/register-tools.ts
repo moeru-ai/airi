@@ -35,6 +35,7 @@ import {
   summarizeCoordinateSpace,
 } from './formatters'
 import { refreshRuntimeRunState } from './refresh-run-state'
+import { executeChromeEnsure } from './register-chrome-session'
 import { createAcquirePtyCallback, executeApprovedPtyCreate } from './register-pty'
 import { formatWorkflowStructuredContent } from './workflow-formatter'
 import { createWorkflowPrepToolExecutor } from './workflow-prep-tools'
@@ -974,6 +975,30 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
 
       if (pending.action.kind === 'pty_create') {
         const result = await executeApprovedPtyCreate(runtime, pending.action.input)
+
+        await runtime.session.record({
+          event: result.isError === true ? 'failed' : 'executed',
+          toolName: pending.toolName,
+          action: pending.action,
+          context: pending.context,
+          policy: pending.policy,
+          result: {
+            pendingActionId: id,
+            ...(typeof result.structuredContent === 'object' && result.structuredContent !== null
+              ? result.structuredContent as Record<string, unknown>
+              : {}),
+          },
+        })
+
+        return result
+      }
+
+      if (pending.action.kind === 'desktop_ensure_chrome') {
+        const result = await executeChromeEnsure(
+          runtime,
+          pending.action.input,
+          pending.policy.estimatedOperationUnits,
+        )
 
         await runtime.session.record({
           event: result.isError === true ? 'failed' : 'executed',

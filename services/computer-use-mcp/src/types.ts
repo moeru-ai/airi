@@ -262,6 +262,11 @@ export interface DesktopClickTargetInput {
   button?: MouseButton
 }
 
+export interface DesktopEnsureChromeApprovalInput {
+  url?: string
+  cdpPort?: number
+}
+
 export interface ScreenshotRequest {
   label?: string
 }
@@ -365,6 +370,7 @@ export type ActionInvocation
 
 export type PendingExecutableAction
   = | ActionInvocation
+    | { kind: 'desktop_ensure_chrome', input: DesktopEnsureChromeApprovalInput }
     | { kind: 'pty_create', input: PtyCreateApprovalInput }
 
 export interface PolicyDecision {

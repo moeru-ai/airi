@@ -6,8 +6,9 @@
  */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
-import type { ActionInvocation, ForegroundContext } from '../types'
+import type { ActionInvocation, DesktopEnsureChromeApprovalInput, ForegroundContext, PolicyDecision } from '../types'
 import type { ComputerUseServerRuntime } from './runtime'
 
 import { errorMessageFrom } from '@moeru/std'
@@ -36,6 +37,101 @@ function getChromeSessionAction(runtime: ComputerUseServerRuntime): ActionInvoca
   }
 }
 
+export async function executeChromeEnsure(
+  runtime: ComputerUseServerRuntime,
+  input: DesktopEnsureChromeApprovalInput,
+  operationUnits?: number,
+): Promise<CallToolResult> {
+  const sessionInfo = await runtime.chromeSessionManager.ensureAgentWindow({
+    url: input.url,
+    cdpPort: input.cdpPort,
+  })
+
+  // Persist in state
+  runtime.stateManager.updateChromeSession(sessionInfo)
+
+  // Auto-begin a desktop session targeting Chrome
+  // This enables observe/click handlers to use session-based foreground enforcement
+  const sessionCtrl = runtime.desktopSessionController
+  if (!sessionCtrl.getSession()) {
+    const currentForeground = runtime.stateManager.getState().foregroundContext
+    sessionCtrl.begin({
+      controlledApp: 'Google Chrome',
+      currentForeground,
+    })
+    sessionCtrl.addOwnedWindow({
+      appName: 'Google Chrome',
+      windowId: sessionInfo.windowId,
+      pid: sessionInfo.pid,
+      agentLaunched: !sessionInfo.wasAlreadyRunning,
+    })
+  }
+
+  // Record the user's previous foreground app if we just took over
+  const state = runtime.stateManager.getState()
+  if (!state.previousUserForegroundApp && state.foregroundContext?.appName) {
+    const prevApp = state.foregroundContext.appName
+    if (prevApp !== 'Google Chrome') {
+      runtime.stateManager.savePreviousUserForeground(prevApp)
+    }
+  }
+
+  // Auto-connect CDP bridge when the agent launched Chrome with CDP.
+  // Best-effort only: Chrome may need a moment before the DevTools server answers.
+  let cdpStatus = 'not applicable'
+  if (sessionInfo.cdpUrl) {
+    try {
+      const probe = await runtime.cdpBridgeManager.probeAvailability(sessionInfo.cdpUrl)
+      if (probe.connectable) {
+        await runtime.cdpBridgeManager.ensureBridge(sessionInfo.cdpUrl)
+        cdpStatus = 'connected'
+      }
+      else {
+        cdpStatus = `probe failed: ${probe.lastError ?? 'no connectable target'}`
+      }
+    }
+    catch (cdpError) {
+      // Non-fatal: agent can still work via os_input / extension bridge
+      cdpStatus = `connect failed: ${cdpError instanceof Error ? cdpError.message : String(cdpError)}`
+    }
+  }
+
+  const lines = [
+    `Chrome session ${sessionInfo.wasAlreadyRunning ? 'joined' : 'launched'}:`,
+    `  PID: ${sessionInfo.pid}`,
+    `  Window: ${sessionInfo.windowId}`,
+    `  Agent-owned: ${sessionInfo.agentOwned}`,
+    `  Was already running: ${sessionInfo.wasAlreadyRunning}`,
+  ]
+
+  if (sessionInfo.cdpUrl) {
+    lines.push(`  CDP URL: ${sessionInfo.cdpUrl}`)
+    lines.push(`  CDP bridge: ${cdpStatus}`)
+  }
+
+  if (sessionInfo.initialUrl) {
+    lines.push(`  Navigated to: ${sessionInfo.initialUrl}`)
+  }
+
+  if (operationUnits !== undefined) {
+    runtime.session.consumeOperation(operationUnits)
+  }
+
+  return {
+    content: [textContent(lines.join('\n'))],
+    structuredContent: {
+      status: 'ok',
+      pid: sessionInfo.pid,
+      windowId: sessionInfo.windowId,
+      agentOwned: sessionInfo.agentOwned,
+      wasAlreadyRunning: sessionInfo.wasAlreadyRunning,
+      cdpUrl: sessionInfo.cdpUrl,
+      cdpStatus,
+      initialUrl: sessionInfo.initialUrl,
+    },
+  }
+}
+
 export function registerChromeSessionTools(params: {
   server: McpServer
   runtime: ComputerUseServerRuntime
@@ -51,8 +147,15 @@ export function registerChromeSessionTools(params: {
     },
 
     handler: async ({ url, cdpPort }) => {
-      const action = getChromeSessionAction(runtime)
-      let decision: ReturnType<typeof evaluateActionPolicy> | undefined
+      const policyAction = getChromeSessionAction(runtime)
+      const ensureAction = {
+        kind: TOOL_NAME,
+        input: {
+          ...(url !== undefined ? { url } : {}),
+          ...(cdpPort !== undefined ? { cdpPort } : {}),
+        },
+      } satisfies { kind: 'desktop_ensure_chrome', input: DesktopEnsureChromeApprovalInput }
+      let decision: PolicyDecision | undefined
       let context: ForegroundContext | undefined
       let executionTarget: Awaited<ReturnType<typeof refreshRuntimeRunState>>['executionTarget'] | undefined
 
@@ -63,7 +166,7 @@ export function registerChromeSessionTools(params: {
 
         const budget = runtime.session.getBudgetState()
         decision = evaluateActionPolicy({
-          action,
+          action: policyAction,
           config: runtime.config,
           context,
           operationsExecuted: budget.operationsExecuted,
@@ -74,10 +177,11 @@ export function registerChromeSessionTools(params: {
         await runtime.session.record({
           event: 'requested',
           toolName: TOOL_NAME,
-          action,
+          action: ensureAction,
           context,
           policy: decision,
           result: {
+            approvalAction: policyAction,
             executionTarget,
           },
         })
@@ -86,10 +190,11 @@ export function registerChromeSessionTools(params: {
           await runtime.session.record({
             event: 'denied',
             toolName: TOOL_NAME,
-            action,
+            action: ensureAction,
             context,
             policy: decision,
             result: {
+              approvalAction: policyAction,
               executionTarget,
             },
           })
@@ -100,7 +205,7 @@ export function registerChromeSessionTools(params: {
         if (decision.requiresApproval) {
           const pending = runtime.session.createPendingAction({
             toolName: TOOL_NAME,
-            action,
+            action: ensureAction,
             context,
             policy: decision,
           })
@@ -109,114 +214,41 @@ export function registerChromeSessionTools(params: {
           await runtime.session.record({
             event: 'approval_required',
             toolName: TOOL_NAME,
-            action,
+            action: ensureAction,
             context,
             policy: decision,
             result: {
+              approvalAction: policyAction,
               executionTarget,
               pendingActionId: pending.id,
             },
           })
 
           return buildApprovalResponse(pending, decision, context, {
-            intent: action.kind === 'open_app'
+            intent: policyAction.kind === 'open_app'
               ? 'Open an agent Chrome window with CDP support'
               : 'Bring the agent Chrome window to the foreground',
             approvalReason: 'Starting or foregrounding Chrome is a mutating desktop action and follows the same approval and audit pipeline as other app-control tools.',
           })
         }
 
-        const sessionInfo = await runtime.chromeSessionManager.ensureAgentWindow({
-          url,
-          cdpPort,
-        })
-
-        // Persist in state
-        runtime.stateManager.updateChromeSession(sessionInfo)
-
-        // Auto-begin a desktop session targeting Chrome
-        // This enables observe/click handlers to use session-based foreground enforcement
-        const sessionCtrl = runtime.desktopSessionController
-        if (!sessionCtrl.getSession()) {
-          const currentForeground = runtime.stateManager.getState().foregroundContext
-          sessionCtrl.begin({
-            controlledApp: 'Google Chrome',
-            currentForeground,
-          })
-          sessionCtrl.addOwnedWindow({
-            appName: 'Google Chrome',
-            windowId: sessionInfo.windowId,
-            pid: sessionInfo.pid,
-            agentLaunched: !sessionInfo.wasAlreadyRunning,
-          })
-        }
-
-        // Record the user's previous foreground app if we just took over
-        const state = runtime.stateManager.getState()
-        if (!state.previousUserForegroundApp && state.foregroundContext?.appName) {
-          const prevApp = state.foregroundContext.appName
-          if (prevApp !== 'Google Chrome') {
-            runtime.stateManager.savePreviousUserForeground(prevApp)
-          }
-        }
-
-        // Auto-connect CDP bridge when the agent launched Chrome with CDP.
-        // Best-effort only: Chrome may need a moment before the DevTools server answers.
-        let cdpStatus = 'not applicable'
-        if (sessionInfo.cdpUrl) {
-          try {
-            const probe = await runtime.cdpBridgeManager.probeAvailability(sessionInfo.cdpUrl)
-            if (probe.connectable) {
-              await runtime.cdpBridgeManager.ensureBridge(sessionInfo.cdpUrl)
-              cdpStatus = 'connected'
-            }
-            else {
-              cdpStatus = `probe failed: ${probe.lastError ?? 'no connectable target'}`
-            }
-          }
-          catch (cdpError) {
-            // Non-fatal: agent can still work via os_input / extension bridge
-            cdpStatus = `connect failed: ${cdpError instanceof Error ? cdpError.message : String(cdpError)}`
-          }
-        }
-
-        const lines = [
-          `Chrome session ${sessionInfo.wasAlreadyRunning ? 'joined' : 'launched'}:`,
-          `  PID: ${sessionInfo.pid}`,
-          `  Window: ${sessionInfo.windowId}`,
-          `  Agent-owned: ${sessionInfo.agentOwned}`,
-          `  Was already running: ${sessionInfo.wasAlreadyRunning}`,
-        ]
-
-        if (sessionInfo.cdpUrl) {
-          lines.push(`  CDP URL: ${sessionInfo.cdpUrl}`)
-          lines.push(`  CDP bridge: ${cdpStatus}`)
-        }
-
-        if (sessionInfo.initialUrl) {
-          lines.push(`  Navigated to: ${sessionInfo.initialUrl}`)
-        }
-
-        runtime.session.consumeOperation(decision.estimatedOperationUnits)
+        const result = await executeChromeEnsure(runtime, ensureAction.input, decision.estimatedOperationUnits)
         await runtime.session.record({
           event: 'executed',
           toolName: TOOL_NAME,
-          action,
+          action: ensureAction,
           context,
           policy: decision,
           result: {
+            approvalAction: policyAction,
             executionTarget,
-            pid: sessionInfo.pid,
-            windowId: sessionInfo.windowId,
-            agentOwned: sessionInfo.agentOwned,
-            wasAlreadyRunning: sessionInfo.wasAlreadyRunning,
-            cdpUrl: sessionInfo.cdpUrl,
+            ...(typeof result.structuredContent === 'object' && result.structuredContent !== null
+              ? result.structuredContent as Record<string, unknown>
+              : {}),
           },
         })
 
-        return {
-          content: [textContent(lines.join('\n'))],
-        }
+        return result
       }
       catch (error) {
         const message = errorMessageFrom(error) ?? 'Unknown desktop_ensure_chrome failure'
@@ -225,7 +257,7 @@ export function registerChromeSessionTools(params: {
           await runtime.session.record({
             event: 'failed',
             toolName: TOOL_NAME,
-            action,
+            action: ensureAction,
             context,
             policy: decision,
             result: {
@@ -236,7 +268,7 @@ export function registerChromeSessionTools(params: {
 
           return buildExecutionErrorResponse({
             errorMessage: message,
-            action,
+            action: policyAction,
             context,
             executionTarget,
             policy: decision,

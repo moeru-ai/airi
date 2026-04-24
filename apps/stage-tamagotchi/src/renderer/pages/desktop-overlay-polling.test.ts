@@ -387,6 +387,40 @@ describe('createOverlayPollController', () => {
     controller.stop()
   })
 
+  it('issues a low-frequency recovery probe when all tracked polls are permanently hung', async () => {
+    vi.useFakeTimers()
+
+    const callTool = vi.fn<(name: string) => Promise<ElectronMcpCallToolResult>>()
+      .mockImplementation(() => new Promise<ElectronMcpCallToolResult>(() => {}))
+
+    const controller = createOverlayPollController({
+      callTool,
+      getReadiness: vi.fn().mockResolvedValue({ state: 'ready' }),
+      onState: () => {},
+      intervalMs: 100,
+      fallbackIntervalMs: 200,
+      callTimeoutMs: 500,
+    })
+
+    controller.start()
+
+    await vi.advanceTimersByTimeAsync(0)
+    expect(callTool).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(500)
+    await vi.advanceTimersByTimeAsync(200)
+    expect(callTool).toHaveBeenCalledTimes(2)
+
+    await vi.advanceTimersByTimeAsync(500)
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(callTool).toHaveBeenCalledTimes(2)
+
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(callTool).toHaveBeenCalledTimes(3)
+
+    controller.stop()
+  })
+
   it('releases timed-out poll slots only when the original promise settles', async () => {
     vi.useFakeTimers()
 
