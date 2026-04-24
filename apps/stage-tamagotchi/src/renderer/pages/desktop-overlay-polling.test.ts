@@ -359,8 +359,8 @@ describe('createOverlayPollController', () => {
   it('caps outstanding timed-out polls to avoid unbounded buildup', async () => {
     vi.useFakeTimers()
 
-    const callTool = vi.fn<(name: string) => Promise<ElectronMcpCallToolResult>>()
-      .mockImplementation(() => new Promise<ElectronMcpCallToolResult>(() => {}))
+    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
+      .mockImplementation(() => new Promise<McpCallToolResult>(() => {}))
 
     const controller = createOverlayPollController({
       callTool,
@@ -390,8 +390,8 @@ describe('createOverlayPollController', () => {
   it('issues a low-frequency recovery probe when all tracked polls are permanently hung', async () => {
     vi.useFakeTimers()
 
-    const callTool = vi.fn<(name: string) => Promise<ElectronMcpCallToolResult>>()
-      .mockImplementation(() => new Promise<ElectronMcpCallToolResult>(() => {}))
+    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
+      .mockImplementation(() => new Promise<McpCallToolResult>(() => {}))
 
     const controller = createOverlayPollController({
       callTool,
@@ -424,12 +424,12 @@ describe('createOverlayPollController', () => {
   it('releases timed-out poll slots only when the original promise settles', async () => {
     vi.useFakeTimers()
 
-    let resolveFirst: (value: ElectronMcpCallToolResult) => void = () => {}
-    const callTool = vi.fn<(name: string) => Promise<ElectronMcpCallToolResult>>()
-      .mockImplementationOnce(() => new Promise<ElectronMcpCallToolResult>((resolve) => {
+    let resolveFirst: (value: McpCallToolResult) => void = () => {}
+    const callTool = vi.fn<(name: string) => Promise<McpCallToolResult>>()
+      .mockImplementationOnce(() => new Promise<McpCallToolResult>((resolve) => {
         resolveFirst = resolve
       }))
-      .mockImplementationOnce(() => new Promise<ElectronMcpCallToolResult>(() => {}))
+      .mockImplementationOnce(() => new Promise<McpCallToolResult>(() => {}))
       .mockResolvedValue({
         structuredContent: {
           runState: {

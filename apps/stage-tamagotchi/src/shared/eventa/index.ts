@@ -22,7 +22,7 @@ export const electronOpenSettings = defineInvokeEventa<void, { route?: string }>
 export const electronSettingsNavigate = defineEventa<{ route: string }>('eventa:event:electron:windows:settings:navigate')
 export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windows:chat:open')
 export const electronOpenSettingsDevtools = defineInvokeEventa('eventa:invoke:electron:windows:settings:devtools:open')
-export const electronOpenDevtoolsWindow = defineInvokeEventa<void, { route?: string }>('eventa:invoke:electron:windows:devtools:open')
+export const electronOpenDevtoolsWindow = defineInvokeEventa<void, { key: string, route?: string, width?: number, height?: number, x?: number, y?: number }>('eventa:invoke:electron:windows:devtools:open')
 
 export interface ElectronServerChannelConfig {
   tlsConfig?: ServerOptions['tlsConfig'] | null
@@ -33,7 +33,7 @@ export const electronGetServerChannelConfig = defineInvokeEventa<ElectronServerC
 export const electronApplyServerChannelConfig = defineInvokeEventa<ElectronServerChannelConfig, Partial<ElectronServerChannelConfig>>('eventa:invoke:electron:server-channel:apply-config')
 export const electronGetServerChannelQrPayload = defineInvokeEventa<ServerChannelQrPayload>('eventa:invoke:electron:server-channel:get-qr-payload')
 
-export type ElectronUpdaterChannel = 'stable' | 'alpha' | 'beta' | 'nightly' | 'canary'
+export type ElectronUpdaterChannel = 'latest' | 'stable' | 'alpha' | 'beta' | 'nightly' | 'canary'
 
 export interface ElectronUpdaterPreferences {
   channel?: ElectronUpdaterChannel
@@ -42,13 +42,10 @@ export interface ElectronUpdaterPreferences {
 export const electronGetUpdaterPreferences = defineInvokeEventa<ElectronUpdaterPreferences>('eventa:invoke:electron:auto-updater:get-preferences')
 export const electronSetUpdaterPreferences = defineInvokeEventa<ElectronUpdaterPreferences, ElectronUpdaterPreferences>('eventa:invoke:electron:auto-updater:set-preferences')
 
-export const electronPluginList = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:list')
-export const electronPluginSetEnabled = defineInvokeEventa<PluginRegistrySnapshot, { name: string, enabled: boolean, path?: string }>('eventa:invoke:electron:plugins:set-enabled')
-export const electronPluginLoadEnabled = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:load-enabled')
-export const electronPluginLoad = defineInvokeEventa<PluginRegistrySnapshot, { name: string }>('eventa:invoke:electron:plugins:load')
-export const electronPluginUnload = defineInvokeEventa<PluginRegistrySnapshot, { name: string }>('eventa:invoke:electron:plugins:unload')
-export const electronPluginInspect = defineInvokeEventa<PluginHostDebugSnapshot>('eventa:invoke:electron:plugins:inspect')
-export const electronPluginUpdateCapability = defineInvokeEventa<PluginCapabilityState, PluginCapabilityPayload>('eventa:invoke:electron:plugins:capability:update')
+export * from './plugin/assets'
+export * from './plugin/capabilities'
+export * from './plugin/host'
+export * from './plugin/tools'
 
 export interface DesktopOverlayReadiness {
   state: 'booting' | 'ready' | 'degraded'
@@ -57,8 +54,7 @@ export interface DesktopOverlayReadiness {
 
 export const getDesktopOverlayReadinessContract = defineInvokeEventa<DesktopOverlayReadiness>('eventa:invoke:electron:windows:desktop-overlay:get-readiness')
 
-export const pluginProtocolListProvidersEventName = 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers'
-export const pluginProtocolListProviders = defineInvokeEventa<Array<{ name: string }>>(pluginProtocolListProvidersEventName)
+
 
 export const captionIsFollowingWindowChanged = defineEventa<boolean>('eventa:event:electron:windows:caption-overlay:is-following-window-changed')
 export const captionGetIsFollowingWindow = defineInvokeEventa<boolean>('eventa:invoke:electron:windows:caption-overlay:get-is-following-window')
@@ -93,13 +89,33 @@ export function createRequestWindowEventa(namespace: string) {
 export const noticeWindowEventa = createRequestWindowEventa('notice')
 
 // Widgets / Adhoc window events
+export interface WidgetWindowSize {
+  width?: number
+  height?: number
+  minWidth?: number
+  minHeight?: number
+  maxWidth?: number
+  maxHeight?: number
+}
+
+export type WidgetGridSize = 's' | 'm' | 'l' | { cols?: number, rows?: number }
+
 export interface WidgetsAddPayload {
   id?: string
   componentName: string
   componentProps?: Record<string, any>
   // size presets or explicit spans; renderer decides mapping
-  size?: 's' | 'm' | 'l' | { cols?: number, rows?: number }
+  size?: WidgetGridSize
+  windowSize?: WidgetWindowSize | Record<string, unknown>
   // auto-dismiss in ms; if omitted, persistent until closed by user
+  ttlMs?: number
+}
+
+export interface WidgetsUpdatePayload {
+  id: string
+  componentProps?: Record<string, any>
+  size?: WidgetGridSize
+  windowSize?: WidgetWindowSize | Record<string, unknown>
   ttlMs?: number
 }
 
@@ -107,7 +123,8 @@ export interface WidgetSnapshot {
   id: string
   componentName: string
   componentProps: Record<string, any>
-  size: 's' | 'm' | 'l' | { cols?: number, rows?: number }
+  size: WidgetGridSize
+  windowSize?: WidgetWindowSize
   ttlMs: number
 }
 
@@ -221,7 +238,7 @@ export const widgetsHideWindow = defineInvokeEventa<void, { id?: string }>('even
 export const widgetsAdd = defineInvokeEventa<string | undefined, WidgetsAddPayload>('eventa:invoke:electron:windows:widgets:add')
 export const widgetsRemove = defineInvokeEventa<void, { id: string }>('eventa:invoke:electron:windows:widgets:remove')
 export const widgetsClear = defineInvokeEventa('eventa:invoke:electron:windows:widgets:clear')
-export const widgetsUpdate = defineInvokeEventa<void, { id: string, componentProps?: Record<string, any> }>('eventa:invoke:electron:windows:widgets:update')
+export const widgetsUpdate = defineInvokeEventa<void, WidgetsUpdatePayload>('eventa:invoke:electron:windows:widgets:update')
 export const widgetsFetch = defineInvokeEventa<WidgetSnapshot | void, { id: string }>('eventa:invoke:electron:windows:widgets:fetch')
 export const widgetsPrepareWindow = defineInvokeEventa<string | undefined, { id?: string }>('eventa:invoke:electron:windows:widgets:prepare')
 
@@ -277,7 +294,7 @@ export const stageThreeRuntimeTraceRemoteDisableEvent = defineEventa<StageThreeR
 export const widgetsRenderEvent = defineEventa<WidgetSnapshot>('eventa:event:electron:windows:widgets:render')
 export const widgetsRemoveEvent = defineEventa<{ id: string }>('eventa:event:electron:windows:widgets:remove')
 export const widgetsClearEvent = defineEventa('eventa:event:electron:windows:widgets:clear')
-export const widgetsUpdateEvent = defineEventa<{ id: string, componentProps?: Record<string, any> }>('eventa:event:electron:windows:widgets:update')
+export const widgetsUpdateEvent = defineEventa<WidgetsUpdatePayload>('eventa:event:electron:windows:widgets:update')
 
 // Onboarding window events
 export const electronOnboardingClose = defineInvokeEventa('eventa:invoke:electron:windows:onboarding:close')

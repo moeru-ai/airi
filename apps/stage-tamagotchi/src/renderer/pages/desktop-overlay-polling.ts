@@ -161,9 +161,9 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
   let timer: ReturnType<typeof setTimeout> | null = null
   let bootstrapTimer: ReturnType<typeof setTimeout> | null = null
   let running = false
-  let inFlightCall: Promise<ElectronMcpCallToolResult> | null = null
+  let inFlightCall: Promise<McpCallToolResult> | null = null
   let backgroundHungCalls: Array<{
-    call: Promise<ElectronMcpCallToolResult>
+    call: Promise<McpCallToolResult>
     timedOutAt: number
   }> = []
   let lastHungRecoveryProbeAt: number | null = null
@@ -184,7 +184,7 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
     config.onState(empty)
   }
 
-  function removeHungCall(call: Promise<ElectronMcpCallToolResult>) {
+  function removeHungCall(call: Promise<McpCallToolResult>) {
     backgroundHungCalls = backgroundHungCalls.filter(slot => slot.call !== call)
     if (backgroundHungCalls.length < MAX_BACKGROUND_HUNG_CALLS) {
       lastHungRecoveryProbeAt = null

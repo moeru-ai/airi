@@ -130,9 +130,14 @@ app.whenReady().then(async () => {
     build: async () => setupMcpStdioManager(),
   })
 
+  const widgetsManager = injeca.provide('windows:widgets', {
+    dependsOn: { serverChannel, i18n },
+    build: ({ dependsOn }) => setupWidgetsWindowManager(dependsOn),
+  })
+
   const pluginHost = injeca.provide('modules:plugin-host', {
-    dependsOn: { serverChannel },
-    build: () => setupPluginHost(),
+    dependsOn: { serverChannel, widgetsManager },
+    build: ({ dependsOn }) => setupPluginHost(dependsOn),
   })
 
   const windowAuthManager = injeca.provide('services:window-auth-manager', () => createWindowAuthManagerService())
@@ -152,10 +157,7 @@ app.whenReady().then(async () => {
     build: ({ dependsOn }) => setupNoticeWindowManager(dependsOn),
   })
 
-  const widgetsManager = injeca.provide('windows:widgets', {
-    dependsOn: { serverChannel, i18n },
-    build: ({ dependsOn }) => setupWidgetsWindowManager(dependsOn),
-  })
+
 
   const aboutWindow = injeca.provide('windows:about', {
     dependsOn: { autoUpdater, i18n, serverChannel },
@@ -168,7 +170,7 @@ app.whenReady().then(async () => {
   })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsMarkdownStressWindow, serverChannel, mcpStdioManager, i18n, windowAuthManager },
+    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, mcpStdioManager, i18n, windowAuthManager },
     build: async ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
   })
 
