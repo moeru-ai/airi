@@ -13,10 +13,10 @@ import { defaultPerfTracer } from '@proj-airi/stage-shared'
 import { Mutex } from 'async-mutex'
 
 import { removeInferenceStatus, updateInferenceStatus } from '../../../composables/use-inference-status'
-import { MAX_RESTARTS, MODEL_NAMES, RESTART_DELAY_MS, TIMEOUTS } from '../constants'
+import { DEVICE_LOSS_WASM_THRESHOLD, MAX_RESTARTS, MODEL_NAMES, RESTART_DELAY_MS, TIMEOUTS } from '../constants'
 import { getGPUCoordinator, getLoadQueue, MODEL_VRAM_ESTIMATES } from '../coordinator'
 import { LOAD_PRIORITY } from '../load-queue'
-import { classifyError, createRequestId } from '../protocol'
+import { classifyDeviceLossReason, classifyError, createRequestId } from '../protocol'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -41,6 +41,16 @@ export interface KokoroAdapter {
 
   /** Current state */
   readonly state: 'idle' | 'loading' | 'ready' | 'running' | 'error' | 'terminated'
+
+  /**
+   * Snapshot of the last successful load config, or null if never loaded.
+   * `device` reflects the device actually used (post WASM promotion / worker
+   * fallback), which may differ from the device requested by the caller.
+   */
+  readonly manifest: { quantization: string, device: string } | null
+
+  /** Number of WebGPU device-loss events observed by this adapter */
+  readonly deviceLossCount: number
 }
 
 // ---------------------------------------------------------------------------
@@ -153,6 +163,11 @@ function waitForWorkerMessage<T = any>(
 // Factory
 // ---------------------------------------------------------------------------
 
+interface KokoroManifest {
+  quantization: string
+  device: string
+}
+
 export function createKokoroAdapter(): KokoroAdapter {
   let worker: Worker | null = null
   let state: KokoroAdapter['state'] = 'idle'
@@ -161,6 +176,13 @@ export function createKokoroAdapter(): KokoroAdapter {
   let allocationToken: AllocationToken | null = null
   let currentModelStatusId: string | null = null
   let errorListener: ((event: ErrorEvent) => void) | null = null
+
+  // NOTICE: Device-loss resilience state. `lastManifest` records the last
+  // successful load config so scheduleRestart can reconstruct context if the
+  // worker died. `deviceLossCount` tracks WebGPU device-loss events so we
+  // can promote to WASM after repeated failures (see DEVICE_LOSS_WASM_THRESHOLD).
+  let lastManifest: KokoroManifest | null = null
+  let deviceLossCount = 0
 
   const operationMutex = new Mutex()
   const lifecycleMutex = new Mutex()
@@ -174,9 +196,22 @@ export function createKokoroAdapter(): KokoroAdapter {
     worker.addEventListener('error', errorListener)
   }
 
-  function handleWorkerError(_event: ErrorEvent | Error): void {
+  function handleWorkerError(event: ErrorEvent | Error): void {
     state = 'error'
     operationMutex.cancel()
+
+    // Record device-loss telemetry before teardown so the coordinator sees it
+    // even if the adapter is never used again.
+    const code = classifyError(event instanceof Error ? event : (event as ErrorEvent).error ?? event)
+    if (code === 'DEVICE_LOST') {
+      deviceLossCount++
+      getGPUCoordinator().recordDeviceLoss({
+        modelId: currentModelStatusId ?? MODEL_NAMES.KOKORO,
+        reason: classifyDeviceLossReason(event instanceof Error ? event : (event as ErrorEvent).error ?? event),
+        occurredAt: Date.now(),
+      })
+    }
+
     destroyWorker()
     scheduleRestart()
   }
@@ -237,6 +272,22 @@ export function createKokoroAdapter(): KokoroAdapter {
     device: string,
     options?: { onProgress?: (p: ProgressPayload) => void },
   ): Promise<Voices> {
+    // NOTICE: Proactive WASM promotion. If this adapter has suffered repeated
+    // WebGPU device-loss events, webgpu is unreliable on this device and we
+    // should not keep retrying. The worker's per-load dtype/device fallback
+    // chain handles transient failures; this guard handles persistent ones.
+    let effectiveDevice = device
+    if (
+      device === 'webgpu'
+      && deviceLossCount >= DEVICE_LOSS_WASM_THRESHOLD
+    ) {
+      console.warn(
+        `[KokoroAdapter] ${deviceLossCount} device-loss events recorded, `
+        + `promoting load from webgpu to wasm.`,
+      )
+      effectiveDevice = 'wasm'
+    }
+
     await ensureStarted()
 
     return defaultPerfTracer.withMeasure('inference', 'kokoro-load-model', () => operationMutex.runExclusive(async () => {
@@ -248,7 +299,7 @@ export function createKokoroAdapter(): KokoroAdapter {
         removeInferenceStatus(currentModelStatusId)
       currentModelStatusId = modelStatusId
 
-      updateInferenceStatus(modelStatusId, { state: 'downloading', device: device as any })
+      updateInferenceStatus(modelStatusId, { state: 'downloading', device: effectiveDevice as any })
 
       // Use the global load queue to serialize model loads across all adapters
       return getLoadQueue().enqueue(modelStatusId, LOAD_PRIORITY.TTS, async () => {
@@ -275,7 +326,7 @@ export function createKokoroAdapter(): KokoroAdapter {
           type: 'load-model',
           requestId,
           modelId: MODEL_NAMES.KOKORO,
-          device,
+          device: effectiveDevice,
           dtype: quantization,
         })
 
@@ -290,14 +341,18 @@ export function createKokoroAdapter(): KokoroAdapter {
         const estimated = MODEL_VRAM_ESTIMATES[estimateKey] ?? 165 * 1024 * 1024
         allocationToken = coordinator.requestAllocation(`kokoro-${quantization}`, estimated)
 
+        // Record manifest so consumers can inspect how the adapter resolved
+        // device selection after fallback / WASM promotion.
+        lastManifest = { quantization, device: (response.device ?? effectiveDevice) as string }
+
         state = 'ready'
-        updateInferenceStatus(modelStatusId, { state: 'ready', device: (response.device ?? device) as any })
+        updateInferenceStatus(modelStatusId, { state: 'ready', device: (response.device ?? effectiveDevice) as any })
         onSuccess()
         if (!voices)
           throw new Error('Kokoro worker did not return voice metadata')
         return voices
       })
-    }), { quantization, device }).catch((error) => {
+    }), { quantization, device: effectiveDevice }).catch((error) => {
       handleWorkerError(error instanceof Error ? error : new Error(String(error)))
       throw error
     })
@@ -364,6 +419,8 @@ export function createKokoroAdapter(): KokoroAdapter {
     getVoices,
     terminate: terminateAdapter,
     get state() { return state },
+    get manifest() { return lastManifest },
+    get deviceLossCount() { return deviceLossCount },
   }
 }
 

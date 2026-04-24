@@ -13,10 +13,10 @@ import { defaultPerfTracer } from '@proj-airi/stage-shared'
 import { Mutex } from 'async-mutex'
 
 import { removeInferenceStatus, updateInferenceStatus } from '../../../composables/use-inference-status'
-import { MAX_RESTARTS, MODEL_NAMES, RESTART_DELAY_MS, TIMEOUTS } from '../constants'
+import { DEVICE_LOSS_WASM_THRESHOLD, MAX_RESTARTS, MODEL_NAMES, RESTART_DELAY_MS, TIMEOUTS } from '../constants'
 import { getGPUCoordinator, getLoadQueue, MODEL_VRAM_ESTIMATES } from '../coordinator'
 import { LOAD_PRIORITY } from '../load-queue'
-import { createRequestId } from '../protocol'
+import { classifyDeviceLossReason, classifyError, createRequestId } from '../protocol'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -64,6 +64,15 @@ export interface WhisperAdapter {
    * Returns an unsubscribe function.
    */
   onMessage: (handler: (event: WhisperEvent) => void) => () => void
+
+  /**
+   * Snapshot of the last successful load, or null if never loaded.
+   * `device` reflects what the worker actually used (post-fallback).
+   */
+  readonly manifest: { device: string } | null
+
+  /** Number of WebGPU device-loss events observed by this adapter */
+  readonly deviceLossCount: number
 }
 
 // ---------------------------------------------------------------------------
@@ -86,11 +95,26 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
   let errorListener: ((event: ErrorEvent) => void) | null = null
   const messageHandlers = new Set<(event: WhisperEvent) => void>()
 
+  // NOTICE: Device-loss resilience state. See kokoro.ts for rationale.
+  let lastManifest: { device: string } | null = null
+  let deviceLossCount = 0
+
   const operationMutex = new Mutex()
 
-  function handleWorkerError(_event: ErrorEvent | Error): void {
+  function handleWorkerError(event: ErrorEvent | Error): void {
     state = 'error'
     operationMutex.cancel()
+
+    const code = classifyError(event instanceof Error ? event : (event as ErrorEvent).error ?? event)
+    if (code === 'DEVICE_LOST') {
+      deviceLossCount++
+      getGPUCoordinator().recordDeviceLoss({
+        modelId: MODEL_NAMES.WHISPER,
+        reason: classifyDeviceLossReason(event instanceof Error ? event : (event as ErrorEvent).error ?? event),
+        occurredAt: Date.now(),
+      })
+    }
+
     destroyWorker()
     scheduleRestart()
   }
@@ -208,9 +232,20 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
   async function load(
     onProgress?: (p: ProgressPayload) => void,
   ): Promise<void> {
+    // NOTICE: Proactive WASM promotion after repeated device-loss events.
+    // See kokoro.ts for rationale. Whisper always requests 'webgpu' from the
+    // caller today, so we only check the promotion threshold.
+    const requestedDevice = deviceLossCount >= DEVICE_LOSS_WASM_THRESHOLD ? 'wasm' : 'webgpu'
+    if (requestedDevice === 'wasm') {
+      console.warn(
+        `[WhisperAdapter] ${deviceLossCount} device-loss events recorded, `
+        + `promoting load from webgpu to wasm.`,
+      )
+    }
+
     return operationMutex.runExclusive(async () => {
       state = 'loading'
-      updateInferenceStatus(MODEL_NAMES.WHISPER, { state: 'downloading', device: 'webgpu' })
+      updateInferenceStatus(MODEL_NAMES.WHISPER, { state: 'downloading', device: requestedDevice as any })
 
       return getLoadQueue().enqueue(MODEL_NAMES.WHISPER, LOAD_PRIORITY.ASR, async () => {
         const w = ensureWorker()
@@ -230,7 +265,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
           }
         })
 
-        w.postMessage({ type: 'load-model', requestId, modelId: MODEL_NAMES.WHISPER, device: 'webgpu' })
+        w.postMessage({ type: 'load-model', requestId, modelId: MODEL_NAMES.WHISPER, device: requestedDevice })
 
         let readyResponse: any
         try {
@@ -243,7 +278,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
         }
 
         // Capture actual device reported by the worker (may fall back to WASM)
-        const actualDevice = readyResponse?.device ?? 'webgpu'
+        const actualDevice = readyResponse?.device ?? requestedDevice
 
         // Track GPU memory allocation
         const coordinator = getGPUCoordinator()
@@ -254,6 +289,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
           MODEL_VRAM_ESTIMATES[MODEL_NAMES.WHISPER] ?? 800 * 1024 * 1024,
         )
 
+        lastManifest = { device: actualDevice }
         state = 'ready'
         updateInferenceStatus(MODEL_NAMES.WHISPER, { state: 'ready', device: actualDevice })
         onSuccess()
@@ -317,5 +353,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
     terminate: terminateAdapter,
     onMessage,
     get state() { return state },
+    get manifest() { return lastManifest },
+    get deviceLossCount() { return deviceLossCount },
   }
 }
