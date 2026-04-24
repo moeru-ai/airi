@@ -70,7 +70,7 @@ describe('registerDesktopGroundingTools', () => {
     })
     const { server, invoke } = createMockServer()
 
-    registerDesktopGroundingTools({ server, runtime, executeAction })
+    registerDesktopGroundingTools({ server, runtime })
 
     const result = await invoke('desktop_click_target', {
       candidateId: 't_0',
@@ -109,7 +109,7 @@ describe('registerDesktopGroundingTools', () => {
     registerDesktopGroundingTools({
       server,
       runtime,
-      executeAction: vi.fn(),
+
     })
 
     const result = await invoke('desktop_observe', {})
@@ -144,7 +144,7 @@ describe('registerDesktopGroundingTools', () => {
     registerDesktopGroundingTools({
       server,
       runtime,
-      executeAction: vi.fn(),
+
     })
 
     const result = await invoke('desktop_observe', {})
