@@ -12,6 +12,7 @@ import type {
 import process from 'node:process'
 
 import { spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { access, mkdir, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, join, resolve } from 'node:path'
 
@@ -445,7 +446,7 @@ export function createGodotStageManager(): GodotStageManager {
 
     const host = '127.0.0.1'
     const port = await getRandomPort(host)
-    const token = Math.random().toString(36).slice(2)
+    const token = randomUUID()
     const appServer = new H3()
 
     appServer.get('/ws', defineWebSocketHandler({
