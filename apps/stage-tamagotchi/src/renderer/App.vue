@@ -190,7 +190,7 @@ context.value.on(electronSettingsNavigate, (event) => {
 })
 
 context.value.on(electronGodotStageStatusChanged, (event) => {
-  if (!isGodotStageRoute() || !event.body) {
+  if (!event.body) {
     return
   }
 

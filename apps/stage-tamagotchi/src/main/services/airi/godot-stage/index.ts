@@ -517,6 +517,11 @@ export function createGodotStageManager(): GodotStageManager {
     })
 
     processHandle.on('error', (error) => {
+      if (currentProcess !== processHandle) {
+        log.withError(error).debug('ignored stale Godot stage process error')
+        return
+      }
+
       const message = errorMessageFrom(error) ?? 'Failed to spawn Godot stage process.'
       setStatus({
         state: 'error',
@@ -528,6 +533,15 @@ export function createGodotStageManager(): GodotStageManager {
     })
 
     processHandle.on('close', (code, signal) => {
+      if (currentProcess !== processHandle) {
+        log.withFields({
+          code,
+          pid: processHandle.pid ?? null,
+          signal,
+        }).debug('ignored stale Godot stage process close')
+        return
+      }
+
       const exitMessage = signal
         ? `Godot stage exited with signal ${signal}.`
         : `Godot stage exited with code ${code ?? 0}.`
@@ -570,6 +584,8 @@ export function createGodotStageManager(): GodotStageManager {
     },
     async start() {
       return await lifecycleMutex.runExclusive(async () => {
+        let spawnedProcess: GodotStageProcess | undefined
+
         try {
           if (currentProcess && currentStatus.state === 'running') {
             return currentStatus
@@ -578,6 +594,15 @@ export function createGodotStageManager(): GodotStageManager {
           if (currentProcess && currentStatus.state === 'starting' && currentReady) {
             await currentReady.promise
             return currentStatus
+          }
+
+          if (currentProcess) {
+            const activeProcess = currentProcess
+            await stopProcessAfterFailedStart()
+
+            if (currentProcess === activeProcess) {
+              throw new Error('Previous Godot stage process is still shutting down. Retry after it exits.')
+            }
           }
 
           await stopSocketRuntime()
@@ -622,6 +647,7 @@ export function createGodotStageManager(): GodotStageManager {
             },
           )
 
+          spawnedProcess = processHandle
           currentProcess = processHandle
           attachProcessListeners(processHandle)
 
@@ -643,7 +669,9 @@ export function createGodotStageManager(): GodotStageManager {
           return currentStatus
         }
         catch (error) {
-          await stopProcessAfterFailedStart()
+          if (spawnedProcess && currentProcess === spawnedProcess) {
+            await stopProcessAfterFailedStart()
+          }
           await stopSocketRuntime()
           setStatus({
             state: 'error',

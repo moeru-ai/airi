@@ -143,8 +143,12 @@ function readSpawnedWebSocketUrl() {
 }
 
 async function waitForSpawnedGodotProcess() {
+  await waitForSpawnedGodotProcessCount(1)
+}
+
+async function waitForSpawnedGodotProcessCount(expectedCount: number) {
   for (let attempt = 0; attempt < 100; attempt++) {
-    if (spawnMock.mock.calls.length > 0) {
+    if (spawnMock.mock.calls.length >= expectedCount) {
       return
     }
 
@@ -258,6 +262,49 @@ describe('createGodotStageManager lifecycle cleanup', () => {
       state: 'error',
       pid: processHandle.pid,
       lastError: expect.stringContaining('kill failed'),
+    })
+  })
+
+  it('does not spawn a second process while a failed startup process is still shutting down', async () => {
+    // ROOT CAUSE:
+    //
+    // A timed-out startup kills the old Godot process, but only waits a bounded
+    // 2 seconds for its close event. A retry can start a new process before the
+    // old process emits close. The retry must not spawn another child process
+    // while the previous process is still tracked by the manager.
+    vi.useFakeTimers()
+    process.env.GODOT4 = '/tmp/godot'
+
+    const staleProcess = createFakeGodotProcess()
+    staleProcess.pid = 1001
+    staleProcess.kill.mockImplementation(() => true)
+
+    const unexpectedProcess = createFakeGodotProcess()
+    unexpectedProcess.pid = 1002
+
+    spawnMock.mockReturnValueOnce(staleProcess).mockReturnValueOnce(unexpectedProcess)
+
+    const { createGodotStageManager } = await import('./index')
+    const manager = createGodotStageManager()
+    const failedStartPromise = manager.start()
+    const failedStartExpectation = expect(failedStartPromise).rejects.toThrow('Godot stage did not report ready in time.')
+
+    await waitForSpawnedGodotProcess()
+    await vi.advanceTimersByTimeAsync(20_000)
+    await vi.advanceTimersByTimeAsync(2_000)
+    await failedStartExpectation
+
+    const retryStartPromise = manager.start()
+    const retryStartExpectation = expect(retryStartPromise).rejects.toThrow('Previous Godot stage process is still shutting down')
+    await vi.advanceTimersByTimeAsync(20_000)
+    await vi.advanceTimersByTimeAsync(2_000)
+    await retryStartExpectation
+
+    expect(spawnMock).toHaveBeenCalledTimes(1)
+    expect(manager.getStatus()).toMatchObject({
+      state: 'error',
+      pid: null,
+      lastError: expect.stringContaining('Previous Godot stage process is still shutting down'),
     })
   })
 })
