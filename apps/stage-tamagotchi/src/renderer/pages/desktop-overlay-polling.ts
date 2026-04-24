@@ -137,14 +137,11 @@ export interface OverlayPollConfig {
   fallbackIntervalMs?: number
   /** Per-call timeout in ms. Default: 5000. Prevents poll loop hang on startup race. */
   callTimeoutMs?: number
-  /** How long a timed-out background call occupies a recovery slot before we probe again. */
-  hungCallLeaseMs?: number
 }
 
 const DEFAULT_INTERVAL = 250
 const DEFAULT_FALLBACK_INTERVAL = 500
 const DEFAULT_CALL_TIMEOUT = 5000
-const DEFAULT_HUNG_CALL_LEASE = 5000
 const MAX_BACKGROUND_HUNG_CALLS = 2
 
 /**
@@ -159,13 +156,12 @@ export const MCP_TOOL_NAME = 'computer_use::desktop_get_state'
 export function createOverlayPollController(config: OverlayPollConfig): OverlayPollController {
   const normalInterval = config.intervalMs ?? DEFAULT_INTERVAL
   const fallbackInterval = config.fallbackIntervalMs ?? DEFAULT_FALLBACK_INTERVAL
-  const hungCallLeaseMs = config.hungCallLeaseMs ?? DEFAULT_HUNG_CALL_LEASE
 
   let timer: ReturnType<typeof setTimeout> | null = null
   let bootstrapTimer: ReturnType<typeof setTimeout> | null = null
   let running = false
   let inFlightCall: Promise<ElectronMcpCallToolResult> | null = null
-  let backgroundHungSlots: Array<{ expiresAt: number }> = []
+  const backgroundHungCalls = new Set<Promise<ElectronMcpCallToolResult>>()
 
   let currentBootstrapState: 'booting' | 'ready' | 'degraded' = 'booting'
   let currentBootstrapError: string | undefined
@@ -174,10 +170,6 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
     if (running) {
       timer = setTimeout(poll, nextInterval)
     }
-  }
-
-  function pruneHungCallSlots(now: number) {
-    backgroundHungSlots = backgroundHungSlots.filter(slot => slot.expiresAt > now)
   }
 
   function emitEmptyState() {
@@ -212,9 +204,7 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
   }
 
   async function poll() {
-    pruneHungCallSlots(Date.now())
-
-    if (inFlightCall || backgroundHungSlots.length >= MAX_BACKGROUND_HUNG_CALLS) {
+    if (inFlightCall || backgroundHungCalls.size >= MAX_BACKGROUND_HUNG_CALLS) {
       scheduleNext(fallbackInterval)
       return
     }
@@ -227,22 +217,22 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
       // hanging forever if the eventa invoke never resolves (e.g. during
       // startup when the main-process RPC handlers may not be ready yet).
       // NOTICE: Eventa does not expose abort semantics here, so a timed-out
-      // invoke can still be unresolved in the background. Timed-out calls are
-      // therefore tracked as expiring lease slots: the cap bounds pending
-      // backlog, while lease expiry still lets the overlay probe again later.
-      let timedOutSlot: { expiresAt: number } | null = null
+      // invoke can still be unresolved in the background. Keep timed-out calls
+      // in a Set until they settle so the renderer never builds an unbounded
+      // backlog of pending IPC/RPC work.
+      let timedOut = false
       const currentCall = config.callTool(MCP_TOOL_NAME)
       inFlightCall = currentCall
       currentCall.then(() => {
-        if (timedOutSlot) {
-          backgroundHungSlots = backgroundHungSlots.filter(slot => slot !== timedOutSlot)
+        if (timedOut) {
+          backgroundHungCalls.delete(currentCall)
         }
         else if (inFlightCall === currentCall) {
           inFlightCall = null
         }
       }, () => {
-        if (timedOutSlot) {
-          backgroundHungSlots = backgroundHungSlots.filter(slot => slot !== timedOutSlot)
+        if (timedOut) {
+          backgroundHungCalls.delete(currentCall)
         }
         else if (inFlightCall === currentCall) {
           inFlightCall = null
@@ -253,10 +243,8 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
         currentCall,
         new Promise<never>((_, reject) =>
           timeoutId = setTimeout(() => {
-            timedOutSlot = {
-              expiresAt: Date.now() + hungCallLeaseMs,
-            }
-            backgroundHungSlots = [...backgroundHungSlots, timedOutSlot]
+            timedOut = true
+            backgroundHungCalls.add(currentCall)
             if (inFlightCall === currentCall) {
               inFlightCall = null
             }

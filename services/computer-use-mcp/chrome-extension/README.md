@@ -49,4 +49,4 @@ content.js (MAIN world, window.__AIRI_DG__)
 
 ## Provenance
 
-Adapted from `/Users/liuziheng/computer_use/chrome-extension/` with DOM-action methods stripped.
+Adapted from the repository's Chrome extension source with DOM-action methods stripped.

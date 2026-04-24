@@ -8,7 +8,7 @@
  * clicks, typing, or navigation. All execution is done via real macOS OS-level
  * input events through the desktop grounding executor.
  *
- * Adapted from /Users/liuziheng/computer_use/chrome-extension/content.js.
+ * Adapted from the repository's Chrome extension source.
  * Stripped: clickAt, typeAt, hoverAt, scrollAt, simulateDragDrop, readStorage,
  * setStorage, readCanvasData, injectCSS, and all other DOM-mutating methods.
  * Kept: collectFrameDOM, _describeElement, _collectInteractiveElements,

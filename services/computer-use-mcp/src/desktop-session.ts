@@ -58,7 +58,10 @@ export interface DesktopSessionController {
   }) => DesktopSession
 
   /**
-   * End the current session. Optionally restores the user's previous foreground.
+   * End the current session and clear session state.
+   *
+   * Foreground restoration is handled by the Chrome/session manager; this
+   * controller only owns in-memory session bookkeeping.
    */
   end: () => void
 
@@ -182,7 +185,10 @@ export function createDesktopSessionController(
 
       // Switch to the controlled app
       if (session.controlledApp === 'Google Chrome') {
-        await chromeSessionManager.bringToFront()
+        const activated = await chromeSessionManager.bringToFront()
+        if (!activated) {
+          throw new Error('Controlled Chrome session is unavailable; call desktop_ensure_chrome before continuing.')
+        }
       }
       else {
         await activateApp(session.controlledApp)

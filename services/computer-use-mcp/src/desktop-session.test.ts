@@ -24,7 +24,7 @@ function fgUnavailable(): ForegroundContext {
 function mockChromeSessionManager(): ChromeSessionManager {
   return {
     ensureAgentWindow: vi.fn(),
-    bringToFront: vi.fn().mockResolvedValue(undefined),
+    bringToFront: vi.fn().mockResolvedValue(true),
     restorePreviousForeground: vi.fn().mockResolvedValue(undefined),
     getSessionInfo: vi.fn().mockReturnValue(null),
     endSession: vi.fn(),
@@ -221,6 +221,18 @@ describe('desktopSessionController', () => {
 
       expect(result).toBe(false)
       expect(chromeManager.bringToFront).toHaveBeenCalled()
+    })
+
+    it('should fail when controlled Chrome session cannot be foregrounded', async () => {
+      controller.begin({ controlledApp: 'Google Chrome', currentForeground: fg('Finder') })
+      const chromeManager = mockChromeSessionManager()
+      vi.mocked(chromeManager.bringToFront).mockResolvedValue(false)
+
+      await expect(controller.ensureControlledAppInForeground({
+        currentForeground: fg('Finder'),
+        chromeSessionManager: chromeManager,
+        activateApp: vi.fn(),
+      })).rejects.toThrow('Controlled Chrome session is unavailable')
     })
 
     it('should use activateApp for non-Chrome apps', async () => {

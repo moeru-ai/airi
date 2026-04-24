@@ -141,6 +141,35 @@ describe('registerChromeSessionTools', () => {
     expect(runtime.stateManager.getState().pendingApprovalCount).toBe(1)
   })
 
+  it('audits joined Chrome sessions as open_app because ensure can create a new window', async () => {
+    runtime.config = createTestConfig({
+      executor: 'macos-local',
+      approvalMode: 'all',
+    })
+    vi.mocked(runtime.chromeSessionManager.getSessionInfo).mockReturnValue({
+      wasAlreadyRunning: true,
+      windowId: 'chrome-window-existing',
+      pid: 9999,
+      agentOwned: false,
+      createdAt: new Date().toISOString(),
+    })
+
+    const { server, invoke } = createMockServer()
+    registerChromeSessionTools({ server, runtime })
+
+    const result = await invoke('desktop_ensure_chrome')
+
+    const structured = result.structuredContent as Record<string, any>
+    expect(structured.status).toBe('approval_required')
+    expect(structured.action).toEqual({
+      kind: 'open_app',
+      input: {
+        app: 'Google Chrome',
+      },
+    })
+    expect(runtime.chromeSessionManager.ensureAgentWindow).not.toHaveBeenCalled()
+  })
+
   it('consumes operation budget and persists chrome session when approvals are disabled', async () => {
     vi.mocked(runtime.chromeSessionManager.ensureAgentWindow).mockResolvedValue({
       wasAlreadyRunning: false,

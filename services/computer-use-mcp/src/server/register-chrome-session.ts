@@ -27,8 +27,9 @@ const TOOL_NAME = 'desktop_ensure_chrome'
 const CHROME_APP_NAME = 'Google Chrome'
 
 function getChromeSessionAction(runtime: ComputerUseServerRuntime): ActionInvocation {
+  const sessionInfo = runtime.chromeSessionManager.getSessionInfo()
   return {
-    kind: runtime.chromeSessionManager.getSessionInfo() ? 'focus_app' : 'open_app',
+    kind: sessionInfo && !sessionInfo.wasAlreadyRunning ? 'focus_app' : 'open_app',
     input: {
       app: CHROME_APP_NAME,
     },

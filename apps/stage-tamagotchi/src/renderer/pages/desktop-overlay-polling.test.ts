@@ -387,11 +387,14 @@ describe('createOverlayPollController', () => {
     controller.stop()
   })
 
-  it('recovers again once a timed-out hung-call lease expires', async () => {
+  it('releases timed-out poll slots only when the original promise settles', async () => {
     vi.useFakeTimers()
 
+    let resolveFirst: (value: ElectronMcpCallToolResult) => void = () => {}
     const callTool = vi.fn<(name: string) => Promise<ElectronMcpCallToolResult>>()
-      .mockImplementationOnce(() => new Promise<ElectronMcpCallToolResult>(() => {}))
+      .mockImplementationOnce(() => new Promise<ElectronMcpCallToolResult>((resolve) => {
+        resolveFirst = resolve
+      }))
       .mockImplementationOnce(() => new Promise<ElectronMcpCallToolResult>(() => {}))
       .mockResolvedValue({
         structuredContent: {
@@ -416,7 +419,6 @@ describe('createOverlayPollController', () => {
       intervalMs: 100,
       fallbackIntervalMs: 200,
       callTimeoutMs: 500,
-      hungCallLeaseMs: 1000,
     })
 
     controller.start()
@@ -430,10 +432,12 @@ describe('createOverlayPollController', () => {
     expect(callTool).toHaveBeenCalledTimes(2)
 
     await vi.advanceTimersByTimeAsync(500)
-    await vi.advanceTimersByTimeAsync(200)
+    await vi.advanceTimersByTimeAsync(1000)
     expect(callTool).toHaveBeenCalledTimes(2)
     expect(received).toHaveLength(1)
 
+    resolveFirst({ structuredContent: {} })
+    await vi.advanceTimersByTimeAsync(0)
     await vi.advanceTimersByTimeAsync(200)
     expect(callTool).toHaveBeenCalledTimes(3)
     expect(received).toHaveLength(2)

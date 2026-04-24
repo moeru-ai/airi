@@ -17,7 +17,7 @@
  * - window.__AIRI_DG__ lives in the MAIN world (needs real DOM access)
  * - The two worlds communicate via window.postMessage
  *
- * Adapted from /Users/liuziheng/computer_use/chrome-extension/msg_bridge.js.
+ * Adapted from an earlier Chrome extension message bridge.
  * No functional changes — this is a pure relay.
  */
 (function () {

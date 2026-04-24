@@ -43,9 +43,9 @@ export interface ChromeSessionManager {
 
   /**
    * Bring the agent's Chrome window to the foreground.
-   * No-op if no session exists.
+   * Returns false if the tracked session is missing or Chrome is no longer running.
    */
-  bringToFront: () => Promise<void>
+  bringToFront: () => Promise<boolean>
 
   /**
    * Restore the user's previous foreground app (recorded at session start).
@@ -233,7 +233,7 @@ end run`
         windowId: `${pid}:0:${CHROME_APP_NAME}`,
         cdpUrl: wasAlreadyRunning ? undefined : `http://127.0.0.1:${cdpPort}`,
         pid,
-        agentOwned: true,
+        agentOwned: !wasAlreadyRunning,
         initialUrl: options?.url,
         createdAt: new Date().toISOString(),
       }
@@ -243,14 +243,15 @@ end run`
 
     async bringToFront() {
       if (!session)
-        return
+        return false
       const stillRunning = await isChromeRunning()
       if (!stillRunning) {
         session = null
         onSessionLost?.()
-        return
+        return false
       }
       await activateChrome()
+      return true
     },
 
     async restorePreviousForeground() {

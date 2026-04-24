@@ -36,7 +36,8 @@ export type ToolKind
 
 /**
  * Tool descriptor defines the canonical metadata for a single MCP tool.
- * All fields are required (fail-closed policy). No field may be left undefined.
+ * Core fields are required (fail-closed policy). Optional fields must have
+ * explicit default behavior at the registration call site.
  */
 export interface ToolDescriptor {
   /**
@@ -100,6 +101,7 @@ export interface ToolDescriptor {
   /**
    * Whether this tool is hidden from the default tool list to reduce context bloat.
    * True = deferred loading (must be explicitly enabled via tool_search).
+   * Omitted = false.
    */
   defaultDeferred?: boolean
 }

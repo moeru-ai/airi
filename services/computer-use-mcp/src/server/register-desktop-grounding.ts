@@ -83,7 +83,10 @@ export function registerDesktopGroundingTools(params: {
               if (currentForeground.appName) {
                 runtime.stateManager.savePreviousUserForeground(currentForeground.appName)
               }
-              await runtime.chromeSessionManager.bringToFront()
+              const activated = await runtime.chromeSessionManager.bringToFront()
+              if (!activated) {
+                throw new Error('Chrome session is unavailable; call desktop_ensure_chrome before observing Chrome.')
+              }
               await sleep(300)
             }
           }

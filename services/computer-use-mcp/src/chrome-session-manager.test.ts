@@ -116,7 +116,7 @@ describe('chromeSessionManager', () => {
       const info = await manager.ensureAgentWindow()
 
       expect(info.wasAlreadyRunning).toBe(true)
-      expect(info.agentOwned).toBe(true)
+      expect(info.agentOwned).toBe(false)
       expect(info.pid).toBe(99999)
       // No CDP URL when joining existing Chrome
       expect(info.cdpUrl).toBeUndefined()
@@ -234,15 +234,17 @@ describe('chromeSessionManager', () => {
         .mockResolvedValueOnce(ok('11111\n')) // isChromeRunning
         .mockResolvedValueOnce(ok()) // activateChrome
 
-      await manager.bringToFront()
+      const result = await manager.bringToFront()
 
+      expect(result).toBe(true)
       expect(mockedRunProcess).toHaveBeenCalledTimes(2)
       const activateCall = mockedRunProcess.mock.calls[1]
       expect(activateCall[1]).toEqual(['-e', 'tell application "Google Chrome" to activate'])
     })
 
     it('should be no-op when no session exists', async () => {
-      await manager.bringToFront()
+      const result = await manager.bringToFront()
+      expect(result).toBe(false)
       expect(mockedRunProcess).not.toHaveBeenCalled()
     })
 
@@ -254,7 +256,8 @@ describe('chromeSessionManager', () => {
       // Chrome crashed
       mockedRunProcess.mockRejectedValueOnce(new Error('no match'))
 
-      await manager.bringToFront()
+      const result = await manager.bringToFront()
+      expect(result).toBe(false)
       expect(manager.getSessionInfo()).toBeNull()
     })
   })
