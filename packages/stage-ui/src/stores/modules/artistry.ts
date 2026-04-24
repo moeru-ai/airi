@@ -192,7 +192,15 @@ export const useArtistryStore = defineStore('artistry', () => {
  * @param store - The artistry store instance (from useArtistryStore())
  */
 export function resolveArtistryConfigFromStore(store: any): ResolvedArtistryConfig {
-  const unwrap = (val: any) => (isRef(val) ? val.value : val)
+  const unwrap = (val: any) => {
+    if (isRef(val))
+      return val.value
+
+    if (val && typeof val === 'object' && 'value' in val && Object.keys(val).length === 1)
+      return val.value
+
+    return val
+  }
 
   return {
     provider: unwrap(store.activeProvider),
