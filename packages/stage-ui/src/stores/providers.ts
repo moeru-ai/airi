@@ -175,6 +175,9 @@ export interface ProviderMetadata {
     supportsStreamOutput: boolean
     supportsStreamInput: boolean
   }
+  pricing?: 'free' | 'paid' | 'internal'
+  deployment?: 'local' | 'cloud'
+  beginnerRecommended?: boolean
 }
 
 export interface ModelInfo {

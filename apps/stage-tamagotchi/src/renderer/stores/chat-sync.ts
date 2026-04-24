@@ -13,11 +13,12 @@ import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 
+import { imageJournalTools } from './tools/builtin/image-journal'
 import { weatherTools } from './tools/builtin/weather'
 import { widgetsTools } from './tools/builtin/widgets'
 
 type ChatSyncMode = 'inactive' | 'authority' | 'follower'
-type ToolsetId = 'widgets'
+type ToolsetId = 'widgets' | 'artistry'
 
 interface AttachmentPayload {
   type: 'image'
@@ -238,18 +239,23 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
   }
 
   function resolveTools(toolset?: ToolsetId) {
-    if (toolset === 'widgets') {
-      return async () => {
-        const [widgetTools, weatherToolset] = await Promise.all([
+    const toolsetRegistry: Record<string, () => Promise<any[]>> = {
+      widgets: async () => {
+        const [w, we] = await Promise.all([widgetsTools(), weatherTools()])
+        return [...w, ...we]
+      },
+      artistry: async () => {
+        const [ai, wi, we] = await Promise.all([
+          imageJournalTools(),
           widgetsTools(),
           weatherTools(),
         ])
+        return [...ai, ...wi, ...we]
+      },
+    }
 
-        return [
-          ...widgetTools,
-          ...weatherToolset,
-        ]
-      }
+    if (toolset && toolsetRegistry[toolset]) {
+      return toolsetRegistry[toolset]
     }
 
     return undefined
