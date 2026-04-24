@@ -1,0 +1,2 @@
+[plugins.tools]
+dotnet = "https://raw.githubusercontent.com/RemiKalbe/proto-dotnet-plugin/main/plugin.toml"

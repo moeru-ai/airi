@@ -23,7 +23,7 @@ export async function setupSettingsWindowInvokes(params: {
   settingsWindow: BrowserWindow
   widgetsManager: WidgetsWindowManager
   autoUpdater: AutoUpdater
-  devtoolsMarkdownStressWindow: DevtoolsWindowManager
+  devtoolsWindow: DevtoolsWindowManager
   serverChannel: ServerChannel
   mcpStdioManager: McpStdioManager
   i18n: I18n
@@ -45,7 +45,7 @@ export async function setupSettingsWindowInvokes(params: {
 
   defineInvokeHandler(context, electronOpenSettingsDevtools, async () => params.settingsWindow.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenDevtoolsWindow, async (payload) => {
-    await params.devtoolsMarkdownStressWindow.openWindow(payload?.route)
+    await params.devtoolsWindow.openWindow(payload)
   })
 
   return context

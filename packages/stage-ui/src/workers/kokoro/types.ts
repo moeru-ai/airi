@@ -1,5 +1,8 @@
 /**
- * Type definitions for Kokoro Worker messages
+ * Kokoro TTS domain types.
+ *
+ * Worker communication uses the unified protocol from protocol.ts.
+ * These types define the domain-specific data structures (voices, etc.).
  */
 
 import type { GenerateOptions } from 'kokoro-js'
@@ -13,47 +16,3 @@ export interface Voice {
 }
 
 export type Voices = Record<string, Voice>
-
-// Messages sent TO the worker
-export interface LoadMessage {
-  type: 'load'
-  data: {
-    quantization: string
-    device: string
-  }
-}
-
-export interface GenerateMessage {
-  type: 'generate'
-  data: {
-    text: string
-    voice: VoiceKey
-  }
-}
-
-export type WorkerRequest = LoadMessage | GenerateMessage
-
-// Messages received FROM the worker
-export interface ProgressMessage {
-  type: 'progress'
-  progress: any
-}
-
-export interface LoadedMessage {
-  type: 'loaded'
-  voices: Voices
-}
-
-export interface SuccessMessage {
-  type: 'result'
-  status: 'success'
-  buffer: ArrayBuffer
-}
-
-export interface ErrorMessage {
-  type: 'result'
-  status: 'error'
-  message: string
-}
-
-export type WorkerResponse = ProgressMessage | LoadedMessage | SuccessMessage | ErrorMessage

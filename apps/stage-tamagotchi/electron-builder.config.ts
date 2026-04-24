@@ -12,7 +12,7 @@ function hasXcode26OrAbove() {
   try {
     const output = execSync('xcodebuild -version')
       .toString()
-      // eslint-disable-next-line e18e/prefer-static-regex
+
       .match(/Xcode (\d+)/)
     if (!output)
       return false

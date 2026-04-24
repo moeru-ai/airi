@@ -52,14 +52,14 @@ function handleTryAgain() {
   <main :class="['min-h-screen', 'flex flex-col items-center justify-center', 'px-6 py-10', 'font-cuteen']">
     <div v-if="error" :class="['sm:max-w-md md:max-w-lg', 'flex w-full flex-col items-center']">
       <div :class="['mb-8 text-3xl font-bold']">
-        {{ t('server.auth.webCallback.title.signIn') }}
+        Project AIRI
       </div>
 
       <div
         :class="[
-          'w-full rounded-xl border-2 border-orange-200/45 bg-orange-50/70 p-4',
+          'w-full rounded-xl p-5',
           'relative overflow-hidden',
-          'dark:border-orange-800/30 dark:bg-orange-950/30',
+          'bg-orange-50/70 dark:bg-orange-950/30',
         ]"
       >
         <div :class="['flex items-start gap-3']">
@@ -67,13 +67,13 @@ function handleTryAgain() {
             aria-hidden="true"
             :class="[
               'absolute',
-              'size-30 flex-shrink-0',
+              'size-24 flex-shrink-0',
               'right-0 top-0 translate-x-[calc(25%)] translate-y-[-25%]',
-              'i-solar:danger-circle-line-duotone text-orange-500 dark:text-orange-400 op-25',
+              'i-solar:danger-circle-line-duotone text-orange-500/30 dark:text-orange-200/20',
             ]"
           />
           <div :class="['min-w-0']">
-            <div :class="['text-lg font-semibold text-orange-800 dark:text-orange-200', 'mb-4']">
+            <div :class="['text-xl font-semibold text-orange-800 dark:text-orange-200', 'mb-4']">
               {{ t('server.auth.webCallback.title.errorLabel') }}
             </div>
             <div :class="['mt-1 text-sm text-orange-700 dark:text-orange-300']">

@@ -13,7 +13,7 @@ export const all = {
 export const localeRemap: Record<string, string> = {
   'zh-CN': 'zh-Hans',
   'zh-TW': 'zh-Hant',
-  'zh-HK': 'zh-Hans',
+  'zh-HK': 'zh-Hant',
   'zh-Hant': 'zh-Hant',
   'zh-Hans': 'zh-Hans',
   'en': 'en',

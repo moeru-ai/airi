@@ -31,6 +31,8 @@ describe('stage-ui exports contract', () => {
       './constants/*',
       './libs',
       './libs/*',
+      './libs/inference',
+      './libs/inference/adapters/*',
       './stores',
       './stores/*',
       './stores/analytics',

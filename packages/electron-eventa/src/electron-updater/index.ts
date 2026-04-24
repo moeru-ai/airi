@@ -30,6 +30,8 @@ export interface AutoUpdaterDiagnostics {
   feedUrl?: string
   logFilePath: string
   executablePath: string
+  installDirectory: string
+  requiresAdminForInstallPath: boolean
   isOverrideActive: boolean
 }
 

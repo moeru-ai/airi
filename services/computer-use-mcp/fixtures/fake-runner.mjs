@@ -1,16 +1,17 @@
-import { createInterface } from 'node:readline'
+import { env } from 'node:process'
+import { createInterface, exit, stdin, stdout } from 'node:readline'
 
 // TODO(@nekomeowww): try now to directly embed binary / base64, even tests. `xz` warned us.
 const tinyPngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wn8vO0AAAAASUVORK5CYII='
 
 const state = {
-  sessionTag: process.env.FAKE_RUNNER_SESSION_TAG || 'vm-local-1',
-  displayId: process.env.FAKE_RUNNER_DISPLAY_ID || ':99',
-  hostName: process.env.FAKE_RUNNER_HOST_NAME || 'fake-remote',
-  remoteUser: process.env.FAKE_RUNNER_REMOTE_USER || 'airi',
-  width: Number.parseInt(process.env.FAKE_RUNNER_WIDTH || '1280', 10),
-  height: Number.parseInt(process.env.FAKE_RUNNER_HEIGHT || '720', 10),
-  observationBaseUrl: process.env.FAKE_RUNNER_OBSERVATION_BASE_URL || '',
+  sessionTag: env.FAKE_RUNNER_SESSION_TAG || 'vm-local-1',
+  displayId: env.FAKE_RUNNER_DISPLAY_ID || ':99',
+  hostName: env.FAKE_RUNNER_HOST_NAME || 'fake-remote',
+  remoteUser: env.FAKE_RUNNER_REMOTE_USER || 'airi',
+  width: Number.parseInt(env.FAKE_RUNNER_WIDTH || '1280', 10),
+  height: Number.parseInt(env.FAKE_RUNNER_HEIGHT || '720', 10),
+  observationBaseUrl: env.FAKE_RUNNER_OBSERVATION_BASE_URL || '',
 }
 
 function executionTarget() {
@@ -61,11 +62,11 @@ function displayInfo() {
 }
 
 function writeResponse(response) {
-  process.stdout.write(`${JSON.stringify(response)}\n`)
+  stdout.write(`${JSON.stringify(response)}\n`)
 }
 
 const rl = createInterface({
-  input: process.stdin,
+  input: stdin,
   crlfDelay: Infinity,
 })
 
@@ -76,8 +77,8 @@ rl.on('line', (line) => {
   }
 
   const request = JSON.parse(trimmed)
-  if (process.env.FAKE_RUNNER_CLOSE_ON_MUTATION === '1' && ['click', 'typeText', 'pressKeys', 'scroll'].includes(request.method)) {
-    process.exit(1)
+  if (env.FAKE_RUNNER_CLOSE_ON_MUTATION === '1' && ['click', 'typeText', 'pressKeys', 'scroll'].includes(request.method)) {
+    exit(1)
   }
 
   switch (request.method) {
@@ -183,6 +184,6 @@ rl.on('line', (line) => {
           ok: true,
         },
       })
-      process.exit(0)
+      exit(0)
   }
 })

@@ -32,9 +32,9 @@
       "vite-plugin-vue-layouts/client",
       "vue-macros/macros-global",
       "electron-vite/node",
-      "unplugin-vue-router/client",
       "unplugin-info/client",
-      "@proj-airi/stage-shared/electron-renderer"
+      "@proj-airi/stage-shared/electron-renderer",
+      "@webgpu/types"
     ],
     "allowJs": true,
     "strict": true,

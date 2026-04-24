@@ -13,7 +13,7 @@ const systemGeneralPattern = /theme|主题|language|语言/i
 const systemColorSchemePattern = /RGB|Primary Color|主题颜色|500\/50/i
 const modelsPattern = /select model|confirm|缩放与位置|Zoom & Position/i
 const modulesPattern = /Consciousness|意识|Speech|发声|Hearing|听觉/i
-const hearingPattern = /Audio Input Device|音频输入设备|start monitoring|Start Monitoring|Transcription Result/i
+const hearingPattern = /Audio Input Device|音频输入设备|Start Monitoring|Transcription Result/i
 const developerPattern = /Open DevTools|打开|Markdown|Lag|Vision Capture|Screen Capture/i
 // NOTICE: Anchor on the consciousness page's always-rendered section description.
 // Previous alternates like `提供商` / `No Providers Configured` did not match zh-Hans,
@@ -27,6 +27,7 @@ const developerPattern = /Open DevTools|打开|Markdown|Lag|Vision Capture|Scree
 const consciousnessPattern = /Select the suitable LLM|为意识选择合适/i
 const speechPattern = /Hello, my name is AI Assistant|Test voice|Voice|声音|Speech|选择语音合成服务来源/i
 const visionPattern = /Capture interval|context|ollama|提供商|Current model|Chat|Vision capture cadence/i
+const navHeaderSettleWaitMs = 1000
 
 export const settingsSection: ManualCaptureSection = {
   id: 'settings',
@@ -120,6 +121,7 @@ export const settingsSection: ManualCaptureSection = {
       readyPattern: consciousnessPattern,
       rawCaptureName: '14-consciousness',
       docAssetFileName: 'manual-consciousness.avif',
+      waitMs: navHeaderSettleWaitMs,
     },
     {
       id: 'speech',
@@ -137,6 +139,7 @@ export const settingsSection: ManualCaptureSection = {
       readyPattern: visionPattern,
       rawCaptureName: '16-vision',
       docAssetFileName: 'manual-vision.avif',
+      waitMs: navHeaderSettleWaitMs,
     },
   ],
 }

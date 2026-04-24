@@ -3,7 +3,7 @@ import type { ManualRuntime } from './shared/types'
 import { defineScenario } from '@proj-airi/vishot-runner-electron'
 
 import { manualCaptureSections } from './manifest'
-import { formatStepFailure, removePublishedManualAssets, resetScenarioOutputDirectories } from './shared/output'
+import { formatStepFailure, resetScenarioOutputDirectories } from './shared/output'
 import { runCaptureStep } from './shared/steps'
 
 export default defineScenario({
@@ -17,7 +17,6 @@ export default defineScenario({
       mainWindow,
     }
 
-    await removePublishedManualAssets()
     await resetScenarioOutputDirectories()
 
     for (const section of manualCaptureSections) {

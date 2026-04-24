@@ -11,8 +11,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "types": [
-      "vite/client",
-      "unplugin-vue-router/client"
+      "vite/client"
     ],
     "noUnusedLocals": false,
     "esModuleInterop": true,
