@@ -215,9 +215,9 @@ export async function isWebGPUSupported(): Promise<boolean> {
 
 /**
  * Override the estimated VRAM value. Pass `null` to clear the override and
- * revert to the heuristic. The override takes effect on the next call to
- * `detectWebGPU()` — if the result is already cached, also call
- * `resetWebGPUCache()` to force re-detection.
+ * revert to the heuristic. The override applies to future detections, and if
+ * a result is already cached its VRAM fields are updated immediately, so
+ * `resetWebGPUCache()` is not required.
  *
  * Intended for user preference UI ("I have 8 GB VRAM") and testing.
  */
