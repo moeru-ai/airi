@@ -37,6 +37,9 @@ export const TARGET_SOURCE_PRIORITY: readonly TargetSource[] = [
   'raw',
 ] as const
 
+/** Maximum snapshot age tolerated before `desktop_click_target` must refresh. */
+export const DESKTOP_CLICK_SNAPSHOT_MAX_AGE_MS = 5_000
+
 // ---------------------------------------------------------------------------
 // Target candidate
 // ---------------------------------------------------------------------------
@@ -141,6 +144,8 @@ export interface DesktopGroundingSnapshot {
   capturedAt: string
   /** Name of the foreground application */
   foregroundApp: string
+  /** Title of the foreground window when available */
+  foregroundWindowTitle?: string
   /** Current window list */
   windows: WindowInfo[]
   /** Latest screenshot artifact */

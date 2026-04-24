@@ -195,7 +195,7 @@ export function registerDesktopGroundingTools(params: {
         }
 
         // Update RunState — pointer intent
-        runtime.stateManager.updatePointerIntent(intent)
+        runtime.stateManager.updatePointerIntent(intent, candidateId)
 
         // Route the click: browser-dom for chrome_dom candidates, OS input for everything else.
         // Pass button and clickCount so non-left or multi-click requests fall through to OS input

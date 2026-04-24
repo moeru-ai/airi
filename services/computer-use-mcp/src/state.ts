@@ -411,8 +411,9 @@ export class RunStateManager {
   /**
    * Store the last pointer snap intent and clicked candidate id.
    */
-  updatePointerIntent(intent: import('./desktop-grounding-types').PointerIntent): void {
+  updatePointerIntent(intent: import('./desktop-grounding-types').PointerIntent, candidateId: string): void {
     this.state.lastPointerIntent = intent
+    this.state.lastClickedCandidateId = candidateId
     this.touch()
   }
 
