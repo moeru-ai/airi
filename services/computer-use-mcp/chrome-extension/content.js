@@ -39,6 +39,7 @@
       name: el.name || '',
       type: el.type || '',
       className: typeof el.className === 'string' ? el.className.slice(0, 120) : '',
+      // eslint-disable-next-line unicorn/prefer-dom-node-text-content -- intentional: innerText returns visible text only
       text: (el.innerText || el.textContent || '').slice(0, 120).trim(),
       value: el.value !== undefined ? String(el.value).slice(0, 60) : '',
       href: el.href || '',
@@ -85,6 +86,7 @@
       return {
         url: location.href,
         title: document.title || '',
+        // eslint-disable-next-line unicorn/prefer-dom-node-text-content -- intentional: innerText returns visible text only
         bodyText: includeText ? (document.body ? document.body.innerText || '' : '').slice(0, 3000) : '',
         interactiveElements: _collectInteractiveElements(maxElements),
       }
@@ -183,6 +185,9 @@
     setInputValue(selector, value, opts) {
       try {
         opts = opts || {}
+        // TODO: opts.simulateKeystrokes is accepted but ignored — we always do
+        // a single direct value assignment. Implement per-character KeyboardEvent
+        // dispatch for autocomplete/masker/validation flows that depend on keydown/keyup.
         const el = document.querySelector(selector)
         if (!el)
           return { success: false, error: 'not found' }
@@ -297,9 +302,7 @@
         }
         else {
           // Return a small useful subset to avoid serializing 300+ properties
-          const useful = ['display', 'visibility', 'opacity', 'position',
-            'width', 'height', 'color', 'background-color', 'font-size',
-            'overflow', 'pointer-events', 'z-index', 'cursor']
+          const useful = ['display', 'visibility', 'opacity', 'position', 'width', 'height', 'color', 'background-color', 'font-size', 'overflow', 'pointer-events', 'z-index', 'cursor']
           for (const prop of useful) {
             styles[prop] = computed.getPropertyValue(prop)
           }
@@ -321,9 +324,12 @@
         const el = document.querySelector(selector)
         if (!el)
           return { success: false, error: 'not found' }
-        const EventCtor = opts.type === 'MouseEvent' ? MouseEvent
-          : opts.type === 'KeyboardEvent' ? KeyboardEvent
-            : opts.type === 'FocusEvent' ? FocusEvent
+        const EventCtor = opts.type === 'MouseEvent'
+          ? MouseEvent
+          : opts.type === 'KeyboardEvent'
+            ? KeyboardEvent
+            : opts.type === 'FocusEvent'
+              ? FocusEvent
               : Event
         const eventOpts = { bubbles: true, cancelable: true, ...opts }
         delete eventOpts.type
@@ -373,7 +379,10 @@
         if (!el)
           return { success: false, error: 'no element at point' }
         el.dispatchEvent(new MouseEvent('click', {
-          bubbles: true, cancelable: true, clientX: x, clientY: y,
+          bubbles: true,
+          cancelable: true,
+          clientX: x,
+          clientY: y,
         }))
         return { success: true, tagName: el.tagName.toLowerCase() }
       }

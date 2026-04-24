@@ -159,9 +159,10 @@ function isTextInputCandidate(candidate: DesktopTargetCandidate): boolean {
     const inputType = candidate.inputType?.toLowerCase() || 'text'
     return TEXT_INPUT_TYPES.has(inputType)
   }
-  // contenteditable elements surfaced with role="textbox"
-  if (candidate.role === 'textbox')
-    return true
+  // NOTICE: contenteditable elements are surfaced with role="textbox" but lack
+  // a native .value property, so setInputValue (which uses input/textarea value
+  // setters) silently fails on them. Only route actual <input>/<textarea> here;
+  // contenteditable targets will fall through to OS typing via desktop_type_text.
   return false
 }
 
