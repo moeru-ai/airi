@@ -418,6 +418,14 @@ export class RunStateManager {
   }
 
   /**
+   * Record the candidate id that was just successfully clicked.
+   */
+  recordClickedCandidate(candidateId: string): void {
+    this.state.lastClickedCandidateId = candidateId
+    this.touch()
+  }
+
+  /**
    * Clear desktop grounding state when the snapshot becomes invalid.
    */
   clearGroundingState(): void {

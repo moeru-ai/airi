@@ -17,7 +17,7 @@
  * - window.__AIRI_DG__ lives in the MAIN world (needs real DOM access)
  * - The two worlds communicate via window.postMessage
  *
- * Adapted from /Users/liuziheng/computer_use/chrome-extension/msg_bridge.js.
+ * Adapted from the upstream computer-use chrome-extension.
  * No functional changes — this is a pure relay.
  */
 (function () {
@@ -26,17 +26,13 @@
   // Pending requests: reqId → { sendResponse, timer }
   const pending = new Map()
   let seqId = 0
-  const pageOrigin = window.location.origin
-  const postMessageTargetOrigin = pageOrigin && pageOrigin !== 'null' ? pageOrigin : '*'
 
   // Receive commands from background.js
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.type !== 'CU_ACTION')
       return false
 
-    const reqId = typeof crypto?.randomUUID === 'function'
-      ? `__cu_req_${crypto.randomUUID()}`
-      : `__cu_req_${++seqId}`
+    const reqId = `__cu_req_${++seqId}`
     const { method, args } = msg
 
     // Set timeout
@@ -53,7 +49,7 @@
       reqId,
       method,
       args: args || [],
-    }, postMessageTargetOrigin)
+    }, '*')
 
     return true // Keep sendResponse async
   })
@@ -61,8 +57,6 @@
   // Receive replies from MAIN world content.js
   window.addEventListener('message', (evt) => {
     if (evt.source !== window)
-      return
-    if (pageOrigin && pageOrigin !== 'null' && evt.origin !== pageOrigin)
       return
     const data = evt.data
     if (!data || data.type !== '__CU_REPLY__')

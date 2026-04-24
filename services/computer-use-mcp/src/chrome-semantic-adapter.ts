@@ -18,7 +18,6 @@ import type {
 } from './desktop-grounding-types'
 import type {
   Bounds,
-  BrowserDomFrameDom,
   BrowserDomInteractiveElement,
 } from './types'
 
@@ -32,6 +31,11 @@ import type {
  * that adds an extra roundtrip. For v1 this constant is sufficient.
  */
 const CHROME_CHROME_HEIGHT_PX = 88
+
+// Pre-compiled regex for selector building (module scope per eslint e18e/prefer-static-regex)
+const RE_DOUBLE_QUOTE = /"/g
+const RE_WHITESPACE_SPLIT = /\s+/
+const RE_CSS_ESCAPE = /[^\w-]/g
 
 /**
  * Capture Chrome semantic data from the active tab.
@@ -53,10 +57,7 @@ export async function captureChromeSemantics(
     try {
       const status = extensionBridge.getStatus()
       if (status.connected) {
-        const extensionSnapshot = await captureViaExtension(extensionBridge)
-        if (extensionSnapshot.interactiveElements.length > 0 || !cdpBridge?.getStatus().connected) {
-          return extensionSnapshot
-        }
+        return await captureViaExtension(extensionBridge)
       }
     }
     catch {
@@ -95,6 +96,7 @@ export function chromeElementsToTargetCandidates(
   elements: BrowserDomInteractiveElement[],
   windowBounds: Bounds,
   chromeHeightPx: number = CHROME_CHROME_HEIGHT_PX,
+  frameId: number = 0,
 ): DesktopTargetCandidate[] {
   const candidates: DesktopTargetCandidate[] = []
   const viewportOffsetX = windowBounds.x
@@ -104,6 +106,10 @@ export function chromeElementsToTargetCandidates(
     if (!el.rect || el.rect.w === 0 || el.rect.h === 0) {
       continue
     }
+
+    // Read per-element frame ID if tagged by captureViaExtension,
+    // otherwise fall back to the function parameter
+    const elFrameId = (el as Record<string, unknown>)._frameId as number | undefined
 
     // Convert page-relative rect to screen-absolute bounds
     const bounds: Bounds = {
@@ -124,6 +130,7 @@ export function chromeElementsToTargetCandidates(
     const label = buildLabel(el)
     const role = el.role || el.tag || 'element'
     const confidence = computeElementConfidence(el)
+    const selector = buildSelector(el)
 
     candidates.push({
       id: '', // Will be assigned by the grounding layer
@@ -137,6 +144,10 @@ export function chromeElementsToTargetCandidates(
       tag: el.tag,
       href: el.href,
       inputType: el.type,
+      selector,
+      frameId: elFrameId ?? frameId,
+      isPageContent: true, // All chrome_dom candidates are page content by definition
+      enabled: !el.disabled,
     })
   }
 
@@ -147,107 +158,6 @@ export function chromeElementsToTargetCandidates(
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-function toRecord(value: unknown): Record<string, unknown> | undefined {
-  if (!value || typeof value !== 'object' || Array.isArray(value))
-    return undefined
-
-  return value as Record<string, unknown>
-}
-
-function toFiniteNumber(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
-}
-
-function getExtensionFramePayload(result: Record<string, unknown>) {
-  return toRecord(result.data) ?? result
-}
-
-function getFrameRect(payload: Record<string, unknown>): BrowserDomFrameDom['frameRect'] | undefined {
-  const rect = toRecord(payload.frameRect)
-  if (!rect)
-    return undefined
-
-  const x = toFiniteNumber(rect.x)
-  const y = toFiniteNumber(rect.y)
-  const w = toFiniteNumber(rect.w)
-  const h = toFiniteNumber(rect.h)
-  if (x === undefined || y === undefined || w === undefined || h === undefined)
-    return undefined
-
-  return { x, y, w, h }
-}
-
-function getFrameParentId(frame: Record<string, unknown>): number | undefined {
-  return toFiniteNumber(frame.parentFrameId)
-}
-
-function offsetInteractiveElement(
-  element: BrowserDomInteractiveElement,
-  offset: { x: number, y: number },
-): BrowserDomInteractiveElement {
-  return {
-    ...element,
-    rect: element.rect
-      ? {
-          ...element.rect,
-          x: element.rect.x + offset.x,
-          y: element.rect.y + offset.y,
-        }
-      : element.rect,
-    center: element.center
-      ? {
-          x: element.center.x + offset.x,
-          y: element.center.y + offset.y,
-        }
-      : element.center,
-  }
-}
-
-function resolveFrameOffset(
-  frameId: number,
-  parentIds: Map<number, number | undefined>,
-  payloads: Map<number, Record<string, unknown>>,
-  cache: Map<number, { x: number, y: number } | null>,
-  visiting: Set<number> = new Set(),
-): { x: number, y: number } | null {
-  if (cache.has(frameId))
-    return cache.get(frameId) ?? null
-
-  if (frameId === 0) {
-    const rootOffset = { x: 0, y: 0 }
-    cache.set(frameId, rootOffset)
-    return rootOffset
-  }
-
-  if (visiting.has(frameId)) {
-    return null
-  }
-
-  visiting.add(frameId)
-
-  const payload = payloads.get(frameId)
-  const frameRect = payload ? getFrameRect(payload) : undefined
-  const parentFrameId = parentIds.get(frameId)
-  if (!frameRect || parentFrameId === undefined) {
-    visiting.delete(frameId)
-    return null
-  }
-
-  const parentOffset = resolveFrameOffset(parentFrameId, parentIds, payloads, cache, visiting)
-  if (!parentOffset) {
-    visiting.delete(frameId)
-    return null
-  }
-
-  const resolvedOffset = {
-    x: parentOffset.x + frameRect.x,
-    y: parentOffset.y + frameRect.y,
-  }
-  cache.set(frameId, resolvedOffset)
-  visiting.delete(frameId)
-  return resolvedOffset
-}
-
 async function captureViaExtension(
   bridge: BrowserDomExtensionBridge,
 ): Promise<ChromeSemanticSnapshot> {
@@ -255,67 +165,30 @@ async function captureViaExtension(
     includeText: false,
     maxElements: 150,
   })
-  const frameTree = typeof bridge.getAllFrames === 'function'
-    ? await bridge.getAllFrames().catch(() => [])
-    : []
 
-  // Merge interactive elements from all frames
-  const allElements: BrowserDomInteractiveElement[] = []
+  // Merge interactive elements from all frames, preserving frame identity
+  const allElements: Array<BrowserDomInteractiveElement & { _frameId?: number }> = []
   let pageUrl = ''
   let pageTitle = ''
-  const payloadsByFrameId = new Map<number, Record<string, unknown>>()
-  const parentIdsByFrameId = new Map<number, number | undefined>()
-  const resolvedOffsets = new Map<number, { x: number, y: number } | null>()
-
-  for (const frame of frameTree) {
-    const frameRecord = toRecord(frame)
-    if (!frameRecord)
-      continue
-
-    const frameId = toFiniteNumber(frameRecord.frameId)
-    if (frameId === undefined)
-      continue
-
-    parentIdsByFrameId.set(frameId, getFrameParentId(frameRecord))
-  }
 
   for (const frame of frames) {
     const dom = frame.result as Record<string, unknown> | undefined
     if (!dom)
       continue
 
-    const payload = getExtensionFramePayload(dom)
-    payloadsByFrameId.set(frame.frameId, payload)
-
     if (frame.frameId === 0) {
-      pageUrl = (payload.url as string) || ''
-      pageTitle = (payload.title as string) || ''
+      pageUrl = (dom.url as string) || ''
+      pageTitle = (dom.title as string) || ''
     }
-  }
 
-  for (const frame of frames) {
-    const payload = payloadsByFrameId.get(frame.frameId)
-    if (!payload)
-      continue
-
-    const rawElements = payload.interactiveElements
+    const rawElements = dom.interactiveElements
+      ?? (dom.data && typeof dom.data === 'object' && (dom.data as Record<string, unknown>).interactiveElements)
     const elements = rawElements as BrowserDomInteractiveElement[] | undefined
     if (elements) {
-      const offset = resolveFrameOffset(
-        frame.frameId,
-        parentIdsByFrameId,
-        payloadsByFrameId,
-        resolvedOffsets,
-      )
-
-      if (frame.frameId !== 0 && !offset) {
-        continue
+      // Tag each element with its frame ID for downstream routing
+      for (const el of elements) {
+        allElements.push({ ...el, _frameId: frame.frameId })
       }
-
-      const normalizedElements = offset
-        ? elements.map(element => offsetInteractiveElement(element, offset))
-        : elements
-      allElements.push(...normalizedElements)
     }
   }
 
@@ -357,6 +230,52 @@ async function captureViaCdp(bridge: CdpBridge): Promise<ChromeSemanticSnapshot>
     capturedAt: new Date().toISOString(),
     source: 'cdp',
   }
+}
+
+/**
+ * Build a best-effort CSS selector for re-querying the element via the
+ * browser-dom bridge. Used by the browser action router for DOM-level
+ * click precision instead of OS coordinate input.
+ *
+ * Priority: #id > [name] > tag[type] > tag.className > tag
+ */
+function buildSelector(el: BrowserDomInteractiveElement): string | undefined {
+  // Unique id — best
+  if (el.id && el.id.trim()) {
+    return `#${cssEscape(el.id.trim())}`
+  }
+
+  const tag = el.tag?.toLowerCase() || '*'
+
+  // Name attribute — common for form inputs
+  if (el.name && el.name.trim()) {
+    return `${tag}[name="${el.name.trim().replace(RE_DOUBLE_QUOTE, '\\"')}"]`
+  }
+
+  // Tag + type — useful for input[type="submit"] etc.
+  if (el.type && el.type.trim() && (tag === 'input' || tag === 'button')) {
+    return `${tag}[type="${el.type.trim().replace(RE_DOUBLE_QUOTE, '\\"')}"]`
+  }
+
+  // Tag + first className — fallback
+  if (el.className && el.className.trim()) {
+    const firstClass = el.className.trim().split(RE_WHITESPACE_SPLIT)[0]
+    if (firstClass) {
+      return `${tag}.${cssEscape(firstClass)}`
+    }
+  }
+
+  // Tag alone is too generic to be useful
+  return undefined
+}
+
+/**
+ * Minimal CSS identifier escape for Node.js (CSS.escape is browser-only).
+ * Escapes characters that are invalid in CSS identifiers per the spec.
+ * Sufficient for id/class name escaping in selector construction.
+ */
+function cssEscape(value: string): string {
+  return value.replace(RE_CSS_ESCAPE, ch => `\\${ch}`)
 }
 
 /**

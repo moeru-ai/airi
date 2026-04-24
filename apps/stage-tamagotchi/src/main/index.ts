@@ -207,7 +207,7 @@ app.whenReady().then(async () => {
     // provider depends on 'windows:desktop-overlay'.
     injeca.invoke({
       dependsOn: { desktopOverlay },
-      callback: noop,
+      callback: () => {},
     })
   }
 
