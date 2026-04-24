@@ -271,8 +271,8 @@ function handleDeleteProvider(providerId: string) {
           </div>
           <div max-w-full>
             <fieldset
-              v-if="configuredSpeechProvidersMetadata.length > 0" flex="~ row gap-4" :style="{ 'scrollbar-width': 'none' }"
-              min-w-0 of-x-scroll scroll-smooth role="radiogroup"
+              v-if="configuredSpeechProvidersMetadata.length > 0" flex="~ row gap-4"
+              min-w-0 of-x-auto scroll-smooth role="radiogroup"
             >
               <RadioCardSimple
                 v-for="metadata in configuredSpeechProvidersMetadata"
