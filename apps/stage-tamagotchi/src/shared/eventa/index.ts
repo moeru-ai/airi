@@ -53,6 +53,8 @@ export const electronSetUpdaterPreferences = defineInvokeEventa<ElectronUpdaterP
 
 export const captionIsFollowingWindowChanged = defineEventa<boolean>('eventa:event:electron:windows:caption-overlay:is-following-window-changed')
 export const captionGetIsFollowingWindow = defineInvokeEventa<boolean>('eventa:invoke:electron:windows:caption-overlay:get-is-following-window')
+export const electronCaptionToggleVisibility = defineInvokeEventa<void>('eventa:invoke:electron:windows:caption:toggle-visibility')
+export const electronCaptionSyncDocking = defineInvokeEventa<void, 'top' | 'bottom' | undefined>('eventa:invoke:electron:windows:caption:sync-docking')
 
 export type RequestWindowActionDefault = 'confirm' | 'cancel' | 'close'
 export interface RequestWindowPayload {
@@ -180,8 +182,12 @@ export const electronMcpApplyAndRestart = defineInvokeEventa<ElectronMcpStdioApp
 export const electronMcpGetRuntimeStatus = defineInvokeEventa<ElectronMcpStdioRuntimeStatus>('eventa:invoke:electron:mcp:get-runtime-status')
 export const electronMcpListTools = defineInvokeEventa<ElectronMcpToolDescriptor[]>('eventa:invoke:electron:mcp:list-tools')
 export const electronMcpCallTool = defineInvokeEventa<ElectronMcpCallToolResult, ElectronMcpCallToolPayload>('eventa:invoke:electron:mcp:call-tool')
+export const electronMcpGetConfig = defineInvokeEventa<ElectronMcpStdioConfigFile>('eventa:invoke:electron:mcp:get-config')
+export const electronMcpUpdateConfig = defineInvokeEventa<void, Partial<ElectronMcpStdioConfigFile>>('eventa:invoke:electron:mcp:update-config')
+export const electronMcpConfigChanged = defineEventa<ElectronMcpStdioConfigFile>('eventa:event:electron:mcp:config-changed')
 
 export const widgetsOpenWindow = defineInvokeEventa<void, { id?: string }>('eventa:invoke:electron:windows:widgets:open')
+export const widgetsHideWindow = defineInvokeEventa<void, { id?: string }>('eventa:invoke:electron:windows:widgets:hide')
 export const widgetsAdd = defineInvokeEventa<string | undefined, WidgetsAddPayload>('eventa:invoke:electron:windows:widgets:add')
 export const widgetsRemove = defineInvokeEventa<void, { id: string }>('eventa:invoke:electron:windows:widgets:remove')
 export const widgetsClear = defineInvokeEventa('eventa:invoke:electron:windows:widgets:clear')
@@ -245,6 +251,8 @@ export const widgetsUpdateEvent = defineEventa<WidgetsUpdatePayload>('eventa:eve
 
 // Onboarding window events
 export const electronOnboardingClose = defineInvokeEventa('eventa:invoke:electron:windows:onboarding:close')
+export const electronOnboardingCompleted = defineInvokeEventa('eventa:invoke:electron:windows:onboarding:completed')
+export const electronOnboardingSkipped = defineInvokeEventa('eventa:invoke:electron:windows:onboarding:skipped')
 export const electronOpenOnboarding = defineInvokeEventa('eventa:invoke:electron:windows:onboarding:open')
 
 // Auth — OIDC Authorization Code + PKCE flow via system browser

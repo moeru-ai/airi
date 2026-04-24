@@ -64,6 +64,7 @@
     "@formkit/auto-animate": "^0.9.0",
     "@huggingface/transformers": "^3.8.1",
     "@moeru/eventa": "catalog:",
+    "@moeru/std": "catalog:",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/core": "^2.7.0",
     "@opentelemetry/sdk-trace-base": "^2.7.0",

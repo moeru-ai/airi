@@ -23,6 +23,8 @@ import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useLLM } from './llm'
+import { useAiriCardStore } from './modules/airi-card'
+import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
 
 function cloneStreamingMessage(message: StreamingAssistantMessage): StreamingAssistantMessage {
@@ -74,12 +76,14 @@ export interface QueuedSendSnapshot {
 export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const llmStore = useLLM()
   const consciousnessStore = useConsciousnessStore()
+  const artistryAutonomousStore = useAutonomousArtistryStore()
   const { activeProvider } = storeToRefs(consciousnessStore)
   const { trackFirstMessage } = useAnalytics()
 
   const chatSession = useChatSessionStore()
   const chatStream = useChatStreamStore()
   const chatContext = useChatContextStore()
+  const cardStore = useAiriCardStore()
   const contextObservability = useContextObservabilityStore()
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
@@ -217,6 +221,15 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         id: nanoid(),
       })
       const sessionMessagesForSend = chatSession.getSessionMessages(sessionId)
+
+      // --------------------------------
+      // Cinematic Autonomy (Autonomous Artist)
+      // Trigger now only if in user-centric mode. Assistant-centric runs after response is complete.
+      const autonomousTarget = cardStore.activeCard?.extensions?.airi?.modules?.artistry?.autonomousTarget || 'user'
+      if (autonomousTarget === 'user') {
+        void artistryAutonomousStore.runArtistTask(sendingMessage, sessionMessagesForSend as any)
+      }
+      // --------------------------------
 
       const categorizer = createStreamingCategorizer(activeProvider.value)
       let streamPosition = 0
@@ -448,6 +461,13 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         outputText: fullText,
         toolCalls: sessionMessagesForSend.filter(msg => msg.role === 'tool') as ToolMessage[],
       }, streamingMessageContext)
+
+      // --- AUTONOMOUS ARTISTRY HOOK (ASSISTANT-CENTRIC) ---
+      const artistry = cardStore.activeCard?.extensions?.airi?.modules?.artistry
+      if (artistry?.autonomousEnabled && artistry?.autonomousTarget === 'assistant') {
+        void artistryAutonomousStore.runArtistTask(fullText, sessionMessagesForSend as any)
+      }
+      // ---------------------------------------------------
 
       if (isForegroundSession()) {
         streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }

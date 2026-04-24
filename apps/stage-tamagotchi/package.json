@@ -113,6 +113,7 @@
     "reka-ui": "^2.9.6",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
+    "replicate": "catalog:",
     "semver": "^7.7.4",
     "shiki": "^4.0.2",
     "splitpanes": "catalog:",
