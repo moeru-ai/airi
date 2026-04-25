@@ -66,6 +66,14 @@ describe('kokoro adapter - singleton recovery', () => {
     adapter.terminate()
     expect(adapter.state).toBe('terminated')
   })
+
+  it('should reject generation before the model is ready without changing lifecycle state', async () => {
+    const { createKokoroAdapter } = await import('./kokoro')
+    const adapter = createKokoroAdapter()
+
+    await expect(adapter.generate('hello', 'af_heart' as any)).rejects.toThrow('Model not loaded. Call loadModel() first.')
+    expect(adapter.state).toBe('idle')
+  })
 })
 
 describe('classifyError phase integration', () => {
