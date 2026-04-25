@@ -113,7 +113,7 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
 
       const hasActiveSource = sources.value.some(source => source.id === activeSourceId.value)
       const nextActiveSourceId = hasActiveSource ? activeSourceId.value : sources.value[0]?.id || ''
-      syncActiveSource(nextActiveSourceId)
+      activeSourceId.value = nextActiveSourceId
     }
     finally {
       isRefetching.value = false
