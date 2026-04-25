@@ -36,20 +36,17 @@ const sliderValue = computed({
 })
 
 onMounted(() => updateTrackColor())
-onMounted(() => {
-  if (props.handleWheel) {
-    sliderRef.value?.addEventListener('wheel', (ev) => {
-      if (!isHovered.value)
-        return
-      if (ev.deltaY < 0)
-        sliderValue.value += props.step * smoothingFactor * (shiftPressed.value ? 50 : 1)
-      if (ev.deltaY > 0)
-        sliderValue.value -= props.step * smoothingFactor * (shiftPressed.value ? 50 : 1)
-    })
-  }
-})
 watch(sliderValue, () => updateTrackColor(), { immediate: true })
 watch([scaledMin, scaledMax, scaledStep], () => updateTrackColor(), { immediate: true })
+watch(isHovered, (v: boolean) => {
+  if (!props.handleWheel)
+    return
+  if (v) {
+    sliderRef.value?.addEventListener('wheel', onWheelInput)
+    return
+  }
+  sliderRef.value?.removeEventListener('wheel', onWheelInput)
+})
 
 function updateTrackColor() {
   if (!sliderRef.value) {
@@ -64,6 +61,13 @@ function updateTrackColor() {
 function handleInput(e: Event) {
   const target = e.target as HTMLInputElement
   target.style.setProperty('--value', target.value)
+}
+
+function onWheelInput(ev: WheelEvent) {
+  if (ev.deltaY < 0)
+    sliderValue.value += props.step * smoothingFactor * (shiftPressed.value ? 50 : 1)
+  if (ev.deltaY > 0)
+    sliderValue.value -= props.step * smoothingFactor * (shiftPressed.value ? 50 : 1)
 }
 </script>
 
