@@ -16,8 +16,9 @@ import { useLlmmarkerParser } from '../composables/llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from '../composables/response-categoriser'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
 import { formatContextPromptText } from './chat/context-prompt'
-import { createDatetimeContext, createMinecraftContext } from './chat/context-providers'
+import { createMinecraftContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
+import { formatTimePrefix } from './chat/datetime-prefix'
 import { createChatHooks } from './chat/hooks'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
@@ -26,6 +27,32 @@ import { useLLM } from './llm'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
+
+// Prepends a literal text fragment to a message's content. Handles both the
+// shorthand string form and the array-of-parts form. When the first part is
+// already text, it merges into that part to keep the part count stable for
+// downstream consumers; otherwise it inserts a new text part at the front.
+// Constraint is `content?: unknown` to admit both required-content roles
+// (system/user) and optional-content roles (assistant); the generic preserves
+// the caller's discriminated-union narrowing.
+function prependTextToContent<T extends { content?: unknown }>(msg: T, text: string): T {
+  const content = msg.content
+  if (content === undefined)
+    return { ...msg, content: text } as T
+  if (typeof content === 'string')
+    return { ...msg, content: `${text}${content}` } as T
+
+  if (Array.isArray(content)) {
+    const first = content[0] as { type?: string, text?: string } | undefined
+    if (first && first.type === 'text' && typeof first.text === 'string') {
+      const next = [{ ...first, text: `${text}${first.text}` }, ...content.slice(1)]
+      return { ...msg, content: next } as T
+    }
+    return { ...msg, content: [{ type: 'text', text }, ...content] } as T
+  }
+
+  return msg
+}
 
 function cloneStreamingMessage(message: StreamingAssistantMessage): StreamingAssistantMessage {
   try {
@@ -136,8 +163,10 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
     chatSession.ensureSession(sessionId)
 
-    // Inject current datetime context before composing the message
-    chatContext.ingestContextMessage(createDatetimeContext())
+    // Datetime is no longer injected through the side-channel context store.
+    // It is applied at message-assembly time (see below) as a system-prompt
+    // date anchor + per-message [HH:MM] prefixes, which is more KV-cache
+    // friendly and less prone to weak models echoing timestamps verbatim.
     const minecraftContext = createMinecraftContext()
     if (minecraftContext)
       chatContext.ingestContextMessage(minecraftContext)
@@ -302,13 +331,28 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         ],
       })
 
+      // Per-message datetime injection (replaces the old `<context>` XML block):
+      // every user/assistant message gets a `[YYYY-MM-DD HH:MM]` prefix
+      // derived from its persisted `createdAt`. The full date appears on every
+      // turn so the model can read "today" from the most recent message; the
+      // system prompt itself stays 100% static for permanent KV-cache reuse.
+      // Legacy entries without a persisted `createdAt` fall back to "now"
+      // rather than a fabricated older timestamp.
+      // See `./chat/datetime-prefix.ts` for the rationale.
+      const nowTs = Date.now()
+
       const newMessages = sessionMessagesForSend.map((msg) => {
-        const { context: _context, id: _id, createdAt: _createdAt, ...withoutContext } = msg
+        const { context: _context, id: _id, createdAt, ...withoutContext } = msg
         const rawMessage = toRaw(withoutContext)
+        const ts = createdAt ?? nowTs
+
+        if (rawMessage.role === 'user') {
+          return prependTextToContent(rawMessage, formatTimePrefix(ts))
+        }
 
         if (rawMessage.role === 'assistant') {
           const { slices: _slices, tool_results: _toolResults, categorization: _categorization, ...rest } = rawMessage as ChatAssistantMessage
-          return toRaw(rest)
+          return prependTextToContent(toRaw(rest), formatTimePrefix(ts))
         }
 
         return rawMessage
