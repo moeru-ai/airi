@@ -5,8 +5,8 @@ import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
 import { computed, onScopeDispose, reactive, ref, watch } from 'vue'
 
-import cozyTeaCornerInPastelHuesUrl from '../assets/backgrounds/cozy-tea-corner-in-pastel-hues.png'
-import cuteStreamingRoomWithPastelDecorUrl from '../assets/backgrounds/cute-streaming-room-with-pastel-decor.png'
+import cozyTeaCornerInPastelHuesUrl from '../assets/backgrounds/cozy-tea-corner-in-pastel-hues.avif'
+import cuteStreamingRoomWithPastelDecorUrl from '../assets/backgrounds/cute-streaming-room-with-pastel-decor.avif'
 
 import { useAiriCardStore } from './modules/airi-card'
 
@@ -52,7 +52,6 @@ export const useBackgroundStore = defineStore('background', () => {
     try {
       const url = URL.createObjectURL(blob)
       backgroundUrls[id] = url
-      console.log(`[BackgroundStore] Created ObjectURL for ${id}`)
       return url
     }
     catch (e) {
@@ -81,7 +80,6 @@ export const useBackgroundStore = defineStore('background', () => {
     if (loading.value && entries.value.size > 0)
       return // Already initializing
 
-    console.log('[BackgroundStore] Initializing store...')
     loading.value = true
     try {
       const loadedEntries = new Map<string, BackgroundEntry>()
@@ -167,13 +165,10 @@ export const useBackgroundStore = defineStore('background', () => {
           const url = backgroundUrls[id]
           if (url) {
             URL.revokeObjectURL(url)
-            console.log(`[BackgroundStore] Revoked stale ObjectURL for ${id}`)
           }
           delete backgroundUrls[id]
         }
       })
-
-      console.log(`[BackgroundStore] Store initialized with ${loadedEntries.size} entries.`)
     }
     catch (error) {
       console.error('[BackgroundStore] Initialization failed:', error)
@@ -186,15 +181,12 @@ export const useBackgroundStore = defineStore('background', () => {
   // Cross-window synchronization
   const { data: syncSignal, post: broadcastSync } = useBroadcastChannel({ name: 'airi:background-sync' })
 
-  watch(syncSignal, (val) => {
-    console.log(`[BackgroundStore] Received sync signal (${val}), re-initializing...`)
+  watch(syncSignal, () => {
     initializeStore()
   })
 
   async function sync() {
-    const timestamp = Date.now()
-    console.log(`[BackgroundStore] Sending sync signal: ${timestamp}`)
-    broadcastSync(timestamp)
+    broadcastSync(Date.now())
   }
 
   // Auto-init once
@@ -207,7 +199,6 @@ export const useBackgroundStore = defineStore('background', () => {
       return null
     const bgId = airiCardStore.activeCard.extensions?.airi?.modules?.activeBackgroundId
     if (!bgId || bgId === 'none') {
-      console.log('[BackgroundStore] activeBackgroundUrl: No ID or "none"')
       return null
     }
 
@@ -224,7 +215,6 @@ export const useBackgroundStore = defineStore('background', () => {
     // NOTICE: We gate the return on entry existence to ensure deleted backgrounds
     // (removed from other windows) do not keep rendering via a stale cached URL.
     if (url && entryExists) {
-      console.log(`[BackgroundStore] activeBackgroundUrl resolved for "${lookupId}" (from URL map)`)
       return url
     }
 
@@ -235,12 +225,6 @@ export const useBackgroundStore = defineStore('background', () => {
     }
 
     return null // Should have been caught by backgroundUrls check above if entry is valid
-  })
-
-  // List of available backgrounds for the current character
-  const availableBackgrounds = computed(() => {
-    const airiCardStore = useAiriCardStore()
-    return getCharacterBackgrounds.value(airiCardStore.activeCardId)
   })
 
   const getCharacterBackgrounds = computed(() => (characterId?: string) => {
@@ -254,10 +238,10 @@ export const useBackgroundStore = defineStore('background', () => {
     })).sort((a, b) => b.createdAt - a.createdAt)
   })
 
-  // The 'journal' store functionality needs to access just the journal entries for the active char
-  const journalEntries = computed(() => {
+  // List of available backgrounds for the current character
+  const availableBackgrounds = computed(() => {
     const airiCardStore = useAiriCardStore()
-    return getCharacterJournalEntries.value(airiCardStore.activeCardId)
+    return getCharacterBackgrounds.value(airiCardStore.activeCardId)
   })
 
   const getCharacterJournalEntries = computed(() => (characterId?: string) => {
@@ -267,6 +251,12 @@ export const useBackgroundStore = defineStore('background', () => {
       ...e,
       url: backgroundUrls[e.id] ?? null,
     })).sort((a, b) => b.createdAt - a.createdAt)
+  })
+
+  // The 'journal' store functionality needs to access just the journal entries for the active char
+  const journalEntries = computed(() => {
+    const airiCardStore = useAiriCardStore()
+    return getCharacterJournalEntries.value(airiCardStore.activeCardId)
   })
 
   async function addBackground(
@@ -306,7 +296,6 @@ export const useBackgroundStore = defineStore('background', () => {
 
       initializeStore()
       await sync()
-      console.log(`[BackgroundStore] Successfully added background: ${id} (${type})`)
       return id
     }
     catch (error) {
@@ -330,7 +319,6 @@ export const useBackgroundStore = defineStore('background', () => {
       const url = backgroundUrls[id]
       if (url) {
         URL.revokeObjectURL(url)
-        console.log(`[BackgroundStore] Revoked ObjectURL for ${id}`)
       }
       delete backgroundUrls[id]
       broadcastSync(Date.now())

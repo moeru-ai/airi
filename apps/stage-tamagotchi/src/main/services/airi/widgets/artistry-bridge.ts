@@ -129,7 +129,7 @@ export async function generateHeadless(params: {
 
   // We hash the globals (excluding the heavy image already covered by imageHash)
   // to ensure that changing a workflow or provider setting triggers a unique execution.
-  const { image, ...globalsForFingerprint } = activeGlobals
+  const { image: _image, ...globalsForFingerprint } = activeGlobals
   const globalsHash = createHash('sha256').update(JSON.stringify(globalsForFingerprint)).digest('hex')
 
   const fingerprint = JSON.stringify({
@@ -365,7 +365,7 @@ async function handleArtistryTrigger(params: {
         params.widgetsManager.updateWidget({
           id: params.id,
           componentProps: {
-            ...(existing?.componentProps as any || {}),
+            ...(existing?.componentProps as any),
             ...statusUpdate,
           },
         })
