@@ -3,7 +3,7 @@ import type { SourcesOptions } from 'electron'
 import type { MaybeRefOrGetter } from 'vue'
 
 import { useElectronScreenCapture } from '@proj-airi/electron-screen-capture/vue'
-import { computed, ref, shallowRef } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 
 import { createObjectUrlFromBytes } from '../utils/create-object-url-from-bytes'
 
@@ -41,6 +41,12 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
 
   const activeSource = computed(() => sources.value.find(source => source.id === activeSourceId.value) || null)
 
+  watch(activeSourceId, (nextSourceId) => {
+    if (activeStreamSourceId.value && activeStreamSourceId.value !== nextSourceId) {
+      clearActiveStream()
+    }
+  })
+
   function isActiveStream(stream: MediaStream | null | undefined) {
     if (!stream)
       return false
@@ -71,10 +77,6 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
   }
 
   function syncActiveSource(nextSourceId: string) {
-    if (activeStreamSourceId.value && activeStreamSourceId.value !== nextSourceId) {
-      clearActiveStream()
-    }
-
     activeSourceId.value = nextSourceId
   }
 
