@@ -1,11 +1,12 @@
 import type { OIDCFlowParams, TokenResponse } from './auth-oidc'
 
+import { Capacitor } from '@capacitor/core'
 import { createAuthClient } from 'better-auth/vue'
 
 import { useAuthStore } from '../stores/auth'
 import { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } from './auth-config'
 import { buildAuthorizationURL, persistFlowState } from './auth-oidc'
-import { SERVER_URL } from './server'
+import { isNgrokServerUrl, SERVER_URL } from './server'
 
 export type OAuthProvider = 'google' | 'github'
 
@@ -30,6 +31,9 @@ export const authClient = createAuthClient({
       type: 'Bearer',
       token: () => getAuthToken() ?? '',
     },
+    ...(isNgrokServerUrl()
+      ? { headers: { 'ngrok-skip-browser-warning': 'true' } }
+      : {}),
   },
 })
 
@@ -183,17 +187,36 @@ export async function signOut() {
  * Builds the authorization URL, persists PKCE state, and navigates.
  */
 export async function signInOIDC(params: OIDCFlowParams) {
-  const { provider, ...oidcParams } = params
-  const { url, flowState } = await buildAuthorizationURL(oidcParams)
+  // Must pass `params` (incl. `provider`) so authorize URL can include `?provider=google` / github.
+  const { url, flowState } = await buildAuthorizationURL(params)
   persistFlowState(flowState, params)
 
-  if (!provider) {
+  if (!params.provider) {
     window.location.href = url
     return
   }
 
+  // better-auth's signIn.social() uses the fetch client; in Capacitor WKWebView
+  // that path often does not perform a real top-level navigation to the IdP.
+  // Match server /sign-in: full-page GET to social, then 302 to Google/GitHub.
+  let useFullPageSocial = false
+  try {
+    useFullPageSocial = Capacitor.isNativePlatform()
+  }
+  catch {
+    // no Capacitor
+  }
+  if (useFullPageSocial) {
+    // NOTICE: First request must be /api/auth/oauth2/authorize (not /sign-in/social):
+    // `ensureDynamicFirstPartyRedirectUri` only runs on authorize, so the LAN
+    // `redirect_uri` is written to `oauth_client` before login/social. Skipping
+    // authorize left social with an unregistered redirect and no Google 302.
+    window.location.assign(url.toString())
+    return
+  }
+
   await authClient.signIn.social({
-    provider,
+    provider: params.provider,
     callbackURL: url.toString(),
   })
 }

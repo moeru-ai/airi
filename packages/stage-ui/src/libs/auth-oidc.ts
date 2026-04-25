@@ -1,6 +1,7 @@
+import { Capacitor } from '@capacitor/core'
 import { generateCodeChallenge, generateCodeVerifier, generateState } from '@proj-airi/stage-shared/auth'
 
-import { SERVER_URL } from './server'
+import { applyNgrokSkipRequestHeader, SERVER_URL } from './server'
 
 // OIDC Authorization Code + PKCE client for all platforms.
 
@@ -94,10 +95,12 @@ export async function exchangeCodeForTokens(
     bodyParams.client_secret = params.clientSecret
 
   const body = new URLSearchParams(bodyParams)
+  const tokenHeaders = new Headers({ 'Content-Type': 'application/x-www-form-urlencoded' })
+  applyNgrokSkipRequestHeader(tokenHeaders)
 
   const response = await fetch(new URL(OIDC_TOKEN_PATH, SERVER_URL), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: tokenHeaders,
     body,
   })
 
@@ -129,10 +132,12 @@ export async function refreshAccessToken(
     params.client_secret = clientSecret
 
   const body = new URLSearchParams(params)
+  const refreshHeaders = new Headers({ 'Content-Type': 'application/x-www-form-urlencoded' })
+  applyNgrokSkipRequestHeader(refreshHeaders)
 
   const response = await fetch(new URL(OIDC_TOKEN_PATH, SERVER_URL), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: refreshHeaders,
     body,
   })
 
@@ -142,30 +147,44 @@ export async function refreshAccessToken(
   return await response.json()
 }
 
-// Session storage keys for PKCE flow state (survives page navigation during OAuth)
+// Keys for PKCE + OAuth params. Web: sessionStorage (tab-scoped). Native: localStorage
+// (Capacitor + system browser / ASWeb often lose sessionStorage for the return navigation).
 const FLOW_STATE_KEY = 'auth/v1/oidc-flow-state'
 const FLOW_PARAMS_KEY = 'auth/v1/oidc-flow-params'
+
+function getOidcFlowStorage(): Storage {
+  try {
+    if (Capacitor.isNativePlatform())
+      return localStorage
+  }
+  catch {
+    // Capacitor unavailable (SSR / non-native build)
+  }
+  return sessionStorage
+}
 
 /**
  * Persist OIDC flow state before navigating to the authorization server.
  */
 export function persistFlowState(flowState: OIDCFlowState, params: OIDCFlowParams): void {
-  sessionStorage.setItem(FLOW_STATE_KEY, JSON.stringify(flowState))
-  sessionStorage.setItem(FLOW_PARAMS_KEY, JSON.stringify(params))
+  const storage = getOidcFlowStorage()
+  storage.setItem(FLOW_STATE_KEY, JSON.stringify(flowState))
+  storage.setItem(FLOW_PARAMS_KEY, JSON.stringify(params))
 }
 
 /**
  * Retrieve and clear persisted OIDC flow state after callback.
  */
 export function consumeFlowState(): { flowState: OIDCFlowState, params: OIDCFlowParams } | null {
-  const flowStateRaw = sessionStorage.getItem(FLOW_STATE_KEY)
-  const paramsRaw = sessionStorage.getItem(FLOW_PARAMS_KEY)
+  const storage = getOidcFlowStorage()
+  const flowStateRaw = storage.getItem(FLOW_STATE_KEY)
+  const paramsRaw = storage.getItem(FLOW_PARAMS_KEY)
 
   if (!flowStateRaw || !paramsRaw)
     return null
 
-  sessionStorage.removeItem(FLOW_STATE_KEY)
-  sessionStorage.removeItem(FLOW_PARAMS_KEY)
+  storage.removeItem(FLOW_STATE_KEY)
+  storage.removeItem(FLOW_PARAMS_KEY)
 
   return {
     flowState: JSON.parse(flowStateRaw),
