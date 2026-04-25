@@ -188,5 +188,4 @@ describe('kokoro adapter - device loss resilience', () => {
     adapter.terminate()
     void loading
   })
-
 })
