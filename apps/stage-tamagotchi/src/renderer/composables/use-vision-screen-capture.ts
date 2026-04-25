@@ -34,6 +34,12 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
   const activeStream = shallowRef<MediaStream | null>(null)
   const activeStreamSourceId = ref('')
 
+  watch(activeSourceId, (nextId) => {
+    if (activeStreamSourceId.value && activeStreamSourceId.value !== nextId) {
+      clearActiveStream()
+    }
+  })
+
   const {
     getSources,
     selectWithSource,
