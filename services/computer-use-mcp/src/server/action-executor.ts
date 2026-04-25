@@ -33,6 +33,7 @@ import {
   maskEnvValuePreview,
   readEnvValue,
 } from '../utils/env-file'
+import { sleep } from '../utils/sleep'
 import { executeDesktopClickTarget } from './desktop-grounding-actions'
 import { describeExecutionTarget } from './formatters'
 import { refreshRuntimeRunState } from './refresh-run-state'
@@ -118,9 +119,38 @@ function toTerminalStateContent(state: TerminalState) {
   }
 }
 
+async function restoreControlledAppBeforePolicy(params: {
+  action: ActionInvocation
+  runtime: ComputerUseServerRuntime
+}) {
+  if (params.action.kind !== 'desktop_click_target') {
+    return
+  }
+
+  const sessionCtrl = params.runtime.desktopSessionController
+  const activeSession = sessionCtrl.getSession()
+  if (!activeSession?.controlledApp) {
+    return
+  }
+
+  const currentForeground = await params.runtime.executor.getForegroundContext()
+  const wasAlreadyInFront = await sessionCtrl.ensureControlledAppInForeground({
+    currentForeground,
+    chromeSessionManager: params.runtime.chromeSessionManager,
+    activateApp: async (appName) => {
+      await params.runtime.executor.focusApp({ app: appName })
+    },
+  })
+  if (!wasAlreadyInFront) {
+    await sleep(200)
+  }
+  sessionCtrl.touch()
+}
+
 export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteAction {
   return async (action, toolName, options = {}) => {
     const normalizedAction = normalizeConfiguredAppAction(action, runtime.config.openableApps)
+    await restoreControlledAppBeforePolicy({ action: normalizedAction, runtime })
     const { executionTarget, context, displayInfo } = await refreshRuntimeRunState(runtime)
 
     const budget = runtime.session.getBudgetState()

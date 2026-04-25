@@ -204,6 +204,68 @@ describe('createExecuteAction', () => {
     expect(session.consumeOperation).not.toHaveBeenCalled()
   })
 
+  it('restores the controlled app before evaluating desktop_click_target policy', async () => {
+    const { runtime, executor, session, stateManager, desktopSessionController } = createRuntimeForActionTest()
+    stateManager.updateGroundingSnapshot({
+      snapshotId: 'dg_1',
+      capturedAt: new Date().toISOString(),
+      foregroundApp: 'Google Chrome',
+      windows: [],
+      screenshot: {
+        dataBase64: '',
+        mimeType: 'image/png',
+        path: '',
+        capturedAt: new Date().toISOString(),
+      },
+      targetCandidates: [
+        {
+          id: 't_0',
+          source: 'ax',
+          appName: 'Google Chrome',
+          role: 'AXButton',
+          label: 'Submit',
+          bounds: { x: 100, y: 200, width: 80, height: 30 },
+          confidence: 0.95,
+          interactable: true,
+        },
+      ],
+      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
+    } as any)
+    desktopSessionController.getSession.mockReturnValue({
+      id: 'ds_1',
+      controlledApp: 'Google Chrome',
+      ownedWindows: [],
+      createdAt: new Date().toISOString(),
+      lastActiveAt: new Date().toISOString(),
+    })
+    desktopSessionController.ensureControlledAppInForeground.mockResolvedValue(true)
+    executor.getForegroundContext
+      .mockResolvedValueOnce({
+        available: true,
+        appName: 'AIRI',
+        platform: 'darwin',
+      })
+      .mockResolvedValue({
+        available: true,
+        appName: 'Google Chrome',
+        platform: 'darwin',
+      })
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'desktop_click_target', input: { candidateId: 't_0' } }, 'desktop_click_target')
+
+    expect(result.isError).not.toBe(true)
+    expect(desktopSessionController.ensureControlledAppInForeground).toHaveBeenCalledWith(expect.objectContaining({
+      currentForeground: expect.objectContaining({ appName: 'AIRI' }),
+    }))
+    expect(executor.click).toHaveBeenCalledOnce()
+    expect(session.record).toHaveBeenCalledWith(expect.objectContaining({
+      event: 'executed',
+      context: expect.objectContaining({ appName: 'Google Chrome' }),
+      policy: expect.objectContaining({ allowed: true }),
+    }))
+  })
+
   it('fails desktop_click_target before consuming budget when no observe snapshot exists', async () => {
     const { runtime, executor, session } = createRuntimeForActionTest()
 

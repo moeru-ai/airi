@@ -6,7 +6,6 @@ import { errorMessageFrom } from '@moeru/std'
 import { decideBrowserAction } from '../browser-action-router'
 import { getUnsupportedBrowserDomActions, isBrowserDomActionSupported } from '../browser-dom/capabilities'
 import { resolveSnapByCandidate } from '../snap-resolver'
-import { sleep } from '../utils/sleep'
 
 const DESKTOP_CLICK_SNAPSHOT_MAX_AGE_MS = 5000
 
@@ -31,23 +30,6 @@ export async function executeDesktopClickTarget(
   }
 
   const snapshot = state.lastGroundingSnapshot
-
-  const sessionCtrl = runtime.desktopSessionController
-  const activeSession = sessionCtrl.getSession()
-  if (activeSession?.controlledApp) {
-    const currentForeground = await runtime.executor.getForegroundContext()
-    const wasAlreadyInFront = await sessionCtrl.ensureControlledAppInForeground({
-      currentForeground,
-      chromeSessionManager: runtime.chromeSessionManager,
-      activateApp: async (appName) => {
-        await runtime.executor.focusApp({ app: appName })
-      },
-    })
-    if (!wasAlreadyInFront) {
-      await sleep(200)
-    }
-    sessionCtrl.touch()
-  }
 
   if (state.lastClickedCandidateId === candidateId) {
     throw new Error(`You already clicked candidate "${candidateId}" without calling desktop_observe again. Call desktop_observe to refresh the state before clicking the same target.`)
