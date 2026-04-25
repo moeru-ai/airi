@@ -2,6 +2,7 @@
 import type { ChatHistoryItem, ErrorMessage } from '../../../../types/chat'
 
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
+import { Button } from '@proj-airi/ui'
 import { computed } from 'vue'
 
 import { MarkdownRenderer } from '../../../markdown'
@@ -11,39 +12,55 @@ import { ChatActionMenu } from './action-menu'
 const props = withDefaults(defineProps<{
   message: ErrorMessage
   label: string
+  retryLabel?: string
+  canRetry?: boolean
   showPlaceholder?: boolean
   variant?: 'desktop' | 'mobile'
 }>(), {
+  canRetry: false,
   showPlaceholder: false,
   variant: 'desktop',
 })
 
 const emit = defineEmits<{
   (e: 'copy'): void
+  (e: 'retry'): void
   (e: 'delete'): void
 }>()
 
 const boxClasses = computed(() => [
+  'min-w-0',
+  'max-w-full',
   props.variant === 'mobile' ? 'px-2 py-2 text-sm' : 'px-3 py-3',
 ])
 const copyText = computed(() => getChatHistoryItemCopyText(props.message as ChatHistoryItem))
 </script>
 
 <template>
-  <div flex :class="variant === 'mobile' ? 'mr-0' : 'mr-12'">
+  <div
+    :class="[
+      'flex flex-col',
+      variant === 'mobile' ? 'mr-0' : 'mr-12',
+    ]"
+  >
     <ChatActionMenu
       :copy-text="copyText"
       :can-delete="!showPlaceholder"
+      :can-retry="canRetry && !showPlaceholder"
       @copy="emit('copy')"
+      @retry="emit('retry')"
       @delete="emit('delete')"
     >
       <template #default="{ setMeasuredElement }">
         <div
           :ref="setMeasuredElement"
-          flex="~ col" shadow="sm violet-200/50 dark:none"
-          min-w-20 rounded-xl h="unset <sm:fit"
           :class="[
             boxClasses,
+            'relative',
+            'flex flex-col',
+            'min-w-20 rounded-xl',
+            'h-unset <sm:h-fit',
+            'shadow-sm shadow-violet-200/50 dark:shadow-none',
             'bg-violet-100/80 dark:bg-violet-950/80',
             (isStageWeb() || isStageCapacitor()) && props.variant === 'mobile' ? 'select-none sm:select-auto' : '',
           ]"
@@ -58,10 +75,24 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
           <MarkdownRenderer
             v-else
             :content="message.content"
-            class="break-words text-violet-500 dark:text-violet-300"
+            class="whitespace-pre-wrap break-all text-violet-500 dark:text-violet-300"
           />
         </div>
       </template>
     </ChatActionMenu>
+    <div
+      v-if="canRetry && !showPlaceholder"
+      :class="[
+        'self-end mt-1',
+      ]"
+    >
+      <Button
+        size="sm"
+        variant="ghost"
+        shape="square"
+        icon="i-solar:refresh-bold"
+        @click="emit('retry')"
+      />
+    </div>
   </div>
 </template>

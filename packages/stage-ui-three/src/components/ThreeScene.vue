@@ -693,6 +693,17 @@ defineExpose({
   renderer: () => tresCanvasRef.value?.renderer.instance,
   scene: () => modelRef.value?.scene,
   readRenderTargetRegionAtClientPoint,
+  captureFrame: async () => {
+    if (!tresCanvasRef.value)
+      return null
+
+    const { renderer, scene } = tresCanvasRef.value
+    renderer.instance.render(scene.value, camera.value)
+
+    return new Promise<Blob | null>((resolve) => {
+      renderer.instance.domElement.toBlob(resolve)
+    })
+  },
 })
 </script>
 

@@ -5,7 +5,16 @@ import type { WidgetsWindowManager } from '../../../windows/widgets'
 
 import { defineInvokeHandlers } from '@moeru/eventa'
 
-import { widgetsAdd, widgetsClear, widgetsFetch, widgetsOpenWindow, widgetsPrepareWindow, widgetsRemove, widgetsUpdate } from '../../../../shared/eventa'
+import {
+  widgetsAdd,
+  widgetsClear,
+  widgetsFetch,
+  widgetsHideWindow,
+  widgetsOpenWindow,
+  widgetsPrepareWindow,
+  widgetsRemove,
+  widgetsUpdate,
+} from '../../../../shared/eventa'
 import {
   normalizeOptionalWidgetId,
   normalizeRequiredWidgetId,
@@ -49,6 +58,7 @@ export function createWidgetsService(params: { context: ReturnType<typeof create
   defineInvokeHandlers(params.context, {
     widgetsPrepareWindow,
     widgetsOpenWindow,
+    widgetsHideWindow,
     widgetsAdd,
     widgetsUpdate,
     widgetsRemove,
@@ -66,6 +76,11 @@ export function createWidgetsService(params: { context: ReturnType<typeof create
         return undefined
       const id = normalizeOptionalWidgetId(payload?.id)
       return params.widgetsManager.openWindow(id ? { id } : undefined)
+    },
+    widgetsHideWindow: async (payload, options) => {
+      if (!isFromWindow(options as InvokeOptions, params.window))
+        return undefined
+      return params.widgetsManager!.hideWindow(payload ?? undefined)
     },
     widgetsAdd: async (payload, options) => {
       if (!isFromWindow(options as InvokeOptions, params.window))

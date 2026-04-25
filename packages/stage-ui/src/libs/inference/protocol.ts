@@ -53,6 +53,7 @@ export type InferenceErrorCode
     | 'DEVICE_LOST'
     | 'LOAD_FAILED'
     | 'INFERENCE_FAILED'
+    | 'CANCELLED'
     | 'UNKNOWN'
 
 export interface ErrorPayload {
@@ -87,10 +88,31 @@ export interface UnloadModelRequest {
   requestId: string
 }
 
+/**
+ * Cancel an in-flight or queued request. The worker should stop any
+ * ongoing work tied to `targetRequestId` and must NOT send a normal
+ * `model-ready` / `inference-result` response for that request; instead
+ * it should send an `ErrorResponse` with code `'CANCELLED'` so the
+ * adapter can reject the caller's promise deterministically.
+ *
+ * NOTE: Cancellation is best-effort. We cannot interrupt a synchronous
+ * transformers.js / ONNX Runtime call that is already executing on the
+ * worker thread. What the cancel signal does guarantee is that the
+ * adapter stops waiting and the worker discards the result when it
+ * eventually arrives.
+ */
+export interface CancelRequest {
+  type: 'cancel'
+  requestId: string
+  /** The requestId of the operation to cancel */
+  targetRequestId: string
+}
+
 export type WorkerInboundMessage<TInput = unknown>
   = | LoadModelRequest
     | RunInferenceRequest<TInput>
     | UnloadModelRequest
+    | CancelRequest
 
 // ---------------------------------------------------------------------------
 // Worker → Main responses
@@ -148,6 +170,26 @@ export function createRequestId(): string {
   return `req_${Date.now().toString(36)}_${(counter++).toString(36)}`
 }
 
+// NOTICE: Patterns observed in WebGPU device loss errors across Chromium,
+// Firefox, Safari, and ONNX Runtime Web / transformers.js. Because we do not
+// own the GPUDevice (it is created internally by transformers.js / ORT-web),
+// we cannot attach a `device.lost` promise handler directly — string matching
+// on thrown errors is the only available detection signal.
+// References:
+//   - https://gpuweb.github.io/gpuweb/#gpudevicelostinfo
+//   - https://github.com/huggingface/transformers.js/issues/715
+const DEVICE_LOSS_PATTERNS = [
+  'device was lost',
+  'device lost',
+  'gpu device lost',
+  'gpudevice was invalidated',
+  'gpudevice is invalid',
+  'device destroyed',
+  'gpu process crashed',
+  'gpu process lost',
+  'webgpu device is invalid',
+] as const
+
 /**
  * Classify an unknown error into an `InferenceErrorCode`.
  * Used by worker adapters to normalise caught exceptions.
@@ -162,7 +204,7 @@ export function classifyError(error: unknown, phase?: 'load' | 'inference'): Inf
 
   if (lower.includes('out of memory') || lower.includes('allocation failed'))
     return 'OOM'
-  if (lower.includes('device was lost') || lower.includes('device lost'))
+  if (DEVICE_LOSS_PATTERNS.some(p => lower.includes(p)))
     return 'DEVICE_LOST'
   if (lower.includes('timeout'))
     return 'TIMEOUT'
@@ -175,6 +217,31 @@ export function classifyError(error: unknown, phase?: 'load' | 'inference'): Inf
   return 'UNKNOWN'
 }
 
+/** Reason classification for a device-loss event, following `GPUDeviceLostInfo.reason`. */
+export type DeviceLossReason = 'destroyed' | 'unknown'
+
+/**
+ * Best-effort classification of a device-loss reason from an error message
+ * or a `GPUDeviceLostInfo`-shaped object. 'destroyed' implies intentional
+ * termination (no recovery); 'unknown' implies a transient event that may
+ * be recoverable via adapter restart or WASM fallback.
+ */
+export function classifyDeviceLossReason(error: unknown): DeviceLossReason {
+  // Prefer structured info when available (some browsers attach GPUDeviceLostInfo)
+  if (error && typeof error === 'object' && 'reason' in error) {
+    const reason = (error as { reason?: unknown }).reason
+    if (reason === 'destroyed')
+      return 'destroyed'
+    return 'unknown'
+  }
+
+  const msg = error instanceof Error ? error.message : String(error)
+  const lower = msg.toLowerCase()
+  if (lower.includes('destroyed'))
+    return 'destroyed'
+  return 'unknown'
+}
+
 /**
  * Determine whether an error code represents a potentially recoverable
  * condition. TIMEOUT and DEVICE_LOST may succeed on retry (e.g. with
@@ -182,4 +249,28 @@ export function classifyError(error: unknown, phase?: 'load' | 'inference'): Inf
  */
 export function isRecoverable(code: InferenceErrorCode): boolean {
   return code === 'TIMEOUT' || code === 'DEVICE_LOST'
+}
+
+/**
+ * Canonical error thrown by inference adapters when an operation is
+ * cancelled via AbortSignal. Matches the DOM convention of `name === 'AbortError'`
+ * so existing `if (err.name === 'AbortError')` checks work unchanged.
+ */
+export class InferenceAbortError extends Error {
+  override readonly name = 'AbortError'
+  readonly code = 'CANCELLED' as const
+
+  constructor(message = 'The operation was aborted') {
+    super(message)
+  }
+}
+
+/** Throw `InferenceAbortError` if the signal is already aborted. */
+export function throwIfAborted(signal: AbortSignal | undefined): void {
+  if (signal?.aborted) {
+    const reason = signal.reason
+    if (reason instanceof Error)
+      throw reason
+    throw new InferenceAbortError(typeof reason === 'string' ? reason : undefined)
+  }
 }

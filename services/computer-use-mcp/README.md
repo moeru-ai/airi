@@ -268,8 +268,13 @@ On the AIRI desktop side, approvals are handled like this:
 For browser DOM automation, `computer-use-mcp` also exposes a local WebSocket bridge that matches the user's Chrome extension bridge pattern:
 
 1. `computer-use-mcp` listens on `ws://127.0.0.1:8765` by default
-2. the unpacked browser extension connects from its offscreen document
+2. the unpacked browser extension background service worker connects to that socket
 3. AIRI can then call `browser_dom_*` MCP tools against the active browser tab
+
+If you override `COMPUTER_USE_BROWSER_DOM_BRIDGE_HOST` or
+`COMPUTER_USE_BROWSER_DOM_BRIDGE_PORT`, mirror the same endpoint in the Chrome
+extension via `chrome.storage.local.set({ browserDomBridgeHost, browserDomBridgePort })`
+so the background worker reconnects to the correct socket.
 
 Use the two surfaces differently:
 

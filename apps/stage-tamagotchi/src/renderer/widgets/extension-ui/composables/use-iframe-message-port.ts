@@ -1,17 +1,17 @@
+import type { WidgetsIframeInitPayload } from '@proj-airi/plugin-sdk-tamagotchi/widgets'
 import type { MaybeElementRef } from '@vueuse/core'
 import type { ComputedRef } from 'vue'
 
 import type { PluginHostModuleSummary } from '../../../../shared/eventa/plugin/host'
 
+import { createContext } from '@moeru/eventa/adapters/window-message'
+import {
+  widgetsIframeChannel,
+  widgetsIframeInitEvent,
+  widgetsIframeReadyEvent,
+} from '@proj-airi/plugin-sdk-tamagotchi/widgets'
 import { unrefElement } from '@vueuse/core'
 import { onBeforeUnmount, shallowRef, watch } from 'vue'
-
-import {
-  extensionUiBridgeEventaChannel,
-  extensionUiBridgeInitEvent,
-  extensionUiBridgeReadyEvent,
-} from '../shared/eventa'
-import { createWindowMessageEventaContext } from '../shared/eventa-runtime'
 
 /**
  * Manages typed parent-to-iframe messaging for one extension UI iframe.
@@ -41,8 +41,8 @@ export function useIframeMessagePort(
 ) {
   const iframeLoadError = shallowRef<string>()
 
-  const iframeRuntime = createWindowMessageEventaContext({
-    channel: extensionUiBridgeEventaChannel,
+  const iframeRuntime = createContext({
+    channel: widgetsIframeChannel,
     currentWindow: window,
     expectedSource: () => {
       const iframeElement = unrefElement(target)
@@ -54,17 +54,17 @@ export function useIframeMessagePort(
     },
   })
 
-  function createInitPayload() {
+  function createInitPayload(): WidgetsIframeInitPayload {
     return {
       moduleId: options.moduleSnapshot.value?.moduleId,
-      module: options.moduleSnapshot.value,
+      module: options.moduleSnapshot.value as unknown as Record<string, unknown> | undefined,
       config: options.moduleConfig.value,
       props: options.propsPayload.value,
     }
   }
 
   function emitInitPayload() {
-    iframeRuntime.context.emit(extensionUiBridgeInitEvent, createInitPayload())
+    iframeRuntime.context.emit(widgetsIframeInitEvent, createInitPayload())
   }
 
   function onIframeLoad() {
@@ -76,7 +76,7 @@ export function useIframeMessagePort(
     iframeLoadError.value = 'Failed to load extension UI iframe source.'
   }
 
-  iframeRuntime.context.on(extensionUiBridgeReadyEvent, () => {
+  iframeRuntime.context.on(widgetsIframeReadyEvent, () => {
     emitInitPayload()
   })
 

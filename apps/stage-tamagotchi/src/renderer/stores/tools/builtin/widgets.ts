@@ -1,11 +1,11 @@
 import type { Tool } from '@xsai/shared-chat'
+import type { JsonSchema } from 'xsschema'
 
 import type { WidgetWindowSize } from '../../../../shared/eventa'
 
 import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
-import { tool } from '@xsai/tool'
-import { z } from 'zod'
+import { rawTool } from '@xsai/tool'
 
 import { widgetsAdd, widgetsClear, widgetsOpenWindow, widgetsPrepareWindow, widgetsRemove, widgetsUpdate } from '../../../../shared/eventa'
 import { normalizeWidgetWindowSize } from '../../../../shared/utils/electron/windows/window-size'
@@ -85,24 +85,82 @@ function resolveInvokers(override?: WidgetInvokers): WidgetInvokers {
   return cachedInvokers
 }
 
-const widgetWindowSizeParams = z.object({
-  width: z.number().positive(),
-  height: z.number().positive(),
-  minWidth: z.number().positive().optional(),
-  minHeight: z.number().positive().optional(),
-  maxWidth: z.number().positive().optional(),
-  maxHeight: z.number().positive().optional(),
-}).strict()
+const nullablePositiveNumberSchema = {
+  type: ['number', 'null'],
+  exclusiveMinimum: 0,
+} satisfies JsonSchema
 
-const widgetParams = z.object({
-  action: z.enum(['spawn', 'update', 'remove', 'clear', 'open']).describe('Choose one: spawn, update, remove, clear, open'),
-  id: z.string().describe('Widget id; required for update/remove, optional for spawn/open'),
-  componentName: z.string().describe('Widget component to render, e.g. weather (required for spawn)'),
-  componentProps: z.string().describe('Widget props as JSON string (e.g. {"city":"Tokyo"})'),
-  size: z.enum(['s', 'm', 'l']),
-  windowSize: widgetWindowSizeParams.optional().describe('Optional pixel window size and constraints, e.g. {"width":620,"height":760,"minWidth":480}'),
-  ttlSeconds: z.number().int().nonnegative().describe('Auto-close timer in seconds (spawn only)'),
-}).strict()
+const widgetWindowSizeParams = {
+  description: 'Optional pixel window size and constraints, e.g. {"width":620,"height":760,"minWidth":480}',
+  type: ['object', 'null'],
+  properties: {
+    width: {
+      type: 'number',
+      exclusiveMinimum: 0,
+    },
+    height: {
+      type: 'number',
+      exclusiveMinimum: 0,
+    },
+    minWidth: nullablePositiveNumberSchema,
+    minHeight: nullablePositiveNumberSchema,
+    maxWidth: nullablePositiveNumberSchema,
+    maxHeight: nullablePositiveNumberSchema,
+  },
+  required: [
+    'width',
+    'height',
+    'minWidth',
+    'minHeight',
+    'maxWidth',
+    'maxHeight',
+  ],
+  additionalProperties: false,
+} satisfies JsonSchema
+
+const widgetParams = {
+  type: 'object',
+  properties: {
+    action: {
+      type: 'string',
+      enum: ['spawn', 'update', 'remove', 'clear', 'open'],
+      description: 'Choose one: spawn, update, remove, clear, open',
+    },
+    id: {
+      type: 'string',
+      description: 'Widget id; required for update/remove, optional for spawn/open',
+    },
+    componentName: {
+      type: 'string',
+      description: 'Widget component to render, e.g. weather (required for spawn)',
+    },
+    componentProps: {
+      type: 'string',
+      description: 'Widget props as JSON string (e.g. {"city":"Tokyo"})',
+    },
+    size: {
+      type: 'string',
+      enum: ['s', 'm', 'l'],
+    },
+    windowSize: widgetWindowSizeParams,
+    ttlSeconds: {
+      type: 'integer',
+      minimum: 0,
+      maximum: Number.MAX_SAFE_INTEGER,
+      description: 'Auto-close timer in seconds (spawn only)',
+    },
+  },
+  required: [
+    'action',
+    'id',
+    'componentName',
+    'componentProps',
+    'size',
+    'windowSize',
+    'ttlSeconds',
+  ],
+  additionalProperties: false,
+} satisfies JsonSchema
 
 export function normalizeComponentProps(raw?: string | Record<string, any>) {
   if (raw === undefined || raw === null)
@@ -209,8 +267,8 @@ export async function executeWidgetAction(input: WidgetActionInput, deps?: { inv
   }
 }
 
-const tools: Promise<Tool>[] = [
-  tool({
+const tools: Tool[] = [
+  rawTool({
     name: 'stage_widgets',
     description: 'Manage overlay widgets in the Stage desktop app (spawn, update, remove, clear, or open the widgets window).',
     execute: params => executeWidgetAction(params as WidgetActionInput),
@@ -218,4 +276,4 @@ const tools: Promise<Tool>[] = [
   }),
 ]
 
-export const widgetsTools = async () => Promise.all(tools)
+export const widgetsTools = async () => tools

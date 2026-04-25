@@ -9,9 +9,11 @@
  * process. Persistent audit lives in session trace / JSONL.
  */
 
+import type { DesktopSession } from './desktop-session'
 import type { TaskMemory } from './task-memory/types'
 import type {
   BrowserSurfaceAvailability,
+  ChromeSessionInfo,
   DisplayInfo,
   ExecutionTarget,
   ForegroundContext,
@@ -176,6 +178,24 @@ export interface RunState {
   // --- Task memory ------------------------------------------------------
   /** High-level task execution state (goal, facts, blockers, next step). */
   taskMemory?: TaskMemory
+
+  // --- Desktop grounding -------------------------------------------------
+  /** Latest unified desktop grounding snapshot captured by `desktop_observe`. */
+  lastGroundingSnapshot?: import('./desktop-grounding-types').DesktopGroundingSnapshot
+  /** Most recent pointer snap intent for overlay rendering. */
+  lastPointerIntent?: import('./desktop-grounding-types').PointerIntent
+  /** Candidate id of the last `desktop_click_target` call for duplicate protection. */
+  lastClickedCandidateId?: string
+
+  // --- Chrome Session ----------------------------------------------------
+  /** Agent's dedicated Chrome session (managed by ChromeSessionManager). */
+  chromeSession?: ChromeSessionInfo
+  /** The user's foreground app before the agent took over. */
+  previousUserForegroundApp?: string
+
+  // --- Desktop Session ---------------------------------------------------
+  /** Agent's active desktop execution session. */
+  desktopSession?: DesktopSession
 
   // --- Meta -------------------------------------------------------------
   /** ISO timestamp of the last state update. */
@@ -385,6 +405,86 @@ export class RunStateManager {
       this.state.activeTask.phase = phase
       this.state.activeTask.finishedAt = new Date().toISOString()
     }
+    this.touch()
+  }
+
+  // -- Desktop grounding updates -----------------------------------------
+
+  /**
+   * Store a fresh desktop grounding snapshot from `desktop_observe`.
+   * A new observe invalidates the duplicate-click guard.
+   */
+  updateGroundingSnapshot(snapshot: import('./desktop-grounding-types').DesktopGroundingSnapshot): void {
+    this.state.lastGroundingSnapshot = snapshot
+    this.state.lastClickedCandidateId = undefined
+    this.touch()
+  }
+
+  /**
+   * Store the last pointer snap intent and, optionally, the clicked candidate id
+   * once an execution path has actually succeeded.
+   */
+  updatePointerIntent(intent: import('./desktop-grounding-types').PointerIntent, candidateId?: string): void {
+    this.state.lastPointerIntent = intent
+    if (candidateId !== undefined) {
+      this.state.lastClickedCandidateId = candidateId
+    }
+    this.touch()
+  }
+
+  /**
+   * Clear desktop grounding state when the snapshot becomes invalid.
+   */
+  clearGroundingState(): void {
+    this.state.lastGroundingSnapshot = undefined
+    this.state.lastPointerIntent = undefined
+    this.state.lastClickedCandidateId = undefined
+    this.touch()
+  }
+
+  // -- Chrome Session updates ---------------------------------------------
+
+  /**
+   * Store the agent's Chrome session info.
+   * Called after ChromeSessionManager.ensureAgentWindow() succeeds.
+   */
+  updateChromeSession(info: ChromeSessionInfo): void {
+    this.state.chromeSession = info
+    this.touch()
+  }
+
+  /**
+   * Clear the Chrome session (e.g. on session end or Chrome crash).
+   */
+  clearChromeSession(): void {
+    this.state.chromeSession = undefined
+    this.state.previousUserForegroundApp = undefined
+    this.touch()
+  }
+
+  /**
+   * Remember the user's foreground app before agent takes over.
+   */
+  savePreviousUserForeground(appName: string): void {
+    this.state.previousUserForegroundApp = appName
+    this.touch()
+  }
+
+  // -- Desktop Session updates --------------------------------------------
+
+  /**
+   * Update the agent's desktop session.
+   */
+  updateDesktopSession(session: DesktopSession): void {
+    this.state.desktopSession = session
+    this.touch()
+  }
+
+  /**
+   * Clear the desktop session.
+   */
+  clearDesktopSession(): void {
+    this.state.desktopSession = undefined
     this.touch()
   }
 

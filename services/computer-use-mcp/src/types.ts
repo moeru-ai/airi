@@ -7,6 +7,8 @@ export type MouseButton = 'left' | 'right' | 'middle'
 export type ActionKind
   = | 'screenshot'
     | 'observe_windows'
+    | 'desktop_observe'
+    | 'desktop_click_target'
     | 'open_app'
     | 'focus_app'
     | 'secret_read_env_value'
@@ -119,6 +121,33 @@ export interface ForegroundContext {
   windowBounds?: Bounds
   platform: NodeJS.Platform
   unavailableReason?: string
+  /** Whether the current foreground app is agent-owned (launched/managed by the agent). */
+  agentOwned?: boolean
+  /** PID of the agent-owned window (if any). */
+  agentWindowPid?: number
+}
+
+/**
+ * State of the agent's dedicated Chrome session.
+ *
+ * Created by `ChromeSessionManager.ensureAgentWindow()` and persisted in
+ * `RunState.chromeSession` for the lifetime of the agent session.
+ */
+export interface ChromeSessionInfo {
+  /** Whether Chrome was already running before the agent launched it. */
+  wasAlreadyRunning: boolean
+  /** Window identity string from observe-windows (ownerPid:layer:title). */
+  windowId: string
+  /** CDP WebSocket URL if Chrome was launched with --remote-debugging-port. */
+  cdpUrl?: string
+  /** Chrome process PID. */
+  pid: number
+  /** Whether the agent started this Chrome instance. */
+  agentOwned: boolean
+  /** The URL navigated to (if any). */
+  initialUrl?: string
+  /** ISO timestamp of session creation. */
+  createdAt: string
 }
 
 export interface WindowInfo {
@@ -223,6 +252,21 @@ export interface ClipboardWriteTextActionInput {
   text: string
 }
 
+export interface DesktopObserveInput {
+  includeChrome?: boolean
+}
+
+export interface DesktopClickTargetInput {
+  candidateId: string
+  clickCount?: number
+  button?: MouseButton
+}
+
+export interface DesktopEnsureChromeApprovalInput {
+  url?: string
+  cdpPort?: number
+}
+
 export interface ScreenshotRequest {
   label?: string
 }
@@ -309,6 +353,8 @@ export interface TestTargetLaunchResult {
 export type ActionInvocation
   = | { kind: 'screenshot', input: ScreenshotRequest }
     | { kind: 'observe_windows', input: ObserveWindowsRequest }
+    | { kind: 'desktop_observe', input: DesktopObserveInput }
+    | { kind: 'desktop_click_target', input: DesktopClickTargetInput }
     | { kind: 'open_app', input: OpenAppActionInput }
     | { kind: 'focus_app', input: FocusAppActionInput }
     | { kind: 'secret_read_env_value', input: SecretReadEnvValueActionInput }
@@ -324,6 +370,7 @@ export type ActionInvocation
 
 export type PendingExecutableAction
   = | ActionInvocation
+    | { kind: 'desktop_ensure_chrome', input: DesktopEnsureChromeApprovalInput }
     | { kind: 'pty_create', input: PtyCreateApprovalInput }
 
 export interface PolicyDecision {
@@ -482,6 +529,7 @@ export interface BrowserDomInteractiveElement {
   value?: string
   href?: string
   placeholder?: string
+  role?: string
   disabled?: boolean
   checked?: boolean
   visible?: boolean
@@ -500,7 +548,22 @@ export interface BrowserDomInteractiveElement {
 export interface BrowserDomFrameDom {
   url?: string
   title?: string
+  frameName?: string
+  frameOffset?: {
+    x: number
+    y: number
+  }
+  frameOffsetInParent?: {
+    x: number
+    y: number
+  }
   bodyText?: string
+  frameRect?: {
+    x: number
+    y: number
+    w: number
+    h: number
+  }
   interactiveElements?: BrowserDomInteractiveElement[]
 }
 
