@@ -4,6 +4,7 @@ import type {
   ActionInvocation,
   ComputerUseConfig,
   DesktopExecutor,
+  ForegroundContext,
   PolicyDecision,
   ScreenshotArtifact,
   TerminalCommandResult,
@@ -33,7 +34,6 @@ import {
   maskEnvValuePreview,
   readEnvValue,
 } from '../utils/env-file'
-import { sleep } from '../utils/sleep'
 import { executeDesktopClickTarget } from './desktop-grounding-actions'
 import { describeExecutionTarget } from './formatters'
 import { refreshRuntimeRunState } from './refresh-run-state'
@@ -119,39 +119,41 @@ function toTerminalStateContent(state: TerminalState) {
   }
 }
 
-async function restoreControlledAppBeforePolicy(params: {
+function getPolicyEvaluationContext(params: {
   action: ActionInvocation
+  actualContext: ForegroundContext
   runtime: ComputerUseServerRuntime
-}) {
+}): ForegroundContext {
   if (params.action.kind !== 'desktop_click_target') {
-    return
+    return params.actualContext
   }
 
-  const sessionCtrl = params.runtime.desktopSessionController
-  const activeSession = sessionCtrl.getSession()
+  const activeSession = params.runtime.desktopSessionController.getSession()
   if (!activeSession?.controlledApp) {
-    return
+    return params.actualContext
   }
 
-  const currentForeground = await params.runtime.executor.getForegroundContext()
-  const wasAlreadyInFront = await sessionCtrl.ensureControlledAppInForeground({
-    currentForeground,
-    chromeSessionManager: params.runtime.chromeSessionManager,
-    activateApp: async (appName) => {
-      await params.runtime.executor.focusApp({ app: appName })
-    },
-  })
-  if (!wasAlreadyInFront) {
-    await sleep(200)
+  if (params.actualContext.available && params.actualContext.appName === activeSession.controlledApp) {
+    return params.actualContext
   }
-  sessionCtrl.touch()
+
+  return {
+    available: true,
+    appName: activeSession.controlledApp,
+    platform: params.actualContext.platform,
+  }
 }
 
 export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteAction {
   return async (action, toolName, options = {}) => {
     const normalizedAction = normalizeConfiguredAppAction(action, runtime.config.openableApps)
-    await restoreControlledAppBeforePolicy({ action: normalizedAction, runtime })
-    const { executionTarget, context, displayInfo } = await refreshRuntimeRunState(runtime)
+    const { executionTarget, context: actualContext, displayInfo } = await refreshRuntimeRunState(runtime)
+    const context = getPolicyEvaluationContext({
+      action: normalizedAction,
+      actualContext,
+      runtime,
+    })
+    const actualForegroundContext = context === actualContext ? undefined : actualContext
 
     const budget = runtime.session.getBudgetState()
     const preflight = getRuntimePreflight({
@@ -190,6 +192,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         executionTarget,
         displayInfo,
         coordinateSpace: preflight.coordinateSpace,
+        actualForegroundContext,
       },
     })
 

@@ -6,6 +6,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { decideBrowserAction } from '../browser-action-router'
 import { getUnsupportedBrowserDomActions, isBrowserDomActionSupported } from '../browser-dom/capabilities'
 import { resolveSnapByCandidate } from '../snap-resolver'
+import { sleep } from '../utils/sleep'
 
 const DESKTOP_CLICK_SNAPSHOT_MAX_AGE_MS = 5000
 
@@ -43,6 +44,23 @@ export async function executeDesktopClickTarget(
   const snap = resolveSnapByCandidate(candidateId, snapshot)
   if (snap.source === 'none' && !snap.candidateId) {
     throw new Error(`Candidate "${candidateId}" not found in snapshot "${snapshot.snapshotId}". Available candidates: ${snapshot.targetCandidates.map(c => c.id).join(', ')}`)
+  }
+
+  const sessionCtrl = runtime.desktopSessionController
+  const activeSession = sessionCtrl.getSession()
+  if (activeSession?.controlledApp) {
+    const currentForeground = await runtime.executor.getForegroundContext()
+    const wasAlreadyInFront = await sessionCtrl.ensureControlledAppInForeground({
+      currentForeground,
+      chromeSessionManager: runtime.chromeSessionManager,
+      activateApp: async (appName) => {
+        await runtime.executor.focusApp({ app: appName })
+      },
+    })
+    if (!wasAlreadyInFront) {
+      await sleep(200)
+    }
+    sessionCtrl.touch()
   }
 
   const candidate = snapshot.targetCandidates.find(c => c.id === candidateId)
