@@ -2,10 +2,30 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock Worker globally since it's not available in Node
 class MockWorker {
-  addEventListener = vi.fn()
-  removeEventListener = vi.fn()
+  static instances: MockWorker[] = []
+
+  listeners = new Map<string, Set<(event: any) => void>>()
+  addEventListener = vi.fn((type: string, listener: (event: any) => void) => {
+    if (!this.listeners.has(type))
+      this.listeners.set(type, new Set())
+    this.listeners.get(type)!.add(listener)
+  })
+
+  removeEventListener = vi.fn((type: string, listener: (event: any) => void) => {
+    this.listeners.get(type)?.delete(listener)
+  })
+
   postMessage = vi.fn()
   terminate = vi.fn()
+
+  constructor() {
+    MockWorker.instances.push(this)
+  }
+
+  dispatch(type: string, event: any): void {
+    for (const listener of this.listeners.get(type) ?? [])
+      listener(event)
+  }
 }
 vi.stubGlobal('Worker', MockWorker)
 
@@ -16,6 +36,7 @@ vi.mock('../../../composables/use-inference-status', () => ({
 }))
 
 const recordDeviceLoss = vi.fn()
+const enqueueMock = vi.fn((_id: string, _p: number, loader: () => Promise<unknown>) => loader())
 vi.mock('../coordinator', () => ({
   getGPUCoordinator: () => ({
     requestAllocation: vi.fn(() => ({ modelId: 'test', estimatedBytes: 0 })),
@@ -24,7 +45,7 @@ vi.mock('../coordinator', () => ({
     recordDeviceLoss,
   }),
   getLoadQueue: () => ({
-    enqueue: vi.fn((_id: string, _p: number, loader: () => Promise<unknown>) => loader()),
+    enqueue: enqueueMock,
   }),
   MODEL_VRAM_ESTIMATES: {},
 }))
@@ -90,12 +111,13 @@ describe('classifyError phase integration', () => {
 
 describe('kokoro adapter - device loss resilience', () => {
   beforeEach(() => {
-    vi.useFakeTimers()
     recordDeviceLoss.mockClear()
+    enqueueMock.mockClear()
+    enqueueMock.mockImplementation((_id: string, _p: number, loader: () => Promise<unknown>) => loader())
+    MockWorker.instances.length = 0
   })
 
   afterEach(() => {
-    vi.useRealTimers()
     vi.restoreAllMocks()
   })
 
@@ -116,4 +138,55 @@ describe('kokoro adapter - device loss resilience', () => {
     // Manifest is explicitly null before any load
     expect(adapter.manifest).toBeNull()
   })
+
+  it('should pass load abort signals to the queue and worker wait', async () => {
+    const { createKokoroAdapter } = await import('./kokoro')
+    const adapter = createKokoroAdapter()
+    const controller = new AbortController()
+
+    const loading = adapter.loadModel('q4', 'webgpu', { signal: controller.signal })
+
+    await vi.waitFor(() => expect(enqueueMock).toHaveBeenCalled())
+
+    expect(enqueueMock).toHaveBeenCalledWith(
+      'kokoro-q4',
+      expect.any(Number),
+      expect.any(Function),
+      { signal: controller.signal },
+    )
+    const worker = MockWorker.instances.at(-1)!
+    expect(worker.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'load-model' }))
+
+    controller.abort('cancel preload')
+
+    await expect(loading).rejects.toMatchObject({ name: 'AbortError' })
+    expect(worker.postMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'cancel',
+      targetRequestId: expect.any(String),
+    }))
+  })
+
+  it('should classify worker device-loss errors before restarting', async () => {
+    const { createKokoroAdapter } = await import('./kokoro')
+    const adapter = createKokoroAdapter()
+
+    enqueueMock.mockImplementationOnce(() => new Promise(() => {}))
+    const loading = adapter.loadModel('q4', 'webgpu').catch(error => error)
+
+    await vi.waitFor(() => expect(enqueueMock).toHaveBeenCalled())
+
+    const worker = MockWorker.instances.at(-1)!
+    worker.dispatch('error', { error: new Error('WebGPU device lost while loading') })
+
+    expect(adapter.deviceLossCount).toBe(1)
+    expect(recordDeviceLoss).toHaveBeenCalledWith(expect.objectContaining({
+      modelId: 'kokoro-q4',
+      reason: 'unknown',
+      occurredAt: expect.any(Number),
+    }))
+
+    adapter.terminate()
+    void loading
+  })
+
 })
