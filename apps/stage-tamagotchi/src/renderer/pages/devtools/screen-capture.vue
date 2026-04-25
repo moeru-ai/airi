@@ -9,6 +9,8 @@ import { useI18n } from 'vue-i18n'
 
 import WithScreenCapture from '../../components/WithScreenCapture.vue'
 
+import { createObjectUrlFromBytes } from '../../utils/create-object-url-from-bytes'
+
 interface ScreenCaptureSource extends SerializableDesktopCapturerSource {
   appIconURL?: string
   thumbnailURL?: string
@@ -74,17 +76,6 @@ function getShareLabel(source: ScreenCaptureSource) {
   return 'Share Window'
 }
 
-function toLocalArrayBuffer(bytes: Uint8Array) {
-  if (typeof SharedArrayBuffer !== 'undefined' && bytes.buffer instanceof SharedArrayBuffer) {
-    return bytes.slice().buffer
-  }
-  return bytes.buffer as ArrayBuffer
-}
-
-function toObjectUrl(bytes: Uint8Array, mime: string) {
-  return URL.createObjectURL(new Blob([toLocalArrayBuffer(bytes)], { type: mime }))
-}
-
 async function startCapture(source: SerializableDesktopCapturerSource) {
   try {
     await selectWithSource(
@@ -139,8 +130,8 @@ async function refetchSources() {
       // NOTICE(@sumimakito): Not only thumbnail is empty, the appIcon could be empty as well with nothing returned.
       // REVIEW(@sumimakito): This has nothing to do with our side, probably related to a Electron bug, you can
       // read more here https://github.com/electron/electron/issues/44504
-      appIconURL: source.appIcon && source.appIcon.length > 0 ? toObjectUrl(source.appIcon, 'image/png') : undefined,
-      thumbnailURL: source.thumbnail && source.thumbnail.length > 0 ? toObjectUrl(source.thumbnail, 'image/jpeg') : undefined,
+      appIconURL: source.appIcon && source.appIcon.length > 0 ? createObjectUrlFromBytes(source.appIcon, 'image/png') : undefined,
+      thumbnailURL: source.thumbnail && source.thumbnail.length > 0 ? createObjectUrlFromBytes(source.thumbnail, 'image/jpeg') : undefined,
     }))
   }
   catch (err) {
@@ -153,7 +144,7 @@ async function refetchSources() {
 }
 
 onMounted(async () => {
-  refetchSources()
+  await refetchSources()
 })
 
 onBeforeUnmount(() => {
