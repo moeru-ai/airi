@@ -1,5 +1,9 @@
 import type { Locale } from '@intlify/core'
 import type { ServerOptions } from '@proj-airi/server-runtime/server'
+import type {
+  ShortcutBinding,
+  ShortcutRegistrationResult,
+} from '@proj-airi/stage-shared/global-shortcut'
 import type { ServerChannelQrPayload } from '@proj-airi/stage-shared/server-channel-qr'
 import type {
   ThreeHitTestReadTracePayload,
@@ -314,6 +318,34 @@ export const electronGodotStageStop = defineInvokeEventa<ElectronGodotStageStatu
 export const electronGodotStageGetStatus = defineInvokeEventa<ElectronGodotStageStatus>('eventa:invoke:electron:godot-stage:get-status')
 export const electronGodotStageApplySceneInput = defineInvokeEventa<void, ElectronGodotStageSceneInputPayload>('eventa:invoke:electron:godot-stage:apply-scene-input')
 export const electronGodotStageStatusChanged = defineEventa<ElectronGodotStageStatus>('eventa:event:electron:godot-stage:status-changed')
+
+// Global shortcut ->
+
+/**
+ * Phase of a shortcut trigger event.
+ *
+ * - `down` — key-combination pressed
+ * - `up`   — key-combination released; only emitted by drivers that set
+ *            `ok: true` for bindings with `receiveKeyUps: true`
+ */
+export type ElectronShortcutTriggerPhase = 'down' | 'up'
+
+/**
+ * Payload broadcast to all subscribed windows when a registered shortcut
+ * fires. Renderer composables filter by `id` to dispatch local handlers.
+ */
+export interface ElectronShortcutTriggerPayload {
+  id: string
+  phase: ElectronShortcutTriggerPhase
+}
+
+export const electronShortcutRegister = defineInvokeEventa<ShortcutRegistrationResult, ShortcutBinding>('eventa:invoke:electron:shortcut:register')
+export const electronShortcutUnregister = defineInvokeEventa<void, { id: string }>('eventa:invoke:electron:shortcut:unregister')
+export const electronShortcutUnregisterAll = defineInvokeEventa<void>('eventa:invoke:electron:shortcut:unregister-all')
+export const electronShortcutList = defineInvokeEventa<ShortcutBinding[]>('eventa:invoke:electron:shortcut:list')
+export const electronShortcutTriggered = defineEventa<ElectronShortcutTriggerPayload>('eventa:event:electron:shortcut:triggered')
+
+// <- Global shortcut
 
 export type StageThreeRuntimeTraceEnvelope
   = | { type: 'three-render-info', payload: ThreeSceneRenderInfoTracePayload }
