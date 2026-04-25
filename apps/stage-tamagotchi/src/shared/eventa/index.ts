@@ -1,5 +1,9 @@
 import type { Locale } from '@intlify/core'
 import type { ServerOptions } from '@proj-airi/server-runtime/server'
+import type {
+  ShortcutBinding,
+  ShortcutRegistrationResult,
+} from '@proj-airi/stage-shared/global-shortcut'
 import type { ServerChannelQrPayload } from '@proj-airi/stage-shared/server-channel-qr'
 import type {
   ThreeHitTestReadTracePayload,
@@ -22,16 +26,7 @@ export const electronOpenSettings = defineInvokeEventa<void, { route?: string }>
 export const electronSettingsNavigate = defineEventa<{ route: string }>('eventa:event:electron:windows:settings:navigate')
 export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windows:chat:open')
 export const electronOpenSettingsDevtools = defineInvokeEventa('eventa:invoke:electron:windows:settings:devtools:open')
-
-export interface OpenDevtoolsWindowParams {
-  key: string
-  route?: string
-  width?: number
-  height?: number
-  x?: number
-  y?: number
-}
-export const electronOpenDevtoolsWindow = defineInvokeEventa<void, OpenDevtoolsWindowParams>('eventa:invoke:electron:windows:devtools:open')
+export const electronOpenDevtoolsWindow = defineInvokeEventa<void, { key: string, route?: string, width?: number, height?: number, x?: number, y?: number }>('eventa:invoke:electron:windows:devtools:open')
 
 export interface ElectronServerChannelConfig {
   tlsConfig?: ServerOptions['tlsConfig'] | null
@@ -50,6 +45,18 @@ export interface ElectronUpdaterPreferences {
 
 export const electronGetUpdaterPreferences = defineInvokeEventa<ElectronUpdaterPreferences>('eventa:invoke:electron:auto-updater:get-preferences')
 export const electronSetUpdaterPreferences = defineInvokeEventa<ElectronUpdaterPreferences, ElectronUpdaterPreferences>('eventa:invoke:electron:auto-updater:set-preferences')
+
+export * from './plugin/assets'
+export * from './plugin/capabilities'
+export * from './plugin/host'
+export * from './plugin/tools'
+
+export interface DesktopOverlayReadiness {
+  state: 'booting' | 'ready' | 'degraded'
+  error?: string
+}
+
+export const getDesktopOverlayReadinessContract = defineInvokeEventa<DesktopOverlayReadiness>('eventa:invoke:electron:windows:desktop-overlay:get-readiness')
 
 export const captionIsFollowingWindowChanged = defineEventa<boolean>('eventa:event:electron:windows:caption-overlay:is-following-window-changed')
 export const captionGetIsFollowingWindow = defineInvokeEventa<boolean>('eventa:invoke:electron:windows:caption-overlay:get-is-following-window')
@@ -85,22 +92,32 @@ export const noticeWindowEventa = createRequestWindowEventa('notice')
 
 // Widgets / Adhoc window events
 export interface WidgetWindowSize {
-  width: number
-  height: number
+  width?: number
+  height?: number
   minWidth?: number
   minHeight?: number
   maxWidth?: number
   maxHeight?: number
 }
 
+export type WidgetGridSize = 's' | 'm' | 'l' | { cols?: number, rows?: number }
+
 export interface WidgetsAddPayload {
   id?: string
   componentName: string
   componentProps?: Record<string, any>
   // size presets or explicit spans; renderer decides mapping
-  size?: 's' | 'm' | 'l' | { cols?: number, rows?: number }
-  windowSize?: WidgetWindowSize
+  size?: WidgetGridSize
+  windowSize?: WidgetWindowSize | Record<string, unknown>
   // auto-dismiss in ms; if omitted, persistent until closed by user
+  ttlMs?: number
+}
+
+export interface WidgetsUpdatePayload {
+  id: string
+  componentProps?: Record<string, any>
+  size?: WidgetGridSize
+  windowSize?: WidgetWindowSize | Record<string, unknown>
   ttlMs?: number
 }
 
@@ -108,17 +125,54 @@ export interface WidgetSnapshot {
   id: string
   componentName: string
   componentProps: Record<string, any>
-  size: 's' | 'm' | 'l' | { cols?: number, rows?: number }
+  size: WidgetGridSize
   windowSize?: WidgetWindowSize
   ttlMs: number
 }
 
-export interface WidgetsUpdatePayload {
+export interface PluginManifestSummary {
+  name: string
+  entrypoints: Record<string, string | undefined>
+  path: string
+  enabled: boolean
+  loaded: boolean
+  isNew: boolean
+}
+
+export interface PluginRegistrySnapshot {
+  root: string
+  plugins: PluginManifestSummary[]
+}
+
+// TODO: Replace these manually duplicated IPC types with re-exports from
+// @proj-airi/plugin-sdk (CapabilityDescriptor) once stage-ui and the shared
+// eventa layer can depend on the SDK without introducing unwanted coupling.
+export interface PluginCapabilityPayload {
+  key: string
+  state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
+  metadata?: Record<string, unknown>
+}
+
+export interface PluginCapabilityState {
+  key: string
+  state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
+  metadata?: Record<string, unknown>
+  updatedAt: number
+}
+
+export interface PluginHostSessionSummary {
   id: string
-  componentProps?: Record<string, any>
-  size?: 's' | 'm' | 'l' | { cols?: number, rows?: number }
-  windowSize?: WidgetWindowSize
-  ttlMs?: number
+  manifestName: string
+  phase: string
+  runtime: 'electron' | 'node' | 'web'
+  moduleId: string
+}
+
+export interface PluginHostDebugSnapshot {
+  registry: PluginRegistrySnapshot
+  sessions: PluginHostSessionSummary[]
+  capabilities: PluginCapabilityState[]
+  refreshedAt: number
 }
 
 export interface ElectronMcpStdioServerConfig {
@@ -182,6 +236,7 @@ export const electronMcpListTools = defineInvokeEventa<ElectronMcpToolDescriptor
 export const electronMcpCallTool = defineInvokeEventa<ElectronMcpCallToolResult, ElectronMcpCallToolPayload>('eventa:invoke:electron:mcp:call-tool')
 
 export const widgetsOpenWindow = defineInvokeEventa<void, { id?: string }>('eventa:invoke:electron:windows:widgets:open')
+export const widgetsHideWindow = defineInvokeEventa<void, { id?: string }>('eventa:invoke:electron:windows:widgets:hide')
 export const widgetsAdd = defineInvokeEventa<string | undefined, WidgetsAddPayload>('eventa:invoke:electron:windows:widgets:add')
 export const widgetsRemove = defineInvokeEventa<void, { id: string }>('eventa:invoke:electron:windows:widgets:remove')
 export const widgetsClear = defineInvokeEventa('eventa:invoke:electron:windows:widgets:clear')
@@ -213,6 +268,84 @@ export const electronGetWindowLifecycleState = defineInvokeEventa<ElectronWindow
 export const electronWindowSetAlwaysOnTop = defineInvokeEventa<void, boolean>('eventa:invoke:electron:window:set-always-on-top')
 export const electronAppOpenUserDataFolder = defineInvokeEventa<{ path: string }>('eventa:invoke:electron:app:open-user-data-folder')
 export const electronAppQuit = defineInvokeEventa<void>('eventa:invoke:electron:app:quit')
+
+export type ElectronGodotStageState = 'stopped' | 'starting' | 'running' | 'stopping' | 'error'
+
+/**
+ * Snapshot of the Godot sidecar lifecycle owned by Electron main.
+ *
+ * Use when:
+ * - Renderer windows need to reflect whether the external Godot window is available
+ * - Settings or stage pages need lifecycle feedback after start/stop actions
+ *
+ * Expects:
+ * - `pid` is only set while the Godot child process exists
+ * - `lastError` is present for the most recent lifecycle or scene-apply failure
+ *
+ * Returns:
+ * - N/A
+ */
+export interface ElectronGodotStageStatus {
+  state: ElectronGodotStageState
+  pid: number | null
+  lastError?: string
+  updatedAt: number
+}
+
+/**
+ * Serialized scene input payload forwarded from renderer to Electron main.
+ *
+ * Use when:
+ * - The selected model should be materialized to disk and applied to the Godot scene
+ *
+ * Expects:
+ * - `data` contains the full model file bytes
+ * - `fileName` matches the original model asset name when available
+ *
+ * Returns:
+ * - N/A
+ */
+export interface ElectronGodotStageSceneInputPayload {
+  modelId: string
+  format: string
+  name: string
+  fileName: string
+  data: Uint8Array
+}
+
+export const electronGodotStageStart = defineInvokeEventa<ElectronGodotStageStatus>('eventa:invoke:electron:godot-stage:start')
+export const electronGodotStageStop = defineInvokeEventa<ElectronGodotStageStatus>('eventa:invoke:electron:godot-stage:stop')
+export const electronGodotStageGetStatus = defineInvokeEventa<ElectronGodotStageStatus>('eventa:invoke:electron:godot-stage:get-status')
+export const electronGodotStageApplySceneInput = defineInvokeEventa<void, ElectronGodotStageSceneInputPayload>('eventa:invoke:electron:godot-stage:apply-scene-input')
+export const electronGodotStageStatusChanged = defineEventa<ElectronGodotStageStatus>('eventa:event:electron:godot-stage:status-changed')
+
+// Global shortcut ->
+
+/**
+ * Phase of a shortcut trigger event.
+ *
+ * - `down` — key-combination pressed
+ * - `up`   — key-combination released; only emitted by drivers that set
+ *            `ok: true` for bindings with `receiveKeyUps: true`
+ */
+export type ElectronShortcutTriggerPhase = 'down' | 'up'
+
+/**
+ * Payload broadcast to all subscribed windows when a registered shortcut
+ * fires. Renderer composables filter by `id` to dispatch local handlers.
+ */
+export interface ElectronShortcutTriggerPayload {
+  id: string
+  phase: ElectronShortcutTriggerPhase
+}
+
+export const electronShortcutRegister = defineInvokeEventa<ShortcutRegistrationResult, ShortcutBinding>('eventa:invoke:electron:shortcut:register')
+export const electronShortcutUnregister = defineInvokeEventa<void, { id: string }>('eventa:invoke:electron:shortcut:unregister')
+export const electronShortcutUnregisterAll = defineInvokeEventa<void>('eventa:invoke:electron:shortcut:unregister-all')
+export const electronShortcutList = defineInvokeEventa<ShortcutBinding[]>('eventa:invoke:electron:shortcut:list')
+export const electronShortcutTriggered = defineEventa<ElectronShortcutTriggerPayload>('eventa:event:electron:shortcut:triggered')
+
+// <- Global shortcut
 
 export type StageThreeRuntimeTraceEnvelope
   = | { type: 'three-render-info', payload: ThreeSceneRenderInfoTracePayload }
@@ -262,9 +395,5 @@ export const electronAuthLogout = defineInvokeEventa<void>('eventa:invoke:electr
 export const i18nSetLocale = defineInvokeEventa<void, Locale>('eventa:invoke:electron:i18n:set-locale')
 export const i18nGetLocale = defineInvokeEventa<Locale>('eventa:invoke:electron:i18n:get-locale')
 
-export * from './plugin/assets'
-export * from './plugin/capabilities'
-export * from './plugin/host'
-export * from './plugin/tools'
 export { electron } from '@proj-airi/electron-eventa'
 export * from '@proj-airi/electron-eventa/electron-updater'

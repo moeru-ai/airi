@@ -7,6 +7,9 @@ const props = defineProps<{
   iconImage?: string
   to: string
   configured?: boolean
+  pricing?: 'free' | 'paid' | 'internal'
+  deployment?: 'local' | 'cloud'
+  beginnerRecommended?: boolean
 }>()
 </script>
 
@@ -42,6 +45,27 @@ const props = defineProps<{
           transition="all ease-in-out duration-400"
         >
           <span>{{ props.description || '' }}</span>
+        </div>
+
+        <div v-if="props.pricing || props.deployment || props.beginnerRecommended" mt-2 flex flex-wrap gap-1.5>
+          <div
+            v-if="props.beginnerRecommended"
+            text="[10px] white" rounded-md bg-green-500 px-1.5 py-0.5 font-bold tracking-wider uppercase
+          >
+            {{ $t('settings.pages.providers.labels.recommended') }}
+          </div>
+          <div
+            v-if="props.pricing"
+            text="[10px] neutral-600 dark:neutral-300" border="1 neutral-200 dark:neutral-700" rounded-md px-1.5 py-0.5 font-bold tracking-wider uppercase
+          >
+            {{ $t(`settings.pages.providers.filters.${props.pricing}`) }}
+          </div>
+          <div
+            v-if="props.deployment"
+            text="[10px] neutral-600 dark:neutral-300" border="1 neutral-200 dark:neutral-700" rounded-md px-1.5 py-0.5 font-bold tracking-wider uppercase
+          >
+            {{ $t(`settings.pages.providers.filters.${props.deployment}`) }}
+          </div>
         </div>
       </div>
       <template v-if="props.icon">

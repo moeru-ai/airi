@@ -430,7 +430,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               await chatOrchestrator.emitBeforeSendHooks(event.message, event.context)
               remoteStreamGuard = {
                 sessionId: chatSession.activeSessionId,
-                generation: chatSession.getSessionGenerationValue(),
+                generation: chatSession.getSessionGenerationValue(chatSession.activeSessionId),
               }
               chatOrchestrator.sending = true
               chatStream.beginStream()

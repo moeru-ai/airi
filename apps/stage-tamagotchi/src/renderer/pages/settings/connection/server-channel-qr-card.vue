@@ -3,7 +3,7 @@ import type { ServerChannelQrPayload } from '@proj-airi/stage-shared/server-chan
 
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { Button, Callout, Collapsible, useTheme } from '@proj-airi/ui'
+import { Button, Callout, Collapsible } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { renderSVG } from 'uqr'
 import { computed, shallowRef, watch } from 'vue'
@@ -12,7 +12,6 @@ import { useI18n } from 'vue-i18n'
 import { electronGetServerChannelQrPayload } from '../../../../shared/eventa'
 import { useServerChannelSettingsStore } from '../../../stores/settings/server-channel'
 
-const { isDark } = useTheme()
 const { t } = useI18n()
 const getServerChannelQrPayload = useElectronEventaInvoke(electronGetServerChannelQrPayload)
 const { authToken, hostname, tlsConfig } = storeToRefs(useServerChannelSettingsStore())
@@ -34,12 +33,22 @@ const qrCodeSource = computed(() => {
     return ''
   }
 
+  // NOTICE:
+  // Always render the QR as dark foreground on a white background, regardless of
+  // theme. Some mobile barcode scanners (including the underlying reader used by
+  // `@capacitor/barcode-scanner` on Android) fail to detect color-inverted QRs,
+  // which is what the previous theme-aware palette produced in dark mode.
+  // See https://github.com/moeru-ai/airi/issues/1606 and
+  // https://github.com/ionic-team/capacitor-barcode-scanner/issues/60 for context.
+  // Removal condition: once the Android scanner reliably recognizes light-on-dark QRs
+  // (e.g. after migrating to ML Kit with `TryInverted` enabled), this can revert to
+  // a theme-aware palette.
   const svg = renderSVG(payloadText.value, {
     border: 2,
     ecc: 'M',
     pixelSize: 8,
-    whiteColor: 'transparent',
-    blackColor: isDark.value ? '#D5D5D5' : '#121212',
+    whiteColor: '#FFFFFF',
+    blackColor: '#121212',
   })
 
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`

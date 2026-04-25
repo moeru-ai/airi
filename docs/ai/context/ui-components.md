@@ -126,6 +126,20 @@ Error display with copy/feedback buttons and scrollable stack trace.
 
 **Emits**: `copy(content: string)`, `feedback()`
 
+### ErrorBoundary
+
+Catches synchronous render/setup errors in descendants via `onErrorCaptured` and renders a fallback (built-in `ContainerError` + retry button) instead of letting the error propagate. Use to wrap `<RouterView>` or any subtree where partial failure should not blank the host layout. Async/unhandled rejections are NOT captured — use `app.config.errorHandler` for those.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `title` | `string?` | — | Optional title shown above error details |
+| `retryable` | `boolean?` | `true` | Show built-in retry button |
+| `retryLabel` | `string?` | `'Try again'` | Retry button label |
+
+**Slots**: `default`, `fallback({ error, info, retry })`
+**Emits**: `error(err, instance, info)`, `retry()`
+**Exposed**: `retry()`, `hasError()`
+
 ### DoubleCheckButton
 
 Two-stage confirmation button — click once to reveal confirm/cancel.

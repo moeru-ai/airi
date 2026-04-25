@@ -11,6 +11,16 @@ import { randomUUID } from 'node:crypto'
 
 import { WebSocket, WebSocketServer } from 'ws'
 
+const SUPPORTED_ACTIONS = new Set([
+  'getActiveTab',
+  'getAllFrames',
+  'readAllFramesDOM',
+  'findElement',
+  'findElements',
+  'getClickTarget',
+  'getElementAttributes',
+])
+
 interface PendingBridgeRequest {
   reject: (error: Error) => void
   resolve: (value: unknown) => void
@@ -59,6 +69,16 @@ export class BrowserDomExtensionBridge {
     }
   }
 
+  private rejectPendingRequests(error: Error) {
+    for (const pending of this.pending.values()) {
+      clearTimeout(pending.timeoutId)
+      pending.reject(error)
+    }
+
+    this.pending.clear()
+    this.status.pendingRequests = 0
+  }
+
   async start() {
     if (!this.config.enabled || this.started)
       return
@@ -97,6 +117,7 @@ export class BrowserDomExtensionBridge {
         this.status.host = (address as AddressInfo).address
         this.status.port = (address as AddressInfo).port
       }
+      this.status.lastError = undefined
 
       server.on('connection', (socket) => {
         if (this.socket && this.socket !== socket) {
@@ -112,6 +133,7 @@ export class BrowserDomExtensionBridge {
           if (this.socket === socket) {
             this.socket = undefined
             this.status.connected = false
+            this.rejectPendingRequests(new Error('browser dom bridge disconnected before completing pending request'))
           }
         })
         socket.on('error', (error) => {
@@ -124,17 +146,13 @@ export class BrowserDomExtensionBridge {
       })
     }
     catch (error) {
+      this.started = false
       this.status.lastError = asError(error, 'failed to start browser dom bridge').message
     }
   }
 
   async close() {
-    for (const [requestId, pending] of this.pending.entries()) {
-      clearTimeout(pending.timeoutId)
-      pending.reject(new Error(`browser dom bridge closed before completing request ${requestId}`))
-    }
-    this.pending.clear()
-    this.status.pendingRequests = 0
+    this.rejectPendingRequests(new Error('browser dom bridge closed before completing pending request'))
 
     if (this.socket) {
       this.socket.close()
@@ -161,6 +179,10 @@ export class BrowserDomExtensionBridge {
   async callAction<TResult = unknown>(action: string, payload: Record<string, unknown> = {}): Promise<TResult> {
     if (!this.config.enabled) {
       throw new Error('browser dom bridge is disabled')
+    }
+
+    if (!this.supportsAction(action)) {
+      throw new Error(`browser dom bridge transport does not support action "${action}"`)
     }
 
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
@@ -204,6 +226,10 @@ export class BrowserDomExtensionBridge {
     })
 
     return result
+  }
+
+  supportsAction(action: string) {
+    return SUPPORTED_ACTIONS.has(action)
   }
 
   async getActiveTab() {

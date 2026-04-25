@@ -1,0 +1,378 @@
+/**
+ * MCP tool registration for desktop grounding tools:
+ * - `desktop_observe` — unified observation (screenshot + AX + Chrome semantic)
+ * - `desktop_click_target` — snap-resolved click by candidate id
+ *
+ * These tools work together: the agent first calls `desktop_observe` to get
+ * a list of interactable target candidates, then uses `desktop_click_target`
+ * to click on a specific candidate by its id.
+ *
+ * State is managed through `runtime.stateManager` (RunStateManager), not
+ * a private closure. This ensures `desktop_get_state` and the overlay can
+ * read the latest grounding/pointer data.
+ */
+
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+
+import type { PointerIntent } from '../desktop-grounding-types'
+import type { ComputerUseServerRuntime } from './runtime'
+
+import process from 'node:process'
+
+import { z } from 'zod'
+
+import { decideBrowserAction } from '../browser-action-router'
+import { getUnsupportedBrowserDomActions, isBrowserDomActionSupported } from '../browser-dom/capabilities'
+import { captureDesktopGrounding, formatGroundingForAgent } from '../desktop-grounding'
+import { resolveSnapByCandidate } from '../snap-resolver'
+import { sleep } from '../utils/sleep'
+import { textContent } from './content'
+import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptors/register-helper'
+
+/**
+ * Register desktop grounding MCP tools on the server.
+ *
+ * Uses the unified runtime for executor, bridges, and state management.
+ * Grounding state (snapshot, pointer intent, clicked candidate) flows
+ * through `runtime.stateManager` so it's visible to `desktop_get_state`,
+ * the overlay, and strategy rules.
+ */
+export function registerDesktopGroundingTools(params: {
+  server: McpServer
+  runtime: ComputerUseServerRuntime
+}) {
+  const { server, runtime } = params
+
+  // -----------------------------------------------------------------------
+  // desktop_observe
+  // -----------------------------------------------------------------------
+
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('desktop_observe'),
+
+    schema: {
+      includeChrome: z.boolean().optional().describe('Whether to include Chrome semantic data. Default: auto-detect based on foreground app.'),
+    },
+
+    handler: async ({ includeChrome }) => {
+      try {
+        // If the agent has a desktop session with a controlled app,
+        // ensure that app is in the foreground before observing.
+        // Falls back to Chrome session check for backward compatibility.
+        const sessionCtrl = runtime.desktopSessionController
+        const activeSession = sessionCtrl.getSession()
+        if (activeSession?.controlledApp) {
+          const currentForeground = await runtime.executor.getForegroundContext()
+          const wasAlreadyInFront = await sessionCtrl.ensureControlledAppInForeground({
+            currentForeground,
+            chromeSessionManager: runtime.chromeSessionManager,
+            activateApp: async (appName) => {
+              await runtime.executor.focusApp({ app: appName })
+            },
+          })
+          if (!wasAlreadyInFront) {
+            await sleep(300)
+          }
+        }
+        else {
+          // Fallback: Chrome session without desktop session
+          const chromeSession = runtime.chromeSessionManager.getSessionInfo()
+          if (chromeSession) {
+            const currentForeground = await runtime.executor.getForegroundContext()
+            if (currentForeground.available && currentForeground.appName !== 'Google Chrome') {
+              if (currentForeground.appName) {
+                runtime.stateManager.savePreviousUserForeground(currentForeground.appName)
+              }
+              const activated = await runtime.chromeSessionManager.bringToFront()
+              if (!activated) {
+                throw new Error('Chrome session is unavailable; call desktop_ensure_chrome before observing Chrome.')
+              }
+              await sleep(300)
+            }
+          }
+        }
+
+        // Try to get or reconnect a CDP bridge.
+        // NOTICE: `desktop_ensure_chrome` can launch Chrome before its DevTools
+        // endpoint is fully ready. When observe runs later, reconnect from the
+        // recorded session URL instead of staying stuck in AX-only mode.
+        let cdpBridge: import('../browser-dom/cdp-bridge').CdpBridge | undefined
+        try {
+          const cdpStatus = runtime.cdpBridgeManager.getStatus()
+          if (cdpStatus.connected) {
+            cdpBridge = await runtime.cdpBridgeManager.ensureBridge()
+          }
+          else {
+            const chromeSession = runtime.chromeSessionManager.getSessionInfo()
+            if (chromeSession?.cdpUrl) {
+              cdpBridge = await runtime.cdpBridgeManager.ensureBridge(chromeSession.cdpUrl)
+            }
+          }
+        }
+        catch {
+          // CDP bridge unavailable — graceful degradation to extension or AX
+        }
+
+        const snapshot = await captureDesktopGrounding({
+          config: runtime.config,
+          executor: runtime.executor,
+          input: { includeChrome },
+          extensionBridge: runtime.browserDomBridge,
+          cdpBridge,
+        })
+
+        // Update RunState — grounding snapshot
+        runtime.stateManager.updateGroundingSnapshot(snapshot)
+
+        // Also update screenshot state so desktop_get_state and other
+        // tools can see the latest screenshot from this observation
+        if (snapshot.screenshot && !snapshot.screenshot.placeholder) {
+          runtime.stateManager.updateLastScreenshot({
+            path: snapshot.screenshot.path || '',
+            width: snapshot.screenshot.width,
+            height: snapshot.screenshot.height,
+            capturedAt: snapshot.screenshot.capturedAt,
+            placeholder: false,
+          })
+        }
+
+        // Update foreground context from the observation
+        if (snapshot.foregroundApp && snapshot.foregroundApp !== 'unknown') {
+          const chromeSession = runtime.chromeSessionManager.getSessionInfo()
+          const isAgentOwned = chromeSession
+            ? snapshot.foregroundApp === 'Google Chrome'
+            : false
+
+          runtime.stateManager.updateForegroundContext({
+            available: true,
+            appName: snapshot.foregroundApp,
+            platform: process.platform,
+            agentOwned: isAgentOwned,
+            agentWindowPid: isAgentOwned ? chromeSession?.pid : undefined,
+          })
+        }
+
+        const text = formatGroundingForAgent(snapshot)
+
+        // Include screenshot as image content if available
+        const content: Array<{ type: 'text', text: string } | { type: 'image', data: string, mimeType: 'image/png' }> = [
+          { type: 'text', text },
+        ]
+
+        if (snapshot.screenshot.dataBase64 && !snapshot.screenshot.placeholder) {
+          content.push({
+            type: 'image',
+            data: snapshot.screenshot.dataBase64,
+            mimeType: 'image/png',
+          })
+        }
+
+        return { content }
+      }
+      catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        return {
+          content: [textContent(`desktop_observe failed: ${message}`)],
+          isError: true,
+        }
+      }
+    },
+  })
+
+  // -----------------------------------------------------------------------
+  // desktop_click_target
+  // -----------------------------------------------------------------------
+
+  registerToolWithDescriptor(server, {
+    descriptor: requireDescriptor('desktop_click_target'),
+
+    schema: {
+      candidateId: z.string().describe('Target candidate id from the last desktop_observe snapshot (e.g. "t_0")'),
+      clickCount: z.number().int().min(1).max(3).optional().describe('Number of clicks (default: 1, 2 = double-click)'),
+      button: z.enum(['left', 'right', 'middle']).optional().describe('Mouse button (default: left)'),
+    },
+
+    handler: async ({ candidateId, clickCount, button }) => {
+      try {
+        const state = runtime.stateManager.getState()
+
+        // Validate: must have a recent grounding snapshot
+        if (!state.lastGroundingSnapshot) {
+          return {
+            content: [textContent('ERROR: No desktop_observe snapshot available. Call desktop_observe first to get a list of target candidates.')],
+            isError: true,
+          }
+        }
+
+        const snapshot = state.lastGroundingSnapshot
+
+        // Session: ensure the controlled app is still in foreground before clicking
+        const sessionCtrl = runtime.desktopSessionController
+        const activeSession = sessionCtrl.getSession()
+        if (activeSession?.controlledApp) {
+          const currentForeground = await runtime.executor.getForegroundContext()
+          const wasAlreadyInFront = await sessionCtrl.ensureControlledAppInForeground({
+            currentForeground,
+            chromeSessionManager: runtime.chromeSessionManager,
+            activateApp: async (appName) => {
+              await runtime.executor.focusApp({ app: appName })
+            },
+          })
+          if (!wasAlreadyInFront) {
+            await sleep(200)
+          }
+          sessionCtrl.touch()
+        }
+
+        // Validate: check for duplicate clicks on same candidate without re-observe
+        if (state.lastClickedCandidateId === candidateId) {
+          return {
+            content: [textContent(`WARNING: You already clicked candidate "${candidateId}" without calling desktop_observe again. Call desktop_observe to refresh the state before clicking the same target.`)],
+            isError: true,
+          }
+        }
+
+        // Validate: check snapshot staleness (>5s)
+        const snapshotAge = Date.now() - new Date(snapshot.capturedAt).getTime()
+        if (snapshotAge > 5000) {
+          return {
+            content: [textContent(`WARNING: Grounding snapshot "${snapshot.snapshotId}" is ${Math.round(snapshotAge / 1000)}s old. Call desktop_observe to get a fresh snapshot before clicking.`)],
+            isError: true,
+          }
+        }
+
+        // Resolve snap
+        const snap = resolveSnapByCandidate(candidateId, snapshot)
+
+        if (snap.source === 'none' && !snap.candidateId) {
+          return {
+            content: [textContent(`ERROR: Candidate "${candidateId}" not found in snapshot "${snapshot.snapshotId}". Available candidates: ${snapshot.targetCandidates.map(c => c.id).join(', ')}`)],
+            isError: true,
+          }
+        }
+
+        // Build pointer intent
+        const intent: PointerIntent = {
+          mode: 'execute',
+          candidateId,
+          rawPoint: snap.rawPoint,
+          snappedPoint: snap.snappedPoint,
+          source: snap.source,
+          confidence: snapshot.targetCandidates.find(c => c.id === candidateId)?.confidence ?? 0,
+          path: [
+            { x: snap.snappedPoint.x, y: snap.snappedPoint.y, delayMs: 0 },
+          ],
+        }
+
+        // Update RunState — pointer intent + clicked candidate (phase: executing)
+        intent.phase = 'executing'
+        runtime.stateManager.updatePointerIntent(intent)
+
+        // Route the click: browser-dom for chrome_dom candidates, OS input for everything else
+        const candidate = snapshot.targetCandidates.find(c => c.id === candidateId)
+        const bridgeConnected = runtime.browserDomBridge?.getStatus().connected ?? false
+        const routeDecision = candidate
+          ? decideBrowserAction(candidate, bridgeConnected, button, clickCount)
+          : { route: 'os_input' as const, reason: 'candidate not found' }
+
+        let executionRoute = routeDecision.route
+        let routeNote = ''
+        let routeReason = routeDecision.reason
+
+        if (routeDecision.route === 'browser_dom' && routeDecision.selector) {
+          const requiredActions = routeDecision.bridgeMethod === 'checkCheckbox'
+            ? ['checkCheckbox']
+            : ['getClickTarget', 'clickAt']
+
+          if (!isBrowserDomActionSupported(runtime.browserDomBridge, ...requiredActions)) {
+            executionRoute = 'os_input'
+            routeReason = `browser-dom extension transport does not support ${requiredActions.join(' + ')}`
+            routeNote = `browser-dom ${routeDecision.bridgeMethod ?? 'click'} is unavailable on the connected extension transport (${getUnsupportedBrowserDomActions(runtime.browserDomBridge, ...requiredActions).join(', ')} unsupported), fell back to OS input`
+            await runtime.executor.click({
+              x: snap.snappedPoint.x,
+              y: snap.snappedPoint.y,
+              button: button || 'left',
+              clickCount: clickCount ?? 1,
+              pointerTrace: intent.path,
+            })
+          }
+          else {
+            // Try browser-dom bridge action first, dispatching by method
+            try {
+              const frameIds = routeDecision.frameId !== undefined ? [routeDecision.frameId] : undefined
+              if (routeDecision.bridgeMethod === 'checkCheckbox') {
+                await runtime.browserDomBridge!.checkCheckbox({
+                  selector: routeDecision.selector,
+                  frameIds,
+                })
+              }
+              else {
+                await runtime.browserDomBridge!.clickSelector({
+                  selector: routeDecision.selector,
+                  frameIds,
+                })
+              }
+            }
+            catch (browserError) {
+              // Fallback to OS input on browser-dom failure
+              executionRoute = 'os_input'
+              routeNote = `browser-dom ${routeDecision.bridgeMethod ?? 'click'} failed (${browserError instanceof Error ? browserError.message : String(browserError)}), fell back to OS input`
+              await runtime.executor.click({
+                x: snap.snappedPoint.x,
+                y: snap.snappedPoint.y,
+                button: button || 'left',
+                clickCount: clickCount ?? 1,
+                pointerTrace: intent.path,
+              })
+            }
+          }
+        }
+        else {
+          // OS-level click (existing path)
+          await runtime.executor.click({
+            x: snap.snappedPoint.x,
+            y: snap.snappedPoint.y,
+            button: button || 'left',
+            clickCount: clickCount ?? 1,
+            pointerTrace: intent.path,
+          })
+        }
+
+        // Phase: completed — update ghost pointer state for overlay fadeout
+        intent.phase = 'completed'
+        intent.executionResult = routeNote ? 'fallback' : 'success'
+        intent.executionRoute = `${executionRoute} (${routeReason})`
+        runtime.stateManager.updatePointerIntent(intent, candidateId)
+
+        const candidateDesc = candidate ? `${candidate.source} ${candidate.role} "${candidate.label}"` : candidateId
+
+        const lines = [
+          `Clicked: ${candidateDesc}`,
+          `  Snap: ${snap.reason}`,
+          `  Point: (${snap.snappedPoint.x}, ${snap.snappedPoint.y})`,
+          `  Route: ${executionRoute} (${routeReason})`,
+          `  Button: ${button || 'left'}, clicks: ${clickCount ?? 1}`,
+        ]
+
+        if (routeNote) {
+          lines.push(`  ⚠ ${routeNote}`)
+        }
+
+        if (snap.reason.includes('stale')) {
+          lines.push('  ⚠ WARNING: Target source is stale. Consider calling desktop_observe again.')
+        }
+
+        return {
+          content: [textContent(lines.join('\n'))],
+        }
+      }
+      catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        return {
+          content: [textContent(`desktop_click_target failed: ${message}`)],
+          isError: true,
+        }
+      }
+    },
+  })
+}

@@ -1,14 +1,17 @@
 import type { Card, ccv3 } from '@proj-airi/ccc'
 
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
+import { watchDebounced } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, watch } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import SystemPromptV2 from '../../constants/prompts/system-v2'
 
+import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts/character-defaults'
 import { useSettingsStageModel } from '../settings/stage-model'
+import { useArtistryStore } from './artistry'
 import { useConsciousnessStore } from './consciousness'
 import { useSpeechStore } from './speech'
 
@@ -44,6 +47,21 @@ export interface AiriExtension {
 
     // ID from display-models store (e.g. 'preset-live2d-1', 'display-model-<nanoid>')
     displayModelId?: string
+    activeBackgroundId?: string
+
+    artistry?: {
+      enabled?: boolean
+      provider?: string
+      model?: string
+      promptPrefix?: string
+      workflowId?: string
+      widgetInstruction?: string
+      spawnMode?: 'bg' | 'widget' | 'inline' | 'bg_widget'
+      options?: Record<string, any>
+      autonomousEnabled?: boolean
+      autonomousThreshold?: number
+      autonomousTarget?: 'user' | 'assistant'
+    }
   }
 
   agents: {
@@ -70,6 +88,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
   const consciousnessStore = useConsciousnessStore()
   const speechStore = useSpeechStore()
+  const artistryStore = useArtistryStore()
   const stageModelStore = useSettingsStageModel()
 
   const {
@@ -129,7 +148,19 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         voice_id: activeSpeechVoiceId.value,
       },
       displayModelId: stageModelStore.stageModelSelected,
-    }
+      artistry: {
+        enabled: false,
+        provider: artistryStore.globalProvider,
+        model: artistryStore.globalModel,
+        promptPrefix: artistryStore.globalPromptPrefix,
+        widgetInstruction: DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT,
+        spawnMode: 'bg_widget' as const,
+        options: artistryStore.globalProviderOptions,
+        autonomousEnabled: false,
+        autonomousThreshold: 70,
+        autonomousTarget: 'assistant' as const,
+      },
+    } as const
 
     // Return default if no extension exists
     if (!existingExtension) {
@@ -158,6 +189,20 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         vrm: existingExtension.modules?.vrm,
         live2d: existingExtension.modules?.live2d,
         displayModelId: existingExtension.modules?.displayModelId ?? defaultModules.displayModelId,
+        activeBackgroundId: existingExtension.modules?.activeBackgroundId,
+        artistry: {
+          enabled: existingExtension.modules?.artistry?.enabled ?? (existingExtension as any).artistry?.enabled ?? defaultModules.artistry.enabled,
+          provider: existingExtension.modules?.artistry?.provider ?? (existingExtension as any).artistry?.provider ?? defaultModules.artistry.provider,
+          model: existingExtension.modules?.artistry?.model ?? (existingExtension as any).artistry?.model ?? defaultModules.artistry.model,
+          promptPrefix: existingExtension.modules?.artistry?.promptPrefix ?? (existingExtension as any).artistry?.promptPrefix ?? (existingExtension as any).artistry?.prompt_prefix ?? defaultModules.artistry.promptPrefix,
+          workflowId: existingExtension.modules?.artistry?.workflowId ?? (existingExtension as any).artistry?.workflowId ?? (existingExtension as any).artistry?.remixId,
+          widgetInstruction: existingExtension.modules?.artistry?.widgetInstruction ?? (existingExtension as any).artistry?.widgetInstruction ?? defaultModules.artistry.widgetInstruction,
+          spawnMode: existingExtension.modules?.artistry?.spawnMode ?? (existingExtension as any).artistry?.spawnMode ?? defaultModules.artistry.spawnMode,
+          options: existingExtension.modules?.artistry?.options ?? (existingExtension as any).artistry?.options ?? defaultModules.artistry.options,
+          autonomousEnabled: existingExtension.modules?.artistry?.autonomousEnabled ?? (existingExtension as any).artistry?.autonomousEnabled ?? defaultModules.artistry.autonomousEnabled,
+          autonomousThreshold: existingExtension.modules?.artistry?.autonomousThreshold ?? (existingExtension as any).artistry?.autonomousThreshold ?? defaultModules.artistry.autonomousThreshold,
+          autonomousTarget: existingExtension.modules?.artistry?.autonomousTarget ?? (existingExtension as any).artistry?.autonomousTarget ?? defaultModules.artistry.autonomousTarget,
+        },
       },
       agents: existingExtension.agents ?? {},
     }
@@ -226,7 +271,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       activeCardId.value = 'default'
   }
 
-  watch(activeCard, (newCard: AiriCard | undefined) => {
+  watchDebounced(activeCard, (newCard: AiriCard | undefined) => {
+    artistryStore.resetToGlobal()
+
     if (!newCard)
       return
 
@@ -248,7 +295,18 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     if (extension.modules?.displayModelId) {
       stageModelStore.stageModelSelected = extension.modules.displayModelId
     }
-  })
+
+    if (extension.modules?.artistry) {
+      if (extension.modules.artistry.provider)
+        artistryStore.activeProvider = extension.modules.artistry.provider
+      if (extension.modules.artistry.model)
+        artistryStore.activeModel = extension.modules.artistry.model
+      if (extension.modules.artistry.promptPrefix)
+        artistryStore.defaultPromptPrefix = extension.modules.artistry.promptPrefix
+      if (extension.modules.artistry.options)
+        artistryStore.providerOptions = extension.modules.artistry.options
+    }
+  }, { debounce: 300, maxWait: 1000 })
 
   function resetState() {
     activeCardId.reset()
@@ -278,6 +336,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
           voice_id: activeSpeechVoiceId.value,
         },
         displayModelId: stageModelStore.stageModelSelected,
+        activeBackgroundId: activeCard.value?.extensions?.airi?.modules?.activeBackgroundId,
       } satisfies AiriExtension['modules']
     }),
 
@@ -290,9 +349,10 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         card.systemPrompt,
         card.description,
         card.personality,
+        card.extensions?.airi?.modules?.artistry?.widgetInstruction,
       ].filter(Boolean)
 
-      return components.join('\n')
+      return components.join('\n\n')
     }),
   }
 })

@@ -192,12 +192,13 @@ function lookupRecommendedVoiceId(locale: string, map: Record<string, string>): 
 }
 
 // NOTICE: Only the official speech provider auto-configures a default voice
-// after login. Third-party providers leave voice selection to the user.
+// after login. Third-party providers leave voice selection to the user. The
+// target locale is derived from the UI locale on each run — we don't persist
+// it, since that was the root of the cross-provider filter drift bug.
 export function setupOfficialSpeechAutoPick(ctx: {
   activeSpeechProvider: Ref<string>
   activeSpeechVoiceId: Ref<string>
   availableVoices: Ref<Record<string, VoiceInfo[]>>
-  selectedLanguage: Ref<string>
   uiLocale: WatchSource<string> | Ref<string>
 }) {
   watch([ctx.availableVoices, ctx.activeSpeechProvider], ([voices, provider]) => {
@@ -214,26 +215,24 @@ export function setupOfficialSpeechAutoPick(ctx: {
       providerVoices.flatMap(v => (v.languages || []).map(l => l.code).filter(Boolean)),
     )).sort()
 
-    if (!ctx.selectedLanguage.value || !localeCodes.includes(ctx.selectedLanguage.value)) {
-      const uiLocaleValue = typeof ctx.uiLocale === 'function'
-        ? (ctx.uiLocale as () => string)()
-        : (ctx.uiLocale as Ref<string>).value
-      ctx.selectedLanguage.value = pickLocaleForUi(uiLocaleValue, localeCodes)
-    }
+    const uiLocaleValue = typeof ctx.uiLocale === 'function'
+      ? (ctx.uiLocale as () => string)()
+      : (ctx.uiLocale as Ref<string>).value
+    const targetLocale = pickLocaleForUi(uiLocaleValue, localeCodes)
 
     // Pick a default voice with a layered fallback so auto-pick never dumps
     // the user into an unrelated voice (e.g. the alphabetically-first af-ZA
     // voice when nothing matches):
     //   1) server-recommended voice for the exact locale, then the same
     //      language prefix
-    //   2) first voice speaking the exact selected locale
+    //   2) first voice speaking the exact target locale
     //   3) any English voice (en-US, then en-*) — broadest comprehensible
     //      fallback when the user's locale has no coverage at all
     //   4) alphabetical first voice, as a last resort
-    const recommendedId = lookupRecommendedVoiceId(ctx.selectedLanguage.value, recommendedVoicesByLocale)
+    const recommendedId = lookupRecommendedVoiceId(targetLocale, recommendedVoicesByLocale)
     const speaksLocale = (v: VoiceInfo, code: string) => (v.languages || []).some(l => l.code === code)
     const match = (recommendedId && providerVoices.find(v => v.id === recommendedId))
-      || providerVoices.find(v => speaksLocale(v, ctx.selectedLanguage.value))
+      || providerVoices.find(v => speaksLocale(v, targetLocale))
       || providerVoices.find(v => speaksLocale(v, 'en-US'))
       || providerVoices.find(v => (v.languages || []).some(l => l.code.toLowerCase().startsWith('en')))
       || providerVoices[0]
