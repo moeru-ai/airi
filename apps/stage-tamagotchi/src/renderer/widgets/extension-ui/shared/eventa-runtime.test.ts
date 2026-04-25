@@ -1,10 +1,6 @@
+import { createContext } from '@moeru/eventa/adapters/window-message'
+import { widgetsIframeInitEvent, widgetsIframePublishEvent } from '@proj-airi/plugin-sdk-tamagotchi/widgets'
 import { describe, expect, it } from 'vitest'
-
-import {
-  extensionUiBridgeInitEvent,
-  extensionUiBridgePublishEvent,
-} from './eventa'
-import { createWindowMessageEventaContext } from './eventa-runtime'
 
 class MockWindow {
   peer?: MockWindow
@@ -49,13 +45,13 @@ class MockWindow {
 
 /**
  * @example
- * describe('createWindowMessageEventaContext', () => {
+ * describe('createContext', () => {
  *   it('relays typed events between parent and iframe windows', async () => {
  *     expect(true).toBe(true)
  *   })
  * })
  */
-describe('createWindowMessageEventaContext', () => {
+describe('createContext', () => {
   /**
    * @example
    * it('relays typed events between parent and iframe windows', async () => {
@@ -68,13 +64,13 @@ describe('createWindowMessageEventaContext', () => {
     parentWindow.peer = iframeWindow
     iframeWindow.peer = parentWindow
 
-    const host = createWindowMessageEventaContext({
+    const host = createContext({
       channel: 'test:extension-ui',
       currentWindow: parentWindow as unknown as Window,
       expectedSource: () => iframeWindow as unknown as Window,
       targetWindow: () => iframeWindow as unknown as Window,
     })
-    const iframe = createWindowMessageEventaContext({
+    const iframe = createContext({
       channel: 'test:extension-ui',
       currentWindow: iframeWindow as unknown as Window,
       expectedSource: () => parentWindow as unknown as Window,
@@ -82,7 +78,7 @@ describe('createWindowMessageEventaContext', () => {
     })
 
     const initPayload = new Promise<{ moduleId: string }>((resolve) => {
-      iframe.context.on(extensionUiBridgeInitEvent, (event) => {
+      iframe.context.on(widgetsIframeInitEvent, (event) => {
         if (!event.body?.moduleId) {
           return
         }
@@ -91,7 +87,7 @@ describe('createWindowMessageEventaContext', () => {
       })
     })
 
-    host.context.emit(extensionUiBridgeInitEvent, {
+    host.context.emit(widgetsIframeInitEvent, {
       moduleId: 'module-chess',
       config: {},
       module: undefined,
@@ -103,7 +99,7 @@ describe('createWindowMessageEventaContext', () => {
     }))
 
     const publishedPayload = new Promise<Record<string, unknown>>((resolve) => {
-      host.context.on(extensionUiBridgePublishEvent, (event) => {
+      host.context.on(widgetsIframePublishEvent, (event) => {
         if (!event.body) {
           return
         }
@@ -112,7 +108,7 @@ describe('createWindowMessageEventaContext', () => {
       })
     })
 
-    iframe.context.emit(extensionUiBridgePublishEvent, {
+    iframe.context.emit(widgetsIframePublishEvent, {
       topic: {
         namespace: 'plugin.chess',
         name: 'request',

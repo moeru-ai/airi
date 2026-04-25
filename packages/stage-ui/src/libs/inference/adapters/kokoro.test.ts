@@ -15,10 +15,13 @@ vi.mock('../../../composables/use-inference-status', () => ({
   removeInferenceStatus: vi.fn(),
 }))
 
+const recordDeviceLoss = vi.fn()
 vi.mock('../coordinator', () => ({
   getGPUCoordinator: () => ({
     requestAllocation: vi.fn(() => ({ modelId: 'test', estimatedBytes: 0 })),
     release: vi.fn(),
+    touch: vi.fn(),
+    recordDeviceLoss,
   }),
   getLoadQueue: () => ({
     enqueue: vi.fn((_id: string, _p: number, loader: () => Promise<unknown>) => loader()),
@@ -74,5 +77,35 @@ describe('classifyError phase integration', () => {
   it('should produce INFERENCE_FAILED for inference-phase errors', async () => {
     const { classifyError } = await import('../protocol')
     expect(classifyError(new Error('tensor shape mismatch'), 'inference')).toBe('INFERENCE_FAILED')
+  })
+})
+
+describe('kokoro adapter - device loss resilience', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    recordDeviceLoss.mockClear()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+
+  it('should start with zero device-loss count and null manifest', async () => {
+    const { createKokoroAdapter } = await import('./kokoro')
+    const adapter = createKokoroAdapter()
+
+    expect(adapter.deviceLossCount).toBe(0)
+    expect(adapter.manifest).toBeNull()
+  })
+
+  it('should expose manifest and deviceLossCount as readonly getters', async () => {
+    const { createKokoroAdapter } = await import('./kokoro')
+    const adapter = createKokoroAdapter()
+
+    // Getters should be defined and callable
+    expect(typeof adapter.deviceLossCount).toBe('number')
+    // Manifest is explicitly null before any load
+    expect(adapter.manifest).toBeNull()
   })
 })

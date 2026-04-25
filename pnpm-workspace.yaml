@@ -26,7 +26,6 @@ patchedDependencies:
   '@xsai/shared-chat@0.5.0-beta.2': patches/@xsai__shared-chat@0.5.0-beta.2.patch
   '@xsai/stream-text@0.5.0-beta.2': patches/@xsai__stream-text@0.5.0-beta.2.patch
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
-  mineflayer@4.33.0: patches/mineflayer@4.33.0.patch
   pixi-live2d-display: patches/pixi-live2d-display.patch
 catalog:
   '@ax-llm/ax': ^19.0.43
@@ -121,6 +120,7 @@ catalog:
   pinia: ^3.0.4
   posthog-js: 1.306.1
   reka-ui: ^2.9.2
+  replicate: ^1.4.0
   splitpanes: ^4.0.4
   std-env: ^4.1.0
   stockfish: ^18.0.7

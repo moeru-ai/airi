@@ -28,6 +28,7 @@ words:
   - autoplay
   - awilix
   - Ayaka
+  - Backquote
   - baichuan
   - baiducloud
   - bailian
@@ -49,11 +50,13 @@ words:
   - cjkfonts
   - clippy
   - clustr
+  - cmdorctrl
   - codesign
   - collectblock
   - colorjs
   - cometapi
   - Comfortaa
+  - commandorcontrol
   - composables
   - cooldown
   - coreml
@@ -285,6 +288,7 @@ words:
   - softprops
   - sonarjs
   - sonner
+  - Spacebar
   - specta
   - splitpanes
   - splt

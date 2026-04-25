@@ -20,9 +20,9 @@
       "types": "./dist/index.d.mts",
       "default": "./dist/index.mjs"
     },
-    "./extension-ui-bridge": {
-      "types": "./dist/extension-ui-bridge/index.d.mts",
-      "default": "./dist/extension-ui-bridge/index.mjs"
+    "./widgets": {
+      "types": "./dist/widgets/index.d.mts",
+      "default": "./dist/widgets/index.mjs"
     },
     "./gamelet": {
       "types": "./dist/gamelet/index.d.mts",

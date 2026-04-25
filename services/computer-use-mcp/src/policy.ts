@@ -15,7 +15,7 @@ function isMutatingAction(action: ActionInvocation) {
 }
 
 function isUiInteractionAction(action: ActionInvocation) {
-  return ['click', 'type_text', 'press_keys', 'scroll', 'open_app', 'focus_app'].includes(action.kind)
+  return ['click', 'desktop_click_target', 'type_text', 'press_keys', 'scroll', 'open_app', 'focus_app'].includes(action.kind)
 }
 
 function getCoordinate(action: ActionInvocation) {
@@ -52,6 +52,7 @@ function estimateOperationUnits(action: ActionInvocation) {
     case 'clipboard_write_text':
       return Math.max(2, Math.ceil(action.input.text.length / 64))
     case 'click':
+    case 'desktop_click_target':
       return 1
     case 'type_text':
       return Math.max(2, Math.ceil(action.input.text.length / 48))
@@ -194,7 +195,7 @@ export function evaluateActionPolicy(params: {
     riskLevel = 'high'
   }
 
-  if (params.action.kind === 'click' || params.action.kind === 'press_keys' || params.action.kind === 'scroll') {
+  if (params.action.kind === 'click' || params.action.kind === 'desktop_click_target' || params.action.kind === 'press_keys' || params.action.kind === 'scroll') {
     riskLevel = 'medium'
   }
 

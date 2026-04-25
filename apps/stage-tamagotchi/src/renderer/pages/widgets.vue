@@ -3,9 +3,12 @@ import type { WidgetSnapshot, WidgetWindowSize } from '../../shared/eventa'
 
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { computed, defineAsyncComponent, defineComponent, h, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
 import { widgetsClearEvent, widgetsFetch, widgetsRemove, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdateEvent } from '../../shared/eventa'
+
+const { t } = useI18n()
 
 type SizePreset = 's' | 'm' | 'l' | { cols?: number, rows?: number }
 
@@ -163,6 +166,7 @@ const Registry: Record<string, ReturnType<typeof defineAsyncComponent>> = {
   'extension-ui': defineAsyncComponent(async () => (await import('../widgets/extension-ui')).ExtensionUi),
   'map': defineAsyncComponent(async () => (await import('../widgets/map')).Map),
   'weather': defineAsyncComponent(async () => (await import('../widgets/weather')).Weather),
+  'artistry': defineAsyncComponent(async () => (await import('../widgets/artistry')).Artistry),
 }
 
 const GenericWidget = defineComponent({
@@ -202,25 +206,41 @@ function handleClose() {
 </script>
 
 <template>
-  <div class="relative h-full w-full">
+  <div :class="['relative h-full w-full']">
     <button
       :class="[
         'absolute right-2 top-2 z-10 size-7 rounded-full text-xs text-white transition',
         'bg-black/40 hover:bg-black/60',
       ]"
-      title="Close widget"
+      :title="t('tamagotchi.stage.widgets.close')"
+      :aria-label="t('tamagotchi.stage.widgets.close')"
       @click="handleClose"
     >
       ✕
     </button>
-    <div v-if="!widgetId" class="h-full flex items-center justify-center">
-      <div class="rounded-xl bg-neutral-900/40 px-4 py-3 text-sm text-neutral-200/80 backdrop-blur">
-        Missing widget id. Launch the window via a component call to populate this view.
+    <div v-if="!widgetId" :class="['h-full flex items-center justify-center p-6']">
+      <div
+        :class="[
+          'max-w-xs flex flex-col items-center gap-3 text-center',
+          'rounded-xl bg-neutral-900/40 px-5 py-4 backdrop-blur',
+          'text-neutral-200/80',
+        ]"
+      >
+        <div :class="['i-solar:widget-4-line-duotone size-8 text-neutral-300/80']" />
+        <div :class="['flex flex-col gap-1']">
+          <div :class="['text-sm font-medium text-neutral-100']">
+            {{ t('tamagotchi.stage.widgets.empty.title') }}
+          </div>
+          <p :class="['m-0 text-xs leading-5']">
+            {{ t('tamagotchi.stage.widgets.empty.description') }}
+          </p>
+        </div>
       </div>
     </div>
-    <div v-else-if="widget" class="relative h-full">
+    <div v-else-if="widget" :class="['relative h-full']">
       <component
         :is="resolveWidgetComponent(widget.componentName)"
+        :id="widget.id"
         :key="widget.id"
         :title="widget.componentName"
         :model-value="widget.componentProps"
@@ -228,9 +248,9 @@ function handleClose() {
         v-bind="widget.componentProps"
       />
     </div>
-    <div v-else class="h-full flex items-center justify-center">
-      <div class="rounded-xl bg-neutral-900/40 px-4 py-3 text-sm text-neutral-200/80 backdrop-blur">
-        {{ loading ? 'Loading widget...' : `Waiting for widget data for "${widgetId}"` }}
+    <div v-else :class="['h-full flex items-center justify-center']">
+      <div :class="['rounded-xl bg-neutral-900/40 px-4 py-3 text-sm text-neutral-200/80 backdrop-blur']">
+        {{ loading ? t('tamagotchi.stage.widgets.loading') : t('tamagotchi.stage.widgets.waiting', { id: widgetId }) }}
       </div>
     </div>
   </div>
