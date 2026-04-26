@@ -47,12 +47,6 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
 
   const activeSource = computed(() => sources.value.find(source => source.id === activeSourceId.value) || null)
 
-  watch(activeSourceId, (nextSourceId) => {
-    if (activeStreamSourceId.value && activeStreamSourceId.value !== nextSourceId) {
-      clearActiveStream()
-    }
-  })
-
   function isActiveStream(stream: MediaStream | null | undefined) {
     if (!stream)
       return false
@@ -80,10 +74,6 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
       if (source.thumbnailURL)
         URL.revokeObjectURL(source.thumbnailURL)
     })
-  }
-
-  function syncActiveSource(nextSourceId: string) {
-    activeSourceId.value = nextSourceId
   }
 
   function attachStreamLifecycle(stream: MediaStream, sourceId: string) {
