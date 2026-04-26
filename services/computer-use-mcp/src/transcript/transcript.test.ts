@@ -1,12 +1,12 @@
-import { beforeEach, describe, expect, it } from 'vitest'
-
 import type { RunState } from '../state'
 import type { TranscriptEntry } from './types'
 
+import { describe, expect, it } from 'vitest'
+
 import { parseTranscriptBlocks } from './block-parser'
 import { compactBlock } from './compactor'
-import { InMemoryTranscriptStore } from './store'
 import { projectTranscript } from './projector'
+import { InMemoryTranscriptStore } from './store'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -298,8 +298,8 @@ describe('parseTranscriptBlocks', () => {
     const entries = [
       userEntry('task'),
       assistantWithTools(['tc1']),
-      toolResult('tc1', 'first result'),  // original
-      toolResult('tc1', 'retry result'),  // duplicate — must be skipped, not orphaned
+      toolResult('tc1', 'first result'), // original
+      toolResult('tc1', 'retry result'), // duplicate — must be skipped, not orphaned
     ]
 
     const blocks = parseTranscriptBlocks(entries)
@@ -325,8 +325,8 @@ describe('parseTranscriptBlocks', () => {
       userEntry('task'),
       assistantWithTools(['tc1', 'tc2']),
       toolResult('tc1', 'first result'),
-      toolResult('tc1', 'retry dup'),    // duplicate — must be skipped, not break
-      toolResult('tc2', 'tc2 result'),  // must still be consumed into the same block
+      toolResult('tc1', 'retry dup'), // duplicate — must be skipped, not break
+      toolResult('tc2', 'tc2 result'), // must still be consumed into the same block
     ]
 
     const blocks = parseTranscriptBlocks(entries)
@@ -642,7 +642,7 @@ describe('projectTranscript', () => {
     const result = projectTranscript(entries, {
       ...baseOpts,
       maxFullToolBlocks: 5, // keep all tool blocks
-      maxFullTextBlocks: 1,  // only keep latest text block
+      maxFullTextBlocks: 1, // only keep latest text block
       maxCompactedBlocks: 0, // no compaction
     })
 
