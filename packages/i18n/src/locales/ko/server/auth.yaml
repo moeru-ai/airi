@@ -1,47 +1,47 @@
 electronCallback:
   title:
-    loading: Completing sign-in
-    openingAiri: Opening AIRI
-    signedIn: You are signed in
-    signInFailed: Sign-in failed
-    finishSignInInAiri: Finish sign-in in AIRI
-    openAiriToContinue: Open AIRI to continue
+    loading: 가입 완료 중
+    openingAiri: AIRI 여는 중
+    signedIn: 로그인 되었습니다
+    signInFailed: 가입 실패
+    finishSignInInAiri: AIRI 가입 끝내기
+    openAiriToContinue: AIRI를 열어서 계속해 주세요
   message:
-    checkingResponse: Checking your sign-in response and preparing the handoff to AIRI.
-    passingToAiri: Passing your sign-in back to AIRI now. This page should close in a moment.
-    syncedAndSafeToClose: We notified AIRI client you signed from.
-    invalidResponse: We could not use this sign-in response.
-    loopbackUnreachable: The browser could not reach AIRI through the local callback port.
-    tryOpenDirectly: We will try opening the local handoff directly. If that still fails, use the button below.
-    automaticHandoffFailed: Automatic handoff did not finish in this browser session.
+    checkingResponse: 가입 응답을 확인하고 AIRI에 핸드오프를 준비합니다.
+    passingToAiri: 가입 정보를 AIRI로 전달합니다. 이 창은 잠시 후 닫힐 것입니다.
+    syncedAndSafeToClose: 가입을 시도했던 AIRI 클라이언트에 알림을 보냈습니다.
+    invalidResponse: 잘못된 응답 형식입니다. 이 정보를 사용할 수 없습니다.
+    loopbackUnreachable: 브라우저가 로컬 반환 포트를 통해 AIRI에 도달하지 못했습니다.
+    tryOpenDirectly: 로컬 핸드오프를 직접 실행합니다. 실패할 경우, 하단의 버튼을 사용해 주세요.
+    automaticHandoffFailed: 자동 핸드오프가 이 브라우저 세션에서 끝나지 못했습니다.
   label:
-    signIn: Sign in
-    safeToClose: It is safe to close this tab now.
-    whyStillHere: Why this tab still here?
+    signIn: 가입하기
+    safeToClose: 이 탭을 닫으셔도 됩니다.
+    whyStillHere: 이 탭이 왜 아직 여기 있을까요?
   action:
-    openAiriManually: Open AIRI manually
+    openAiriManually: 수동으로 AIRI 열기
   hint:
-    closeTabManually: Some browsers do not allow this page to close itself automatically. You can close it manually.
+    closeTabManually: 일부 브라우저들은 이 창을 자동으로 닫는 것을 허용하지 않습니다. 수동으로 닫을 수 있습니다.
 signIn:
-  title: Sign in
+  title: 가입
   error:
-    fallback: Sign in failed
-    unknown: An unknown error occurred
-    authFailed: Authentication failed. Please try again.
+    fallback: 가입 실패
+    unknown: 알 수 없는 오류가 발생했습니다
+    authFailed: 인증에 실패했습니다. 다시 시도해 주세요.
   footer:
-    prefix: By continuing, you agree to our
-    terms: Terms
-    and: and
-    privacy: Privacy Policy
+    prefix: 계속하시려면, 저희의
+    terms: 이용 약관
+    and: 및
+    privacy: 정책
 webCallback:
   title:
-    signIn: Sign in
-    errorLabel: We encountered an error while signing you in
-    loading: Signing in...
+    signIn: 가입
+    errorLabel: 가입 도중에 오류가 발생했습니다
+    loading: 가입 중...
   message:
-    missingCodeOrState: Missing authorization code or state
-    missingFlowState: Missing OIDC flow state - please try logging in again
-    tokenExchangeFailed: Token exchange failed
-    finalizing: Finalizing authentication with AIRI.
+    missingCodeOrState: 인증 코드 또는 상태가 누락되었습니다
+    missingFlowState: OIDC flow 상태가 누락되었습니다 - 재로그인해 주세요
+    tokenExchangeFailed: 토큰 교환 실패
+    finalizing: AIRI 인증 완료 중.
   action:
-    tryAgain: Try again
+    tryAgain: 다시 시도해주세요
