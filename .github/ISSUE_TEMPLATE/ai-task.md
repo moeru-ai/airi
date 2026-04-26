@@ -12,8 +12,7 @@ One narrow task.
 
 ## Allowed scope
 
-- Files/directories:
-  - 
+- Files/directories: `<path>`
 
 ## Forbidden scope
 
