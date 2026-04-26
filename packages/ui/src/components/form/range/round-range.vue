@@ -38,10 +38,10 @@ const sliderValue = computed({
 onMounted(() => updateTrackColor())
 watch(sliderValue, () => updateTrackColor(), { immediate: true })
 watch([scaledMin, scaledMax, scaledStep], () => updateTrackColor(), { immediate: true })
-watch(isHovered, (v: boolean) => {
+watch(isHovered, (hovered: boolean) => {
   if (!props.handleWheel)
     return
-  if (v) {
+  if (hovered) {
     sliderRef.value?.addEventListener('wheel', onWheelInput)
     return
   }
@@ -64,10 +64,12 @@ function handleInput(e: Event) {
 }
 
 function onWheelInput(ev: WheelEvent) {
+  let valueAfter = 0
   if (ev.deltaY < 0)
-    sliderValue.value += props.step * smoothingFactor * (shiftPressed.value ? 50 : 1)
+    valueAfter = modelValue.value += props.step * (shiftPressed.value ? 50 : 1)
   if (ev.deltaY > 0)
-    sliderValue.value -= props.step * smoothingFactor * (shiftPressed.value ? 50 : 1)
+    valueAfter = modelValue.value -= props.step * (shiftPressed.value ? 50 : 1)
+  modelValue.value = Math.min(Math.max(valueAfter, props.min), props.max)
 }
 </script>
 
