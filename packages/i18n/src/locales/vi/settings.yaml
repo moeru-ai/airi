@@ -221,6 +221,7 @@ pages:
         scenario: 'Lỗi: Phải có kịch bản.'
         systemprompt: 'Lỗi: Hãy cung cấp lời nhắc hệ thống'
         posthistoryinstructions: 'Lỗi: Cần có lịch sử đăng lời nhắc'
+        invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
     modules: Mô-đun
     name_asc: Tên (A-Z)
     name_desc: Tên (Z-A)
@@ -355,6 +356,67 @@ pages:
             warmup:
               description: Làm nóng trước khi nhận diện để đạt độ chính xác cao hơn.
               label: Khởi động (Warmup)
+    artistry:
+      title: Artistry
+      description: Image generation, scene background and drawing.
+      page:
+        title: Artistry Provider Configuration
+        description: Select the active backend provider for image generation. Characters can override this in their Card settings.
+      providers:
+        none:
+          name: None
+          description: Bypass and disable the image generation module globally.
+        comfyui:
+          name: ComfyUI (Local)
+          description: Use a local ComfyUI instance via WSL for image generation.
+        replicate:
+          name: Replicate.ai (Cloud)
+          description: Use cloud-based models via the Replicate API.
+        nanobanana:
+          name: Nano Banana (Preview)
+          description: Use Google AI Studio for image preview and reactions.
+      card:
+        description: Configure how AIRI generates images and visual content.
+        comfyui_empty: No ComfyUI workflows configured. Go to Settings → Providers → ComfyUI to upload a workflow template.
+        exposed_fields: '{count} exposed fields'
+        open_on_replicate: Open on Replicate
+        instruction_sync:
+          title: ComfyUI Instruction Sync
+          description: A specialized prompt is ready for your {workflowName} workflow. Applying this will overwrite current widget instructions so the AI knows how to use this specific template.
+          apply: Apply Recommended Prompt
+          keep: Keep Existing
+      provider: Artistry Provider
+      spawn_mode:
+        label: Manifestation Mode (Spawn Mode)
+        description: Choose how images are delivered to the interface.
+        options:
+          bg: Background Environment
+          inline: Inline Chat
+          widget: Overlay Widget
+          bg_widget: Dual (Background + Widget)
+      autonomous:
+        title: Cinematic Autonomy (Autonomous Artist)
+        description: When enabled, the "Producer" runs in parallel to the character to decide if a visual is needed. This prevents the character from forgetting to manifest scenes.
+        threshold: Manifestation Threshold
+        threshold_description: Use {min} for aggressive scene creation or {max} to require stronger evidence before generating.
+        threshold_min: Always Generate (0%)
+        threshold_max: Strict (100%)
+      model:
+        label: Artistry Model (Optional Override)
+        description: Model identifier if needed by provider
+      prompt-prefix:
+        label: Artistry Prompt Default Prefix
+        description: Pre-pended to every prompt sent to the image generator.
+      options:
+        label: Artistry Provider Options (JSON)
+      widget-instructions:
+        label: Widget System Prompt
+        description: Custom instructions for the AI on how to use the generation capabilities.
+    categories:
+      essential: Essential
+      messaging: Messaging
+      gaming: Gaming
+      artistry: Artistry
     consciousness:
       description: Tính cách, mô hình mong muốn, v.v.
       sections:
@@ -564,15 +626,6 @@ pages:
       buy: Charge
       description: Flux packages to choose from.
   providers:
-    explained:
-      chat: 'Nhà cung cấp mô hình tạo văn bản. Ví dụ: OpenRouter, OpenAI, Ollama.'
-      Speech: 'Nhà cung cấp mô hình giọng nói (text-to-speech). Ví dụ: ElevenLabs, Azure Speech.'
-      Transcription: >-
-        Nhà cung cấp mô hình chuyển giọng nói thành văn bản. Ví dụ: Whisper.cpp, OpenAI, Azure Speech
-    helpinfo:
-      title: Lần đầu tới đây?
-      description: >
-        {chat} AIRI cần ít nhất một nhà cung cấp để suy nghĩ và hoạt động đúng cách. Có thể coi nó như bộ não của nhân vật AIRI trong hệ thống.
     catalog:
       edit:
         config-id-not-found: Không tìm thấy cấu hình nhà cung cấp.
@@ -668,6 +721,47 @@ pages:
           title: Cơ bản
         voice:
           title: Cài đặt giọng nói
+    labels:
+      recommended: Recommended
+    filters:
+      pricing: Pricing
+      deployment: Deployment
+      all: All
+      free: Free
+      paid: Paid
+      internal: Internal
+      local: Local
+      cloud: Cloud
+    categories:
+      chat:
+        title: Chat
+        description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+      speech:
+        title: Speech
+        description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
+      transcription:
+        title: Transcription
+        description: >-
+          Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech
+      artistry:
+        title: Artistry
+        description: Image generation and design model providers. e.g. ComfyUI, Replicate.
+        items:
+          comfyui:
+            description: Local image generation runner.
+          replicate:
+            description: Cloud-based model inference service.
+          nanobanana:
+            description: Google AI Studio Image Preview.
+    helpinfo:
+      title: Lần đầu tới đây?
+      description: >
+        {chat} AIRI cần ít nhất một nhà cung cấp để suy nghĩ và hoạt động đúng cách. Có thể coi nó như bộ não của nhân vật AIRI trong hệ thống.
+    explained:
+      chat: 'Nhà cung cấp mô hình tạo văn bản. Ví dụ: OpenRouter, OpenAI, Ollama.'
+      Speech: 'Nhà cung cấp mô hình giọng nói (text-to-speech). Ví dụ: ElevenLabs, Azure Speech.'
+      Transcription: >-
+        Nhà cung cấp mô hình chuyển giọng nói thành văn bản. Ví dụ: Whisper.cpp, OpenAI, Azure Speech
     description: LLMs, nhà cung cấp giọng nói, v.v.
     provider:
       app-local-audio-transcription:
@@ -685,6 +779,17 @@ pages:
       alibaba-cloud-model-studio:
         description: bailian.console.aliyun.com
         title: Mô hình Studio Alibaba Cloud
+      amazon-bedrock:
+        title: Amazon Bedrock
+        description: aws.amazon.com/bedrock
+        config:
+          api-key:
+            label: Bedrock API Key
+            description: Amazon Bedrock API key (generate in AWS Console → Bedrock → API Keys)
+            placeholder: bedrock-...
+          region:
+            label: AWS Region
+            description: AWS region where Bedrock is enabled (e.g. us-east-1, us-west-2)
       anthropic:
         description: anthropic.com
         title: Anthropic | Claude
@@ -732,6 +837,98 @@ pages:
       speech-noop:
         title: Không có
         description: Không phát âm thanh.
+      comfyui:
+        settings:
+          title: ComfyUI (Local)
+          heading: ComfyUI Native API
+          description: Connect to your local ComfyUI and bring your own workflows.
+          info:
+            what_you_need:
+              label: What You Need
+              value: ComfyUI running locally or on your network.
+            how_to_export:
+              label: How To Export
+              value: Enable Dev Mode → "Save (API Format)".
+            scope_boundary:
+              label: Scope Boundary
+              value: Model downloads & node installs are your job.
+          connection:
+            title: Connection
+            connected: Connected
+            failed: Connection failed
+            error_prefix: Error
+            test: Test
+            testing: Testing...
+            unknown_error: Unknown connection error
+            unknown_gpu: Unknown GPU
+            server_url:
+              label: Server URL
+              description: The address where ComfyUI is running
+              placeholder: http://localhost:8188
+          cors:
+            title: CORS Block Detected
+            description: ComfyUI blocks requests from other applications by default. To allow AIRI to connect, you must start ComfyUI with the `--enable-cors-header "*"` flag.
+            command: python main.py --enable-cors-header "*"
+          workflows:
+            title: Workflow Templates
+            upload: Upload Workflow
+            cancel_upload: Cancel
+            empty: No workflows uploaded yet. Click "Upload Workflow" to import a workflow_api.json from ComfyUI.
+            exposed_parameters: Exposed Parameters
+            summary: '{nodes} nodes · {fields} exposed fields'
+            remove: Remove
+            config_snippet: Artistry Config Snippet
+            copy_json: Copy JSON
+            paste_hint: Paste this into your AIRI Card artistry config to override these nodes.
+          upload:
+            prompt: Drop or select a workflow_api.json file
+            invalid_json: Invalid JSON
+            workflow_name:
+              label: Workflow Name
+              description: Give this workflow a recognizable name
+              placeholder: e.g. Anime Text2Img
+            select_fields: 'Select fields to expose to the AI agent:'
+            fields_exposed: '{count} field(s) exposed'
+            save: Save Workflow
+      replicate:
+        settings:
+          title: Replicate.ai
+          heading: Replicate.ai Configuration
+          description: Configure your cloud image generation settings.
+          api_key:
+            label: API Key
+            description: Your Replicate API token (starts with r8_)
+            placeholder: r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+          default_model:
+            label: Default Model
+            description: Fallback owner/model string to use if the character card doesn't specify one
+            placeholder: black-forest-labs/flux-schnell
+          aspect_ratio:
+            label: Aspect Ratio
+            description: Default image aspect ratio (e.g. 16:9, 1:1, 9:16)
+            placeholder: '16:9'
+          inference_steps:
+            label: Inference Steps
+            description: Number of steps for the diffusion process (lower is faster, higher is better quality)
+      nanobanana:
+        settings:
+          title: Nano Banana
+          heading: Nano Banana (Google AI Studio)
+          description: Configure Google Gemini's native image generation capabilities.
+          api_key:
+            label: API Key
+            description: Your Google AI Studio API Key
+            placeholder: AIpk...
+          preferred_model:
+            label: Preferred Model
+            description: The specific Gemini image preview model to use
+          default_resolution:
+            label: Default Resolution
+            description: The target resolution for generated images
+          model_options:
+            nano_banana_2: Nano Banana 2 (Gemini 3.1 Flash Image)
+            nano_banana_pro: Nano Banana Pro (Gemini 3 Pro Image)
+            nano_banana: Nano Banana (Gemini 2.5 Flash Image)
       deepseek:
         description: deepseek.com
         title: DeepSeek
@@ -976,9 +1173,6 @@ pages:
       errors:
         title: QR scan failed
         failed: Failed to scan or connect with the QR code.
-  scene:
-    description: Cấu hình môi trường nhân vật sinh sống
-    title: Bối cảnh
   system:
     color-scheme:
       description: Đổi bảng màu sân khấu.
@@ -1127,6 +1321,28 @@ pages:
         button: Mở
   credits:
     buy: Buy
+  scene:
+    title: Scenes
+    description: Customize the virtual environment for your characters.
+    beta_label: Scenes System
+    beta_description: Each character card specifies its own preferred background from this gallery. Setting it here will set it as the default for the currently active character.
+    background_image:
+      title: Active Character Background
+      no_background: No background active for this character. Upload a square or landscape image for best results.
+      upload: Upload to Gallery
+      change: Change Background
+      clear: Clear Default
+    gallery:
+      title: Scene Gallery
+      empty: No images in gallery yet. Upload one above!
+      set_as_global: Set as Character Default
+      delete: Delete from Gallery
+      global_badge: Character Default
+      active_badge: Current Scene
+      delete_confirm: Are you sure you want to delete this background?
+    tip:
+      label: Tip!
+      description: Using a square image will leverage <b>cover</b> cropping in portrait mode, focusing on the center of the scene.
 sections:
   section:
     general:
