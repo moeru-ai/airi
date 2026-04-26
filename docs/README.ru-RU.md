@@ -159,6 +159,9 @@
 
 ## Журналы разработки, которые мы опубликовали, и последние обновления
 
+- [DevLog @ 2026.03.23](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.23/) от 23 марта 2026 г.
+- [DevLog @ 2026.03.14](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.14/) от 14 марта 2026 г.
+- [DevLog @ 2026.02.16](https://airi.moeru.ai/docs/en/blog/DevLog-2026.02.16/) от 16 февраля 2026 г.
 - [DevLog @ 2026.01.01](https://airi.moeru.ai/docs/en/blog/DevLog-2026.01.01/) от 1 января 2026 г.
 - [DevLog @ 2025.10.20](https://airi.moeru.ai/docs/en/blog/DevLog-2025.10.20/) от 20 октября 2025 г.
 - [DevLog @ 2025.08.05](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.05/) от 5 августа 2025 г.

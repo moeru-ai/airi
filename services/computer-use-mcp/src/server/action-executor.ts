@@ -4,6 +4,7 @@ import type {
   ActionInvocation,
   ComputerUseConfig,
   DesktopExecutor,
+  ForegroundContext,
   PolicyDecision,
   ScreenshotArtifact,
   TerminalCommandResult,
@@ -33,6 +34,7 @@ import {
   maskEnvValuePreview,
   readEnvValue,
 } from '../utils/env-file'
+import { executeDesktopClickTarget } from './desktop-grounding-actions'
 import { describeExecutionTarget } from './formatters'
 import { refreshRuntimeRunState } from './refresh-run-state'
 import {
@@ -117,10 +119,41 @@ function toTerminalStateContent(state: TerminalState) {
   }
 }
 
+function getPolicyEvaluationContext(params: {
+  action: ActionInvocation
+  actualContext: ForegroundContext
+  runtime: ComputerUseServerRuntime
+}): ForegroundContext {
+  if (params.action.kind !== 'desktop_click_target') {
+    return params.actualContext
+  }
+
+  const activeSession = params.runtime.desktopSessionController.getSession()
+  if (!activeSession?.controlledApp) {
+    return params.actualContext
+  }
+
+  if (params.actualContext.available && params.actualContext.appName === activeSession.controlledApp) {
+    return params.actualContext
+  }
+
+  return {
+    available: true,
+    appName: activeSession.controlledApp,
+    platform: params.actualContext.platform,
+  }
+}
+
 export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteAction {
   return async (action, toolName, options = {}) => {
     const normalizedAction = normalizeConfiguredAppAction(action, runtime.config.openableApps)
-    const { executionTarget, context, displayInfo } = await refreshRuntimeRunState(runtime)
+    const { executionTarget, context: actualContext, displayInfo } = await refreshRuntimeRunState(runtime)
+    const context = getPolicyEvaluationContext({
+      action: normalizedAction,
+      actualContext,
+      runtime,
+    })
+    const actualForegroundContext = context === actualContext ? undefined : actualContext
 
     const budget = runtime.session.getBudgetState()
     const preflight = getRuntimePreflight({
@@ -159,6 +192,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         executionTarget,
         displayInfo,
         coordinateSpace: preflight.coordinateSpace,
+        actualForegroundContext,
       },
     })
 
@@ -255,6 +289,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       let backendResult: Record<string, unknown> = {}
       let clipboardStructuredContent: Record<string, unknown> | undefined
       let secretStructuredContent: Record<string, unknown> | undefined
+      let summaryOverride: string | undefined
 
       switch (normalizedAction.kind) {
         case 'screenshot': {
@@ -515,6 +550,12 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           }
           break
         }
+        case 'desktop_click_target': {
+          const result = await executeDesktopClickTarget(runtime, normalizedAction.input)
+          backendResult = result.backendResult
+          summaryOverride = result.summary
+          break
+        }
       }
 
       runtime.session.consumeOperation(decision.estimatedOperationUnits)
@@ -562,7 +603,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       })
 
       return buildSuccessResponse({
-        summary: `${intent} ${outcome}${advisorySummary ? ` Strategy: ${advisorySummary}` : ''}`,
+        summary: summaryOverride ?? `${intent} ${outcome}${advisorySummary ? ` Strategy: ${advisorySummary}` : ''}`,
         screenshot,
         structuredContent: {
           status: 'executed',

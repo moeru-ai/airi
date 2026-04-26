@@ -14,17 +14,15 @@
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 
-import type { PointerIntent } from '../desktop-grounding-types'
+import type { DesktopClickTargetInput } from '../types'
+import type { ExecuteAction } from './action-executor'
 import type { ComputerUseServerRuntime } from './runtime'
 
 import process from 'node:process'
 
 import { z } from 'zod'
 
-import { decideBrowserAction } from '../browser-action-router'
-import { getUnsupportedBrowserDomActions, isBrowserDomActionSupported } from '../browser-dom/capabilities'
 import { captureDesktopGrounding, formatGroundingForAgent } from '../desktop-grounding'
-import { resolveSnapByCandidate } from '../snap-resolver'
 import { sleep } from '../utils/sleep'
 import { textContent } from './content'
 import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptors/register-helper'
@@ -40,8 +38,9 @@ import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptor
 export function registerDesktopGroundingTools(params: {
   server: McpServer
   runtime: ComputerUseServerRuntime
+  executeAction: ExecuteAction
 }) {
-  const { server, runtime } = params
+  const { server, runtime, executeAction } = params
 
   // -----------------------------------------------------------------------
   // desktop_observe
@@ -127,6 +126,7 @@ export function registerDesktopGroundingTools(params: {
         // Also update screenshot state so desktop_get_state and other
         // tools can see the latest screenshot from this observation
         if (snapshot.screenshot && !snapshot.screenshot.placeholder) {
+          runtime.session.setLastScreenshot(snapshot.screenshot)
           runtime.stateManager.updateLastScreenshot({
             path: snapshot.screenshot.path || '',
             width: snapshot.screenshot.width,
@@ -192,187 +192,7 @@ export function registerDesktopGroundingTools(params: {
       button: z.enum(['left', 'right', 'middle']).optional().describe('Mouse button (default: left)'),
     },
 
-    handler: async ({ candidateId, clickCount, button }) => {
-      try {
-        const state = runtime.stateManager.getState()
-
-        // Validate: must have a recent grounding snapshot
-        if (!state.lastGroundingSnapshot) {
-          return {
-            content: [textContent('ERROR: No desktop_observe snapshot available. Call desktop_observe first to get a list of target candidates.')],
-            isError: true,
-          }
-        }
-
-        const snapshot = state.lastGroundingSnapshot
-
-        // Session: ensure the controlled app is still in foreground before clicking
-        const sessionCtrl = runtime.desktopSessionController
-        const activeSession = sessionCtrl.getSession()
-        if (activeSession?.controlledApp) {
-          const currentForeground = await runtime.executor.getForegroundContext()
-          const wasAlreadyInFront = await sessionCtrl.ensureControlledAppInForeground({
-            currentForeground,
-            chromeSessionManager: runtime.chromeSessionManager,
-            activateApp: async (appName) => {
-              await runtime.executor.focusApp({ app: appName })
-            },
-          })
-          if (!wasAlreadyInFront) {
-            await sleep(200)
-          }
-          sessionCtrl.touch()
-        }
-
-        // Validate: check for duplicate clicks on same candidate without re-observe
-        if (state.lastClickedCandidateId === candidateId) {
-          return {
-            content: [textContent(`WARNING: You already clicked candidate "${candidateId}" without calling desktop_observe again. Call desktop_observe to refresh the state before clicking the same target.`)],
-            isError: true,
-          }
-        }
-
-        // Validate: check snapshot staleness (>5s)
-        const snapshotAge = Date.now() - new Date(snapshot.capturedAt).getTime()
-        if (snapshotAge > 5000) {
-          return {
-            content: [textContent(`WARNING: Grounding snapshot "${snapshot.snapshotId}" is ${Math.round(snapshotAge / 1000)}s old. Call desktop_observe to get a fresh snapshot before clicking.`)],
-            isError: true,
-          }
-        }
-
-        // Resolve snap
-        const snap = resolveSnapByCandidate(candidateId, snapshot)
-
-        if (snap.source === 'none' && !snap.candidateId) {
-          return {
-            content: [textContent(`ERROR: Candidate "${candidateId}" not found in snapshot "${snapshot.snapshotId}". Available candidates: ${snapshot.targetCandidates.map(c => c.id).join(', ')}`)],
-            isError: true,
-          }
-        }
-
-        // Build pointer intent
-        const intent: PointerIntent = {
-          mode: 'execute',
-          candidateId,
-          rawPoint: snap.rawPoint,
-          snappedPoint: snap.snappedPoint,
-          source: snap.source,
-          confidence: snapshot.targetCandidates.find(c => c.id === candidateId)?.confidence ?? 0,
-          path: [
-            { x: snap.snappedPoint.x, y: snap.snappedPoint.y, delayMs: 0 },
-          ],
-        }
-
-        // Update RunState — pointer intent + clicked candidate (phase: executing)
-        intent.phase = 'executing'
-        runtime.stateManager.updatePointerIntent(intent)
-
-        // Route the click: browser-dom for chrome_dom candidates, OS input for everything else
-        const candidate = snapshot.targetCandidates.find(c => c.id === candidateId)
-        const bridgeConnected = runtime.browserDomBridge?.getStatus().connected ?? false
-        const routeDecision = candidate
-          ? decideBrowserAction(candidate, bridgeConnected, button, clickCount)
-          : { route: 'os_input' as const, reason: 'candidate not found' }
-
-        let executionRoute = routeDecision.route
-        let routeNote = ''
-        let routeReason = routeDecision.reason
-
-        if (routeDecision.route === 'browser_dom' && routeDecision.selector) {
-          const requiredActions = routeDecision.bridgeMethod === 'checkCheckbox'
-            ? ['checkCheckbox']
-            : ['getClickTarget', 'clickAt']
-
-          if (!isBrowserDomActionSupported(runtime.browserDomBridge, ...requiredActions)) {
-            executionRoute = 'os_input'
-            routeReason = `browser-dom extension transport does not support ${requiredActions.join(' + ')}`
-            routeNote = `browser-dom ${routeDecision.bridgeMethod ?? 'click'} is unavailable on the connected extension transport (${getUnsupportedBrowserDomActions(runtime.browserDomBridge, ...requiredActions).join(', ')} unsupported), fell back to OS input`
-            await runtime.executor.click({
-              x: snap.snappedPoint.x,
-              y: snap.snappedPoint.y,
-              button: button || 'left',
-              clickCount: clickCount ?? 1,
-              pointerTrace: intent.path,
-            })
-          }
-          else {
-            // Try browser-dom bridge action first, dispatching by method
-            try {
-              const frameIds = routeDecision.frameId !== undefined ? [routeDecision.frameId] : undefined
-              if (routeDecision.bridgeMethod === 'checkCheckbox') {
-                await runtime.browserDomBridge!.checkCheckbox({
-                  selector: routeDecision.selector,
-                  frameIds,
-                })
-              }
-              else {
-                await runtime.browserDomBridge!.clickSelector({
-                  selector: routeDecision.selector,
-                  frameIds,
-                })
-              }
-            }
-            catch (browserError) {
-              // Fallback to OS input on browser-dom failure
-              executionRoute = 'os_input'
-              routeNote = `browser-dom ${routeDecision.bridgeMethod ?? 'click'} failed (${browserError instanceof Error ? browserError.message : String(browserError)}), fell back to OS input`
-              await runtime.executor.click({
-                x: snap.snappedPoint.x,
-                y: snap.snappedPoint.y,
-                button: button || 'left',
-                clickCount: clickCount ?? 1,
-                pointerTrace: intent.path,
-              })
-            }
-          }
-        }
-        else {
-          // OS-level click (existing path)
-          await runtime.executor.click({
-            x: snap.snappedPoint.x,
-            y: snap.snappedPoint.y,
-            button: button || 'left',
-            clickCount: clickCount ?? 1,
-            pointerTrace: intent.path,
-          })
-        }
-
-        // Phase: completed — update ghost pointer state for overlay fadeout
-        intent.phase = 'completed'
-        intent.executionResult = routeNote ? 'fallback' : 'success'
-        intent.executionRoute = `${executionRoute} (${routeReason})`
-        runtime.stateManager.updatePointerIntent(intent, candidateId)
-
-        const candidateDesc = candidate ? `${candidate.source} ${candidate.role} "${candidate.label}"` : candidateId
-
-        const lines = [
-          `Clicked: ${candidateDesc}`,
-          `  Snap: ${snap.reason}`,
-          `  Point: (${snap.snappedPoint.x}, ${snap.snappedPoint.y})`,
-          `  Route: ${executionRoute} (${routeReason})`,
-          `  Button: ${button || 'left'}, clicks: ${clickCount ?? 1}`,
-        ]
-
-        if (routeNote) {
-          lines.push(`  ⚠ ${routeNote}`)
-        }
-
-        if (snap.reason.includes('stale')) {
-          lines.push('  ⚠ WARNING: Target source is stale. Consider calling desktop_observe again.')
-        }
-
-        return {
-          content: [textContent(lines.join('\n'))],
-        }
-      }
-      catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        return {
-          content: [textContent(`desktop_click_target failed: ${message}`)],
-          isError: true,
-        }
-      }
-    },
+    handler: async (input: DesktopClickTargetInput) =>
+      executeAction({ kind: 'desktop_click_target', input }, 'desktop_click_target'),
   })
 }
