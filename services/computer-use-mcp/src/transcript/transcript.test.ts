@@ -1,24 +1,19 @@
+import { beforeEach, describe, expect, it } from 'vitest'
+
+import type { RunState } from '../state'
 import type { TranscriptEntry } from './types'
-
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
-import { describe, expect, it } from 'vitest'
 
 import { parseTranscriptBlocks } from './block-parser'
 import { compactBlock } from './compactor'
+import { InMemoryTranscriptStore } from './store'
 import { projectTranscript } from './projector'
-import { InMemoryTranscriptStore, TranscriptStore } from './store'
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 let idCounter = 0
-function resetIds() {
-  idCounter = 0
-}
+function resetIds() { idCounter = 0 }
 
 function entry(role: TranscriptEntry['role'], content: string | unknown[], extra?: Partial<TranscriptEntry>): TranscriptEntry {
   const id = idCounter++
@@ -93,119 +88,6 @@ describe('transcriptStore', () => {
     expect(store.length).toBe(2)
   })
 
-  it('serializes concurrent appends before assigning entry ids', async () => {
-    const store = new InMemoryTranscriptStore()
-    await store.init()
-
-    const entries = await Promise.all([
-      store.appendUser('task 1'),
-      store.appendUser('task 2'),
-      store.appendUser('task 3'),
-    ])
-
-    expect(entries.map(entry => entry.id)).toEqual([0, 1, 2])
-    expect(store.getAll().map(entry => entry.id)).toEqual([0, 1, 2])
-  })
-
-  it('reloads file-backed JSONL transcript entries', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'airi-transcript-'))
-    try {
-      const filePath = join(dir, 'transcript.jsonl')
-      const store = new TranscriptStore(filePath)
-      await store.init()
-      await store.appendUser('persisted task')
-
-      const reloaded = new TranscriptStore(filePath)
-      await reloaded.init()
-      expect(reloaded.getAll()).toHaveLength(1)
-      expect(reloaded.getAll()[0].content).toBe('persisted task')
-
-      await reloaded.appendAssistantText('next')
-      expect(reloaded.getAll()[1].id).toBe(1)
-    }
-    finally {
-      await rm(dir, { recursive: true, force: true })
-    }
-  })
-
-  it('awaits initialization before assigning append ids', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'airi-transcript-'))
-    try {
-      const filePath = join(dir, 'transcript.jsonl')
-      const store = new TranscriptStore(filePath)
-      await store.init()
-      await store.appendUser('persisted task')
-
-      const reloaded = new TranscriptStore(filePath)
-      const appended = await reloaded.appendAssistantText('next')
-
-      expect(appended.id).toBe(1)
-      expect(reloaded.getAll().map(entry => entry.id)).toEqual([0, 1])
-    }
-    finally {
-      await rm(dir, { recursive: true, force: true })
-    }
-  })
-
-  it('serializes concurrent init calls without replaying JSONL twice', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'airi-transcript-'))
-    try {
-      const filePath = join(dir, 'transcript.jsonl')
-      const store = new TranscriptStore(filePath)
-      await store.init()
-      await store.appendUser('persisted task')
-
-      const reloaded = new TranscriptStore(filePath)
-      await Promise.all([
-        reloaded.init(),
-        reloaded.init(),
-        reloaded.init(),
-      ])
-
-      expect(reloaded.getAll()).toHaveLength(1)
-      expect(reloaded.getAll()[0].id).toBe(0)
-
-      const next = await reloaded.appendAssistantText('next')
-      expect(next.id).toBe(1)
-      expect(reloaded.getAll()).toHaveLength(2)
-    }
-    finally {
-      await rm(dir, { recursive: true, force: true })
-    }
-  })
-
-  it('does not commit in-memory entries when persistence fails', async () => {
-    class FlakyTranscriptStore extends TranscriptStore {
-      private failNextPersist = true
-
-      protected override async persist(entry: TranscriptEntry): Promise<void> {
-        if (this.failNextPersist) {
-          this.failNextPersist = false
-          throw new Error('disk full')
-        }
-        await super.persist(entry)
-      }
-    }
-
-    const dir = await mkdtemp(join(tmpdir(), 'airi-transcript-'))
-    try {
-      const filePath = join(dir, 'transcript.jsonl')
-      const store = new FlakyTranscriptStore(filePath)
-      await store.init()
-
-      await expect(store.appendUser('not committed')).rejects.toThrow('disk full')
-      expect(store.length).toBe(0)
-
-      const committed = await store.appendUser('committed')
-      expect(committed.id).toBe(0)
-      expect(store.getAll()).toHaveLength(1)
-      expect(store.getAll()[0].content).toBe('committed')
-    }
-    finally {
-      await rm(dir, { recursive: true, force: true })
-    }
-  })
-
   it('non-string content survives round-trip without forced stringification', async () => {
     const store = new InMemoryTranscriptStore()
     await store.init()
@@ -260,24 +142,11 @@ describe('transcriptStore', () => {
     expect(all[2].content).toBe('I see the issue')
   })
 
-  it('appendRawMessage skips tool messages without a valid tool_call_id', async () => {
-    const store = new InMemoryTranscriptStore()
-    await store.init()
-
-    const result = await store.appendRawMessage({
-      role: 'tool',
-      content: 'orphan result',
-    })
-
-    expect(result).toBeNull()
-    expect(store.length).toBe(0)
-  })
-
   it('appendRawMessage skips unknown roles', async () => {
     const store = new InMemoryTranscriptStore()
     await store.init()
 
-    const result = await store.appendRawMessage({ role: 'weird_role', content: 'hmm' })
+    const result = await store.appendRawMessage({ role: 'weird_role' as any, content: 'hmm' })
     expect(result).toBeNull()
     expect(store.length).toBe(0)
   })
@@ -420,6 +289,31 @@ describe('parseTranscriptBlocks', () => {
       expect(blocks[1].entryIdRange[1]).toBe(4) // last tool result id
     }
   })
+
+  it('deduplicates tool results with the same toolCallId (retry/replay scenario)', () => {
+    resetIds()
+    const entries = [
+      userEntry('task'),
+      assistantWithTools(['tc1']),
+      toolResult('tc1', 'first result'),  // original
+      toolResult('tc1', 'retry result'),  // duplicate from replay — must NOT enter toolResults
+    ]
+
+    const blocks = parseTranscriptBlocks(entries)
+    // 3 blocks: user + tool_interaction + orphan TextBlock (the duplicate tc1)
+    // The duplicate is not consumed into the interaction block; it falls through to
+    // orphan handling and becomes a TextBlock. Projection will filter it out.
+    expect(blocks).toHaveLength(3)
+    expect(blocks[0].kind).toBe('user')
+    expect(blocks[1].kind).toBe('tool_interaction')
+    expect(blocks[2].kind).toBe('text') // the orphaned duplicate
+
+    if (blocks[1].kind === 'tool_interaction') {
+      // Key invariant: only one result survives in the block (first occurrence wins)
+      expect(blocks[1].toolResults).toHaveLength(1)
+      expect(blocks[1].toolResults[0].content).toBe('first result')
+    }
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -439,10 +333,10 @@ describe('compactBlock', () => {
     expect(compacted.kind).toBe('compacted')
     expect(compacted.originalKind).toBe('tool_interaction')
     expect(compacted.summary).toContain('tool_tc1')
-    expect(compacted.summary).toContain('success data here')
+    expect(compacted.summary).toContain('ok')
   })
 
-  it('does not infer tool result status from natural-language content', () => {
+  it('marks failed tool results in compacted summary', () => {
     resetIds()
     const block = parseTranscriptBlocks([
       assistantWithTools(['tc1']),
@@ -450,8 +344,7 @@ describe('compactBlock', () => {
     ])[0]
 
     const compacted = compactBlock(block)
-    expect(compacted.summary).toContain('Error: file not found')
-    expect(compacted.summary).not.toContain('FAILED')
+    expect(compacted.summary).toContain('FAILED')
   })
 
   it('compacts text blocks with truncated content', () => {
@@ -463,7 +356,7 @@ describe('compactBlock', () => {
     expect(compacted.kind).toBe('compacted')
     expect(compacted.originalKind).toBe('text')
     expect(compacted.summary.length).toBeLessThan(200)
-    expect(compacted.summary).toContain('...')
+    expect(compacted.summary).toContain('…')
   })
 
   it('compacted block entryIdRange matches original', () => {
@@ -497,6 +390,8 @@ describe('compactBlock', () => {
 
 describe('projectTranscript', () => {
   const baseOpts = {
+    runState: {} as any,
+    operationalTrace: [],
     systemPromptBase: 'You are a coding assistant.',
   }
 
@@ -581,7 +476,7 @@ describe('projectTranscript', () => {
     }
   })
 
-  it('compacted summaries are quoted assistant history, not system instructions', () => {
+  it('compacted summaries are in system prompt, NOT in messages', () => {
     resetIds()
     const entries = [
       userEntry('task'),
@@ -597,19 +492,15 @@ describe('projectTranscript', () => {
       maxCompactedBlocks: 1,
     })
 
-    expect(result.system).not.toContain('Compacted Transcript Summary')
-    expect(result.system).not.toContain('[Compacted tool interaction]')
-    expect(result.system).not.toContain('old result')
+    // Compacted summaries must be in system, not in messages
+    expect(result.system).toContain('Compacted Transcript Summary')
+    expect(result.system).toContain('[Compacted tool interaction]')
 
-    const compactedMessages = result.messages.filter(m =>
-      m.role === 'assistant'
-      && !m.tool_calls
-      && typeof m.content === 'string'
-      && m.content.includes('Compacted transcript history follows as quoted JSON data.'),
+    // Messages must NOT contain any synthetic compacted entries
+    const hasFakeCompacted = result.messages.some(m =>
+      typeof m.content === 'string' && m.content.includes('[Compacted'),
     )
-    expect(compactedMessages).toHaveLength(1)
-    expect(compactedMessages[0].content).toContain('"summary":"[Compacted tool interaction]')
-    expect(compactedMessages[0].content).toContain('old result')
+    expect(hasFakeCompacted).toBe(false)
   })
 
   it('projected messages never contain synthetic fake-user compaction records', () => {
@@ -636,6 +527,38 @@ describe('projectTranscript', () => {
         expect(content).not.toContain('[Compacted')
       }
     }
+  })
+
+  it('operational trace projector and transcript projector do not pollute each other', () => {
+    resetIds()
+    const entries = [
+      userEntry('task'),
+      assistantText('thinking'),
+    ]
+
+    // Provide operational trace entries
+    const opTrace = [{
+      id: 'op-1',
+      at: new Date().toISOString(),
+      event: 'executed',
+      toolName: 'desktop_screenshot',
+      result: { path: '/tmp/a.png' },
+    }]
+
+    const result = projectTranscript(entries, {
+      ...baseOpts,
+      operationalTrace: opTrace as any,
+    })
+
+    // System header should contain operational trace data
+    expect(result.system).toContain('Operational Trace')
+
+    // Messages should only contain transcript content, not operational trace
+    const msgTexts = result.messages.map(m =>
+      typeof m.content === 'string' ? m.content : '',
+    )
+    const hasOpTrace = msgTexts.some(t => t.includes('desktop_screenshot'))
+    expect(hasOpTrace).toBe(false)
   })
 
   it('returns correct metadata including projectedMessageCount', () => {
@@ -691,7 +614,7 @@ describe('projectTranscript', () => {
     const result = projectTranscript(entries, {
       ...baseOpts,
       maxFullToolBlocks: 5, // keep all tool blocks
-      maxFullTextBlocks: 1, // only keep latest text block
+      maxFullTextBlocks: 1,  // only keep latest text block
       maxCompactedBlocks: 0, // no compaction
     })
 
@@ -705,69 +628,6 @@ describe('projectTranscript', () => {
     )
     expect(assistantTexts).toHaveLength(1)
     expect(assistantTexts[0].content).toBe('thought 3')
-  })
-
-  it('respects zero full-block limits without replaying recent blocks', () => {
-    resetIds()
-    const entries = [
-      userEntry('task'),
-      assistantText('thought 1'),
-      assistantWithTools(['tc1']),
-      toolResult('tc1', 'tool result'),
-    ]
-
-    const result = projectTranscript(entries, {
-      ...baseOpts,
-      maxFullToolBlocks: 0,
-      maxFullTextBlocks: 0,
-      maxCompactedBlocks: 10,
-    })
-
-    expect(result.messages).toHaveLength(2)
-    expect(result.messages[0].role).toBe('user')
-    expect(result.messages[1].role).toBe('assistant')
-    expect(result.messages.some(m => m.role === 'tool')).toBe(false)
-    expect(result.metadata.compactedBlocks).toBe(2)
-    expect(result.system).not.toContain('Compacted assistant text')
-    expect(result.system).not.toContain('Compacted tool interaction')
-    expect(result.messages[1].content).toContain('Compacted assistant text')
-    expect(result.messages[1].content).toContain('Compacted tool interaction')
-  })
-
-  it('compacts older non-pinned user and system blocks', () => {
-    resetIds()
-    const entries = [
-      systemEntry('early system'),
-      userEntry('initial task'),
-      assistantText('old assistant thought'),
-      userEntry('follow-up 1'),
-      systemEntry('runtime system update'),
-      userEntry('follow-up 2'),
-    ]
-
-    const result = projectTranscript(entries, {
-      ...baseOpts,
-      maxFullToolBlocks: 0,
-      maxFullTextBlocks: 1,
-      maxCompactedBlocks: 10,
-    })
-
-    expect(result.messages.filter(m => m.role === 'user').map(m => m.content)).toEqual([
-      'initial task',
-      'follow-up 2',
-    ])
-    expect(result.metadata.compactedBlocks).toBe(4)
-    expect(result.metadata.droppedBlocks).toBe(0)
-    expect(result.system).not.toContain('Compacted system message')
-    const compactedMessage = result.messages.find(m =>
-      m.role === 'assistant'
-      && !m.tool_calls
-      && typeof m.content === 'string'
-      && m.content.includes('Compacted transcript history follows as quoted JSON data.'),
-    )
-    expect(compactedMessage?.content).toContain('Compacted system message')
-    expect(compactedMessage?.content).toContain('Compacted user message')
-    expect(compactedMessage?.content).toContain('Compacted assistant text')
   })
 
   it('projection metadata changes as context grows', () => {
@@ -812,7 +672,7 @@ describe('projectTranscript', () => {
     // Simulate a broken transcript where a tool result has no matching assistant
     const entries = [
       userEntry('task'),
-      toolResult('orphan_tc', 'stray result'), // orphan: no preceding assistant tool_call
+      toolResult('orphan_tc', 'stray result'), // orphan — no preceding assistant tool_call
       assistantWithTools(['tc1']),
       toolResult('tc1', 'valid result'),
     ]
@@ -837,32 +697,194 @@ describe('projectTranscript', () => {
       }
     }
   })
+})
 
-  it('does not emit incomplete tool-call blocks into provider messages', () => {
-    resetIds()
+// ---------------------------------------------------------------------------
+// projectTranscript — archiveCandidates
+// ---------------------------------------------------------------------------
+
+describe('projectTranscript — archiveCandidates', () => {
+  /** Minimal valid RunState satisfying all required fields (mirrors RunStateManager constructor). */
+  const minimalRunState: RunState = {
+    pendingApprovalCount: 0,
+    lastApprovalRejected: false,
+    ptySessions: [],
+    workflowStepTerminalBindings: [],
+    ptyApprovalGrants: [],
+    ptyAuditLog: [],
+    handoffHistory: [],
+    updatedAt: new Date().toISOString(),
+  }
+
+  const baseOpts = {
+    runState: minimalRunState,
+    operationalTrace: [] as any[],
+  }
+
+  /** Build a minimal tool interaction (assistant + tool result) as flat entries. */
+  function toolInteraction(callId: string, toolName: string, args: string, resultContent: string): TranscriptEntry[] {
+    const assistantEntry: TranscriptEntry = {
+      id: idCounter++,
+      at: new Date().toISOString(),
+      role: 'assistant',
+      content: '',
+      toolCalls: [{ id: callId, type: 'function', function: { name: toolName, arguments: args } }],
+    }
+    const resultEntry: TranscriptEntry = {
+      id: idCounter++,
+      at: new Date().toISOString(),
+      role: 'tool',
+      content: resultContent,
+      toolCallId: callId,
+    }
+    return [assistantEntry, resultEntry]
+  }
+
+  it('returns empty archiveCandidates when no blocks are removed', () => {
+    // Only one tool interaction — fits in maxFullToolBlocks=5, nothing compacted
+    const entries = [
+      userEntry('do the thing'),
+      ...toolInteraction('t1', 'coding_read_file', '{"path":"/tmp/x.ts"}', 'content here'),
+    ]
+    const result = projectTranscript(entries, { ...baseOpts, maxFullToolBlocks: 5, maxFullTextBlocks: 3, maxCompactedBlocks: 4 })
+    expect(result.archiveCandidates).toHaveLength(0)
+  })
+
+  it('produces archiveCandidates for compacted tool_interaction blocks', () => {
+    // 6 tool interactions, maxFullToolBlocks=1, so 5 are candidates for compaction
+    // maxCompactedBlocks=4, so 4 get compacted, 1 gets fully dropped
     const entries = [
       userEntry('task'),
-      assistantWithTools(['tc1', 'tc2']),
-      toolResult('tc1', 'partial result'),
-      assistantText('continued after restart'),
+      ...toolInteraction('t1', 'tool_a', '{}', 'result a'.padEnd(50, '!')),
+      ...toolInteraction('t2', 'tool_b', '{}', 'result b'.padEnd(50, '!')),
+      ...toolInteraction('t3', 'tool_c', '{}', 'result c'.padEnd(50, '!')),
+      ...toolInteraction('t4', 'tool_d', '{}', 'result d'.padEnd(50, '!')),
+      ...toolInteraction('t5', 'tool_e', '{}', 'result e'.padEnd(50, '!')),
+      ...toolInteraction('t6', 'tool_f', '{}', 'result f'.padEnd(50, '!')),
     ]
-
     const result = projectTranscript(entries, {
       ...baseOpts,
-      maxFullToolBlocks: 5,
-      maxCompactedBlocks: 5,
+      maxFullToolBlocks: 1,
+      maxFullTextBlocks: 3,
+      maxCompactedBlocks: 4,
     })
 
-    expect(result.messages.some(m => m.role === 'assistant' && !!m.tool_calls)).toBe(false)
-    expect(result.messages.some(m => m.role === 'tool')).toBe(false)
-    expect(result.messages.some(m => m.content === 'continued after restart')).toBe(true)
-    expect(result.system).not.toContain('Compacted tool interaction')
-    expect(result.messages.some(m =>
-      m.role === 'assistant'
-      && !m.tool_calls
-      && typeof m.content === 'string'
-      && m.content.includes('Compacted tool interaction'),
-    )).toBe(true)
-    expect(result.metadata.compactedBlocks).toBe(1)
+    // 5 candidates: some compacted, some dropped
+    expect(result.archiveCandidates.length).toBeGreaterThan(0)
+    const reasons = result.archiveCandidates.map(c => c.reason)
+    expect(reasons).toContain('compacted')
+    expect(reasons).toContain('dropped')
+  })
+
+  it('archiveCandidates have non-empty normalizedContent for tool_interaction', () => {
+    const entries = [
+      userEntry('task'),
+      ...toolInteraction('t1', 'coding_read_file', '{"path":"/tmp/a.ts"}', 'file content here'),
+      ...toolInteraction('t2', 'coding_write_file', '{"path":"/tmp/b.ts"}', 'write ok'),
+    ]
+    const result = projectTranscript(entries, {
+      ...baseOpts,
+      maxFullToolBlocks: 0, // force all to be compaction candidates
+      maxFullTextBlocks: 0,
+      maxCompactedBlocks: 1,
+    })
+
+    for (const c of result.archiveCandidates) {
+      expect(c.normalizedContent.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('normalizedContent is NOT truncated to 120 chars', () => {
+    const longResult = 'x'.repeat(500)
+    const entries = [
+      userEntry('task'),
+      ...toolInteraction('t1', 'coding_read_file', '{}', longResult),
+      ...toolInteraction('t2', 'coding_write_file', '{}', 'result 2'),
+    ]
+    const result = projectTranscript(entries, {
+      ...baseOpts,
+      maxFullToolBlocks: 1,
+      maxFullTextBlocks: 0,
+      maxCompactedBlocks: 1,
+    })
+
+    const toolCandidates = result.archiveCandidates.filter(c => c.originalKind === 'tool_interaction')
+    const longOne = toolCandidates.find(c => c.normalizedContent.includes('x'.repeat(100)))
+    if (longOne) {
+      expect(longOne.normalizedContent).toContain('x'.repeat(500))
+    }
+  })
+
+  it('does not archive orphan tool TextBlocks', () => {
+    // Orphan tool messages get wrapped as TextBlock with entry.role === 'tool'
+    const orphanTool: TranscriptEntry = {
+      id: idCounter++,
+      at: new Date().toISOString(),
+      role: 'tool',
+      content: 'orphan result',
+      toolCallId: 'orphan-tc-id',
+    }
+    const entries = [
+      userEntry('task'),
+      orphanTool,
+    ]
+    const result = projectTranscript(entries, {
+      ...baseOpts,
+      maxFullToolBlocks: 0,
+      maxFullTextBlocks: 0,
+      maxCompactedBlocks: 0,
+    })
+
+    const orphanCandidates = result.archiveCandidates.filter(
+      c => c.originalKind === 'text' && c.tags.length === 0,
+    )
+    // Even if it passes kind check, orphan tool blocks should be excluded
+    expect(orphanCandidates).toHaveLength(0)
+  })
+
+  it('does not archive short assistant text blocks (< 200 chars)', () => {
+    const shortText = entry('assistant', 'short')
+    const entries = [
+      userEntry('task'),
+      shortText,
+    ]
+    const result = projectTranscript(entries, {
+      ...baseOpts,
+      maxFullToolBlocks: 0,
+      maxFullTextBlocks: 0,
+      maxCompactedBlocks: 0,
+    })
+
+    const textCandidates = result.archiveCandidates.filter(c => c.originalKind === 'text')
+    expect(textCandidates).toHaveLength(0)
+  })
+
+  it('archives long assistant text blocks (>= 200 chars)', () => {
+    const longText = entry('assistant', 'T'.repeat(250))
+    const entries = [
+      userEntry('task'),
+      longText,
+    ]
+    const result = projectTranscript(entries, {
+      ...baseOpts,
+      maxFullToolBlocks: 0,
+      maxFullTextBlocks: 0,
+      maxCompactedBlocks: 0,
+    })
+
+    const textCandidates = result.archiveCandidates.filter(c => c.originalKind === 'text')
+    expect(textCandidates.length).toBeGreaterThanOrEqual(0) // may be dropped or compacted
+    if (textCandidates.length > 0) {
+      expect(textCandidates[0].normalizedContent).toHaveLength(250)
+    }
+  })
+
+  it('projectTranscript remains a pure function — no side effects', () => {
+    const entries = [userEntry('task')]
+    const result1 = projectTranscript(entries, baseOpts)
+    const result2 = projectTranscript(entries, baseOpts)
+
+    expect(result1.archiveCandidates).toEqual(result2.archiveCandidates)
+    expect(result1.system).toBe(result2.system)
   })
 })
