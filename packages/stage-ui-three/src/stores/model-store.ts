@@ -6,7 +6,7 @@ import { computed, ref, watch } from 'vue'
 
 import defaultSkyBoxSrc from '../components/Environment/assets/sky_linekotsi_23_HDRI.hdr?url'
 
-import { useThreeViewControl } from './view-control'
+import { supportedControl, useThreeViewControl } from './view-control'
 
 // TODO: this is for future type injection features
 // TODO: make a separate type.ts
@@ -79,7 +79,7 @@ interface BroadcastChannelEventShouldUpdateView {
 
 const vrmViewUpdateRuntimeInstanceId = Math.random().toString(36).slice(2, 10)
 let vrmViewUpdateMessageSequence = 0
-const { cameraFOV, cameraDistance, modelOffset } = useThreeViewControl()
+const { cameraFOV, cameraDistance, modelOffset, reset: resetViewControl } = useThreeViewControl()
 
 export const useModelStore = defineStore('modelStore', () => {
   const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({ name: 'airi-stores-stage-ui-three-vrm' })
@@ -162,12 +162,10 @@ export const useModelStore = defineStore('modelStore', () => {
     lastCommittedModelSrc.value = ''
     modelSize.value = { x: 0, y: 0, z: 0 }
     modelOrigin.value = { x: 0, y: 0, z: 0 }
-    modelOffset.reset()
     modelRotationY.value = 0
 
-    cameraFOV.reset()
     cameraPosition.value = { x: 0, y: 0, z: 0 }
-    cameraDistance.reset()
+    supportedControl.forEach(c => resetViewControl(c))
 
     lookAtTarget.value = { x: 0, y: 0, z: 0 }
     trackingMode.value = 'none'

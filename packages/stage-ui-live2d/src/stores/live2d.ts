@@ -3,7 +3,7 @@ import { useBroadcastChannel } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 
-import { useL2dViewControl } from './view-control'
+import { supportedControl, useL2dViewControl } from './view-control'
 
 type BroadcastChannelEvents
   = | BroadcastChannelEventShouldUpdateView
@@ -62,17 +62,16 @@ export const useLive2d = defineStore('live2d', () => {
   const currentMotion = useLocalStorageManualReset<{ group: string, index?: number }>('settings/live2d/current-motion', () => ({ group: 'Idle', index: 0 }))
   const availableMotions = useLocalStorageManualReset<{ motionName: string, motionIndex: number, fileName: string }[]>('settings/live2d/available-motions', () => [])
   const motionMap = useLocalStorageManualReset<Record<string, string>>('settings/live2d/motion-map', {})
-  const { position, scale } = useL2dViewControl()
+  const { position, scale, reset: resetViewControl } = useL2dViewControl()
 
   // Live2D model parameters
   const modelParameters = useLocalStorageManualReset<Record<string, number>>('settings/live2d/parameters', defaultModelParameters)
 
   function resetState() {
-    position.reset()
+    supportedControl.forEach(c => resetViewControl(c))
     currentMotion.reset()
     availableMotions.reset()
     motionMap.reset()
-    scale.reset()
     modelParameters.reset()
     shouldUpdateView()
   }
