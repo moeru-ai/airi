@@ -227,6 +227,11 @@ function isCompleteToolInteraction(block: ToolInteractionBlock): boolean {
   if (toolCalls.length === 0)
     return false
 
+  // Reject duplicate assistant tool_call IDs (provider hallucination)
+  const uniqueToolCallIds = new Set(toolCalls.map(tc => tc.id))
+  if (uniqueToolCallIds.size !== toolCalls.length)
+    return false
+
   const resultIds = new Set(
     block.toolResults
       .map(result => result.toolCallId)

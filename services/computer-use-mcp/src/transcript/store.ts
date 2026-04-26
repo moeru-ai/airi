@@ -167,7 +167,7 @@ export class TranscriptStore {
   /**
    * Get entries by id range (inclusive). Useful for targeted projection.
    */
-  getRange(fromId: number, toId: number): TranscriptEntry[] {
+  getRange(fromId: number, toId: number): readonly TranscriptEntry[] {
     return this.entries.filter(e => e.id >= fromId && e.id <= toId)
   }
 
