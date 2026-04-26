@@ -216,3 +216,22 @@ If those four facts are stale, the next agent will lose time re-deriving context
 - Keep provider-specific behavior in AIRI / `packages/stage-ui/**`.
 - Keep OS-executor and workflow orchestration logic here.
 - Do not expand this workstream into browser, native click/type/press, or VS Code productization until terminal lane is actually closed.
+
+## Agent Operating Guardrails
+
+- Keep changes narrow and evidence-backed.
+- Keep documentation/config changes separate from runtime logic changes.
+- Do not touch desktop overlay, Electron bridge, Chrome extension, MCP handler registration, workspace memory, verification gate, or shell guard unless the task explicitly requires it.
+- Keep planning, archive eligibility, compaction text, provider message emission, and runner semantics separate unless evidence requires a cross-layer change.
+- Prefer pure helpers for shared contracts.
+- Add regression tests for boundary behavior.
+- Do not broaden refactors without evidence.
+- Do not treat parser-level coverage as proof that projected provider messages are valid; add projector-level tests when the final message shape is the contract.
+
+## Agent Report Checklist
+
+- Exact files changed.
+- Exact test command.
+- Exit code.
+- Relevant pass/fail output.
+- Remaining risks and why they are out of scope.
