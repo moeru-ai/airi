@@ -1,5 +1,6 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
+import type { DisplayPointResolution, MultiDisplaySnapshot } from '../display'
 import type {
   ActionInvocation,
   ComputerUseConfig,
@@ -11,7 +12,6 @@ import type {
   TerminalCommandResult,
   TerminalState,
 } from '../types'
-import type { DisplayPointResolution, MultiDisplaySnapshot } from '../display'
 import type { ComputerUseServerRuntime } from './runtime'
 
 import { normalizeConfiguredAppAction } from '../app-aliases'

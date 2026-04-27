@@ -1,5 +1,5 @@
-import type { ComputerUseConfig } from './types'
 import type { MultiDisplaySnapshot } from './display'
+import type { ComputerUseConfig } from './types'
 
 import { describe, expect, it } from 'vitest'
 

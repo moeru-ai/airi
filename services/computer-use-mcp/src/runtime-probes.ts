@@ -1,3 +1,4 @@
+import type { MultiDisplaySnapshot } from './display'
 import type {
   ComputerUseConfig,
   CoordinateSpaceInfo,
@@ -7,7 +8,6 @@ import type {
   PermissionInfo,
   PermissionProbe,
 } from './types'
-import type { MultiDisplaySnapshot } from './display'
 
 import { hostname } from 'node:os'
 import { basename } from 'node:path'
