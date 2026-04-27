@@ -470,12 +470,14 @@ describe('desktop_click_target handler integration', () => {
 
   it('falls back to OS click when the connected extension transport is read-only', async () => {
     const sm = new RunStateManager()
+    const iframeAbsoluteBounds = { x: 456, y: 390, width: 90, height: 32 }
     const candidate = makeCandidate({
       id: 't_0',
       source: 'chrome_dom',
       selector: '#login-btn',
-      frameId: 0,
+      frameId: 7,
       isPageContent: true,
+      bounds: iframeAbsoluteBounds,
     })
     sm.updateGroundingSnapshot(freshSnapshot([candidate]))
 
@@ -494,7 +496,13 @@ describe('desktop_click_target handler integration', () => {
     expect(result.executionRoute).toBe('os_input')
     expect(result.routeReason).toContain('does not support getClickTarget + clickAt')
     expect(bridge.clickSelector).not.toHaveBeenCalled()
-    expect(executor.click).toHaveBeenCalledOnce()
+    expect(executor.click).toHaveBeenCalledWith({
+      x: 501,
+      y: 406,
+      button: 'left',
+      clickCount: 1,
+    })
+    expect(result.text).toContain('Point: (501, 406)')
   })
 
   // -----------------------------------------------------------------------
