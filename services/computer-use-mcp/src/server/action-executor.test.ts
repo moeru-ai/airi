@@ -108,6 +108,49 @@ function createRuntimeForActionTest(configOverrides: Partial<ComputerUseConfig> 
   }
 }
 
+function createMultiDisplayInfo() {
+  return createDisplayInfo({
+    platform: 'darwin',
+    logicalWidth: 1512,
+    logicalHeight: 982,
+    pixelWidth: 3024,
+    pixelHeight: 1964,
+    scaleFactor: 2,
+    isRetina: true,
+    displayCount: 2,
+    displays: [
+      {
+        displayId: 1,
+        isMain: true,
+        isBuiltIn: true,
+        bounds: { x: 0, y: 0, width: 1512, height: 982 },
+        visibleBounds: { x: 0, y: 65, width: 1512, height: 884 },
+        scaleFactor: 2,
+        pixelWidth: 3024,
+        pixelHeight: 1964,
+      },
+      {
+        displayId: 3,
+        isMain: false,
+        isBuiltIn: false,
+        bounds: { x: -222, y: -1080, width: 1920, height: 1080 },
+        visibleBounds: { x: -222, y: -1080, width: 1920, height: 1080 },
+        scaleFactor: 1,
+        pixelWidth: 1920,
+        pixelHeight: 1080,
+      },
+    ],
+    combinedBounds: { x: -222, y: -1080, width: 1920, height: 2062 },
+    capturedAt: '2026-04-27T00:00:00.000Z',
+  })
+}
+
+function createCombinedDisplayBoundsConfig() {
+  return {
+    allowedBounds: { x: -222, y: -1080, width: 1920, height: 2062 },
+  }
+}
+
 describe('createExecuteAction', () => {
   it('executes desktop_click_target through the shared policy and audit pipeline', async () => {
     const { runtime, executor, session, stateManager } = createRuntimeForActionTest()
@@ -650,5 +693,100 @@ describe('createExecuteAction', () => {
     expect(result.isError).not.toBe(true)
     expect(executor.typeText).toHaveBeenCalledOnce()
     expect(browserDomBridge.setInputValue).not.toHaveBeenCalled()
+  })
+
+  it('records main-display metadata while preserving original global logical click coordinates', async () => {
+    const { runtime, executor } = createRuntimeForActionTest(createCombinedDisplayBoundsConfig())
+    executor.getDisplayInfo.mockResolvedValue(createMultiDisplayInfo())
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'click', input: { x: 100, y: 50, button: 'left', captureAfter: false } }, 'desktop_click')
+
+    expect(result.isError).not.toBe(true)
+    expect(executor.click).toHaveBeenCalledWith(expect.objectContaining({
+      x: 100,
+      y: 50,
+      pointerTrace: expect.arrayContaining([
+        expect.objectContaining({ x: 100, y: 50 }),
+      ]),
+    }))
+
+    const structured = result.structuredContent as Record<string, any>
+    expect(structured.backendResult.displayPoint).toMatchObject({
+      coordinateSpace: 'global-logical',
+      global: { x: 100, y: 50 },
+      displayId: 1,
+      local: { x: 100, y: 50 },
+      backingPixel: { x: 200, y: 100 },
+      scaleFactor: 2,
+    })
+  })
+
+  it('accepts negative-coordinate external display clicks and records display-local metadata', async () => {
+    const { runtime, executor } = createRuntimeForActionTest(createCombinedDisplayBoundsConfig())
+    executor.getDisplayInfo.mockResolvedValue(createMultiDisplayInfo())
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'click', input: { x: -100, y: -500, captureAfter: false } }, 'desktop_click')
+
+    expect(result.isError).not.toBe(true)
+    expect(executor.click).toHaveBeenCalledWith(expect.objectContaining({
+      x: -100,
+      y: -500,
+      pointerTrace: expect.arrayContaining([
+        expect.objectContaining({ x: -100, y: -500 }),
+      ]),
+    }))
+
+    const structured = result.structuredContent as Record<string, any>
+    expect(structured.backendResult.displayPoint).toMatchObject({
+      coordinateSpace: 'global-logical',
+      global: { x: -100, y: -500 },
+      displayId: 3,
+      local: { x: 122, y: 580 },
+      backingPixel: { x: 122, y: 580 },
+      scaleFactor: 1,
+    })
+  })
+
+  it('rejects clicks outside connected display bounds before executor dispatch', async () => {
+    const { runtime, executor } = createRuntimeForActionTest({
+      allowedBounds: { x: -10_000, y: -10_000, width: 20_000, height: 20_000 },
+    })
+    executor.getDisplayInfo.mockResolvedValue(createMultiDisplayInfo())
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'click', input: { x: 2000, y: 500, captureAfter: false } }, 'desktop_click')
+
+    expect(result.isError).toBe(true)
+    expect(executor.click).not.toHaveBeenCalled()
+    expect((result.content[0] as { text: string }).text).toContain('outside connected display bounds')
+  })
+
+  it('uses the same display resolver for type_text preparatory clicks', async () => {
+    const { runtime, executor } = createRuntimeForActionTest(createCombinedDisplayBoundsConfig())
+    executor.getDisplayInfo.mockResolvedValue(createMultiDisplayInfo())
+    executor.typeText.mockResolvedValue({
+      performed: true,
+      backend: 'dry-run' as const,
+      notes: [],
+    })
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'type_text', input: { text: 'hello', x: -100, y: -500, captureAfter: false } }, 'desktop_type_text')
+
+    expect(result.isError).not.toBe(true)
+    expect(executor.click).toHaveBeenCalledWith(expect.objectContaining({
+      x: -100,
+      y: -500,
+    }))
+    expect(executor.typeText).toHaveBeenCalledTimes(1)
+
+    const structured = result.structuredContent as Record<string, any>
+    expect(structured.backendResult.focusDisplayPoint).toMatchObject({
+      displayId: 3,
+      local: { x: 122, y: 580 },
+      backingPixel: { x: 122, y: 580 },
+    })
   })
 })

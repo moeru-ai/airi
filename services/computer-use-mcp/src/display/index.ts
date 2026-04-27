@@ -1,3 +1,13 @@
 export { enumerateDisplays, formatDisplaySummary } from './enumerate'
-export { findDisplayForPoint, toDisplayLocalCoord, toGlobalCoord } from './types'
-export type { DisplayDescriptor, MultiDisplaySnapshot } from './types'
+export {
+  findDisplayForPoint,
+  resolveDisplayPoint,
+  toBackingPixelCoord,
+  toDisplayLocalCoord,
+  toGlobalCoord,
+} from './types'
+export type {
+  DisplayDescriptor,
+  DisplayPointResolution,
+  MultiDisplaySnapshot,
+} from './types'
