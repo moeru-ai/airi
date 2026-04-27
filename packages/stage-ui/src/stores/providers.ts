@@ -18,6 +18,7 @@ import type {
   VoiceProviderWithExtraOptions,
 } from 'unspeech'
 
+import type { ProviderOnboardingField } from '../libs/providers/types'
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 
 import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
@@ -114,6 +115,7 @@ export interface ProviderMetadata {
    */
   iconImage?: string
   defaultOptions?: () => Record<string, unknown>
+  onboardingFields?: ProviderOnboardingField[]
   createProvider: (
     config: Record<string, unknown>,
   ) =>
@@ -173,6 +175,9 @@ export interface ProviderMetadata {
     supportsStreamOutput: boolean
     supportsStreamInput: boolean
   }
+  pricing?: 'free' | 'paid' | 'internal'
+  deployment?: 'local' | 'cloud'
+  beginnerRecommended?: boolean
 }
 
 export interface ModelInfo {

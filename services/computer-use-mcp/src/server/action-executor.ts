@@ -4,6 +4,7 @@ import type {
   ActionInvocation,
   ComputerUseConfig,
   DesktopExecutor,
+  ForegroundContext,
   PolicyDecision,
   ScreenshotArtifact,
   TerminalCommandResult,
@@ -12,6 +13,8 @@ import type {
 import type { ComputerUseServerRuntime } from './runtime'
 
 import { normalizeConfiguredAppAction } from '../app-aliases'
+import { decideBrowserTypeAction } from '../browser-action-router'
+import { isBrowserDomActionSupported } from '../browser-dom/capabilities'
 import { evaluateActionPolicy } from '../policy'
 import { getRuntimePreflight } from '../preflight'
 import { buildCoordinateSpaceInfo } from '../runtime-probes'
@@ -31,6 +34,7 @@ import {
   maskEnvValuePreview,
   readEnvValue,
 } from '../utils/env-file'
+import { executeDesktopClickTarget } from './desktop-grounding-actions'
 import { describeExecutionTarget } from './formatters'
 import { refreshRuntimeRunState } from './refresh-run-state'
 import {
@@ -115,10 +119,41 @@ function toTerminalStateContent(state: TerminalState) {
   }
 }
 
+function getPolicyEvaluationContext(params: {
+  action: ActionInvocation
+  actualContext: ForegroundContext
+  runtime: ComputerUseServerRuntime
+}): ForegroundContext {
+  if (params.action.kind !== 'desktop_click_target') {
+    return params.actualContext
+  }
+
+  const activeSession = params.runtime.desktopSessionController.getSession()
+  if (!activeSession?.controlledApp) {
+    return params.actualContext
+  }
+
+  if (params.actualContext.available && params.actualContext.appName === activeSession.controlledApp) {
+    return params.actualContext
+  }
+
+  return {
+    available: true,
+    appName: activeSession.controlledApp,
+    platform: params.actualContext.platform,
+  }
+}
+
 export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteAction {
   return async (action, toolName, options = {}) => {
     const normalizedAction = normalizeConfiguredAppAction(action, runtime.config.openableApps)
-    const { executionTarget, context, displayInfo } = await refreshRuntimeRunState(runtime)
+    const { executionTarget, context: actualContext, displayInfo } = await refreshRuntimeRunState(runtime)
+    const context = getPolicyEvaluationContext({
+      action: normalizedAction,
+      actualContext,
+      runtime,
+    })
+    const actualForegroundContext = context === actualContext ? undefined : actualContext
 
     const budget = runtime.session.getBudgetState()
     const preflight = getRuntimePreflight({
@@ -157,6 +192,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         executionTarget,
         displayInfo,
         coordinateSpace: preflight.coordinateSpace,
+        actualForegroundContext,
       },
     })
 
@@ -253,6 +289,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       let backendResult: Record<string, unknown> = {}
       let clipboardStructuredContent: Record<string, unknown> | undefined
       let secretStructuredContent: Record<string, unknown> | undefined
+      let summaryOverride: string | undefined
 
       switch (normalizedAction.kind) {
         case 'screenshot': {
@@ -347,7 +384,11 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           break
         }
         case 'type_text': {
-          if (typeof normalizedAction.input.x === 'number' && typeof normalizedAction.input.y === 'number') {
+          const hasExplicitCoordinates
+            = typeof normalizedAction.input.x === 'number'
+              && typeof normalizedAction.input.y === 'number'
+
+          if (hasExplicitCoordinates) {
             const pointerTrace = buildPointerTrace({
               from: runtime.session.getPointerPosition(),
               to: { x: normalizedAction.input.x, y: normalizedAction.input.y },
@@ -371,10 +412,60 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
               throw new Error(`Preparatory click at (${normalizedAction.input.x}, ${normalizedAction.input.y}) failed before typing: ${msg}`)
             }
           }
-          const result = await runtime.executor.typeText(normalizedAction.input)
-          backendResult = {
-            ...backendResult,
-            ...result,
+
+          // Browser-dom type routing: if the last clicked grounding candidate
+          // is a chrome_dom text input, use setInputValue for DOM precision
+          let usedBrowserDom = false
+          const runState = runtime.stateManager.getState()
+          const lastSnapshot = runState.lastGroundingSnapshot
+          const lastClickedId = runState.lastClickedCandidateId
+          if (!hasExplicitCoordinates && lastClickedId && lastSnapshot) {
+            const lastCandidate = lastSnapshot.targetCandidates.find(
+              c => c.id === lastClickedId,
+            )
+            if (lastCandidate) {
+              const bridgeConnected = runtime.browserDomBridge?.getStatus().connected ?? false
+              const typeDecision = decideBrowserTypeAction(lastCandidate, bridgeConnected)
+              if (
+                typeDecision.route === 'browser_dom'
+                && typeDecision.selector
+                && isBrowserDomActionSupported(runtime.browserDomBridge, 'setInputValue')
+              ) {
+                try {
+                  await runtime.browserDomBridge!.setInputValue({
+                    selector: typeDecision.selector,
+                    value: normalizedAction.input.text,
+                    simulateKeystrokes: false,
+                    blur: !normalizedAction.input.pressEnter,
+                    frameIds: typeDecision.frameId !== undefined
+                      ? [typeDecision.frameId]
+                      : undefined,
+                  })
+                  usedBrowserDom = true
+                  backendResult.browserDomRoute = {
+                    method: 'setInputValue',
+                    selector: typeDecision.selector,
+                    reason: typeDecision.reason,
+                  }
+                }
+                catch {
+                  // Fallback to OS typeText below
+                }
+              }
+            }
+          }
+
+          if (!usedBrowserDom) {
+            const result = await runtime.executor.typeText(normalizedAction.input)
+            backendResult = {
+              ...backendResult,
+              ...result,
+            }
+          }
+
+          // Handle pressEnter even when browser-dom was used
+          if (usedBrowserDom && normalizedAction.input.pressEnter) {
+            await runtime.executor.pressKeys({ keys: ['Return'] })
           }
           break
         }
@@ -459,6 +550,12 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           }
           break
         }
+        case 'desktop_click_target': {
+          const result = await executeDesktopClickTarget(runtime, normalizedAction.input)
+          backendResult = result.backendResult
+          summaryOverride = result.summary
+          break
+        }
       }
 
       runtime.session.consumeOperation(decision.estimatedOperationUnits)
@@ -506,7 +603,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       })
 
       return buildSuccessResponse({
-        summary: `${intent} ${outcome}${advisorySummary ? ` Strategy: ${advisorySummary}` : ''}`,
+        summary: summaryOverride ?? `${intent} ${outcome}${advisorySummary ? ` Strategy: ${advisorySummary}` : ''}`,
         screenshot,
         structuredContent: {
           status: 'executed',

@@ -1,5 +1,5 @@
-import { env } from 'node:process'
-import { createInterface, exit, stdin, stdout } from 'node:readline'
+import { env, exit, stdin, stdout } from 'node:process'
+import { createInterface } from 'node:readline'
 
 // TODO(@nekomeowww): try now to directly embed binary / base64, even tests. `xz` warned us.
 const tinyPngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wn8vO0AAAAASUVORK5CYII='

@@ -8,6 +8,7 @@ import { ComboboxSelect } from '@proj-airi/ui/components/form'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
 
 import CardCreate from './components/CardCreate.vue'
 import CardCreationDialog from './components/CardCreationDialog.vue'
@@ -20,10 +21,15 @@ const cardStore = useAiriCardStore()
 const { addCard, removeCard } = cardStore
 const { cards, activeCardId } = storeToRefs(cardStore)
 
+const route = useRoute()
+const router = useRouter()
+
 // Currently selected card ID (different from active card ID)
 const selectedCardId = ref<string>('')
 // Currently editing card ID
 const editingCardId = ref<string>('')
+// Initial tab to open in the dialog
+const initialTabId = ref<string>('')
 // Dialog state
 const isCardDialogOpen = ref(false)
 const isCardCreationDialogOpen = ref(false)
@@ -151,8 +157,46 @@ function activateCard(id: string) {
 watch(isCardCreationDialogOpen, (isOpen) => {
   if (!isOpen) {
     editingCardId.value = ''
+    initialTabId.value = ''
   }
 })
+
+// Clear initial tab when detail dialog closes
+watch(isCardDialogOpen, (isOpen) => {
+  if (!isOpen) {
+    initialTabId.value = ''
+  }
+})
+
+// Handle deep-linking from query params
+watch(() => [route.query.cardId, route.query.tab], ([cardId, tab]) => {
+  if (!cardId || typeof cardId !== 'string' || !cards.value.has(cardId))
+    return
+
+  const targetTab = typeof tab === 'string' ? tab : ''
+  selectedCardId.value = cardId
+  initialTabId.value = targetTab
+
+  // Gallery or other viewing tabs go to Detail dialog
+  if (['gallery', 'description', 'notes', 'character'].includes(targetTab)) {
+    isCardDialogOpen.value = true
+    isCardCreationDialogOpen.value = false
+  }
+  // Artistry or other editing tabs go to Creation/Edit dialog
+  else if (['artistry', 'identity', 'behavior', 'modules', 'settings'].includes(targetTab)) {
+    editingCardId.value = cardId
+    isCardCreationDialogOpen.value = true
+    isCardDialogOpen.value = false
+  }
+  else {
+    // Default to detail if tab is unknown
+    isCardDialogOpen.value = true
+    isCardCreationDialogOpen.value = false
+  }
+
+  // Clear query params to prevent re-triggering and keep URL clean
+  void router.replace({ query: {} })
+}, { immediate: true })
 
 // Card version number
 function getVersionNumber(id: string) {
@@ -305,12 +349,14 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
   <CardDetailDialog
     v-model="isCardDialogOpen"
     :card-id="selectedCardId"
+    :initial-tab="initialTabId"
   />
 
   <!-- Card creation/edit dialog -->
   <CardCreationDialog
     v-model="isCardCreationDialogOpen"
     :card-id="editingCardId"
+    :initial-tab="initialTabId"
   />
 
   <!-- Background decoration -->

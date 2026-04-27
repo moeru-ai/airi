@@ -66,6 +66,7 @@ interface MockState {
   activeSessionId: Ref<string>
   sessionMessages: Ref<Record<string, Array<{ role: string, content: string }>>>
   sessionMetas: Ref<Record<string, unknown>>
+  applyRemoteSnapshot: ReturnType<typeof vi.fn>
   setSessionMessages: ReturnType<typeof vi.fn>
   getSessionMessages: ReturnType<typeof vi.fn>
   ingest: ReturnType<typeof vi.fn>
@@ -78,7 +79,7 @@ vi.mock('@proj-airi/stage-ui/stores/chat/session-store', () => ({
     activeSessionId: mockState.activeSessionId,
     sessionMessages: mockState.sessionMessages,
     sessionMetas: mockState.sessionMetas,
-    applyRemoteSnapshot: vi.fn(),
+    applyRemoteSnapshot: mockState.applyRemoteSnapshot,
     getSnapshot: vi.fn(() => ({
       activeSessionId: mockState.activeSessionId.value,
       sessionMessages: mockState.sessionMessages.value,
@@ -147,6 +148,15 @@ describe('useChatSyncStore authority ingest failures', async () => {
       'session-1': [{ role: 'system', content: 'init' }],
     })
     const sessionMetas = ref<Record<string, unknown>>({})
+    const applyRemoteSnapshot = vi.fn((snapshot: {
+      activeSessionId: string
+      sessionMessages: Record<string, Array<{ role: string, content: string }>>
+      sessionMetas: Record<string, unknown>
+    }) => {
+      activeSessionId.value = snapshot.activeSessionId
+      sessionMessages.value = snapshot.sessionMessages
+      sessionMetas.value = snapshot.sessionMetas
+    })
 
     const setSessionMessages = vi.fn((sessionId: string, next: Array<{ role: string, content: string }>) => {
       sessionMessages.value[sessionId] = next
@@ -162,6 +172,7 @@ describe('useChatSyncStore authority ingest failures', async () => {
       activeSessionId,
       sessionMessages,
       sessionMetas,
+      applyRemoteSnapshot,
       setSessionMessages,
       getSessionMessages,
       ingest,
@@ -209,6 +220,150 @@ describe('useChatSyncStore authority ingest failures', async () => {
     expect(persistedMessages[1]?.content).toContain('This model is not available in your region')
 
     peer.close()
+    store.dispose()
+  })
+
+  /**
+   * @example
+   * it('replaces the last failed turn before retrying', async () => {
+   *   // authority receives retry command for trailing user -> error pair
+   *   // authoritative session removes that failed turn before re-ingesting the user text
+   * })
+   */
+  it('replaces the last failed turn before retrying', async () => {
+    mockState.sessionMessages.value['session-1'] = [
+      { role: 'system', content: 'init' },
+      { role: 'user', content: 'hello-1' },
+      { role: 'assistant', content: 'answer-1' },
+      { role: 'user', content: 'hello' },
+      { role: 'error', content: 'Remote sent 400 response' },
+      { role: 'user', content: 'hello-3' },
+      { role: 'assistant', content: 'answer-3' },
+    ]
+    mockState.ingest.mockResolvedValueOnce(undefined)
+
+    const store = useChatSyncStore()
+    store.initialize('authority')
+
+    const peer = new MockBroadcastChannel('airi:stage-tamagotchi:chat-sync')
+    peer.postMessage({
+      type: 'command',
+      requestId: 'req-2',
+      senderId: 'peer',
+      command: 'retry',
+      payload: {
+        sessionId: 'session-1',
+        index: 4,
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(mockState.setSessionMessages).toHaveBeenCalledWith('session-1', [
+        { role: 'system', content: 'init' },
+        { role: 'user', content: 'hello-1' },
+        { role: 'assistant', content: 'answer-1' },
+      ])
+      expect(mockState.ingest).toHaveBeenCalledWith('hello', expect.any(Object), 'session-1')
+    })
+
+    const persistedMessages = mockState.sessionMessages.value['session-1']
+    expect(persistedMessages).toEqual([
+      { role: 'system', content: 'init' },
+      { role: 'user', content: 'hello-1' },
+      { role: 'assistant', content: 'answer-1' },
+    ])
+
+    peer.close()
+    store.dispose()
+  })
+
+  /**
+   * @example
+   * it('rewinds from the source user turn when retry targets an assistant message', async () => {
+   *   // future assistant retry still trims the whole tail from its originating user turn
+   * })
+   */
+  it('rewinds from the source user turn when retry targets an assistant message', async () => {
+    mockState.sessionMessages.value['session-1'] = [
+      { role: 'system', content: 'init' },
+      { role: 'user', content: 'hello-1' },
+      { role: 'assistant', content: 'answer-1' },
+      { role: 'user', content: 'hello-2' },
+      { role: 'assistant', content: 'answer-2' },
+      { role: 'user', content: 'hello-3' },
+    ]
+    mockState.ingest.mockResolvedValueOnce(undefined)
+
+    const store = useChatSyncStore()
+    store.initialize('authority')
+
+    const peer = new MockBroadcastChannel('airi:stage-tamagotchi:chat-sync')
+    peer.postMessage({
+      type: 'command',
+      requestId: 'req-3',
+      senderId: 'peer',
+      command: 'retry',
+      payload: {
+        sessionId: 'session-1',
+        index: 4,
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(mockState.setSessionMessages).toHaveBeenCalledWith('session-1', [
+        { role: 'system', content: 'init' },
+        { role: 'user', content: 'hello-1' },
+        { role: 'assistant', content: 'answer-1' },
+      ])
+      expect(mockState.ingest).toHaveBeenCalledWith('hello-2', expect.any(Object), 'session-1')
+    })
+
+    peer.close()
+    store.dispose()
+  })
+
+  /**
+   * @example
+   * it('keeps the follower chat window on its local session while applying remote snapshots', async () => {
+   *   // follower already displays session-2
+   *   // authority snapshot arrives with session-1 as active
+   *   // follower keeps session-2 selected but still receives session-2 message updates
+   * })
+   */
+  it('keeps the follower chat window on its local session while applying remote snapshots', async () => {
+    mockState.activeSessionId.value = 'session-2'
+    mockState.sessionMessages.value = {
+      'session-2': [{ role: 'system', content: 'chat-window' }],
+    }
+
+    const store = useChatSyncStore()
+    store.initialize('follower')
+
+    const authority = new MockBroadcastChannel('airi:stage-tamagotchi:chat-sync')
+    authority.postMessage({
+      type: 'session-snapshot',
+      authorityId: 'authority',
+      snapshot: {
+        activeSessionId: 'session-1',
+        sessionMessages: {
+          'session-1': [{ role: 'system', content: 'main-window' }],
+          'session-2': [{ role: 'system', content: 'chat-window' }, { role: 'user', content: 'retry me' }],
+        },
+        sessionMetas: {},
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(mockState.applyRemoteSnapshot).toHaveBeenCalledTimes(1)
+    })
+
+    expect(mockState.activeSessionId.value).toBe('session-2')
+    expect(mockState.sessionMessages.value['session-2']).toEqual([
+      { role: 'system', content: 'chat-window' },
+      { role: 'user', content: 'retry me' },
+    ])
+
+    authority.close()
     store.dispose()
   })
 })

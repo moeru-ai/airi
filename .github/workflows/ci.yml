@@ -1,5 +1,4 @@
 name: CI
-
 on:
   push:
     branches:
@@ -23,6 +22,20 @@ jobs:
           node-version: lts/*
           cache: pnpm
 
+    # Setup .NET for Godot C# linting
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+    # Lint Godot C# code
+      - name: Lint Godot C#
+        working-directory: ./engines/stage-tamagotchi-godot
+        run: dotnet format stage-tamagotchi-godot.sln --verify-no-changes
+
+      - run: docker run -v `pwd`:`pwd` -w `pwd` ghcr.io/realm/swiftlint:latest
+        working-directory: ./apps/stage-pocket
+
       - run: pnpm install --frozen-lockfile
       - run: pnpm run lint
       - run: docker run -v `pwd`:`pwd` -w `pwd` ghcr.io/realm/swiftlint:latest
@@ -39,6 +52,9 @@ jobs:
 
           - app_name: stage-tamagotchi
             command: pnpm -F @proj-airi/stage-tamagotchi run build
+            
+          - app_name: stage-tamagotchi-godot
+            command: cd engines/stage-tamagotchi-godot && dotnet restore && dotnet build -c ExportRelease
 
           - app_name: ui-transitions
             command: pnpm -F @proj-airi/ui-transitions run play:build
@@ -65,11 +81,33 @@ jobs:
           node-version: lts/*
           cache: pnpm
 
+      # Setup .NET and Godot
+      - name: Setup .NET
+        if: matrix.app_name == 'stage-tamagotchi-godot'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Setup Godot
+        if: matrix.app_name == 'stage-tamagotchi-godot'
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.6.2
+          use-dotnet: true
+          include-templates: true
+
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build:packages
 
       - name: Build App
         run: ${{ matrix.command }}
+
+      - name: Export Godot Linux sidecar
+        if: matrix.app_name == 'stage-tamagotchi-godot'
+        working-directory: ./engines/stage-tamagotchi-godot
+        run: |
+          mkdir -p build/linux
+          godot --headless --export-release "Linux" build/linux/godot-stage
 
   typecheck:
     name: Type Check

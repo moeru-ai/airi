@@ -29,6 +29,13 @@ docs:
   'logging-in': Connexion en cours...
   'account': Compte
   'logout': Compte
+widgets:
+  close: Close widget
+  empty:
+    title: No widget active
+    description: Widgets will appear here when a tool or plugin spawns one.
+  loading: Loading widget…
+  waiting: Waiting for widget data for "{id}"…
 notice:
   'fade-on-hover':
     title: Disparaître au survol

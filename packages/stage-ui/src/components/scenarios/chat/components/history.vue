@@ -19,6 +19,7 @@ const props = withDefaults(defineProps<{
   assistantLabel?: string
   userLabel?: string
   errorLabel?: string
+  retryLabel?: string
   variant?: 'desktop' | 'mobile'
 }>(), {
   sending: false,
@@ -28,6 +29,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   (e: 'copyMessage', payload: { message: ChatHistoryItem, index: number, key: string | number }): void
   (e: 'deleteMessage', payload: { message: ChatHistoryItem, index: number, key: string | number }): void
+  (e: 'retryMessage', payload: { message: ChatHistoryItem, index: number, key: string | number }): void
 }>()
 
 const chatHistoryRef = ref<HTMLDivElement>()
@@ -38,6 +40,7 @@ const labels = computed(() => ({
   assistant: props.assistantLabel ?? t('stage.chat.message.character-name.airi'),
   user: props.userLabel ?? t('stage.chat.message.character-name.you'),
   error: props.errorLabel ?? t('stage.chat.message.character-name.core-system'),
+  retry: props.retryLabel ?? t('stage.chat.actions.retry'),
 }))
 
 const streaming = computed<ChatAssistantMessage & { context?: ContextMessage } & { createdAt?: number }>(() => props.streamingMessage ?? { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now() })
@@ -86,6 +89,14 @@ function emitDeleteMessage(message: ChatHistoryItem, index: number) {
     key: getChatHistoryItemKey(message, index),
   })
 }
+
+function emitRetryMessage(message: ChatHistoryItem, index: number) {
+  emit('retryMessage', {
+    message,
+    index,
+    key: getChatHistoryItemKey(message, index),
+  })
+}
 </script>
 
 <template>
@@ -100,9 +111,12 @@ function emitDeleteMessage(message: ChatHistoryItem, index: number) {
           v-if="message.role === 'error'"
           :message="message"
           :label="labels.error"
+          :retry-label="labels.retry"
+          :can-retry="renderMessages[index - 1]?.role === 'user'"
           :show-placeholder="sending && index === renderMessages.length - 1"
           :variant="variant"
           @copy="emitCopyMessage(message, index)"
+          @retry="emitRetryMessage(message, index)"
           @delete="emitDeleteMessage(message, index)"
         />
         <ChatAssistantItem
