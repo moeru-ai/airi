@@ -68,6 +68,44 @@ signIn:
     terms: 服务条款
     and: 和
     privacy: 隐私政策
+profile:
+  title: 账号资料
+  description: 管理你的显示名和密码。
+  section:
+    profile: 个人资料
+    password: 密码
+  field:
+    email: 邮箱
+    emailVerified: 邮箱状态
+    createdAt: 加入时间
+  label:
+    verified: 已验证
+    unverified: 未验证
+  name:
+    label: 显示名
+    placeholder: 别人看到的名字
+  password:
+    currentLabel: 当前密码
+    currentPlaceholder: 输入当前密码
+    newLabel: 新密码
+    newPlaceholder: 至少 8 位
+    confirmLabel: 确认新密码
+    confirmPlaceholder: 再次输入新密码
+  action:
+    saveProfile: 保存修改
+    changePassword: 修改密码
+    signOut: 退出登录
+  message:
+    loading: 正在加载你的资料...
+    profileSaved: 资料已更新。
+    passwordChanged: 密码已修改。其他设备的登录会话已被注销。
+  error:
+    loadFailed: 无法加载你的资料。
+    saveFailed: 无法保存修改。
+    changePasswordFailed: 无法修改密码。
+    signOutFailed: 退出登录失败。
+    passwordMismatch: 两次输入的新密码不一致。
+    passwordSameAsCurrent: 新密码不能和当前密码相同。
 webCallback:
   title:
     signIn: 登录

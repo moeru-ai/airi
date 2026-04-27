@@ -112,6 +112,44 @@ resetPassword:
     fallback: We could not update your password.
     missingToken: Reset link is invalid or has expired.
     passwordMismatch: Password and confirmation do not match.
+profile:
+  title: Account profile
+  description: Manage your display name and password.
+  section:
+    profile: Profile
+    password: Password
+  field:
+    email: Email
+    emailVerified: Email status
+    createdAt: Joined
+  label:
+    verified: Verified
+    unverified: Unverified
+  name:
+    label: Display name
+    placeholder: How others see you
+  password:
+    currentLabel: Current password
+    currentPlaceholder: Enter your current password
+    newLabel: New password
+    newPlaceholder: At least 8 characters
+    confirmLabel: Confirm new password
+    confirmPlaceholder: Repeat your new password
+  action:
+    saveProfile: Save changes
+    changePassword: Change password
+    signOut: Sign out
+  message:
+    loading: Loading your profile...
+    profileSaved: Profile updated.
+    passwordChanged: Password changed. Other sessions have been signed out.
+  error:
+    loadFailed: We could not load your profile.
+    saveFailed: We could not save your changes.
+    changePasswordFailed: We could not change your password.
+    signOutFailed: We could not sign you out.
+    passwordMismatch: New password and confirmation do not match.
+    passwordSameAsCurrent: New password must differ from the current one.
 webCallback:
   title:
     signIn: Sign in

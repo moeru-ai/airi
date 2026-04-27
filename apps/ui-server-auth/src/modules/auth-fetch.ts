@@ -74,6 +74,50 @@ export async function postAuthJSON<T>(
 }
 
 /**
+ * GET `/api/auth<path>` and parse the response with `parse`.
+ *
+ * Use when:
+ * - Reading a Better Auth GET endpoint (e.g. `/get-session`) from the UI and
+ *   you want the same `credentials: include` + error-shape handling as
+ *   {@link postAuthJSON}.
+ *
+ * Expects:
+ * - `path` starts with a leading slash.
+ * - `parse` runs only on 2xx responses; non-2xx throws with the server message.
+ *
+ * Returns:
+ * - Whatever `parse` returns. Throws an `Error` on non-2xx with the server's
+ *   `message` / `error.message` field when present.
+ */
+export async function getAuthJSON<T>(
+  base: AuthFetchBase,
+  path: string,
+  parse: (data: unknown, response: Response) => T,
+): Promise<T> {
+  const fetchImpl = base.fetchImpl ?? fetch
+  const endpoint = new URL(`/api/auth${path}`, base.apiServerUrl)
+
+  const response = await fetchImpl(endpoint.toString(), {
+    method: 'GET',
+    credentials: 'include',
+  })
+
+  let data: unknown
+  try {
+    data = await response.json()
+  }
+  catch {
+    data = null
+  }
+
+  if (!response.ok) {
+    throw new Error(extractAuthError(data) ?? `Auth request failed (${response.status})`)
+  }
+
+  return parse(data, response)
+}
+
+/**
  * Pull a human-readable error string out of a Better Auth JSON error response.
  *
  * Before:

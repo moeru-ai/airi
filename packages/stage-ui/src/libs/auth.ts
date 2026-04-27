@@ -113,7 +113,16 @@ export async function signOut() {
   const idTokenHint = authStore.idToken
   const clientId = authStore.oidcClientId
 
+  // Optimistic logout — clear all client state synchronously so the UI
+  // (router guards, isAuthenticated watchers, logout hooks) can react in the
+  // same tick. The end-session round-trip below was previously awaited which
+  // gave a ~2s perceived stall on click; since the call is already
+  // best-effort (we swallow errors), it doesn't need to block the user.
   authStore.clearOIDCState()
+  authStore.user = null
+  authStore.session = null
+  authStore.token = null
+  authStore.refreshToken = null
 
   // NOTICE:
   // OIDC RP-Initiated Logout (`/api/auth/oauth2/end-session`) is the
@@ -129,22 +138,17 @@ export async function signOut() {
   // Requires the trusted OIDC client to be seeded with `enableEndSession: true`,
   // which also gates whether the issued ID token carries the `sid` claim.
   // Source: node_modules/@better-auth/oauth-provider/dist/index.mjs L996+
+  //
+  // Fire-and-forget: the user has already been logged out locally; this is
+  // best-effort server-side session cleanup. If it fails (offline, server
+  // down) the worst case is the server-side session row is orphaned until
+  // its TTL expires — better-auth will reject it on next use anyway.
   if (idTokenHint && clientId) {
-    try {
-      const url = new URL('/api/auth/oauth2/end-session', SERVER_URL)
-      url.searchParams.set('id_token_hint', idTokenHint)
-      url.searchParams.set('client_id', clientId)
-      await fetch(url.toString(), { method: 'GET' })
-    }
-    catch {
-      // Swallow — local cleanup below ensures the user is signed out client-side.
-    }
+    const url = new URL('/api/auth/oauth2/end-session', SERVER_URL)
+    url.searchParams.set('id_token_hint', idTokenHint)
+    url.searchParams.set('client_id', clientId)
+    fetch(url.toString(), { method: 'GET', keepalive: true }).catch(() => {})
   }
-
-  authStore.user = null
-  authStore.session = null
-  authStore.token = null
-  authStore.refreshToken = null
 }
 
 /**

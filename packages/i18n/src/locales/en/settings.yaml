@@ -161,6 +161,49 @@ pages:
     fluxBalance: Flux Balance
     viewFluxDetails: View details
     signedInAs: Signed in as
+    profile:
+      tab: Profile
+      title: Profile
+      description: Manage your public display name.
+      name:
+        label: Display name
+        placeholder: How others see you
+      action:
+        save: Save changes
+      message:
+        saved: Profile updated.
+      error:
+        fallback: We could not save your changes.
+    security:
+      tab: Security
+      title: Security
+      description: Change your password. Your other devices will be signed out.
+      currentPassword:
+        label: Current password
+        placeholder: Enter your current password
+      newPassword:
+        label: New password
+        placeholder: At least 8 characters
+      confirmPassword:
+        label: Confirm new password
+        placeholder: Repeat your new password
+      action:
+        changePassword: Change password
+      message:
+        changed: Password changed. Other sessions have been signed out.
+      error:
+        fallback: We could not change your password.
+        passwordMismatch: New password and confirmation do not match.
+        passwordSameAsCurrent: New password must differ from the current one.
+    danger:
+      tab: Danger Zone
+      title: Danger Zone
+      description: Irreversible account actions live here.
+      deleteAccount:
+        title: Delete account
+        description: Permanently remove your account, sessions, and personal data.
+        action: Delete
+        notAvailable: Coming soon — contact support to delete your account today.
   card:
     activate: Activate
     active: Active
