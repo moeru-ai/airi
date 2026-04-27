@@ -34,18 +34,24 @@
   ],
   "scripts": {
     "build": "tsdown",
+    "eval:run": "vieval run --config ./vieval.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@moeru/std": "catalog:",
+    "@proj-airi/pipelines-audio": "workspace:^",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/server-shared": "workspace:^",
     "@xsai-ext/providers": "catalog:",
+    "@xsai/generate-speech": "catalog:",
+    "@xsai/generate-text": "catalog:",
     "@xsai/model": "catalog:",
+    "@xsai/shared": "catalog:",
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
     "@xsai/tool": "catalog:",
     "nanoid": "^5.1.9",
+    "vieval": "catalog:",
     "xsschema": "catalog:",
     "zod": "^4.3.6"
   },
