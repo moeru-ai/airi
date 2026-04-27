@@ -170,7 +170,9 @@ export function setupMemorySyncRuntime(options: SetupMemorySyncRuntimeOptions): 
   async function tick() {
     const currentTime = options.now ? options.now() : Date.now()
     uploadedScopeKeys.clear()
-    await agent.tick()
+    if (uploadRuntime.getStatus().mode !== 'disabled') {
+      await agent.tick()
+    }
     await pullEligiblePatches(currentTime)
     pruneUploadedTurnsBeyondRetention(currentTime)
   }

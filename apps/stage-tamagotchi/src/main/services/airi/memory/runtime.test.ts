@@ -274,6 +274,67 @@ describe('memory sync runtime', () => {
     repository.close()
   })
 
+  it('does not mark raw turns uploaded when uploader is disabled in patch-only mode', async () => {
+    const tempDatabase = createTempDatabasePath()
+    cleanupCallbacks.push(tempDatabase.cleanup)
+    const repository = createMemoryRepository({ databasePath: tempDatabase.databasePath })
+    repository.initialize()
+
+    const scope = {
+      characterId: 'character-a',
+      sessionId: 'session-a',
+      userId: 'user-a',
+    }
+
+    for (let turnNumber = 1; turnNumber <= 4; turnNumber += 1) {
+      repository.appendTurn({
+        createdAt: turnNumber * 1_000,
+        rawPayload: { order: turnNumber },
+        role: 'user',
+        scope,
+        text: `turn-${turnNumber}`,
+        turnId: `turn-${turnNumber}`,
+      })
+    }
+
+    const runtime = setupMemorySyncRuntime({
+      config: {
+        patch: {
+          authToken: 'token',
+          enabled: true,
+          endpointUrl: 'https://example.com/memory/patch',
+          pullIntervalMs: 1_000,
+          requestTimeoutMs: 10_000,
+          retryDelayMs: 30_000,
+        },
+        uploader: {
+          authToken: null,
+          enabled: false,
+          endpointUrl: null,
+          requestTimeoutMs: 10_000,
+        },
+      },
+      fetchImpl: vi.fn(async () => ({
+        json: async () => ({ scope }),
+        ok: true,
+        status: 200,
+      })) as unknown as typeof fetch,
+      now: () => 10_000,
+      repository,
+    })
+
+    await runtime.tick()
+
+    expect(repository.listPendingRawTurns({ scope }).map(turn => turn.turnId)).toEqual([
+      'turn-1',
+      'turn-2',
+      'turn-3',
+      'turn-4',
+    ])
+
+    repository.close()
+  })
+
   it('completes one upload then pull cycle and updates local summary and facts', async () => {
     vi.useFakeTimers()
 
