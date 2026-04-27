@@ -455,7 +455,13 @@ export function registerPtyTools({ server, runtime }: RegisterPtyToolsOptions) {
         // --- Hygiene Heuristics ---
         const content = session.screenContent || ''
         const lines = content.split('\n')
-        const lastLine = lines.at(-1) || ''
+        let lastLine = ''
+        for (let index = lines.length - 1; index >= 0; index -= 1) {
+          if (lines[index].trim().length > 0) {
+            lastLine = lines[index]
+            break
+          }
+        }
 
         // 1. Pagination Nudge
         const pagination = detectPagination(content)

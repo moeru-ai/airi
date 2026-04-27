@@ -11,18 +11,31 @@ describe('terminal-heuristics', () => {
       expect(result?.suggestedAction).toBe('press_space')
     })
 
+    it('detects ANSI-styled --More-- prompts', () => {
+      const content = 'line 1\nline 2\n\u001B[7m--More--\u001B[0m'
+      const result = detectPagination(content)
+      expect(result).toBeDefined()
+      expect(result?.suggestedAction).toBe('press_space')
+    })
+
     it('detects (END) markers', () => {
-      const content = 'some log content\n(END)'
+      const content = 'some log content\n\u001B[7m(END)\u001B[0m\n'
       const result = detectPagination(content)
       expect(result).toBeDefined()
       expect(result?.suggestedAction).toBe('press_q')
     })
 
-    it('detects trailing colon in pagers', () => {
-      const content = 'long file content line 100\n:'
+    it('detects trailing colon only with pager context', () => {
+      const content = 'Manual page printf(1) line 1\n:'
       const result = detectPagination(content)
       expect(result).toBeDefined()
       expect(result?.suggestedAction).toBe('press_q')
+    })
+
+    it('ignores bare trailing colon without pager context', () => {
+      const content = 'ordinary command output\n:'
+      const result = detectPagination(content)
+      expect(result).toBeUndefined()
     })
 
     it('returns undefined for normal output', () => {
@@ -36,6 +49,10 @@ describe('terminal-heuristics', () => {
     it('extracts path from bash/zsh default style', () => {
       expect(extractCwdFromPrompt('alice@wonderland:~/rabbit-hole$ ')).toBe('~/rabbit-hole')
       expect(extractCwdFromPrompt('root@localhost:/etc# ')).toBe('/etc')
+    })
+
+    it('extracts path from ANSI-styled prompts', () => {
+      expect(extractCwdFromPrompt('\u001B[32malice@wonderland\u001B[0m:\u001B[34m~/rabbit-hole\u001B[0m$ ')).toBe('~/rabbit-hole')
     })
 
     it('extracts path from CentOS/brackets style', () => {
