@@ -153,6 +153,75 @@ describe('memory sync runtime', () => {
     repository.close()
   })
 
+  it('does not start overlapping automatic ticks while a previous tick is still running', async () => {
+    vi.useFakeTimers()
+
+    const tempDatabase = createTempDatabasePath()
+    cleanupCallbacks.push(tempDatabase.cleanup)
+    const repository = createMemoryRepository({ databasePath: tempDatabase.databasePath })
+    repository.initialize()
+
+    for (let turnNumber = 1; turnNumber <= 4; turnNumber += 1) {
+      repository.appendTurn({
+        createdAt: turnNumber * 1_000,
+        rawPayload: { order: turnNumber },
+        role: 'user',
+        scope: {
+          characterId: 'character-a',
+          sessionId: 'session-a',
+          userId: 'user-a',
+        },
+        text: `turn-${turnNumber}`,
+        turnId: `turn-${turnNumber}`,
+      })
+    }
+
+    let resolveUpload: ((response: Response) => void) | undefined
+    const fetchImpl = vi.fn(() => new Promise<Response>((resolve) => {
+      resolveUpload = resolve
+    }))
+    const runtime = setupMemorySyncRuntime({
+      config: {
+        pollIntervalMs: 1_000,
+        uploader: {
+          enabled: true,
+          endpointUrl: 'https://example.com/memory/raw-turns',
+          authToken: 'token',
+          requestTimeoutMs: 10_000,
+        },
+      },
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      now: () => 10_000,
+      repository,
+    })
+
+    const startHook = onAppReadyMock.mock.calls[0]?.[0] as (() => void) | undefined
+
+    startHook?.()
+    await vi.advanceTimersByTimeAsync(1_000)
+    await vi.advanceTimersByTimeAsync(5_000)
+
+    expect(runtime.getStatus().running).toBe(true)
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+
+    resolveUpload?.({
+      ok: true,
+      status: 200,
+    } as Response)
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(repository.getSyncState({
+      scope: {
+        characterId: 'character-a',
+        sessionId: 'session-a',
+        userId: 'user-a',
+      },
+    })?.lastUploadedTurnId).toBe('turn-4')
+
+    runtime.stop()
+    repository.close()
+  })
+
   it('idle-driven periodic ticks can upload small pending batches', async () => {
     vi.useFakeTimers()
 

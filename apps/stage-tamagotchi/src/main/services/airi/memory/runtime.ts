@@ -114,7 +114,8 @@ export function setupMemorySyncRuntime(options: SetupMemorySyncRuntimeOptions): 
     },
   })
 
-  let intervalHandle: ReturnType<typeof setInterval> | undefined
+  let isRunning = false
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined
 
   function createScopeKey(scope: { userId: string, characterId: string, sessionId?: string | null }) {
     return `${scope.userId}::${scope.characterId}::${scope.sessionId ?? ''}`
@@ -175,26 +176,48 @@ export function setupMemorySyncRuntime(options: SetupMemorySyncRuntimeOptions): 
     pruneUploadedTurnsBeyondRetention(currentTime)
   }
 
+  function scheduleNextTick() {
+    if (!isRunning) {
+      return
+    }
+
+    timeoutHandle = setTimeout(() => {
+      timeoutHandle = undefined
+      void runScheduledTick()
+    }, config.pollIntervalMs)
+  }
+
+  async function runScheduledTick() {
+    try {
+      await tick()
+    }
+    finally {
+      scheduleNextTick()
+    }
+  }
+
   function start() {
-    if (intervalHandle) {
+    if (isRunning) {
       return
     }
     if (uploadRuntime.getStatus().mode === 'disabled' && patchRuntime.getStatus().mode === 'disabled') {
       return
     }
 
-    intervalHandle = setInterval(() => {
-      void tick()
-    }, config.pollIntervalMs)
+    isRunning = true
+    scheduleNextTick()
   }
 
   function stop() {
-    if (!intervalHandle) {
+    if (!isRunning && !timeoutHandle) {
       return
     }
 
-    clearInterval(intervalHandle)
-    intervalHandle = undefined
+    isRunning = false
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle)
+      timeoutHandle = undefined
+    }
   }
 
   onAppReady(() => {
@@ -210,7 +233,7 @@ export function setupMemorySyncRuntime(options: SetupMemorySyncRuntimeOptions): 
     getStatus() {
       return {
         patch: patchRuntime.getStatus(),
-        running: !!intervalHandle,
+        running: isRunning,
         uploader: uploadRuntime.getStatus(),
       }
     },

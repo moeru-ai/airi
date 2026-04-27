@@ -313,12 +313,14 @@ function runInTransaction<T>(database: DatabaseSync, work: () => T): T {
     return result
   }
   catch (error) {
-    if (database.isTransaction) {
-      database.exec('ROLLBACK')
-    }
+    database.exec('ROLLBACK')
 
     throw error
   }
+}
+
+function useExistingWhenUndefined<T>(nextValue: T | undefined, existingValue: T): T {
+  return nextValue === undefined ? existingValue : nextValue
 }
 
 /**
@@ -817,23 +819,23 @@ export function createMemoryRepository(options: MemoryRepositoryOptions): Memory
 
     preparedStatements.updateSyncStateStatement.run(
       currentRow.version + 1,
-      params.generatedFromTurnId ?? currentRow.generated_from_turn_id,
+      useExistingWhenUndefined(params.generatedFromTurnId, currentRow.generated_from_turn_id),
       params.syncCheckpoint,
       params.lastLocalTurnCheckpoint,
-      params.lastSyncedTurnId ?? currentRow.last_synced_turn_id,
-      params.lastSyncedAt ?? currentRow.last_synced_at,
-      params.lastUploadedTurnId ?? currentRow.last_uploaded_turn_id,
-      params.lastUploadAt ?? currentRow.last_upload_at,
+      useExistingWhenUndefined(params.lastSyncedTurnId, currentRow.last_synced_turn_id),
+      useExistingWhenUndefined(params.lastSyncedAt, currentRow.last_synced_at),
+      useExistingWhenUndefined(params.lastUploadedTurnId, currentRow.last_uploaded_turn_id),
+      useExistingWhenUndefined(params.lastUploadAt, currentRow.last_upload_at),
       params.lastAppliedSummaryVersion ?? currentRow.last_applied_summary_version,
-      params.lastAppliedGeneratedFromTurnId ?? currentRow.last_applied_generated_from_turn_id,
+      useExistingWhenUndefined(params.lastAppliedGeneratedFromTurnId, currentRow.last_applied_generated_from_turn_id),
       params.lastAppliedTurnCheckpoint ?? currentRow.last_applied_turn_checkpoint,
-      params.lastPullAt ?? currentRow.last_pull_at,
-      params.nextPullAt ?? currentRow.next_pull_at,
+      useExistingWhenUndefined(params.lastPullAt, currentRow.last_pull_at),
+      useExistingWhenUndefined(params.nextPullAt, currentRow.next_pull_at),
       params.pendingTurnCount,
       params.retryCount,
-      params.nextRetryAt ?? currentRow.next_retry_at,
+      useExistingWhenUndefined(params.nextRetryAt, currentRow.next_retry_at),
       params.state,
-      params.lastError ?? currentRow.last_error,
+      useExistingWhenUndefined(params.lastError, currentRow.last_error),
       params.updatedAt,
       currentRow.id,
     )

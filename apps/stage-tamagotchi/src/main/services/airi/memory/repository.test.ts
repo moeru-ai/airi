@@ -621,6 +621,99 @@ describe('memory repository', () => {
     repository.close()
   })
 
+  it('rolls back a patch transaction when a later write fails', () => {
+    const tempDatabase = createTempDatabasePath()
+    cleanupCallbacks.push(tempDatabase.cleanup)
+
+    const repository = createMemoryRepository({ databasePath: tempDatabase.databasePath })
+    repository.initialize()
+    const scope = {
+      characterId: 'character-a',
+      sessionId: 'session-a',
+      userId: 'user-a',
+    }
+
+    repository.appendTurn({
+      createdAt: 1_000,
+      rawPayload: { text: 'source' },
+      role: 'user',
+      scope,
+      text: 'source',
+      turnId: 'turn-source',
+    })
+
+    expect(() => repository.applyMemoryPatch({
+      nextPullAt: 3_000,
+      patch: {
+        factsPatch: [
+          {
+            confidence: 1,
+            factKey: null as unknown as string,
+            factValue: 'invalid',
+            generatedFromTurnId: 'turn-source',
+          },
+        ],
+        scope,
+        summaryPatch: {
+          confidence: 1,
+          generatedFromTurnId: 'turn-source',
+          summaryMarkdown: 'Should roll back',
+          summaryVersion: 1,
+        },
+      },
+      pulledAt: 2_000,
+    })).toThrow()
+
+    const promptContext = repository.readPromptContext({ scope })
+    expect(promptContext.profileSummary).toBeNull()
+    expect(promptContext.stableFacts).toEqual([])
+    expect(repository.getSyncState({ scope })?.lastPullAt ?? null).toBeNull()
+
+    repository.close()
+  })
+
+  it('clears nullable sync error fields when a later update passes null explicitly', () => {
+    const tempDatabase = createTempDatabasePath()
+    cleanupCallbacks.push(tempDatabase.cleanup)
+
+    const repository = createMemoryRepository({ databasePath: tempDatabase.databasePath })
+    repository.initialize()
+    const scope = {
+      characterId: 'character-a',
+      sessionId: 'session-a',
+      userId: 'user-a',
+    }
+
+    repository.appendTurn({
+      createdAt: 1_000,
+      rawPayload: { text: 'source' },
+      role: 'user',
+      scope,
+      text: 'source',
+      turnId: 'turn-source',
+    })
+    repository.recordRawTurnUploadFailure({
+      error: 'upload failed',
+      failedAt: 2_000,
+      nextRetryAt: 3_000,
+      scope,
+    })
+
+    expect(repository.getSyncState({ scope })?.lastError).toBe('upload failed')
+
+    repository.applyMemoryPatch({
+      nextPullAt: 5_000,
+      patch: { scope },
+      pulledAt: 4_000,
+    })
+
+    const syncState = repository.getSyncState({ scope })
+    expect(syncState?.lastError).toBeNull()
+    expect(syncState?.nextRetryAt).toBe(3_000)
+
+    repository.close()
+  })
+
   it('applies a newer memory patch and updates summary, facts, memory cards, and sync state', () => {
     const tempDatabase = createTempDatabasePath()
     cleanupCallbacks.push(tempDatabase.cleanup)
