@@ -4,8 +4,10 @@ import { Capacitor } from '@capacitor/core'
 import { createAuthClient } from 'better-auth/vue'
 
 import { useAuthStore } from '../stores/auth'
+import { completeOIDCCallbackUrl } from './auth-callback'
 import { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } from './auth-config'
-import { buildAuthorizationURL, persistFlowState } from './auth-oidc'
+import { buildAuthorizationURL, consumeFlowState, exchangeCodeForTokens, persistFlowState } from './auth-oidc'
+import { openNativeAuthSession } from './native-auth'
 import { isNgrokServerUrl, SERVER_URL } from './server'
 
 export type OAuthProvider = 'google' | 'github'
@@ -191,27 +193,30 @@ export async function signInOIDC(params: OIDCFlowParams) {
   const { url, flowState } = await buildAuthorizationURL(params)
   persistFlowState(flowState, params)
 
-  if (!params.provider) {
-    window.location.href = url
-    return
-  }
-
-  // better-auth's signIn.social() uses the fetch client; in Capacitor WKWebView
-  // that path often does not perform a real top-level navigation to the IdP.
-  // Match server /sign-in: full-page GET to social, then 302 to Google/GitHub.
-  let useFullPageSocial = false
+  let capacitorPlatform = 'web'
   try {
-    useFullPageSocial = Capacitor.isNativePlatform()
+    capacitorPlatform = Capacitor.getPlatform()
   }
   catch {
     // no Capacitor
   }
-  if (useFullPageSocial) {
-    // NOTICE: First request must be /api/auth/oauth2/authorize (not /sign-in/social):
-    // `ensureDynamicFirstPartyRedirectUri` only runs on authorize, so the LAN
-    // `redirect_uri` is written to `oauth_client` before login/social. Skipping
-    // authorize left social with an unregistered redirect and no Google 302.
+  if (capacitorPlatform === 'ios') {
+    const callbackUrl = await openNativeAuthSession(url.toString())
+    await completeOIDCCallbackUrl(callbackUrl, {
+      consumeFlowState,
+      exchangeCodeForTokens,
+      applyOIDCTokens,
+      fetchSession,
+    })
+    return
+  }
+  if (capacitorPlatform !== 'web') {
     window.location.assign(url.toString())
+    return
+  }
+
+  if (!params.provider) {
+    window.location.href = url
     return
   }
 

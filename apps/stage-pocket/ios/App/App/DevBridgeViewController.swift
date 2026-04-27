@@ -14,6 +14,7 @@ class DevBridgeViewController: CAPBridgeViewController {
 
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
+        bridge?.registerPluginInstance(AiriNativeAuthPlugin())
         configureTransparentBackground()
         webView?.allowsBackForwardNavigationGestures = true
         installWebSocketBridge()
