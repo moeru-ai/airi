@@ -75,8 +75,8 @@ export function modelKey(model: string, chatProvider: ChatProvider): string {
 }
 
 export function streamOptionsToolsCompatibilityOk(model: string, chatProvider: ChatProvider, options?: StreamOptions): boolean {
-  if (options?.supportsTools)
-    return true
+  if (options?.supportsTools !== undefined)
+    return options.supportsTools
   const key = modelKey(model, chatProvider)
   return options?.toolsCompatibility?.get(key) !== false
 }
@@ -89,8 +89,8 @@ export function streamOptionsToolsCompatibilityOk(model: string, chatProvider: C
  * {@link StreamOptions.contentArrayCompatibility}.
  */
 export function streamOptionsContentArrayCompatibilityOk(model: string, chatProvider: ChatProvider, options?: StreamOptions): boolean {
-  if (options?.supportsContentArray)
-    return true
+  if (options?.supportsContentArray !== undefined)
+    return options.supportsContentArray
   const key = modelKey(model, chatProvider)
   return options?.contentArrayCompatibility?.get(key) !== false
 }
