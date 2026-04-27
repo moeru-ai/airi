@@ -11,6 +11,7 @@ describe('tools/character/orchestrator/spark-notify', () => {
       onCommands: () => undefined,
     })
 
+    expect(tools).toHaveLength(2)
     for (const name of ['builtIn_sparkNoResponse', 'builtIn_sparkCommand']) {
       const entry = tools.find(tool => tool.function.name === name)
       expect(entry, `missing tool: ${name}`).toBeDefined()
@@ -92,5 +93,23 @@ describe('tools/character/orchestrator/spark-notify', () => {
     expect(schema.type).toBe('object')
     expect(schema.properties).toEqual({})
     expect(schema.additionalProperties).toBe(false)
+  })
+
+  it('can disable no-response and spark-command tools independently', async () => {
+    const onlyCommand = await createSparkNotifyTools({
+      onNoResponse: () => undefined,
+      onCommands: () => undefined,
+      allowNoResponse: false,
+      allowSparkCommand: true,
+    })
+    expect(onlyCommand.tools.map(tool => tool.function.name)).toEqual(['builtIn_sparkCommand'])
+
+    const none = await createSparkNotifyTools({
+      onNoResponse: () => undefined,
+      onCommands: () => undefined,
+      allowNoResponse: false,
+      allowSparkCommand: false,
+    })
+    expect(none.tools).toHaveLength(0)
   })
 })
