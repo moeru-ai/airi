@@ -88,6 +88,7 @@ interface CdpTargetInfo {
 export class CdpBridge {
   private socket?: WebSocket
   private heartbeatTimer?: NodeJS.Timeout
+  private awaitingHeartbeatPong = false
   private consecutiveHeartbeatFailures = 0
   private nextId = 1
   private pending = new Map<number, PendingCdpRequest>()
@@ -138,8 +139,12 @@ export class CdpBridge {
 
     await new Promise<void>((resolve, reject) => {
       const socket = new WebSocket(wsUrl)
+      let connectionSettled = false
 
       socket.on('open', () => {
+        if (connectionSettled)
+          return
+        connectionSettled = true
         this.socket = socket
         this.status.connected = true
         this.status.pageTitle = target.title
@@ -158,6 +163,7 @@ export class CdpBridge {
         if (this.socket !== socket)
           return
         this.consecutiveHeartbeatFailures = 0
+        this.awaitingHeartbeatPong = false
       })
 
       socket.on('close', () => {
@@ -167,9 +173,17 @@ export class CdpBridge {
       })
 
       socket.on('error', (error) => {
-        this.status.lastError = error instanceof Error ? error.message : String(error)
+        if (this.socket && this.socket !== socket)
+          return
+
+        const message = error instanceof Error ? error.message : String(error)
+        if (!this.socket && connectionSettled)
+          return
+
+        this.status.lastError = message
         if (!this.socket) {
-          reject(new Error(`CDP WebSocket connection failed: ${this.status.lastError}`))
+          connectionSettled = true
+          reject(new Error(`CDP WebSocket connection failed: ${message}`))
         }
       })
     })
@@ -187,6 +201,8 @@ export class CdpBridge {
   async close(): Promise<void> {
     this.clearHeartbeat()
     this.rejectPendingRequests('CDP bridge closed')
+    this.awaitingHeartbeatPong = false
+    this.consecutiveHeartbeatFailures = 0
 
     if (this.socket) {
       this.socket.close()
@@ -410,6 +426,7 @@ export class CdpBridge {
 
   private startHeartbeat() {
     this.clearHeartbeat()
+    this.awaitingHeartbeatPong = false
     this.consecutiveHeartbeatFailures = 0
 
     const intervalMs = this.config.heartbeatIntervalMs ?? 5_000
@@ -420,23 +437,27 @@ export class CdpBridge {
     }
 
     this.heartbeatTimer = setInterval(() => {
-      if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      const socket = this.socket
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
         this.handleSocketClosed('CDP heartbeat found closed WebSocket')
         return
       }
 
-      this.consecutiveHeartbeatFailures += 1
-      if (this.consecutiveHeartbeatFailures >= failureLimit) {
-        this.teardownAfterHeartbeatFailure()
-        return
+      if (this.awaitingHeartbeatPong) {
+        this.consecutiveHeartbeatFailures += 1
+        if (this.consecutiveHeartbeatFailures >= failureLimit) {
+          this.teardownAfterHeartbeatFailure()
+          return
+        }
       }
 
       try {
-        this.socket.ping()
+        socket.ping()
+        this.awaitingHeartbeatPong = true
       }
       catch (error) {
-        this.status.lastError = error instanceof Error ? error.message : String(error)
-        this.teardownAfterHeartbeatFailure()
+        const message = error instanceof Error ? error.message : String(error)
+        this.teardownAfterHeartbeatFailure(message)
       }
     }, intervalMs)
     this.heartbeatTimer.unref?.()
@@ -451,24 +472,27 @@ export class CdpBridge {
     this.heartbeatTimer = undefined
   }
 
-  private teardownAfterHeartbeatFailure() {
+  private teardownAfterHeartbeatFailure(reason?: string) {
     const failureLimit = this.config.heartbeatFailureLimit ?? 3
-    this.status.lastError = `CDP heartbeat failed after ${failureLimit} consecutive missed pongs`
+    this.status.lastError = reason ?? `CDP heartbeat failed after ${failureLimit} consecutive missed pongs`
     this.clearHeartbeat()
     this.rejectPendingRequests(this.status.lastError)
 
     const socket = this.socket
     this.socket = undefined
     this.status.connected = false
+    this.awaitingHeartbeatPong = false
     this.consecutiveHeartbeatFailures = 0
     socket?.terminate()
   }
 
   private handleSocketClosed(reason: string) {
+    this.status.lastError = reason
     this.clearHeartbeat()
     this.rejectPendingRequests(reason)
     this.socket = undefined
     this.status.connected = false
+    this.awaitingHeartbeatPong = false
     this.consecutiveHeartbeatFailures = 0
   }
 
