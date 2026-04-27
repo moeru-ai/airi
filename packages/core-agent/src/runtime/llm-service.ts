@@ -113,7 +113,19 @@ export async function streamFrom({
 
       // NOTICE: Consume underlying promises to prevent unhandled rejections from
       // @xsai/stream-text's SSE parser surfacing as faulted app state.
-      void streamResult.steps.catch((error) => {
+      // NOTICE:
+      // `streamText(...).steps` is the authoritative completion signal for the
+      // full streamed interaction, including tool-call rounds.
+      // Resolving only from `onEvent({ type: 'finish' })` is incorrect when
+      // `options?.waitForTools === true`, because providers can emit
+      // `finishReason: 'tool_calls'` or `finishReason: 'tool-calls'` before the
+      // tool round has fully settled.
+      // That misuse leaves the outer promise pending, which makes provider-backed
+      // eval tasks look like they stop mid-run and prevents later scheduled evals
+      // from starting.
+      // Keep `steps.then(resolveOnce)` so evaluation runners observe the real end
+      // of the stream lifecycle instead of an intermediate tool boundary.
+      void streamResult.steps.then(resolveOnce).catch((error) => {
         rejectOnce(error)
         console.error('Stream steps error:', error)
       })
