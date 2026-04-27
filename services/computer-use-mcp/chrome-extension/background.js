@@ -28,6 +28,8 @@ const AIRI_BRIDGE_HELLO = {
 }
 const BRIDGE_RECONNECT_MIN_MS = 1_000
 const BRIDGE_RECONNECT_MAX_MS = 10_000
+const SEND_CU_ACTION_TIMEOUT_MS = 8_000
+const WAIT_FOR_ELEMENT_POLL_INTERVAL_MS = 500
 
 let bridgeSocket = null
 let bridgeReconnectDelayMs = BRIDGE_RECONNECT_MIN_MS
@@ -182,7 +184,7 @@ async function sendCUAction(tabId, frameId, method, args) {
   return new Promise((resolve) => {
     const timeout = setTimeout(() => {
       resolve({ success: false, error: 'sendMessage timeout' })
-    }, 8000)
+    }, SEND_CU_ACTION_TIMEOUT_MS)
 
     try {
       chrome.tabs.sendMessage(
@@ -400,6 +402,9 @@ async function readAllFramesDOMWithOffsets(tabId, frameIds, opts) {
  * - findElements: find multiple elements by CSS selector
  * - getClickTarget: get center point of an element for click targeting
  * - getElementAttributes: get all attributes of an element
+ * - readInputValue: read the current value of an input/textarea/select
+ * - getComputedStyles: read computed CSS styles of an element
+ * - waitForElement: poll until a CSS selector matches in any frame
  */
 async function handleCommand(cmd) {
   const { action, id } = cmd
@@ -440,6 +445,91 @@ async function handleCommand(cmd) {
       case 'getElementAttributes':
         result = await runCUAction(tabId, cmd.frameIds || null, 'getElementAttributes', [cmd.selector || ''])
         break
+
+      case 'readInputValue':
+        result = await runCUAction(tabId, cmd.frameIds || null, 'readInputValue', [cmd.selector || ''])
+        break
+
+      case 'getComputedStyles':
+        result = await runCUAction(tabId, cmd.frameIds || null, 'getComputedStyles', [cmd.selector || '', cmd.properties || null])
+        break
+
+      case 'waitForElement': {
+        // Background-level polling: repeatedly call findElements until a match
+        // is found or the timeout expires. No DOM MutationObserver needed.
+        const selector = cmd.selector || ''
+        const timeoutMs = Math.min(Math.max(Number(cmd.timeoutMs) || 10_000, 500), 30_000)
+        const deadline = Date.now() + timeoutMs
+        let lastFrames = []
+        let lastPollError = ''
+        let lastFrameError = ''
+
+        result = await new Promise((resolve) => {
+          async function poll() {
+            try {
+              const frames = await runCUAction(tabId, cmd.frameIds || null, 'findElements', [selector, 1])
+              lastFrames = frames
+              const frameErrors = frames
+                .map(entry => unwrapBridgePayload(entry.result))
+                .filter(payload => payload && payload.success === false && typeof payload.error === 'string')
+                .map(payload => payload.error)
+              if (frameErrors.length > 0) {
+                lastFrameError = frameErrors.join('; ')
+              }
+
+              const found = frames.some((entry) => {
+                const payload = unwrapBridgePayload(entry.result)
+                return payload && payload.success && Array.isArray(payload.elements) && payload.elements.length > 0
+              })
+              if (found) {
+                resolve(frames)
+                return
+              }
+            }
+            catch (e) {
+              lastPollError = e?.message || String(e)
+            }
+
+            if (Date.now() >= deadline) {
+              if (lastFrames.length === 0) {
+                let frameIds = []
+                if (Array.isArray(cmd.frameIds) && cmd.frameIds.length > 0) {
+                  frameIds = cmd.frameIds
+                }
+                else if (typeof cmd.frameIds === 'number') {
+                  frameIds = [cmd.frameIds]
+                }
+                else {
+                  try {
+                    const frames = await chrome.webNavigation.getAllFrames({ tabId })
+                    frameIds = frames.map(frame => frame.frameId)
+                  }
+                  catch {
+                    frameIds = [0]
+                  }
+                }
+                lastFrames = frameIds.map(frameId => ({ frameId }))
+              }
+
+              const lastError = lastPollError || lastFrameError || undefined
+              resolve(lastFrames.map(entry => ({
+                frameId: entry.frameId,
+                result: {
+                  success: false,
+                  error: `timed out waiting for selector "${selector}"`,
+                  selector,
+                  timeoutMs,
+                  ...(lastError ? { lastError } : {}),
+                },
+              })))
+              return
+            }
+            setTimeout(poll, WAIT_FOR_ELEMENT_POLL_INTERVAL_MS)
+          }
+          poll()
+        })
+        break
+      }
 
       default:
         return { id, ok: false, error: `unknown action: ${action}` }
