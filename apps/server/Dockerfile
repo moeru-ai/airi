@@ -11,8 +11,7 @@ RUN corepack enable
 
 COPY . .
 
-RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
-    pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile
 
 RUN pnpm -F @proj-airi/ui-server-auth run build
 
@@ -34,8 +33,7 @@ COPY packages/server-schema packages/server-schema
 COPY packages/server-sdk-shared packages/server-sdk-shared
 COPY --from=ui-build /app/apps/server/public/ui-server-auth apps/server/public/ui-server-auth
 
-RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
-    pnpm install --frozen-lockfile --ignore-scripts
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 RUN pnpm -F @proj-airi/server-schema run build
 RUN pnpm -F @proj-airi/server-sdk-shared run build
