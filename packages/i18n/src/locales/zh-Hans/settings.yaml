@@ -147,11 +147,54 @@ pages:
     title: 账号
     description: 查看您的个人资料并管理您的帐户
     notLoggedIn: 登录以查看您的帐户并访问所有功能
-    login: Sign in
-    logout: Sign out
+    login: 登录
+    logout: 退出登录
     fluxBalance: 剩余通量
     viewFluxDetails: 查看详情
-    signedInAs: 登录 为
+    signedInAs: 已登录为
+    profile:
+      tab: 个人资料
+      title: 个人资料
+      description: 管理你公开显示的名字。
+      name:
+        label: 显示名
+        placeholder: 别人看到的名字
+      action:
+        save: 保存修改
+      message:
+        saved: 资料已更新。
+      error:
+        fallback: 无法保存修改。
+    security:
+      tab: 安全
+      title: 安全
+      description: 修改密码。其他设备的登录会话会被注销。
+      currentPassword:
+        label: 当前密码
+        placeholder: 输入当前密码
+      newPassword:
+        label: 新密码
+        placeholder: 至少 8 位
+      confirmPassword:
+        label: 确认新密码
+        placeholder: 再次输入新密码
+      action:
+        changePassword: 修改密码
+      message:
+        changed: 密码已修改。其他设备的登录会话已被注销。
+      error:
+        fallback: 无法修改密码。
+        passwordMismatch: 两次输入的新密码不一致。
+        passwordSameAsCurrent: 新密码不能和当前密码相同。
+    danger:
+      tab: 危险操作
+      title: 危险操作
+      description: 这里的操作不可撤销，请谨慎使用。
+      deleteAccount:
+        title: 删除账号
+        description: 永久删除你的账号、会话与个人数据。
+        action: 删除
+        notAvailable: 即将上线——如需立即删除账号请联系支持。
   card:
     activate: 激活
     active: 已激活
