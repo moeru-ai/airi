@@ -131,8 +131,7 @@ export function setupMemorySyncRuntime(options: SetupMemorySyncRuntimeOptions): 
       const scopeKey = createScopeKey(scope)
       const syncState = options.repository.getSyncState({ scope })
       const shouldPull = uploadedScopeKeys.has(scopeKey)
-        || !syncState?.lastPullAt
-        || ((syncState.nextPullAt ?? 0) <= currentTime)
+        || ((syncState?.nextPullAt ?? 0) <= currentTime)
 
       if (!shouldPull) {
         continue

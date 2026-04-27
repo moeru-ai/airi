@@ -540,25 +540,22 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
       await parser.end()
 
-      if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
+      const shouldPersistAssistantTurn = !isStaleGeneration() && buildingMessage.slices.length > 0
+      if (shouldPersistAssistantTurn) {
         chatSession.appendSessionMessage(sessionId, toRaw(buildingMessage))
-      }
 
-      await appendMemoryTurnSafely({
-        gateway: memoryGateway,
-        payload: {
-          createdAt: buildingMessage.createdAt ?? Date.now(),
-          rawPayload: null,
-          role: 'assistant',
-          scope: {
-            characterId: activeCardId.value || 'default',
-            sessionId,
-            userId: userId.value || 'local',
+        await appendMemoryTurnSafely({
+          gateway: memoryGateway,
+          payload: {
+            createdAt: buildingMessage.createdAt ?? Date.now(),
+            rawPayload: null,
+            role: 'assistant',
+            scope: memoryScope,
+            text: fullText,
+            turnId: buildingMessage.id ?? nanoid(),
           },
-          text: fullText,
-          turnId: buildingMessage.id ?? nanoid(),
-        },
-      })
+        })
+      }
 
       await hooks.emitStreamEndHooks(streamingMessageContext)
       await hooks.emitAssistantResponseEndHooks(fullText, streamingMessageContext)

@@ -22,6 +22,8 @@ const appendTurnMock = vi.fn()
 const createMemoryGatewayMock = vi.hoisted(() => vi.fn())
 
 const activeSessionIdRef = ref('session-1')
+const activeCardIdRef = ref('character-1')
+const userIdRef = ref('user-1')
 const streamingMessageRef = ref<any>({ role: 'assistant', content: '', slices: [], tool_results: [] })
 const sessionMessages: Record<string, any[]> = {}
 let currentGeneration = 1
@@ -184,7 +186,7 @@ vi.mock('./chat/stream-store', () => ({
 vi.mock('./modules/airi-card', () => ({
   useAiriCardStore: () => ({
     activeCard: undefined,
-    activeCardId: ref('character-1'),
+    activeCardId: activeCardIdRef,
   }),
 }))
 
@@ -196,7 +198,7 @@ vi.mock('./modules/artistry-autonomous', () => ({
 
 vi.mock('./auth', () => ({
   useAuthStore: () => ({
-    userId: ref('user-1'),
+    userId: userIdRef,
   }),
 }))
 
@@ -234,6 +236,8 @@ describe('chat orchestrator contract', () => {
     appendTurnMock.mockReset()
     createMemoryGatewayMock.mockReset()
     activeSessionIdRef.value = 'session-1'
+    activeCardIdRef.value = 'character-1'
+    userIdRef.value = 'user-1'
     streamingMessageRef.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
     currentGeneration = 1
 
@@ -510,6 +514,56 @@ describe('chat orchestrator contract', () => {
     )
 
     consoleErrorSpy.mockRestore()
+  })
+
+  it('does not persist a stale assistant generation into memory', async () => {
+    getContextsSnapshotMock.mockReturnValue({})
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+      await options.onStreamEvent({ type: 'text-delta', text: 'stale reply' })
+      currentGeneration = 2
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatOrchestratorStore()
+
+    await store.ingest('hello from user', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(appendTurnMock).toHaveBeenCalledTimes(1)
+    expect(appendTurnMock).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      role: 'user',
+      text: 'hello from user',
+    }))
+  })
+
+  it('persists assistant memory with the same scope captured for the user turn', async () => {
+    getContextsSnapshotMock.mockReturnValue({})
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+      activeCardIdRef.value = 'character-switched'
+      userIdRef.value = 'user-switched'
+      await options.onStreamEvent({ type: 'text-delta', text: 'scoped reply' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatOrchestratorStore()
+
+    await store.ingest('hello from user', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(appendTurnMock).toHaveBeenCalledTimes(2)
+    expect(appendTurnMock).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      role: 'assistant',
+      scope: {
+        characterId: 'character-1',
+        sessionId: 'session-1',
+        userId: 'user-1',
+      },
+      text: 'scoped reply',
+    }))
   })
 
   it('rejects cancelled queued sends before they start', async () => {

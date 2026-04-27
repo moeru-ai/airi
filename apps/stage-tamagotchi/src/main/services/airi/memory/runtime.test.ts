@@ -469,4 +469,72 @@ describe('memory sync runtime', () => {
 
     repository.close()
   })
+
+  it('respects patch retry delay after the first pull failure', async () => {
+    vi.useFakeTimers()
+
+    const tempDatabase = createTempDatabasePath()
+    cleanupCallbacks.push(tempDatabase.cleanup)
+    const repository = createMemoryRepository({ databasePath: tempDatabase.databasePath })
+    repository.initialize()
+
+    repository.appendTurn({
+      createdAt: 1_000,
+      rawPayload: { order: 1 },
+      role: 'user',
+      scope: {
+        characterId: 'character-a',
+        sessionId: 'session-a',
+        userId: 'user-a',
+      },
+      text: 'turn-1',
+      turnId: 'turn-1',
+    })
+    repository.markRawTurnsUploaded({
+      scope: {
+        characterId: 'character-a',
+        sessionId: 'session-a',
+        userId: 'user-a',
+      },
+      turnIds: ['turn-1'],
+      uploadedAt: 5_000,
+    })
+
+    let currentTime = 10_000
+    const fetchImpl = vi.fn(async () => {
+      throw new Error('pull failed')
+    })
+
+    const runtime = setupMemorySyncRuntime({
+      config: {
+        patch: {
+          authToken: 'token',
+          enabled: true,
+          endpointUrl: 'https://example.com/memory/patch',
+          pullIntervalMs: 1_000,
+          requestTimeoutMs: 10_000,
+          retryDelayMs: 30_000,
+        },
+        uploader: {
+          authToken: null,
+          enabled: false,
+          endpointUrl: null,
+          requestTimeoutMs: 10_000,
+        },
+      },
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      now: () => currentTime,
+      repository,
+    })
+
+    await runtime.tick()
+    currentTime = 20_000
+    await runtime.tick()
+    currentTime = 40_000
+    await runtime.tick()
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+
+    repository.close()
+  })
 })
