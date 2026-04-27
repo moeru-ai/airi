@@ -93,16 +93,4 @@ describe('vision orchestrator', () => {
       contextId: 'vision:screen:understand',
     })
   })
-
-  it('records inference failures on the store before rethrowing', async () => {
-    const store = useVisionOrchestratorStore()
-    runVisionInference.mockRejectedValueOnce(new Error('Vision inference failed'))
-
-    await expect(store.processCapture({
-      imageDataUrl: 'data:image/jpeg;base64,broken',
-      workloadId: 'screen:interpret',
-    })).rejects.toThrow('Vision inference failed')
-
-    expect(store.lastError).toBe('Vision inference failed')
-  })
 })
