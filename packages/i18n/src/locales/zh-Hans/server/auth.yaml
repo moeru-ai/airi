@@ -24,10 +24,45 @@ electronCallback:
     closeTabManually: 一些浏览器不允许自动关闭这个页面，你可以手动关掉它。
 signIn:
   title: 登录
+  step:
+    identify:
+      heading: 登录
+      description: 输入邮箱以登录或创建账号。
+    password:
+      heading: 欢迎回来
+      description: 以 {email} 继续。
+    create:
+      heading: 创建账号
+      description: 我们会为 {email} 创建一个新账号。
+  email:
+    label: 邮箱
+    placeholder: you{'@'}example.com
+  password:
+    label: 密码
+    placeholder: 你的密码
+  newPassword:
+    label: 设置密码
+    placeholder: 至少 8 位
+  confirmPassword:
+    label: 确认密码
+    placeholder: 再次输入密码
+  name:
+    label: 显示名
+    placeholder: 可选，默认使用邮箱前缀
+  action:
+    continue: 继续
+    signIn: 登录
+    createAccount: 创建账号
+    forgotPassword: 忘记密码？
+    useDifferentEmail: 换个邮箱
+  divider:
+    or: 或
   error:
     fallback: 登录失败
     unknown: 发生了未知错误
     authFailed: Authentication failed. Please try again.
+    passwordMismatch: 两次输入的密码不一致。
+    invalidEmail: 请输入有效的邮箱地址。
   footer:
     prefix: 继续之前，你需要同意我们的
     terms: 服务条款

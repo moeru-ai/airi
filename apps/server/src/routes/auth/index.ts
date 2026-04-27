@@ -6,13 +6,23 @@ import type { HonoEnv } from '../../types/hono'
 
 import { oauthProviderAuthServerMetadata, oauthProviderOpenIdConfigMetadata } from '@better-auth/oauth-provider'
 import { serveStatic } from '@hono/node-server/serve-static'
+import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 
 import { ensureDynamicFirstPartyRedirectUri } from '../../libs/auth'
 import { rateLimiter } from '../../middlewares/rate-limit'
+import { account, user } from '../../schemas/accounts'
+import { createBadRequestError } from '../../utils/error'
 import { getServerAuthUiDistDir, renderServerAuthUiHtml, SERVER_AUTH_UI_BASE_PATH } from '../../utils/server-auth-ui'
 import { createElectronCallbackRelay } from '../oidc/electron-callback'
 import { createOIDCTokenAuthRoute } from '../oidc/token-auth'
+
+// NOTICE:
+// Loose RFC-5322-ish regex used to fail fast on obviously malformed input.
+// Authoritative validation happens in better-auth on sign-in/sign-up;
+// this is just a pre-flight gate for the email-first identifier step so we
+// avoid hitting the DB with garbage.
+const EMAIL_SHAPE_RE = /^[^\s@]+@[^\s@][^\s.@]*\.[^\s@]+$/
 
 const RE_SERVER_AUTH_UI_BASE_PATH = /^\/_ui\/server-auth/
 
@@ -118,6 +128,53 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
      */
     .on('GET', '/api/auth/.well-known/openid-configuration', async (c) => {
       return oauthProviderOpenIdConfigMetadata(deps.auth)(c.req.raw)
+    })
+    /**
+     * Email-first identifier check.
+     *
+     * Powers the unified sign-in/up UI: the user types an email, the UI calls
+     * this to decide whether to render a password input (existing user with
+     * a credential account) or the new-account form (or steer them to a
+     * social provider when only social accounts exist).
+     *
+     * Returns:
+     * - `exists`: a `user` row matches the email (case-insensitive).
+     * - `hasPassword`: that user has an account row with `providerId='credential'`,
+     *   i.e. can sign in via email + password (vs. social-only).
+     *
+     * Account-enumeration tradeoff: this confirms whether an email is
+     * registered, mirroring the standard set by Google/Linear/Notion. We
+     * accept the disclosure since the existing rate limiter applied to
+     * `/api/auth/*` (`AUTH_RATE_LIMIT_MAX` per IP per window) already throttles
+     * enumeration attempts.
+     */
+    .on('POST', '/api/auth/check-email', async (c) => {
+      const body = await c.req.json().catch(() => null) as { email?: unknown } | null
+      const raw = typeof body?.email === 'string' ? body.email.trim() : ''
+      const email = raw.toLowerCase()
+
+      if (!email || !EMAIL_SHAPE_RE.test(email))
+        throw createBadRequestError('Invalid email', 'INVALID_EMAIL')
+
+      const [matched] = await deps.db
+        .select({ id: user.id })
+        .from(user)
+        .where(eq(user.email, email))
+        .limit(1)
+
+      if (!matched)
+        return c.json({ exists: false, hasPassword: false })
+
+      const [credential] = await deps.db
+        .select({ id: account.id })
+        .from(account)
+        .where(and(
+          eq(account.userId, matched.id),
+          eq(account.providerId, 'credential'),
+        ))
+        .limit(1)
+
+      return c.json({ exists: true, hasPassword: !!credential })
     })
     .on(['POST', 'GET'], '/api/auth/*', async (c) => {
       return handleAuthRequest(c.req.raw)

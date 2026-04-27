@@ -53,6 +53,15 @@ const EnvSchema = object({
   AUTH_GITHUB_CLIENT_ID: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_ID is required')),
   AUTH_GITHUB_CLIENT_SECRET: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_SECRET is required')),
 
+  // Resend transactional email. RESEND_API_KEY required when emailAndPassword
+  // sign-up / forgot-password / change-email / magic-link is exercised. Service
+  // boots without it but those flows will throw at send-time.
+  RESEND_API_KEY: optional(string(), ''),
+  // From address must be a verified Resend sender (e.g. `noreply@your-domain`).
+  RESEND_FROM_EMAIL: optional(string(), 'noreply@airi.moeru.ai'),
+  // Optional friendly name; rendered as `Name <email>` per Resend's RFC 5322 display-name format.
+  RESEND_FROM_NAME: optional(string(), 'Project AIRI'),
+
   STRIPE_SECRET_KEY: optional(string()),
   STRIPE_WEBHOOK_SECRET: optional(string()),
 

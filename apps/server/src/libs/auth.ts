@@ -1,3 +1,4 @@
+import type { EmailService } from '../services/email'
 import type { Database } from './db'
 import type { Env } from './env'
 import type { AuthMetrics } from './otel'
@@ -8,9 +9,10 @@ import { oauthProvider } from '@better-auth/oauth-provider'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { createAuthMiddleware } from 'better-auth/api'
-import { bearer, jwt } from 'better-auth/plugins'
+import { bearer, jwt, magicLink } from 'better-auth/plugins'
 import { eq } from 'drizzle-orm'
 
+import { ApiError } from '../utils/error'
 import { getAuthTrustedOrigins, getTrustedOrigin } from '../utils/origin'
 
 import * as authSchema from '../schemas/accounts'
@@ -30,6 +32,16 @@ interface TrustedClientSeed {
   tokenEndpointAuthMethod: 'none' | 'client_secret_post'
   requirePKCE: boolean
   skipConsent: boolean
+  /**
+   * Enables RP-Initiated Logout via `/api/auth/oauth2/end-session`.
+   *
+   * NOTICE: also gates whether the issued ID token carries the `sid` claim
+   * (see oauth-provider/dist/index.mjs L308: `sid: client.enableEndSession ? sessionId : void 0`).
+   * `sid` is required by the end-session handler, so this flag is the single
+   * switch that lets a Bearer-only OIDC client log out without depending on
+   * cross-site session cookies.
+   */
+  enableEndSession: boolean
 }
 
 export interface TrustedClientSeedSummary {
@@ -126,6 +138,7 @@ function buildTrustedClientSeeds(env: Env): TrustedClientSeed[] {
     tokenEndpointAuthMethod: 'none',
     requirePKCE: true,
     skipConsent: true,
+    enableEndSession: true,
   })
 
   // Electron desktop app — public client (installed app, PKCE only).
@@ -145,6 +158,7 @@ function buildTrustedClientSeeds(env: Env): TrustedClientSeed[] {
     tokenEndpointAuthMethod: 'none',
     requirePKCE: true,
     skipConsent: true,
+    enableEndSession: true,
   })
 
   // Capacitor mobile app — public client (no secret, PKCE only).
@@ -163,6 +177,7 @@ function buildTrustedClientSeeds(env: Env): TrustedClientSeed[] {
     tokenEndpointAuthMethod: 'none',
     requirePKCE: true,
     skipConsent: true,
+    enableEndSession: true,
   })
 
   return clients
@@ -273,6 +288,7 @@ export async function seedTrustedClients(db: Database, env: Env): Promise<void> 
       tokenEndpointAuthMethod: seed.tokenEndpointAuthMethod,
       requirePKCE: seed.requirePKCE,
       skipConsent: seed.skipConsent,
+      enableEndSession: seed.enableEndSession,
       updatedAt: new Date(),
     }
 
@@ -294,7 +310,28 @@ export async function seedTrustedClients(db: Database, env: Env): Promise<void> 
   }
 }
 
-export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null) {
+/**
+ * Throws when an email-driven Better Auth callback fires without an EmailService.
+ *
+ * NOTICE:
+ * `EmailService` is optional on `createAuth` so contexts that never exercise
+ * email flows (e.g. `pnpm run auth:generate` schema introspection) can run
+ * without a Resend key. Each callback that needs the service guards on it via
+ * `requireEmailService(email)`. The error is surfaced to the HTTP caller so
+ * the misconfiguration is loud instead of silent.
+ */
+function requireEmailService(email: EmailService | undefined): EmailService {
+  if (!email) {
+    throw new ApiError(
+      503,
+      'email/service_not_configured',
+      'Email service not available in this server context.',
+    )
+  }
+  return email
+}
+
+export function createAuth(db: Database, env: Env, email?: EmailService, metrics?: AuthMetrics | null) {
   return betterAuth({
     secret: env.BETTER_AUTH_SECRET,
 
@@ -312,6 +349,16 @@ export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null)
     plugins: [
       bearer(),
       jwt(),
+      magicLink({
+        // NOTICE: better-auth's magic-link callback receives a server-side
+        // verification URL ({baseURL}/magic-link/verify?token=...&callbackURL=...).
+        // The user clicks → server validates → 302s to callbackURL with session
+        // cookie set. UI page only needs to receive the redirect; no token
+        // handling required there.
+        async sendMagicLink({ email: address, url }) {
+          await requireEmailService(email).sendMagicLink({ to: address, url })
+        },
+      }),
       oauthProvider({
         loginPage: '/sign-in',
         consentPage: '/oauth/authorize',
@@ -328,6 +375,50 @@ export function createAuth(db: Database, env: Env, metrics?: AuthMetrics | null)
 
     emailAndPassword: {
       enabled: true,
+      // Block sign-in until the user proves they own the address. Social
+      // logins (Google/GitHub) bypass this because better-auth seeds
+      // emailVerified=true for OAuth-issued accounts.
+      requireEmailVerification: true,
+      async sendResetPassword({ user, url }) {
+        await requireEmailService(email).sendPasswordReset({ to: user.email, url })
+      },
+    },
+
+    emailVerification: {
+      // Trigger sendVerificationEmail automatically on sign-up so the frontend
+      // doesn't need to make a follow-up call. requireEmailVerification above
+      // already enforces this on its own, but sendOnSignUp keeps behavior
+      // explicit if requireEmailVerification ever gets toggled off.
+      sendOnSignUp: true,
+      // NOTICE: Establish a session cookie when the user clicks the
+      // verification link, so they don't have to re-enter the password they
+      // just chose. The original tab (still on the verify-email pending page)
+      // detects the new session via polling and resumes the OIDC handoff.
+      // Source: node_modules/better-auth/dist/api/routes/email-verification.mjs L268+
+      autoSignInAfterVerification: true,
+      async sendVerificationEmail({ user, url }) {
+        await requireEmailService(email).sendVerification({ to: user.email, url })
+      },
+    },
+
+    user: {
+      changeEmail: {
+        enabled: true,
+        // NOTICE:
+        // Better Auth fires sendChangeEmailConfirmation against the *current*
+        // email address before the change is committed. Send to user.email
+        // (current) so the owner of the existing account confirms the move;
+        // sending to newEmail would let an attacker who only controls newEmail
+        // confirm a takeover.
+        // Source: node_modules/better-auth/dist/api/routes/update-user.mjs L468-475
+        async sendChangeEmailConfirmation({ user, newEmail, url }) {
+          await requireEmailService(email).sendChangeEmailConfirmation({
+            to: user.email,
+            newEmail,
+            url,
+          })
+        },
+      },
     },
 
     session: {
