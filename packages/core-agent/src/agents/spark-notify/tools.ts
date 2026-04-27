@@ -35,6 +35,8 @@ export interface SparkNotifyCommandDraft {
 export interface CreateSparkNotifyToolsOptions {
   onCommands: (commands: SparkNotifyCommandDraft[]) => void
   onNoResponse: () => void
+  allowNoResponse?: boolean
+  allowSparkCommand?: boolean
 }
 
 /**
@@ -95,6 +97,9 @@ function normalizeSparkNotifyCommand(
  * - Tool array consumable by `@xsai/stream-text`
  */
 export async function createSparkNotifyTools(options: CreateSparkNotifyToolsOptions) {
+  const allowNoResponse = options.allowNoResponse ?? true
+  const allowSparkCommand = options.allowSparkCommand ?? true
+
   const sparkNoResponseTool = rawTool({
     name: 'builtIn_sparkNoResponse',
     description: 'Indicate that no response or action is needed for the current spark:notify event.',
@@ -125,8 +130,8 @@ export async function createSparkNotifyTools(options: CreateSparkNotifyToolsOpti
 
   return {
     tools: [
-      sparkNoResponseTool,
-      sparkCommandTool,
-    ],
+      allowNoResponse ? sparkNoResponseTool : undefined,
+      allowSparkCommand ? sparkCommandTool : undefined,
+    ].filter(tool => tool !== undefined),
   }
 }
