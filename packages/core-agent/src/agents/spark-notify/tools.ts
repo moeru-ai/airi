@@ -35,6 +35,18 @@ export interface SparkNotifyCommandDraft {
 export interface CreateSparkNotifyToolsOptions {
   onCommands: (commands: SparkNotifyCommandDraft[]) => void
   onNoResponse: () => void
+  /**
+   * Whether to expose the `builtIn_sparkNoResponse` tool.
+   *
+   * @default true
+   */
+  allowNoResponse?: boolean
+  /**
+   * Whether to expose the `builtIn_sparkCommand` tool.
+   *
+   * @default true
+   */
+  allowSparkCommand?: boolean
 }
 
 /**
@@ -95,38 +107,41 @@ function normalizeSparkNotifyCommand(
  * - Tool array consumable by `@xsai/stream-text`
  */
 export async function createSparkNotifyTools(options: CreateSparkNotifyToolsOptions) {
-  const sparkNoResponseTool = rawTool({
-    name: 'builtIn_sparkNoResponse',
-    description: 'Indicate that no response or action is needed for the current spark:notify event.',
-    parameters: normalizeNullableAnyOf(await toJsonSchema(z.object({}).strict()) as any),
-    execute: async () => {
-      options.onNoResponse()
-      return 'AIRI System: Acknowledged, no response or action will be processed.'
-    },
-  })
+  const { allowNoResponse = true, allowSparkCommand = true } = options
 
-  const sparkCommandTool = rawTool({
-    name: 'builtIn_sparkCommand',
-    description: 'Issue a spark:command to sub-agents. You can call this tool multiple times.',
-    parameters: normalizeNullableAnyOf(await toJsonSchema(sparkNotifyCommandSchema) as any),
-    execute: async (rawPayload) => {
-      try {
-        const payload = rawPayload as z.infer<typeof sparkNotifyCommandSchema>
-        const validated = await validate(sparkNotifyCommandSchema, payload)
-        options.onCommands(validated.commands.map(normalizeSparkNotifyCommand))
-      }
-      catch (error) {
-        return `AIRI System: Error - invalid spark_command parameters: ${errorMessageFrom(error)}`
-      }
+  const tools: Array<ReturnType<typeof rawTool>> = []
 
-      return 'AIRI System: Acknowledged, command fired.'
-    },
-  })
-
-  return {
-    tools: [
-      sparkNoResponseTool,
-      sparkCommandTool,
-    ],
+  if (allowNoResponse) {
+    tools.push(rawTool({
+      name: 'builtIn_sparkNoResponse',
+      description: 'Indicate that no response or action is needed for the current spark:notify event.',
+      parameters: normalizeNullableAnyOf(await toJsonSchema(z.object({}).strict()) as any),
+      execute: async () => {
+        options.onNoResponse()
+        return 'AIRI System: Acknowledged, no response or action will be processed.'
+      },
+    }))
   }
+
+  if (allowSparkCommand) {
+    tools.push(rawTool({
+      name: 'builtIn_sparkCommand',
+      description: 'Issue a spark:command to sub-agents. You can call this tool multiple times.',
+      parameters: normalizeNullableAnyOf(await toJsonSchema(sparkNotifyCommandSchema) as any),
+      execute: async (rawPayload) => {
+        try {
+          const payload = rawPayload as z.infer<typeof sparkNotifyCommandSchema>
+          const validated = await validate(sparkNotifyCommandSchema, payload)
+          options.onCommands(validated.commands.map(normalizeSparkNotifyCommand))
+        }
+        catch (error) {
+          return `AIRI System: Error - invalid spark_command parameters: ${errorMessageFrom(error)}`
+        }
+
+        return 'AIRI System: Acknowledged, command fired.'
+      },
+    }))
+  }
+
+  return { tools }
 }
