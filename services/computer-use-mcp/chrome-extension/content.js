@@ -243,6 +243,98 @@
         return { success: false, error: e.message }
       }
     },
+
+    /**
+     * Read the current value of an input, textarea, or select element.
+     * Returns value plus basic element metadata. Read-only: no DOM mutation.
+     */
+    readInputValue(selector) {
+      try {
+        const el = document.querySelector(selector)
+        if (!el)
+          return { success: false, error: 'not found' }
+
+        const tag = el.tagName.toLowerCase()
+        if (tag !== 'input' && tag !== 'textarea' && tag !== 'select')
+          return { success: false, error: 'element is not an input, textarea, or select' }
+
+        const type = typeof el.type === 'string' ? el.type : ''
+        const rawValue = String(el.value ?? '')
+        const isPassword = tag === 'input' && type.toLowerCase() === 'password'
+        const result = {
+          value: isPassword ? '[redacted]' : rawValue.slice(0, 60),
+          valueLength: rawValue.length,
+          valueRedacted: isPassword,
+          valueTruncated: !isPassword && rawValue.length > 60,
+          tag,
+          id: el.id || '',
+          name: el.name || '',
+          type,
+        }
+
+        if (tag === 'input' && (type === 'checkbox' || type === 'radio')) {
+          result.checked = !!el.checked
+        }
+
+        if (tag === 'select') {
+          result.selectedIndex = el.selectedIndex
+          result.selectedText = el.selectedIndex >= 0 && el.options[el.selectedIndex]
+            ? el.options[el.selectedIndex].text.slice(0, 120)
+            : ''
+        }
+
+        return { success: true, ...result }
+      }
+      catch (e) {
+        return { success: false, error: e.message }
+      }
+    },
+
+    /**
+     * Read computed CSS styles of an element.
+     * If `properties` is provided, return only those properties.
+     * Otherwise return a controlled default set to avoid dumping the full
+     * CSSStyleDeclaration (which can be multi-KB).
+     */
+    getComputedStyles(selector, properties) {
+      const DEFAULT_PROPERTIES = [
+        'display',
+        'visibility',
+        'opacity',
+        'position',
+        'width',
+        'height',
+        'color',
+        'background-color',
+        'font-size',
+        'font-family',
+        'overflow',
+        'z-index',
+        'pointer-events',
+        'cursor',
+      ]
+
+      try {
+        const el = document.querySelector(selector)
+        if (!el)
+          return { success: false, error: 'not found' }
+
+        const computed = window.getComputedStyle(el)
+        const props = Array.isArray(properties) && properties.length > 0
+          ? properties
+          : DEFAULT_PROPERTIES
+        const styles = Object.create(null)
+
+        for (const prop of props) {
+          styles[prop] = computed.getPropertyValue(prop)
+        }
+
+        return { success: true, styles }
+      }
+      catch (e) {
+        return { success: false, error: e.message }
+      }
+    },
   }
 
   window.__AIRI_DG__ = __AIRI_DG__
