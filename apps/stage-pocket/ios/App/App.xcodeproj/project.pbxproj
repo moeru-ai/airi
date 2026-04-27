@@ -20,6 +20,7 @@
 		504EC30F1FED79650016851F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
+		A1B2C3D42F10000100AA0007 /* AiriNativeAuthPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F10000100AA0008 /* AiriNativeAuthPlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -38,6 +39,7 @@
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
+		A1B2C3D42F10000100AA0008 /* AiriNativeAuthPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AiriNativeAuthPlugin.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -72,6 +74,7 @@
 		504EC3061FED79650016851F /* App */ = {
 			isa = PBXGroup;
 			children = (
+				A1B2C3D42F10000100AA0008 /* AiriNativeAuthPlugin.swift */,
 				29ABB4B92F03F2B400285F7F /* DevBridgeViewController.swift */,
 				A1B2C3D42F10000100AA0002 /* HostWebSocketBridge.swift */,
 				A1B2C3D42F10000100AA0004 /* URLSessionHostWebSocketSession.swift */,
@@ -171,6 +174,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
+				A1B2C3D42F10000100AA0007 /* AiriNativeAuthPlugin.swift in Sources */,
 				29ABB4BA2F03F2B400285F7F /* DevBridgeViewController.swift in Sources */,
 				A1B2C3D42F10000100AA0001 /* HostWebSocketBridge.swift in Sources */,
 				A1B2C3D42F10000100AA0003 /* URLSessionHostWebSocketSession.swift in Sources */,
