@@ -47,8 +47,8 @@ const signInContext = computed(() => createServerSignInContext(currentUrl, apiSe
 // Outside an OIDC flow signInContext.callbackURL is bare `/` which Better Auth
 // resolves against the API server origin (404). Fall back to the UI root so the
 // user lands somewhere useful.
-const uiHomeURL = `${window.location.origin}/_ui/server-auth/`
-const verifySuccessURL = `${window.location.origin}/_ui/server-auth/verify-email?verified=true`
+const uiHomeURL = `${window.location.origin}/auth/`
+const verifySuccessURL = `${window.location.origin}/auth/verify-email?verified=true`
 
 const effectiveCallbackURL = computed(() =>
   signInContext.value.callbackURL === '/' ? uiHomeURL : signInContext.value.callbackURL,

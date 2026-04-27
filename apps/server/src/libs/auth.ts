@@ -360,7 +360,13 @@ export function createAuth(db: Database, env: Env, email?: EmailService, metrics
         },
       }),
       oauthProvider({
-        loginPage: '/sign-in',
+        // Keep loginPage inside the ui-server-auth vue-router base (`/auth/`)
+        // so the OIDC redirect lands on a URL the SPA router actually owns.
+        // Without the prefix the address bar stays on bare `/sign-in`, which
+        // is outside vue-router's history base — SPA-internal `router.push`
+        // later jumps to `/auth/...`, and a refresh of the bare URL would
+        // fall through to the global 404.
+        loginPage: '/auth/sign-in',
         consentPage: '/oauth/authorize',
         scopes: [...OIDC_SCOPES],
         validAudiences: [env.API_SERVER_URL],

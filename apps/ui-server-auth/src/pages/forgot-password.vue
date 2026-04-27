@@ -14,7 +14,7 @@ const apiServerUrl = bootstrapContext?.apiServerUrl ?? SERVER_URL
 
 // Reset link must redirect back into ui-server-auth itself. Use the current
 // origin so dev (localhost) and prod (auth.airi…) both resolve correctly.
-const resetRedirect = `${window.location.origin}/_ui/server-auth/reset-password`
+const resetRedirect = `${window.location.origin}/auth/reset-password`
 
 const form = reactive({ email: '' })
 const errorMessage = shallowRef<string | null>(null)

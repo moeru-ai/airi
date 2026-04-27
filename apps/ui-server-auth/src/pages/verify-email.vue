@@ -64,7 +64,7 @@ async function tickSessionCheck() {
     // Same-tab navigation preserves sessionStorage on the destination origin,
     // so the original PKCE flowState saved by the OIDC client is still
     // available when /auth/callback runs.
-    window.location.href = continueURL.value || `${window.location.origin}/_ui/server-auth/`
+    window.location.href = continueURL.value || `${window.location.origin}/auth/`
   }
   catch {
     // Transient network failure — keep polling.

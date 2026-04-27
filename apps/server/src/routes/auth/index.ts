@@ -24,7 +24,7 @@ import { createOIDCTokenAuthRoute } from '../oidc/token-auth'
 // avoid hitting the DB with garbage.
 const EMAIL_SHAPE_RE = /^[^\s@]+@[^\s@][^\s.@]*\.[^\s@]+$/
 
-const RE_SERVER_AUTH_UI_BASE_PATH = /^\/_ui\/server-auth/
+const RE_SERVER_AUTH_UI_BASE_PATH = /^\/auth/
 
 export interface AuthRoutesDeps {
   auth: AuthInstance
@@ -39,7 +39,7 @@ export interface AuthRoutesDeps {
  * well-known metadata endpoints.
  *
  * Mounted at the root level because routes span multiple prefixes
- * (`/sign-in`, `/api/auth/*`, `/.well-known/*`).
+ * (`/auth/*`, `/api/auth/*`, `/.well-known/*`).
  */
 export async function createAuthRoutes(deps: AuthRoutesDeps) {
   async function handleAuthRequest(request: Request): Promise<Response> {
@@ -57,16 +57,21 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
       rewriteRequestPath: (path: string) => path.replace(RE_SERVER_AUTH_UI_BASE_PATH, ''),
     }))
     /**
-     * Minimal login page for the OIDC Provider flow.
-     * When an unauthenticated user hits /api/auth/oauth2/authorize,
-     * better-auth redirects here. After the user signs in via a social
-     * provider, the social callback redirects to callbackURL which
-     * points back to the OIDC authorize endpoint.
+     * Login page for the OIDC Provider flow, served under the ui-server-auth
+     * vue-router base (`/auth/sign-in`). When an unauthenticated
+     * user hits `/api/auth/oauth2/authorize`, better-auth redirects here
+     * because of `oauthProvider({ loginPage })`. After the user signs in via
+     * a social provider, the social callback redirects to `callbackURL`,
+     * which points back to the OIDC authorize endpoint.
      *
      * If a `provider` query parameter is present (e.g. `?provider=github`),
      * skip the picker page and redirect directly to the social provider.
+     *
+     * Registered BEFORE the SPA `/auth/*` wildcard fallback so
+     * the provider shortcut gets a chance to short-circuit. Hono matches
+     * routes in registration order — specific path before wildcard wins.
      */
-    .on('GET', '/sign-in', (c) => {
+    .on('GET', `${SERVER_AUTH_UI_BASE_PATH}/sign-in`, (c) => {
       const provider = c.req.query('provider')
 
       // Reconstruct the OIDC authorize URL from query params so the flow
@@ -88,6 +93,27 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
         return c.redirect(socialUrl)
       }
 
+      return c.html(renderServerAuthUiHtml({
+        apiServerUrl: deps.env.API_SERVER_URL,
+        currentUrl: c.req.url,
+      }))
+    })
+    /**
+     * SPA fallback for the ui-server-auth bundle.
+     *
+     * vue-router runs with `createWebHistory('/auth/')`, so any
+     * client-side route — `/auth/verify-email`,
+     * `/auth/forgot-password`, `/auth/reset-password`,
+     * etc. — appears in the URL bar but has no matching file in the dist.
+     * Without this handler, deep-link hits (verification email links, page
+     * refresh on a SPA route, copy-pasted URLs) fall through `serveStatic`
+     * to the global 404 JSON.
+     *
+     * Mounted AFTER the static middleware so real assets under
+     * `/auth/assets/...` still resolve to the file on disk;
+     * `serveStatic` short-circuits on hits and only calls through on misses.
+     */
+    .on('GET', `${SERVER_AUTH_UI_BASE_PATH}/*`, (c) => {
       return c.html(renderServerAuthUiHtml({
         apiServerUrl: deps.env.API_SERVER_URL,
         currentUrl: c.req.url,
