@@ -3,7 +3,13 @@
 # Pulling a prebuilt `ghcr.io/moeru-ai/airi/ui-server-auth:latest` image
 # previously let the two drift (server route changed to `/auth/`, prebuilt
 # HTML still at `/_ui/server-auth/` → every asset 404 in prod).
-FROM node:24-alpine AS ui-build
+#
+# Debian slim (glibc), not alpine: the workspace pulls in `canvas` via
+# jsdom→vitest. Canvas only ships prebuilt binaries for glibc, not musl;
+# on alpine `prebuild-install` falls through to `node-gyp rebuild` which
+# fails without `python3 make g++ cairo-dev pango-dev ...`. Slim is ~30MB
+# heavier than alpine but is throwaway — only stage 2 ships.
+FROM node:24-slim AS ui-build
 
 WORKDIR /app
 
