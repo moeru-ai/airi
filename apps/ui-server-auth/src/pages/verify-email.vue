@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
-import { computed, onBeforeUnmount, onMounted, shallowRef } from 'vue'
+import { useBroadcastChannel } from '@vueuse/core'
+import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
@@ -28,7 +29,7 @@ const error = computed(() => {
 const verified = computed(() => route.query.verified === 'true')
 
 // Captured at mount time on the original tab (the one that just submitted the
-// sign-up form) so that, when polling detects an active session, we know
+// sign-up form) so that, when the verification tab signals success, we know
 // where to resume the upstream OIDC flow. Empty when the sign-up was not
 // initiated inside an OIDC handoff.
 const continueURL = computed(() => {
@@ -36,57 +37,76 @@ const continueURL = computed(() => {
   return typeof value === 'string' ? value : ''
 })
 
-const pollHandle = shallowRef<ReturnType<typeof setInterval> | null>(null)
+// NOTICE:
+// Cross-tab signal between the verification-success tab (the one opened from
+// the email link) and the original "check your inbox" tab. Both tabs live on
+// the same origin (/auth/...), so BroadcastChannel works without setup.
+//
+// Why not poll /get-session every 2s? An abandoned pending tab would burn
+// 1800 requests/hour for no reason, and the request volume scales with time
+// the user takes to check their inbox. With BroadcastChannel the only work
+// happens when verification actually finishes.
+//
+// Why still call /get-session at all? The verifying tab cannot complete the
+// OIDC handoff itself — the original tab is the only one carrying the PKCE
+// flowState in sessionStorage. So we wait for the signal, then fetch the
+// session once to make sure the cookie is live before navigating into the
+// OIDC continuation URL.
+type VerifyEmailEvent = 'verified'
+const { post, data, isSupported } = useBroadcastChannel<VerifyEmailEvent, VerifyEmailEvent>({
+  name: 'airi-auth-verify-email',
+})
 
-// Poll the better-auth session endpoint while the user is still on the
-// "check your inbox" pending state. Once the user clicks the verification
-// link in another tab, `autoSignInAfterVerification` writes the session
-// cookie on the API origin; this tab then sees a populated session and
-// redirects to the OIDC continuation (or the UI home).
-async function tickSessionCheck() {
+async function resumeIfSessionReady(): Promise<boolean> {
   try {
     const response = await fetch(new URL('/api/auth/get-session', apiServerUrl).toString(), {
       credentials: 'include',
       cache: 'no-store',
     })
     if (!response.ok)
-      return
+      return false
 
-    const data = await response.json().catch(() => null) as { session?: unknown } | null
-    if (!data?.session)
-      return
-
-    if (pollHandle.value) {
-      clearInterval(pollHandle.value)
-      pollHandle.value = null
-    }
+    const payload = await response.json().catch(() => null) as { session?: unknown } | null
+    if (!payload?.session)
+      return false
 
     // Same-tab navigation preserves sessionStorage on the destination origin,
     // so the original PKCE flowState saved by the OIDC client is still
     // available when /auth/callback runs.
     window.location.href = continueURL.value || `${window.location.origin}/auth/`
+    return true
   }
   catch {
-    // Transient network failure — keep polling.
+    return false
   }
 }
 
-onMounted(() => {
-  // Only the pending state needs to wait for verification. The verified-success
-  // and error states are terminal.
-  if (verified.value || error.value)
+onMounted(async () => {
+  // Verification-success tab: announce to any sibling pending tab that the
+  // session cookie has been written, then stay put so the user sees the
+  // success message. The pending tab does the OIDC continuation.
+  if (verified.value) {
+    if (isSupported.value)
+      post('verified')
+    return
+  }
+
+  if (error.value)
     return
 
-  // Cheap server hop, every 2 seconds is responsive without being abusive.
-  pollHandle.value = setInterval(tickSessionCheck, 2000)
-  void tickSessionCheck()
+  // Pending tab: cover the case where verification already happened before
+  // this tab subscribed (back-button navigation, page reload, etc.). One
+  // session check, no recurring poll.
+  await resumeIfSessionReady()
 })
 
-onBeforeUnmount(() => {
-  if (pollHandle.value) {
-    clearInterval(pollHandle.value)
-    pollHandle.value = null
-  }
+// React to a verification event broadcast from the success tab. `data` flips
+// from null to 'verified' the moment the message arrives.
+watch(data, async (event) => {
+  if (event !== 'verified' || verified.value || error.value)
+    return
+
+  await resumeIfSessionReady()
 })
 </script>
 

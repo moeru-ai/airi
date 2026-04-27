@@ -112,6 +112,7 @@ export async function signOut() {
   // Capture the bits we need before clearOIDCState() wipes them.
   const idTokenHint = authStore.idToken
   const clientId = authStore.oidcClientId
+  const bearerToken = authStore.token
 
   // Optimistic logout — clear all client state synchronously so the UI
   // (router guards, isAuthenticated watchers, logout hooks) can react in the
@@ -148,6 +149,27 @@ export async function signOut() {
     url.searchParams.set('id_token_hint', idTokenHint)
     url.searchParams.set('client_id', clientId)
     fetch(url.toString(), { method: 'GET', keepalive: true }).catch(() => {})
+    return
+  }
+
+  // NOTICE:
+  // Fallback for sessions created before id_token persistence existed (legacy
+  // installs prior to applyOIDCTokens persisting `id_token`), or any code
+  // path that signed in without going through the OIDC client (e.g. a future
+  // direct credential flow). Without this branch those sessions would skip
+  // server-side cleanup entirely, leaving the row alive and allowing the
+  // next /oauth2/authorize hop to silently re-issue tokens (cookie attached
+  // via SameSite=Lax on top-level redirect).
+  //
+  // /api/auth/sign-out is the standard better-auth Bearer sign-out endpoint;
+  // it deletes the session row keyed off the Authorization header.
+  if (bearerToken) {
+    const url = new URL('/api/auth/sign-out', SERVER_URL)
+    fetch(url.toString(), {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${bearerToken}` },
+      keepalive: true,
+    }).catch(() => {})
   }
 }
 

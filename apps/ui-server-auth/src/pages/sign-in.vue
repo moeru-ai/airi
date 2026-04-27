@@ -45,8 +45,9 @@ const providerLookup = new Set<OAuthProvider>(defaultSignInProviders.map(provide
 const signInContext = computed(() => createServerSignInContext(currentUrl, apiServerUrl))
 
 // Outside an OIDC flow signInContext.callbackURL is bare `/` which Better Auth
-// resolves against the API server origin (404). Fall back to the UI root so the
-// user lands somewhere useful.
+// resolves against the API server origin (404). Fall back to the UI root so
+// the user lands somewhere useful — the `/auth/` index route redirects to
+// `/auth/profile` so this is not the dead-end empty RouterView it once was.
 const uiHomeURL = `${window.location.origin}/auth/`
 const verifySuccessURL = `${window.location.origin}/auth/verify-email?verified=true`
 
@@ -183,7 +184,17 @@ async function handleEmailSignIn(event: Event) {
     })
 
     if (result.requiresVerification) {
-      await router.push({ path: '/verify-email', query: { email: credentials.email.trim() } })
+      // Existing-but-unverified accounts that started from /oauth2/authorize
+      // must carry the OIDC continuation through verification. Without it the
+      // verify-email tab would resume to /auth/profile after the cookie lands
+      // and the upstream stage app never receives its auth code/tokens.
+      await router.push({
+        path: '/verify-email',
+        query: {
+          email: credentials.email.trim(),
+          ...(oidcContinueURL.value ? { continueURL: oidcContinueURL.value } : {}),
+        },
+      })
       return
     }
 
