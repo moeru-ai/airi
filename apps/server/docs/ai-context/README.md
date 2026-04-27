@@ -29,6 +29,10 @@
   - traces / metrics 命名规则，标准 OTel 字段与 `airi.*` 自定义字段边界
 - `auth-and-oidc.md`
   - 认证与 OIDC Provider 架构、登录流程、trusted clients、踩坑记录
+- `email-auth-resend.md`
+  - Resend 接入、Better Auth 四个邮件 callback、范围 / 决策 / 不做项
+- `verifications/email-auth.md`
+  - 邮箱注册 / 忘记密码 / OIDC 桥接登录 三条用户路径的真实实测证据
 
 ## 快速结论
 
@@ -50,3 +54,4 @@
 - 改扣费、充值、Stripe：先看 `billing-architecture.md`
 - 改 trace / metric attributes、OTel 命名：先看 `observability-conventions.md`
 - 改认证、OIDC、登录流程：先看 `auth-and-oidc.md`
+- 改邮件 service / Better Auth 邮件 callback：先看 `email-auth-resend.md`
