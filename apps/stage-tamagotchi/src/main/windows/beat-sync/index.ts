@@ -15,7 +15,16 @@ export async function setupBeatSync() {
     },
   })
 
-  await load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'), 'beat-sync.html'))
+  // NOTICE:
+  // BeatSync is a background helper window and must not block desktop app boot.
+  // In local development we have seen `load(...)` for the hidden BeatSync page hang
+  // long enough to prevent `windows:main` from ever being created, leaving the app
+  // process alive with zero visible windows.
+  // We therefore start loading the page in the background and only log failures here,
+  // so the main AIRI window can still open while BeatSync initializes independently.
+  void load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'), 'beat-sync.html')).catch((error) => {
+    console.error('[beat-sync] failed to load background window:', error)
+  })
 
   initScreenCaptureForWindow(window)
 

@@ -170,13 +170,15 @@ export async function setupMainWindow(params: {
     window.setWindowButtonVisibility(false)
   }
 
-  window.on('ready-to-show', () => window!.show())
+  let shownByFallback = false
+  window.on('ready-to-show', () => {
+    shownByFallback = true
+    window.show()
+  })
   window.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
-
-  await load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')))
 
   await setupMainWindowElectronInvokes({
     window,
@@ -192,6 +194,26 @@ export async function setupMainWindow(params: {
     onboardingWindowManager: params.onboardingWindowManager,
     windowAuthManager: params.windowAuthManager,
   })
+
+  // NOTICE:
+  // The main AIRI window must not block app boot on renderer navigation resolution.
+  // In development we have observed `load(...)` remain pending long enough that
+  // no visible windows are ever created, even though the renderer dev server is up.
+  // Start navigation in the background, keep the normal `ready-to-show` path, and
+  // add a fallback `show()` in development so the app is still inspectable.
+  void load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))).catch((error) => {
+    console.error('[main-window] failed to load renderer:', error)
+  })
+
+  if (is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG) {
+    setTimeout(() => {
+      if (shownByFallback || window.isDestroyed() || window.isVisible())
+        return
+
+      shownByFallback = true
+      window.show()
+    }, 3000)
+  }
 
   /**
    * This is a know issue (or expected behavior maybe) to Electron.

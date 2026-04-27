@@ -30,6 +30,7 @@ import { setupServerChannel } from './services/airi/channel-server'
 import { setupGodotStageManager } from './services/airi/godot-stage'
 import { setupBuiltInServer } from './services/airi/http-server'
 import { setupMcpStdioManager } from './services/airi/mcp-servers'
+import { createMemoryService, setupMemoryRepository, setupMemorySync } from './services/airi/memory'
 import { setupPluginHost } from './services/airi/plugins'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { setupAutoUpdater } from './services/electron/auto-updater'
@@ -154,6 +155,14 @@ app.whenReady().then(async () => {
     build: ({ dependsOn }) => setupPluginHost(dependsOn),
   })
 
+  const memoryRepository = injeca.provide('modules:memory-repository', {
+    build: () => setupMemoryRepository(),
+  })
+
+  const memorySyncRuntime = injeca.provide('modules:memory-sync-runtime', {
+    build: () => setupMemorySync(),
+  })
+
   const windowAuthManager = injeca.provide('services:window-auth-manager', () => createWindowAuthManagerService())
 
   // BeatSync will create a background window to capture and process audio.
@@ -218,9 +227,26 @@ app.whenReady().then(async () => {
   }
 
   injeca.invoke({
-    dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, godotStageManager, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, artistryConfig },
+    dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, godotStageManager, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, artistryConfig, memoryRepository, memorySyncRuntime },
     callback: async (deps) => {
+      if (!app.isPackaged || env.MAIN_APP_DEBUG || env.APP_DEBUG) {
+        setTimeout(() => {
+          if (deps.mainWindow.isDestroyed()) {
+            return
+          }
+
+          deps.mainWindow.center()
+          deps.mainWindow.show()
+          deps.mainWindow.focus()
+        }, 1000)
+      }
+
       const { context } = createContext(ipcMain)
+      createMemoryService({
+        context,
+        repository: deps.memoryRepository,
+        runtime: deps.memorySyncRuntime,
+      })
       await setupArtistryBridge({
         widgetsManager: deps.widgetsWindow,
         context,

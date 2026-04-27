@@ -29,6 +29,8 @@
     "./libs/inference": "./src/libs/inference/index.ts",
     "./libs/*": "./src/libs/*.ts",
     "./libs": "./src/libs/index.ts",
+    "./services/memory/*": "./src/services/memory/*.ts",
+    "./services/memory": "./src/services/memory/gateway.ts",
     "./tools/mcp": "./src/tools/mcp.ts",
     "./stores/providers/aliyun": "./src/stores/providers/aliyun/index.ts",
     "./stores/analytics": "./src/stores/analytics/index.ts",

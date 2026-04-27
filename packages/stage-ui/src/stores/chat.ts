@@ -5,7 +5,7 @@ import type { CommonContentPart, Message, ToolMessage } from '@xsai/shared-chat'
 import type { ChatAssistantMessage, ChatSlices, ChatStreamEventContext, StreamingAssistantMessage } from '../types/chat'
 import type { StreamEvent, StreamOptions } from './llm'
 
-import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
+import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { createQueue } from '@proj-airi/stream-kit'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -15,13 +15,17 @@ import { useAnalytics } from '../composables'
 import { useLlmmarkerParser } from '../composables/llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from '../composables/response-categoriser'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
+import { createMemoryGateway } from '../services/memory/gateway'
+import { useAuthStore } from './auth'
 import { formatContextPromptText } from './chat/context-prompt'
 import { createMinecraftContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { formatTimePrefix } from './chat/datetime-prefix'
 import { createChatHooks } from './chat/hooks'
+import { readMemoryPromptText } from './chat/prompt-memory'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
+import { appendMemoryTurnSafely } from './chat/turn-memory'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useLLM } from './llm'
 import { useAiriCardStore } from './modules/airi-card'
@@ -104,6 +108,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const llmStore = useLLM()
   const consciousnessStore = useConsciousnessStore()
   const artistryAutonomousStore = useAutonomousArtistryStore()
+  const authStore = useAuthStore()
   const { activeProvider } = storeToRefs(consciousnessStore)
   const { trackFirstMessage } = useAnalytics()
 
@@ -114,11 +119,16 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const contextObservability = useContextObservabilityStore()
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
+  const { userId } = storeToRefs(authStore)
+  const { activeCardId } = storeToRefs(cardStore)
 
   const sending = ref(false)
   const pendingQueuedSends = ref<QueuedSend[]>([])
   const pendingQueuedSendCount = computed(() => pendingQueuedSends.value.length)
   const hooks = createChatHooks()
+  const memoryGateway = createMemoryGateway({
+    runtime: isStageTamagotchi() ? 'desktop' : 'web',
+  })
 
   const sendQueue = createQueue<QueuedSend>({
     handlers: [
@@ -243,11 +253,37 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       if (shouldAbort())
         return
 
+      const userMessageId = nanoid()
+      const memoryScope = {
+        characterId: activeCardId.value || 'default',
+        sessionId,
+        userId: userId.value || 'local',
+      }
+      const { promptText: memoryPromptText } = await readMemoryPromptText({
+        gateway: memoryGateway,
+        scope: memoryScope,
+      })
+
+      if (shouldAbort())
+        return
+
+      await appendMemoryTurnSafely({
+        gateway: memoryGateway,
+        payload: {
+          createdAt: sendingCreatedAt,
+          rawPayload: streamingMessageContext.input?.data as unknown as Record<string, unknown> | null | undefined,
+          role: 'user',
+          scope: memoryScope,
+          text: sendingMessage,
+          turnId: userMessageId,
+        },
+      })
+
       chatSession.appendSessionMessage(sessionId, {
         role: 'user',
         content: finalContent,
         createdAt: sendingCreatedAt,
-        id: nanoid(),
+        id: userMessageId,
       })
       const sessionMessagesForSend = chatSession.getSessionMessages(sessionId)
 
@@ -360,6 +396,19 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
       const contextsSnapshot = chatContext.getContextsSnapshot()
       const contextPromptText = formatContextPromptText(contextsSnapshot)
+      if (memoryPromptText) {
+        const lastMessage = newMessages.at(-1)
+        if (lastMessage && lastMessage.role === 'user') {
+          const existingParts = typeof lastMessage.content === 'string'
+            ? [{ type: 'text' as const, text: lastMessage.content }]
+            : lastMessage.content
+
+          lastMessage.content = [
+            ...existingParts,
+            { type: 'text' as const, text: `\n${memoryPromptText}` },
+          ]
+        }
+      }
       if (contextPromptText) {
         // Merge context into the latest user message instead of inserting a
         // separate user message, which would create consecutive same-role
@@ -494,6 +543,22 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
         chatSession.appendSessionMessage(sessionId, toRaw(buildingMessage))
       }
+
+      await appendMemoryTurnSafely({
+        gateway: memoryGateway,
+        payload: {
+          createdAt: buildingMessage.createdAt ?? Date.now(),
+          rawPayload: null,
+          role: 'assistant',
+          scope: {
+            characterId: activeCardId.value || 'default',
+            sessionId,
+            userId: userId.value || 'local',
+          },
+          text: fullText,
+          turnId: buildingMessage.id ?? nanoid(),
+        },
+      })
 
       await hooks.emitStreamEndHooks(streamingMessageContext)
       await hooks.emitAssistantResponseEndHooks(fullText, streamingMessageContext)
