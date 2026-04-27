@@ -29,6 +29,11 @@ import { BrowserWindow, screen } from 'electron'
 
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { setupDesktopOverlayElectronInvokes } from './rpc/index.electron'
+import {
+  applyDesktopOverlayInputIsolation,
+  createDesktopOverlayWindowOptions,
+  showDesktopOverlayWithoutFocus,
+} from './window-contract'
 
 /** Whether the desktop overlay feature is enabled */
 export function isDesktopOverlayEnabled(): boolean {
@@ -59,46 +64,17 @@ export async function setupDesktopOverlayWindow(params: {
   // Use primary display bounds (not just size) — the origin may be non-zero
   // when multiple displays are arranged in macOS Display Preferences.
   const primaryDisplay = screen.getPrimaryDisplay()
-  const { x, y, width, height } = primaryDisplay.bounds
+  const preloadPath = join(getElectronMainDirname(), '../preload/index.mjs')
 
-  overlayWindow = new BrowserWindow({
-    title: 'AIRI Desktop Overlay',
-    width,
-    height,
-    x,
-    y,
-    show: false,
-    frame: false,
-    transparent: true,
-    alwaysOnTop: true,
-    skipTaskbar: true,
-    hasShadow: false,
-    // Round corners off for pixel-accurate overlay
-    roundedCorners: false,
-    // Prevent the overlay from stealing focus
-    focusable: false,
-    webPreferences: {
-      preload: join(getElectronMainDirname(), '../preload/index.mjs'),
-      sandbox: false,
-      // Disable background throttling so animations stay smooth
-      backgroundThrottling: false,
-    },
-  })
-
-  // Make click-through: all mouse events pass through to the desktop
-  overlayWindow.setIgnoreMouseEvents(true, { forward: true })
-
-  // Set to screen level (above all other windows)
-  overlayWindow.setAlwaysOnTop(true, 'screen-saver')
-
-  // Prevent the window from appearing in screenshots/recordings if possible
-  overlayWindow.setContentProtection(true)
-
-  // Hide from Mission Control / Exposé on macOS
-  overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  overlayWindow = new BrowserWindow(createDesktopOverlayWindowOptions({
+    bounds: primaryDisplay.bounds,
+    preloadPath,
+  }))
+  applyDesktopOverlayInputIsolation(overlayWindow)
 
   overlayWindow.on('ready-to-show', () => {
-    overlayWindow?.show()
+    if (overlayWindow)
+      showDesktopOverlayWithoutFocus(overlayWindow)
   })
 
   overlayWindow.on('closed', () => {
