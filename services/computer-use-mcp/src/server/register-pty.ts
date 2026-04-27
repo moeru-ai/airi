@@ -473,7 +473,7 @@ export function registerPtyTools({ server, runtime }: RegisterPtyToolsOptions) {
         // 2. Best-effort CWD Recovery
         const extractedCwd = extractCwdFromPrompt(lastLine)
         if (extractedCwd) {
-          runtime.stateManager.updatePtySessionCwd(sessionId, extractedCwd)
+          runtime.stateManager.updatePtySessionObservedCwd(sessionId, extractedCwd)
           structuredContent.observedCwd = extractedCwd
         }
 

@@ -25,6 +25,12 @@ describe('terminal-heuristics', () => {
       expect(result?.suggestedAction).toBe('press_q')
     })
 
+    it('ignores ordinary output that merely mentions (END)', () => {
+      const content = 'job status: reached (END) marker in parser output'
+      const result = detectPagination(content)
+      expect(result).toBeUndefined()
+    })
+
     it('detects trailing colon only with pager context', () => {
       const content = 'Manual page printf(1) line 1\n:'
       const result = detectPagination(content)

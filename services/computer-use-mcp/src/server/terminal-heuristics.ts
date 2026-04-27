@@ -92,7 +92,7 @@ export function detectPagination(screenContent: string): TerminalHeuristicsResul
     return { suggestedAction: 'press_space', reason: 'Pagination detected (--More--)' }
   }
 
-  if (lastLine.includes('(END)')) {
+  if (lastLine === '(END)') {
     return { suggestedAction: 'press_q', reason: 'End of output or pager prompt detected' }
   }
 

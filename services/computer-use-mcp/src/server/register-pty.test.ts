@@ -190,4 +190,72 @@ describe('registerPtyTools', () => {
       }),
     ])
   })
+
+  it('returns pagination nudges from pty_read_screen heuristics', async () => {
+    runtime.stateManager.registerPtySession({
+      id: 'pty_1',
+      alive: true,
+      rows: 24,
+      cols: 80,
+      pid: 9001,
+      cwd: '/tmp/project',
+    })
+    vi.mocked(readPtyScreen).mockReturnValue({
+      id: 'pty_1',
+      alive: true,
+      rows: 24,
+      cols: 80,
+      screenContent: 'line 1\nline 2\n--More--\n',
+      pid: 9001,
+    })
+    const { server, invoke } = createMockServer()
+
+    registerPtyTools({ server, runtime })
+
+    const result = await invoke('pty_read_screen', {
+      sessionId: 'pty_1',
+    })
+
+    expect((result.structuredContent as Record<string, any>).suggestedInteraction).toBe('press_space')
+    expect(result.content).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        text: expect.stringContaining('You may need to press Space'),
+      }),
+    ]))
+  })
+
+  it('records observed cwd from the last non-empty prompt line without mutating creation cwd', async () => {
+    runtime.stateManager.registerPtySession({
+      id: 'pty_1',
+      alive: true,
+      rows: 24,
+      cols: 80,
+      pid: 9001,
+      cwd: '/tmp/project',
+    })
+    vi.mocked(readPtyScreen).mockReturnValue({
+      id: 'pty_1',
+      alive: true,
+      rows: 24,
+      cols: 80,
+      screenContent: 'cd /tmp/next\n\u001B[32malice@wonderland\u001B[0m:\u001B[34m/tmp/next\u001B[0m$ \n',
+      pid: 9001,
+    })
+    const { server, invoke } = createMockServer()
+
+    registerPtyTools({ server, runtime })
+
+    const result = await invoke('pty_read_screen', {
+      sessionId: 'pty_1',
+    })
+
+    expect((result.structuredContent as Record<string, any>).observedCwd).toBe('/tmp/next')
+    expect(runtime.stateManager.getPtySessions()).toEqual([
+      expect.objectContaining({
+        id: 'pty_1',
+        cwd: '/tmp/project',
+        observedCwd: '/tmp/next',
+      }),
+    ])
+  })
 })
