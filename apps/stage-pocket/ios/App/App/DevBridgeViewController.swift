@@ -91,8 +91,6 @@ extension DevBridgeViewController: WKScriptMessageHandler {
 }
 
 #if DEBUG
-private let ngrokSkipHeaderField = "ngrok-skip-browser-warning"
-
 extension DevBridgeViewController: WKNavigationDelegate {
     func webView(
         _ webView: WKWebView,
@@ -101,31 +99,6 @@ extension DevBridgeViewController: WKNavigationDelegate {
     ) {
         if let url = navigationAction.request.url {
             print("[DevBridge] Navigation request to: \(url.absoluteString)")
-        }
-
-        // Free tier ngrok interstitial cannot be dismissed in WKWebView. Reload with skip header.
-        if let requestURL = navigationAction.request.url, let host = requestURL.host,
-           host.contains("ngrok")
-        {
-            let existing = navigationAction.request.value(
-                forHTTPHeaderField: ngrokSkipHeaderField
-            ) ?? ""
-            if existing != "true" && existing != "1" {
-                var retry = URLRequest(
-                    url: requestURL,
-                    cachePolicy: .reloadIgnoringLocalCacheData,
-                    timeoutInterval: 60.0
-                )
-                retry.setValue("true", forHTTPHeaderField: ngrokSkipHeaderField)
-                if let ref = navigationAction.request.mainDocumentURL {
-                    print(
-                        "[DevBridge] ngrok: injecting skip interstitial header for: \(ref.absoluteString)"
-                    )
-                }
-                decisionHandler(.cancel)
-                webView.load(retry)
-                return
-            }
         }
 
         decisionHandler(.allow)
