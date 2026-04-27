@@ -8,13 +8,13 @@ import { VISION_WORKLOADS } from '@proj-airi/stage-ui/composables'
 import { useVisionOrchestratorStore, useVisionProcessingStore, useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { Button, FieldCheckbox, FieldCombobox, FieldRange, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 
 import WithScreenCapture from '../../components/WithScreenCapture.vue'
 
 import { useVisionScreenCapture } from '../../composables/use-vision-screen-capture'
 
-type SourceCategory = 'applications' | 'displays'
+type SourceCategory = 'applications' | 'displays' | 'devices'
 
 const visionStore = useVisionStore()
 const visionProcessingStore = useVisionProcessingStore()
@@ -68,6 +68,7 @@ const {
 const categoryOptions = [
   { label: 'Applications', value: 'applications', icon: 'i-solar:window-frame-line-duotone' },
   { label: 'Displays', value: 'displays', icon: 'i-solar:screencast-2-line-duotone' },
+  { label: 'Devices', value: 'devices', icon: 'i-solar:smartphone-2-line-duotone' },
 ]
 
 const workloadOptions = VISION_WORKLOADS.map(workload => ({
@@ -77,21 +78,27 @@ const workloadOptions = VISION_WORKLOADS.map(workload => ({
 
 const isDisplaySource = (source: { id: string }) => source.id.startsWith('screen:')
 const isWindowSource = (source: { id: string }) => source.id.startsWith('window:')
+const isDeviceSource = (source: { id: string }) => source.id.startsWith('device:')
 
 const filteredSources = computed(() => {
   if (sourceCategory.value === 'applications')
     return sources.value.filter(isWindowSource)
-  return sources.value.filter(isDisplaySource)
+  if (sourceCategory.value === 'displays')
+    return sources.value.filter(isDisplaySource)
+  return sources.value.filter(isDeviceSource)
 })
 
 const sourceCounts = computed(() => ({
   applications: sources.value.filter(isWindowSource).length,
   displays: sources.value.filter(isDisplaySource).length,
+  devices: sources.value.filter(isDeviceSource).length,
 }))
 
 function getShareLabel(source: { id: string }) {
   if (isDisplaySource(source))
     return 'Share Screen'
+  if (isDeviceSource(source))
+    return 'Share Device'
   return 'Share Window'
 }
 
@@ -147,13 +154,7 @@ async function ensureVideoStream() {
       resolve()
       return
     }
-
-    const handleLoadedMetadata = () => {
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata)
-      resolve()
-    }
-
-    video.addEventListener('loadedmetadata', handleLoadedMetadata)
+    video.onloadedmetadata = () => resolve()
   })
 }
 
@@ -163,7 +164,7 @@ async function handleVisionTick() {
 
   try {
     if (!hasLiveVideoStream(activeStream.value)) {
-      stopStream()
+      activeStream.value = null
       await ensureVideoStream()
     }
 
@@ -252,10 +253,6 @@ async function shareSource(sourceId: string) {
   }
 }
 
-onMounted(() => {
-  void refetchSources()
-})
-
 onBeforeUnmount(() => {
   visionProcessingStore.stopTicker()
   stopStream()
@@ -270,6 +267,10 @@ onBeforeUnmount(() => {
         v-if="hasPermissions"
         :class="['flex', 'flex-col', 'gap-6']"
       >
+        <div v-if="!hasFetchedOnce && !isRefetching" :class="['hidden']">
+          {{ refetchSources() }}
+        </div>
+
         <div :class="['flex', 'items-center', 'justify-between', 'rounded-xl', 'bg-neutral-100', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']">
           <div :class="['flex', 'flex-col', 'gap-1']">
             <div :class="['text-sm', 'uppercase', 'tracking-wide', 'text-neutral-400']">
@@ -486,7 +487,7 @@ onBeforeUnmount(() => {
                 <FieldRange
                   v-model="captureDownscalePercent"
                   label="Input downscale"
-                  description="Shrink each captured frame before sending it to the vision model. 100% keeps the existing 1280x720 capture cap."
+                  description="Shrink each captured frame before sending it to the vision model. 100% keeps the existing 1280×720 capture cap."
                   :min="25"
                   :max="100"
                   :step="5"
@@ -494,7 +495,7 @@ onBeforeUnmount(() => {
                 />
 
                 <div :class="['text-xs', 'text-neutral-400']">
-                  Vision input max size: {{ captureInputBounds.maxWidth }} x {{ captureInputBounds.maxHeight }}
+                  Vision input max size: {{ captureInputBounds.maxWidth }} × {{ captureInputBounds.maxHeight }}
                 </div>
 
                 <FieldCombobox
@@ -548,7 +549,7 @@ onBeforeUnmount(() => {
             <div :class="['rounded-xl', 'bg-neutral-100', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']">
               <div :class="['flex', 'items-center', 'justify-between', 'text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
                 <span>Snapshot</span>
-                <span>{{ captureCount }} captures, {{ contextUpdateCount }} context updates</span>
+                <span>{{ captureCount }} captures · {{ contextUpdateCount }} context updates</span>
               </div>
               <div
                 v-if="screenshotDataUrl"
