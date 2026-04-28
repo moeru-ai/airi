@@ -168,12 +168,36 @@ pages:
       name:
         label: Display name
         placeholder: How others see you
+      avatar:
+        gravatarNotice: Showing your Gravatar avatar — based on a hash of your email.
+        gravatarLink: Manage on gravatar.com
       action:
         save: Save changes
       message:
         saved: Profile updated.
       error:
         fallback: We could not save your changes.
+    connections:
+      tab: Connected accounts
+      title: Connected accounts
+      description: Sign in to AIRI through these providers. Unlink to revoke access, then link again to switch to a different account.
+      status:
+        linked: Linked
+        notLinked: Not linked
+        linkedSince: Linked on {date}
+      action:
+        link: Link
+        unlink: Unlink
+      message:
+        loading: Loading connected accounts...
+        unlinked: '{provider} disconnected.'
+        linked: '{provider} connected.'
+        linkStarted: Redirecting to {provider}…
+      error:
+        listFailed: Could not load connected accounts.
+        unlinkFailed: Could not unlink this account.
+        linkFailed: Could not start the link flow.
+        lastAccount: This is your only sign-in method. Set a password first before unlinking it.
     security:
       tab: Security
       title: Security

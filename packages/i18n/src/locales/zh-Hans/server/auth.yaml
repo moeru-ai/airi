@@ -70,10 +70,12 @@ signIn:
     privacy: 隐私政策
 profile:
   title: 账号资料
-  description: 管理你的显示名和密码。
+  description: 管理你的头像、显示名、密码和已绑定的社交账号。
   section:
     profile: 个人资料
+    avatar: 头像
     password: 密码
+    linkedAccounts: 已绑定的社交账号
   field:
     email: 邮箱
     emailVerified: 邮箱状态
@@ -84,6 +86,10 @@ profile:
   name:
     label: 显示名
     placeholder: 别人看到的名字
+  avatar:
+    altText: 用户头像
+    gravatarNotice: 正在使用 Gravatar 提供的头像（基于你邮箱地址的哈希值）。
+    gravatarLink: 前往 gravatar.com 管理
   password:
     currentLabel: 当前密码
     currentPlaceholder: 输入当前密码
@@ -91,6 +97,24 @@ profile:
     newPlaceholder: 至少 8 位
     confirmLabel: 确认新密码
     confirmPlaceholder: 再次输入新密码
+  linkedAccounts:
+    description: 通过这些渠道登录 AIRI。解绑可以撤销访问，再次绑定即可切换到其他账号。
+    status:
+      linked: 已绑定
+      notLinked: 未绑定
+      linkedSince: 绑定于 {date}
+    action:
+      link: 绑定
+      unlink: 解绑
+    message:
+      loading: 正在加载已绑定的社交账号...
+      unlinked: 已解除与 {provider} 的绑定。
+      linkStarted: 正在跳转到 {provider}…
+    error:
+      listFailed: 无法加载已绑定的社交账号。
+      unlinkFailed: 无法解除绑定。
+      linkFailed: 无法开始绑定流程。
+      lastAccount: 这是你唯一的登录方式。请先设置密码再尝试解绑。
   action:
     saveProfile: 保存修改
     changePassword: 修改密码

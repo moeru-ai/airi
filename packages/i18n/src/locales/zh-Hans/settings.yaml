@@ -159,12 +159,36 @@ pages:
       name:
         label: 显示名
         placeholder: 别人看到的名字
+      avatar:
+        gravatarNotice: 正在使用 Gravatar 提供的头像（基于你邮箱地址的哈希值）。
+        gravatarLink: 前往 gravatar.com 管理
       action:
         save: 保存修改
       message:
         saved: 资料已更新。
       error:
         fallback: 无法保存修改。
+    connections:
+      tab: 已连接的账号
+      title: 已连接的账号
+      description: 通过这些渠道登录 AIRI。解绑可以撤销访问，再次绑定即可切换到其他账号。
+      status:
+        linked: 已绑定
+        notLinked: 未绑定
+        linkedSince: 绑定于 {date}
+      action:
+        link: 绑定
+        unlink: 解绑
+      message:
+        loading: 正在加载已绑定的社交账号...
+        unlinked: 已解除与 {provider} 的绑定。
+        linked: 已与 {provider} 完成绑定。
+        linkStarted: 正在跳转到 {provider}…
+      error:
+        listFailed: 无法加载已绑定的社交账号。
+        unlinkFailed: 无法解除绑定。
+        linkFailed: 无法开始绑定流程。
+        lastAccount: 这是你唯一的登录方式。请先设置密码再尝试解绑。
     security:
       tab: 安全
       title: 安全

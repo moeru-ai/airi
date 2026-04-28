@@ -1,12 +1,19 @@
 <script setup lang="ts">
+import type { LinkedAccount } from '../modules/linked-accounts'
 import type { ProfileUser } from '../modules/profile'
 
+import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth'
 import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
 import { Button, FieldInput } from '@proj-airi/ui'
 import { computed, onMounted, reactive, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
+import {
+  listLinkedAccounts,
+  requestSocialLinkRedirect,
+  unlinkSocialAccount,
+} from '../modules/linked-accounts'
 import {
   changePassword,
   describeProfileError,
@@ -42,6 +49,41 @@ const passwordSuccess = shallowRef<string | null>(null)
 const signOutLoading = shallowRef(false)
 const signOutError = shallowRef<string | null>(null)
 
+// Avatar comes pre-decorated by the server: `image` is either the manually
+// set / provider URL or a Gravatar fallback URL. We detect the fallback by
+// URL prefix so the server doesn't need to ship a redundant `imageSource`
+// flag — gravatar URLs are stable enough that prefix-matching is fine.
+// See apps/server/src/routes/oidc/token-auth.ts for the server-side build.
+const GRAVATAR_AVATAR_PREFIX = 'https://www.gravatar.com/avatar/'
+const avatarUrl = computed(() => user.value?.image ?? null)
+const usingGravatarFallback = computed(
+  () => avatarUrl.value?.startsWith(GRAVATAR_AVATAR_PREFIX) ?? false,
+)
+const gravatarProfileUrl = computed(() => {
+  if (!usingGravatarFallback.value || !user.value?.email)
+    return null
+  return `https://gravatar.com/${encodeURIComponent(user.value.email.trim().toLowerCase())}`
+})
+
+// Linked accounts state for the "Connected accounts" section.
+const linkedAccountsLoading = shallowRef(true)
+const linkedAccounts = shallowRef<LinkedAccount[]>([])
+const linkedAccountsError = shallowRef<string | null>(null)
+const linkedAccountsMessage = shallowRef<string | null>(null)
+const linkActionInFlight = shallowRef<string | null>(null)
+
+const linkedAccountsByProvider = computed(() => {
+  const map = new Map<string, LinkedAccount>()
+  for (const account of linkedAccounts.value)
+    map.set(account.providerId, account)
+  return map
+})
+
+const hasCredentialAccount = computed(() => linkedAccountsByProvider.value.has('credential'))
+const socialLinkedCount = computed(
+  () => linkedAccounts.value.filter(a => a.providerId !== 'credential').length,
+)
+
 const nameDirty = computed(() => {
   if (!user.value)
     return false
@@ -62,6 +104,21 @@ const formattedCreatedAt = computed(() => {
     return user.value.createdAt
   }
 })
+
+async function refreshLinkedAccounts() {
+  linkedAccountsLoading.value = true
+  linkedAccountsError.value = null
+  try {
+    linkedAccounts.value = await listLinkedAccounts({ apiServerUrl })
+  }
+  catch (error) {
+    linkedAccounts.value = []
+    linkedAccountsError.value = describeProfileError(error) || t('server.auth.profile.linkedAccounts.error.listFailed')
+  }
+  finally {
+    linkedAccountsLoading.value = false
+  }
+}
 
 onMounted(async () => {
   try {
@@ -84,6 +141,9 @@ onMounted(async () => {
   finally {
     initialLoading.value = false
   }
+
+  if (user.value)
+    await refreshLinkedAccounts()
 })
 
 async function handleSaveName(event: Event) {
@@ -164,6 +224,85 @@ async function handleSignOut() {
     signOutLoading.value = false
   }
 }
+
+function isLastSignInMethod(providerId: string): boolean {
+  // A user is locked out if they unlink their only credential (no password)
+  // and only social provider. We refuse client-side instead of relying on
+  // better-auth's BAD_REQUEST so the message matches the user's mental model.
+  if (providerId === 'credential')
+    return socialLinkedCount.value === 0
+  return !hasCredentialAccount.value && socialLinkedCount.value <= 1
+}
+
+async function handleUnlinkProvider(providerId: string) {
+  if (linkActionInFlight.value)
+    return
+
+  if (isLastSignInMethod(providerId)) {
+    linkedAccountsError.value = t('server.auth.profile.linkedAccounts.error.lastAccount')
+    linkedAccountsMessage.value = null
+    return
+  }
+
+  const providerName = defaultSignInProviders.find(p => p.id === providerId)?.name ?? providerId
+  linkActionInFlight.value = providerId
+  linkedAccountsError.value = null
+  linkedAccountsMessage.value = null
+
+  try {
+    await unlinkSocialAccount({ apiServerUrl, providerId: providerId as 'github' | 'google' })
+    linkedAccountsMessage.value = t('server.auth.profile.linkedAccounts.message.unlinked', { provider: providerName })
+    await refreshLinkedAccounts()
+  }
+  catch (error) {
+    linkedAccountsError.value = describeProfileError(error)
+      || t('server.auth.profile.linkedAccounts.error.unlinkFailed')
+  }
+  finally {
+    linkActionInFlight.value = null
+  }
+}
+
+async function handleLinkProvider(providerId: string) {
+  if (linkActionInFlight.value)
+    return
+
+  const providerName = defaultSignInProviders.find(p => p.id === providerId)?.name ?? providerId
+  linkActionInFlight.value = providerId
+  linkedAccountsError.value = null
+  linkedAccountsMessage.value = t('server.auth.profile.linkedAccounts.message.linkStarted', { provider: providerName })
+
+  try {
+    // Round-trip the user back to /profile so the freshly linked provider
+    // shows up the moment they return from the OAuth dance. Use absolute URL
+    // because better-auth validates against trustedOrigins, and the redirect
+    // is consumed by the browser via window.location.assign.
+    const callbackURL = new URL('/profile', window.location.origin).toString()
+    const url = await requestSocialLinkRedirect({
+      apiServerUrl,
+      provider: providerId as 'github' | 'google',
+      callbackURL,
+    })
+    window.location.assign(url)
+  }
+  catch (error) {
+    linkedAccountsError.value = describeProfileError(error)
+      || t('server.auth.profile.linkedAccounts.error.linkFailed')
+    linkActionInFlight.value = null
+    linkedAccountsMessage.value = null
+  }
+}
+
+function formatLinkedSince(iso: string): string {
+  if (!iso)
+    return ''
+  try {
+    return new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }).format(new Date(iso))
+  }
+  catch {
+    return iso
+  }
+}
 </script>
 
 <template>
@@ -187,6 +326,41 @@ async function handleSignOut() {
     </div>
 
     <template v-else-if="user">
+      <!-- Avatar block: prefer user.image, fall back to Gravatar so the user
+           always has a personalised picture even before they upload one. -->
+      <section
+        :class="['max-w-sm w-full flex flex-col items-center gap-2 mb-6']"
+      >
+        <div
+          :class="[
+            'h-24 w-24 overflow-hidden rounded-full border border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800',
+          ]"
+        >
+          <img
+            v-if="avatarUrl"
+            :src="avatarUrl"
+            :alt="t('server.auth.profile.avatar.altText')"
+            :class="['h-full w-full object-cover']"
+            referrerpolicy="no-referrer"
+          >
+        </div>
+        <div
+          v-if="usingGravatarFallback"
+          :class="['flex flex-col items-center gap-1 text-center text-xs text-neutral-500']"
+        >
+          <span>{{ t('server.auth.profile.avatar.gravatarNotice') }}</span>
+          <a
+            v-if="gravatarProfileUrl"
+            :href="gravatarProfileUrl"
+            target="_blank"
+            rel="noreferrer"
+            :class="['underline underline-offset-2 hover:text-neutral-700 dark:hover:text-neutral-300']"
+          >
+            {{ t('server.auth.profile.avatar.gravatarLink') }}
+          </a>
+        </div>
+      </section>
+
       <!-- Identity summary: read-only fields (email, verification, created at) -->
       <section
         :class="['max-w-sm w-full flex flex-col gap-2 border border-neutral-200 dark:border-neutral-700 rounded-lg p-4 mb-6']"
@@ -321,6 +495,94 @@ async function handleSignOut() {
           <span>{{ t('server.auth.profile.action.changePassword') }}</span>
         </Button>
       </form>
+
+      <!-- Connected accounts: list each known social provider with its
+           bind/unbind affordance. Re-binding is just unlink + link in
+           sequence; we surface that flow via the i18n description rather
+           than a dedicated button to keep the UI predictable. -->
+      <section :class="['max-w-sm w-full flex flex-col gap-3 mb-6']">
+        <h2 :class="['text-base font-semibold']">
+          {{ t('server.auth.profile.section.linkedAccounts') }}
+        </h2>
+        <p :class="['text-xs text-neutral-500']">
+          {{ t('server.auth.profile.linkedAccounts.description') }}
+        </p>
+
+        <div
+          v-if="linkedAccountsLoading"
+          :class="['text-sm text-neutral-500']"
+        >
+          {{ t('server.auth.profile.linkedAccounts.message.loading') }}
+        </div>
+
+        <ul
+          v-else
+          :class="['flex flex-col gap-2']"
+        >
+          <li
+            v-for="provider in defaultSignInProviders"
+            :key="provider.id"
+            :class="[
+              'flex items-center justify-between gap-3 rounded-lg border border-neutral-200 dark:border-neutral-700 px-3 py-2',
+            ]"
+          >
+            <div :class="['flex items-center gap-2 min-w-0']">
+              <span :class="[provider.icon, 'h-5 w-5 shrink-0']" aria-hidden="true" />
+              <div :class="['flex flex-col min-w-0']">
+                <span :class="['truncate text-sm font-medium']">{{ provider.name }}</span>
+                <span :class="['truncate text-xs text-neutral-500']">
+                  <template v-if="linkedAccountsByProvider.get(provider.id)">
+                    {{
+                      t('server.auth.profile.linkedAccounts.status.linkedSince', {
+                        date: formatLinkedSince(linkedAccountsByProvider.get(provider.id)!.createdAt),
+                      })
+                    }}
+                  </template>
+                  <template v-else>
+                    {{ t('server.auth.profile.linkedAccounts.status.notLinked') }}
+                  </template>
+                </span>
+              </div>
+            </div>
+
+            <Button
+              v-if="linkedAccountsByProvider.get(provider.id)"
+              variant="secondary"
+              :class="['shrink-0 px-3 py-1 text-xs']"
+              :loading="linkActionInFlight === provider.id"
+              :disabled="!!linkActionInFlight && linkActionInFlight !== provider.id"
+              @click="handleUnlinkProvider(provider.id)"
+            >
+              <span>{{ t('server.auth.profile.linkedAccounts.action.unlink') }}</span>
+            </Button>
+            <Button
+              v-else
+              :class="['shrink-0 px-3 py-1 text-xs']"
+              :loading="linkActionInFlight === provider.id"
+              :disabled="!!linkActionInFlight && linkActionInFlight !== provider.id"
+              @click="handleLinkProvider(provider.id)"
+            >
+              <span>{{ t('server.auth.profile.linkedAccounts.action.link') }}</span>
+            </Button>
+          </li>
+        </ul>
+
+        <div
+          v-if="linkedAccountsError"
+          :class="['text-sm text-red-500']"
+          role="alert"
+          aria-live="polite"
+        >
+          {{ linkedAccountsError }}
+        </div>
+        <div
+          v-else-if="linkedAccountsMessage"
+          :class="['text-sm text-green-600 dark:text-green-400']"
+          aria-live="polite"
+        >
+          {{ linkedAccountsMessage }}
+        </div>
+      </section>
 
       <!-- Sign out -->
       <div :class="['max-w-sm w-full flex flex-col gap-2']">
