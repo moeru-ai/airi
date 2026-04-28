@@ -1,5 +1,7 @@
+import type { SparkNotifyResponseControl } from '@proj-airi/core-agent/agents/spark-notify'
 import type { WebSocketBaseEvent, WebSocketEventOf, WebSocketEvents } from '@proj-airi/server-sdk'
 
+import { setupAgentSparkNotifyHandler } from '@proj-airi/core-agent/agents/spark-notify'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
@@ -8,9 +10,8 @@ import { useLLM } from '../../llm'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useConsciousnessStore } from '../../modules/consciousness'
 import { useProvidersStore } from '../../providers'
-import { setupAgentSparkNotifyHandler } from './agents/event-handler-spark-notify'
 
-export { sparkNotifyCommandSchema } from './agents/event-handler-spark-notify'
+export { sparkNotifyCommandSchema } from '@proj-airi/core-agent/agents/spark-notify'
 
 export const useCharacterOrchestratorStore = defineStore('character-orchestrator', () => {
   const { stream } = useLLM()
@@ -25,6 +26,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   const pendingNotifies = ref<Array<WebSocketEventOf<'spark:notify'>>>([])
   const scheduledNotifies = ref<Array<{
     event: WebSocketEventOf<'spark:notify'>
+    control?: SparkNotifyResponseControl
     enqueuedAt: number
     nextRunAt: number
     attempts: number
@@ -76,13 +78,22 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     pendingNotifies.value = pendingNotifies.value.filter(item => item.data.id !== eventId)
   }
 
-  function enqueueSparkNotify(event: WebSocketEventOf<'spark:notify'>, options?: { reason?: string, nextRunAt?: number, maxAttempts?: number }) {
+  function enqueueSparkNotify(
+    event: WebSocketEventOf<'spark:notify'>,
+    options?: {
+      reason?: string
+      nextRunAt?: number
+      maxAttempts?: number
+      control?: SparkNotifyResponseControl
+    },
+  ) {
     if (!pendingNotifies.value.some(item => item.data.id === event.data.id)) {
       pendingNotifies.value.push(event)
     }
 
     scheduledNotifies.value.push({
       event,
+      control: options?.control,
       enqueuedAt: Date.now(),
       nextRunAt: options?.nextRunAt ?? computeNextRunAt(event, 0),
       attempts: 0,
@@ -91,8 +102,8 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     })
   }
 
-  async function processSparkNotify(event: WebSocketEventOf<'spark:notify'>) {
-    const result = await sparkNotifyAgent.handle(event)
+  async function processSparkNotify(event: WebSocketEventOf<'spark:notify'>, control?: SparkNotifyResponseControl) {
+    const result = await sparkNotifyAgent.handle(event, control)
     if (!result?.commands?.length)
       return result
 
@@ -106,13 +117,28 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     return result
   }
 
-  async function handleIncomingSparkNotify(event: WebSocketEventOf<'spark:notify'>) {
+  async function handleIncomingSparkNotify(event: WebSocketEventOf<'spark:notify'>, control?: SparkNotifyResponseControl) {
     if (event.data.urgency === 'immediate' && !processing.value) {
-      return await processSparkNotify(event)
+      return await processSparkNotify(event, control)
     }
 
-    enqueueSparkNotify(event, { reason: 'spark:notify' })
+    enqueueSparkNotify(event, { reason: 'spark:notify', control })
     return undefined
+  }
+
+  async function handleSparkNotifyWithReaction(
+    event: WebSocketEventOf<'spark:notify'>,
+    options?: SparkNotifyResponseControl & { fallbackText?: string },
+  ) {
+    await handleIncomingSparkNotify(event, options)
+
+    const reaction = [...characterStore.reactions]
+      .reverse()
+      .find(item => item.sourceEventId === event.data.id)
+      ?.message
+      ?.trim()
+
+    return reaction || options?.fallbackText || ''
   }
 
   function enqueueDueTasks(now: number) {
@@ -160,7 +186,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     removePending(next.event.data.id)
 
     try {
-      await processSparkNotify(next.event)
+      await processSparkNotify(next.event, next.control)
     }
     catch (error) {
       if (next.attempts + 1 < next.maxAttempts) {
@@ -253,6 +279,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     dispose,
 
     handleSparkNotify: handleIncomingSparkNotify,
+    handleSparkNotifyWithReaction,
     handleSparkEmit,
   }
 })

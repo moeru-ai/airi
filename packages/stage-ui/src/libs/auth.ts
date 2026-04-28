@@ -114,63 +114,59 @@ export async function signOut() {
   const clientId = authStore.oidcClientId
   const bearerToken = authStore.token
 
-  // Optimistic logout — clear all client state synchronously so the UI
-  // (router guards, isAuthenticated watchers, logout hooks) can react in the
-  // same tick. The end-session round-trip below was previously awaited which
-  // gave a ~2s perceived stall on click; since the call is already
-  // best-effort (we swallow errors), it doesn't need to block the user.
+  // NOTICE:
+  // Authoritative server-side sign-out FIRST, then local clear. Do NOT make
+  // this optimistic.
+  //
+  // Why: the better-auth session cookie is SameSite=Lax. A top-level
+  // navigation to `/oauth2/authorize` (i.e. clicking "sign in" right after
+  // logout) will attach that cookie. If we clear local state first and let
+  // the user trigger a fresh OIDC flow before /end-session has actually
+  // deleted the session row, the server resolves the still-live row and
+  // silently re-issues tokens for the just-logged-out account. The user
+  // ends up logged back in as the previous identity.
+  //
+  // We pay the round-trip latency on the logout click in exchange for
+  // killing that race. Callers must display a loading indicator while
+  // awaiting (profile.vue gates the button via `signOutLoading`).
+  //
+  // OIDC RP-Initiated Logout (`/api/auth/oauth2/end-session`) is the
+  // Bearer-friendly path: it accepts `id_token_hint`, decodes the `sid`
+  // claim, and deletes the corresponding `session` row via
+  // `internalAdapter.deleteSession(session.token)`. Source:
+  // node_modules/@better-auth/oauth-provider/dist/index.mjs L996+. Requires
+  // the trusted OIDC client to be seeded with `enableEndSession: true`.
+  //
+  // Fallback to /api/auth/sign-out for sessions that pre-date id_token
+  // persistence (applyOIDCTokens started saving id_token in this branch);
+  // without it, those legacy sessions would skip server cleanup and hit
+  // exactly the silent-re-login bug described above.
+  try {
+    if (idTokenHint && clientId) {
+      const url = new URL('/api/auth/oauth2/end-session', SERVER_URL)
+      url.searchParams.set('id_token_hint', idTokenHint)
+      url.searchParams.set('client_id', clientId)
+      await fetch(url.toString(), { method: 'GET' })
+    }
+    else if (bearerToken) {
+      const url = new URL('/api/auth/sign-out', SERVER_URL)
+      await fetch(url.toString(), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${bearerToken}` },
+      })
+    }
+  }
+  catch {
+    // Network failure: still clear local state below. Server-side row will
+    // expire by TTL; the local refreshToken/idToken/clientId are about to
+    // be wiped, so the local user has no way to spend it in the meantime.
+  }
+
   authStore.clearOIDCState()
   authStore.user = null
   authStore.session = null
   authStore.token = null
   authStore.refreshToken = null
-
-  // NOTICE:
-  // OIDC RP-Initiated Logout (`/api/auth/oauth2/end-session`) is the
-  // Bearer-friendly logout path. It accepts an `id_token_hint`, decodes the
-  // `sid` claim, and deletes the corresponding `session` row directly via
-  // `internalAdapter.deleteSession(session.token)` — no cookie required.
-  // Once the row is gone, even if the browser still carries a stale session
-  // cookie (cross-site SameSite=Lax can attach it on a top-level redirect to
-  // /oauth2/authorize), the server cannot resolve it to an active session,
-  // so the next sign-in attempt prompts proper authentication instead of
-  // silently re-issuing tokens.
-  //
-  // Requires the trusted OIDC client to be seeded with `enableEndSession: true`,
-  // which also gates whether the issued ID token carries the `sid` claim.
-  // Source: node_modules/@better-auth/oauth-provider/dist/index.mjs L996+
-  //
-  // Fire-and-forget: the user has already been logged out locally; this is
-  // best-effort server-side session cleanup. If it fails (offline, server
-  // down) the worst case is the server-side session row is orphaned until
-  // its TTL expires — better-auth will reject it on next use anyway.
-  if (idTokenHint && clientId) {
-    const url = new URL('/api/auth/oauth2/end-session', SERVER_URL)
-    url.searchParams.set('id_token_hint', idTokenHint)
-    url.searchParams.set('client_id', clientId)
-    fetch(url.toString(), { method: 'GET', keepalive: true }).catch(() => {})
-    return
-  }
-
-  // NOTICE:
-  // Fallback for sessions created before id_token persistence existed (legacy
-  // installs prior to applyOIDCTokens persisting `id_token`), or any code
-  // path that signed in without going through the OIDC client (e.g. a future
-  // direct credential flow). Without this branch those sessions would skip
-  // server-side cleanup entirely, leaving the row alive and allowing the
-  // next /oauth2/authorize hop to silently re-issue tokens (cookie attached
-  // via SameSite=Lax on top-level redirect).
-  //
-  // /api/auth/sign-out is the standard better-auth Bearer sign-out endpoint;
-  // it deletes the session row keyed off the Authorization header.
-  if (bearerToken) {
-    const url = new URL('/api/auth/sign-out', SERVER_URL)
-    fetch(url.toString(), {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${bearerToken}` },
-      keepalive: true,
-    }).catch(() => {})
-  }
 }
 
 /**
