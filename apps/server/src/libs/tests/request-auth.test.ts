@@ -9,10 +9,13 @@ vi.mock('jose', () => ({
 }))
 
 const { jwtVerify } = await import('jose')
+const { createRemoteJWKSet } = await import('jose')
 const mockedJwtVerify = vi.mocked(jwtVerify)
+const mockedCreateRemoteJWKSet = vi.mocked(createRemoteJWKSet)
 
 const mockEnv = {
   API_SERVER_URL: 'http://localhost:3000',
+  PORT: 3000,
 } as any
 
 describe('resolveRequestAuth', () => {
@@ -81,6 +84,7 @@ describe('resolveRequestAuth', () => {
       new Headers({ Authorization: 'Bearer eyJhbGciOiJSUzI1NiJ9.test.sig' }),
     )
 
+    expect(mockedCreateRemoteJWKSet).toHaveBeenCalledWith(new URL('http://127.0.0.1:3000/api/auth/jwks'))
     expect(result).toEqual({
       user,
       session: {
