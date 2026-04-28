@@ -407,7 +407,7 @@ print("{}")
  * - Optional `x`/`y` coordinates are global logical macOS screen coordinates
  *
  * Returns:
- * - A Swift script that restores the user's cursor after coordinate-based scroll
+ * - A Swift script that leaves coordinate-based scroll cursor state aligned with follow-up pointer-relative actions
  */
 export function buildMacOSScrollScript(): string {
   return String.raw`
@@ -422,14 +422,6 @@ let x = input["x"] as? Double
 let y = input["y"] as? Double
 let deltaX = Int32(input["deltaX"] as? Double ?? 0)
 let deltaY = Int32(input["deltaY"] as? Double ?? 0)
-
-let shouldRestoreCursor = x != nil && y != nil
-let originalCursorLocation = shouldRestoreCursor ? CGEvent(source: nil)?.location : nil
-defer {
-  if let originalCursorLocation = originalCursorLocation {
-    CGWarpMouseCursorPosition(originalCursorLocation)
-  }
-}
 
 if let x, let y {
   let location = CGPoint(x: x, y: y)
