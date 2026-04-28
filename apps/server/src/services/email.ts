@@ -47,6 +47,17 @@ export interface EmailService {
   sendPasswordReset: (params: { to: string, url: string }) => Promise<void>
   sendMagicLink: (params: { to: string, url: string }) => Promise<void>
   sendChangeEmailConfirmation: (params: { to: string, newEmail: string, url: string }) => Promise<void>
+  /**
+   * Send the irreversible-action confirmation for `user.deleteUser` flow.
+   *
+   * Wired into better-auth's `user.deleteUser.sendDeleteAccountVerification`.
+   * The link expires per `deleteTokenExpiresIn` (default 24h) and is
+   * single-use; clicking it triggers `beforeDelete` → soft-delete handlers →
+   * hard-delete user.
+   *
+   * Source: node_modules/better-auth/dist/api/routes/update-user.mjs L286-300.
+   */
+  sendDeleteAccountVerification: (params: { to: string, url: string }) => Promise<void>
 }
 
 interface EmailConfig {
@@ -166,6 +177,14 @@ export function createEmailService(config: EmailConfig, logger: Logger = useLogg
         text: renderChangeEmailText(url, newEmail),
       })
     },
+    async sendDeleteAccountVerification({ to, url }) {
+      await send({
+        to,
+        subject: 'Confirm account deletion for Project AIRI',
+        html: renderDeleteAccountHtml(url),
+        text: renderDeleteAccountText(url),
+      })
+    },
   }
 }
 
@@ -272,5 +291,29 @@ function renderChangeEmailText(url: string, newEmail: string): string {
     body: `Confirm that ${newEmail} should become your Project AIRI account email by opening this link:`,
     url,
     footer: 'If you did not request this change, contact support immediately.',
+  })
+}
+
+// NOTICE:
+// Wording is intentionally short and direct. Account deletion hard-deletes
+// the auth identity (cascade) and soft-archives business records; the user
+// cannot recover the account through the UI.
+// See `apps/server/docs/ai-context/account-deletion.md`.
+function renderDeleteAccountHtml(url: string): string {
+  return renderActionEmailHtml({
+    heading: 'Confirm account deletion',
+    body: 'Click below to permanently delete your Project AIRI account. This cannot be undone. Active subscription will be canceled, Flux balance cleared. Link expires in 24 hours.',
+    ctaLabel: 'Delete my account',
+    url,
+    footer: 'Did not request this? Ignore this email and rotate your password.',
+  })
+}
+
+function renderDeleteAccountText(url: string): string {
+  return renderActionEmailText({
+    heading: 'Confirm account deletion',
+    body: 'Open this link to permanently delete your Project AIRI account. This cannot be undone. Active subscription will be canceled, Flux balance cleared. Link expires in 24 hours.',
+    url,
+    footer: 'Did not request this? Ignore this email and rotate your password.',
   })
 }

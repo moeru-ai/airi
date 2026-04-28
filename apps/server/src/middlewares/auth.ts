@@ -4,12 +4,8 @@ import type { createAuth } from '../libs/auth'
 import type { Env } from '../libs/env'
 import type { HonoEnv } from '../types/hono'
 
-import { useLogger } from '@guiiai/logg'
-
 import { resolveRequestAuth } from '../libs/request-auth'
 import { createUnauthorizedError } from '../utils/error'
-
-const logger = useLogger('auth')
 
 type AuthInstance = ReturnType<typeof createAuth>
 
@@ -60,7 +56,6 @@ export function sessionMiddleware(auth: AuthInstance, env: Env): MiddlewareHandl
 export const authGuard: MiddlewareHandler<HonoEnv> = async (c, next) => {
   const user = c.get('user')
   if (!user) {
-    logger.withFields({ path: c.req.path, method: c.req.method }).debug('Unauthorized request blocked')
     throw createUnauthorizedError()
   }
   await next()

@@ -9,7 +9,7 @@ describe('setupBuiltInServer', () => {
 
     const service = setupBuiltInServer({
       authServer: auth,
-      extensionStaticAssetServer: assets,
+      staticAssetServer: assets,
     })
 
     await service.start()

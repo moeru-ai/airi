@@ -138,6 +138,8 @@ export interface WidgetsWindowManager {
    * - The current snapshot, or `undefined` when the widget is unknown
    */
   getWidgetSnapshot: (id: string) => WidgetSnapshot | undefined
+  publishWidgetEvent: (id: string, event: Record<string, unknown>) => void
+  onWidgetEvent: (listener: (event: { id: string, event: Record<string, unknown> }) => void) => () => void
   /**
    * Reserves a widget id before content is pushed into the widgets window.
    *
@@ -262,6 +264,7 @@ export function setupWidgetsWindowManager(params: {
 
   let eventaContext: ReturnType<typeof createContext>['context'] | undefined
   const widgetRecords = new Map<string, WidgetRecord>()
+  const widgetEventListeners = new Set<(event: { id: string, event: Record<string, unknown> }) => void>()
   const windowContexts = new Map<string, WidgetWindowContext>()
 
   const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
@@ -655,6 +658,19 @@ export function setupWidgetsWindowManager(params: {
     return toSnapshot(record)
   }
 
+  function publishWidgetEvent(id: string, event: Record<string, unknown>) {
+    for (const listener of widgetEventListeners) {
+      listener({ id, event })
+    }
+  }
+
+  function onWidgetEvent(listener: (event: { id: string, event: Record<string, unknown> }) => void) {
+    widgetEventListeners.add(listener)
+    return () => {
+      widgetEventListeners.delete(listener)
+    }
+  }
+
   async function hideWindow(params?: { id?: string }) {
     const id = params?.id
     const context = id ? windowContexts.get(id) : undefined
@@ -672,6 +688,8 @@ export function setupWidgetsWindowManager(params: {
     clearWidgets,
     hideWindow,
     getWidgetSnapshot,
+    publishWidgetEvent,
+    onWidgetEvent,
     prepareWidgetWindow,
   }
 

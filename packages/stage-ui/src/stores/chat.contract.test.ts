@@ -7,6 +7,14 @@ import { ref } from 'vue'
 
 import { useChatOrchestratorStore } from './chat'
 
+vi.hoisted(() => {
+  ;(globalThis as any).window = {
+    location: {
+      origin: 'http://localhost',
+    },
+  }
+})
+
 const llmStreamMock = vi.fn()
 const trackFirstMessageMock = vi.fn()
 const ingestContextMessageMock = vi.fn()
@@ -147,6 +155,18 @@ vi.mock('./modules/consciousness', () => ({
   }),
 }))
 
+vi.mock('./modules/airi-card', () => ({
+  useAiriCardStore: () => ({
+    activeCard: undefined,
+  }),
+}))
+
+vi.mock('./modules/artistry-autonomous', () => ({
+  useAutonomousArtistryStore: () => ({
+    runArtistTask: vi.fn(),
+  }),
+}))
+
 const provider = {
   chat: () => ({ baseURL: 'https://example.com/' }),
 } as unknown as ChatProvider
@@ -195,6 +215,7 @@ describe('chat orchestrator contract', () => {
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, messages: Message[], options: any) => {
       composedMessages = messages
       expect(options.waitForTools).toBe(true)
+      expect(options.captureToolErrors).toBe(true)
 
       await options.onStreamEvent({ type: 'text-delta', text: 'hello' })
       await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })

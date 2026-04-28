@@ -64,6 +64,13 @@
       "when": 1775032828818,
       "tag": "0008_gray_xavin",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1777370103031,
+      "tag": "0009_perpetual_lilandra",
+      "breakpoints": true
     }
   ]
 }

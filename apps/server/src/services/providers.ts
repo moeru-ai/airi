@@ -168,6 +168,27 @@ export function createProviderService(db: Database) {
       logger.withFields({ id }).log('Deleted system provider config')
       return result
     },
+
+    /**
+     * Soft-delete every `user_provider_configs` row owned by the user.
+     * Called from the user-deletion pipeline. System configs are not
+     * touched (they are not user-scoped).
+     *
+     * Idempotent: `WHERE deletedAt IS NULL` skips already-stamped rows.
+     */
+    async deleteAllForUser(userId: string) {
+      const now = new Date()
+
+      const result = await db.update(schema.userProviderConfigs)
+        .set({ deletedAt: now, updatedAt: now })
+        .where(and(
+          eq(schema.userProviderConfigs.ownerId, userId),
+          isNull(schema.userProviderConfigs.deletedAt),
+        ))
+        .returning({ id: schema.userProviderConfigs.id })
+
+      logger.withFields({ userId, count: result.length }).log('Provider configs soft-deleted for user')
+    },
   }
 }
 
