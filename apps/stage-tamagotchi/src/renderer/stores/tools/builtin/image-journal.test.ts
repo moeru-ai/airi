@@ -1,7 +1,24 @@
 import { resolveArtistryConfigFromStore } from '@proj-airi/stage-ui/stores/modules/artistry'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+import { installStrictToolSchemaMatchers } from '../testing/strict-tool-schema'
+
+installStrictToolSchemaMatchers()
 
 describe('image_journal config snapshot', () => {
+  it('uses required nullable fields for strict provider schemas', async () => {
+    vi.stubGlobal('window', {
+      location: {
+        origin: 'http://localhost',
+      },
+    })
+
+    const { imageJournalTools } = await import('./image-journal')
+    const tools = await imageJournalTools()
+
+    expect(tools).toSatisfyStrictToolSchemas()
+  })
+
   it('extracts plain values instead of leaking Ref objects', () => {
     const config = resolveArtistryConfigFromStore({
       activeProvider: { value: 'comfyui' },

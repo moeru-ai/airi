@@ -149,3 +149,23 @@ export function normalizeRequiredWidgetId(id?: string, reason = 'id is required.
 export function normalizeOptionalWidgetId(id?: string): string | undefined {
   return normalizeWidgetId(id)
 }
+
+/**
+ * Validates iframe-published widget events at the Electron invoke boundary.
+ *
+ * Use when:
+ * - A renderer extension iframe publishes a structured event through its host widget shell
+ *
+ * Expects:
+ * - `event` is a plain JSON-like object
+ *
+ * Returns:
+ * - The event record safe to route through the widget manager
+ */
+export function validateWidgetIframeEvent(event: unknown): Record<string, unknown> {
+  if (!isPlainObject(event)) {
+    throw new Error('iframe event must be a plain object.')
+  }
+
+  return event as Record<string, unknown>
+}
