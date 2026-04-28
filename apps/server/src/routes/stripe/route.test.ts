@@ -99,6 +99,7 @@ function createCheckoutSession(overrides: Partial<StripeCheckoutSession> = {}): 
     expiresAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
+    deletedAt: null,
     ...overrides,
   }
 }
@@ -123,6 +124,7 @@ function createInvoice(overrides: Partial<StripeInvoice> = {}): StripeInvoice {
     metadata: null,
     createdAt: new Date(),
     updatedAt: new Date(),
+    deletedAt: null,
     ...overrides,
   }
 }
