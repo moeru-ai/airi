@@ -25,6 +25,8 @@ export interface RouteContext {
 
 export type RouteMiddleware = (context: RouteContext) => RouteDecision | void
 
+type DestinationList = Array<string | RouteTargetExpression>
+
 function getPeerLabels(peer: AuthenticatedPeer) {
   return {
     ...peer.identity?.plugin?.labels,
@@ -118,25 +120,29 @@ export function createPolicyMiddleware(policy: RoutingPolicy): RouteMiddleware {
 }
 
 /**
- * Resolves the destinations attached to an event.
+ * Collects explicit route destinations from the route envelope or event payload.
  *
  * Use when:
- * - Route-level destinations should override payload-level destinations
- * - Delivery logic needs to distinguish between "broadcast" and "explicitly send nowhere"
+ * - Routing middleware needs the effective destination override for a websocket event
+ * - Callers must preserve explicit empty destination lists instead of falling back to broadcast
  *
  * Expects:
- * - An explicit empty `route.destinations` array is a meaningful override
+ * - A websocket event whose `route.destinations` or `data.destinations` may be present
+ * - `data.destinations` is only treated as valid when it is an array-shaped override
  *
  * Returns:
- * - The route destinations, payload destinations, or `undefined` when the event is unrestricted
+ * - The explicit destination list when present
+ * - `undefined` when no destination override was provided
  */
-export function collectDestinations(event: WebSocketEvent | (Omit<WebSocketEvent, 'metadata'> & Partial<Pick<WebSocketEvent, 'metadata'>>)) {
+export function collectDestinations(
+  event: WebSocketEvent | (Omit<WebSocketEvent, 'metadata'> & Partial<Pick<WebSocketEvent, 'metadata'>>),
+): DestinationList | undefined {
   if (event.route && 'destinations' in event.route) {
     return event.route.destinations
   }
 
   const data = event.data as unknown
-  if (typeof data === 'object' && data !== null && 'destinations' in data) {
+  if (typeof data === 'object' && data !== null && 'destinations' in data && Array.isArray(data.destinations)) {
     return data.destinations
   }
 
