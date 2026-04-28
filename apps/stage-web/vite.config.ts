@@ -154,6 +154,18 @@ export default defineConfig({
     Unocss(),
 
     // https://github.com/antfu/vite-plugin-pwa
+    // NOTICE:
+    // The plugin must stay registered in dev — `src/modules/pwa.ts` imports
+    // the `virtual:pwa-register` module the plugin synthesises, and dropping
+    // the plugin breaks Vite's import-analysis with a "Failed to resolve
+    // import" error.
+    // SW generation in dev is already disabled by `devOptions.enabled:
+    // false` (the plugin's own default). So new SWs do NOT register from
+    // `pnpm dev` alone — but a previously-registered SW (e.g. from an
+    // earlier `vite preview` / `vite build`) lives on per-origin in the
+    // browser and keeps intercepting fetches even in dev. To recover from
+    // that state, unregister via DevTools → Application → Storage → Clear
+    // site data.
     ...(env.TARGET_HUGGINGFACE_SPACE
       ? []
       : [VitePWA({

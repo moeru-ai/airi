@@ -3,35 +3,46 @@ import type { SourcesOptions } from 'electron'
 import type { MaybeRefOrGetter } from 'vue'
 
 import { useElectronScreenCapture } from '@proj-airi/electron-screen-capture/vue'
-import { computed, ref, toRaw, toValue } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
+
+import { createObjectUrlFromBytes } from '../utils/create-object-url-from-bytes'
 
 interface ScreenCaptureSource extends SerializableDesktopCapturerSource {
   appIconURL?: string
   thumbnailURL?: string
 }
 
-function toLocalArrayBuffer(bytes: Uint8Array) {
-  if (typeof SharedArrayBuffer !== 'undefined' && bytes.buffer instanceof SharedArrayBuffer) {
-    return bytes.slice().buffer
-  }
-  return bytes.buffer as ArrayBuffer
-}
-
-function toObjectUrl(bytes: Uint8Array, mime: string) {
-  return URL.createObjectURL(new Blob([toLocalArrayBuffer(bytes)], { type: mime }))
-}
-
+/**
+ * Manages Electron-backed screen-capture sources and the active preview stream for vision workflows.
+ *
+ * Use when:
+ * - A renderer page needs to browse screen/window sources before capturing frames
+ * - The page should keep a single active `MediaStream` in sync with the selected source
+ *
+ * Expects:
+ * - The Electron screen-capture preload APIs to be available on `window.electron.ipcRenderer`
+ * - Callers to invoke `cleanup()` when the owning component unmounts
+ *
+ * Returns:
+ * - Reactive source lists, active stream state, and helpers for refetching, starting, stopping, and capturing frames
+ */
 export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesOptions>) {
   const sources = ref<ScreenCaptureSource[]>([])
   const isRefetching = ref(false)
   const hasFetchedOnce = ref(false)
   const activeSourceId = ref('')
-  const activeStream = ref<MediaStream | null>(null)
+  const activeStream = shallowRef<MediaStream | null>(null)
+  const activeStreamSourceId = ref('')
+
+  watch(activeSourceId, (nextId) => {
+    if (activeStreamSourceId.value && activeStreamSourceId.value !== nextId) {
+      clearActiveStream()
+    }
+  })
 
   const {
     getSources,
-    setSource,
-    resetSource,
+    selectWithSource,
   } = useElectronScreenCapture(window.electron.ipcRenderer, sourcesOptions)
 
   const activeSource = computed(() => sources.value.find(source => source.id === activeSourceId.value) || null)
@@ -47,18 +58,31 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
     const stream = activeStream.value
     if (!stream) {
       activeStream.value = null
+      activeStreamSourceId.value = ''
       return
     }
 
     stream.getTracks().forEach(track => track.stop())
     activeStream.value = null
+    activeStreamSourceId.value = ''
   }
 
-  function attachStreamLifecycle(stream: MediaStream) {
+  function revokeSourceObjectUrls(entries: ScreenCaptureSource[]) {
+    entries.forEach((source) => {
+      if (source.appIconURL)
+        URL.revokeObjectURL(source.appIconURL)
+      if (source.thumbnailURL)
+        URL.revokeObjectURL(source.thumbnailURL)
+    })
+  }
+
+  function attachStreamLifecycle(stream: MediaStream, sourceId: string) {
     stream.getTracks().forEach((track) => {
       track.addEventListener('ended', () => {
-        if (activeStream.value === stream)
+        if (activeStream.value === stream && activeStreamSourceId.value === sourceId) {
           activeStream.value = null
+          activeStreamSourceId.value = ''
+        }
       }, { once: true })
     })
   }
@@ -75,22 +99,17 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
           return a.name.localeCompare(b.name)
         })
 
-      sources.value.forEach((oldSource) => {
-        if (oldSource.appIconURL)
-          URL.revokeObjectURL(oldSource.appIconURL)
-        if (oldSource.thumbnailURL)
-          URL.revokeObjectURL(oldSource.thumbnailURL)
-      })
+      revokeSourceObjectUrls(sources.value)
 
       sources.value = nextSources.map(source => ({
         ...source,
-        appIconURL: source.appIcon && source.appIcon.length > 0 ? toObjectUrl(source.appIcon, 'image/png') : undefined,
-        thumbnailURL: source.thumbnail && source.thumbnail.length > 0 ? toObjectUrl(source.thumbnail, 'image/jpeg') : undefined,
+        appIconURL: source.appIcon && source.appIcon.length > 0 ? createObjectUrlFromBytes(source.appIcon, 'image/png') : undefined,
+        thumbnailURL: source.thumbnail && source.thumbnail.length > 0 ? createObjectUrlFromBytes(source.thumbnail, 'image/jpeg') : undefined,
       }))
 
       const hasActiveSource = sources.value.some(source => source.id === activeSourceId.value)
-      if (!hasActiveSource)
-        activeSourceId.value = sources.value[0]?.id || ''
+      const nextActiveSourceId = hasActiveSource ? activeSourceId.value : sources.value[0]?.id || ''
+      activeSourceId.value = nextActiveSourceId
     }
     finally {
       isRefetching.value = false
@@ -99,32 +118,29 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
   }
 
   async function startStream() {
-    if (!activeSourceId.value)
+    const sourceId = activeSourceId.value
+    if (!sourceId)
       throw new Error('No active source selected')
 
-    if (isActiveStream(activeStream.value))
+    if (isActiveStream(activeStream.value) && activeStreamSourceId.value === sourceId)
       return activeStream.value!
 
     clearActiveStream()
 
-    const handle = await setSource({
-      options: toRaw(toValue(sourcesOptions)),
-      sourceId: activeSourceId.value,
-    })
+    const stream = await selectWithSource(
+      () => sourceId,
+      async () => await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false }),
+    )
+    if (!isActiveStream(stream)) {
+      stream.getTracks().forEach(track => track.stop())
+      throw new Error('Selected source did not provide a live video track')
+    }
 
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
-      activeStream.value = stream
-      attachStreamLifecycle(stream)
-      return stream
-    }
-    catch (error) {
-      activeStream.value = null
-      throw error
-    }
-    finally {
-      await resetSource(handle)
-    }
+    activeStream.value = stream
+    activeStreamSourceId.value = sourceId
+    attachStreamLifecycle(stream, sourceId)
+
+    return stream
   }
 
   function stopStream() {
@@ -133,12 +149,7 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
 
   function cleanup() {
     stopStream()
-    sources.value.forEach((oldSource) => {
-      if (oldSource.appIconURL)
-        URL.revokeObjectURL(oldSource.appIconURL)
-      if (oldSource.thumbnailURL)
-        URL.revokeObjectURL(oldSource.thumbnailURL)
-    })
+    revokeSourceObjectUrls(sources.value)
   }
 
   function captureFrame(video: HTMLVideoElement, quality = 0.82, maxWidth = 1280, maxHeight = 720) {
@@ -148,6 +159,9 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
     const canvas = document.createElement('canvas')
     const sourceWidth = video.videoWidth
     const sourceHeight = video.videoHeight
+    if (sourceWidth <= 0 || sourceHeight <= 0)
+      return null
+
     const scale = Math.min(maxWidth / sourceWidth, maxHeight / sourceHeight, 1)
     canvas.width = Math.round(sourceWidth * scale)
     canvas.height = Math.round(sourceHeight * scale)
