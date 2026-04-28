@@ -114,10 +114,12 @@ resetPassword:
     passwordMismatch: Password and confirmation do not match.
 profile:
   title: Account profile
-  description: Manage your display name and password.
+  description: Manage your avatar, display name, and connected accounts.
   section:
     profile: Profile
+    avatar: Avatar
     password: Password
+    linkedAccounts: Connected accounts
   field:
     email: Email
     emailVerified: Email status
@@ -128,6 +130,10 @@ profile:
   name:
     label: Display name
     placeholder: How others see you
+  avatar:
+    altText: Profile avatar
+    gravatarNotice: Showing your Gravatar avatar — based on a hash of your email.
+    gravatarLink: Manage on gravatar.com
   password:
     currentLabel: Current password
     currentPlaceholder: Enter your current password
@@ -135,9 +141,31 @@ profile:
     newPlaceholder: At least 8 characters
     confirmLabel: Confirm new password
     confirmPlaceholder: Repeat your new password
+    setDescription: You signed in via a social provider, so there is no current password yet. We'll email a secure link to set one.
+    setLinkSent: Check {email} for the link to set your password.
+    setLinkFailed: We could not send the password setup link.
+  linkedAccounts:
+    description: Sign in to AIRI through these providers. Unlink to revoke access, then link again to switch to a different account.
+    status:
+      linked: Linked
+      notLinked: Not linked
+      linkedSince: Linked on {date}
+    action:
+      link: Link
+      unlink: Unlink
+    message:
+      loading: Loading connected accounts...
+      unlinked: '{provider} disconnected.'
+      linkStarted: Redirecting to {provider}…
+    error:
+      listFailed: Could not load connected accounts.
+      unlinkFailed: Could not unlink this account.
+      linkFailed: Could not start the link flow.
+      lastAccount: This is your only sign-in method. Set a password first before unlinking it.
   action:
     saveProfile: Save changes
     changePassword: Change password
+    sendSetPasswordLink: Email me a link to set my password
     signOut: Sign out
   message:
     loading: Loading your profile...

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { errorMessageFrom } from '@moeru/std'
+import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth'
+import { useLinkedAccounts } from '@proj-airi/stage-ui/composables'
 import { authClient } from '@proj-airi/stage-ui/libs/auth'
+import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Button, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -8,7 +11,7 @@ import { computed, reactive, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
-type SectionId = 'profile' | 'security' | 'danger'
+type SectionId = 'profile' | 'security' | 'connections' | 'danger'
 
 const emit = defineEmits<{
   login: []
@@ -22,6 +25,20 @@ const { isAuthenticated, user, credits } = storeToRefs(authStore)
 const userName = computed(() => user.value?.name ?? '')
 const userEmail = computed(() => user.value?.email ?? null)
 const userAvatar = computed(() => user.value?.image ?? null)
+// Gravatar fallback is decorated server-side onto `user.image`. We detect
+// the fallback by URL prefix instead of carrying a redundant `imageSource`
+// flag — Gravatar URL format is stable and prefix-matching keeps the API
+// surface small. If the avatar source ever changes, both this constant
+// and apps/server/src/libs/gravatar.ts must move together.
+const GRAVATAR_AVATAR_PREFIX = 'https://www.gravatar.com/avatar/'
+const usingGravatarFallback = computed(
+  () => userAvatar.value?.startsWith(GRAVATAR_AVATAR_PREFIX) ?? false,
+)
+const gravatarProfileUrl = computed(() => {
+  if (!usingGravatarFallback.value || !userEmail.value)
+    return null
+  return `https://gravatar.com/${encodeURIComponent(userEmail.value.trim().toLowerCase())}`
+})
 
 // Track avatar load failure so we can fall back to the placeholder icon
 // instead of rendering an alt-text overflow inside the circle. Resets when
@@ -71,27 +88,102 @@ const passwordLoading = shallowRef(false)
 const passwordError = shallowRef<string | null>(null)
 const passwordSuccess = shallowRef<string | null>(null)
 
+// Set-password path for social-only users (no `credential` row, hence no
+// "current password" to type). Drives them through the existing
+// /request-password-reset email flow rather than exposing a direct
+// setPassword endpoint — fewer custom routes, fresh email-ownership
+// proof at the moment of password set.
+const setPasswordLoading = shallowRef(false)
+const setPasswordError = shallowRef<string | null>(null)
+const setPasswordSuccess = shallowRef<string | null>(null)
+
 // Sidebar active section. Click jumps + highlights; we don't observe scroll
 // position because the page is short enough that simple click → scroll is
 // sufficient and easier to reason about.
 const activeSection = ref<SectionId>('profile')
 const profileSectionRef = ref<HTMLElement | null>(null)
 const securitySectionRef = ref<HTMLElement | null>(null)
+const connectionsSectionRef = ref<HTMLElement | null>(null)
 const dangerSectionRef = ref<HTMLElement | null>(null)
 
 function scrollToSection(id: SectionId) {
   activeSection.value = id
-  const target
-    = id === 'profile'
-      ? profileSectionRef.value
-      : id === 'security'
-        ? securitySectionRef.value
-        : dangerSectionRef.value
   // Settings layout owns a custom scroll container (#settings-scroll-container).
   // scrollIntoView walks up parents to find a scrollable ancestor, so it works
   // for both window-scroll pages and our inner-scroll layout without a special
   // case here.
-  target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const targets: Record<SectionId, HTMLElement | null> = {
+    profile: profileSectionRef.value,
+    security: securitySectionRef.value,
+    connections: connectionsSectionRef.value,
+    danger: dangerSectionRef.value,
+  }
+  targets[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+// Connected accounts: state + handlers come from the shared composable
+// in stage-ui so this page and apps/ui-server-auth's profile page stay
+// in lockstep. The composable handles list/unlink/link, the last-sign-in-
+// method guard, and the auto-refresh on auth state change.
+//
+// We destructure at top level so the refs auto-unwrap inside the template
+// — Vue's auto-unwrap only fires on top-level setup bindings, not on
+// `obj.someRef` field access.
+const {
+  loading: linkedAccountsLoading,
+  loaded: linkedAccountsLoaded,
+  error: linkedAccountsError,
+  message: linkedAccountsMessage,
+  inFlight: linkActionInFlight,
+  accountsByProvider: linkedAccountsByProvider,
+  hasCredentialAccount,
+  unlink: unlinkLinkedProvider,
+  link: linkLinkedProvider,
+} = useLinkedAccounts({
+  client: authClient,
+  isAuthenticated,
+  describeError: error => errorMessageFrom(error) ?? '',
+  messages: {
+    listFailed: t('settings.pages.account.connections.error.listFailed'),
+    unlinkFailed: t('settings.pages.account.connections.error.unlinkFailed'),
+    linkFailed: t('settings.pages.account.connections.error.linkFailed'),
+    lastAccount: t('settings.pages.account.connections.error.lastAccount'),
+    unlinked: provider => t('settings.pages.account.connections.message.unlinked', { provider }),
+    linkStarted: provider => t('settings.pages.account.connections.message.linkStarted', { provider }),
+  },
+})
+
+const connectionsDateFormatter = computed(() => {
+  try {
+    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
+  }
+  catch {
+    return null
+  }
+})
+
+function formatLinkedSince(iso: string): string {
+  if (!iso)
+    return ''
+  const formatter = connectionsDateFormatter.value
+  if (!formatter)
+    return iso
+  try {
+    return formatter.format(new Date(iso))
+  }
+  catch {
+    return iso
+  }
+}
+
+function handleUnlinkProvider(providerId: string) {
+  const providerName = defaultSignInProviders.find(p => p.id === providerId)?.name ?? providerId
+  return unlinkLinkedProvider(providerId, providerName)
+}
+
+function handleLinkProvider(providerId: 'github' | 'google') {
+  const providerName = defaultSignInProviders.find(p => p.id === providerId)?.name ?? providerId
+  return linkLinkedProvider(providerId, providerName)
 }
 
 async function handleSaveProfile(event: Event) {
@@ -168,6 +260,43 @@ async function handleChangePassword(event: Event) {
     passwordLoading.value = false
   }
 }
+
+async function handleSendSetPasswordLink() {
+  const email = userEmail.value
+  if (setPasswordLoading.value || !email)
+    return
+
+  setPasswordLoading.value = true
+  setPasswordError.value = null
+  setPasswordSuccess.value = null
+
+  try {
+    // NOTICE:
+    // `redirectTo` MUST live on the API server origin, not on the current
+    // browser origin. This page is shared with apps/stage-tamagotchi,
+    // whose Electron renderer loads from `file://` — `window.location.origin`
+    // would put a `file://` URL into the reset email and break the flow
+    // for any user who clicks from their inbox. The auth UI is hosted at
+    // `${SERVER_URL}/auth/reset-password` and reachable from the public
+    // internet.
+    // Source: PR #1753 review (chatgpt-codex-connector P1).
+    //
+    // The reset-password endpoint also covers the initial-set case — it
+    // creates a credential row when none exists, see
+    // node_modules/better-auth/dist/api/routes/password.mjs L152-158.
+    const redirectTo = new URL('/auth/reset-password', SERVER_URL).toString()
+    const { error } = await authClient.requestPasswordReset({ email, redirectTo })
+    if (error)
+      throw new Error(error.message ?? 'requestPasswordReset failed')
+    setPasswordSuccess.value = t('settings.pages.account.security.message.setLinkSent', { email })
+  }
+  catch (error) {
+    setPasswordError.value = errorMessageFrom(error) ?? t('settings.pages.account.security.error.setLinkFailed')
+  }
+  finally {
+    setPasswordLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -185,7 +314,7 @@ async function handleChangePassword(event: Event) {
              section like Profile / Security / Danger. -->
         <aside :class="['hidden md:flex flex-col gap-1 md:sticky md:top-2']">
           <button
-            v-for="section in ['profile', 'security', 'danger'] as SectionId[]"
+            v-for="section in ['profile', 'security', 'connections', 'danger'] as SectionId[]"
             :key="section"
             type="button"
             :class="[
@@ -253,6 +382,21 @@ async function handleChangePassword(event: Event) {
                   :class="['text-sm text-neutral-500 dark:text-neutral-400 truncate']"
                 >
                   {{ userEmail }}
+                </p>
+                <p
+                  v-if="usingGravatarFallback"
+                  :class="['text-xs text-neutral-500 dark:text-neutral-400 mt-1']"
+                >
+                  <span>{{ t('settings.pages.account.profile.avatar.gravatarNotice') }}</span>
+                  <a
+                    v-if="gravatarProfileUrl"
+                    :href="gravatarProfileUrl"
+                    target="_blank"
+                    rel="noreferrer"
+                    :class="['ml-1 underline underline-offset-2 hover:text-neutral-700 dark:hover:text-neutral-300']"
+                  >
+                    {{ t('settings.pages.account.profile.avatar.gravatarLink') }}
+                  </a>
                 </p>
               </div>
             </div>
@@ -349,7 +493,19 @@ async function handleChangePassword(event: Event) {
               </p>
             </header>
 
-            <form :class="['flex flex-col gap-3 max-w-md']" @submit="handleChangePassword">
+            <!-- Branches on whether the user has an existing credential
+                 account: social-only users have no current password to
+                 type, so we send them through the email-based set-password
+                 flow instead of showing an unfillable form. We gate on
+                 `linkedAccountsLoaded` (true only after a *successful*
+                 listAccounts) rather than `!linkedAccountsLoading` so a
+                 transient fetch error doesn't flip a credentialed user
+                 into the "set password" branch. -->
+            <form
+              v-if="linkedAccountsLoaded && hasCredentialAccount"
+              :class="['flex flex-col gap-3 max-w-md']"
+              @submit="handleChangePassword"
+            >
               <FieldInput
                 v-model="passwordForm.current"
                 type="password"
@@ -402,6 +558,128 @@ async function handleChangePassword(event: Event) {
                 />
               </div>
             </form>
+
+            <div
+              v-else-if="linkedAccountsLoaded"
+              :class="['flex flex-col gap-3 max-w-md']"
+            >
+              <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
+                {{ t('settings.pages.account.security.setDescription') }}
+              </p>
+
+              <div
+                v-if="setPasswordError"
+                :class="['text-sm text-red-500']"
+                role="alert"
+                aria-live="polite"
+              >
+                {{ setPasswordError }}
+              </div>
+              <div
+                v-else-if="setPasswordSuccess"
+                :class="['text-sm text-green-600 dark:text-green-400']"
+                aria-live="polite"
+              >
+                {{ setPasswordSuccess }}
+              </div>
+
+              <div :class="['flex justify-start']">
+                <Button
+                  :loading="setPasswordLoading"
+                  :disabled="!!setPasswordSuccess"
+                  :label="t('settings.pages.account.security.action.sendSetLink')"
+                  @click="handleSendSetPasswordLink"
+                />
+              </div>
+            </div>
+          </section>
+
+          <!-- Connected accounts section. Lives between Security and Danger
+               because it's identity-adjacent (which providers can authenticate
+               you) and reversible — unlinking and re-linking is a routine
+               account hygiene task, not a destructive one. -->
+          <section
+            ref="connectionsSectionRef"
+            :class="['flex flex-col gap-4 py-8 border-b border-neutral-200/70 dark:border-neutral-800/60']"
+          >
+            <header :class="['flex flex-col gap-1']">
+              <h3 :class="['text-lg font-semibold']">
+                {{ t('settings.pages.account.connections.title') }}
+              </h3>
+              <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
+                {{ t('settings.pages.account.connections.description') }}
+              </p>
+            </header>
+
+            <div
+              v-if="linkedAccountsLoading"
+              :class="['text-sm text-neutral-500 dark:text-neutral-400']"
+            >
+              {{ t('settings.pages.account.connections.message.loading') }}
+            </div>
+
+            <ul v-else :class="['flex flex-col gap-2 max-w-md']">
+              <li
+                v-for="provider in defaultSignInProviders"
+                :key="provider.id"
+                :class="[
+                  'flex items-center justify-between gap-3 rounded-lg border border-neutral-200 dark:border-neutral-700 px-3 py-2',
+                ]"
+              >
+                <div :class="['flex items-center gap-2 min-w-0']">
+                  <span :class="[provider.icon, 'h-5 w-5 shrink-0']" aria-hidden="true" />
+                  <div :class="['flex flex-col min-w-0']">
+                    <span :class="['truncate text-sm font-medium']">{{ provider.name }}</span>
+                    <span :class="['truncate text-xs text-neutral-500 dark:text-neutral-400']">
+                      <template v-if="linkedAccountsByProvider.get(provider.id)">
+                        {{
+                          t('settings.pages.account.connections.status.linkedSince', {
+                            date: formatLinkedSince(linkedAccountsByProvider.get(provider.id)!.createdAt),
+                          })
+                        }}
+                      </template>
+                      <template v-else>
+                        {{ t('settings.pages.account.connections.status.notLinked') }}
+                      </template>
+                    </span>
+                  </div>
+                </div>
+
+                <Button
+                  v-if="linkedAccountsByProvider.get(provider.id)"
+                  variant="secondary"
+                  :class="['shrink-0 px-3 py-1 text-xs']"
+                  :loading="linkActionInFlight === provider.id"
+                  :disabled="!!linkActionInFlight && linkActionInFlight !== provider.id"
+                  :label="t('settings.pages.account.connections.action.unlink')"
+                  @click="handleUnlinkProvider(provider.id)"
+                />
+                <Button
+                  v-else
+                  :class="['shrink-0 px-3 py-1 text-xs']"
+                  :loading="linkActionInFlight === provider.id"
+                  :disabled="!!linkActionInFlight && linkActionInFlight !== provider.id"
+                  :label="t('settings.pages.account.connections.action.link')"
+                  @click="handleLinkProvider(provider.id)"
+                />
+              </li>
+            </ul>
+
+            <div
+              v-if="linkedAccountsError"
+              :class="['text-sm text-red-500']"
+              role="alert"
+              aria-live="polite"
+            >
+              {{ linkedAccountsError }}
+            </div>
+            <div
+              v-else-if="linkedAccountsMessage"
+              :class="['text-sm text-green-600 dark:text-green-400']"
+              aria-live="polite"
+            >
+              {{ linkedAccountsMessage }}
+            </div>
           </section>
 
           <!-- Danger zone. Same divider-based section style as Profile /
