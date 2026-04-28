@@ -8,7 +8,7 @@ import { VISION_WORKLOADS } from '@proj-airi/stage-ui/composables'
 import { useVisionOrchestratorStore, useVisionProcessingStore, useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { Button, FieldCheckbox, FieldCombobox, FieldRange, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 
 import WithScreenCapture from '../../components/WithScreenCapture.vue'
 
@@ -252,9 +252,9 @@ async function shareSource(sourceId: string) {
   }
 }
 
-onMounted(() => {
+function handlePermissionGranted() {
   void refetchSources()
-})
+}
 
 onBeforeUnmount(() => {
   visionProcessingStore.stopTicker()
@@ -264,7 +264,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <WithScreenCapture :sources-options="sourcesOptions">
+  <WithScreenCapture
+    :sources-options="sourcesOptions"
+    @permission-granted="handlePermissionGranted()"
+  >
     <template #default="{ hasPermissions, requestPermission }">
       <div
         v-if="hasPermissions"
