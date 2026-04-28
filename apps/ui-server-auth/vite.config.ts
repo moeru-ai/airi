@@ -13,7 +13,7 @@ import VueRouter from 'vue-router/vite'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  base: '/_ui/server-auth/',
+  base: '/auth/',
   optimizeDeps: {
     exclude: [
       // Internal Packages

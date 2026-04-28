@@ -7,6 +7,7 @@ import { computed, ref, watch } from 'vue'
 
 import { client } from '../composables/api'
 import { useBreakpoints } from '../composables/use-breakpoints'
+import { triggerSignIn } from '../libs/auth'
 import { refreshAccessToken } from '../libs/auth-oidc'
 
 /**
@@ -23,6 +24,12 @@ export const useAuthStore = defineStore('auth', () => {
   const session = useLocalStorage<Session | null>('auth/v1/session', null, { serializer: StorageSerializers.object })
   const token = useLocalStorage<string | null>('auth/v1/token', null)
   const refreshToken = useLocalStorage<string | null>('auth/v1/refresh-token', null)
+  // NOTICE:
+  // Persisted to drive `id_token_hint` on RP-Initiated Logout
+  // (`/api/auth/oauth2/end-session`). The `sid` claim inside the ID token is
+  // what lets the OIDC provider locate the server-side session row to delete
+  // — without this we'd be back to relying on cross-site session cookies.
+  const idToken = useLocalStorage<string | null>('auth/v1/oidc-id-token', null)
   const isAuthenticated = computed(() => !!user.value && !!session.value)
   const userId = computed(() => user.value?.id ?? 'local')
 
@@ -33,26 +40,21 @@ export const useAuthStore = defineStore('auth', () => {
 
   const credits = useLocalStorage<number>('user/v1/flux', 0)
 
-  // For controlling the login drawer on mobile
+  // Cross-app "user must log in" flag. Setting this to true triggers an
+  // immediate OIDC redirect on web (mobile + desktop). Electron skips this
+  // path because controls-island-auth-button listens for IPC and handles
+  // sign-in in the main process.
   const needsLogin = ref(false)
   const { isMobile } = useBreakpoints()
 
-  whenever(needsLogin, () => {
-    // On mobile, LoginDrawer handles it via v-model
-    if (isMobile.value)
-      return
-
-    // On Electron, auth is triggered via IPC from controls-island-auth-button.
-    // Setting needsLogin is a no-op in Electron — the button listens directly.
+  whenever(needsLogin, async () => {
     if (isStageTamagotchi())
       return
-
-    // On web desktop, redirect to login page
-    // TODO: type safe, import `useRouter` from router.ts
-    window.location.href = '/auth/sign-in'
+    await triggerSignIn()
   })
 
-  // Reset status when changing the window viewport
+  // Reset the flag if the viewport class flips, so a stale needsLogin from a
+  // previous breakpoint does not surface again on resize.
   watch(isMobile, () => needsLogin.value = false)
 
   // --- Lifecycle hooks ---
@@ -153,6 +155,7 @@ export const useAuthStore = defineStore('auth', () => {
         session.value = null
         token.value = null
         refreshToken.value = null
+        idToken.value = null
         oidcClientId.value = null
         tokenExpiry.value = null
         return null
@@ -213,6 +216,7 @@ export const useAuthStore = defineStore('auth', () => {
     stopRefreshTimer()
     oidcClientId.value = null
     tokenExpiry.value = null
+    idToken.value = null
   }
 
   const updateCredits = async () => {
@@ -242,6 +246,7 @@ export const useAuthStore = defineStore('auth', () => {
     session,
     token,
     refreshToken,
+    idToken,
     isAuthenticated,
     credits,
     updateCredits,

@@ -102,10 +102,6 @@ jobs:
             -configuration Release \
             -destination "generic/platform=iOS" \
             -archivePath "$RUNNER_TEMP/App.xcarchive" \
-            DEVELOPMENT_TEAM=433DLLA855 \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE_SPECIFIER="AIRI CI" \
             CURRENT_PROJECT_VERSION=${{ env.BUILD_NUMBER }}
 
       - name: Export IPA
