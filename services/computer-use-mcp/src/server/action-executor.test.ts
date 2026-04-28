@@ -749,7 +749,7 @@ describe('createExecuteAction', () => {
     })
   })
 
-  it('rejects clicks outside connected display bounds before executor dispatch', async () => {
+  it('rejects physical-pixel-looking Retina coordinates outside the global logical display contract', async () => {
     const { runtime, executor } = createRuntimeForActionTest({
       allowedBounds: { x: -10_000, y: -10_000, width: 20_000, height: 20_000 },
     })

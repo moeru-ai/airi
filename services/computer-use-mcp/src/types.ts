@@ -191,7 +191,9 @@ export interface PointerTracePoint {
 }
 
 export interface ClickActionInput {
+  /** Global logical screen coordinate, not Retina backing pixels. */
   x: number
+  /** Global logical screen coordinate, not Retina backing pixels. */
   y: number
   button?: MouseButton
   clickCount?: number
@@ -200,7 +202,9 @@ export interface ClickActionInput {
 
 export interface TypeTextActionInput {
   text: string
+  /** Optional global logical screen coordinate to focus before typing. */
   x?: number
+  /** Optional global logical screen coordinate to focus before typing. */
   y?: number
   pressEnter?: boolean
   captureAfter?: boolean
@@ -212,7 +216,9 @@ export interface PressKeysActionInput {
 }
 
 export interface ScrollActionInput {
+  /** Optional global logical screen coordinate to move to before scrolling. */
   x?: number
+  /** Optional global logical screen coordinate to move to before scrolling. */
   y?: number
   deltaX?: number
   deltaY: number

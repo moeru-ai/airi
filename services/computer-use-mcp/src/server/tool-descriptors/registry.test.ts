@@ -296,6 +296,15 @@ describe('toolDescriptorRegistry', () => {
       expect(desc.readOnly).toBe(true)
       expect(desc.public).toBe(true)
     })
+
+    it('documents direct desktop coordinate tools as global logical coordinates', () => {
+      const registry = createPopulatedRegistry()
+
+      expect(registry.get('desktop_click').summary).toContain('global logical screen coordinates')
+      expect(registry.get('desktop_click').summary).toContain('not Retina backing pixels')
+      expect(registry.get('desktop_type_text').summary).toContain('global logical screen coordinates')
+      expect(registry.get('desktop_scroll').summary).toContain('global logical screen coordinates')
+    })
   })
 
   describe('desktop grounding tool enablement', () => {
