@@ -489,7 +489,7 @@ onBeforeUnmount(() => {
                 <FieldRange
                   v-model="captureDownscalePercent"
                   label="Input downscale"
-                  description="Shrink each captured frame before sending it to the vision model. 100% keeps the existing 1280x720 capture cap."
+                  description="Shrink each captured frame before sending it to the vision model. 100% keeps the existing 1280×720 capture cap."
                   :min="25"
                   :max="100"
                   :step="5"
@@ -497,7 +497,7 @@ onBeforeUnmount(() => {
                 />
 
                 <div :class="['text-xs', 'text-neutral-400']">
-                  Vision input max size: {{ captureInputBounds.maxWidth }} x {{ captureInputBounds.maxHeight }}
+                  Vision input max size: {{ captureInputBounds.maxWidth }} × {{ captureInputBounds.maxHeight }}
                 </div>
 
                 <FieldCombobox

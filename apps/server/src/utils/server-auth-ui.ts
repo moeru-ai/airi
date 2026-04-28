@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
-export const SERVER_AUTH_UI_BASE_PATH = '/_ui/server-auth'
+export const SERVER_AUTH_UI_BASE_PATH = '/auth'
 
 const SERVER_AUTH_UI_DIST_DIR = fileURLToPath(new URL('../../public/ui-server-auth', import.meta.url))
 const SERVER_AUTH_UI_INDEX_HTML_PATH = fileURLToPath(new URL('../../public/ui-server-auth/index.html', import.meta.url))
