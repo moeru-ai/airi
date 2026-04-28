@@ -2,7 +2,7 @@ import type { Database } from '../libs/db'
 import type { EngagementMetrics } from '../libs/otel'
 
 import { useLogger } from '@guiiai/logg'
-import { and, eq, isNull, sql } from 'drizzle-orm'
+import { and, eq, isNull, or, sql } from 'drizzle-orm'
 
 import * as schema from '../schemas/characters'
 import * as userCharacterSchema from '../schemas/user-character'
@@ -218,6 +218,56 @@ export function createCharacterService(db: Database, metrics?: EngagementMetrics
         metrics?.characterDeleted.add(1)
       }
       return result
+    },
+
+    /**
+     * Soft-delete every character owned or created by the user, plus their
+     * likes and bookmarks. Called from the user-deletion pipeline.
+     *
+     * Marks `creatorId === userId` rows too — fork attribution is tied to the
+     * creator's identity, so removing the creator soft-archives the lineage
+     * even if the current owner is someone else.
+     *
+     * Idempotent: `WHERE deletedAt IS NULL` skips already-stamped rows.
+     */
+    async deleteAllForUser(userId: string) {
+      const now = new Date()
+
+      const charRows = await db.update(schema.character)
+        .set({ deletedAt: now, updatedAt: now })
+        .where(and(
+          or(
+            eq(schema.character.ownerId, userId),
+            eq(schema.character.creatorId, userId),
+          ),
+          isNull(schema.character.deletedAt),
+        ))
+        .returning({ id: schema.character.id })
+
+      const likeRows = await db.update(userCharacterSchema.characterLikes)
+        .set({ deletedAt: now })
+        .where(and(
+          eq(userCharacterSchema.characterLikes.userId, userId),
+          isNull(userCharacterSchema.characterLikes.deletedAt),
+        ))
+        .returning({ characterId: userCharacterSchema.characterLikes.characterId })
+
+      const bookmarkRows = await db.update(userCharacterSchema.characterBookmarks)
+        .set({ deletedAt: now })
+        .where(and(
+          eq(userCharacterSchema.characterBookmarks.userId, userId),
+          isNull(userCharacterSchema.characterBookmarks.deletedAt),
+        ))
+        .returning({ characterId: userCharacterSchema.characterBookmarks.characterId })
+
+      logger
+        .withFields({
+          userId,
+          characters: charRows.length,
+          likes: likeRows.length,
+          bookmarks: bookmarkRows.length,
+        })
+        .log('Characters / likes / bookmarks soft-deleted for user')
     },
   }
 }
