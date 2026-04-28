@@ -68,6 +68,14 @@ signIn:
     terms: 服务条款
     and: 和
     privacy: 隐私政策
+deleteAccount:
+  title:
+    success: 账号已删除
+    failed: 无法删除账号
+  message:
+    success: 你的账号已被删除。
+  action:
+    closeTab: 你可以关闭此页面。
 profile:
   title: 账号资料
   description: 管理你的头像、显示名、密码和已绑定的社交账号。
@@ -88,8 +96,8 @@ profile:
     placeholder: 别人看到的名字
   avatar:
     altText: 用户头像
-    gravatarNotice: 正在使用 Gravatar 提供的头像（基于你邮箱地址的哈希值）。
-    gravatarLink: 前往 gravatar.com 管理
+    gravatarNotice: 头像来自 Gravatar。
+    gravatarLink: 在 gravatar.com 管理
   password:
     currentLabel: 当前密码
     currentPlaceholder: 输入当前密码

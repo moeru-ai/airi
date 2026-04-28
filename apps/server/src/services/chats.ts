@@ -305,6 +305,61 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
       return { seq: result.seq, fromSeq: result.fromSeq, toSeq: result.toSeq }
     },
 
+    /**
+     * Soft-delete every chat the user is a member of, plus the messages they
+     * sent inside those chats. Called from the user-deletion pipeline.
+     *
+     * AIRI's current chat model is 1-on-1 (user ↔ character/bot), so marking
+     * every chat where the user has a `chat_members` row is correct.
+     *
+     * Idempotent: `WHERE deletedAt IS NULL` skips already-stamped rows on
+     * retry.
+     *
+     * @todo Revisit when ChatType `'group'` / `'channel'` ship — we should NOT
+     * blanket-soft-delete shared chats. Branch on `chat.type` and only
+     * soft-delete `private` / `bot` chats; for group / channel, drop the
+     * user's `chat_members` row and leave the chat alone for other members.
+     */
+    async deleteAllForUser(userId: string) {
+      const now = new Date()
+
+      // Materialize the chat-id list separately rather than via
+      // `inArray(select)` so the subsequent updates run consistently across
+      // pg drivers without query-builder edge cases.
+      const memberRows = await db
+        .select({ chatId: schema.chatMembers.chatId })
+        .from(schema.chatMembers)
+        .where(eq(schema.chatMembers.userId, userId))
+
+      const chatIds = memberRows.map(r => r.chatId)
+
+      let chatCount = 0
+      let messageCount = 0
+
+      if (chatIds.length > 0) {
+        const updatedChats = await db.update(schema.chats)
+          .set({ deletedAt: now, updatedAt: now })
+          .where(and(
+            inArray(schema.chats.id, chatIds),
+            isNull(schema.chats.deletedAt),
+          ))
+          .returning({ id: schema.chats.id })
+        chatCount = updatedChats.length
+
+        const updatedMessages = await db.update(schema.messages)
+          .set({ deletedAt: now, updatedAt: now })
+          .where(and(
+            inArray(schema.messages.chatId, chatIds),
+            eq(schema.messages.senderId, userId),
+            isNull(schema.messages.deletedAt),
+          ))
+          .returning({ id: schema.messages.id })
+        messageCount = updatedMessages.length
+      }
+
+      logger.withFields({ userId, chats: chatCount, messages: messageCount }).log('Chats / messages soft-deleted for user')
+    },
+
     async pullMessages(userId: string, chatId: string, afterSeq: number, limit?: number) {
       return db.transaction(async (tx) => {
         await verifyMembership(tx, chatId, userId)

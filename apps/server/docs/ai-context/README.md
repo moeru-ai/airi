@@ -31,8 +31,12 @@
   - 认证与 OIDC Provider 架构、登录流程、trusted clients、踩坑记录
 - `email-auth-resend.md`
   - Resend 接入、Better Auth 四个邮件 callback、范围 / 决策 / 不做项
+- `account-deletion.md`
+  - 账号注销架构：auth 表 hard delete + 业务表软删，handler 协议、各业务行为、failure 模型
 - `verifications/email-auth.md`
   - 邮箱注册 / 忘记密码 / OIDC 桥接登录 三条用户路径的真实实测证据
+- `verifications/account-deletion.md`
+  - 账号注销端到端验证：what's verified（schema/typecheck/units）和 what's pending（live DB + Resend + Stripe trace）
 
 ## 快速结论
 
