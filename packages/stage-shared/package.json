@@ -28,6 +28,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@moeru/std": "catalog:",
     "@vueuse/core": "catalog:",
     "gpuu": "^1.0.7",
     "pinia": "catalog:",

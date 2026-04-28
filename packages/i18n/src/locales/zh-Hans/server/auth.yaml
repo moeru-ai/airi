@@ -24,15 +24,124 @@ electronCallback:
     closeTabManually: 一些浏览器不允许自动关闭这个页面，你可以手动关掉它。
 signIn:
   title: 登录
+  step:
+    identify:
+      heading: 登录
+      description: 输入邮箱以登录或创建账号。
+    password:
+      heading: 欢迎回来
+      description: 以 {email} 继续。
+    create:
+      heading: 创建账号
+      description: 我们会为 {email} 创建一个新账号。
+  email:
+    label: 邮箱
+    placeholder: you{'@'}example.com
+  password:
+    label: 密码
+    placeholder: 你的密码
+  newPassword:
+    label: 设置密码
+    placeholder: 至少 8 位
+  confirmPassword:
+    label: 确认密码
+    placeholder: 再次输入密码
+  name:
+    label: 显示名
+    placeholder: 可选，默认使用邮箱前缀
+  action:
+    continue: 继续
+    signIn: 登录
+    createAccount: 创建账号
+    forgotPassword: 忘记密码？
+    useDifferentEmail: 换个邮箱
+  divider:
+    or: 或
   error:
     fallback: 登录失败
     unknown: 发生了未知错误
     authFailed: Authentication failed. Please try again.
+    passwordMismatch: 两次输入的密码不一致。
+    invalidEmail: 请输入有效的邮箱地址。
   footer:
     prefix: 继续之前，你需要同意我们的
     terms: 服务条款
     and: 和
     privacy: 隐私政策
+deleteAccount:
+  title:
+    success: 账号已删除
+    failed: 无法删除账号
+  message:
+    success: 你的账号已被删除。
+  action:
+    closeTab: 你可以关闭此页面。
+profile:
+  title: 账号资料
+  description: 管理你的头像、显示名、密码和已绑定的社交账号。
+  section:
+    profile: 个人资料
+    avatar: 头像
+    password: 密码
+    linkedAccounts: 已绑定的社交账号
+  field:
+    email: 邮箱
+    emailVerified: 邮箱状态
+    createdAt: 加入时间
+  label:
+    verified: 已验证
+    unverified: 未验证
+  name:
+    label: 显示名
+    placeholder: 别人看到的名字
+  avatar:
+    altText: 用户头像
+    gravatarNotice: 头像来自 Gravatar。
+    gravatarLink: 在 gravatar.com 管理
+  password:
+    currentLabel: 当前密码
+    currentPlaceholder: 输入当前密码
+    newLabel: 新密码
+    newPlaceholder: 至少 8 位
+    confirmLabel: 确认新密码
+    confirmPlaceholder: 再次输入新密码
+    setDescription: 你通过社交账号登录，还没有设置过密码。我们会向你的邮箱发送一个安全链接，用来设置密码。
+    setLinkSent: 已向 {email} 发送了设置密码的链接，请前往查收。
+    setLinkFailed: 无法发送设置密码链接。
+  linkedAccounts:
+    description: 通过这些渠道登录 AIRI。解绑可以撤销访问，再次绑定即可切换到其他账号。
+    status:
+      linked: 已绑定
+      notLinked: 未绑定
+      linkedSince: 绑定于 {date}
+    action:
+      link: 绑定
+      unlink: 解绑
+    message:
+      loading: 正在加载已绑定的社交账号...
+      unlinked: 已解除与 {provider} 的绑定。
+      linkStarted: 正在跳转到 {provider}…
+    error:
+      listFailed: 无法加载已绑定的社交账号。
+      unlinkFailed: 无法解除绑定。
+      linkFailed: 无法开始绑定流程。
+      lastAccount: 这是你唯一的登录方式。请先设置密码再尝试解绑。
+  action:
+    saveProfile: 保存修改
+    changePassword: 修改密码
+    sendSetPasswordLink: 给我发送设置密码的邮件
+    signOut: 退出登录
+  message:
+    loading: 正在加载你的资料...
+    profileSaved: 资料已更新。
+    passwordChanged: 密码已修改。其他设备的登录会话已被注销。
+  error:
+    loadFailed: 无法加载你的资料。
+    saveFailed: 无法保存修改。
+    changePasswordFailed: 无法修改密码。
+    signOutFailed: 退出登录失败。
+    passwordMismatch: 两次输入的新密码不一致。
+    passwordSameAsCurrent: 新密码不能和当前密码相同。
 webCallback:
   title:
     signIn: 登录

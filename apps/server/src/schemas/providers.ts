@@ -6,11 +6,14 @@ import { boolean, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 import { nanoid } from '../utils/id'
 import { user } from './accounts'
 
+// NOTICE: bare ownerId is intentional — no FK to user.id. better-auth hard-deletes
+// the user row; a cascade would wipe these soft-delete archive rows.
+// See `apps/server/docs/ai-context/account-deletion.md`.
 export const userProviderConfigs = pgTable(
   'user_provider_configs',
   {
     id: text('id').primaryKey().$defaultFn(() => nanoid()),
-    ownerId: text('owner_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+    ownerId: text('owner_id').notNull(),
     definitionId: text('definition_id').notNull(),
     name: text('name').notNull(),
     config: jsonb('config').notNull().default({}),

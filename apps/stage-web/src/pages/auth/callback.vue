@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { applyOIDCTokens, fetchSession } from '@proj-airi/stage-ui/libs/auth'
+import { errorMessageFrom } from '@moeru/std'
+import { applyOIDCTokens, fetchSession, triggerSignIn } from '@proj-airi/stage-ui/libs/auth'
 import { consumeFlowState, exchangeCodeForTokens } from '@proj-airi/stage-ui/libs/auth-oidc'
 import { Button } from '@proj-airi/ui'
 import { onMounted, ref } from 'vue'
@@ -39,12 +40,12 @@ onMounted(async () => {
     router.replace('/')
   }
   catch (err) {
-    error.value = err instanceof Error ? err.message : t('server.auth.webCallback.message.tokenExchangeFailed')
+    error.value = errorMessageFrom(err) ?? t('server.auth.webCallback.message.tokenExchangeFailed')
   }
 })
 
-function handleTryAgain() {
-  router.replace('/auth/sign-in')
+async function handleTryAgain() {
+  await triggerSignIn()
 }
 </script>
 

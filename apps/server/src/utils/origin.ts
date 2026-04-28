@@ -57,11 +57,32 @@ export function resolveTrustedRequestOrigin(request: Request): string | undefine
   return undefined
 }
 
+// NOTICE:
+// Better Auth's callbackURL validation walks `trustedOrigins`. Static entries
+// support `*` wildcards via the framework's wildcardMatch (see
+// node_modules/better-auth/dist/auth/trusted-origins.mjs). Loopback origins
+// across any port are allowed so dev (Vite at :5173/:5174/:4173, electron
+// loopback OAuth at :random_port) and prod (where these addresses are
+// unreachable) share the same config. The pattern is intentionally broad —
+// loopback is unreachable from the public internet, so any origin that
+// resolves to localhost is by definition the same machine the user is on.
+//
+// Removal condition: when dev serves UI from the same origin as the API
+// (e.g. via vite proxy or static mount), drop these entries.
+const ALWAYS_TRUSTED_AUTH_ORIGINS = [
+  'http://localhost:*',
+  'http://127.0.0.1:*',
+]
+
 export function getAuthTrustedOrigins(env: Pick<Env, 'API_SERVER_URL'>, request?: Request): string[] {
   const origins = new Set<string>()
   const apiServerOrigin = getOriginFromUrl(env.API_SERVER_URL)
   if (apiServerOrigin) {
     origins.add(apiServerOrigin)
+  }
+
+  for (const origin of ALWAYS_TRUSTED_AUTH_ORIGINS) {
+    origins.add(origin)
   }
 
   if (request) {

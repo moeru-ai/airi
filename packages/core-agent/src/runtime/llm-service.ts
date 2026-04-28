@@ -1,8 +1,9 @@
 import type { ChatProvider } from '@xsai-ext/providers/utils'
-import type { Message } from '@xsai/shared-chat'
+import type { Message, Tool } from '@xsai/shared-chat'
 
 import type { StreamFromOptions, StreamOptions } from '../types/llm'
 
+import { errorMessageFrom } from '@moeru/std'
 import { stepCountAtLeast } from '@xsai/shared-chat'
 import { streamText } from '@xsai/stream-text'
 
@@ -46,6 +47,65 @@ async function resolveTools(options?: StreamOptions) {
   return tools ?? []
 }
 
+function isAbortError(error: unknown): boolean {
+  return typeof error === 'object'
+    && error !== null
+    && (error as { name?: unknown }).name === 'AbortError'
+}
+
+function createCapturedToolErrorResult(toolName: string, error: unknown): string {
+  return `Tool call error for "${toolName}": ${errorMessageFrom(error) ?? String(error)}`
+}
+
+function withCapturedToolErrors(
+  tools: Tool[],
+  capturedToolErrorByCallId: Map<string, string>,
+): Tool[] {
+  return tools.map(tool => ({
+    ...tool,
+    execute: async (input, executeOptions) => {
+      try {
+        return await tool.execute(input, executeOptions)
+      }
+      catch (error) {
+        if (isAbortError(error))
+          throw error
+
+        const result = createCapturedToolErrorResult(tool.function.name, error)
+        capturedToolErrorByCallId.set(executeOptions.toolCallId, result)
+        return result
+      }
+    },
+  }))
+}
+
+function resolveCapturedToolErrorEvent(
+  event: unknown,
+  capturedToolErrorByCallId: Map<string, string>,
+) {
+  if (
+    typeof event !== 'object'
+    || event === null
+    || (event as { type?: unknown }).type !== 'tool-result'
+    || typeof (event as { toolCallId?: unknown }).toolCallId !== 'string'
+  ) {
+    return event
+  }
+
+  const toolCallId = (event as { toolCallId: string }).toolCallId
+  const result = capturedToolErrorByCallId.get(toolCallId)
+  if (result == null)
+    return event
+
+  capturedToolErrorByCallId.delete(toolCallId)
+  return {
+    ...event,
+    type: 'tool-error',
+    isError: true,
+    result,
+  }
+}
+
 export async function streamFrom({
   model,
   chatProvider,
@@ -63,6 +123,10 @@ export async function streamFrom({
   const customTools = supportedTools ? await resolveTools(options) : []
   const mergedTools = supportedTools ? [...builtinTools, ...customTools] : []
   const tools = mergedTools.length > 0 ? mergedTools : undefined
+  const capturedToolErrorByCallId = new Map<string, string>()
+  const streamTools = options?.captureToolErrors && tools != null
+    ? withCapturedToolErrors(tools, capturedToolErrorByCallId)
+    : tools
 
   return new Promise<void>((resolve, reject) => {
     let settled = false
@@ -81,7 +145,8 @@ export async function streamFrom({
 
     const onEvent = async (event: unknown) => {
       try {
-        await options?.onStreamEvent?.(event as any)
+        const streamEvent = resolveCapturedToolErrorEvent(event, capturedToolErrorByCallId)
+        await options?.onStreamEvent?.(streamEvent as any)
         if (event && (event as any).type === 'finish') {
           const finishReason = (event as any).finishReason
           const waitingForToolRound = finishReason === 'tool_calls' || finishReason === 'tool-calls'
@@ -104,16 +169,30 @@ export async function streamFrom({
         messages: sanitized,
         headers: options?.headers,
         stopWhen: stepCountAtLeast(10),
-        tools,
-        // NOTICE: Some OpenAI-compatible gateways reject the wire-level
-        // `capture_tool_errors` parameter with 400 unknown_parameter.
-        // Keep this unset here so the request remains provider-compatible.
+        // NOTICE:
+        // Do not pass xsAI's `captureToolErrors` option here. In the installed
+        // @xsai/stream-text version, stream options are spread into the provider
+        // chat body, so unknown runtime-only fields can be rejected upstream.
+        // AIRI captures tool failures by wrapping local tool executors instead.
+        tools: streamTools,
         onEvent,
       })
 
       // NOTICE: Consume underlying promises to prevent unhandled rejections from
       // @xsai/stream-text's SSE parser surfacing as faulted app state.
-      void streamResult.steps.catch((error) => {
+      // NOTICE:
+      // `streamText(...).steps` is the authoritative completion signal for the
+      // full streamed interaction, including tool-call rounds.
+      // Resolving only from `onEvent({ type: 'finish' })` is incorrect when
+      // `options?.waitForTools === true`, because providers can emit
+      // `finishReason: 'tool_calls'` or `finishReason: 'tool-calls'` before the
+      // tool round has fully settled.
+      // That misuse leaves the outer promise pending, which makes provider-backed
+      // eval tasks look like they stop mid-run and prevents later scheduled evals
+      // from starting.
+      // Keep `steps.then(resolveOnce)` so evaluation runners observe the real end
+      // of the stream lifecycle instead of an intermediate tool boundary.
+      void streamResult.steps.then(resolveOnce).catch((error) => {
         rejectOnce(error)
         console.error('Stream steps error:', error)
       })
