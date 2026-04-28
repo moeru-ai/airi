@@ -7,6 +7,7 @@ import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Button, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
+import { DialogClose, DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { computed, reactive, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
@@ -295,6 +296,80 @@ async function handleSendSetPasswordLink() {
   }
   finally {
     setPasswordLoading.value = false
+  }
+}
+
+// ---- Delete account ----
+//
+// Two-step flow:
+// (1) Click "Delete account" -> open a reka-ui Dialog with a focus-trap and
+//     overlay so the destructive action is unambiguously modal. Inside the
+//     dialog the user retypes their email; we only enable the submit button
+//     when the entered value matches `userEmail` exactly. This is the same
+//     irreversible-action pattern GitHub / Linear use.
+// (2) On confirm, call `authClient.deleteUser({ callbackURL })`. better-auth
+//     emails a single-use link; clicking it runs the soft-delete handlers
+//     server-side, hard-deletes the auth tables, then redirects the browser
+//     to `callbackURL`. We point the callback at ui-server-auth's success
+//     page on the API server origin — stage-web and stage-tamagotchi do not
+//     own a dedicated post-delete route, and ui-server-auth is reachable
+//     from every embedding app.
+const deleteDialogOpen = ref(false)
+const deleteSent = shallowRef(false)
+const deleteForm = reactive({ confirmEmail: '' })
+const deleteLoading = shallowRef(false)
+const deleteError = shallowRef<string | null>(null)
+
+const deleteEmailMatches = computed(() => {
+  const target = userEmail.value?.trim().toLowerCase() ?? ''
+  return target.length > 0 && deleteForm.confirmEmail.trim().toLowerCase() === target
+})
+
+function openDeleteDialog() {
+  deleteForm.confirmEmail = ''
+  deleteError.value = null
+  deleteDialogOpen.value = true
+}
+
+// Reset transient form state whenever the dialog closes (cancel button, ESC,
+// overlay click). We deliberately keep `deleteSent` outside this reset so the
+// success message under the Danger Zone stays visible after the dialog is
+// dismissed by the user.
+watch(deleteDialogOpen, (open) => {
+  if (!open) {
+    deleteForm.confirmEmail = ''
+    deleteError.value = null
+  }
+})
+
+async function handleConfirmDelete(event: Event) {
+  event.preventDefault()
+  if (deleteLoading.value || !deleteEmailMatches.value)
+    return
+
+  deleteError.value = null
+  deleteLoading.value = true
+
+  try {
+    // The success page lives on the API-server origin (shared
+    // ui-server-auth bundle). It tells the user the deletion completed
+    // and asks them to close the tab — there is no "back to home"
+    // because the API server has no reliable way to know which calling
+    // app origin (stage-web / stage-tamagotchi / stage-pocket) the
+    // request came from.
+    const callbackURL = new URL('/auth/delete-account', SERVER_URL).toString()
+    const { error } = await authClient.deleteUser({ callbackURL })
+    if (error)
+      throw new Error(error.message ?? 'deleteUser failed')
+
+    deleteSent.value = true
+    deleteDialogOpen.value = false
+  }
+  catch (error) {
+    deleteError.value = errorMessageFrom(error) ?? t('settings.pages.account.danger.deleteAccount.error.fallback')
+  }
+  finally {
+    deleteLoading.value = false
   }
 }
 </script>
@@ -702,10 +777,6 @@ async function handleSendSetPasswordLink() {
               </p>
             </header>
 
-            <!-- TODO: Wire up delete-account once server enables
-                 user.deleteUser in better-auth config. The endpoint sends a
-                 confirmation email and revokes all sessions, so the UX needs
-                 a confirmation modal + post-delete redirect. -->
             <div :class="['flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3']">
               <div :class="['flex flex-col gap-0.5 min-w-0']">
                 <span :class="['text-sm font-medium']">
@@ -718,13 +789,88 @@ async function handleSendSetPasswordLink() {
               <div :class="['flex-shrink-0']">
                 <Button
                   variant="danger"
-                  disabled
-                  :title="t('settings.pages.account.danger.deleteAccount.notAvailable')"
                   :label="t('settings.pages.account.danger.deleteAccount.action')"
+                  @click="openDeleteDialog"
                 />
               </div>
             </div>
+
+            <p
+              v-if="deleteSent"
+              :class="['text-sm text-green-600 dark:text-green-400 max-w-md']"
+              aria-live="polite"
+            >
+              {{ t('settings.pages.account.danger.deleteAccount.message.emailSent', { email: userEmail }) }}
+            </p>
           </section>
+
+          <!-- Delete-account confirmation dialog. Uses reka-ui's Dialog so we
+               get focus-trap, ESC-to-close, and overlay-click-to-close for
+               free — destructive actions warrant a real modal, not an inline
+               reveal. The email retype is the standard high-friction guard
+               for irreversible account actions (GitHub / Linear use the same
+               pattern). -->
+          <DialogRoot v-model:open="deleteDialogOpen">
+            <DialogPortal>
+              <DialogOverlay
+                :class="[
+                  'fixed inset-0 z-9999 bg-black/50 backdrop-blur-sm',
+                  'data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn',
+                ]"
+              />
+              <DialogContent
+                :class="[
+                  'fixed left-1/2 top-1/2 z-9999 -translate-x-1/2 -translate-y-1/2',
+                  'max-h-[90dvh] w-[92dvw] max-w-md overflow-y-auto',
+                  'rounded-2xl bg-white dark:bg-neutral-900',
+                  'p-6 shadow-xl outline-none',
+                  'data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow',
+                ]"
+              >
+                <DialogTitle :class="['text-lg font-semibold text-red-600 dark:text-red-400 mb-2']">
+                  {{ t('settings.pages.account.danger.deleteAccount.modal.title') }}
+                </DialogTitle>
+                <DialogDescription :class="['text-sm text-neutral-700 dark:text-neutral-300 whitespace-pre-line mb-4']">
+                  {{ t('settings.pages.account.danger.deleteAccount.modal.warning') }}
+                </DialogDescription>
+
+                <form :class="['flex flex-col gap-3']" @submit="handleConfirmDelete">
+                  <FieldInput
+                    v-model="deleteForm.confirmEmail"
+                    type="email"
+                    autocomplete="off"
+                    :label="t('settings.pages.account.danger.deleteAccount.modal.confirmEmail.label')"
+                    :placeholder="userEmail ?? t('settings.pages.account.danger.deleteAccount.modal.confirmEmail.placeholder')"
+                  />
+                  <div
+                    v-if="deleteError"
+                    :class="['text-sm text-red-500']"
+                    role="alert"
+                    aria-live="polite"
+                  >
+                    {{ deleteError }}
+                  </div>
+                  <div :class="['flex justify-end gap-2 pt-1']">
+                    <DialogClose as-child>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        :disabled="deleteLoading"
+                        :label="t('settings.pages.account.danger.deleteAccount.modal.cancel')"
+                      />
+                    </DialogClose>
+                    <Button
+                      type="submit"
+                      variant="danger"
+                      :loading="deleteLoading"
+                      :disabled="!deleteEmailMatches"
+                      :label="t('settings.pages.account.danger.deleteAccount.modal.confirm')"
+                    />
+                  </div>
+                </form>
+              </DialogContent>
+            </DialogPortal>
+          </DialogRoot>
 
           <!-- Sign out at the page foot — mobile-only fallback because the
                sidebar (which owns logout on desktop) is hidden on small

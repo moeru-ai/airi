@@ -169,7 +169,7 @@ pages:
         label: Display name
         placeholder: How others see you
       avatar:
-        gravatarNotice: Showing your Gravatar avatar — based on a hash of your email.
+        gravatarNotice: Avatar from Gravatar.
         gravatarLink: Manage on gravatar.com
       action:
         save: Save changes
@@ -229,9 +229,21 @@ pages:
       description: Irreversible account actions live here.
       deleteAccount:
         title: Delete account
-        description: Permanently remove your account, sessions, and personal data.
-        action: Delete
-        notAvailable: Coming soon — contact support to delete your account today.
+        description: Permanently delete your account and personal data.
+        action: Delete account
+        modal:
+          title: Delete account?
+          warning: This cannot be undone. Active subscription will be canceled, Flux balance cleared.
+          confirmEmail:
+            label: Type your email to confirm
+            placeholder: ''
+            mismatch: Email does not match.
+          confirm: Send confirmation email
+          cancel: Cancel
+        message:
+          emailSent: Check {email} for the deletion link.
+        error:
+          fallback: Could not start deletion. Try again later.
   card:
     activate: Activate
     active: Active

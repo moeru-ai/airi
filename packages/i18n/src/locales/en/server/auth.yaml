@@ -93,6 +93,14 @@ forgotPassword:
     sent: If {email} matches an account, a reset link is on the way.
   error:
     fallback: We could not send the reset email.
+deleteAccount:
+  title:
+    success: Account deleted
+    failed: Could not delete account
+  message:
+    success: Your account has been deleted.
+  action:
+    closeTab: You can close this tab.
 resetPassword:
   title:
     default: Set a new password
@@ -132,7 +140,7 @@ profile:
     placeholder: How others see you
   avatar:
     altText: Profile avatar
-    gravatarNotice: Showing your Gravatar avatar — based on a hash of your email.
+    gravatarNotice: Avatar from Gravatar.
     gravatarLink: Manage on gravatar.com
   password:
     currentLabel: Current password
