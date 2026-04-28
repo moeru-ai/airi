@@ -94,7 +94,7 @@ export interface UserDeletionService {
 | **fluxService** | 20 | (1) `update userFlux set deletedAt=now() where userId=?`；(2) `redis del flux:balance:{userId}`；(3) **不动** flux_transaction（账本审计） | DB, Redis |
 | **providerService** | 30 | `update userProviderConfigs set deletedAt=now() where ownerId=?` | DB |
 | **characterService** | 30 | (1) `character set deletedAt=now() where ownerId=? or creatorId=?`；(2) `characterLikes/Bookmarks set deletedAt=now() where userId=?` | DB |
-| **chatService** | 30 | `chats set deletedAt=now() where ownerId=?`；`messages set deletedAt=now() where senderId=?` | DB |
+| **chatService** | 30 | 按 `chat.type` 分支：① `private`/`bot` 整 chat soft-delete + 该 user 发的 message soft-delete；② `group`/`channel` 只硬删该 user 的 `chat_members` 行，**user 发的 message 保留**给其他 member 维持对话上下文（sender 通过"user 行 hard-delete + senderId bare text 无 FK"自然匿名化，UI 拿 senderId lookup 不到 user 时渲染为 "Deleted User"） | DB |
 | llm_request_log | 不参与 | 独立 retention job 处理 | — |
 
 ## 业务查询的软删过滤
@@ -127,6 +127,23 @@ export interface UserDeletionService {
 - handler 全部用 `update where deletedAt is null` 守卫，重跑无副作用
 - Stripe `subscriptions.cancel` 对已 cancel 的 sub 返回 200（idempotent by spec）
 
+## 群聊匿名化（"Deleted User"）
+
+群聊场景下 `messages.senderId` 故意是 **bare `text` 列没有 FK**，所以：
+
+- better-auth hard-delete `user` 行后，`messages.senderId='abc123'` 字符串还在，但 `select * from "user" where id='abc123'` 空集
+- name / email / avatar 全部跟 user 行一起没了
+- senderId 还能 group by（同一 user 发的 message 仍可识别为同一来源），但**反查不到任何 PII**
+- UI 路径：渲染 message sender 时 user lookup miss → 显示 "Deleted User" / "[已注销]"
+
+**chatService.deleteAllForUser 不需要主动改 senderId**，schema "bare text + 无 FK + auth user 行 hard-delete" 这三件事联合产出匿名化效果。
+
+## 第三方 OAuth provider 端
+
+better-auth `internalAdapter.deleteAccounts` 删本地 `account` 表（user 跟 google/github 登录方式的关联），oauth_* 表通过 FK cascade 删干净。**第三方 OAuth provider 那边的 grant 不主动撤销** —— 跟 Stripe / Slack / Discord 等业界默认一致。User 真要彻底清，应该去 OAuth provider 自己的 dashboard（如 google.com/security）撤。
+
+如果未来出现严格 GDPR 需求，可以加 best-effort 调 Google `/o/oauth2/revoke?token=...` —— 但需要保留 refresh token，且 endpoint 本身就是 best-effort。
+
 ## 不做项 (v1)
 
 - ❌ 软删 → hard delete reaper job（业务表保留无限期，等首次清理需求驱动；llm_request_log 已有独立 retention）
@@ -134,6 +151,7 @@ export interface UserDeletionService {
 - ❌ Stripe / Flux 退款（条款里写明，后续按需补）
 - ❌ 删除事件外发 Webhook / Slack 通知（用 telemetry 替代）
 - ❌ Admin 手动触发 delete（后续 admin panel 任务）
+- ❌ 主动撤销第三方 OAuth provider 端的 grant（业界默认不做，user 自助撤）
 
 ## 相关代码索引
 

@@ -188,7 +188,64 @@ describe('chatService.deleteAllForUser', () => {
     expect(other?.deletedAt).toBeNull()
   })
 
-  it('soft-deletes messages the user sent in those chats', async () => {
+  it('drops chat_members for shared (group/channel) chats but keeps the chat alive', async () => {
+    // Two users in a shared group chat. When user A is deleted, the chat
+    // row must survive for user B; only A's chat_members row goes.
+    await db.insert(schema.user).values([
+      { id: 'u-grp-a', name: 'A', email: 'grpa@example.com' },
+      { id: 'u-grp-b', name: 'B', email: 'grpb@example.com' },
+    ])
+    await db.insert(schema.chats).values({ id: 'chat-grp', type: 'group', title: 'team' })
+    await db.insert(schema.chatMembers).values([
+      { chatId: 'chat-grp', memberType: 'user', userId: 'u-grp-a' },
+      { chatId: 'chat-grp', memberType: 'user', userId: 'u-grp-b' },
+    ])
+
+    const service = createChatService(db)
+    await service.deleteAllForUser('u-grp-a')
+
+    const chatRow = await db.query.chats.findFirst({ where: eq(schema.chats.id, 'chat-grp') })
+    expect(chatRow?.deletedAt).toBeNull() // chat survives
+
+    const remainingMembers = await db.query.chatMembers.findMany({ where: eq(schema.chatMembers.chatId, 'chat-grp') })
+    expect(remainingMembers).toHaveLength(1)
+    expect(remainingMembers[0]?.userId).toBe('u-grp-b')
+  })
+
+  it('preserves the user messages inside group chats so other members keep conversation context', async () => {
+    // Anonymization-by-design: in a group chat, user A's messages must NOT
+    // be soft-deleted on account deletion — that would corrupt B's history.
+    // The senderId stays as the (now-orphan) user.id string; the UI renders
+    // it as "Deleted User" once it cannot resolve the id to a real user.
+    await db.insert(schema.user).values([
+      { id: 'u-anon-a', name: 'A', email: 'anona@example.com' },
+      { id: 'u-anon-b', name: 'B', email: 'anonb@example.com' },
+    ])
+    await db.insert(schema.chats).values({ id: 'chat-anon-grp', type: 'group', title: 'team' })
+    await db.insert(schema.chatMembers).values([
+      { chatId: 'chat-anon-grp', memberType: 'user', userId: 'u-anon-a' },
+      { chatId: 'chat-anon-grp', memberType: 'user', userId: 'u-anon-b' },
+    ])
+    await db.insert(schema.messages).values([
+      { id: 'm-a-1', chatId: 'chat-anon-grp', senderId: 'u-anon-a', role: 'user', content: 'hi from A', mediaIds: [], stickerIds: [] },
+      { id: 'm-b-1', chatId: 'chat-anon-grp', senderId: 'u-anon-b', role: 'user', content: 'hi from B', mediaIds: [], stickerIds: [] },
+    ])
+
+    const service = createChatService(db)
+    await service.deleteAllForUser('u-anon-a')
+
+    // A's message stays alive; senderId still points at the now-orphan user.id string.
+    const aMsg = await db.query.messages.findFirst({ where: eq(schema.messages.id, 'm-a-1') })
+    expect(aMsg?.deletedAt).toBeNull()
+    expect(aMsg?.senderId).toBe('u-anon-a')
+    expect(aMsg?.content).toBe('hi from A')
+
+    // B's message obviously untouched.
+    const bMsg = await db.query.messages.findFirst({ where: eq(schema.messages.id, 'm-b-1') })
+    expect(bMsg?.deletedAt).toBeNull()
+  })
+
+  it('soft-deletes messages the user sent in private/bot chats', async () => {
     await db.insert(schema.user).values({ id: 'u-chat-2', name: 'M', email: 'msg@example.com' })
     await db.insert(schema.chats).values({ id: 'chat-msg', type: 'private', title: 't' })
     await db.insert(schema.chatMembers).values({ chatId: 'chat-msg', memberType: 'user', userId: 'u-chat-2' })

@@ -4,7 +4,7 @@ import type { Database } from '../libs/db'
 import type { NewStripeCheckoutSession, NewStripeCustomer, NewStripeInvoice, NewStripeSubscription } from '../schemas/stripe'
 
 import { useLogger } from '@guiiai/logg'
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, isNull, notInArray } from 'drizzle-orm'
 
 import * as schema from '../schemas/stripe'
 
@@ -43,11 +43,13 @@ export function createStripeService(db: Database, stripe: Stripe | null) {
     },
 
     async getCustomerByStripeId(stripeCustomerId: string) {
+      // NOTICE: NOT filtering by deletedAt — this lookup is by external
+      // Stripe id and is used by webhook handlers that need to reach
+      // soft-deleted archive rows for late events (cancellation receipts,
+      // final invoices arriving after account deletion). User-facing reads
+      // use getCustomerByUserId which DOES filter.
       return db.query.stripeCustomer.findFirst({
-        where: and(
-          eq(schema.stripeCustomer.stripeCustomerId, stripeCustomerId),
-          isNull(schema.stripeCustomer.deletedAt),
-        ),
+        where: eq(schema.stripeCustomer.stripeCustomerId, stripeCustomerId),
       })
     },
 
@@ -139,30 +141,37 @@ export function createStripeService(db: Database, stripe: Stripe | null) {
      * `apps/server/docs/ai-context/account-deletion.md`.
      */
     async deleteAllForUser(userId: string) {
-      const activeSubs = await db.query.stripeSubscription.findMany({
+      // Cancel every subscription that is NOT already in a terminal state.
+      // Stripe's terminal statuses are `canceled` and `incomplete_expired`;
+      // anything else (`active`, `trialing`, `past_due`, `unpaid`,
+      // `incomplete`, `paused`) can still bill or transition into billing,
+      // so leaving them uncancelled would charge a deleted account.
+      // Stripe `subscriptions.cancel` is idempotent per spec — safe to
+      // call on any non-terminal status.
+      const cancellableSubs = await db.query.stripeSubscription.findMany({
         where: and(
           eq(schema.stripeSubscription.userId, userId),
-          eq(schema.stripeSubscription.status, 'active'),
+          notInArray(schema.stripeSubscription.status, ['canceled', 'incomplete_expired']),
           isNull(schema.stripeSubscription.deletedAt),
         ),
       })
 
-      if (stripe && activeSubs.length > 0) {
-        for (const sub of activeSubs) {
+      if (stripe && cancellableSubs.length > 0) {
+        for (const sub of cancellableSubs) {
           try {
             await stripe.subscriptions.cancel(sub.stripeSubscriptionId, {
               prorate: false,
             })
-            logger.withFields({ userId, subscriptionId: sub.stripeSubscriptionId }).log('Cancelled Stripe subscription')
+            logger.withFields({ userId, subscriptionId: sub.stripeSubscriptionId, prevStatus: sub.status }).log('Cancelled Stripe subscription')
           }
           catch (err) {
-            logger.withError(err).withFields({ userId, subscriptionId: sub.stripeSubscriptionId }).error('Failed to cancel Stripe subscription')
+            logger.withError(err).withFields({ userId, subscriptionId: sub.stripeSubscriptionId, prevStatus: sub.status }).error('Failed to cancel Stripe subscription')
             throw err
           }
         }
       }
-      else if (!stripe && activeSubs.length > 0) {
-        logger.withFields({ userId, activeSubCount: activeSubs.length }).warn('Stripe SDK not configured; skipping API cancel — local rows will still be soft-deleted')
+      else if (!stripe && cancellableSubs.length > 0) {
+        logger.withFields({ userId, cancellableSubCount: cancellableSubs.length }).warn('Stripe SDK not configured; skipping API cancel — local rows will still be soft-deleted')
       }
 
       const now = new Date()
@@ -195,7 +204,7 @@ export function createStripeService(db: Database, stripe: Stripe | null) {
           isNull(schema.stripeCustomer.deletedAt),
         ))
 
-      logger.withFields({ userId, cancelledSubs: activeSubs.length }).log('Stripe rows soft-deleted for user')
+      logger.withFields({ userId, cancelledSubs: cancellableSubs.length }).log('Stripe rows soft-deleted for user')
     },
   }
 }

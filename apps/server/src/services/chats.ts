@@ -306,58 +306,108 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
     },
 
     /**
-     * Soft-delete every chat the user is a member of, plus the messages they
-     * sent inside those chats. Called from the user-deletion pipeline.
+     * Soft-delete the user's footprint in chats. Per-chat strategy depends
+     * on `chat.type`:
      *
-     * AIRI's current chat model is 1-on-1 (user ↔ character/bot), so marking
-     * every chat where the user has a `chat_members` row is correct.
+     * - `private` / `bot` (1-on-1, user IS the chat): soft-delete the chat
+     *   row + the user's messages. Nothing else can read those messages
+     *   (chat is gone), so soft-deleting them is just keeping audit consistent.
+     *
+     * - `group` / `channel` (shared): drop only this user's `chat_members`
+     *   row; the chat + other members survive. The user's messages are
+     *   **kept intact** — deleting them would corrupt the conversation
+     *   context for remaining members ("B replied to nothing"). Sender
+     *   anonymization is automatic: `messages.senderId` is bare text with
+     *   no FK, so after better-auth hard-deletes the user row, the senderId
+     *   string still groups the user's messages together but cannot be
+     *   joined to any PII (name / email are gone with the user row). The
+     *   UI is expected to render `senderId` whose user lookup misses as
+     *   "Deleted User".
+     *
+     * `chat_members` rows for shared chats are **hard-deleted** because the
+     * table was designed without a `deletedAt` column; auditing who was in
+     * which chat is preserved through `messages.senderId` for the messages
+     * the user actually authored.
      *
      * Idempotent: `WHERE deletedAt IS NULL` skips already-stamped rows on
-     * retry.
-     *
-     * @todo Revisit when ChatType `'group'` / `'channel'` ship — we should NOT
-     * blanket-soft-delete shared chats. Branch on `chat.type` and only
-     * soft-delete `private` / `bot` chats; for group / channel, drop the
-     * user's `chat_members` row and leave the chat alone for other members.
+     * retry; re-deleting an already-removed `chat_members` row is a no-op.
      */
     async deleteAllForUser(userId: string) {
       const now = new Date()
 
-      // Materialize the chat-id list separately rather than via
-      // `inArray(select)` so the subsequent updates run consistently across
-      // pg drivers without query-builder edge cases.
-      const memberRows = await db
-        .select({ chatId: schema.chatMembers.chatId })
+      // Join chat_members → chats so we can branch by chat.type without a
+      // second round-trip per row.
+      const memberChats = await db
+        .select({ chatId: schema.chatMembers.chatId, chatType: schema.chats.type })
         .from(schema.chatMembers)
+        .innerJoin(schema.chats, eq(schema.chatMembers.chatId, schema.chats.id))
         .where(eq(schema.chatMembers.userId, userId))
 
-      const chatIds = memberRows.map(r => r.chatId)
+      const soloChatIds = memberChats
+        .filter(r => r.chatType === 'private' || r.chatType === 'bot')
+        .map(r => r.chatId)
+      const sharedChatIds = memberChats
+        .filter(r => r.chatType === 'group' || r.chatType === 'channel')
+        .map(r => r.chatId)
 
-      let chatCount = 0
-      let messageCount = 0
+      let soloChatCount = 0
+      let droppedMemberships = 0
+      let soloMessageCount = 0
+      let preservedSharedMessages = 0
 
-      if (chatIds.length > 0) {
+      if (soloChatIds.length > 0) {
         const updatedChats = await db.update(schema.chats)
           .set({ deletedAt: now, updatedAt: now })
           .where(and(
-            inArray(schema.chats.id, chatIds),
+            inArray(schema.chats.id, soloChatIds),
             isNull(schema.chats.deletedAt),
           ))
           .returning({ id: schema.chats.id })
-        chatCount = updatedChats.length
+        soloChatCount = updatedChats.length
 
+        // Soft-delete user-authored messages in solo chats only. The chat
+        // itself is gone, so this is purely audit/consistency hygiene.
         const updatedMessages = await db.update(schema.messages)
           .set({ deletedAt: now, updatedAt: now })
           .where(and(
-            inArray(schema.messages.chatId, chatIds),
+            inArray(schema.messages.chatId, soloChatIds),
             eq(schema.messages.senderId, userId),
             isNull(schema.messages.deletedAt),
           ))
           .returning({ id: schema.messages.id })
-        messageCount = updatedMessages.length
+        soloMessageCount = updatedMessages.length
       }
 
-      logger.withFields({ userId, chats: chatCount, messages: messageCount }).log('Chats / messages soft-deleted for user')
+      if (sharedChatIds.length > 0) {
+        const dropped = await db.delete(schema.chatMembers)
+          .where(and(
+            inArray(schema.chatMembers.chatId, sharedChatIds),
+            eq(schema.chatMembers.userId, userId),
+          ))
+          .returning({ id: schema.chatMembers.id })
+        droppedMemberships = dropped.length
+
+        // Count (do not mutate) the user's messages in shared chats to make
+        // the preservation visible in logs. These rows stay live so other
+        // members keep their conversation context; sender anonymizes itself
+        // once better-auth hard-deletes the user row.
+        const kept = await db.select({ id: schema.messages.id })
+          .from(schema.messages)
+          .where(and(
+            inArray(schema.messages.chatId, sharedChatIds),
+            eq(schema.messages.senderId, userId),
+            isNull(schema.messages.deletedAt),
+          ))
+        preservedSharedMessages = kept.length
+      }
+
+      logger.withFields({
+        userId,
+        soloChats: soloChatCount,
+        sharedChatMembershipsDropped: droppedMemberships,
+        soloMessages: soloMessageCount,
+        preservedSharedMessages,
+      }).log('Chats footprint processed for user (solo soft-deleted, shared anonymized)')
     },
 
     async pullMessages(userId: string, chatId: string, afterSeq: number, limit?: number) {
