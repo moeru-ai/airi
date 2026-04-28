@@ -3,6 +3,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth'
 import { useLinkedAccounts } from '@proj-airi/stage-ui/composables'
 import { authClient } from '@proj-airi/stage-ui/libs/auth'
+import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Button, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -130,6 +131,7 @@ function scrollToSection(id: SectionId) {
 // `obj.someRef` field access.
 const {
   loading: linkedAccountsLoading,
+  loaded: linkedAccountsLoaded,
   error: linkedAccountsError,
   message: linkedAccountsMessage,
   inFlight: linkActionInFlight,
@@ -269,10 +271,20 @@ async function handleSendSetPasswordLink() {
   setPasswordSuccess.value = null
 
   try {
-    // Land back on the auth UI's reset-password page (the existing
-    // reset-password endpoint creates a credential row when none exists,
-    // see node_modules/better-auth/dist/api/routes/password.mjs L152-158).
-    const redirectTo = new URL('/auth/reset-password', window.location.origin).toString()
+    // NOTICE:
+    // `redirectTo` MUST live on the API server origin, not on the current
+    // browser origin. This page is shared with apps/stage-tamagotchi,
+    // whose Electron renderer loads from `file://` — `window.location.origin`
+    // would put a `file://` URL into the reset email and break the flow
+    // for any user who clicks from their inbox. The auth UI is hosted at
+    // `${SERVER_URL}/auth/reset-password` and reachable from the public
+    // internet.
+    // Source: PR #1753 review (chatgpt-codex-connector P1).
+    //
+    // The reset-password endpoint also covers the initial-set case — it
+    // creates a credential row when none exists, see
+    // node_modules/better-auth/dist/api/routes/password.mjs L152-158.
+    const redirectTo = new URL('/auth/reset-password', SERVER_URL).toString()
     const { error } = await authClient.requestPasswordReset({ email, redirectTo })
     if (error)
       throw new Error(error.message ?? 'requestPasswordReset failed')
@@ -484,11 +496,13 @@ async function handleSendSetPasswordLink() {
             <!-- Branches on whether the user has an existing credential
                  account: social-only users have no current password to
                  type, so we send them through the email-based set-password
-                 flow instead of showing an unfillable form. While the
-                 linked-accounts list is still loading we render neither
-                 form to avoid a brief flash of the wrong UI. -->
+                 flow instead of showing an unfillable form. We gate on
+                 `linkedAccountsLoaded` (true only after a *successful*
+                 listAccounts) rather than `!linkedAccountsLoading` so a
+                 transient fetch error doesn't flip a credentialed user
+                 into the "set password" branch. -->
             <form
-              v-if="!linkedAccountsLoading && hasCredentialAccount"
+              v-if="linkedAccountsLoaded && hasCredentialAccount"
               :class="['flex flex-col gap-3 max-w-md']"
               @submit="handleChangePassword"
             >
@@ -546,7 +560,7 @@ async function handleSendSetPasswordLink() {
             </form>
 
             <div
-              v-else-if="!linkedAccountsLoading"
+              v-else-if="linkedAccountsLoaded"
               :class="['flex flex-col gap-3 max-w-md']"
             >
               <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">

@@ -78,6 +78,7 @@ const gravatarProfileUrl = computed(() => {
 const isAuthenticated = computed(() => user.value !== null)
 const {
   loading: linkedAccountsLoading,
+  loaded: linkedAccountsLoaded,
   error: linkedAccountsError,
   message: linkedAccountsMessage,
   inFlight: linkActionInFlight,
@@ -217,13 +218,23 @@ async function handleSendSetPasswordLink() {
   setPasswordSuccess.value = null
 
   try {
-    // Land back on /auth/reset-password (the existing reset-password page
-    // handles both initial-set and rotate flows because better-auth's
-    // /reset-password endpoint creates a credential row when none exists).
+    // NOTICE:
+    // `redirectTo` is built off `apiServerUrl` (the publicly reachable
+    // API origin) rather than `window.location.origin`. ui-server-auth
+    // happens to be served from the same origin in practice, but the
+    // sibling stage-pages settings page is shared with the Tamagotchi
+    // Electron renderer which loads from `file://` — keeping all
+    // password-reset flows pinned to the API origin avoids that footgun
+    // and makes it copy/paste-safe across surfaces.
+    // Source: PR #1753 review (chatgpt-codex-connector P1).
+    //
+    // /reset-password handles both initial-set and rotate cases because
+    // its handler creates a credential row when none exists, see
+    // node_modules/better-auth/dist/api/routes/password.mjs L152-158.
     await requestPasswordReset({
       apiServerUrl,
       email: user.value.email,
-      redirectTo: new URL('/auth/reset-password', window.location.origin).toString(),
+      redirectTo: new URL('/auth/reset-password', apiServerUrl).toString(),
     })
     setPasswordSuccess.value = t('server.auth.profile.password.setLinkSent', { email: user.value.email })
   }
@@ -411,9 +422,12 @@ function formatLinkedSince(iso: string): string {
            credential account. Social-only users (signed up via GitHub /
            Google) have no current password to type, so we drive them
            through the email-based set-password flow instead of showing a
-           form they can't fill. -->
+           form they can't fill. We gate on `linkedAccountsLoaded` (true
+           only after a *successful* listAccounts) rather than just
+           `!linkedAccountsLoading` — a transient fetch error must not
+           flip a credentialed user into the "set password" branch. -->
       <section
-        v-if="!linkedAccountsLoading"
+        v-if="linkedAccountsLoaded"
         :class="['max-w-sm w-full flex flex-col gap-3 mb-6']"
       >
         <h2 :class="['text-base font-semibold']">

@@ -24,16 +24,9 @@ export interface LinkedAccountRow {
 }
 
 /**
- * Minimum surface of better-auth's typed client that the composable needs.
- *
- * Defined as a structural interface (rather than `ReturnType<typeof
- * createAuthClient>`) so callers can pass either the cookie-credentialed
- * client used by `apps/ui-server-auth` or the Bearer-only client used by
- * `apps/stage-web` — both satisfy these three methods.
- *
- * Methods are typed loosely on `data` because better-auth v1.6.6 widens
- * the OpenAPI-derived array element to `any[]`. We re-narrow inside the
- * composable; callers just hand the client back as-is.
+ * Minimum surface of better-auth's typed client the composable needs.
+ * Structural so cookie-credentialed (ui-server-auth) and Bearer-only
+ * (stage-web) clients both fit.
  */
 export interface LinkedAccountsClient {
   listAccounts: () => Promise<{
@@ -57,10 +50,8 @@ export interface LinkedAccountsClient {
 }
 
 /**
- * Strings the composable surfaces back to the UI. Kept as plain strings
- * (already-translated) so the composable doesn't depend on a particular
- * i18n implementation. Functions take a `provider` interpolation arg
- * because the rendered strings need the provider's display name.
+ * Already-translated strings the composable surfaces back to the UI;
+ * keeps i18n implementation out of stage-ui.
  */
 export interface LinkedAccountsMessages {
   listFailed: string
@@ -74,44 +65,36 @@ export interface LinkedAccountsMessages {
 
 export interface UseLinkedAccountsArgs {
   client: LinkedAccountsClient
-  /**
-   * Reactive auth state. The composable refreshes the account list when
-   * the user signs in and clears it when they sign out.
-   */
+  /** Drives auto-refresh on sign-in and clear on sign-out. */
   isAuthenticated: Ref<boolean>
   messages: LinkedAccountsMessages
-  /**
-   * Extracts a human-readable error string from caught errors. Both
-   * consumers already have one (`errorMessageFrom` from `@moeru/std` or a
-   * `describeProfileError` wrapper); pass yours so the composable doesn't
-   * pin a specific dependency.
-   */
+  /** Caller-supplied error stringifier (e.g. `errorMessageFrom`). */
   describeError: (error: unknown) => string
   /**
-   * Callback URL the OAuth provider redirects to after consent. Defaults
-   * to `window.location.href` so the user lands back on the same page —
-   * which works correctly for both web-history (`/settings/account`,
-   * `/auth/profile`) and hash-history (`/#/settings/account`) builds.
+   * OAuth post-consent return URL.
+   * @default `() => window.location.href` — survives both web-history
+   *          and hash-history routers without further configuration.
    */
   buildCallbackURL?: () => string
 }
 
 /**
- * Shared state + handlers for the "Connected accounts" UI.
- *
- * Use when:
- * - Driving any profile page that lets the user view, unlink, or link
- *   social providers (currently `apps/ui-server-auth`'s profile and
- *   `apps/stage-web`'s settings/account).
- *
- * Returns refs the template binds against and async handlers wired to
- * the better-auth client. UI rendering is the caller's responsibility —
- * the two consuming pages share ~all the logic but lay out the section
- * differently, so we deliberately stop short of a shared component.
+ * Shared state + handlers for the "Connected accounts" section.
+ * Two consumers (ui-server-auth profile, stage-web settings/account)
+ * share all the logic but render the section differently, so this stops
+ * at a composable rather than a shared component.
  */
 export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
   const linkedAccounts = shallowRef<LinkedAccountRow[]>([])
   const loading = shallowRef(true)
+  /**
+   * `true` after the first successful `listAccounts`. Survives transient
+   * fetch errors so a momentary 5xx doesn't flip `hasCredentialAccount`
+   * to false and mis-route credentialed users into the email-set-password
+   * branch. Resets only on sign-out.
+   * Source: PR #1753 review (chatgpt-codex-connector P2).
+   */
+  const loaded = shallowRef(false)
   const error = shallowRef<string | null>(null)
   const message = shallowRef<string | null>(null)
   /** Provider id currently being linked / unlinked. `null` when idle. */
@@ -130,12 +113,8 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
   )
 
   /**
-   * Returns true when unlinking `providerId` would leave the user with no
-   * remaining sign-in method.
-   *
-   * Keeping the guard client-side (in addition to better-auth's server-side
-   * `FAILED_TO_UNLINK_LAST_ACCOUNT`) lets us show a friendlier message
-   * without round-tripping a known-bad request.
+   * Client-side mirror of better-auth's `FAILED_TO_UNLINK_LAST_ACCOUNT`
+   * guard so we can surface a user-friendly message before round-tripping.
    */
   function isLastSignInMethod(providerId: string): boolean {
     if (providerId === 'credential')
@@ -150,15 +129,10 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
       const { data, error: apiError } = await args.client.listAccounts()
       if (apiError)
         throw new Error(apiError.message ?? 'listAccounts failed')
-      if (!data) {
-        linkedAccounts.value = []
-        return
-      }
-      // NOTICE: better-auth's listAccounts widens each element to `any` in
-      // v1.6.6 — we read fields directly without re-typing inline (see
-      // `## TS/JS 反模式` in the global CLAUDE.md: don't dress up `any`
-      // as a fake structural type).
-      linkedAccounts.value = data.map(account => ({
+      // better-auth 1.6.6 widens listAccounts elements to `any`; consume
+      // the row directly rather than dressing `any` up with a fake shape.
+      // Field layout: node_modules/better-auth/dist/api/routes/account.mjs L20-50.
+      linkedAccounts.value = (data ?? []).map(account => ({
         id: account.id,
         accountId: account.accountId,
         providerId: account.providerId,
@@ -167,9 +141,12 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
           : account.createdAt,
         scopes: account.scopes ?? [],
       }))
+      loaded.value = true
     }
     catch (err) {
-      linkedAccounts.value = []
+      // Keep prior `linkedAccounts` on error so a transient 5xx doesn't
+      // flip `hasCredentialAccount` and mis-route the password UI.
+      // Source: PR #1753 review (chatgpt-codex-connector P2).
       error.value = args.describeError(err) || args.messages.listFailed
     }
     finally {
@@ -245,15 +222,20 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
   })
 
   watch(args.isAuthenticated, (next) => {
-    if (next)
+    if (next) {
       refresh()
-    else
+    }
+    else {
+      // Don't leak previous user's accounts into the next session.
       linkedAccounts.value = []
+      loaded.value = false
+    }
   })
 
   return {
     linkedAccounts,
     loading,
+    loaded,
     error,
     message,
     inFlight,
