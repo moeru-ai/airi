@@ -1,4 +1,5 @@
 import type { EmailService } from '../services/email'
+import type { UserDeletionService } from '../services/user-deletion'
 import type { Database } from './db'
 import type { Env } from './env'
 import type { AuthMetrics } from './otel'
@@ -333,7 +334,32 @@ function requireEmailService(email: EmailService | undefined): EmailService {
   return email
 }
 
-export function createAuth(db: Database, env: Env, email?: EmailService, metrics?: AuthMetrics | null) {
+/**
+ * NOTICE:
+ * `userDeletionService` is optional for the same reason `email` is — the
+ * `auth:generate` schema introspection path constructs `createAuth` without
+ * a real DI graph and never exercises `user.deleteUser`. The runtime path
+ * always supplies it from `app.ts`, and the `beforeDelete` callback throws
+ * if it's missing so silent no-ops are impossible.
+ */
+function requireUserDeletionService(service: UserDeletionService | undefined): UserDeletionService {
+  if (!service) {
+    throw new ApiError(
+      503,
+      'user-deletion/service_not_configured',
+      'User deletion service not available in this server context.',
+    )
+  }
+  return service
+}
+
+export function createAuth(
+  db: Database,
+  env: Env,
+  email?: EmailService,
+  metrics?: AuthMetrics | null,
+  userDeletionService?: UserDeletionService,
+) {
   return betterAuth({
     secret: env.BETTER_AUTH_SECRET,
 
@@ -449,6 +475,33 @@ export function createAuth(db: Database, env: Env, email?: EmailService, metrics
             to: user.email,
             newEmail,
             url,
+          })
+        },
+      },
+      // NOTICE:
+      // Two-step deletion: POST /api/auth/delete-user with an authenticated
+      // session triggers `sendDeleteAccountVerification`; clicking the link
+      // hits GET /api/auth/delete-user/callback?token=..., which validates
+      // and calls `beforeDelete` BEFORE `internalAdapter.deleteUser`. Throw
+      // from `beforeDelete` to abort: the user row stays put, the
+      // verification token has already been consumed (single-use) so the
+      // user must re-initiate. Soft-delete handlers must be idempotent
+      // because retrying a partial deletion re-runs already-completed
+      // handlers as no-ops.
+      // Source: node_modules/better-auth/dist/api/routes/update-user.mjs L286-380
+      // Design: apps/server/docs/ai-context/account-deletion.md
+      deleteUser: {
+        enabled: true,
+        async sendDeleteAccountVerification({ user, url }) {
+          await requireEmailService(email).sendDeleteAccountVerification({
+            to: user.email,
+            url,
+          })
+        },
+        async beforeDelete(user) {
+          await requireUserDeletionService(userDeletionService).softDeleteAll({
+            userId: user.id,
+            reason: 'user-requested',
           })
         },
       },

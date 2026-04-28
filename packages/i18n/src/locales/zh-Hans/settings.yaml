@@ -160,8 +160,8 @@ pages:
         label: 显示名
         placeholder: 别人看到的名字
       avatar:
-        gravatarNotice: 正在使用 Gravatar 提供的头像（基于你邮箱地址的哈希值）。
-        gravatarLink: 前往 gravatar.com 管理
+        gravatarNotice: 头像来自 Gravatar。
+        gravatarLink: 在 gravatar.com 管理
       action:
         save: 保存修改
       message:
@@ -220,9 +220,21 @@ pages:
       description: 这里的操作不可撤销，请谨慎使用。
       deleteAccount:
         title: 删除账号
-        description: 永久删除你的账号、会话与个人数据。
-        action: 删除
-        notAvailable: 即将上线——如需立即删除账号请联系支持。
+        description: 永久删除你的账号与个人数据。
+        action: 删除账号
+        modal:
+          title: 确认删除账号？
+          warning: 此操作不可撤销。订阅将被取消，Flux 余额将清空。
+          confirmEmail:
+            label: 输入邮箱以确认
+            placeholder: ''
+            mismatch: 邮箱不匹配。
+          confirm: 发送确认邮件
+          cancel: 取消
+        message:
+          emailSent: 删除链接已发送至 {email}。
+        error:
+          fallback: 无法发起删除，请稍后重试。
   card:
     activate: 激活
     active: 已激活
