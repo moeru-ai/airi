@@ -1,5 +1,7 @@
 import type { OAuthProvider } from '@proj-airi/stage-ui/libs/auth'
 
+import { extractAuthError } from './auth-fetch'
+
 export interface ServerSignInContext {
   callbackURL: string
   requestedProvider: string | null
@@ -54,23 +56,10 @@ export async function requestSocialSignInRedirect(params: SocialSignInRedirectPa
     return response.headers.get('location') || '/'
   }
 
-  const data = await response.json() as {
-    url?: unknown
-    error?: unknown
-  }
+  const data = await response.json() as { url?: unknown }
 
   if (typeof data.url === 'string')
     return data.url
 
-  throw new Error(getSignInErrorMessage(data.error))
-}
-
-function getSignInErrorMessage(error: unknown): string {
-  if (typeof error === 'string')
-    return error
-
-  if (typeof error === 'object' && error && 'message' in error && typeof error.message === 'string')
-    return error.message
-
-  return 'Unexpected response'
+  throw new Error(extractAuthError(data) ?? 'Unexpected response')
 }
