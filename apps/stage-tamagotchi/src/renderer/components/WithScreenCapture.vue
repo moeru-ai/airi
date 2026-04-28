@@ -12,6 +12,10 @@ const props = defineProps<{
   sourcesOptions: SourcesOptions
 }>()
 
+const emit = defineEmits<{
+  permissionGranted: []
+}>()
+
 const sourcesOptions = toRef(props, 'sourcesOptions')
 
 const hasPermissions = ref(false)
@@ -55,6 +59,12 @@ onMounted(async () => {
 watch(focused, async (isFocused) => {
   if (isFocused) {
     await checkPermissions()
+  }
+})
+
+watch(hasPermissions, (nextHasPermissions, previousHasPermissions) => {
+  if (nextHasPermissions && !previousHasPermissions) {
+    emit('permissionGranted')
   }
 })
 </script>
