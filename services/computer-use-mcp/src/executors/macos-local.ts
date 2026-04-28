@@ -222,7 +222,7 @@ print(String(data: data, encoding: .utf8)!)
  * - Pointer coordinates are already global logical macOS screen coordinates
  *
  * Returns:
- * - A Swift script that restores the user's real cursor after agent movement
+ * - A Swift script that leaves the real cursor at the clicked target for follow-up pointer-relative actions
  */
 export function buildMacOSMoveAndClickScript(): string {
   return String.raw`
@@ -250,13 +250,6 @@ func mouseUpType(_ button: CGMouseButton) -> CGEventType {
   case .right: return .rightMouseUp
   case .center: return .otherMouseUp
   default: return .leftMouseUp
-  }
-}
-
-let originalCursorLocation = CGEvent(source: nil)?.location
-defer {
-  if let originalCursorLocation = originalCursorLocation {
-    CGWarpMouseCursorPosition(originalCursorLocation)
   }
 }
 

@@ -18,14 +18,12 @@ function expectTokenBefore(script: string, earlier: string, later: string): void
 }
 
 describe('macOS local Swift cursor restore contract', () => {
-  it('registers cursor restore before desktop_click moves the real pointer', () => {
+  it('leaves desktop_click cursor at the action target for pointer-relative follow-up actions', () => {
     const script = buildMacOSMoveAndClickScript()
 
-    expect(script).toContain('let originalCursorLocation = CGEvent(source: nil)?.location')
-    expect(script).toContain('defer {')
-    expect(script).toContain('CGWarpMouseCursorPosition(originalCursorLocation)')
-    expectTokenBefore(script, 'let originalCursorLocation = CGEvent(source: nil)?.location', 'for point in trace')
-    expectTokenBefore(script, 'defer {', 'for point in trace')
+    expect(script).not.toContain('let originalCursorLocation = CGEvent(source: nil)?.location')
+    expect(script).not.toContain('CGWarpMouseCursorPosition')
+    expect(script).toContain('for point in trace')
   })
 
   it('registers cursor restore before coordinate-based desktop_scroll moves the real pointer', () => {
