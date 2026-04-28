@@ -1,4 +1,5 @@
 import type { EmailService } from '../services/email'
+import type { UserDeletionService } from '../services/user-deletion'
 import type { Database } from './db'
 import type { Env } from './env'
 import type { AuthMetrics } from './otel'
@@ -9,11 +10,13 @@ import { oauthProvider } from '@better-auth/oauth-provider'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { createAuthMiddleware } from 'better-auth/api'
+import { deleteSessionCookie } from 'better-auth/cookies'
 import { bearer, jwt, magicLink } from 'better-auth/plugins'
 import { eq } from 'drizzle-orm'
 
 import { ApiError } from '../utils/error'
 import { getAuthTrustedOrigins, getTrustedOrigin } from '../utils/origin'
+import { oidcJwtBearer } from './auth-plugins/oidc-jwt-bearer'
 
 import * as authSchema from '../schemas/accounts'
 
@@ -331,7 +334,32 @@ function requireEmailService(email: EmailService | undefined): EmailService {
   return email
 }
 
-export function createAuth(db: Database, env: Env, email?: EmailService, metrics?: AuthMetrics | null) {
+/**
+ * NOTICE:
+ * `userDeletionService` is optional for the same reason `email` is — the
+ * `auth:generate` schema introspection path constructs `createAuth` without
+ * a real DI graph and never exercises `user.deleteUser`. The runtime path
+ * always supplies it from `app.ts`, and the `beforeDelete` callback throws
+ * if it's missing so silent no-ops are impossible.
+ */
+function requireUserDeletionService(service: UserDeletionService | undefined): UserDeletionService {
+  if (!service) {
+    throw new ApiError(
+      503,
+      'user-deletion/service_not_configured',
+      'User deletion service not available in this server context.',
+    )
+  }
+  return service
+}
+
+export function createAuth(
+  db: Database,
+  env: Env,
+  email?: EmailService,
+  metrics?: AuthMetrics | null,
+  userDeletionService?: UserDeletionService,
+) {
   return betterAuth({
     secret: env.BETTER_AUTH_SECRET,
 
@@ -349,6 +377,14 @@ export function createAuth(db: Database, env: Env, email?: EmailService, metrics
     plugins: [
       bearer(),
       jwt(),
+      // NOTICE:
+      // Bridges OIDC JWT access tokens (RS256, signed by our oauthProvider)
+      // into a real better-auth session so `sessionMiddleware` and every
+      // downstream `/api/auth/*` endpoint accept them. Must run after
+      // bearer() so we don't intercept HMAC session tokens that bearer()
+      // already handles. See libs/auth-plugins/oidc-jwt-bearer.ts for the
+      // architectural mismatch this paves over.
+      oidcJwtBearer(env),
       magicLink({
         // NOTICE: better-auth's magic-link callback receives a server-side
         // verification URL ({baseURL}/magic-link/verify?token=...&callbackURL=...).
@@ -388,6 +424,23 @@ export function createAuth(db: Database, env: Env, email?: EmailService, metrics
       async sendResetPassword({ user, url }) {
         await requireEmailService(email).sendPasswordReset({ to: user.email, url })
       },
+      // NOTICE:
+      // Why: clicking the password-reset link is itself proof that the user
+      // controls the address, so emailVerified must be true after a successful
+      // reset. Without this, social-only users who later set a password via
+      // "forgot password" stay stuck with emailVerified=false (better-auth's
+      // /reset-password handler only writes the password, see
+      // node_modules/better-auth/dist/api/routes/password.mjs L120-166) and
+      // get rejected on the next email/password sign-in by
+      // `requireEmailVerification: true`.
+      // Removal condition: better-auth flips emailVerified itself on reset.
+      async onPasswordReset({ user }) {
+        if (user.emailVerified)
+          return
+        await db.update(authSchema.user)
+          .set({ emailVerified: true, updatedAt: new Date() })
+          .where(eq(authSchema.user.id, user.id))
+      },
     },
 
     emailVerification: {
@@ -425,6 +478,33 @@ export function createAuth(db: Database, env: Env, email?: EmailService, metrics
           })
         },
       },
+      // NOTICE:
+      // Two-step deletion: POST /api/auth/delete-user with an authenticated
+      // session triggers `sendDeleteAccountVerification`; clicking the link
+      // hits GET /api/auth/delete-user/callback?token=..., which validates
+      // and calls `beforeDelete` BEFORE `internalAdapter.deleteUser`. Throw
+      // from `beforeDelete` to abort: the user row stays put, the
+      // verification token has already been consumed (single-use) so the
+      // user must re-initiate. Soft-delete handlers must be idempotent
+      // because retrying a partial deletion re-runs already-completed
+      // handlers as no-ops.
+      // Source: node_modules/better-auth/dist/api/routes/update-user.mjs L286-380
+      // Design: apps/server/docs/ai-context/account-deletion.md
+      deleteUser: {
+        enabled: true,
+        async sendDeleteAccountVerification({ user, url }) {
+          await requireEmailService(email).sendDeleteAccountVerification({
+            to: user.email,
+            url,
+          })
+        },
+        async beforeDelete(user) {
+          await requireUserDeletionService(userDeletionService).softDeleteAll({
+            userId: user.id,
+            reason: 'user-requested',
+          })
+        },
+      },
     },
 
     session: {
@@ -432,12 +512,29 @@ export function createAuth(db: Database, env: Env, email?: EmailService, metrics
       // table. Without DB-backed sessions the FK INSERT fails when issuing tokens.
       storeSessionInDatabase: true,
 
-      // NOTICE: keep a short-lived signed session cache cookie so follow-up
-      // session reads avoid hitting the database on every request.
-      cookieCache: {
-        enabled: true,
-        maxAge: 60 * 5,
-      },
+      // NOTICE:
+      // cookieCache is intentionally OFF.
+      //
+      // Why: with cookieCache enabled, the signed sessionData cookie keeps a
+      // "valid session" view for up to maxAge seconds even after the DB row is
+      // gone. /oauth2/end-session deletes the DB session row but does not
+      // expire that cookie (oauth-provider/dist/index.mjs L1069-1090 only calls
+      // internalAdapter.deleteSession). The next /oauth2/authorize then reads
+      // the cached session via getSessionFromCtx (better-auth/dist/api/routes/session.mjs L93+),
+      // binds an authorization code to the deleted session.id, and /oauth2/token
+      // fails with `invalid_request: session no longer exists`
+      // (oauth-provider/dist/index.mjs L557-567) — locking users out for the
+      // entire cookieCache TTL window after each logout.
+      //
+      // Trade-off: every getSession / authorize now hits the DB once. With the
+      // current AIRI flow the cost is negligible: cookie-based /get-session is
+      // only used by ui-server-auth pages, and /oauth2/authorize is rare.
+      // Bearer-token sessions (the hot path for stage-web/electron/pocket) bypass
+      // this entirely via libs/request-auth.ts.
+      //
+      // Removal condition: oauth-provider's end-session itself clears session
+      // cookies upstream, OR cookieCache TTL is reduced to a window short
+      // enough that "session no longer exists" is not user-visible.
     },
 
     baseURL: env.API_SERVER_URL,
@@ -459,10 +556,36 @@ export function createAuth(db: Database, env: Env, email?: EmailService, metrics
       google: {
         clientId: env.AUTH_GOOGLE_CLIENT_ID,
         clientSecret: env.AUTH_GOOGLE_CLIENT_SECRET,
+        // NOTICE:
+        // Why: better-auth's google provider already maps email_verified
+        // through, but a stale Google profile that omits the claim falls
+        // through to undefined → false. Default to true defensively so the
+        // requireEmailVerification gate in emailAndPassword above doesn't
+        // reject legitimate Google-OAuth users on a follow-up password sign-in.
+        // Source: node_modules/@better-auth/core/dist/social-providers/google.mjs L95.
+        // Removal condition: never — Google emails are always verified before
+        // OAuth issuance, so the override is correct in all cases.
+        mapProfileToUser: profile => ({
+          emailVerified: profile.email_verified ?? true,
+        }),
       },
       github: {
         clientId: env.AUTH_GITHUB_CLIENT_ID,
         clientSecret: env.AUTH_GITHUB_CLIENT_SECRET,
+        // NOTICE:
+        // Why: better-auth derives emailVerified from the GitHub /user/emails
+        // response, but `emails.find(e => e.email === profile.email)?.verified`
+        // returns undefined when GitHub returns the noreply proxy email
+        // (`<id>+<login>@users.noreply.github.com`) which is not present in
+        // the /user/emails list. The result is `?? false`, leaving brand-new
+        // GitHub users at emailVerified=false → blocked from email/password
+        // sign-in after a password reset.
+        // Source: node_modules/@better-auth/core/dist/social-providers/github.mjs L77.
+        // Removal condition: GitHub OAuth itself enforces a verified email
+        // before authorization, so forcing true is safe and matches the
+        // upstream invariant. Drop only if better-auth fixes the noreply
+        // lookup.
+        mapProfileToUser: () => ({ emailVerified: true }),
       },
     },
 
@@ -489,6 +612,23 @@ export function createAuth(db: Database, env: Env, email?: EmailService, metrics
             throw ctx.redirect(url.toString())
           }
         }
+
+        // NOTICE:
+        // OIDC RP-Initiated Logout (/oauth2/end-session) only deletes the DB session
+        // row via internalAdapter.deleteSession; it does NOT expire the
+        // sessionToken / sessionData cookies. With cookieCache.enabled=true the
+        // signed sessionData cookie keeps a stale "valid session" view alive
+        // for up to maxAge seconds. The next /oauth2/authorize then picks up
+        // the cached old session, binds the auth code to a now-deleted
+        // session.id, and /oauth2/token fails with "session no longer exists".
+        // We mirror /sign-out's deleteSessionCookie call here so RP-Initiated
+        // Logout fully invalidates client-visible session state.
+        // Source: node_modules/@better-auth/oauth-provider/dist/index.mjs L1069-1090
+        // (deleteSession only) vs node_modules/better-auth/dist/api/routes/sign-out.mjs L19-27.
+        // Removal condition: oauth-provider's end-session itself starts clearing
+        // session cookies upstream.
+        if (ctx.path === '/oauth2/end-session')
+          deleteSessionCookie(ctx)
       }),
     },
 

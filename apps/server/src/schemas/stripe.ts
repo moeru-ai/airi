@@ -6,17 +6,23 @@ import { boolean, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 import { nanoid } from '../utils/id'
 import { user } from './accounts'
 
+// NOTICE: bare userId is intentional — no FK to user.id. better-auth hard-deletes
+// the user row; a cascade would wipe these soft-delete archive rows kept for
+// audit / billing review.
+// See `apps/server/docs/ai-context/account-deletion.md`.
+
 /**
  * Stripe customers linked to our users.
  */
 export const stripeCustomer = pgTable('stripe_customer', {
   id: text('id').primaryKey().$defaultFn(() => nanoid()),
-  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull(),
   stripeCustomerId: text('stripe_customer_id').notNull().unique(),
   email: text('email'),
   name: text('name'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
 })
 
 /**
@@ -24,7 +30,7 @@ export const stripeCustomer = pgTable('stripe_customer', {
  */
 export const stripeCheckoutSession = pgTable('stripe_checkout_session', {
   id: text('id').primaryKey().$defaultFn(() => nanoid()),
-  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull(),
   stripeSessionId: text('stripe_session_id').notNull().unique(),
   stripeCustomerId: text('stripe_customer_id'),
   mode: text('mode').notNull(), // 'payment' | 'subscription' | 'setup'
@@ -41,6 +47,7 @@ export const stripeCheckoutSession = pgTable('stripe_checkout_session', {
   expiresAt: timestamp('expires_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
 })
 
 /**
@@ -48,7 +55,7 @@ export const stripeCheckoutSession = pgTable('stripe_checkout_session', {
  */
 export const stripeSubscription = pgTable('stripe_subscription', {
   id: text('id').primaryKey().$defaultFn(() => nanoid()),
-  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull(),
   stripeSubscriptionId: text('stripe_subscription_id').notNull().unique(),
   stripeCustomerId: text('stripe_customer_id').notNull(),
   stripePriceId: text('stripe_price_id'),
@@ -61,6 +68,7 @@ export const stripeSubscription = pgTable('stripe_subscription', {
   metadata: text('metadata'), // JSON stringified
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
 })
 
 /**
@@ -68,7 +76,7 @@ export const stripeSubscription = pgTable('stripe_subscription', {
  */
 export const stripeInvoice = pgTable('stripe_invoice', {
   id: text('id').primaryKey().$defaultFn(() => nanoid()),
-  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull(),
   stripeInvoiceId: text('stripe_invoice_id').notNull().unique(),
   stripeCustomerId: text('stripe_customer_id'),
   stripeSubscriptionId: text('stripe_subscription_id'),
@@ -85,6 +93,7 @@ export const stripeInvoice = pgTable('stripe_invoice', {
   metadata: text('metadata'), // JSON stringified
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at'),
 })
 
 // ---------- Relations ----------

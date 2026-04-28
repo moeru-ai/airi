@@ -168,16 +168,41 @@ pages:
       name:
         label: Display name
         placeholder: How others see you
+      avatar:
+        gravatarNotice: Avatar from Gravatar.
+        gravatarLink: Manage on gravatar.com
       action:
         save: Save changes
       message:
         saved: Profile updated.
       error:
         fallback: We could not save your changes.
+    connections:
+      tab: Connected accounts
+      title: Connected accounts
+      description: Sign in to AIRI through these providers. Unlink to revoke access, then link again to switch to a different account.
+      status:
+        linked: Linked
+        notLinked: Not linked
+        linkedSince: Linked on {date}
+      action:
+        link: Link
+        unlink: Unlink
+      message:
+        loading: Loading connected accounts...
+        unlinked: '{provider} disconnected.'
+        linked: '{provider} connected.'
+        linkStarted: Redirecting to {provider}…
+      error:
+        listFailed: Could not load connected accounts.
+        unlinkFailed: Could not unlink this account.
+        linkFailed: Could not start the link flow.
+        lastAccount: This is your only sign-in method. Set a password first before unlinking it.
     security:
       tab: Security
       title: Security
       description: Change your password. Your other devices will be signed out.
+      setDescription: You signed in via a social provider, so there is no current password yet. We'll email a secure link to set one.
       currentPassword:
         label: Current password
         placeholder: Enter your current password
@@ -189,10 +214,13 @@ pages:
         placeholder: Repeat your new password
       action:
         changePassword: Change password
+        sendSetLink: Email me a link to set my password
       message:
         changed: Password changed. Other sessions have been signed out.
+        setLinkSent: Check {email} for the link to set your password.
       error:
         fallback: We could not change your password.
+        setLinkFailed: We could not send the password setup link.
         passwordMismatch: New password and confirmation do not match.
         passwordSameAsCurrent: New password must differ from the current one.
     danger:
@@ -201,9 +229,21 @@ pages:
       description: Irreversible account actions live here.
       deleteAccount:
         title: Delete account
-        description: Permanently remove your account, sessions, and personal data.
-        action: Delete
-        notAvailable: Coming soon — contact support to delete your account today.
+        description: Permanently delete your account and personal data.
+        action: Delete account
+        modal:
+          title: Delete account?
+          warning: This cannot be undone. Active subscription will be canceled, Flux balance cleared.
+          confirmEmail:
+            label: Type your email to confirm
+            placeholder: ''
+            mismatch: Email does not match.
+          confirm: Send confirmation email
+          cancel: Cancel
+        message:
+          emailSent: Check {email} for the deletion link.
+        error:
+          fallback: Could not start deletion. Try again later.
   card:
     activate: Activate
     active: Active

@@ -1,26 +1,32 @@
 /**
- * Account profile flows backed by better-auth's built-in user routes.
+ * Account profile flows backed by better-auth's typed Vue client.
  *
  * Use when:
  * - Driving the profile page in `apps/ui-server-auth` (load current user,
- *   update display name, change password, sign out).
+ *   update display name / avatar, change password, sign out).
  *
- * Each function shares the {@link AuthFetchBase} contract via auth-fetch.ts;
- * see that module for HTTP-level expectations (credentials, error parsing).
+ * Why this delegates to {@link getAuthClient} instead of hand-rolling
+ * `fetch` wrappers: better-auth already returns typed payloads. Mapping
+ * `unknown` JSON to a hand-written interface duplicated work the upstream
+ * client already does and produced a layer of defensive `typeof x ===
+ * 'string' ? x : ''` casts that were brittle and noisy. See
+ * `auth-client.ts` for the rationale on the cookie-based credentials mode.
  */
 
 import type { AuthFetchBase } from './auth-fetch'
 
 import { errorMessageFrom } from '@moeru/std'
 
-import { getAuthJSON, postAuthJSON } from './auth-fetch'
+import { getAuthClient } from './auth-client'
 
 /**
- * Subset of the better-auth `user` row needed to render the profile page.
+ * Trimmed view of the better-auth `user` row exposed via `/get-session`.
  *
- * Mirrors the shape returned by `/api/auth/get-session`; extra fields are
- * ignored intentionally so this module doesn't drift if better-auth adds
- * unrelated columns.
+ * Mirrors the better-auth `User` shape but flattens `createdAt` to a
+ * string (or null) for ergonomic rendering — better-auth's client returns
+ * `Date`, but the profile page formats it via `Intl.DateTimeFormat` which
+ * accepts both. We keep the string projection so consumers don't have to
+ * worry about Date-vs-string drift across the ui-server-auth boundary.
  */
 export interface ProfileUser {
   id: string
@@ -29,7 +35,13 @@ export interface ProfileUser {
   email: string
   /** True once the user clicked the verification link sent on sign-up. */
   emailVerified: boolean
-  /** Avatar URL — usually populated by social providers; may be empty. */
+  /**
+   * Avatar URL. Server decorates this so it's always populated for
+   * signed-in users: provider-set / user-uploaded URL when present, or a
+   * Gravatar fallback derived server-side from the email hash. The UI
+   * detects the fallback by URL prefix
+   * (`https://www.gravatar.com/avatar/`).
+   */
   image: string | null
   /** ISO timestamp from `created_at`. */
   createdAt: string | null
@@ -64,42 +76,35 @@ interface ChangePasswordArgs extends AuthFetchBase {
 }
 
 /**
- * Read the current session from `/api/auth/get-session`.
+ * Read the current session via the typed better-auth client.
  *
  * Use when:
  * - Bootstrapping the profile page; decides whether to render the form or
  *   bounce the user to the sign-in page.
  *
- * Expects:
- * - Browser sends the better-auth session cookie (`credentials: include`).
- *
  * Returns:
- * - `user: null` when there's no active session (better-auth returns an empty
- *   body for unauthenticated GETs).
+ * - `user: null` for unauthenticated requests (better-auth client returns
+ *   `null` data, not an error, in that case).
  * - {@link CurrentSessionResult} with the trimmed user fields otherwise.
  */
 export async function getCurrentSession(args: AuthFetchBase): Promise<CurrentSessionResult> {
-  return getAuthJSON(args, '/get-session', (data) => {
-    // NOTICE:
-    // better-auth returns either `null` or an empty object for an
-    // unauthenticated GET to `/get-session`, not a 401. Treat both as
-    // "no session" so the caller can branch on user === null without a
-    // separate try/catch.
-    // Source: node_modules/better-auth/dist/api/routes/session.mjs (`getSession`)
-    if (!data || typeof data !== 'object' || !('user' in data) || !data.user)
-      return { user: null }
+  const client = getAuthClient(args)
+  const { data, error } = await client.getSession()
+  if (error)
+    throw new Error(error.message ?? `Auth request failed (${error.status ?? 'unknown'})`)
+  if (!data?.user)
+    return { user: null }
 
-    const raw = (data as { user: unknown }).user as Record<string, unknown>
-    const user: ProfileUser = {
-      id: typeof raw.id === 'string' ? raw.id : '',
-      name: typeof raw.name === 'string' ? raw.name : '',
-      email: typeof raw.email === 'string' ? raw.email : '',
-      emailVerified: Boolean(raw.emailVerified),
-      image: typeof raw.image === 'string' ? raw.image : null,
-      createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : null,
-    }
-    return { user }
-  })
+  return {
+    user: {
+      id: data.user.id,
+      name: data.user.name,
+      email: data.user.email,
+      emailVerified: data.user.emailVerified,
+      image: data.user.image ?? null,
+      createdAt: toIsoString(data.user.createdAt),
+    },
+  }
 }
 
 /**
@@ -111,18 +116,17 @@ export async function getCurrentSession(args: AuthFetchBase): Promise<CurrentSes
  * Expects:
  * - Caller has already trimmed `name` and confirmed it's non-empty.
  * - `image` is either an absolute URL or `null` (clear).
- *
- * Returns:
- * - Resolves on 2xx; throws with the better-auth error message otherwise.
  */
 export async function updateUserProfile(args: UpdateUserProfileArgs): Promise<void> {
-  const body: Record<string, unknown> = {}
+  const client = getAuthClient(args)
+  const body: { name?: string, image?: string | null } = {}
   if (args.name !== undefined)
     body.name = args.name
   if (args.image !== undefined)
     body.image = args.image
-
-  await postAuthJSON(args, '/update-user', body, () => undefined)
+  const { error } = await client.updateUser(body)
+  if (error)
+    throw new Error(error.message ?? 'updateUser failed')
 }
 
 /**
@@ -135,27 +139,20 @@ export async function updateUserProfile(args: UpdateUserProfileArgs): Promise<vo
  * Expects:
  * - The user has a `credential` account; social-only users get a server-side
  *   error which surfaces as a thrown `Error` here.
- *
- * Returns:
- * - Resolves on 2xx. By default, all other sessions are revoked
- *   (`revokeOtherSessions = true`) so a stolen old session can't keep
- *   working after a forced rotation.
  */
 export async function changePassword(args: ChangePasswordArgs): Promise<void> {
-  await postAuthJSON(
-    args,
-    '/change-password',
-    {
-      currentPassword: args.currentPassword,
-      newPassword: args.newPassword,
-      revokeOtherSessions: args.revokeOtherSessions ?? true,
-    },
-    () => undefined,
-  )
+  const client = getAuthClient(args)
+  const { error } = await client.changePassword({
+    currentPassword: args.currentPassword,
+    newPassword: args.newPassword,
+    revokeOtherSessions: args.revokeOtherSessions ?? true,
+  })
+  if (error)
+    throw new Error(error.message ?? 'changePassword failed')
 }
 
 /**
- * Sign the current user out via `/api/auth/sign-out`.
+ * Sign the current user out via better-auth's `/sign-out` endpoint.
  *
  * Use when:
  * - User clicks "Sign out" on the profile page.
@@ -166,9 +163,30 @@ export async function changePassword(args: ChangePasswordArgs): Promise<void> {
  *   page after this resolves.
  */
 export async function signOut(args: AuthFetchBase): Promise<void> {
-  await postAuthJSON(args, '/sign-out', {}, () => undefined)
+  const client = getAuthClient(args)
+  const { error } = await client.signOut()
+  if (error)
+    throw new Error(error.message ?? 'signOut failed')
 }
 
 export function describeProfileError(error: unknown): string {
   return errorMessageFrom(error) ?? 'Unexpected error'
+}
+
+/**
+ * Normalise better-auth's `Date | string | null | undefined` createdAt into
+ * the ISO string the rest of the UI expects.
+ *
+ * Before:
+ * - `new Date('2025-04-01T00:00:00.000Z')` / `'2025-04-01T00:00:00.000Z'` / `null`
+ *
+ * After:
+ * - `'2025-04-01T00:00:00.000Z'` / `'2025-04-01T00:00:00.000Z'` / `null`
+ */
+function toIsoString(value: unknown): string | null {
+  if (value instanceof Date)
+    return value.toISOString()
+  if (typeof value === 'string')
+    return value
+  return null
 }
