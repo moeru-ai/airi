@@ -43,6 +43,8 @@ export interface PluginHostGameletWidgetsManager {
   updateWidget: (payload: WidgetsUpdatePayload) => Promise<void>
   removeWidget: (id: string) => Promise<void>
   getWidgetSnapshot: (id: string) => WidgetSnapshot | undefined
+  publishWidgetEvent: (id: string, event: Record<string, unknown>) => void
+  onWidgetEvent: (listener: (event: { id: string, event: Record<string, unknown> }) => void) => () => void
 }
 
 /**

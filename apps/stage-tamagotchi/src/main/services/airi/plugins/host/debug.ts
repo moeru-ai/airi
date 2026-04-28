@@ -4,7 +4,7 @@ import type {
   PluginHostDebugSnapshot,
   PluginHostModuleSummary,
 } from '../../../../../shared/eventa/plugin/host'
-import type { PluginAssetSnapshotService } from '../assets'
+import type { PluginAssetSnapshotService } from '../features/static-assets'
 import type { ManifestEntry, PluginConfig } from '../types'
 
 import { rewriteWidgetModuleAssetUrl } from '../kits/widget'
@@ -20,7 +20,7 @@ import { buildPluginRegistrySnapshot } from './registry'
  * Expects:
  * - `host` is the initialized plugin host instance
  * - `manifestEntryByName` contains entries for any plugin-owned modules being inspected
- * - `pluginAssetService` owns plugin asset URL/token lifecycle when mounted asset URLs are needed
+ * - `pluginAssetService` owns plugin asset URL/session lifecycle when mounted asset URLs are needed
  *
  * Returns:
  * - A full debug snapshot with registry, sessions, kits, modules, and capabilities
@@ -33,10 +33,38 @@ export function buildPluginHostDebugSnapshot(options: {
   loaded: Set<string>
   manifestEntryByName: Map<string, ManifestEntry>
   pluginAssetService?: PluginAssetSnapshotService
-}): PluginHostDebugSnapshot {
+}): Promise<PluginHostDebugSnapshot> {
   const pluginAssetService = options.pluginAssetService
+  const modules = Promise.all(options.host
+    .listBindings()
+    .map(module =>
+      rewriteWidgetModuleAssetUrl(
+        module as PluginHostModuleSummary,
+        options.manifestEntryByName,
+        {
+          pluginAssetBaseUrl: pluginAssetService?.getBaseUrl(),
+          ...(pluginAssetService
+            ? {
+                createAssetSession: ({ extensionId, version, sessionId, routeAssetPath, sessionPathPrefix }: {
+                  extensionId: string
+                  version: string
+                  sessionId: string
+                  routeAssetPath: string
+                  sessionPathPrefix: string
+                }) => pluginAssetService.createAssetSession({
+                  pluginId: extensionId,
+                  version,
+                  ownerSessionId: sessionId,
+                  routeAssetPath,
+                  pathPrefix: sessionPathPrefix,
+                }),
+              }
+            : {}),
+        },
+      ),
+    ) as Array<PluginHostModuleSummary | Promise<PluginHostModuleSummary>>)
 
-  return {
+  return modules.then(resolvedModules => ({
     registry: buildPluginRegistrySnapshot({
       pluginsRoot: options.pluginsRoot,
       entries: options.entries,
@@ -51,35 +79,8 @@ export function buildPluginHostDebugSnapshot(options: {
       moduleId: session.identity.id,
     })),
     kits: options.host.listKits(),
-    modules: options.host
-      .listBindings()
-      .map(module =>
-        rewriteWidgetModuleAssetUrl(
-          module as PluginHostModuleSummary,
-          options.manifestEntryByName,
-          {
-            pluginAssetBaseUrl: pluginAssetService?.getBaseUrl(),
-            ...(pluginAssetService
-              ? {
-                  issueAssetToken: ({ extensionId, version, sessionId, routeAssetPath, tokenPathPrefix }: {
-                    extensionId: string
-                    version: string
-                    sessionId: string
-                    routeAssetPath: string
-                    tokenPathPrefix: string
-                  }) => pluginAssetService.issueAccessToken({
-                    pluginId: extensionId,
-                    version,
-                    sessionId,
-                    routeAssetPath,
-                    pathPrefix: tokenPathPrefix,
-                  }),
-                }
-              : {}),
-          },
-        ),
-      ) as PluginHostDebugSnapshot['modules'],
+    modules: resolvedModules as PluginHostDebugSnapshot['modules'],
     capabilities: options.host.listCapabilities(),
     refreshedAt: Date.now(),
-  }
+  }))
 }
