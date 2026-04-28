@@ -10,6 +10,7 @@ import {
   widgetsClear,
   widgetsFetch,
   widgetsHideWindow,
+  widgetsIframePublish,
   widgetsOpenWindow,
   widgetsPrepareWindow,
   widgetsRemove,
@@ -18,6 +19,7 @@ import {
 import {
   normalizeOptionalWidgetId,
   normalizeRequiredWidgetId,
+  validateWidgetIframeEvent,
   validateWidgetsAddPayload,
   validateWidgetsUpdatePayload,
 } from './validation'
@@ -64,6 +66,7 @@ export function createWidgetsService(params: { context: ReturnType<typeof create
     widgetsRemove,
     widgetsClear,
     widgetsFetch,
+    widgetsIframePublish,
   }, {
     widgetsPrepareWindow: async (payload, options) => {
       if (!isFromWindow(options as InvokeOptions, params.window))
@@ -110,6 +113,12 @@ export function createWidgetsService(params: { context: ReturnType<typeof create
       return params.widgetsManager.getWidgetSnapshot(
         normalizeRequiredWidgetId(payload?.id, 'id is required to fetch a widget snapshot.'),
       )
+    },
+    widgetsIframePublish: async (payload, options) => {
+      if (!isFromWindow(options as InvokeOptions, params.window))
+        return undefined
+      const id = normalizeRequiredWidgetId(payload?.id, 'id is required to publish a widget iframe event.')
+      params.widgetsManager.publishWidgetEvent(id, validateWidgetIframeEvent(payload?.event))
     },
   })
 }

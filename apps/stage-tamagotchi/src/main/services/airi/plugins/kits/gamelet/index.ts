@@ -49,6 +49,21 @@ export const pluginGameletApiOpenEventName = 'proj-airi:plugin-sdk:apis:client:g
 export const pluginGameletApiConfigureEventName = 'proj-airi:plugin-sdk:apis:client:gamelets:configure'
 
 /**
+ * Identifies the stage-tamagotchi permission key used to request data from a host-backed gamelet surface.
+ *
+ * Use when:
+ * - Declaring or asserting permission for `session.apis.gamelets.request(...)`
+ * - Waiting for an iframe gamelet to process a host command and publish a response
+ *
+ * Expects:
+ * - The gamelet kit contribution and its tests share this stage-owned constant
+ *
+ * Returns:
+ * - The permission/event key string for request-response gamelet commands
+ */
+export const pluginGameletApiRequestEventName = 'proj-airi:plugin-sdk:apis:client:gamelets:request'
+
+/**
  * Identifies the stage-tamagotchi permission key used to close a host-backed gamelet surface.
  *
  * Use when:
@@ -84,6 +99,35 @@ function cloneRecord<TValue>(value: TValue): TValue {
 
 function toRecord(value: unknown): Record<string, unknown> | undefined {
   return isPlainObject(value) ? cloneRecord(value as Record<string, unknown>) : undefined
+}
+
+/**
+ * Creates an opaque request id for correlating one iframe command response.
+ *
+ * Use when:
+ * - A plugin tool needs a one-shot reply from a gamelet iframe
+ *
+ * Expects:
+ * - Request ids only need to be unique within one live Electron process
+ *
+ * Returns:
+ * - A stable string safe to pass through JSON-like host data records
+ */
+function createGameletRequestId(): string {
+  const random = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2, 12)
+  return `gamelet:${Date.now()}:${random}`
+}
+
+function getEventPayload(event: Record<string, unknown>): Record<string, unknown> | undefined {
+  return toRecord(event.payload)
+}
+
+function getPositiveTimeoutMs(timeoutMs: number | undefined): number {
+  if (typeof timeoutMs !== 'number' || !Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    return 15_000
+  }
+
+  return timeoutMs
 }
 
 /**
@@ -305,6 +349,88 @@ export function createGameletHostContribution(options: {
               }),
               windowSize,
             })
+          },
+          async request(id: string, payload: HostDataRecord, requestOptions?: { timeoutMs?: number }) {
+            assertPermission({
+              area: 'apis',
+              action: 'invoke',
+              key: pluginGameletApiRequestEventName,
+            })
+
+            const module = getOwnedGameletBindingOrThrow({
+              host: requireHost(),
+              ownerPluginId: session.ownerPluginId,
+              ownerSessionId: session.sessionId,
+              moduleId: id,
+            })
+            const existingSnapshot = options.widgetsManager.getWidgetSnapshot(id)
+            if (!existingSnapshot) {
+              throw new Error(`Gamelet widget \`${id}\` is not open.`)
+            }
+
+            const requestId = createGameletRequestId()
+            const command = {
+              ...cloneRecord(payload),
+              requestId,
+            }
+            const timeoutMs = getPositiveTimeoutMs(requestOptions?.timeoutMs)
+            const responsePromise = new Promise<HostDataRecord>((resolve, reject) => {
+              let isSettled = false
+              let dispose: (() => void) | undefined
+              const timer = setTimeout(() => {
+                if (isSettled) {
+                  return
+                }
+
+                isSettled = true
+                dispose?.()
+                reject(new Error(`Gamelet request \`${requestId}\` timed out for widget \`${id}\`.`))
+              }, timeoutMs)
+
+              dispose = options.widgetsManager.onWidgetEvent((event) => {
+                if (event.id !== id || isSettled) {
+                  return
+                }
+
+                const response = getEventPayload(event.event)
+                if (response?.requestId !== requestId) {
+                  return
+                }
+
+                isSettled = true
+                clearTimeout(timer)
+                dispose?.()
+                resolve(response as HostDataRecord)
+              })
+            })
+
+            const existingComponentProps = toRecord(existingSnapshot.componentProps)
+            const existingPayload = toRecord(existingComponentProps?.payload) ?? getStoredGameletConfig(module.config)
+            const windowSize = getGameletWidgetWindowSize({
+              moduleConfig: module.config,
+              existingSnapshot,
+            })
+
+            await options.widgetsManager.updateWidget({
+              id,
+              componentProps: createGameletWidgetProps({
+                moduleId: id,
+                title: getGameletTitle({
+                  moduleId: id,
+                  moduleConfig: module.config,
+                  existingComponentProps,
+                }),
+                payload: {
+                  ...existingPayload,
+                  command,
+                },
+                windowSize,
+                existingComponentProps,
+              }),
+              windowSize,
+            })
+
+            return await responsePromise
           },
           async close(id: string) {
             assertPermission({

@@ -15,9 +15,12 @@ import type { FluxService } from './services/flux'
 import type { FluxTransactionService } from './services/flux-transaction'
 import type { ProviderService } from './services/providers'
 import type { StripeService } from './services/stripe'
+import type { UserDeletionService } from './services/user-deletion'
 import type { HonoEnv } from './types/hono'
 
 import process from 'node:process'
+
+import Stripe from 'stripe'
 
 import { initLogger, LoggerFormat, LoggerLevel, setGlobalHookPostLog, useLogger } from '@guiiai/logg'
 import { serve } from '@hono/node-server'
@@ -57,6 +60,7 @@ import { createFluxTransactionService } from './services/flux-transaction'
 import { createProviderService } from './services/providers'
 import { createRequestLogService } from './services/request-log'
 import { createStripeService } from './services/stripe'
+import { createUserDeletionService } from './services/user-deletion'
 import { ApiError, createInternalError, createUnauthorizedError } from './utils/error'
 import { getTrustedOrigin } from './utils/origin'
 
@@ -76,6 +80,7 @@ interface AppDeps {
   redis: Redis
   env: Env
   otel: OtelInstance | null
+  userDeletionService: UserDeletionService
 }
 
 export async function buildApp(deps: AppDeps) {
@@ -325,24 +330,6 @@ export async function createApp() {
     }),
   })
 
-  const auth = injeca.provide('services:auth', {
-    dependsOn: { db, env: parsedEnv, otel, email: emailService },
-    build: async ({ dependsOn }) => {
-      // Seed trusted OIDC clients into DB so FK constraints on oauth_access_token are satisfied
-      await seedTrustedClients(dependsOn.db, dependsOn.env)
-      const trustedClients = getTrustedClientSeedSummaries(dependsOn.env)
-      logger.withField('apiServerUrl', dependsOn.env.API_SERVER_URL).log('OIDC startup configuration')
-      for (const client of trustedClients) {
-        logger.withFields({
-          clientId: client.clientId,
-          clientName: client.name,
-          redirectUris: client.redirectUris.join(', '),
-        }).log('OIDC trusted client ready')
-      }
-      return createAuth(dependsOn.db, dependsOn.env, dependsOn.email, dependsOn.otel?.auth)
-    },
-  })
-
   const characterService = injeca.provide('services:characters', {
     dependsOn: { db, otel },
     build: ({ dependsOn }) => createCharacterService(dependsOn.db, dependsOn.otel?.engagement),
@@ -359,8 +346,14 @@ export async function createApp() {
   })
 
   const stripeService = injeca.provide('services:stripe', {
-    dependsOn: { db },
-    build: ({ dependsOn }) => createStripeService(dependsOn.db),
+    dependsOn: { db, env: parsedEnv },
+    build: ({ dependsOn }) => {
+      // Stripe SDK is optional — when STRIPE_SECRET_KEY is unset (dev/CI)
+      // billing routes degrade gracefully and the user-deletion pipeline
+      // skips the API cancel call.
+      const stripe = dependsOn.env.STRIPE_SECRET_KEY ? new Stripe(dependsOn.env.STRIPE_SECRET_KEY) : null
+      return createStripeService(dependsOn.db, stripe)
+    },
   })
 
   const fluxTransactionService = injeca.provide('services:fluxTransaction', {
@@ -371,6 +364,47 @@ export async function createApp() {
   const fluxService = injeca.provide('services:flux', {
     dependsOn: { db, redis, configKV },
     build: ({ dependsOn }) => createFluxService(dependsOn.db, dependsOn.redis, dependsOn.configKV),
+  })
+
+  // NOTICE:
+  // The deletion service is a thin scheduler that delegates to each business
+  // service's own `deleteAllForUser` method. Adding a new business module:
+  //   1. give it a `deleteAllForUser(userId)` method
+  //   2. add one `service.register(...)` line below
+  // Domain knowledge stays inside each service instead of being copied into
+  // a parallel handler file. See `apps/server/docs/ai-context/account-deletion.md`.
+  const userDeletionService = injeca.provide('services:userDeletion', {
+    dependsOn: { stripeService, fluxService, providerService, characterService, chatService },
+    build: ({ dependsOn }) => {
+      const service = createUserDeletionService()
+      // priority: 10 = external side-effects (Stripe API cancel — unrollable),
+      //           20 = financial / cache state (Flux balance + Redis),
+      //           30 = pure DB soft-delete (no external touch).
+      service.register({ name: 'stripe', priority: 10, softDelete: ({ userId }) => dependsOn.stripeService.deleteAllForUser(userId) })
+      service.register({ name: 'flux', priority: 20, softDelete: ({ userId }) => dependsOn.fluxService.deleteAllForUser(userId) })
+      service.register({ name: 'providers', priority: 30, softDelete: ({ userId }) => dependsOn.providerService.deleteAllForUser(userId) })
+      service.register({ name: 'characters', priority: 30, softDelete: ({ userId }) => dependsOn.characterService.deleteAllForUser(userId) })
+      service.register({ name: 'chats', priority: 30, softDelete: ({ userId }) => dependsOn.chatService.deleteAllForUser(userId) })
+      return service
+    },
+  })
+
+  const auth = injeca.provide('services:auth', {
+    dependsOn: { db, env: parsedEnv, otel, email: emailService, userDeletionService },
+    build: async ({ dependsOn }) => {
+      // Seed trusted OIDC clients into DB so FK constraints on oauth_access_token are satisfied
+      await seedTrustedClients(dependsOn.db, dependsOn.env)
+      const trustedClients = getTrustedClientSeedSummaries(dependsOn.env)
+      logger.withField('apiServerUrl', dependsOn.env.API_SERVER_URL).log('OIDC startup configuration')
+      for (const client of trustedClients) {
+        logger.withFields({
+          clientId: client.clientId,
+          clientName: client.name,
+          redirectUris: client.redirectUris.join(', '),
+        }).log('OIDC trusted client ready')
+      }
+      return createAuth(dependsOn.db, dependsOn.env, dependsOn.email, dependsOn.otel?.auth, dependsOn.userDeletionService)
+    },
   })
 
   const requestLogService = injeca.provide('services:requestLog', {
@@ -419,6 +453,7 @@ export async function createApp() {
     redis,
     env: parsedEnv,
     otel,
+    userDeletionService,
   })
   const { app, injectWebSocket } = await buildApp({
     auth: resolved.auth,
@@ -436,6 +471,7 @@ export async function createApp() {
     redis: resolved.redis,
     env: resolved.env,
     otel: resolved.otel,
+    userDeletionService: resolved.userDeletionService,
   })
 
   logger.withFields({ hostname: resolved.env.HOST, port: resolved.env.PORT }).log('Server started')

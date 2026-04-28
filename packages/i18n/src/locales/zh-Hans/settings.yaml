@@ -159,16 +159,41 @@ pages:
       name:
         label: 显示名
         placeholder: 别人看到的名字
+      avatar:
+        gravatarNotice: 头像来自 Gravatar。
+        gravatarLink: 在 gravatar.com 管理
       action:
         save: 保存修改
       message:
         saved: 资料已更新。
       error:
         fallback: 无法保存修改。
+    connections:
+      tab: 已连接的账号
+      title: 已连接的账号
+      description: 通过这些渠道登录 AIRI。解绑可以撤销访问，再次绑定即可切换到其他账号。
+      status:
+        linked: 已绑定
+        notLinked: 未绑定
+        linkedSince: 绑定于 {date}
+      action:
+        link: 绑定
+        unlink: 解绑
+      message:
+        loading: 正在加载已绑定的社交账号...
+        unlinked: 已解除与 {provider} 的绑定。
+        linked: 已与 {provider} 完成绑定。
+        linkStarted: 正在跳转到 {provider}…
+      error:
+        listFailed: 无法加载已绑定的社交账号。
+        unlinkFailed: 无法解除绑定。
+        linkFailed: 无法开始绑定流程。
+        lastAccount: 这是你唯一的登录方式。请先设置密码再尝试解绑。
     security:
       tab: 安全
       title: 安全
       description: 修改密码。其他设备的登录会话会被注销。
+      setDescription: 你通过社交账号登录，还没有设置过密码。我们会向你的邮箱发送一个安全链接，用来设置密码。
       currentPassword:
         label: 当前密码
         placeholder: 输入当前密码
@@ -180,10 +205,13 @@ pages:
         placeholder: 再次输入新密码
       action:
         changePassword: 修改密码
+        sendSetLink: 给我发送设置密码的邮件
       message:
         changed: 密码已修改。其他设备的登录会话已被注销。
+        setLinkSent: 已向 {email} 发送了设置密码的链接，请前往查收。
       error:
         fallback: 无法修改密码。
+        setLinkFailed: 无法发送设置密码链接。
         passwordMismatch: 两次输入的新密码不一致。
         passwordSameAsCurrent: 新密码不能和当前密码相同。
     danger:
@@ -192,9 +220,21 @@ pages:
       description: 这里的操作不可撤销，请谨慎使用。
       deleteAccount:
         title: 删除账号
-        description: 永久删除你的账号、会话与个人数据。
-        action: 删除
-        notAvailable: 即将上线——如需立即删除账号请联系支持。
+        description: 永久删除你的账号与个人数据。
+        action: 删除账号
+        modal:
+          title: 确认删除账号？
+          warning: 此操作不可撤销。订阅将被取消，Flux 余额将清空。
+          confirmEmail:
+            label: 输入邮箱以确认
+            placeholder: ''
+            mismatch: 邮箱不匹配。
+          confirm: 发送确认邮件
+          cancel: 取消
+        message:
+          emailSent: 删除链接已发送至 {email}。
+        error:
+          fallback: 无法发起删除，请稍后重试。
   card:
     activate: 激活
     active: 已激活

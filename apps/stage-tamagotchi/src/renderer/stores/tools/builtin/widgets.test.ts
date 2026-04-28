@@ -9,7 +9,10 @@ import { promisify } from 'node:util'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { canRenderExtensionUi, sanitizeExtensionUiRenderProps } from '../../../widgets/extension-ui/host'
+import { installStrictToolSchemaMatchers } from '../testing/strict-tool-schema'
 import { executeWidgetAction, normalizeComponentProps, widgetsTools } from './widgets'
+
+installStrictToolSchemaMatchers()
 
 const execFile = promisify(execFileCallback)
 const aihubmixApiKey = process.env.AIHUBMIX_API_KEY?.trim() || ''
@@ -221,6 +224,7 @@ describe('widgets tool helpers', () => {
       // nullable, then requires every nested key while allowing optional constraints to
       // be expressed as `number | null`. That preserves the runtime behavior while
       // satisfying strict tool validators that compare `required` against `properties`.
+      expect(stageWidgetsTool).toSatisfyStrictToolSchema()
       expect(windowSize).toBeDefined()
       expect(windowSize?.additionalProperties).toBe(false)
       expect(Object.keys(windowSize?.properties ?? {})).toEqual([

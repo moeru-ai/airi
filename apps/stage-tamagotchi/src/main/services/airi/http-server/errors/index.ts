@@ -9,6 +9,10 @@ export interface HttpErrorInput {
   expose?: boolean
 }
 
+export interface H3HttpErrorOptions {
+  headers?: HeadersInit
+}
+
 /**
  * Unified HTTP error shape for AIRI local HTTP server modules.
  *
@@ -53,8 +57,10 @@ export class HttpError extends Error {
  * Returns:
  * - `HTTPError` preserving status while controlling client-visible message
  */
-export function toH3HttpError(error: HttpError) {
-  return HTTPError.status(error.status, error.expose ? error.message : defaultHttpMessage(error.status))
+export function toH3HttpError(error: HttpError, options: H3HttpErrorOptions = {}) {
+  return HTTPError.status(error.status, error.expose ? error.message : defaultHttpMessage(error.status), {
+    headers: options.headers,
+  })
 }
 
 function defaultHttpMessage(status: number) {

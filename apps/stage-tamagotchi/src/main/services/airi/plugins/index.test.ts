@@ -44,6 +44,7 @@ import {
   pluginGameletApiConfigureEventName,
   pluginGameletApiIsOpenEventName,
   pluginGameletApiOpenEventName,
+  pluginGameletApiRequestEventName,
 } from './kits/gamelet'
 import { widgetPluginKitDescriptor } from './kits/widget'
 
@@ -53,6 +54,14 @@ const appMock = vi.hoisted(() => ({
 const protocolMock = vi.hoisted(() => ({
   handle: vi.fn(),
 }))
+const sessionMock = vi.hoisted(() => ({
+  defaultSession: {
+    cookies: {
+      remove: vi.fn(async (_url: string, _name: string) => {}),
+      set: vi.fn(async (_details: { name: string, value: string }) => {}),
+    },
+  },
+}))
 const contextState = vi.hoisted(() => ({
   lastContext: undefined as ReturnType<typeof createContext<any, any>> | undefined,
 }))
@@ -61,6 +70,7 @@ vi.mock('electron', () => ({
   app: appMock,
   ipcMain: {},
   protocol: protocolMock,
+  session: sessionMock,
 }))
 
 vi.mock('@moeru/eventa/adapters/electron/main', async () => {
@@ -251,6 +261,7 @@ function createToolDrivenGameletManifest(entrypoint: string): ManifestV1 {
         { key: 'proj-airi:plugin-sdk:apis:client:tools:register', actions: ['invoke'] },
         { key: pluginGameletApiOpenEventName, actions: ['invoke'] },
         { key: pluginGameletApiConfigureEventName, actions: ['invoke'] },
+        { key: pluginGameletApiRequestEventName, actions: ['invoke'] },
         { key: pluginGameletApiCloseEventName, actions: ['invoke'] },
         { key: pluginGameletApiIsOpenEventName, actions: ['invoke'] },
       ],
@@ -273,6 +284,18 @@ function createToolDrivenGameletManifest(entrypoint: string): ManifestV1 {
 
 function createWidgetsManagerDouble() {
   const widgetSnapshots = new Map<string, WidgetSnapshot>()
+  const widgetEventListeners = new Set<(event: { id: string, event: Record<string, unknown> }) => void>()
+  const publishWidgetEvent = vi.fn((id: string, event: Record<string, unknown>) => {
+    for (const listener of widgetEventListeners) {
+      listener({ id, event })
+    }
+  })
+  const onWidgetEvent = vi.fn((listener: (event: { id: string, event: Record<string, unknown> }) => void) => {
+    widgetEventListeners.add(listener)
+    return () => {
+      widgetEventListeners.delete(listener)
+    }
+  })
   const openWindow = vi.fn(async (_params?: { id?: string }) => {})
   const pushWidget = vi.fn(async (payload: WidgetsAddPayload) => {
     const snapshot: WidgetSnapshot = {
@@ -300,6 +323,23 @@ function createWidgetsManagerDouble() {
       windowSize: payload.windowSize ?? existing.windowSize,
       ttlMs: payload.ttlMs ?? existing.ttlMs,
     })
+
+    const componentProps = payload.componentProps as Record<string, unknown> | undefined
+    const command = componentProps?.payload && typeof componentProps.payload === 'object' && !Array.isArray(componentProps.payload)
+      ? (componentProps.payload as Record<string, unknown>).command
+      : undefined
+    if (command && typeof command === 'object' && !Array.isArray(command) && typeof (command as Record<string, unknown>).requestId === 'string') {
+      const requestId = (command as Record<string, unknown>).requestId
+      queueMicrotask(() => {
+        publishWidgetEvent(payload.id, {
+          payload: {
+            requestId,
+            ready: true,
+            fen: 'fen-after-request',
+          },
+        })
+      })
+    }
   })
   const removeWidget = vi.fn(async (id: string) => {
     widgetSnapshots.delete(id)
@@ -314,6 +354,8 @@ function createWidgetsManagerDouble() {
       updateWidget,
       removeWidget,
       getWidgetSnapshot,
+      publishWidgetEvent,
+      onWidgetEvent,
     },
   }
 }
@@ -339,6 +381,7 @@ function getGameletApis(session: { apis: Record<string, unknown> }) {
     open: (id: string, params?: Record<string, unknown>) => Promise<void>
     configure: (id: string, patch: Record<string, unknown>) => Promise<void>
     close: (id: string) => Promise<void>
+    request: (id: string, payload: Record<string, unknown>, options?: { timeoutMs?: number }) => Promise<Record<string, unknown>>
     isOpen: (id: string) => Promise<boolean>
   }
 }
@@ -719,7 +762,7 @@ describe('setupPluginHost', () => {
             iframe: expect.objectContaining({
               assetPath: 'ui/index.html',
               src: expect.stringMatching(
-                /^http:\/\/127\.0\.0\.1:\d+\/_airi\/extensions\/airi-plugin-game-chess\/ui\/index\.html\?t=[\w-]{10,}$/,
+                /^http:\/\/127\.0\.0\.1:\d+\/_airi\/extensions\/airi-plugin-game-chess\/sessions\/[\w-]{10,}\/ui\/index\.html$/,
               ),
               sandbox: 'allow-scripts allow-same-origin allow-forms allow-popups',
             }),
@@ -865,10 +908,11 @@ describe('setupPluginHost', () => {
         '    async execute() {',
         '      await ctx.apis.gamelets.open(gameletId, { mode: \'new\', side: \'white\' })',
         '      await ctx.apis.gamelets.configure(gameletId, { opening: \'sicilian\', side: \'black\' })',
+        '      const state = await ctx.apis.gamelets.request(gameletId, { action: \'snapshot\' })',
         '      const wasOpen = await ctx.apis.gamelets.isOpen(gameletId)',
         '      await ctx.apis.gamelets.close(gameletId)',
         '',
-        '      return { ok: true, wasOpen }',
+        '      return { ok: true, wasOpen, state }',
         '    },',
         '  })',
         '}',
@@ -884,7 +928,15 @@ describe('setupPluginHost', () => {
       ownerPluginId: session.identity.plugin.id,
       name: 'drive_gamelet',
       input: {},
-    })).resolves.toEqual({ ok: true, wasOpen: true })
+    })).resolves.toEqual({
+      ok: true,
+      wasOpen: true,
+      state: {
+        requestId: expect.any(String),
+        ready: true,
+        fen: 'fen-after-request',
+      },
+    })
 
     expect(widgetsManager.pushWidget).toHaveBeenCalledWith(expect.objectContaining({
       id: 'gamelet-under-test',
@@ -906,6 +958,17 @@ describe('setupPluginHost', () => {
           side: 'black',
           opening: 'sicilian',
         },
+      }),
+    }))
+    expect(widgetsManager.updateWidget).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'gamelet-under-test',
+      componentProps: expect.objectContaining({
+        payload: expect.objectContaining({
+          command: {
+            action: 'snapshot',
+            requestId: expect.any(String),
+          },
+        }),
       }),
     }))
     expect(widgetsManager.removeWidget).toHaveBeenCalledWith('gamelet-under-test')
@@ -1086,6 +1149,8 @@ describe('setupPluginHost', () => {
         widgetSnapshots.delete(id)
       }),
       getWidgetSnapshot: vi.fn((id: string) => widgetSnapshots.get(id)),
+      publishWidgetEvent: vi.fn((_id: string, _event: Record<string, unknown>) => {}),
+      onWidgetEvent: vi.fn((_listener: (event: { id: string, event: Record<string, unknown> }) => void) => () => {}),
     }
     const service = await setupPluginHostService({ widgetsManager })
     const pluginDir = join(pluginsDir, 'test-plugin-gamelets-stop-cleanup-reject')
@@ -1264,7 +1329,7 @@ describe('setupPluginHost', () => {
             iframe: expect.objectContaining({
               assetPath: './ui/index.html',
               src: expect.stringMatching(
-                /^http:\/\/127\.0\.0\.1:\d+\/_airi\/extensions\/test-plugin-widget-asset-url\/ui\/index\.html\?t=[\w-]{10,}$/,
+                /^http:\/\/127\.0\.0\.1:\d+\/_airi\/extensions\/test-plugin-widget-asset-url\/sessions\/[\w-]{10,}\/ui\/index\.html$/,
               ),
               sandbox: 'allow-scripts allow-same-origin allow-forms allow-popups',
             }),
@@ -1278,19 +1343,33 @@ describe('setupPluginHost', () => {
       ?.iframe
       ?.src as string | undefined
     expect(iframeSource).toBeTruthy()
+    expect(iframeSource).not.toContain('?t=')
+    expect(sessionMock.defaultSession.cookies.set).toHaveBeenCalledOnce()
 
-    const iframeResponse = await fetch(iframeSource!)
+    const setCookie = sessionMock.defaultSession.cookies.set.mock.calls.at(0)?.[0] as { name: string, value: string } | undefined
+    if (!setCookie) {
+      throw new Error('Expected plugin asset cookie to be set before iframe URL is returned')
+    }
+    const cookieHeader = `${setCookie.name}=${setCookie.value}`
+    const iframeWithoutCookieResponse = await fetch(iframeSource!)
+    expect(iframeWithoutCookieResponse.status).toBe(401)
+
+    const iframeResponse = await fetch(iframeSource!, {
+      headers: {
+        cookie: cookieHeader,
+      },
+    })
     expect(iframeResponse.status).toBe(200)
     expect(await iframeResponse.text()).toContain('<title>widget</title>')
 
     const iframeUrl = new URL(iframeSource!)
-    const siblingRootUrl = `${iframeUrl.origin}/_airi/extensions/test-plugin-widget-asset-url/ui/other.html?t=${iframeUrl.searchParams.get('t')}`
-    const siblingRootResponse = await fetch(siblingRootUrl)
-    expect(siblingRootResponse.status).toBe(401)
-
-    const outsidePrefixUrl = `${iframeUrl.origin}/_airi/extensions/test-plugin-widget-asset-url/ui/private/secret.txt?t=${iframeUrl.searchParams.get('t')}`
-    const outsidePrefixResponse = await fetch(outsidePrefixUrl)
-    expect(outsidePrefixResponse.status).toBe(401)
+    const outsideSessionUrl = `${iframeUrl.origin}/_airi/extensions/test-plugin-widget-asset-url/ui/private/secret.txt`
+    const outsideSessionResponse = await fetch(outsideSessionUrl, {
+      headers: {
+        cookie: cookieHeader,
+      },
+    })
+    expect(outsideSessionResponse.status).toBe(401)
   })
 
   it('mirrors degraded and withdrawn capability updates into the host snapshot', async () => {
