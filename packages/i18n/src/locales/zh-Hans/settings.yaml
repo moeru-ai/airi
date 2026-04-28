@@ -193,6 +193,7 @@ pages:
       tab: 安全
       title: 安全
       description: 修改密码。其他设备的登录会话会被注销。
+      setDescription: 你通过社交账号登录，还没有设置过密码。我们会向你的邮箱发送一个安全链接，用来设置密码。
       currentPassword:
         label: 当前密码
         placeholder: 输入当前密码
@@ -204,10 +205,13 @@ pages:
         placeholder: 再次输入新密码
       action:
         changePassword: 修改密码
+        sendSetLink: 给我发送设置密码的邮件
       message:
         changed: 密码已修改。其他设备的登录会话已被注销。
+        setLinkSent: 已向 {email} 发送了设置密码的链接，请前往查收。
       error:
         fallback: 无法修改密码。
+        setLinkFailed: 无法发送设置密码链接。
         passwordMismatch: 两次输入的新密码不一致。
         passwordSameAsCurrent: 新密码不能和当前密码相同。
     danger:

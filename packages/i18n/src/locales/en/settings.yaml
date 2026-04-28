@@ -202,6 +202,7 @@ pages:
       tab: Security
       title: Security
       description: Change your password. Your other devices will be signed out.
+      setDescription: You signed in via a social provider, so there is no current password yet. We'll email a secure link to set one.
       currentPassword:
         label: Current password
         placeholder: Enter your current password
@@ -213,10 +214,13 @@ pages:
         placeholder: Repeat your new password
       action:
         changePassword: Change password
+        sendSetLink: Email me a link to set my password
       message:
         changed: Password changed. Other sessions have been signed out.
+        setLinkSent: Check {email} for the link to set your password.
       error:
         fallback: We could not change your password.
+        setLinkFailed: We could not send the password setup link.
         passwordMismatch: New password and confirmation do not match.
         passwordSameAsCurrent: New password must differ from the current one.
     danger:

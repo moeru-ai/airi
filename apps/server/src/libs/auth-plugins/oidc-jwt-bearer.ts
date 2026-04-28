@@ -128,6 +128,18 @@ export function oidcJwtBearer(env: Env): BetterAuthPlugin {
     const now = Date.now()
     const keys = rows
       .filter(row => !row.expiresAt || row.expiresAt.getTime() > now)
+      // NOTICE:
+      // `JSON.parse` is intentionally not wrapped in try/catch. The
+      // `publicKey` column is written exclusively by better-auth's jwt
+      // plugin via `JSON.stringify(publicWebKey)` (see
+      // node_modules/@better-auth/core/dist/plugins/jwt/utils.mjs L30, L50)
+      // — i.e. data we ourselves serialised. A parse failure means the
+      // table is corrupt or upstream's serialisation contract has
+      // shifted, and both are exactly the cases that should fail loud
+      // (5xx + alert) rather than be silently skipped, which would
+      // 401 every JWT signed with the dropped key and bury the root
+      // cause. PR #1753 review suggested adding the try/catch; declined
+      // for the reason above.
       .map((row) => {
         const publicKey = JSON.parse(row.publicKey) as Record<string, unknown>
         return {

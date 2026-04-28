@@ -1,23 +1,16 @@
 <script setup lang="ts">
 import { errorMessageFrom } from '@moeru/std'
 import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth'
+import { useLinkedAccounts } from '@proj-airi/stage-ui/composables'
 import { authClient } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Button, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, reactive, ref, shallowRef, watch } from 'vue'
+import { computed, reactive, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
 type SectionId = 'profile' | 'security' | 'connections' | 'danger'
-
-interface LinkedAccountItem {
-  id: string
-  providerId: string
-  accountId: string
-  createdAt: string
-  scopes: string[]
-}
 
 const emit = defineEmits<{
   login: []
@@ -94,6 +87,15 @@ const passwordLoading = shallowRef(false)
 const passwordError = shallowRef<string | null>(null)
 const passwordSuccess = shallowRef<string | null>(null)
 
+// Set-password path for social-only users (no `credential` row, hence no
+// "current password" to type). Drives them through the existing
+// /request-password-reset email flow rather than exposing a direct
+// setPassword endpoint — fewer custom routes, fresh email-ownership
+// proof at the moment of password set.
+const setPasswordLoading = shallowRef(false)
+const setPasswordError = shallowRef<string | null>(null)
+const setPasswordSuccess = shallowRef<string | null>(null)
+
 // Sidebar active section. Click jumps + highlights; we don't observe scroll
 // position because the page is short enough that simple click → scroll is
 // sufficient and easier to reason about.
@@ -118,25 +120,36 @@ function scrollToSection(id: SectionId) {
   targets[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-// Connected accounts state. Loaded on mount and re-loaded after each
-// link/unlink so the row state matches reality without optimistic guessing.
-const linkedAccounts = shallowRef<LinkedAccountItem[]>([])
-const linkedAccountsLoading = shallowRef(true)
-const linkedAccountsError = shallowRef<string | null>(null)
-const linkedAccountsMessage = shallowRef<string | null>(null)
-const linkActionInFlight = shallowRef<string | null>(null)
-
-const linkedAccountsByProvider = computed(() => {
-  const map = new Map<string, LinkedAccountItem>()
-  for (const account of linkedAccounts.value)
-    map.set(account.providerId, account)
-  return map
+// Connected accounts: state + handlers come from the shared composable
+// in stage-ui so this page and apps/ui-server-auth's profile page stay
+// in lockstep. The composable handles list/unlink/link, the last-sign-in-
+// method guard, and the auto-refresh on auth state change.
+//
+// We destructure at top level so the refs auto-unwrap inside the template
+// — Vue's auto-unwrap only fires on top-level setup bindings, not on
+// `obj.someRef` field access.
+const {
+  loading: linkedAccountsLoading,
+  error: linkedAccountsError,
+  message: linkedAccountsMessage,
+  inFlight: linkActionInFlight,
+  accountsByProvider: linkedAccountsByProvider,
+  hasCredentialAccount,
+  unlink: unlinkLinkedProvider,
+  link: linkLinkedProvider,
+} = useLinkedAccounts({
+  client: authClient,
+  isAuthenticated,
+  describeError: error => errorMessageFrom(error) ?? '',
+  messages: {
+    listFailed: t('settings.pages.account.connections.error.listFailed'),
+    unlinkFailed: t('settings.pages.account.connections.error.unlinkFailed'),
+    linkFailed: t('settings.pages.account.connections.error.linkFailed'),
+    lastAccount: t('settings.pages.account.connections.error.lastAccount'),
+    unlinked: provider => t('settings.pages.account.connections.message.unlinked', { provider }),
+    linkStarted: provider => t('settings.pages.account.connections.message.linkStarted', { provider }),
+  },
 })
-
-const hasCredentialAccount = computed(() => linkedAccountsByProvider.value.has('credential'))
-const socialLinkedCount = computed(
-  () => linkedAccounts.value.filter(a => a.providerId !== 'credential').length,
-)
 
 const connectionsDateFormatter = computed(() => {
   try {
@@ -161,131 +174,15 @@ function formatLinkedSince(iso: string): string {
   }
 }
 
-async function refreshLinkedAccounts() {
-  linkedAccountsLoading.value = true
-  linkedAccountsError.value = null
-  try {
-    const { data, error } = await authClient.listAccounts()
-    if (error)
-      throw new Error(error.message ?? 'listAccounts failed')
-
-    if (!data) {
-      linkedAccounts.value = []
-      return
-    }
-
-    // NOTICE: better-auth's `listAccounts` typing in v1.6.6 widens each
-    // array element to `any` (the OpenAPI schema is `type: object` without
-    // field generics). We accept that and consume the row directly — re-
-    // typing it inline as `Record<string, unknown>` would just dress the
-    // `any` up without giving us real safety. Field shape mirrors the
-    // server response at
-    // node_modules/better-auth/dist/api/routes/account.mjs L20-50.
-    linkedAccounts.value = data.map(account => ({
-      id: account.id,
-      accountId: account.accountId,
-      providerId: account.providerId,
-      createdAt: account.createdAt instanceof Date
-        ? account.createdAt.toISOString()
-        : account.createdAt,
-      scopes: account.scopes ?? [],
-    }))
-  }
-  catch (error) {
-    linkedAccounts.value = []
-    linkedAccountsError.value = errorMessageFrom(error) ?? t('settings.pages.account.connections.error.listFailed')
-  }
-  finally {
-    linkedAccountsLoading.value = false
-  }
-}
-
-function isLastSignInMethod(providerId: string): boolean {
-  if (providerId === 'credential')
-    return socialLinkedCount.value === 0
-  return !hasCredentialAccount.value && socialLinkedCount.value <= 1
-}
-
-async function handleUnlinkProvider(providerId: string) {
-  if (linkActionInFlight.value)
-    return
-
-  if (isLastSignInMethod(providerId)) {
-    linkedAccountsError.value = t('settings.pages.account.connections.error.lastAccount')
-    linkedAccountsMessage.value = null
-    return
-  }
-
+function handleUnlinkProvider(providerId: string) {
   const providerName = defaultSignInProviders.find(p => p.id === providerId)?.name ?? providerId
-  linkActionInFlight.value = providerId
-  linkedAccountsError.value = null
-  linkedAccountsMessage.value = null
-
-  try {
-    const { error } = await authClient.unlinkAccount({ providerId })
-    if (error)
-      throw new Error(error.message ?? 'unlinkAccount failed')
-
-    linkedAccountsMessage.value = t('settings.pages.account.connections.message.unlinked', { provider: providerName })
-    await refreshLinkedAccounts()
-  }
-  catch (error) {
-    linkedAccountsError.value = errorMessageFrom(error) ?? t('settings.pages.account.connections.error.unlinkFailed')
-  }
-  finally {
-    linkActionInFlight.value = null
-  }
+  return unlinkLinkedProvider(providerId, providerName)
 }
 
-async function handleLinkProvider(providerId: 'github' | 'google') {
-  if (linkActionInFlight.value)
-    return
-
+function handleLinkProvider(providerId: 'github' | 'google') {
   const providerName = defaultSignInProviders.find(p => p.id === providerId)?.name ?? providerId
-  linkActionInFlight.value = providerId
-  linkedAccountsError.value = null
-  linkedAccountsMessage.value = t('settings.pages.account.connections.message.linkStarted', { provider: providerName })
-
-  try {
-    // Round-trip back to /settings/account so the freshly linked provider
-    // shows up as soon as the OAuth dance returns.
-    const callbackURL = new URL('/settings/account', window.location.origin).toString()
-    const { data, error } = await authClient.linkSocial({ provider: providerId, callbackURL })
-    if (error)
-      throw new Error(error.message ?? 'linkSocial failed')
-
-    if (data?.url) {
-      window.location.assign(data.url)
-      return
-    }
-
-    // No URL came back (e.g. provider returned status: true synchronously) —
-    // treat as success and reload the list.
-    await refreshLinkedAccounts()
-    linkedAccountsMessage.value = t('settings.pages.account.connections.message.linked', { provider: providerName })
-  }
-  catch (error) {
-    linkedAccountsError.value = errorMessageFrom(error) ?? t('settings.pages.account.connections.error.linkFailed')
-    linkedAccountsMessage.value = null
-  }
-  finally {
-    linkActionInFlight.value = null
-  }
+  return linkLinkedProvider(providerId, providerName)
 }
-
-onMounted(() => {
-  // Defer the call to the next tick so the auth store's bearer token is
-  // already wired up by the time better-auth's authClient fires.
-  if (isAuthenticated.value)
-    refreshLinkedAccounts()
-})
-
-watch(isAuthenticated, (next) => {
-  if (next)
-    refreshLinkedAccounts()
-  else
-    linkedAccounts.value = []
-})
 
 async function handleSaveProfile(event: Event) {
   event.preventDefault()
@@ -359,6 +256,33 @@ async function handleChangePassword(event: Event) {
   }
   finally {
     passwordLoading.value = false
+  }
+}
+
+async function handleSendSetPasswordLink() {
+  const email = userEmail.value
+  if (setPasswordLoading.value || !email)
+    return
+
+  setPasswordLoading.value = true
+  setPasswordError.value = null
+  setPasswordSuccess.value = null
+
+  try {
+    // Land back on the auth UI's reset-password page (the existing
+    // reset-password endpoint creates a credential row when none exists,
+    // see node_modules/better-auth/dist/api/routes/password.mjs L152-158).
+    const redirectTo = new URL('/auth/reset-password', window.location.origin).toString()
+    const { error } = await authClient.requestPasswordReset({ email, redirectTo })
+    if (error)
+      throw new Error(error.message ?? 'requestPasswordReset failed')
+    setPasswordSuccess.value = t('settings.pages.account.security.message.setLinkSent', { email })
+  }
+  catch (error) {
+    setPasswordError.value = errorMessageFrom(error) ?? t('settings.pages.account.security.error.setLinkFailed')
+  }
+  finally {
+    setPasswordLoading.value = false
   }
 }
 </script>
@@ -557,7 +481,17 @@ async function handleChangePassword(event: Event) {
               </p>
             </header>
 
-            <form :class="['flex flex-col gap-3 max-w-md']" @submit="handleChangePassword">
+            <!-- Branches on whether the user has an existing credential
+                 account: social-only users have no current password to
+                 type, so we send them through the email-based set-password
+                 flow instead of showing an unfillable form. While the
+                 linked-accounts list is still loading we render neither
+                 form to avoid a brief flash of the wrong UI. -->
+            <form
+              v-if="!linkedAccountsLoading && hasCredentialAccount"
+              :class="['flex flex-col gap-3 max-w-md']"
+              @submit="handleChangePassword"
+            >
               <FieldInput
                 v-model="passwordForm.current"
                 type="password"
@@ -610,6 +544,40 @@ async function handleChangePassword(event: Event) {
                 />
               </div>
             </form>
+
+            <div
+              v-else-if="!linkedAccountsLoading"
+              :class="['flex flex-col gap-3 max-w-md']"
+            >
+              <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
+                {{ t('settings.pages.account.security.setDescription') }}
+              </p>
+
+              <div
+                v-if="setPasswordError"
+                :class="['text-sm text-red-500']"
+                role="alert"
+                aria-live="polite"
+              >
+                {{ setPasswordError }}
+              </div>
+              <div
+                v-else-if="setPasswordSuccess"
+                :class="['text-sm text-green-600 dark:text-green-400']"
+                aria-live="polite"
+              >
+                {{ setPasswordSuccess }}
+              </div>
+
+              <div :class="['flex justify-start']">
+                <Button
+                  :loading="setPasswordLoading"
+                  :disabled="!!setPasswordSuccess"
+                  :label="t('settings.pages.account.security.action.sendSetLink')"
+                  @click="handleSendSetPasswordLink"
+                />
+              </div>
+            </div>
           </section>
 
           <!-- Connected accounts section. Lives between Security and Danger

@@ -97,6 +97,9 @@ profile:
     newPlaceholder: 至少 8 位
     confirmLabel: 确认新密码
     confirmPlaceholder: 再次输入新密码
+    setDescription: 你通过社交账号登录，还没有设置过密码。我们会向你的邮箱发送一个安全链接，用来设置密码。
+    setLinkSent: 已向 {email} 发送了设置密码的链接，请前往查收。
+    setLinkFailed: 无法发送设置密码链接。
   linkedAccounts:
     description: 通过这些渠道登录 AIRI。解绑可以撤销访问，再次绑定即可切换到其他账号。
     status:
@@ -118,6 +121,7 @@ profile:
   action:
     saveProfile: 保存修改
     changePassword: 修改密码
+    sendSetPasswordLink: 给我发送设置密码的邮件
     signOut: 退出登录
   message:
     loading: 正在加载你的资料...

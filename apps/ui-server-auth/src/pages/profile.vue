@@ -1,19 +1,16 @@
 <script setup lang="ts">
-import type { LinkedAccount } from '../modules/linked-accounts'
 import type { ProfileUser } from '../modules/profile'
 
 import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth'
+import { useLinkedAccounts } from '@proj-airi/stage-ui/composables'
 import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
 import { Button, FieldInput } from '@proj-airi/ui'
 import { computed, onMounted, reactive, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
-import {
-  listLinkedAccounts,
-  requestSocialLinkRedirect,
-  unlinkSocialAccount,
-} from '../modules/linked-accounts'
+import { getAuthClient } from '../modules/auth-client'
+import { requestPasswordReset } from '../modules/email-password'
 import {
   changePassword,
   describeProfileError,
@@ -46,6 +43,15 @@ const passwordLoading = shallowRef(false)
 const passwordError = shallowRef<string | null>(null)
 const passwordSuccess = shallowRef<string | null>(null)
 
+// "Set password" path for users without an existing credential account
+// (signed up via social provider). We send them through the standard
+// forgot-password email flow rather than exposing a direct setPassword
+// endpoint — re-using the link-based flow keeps server surface small and
+// gives us a fresh email-ownership proof at the moment of password set.
+const setPasswordLoading = shallowRef(false)
+const setPasswordError = shallowRef<string | null>(null)
+const setPasswordSuccess = shallowRef<string | null>(null)
+
 const signOutLoading = shallowRef(false)
 const signOutError = shallowRef<string | null>(null)
 
@@ -65,24 +71,33 @@ const gravatarProfileUrl = computed(() => {
   return `https://gravatar.com/${encodeURIComponent(user.value.email.trim().toLowerCase())}`
 })
 
-// Linked accounts state for the "Connected accounts" section.
-const linkedAccountsLoading = shallowRef(true)
-const linkedAccounts = shallowRef<LinkedAccount[]>([])
-const linkedAccountsError = shallowRef<string | null>(null)
-const linkedAccountsMessage = shallowRef<string | null>(null)
-const linkActionInFlight = shallowRef<string | null>(null)
-
-const linkedAccountsByProvider = computed(() => {
-  const map = new Map<string, LinkedAccount>()
-  for (const account of linkedAccounts.value)
-    map.set(account.providerId, account)
-  return map
+// Connected accounts: state + handlers come from the shared composable
+// in stage-ui (mirrored on stage-web). Destructuring at top-level so the
+// refs auto-unwrap inside the template — Vue's auto-unwrap only fires on
+// top-level setup bindings, not on `obj.someRef` access.
+const isAuthenticated = computed(() => user.value !== null)
+const {
+  loading: linkedAccountsLoading,
+  error: linkedAccountsError,
+  message: linkedAccountsMessage,
+  inFlight: linkActionInFlight,
+  accountsByProvider: linkedAccountsByProvider,
+  hasCredentialAccount,
+  unlink: unlinkLinkedProvider,
+  link: linkLinkedProvider,
+} = useLinkedAccounts({
+  client: getAuthClient({ apiServerUrl }),
+  isAuthenticated,
+  describeError: describeProfileError,
+  messages: {
+    listFailed: t('server.auth.profile.linkedAccounts.error.listFailed'),
+    unlinkFailed: t('server.auth.profile.linkedAccounts.error.unlinkFailed'),
+    linkFailed: t('server.auth.profile.linkedAccounts.error.linkFailed'),
+    lastAccount: t('server.auth.profile.linkedAccounts.error.lastAccount'),
+    unlinked: provider => t('server.auth.profile.linkedAccounts.message.unlinked', { provider }),
+    linkStarted: provider => t('server.auth.profile.linkedAccounts.message.linkStarted', { provider }),
+  },
 })
-
-const hasCredentialAccount = computed(() => linkedAccountsByProvider.value.has('credential'))
-const socialLinkedCount = computed(
-  () => linkedAccounts.value.filter(a => a.providerId !== 'credential').length,
-)
 
 const nameDirty = computed(() => {
   if (!user.value)
@@ -105,21 +120,6 @@ const formattedCreatedAt = computed(() => {
   }
 })
 
-async function refreshLinkedAccounts() {
-  linkedAccountsLoading.value = true
-  linkedAccountsError.value = null
-  try {
-    linkedAccounts.value = await listLinkedAccounts({ apiServerUrl })
-  }
-  catch (error) {
-    linkedAccounts.value = []
-    linkedAccountsError.value = describeProfileError(error) || t('server.auth.profile.linkedAccounts.error.listFailed')
-  }
-  finally {
-    linkedAccountsLoading.value = false
-  }
-}
-
 onMounted(async () => {
   try {
     const result = await getCurrentSession({ apiServerUrl })
@@ -132,6 +132,9 @@ onMounted(async () => {
       })
       return
     }
+    // Setting `user` flips `isAuthenticated` true and the composable's
+    // watch picks it up to load linked accounts — no explicit refresh
+    // call needed here.
     user.value = result.user
     profileForm.name = result.user.name
   }
@@ -141,9 +144,6 @@ onMounted(async () => {
   finally {
     initialLoading.value = false
   }
-
-  if (user.value)
-    await refreshLinkedAccounts()
 })
 
 async function handleSaveName(event: Event) {
@@ -208,6 +208,34 @@ async function handleChangePassword(event: Event) {
   }
 }
 
+async function handleSendSetPasswordLink() {
+  if (setPasswordLoading.value || !user.value)
+    return
+
+  setPasswordLoading.value = true
+  setPasswordError.value = null
+  setPasswordSuccess.value = null
+
+  try {
+    // Land back on /auth/reset-password (the existing reset-password page
+    // handles both initial-set and rotate flows because better-auth's
+    // /reset-password endpoint creates a credential row when none exists).
+    await requestPasswordReset({
+      apiServerUrl,
+      email: user.value.email,
+      redirectTo: new URL('/auth/reset-password', window.location.origin).toString(),
+    })
+    setPasswordSuccess.value = t('server.auth.profile.password.setLinkSent', { email: user.value.email })
+  }
+  catch (error) {
+    setPasswordError.value = describeProfileError(error)
+      || t('server.auth.profile.password.setLinkFailed')
+  }
+  finally {
+    setPasswordLoading.value = false
+  }
+}
+
 async function handleSignOut() {
   if (signOutLoading.value)
     return
@@ -225,72 +253,14 @@ async function handleSignOut() {
   }
 }
 
-function isLastSignInMethod(providerId: string): boolean {
-  // A user is locked out if they unlink their only credential (no password)
-  // and only social provider. We refuse client-side instead of relying on
-  // better-auth's BAD_REQUEST so the message matches the user's mental model.
-  if (providerId === 'credential')
-    return socialLinkedCount.value === 0
-  return !hasCredentialAccount.value && socialLinkedCount.value <= 1
+function handleUnlinkProvider(providerId: string) {
+  const providerName = defaultSignInProviders.find(p => p.id === providerId)?.name ?? providerId
+  return unlinkLinkedProvider(providerId, providerName)
 }
 
-async function handleUnlinkProvider(providerId: string) {
-  if (linkActionInFlight.value)
-    return
-
-  if (isLastSignInMethod(providerId)) {
-    linkedAccountsError.value = t('server.auth.profile.linkedAccounts.error.lastAccount')
-    linkedAccountsMessage.value = null
-    return
-  }
-
+function handleLinkProvider(providerId: 'github' | 'google') {
   const providerName = defaultSignInProviders.find(p => p.id === providerId)?.name ?? providerId
-  linkActionInFlight.value = providerId
-  linkedAccountsError.value = null
-  linkedAccountsMessage.value = null
-
-  try {
-    await unlinkSocialAccount({ apiServerUrl, providerId: providerId as 'github' | 'google' })
-    linkedAccountsMessage.value = t('server.auth.profile.linkedAccounts.message.unlinked', { provider: providerName })
-    await refreshLinkedAccounts()
-  }
-  catch (error) {
-    linkedAccountsError.value = describeProfileError(error)
-      || t('server.auth.profile.linkedAccounts.error.unlinkFailed')
-  }
-  finally {
-    linkActionInFlight.value = null
-  }
-}
-
-async function handleLinkProvider(providerId: string) {
-  if (linkActionInFlight.value)
-    return
-
-  const providerName = defaultSignInProviders.find(p => p.id === providerId)?.name ?? providerId
-  linkActionInFlight.value = providerId
-  linkedAccountsError.value = null
-  linkedAccountsMessage.value = t('server.auth.profile.linkedAccounts.message.linkStarted', { provider: providerName })
-
-  try {
-    // Round-trip the user back to /profile so the freshly linked provider
-    // shows up the moment they return from the OAuth dance. Use absolute URL
-    // because better-auth validates against trustedOrigins, and the redirect
-    // is consumed by the browser via window.location.assign.
-    const callbackURL = new URL('/profile', window.location.origin).toString()
-    const url = await requestSocialLinkRedirect({
-      apiServerUrl,
-      provider: providerId as 'github' | 'google',
-      callbackURL,
-    })
-    window.location.assign(url)
-  }
-  catch (error) {
-    linkedAccountsError.value = describeProfileError(error)
-      || t('server.auth.profile.linkedAccounts.error.linkFailed')
-    linkActionInFlight.value = null
-    linkedAccountsMessage.value = null
-  }
+  return linkLinkedProvider(providerId, providerName)
 }
 
 function formatLinkedSince(iso: string): string {
@@ -437,64 +407,108 @@ function formatLinkedSince(iso: string): string {
         </Button>
       </form>
 
-      <!-- Change password form -->
-      <form
+      <!-- Password section: branches on whether the user already has a
+           credential account. Social-only users (signed up via GitHub /
+           Google) have no current password to type, so we drive them
+           through the email-based set-password flow instead of showing a
+           form they can't fill. -->
+      <section
+        v-if="!linkedAccountsLoading"
         :class="['max-w-sm w-full flex flex-col gap-3 mb-6']"
-        @submit="handleChangePassword"
       >
         <h2 :class="['text-base font-semibold']">
           {{ t('server.auth.profile.section.password') }}
         </h2>
 
-        <FieldInput
-          v-model="passwordForm.current"
-          type="password"
-          :label="t('server.auth.profile.password.currentLabel')"
-          :placeholder="t('server.auth.profile.password.currentPlaceholder')"
-          required
-          hide-required-mark
-        />
-        <FieldInput
-          v-model="passwordForm.next"
-          type="password"
-          :label="t('server.auth.profile.password.newLabel')"
-          :placeholder="t('server.auth.profile.password.newPlaceholder')"
-          required
-          hide-required-mark
-        />
-        <FieldInput
-          v-model="passwordForm.confirm"
-          type="password"
-          :label="t('server.auth.profile.password.confirmLabel')"
-          :placeholder="t('server.auth.profile.password.confirmPlaceholder')"
-          required
-          hide-required-mark
-        />
+        <form
+          v-if="hasCredentialAccount"
+          :class="['flex flex-col gap-3']"
+          @submit="handleChangePassword"
+        >
+          <FieldInput
+            v-model="passwordForm.current"
+            type="password"
+            :label="t('server.auth.profile.password.currentLabel')"
+            :placeholder="t('server.auth.profile.password.currentPlaceholder')"
+            required
+            hide-required-mark
+          />
+          <FieldInput
+            v-model="passwordForm.next"
+            type="password"
+            :label="t('server.auth.profile.password.newLabel')"
+            :placeholder="t('server.auth.profile.password.newPlaceholder')"
+            required
+            hide-required-mark
+          />
+          <FieldInput
+            v-model="passwordForm.confirm"
+            type="password"
+            :label="t('server.auth.profile.password.confirmLabel')"
+            :placeholder="t('server.auth.profile.password.confirmPlaceholder')"
+            required
+            hide-required-mark
+          />
+
+          <div
+            v-if="passwordError"
+            :class="['text-sm text-red-500']"
+            role="alert"
+            aria-live="polite"
+          >
+            {{ passwordError }}
+          </div>
+          <div
+            v-else-if="passwordSuccess"
+            :class="['text-sm text-green-600 dark:text-green-400']"
+            aria-live="polite"
+          >
+            {{ passwordSuccess }}
+          </div>
+
+          <Button
+            type="submit"
+            :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']"
+            :loading="passwordLoading"
+          >
+            <span>{{ t('server.auth.profile.action.changePassword') }}</span>
+          </Button>
+        </form>
 
         <div
-          v-if="passwordError"
-          :class="['text-sm text-red-500']"
-          role="alert"
-          aria-live="polite"
+          v-else
+          :class="['flex flex-col gap-3']"
         >
-          {{ passwordError }}
-        </div>
-        <div
-          v-else-if="passwordSuccess"
-          :class="['text-sm text-green-600 dark:text-green-400']"
-          aria-live="polite"
-        >
-          {{ passwordSuccess }}
-        </div>
+          <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
+            {{ t('server.auth.profile.password.setDescription') }}
+          </p>
 
-        <Button
-          type="submit"
-          :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']"
-          :loading="passwordLoading"
-        >
-          <span>{{ t('server.auth.profile.action.changePassword') }}</span>
-        </Button>
-      </form>
+          <div
+            v-if="setPasswordError"
+            :class="['text-sm text-red-500']"
+            role="alert"
+            aria-live="polite"
+          >
+            {{ setPasswordError }}
+          </div>
+          <div
+            v-else-if="setPasswordSuccess"
+            :class="['text-sm text-green-600 dark:text-green-400']"
+            aria-live="polite"
+          >
+            {{ setPasswordSuccess }}
+          </div>
+
+          <Button
+            :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']"
+            :loading="setPasswordLoading"
+            :disabled="!!setPasswordSuccess"
+            @click="handleSendSetPasswordLink"
+          >
+            <span>{{ t('server.auth.profile.action.sendSetPasswordLink') }}</span>
+          </Button>
+        </div>
+      </section>
 
       <!-- Connected accounts: list each known social provider with its
            bind/unbind affordance. Re-binding is just unlink + link in
