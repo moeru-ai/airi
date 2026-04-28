@@ -51,6 +51,7 @@ import { createFluxMeter } from './services/billing/flux-meter'
 import { createCharacterService } from './services/characters'
 import { createChatService } from './services/chats'
 import { createConfigKVService } from './services/config-kv'
+import { createEmailService } from './services/email'
 import { createFluxService } from './services/flux'
 import { createFluxTransactionService } from './services/flux-transaction'
 import { createProviderService } from './services/providers'
@@ -157,6 +158,18 @@ export async function buildApp(deps: AppDeps) {
     .on('GET', '/health', c => c.json({ status: 'ok' }))
 
     /**
+     * Service identity at the API root. Visitors who land here from a stray
+     * email link, search engine, or copy-pasted URL get a clear pointer to
+     * the actual product UI instead of the framework's default "404 Not Found".
+     */
+    .on('GET', '/', c => c.json({
+      service: 'airi-api',
+      message: 'This is the Project AIRI API server. Visit https://airi.moeru.ai to use the product, or see the docs at https://airi.moeru.ai/docs.',
+      docs: 'https://airi.moeru.ai/docs',
+      ui: 'https://airi.moeru.ai',
+    }))
+
+    /**
      * Auth routes: sign-in page, token auth helpers, electron callback
      * relay, well-known metadata, and better-auth catch-all.
      */
@@ -196,6 +209,17 @@ export async function buildApp(deps: AppDeps) {
      * Stripe routes.
      */
     .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue))
+
+    /**
+     * Catch-all 404 in JSON. Replaces hono's default `text/html` "404 Not
+     * Found" so unmatched routes (typos, stale email links, scanners) get a
+     * structured response and a hint at where to go for the real product UI.
+     */
+    .notFound(c => c.json({
+      error: 'NOT_FOUND',
+      message: `No route matched ${c.req.method} ${new URL(c.req.url).pathname}. This is the airi-api server; the product UI lives at https://airi.moeru.ai.`,
+      ui: 'https://airi.moeru.ai',
+    }, 404))
 
   return { app: builtApp, injectWebSocket }
 }
@@ -292,8 +316,17 @@ export async function createApp() {
     }),
   })
 
+  const emailService = injeca.provide('services:email', {
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn }) => createEmailService({
+      apiKey: dependsOn.env.RESEND_API_KEY,
+      fromEmail: dependsOn.env.RESEND_FROM_EMAIL,
+      fromName: dependsOn.env.RESEND_FROM_NAME,
+    }),
+  })
+
   const auth = injeca.provide('services:auth', {
-    dependsOn: { db, env: parsedEnv, otel },
+    dependsOn: { db, env: parsedEnv, otel, email: emailService },
     build: async ({ dependsOn }) => {
       // Seed trusted OIDC clients into DB so FK constraints on oauth_access_token are satisfied
       await seedTrustedClients(dependsOn.db, dependsOn.env)
@@ -306,7 +339,7 @@ export async function createApp() {
           redirectUris: client.redirectUris.join(', '),
         }).log('OIDC trusted client ready')
       }
-      return createAuth(dependsOn.db, dependsOn.env, dependsOn.otel?.auth)
+      return createAuth(dependsOn.db, dependsOn.env, dependsOn.email, dependsOn.otel?.auth)
     },
   })
 

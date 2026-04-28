@@ -1,0 +1,42 @@
+export { compactConversationEntries } from './compaction'
+export type {
+  Projection,
+  ProjectionCompactedHistory,
+  ProjectionDomainEvent,
+  ProjectionSessionUserTurn,
+  ProjectionSparkCommand,
+  ProjectionSparkNotify,
+} from './projection'
+export { projectConversationEntries, projectProjection } from './projection'
+export { renderProviderChatMessages } from './render-provider-chat'
+export type {
+  HistoryItem,
+  HistoryItemDomainEvent,
+  HistoryReaction,
+  HistorySummary,
+  HistoryTurn,
+  HistoryTurnAction,
+  HistoryTurnEventAction,
+  HistoryTurnGenericAction,
+  HistoryTurnMoveAction,
+  HistoryTurnTextAction,
+  Message,
+  MessageDomainEventSegment,
+  MessageHistoryBlockSegment,
+  MessageInstructionSegment,
+  MessageReferenceSegment,
+  MessageSegment,
+  MessageStateSnapshotSegment,
+  MessageSummarySegment,
+  MessageTaggedTextSegment,
+  MessageTextSegment,
+  RawMessage,
+  SegmentDomainEvent,
+  SegmentHistoryBlock,
+  SegmentInstruction,
+  SegmentReference,
+  SegmentStateSnapshot,
+  SegmentSummary,
+  SegmentTaggedText,
+  SegmentText,
+} from './types'

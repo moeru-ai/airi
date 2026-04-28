@@ -53,6 +53,7 @@
     "ioredis": "^5.10.1",
     "jose": "catalog:",
     "pg": "^8.20.0",
+    "resend": "^6.12.2",
     "stripe": "^22.0.2",
     "valibot": "catalog:",
     "zod": "catalog:"
