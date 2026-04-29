@@ -28,7 +28,7 @@ const userEmail = computed(() => user.value?.email ?? null)
 const { setLocalUserAvatar, userAvatar } = useLocalUserAvatar(user)
 const avatarInputRef = ref<HTMLInputElement | null>(null)
 const avatarUploading = shallowRef(false)
-const MAX_LOCAL_AVATAR_BYTES = 1024 * 1024
+const MAX_LOCAL_AVATAR_BYTES = 512 * 1024
 // Gravatar fallback is decorated server-side onto `user.image`. We detect
 // the fallback by URL prefix instead of carrying a redundant `imageSource`
 // flag — Gravatar URL format is stable and prefix-matching keeps the API
@@ -536,7 +536,7 @@ async function handleConfirmDelete(event: Event) {
                 >
                   <div
                     :class="[
-                      avatarUploading ? 'i-solar:refresh-bold' : 'i-solar:camera-bold-duotone',
+                      avatarUploading ? 'i-solar:refresh-bold animate-spin' : 'i-solar:camera-bold-duotone',
                       'size-4',
                     ]"
                   />
