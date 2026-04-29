@@ -3,7 +3,7 @@
   stdenvNoCC,
   fetchPnpmDeps,
 
-  pnpm,
+  pnpm_10,
   pnpmConfigHook,
 
   cacert,
@@ -41,7 +41,7 @@ stdenvNoCC.mkDerivation (final: {
       cacert # For network request
       gitMinimal # For unplugin-info
       nodejs
-      pnpm
+      pnpm_10
       pnpmConfigHook
     ];
 
