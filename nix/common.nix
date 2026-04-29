@@ -28,7 +28,7 @@ stdenvNoCC.mkDerivation (final: {
 
   pnpmDeps = fetchPnpmDeps {
     inherit (final) pname version src;
-    fetcherVersion = 2;
+    fetcherVersion = 3;
     hash = builtins.readFile ./pnpm-deps-hash.txt;
   };
 
