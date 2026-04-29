@@ -10,9 +10,5 @@
   "dependencies": {
     "@moeru/std": "catalog:",
     "uncrypto": "catalog:"
-  },
-  "devDependencies": {
-    "@vitest/browser-playwright": "catalog:vitest",
-    "vitest": "catalog:vitest"
   }
 }

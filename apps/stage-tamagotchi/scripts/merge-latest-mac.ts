@@ -25,8 +25,11 @@ interface UpdateInfo {
 
 type Platform = 'x64' | 'arm64' | 'both' | 'none'
 
-function detectPlatform(updateInfo: UpdateInfo): Platform {
+const regexpIsLatestMacMetadata = /^latest(?:-[^-]+)?-mac\.yml$/i
+
+function getUrls(updateInfo: UpdateInfo): string[] {
   const urls: string[] = []
+
   if (Array.isArray(updateInfo.files)) {
     for (const file of updateInfo.files) {
       if (typeof file?.url === 'string') {
@@ -34,15 +37,60 @@ function detectPlatform(updateInfo: UpdateInfo): Platform {
       }
     }
   }
+
   if (typeof updateInfo.path === 'string') {
     urls.push(updateInfo.path)
   }
 
-  // eslint-disable-next-line regexp/no-unused-capturing-group
-  const hasArm64 = urls.some(url => /(^|[-_/])arm64([-.]|$)/i.test(url))
-  // eslint-disable-next-line regexp/no-unused-capturing-group
-  const hasX64FromName = urls.some(url => /(^|[-_/])x64([-.]|$)/i.test(url))
-  const hasMacZip = urls.some(url => /-mac\.zip$/i.test(url) && !/arm64/i.test(url))
+  return urls
+}
+
+export const regexpContainsArm64 = /arm64/i
+export const regexpHasArm64 = /(^|[-_/])arm64([-.]|$)/i
+export const regexpHasX64 = /(^|[-_/])x64([-.]|$)/i
+export const regexpIsMacZip = /-mac\.zip$/i
+export const regexpIsArm64MacZip = /-arm64-mac\.zip$/i
+
+function isArm64MacZip(url: string): boolean {
+  return regexpIsArm64MacZip.test(url)
+}
+
+function isX64MacZip(url: string): boolean {
+  return regexpIsMacZip.test(url) && !regexpContainsArm64.test(url)
+}
+
+function getMacZipUrls(updateInfo: UpdateInfo): string[] {
+  return getUrls(updateInfo).filter(url => regexpIsMacZip.test(url))
+}
+
+function assertContainsMacZip(updateInfo: UpdateInfo, platform: Exclude<Platform, 'both' | 'none'>, filePath: string) {
+  const zipUrls = getMacZipUrls(updateInfo)
+
+  if (platform === 'arm64' && !zipUrls.some(isArm64MacZip)) {
+    throw new Error(`arm64 update info is missing an arm64 mac zip entry: ${filePath}`)
+  }
+
+  if (platform === 'x64' && !zipUrls.some(isX64MacZip)) {
+    throw new Error(`x64 update info is missing an x64 mac zip entry: ${filePath}`)
+  }
+}
+
+function assertMergedContainsBothMacZips(updateInfo: UpdateInfo) {
+  const zipUrls = getMacZipUrls(updateInfo)
+  const hasArm64 = zipUrls.some(isArm64MacZip)
+  const hasX64 = zipUrls.some(isX64MacZip)
+
+  if (!hasArm64 || !hasX64) {
+    throw new Error(`Merged latest-mac.yml must contain both arm64 and x64 mac zip entries, received: ${zipUrls.join(', ') || '(none)'}`)
+  }
+}
+
+function detectPlatform(updateInfo: UpdateInfo): Platform {
+  const urls = getUrls(updateInfo)
+
+  const hasArm64 = urls.some(url => regexpHasArm64.test(url))
+  const hasX64FromName = urls.some(url => regexpHasX64.test(url))
+  const hasMacZip = urls.some(url => regexpIsMacZip.test(url) && !regexpContainsArm64.test(url))
   const hasX64 = hasX64FromName || hasMacZip
 
   if (hasX64 && hasArm64) {
@@ -71,6 +119,9 @@ function mergeFiles(arm64: UpdateInfo, x64: UpdateInfo): UpdateInfo {
   return {
     ...arm64,
     files: [...byUrl.values()],
+    path: undefined,
+    sha2: undefined,
+    sha512: undefined,
   }
 }
 
@@ -111,7 +162,7 @@ function collectLatestMacFiles(rootDir: string): string[] {
       results.push(...collectLatestMacFiles(fullPath))
       continue
     }
-    if (entry.isFile() && entry.name.startsWith('latest-mac') && entry.name.endsWith('.yml')) {
+    if (entry.isFile() && regexpIsLatestMacMetadata.test(entry.name)) {
       results.push(fullPath)
     }
   }
@@ -168,6 +219,11 @@ async function main() {
     const updateInfo = await readUpdateInfo(filePath)
     const platform = detectPlatform(updateInfo)
     console.info('merge-latest-mac: detected platform', { filePath, platform })
+
+    if (platform === 'arm64' || platform === 'x64') {
+      assertContainsMacZip(updateInfo, platform, filePath)
+    }
+
     entries.push({ filePath, updateInfo, platform })
   }
 
@@ -181,6 +237,7 @@ async function main() {
 
   const mergedEntry = entries.find(entry => entry.platform === 'both')
   if (mergedEntry) {
+    assertMergedContainsBothMacZips(mergedEntry.updateInfo)
     await writeFile(outputPath, yaml.stringify(mergedEntry.updateInfo), 'utf8')
     return
   }
@@ -203,6 +260,7 @@ async function main() {
   }
 
   const merged = mergeFiles(arm64Entries[0].updateInfo, x64Entries[0].updateInfo)
+  assertMergedContainsBothMacZips(merged)
   await writeFile(outputPath, yaml.stringify(merged), 'utf8')
 }
 

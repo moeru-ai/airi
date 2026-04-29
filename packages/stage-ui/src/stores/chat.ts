@@ -5,21 +5,63 @@ import type { CommonContentPart, Message, ToolMessage } from '@xsai/shared-chat'
 import type { ChatAssistantMessage, ChatSlices, ChatStreamEventContext, StreamingAssistantMessage } from '../types/chat'
 import type { StreamEvent, StreamOptions } from './llm'
 
+import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { createQueue } from '@proj-airi/stream-kit'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { ref, toRaw } from 'vue'
+import { computed, ref, toRaw } from 'vue'
 
 import { useAnalytics } from '../composables'
 import { useLlmmarkerParser } from '../composables/llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from '../composables/response-categoriser'
-import { createDatetimeContext } from './chat/context-providers'
+import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
+import { formatContextPromptText } from './chat/context-prompt'
+import { createMinecraftContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
+import { formatTimePrefix } from './chat/datetime-prefix'
 import { createChatHooks } from './chat/hooks'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
+import { useContextObservabilityStore } from './devtools/context-observability'
 import { useLLM } from './llm'
+import { useAiriCardStore } from './modules/airi-card'
+import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
+
+// Prepends a literal text fragment to a message's content. Handles both the
+// shorthand string form and the array-of-parts form. When the first part is
+// already text, it merges into that part to keep the part count stable for
+// downstream consumers; otherwise it inserts a new text part at the front.
+// Constraint is `content?: unknown` to admit both required-content roles
+// (system/user) and optional-content roles (assistant); the generic preserves
+// the caller's discriminated-union narrowing.
+function prependTextToContent<T extends { content?: unknown }>(msg: T, text: string): T {
+  const content = msg.content
+  if (content === undefined)
+    return { ...msg, content: text } as T
+  if (typeof content === 'string')
+    return { ...msg, content: `${text}${content}` } as T
+
+  if (Array.isArray(content)) {
+    const first = content[0] as { type?: string, text?: string } | undefined
+    if (first && first.type === 'text' && typeof first.text === 'string') {
+      const next = [{ ...first, text: `${text}${first.text}` }, ...content.slice(1)]
+      return { ...msg, content: next } as T
+    }
+    return { ...msg, content: [{ type: 'text', text }, ...content] } as T
+  }
+
+  return msg
+}
+
+function cloneStreamingMessage(message: StreamingAssistantMessage): StreamingAssistantMessage {
+  try {
+    return structuredClone(message)
+  }
+  catch {
+    return JSON.parse(JSON.stringify(message)) as StreamingAssistantMessage
+  }
+}
 
 interface SendOptions {
   model: string
@@ -49,20 +91,33 @@ interface QueuedSend {
   }
 }
 
+export interface QueuedSendSnapshot {
+  sessionId: string
+  generation: number
+  cancelled: boolean
+  messagePreview: string
+  hasAttachments: boolean
+  inputType?: WebSocketEventInputs['type']
+}
+
 export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const llmStore = useLLM()
   const consciousnessStore = useConsciousnessStore()
+  const artistryAutonomousStore = useAutonomousArtistryStore()
   const { activeProvider } = storeToRefs(consciousnessStore)
   const { trackFirstMessage } = useAnalytics()
 
   const chatSession = useChatSessionStore()
   const chatStream = useChatStreamStore()
   const chatContext = useChatContextStore()
+  const cardStore = useAiriCardStore()
+  const contextObservability = useContextObservabilityStore()
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
 
   const sending = ref(false)
   const pendingQueuedSends = ref<QueuedSend[]>([])
+  const pendingQueuedSendCount = computed(() => pendingQueuedSends.value.length)
   const hooks = createChatHooks()
 
   const sendQueue = createQueue<QueuedSend>({
@@ -90,7 +145,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   })
 
   sendQueue.on('enqueue', (queuedSend) => {
-    pendingQueuedSends.value = [...pendingQueuedSends.value, queuedSend]
+    pendingQueuedSends.value.push(queuedSend)
   })
 
   sendQueue.on('dequeue', (queuedSend) => {
@@ -108,16 +163,33 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
     chatSession.ensureSession(sessionId)
 
-    // Inject current datetime context before composing the message
-    chatContext.ingestContextMessage(createDatetimeContext())
+    // Datetime is no longer injected through the side-channel context store.
+    // It is applied at message-assembly time (see below) as a system-prompt
+    // date anchor + per-message [HH:MM] prefixes, which is more KV-cache
+    // friendly and less prone to weak models echoing timestamps verbatim.
+    const minecraftContext = createMinecraftContext()
+    if (minecraftContext)
+      chatContext.ingestContextMessage(minecraftContext)
 
     const sendingCreatedAt = Date.now()
+    // TODO: Expire or prune stale runtime contexts from disconnected services before composing.
+    // The Minecraft page already times out service liveness locally, but the shared chat context
+    // snapshot can still retain the last runtime context:update until we add cross-store expiry.
     const streamingMessageContext: ChatStreamEventContext = {
       message: { role: 'user', content: sendingMessage, createdAt: sendingCreatedAt, id: nanoid() },
       contexts: chatContext.getContextsSnapshot(),
       composedMessage: [],
       input: options.input,
     }
+    contextObservability.recordLifecycle({
+      phase: 'before-compose',
+      channel: 'chat',
+      sessionId,
+      textPreview: sendingMessage,
+      details: {
+        contexts: streamingMessageContext.contexts,
+      },
+    })
 
     const isStaleGeneration = () => chatSession.getSessionGeneration(sessionId) !== generation
     const shouldAbort = () => isStaleGeneration()
@@ -125,6 +197,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       return
 
     sending.value = true
+    let hadExistingTurn = false
 
     const isForegroundSession = () => sessionId === activeSessionId.value
 
@@ -132,7 +205,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
     const updateUI = () => {
       if (isForegroundSession()) {
-        streamingMessage.value = JSON.parse(JSON.stringify(buildingMessage))
+        streamingMessage.value = cloneStreamingMessage(buildingMessage)
       }
     }
 
@@ -170,12 +243,22 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       if (shouldAbort())
         return
 
-      const sessionMessagesForSend = chatSession.sessionMessages[sessionId]
-      if (!sessionMessagesForSend) {
-        throw new Error('Session messages not found')
+      chatSession.appendSessionMessage(sessionId, {
+        role: 'user',
+        content: finalContent,
+        createdAt: sendingCreatedAt,
+        id: nanoid(),
+      })
+      const sessionMessagesForSend = chatSession.getSessionMessages(sessionId)
+
+      // --------------------------------
+      // Cinematic Autonomy (Autonomous Artist)
+      // Trigger now only if in user-centric mode. Assistant-centric runs after response is complete.
+      const autonomousTarget = cardStore.activeCard?.extensions?.airi?.modules?.artistry?.autonomousTarget || 'user'
+      if (autonomousTarget === 'user') {
+        void artistryAutonomousStore.runArtistTask(sendingMessage, sessionMessagesForSend as any)
       }
-      sessionMessagesForSend.push({ role: 'user', content: finalContent, createdAt: sendingCreatedAt, id: nanoid() })
-      chatSession.persistSessionMessages(sessionId)
+      // --------------------------------
 
       const categorizer = createStreamingCategorizer(activeProvider.value)
       let streamPosition = 0
@@ -248,41 +331,85 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         ],
       })
 
-      let newMessages = sessionMessagesForSend.map((msg) => {
-        const { context: _context, id: _id, createdAt: _createdAt, ...withoutContext } = msg
+      // Per-message datetime injection (replaces the old `<context>` XML block):
+      // every user/assistant message gets a `[YYYY-MM-DD HH:MM]` prefix
+      // derived from its persisted `createdAt`. The full date appears on every
+      // turn so the model can read "today" from the most recent message; the
+      // system prompt itself stays 100% static for permanent KV-cache reuse.
+      // Legacy entries without a persisted `createdAt` fall back to "now"
+      // rather than a fabricated older timestamp.
+      // See `./chat/datetime-prefix.ts` for the rationale.
+      const nowTs = Date.now()
+
+      const newMessages = sessionMessagesForSend.map((msg) => {
+        const { context: _context, id: _id, createdAt, ...withoutContext } = msg
         const rawMessage = toRaw(withoutContext)
+        const ts = createdAt ?? nowTs
+
+        if (rawMessage.role === 'user') {
+          return prependTextToContent(rawMessage, formatTimePrefix(ts))
+        }
 
         if (rawMessage.role === 'assistant') {
           const { slices: _slices, tool_results: _toolResults, categorization: _categorization, ...rest } = rawMessage as ChatAssistantMessage
-          return toRaw(rest)
+          return prependTextToContent(toRaw(rest), formatTimePrefix(ts))
         }
 
         return rawMessage
       })
 
       const contextsSnapshot = chatContext.getContextsSnapshot()
-      if (Object.keys(contextsSnapshot).length > 0) {
-        const system = newMessages.slice(0, 1)
-        const afterSystem = newMessages.slice(1, newMessages.length)
+      const contextPromptText = formatContextPromptText(contextsSnapshot)
+      if (contextPromptText) {
+        // Merge context into the latest user message instead of inserting a
+        // separate user message, which would create consecutive same-role
+        // messages forbidden by some providers (e.g. Anthropic → 400 error).
+        // Appending at the end keeps the static history prefix stable for
+        // LLM KV-cache reuse.
+        // See: https://github.com/moeru-ai/airi/issues/1539
+        const lastMessage = newMessages.at(-1)
+        if (lastMessage && lastMessage.role === 'user') {
+          // Append context after the user's content, separated by a newline.
+          // Keeping it at the end of the last message preserves the static
+          // history prefix for LLM KV-cache reuse.
+          const existingParts = typeof lastMessage.content === 'string'
+            ? [{ type: 'text' as const, text: lastMessage.content }]
+            : lastMessage.content
 
-        newMessages = [
-          ...system,
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: ''
-                  + 'These are the contextual information retrieved or on-demand updated from other modules, you may use them as context for chat, or reference of the next action, tool call, etc.:\n'
-                  + `${Object.entries(contextsSnapshot).map(([key, value]) => `Module ${key}: ${JSON.stringify(value)}`).join('\n')}\n`,
-              },
-            ],
+          lastMessage.content = [
+            ...existingParts,
+            { type: 'text' as const, text: `\n${contextPromptText}` },
+          ]
+        }
+
+        contextObservability.recordLifecycle({
+          phase: 'prompt-context-built',
+          channel: 'chat',
+          sessionId,
+          details: {
+            contexts: contextsSnapshot,
+            promptText: contextPromptText,
           },
-          ...afterSystem,
-        ]
+        })
       }
 
       streamingMessageContext.composedMessage = newMessages as Message[]
+      contextObservability.capturePromptProjection({
+        sessionId,
+        message: sendingMessage,
+        contexts: contextsSnapshot,
+        promptMessage: undefined,
+        composedMessage: newMessages as Message[],
+      })
+      contextObservability.recordLifecycle({
+        phase: 'after-compose',
+        channel: 'chat',
+        sessionId,
+        textPreview: sendingMessage,
+        details: {
+          composedMessage: newMessages,
+        },
+      })
 
       await hooks.emitAfterMessageComposedHooks(sendingMessage, streamingMessageContext)
       await hooks.emitBeforeSendHooks(sendingMessage, streamingMessageContext)
@@ -293,46 +420,80 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       if (shouldAbort())
         return
 
-      await llmStore.stream(options.model, options.chatProvider, newMessages as Message[], {
-        headers,
-        tools: options.tools,
-        // NOTICE: xsai stream may emit `finish` before tool steps continue, so keep waiting until
-        // the final non-tool finish to avoid ending the chat turn with no assistant reply.
-        waitForTools: true,
-        onStreamEvent: async (event: StreamEvent) => {
-          switch (event.type) {
-            case 'tool-call':
-              toolCallQueue.enqueue({
-                type: 'tool-call',
-                toolCall: event,
-              })
+      hadExistingTurn = !!activeTurnSpan.value
+      if (!hadExistingTurn)
+        activeTurnSpan.value = startSpan(IOSpanNames.InteractionTurn)
 
-              break
-            case 'tool-result':
-              toolCallQueue.enqueue({
-                type: 'tool-call-result',
-                id: event.toolCallId,
-                result: event.result,
-              })
-
-              break
-            case 'text-delta':
-              fullText += event.text
-              await parser.consume(event.text)
-              break
-            case 'finish':
-              break
-            case 'error':
-              throw event.error ?? new Error('Stream error')
-          }
-        },
+      const llmSpan = startSpan(IOSpanNames.LLMInference, activeTurnSpan.value, {
+        [IOAttributes.Subsystem]: IOSubsystems.LLM,
+        [IOAttributes.GenAIRequestModel]: options.model,
       })
+      const llmRequestTs = performance.now()
+      let llmFirstTokenEmitted = false
+
+      try {
+        await llmStore.stream(options.model, options.chatProvider, newMessages as Message[], {
+          headers,
+          tools: options.tools,
+          // NOTICE: xsai stream may emit `finish` before tool steps continue, so keep waiting until
+          // the final non-tool finish to avoid ending the chat turn with no assistant reply.
+          waitForTools: true,
+          captureToolErrors: true,
+          onStreamEvent: async (event: StreamEvent) => {
+            switch (event.type) {
+              case 'tool-call':
+                toolCallQueue.enqueue({
+                  type: 'tool-call',
+                  toolCall: event,
+                })
+
+                break
+              case 'tool-result':
+                toolCallQueue.enqueue({
+                  type: 'tool-call-result',
+                  id: event.toolCallId,
+                  result: event.result,
+                })
+
+                break
+              case 'tool-error':
+                toolCallQueue.enqueue({
+                  type: 'tool-call-result',
+                  id: event.toolCallId,
+                  isError: true,
+                  result: event.result,
+                })
+
+                break
+              case 'text-delta':
+                if (!llmFirstTokenEmitted) {
+                  llmFirstTokenEmitted = true
+                  llmSpan.addEvent(IOEvents.LLMFirstToken, {
+                    [IOAttributes.LLM_TTFT]: performance.now() - llmRequestTs,
+                  })
+                }
+                fullText += event.text
+                await parser.consume(event.text)
+                break
+              case 'finish':
+                break
+              case 'error':
+                throw event.error ?? new Error('Stream error')
+            }
+          },
+        })
+
+        llmSpan.setAttribute(IOAttributes.LLMTextLength, fullText.length)
+      }
+      finally {
+        // TODO: Record errors on llmSpan
+        llmSpan.end()
+      }
 
       await parser.end()
 
       if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
-        sessionMessagesForSend.push(toRaw(buildingMessage))
-        chatSession.persistSessionMessages(sessionId)
+        chatSession.appendSessionMessage(sessionId, toRaw(buildingMessage))
       }
 
       await hooks.emitStreamEndHooks(streamingMessageContext)
@@ -346,6 +507,13 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         toolCalls: sessionMessagesForSend.filter(msg => msg.role === 'tool') as ToolMessage[],
       }, streamingMessageContext)
 
+      // --- AUTONOMOUS ARTISTRY HOOK (ASSISTANT-CENTRIC) ---
+      const artistry = cardStore.activeCard?.extensions?.airi?.modules?.artistry
+      if (artistry?.autonomousEnabled && artistry?.autonomousTarget === 'assistant') {
+        void artistryAutonomousStore.runArtistTask(fullText, sessionMessagesForSend as any)
+      }
+      // ---------------------------------------------------
+
       if (isForegroundSession()) {
         streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
       }
@@ -355,6 +523,10 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       throw error
     }
     finally {
+      if (!hadExistingTurn && activeTurnSpan.value) {
+        activeTurnSpan.value.end()
+        activeTurnSpan.value = undefined
+      }
       sending.value = false
     }
   }
@@ -410,14 +582,25 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       : []
   }
 
+  function getPendingQueuedSendSnapshot() {
+    return pendingQueuedSends.value.map(queued => ({
+      sessionId: queued.sessionId,
+      generation: queued.generation,
+      cancelled: !!queued.cancelled,
+      messagePreview: queued.sendingMessage.slice(0, 120),
+      hasAttachments: !!queued.options.attachments?.length,
+      inputType: queued.options.input?.type,
+    } satisfies QueuedSendSnapshot))
+  }
+
   return {
     sending,
-
-    discoverToolsCompatibility: llmStore.discoverToolsCompatibility,
+    pendingQueuedSendCount,
 
     ingest,
     ingestOnFork,
     cancelPendingSends,
+    getPendingQueuedSendSnapshot,
 
     clearHooks: hooks.clearHooks,
 

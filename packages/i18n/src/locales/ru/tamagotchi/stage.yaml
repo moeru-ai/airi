@@ -12,23 +12,30 @@ docs:
   'fade-on-hover':
     enable: Скрывать при наведении
     disable: Всегда показывать
-  'open-settings': Open settings
-  'open-chat': Open Chat
-  'refresh': Refresh
-  'open-hearing-controls': Open hearing Controls
-  'drag-to-move-window': Drag to move window
-  'switch-to-light-mode': Switch to light mode
-  'switch-to-dark-mode': Switch to dark mode
-  'pin-on-top': Pin on top
-  'unpin-from-top': Unpin from top
-  'switch-profile': Switch Profile
-  'close': Close
-  'expand': Expand
-  'collapse': Collapse
-'status-island':
-  connected: WebSocket connected
-  disconnected: WebSocket disconnected
-  'open-settings': Open WebSocket settings
+  'open-settings': Открыть настройки
+  'open-chat': Открыть чат
+  'refresh': Обновить результаты
+  'open-hearing-controls': Управление слухом
+  'drag-to-move-window': Перетащите окно
+  'switch-to-light-mode': Переключить на светлую тему
+  'switch-to-dark-mode': Переключить на темную тему
+  'pin-on-top': Прикрепить на верх
+  'unpin-from-top': Открепить сверху
+  'switch-profile': Переключить профиль
+  'close': Закрыть
+  'expand': Развернуть
+  'collapse': Свернуть
+  'login': Войти
+  'logging-in': Выполняется вход...
+  'account': Аккаунт
+  'logout': Выйти
+widgets:
+  close: Close widget
+  empty:
+    title: No widget active
+    description: Widgets will appear here when a tool or plugin spawns one.
+  loading: Loading widget…
+  waiting: Waiting for widget data for "{id}"…
 notice:
   'fade-on-hover':
     title: Исчезать при наведении
@@ -44,3 +51,48 @@ notice:
     preparing: Подготавливаем…
     read-more: Подробнее
     preview-title: Что это?
+about:
+  subtitle: Desktop версия.
+  current-version: Текущая версия
+  common:
+    cancel: Отменить
+  links:
+    title: Ссылки
+    home: Главная
+    documentation: Документация
+    github: GitHub
+  update:
+    lane:
+      label: Канал обновления
+      description: Выберите релиз канала для отслеживания
+      placeholder: Выбрать канал обновления
+    channels:
+      auto: Авто
+      stable: Стабильный
+      alpha: Альфа
+      beta: Бета
+      nightly: Nightly
+      canary: Canary
+    status:
+      downloading: Загрузка обновления...
+      error-prefix: Ошибка
+      latest: Актуально (v{version}).
+      downloaded:
+        windows: Обновление готово к установке в автоматическом режиме (v{version}).
+        restart: Обновление готово к установке после перезапуска (v{version}).
+    actions:
+      download: Загрузить обновление
+      download-short: Загрузка
+      confirm-download: Подтвердить загрузку
+      check-for-updates: Проверить обновления
+      checking: Проверка...
+      latest-version: Последняя версия
+      disabled-dev: Обновления отключены в Dev
+      retry-check: Повторить проверку
+      restart-silent: Перезапустите, чтобы обновить автоматически
+      restart-install: Перезапустите для установки обновления
+      confirm-restart: Подтвердить перезапуск
+    dialog:
+      title: Доступно обновление
+      description: Доступна новая версия (v{version})
+      no-release-notes-markdown: _Заметки о релизе не предоставлены._

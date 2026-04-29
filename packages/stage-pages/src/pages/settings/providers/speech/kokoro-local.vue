@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { SpeechProvider } from '@xsai-ext/providers/utils'
 
+import { getCachedWebGPUCapabilities } from '@proj-airi/stage-shared/webgpu'
 import {
   SpeechPlayground,
   SpeechProviderSettings,
@@ -8,7 +9,7 @@ import {
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { getDefaultKokoroModel } from '@proj-airi/stage-ui/workers/kokoro/constants'
-import { Callout, Select } from '@proj-airi/ui'
+import { Callout, ComboboxSelect } from '@proj-airi/ui'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -30,6 +31,7 @@ const providerConfig = computed(() => {
 
 // Check if WebGPU is supported
 const hasWebGPU = ref(false)
+const fp16Supported = ref(false)
 
 // Track voices loading state
 const voicesLoading = ref(false)
@@ -51,7 +53,7 @@ const model = computed({
     if (currentValue)
       return currentValue
 
-    return getDefaultKokoroModel(hasWebGPU.value)
+    return getDefaultKokoroModel(hasWebGPU.value, fp16Supported.value)
   },
   set(val: string) {
     const config = providersStore.getProviderConfig(providerId)
@@ -99,7 +101,11 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 
 onMounted(async () => {
   // Check WebGPU support
-  hasWebGPU.value = typeof navigator !== 'undefined' && !!navigator.gpu
+  // NOTICE: Uses synchronous check for initial render. The cached result from
+  // detectWebGPU() is populated by the providers store during initialization.
+  const capabilities = getCachedWebGPUCapabilities()
+  hasWebGPU.value = capabilities?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
+  fp16Supported.value = capabilities?.fp16Supported ?? false
 
   try {
     voicesLoading.value = true
@@ -108,6 +114,12 @@ onMounted(async () => {
     await providersStore.fetchModelsForProvider(providerId)
 
     const config = providersStore.getProviderConfig(providerId)
+
+    // Persist the default model if none is saved yet so validation passes on first visit
+    if (!config.model) {
+      config.model = getDefaultKokoroModel(hasWebGPU.value)
+    }
+
     const metadata = providersStore.getProviderMetadata(providerId)
     const validationResult = await metadata.validators.validateProviderConfig(config)
     if (validationResult.valid) {
@@ -173,7 +185,7 @@ watch(model, async (newValue) => {
           </div>
         </Callout>
         <div>
-          <Select
+          <ComboboxSelect
             v-model="model"
             :options="modelOptions"
             :disabled="modelsLoading"

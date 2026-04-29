@@ -16,21 +16,28 @@
   },
   "exports": {
     ".": "./src/index.ts",
+    "./auth": "./src/auth/index.ts",
     "./beat-sync": "./src/beat-sync/index.ts",
+    "./global-shortcut": "./src/global-shortcut/index.ts",
+    "./server-channel-qr": "./src/server-channel-qr.ts",
     "./electron-renderer": "./src/electron-renderer.d.ts",
-    "./composables": "./src/composables/index.ts"
+    "./composables": "./src/composables/index.ts",
+    "./webgpu": "./src/webgpu/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@moeru/std": "catalog:",
     "@vueuse/core": "catalog:",
+    "gpuu": "^1.0.7",
     "pinia": "catalog:",
+    "valibot": "catalog:",
     "vue": "catalog:"
   },
   "devDependencies": {
     "@electron-toolkit/preload": "^3.0.2",
-    "@moeru/eventa": "^1.0.0-beta.1",
+    "@moeru/eventa": "catalog:",
     "@nekopaw/tempora": "catalog:",
     "@proj-airi/electron-screen-capture": "workspace:^",
     "@types/audioworklet": "catalog:"

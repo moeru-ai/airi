@@ -12,6 +12,10 @@ const props = defineProps<{
   sourcesOptions: SourcesOptions
 }>()
 
+const emit = defineEmits<{
+  permissionGranted: []
+}>()
+
 const sourcesOptions = toRef(props, 'sourcesOptions')
 
 const hasPermissions = ref(false)
@@ -26,6 +30,7 @@ const {
   checkMacOSPermission,
   requestMacOSPermission,
 } = useElectronScreenCapture(window.electron.ipcRenderer, sourcesOptions)
+
 const focused = useWindowFocus()
 
 async function checkPermissions() {
@@ -54,6 +59,12 @@ onMounted(async () => {
 watch(focused, async (isFocused) => {
   if (isFocused) {
     await checkPermissions()
+  }
+})
+
+watch(hasPermissions, (nextHasPermissions, previousHasPermissions) => {
+  if (nextHasPermissions && !previousHasPermissions) {
+    emit('permissionGranted')
   }
 })
 </script>

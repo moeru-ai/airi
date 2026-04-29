@@ -1,0 +1,29 @@
+name: PR Triage Dispatch
+
+on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review]
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    name: Dispatch PR Triage
+    runs-on: ubuntu-latest
+    if: ${{ !github.event.pull_request.draft || github.event.action == 'ready_for_review' }}
+    steps:
+      - name: Dispatch agentic triage workflow
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'pr-triage.lock.yml',
+              ref: context.payload.repository.default_branch,
+              inputs: {
+                pull_request_number: String(context.payload.pull_request.number),
+              },
+            });

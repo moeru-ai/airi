@@ -286,7 +286,7 @@ function handleDeleteProvider(providerId: string) {
               >
                 <template #topRight>
                   <button
-                    v-if="metadata.id !== 'speech-noop'"
+                    v-if="metadata.id !== 'speech-noop' && !metadata.id.startsWith('official-provider')"
                     type="button"
                     class="rounded bg-neutral-100 p-1 text-neutral-600 transition-colors dark:bg-neutral-800/60 hover:bg-neutral-200 dark:text-neutral-300 dark:hover:bg-neutral-700/60"
                     @click.stop.prevent="handleDeleteProvider(metadata.id)"
@@ -412,6 +412,7 @@ function handleDeleteProvider(providerId: string) {
                     :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
                     :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
                     :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
+                    expanded-class="mb-12"
                     @update:custom-value="updateCustomModelName"
                   />
                 </template>
@@ -465,6 +466,7 @@ function handleDeleteProvider(providerId: string) {
             <VoiceCardManySelect
               v-model:search-query="voiceSearchQuery"
               v-model:voice-id="activeSpeechVoiceId"
+              :show-visualizer="false"
               :voices="availableVoices[activeSpeechProvider]?.filter(voice => {
                 // If no model is selected, show all voices
                 if (!activeSpeechModel) {

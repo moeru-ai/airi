@@ -1,11 +1,16 @@
 import type { Logg } from '@guiiai/logg'
+import type { Client } from '@proj-airi/server-sdk'
 
+import type { AiriBridge } from '../airi/airi-bridge'
+import type { MinecraftContextService } from '../airi/minecraft-context-service'
 import type { EventBus } from './event-bus'
 import type { RuleEngine } from './perception/rules'
 
 import { useLogg } from '@guiiai/logg'
-import { asClass, asFunction, createContainer, InjectionMode } from 'awilix'
+import { asClass, asFunction, asValue, createContainer, InjectionMode } from 'awilix'
 
+import { AiriBridge as AiriBridgeImpl } from '../airi/airi-bridge'
+import { MinecraftContextService as MinecraftContextServiceImpl } from '../airi/minecraft-context-service'
 import { config } from '../composables/config'
 import { TaskExecutor } from './action/task-executor'
 import { Brain } from './conscious/brain'
@@ -24,9 +29,12 @@ export interface ContainerServices {
   taskExecutor: TaskExecutor
   brain: Brain
   reflexManager: ReflexManager
+  airiClient: Client
+  airiBridge: AiriBridge
+  minecraftContextService: MinecraftContextService
 }
 
-export function createAgentContainer() {
+export function createAgentContainer(airiClient: Client) {
   const container = createContainer<ContainerServices>({
     injectionMode: InjectionMode.PROXY,
     strict: true,
@@ -34,6 +42,20 @@ export function createAgentContainer() {
 
   // Register services
   container.register({
+    airiClient: asValue(airiClient),
+
+    airiBridge: asFunction(({ eventBus }: { eventBus: EventBus }) =>
+      new AiriBridgeImpl(airiClient, eventBus),
+    ).singleton(),
+
+    minecraftContextService: asFunction(({ airiBridge }) =>
+      new MinecraftContextServiceImpl({
+        airiBridge,
+        serverHost: config.bot.host,
+        serverPort: config.bot.port,
+      }),
+    ).singleton(),
+
     // Create independent logger for each agent
     logger: asFunction(() => useLogg('agent').useGlobalConfig()).singleton(),
 
@@ -90,6 +112,8 @@ export function createAgentContainer() {
         reflexManager: c.resolve('reflexManager'),
         taskExecutor: c.resolve('taskExecutor'),
         logger: c.resolve('logger'),
+        airiBridge: c.resolve('airiBridge'),
+        minecraftContextService: c.resolve('minecraftContextService'),
       })),
 
     // Reflex Manager (Reactive Layer)

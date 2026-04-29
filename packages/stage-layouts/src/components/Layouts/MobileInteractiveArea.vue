@@ -37,6 +37,10 @@ const { streamingMessage } = storeToRefs(chatStream)
 const { sending } = storeToRefs(chatOrchestrator)
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 
+function handleDeleteMessage(index: number) {
+  messages.value = messages.value.filter((_, messageIndex) => messageIndex !== index)
+}
+
 const viewControlsActiveMode = ref<'x' | 'y' | 'z' | 'scale'>('scale')
 const viewControlsInputsRef = useTemplateRef<InstanceType<typeof ViewControlInputs>>('viewControlsInputs')
 
@@ -52,7 +56,7 @@ useResizeObserver(document.documentElement, () => screenSafeArea.update())
 const { themeColorsHueDynamic, stageViewControlsEnabled } = storeToRefs(useSettings())
 const settingsAudioDevice = useSettingsAudioDevice()
 const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(settingsAudioDevice)
-const { ingest, onAfterMessageComposed, discoverToolsCompatibility } = chatOrchestrator
+const { ingest, onAfterMessageComposed } = chatOrchestrator
 const { t } = useI18n()
 const { audioContext } = useAudioContext()
 const { startAnalyzer, stopAnalyzer, volumeLevel } = useAudioAnalyzer()
@@ -130,12 +134,6 @@ watch(hearingDialogOpen, (value) => {
 onAfterMessageComposed(async () => {
 })
 
-watch([activeProvider, activeModel], async () => {
-  if (activeProvider.value && activeModel.value) {
-    await discoverToolsCompatibility(activeModel.value, await providersStore.getProviderInstance<ChatProvider>(activeProvider.value), [])
-  }
-})
-
 onUnmounted(() => {
   teardownAnalyzer()
 })
@@ -162,6 +160,7 @@ onMounted(() => {
           :class="[
             'relative z-20',
           ]"
+          @delete-message="handleDeleteMessage($event.index)"
         />
       </Transition>
     </KeepAlive>
@@ -169,8 +168,13 @@ onMounted(() => {
       <div top="50%" translate-y="[-50%]" fixed z-15 px-3>
         <ViewControlInputs ref="viewControlsInputs" :mode="viewControlsActiveMode" />
       </div>
-      <div translate-y="[-100%]" absolute right-0 w-full px-3 pb-3 font-sans>
-        <div flex="~ col" w-full gap-1>
+      <div translate-y="[-100%]" absolute left-0 px-3 pb-3 font-sans>
+        <div flex="~ col" gap-1>
+          <slot name="status" />
+        </div>
+      </div>
+      <div translate-y="[-100%]" absolute right-0 px-3 pb-3 font-sans>
+        <div flex="~ col" gap-1>
           <ActionAbout />
           <HearingConfigDialog
             v-model:show="hearingDialogOpen"
@@ -210,7 +214,6 @@ onMounted(() => {
           <!-- <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Model">
             <div i-solar:face-scan-circle-outline size-5 text="neutral-500 dark:neutral-400" />
           </button> -->
-          <ActionViewControls v-model="viewControlsActiveMode" @reset="() => viewControlsInputsRef?.resetOnMode()" />
           <button
             border="2 solid neutral-100/60 dark:neutral-800/30"
             bg="neutral-50/70 dark:neutral-800/70"
@@ -220,6 +223,7 @@ onMounted(() => {
           >
             <div class="i-solar:trash-bin-2-bold-duotone" />
           </button>
+          <ActionViewControls v-model="viewControlsActiveMode" @reset="() => viewControlsInputsRef?.resetOnMode()" />
         </div>
       </div>
       <div bg="white dark:neutral-800" max-h-100dvh max-w-100dvw w-full flex gap-1 overflow-auto px-3 pt-2 :style="{ paddingBottom: `${Math.max(Number.parseFloat(screenSafeArea.bottom.value.replace('px', '')), 12)}px` }">

@@ -32,13 +32,43 @@ function getPeerLabels(peer: AuthenticatedPeer) {
   }
 }
 
+/**
+ * Detects whether a peer should be treated as a trusted devtools sender.
+ *
+ * Use when:
+ * - Checking whether route bypass is allowed for a peer
+ * - Applying devtools-only routing affordances
+ *
+ * Expects:
+ * - Peer labels to be sourced from authenticated identity metadata
+ *
+ * Returns:
+ * - `true` when the peer declares a devtools label or uses a devtools module name
+ */
 export function isDevtoolsPeer(peer: AuthenticatedPeer) {
   const devtoolsLabel = getPeerLabels(peer).devtools
   const isDevtoolsLabel = devtoolsLabel === 'true' || devtoolsLabel === '1'
   return Boolean(isDevtoolsLabel || peer.name.includes('devtools'))
 }
 
+/**
+ * Evaluates whether a peer is allowed by the active routing policy.
+ *
+ * Use when:
+ * - Building a target list from the connected peer registry
+ * - Enforcing allow/deny lists before broadcasting an event
+ *
+ * Expects:
+ * - Unauthenticated peers must never be considered routable targets
+ *
+ * Returns:
+ * - `true` when the peer is authenticated and satisfies all policy constraints
+ */
 export function peerMatchesPolicy(peer: AuthenticatedPeer, policy: RoutingPolicy) {
+  if (!peer.authenticated) {
+    return false
+  }
+
   const pluginId = peer.identity?.plugin?.id ?? ''
 
   if (policy.allowPlugins?.length && !policy.allowPlugins.includes(pluginId)) {
@@ -61,12 +91,21 @@ export function peerMatchesPolicy(peer: AuthenticatedPeer, policy: RoutingPolicy
   return true
 }
 
+/**
+ * Creates a routing middleware from a static allow/deny policy.
+ *
+ * Use when:
+ * - Server-wide routing rules should be applied consistently
+ * - Destination filtering should be derived from peer metadata instead of event payloads
+ *
+ * Expects:
+ * - Route bypass authorization to be handled by the caller, not by the policy itself
+ *
+ * Returns:
+ * - A middleware that narrows delivery to the peers allowed by the policy
+ */
 export function createPolicyMiddleware(policy: RoutingPolicy): RouteMiddleware {
-  return ({ event, peers }) => {
-    if (event.route?.bypass) {
-      return
-    }
-
+  return ({ peers }) => {
     const targetIds = new Set<string>()
     for (const [id, peer] of peers.entries()) {
       if (peerMatchesPolicy(peer, policy)) {
@@ -78,8 +117,21 @@ export function createPolicyMiddleware(policy: RoutingPolicy): RouteMiddleware {
   }
 }
 
+/**
+ * Resolves the destinations attached to an event.
+ *
+ * Use when:
+ * - Route-level destinations should override payload-level destinations
+ * - Delivery logic needs to distinguish between "broadcast" and "explicitly send nowhere"
+ *
+ * Expects:
+ * - An explicit empty `route.destinations` array is a meaningful override
+ *
+ * Returns:
+ * - The route destinations, payload destinations, or `undefined` when the event is unrestricted
+ */
 export function collectDestinations(event: WebSocketEvent | (Omit<WebSocketEvent, 'metadata'> & Partial<Pick<WebSocketEvent, 'metadata'>>)) {
-  if (event.route?.destinations !== undefined) {
+  if (event.route && 'destinations' in event.route) {
     return event.route.destinations
   }
 

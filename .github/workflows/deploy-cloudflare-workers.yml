@@ -78,6 +78,7 @@ jobs:
           S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
           S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
           S3_REGION: ${{ secrets.S3_REGION }}
+          VITE_ENABLE_POSTHOG: 'true'
           WARP_DRIVE_PUBLIC_BASE: ${{ secrets.WARP_DRIVE_PUBLIC_BASE }}
       - run: |
           CI=true pnpm install -g @posthog/cli
@@ -88,7 +89,7 @@ jobs:
           POSTHOG_CLI_TOKEN: ${{ secrets.POSTHOG_TOKEN }}
         continue-on-error: true
 
-      - uses: cloudflare/wrangler-action@v3
+      - uses: cloudflare/wrangler-action@v3.14.1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

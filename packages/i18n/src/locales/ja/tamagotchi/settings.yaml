@@ -25,7 +25,7 @@ pages:
       sections:
         section:
           use-window-mouse:
-            title: useWindowMouse Tool
+            title: ウィンドウマウス ツールを使用
             description: Electronウィンドウのカーソル位置をテストします
 devtools:
   title: 開発者
@@ -40,6 +40,8 @@ devtools:
     markdown-stress:
       title: Markdown ストレス
       description: 大量のチャットデータを含むMarkdownの解析とレンダリング負荷のテスト
+    io-tracer:
+      title: IO Tracer
     widgets-calling:
       title: ウィジェット呼び出し
 screen-capture:

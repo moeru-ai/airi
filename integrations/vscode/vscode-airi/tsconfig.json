@@ -6,6 +6,9 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
+    "types": [
+      "node"
+    ],
     "strict": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,

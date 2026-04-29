@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
+import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
@@ -10,10 +11,10 @@ import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consci
 import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { BasicTextarea, FieldSelect } from '@proj-airi/ui'
-import { until } from '@vueuse/core'
+import { BasicTextarea, FieldCombobox } from '@proj-airi/ui'
+import { until, useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { PopoverContent, PopoverRoot, PopoverTrigger } from 'reka-ui'
+import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger, PopoverContent, PopoverRoot, PopoverTrigger } from 'reka-ui'
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -23,6 +24,12 @@ const messageInput = ref('')
 const hearingPopoverOpen = ref(false)
 const isComposing = ref(false)
 const isListening = ref(false) // Transcription listening state (separate from microphone enabled)
+const DOUBLE_ENTER_INTERVAL_MS = 300
+const TRAILING_NEWLINES_REGEX = /[\r\n]+$/
+const SEND_MODES = ['enter', 'ctrl-enter', 'double-enter'] as const
+type SendMode = (typeof SEND_MODES)[number]
+const sendMode = useLocalStorage<SendMode>('ui/chat/settings/send-mode', 'enter')
+const lastEnterTime = ref(0)
 
 const providersStore = useProvidersStore()
 const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
@@ -32,10 +39,15 @@ const { askPermission, startStream } = useSettingsAudioDevice()
 const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(useSettingsAudioDevice())
 const chatOrchestrator = useChatOrchestratorStore()
 const chatSession = useChatSessionStore()
-const { ingest, onAfterMessageComposed, discoverToolsCompatibility } = chatOrchestrator
+const { ingest, onAfterMessageComposed } = chatOrchestrator
 const { messages } = storeToRefs(chatSession)
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
+const sendModeLabels = computed<Record<SendMode, string>>(() => ({
+  'enter': t('stage.send-mode.enter'),
+  'ctrl-enter': t('stage.send-mode.ctrl-enter'),
+  'double-enter': t('stage.send-mode.double-enter'),
+}))
 
 // Transcription pipeline
 const hearingStore = useHearingStore()
@@ -83,18 +95,22 @@ async function debouncedAutoSend(text: string) {
     const textToSend = pendingAutoSendText.value.trim()
     if (textToSend && autoSendEnabled.value) {
       try {
+        // `ingest()` resolves only after the full assistant turn finishes; clear UI/buffer now so
+        // the next SentenceEnd during streaming does not append to the message we already committed.
+        messageInput.value = ''
+        pendingAutoSendText.value = ''
         const providerConfig = providersStore.getProviderConfig(activeProvider.value)
         await ingest(textToSend, {
           chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
           model: activeModel.value,
           providerConfig,
         })
-        // Clear the message input after sending
-        messageInput.value = ''
-        pendingAutoSendText.value = ''
       }
       catch (err) {
         console.error('[ChatArea] Auto-send error:', err)
+        // Preserve any transcription that arrived while ingest was in flight (see PR review).
+        messageInput.value = [textToSend, messageInput.value.trim()].filter(Boolean).join(' ')
+        pendingAutoSendText.value = [textToSend, pendingAutoSendText.value.trim()].filter(Boolean).join(' ')
       }
     }
     autoSendTimeout = undefined
@@ -120,23 +136,59 @@ async function handleSend() {
   }
   catch (error) {
     messageInput.value = textToSend
-    messages.value.pop()
-    messages.value.push({
-      role: 'error',
-      content: (error as Error).message,
-    })
+    chatSession.setSessionMessages(chatSession.activeSessionId, [
+      ...messages.value.slice(0, -1),
+      {
+        role: 'error',
+        content: errorMessageFrom(error) ?? 'Failed to send message',
+      },
+    ])
+  }
+}
+
+function sendFromKeyboard() {
+  messageInput.value = messageInput.value.replace(TRAILING_NEWLINES_REGEX, '')
+  void handleSend()
+}
+
+function handleMessageInputKeydown(event: KeyboardEvent) {
+  if (isComposing.value || event.key !== 'Enter')
+    return
+
+  const hasControl = event.ctrlKey || event.metaKey
+  const hasShift = event.shiftKey
+
+  switch (sendMode.value) {
+    case 'enter':
+      if (!hasShift && !hasControl) {
+        event.preventDefault()
+        sendFromKeyboard()
+      }
+      return
+    case 'ctrl-enter':
+      if (hasControl) {
+        event.preventDefault()
+        sendFromKeyboard()
+      }
+      return
+    case 'double-enter':
+      if (!hasShift && !hasControl) {
+        const now = Date.now()
+        if (now - lastEnterTime.value < DOUBLE_ENTER_INTERVAL_MS) {
+          event.preventDefault()
+          sendFromKeyboard()
+          lastEnterTime.value = 0
+        }
+        else {
+          lastEnterTime.value = now
+        }
+      }
   }
 }
 
 watch(hearingPopoverOpen, async (value) => {
   if (value) {
     await askPermission()
-  }
-})
-
-watch([activeProvider, activeModel], async () => {
-  if (activeProvider.value && activeModel.value) {
-    await discoverToolsCompatibility(activeModel.value, await providersStore.getProviderInstance<ChatProvider>(activeProvider.value), [])
   }
 })
 
@@ -395,6 +447,10 @@ watch(autoSendEnabled, (enabled) => {
     console.info('[ChatArea] Auto-send disabled, cleared pending text')
   }
 })
+
+watch(sendMode, () => {
+  lastEnterTime.value = 0
+})
 </script>
 
 <template>
@@ -408,6 +464,7 @@ watch(autoSendEnabled, (enabled) => {
     >
       <BasicTextarea
         v-model="messageInput"
+        :submit-on-enter="false"
         :placeholder="t('stage.message')"
         text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
         bg="transparent"
@@ -417,7 +474,7 @@ watch(autoSendEnabled, (enabled) => {
         :class="{
           'transition-colors-none placeholder:transition-colors-none': themeColorsHueDynamic,
         }"
-        @submit="handleSend"
+        @keydown="handleMessageInputKeydown"
         @compositionstart="isComposing = true"
         @compositionend="isComposing = false"
       />
@@ -426,11 +483,56 @@ watch(autoSendEnabled, (enabled) => {
       <div
         absolute bottom-2 left-2 z-10 flex items-center gap-2
       >
+        <DropdownMenuRoot>
+          <DropdownMenuTrigger as-child>
+            <button
+              :class="[
+                'h-8 w-8 flex items-center justify-center rounded-md outline-none transition-all duration-200 active:scale-95',
+                'text-lg text-neutral-500 dark:text-neutral-400',
+              ]"
+              :title="t('stage.send-mode.title')"
+            >
+              <div class="i-solar:keyboard-bold-duotone h-5 w-5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuContent
+              side="top"
+              align="start"
+              :side-offset="8"
+              :class="[
+                'z-50 min-w-[180px] rounded-xl border border-neutral-200/60 bg-neutral-50/90 p-1',
+                'shadow-lg backdrop-blur-md dark:border-neutral-800/30 dark:bg-neutral-900/80',
+                'flex flex-col gap-1',
+              ]"
+            >
+              <DropdownMenuItem
+                v-for="mode in SEND_MODES"
+                :key="mode"
+                :class="[
+                  'w-full flex cursor-pointer items-center rounded-lg px-3 py-2 text-xs outline-none transition-colors',
+                  'hover:bg-primary-100/60 dark:hover:bg-primary-900/40',
+                  sendMode === mode ? 'bg-primary-100/60 text-primary-600 font-medium dark:bg-primary-900/40 dark:text-primary-300' : 'text-neutral-600 dark:text-neutral-300',
+                ]"
+                @select="sendMode = mode"
+              >
+                <div class="mr-2 h-4 w-4 flex items-center justify-center">
+                  <div v-if="sendMode === mode" class="i-ph:check-bold h-4 w-4" />
+                </div>
+                <span>{{ sendModeLabels[mode] }}</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenuPortal>
+        </DropdownMenuRoot>
+
         <!-- Microphone icon button -->
         <PopoverRoot v-model:open="hearingPopoverOpen">
           <PopoverTrigger as-child>
             <button
-              class="h-8 w-8 flex items-center justify-center rounded-md outline-none transition-all duration-200 active:scale-95"
+              :class="[
+                'h-8 w-8 flex items-center justify-center rounded-md outline-none',
+                'transition-all duration-200 active:scale-95',
+              ]"
               text="lg neutral-500 dark:neutral-400"
               :title="t('settings.hearing.title')"
             >
@@ -481,7 +583,7 @@ watch(autoSendEnabled, (enabled) => {
               </p>
             </div>
 
-            <FieldSelect
+            <FieldCombobox
               v-model="selectedAudioInput"
               label="Input device"
               description="Select the microphone you want to use."

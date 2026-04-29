@@ -152,6 +152,7 @@ export default defineConfig<ThemeConfig>({
                   { text: 'Web Version', link: withBase('/en/docs/manual/web/') },
                 ],
               },
+              { text: 'Setup and Use', link: withBase('/en/docs/manual/tamagotchi/setup-and-use/') },
               {
                 text: 'Configuration',
                 items: [
@@ -213,6 +214,7 @@ export default defineConfig<ThemeConfig>({
               text: 'Try Live',
               link: webLive,
               primary: true,
+              target: '_self',
             },
             {
               text: 'Download',
@@ -293,6 +295,10 @@ export default defineConfig<ThemeConfig>({
                 ],
               },
               {
+                text: '安装与使用',
+                link: withBase('/zh-Hans/docs/manual/tamagotchi/setup-and-use/'),
+              },
+              {
                 text: '配置',
                 items: [
                   { text: '配置指南', link: withBase('/zh-Hans/docs/manual/config/') },
@@ -353,6 +359,7 @@ export default defineConfig<ThemeConfig>({
               text: '网页版',
               link: webLive,
               primary: true,
+              target: '_self',
             },
             {
               text: '下载',
@@ -493,6 +500,7 @@ export default defineConfig<ThemeConfig>({
               text: 'ライブ版を試す',
               link: webLive,
               primary: true,
+              target: '_self',
             },
             {
               text: 'ダウンロード',
@@ -513,7 +521,6 @@ export default defineConfig<ThemeConfig>({
       { icon: 'discord', link: discord },
       { icon: 'github', link: github },
     ],
-
     search: {
       provider: 'local',
     },

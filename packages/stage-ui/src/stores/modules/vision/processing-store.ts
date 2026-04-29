@@ -1,3 +1,4 @@
+import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
@@ -112,7 +113,7 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
         recordContextUpdates(outcome.contextUpdates)
     }
     catch (error) {
-      lastError.value = error instanceof Error ? error.message : String(error)
+      lastError.value = errorMessageFrom(error) || 'Unknown error'
     }
     finally {
       recordProcessingDuration(performance.now() - start)

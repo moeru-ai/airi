@@ -10,7 +10,7 @@ const defaultCreateSettings = ZipLoader.createSettings
 ZipLoader.createSettings = async (reader: JSZip) => {
   const filePaths = Object.keys(reader.files)
 
-  if (!filePaths.find(file => isSettingsFile(file))) {
+  if (!filePaths.some(file => isSettingsFile(file))) {
     return createFakeSettings(filePaths)
   }
 
