@@ -171,6 +171,14 @@ pages:
       avatar:
         gravatarNotice: Avatar from Gravatar.
         gravatarLink: Manage on gravatar.com
+        action:
+          upload: Upload avatar
+        message:
+          uploaded: Avatar updated on this device.
+        error:
+          invalidFile: Choose an image file.
+          tooLarge: Choose an image smaller than 1 MiB.
+          readFailed: We could not read that image.
       action:
         save: Save changes
       message:

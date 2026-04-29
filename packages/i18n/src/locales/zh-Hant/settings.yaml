@@ -144,14 +144,105 @@ microphone: 麥克風
 models: 模型
 pages:
   account:
-    title: Account
-    description: View your profile and manage your account
-    notLoggedIn: Sign in to view your account and access all features
-    login: Sign in
-    logout: Sign out
-    fluxBalance: Flux Balance
-    viewFluxDetails: View details
-    signedInAs: Signed in as
+    title: 帳號
+    description: 查看您的個人資料並管理您的帳戶
+    notLoggedIn: 登入以查看您的帳戶並存取所有功能
+    login: 登入
+    logout: 登出
+    fluxBalance: 剩餘通量
+    viewFluxDetails: 查看詳情
+    signedInAs: 已登入為
+    profile:
+      tab: 個人資料
+      title: 個人資料
+      description: 管理您公開顯示的名稱。
+      name:
+        label: 顯示名稱
+        placeholder: 其他人看到的名稱
+      avatar:
+        gravatarNotice: 頭像來自 Gravatar。
+        gravatarLink: 在 gravatar.com 管理
+        action:
+          upload: 上傳頭像
+        message:
+          uploaded: 已在此裝置上更新頭像。
+        error:
+          invalidFile: 請選擇圖片檔案。
+          tooLarge: 請選擇小於 1 MiB 的圖片。
+          readFailed: 無法讀取這張圖片。
+      action:
+        save: 儲存變更
+      message:
+        saved: 個人資料已更新。
+      error:
+        fallback: 無法儲存變更。
+    connections:
+      tab: 已連結的帳號
+      title: 已連結的帳號
+      description: 透過這些提供者登入 AIRI。取消連結可撤銷存取權，再次連結即可切換到其他帳號。
+      status:
+        linked: 已連結
+        notLinked: 未連結
+        linkedSince: 連結於 {date}
+      action:
+        link: 連結
+        unlink: 取消連結
+      message:
+        loading: 正在載入已連結的帳號...
+        unlinked: 已取消與 {provider} 的連結。
+        linked: 已與 {provider} 完成連結。
+        linkStarted: 正在重新導向至 {provider}…
+      error:
+        listFailed: 無法載入已連結的帳號。
+        unlinkFailed: 無法取消連結此帳號。
+        linkFailed: 無法開始連結流程。
+        lastAccount: 這是您唯一的登入方式。請先設定密碼再取消連結。
+    security:
+      tab: 安全性
+      title: 安全性
+      description: 變更您的密碼。其他裝置上的工作階段將會登出。
+      setDescription: 您透過社群提供者登入，因此目前還沒有密碼。我們會寄送安全連結讓您設定密碼。
+      currentPassword:
+        label: 目前密碼
+        placeholder: 輸入目前密碼
+      newPassword:
+        label: 新密碼
+        placeholder: 至少 8 個字元
+      confirmPassword:
+        label: 確認新密碼
+        placeholder: 再次輸入新密碼
+      action:
+        changePassword: 變更密碼
+        sendSetLink: 寄送密碼設定連結給我
+      message:
+        changed: 密碼已變更。其他工作階段已登出。
+        setLinkSent: 請前往 {email} 查收密碼設定連結。
+      error:
+        fallback: 無法變更密碼。
+        setLinkFailed: 無法寄送密碼設定連結。
+        passwordMismatch: 新密碼與確認密碼不相符。
+        passwordSameAsCurrent: 新密碼必須與目前密碼不同。
+    danger:
+      tab: 危險區域
+      title: 危險區域
+      description: 不可復原的帳號操作會放在這裡。
+      deleteAccount:
+        title: 刪除帳號
+        description: 永久刪除您的帳號與個人資料。
+        action: 刪除帳號
+        modal:
+          title: 要刪除帳號嗎？
+          warning: 此操作無法復原。有效訂閱將會取消，Flux 餘額也會清空。
+          confirmEmail:
+            label: 輸入您的電子郵件以確認
+            placeholder: ''
+            mismatch: 電子郵件不相符。
+          confirm: 寄送確認電子郵件
+          cancel: 取消
+        message:
+          emailSent: 請前往 {email} 查收刪除連結。
+        error:
+          fallback: 無法開始刪除流程。請稍後再試。
   card:
     activate: 啟用
     active: 已啟用

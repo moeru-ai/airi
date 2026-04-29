@@ -162,6 +162,14 @@ pages:
       avatar:
         gravatarNotice: 头像来自 Gravatar。
         gravatarLink: 在 gravatar.com 管理
+        action:
+          upload: 上传头像
+        message:
+          uploaded: 已在此设备上更新头像。
+        error:
+          invalidFile: 请选择图片文件。
+          tooLarge: 请选择小于 1 MiB 的图片。
+          readFailed: 无法读取这张图片。
       action:
         save: 保存修改
       message:
