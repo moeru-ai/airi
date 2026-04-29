@@ -1,9 +1,11 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
+import type { DisplayPointResolution, MultiDisplaySnapshot } from '../display'
 import type {
   ActionInvocation,
   ComputerUseConfig,
   DesktopExecutor,
+  DisplayInfo,
   ForegroundContext,
   PolicyDecision,
   ScreenshotArtifact,
@@ -15,6 +17,7 @@ import type { ComputerUseServerRuntime } from './runtime'
 import { normalizeConfiguredAppAction } from '../app-aliases'
 import { decideBrowserTypeAction } from '../browser-action-router'
 import { isBrowserDomActionSupported } from '../browser-dom/capabilities'
+import { resolveDisplayPoint } from '../display'
 import { evaluateActionPolicy } from '../policy'
 import { getRuntimePreflight } from '../preflight'
 import { buildCoordinateSpaceInfo } from '../runtime-probes'
@@ -116,6 +119,91 @@ function toTerminalStateContent(state: TerminalState) {
     lastCommandSummary: state.lastCommandSummary,
     approvalSessionActive: state.approvalSessionActive ?? false,
     approvalGrantedScope: state.approvalGrantedScope,
+  }
+}
+
+function displaySnapshotFromDisplayInfo(displayInfo: DisplayInfo): MultiDisplaySnapshot | undefined {
+  if (!displayInfo.displays?.length) {
+    return undefined
+  }
+
+  return {
+    displays: displayInfo.displays.map(display => ({
+      displayId: display.displayId,
+      isMain: display.isMain,
+      isBuiltIn: display.isBuiltIn,
+      bounds: display.bounds,
+      visibleBounds: display.visibleBounds,
+      scaleFactor: display.scaleFactor,
+      pixelWidth: display.pixelWidth,
+      pixelHeight: display.pixelHeight,
+    })),
+    combinedBounds: displayInfo.combinedBounds ?? {
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0,
+    },
+    capturedAt: displayInfo.capturedAt ?? new Date(0).toISOString(),
+  }
+}
+
+function getCoordinateMutationTarget(action: ActionInvocation): { x: number, y: number } | undefined {
+  switch (action.kind) {
+    case 'click':
+      return { x: action.input.x, y: action.input.y }
+    case 'type_text':
+      if (typeof action.input.x === 'number' && typeof action.input.y === 'number') {
+        return { x: action.input.x, y: action.input.y }
+      }
+      return undefined
+    case 'scroll':
+      if (typeof action.input.x === 'number' && typeof action.input.y === 'number') {
+        return { x: action.input.x, y: action.input.y }
+      }
+      return undefined
+    default:
+      return undefined
+  }
+}
+
+function toStructuredDisplayPoint(resolution: DisplayPointResolution) {
+  return {
+    coordinateSpace: 'global-logical',
+    global: resolution.global,
+    displayId: resolution.display.displayId,
+    displayBounds: resolution.display.bounds,
+    local: resolution.local,
+    backingPixel: resolution.backingPixel,
+    scaleFactor: resolution.display.scaleFactor,
+  }
+}
+
+function resolveActionDisplayPoint(action: ActionInvocation, displayInfo: DisplayInfo) {
+  const target = getCoordinateMutationTarget(action)
+  const snapshot = displaySnapshotFromDisplayInfo(displayInfo)
+
+  if (!target || !snapshot) {
+    return undefined
+  }
+
+  const resolution = resolveDisplayPoint(snapshot, target.x, target.y)
+  if (!resolution) {
+    const combined = displayInfo.combinedBounds
+    return {
+      status: 'outside' as const,
+      target,
+      reason: combined
+        ? `target point (${target.x}, ${target.y}) is outside connected display bounds ${combined.width}x${combined.height} @ (${combined.x},${combined.y})`
+        : `target point (${target.x}, ${target.y}) is outside connected display bounds`,
+    }
+  }
+
+  return {
+    status: 'ok' as const,
+    target,
+    resolution,
+    structured: toStructuredDisplayPoint(resolution),
   }
 }
 
@@ -255,6 +343,33 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       return buildDeniedResponse(decision, context, executionTarget)
     }
 
+    const actionDisplayPoint = resolveActionDisplayPoint(normalizedAction, displayInfo)
+    if (actionDisplayPoint?.status === 'outside') {
+      const deniedDecision = buildDeniedDecision({
+        decision,
+        issues: [actionDisplayPoint.reason],
+      })
+
+      await runtime.session.record({
+        event: 'denied',
+        toolName,
+        action: normalizedAction,
+        context,
+        policy: deniedDecision,
+        result: {
+          executionTarget,
+          displayInfo,
+          coordinateSpace: preflight.coordinateSpace,
+          targetPoint: actionDisplayPoint.target,
+        },
+      })
+
+      return buildDeniedResponse(deniedDecision, context, executionTarget)
+    }
+    const structuredDisplayPoint = actionDisplayPoint?.status === 'ok'
+      ? actionDisplayPoint.structured
+      : undefined
+
     if (decision.requiresApproval && !options.skipApprovalQueue) {
       const pending = runtime.session.createPendingAction({
         toolName,
@@ -380,6 +495,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           backendResult = {
             ...result,
             pointerTrace,
+            displayPoint: structuredDisplayPoint,
           }
           break
         }
@@ -406,6 +522,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
               })
               runtime.session.setPointerPosition({ x: normalizedAction.input.x, y: normalizedAction.input.y })
               backendResult.focusPointerTrace = pointerTrace
+              backendResult.focusDisplayPoint = structuredDisplayPoint
             }
             catch (clickError) {
               const msg = clickError instanceof Error ? clickError.message : String(clickError)
@@ -479,7 +596,10 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           if (typeof normalizedAction.input.x === 'number' && typeof normalizedAction.input.y === 'number') {
             runtime.session.setPointerPosition({ x: normalizedAction.input.x, y: normalizedAction.input.y })
           }
-          backendResult = { ...result }
+          backendResult = {
+            ...result,
+            displayPoint: structuredDisplayPoint,
+          }
           break
         }
         case 'wait': {

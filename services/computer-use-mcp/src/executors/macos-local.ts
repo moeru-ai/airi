@@ -210,7 +210,21 @@ print(String(data: data, encoding: .utf8)!)
 `
 }
 
-function moveAndClickScript() {
+/**
+ * Creates Swift source that posts a local macOS click while restoring the user's cursor.
+ *
+ * Use when:
+ * - The macOS executor needs to perform a pointer-based click through Quartz.
+ * - Tests need to inspect the generated Swift source without moving the real cursor.
+ *
+ * Expects:
+ * - `COMPUTER_USE_SWIFT_STDIN` contains `pointerTrace`, `button`, and `clickCount`.
+ * - The caller already verified that the host platform is macOS.
+ *
+ * Returns:
+ * - Swift source that saves the real cursor location before CGEvent movement and restores it with `CGWarpMouseCursorPosition`.
+ */
+export function moveAndClickScript() {
   return String.raw`
 import CoreGraphics
 import Foundation
@@ -247,6 +261,16 @@ let trace = input["pointerTrace"] as? [[String: Any]] ?? []
 let buttonRaw = input["button"] as? Int ?? 0
 let clickCount = input["clickCount"] as? Int ?? 1
 let button = mouseButton(buttonRaw)
+
+// CGEvent mouse posts move the real macOS cursor. Save and restore it so the
+// overlay ghost pointer can visualize agent intent without leaving the user's
+// actual cursor at the agent click target.
+let originalCursorLocation = CGEvent(source: nil)?.location
+defer {
+  if let savedCursorLocation = originalCursorLocation {
+    CGWarpMouseCursorPosition(savedCursorLocation)
+  }
+}
 
 for point in trace {
   let x = point["x"] as? Double ?? 0

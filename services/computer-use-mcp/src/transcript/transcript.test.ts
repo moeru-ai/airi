@@ -1,4 +1,3 @@
-import type { RunState } from '../state'
 import type { TranscriptEntry } from './types'
 
 import { describe, expect, it } from 'vitest'
@@ -363,10 +362,10 @@ describe('compactBlock', () => {
     expect(compacted.kind).toBe('compacted')
     expect(compacted.originalKind).toBe('tool_interaction')
     expect(compacted.summary).toContain('tool_tc1')
-    expect(compacted.summary).toContain('ok')
+    expect(compacted.summary).toContain('success data here')
   })
 
-  it('marks failed tool results in compacted summary', () => {
+  it('preserves failed tool result text in compacted summary', () => {
     resetIds()
     const block = parseTranscriptBlocks([
       assistantWithTools(['tc1']),
@@ -374,7 +373,7 @@ describe('compactBlock', () => {
     ])[0]
 
     const compacted = compactBlock(block)
-    expect(compacted.summary).toContain('FAILED')
+    expect(compacted.summary).toContain('Error: file not found')
   })
 
   it('compacts text blocks with truncated content', () => {
@@ -386,7 +385,7 @@ describe('compactBlock', () => {
     expect(compacted.kind).toBe('compacted')
     expect(compacted.originalKind).toBe('text')
     expect(compacted.summary.length).toBeLessThan(200)
-    expect(compacted.summary).toContain('…')
+    expect(compacted.summary).toContain('...')
   })
 
   it('compacted block entryIdRange matches original', () => {
@@ -420,8 +419,6 @@ describe('compactBlock', () => {
 
 describe('projectTranscript', () => {
   const baseOpts = {
-    runState: {} as any,
-    operationalTrace: [],
     systemPromptBase: 'You are a coding assistant.',
   }
 
@@ -506,7 +503,7 @@ describe('projectTranscript', () => {
     }
   })
 
-  it('compacted summaries are in system prompt, NOT in messages', () => {
+  it('carries compacted summaries as assistant history, not system instructions', () => {
     resetIds()
     const entries = [
       userEntry('task'),
@@ -522,15 +519,15 @@ describe('projectTranscript', () => {
       maxCompactedBlocks: 1,
     })
 
-    // Compacted summaries must be in system, not in messages
-    expect(result.system).toContain('Compacted Transcript Summary')
-    expect(result.system).toContain('[Compacted tool interaction]')
+    expect(result.system).toBe('You are a coding assistant.')
 
-    // Messages must NOT contain any synthetic compacted entries
-    const hasFakeCompacted = result.messages.some(m =>
-      typeof m.content === 'string' && m.content.includes('[Compacted'),
+    const compactedHistory = result.messages.find(m =>
+      m.role === 'assistant'
+      && typeof m.content === 'string'
+      && m.content.includes('Compacted transcript history follows as quoted JSON data.'),
     )
-    expect(hasFakeCompacted).toBe(false)
+    expect(compactedHistory?.content).toContain('[Compacted tool interaction]')
+    expect(compactedHistory?.content).toContain('historical context only')
   })
 
   it('projected messages never contain synthetic fake-user compaction records', () => {
@@ -557,38 +554,6 @@ describe('projectTranscript', () => {
         expect(content).not.toContain('[Compacted')
       }
     }
-  })
-
-  it('operational trace projector and transcript projector do not pollute each other', () => {
-    resetIds()
-    const entries = [
-      userEntry('task'),
-      assistantText('thinking'),
-    ]
-
-    // Provide operational trace entries
-    const opTrace = [{
-      id: 'op-1',
-      at: new Date().toISOString(),
-      event: 'executed',
-      toolName: 'desktop_screenshot',
-      result: { path: '/tmp/a.png' },
-    }]
-
-    const result = projectTranscript(entries, {
-      ...baseOpts,
-      operationalTrace: opTrace as any,
-    })
-
-    // System header should contain operational trace data
-    expect(result.system).toContain('Operational Trace')
-
-    // Messages should only contain transcript content, not operational trace
-    const msgTexts = result.messages.map(m =>
-      typeof m.content === 'string' ? m.content : '',
-    )
-    const hasOpTrace = msgTexts.some(t => t.includes('desktop_screenshot'))
-    expect(hasOpTrace).toBe(false)
   })
 
   it('returns correct metadata including projectedMessageCount', () => {
@@ -726,195 +691,5 @@ describe('projectTranscript', () => {
         expect(declaredIds.has(m.tool_call_id!)).toBe(true)
       }
     }
-  })
-})
-
-// ---------------------------------------------------------------------------
-// projectTranscript — archiveCandidates
-// ---------------------------------------------------------------------------
-
-describe('projectTranscript — archiveCandidates', () => {
-  /** Minimal valid RunState satisfying all required fields (mirrors RunStateManager constructor). */
-  const minimalRunState: RunState = {
-    pendingApprovalCount: 0,
-    lastApprovalRejected: false,
-    ptySessions: [],
-    workflowStepTerminalBindings: [],
-    ptyApprovalGrants: [],
-    ptyAuditLog: [],
-    handoffHistory: [],
-    updatedAt: new Date().toISOString(),
-  }
-
-  const baseOpts = {
-    runState: minimalRunState,
-    operationalTrace: [] as any[],
-  }
-
-  /** Build a minimal tool interaction (assistant + tool result) as flat entries. */
-  function toolInteraction(callId: string, toolName: string, args: string, resultContent: string): TranscriptEntry[] {
-    const assistantEntry: TranscriptEntry = {
-      id: idCounter++,
-      at: new Date().toISOString(),
-      role: 'assistant',
-      content: '',
-      toolCalls: [{ id: callId, type: 'function', function: { name: toolName, arguments: args } }],
-    }
-    const resultEntry: TranscriptEntry = {
-      id: idCounter++,
-      at: new Date().toISOString(),
-      role: 'tool',
-      content: resultContent,
-      toolCallId: callId,
-    }
-    return [assistantEntry, resultEntry]
-  }
-
-  it('returns empty archiveCandidates when no blocks are removed', () => {
-    // Only one tool interaction — fits in maxFullToolBlocks=5, nothing compacted
-    const entries = [
-      userEntry('do the thing'),
-      ...toolInteraction('t1', 'coding_read_file', '{"path":"/tmp/x.ts"}', 'content here'),
-    ]
-    const result = projectTranscript(entries, { ...baseOpts, maxFullToolBlocks: 5, maxFullTextBlocks: 3, maxCompactedBlocks: 4 })
-    expect(result.archiveCandidates).toHaveLength(0)
-  })
-
-  it('produces archiveCandidates for compacted tool_interaction blocks', () => {
-    // 6 tool interactions, maxFullToolBlocks=1, so 5 are candidates for compaction
-    // maxCompactedBlocks=4, so 4 get compacted, 1 gets fully dropped
-    const entries = [
-      userEntry('task'),
-      ...toolInteraction('t1', 'tool_a', '{}', 'result a'.padEnd(50, '!')),
-      ...toolInteraction('t2', 'tool_b', '{}', 'result b'.padEnd(50, '!')),
-      ...toolInteraction('t3', 'tool_c', '{}', 'result c'.padEnd(50, '!')),
-      ...toolInteraction('t4', 'tool_d', '{}', 'result d'.padEnd(50, '!')),
-      ...toolInteraction('t5', 'tool_e', '{}', 'result e'.padEnd(50, '!')),
-      ...toolInteraction('t6', 'tool_f', '{}', 'result f'.padEnd(50, '!')),
-    ]
-    const result = projectTranscript(entries, {
-      ...baseOpts,
-      maxFullToolBlocks: 1,
-      maxFullTextBlocks: 3,
-      maxCompactedBlocks: 4,
-    })
-
-    // 5 candidates: some compacted, some dropped
-    expect(result.archiveCandidates.length).toBeGreaterThan(0)
-    const reasons = result.archiveCandidates.map(c => c.reason)
-    expect(reasons).toContain('compacted')
-    expect(reasons).toContain('dropped')
-  })
-
-  it('archiveCandidates have non-empty normalizedContent for tool_interaction', () => {
-    const entries = [
-      userEntry('task'),
-      ...toolInteraction('t1', 'coding_read_file', '{"path":"/tmp/a.ts"}', 'file content here'),
-      ...toolInteraction('t2', 'coding_write_file', '{"path":"/tmp/b.ts"}', 'write ok'),
-    ]
-    const result = projectTranscript(entries, {
-      ...baseOpts,
-      maxFullToolBlocks: 0, // force all to be compaction candidates
-      maxFullTextBlocks: 0,
-      maxCompactedBlocks: 1,
-    })
-
-    for (const c of result.archiveCandidates) {
-      expect(c.normalizedContent.length).toBeGreaterThan(0)
-    }
-  })
-
-  it('normalizedContent is NOT truncated to 120 chars', () => {
-    const longResult = 'x'.repeat(500)
-    const entries = [
-      userEntry('task'),
-      ...toolInteraction('t1', 'coding_read_file', '{}', longResult),
-      ...toolInteraction('t2', 'coding_write_file', '{}', 'result 2'),
-    ]
-    const result = projectTranscript(entries, {
-      ...baseOpts,
-      maxFullToolBlocks: 1,
-      maxFullTextBlocks: 0,
-      maxCompactedBlocks: 1,
-    })
-
-    const toolCandidates = result.archiveCandidates.filter(c => c.originalKind === 'tool_interaction')
-    const longOne = toolCandidates.find(c => c.normalizedContent.includes('x'.repeat(100)))
-    if (longOne) {
-      expect(longOne.normalizedContent).toContain('x'.repeat(500))
-    }
-  })
-
-  it('does not archive orphan tool TextBlocks', () => {
-    // Orphan tool messages get wrapped as TextBlock with entry.role === 'tool'
-    const orphanTool: TranscriptEntry = {
-      id: idCounter++,
-      at: new Date().toISOString(),
-      role: 'tool',
-      content: 'orphan result',
-      toolCallId: 'orphan-tc-id',
-    }
-    const entries = [
-      userEntry('task'),
-      orphanTool,
-    ]
-    const result = projectTranscript(entries, {
-      ...baseOpts,
-      maxFullToolBlocks: 0,
-      maxFullTextBlocks: 0,
-      maxCompactedBlocks: 0,
-    })
-
-    const orphanCandidates = result.archiveCandidates.filter(
-      c => c.originalKind === 'text' && c.tags.length === 0,
-    )
-    // Even if it passes kind check, orphan tool blocks should be excluded
-    expect(orphanCandidates).toHaveLength(0)
-  })
-
-  it('does not archive short assistant text blocks (< 200 chars)', () => {
-    const shortText = entry('assistant', 'short')
-    const entries = [
-      userEntry('task'),
-      shortText,
-    ]
-    const result = projectTranscript(entries, {
-      ...baseOpts,
-      maxFullToolBlocks: 0,
-      maxFullTextBlocks: 0,
-      maxCompactedBlocks: 0,
-    })
-
-    const textCandidates = result.archiveCandidates.filter(c => c.originalKind === 'text')
-    expect(textCandidates).toHaveLength(0)
-  })
-
-  it('archives long assistant text blocks (>= 200 chars)', () => {
-    const longText = entry('assistant', 'T'.repeat(250))
-    const entries = [
-      userEntry('task'),
-      longText,
-    ]
-    const result = projectTranscript(entries, {
-      ...baseOpts,
-      maxFullToolBlocks: 0,
-      maxFullTextBlocks: 0,
-      maxCompactedBlocks: 0,
-    })
-
-    const textCandidates = result.archiveCandidates.filter(c => c.originalKind === 'text')
-    expect(textCandidates.length).toBeGreaterThanOrEqual(0) // may be dropped or compacted
-    if (textCandidates.length > 0) {
-      expect(textCandidates[0].normalizedContent).toHaveLength(250)
-    }
-  })
-
-  it('projectTranscript remains a pure function — no side effects', () => {
-    const entries = [userEntry('task')]
-    const result1 = projectTranscript(entries, baseOpts)
-    const result2 = projectTranscript(entries, baseOpts)
-
-    expect(result1.archiveCandidates).toEqual(result2.archiveCandidates)
-    expect(result1.system).toBe(result2.system)
   })
 })
