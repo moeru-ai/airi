@@ -215,7 +215,7 @@ print(String(data: data, encoding: .utf8)!)
  *
  * Use when:
  * - Executing `desktop_click` on the local macOS host
- * - Verifying the Quartz cursor restore contract in unit tests
+ * - Verifying the Quartz cursor state contract in unit tests
  *
  * Expects:
  * - JSON input is provided through `COMPUTER_USE_SWIFT_STDIN`

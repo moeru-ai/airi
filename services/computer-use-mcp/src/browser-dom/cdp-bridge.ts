@@ -19,6 +19,18 @@ export interface CdpBridgeConfig {
   cdpUrl: string
   /** Request timeout in milliseconds */
   requestTimeoutMs: number
+  /**
+   * WebSocket heartbeat interval in milliseconds.
+   *
+   * @default 5000
+   */
+  heartbeatIntervalMs?: number
+  /**
+   * Consecutive missed heartbeat pongs before tearing down the bridge.
+   *
+   * @default 3
+   */
+  heartbeatFailureLimit?: number
 }
 
 export interface CdpBridgeStatus {
@@ -75,6 +87,9 @@ interface CdpTargetInfo {
 
 export class CdpBridge {
   private socket?: WebSocket
+  private heartbeatTimer?: NodeJS.Timeout
+  private awaitingHeartbeatPong = false
+  private consecutiveHeartbeatFailures = 0
   private nextId = 1
   private pending = new Map<number, PendingCdpRequest>()
   private status: CdpBridgeStatus
@@ -117,16 +132,19 @@ export class CdpBridge {
    */
   async connectToTarget(target: CdpTargetInfo): Promise<void> {
     if (this.socket) {
-      this.socket.close()
-      this.socket = undefined
+      await this.close()
     }
 
     const wsUrl = target.webSocketDebuggerUrl!
 
     await new Promise<void>((resolve, reject) => {
       const socket = new WebSocket(wsUrl)
+      let connectionSettled = false
 
       socket.on('open', () => {
+        if (connectionSettled)
+          return
+        connectionSettled = true
         this.socket = socket
         this.status.connected = true
         this.status.pageTitle = target.title
@@ -136,18 +154,36 @@ export class CdpBridge {
       })
 
       socket.on('message', (data) => {
+        if (this.socket !== socket)
+          return
         this.handleMessage(data)
       })
 
+      socket.on('pong', () => {
+        if (this.socket !== socket)
+          return
+        this.consecutiveHeartbeatFailures = 0
+        this.awaitingHeartbeatPong = false
+      })
+
       socket.on('close', () => {
-        this.socket = undefined
-        this.status.connected = false
+        if (this.socket !== socket)
+          return
+        this.handleSocketClosed('CDP WebSocket closed')
       })
 
       socket.on('error', (error) => {
-        this.status.lastError = error instanceof Error ? error.message : String(error)
+        if (this.socket && this.socket !== socket)
+          return
+
+        const message = error instanceof Error ? error.message : String(error)
+        if (!this.socket && connectionSettled)
+          return
+
+        this.status.lastError = message
         if (!this.socket) {
-          reject(new Error(`CDP WebSocket connection failed: ${this.status.lastError}`))
+          connectionSettled = true
+          reject(new Error(`CDP WebSocket connection failed: ${message}`))
         }
       })
     })
@@ -156,17 +192,17 @@ export class CdpBridge {
     await this.send('Accessibility.enable', {})
     await this.send('DOM.enable', {})
     await this.send('Runtime.enable', {})
+    this.startHeartbeat()
   }
 
   /**
    * Close the CDP connection.
    */
   async close(): Promise<void> {
-    for (const [id, pending] of this.pending.entries()) {
-      clearTimeout(pending.timeoutId)
-      pending.reject(new Error(`CDP bridge closed before completing request ${id}`))
-    }
-    this.pending.clear()
+    this.clearHeartbeat()
+    this.rejectPendingRequests('CDP bridge closed')
+    this.awaitingHeartbeatPong = false
+    this.consecutiveHeartbeatFailures = 0
 
     if (this.socket) {
       this.socket.close()
@@ -386,5 +422,85 @@ export class CdpBridge {
     else {
       pending.resolve(data.result)
     }
+  }
+
+  private startHeartbeat() {
+    this.clearHeartbeat()
+    this.awaitingHeartbeatPong = false
+    this.consecutiveHeartbeatFailures = 0
+
+    const intervalMs = this.config.heartbeatIntervalMs ?? 5_000
+    const failureLimit = this.config.heartbeatFailureLimit ?? 3
+
+    if (intervalMs <= 0 || failureLimit <= 0) {
+      return
+    }
+
+    this.heartbeatTimer = setInterval(() => {
+      const socket = this.socket
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        this.handleSocketClosed('CDP heartbeat found closed WebSocket')
+        return
+      }
+
+      if (this.awaitingHeartbeatPong) {
+        this.consecutiveHeartbeatFailures += 1
+        if (this.consecutiveHeartbeatFailures >= failureLimit) {
+          this.teardownAfterHeartbeatFailure()
+          return
+        }
+      }
+
+      try {
+        socket.ping()
+        this.awaitingHeartbeatPong = true
+      }
+      catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        this.teardownAfterHeartbeatFailure(message)
+      }
+    }, intervalMs)
+    this.heartbeatTimer.unref?.()
+  }
+
+  private clearHeartbeat() {
+    if (!this.heartbeatTimer) {
+      return
+    }
+
+    clearInterval(this.heartbeatTimer)
+    this.heartbeatTimer = undefined
+  }
+
+  private teardownAfterHeartbeatFailure(reason?: string) {
+    const failureLimit = this.config.heartbeatFailureLimit ?? 3
+    this.status.lastError = reason ?? `CDP heartbeat failed after ${failureLimit} consecutive missed pongs`
+    this.clearHeartbeat()
+    this.rejectPendingRequests(this.status.lastError)
+
+    const socket = this.socket
+    this.socket = undefined
+    this.status.connected = false
+    this.awaitingHeartbeatPong = false
+    this.consecutiveHeartbeatFailures = 0
+    socket?.terminate()
+  }
+
+  private handleSocketClosed(reason: string) {
+    this.status.lastError = reason
+    this.clearHeartbeat()
+    this.rejectPendingRequests(reason)
+    this.socket = undefined
+    this.status.connected = false
+    this.awaitingHeartbeatPong = false
+    this.consecutiveHeartbeatFailures = 0
+  }
+
+  private rejectPendingRequests(reason: string) {
+    for (const [id, pending] of this.pending.entries()) {
+      clearTimeout(pending.timeoutId)
+      pending.reject(new Error(`${reason} before completing request ${id}`))
+    }
+    this.pending.clear()
   }
 }

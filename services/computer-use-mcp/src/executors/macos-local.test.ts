@@ -7,7 +7,7 @@ import {
   buildMacOSTypeTextScript,
 } from './macos-local'
 
-describe('macOS local Swift cursor restore contract', () => {
+describe('macOS local Swift cursor state contract', () => {
   it('leaves desktop_click cursor at the action target for pointer-relative follow-up actions', () => {
     const script = buildMacOSMoveAndClickScript()
 
