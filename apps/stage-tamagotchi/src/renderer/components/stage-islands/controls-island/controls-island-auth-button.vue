@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { useLocalUserAvatar } from '@proj-airi/stage-ui/composables'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
@@ -28,7 +29,7 @@ const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const signingIn = ref(false)
 
 const userName = computed(() => user.value?.name)
-const userAvatar = computed(() => user.value?.image)
+const { userAvatar } = useLocalUserAvatar(user)
 
 function handleClick() {
   if (isAuthenticated.value) {

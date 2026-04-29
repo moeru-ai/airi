@@ -152,6 +152,16 @@ pages:
     fluxBalance: Flux Balance
     viewFluxDetails: View details
     signedInAs: Signed in as
+    profile:
+      avatar:
+        action:
+          upload: Upload avatar
+        message:
+          uploaded: Avatar updated on this device.
+        error:
+          invalidFile: Choose an image file.
+          tooLarge: Choose an image smaller than 1 MiB.
+          readFailed: We could not read that image.
   card:
     activate: Kích hoạt
     active: Đang hoạt động

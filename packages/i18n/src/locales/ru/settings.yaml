@@ -152,6 +152,16 @@ pages:
     fluxBalance: Баланс Flux
     viewFluxDetails: Подробнее
     signedInAs: Вы вошли как
+    profile:
+      avatar:
+        action:
+          upload: Загрузить аватар
+        message:
+          uploaded: Аватар обновлен на этом устройстве.
+        error:
+          invalidFile: Выберите файл изображения.
+          tooLarge: Выберите изображение меньше 1 MiB.
+          readFailed: Не удалось прочитать это изображение.
   card:
     activate: Активировать
     active: Активно

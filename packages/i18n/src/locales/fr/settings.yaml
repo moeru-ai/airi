@@ -152,6 +152,16 @@ pages:
     fluxBalance: Solde de Flux
     viewFluxDetails: Voir les détails
     signedInAs: Connecté en tant que
+    profile:
+      avatar:
+        action:
+          upload: Téléverser un avatar
+        message:
+          uploaded: Avatar mis à jour sur cet appareil.
+        error:
+          invalidFile: Choisissez un fichier image.
+          tooLarge: Choisissez une image inférieure à 1 MiB.
+          readFailed: Impossible de lire cette image.
   card:
     activate: Activer
     active: Actif

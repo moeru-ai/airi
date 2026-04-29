@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { errorMessageFrom } from '@moeru/std'
 import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth'
-import { useLinkedAccounts } from '@proj-airi/stage-ui/composables'
+import { useLinkedAccounts, useLocalUserAvatar } from '@proj-airi/stage-ui/composables'
 import { authClient } from '@proj-airi/stage-ui/libs/auth'
 import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
@@ -25,7 +25,10 @@ const { isAuthenticated, user, credits } = storeToRefs(authStore)
 
 const userName = computed(() => user.value?.name ?? '')
 const userEmail = computed(() => user.value?.email ?? null)
-const userAvatar = computed(() => user.value?.image ?? null)
+const { setLocalUserAvatar, userAvatar } = useLocalUserAvatar(user)
+const avatarInputRef = ref<HTMLInputElement | null>(null)
+const avatarUploading = shallowRef(false)
+const MAX_LOCAL_AVATAR_BYTES = 1024 * 1024
 // Gravatar fallback is decorated server-side onto `user.image`. We detect
 // the fallback by URL prefix instead of carrying a redundant `imageSource`
 // flag — Gravatar URL format is stable and prefix-matching keeps the API
@@ -45,7 +48,9 @@ const gravatarProfileUrl = computed(() => {
 // instead of rendering an alt-text overflow inside the circle. Resets when
 // the URL changes so a fixed URL re-attempts loading.
 const avatarLoadError = ref(false)
-watch(userAvatar, () => { avatarLoadError.value = false })
+watch(userAvatar, () => {
+  avatarLoadError.value = false
+})
 
 // Locale-aware thousand separator. Bare 5–6 digit numbers are noisy to scan
 // (e.g. "44965" reads as one block); Intl.NumberFormat respects user locale
@@ -55,11 +60,6 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
 
 // Profile form. Initialized from store and re-synced when user changes (e.g.
 // after a successful save we mutate the store).
-// NOTICE:
-// Avatar editing is intentionally absent here pending the avatar-upload
-// feature (R2/MinIO presigned PUT pipeline). The previous URL-pasting input
-// was a placeholder UX and has been removed; the existing user.image is
-// still rendered as the avatar circle above, just not editable for now.
 const profileForm = reactive({ name: '' })
 
 watch(
@@ -185,6 +185,65 @@ function handleUnlinkProvider(providerId: string) {
 function handleLinkProvider(providerId: 'github' | 'google') {
   const providerName = defaultSignInProviders.find(p => p.id === providerId)?.name ?? providerId
   return linkLinkedProvider(providerId, providerName)
+}
+
+function openAvatarFilePicker() {
+  if (avatarUploading.value)
+    return
+  avatarInputRef.value?.click()
+}
+
+function readAvatarFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.addEventListener('load', () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result)
+        return
+      }
+      reject(new Error('FileReader returned a non-string result'))
+    })
+    reader.addEventListener('error', () => reject(reader.error ?? new Error('FileReader failed')))
+    reader.readAsDataURL(file)
+  })
+}
+
+async function handleAvatarFileChange(event: Event) {
+  const target = event.target
+  if (!(target instanceof HTMLInputElement))
+    return
+
+  const file = target.files?.[0]
+  target.value = ''
+  if (!file)
+    return
+
+  profileError.value = null
+  profileSuccess.value = null
+
+  if (!file.type.startsWith('image/')) {
+    profileError.value = t('settings.pages.account.profile.avatar.error.invalidFile')
+    return
+  }
+
+  if (file.size > MAX_LOCAL_AVATAR_BYTES) {
+    profileError.value = t('settings.pages.account.profile.avatar.error.tooLarge')
+    return
+  }
+
+  avatarUploading.value = true
+  try {
+    const image = await readAvatarFile(file)
+    setLocalUserAvatar(image)
+    avatarLoadError.value = false
+    profileSuccess.value = t('settings.pages.account.profile.avatar.message.uploaded')
+  }
+  catch (error) {
+    profileError.value = errorMessageFrom(error) ?? t('settings.pages.account.profile.avatar.error.readFailed')
+  }
+  finally {
+    avatarUploading.value = false
+  }
 }
 
 async function handleSaveProfile(event: Event) {
@@ -435,15 +494,53 @@ async function handleConfirmDelete(event: Event) {
                about the same account, not a separate concern. -->
           <section :class="['flex flex-col gap-3 pb-6 border-b border-neutral-200/70 dark:border-neutral-800/60']">
             <div :class="['flex items-center gap-4 py-2']">
-              <div :class="['size-16 sm:size-20 rounded-full overflow-hidden flex-shrink-0', 'bg-neutral-100 dark:bg-neutral-800', 'flex items-center justify-center']">
-                <img
-                  v-if="userAvatar && !avatarLoadError"
-                  :src="userAvatar"
-                  :alt="userName"
-                  :class="['size-full object-cover']"
-                  @error="avatarLoadError = true"
+              <div :class="['relative size-16 sm:size-20 flex-shrink-0']">
+                <div
+                  :class="[
+                    'size-full rounded-full overflow-hidden',
+                    'bg-neutral-100 dark:bg-neutral-800',
+                    'flex items-center justify-center',
+                  ]"
                 >
-                <div v-else :class="['i-solar:user-circle-bold-duotone', 'size-10 text-neutral-400']" />
+                  <img
+                    v-if="userAvatar && !avatarLoadError"
+                    :src="userAvatar"
+                    :alt="userName"
+                    :class="['size-full object-cover']"
+                    @error="avatarLoadError = true"
+                  >
+                  <div v-else :class="['i-solar:user-circle-bold-duotone', 'size-10 text-neutral-400']" />
+                </div>
+                <input
+                  ref="avatarInputRef"
+                  type="file"
+                  accept="image/*"
+                  :class="['sr-only']"
+                  @change="handleAvatarFileChange"
+                >
+                <button
+                  type="button"
+                  :aria-label="t('settings.pages.account.profile.avatar.action.upload')"
+                  :title="t('settings.pages.account.profile.avatar.action.upload')"
+                  :disabled="avatarUploading"
+                  :class="[
+                    'absolute -right-1 -bottom-1',
+                    'size-8 rounded-full',
+                    'flex items-center justify-center',
+                    'border border-white dark:border-neutral-950',
+                    'bg-primary-500 text-white shadow-sm',
+                    'hover:bg-primary-600 disabled:opacity-60',
+                    'transition-colors cursor-pointer disabled:cursor-not-allowed',
+                  ]"
+                  @click="openAvatarFilePicker"
+                >
+                  <div
+                    :class="[
+                      avatarUploading ? 'i-solar:refresh-bold' : 'i-solar:camera-bold-duotone',
+                      'size-4',
+                    ]"
+                  />
+                </button>
               </div>
               <div :class="['flex flex-col gap-0.5 min-w-0']">
                 <span :class="['text-xs text-neutral-500 dark:text-neutral-400']">

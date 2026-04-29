@@ -152,6 +152,16 @@ pages:
     fluxBalance: Flux Balance
     viewFluxDetails: Ver detalles
     signedInAs: Sesión iniciada como
+    profile:
+      avatar:
+        action:
+          upload: Subir avatar
+        message:
+          uploaded: Avatar actualizado en este dispositivo.
+        error:
+          invalidFile: Elige un archivo de imagen.
+          tooLarge: Elige una imagen menor de 1 MiB.
+          readFailed: No pudimos leer esa imagen.
   card:
     activate: Activar
     active: Activo
