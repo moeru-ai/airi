@@ -74,6 +74,16 @@ Loading placeholder with animation.
 
 **Slots**: `default`
 
+### Truncatable
+
+Line-clamped content container that expands and collapses when the overflowing content area is clicked.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `lineClamp` | `number?` | `3` | Maximum visible lines while collapsed |
+
+**Slots**: `default`
+
 ---
 
 ## Misc

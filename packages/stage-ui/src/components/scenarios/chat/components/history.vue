@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ChatAssistantMessage, ChatHistoryItem, ContextMessage } from '../../../../types/chat'
+import type { ChatToolCallRendererRegistry } from './tool-call-renderer'
 
 import { computed, provide, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -21,9 +22,11 @@ const props = withDefaults(defineProps<{
   errorLabel?: string
   retryLabel?: string
   variant?: 'desktop' | 'mobile'
+  toolCallRenderers?: ChatToolCallRendererRegistry
 }>(), {
   sending: false,
   variant: 'desktop',
+  toolCallRenderers: () => ({}),
 })
 
 const emit = defineEmits<{
@@ -125,6 +128,7 @@ function emitRetryMessage(message: ChatHistoryItem, index: number) {
           :label="labels.assistant"
           :show-placeholder="shouldShowPlaceholder(message) && showStreamingPlaceholder"
           :variant="variant"
+          :tool-call-renderers="toolCallRenderers"
           @copy="emitCopyMessage(message, index)"
           @delete="emitDeleteMessage(message, index)"
         />
