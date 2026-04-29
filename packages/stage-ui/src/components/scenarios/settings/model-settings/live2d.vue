@@ -34,6 +34,7 @@ const {
   live2dExpressionEnabled,
   live2dShadowEnabled,
   live2dMaxFps,
+  live2dRenderScale,
 } = storeToRefs(settings)
 
 const live2d = useLive2d()
@@ -304,6 +305,15 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
       v-model="live2dDisableFocus"
       :label="t('settings.live2d.focus.button-disable.title')"
       placement="right"
+    />
+
+    <FieldRange
+      v-model="live2dRenderScale"
+      as="div"
+      :min="0.5"
+      :max="2"
+      :step="0.25"
+      :label="t('settings.live2d.render-scale.title')"
     />
 
     <FieldCombobox

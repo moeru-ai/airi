@@ -29,19 +29,27 @@ const RECOMMENDED_HEIGHT = 600
 const ASPECT_RATIO = RECOMMENDED_WIDTH / RECOMMENDED_HEIGHT
 
 function applyWindowSize(window: BrowserWindow, width: number, height: number, x?: number, y?: number): void {
+  if (isRendererUnavailable(window)) {
+    return
+  }
+
   window.setResizable(true)
+
   const bounds = {
     width: Math.round(width),
     height: Math.round(height),
-  } as any
+  } as Electron.Rectangle
+
   if (x !== undefined && y !== undefined) {
     bounds.x = Math.round(x)
     bounds.y = Math.round(y)
   }
+
   window.setBounds(bounds)
   if (x === undefined || y === undefined) {
     window.center()
   }
+
   window.show()
 }
 
@@ -203,7 +211,7 @@ export function setupTray(params: {
         ...is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG
           ? [
               { type: 'header', label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.devtools') },
-              { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.troubleshoot_beatsync'), click: () => params.beatSyncBgWindow.webContents.openDevTools() },
+              { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.troubleshoot_beatsync'), click: () => params.beatSyncBgWindow.webContents.openDevTools({ mode: 'detach' }) },
               { type: 'separator' },
             ] as const
           : [],

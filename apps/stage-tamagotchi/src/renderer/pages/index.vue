@@ -15,6 +15,7 @@ import {
   useElectronRelativeMouse,
 } from '@proj-airi/electron-vueuse'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
+import { HoloCoupon } from '@proj-airi/stage-ui/components'
 import {
   createEmptyModelSettingsRuntimeSnapshot,
   resolveComponentStateToRuntimePhase,
@@ -36,9 +37,7 @@ import ResourceStatusIsland from '../components/stage-islands/resource-status-is
 import StatusIsland from '../components/stage-islands/status-island/index.vue'
 
 import { electronOpenOnboarding } from '../../shared/eventa'
-import {
-  modelSettingsRuntimeSnapshotChannelName,
-} from '../../shared/model-settings-runtime'
+import { modelSettingsRuntimeSnapshotChannelName } from '../../shared/model-settings-runtime'
 import { useChatSyncStore } from '../stores/chat-sync'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
@@ -108,7 +107,7 @@ const isTransparent = computed(() => {
   return true
 })
 
-const { isNearAnyBorder: isAroundWindowBorder } = useElectronMouseAroundWindowBorder({ threshold: 30 })
+const { isNearAnyBorder: isAroundWindowBorder } = useElectronMouseAroundWindowBorder({ threshold: 10 })
 const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
@@ -149,6 +148,18 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
         ? (!stageMounted.value || sceneMutationLocked.value)
         : false,
       previewAvailable: hasModel,
+      canCapturePreview: false,
+      updatedAt: Date.now(),
+    })
+  }
+
+  if (stageModelRenderer.value === 'godot') {
+    return createEmptyModelSettingsRuntimeSnapshot({
+      ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
+      renderer: 'godot',
+      phase: hasModel ? 'mounted' : 'no-model',
+      controlsLocked: false,
+      previewAvailable: false,
       canCapturePreview: false,
       updatedAt: Date.now(),
     })
@@ -476,6 +487,7 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
           :x-offset="positionInPercentageString.x"
           :y-offset="positionInPercentageString.y"
         />
+        <HoloCoupon />
         <ControlsIsland
           ref="controlsIslandRef"
         />

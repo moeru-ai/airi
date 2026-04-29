@@ -6,12 +6,16 @@ import { relations } from 'drizzle-orm/relations'
 import { user } from './accounts'
 import { character } from './characters'
 
+// NOTICE: bare userId is intentional — no FK to user.id. better-auth hard-deletes
+// the user row; a cascade would wipe these soft-delete archive rows.
+// See `apps/server/docs/ai-context/account-deletion.md`.
 export const characterLikes = pgTable(
   'user_character_likes',
   {
-    userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull(),
     characterId: text('character_id').notNull().references(() => character.id, { onDelete: 'cascade' }),
     createdAt: timestamp('created_at').defaultNow().notNull(),
+    deletedAt: timestamp('deleted_at'),
   },
   table => [
     primaryKey({ columns: [table.userId, table.characterId] }),
@@ -24,9 +28,10 @@ export type NewCharacterLike = InferInsertModel<typeof characterLikes>
 export const characterBookmarks = pgTable(
   'user_character_bookmarks',
   {
-    userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull(),
     characterId: text('character_id').notNull().references(() => character.id, { onDelete: 'cascade' }),
     createdAt: timestamp('created_at').defaultNow().notNull(),
+    deletedAt: timestamp('deleted_at'),
   },
   table => [
     primaryKey({ columns: [table.userId, table.characterId] }),

@@ -35,9 +35,22 @@ export interface Server {
 const DEFAULT_SERVER_PORT = 6121
 const DEFAULT_SERVER_HOSTNAME = '0.0.0.0'
 
+/**
+ * Collects local IP addresses that can be used to reach the server from the LAN.
+ *
+ * Use when:
+ * - Building connection hints for `0.0.0.0` listeners
+ * - Showing reachable addresses in logs or UI
+ *
+ * Expects:
+ * - Virtual interfaces should be ignored to reduce noisy or misleading addresses
+ *
+ * Returns:
+ * - A de-duplicated list of valid IP addresses discovered from the host network interfaces
+ */
 export function getLocalIPs(): string[] {
   const interfaces = networkInterfaces()
-  const addresses: string[] = []
+  const addresses = new Set<string>()
 
   const VIRTUAL_INTERFACE_PREFIXES = [
     'vboxnet',
@@ -66,11 +79,11 @@ export function getLocalIPs(): string[] {
 
       const address = rawAddress.includes('%') ? rawAddress.split('%')[0] : rawAddress
       if (isIP(address))
-        addresses.push(address)
+        addresses.add(address)
     }
   }
 
-  return addresses
+  return [...addresses]
 }
 
 function checkPortAvailable(port: number, hostname: string): Promise<boolean> {
@@ -90,12 +103,26 @@ async function ensurePortAvailable(port: number, hostname: string): Promise<void
   throw new Error(`Port ${port} is already in use by another process`)
 }
 
+/**
+ * Creates the websocket server controller for the AIRI runtime.
+ *
+ * Use when:
+ * - Starting, stopping, or restarting the standalone runtime server
+ * - Updating bind options between restarts
+ *
+ * Expects:
+ * - The returned controller to manage a single active server instance at a time
+ *
+ * Returns:
+ * - Lifecycle helpers for starting, stopping, restarting, and updating server options
+ */
 export function createServer(opts?: ServerOptions): Server {
   let options = merge<ServerOptions>({ port: DEFAULT_SERVER_PORT, hostname: DEFAULT_SERVER_HOSTNAME }, opts)
 
   const { appLogFormat, appLogLevel } = normalizeLoggerConfig(options)
   const log = useLogg('@proj-airi/server-runtime/server').withLogLevelString(appLogLevel).withFormat(appLogFormat)
   let serverInstance: ServerInstance | null = null
+  let startTask: Promise<void> | null = null
 
   log.withFields({ hasTlsConfig: !!options?.tlsConfig }).log('creating server channel')
 
@@ -130,11 +157,13 @@ export function createServer(opts?: ServerOptions): Server {
     if (serverInstance) {
       return
     }
+    if (startTask) {
+      return startTask
+    }
 
-    const secureEnabled = options?.tlsConfig != null
-
-    try {
-      const h3App = setupApp()
+    startTask = (async () => {
+      const secureEnabled = options?.tlsConfig != null
+      const h3App = setupApp(options)
 
       const port = options.port ?? DEFAULT_SERVER_PORT
       const hostname = options.hostname ?? DEFAULT_SERVER_HOSTNAME
@@ -156,44 +185,41 @@ export function createServer(opts?: ServerOptions): Server {
         },
       })
 
-      serverInstance = {
-        close: async (closeActiveConnections = false) => {
-          log.log('closing all peers')
-          h3App.closeAllPeers()
-          log.log('closing server instance')
-          await instance.close(closeActiveConnections)
-          log.log('server instance closed')
-        },
-      }
+      try {
+        serverInstance = {
+          close: async (closeActiveConnections = false) => {
+            h3App.dispose()
+            log.log('closing server instance')
+            await instance.close(closeActiveConnections)
+            log.log('server instance closed')
+          },
+        }
 
-      const servePromise = instance.serve()
-      if (servePromise instanceof Promise) {
-        servePromise.catch((error) => {
-          const nodejsError = error as NodeJS.ErrnoException
-          if ('code' in nodejsError && nodejsError.code === 'EADDRINUSE') {
-            log.withError(error).warn('Port already in use, assuming server is already running')
-            return
-          }
+        await instance.serve()
 
-          log.withError(error).error('Error serving WebSocket server')
-        })
+        const protocol = secureEnabled ? 'wss' : 'ws'
+        if (hostname === '0.0.0.0') {
+          const ips = getLocalIPs().filter(ip => ip !== '127.0.0.1' && ip !== '::1')
+          const targets = ips.length > 0 ? ips.join(', ') : 'localhost'
+          log.log(`@proj-airi/server-runtime started on ${protocol}://0.0.0.0:${port} (reachable via: ${targets})`)
+        }
+        else {
+          log.log(`@proj-airi/server-runtime started on ${protocol}://${hostname}:${port}`)
+        }
       }
+      catch (error) {
+        serverInstance = null
+        h3App.dispose()
+        await instance.close(true).catch(() => {})
+        log.withError(error).error('failed to start WebSocket server')
+        throw error
+      }
+    })().finally(() => {
+      startTask = null
+    })
 
-      const protocol = secureEnabled ? 'wss' : 'ws'
-      if (hostname === '0.0.0.0') {
-        const ips = getLocalIPs().filter(ip => ip !== '127.0.0.1' && ip !== '::1')
-        const targets = ips.length > 0 ? ips.join(', ') : 'localhost'
-        log.log(`@proj-airi/server-runtime started on ${protocol}://0.0.0.0:${port} (reachable via: ${targets})`)
-      }
-      else {
-        log.log(`@proj-airi/server-runtime started on ${protocol}://${hostname}:${port}`)
-      }
-    }
-    catch (error) {
-      log.withError(error).error('failed to start WebSocket server')
-    }
+    return startTask
   }
-
   async function stop() {
     await closeServer(true)
   }
@@ -204,12 +230,16 @@ export function createServer(opts?: ServerOptions): Server {
     await start()
   }
 
-  async function updateConfig(newOptions: ServerOptions) {
-    options = { ...options, ...newOptions }
+  function updateConfig(newOptions: ServerOptions) {
+    options = merge<ServerOptions>(options, newOptions)
   }
 
   return {
     getConnectionHost: () => {
+      if (options.hostname && options.hostname !== '0.0.0.0' && options.hostname !== '::') {
+        return [options.hostname]
+      }
+
       return getLocalIPs()
     },
     start,

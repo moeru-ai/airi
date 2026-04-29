@@ -28,6 +28,7 @@ withDefaults(defineProps<{
   live2dExpressionEnabled?: boolean
   live2dShadowEnabled?: boolean
   live2dMaxFps?: number
+  live2dRenderScale?: number
 }>(), {
   paused: false,
   focusAt: () => ({ x: 0, y: 0 }),
@@ -41,6 +42,7 @@ withDefaults(defineProps<{
   live2dExpressionEnabled: true,
   live2dShadowEnabled: true,
   live2dMaxFps: 0,
+  live2dRenderScale: 2,
 })
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
@@ -62,6 +64,9 @@ defineExpose({
   canvasElement: () => {
     return live2dCanvasRef.value?.canvasElement()
   },
+  captureFrame: () => {
+    return live2dCanvasRef.value?.captureFrame()
+  },
 })
 </script>
 
@@ -73,7 +78,7 @@ defineExpose({
       v-model:state="componentStateCanvas"
       :width="width"
       :height="height"
-      :resolution="2"
+      :resolution="live2dRenderScale"
       :max-fps="live2dMaxFps"
       max-h="100dvh"
     >

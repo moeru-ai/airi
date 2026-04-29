@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { OnboardingDialog, OnboardingStepAnalyticsNotice, ToasterRoot } from '@proj-airi/stage-ui/components'
+import { useInferencePreload } from '@proj-airi/stage-ui/composables'
 import { isPosthogAvailableInBuild, useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
@@ -9,7 +10,7 @@ import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/conte
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { useTheme } from '@proj-airi/ui'
+import { ErrorBoundary, useTheme } from '@proj-airi/ui'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, watch } from 'vue'
@@ -37,6 +38,7 @@ const { showingSetup } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
 const cardStore = useAiriCardStore()
 const analyticsStore = useSharedAnalyticsStore()
+const inferencePreload = useInferencePreload()
 
 const primaryColor = computed(() => {
   return isDark.value
@@ -81,6 +83,7 @@ watch(settings.themeColorsHueDynamic, () => {
 // Initialize first-time setup check when app mounts
 onMounted(async () => {
   analyticsStore.initialize()
+  await displayModelsStore.initialize()
   cardStore.initialize()
 
   if (onboardingStore.needsOnboarding) {
@@ -95,6 +98,9 @@ onMounted(async () => {
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
   await settingsAudioDeviceStore.initialize()
+
+  // Preload local inference models (Kokoro TTS, etc.) in background after a delay
+  inferencePreload.triggerPreload()
 })
 
 onUnmounted(() => {
@@ -122,7 +128,12 @@ function handleSetupSkipped() {
     :use-page-specific-transitions="settings.usePageSpecificTransitions.value"
   >
     <RouterView v-slot="{ Component }">
-      <component :is="Component" />
+      <ErrorBoundary
+        title="Something went wrong while rendering this page."
+        @error="(err, _, info) => console.error('[ErrorBoundary]', info, err)"
+      >
+        <component :is="Component" />
+      </ErrorBoundary>
     </RouterView>
   </StageTransitionGroup>
 

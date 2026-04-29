@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/electron-screen-capture",
   "type": "module",
-  "version": "0.9.0-beta.4",
+  "version": "0.9.0",
   "private": true,
   "description": "Screen capture",
   "author": {
@@ -35,7 +35,7 @@
   },
   "peerDependencies": {
     "@guiiai/logg": ">=1 <2",
-    "electron": ">=39 <40",
+    "electron": ">=40 <42",
     "vue": ">=3"
   },
   "dependencies": {
@@ -51,12 +51,12 @@
   },
   "inlinedDependencies": {
     "@electron-toolkit/preload": "3.0.2",
-    "@moeru/eventa": "1.0.0-beta.3",
+    "@moeru/eventa": "1.0.0-beta.4",
     "async-mutex": "0.5.0",
     "nanoid": [
       "5.1.6",
-      "5.1.7"
+      "5.1.9"
     ],
-    "picomatch": "4.0.3"
+    "picomatch": "4.0.4"
   }
 }

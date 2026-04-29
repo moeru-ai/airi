@@ -14,6 +14,19 @@ function createModuleIdentity(name: string, index: number): ModuleIdentity {
   }
 }
 
+/**
+ * Stores plugin sessions and generates deterministic session identities.
+ *
+ * Use when:
+ * - The host needs to track loaded plugin sessions by id
+ * - New plugin sessions need a generated session id and module identity
+ *
+ * Expects:
+ * - `TSession` has a stable `id` field used as the registry key
+ *
+ * Returns:
+ * - An in-memory session registry with identity generation helpers
+ */
 export class PluginSessionService<TSession extends { id: string }> {
   private readonly sessions = new Map<string, TSession>()
   private sessionCounter = 0

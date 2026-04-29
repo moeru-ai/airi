@@ -20,6 +20,7 @@ const routeMeta = computed(() => route.meta as {
   subtitleKey?: string
   title?: string
   subtitle?: string
+  disableBackButton?: boolean
 })
 
 const providerTitle = computed(() => {
@@ -98,7 +99,7 @@ onMounted(() => updateThemeColor())
       <PageHeader
         :title="routeHeaderMetadata?.title || ''"
         :subtitle="routeHeaderMetadata?.subtitle"
-        :disable-back-button="isStageTamagotchi() && route.path === '/settings'"
+        :disable-back-button="routeMeta.disableBackButton || (isStageTamagotchi() && route.path === '/settings')"
       />
       <div id="settings-scroll-container" :class="['relative', 'min-h-0', 'flex-1', 'overflow-y-auto', 'scrollbar-none']">
         <RouterView />

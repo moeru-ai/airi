@@ -25,10 +25,17 @@ docs:
   'close': Закрыть
   'expand': Развернуть
   'collapse': Свернуть
-'status-island':
-  connected: WebSocket подключен
-  disconnected: WebSocket отключен
-  'open-settings': Открыть настройки WebSocket
+  'login': Войти
+  'logging-in': Выполняется вход...
+  'account': Аккаунт
+  'logout': Выйти
+widgets:
+  close: Close widget
+  empty:
+    title: No widget active
+    description: Widgets will appear here when a tool or plugin spawns one.
+  loading: Loading widget…
+  waiting: Waiting for widget data for "{id}"…
 notice:
   'fade-on-hover':
     title: Исчезать при наведении
@@ -44,3 +51,48 @@ notice:
     preparing: Подготавливаем…
     read-more: Подробнее
     preview-title: Что это?
+about:
+  subtitle: Desktop версия.
+  current-version: Текущая версия
+  common:
+    cancel: Отменить
+  links:
+    title: Ссылки
+    home: Главная
+    documentation: Документация
+    github: GitHub
+  update:
+    lane:
+      label: Канал обновления
+      description: Выберите релиз канала для отслеживания
+      placeholder: Выбрать канал обновления
+    channels:
+      auto: Авто
+      stable: Стабильный
+      alpha: Альфа
+      beta: Бета
+      nightly: Nightly
+      canary: Canary
+    status:
+      downloading: Загрузка обновления...
+      error-prefix: Ошибка
+      latest: Актуально (v{version}).
+      downloaded:
+        windows: Обновление готово к установке в автоматическом режиме (v{version}).
+        restart: Обновление готово к установке после перезапуска (v{version}).
+    actions:
+      download: Загрузить обновление
+      download-short: Загрузка
+      confirm-download: Подтвердить загрузку
+      check-for-updates: Проверить обновления
+      checking: Проверка...
+      latest-version: Последняя версия
+      disabled-dev: Обновления отключены в Dev
+      retry-check: Повторить проверку
+      restart-silent: Перезапустите, чтобы обновить автоматически
+      restart-install: Перезапустите для установки обновления
+      confirm-restart: Подтвердить перезапуск
+    dialog:
+      title: Доступно обновление
+      description: Доступна новая версия (v{version})
+      no-release-notes-markdown: _Заметки о релизе не предоставлены._

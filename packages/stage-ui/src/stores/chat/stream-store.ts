@@ -1,7 +1,7 @@
 import type { StreamingAssistantMessage } from '../../types/chat'
 
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, toRaw } from 'vue'
 
 import { useChatSessionStore } from './session-store'
 
@@ -31,7 +31,7 @@ export const useChatStreamStore = defineStore('chat-stream', () => {
   function finalizeStream(fullText?: string) {
     const sessionId = chatSession.activeSessionId
     if (streamingMessage.value.slices.length > 0)
-      chatSession.appendSessionMessage(sessionId, streamingMessage.value)
+      chatSession.appendSessionMessage(sessionId, toRaw(streamingMessage.value))
     streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
     if (fullText)
       streamingMessage.value.content = fullText

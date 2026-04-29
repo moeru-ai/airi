@@ -1,9 +1,10 @@
-import { object, optional, string } from 'valibot'
+import { object, optional, picklist, string } from 'valibot'
 
 import { createConfig } from '../libs/electron/persistence'
 
 export const globalAppConfigSchema = object({
   language: optional(string(), 'en'),
+  updateChannel: optional(picklist(['latest', 'stable', 'alpha', 'beta', 'nightly', 'canary'])),
 })
 
 export function createGlobalAppConfig() {

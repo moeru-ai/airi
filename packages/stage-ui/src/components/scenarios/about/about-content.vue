@@ -41,6 +41,8 @@ const hasBuildInfo = computed(() => {
       </div>
     </div>
 
+    <slot name="before-build-info" />
+
     <div v-if="hasBuildInfo" :class="['flex-1']">
       <div :class="['text-neutral-500 dark:text-neutral-400']">
         Application build information
@@ -80,6 +82,8 @@ const hasBuildInfo = computed(() => {
         </template>
       </div>
     </div>
+
+    <slot name="after-build-info" />
 
     <div :class="['my-10']">
       <div :class="['text-neutral-500 dark:text-neutral-400']">

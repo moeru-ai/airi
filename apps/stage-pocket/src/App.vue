@@ -18,6 +18,8 @@ import { toast, Toaster } from 'vue-sonner'
 
 import OnboardingPermissionsStep from './components/onboarding/step-permissions.vue'
 
+import { getHostWebSocketConstructor } from './modules/websocket-bridge'
+
 const contextBridgeStore = useContextBridgeStore()
 const i18n = useI18n()
 const displayModelsStore = useDisplayModelsStore()
@@ -69,13 +71,17 @@ watch(settings.themeColorsHueDynamic, () => {
 // Initialize first-time setup check when app mounts
 onMounted(async () => {
   analyticsStore.initialize()
+  await displayModelsStore.initialize()
   cardStore.initialize()
 
   if (onboardingStore.needsOnboarding) {
     onboardingStore.showingSetup = true
   }
 
-  await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
+  await serverChannelStore.initialize({
+    possibleEvents: ['ui:configure'],
+    websocketConstructor: getHostWebSocketConstructor(),
+  }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
   contextBridgeStore.initialize()
   characterOrchestratorStore.initialize()
 
@@ -128,7 +134,7 @@ const extraSteps = computed(() => [
   </StageTransitionGroup>
 
   <ToasterRoot @close="id => toast.dismiss(id)">
-    <Toaster />
+    <Toaster rich-colors />
   </ToasterRoot>
 
   <!-- First Time Setup Dialog -->

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { DuckDBWasmDrizzleDatabase } from '@proj-airi/drizzle-duckdb-wasm'
 import type { Live2DLipSync, Live2DLipSyncOptions } from '@proj-airi/model-driver-lipsync'
 import type { Profile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
@@ -7,8 +6,6 @@ import type { UnElevenLabsOptions } from 'unspeech'
 
 import type { EmotionPayload } from '../../constants/emotions'
 
-import { drizzle } from '@proj-airi/drizzle-duckdb-wasm'
-import { getImportUrlBundles } from '@proj-airi/drizzle-duckdb-wasm/bundles/import-url-browser'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeechPipeline } from '@proj-airi/pipelines-audio'
@@ -16,6 +13,7 @@ import { Live2DScene, useLive2d } from '@proj-airi/stage-ui-live2d'
 import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
 import { createQueue } from '@proj-airi/stream-kit'
+import { Callout } from '@proj-airi/ui'
 import { useBroadcastChannel } from '@vueuse/core'
 // import { createTransformers } from '@xsai-transformers/embed'
 // import embedWorkerURL from '@xsai-transformers/embed/worker?worker&url'
@@ -26,9 +24,13 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { useDelayMessageQueue, useEmotionsMessageQueue } from '../../composables/queues'
 import { useAuthProviderSync } from '../../composables/use-auth-provider-sync'
+import { useDuckDb } from '../../composables/use-duck-db'
+import { useIOTraceBridge } from '../../composables/use-io-trace-bridge'
+import { initIOTracer } from '../../composables/use-io-tracer'
 import { llmInferenceEndToken } from '../../constants'
 import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
+import { useBackgroundStore } from '../../stores/background'
 import { useChatOrchestratorStore } from '../../stores/chat'
 import { useAiriCardStore } from '../../stores/modules'
 import { useSpeechStore } from '../../stores/modules/speech'
@@ -47,7 +49,7 @@ const props = withDefaults(defineProps<{
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 
-const db = ref<DuckDBWasmDrizzleDatabase>()
+const { getDb } = useDuckDb()
 // const transformersProvider = createTransformers({ embedWorkerURL })
 
 const vrmViewerRef = ref<InstanceType<typeof ThreeScene>>()
@@ -68,6 +70,7 @@ const {
   live2dExpressionEnabled,
   live2dShadowEnabled,
   live2dMaxFps,
+  live2dRenderScale,
 } = storeToRefs(settingsStore)
 const { mouthOpenSize } = storeToRefs(useSpeakingStore())
 const { audioContext } = useAudioContext()
@@ -117,6 +120,8 @@ const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
 const activeCardId = computed(() => activeCard.value?.name ?? 'default')
 const speechRuntimeStore = useSpeechRuntimeStore()
+const backgroundStore = useBackgroundStore()
+const { activeBackgroundUrl } = storeToRefs(backgroundStore)
 
 const { currentMotion } = storeToRefs(useLive2d())
 
@@ -320,6 +325,8 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
   playback: playbackManager,
 })
 
+initIOTracer()
+useIOTraceBridge(speechPipeline)
 void speechRuntimeStore.registerHost(speechPipeline)
 
 speechPipeline.on('onSpecial', (segment) => {
@@ -522,11 +529,14 @@ if (typeof window !== 'undefined') {
 }
 
 onMounted(async () => {
-  db.value = drizzle({ connection: { bundles: getImportUrlBundles() } })
-  await db.value.execute(`CREATE TABLE memory_test (vec FLOAT[768]);`)
+  await getDb() // stub for future update
 })
 
 watch([stageModelRenderer, () => props.paused], ([renderer]) => {
+  if (renderer === 'godot') {
+    componentState.value = 'mounted'
+  }
+
   if (renderer !== 'live2d') {
     resetLive2dLipSync()
     return
@@ -550,6 +560,56 @@ function readRenderTargetRegionAtClientPoint(clientX: number, clientY: number, r
   return vrmViewerRef.value?.readRenderTargetRegionAtClientPoint?.(clientX, clientY, radius) ?? null
 }
 
+async function captureFrame() {
+  const charBlob = await (stageModelRenderer.value === 'live2d'
+    ? live2dSceneRef.value?.captureFrame()
+    : vrmViewerRef.value?.captureFrame())
+
+  if (!activeBackgroundUrl.value || !charBlob)
+    return charBlob
+
+  try {
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    if (!ctx)
+      return charBlob
+
+    // Load background image
+    const bgImg = new Image()
+    bgImg.crossOrigin = 'anonymous'
+    bgImg.src = activeBackgroundUrl.value
+    await new Promise((resolve, reject) => {
+      bgImg.onload = resolve
+      bgImg.onerror = reject
+    })
+
+    // Load character frame
+    const charImg = await createImageBitmap(charBlob)
+
+    // Match canvas size to the captured frame (respects DPI/Render Scale)
+    canvas.width = charImg.width
+    canvas.height = charImg.height
+
+    // Draw background with "cover" logic
+    const scale = Math.max(canvas.width / bgImg.width, canvas.height / bgImg.height)
+    const w = bgImg.width * scale
+    const h = bgImg.height * scale
+    const x = (canvas.width - w) / 2
+    const y = (canvas.height - h) / 2
+
+    ctx.drawImage(bgImg, x, y, w, h)
+
+    // Draw character on top
+    ctx.drawImage(charImg, 0, 0)
+
+    return new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'))
+  }
+  catch (error) {
+    console.error('[Stage] Failed to composite photo with background:', error)
+    return charBlob // Fallback to character-only
+  }
+}
+
 onUnmounted(() => {
   resetLive2dLipSync()
   chatHookCleanups.forEach(dispose => dispose?.())
@@ -558,13 +618,29 @@ onUnmounted(() => {
 
 defineExpose({
   canvasElement,
+  captureFrame,
   readRenderTargetRegionAtClientPoint,
 })
 </script>
 
 <template>
   <div relative h-full w-full>
-    <div h-full w-full>
+    <!-- Scene Background Layer -->
+    <div
+      v-if="activeBackgroundUrl"
+      :class="[
+        'absolute left-0 top-0 z-0 h-full w-full',
+        'transition-opacity duration-500',
+      ]"
+      :style="{
+        backgroundImage: `url(${activeBackgroundUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }"
+    />
+
+    <div relative h-full w-full>
       <Live2DScene
         v-if="stageModelRenderer === 'live2d' && showStage"
         ref="live2dSceneRef"
@@ -588,6 +664,7 @@ defineExpose({
         :live2d-expression-enabled="live2dExpressionEnabled"
         :live2d-shadow-enabled="live2dShadowEnabled"
         :live2d-max-fps="live2dMaxFps"
+        :live2d-render-scale="live2dRenderScale"
       />
       <ThreeScene
         v-if="stageModelRenderer === 'vrm' && showStage"
@@ -601,6 +678,26 @@ defineExpose({
         :current-audio-source="currentAudioSource"
         @error="console.error"
       />
+      <div
+        v-if="stageModelRenderer === 'godot'"
+        :class="[
+          'h-full w-full',
+          'flex items-center justify-center',
+          'px-4 py-6',
+        ]"
+      >
+        <div
+          :class="[
+            'w-96 max-w-full',
+            'min-h-32',
+            'flex items-center justify-center',
+          ]"
+        >
+          <Callout label="Godot Stage (Experimental)">
+            <p>Godot Stage (experimental) is running...</p>
+          </Callout>
+        </div>
+      </div>
     </div>
   </div>
 </template>

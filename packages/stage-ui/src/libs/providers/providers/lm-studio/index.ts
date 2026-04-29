@@ -54,7 +54,7 @@ export const providerLmStudio = defineProvider<LMStudioConfig>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList],
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList, ProviderValidationCheck.ChatCompletions],
       skipApiKeyCheck: true,
       schedule: {
         mode: 'interval',

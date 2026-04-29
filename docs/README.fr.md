@@ -34,7 +34,7 @@
 
 <p float="left" align="center">
   <!-- readme-section:release-binary-windows -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-beta.2/AIRI-0.9.0-beta.2-windows-x64-setup.exe">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0/AIRI-0.9.0-windows-x64-setup.exe">
     <picture>
       <source
         width="33%"
@@ -50,7 +50,7 @@
     </picture>
   </a>
   <!-- readme-section:release-binary-macos -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0-beta.2/AIRI-0.9.0-beta.2-darwin-arm64.dmg">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0/AIRI-0.9.0-darwin-arm64.dmg">
     <picture>
       <source
         width="33%"
@@ -161,6 +161,9 @@ Ainsi, ce projet AIRI offre une autre possibilité : **vous permettre de posséd
 
 ## Journaux de développement et mises à jour récentes
 
+- [DevLog @ 23.03.2026](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.23/) du 23 mars 2026
+- [DevLog @ 14.03.2026](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.14/) du 14 mars 2026
+- [DevLog @ 16.02.2026](https://airi.moeru.ai/docs/en/blog/DevLog-2026.02.16/) du 16 février 2026
 - [DevLog @ 01.01.2026](https://airi.moeru.ai/docs/en/blog/DevLog-2026.01.01/) du 1er janvier 2026
 - [DevLog @ 20.10.2025](https://airi.moeru.ai/docs/en/blog/DevLog-2025.10.20/) du 20 octobre 2025
 - [DevLog @ 05.08.2025](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.05/) du 5 août 2025

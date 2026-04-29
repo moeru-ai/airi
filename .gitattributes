@@ -3,3 +3,4 @@
 # test fixtures in packages/singing are properly tracked.
 packages/singing/test/fixtures/**/*.wav filter=lfs diff=lfs merge=lfs -text
 packages/singing/test/fixtures/**/*.mp3 filter=lfs diff=lfs merge=lfs -text
+.github/workflows/*.lock.yml linguist-generated=true merge=ours

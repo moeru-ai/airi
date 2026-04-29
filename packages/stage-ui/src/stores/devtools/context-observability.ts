@@ -55,7 +55,12 @@ function truncateText(value: string, limit = 220) {
 }
 
 function cloneValue<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T
+  try {
+    return structuredClone(value)
+  }
+  catch {
+    return JSON.parse(JSON.stringify(value)) as T
+  }
 }
 
 export const useContextObservabilityStore = defineStore('devtools:context-observability', () => {

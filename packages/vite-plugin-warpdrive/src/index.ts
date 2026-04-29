@@ -8,6 +8,8 @@ import { rm } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { cwd } from 'node:process'
 
+import { errorCauseFrom, errorMessageFrom, errorNameFrom, errorStackFrom } from '@moeru/std'
+
 export { createS3Provider } from './providers/s3'
 export type { S3ProviderOptions } from './providers/s3'
 export type { UploadProvider } from './providers/types'
@@ -248,9 +250,17 @@ export function WarpDrivePlugin(options: WarpDrivePluginOptions): Plugin {
           try {
             await options.provider.upload(localPath, key, contentType)
           }
-          catch (error) {
-            resolvedConfig.logger.error(`[${pluginName}] upload failed, file: ${fileName} -> ${key}: ${error}`, { error })
-            throw error
+          catch (err) {
+            const error = new Error(errorMessageFrom(err))
+            error.name = errorNameFrom(err) || 'UploadError'
+            const stack = errorStackFrom(err)
+            if (stack)
+              error.stack = stack
+
+            error.cause = errorCauseFrom(err)
+
+            resolvedConfig.logger.error(`[${pluginName}] upload failed, file: ${fileName} -> ${key}: ${err}`, { error })
+            throw err
           }
 
           if (shouldDeleteLocalAsset) {

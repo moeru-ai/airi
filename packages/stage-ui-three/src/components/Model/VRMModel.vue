@@ -109,6 +109,7 @@ import {
 */
 const props = withDefaults(defineProps<{
   currentAudioSource?: AudioBufferSourceNode
+  lastCommittedModelSrc?: string
   modelSrc?: string
   idleAnimation: string
   // loadAnimations?: string[]
@@ -138,7 +139,7 @@ const props = withDefaults(defineProps<{
 */
 const emit = defineEmits<{
   (e: 'loadingProgress', value: number): void
-  (e: 'loadStart'): void
+  (e: 'loadStart', value: 'initial-load' | 'model-reload' | 'model-switch'): void
   (e: 'sceneBootstrap', value: SceneBootstrap): void
   (e: 'lookAtTarget', value: Vec3): void
 
@@ -148,6 +149,7 @@ const emit = defineEmits<{
 
 const {
   currentAudioSource,
+  lastCommittedModelSrc,
   modelSrc,
   idleAnimation,
   // loadAnimations, // TBC
@@ -660,14 +662,29 @@ function buildSceneBootstrap(activeVrm: VRM, cacheHit: boolean): SceneBootstrap 
     cameraPosition: { x: cameraPosition.x, y: cameraPosition.y, z: cameraPosition.z },
     eyeHeight: eyePositionY,
     lookAtTarget: defaultTookAt(eyePositionY),
+    modelOffset: {
+      x: bootstrapRoot.position.x,
+      y: bootstrapRoot.position.y,
+      z: bootstrapRoot.position.z,
+    },
     modelOrigin: { x: modelCenter.x, y: modelCenter.y, z: modelCenter.z },
     modelSize: { x: modelSize.x, y: modelSize.y, z: modelSize.z },
   }
 }
 
+function resolveVrmLoadReason(): 'initial-load' | 'model-reload' | 'model-switch' {
+  if (!lastCommittedModelSrc.value)
+    return 'initial-load'
+
+  if (lastCommittedModelSrc.value !== modelSrc.value)
+    return 'model-switch'
+
+  return 'model-reload'
+}
+
 async function loadModel() {
   const requestId = invalidatePendingLoads()
-  const loadReason: VrmLifecycleReason = vrmGroup.value ? 'model-switch' : 'initial-load'
+  const currentLoadReason = resolveVrmLoadReason()
   const loadStartedAt = performance.now()
   let nextVrm: VRM | undefined
   let nextVrmGroup: Group | undefined
@@ -686,26 +703,27 @@ async function loadModel() {
       return
     }
 
+    emit('loadStart', currentLoadReason)
+
     if (isStageThreeRuntimeTraceEnabled()) {
       stageThreeRuntimeTraceContext.emit(stageThreeTraceVrmLoadStartEvent, {
         modelSrc: modelSrc.value,
-        reason: loadReason,
+        reason: currentLoadReason,
         rendererMemory: createThreeRendererMemorySnapshot(getRendererInstance()),
         sceneSummary: createVrmSceneSummarySnapshot(),
         ts: loadStartedAt,
       })
     }
 
-    emit('loadStart')
     modelLoaded.value = false
     const reusableInstance = takeManagedVrmInstance(getManagedVrmScopeKey(), modelSrc.value)
     if (reusableInstance) {
       if (!isManagedVrmInstanceReusable(reusableInstance)) {
-        destroyManagedVrmInstanceWithHooks(reusableInstance, loadReason)
+        destroyManagedVrmInstanceWithHooks(reusableInstance, currentLoadReason)
       }
       else {
         if (!isLoadRequestCurrent(requestId)) {
-          destroyManagedVrmInstanceWithHooks(stashManagedVrmInstance(reusableInstance), loadReason)
+          destroyManagedVrmInstanceWithHooks(stashManagedVrmInstance(reusableInstance), currentLoadReason)
           return
         }
 
@@ -717,14 +735,14 @@ async function loadModel() {
         if (!airiIblProbe && scene.value)
           airiIblProbe = createIblProbeController(scene.value)
 
-        if (loadReason === 'model-switch') {
+        if (currentLoadReason === 'model-switch') {
           componentCleanUp('model-switch', { invalidate: false })
         }
 
         runVrmLoadHooks({
           cacheHit: true,
           camera: camera.value,
-          reason: loadReason,
+          reason: currentLoadReason,
           vrm: reusableInstance.vrm,
           vrmGroup: reusableInstance.group,
         })
@@ -736,7 +754,7 @@ async function loadModel() {
           stageThreeRuntimeTraceContext.emit(stageThreeTraceVrmLoadEndEvent, {
             durationMs: performance.now() - loadStartedAt,
             modelSrc: modelSrc.value,
-            reason: loadReason,
+            reason: currentLoadReason,
             rendererMemory: createThreeRendererMemorySnapshot(getRendererInstance()),
             sceneSummary: createVrmSceneSummarySnapshot({ mixer: reusableInstance.mixer, vrm: reusableInstance.vrm }),
             ts: performance.now(),
@@ -755,7 +773,7 @@ async function loadModel() {
     })
     if (!_vrmInfo || !_vrmInfo._vrm || !_vrmInfo._vrmGroup) {
       if (isLoadRequestCurrent(requestId)) {
-        emitVrmLoadError(loadReason, loadStartedAt, 'VRM model loading failure')
+        emitVrmLoadError(currentLoadReason, loadStartedAt, 'VRM model loading failure')
         console.warn('VRM model loading failure!')
         emit('error', new Error('VRM model loading failure'))
       }
@@ -776,7 +794,7 @@ async function loadModel() {
     runVrmLoadHooks({
       cacheHit: false,
       camera: camera.value,
-      reason: loadReason,
+      reason: currentLoadReason,
       vrm: _vrm,
       vrmGroup: _vrmGroup,
     })
@@ -792,7 +810,7 @@ async function loadModel() {
     }
     if (!clip) {
       disposeDetachedVrm(nextVrm, nextVrmGroup)
-      emitVrmLoadError(loadReason, loadStartedAt, 'No VRM animation loaded')
+      emitVrmLoadError(currentLoadReason, loadStartedAt, 'No VRM animation loaded')
       console.warn('No VRM animation loaded')
       if (isLoadRequestCurrent(requestId))
         emit('error', new Error('No VRM animation loaded'))
@@ -865,7 +883,7 @@ async function loadModel() {
             material: mat,
             materialIndex,
             mesh: child,
-            reason: loadReason,
+            reason: currentLoadReason,
             vrm: _vrm,
             vrmGroup: _vrmGroup,
           })
@@ -873,7 +891,7 @@ async function loadModel() {
       }
     })
 
-    if (loadReason === 'model-switch') {
+    if (currentLoadReason === 'model-switch') {
       componentCleanUp('model-switch', { invalidate: false })
     }
 
@@ -891,7 +909,7 @@ async function loadModel() {
       stageThreeRuntimeTraceContext.emit(stageThreeTraceVrmLoadEndEvent, {
         durationMs: performance.now() - loadStartedAt,
         modelSrc: modelSrc.value,
-        reason: loadReason,
+        reason: currentLoadReason,
         rendererMemory: createThreeRendererMemorySnapshot(getRendererInstance()),
         sceneSummary: createVrmSceneSummarySnapshot({ mixer: vrmAnimationMixer.value, vrm: _vrm }),
         ts: performance.now(),
@@ -903,7 +921,7 @@ async function loadModel() {
       if (nextVrm && nextVrmGroup) {
         runVrmDisposeHooks({
           camera: camera.value,
-          reason: loadReason,
+          reason: currentLoadReason,
           vrm: nextVrm,
           vrmGroup: nextVrmGroup,
         })
@@ -916,7 +934,7 @@ async function loadModel() {
     if (!isLoadRequestCurrent(requestId))
       return
 
-    emitVrmLoadError(loadReason, loadStartedAt, err)
+    emitVrmLoadError(currentLoadReason, loadStartedAt, err)
     console.error(err)
     emit('error', err)
   }

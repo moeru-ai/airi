@@ -47,7 +47,7 @@ export const providerGroq = defineProvider<GroqConfig>({
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: [ProviderValidationCheck.ModelList],
+      checks: [ProviderValidationCheck.ModelList, ProviderValidationCheck.ChatCompletions],
     }),
   },
 })

@@ -76,6 +76,7 @@ components.d.ts
 **/.netlify/*
 **/.netlify/functions-serve/*
 
+**/server/public/*
 **/public/assets/js/*
 **/assets/live2d/models/*
 **/assets/vrm/models/*
@@ -127,6 +128,12 @@ plugins-local
 plugins-development
 
 apps/stage-pocket/ios/buildServer.json
-.ghfs/
-.docs/superpowers
+apps/stage-pocket/airi-pocket.jks
 apps/stage-tamagotchi/electron.vite.config.*.mjs
+.docs/superpowers
+
+# Tools - ghfs
+.ghfs/
+
+# Tools - Obsidian
+.obsidian/

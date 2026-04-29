@@ -245,6 +245,8 @@ jobs:
           path: apps/stage-tamagotchi/bundle/${{ env.FLATPAK_BUNDLE_NAME }}
 
       - name: Sign Windows Artifacts with SignPath (Nightly + Windows Only)
+        id: signpath-nightly-windows
+        continue-on-error: true
         uses: signpath/github-action-submit-signing-request@v2
         if: ${{ github.event_name == 'schedule' && (matrix.os == 'windows-latest' && github.repository == 'moeru-ai/airi') }}
         with:
@@ -259,12 +261,25 @@ jobs:
           download-signed-artifact-timeout-in-seconds: 900 # 15 minutes
           output-artifact-directory: apps/stage-tamagotchi/bundle/signed/windows/
 
+      - name: Warn When Windows Signing Fails (Nightly)
+        if: ${{ github.event_name == 'schedule' && matrix.os == 'windows-latest' && steps.signpath-nightly-windows.outcome != 'success' }}
+        run: |
+          echo "::warning::SignPath Windows signing failed for nightly build. Continuing with unsigned artifact at apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}."
+
       - name: Upload Signed Artifacts (Nightly + Non-Linux)
-        if: ${{ github.event_name == 'schedule' && (matrix.os == 'windows-latest') }}
+        if: ${{ github.event_name == 'schedule' && matrix.os == 'windows-latest' && steps.signpath-nightly-windows.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           name: ${{ env.BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/signed/windows/${{ env.BUNDLE_NAME }}
+          overwrite: true
+
+      - name: Upload Unsigned Windows Artifacts Fallback (Nightly)
+        if: ${{ github.event_name == 'schedule' && matrix.os == 'windows-latest' && steps.signpath-nightly-windows.outcome != 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.BUNDLE_NAME }}
+          path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
           overwrite: true
 
       # NOTICE: Electron Builder generates latest-x64.yml during the build step, before this workflow
@@ -272,9 +287,14 @@ jobs:
       # which changes the updater hashes too. Regenerating latest-x64.yml from the signed installer keeps
       # the published Windows update metadata aligned with the final released artifact.
       - name: Regenerate Windows latest-x64.yml (Nightly + Windows Only)
-        if: ${{ github.event_name == 'schedule' && matrix.os == 'windows-latest' }}
+        if: ${{ github.event_name == 'schedule' && matrix.os == 'windows-latest' && steps.signpath-nightly-windows.outcome == 'success' }}
         run: |
           pnpm -F @proj-airi/stage-tamagotchi run regenerate-windows-latest --input apps/stage-tamagotchi/bundle/signed/windows/${{ env.BUNDLE_NAME }} --output apps/stage-tamagotchi/bundle/latest-x64.yml --version ${{ env.VERSION }}
+
+      - name: Regenerate Windows latest-x64.yml From Unsigned Artifact (Nightly Fallback)
+        if: ${{ github.event_name == 'schedule' && matrix.os == 'windows-latest' && steps.signpath-nightly-windows.outcome != 'success' }}
+        run: |
+          pnpm -F @proj-airi/stage-tamagotchi run regenerate-windows-latest --input apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }} --output apps/stage-tamagotchi/bundle/latest-x64.yml --version ${{ env.VERSION }}
 
       # ---------
       # Workflow Dispatch only
@@ -342,6 +362,8 @@ jobs:
           path: apps/stage-tamagotchi/bundle/${{ env.FLATPAK_BUNDLE_NAME }}
 
       - name: Sign Windows Artifacts with SignPath (Manual + Windows Only)
+        id: signpath-manual-windows
+        continue-on-error: true
         uses: signpath/github-action-submit-signing-request@v2
         if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'windows-latest' && github.repository == 'moeru-ai/airi') }}
         with:
@@ -356,8 +378,13 @@ jobs:
           download-signed-artifact-timeout-in-seconds: 900 # 15 minutes
           output-artifact-directory: apps/stage-tamagotchi/bundle/signed/windows/
 
+      - name: Warn When Windows Signing Fails (Manual)
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && matrix.os == 'windows-latest' && steps.signpath-manual-windows.outcome != 'success' }}
+        run: |
+          echo "::warning::SignPath Windows signing failed for workflow_dispatch artifact build. Continuing with unsigned artifact at apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}."
+
       - name: Move Signed Artifacts (Manual + Release + Windows Only)
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && matrix.os == 'windows-latest' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && matrix.os == 'windows-latest' && steps.signpath-manual-windows.outcome == 'success' }}
         run: |
           Move-Item -Force apps/stage-tamagotchi/bundle/signed/windows/${{ env.BUNDLE_NAME }} apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
 
@@ -408,6 +435,12 @@ jobs:
           echo "BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-bundle-name --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $env:GITHUB_ENV
           echo "VERSION=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-version --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $env:GITHUB_ENV
 
+      - name: Get Artifacts Envs (Automatic + Non-Windows)
+        if: ${{ github.event_name == 'release' && matrix.os != 'windows-latest' }}
+        working-directory: ./apps/stage-tamagotchi
+        run: |
+          echo "BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-bundle-name --release --auto-tag)" >> $GITHUB_ENV
+
       - name: Upload Artifacts (Automatic + Windows Only)
         if: ${{ github.event_name == 'release' && matrix.os == 'windows-latest' }}
         id: unsigned-artifacts-release
@@ -417,6 +450,8 @@ jobs:
           path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
 
       - name: Sign Windows Artifacts with SignPath (Nightly + Windows Only)
+        id: signpath-release-windows
+        continue-on-error: true
         uses: signpath/github-action-submit-signing-request@v2
         if: ${{ github.event_name == 'release' && (matrix.os == 'windows-latest' && github.repository == 'moeru-ai/airi') }}
         with:
@@ -431,8 +466,13 @@ jobs:
           download-signed-artifact-timeout-in-seconds: 900 # 15 minutes
           output-artifact-directory: apps/stage-tamagotchi/bundle/signed/windows/
 
+      - name: Warn When Windows Signing Fails (Release)
+        if: ${{ github.event_name == 'release' && matrix.os == 'windows-latest' && steps.signpath-release-windows.outcome != 'success' }}
+        run: |
+          echo "::warning::SignPath Windows signing failed for release build. Continuing with unsigned artifact at apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}."
+
       - name: Move Signed Artifacts (Automatic + Windows Only)
-        if: ${{ github.event_name == 'release' && matrix.os == 'windows-latest' }}
+        if: ${{ github.event_name == 'release' && matrix.os == 'windows-latest' && steps.signpath-release-windows.outcome == 'success' }}
         run: |
           Move-Item -Force apps/stage-tamagotchi/bundle/signed/windows/${{ env.BUNDLE_NAME }} apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
 
@@ -444,6 +484,34 @@ jobs:
         if: ${{ github.event_name == 'release' && matrix.os == 'windows-latest' }}
         run: |
           pnpm -F @proj-airi/stage-tamagotchi run regenerate-windows-latest --input apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }} --output apps/stage-tamagotchi/bundle/latest-x64.yml --version ${{ env.VERSION }}
+
+      - name: Upload Distribution Artifact (Automatic + macOS arm64 Only)
+        if: ${{ github.event_name == 'release' && matrix.os == 'macos-26' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: distribution-osx
+          path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
+
+      - name: Upload Distribution Artifact (Automatic + Windows Only)
+        if: ${{ github.event_name == 'release' && matrix.os == 'windows-latest' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: distribution-win
+          path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
+
+      - name: Upload Distribution Artifact (Automatic + Linux x64 Only)
+        if: ${{ github.event_name == 'release' && matrix.os == 'ubuntu-latest' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: distribution-linux-x64
+          path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
+
+      - name: Upload Distribution Artifact (Automatic + Linux arm64 Only)
+        if: ${{ github.event_name == 'release' && matrix.os == 'ubuntu-24.04-arm' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: distribution-linux-arm64
+          path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
 
       - name: Upload To GitHub Releases (Automatic)
         if: ${{ github.event_name == 'release' }}
@@ -462,3 +530,43 @@ jobs:
             apps/stage-tamagotchi/bundle/${{ env.PRODUCT_NAME }}-*.flatpak
             apps/stage-tamagotchi/bundle/latest-*.yml
           append_body: true
+
+  publish-distribution:
+    name: Publish Distribution
+    needs: build
+    if: ${{ github.event_name == 'release' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - artifact_name: distribution-osx
+            platform: osx
+          - artifact_name: distribution-win
+            platform: win
+          - artifact_name: distribution-linux-x64
+            platform: linux
+          - artifact_name: distribution-linux-arm64
+            platform: linux
+    steps:
+      - name: Resolve release version
+        run: |
+          echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+
+      - name: Download distribution artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist/${{ matrix.artifact_name }}
+
+      - name: Resolve artifact path
+        run: |
+          echo "ARTIFACT_PATH=$(find dist/${{ matrix.artifact_name }} -maxdepth 1 -mindepth 1 | head -n 1)" >> $GITHUB_ENV
+
+      - name: Setup butler
+        uses: remarkablegames/setup-butler@v2
+
+      # https://itch.io/docs/butler/pushing.html
+      - name: Publish distribution artifact to itch.io
+        run: butler push "${{ env.ARTIFACT_PATH }}" nekomeowww/airi:${{ matrix.platform }} --userversion "${{ env.VERSION }}"
+        env:
+          BUTLER_API_KEY: ${{ secrets.GAME_PUBLISHING_ITCHIO }}
