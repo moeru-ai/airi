@@ -21,18 +21,21 @@ docs:
   'switch-to-dark-mode': 다크 모드로 전환
   'pin-on-top': 맨 위에 고정
   'unpin-from-top': 맨 위 고정 해제
-  'switch-profile': Switch Profile
+  'switch-profile': 프로필 전환
   'close': 닫기
   'expand': 확장
   'collapse': 접기
-  'login': Sign in
-  'logging-in': Signing in...
-  'account': Account
-  'logout': Sign out
-'status-island':
-  connected: WebSocket connected
-  disconnected: WebSocket disconnected
-  'open-settings': Open WebSocket settings
+  'login': 가입하기
+  'logging-in': 로그인 중...
+  'account': 계정
+  'logout': 로그아웃
+widgets:
+  close: Close widget
+  empty:
+    title: No widget active
+    description: Widgets will appear here when a tool or plugin spawns one.
+  loading: Loading widget…
+  waiting: Waiting for widget data for "{id}"…
 notice:
   'fade-on-hover':
     title: 호버 시 페이드
@@ -48,3 +51,48 @@ notice:
     preparing: 준비 중…
     read-more: 더 보기
     preview-title: 이게 뭐죠?
+about:
+  subtitle: 데스크탑 버전
+  current-version: 현재 버전
+  common:
+    cancel: 취소
+  links:
+    title: 링크
+    home: 홈
+    documentation: 문서
+    github: Github
+  update:
+    lane:
+      label: 업데이트 라인
+      description: 따라갈 릴리즈 채널을 선택하세요
+      placeholder: 릴리즈 라인 선택
+    channels:
+      auto: 자동
+      stable: 안정
+      alpha: 알파
+      beta: 베타
+      nightly: 실험적
+      canary: 카나리아
+    status:
+      downloading: 업데이트 다운로드 중...
+      error-prefix: 에러
+      latest: 최신 버전 (v{version}).
+      downloaded:
+        windows: 조용히 설치할 준비가 되었어요 (v{version}).
+        restart: 재시작시 업데이트를 설치할 준비가 되었어요 (v{version}).
+    actions:
+      download: 업데이트 다운로드
+      download-short: 다운로드
+      confirm-download: 다운로드 확인
+      check-for-updates: 업데이트 확인하기
+      checking: 확인 중...
+      latest-version: 최신 버전
+      disabled-dev: Updates disabled in Dev
+      retry-check: 다시 확인하기
+      restart-silent: 재 시작 후 조용히 업데이트하기
+      restart-install: 재시작 후 업데이트하기
+      confirm-restart: 정말 재 시작할까요
+    dialog:
+      title: 업데이트 사용 가능
+      description: 새로운 버전 (v{version})이 이용 가능해요.
+      no-release-notes-markdown: _No release notes provided._

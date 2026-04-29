@@ -114,11 +114,6 @@ const currentMemoryTimeline = computed(() => {
   return [...(currentSessionRecord.value?.memoryTimeline ?? [])]
     .sort((left, right) => right.updatedAt - left.updatedAt)
 })
-const setupChecklistBadge = computed(() => {
-  const items = setupChecklist.value
-  const done = items.filter(i => i.done).length
-  return `${done}/${items.length} ready`
-})
 const desktopSetupBadge = computed(() => desktopSetupStatus.value?.state || 'checking')
 const sessionBadge = computed(() => selectedSessionId.value || 'none')
 const savedConversationsBadge = computed(() => `${sessionRecords.value.length} saved`)
@@ -130,10 +125,10 @@ const inputModeBadge = computed(() => {
   }
 })
 const rollingMemoryBadge = computed(() => sessionMemorySummary.value ? 'Active' : 'Empty')
-const contextStateBadge = computed(() => `${visibleHistoryTurnCount.value}/6 history`)
 const visibleHistoryTurnCount = computed(() => {
   return chatMessages.value.filter(m => m.role === 'user' || m.role === 'assistant').length
 })
+const contextStateBadge = computed(() => `${visibleHistoryTurnCount.value}/6 history`)
 const historyWindowPreview = computed(() => {
   const relevant = chatMessages.value
     .filter(m => m.role === 'user' || m.role === 'assistant')
@@ -182,6 +177,11 @@ const setupChecklist = computed(() => {
         : 'Not needed for the current desktop input mode.',
     },
   ]
+})
+const setupChecklistBadge = computed(() => {
+  const items = setupChecklist.value
+  const done = items.filter(i => i.done).length
+  return `${done}/${items.length} ready`
 })
 
 function getDesktopSetupInvokers() {

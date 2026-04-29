@@ -1,5 +1,7 @@
 import type { AudioChunk, VideoFrame } from '@proj-airi/visual-chat-shared'
 
+import { Buffer } from 'node:buffer'
+
 import { describe, expect, it } from 'vitest'
 
 import { alignAudioToVideo, createAVPair } from '.'

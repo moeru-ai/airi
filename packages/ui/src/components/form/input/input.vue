@@ -1,8 +1,10 @@
 <script
   setup
   lang="ts"
-  generic="InputType extends 'number' | string, T = InputType extends 'number' ? (number | undefined) : ((string | undefined))"
+  generic="InputType extends 'number' | InputTypeHTMLAttribute | string, T = InputType extends 'number' ? (number | undefined) : ((string | undefined))"
 >
+import type { InputTypeHTMLAttribute } from 'vue'
+
 // Define button variants for better type safety and maintainability
 type InputVariant = 'primary' | 'secondary' | 'primary-dimmed'
 
@@ -16,6 +18,12 @@ const props = withDefaults(defineProps<{
   variant?: InputVariant // Button style variant
   size?: InputSize // Button size variant
   theme?: InputTheme // Button theme
+  /**
+   * Forwarded to the underlying `<input>` element so the browser participates
+   * in form validation (HTML5 `:invalid` styling and submit blocking) without
+   * the consumer having to drop down to raw HTML.
+   */
+  required?: boolean
 }>(), {
   variant: 'primary',
   size: 'md',
@@ -67,6 +75,7 @@ const variantClasses: Record<InputVariant, Record<InputTheme, {
     <input
       v-model.number="modelValue"
       :type="props.type || 'text'"
+      :required="props.required"
       :class="[
         'transition-all duration-200 ease-in-out',
         'cursor-disabled:not-allowed',
@@ -78,6 +87,7 @@ const variantClasses: Record<InputVariant, Record<InputTheme, {
     <input
       v-model="modelValue"
       :type="props.type || 'text'"
+      :required="props.required"
       :class="[
         'transition-all duration-200 ease-in-out',
         'cursor-disabled:not-allowed',

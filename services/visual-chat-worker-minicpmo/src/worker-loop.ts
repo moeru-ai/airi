@@ -1,3 +1,5 @@
+import type { Buffer } from 'node:buffer'
+
 import type { DecodedChunk, DecodeResult, InferenceBackend, OllamaConfig } from '@proj-airi/visual-chat-model-minicpmo'
 import type { InferenceMetrics } from '@proj-airi/visual-chat-observability'
 

@@ -124,7 +124,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="fixed bottom-10 left-6 z-50 <md:hidden">
+  <div
+    v-if="false"
+    class="fixed bottom-10 left-6 z-50 <md:hidden"
+  >
     <button
       v-if="!isVisible"
       :class="[

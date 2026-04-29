@@ -2,6 +2,7 @@ import type { DecodedChunk, InferenceBackend } from '../backends/common/backend-
 import type { OllamaConfig } from './config'
 import type { OllamaChatMessage } from './http-api'
 
+import { Buffer } from 'node:buffer'
 import { readFileSync } from 'node:fs'
 
 import { createInferenceLogger } from '@proj-airi/visual-chat-observability'

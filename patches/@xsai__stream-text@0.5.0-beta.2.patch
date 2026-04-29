@@ -1,0 +1,55 @@
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index e184d851f8f0dec7456bab129ed90eaad8944125..e363d3d15261fa57831cf4d6fee384644bd45d00 100644
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -1,8 +1,10 @@
+ import { WithUnknown } from '@xsai/shared';
+-import { CompletionToolCall, CompletionToolResult, FinishReason, Usage, ChatOptions, CompletionStep, PrepareStep, StopCondition, Message } from '@xsai/shared-chat';
++import { CompletionToolCall, CompletionToolResult, FinishReason, OnToolCallFinishCallback, OnToolCallStartCallback, RepairToolCallFunction, Usage, ChatOptions, CompletionStep, PrepareStep, StopCondition, Message } from '@xsai/shared-chat';
+
+ type StreamTextEvent = (CompletionToolCall & {
+     type: 'tool-call';
++}) | (CompletionToolResult & {
++    type: 'tool-error';
+ }) | (CompletionToolResult & {
+     type: 'tool-result';
+ }) | {
+@@ -33,7 +35,11 @@ interface StreamTextOptions extends ChatOptions {
+     onEvent?: (event: StreamTextEvent) => Promise<unknown> | unknown;
+     onFinish?: (step?: CompletionStep) => Promise<unknown> | unknown;
+     onStepFinish?: (step: CompletionStep) => Promise<unknown> | unknown;
++    captureToolErrors?: boolean;
++    onToolCallFinish?: OnToolCallFinishCallback;
++    onToolCallStart?: OnToolCallStartCallback;
+     prepareStep?: PrepareStep;
++    repairToolCall?: RepairToolCallFunction;
+     /** @default `stepCountAtLeast(1)` */
+     stopWhen?: StopCondition;
+     /**
+diff --git a/dist/index.js b/dist/index.js
+index 6353da4d45ad65340104530d83b5337bba8d9d77..34e6e4fda7f390be6334fe3eadcbc5199957e998 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -139,6 +139,10 @@ const streamText = (options) => {
+         validToolCalls.map(async (toolCall) => executeTool({
+           abortSignal: options.abortSignal,
++          captureToolErrors: options.captureToolErrors,
+           messages,
++          onToolCallFinish: options.onToolCallFinish,
++          onToolCallStart: options.onToolCallStart,
++          repairToolCall: options.repairToolCall,
+           toolCall,
+           tools: options.tools
+         }))
+@@ -148,7 +151,10 @@ const streamText = (options) => {
+         toolResults.push(completionToolResult);
+         messages.push(message);
+         pushEvent({ ...completionToolCall, type: "tool-call" });
+-        pushEvent({ ...completionToolResult, type: "tool-result" });
++        pushEvent({
++          ...completionToolResult,
++          type: completionToolResult.isError ? "tool-error" : "tool-result"
++        });
+       }
+     } else {
+       pushEvent({

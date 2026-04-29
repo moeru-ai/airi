@@ -46,6 +46,7 @@ function createTestDeps() {
     fluxTransactionService: {} as any,
     stripeService: {} as any,
     billingService: {} as any,
+    ttsMeter: {} as any,
     billingMq: {} as any,
     configKV: {
       getOrThrow: vi.fn(async (key: string) => {
@@ -64,6 +65,7 @@ function createTestDeps() {
       API_SERVER_URL: 'http://localhost:3000',
     } as any,
     otel: null,
+    userDeletionService: {} as any,
   }
 
   return {

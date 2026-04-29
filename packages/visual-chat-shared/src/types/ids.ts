@@ -1,3 +1,5 @@
+import type { Buffer } from 'node:buffer'
+
 export type { SourceDescriptor, SourceSwitchRequest } from '@proj-airi/visual-chat-protocol'
 export type { RoomCreateRequest, RoomInfo } from '@proj-airi/visual-chat-protocol'
 

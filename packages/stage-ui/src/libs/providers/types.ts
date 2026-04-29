@@ -35,6 +35,16 @@ export function isModelProvider(providerInstance: ProviderInstance): providerIns
   return false
 }
 
+export interface ProviderOnboardingField {
+  key: string
+  type: 'text' | 'password'
+  label: string
+  description?: string
+  placeholder?: string
+  required?: boolean
+  defaultValue?: string
+}
+
 export interface ProviderExtraMethods<TConfig> {
   listModels?: (config: TConfig, provider: ProviderInstance) => Promise<ModelInfo[]>
   listVoices?: (config: TConfig, provider: ProviderInstance) => Promise<VoiceInfo[]>
@@ -165,6 +175,7 @@ export interface ProviderDefinition<TConfig extends any = any> {
   requiresCredentials?: boolean
 
   createProviderConfig: (contextOptions: { t: ComposerTranslation }) => $ZodType<TConfig>
+  onboardingFields?: (ctx: { t: ComposerTranslation }) => ProviderOnboardingField[]
   createProvider: (config: TConfig) => ProviderInstance
   extraMethods?: ProviderExtraMethods<TConfig>
   validationRequiredWhen?: (config: TConfig) => boolean

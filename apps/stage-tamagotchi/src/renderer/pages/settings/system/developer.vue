@@ -113,9 +113,18 @@ const openDevtoolsWindow = useElectronEventaInvoke(electronOpenDevtoolsWindow)
     icon="i-solar:code-bold-duotone"
     :text="t('tamagotchi.settings.devtools.pages.markdown-stress.title')"
     transition="all ease-in-out duration-250"
-    @click="() => openDevtoolsWindow({ route: '/devtools/markdown-stress' })"
+    @click="() => openDevtoolsWindow({ key: 'markdown-stress', route: '/devtools/markdown-stress' })"
   >
     {{ t('tamagotchi.settings.devtools.pages.markdown-stress.title') }}
+  </ButtonBar>
+  <ButtonBar
+    mb-2
+    icon="i-solar:chart-2-bold-duotone"
+    :text="t('tamagotchi.settings.devtools.pages.io-tracer.title')"
+    transition="all ease-in-out duration-250"
+    @click="() => openDevtoolsWindow({ key: 'io-tracer', route: '/devtools/io-tracer', width: 1600, height: 900 })"
+  >
+    {{ t('tamagotchi.settings.devtools.pages.io-tracer.title') }}
   </ButtonBar>
   <ButtonBar
     mb-2
@@ -143,16 +152,6 @@ const openDevtoolsWindow = useElectronEventaInvoke(electronOpenDevtoolsWindow)
     description="settings.animations.use-page-specific-transitions.description"
     transition="all ease-in-out duration-250"
   />
-  <CheckBar
-    v-model="settings.inspectUpdaterDiagnostics"
-    mb-2
-    icon-on="i-solar:bug-bold-duotone"
-    icon-off="i-solar:bug-minimalistic-outline"
-    text="Inspect updater diagnostics"
-    description="Show detailed updater diagnostics in the developer updater page."
-    transition="all ease-in-out duration-250"
-  />
-
   <div flex="~ col gap-4" mt-2 pb-12>
     <IconItem
       v-for="(item, index) in menu"

@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/cap-vite",
   "type": "module",
-  "version": "0.9.0-beta.5",
+  "version": "0.9.0",
   "description": "CLI that starts a Vite dev server and runs Capacitor live reload",
   "author": {
     "name": "Moeru AI Project AIRI Team",
@@ -41,6 +41,6 @@
   },
   "dependencies": {
     "cac": "^7.0.0",
-    "tinyexec": "^1.0.4"
+    "tinyexec": "^1.1.1"
   }
 }

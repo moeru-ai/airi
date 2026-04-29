@@ -21,7 +21,7 @@ export function setupAboutWindowReusable(params: {
     const window = new BrowserWindow({
       title: 'About AIRI',
       width: 670,
-      height: 730,
+      height: 880,
       show: false,
       resizable: true,
       maximizable: false,

@@ -10,7 +10,7 @@ import * as yaml from 'yaml'
 
 import { getFilenames } from '../utils'
 
-export type UpdateTestChannel = 'stable' | 'nightly' | 'canary'
+export type UpdateTestChannel = 'stable' | 'beta' | 'alpha' | 'nightly' | 'canary'
 
 export interface GenerateManifestFixturesOptions {
   rootDir: string

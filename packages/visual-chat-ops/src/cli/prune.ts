@@ -2,7 +2,7 @@ import { getVisualChatDir } from '@proj-airi/visual-chat-shared'
 import { DEFAULT_RETENTION, getDirectorySizeMb, pruneWithPolicy } from '@proj-airi/visual-chat-storage'
 
 export async function prune() {
-  console.log('=== AIRI Visual Chat Pruner ===\n')
+  console.info('=== AIRI Visual Chat Pruner ===\n')
 
   const cacheDir = getVisualChatDir('cache')
   const logsDir = getVisualChatDir('logs')
@@ -18,10 +18,10 @@ export async function prune() {
     const sizeBefore = await getDirectorySizeMb(path)
     const { byAge, bySize } = await pruneWithPolicy(path, DEFAULT_RETENTION)
     const sizeAfter = await getDirectorySizeMb(path)
-    console.log(`  ${name}: removed ${byAge} by age, ${bySize} by size (${sizeBefore.toFixed(1)}MB -> ${sizeAfter.toFixed(1)}MB)`)
+    console.info(`  ${name}: removed ${byAge} by age, ${bySize} by size (${sizeBefore.toFixed(1)}MB -> ${sizeAfter.toFixed(1)}MB)`)
   }
 
-  console.log('\nPrune complete.')
+  console.info('\nPrune complete.')
 }
 
 prune()

@@ -88,20 +88,20 @@ describe('tools/character/orchestrator/spark-command', () => {
   })
 
   it('emits a strict parameter schema', async () => {
-    const tool = await createSparkCommandTool({
+    const tools = await createSparkCommandTool({
       sendSparkCommand: () => undefined,
     })
 
-    expect(tool.function.name).toBe('builtIn_emitSparkCommand')
-    expect(tool.function.parameters.additionalProperties).toBe(false)
+    expect(tools[0].function.name).toBe('builtIn_emitSparkCommand')
+    expect(tools[0].function.parameters.additionalProperties).toBe(false)
   })
 
   it('avoids propertyNames in provider-facing schema', async () => {
-    const tool = await createSparkCommandTool({
+    const tools = await createSparkCommandTool({
       sendSparkCommand: () => undefined,
     })
 
-    const schema = tool.function.parameters as JsonSchema
+    const schema = tools[0].function.parameters as JsonSchema
     const guidance = getObjectSchema(schema.properties?.guidance as JsonSchema)
     const guidancePersona = guidance?.properties?.persona as JsonSchema
     const contexts = getArraySchema(schema.properties?.contexts as JsonSchema)
@@ -113,11 +113,11 @@ describe('tools/character/orchestrator/spark-command', () => {
   })
 
   it('uses explicit required keys for nested strict option objects', async () => {
-    const tool = await createSparkCommandTool({
+    const tools = await createSparkCommandTool({
       sendSparkCommand: () => undefined,
     })
 
-    const schema = tool.function.parameters as JsonSchema
+    const schema = tools[0].function.parameters as JsonSchema
     expect(schema.required).toEqual([
       'destinations',
       'interrupt',
@@ -170,11 +170,11 @@ describe('tools/character/orchestrator/spark-command', () => {
 
   it('builds and dispatches spark commands with generated ids', async () => {
     const sendSparkCommand = vi.fn()
-    const tool = await createSparkCommandTool({
+    const tools = await createSparkCommandTool({
       sendSparkCommand,
     })
 
-    const result = await tool.execute({
+    const result = await tools[0].execute({
       destinations: ['minecraft'],
       interrupt: 'soft',
       priority: 'high',

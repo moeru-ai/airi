@@ -1,4 +1,6 @@
 chat:
+  actions:
+    retry: Retry
   message:
     character-name:
       airi: AIRI
@@ -81,6 +83,10 @@ promo-banner:
       title: 春のテーマアップデート
       eventName: 窓・机・ナイトランプのテーマをアンロックして、部屋を刷新しましょう。
       date: 04/05 - 04/22
-      reward: ログイン時の無料テーマ抽選チケット
+      reward: Free Theme Draw Ticket on Sign-in
       cta: テーマを表示
 waiting: 待機中
+websocket-status:
+  connected: WebSocketが接続されました
+  disconnected: WebSocketが切断されました
+  open-settings: WebSocketの設定を開く

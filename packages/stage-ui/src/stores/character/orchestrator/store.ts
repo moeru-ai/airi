@@ -1,5 +1,7 @@
+import type { SparkNotifyResponseControl } from '@proj-airi/core-agent/agents/spark-notify'
 import type { WebSocketBaseEvent, WebSocketEventOf, WebSocketEvents } from '@proj-airi/server-sdk'
 
+import { setupAgentSparkNotifyHandler } from '@proj-airi/core-agent/agents/spark-notify'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
@@ -8,9 +10,8 @@ import { useLLM } from '../../llm'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useConsciousnessStore } from '../../modules/consciousness'
 import { useProvidersStore } from '../../providers'
-import { setupAgentSparkNotifyHandler } from './agents/event-handler-spark-notify'
 
-export { sparkNotifyCommandSchema } from './agents/event-handler-spark-notify'
+export { sparkNotifyCommandSchema } from '@proj-airi/core-agent/agents/spark-notify'
 
 export const useCharacterOrchestratorStore = defineStore('character-orchestrator', () => {
   const { stream } = useLLM()
@@ -25,6 +26,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   const pendingNotifies = ref<Array<WebSocketEventOf<'spark:notify'>>>([])
   const scheduledNotifies = ref<Array<{
     event: WebSocketEventOf<'spark:notify'>
+    control?: SparkNotifyResponseControl
     enqueuedAt: number
     nextRunAt: number
     attempts: number
@@ -38,6 +40,8 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     maxAttempts: 3,
   })
   let tickTimer: ReturnType<typeof setInterval> | undefined
+  let initialized = false
+  const eventUnsubscribes: Array<() => void> = []
   const sparkNotifyAgent = setupAgentSparkNotifyHandler({
     stream,
     getActiveProvider: () => activeProvider.value,
@@ -74,43 +78,67 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     pendingNotifies.value = pendingNotifies.value.filter(item => item.data.id !== eventId)
   }
 
-  function enqueueSparkNotify(event: WebSocketEventOf<'spark:notify'>, options?: { reason?: string, nextRunAt?: number, maxAttempts?: number }) {
+  function enqueueSparkNotify(
+    event: WebSocketEventOf<'spark:notify'>,
+    options?: {
+      reason?: string
+      nextRunAt?: number
+      maxAttempts?: number
+      control?: SparkNotifyResponseControl
+    },
+  ) {
     if (!pendingNotifies.value.some(item => item.data.id === event.data.id)) {
-      pendingNotifies.value = [...pendingNotifies.value, event]
+      pendingNotifies.value.push(event)
     }
 
-    scheduledNotifies.value = [...scheduledNotifies.value, {
+    scheduledNotifies.value.push({
       event,
+      control: options?.control,
       enqueuedAt: Date.now(),
       nextRunAt: options?.nextRunAt ?? computeNextRunAt(event, 0),
       attempts: 0,
       maxAttempts: options?.maxAttempts ?? attentionConfig.value.maxAttempts,
       reason: options?.reason,
-    }]
+    })
   }
 
-  async function processSparkNotify(event: WebSocketEventOf<'spark:notify'>) {
-    const result = await sparkNotifyAgent.handle(event)
+  async function processSparkNotify(event: WebSocketEventOf<'spark:notify'>, control?: SparkNotifyResponseControl) {
+    const result = await sparkNotifyAgent.handle(event, control)
     if (!result?.commands?.length)
       return result
 
     for (const command of result.commands) {
       modsServerChannelStore.send({
         type: 'spark:command',
-        data: command,
+        data: command as WebSocketEvents['spark:command'],
       })
     }
 
     return result
   }
 
-  async function handleIncomingSparkNotify(event: WebSocketEventOf<'spark:notify'>) {
+  async function handleIncomingSparkNotify(event: WebSocketEventOf<'spark:notify'>, control?: SparkNotifyResponseControl) {
     if (event.data.urgency === 'immediate' && !processing.value) {
-      return await processSparkNotify(event)
+      return await processSparkNotify(event, control)
     }
 
-    enqueueSparkNotify(event, { reason: 'spark:notify' })
+    enqueueSparkNotify(event, { reason: 'spark:notify', control })
     return undefined
+  }
+
+  async function handleSparkNotifyWithReaction(
+    event: WebSocketEventOf<'spark:notify'>,
+    options?: SparkNotifyResponseControl & { fallbackText?: string },
+  ) {
+    await handleIncomingSparkNotify(event, options)
+
+    const reaction = [...characterStore.reactions]
+      .reverse()
+      .find(item => item.sourceEventId === event.data.id)
+      ?.message
+      ?.trim()
+
+    return reaction || options?.fallbackText || ''
   }
 
   function enqueueDueTasks(now: number) {
@@ -158,7 +186,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     removePending(next.event.data.id)
 
     try {
-      await processSparkNotify(next.event)
+      await processSparkNotify(next.event, next.control)
     }
     catch (error) {
       if (next.attempts + 1 < next.maxAttempts) {
@@ -198,25 +226,45 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   }
 
   function initialize() {
-    modsServerChannelStore.onEvent('spark:notify', async (event) => {
-      try {
-        await handleIncomingSparkNotify(event)
-      }
-      catch (error) {
-        console.warn('Failed to handle spark:notify event:', error)
-      }
-    })
+    if (initialized)
+      return
 
-    modsServerChannelStore.onEvent('spark:emit', async (event) => {
-      try {
-        await handleSparkEmit(event)
-      }
-      catch (error) {
-        console.warn('Failed to handle spark:emit event:', error)
-      }
-    })
+    initialized = true
+
+    eventUnsubscribes.push(
+      modsServerChannelStore.onEvent('spark:notify', async (event) => {
+        try {
+          await handleIncomingSparkNotify(event)
+        }
+        catch (error) {
+          console.warn('Failed to handle spark:notify event:', error)
+        }
+      }),
+    )
+
+    eventUnsubscribes.push(
+      modsServerChannelStore.onEvent('spark:emit', async (event) => {
+        try {
+          await handleSparkEmit(event)
+        }
+        catch (error) {
+          console.warn('Failed to handle spark:emit event:', error)
+        }
+      }),
+    )
 
     startTicker()
+  }
+
+  function dispose() {
+    stopTicker()
+
+    for (const unsubscribe of eventUnsubscribes) {
+      unsubscribe()
+    }
+
+    eventUnsubscribes.length = 0
+    initialized = false
   }
 
   return {
@@ -228,8 +276,10 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     initialize,
     startTicker,
     stopTicker,
+    dispose,
 
     handleSparkNotify: handleIncomingSparkNotify,
+    handleSparkNotifyWithReaction,
     handleSparkEmit,
   }
 })

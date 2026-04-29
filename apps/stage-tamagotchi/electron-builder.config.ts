@@ -12,7 +12,7 @@ function hasXcode26OrAbove() {
   try {
     const output = execSync('xcodebuild -version')
       .toString()
-      // eslint-disable-next-line e18e/prefer-static-regex
+
       .match(/Xcode (\d+)/)
     if (!output)
       return false
@@ -75,6 +75,11 @@ export default {
     'out/**',
     'resources/**',
     'package.json',
+    // NOTICE: Exclude npm `electron` package from app payload.
+    // Electron runtime is already provided by the outer app bundle; bundling a nested
+    // `node_modules/electron/dist/Electron.app` makes electron-builder deep-sign it and
+    // fails on non-code resources (for example `locale.pak`) with timestamp/signing errors.
+    '!**/node_modules/electron{,/**}',
     '!**/.vscode/*',
     '!src/**/*',
     '!**/node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}',
@@ -93,6 +98,13 @@ export default {
     '**/*.node',
     'node_modules/@proj-airi/visual-chat-gateway/**',
     'node_modules/@proj-airi/visual-chat-worker-minicpmo/**',
+  ],
+  extraResources: [
+    {
+      from: '../../engines/stage-tamagotchi-godot/build/${os}',
+      to: 'godot-stage',
+      filter: ['**/*'],
+    },
   ],
   extraMetadata: {
     name: 'ai.moeru.airi',

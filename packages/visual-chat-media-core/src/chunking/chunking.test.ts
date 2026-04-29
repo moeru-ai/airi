@@ -1,3 +1,5 @@
+import { Buffer } from 'node:buffer'
+
 import { AUDIO_CHUNK_BYTES } from '@proj-airi/visual-chat-protocol'
 import { describe, expect, it } from 'vitest'
 

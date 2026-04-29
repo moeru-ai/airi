@@ -137,13 +137,16 @@ export function useProviderValidation(providerId: string) {
     }
   }
 
-  const debouncedValidateConfiguration = useDebounceFn(() => {
-    const config = credentials.value
-    const hasApiKey = 'apiKey' in config && !!config.apiKey?.trim()
-    const hasBaseUrl = 'baseUrl' in config && !!config.baseUrl?.trim()
-    const hasAccountId = 'accountId' in config && !!config.accountId?.trim()
+  const AUTH_FIELDS = ['apiKey', 'baseUrl', 'accountId', 'apiToken', 'accessToken'] as const
 
-    if (!hasApiKey && !hasBaseUrl && !hasAccountId) {
+  const debouncedValidateConfiguration = useDebounceFn(() => {
+    const config = credentials.value as Record<string, unknown>
+    // Only check auth credential fields — excludes config-only fields like region, endpoint
+    const hasAnyCredential = AUTH_FIELDS.some((field) => {
+      const v = config[field]
+      return v !== null && v !== undefined && String(v).trim() !== ''
+    })
+    if (!hasAnyCredential) {
       isValid.value = false
       validationMessage.value = ''
       isValidating.value = 0
@@ -154,7 +157,11 @@ export function useProviderValidation(providerId: string) {
 
   onMounted(() => {
     providersStore.initializeProvider(providerId)
-    if (Object.keys(credentials.value).some(key => !!credentials.value[key])) {
+    const config = credentials.value as Record<string, unknown>
+    if (AUTH_FIELDS.some((field) => {
+      const v = config[field]
+      return v !== null && v !== undefined && String(v).trim() !== ''
+    })) {
       validateConfiguration()
     }
   })

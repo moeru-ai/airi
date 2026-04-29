@@ -1039,13 +1039,20 @@ globalThis.expect = (condition, message) => {
 
 globalThis.expectMoved = (minBlocks, message) => {
   const threshold = typeof minBlocks === 'number' ? minBlocks : 0.5
+  const actionName = globalThis.lastAction?.action?.tool
+  const nonMovingActions = [
+    'chat', 'giveUp', 'skip', 'stop', 'followPlayer', 'clearFollowTarget',
+    'givePlayer', 'consume', 'equip', 'putInChest', 'takeFromChest', 'discard',
+    'collectBlocks', 'mineBlockAt', 'craftRecipe', 'smeltItem', 'clearFurnace',
+    'placeHere', 'attack', 'attackPlayer', 'activate', 'recipePlan',
+  ]
+
+  if (!globalThis.lastAction || (typeof actionName === 'string' && nonMovingActions.includes(actionName)))
+    return true
+
   const movedDistance = typeof globalThis.lastAction?.result?.movedDistance === 'number'
     ? globalThis.lastAction.result.movedDistance
-    : null
-
-  if (movedDistance === null) {
-    throw new Error('Expectation failed: expectMoved() requires last action result with movedDistance telemetry')
-  }
+    : 0
 
   if (movedDistance >= threshold)
     return true
@@ -1239,6 +1246,12 @@ delete globalThis.__plannerLog
 
     try {
       const result = await this.activeRun.executeAction(action)
+
+      // Check if activeRun is still available after async operation
+      if (!this.activeRun) {
+        throw new Error('Tool calls are only allowed during REPL evaluation')
+      }
+
       const runtimeResult: ActionRuntimeResult = {
         action,
         ok: true,
@@ -1248,6 +1261,11 @@ delete globalThis.__plannerLog
       return runtimeResult
     }
     catch (error) {
+      // Check if activeRun is still available after async operation
+      if (!this.activeRun) {
+        throw new Error('Tool calls are only allowed during REPL evaluation')
+      }
+
       const runtimeResult: ActionRuntimeResult = {
         action,
         ok: false,

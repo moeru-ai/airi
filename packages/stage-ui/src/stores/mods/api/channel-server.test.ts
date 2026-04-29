@@ -1,5 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 
 const serverSdkMocks = vi.hoisted(() => {
   class MockClient {
@@ -347,5 +348,55 @@ describe('channel-server store reconnect', () => {
         data: { message: 'reconnect-authenticated-queued' },
       }),
     ]))
+  })
+
+  it('does not reconnect while the url scheme is not valid', async () => {
+    const store = useModsServerChannelStore()
+
+    const initializePromise = store.initialize({ token: 'secret' })
+    const firstClient = serverSdkMocks.MockClient.instances[0]
+
+    firstClient.simulateAuthenticated()
+    await initializePromise
+
+    store.websocketUrl = 'wss:'
+    await nextTick()
+
+    expect(serverSdkMocks.MockClient.instances).toHaveLength(1)
+
+    store.websocketUrl = 'wss://192.168.123.112:6121/ws'
+    await nextTick()
+
+    expect(serverSdkMocks.MockClient.instances).toHaveLength(2)
+  })
+
+  it('uses the persisted websocket auth token when initialize does not receive an explicit token', async () => {
+    const store = useModsServerChannelStore()
+    store.websocketAuthToken = 'persisted-secret'
+
+    const initializePromise = store.initialize()
+    const client = serverSdkMocks.MockClient.instances[0]
+
+    expect(client.options.token).toBe('persisted-secret')
+
+    client.simulateAuthenticated()
+    await initializePromise
+  })
+
+  it('reconnects when the persisted websocket auth token changes', async () => {
+    const store = useModsServerChannelStore()
+    store.websocketAuthToken = 'initial-secret'
+
+    const initializePromise = store.initialize()
+    const firstClient = serverSdkMocks.MockClient.instances[0]
+
+    firstClient.simulateAuthenticated()
+    await initializePromise
+
+    store.websocketAuthToken = 'rotated-secret'
+    await nextTick()
+
+    expect(serverSdkMocks.MockClient.instances.length).toBeGreaterThan(1)
+    expect(serverSdkMocks.MockClient.instances.at(-1)?.options.token).toBe('rotated-secret')
   })
 })

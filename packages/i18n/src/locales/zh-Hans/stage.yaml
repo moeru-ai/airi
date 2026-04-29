@@ -1,4 +1,6 @@
 chat:
+  actions:
+    retry: Retry
   message:
     character-name:
       airi: AIRI
@@ -7,10 +9,10 @@ chat:
   reasoning: 思考
 message: 说点什么...
 send-mode:
-  title: Send key
+  title: 发送键值
   enter: Enter
   ctrl-enter: Ctrl + Enter
-  double-enter: Double Enter
+  double-enter: 双击Enter
 operations:
   load-models: 加载模型
   load-models-status:
@@ -50,7 +52,7 @@ promo-banner:
       eventName: Sign in to claim stardust, avatar frames, and launch gifts.
       date: 03/28 - 04/10
       reward: Up to 120 Stardust
-      cta: Sign In
+      cta: 登录
     build:
       watermark: Build
       fallbackLabel: Build Bonus
@@ -76,11 +78,15 @@ promo-banner:
       reward: Save 6 on 30 / Save 15 on 68
       cta: Claim Coupon
     home:
-      watermark: Home
+      watermark: 首页
       fallbackLabel: Room Theme
       title: Spring Theme Update
       eventName: Unlock window, desk, and night-lamp themes to refresh your room.
       date: 04/05 - 04/22
-      reward: Free Theme Draw Ticket on Login
-      cta: View Theme
+      reward: Free Theme Draw Ticket on Sign-in
+      cta: 查看主题
 waiting: 等待中
+websocket-status:
+  connected: WebSocket 已连接
+  disconnected: WebSocket 已断开
+  open-settings: 打开 WebSocket 设置

@@ -1,0 +1,47 @@
+electronCallback:
+  title:
+    loading: 가입 완료 중
+    openingAiri: AIRI 여는 중
+    signedIn: 로그인 되었습니다
+    signInFailed: 가입 실패
+    finishSignInInAiri: AIRI 가입 끝내기
+    openAiriToContinue: AIRI를 열어서 계속해 주세요
+  message:
+    checkingResponse: 가입 응답을 확인하고 AIRI에 핸드오프를 준비합니다.
+    passingToAiri: 가입 정보를 AIRI로 전달합니다. 이 창은 잠시 후 닫힐 것입니다.
+    syncedAndSafeToClose: 가입을 시도했던 AIRI 클라이언트에 알림을 보냈습니다.
+    invalidResponse: 잘못된 응답 형식입니다. 이 정보를 사용할 수 없습니다.
+    loopbackUnreachable: 브라우저가 로컬 반환 포트를 통해 AIRI에 도달하지 못했습니다.
+    tryOpenDirectly: 로컬 핸드오프를 직접 실행합니다. 실패할 경우, 하단의 버튼을 사용해 주세요.
+    automaticHandoffFailed: 자동 핸드오프가 이 브라우저 세션에서 끝나지 못했습니다.
+  label:
+    signIn: 가입하기
+    safeToClose: 이 탭을 닫으셔도 됩니다.
+    whyStillHere: 이 탭이 왜 아직 여기 있을까요?
+  action:
+    openAiriManually: 수동으로 AIRI 열기
+  hint:
+    closeTabManually: 일부 브라우저들은 이 창을 자동으로 닫는 것을 허용하지 않습니다. 수동으로 닫을 수 있습니다.
+signIn:
+  title: 가입
+  error:
+    fallback: 가입 실패
+    unknown: 알 수 없는 오류가 발생했습니다
+    authFailed: 인증에 실패했습니다. 다시 시도해 주세요.
+  footer:
+    prefix: 계속하시려면, 저희의
+    terms: 이용 약관
+    and: 및
+    privacy: 정책
+webCallback:
+  title:
+    signIn: 가입
+    errorLabel: 가입 도중에 오류가 발생했습니다
+    loading: 가입 중...
+  message:
+    missingCodeOrState: 인증 코드 또는 상태가 누락되었습니다
+    missingFlowState: OIDC flow 상태가 누락되었습니다 - 재로그인해 주세요
+    tokenExchangeFailed: 토큰 교환 실패
+    finalizing: AIRI 인증 완료 중.
+  action:
+    tryAgain: 다시 시도해주세요

@@ -13,6 +13,7 @@ interface FakeLocator {
 interface FakePage {
   goto: (url: string) => Promise<void>
   waitForFunction: (predicate: () => boolean) => Promise<void>
+  waitForTimeout: (ms: number) => Promise<void>
   locator: (selector: string) => FakeLocator
 }
 
@@ -84,6 +85,9 @@ function createFixturePage(html: string): FakePage {
       }
 
       throw new Error('Timed out waiting for scene readiness')
+    },
+    async waitForTimeout(ms: number) {
+      await new Promise(resolve => setTimeout(resolve, ms))
     },
     locator(selector: string): FakeLocator {
       return {

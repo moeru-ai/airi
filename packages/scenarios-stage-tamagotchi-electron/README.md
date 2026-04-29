@@ -1,28 +1,39 @@
 # Scenarios - Stage Tamagotchi Electron
 
-Own the raw Electron capture scenarios for stage-tamagotchi.
+Own the Electron capture scenarios used to generate tamagotchi docs screenshots.
 
 ## Purpose
 
-This package owns the product-specific scenario definitions only. It depends on `@proj-airi/vishot-runner-electron` for:
+This package owns product-specific Electron scenario definitions only. It depends on `@proj-airi/vishot-runner-electron` for:
 
 - the `defineScenario()` helper
 - the capture context surface
 - Electron window and screenshot helpers exposed by the runner package
 
-It does not launch Electron itself and it does not compose final browser-scene exports.
+It does not launch Electron itself and it does not own browser-scene composition or shared screenshot staging.
 
 ## Workflow
 
-1. Build the Electron app.
-2. Run the runner package against one of the scenario modules in this package.
-3. Write raw screenshots into `packages/scenarios-stage-tamagotchi-browser/artifacts/raw`.
-4. Let the browser scene package consume those raw screenshots for final composition.
+This package is step 1 of the docs screenshot pipeline.
+
+1. Build `@proj-airi/stage-tamagotchi`.
+2. Run this scenario through `@proj-airi/vishot-runner-electron`.
+3. Write raw outputs to `packages/scenarios-stage-tamagotchi-browser/artifacts/raw`.
+4. Then run the browser package capture (step 2, documented in that package README).
+
+## Agent Quickstart
+
+From repo root, run:
 
 ```bash
 pnpm -F @proj-airi/stage-tamagotchi build
-pnpm -F @proj-airi/vishot-runner-electron capture -- packages/scenarios-stage-tamagotchi-electron/src/scenarios/demo-controls-settings-chat-websocket.ts --output-dir packages/scenarios-stage-tamagotchi-browser/artifacts/raw
+pnpm -F @proj-airi/vishot-runner-electron capture ../../packages/scenarios-stage-tamagotchi-electron/src/scenarios/demo-controls-settings-chat-websocket/index.ts --output-dir ../../packages/scenarios-stage-tamagotchi-browser/artifacts/raw --format avif
 ```
+
+Expected result:
+
+- `27` raw files in `packages/scenarios-stage-tamagotchi-browser/artifacts/raw`
+- names like `00-stage-tamagotchi.avif` ... `26-devtools-vision-capture.avif`
 
 ## Scenario Authoring
 
@@ -45,8 +56,34 @@ export default defineScenario({
 })
 ```
 
+## Scenario Layout
+
+The docs workflow is organized as one section-based scenario module under `src/scenarios/demo-controls-settings-chat-websocket/`. The top-level `index.ts` orchestrates section manifests.
+
+Important:
+
+- `--output-dir` for the runner should point to `packages/scenarios-stage-tamagotchi-browser/artifacts/raw`.
+- This package does not publish docs assets directly; it only prepares raw assets for browser-scene composition.
+
 ## Notes
 
 - Raw scenario modules live under `src/scenarios`.
-- Scenario modules are consumed by the runner package, not by the browser composition package.
-- The package stays focused on business capture flows and avoids browser-scene composition concerns.
+- Scenario entrypoints should point at `index.ts` when the workflow is organized as a section folder.
+- Keep this package focused on Electron capture flows for docs screenshots.
+- Paths in these `pnpm -F` examples are resolved from the filtered package working directory.
+
+## Electron Profile Note (Plugin Discovery)
+
+When running scenarios through `@proj-airi/vishot-runner-electron`, the built Electron app can use a different `userData` profile than `dev:tamagotchi`.
+
+- `dev:tamagotchi` plugin root commonly resolves to:
+  - `~/Library/Application Support/@proj-airi/stage-tamagotchi/plugins/v1`
+- Vishot/Electron capture runs can resolve plugin root to:
+  - `~/Library/Application Support/Electron/plugins/v1`
+
+If the chess plugin appears in dev but not in Vishot (`Discovered 0` or `Plugin manifest not found`), link the plugin `dist` directory into the Electron profile plugins root too:
+
+```bash
+mkdir -p "$HOME/Library/Application Support/Electron/plugins/v1"
+ln -sfn "/absolute/path/to/airi-plugin-game-chess/dist" "$HOME/Library/Application Support/Electron/plugins/v1/airi-plugin-game-chess"
+```

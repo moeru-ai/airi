@@ -29,10 +29,13 @@ docs:
   'logging-in': Signing in...
   'account': Account
   'logout': Sign out
-'status-island':
-  connected: WebSocket conectado
-  disconnected: WebSocket desconectado
-  'open-settings': Abrir ajustes de WebSocket
+widgets:
+  close: Close widget
+  empty:
+    title: No widget active
+    description: Widgets will appear here when a tool or plugin spawns one.
+  loading: Loading widget…
+  waiting: Waiting for widget data for "{id}"…
 notice:
   'fade-on-hover':
     title: Desvanecer al pasar el cursor
@@ -48,3 +51,48 @@ notice:
     preparing: Preparando…
     read-more: Leer más
     preview-title: '¿Qué es esto?'
+about:
+  subtitle: Desktop ver.
+  current-version: Current Version
+  common:
+    cancel: Cancel
+  links:
+    title: Links
+    home: Home
+    documentation: Documentations
+    github: GitHub
+  update:
+    lane:
+      label: Update lane
+      description: Choose channel release to follow
+      placeholder: Choose update lane
+    channels:
+      auto: Auto
+      stable: Stable
+      alpha: Alpha
+      beta: Beta
+      nightly: Nightly
+      canary: Canary
+    status:
+      downloading: Downloading update...
+      error-prefix: Error
+      latest: Up to date (v{version}).
+      downloaded:
+        windows: Update ready to install silently (v{version}).
+        restart: Update ready to install on restart (v{version}).
+    actions:
+      download: Download Update
+      download-short: Download
+      confirm-download: Confirm Download
+      check-for-updates: Check for updates
+      checking: Checking...
+      latest-version: Latest version
+      disabled-dev: Updates disabled in Dev
+      retry-check: Retry Check
+      restart-silent: Restart to update silently
+      restart-install: Restart to install update
+      confirm-restart: Confirm Restart
+    dialog:
+      title: Update Available
+      description: A new version (v{version}) is available.
+      no-release-notes-markdown: _No release notes provided._

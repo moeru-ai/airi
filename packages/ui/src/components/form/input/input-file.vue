@@ -1,56 +1,96 @@
 <script setup lang="ts">
-import { useSlots } from 'vue'
+import { useObjectUrl } from '@vueuse/core'
+import { computed } from 'vue'
 
-import BasicInputFile from './basic-input-file.vue'
-
-defineProps<{
+const props = withDefaults(defineProps<{
   accept?: string
   multiple?: boolean
-}>()
+  placeholder?: string
+}>(), {
+  placeholder: 'Choose file',
+  multiple: false,
+})
 
-const slots = useSlots()
+const modelValue = defineModel<File[] | undefined>({ default: undefined })
+
+const fileNames = computed(() => {
+  const files = modelValue.value ?? []
+  if (!files.length)
+    return props.placeholder
+  return files.map(file => file.name).join(', ')
+})
+
+const previewImageFile = computed(() => {
+  const files = modelValue.value ?? []
+  return files.find(file => file.type.startsWith('image/'))
+})
+
+const previewUrl = useObjectUrl(previewImageFile)
+
+function onFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  if (!input.files) {
+    modelValue.value = undefined
+    return
+  }
+
+  const files = Array.from(input.files)
+  modelValue.value = files.length ? files : undefined
+
+  // Allow re-selecting the same file.
+  input.value = ''
+}
 </script>
 
 <template>
-  <BasicInputFile
+  <label
     :class="[
-      'min-h-[120px] flex flex-col cursor-pointer items-center justify-center rounded-xl p-6',
-      'border-dashed border-2',
-      'transition-all duration-300',
-      'opacity-95',
-      'hover:scale-100 hover:opacity-100 hover:shadow-md hover:dark:shadow-lg',
+      'w-full flex cursor-pointer items-center gap-2',
+      'rounded-lg border-2 border-solid border-neutral-100 bg-neutral-50 px-2 py-1 shadow-sm',
+      'transition-all duration-200 ease-in-out',
+      'dark:border-neutral-900 dark:bg-neutral-950',
+      'hover:border-primary-300/70 dark:hover:border-primary-700/70',
     ]"
-    :is-not-dragging-classes="[
-      'border-neutral-200 dark:border-neutral-700 hover:border-primary-300 dark:hover:border-primary-700',
-      'bg-white/60 dark:bg-black/30 hover:bg-white/80 dark:hover:bg-black/40',
-    ]"
-    :is-dragging-classes="[
-      'border-primary-400 dark:border-primary-600 hover:border-primary-300 dark:hover:border-primary-700',
-      'bg-primary-50/5 dark:bg-primary-900/5',
-    ]"
-    :accept="accept"
-    :multiple="multiple"
   >
-    <template #default="{ isDragging }">
-      <slot v-if="slots.default" :is-dragging="isDragging" />
-      <div
-        v-else
-        class="flex flex-col items-center"
+    <input
+      type="file"
+      :accept="accept"
+      :multiple="multiple"
+      :class="[
+        'hidden',
+      ]"
+      @change="onFileChange"
+    >
+
+    <div
+      :class="[
+        'i-solar:upload-square-line-duotone h-5 w-5 shrink-0 text-neutral-500 dark:text-neutral-400',
+      ]"
+    />
+
+    <div
+      :class="[
+        'min-w-0 flex-1 truncate text-sm text-neutral-600 dark:text-neutral-300',
+      ]"
+      :title="fileNames"
+    >
+      {{ fileNames }}
+    </div>
+
+    <div
+      v-if="previewUrl"
+      :class="[
+        'h-8 w-8 shrink-0 overflow-hidden rounded-md border border-neutral-200 bg-white',
+        'dark:border-neutral-700 dark:bg-neutral-900',
+      ]"
+    >
+      <img
+        :src="previewUrl"
+        alt="Preview"
         :class="[
-          isDragging ? 'text-primary-500 dark:text-primary-400' : 'text-neutral-400 dark:text-neutral-500',
+          'h-full w-full object-cover',
         ]"
       >
-        <div i-solar:upload-square-line-duotone mb-2 text-5xl />
-        <p font-medium text="center lg">
-          Upload
-        </p>
-        <p v-if="isDragging" text="center" text-sm>
-          Release to upload
-        </p>
-        <p v-else text="center" text-sm>
-          Click or drag and drop a file here
-        </p>
-      </div>
-    </template>
-  </BasicInputFile>
+    </div>
+  </label>
 </template>

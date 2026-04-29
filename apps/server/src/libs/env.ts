@@ -43,13 +43,32 @@ const EnvSchema = object({
   DATABASE_URL: pipe(string(), nonEmpty('DATABASE_URL is required')),
   REDIS_URL: pipe(string(), nonEmpty('REDIS_URL is required')),
 
+  // Required: signs session cookies and encrypts JWKS private keys in DB.
+  // Must be stable across deploys/instances, otherwise every redeploy invalidates
+  // all existing sessions and forces users to re-login.
+  BETTER_AUTH_SECRET: pipe(string(), nonEmpty('BETTER_AUTH_SECRET is required')),
+
   AUTH_GOOGLE_CLIENT_ID: pipe(string(), nonEmpty('AUTH_GOOGLE_CLIENT_ID is required')),
   AUTH_GOOGLE_CLIENT_SECRET: pipe(string(), nonEmpty('AUTH_GOOGLE_CLIENT_SECRET is required')),
   AUTH_GITHUB_CLIENT_ID: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_ID is required')),
   AUTH_GITHUB_CLIENT_SECRET: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_SECRET is required')),
 
+  // Resend transactional email. RESEND_API_KEY required when emailAndPassword
+  // sign-up / forgot-password / change-email / magic-link is exercised. Service
+  // boots without it but those flows will throw at send-time.
+  RESEND_API_KEY: optional(string(), ''),
+  // From address must be a verified Resend sender (e.g. `noreply@your-domain`).
+  RESEND_FROM_EMAIL: optional(string(), 'noreply@airi.moeru.ai'),
+  // Optional friendly name; rendered as `Name <email>` per Resend's RFC 5322 display-name format.
+  RESEND_FROM_NAME: optional(string(), 'Project AIRI'),
+
   STRIPE_SECRET_KEY: optional(string()),
   STRIPE_WEBHOOK_SECRET: optional(string()),
+
+  // LLM gateway (infrastructure config — baked per deployment)
+  GATEWAY_BASE_URL: pipe(string(), nonEmpty('GATEWAY_BASE_URL is required')),
+  DEFAULT_CHAT_MODEL: pipe(string(), nonEmpty('DEFAULT_CHAT_MODEL is required')),
+  DEFAULT_TTS_MODEL: pipe(string(), nonEmpty('DEFAULT_TTS_MODEL is required')),
 
   BILLING_EVENTS_STREAM: optional(string(), DEFAULT_BILLING_EVENTS_STREAM),
   BILLING_EVENTS_CONSUMER_NAME: optional(string()),

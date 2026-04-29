@@ -1,0 +1,264 @@
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index 1b8df0289811d82777e853bc4290e35b16b0bd36..4682f7bbf62b1bc3d65abde34d7366c64f9b5eb0 100644
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -96,6 +96,8 @@ interface CompletionToolCall {
+ }
+ interface CompletionToolResult {
+     args: Record<string, unknown>;
++    error?: Error;
++    isError?: boolean;
+     result: ToolMessage['content'];
+     toolCallId: string;
+     toolName: string;
+@@ -222,9 +224,32 @@ interface DetermineStepTypeOptions {
+ /** @internal */
+ declare const determineStepType: ({ finishReason, stepsLength, toolCallsLength, willContinue }: DetermineStepTypeOptions) => CompletionStepType;
+
++type OnToolCallFinishCallback = (context: {
++    durationMs: number;
++    error?: unknown;
++    output?: unknown;
++    toolCallId: string;
++    toolName: string;
++}) => Promise<void> | void;
++type OnToolCallStartCallback = (context: {
++    input: unknown;
++    toolCallId: string;
++    toolName: string;
++}) => Promise<void> | void;
++type RepairToolCallFunction = (context: {
++    error: Error;
++    messages: Message[];
++    toolCall: ToolCall;
++    tools?: Tool[];
++}) => Promise<ToolCall | null> | ToolCall | null;
++
+ interface ExecuteToolOptions {
+     abortSignal?: AbortSignal;
++    captureToolErrors?: boolean;
+     messages: Message[];
++    onToolCallFinish?: OnToolCallFinishCallback;
++    onToolCallStart?: OnToolCallStartCallback;
++    repairToolCall?: RepairToolCallFunction;
+     toolCall: ToolCall;
+     tools?: Tool[];
+ }
+@@ -233,7 +257,7 @@ interface ExecuteToolResult {
+     completionToolResult: CompletionToolResult;
+     message: ToolMessage;
+ }
+-declare const executeTool: ({ abortSignal, messages, toolCall, tools }: ExecuteToolOptions) => Promise<ExecuteToolResult>;
++declare const executeTool: (options: ExecuteToolOptions) => Promise<ExecuteToolResult>;
+
+ interface ResolvedStepOptions {
+     messages: Message[];
+@@ -256,4 +280,4 @@ declare const hasToolCall: (name?: string) => StopCondition;
+ declare const shouldStop: (stopWhen: StopCondition, context: StopContext) => boolean;
+
+ export { and, chat, determineStepType, executeTool, hasToolCall, not, or, resolveStepOptions, shouldStop, stepCountAtLeast };
+-export type { AssistantMessage, AudioContentPart, ChatOptions, CommonContentPart, CompletionStep, CompletionStepType, CompletionToolCall, CompletionToolResult, DetermineStepTypeOptions, DeveloperMessage, ExecuteToolOptions, ExecuteToolResult, FileContentPart, FinishReason, ImageContentPart, Message, PrepareStep, PrepareStepOptions, PrepareStepResult, RefusalContentPart, ResolveStepOptionsOptions, ResolvedStepOptions, StopCondition, StopContext, StopStep, SystemMessage, TextContentPart, Tool, ToolCall, ToolChoice, ToolExecuteOptions, ToolExecuteResult, ToolMessage, Usage, UserMessage };
++export type { AssistantMessage, AudioContentPart, ChatOptions, CommonContentPart, CompletionStep, CompletionStepType, CompletionToolCall, CompletionToolResult, DetermineStepTypeOptions, DeveloperMessage, ExecuteToolOptions, ExecuteToolResult, FileContentPart, FinishReason, ImageContentPart, Message, OnToolCallFinishCallback, OnToolCallStartCallback, PrepareStep, PrepareStepOptions, PrepareStepResult, RefusalContentPart, RepairToolCallFunction, ResolveStepOptionsOptions, ResolvedStepOptions, StopCondition, StopContext, StopStep, SystemMessage, TextContentPart, Tool, ToolCall, ToolChoice, ToolExecuteOptions, ToolExecuteResult, ToolMessage, Usage, UserMessage };
+diff --git a/dist/index.js b/dist/index.js
+index 34e87341ac400dd8c61457c188485b82a1383300..2e7e1fa99fdbccb7a0be0af92504ed903d95c482 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -66,57 +66,150 @@ const runTool = async (tool, options) => {
+     });
+   }
+ };
+-const executeTool = async ({ abortSignal, messages, toolCall, tools }) => {
+-  const toolName = toolCall.function.name;
+-  const toolArguments = toolCall.function.arguments;
+-  if (toolName == null) {
+-    throw new InvalidToolCallError(`Missing toolCall.function.name: ${JSON.stringify(toolCall)}`, {
+-      reason: "missing_name",
+-      toolCall
+-    });
+-  }
+-  if (toolArguments == null) {
+-    throw new InvalidToolCallError(`Missing toolCall.function.arguments: ${JSON.stringify(toolCall)}`, {
+-      reason: "missing_arguments",
+-      toolCall
+-    });
+-  }
+-  const tool = tools?.find((tool2) => tool2.function.name === toolName);
+-  if (!tool) {
+-    const availableTools = tools?.map((tool2) => tool2.function.name);
+-    const availableToolsErrorMsg = availableTools == null || availableTools.length === 0 ? "No tools are available" : `Available tools: ${availableTools.join(", ")}`;
+-    throw new InvalidToolCallError(`Model tried to call unavailable tool "${toolName}", ${availableToolsErrorMsg}.`, {
+-      availableTools,
+-      reason: "unknown_tool",
+-      toolCall,
+-      toolName
+-    });
+-  }
+-  const parsedArgs = parseToolInput(toolName, toolArguments);
+-  const result = await runTool(tool, { abortSignal, messages, parsedArgs, toolCall });
+-  const completionToolCall = {
+-    args: toolArguments,
+-    toolCallId: toolCall.id,
+-    toolCallType: toolCall.type,
+-    toolName
+-  };
+-  const completionToolResult = {
+-    args: parsedArgs,
+-    result,
+-    toolCallId: toolCall.id,
+-    toolName
+-  };
+-  const message = {
+-    content: result,
+-    role: "tool",
+-    tool_call_id: toolCall.id
+-  };
++const buildErrorReturn = (toolCall, toolName, toolCallId, error) => {
++  const errorMessage = error instanceof Error ? error.message : String(error);
++  const errorContent = `Tool call error for "${toolName}": ${errorMessage}`;
+   return {
+-    completionToolCall,
+-    completionToolResult,
+-    message
++    completionToolCall: {
++      args: toolCall.function?.arguments ?? "{}",
++      toolCallId,
++      toolCallType: toolCall.type ?? "function",
++      toolName
++    },
++    completionToolResult: {
++      args: {},
++      error,
++      isError: true,
++      result: errorContent,
++      toolCallId,
++      toolName
++    },
++    message: {
++      content: errorContent,
++      role: "tool",
++      tool_call_id: toolCallId
++    }
+   };
+ };
++const executeTool = async ({
++  abortSignal,
++  captureToolErrors,
++  messages,
++  onToolCallFinish,
++  onToolCallStart,
++  repairToolCall,
++  toolCall,
++  tools
++}) => {
++  const resolvedToolName = toolCall.function?.name ?? "unknown";
++  const toolCallId = toolCall.id;
++  const startTime = Date.now();
++  try {
++    const toolName = toolCall.function.name;
++    const toolArguments = toolCall.function.arguments;
++    if (toolName == null) {
++      throw new InvalidToolCallError(`Missing toolCall.function.name: ${JSON.stringify(toolCall)}`, {
++        reason: "missing_name",
++        toolCall
++      });
++    }
++    if (toolArguments == null) {
++      throw new InvalidToolCallError(`Missing toolCall.function.arguments: ${JSON.stringify(toolCall)}`, {
++        reason: "missing_arguments",
++        toolCall
++      });
++    }
++    const tool = tools?.find((tool2) => tool2.function.name === toolName);
++    if (!tool) {
++      const availableTools = tools?.map((tool2) => tool2.function.name);
++      const availableToolsErrorMsg = availableTools == null || availableTools.length === 0 ? "No tools are available" : `Available tools: ${availableTools.join(", ")}`;
++      throw new InvalidToolCallError(`Model tried to call unavailable tool "${toolName}", ${availableToolsErrorMsg}.`, {
++        availableTools,
++        reason: "unknown_tool",
++        toolCall,
++        toolName
++      });
++    }
++    const parsedArgs = parseToolInput(toolName, toolArguments);
++    if (onToolCallStart) {
++      try {
++        await onToolCallStart({ input: parsedArgs, toolCallId, toolName });
++      } catch {
++      }
++    }
++    const result = await runTool(tool, { abortSignal, messages, parsedArgs, toolCall });
++    if (onToolCallFinish) {
++      try {
++        await onToolCallFinish({
++          durationMs: Date.now() - startTime,
++          error: void 0,
++          output: result,
++          toolCallId,
++          toolName
++        });
++      } catch {
++      }
++    }
++    const completionToolCall = {
++      args: toolArguments,
++      toolCallId: toolCall.id,
++      toolCallType: toolCall.type,
++      toolName
++    };
++    const completionToolResult = {
++      args: parsedArgs,
++      result,
++      toolCallId: toolCall.id,
++      toolName
++    };
++    const message = {
++      content: result,
++      role: "tool",
++      tool_call_id: toolCall.id
++    };
++    return {
++      completionToolCall,
++      completionToolResult,
++      message
++    };
++  } catch (error) {
++    if (isAbortError(error, abortSignal))
++      throw error;
++    if (repairToolCall && (InvalidToolCallError.isInstance(error) || InvalidToolInputError.isInstance(error))) {
++      try {
++        const repaired = await repairToolCall({ error, messages, toolCall, tools });
++        if (repaired != null) {
++          return executeTool({
++            abortSignal,
++            captureToolErrors,
++            messages,
++            onToolCallFinish,
++            onToolCallStart,
++            repairToolCall: void 0,
++            toolCall: repaired,
++            tools
++          });
++        }
++      } catch {
++      }
++    }
++    if (onToolCallFinish) {
++      try {
++        await onToolCallFinish({
++          durationMs: Date.now() - startTime,
++          error,
++          output: void 0,
++          toolCallId,
++          toolName: resolvedToolName
++        });
++      } catch {
++      }
++    }
++    if (!captureToolErrors)
++      throw error;
++    return buildErrorReturn(toolCall, resolvedToolName, toolCallId, error);
++  }
++};
+
+ const resolveStepOptions = async ({ messages, model, prepareStep, stepNumber, steps, toolChoice }) => {
+   const prepared = prepareStep == null ? void 0 : await prepareStep({

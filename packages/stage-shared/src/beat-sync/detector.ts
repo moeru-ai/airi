@@ -1,5 +1,6 @@
 import type { EventContext } from '@moeru/eventa'
 import type { Analyser, AnalyserBeatEvent, AnalyserWorkletParameters } from '@nekopaw/tempora'
+import type { SerializableDesktopCapturerSource } from '@proj-airi/electron-screen-capture'
 
 import type { BeatSyncDetectorEventMap, BeatSyncDetectorState } from './types'
 
@@ -165,7 +166,7 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
         const { selectWithSource } = setupElectronScreenCapture(createContext(window.electron.ipcRenderer).context)
 
         const stream = await selectWithSource(
-          (sources) => {
+          (sources: SerializableDesktopCapturerSource[]) => {
             if (sources.length === 0)
               throw new Error('No screen source available')
             return sources[0].id
@@ -179,14 +180,14 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
 
         const videoTracks = stream.getVideoTracks()
 
-        videoTracks.forEach((track) => {
+        videoTracks.forEach((track: MediaStreamTrack) => {
           track.stop()
           stream.removeTrack(track)
         })
 
         const node = ctx.createMediaStreamSource(stream)
         stopSource = () => {
-          stream.getTracks().forEach(track => track.stop())
+          stream.getTracks().forEach((track: MediaStreamTrack) => track.stop())
         }
 
         return node

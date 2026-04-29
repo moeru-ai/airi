@@ -7,6 +7,7 @@ packages:
   - services/**
   - examples/**
   - docs/**
+  - engines/**
   - apps/**
   - '!**/dist/**'
 overrides:
@@ -21,19 +22,21 @@ overrides:
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 patchedDependencies:
   '@mediapipe/tasks-vision': patches/@mediapipe__tasks-vision.patch
-  crossws@0.4.4: patches/crossws@0.4.4.patch
+  '@xsai/generate-text@0.5.0-beta.2': patches/@xsai__generate-text@0.5.0-beta.2.patch
+  '@xsai/shared-chat@0.5.0-beta.2': patches/@xsai__shared-chat@0.5.0-beta.2.patch
+  '@xsai/stream-text@0.5.0-beta.2': patches/@xsai__stream-text@0.5.0-beta.2.patch
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
-  mineflayer@4.33.0: patches/mineflayer@4.33.0.patch
   pixi-live2d-display: patches/pixi-live2d-display.patch
-  srvx: patches/srvx.patch
 catalog:
+  '@ax-llm/ax': ^19.0.43
   '@better-auth/oauth-provider': 1.5.6
-  '@capacitor/android': ^8.2.0
-  '@capacitor/cli': ^8.2.0
-  '@capacitor/core': ^8.2.0
-  '@capacitor/ios': ^8.2.0
+  '@capacitor/android': ^8.3.1
+  '@capacitor/barcode-scanner': ^3.0.2
+  '@capacitor/cli': ^8.3.1
+  '@capacitor/core': ^8.3.1
+  '@capacitor/ios': ^8.3.1
   '@capacitor/local-notifications': ^8.0.2
-  '@electric-sql/pglite': ^0.4.1
+  '@electric-sql/pglite': ^0.4.4
   '@electron-toolkit/preload': ^3.0.2
   '@electron/notarize': ^3.1.1
   '@fontsource-variable/nunito': ^5.2.7
@@ -41,22 +44,23 @@ catalog:
   '@histoire/plugin-vue': 1.0.0-beta.1
   '@hono/node-ws': ^1.3.0
   '@iconify-json/line-md': ^1.2.16
-  '@iconify-json/logos': ^1.2.10
-  '@iconify-json/material-symbols': ^1.2.64
+  '@iconify-json/logos': ^1.2.11
+  '@iconify-json/material-symbols': ^1.2.67
   '@iconify-json/mdi': ^1.2.3
-  '@iconify-json/tabler': ^1.2.32
-  '@intlify/core': ^11.3.0
-  '@modelcontextprotocol/sdk': ^1.27.1
+  '@iconify-json/ph': ^1.2.2
+  '@iconify-json/tabler': ^1.2.33
+  '@intlify/core': ^11.3.2
+  '@modelcontextprotocol/sdk': ^1.29.0
   '@moeru/eslint-config': 0.1.0-beta.15
-  '@moeru/eventa': 1.0.0-beta.3
+  '@moeru/eventa': 1.0.0-beta.4
   '@moeru/std': 0.1.0-beta.17
   '@napi-rs/image': ^1.12.0
   '@nekopaw/tempora': 0.4.0-alpha.1
   '@pinia/testing': ^1.0.3
-  '@proj-airi/drizzle-duckdb-wasm': ^0.4.29
-  '@proj-airi/iconify-meteocons': ^0.1.4
+  '@proj-airi/drizzle-duckdb-wasm': ^0.5.0
+  '@proj-airi/iconify-meteocons': ^0.1.5
   '@proj-airi/unplugin-drizzle-orm-migrations': ^0.1.6
-  '@proj-airi/unplugin-fetch': ^0.2.2
+  '@proj-airi/unplugin-fetch': ^0.2.3
   '@shopify/draggable': ^1.2.1
   '@takumi-rs/image-response': 1.0.0-beta.20
   '@types/audioworklet': ^0.0.97
@@ -64,85 +68,101 @@ catalog:
   '@types/hast': ^3.0.4
   '@types/splitpanes': ^2.2.6
   '@types/unist': ^3.0.3
+  '@types/whatwg-mimetype': ^5.0.0
   '@types/ws': ^8.18.1
   '@vueuse/core': 14.1.0
-  '@xsai-ext/providers': ^0.4.4
-  '@xsai/embed': ^0.4.4
-  '@xsai/generate-speech': 0.4.0-beta.13
-  '@xsai/generate-text': ^0.4.4
-  '@xsai/generate-transcription': ^0.4.4
-  '@xsai/model': ^0.4.4
-  '@xsai/shared': 0.4.0-beta.13
-  '@xsai/shared-chat': 0.4.0-beta.13
-  '@xsai/stream-text': ^0.4.4
-  '@xsai/tool': ^0.4.4
-  '@xsai/utils-chat': 0.4.0-beta.13
+  '@webgpu/types': ^0.1.69
+  '@xsai-ext/providers': 0.5.0-beta.2
+  '@xsai/embed': 0.5.0-beta.2
+  '@xsai/generate-speech': 0.5.0-beta.2
+  '@xsai/generate-text': 0.5.0-beta.2
+  '@xsai/generate-transcription': 0.5.0-beta.2
+  '@xsai/model': 0.5.0-beta.2
+  '@xsai/shared': 0.5.0-beta.2
+  '@xsai/shared-chat': 0.5.0-beta.2
+  '@xsai/stream-text': 0.5.0-beta.2
+  '@xsai/stream-transcription': 0.5.0-beta.2
+  '@xsai/tool': 0.5.0-beta.2
+  '@xsai/utils-chat': 0.5.0-beta.2
   alien-signals: ^3.1.2
   async-mutex: 0.5.0
-  better-auth: ^1.5.6
+  better-auth: ^1.6.5
   builder-util-runtime: ^9.5.1
   cac: ^7.0.0
   capacitor-native-settings: ^8.1.0
-  crossws: ^0.4.4
+  chess.js: ^1.4.0
+  crossws: ^0.4.5
   d3: 7.9.0
   date-fns: ^4.1.0
   drizzle-kit: ^0.31.10
-  drizzle-orm: ^0.45.1
+  drizzle-orm: ^0.45.2
   drizzle-valibot: ^0.4.2
-  electron: ^40.8.3
-  embla-carousel-vue: ^9.0.0-rc01
+  electron: ^41.2.1
+  embla-carousel-vue: 9.0.0-rc02
   es-toolkit: 1.43.0
   get-port-please: ^3.2.0
   histoire: 1.0.0-beta.1
   hono: 4.11.3
   hono-rate-limiter: ^0.5.3
   idb-keyval: ^6.2.2
-  injeca: ^0.1.8
+  injeca: ^0.2.0
   is-network-error: ^1.3.1
   isolated-vm: ^6.1.2
   jose: ^6.2.2
-  knip: ^6.0.4
+  knip: ^6.4.1
   meow: ^14.1.0
   mkcert: ^3.2.0
-  nano-staged: ^0.9.0
+  nano-staged: ^1.0.2
   nanoid: 5.1.6
+  node-pty: ^1.1.0
   ofetch: ^1.5.1
-  oxc-minify: ^0.121.0
+  oxc-minify: ^0.126.0
   pinia: ^3.0.4
   posthog-js: 1.306.1
+  reka-ui: ^2.9.2
   remark-breaks: ^4.0.0
+  replicate: ^1.4.0
   splitpanes: ^4.0.4
-  std-env: ^4.0.0
+  std-env: ^4.1.0
+  stockfish: ^18.0.7
   superjson: ^2.2.6
-  tsdown: ^0.21.4
+  tsdown: ^0.21.9
   tsx: ^4.21.0
   uncrypto: ^0.1.3
-  unplugin-info: ^1.2.4
-  unstorage: ^1.17.4
+  unplugin-info: ^1.3.2
+  unstorage: ^1.17.5
+  uqr: ^0.1.3
   valibot: 1.2.0
-  vite: ^8.0.2
-  vite-plugin-inspect: ^11.3.3
-  vite-plugin-mkcert: ^1.17.10
-  vue: ^3.5.30
+  vieval: ^0.0.5
+  vite: ^8.0.8
+  vite-plugin-inspect: 12.0.0-beta.1
+  vite-plugin-mkcert: ^2.0.0
+  vitest-browser-vue: ^2.1.0
+  vue: ^3.5.32
+  vue-router: ^5.0.4
   vue-sonner: 2.0.9
+  web-haptics: ^0.0.6
+  whatwg-mimetype: ^5.0.0
   ws: ^8.20.0
-  xsschema: 0.4.0-beta.13
+  xsschema: 0.5.0-beta.2
   yaml: ^2.8.3
   zod: ^4.3.6
 catalogs:
   vitest:
-    '@vitest/browser-playwright': ^4.1.1
-    '@vitest/coverage-v8': ^4.1.1
-    vitest: ^4.1.1
+    '@vitest/browser-playwright': ^4.1.4
+    '@vitest/coverage-v8': ^4.1.4
+    vitest: ^4.1.4
   xsai:
-    unspeech: ^0.1.11
+    unspeech: ^0.1.13
 
 ignoredBuiltDependencies:
+  - '@ax-llm/ax'
   - '@prisma/client'
   - better-sqlite3
   - simple-git-hooks # [workaround] postinstall script bundled in simple-git-hooks fails to execute with `enableGlobalVirtualStore: true`. Using local postinstall script to run `npx simple-git-hooks` instead.
 
 onlyBuiltDependencies:
+  - '@anthropic-ai/claude-code'
   - '@discordjs/opus'
   - '@ffmpeg-installer/darwin-arm64'
   - '@ffmpeg-installer/linux-x64'
@@ -160,10 +180,12 @@ onlyBuiltDependencies:
   - isolated-vm
   - less
   - msw
+  - node-pty
   - onnxruntime-node
   - protobufjs
   - sharp
   - spawn-sync
+  - stockfish
   - utf-8-validate
   - vue-demi
 packageExtensions:

@@ -27,4 +27,16 @@ export const chatSessionsRepo = {
   async deleteSession(sessionId: string) {
     await storage.removeItem(`local:chat/sessions/${sessionId}`)
   },
+
+  async clear(userId: string) {
+    const index = await this.getIndex(userId)
+    if (index) {
+      for (const charIndex of Object.values(index.characters)) {
+        for (const sessionId of Object.keys(charIndex.sessions)) {
+          await this.deleteSession(sessionId)
+        }
+      }
+      await storage.removeItem(`local:chat/index/${userId}`)
+    }
+  },
 }

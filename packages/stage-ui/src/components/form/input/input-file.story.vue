@@ -2,33 +2,27 @@
 import { InputFile } from '@proj-airi/ui'
 import { ref } from 'vue'
 
-const files = ref<File[]>([])
+const files = ref<File[] | undefined>(undefined)
 </script>
 
 <template>
   <Story
     title="Input File"
     group="form"
-    :layout="{ type: 'grid', width: 300 }"
+    :layout="{ type: 'grid', width: 360 }"
   >
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
     <Variant id="default" title="Default">
-      <InputFile v-model="files" />
+      <InputFile
+        v-model="files"
+        accept="image/*,video/*"
+      />
 
-      <div p-2>
-        <div>
-          File List
-        </div>
-        <ul>
-          <li v-for="file in files" :key="file.name">
-            <p>
-              {{ file.name }}, {{ file.size }} bytes, {{ file.type }}
-            </p>
-          </li>
-        </ul>
+      <div class="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+        Selected: {{ files?.length ?? 0 }} file(s)
       </div>
     </Variant>
   </Story>

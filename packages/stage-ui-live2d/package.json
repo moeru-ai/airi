@@ -60,15 +60,15 @@
     "es-toolkit": "catalog:",
     "jszip": "^3.10.1",
     "pinia": "^3.0.4",
-    "pixi-filters": "4",
+    "pixi-filters": "^4.2.0",
     "pixi-live2d-display": "^0.4.0",
-    "three": "^0.183.2",
+    "three": "^0.184.0",
     "vue": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@types/culori": "^4.0.1",
-    "@types/three": "^0.183.1",
+    "@types/three": "^0.184.0",
     "vue-tsc": "^3.2.6"
   }
 }

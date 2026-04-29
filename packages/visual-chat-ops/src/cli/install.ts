@@ -6,21 +6,21 @@ import { existsSync, mkdirSync } from 'node:fs'
 import { getVisualChatDir } from '@proj-airi/visual-chat-shared'
 
 export async function install() {
-  console.log('=== AIRI Visual Chat Dependency Installer ===\n')
+  console.info('=== AIRI Visual Chat Dependency Installer ===\n')
 
   const dirs = ['config', 'data', 'cache', 'logs', 'models'] as const
   for (const kind of dirs) {
     const dir = getVisualChatDir(kind)
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true })
-      console.log(`  Created: ${dir}`)
+      console.info(`  Created: ${dir}`)
     }
     else {
-      console.log(`  Exists: ${dir}`)
+      console.info(`  Exists: ${dir}`)
     }
   }
 
-  console.log('\n  Installing pnpm dependencies...')
+  console.info('\n  Installing pnpm dependencies...')
   try {
     execSync('pnpm install', { stdio: 'inherit' })
   }
@@ -30,7 +30,7 @@ export async function install() {
     return
   }
 
-  console.log('\n  Building packages...')
+  console.info('\n  Building packages...')
   try {
     execSync('pnpm run build:packages', { stdio: 'inherit' })
   }
@@ -40,7 +40,7 @@ export async function install() {
     return
   }
 
-  console.log('\nInstallation complete.')
+  console.info('\nInstallation complete.')
 }
 
 install()

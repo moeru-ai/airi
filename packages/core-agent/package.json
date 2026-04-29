@@ -1,0 +1,62 @@
+{
+  "name": "@proj-airi/core-agent",
+  "type": "module",
+  "version": "0.9.0-alpha.35",
+  "private": true,
+  "description": "Core agent runtime orchestration for AIRI",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/core-agent"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./agents/spark-notify": {
+      "types": "./dist/agents/spark-notify/index.d.mts",
+      "default": "./dist/agents/spark-notify/index.mjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "eval:run": "vieval run --config ./vieval.config.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@moeru/std": "catalog:",
+    "@proj-airi/pipelines-audio": "workspace:^",
+    "@proj-airi/server-sdk": "workspace:^",
+    "@proj-airi/server-shared": "workspace:^",
+    "@xsai-ext/providers": "catalog:",
+    "@xsai/generate-speech": "catalog:",
+    "@xsai/generate-text": "catalog:",
+    "@xsai/model": "catalog:",
+    "@xsai/shared": "catalog:",
+    "@xsai/shared-chat": "catalog:",
+    "@xsai/stream-text": "catalog:",
+    "@xsai/tool": "catalog:",
+    "nanoid": "^5.1.9",
+    "vieval": "catalog:",
+    "xsschema": "catalog:",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "tsdown": "catalog:",
+    "typescript": "^5.9.3"
+  }
+}

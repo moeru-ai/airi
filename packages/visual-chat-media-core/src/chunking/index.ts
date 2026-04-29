@@ -1,3 +1,5 @@
+import { Buffer } from 'node:buffer'
+
 import { AUDIO_CHUNK_BYTES, AUDIO_SAMPLE_RATE } from '@proj-airi/visual-chat-protocol'
 
 /**

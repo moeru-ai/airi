@@ -10,6 +10,12 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "paths": {
+      "@proj-airi/visual-chat-protocol": [
+        "../../packages/visual-chat-protocol/src/index.ts"
+      ],
+      "@proj-airi/visual-chat-sdk": [
+        "../../packages/visual-chat-sdk/src/index.ts"
+      ],
       "@proj-airi/visual-chat-shared": [
         "../../packages/visual-chat-shared/src/index.ts"
       ],
@@ -24,7 +30,8 @@
     "types": [
       "vitest",
       "vite/client",
-      "unplugin-info/client"
+      "unplugin-info/client",
+      "@webgpu/types"
     ],
     "allowJs": true,
     "strict": true,
