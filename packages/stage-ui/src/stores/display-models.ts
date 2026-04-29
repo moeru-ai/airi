@@ -16,7 +16,7 @@ export enum DisplayModelFormat {
 
 export type DisplayModel
   = | DisplayModelFile
-  | DisplayModelURL
+    | DisplayModelURL
 
 const presetLive2dProUrl = new URL('../assets/live2d/models/hiyori_pro_zh.zip', import.meta.url).href
 const presetLive2dFreeUrl = new URL('../assets/live2d/models/hiyori_free_zh.zip', import.meta.url).href

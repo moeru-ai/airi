@@ -107,7 +107,7 @@ function createFakeSettings(files: string[]): ModelSettings {
     },
   })
 
-  settings.name = modelName;
+  settings.name = modelName
 
   // provide this property for FileLoader
   Object.assign(settings, { _objectURL: `example://${settings.url}` })
