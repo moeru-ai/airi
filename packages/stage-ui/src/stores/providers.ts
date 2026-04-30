@@ -1572,7 +1572,7 @@ export const useProvidersStore = defineStore('providers', () => {
       }),
       createProvider: async (config) => {
         const apiKey = (config.apiKey as string)?.trim() ?? ''
-        const baseUrl = ((config.baseUrl as string) || 'https://api.xiaomimimo.com/v1/').replace(/\/$/, '')
+        const baseUrl = ((config.baseUrl as string) || 'https://api.xiaomimimo.com/v1/').replace(/\/+$/, '')
         const defaultModel = (config.model as string) || 'mimo-v2.5-tts'
         const defaultVoice = (config.voice as string) || 'mimo_default'
         const defaultFormat = (config.format as string) || 'wav'
