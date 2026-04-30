@@ -1024,6 +1024,9 @@ pages:
       minimax-speech:
         description: Minimax.io
         title: MiniMax речь
+      mimo:
+        description: api.xiaomimimo.com
+        title: Xiaomi MiMo
       mistral:
         description: Mistral.ai
         title: Mistral

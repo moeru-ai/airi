@@ -355,6 +355,7 @@ npx bumpp --no-commit --no-tag
 - [x] [Tencent Cloud](https://cloud.tencent.com/document/product/1729)
 - [ ] [Sparks](https://www.xfyun.cn/doc/spark/Web.html) (PR 환영)
 - [ ] [Volcano Engine](https://www.volcengine.com/experience/ark?utm_term=202502dsinvite&ac=DSASUQY5&rc=2QXCA1VI) (PR 환영)
+- [x] [Xiaomi Mimo](https://platform.xiaomimimo.com)
 
 ## 이 프로젝트에서 탄생한 하위 프로젝트
 

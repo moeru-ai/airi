@@ -1107,6 +1107,9 @@ pages:
       minimax-speech:
         description: minimax.io
         title: MiniMax Speech
+      mimo:
+        description: api.xiaomimimo.com
+        title: 小米 MiMo
       mistral:
         description: mistral.ai
         title: Mistral
