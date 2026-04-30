@@ -90,14 +90,9 @@ const stylePromptDescription = computed(() => {
 })
 
 const speed = computed<number>({
-  get: () => config.value?.voiceSettings?.speed || config.value?.speed || defaultVoiceSettings.speed,
+  get: () => config.value?.speed ?? defaultVoiceSettings.speed,
   set: (value) => {
-    const currentConfig = ensureProviderConfig()
-    currentConfig.speed = value
-    currentConfig.voiceSettings = {
-      ...currentConfig.voiceSettings,
-      speed: value,
-    }
+    ensureProviderConfig().speed = value
   },
 })
 

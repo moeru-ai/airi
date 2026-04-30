@@ -1578,7 +1578,8 @@ export const useProvidersStore = defineStore('providers', () => {
         const defaultFormat = (config.format as string) || 'wav'
 
         const provider: SpeechProvider = {
-          speech: () => ({
+          speech: (_model, options) => ({
+            ...options,
             baseURL: `${baseUrl}/`,
             model: defaultModel,
             fetch: async (_input: RequestInfo | URL, init?: RequestInit) => {
@@ -1590,13 +1591,13 @@ export const useProvidersStore = defineStore('providers', () => {
               const text = body.input as string
               const modelId = (body.model as string) || defaultModel
               const format = (body.response_format as string) || defaultFormat
-              const stylePrompt = typeof body.stylePrompt === 'string'
-                ? body.stylePrompt.trim()
+              const stylePrompt = typeof body.style_prompt === 'string'
+                ? body.style_prompt.trim()
                 : typeof config.stylePrompt === 'string'
                   ? config.stylePrompt.trim()
                   : ''
-              const voiceSample = typeof body.voiceSample === 'string'
-                ? body.voiceSample.trim()
+              const voiceSample = typeof body.voice_sample === 'string'
+                ? body.voice_sample.trim()
                 : typeof config.voiceSample === 'string'
                   ? config.voiceSample.trim()
                   : ''
