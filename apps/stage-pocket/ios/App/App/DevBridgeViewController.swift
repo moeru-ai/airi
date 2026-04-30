@@ -161,7 +161,7 @@ extension DevBridgeViewController: WKNavigationDelegate {
             }
             if nsError.code == -1200 {
                 print(
-                    "[DevBridge] TLS failed (-1200). If the URL uses your Mac LAN IP, add `, https://<that-ip>:8443` to the Caddy site line in dev/caddy/Caddyfile, restart Caddy, and see dev/caddy/README (iOS section)."
+                    "[DevBridge] TLS failed (-1200). Prefer an https URL the device trusts (e.g. ngrok to the dev API), or use http for local Vite when policy allows; see apps/server/README.md (Local HTTPS API)."
                 )
             }
         }
