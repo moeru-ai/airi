@@ -12,6 +12,7 @@ dependencies {
     implementation project(':capacitor-barcode-scanner')
     implementation project(':capacitor-local-notifications')
     implementation project(':capacitor-native-settings')
+    implementation project(':capacitor-stream-http')
 
 }
 
