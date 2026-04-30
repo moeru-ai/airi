@@ -1710,7 +1710,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
           return {
             errors,
-            reason: errors.filter(e => e).map(e => String(e)).join(', ') || '',
+            reason: errors.map(e => (e as Error).message).join(', ') || '',
             valid: !!config.apiKey,
           }
         },
