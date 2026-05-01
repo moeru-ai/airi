@@ -23,24 +23,41 @@ interface StreamEvent {
 
 export interface NativeFetchPolicy {
   isStreamRequest: (req: ParsedRequest) => boolean
-  // Updated the signature of shouldBypass to check body type
   shouldBypass: (url: URL, init?: RequestInit, input?: RequestInfo | URL) => boolean
   shouldParseJson: (contentType: string) => boolean
   shouldReadBodyAsText: (contentType: string) => boolean
   getStreamHeaders: () => Record<string, string>
 }
 
+/**
+ * Check if body type is unsupported by Capacitor bridge
+ */
+function isUnsupportedBody(body: any): boolean {
+  if (!body)
+    return false
+
+  if (typeof ReadableStream !== 'undefined' && body instanceof ReadableStream)
+    return true
+
+  if (typeof FormData !== 'undefined' && body instanceof FormData)
+    return true
+
+  if (typeof Blob !== 'undefined' && body instanceof Blob)
+    return true
+
+  return false
+}
+
 const defaultPolicy: NativeFetchPolicy = {
   isStreamRequest(req) {
-    // 1. Prioritize checking standard SSE Headers
     const accept = req.headers.get('accept') || ''
     if (accept.includes('text/event-stream')) {
       return true
     }
 
-    // 2. Compatibility check for JSON Body of specific businesses like LLM
     if (!req.bodyText)
       return false
+
     try {
       const json = JSON.parse(req.bodyText)
       return json?.stream === true
@@ -50,8 +67,8 @@ const defaultPolicy: NativeFetchPolicy = {
     }
   },
 
-  shouldBypass(url, init) {
-    // Check if it's a non-HTTP protocol or a local request
+  shouldBypass(url, init, input) {
+    // Protocol / localhost bypass
     if (
       !/^https?:$/i.test(url.protocol)
       || ['localhost', '127.0.0.1'].includes(url.hostname)
@@ -59,13 +76,17 @@ const defaultPolicy: NativeFetchPolicy = {
       return true
     }
 
-    // Check Body type: CapacitorHttp native bridge cannot directly serialize FormData and Blob
-    // When encountering such complex objects, bypass directly to WebView native fetch
-    const body = init?.body
-    if (typeof FormData !== 'undefined' && body instanceof FormData)
+    // ✅ FIX: unify body source
+    let body: any = init?.body
+
+    if (!body && input instanceof Request) {
+      body = input.body
+    }
+
+    // ✅ FIX: include ReadableStream / FormData / Blob
+    if (isUnsupportedBody(body)) {
       return true
-    if (typeof Blob !== 'undefined' && body instanceof Blob)
-      return true
+    }
 
     return false
   },
@@ -94,7 +115,6 @@ function mergePolicy(
 
 function createNativeReadableStream(
   request: ParsedRequest,
-  policy: NativeFetchPolicy,
   signal?: AbortSignal | null,
 ): ReadableStream<Uint8Array> {
   let streamId: string | null = null
@@ -121,16 +141,14 @@ function createNativeReadableStream(
         }
 
         cleanup()
-        // Catch errors that might be thrown if the controller is already closed
+
         try {
           controller.error(new DOMException('The user aborted a request.', 'AbortError'))
         }
-        catch {
-          // Ignore secondary error reporting when the Controller is already closed
-        }
+        catch {}
       }
 
-      listeners = await Promise.all([
+      const handles = await Promise.all([
         StreamHttp.addListener('chunk', (event: StreamEvent) => {
           if (event.id !== streamId || !event.chunk)
             return
@@ -169,6 +187,12 @@ function createNativeReadableStream(
         }),
       ])
 
+      if (aborted) {
+        handles.forEach(h => h.remove())
+        return
+      }
+      listeners = handles
+
       if (signal) {
         if (signal.aborted)
           return onAbort()
@@ -185,7 +209,6 @@ function createNativeReadableStream(
 
         streamId = result.id
 
-        // Fix race condition: if the request is aborted while waiting for startStream, immediately clean up the residual Stream here
         if (aborted) {
           await StreamHttp.cancelStream({ id: streamId }).catch(() => {})
         }
@@ -211,7 +234,7 @@ async function fetchViaCapacitorHttp(
   request: ParsedRequest,
   policy: NativeFetchPolicy,
 ): Promise<Response> {
-  let data = request.originalBody ?? request.bodyText
+  let data = request.bodyText ?? request.originalBody
   const headersObj = Object.fromEntries(request.headers.entries())
   const contentType = request.headers.get('content-type') || ''
 
@@ -232,7 +255,12 @@ async function fetchViaCapacitorHttp(
   const resHeaders = new Headers(res.headers)
   let resBody = res.data
 
-  if (typeof resBody !== 'string' && resBody !== null) {
+  if (
+    typeof resBody === 'object'
+    && resBody !== null
+    && !(resBody instanceof ArrayBuffer)
+    && !ArrayBuffer.isView(resBody)
+  ) {
     resBody = JSON.stringify(resBody)
     if (!resHeaders.has('content-type')) {
       resHeaders.set('content-type', 'application/json; charset=utf-8')
@@ -293,7 +321,12 @@ export function installNativeFetchPatch(options?: {
     input: RequestInfo | URL,
     init?: RequestInit,
   ): Promise<Response> => {
-    if (init?.signal?.aborted) {
+    // FIX: merge signal from init + Request
+    const requestSignal
+      = init?.signal
+        || (input instanceof Request ? input.signal : undefined)
+
+    if (requestSignal?.aborted) {
       throw new DOMException('The user aborted a request.', 'AbortError')
     }
 
@@ -303,7 +336,6 @@ export function installNativeFetchPatch(options?: {
       globalThis.location?.origin || 'http://localhost',
     )
 
-    // Pass init and input so the policy can check complex objects like FormData
     if (
       !Capacitor.isNativePlatform()
       || policy.shouldBypass(parsedUrl, init, input)
@@ -313,13 +345,12 @@ export function installNativeFetchPatch(options?: {
 
     const request = await getRequestInfo(input, init, policy)
 
-    // Stream request processing
+    // Stream request
     if (policy.isStreamRequest(request)) {
       try {
         const stream = createNativeReadableStream(
           request,
-          policy,
-          init?.signal,
+          requestSignal,
         )
 
         return new Response(stream, {
@@ -332,7 +363,7 @@ export function installNativeFetchPatch(options?: {
       }
     }
 
-    // Normal request processing
+    // Normal request
     try {
       return await fetchViaCapacitorHttp(request, policy)
     }

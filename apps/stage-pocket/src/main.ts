@@ -25,9 +25,9 @@ import 'splitpanes/dist/splitpanes.css'
 import 'vue-sonner/style.css'
 import './styles/main.css'
 import 'uno.css'
+
 // native fetch patch
-const uninstallNativeFetchPatch = installNativeFetchPatch()
-window.addEventListener('unload', uninstallNativeFetchPatch)
+installNativeFetchPatch()
 
 const pinia = createPinia()
 
