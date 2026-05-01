@@ -30,12 +30,12 @@ docs:
   'account': Аккаунт
   'logout': Выйти
 widgets:
-  close: Close widget
+  close: Закрыть виджет
   empty:
-    title: No widget active
-    description: Widgets will appear here when a tool or plugin spawns one.
-  loading: Loading widget…
-  waiting: Waiting for widget data for "{id}"…
+    title: Нет активных виджетов
+    description: Виджеты появятся здесь, когда появится инструмент или плагин.
+  loading: Загрузка виджета…
+  waiting: Ожидание данных виджета "{id}"…
 notice:
   'fade-on-hover':
     title: Исчезать при наведении
