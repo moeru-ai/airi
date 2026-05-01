@@ -9,7 +9,7 @@ import {
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { FieldCombobox, FieldRange, FieldTextArea } from '@proj-airi/ui'
+import { FieldCombobox, FieldTextArea } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -19,13 +19,9 @@ interface MimoSpeechProviderConfig {
   baseUrl?: string
   format?: string
   model?: string
-  speed?: number
   stylePrompt?: string
   voice?: string
   voiceSample?: string
-  voiceSettings?: {
-    speed?: number
-  }
 }
 
 const speechStore = useSpeechStore()
@@ -89,13 +85,6 @@ const stylePromptDescription = computed(() => {
   return 'Natural-language control sent as the user message. You can leave it empty for a neutral delivery.'
 })
 
-const speed = computed<number>({
-  get: () => config.value?.speed ?? defaultVoiceSettings.speed,
-  set: (value) => {
-    ensureProviderConfig().speed = value
-  },
-})
-
 const model = computed({
   get: () => config.value?.model || defaultModel,
   set: (value) => {
@@ -142,7 +131,6 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   const requestConfig = {
     ...providerConfig,
     ...defaultVoiceSettings,
-    speed: speed.value,
     stylePrompt: stylePrompt.value,
     voiceSample: voiceSample.value,
   }
@@ -200,13 +188,6 @@ const {
         description="Paste the base64 voice sample as data:{MIME_TYPE};base64,$BASE64_AUDIO. MiMo supports mp3 and wav samples up to 10 MB."
         placeholder="data:audio/wav;base64,UklGRpyG..."
         :required="isVoiceCloneModel"
-      />
-      <FieldRange
-        v-model="speed"
-        :label="t('settings.pages.providers.provider.common.fields.field.speed.label')"
-        :description="t('settings.pages.providers.provider.common.fields.field.speed.description')"
-        :min="0.5"
-        :max="2.0" :step="0.01"
       />
     </template>
 

@@ -1578,8 +1578,7 @@ export const useProvidersStore = defineStore('providers', () => {
         const defaultFormat = (config.format as string) || 'wav'
 
         const provider: SpeechProvider = {
-          speech: (_model, options) => ({
-            ...options,
+          speech: () => ({
             baseURL: `${baseUrl}/`,
             model: defaultModel,
             fetch: async (_input: RequestInfo | URL, init?: RequestInit) => {
