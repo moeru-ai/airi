@@ -303,9 +303,10 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
           const finalCategorization = categorizeResponse(fullText, activeProvider.value)
 
+          const reasoningContentField = buildingMessage.categorization?.reasoning?.trim()
           buildingMessage.categorization = {
             speech: finalCategorization.speech,
-            reasoning: finalCategorization.reasoning,
+            reasoning: reasoningContentField || finalCategorization.reasoning,
           }
           updateUI()
         },
@@ -475,6 +476,15 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
                 fullText += event.text
                 await parser.consume(event.text)
                 break
+              case 'reasoning-delta': {
+                const { speech = '', reasoning = '' } = buildingMessage.categorization ?? {}
+                buildingMessage.categorization = {
+                  speech,
+                  reasoning: reasoning + event.text,
+                }
+                updateUI()
+                break
+              }
               case 'finish':
                 break
               case 'error':
