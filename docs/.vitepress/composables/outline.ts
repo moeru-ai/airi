@@ -54,10 +54,7 @@ export function resolveTitle(theme: DefaultTheme.Config) {
 }
 
 export function getHeaders(range: DefaultTheme.Config['outline']) {
-  const headers = [
-    // @ts-expect-error copied script
-    ...document.querySelectorAll('article :where(h1,h2,h3,h4,h5,h6)'),
-  ]
+  const headers = Array.from(document.querySelectorAll('article :where(h1,h2,h3,h4,h5,h6)'))
     .filter(el => el.id && el.hasChildNodes())
     .map((el) => {
       const level = Number(el.tagName[1])
@@ -74,8 +71,7 @@ export function getHeaders(range: DefaultTheme.Config['outline']) {
 
 function serializeHeader(h: Element): string {
   let ret = ''
-  // @ts-expect-error copied script
-  for (const node of h.childNodes) {
+  for (const node of Array.from(h.childNodes)) {
     if (node.nodeType === 1) {
       if (
         (node as Element).classList.contains('VPBadge')
@@ -204,6 +200,7 @@ export function useActiveAnchor(
       }
       activeLink = link
     }
+
     activateLink(activeLink)
   }
 

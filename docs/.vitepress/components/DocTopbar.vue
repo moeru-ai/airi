@@ -20,17 +20,20 @@ const isSidebarOpen = ref(false)
 const sidebar = computed(() => (theme.value.sidebar as (DefaultTheme.SidebarItem & { icon?: string })[]))
 
 const sectionTabs = computed(() => sidebar.value
-  .map(val => ({
-    label: val.text,
-    link: flatten(val.items ?? [], 'items').filter(i => !!i?.link)?.[0]?.link,
-    icon: val.icon,
-  }))
+  .map((val) => {
+    return {
+      label: val.text,
+      link: flatten(val.items ?? [], 'items').filter(i => !!i?.link)?.[0]?.link ?? val.link,
+      icon: val.icon,
+    }
+  })
   .filter(i => !!i?.link),
 )
 
 function isCharacterPage(link?: string) {
   if (!link)
     return false
+
   return link.includes('/characters') || link.includes('/characters/')
 }
 
@@ -49,6 +52,8 @@ watch(path, () => {
   >
     <div class="hidden h-full items-center justify-between md:flex">
       <div class="h-full flex items-center">
+        <div />
+
         <a
           v-for="tab in sectionTabs.filter(i => !isCharacterPage(i.link))"
           :key="tab.label"

@@ -24,7 +24,7 @@ defineProps<{
     >
       <CollapsibleTrigger
         :class="[
-          'group w-full inline-flex items-center justify-between py-1 pl-4 pr-4 text-sm font-bold',
+          'group w-full inline-flex items-center justify-between py-1 pl-3 pr-3 text-sm font-bold',
           'hover:bg-neutral/15 rounded-lg',
         ]"
       >
@@ -37,7 +37,7 @@ defineProps<{
       </CollapsibleTrigger>
       <CollapsibleContent
         :class="[
-          'overflow-hidden mt-1 data-[state=closed]:animate-slideUp data-[state=open]:animate-slideDown flex flex-col gap-1',
+          'overflow-hidden mt-0.5 data-[state=closed]:animate-slideUp data-[state=open]:animate-slideDown flex flex-col gap-1',
         ]"
       >
         <DocSidebarItem
