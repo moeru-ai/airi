@@ -89,62 +89,71 @@ onClickOutside(dropdownRef, () => {
         />
       </button>
 
-      <div
-        v-if="showDropdown"
-        class="absolute right-0 top-full z-50 mt-2 w-60 origin-top-right border border-neutral-200/60 rounded-xl bg-white/90 p-1 shadow-xl backdrop-blur-xl divide-y divide-neutral-100 dark:border-neutral-800/60 dark:bg-neutral-900/90 dark:divide-neutral-800"
+      <Transition
+        enter-active-class="transition duration-200 ease-out"
+        enter-from-class="translate-y-1 opacity-0"
+        enter-to-class="translate-y-0 opacity-100"
+        leave-active-class="transition duration-150 ease-in"
+        leave-from-class="translate-y-0 opacity-100"
+        leave-to-class="translate-y-1 opacity-0"
       >
-        <div class="px-3 py-2">
-          <p class="text-xs text-neutral-500 dark:text-neutral-400">
-            Signed in as
-          </p>
-          <p class="truncate text-sm text-neutral-900 font-medium dark:text-white">
-            {{ userName }}
-          </p>
-          <div class="mt-1 flex items-center gap-1.5 text-xs text-primary-600 font-medium dark:text-primary-400">
-            <div class="i-solar:battery-charge-bold-duotone text-sm" />
-            <span>{{ formattedCredits }} Flux</span>
+        <div
+          v-if="showDropdown"
+          class="absolute right-0 top-full z-50 mt-2 w-60 origin-top-right border border-neutral-200/60 rounded-xl bg-white/90 p-1 shadow-xl backdrop-blur-xl divide-y divide-neutral-100 dark:border-neutral-800/60 dark:bg-neutral-900/90 dark:divide-neutral-800"
+        >
+          <div class="px-3 py-2">
+            <p class="text-xs text-neutral-500 dark:text-neutral-400">
+              Signed in as
+            </p>
+            <p class="truncate text-sm text-neutral-900 font-medium dark:text-white">
+              {{ userName }}
+            </p>
+            <div class="mt-1 flex items-center gap-1.5 text-xs text-primary-600 font-medium dark:text-primary-400">
+              <div class="i-solar:battery-charge-bold-duotone text-sm" />
+              <span>{{ formattedCredits }} Flux</span>
+            </div>
+          </div>
+
+          <div class="py-1">
+            <RouterLink
+              to="/settings/account"
+              class="group w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-700 transition hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
+              @click="showDropdown = false"
+            >
+              <div class="i-solar:user-id-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
+              Profile
+            </RouterLink>
+
+            <RouterLink
+              to="/settings/flux"
+              class="group w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-700 transition hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
+              @click="showDropdown = false"
+            >
+              <div class="i-solar:battery-charge-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
+              Flux
+            </RouterLink>
+
+            <RouterLink
+              to="/settings"
+              class="group w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-700 transition hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
+              @click="showDropdown = false"
+            >
+              <div class="i-solar:settings-minimalistic-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
+              Settings
+            </RouterLink>
+          </div>
+
+          <div class="py-1">
+            <button
+              class="group w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+              @click="signOut"
+            >
+              <div class="i-solar:logout-3-bold-duotone text-lg transition group-hover:text-red-600 dark:group-hover:text-red-400" />
+              Sign out
+            </button>
           </div>
         </div>
-
-        <div class="py-1">
-          <RouterLink
-            to="/settings/account"
-            class="group w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-700 transition hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
-            @click="showDropdown = false"
-          >
-            <div class="i-solar:user-id-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
-            Profile
-          </RouterLink>
-
-          <RouterLink
-            to="/settings/flux"
-            class="group w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-700 transition hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
-            @click="showDropdown = false"
-          >
-            <div class="i-solar:battery-charge-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
-            Flux
-          </RouterLink>
-
-          <RouterLink
-            to="/settings"
-            class="group w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-700 transition hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
-            @click="showDropdown = false"
-          >
-            <div class="i-solar:settings-minimalistic-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
-            Settings
-          </RouterLink>
-        </div>
-
-        <div class="py-1">
-          <button
-            class="group w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-            @click="signOut"
-          >
-            <div class="i-solar:logout-3-bold-duotone text-lg transition group-hover:text-red-600 dark:group-hover:text-red-400" />
-            Sign out
-          </button>
-        </div>
-      </div>
+      </Transition>
     </div>
   </div>
 </template>
