@@ -32,7 +32,7 @@ watch(isActiveLink, () => {
   >
     <a
       :href="item.link"
-      class="h-[2.15rem] w-full inline-flex items-center px-4"
+      class="min-h-[2.15rem] w-full inline-flex items-center px-3 py-0.5"
       v-html="item.text"
     />
   </div>
