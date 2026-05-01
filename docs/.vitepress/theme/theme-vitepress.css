@@ -47,7 +47,7 @@
     left: 0.75rem;
     top: 50%;
     width: 0.25rem;
-    height: calc(100% - 1.75rem);
+    height: calc(100% - 1.5rem);
     transform: translateY(-50%);
     border-radius: 999px;
   }
@@ -69,6 +69,11 @@
 
   & > * {
     margin-left: 0.5rem;
+  }
+
+  pre.shiki {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
   }
 
   pre.shiki.shiki-themes.catppuccin-latte.catppuccin-mocha {
@@ -122,11 +127,11 @@
   }
 
   & .custom-block-title {
-    @apply text-yellow-800 dark:text-yellow-300 font-semibold;
+    @apply text-yellow-700 dark:text-yellow-300 font-semibold;
   }
 
   &> p:nth-child(2) {
-    @apply dark:text-yellow-50;
+    @apply text-yellow-950 dark:text-yellow-50 leading-tight;
   }
 }
 
@@ -148,6 +153,10 @@
 
 pre.shiki.shiki-themes.catppuccin-latte.catppuccin-mocha {
   background-color: #f6f9ff;
+}
+
+details pre.shiki.shiki-themes.catppuccin-latte.catppuccin-mocha {
+  background-color: #e9f0ff;
 }
 
 .dark pre.shiki.shiki-themes.catppuccin-latte.catppuccin-mocha {

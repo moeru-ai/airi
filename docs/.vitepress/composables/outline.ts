@@ -55,7 +55,6 @@ export function resolveTitle(theme: DefaultTheme.Config) {
 
 export function getHeaders(range: DefaultTheme.Config['outline']) {
   const headers = [
-    // @ts-expect-error copied script
     ...document.querySelectorAll('article :where(h1,h2,h3,h4,h5,h6)'),
   ]
     .filter(el => el.id && el.hasChildNodes())
@@ -74,7 +73,6 @@ export function getHeaders(range: DefaultTheme.Config['outline']) {
 
 function serializeHeader(h: Element): string {
   let ret = ''
-  // @ts-expect-error copied script
   for (const node of h.childNodes) {
     if (node.nodeType === 1) {
       if (
@@ -204,6 +202,7 @@ export function useActiveAnchor(
       }
       activeLink = link
     }
+
     activateLink(activeLink)
   }
 
