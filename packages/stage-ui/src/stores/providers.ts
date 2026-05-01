@@ -1835,7 +1835,6 @@ export const useProvidersStore = defineStore('providers', () => {
                     },
                   ],
                 }),
-                signal: init?.signal,
               })
 
               if (!response.ok) {
