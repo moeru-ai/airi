@@ -35,6 +35,7 @@ const props = withDefaults(defineProps<{
 
   app?: Application
   mouthOpenSize?: number
+  isSpeaking?: boolean
   width: number
   height: number
   paused?: boolean
@@ -52,6 +53,7 @@ const props = withDefaults(defineProps<{
   live2dShadowEnabled?: boolean
 }>(), {
   mouthOpenSize: 0,
+  isSpeaking: false,
   paused: false,
   focusAt: () => ({ x: 0, y: 0 }),
   disableFocusAt: false,
@@ -106,6 +108,7 @@ const model = ref<Live2DModel<PixiLive2DInternalModel>>()
 const initialModelWidth = ref<number>(0)
 const initialModelHeight = ref<number>(0)
 const mouthOpenSize = computed(() => Math.max(0, Math.min(100, props.mouthOpenSize)))
+const isSpeaking = toRef(() => props.isSpeaking)
 const lastUpdateTime = ref(0)
 
 const { isDark: dark } = useTheme()
@@ -117,10 +120,6 @@ const dropShadowFilter = shallowRef(new DropShadowFilter({
   distance: 20,
   rotation: 45,
 }))
-
-function getCoreModel() {
-  return model.value!.internalModel.coreModel as any
-}
 
 let resizeAnimation: ReturnType<typeof animate> | undefined
 
@@ -379,7 +378,7 @@ async function loadModel() {
     // This ensures blink respects expression state (0 × blinkFactor = 0).
     motionManagerUpdate.register(useMotionUpdatePluginExpression(expressionController), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled), 'final')
-    motionManagerUpdate.register(useMotionUpdatePluginLipSync(mouthOpenSize), 'final')
+    motionManagerUpdate.register(useMotionUpdatePluginLipSync(mouthOpenSize, isSpeaking), 'final')
 
     const hookedUpdate = motionManager.update as (model: PixiLive2DInternalModel['coreModel'], now: number) => boolean
     motionManager.update = function (model: PixiLive2DInternalModel['coreModel'], now: number) {
@@ -575,7 +574,6 @@ watch([themeColorsHueDynamic, live2dShadowEnabled], ([dynamic, shadowEnabled]) =
   }
 }, { immediate: true })
 
-watch(mouthOpenSize, value => getCoreModel().setParameterValueById('ParamMouthOpenY', value))
 watch(currentMotion, value => setMotion(value.group, value.index))
 watch(paused, value => value ? pixiApp.value?.stop() : pixiApp.value?.start())
 
