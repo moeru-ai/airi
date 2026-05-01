@@ -109,7 +109,7 @@ viewUpdateCleanups.push(live2dStore.onShouldUpdateView(async () => {
 }))
 
 const audioAnalyser = ref<AnalyserNode>()
-const isSpeaking = ref(false)
+const nowSpeaking = ref(false)
 const lipSyncStarted = ref(false)
 const lipSyncLoopId = ref<number>()
 const live2dLipSync = ref<Live2DLipSync>()
@@ -338,12 +338,12 @@ playbackManager.onEnd(({ item }) => {
   if (item.special)
     playSpecialToken(item.special)
 
-  isSpeaking.value = false
+  nowSpeaking.value = false
   mouthOpenSize.value = 0
 })
 
 playbackManager.onStart(({ item }) => {
-  isSpeaking.value = true
+  nowSpeaking.value = true
   // NOTICE: postCaption and postPresent may throw errors if the BroadcastChannel is closed
   // (e.g., when navigating away from the page). We wrap these in try-catch to prevent
   // breaking playback when the channel is unavailable.
@@ -367,7 +367,7 @@ function startLipSyncLoop() {
     return
 
   const tick = () => {
-    if (!isSpeaking.value || !live2dLipSync.value) {
+    if (!nowSpeaking.value || !live2dLipSync.value) {
       mouthOpenSize.value = 0
     }
     else {
@@ -651,7 +651,7 @@ defineExpose({
         :model-id="stageModelSelected"
         :focus-at="focusAt"
         :mouth-open-size="mouthOpenSize"
-        :is-speaking="isSpeaking"
+        :is-speaking="nowSpeaking"
         :paused="paused"
         :x-offset="xOffset"
         :y-offset="yOffset"
