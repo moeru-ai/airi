@@ -437,3 +437,47 @@ export function useMotionUpdatePluginExpression(
     controller.applyExpressions(ctx.model)
   }
 }
+
+/**
+ * Final-phase plugin that owns ParamMouthOpenY while speech is active and
+ * smoothly cross-fades back to the motion-driven value when speech ends.
+ *
+ * `nowSpeaking` (not `mouthOpenSize > 0`) is the speech boundary, so silent
+ * gaps between phonemes write 0 directly instead of triggering the release.
+ */
+export function useMotionUpdatePluginLipSync(
+  mouthOpenSize: Ref<number>,
+  nowSpeaking: Ref<boolean>,
+): MotionManagerPlugin {
+  const RELEASE_DURATION_MS = 200
+
+  let releaseRemainingMs = 0
+  let lastForcedValue = 0
+
+  const smoothstep = (t: number) => t * t * (3 - 2 * t)
+
+  return (ctx) => {
+    if (nowSpeaking.value) {
+      lastForcedValue = mouthOpenSize.value
+      releaseRemainingMs = RELEASE_DURATION_MS
+      ctx.model.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
+      return
+    }
+
+    if (releaseRemainingMs <= 0)
+      return
+
+    // timeDelta is usually ms but can arrive in seconds; mirror useMotionUpdatePluginAutoEyeBlink.
+    const rawDelta = Math.max(ctx.timeDelta ?? 0, 0)
+    const dtMs = rawDelta < 5 ? rawDelta * 1000 : rawDelta
+
+    releaseRemainingMs = Math.max(0, releaseRemainingMs - dtMs)
+    const blend = smoothstep(1 - releaseRemainingMs / RELEASE_DURATION_MS)
+
+    // ParamMouthOpenY was already written by motion + expression plugins this frame.
+    const motionValue = ctx.model.getParameterValueById('ParamMouthOpenY') as number
+    const blended = lastForcedValue * (1 - blend) + motionValue * blend
+
+    ctx.model.setParameterValueById('ParamMouthOpenY', blended)
+  }
+}
