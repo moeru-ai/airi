@@ -651,7 +651,7 @@ defineExpose({
         :model-id="stageModelSelected"
         :focus-at="focusAt"
         :mouth-open-size="mouthOpenSize"
-        :is-speaking="nowSpeaking"
+        :now-speaking="nowSpeaking"
         :paused="paused"
         :x-offset="xOffset"
         :y-offset="yOffset"

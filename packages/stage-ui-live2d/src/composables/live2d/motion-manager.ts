@@ -442,12 +442,12 @@ export function useMotionUpdatePluginExpression(
  * Final-phase plugin that owns ParamMouthOpenY while speech is active and
  * smoothly cross-fades back to the motion-driven value when speech ends.
  *
- * `isSpeaking` (not `mouthOpenSize > 0`) is the speech boundary, so silent
+ * `nowSpeaking` (not `mouthOpenSize > 0`) is the speech boundary, so silent
  * gaps between phonemes write 0 directly instead of triggering the release.
  */
 export function useMotionUpdatePluginLipSync(
   mouthOpenSize: Ref<number>,
-  isSpeaking: Ref<boolean>,
+  nowSpeaking: Ref<boolean>,
 ): MotionManagerPlugin {
   const RELEASE_DURATION_MS = 200
 
@@ -457,7 +457,7 @@ export function useMotionUpdatePluginLipSync(
   const smoothstep = (t: number) => t * t * (3 - 2 * t)
 
   return (ctx) => {
-    if (isSpeaking.value) {
+    if (nowSpeaking.value) {
       lastForcedValue = mouthOpenSize.value
       releaseRemainingMs = RELEASE_DURATION_MS
       ctx.model.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
