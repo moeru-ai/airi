@@ -81,7 +81,7 @@ dialogs:
 language:
   title: Idioma
   description: |
-    UI language. You can set characters' language later.
+    Idioma de la UI. Puedes configurar el idioma de los caracteres más tarde.
 controls-island:
   icon-size:
     title: Tamaño de icono de la isla de controles
@@ -149,9 +149,92 @@ pages:
     notLoggedIn: Inicia sesión para ver tu cuenta y acceder a todas las funciones
     login: Iniciar sesión
     logout: Cerrar sesión
-    fluxBalance: Flux Balance
+    fluxBalance: Saldo de Flux
     viewFluxDetails: Ver detalles
     signedInAs: Sesión iniciada como
+    profile:
+      tab: Perfil
+      title: Perfil
+      description: Administra tu nombre público.
+      name:
+        label: Mostrar nombre
+        placeholder: Cómo otros te ven
+      avatar:
+        gravatarNotice: Avatar from Gravatar.
+        gravatarLink: Manage on gravatar.com
+      action:
+        save: Guardar cambios
+      message:
+        saved: Perfil actualizado.
+      error:
+        fallback: No pudimos guardar sus cambios.
+    connections:
+      tab: Connected accounts
+      title: Connected accounts
+      description: Sign in to AIRI through these providers. Unlink to revoke access, then link again to switch to a different account.
+      status:
+        linked: Linked
+        notLinked: Not linked
+        linkedSince: Linked on {date}
+      action:
+        link: Link
+        unlink: Unlink
+      message:
+        loading: Loading connected accounts...
+        unlinked: '{provider} disconnected.'
+        linked: '{provider} connected.'
+        linkStarted: Redirecting to {provider}…
+      error:
+        listFailed: Could not load connected accounts.
+        unlinkFailed: Could not unlink this account.
+        linkFailed: Could not start the link flow.
+        lastAccount: This is your only sign-in method. Set a password first before unlinking it.
+    security:
+      tab: Seguridad
+      title: Seguridad
+      description: Cambia tu contraseña. Tus otros dispositivos cerrarán sesión.
+      setDescription: You signed in via a social provider, so there is no current password yet. We'll email a secure link to set one.
+      currentPassword:
+        label: Contraseña actual
+        placeholder: Introduce tu contraseña actual
+      newPassword:
+        label: Nueva contraseña
+        placeholder: Mínimo 8 caracteres
+      confirmPassword:
+        label: Confirmar nueva contraseña
+        placeholder: Repite tu nueva contraseña
+      action:
+        changePassword: Cambiar contraseña
+        sendSetLink: Email me a link to set my password
+      message:
+        changed: Contraseña cambiada. Otras sesiones han sido desconectadas.
+        setLinkSent: Check {email} for the link to set your password.
+      error:
+        fallback: No pudimos cambiar tu contraseña.
+        setLinkFailed: We could not send the password setup link.
+        passwordMismatch: Las contraseñas no coinciden.
+        passwordSameAsCurrent: La nueva contraseña debe ser diferente de la actual.
+    danger:
+      tab: Zona peligrosa
+      title: Zona peligrosa
+      description: Irreversible account actions live here.
+      deleteAccount:
+        title: Eliminar cuenta
+        description: Permanently delete your account and personal data.
+        action: Delete account
+        modal:
+          title: Delete account?
+          warning: This cannot be undone. Active subscription will be canceled, Flux balance cleared.
+          confirmEmail:
+            label: Type your email to confirm
+            placeholder: ''
+            mismatch: Email does not match.
+          confirm: Send confirmation email
+          cancel: Cancel
+        message:
+          emailSent: Check {email} for the deletion link.
+        error:
+          fallback: Could not start deletion. Try again later.
   card:
     activate: Activar
     active: Activo
@@ -358,33 +441,33 @@ pages:
               label: Calentamiento
     artistry:
       title: Artistry
-      description: Image generation, scene background and drawing.
+      description: Generación de imágenes, fondo de escena y dibujo.
       page:
         title: Artistry Provider Configuration
         description: Select the active backend provider for image generation. Characters can override this in their Card settings.
       providers:
         none:
-          name: None
+          name: Ninguno
           description: Bypass and disable the image generation module globally.
         comfyui:
-          name: ComfyUI (Local)
+          name: ConfyUI (local)
           description: Use a local ComfyUI instance via WSL for image generation.
         replicate:
           name: Replicate.ai (Cloud)
           description: Use cloud-based models via the Replicate API.
         nanobanana:
-          name: Nano Banana (Preview)
+          name: Nano Banana (Vista previa)
           description: Use Google AI Studio for image preview and reactions.
       card:
         description: Configure how AIRI generates images and visual content.
         comfyui_empty: No ComfyUI workflows configured. Go to Settings → Providers → ComfyUI to upload a workflow template.
         exposed_fields: '{count} exposed fields'
-        open_on_replicate: Open on Replicate
+        open_on_replicate: Abrir al replicar
         instruction_sync:
           title: ComfyUI Instruction Sync
           description: A specialized prompt is ready for your {workflowName} workflow. Applying this will overwrite current widget instructions so the AI knows how to use this specific template.
           apply: Apply Recommended Prompt
-          keep: Keep Existing
+          keep: Mantener existente
       provider: Artistry Provider
       spawn_mode:
         label: Manifestation Mode (Spawn Mode)
@@ -399,7 +482,7 @@ pages:
         description: When enabled, the "Producer" runs in parallel to the character to decide if a visual is needed. This prevents the character from forgetting to manifest scenes.
         threshold: Manifestation Threshold
         threshold_description: Use {min} for aggressive scene creation or {max} to require stronger evidence before generating.
-        threshold_min: Always Generate (0%)
+        threshold_min: Generar siempre (0%)
         threshold_max: Strict (100%)
       model:
         label: Artistry Model (Optional Override)
@@ -479,7 +562,7 @@ pages:
           Puedes encontrar las instrucciones para configurar el bot en el siguiente archivo
       runtime:
         title:
-        connection: Connection
+        connection: Conexión
         latest-context: Latest bot context
         waiting: Waiting for a fresh bot-originated context push.
         unknown: Unknown
@@ -488,8 +571,8 @@ pages:
         empty: No Minecraft traffic observed yet.
         source: 'Source: {source}'
       status:
-        service-online: Service online
-        service-offline: Service offline
+        service-online: Servicio online
+        service-offline: Servicio offline
         no-runtime-context: No bot context observed yet
         last-context-seconds: 'Last bot context: {seconds}s ago'
         last-context-stale: 'Last bot context: Stale'
@@ -620,7 +703,7 @@ pages:
       empty: No hay registros de transacción todavía.
       loadMore: Cargar más
       delayHint: Los registros de uso se pueden retrasar hasta 1 minuto
-      ttsRequests: requests
+      ttsRequests: peticiones
     packages:
       title: Paquetes de flujo
       buy: Carga
@@ -722,27 +805,27 @@ pages:
         voice:
           title: Configuraciones de Voz
     labels:
-      recommended: Recommended
+      recommended: Recomendado
     filters:
       pricing: Pricing
       deployment: Deployment
-      all: All
-      free: Free
-      paid: Paid
+      all: Todo
+      free: Gratis
+      paid: Pagado
       internal: Internal
       local: Local
-      cloud: Cloud
+      cloud: Nube
     categories:
       chat:
         title: Chat
-        description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+        description: Proveedores de modelos de generación de texto. ej. OpenRouter, OpenAI, Ollama.
       speech:
         title: Speech
         description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
       transcription:
-        title: Transcription
+        title: Transcripción
         description: >-
-          Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech
+          Proveedores de modelos de transcripción (voz a texto). ej. Whisper.cpp, OpenAI, Azure Speech
       artistry:
         title: Artistry
         description: Image generation and design model providers. e.g. ComfyUI, Replicate.
@@ -784,8 +867,8 @@ pages:
         description: aws.amazon.com/bedrock
         config:
           api-key:
-            label: Bedrock API Key
-            description: Amazon Bedrock API key (generate in AWS Console → Bedrock → API Keys)
+            label: Clave API Bedrock
+            description: Clave API Bedrock de Amazon (generar en la consola AWS → Bedrock → Claves API)
             placeholder: bedrock-...
           region:
             label: AWS Region
@@ -839,26 +922,26 @@ pages:
         description: Sin salida de voz.
       comfyui:
         settings:
-          title: ComfyUI (Local)
+          title: ConfyUI (local)
           heading: ComfyUI Native API
           description: Connect to your local ComfyUI and bring your own workflows.
           info:
             what_you_need:
-              label: What You Need
+              label: Lo que necesitas
               value: ComfyUI running locally or on your network.
             how_to_export:
-              label: How To Export
+              label: Cómo exportar
               value: Enable Dev Mode → "Save (API Format)".
             scope_boundary:
               label: Scope Boundary
               value: Model downloads & node installs are your job.
           connection:
-            title: Connection
-            connected: Connected
-            failed: Connection failed
+            title: Conexión
+            connected: Conectado
+            failed: Conexión fallida
             error_prefix: Error
-            test: Test
-            testing: Testing...
+            test: Probar
+            testing: Probando...
             unknown_error: Unknown connection error
             unknown_gpu: Unknown GPU
             server_url:
@@ -904,8 +987,8 @@ pages:
             description: Fallback owner/model string to use if the character card doesn't specify one
             placeholder: black-forest-labs/flux-schnell
           aspect_ratio:
-            label: Aspect Ratio
-            description: Default image aspect ratio (e.g. 16:9, 1:1, 9:16)
+            label: Relación de aspecto
+            description: Relación de aspecto por defecto de la imagen (por ejemplo, 16:9, 1:1, 9:16)
             placeholder: '16:9'
           inference_steps:
             label: Inference Steps
@@ -914,21 +997,21 @@ pages:
         settings:
           title: Nano Banana
           heading: Nano Banana (Google AI Studio)
-          description: Configure Google Gemini's native image generation capabilities.
+          description: Configurar las capacidades de generación de imágenes nativas de Google Gemini.
           api_key:
-            label: API Key
-            description: Your Google AI Studio API Key
+            label: Clave API
+            description: Tu clave API de Google AI Studio
             placeholder: AIpk...
           preferred_model:
-            label: Preferred Model
+            label: Modelo preferido
             description: The specific Gemini image preview model to use
           default_resolution:
-            label: Default Resolution
+            label: Resolución por defecto
             description: The target resolution for generated images
           model_options:
-            nano_banana_2: Nano Banana 2 (Gemini 3.1 Flash Image)
-            nano_banana_pro: Nano Banana Pro (Gemini 3 Pro Image)
-            nano_banana: Nano Banana (Gemini 2.5 Flash Image)
+            nano_banana_2: Nano Banana 2 (Imagen Flash Gemini 3.1)
+            nano_banana_pro: Nano Banana Pro (Imagen Flash Gemini 3)
+            nano_banana: Nano Banana (Imagen Flash Gemini 2.5)
       deepseek:
         description: deepseek.com
         title: DeepSeek
@@ -1164,18 +1247,18 @@ pages:
         The QR code includes the auth token so Stage Pocket can authenticate after connecting. Do not share it publicly.
       errors:
         title: QR code unavailable
-        unavailable: Failed to prepare the connection QR code.
+        unavailable: Error al preparar el código QR de conexión.
     qr-scan:
-      title: Quick Connect
-      description: Scan the QR code from Tamagotchi to quick connect
+      title: Conexión rápida
+      description: Escanear el código QR desde Tamagotchi para conectarse rápidamente
       instructions: Point the camera at the AIRI connection QR code.
-      action: Scan
+      action: Escanear
       success:
-        title: Connected address saved
-        description: 'URL been used: {url}'
+        title: Dirección conectada guardada
+        description: 'URL utilizada: {url}'
       errors:
-        title: QR scan failed
-        failed: Failed to scan or connect with the QR code.
+        title: Escaneo QR fallido
+        failed: Fallo al escanear o conectar con el código QR.
   system:
     color-scheme:
       description: Cambiar el esquema de colores del escenario.
@@ -1203,7 +1286,7 @@ pages:
             section:
               performance-visualizer:
                 title: Performance Visualizer
-                description: Toggle FPS/long task/memory overlay
+                description: Cambiar FPS/tareas largas/superposición de memoria
               markdown-stress:
                 title: Markdown Stress
                 description: Stress markdown parsing and rendering with heavy chat payloads
@@ -1211,7 +1294,7 @@ pages:
                 title: useMagicKeys Tool
                 description: Test shortcuts
               audio-record:
-                title: Audio Record
+                title: Grabación de Audio
                 description: Test Audio related composables
               background-gradient-blending:
                 title: Background Theme color blending
@@ -1226,8 +1309,8 @@ pages:
                 title: Gesture Circle (Desktop only)
                 description: Test gesture recognition
               image:
-                title: Image
-                description: Image
+                title: Imagen
+                description: Imagen
               polaroid:
                 title: Polaroid
                 description: Utilidad para tomar fotos de modelos
@@ -1325,26 +1408,26 @@ pages:
   credits:
     buy: Comprar
   scene:
-    title: Scenes
-    description: Customize the virtual environment for your characters.
-    beta_label: Scenes System
-    beta_description: Each character card specifies its own preferred background from this gallery. Setting it here will set it as the default for the currently active character.
+    title: Escenas
+    description: Personaliza el entorno virtual para tus personajes.
+    beta_label: Sistema de Escenas
+    beta_description: Cada carta de caracteres especifica su propio fondo preferido de esta galería. Si lo establece aquí se establecerá como predeterminado para el carácter activo actual.
     background_image:
-      title: Active Character Background
-      no_background: No background active for this character. Upload a square or landscape image for best results.
-      upload: Upload to Gallery
-      change: Change Background
-      clear: Clear Default
+      title: Fondo activo del personaje
+      no_background: No hay fondo activo para este personaje. Sube una imagen cuadrada o horizontal para mejores resultados.
+      upload: Subir a Galería
+      change: Cambiar fondo
+      clear: Borrar predeterminado
     gallery:
-      title: Scene Gallery
-      empty: No images in gallery yet. Upload one above!
-      set_as_global: Set as Character Default
-      delete: Delete from Gallery
-      global_badge: Character Default
-      active_badge: Current Scene
+      title: Galería de escenas
+      empty: Aún no hay imágenes en la galería. ¡Sube una arriba!
+      set_as_global: Establecer como personaje por defecto
+      delete: Borrar de la galería
+      global_badge: Personaje por defecto
+      active_badge: Escena actual
       delete_confirm: Are you sure you want to delete this background?
     tip:
-      label: Tip!
+      label: '¡Un consejo!'
       description: Using a square image will leverage <b>cover</b> cropping in portrait mode, focusing on the center of the scene.
 sections:
   section:
@@ -1358,7 +1441,7 @@ title: Configuración
 voices: Voz
 vrm:
   render-scale:
-    title: Render scale
+    title: Escala de renderizado
   change-model:
     from-file: Cargar desde Archivo
     from-file-select: Seleccionar

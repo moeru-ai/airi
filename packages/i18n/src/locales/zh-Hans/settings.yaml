@@ -147,94 +147,94 @@ pages:
     title: 账号
     description: 查看您的个人资料并管理您的帐户
     notLoggedIn: 登录以查看您的帐户并访问所有功能
-    login: 登录
-    logout: 退出登录
+    login: Sign in
+    logout: Sign out
     fluxBalance: 剩余通量
     viewFluxDetails: 查看详情
-    signedInAs: 已登录为
+    signedInAs: 登录 为
     profile:
-      tab: 个人资料
-      title: 个人资料
-      description: 管理你公开显示的名字。
+      tab: Profile
+      title: Profile
+      description: Manage your public display name.
       name:
-        label: 显示名
-        placeholder: 别人看到的名字
+        label: Display name
+        placeholder: How others see you
       avatar:
-        gravatarNotice: 头像来自 Gravatar。
-        gravatarLink: 在 gravatar.com 管理
+        gravatarNotice: Avatar from Gravatar.
+        gravatarLink: Manage on gravatar.com
       action:
-        save: 保存修改
+        save: Save changes
       message:
-        saved: 资料已更新。
+        saved: Profile updated.
       error:
-        fallback: 无法保存修改。
+        fallback: We could not save your changes.
     connections:
-      tab: 已连接的账号
-      title: 已连接的账号
-      description: 通过这些渠道登录 AIRI。解绑可以撤销访问，再次绑定即可切换到其他账号。
+      tab: Connected accounts
+      title: Connected accounts
+      description: Sign in to AIRI through these providers. Unlink to revoke access, then link again to switch to a different account.
       status:
-        linked: 已绑定
-        notLinked: 未绑定
-        linkedSince: 绑定于 {date}
+        linked: Linked
+        notLinked: Not linked
+        linkedSince: Linked on {date}
       action:
-        link: 绑定
-        unlink: 解绑
+        link: Link
+        unlink: Unlink
       message:
-        loading: 正在加载已绑定的社交账号...
-        unlinked: 已解除与 {provider} 的绑定。
-        linked: 已与 {provider} 完成绑定。
-        linkStarted: 正在跳转到 {provider}…
+        loading: Loading connected accounts...
+        unlinked: '{provider} disconnected.'
+        linked: '{provider} connected.'
+        linkStarted: Redirecting to {provider}…
       error:
-        listFailed: 无法加载已绑定的社交账号。
-        unlinkFailed: 无法解除绑定。
-        linkFailed: 无法开始绑定流程。
-        lastAccount: 这是你唯一的登录方式。请先设置密码再尝试解绑。
+        listFailed: Could not load connected accounts.
+        unlinkFailed: Could not unlink this account.
+        linkFailed: Could not start the link flow.
+        lastAccount: This is your only sign-in method. Set a password first before unlinking it.
     security:
-      tab: 安全
-      title: 安全
-      description: 修改密码。其他设备的登录会话会被注销。
-      setDescription: 你通过社交账号登录，还没有设置过密码。我们会向你的邮箱发送一个安全链接，用来设置密码。
+      tab: Security
+      title: Security
+      description: Change your password. Your other devices will be signed out.
+      setDescription: You signed in via a social provider, so there is no current password yet. We'll email a secure link to set one.
       currentPassword:
-        label: 当前密码
-        placeholder: 输入当前密码
+        label: Current password
+        placeholder: Enter your current password
       newPassword:
-        label: 新密码
-        placeholder: 至少 8 位
+        label: New password
+        placeholder: At least 8 characters
       confirmPassword:
-        label: 确认新密码
-        placeholder: 再次输入新密码
+        label: Confirm new password
+        placeholder: Repeat your new password
       action:
-        changePassword: 修改密码
-        sendSetLink: 给我发送设置密码的邮件
+        changePassword: Change password
+        sendSetLink: Email me a link to set my password
       message:
-        changed: 密码已修改。其他设备的登录会话已被注销。
-        setLinkSent: 已向 {email} 发送了设置密码的链接，请前往查收。
+        changed: Password changed. Other sessions have been signed out.
+        setLinkSent: Check {email} for the link to set your password.
       error:
-        fallback: 无法修改密码。
-        setLinkFailed: 无法发送设置密码链接。
-        passwordMismatch: 两次输入的新密码不一致。
-        passwordSameAsCurrent: 新密码不能和当前密码相同。
+        fallback: We could not change your password.
+        setLinkFailed: We could not send the password setup link.
+        passwordMismatch: New password and confirmation do not match.
+        passwordSameAsCurrent: New password must differ from the current one.
     danger:
-      tab: 危险操作
-      title: 危险操作
-      description: 这里的操作不可撤销，请谨慎使用。
+      tab: Danger Zone
+      title: Danger Zone
+      description: Irreversible account actions live here.
       deleteAccount:
-        title: 删除账号
-        description: 永久删除你的账号与个人数据。
-        action: 删除账号
+        title: Delete account
+        description: Permanently delete your account and personal data.
+        action: Delete account
         modal:
-          title: 确认删除账号？
-          warning: 此操作不可撤销。订阅将被取消，Flux 余额将清空。
+          title: Delete account?
+          warning: This cannot be undone. Active subscription will be canceled, Flux balance cleared.
           confirmEmail:
-            label: 输入邮箱以确认
+            label: Type your email to confirm
             placeholder: ''
-            mismatch: 邮箱不匹配。
-          confirm: 发送确认邮件
-          cancel: 取消
+            mismatch: Email does not match.
+          confirm: Send confirmation email
+          cancel: Cancel
         message:
-          emailSent: 删除链接已发送至 {email}。
+          emailSent: Check {email} for the deletion link.
         error:
-          fallback: 无法发起删除，请稍后重试。
+          fallback: Could not start deletion. Try again later.
   card:
     activate: 激活
     active: 已激活

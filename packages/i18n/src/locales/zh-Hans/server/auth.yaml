@@ -16,7 +16,7 @@ electronCallback:
     automaticHandoffFailed: Automatic handoff did not finish in this browser session.
   label:
     signIn: 登录
-    safeToClose: It is safe to close this tab now.
+    safeToClose: 现在可以安全地关闭此标签页了。
     whyStillHere: 这个窗口还在吗？
   action:
     openAiriManually: 手动打开AIRI
@@ -27,63 +27,107 @@ signIn:
   step:
     identify:
       heading: 登录
-      description: 输入邮箱以登录或创建账号。
+      description: Enter your email to sign in or create an account.
     password:
       heading: 欢迎回来
-      description: 以 {email} 继续。
+      description: 以 {email} 继续登录
     create:
-      heading: 创建账号
-      description: 我们会为 {email} 创建一个新账号。
+      heading: 创建账户
+      description: We will create a new account for {email}.
   email:
     label: 邮箱
     placeholder: you{'@'}example.com
   password:
     label: 密码
-    placeholder: 你的密码
+    placeholder: 您的密码
   newPassword:
-    label: 设置密码
-    placeholder: 至少 8 位
+    label: 创建密码
+    placeholder: 至少 8 个字符
   confirmPassword:
     label: 确认密码
-    placeholder: 再次输入密码
+    placeholder: 重新输入密码
   name:
-    label: 显示名
-    placeholder: 可选，默认使用邮箱前缀
+    label: 昵称
+    placeholder: Optional, defaults to your email handle
   action:
     continue: 继续
     signIn: 登录
-    createAccount: 创建账号
+    createAccount: 创建账户
     forgotPassword: 忘记密码？
-    useDifferentEmail: 换个邮箱
+    useDifferentEmail: 使用其他邮箱
   divider:
     or: 或
   error:
     fallback: 登录失败
     unknown: 发生了未知错误
     authFailed: Authentication failed. Please try again.
-    passwordMismatch: 两次输入的密码不一致。
-    invalidEmail: 请输入有效的邮箱地址。
+    passwordMismatch: Password and confirmation do not match.
+    invalidEmail: Please enter a valid email address.
   footer:
     prefix: 继续之前，你需要同意我们的
     terms: 服务条款
     and: 和
     privacy: 隐私政策
+verifyEmail:
+  title:
+    pending: Check your inbox
+    success: Email verified
+    failed: Verification failed
+  message:
+    pending: We sent a verification link to your email. Open it to finish creating your account — this page will continue automatically once you click the link.
+    pendingWithAddress: We sent a verification link to {email}. Open it to finish creating your account — this page will continue automatically once you click the link.
+    success: Your email has been verified and you are signed in. You can close this tab.
+    failed: We could not verify your email ({error}). Try requesting a new link.
+  action:
+    backToSignIn: Back to sign in
+forgotPassword:
+  title: Reset your password
+  description: Enter the email address associated with your account and we will send you a reset link.
+  email:
+    label: Email
+    placeholder: you{'@'}example.com
+  action:
+    send: 发送重置链接
+    backToSignIn: 返回登录
+  message:
+    sent: If {email} matches an account, a reset link is on the way.
+  error:
+    fallback: We could not send the reset email.
 deleteAccount:
   title:
-    success: 账号已删除
-    failed: 无法删除账号
+    success: 帐户已删除
+    failed: Could not delete account
   message:
-    success: 你的账号已被删除。
+    success: Your account has been deleted.
   action:
-    closeTab: 你可以关闭此页面。
+    closeTab: You can close this tab.
+resetPassword:
+  title:
+    default: Set a new password
+    success: Password updated
+  password:
+    label: New password
+    placeholder: 至少 8 个字符
+  confirmPassword:
+    label: 确认新密码
+    placeholder: 重新输入新密码
+  action:
+    reset: Update password
+    goSignIn: Go to sign in
+  message:
+    success: Your password has been updated. Sign in with your new password.
+  error:
+    fallback: We could not update your password.
+    missingToken: Reset link is invalid or has expired.
+    passwordMismatch: 密码和确认密码不匹配。
 profile:
-  title: 账号资料
-  description: 管理你的头像、显示名、密码和已绑定的社交账号。
+  title: Account profile
+  description: 管理您的头像、显示名称和关联的帐户。
   section:
     profile: 个人资料
     avatar: 头像
     password: 密码
-    linkedAccounts: 已绑定的社交账号
+    linkedAccounts: 已关联的账户
   field:
     email: 邮箱
     emailVerified: 邮箱状态
@@ -92,56 +136,56 @@ profile:
     verified: 已验证
     unverified: 未验证
   name:
-    label: 显示名
-    placeholder: 别人看到的名字
+    label: 昵称
+    placeholder: 别人如何看到你
   avatar:
-    altText: 用户头像
-    gravatarNotice: 头像来自 Gravatar。
-    gravatarLink: 在 gravatar.com 管理
+    altText: 头像
+    gravatarNotice: Avatar from Gravatar.
+    gravatarLink: Manage on gravatar.com
   password:
     currentLabel: 当前密码
-    currentPlaceholder: 输入当前密码
+    currentPlaceholder: 输入您当前的密码
     newLabel: 新密码
-    newPlaceholder: 至少 8 位
+    newPlaceholder: 至少 8 个字符
     confirmLabel: 确认新密码
-    confirmPlaceholder: 再次输入新密码
-    setDescription: 你通过社交账号登录，还没有设置过密码。我们会向你的邮箱发送一个安全链接，用来设置密码。
-    setLinkSent: 已向 {email} 发送了设置密码的链接，请前往查收。
-    setLinkFailed: 无法发送设置密码链接。
+    confirmPlaceholder: 重新输入新密码
+    setDescription: You signed in via a social provider, so there is no current password yet. We'll email a secure link to set one.
+    setLinkSent: Check {email} for the link to set your password.
+    setLinkFailed: We could not send the password setup link.
   linkedAccounts:
-    description: 通过这些渠道登录 AIRI。解绑可以撤销访问，再次绑定即可切换到其他账号。
+    description: Sign in to AIRI through these providers. Unlink to revoke access, then link again to switch to a different account.
     status:
-      linked: 已绑定
-      notLinked: 未绑定
-      linkedSince: 绑定于 {date}
+      linked: 已关联
+      notLinked: 未关联
+      linkedSince: 关联于 {date}
     action:
-      link: 绑定
-      unlink: 解绑
+      link: 关联
+      unlink: 取消关联
     message:
-      loading: 正在加载已绑定的社交账号...
-      unlinked: 已解除与 {provider} 的绑定。
-      linkStarted: 正在跳转到 {provider}…
+      loading: 正在加载连接的帐户……
+      unlinked: '{provider} disconnected.'
+      linkStarted: Redirecting to {provider}…
     error:
-      listFailed: 无法加载已绑定的社交账号。
-      unlinkFailed: 无法解除绑定。
-      linkFailed: 无法开始绑定流程。
-      lastAccount: 这是你唯一的登录方式。请先设置密码再尝试解绑。
+      listFailed: Could not load connected accounts.
+      unlinkFailed: Could not unlink this account.
+      linkFailed: Could not start the link flow.
+      lastAccount: 这是您唯一的登录方式。请先设置密码才能取消链接。
   action:
-    saveProfile: 保存修改
+    saveProfile: 保存更改
     changePassword: 修改密码
-    sendSetPasswordLink: 给我发送设置密码的邮件
+    sendSetPasswordLink: 给我发一封邮件以设置密码
     signOut: 退出登录
   message:
-    loading: 正在加载你的资料...
-    profileSaved: 资料已更新。
-    passwordChanged: 密码已修改。其他设备的登录会话已被注销。
+    loading: 正在加载您的个人资料……
+    profileSaved: 个人资料已更新
+    passwordChanged: Password changed. Other sessions have been signed out.
   error:
-    loadFailed: 无法加载你的资料。
-    saveFailed: 无法保存修改。
-    changePasswordFailed: 无法修改密码。
-    signOutFailed: 退出登录失败。
-    passwordMismatch: 两次输入的新密码不一致。
-    passwordSameAsCurrent: 新密码不能和当前密码相同。
+    loadFailed: We could not load your profile.
+    saveFailed: We could not save your changes.
+    changePasswordFailed: We could not change your password.
+    signOutFailed: 我们无法将您登出。
+    passwordMismatch: 新密码和确认密码不匹配。
+    passwordSameAsCurrent: 新密码必须与当前密码不同。
 webCallback:
   title:
     signIn: 登录
