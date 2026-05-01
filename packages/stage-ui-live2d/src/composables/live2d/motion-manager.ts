@@ -437,3 +437,18 @@ export function useMotionUpdatePluginExpression(
     controller.applyExpressions(ctx.model)
   }
 }
+
+/**
+ * Final-phase plugin that overrides ParamMouthOpenY with the lip sync value.
+ * Runs AFTER motion curves and expression overrides so the lip sync always
+ * has the last word on mouth position during speech.
+ */
+export function useMotionUpdatePluginLipSync(
+  mouthOpenSize: Ref<number>,
+): MotionManagerPlugin {
+  return (ctx) => {
+    if (mouthOpenSize.value <= 0)
+      return
+    ctx.model.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
+  }
+}
