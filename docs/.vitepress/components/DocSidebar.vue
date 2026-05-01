@@ -22,7 +22,12 @@ defineProps<{
       class="mb-6"
       :default-open="true"
     >
-      <CollapsibleTrigger class="group w-full inline-flex items-center justify-between pb-2 pl-4 pr-4 text-sm font-bold">
+      <CollapsibleTrigger
+        :class="[
+          'group w-full inline-flex items-center justify-between py-1 pl-3 pr-3 text-sm font-bold',
+          'hover:bg-neutral/15 rounded-lg',
+        ]"
+      >
         <span>{{ item.text }}</span>
         <Icon
           icon="lucide:chevron-down"
@@ -30,7 +35,11 @@ defineProps<{
           :class="{ '-rotate-90': !open }"
         />
       </CollapsibleTrigger>
-      <CollapsibleContent class="overflow-hidden data-[state=closed]:animate-slideUp data-[state=open]:animate-slideDown">
+      <CollapsibleContent
+        :class="[
+          'overflow-hidden mt-0.5 data-[state=closed]:animate-slideUp data-[state=open]:animate-slideDown flex flex-col gap-1',
+        ]"
+      >
         <DocSidebarItem
           v-for="subitem in item.items"
           :key="subitem.text"

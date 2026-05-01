@@ -1,5 +1,3 @@
-import type { Preset } from 'unocss'
-
 import { presetChromatic } from '@proj-airi/unocss-preset-chromatic'
 import { blackA, cyan, grass, green, indigo, mauve, purple, red, slate, teal, violet } from '@radix-ui/colors'
 import { defineConfig, presetAttributify, presetIcons, presetTypography, presetWebFonts, presetWind3, transformerDirectives, transformerVariantGroup } from 'unocss'
@@ -34,22 +32,46 @@ export default defineConfig({
           'margin-top': '0.5rem',
           'margin-bottom': '0',
         },
+        'p': {
+          'margin-top': '0.5rem',
+          'margin-bottom': '0.5rem',
+        },
         'details': {
           'margin-top': '0.5rem',
           'margin-bottom': '0.5rem',
-          'padding': '0.5rem 1rem',
+          'padding': '1rem 1.5rem',
           'background-color': '#a6ceef1a',
         },
         '.dark details': {
-          'background-color': '#5870840f',
+          'background-color': '#191c1e',
+        },
+        'ol': {
+          'margin-top': '0.25rem',
+          'margin-bottom': '0.25rem',
+          'padding-inline-start': '1.25rem',
+        },
+        'ol li': {
+          'padding-inline-start': '0.25rem',
         },
         'ul': {
           'margin-top': '0.25rem',
           'margin-bottom': '0.25rem',
+          'padding-inline-start': '1.25rem',
+        },
+        'ul li': {
+          'padding-inline-start': '0.25rem',
         },
         'li': {
           'margin-top': '0',
           'margin-bottom': '0',
+        },
+        'li p': {
+          'margin-top': '0.25rem',
+          'margin-bottom': '0.25rem',
+        },
+        'li blockquote': {
+          'margin-top': '1rem',
+          'margin-bottom': '1rem',
         },
       },
     }),
@@ -87,7 +109,7 @@ export default defineConfig({
         primary: 0,
         complementary: 180,
       },
-    }) as Preset,
+    }),
   ],
   content: {
     filesystem: [
