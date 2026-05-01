@@ -43,19 +43,15 @@ const TRUSTED_ORIGIN_PATTERNS = [
  * - The same origin string when trusted, or `''` when not trusted.
  */
 export function getTrustedOrigin(origin: string, additionalTrustedOrigins: readonly string[] = []): string {
-  let resolved: string
   if (!origin)
-    resolved = origin
-  else if (TRUSTED_EXACT_ORIGINS.includes(origin))
-    resolved = origin
-  else if (additionalTrustedOrigins.includes(origin))
-    resolved = origin
-  else if (TRUSTED_ORIGIN_PATTERNS.some(pattern => pattern.test(origin)))
-    resolved = origin
-  else
-    resolved = ''
-
-  return resolved
+    return origin
+  if (TRUSTED_EXACT_ORIGINS.includes(origin))
+    return origin
+  if (additionalTrustedOrigins.includes(origin))
+    return origin
+  if (TRUSTED_ORIGIN_PATTERNS.some(pattern => pattern.test(origin)))
+    return origin
+  return ''
 }
 
 /**
