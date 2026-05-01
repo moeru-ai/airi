@@ -173,7 +173,7 @@ export function createStripeRoutes(
       const customer = await stripeService.getCustomerByUserId(user.id)
       const stripeCustomerId = customer?.stripeCustomerId
 
-      const redirectBase = resolveTrustedRequestOrigin(c.req.raw)
+      const redirectBase = resolveTrustedRequestOrigin(c.req.raw, env.ADDITIONAL_TRUSTED_ORIGINS)
       if (!redirectBase) {
         throw createBadRequestError('Missing trusted request origin', 'INVALID_ORIGIN')
       }
@@ -248,7 +248,7 @@ export function createStripeRoutes(
       if (!customer)
         throw createBadRequestError('No billing account found', 'NO_CUSTOMER')
 
-      const portalReturnBase = resolveTrustedRequestOrigin(c.req.raw)
+      const portalReturnBase = resolveTrustedRequestOrigin(c.req.raw, env.ADDITIONAL_TRUSTED_ORIGINS)
       if (!portalReturnBase) {
         throw createBadRequestError('Missing trusted request origin', 'INVALID_ORIGIN')
       }

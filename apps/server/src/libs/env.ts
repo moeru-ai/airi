@@ -8,6 +8,47 @@ import { integer, maxValue, minValue, nonEmpty, object, optional, parse, pipe, s
 
 import { DEFAULT_BILLING_EVENTS_STREAM } from '../utils/redis-keys'
 
+/**
+ * Parses `ADDITIONAL_TRUSTED_ORIGINS`: comma-separated absolute origins used for
+ * CORS (`/api/*`) and request-derived trusted bases (e.g. Stripe return URLs).
+ * Each segment is normalized via `URL.origin` so trailing slashes are stripped.
+ *
+ * Before:
+ * - `" https://10.0.0.129:5273/ , https://198.18.0.1:5273 "`
+ *
+ * After:
+ * - `["https://10.0.0.129:5273", "https://198.18.0.1:5273"]`
+ */
+export function parseAdditionalTrustedOriginsEnv(raw: string): string[] {
+  const trimmed = raw.trim()
+  if (!trimmed)
+    return []
+
+  const seen = new Set<string>()
+  const out: string[] = []
+
+  for (const part of trimmed.split(',')) {
+    const entry = part.trim()
+    if (!entry)
+      continue
+
+    let normalized: string
+    try {
+      normalized = new URL(entry).origin
+    }
+    catch {
+      throw new TypeError(`ADDITIONAL_TRUSTED_ORIGINS: invalid URL origin segment "${entry}"`)
+    }
+
+    if (!seen.has(normalized)) {
+      seen.add(normalized)
+      out.push(normalized)
+    }
+  }
+
+  return out
+}
+
 function optionalIntegerFromString(defaultValue: number, envKey: string, minimum: number) {
   return optional(
     pipe(
@@ -39,6 +80,16 @@ const EnvSchema = object({
   PORT: optionalIntegerFromString(3000, 'PORT', 1),
 
   API_SERVER_URL: optional(string(), 'http://localhost:3000'),
+
+  // Comma-separated exact origins (e.g. Capacitor dev server `https://10.x:5273`).
+  // Prefer this over broad private-IP regex heuristics in production-like configs.
+  ADDITIONAL_TRUSTED_ORIGINS: optional(
+    pipe(
+      string(),
+      transform(raw => parseAdditionalTrustedOriginsEnv(raw)),
+    ),
+    '',
+  ),
 
   DATABASE_URL: pipe(string(), nonEmpty('DATABASE_URL is required')),
   REDIS_URL: pipe(string(), nonEmpty('REDIS_URL is required')),
