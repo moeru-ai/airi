@@ -48,13 +48,18 @@ export default defineConfig({
         'ol': {
           'margin-top': '0.25rem',
           'margin-bottom': '0.25rem',
+          'padding-inline-start': '1.25rem',
         },
-        'details ol': {
-          'padding-inline-start': '1rem',
+        'ol li': {
+          'padding-inline-start': '0.25rem',
         },
         'ul': {
           'margin-top': '0.25rem',
           'margin-bottom': '0.25rem',
+          'padding-inline-start': '1.25rem',
+        },
+        'ul li': {
+          'padding-inline-start': '0.25rem',
         },
         'li': {
           'margin-top': '0',

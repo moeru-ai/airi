@@ -98,7 +98,7 @@
     @apply text-slate-800 dark:text-slate-300 font-semibold;
   }
 
-  &> p:nth-child(2) {
+  &> :not(p:nth-child(1)) {
     @apply dark:text-slate-50;
   }
 }
@@ -114,7 +114,7 @@
     @apply text-violet-800 dark:text-violet-300 font-semibold;
   }
 
-  & > p:nth-child(2) {
+  &> :not(p:nth-child(1)) {
     @apply dark:text-violet-50;
   }
 }
@@ -130,24 +130,32 @@
     @apply text-yellow-700 dark:text-yellow-300 font-semibold;
   }
 
-  &> p:nth-child(2) {
+  & ul ::marker {
+    @apply text-yellow-700;
+  }
+
+  &> :not(p:nth-child(1)) {
     @apply text-yellow-950 dark:text-yellow-50 leading-tight;
   }
 }
 
 .custom-block.danger {
-  @apply bg-neutral-100 dark:bg-neutral-900/20 border-none;
+  @apply bg-red-100 dark:bg-red-900/20 border-none;
 
   &::before {
-    @apply bg-neutral-500/20 dark:bg-neutral-400/20;
+    @apply bg-red-500/20 dark:bg-red-400/20;
   }
 
   & .custom-block-title {
-    @apply text-neutral-800 dark:text-neutral-300 font-semibold;
+    @apply text-red-800 dark:text-red-300 font-semibold;
   }
 
-  & > p:nth-child(2) {
-    @apply dark:text-neutral-50;
+  & ul ::marker {
+    @apply text-red-700;
+  }
+
+  &> :not(p:nth-child(1)) {
+    @apply dark:text-red-50;
   }
 }
 
