@@ -1707,12 +1707,18 @@ export const useProvidersStore = defineStore('providers', () => {
         validateProviderConfig: (config) => {
           const errors = [
             !config.apiKey && new Error('API key is required.'),
+            !config.baseUrl && new Error('Base URL is required.'),
           ].filter(Boolean)
+
+          const res = baseUrlValidator.value(config.baseUrl)
+          if (res) {
+            return res
+          }
 
           return {
             errors,
             reason: errors.map(e => (e as Error).message).join(', ') || '',
-            valid: !!config.apiKey,
+            valid: !!config.apiKey && !!config.baseUrl,
           }
         },
       },
@@ -1882,26 +1888,20 @@ export const useProvidersStore = defineStore('providers', () => {
       validators: {
         chatPingCheckAvailable: false,
         validateProviderConfig: (config) => {
-          const errors: Error[] = []
-          if (!config.apiKey) {
-            errors.push(new Error('API key is required.'))
-          }
-          const baseUrl = (config.baseUrl as string) || ''
-          if (baseUrl) {
-            try {
-              if (new URL(baseUrl).host.length === 0) {
-                errors.push(new Error('Base URL is invalid.'))
-              }
-            }
-            catch {
-              errors.push(new Error('Base URL is invalid. It must be an absolute URL.'))
-            }
+          const errors = [
+            !config.apiKey && new Error('API key is required.'),
+            !config.baseUrl && new Error('Base URL is required.'),
+          ].filter(Boolean)
+
+          const res = baseUrlValidator.value(config.baseUrl)
+          if (res) {
+            return res
           }
 
           return {
             errors,
-            reason: errors.map(e => e.message).join(', ') || '',
-            valid: errors.length === 0,
+            reason: errors.map(e => (e as Error).message).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
           }
         },
       },
