@@ -18,6 +18,7 @@
     "app:build": "pnpm run build",
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
+    "dev:xwayland": "electron-vite dev -- --ozone-platform=x11",
     "build": "electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "pnpm run build && electron-builder --dir",
