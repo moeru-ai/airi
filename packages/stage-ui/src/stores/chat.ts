@@ -18,7 +18,7 @@ import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
 import { formatContextPromptText } from './chat/context-prompt'
 import { createMinecraftContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
-import { formatTimePrefix } from './chat/datetime-prefix'
+import { createTimestampPrefixStripper, formatTimePrefix, stripLeadingTimestampPrefix } from './chat/datetime-prefix'
 import { createChatHooks } from './chat/hooks'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
@@ -261,11 +261,18 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       // --------------------------------
 
       const categorizer = createStreamingCategorizer(activeProvider.value)
+      // Drops the leading `[YYYY-MM-DD HH:MM] ` echo before it reaches both
+      // the chat transcript and TTS. See `./chat/datetime-prefix.ts`.
+      const timestampStripper = createTimestampPrefixStripper()
       let streamPosition = 0
 
       const parser = useLlmmarkerParser({
-        onLiteral: async (literal) => {
+        onLiteral: async (rawLiteral) => {
           if (shouldAbort())
+            return
+
+          const literal = timestampStripper.consume(rawLiteral)
+          if (!literal)
             return
 
           categorizer.consume(literal)
@@ -301,7 +308,9 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
           if (isStaleGeneration())
             return
 
-          const finalCategorization = categorizeResponse(fullText, activeProvider.value)
+          // Strip the echoed timestamp from the persisted text so subsequent
+          // turns do not re-send `[ts] [ts] ...` and reinforce the pattern.
+          const finalCategorization = categorizeResponse(stripLeadingTimestampPrefix(fullText), activeProvider.value)
 
           const reasoningContentField = buildingMessage.categorization?.reasoning?.trim()
           buildingMessage.categorization = {

@@ -11,7 +11,7 @@
  *   prefixed history stays byte-stable across turns and accumulates KV-cache
  *   prefix matches.
  * - The full date is included on every message so the model can infer "today"
- *   from the most recent message — there is no separate system-prompt date
+ *   from the most recent message. There is no separate system-prompt date
  *   anchor, which keeps the system prompt 100% static and permanently
  *   cacheable across turns and across day boundaries.
  *
@@ -40,7 +40,7 @@ const DATE_TIME = new Intl.DateTimeFormat('en-CA', {
  *
  * Use when:
  * - Annotating user/assistant messages so the model has a concrete time
- *   anchor on every turn — historic and current alike use the same shape so
+ *   anchor on every turn. Historic and current alike use the same shape so
  *   that prefix-cache stays valid when a "current" turn becomes "historic" on
  *   the next send.
  *
@@ -58,4 +58,100 @@ export function formatTimePrefix(createdAt: number): string {
   // produce the bracketed `YYYY-MM-DD HH:MM` form.
   const formatted = DATE_TIME.format(new Date(createdAt)).replace(', ', ' ')
   return `[${formatted}] `
+}
+
+/**
+ * Matches the leading `[YYYY-MM-DD HH:MM]` (with an optional trailing space)
+ * produced by `formatTimePrefix`. Kept in lockstep with the writer above:
+ * if the format changes there, change this regex (and the tests) too.
+ */
+const TIMESTAMP_PREFIX_RE = /^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}\] ?/
+
+/**
+ * Length budget for "have we buffered enough to decide": 18 bracketed chars
+ * plus the optional trailing space.
+ */
+const TIMESTAMP_PREFIX_MAX_LEN = 19
+
+/**
+ * Position-by-position template used to short-circuit buffering when the
+ * leading bytes already disprove the shape, so non-timestamped replies don't
+ * pay 19 chars of buffering latency before the first chunk reaches TTS.
+ *
+ * `#` slots are digits; every other character is a literal.
+ */
+const TIMESTAMP_PREFIX_TEMPLATE = '[####-##-## ##:##]'
+
+function couldStillMatchPrefix(buf: string): boolean {
+  const limit = Math.min(buf.length, TIMESTAMP_PREFIX_TEMPLATE.length)
+  for (let i = 0; i < limit; i++) {
+    const slot = TIMESTAMP_PREFIX_TEMPLATE[i]
+    const ch = buf[i]
+    const ok = slot === '#' ? (ch >= '0' && ch <= '9') : ch === slot
+    if (!ok)
+      return false
+  }
+  return true
+}
+
+/**
+ * Removes a leading `[YYYY-MM-DD HH:MM] ` prefix if present. No-op otherwise.
+ *
+ * Use when:
+ * - You have a complete string (e.g. the final assembled assistant message)
+ *   and want to drop a timestamp the model echoed from the per-turn injection.
+ */
+export function stripLeadingTimestampPrefix(text: string): string {
+  return text.replace(TIMESTAMP_PREFIX_RE, '')
+}
+
+/**
+ * Streaming version of `stripLeadingTimestampPrefix` for chunked input.
+ *
+ * Use when:
+ * - You receive assistant text in deltas and need to forward it to surfaces
+ *   that should never see the timestamp (chat transcript, TTS). Apply once
+ *   at the stream boundary so both surfaces are covered by a single chokepoint.
+ *
+ * Expects:
+ * - Chunks delivered in order. The prefix may split across chunks at any byte.
+ * - Stripping is leading-only: a timestamp that appears mid-stream passes through.
+ *
+ * Returns:
+ * - `consume(chunk)` yields the chunk minus any leading prefix bytes still
+ *   being absorbed; may return `''` while buffering. Once the decision is made
+ *   (matched and dropped, or shape ruled out), every further chunk passes
+ *   through untouched.
+ * - `end()` flushes any partial-prefix bytes still buffered when the stream
+ *   ends shorter than the prefix length.
+ */
+export function createTimestampPrefixStripper() {
+  // While `buffer` is a string we are still deciding. `null` means the
+  // decision is made and the stripper is now a passthrough.
+  let buffer: string | null = ''
+
+  function flush(): string {
+    const out = stripLeadingTimestampPrefix(buffer!)
+    buffer = null
+    return out
+  }
+
+  return {
+    consume(chunk: string): string {
+      if (buffer === null)
+        return chunk
+
+      buffer += chunk
+
+      // Enough bytes to apply the regex unambiguously, or the leading bytes
+      // already disprove the shape: decide now.
+      if (buffer.length >= TIMESTAMP_PREFIX_MAX_LEN || !couldStillMatchPrefix(buffer))
+        return flush()
+
+      return ''
+    },
+    end(): string {
+      return buffer === null ? '' : flush()
+    },
+  }
 }
