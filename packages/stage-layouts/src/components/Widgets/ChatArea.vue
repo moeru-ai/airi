@@ -3,6 +3,7 @@ import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
+import { HearingConfig } from '@proj-airi/stage-ui/components/scenarios/dialogs/audio-input/index'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
@@ -10,7 +11,7 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { BasicTextarea, FieldCombobox } from '@proj-airi/ui'
+import { BasicTextarea } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger, PopoverContent, PopoverRoot, PopoverTrigger } from 'reka-ui'
@@ -36,7 +37,7 @@ const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
 
 const { askPermission } = useSettingsAudioDevice()
-const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(useSettingsAudioDevice())
+const { enabled, stream } = storeToRefs(useSettingsAudioDevice())
 const chatOrchestrator = useChatOrchestratorStore()
 const chatSession = useChatSessionStore()
 const { ingest, onAfterMessageComposed } = chatOrchestrator
@@ -49,7 +50,7 @@ const sendModeLabels = computed<Record<SendMode, string>>(() => ({
   'double-enter': t('stage.send-mode.double-enter'),
 }))
 
-const { isListening } = useTranscriptions(
+const { isListening, startStreamingTranscription, stopStreamingTranscription, autoSendEnabled } = useTranscriptions(
   {
     messageInputRef: messageInput,
     sendMessage: handleSend,
@@ -162,7 +163,7 @@ async function setupAnalyzer() {
   analyzerSource.connect(analyser)
 }
 
-watch([hearingPopoverOpen, enabled, stream], () => {
+watch([enabled], () => {
   setupAnalyzer()
 }, { immediate: true })
 
@@ -273,45 +274,12 @@ watch(sendMode, () => {
               'flex flex-col gap-3',
             ]"
           >
-            <div class="flex flex-col items-center justify-center">
-              <div class="relative h-28 w-28 select-none">
-                <div
-                  class="absolute left-1/2 top-1/2 h-20 w-20 rounded-full transition-all duration-150 -translate-x-1/2 -translate-y-1/2"
-                  :style="{ transform: `translate(-50%, -50%) scale(${1 + normalizedVolume * 0.35})`, opacity: String(0.25 + normalizedVolume * 0.25) }"
-                  :class="enabled ? 'bg-primary-500/15 dark:bg-primary-600/20' : 'bg-neutral-300/20 dark:bg-neutral-700/20'"
-                />
-                <div
-                  class="absolute left-1/2 top-1/2 h-24 w-24 rounded-full transition-all duration-200 -translate-x-1/2 -translate-y-1/2"
-                  :style="{ transform: `translate(-50%, -50%) scale(${1.2 + normalizedVolume * 0.55})`, opacity: String(0.15 + normalizedVolume * 0.2) }"
-                  :class="enabled ? 'bg-primary-500/10 dark:bg-primary-600/15' : 'bg-neutral-300/10 dark:bg-neutral-700/10'"
-                />
-                <div
-                  class="absolute left-1/2 top-1/2 h-28 w-28 rounded-full transition-all duration-300 -translate-x-1/2 -translate-y-1/2"
-                  :style="{ transform: `translate(-50%, -50%) scale(${1.5 + normalizedVolume * 0.8})`, opacity: String(0.08 + normalizedVolume * 0.15) }"
-                  :class="enabled ? 'bg-primary-500/5 dark:bg-primary-600/10' : 'bg-neutral-300/5 dark:bg-neutral-700/5'"
-                />
-                <button
-                  class="absolute left-1/2 top-1/2 grid h-16 w-16 place-items-center rounded-full shadow-md outline-none transition-all duration-200 -translate-x-1/2 -translate-y-1/2"
-                  :class="enabled
-                    ? 'bg-primary-500 text-white hover:bg-primary-600 active:scale-95'
-                    : 'bg-neutral-200 text-neutral-600 hover:bg-neutral-300 active:scale-95 dark:bg-neutral-700 dark:text-neutral-200'"
-                  @click="enabled = !enabled"
-                >
-                  <div :class="enabled ? 'i-ph:microphone' : 'i-ph:microphone-slash'" class="h-6 w-6" />
-                </button>
-              </div>
-              <p class="mt-3 text-xs text-neutral-500 dark:text-neutral-400">
-                {{ enabled ? 'Microphone enabled' : 'Microphone disabled' }}
-              </p>
-            </div>
-
-            <FieldCombobox
-              v-model="selectedAudioInput"
-              label="Input device"
-              description="Select the microphone you want to use."
-              :options="audioInputs.map(device => ({ label: device.label || 'Unknown Device', value: device.deviceId }))"
-              layout="vertical"
-              placeholder="Select microphone"
+            <HearingConfig
+              v-model:auto-send="autoSendEnabled"
+              :transcription="isListening"
+              :granted="true"
+              :volume-level="normalizedVolume"
+              @toggle-transcription="() => isListening ? stopStreamingTranscription() : startStreamingTranscription()"
             />
           </PopoverContent>
         </PopoverRoot>

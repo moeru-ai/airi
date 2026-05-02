@@ -130,7 +130,7 @@ async function setupAnalyzer() {
   analyzerSource.connect(analyser)
 }
 
-watch([hearingDialogOpen, enabled, stream], () => {
+watch([enabled], () => {
   setupAnalyzer()
 }, { immediate: true })
 

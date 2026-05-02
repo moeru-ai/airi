@@ -207,38 +207,15 @@ export function useTranscriptions(options: TranscriptionOptions) {
     }
   })
 
-  // Start listening when microphone is enabled and stream is available
-  watch(enabled, async (enabled) => {
-    if (enabled && stream.value) {
-    // Microphone was just enabled and we have a stream, start transcription
-      await startStreaming()
-    }
-    else if (!enabled && isListening.value) {
-    // Microphone was disabled, stop transcription
-      await stopStreaming()
-    }
-  })
-
-  // Start listening when stream becomes available (if microphone is enabled)
-  watch(stream, async (stream) => {
-    if (stream && enabled.value && !isListening.value) {
-    // Stream became available and microphone is enabled, start transcription
-      await startStreaming()
-    }
-    else if (!stream && isListening.value) {
-    // Stream was lost, stop transcription
-      await stopStreaming()
-    }
-  })
-
   onScopeDispose(() => {
     clearPendingAutoSend()
     stopStreaming()
   })
 
   return {
-    startListening: startStreaming,
-    stopListening: stopStreaming,
+    startStreamingTranscription: startStreaming,
+    stopStreamingTranscription: stopStreaming,
     isListening,
+    autoSendEnabled,
   }
 }
