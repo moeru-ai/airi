@@ -545,6 +545,40 @@ describe('v1CompletionsRoutes', () => {
       )
     })
 
+    it('should count astral Unicode symbols as one TTS billing character', async () => {
+      globalThis.fetch = vi.fn(async () => new Response(new Uint8Array([1]), {
+        status: 200,
+        headers: { 'Content-Type': 'audio/mpeg' },
+      }))
+
+      const billingService = createMockBillingService(100)
+      const ttsMeter = createMockTtsMeter()
+      // ROOT CAUSE:
+      //
+      // JavaScript string.length counts UTF-16 code units, so an astral symbol like
+      // "😊" reports length 2 even though the TTS billing config is expressed as
+      // FLUX_PER_1K_CHARS_TTS. We bill by Unicode code point here so emoji and other
+      // astral symbols do not consume twice the documented character units.
+      const unicodeInput = 'A😊𠮷'
+      const app = createTestApp(createMockFluxService(), createMockConfigKV(), billingService, undefined, ttsMeter)
+
+      await app.fetch(
+        new Request('http://localhost/api/v1/openai/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', input: unicodeInput, voice: 'alloy' }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(unicodeInput.length).toBe(5)
+      expect(Array.from(unicodeInput)).toHaveLength(3)
+      expect(ttsMeter.assertCanAfford).toHaveBeenCalledWith('user-1', 3, 100)
+      expect(ttsMeter.accumulate).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 'user-1', units: 3 }),
+      )
+    })
+
     it('should return 401 when unauthenticated', async () => {
       const app = createTestApp(createMockFluxService(), createMockConfigKV())
 

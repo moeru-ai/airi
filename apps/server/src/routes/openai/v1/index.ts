@@ -46,6 +46,28 @@ const tracer = trace.getTracer('v1-completions')
 // needs to show up before the TTL expires.
 const TTS_VOICES_CACHE_TTL_SECONDS = 24 * 60 * 60
 
+/**
+ * Counts TTS billing units by Unicode code point.
+ *
+ * Use when:
+ * - Billing text-to-speech requests against the `FLUX_PER_1K_CHARS_TTS` character rate.
+ * - Passing the same unit count to pre-flight affordability checks and debt-ledger accumulation.
+ *
+ * Expects:
+ * - A normalized request input string.
+ * - Billing semantics that treat astral symbols as one character instead of two UTF-16 code units.
+ *
+ * Returns:
+ * - The Unicode code point count used by the TTS meter.
+ *
+ * @example
+ * countTtsBillingCharacters('hello') // 5
+ * countTtsBillingCharacters('😊') // 1
+ */
+function countTtsBillingCharacters(input: string): number {
+  return Array.from(input).length
+}
+
 const SAFE_RESPONSE_HEADERS = new Set([
   'content-type',
   'content-length',
@@ -350,7 +372,8 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
     // Pre-flight: refuse before hitting upstream if this segment would push the
     // user past their balance. Cheap-path requests below the Flux threshold
     // still pass when the user has at least 1 Flux.
-    await ttsMeter.assertCanAfford(user.id, inputText.length, flux.flux)
+    const inputBillingCharacters = countTtsBillingCharacters(inputText)
+    await ttsMeter.assertCanAfford(user.id, inputBillingCharacters, flux.flux)
 
     const span = tracer.startSpan('llm.gateway.tts', {
       attributes: {
@@ -387,7 +410,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
     // call site — the cost is realised on a later request that crosses.
     const { fluxDebited: fluxConsumed } = await ttsMeter.accumulate({
       userId: user.id,
-      units: inputText.length,
+      units: inputBillingCharacters,
       currentBalance: flux.flux,
       requestId: nanoid(),
       metadata: { model: requestModel },
