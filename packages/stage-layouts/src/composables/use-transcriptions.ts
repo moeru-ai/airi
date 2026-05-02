@@ -81,6 +81,11 @@ export function useTranscriptions(options: TranscriptionOptions) {
       hearingConfigured: hearingConfigured.value,
     }, { source: 'useTranscriptions' })
 
+    if (!enabled.value) {
+      console.info('Cannot start streaming transcription: audio input is not enabled.', { source: 'useTranscriptions' })
+      return
+    }
+
     // Auto-configure Web Speech API as default if no provider is configured
     if (!hearingConfigured.value) {
       console.info('No transcription provider configured. Auto-configuring Web Speech API as default', { source: 'useTranscriptions' })
