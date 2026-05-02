@@ -7,6 +7,9 @@ export default defineConfig({
     presetAttributify(),
     presetTypography({
       cssExtend: {
+        'h1': {
+          'margin-bottom': '1rem',
+        },
         'a': {
           'color': '#223f5dff',
           'text-decoration': 'underline',

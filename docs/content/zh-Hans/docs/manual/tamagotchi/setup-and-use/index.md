@@ -1,6 +1,18 @@
-# Project AIRI 说明书
-
-编写时间：（北京时间）2026 年 4 月 2 日 - 晚上
+---
+title: Project AIRI 说明书
+authors:
+  - name: 沐玖芸萱
+    aliases:
+      - 沐玖芸萱
+      - MuGewRayce
+    role: Lead writing team
+    kind: person
+  - name: JhIcefair
+    role: Contributing editor (primary)
+    kind: person
+publishedAt: 2026-04-02
+publishedAtOverride: 2026 年 4 月 2 日 - 晚上（北京时间）
+---
 
 对应版本：AIRI-0.9.0-beta.4-windows-x64
 

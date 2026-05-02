@@ -103,7 +103,7 @@
   }
 
   &> :not(p:nth-child(1)) {
-    @apply text-slate-950 dark:text-slate-50 leading-snug;
+    @apply text-slate-950 dark:text-slate-50 leading-normal;
   }
 }
 
@@ -123,7 +123,7 @@
   }
 
   &> :not(p:nth-child(1)) {
-    @apply text-violet-950 dark:text-violet-50 leading-snug;
+    @apply text-violet-950 dark:text-violet-50 leading-normal;
   }
 }
 
@@ -143,7 +143,7 @@
   }
 
   &> :not(p:nth-child(1)) {
-    @apply text-yellow-950 dark:text-yellow-50 leading-snug;
+    @apply text-yellow-950 dark:text-yellow-50 leading-normal;
   }
 }
 
@@ -163,7 +163,7 @@
   }
 
   &> :not(p:nth-child(1)) {
-    @apply text-red-950 dark:text-red-50 leading-snug;
+    @apply text-red-950 dark:text-red-50 leading-normal;
   }
 }
 
