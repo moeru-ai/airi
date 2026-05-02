@@ -163,7 +163,7 @@ async function setupAnalyzer() {
   analyzerSource.connect(analyser)
 }
 
-watch([enabled], () => {
+watch([enabled, stream], () => {
   setupAnalyzer()
 }, { immediate: true })
 
