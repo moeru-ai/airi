@@ -212,6 +212,14 @@ export function useTranscriptions(options: TranscriptionOptions) {
     }
   })
 
+  // Watch for auto-send setting changes and clear pending sends if disabled
+  watch(enabled, (enabled) => {
+    if (!enabled) {
+      stopStreaming()
+      console.info('Audio input is disabled, stopping transcription.', { source: 'useTranscriptions' })
+    }
+  })
+
   onScopeDispose(() => {
     clearPendingAutoSend()
     stopStreaming()
