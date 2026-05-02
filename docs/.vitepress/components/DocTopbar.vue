@@ -129,29 +129,11 @@ watch(path, () => {
                   <span class="font-bold">{{ group.text }}</span>
                 </div>
 
-                <template
+                <DocSidebarItem
                   v-for="item in group.items"
                   :key="item.text"
-                >
-                  <ul
-                    v-if="item.items?.length"
-                    class="[&:not(:last-child)]:mb-6"
-                  >
-                    <div class="pb-2 pl-4 text-sm font-bold">
-                      {{ item.text }}
-                    </div>
-                    <DocSidebarItem
-                      v-for="subitem in item.items"
-                      :key="subitem.text"
-                      :item="subitem"
-                    />
-                  </ul>
-
-                  <DocSidebarItem
-                    v-else
-                    :item="item"
-                  />
-                </template>
+                  :item="item"
+                />
               </div>
               <div class="h-12 w-full" />
             </div>
