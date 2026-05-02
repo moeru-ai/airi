@@ -2,6 +2,7 @@
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
@@ -71,7 +72,7 @@ const { isListening } = useTranscriptions(
   {
     messageInputRef: messageInput,
     sendMessage: handleSend,
-    isStageTamagotchi: isMobileDevice,
+    isStageTamagotchi,
   },
 )
 
