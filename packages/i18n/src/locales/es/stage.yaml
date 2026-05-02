@@ -1,6 +1,6 @@
 chat:
   actions:
-    retry: Retry
+    retry: Reintentar
   message:
     character-name:
       airi: AIRI
@@ -49,7 +49,7 @@ promo-banner:
       watermark: Luna
       fallbackLabel: Regalo lunar
       title: 7 días de inicio de sesión
-      eventName: Sign in to claim stardust, avatar frames, and launch gifts.
+      eventName: Inicia sesión para reclamar stardust, marcos de avatar y regalos de lanzamiento.
       date: 03/28 - 04/10
       reward: Hasta 120 Stardust
       cta: Iniciar sesión
@@ -83,7 +83,7 @@ promo-banner:
       title: Actualización del tema primavera
       eventName: Desbloquea los temas de ventana, escritorio y lámparas nocturnas para actualizar tu habitación.
       date: 04/05 - 04/22
-      reward: Free Theme Draw Ticket on Sign-in
+      reward: Ticket de Dibujo de Tema gratis al iniciar sesión
       cta: Ver temas
 waiting: Esperando...
 websocket-status:

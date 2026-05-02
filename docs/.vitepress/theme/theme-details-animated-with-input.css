@@ -1,0 +1,74 @@
+/*
+ * This requires
+ *
+ * <input type="checkbox" name="details-window-setup" id="details-window-setup" />
+ * <details open>
+ *   <summary>
+ *     <label for="details-window-setup" class="cursor-pointer">
+ *       Windows setup
+ *     </label>
+ *   </summary>
+ *   Content
+ * </details>
+ */
+
+/* The key is to start <details> element in the "open" state...
+  ...and animate its max-height value by checking a checkbox. */
+details {
+  transition: max-height 150ms ease-in-out;
+
+  max-height: 2rem; /* Set a max-height value just enough to show the summary content */
+  overflow-y: hidden; /* Hide the rest of the content */
+  overflow-x: auto;
+}
+
+summary {
+  display: block; /* This hides the summary's ::marker pseudo-element */
+}
+
+input {
+  display: none; /* Hide the checkbox element */
+}
+
+/* <label> element to check the checkbox */
+label {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 1rem; /* This height value must be equal to max-height value of <details> element  */
+}
+
+label:hover {
+  cursor: pointer;
+}
+
+label::before {
+  content: "⏵";
+  font-size: 1rem;
+  height: 1rem;
+  display: flex;
+  align-items: center;
+  margin-right: 0.5rem;
+  transition: rotate 200ms 400ms ease-out;
+}
+
+div.content {
+  padding: 0 10px;
+  border: 2px solid #888;
+}
+
+/* Here you can choose two approaches to animate <details> element:
+  1) Use adjacent sibling combinator (+)
+  2) Use :has() pseudo-class, but this might not work in Firefox.
+*/
+
+input:checked + details,
+details:has(input:checked) {
+  max-height: 800px; /* Set a max-height value enough to show all the content */
+}
+
+input:checked + details label::before,
+details:has(input:checked) label::before {
+  rotate: 90deg;
+  transition: rotate 200ms ease-out;
+}

@@ -85,15 +85,16 @@ const showFooter = computed(
           class="w-full inline-flex flex-col items-end rounded-lg px-4 py-6 backdrop-blur-md"
           :class="[
             'shadow-md shadow-transparent dark:shadow-none hover:shadow-black/5',
-            'border-2 border-neutral-200/40 border-solid dark:border-2 dark:border-neutral-800/40 dark:border-solid',
-            'bg-white/30 dark:bg-neutral-800/30 hover:bg-white/50 dark:hover:bg-neutral-800/50',
+            'border-2 border-solid border-neutral-100 hover:border-primary/10 dark:border-neutral-800/40',
+            'bg-white/30 dark:bg-neutral-800/30 hover:bg-primary/10 dark:hover:bg-neutral-800/50',
             'active:scale-98',
             'transition-all duration-200 ease-in-out',
+            '[&_span,_&_p]:transition-all [&_span,_&_p]:duration-200 [&_span,_&_p]:ease-in-out [&_span,_&_p]:hover:text-primary',
           ]"
           :href="control.prev.link"
         >
           <span
-            class="text-xs text-muted-foreground transition-all duration-200 ease-in-out group-hover:text-foreground"
+            class="text-xs"
             v-html="theme.docFooter?.prev || t('docs.theme.doc.previous-page.title')"
           />
           <p class="mt-2 inline-flex items-center gap-1">
@@ -111,15 +112,16 @@ const showFooter = computed(
           class="w-full inline-flex flex-col items-end rounded-lg px-4 py-6 backdrop-blur-md"
           :class="[
             'shadow-md shadow-transparent dark:shadow-none hover:shadow-black/5',
-            'border-2 border-neutral-200/40 border-solid dark:border-2 dark:border-neutral-800/40 dark:border-solid',
-            'bg-white/30 dark:bg-neutral-800/30 hover:bg-white/50 dark:hover:bg-neutral-800/50',
+            'border-2 border-solid border-neutral-100 hover:border-primary/10 dark:border-neutral-800/40',
+            'bg-white/30 dark:bg-neutral-800/30 hover:bg-primary/10 dark:hover:bg-neutral-800/50',
             'active:scale-98',
             'transition-all duration-200 ease-in-out',
+            '[&_span,_&_p]:transition-all [&_span,_&_p]:duration-200 [&_span,_&_p]:ease-in-out [&_span,_&_p]:hover:text-primary',
           ]"
           :href="control.next.link"
         >
           <span
-            class="text-xs text-muted-foreground transition-all duration-200 ease-in-out group-hover:text-foreground"
+            class="text-xs"
             v-html="theme.docFooter?.next || t('docs.theme.doc.next-page.title')"
           />
 

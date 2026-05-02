@@ -20,17 +20,20 @@ const isSidebarOpen = ref(false)
 const sidebar = computed(() => (theme.value.sidebar as (DefaultTheme.SidebarItem & { icon?: string })[]))
 
 const sectionTabs = computed(() => sidebar.value
-  .map(val => ({
-    label: val.text,
-    link: flatten(val.items ?? [], 'items').filter(i => !!i?.link)?.[0]?.link,
-    icon: val.icon,
-  }))
+  .map((val) => {
+    return {
+      label: val.text,
+      link: flatten(val.items ?? [], 'items').filter(i => !!i?.link)?.[0]?.link ?? val.link,
+      icon: val.icon,
+    }
+  })
   .filter(i => !!i?.link),
 )
 
 function isCharacterPage(link?: string) {
   if (!link)
     return false
+
   return link.includes('/characters') || link.includes('/characters/')
 }
 
@@ -49,6 +52,8 @@ watch(path, () => {
   >
     <div class="hidden h-full items-center justify-between md:flex">
       <div class="h-full flex items-center">
+        <div />
+
         <a
           v-for="tab in sectionTabs.filter(i => !isCharacterPage(i.link))"
           :key="tab.label"
@@ -124,29 +129,11 @@ watch(path, () => {
                   <span class="font-bold">{{ group.text }}</span>
                 </div>
 
-                <template
+                <DocSidebarItem
                   v-for="item in group.items"
                   :key="item.text"
-                >
-                  <ul
-                    v-if="item.items?.length"
-                    class="[&:not(:last-child)]:mb-6"
-                  >
-                    <div class="pb-2 pl-4 text-sm font-bold">
-                      {{ item.text }}
-                    </div>
-                    <DocSidebarItem
-                      v-for="subitem in item.items"
-                      :key="subitem.text"
-                      :item="subitem"
-                    />
-                  </ul>
-
-                  <DocSidebarItem
-                    v-else
-                    :item="item"
-                  />
-                </template>
+                  :item="item"
+                />
               </div>
               <div class="h-12 w-full" />
             </div>

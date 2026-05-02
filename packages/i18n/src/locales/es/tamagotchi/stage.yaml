@@ -25,17 +25,17 @@ docs:
   'close': Cerrar
   'expand': Expandir
   'collapse': Contraer
-  'login': Sign in
-  'logging-in': Signing in...
-  'account': Account
-  'logout': Sign out
+  'login': Iniciar sesión
+  'logging-in': Iniciando sesión...
+  'account': Cuenta
+  'logout': Cerrar sesión
 widgets:
-  close: Close widget
+  close: Cerrar widget
   empty:
-    title: No widget active
-    description: Widgets will appear here when a tool or plugin spawns one.
-  loading: Loading widget…
-  waiting: Waiting for widget data for "{id}"…
+    title: Ningún widget activo
+    description: Los Widgets aparecerán aquí cuando una herramienta o plugin produzca uno.
+  loading: Cargando widget…
+  waiting: Esperando los datos del widget "{id}"…
 notice:
   'fade-on-hover':
     title: Desvanecer al pasar el cursor
@@ -52,47 +52,47 @@ notice:
     read-more: Leer más
     preview-title: '¿Qué es esto?'
 about:
-  subtitle: Desktop ver.
-  current-version: Current Version
+  subtitle: Versión de escritorio.
+  current-version: Versión actual
   common:
-    cancel: Cancel
+    cancel: Cancelar
   links:
-    title: Links
-    home: Home
-    documentation: Documentations
+    title: Enlaces
+    home: Inicio
+    documentation: Documentación
     github: GitHub
   update:
     lane:
       label: Update lane
-      description: Choose channel release to follow
+      description: Elija la versión del canal a seguir
       placeholder: Choose update lane
     channels:
-      auto: Auto
-      stable: Stable
-      alpha: Alpha
+      auto: Automático
+      stable: Estable
+      alpha: Alfa
       beta: Beta
       nightly: Nightly
       canary: Canary
     status:
-      downloading: Downloading update...
+      downloading: Descargando actualización...
       error-prefix: Error
-      latest: Up to date (v{version}).
+      latest: Actualizado (v{version}).
       downloaded:
-        windows: Update ready to install silently (v{version}).
-        restart: Update ready to install on restart (v{version}).
+        windows: Actualización lista para instalar silenciosamente (v{version}).
+        restart: Actualización lista para instalar al reiniciar (v{version}).
     actions:
-      download: Download Update
-      download-short: Download
-      confirm-download: Confirm Download
-      check-for-updates: Check for updates
-      checking: Checking...
-      latest-version: Latest version
-      disabled-dev: Updates disabled in Dev
-      retry-check: Retry Check
-      restart-silent: Restart to update silently
-      restart-install: Restart to install update
-      confirm-restart: Confirm Restart
+      download: Descargar actualización
+      download-short: Descargar
+      confirm-download: Confirmar descarga
+      check-for-updates: Buscar actualizaciones
+      checking: Verificando...
+      latest-version: Última versión
+      disabled-dev: Actualizaciones desactivadas en Dev
+      retry-check: Reintentar verificación
+      restart-silent: Reiniciar para actualizar silenciosamente
+      restart-install: Reiniciar e instalar actualización
+      confirm-restart: Confirmar reinicio
     dialog:
-      title: Update Available
-      description: A new version (v{version}) is available.
-      no-release-notes-markdown: _No release notes provided._
+      title: Actualización disponible
+      description: Una nueva versión (v{version}) está disponible.
+      no-release-notes-markdown: _No se proporcionaron notas de lanzamiento._
