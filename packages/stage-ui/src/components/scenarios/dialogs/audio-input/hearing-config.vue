@@ -88,7 +88,7 @@ function toggleHearingEnabled() {
         @click="() => emit('toggleTranscription')"
       />
       <Button
-        v-if="autoSend"
+        v-if="autoSend !== undefined"
         label="Auto send"
         :variant="autoSend ? 'primary' : 'secondary'"
         flex-1
