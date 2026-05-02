@@ -45,7 +45,7 @@ watch(isActiveLink, () => {
   >
     <CollapsibleTrigger
       :class="[
-        'group w-full inline-flex items-center justify-between rounded-lg py-1 pr-3 text-sm transition-colors duration-150 ease-in-out mb-0.5',
+        'group w-full inline-flex items-center justify-between rounded-lg py-1 pr-3 text-sm transition-colors duration-100 ease-out mb-0.5',
         hasActiveLink ? 'text-foreground' : 'text-muted-foreground',
         'hover:bg-primary/10 hover:text-primary',
       ]"
@@ -78,7 +78,7 @@ watch(isActiveLink, () => {
   <div
     v-else
     :class="[
-      'flex w-full items-center rounded-lg text-sm transition-colors duration-150 ease-in-out hover:bg-card',
+      'flex w-full items-center rounded-lg text-sm transition-colors duration-100 ease-out hover:bg-card',
       isActiveLink ? 'is-active !bg-primary/10 !text-primary font-semibold' : '',
       'hover:bg-primary/10 hover:text-primary',
     ]"

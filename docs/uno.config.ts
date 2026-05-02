@@ -39,7 +39,7 @@ export default defineConfig({
         'details': {
           'margin-top': '0.5rem',
           'margin-bottom': '0.5rem',
-          'padding': '1rem 1.5rem',
+          'padding': '0.5rem 1rem',
           'background-color': '#a6ceef1a',
         },
         '.dark details': {

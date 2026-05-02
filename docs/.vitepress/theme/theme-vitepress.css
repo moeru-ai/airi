@@ -88,46 +88,54 @@
 }
 
 .custom-block.info {
-  @apply bg-slate-200/20 dark:bg-slate-900/80 border-none;
+  @apply bg-slate-200/20 dark:bg-slate-900/80 border-none text-sm;
 
   &::before {
     @apply bg-slate-500/20 dark:bg-slate-400/20;
   }
 
   & .custom-block-title {
-    @apply text-slate-800 dark:text-slate-300 font-semibold;
+    @apply text-slate-800 dark:text-slate-300 font-semibold text-base;
+  }
+
+  & ul ::marker {
+    @apply text-slate-700;
   }
 
   &> :not(p:nth-child(1)) {
-    @apply dark:text-slate-50;
+    @apply text-slate-950 dark:text-slate-50 leading-snug;
   }
 }
 
 .custom-block.tip {
-  @apply bg-violet-50 dark:bg-violet-900/20 border-none;
+  @apply bg-violet-50 dark:bg-violet-900/20 border-none text-sm;
 
   &::before {
     @apply bg-violet-500/20 dark:bg-violet-400/20;
   }
 
   & .custom-block-title {
-    @apply text-violet-800 dark:text-violet-300 font-semibold;
+    @apply text-violet-800 dark:text-violet-300 font-semibold text-base;
+  }
+
+  & ul ::marker {
+    @apply text-violet-700;
   }
 
   &> :not(p:nth-child(1)) {
-    @apply dark:text-violet-50;
+    @apply text-violet-950 dark:text-violet-50 leading-snug;
   }
 }
 
 .custom-block.warning {
-  @apply bg-yellow-50 dark:bg-yellow-900/20 border-none;
+  @apply bg-yellow-50 dark:bg-yellow-900/20 border-none text-sm;
 
   &::before {
     @apply bg-yellow-500/20 dark:bg-yellow-400/20;
   }
 
   & .custom-block-title {
-    @apply text-yellow-700 dark:text-yellow-300 font-semibold;
+    @apply text-yellow-700 dark:text-yellow-300 font-semibold text-base;
   }
 
   & ul ::marker {
@@ -135,19 +143,19 @@
   }
 
   &> :not(p:nth-child(1)) {
-    @apply text-yellow-950 dark:text-yellow-50 leading-tight;
+    @apply text-yellow-950 dark:text-yellow-50 leading-snug;
   }
 }
 
 .custom-block.danger {
-  @apply bg-red-100 dark:bg-red-900/20 border-none;
+  @apply bg-red-100 dark:bg-red-900/20 border-none text-sm;
 
   &::before {
     @apply bg-red-500/20 dark:bg-red-400/20;
   }
 
   & .custom-block-title {
-    @apply text-red-800 dark:text-red-300 font-semibold;
+    @apply text-red-800 dark:text-red-300 font-semibold text-base;
   }
 
   & ul ::marker {
@@ -155,8 +163,13 @@
   }
 
   &> :not(p:nth-child(1)) {
-    @apply dark:text-red-50;
+    @apply text-red-950 dark:text-red-50 leading-snug;
   }
+}
+
+article.docs-article .custom-block {
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
 }
 
 pre.shiki.shiki-themes.catppuccin-latte.catppuccin-mocha {

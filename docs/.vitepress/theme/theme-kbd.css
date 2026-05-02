@@ -4,8 +4,8 @@
 .prose kbd,
 .custom-block kbd {
   color: inherit;
-  padding: 4px 8px;
-  font-size: 0.8rem;
+  padding: 3px 6px;
+  font-size: 0.75rem;
   cursor: pointer;
   user-select: none;
   position: relative;
