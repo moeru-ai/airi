@@ -3,6 +3,7 @@ import type { DefaultTheme } from 'vitepress/theme'
 
 import type { Author } from '../functions/authors.data'
 
+import { tryCatch } from '@moeru/std'
 import { intlFormat } from 'date-fns'
 import { AvatarFallback, AvatarImage, AvatarRoot } from 'reka-ui'
 import { Content, useData, useRoute } from 'vitepress'
@@ -56,14 +57,25 @@ const publishedAt = computed(() => {
   if (frontmatter.value.publishedAtOverride) {
     return frontmatter.value.publishedAtOverride
   }
+
+  let date: string = ''
   if (frontmatter.value.publishedAt) {
-    return intlFormat(new Date(frontmatter.value.publishedAt), { dateStyle: 'long' })
+    date = frontmatter.value.publishedAt
   }
   if (frontmatter.value.date) {
-    return intlFormat(new Date(frontmatter.value.data), { dateStyle: 'long' })
+    date = frontmatter.value.data
+  }
+  if (!date) {
+    return undefined
   }
 
-  return undefined
+  const { data, error } = tryCatch(() => intlFormat(new Date(frontmatter.value.publishedAt), { dateStyle: 'long' }))
+  if (error) {
+    console.error('Error formatting publishedAt date:', error)
+    return undefined
+  }
+
+  return data
 })
 
 const authors = computed(() => {
