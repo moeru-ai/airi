@@ -61,32 +61,32 @@ export function formatTimePrefix(createdAt: number): string {
 }
 
 /**
- * Matches the leading `[YYYY-MM-DD HH:MM]` (with an optional trailing space)
- * produced by `formatTimePrefix`. Kept in lockstep with the writer above:
- * if the format changes there, change this regex (and the tests) too.
+ * Matches a `[YYYY-MM-DD HH:MM]` (with an optional trailing space) produced
+ * by `formatTimePrefix`. Anchored to the start of input or the start of a
+ * line, since weak models echo the prefix both at the very beginning of a
+ * reply and after their own newlines mid-stream. Kept in lockstep with the
+ * writer above: if the format changes there, change this regex (and the
+ * tests) too.
  */
-const TIMESTAMP_PREFIX_RE = /^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}\] ?/
+const TIMESTAMP_PREFIX_RE = /(^|\n)\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}\] ?/g
 
 /**
- * Length budget for "have we buffered enough to decide": 18 bracketed chars
- * plus the optional trailing space.
+ * Bracketed-shape length (18) plus the optional trailing space (1).
  */
-const TIMESTAMP_PREFIX_MAX_LEN = 19
+const TIMESTAMP_BODY_LEN = 19
 
 /**
- * Position-by-position template used to short-circuit buffering when the
- * leading bytes already disprove the shape, so non-timestamped replies don't
- * pay 19 chars of buffering latency before the first chunk reaches TTS.
- *
- * `#` slots are digits; every other character is a literal.
+ * Position-by-position template used to short-circuit when the bytes
+ * following a candidate boundary already disprove the shape. `#` slots are
+ * digits; every other character is a literal.
  */
-const TIMESTAMP_PREFIX_TEMPLATE = '[####-##-## ##:##]'
+const TIMESTAMP_BODY_TEMPLATE = '[####-##-## ##:##]'
 
-function couldStillMatchPrefix(buf: string): boolean {
-  const limit = Math.min(buf.length, TIMESTAMP_PREFIX_TEMPLATE.length)
+function bodyCouldMatchAt(buf: string, start: number): boolean {
+  const limit = Math.min(buf.length - start, TIMESTAMP_BODY_TEMPLATE.length)
   for (let i = 0; i < limit; i++) {
-    const slot = TIMESTAMP_PREFIX_TEMPLATE[i]
-    const ch = buf[i]
+    const slot = TIMESTAMP_BODY_TEMPLATE[i]
+    const ch = buf[start + i]
     const ok = slot === '#' ? (ch >= '0' && ch <= '9') : ch === slot
     if (!ok)
       return false
@@ -95,14 +95,17 @@ function couldStillMatchPrefix(buf: string): boolean {
 }
 
 /**
- * Removes a leading `[YYYY-MM-DD HH:MM] ` prefix if present. No-op otherwise.
+ * Removes echoed `[YYYY-MM-DD HH:MM] ` prefixes that appear at the start of
+ * the input or immediately after a newline. No-op otherwise.
  *
  * Use when:
  * - You have a complete string (e.g. the final assembled assistant message)
  *   and want to drop a timestamp the model echoed from the per-turn injection.
  */
 export function stripLeadingTimestampPrefix(text: string): string {
-  return text.replace(TIMESTAMP_PREFIX_RE, '')
+  // Preserve the captured boundary (start-of-string or `\n`) and drop the
+  // bracketed body plus the optional space.
+  return text.replace(TIMESTAMP_PREFIX_RE, '$1')
 }
 
 /**
@@ -114,44 +117,87 @@ export function stripLeadingTimestampPrefix(text: string): string {
  *   at the stream boundary so both surfaces are covered by a single chokepoint.
  *
  * Expects:
- * - Chunks delivered in order. The prefix may split across chunks at any byte.
- * - Stripping is leading-only: a timestamp that appears mid-stream passes through.
+ * - Chunks delivered in order. A prefix may split across chunks at any byte,
+ *   either at the start of the stream or after a `\n` mid-stream.
  *
  * Returns:
- * - `consume(chunk)` yields the chunk minus any leading prefix bytes still
- *   being absorbed; may return `''` while buffering. Once the decision is made
- *   (matched and dropped, or shape ruled out), every further chunk passes
- *   through untouched.
- * - `end()` flushes any partial-prefix bytes still buffered when the stream
- *   ends shorter than the prefix length.
+ * - `consume(chunk)` yields the chunk with any line-leading prefixes removed.
+ *   May hold back a tail when the chunk ends inside a candidate prefix; the
+ *   held bytes are emitted (as text or stripped) on the next chunk or `end()`.
+ * - `end()` flushes any held bytes left when the stream ended mid-candidate.
  */
 export function createTimestampPrefixStripper() {
-  // While `buffer` is a string we are still deciding. `null` means the
-  // decision is made and the stripper is now a passthrough.
-  let buffer: string | null = ''
+  // Bytes held back from the previous chunk because they sit inside a
+  // candidate prefix whose fate we cannot decide yet (e.g. trailing `\n[202`).
+  let pending = ''
+  // Last character the model has emitted so far. Used to decide whether the
+  // first byte of a new chunk sits at a line boundary (start of stream or
+  // immediately after `\n`). `null` means the stream has not started yet.
+  let lastModelChar: string | null = null
 
-  function flush(): string {
-    const out = stripLeadingTimestampPrefix(buffer!)
-    buffer = null
+  // Anchored body matcher (no `g` flag, no `^`-or-`\n` group): we only call
+  // it once we've already confirmed we're at a line boundary.
+  const BODY_RE = /^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}\] ?/
+
+  function process(input: string, isFinal: boolean): string {
+    let out = ''
+    let i = 0
+
+    while (i < input.length) {
+      const prev = i > 0 ? input[i - 1] : lastModelChar
+      const atBoundary = prev === null || prev === '\n'
+
+      if (!atBoundary) {
+        out += input[i++]
+        continue
+      }
+
+      const remaining = input.length - i
+      if (remaining >= TIMESTAMP_BODY_LEN || isFinal) {
+        const match = input.slice(i, i + TIMESTAMP_BODY_LEN).match(BODY_RE)
+        if (match)
+          i += match[0].length
+        else
+          out += input[i++]
+        continue
+      }
+
+      // Not enough bytes to decide. Hold the tail iff it's still on track
+      // to become a prefix; otherwise pass it through.
+      if (bodyCouldMatchAt(input, i)) {
+        pending = input.slice(i)
+        return out
+      }
+      out += input[i++]
+    }
+
     return out
   }
 
   return {
     consume(chunk: string): string {
-      if (buffer === null)
-        return chunk
+      if (chunk === '')
+        return ''
 
-      buffer += chunk
+      const merged = pending + chunk
+      pending = ''
+      const out = process(merged, false)
 
-      // Enough bytes to apply the regex unambiguously, or the leading bytes
-      // already disprove the shape: decide now.
-      if (buffer.length >= TIMESTAMP_PREFIX_MAX_LEN || !couldStillMatchPrefix(buffer))
-        return flush()
+      // Track the last character the model has produced so far, regardless
+      // of whether we stripped anything: boundary detection on the next
+      // chunk depends on the model's own line structure, not ours.
+      const consumedEnd = merged.length - pending.length
+      if (consumedEnd > 0)
+        lastModelChar = merged[consumedEnd - 1]
 
-      return ''
+      return out
     },
     end(): string {
-      return buffer === null ? '' : flush()
+      if (pending === '')
+        return ''
+      const out = process(pending, true)
+      pending = ''
+      return out
     },
   }
 }

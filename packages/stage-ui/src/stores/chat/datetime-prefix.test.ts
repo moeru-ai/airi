@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { createTimestampPrefixStripper, formatTimePrefix } from './datetime-prefix'
+import { createTimestampPrefixStripper, formatTimePrefix, stripLeadingTimestampPrefix } from './datetime-prefix'
 
 describe('formatTimePrefix', () => {
   it('wraps `[YYYY-MM-DD HH:MM]` with trailing space', () => {
@@ -75,10 +75,46 @@ describe('createTimestampPrefixStripper', () => {
     expect(stripper.consume('[note] not a timestamp')).toBe('[note] not a timestamp')
   })
 
-  it('does not strip a timestamp that appears mid-response (only leading prefixes)', () => {
+  it('does not strip a timestamp that appears mid-line (still inline content)', () => {
     const stripper = createTimestampPrefixStripper()
     expect(stripper.consume('Earlier: ')).toBe('Earlier: ')
     expect(stripper.consume('[2026-05-01 20:08] keep this')).toBe('[2026-05-01 20:08] keep this')
+  })
+
+  it('strips a timestamp echoed after a newline mid-stream', () => {
+    // ROOT CAUSE:
+    //
+    // Models that have already emitted a sentence sometimes echo a fresh
+    // `\n[YYYY-MM-DD HH:MM] ` before continuing on a new line, mirroring
+    // the per-turn datetime injection. The earlier leading-only stripper
+    // missed this and the timestamp leaked into chat + TTS.
+    const stripper = createTimestampPrefixStripper()
+    const chunks = [
+      'Cool, cool, cool. What kind of edge cases?\n',
+      '[2026-05-01 20:25] Like, is it the timing?',
+    ]
+    const out = chunks.map(c => stripper.consume(c)).join('') + stripper.end()
+    expect(out).toBe('Cool, cool, cool. What kind of edge cases?\nLike, is it the timing?')
+  })
+
+  it('strips a post-newline prefix when the newline ends one chunk and the bracket starts the next', () => {
+    const stripper = createTimestampPrefixStripper()
+    const chunks = ['first line\n', '[2026-05-01 20:25] second line']
+    const out = chunks.map(c => stripper.consume(c)).join('') + stripper.end()
+    expect(out).toBe('first line\nsecond line')
+  })
+
+  it('strips multiple newline-anchored prefixes in a single string', () => {
+    expect(
+      stripLeadingTimestampPrefix(
+        '[2026-05-01 20:25] one\n[2026-05-01 20:26] two\n[2026-05-01 20:27] three',
+      ),
+    ).toBe('one\ntwo\nthree')
+  })
+
+  it('preserves a `\\n[note]` that is not the timestamp shape', () => {
+    const stripper = createTimestampPrefixStripper()
+    expect(stripper.consume('line one\n[note] line two')).toBe('line one\n[note] line two')
   })
 
   it('handles a prefix without a trailing space', () => {
