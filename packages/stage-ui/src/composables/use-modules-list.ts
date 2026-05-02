@@ -15,6 +15,7 @@ import { useHearingStore } from '../stores/modules/hearing'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
 import { useVisionStore } from '../stores/modules/vision'
+import { useVisualChatStore } from '../stores/modules/visual-chat'
 
 export interface Module {
   id: string
@@ -36,6 +37,7 @@ export function useModulesList() {
   const speechStore = useSpeechStore()
   const hearingStore = useHearingStore()
   const visionStore = useVisionStore()
+  const visualChatStore = useVisualChatStore()
   const discordStore = useDiscordStore()
   const twitterStore = useTwitterStore()
   const minecraftStore = useMinecraftStore()
@@ -80,6 +82,15 @@ export function useModulesList() {
       icon: 'i-solar:eye-closed-bold-duotone',
       to: '/settings/modules/vision',
       configured: visionStore.configured,
+      category: 'essential',
+    },
+    {
+      id: 'visual-chat',
+      name: 'Visual Chat',
+      description: 'LiveKit gateway, sessions, and multimodal inference worker.',
+      icon: 'i-solar:videocamera-record-bold-duotone',
+      to: '/settings/modules/visual-chat',
+      configured: visualChatStore.enabled && visualChatStore.isGatewayReachable,
       category: 'essential',
     },
     {

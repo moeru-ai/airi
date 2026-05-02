@@ -214,6 +214,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
     return new Promise((resolve, reject) => {
       let timeoutId: ReturnType<typeof setTimeout> | undefined
       let abortListener: (() => void) | null = null
+      let handler: (event: MessageEvent) => void
 
       const cleanup = (): void => {
         if (timeoutId !== undefined)
@@ -223,7 +224,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
           signal.removeEventListener('abort', abortListener)
       }
 
-      const handler = (event: MessageEvent): void => {
+      handler = (event: MessageEvent): void => {
         if (event.data.requestId !== requestId)
           return
 

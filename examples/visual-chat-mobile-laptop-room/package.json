@@ -1,0 +1,7 @@
+{
+  "name": "@proj-airi/visual-chat-mobile-laptop-room",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Demo: phone camera, laptop camera, and screen share three-source switching"
+}

@@ -45,7 +45,9 @@ const gravatarProfileUrl = computed(() => {
 // instead of rendering an alt-text overflow inside the circle. Resets when
 // the URL changes so a fixed URL re-attempts loading.
 const avatarLoadError = ref(false)
-watch(userAvatar, () => { avatarLoadError.value = false })
+watch(userAvatar, () => {
+  avatarLoadError.value = false
+})
 
 // Locale-aware thousand separator. Bare 5–6 digit numbers are noisy to scan
 // (e.g. "44965" reads as one block); Intl.NumberFormat respects user locale

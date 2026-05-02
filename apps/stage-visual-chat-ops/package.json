@@ -1,0 +1,27 @@
+{
+  "name": "@proj-airi/stage-visual-chat-ops",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Operations dashboard for AIRI visual chat",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "apps/stage-visual-chat-ops"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@proj-airi/visual-chat-sdk": "workspace:^",
+    "pinia": "catalog:",
+    "vue": "catalog:"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.5",
+    "vite": "catalog:"
+  }
+}

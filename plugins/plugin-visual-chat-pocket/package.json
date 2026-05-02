@@ -1,0 +1,29 @@
+{
+  "name": "@proj-airi/plugin-visual-chat-pocket",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Visual chat bridge plugin for AIRI stage-pocket (mobile)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "plugins/plugin-visual-chat-pocket"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "scripts": {
+    "dev": "pnpm run build",
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@proj-airi/visual-chat-sdk": "workspace:^"
+  }
+}

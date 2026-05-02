@@ -1,0 +1,35 @@
+{
+  "name": "@proj-airi/visual-chat-protocol",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Protocol definitions, schemas, and event constants for AIRI visual chat",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/visual-chat-protocol"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./src/index.ts",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "main": "./src/index.ts",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "dev": "pnpm run build",
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "valibot": "catalog:"
+  }
+}

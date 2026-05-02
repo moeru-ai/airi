@@ -11,6 +11,24 @@
     ],
     "useDefineForClassFields": true,
     "paths": {
+      "@proj-airi/visual-chat-ops": [
+        "../../packages/visual-chat-ops/src/index.ts"
+      ],
+      "@proj-airi/visual-chat-protocol": [
+        "../../packages/visual-chat-protocol/src/index.ts"
+      ],
+      "@proj-airi/visual-chat-sdk": [
+        "../../packages/visual-chat-sdk/src/index.ts"
+      ],
+      "@proj-airi/visual-chat-shared": [
+        "../../packages/visual-chat-shared/src/index.ts"
+      ],
+      "@proj-airi/visual-chat-shared/*": [
+        "../../packages/visual-chat-shared/src/*"
+      ],
+      "@proj-airi/visual-chat-storage": [
+        "../../packages/visual-chat-storage/src/index.ts"
+      ],
       "@proj-airi/stage-pages/*.vue": [
         "../../packages/stage-pages/src/*.vue"
       ],
@@ -65,6 +83,12 @@
     "src/shared/**/*.ts",
     "src/shared/**/*.d.ts",
     "src/shared/**/*.tsx",
-    "src/shared/**/*.vue"
+    "src/shared/**/*.vue",
+
+    "../../packages/visual-chat-ops/src/**/*.ts",
+    "../../packages/visual-chat-protocol/src/**/*.ts",
+    "../../packages/visual-chat-sdk/src/**/*.ts",
+    "../../packages/visual-chat-shared/src/**/*.ts",
+    "../../packages/visual-chat-storage/src/**/*.ts"
   ]
 }

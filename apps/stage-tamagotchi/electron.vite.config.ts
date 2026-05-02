@@ -1,4 +1,5 @@
 import { join, resolve } from 'node:path'
+import { env } from 'node:process'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import templateCompilerOptions from '@tresjs/core/template-compiler-options'
@@ -18,6 +19,13 @@ import { defineConfig } from 'electron-vite'
 
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
+const additionalAllowedRemoteHosts = (env.AIRI_VISUAL_CHAT_ALLOWED_HOSTS || '')
+  .split(',')
+  .map(host => host.trim())
+  .filter(Boolean)
+const rendererAllowedHosts: true | string[] = additionalAllowedRemoteHosts.length > 0
+  ? [...new Set(['.trycloudflare.com', ...additionalAllowedRemoteHosts])]
+  : true
 
 export default defineConfig({
   main: {
@@ -141,10 +149,15 @@ export default defineConfig({
         '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src')),
         '@proj-airi/stage-pages': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src')),
         '@proj-airi/stage-shared': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-shared', 'src')),
+        '@proj-airi/visual-chat-shared/electron': resolve(join(import.meta.dirname, '..', '..', 'packages', 'visual-chat-shared', 'src', 'electron.ts')),
       },
     },
 
     server: {
+      host: '0.0.0.0',
+      port: 5174,
+      strictPort: true,
+      allowedHosts: rendererAllowedHosts,
       fs: {
         // To mute errors like:
         //   The request id ".../node_modules/@fontsource/sniglet/files/sniglet-latin-400-normal.woff" is outside of Vite serving allow list.

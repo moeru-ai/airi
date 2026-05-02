@@ -9,6 +9,14 @@
     ],
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "paths": {
+      "@proj-airi/visual-chat-protocol": [
+        "../../packages/visual-chat-protocol/src/index.ts"
+      ],
+      "@proj-airi/visual-chat-sdk": [
+        "../../packages/visual-chat-sdk/src/index.ts"
+      ]
+    },
     "resolveJsonModule": true,
     "types": [
       "vitest",

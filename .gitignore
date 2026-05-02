@@ -134,3 +134,14 @@ apps/stage-tamagotchi/electron.vite.config.*.mjs
 
 # Tools - Obsidian
 .obsidian/
+
+# Visual Chat
+.visual-chat-tunnel.json
+.visual-chat-public-endpoints.json
+
+# Local editor / browser runtime artifacts
+.cursor/*
+!.cursor/commands/
+.cursor/commands/*
+!.cursor/commands/deslop.md
+.tmp-edge-headless/

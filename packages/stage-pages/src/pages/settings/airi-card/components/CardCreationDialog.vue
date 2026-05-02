@@ -316,7 +316,7 @@ function saveCard(card: Card): boolean {
         throw new Error('Not an object')
       }
     }
-    catch (e) {
+    catch {
       showError.value = true
       errorMessage.value = t('settings.pages.card.creation.errors.invalid_artistry_json')
       return false

@@ -162,6 +162,8 @@ export function streamWebSpeechAPITranscription(
   options?: WebSpeechAPIExtraOptions & {
     onSentenceEnd?: (delta: string) => void
     onSpeechEnd?: (text: string) => void
+    onError?: (errorType: string, message: string) => void
+    onStatusChange?: (status: 'started' | 'restarted' | 'ended' | 'audio-started' | 'speech-detected') => void
   },
 ): StreamTranscriptionResult & { recognition?: any } {
   const deferredText = createDeferred<string>()
@@ -264,17 +266,36 @@ export function streamWebSpeechAPITranscription(
     console.warn('Web Speech API error:', errorType)
 
     if (errorType === 'no-speech') {
+      options?.onError?.('no-speech', 'No speech detected. Keep speaking or check microphone placement.')
       return
     }
 
     if (errorType === 'audio-capture') {
-      console.warn('Web Speech API: Microphone access issue. Please check microphone permissions.')
+      options?.onError?.('audio-capture', 'Microphone audio capture failed. The browser may need HTTPS or microphone permissions may be blocked.')
       return
     }
 
-    if (errorType === 'network' || errorType === 'aborted') {
+    if (errorType === 'network') {
+      options?.onError?.('network', 'Speech recognition requires internet access (audio is processed by Google servers). Check your network connection.')
       return
     }
+
+    if (errorType === 'aborted') {
+      return
+    }
+
+    if (errorType === 'not-allowed' || errorType === 'service-not-allowed') {
+      options?.onError?.('not-allowed', 'Speech recognition permission denied or service unavailable. This browser may not support Web Speech API.')
+      const error = new Error(`Speech recognition not allowed: ${errorType}`)
+      fullStreamCtrl?.error(error)
+      textStreamCtrl?.error(error)
+      deferredText.reject(error)
+      deferredText.isRejected = true
+      options?.onSpeechEnd?.(fullText)
+      return
+    }
+
+    options?.onError?.(errorType, `Speech recognition error: ${errorType}`)
     const error = new Error(`Speech recognition error: ${errorType}`)
     fullStreamCtrl?.error(error)
     textStreamCtrl?.error(error)
@@ -291,22 +312,23 @@ export function streamWebSpeechAPITranscription(
       // Use the current recognitionInstance to ensure we're using the correct instance
       const currentRecognition = recognitionInstance || recognition
 
-      // Small delay before restarting to avoid rapid restart loops
       setTimeout(() => {
         try {
           currentRecognition.start()
           console.info('Web Speech API recognition restarted (continuous mode)')
+          options?.onStatusChange?.('restarted')
         }
         catch (err) {
           console.warn('Web Speech API failed to restart, creating new instance:', err)
-          // If restart fails, create a new instance
           try {
             createAndStartNewRecognitionInstance(recognition)
             console.info('Web Speech API created new instance and started')
+            options?.onStatusChange?.('restarted')
           }
           catch (newErr) {
             console.error('Web Speech API failed to create new instance:', newErr)
             const error = new Error(`Failed to restart recognition: ${newErr instanceof Error ? newErr.message : String(newErr)}`)
+            options?.onError?.('restart-failed', error.message)
             fullStreamCtrl?.error(error)
             textStreamCtrl?.error(error)
             deferredText.reject(error)
@@ -415,13 +437,14 @@ export function streamWebSpeechAPITranscription(
     }
   }
 
-  // Add event listeners for debugging before starting
   recognition.onstart = () => {
     console.info('Web Speech API recognition started (onstart event)')
+    options?.onStatusChange?.('started')
   }
 
   recognition.onaudiostart = () => {
     console.info('Web Speech API audio capture started')
+    options?.onStatusChange?.('audio-started')
   }
 
   recognition.onsoundstart = () => {
@@ -430,6 +453,7 @@ export function streamWebSpeechAPITranscription(
 
   recognition.onspeechstart = () => {
     console.info('Web Speech API speech detected')
+    options?.onStatusChange?.('speech-detected')
   }
 
   recognition.onspeechend = () => {
@@ -446,6 +470,7 @@ export function streamWebSpeechAPITranscription(
 
   recognition.onnomatch = () => {
     console.info('Web Speech API: No speech match')
+    options?.onError?.('no-match', 'Speech was detected but could not be recognized. Try speaking more clearly.')
   }
 
   const started = startRecognition()

@@ -120,6 +120,7 @@ catalog:
   pinia: ^3.0.4
   posthog-js: 1.306.1
   reka-ui: ^2.9.2
+  remark-breaks: ^4.0.0
   replicate: ^1.4.0
   splitpanes: ^4.0.4
   std-env: ^4.1.0
