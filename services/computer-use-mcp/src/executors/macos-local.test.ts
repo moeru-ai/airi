@@ -1,23 +1,32 @@
 import { describe, expect, it } from 'vitest'
 
-import { moveAndClickScript } from './macos-local'
+import {
+  buildMacOSMoveAndClickScript,
+  buildMacOSPressKeysScript,
+  buildMacOSScrollScript,
+  buildMacOSTypeTextScript,
+} from './macos-local'
 
-describe('moveAndClickScript', () => {
-  it('saves and restores the real macOS cursor around CGEvent clicks', () => {
-    const source = moveAndClickScript()
+describe('macOS local Swift cursor state contract', () => {
+  it('leaves desktop_click cursor at the action target for pointer-relative follow-up actions', () => {
+    const script = buildMacOSMoveAndClickScript()
 
-    const saveCursorIndex = source.indexOf('let originalCursorLocation = CGEvent(source: nil)?.location')
-    const restoreCursorIndex = source.indexOf('CGWarpMouseCursorPosition(savedCursorLocation)')
-    const moveTraceIndex = source.indexOf('for point in trace')
-    const clickIndex = source.indexOf('down.post(tap: .cghidEventTap)')
+    expect(script).not.toContain('let originalCursorLocation = CGEvent(source: nil)?.location')
+    expect(script).not.toContain('CGWarpMouseCursorPosition')
+    expect(script).toContain('for point in trace')
+  })
 
-    expect(saveCursorIndex).toBeGreaterThanOrEqual(0)
-    expect(restoreCursorIndex).toBeGreaterThanOrEqual(0)
-    expect(moveTraceIndex).toBeGreaterThanOrEqual(0)
-    expect(clickIndex).toBeGreaterThanOrEqual(0)
-    expect(saveCursorIndex).toBeLessThan(moveTraceIndex)
-    expect(restoreCursorIndex).toBeLessThan(moveTraceIndex)
-    expect(restoreCursorIndex).toBeLessThan(clickIndex)
-    expect(source).toContain('defer {')
+  it('leaves coordinate-based desktop_scroll cursor at the target for pointer-relative follow-up actions', () => {
+    const script = buildMacOSScrollScript()
+
+    expect(script).not.toContain('let shouldRestoreCursor = x != nil && y != nil')
+    expect(script).not.toContain('CGWarpMouseCursorPosition')
+    expect(script).toContain('if let x, let y {')
+    expect(script).toContain('scrollEvent.post(tap: .cghidEventTap)')
+  })
+
+  it('does not warp the cursor for keyboard-only text and key-chord scripts', () => {
+    expect(buildMacOSTypeTextScript()).not.toContain('CGWarpMouseCursorPosition')
+    expect(buildMacOSPressKeysScript(36, '[]')).not.toContain('CGWarpMouseCursorPosition')
   })
 })
