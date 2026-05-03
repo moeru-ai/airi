@@ -1,6 +1,15 @@
-# Project AIRI Manual
-
-Writing time: (UTC+8) April 2, 2026 – evening
+---
+title: Project AIRI Manual
+authors:
+  - name: MuGewRayce
+    role: Lead writing team
+    kind: person
+  - name: JhIcefair
+    role: Contributing editor (primary)
+    kind: person
+publishedAt: 2026-04-02
+publishedAtOverride: April 2, 2026 – evening (UTC+8)
+---
 
 Corresponding version: AIRI-0.9.0-beta.4-windows-x64
 

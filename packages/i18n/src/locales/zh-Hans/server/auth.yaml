@@ -7,19 +7,19 @@ electronCallback:
     finishSignInInAiri: 登录完成
     openAiriToContinue: 打开AIRI以继续
   message:
-    checkingResponse: Checking your sign-in response and preparing the handoff to AIRI.
-    passingToAiri: Passing your sign-in back to AIRI now. This page should close in a moment.
-    syncedAndSafeToClose: We notified AIRI client you signed from.
-    invalidResponse: We could not use this sign-in response.
-    loopbackUnreachable: The browser could not reach AIRI through the local callback port.
-    tryOpenDirectly: We will try opening the local handoff directly. If that still fails, use the button below.
-    automaticHandoffFailed: Automatic handoff did not finish in this browser session.
+    checkingResponse: 正在检查鉴权是否有效，并准备将登录状态转交给 AIRI...
+    passingToAiri: 正在将登录状态转交至 AIRI 客户端。本页面即将自动关闭...
+    syncedAndSafeToClose: 我们已经通知 AIRI 客户端你登录成功啦～
+    invalidResponse: 我们暂时无法验证本次登录的有效性，要重新试试看吗？
+    loopbackUnreachable: 暂时无法通知 AIRI，原因是无法与本地的 AIRI 通信，要重启 AIRI 试试吗？
+    tryOpenDirectly: 我们正在尝试通知 AIRI 客户端登录结果，如果仍没有登录，试试看点击下方的按钮～
+    automaticHandoffFailed: 自动登录到本地客户端失败了，要重新试试吗？
   label:
     signIn: 登录
     safeToClose: 现在可以安全地关闭此标签页了。
-    whyStillHere: 这个窗口还在吗？
+    whyStillHere: 为什么这个标签页仍在这里？
   action:
-    openAiriManually: 手动打开AIRI
+    openAiriManually: 手动打开 AIRI
   hint:
     closeTabManually: 一些浏览器不允许自动关闭这个页面，你可以手动关掉它。
 signIn:
@@ -27,13 +27,13 @@ signIn:
   step:
     identify:
       heading: 登录
-      description: Enter your email to sign in or create an account.
+      description: 输入电子邮箱以登录或创建账户
     password:
       heading: 欢迎回来
       description: 以 {email} 继续登录
     create:
       heading: 创建账户
-      description: We will create a new account for {email}.
+      description: 我们将为 {email} 创建一个新账户...
   email:
     label: 邮箱
     placeholder: you{'@'}example.com
@@ -62,7 +62,7 @@ signIn:
     unknown: 发生了未知错误
     authFailed: Authentication failed. Please try again.
     passwordMismatch: Password and confirmation do not match.
-    invalidEmail: Please enter a valid email address.
+    invalidEmail: 请输入有效格式的电子邮件地址
   footer:
     prefix: 继续之前，你需要同意我们的
     terms: 服务条款
@@ -70,11 +70,11 @@ signIn:
     privacy: 隐私政策
 verifyEmail:
   title:
-    pending: Check your inbox
-    success: Email verified
+    pending: 请检查您的收件箱，如果没有找到，可以再检查一下 Spam（垃圾信箱）
+    success: 邮箱验证成功！
     failed: Verification failed
   message:
-    pending: We sent a verification link to your email. Open it to finish creating your account — this page will continue automatically once you click the link.
+    pending: 我们向您输入的电子邮箱发送了一个验证链接。要继续登入或注册步骤，请点开链接以继续。
     pendingWithAddress: We sent a verification link to {email}. Open it to finish creating your account — this page will continue automatically once you click the link.
     success: Your email has been verified and you are signed in. You can close this tab.
     failed: We could not verify your email ({error}). Try requesting a new link.
