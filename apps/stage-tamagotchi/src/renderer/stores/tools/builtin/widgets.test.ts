@@ -250,6 +250,10 @@ describe('widgets tool helpers', () => {
       expect((windowSizeProperties.minHeight as JsonSchema).type).toEqual(['number', 'null'])
       expect((windowSizeProperties.maxWidth as JsonSchema).type).toEqual(['number', 'null'])
       expect((windowSizeProperties.maxHeight as JsonSchema).type).toEqual(['number', 'null'])
+      expect((windowSizeProperties.minWidth as JsonSchema).exclusiveMinimum).toBe(0)
+      expect((windowSizeProperties.minHeight as JsonSchema).exclusiveMinimum).toBe(0)
+      expect((windowSizeProperties.maxWidth as JsonSchema).exclusiveMinimum).toBe(0)
+      expect((windowSizeProperties.maxHeight as JsonSchema).exclusiveMinimum).toBe(0)
     })
 
     describe('live AIHubMix repro', () => {

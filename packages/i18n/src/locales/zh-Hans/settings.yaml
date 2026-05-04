@@ -689,6 +689,7 @@ pages:
       actions:
         open-config: 在文件管理器中打开
         apply-and-restart: 保存并重启
+        restart: 重启 MCP
         add-server: 添加服务器
         add-env: 添加变量
         remove: 删除

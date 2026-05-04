@@ -720,6 +720,7 @@ pages:
       actions:
         open-config: Reveal in file manager
         apply-and-restart: Save and restart
+        restart: Restart MCP
         add-server: Add server
         add-env: Add var
         remove: Remove

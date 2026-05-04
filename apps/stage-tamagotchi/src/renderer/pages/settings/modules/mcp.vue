@@ -105,6 +105,7 @@ const isDirty = computed(() => {
     return true
   }
 })
+const restartActionLabel = computed(() => isDirty.value ? tn('actions.apply-and-restart') : tn('actions.restart'))
 
 const testOptions = computed(() => servers.value.map((s) => {
   const name = s.identifier.trim() || tn('test.untitled')
@@ -252,6 +253,36 @@ async function saveAndRestart() {
   finally {
     isBusy.value = false
   }
+}
+
+async function restartServers() {
+  isBusy.value = true
+  errorMessage.value = ''
+  infoMessage.value = ''
+  try {
+    const result = await invokeApplyAndRestart()
+    await refreshRuntime()
+    infoMessage.value = tn('messages.restarted', {
+      started: result.started.length,
+      failed: result.failed.length,
+      skipped: result.skipped.length,
+    })
+  }
+  catch (e) {
+    errorMessage.value = errorMessageFrom(e) ?? 'Unknown error'
+  }
+  finally {
+    isBusy.value = false
+  }
+}
+
+async function applyRestartAction() {
+  if (isDirty.value) {
+    await saveAndRestart()
+    return
+  }
+
+  await restartServers()
 }
 
 async function openConfigInSystem() {
@@ -453,15 +484,12 @@ onMounted(async () => {
       />
     </section>
 
-    <!-- Save and restart bar -->
-    <TransitionVertical>
-      <Button
-        v-if="isDirty"
-        variant="primary" size="md" block :disabled="isBusy" :loading="isBusy"
-        icon="i-solar:rocket-2-bold-duotone" :label="tn('actions.apply-and-restart')"
-        @click="saveAndRestart"
-      />
-    </TransitionVertical>
+    <!-- Restart bar -->
+    <Button
+      variant="primary" size="md" block :disabled="isBusy" :loading="isBusy"
+      icon="i-solar:rocket-2-bold-duotone" :label="restartActionLabel"
+      @click="applyRestartAction"
+    />
 
     <!-- Connection test -->
     <McpConnectionTestPanel

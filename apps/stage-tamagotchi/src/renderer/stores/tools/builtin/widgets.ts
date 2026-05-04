@@ -151,6 +151,16 @@ function normalizeNullableAnyOf(schema: JsonSchema): JsonSchema {
       && dedupedPrimitiveTypes.length > 0
       && dedupedPrimitiveTypes.every(type => type !== undefined && JSON_SCHEMA_NULLABLE_SCALAR_TYPES.has(type))
     ) {
+      for (const entry of normalizedEntries) {
+        if (entry.type !== 'number' && entry.type !== 'integer')
+          continue
+
+        next.multipleOf ??= entry.multipleOf
+        next.minimum ??= entry.minimum
+        next.maximum ??= entry.maximum
+        next.exclusiveMinimum ??= entry.exclusiveMinimum
+        next.exclusiveMaximum ??= entry.exclusiveMaximum
+      }
       delete next.anyOf
       next.type = dedupedPrimitiveTypes as JsonSchema['type']
     }

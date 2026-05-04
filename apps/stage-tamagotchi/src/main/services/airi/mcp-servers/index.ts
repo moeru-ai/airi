@@ -61,6 +61,7 @@ const defaultMcpConfig: ElectronMcpStdioConfigFile = {
 const toolNameSeparator = '::'
 const mcpRequestTimeoutMsec = 10_000
 const mcpRequestMaxTotalTimeoutMsec = 15_000
+const mcpTestStderrMaxChars = 16_000
 
 function stringifyError(error: unknown) {
   if (error instanceof Error) {
@@ -354,6 +355,7 @@ export function createMcpStdioManager(): McpStdioManager {
     const startedAt = Date.now()
     let transport: StdioClientTransport | null = null
     let client: Client | null = null
+    const stderrChunks: string[] = []
 
     const withDeadline = <V>(promise: Promise<V>, ms: number, label: string): Promise<V> => {
       let timer: NodeJS.Timeout | undefined
@@ -379,14 +381,13 @@ export function createMcpStdioManager(): McpStdioManager {
         version: app.getVersion(),
       })
 
-      await withDeadline(client.connect(transport), mcpRequestMaxTotalTimeoutMsec, 'connect')
-
-      const stderrChunks: string[] = []
       transport.stderr?.on('data', (data) => {
         const text = data.toString('utf-8')
         if (text)
           stderrChunks.push(text)
       })
+
+      await withDeadline(client.connect(transport), mcpRequestMaxTotalTimeoutMsec, 'connect')
 
       const response = await client.listTools(undefined, {
         timeout: mcpRequestTimeoutMsec,
@@ -404,9 +405,12 @@ export function createMcpStdioManager(): McpStdioManager {
       }
     }
     catch (error) {
+      const message = stringifyError(error)
+      // Keep only the tail so a noisy failed server cannot flood the settings UI.
+      const stderr = stderrChunks.join('').trim().slice(-mcpTestStderrMaxChars)
       return {
         ok: false,
-        error: stringifyError(error),
+        error: stderr ? `${message}\n\n${stderr}` : message,
         durationMs: Date.now() - startedAt,
       }
     }
