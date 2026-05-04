@@ -305,6 +305,7 @@ pages:
         systemprompt: 'Ошибка: укажите системный промпт.'
         posthistoryinstructions: 'Ошибка: требуется post-history промпт.'
         invalid_artistry_json: 'Ошибка: Параметры провайдера Artistry содержат недопустимые JSON.'
+      none: Нет
     modules: Модули
     name_asc: Имя (А-Я)
     name_desc: Имя (Я-А)
@@ -827,7 +828,7 @@ pages:
         description: >-
           Провайдеры транскрипции (speech-to-text): Whisper.cpp, OpenAI, Azure Speech
       artistry:
-        title: Artistry 
+        title: Artistry
         description: Поставщики моделей генерации и создания изображений, например ComfyUI, Replicate.
         items:
           comfyui:

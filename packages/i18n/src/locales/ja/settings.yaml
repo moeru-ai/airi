@@ -305,6 +305,7 @@ pages:
         systemprompt: 'エラー: システムプロンプトを入力してください。'
         posthistoryinstructions: 'エラー: 履歴の後のプロンプトは必須です。'
         invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
+      none: なし
     modules: モジュール
     name_asc: 名前(A-Z)
     name_desc: 名前(Z-A)

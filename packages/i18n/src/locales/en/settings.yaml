@@ -319,6 +319,7 @@ pages:
         systemprompt: 'Error: Please, provide a system prompt.'
         posthistoryinstructions: 'Error: Post history prompt is required.'
         invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
+      none: None
     modules: Modules
     name_asc: Name (A-Z)
     name_desc: Name (Z-A)
