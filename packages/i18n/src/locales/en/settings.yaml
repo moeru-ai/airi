@@ -10,6 +10,8 @@ animations:
     title: Use Page Specific Transitions
 dialogs:
   onboarding:
+    official:
+      title: AIRI Official Provider
     title: Welcome to AIRI!
     description: Let's set up your first AI provider to get started.
     selectProvider: Choose an AI Provider

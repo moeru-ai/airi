@@ -9,6 +9,8 @@ animations:
     title: 페이지별 전환 사용
 dialogs:
   onboarding:
+    official:
+      title: AIRI 공식 제공자
     title: AIRI에 오신 것을 환영합니다!
     description: 시작하기 위해 당신의 첫 번째 AI 제공자를 설정해 보겠습니다.
     selectProvider: AI 제공자를 선택해주세요

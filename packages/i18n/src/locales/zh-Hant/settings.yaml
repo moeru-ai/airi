@@ -9,6 +9,8 @@ animations:
     title: 是否使用頁面特定過場動畫
 dialogs:
   onboarding:
+    official:
+      title: AIRI 官方服務來源
     title: 歡迎來到 AIRI！
     description: 讓我們先設定您的第一個服務來源來開始使用。
     selectProvider: 選擇服務來源

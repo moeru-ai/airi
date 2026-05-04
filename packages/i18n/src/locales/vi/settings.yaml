@@ -9,6 +9,8 @@ animations:
     title: Dùng hiệu ứng chuyển cảnh riêng cho từng trang
 dialogs:
   onboarding:
+    official:
+      title: Nhà cung cấp AIRI chính thức
     title: Chào mừng đến với AIRI!
     description: Hãy thiết lập nhà cung cấp AI đầu tiên để bắt đầu.
     selectProvider: Chọn nhà cung cấp AI

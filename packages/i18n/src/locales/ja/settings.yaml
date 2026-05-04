@@ -9,6 +9,8 @@ animations:
     title: ページ固有の遷移を使用する
 dialogs:
   onboarding:
+    official:
+      title: AIRI公式プロバイダー
     title: AIRI へようこそ！
     description: まず最初のAIプロバイダーを設定しましょう。
     selectProvider: AIプロバイダーを選択

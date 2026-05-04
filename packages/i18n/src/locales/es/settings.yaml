@@ -9,6 +9,8 @@ animations:
     title: Usar Transiciones Específicas de Página
 dialogs:
   onboarding:
+    official:
+      title: Proveedor Oficial de AIRI
     title: '¡Bienvenido a AIRI!'
     description: Configuremos tu primer proveedor de IA para comenzar.
     selectProvider: Elige un Proveedor de IA

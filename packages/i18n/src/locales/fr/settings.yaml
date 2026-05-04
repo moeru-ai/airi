@@ -9,6 +9,8 @@ animations:
     title: Utiliser les transitions spécifiques à chaque page
 dialogs:
   onboarding:
+    official:
+      title: Fournisseur Officiel AIRI
     title: Bienvenue dans AIRI!
     description: Configurez votre premier fournisseur d’IA pour commencer.
     selectProvider: Choisissez un fournisseur d'IA.

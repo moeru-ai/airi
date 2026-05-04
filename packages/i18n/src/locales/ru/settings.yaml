@@ -9,6 +9,8 @@ animations:
     title: Использовать переходы для страниц
 dialogs:
   onboarding:
+    official:
+      title: Официальный провайдер AIRI
     title: Добро пожаловать в AIRI!
     description: Давайте настроим вашего первого AI-провайдера, чтобы начать работу.
     selectProvider: Выберите AI-провайдера
