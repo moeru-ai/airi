@@ -92,8 +92,8 @@ const EnvSchema = object({
   // Asset Links (Android deep link delegation)
   // Example: ASSETLINKS_PACKAGE_NAME=com.example.app
   //          ASSETLINKS_SHA256_FINGERPRINTS=AB:CD:... ,EF:12:...
-  ASSETLINKS_PACKAGE_NAME: optional(string()),
-  ASSETLINKS_SHA256_FINGERPRINTS: optional(string()),
+  ASSETLINKS_PACKAGE_NAME: optional(string(), 'ai.moeru.airi_pocket'),
+  ASSETLINKS_SHA256_FINGERPRINTS: optional(string(), ''),
 })
 
 export type Env = InferOutput<typeof EnvSchema>
