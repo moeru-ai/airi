@@ -5,20 +5,7 @@ import type {
 
 type TranslateMcpMessage = (key: string, params?: Record<string, unknown>) => string
 
-/**
- * Editable MCP server form state used by the settings page.
- *
- * Use when:
- * - Rendering one MCP server card in the settings UI
- * - Converting between `mcp.json` and form-friendly fields
- *
- * Expects:
- * - `rowId` is only stable within the current page session
- * - User-entered strings may still contain leading or trailing whitespace
- *
- * Returns:
- * - A mutable UI model for one MCP server entry
- */
+/** Editable MCP server form state used by the settings page. */
 export interface ServerForm {
   rowId: string
   identifier: string
@@ -29,19 +16,7 @@ export interface ServerForm {
   enabled: boolean
 }
 
-/**
- * Loaded MCP server rows derived from persisted config.
- *
- * Use when:
- * - Rebuilding the page state from disk or JSON draft input
- * - Restoring saved rows while preserving the test target selection
- *
- * Expects:
- * - `selectedRowId` may be empty when there are no loaded servers
- *
- * Returns:
- * - The regenerated server rows, their saved row ids, and the active test target
- */
+/** Editable MCP server rows derived from persisted config. */
 export interface LoadedServerForms {
   servers: ServerForm[]
   savedIds: Set<string>
@@ -66,19 +41,7 @@ function envToObject(entries: { key: string, value: string }[]) {
   return out
 }
 
-/**
- * Creates a blank MCP server row for new entries.
- *
- * Use when:
- * - The user clicks "Add server"
- * - The page needs a fresh editable form model
- *
- * Expects:
- * - The returned row will be edited in place by Vue form bindings
- *
- * Returns:
- * - A new enabled server row with a unique session-local `rowId`
- */
+/** Creates a blank MCP server row for new entries. */
 export function createServerForm(): ServerForm {
   return {
     rowId: makeRowId(),
@@ -91,36 +54,12 @@ export function createServerForm(): ServerForm {
   }
 }
 
-/**
- * Resolves the persisted server identifier for a selected row.
- *
- * Use when:
- * - Reloading rows from disk regenerates `rowId` values
- * - The page needs to preserve selection by stable server identity
- *
- * Expects:
- * - `rowId` may be stale or empty after a reload
- *
- * Returns:
- * - The matching identifier, or `undefined` when the row is no longer present
- */
+/** Resolves the persisted server identifier for a selected row. */
 export function findServerIdentifierByRowId(servers: ServerForm[], rowId: string) {
   return servers.find(server => server.rowId === rowId)?.identifier.trim() || undefined
 }
 
-/**
- * Converts one editable server row into persisted MCP server config.
- *
- * Use when:
- * - Writing `mcp.json`
- * - Running an in-app connection test for a single server
- *
- * Expects:
- * - Validation of required fields happens before or after this conversion
- *
- * Returns:
- * - A normalized stdio server config with trimmed args, env keys, and `cwd`
- */
+/** Converts one editable server row into persisted MCP server config. */
 export function buildServerConfig(server: ServerForm): ElectronMcpStdioServerConfig {
   const config: ElectronMcpStdioServerConfig = {
     command: server.command.trim(),
@@ -143,20 +82,7 @@ export function buildServerConfig(server: ServerForm): ElectronMcpStdioServerCon
   return config
 }
 
-/**
- * Builds the persisted MCP config file from editable rows.
- *
- * Use when:
- * - Saving the settings form to disk
- * - Comparing the current form state against the last saved signature
- *
- * Expects:
- * - Each server must have a unique non-empty identifier
- * - Each server must include a non-empty command
- *
- * Returns:
- * - A normalized `mcp.json` object keyed by server identifier
- */
+/** Builds the persisted MCP config file from editable rows. */
 export function buildConfigFile(
   servers: ServerForm[],
   translateMessage: TranslateMcpMessage,
@@ -182,25 +108,28 @@ export function buildConfigFile(
   return config
 }
 
-/**
- * Loads editable rows from persisted MCP config.
- *
- * Before:
- * - `{ "mcpServers": { "filesystem": { "command": "npx" } } }`
- *
- * After:
- * - `[ { rowId: "mcp-...", identifier: "filesystem", command: "npx" } ]`
- *
- * Use when:
- * - Parsing `mcp.json` from disk
- * - Applying a JSON draft back into the form
- *
- * Expects:
- * - `selectedIdentifier` should be a stable server identifier when selection must survive reloads
- *
- * Returns:
- * - Fresh UI rows plus the matching saved ids and restored selected row id
- */
+/** Builds the JSON editor draft while preserving the current draft when form validation fails. */
+export function syncJsonDraftFromServers(
+  servers: ServerForm[],
+  previousDraft: string,
+  translateMessage: TranslateMcpMessage,
+  formatError: (error: unknown) => string,
+) {
+  try {
+    return {
+      draft: `${JSON.stringify(buildConfigFile(servers, translateMessage), null, 2)}\n`,
+      error: '',
+    }
+  }
+  catch (error) {
+    return {
+      draft: previousDraft,
+      error: formatError(error),
+    }
+  }
+}
+
+/** Loads editable rows from persisted MCP config. */
 export function loadServerForms(
   config: ElectronMcpStdioConfigFile,
   options: { selectedIdentifier?: string } = {},
@@ -226,24 +155,7 @@ export function loadServerForms(
   }
 }
 
-/**
- * Previews the command line assembled from one server row.
- *
- * Before:
- * - command=`"npx"`, argsText=`"-y\n@modelcontextprotocol/server-filesystem"`
- *
- * After:
- * - `"npx -y @modelcontextprotocol/server-filesystem"`
- *
- * Use when:
- * - Rendering compact server summary rows in the settings page
- *
- * Expects:
- * - Empty parts are ignored
- *
- * Returns:
- * - A single-line command preview string
- */
+/** Previews the command line assembled from one server row. */
 export function previewServerCommand(server: ServerForm) {
   return [server.command, ...splitArgsText(server.argsText)].join(' ')
 }

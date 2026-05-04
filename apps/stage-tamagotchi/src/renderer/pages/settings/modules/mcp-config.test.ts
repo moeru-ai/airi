@@ -1,3 +1,4 @@
+import { errorMessageFrom } from '@moeru/std'
 import { describe, expect, it } from 'vitest'
 
 import { parseElectronMcpConfigText } from '../../../../shared/mcp-config'
@@ -6,6 +7,7 @@ import {
   buildServerConfig,
   findServerIdentifierByRowId,
   loadServerForms,
+  syncJsonDraftFromServers,
 } from './mcp-config'
 
 function translateMessage(key: string, params?: Record<string, unknown>) {
@@ -65,6 +67,28 @@ describe('mcp-config helpers', () => {
         },
       },
     })
+  })
+
+  it('keeps the existing JSON draft when form rows are incomplete', () => {
+    const previousDraft = '{\n  "mcpServers": {\n    "saved": { "command": "npx" }\n  }\n}\n'
+
+    const result = syncJsonDraftFromServers(
+      [{
+        rowId: 'pending',
+        identifier: '',
+        command: '',
+        argsText: '',
+        envEntries: [],
+        cwd: '',
+        enabled: true,
+      }],
+      previousDraft,
+      translateMessage,
+      error => errorMessageFrom(error) ?? 'Unknown error',
+    )
+
+    expect(result.draft).toBe(previousDraft)
+    expect(result.error).toBe('errors.empty-identifier:1')
   })
 
   it('rejects JSON drafts that violate the shared MCP schema', () => {

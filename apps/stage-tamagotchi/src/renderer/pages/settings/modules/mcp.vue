@@ -37,6 +37,7 @@ import {
   findServerIdentifierByRowId,
   loadServerForms,
   previewServerCommand,
+  syncJsonDraftFromServers,
 } from './mcp-config'
 
 const { t } = useI18n()
@@ -60,11 +61,8 @@ const jsonDraft = ref('')
 const jsonError = ref('')
 const emptyConfigSignature = JSON.stringify({ mcpServers: {} })
 
-// Last-saved config signature; compared with the form's signature to drive `isDirty`.
 const savedSig = ref('')
-// Row IDs that exist on disk; non-saved rows are "pending adds" and live in the Add-server section.
 const savedIds = ref<Set<string>>(new Set())
-// Saved-row IDs whose detail form is currently expanded for editing.
 const expandedIds = ref<Set<string>>(new Set())
 
 const testRowId = ref('')
@@ -135,7 +133,6 @@ function commandPreview(s: ServerForm) {
   return previewServerCommand(s)
 }
 
-// Shared shells – avoid repeating long Tailwind chains in the template.
 const PANEL = 'flex flex-col gap-3 rounded-xl border-2 border-solid border-neutral-100 bg-white p-4 md:p-5 dark:border-neutral-900 dark:bg-neutral-900/30'
 const CARD_PRIMARY = 'flex flex-col gap-3 rounded-xl border-2 border-solid border-primary-100 bg-primary-50/50 p-3 transition-all duration-200 ease-in-out hover:border-primary-500/30 md:p-4 dark:border-primary-900/60 dark:bg-primary-900/10 dark:hover:border-primary-400/30'
 const CARD_MUTED = 'flex flex-col gap-3 rounded-xl border-2 border-solid border-neutral-100 bg-neutral-50/60 p-3 transition-all duration-200 ease-in-out hover:border-primary-500/30 md:p-4 dark:border-neutral-900 dark:bg-neutral-900/30 dark:hover:border-primary-400/30'
@@ -169,13 +166,14 @@ async function loadFromDisk() {
 }
 
 function syncJsonDraft() {
-  try {
-    jsonDraft.value = `${JSON.stringify(buildConfig(), null, 2)}\n`
-  }
-  catch {
-    jsonDraft.value = `${JSON.stringify({ mcpServers: {} }, null, 2)}\n`
-  }
-  jsonError.value = ''
+  const result = syncJsonDraftFromServers(
+    servers.value,
+    jsonDraft.value,
+    tn,
+    error => errorMessageFrom(error) ?? 'Unknown error',
+  )
+  jsonDraft.value = result.draft
+  jsonError.value = result.error
 }
 
 function toggleJsonPanel() {
@@ -347,7 +345,6 @@ onMounted(async () => {
       {{ infoMessage }}
     </Callout>
 
-    <!-- Header -->
     <section :class="PANEL">
       <p class="text-sm text-neutral-500 dark:text-neutral-400">
         {{ tn('description') }}
@@ -365,7 +362,6 @@ onMounted(async () => {
       </div>
     </section>
 
-    <!-- Inline JSON editor -->
     <TransitionVertical>
       <McpJsonEditor
         v-if="jsonOpen"
@@ -379,7 +375,6 @@ onMounted(async () => {
       />
     </TransitionVertical>
 
-    <!-- Manage existing MCP servers (compact, expandable) -->
     <section :class="PANEL">
       <div flex="~ col gap-1">
         <div class="flex items-center justify-between gap-2">
@@ -404,7 +399,6 @@ onMounted(async () => {
         :key="server.rowId"
         :class="server.enabled ? CARD_PRIMARY : CARD_MUTED"
       >
-        <!-- Compact summary row -->
         <div class="flex items-center gap-3">
           <button
             type="button"
@@ -439,7 +433,6 @@ onMounted(async () => {
           </label>
         </div>
 
-        <!-- Expanded form -->
         <TransitionVertical>
           <div v-if="isExpanded(server.rowId)" class="border-t border-neutral-200/70 pt-3 dark:border-neutral-800">
             <McpServerForm :model-value="server" @remove="removeServer(server.rowId)" />
@@ -448,7 +441,6 @@ onMounted(async () => {
       </article>
     </section>
 
-    <!-- Add new MCP server -->
     <section :class="PANEL">
       <div flex="~ col gap-1">
         <h3 class="text-sm font-semibold">
@@ -484,14 +476,12 @@ onMounted(async () => {
       />
     </section>
 
-    <!-- Restart bar -->
     <Button
       variant="primary" size="md" block :disabled="isBusy" :loading="isBusy"
       icon="i-solar:rocket-2-bold-duotone" :label="restartActionLabel"
       @click="applyRestartAction"
     />
 
-    <!-- Connection test -->
     <McpConnectionTestPanel
       v-model="testRowId"
       :options="testOptions"
@@ -500,7 +490,6 @@ onMounted(async () => {
       @test="runConnectionTest"
     />
 
-    <!-- Runtime status -->
     <section v-if="runtime?.servers?.length" :class="PANEL">
       <div class="text-sm font-semibold">
         {{ tn('runtime-title') }}
