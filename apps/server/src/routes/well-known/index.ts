@@ -1,14 +1,31 @@
+import type { Env } from '../../libs/env'
 import type { HonoEnv } from '../../types/hono'
 
 import { Hono } from 'hono'
 
-export function createWellKnownRoutes() {
+export interface WellKnownDeps {
+  env: Env
+}
+
+export function createWellKnownRoutes(deps: WellKnownDeps) {
   return new Hono<HonoEnv>()
     .get('/assetlinks.json', (c) => {
+      const pkg = deps.env.ASSETLINKS_PACKAGE_NAME ?? ''
+      const fingerprintsRaw = deps.env.ASSETLINKS_SHA256_FINGERPRINTS ?? ''
+
+      const fingerprints = fingerprintsRaw
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean)
+
       const payload = [
         {
           relation: ['delegate_permission/common.handle_all_urls'],
-          target: { namespace: 'android_app', package_name: 'ai.moeru.airi_pocket', sha256_cert_fingerprints: ['1D:E5:2D:DC:89:DA:C9:C1:4B:5F:4A:48:E4:2D:62:E5:52:82:B7:41:D3:96:73:13:91:C8:41:D2:84:DF:84:55'] },
+          target: {
+            namespace: 'android_app',
+            package_name: pkg,
+            sha256_cert_fingerprints: fingerprints,
+          },
         },
       ]
 
