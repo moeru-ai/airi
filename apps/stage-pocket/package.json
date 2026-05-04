@@ -64,6 +64,7 @@
     "@xsai/utils-chat": "catalog:",
     "animejs": "^4.3.6",
     "capacitor-native-settings": "catalog:",
+    "capacitor-stream-http": "catalog:",
     "colorjs.io": "^0.6.1",
     "culori": "^4.0.2",
     "d3": "catalog:",

@@ -16,6 +16,7 @@ import { routes } from 'vue-router/auto-routes'
 import App from './App.vue'
 
 import { i18n } from './modules/i18n'
+import { installNativeFetchPatch } from './modules/native-fetch'
 
 import '@proj-airi/font-cjkfonts-allseto/index.css'
 import '@proj-airi/font-xiaolai/index.css'
@@ -24,6 +25,9 @@ import 'splitpanes/dist/splitpanes.css'
 import 'vue-sonner/style.css'
 import './styles/main.css'
 import 'uno.css'
+
+// native fetch patch
+installNativeFetchPatch()
 
 const pinia = createPinia()
 

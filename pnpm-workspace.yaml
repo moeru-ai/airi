@@ -90,6 +90,7 @@ catalog:
   builder-util-runtime: ^9.5.1
   cac: ^7.0.0
   capacitor-native-settings: ^8.1.0
+  capacitor-stream-http: ^0.1.0
   chess.js: ^1.4.0
   crossws: ^0.4.5
   d3: 7.9.0
