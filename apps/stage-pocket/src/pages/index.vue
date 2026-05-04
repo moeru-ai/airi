@@ -204,7 +204,7 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
         />
         <InteractiveArea v-if="!isMobile" h="85dvh" absolute right-4 flex flex-1 flex-col max-w="500px" min-w="30%" />
         <MobileInteractiveArea v-if="isMobile" @settings-open="handleSettingsOpen">
-          <template #status>
+          <template v-if="import.meta.env.DEV" #status>
             <WebSocketStatusButton />
           </template>
         </MobileInteractiveArea>

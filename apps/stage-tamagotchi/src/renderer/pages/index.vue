@@ -474,7 +474,7 @@ watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
           'transition-opacity duration-250 ease-in-out',
         ]"
       >
-        <StatusIsland ref="statusIslandRef" />
+        <StatusIsland v-if="import.meta.env.DEV" ref="statusIslandRef" />
         <ResourceStatusIsland />
         <WidgetStage
           ref="widgetStageRef"
