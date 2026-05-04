@@ -482,6 +482,9 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
                 await parser.consume(event.text)
                 break
               case 'reasoning-delta': {
+                if (shouldAbort())
+                  return
+
                 const { reasoning = '' } = buildingMessage.categorization ?? {}
                 const nextReasoning = reasoning + event.text
                 buildingMessage.categorization = {
