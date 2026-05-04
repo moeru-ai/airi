@@ -10,8 +10,8 @@ export interface WellKnownDeps {
 export function createWellKnownRoutes(deps: WellKnownDeps) {
   return new Hono<HonoEnv>()
     .get('/assetlinks.json', (c) => {
-      const pkg = deps.env.ASSETLINKS_PACKAGE_NAME ?? ''
-      const fingerprintsRaw = deps.env.ASSETLINKS_SHA256_FINGERPRINTS ?? ''
+      const pkg = deps.env.ASSETLINKS_PACKAGE_NAME
+      const fingerprintsRaw = deps.env.ASSETLINKS_SHA256_FINGERPRINTS
 
       const fingerprints = fingerprintsRaw
         .split(',')
