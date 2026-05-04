@@ -3,9 +3,8 @@ import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
-import { refDebounced, useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onScopeDispose, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ControlButtonTooltip from './control-button-tooltip.vue'
@@ -57,25 +56,56 @@ defineExpose({
 })
 
 const { isOutside } = useElectronMouseInElement(islandRef)
-const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
 
-watch(isOutsideAfter2seconds, (outside) => {
-  if (outside && expanded.value && !isBlocked.value) {
-    expanded.value = false
+/**
+ * Auto-collapse delay (ms) — how long the cursor must remain outside the
+ * panel area before the panel automatically collapses.
+ */
+const AUTO_COLLAPSE_DELAY_MS = 3000
+
+// NOTICE:
+// Previously this used `refDebounced(isOutside, 1500)` together with a
+// `useIntervalFn(..., 1500)` poll. The poll ran on absolute clock time
+// (started at mount), so the effective delay from "cursor leaves panel"
+// to "panel collapses" was anywhere between 0–1500ms depending on phase.
+// In particular, `isOutside` defaults to `true` (see
+// packages/electron-vueuse/src/composables/use-electron-mouse-in-element.ts:36),
+// so expanding the panel via touch/keyboard/drag with the cursor far away
+// caused the next interval tick to collapse it almost instantly.
+// Replaced with a single setTimeout that is restarted on every relevant
+// condition change, giving a predictable, user-controlled delay.
+let collapseTimerId: ReturnType<typeof setTimeout> | null = null
+function clearCollapseTimer() {
+  if (collapseTimerId != null) {
+    clearTimeout(collapseTimerId)
+    collapseTimerId = null
   }
-})
+}
+
+watch(
+  [expanded, isOutside, isBlocked],
+  ([isExpanded, outside, blocked]) => {
+    clearCollapseTimer()
+    if (!isExpanded || !outside || blocked) {
+      return
+    }
+    collapseTimerId = setTimeout(() => {
+      collapseTimerId = null
+      if (expanded.value && isOutside.value && !isBlocked.value) {
+        expanded.value = false
+      }
+    }, AUTO_COLLAPSE_DELAY_MS)
+  },
+  { immediate: true },
+)
+
+onScopeDispose(clearCollapseTimer)
 
 watch(expanded, (isExpanded) => {
   if (!isExpanded) {
     blockingOverlays.clear()
   }
 })
-
-useIntervalFn(() => {
-  if (expanded.value && isOutside.value && !isBlocked.value) {
-    expanded.value = false
-  }
-}, 1500)
 
 // Apply alwaysOnTop on mount and when it changes
 watch(alwaysOnTop, (val) => {
