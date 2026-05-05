@@ -187,6 +187,20 @@ const AUTHORITY_BY_SOURCE = new Map(
   PLANNING_AUTHORITY_ORDER.map(rule => [rule.source, rule]),
 )
 
+const MAX_PROJECTED_PLAN_TEXT_LENGTH = 500
+
+export function sanitizePlanProjectionText(value: string): string {
+  const normalized = value
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  if (normalized.length <= MAX_PROJECTED_PLAN_TEXT_LENGTH)
+    return normalized
+
+  return `${normalized.slice(0, MAX_PROJECTED_PLAN_TEXT_LENGTH - 1)}…`
+}
+
 export function getPlanningAuthorityRule(source: PlanningAuthoritySource): PlanningAuthorityRule {
   const rule = AUTHORITY_BY_SOURCE.get(source)
   if (!rule)
@@ -216,9 +230,9 @@ export function buildPlanningGuidanceBlock(params: {
     PLANNING_ORCHESTRATION_TRUST_LABEL,
     ...PLANNING_ORCHESTRATION_TRUST_BOUNDARY_LINES,
     '',
-    `Goal: ${params.plan.goal}`,
+    `Goal: ${sanitizePlanProjectionText(params.plan.goal)}`,
     'Steps:',
-    ...params.plan.steps.map(step => `- ${step.id} [${step.lane}/${step.riskLevel}${step.approvalRequired ? '/approval_required' : ''}] ${step.intent}`),
+    ...params.plan.steps.map(step => `- ${sanitizePlanProjectionText(step.id)} [${step.lane}/${step.riskLevel}${step.approvalRequired ? '/approval_required' : ''}] ${sanitizePlanProjectionText(step.intent)}`),
   ]
 
   if (params.state) {
@@ -235,7 +249,7 @@ export function buildPlanningGuidanceBlock(params: {
       `- evidenceRefCount: ${summary.evidenceRefCount}`,
     )
     if (summary.lastReplanReason)
-      lines.push(`- lastReplanReason: ${summary.lastReplanReason}`)
+      lines.push(`- lastReplanReason: ${sanitizePlanProjectionText(summary.lastReplanReason)}`)
   }
 
   return lines.join('\n')
