@@ -211,20 +211,20 @@ print(String(data: data, encoding: .utf8)!)
 }
 
 /**
- * Creates Swift source that posts a local macOS click while restoring the user's cursor.
+ * Builds the Swift script used for local macOS pointer movement and clicks.
  *
  * Use when:
- * - The macOS executor needs to perform a pointer-based click through Quartz.
- * - Tests need to inspect the generated Swift source without moving the real cursor.
+ * - Executing `desktop_click` on the local macOS host
+ * - Verifying the Quartz cursor state contract in unit tests
  *
  * Expects:
- * - `COMPUTER_USE_SWIFT_STDIN` contains `pointerTrace`, `button`, and `clickCount`.
- * - The caller already verified that the host platform is macOS.
+ * - JSON input is provided through `COMPUTER_USE_SWIFT_STDIN`
+ * - Pointer coordinates are already global logical macOS screen coordinates
  *
  * Returns:
- * - Swift source that saves the real cursor location before CGEvent movement and restores it with `CGWarpMouseCursorPosition`.
+ * - A Swift script that leaves the real cursor at the clicked target for follow-up pointer-relative actions
  */
-export function moveAndClickScript() {
+export function buildMacOSMoveAndClickScript(): string {
   return String.raw`
 import CoreGraphics
 import Foundation
@@ -262,16 +262,6 @@ let buttonRaw = input["button"] as? Int ?? 0
 let clickCount = input["clickCount"] as? Int ?? 1
 let button = mouseButton(buttonRaw)
 
-// CGEvent mouse posts move the real macOS cursor. Save and restore it so the
-// overlay ghost pointer can visualize agent intent without leaving the user's
-// actual cursor at the agent click target.
-let originalCursorLocation = CGEvent(source: nil)?.location
-defer {
-  if let savedCursorLocation = originalCursorLocation {
-    CGWarpMouseCursorPosition(savedCursorLocation)
-  }
-}
-
 for point in trace {
   let x = point["x"] as? Double ?? 0
   let y = point["y"] as? Double ?? 0
@@ -304,7 +294,20 @@ print("{}")
 `
 }
 
-function typeTextScript() {
+/**
+ * Builds the Swift script used for local macOS keyboard text injection.
+ *
+ * Use when:
+ * - Executing `desktop_type_text` after any optional focus click has completed
+ * - Verifying keyboard-only scripts do not warp the user's cursor
+ *
+ * Expects:
+ * - JSON input is provided through `COMPUTER_USE_SWIFT_STDIN`
+ *
+ * Returns:
+ * - A Swift script that posts keyboard events without moving the mouse cursor
+ */
+export function buildMacOSTypeTextScript(): string {
   return String.raw`
 import CoreGraphics
 import Foundation
@@ -359,7 +362,21 @@ print("{}")
 `
 }
 
-function pressKeysScript(mainKeyCode: number, modifierMaskExpr: string) {
+/**
+ * Builds the Swift script used for local macOS key chord injection.
+ *
+ * Use when:
+ * - Executing `desktop_press_keys`
+ * - Verifying keyboard-only scripts do not warp the user's cursor
+ *
+ * Expects:
+ * - `mainKeyCode` is a supported macOS virtual key code
+ * - `modifierMaskExpr` is a Swift `CGEventFlags` expression
+ *
+ * Returns:
+ * - A Swift script that posts keyboard events without moving the mouse cursor
+ */
+export function buildMacOSPressKeysScript(mainKeyCode: number, modifierMaskExpr: string): string {
   return String.raw`
 import CoreGraphics
 import Foundation
@@ -379,7 +396,20 @@ print("{}")
 `
 }
 
-function scrollScript() {
+/**
+ * Builds the Swift script used for local macOS scroll events.
+ *
+ * Use when:
+ * - Executing `desktop_scroll` on the local macOS host
+ * - Verifying cursor restore only when scroll input includes a target point
+ *
+ * Expects:
+ * - Optional `x`/`y` coordinates are global logical macOS screen coordinates
+ *
+ * Returns:
+ * - A Swift script that leaves coordinate-based scroll cursor state aligned with follow-up pointer-relative actions
+ */
+export function buildMacOSScrollScript(): string {
   return String.raw`
 import CoreGraphics
 import Foundation
@@ -523,7 +553,7 @@ export function createMacOSLocalExecutor(config: ComputerUseConfig): DesktopExec
     },
     click: async (input: ClickActionInput & { pointerTrace: PointerTracePoint[] }) => {
       await ensureMacOS()
-      await runMacOsJsonScript<Record<string, never>>(config, moveAndClickScript(), {
+      await runMacOsJsonScript<Record<string, never>>(config, buildMacOSMoveAndClickScript(), {
         pointerTrace: input.pointerTrace,
         button: buttonNames[input.button || 'left'],
         clickCount: input.clickCount ?? 1,
@@ -535,7 +565,7 @@ export function createMacOSLocalExecutor(config: ComputerUseConfig): DesktopExec
     },
     typeText: async (input: TypeTextActionInput) => {
       await ensureMacOS()
-      await runMacOsJsonScript<Record<string, never>>(config, typeTextScript(), {
+      await runMacOsJsonScript<Record<string, never>>(config, buildMacOSTypeTextScript(), {
         text: input.text,
         pressEnter: input.pressEnter ?? false,
       })
@@ -563,12 +593,12 @@ export function createMacOSLocalExecutor(config: ComputerUseConfig): DesktopExec
           }).join(' | ')
         : '[]'
 
-      await runMacOsJsonScript<Record<string, never>>(config, pressKeysScript(keyCode, modifierMaskExpr), {})
+      await runMacOsJsonScript<Record<string, never>>(config, buildMacOSPressKeysScript(keyCode, modifierMaskExpr), {})
       return result([`pressed keys ${normalized.join('+')}`], executionTarget)
     },
     scroll: async (input: ScrollActionInput) => {
       await ensureMacOS()
-      await runMacOsJsonScript<Record<string, never>>(config, scrollScript(), {
+      await runMacOsJsonScript<Record<string, never>>(config, buildMacOSScrollScript(), {
         x: input.x,
         y: input.y,
         deltaX: input.deltaX ?? 0,

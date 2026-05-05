@@ -45,7 +45,7 @@ vi.mock('crossws/server', () => ({
   plugin: vi.fn(() => ({})),
 }))
 
-vi.mock('..', () => ({
+vi.mock('./index', () => ({
   normalizeLoggerConfig: () => ({
     appLogFormat: 'pretty',
     appLogLevel: 'log',
