@@ -6,7 +6,8 @@
   makeDesktopItem,
   makeWrapper,
   gitMinimal,
-  pnpm,
+  pnpm_10,
+  pnpmConfigHook,
 
   asar,
   electron,
@@ -20,7 +21,8 @@
     makeWrapper
     gitMinimal
     nodejs
-    pnpm.configHook
+    pnpm_10
+    pnpmConfigHook
   ];
 
   desktopItems = [

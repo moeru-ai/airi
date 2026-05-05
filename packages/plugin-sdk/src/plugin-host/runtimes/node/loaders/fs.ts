@@ -38,6 +38,19 @@ async function coercePluginFromModule(moduleValue: unknown): Promise<Plugin> {
   throw new Error('Failed to resolve plugin module. The entrypoint must export either definePlugin(...) or Plugin hooks.')
 }
 
+/**
+ * Loads plugin entrypoints from the local filesystem for the current runtime.
+ *
+ * Use when:
+ * - The host needs to resolve a manifest entrypoint path
+ * - The host needs to import either a lazy `definePlugin(...)` export or a concrete plugin module
+ *
+ * Expects:
+ * - Entry points are valid importable module paths for the active runtime
+ *
+ * Returns:
+ * - Filesystem-backed helpers for resolving and loading plugin entrypoints
+ */
 export class FileSystemLoader {
   /**
    * Resolve a manifest entrypoint for the requested runtime.

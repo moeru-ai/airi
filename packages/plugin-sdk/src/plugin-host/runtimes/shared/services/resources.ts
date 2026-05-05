@@ -1,3 +1,15 @@
+/**
+ * Resolves one resource value lazily on demand.
+ *
+ * Use when:
+ * - A resource should be computed or fetched only when requested
+ *
+ * Expects:
+ * - The resolver returns the same logical resource shape each time
+ *
+ * Returns:
+ * - The resolved resource value, synchronously or asynchronously
+ */
 export type ResourceResolver<T> = () => Promise<T> | T
 
 /**

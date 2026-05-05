@@ -11,6 +11,7 @@ This package is the browser capture engine used by scene packages such as `@proj
 - the `capture` CLI entry in `src/cli/capture.ts`
 - Vite dev-server startup for scene packages
 - Playwright-driven export of each `data-scenario-capture-root` element as its own PNG
+- an optional `imageTransformers` pipeline for converting emitted PNG files into other final image artifacts such as AVIF
 
 ## Usage
 
@@ -29,17 +30,25 @@ import path from 'node:path'
 import { captureBrowserRoots } from '@proj-airi/vishot-runner-browser'
 
 const sceneAppRoot = path.resolve(process.cwd())
+const requestedFormat = 'avif'
 
 await captureBrowserRoots({
   sceneAppRoot,
-  routePath: '/',
+  routePath: '/docs/setup-and-use',
   outputDir: path.resolve(sceneAppRoot, 'artifacts', 'final'),
+  imageTransformers: requestedFormat === 'avif'
+    ? [avifTransformer]
+    : undefined,
 })
 ```
+
+The capture primitive is still PNG because Playwright screenshots write PNG files. If you want AVIF, WebP, or optimized PNG outputs, add an `imageTransformers` pipeline that rewrites the emitted files after capture.
 
 ## Notes
 
 - `captureBrowserRoots()` accepts either `sceneAppRoot` or `baseUrl`.
+- Use `routePath` to target a specific page when a scene app has multiple routes.
 - Scene packages mark readiness through `window.__SCENARIO_CAPTURE_READY__`.
 - The CLI treats `<render-entry>` as the scene package root and captures the default `/` route.
 - The parser accepts repeated `--root` flags for named capture roots.
+- If an image transformer returns a different output file, Vishot treats that derived file as authoritative and removes the intermediate PNG only after the full batch validates successfully.

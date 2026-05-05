@@ -18,30 +18,30 @@ dialogs:
     baseUrl: URL Base
     baseUrlHelp: URL del endpoint de la API (usa el predeterminado si no estás seguro)
     accountId: ID de Cuenta
-    validationRunning: Running tests
+    validationRunning: Ejecutando pruebas
     validationSuccess: La validación de la configuración fue exitosa
-    validationPartial: Configuration partially validated
+    validationPartial: Configuración parcialmente validada
     validationFailed: La validación de la configuración falló
     validationError: 'Error de validación: {error}'
-    testGeneration: Ping API
+    testGeneration: API Ping
     testGenerationRunning: Ping...
-    testGenerationFailed: Ping test failed
-    retryPingCheck: Retry
+    testGenerationFailed: Prueba de ping fallida
+    retryPingCheck: Reintentar
     skipForNow: Omitir por ahora
     saveAndContinue: Guardar y Continuar
     next: Siguiente
     retry: Volver a intentar
-    credentialsSafeLabel: Keep your API keys and credentials safe!
+    credentialsSafeLabel: '¡Mantén tus claves y credenciales API a salvo!'
     credentialsSafeLocal: >-
-      AIRI is running pure locally in your PC, and we will never steal your credentials for AI / LLM providers. But keep in mind that your API keys are sensitive information. Make sure to keep them safe and do not share them with anyone.
+      AIRI se está ejecutando localmente en su PC, y nunca robaremos sus credenciales para proveedores de IA / LLM. Pero tenga en cuenta que sus claves API son información confidencial. Asegúrese de mantenerlas seguras y no compartirlas con nadie.
     credentialsSafeOpenSource: >-
-      AIRI is open sourced at {github}, if you want to check how we handle your credentials, feel free to inspect our code.
+      AIRI es de código abierto en {github}, si desea comprobar cómo manejamos sus credenciales, no dude en inspeccionar nuestro código.
     enableChatCheck: >-
-      Allow airi to send a "ping" message to the first available chat model to check availability
+      Permitir a airi enviar un mensaje "ping" al primer modelo de chat disponible para comprobar la disponibilidad
     start: '¡Hagámoslo!'
     loginPrompt: Inicia sesión para utilizar el proveedor oficial de AIRI para obtener la mejor experiencia.
     loginAction: Iniciar sesión
-    setupWithoutSigningIn: Setup with your provider
+    setupWithoutSigningIn: Configurar con su proveedor
     flux: Flujo
     buyFlux: Flujo de Carga
     select-model: Elegir modelo
@@ -61,10 +61,27 @@ dialogs:
       stateRequesting: Solicitando...
       stateGranted: Concedido
       stateNotGranted: No concedido
+  bug-report:
+    title: Informe de errores (´;ω;`)ヾ(･∀･`)
+    subtitle: Oops, perdón hemos hecho algo mal. ¿Te importaría decirnos lo que ha pasado?
+    trigger-label: Reportar un error
+    submit-label: Enviar informe de errores
+    triage-description: Incluye captura de pantalla y contexto de página para ayudarnos a probar este problema.
+    description-placeholder: Elija manualmente capturas de pantalla / grabaciones
+    include-current-page-screenshot: Incluye captura de pantalla de página actual
+    manual-media:
+      label: Elija manualmente capturas de pantalla / grabaciones
+      optional: Opcional.
+    media-files:
+      label: Archivos multimedia
+      description: 'Opcional: selección manual.'
+      placeholder: Elegir captura de pantalla o video
+      selected-count: '{count} archivo(s) seleccionados'
+    last-submitted-preview: Last Submitted Payload Preview
 language:
   title: Idioma
-  description: >
-    UI language. You can set characters' language later.
+  description: |
+    Idioma de la UI. Puedes configurar el idioma de los caracteres más tarde.
 controls-island:
   icon-size:
     title: Tamaño de icono de la isla de controles
@@ -75,7 +92,8 @@ controls-island:
 analytics:
   notice:
     title: Análisis de uso
-    description: AIRI recopila análisis de uso anónimo para ayudarnos a entender cómo se utiliza la aplicación y mejorar la estabilidad. No se recogen datos personales.
+    description: >-
+      AIRI recopila análisis de uso anónimo para ayudarnos a entender cómo se utiliza la aplicación y mejorar la estabilidad. No se recogen datos personales.
     privacyPrefix: Leer el
     privacyLink: Política de privacidad
     onboardingHint: Puedes desactivar las analíticas más tarde en Configuración > Sistema > General.
@@ -114,7 +132,9 @@ live2d:
   focus:
     title: Desactivar seguimiento del ratón del modelo
     button-disable:
-      title: Disable model mouse tracking
+      title: Desactivar seguimiento del ratón del modelo
+  render-scale:
+    title: Escala de renderizado
   fps:
     title: FPS
     description: Limitar velocidad de fotogramas
@@ -124,14 +144,97 @@ microphone: Micrófono
 models: Modelo
 pages:
   account:
-    title: Account
-    description: View your profile and manage your account
-    notLoggedIn: Sign in to view your account and access all features
-    login: Log in
-    logout: Log out
-    fluxBalance: Flux Balance
-    viewFluxDetails: View details
-    signedInAs: Signed in as
+    title: Cuenta
+    description: Ver tu perfil y administrar tu cuenta
+    notLoggedIn: Inicia sesión para ver tu cuenta y acceder a todas las funciones
+    login: Iniciar sesión
+    logout: Cerrar sesión
+    fluxBalance: Saldo de Flux
+    viewFluxDetails: Ver detalles
+    signedInAs: Sesión iniciada como
+    profile:
+      tab: Perfil
+      title: Perfil
+      description: Administra tu nombre público.
+      name:
+        label: Mostrar nombre
+        placeholder: Cómo otros te ven
+      avatar:
+        gravatarNotice: Avatar from Gravatar.
+        gravatarLink: Manage on gravatar.com
+      action:
+        save: Guardar cambios
+      message:
+        saved: Perfil actualizado.
+      error:
+        fallback: No pudimos guardar sus cambios.
+    connections:
+      tab: Connected accounts
+      title: Connected accounts
+      description: Sign in to AIRI through these providers. Unlink to revoke access, then link again to switch to a different account.
+      status:
+        linked: Linked
+        notLinked: Not linked
+        linkedSince: Linked on {date}
+      action:
+        link: Link
+        unlink: Unlink
+      message:
+        loading: Loading connected accounts...
+        unlinked: '{provider} disconnected.'
+        linked: '{provider} connected.'
+        linkStarted: Redirecting to {provider}…
+      error:
+        listFailed: Could not load connected accounts.
+        unlinkFailed: Could not unlink this account.
+        linkFailed: Could not start the link flow.
+        lastAccount: This is your only sign-in method. Set a password first before unlinking it.
+    security:
+      tab: Seguridad
+      title: Seguridad
+      description: Cambia tu contraseña. Tus otros dispositivos cerrarán sesión.
+      setDescription: You signed in via a social provider, so there is no current password yet. We'll email a secure link to set one.
+      currentPassword:
+        label: Contraseña actual
+        placeholder: Introduce tu contraseña actual
+      newPassword:
+        label: Nueva contraseña
+        placeholder: Mínimo 8 caracteres
+      confirmPassword:
+        label: Confirmar nueva contraseña
+        placeholder: Repite tu nueva contraseña
+      action:
+        changePassword: Cambiar contraseña
+        sendSetLink: Email me a link to set my password
+      message:
+        changed: Contraseña cambiada. Otras sesiones han sido desconectadas.
+        setLinkSent: Check {email} for the link to set your password.
+      error:
+        fallback: No pudimos cambiar tu contraseña.
+        setLinkFailed: We could not send the password setup link.
+        passwordMismatch: Las contraseñas no coinciden.
+        passwordSameAsCurrent: La nueva contraseña debe ser diferente de la actual.
+    danger:
+      tab: Zona peligrosa
+      title: Zona peligrosa
+      description: Irreversible account actions live here.
+      deleteAccount:
+        title: Eliminar cuenta
+        description: Permanently delete your account and personal data.
+        action: Delete account
+        modal:
+          title: Delete account?
+          warning: This cannot be undone. Active subscription will be canceled, Flux balance cleared.
+          confirmEmail:
+            label: Type your email to confirm
+            placeholder: ''
+            mismatch: Email does not match.
+          confirm: Send confirmation email
+          cancel: Cancel
+        message:
+          emailSent: Check {email} for the deletion link.
+        error:
+          fallback: Could not start deletion. Try again later.
   card:
     activate: Activar
     active: Activo
@@ -201,6 +304,7 @@ pages:
         scenario: 'Error: Se requiere un escenario.'
         systemprompt: 'Error: Por favor, proporciona un prompt del sistema.'
         posthistoryinstructions: 'Error: Se requiere un prompt post-historial.'
+        invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
     modules: Módulos
     name_asc: Nombre (A-Z)
     name_desc: Nombre (Z-A)
@@ -255,9 +359,9 @@ pages:
         description: Limpia cada configuración local, configuración del proveedor y del modelo.
         delete: Eliminar todos los datos
       desktop-folder:
-        title: Open app data folder
-        description: Open AIRI's data folder in your file manager.
-        open: Open folder
+        title: Abrir carpeta de datos de la aplicación
+        description: Abrir carpeta de datos de AIRI en tu explorador de archivos.
+        open: Abrir carpeta
       desktop:
         title: Restablecer ajustes de escritorio y estados
         description: Limpiar ajustes de escritorio y estado de ejecución de AIRI.
@@ -335,6 +439,67 @@ pages:
             warmup:
               description: Se calienta antes de detectar ritmos para una mejor precisión.
               label: Calentamiento
+    artistry:
+      title: Artistry
+      description: Generación de imágenes, fondo de escena y dibujo.
+      page:
+        title: Artistry Provider Configuration
+        description: Select the active backend provider for image generation. Characters can override this in their Card settings.
+      providers:
+        none:
+          name: Ninguno
+          description: Bypass and disable the image generation module globally.
+        comfyui:
+          name: ConfyUI (local)
+          description: Use a local ComfyUI instance via WSL for image generation.
+        replicate:
+          name: Replicate.ai (Cloud)
+          description: Use cloud-based models via the Replicate API.
+        nanobanana:
+          name: Nano Banana (Vista previa)
+          description: Use Google AI Studio for image preview and reactions.
+      card:
+        description: Configure how AIRI generates images and visual content.
+        comfyui_empty: No ComfyUI workflows configured. Go to Settings → Providers → ComfyUI to upload a workflow template.
+        exposed_fields: '{count} exposed fields'
+        open_on_replicate: Abrir al replicar
+        instruction_sync:
+          title: ComfyUI Instruction Sync
+          description: A specialized prompt is ready for your {workflowName} workflow. Applying this will overwrite current widget instructions so the AI knows how to use this specific template.
+          apply: Apply Recommended Prompt
+          keep: Mantener existente
+      provider: Artistry Provider
+      spawn_mode:
+        label: Manifestation Mode (Spawn Mode)
+        description: Choose how images are delivered to the interface.
+        options:
+          bg: Background Environment
+          inline: Inline Chat
+          widget: Overlay Widget
+          bg_widget: Dual (Background + Widget)
+      autonomous:
+        title: Cinematic Autonomy (Autonomous Artist)
+        description: When enabled, the "Producer" runs in parallel to the character to decide if a visual is needed. This prevents the character from forgetting to manifest scenes.
+        threshold: Manifestation Threshold
+        threshold_description: Use {min} for aggressive scene creation or {max} to require stronger evidence before generating.
+        threshold_min: Generar siempre (0%)
+        threshold_max: Strict (100%)
+      model:
+        label: Artistry Model (Optional Override)
+        description: Model identifier if needed by provider
+      prompt-prefix:
+        label: Artistry Prompt Default Prefix
+        description: Pre-pended to every prompt sent to the image generator.
+      options:
+        label: Artistry Provider Options (JSON)
+      widget-instructions:
+        label: Widget System Prompt
+        description: Custom instructions for the AI on how to use the generation capabilities.
+    categories:
+      essential: Essential
+      messaging: Messaging
+      gaming: Gaming
+      artistry: Artistry
     consciousness:
       description: Personalidad, modelo deseado, etc.
       sections:
@@ -384,17 +549,20 @@ pages:
       description: '¡Jugando Minecraft!'
       title: Minecraft
       enable: Habilitar integración con Minecraft
-      enable-description: Include Minecraft self-knowledge in Stage chat turns and keep passive runtime visibility enabled.
+      enable-description: >-
+        Include Minecraft self-knowledge in Stage chat turns and keep passive runtime visibility enabled.
       configured: '¡Minecraft está configurado correctamente!'
       read-only:
-        title: Read-only shell
-        description: Stage currently exposes Minecraft as a passive shell. Runtime status and traffic are visible here, but service configuration stays in the Minecraft service files.
+        title: Consola de solo lectura
+        description: >-
+          Stage currently exposes Minecraft as a passive shell. Runtime status and traffic are visible here, but service configuration stays in the Minecraft service files.
       setup:
-        title: Setup
-        description: You can find the instructions for setting up the bot in the following file
+        title: Configurar
+        description: >-
+          Puedes encontrar las instrucciones para configurar el bot en el siguiente archivo
       runtime:
-        title: Observed runtime
-        connection: Connection
+        title:
+        connection: Conexión
         latest-context: Latest bot context
         waiting: Waiting for a fresh bot-originated context push.
         unknown: Unknown
@@ -403,9 +571,9 @@ pages:
         empty: No Minecraft traffic observed yet.
         source: 'Source: {source}'
       status:
-        service-online: Service online
-        service-offline: Service offline
-        no-runtime-context: 'No bot context observed yet'
+        service-online: Servicio online
+        service-offline: Servicio offline
+        no-runtime-context: No bot context observed yet
         last-context-seconds: 'Last bot context: {seconds}s ago'
         last-context-stale: 'Last bot context: Stale'
     hearing:
@@ -417,7 +585,8 @@ pages:
             description: Selecciona el proveedor de reconocimiento de voz adecuado
           confidence-threshold:
             title: Confidence Threshold
-            description: Filter out low-confidence transcriptions to reduce Whisper hallucinations. Values closer to 0 are more strict; drag to the leftmost to disable. Only effective for providers supporting Whisper API (e.g., OpenAI, Groq).
+            description: >-
+              Filter out low-confidence transcriptions to reduce Whisper hallucinations. Values closer to 0 are more strict; drag to the leftmost to disable. Only effective for providers supporting Whisper API (e.g., OpenAI, Groq).
             disabled: Disabled
             verbose-json-note: >-
               Note: If your provider does not support verbose_json responses, this setting will have no effect.
@@ -509,10 +678,12 @@ pages:
         apply-and-restart: Guardar y reiniciar stdio MCP
       messages:
         opened: Archivo de configuración abierto a {path}
-        restarted: Servidores MCP reiniciados. Inició {started}, falló {failed}, omitió {skipped}
+        restarted: >-
+          Servidores MCP reiniciados. Inició {started}, falló {failed}, omitió {skipped}
   flux:
     title: Flujo
     buy: Cobro
+    currency: Currency
     description: Flujo actual
     packagesError: Error al cargar paquetes. Por favor, inténtalo de nuevo más tarde.
     checkout:
@@ -532,20 +703,12 @@ pages:
       empty: No hay registros de transacción todavía.
       loadMore: Cargar más
       delayHint: Los registros de uso se pueden retrasar hasta 1 minuto
+      ttsRequests: peticiones
     packages:
       title: Paquetes de flujo
       buy: Carga
       description: Paquetes Flujo entre los que elegir.
   providers:
-    explained:
-      chat: Proveedores de modelos de generación de texto. ej. OpenRouter, OpenAI, Ollama.
-      Speech: Proveedores de modelos de habla (texto a voz). ej. ElevenLabs, Azure Speech.
-      Transcription: >-
-        Proveedores de modelos de transcripción (voz a texto). ej. Whisper.cpp, OpenAI, Azure Speech
-    helpinfo:
-      title: '¿Primera vez aquí?'
-      description: >
-        AIRI requiere que al menos un proveedor de {chat} esté configurado para pensar y comportarse correctamente. Podrías pensarlo como el cerebro de los personajes que viven en el sistema AIRI.
     catalog:
       edit:
         config-id-not-found: Configuración de proveedores no encontrada.
@@ -619,7 +782,7 @@ pages:
                       Lamentamos escuchar que la conexion con Ollama falló. No te preocupes, para las instancias de Ollama, es necesaria una configuración extra para que pase por Ollama. Debe establecer <code>OLLAMA_HOST</code> explícitamente al iniciar la aplicación Ollama o el servidor CLI de Ollama, para obtener información detallada, consulte la guía <a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">de integración Ollama</a>.
     common:
       continueAnyway: Continuar de todas formas
-      goToModelSelection: 'Seleccionar Modelo →'
+      goToModelSelection: Seleccionar Modelo →
       fields:
         field:
           api-key:
@@ -641,6 +804,47 @@ pages:
           title: Básico
         voice:
           title: Configuraciones de Voz
+    labels:
+      recommended: Recomendado
+    filters:
+      pricing: Pricing
+      deployment: Deployment
+      all: Todo
+      free: Gratis
+      paid: Pagado
+      internal: Internal
+      local: Local
+      cloud: Nube
+    categories:
+      chat:
+        title: Chat
+        description: Proveedores de modelos de generación de texto. ej. OpenRouter, OpenAI, Ollama.
+      speech:
+        title: Speech
+        description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
+      transcription:
+        title: Transcripción
+        description: >-
+          Proveedores de modelos de transcripción (voz a texto). ej. Whisper.cpp, OpenAI, Azure Speech
+      artistry:
+        title: Artistry
+        description: Image generation and design model providers. e.g. ComfyUI, Replicate.
+        items:
+          comfyui:
+            description: Local image generation runner.
+          replicate:
+            description: Cloud-based model inference service.
+          nanobanana:
+            description: Google AI Studio Image Preview.
+    helpinfo:
+      title: '¿Primera vez aquí?'
+      description: >
+        AIRI requiere que al menos un proveedor de {chat} esté configurado para pensar y comportarse correctamente. Podrías pensarlo como el cerebro de los personajes que viven en el sistema AIRI.
+    explained:
+      chat: Proveedores de modelos de generación de texto. ej. OpenRouter, OpenAI, Ollama.
+      Speech: Proveedores de modelos de habla (texto a voz). ej. ElevenLabs, Azure Speech.
+      Transcription: >-
+        Proveedores de modelos de transcripción (voz a texto). ej. Whisper.cpp, OpenAI, Azure Speech
     description: LLMs, proveedores de voz, etc.
     provider:
       app-local-audio-transcription:
@@ -658,6 +862,17 @@ pages:
       alibaba-cloud-model-studio:
         description: bailian.console.aliyun.com
         title: Alibaba Cloud Model Studio
+      amazon-bedrock:
+        title: Amazon Bedrock
+        description: aws.amazon.com/bedrock
+        config:
+          api-key:
+            label: Clave API Bedrock
+            description: Clave API Bedrock de Amazon (generar en la consola AWS → Bedrock → Claves API)
+            placeholder: bedrock-...
+          region:
+            label: AWS Region
+            description: AWS region where Bedrock is enabled (e.g. us-east-1, us-west-2)
       anthropic:
         description: anthropic.com
         title: Anthropic | Claude
@@ -705,6 +920,98 @@ pages:
       speech-noop:
         title: Ninguno
         description: Sin salida de voz.
+      comfyui:
+        settings:
+          title: ConfyUI (local)
+          heading: ComfyUI Native API
+          description: Connect to your local ComfyUI and bring your own workflows.
+          info:
+            what_you_need:
+              label: Lo que necesitas
+              value: ComfyUI running locally or on your network.
+            how_to_export:
+              label: Cómo exportar
+              value: Enable Dev Mode → "Save (API Format)".
+            scope_boundary:
+              label: Scope Boundary
+              value: Model downloads & node installs are your job.
+          connection:
+            title: Conexión
+            connected: Conectado
+            failed: Conexión fallida
+            error_prefix: Error
+            test: Probar
+            testing: Probando...
+            unknown_error: Unknown connection error
+            unknown_gpu: Unknown GPU
+            server_url:
+              label: Server URL
+              description: The address where ComfyUI is running
+              placeholder: http://localhost:8188
+          cors:
+            title: CORS Block Detected
+            description: ComfyUI blocks requests from other applications by default. To allow AIRI to connect, you must start ComfyUI with the `--enable-cors-header "*"` flag.
+            command: python main.py --enable-cors-header "*"
+          workflows:
+            title: Workflow Templates
+            upload: Upload Workflow
+            cancel_upload: Cancel
+            empty: No workflows uploaded yet. Click "Upload Workflow" to import a workflow_api.json from ComfyUI.
+            exposed_parameters: Exposed Parameters
+            summary: '{nodes} nodes · {fields} exposed fields'
+            remove: Remove
+            config_snippet: Artistry Config Snippet
+            copy_json: Copy JSON
+            paste_hint: Paste this into your AIRI Card artistry config to override these nodes.
+          upload:
+            prompt: Drop or select a workflow_api.json file
+            invalid_json: Invalid JSON
+            workflow_name:
+              label: Workflow Name
+              description: Give this workflow a recognizable name
+              placeholder: e.g. Anime Text2Img
+            select_fields: 'Select fields to expose to the AI agent:'
+            fields_exposed: '{count} field(s) exposed'
+            save: Save Workflow
+      replicate:
+        settings:
+          title: Replicate.ai
+          heading: Replicate.ai Configuration
+          description: Configure your cloud image generation settings.
+          api_key:
+            label: API Key
+            description: Your Replicate API token (starts with r8_)
+            placeholder: r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+          default_model:
+            label: Default Model
+            description: Fallback owner/model string to use if the character card doesn't specify one
+            placeholder: black-forest-labs/flux-schnell
+          aspect_ratio:
+            label: Relación de aspecto
+            description: Relación de aspecto por defecto de la imagen (por ejemplo, 16:9, 1:1, 9:16)
+            placeholder: '16:9'
+          inference_steps:
+            label: Inference Steps
+            description: Number of steps for the diffusion process (lower is faster, higher is better quality)
+      nanobanana:
+        settings:
+          title: Nano Banana
+          heading: Nano Banana (Google AI Studio)
+          description: Configurar las capacidades de generación de imágenes nativas de Google Gemini.
+          api_key:
+            label: Clave API
+            description: Tu clave API de Google AI Studio
+            placeholder: AIpk...
+          preferred_model:
+            label: Modelo preferido
+            description: The specific Gemini image preview model to use
+          default_resolution:
+            label: Resolución por defecto
+            description: The target resolution for generated images
+          model_options:
+            nano_banana_2: Nano Banana 2 (Imagen Flash Gemini 3.1)
+            nano_banana_pro: Nano Banana Pro (Imagen Flash Gemini 3)
+            nano_banana: Nano Banana (Imagen Flash Gemini 2.5)
       deepseek:
         description: deepseek.com
         title: DeepSeek
@@ -797,6 +1104,9 @@ pages:
       minimax-global:
         description: minimax.io
         title: MiniMax Global
+      minimax-speech:
+        description: minimax.io
+        title: MiniMax Speech
       mistral:
         description: mistral.ai
         title: Mistral
@@ -907,9 +1217,45 @@ pages:
       description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
       label: WebSocket Server Address
       placeholder: ws://localhost:6121/ws
-  scene:
-    description: Configurar el entorno donde vive el personaje
-    title: Escena
+    server-hostname:
+      label: Expose On Network
+      description: >-
+        Choose whether the AIRI gateway only listens on this device or can be reached from your local network.
+      advanced-label: Bind Hostname
+      advanced-description: >-
+        Use a specific hostname or IP address when you need manual network binding.
+      options:
+        this-device: This device
+        all: All
+        advanced: Advanced
+    server-auth-token:
+      label: Auth Token
+      description: >-
+        Security token required by remote clients that connect to this gateway. When left empty, AIRI generates a new token automatically.
+      placeholder: Auto-generate
+    qr:
+      title: Connect from Stage Pocket
+      description: >-
+        Scan this QR code from Stage Pocket to try all reachable local network addresses and save the first working one.
+      refresh: Refresh
+      image-alt: AIRI server channel connection QR code
+      candidates: Candidate addresses
+      token-hint: >-
+        The QR code includes the auth token so Stage Pocket can authenticate after connecting. Do not share it publicly.
+      errors:
+        title: QR code unavailable
+        unavailable: Error al preparar el código QR de conexión.
+    qr-scan:
+      title: Conexión rápida
+      description: Escanear el código QR desde Tamagotchi para conectarse rápidamente
+      instructions: Point the camera at the AIRI connection QR code.
+      action: Escanear
+      success:
+        title: Dirección conectada guardada
+        description: 'URL utilizada: {url}'
+      errors:
+        title: Escaneo QR fallido
+        failed: Fallo al escanear o conectar con el código QR.
   system:
     color-scheme:
       description: Cambiar el esquema de colores del escenario.
@@ -937,7 +1283,7 @@ pages:
             section:
               performance-visualizer:
                 title: Performance Visualizer
-                description: Toggle FPS/long task/memory overlay
+                description: Cambiar FPS/tareas largas/superposición de memoria
               markdown-stress:
                 title: Markdown Stress
                 description: Stress markdown parsing and rendering with heavy chat payloads
@@ -945,7 +1291,7 @@ pages:
                 title: useMagicKeys Tool
                 description: Test shortcuts
               audio-record:
-                title: Audio Record
+                title: Grabación de Audio
                 description: Test Audio related composables
               background-gradient-blending:
                 title: Background Theme color blending
@@ -960,8 +1306,8 @@ pages:
                 title: Gesture Circle (Desktop only)
                 description: Test gesture recognition
               image:
-                title: Image
-                description: Image
+                title: Imagen
+                description: Imagen
               polaroid:
                 title: Polaroid
                 description: Utilidad para tomar fotos de modelos
@@ -980,7 +1326,7 @@ pages:
                   Transmitir audio del micrófono a Aliyun NLS e inspeccionar transcripciones en vivo
               performance-playground:
                 title: Campo de Rendimiento
-                description: 'Expresiones VRM + pruebas de sincronización labial del TTS'
+                description: Expresiones VRM + pruebas de sincronización labial del TTS
         theme-presets:
           presets:
             default:
@@ -1058,6 +1404,28 @@ pages:
         button: Abrir
   credits:
     buy: Comprar
+  scene:
+    title: Escenas
+    description: Personaliza el entorno virtual para tus personajes.
+    beta_label: Sistema de Escenas
+    beta_description: Cada carta de caracteres especifica su propio fondo preferido de esta galería. Si lo establece aquí se establecerá como predeterminado para el carácter activo actual.
+    background_image:
+      title: Fondo activo del personaje
+      no_background: No hay fondo activo para este personaje. Sube una imagen cuadrada o horizontal para mejores resultados.
+      upload: Subir a Galería
+      change: Cambiar fondo
+      clear: Borrar predeterminado
+    gallery:
+      title: Galería de escenas
+      empty: Aún no hay imágenes en la galería. ¡Sube una arriba!
+      set_as_global: Establecer como personaje por defecto
+      delete: Borrar de la galería
+      global_badge: Personaje por defecto
+      active_badge: Escena actual
+      delete_confirm: Are you sure you want to delete this background?
+    tip:
+      label: '¡Un consejo!'
+      description: Using a square image will leverage <b>cover</b> cropping in portrait mode, focusing on the center of the scene.
 sections:
   section:
     general:
@@ -1069,6 +1437,8 @@ theme:
 title: Configuración
 voices: Voz
 vrm:
+  render-scale:
+    title: Escala de renderizado
   change-model:
     from-file: Cargar desde Archivo
     from-file-select: Seleccionar

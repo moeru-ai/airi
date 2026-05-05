@@ -1,11 +1,16 @@
 <script setup lang="ts">
+import type { Live2DValidationReport } from '@proj-airi/stage-ui-live2d'
+
 import type { DisplayModel } from '../../../../stores/display-models'
 
+import { validateLive2DZip } from '@proj-airi/stage-ui-live2d'
 import { Button } from '@proj-airi/ui'
 import { useFileDialog } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger, EditableArea, EditableEditTrigger, EditableInput, EditablePreview, EditableRoot, EditableSubmitTrigger } from 'reka-ui'
 import { ref, watch } from 'vue'
+
+import Live2DReportModal from './Live2DReportModal.vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../../../../stores/display-models'
 
@@ -25,18 +30,42 @@ function handleRemoveModel(model: DisplayModel) {
 }
 
 const highlightDisplayModelCard = ref<string | undefined>(props.selectedModel?.id)
+const showReportModal = ref(false)
+const pendingFile = ref<File | null>(null)
+const validationReport = ref<Live2DValidationReport | null>(null)
 
 watch(() => props.selectedModel?.id, (modelId) => {
   highlightDisplayModelCard.value = modelId
 }, { immediate: true })
 
-function handleAddLive2DModel(file: FileList | null) {
+async function handleAddLive2DModel(file: FileList | null) {
   if (file === null || file.length === 0)
     return
   if (!file[0].name.endsWith('.zip'))
     return
 
-  displayModelStore.addDisplayModel(DisplayModelFormat.Live2dZip, file[0])
+  const report = await validateLive2DZip(file[0])
+  validationReport.value = report
+  pendingFile.value = file[0]
+
+  if (report.status === 'VALID' && report.errors.length === 0) {
+    confirmImport()
+    return
+  }
+
+  showReportModal.value = true
+}
+
+function confirmImport() {
+  if (pendingFile.value === null)
+    return
+
+  displayModelStore.addDisplayModel(DisplayModelFormat.Live2dZip, pendingFile.value)
+  pendingFile.value = null
+}
+
+function handleFixError(error: string) {
+  void error
 }
 
 function handlePick(m: DisplayModel) {
@@ -77,6 +106,13 @@ vrmDialog.onChange(handleAddVRMModel)
 
 <template>
   <div pt="4 sm:0" gap="4 sm:6" h-full flex flex-col>
+    <Live2DReportModal
+      v-model:open="showReportModal"
+      :report="validationReport"
+      @confirm="confirmImport"
+      @fix-error="handleFixError"
+    />
+
     <div flex items-center>
       <div w-full flex-1 text-xl>
         Model Selector
@@ -190,8 +226,16 @@ vrmDialog.onChange(handleAddVRMModel)
             aspect="12/16"
             px-1 py-2
           >
-            <img v-if="model.previewImage" :src="model.previewImage" h-full w-full rounded-lg object-cover :class="[highlightDisplayModelCard && highlightDisplayModelCard === model.id ? 'ring-3 ring-primary-400' : 'ring-0 ring-transparent']" transition="all duration-200 ease-in-out">
-            <div v-else bg="neutral-100 dark:neutral-900" relative h-full w-full flex flex-col items-center justify-center gap-2 overflow-hidden rounded-lg :class="[highlightDisplayModelCard && highlightDisplayModelCard === model.id ? 'ring-3 ring-primary-400' : 'ring-0 ring-transparent']" transition="all duration-200 ease-in-out">
+            <img
+              v-if="model.previewImage"
+              :src="model.previewImage"
+              :class="[
+                'h-full w-full rounded-xl object-cover',
+                'transition-all duration-200 ease-in-out',
+                highlightDisplayModelCard && highlightDisplayModelCard === model.id ? 'ring-3 ring-primary-400' : 'ring-0 ring-transparent',
+              ]"
+            >
+            <div v-else bg="neutral-100 dark:neutral-900" relative h-full w-full flex flex-col items-center justify-center gap-2 overflow-hidden rounded-xl :class="[highlightDisplayModelCard && highlightDisplayModelCard === model.id ? 'ring-3 ring-primary-400' : 'ring-0 ring-transparent']" transition="all duration-200 ease-in-out">
               <div i-solar:question-square-bold-duotone text-4xl opacity-75 />
               <div translate-y="100%" absolute top-0 flex flex-col translate-x--7 rotate-45 scale-250 gap-0 opacity-5>
                 <div text="sm sm:sm" translate-x-7 translate-y--2 text-nowrap>
@@ -207,7 +251,7 @@ vrmDialog.onChange(handleAddVRMModel)
             </div>
           </div>
           <div w-full flex flex-col>
-            <div w-full flex-1 p-2>
+            <div w-full flex-1 px-2 py-4>
               <EditableRoot
                 v-slot="{ isEditing }"
                 :default-value="model.name"

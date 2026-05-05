@@ -3,6 +3,7 @@ import type { ElectronApplication, Page } from 'playwright'
 const stageWindowPollIntervalMs = 250
 const stageWindowActivationDelayMs = 750
 const stageWindowClassificationLoadStateTimeoutMs = 500
+const mainWindowReadyIconSelector = '[i-solar\\:alt-arrow-up-line-duotone]'
 
 async function inferRoute(page: Page): Promise<string> {
   const url = page.url()
@@ -38,7 +39,9 @@ async function classifyWindow(page: Page): Promise<StageWindowSnapshot | null> {
     return null
   }
 
-  if (route === '/' || title === 'AIRI') {
+  const mainControlsVisible = await page.locator(mainWindowReadyIconSelector).first().isVisible().catch(() => false)
+
+  if ((route === '/' || title === 'AIRI') && mainControlsVisible) {
     return { name: 'main', page, title, route }
   }
 
@@ -51,7 +54,7 @@ async function classifyWindow(page: Page): Promise<StageWindowSnapshot | null> {
     return { name: 'chat', page, title, route }
   }
 
-  if (bodyText.includes('Fade on Hover') || bodyText.includes('Open WebSocket settings')) {
+  if (mainControlsVisible || bodyText.includes('Fade on Hover') || bodyText.includes('Open WebSocket settings')) {
     return { name: 'main', page, title, route }
   }
 
@@ -65,6 +68,14 @@ export interface StageWindowSnapshot {
   page: Page
   title: string
   route: string
+}
+
+export async function snapshotStageWindows(electronApp: ElectronApplication): Promise<StageWindowSnapshot[]> {
+  const snapshots = await Promise.all(
+    electronApp.windows().map(page => classifyWindow(page)),
+  )
+
+  return snapshots.filter((snapshot): snapshot is StageWindowSnapshot => snapshot !== null)
 }
 
 export async function waitForStageWindow(electronApp: ElectronApplication, name: StageWindowName, timeout = 30_000): Promise<StageWindowSnapshot> {

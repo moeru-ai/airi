@@ -8,13 +8,12 @@ import { useSpeechStore } from '../stores/modules/speech'
 import { useProvidersStore } from '../stores/providers'
 
 /**
- * Provider IDs to auto-activate on login.
+ * Provider IDs to auto-activate on sign-in.
  * Edit this list to enable/disable official providers.
  */
 const AUTH_ACTIVATED_PROVIDERS: Array<{ id: string, module: 'consciousness' | 'speech' | 'hearing' }> = [
   { id: 'official-provider', module: 'consciousness' },
-  // { id: 'official-provider-speech', module: 'speech' },
-  // { id: 'official-provider-transcription', module: 'hearing' },
+  { id: 'official-provider-speech', module: 'speech' },
 ]
 
 /**
@@ -32,7 +31,7 @@ export function useAuthProviderSync() {
 
   // Track whether the sync has already fired in this session to avoid
   // re-running on every page navigation (onAuthenticated fires immediately
-  // if already logged in when the hook is registered).
+  // if already signed in when the hook is registered).
   let hasSynced = false
 
   authStore.onAuthenticated(async () => {
@@ -59,7 +58,7 @@ export function useAuthProviderSync() {
           }
           break
         case 'speech':
-          if (!speechStore.activeSpeechProvider) {
+          if (!speechStore.activeSpeechProvider || speechStore.activeSpeechProvider === 'speech-noop') {
             speechStore.activeSpeechProvider = id
             speechStore.activeSpeechModel = 'auto'
           }

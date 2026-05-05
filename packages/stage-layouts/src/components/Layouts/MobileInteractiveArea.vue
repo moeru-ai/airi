@@ -63,7 +63,6 @@ const { startAnalyzer, stopAnalyzer, volumeLevel } = useAudioAnalyzer()
 let analyzerSource: MediaStreamAudioSourceNode | undefined
 
 function isMobileDevice() {
-  // eslint-disable-next-line e18e/prefer-static-regex
   return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 }
 
@@ -169,8 +168,13 @@ onMounted(() => {
       <div top="50%" translate-y="[-50%]" fixed z-15 px-3>
         <ViewControlInputs ref="viewControlsInputs" :mode="viewControlsActiveMode" />
       </div>
-      <div translate-y="[-100%]" absolute right-0 w-full px-3 pb-3 font-sans>
-        <div flex="~ col" w-full gap-1>
+      <div translate-y="[-100%]" absolute left-0 px-3 pb-3 font-sans>
+        <div flex="~ col" gap-1>
+          <slot name="status" />
+        </div>
+      </div>
+      <div translate-y="[-100%]" absolute right-0 px-3 pb-3 font-sans>
+        <div flex="~ col" gap-1>
           <ActionAbout />
           <HearingConfigDialog
             v-model:show="hearingDialogOpen"

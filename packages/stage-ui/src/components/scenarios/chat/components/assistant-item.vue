@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ChatSlicesText } from '../../../../types/chat'
+import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ChatSlicesText, ChatSlicesToolCallResult } from '../../../../types/chat'
+import type { ChatToolCallRendererRegistry } from './tool-call-renderer'
 
+import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
 
 import ChatResponsePart from './response-part.vue'
@@ -9,15 +11,18 @@ import ChatToolCallBlock from './tool-call-block.vue'
 import { MarkdownRenderer } from '../../../markdown'
 import { getChatHistoryItemCopyText } from '../utils'
 import { ChatActionMenu } from './action-menu'
+import { createToolCallResultLookup, resolveToolCallBlockState } from './tool-call-results'
 
 const props = withDefaults(defineProps<{
   message: ChatAssistantMessage
   label: string
   showPlaceholder?: boolean
   variant?: 'desktop' | 'mobile'
+  toolCallRenderers?: ChatToolCallRendererRegistry
 }>(), {
   showPlaceholder: false,
   variant: 'desktop',
+  toolCallRenderers: () => ({}),
 })
 
 const emit = defineEmits<{
@@ -43,6 +48,30 @@ const resolvedSlices = computed<ChatSlices[]>(() => {
   return []
 })
 
+const toolResultById = computed(() => {
+  return createToolCallResultLookup(resolvedSlices.value, props.message.tool_results)
+})
+
+function getToolCallResult(slice: ChatSlices): ChatSlicesToolCallResult | undefined {
+  if (slice.type !== 'tool-call') {
+    return undefined
+  }
+
+  return toolResultById.value.get(slice.toolCall.toolCallId)
+}
+
+function getToolCallState(slice: ChatSlices): 'executing' | 'done' | 'error' {
+  return resolveToolCallBlockState(getToolCallResult(slice))
+}
+
+function getToolCallRenderer(slice: ChatSlices) {
+  if (slice.type !== 'tool-call') {
+    return ChatToolCallBlock
+  }
+
+  return props.toolCallRenderers[slice.toolCall.toolName] ?? ChatToolCallBlock
+}
+
 const showLoader = computed(() => props.showPlaceholder && resolvedSlices.value.length === 0)
 const containerClass = computed(() => props.variant === 'mobile' ? 'mr-0' : 'mr-12')
 const boxClasses = computed(() => [
@@ -63,19 +92,29 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
         <div
           :ref="setMeasuredElement"
           flex="~ col" shadow="sm primary-200/50 dark:none"
-          min-w-20 rounded-xl h="unset <sm:fit"
-          :class="boxClasses"
+          min-w-20 gap-2 rounded-xl h="unset <sm:fit"
+          :class="[
+            boxClasses,
+            (isStageWeb() || isStageCapacitor()) && props.variant === 'mobile' ? 'select-none sm:select-auto' : '',
+          ]"
         >
-          <div>
-            <span text-sm text="black/60 dark:white/65" font-normal class="inline <sm:hidden">{{ label }}</span>
+          <ChatResponsePart
+            v-if="message.categorization"
+            :message="message"
+            :variant="variant"
+          />
+          <div class="<sm:hidden">
+            <span text-sm text="black/60 dark:white/65" font-normal>{{ label }}</span>
           </div>
-          <div v-if="resolvedSlices.length > 0" class="break-words" text="primary-700 dark:primary-100">
+          <div v-if="resolvedSlices.length > 0" class="flex flex-col gap-2 break-words" text="primary-700 dark:primary-100">
             <template v-for="(slice, sliceIndex) in resolvedSlices" :key="sliceIndex">
-              <ChatToolCallBlock
+              <component
+                :is="getToolCallRenderer(slice)"
                 v-if="slice.type === 'tool-call'"
                 :tool-name="slice.toolCall.toolName"
                 :args="slice.toolCall.args"
-                class="mb-2"
+                :state="getToolCallState(slice)"
+                :result="getToolCallResult(slice)?.result"
               />
               <template v-else-if="slice.type === 'tool-call-result'" />
               <template v-else-if="slice.type === 'text'">
@@ -84,12 +123,6 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
             </template>
           </div>
           <div v-else-if="showLoader" i-eos-icons:three-dots-loading />
-
-          <ChatResponsePart
-            v-if="message.categorization"
-            :message="message"
-            :variant="variant"
-          />
         </div>
       </template>
     </ChatActionMenu>

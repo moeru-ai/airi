@@ -1,0 +1,200 @@
+electronCallback:
+  title:
+    loading: Завершение авторизации
+    openingAiri: Открытие AIRI
+    signedIn: Вы вошли в систему
+    signInFailed: Не удалось войти
+    finishSignInInAiri: Завершение входа в AIRI
+    openAiriToContinue: Откройте AIRI, чтобы продолжить
+  message:
+    checkingResponse: Проверка ответа на вход и подготовка передачи в AIRI.
+    passingToAiri: Передавайте данные для входа обратно в AIRI. Эта страница должна закрыться через мгновение.
+    syncedAndSafeToClose: Мы уведомили клиента AIRI, с которого вы зарегистрировались.
+    invalidResponse: Мы не смогли использовать ответ на вход.
+    loopbackUnreachable: Браузеру не удалось подключиться к AIRI через локальный порт обратного вызова.
+    tryOpenDirectly: Мы постараемся открыть локальную передачу напрямую. Если это не удалось, воспользуйтесь кнопкой ниже.
+    automaticHandoffFailed: Автоматическая передача не завершилась в этой сессии браузера.
+  label:
+    signIn: Войти
+    safeToClose: Закрыть эту вкладку теперь безопасно.
+    whyStillHere: Почему эта вкладка всё ещё здесь?
+  action:
+    openAiriManually: Открыть AIRI вручную
+  hint:
+    closeTabManually: Некоторые браузеры не позволяют закрыть эту страницу автоматически. Вы можете закрыть ее вручную.
+signIn:
+  title: Войти
+  step:
+    identify:
+      heading: Войти
+      description: Введите свой адрес электронной почты для входа или создания учетной записи.
+    password:
+      heading: С возвращением
+      description: Продолжить как {email}.
+    create:
+      heading: Создайте свой аккаунт
+      description: Мы создадим новую учетную запись для {email}.
+  email:
+    label: Email
+    placeholder: you{'@'}example.com
+  password:
+    label: Пароль
+    placeholder: Ваш пароль
+  newPassword:
+    label: Создать пароль
+    placeholder: Как минимум 8 символов
+  confirmPassword:
+    label: Подтверждение пароля
+    placeholder: Повторите пароль
+  name:
+    label: Отображаемое имя
+    placeholder: Необязательно, по умолчанию используется ваш адрес электронной почты
+  action:
+    continue: Продолжить
+    signIn: Войти
+    createAccount: Создать учетную запись
+    forgotPassword: Забыли пароль?
+    useDifferentEmail: Использовать другой email
+  divider:
+    or: или
+  error:
+    fallback: Войти не удалось
+    unknown: Произошла неизвестная ошибка
+    authFailed: Аутентификация не пройдена. Пожалуйста, попробуйте снова.
+    passwordMismatch: Пароли не совпадают.
+    invalidEmail: Пожалуйста, введите действительный email.
+  footer:
+    prefix: Продолжая, вы соглашаетесь с нашими политиками
+    terms: Условия использования
+    and: и
+    privacy: Политика конфиденциальности
+verifyEmail:
+  title:
+    pending: Проверьте свою почту
+    success: Почта подтверждена
+    failed: Проверка не удалась
+  message:
+    pending: Мы отправили ссылку для подтверждения на ваш email. Откройте его, чтобы закончить создание учетной записи — эта страница откроется автоматически, как только вы нажмете на ссылку.
+    pendingWithAddress: Мы отправили ссылку для подтверждения на {email}. Откройте её, чтобы закончить создание учетной записи — эта страница откроется автоматически, как только вы нажмете на ссылку.
+    success: Ваш адрес электронной почты подтвержден и вы вошли в систему. Вы можете закрыть эту вкладку.
+    failed: Мы не смогли подтвердить ваш адрес электронной почты ({error}). Попробуйте запросить новую ссылку.
+  action:
+    backToSignIn: Вернуться ко входу
+forgotPassword:
+  title: Сбросить ваш пароль
+  description: Введите адрес электронной почты, связанный с вашей учетной записью, и мы вышлем вам ссылку для сброса.
+  email:
+    label: Email
+    placeholder: you{'@'}example.com
+  action:
+    send: Отправить ссылку для сброса
+    backToSignIn: Вернуться ко входу
+  message:
+    sent: Если {email} совпадает с учетной записью, ссылка для сброса уже отправлена.
+  error:
+    fallback: Не удалось отправить письмо для сброса.
+deleteAccount:
+  title:
+    success: Учётная запись удалена
+    failed: Не удалось удалить аккаунт
+  message:
+    success: Ваш аккаунт был удалён.
+  action:
+    closeTab: Вкладку можно закрыть.
+resetPassword:
+  title:
+    default: Установить новый пароль
+    success: Пароль обновлён
+  password:
+    label: Новый пароль
+    placeholder: Как минимум 8 символов
+  confirmPassword:
+    label: Подтвердить новый пароль
+    placeholder: Повторите новый пароль
+  action:
+    reset: Изменить пароль
+    goSignIn: Перейти к регистрации
+  message:
+    success: Ваш пароль был обновлен. Войдите с новым паролем.
+  error:
+    fallback: Мы не смогли изменить ваш пароль.
+    missingToken: Ссылка для сброса недействительна или устарела.
+    passwordMismatch: Пароли не совпадают.
+profile:
+  title: Профиль аккаунта
+  description: Управление аватаром, отображаемым именем и подключенными аккаунтами.
+  section:
+    profile: Профиль
+    avatar: Аватар
+    password: Пароль
+    linkedAccounts: Подключенные аккаунты
+  field:
+    email: Email
+    emailVerified: Статус email
+    createdAt: Присоединился
+  label:
+    verified: Подтверждено
+    unverified: Не подтверждено
+  name:
+    label: Отображаемое имя
+    placeholder: Как видят вас другие
+  avatar:
+    altText: Аватар профиля
+    gravatarNotice: Аватар из Gravatar.
+    gravatarLink: Управление на gravatar.com
+  password:
+    currentLabel: Текущий пароль
+    currentPlaceholder: Введите ваш текущий пароль
+    newLabel: Новый пароль
+    newPlaceholder: Как минимум 8 символов
+    confirmLabel: Подтвердить новый пароль
+    confirmPlaceholder: Повторите новый пароль
+    setDescription: Вы вошли через социального провайдера, так что текущего пароля пока нет. Мы отправим по электронной почте ссылку, чтобы установить его.
+    setLinkSent: Проверьте {email} на наличие ссылки для установки пароля.
+    setLinkFailed: Не удалось отправить ссылку для установки пароля.
+  linkedAccounts:
+    description: Войдите в AIRI через этих поставщиков. Отмените связь, чтобы отозвать доступ, затем установите связь снова, чтобы переключиться на другую учетную запись.
+    status:
+      linked: Связанно
+      notLinked: Не привязано
+      linkedSince: Связанно в {date}
+    action:
+      link: Связать
+      unlink: Отвязать
+    message:
+      loading: Загрузка подключенных аккаунтов...
+      unlinked: '{provider} отключен.'
+      linkStarted: Перенаправление на {provider}…
+    error:
+      listFailed: Не удалось загрузить подключенные учетные записи.
+      unlinkFailed: Не удалось отвязать эту учетную запись.
+      linkFailed: Не удалось запустить поток ссылок.
+      lastAccount: Это единственный способ входа в систему. Установите пароль перед отсоединением.
+  action:
+    saveProfile: Сохранить изменения
+    changePassword: Изменить пароль
+    sendSetPasswordLink: Прислать мне ссылку для установки пароля
+    signOut: Выйти
+  message:
+    loading: Загрузка вашего профиля...
+    profileSaved: Профиль обновлен.
+    passwordChanged: Пароль изменен. Другие сессии были отключены.
+  error:
+    loadFailed: Не удалось загрузить ваш профиль.
+    saveFailed: Мы не смогли сохранить ваши изменения.
+    changePasswordFailed: Мы не смогли изменить ваш пароль.
+    signOutFailed: Мы не смогли выйти.
+    passwordMismatch: Пароли не совпадают.
+    passwordSameAsCurrent: Новый пароль должен отличаться от текущего.
+webCallback:
+  title:
+    signIn: Войти
+    errorLabel: Во время входа в систему произошла ошибка
+    loading: Выполняется вход...
+  message:
+    missingCodeOrState: Отсутствует код авторизации или состояние
+    missingFlowState: Отсутствует состояние потока OIDC - попробуйте войти снова
+    tokenExchangeFailed: Обмен токенов не удался
+    finalizing: Завершение аутентификации с AIRI.
+  action:
+    tryAgain: Попробовать снова

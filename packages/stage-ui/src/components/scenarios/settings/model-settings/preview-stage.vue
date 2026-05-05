@@ -43,6 +43,7 @@ const {
   live2dForceAutoBlinkEnabled,
   live2dShadowEnabled,
   live2dMaxFps,
+  live2dRenderScale,
 } = storeToRefs(settingsStore)
 const { scale: live2dScale } = storeToRefs(live2dStore)
 const { sceneMutationLocked, scenePhase } = storeToRefs(modelStore)
@@ -105,6 +106,18 @@ const runtimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() => {
     })
   }
 
+  if (stageModelRenderer.value === 'godot') {
+    return createEmptyModelSettingsRuntimeSnapshot({
+      ownerInstanceId: vrmPreviewStageInstanceId,
+      renderer: 'godot',
+      phase: hasModel ? 'mounted' : 'no-model',
+      controlsLocked: false,
+      previewAvailable: false,
+      canCapturePreview: false,
+      updatedAt: Date.now(),
+    })
+  }
+
   return createEmptyModelSettingsRuntimeSnapshot({
     ownerInstanceId: vrmPreviewStageInstanceId,
     updatedAt: Date.now(),
@@ -136,6 +149,7 @@ defineExpose({
         :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
         :live2d-shadow-enabled="live2dShadowEnabled"
         :live2d-max-fps="live2dMaxFps"
+        :live2d-render-scale="live2dRenderScale"
       />
     </div>
   </template>

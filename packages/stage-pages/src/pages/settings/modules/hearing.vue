@@ -534,8 +534,7 @@ onUnmounted(() => {
             <fieldset
               v-if="configuredTranscriptionProvidersMetadata.length > 0"
               flex="~ row gap-4"
-              :style="{ 'scrollbar-width': 'none' }"
-              min-w-0 of-x-scroll scroll-smooth
+              min-w-0 of-x-auto scroll-smooth
               role="radiogroup"
             >
               <RadioCardSimple

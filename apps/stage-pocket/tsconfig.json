@@ -23,10 +23,10 @@
       "vite-plugin-vue-layouts/client",
       "vite-plugin-pwa/client",
       "vue-macros/macros-global",
-      "unplugin-vue-router/client",
       "@types/audioworklet",
       "unplugin-info/client",
-      "node"
+      "node",
+      "@webgpu/types"
     ],
     "allowJs": true,
     "strict": true,
@@ -37,5 +37,10 @@
       "@vue-macros/volar/define-models",
       "@vue-macros/volar/define-slots"
     ]
-  }
+  },
+  "exclude": [
+    "**/build/**",
+    "**/dist/**",
+    "**/public/**"
+  ]
 }

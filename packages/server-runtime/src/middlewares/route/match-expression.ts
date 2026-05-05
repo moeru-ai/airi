@@ -3,9 +3,8 @@ import type { RouteTargetExpression } from '@proj-airi/server-shared/types'
 import type { AuthenticatedPeer } from '../../types'
 
 function globToRegExp(glob: string) {
-  // eslint-disable-next-line e18e/prefer-static-regex
   const escaped = glob.replace(/[.+^${}()|[\]\\]/g, '\\$&')
-  // eslint-disable-next-line e18e/prefer-static-regex
+
   const pattern = `^${escaped.replace(/\*/g, '.*')}$`
   return new RegExp(pattern)
 }
@@ -19,7 +18,10 @@ function matchesGlob(glob: string, value?: string) {
 }
 
 export function matchesLabelSelector(selector: string, labels: Record<string, string>) {
-  const [key, value] = selector.split('=', 2)
+  const [rawKey, rawValue] = selector.split('=', 2)
+  const key = rawKey?.trim()
+  const value = rawValue?.trim()
+
   if (!key) {
     return false
   }
@@ -42,7 +44,7 @@ function getPeerLabels(peer: AuthenticatedPeer) {
   }
 }
 
-export function matchesRouteExpression(expression: RouteTargetExpression, peer: AuthenticatedPeer) {
+export function matchesRouteExpression(expression: RouteTargetExpression, peer: AuthenticatedPeer): boolean {
   switch (expression.type) {
     case 'and':
       return expression.all.every(expr => matchesRouteExpression(expr, peer))

@@ -1,3 +1,11 @@
+/**
+ * Minimal bridge interface for calling MCP tools from the desktop overlay
+ * renderer without a direct dependency on the MCP server runtime.
+ *
+ * The bridge is set by the Electron main/preload layer (or by a test stub)
+ * and retrieved by overlay pages that need to invoke computer-use MCP tools.
+ */
+
 export interface McpToolDescriptor {
   serverName: string
   name: string

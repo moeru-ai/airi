@@ -207,7 +207,7 @@ export function initOtel(env: Env): OtelInstance | undefined {
       description: 'Number of new user registrations',
     }),
     userLogin: meter.createCounter(METRIC_USER_LOGIN, {
-      description: 'Number of user logins',
+      description: 'Number of user sign-ins',
     }),
     activeSessions: meter.createUpDownCounter(METRIC_USER_ACTIVE_SESSIONS, {
       description: 'Number of active user sessions',

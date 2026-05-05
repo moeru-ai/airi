@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/vishot-runtime",
   "type": "module",
-  "version": "0.9.0-beta.4",
+  "version": "0.10.1",
   "private": true,
   "description": "Runtime capture contracts and Vue bindings for Vishot",
   "author": {
@@ -18,7 +18,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./vue": "./src/vue/index.ts",
-    "./components/*": "./src/components/*.vue",
+    "./vue/components/*": "./src/vue/components/*.vue",
     "./runtime/*": "./src/runtime/*.ts",
     "./*": "./src/*.ts"
   },
@@ -28,13 +28,13 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "vue": "catalog:"
+    "@vueuse/core": "catalog:",
+    "reka-ui": "^2.9.6",
+    "vue": "catalog:",
+    "vue-router": "catalog:"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^6.0.5",
-    "typescript": "^5.9.3",
-    "vite": "catalog:",
-    "vitest": "catalog:vitest",
+    "@vitejs/plugin-vue": "^6.0.6",
     "vue-tsc": "^3.2.6"
   }
 }

@@ -22,6 +22,7 @@ import { setupBaseWindowElectronInvokes } from '../shared/window'
 export interface OnboardingWindowManager {
   getWindow: () => Promise<BrowserWindow>
   getAndToggleWindow: () => Promise<BrowserWindow>
+  onClosed: (callback: () => void) => () => void
 }
 
 export function setupOnboardingWindowManager(params: {
@@ -29,6 +30,8 @@ export function setupOnboardingWindowManager(params: {
   i18n: I18n
   windowAuthManager: WindowAuthManager
 }): OnboardingWindowManager {
+  const closeCallbacks = new Set<() => void>()
+
   async function getOnboardingWindow(getWindow: () => Promise<BrowserWindow>) {
     const window = await getWindow()
     await toggleWindowShow(window)
@@ -78,11 +81,26 @@ export function setupOnboardingWindowManager(params: {
 
     await load(newWindow, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/onboarding'))
 
+    newWindow.on('closed', () => {
+      for (const cb of closeCallbacks) {
+        try {
+          cb()
+        }
+        catch { /* noop */ }
+      }
+    })
+
     return newWindow
   })
 
   return {
     getWindow: async () => reusableWindow.getWindow(),
     getAndToggleWindow: async () => await getOnboardingWindow(reusableWindow.getWindow),
+    onClosed: (callback: () => void) => {
+      closeCallbacks.add(callback)
+      return () => {
+        closeCallbacks.delete(callback)
+      }
+    },
   }
 }

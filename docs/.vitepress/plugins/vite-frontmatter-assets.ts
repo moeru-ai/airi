@@ -10,7 +10,7 @@ import matter from 'gray-matter'
 import { glob } from 'tinyglobby'
 
 function fromAtAssets(url: string): string {
-  const reg = /^@assets\(('\S+')|("\S+")|(\S+)\)$/
+  const reg = /^@assets\((?:'(\S+)'|"(\S+)"|(\S+))\)$/
   if (reg.test(url)) {
     const res = url
       .trim()
@@ -35,7 +35,7 @@ interface VitePressConfig extends ResolvedConfig {
 function recursivelyFindAtAssets(propertyMaybeObjectOrScalar: unknown, fn: (value: string) => string | undefined) {
   if (typeof propertyMaybeObjectOrScalar === 'string') {
     // eslint-disable-next-line regexp/no-unused-capturing-group
-    if (/^@assets\(('\S+')|("\S+")|(\S+)\)$/.test(propertyMaybeObjectOrScalar)) {
+    if (/^@assets\((?:'(\S+)'|"(\S+)"|(\S+))\)$/.test(propertyMaybeObjectOrScalar)) {
       // If the string matches the @assets(...) pattern, we replace it with the result of the function
       const match = fromAtAssets(propertyMaybeObjectOrScalar)
       const modified = fn(match)

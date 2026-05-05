@@ -19,6 +19,11 @@ export function createFluxRoutes(
       const flux = await fluxService.getFlux(user.id)
       return c.json(flux)
     })
+    .get('/stats', async (c) => {
+      const user = c.get('user')!
+      const stats = await fluxTransactionService.getStats(user.id)
+      return c.json(stats)
+    })
     .get('/history', async (c) => {
       const user = c.get('user')!
       const { limit, offset } = parse(LimitOffsetPaginationQuerySchema, {

@@ -48,7 +48,6 @@ export function presetStoryMockHover(): PresetOrFactoryAwaitable {
         return {
           matcher,
           selector: (s) => {
-            // eslint-disable-next-line e18e/prefer-static-regex
             return `${s}, ${s.replace(/:hover$/, '')}._hover`
           },
         }
@@ -171,7 +170,7 @@ export function sharedUnoConfig() {
       pipeline: {
         include: [
           // the default
-          // eslint-disable-next-line e18e/prefer-static-regex
+
           /\.(vue|svelte|[jt]sx|mdx?|astro|elm|php|phtml|html)($|\?)/,
           // include js/ts files
           '(components|src)/**/*.{js,ts,vue}', // THIS CAN INCLUDE node_modules
@@ -179,15 +178,15 @@ export function sharedUnoConfig() {
           '**/ui/**/*.{vue,js,ts}', // THIS TOO
         ],
         exclude: [
-          // eslint-disable-next-line e18e/prefer-static-regex
+
           /\/node_modules\//, // DO NOT SCAN THE BLACK HOLE
         ],
       },
     },
     rules: [
-      // eslint-disable-next-line e18e/prefer-static-regex
+
       [/^mask-\[(.*)\]$/, ([, suffix]) => ({ '-webkit-mask-image': suffix.replace(/_/g, ' ') })],
-      // eslint-disable-next-line e18e/prefer-static-regex
+
       [/^bg-dotted-\[(.*)\]$/, ([, color], { theme }) => {
         const parsedColor = parseColor(color, theme)
         // Util usage: https://github.com/unocss/unocss/blob/f57ef6ae50006a92f444738e50f3601c0d1121f2/packages-presets/preset-mini/src/_utils/utilities.ts#L186
@@ -196,7 +195,7 @@ export function sharedUnoConfig() {
           '--un-background-opacity': parsedColor?.cssColor?.alpha ?? parsedColor?.alpha ?? 1,
         }
       }],
-      // eslint-disable-next-line e18e/prefer-static-regex
+
       [/drag-region/, () => ({ 'app-region': 'drag' })],
     ],
     theme: {

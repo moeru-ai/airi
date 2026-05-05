@@ -9,6 +9,7 @@ This package is the Electron capture runner. It provides:
 - a runtime surface in `src/index.ts`
 - the `capture` CLI in `src/cli/capture.ts`
 - the `defineScenario()` authoring helper for scenario modules
+- a typed raw-artifact surface for screenshot outputs
 - reusable helpers for the controls island, settings window, dialogs, drawers, and stage windows
 
 This package stops at raw business screenshots. It does not own the scenario modules themselves; those live in `@proj-airi/scenarios-stage-tamagotchi-electron`.
@@ -17,15 +18,23 @@ This package stops at raw business screenshots. It does not own the scenario mod
 
 ```bash
 pnpm -F @proj-airi/stage-tamagotchi build
-pnpm -F @proj-airi/vishot-runner-electron capture -- packages/scenarios-stage-tamagotchi-electron/src/scenarios/demo-controls-settings-chat-websocket.ts --output-dir packages/scenarios-stage-tamagotchi-browser/artifacts/raw
+pnpm -F @proj-airi/vishot-runner-electron capture -- ../../packages/scenarios-stage-tamagotchi-electron/src/scenarios/demo-controls-settings-chat-websocket.ts --output-dir ../../packages/scenarios-stage-tamagotchi-browser/artifacts/raw
+```
+
+To emit AVIF files instead of PNG files:
+
+```bash
+pnpm -F @proj-airi/vishot-runner-electron capture -- ../../packages/scenarios-stage-tamagotchi-electron/src/scenarios/demo-controls-settings-chat-websocket.ts --output-dir ../../packages/scenarios-stage-tamagotchi-browser/artifacts/raw --format avif
 ```
 
 This writes the raw inputs consumed by the browser scene package:
 
-- `packages/scenarios-stage-tamagotchi-browser/artifacts/raw/00-controls-island-expanded.png`
-- `packages/scenarios-stage-tamagotchi-browser/artifacts/raw/01-settings-window.png`
-- `packages/scenarios-stage-tamagotchi-browser/artifacts/raw/02-chat-window.png`
+- `packages/scenarios-stage-tamagotchi-browser/artifacts/raw/00-stage-tamagotchi.png`
+- `packages/scenarios-stage-tamagotchi-browser/artifacts/raw/01-controls-island-expanded.png`
+- `packages/scenarios-stage-tamagotchi-browser/artifacts/raw/02-settings-window.png`
 - `packages/scenarios-stage-tamagotchi-browser/artifacts/raw/03-websocket-settings.png`
+
+If you pass `--format avif`, the same capture names are emitted as `.avif` files instead.
 
 Then export the composed browser assets:
 
@@ -35,13 +44,30 @@ pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture
 
 In this environment, the raw capture command worked end-to-end after running outside the sandbox because `tsx` pipe creation was denied inside the sandbox (`listen EPERM` on the temporary `tsx` IPC pipe).
 
+## Electron Profile Note (Plugin Host Root)
+
+`vishot-runner-electron` launches the built Electron app entrypoint. In local development this can resolve `app.getPath('userData')` to the `Electron` profile directory, which means plugin discovery happens under:
+
+- `~/Library/Application Support/Electron/plugins/v1`
+
+This may differ from `dev:tamagotchi`, which often uses:
+
+- `~/Library/Application Support/@proj-airi/stage-tamagotchi/plugins/v1`
+
+If plugin-host devtools shows `Discovered 0`, `Plugin manifest not found`, or module registration errors during Vishot scenarios, mirror your plugin symlink into the Electron profile plugins directory:
+
+```bash
+mkdir -p "$HOME/Library/Application Support/Electron/plugins/v1"
+ln -sfn "/absolute/path/to/airi-plugin-game-chess/dist" "$HOME/Library/Application Support/Electron/plugins/v1/airi-plugin-game-chess"
+```
+
 ## Additional Examples
 
 To verify the controls-island hearing button specifically:
 
 ```bash
 pnpm -F @proj-airi/stage-tamagotchi build
-pnpm -F @proj-airi/vishot-runner-electron capture -- packages/scenarios-stage-tamagotchi-electron/src/scenarios/demo-hearing-dialog.ts --output-dir ./artifacts/hearing-demo
+pnpm -F @proj-airi/vishot-runner-electron capture -- ../../packages/scenarios-stage-tamagotchi-electron/src/scenarios/demo-hearing-dialog.ts --output-dir ./artifacts/hearing-demo
 ```
 
 Expected file:
@@ -120,3 +146,5 @@ It does not open the settings window from the main window for you. The intended 
 - Importing `@proj-airi/vishot-runner-electron` resolves to `src/index.ts` via the package export surface.
 - The package is no longer a Playwright test suite package.
 - Final composed exports live in `packages/scenarios-stage-tamagotchi-browser/artifacts/final`, not this package.
+- Screenshot capture now returns typed `image` artifacts and can run transformer hooks before those raw files are handed to downstream consumers.
+- The CLI supports `--format png|avif`; AVIF remains an opt-in post-processing step on top of the raw PNG screenshot primitive.

@@ -1,23 +1,10 @@
 import type Redis from 'ioredis'
 import type { InferOutput } from 'valibot'
 
-import { array, number, object, optional, parse, string } from 'valibot'
+import { any, array, number, optional, parse, record, string } from 'valibot'
 
 import { createServiceUnavailableError } from '../utils/error'
 import { configRedisKey } from '../utils/redis-keys'
-
-export interface FluxPackage {
-  /** Amount in cents sent to Stripe */
-  amount: number
-  /** How much Flux the buyer receives for this package */
-  fluxAmount: number
-  /** Display label, e.g. "500 Flux" */
-  label: string
-  /** Display price, e.g. "$5" */
-  price: string
-}
-
-const FluxPackageSchema = object({ amount: number(), fluxAmount: number(), label: string(), price: string() })
 
 /**
  * Config entry schemas are the single source of truth for:
@@ -27,16 +14,22 @@ const FluxPackageSchema = object({ amount: number(), fluxAmount: number(), label
  */
 const ConfigEntrySchemas = {
   FLUX_PER_REQUEST: optional(number(), 5),
-  FLUX_PER_REQUEST_TTS: number(),
-  FLUX_PER_REQUEST_ASR: number(),
   INITIAL_USER_FLUX: optional(number(), 0),
-  FLUX_PACKAGES: optional(array(FluxPackageSchema), []),
   FLUX_PER_1K_TOKENS: optional(number(), 1),
-  MAX_CHECKOUT_AMOUNT_CENTS: optional(number(), 1_000_000),
-  GATEWAY_BASE_URL: string(),
-  DEFAULT_CHAT_MODEL: string(),
+  FLUX_PER_1K_CHARS_TTS: number(),
+  // Debt-ledger TTL: residual TTS chars below 1 Flux are forgiven on expiry.
+  // 24h gives users a long-enough window for accumulated dust to settle naturally.
+  TTS_DEBT_TTL_SECONDS: optional(number(), 86400),
   AUTH_RATE_LIMIT_MAX: optional(number(), 20),
   AUTH_RATE_LIMIT_WINDOW_SEC: optional(number(), 60),
+  // No default — absent means top-up is not available yet
+  STRIPE_FLUX_PRODUCT_ID: optional(string()),
+  // No default — absent lets Stripe auto-select payment methods via Dashboard config
+  STRIPE_PAYMENT_METHODS: optional(array(string())),
+  STRIPE_PAYMENT_METHOD_OPTIONS: optional(record(string(), any()), {}),
+  // BCP-47 locale → recommended voice id for the default TTS model.
+  // Consumed by the client to preselect a voice matching UI locale.
+  DEFAULT_TTS_VOICES: optional(record(string(), string()), {}),
 } as const
 
 type ConfigDefinitions = {

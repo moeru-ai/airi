@@ -1,0 +1,171 @@
+/**
+ * Multi-display types for macOS screen enumeration and coordinate mapping.
+ */
+
+export interface DisplayDescriptor {
+  /** Display id from CGDirectDisplayID */
+  displayId: number
+  /** Whether this is the main display */
+  isMain: boolean
+  /** Whether the display is built-in (laptop screen) */
+  isBuiltIn: boolean
+  /** Logical bounds in global screen coordinates */
+  bounds: {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
+  /** Usable area excluding menu bar / dock */
+  visibleBounds: {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
+  /** Backing scale factor (2.0 = Retina) */
+  scaleFactor: number
+  /** Physical pixel dimensions */
+  pixelWidth: number
+  pixelHeight: number
+}
+
+export interface MultiDisplaySnapshot {
+  displays: DisplayDescriptor[]
+  /** Total bounding rect across all displays in logical coords */
+  combinedBounds: {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
+  capturedAt: string
+}
+
+/**
+ * Resolved position metadata for a point in AIRI's desktop coordinate space.
+ *
+ * The `global` coordinate is the unscaled logical point that macOS input events
+ * should receive. `local` and `backingPixel` are diagnostics for display-aware
+ * rendering, overlays, and Retina mismatch debugging.
+ */
+export interface DisplayPointResolution {
+  /** Original point in global logical screen coordinates. */
+  global: {
+    x: number
+    y: number
+  }
+  /** Display containing the global logical point. */
+  display: DisplayDescriptor
+  /** Point relative to the containing display in logical coordinates. */
+  local: {
+    x: number
+    y: number
+  }
+  /** Point relative to the containing display in backing pixels. */
+  backingPixel: {
+    x: number
+    y: number
+  }
+}
+
+/**
+ * Given a logical screen point, find which display it belongs to.
+ */
+export function findDisplayForPoint(
+  snapshot: MultiDisplaySnapshot,
+  x: number,
+  y: number,
+): DisplayDescriptor | undefined {
+  return snapshot.displays.find((d) => {
+    const b = d.bounds
+    return x >= b.x && x < b.x + b.width && y >= b.y && y < b.y + b.height
+  })
+}
+
+/**
+ * Converts display-local logical coordinates to backing pixels.
+ *
+ * Use when:
+ * - Rendering display-local overlay diagnostics
+ * - Comparing logical desktop points with backing-pixel screenshots
+ *
+ * Expects:
+ * - `localX` and `localY` are already relative to `display.bounds`
+ *
+ * Returns:
+ * - Display-local backing-pixel coordinates rounded to integer pixels
+ */
+export function toBackingPixelCoord(
+  display: DisplayDescriptor,
+  localX: number,
+  localY: number,
+): { x: number, y: number } {
+  return {
+    x: Math.round(localX * display.scaleFactor),
+    y: Math.round(localY * display.scaleFactor),
+  }
+}
+
+/**
+ * Convert a logical coordinate to the local coordinate space of a specific display.
+ */
+export function toDisplayLocalCoord(
+  display: DisplayDescriptor,
+  x: number,
+  y: number,
+): { x: number, y: number } {
+  return {
+    x: x - display.bounds.x,
+    y: y - display.bounds.y,
+  }
+}
+
+/**
+ * Resolves a global logical point against the display snapshot.
+ *
+ * Use when:
+ * - Mapping desktop mutation targets to a concrete macOS display
+ * - Recording display-local and backing-pixel diagnostics
+ *
+ * Expects:
+ * - `snapshot` uses AIRI's top-left global logical coordinate space
+ * - `x` and `y` are not pre-scaled by Retina backing factor
+ *
+ * Returns:
+ * - Display metadata when the point is inside a connected display
+ * - `undefined` when the point is outside all display bounds
+ */
+export function resolveDisplayPoint(
+  snapshot: MultiDisplaySnapshot,
+  x: number,
+  y: number,
+): DisplayPointResolution | undefined {
+  const display = findDisplayForPoint(snapshot, x, y)
+  if (!display) {
+    return undefined
+  }
+
+  const local = toDisplayLocalCoord(display, x, y)
+
+  return {
+    global: { x, y },
+    display,
+    local,
+    backingPixel: toBackingPixelCoord(display, local.x, local.y),
+  }
+}
+
+/**
+ * Convert display-local coordinates back to global logical coordinates.
+ */
+export function toGlobalCoord(
+  display: DisplayDescriptor,
+  localX: number,
+  localY: number,
+): { x: number, y: number } {
+  return {
+    x: localX + display.bounds.x,
+    y: localY + display.bounds.y,
+  }
+}

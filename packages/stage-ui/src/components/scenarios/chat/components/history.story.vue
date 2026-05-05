@@ -6,6 +6,96 @@ import { computed, ref } from 'vue'
 import ChatScrollVisualizer from '../composables/use-element-scroll-visualize.vue'
 import ChatHistory from './history.vue'
 
+const comprehensiveMessages = ref<ChatHistoryItem[]>([
+  {
+    role: 'user',
+    content: 'Plan a compact release update. Check the task list, inspect the weather for launch timing, and explain what changed.',
+  },
+  {
+    role: 'assistant',
+    content: '',
+    slices: [
+      {
+        type: 'text',
+        text: 'I will collect the operational context first, then summarize the release status in a short update.',
+      },
+      {
+        type: 'tool-call',
+        toolCall: {
+          toolName: 'fetch_tasks',
+          args: JSON.stringify({ project: 'stage-ui', status: ['todo', 'in_progress'], limit: 4 }),
+          toolCallId: 'normal-fetch-tasks',
+          toolCallType: 'function',
+        },
+      },
+      {
+        type: 'tool-call',
+        toolCall: {
+          toolName: 'weather',
+          args: JSON.stringify({ location: 'Tokyo', date: 'today' }),
+          toolCallId: 'normal-weather',
+          toolCallType: 'function',
+        },
+      },
+      {
+        type: 'tool-call-result',
+        id: 'normal-weather',
+        result: 'Tokyo is clear with light wind. No weather risk for the launch window.',
+      },
+      {
+        type: 'tool-call',
+        toolCall: {
+          toolName: 'deploy_preview',
+          args: JSON.stringify({ branch: 'release/chat-history-states', environment: 'preview' }),
+          toolCallId: 'normal-deploy-preview',
+          toolCallType: 'function',
+        },
+      },
+      {
+        type: 'tool-call-result',
+        id: 'normal-deploy-preview',
+        isError: true,
+        result: 'Preview deployment failed: missing VITE_PUBLIC_STAGE_API_URL.',
+      },
+      {
+        type: 'text',
+        text: [
+          'Here is the release update:',
+          '',
+          '- Task scan is still running, so I will keep that status visible.',
+          '- Weather check succeeded; the launch window has no external timing concern.',
+          '- Preview deploy failed because one environment variable is missing.',
+        ].join('\n'),
+      },
+      {
+        type: 'text',
+        text: 'Next step: add `VITE_PUBLIC_STAGE_API_URL` to the preview environment, then rerun the deploy.',
+      },
+    ],
+    tool_results: [],
+    categorization: {
+      speech: 'Here is the release update. Task scan succeeded, weather is clear, and preview deploy needs one missing environment variable.',
+      reasoning: [
+        'The user asked for a compact release update, so I should keep the final answer concise.',
+        '',
+        'I need to distinguish successful tool output from the failed preview deployment. The deploy error is actionable because it names the missing environment variable.',
+      ].join('\n'),
+    },
+  },
+  {
+    role: 'assistant',
+    content: [
+      { type: 'text', text: 'This assistant message has no `slices`, so the renderer falls back to the text part from array content.' },
+    ],
+    slices: [],
+    tool_results: [],
+  },
+  {
+    role: 'error',
+    content: 'Provider stream aborted after the tool results were rendered. Retry from the previous user message if the final answer is incomplete.',
+  },
+])
+
 const markdownMessages = ref<ChatHistoryItem[]>([
   {
     role: 'user',
@@ -93,6 +183,65 @@ const toolHeavyMessages = computed<ChatHistoryItem[]>(() => [
   },
 ])
 
+const hybridToolFailureMessages = ref<ChatHistoryItem[]>([
+  {
+    role: 'user',
+    content: 'Start a chess game for me, then recover if the setup fails.',
+  },
+  {
+    role: 'assistant',
+    content: '',
+    slices: [
+      {
+        type: 'tool-call',
+        toolCall: {
+          toolName: 'play_chess',
+          args: JSON.stringify({ mode: 'focus' }),
+          toolCallId: 'hybrid-play-chess-focus',
+          toolCallType: 'function',
+        },
+      },
+      {
+        type: 'text',
+        text: 'I found the chess widget and brought it forward. I will try to bootstrap a fresh L1 match now.',
+      },
+      {
+        type: 'tool-call',
+        toolCall: {
+          toolName: 'play_chess',
+          args: JSON.stringify({
+            difficultyLevel: 'L1',
+            difficultyMode: 'manual',
+            fen: null,
+            mode: 'new',
+            notes: 'L1 game started; assistant plays White and will move first.',
+            opening: null,
+            pgn: null,
+            side: 'white',
+          }),
+          toolCallId: 'hybrid-play-chess-new-failed',
+          toolCallType: 'function',
+        },
+      },
+      {
+        type: 'text',
+        text: 'That setup attempt failed because focus mode rejected mutation inputs. I will keep the board open and retry with a clean new-game payload next.',
+      },
+    ],
+    tool_results: [
+      {
+        id: 'hybrid-play-chess-focus',
+        result: 'Focused the existing chess gamelet.',
+      },
+      {
+        id: 'hybrid-play-chess-new-failed',
+        isError: true,
+        result: 'Focus mode does not accept game-state mutation inputs.',
+      },
+    ],
+  },
+])
+
 const errorMessages = ref<ChatHistoryItem[]>([
   {
     role: 'user',
@@ -101,6 +250,17 @@ const errorMessages = ref<ChatHistoryItem[]>([
   {
     role: 'error',
     content: 'Deployment failed: upstream gateway timed out. Please try again in a minute.',
+  },
+])
+
+const errorOverflowMessages = ref<ChatHistoryItem[]>([
+  {
+    role: 'user',
+    content: 'Retry the provider call and tell me exactly what failed.',
+  },
+  {
+    role: 'error',
+    content: 'Remote sent 400 response: {"error":{"message":"This model is not available in your region.","type":"invalid_request_error","param":"model","code":"region_not_supported"},"request_id":"req_01K8F0R7X1W2Y3Z4A5B6C7D8E9","endpoint":"https://api.example.invalid/v1/chat/completions","provider":"openai-compatible"}',
   },
 ])
 
@@ -122,6 +282,15 @@ const streamingMessage = ref<ChatAssistantMessage>({
     <template #controls>
       <ThemeColorsHueControl />
     </template>
+
+    <Variant
+      id="all-normal-message-parts"
+      title="All Normal Message Parts"
+    >
+      <div class="font-cute">
+        <ChatHistory :messages="comprehensiveMessages" />
+      </div>
+    </Variant>
 
     <Variant
       id="with-tools-desktop"
@@ -172,6 +341,15 @@ const streamingMessage = ref<ChatAssistantMessage>({
     </Variant>
 
     <Variant
+      id="hybrid-tool-failure"
+      title="Hybrid Tool Failure"
+    >
+      <div class="font-cute">
+        <ChatHistory :messages="hybridToolFailureMessages" />
+      </div>
+    </Variant>
+
+    <Variant
       id="streaming"
       title="Streaming"
     >
@@ -192,6 +370,18 @@ const streamingMessage = ref<ChatAssistantMessage>({
       <div class="font-cute">
         <ChatHistory
           :messages="errorMessages"
+        />
+      </div>
+    </Variant>
+
+    <Variant
+      id="error-overflow"
+      title="Error (Overflow)"
+    >
+      <div :class="['font-cute', 'w-72', 'max-w-full']">
+        <ChatHistory
+          :messages="errorOverflowMessages"
+          variant="mobile"
         />
       </div>
     </Variant>

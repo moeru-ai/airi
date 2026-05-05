@@ -1,0 +1,200 @@
+electronCallback:
+  title:
+    loading: 가입 완료 중
+    openingAiri: AIRI 여는 중
+    signedIn: 로그인 되었습니다
+    signInFailed: 가입 실패
+    finishSignInInAiri: AIRI 가입 끝내기
+    openAiriToContinue: AIRI를 열어서 계속해 주세요
+  message:
+    checkingResponse: 가입 응답을 확인하고 AIRI에 핸드오프를 준비합니다.
+    passingToAiri: 가입 정보를 AIRI로 전달합니다. 이 창은 잠시 후 닫힐 것입니다.
+    syncedAndSafeToClose: 가입을 시도했던 AIRI 클라이언트에 알림을 보냈습니다.
+    invalidResponse: 잘못된 응답 형식입니다. 이 정보를 사용할 수 없습니다.
+    loopbackUnreachable: 브라우저가 로컬 반환 포트를 통해 AIRI에 도달하지 못했습니다.
+    tryOpenDirectly: 로컬 핸드오프를 직접 실행합니다. 실패할 경우, 하단의 버튼을 사용해 주세요.
+    automaticHandoffFailed: 자동 핸드오프가 이 브라우저 세션에서 끝나지 못했습니다.
+  label:
+    signIn: 가입하기
+    safeToClose: 이 탭을 닫으셔도 됩니다.
+    whyStillHere: 이 탭이 왜 아직 여기 있을까요?
+  action:
+    openAiriManually: 수동으로 AIRI 열기
+  hint:
+    closeTabManually: 일부 브라우저들은 이 창을 자동으로 닫는 것을 허용하지 않습니다. 수동으로 닫을 수 있습니다.
+signIn:
+  title: 가입
+  step:
+    identify:
+      heading: Sign in
+      description: Enter your email to sign in or create an account.
+    password:
+      heading: Welcome back
+      description: Continue as {email}.
+    create:
+      heading: Create your account
+      description: We will create a new account for {email}.
+  email:
+    label: Email
+    placeholder: you{'@'}example.com
+  password:
+    label: Password
+    placeholder: Your password
+  newPassword:
+    label: Create password
+    placeholder: At least 8 characters
+  confirmPassword:
+    label: Confirm password
+    placeholder: Repeat your password
+  name:
+    label: Display name
+    placeholder: Optional, defaults to your email handle
+  action:
+    continue: Continue
+    signIn: Sign in
+    createAccount: Create account
+    forgotPassword: Forgot password?
+    useDifferentEmail: Use a different email
+  divider:
+    or: or
+  error:
+    fallback: 가입 실패
+    unknown: 알 수 없는 오류가 발생했습니다
+    authFailed: 인증에 실패했습니다. 다시 시도해 주세요.
+    passwordMismatch: Password and confirmation do not match.
+    invalidEmail: Please enter a valid email address.
+  footer:
+    prefix: 계속하시려면, 저희의
+    terms: 이용 약관
+    and: 및
+    privacy: 정책
+verifyEmail:
+  title:
+    pending: Check your inbox
+    success: Email verified
+    failed: Verification failed
+  message:
+    pending: We sent a verification link to your email. Open it to finish creating your account — this page will continue automatically once you click the link.
+    pendingWithAddress: We sent a verification link to {email}. Open it to finish creating your account — this page will continue automatically once you click the link.
+    success: Your email has been verified and you are signed in. You can close this tab.
+    failed: We could not verify your email ({error}). Try requesting a new link.
+  action:
+    backToSignIn: Back to sign in
+forgotPassword:
+  title: Reset your password
+  description: Enter the email address associated with your account and we will send you a reset link.
+  email:
+    label: Email
+    placeholder: you{'@'}example.com
+  action:
+    send: Send reset link
+    backToSignIn: Back to sign in
+  message:
+    sent: If {email} matches an account, a reset link is on the way.
+  error:
+    fallback: We could not send the reset email.
+deleteAccount:
+  title:
+    success: Account deleted
+    failed: Could not delete account
+  message:
+    success: Your account has been deleted.
+  action:
+    closeTab: You can close this tab.
+resetPassword:
+  title:
+    default: Set a new password
+    success: Password updated
+  password:
+    label: New password
+    placeholder: At least 8 characters
+  confirmPassword:
+    label: Confirm new password
+    placeholder: Repeat your new password
+  action:
+    reset: Update password
+    goSignIn: Go to sign in
+  message:
+    success: Your password has been updated. Sign in with your new password.
+  error:
+    fallback: We could not update your password.
+    missingToken: Reset link is invalid or has expired.
+    passwordMismatch: Password and confirmation do not match.
+profile:
+  title: Account profile
+  description: Manage your avatar, display name, and connected accounts.
+  section:
+    profile: Profile
+    avatar: Avatar
+    password: Password
+    linkedAccounts: Connected accounts
+  field:
+    email: Email
+    emailVerified: Email status
+    createdAt: Joined
+  label:
+    verified: Verified
+    unverified: Unverified
+  name:
+    label: Display name
+    placeholder: How others see you
+  avatar:
+    altText: Profile avatar
+    gravatarNotice: Avatar from Gravatar.
+    gravatarLink: Manage on gravatar.com
+  password:
+    currentLabel: Current password
+    currentPlaceholder: Enter your current password
+    newLabel: New password
+    newPlaceholder: At least 8 characters
+    confirmLabel: Confirm new password
+    confirmPlaceholder: Repeat your new password
+    setDescription: You signed in via a social provider, so there is no current password yet. We'll email a secure link to set one.
+    setLinkSent: Check {email} for the link to set your password.
+    setLinkFailed: We could not send the password setup link.
+  linkedAccounts:
+    description: Sign in to AIRI through these providers. Unlink to revoke access, then link again to switch to a different account.
+    status:
+      linked: Linked
+      notLinked: Not linked
+      linkedSince: Linked on {date}
+    action:
+      link: Link
+      unlink: Unlink
+    message:
+      loading: Loading connected accounts...
+      unlinked: '{provider} disconnected.'
+      linkStarted: Redirecting to {provider}…
+    error:
+      listFailed: Could not load connected accounts.
+      unlinkFailed: Could not unlink this account.
+      linkFailed: Could not start the link flow.
+      lastAccount: This is your only sign-in method. Set a password first before unlinking it.
+  action:
+    saveProfile: Save changes
+    changePassword: Change password
+    sendSetPasswordLink: Email me a link to set my password
+    signOut: Sign out
+  message:
+    loading: Loading your profile...
+    profileSaved: Profile updated.
+    passwordChanged: Password changed. Other sessions have been signed out.
+  error:
+    loadFailed: We could not load your profile.
+    saveFailed: We could not save your changes.
+    changePasswordFailed: We could not change your password.
+    signOutFailed: We could not sign you out.
+    passwordMismatch: New password and confirmation do not match.
+    passwordSameAsCurrent: New password must differ from the current one.
+webCallback:
+  title:
+    signIn: 가입
+    errorLabel: 가입 도중에 오류가 발생했습니다
+    loading: 가입 중...
+  message:
+    missingCodeOrState: 인증 코드 또는 상태가 누락되었습니다
+    missingFlowState: OIDC flow 상태가 누락되었습니다 - 재로그인해 주세요
+    tokenExchangeFailed: 토큰 교환 실패
+    finalizing: AIRI 인증 완료 중.
+  action:
+    tryAgain: 다시 시도해주세요

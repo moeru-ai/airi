@@ -5,12 +5,12 @@ import templateCompilerOptions from '@tresjs/core/template-compiler-options'
 import Vue from '@vitejs/plugin-vue'
 import UnoCss from 'unocss/vite'
 import Info from 'unplugin-info/vite'
-import VueRouter from 'unplugin-vue-router/vite'
 import Yaml from 'unplugin-yaml/vite'
 import Inspect from 'vite-plugin-inspect'
 import VitePluginVueDevTools from 'vite-plugin-vue-devtools'
 import Layouts from 'vite-plugin-vue-layouts'
 import VueMacros from 'vue-macros/vite'
+import VueRouter from 'vue-router/vite'
 
 import { Download } from '@proj-airi/unplugin-fetch'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
@@ -133,6 +133,11 @@ export default defineConfig({
       alias: {
         '@proj-airi/server-sdk': resolve(join(import.meta.dirname, '..', '..', 'packages', 'server-sdk', 'src')),
         '@proj-airi/i18n': resolve(join(import.meta.dirname, '..', '..', 'packages', 'i18n', 'src')),
+        // NOTICE: the @proj-airi/stage-ui alias resolves to a directory; rolldown
+        // concatenates sub-paths without a file extension, so bare .ts files at the
+        // stores/ root (e.g. mcp-tool-bridge.ts) are not found.  Add explicit aliases
+        // for each such file that the renderer imports from @proj-airi/stage-ui.
+        '@proj-airi/stage-ui/stores/mcp-tool-bridge': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'stores', 'mcp-tool-bridge.ts')),
         '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src')),
         '@proj-airi/stage-pages': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src')),
         '@proj-airi/stage-shared': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-shared', 'src')),
@@ -212,6 +217,8 @@ export default defineConfig({
               '**/settings/models/index.vue',
               '**/settings/system/general.vue',
               '**/settings/modules/mcp.vue',
+              '**/devtools/index.vue',
+              '**/settings/index.vue',
             ],
           },
           resolve(import.meta.dirname, 'src', 'renderer', 'pages'),

@@ -22,7 +22,7 @@ describe('stripeService', () => {
   })
 
   beforeEach(async () => {
-    stripeService = createStripeService(db)
+    stripeService = createStripeService(db, null)
 
     // Clean all stripe tables between tests
     await db.delete(schema.stripeInvoice)

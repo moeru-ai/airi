@@ -1,8 +1,8 @@
 import path from 'node:path'
 
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 interface FakeLocator {
   evaluateAll: <T>(callback: (elements: Array<{ getAttribute: (name: string) => string | null }>) => T) => Promise<T>
@@ -13,6 +13,7 @@ interface FakeLocator {
 interface FakePage {
   goto: (url: string) => Promise<void>
   waitForFunction: (predicate: () => boolean) => Promise<void>
+  waitForTimeout: (ms: number) => Promise<void>
   locator: (selector: string) => FakeLocator
 }
 
@@ -85,6 +86,9 @@ function createFixturePage(html: string): FakePage {
 
       throw new Error('Timed out waiting for scene readiness')
     },
+    async waitForTimeout(ms: number) {
+      await new Promise(resolve => setTimeout(resolve, ms))
+    },
     locator(selector: string): FakeLocator {
       return {
         async evaluateAll<T>(callback: (elements: Array<{ getAttribute: (name: string) => string | null }>) => T) {
@@ -110,18 +114,16 @@ function createFixturePage(html: string): FakePage {
 }
 
 let captureBrowserRoots: typeof import('./capture').captureBrowserRoots
+const fixtureRoots = new Set<string>()
 
 vi.mock('playwright', () => {
   return {
     chromium: {
       launch: vi.fn(async () => {
-        let page: FakePage | undefined
-
         return {
           newContext: async () => ({
             newPage: async () => {
-              page = createFixturePage('')
-              return page
+              return createFixturePage('')
             },
             close: async () => {},
           }),
@@ -138,6 +140,7 @@ beforeAll(async () => {
 
 async function createViteSceneFixture(): Promise<string> {
   const rootDir = await mkdtemp(path.join(process.cwd(), '.tmp-scene-'))
+  fixtureRoots.add(rootDir)
 
   await mkdir(path.join(rootDir, 'artifacts'), { recursive: true })
 
@@ -182,6 +185,23 @@ export default defineConfig({
   return rootDir
 }
 
+async function cleanupFixtureRoots(): Promise<void> {
+  await Promise.allSettled(
+    Array.from(fixtureRoots, async (rootDir) => {
+      await rm(rootDir, { force: true, recursive: true })
+      fixtureRoots.delete(rootDir)
+    }),
+  )
+}
+
+afterEach(async () => {
+  await cleanupFixtureRoots()
+})
+
+afterAll(async () => {
+  await cleanupFixtureRoots()
+})
+
 describe('captureBrowserRoots', () => {
   it('captures all roots from a vite-served scene app', async () => {
     const sceneAppRoot = await createViteSceneFixture()
@@ -193,10 +213,140 @@ describe('captureBrowserRoots', () => {
       outputDir,
     })
 
-    expect(artifacts.map(item => item.rootName)).toEqual([
+    expect(artifacts.map(item => item.artifactName)).toEqual([
       'intro-chat-window',
       'intro-websocket-settings',
     ])
     expect(artifacts.every(item => item.filePath.startsWith(outputDir))).toBe(true)
+  }, 120000)
+
+  it('applies image transformers per root and returns transformed image artifacts', async () => {
+    const sceneAppRoot = await createViteSceneFixture()
+    const outputDir = path.join(sceneAppRoot, 'artifacts', 'final-test')
+    const transformer = vi.fn(async (artifact) => {
+      const derivedFilePath = artifact.filePath.replace(/\.png$/, '.avif')
+      await writeFile(derivedFilePath, `derived from ${artifact.filePath}\n`)
+
+      return {
+        ...artifact,
+        filePath: derivedFilePath,
+        format: 'avif',
+      }
+    })
+
+    const artifacts = await captureBrowserRoots({
+      imageTransformers: [transformer],
+      sceneAppRoot,
+      routePath: '/',
+      outputDir,
+    })
+
+    expect(transformer).toHaveBeenCalledTimes(2)
+    expect(transformer.mock.calls.map(([artifact]) => artifact.artifactName)).toEqual([
+      'intro-chat-window',
+      'intro-websocket-settings',
+    ])
+    expect(artifacts).toEqual([
+      expect.objectContaining({
+        artifactName: 'intro-chat-window',
+        filePath: path.join(outputDir, 'intro-chat-window.avif'),
+        format: 'avif',
+        kind: 'image',
+        stage: 'browser-final',
+      }),
+      expect.objectContaining({
+        artifactName: 'intro-websocket-settings',
+        filePath: path.join(outputDir, 'intro-websocket-settings.avif'),
+        format: 'avif',
+        kind: 'image',
+        stage: 'browser-final',
+      }),
+    ])
+    await expect(access(path.join(outputDir, 'intro-chat-window.png'))).rejects.toThrow()
+    await expect(access(path.join(outputDir, 'intro-websocket-settings.png'))).rejects.toThrow()
+    await expect(access(path.join(outputDir, 'intro-chat-window.avif'))).resolves.toBeUndefined()
+    await expect(access(path.join(outputDir, 'intro-websocket-settings.avif'))).resolves.toBeUndefined()
+  }, 120000)
+
+  it('rejects non-browser-final transformer outputs in the browser image pipeline', async () => {
+    const sceneAppRoot = await createViteSceneFixture()
+    const outputDir = path.join(sceneAppRoot, 'artifacts', 'final-test')
+
+    await expect(captureBrowserRoots({
+      imageTransformers: [async artifact => ({
+        ...artifact,
+        stage: 'electron-raw',
+      })],
+      sceneAppRoot,
+      routePath: '/',
+      outputDir,
+    })).rejects.toThrow('must return image artifacts with stage "browser-final"')
+  }, 120000)
+
+  it('rejects missing transformed output files in the browser image pipeline', async () => {
+    const sceneAppRoot = await createViteSceneFixture()
+    const outputDir = path.join(sceneAppRoot, 'artifacts', 'final-test')
+
+    await expect(captureBrowserRoots({
+      imageTransformers: [async artifact => ({
+        ...artifact,
+        filePath: artifact.filePath.replace(/\.png$/, '.avif'),
+        format: 'avif',
+      })],
+      sceneAppRoot,
+      routePath: '/',
+      outputDir,
+    })).rejects.toThrow('must point to an existing file on disk')
+  }, 120000)
+
+  it('rejects duplicate transformed output file paths', async () => {
+    const sceneAppRoot = await createViteSceneFixture()
+    const outputDir = path.join(sceneAppRoot, 'artifacts', 'final-test')
+
+    await expect(captureBrowserRoots({
+      imageTransformers: [async (artifact) => {
+        const duplicateFilePath = path.join(outputDir, 'duplicate.avif')
+        await writeFile(duplicateFilePath, 'duplicate output')
+
+        return [
+          {
+            ...artifact,
+            filePath: duplicateFilePath,
+            format: 'avif',
+          },
+          {
+            ...artifact,
+            filePath: duplicateFilePath,
+            format: 'avif',
+          },
+        ]
+      }],
+      sceneAppRoot,
+      routePath: '/',
+      outputDir,
+    })).rejects.toThrow('Artifact outputs')
+  }, 120000)
+
+  it('rejects duplicate final artifact paths across roots', async () => {
+    const sceneAppRoot = await createViteSceneFixture()
+    const outputDir = path.join(sceneAppRoot, 'artifacts', 'final-test')
+    const sharedOutputPath = path.join(outputDir, 'shared.avif')
+
+    await expect(captureBrowserRoots({
+      imageTransformers: [async (artifact) => {
+        await writeFile(sharedOutputPath, `shared output for ${artifact.artifactName}\n`)
+
+        return {
+          ...artifact,
+          filePath: sharedOutputPath,
+          format: 'avif',
+        }
+      }],
+      sceneAppRoot,
+      routePath: '/',
+      outputDir,
+    })).rejects.toThrow('both resolve to')
+
+    await expect(access(path.join(outputDir, 'intro-chat-window.png'))).resolves.toBeUndefined()
   }, 120000)
 })

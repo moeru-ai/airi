@@ -3,7 +3,7 @@ import { signOut } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { onClickOutside } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 const authStore = useAuthStore()
@@ -14,6 +14,16 @@ const userAvatar = computed(() => user.value?.image)
 const showDropdown = ref(false)
 const dropdownRef = ref(null)
 
+// Fall back to the user-icon placeholder when the avatar URL fails to load
+// (broken/expired host, network error, hot-linked image taken down). Without
+// this the header pill renders the browser's default broken-image glyph,
+// which looks worse than the explicit placeholder we already ship.
+// Reset on URL change so a fixed URL re-attempts loading.
+const avatarLoadError = ref(false)
+watch(userAvatar, () => { avatarLoadError.value = false })
+
+const formattedCredits = computed(() => credits.value.toLocaleString())
+
 onClickOutside(dropdownRef, () => {
   showDropdown.value = false
 })
@@ -21,7 +31,7 @@ onClickOutside(dropdownRef, () => {
 
 <template>
   <div flex items-center gap-2>
-    <!-- Non-authenticated: Settings & Login -->
+    <!-- Non-authenticated: Settings & Sign in -->
     <!-- NOTICE: The avatar is stored in the localstorage, it will be shown at the first time of the page load, so we do not need the skeleton loading here -->
     <template v-if="!isAuthenticated">
       <RouterLink
@@ -38,7 +48,7 @@ onClickOutside(dropdownRef, () => {
         border="2 solid neutral-100/60 dark:neutral-800/30"
         bg="neutral-50/70 dark:neutral-800/70"
         w-fit flex items-center justify-center rounded-xl p-2 backdrop-blur-md
-        title="Login"
+        title="Sign in"
         type="button"
         @click="authStore.needsLogin = true"
       >
@@ -57,9 +67,11 @@ onClickOutside(dropdownRef, () => {
         @click="showDropdown = !showDropdown"
       >
         <img
-          v-if="userAvatar"
+          v-if="userAvatar && !avatarLoadError"
           :src="userAvatar"
+          :alt="userName"
           class="h-7 w-7 rounded-full object-cover"
+          @error="avatarLoadError = true"
         >
         <div
           v-else
@@ -98,11 +110,20 @@ onClickOutside(dropdownRef, () => {
             </p>
             <div class="mt-1 flex items-center gap-1.5 text-xs text-primary-600 font-medium dark:text-primary-400">
               <div class="i-solar:battery-charge-bold-duotone text-sm" />
-              <span>{{ credits }} Flux</span>
+              <span>{{ formattedCredits }} Flux</span>
             </div>
           </div>
 
           <div class="py-1">
+            <RouterLink
+              to="/settings/account"
+              class="group w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-700 transition hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
+              @click="showDropdown = false"
+            >
+              <div class="i-solar:user-id-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
+              Profile
+            </RouterLink>
+
             <RouterLink
               to="/settings/flux"
               class="group w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-neutral-700 transition hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
@@ -128,7 +149,7 @@ onClickOutside(dropdownRef, () => {
               @click="signOut"
             >
               <div class="i-solar:logout-3-bold-duotone text-lg transition group-hover:text-red-600 dark:group-hover:text-red-400" />
-              Logout
+              Sign out
             </button>
           </div>
         </div>

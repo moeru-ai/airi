@@ -60,7 +60,7 @@ function handleLocalSetup() {
           ]"
           :aria-label="t('settings.language.title')"
         >
-          <div class="i-lucide:globe" h-6 w-6 />
+          <div class="i-lucide:globe" h-5 w-5 />
         </DropdownMenuTrigger>
         <DropdownMenuPortal>
           <DropdownMenuContent

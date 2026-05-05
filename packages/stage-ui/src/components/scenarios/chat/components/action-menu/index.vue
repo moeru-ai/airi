@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import type { MaybeComputedElementRef } from '@vueuse/core'
 import type { ComponentPublicInstance } from 'vue'
 
 import type { ChatActionMenuAction } from '.'
 
-import { useElementVisibility } from '@vueuse/core'
+import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
+import { useElementVisibility, useIntervalFn } from '@vueuse/core'
+import { createTimeline } from 'animejs'
 import { clamp } from 'es-toolkit'
 import {
   ContextMenuContent,
@@ -17,20 +20,25 @@ import {
   DropdownMenuRoot,
   DropdownMenuTrigger,
 } from 'reka-ui'
-import { computed, inject, shallowRef, useTemplateRef } from 'vue'
+import { computed, inject, reactive, ref, shallowRef, toRef, useTemplateRef, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useWebHaptics } from 'web-haptics/vue'
 
 import { createChatActionMenuItems } from '.'
+import { useBreakpoints } from '../../../../../composables/use-breakpoints'
 import { useElementScroll } from '../../composables/use-element-scroll'
 import { chatScrollContainerKey } from '../../constants'
 
 const props = withDefaults(defineProps<{
   canCopy?: boolean
+  canRetry?: boolean
   canDelete?: boolean
   copyText?: string
   menuLabel?: string
   placement?: 'left' | 'right'
 }>(), {
   canCopy: true,
+  canRetry: false,
   canDelete: true,
   copyText: '',
   menuLabel: 'Message actions',
@@ -39,6 +47,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   (e: 'copy'): void
+  (e: 'retry'): void
   (e: 'delete'): void
 }>()
 defineSlots<{
@@ -46,6 +55,7 @@ defineSlots<{
 }>()
 
 const measuredElementRef = shallowRef<HTMLElement | null>(null)
+const contextMenuContainerElementRef = useTemplateRef<HTMLElement>('contextMenuContainer')
 const topSentinelRef = useTemplateRef<HTMLDivElement>('topSentinel')
 const bottomSentinelRef = useTemplateRef<HTMLDivElement>('bottomSentinel')
 const injectedScrollContainer = inject(chatScrollContainerKey, undefined)
@@ -71,9 +81,16 @@ const bottomSentinelVisible = useElementVisibility(bottomSentinelRef, {
   scrollTarget: effectiveScrollTarget,
 })
 
+const { trigger } = useWebHaptics()
+const { isMobile } = useBreakpoints()
+const { t } = useI18n()
+const shouldDisableDropdownMenu = computed(() => (isStageWeb() || isStageCapacitor()) && isMobile.value)
+
 const menuItems = computed(() => createChatActionMenuItems({
   canCopy: props.canCopy && props.copyText.trim().length > 0,
+  canRetry: props.canRetry,
   canDelete: props.canDelete,
+  retryLabel: t('stage.chat.actions.retry'),
 }))
 const hasMenuItems = computed(() => menuItems.value.length > 0)
 const forceVisible = computed(() => contextMenuOpen.value)
@@ -133,6 +150,11 @@ async function handleAction(action: ChatActionMenuAction) {
     return
   }
 
+  if (action === 'retry') {
+    emit('retry')
+    return
+  }
+
   emit('delete')
 }
 
@@ -143,13 +165,147 @@ function handleContextMenuOpenChange(open: boolean) {
 function setMeasuredElement(element: Element | ComponentPublicInstance | null) {
   measuredElementRef.value = element instanceof HTMLElement ? element : null
 }
+
+function useTouching(element: MaybeComputedElementRef) {
+  const elementRef = toRef(element)
+
+  const pressStartTime = ref(0)
+  const pressNow = ref(0)
+
+  const { resume, pause } = useIntervalFn(() => pressNow.value = Date.now(), 50)
+
+  const isTouching = ref(false)
+  const pressedFor = computed(() => {
+    if (!isTouching.value || pressStartTime.value === 0)
+      return 0
+
+    const result = pressNow.value - pressStartTime.value
+    if (result < 0)
+      return 0
+
+    return result
+  })
+
+  function handleTouchStart() {
+    isTouching.value = true
+    pressStartTime.value = Date.now()
+    resume()
+  }
+
+  function handleTouchMove() {
+    isTouching.value = true
+  }
+
+  function handleTouchEnd() {
+    isTouching.value = false
+    pressStartTime.value = 0
+    pause()
+  }
+
+  function handleTouchCancel() {
+    isTouching.value = false
+    pressStartTime.value = 0
+    pause()
+  }
+
+  watch(elementRef, (newElement) => {
+    if (newElement) {
+      const el = newElement as HTMLElement
+
+      el.addEventListener('touchstart', handleTouchStart, { passive: true })
+      el.addEventListener('touchmove', handleTouchMove, { passive: true })
+      el.addEventListener('touchend', handleTouchEnd, { passive: true })
+      el.addEventListener('touchcancel', handleTouchCancel, { passive: true })
+    }
+    else if (elementRef.value) {
+      const el = elementRef.value as HTMLElement
+
+      el.removeEventListener('touchstart', handleTouchStart)
+      el.removeEventListener('touchmove', handleTouchMove)
+      el.removeEventListener('touchend', handleTouchEnd)
+      el.removeEventListener('touchcancel', handleTouchCancel)
+    }
+  }, { immediate: true })
+
+  return {
+    isTouching,
+    pressedFor,
+  }
+}
+
+function useSetTimeoutFn(fn: () => void, options?: { delay?: number, onClear?: () => void }) {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null
+  const delay = options?.delay ?? 1000
+
+  function trigger(options?: { delay?: number }) {
+    if (timeoutId !== null)
+      return
+
+    const effectiveDelay = options?.delay ?? delay
+
+    timeoutId = setTimeout(() => {
+      fn()
+      timeoutId = null
+    }, effectiveDelay)
+  }
+
+  function clear() {
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId)
+      timeoutId = null
+      options?.onClear?.()
+    }
+  }
+
+  return {
+    trigger,
+    clear,
+  }
+}
+
+const { isTouching } = useTouching(contextMenuContainerElementRef)
+
+const pressedAnimatable = reactive({ scale: 100 })
+const tl = createTimeline({ defaults: { duration: 500, autoplay: false } })
+  .add(pressedAnimatable, { scale: 90, ease: 'inOut', autoplay: false })
+  .reset()
+
+const { trigger: triggerTimer, clear: clearTimer } = useSetTimeoutFn(() => {
+  trigger('medium')
+  tl.reset()
+}, { delay: 700 })
+
+watch(isTouching, (val) => {
+  if (val) {
+    if (tl.completed || tl.paused) {
+      tl.restart()
+    }
+    else {
+      tl.play()
+    }
+
+    triggerTimer()
+  }
+  else {
+    tl.reset()
+
+    clearTimer()
+  }
+})
 </script>
 
 <template>
   <ContextMenuRoot @update:open="handleContextMenuOpenChange">
     <ContextMenuTrigger as-child>
       <div
-        :class="['group/chat-action relative w-fit']"
+        ref="contextMenuContainer"
+        :class="[
+          'group/chat-action relative w-fit',
+          'transition-transform duration-150 ease-in-out',
+        ]"
+        :style="{
+          transform: `scale(${pressedAnimatable.scale / 100})`,
+        }"
       >
         <div
           ref="topSentinel"
@@ -164,6 +320,7 @@ function setMeasuredElement(element: Element | ComponentPublicInstance | null) {
 
         <DropdownMenuRoot>
           <DropdownMenuTrigger
+            v-if="!shouldDisableDropdownMenu"
             as-child
             :class="[
               'absolute z-10 opacity-0 transition-opacity duration-200',
@@ -226,7 +383,10 @@ function setMeasuredElement(element: Element | ComponentPublicInstance | null) {
             ]"
             :style="floatingTriggerStyle"
           >
-            <DropdownMenuTrigger as-child>
+            <DropdownMenuTrigger
+              v-if="!shouldDisableDropdownMenu"
+              as-child
+            >
               <button
                 :class="[
                   'pointer-events-auto h-8 w-8 flex items-center justify-center rounded-lg',
@@ -270,8 +430,9 @@ function setMeasuredElement(element: Element | ComponentPublicInstance | null) {
 
     <ContextMenuPortal>
       <ContextMenuContent
-        :class="contentClasses"
-        :side-offset="6"
+        :class="[
+          ...contentClasses,
+        ]"
       >
         <ContextMenuItem
           v-for="item in menuItems"
@@ -284,8 +445,14 @@ function setMeasuredElement(element: Element | ComponentPublicInstance | null) {
           ]"
           @select="() => void handleAction(item.action)"
         >
-          <div :class="[item.icon, 'text-xs']" />
-          <span>{{ item.label }}</span>
+          <div
+            :class="[
+              item.icon, 'text-xs',
+            ]"
+          />
+          <span>
+            {{ item.label }}
+          </span>
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenuPortal>

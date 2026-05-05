@@ -1,10 +1,12 @@
 import type { Page } from 'playwright'
 
-import type { CaptureOptions } from './types'
+import type { CaptureOptions, VishotArtifact } from './types'
 
 import path from 'node:path'
 
 import { mkdir } from 'node:fs/promises'
+
+import { applyArtifactTransformers, createImageArtifact } from './artifacts'
 
 const nonFilenameCharactersPattern = /[^a-z0-9-_]+/g
 const edgeDashPattern = /^-+|-+$/g
@@ -19,7 +21,12 @@ function sanitizeCaptureName(name: string): string {
   return sanitized.length > 0 ? sanitized : 'capture'
 }
 
-export async function capturePage(outputDir: string, name: string, page: Page, options?: CaptureOptions): Promise<string> {
+export async function capturePage(
+  outputDir: string,
+  name: string,
+  page: Page,
+  options?: CaptureOptions,
+): Promise<VishotArtifact[]> {
   const filePath = path.resolve(outputDir, `${sanitizeCaptureName(name)}.png`)
 
   await mkdir(outputDir, { recursive: true })
@@ -29,5 +36,12 @@ export async function capturePage(outputDir: string, name: string, page: Page, o
     path: filePath,
   })
 
-  return filePath
+  return applyArtifactTransformers(
+    createImageArtifact({
+      artifactName: name,
+      filePath,
+      stage: 'electron-raw',
+    }),
+    options?.transformers,
+  )
 }

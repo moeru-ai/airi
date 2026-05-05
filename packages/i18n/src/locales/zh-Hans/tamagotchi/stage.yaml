@@ -25,14 +25,17 @@ docs:
   'close': 关闭
   'expand': 展开
   'collapse': 折叠
-  'login': Sign in
-  'logging-in': Signing in...
-  'account': Account
-  'logout': Sign out
-'status-island':
-  connected: WebSocket 已连接
-  disconnected: WebSocket 已断开
-  'open-settings': 打开 WebSocket 设置
+  'login': 登录
+  'logging-in': 登录中...
+  'account': 账号
+  'logout': 退出登录
+widgets:
+  close: 关闭小部件
+  empty:
+    title: 未激活小部件
+    description: 工具或插件生成的小部件将会出现在这里。
+  loading: 正在加载小部件…
+  waiting: 正在等待小部件 "{id}" 的数据…
 notice:
   'fade-on-hover':
     title: 悬停淡出
@@ -48,3 +51,48 @@ notice:
     preparing: 准备中…
     read-more: 阅读更多
     preview-title: 这是什么？
+about:
+  subtitle: 桌面版本
+  current-version: 当前版本
+  common:
+    cancel: 取消
+  links:
+    title: 网址
+    home: 首页
+    documentation: 文档
+    github: GitHub
+  update:
+    lane:
+      label: 更新频道
+      description: 选择更新频道
+      placeholder: 选择更新频道
+    channels:
+      auto: 自动
+      stable: 稳定版
+      alpha: Alpha 测试版
+      beta: Beta 测试版
+      nightly: 每夜构建
+      canary: 尝鲜版
+    status:
+      downloading: 正在下载更新......
+      error-prefix: 错误
+      latest: 已是最新版（v{version}）
+      downloaded:
+        windows: 已准备好静默更新版本至 v{version}
+        restart: 已准备好重启后安装版本 v{version}
+    actions:
+      download: 下载更新
+      download-short: 下载
+      confirm-download: 确认下载
+      check-for-updates: 检查更新
+      checking: 正在检查...
+      latest-version: 最新版本
+      disabled-dev: 已禁用开发环境时的更新
+      retry-check: 重新检查
+      restart-silent: 重新启动以静默更新
+      restart-install: 重启并安装更新
+      confirm-restart: 确认重新启动
+    dialog:
+      title: 有可用的更新
+      description: 有新的 v{version} 版本可用
+      no-release-notes-markdown: _无发布日志_

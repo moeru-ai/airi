@@ -11,6 +11,8 @@ val coreSplashScreenVersion: String by rootProject.extra
 val junitVersion: String by rootProject.extra
 val androidxJunitVersion: String by rootProject.extra
 val androidxEspressoCoreVersion: String by rootProject.extra
+val okhttpVersion: String by rootProject.extra
+val orgJsonVersion: String by rootProject.extra
 
 val androidMinSdk = minSdkVersion
 val androidCompileSdk = compileSdkVersion
@@ -75,8 +77,10 @@ dependencies {
     implementation("androidx.appcompat:appcompat:$androidxAppCompatVersion")
     implementation("androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion")
     implementation("androidx.core:core-splashscreen:$coreSplashScreenVersion")
+    implementation("com.squareup.okhttp3:okhttp:$okhttpVersion")
     implementation(project(":capacitor-android"))
     testImplementation("junit:junit:$junitVersion")
+    testImplementation("org.json:json:$orgJsonVersion")
     androidTestImplementation("androidx.test.ext:junit:$androidxJunitVersion")
     androidTestImplementation("androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion")
     implementation(project(":capacitor-cordova-android-plugins"))

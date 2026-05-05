@@ -1,5 +1,6 @@
 import type { BaseIssue, BaseSchema, InferIssue, InferOutput } from 'valibot'
 
+import { randomUUID } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { copyFile, mkdir, rename, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
@@ -80,7 +81,7 @@ export function createConfig<TSchema extends PersistedSchema>(
     try {
       const path = configPath()
       await ensureConfigDirectory(path)
-      const tmpPath = `${path}.tmp`
+      const tmpPath = `${path}.${randomUUID()}.tmp`
       await writeFile(tmpPath, JSON.stringify(persistenceMap.get(key)))
       await rename(tmpPath, path)
     }

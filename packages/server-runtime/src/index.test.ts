@@ -2,7 +2,7 @@ import type { WebSocketBaseEvent, WebSocketEvents } from '@proj-airi/server-shar
 
 import { describe, expect, it } from 'vitest'
 
-import { resolveDeliveryConfig, selectConsumerPeerId } from './index'
+import { heartbeatFrameFrom, resolveEventDelivery, selectConsumerPeerId } from './index'
 
 function createInputTextEvent(
   overrides: Partial<WebSocketBaseEvent<'input:text', WebSocketEvents['input:text']>> = {},
@@ -27,9 +27,9 @@ function createInputTextEvent(
   }
 }
 
-describe('resolveDeliveryConfig', () => {
+describe('resolveEventDelivery', () => {
   it('uses protocol event metadata defaults for input:text', () => {
-    const delivery = resolveDeliveryConfig(createInputTextEvent())
+    const delivery = resolveEventDelivery(createInputTextEvent())
 
     expect(delivery).toEqual({
       mode: 'consumer-group',
@@ -39,7 +39,7 @@ describe('resolveDeliveryConfig', () => {
   })
 
   it('allows route delivery to override protocol defaults', () => {
-    const delivery = resolveDeliveryConfig(createInputTextEvent({
+    const delivery = resolveEventDelivery(createInputTextEvent({
       route: {
         delivery: {
           required: true,
@@ -59,7 +59,7 @@ describe('resolveDeliveryConfig', () => {
   })
 
   it('returns explicit route delivery for events without protocol defaults', () => {
-    const delivery = resolveDeliveryConfig({
+    const delivery = resolveEventDelivery({
       type: 'spark:notify',
       data: {
         id: 'spark-1',
@@ -193,5 +193,18 @@ describe('selectConsumerPeerId', () => {
 
     expect(firstSelectedPeerId).toBe('stage-window-a')
     expect(secondSelectedPeerId).toBe('stage-window-a')
+  })
+})
+
+describe('heartbeatFrameFrom', () => {
+  it('recognizes raw websocket control frame text without treating it as protocol JSON', () => {
+    expect(heartbeatFrameFrom('ping')).toBe('ping')
+    expect(heartbeatFrameFrom('pong')).toBe('pong')
+  })
+
+  it('ignores non-control payloads', () => {
+    expect(heartbeatFrameFrom('')).toBeUndefined()
+    expect(heartbeatFrameFrom('🩵')).toBeUndefined()
+    expect(heartbeatFrameFrom('{"type":"transport:connection:heartbeat"}')).toBeUndefined()
   })
 })

@@ -1,0 +1,200 @@
+electronCallback:
+  title:
+    loading: Completing sign-in
+    openingAiri: Đang mở AIRI
+    signedIn: Bạn đã đăng nhập
+    signInFailed: Đăng nhập thất bại
+    finishSignInInAiri: Hoàn tất đăng nhập vào AIRI
+    openAiriToContinue: Mở AIRI để tiếp tục
+  message:
+    checkingResponse: Đang kiểm tra phản hồi đăng nhập của bạn và chuẩn bị chuyển giao cho AIRI.
+    passingToAiri: Đang chuyển thông tin đăng nhập của bạn cho AIRI. Trang này sẽ tự động đóng trong giây lát.
+    syncedAndSafeToClose: We notified AIRI client you signed from.
+    invalidResponse: We could not use this sign-in response.
+    loopbackUnreachable: The browser could not reach AIRI through the local callback port.
+    tryOpenDirectly: We will try opening the local handoff directly. If that still fails, use the button below.
+    automaticHandoffFailed: Automatic handoff did not finish in this browser session.
+  label:
+    signIn: Sign in
+    safeToClose: It is safe to close this tab now.
+    whyStillHere: Why this tab still here?
+  action:
+    openAiriManually: Open AIRI manually
+  hint:
+    closeTabManually: Some browsers do not allow this page to close itself automatically. You can close it manually.
+signIn:
+  title: Sign in
+  step:
+    identify:
+      heading: Sign in
+      description: Enter your email to sign in or create an account.
+    password:
+      heading: Welcome back
+      description: Continue as {email}.
+    create:
+      heading: Create your account
+      description: We will create a new account for {email}.
+  email:
+    label: Email
+    placeholder: you{'@'}example.com
+  password:
+    label: Password
+    placeholder: Your password
+  newPassword:
+    label: Create password
+    placeholder: At least 8 characters
+  confirmPassword:
+    label: Confirm password
+    placeholder: Repeat your password
+  name:
+    label: Display name
+    placeholder: Optional, defaults to your email handle
+  action:
+    continue: Continue
+    signIn: Sign in
+    createAccount: Create account
+    forgotPassword: Forgot password?
+    useDifferentEmail: Use a different email
+  divider:
+    or: or
+  error:
+    fallback: Sign in failed
+    unknown: An unknown error occurred
+    authFailed: Authentication failed. Please try again.
+    passwordMismatch: Password and confirmation do not match.
+    invalidEmail: Please enter a valid email address.
+  footer:
+    prefix: By continuing, you agree to our
+    terms: Terms
+    and: and
+    privacy: Privacy Policy
+verifyEmail:
+  title:
+    pending: Check your inbox
+    success: Email verified
+    failed: Verification failed
+  message:
+    pending: We sent a verification link to your email. Open it to finish creating your account — this page will continue automatically once you click the link.
+    pendingWithAddress: We sent a verification link to {email}. Open it to finish creating your account — this page will continue automatically once you click the link.
+    success: Your email has been verified and you are signed in. You can close this tab.
+    failed: We could not verify your email ({error}). Try requesting a new link.
+  action:
+    backToSignIn: Back to sign in
+forgotPassword:
+  title: Reset your password
+  description: Enter the email address associated with your account and we will send you a reset link.
+  email:
+    label: Email
+    placeholder: you{'@'}example.com
+  action:
+    send: Send reset link
+    backToSignIn: Back to sign in
+  message:
+    sent: If {email} matches an account, a reset link is on the way.
+  error:
+    fallback: We could not send the reset email.
+deleteAccount:
+  title:
+    success: Account deleted
+    failed: Could not delete account
+  message:
+    success: Your account has been deleted.
+  action:
+    closeTab: You can close this tab.
+resetPassword:
+  title:
+    default: Set a new password
+    success: Password updated
+  password:
+    label: New password
+    placeholder: At least 8 characters
+  confirmPassword:
+    label: Confirm new password
+    placeholder: Repeat your new password
+  action:
+    reset: Update password
+    goSignIn: Go to sign in
+  message:
+    success: Your password has been updated. Sign in with your new password.
+  error:
+    fallback: We could not update your password.
+    missingToken: Reset link is invalid or has expired.
+    passwordMismatch: Password and confirmation do not match.
+profile:
+  title: Account profile
+  description: Manage your avatar, display name, and connected accounts.
+  section:
+    profile: Profile
+    avatar: Avatar
+    password: Password
+    linkedAccounts: Connected accounts
+  field:
+    email: Email
+    emailVerified: Email status
+    createdAt: Joined
+  label:
+    verified: Verified
+    unverified: Unverified
+  name:
+    label: Display name
+    placeholder: How others see you
+  avatar:
+    altText: Profile avatar
+    gravatarNotice: Avatar from Gravatar.
+    gravatarLink: Manage on gravatar.com
+  password:
+    currentLabel: Current password
+    currentPlaceholder: Enter your current password
+    newLabel: New password
+    newPlaceholder: At least 8 characters
+    confirmLabel: Confirm new password
+    confirmPlaceholder: Repeat your new password
+    setDescription: You signed in via a social provider, so there is no current password yet. We'll email a secure link to set one.
+    setLinkSent: Check {email} for the link to set your password.
+    setLinkFailed: We could not send the password setup link.
+  linkedAccounts:
+    description: Sign in to AIRI through these providers. Unlink to revoke access, then link again to switch to a different account.
+    status:
+      linked: Linked
+      notLinked: Not linked
+      linkedSince: Linked on {date}
+    action:
+      link: Link
+      unlink: Unlink
+    message:
+      loading: Loading connected accounts...
+      unlinked: '{provider} disconnected.'
+      linkStarted: Redirecting to {provider}…
+    error:
+      listFailed: Could not load connected accounts.
+      unlinkFailed: Could not unlink this account.
+      linkFailed: Could not start the link flow.
+      lastAccount: This is your only sign-in method. Set a password first before unlinking it.
+  action:
+    saveProfile: Save changes
+    changePassword: Change password
+    sendSetPasswordLink: Email me a link to set my password
+    signOut: Sign out
+  message:
+    loading: Loading your profile...
+    profileSaved: Profile updated.
+    passwordChanged: Password changed. Other sessions have been signed out.
+  error:
+    loadFailed: We could not load your profile.
+    saveFailed: We could not save your changes.
+    changePasswordFailed: We could not change your password.
+    signOutFailed: We could not sign you out.
+    passwordMismatch: New password and confirmation do not match.
+    passwordSameAsCurrent: New password must differ from the current one.
+webCallback:
+  title:
+    signIn: Sign in
+    errorLabel: We encountered an error while signing you in
+    loading: Signing in...
+  message:
+    missingCodeOrState: Missing authorization code or state
+    missingFlowState: Missing OIDC flow state - please try logging in again
+    tokenExchangeFailed: Token exchange failed
+    finalizing: Finalizing authentication with AIRI.
+  action:
+    tryAgain: Try again

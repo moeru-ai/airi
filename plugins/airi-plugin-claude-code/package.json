@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/airi-plugin-claude-code",
   "type": "module",
-  "version": "0.9.0-beta.4",
+  "version": "0.10.1",
   "private": true,
   "description": "manifest.json description",
   "bin": {
@@ -21,7 +21,7 @@
     "vue": "catalog:"
   },
   "devDependencies": {
-    "@anthropic-ai/claude-code": "^2.1.81",
+    "@anthropic-ai/claude-code": "^2.1.114",
     "tsx": "^4.21.0",
     "vue-tsc": "^3.2.6"
   }

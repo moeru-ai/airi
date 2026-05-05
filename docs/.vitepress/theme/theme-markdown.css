@@ -6,3 +6,44 @@ ul.task-list-container li input.task-list-item-checkbox {
   display: inline-block;
   margin: 0 0.25rem 0 0;
 }
+
+/*
+ * Animate details element.
+ *
+ * https://css-tricks.com/using-styling-the-details-element/
+ *
+ * While this is better but it requires me to have <label> and <input> orchestrated correctly:
+ *
+ * - https://github.com/jgustavoas/fully-animated-details-element-using-pure-CSS-only/blob/main/index.html
+ * - https://codepen.io/jgustavoas/pen/zYLNKbN
+ */
+
+details::details-content {
+  transition: height 200ms ease-in-out, content-visibility 200ms ease-in-out allow-discrete;
+  height: 0;
+  overflow: clip;
+}
+
+summary {
+  cursor: pointer;
+  transition: transform 200ms ease-in-out;
+}
+
+summary:focus {
+  outline: none;
+}
+
+/*
+ * This is amazing, isn't it?
+ *
+ * https://css-tricks.com/almanac/pseudo-selectors/d/details-content/
+ */
+@supports (interpolate-size: allow-keywords) {
+  :root {
+    interpolate-size: allow-keywords;
+  }
+
+  [open]::details-content {
+    height: auto;
+  }
+}
