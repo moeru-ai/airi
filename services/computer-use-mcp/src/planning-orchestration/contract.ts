@@ -241,7 +241,7 @@ export function buildPlanningGuidanceBlock(params: {
       '',
       'Plan state summary:',
       `- scope: ${summary.scope}`,
-      `- currentStepId: ${summary.currentStepId ?? 'none'}`,
+      `- currentStepId: ${summary.currentStepId ? sanitizePlanProjectionText(summary.currentStepId) : 'none'}`,
       `- completedStepCount: ${summary.completedStepCount}`,
       `- failedStepCount: ${summary.failedStepCount}`,
       `- skippedStepCount: ${summary.skippedStepCount}`,
