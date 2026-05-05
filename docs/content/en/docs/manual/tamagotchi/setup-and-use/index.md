@@ -708,7 +708,7 @@ If screen capture permission has not been granted yet, this page will also show 
 
 This manual is primarily written by non-official personnel but submitted to the official website. Although content maintenance is usually handled by members of the Mujiu Yunxuan Studio, we sincerely hope that all friends who wish to edit this document or have already edited it will leave your name in the author section at the beginning. Whether you make content changes or formatting adjustments, we welcome everyone to join us in enriching and optimizing this manual, contributing your own strength—from anyone—to the Airi project and to this manual!
 
-Furthermore, if you are a non-official user and have ideas for editing this manual, please do not have any additional concerns—simply make the changes and submit an Pull requests. However, we remind you again not to forget to leave your name!
+Furthermore, if you are a non-official user and have ideas for editing this manual, please do not have any additional concerns—simply make the changes and submit a pull request. However, we remind you again not to forget to leave your name!
 
 Thank you all for your support and cooperation!
 
