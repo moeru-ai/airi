@@ -11,7 +11,7 @@ import { onMounted, onUnmounted, watch } from 'vue'
 const show = defineModel('show', { type: Boolean, default: false })
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
-const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(settingsAudioDeviceStore)
+const { enabled, stream } = storeToRefs(settingsAudioDeviceStore)
 
 const getMediaAccessStatus = useElectronEventaInvoke(electron.systemPreferences.getMediaAccessStatus)
 const { state: mediaAccessStatus, execute: refreshMediaAccessStatus } = useAsyncState(() => getMediaAccessStatus(['microphone']), 'not-determined')
@@ -58,10 +58,7 @@ onUnmounted(async () => {
 <template>
   <HearingConfigDialog
     v-model:show="show"
-    v-model:enabled="enabled"
-    v-model:selected-audio-input="selectedAudioInput"
     :granted="mediaAccessStatus !== 'denied' && mediaAccessStatus !== 'restricted'"
-    :audio-inputs="audioInputs"
     :volume-level="volumeLevel"
   >
     <slot />

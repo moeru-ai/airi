@@ -62,8 +62,11 @@
     "@proj-airi/stage-shared": "workspace:^",
     "@types/audioworklet": "catalog:",
     "@types/three": "^0.184.0",
+    "@vue/test-utils": "catalog:",
     "@webgpu/types": "catalog:",
+    "jsdom": "catalog:",
     "unplugin-info": "catalog:",
+    "vitest": "catalog:",
     "vue-tsc": "^3.2.6"
   }
 }
