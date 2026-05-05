@@ -144,13 +144,14 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 
 ## Naming & Comments
 
-- File names: kebab-case.
+- File names: camelCase.
 - Prefer names that rely on the module boundary for context instead of repeating package, product, protocol, or transport prefixes inside every symbol. A well-named module should let exported functions use short action-first names; repeat the larger context only when the symbol crosses a boundary where that context is no longer obvious.
 - Name functions after the domain operation they perform, not after the implementation layer that happens to contain them. This keeps call sites readable after refactors and avoids names becoming stale when code moves between files.
 - Avoid names that encode multiple layers of ownership into one symbol. If a name needs several qualifiers to be understandable, reconsider the module boundary or introduce a clearer local concept.
 - Use nouns for resolved domain concepts and verbs for transformations or side effects. When a function derives a policy/configuration from an event or request, name the domain result explicitly so callers understand what decision is being made.
-- Avoid classes unless extending runtime/browser APIs; FP + DI is easier to test/mock.
-- Add clear, concise comments for utils, math, OS-interaction, algorithm, shared, and architectural functions that explain what the function does.
+- Prefer classes for runtime/browser APIs and substantial business modules when the class owns state, lifecycle, or a stable domain boundary. Prefer FP for pure transformations and local helpers.
+- Use dependency injection only at real external boundaries: database, model runtime, queue, Redis/cache, filesystem, network, clock, environment, and feature gates. Do not introduce `Dependencies`/`Deps` objects for internal functions that only call sibling helpers or forward parameters.
+- Add clear, concise comments for utils, math, OS-interaction, algorithm, shared, and architectural functions that explain non-obvious intent, invariants, constraints, or why the code is needed.
 - When using a workaround, add a `// NOTICE:` comment explaining why, the root cause, and any source context. If validated via `node_modules` inspection or external sources (e.g., GitHub), include relevant line references and links in code-formatted text.
 - When moving/refactoring/fixing/updating code, keep existing comments intact and move them with the code. If a comment is truly unnecessary, replace it with a comment stating it previously described X and why it was removed.
 - Avoid stubby/hacky scaffolding; prefer small refactors that leave code cleaner.
@@ -159,15 +160,25 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
   - `// REVIEW:` concerns/needs another eye
   - `// NOTICE:` magic numbers, hacks, important context, external references/links
 
+## Module Design
+
+- Prefer deep modules over shallow modules. A module should hide a meaningful decision: policy, persistence boundary, protocol/schema contract, scheduling semantics, model prompt contract, domain invariant, or lifecycle concern.
+- Do not split by execution order alone. Files named like `collector`, `planner`, `executor`, `deps`, or `utils` are acceptable only when each owns a distinct stable responsibility and can be understood without reading all sibling files.
+- Keep cohesive domain flows together until there is proven pressure to split. A 200-400 line cohesive module is preferable to several shallow modules that pass the same context/options through each other.
+- Before creating a new `createXService` or `XDependencies`, verify that `X` adds policy, validation, state, retry/error handling, IO boundary, or a reusable abstraction. If not, keep it as a private helper or inline it.
+- Avoid pass-through services such as `createXService({ yService })` when `X` adds no meaningful policy, validation, state, or abstraction.
+- Test through stable public behavior. Do not create new exports, dependency bags, or wrapper services only to make private implementation details mockable.
+- Prompt text, model-facing schemas, and prompt rendering helpers belong in `packages/prompts` when they are reused, model-facing contracts, or require prompt tests/evals. Server files should wire runtime dependencies and call prompt builders instead of inlining large prompts.
+
 ## PR / Workflow Tips
 
-- Rebase pulls; branch naming `username/feat/short-name`; clear commit messages (gitmoji optional).
+- Rebase pulls; branch naming `username/feat/short-name`; clear commit messages (gitmoji is required).
 - Summarize changes, how tested (commands), and follow-ups.
 - Improve legacy you touch; avoid one-off patterns.
-- Keep changes scoped; use workspace filters (`pnpm -F <workspace> <script>`).
+- Keep changes scoped; use workspace filters (`pnpm -F <package> <script>`).
 - Maintain structured `README.md` documentation for each `packages/` and `apps/` entry, covering what it does, how to use it, when to use it, and when not to use it.
-- Always run `pnpm typecheck` and `pnpm lint:fix` after finishing a task.
-- Use Conventional Commits for commit messages (e.g., `feat: add runner reconnect backoff`).
+- Always run `pnpm type-check` and `pnpm lint` after finishing a task.
+- Use Conventional Commits for commit messages (e.g., `feat(<package name>): add runner reconnect backoff`).
 - For new feature requirements or requirement-related tasks involving `node:*` built-in modules, DOM operations, Vue composables, React hooks, Vite plugins, or GitHub Actions workflows, always do deep research for suitable existing libraries or open source modules first. Before choosing any library, always ask the user to choose and help judge which option is right. Never choose generalized utility libraries on your own (for example, `es-toolkit`, utilities from `github.com/unjs`, or tiny tools from `github.com/tinylib`) without explicit user confirmation. If the user is working spec-driven, list candidate choices in a clear and concise Markdown comparison table.
 - Before planning or writing new utilities/functions, always search for existing internal implementations first. If the logic could become shared utilities, proactively propose that shared approach to users and developers.
 
@@ -187,10 +198,12 @@ These guidelines apply to all TypeScript code across the monorepo:
   // Removal condition (when it can be safely deleted).
   ```
 - Prefer type generics wherever possible. Do not use `any`. Only use `as unknown as <target expected type>` when avoiding it is nearly impossible and the type cannot be fixed safely.
-- For every module export (internal or package-level), include clear `/** ... */` JSDoc that explains:
+- For public APIs, package-level exports, shared architectural boundaries, and non-trivial exported functions/classes/types, include clear `/** ... */` JSDoc that explains:
   - What the function does.
   - When to use it.
   - What to expect.
+- Avoid exporting helper functions only to satisfy tests or documentation rules. Keep implementation helpers private unless production code reuses them.
+- Avoid JSDoc on trivial one-line helpers, local projections, and pass-through functions; use precise names instead.
 - Use the following JSDoc format for exported functions/classes/types:
   ```ts
   /**
@@ -216,7 +229,7 @@ These guidelines apply to all TypeScript code across the monorepo:
   - `@default` for every option that has a default value.
 - For interface and type JSDoc, keep the top-level comment focused on what the type represents. Do not use function-style `Use when`, `Expects`, or `Returns` sections on interfaces or type aliases. Put detailed meaning, defaults, and behavioral notes on the individual fields or methods instead of restating every field in the interface-level block.
 - For generic type parameters in JSDoc, use `@param` entries to explain what each type parameter represents.
-- For all runner, CLI, and high-level orchestrator code (exported or not), `/** ... */` JSDoc is required and must include a clear ASCII call-stack diagram using `{@link ...}` references where applicable.
+- For runner and CLI entrypoints, `/** ... */` JSDoc is required and must include a clear ASCII call-stack diagram using `{@link ...}` references where applicable. For server orchestrators, add the call-stack diagram only when it clarifies a stable architecture boundary; do not add diagrams to shallow glue code.
 - Use this call-stack section format in orchestrator/runner/CLI JSDoc:
   ```ts
   /**
@@ -230,7 +243,7 @@ These guidelines apply to all TypeScript code across the monorepo:
    *       -> {@link VievalScheduledTask}[]
    */
   ```
-- Wherever math, OS, exec, process, args, networking, files, or directories are involved, add comments explaining the purpose and why the code is needed.
+- Wherever math, OS, exec, process, args, networking, files, or directories are involved, add comments explaining the purpose and why the code is needed when the intent is not obvious from names and local context.
 - Prefer `es-toolkit` first when creating utilities.
 - For error handling, prefer `@moeru/std` patterns whenever possible.
 - For all normalizers (exported or not) that normalize outputs, formats, filenames, or values (excluding config default normalization), add `/** ... */` with before/after examples.
@@ -263,6 +276,6 @@ These guidelines apply to all TypeScript code across the monorepo:
   // We fixed this by XXX, XXX, XXX.
   // <after-patch behavior/code>
   ```
-- Do not split modules into sections using separators like `========`; split into modules instead, except for types/interfaces used nowhere else.
+- Do not split modules into sections using separators like `========`; use cohesive private helper groups or split into modules only when the new module owns a distinct responsibility. Do not split files merely to reduce nesting, line count, or create test seams.
 - Do not overuse table-driven style. In many cases, keep table arrays inline and map directly with `.map(...)`.
-- Prefer early returns, keep functions simple, and limit nesting to one or two levels.
+- Prefer early returns and keep functions simple. Limit nesting when it improves readability, but do not introduce pass-through helpers or shallow modules solely to reduce indentation.
