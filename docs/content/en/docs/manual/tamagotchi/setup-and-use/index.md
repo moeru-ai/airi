@@ -142,7 +142,7 @@ Congratulations! You have completed the initial configuration of Airi.
 <a id="chapter-3-main-window"></a>
 ### Main Window
 
-This window displays the virtual character. There are four buttons:
+This window displays the virtual character. There are three buttons:
 
 - "websocket status" – top right, click to open connection settings where you can configure your WebSocket server address (This option has been removed in the current version.).
 - "Expand" – bottom right, click to reveal more options (see below).
