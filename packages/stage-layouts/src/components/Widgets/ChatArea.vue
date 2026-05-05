@@ -3,6 +3,7 @@ import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
+import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
@@ -22,6 +23,7 @@ import IndicatorMicVolume from './IndicatorMicVolume.vue'
 
 const messageInput = ref('')
 const hearingPopoverOpen = ref(false)
+const sessionsDrawerOpen = ref(false)
 const isComposing = ref(false)
 const isListening = ref(false) // Transcription listening state (separate from microphone enabled)
 const DOUBLE_ENTER_INTERVAL_MS = 300
@@ -483,6 +485,20 @@ watch(sendMode, () => {
       <div
         absolute bottom-2 left-2 z-10 flex items-center gap-2
       >
+        <!-- Conversations drawer trigger -->
+        <button
+          :class="[
+            'h-8 w-8 flex items-center justify-center rounded-md outline-none transition-all duration-200 active:scale-95',
+            'text-lg text-neutral-500 dark:text-neutral-400',
+          ]"
+          title="Conversations"
+          @click="sessionsDrawerOpen = true"
+        >
+          <div class="i-solar:chat-line-bold-duotone h-5 w-5" />
+        </button>
+
+        <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
+
         <DropdownMenuRoot>
           <DropdownMenuTrigger as-child>
             <button

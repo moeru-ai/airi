@@ -1,11 +1,26 @@
+import type { NewMessagesPayload } from '@proj-airi/server-sdk-shared'
+
+import type { ChatWsClient } from '../../libs/chat-sync'
 import type { ChatHistoryItem } from '../../types/chat'
 import type { ChatSessionMeta, ChatSessionRecord, ChatSessionsExport, ChatSessionsIndex } from '../../types/chat-session'
 
+import { errorMessageFrom } from '@moeru/std'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
+import { getAuthToken } from '../../libs/auth'
+import {
+  applyCreateActions,
+  createChatWsClient,
+  createCloudChatMapper,
+  extractMessageText,
+  isCloudSyncableMessage,
+  mergeCloudMessagesIntoLocal,
+  reconcileLocalAndRemote,
+} from '../../libs/chat-sync'
+import { SERVER_URL } from '../../libs/server'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
 import { mergeLoadedSessionMessages } from './session-message-merge'
@@ -28,6 +43,16 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   let persistQueue = Promise.resolve()
   const loadedSessions = new Set<string>()
   const loadingSessions = new Map<string, Promise<void>>()
+
+  // Cloud sync state. The WS client is constructed lazily so anonymous
+  // (`userId === 'local'`) users never open a socket. `cloudSyncReady` is a
+  // UI-facing readiness flag (true after a successful reconcile); it does
+  // NOT gate `pushMessageToCloud`, which only requires `meta.cloudChatId` —
+  // that way the very first message in a session does not get dropped while
+  // reconcile completes.
+  const cloudSyncReady = ref(false)
+  let wsClient: ChatWsClient | undefined
+  let cloudReconcileTask: Promise<void> | undefined
 
   // I know this nu uh, better than loading all language on rehypeShiki
   const codeBlockSystemPrompt = '- For any programming code block, always specify the programming language that supported on @shikijs/rehype on the rendered markdown, eg. ```python ... ```\n'
@@ -103,6 +128,19 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     index.value = stored ?? {
       userId: currentUserId,
       characters: {},
+    }
+    // Hydrate `sessionMetas` from the index so consumers like the sessions
+    // drawer can list every owned session without having to `loadSession`
+    // each one (which would pull every messages payload from IndexedDB).
+    // Existing entries win to preserve any in-memory mutations the store
+    // performed before the index landed.
+    if (index.value) {
+      for (const character of Object.values(index.value.characters)) {
+        for (const [sessionId, meta] of Object.entries(character.sessions)) {
+          if (!sessionMetas.value[sessionId])
+            sessionMetas.value[sessionId] = meta
+        }
+      }
     }
   }
 
@@ -197,6 +235,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
           await persistSession(sessionId)
       }
       loadedSessions.add(sessionId)
+
+      // Cloud gap fill: when the session is mapped to a cloud chat, ask the
+      // server for everything past our highest known seq. Best effort —
+      // failures are logged and the local view stays usable.
+      const meta = sessionMetas.value[sessionId]
+      if (meta?.cloudChatId)
+        await pullCloudMessages(sessionId)
     })()
 
     loadingSessions.set(sessionId, loadPromise)
@@ -243,7 +288,102 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (options?.setActive !== false)
       activeSessionId.value = sessionId
 
+    // Fire-and-forget cloud reconcile so the freshly-minted session gets a
+    // `cloudChatId` (POST /api/v1/chats) before the user types into it.
+    // Reentrant: `reconcileCloudSessions` itself guards on `cloudReconcileTask`
+    // so concurrent triggers collapse to a single in-flight task.
+    if (currentUserId !== 'local')
+      void reconcileCloudSessions()
+
     return sessionId
+  }
+
+  /**
+   * Permanently remove a session from the local index + IDB and, when the
+   * session is cloud-mapped and the user is signed in, soft-delete the
+   * server chat via `DELETE /api/v1/chats/:id`.
+   *
+   * Use when:
+   * - The user explicitly chooses "delete" from the sessions drawer.
+   *
+   * Expects:
+   * - The caller does not need to pre-confirm: this method is destructive.
+   *   When the deleted session is the active one, the store falls back to
+   *   another session for the same character or creates a fresh one.
+   *
+   * Returns:
+   * - Resolves once both local state and (if applicable) the remote DELETE
+   *   call have settled. Cloud failures are swallowed with a console.warn —
+   *   the local removal goes through either way so the user does not see
+   *   a "ghost" session after the click.
+   */
+  async function deleteSession(sessionId: string) {
+    const meta = sessionMetas.value[sessionId]
+    if (!meta)
+      return
+
+    const wasActive = activeSessionId.value === sessionId
+    const characterId = meta.characterId
+    const cloudChatId = meta.cloudChatId
+    const isCloudUser = getCurrentUserId() !== 'local'
+
+    // ROOT CAUSE:
+    //
+    // If we awaited the cloud DELETE before mutating in-memory state, any
+    // other code path firing a `persistSession` during that await would
+    // snapshot the index *with the doomed entry still in it* and write that
+    // snapshot to IDB. The user then sees the row reappear after a reload.
+    //
+    // Old behavior: await mapper.deleteChat → mutate → persist; the
+    // overlapping persistSession races us and wins.
+    //
+    // We fixed this by performing every in-memory and IDB mutation
+    // synchronously up front, then firing the cloud DELETE as
+    // fire-and-forget. Persistence races now read the post-deletion state.
+    delete sessionMetas.value[sessionId]
+    delete sessionMessages.value[sessionId]
+    delete sessionGenerations.value[sessionId]
+    loadedSessions.delete(sessionId)
+    loadingSessions.delete(sessionId)
+
+    if (index.value) {
+      const characterIndex = index.value.characters[characterId]
+      if (characterIndex) {
+        delete characterIndex.sessions[sessionId]
+        if (characterIndex.activeSessionId === sessionId)
+          characterIndex.activeSessionId = ''
+      }
+    }
+
+    await enqueuePersist(() => chatSessionsRepo.deleteSession(sessionId))
+    await persistIndex()
+
+    if (cloudChatId && isCloudUser) {
+      const mapper = createCloudChatMapper({ serverUrl: SERVER_URL, getToken: getAuthToken })
+      mapper.deleteChat(cloudChatId).catch((err) => {
+        console.warn('[chat-sync] DELETE /api/v1/chats failed for', sessionId, errorMessageFrom(err))
+      })
+    }
+
+    // If the deleted session was active, pick another for the same
+    // character or mint a fresh one so the chat surface never lands on an
+    // empty void.
+    if (wasActive) {
+      const characterIndex = index.value?.characters[characterId]
+      const fallbackId = characterIndex
+        ? Object.keys(characterIndex.sessions).find(id => sessionMetas.value[id])
+        : undefined
+      if (fallbackId) {
+        activeSessionId.value = fallbackId
+        if (characterIndex)
+          characterIndex.activeSessionId = fallbackId
+        await loadSession(fallbackId)
+        await persistIndex()
+      }
+      else {
+        await createSession(characterId, { setActive: true })
+      }
+    }
   }
 
   async function ensureActiveSessionForCharacter() {
@@ -269,6 +409,290 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     ensureSession(characterIndex.activeSessionId)
   }
 
+  /**
+   * Lookup local sessionId from a cloud chatId.
+   *
+   * Used when receiving `newMessages` push events that only carry `chatId`.
+   * Returns `undefined` if the chat is not yet mapped to a local session.
+   */
+  function findSessionIdByCloudChatId(cloudChatId: string): string | undefined {
+    for (const meta of Object.values(sessionMetas.value)) {
+      if (meta.cloudChatId === cloudChatId)
+        return meta.sessionId
+    }
+    return undefined
+  }
+
+  /**
+   * Merge cloud-sourced messages into a local session, deduping by id and
+   * advancing `cloudMaxSeq`. Locally-authored versions of the same id are
+   * preserved (their slices / tool calls carry richer content than the wire
+   * format) — only truly new ids are appended.
+   *
+   * Persistence is queued through the existing `persistSession` pipeline.
+   */
+  function mergeCloudMessagesIntoSession(sessionId: string, payload: NewMessagesPayload | { messages: NewMessagesPayload['messages'], toSeq?: number }) {
+    const meta = sessionMetas.value[sessionId]
+    if (!meta)
+      return
+
+    const current = sessionMessages.value[sessionId] ?? []
+    const merged = mergeCloudMessagesIntoLocal(current, meta.cloudMaxSeq ?? 0, payload)
+    if (!merged.dirty)
+      return
+
+    sessionMessages.value[sessionId] = merged.messages
+    sessionMetas.value[sessionId] = { ...meta, cloudMaxSeq: merged.maxSeq }
+    void persistSession(sessionId)
+  }
+
+  /**
+   * Pull-and-merge gap fill for a single session. Safe to call multiple
+   * times; uses `meta.cloudMaxSeq` as the cursor.
+   */
+  async function pullCloudMessages(sessionId: string) {
+    if (!wsClient || wsClient.status() !== 'open')
+      return
+    const meta = sessionMetas.value[sessionId]
+    if (!meta?.cloudChatId)
+      return
+
+    try {
+      const result = await wsClient.pullMessages({
+        chatId: meta.cloudChatId,
+        afterSeq: meta.cloudMaxSeq ?? 0,
+      })
+      if (result.messages.length === 0 && result.seq === (meta.cloudMaxSeq ?? 0))
+        return
+      mergeCloudMessagesIntoSession(sessionId, {
+        messages: result.messages,
+        toSeq: result.seq,
+      })
+    }
+    catch (err) {
+      console.warn('[chat-sync] pullMessages failed for', sessionId, errorMessageFrom(err))
+    }
+  }
+
+  /**
+   * Reconcile local sessions against the server `chats` table. Called after
+   * the local index loads and after every successful (re)connect.
+   *
+   * - Local sessions without a `cloudChatId` either claim a remote chat with
+   *   the same id or trigger `POST /api/v1/chats` to mint one.
+   * - Remote chats that have no local mapping are adopted as empty-shell
+   *   sessions; their messages are pulled lazily on first `loadSession`.
+   *
+   * Reentrant: a single in-flight task is shared across concurrent callers.
+   */
+  async function reconcileCloudSessions() {
+    if (cloudReconcileTask)
+      return cloudReconcileTask
+
+    cloudReconcileTask = (async () => {
+      const currentUserId = getCurrentUserId()
+      if (currentUserId === 'local') {
+        console.info('[chat-sync] reconcile skipped: anonymous user')
+        return
+      }
+
+      console.info('[chat-sync] reconcile start', { userId: currentUserId, serverUrl: SERVER_URL })
+      const mapper = createCloudChatMapper({ serverUrl: SERVER_URL, getToken: getAuthToken })
+
+      let remoteChats
+      try {
+        remoteChats = await mapper.listChats()
+      }
+      catch (err) {
+        console.warn('[chat-sync] listChats failed; skipping reconcile this round:', errorMessageFrom(err))
+        return
+      }
+      console.info('[chat-sync] listChats →', remoteChats.length, 'remote chats')
+
+      // Snapshot local metas owned by this user. Anonymous-era sessions are
+      // not promoted to the cloud automatically — the user can re-open them
+      // after signing in and the server is unaware of them.
+      const localOwnedMetas = Object.values(sessionMetas.value).filter(meta => meta.userId === currentUserId)
+      const plan = reconcileLocalAndRemote(localOwnedMetas, remoteChats)
+
+      // claim: remote chat already exists with the same id; just bind.
+      for (const action of plan.claim) {
+        const meta = sessionMetas.value[action.sessionId]
+        if (!meta)
+          continue
+        sessionMetas.value[action.sessionId] = { ...meta, cloudChatId: action.cloudChatId }
+        void persistSession(action.sessionId)
+      }
+
+      // create: POST /api/v1/chats and bind. Bounded concurrency keeps the
+      // server happy when the user has many local sessions queued.
+      const createResults = await applyCreateActions(mapper, plan.create, { concurrency: 4 })
+      for (const result of createResults) {
+        if (!result.cloudChatId)
+          continue
+        const meta = sessionMetas.value[result.sessionId]
+        if (!meta)
+          continue
+        sessionMetas.value[result.sessionId] = { ...meta, cloudChatId: result.cloudChatId }
+        void persistSession(result.sessionId)
+
+        // Backfill any pre-existing local messages so the new cloud chat
+        // is not born empty. Without this, anonymous-era messages and any
+        // typed during the connect handshake would only live on this
+        // device. Best-effort: failures are logged inside pushMessage.
+        if (wsClient && wsClient.status() === 'open') {
+          const localMessages = sessionMessages.value[result.sessionId] ?? []
+          for (const message of localMessages) {
+            if (!message.id || !isCloudSyncableMessage(message))
+              continue
+            const text = extractMessageText(message)
+            if (!text)
+              continue
+            try {
+              await wsClient.sendMessages({
+                chatId: result.cloudChatId,
+                messages: [{ id: message.id, role: message.role, content: text }],
+              })
+            }
+            catch (err) {
+              console.warn('[chat-sync] backfill sendMessages failed for', result.sessionId, errorMessageFrom(err))
+            }
+          }
+        }
+      }
+
+      // adopt: remote-only chats become empty local sessions. Messages get
+      // pulled the first time the user opens them via `loadSession`.
+      for (const remote of plan.adopt) {
+        if (sessionMetas.value[remote.id])
+          continue
+        const now = Date.now()
+        const adoptedMeta: ChatSessionMeta = {
+          sessionId: remote.id,
+          userId: currentUserId,
+          characterId: 'default',
+          title: remote.title ?? undefined,
+          createdAt: new Date(remote.createdAt).getTime() || now,
+          updatedAt: new Date(remote.updatedAt).getTime() || now,
+          cloudChatId: remote.id,
+        }
+        sessionMetas.value[remote.id] = adoptedMeta
+        sessionMessages.value[remote.id] = [generateInitialMessage()]
+        ensureGeneration(remote.id)
+
+        if (!index.value)
+          index.value = { userId: currentUserId, characters: {} }
+        const characterIndex = index.value.characters[adoptedMeta.characterId] ?? {
+          activeSessionId: '',
+          sessions: {},
+        }
+        characterIndex.sessions[remote.id] = adoptedMeta
+        index.value.characters[adoptedMeta.characterId] = characterIndex
+
+        await enqueuePersist(() => chatSessionsRepo.saveSession(remote.id, {
+          meta: adoptedMeta,
+          messages: sessionMessages.value[remote.id],
+        }))
+      }
+      await persistIndex()
+
+      // After reconcile, fan out a catch-up pull for every session that has
+      // a cloudChatId now (claimed + created + previously-mapped). This
+      // closes the window between offline writes on other devices and the
+      // moment the WS push begins delivering live updates.
+      const cloudMappedIds = Object.values(sessionMetas.value)
+        .filter(meta => meta.cloudChatId)
+        .map(meta => meta.sessionId)
+      await Promise.all(cloudMappedIds.map(sessionId => pullCloudMessages(sessionId)))
+
+      cloudSyncReady.value = true
+    })().finally(() => {
+      cloudReconcileTask = undefined
+    })
+
+    return cloudReconcileTask
+  }
+
+  /**
+   * Lazy WS client + push handler setup. Reentrant; subsequent calls are
+   * no-ops while the existing client is open. Called from `initialize` and
+   * from the auth `watch`.
+   */
+  function ensureCloudWsClient() {
+    if (getCurrentUserId() === 'local') {
+      console.info('[chat-sync] WS skipped: anonymous user')
+      return
+    }
+    if (wsClient)
+      return
+
+    console.info('[chat-sync] creating WS client →', SERVER_URL)
+    wsClient = createChatWsClient({
+      serverUrl: SERVER_URL,
+      getToken: getAuthToken,
+    })
+
+    wsClient.onNewMessages((payload) => {
+      const sessionId = findSessionIdByCloudChatId(payload.chatId)
+      if (!sessionId) {
+        // Not yet mapped — likely a chat created on another device that
+        // has not been reconciled here yet. Trigger one to adopt it.
+        void reconcileCloudSessions()
+        return
+      }
+      mergeCloudMessagesIntoSession(sessionId, payload)
+    })
+
+    wsClient.onStatusChange((status) => {
+      if (status === 'open') {
+        // Reconcile on every open so reconnects after offline windows
+        // trigger a catch-up pullMessages for every mapped session.
+        void reconcileCloudSessions()
+      }
+      else if (status === 'closed' || status === 'idle') {
+        cloudSyncReady.value = false
+      }
+    })
+
+    // VueUse `useWebSocket` makes connect synchronous (it just flips the
+    // url-driven autoConnect on); failures surface via the status watcher
+    // above and the auto-reconnect loop, not as a rejected promise.
+    wsClient.connect()
+  }
+
+  function teardownCloudWsClient() {
+    cloudSyncReady.value = false
+    cloudReconcileTask = undefined
+    if (wsClient) {
+      wsClient.disconnect()
+      wsClient = undefined
+    }
+  }
+
+  /**
+   * Ship a message up to the cloud for a session that already has a
+   * `cloudChatId`. No-op when offline or for unmapped sessions; failures
+   * are logged but do not throw, because the reconnect catch-up flow will
+   * surface server-side discrepancies on the next pull.
+   */
+  async function pushMessageToCloud(sessionId: string, message: { id: string, role: string, content: string }) {
+    if (!wsClient || wsClient.status() !== 'open')
+      return
+    const meta = sessionMetas.value[sessionId]
+    if (!meta?.cloudChatId)
+      return
+
+    try {
+      await wsClient.sendMessages({
+        chatId: meta.cloudChatId,
+        messages: [message],
+      })
+    }
+    catch (err) {
+      console.warn('[chat-sync] sendMessages failed for', sessionId, errorMessageFrom(err))
+    }
+  }
+
   async function initialize() {
     if (ready.value) {
       return
@@ -280,6 +704,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     initializePromise = (async () => {
       await ensureActiveSessionForCharacter()
       ready.value = true
+      ensureCloudWsClient()
     })()
 
     try {
@@ -503,6 +928,20 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     void ensureActiveSessionForCharacter()
   })
 
+  // Auth toggles drive cloud WS lifecycle independently of activeCardId so
+  // a card swap inside a single session does not bounce the socket.
+  watch(userId, (next) => {
+    if (next && next !== 'local') {
+      // Swap to a different signed-in account → tear down the previous
+      // socket so its handlers do not see the new user's mappings.
+      teardownCloudWsClient()
+      ensureCloudWsClient()
+    }
+    else {
+      teardownCloudWsClient()
+    }
+  })
+
   return {
     ready,
     isReady,
@@ -532,5 +971,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     forkSession,
     exportSessions,
     importSessions,
+    createSession,
+    loadSession,
+    deleteSession,
+
+    cloudSyncReady,
+    pushMessageToCloud,
   }
 })
