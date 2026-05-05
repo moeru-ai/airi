@@ -144,7 +144,7 @@ Congratulations! You have completed the initial configuration of Airi.
 
 This window displays the virtual character. There are four buttons:
 
-- "websocket status" – top right, click to open connection settings where you can configure your WebSocket server address(This option has been removed in the current version.).
+- "websocket status" – top right, click to open connection settings where you can configure your WebSocket server address (This option has been removed in the current version.).
 - "Expand" – bottom right, click to reveal more options (see below).
 - "Open hearing control" – bottom right, allows you to speak to Airi. Requires an STT service.
 - "Move" – bottom right, long-press and drag to reposition the main window.
