@@ -113,7 +113,7 @@ The steps below use Deepseek as the example provider.
 :::
 
 ::: tip Regarding a possible bug during the initial startup and the solution
-Every time you start the application for the first time, you may encounter this bug: the main interface border flickers, and when you click to expand the pop-up menu, it quickly retracts…
+The first time you start the application, you may encounter this bug: the main interface border flickers, and when you click to expand the pop-up menu, it quickly retracts…
 
 If you encounter this bug, don't worry—you can resolve it by following the steps below (but you'll need to be quick with your clicks):
 
