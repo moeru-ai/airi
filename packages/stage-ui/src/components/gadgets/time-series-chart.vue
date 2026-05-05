@@ -38,6 +38,7 @@ interface Props {
   showActiveIndicator?: boolean // Show active state indicator
   showLegend?: boolean // Show legend
   formatValue?: (value: number) => string // Custom value formatter
+  formatThreshold?: (value: number) => string // Custom threshold formatter
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -361,7 +362,7 @@ const dataAreaPath = computed(() => {
           {{ inactiveLegendLabel }}
         </span>
       </div>
-      <span v-if="threshold !== null" class="text-nowrap">{{ thresholdLabel }}: {{ (threshold * 100).toFixed(0) }}%</span>
+      <span v-if="threshold !== null" class="text-nowrap">{{ thresholdLabel }}: {{ formatThreshold ? formatThreshold(threshold) : `${(threshold * 100).toFixed(0)}%` }}</span>
     </div>
   </div>
 </template>

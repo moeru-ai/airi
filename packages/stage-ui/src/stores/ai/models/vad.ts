@@ -1,3 +1,4 @@
+import type { BaseVADConfig } from '../../../libs/audio/vad'
 import type { MaybeRefOrGetter } from 'vue'
 
 import { merge } from '@moeru/std'
@@ -7,14 +8,29 @@ import { createVAD, createVADStates } from '../../../workers/vad'
 
 interface UseVADOptions {
   threshold?: MaybeRefOrGetter<number>
+  minSilenceDurationMs?: MaybeRefOrGetter<number>
 
   onSpeechStart?: () => void
   onSpeechEnd?: () => void
 }
 
+const DEFAULT_VAD_THRESHOLD = 0.6
+const DEFAULT_VAD_MIN_SILENCE_DURATION_MS = 800
+
+export function resolveVADConfig(threshold?: number, minSilenceDurationMs?: number): Pick<BaseVADConfig, 'speechThreshold' | 'exitThreshold' | 'minSilenceDurationMs'> {
+  const resolvedThreshold = threshold ?? DEFAULT_VAD_THRESHOLD
+
+  return {
+    speechThreshold: resolvedThreshold,
+    exitThreshold: resolvedThreshold * 0.3,
+    minSilenceDurationMs: minSilenceDurationMs ?? DEFAULT_VAD_MIN_SILENCE_DURATION_MS,
+  }
+}
+
 export function useVAD(workerUrl: string, options?: UseVADOptions) {
   const defaultOptions: UseVADOptions = {
-    threshold: ref(0.6),
+    threshold: ref(DEFAULT_VAD_THRESHOLD),
+    minSilenceDurationMs: ref(DEFAULT_VAD_MIN_SILENCE_DURATION_MS),
   }
 
   options = merge(defaultOptions, options)
@@ -32,6 +48,7 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
   const loading = ref(false)
 
   const threshold = toRef(options.threshold)
+  const minSilenceDurationMs = toRef(options.minSilenceDurationMs)
 
   async function init() {
     if (loaded.value || loading.value || manager.value)
@@ -41,11 +58,11 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
     inferenceError.value = ''
 
     try {
+      const vadConfig = resolveVADConfig(threshold.value, minSilenceDurationMs.value)
+
       vad.value = await createVAD({
         sampleRate: 16000,
-        speechThreshold: threshold.value,
-        exitThreshold: (threshold.value ?? 0.6) * 0.3,
-        minSilenceDurationMs: 400,
+        ...vadConfig,
       })
 
       // Set up event handlers
@@ -119,8 +136,14 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
   }
 
   watch(threshold, (newVal) => {
-    if (vad.value && newVal) {
+    if (vad.value && newVal !== undefined) {
       vad.value.updateConfig({ speechThreshold: newVal, exitThreshold: newVal * 0.3 })
+    }
+  })
+
+  watch(minSilenceDurationMs, (newVal) => {
+    if (vad.value && newVal !== undefined) {
+      vad.value.updateConfig({ minSilenceDurationMs: newVal })
     }
   })
 
@@ -132,6 +155,7 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
     loading,
     inferenceError,
     threshold,
+    minSilenceDurationMs,
 
     init,
     start,
