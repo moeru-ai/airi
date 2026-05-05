@@ -10,6 +10,8 @@ animations:
     title: Use Page Specific Transitions
 dialogs:
   onboarding:
+    official:
+      title: AIRI Official Provider
     title: Welcome to AIRI!
     description: Let's set up your first AI provider to get started.
     selectProvider: Choose an AI Provider
@@ -319,6 +321,7 @@ pages:
         systemprompt: 'Error: Please, provide a system prompt.'
         posthistoryinstructions: 'Error: Post history prompt is required.'
         invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
+      none: None
     modules: Modules
     name_asc: Name (A-Z)
     name_desc: Name (Z-A)

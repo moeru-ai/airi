@@ -9,6 +9,8 @@ animations:
     title: Utiliser les transitions spécifiques à chaque page
 dialogs:
   onboarding:
+    official:
+      title: Fournisseur Officiel AIRI
     title: Bienvenue dans AIRI!
     description: Configurez votre premier fournisseur d’IA pour commencer.
     selectProvider: Choisissez un fournisseur d'IA.
@@ -305,6 +307,7 @@ pages:
         systemprompt: 'Erreur : veuillez fournir un prompt système.'
         posthistoryinstructions: 'Erreur : le prompt post-historique est requis.'
         invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
+      none: Aucun
     modules: Modules
     name_asc: Nom (A-Z)
     name_desc: Nom (Z-A)

@@ -9,6 +9,8 @@ animations:
     title: 是否使用頁面特定過場動畫
 dialogs:
   onboarding:
+    official:
+      title: AIRI 官方服務來源
     title: 歡迎來到 AIRI！
     description: 讓我們先設定您的第一個服務來源來開始使用。
     selectProvider: 選擇服務來源
@@ -305,6 +307,7 @@ pages:
         systemprompt: '錯誤：請提供系統提示。'
         posthistoryinstructions: '錯誤：必須提供訊息歷史後的提示。'
         invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
+      none: 無
     modules: 模組
     name_asc: 名稱 (A-Z)
     name_desc: 名稱 (Z-A)

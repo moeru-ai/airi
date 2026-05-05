@@ -9,6 +9,8 @@ animations:
     title: Использовать переходы для страниц
 dialogs:
   onboarding:
+    official:
+      title: Официальный провайдер AIRI
     title: Добро пожаловать в AIRI!
     description: Давайте настроим вашего первого AI-провайдера, чтобы начать работу.
     selectProvider: Выберите AI-провайдера
@@ -305,6 +307,7 @@ pages:
         systemprompt: 'Ошибка: укажите системный промпт.'
         posthistoryinstructions: 'Ошибка: требуется post-history промпт.'
         invalid_artistry_json: 'Ошибка: Параметры провайдера Artistry содержат недопустимые JSON.'
+      none: Нет
     modules: Модули
     name_asc: Имя (А-Я)
     name_desc: Имя (Я-А)

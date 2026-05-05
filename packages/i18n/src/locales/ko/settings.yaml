@@ -9,6 +9,8 @@ animations:
     title: 페이지별 전환 사용
 dialogs:
   onboarding:
+    official:
+      title: AIRI 공식 제공자
     title: AIRI에 오신 것을 환영합니다!
     description: 시작하기 위해 당신의 첫 번째 AI 제공자를 설정해 보겠습니다.
     selectProvider: AI 제공자를 선택해주세요
@@ -305,6 +307,7 @@ pages:
         systemprompt: '오류: 시스템 프롬프트를 제공해 주세요.'
         posthistoryinstructions: '오류: 기록 게시 후 프롬프트가 필요합니다.'
         invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
+      none: 없음
     modules: 모듈
     name_asc: 이름 (A-Z)
     name_desc: 이름 (Z-A)

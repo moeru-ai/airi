@@ -9,6 +9,8 @@ animations:
     title: Dùng hiệu ứng chuyển cảnh riêng cho từng trang
 dialogs:
   onboarding:
+    official:
+      title: Nhà cung cấp AIRI chính thức
     title: Chào mừng đến với AIRI!
     description: Hãy thiết lập nhà cung cấp AI đầu tiên để bắt đầu.
     selectProvider: Chọn nhà cung cấp AI
@@ -305,6 +307,7 @@ pages:
         systemprompt: 'Lỗi: Hãy cung cấp lời nhắc hệ thống'
         posthistoryinstructions: 'Lỗi: Cần có lịch sử đăng lời nhắc'
         invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
+      none: Không có
     modules: Mô-đun
     name_asc: Tên (A-Z)
     name_desc: Tên (Z-A)
