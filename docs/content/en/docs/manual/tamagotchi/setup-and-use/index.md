@@ -529,7 +529,7 @@ In addition, you can filter all services by criteria such as Pricing and Deploym
   - All
   - Free
   - Paid
- 
+
 * Regarding Deployment, there are three options:
 
   - All
@@ -712,5 +712,5 @@ Furthermore, if you are a non-official user and have ideas for editing this manu
 
 Thank you all for your support and cooperation!
 
-Sincerely,  
+Sincerely,
 JhIceFair
