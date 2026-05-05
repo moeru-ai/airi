@@ -1181,6 +1181,15 @@ pages:
               description: ID de l’application du projet, que vous pouvez obtenir dans la Console
               label: ID de l’application
         title: Volcano Engine
+      volcengine-coding-plan:
+        description: Volcengine Coding Plan
+        title: Volcengine Coding Plan
+      byteplus:
+        description: byteplus.com
+        title: BytePlus
+      byteplus-coding-plan:
+        description: BytePlus Coding Plan
+        title: BytePlus Coding Plan
       xai:
         description: x.ai
         title: xAI

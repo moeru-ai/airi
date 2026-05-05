@@ -1252,6 +1252,15 @@ pages:
               description: 可在控制台获取的 App ID
               label: App ID
         title: 火山引擎
+      volcengine-coding-plan:
+        description: Volcengine Coding Plan
+        title: Volcengine Coding Plan
+      byteplus:
+        description: byteplus.com
+        title: BytePlus
+      byteplus-coding-plan:
+        description: BytePlus Coding Plan
+        title: BytePlus Coding Plan
       xai:
         description: X.AI
         title: xAI

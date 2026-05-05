@@ -1181,6 +1181,15 @@ pages:
               description: 콘솔에서 얻을 수 있는 프로젝트의 애플리케이션 ID
               label: 애플리케이션 ID
         title: Volcano 엔진
+      volcengine-coding-plan:
+        description: Volcengine Coding Plan
+        title: Volcengine Coding Plan
+      byteplus:
+        description: byteplus.com
+        title: BytePlus
+      byteplus-coding-plan:
+        description: BytePlus Coding Plan
+        title: BytePlus Coding Plan
       xai:
         description: x.ai
         title: xAI

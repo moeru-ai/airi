@@ -14,6 +14,7 @@ interface OpenAICompatibleValidationOptions<TConfig extends { apiKey?: string, b
   checks?: ProviderValidationCheck[]
   additionalHeaders?: Record<string, string>
   allowValidationWithoutModel?: boolean
+  normalizeModelId?: (modelId: string) => string
   schedule?: {
     mode: 'once' | 'interval'
     intervalMs?: number
@@ -118,8 +119,9 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     providerExtra: ProviderExtraMethods<TConfig> | undefined,
   ): Promise<ChatCheckResult> {
     const model = await pickValidationModel(config, provider, providerExtra)
+    const normalizedModel = model ? options?.normalizeModelId?.(model) ?? model : model
 
-    if (!model) {
+    if (!normalizedModel) {
       if (options?.allowValidationWithoutModel) {
         return { connectivityOk: true, chatOk: true }
       }
@@ -136,7 +138,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
         apiKey: config.apiKey,
         baseURL: config.baseUrl!,
         headers: additionalHeaders,
-        model,
+        model: normalizedModel,
         messages: message.messages(message.user('ping')),
         max_tokens: 1,
       })
