@@ -1096,8 +1096,9 @@ pages:
       index-tts-vllm:
         description: https://index-tts.github.io/
         title: Bilibili / IndexTTS
-        callout_indextts2_unavailable_title: Hỗ trợ hạn chế
-        callout_indextts2_unavailable: IndexTTS2 hiện chưa hỗ trợ. Vui lòng dùng IndexTTS.
+      index-tts-2:
+        description: https://index-tts.github.io/
+        title: Bilibili / IndexTTS-2
       azure-ai-foundry:
         description: Azure AI Foundry
         title: Azure AI Foundry
