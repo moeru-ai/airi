@@ -672,17 +672,88 @@ pages:
       access-token-secret-placeholder: 输入您的X / Twitter访问令牌密文
       configured: X / Twitter已正确配置！
     mcp-server:
-      description: 连接和管理 MCP 服务器及工具
       title: MCP 服务器
-      config-path: 配置文件路径
+      description: 配置 MCP 服务器，把它们的工具接入 AIRI 一起用吧
+      config-path: 配置文件
       runtime-title: 运行状态
+      empty: 还没有配置 MCP 服务器，点下方「添加服务器」加一个，或者「编辑 JSON」直接粘贴一段配置吧～
+      error-title: 出错啦
+      success-title: 完成啦
+      existing:
+        title: 已配置
+        description: mcp.json 里已经登记的服务器，点击行就能展开编辑。
+        empty: 还没有，下方添加一个吧。
+      add:
+        title: 新增
+        description: 在这里填好新的服务器，「保存并重启」之后就会归入上方「已配置」啦。
+        pending-badge: 未保存
+      status:
+        unknown: 未加载
       actions:
-        open-config: 打开 mcp.json
-        apply-and-restart: 保存并重启 Stdio 协议的 MCP
+        open-config: 在文件管理器中打开
+        apply-and-restart: 保存并重启
+        restart: 重启 MCP
+        add-server: 添加服务器
+        add-env: 添加变量
+        remove: 删除
+        test: 测试
+        edit-json: 编辑 JSON
+        close-json: 收起
+        format-json: 格式化
+        reset-draft: 重置
+        apply-json: 应用
+        cancel: 取消
+        expand: 展开
+        collapse: 折叠
+      fields:
+        identifier:
+          label: 标识符
+          description: 唯一名称，作为 mcp.json 中的键。
+          placeholder: 例如 filesystem
+        command:
+          label: 启动命令
+          description: 通过 stdio 启动的可执行程序。
+          placeholder: 例如 npx
+        args:
+          label: 命令参数
+          description: 每行一个，按顺序传入。
+          placeholder: "-y\nsome-package-name\n/tmp"
+        cwd:
+          label: 工作目录
+          description: 可选，作为启动进程时使用的当前工作目录。
+          placeholder: 例如 /Users/you/project
+        env:
+          label: 环境变量
+          description: 注入到子进程的环境变量。
+          key-placeholder: 名称
+          value-placeholder: 值
+        enabled:
+          label: 启用
+      json:
+        title: 编辑 mcp.json
+        description: 直接改 JSON 也行，点「应用」会把它回填到表单里，再点「保存并重启」就写到磁盘上啦。
+        placeholder: 粘贴 mcp.json 内容…
+      test:
+        title: 连接测试
+        description: 我们会临时把它启动一次，看看命令能不能跑、能列出哪些工具。
+        pick-server-label: 服务器
+        no-servers: 还没有可以测试的服务器
+        no-server-selected: 先选一个服务器吧。
+        server-disabled: '"{name}" 还是禁用状态哦，先在卡片上启用再测试吧。'
+        disabled-suffix: 已禁用
+        untitled: 未命名
+        running: 正在测试…
+        success: 连接成功！发现 {count} 个工具，耗时 {ms}ms
+        failure: 连接失败了，耗时 {ms}ms
+      errors:
+        empty-identifier: 第 {index} 个服务器还没填标识符呢。
+        duplicate-identifier: 标识符 "{name}" 重复了，每个服务器要用不同的名字。
+        empty-command: '"{name}" 还没填启动命令。'
+        invalid-shape: mcp.json 结构不对，最外层得有 "mcpServers" 这个字段。
       messages:
-        opened: 配置文件已于 {path} 打开
-        restarted: >-
-          MCP 服务已重新启动，启动了 {started}，未启动 {failed}，跳过 {skipped}
+        opened: 已经在文件管理器里打开 {path} 啦
+        json-applied: JSON 已经回填到表单了，点「保存并重启」就写到磁盘上啦。
+        restarted: 重启好啦！启动了 {started} 个，失败 {failed} 个，跳过 {skipped} 个
   flux:
     title: Flux
     buy: 充值

@@ -6,6 +6,8 @@ import type { WidgetWindowSize } from '../../../../shared/eventa'
 import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { rawTool } from '@xsai/tool'
+import { toJsonSchema } from 'xsschema'
+import { z } from 'zod'
 
 import { widgetsAdd, widgetsClear, widgetsOpenWindow, widgetsPrepareWindow, widgetsRemove, widgetsUpdate } from '../../../../shared/eventa'
 import { normalizeWidgetWindowSize } from '../../../../shared/utils/electron/windows/window-size'
@@ -63,6 +65,7 @@ type WidgetActionInput
 export type WidgetInvokers = ReturnType<typeof createInvokers>
 
 let cachedInvokers: WidgetInvokers | undefined
+const JSON_SCHEMA_NULLABLE_SCALAR_TYPES = new Set(['string', 'number', 'integer', 'boolean', 'null'])
 
 function createInvokers() {
   const { context } = createContext(window.electron.ipcRenderer)
@@ -85,82 +88,111 @@ function resolveInvokers(override?: WidgetInvokers): WidgetInvokers {
   return cachedInvokers
 }
 
-const nullablePositiveNumberSchema = {
-  type: ['number', 'null'],
-  exclusiveMinimum: 0,
-} satisfies JsonSchema
+const widgetWindowSizeParams = z.object({
+  width: z.number().positive(),
+  height: z.number().positive(),
+  // NOTICE: OpenAI-compatible tool validators reject strict object schemas when
+  // some nested properties are omitted from `required`. Keep these fields
+  // required-but-nullable for the provider, then collapse `null` back to omitted
+  // runtime fields before dispatching widget window updates.
+  minWidth: z.union([z.number().positive(), z.null()]),
+  minHeight: z.union([z.number().positive(), z.null()]),
+  maxWidth: z.union([z.number().positive(), z.null()]),
+  maxHeight: z.union([z.number().positive(), z.null()]),
+}).strict()
 
-const widgetWindowSizeParams = {
-  description: 'Optional pixel window size and constraints, e.g. {"width":620,"height":760,"minWidth":480}',
-  type: ['object', 'null'],
-  properties: {
-    width: {
-      type: 'number',
-      exclusiveMinimum: 0,
-    },
-    height: {
-      type: 'number',
-      exclusiveMinimum: 0,
-    },
-    minWidth: nullablePositiveNumberSchema,
-    minHeight: nullablePositiveNumberSchema,
-    maxWidth: nullablePositiveNumberSchema,
-    maxHeight: nullablePositiveNumberSchema,
-  },
-  required: [
-    'width',
-    'height',
-    'minWidth',
-    'minHeight',
-    'maxWidth',
-    'maxHeight',
-  ],
-  additionalProperties: false,
-} satisfies JsonSchema
+const widgetParams = z.object({
+  action: z.enum(['spawn', 'update', 'remove', 'clear', 'open']).describe('Choose one: spawn, update, remove, clear, open'),
+  id: z.string().describe('Widget id; required for update/remove, optional for spawn/open'),
+  componentName: z.string().describe('Widget component to render, e.g. weather (required for spawn)'),
+  componentProps: z.string().describe('Widget props as JSON string (e.g. {"city":"Tokyo"})'),
+  size: z.enum(['s', 'm', 'l']),
+  windowSize: z.union([widgetWindowSizeParams, z.null()]).describe('Optional pixel window size and constraints, e.g. {"width":620,"height":760,"minWidth":480}'),
+  ttlSeconds: z.number().int().nonnegative().describe('Auto-close timer in seconds (spawn only)'),
+}).strict()
 
-const widgetParams = {
-  type: 'object',
-  properties: {
-    action: {
-      type: 'string',
-      enum: ['spawn', 'update', 'remove', 'clear', 'open'],
-      description: 'Choose one: spawn, update, remove, clear, open',
-    },
-    id: {
-      type: 'string',
-      description: 'Widget id; required for update/remove, optional for spawn/open',
-    },
-    componentName: {
-      type: 'string',
-      description: 'Widget component to render, e.g. weather (required for spawn)',
-    },
-    componentProps: {
-      type: 'string',
-      description: 'Widget props as JSON string (e.g. {"city":"Tokyo"})',
-    },
-    size: {
-      type: 'string',
-      enum: ['s', 'm', 'l'],
-    },
-    windowSize: widgetWindowSizeParams,
-    ttlSeconds: {
-      type: 'integer',
-      minimum: 0,
-      maximum: Number.MAX_SAFE_INTEGER,
-      description: 'Auto-close timer in seconds (spawn only)',
-    },
-  },
-  required: [
-    'action',
-    'id',
-    'componentName',
-    'componentProps',
-    'size',
-    'windowSize',
-    'ttlSeconds',
-  ],
-  additionalProperties: false,
-} satisfies JsonSchema
+type WidgetToolInput = z.infer<typeof widgetParams>
+
+function isJsonSchema(value: JsonSchema | boolean | JsonSchema[] | undefined): value is JsonSchema {
+  return Boolean(value && !Array.isArray(value) && typeof value === 'object')
+}
+
+function normalizeNullableAnyOf(schema: JsonSchema): JsonSchema {
+  const next: JsonSchema = { ...schema }
+
+  if (next.properties) {
+    next.properties = Object.fromEntries(
+      Object.entries(next.properties).map(([key, value]) => {
+        if (!isJsonSchema(value))
+          return [key, value]
+        return [key, normalizeNullableAnyOf(value)]
+      }),
+    )
+  }
+
+  if (Array.isArray(next.items)) {
+    next.items = next.items.map(item => isJsonSchema(item) ? normalizeNullableAnyOf(item) : item)
+  }
+  else if (isJsonSchema(next.items)) {
+    next.items = normalizeNullableAnyOf(next.items)
+  }
+
+  if (next.anyOf) {
+    next.anyOf = next.anyOf.map(value => isJsonSchema(value) ? normalizeNullableAnyOf(value) : value)
+
+    const normalizedEntries = next.anyOf.filter(isJsonSchema)
+    const primitiveTypes = normalizedEntries
+      .map(entry => entry.type)
+      .filter((type): type is Exclude<JsonSchema['type'], JsonSchema['type'][]> => typeof type === 'string')
+    const dedupedPrimitiveTypes = [...new Set(primitiveTypes)]
+
+    if (
+      primitiveTypes.length === normalizedEntries.length
+      && dedupedPrimitiveTypes.length > 0
+      && dedupedPrimitiveTypes.every(type => type !== undefined && JSON_SCHEMA_NULLABLE_SCALAR_TYPES.has(type))
+    ) {
+      for (const entry of normalizedEntries) {
+        if (entry.type !== 'number' && entry.type !== 'integer')
+          continue
+
+        next.multipleOf ??= entry.multipleOf
+        next.minimum ??= entry.minimum
+        next.maximum ??= entry.maximum
+        next.exclusiveMinimum ??= entry.exclusiveMinimum
+        next.exclusiveMaximum ??= entry.exclusiveMaximum
+      }
+      delete next.anyOf
+      next.type = dedupedPrimitiveTypes as JsonSchema['type']
+    }
+  }
+
+  if (next.oneOf) {
+    next.oneOf = next.oneOf.map(value => isJsonSchema(value) ? normalizeNullableAnyOf(value) : value)
+  }
+
+  return next
+}
+
+function normalizeWidgetWindowSizeInput(windowSize: WidgetToolInput['windowSize']): WidgetWindowSize | undefined {
+  if (!windowSize)
+    return undefined
+
+  return {
+    width: windowSize.width,
+    height: windowSize.height,
+    ...(windowSize.minWidth == null ? {} : { minWidth: windowSize.minWidth }),
+    ...(windowSize.minHeight == null ? {} : { minHeight: windowSize.minHeight }),
+    ...(windowSize.maxWidth == null ? {} : { maxWidth: windowSize.maxWidth }),
+    ...(windowSize.maxHeight == null ? {} : { maxHeight: windowSize.maxHeight }),
+  }
+}
+
+function normalizeWidgetToolInput(input: WidgetToolInput): WidgetActionInput {
+  return {
+    ...input,
+    windowSize: normalizeWidgetWindowSizeInput(input.windowSize),
+  }
+}
 
 export function normalizeComponentProps(raw?: string | Record<string, any>) {
   if (raw === undefined || raw === null)
@@ -267,13 +299,13 @@ export async function executeWidgetAction(input: WidgetActionInput, deps?: { inv
   }
 }
 
-const tools: Tool[] = [
-  rawTool({
+const tools: Promise<Tool>[] = [
+  (async () => rawTool({
     name: 'stage_widgets',
     description: 'Manage overlay widgets in the Stage desktop app (spawn, update, remove, clear, or open the widgets window).',
-    execute: params => executeWidgetAction(params as WidgetActionInput),
-    parameters: widgetParams,
-  }),
+    execute: params => executeWidgetAction(normalizeWidgetToolInput(params as WidgetToolInput)),
+    parameters: normalizeNullableAnyOf(await toJsonSchema(widgetParams) as JsonSchema),
+  }))(),
 ]
 
-export const widgetsTools = async () => tools
+export const widgetsTools = async () => Promise.all(tools)
