@@ -7,11 +7,11 @@ authors:
   - name: JhIcefair
     role: Contributing editor (primary)
     kind: person
-publishedAt: 2026-04-02
-publishedAtOverride: April 2, 2026 – evening (UTC+8)
+publishedAt: 2026-05-05
+publishedAtOverride: May 5, 2026 – evening (UTC+8)
 ---
 
-Corresponding version: AIRI-0.9.0-beta.4-windows-x64
+Corresponding version: AIRI-0.10.1-windows-x64-setup
 
 ::: info Authors
 Lead writing team: MuGewRayce
@@ -22,9 +22,10 @@ Contributing editor: JhIcefair (primary)
 ::: warning Before You Start
 - Some technical functions and operations of AIRI will not be explained in detail in this manual.
 - The primary editor is only responsible for the Chinese version of this manual. Other language versions are AI-translated and then lightly manually corrected, so they may not match the actual software. Please refer to the actual content.
-- Most of the content has been explored by the lead writing team and may differ from reality. Please rely on your own experience.
+- Please note that the images included in this manual have been added by non-Mujiu Yunxuan Studio members. Due to technical reasons, these images will not be updated promptly. We appreciate your understanding.
+- Most of the content in this manual has been explored and researched by the editor-in-chief’s team members themselves, as well as other participants. It may not be consistent with the facts or may contain deviations. Please rely on your own actual experience as the final reference.
 - This manual may not be updated in a timely manner.
-- Due to limited time and ability, this manual currently only covers some detailed tutorials for AIRI installed via the installer on Windows.
+- Due to limitations of capability and time, this manual currently only includes some detailed tutorials for AIRI installed via the installation package on the Windows platform.
 - Some parts of the software use English without translation. This manual attempts to translate those parts, but the final interpretation should follow the actual software.
 - Version updates may change content. This manual only describes the latest version before the writing time. If you encounter differences with other versions, please handle them yourself.
 - If you have additions or questions about this manual, please @jhicefair on the official Project AIRI Discord channel and leave a message.
@@ -53,6 +54,7 @@ Contributing editor: JhIcefair (primary)
   - [Data](#chapter-4-data)
   - [Connection](#chapter-4-connection)
   - [System](#chapter-4-system)
+- [Written at the End](#chapter-ed-toeveryeditor)
 
 <a id="chapter-1-installation"></a>
 ## Chapter 1 – Installation
@@ -110,11 +112,23 @@ Once you have your API, keep it safe and do not share it with others.
 The steps below use Deepseek as the example provider.
 :::
 
+::: tip Regarding a possible bug during the initial startup and the solution
+Every time you start the application for the first time, you may encounter this bug: the main interface border flickers, and when you click to expand the pop-up menu, it quickly retracts…
+
+If you encounter this bug, don't worry—you can resolve it by following the steps below (but you'll need to be quick with your clicks):
+
+First, click to expand at the exact moment when the flickering border goes dark.
+
+Then quickly find the first option in the second row, 'Refresh', and click it. This will solve the problem.
+
+This bug has not been fixed in recent versions. We will continue to report this issue to the development team and believe it will be resolved soon!
+:::
+
 Follow these steps to finish the first-time setup:
 
 1. Open Airi (normally it opens automatically after installation).
 2. Select your language in the main window.
-3. Click "**setup with your provider**".
+3. Click "**setup with your provider**", alternatively, click on "**Login**" (Due to time constraints, the process for choosing to log in is not explained here. We appreciate your understanding!).
 4. Select your service source and click "**Next**".
 5. Enter your API Key and click "**Next**".
 6. Click "**Next**" again.
@@ -130,7 +144,7 @@ Congratulations! You have completed the initial configuration of Airi.
 
 This window displays the virtual character. There are four buttons:
 
-- "websocket status" – top right, click to open connection settings where you can configure your WebSocket server address.
+- "websocket status" – top right, click to open connection settings where you can configure your WebSocket server address(This option has been removed in the current version.).
 - "Expand" – bottom right, click to reveal more options (see below).
 - "Open hearing control" – bottom right, allows you to speak to Airi. Requires an STT service.
 - "Move" – bottom right, long-press and drag to reposition the main window.
@@ -153,8 +167,9 @@ STT stands for Speech-to-Text, also known as automatic speech recognition (ASR).
 Its goal is to enable computers to understand human speech and convert it into text.
 :::
 
-Click "Expand" to reveal eight options:
+Click "Expand" to reveal nine options:
 
+- "Login" – You can log in to your own Airi account.
 - "Open settings" – opens the settings window.
 - "Switch character" – switch character cards.
 - "Open chat" – opens the chat window.
@@ -221,10 +236,10 @@ The settings window contains nine sections:
 
 - "AIRI Character Card" – configure character personality.
 - "Body Modules" – configure various functions: Consciousness, Vocalization, Hearing, Vision, Short-term Memory, Long-term Memory, Discord, X/Twitter, Minecraft, Factorio, MCP Server, Rhythm Game.
-- "Scene" – not yet released.
+- "Scene" – Configure Airi's scene (background).
 - "Character Model" – choose and configure the character's model.
 - "Memory Bank" – not yet released.
-- "Service Sources" – configure LLM, TTS, STT services.
+- "Service Sources" – configure LLM, TTS, STT, Artistry services.
 - "Data" – manage Airi's data.
 - "Connection" – configure WebSocket server address.
 - "System" – includes four sub-sections:
@@ -272,9 +287,10 @@ About creating a new character card, the recommended order is:
 1. Fill out **Identity**, including name, nickname, description, and creator's notes.
 2. Then adjust **Behavior**, including personality, scenario, and greeting.
 3. If needed, configure **Modules** for character-specific body modules.
-4. Finally, review **Settings**, including system prompt, history prompt instructions, and version.
-5. When you are ready, click "**Create**" to create the character card.
-6. After creation, click the circle in the bottom-right corner of the card, or select the card and click Activate, to enable it.
+4. Configure the **Artistry** section as needed to set up the image generation function for the character.
+5. Finally, review **Settings**, including system prompt, history prompt instructions, and version.
+6. When you are ready, click "**Create**" to create the character card.
+7. After creation, click the circle in the bottom-right corner of the card, or select the card and click Activate, to enable it.
 
 The most important fields in **Identity** are name and description:
 
@@ -284,7 +300,7 @@ The most important fields in **Identity** are name and description:
 ::: info Editor Notes
 - If you refer to the default character card, you may omit the part about ACT tags.
 - The editor has not used creator's notes, so details are omitted.
-- The editor has not fully tested Behavior, Modules, or Settings yet — only the rough purpose is documented above.
+- The editor has not fully tested Behavior, Modules, Artistry, or Settings yet — only the rough purpose is documented above.
 :::
 
 ::: warning Activation Required
@@ -381,6 +397,19 @@ Recommended order:
 This function requires enabling `vision capture` in `System → Developer → vision capture`. See that section for details.
 :::
 
+#### Artistry
+
+::: tip Too Many Service Sources
+If there are too many sources and you cannot click the ones at the back, move the mouse over a tab, press the middle mouse button, and drag left or right.
+:::
+
+Here, you can configure Airi's artistic creation capability.
+
+Please note: This feature is different from **Neuro's drawing logic** — it generates images using a third-party AI service, allowing you to obtain highly detailed **AI-generated images**.
+
+Due to time constraints, this section will not be explained in detail for now.
+
+
 #### Short-term Memory
 
 Not yet released.
@@ -426,7 +455,13 @@ The editor is still exploring this. Tutorial omitted.
 <a id="chapter-4-stage"></a>
 ### Scene
 
-Not yet released.
+Here, you can configure Airi's main interface scene—simply put, the background of Airi's main interface.
+
+Two presets are included. To enable a scene, click the checkmark in the middle of one of the presets (it will appear only when you hover your mouse over it).
+
+You can also click "**Upload to Gallery**" to import your own image scene.
+
+If you need to clear the scene, click "**Clear Default**".
 
 <a id="chapter-4-character-model"></a>
 ### Character Model
@@ -444,6 +479,10 @@ If you only want to switch to an existing model:
 3. Select one and click "**confirm**" to switch.
 
 If you want to import your own model, click "**add**" to import a Live2D or VRM model.
+
+::: info Editor Note
+Regarding the "Switch to Godot Stage (Experimental)" option—since the manual's editorial team has not yet fully understood this feature and it appears to be in an experimental stage, relevant introduction is omitted for now.
+:::
 
 ::: warning Before Importing A Model
 - Old Live2D models are not supported. You must use files that include "\*.moc3".
@@ -479,9 +518,29 @@ Not yet released.
 <a id="chapter-4-providers"></a>
 ### Service Sources
 
-Here you can configure LLM, TTS, and STT service sources.
+Here you can configure Chat(LLM), Speech(TTS), Transcription(STT), Artistry service sources.
+
+Select an option, choose a service source you have already prepared, and fill in the required information on the corresponding interface to complete the configuration.
+
+In addition, you can filter all services by criteria such as Pricing and Deployment.
+
+* Regarding Pricing, there are three options:
+
+  - All
+  - Free
+  - Paid
+ 
+* Regarding Deployment, there are three options:
+
+  - All
+  - Local
+  - Cloud
 
 ![Airi service sources settings window](./assets/manual-providers.avif)
+
+::: warning Please pay attention
+The configuration interfaces for some services may not function properly due to a lack of timely maintenance. If you encounter a similar issue, please submit an issue on GitHub, or try configuring via the "OpenAI Compatible API" option (if your chosen service source supports it).
+:::
 
 ::: info Editor Note
 Details omitted.
@@ -570,9 +629,10 @@ First box and its related options:
 
 - In the first box, you can click "**Open**" to open the developer tools window (like F12 in a browser).
 - The second "Markdown stress test" – details omitted.
-- The third "Lag visualization" – details omitted.
-- The fourth "Enable stage transition animation" – details omitted.
-- The fifth "Use page-specific cutscenes" – details omitted.
+- The third "IO Tracer" — function introduction omitted for now.
+- The fourth "Lag visualization" – details omitted.
+- The fifth "Enable stage transition animation" – details omitted.
+- The sixth "Use page-specific cutscenes" – details omitted.
 
 ##### useMagicKeys tool
 
@@ -620,6 +680,10 @@ Here you can visualize the mouse cursor position within this window.
 
 ![Airi Plugin Host Debug tool window](./assets/manual-devtools-plugin-host.avif)
 
+##### Updater
+
+Detailed introduction omitted for now.
+
 ##### Screen Capture
 
 If you have not granted system-level screen capture permission yet, you will first see a permission prompt like the screenshot below. After granting permission, you can capture any application window or the entire screen.
@@ -638,3 +702,15 @@ There are four options at the top:
 If screen capture permission has not been granted yet, this page will also show a permission prompt first. After granting permission, the page can start capturing frames and show the vision processing result.
 
 ![Airi vision capture tool window](./assets/manual-devtools-vision-capture.avif)
+
+<a id="chapter-ed-toeveryeditor"></a>
+## Written at the End
+
+This manual is primarily written by non-official personnel but submitted to the official website. Although content maintenance is usually handled by members of the Mujiu Yunxuan Studio, we sincerely hope that all friends who wish to edit this document or have already edited it will leave your name in the author section at the beginning. Whether you make content changes or formatting adjustments, we welcome everyone to join us in enriching and optimizing this manual, contributing your own strength—from anyone—to the Airi project and to this manual!
+
+Furthermore, if you are a non-official user and have ideas for editing this manual, please do not have any additional concerns—simply make the changes and submit an issue. However, we remind you again not to forget to leave your name!
+
+Thank you all for your support and cooperation!
+
+Sincerely,  
+JhIceFair
