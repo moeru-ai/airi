@@ -1,6 +1,6 @@
 # Desktop Lane Status
 
-Updated: 2026-04-14
+Updated: 2026-05-06
 
 This note is a factual status memo for the current desktop lane work around PR #1649. It is intentionally narrow: only current state, actual blockers, and what should happen now vs later.
 
@@ -18,6 +18,8 @@ This note is a factual status memo for the current desktop lane work around PR #
     - `makeWindowPassThrough()` uses ignore-mouse-events + non-focusable overlay behavior
   - `/Users/liuziheng/airi/services/computer-use-mcp/src/browser-dom/cdp-bridge.ts`
     - 5-second heartbeat with teardown after 3 consecutive failures
+  - `/Users/liuziheng/airi/services/computer-use-mcp/src/bin/smoke-chrome-grounding.ts`
+    - desktop v3 smoke that proves the ensure / observe / click / state chain
 - The Chrome extension bridge and iframe offset work are no longer hypothetical:
   - PR #1649 already contains a real extension-side WebSocket client bridge
   - PR #1649 already contains frame offset propagation for iframe DOM candidates
@@ -26,7 +28,14 @@ This note is a factual status memo for the current desktop lane work around PR #
 
 These are the remaining real issues, ordered by severity.
 
-### 1. Extension unknown actions still return `ok: true`
+### 1. Live desktop v3 smoke exists, but it is baseline coverage, not product support.
+
+- Current smoke proves:
+  `desktop_ensure_chrome -> desktop_observe -> desktop_click_target -> desktop_get_state`
+- It does not prove Chrome semantic DOM routing, live overlay-window rendering,
+  or user-input isolation.
+
+### 2. Extension unknown actions still return `ok: true`
 
 - File:
   - `/Users/liuziheng/airi-pr1649/services/computer-use-mcp/chrome-extension/background.js`
@@ -38,7 +47,7 @@ These are the remaining real issues, ordered by severity.
   - that can suppress OS-input fallback even though nothing actually happened
 - This is still a real unresolved review blocker.
 
-### 2. Browser-dom click routing still ignores non-default click semantics
+### 3. Browser-dom click routing still ignores non-default click semantics
 
 - File:
   - `/Users/liuziheng/airi-pr1649/services/computer-use-mcp/src/browser-action-router.ts`
@@ -50,7 +59,7 @@ These are the remaining real issues, ordered by severity.
   - right-click or double-click can still be routed to a DOM path that only performs a standard primary click
 - This is not as severe as the first issue, but it is still a real correctness gap.
 
-### 3. Overlay lifecycle / RPC readiness is not fully closed yet
+### 4. Overlay lifecycle / RPC readiness is not fully closed yet
 
 - Files currently being worked on:
   - `/Users/liuziheng/airi-pr1649/apps/stage-tamagotchi/src/main/windows/desktop-overlay/rpc/contracts.ts`

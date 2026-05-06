@@ -159,6 +159,20 @@ export const supportMatrix: SupportMatrixEntry[] = [
   },
   {
     lane: 'desktop-native',
+    id: 'desktop_v3_chrome_grounding',
+    label: 'Desktop v3 Chrome grounding smoke (ensure / observe / click / state)',
+    level: 'covered',
+    unitTests: [
+      'src/bin/smoke-chrome-grounding.test.ts',
+      'src/server/register-chrome-session.test.ts',
+      'src/server/register-desktop-grounding.test.ts',
+      'src/server/register-desktop-grounding-tools.test.ts',
+    ],
+    smokeCommand: 'pnpm -F @proj-airi/computer-use-mcp smoke:desktop-v3',
+    happyPath: 'desktop_ensure_chrome → desktop_observe → desktop_click_target → desktop_get_state updates grounding and pointer state',
+  },
+  {
+    lane: 'desktop-native',
     id: 'desktop_click_type_press',
     label: 'Native mouse click / keyboard type / key press',
     level: 'implemented',
