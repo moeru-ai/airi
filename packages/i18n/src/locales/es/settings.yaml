@@ -1214,6 +1214,9 @@ pages:
       n1n:
         description: n1n.ai - Proveedor de API de IA de alto rendimiento.
         title: n1n
+      meganova:
+        description: meganova.ai
+        title: MegaNova AI
       openrouter:
         description: openrouter.ai
         title: OpenRouter

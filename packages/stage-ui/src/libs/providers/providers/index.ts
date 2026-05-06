@@ -31,6 +31,7 @@ import './modelscope'
 import './ollama'
 import './mimo'
 import './cloudflare-workers-ai'
+import './meganova-ai'
 import './azure-ai-foundry'
 import './official'
 

@@ -1214,6 +1214,9 @@ pages:
       n1n:
         description: n1n.ai - 高效能AI API供應商
         title: n1n
+      meganova:
+        description: meganova.ai
+        title: MegaNova AI
       openrouter:
         description: OpenRouter.ai
         title: OpenRouter
