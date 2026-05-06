@@ -163,12 +163,14 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 ## Module Design
 
 - Prefer deep modules over shallow modules. A module should hide a meaningful decision: policy, persistence boundary, protocol/schema contract, scheduling semantics, model prompt contract, domain invariant, or lifecycle concern.
-- Do not split by execution order alone. Files named like `collector`, `planner`, `executor`, `deps`, or `utils` are acceptable only when each owns a distinct stable responsibility and can be understood without reading all sibling files.
+- Do not split code by execution order alone. A module boundary should represent a stable responsibility that can be understood without reading all sibling files.
 - Keep cohesive domain flows together until there is proven pressure to split. A 200-400 line cohesive module is preferable to several shallow modules that pass the same context/options through each other.
 - Before creating a new `createXService` or `XDependencies`, verify that `X` adds policy, validation, state, retry/error handling, IO boundary, or a reusable abstraction. If not, keep it as a private helper or inline it.
 - Avoid pass-through services such as `createXService({ yService })` when `X` adds no meaningful policy, validation, state, or abstraction.
+- Do not extract tiny one-call helper functions just to name an implementation step, reduce line count, or make tests easier to write. Keep short logic inline when the helper does not hide a real decision, policy, IO boundary, normalization rule, retry/error handling, lifecycle concern, or reusable domain concept.
+- Extract a helper only when it is reused by multiple production call sites, hides non-trivial branching/IO/parsing/normalization/error policy, names a stable domain concept, or forms part of a public/package API.
 - Test through stable public behavior. Do not create new exports, dependency bags, or wrapper services only to make private implementation details mockable.
-- Prompt text, model-facing schemas, and prompt rendering helpers belong in `packages/prompts` when they are reused, model-facing contracts, or require prompt tests/evals. Server files should wire runtime dependencies and call prompt builders instead of inlining large prompts.
+- Keep reusable domain contracts and rendering/building logic in the package that owns that domain. Runtime entrypoints should wire dependencies and call those boundaries instead of inlining large reusable contracts.
 
 ## PR / Workflow Tips
 
