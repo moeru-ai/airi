@@ -1,0 +1,3 @@
+extends GLTFDocumentExtension
+
+pass
