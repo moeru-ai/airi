@@ -3,6 +3,7 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import { ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components'
+import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
@@ -47,6 +48,7 @@ const viewControlsInputsRef = useTemplateRef<InstanceType<typeof ViewControlInpu
 const messageInput = ref('')
 const isComposing = ref(false)
 const backgroundDialogOpen = ref(false)
+const sessionsDrawerOpen = ref(false)
 
 const screenSafeArea = useScreenSafeArea()
 const providersStore = useProvidersStore()
@@ -176,6 +178,16 @@ onMounted(() => {
       <div translate-y="[-100%]" absolute right-0 px-3 pb-3 font-sans>
         <div flex="~ col" gap-1>
           <ActionAbout />
+          <button
+            border="2 solid neutral-100/60 dark:neutral-800/30"
+            bg="neutral-50/70 dark:neutral-800/70"
+            w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
+            title="Conversations"
+            @click="sessionsDrawerOpen = true"
+          >
+            <div i-solar:chat-line-bold-duotone size-5 text="neutral-500 dark:neutral-400" />
+          </button>
+          <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
           <HearingConfigDialog
             v-model:show="hearingDialogOpen"
             v-model:enabled="enabled"

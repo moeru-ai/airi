@@ -15,6 +15,7 @@ import { useAnalytics } from '../composables'
 import { useLlmmarkerParser } from '../composables/llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from '../composables/response-categoriser'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
+import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
 import { formatContextPromptText } from './chat/context-prompt'
 import { createMinecraftContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
@@ -248,12 +249,24 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       if (shouldAbort())
         return
 
-      chatSession.appendSessionMessage(sessionId, {
-        role: 'user',
+      const userMessageId = nanoid()
+      const userMessage = {
+        role: 'user' as const,
         content: finalContent,
         createdAt: sendingCreatedAt,
-        id: nanoid(),
-      })
+        id: userMessageId,
+      }
+      chatSession.appendSessionMessage(sessionId, userMessage)
+      // Cloud sync v1: only the raw text part round-trips; image attachments
+      // and other non-text parts stay local. The session-store guard handles
+      // anonymous / unmapped sessions and offline state.
+      if (isCloudSyncableMessage(userMessage)) {
+        void chatSession.pushMessageToCloud(sessionId, {
+          id: userMessageId,
+          role: 'user',
+          content: sendingMessage,
+        })
+      }
       const sessionMessagesForSend = chatSession.getSessionMessages(sessionId)
 
       // --------------------------------
@@ -518,7 +531,15 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       await parser.end()
 
       if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
-        chatSession.appendSessionMessage(sessionId, toRaw(buildingMessage))
+        const finalAssistant = toRaw(buildingMessage)
+        chatSession.appendSessionMessage(sessionId, finalAssistant)
+        if (isCloudSyncableMessage(finalAssistant) && finalAssistant.id) {
+          void chatSession.pushMessageToCloud(sessionId, {
+            id: finalAssistant.id,
+            role: 'assistant',
+            content: extractMessageText(finalAssistant),
+          })
+        }
       }
 
       await hooks.emitStreamEndHooks(streamingMessageContext)

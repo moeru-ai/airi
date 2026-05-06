@@ -3143,6 +3143,9 @@ importers:
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../server-sdk
+      '@proj-airi/server-sdk-shared':
+        specifier: workspace:^
+        version: link:../server-sdk-shared
       '@proj-airi/stage-shared':
         specifier: workspace:^
         version: link:../stage-shared
