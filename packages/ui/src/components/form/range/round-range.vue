@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useElementHover, useKeyModifier } from '@vueuse/core'
 import { computed, onMounted, ref, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
@@ -6,6 +7,7 @@ const props = withDefaults(defineProps<{
   max?: number
   step?: number
   disabled?: boolean
+  handleWheel?: boolean
 }>(), {
   min: 0,
   max: 100,
@@ -13,17 +15,22 @@ const props = withDefaults(defineProps<{
   disabled: false,
 })
 
+const smoothingFactor = 10000
+
 const modelValue = defineModel<number>({ required: true })
 
-const scaledMin = computed(() => props.min * 10000)
-const scaledMax = computed(() => props.max * 10000)
-const scaledStep = computed(() => props.step * 10000)
-
 const sliderRef = ref<HTMLInputElement>()
+
+const scaledMin = computed(() => props.min * smoothingFactor)
+const scaledMax = computed(() => props.max * smoothingFactor)
+const scaledStep = computed(() => props.step * smoothingFactor)
+const shiftPressed = useKeyModifier('Shift')
+const isHovered = useElementHover(sliderRef)
+
 const sliderValue = computed({
-  get: () => modelValue.value * 10000,
+  get: () => modelValue.value * smoothingFactor,
   set: (value: number) => {
-    modelValue.value = value / 10000
+    modelValue.value = value / smoothingFactor
     updateTrackColor()
   },
 })
@@ -31,6 +38,15 @@ const sliderValue = computed({
 onMounted(() => updateTrackColor())
 watch(sliderValue, () => updateTrackColor(), { immediate: true })
 watch([scaledMin, scaledMax, scaledStep], () => updateTrackColor(), { immediate: true })
+watch(isHovered, (hovered: boolean) => {
+  if (!props.handleWheel)
+    return
+  if (hovered) {
+    sliderRef.value?.addEventListener('wheel', onWheelInput)
+    return
+  }
+  sliderRef.value?.removeEventListener('wheel', onWheelInput)
+})
 
 function updateTrackColor() {
   if (!sliderRef.value) {
@@ -45,6 +61,15 @@ function updateTrackColor() {
 function handleInput(e: Event) {
   const target = e.target as HTMLInputElement
   target.style.setProperty('--value', target.value)
+}
+
+function onWheelInput(ev: WheelEvent) {
+  let valueAfter = 0
+  if (ev.deltaY < 0)
+    valueAfter = modelValue.value += props.step * (shiftPressed.value ? 50 : 1)
+  if (ev.deltaY > 0)
+    valueAfter = modelValue.value -= props.step * (shiftPressed.value ? 50 : 1)
+  modelValue.value = Math.min(Math.max(valueAfter, props.min), props.max)
 }
 </script>
 
@@ -66,21 +91,23 @@ function handleInput(e: Event) {
 /*generated with Input range slider CSS style generator (version 20211225)
 https://toughengineer.github.io/demo/slider-styler*/
 .form_input-round-range {
-  --height: 2em;
+  --height: 100%;
+  --width: 2rem;
 
-  min-height: var(--height);
+  min-height: var(--width);
   appearance: none;
   background: transparent;
   transition: background-color 0.2s ease;
 
-  --thumb-width: var(--height);
-  --thumb-height: var(--height);
+  --thumb-width: var(--width);
+  --thumb-height: var(--width);
   --thumb-box-shadow: none;
   --thumb-border: none;
   --thumb-border-radius: 0px;
   --thumb-background: transparent;
 
   --track-height: calc(var(--height) - var(--track-value-padding) * 2);
+  --track-width: var(--width);
   --track-box-shadow: 0 0 12px -2px rgb(0 0 0 / 22%);
   --track-border: none;
   --track-border-radius: 16px;
@@ -95,8 +122,6 @@ https://toughengineer.github.io/demo/slider-styler*/
 }
 
 .dark .form_input-round-range {
-  --thumb-background: rgb(238, 238, 238);
-
   --track-border: none;
   --track-background: rgba(64, 64, 64, 0.7);
   --track-box-shadow: 0 0 12px -2px rgb(0 0 0 / 22%);
