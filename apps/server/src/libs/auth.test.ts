@@ -139,6 +139,7 @@ describe('ensureDynamicFirstPartyRedirectUri', () => {
     await ensureDynamicFirstPartyRedirectUri(
       db as any,
       new Request('https://api.airi.build/api/auth/oauth2/authorize?client_id=airi-stage-web&redirect_uri=https%3A%2F%2Fpreview.kwaa.workers.dev%2Fauth%2Fcallback'),
+      [],
     )
 
     expect(setCalls).toHaveLength(1)
@@ -173,6 +174,7 @@ describe('ensureDynamicFirstPartyRedirectUri', () => {
     await ensureDynamicFirstPartyRedirectUri(
       db as any,
       new Request('https://airi-server-dev.up.railway.app/api/auth/oauth2/authorize?client_id=airi-stage-electron&redirect_uri=https%3A%2F%2Fairi-server-dev.up.railway.app%2Fapi%2Fauth%2Foidc%2Felectron-callback'),
+      [],
     )
 
     expect(setCalls).toHaveLength(1)
@@ -192,16 +194,19 @@ describe('ensureDynamicFirstPartyRedirectUri', () => {
     await ensureDynamicFirstPartyRedirectUri(
       db as any,
       new Request('https://api.airi.build/api/auth/oauth2/authorize?client_id=airi-stage-web&redirect_uri=https%3A%2F%2Fevil.example%2Fauth%2Fcallback'),
+      [],
     )
 
     await ensureDynamicFirstPartyRedirectUri(
       db as any,
       new Request('https://api.airi.build/api/auth/oauth2/authorize?client_id=airi-stage-web&redirect_uri=https%3A%2F%2Fairi.moeru.ai%2Fother-path'),
+      [],
     )
 
     await ensureDynamicFirstPartyRedirectUri(
       db as any,
       new Request('https://api.airi.build/api/auth/oauth2/authorize?client_id=airi-stage-electron&redirect_uri=https%3A%2F%2Fother.example%2Fapi%2Fauth%2Foidc%2Felectron-callback'),
+      [],
     )
 
     expect(db.select).not.toHaveBeenCalled()

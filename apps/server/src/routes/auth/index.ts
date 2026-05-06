@@ -131,7 +131,7 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
       keyGenerator: c => c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'unknown',
     }))
     .use('/api/auth/oauth2/authorize', async (c, next) => {
-      await ensureDynamicFirstPartyRedirectUri(deps.db, c.req.raw)
+      await ensureDynamicFirstPartyRedirectUri(deps.db, c.req.raw, deps.env.ADDITIONAL_TRUSTED_ORIGINS)
       await next()
     })
     .route('/api/auth', createOIDCTokenAuthRoute(deps))

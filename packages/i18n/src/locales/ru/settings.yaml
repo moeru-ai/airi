@@ -901,7 +901,7 @@ pages:
         description: >-
           Провайдеры транскрипции (speech-to-text): Whisper.cpp, OpenAI, Azure Speech
       artistry:
-        title: Artistry 
+        title: Artistry
         description: Поставщики моделей генерации и создания изображений, например ComfyUI, Replicate.
         items:
           comfyui:
