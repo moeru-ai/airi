@@ -140,6 +140,7 @@ catalog:
   vue: ^3.5.32
   vue-router: ^5.0.4
   vue-sonner: 2.0.9
+  wavesurfer.js: ^7.12.5
   web-haptics: ^0.0.6
   whatwg-mimetype: ^5.0.0
   ws: ^8.20.0

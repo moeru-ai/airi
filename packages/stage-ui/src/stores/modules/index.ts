@@ -4,6 +4,8 @@ export * from './discord'
 export * from './gaming-factorio'
 export * from './gaming-minecraft'
 export * from './hearing'
+// --- [singing] module ---
+export * from './singing'
 export * from './speech'
 export * from './twitter'
 export * from './vision'

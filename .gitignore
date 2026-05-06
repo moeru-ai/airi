@@ -13,6 +13,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+cloudflare_logs.txt
 
 .idea
 .temp
@@ -67,7 +68,9 @@ components.d.ts
 .eslintcache
 **/.cache/
 **/.vitepress/cache/
+**/tsconfig.tsbuildinfo
 **/*.tsbuildinfo
+.cursor/plans/
 
 # Netlify
 **/.netlify/*

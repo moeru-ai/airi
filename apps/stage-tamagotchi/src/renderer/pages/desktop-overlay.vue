@@ -162,7 +162,9 @@ const rippleStyle = computed(() => {
 watch(pointerPhase, (newPhase) => {
   if (newPhase === 'completed') {
     showRipple.value = true
-    setTimeout(() => { showRipple.value = false }, 600)
+    setTimeout(() => {
+      showRipple.value = false
+    }, 600)
   }
 })
 

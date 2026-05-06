@@ -2,7 +2,7 @@ import type { FileLoggerHandle } from './app/file-logger'
 
 import process, { env, platform } from 'node:process'
 
-import { dirname } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import messages from '@proj-airi/i18n/locales'
@@ -10,6 +10,7 @@ import messages from '@proj-airi/i18n/locales'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
+import { errorMessageFrom } from '@moeru/std'
 import { initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
 import { app, ipcMain } from 'electron'
 import { noop } from 'es-toolkit'
@@ -33,6 +34,7 @@ import { setupMcpStdioManager } from './services/airi/mcp-servers'
 import { setupPluginHost } from './services/airi/plugins'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { setupAutoUpdater } from './services/electron/auto-updater'
+import { setupSingingLocalServer } from './services/singing'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
@@ -46,6 +48,8 @@ import { setupOnboardingWindowManager } from './windows/onboarding'
 import { setupSettingsWindowReusableFunc } from './windows/settings'
 import { setupWidgetsWindowManager } from './windows/widgets'
 
+const SINGING_LOCAL_SERVER_INFO_CHANNEL = 'airi:singing:get-local-server-info'
+
 // TODO: once we refactored eventa to support window-namespaced contexts,
 // we can remove the setMaxListeners call below since eventa will be able to dispatch and
 // manage events within eventa's context system.
@@ -57,6 +61,15 @@ setGlobalLogLevel(LogLevel.Log)
 setupDebugger()
 
 const log = useLogg('main').useGlobalConfig()
+
+function toSingingLocalServerSnapshot(server: Awaited<ReturnType<typeof setupSingingLocalServer>> | null) {
+  return {
+    url: server?.url ?? null,
+    port: server?.port ?? null,
+    ready: !!server?.ready,
+    error: server?.error ?? null,
+  }
+}
 
 // Thanks to [@blurymind](https://github.com/blurymind),
 //
@@ -149,6 +162,44 @@ app.whenReady().then(async () => {
     build: ({ dependsOn }) => setupWidgetsWindowManager(dependsOn),
   })
 
+  const singingServerState: {
+    current: Awaited<ReturnType<typeof setupSingingLocalServer>> | null
+    pending: Promise<Awaited<ReturnType<typeof setupSingingLocalServer>>> | null
+  } = {
+    current: null,
+    pending: null,
+  }
+
+  const singingServer = injeca.provide('services:singing-local-server', {
+    build: () => {
+      const pending = setupSingingLocalServer({
+        dataDir: join(app.getPath('userData'), 'airi-singing'),
+      }).then((server) => {
+        singingServerState.current = server
+        return server
+      })
+
+      singingServerState.pending = pending
+      return pending
+    },
+  })
+
+  ipcMain.removeHandler(SINGING_LOCAL_SERVER_INFO_CHANNEL)
+  ipcMain.handle(SINGING_LOCAL_SERVER_INFO_CHANNEL, async () => {
+    if (singingServerState.current)
+      return toSingingLocalServerSnapshot(singingServerState.current)
+
+    if (singingServerState.pending)
+      return toSingingLocalServerSnapshot(await singingServerState.pending)
+
+    return {
+      url: null,
+      port: null,
+      ready: false,
+      error: 'Local singing server is still initializing',
+    }
+  })
+
   const pluginHost = injeca.provide('modules:plugin-host', {
     dependsOn: { serverChannel, widgetsManager },
     build: ({ dependsOn }) => setupPluginHost(dependsOn),
@@ -182,12 +233,35 @@ app.whenReady().then(async () => {
   })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpStdioManager, i18n, windowAuthManager },
+    dependsOn: {
+      widgetsManager,
+      beatSync,
+      autoUpdater,
+      devtoolsWindow: devtoolsMarkdownStressWindow,
+      serverChannel,
+      godotStageManager,
+      mcpStdioManager,
+      i18n,
+      windowAuthManager,
+    },
     build: async ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpStdioManager, i18n, onboardingWindowManager, windowAuthManager },
+    dependsOn: {
+      settingsWindow,
+      chatWindow,
+      widgetsManager,
+      noticeWindow,
+      beatSync,
+      autoUpdater,
+      serverChannel,
+      godotStageManager,
+      mcpStdioManager,
+      i18n,
+      onboardingWindowManager,
+      windowAuthManager,
+    },
     build: async ({ dependsOn }) => setupMainWindow(dependsOn),
   })
 
@@ -197,7 +271,16 @@ app.whenReady().then(async () => {
   })
 
   const tray = injeca.provide('app:tray', {
-    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, serverChannel, beatSyncBgWindow: beatSync, aboutWindow, i18n },
+    dependsOn: {
+      mainWindow,
+      settingsWindow,
+      captionWindow,
+      widgetsWindow: widgetsManager,
+      serverChannel,
+      beatSyncBgWindow: beatSync,
+      aboutWindow,
+      i18n,
+    },
     build: async ({ dependsOn }) => setupTray(dependsOn),
   })
 
@@ -218,7 +301,7 @@ app.whenReady().then(async () => {
   }
 
   injeca.invoke({
-    dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, godotStageManager, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, artistryConfig },
+    dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, godotStageManager, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, singingServer, widgetsWindow: widgetsManager, artistryConfig },
     callback: async (deps) => {
       const { context } = createContext(ipcMain)
       await setupArtistryBridge({
@@ -242,7 +325,7 @@ app.whenReady().then(async () => {
   // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
   app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
 }).catch((err) => {
-  log.withError(err).error('Error during app initialization')
+  log.withError(err).error(errorMessageFrom(err) ?? 'Error during app initialization')
 })
 
 // Quit when all windows are closed, except on macOS. There, it's common

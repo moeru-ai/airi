@@ -14,7 +14,7 @@ index 1b8df0289811d82777e853bc4290e35b16b0bd36..4682f7bbf62b1bc3d65abde34d7366c6
 @@ -222,9 +224,32 @@ interface DetermineStepTypeOptions {
  /** @internal */
  declare const determineStepType: ({ finishReason, stepsLength, toolCallsLength, willContinue }: DetermineStepTypeOptions) => CompletionStepType;
- 
+
 +type OnToolCallFinishCallback = (context: {
 +    durationMs: number;
 +    error?: unknown;
@@ -50,12 +50,12 @@ index 1b8df0289811d82777e853bc4290e35b16b0bd36..4682f7bbf62b1bc3d65abde34d7366c6
  }
 -declare const executeTool: ({ abortSignal, messages, toolCall, tools }: ExecuteToolOptions) => Promise<ExecuteToolResult>;
 +declare const executeTool: (options: ExecuteToolOptions) => Promise<ExecuteToolResult>;
- 
+
  interface ResolvedStepOptions {
      messages: Message[];
 @@ -256,4 +280,4 @@ declare const hasToolCall: (name?: string) => StopCondition;
  declare const shouldStop: (stopWhen: StopCondition, context: StopContext) => boolean;
- 
+
  export { and, chat, determineStepType, executeTool, hasToolCall, not, or, resolveStepOptions, shouldStop, stepCountAtLeast };
 -export type { AssistantMessage, AudioContentPart, ChatOptions, CommonContentPart, CompletionStep, CompletionStepType, CompletionToolCall, CompletionToolResult, DetermineStepTypeOptions, DeveloperMessage, ExecuteToolOptions, ExecuteToolResult, FileContentPart, FinishReason, ImageContentPart, Message, PrepareStep, PrepareStepOptions, PrepareStepResult, RefusalContentPart, ResolveStepOptionsOptions, ResolvedStepOptions, StopCondition, StopContext, StopStep, SystemMessage, TextContentPart, Tool, ToolCall, ToolChoice, ToolExecuteOptions, ToolExecuteResult, ToolMessage, Usage, UserMessage };
 +export type { AssistantMessage, AudioContentPart, ChatOptions, CommonContentPart, CompletionStep, CompletionStepType, CompletionToolCall, CompletionToolResult, DetermineStepTypeOptions, DeveloperMessage, ExecuteToolOptions, ExecuteToolResult, FileContentPart, FinishReason, ImageContentPart, Message, OnToolCallFinishCallback, OnToolCallStartCallback, PrepareStep, PrepareStepOptions, PrepareStepResult, RefusalContentPart, RepairToolCallFunction, ResolveStepOptionsOptions, ResolvedStepOptions, StopCondition, StopContext, StopStep, SystemMessage, TextContentPart, Tool, ToolCall, ToolChoice, ToolExecuteOptions, ToolExecuteResult, ToolMessage, Usage, UserMessage };
@@ -259,6 +259,6 @@ index 34e87341ac400dd8c61457c188485b82a1383300..2e7e1fa99fdbccb7a0be0af92504ed90
 +    return buildErrorReturn(toolCall, resolvedToolName, toolCallId, error);
 +  }
 +};
- 
+
  const resolveStepOptions = async ({ messages, model, prepareStep, stepNumber, steps, toolChoice }) => {
    const prepared = prepareStep == null ? void 0 : await prepareStep({

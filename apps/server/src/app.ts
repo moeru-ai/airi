@@ -14,6 +14,7 @@ import type { ConfigKVService } from './services/config-kv'
 import type { FluxService } from './services/flux'
 import type { FluxTransactionService } from './services/flux-transaction'
 import type { ProviderService } from './services/providers'
+import type { SingingService } from './services/singing/singing-service'
 import type { StripeService } from './services/stripe'
 import type { UserDeletionService } from './services/user-deletion'
 import type { HonoEnv } from './types/hono'
@@ -38,6 +39,7 @@ import { initializeExternalDependency } from './libs/external-dependency'
 import { emitOtelLog, initOtel } from './libs/otel'
 import { createRedis } from './libs/redis'
 import { resolveRequestAuth } from './libs/request-auth'
+import { createSingingDeps } from './libs/singing/deps'
 import { sessionMiddleware } from './middlewares/auth'
 import { otelMiddleware } from './middlewares/otel'
 import { createAuthRoutes } from './routes/auth'
@@ -47,6 +49,7 @@ import { createChatRoutes } from './routes/chats'
 import { createFluxRoutes } from './routes/flux'
 import { createV1CompletionsRoutes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
+import { createSingingRoutes } from './routes/singing'
 import { createStripeRoutes } from './routes/stripe'
 import { createBillingMq } from './services/billing/billing-events'
 import { createBillingService } from './services/billing/billing-service'
@@ -63,6 +66,7 @@ import { createStripeService } from './services/stripe'
 import { createUserDeletionService } from './services/user-deletion'
 import { ApiError, createInternalError, createUnauthorizedError } from './utils/error'
 import { getTrustedOrigin } from './utils/origin'
+import { shouldBypassGlobalBodyLimit } from './utils/request-body-limit'
 
 interface AppDeps {
   auth: AuthInstance
@@ -80,6 +84,7 @@ interface AppDeps {
   redis: Redis
   env: Env
   otel: OtelInstance | null
+  singingService: SingingService
   userDeletionService: UserDeletionService
 }
 
@@ -132,7 +137,13 @@ export async function buildApp(deps: AppDeps) {
 
   const builtApp = app
     .use('*', sessionMiddleware(deps.auth, deps.env))
-    .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
+    .use('*', async (c, next) => {
+      // Skip the global 1MB cap for endpoints that apply their own route-level limits.
+      if (shouldBypassGlobalBodyLimit(c.req.path)) {
+        return next()
+      }
+      return bodyLimit({ maxSize: 1024 * 1024 })(c, next)
+    })
     .onError((err, c) => {
       if (err instanceof ApiError) {
         if (err.statusCode >= 500) {
@@ -213,6 +224,7 @@ export async function buildApp(deps: AppDeps) {
     /**
      * Stripe routes.
      */
+    .route('/api/v1/singing', createSingingRoutes(deps.singingService))
     .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue))
 
     /**
@@ -412,6 +424,11 @@ export async function createApp() {
     build: ({ dependsOn }) => createRequestLogService(dependsOn.db),
   })
 
+  const singingService = injeca.provide('services:singing', {
+    dependsOn: {},
+    build: () => createSingingDeps().service,
+  })
+
   const billingService = injeca.provide('services:billing', {
     dependsOn: { db, redis, billingMq, configKV, otel },
     build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.billingMq, dependsOn.configKV, dependsOn.otel?.revenue),
@@ -453,6 +470,7 @@ export async function createApp() {
     redis,
     env: parsedEnv,
     otel,
+    singingService,
     userDeletionService,
   })
   const { app, injectWebSocket } = await buildApp({
@@ -471,6 +489,7 @@ export async function createApp() {
     redis: resolved.redis,
     env: resolved.env,
     otel: resolved.otel,
+    singingService: resolved.singingService,
     userDeletionService: resolved.userDeletionService,
   })
 

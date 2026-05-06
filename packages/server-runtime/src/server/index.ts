@@ -1,6 +1,6 @@
 import type { AppOptions } from '..'
 
-import { isIP } from 'node:net'
+import { createServer as createNetServer, isIP } from 'node:net'
 import { networkInterfaces } from 'node:os'
 
 import { useLogg } from '@guiiai/logg'
@@ -31,6 +31,9 @@ export interface Server {
   restart: () => Promise<void>
   updateConfig: (newOptions: ServerOptions) => void
 }
+
+const DEFAULT_SERVER_PORT = 6121
+const DEFAULT_SERVER_HOSTNAME = '0.0.0.0'
 
 /**
  * Collects local IP addresses that can be used to reach the server from the LAN.
@@ -83,6 +86,23 @@ export function getLocalIPs(): string[] {
   return [...addresses]
 }
 
+function checkPortAvailable(port: number, hostname: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const tester = createNetServer()
+      .once('error', () => resolve(false))
+      .once('listening', () => { tester.close(() => resolve(true)) })
+      .listen(port, hostname)
+  })
+}
+
+async function ensurePortAvailable(port: number, hostname: string): Promise<void> {
+  const checkHost = hostname === '0.0.0.0' ? '127.0.0.1' : hostname
+  if (await checkPortAvailable(port, checkHost))
+    return
+
+  throw new Error(`Port ${port} is already in use by another process`)
+}
+
 /**
  * Creates the websocket server controller for the AIRI runtime.
  *
@@ -97,7 +117,7 @@ export function getLocalIPs(): string[] {
  * - Lifecycle helpers for starting, stopping, restarting, and updating server options
  */
 export function createServer(opts?: ServerOptions): Server {
-  let options = merge<ServerOptions>({ port: 6121, hostname: '127.0.0.1' }, opts)
+  let options = merge<ServerOptions>({ port: DEFAULT_SERVER_PORT, hostname: DEFAULT_SERVER_HOSTNAME }, opts)
 
   const { appLogFormat, appLogLevel } = normalizeLoggerConfig(options)
   const log = useLogg('@proj-airi/server-runtime/server').withLogLevelString(appLogLevel).withFormat(appLogFormat)
@@ -145,8 +165,10 @@ export function createServer(opts?: ServerOptions): Server {
       const secureEnabled = options?.tlsConfig != null
       const h3App = setupApp(options)
 
-      const port = options.port
-      const hostname = options.hostname
+      const port = options.port ?? DEFAULT_SERVER_PORT
+      const hostname = options.hostname ?? DEFAULT_SERVER_HOSTNAME
+
+      await ensurePortAvailable(port, hostname)
 
       const instance = serve(h3App.app, {
         // @ts-expect-error - the .crossws property wasn't extended in types

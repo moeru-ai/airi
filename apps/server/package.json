@@ -43,6 +43,7 @@
     "@proj-airi/drizzle-orm-browser-migrator": "^0.1.6",
     "@proj-airi/server-schema": "workspace:*",
     "@proj-airi/server-sdk-shared": "workspace:*",
+    "@proj-airi/singing": "workspace:*",
     "better-auth": "catalog:",
     "cac": "catalog:",
     "drizzle-orm": "catalog:",

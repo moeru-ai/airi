@@ -88,7 +88,7 @@
     "unplugin-unused": "^0.5.7",
     "vite": "^8.0.8",
     "vite-plugin-inspect": "catalog:",
-    "vitest": "^4.1.4",
+    "vitest": "catalog:vitest",
     "vitest-browser-vue": "catalog:",
     "yaml": "^2.8.3"
   },

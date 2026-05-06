@@ -1,3 +1,5 @@
+/* global chrome */
+
 /**
  * msg_bridge.js — ISOLATED world message bridge
  *
