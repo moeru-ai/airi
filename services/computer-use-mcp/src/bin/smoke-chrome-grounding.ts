@@ -35,7 +35,7 @@ const DEFAULT_SMOKE_URL = `data:text/html;charset=utf-8,${encodeURIComponent(`<!
     <h1>AIRI Desktop V3 Smoke</h1>
     <button id="airi-desktop-v3-smoke-button">AIRI Desktop V3 Smoke Button</button>
   </body>
-</html>`)}`;
+</html>`)}`
 
 export interface DesktopV3SmokeCandidate {
   id: string
