@@ -16,12 +16,12 @@ const {
   streamTextMock: vi.fn(),
   mcpMock: vi.fn(async (): Promise<Tool[]> => []),
   debugMock: vi.fn(async (): Promise<Tool[]> => []),
-  createSparkCommandToolMock: vi.fn(async (): Promise<unknown> => ({
+  createSparkCommandToolMock: vi.fn(async (): Promise<unknown> => [{
     name: 'spark',
     description: '',
     parameters: {},
     execute: vi.fn(),
-  })),
+  }]),
 }))
 
 vi.mock('@xsai/model', () => ({

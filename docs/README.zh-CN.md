@@ -317,6 +317,7 @@ npx bumpp --no-commit --no-tag
 - [x] [腾讯混元](https://cloud.tencent.com/document/product/1729)
 - [ ] [讯飞星火](https://www.xfyun.cn/doc/spark/Web.html)
 - [ ] [火山引擎（豆包）](https://www.volcengine.com/experience/ark?utm_term=202502dsinvite&ac=DSASUQY5&rc=2QXCA1VI)
+- [x] [小米 Mimo](https://platform.xiaomimimo.com)
 
 ## 从这个项目诞生的子项目
 
