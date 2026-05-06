@@ -10,7 +10,7 @@ animations:
 dialogs:
   onboarding:
     official:
-      title: AIRI 官方服务来源
+      title: AIRI 官方提供商
     title: 欢迎来到 AIRI！
     description: 让我们设置您的第一个服务来源来开始使用。
     selectProvider: 选择服务来源
@@ -149,86 +149,86 @@ pages:
     title: 账号
     description: 查看您的个人资料并管理您的帐户
     notLoggedIn: 登录以查看您的帐户并访问所有功能
-    login: Sign in
-    logout: Sign out
+    login: 登录
+    logout: 登出
     fluxBalance: 剩余通量
     viewFluxDetails: 查看详情
     signedInAs: 登录 为
     profile:
-      tab: Profile
-      title: Profile
-      description: Manage your public display name.
+      tab: 个人资料
+      title: 个人资料
+      description: 管理您的昵称
       name:
-        label: Display name
-        placeholder: How others see you
+        label: 昵称
+        placeholder: 别人如何看到你
       avatar:
-        gravatarNotice: Avatar from Gravatar.
-        gravatarLink: Manage on gravatar.com
+        gravatarNotice: Gravatar头像。
+        gravatarLink: 在 gravatar.com 上管理
       action:
-        save: Save changes
+        save: 保存更改
       message:
-        saved: Profile updated.
+        saved: 个人资料已更新
       error:
-        fallback: We could not save your changes.
+        fallback: 保存失败了，之后再试试？
     connections:
-      tab: Connected accounts
-      title: Connected accounts
-      description: Sign in to AIRI through these providers. Unlink to revoke access, then link again to switch to a different account.
+      tab: 已关联的帐户
+      title: 已关联的账户
+      description: 可以通过第三方帐户登录至 AIRI。解除关联即可撤回对第三方帐户的授权，也可以通过解除关联来关联至另一个帐户。
       status:
-        linked: Linked
-        notLinked: Not linked
-        linkedSince: Linked on {date}
+        linked: 已关联
+        notLinked: 未关联
+        linkedSince: 关联于 {date}
       action:
-        link: Link
-        unlink: Unlink
+        link: 关联
+        unlink: 取消关联
       message:
-        loading: Loading connected accounts...
-        unlinked: '{provider} disconnected.'
-        linked: '{provider} connected.'
-        linkStarted: Redirecting to {provider}…
+        loading: 正在加载已关联的帐户...
+        unlinked: '解除了 {provider} 的关联'
+        linked: '关联到了 {provider}'
+        linkStarted: 正在重定向到 {provider}...
       error:
-        listFailed: Could not load connected accounts.
-        unlinkFailed: Could not unlink this account.
-        linkFailed: Could not start the link flow.
-        lastAccount: This is your only sign-in method. Set a password first before unlinking it.
+        listFailed: 暂时无法加载已关联的帐户
+        unlinkFailed: 无法解除此帐户的关联
+        linkFailed: 暂时无法开始关联的流程，要之后再试试吗？
+        lastAccount: 这是你当前唯一的登录方式，请务必先设置密码再解除关联哦
     security:
-      tab: Security
-      title: Security
-      description: Change your password. Your other devices will be signed out.
-      setDescription: You signed in via a social provider, so there is no current password yet. We'll email a secure link to set one.
+      tab: 安全
+      title: 安全
+      description: 更新密码后，其他已登入的设备将会被自动登出
+      setDescription: 由于先前是通过其他的第三方平台登录的，暂时没有设置的密码，我们将会发送一个安全的重设链接来帮助你设定一个
       currentPassword:
-        label: Current password
-        placeholder: Enter your current password
+        label: 当前密码
+        placeholder: 输入你当前的密码
       newPassword:
-        label: New password
-        placeholder: At least 8 characters
+        label: 新密码
+        placeholder: 最少 8 个字符
       confirmPassword:
         label: Confirm new password
-        placeholder: Repeat your new password
+        placeholder: 再次输入新密码
       action:
-        changePassword: Change password
-        sendSetLink: Email me a link to set my password
+        changePassword: 更新密码
+        sendSetLink: 发送密码重设链接到邮箱
       message:
-        changed: Password changed. Other sessions have been signed out.
-        setLinkSent: Check {email} for the link to set your password.
+        changed: 密码已更新，其他的设备会话都会自动登出。
+        setLinkSent: 检查 {email} 的收件箱以寻找用于重设密码的链接
       error:
-        fallback: We could not change your password.
-        setLinkFailed: We could not send the password setup link.
-        passwordMismatch: New password and confirmation do not match.
-        passwordSameAsCurrent: New password must differ from the current one.
+        fallback: 暂时无法更新密码
+        setLinkFailed: 暂时无法发送用于重设密码的链接
+        passwordMismatch: 新密码和确认密码不匹配
+        passwordSameAsCurrent: 新密码和当前密码应当是不同的
     danger:
-      tab: Danger Zone
-      title: Danger Zone
+      tab: 危险操作
+      title: 危险操作
       description: Irreversible account actions live here.
       deleteAccount:
-        title: Delete account
-        description: Permanently delete your account and personal data.
-        action: Delete account
+        title: 删除帐户
+        description: 永久删除您的帐户和所有个人数据。
+        action: 删除帐户
         modal:
           title: Delete account?
-          warning: This cannot be undone. Active subscription will be canceled, Flux balance cleared.
+          warning: 此操作无法撤销。已经激活的订阅将被取消，现存的 Flux 余额均会被清除。
           confirmEmail:
-            label: Type your email to confirm
+            label: 请再次输入电子邮箱以确认删除
             placeholder: ''
             mismatch: Email does not match.
           confirm: Send confirmation email
@@ -307,7 +307,7 @@ pages:
         systemprompt: '错误：请提供系统提示。'
         posthistoryinstructions: '错误：必须提供消息历史后的提示。'
         invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
-      none: 无
+      none: None
     modules: 模块
     name_asc: 名称 (A-Z)
     name_desc: 名称 (Z-A)
@@ -499,7 +499,7 @@ pages:
         label: Widget System Prompt
         description: Custom instructions for the AI on how to use the generation capabilities.
     categories:
-      essential: Essential
+      essential: 基础
       messaging: Messaging
       gaming: Gaming
       artistry: Artistry
@@ -672,48 +672,48 @@ pages:
       access-token-secret-placeholder: 输入您的X / Twitter访问令牌密文
       configured: X / Twitter已正确配置！
     mcp-server:
-      title: MCP 服务器
-      description: 配置 MCP 服务器，把它们的工具接入 AIRI 一起用吧
+      title: MCP 集成
+      description: 配置其他 MCP 服务器并将能力拓展至 AIRI
       config-path: 配置文件
       runtime-title: 运行状态
-      empty: 还没有配置 MCP 服务器，点下方「添加服务器」加一个，或者「编辑 JSON」直接粘贴一段配置吧～
-      error-title: 出错啦
-      success-title: 完成啦
+      empty: 尚无已配置的 MCP 集成 - 点击「添加服务器」来创建一个，或者通过「编辑 JSON」直接粘贴配置
+      error-title: 坏了
+      success-title: 完成！
       existing:
-        title: 已配置
-        description: mcp.json 里已经登记的服务器，点击行就能展开编辑。
-        empty: 还没有，下方添加一个吧。
+        title: 配置完成
+        description: 在配置文件中记录了 MCP 服务器。点击展开后可以编辑它。
+        empty: 这里什么都还没有哦，在下面添加一个！
       add:
-        title: 新增
-        description: 在这里填好新的服务器，「保存并重启」之后就会归入上方「已配置」啦。
+        title: 新建
+        description: "填写新的服务器配置，然后点击「保存并重启」，完成后将会更新至上方的「已配置」"
         pending-badge: 未保存
       status:
         unknown: 未加载
       actions:
-        open-config: 在文件管理器中打开
+        open-config: 在文件管理器中查看
         apply-and-restart: 保存并重启
-        restart: 重启 MCP
-        add-server: 添加服务器
+        restart: 刷新 MCP 状态
+        add-server: 添加
         add-env: 添加变量
-        remove: 删除
+        remove: 移除
         test: 测试
         edit-json: 编辑 JSON
-        close-json: 收起
+        close-json: 关闭
         format-json: 格式化
         reset-draft: 重置
         apply-json: 应用
         cancel: 取消
         expand: 展开
-        collapse: 折叠
+        collapse: 收起
       fields:
         identifier:
-          label: 标识符
+          label: 唯一标识符
           description: 唯一名称，作为 mcp.json 中的键。
-          placeholder: 例如 filesystem
+          placeholder: 例如：filesystem
         command:
-          label: 启动命令
+          label: 命令
           description: 通过 stdio 启动的可执行程序。
-          placeholder: 例如 npx
+          placeholder: 例如：npx
         args:
           label: 命令参数
           description: 每行一个，按顺序传入。
@@ -731,33 +731,33 @@ pages:
           label: 启用
       json:
         title: 编辑 mcp.json
-        description: 直接改 JSON 也行，点「应用」会把它回填到表单里，再点「保存并重启」就写到磁盘上啦。
-        placeholder: 粘贴 mcp.json 内容…
+        description: '可以直接修改 JSON，点击「应用」时会自动解析，此时再次点击「保存并重启」就能写到磁盘上啦～'
+        placeholder: 在这里粘贴 mcp.json...
       test:
-        title: 连接测试
-        description: 我们会临时把它启动一次，看看命令能不能跑、能列出哪些工具。
+        title: 测试连接
+        description: 我们会临时把它启动一次，看看命令能不能跑、能列出哪些工具
         pick-server-label: 服务器
         no-servers: 还没有可以测试的服务器
-        no-server-selected: 先选一个服务器吧。
-        server-disabled: '"{name}" 还是禁用状态哦，先在卡片上启用再测试吧。'
+        no-server-selected: 先选一个服务器吧
+        server-disabled: '"{name}" 还是禁用状态哦，先在卡片上启用再测试吧'
         disabled-suffix: 已禁用
         untitled: 未命名
         running: 正在测试…
         success: 连接成功！发现 {count} 个工具，耗时 {ms}ms
         failure: 连接失败了，耗时 {ms}ms
       errors:
-        empty-identifier: 第 {index} 个服务器还没填标识符呢。
+        empty-identifier: 服务器 # {index} is missing an identifier.
         duplicate-identifier: 标识符 "{name}" 重复了，每个服务器要用不同的名字。
         empty-command: '"{name}" 还没填启动命令。'
         invalid-shape: mcp.json 结构不对，最外层得有 "mcpServers" 这个字段。
       messages:
         opened: 已经在文件管理器里打开 {path} 啦
-        json-applied: JSON 已经回填到表单了，点「保存并重启」就写到磁盘上啦。
+        json-applied: JSON 已经解析完成了，点「保存并重启」就写到磁盘上啦。
         restarted: 重启好啦！启动了 {started} 个，失败 {failed} 个，跳过 {skipped} 个
   flux:
     title: Flux
     buy: 充值
-    currency: Currency
+    currency: 币种
     description: 充值 Flux
     packagesError: 暂时无法获取可用的 Flux 电量包。可以之后再试试吗？
     checkout:
@@ -777,7 +777,7 @@ pages:
       empty: 暂无消耗记录
       loadMore: 更多信息
       delayHint: Flux 电量历史记录是缓慢更新的，可能有延迟
-      ttsRequests: requests
+      ttsRequests: 请求
     packages:
       title: Flux 电池包
       buy: 充值
@@ -879,19 +879,19 @@ pages:
         voice:
           title: 声音配置
     labels:
-      recommended: Recommended
+      recommended: 推荐
     filters:
-      pricing: Pricing
-      deployment: Deployment
-      all: All
-      free: Free
-      paid: Paid
-      internal: Internal
-      local: Local
-      cloud: Cloud
+      pricing: 价格
+      deployment: 部署
+      all: 全部
+      free: 免费
+      paid: 付费
+      internal: 内部
+      local: 本地
+      cloud: 云端
     categories:
       chat:
-        title: Chat
+        title: 聊天
         description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
       speech:
         title: Speech
@@ -945,8 +945,8 @@ pages:
             description: Amazon Bedrock API key (generate in AWS Console → Bedrock → API Keys)
             placeholder: bedrock-...
           region:
-            label: AWS Region
-            description: AWS region where Bedrock is enabled (e.g. us-east-1, us-west-2)
+            label: AWS 区域
+            description: Bedrock 激活的 AWS 区域（例如：us-east-1，us-west-2）
       anthropic:
         description: anthropic.com
         title: Anthropic | Claude
@@ -996,8 +996,8 @@ pages:
         description: 不使用语音合成
       comfyui:
         settings:
-          title: ComfyUI (Local)
-          heading: ComfyUI Native API
+          title: ComfyUI（本地）
+          heading: ComfyUI 原生 API
           description: Connect to your local ComfyUI and bring your own workflows.
           info:
             what_you_need:
@@ -1183,7 +1183,7 @@ pages:
         title: MiniMax Speech
       mimo:
         description: api.xiaomimimo.com
-        title: 小米 MiMo
+        title: Xiaomi MiMo
       mistral:
         description: mistral.ai
         title: Mistral
