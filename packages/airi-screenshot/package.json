@@ -1,0 +1,27 @@
+{
+  "name": "@proj-airi/airi-screenshot",
+  "type": "module",
+  "version": "0.10.1",
+  "private": true,
+  "description": "AIRI monorepo screenshot orchestration CLI",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "exports": "./src/index.ts",
+  "bin": {
+    "airi-screenshot": "./src/cli.ts"
+  },
+  "scripts": {
+    "capture": "tsx src/cli.ts capture",
+    "test:run": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@moeru/std": "catalog:",
+    "cac": "catalog:",
+    "tinyexec": "catalog:"
+  }
+}

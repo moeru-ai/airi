@@ -2369,6 +2369,18 @@ importers:
         specifier: ^1.6.0
         version: 1.6.0
 
+  packages/airi-screenshot:
+    dependencies:
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
+      cac:
+        specifier: 'catalog:'
+        version: 7.0.0
+      tinyexec:
+        specifier: 'catalog:'
+        version: 1.1.1
+
   packages/audio:
     dependencies:
       '@alexanderolsen/libsamplerate-js':
