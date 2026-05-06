@@ -1,14 +1,13 @@
-[gd_scene format=3 uid="uid://c4t68p7ibkjxg"]
+[gd_scene load_steps=2 format=3 uid="uid://c4t68p7ibkjxg"]
 
 [ext_resource type="Script" uid="uid://cwngwb6eal55x" path="res://scripts/StageRoot.cs" id="1_k8kx6"]
 
-[sub_resource type="BoxMesh" id="BoxMesh_mr4xw"]
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_f1a2p"]
-albedo_color = Color(0.772549, 0.882353, 0.984314, 1)
-
 [node name="Node3D" type="Node3D" unique_id=1704384288]
 script = ExtResource("1_k8kx6")
+
+[node name="EditorPreviewRoot" type="Node3D" parent="." unique_id=1275565450]
+
+[node name="AvatarRoot" type="Node3D" parent="." unique_id=840596041]
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=1342789791]
 transform = Transform3D(1, 0, 0, 0, 0.93969274, 0.34201992, 0, -0.34201992, 0.93969274, 0, 1.2, 3.5)
@@ -18,7 +17,3 @@ current = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 2, 2)
 light_color = Color(1, 0.956863, 0.909804, 1)
 omni_range = 12.0
-
-[node name="Box" type="MeshInstance3D" parent="." unique_id=840596041]
-mesh = SubResource("BoxMesh_mr4xw")
-surface_material_override/0 = SubResource("StandardMaterial3D_f1a2p")
