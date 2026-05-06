@@ -63,6 +63,11 @@ export interface ApprovalEvent {
   pendingActionId: string
 }
 
+export interface PendingActionRecord extends Record<string, unknown> {
+  toolName?: string
+  id?: string
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
@@ -136,7 +141,7 @@ export function selectDesktopV3SmokeCandidate(
   })
   const selected = requested
     ? candidatesWithIds.find(candidate => candidate.id === requested)
-    : selectDefaultCandidate(candidatesWithIds)
+    : selectDefaultChromeDomCandidate(candidatesWithIds)
 
   if (!selected) {
     throw new Error(`desktop_observe did not return requested candidate "${requested}"`)
@@ -163,20 +168,9 @@ function candidateText(candidate: Record<string, unknown>): string {
     .toLowerCase()
 }
 
-function selectDefaultCandidate(candidates: CandidateRecord[]): CandidateRecord | undefined {
-  const interactableCandidates = candidates.filter(candidate => candidate.interactable !== false)
-  const pool = interactableCandidates.length > 0 ? interactableCandidates : candidates
-
-  return pool.find(candidate => candidateText(candidate).includes(SMOKE_TARGET_LABEL.toLowerCase()))
-    ?? pool.find((candidate) => {
-      const text = candidateText(candidate)
-      return text.includes('button')
-        || text.includes('link')
-        || text.includes('checkbox')
-        || text.includes('menuitem')
-        || text.includes('textbox')
-    })
-    ?? pool[0]
+function selectDefaultChromeDomCandidate(candidates: CandidateRecord[]): CandidateRecord | undefined {
+  return candidates.find(candidate => candidate.source === 'chrome_dom' && candidateText(candidate).includes(SMOKE_TARGET_LABEL.toLowerCase()))
+    ?? candidates.find(candidate => candidate.source === 'chrome_dom')
 }
 
 export function extractOverlaySmokeState(runState: Record<string, unknown>): OverlaySmokeState {
@@ -226,6 +220,29 @@ export function requirePostClickOverlayState(
   return overlayState
 }
 
+export function requireChromeDomSmokeCandidate(candidate: DesktopV3SmokeCandidate): void {
+  if (candidate.source !== 'chrome_dom') {
+    throw new Error(`smoke target button was not captured as a chrome_dom candidate (got: ${candidate.source ?? 'unknown'}). Verify extension is connected.`)
+  }
+}
+
+export function selectPendingActionForTool(
+  pendingActions: PendingActionRecord[],
+  expectedToolName: string,
+): PendingActionRecord {
+  const matchingPending = pendingActions.find(action => action.toolName === expectedToolName)
+
+  if (!matchingPending) {
+    const found = pendingActions
+      .map(action => action.toolName)
+      .filter((toolName): toolName is string => typeof toolName === 'string' && toolName.length > 0)
+      .join(', ') || 'none'
+    throw new Error(`no pending action for ${expectedToolName} (found: ${found})`)
+  }
+
+  return matchingPending
+}
+
 async function approveFirstPending(
   client: Client,
   expectedToolName: string,
@@ -236,12 +253,9 @@ async function approveFirstPending(
   })
   const pendingData = requireStructuredContent(pending, 'desktop_list_pending_actions')
   const pendingActions = Array.isArray(pendingData.pendingActions)
-    ? pendingData.pendingActions.filter(isRecord)
+    ? pendingData.pendingActions.filter(isRecord) as PendingActionRecord[]
     : []
-  const matchingPending = pendingActions.find(action => action.toolName === expectedToolName) ?? pendingActions[0]
-
-  if (!matchingPending)
-    throw new Error(`no pending action after ${expectedToolName}`)
+  const matchingPending = selectPendingActionForTool(pendingActions, expectedToolName)
 
   const pendingActionId = typeof matchingPending.id === 'string' ? matchingPending.id : ''
   if (!pendingActionId)
@@ -376,6 +390,7 @@ export async function runDesktopV3Smoke(): Promise<Record<string, unknown>> {
     }), 'desktop_get_state')
     const preClickOverlayState = extractOverlaySmokeState(preClickState)
     const selectedCandidate = selectDesktopV3SmokeCandidate(preClickState, requestedCandidateId)
+    requireChromeDomSmokeCandidate(selectedCandidate)
 
     console.info('=== Phase 4: desktop_click_target ===')
     const clickTarget = await resolveApprovalIfNeeded(
