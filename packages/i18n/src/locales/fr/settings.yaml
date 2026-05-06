@@ -10,7 +10,7 @@ animations:
 dialogs:
   onboarding:
     official:
-      title: Fournisseur Officiel AIRI
+      title: AIRI Official Provider
     title: Bienvenue dans AIRI!
     description: Configurez votre premier fournisseur d’IA pour commencer.
     selectProvider: Choisissez un fournisseur d'IA.
@@ -307,7 +307,7 @@ pages:
         systemprompt: 'Erreur : veuillez fournir un prompt système.'
         posthistoryinstructions: 'Erreur : le prompt post-historique est requis.'
         invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
-      none: Aucun
+      none: None
     modules: Modules
     name_asc: Nom (A-Z)
     name_desc: Nom (Z-A)
@@ -672,17 +672,88 @@ pages:
       access-token-secret-placeholder: Entrez votre secret de jeton d'accès X / Twitter
       configured: X / Twitter est correctement configuré !
     mcp-server:
-      description: Connecter et gérer le serveur MCP et ses outils
-      title: Serveur MCP
-      config-path: Chemin du fichier de configuration
+      title: MCP servers
+      description: Configure MCP servers and bring their tools into AIRI.
+      config-path: Config file
       runtime-title: État de l'exécution
+      empty: No MCP servers yet — click "Add server" below to create one, or paste a config via "Edit JSON".
+      error-title: Oops
+      success-title: Done!
+      existing:
+        title: Configured
+        description: Servers recorded in mcp.json. Click any row to expand and edit it.
+        empty: Nothing here yet. Add one below!
+      add:
+        title: New
+        description: "Fill in a new server, then click \"Save and restart\" — it'll move into \"Configured\" above."
+        pending-badge: Unsaved
+      status:
+        unknown: not loaded
       actions:
-        open-config: Ouvrir mcp.json
-        apply-and-restart: Enregistrer et redémarrer stdio MCP
+        open-config: Reveal in file manager
+        apply-and-restart: Save and restart
+        restart: Restart MCP
+        add-server: Add server
+        add-env: Add var
+        remove: Remove
+        test: Test
+        edit-json: Edit JSON
+        close-json: Close
+        format-json: Format
+        reset-draft: Reset
+        apply-json: Apply
+        cancel: Cancel
+        expand: Expand
+        collapse: Collapse
+      fields:
+        identifier:
+          label: Identifier
+          description: Unique name; becomes the key in mcp.json.
+          placeholder: e.g. filesystem
+        command:
+          label: Command
+          description: Executable spawned over stdio.
+          placeholder: e.g. npx
+        args:
+          label: Arguments
+          description: One per line, in order.
+          placeholder: "-y\nsome-package-name\n/tmp"
+        cwd:
+          label: Working directory
+          description: Optional directory used as the process working directory.
+          placeholder: e.g. /Users/you/project
+        env:
+          label: Environment
+          description: Vars passed to the child process.
+          key-placeholder: KEY
+          value-placeholder: value
+        enabled:
+          label: Enabled
+      json:
+        title: Edit mcp.json
+        description: 'Edit the raw JSON directly. Click "Apply" to load it into the form, then "Save and restart" to write it to disk.'
+        placeholder: Paste mcp.json here…
+      test:
+        title: Test connection
+        description: We'll spawn the server briefly to check the command works and see what tools it exposes.
+        pick-server-label: Server
+        no-servers: Nothing to test yet
+        no-server-selected: Pick a server first.
+        server-disabled: '"{name}" is disabled — enable it on the card first.'
+        disabled-suffix: disabled
+        untitled: untitled
+        running: Testing…
+        success: Connected! Found {count} tools in {ms}ms.
+        failure: Connection failed after {ms}ms
+      errors:
+        empty-identifier: Server # {index} is missing an identifier.
+        duplicate-identifier: Identifier "{name}" is used more than once — names need to be unique.
+        empty-command: '"{name}" is missing a command.'
+        invalid-shape: That doesn't look like a valid mcp.json — the root needs an "mcpServers" field.
       messages:
-        opened: 'Fichier de configuration ouvert à : {path}'
-        restarted: >-
-          Serveurs MCP redémarrés. Lancés : {started}, en échec : {failed}, ignorés : {skipped}
+        opened: Opened {path} in your file manager
+        json-applied: JSON applied to the form. Click "Save and restart" to persist it to disk.
+        restarted: All restarted! {started} started, {failed} failed, {skipped} skipped.
   flux:
     title: Flux
     buy: Charge

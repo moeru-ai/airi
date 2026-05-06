@@ -10,7 +10,7 @@ animations:
 dialogs:
   onboarding:
     official:
-      title: AIRI 官方服務來源
+      title: AIRI Official Provider
     title: 歡迎來到 AIRI！
     description: 讓我們先設定您的第一個服務來源來開始使用。
     selectProvider: 選擇服務來源
@@ -307,7 +307,7 @@ pages:
         systemprompt: '錯誤：請提供系統提示。'
         posthistoryinstructions: '錯誤：必須提供訊息歷史後的提示。'
         invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
-      none: 無
+      none: None
     modules: 模組
     name_asc: 名稱 (A-Z)
     name_desc: 名稱 (Z-A)
@@ -672,17 +672,88 @@ pages:
       access-token-secret-placeholder: 輸入您的 X / Twitter 存取權杖密文
       configured: X / Twitter 已正確設定！
     mcp-server:
-      description: 連線與管理 MCP 伺服器及工具
-      title: MCP 伺服器
-      config-path: 設定檔路徑
+      title: MCP servers
+      description: Configure MCP servers and bring their tools into AIRI.
+      config-path: Config file
       runtime-title: 執行狀態
+      empty: No MCP servers yet — click "Add server" below to create one, or paste a config via "Edit JSON".
+      error-title: Oops
+      success-title: Done!
+      existing:
+        title: Configured
+        description: Servers recorded in mcp.json. Click any row to expand and edit it.
+        empty: Nothing here yet. Add one below!
+      add:
+        title: New
+        description: "Fill in a new server, then click \"Save and restart\" — it'll move into \"Configured\" above."
+        pending-badge: Unsaved
+      status:
+        unknown: not loaded
       actions:
-        open-config: 開啟 mcp.json
-        apply-and-restart: 儲存並重新啟動 stdio MCP
+        open-config: Reveal in file manager
+        apply-and-restart: Save and restart
+        restart: Restart MCP
+        add-server: Add server
+        add-env: Add var
+        remove: Remove
+        test: Test
+        edit-json: Edit JSON
+        close-json: Close
+        format-json: Format
+        reset-draft: Reset
+        apply-json: Apply
+        cancel: Cancel
+        expand: Expand
+        collapse: Collapse
+      fields:
+        identifier:
+          label: Identifier
+          description: Unique name; becomes the key in mcp.json.
+          placeholder: e.g. filesystem
+        command:
+          label: Command
+          description: Executable spawned over stdio.
+          placeholder: e.g. npx
+        args:
+          label: Arguments
+          description: One per line, in order.
+          placeholder: "-y\nsome-package-name\n/tmp"
+        cwd:
+          label: Working directory
+          description: Optional directory used as the process working directory.
+          placeholder: e.g. /Users/you/project
+        env:
+          label: Environment
+          description: Vars passed to the child process.
+          key-placeholder: KEY
+          value-placeholder: value
+        enabled:
+          label: Enabled
+      json:
+        title: Edit mcp.json
+        description: 'Edit the raw JSON directly. Click "Apply" to load it into the form, then "Save and restart" to write it to disk.'
+        placeholder: Paste mcp.json here…
+      test:
+        title: Test connection
+        description: We'll spawn the server briefly to check the command works and see what tools it exposes.
+        pick-server-label: Server
+        no-servers: Nothing to test yet
+        no-server-selected: Pick a server first.
+        server-disabled: '"{name}" is disabled — enable it on the card first.'
+        disabled-suffix: disabled
+        untitled: untitled
+        running: Testing…
+        success: Connected! Found {count} tools in {ms}ms.
+        failure: Connection failed after {ms}ms
+      errors:
+        empty-identifier: Server # {index} is missing an identifier.
+        duplicate-identifier: Identifier "{name}" is used more than once — names need to be unique.
+        empty-command: '"{name}" is missing a command.'
+        invalid-shape: That doesn't look like a valid mcp.json — the root needs an "mcpServers" field.
       messages:
-        opened: 已於 {path} 開啟設定檔
-        restarted: >-
-          MCP 伺服器已重新啟動。已啟動：{started}，已失敗：{failed}，已略過：{skipped}
+        opened: Opened {path} in your file manager
+        json-applied: JSON applied to the form. Click "Save and restart" to persist it to disk.
+        restarted: All restarted! {started} started, {failed} failed, {skipped} skipped.
   flux:
     title: Flux
     buy: Charge
@@ -1112,7 +1183,7 @@ pages:
         title: MiniMax Speech
       mimo:
         description: api.xiaomimimo.com
-        title: 小米 MiMo
+        title: Xiaomi MiMo
       mistral:
         description: mistral.ai
         title: Mistral
