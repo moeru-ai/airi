@@ -21,7 +21,7 @@ import type {
 import type { ProviderOnboardingField } from '../libs/providers/types'
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 
-import { isStageTamagotchi, isUrl } from '@proj-airi/stage-shared'
+import { isStageCapacitor, isStageTamagotchi, isStageWeb, isUrl } from '@proj-airi/stage-shared'
 import { getCachedWebGPUCapabilities, isWebGPUSupported } from '@proj-airi/stage-shared/webgpu'
 import { computedAsync, useIntervalFn, useLocalStorage } from '@vueuse/core'
 import {
@@ -58,6 +58,8 @@ import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 import { buildOpenRouterAudioSpeechProvider } from './providers/openrouter/audio-speech'
 import { createWebSpeechAPIProvider } from './providers/web-speech-api'
+
+const TRAILING_SLASH_RE = /\/$/
 
 const ALIYUN_NLS_REGIONS = [
   'cn-shanghai',
@@ -2025,6 +2027,170 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'fish-audio': {
+      id: 'fish-audio',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      nameKey: 'settings.pages.providers.provider.fish-audio.title',
+      name: 'Fish Audio',
+      descriptionKey: 'settings.pages.providers.provider.fish-audio.description',
+      description: 'fish.audio',
+      icon: 'i-lobe-icons:fishaudio',
+      defaultOptions: () => ({
+        baseUrl: 'https://api.fish.audio',
+      }),
+      createProvider: async (config) => {
+        const apiKey = (config.apiKey as string ?? '').trim()
+        const baseUrl = ((config.baseUrl as string) || 'https://api.fish.audio').replace(TRAILING_SLASH_RE, '')
+        // NOTICE: Fish Audio's API is server-to-server only and does not send CORS
+        // headers for browser origins. In Vite dev mode we route through the local
+        // dev-server proxy (/fish-audio-api → https://api.fish.audio) so the request
+        // appears same-origin and is never blocked. Custom base URLs (e.g. a user's own
+        // proxy) bypass this logic and are used as-is.
+        // See apps/stage-web/vite.config.ts and apps/stage-pocket/vite.config.ts for the
+        // matching server.proxy entries.
+        //
+        // NOTICE: The proxy only exists in browser-based Vite dev servers (stage-web,
+        // stage-pocket). Electron's renderer dev server has no matching proxy route, so
+        // we must skip the rewrite when running inside Electron to avoid 404s.
+        //
+        // TODO: Add an Eventa IPC handler (electronFetchFishAudio) so the Electron main
+        // process can perform the request via net.fetch (no CORS restrictions in Node).
+        // Until that path exists, Fish Audio with the default URL is gated out of
+        // Electron via validateProviderConfig below.
+        const isElectron = typeof navigator !== 'undefined' && navigator.userAgent.includes('Electron')
+        const effectiveBase = (import.meta.env.DEV && !isElectron && baseUrl === 'https://api.fish.audio')
+          ? '/fish-audio-api'
+          : baseUrl
+        const provider: SpeechProvider = {
+          speech: (model: string) => ({
+            // NOTICE: baseURL must be an absolute URL — @xsai/generate-speech calls
+            // `new URL('audio/speech', baseURL)` internally. Our custom fetch below
+            // ignores the URL argument entirely and builds its own, so the value here
+            // only needs to be valid; we always keep the original absolute baseUrl.
+            baseURL: `${baseUrl}/`,
+            model,
+            // NOTICE: Fish Audio does not use the OpenAI /audio/speech endpoint format.
+            // We intercept the xsai generateSpeech request and translate it to
+            // Fish Audio's POST /v1/tts format (text/reference_id in body).
+            //
+            // NOTICE: The Fish Audio API accepts the model via a `model` request header,
+            // but sending custom headers from the browser triggers a CORS preflight that
+            // Fish Audio's CDN does not allow (Access-Control-Allow-Headers does not
+            // include `model`). The Fish Audio JS/Python SDKs also never send `model` as
+            // a header — they rely on the server default (`s2-pro`). We do the same here.
+            fetch: async (_url: RequestInfo | URL, init?: RequestInit) => {
+              const body = JSON.parse((init?.body as string) ?? '{}') as {
+                input?: string
+                voice?: string
+              }
+              return fetch(`${effectiveBase}/v1/tts`, {
+                method: 'POST',
+                // Forward the AbortSignal so the HTTP request is cancelled when
+                // the TTS pipeline is aborted (e.g. user interrupts playback).
+                signal: init?.signal,
+                headers: {
+                  'Authorization': `Bearer ${apiKey}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  text: body.input ?? '',
+                  reference_id: body.voice || null,
+                  format: 'mp3',
+                }),
+              })
+            },
+          }),
+        }
+        return provider
+      },
+      capabilities: {
+        // NOTICE: The Fish Audio API selects the model via a `model` HTTP header.
+        // Sending that custom header from a browser causes CORS preflight failures,
+        // so we cannot forward model selection to the API. The server defaults to
+        // s2-pro when no header is present. Listing models here is informational only.
+        listModels: async () => [
+          {
+            id: 's2-pro',
+            name: 'S2 Pro',
+            provider: 'fish-audio',
+            description: 'Latest generation model (server default)',
+            contextLength: 0,
+            deprecated: false,
+          },
+        ],
+        listVoices: async (config) => {
+          const { listFishAudioVoices } = await import('./providers/fish-audio/list-voices')
+          const rawBase = ((config.baseUrl as string) || 'https://api.fish.audio').replace(TRAILING_SLASH_RE, '')
+          const isElectronRenderer = typeof navigator !== 'undefined' && navigator.userAgent.includes('Electron')
+          const effectiveVoiceBase = (import.meta.env.DEV && !isElectronRenderer && rawBase === 'https://api.fish.audio')
+            ? '/fish-audio-api'
+            : rawBase
+          return listFishAudioVoices(
+            ((config.apiKey as string) ?? '').trim(),
+            effectiveVoiceBase,
+          )
+        },
+      },
+      validators: {
+        chatPingCheckAvailable: false,
+        validateProviderConfig: (config) => {
+          const errors: Error[] = []
+
+          if (!config.apiKey) {
+            errors.push(new Error('API key is required.'))
+          }
+
+          // NOTICE: We intentionally skip the shared baseUrlValidator here because
+          // it requires a trailing slash for standard URL composition. Fish Audio's
+          // custom fetch override ignores the passed URL and constructs its own, so
+          // trailing-slash strictness is irrelevant. We only verify it's a valid
+          // absolute URL when one is explicitly provided.
+          if (config.baseUrl) {
+            try {
+              const parsed = new URL(config.baseUrl as string)
+              if (!parsed.host) {
+                errors.push(new Error('Base URL must have a valid host.'))
+              }
+            }
+            catch {
+              errors.push(new Error('Base URL is not a valid absolute URL.'))
+            }
+          }
+
+          // Gate the default Fish Audio URL in contexts where browser CORS will block
+          // the request and no local proxy or IPC path exists yet.
+          //
+          // - Electron (all modes): renderer enforces CORS; main-process IPC path not yet
+          //   implemented. TODO: remove this gate once electronFetchFishAudio IPC exists.
+          // - Web/Capacitor production: Vite dev-server proxy is absent. Users who need
+          //   production access must point baseUrl at a same-origin CORS proxy they control.
+          // - Capacitor native (iOS/Android): exempt — Capacitor uses the OS HTTP stack
+          //   which is not subject to browser CORS restrictions.
+          const usingDefaultUrl = !config.baseUrl || config.baseUrl === 'https://api.fish.audio'
+          if (usingDefaultUrl) {
+            if (isStageTamagotchi()) {
+              errors.push(new Error(
+                'Fish Audio requires a custom base URL (a CORS proxy) when running in the desktop app. '
+                + 'Native IPC support is not yet available.',
+              ))
+            }
+            else if ((isStageWeb() || isStageCapacitor()) && !import.meta.env.DEV) {
+              errors.push(new Error(
+                'Fish Audio requires a custom base URL (a CORS proxy) in production builds. '
+                + 'The dev-server proxy is only available during local development.',
+              ))
+            }
+          }
+
+          return {
+            errors,
+            reason: errors.map(e => e.message).join(', '),
+            valid: errors.length === 0,
+          }
+        },
+      },
+    },
     'kokoro-local': {
       id: 'kokoro-local',
       category: 'speech',
@@ -2037,7 +2203,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
       defaultOptions: () => {
         const capabilities = getCachedWebGPUCapabilities()
-        const hasWebGPU = capabilities?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
+        const hasWebGPU = capabilities?.supported ?? (typeof navigator !== 'undefined' && 'gpu' in navigator)
         const fp16Supported = capabilities?.fp16Supported ?? false
         const model = getDefaultKokoroModel(hasWebGPU, fp16Supported)
         return {
@@ -2094,7 +2260,7 @@ export const useProvidersStore = defineStore('providers', () => {
       capabilities: {
         listModels: async (_config: Record<string, unknown>) => {
           const caps = getCachedWebGPUCapabilities()
-          const hasWebGPU = caps?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
+          const hasWebGPU = caps?.supported ?? (typeof navigator !== 'undefined' && 'gpu' in navigator)
           const fp16Supported = caps?.fp16Supported ?? false
           return kokoroModelsToModelInfo(hasWebGPU, t, fp16Supported)
         },
@@ -2113,7 +2279,7 @@ export const useProvidersStore = defineStore('providers', () => {
 
           // Validate platform requirements
           if (modelDef.platform === 'webgpu') {
-            const hasWebGPU = getCachedWebGPUCapabilities()?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
+            const hasWebGPU = getCachedWebGPUCapabilities()?.supported ?? (typeof navigator !== 'undefined' && 'gpu' in navigator)
             if (!hasWebGPU) {
               throw new Error('WebGPU is required for this model but is not available in your browser')
             }
@@ -2157,7 +2323,7 @@ export const useProvidersStore = defineStore('providers', () => {
                   const modelDef = KOKORO_MODELS.find(m => m.id === modelId)
                   if (modelDef) {
                     if (modelDef.platform === 'webgpu') {
-                      const hasWebGPU = getCachedWebGPUCapabilities()?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
+                      const hasWebGPU = getCachedWebGPUCapabilities()?.supported ?? (typeof navigator !== 'undefined' && 'gpu' in navigator)
                       if (!hasWebGPU) {
                         throw new Error('WebGPU is required for this model but is not available in your browser')
                       }

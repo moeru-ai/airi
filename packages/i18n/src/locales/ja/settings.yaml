@@ -1153,6 +1153,9 @@ pages:
           default-text: こんにちは！これは音声合成システム Kokoro のテストです。
           title: 音声合成実験場
         title: Kokoro TTS (ローカル)
+      fish-audio:
+        description: fish.audio
+        title: Fish Audio
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai

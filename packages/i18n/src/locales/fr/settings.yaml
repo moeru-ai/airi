@@ -1153,6 +1153,9 @@ pages:
           default-text: Bonjour ! Ceci est un test du système de synthèse vocale Kokoro.
           title: Zone d'essai vocale
         title: Kokoro TTS (Local)
+      fish-audio:
+        description: fish.audio
+        title: Fish Audio
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai

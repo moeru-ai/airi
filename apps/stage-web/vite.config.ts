@@ -25,6 +25,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
+const FISH_AUDIO_PROXY_RE = /^\/fish-audio-api/
 
 function hasFlagEnableMkcert(): boolean {
   if (process.argv.includes('--mkcert')) {
@@ -82,6 +83,18 @@ export default defineConfig({
       //
       // See: https://vite.dev/config/server-options#server-fs-strict
       strict: false,
+    },
+    // NOTICE: Fish Audio's API is server-to-server only and doesn't send
+    // Access-Control-Allow-Origin headers for browser origins, so direct
+    // fetch() calls from the browser are blocked by CORS. We proxy them
+    // through the local Vite dev server so they appear same-origin.
+    // See packages/stage-ui/src/stores/providers.ts for the matching client-side usage.
+    proxy: {
+      '/fish-audio-api': {
+        target: 'https://api.fish.audio',
+        changeOrigin: true,
+        rewrite: (path: string) => path.replace(FISH_AUDIO_PROXY_RE, ''),
+      },
     },
     warmup: {
       clientFiles: [
