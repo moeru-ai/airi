@@ -129,9 +129,10 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
 
 // -- Plugins ---------------------------------------------------------------
 
-// pixi-live2d-display passes timeDelta in ms during normal frames but can pass
-// seconds at frame boundaries; threshold of 5 separates the two ranges safely
-// (5 ms == ~200 fps lower bound, 5 s == 5000 ms upper bound).
+// pixi-live2d-display passes timeDelta in seconds (e.g. 0.016 at 60 fps) on most
+// paths, but some callers in this codebase pass it already in ms. The < 5 threshold
+// distinguishes them: a 5 ms frame would imply ~200 fps which never happens, so
+// any value below 5 must be seconds and gets multiplied to ms.
 function normalizeTimeDeltaMs(timeDelta: number | undefined): number {
   const raw = Math.max(timeDelta ?? 0, 0)
   return raw < 5 ? raw * 1000 : raw
