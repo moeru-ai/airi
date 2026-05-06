@@ -22,6 +22,7 @@ import {
   electronGodotStageStop,
 } from '../../../../shared/eventa'
 import { useModelSettingsRuntimeSnapshot } from '../../../composables/model-settings-runtime-snapshot'
+import { assertGodotSceneInputSupportedDisplayModel } from './godot-scene-input'
 
 const settingsStore = useSettings()
 const { stageModelRenderer, stageModelSelectedDisplayModel } = storeToRefs(settingsStore)
@@ -110,9 +111,11 @@ async function readSceneInputData(model: DisplayModel) {
 }
 
 async function createSceneInputPayload(model: DisplayModel): Promise<ElectronGodotStageSceneInputPayload> {
+  assertGodotSceneInputSupportedDisplayModel(model)
+
   return {
     modelId: model.id,
-    format: model.format,
+    format: DisplayModelFormat.VRM,
     name: model.name,
     fileName: inferModelFileName(model),
     data: await readSceneInputData(model),

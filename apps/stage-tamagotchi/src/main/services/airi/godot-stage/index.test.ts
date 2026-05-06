@@ -1,4 +1,7 @@
+import type { ElectronGodotStageSceneInputPayload } from '../../../../shared/eventa'
+
 import { EventEmitter } from 'node:events'
+import { writeFile } from 'node:fs/promises'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -126,12 +129,17 @@ function createTestPeer(url: string): TestWebSocketPeer {
   }
 }
 
-function readSpawnedWebSocketUrl() {
+function readSpawnedArgs() {
   const spawnArgs = spawnMock.mock.calls.at(-1)?.[1]
   if (!Array.isArray(spawnArgs)) {
     throw new TypeError('Expected Godot spawn arguments to be recorded.')
   }
 
+  return spawnArgs
+}
+
+function readSpawnedWebSocketUrl() {
+  const spawnArgs = readSpawnedArgs()
   const websocketArgument = spawnArgs.find((arg): arg is string => (
     typeof arg === 'string' && arg.startsWith('--airi-ws-url=')
   ))
@@ -186,6 +194,8 @@ describe('createGodotStageManager lifecycle cleanup', () => {
     appMock.isPackaged = false
     serverState.webSocketHooks = undefined
     delete process.env.GODOT4
+    delete process.env.GODOT_STAGE_REMOTE_DEBUG
+    delete process.env.GODOT_STAGE_REMOTE_DEBUG_URI
   })
 
   it('closes the websocket runtime when dev-mode Godot binary resolution fails', async () => {
@@ -306,5 +316,76 @@ describe('createGodotStageManager lifecycle cleanup', () => {
       pid: null,
       lastError: expect.stringContaining('Previous Godot stage process is still shutting down'),
     })
+  })
+
+  it('rejects non-VRM scene input before writing model bytes', async () => {
+    // ROOT CAUSE:
+    //
+    // G1.1 only defines Godot scene application for VRM models. If Electron
+    // materializes other display model formats, Godot receives paths it cannot
+    // load and reports a late runtime error instead of rejecting the unsupported
+    // input at the bridge boundary.
+    process.env.GODOT4 = '/tmp/godot'
+
+    const processHandle = createFakeGodotProcess()
+    spawnMock.mockReturnValue(processHandle)
+
+    const { manager } = await startRunningGodotStage()
+
+    // NOTICE:
+    // This intentionally bypasses the TypeScript contract because Electron main
+    // is also a runtime process boundary. The shared contract now accepts `vrm`
+    // only, but malformed renderer/runtime messages should still be rejected
+    // before model bytes are written to disk.
+    // Removal condition: remove this cast if Eventa validates literal payload
+    // values before invoking the main handler.
+    const unsupportedPayload = {
+      data: new Uint8Array([1, 2, 3]),
+      fileName: 'hiyori.zip',
+      format: 'live2d-zip',
+      modelId: 'preset-live2d-1',
+      name: 'Hiyori',
+    } as unknown as ElectronGodotStageSceneInputPayload
+
+    await expect(manager.applySceneInput(unsupportedPayload)).rejects.toThrow(
+      'Godot stage currently supports VRM models only.',
+    )
+
+    expect(writeFile).not.toHaveBeenCalled()
+  })
+
+  it('starts Godot without remote debugger arguments by default', async () => {
+    process.env.GODOT4 = '/tmp/godot'
+
+    const processHandle = createFakeGodotProcess()
+    spawnMock.mockReturnValue(processHandle)
+
+    await startRunningGodotStage()
+
+    const spawnArgs = readSpawnedArgs()
+    expect(spawnArgs).not.toContain('--remote-debug')
+  })
+
+  it('starts Godot with remote debugger arguments when requested', async () => {
+    process.env.GODOT4 = '/tmp/godot'
+    process.env.GODOT_STAGE_REMOTE_DEBUG = '1'
+    process.env.GODOT_STAGE_REMOTE_DEBUG_URI = 'tcp://127.0.0.1:7007'
+
+    const processHandle = createFakeGodotProcess()
+    spawnMock.mockReturnValue(processHandle)
+
+    await startRunningGodotStage()
+
+    const spawnArgs = readSpawnedArgs()
+    const userArgumentSeparatorIndex = spawnArgs.indexOf('--')
+
+    expect(userArgumentSeparatorIndex).toBeGreaterThan(0)
+    expect(spawnArgs.slice(userArgumentSeparatorIndex - 2, userArgumentSeparatorIndex)).toEqual([
+      '--remote-debug',
+      'tcp://127.0.0.1:7007',
+    ])
+    expect(spawnArgs.slice(userArgumentSeparatorIndex + 1)).toEqual([
+      expect.stringMatching(/^--airi-ws-url=/),
+    ])
   })
 })

@@ -41,6 +41,8 @@ type GodotStagePeer = Parameters<NonNullable<GodotStageWebSocketHooks['open']>>[
 type GodotStageMessage = Parameters<NonNullable<GodotStageWebSocketHooks['message']>>[1]
 type GodotStageProcess = ChildProcessByStdio<null, Readable, Readable>
 
+const DEFAULT_GODOT_REMOTE_DEBUG_URI = 'tcp://127.0.0.1:6007'
+
 interface Deferred<T> {
   promise: Promise<T>
   reject: (error?: unknown) => void
@@ -53,8 +55,13 @@ interface GodotStageSocketRuntime {
   token: string
 }
 
+interface GodotStageDebugLaunchOptions {
+  engineArgs: string[]
+  remoteDebugUri?: string
+}
+
 interface GodotStageSceneApplyPayload {
-  format: string
+  format: 'vrm'
   modelId: string
   name: string
   path: string
@@ -133,6 +140,62 @@ function getPayloadMessage(payload: unknown) {
 
   const message = (payload as Record<string, unknown>).message
   return typeof message === 'string' ? message : undefined
+}
+
+function assertSupportedSceneInputFormat(format: string) {
+  if (format !== 'vrm')
+    throw new Error('Godot stage currently supports VRM models only.')
+}
+
+/**
+ * Checks whether a process environment flag should be treated as enabled.
+ *
+ * Before:
+ * - "1"
+ * - "true"
+ * - "off"
+ *
+ * After:
+ * - true
+ * - true
+ * - false
+ */
+function isEnabledEnvironmentFlag(value: string | undefined): boolean {
+  if (!value)
+    return false
+
+  return ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase())
+}
+
+/**
+ * Resolves Godot launch arguments used only for live editor debugging.
+ *
+ * Use when:
+ * - Electron main launches the Godot sidecar in development.
+ * - The Godot editor should inspect the sidecar runtime through Remote scene tree.
+ *
+ * Expects:
+ * - `GODOT_STAGE_REMOTE_DEBUG=1` enables the extra launch arguments.
+ * - `GODOT_STAGE_REMOTE_DEBUG_URI` optionally overrides Godot's default editor debug URI.
+ *
+ * Returns:
+ * - Engine arguments that must appear before Godot's `--` separator.
+ */
+function resolveGodotStageDebugLaunchOptions(): GodotStageDebugLaunchOptions {
+  if (!isEnabledEnvironmentFlag(process.env.GODOT_STAGE_REMOTE_DEBUG)) {
+    return {
+      engineArgs: [],
+    }
+  }
+
+  const remoteDebugUri = process.env.GODOT_STAGE_REMOTE_DEBUG_URI?.trim() || DEFAULT_GODOT_REMOTE_DEBUG_URI
+
+  // Godot engine/debugger flags must stay before `--`; StageRoot arguments stay
+  // after it and are assembled next to the WebSocket URL.
+  return {
+    engineArgs: ['--remote-debug', remoteDebugUri],
+    remoteDebugUri,
+  }
 }
 
 interface GodotBinaryResolution {
@@ -625,17 +688,29 @@ export function createGodotStageManager(): GodotStageManager {
 
           let spawnArgs: string[]
           let spawnCwd: string | undefined
+          const debugLaunchOptions = resolveGodotStageDebugLaunchOptions()
+          const stageRuntimeArgs = [`--airi-ws-url=${websocketUrl}`]
 
           if (godotBinary.mode === 'engine') {
             const godotProjectPath = await resolveGodotProjectPath()
-            spawnArgs = ['--path', godotProjectPath, '--', `--airi-ws-url=${websocketUrl}`]
+            spawnArgs = [
+              '--path',
+              godotProjectPath,
+              ...debugLaunchOptions.engineArgs,
+              '--',
+              ...stageRuntimeArgs,
+            ]
             spawnCwd = godotProjectPath
           }
           else {
-            spawnArgs = ['--', `--airi-ws-url=${websocketUrl}`]
+            spawnArgs = [...debugLaunchOptions.engineArgs, '--', ...stageRuntimeArgs]
           }
 
-          log.withFields({ executable: godotBinary.executable, mode: godotBinary.mode }).log('spawning Godot stage')
+          log.withFields({
+            executable: godotBinary.executable,
+            mode: godotBinary.mode,
+            remoteDebugUri: debugLaunchOptions.remoteDebugUri,
+          }).log('spawning Godot stage')
 
           const processHandle = spawn(
             godotBinary.executable,
@@ -744,6 +819,8 @@ export function createGodotStageManager(): GodotStageManager {
           throw new Error('Godot stage is not running.')
         }
 
+        assertSupportedSceneInputFormat(payload.format)
+
         const fileName = normalizeFileName(payload.fileName)
         const modelDirectory = join(app.getPath('userData'), 'godot-stage', 'models', payload.modelId)
         const materializedPath = join(modelDirectory, fileName)
@@ -753,7 +830,7 @@ export function createGodotStageManager(): GodotStageManager {
 
         await sendSceneInputToGodot({
           modelId: payload.modelId,
-          format: payload.format,
+          format: 'vrm',
           name: payload.name,
           path: materializedPath,
         })
