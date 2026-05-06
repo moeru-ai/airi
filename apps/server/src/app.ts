@@ -114,21 +114,28 @@ export async function buildApp(deps: AppDeps) {
   const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app })
   const chatWsSetup = createChatWsHandlers(deps.chatService, deps.redis, deps.otel?.engagement ?? null)
 
-  app.get('/ws/chat', upgradeWebSocket(async (c) => {
-    const token = c.req.query('token')
-    if (!token) {
-      throw createUnauthorizedError('Missing token')
-    }
-    const session = await resolveRequestAuth(
-      deps.auth,
-      deps.env,
-      new Headers({ Authorization: `Bearer ${token}` }),
-    )
-    if (!session?.user) {
-      throw createUnauthorizedError('Invalid token')
-    }
-    return chatWsSetup(session.user.id)
-  }))
+  app.get(
+    '/ws/chat',
+    async (c, next) => {
+      const token = c.req.query('token')
+      if (!token) {
+        return c.json({ error: 'unauthorized', message: 'Missing token' }, 401)
+      }
+      const session = await resolveRequestAuth(
+        deps.auth,
+        deps.env,
+        new Headers({ Authorization: `Bearer ${token}` }),
+      )
+      if (!session?.user) {
+        return c.json({ error: 'unauthorized', message: 'Invalid token' }, 401)
+      }
+      c.set('user', session.user)
+      await next()
+    },
+    upgradeWebSocket((c) => {
+      return chatWsSetup(c.get('user')!.id)
+    }),
+  )
 
   const builtApp = app
     .use('*', sessionMiddleware(deps.auth, deps.env))
