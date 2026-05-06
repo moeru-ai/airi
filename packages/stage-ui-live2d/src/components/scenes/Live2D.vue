@@ -15,6 +15,7 @@ withDefaults(defineProps<{
 
   paused?: boolean
   mouthOpenSize?: number
+  nowSpeaking?: boolean
   focusAt?: { x: number, y: number }
   disableFocusAt?: boolean
   themeColorsHue?: number
@@ -30,6 +31,7 @@ withDefaults(defineProps<{
   paused: false,
   focusAt: () => ({ x: 0, y: 0 }),
   mouthOpenSize: 0,
+  nowSpeaking: false,
   themeColorsHue: 220.44,
   themeColorsHueDynamic: false,
   live2dIdleAnimationEnabled: true,
@@ -84,6 +86,7 @@ defineExpose({
         :model-id="modelId"
         :app="app"
         :mouth-open-size="mouthOpenSize"
+        :now-speaking="nowSpeaking"
         :width="width"
         :height="height"
         :paused="paused"
