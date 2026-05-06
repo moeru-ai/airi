@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest'
 
 import {
   extractOverlaySmokeState,
+  requireChromeDomSmokeCandidate,
   parseCommandArgs,
   requirePostClickOverlayState,
   requireRunState,
   requireStructuredContent,
   requireTextContent,
+  selectPendingActionForTool,
   selectDesktopV3SmokeCandidate,
 } from './smoke-chrome-grounding'
 
@@ -54,7 +56,7 @@ describe('smoke-chrome-grounding helpers', () => {
     }, 'desktop_get_state')).toThrow('desktop_get_state expected status=ok')
   })
 
-  it('selects explicit candidate first and otherwise prefers the smoke target button', () => {
+  it('selects explicit candidate first and otherwise prefers a chrome_dom smoke target', () => {
     const runState = {
       lastGroundingSnapshot: {
         snapshotId: 'dg_1',
@@ -75,7 +77,7 @@ describe('smoke-chrome-grounding helpers', () => {
           },
           {
             id: 't_2',
-            source: 'ax',
+            source: 'chrome_dom',
             role: 'AXButton',
             label: 'AIRI Desktop V3 Smoke Button',
             interactable: true,
@@ -89,7 +91,7 @@ describe('smoke-chrome-grounding helpers', () => {
     expect(() => selectDesktopV3SmokeCandidate(runState, 'missing')).toThrow('did not return requested candidate')
   })
 
-  it('falls back to button-like candidates before generic interactable candidates', () => {
+  it('does not select generic non-chrome candidates by default', () => {
     const runState = {
       lastGroundingSnapshot: {
         snapshotId: 'dg_1',
@@ -102,6 +104,14 @@ describe('smoke-chrome-grounding helpers', () => {
           },
           {
             id: 't_1',
+            source: 'ax',
+            role: 'AXButton',
+            label: 'Submit',
+            interactable: true,
+          },
+          {
+            id: 't_2',
+            source: 'chrome_dom',
             role: 'AXButton',
             label: 'Submit',
             interactable: true,
@@ -110,7 +120,7 @@ describe('smoke-chrome-grounding helpers', () => {
       },
     }
 
-    expect(selectDesktopV3SmokeCandidate(runState).id).toBe('t_1')
+    expect(selectDesktopV3SmokeCandidate(runState).id).toBe('t_2')
   })
 
   it('locks pre-click and post-click overlay state shape', () => {
@@ -165,5 +175,23 @@ describe('smoke-chrome-grounding helpers', () => {
     const structured = requireStructuredContent(clickResult, 'desktop_click_target')
     expect(typeof structured.backendResult).toBe('object')
     expect((structured.backendResult as Record<string, unknown>).executionRoute).toContain('browser_dom')
+  })
+
+  it('selects pending actions by tool name and fails with a useful message when missing', () => {
+    const pendingActions = [
+      { toolName: 'desktop_open_app', id: 'p_0' },
+      { toolName: 'desktop_click_target', id: 'p_1' },
+    ]
+
+    expect(selectPendingActionForTool(pendingActions, 'desktop_click_target').id).toBe('p_1')
+    expect(() => selectPendingActionForTool(pendingActions, 'desktop_ensure_chrome')).toThrow('no pending action for desktop_ensure_chrome (found: desktop_open_app, desktop_click_target)')
+  })
+
+  it('requires the smoke target to come from chrome_dom', () => {
+    expect(() => requireChromeDomSmokeCandidate({
+      id: 't_0',
+      source: 'ax',
+      label: 'Smoke',
+    })).toThrow('smoke target button was not captured as a chrome_dom candidate')
   })
 })
