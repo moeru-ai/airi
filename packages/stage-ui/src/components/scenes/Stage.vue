@@ -69,7 +69,7 @@ const {
   live2dMaxFps,
   live2dRenderScale,
 } = storeToRefs(settingsStore)
-const { mouthOpenSize } = storeToRefs(useSpeakingStore())
+const { mouthOpenSize, nowSpeaking } = storeToRefs(useSpeakingStore())
 const { audioContext } = useAudioContext()
 const currentAudioSource = ref<AudioBufferSourceNode>()
 
@@ -106,7 +106,6 @@ viewUpdateCleanups.push(live2dStore.onShouldUpdateView(async () => {
 }))
 
 const audioAnalyser = ref<AnalyserNode>()
-const nowSpeaking = ref(false)
 const lipSyncStarted = ref(false)
 const lipSyncLoopId = ref<number>()
 const live2dLipSync = ref<Live2DLipSync>()
@@ -648,6 +647,7 @@ defineExpose({
         :model-id="stageModelSelected"
         :focus-at="focusAt"
         :mouth-open-size="mouthOpenSize"
+        :now-speaking="nowSpeaking"
         :paused="paused"
         :disable-focus-at="live2dDisableFocus"
         :theme-colors-hue="themeColorsHue"
