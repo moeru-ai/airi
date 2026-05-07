@@ -26,8 +26,8 @@
 
                 <!-- 自定义协议配置 -->
                 <data
-                    android:scheme="airi"
-                    android:host="localhost" />
+                    android:scheme="ai.moeru.airi_pocket"
+                    android:host="links" />
             </intent-filter>
         </activity>
 

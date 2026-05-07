@@ -7,23 +7,30 @@ import { consumeFlowState, exchangeCodeForTokens } from '@proj-airi/stage-ui/lib
 
 export function installDeepLinks(router: Router): void {
   App.addListener('appUrlOpen', async (event?: URLOpenListenerEvent) => {
-    console.log('urlOpener', event)
-    const url = new URL(event?.url ?? '')
-    if (url.host === 'localhost' && url.pathname === '/auth/callback') {
-      const code = url.searchParams.get('code')
-      const state = url.searchParams.get('state')
-      if (!code || !state) {
-        return
+    if (!event?.url)
+      return
+
+    try {
+      const url = new URL(event.url)
+      if (url.host === 'localhost' && url.pathname === '/auth/callback') {
+        const code = url.searchParams.get('code')
+        const state = url.searchParams.get('state')
+        if (!code || !state) {
+          return
+        }
+        const persisted = consumeFlowState()
+        if (!persisted) {
+          console.error('OIDC 流程状态已失效或不存在')
+          return
+        }
+        const tokens = await exchangeCodeForTokens(code, persisted.flowState, persisted.params, state)
+        await applyOIDCTokens(tokens, persisted.params.clientId)
+        await fetchSession()
+        router.replace('/')
       }
-      const persisted = consumeFlowState()
-      if (!persisted) {
-        console.error('OIDC 流程状态已失效或不存在')
-        return
-      }
-      const tokens = await exchangeCodeForTokens(code, persisted.flowState, persisted.params, state)
-      await applyOIDCTokens(tokens, persisted.params.clientId)
-      await fetchSession()
-      router.replace('/')
+    }
+    catch (error) {
+      console.error('Failed to handle deep link:', error)
     }
   })
 }
