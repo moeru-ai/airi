@@ -379,6 +379,7 @@ Searchable dropdown/autocomplete using reka-ui with grouping.
 | `options` | `ComboboxOptionItem<T>[] \| ComboboxOptionGroupItem<T>[]` | *(required)* | Options |
 | `placeholder` | `string?` | — | Placeholder |
 | `disabled` | `boolean?` | `false` | Disabled |
+| `openOnClick` | `boolean?` | `true` | Open dropdown when input is clicked |
 | `contentMinWidth` | `string \| number?` | — | Dropdown min width |
 | `contentWidth` | `string \| number?` | — | Dropdown width |
 
