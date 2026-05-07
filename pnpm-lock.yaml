@@ -15,6 +15,9 @@ catalogs:
     '@capacitor/android':
       specifier: ^8.3.1
       version: 8.3.1
+    '@capacitor/app':
+      specifier: ^8.1.0
+      version: 8.1.0
     '@capacitor/barcode-scanner':
       specifier: ^3.0.2
       version: 3.0.2
@@ -741,6 +744,9 @@ importers:
       '@capacitor/android':
         specifier: 'catalog:'
         version: 8.3.1(@capacitor/core@8.3.1)
+      '@capacitor/app':
+        specifier: 'catalog:'
+        version: 8.1.0(@capacitor/core@8.3.1)
       '@capacitor/barcode-scanner':
         specifier: 'catalog:'
         version: 3.0.2(@capacitor/core@8.3.1)
@@ -5300,6 +5306,11 @@ packages:
     resolution: {integrity: sha512-hjskIG8YcBEh3X4yaTXvE9gcqpdcxunTgFruSKnuPxtMxAUzEK4Oq25x0Z1g3cz+MQPc+lRG09R7Ovc+ydKsNw==}
     peerDependencies:
       '@capacitor/core': ^8.3.0
+
+  '@capacitor/app@8.1.0':
+    resolution: {integrity: sha512-MlmttTOWHDedr/G4SrhNRxsXMqY+R75S4MM4eIgzsgCzOYhb/MpCkA5Q3nuOCfL1oHm26xjUzqZ5aupbOwdfYg==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
 
   '@capacitor/barcode-scanner@3.0.2':
     resolution: {integrity: sha512-eD8G0dj/vDTytzFY3qK/5EWZtv17NHMN97gx5KSHUuqFXOScf+5e4Rwwak8zDkX17VLXNym6y3eIn8AvCLY+Pg==}
@@ -19442,6 +19453,10 @@ snapshots:
   '@bufbuild/protobuf@2.10.2': {}
 
   '@capacitor/android@8.3.1(@capacitor/core@8.3.1)':
+    dependencies:
+      '@capacitor/core': 8.3.1
+
+  '@capacitor/app@8.1.0(@capacitor/core@8.3.1)':
     dependencies:
       '@capacitor/core': 8.3.1
 

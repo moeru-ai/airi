@@ -11,6 +11,7 @@ function getOriginFromUrl(url: string): string | undefined {
 
 const TRUSTED_EXACT_ORIGINS = [
   'capacitor://localhost', // Capacitor mobile (iOS)
+  'airi://localhost', // Android deep link
   'https://airi.moeru.ai', // Production
 ]
 
