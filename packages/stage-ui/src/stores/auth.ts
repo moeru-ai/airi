@@ -4,10 +4,10 @@ import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { StorageSerializers, useLocalStorage, useTimeoutFn, whenever } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 import { client } from '../composables/api'
 import { useBreakpoints } from '../composables/use-breakpoints'
-import { triggerSignIn } from '../libs/auth'
 import { refreshAccessToken } from '../libs/auth-oidc'
 
 /**
@@ -40,17 +40,19 @@ export const useAuthStore = defineStore('auth', () => {
 
   const credits = useLocalStorage<number>('user/v1/flux', 0)
 
-  // Cross-app "user must log in" flag. Setting this to true triggers an
-  // immediate OIDC redirect on web (mobile + desktop). Electron skips this
-  // path because controls-island-auth-button listens for IPC and handles
+  // Cross-app "user must log in" flag. Setting this to true routes users to
+  // the local sign-in page so provider choice stays explicit. Electron skips
+  // this path because controls-island-auth-button listens for IPC and handles
   // sign-in in the main process.
   const needsLogin = ref(false)
   const { isMobile } = useBreakpoints()
+  const router = useRouter()
 
   whenever(needsLogin, async () => {
-    if (isStageTamagotchi())
+    const isTamagotchi = isStageTamagotchi()
+    if (isTamagotchi)
       return
-    await triggerSignIn()
+    await router.push('/auth/sign-in')
   })
 
   // Reset the flag if the viewport class flips, so a stale needsLogin from a

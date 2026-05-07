@@ -1,5 +1,3 @@
-import type { Context } from 'hono'
-
 import type { AuthInstance } from '../../libs/auth'
 import type { Database } from '../../libs/db'
 import type { Env } from '../../libs/env'
@@ -11,7 +9,6 @@ import { oauthProviderAuthServerMetadata, oauthProviderOpenIdConfigMetadata } fr
 import { serveStatic } from '@hono/node-server/serve-static'
 import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
-import { deleteCookie, getCookie, setCookie } from 'hono/cookie'
 
 import { ensureDynamicFirstPartyRedirectUri } from '../../libs/auth'
 import { rateLimiter } from '../../middlewares/rate-limit'
@@ -30,38 +27,12 @@ const EMAIL_SHAPE_RE = /^[^\s@]+@[^\s@][^\s.@]*\.[^\s@]+$/
 
 const RE_SERVER_AUTH_UI_BASE_PATH = /^\/auth/
 
-/** Set on GET /oauth2/authorize?provider=…; read on GET /sign-in (Referer is often empty in WKWebView). */
-const OAUTH_SIGN_IN_PROVIDER_HINT = 'oauth_sign_in_provider'
+type SocialAuthProviderId = 'google' | 'github'
 
-/**
- * The oauth2 plugin redirects to /sign-in with OIDC query params but **drops** `provider`.
- * Recovery: 1) query 2) short HttpOnly cookie from authorize 3) Referer (non‑WebView).
- */
-function getOauthProviderHint(c: Context): 'github' | 'google' | undefined {
-  const direct = c.req.query('provider')
-  if (direct === 'github' || direct === 'google')
-    return direct
+function parseSocialAuthProviderId(value: string | null | undefined): SocialAuthProviderId | undefined {
+  if (value === 'google' || value === 'github')
+    return value
 
-  const fromCookie = getCookie(c, OAUTH_SIGN_IN_PROVIDER_HINT)
-  if (fromCookie === 'github' || fromCookie === 'google')
-    return fromCookie
-
-  const ref = c.req.header('Referer') ?? c.req.header('referer') ?? ''
-  if (!ref)
-    return undefined
-
-  try {
-    const referer = new URL(ref)
-    if (!referer.pathname.includes('/oauth2/authorize'))
-      return undefined
-
-    const p = referer.searchParams.get('provider')
-    if (p === 'github' || p === 'google')
-      return p
-  }
-  catch {
-    return undefined
-  }
   return undefined
 }
 
@@ -112,7 +83,7 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
      * routes in registration order — specific path before wildcard wins.
      */
     .on('GET', `${SERVER_AUTH_UI_BASE_PATH}/sign-in`, (c) => {
-      const provider = getOauthProviderHint(c)
+      const provider = parseSocialAuthProviderId(c.req.query('provider'))
 
       // Reconstruct the OIDC authorize URL from query params so the flow
       // resumes after social login. The oauthProvider plugin appends all
@@ -128,9 +99,7 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
         ? `${deps.env.API_SERVER_URL}/api/auth/oauth2/authorize?${oidcParams.toString()}`
         : '/'
 
-      if (!!provider && ['google', 'github'].includes(provider)) {
-        deleteCookie(c, OAUTH_SIGN_IN_PROVIDER_HINT, { path: '/' })
-        // better-auth `/sign-in/social` is POST-only; 302 to it from WebView is GET → 404. Bridge with in-page JSON POST.
+      if (provider) {
         return c.html(renderOidcSocialPostBridgeHtml({
           apiServerUrl: deps.env.API_SERVER_URL,
           provider,
@@ -178,19 +147,17 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
       routeLabel: 'auth.api',
     }))
     .use('/api/auth/oauth2/authorize', async (c, next) => {
+      const provider = parseSocialAuthProviderId(c.req.query('provider'))
       await ensureDynamicFirstPartyRedirectUri(deps.db, c.req.raw, deps.env.ADDITIONAL_TRUSTED_ORIGINS)
-      const p = c.req.query('provider')
-      if (p === 'google' || p === 'github') {
-        const isHttps = new URL(c.req.url).protocol === 'https:'
-        setCookie(c, OAUTH_SIGN_IN_PROVIDER_HINT, p, {
-          path: '/',
-          maxAge: 600,
-          httpOnly: true,
-          sameSite: 'Lax',
-          secure: isHttps,
-        })
-      }
       await next()
+      const location = c.res.headers.get('location')
+      if (provider && location) {
+        const redirectUrl = new URL(location, deps.env.API_SERVER_URL)
+        if (redirectUrl.pathname === `${SERVER_AUTH_UI_BASE_PATH}/sign-in` && !redirectUrl.searchParams.has('provider')) {
+          redirectUrl.searchParams.set('provider', provider)
+          c.res.headers.set('location', redirectUrl.pathname + redirectUrl.search)
+        }
+      }
     })
     .route('/api/auth', createOIDCTokenAuthRoute(deps))
     /**

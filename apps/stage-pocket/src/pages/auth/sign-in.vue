@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import type { OAuthProvider } from '@proj-airi/stage-ui/libs/auth'
 
-import { LoginDrawer } from '@proj-airi/stage-ui/components/auth'
+import { errorMessageFrom } from '@moeru/std'
+import { defaultSignInProviders, SignInPanel } from '@proj-airi/stage-ui/components/auth'
 import { useBreakpoints } from '@proj-airi/stage-ui/composables'
 import { fetchSession, signInOIDC } from '@proj-airi/stage-ui/libs/auth'
 import { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } from '@proj-airi/stage-ui/libs/auth-config'
 import { Button } from '@proj-airi/ui'
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
@@ -20,6 +21,9 @@ const loading = ref<Record<OAuthProvider, boolean>>({
   google: false,
   github: false,
 })
+const pendingProvider = computed(() => {
+  return defaultSignInProviders.find(provider => loading.value[provider.id])?.id ?? null
+})
 
 async function handleSignIn(provider: OAuthProvider) {
   loading.value[provider] = true
@@ -31,7 +35,7 @@ async function handleSignIn(provider: OAuthProvider) {
     })
   }
   catch (error) {
-    toast.error(error instanceof Error ? error.message : t('server.auth.signIn.error.unknown'))
+    toast.error(errorMessageFrom(error) ?? t('server.auth.signIn.error.unknown'))
   }
   finally {
     loading.value[provider] = false
@@ -102,6 +106,10 @@ watch(isDesktop, (val) => {
       </div>
     </div>
 
-    <LoginDrawer :open="true" />
+    <SignInPanel
+      :providers="defaultSignInProviders"
+      :pending-provider="pendingProvider"
+      @select="handleSignIn"
+    />
   </div>
 </template>
