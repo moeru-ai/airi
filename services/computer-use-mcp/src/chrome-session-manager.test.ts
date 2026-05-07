@@ -72,6 +72,12 @@ function mockReuseFlow(pid: number) {
     .mockResolvedValueOnce(ok('1\n')) // hasChromeWindow
 }
 
+function mockWindowMissingFlow(pid: number) {
+  mockedRunProcess
+    .mockResolvedValueOnce(ok(`${pid}\n`)) // isProcessAlive
+    .mockResolvedValueOnce(ok('0\n')) // hasChromeWindow
+}
+
 describe('chromeSessionManager', () => {
   let manager: ChromeSessionManager
 
@@ -138,9 +144,7 @@ describe('chromeSessionManager', () => {
       await manager.ensureAgentWindow()
 
       vi.clearAllMocks()
-      mockedRunProcess
-        .mockResolvedValueOnce(ok('11111\n')) // isProcessAlive
-        .mockResolvedValueOnce(ok('0\n')) // hasChromeWindow
+      mockWindowMissingFlow(11111)
       mockLaunchFlow(22222)
 
       const second = await manager.ensureAgentWindow()
@@ -179,6 +183,23 @@ describe('chromeSessionManager', () => {
       })
       expect(manager.getSessionInfo()).toBeNull()
     })
+
+    it('cleans up the active chrome profile when relaunching after a missing window', async () => {
+      mockLaunchFlow(11111)
+      await manager.ensureAgentWindow()
+
+      vi.clearAllMocks()
+      mockWindowMissingFlow(11111)
+      mockLaunchFlow(22222)
+
+      const second = await manager.ensureAgentWindow()
+
+      expect(second.pid).toBe(22222)
+      expect(mockedRm).toHaveBeenCalledWith('/tmp/test/chrome-profile-abc123', {
+        recursive: true,
+        force: true,
+      })
+    })
   })
 
   describe('bringToFront', () => {
@@ -215,9 +236,7 @@ describe('chromeSessionManager', () => {
       await manager.ensureAgentWindow()
 
       vi.clearAllMocks()
-      mockedRunProcess
-        .mockResolvedValueOnce(ok('11111\n')) // isProcessAlive
-        .mockResolvedValueOnce(ok('0\n')) // hasChromeWindow
+      mockWindowMissingFlow(11111)
 
       const result = await manager.bringToFront()
 

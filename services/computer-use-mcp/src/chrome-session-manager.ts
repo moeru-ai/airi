@@ -33,7 +33,7 @@ export interface ChromeSessionManager {
    * Ensure the agent has a usable Chrome window.
    *
    * - No active agent session → launch a dedicated Chrome profile with CDP
-   * - Existing agent session still alive → reuse it
+   * - Existing agent session still has a live Chrome window → reuse it
    *
    * Human-owned Chrome instances are not reused. The agent always launches its
    * own profile so browser-dom/CDP capture has a stable endpoint.
@@ -42,7 +42,8 @@ export interface ChromeSessionManager {
 
   /**
    * Bring the agent's Chrome window to the foreground.
-   * Returns false if the tracked session is missing or Chrome is no longer running.
+   * Returns false if the tracked session is missing, Chrome is no longer
+   * running, or the tracked window is gone.
    */
   bringToFront: () => Promise<boolean>
 
@@ -113,6 +114,18 @@ export function createChromeSessionManager(
     catch {
       return false
     }
+  }
+
+  async function clearSessionState(): Promise<void> {
+    session = null
+    previousForegroundApp = undefined
+    if (activeProfileDir) {
+      const profileDir = activeProfileDir
+      activeProfileDir = undefined
+      await rm(profileDir, { recursive: true, force: true }).catch(() => {})
+      return
+    }
+    activeProfileDir = undefined
   }
 
   async function getChromePidForProfile(profileDir: string, cdpPort: number): Promise<number | undefined> {
@@ -206,15 +219,12 @@ export function createChromeSessionManager(
         if (stillHasWindow) {
           return session
         }
-        if (!stillRunning || !stillHasWindow) {
-          // Chrome died — clear stale session.
-          onSessionLost?.()
-        }
-        session = null
-        activeProfileDir = undefined
+        // Chrome died or the tracked window disappeared — clear stale session.
+        await clearSessionState()
+        onSessionLost?.()
       }
 
-      // Record the user's current foreground app before we steal focus
+      // Record the user's current foreground app before we steal focus.
       previousForegroundApp = await getCurrentForegroundApp()
 
       const cdpPort = options?.cdpPort ?? DEFAULT_CDP_PORT
@@ -225,9 +235,9 @@ export function createChromeSessionManager(
       // Always launch a dedicated profile so CDP is stable even when Chrome is already running.
       await launchChromeWithCdp(cdpPort, activeProfileDir, options?.url)
 
-      // Bring Chrome to front
+      // Bring Chrome to front.
       await activateChrome()
-      // Brief wait for activation
+      // Brief wait for activation.
       await sleep(300)
 
       const deadline = Date.now() + config.timeoutMs
@@ -240,6 +250,7 @@ export function createChromeSessionManager(
         await sleep(250)
       }
       if (!pid) {
+        await clearSessionState()
         throw new Error('Failed to get Chrome PID after launch')
       }
 
@@ -262,8 +273,7 @@ export function createChromeSessionManager(
       const stillRunning = await isProcessAlive(session.pid)
       const stillHasWindow = stillRunning && await hasChromeWindow(session.pid)
       if (!stillHasWindow) {
-        session = null
-        activeProfileDir = undefined
+        await clearSessionState()
         onSessionLost?.()
         return false
       }
@@ -283,13 +293,7 @@ export function createChromeSessionManager(
 
     endSession() {
       const hadSession = session !== null
-      const profileDir = activeProfileDir
-      session = null
-      activeProfileDir = undefined
-      previousForegroundApp = undefined
-      if (profileDir) {
-        void rm(profileDir, { recursive: true, force: true })
-      }
+      void clearSessionState()
       if (hadSession) {
         onSessionLost?.()
       }
