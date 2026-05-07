@@ -158,6 +158,24 @@ export function createBillingService(
      * Credit flux to a user's balance within a DB transaction.
      * Generic credit method for non-Stripe flows (e.g. admin grants).
      * Transaction entries are written inside the transaction for immediate visibility.
+     *
+     * Idempotency:
+     * When `requestId` is provided, the call is idempotent across crash /
+     * retry boundaries. If a `flux_transaction` row with the same
+     * `(user_id, request_id)` already exists, this method returns that
+     * existing row's balance + id without re-crediting the user, without
+     * touching `user_flux`, without re-emitting the Redis cache write, and
+     * without re-publishing the `flux.credited` event. The cache + event
+     * were already produced by the original successful call.
+     *
+     * This guards against the worker crash window where:
+     * 1. `creditFlux` commits the credit
+     * 2. caller crashes before marking its own state (e.g. recipient row) granted
+     * 3. on restart, caller sees pending state and calls `creditFlux` again with same requestId
+     *
+     * Without idempotency, step 3 would hit the `(user_id, request_id)`
+     * unique index and throw — causing the caller to mark the work failed
+     * even though the user was already credited.
      */
     async creditFlux(input: {
       userId: string
@@ -172,9 +190,38 @@ export function createBillingService(
        */
       type?: 'credit' | 'promo'
       auditMetadata?: Record<string, unknown>
-    }): Promise<{ balanceBefore: number, balanceAfter: number, fluxTransactionId: string }> {
+    }): Promise<{ balanceBefore: number, balanceAfter: number, fluxTransactionId: string, idempotent: boolean }> {
       const ledgerType = input.type ?? 'credit'
-      const result = await db.transaction(async (tx) => {
+
+      const txResult = await db.transaction(async (tx) => {
+        // Idempotency check: if (userId, requestId) already exists, return that
+        // row as a successful credit without touching balance again. This relies
+        // on the partial unique index `flux_tx_user_request_uniq` defined on
+        // `(user_id, request_id) WHERE request_id IS NOT NULL`.
+        if (input.requestId != null) {
+          const [existing] = await tx
+            .select({
+              id: fluxTxSchema.fluxTransaction.id,
+              balanceBefore: fluxTxSchema.fluxTransaction.balanceBefore,
+              balanceAfter: fluxTxSchema.fluxTransaction.balanceAfter,
+            })
+            .from(fluxTxSchema.fluxTransaction)
+            .where(and(
+              eq(fluxTxSchema.fluxTransaction.userId, input.userId),
+              eq(fluxTxSchema.fluxTransaction.requestId, input.requestId),
+            ))
+            .limit(1)
+
+          if (existing) {
+            return {
+              balanceBefore: existing.balanceBefore,
+              balanceAfter: existing.balanceAfter,
+              fluxTransactionId: existing.id,
+              idempotent: true,
+            }
+          }
+        }
+
         // Ensure user record exists
         await tx.insert(fluxSchema.userFlux)
           .values({ userId: input.userId, flux: 0 })
@@ -207,10 +254,28 @@ export function createBillingService(
           metadata: input.auditMetadata,
         }).returning({ id: fluxTxSchema.fluxTransaction.id })
 
-        return { balanceBefore, balanceAfter, fluxTransactionId: insertedTx!.id }
+        return {
+          balanceBefore,
+          balanceAfter,
+          fluxTransactionId: insertedTx!.id,
+          idempotent: false,
+        }
       })
 
-      await updateRedisCache(input.userId, result.balanceAfter)
+      // For idempotent replays, skip cache update + event publish — the
+      // original successful call already did both. Re-emitting would either
+      // be redundant (cache) or produce duplicate `flux.credited` events
+      // downstream, which would mislead any future consumer that counts events.
+      if (txResult.idempotent) {
+        logger.withFields({
+          userId: input.userId,
+          requestId: input.requestId,
+          fluxTransactionId: txResult.fluxTransactionId,
+        }).log('Credited flux (idempotent replay — no side effects emitted)')
+        return txResult
+      }
+
+      await updateRedisCache(input.userId, txResult.balanceAfter)
 
       // Publish flux.credited event after commit
       await publishEvent({
@@ -223,13 +288,13 @@ export function createBillingService(
         schemaVersion: 1,
         payload: {
           amount: input.amount,
-          balanceAfter: result.balanceAfter,
+          balanceAfter: txResult.balanceAfter,
           source: input.source,
         },
       })
 
-      logger.withFields({ userId: input.userId, amount: input.amount, balance: result.balanceAfter }).log('Credited flux')
-      return result
+      logger.withFields({ userId: input.userId, amount: input.amount, balance: txResult.balanceAfter }).log('Credited flux')
+      return txResult
     },
 
     /**

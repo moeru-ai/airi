@@ -9,7 +9,7 @@ Hono-based Node.js backend. Owns auth, billing, chat sync, LLM gateway forwardin
 ## Deployment Model
 
 - Hosted on **Railway**, multiple instances behind a load balancer.
-- Each instance runs one CLI role: `api` or `billing-consumer` (see `src/bin/run.ts`).
+- Each instance runs one CLI role: `api` or `worker` (see `src/bin/run.ts`). The `worker` role is the singular non-API process; it currently colocates the Redis Stream billing-event consumer and the flux-grant-batch poller, and is the home for any future background tasks.
 - Stateless per-instance: no local state that matters across requests.
 - Cross-instance coordination via Redis Pub/Sub (WebSocket broadcast) and Redis Streams (billing events).
 - Rate limiting is currently **in-memory** (not distributed) — keep this in mind when adding rate-sensitive features.

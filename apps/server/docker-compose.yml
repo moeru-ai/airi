@@ -53,11 +53,11 @@ services:
       timeout: 5s
       retries: 5
 
-  billing-consumer:
+  worker:
     build:
       context: ../..
       dockerfile: apps/server/Dockerfile
-    command: ['pnpm', '-F', '@proj-airi/server', 'run', 'server', 'billing-consumer']
+    command: ['pnpm', '-F', '@proj-airi/server', 'run', 'server', 'worker']
     depends_on:
       db:
         condition: service_healthy

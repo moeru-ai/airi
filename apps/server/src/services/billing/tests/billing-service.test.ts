@@ -5,7 +5,7 @@ import type { MqService } from '../../../libs/mq'
 import type { createConfigKVService } from '../../config-kv'
 import type { BillingEvent } from '../billing-events'
 
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../../libs/mock-db'
@@ -221,6 +221,7 @@ describe('billingService', () => {
 
       expect(result.balanceAfter).toBe(50)
       expect(result.balanceBefore).toBe(0)
+      expect(result.idempotent).toBe(false)
 
       // Verify transaction
       const txRecords = await db.select().from(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-billing-1'))
@@ -235,6 +236,66 @@ describe('billingService', () => {
       // Verify billing event published to stream
       expect(billingMq.publish).toHaveBeenCalledTimes(1)
       expect(billingMq.publish).toHaveBeenCalledWith(expect.objectContaining({ eventType: 'flux.credited' }))
+    })
+
+    it('is idempotent across retries with the same requestId', async () => {
+      // ROOT CAUSE:
+      //
+      // Worker crash window: creditFlux commits the credit, then worker
+      // crashes before marking its own state row (e.g. flux_grant_batch_recipient)
+      // as granted. On restart the worker re-claims the same row and calls
+      // creditFlux again with the same requestId.
+      //
+      // Before the fix: second call hit the unique index on
+      // (user_id, request_id) and threw, the worker's catch block marked
+      // the recipient as `failed` despite the user already having been credited.
+      // User got the FLUX but the recipient row was stuck in failed.
+      //
+      // After the fix: second call detects the existing flux_transaction row,
+      // returns it as an idempotent success without touching balance, cache, or
+      // event stream. Worker advances to granted normally.
+      const requestId = 'campaign-replay-test'
+
+      const first = await billingService.creditFlux({
+        userId: 'user-billing-1',
+        amount: 100,
+        requestId,
+        description: 'Replay test',
+        source: 'admin',
+      })
+      expect(first.idempotent).toBe(false)
+      expect(first.balanceAfter).toBe(100)
+
+      // Second call with same requestId — simulates crash-recovery retry.
+      const second = await billingService.creditFlux({
+        userId: 'user-billing-1',
+        amount: 100,
+        requestId,
+        description: 'Replay test',
+        source: 'admin',
+      })
+
+      expect(second.idempotent).toBe(true)
+      // Same record returned, not a fresh credit
+      expect(second.fluxTransactionId).toBe(first.fluxTransactionId)
+      expect(second.balanceAfter).toBe(first.balanceAfter)
+
+      // Balance must NOT have doubled
+      const [fluxRow] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
+      expect(fluxRow!.flux).toBe(100)
+
+      // Only one ledger row exists (unique index would prevent a second anyway,
+      // but verify the function didn't try to insert and silently swallow)
+      const txRecords = await db.select().from(schema.fluxTransaction).where(and(
+        eq(schema.fluxTransaction.userId, 'user-billing-1'),
+        eq(schema.fluxTransaction.requestId, requestId),
+      ))
+      expect(txRecords).toHaveLength(1)
+
+      // No second event was published — downstream consumers see exactly one
+      // credit event for this requestId, no matter how many times the caller
+      // retried.
+      expect(billingMq.publish).toHaveBeenCalledTimes(1)
     })
   })
 })

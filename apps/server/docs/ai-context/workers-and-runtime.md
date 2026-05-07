@@ -6,8 +6,11 @@
 
 - `api`
   - 启动 Hono HTTP + WebSocket 服务
-- `billing-consumer`
-  - 消费 Redis Stream `billing-events`，异步将 ledger、audit log、LLM 请求日志写入 DB
+- `worker`
+  - 部署里所有非 API 后台任务的统一 role。当前内含：
+    - Redis Stream `billing-events` 消费循环（异步将 ledger / audit log / LLM 请求日志写入 DB）
+    - Postgres `flux_grant_batch_recipient` 轮询循环（异步处理 admin 批量 FLUX 发放）
+  - 新增后台任务直接挂到这个 role 里，不开新 role（CLAUDE.md "Railway role 越少越好维护"）
 
 这两个角色是当前服务端部署拆分的基本单位。
 
@@ -30,13 +33,14 @@
 - 启动 HTTP server
 - 注入 WebSocket
 
-## Billing Consumer
+## Worker Role 内的 loop
 
 实现位置：
 
-- 入口：`src/bin/run-billing-consumer.ts`
-- worker：`src/services/billing-mq-worker.ts`
-- stream adapter：`src/services/billing-mq.ts`
+- 入口：`src/bin/run-worker.ts`（旧名 `run-billing-consumer.ts`，重命名是因为 role 现在做的不只是 stream 消费）
+- billing event consumer handler：`src/services/billing/billing-consumer-handler.ts`（service 模块名保留 `billing-consumer-handler` —— 它确实是 billing event stream 的 consumer handler，跟 role 名是两个层次的概念）
+- flux grant batch worker：`src/services/admin-flux-grant-batch/flux-grant-batch-worker.ts`
+- stream adapter：`src/libs/mq/`
 
 工作流程：
 
@@ -155,7 +159,7 @@
 - 新增 worker
   - 先看 `run.ts` 的角色模型和 `billing-mq-worker.ts`
 - 改事件分发
-  - 先看 billing-consumer handler，在 `billing-mq-worker.ts` 中增加新的事件处理分支
+  - 先看 `billing-consumer-handler.ts`，在它的 switch 里增加新的事件处理分支
 - 改聊天同步
   - 先区分“持久化消息”与“广播通知”两层
 - 改部署限流

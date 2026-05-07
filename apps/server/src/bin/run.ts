@@ -8,9 +8,9 @@ import { cac } from 'cac'
 
 import { runApiServer } from '../app'
 import { errorMessageFromUnknown } from '../utils/error-message'
-import { runBillingConsumer } from './run-billing-consumer'
+import { runWorker } from './run-worker'
 
-const serverRoles = ['api', 'billing-consumer'] as const
+const serverRoles = ['api', 'worker'] as const
 
 type ServerRole = typeof serverRoles[number]
 
@@ -19,8 +19,8 @@ async function runServerRole(role: ServerRole): Promise<void> {
     case 'api':
       await runApiServer()
       return
-    case 'billing-consumer':
-      await runBillingConsumer()
+    case 'worker':
+      await runWorker()
   }
 }
 
@@ -33,8 +33,8 @@ export function createServerCli() {
     .action(() => runServerRole('api'))
 
   cli
-    .command('billing-consumer', 'Start the billing events consumer (transactions, audit, request logs)')
-    .action(() => runServerRole('billing-consumer'))
+    .command('worker', 'Start the background worker process (billing event consumer + flux grant batch poller + future async tasks)')
+    .action(() => runServerRole('worker'))
 
   cli.help()
 

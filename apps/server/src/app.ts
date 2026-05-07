@@ -5,7 +5,7 @@ import type { Database } from './libs/db'
 import type { Env } from './libs/env'
 import type { MqService } from './libs/mq'
 import type { OtelInstance } from './libs/otel'
-import type { FluxGrantBatchService } from './services/admin-flux-grant-batch/flux-grant-batch-service'
+import type { AdminFluxGrantsService } from './services/admin-flux-grants'
 import type { BillingEvent } from './services/billing/billing-events'
 import type { BillingService } from './services/billing/billing-service'
 import type { FluxMeter } from './services/billing/flux-meter'
@@ -41,7 +41,7 @@ import { createRedis } from './libs/redis'
 import { resolveRequestAuth } from './libs/request-auth'
 import { sessionMiddleware } from './middlewares/auth'
 import { otelMiddleware } from './middlewares/otel'
-import { createAdminFluxGrantBatchRoutes } from './routes/admin/flux-grant-batches'
+import { createAdminFluxGrantsRoutes } from './routes/admin/flux-grants'
 import { createAuthRoutes } from './routes/auth'
 import { createCharacterRoutes } from './routes/characters'
 import { createChatWsHandlers } from './routes/chat-ws'
@@ -51,7 +51,7 @@ import { createV1CompletionsRoutes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
 import { createWellKnownRoutes } from './routes/well-known'
-import { createFluxGrantBatchService } from './services/admin-flux-grant-batch/flux-grant-batch-service'
+import { createAdminFluxGrantsService } from './services/admin-flux-grants'
 import { createBillingMq } from './services/billing/billing-events'
 import { createBillingService } from './services/billing/billing-service'
 import { createFluxMeter } from './services/billing/flux-meter'
@@ -79,7 +79,7 @@ interface AppDeps {
   fluxTransactionService: FluxTransactionService
   stripeService: StripeService
   billingService: BillingService
-  fluxGrantBatchService: FluxGrantBatchService
+  adminFluxGrantsService: AdminFluxGrantsService
   ttsMeter: FluxMeter
   billingMq: MqService<BillingEvent>
   configKV: ConfigKVService
@@ -228,10 +228,10 @@ export async function buildApp(deps: AppDeps) {
     .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue))
 
     /**
-     * Admin routes — guarded by ADMIN_USER_IDS allowlist. v1 only includes
-     * batch-based promo flux grant operations.
+     * Admin routes — guarded by `ADMIN_EMAILS` allowlist + verified email.
+     * v1 only includes synchronous one-shot promo flux grants.
      */
-    .route('/api/admin/flux-grant-batches', createAdminFluxGrantBatchRoutes(deps.fluxGrantBatchService, deps.env))
+    .route('/api/admin/flux-grants', createAdminFluxGrantsRoutes(deps.adminFluxGrantsService, deps.env))
 
     /**
      * Catch-all 404 in JSON. Replaces hono's default `text/html` "404 Not
@@ -435,9 +435,12 @@ export async function createApp() {
     build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.billingMq, dependsOn.configKV, dependsOn.otel?.revenue),
   })
 
-  const fluxGrantBatchService = injeca.provide('services:adminFluxGrantBatch', {
-    dependsOn: { db },
-    build: ({ dependsOn }) => createFluxGrantBatchService(dependsOn.db),
+  const adminFluxGrantsService = injeca.provide('services:adminFluxGrants', {
+    dependsOn: { db, billingService },
+    build: ({ dependsOn }) => createAdminFluxGrantsService({
+      db: dependsOn.db,
+      billingService: dependsOn.billingService,
+    }),
   })
 
   const ttsMeter = injeca.provide('services:ttsMeter', {
@@ -470,7 +473,7 @@ export async function createApp() {
     requestLogService,
     stripeService,
     billingService,
-    fluxGrantBatchService,
+    adminFluxGrantsService,
     ttsMeter,
     billingMq,
     configKV,
@@ -489,7 +492,7 @@ export async function createApp() {
     fluxTransactionService: resolved.fluxTransactionService,
     stripeService: resolved.stripeService,
     billingService: resolved.billingService,
-    fluxGrantBatchService: resolved.fluxGrantBatchService,
+    adminFluxGrantsService: resolved.adminFluxGrantsService,
     ttsMeter: resolved.ttsMeter,
     billingMq: resolved.billingMq,
     configKV: resolved.configKV,

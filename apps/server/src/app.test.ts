@@ -46,7 +46,7 @@ function createTestDeps() {
     fluxTransactionService: {} as any,
     stripeService: {} as any,
     billingService: {} as any,
-    fluxGrantBatchService: {} as any,
+    adminFluxGrantsService: {} as any,
     ttsMeter: {} as any,
     billingMq: {} as any,
     configKV: {

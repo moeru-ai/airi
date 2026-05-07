@@ -171,7 +171,7 @@
 
 - 所有余额写操作
 - DB 事务
-- debitFlux：事务内仅更新余额；事务后 XADD Redis Stream，transaction log 由 billing-consumer 异步写入
+- debitFlux：事务内仅更新余额；事务后 XADD Redis Stream，transaction log 由 worker role 中的 billing event consumer 异步写入
 - credit 方法：事务内同步写 transaction
 - 事务提交后 best-effort `redis.set` 更新 Flux 余额缓存
 

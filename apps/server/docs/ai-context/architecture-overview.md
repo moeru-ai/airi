@@ -30,7 +30,7 @@
 CLI 入口在 `src/bin/run.ts`，支持两种角色：
 
 - `api`
-- `billing-consumer`
+- `worker`（部署里所有非 API 的后台任务都跑在这个 role 里）
 
 ## 依赖注入结构
 
