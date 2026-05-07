@@ -1491,27 +1491,27 @@ pages:
   credits:
     buy: 购买
   scene:
-    title: Scenes
-    description: Customize the virtual environment for your characters.
-    beta_label: Scenes System
-    beta_description: Each character card specifies its own preferred background from this gallery. Setting it here will set it as the default for the currently active character.
+    title: 场景
+    description: 自定义角色的虚拟环境。
+    beta_label: 场景系统
+    beta_description: 每个角色卡可以从场景库中指定自己偏好的背景。在此设置将作为当前活跃角色的默认背景。
     background_image:
-      title: Active Character Background
-      no_background: No background active for this character. Upload a square or landscape image for best results.
-      upload: Upload to Gallery
-      change: Change Background
-      clear: Clear Default
+      title: 活跃角色背景
+      no_background: 此角色没有活跃背景。上传正方形或横向图片以获得最佳效果。
+      upload: 上传到场景库
+      change: 更换背景
+      clear: 清除默认
     gallery:
-      title: Scene Gallery
-      empty: No images in gallery yet. Upload one above!
-      set_as_global: Set as Character Default
-      delete: Delete from Gallery
-      global_badge: Character Default
-      active_badge: Current Scene
-      delete_confirm: Are you sure you want to delete this background?
+      title: 场景库
+      empty: 场景库中还没有图片，从上方上传一张吧！
+      set_as_global: 设为角色默认
+      delete: 从场景库删除
+      global_badge: 角色默认
+      active_badge: 当前场景
+      delete_confirm: 确定要删除这张背景吗？
     tip:
-      label: Tip!
-      description: Using a square image will leverage <b>cover</b> cropping in portrait mode, focusing on the center of the scene.
+      label: 提示！
+      description: 使用正方形图片将在竖屏模式下应用<b>封面</b>裁剪，聚焦场景中心。
 sections:
   section:
     general:
