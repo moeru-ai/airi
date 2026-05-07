@@ -773,6 +773,7 @@ pages:
       typeAddition: 補充
       typeConsumption: 利用状況
       typeInitial: 初期付与
+      typePromo: キャンペーン付与
       loading: 履歴を読み込み中…
       empty: 取引記録はまだありません。
       loadMore: さらに読み込む

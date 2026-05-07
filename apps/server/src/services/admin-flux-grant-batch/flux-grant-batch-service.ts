@@ -389,23 +389,34 @@ export async function getBatchTerminalCheck(db: Database, batchId: string) {
  * Worker-side query: find batches that are still in `created` or `running`
  * and have at least one pending recipient whose backoff has elapsed. Workers
  * iterate this set so they don't waste polls on empty/finished batches.
+ *
+ * NOTICE:
+ * Why this isn't `selectDistinct(...).innerJoin(recipient)`:
+ * Postgres rejects `SELECT DISTINCT ... ORDER BY col` when `col` isn't in
+ * the select list (sqlstate 42P10). We previously had `orderBy(createdAt)`
+ * with only `id` + `status` selected → runtime crash on the first worker
+ * tick (caught during local dev 2026-05-08).
+ *
+ * Switched to a plain `SELECT … WHERE EXISTS (recipient row meeting
+ * criteria)`, which is also conceptually right: "show me batches that
+ * have at least one ready-to-process recipient", not "join then dedupe".
  */
 export async function findActiveBatches(db: Database, now: Date) {
   const rows = await db
-    .selectDistinct({
+    .select({
       id: batchSchema.fluxGrantBatch.id,
       status: batchSchema.fluxGrantBatch.status,
     })
     .from(batchSchema.fluxGrantBatch)
-    .innerJoin(
-      batchSchema.fluxGrantBatchRecipient,
-      eq(batchSchema.fluxGrantBatchRecipient.batchId, batchSchema.fluxGrantBatch.id),
-    )
     .where(and(
       inArray(batchSchema.fluxGrantBatch.status, ['created', 'running']),
-      eq(batchSchema.fluxGrantBatchRecipient.status, 'pending'),
-      sql`(${batchSchema.fluxGrantBatchRecipient.lastAttemptedAt} IS NULL
-        OR ${batchSchema.fluxGrantBatchRecipient.lastAttemptedAt} < ${now})`,
+      sql`EXISTS (
+        SELECT 1 FROM ${batchSchema.fluxGrantBatchRecipient}
+        WHERE ${batchSchema.fluxGrantBatchRecipient.batchId} = ${batchSchema.fluxGrantBatch.id}
+          AND ${batchSchema.fluxGrantBatchRecipient.status} = 'pending'
+          AND (${batchSchema.fluxGrantBatchRecipient.lastAttemptedAt} IS NULL
+               OR ${batchSchema.fluxGrantBatchRecipient.lastAttemptedAt} < ${now})
+      )`,
     ))
     .orderBy(batchSchema.fluxGrantBatch.createdAt)
 
