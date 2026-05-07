@@ -68,7 +68,7 @@ describe('smoke-chrome-grounding helpers', () => {
     }, 'desktop_get_state')).toThrow('desktop_get_state expected status=ok')
   })
 
-  it('selects explicit candidate first and otherwise prefers a chrome_dom smoke target', () => {
+  it('selects explicit candidate first and otherwise requires the chrome_dom smoke target label', () => {
     const runState = {
       lastGroundingSnapshot: {
         snapshotId: 'dg_1',
@@ -103,7 +103,7 @@ describe('smoke-chrome-grounding helpers', () => {
     expect(() => selectDesktopV3SmokeCandidate(runState, 'missing')).toThrow('did not return requested candidate')
   })
 
-  it('does not select generic non-chrome candidates by default', () => {
+  it('does not fall back to a generic chrome_dom candidate when the smoke label is missing', () => {
     const runState = {
       lastGroundingSnapshot: {
         snapshotId: 'dg_1',
@@ -132,7 +132,7 @@ describe('smoke-chrome-grounding helpers', () => {
       },
     }
 
-    expect(selectDesktopV3SmokeCandidate(runState).id).toBe('t_2')
+    expect(() => selectDesktopV3SmokeCandidate(runState)).toThrow('desktop_observe did not return the AIRI Desktop V3 Smoke Button chrome_dom candidate')
   })
 
   it('locks pre-click and post-click overlay state shape', () => {

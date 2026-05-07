@@ -13,12 +13,11 @@ export function selectDesktopOverlaySmokeCandidateId(runState: Record<string, un
 
   const selected = candidates.find((candidate) => {
     return String(candidate.label || '').includes('AIRI Desktop Overlay Smoke Button')
-      || String(candidate.role || '').toLowerCase().includes('button')
-  }) ?? candidates[0]
+  })
 
   const id = typeof selected?.id === 'string' ? selected.id : ''
   if (!id)
-    throw new Error('desktop_observe produced no clickable target candidate id')
+    throw new Error('desktop_observe did not return the AIRI Desktop Overlay Smoke Button chrome_dom candidate')
 
   return id
 }

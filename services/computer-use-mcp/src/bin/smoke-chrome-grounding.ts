@@ -139,11 +139,15 @@ export function selectDesktopV3SmokeCandidate(
   const candidatesWithIds = candidates.filter((candidate): candidate is CandidateRecord => {
     return typeof candidate.id === 'string' && candidate.id.length > 0
   })
+  const chromeDomCandidates = candidatesWithIds.filter(candidate => candidate.source === 'chrome_dom')
   const selected = requested
     ? candidatesWithIds.find(candidate => candidate.id === requested)
-    : selectDefaultChromeDomCandidate(candidatesWithIds)
+    : selectDefaultChromeDomCandidate(chromeDomCandidates)
 
   if (!selected) {
+    if (!requested) {
+      throw new Error('desktop_observe did not return the AIRI Desktop V3 Smoke Button chrome_dom candidate')
+    }
     throw new Error(`desktop_observe did not return requested candidate "${requested}"`)
   }
 
@@ -169,8 +173,9 @@ function candidateText(candidate: Record<string, unknown>): string {
 }
 
 function selectDefaultChromeDomCandidate(candidates: CandidateRecord[]): CandidateRecord | undefined {
-  return candidates.find(candidate => candidate.source === 'chrome_dom' && candidateText(candidate).includes(SMOKE_TARGET_LABEL.toLowerCase()))
-    ?? candidates.find(candidate => candidate.source === 'chrome_dom')
+  return candidates.find(candidate =>
+    candidateText(candidate).includes(SMOKE_TARGET_LABEL.toLowerCase()),
+  )
 }
 
 export function extractOverlaySmokeState(runState: Record<string, unknown>): OverlaySmokeState {
