@@ -132,15 +132,15 @@ async function waitFor<T>(
   throw new Error(`${label} timed out after ${timeoutMs}ms${suffix}`)
 }
 
-class CdpClient {
-  private socket: WebSocket
+export class CdpClient {
+  private socket?: WebSocket
   private nextId = 1
   private pending = new Map<number, {
     resolve: (value: Record<string, unknown>) => void
     reject: (error: Error) => void
   }>()
 
-  private constructor(socket: WebSocket) {
+  constructor(socket: WebSocket) {
     this.socket = socket
     this.socket.addEventListener('message', (event) => {
       const payload = JSON.parse(String(event.data)) as Record<string, unknown>
@@ -160,6 +160,12 @@ class CdpClient {
         pending.resolve(payload)
       }
     })
+    this.socket.addEventListener('close', () => {
+      this.failPending('CDP socket closed')
+    })
+    this.socket.addEventListener('error', () => {
+      this.failPending('CDP socket errored')
+    })
   }
 
   static async connect(url: string): Promise<CdpClient> {
@@ -172,6 +178,10 @@ class CdpClient {
   }
 
   async send(method: string, params?: Record<string, unknown>): Promise<Record<string, unknown>> {
+    if (!this.socket) {
+      throw new Error('CDP socket is closed')
+    }
+
     const id = this.nextId++
     const promise = new Promise<Record<string, unknown>>((resolveMessage, reject) => {
       this.pending.set(id, { resolve: resolveMessage, reject })
@@ -204,7 +214,20 @@ class CdpClient {
   }
 
   close() {
-    this.socket.close()
+    this.failPending('CDP socket closed')
+    this.socket?.close()
+    this.socket = undefined
+  }
+
+  private failPending(reason: string) {
+    if (this.pending.size === 0) {
+      return
+    }
+
+    for (const [id, pending] of this.pending.entries()) {
+      this.pending.delete(id)
+      pending.reject(new Error(`${reason} before completing request ${id}`))
+    }
   }
 }
 
@@ -531,8 +554,10 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error))
-  console.error(`stage log: ${stageLogPath}`)
-  exit(1)
-})
+if (import.meta.main) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error))
+    console.error(`stage log: ${stageLogPath}`)
+    exit(1)
+  })
+}

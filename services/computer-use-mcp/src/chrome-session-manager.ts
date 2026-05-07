@@ -116,6 +116,22 @@ export function createChromeSessionManager(
     }
   }
 
+  async function terminateChromeProcess(pid: number): Promise<void> {
+    await runProcess('kill', ['-TERM', String(pid)], { timeoutMs: config.timeoutMs }).catch(() => {})
+    await sleep(250)
+
+    if (!await isProcessAlive(pid)) {
+      return
+    }
+
+    await runProcess('kill', ['-KILL', String(pid)], { timeoutMs: config.timeoutMs }).catch(() => {})
+    await sleep(250)
+
+    if (await isProcessAlive(pid)) {
+      throw new Error(`Failed to terminate stale Chrome process ${pid}`)
+    }
+  }
+
   async function clearSessionState(): Promise<void> {
     session = null
     previousForegroundApp = undefined
@@ -214,14 +230,23 @@ export function createChromeSessionManager(
   return {
     async ensureAgentWindow(options) {
       if (session) {
-        const stillRunning = await isProcessAlive(session.pid)
-        const stillHasWindow = stillRunning && await hasChromeWindow(session.pid)
+        const trackedSession = session
+        const stillRunning = await isProcessAlive(trackedSession.pid)
+        const stillHasWindow = stillRunning && await hasChromeWindow(trackedSession.pid)
         if (stillHasWindow) {
-          return session
+          return trackedSession
         }
-        // Chrome died or the tracked window disappeared — clear stale session.
-        await clearSessionState()
-        onSessionLost?.()
+
+        try {
+          if (stillRunning) {
+            await terminateChromeProcess(trackedSession.pid)
+          }
+        }
+        finally {
+          // Chrome died or the tracked window disappeared — clear stale session.
+          await clearSessionState()
+          onSessionLost?.()
+        }
       }
 
       // Record the user's current foreground app before we steal focus.
@@ -232,39 +257,44 @@ export function createChromeSessionManager(
       await mkdir(config.sessionRoot, { recursive: true })
       activeProfileDir = await mkdtemp(join(config.sessionRoot, 'chrome-profile-'))
 
-      // Always launch a dedicated profile so CDP is stable even when Chrome is already running.
-      await launchChromeWithCdp(cdpPort, activeProfileDir, options?.url)
+      try {
+        // Always launch a dedicated profile so CDP is stable even when Chrome is already running.
+        await launchChromeWithCdp(cdpPort, activeProfileDir, options?.url)
 
-      // Bring Chrome to front.
-      await activateChrome()
-      // Brief wait for activation.
-      await sleep(300)
+        // Bring Chrome to front.
+        await activateChrome()
+        // Brief wait for activation.
+        await sleep(300)
 
-      const deadline = Date.now() + config.timeoutMs
-      let pid: number | undefined
-      while (Date.now() < deadline) {
-        pid = await getChromePidForProfile(activeProfileDir, cdpPort)
-        if (pid) {
-          break
+        const deadline = Date.now() + config.timeoutMs
+        let pid: number | undefined
+        while (Date.now() < deadline) {
+          pid = await getChromePidForProfile(activeProfileDir, cdpPort)
+          if (pid) {
+            break
+          }
+          await sleep(250)
         }
-        await sleep(250)
+        if (!pid) {
+          throw new Error('Failed to get Chrome PID after launch')
+        }
+
+        session = {
+          wasAlreadyRunning,
+          windowId: `${pid}:0:${CHROME_APP_NAME}`,
+          cdpUrl: `http://127.0.0.1:${cdpPort}`,
+          pid,
+          agentOwned: true,
+          initialUrl: options?.url,
+          createdAt: new Date().toISOString(),
+        }
+
+        return session
       }
-      if (!pid) {
+      catch (error) {
         await clearSessionState()
-        throw new Error('Failed to get Chrome PID after launch')
+        throw error
       }
-
-      session = {
-        wasAlreadyRunning,
-        windowId: `${pid}:0:${CHROME_APP_NAME}`,
-        cdpUrl: `http://127.0.0.1:${cdpPort}`,
-        pid,
-        agentOwned: true,
-        initialUrl: options?.url,
-        createdAt: new Date().toISOString(),
-      }
-
-      return session
     },
 
     async bringToFront() {

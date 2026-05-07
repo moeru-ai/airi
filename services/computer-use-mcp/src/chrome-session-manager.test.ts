@@ -145,12 +145,16 @@ describe('chromeSessionManager', () => {
 
       vi.clearAllMocks()
       mockWindowMissingFlow(11111)
+      mockedRunProcess.mockResolvedValueOnce(ok()) // terminateChromeProcess: kill -TERM
+      mockedRunProcess.mockResolvedValueOnce(ok()) // terminateChromeProcess: post-TERM liveness check
       mockLaunchFlow(22222)
 
       const second = await manager.ensureAgentWindow()
 
       expect(second.pid).toBe(22222)
-      expect(mockedRunProcess).toHaveBeenNthCalledWith(2, '/usr/bin/osascript', [
+      expect(mockedRunProcess).toHaveBeenCalledWith('kill', ['-TERM', '11111'], expect.any(Object))
+      expect(mockedRunProcess).not.toHaveBeenCalledWith('kill', ['-KILL', '11111'], expect.any(Object))
+      expect(mockedRunProcess).toHaveBeenCalledWith('/usr/bin/osascript', [
         '-e',
         'tell application "System Events" to get count of windows of (first application process whose unix id is 11111)',
       ], expect.any(Object))
@@ -190,6 +194,8 @@ describe('chromeSessionManager', () => {
 
       vi.clearAllMocks()
       mockWindowMissingFlow(11111)
+      mockedRunProcess.mockResolvedValueOnce(ok()) // terminateChromeProcess: kill -TERM
+      mockedRunProcess.mockResolvedValueOnce(ok()) // terminateChromeProcess: post-TERM liveness check
       mockLaunchFlow(22222)
 
       const second = await manager.ensureAgentWindow()
