@@ -298,12 +298,20 @@ function assertToolRegistered(toolNames: Set<string>, toolName: string) {
     throw new Error(`required desktop v3 tool is not registered: ${toolName}`)
 }
 
-function parseNumber(value: string | undefined, fallback: number): number {
+export function parseNumber(value: string | undefined, fallback: number): number {
   if (!value?.trim())
     return fallback
 
   const parsed = Number(value)
   return Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : fallback
+}
+
+export function parseOptionalString(value: string | undefined): string | undefined {
+  const trimmed = value?.trim()
+  if (!trimmed || trimmed === 'undefined' || trimmed === 'null')
+    return undefined
+
+  return trimmed
 }
 
 function delay(ms: number): Promise<void> {
@@ -315,7 +323,7 @@ export async function runDesktopV3Smoke(): Promise<Record<string, unknown>> {
   const args = parseCommandArgs(env.COMPUTER_USE_SMOKE_SERVER_ARGS, ['start'])
   const cwd = env.COMPUTER_USE_SMOKE_SERVER_CWD?.trim() || packageDir
   const smokeUrl = env.COMPUTER_USE_DESKTOP_V3_SMOKE_URL?.trim() || DEFAULT_SMOKE_URL
-  const requestedCandidateId = env.COMPUTER_USE_DESKTOP_V3_SMOKE_CANDIDATE_ID
+  const requestedCandidateId = parseOptionalString(env.COMPUTER_USE_DESKTOP_V3_SMOKE_CANDIDATE_ID)
   const settleMs = parseNumber(env.COMPUTER_USE_DESKTOP_V3_SMOKE_SETTLE_MS, 750)
 
   const transport = new StdioClientTransport({

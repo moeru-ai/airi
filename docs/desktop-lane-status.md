@@ -75,6 +75,15 @@ These are the remaining real issues, ordered by severity.
   - the live window context still needs one narrow verification pass
 - This is not proven broken today, but it is the most likely remaining runtime risk on the overlay path.
 
+### 5. Local overlay live-window smoke exists in the recut branch, but it still needs a live run on this branch.
+
+- The smoke is now wired in `apps/stage-tamagotchi/package.json` as
+  `smoke:desktop-overlay-live-window`.
+- The shared candidate-selection helper is unit-tested.
+- What is still missing here is a fresh pass on this recut branch with the real
+  Electron overlay window, to confirm the heartbeat marker and MCP polling still
+  behave the same as the older line.
+
 ## What is not a current blocker
 
 These items are real ideas or cleanup work, but they are not the thing that should block the line right now.
@@ -105,6 +114,7 @@ In short: m13v gave good runtime advice. That does not mean every suggestion is 
 3. Finish or explicitly shelve the overlay readiness contract work:
    - if kept, validate it in a live overlay window context before merging
    - if not finished now, do not half-merge it
+4. Rerun the local overlay live-window smoke on this recut branch before calling it current proof.
 
 ## What should happen later
 

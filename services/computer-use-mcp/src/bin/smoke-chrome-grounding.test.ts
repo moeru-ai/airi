@@ -4,6 +4,8 @@ import {
   extractOverlaySmokeState,
   requireChromeDomSmokeCandidate,
   parseCommandArgs,
+  parseNumber,
+  parseOptionalString,
   requirePostClickOverlayState,
   requireRunState,
   requireStructuredContent,
@@ -16,6 +18,16 @@ describe('smoke-chrome-grounding helpers', () => {
   it('parses server command args with fallback', () => {
     expect(parseCommandArgs(undefined, ['start'])).toEqual(['start'])
     expect(parseCommandArgs(' start -- --flag ', ['fallback'])).toEqual(['start', '--', '--flag'])
+  })
+
+  it('parses numbers and optional string sentinels', () => {
+    expect(parseNumber(undefined, 12)).toBe(12)
+    expect(parseNumber('9.8', 12)).toBe(9)
+    expect(parseNumber('foo', 12)).toBe(12)
+    expect(parseOptionalString(undefined)).toBeUndefined()
+    expect(parseOptionalString(' undefined ')).toBeUndefined()
+    expect(parseOptionalString(' null ')).toBeUndefined()
+    expect(parseOptionalString(' t_1 ')).toBe('t_1')
   })
 
   it('requires structured content and text content', () => {

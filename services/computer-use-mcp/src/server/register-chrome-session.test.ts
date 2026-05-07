@@ -150,34 +150,6 @@ describe('registerChromeSessionTools', () => {
     expect(runtime.stateManager.getState().pendingApprovalCount).toBe(1)
   })
 
-  it('audits joined Chrome sessions as open_app because ensure can create a new window', async () => {
-    runtime.config = createTestConfig({
-      executor: 'macos-local',
-      approvalMode: 'all',
-    })
-    vi.mocked(runtime.chromeSessionManager.getSessionInfo).mockReturnValue({
-      wasAlreadyRunning: true,
-      windowId: 'chrome-window-existing',
-      pid: 9999,
-      agentOwned: false,
-      createdAt: new Date().toISOString(),
-    })
-
-    const { server, invoke } = createMockServer()
-    registerChromeSessionTools({ server, runtime })
-
-    const result = await invoke('desktop_ensure_chrome')
-
-    const structured = result.structuredContent as Record<string, any>
-    expect(structured.status).toBe('approval_required')
-    expect(structured.action).toEqual({
-      kind: 'desktop_ensure_chrome',
-      input: {},
-    })
-    expect(structured.transparency.intent).toBe('Open an agent Chrome window with CDP support')
-    expect(runtime.chromeSessionManager.ensureAgentWindow).not.toHaveBeenCalled()
-  })
-
   it('consumes operation budget and persists chrome session when approvals are disabled', async () => {
     vi.mocked(runtime.chromeSessionManager.ensureAgentWindow).mockResolvedValue({
       wasAlreadyRunning: false,
@@ -206,5 +178,39 @@ describe('registerChromeSessionTools', () => {
     expect(runtime.session.record).toHaveBeenCalledTimes(2)
     expect((runtime.session.record as any).mock.calls[0][0].event).toBe('requested')
     expect((runtime.session.record as any).mock.calls[1][0].event).toBe('executed')
+  })
+
+  it('uses focus_app when a chrome session already exists', async () => {
+    runtime.config = createTestConfig({
+      executor: 'macos-local',
+      approvalMode: 'all',
+    })
+    vi.mocked(runtime.chromeSessionManager.getSessionInfo).mockReturnValue({
+      wasAlreadyRunning: false,
+      windowId: 'chrome-window-existing',
+      pid: 9999,
+      agentOwned: true,
+      createdAt: new Date().toISOString(),
+    })
+
+    const { server, invoke } = createMockServer()
+    registerChromeSessionTools({ server, runtime })
+
+    const result = await invoke('desktop_ensure_chrome')
+
+    const structured = result.structuredContent as Record<string, any>
+    expect(structured.status).toBe('approval_required')
+    expect(structured.action).toEqual({
+      kind: 'desktop_ensure_chrome',
+      input: {},
+    })
+    expect(structured.transparency.intent).toBe('Bring the agent Chrome window to the foreground')
+    expect(runtime.chromeSessionManager.ensureAgentWindow).not.toHaveBeenCalled()
+    expect((runtime.session.record as any).mock.calls[0][0].result.approvalAction).toEqual({
+      kind: 'focus_app',
+      input: {
+        app: 'Google Chrome',
+      },
+    })
   })
 })
