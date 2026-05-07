@@ -62,6 +62,12 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   const initializing = ref(false)
   let initializePromise: Promise<void> | null = null
   let ensureActivePromise: Promise<void> | null = null
+  // Bumped by `clearInMemoryState` (user swap / teardown). The
+  // `ensureActiveSessionForCharacter` IIFE captures this at call time and
+  // bails after every await once it changes, so a stale hydrate from the
+  // previous user cannot write its index/session back into the cleared
+  // state once the swap has happened.
+  let ensureActiveEpoch = 0
 
   let persistQueue = Promise.resolve()
   const loadedSessions = new Set<string>()
@@ -296,6 +302,14 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const loadPromise = (async () => {
       try {
         const stored = await chatSessionsRepo.getSession(sessionId)
+        // Re-check existence: `deleteSession` (or `clearInMemoryState` on a
+        // user swap) may have run while we were awaiting IDB. Without this
+        // guard, the post-await write resurrects the deleted entry and
+        // `loadedSessions.add` then short-circuits every future legitimate
+        // load — locking the resurrection in. The drawer's batch
+        // loadSession + per-row trash button hits this race in production.
+        if (!sessionMetas.value[sessionId])
+          return
         if (stored) {
           const currentMessages = sessionMessages.value[sessionId] ?? []
           const mergedMessages = mergeLoadedSessionMessages(stored.messages, currentMessages)
@@ -519,12 +533,16 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   async function ensureActiveSessionForCharacter(): Promise<void> {
     if (ensureActivePromise)
       return ensureActivePromise
+    const myEpoch = ensureActiveEpoch
+    const isStaleEpoch = () => myEpoch !== ensureActiveEpoch
     ensureActivePromise = (async () => {
       const currentUserId = getCurrentUserId()
       const characterId = getCurrentCharacterId()
 
       if (!index.value || index.value.userId !== currentUserId)
         await loadIndexForUser(currentUserId)
+      if (isStaleEpoch())
+        return
 
       const characterIndex = getCharacterIndex(characterId)
       if (!characterIndex) {
@@ -539,13 +557,20 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
       activeSessionId.value = characterIndex.activeSessionId
       await loadSession(characterIndex.activeSessionId)
+      if (isStaleEpoch())
+        return
       ensureSession(characterIndex.activeSessionId)
     })()
     try {
       await ensureActivePromise
     }
     finally {
-      ensureActivePromise = null
+      // Only release the slot if we still own it. A user swap mid-flight
+      // bumps the epoch and `clearInMemoryState` already nulled the slot —
+      // a fresh hydrate may now own it and unconditional null would clobber
+      // the new owner.
+      if (myEpoch === ensureActiveEpoch)
+        ensureActivePromise = null
     }
   }
 
@@ -878,6 +903,12 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    *  pass rehydrates from IDB for the new user.
    */
   function clearInMemoryState() {
+    // Invalidate any in-flight `ensureActiveSessionForCharacter` IIFE so its
+    // post-await writes do not land on the next user's state, and free the
+    // singleflight slot so the post-swap rehydrate can start a fresh IIFE
+    // for the new user.
+    ensureActiveEpoch += 1
+    ensureActivePromise = null
     sessionMessages.value = {}
     sessionMetas.value = {}
     sessionGenerations.value = {}
@@ -1348,6 +1379,15 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (next && next !== 'local') {
       ensureCloudWsClient()
     }
+    // Rehydrate for the new user. We trigger here (instead of relying on the
+    // `[userId, activeCardId]` watcher) because that watcher gates on
+    // `ready.value` — if the swap happens while initialize() is still
+    // awaiting the prior user's hydrate, the gated trigger is dropped and
+    // the new user silently sees no sessions. `clearInMemoryState` already
+    // bumped `ensureActiveEpoch` and freed the singleflight slot, so this
+    // call starts a fresh IIFE that runs alongside (and is unaffected by)
+    // any in-flight stale hydrate.
+    void ensureActiveSessionForCharacter()
   })
 
   return {
