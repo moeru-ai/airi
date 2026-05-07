@@ -1,16 +1,44 @@
 import type { NewMessagesPayload, PullMessagesRequest, PullMessagesResponse, SendMessagesRequest, SendMessagesResponse } from '@proj-airi/server-sdk-shared'
 
 import { defineInvoke } from '@moeru/eventa'
-import { createContext as createWsContext, wsConnectedEvent, wsDisconnectedEvent, wsErrorEvent } from '@moeru/eventa/adapters/websocket/native'
+import { createContext as createWsContext, wsErrorEvent } from '@moeru/eventa/adapters/websocket/native'
 import { errorMessageFrom } from '@moeru/std'
 import { newMessages, pullMessages, sendMessages } from '@proj-airi/server-sdk-shared'
 import { useWebSocket } from '@vueuse/core'
 import { computed, ref, shallowRef, watch } from 'vue'
 
-// The native ws adapter exposes a context with raw event options scoped to the
-// underlying WebSocket lifecycle; reuse its inferred return type so our
-// EventContext storage stays compatible with `ctx.on` / `ctx.emit` overloads.
+import * as v from 'valibot'
+
+import { createPendingTracker } from './pending-tracker'
+
+const RECONNECT_BASE_MS = 1000
+const RECONNECT_MAX_MS = 30_000
+const RECONNECT_RETRIES = -1
+
+// NOTICE:
+// The native ws adapter's context type is not directly exported from
+// `@moeru/eventa/adapters/websocket/native`; use the inferred return type so
+// `ctx.on` / `ctx.emit` overloads stay accurate.
+// Source: @moeru/eventa@0.3.0 — adapter exports only `createContext` and the
+// event constants.
+// Removal condition: the adapter exports a public `EventContext` type.
 type WsEventContext = ReturnType<typeof createWsContext>['context']
+
+const NewMessagesPayloadSchema = v.object({
+  chatId: v.pipe(v.string(), v.minLength(1)),
+  fromSeq: v.number(),
+  toSeq: v.number(),
+  messages: v.array(v.object({
+    id: v.pipe(v.string(), v.minLength(1)),
+    chatId: v.pipe(v.string(), v.minLength(1)),
+    senderId: v.nullable(v.string()),
+    role: v.picklist(['system', 'user', 'assistant', 'tool', 'error']),
+    content: v.string(),
+    seq: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })),
+})
 
 /**
  * WebSocket connection lifecycle states surfaced to the chat-sync layer.
@@ -40,27 +68,6 @@ export interface CreateChatWsClientOptions {
    * `null` skips connecting (the user is not authenticated).
    */
   getToken: () => string | null
-  /**
-   * Reconnect retry budget. `-1` means infinite. Forwarded to VueUse
-   * `autoReconnect.retries`.
-   *
-   * @default -1
-   */
-  reconnectRetries?: number
-  /**
-   * Reconnect base delay in ms. Successive failed reconnects double this up
-   * to `reconnectMaxDelayMs` and add jitter, mirroring the previous
-   * hand-rolled backoff.
-   *
-   * @default 1000
-   */
-  reconnectBaseDelayMs?: number
-  /**
-   * Reconnect max delay ceiling.
-   *
-   * @default 30000
-   */
-  reconnectMaxDelayMs?: number
 }
 
 export interface ChatWsClient {
@@ -68,11 +75,13 @@ export interface ChatWsClient {
   status: () => ChatWsStatus
   /** Connect (or reconnect with the latest token). No-op if already open. */
   connect: () => void
-  /** Close the socket and stop auto-reconnect until the next `connect()`. */
+  /** Close the socket and stop auto-reconnect until the next `connect()`. The handle is reusable. */
   disconnect: () => void
-  /** RPC: push messages to a chat. Throws if disconnected. */
+  /** Permanently dispose the client (stops the status watcher). After `destroy()` the handle is unusable. */
+  destroy: () => void
+  /** RPC: push messages to a chat. Rejects if disconnected mid-flight. */
   sendMessages: (req: SendMessagesRequest) => Promise<SendMessagesResponse>
-  /** RPC: pull messages newer than `afterSeq`. Throws if disconnected. */
+  /** RPC: pull messages newer than `afterSeq`. Rejects if disconnected mid-flight. */
   pullMessages: (req: PullMessagesRequest) => Promise<PullMessagesResponse>
   /**
    * Subscribe to inbound `newMessages` push. The handler fires for every
@@ -92,8 +101,10 @@ export interface ChatWsClient {
  *
  * After:
  * - "wss://api.airi.build/ws/chat?token=abc"
+ *
+ * @internal
  */
-function buildChatWsUrl(serverUrl: string, token: string): string {
+export function buildChatWsUrl(serverUrl: string, token: string): string {
   // Use URL parsing instead of string concat so trailing slashes / paths in
   // serverUrl are normalized cleanly.
   const url = new URL(serverUrl)
@@ -104,16 +115,19 @@ function buildChatWsUrl(serverUrl: string, token: string): string {
 }
 
 /**
- * Compute exponential reconnect delay with jitter from the retry counter.
+ * Compute exponential reconnect delay with bounded jitter.
  *
  * Math context: VueUse's autoReconnect supplies `retries` starting at 1 for
- * the first reconnect. Capped at `maxMs` so very long disconnects do not
- * push delay into hours.
+ * the first reconnect. The minimum 50% floor keeps the immediate retry from
+ * firing in <50ms (a 0..exp uniform jitter previously could fire at ~0ms,
+ * producing reconnect storms across many tabs against a hard-down server).
+ *
+ * @internal
  */
-function computeReconnectDelay(retries: number, baseMs: number, maxMs: number): number {
+export function computeReconnectDelay(retries: number, baseMs: number, maxMs: number): number {
   const exp = Math.min(maxMs, baseMs * 2 ** Math.max(0, retries - 1))
-  // 0..exp ms jitter to spread reconnect storms across many tabs / devices.
-  return Math.floor(Math.random() * exp)
+  // 50% floor + 50% jitter window; total range is [exp/2, exp).
+  return Math.floor(exp * 0.5 + Math.random() * exp * 0.5)
 }
 
 /**
@@ -123,8 +137,10 @@ function computeReconnectDelay(retries: number, baseMs: number, maxMs: number): 
  * "never connected / explicitly disconnected" (`idle`) from "lost the socket
  * and auto-reconnect is pending" (`closed`). The caller tracks the user
  * intent via `enabled`; here we just translate the transport state.
+ *
+ * @internal
  */
-function mapStatus(vue: 'OPEN' | 'CONNECTING' | 'CLOSED', enabled: boolean): ChatWsStatus {
+export function mapStatus(vue: 'OPEN' | 'CONNECTING' | 'CLOSED', enabled: boolean): ChatWsStatus {
   if (vue === 'OPEN')
     return 'open'
   if (vue === 'CONNECTING')
@@ -147,16 +163,14 @@ function mapStatus(vue: 'OPEN' | 'CONNECTING' | 'CLOSED', enabled: boolean): Cha
  *   returns next.
  *
  * Returns:
- * - A handle exposing connect/disconnect, RPC functions, and event hooks.
- *   The handle is safe to call across reconnects; RPC closures resolve the
- *   live `EventContext` per invocation so a reconnect-induced context swap
- *   is transparent to callers.
+ * - A handle exposing connect/disconnect/destroy, RPC functions, and event
+ *   hooks. RPC closures resolve the live `EventContext` per invocation so a
+ *   reconnect-induced context swap is transparent. In-flight RPCs reject on
+ *   disconnect with `chat-ws: rpc cancelled` so callers do not hang
+ *   indefinitely (eventa@0.3.0 does not flush its internal pending maps when
+ *   the underlying context is disposed; we wrap each invoke in a race).
  */
 export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsClient {
-  const baseDelay = options.reconnectBaseDelayMs ?? 1000
-  const maxDelay = options.reconnectMaxDelayMs ?? 30_000
-  const retries = options.reconnectRetries ?? -1
-
   // `enabled` mirrors user intent: connect() flips on, disconnect() flips off.
   // The url ref returns `undefined` when disabled, which makes useWebSocket
   // close cleanly without firing the auto-reconnect loop.
@@ -176,6 +190,20 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
   const contextDisposers: Array<() => void> = []
   const newMessagesHandlers = new Set<(payload: NewMessagesPayload) => void>()
   const statusHandlers = new Set<(status: ChatWsStatus) => void>()
+
+  // Pending RPC reject callbacks — drained on context disposal so callers
+  // do not hang waiting for a response that will never arrive.
+  // NOTICE:
+  // eventa@0.3.0 stores per-invoke promise resolvers in a closure-scoped Map
+  // and registers per-RPC ctx.on listeners on the live context. Disposing
+  // the context detaches the underlying socket but does not drain those
+  // resolvers. We wrap each invoke call in a `PendingTracker` that the
+  // disposeContext can flush.
+  // Source: @moeru/eventa@0.3.0 dist/src-Bb-vxm5k.mjs:62-99 — `defineInvoke`'s
+  // `mInvokeIdPromiseResolvers / mInvokeIdPromiseRejectors`.
+  // Removal condition: when eventa exposes a public flush/dispose API on the
+  // invoke handle, drop this wrapper.
+  const pendingRpcs = createPendingTracker()
 
   function notifyStatus(next: ChatWsStatus) {
     // Surface every transition in console so v1 reconnect / reconcile traces
@@ -201,13 +229,23 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
       catch {}
     }
     context.value = undefined
+
+    // Reject every in-flight RPC so callers do not hang on a context that
+    // is now detached from any live socket.
+    pendingRpcs.drainAll(new Error('chat-ws: rpc cancelled (socket disconnected)'))
   }
 
   function attachContextListeners(ctx: WsEventContext) {
     contextDisposers.push(ctx.on(newMessages, (event) => {
-      const payload = event.body as NewMessagesPayload | undefined
-      if (!payload)
+      // External boundary: validate the wire payload before fanning it out.
+      // A malformed server push would otherwise flow unchecked into every
+      // subscriber and into `mergeCloudMessagesIntoSession`.
+      const result = v.safeParse(NewMessagesPayloadSchema, event.body)
+      if (!result.success) {
+        console.warn('[chat-ws] dropped malformed newMessages payload:', result.issues[0]?.message)
         return
+      }
+      const payload = result.output
       for (const handler of newMessagesHandlers) {
         try {
           handler(payload)
@@ -223,11 +261,6 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
     contextDisposers.push(ctx.on(wsErrorEvent, (event) => {
       console.warn('[chat-ws] socket error:', event.body)
     }))
-    // wsConnectedEvent / wsDisconnectedEvent come from the native adapter and
-    // mirror what useWebSocket already reports via `status`. We attach to
-    // them only so future tracing has hook points.
-    contextDisposers.push(ctx.on(wsConnectedEvent, () => {}))
-    contextDisposers.push(ctx.on(wsDisconnectedEvent, () => {}))
   }
 
   // The url-as-ref form lets useWebSocket reconnect when `urlRef` changes
@@ -237,8 +270,8 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
     immediate: false,
     autoClose: true,
     autoReconnect: {
-      retries,
-      delay: r => computeReconnectDelay(r, baseDelay, maxDelay),
+      retries: RECONNECT_RETRIES,
+      delay: r => computeReconnectDelay(r, RECONNECT_BASE_MS, RECONNECT_MAX_MS),
     },
     onConnected(rawWs) {
       const created = createWsContext(rawWs)
@@ -256,6 +289,12 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
   // Translate VueUse's 3-state status into our 4-state machine and fan it
   // out to the orchestrator. The chat store creates this inside a Pinia
   // setup, which gives us a parent effect scope for `watch` to attach to.
+  // NOTICE:
+  // We intentionally do NOT stop this watcher in `disconnect()`; previous
+  // behavior killed it permanently and any caller that did `disconnect()`
+  // followed by `connect()` silently stopped receiving status events. The
+  // watcher is idle while the socket is closed, so leaving it attached
+  // costs nothing. Use `destroy()` for terminal cleanup.
   const stopStatusWatch = watch(
     [ws.status, enabled],
     ([rawStatus, isEnabled]) => notifyStatus(mapStatus(rawStatus, isEnabled)),
@@ -268,15 +307,10 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
     return context.value
   }
 
-  // NOTICE:
-  // We pass a function so each invoke resolves the *current* context. After a
-  // reconnect, `context` is rebuilt; a captured reference would point at a
+  // We pass a function so each invoke resolves the *current* context. After
+  // a reconnect, `context` is rebuilt; a captured reference would point at a
   // disposed context and the invoke would hang waiting for a response that
-  // never arrives.
-  // Source: @moeru/eventa@1.0.0-beta.4 dist/src-CTs6h4Ci.mjs:248 — `defineInvoke`'s
-  // `getContext` runs on every call when `ctx` is a function.
-  // Removal condition: when eventa exposes a public "swap context" API, we
-  // can capture an invoke once and let the lib do the swap internally.
+  // never arrives (see pendingRpcRejects NOTICE for the dispose-flush story).
   const invokeSendMessages = defineInvoke(getContext, sendMessages)
   const invokePullMessages = defineInvoke(getContext, pullMessages)
 
@@ -295,13 +329,20 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
       // Flip intent off first so the autoReconnect loop won't fight us, then
       // ask VueUse to close. urlRef is now `undefined` which makes any
       // future automatic open() a no-op until connect() is called again.
+      // Status watcher stays attached so callers can disconnect/connect on
+      // the same handle.
+      enabled.value = false
+      ws.close()
+      disposeContext()
+    },
+    destroy() {
       enabled.value = false
       ws.close()
       disposeContext()
       stopStatusWatch()
     },
-    sendMessages: req => invokeSendMessages(req),
-    pullMessages: req => invokePullMessages(req),
+    sendMessages: req => pendingRpcs.track(invokeSendMessages(req)),
+    pullMessages: req => pendingRpcs.track(invokePullMessages(req)),
     onNewMessages(handler) {
       newMessagesHandlers.add(handler)
       return () => {

@@ -19,7 +19,10 @@ import type { NewMessagesPayload, WireMessage } from '@proj-airi/server-sdk-shar
  */
 export function extractMessageText(message: ChatHistoryItem): string {
   if (message.role === 'assistant') {
-    const assistant = message as ChatAssistantMessage
+    // The discriminated union narrows `message` to a shape that includes
+    // `slices`; reading via the narrowed alias keeps tsc happy without an
+    // `as` cast.
+    const assistant: ChatAssistantMessage = message
     if (Array.isArray(assistant.slices) && assistant.slices.length > 0) {
       const text = assistant.slices
         .filter((slice): slice is { type: 'text', text: string } => slice.type === 'text')
@@ -52,11 +55,21 @@ export function extractMessageText(message: ChatHistoryItem): string {
  * - Filtering messages right before `sendMessages`. Tool call / tool result
  *   exchanges are intentionally not synced in v1; system prompts also stay
  *   local since they are recomputed from settings on every device.
+ *
+ * Expects:
+ * - The caller has already validated the message has an `id`.
+ *
+ * Returns:
+ * - `true` when the message is one of `user` / `assistant`. `tool` / `system`
+ *   / `error` roles are filtered out — error messages are local-only since
+ *   they describe a per-device runtime failure, not a server-acknowledged turn.
  */
 export function isCloudSyncableMessage(message: ChatHistoryItem): boolean {
   if (message.role === 'tool')
     return false
   if (message.role === 'system')
+    return false
+  if (message.role === 'error')
     return false
   return true
 }
@@ -150,6 +163,9 @@ export interface CloudMergeResult {
  *   carry slices/tool_results that the wire format cannot represent).
  * - `currentMaxSeq` is the cursor previously stored on the session meta;
  *   `0` for the very first merge.
+ * - `payload.messages` may arrive out of seq order (server pagination
+ *   boundaries, pub/sub interleave). New messages are appended in seq order
+ *   so the in-memory list stays monotonic.
  *
  * Returns:
  * - `messages` — the new array (same reference if no-op).
@@ -167,9 +183,14 @@ export function mergeCloudMessagesIntoLocal(
       knownIds.add(message.id)
   }
 
+  // Sort incoming messages by seq before appending so that out-of-order
+  // delivery does not produce a permanently-misordered local list. Cloning
+  // the array first keeps callers safe from mutation.
+  const sortedWire = [...payload.messages].sort((a, b) => a.seq - b.seq)
+
   const additions: ChatHistoryItem[] = []
   let maxSeq = currentMaxSeq
-  for (const wire of payload.messages) {
+  for (const wire of sortedWire) {
     if (wire.seq > maxSeq)
       maxSeq = wire.seq
     if (knownIds.has(wire.id))

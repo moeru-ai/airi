@@ -6,8 +6,11 @@ import { storeToRefs } from 'pinia'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTitle } from 'vaul-vue'
 import { computed, onMounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { useBreakpoints } from '../../../../composables/use-breakpoints'
+import { extractMessageText } from '../../../../libs/chat-sync'
+import { useAuthStore } from '../../../../stores/auth'
 import { useChatSessionStore } from '../../../../stores/chat/session-store'
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 
@@ -35,10 +38,12 @@ const showDialog = defineModel({ type: Boolean, default: false, required: false 
 
 const { isDesktop } = useBreakpoints()
 const screenSafeArea = useScreenSafeArea()
+const { t } = useI18n()
 
 const chatSession = useChatSessionStore()
 const { sessionMetas, sessionMessages, activeSessionId } = storeToRefs(chatSession)
 const { activeCardId } = storeToRefs(useAiriCardStore())
+const { userId } = storeToRefs(useAuthStore())
 
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
 onMounted(() => screenSafeArea.update())
@@ -50,9 +55,20 @@ interface SessionRow {
   updatedAtLabel: string
 }
 
-const SESSIONS_OWNED_BY_REAL_USER = computed(() =>
-  Object.values(sessionMetas.value).filter(meta => meta.userId && meta.userId !== 'local'),
-)
+/**
+ * Sessions visible in the drawer. Filters by the currently effective user
+ * (`userId.value || 'local'`) so:
+ * - Anonymous users see their local-only sessions (previously hidden by a
+ *   blanket `userId !== 'local'` filter).
+ * - After an account swap, the previously signed-in user's sessions stay
+ *   hidden until ensureActiveSessionForCharacter rehydrates the new tenant
+ *   (the session-store also clears in-memory state on user change as a
+ *   defense in depth).
+ */
+const ownedSessions = computed(() => {
+  const effectiveUserId = userId.value || 'local'
+  return Object.values(sessionMetas.value).filter(meta => meta.userId === effectiveUserId)
+})
 
 /**
  * Pull a 1-line preview from the first non-system message; falls back to the
@@ -72,25 +88,12 @@ function previewFor(meta: ChatSessionMeta): string {
   for (const message of messages) {
     if (message.role === 'system')
       continue
-    const raw = typeof message.content === 'string'
-      ? message.content
-      : Array.isArray(message.content)
-        ? message.content
-            .map((part) => {
-              if (typeof part === 'string')
-                return part
-              if (part && typeof part === 'object' && 'text' in part)
-                return String((part as { text?: unknown }).text ?? '')
-              return ''
-            })
-            .join('')
-        : ''
-    const trimmed = raw.replace(/\s+/g, ' ').trim()
+    const trimmed = extractMessageText(message).replace(/\s+/g, ' ').trim()
     if (trimmed)
       return trimmed.length > 80 ? `${trimmed.slice(0, 80)}…` : trimmed
   }
 
-  return 'New chat'
+  return t('stage.chat.sessions.new-chat-fallback')
 }
 
 const RELATIVE_UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
@@ -125,7 +128,7 @@ function formatUpdatedAt(ts: number): string {
 }
 
 const rows = computed<SessionRow[]>(() => {
-  const list = SESSIONS_OWNED_BY_REAL_USER.value
+  const list = ownedSessions.value
     .map<SessionRow>(meta => ({
       meta,
       preview: previewFor(meta),
@@ -156,21 +159,32 @@ async function deleteRow(event: Event, sessionId: string) {
   await chatSession.deleteSession(sessionId)
 }
 
+// Per-open generation counter. The batch loadSession loop checks this before
+// each batch so closing the drawer mid-load aborts cleanly instead of
+// continuing to hydrate sessions the user has navigated away from. Without
+// this, a session deleted from outside while the batch was running could be
+// re-added to `loadedSessions` as a phantom entry.
+let openGeneration = 0
+
 // Re-render relative timestamps + hydrate non-active session messages when
-// the drawer opens so each row can show a real preview instead of the "New
-// chat" fallback. `loadSession` is idempotent (`loadedSessions` set), so
-// reopening the drawer is cheap.
+// the drawer opens so each row can show a real preview instead of the
+// fallback. `loadSession` is idempotent (`loadedSessions` set), so reopening
+// the drawer is cheap.
 watch(showDialog, async (open) => {
   if (!open)
     return
+  openGeneration += 1
+  const myGeneration = openGeneration
   // Touch `rows` first so reactive labels reflect a fresh `Date.now()`.
   void rows.value
-  const knownSessionIds = SESSIONS_OWNED_BY_REAL_USER.value.map(meta => meta.sessionId)
+  const knownSessionIds = ownedSessions.value.map(meta => meta.sessionId)
   // Bounded concurrency keeps a long history list from spawning a hundred
   // simultaneous IndexedDB transactions; 4 in flight is plenty for a list
   // that the user is about to scroll.
   const batchSize = 4
   for (let i = 0; i < knownSessionIds.length; i += batchSize) {
+    if (myGeneration !== openGeneration || !showDialog.value)
+      return
     await Promise.all(knownSessionIds.slice(i, i + batchSize).map(id => chatSession.loadSession(id)))
   }
 })
@@ -180,7 +194,12 @@ watch(showDialog, async (open) => {
   <DialogRoot v-if="isDesktop" :open="showDialog" @update:open="value => showDialog = value">
     <slot name="trigger" />
     <DialogPortal>
-      <DialogOverlay class="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn" />
+      <DialogOverlay
+        :class="[
+          'fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm',
+          'data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn',
+        ]"
+      />
       <DialogContent
         :class="[
           'fixed left-1/2 top-1/2 z-[9999] max-h-[80dvh] max-w-md w-[92dvw] transform overflow-hidden rounded-2xl bg-white/95 shadow-xl outline-none backdrop-blur-md scrollbar-none -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:bg-neutral-900/90',
@@ -189,7 +208,7 @@ watch(showDialog, async (open) => {
         <div :class="['flex flex-col h-full max-h-[80dvh]']">
           <div :class="['flex items-center justify-between px-5 pt-5 pb-3']">
             <DialogTitle :class="['text-base font-medium text-neutral-700 dark:text-neutral-200']">
-              Conversations
+              {{ t('stage.chat.sessions.title') }}
             </DialogTitle>
             <button
               :class="[
@@ -200,12 +219,12 @@ watch(showDialog, async (open) => {
               ]"
               @click="startNewSession"
             >
-              + New
+              {{ t('stage.chat.sessions.new') }}
             </button>
           </div>
           <div :class="['flex-1 overflow-y-auto px-2 pb-4']">
             <div v-if="rows.length === 0" :class="['p-6 text-center text-sm text-neutral-500 dark:text-neutral-400']">
-              No conversations yet
+              {{ t('stage.chat.sessions.empty') }}
             </div>
             <div
               v-for="row in rows"
@@ -227,7 +246,7 @@ watch(showDialog, async (open) => {
                   <span
                     v-if="row.meta.cloudChatId"
                     :class="['shrink-0 text-[10px] uppercase tracking-wide rounded px-1.5 py-0.5', 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300']"
-                    title="Synced to cloud"
+                    :title="t('stage.chat.sessions.cloud-badge')"
                   >
                     cloud
                   </span>
@@ -245,7 +264,7 @@ watch(showDialog, async (open) => {
                   'text-neutral-400 hover:text-red-500 hover:bg-red-500/10',
                   'transition-opacity duration-150',
                 ]"
-                title="Delete conversation"
+                :title="t('stage.chat.sessions.delete')"
                 @click="deleteRow($event, row.meta.sessionId)"
               >
                 <div class="i-solar:trash-bin-trash-bold-duotone h-4 w-4" />
@@ -258,7 +277,7 @@ watch(showDialog, async (open) => {
   </DialogRoot>
   <DrawerRoot v-else :open="showDialog" should-scale-background @update:open="value => showDialog = value">
     <DrawerPortal>
-      <DrawerOverlay class="fixed inset-0" />
+      <DrawerOverlay :class="['fixed inset-0']" />
       <DrawerContent
         :class="[
           'fixed bottom-0 left-0 right-0 z-1000',
@@ -273,7 +292,7 @@ watch(showDialog, async (open) => {
         <DrawerHandle :class="['[div&]:bg-neutral-400 [div&]:dark:bg-neutral-600']" />
         <div :class="['flex items-center justify-between px-4 pt-3 pb-2']">
           <DrawerTitle :class="['text-base font-medium text-neutral-700 dark:text-neutral-200']">
-            Conversations
+            {{ t('stage.chat.sessions.title') }}
           </DrawerTitle>
           <button
             :class="[
@@ -284,12 +303,12 @@ watch(showDialog, async (open) => {
             ]"
             @click="startNewSession"
           >
-            + New
+            {{ t('stage.chat.sessions.new') }}
           </button>
         </div>
         <div :class="['flex-1 overflow-y-auto px-2 pb-2']">
           <div v-if="rows.length === 0" :class="['p-6 text-center text-sm text-neutral-500 dark:text-neutral-400']">
-            No conversations yet
+            {{ t('stage.chat.sessions.empty') }}
           </div>
           <div
             v-for="row in rows"
@@ -311,7 +330,7 @@ watch(showDialog, async (open) => {
                 <span
                   v-if="row.meta.cloudChatId"
                   :class="['shrink-0 text-[10px] uppercase tracking-wide rounded px-1.5 py-0.5', 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300']"
-                  title="Synced to cloud"
+                  :title="t('stage.chat.sessions.cloud-badge')"
                 >
                   cloud
                 </span>
@@ -328,7 +347,7 @@ watch(showDialog, async (open) => {
                 'text-neutral-400 hover:text-red-500 hover:bg-red-500/10',
                 'transition-opacity duration-150',
               ]"
-              title="Delete conversation"
+              :title="t('stage.chat.sessions.delete')"
               @click="deleteRow($event, row.meta.sessionId)"
             >
               <div class="i-solar:trash-bin-trash-bold-duotone h-4 w-4" />

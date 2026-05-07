@@ -64,15 +64,18 @@ describe('extractMessageText', () => {
 describe('isCloudSyncableMessage', () => {
   /**
    * @example
-   * v1 limitation: tool_call exchanges and system prompts stay local because
-   * the server schema cannot reconstruct tool_call_id and the system prompt
-   * is recomputed on every device from settings.
+   * v1 limitation: tool_call exchanges, system prompts, and per-device runtime
+   * errors stay local. The server's wire schema does not represent tool_call_id;
+   * system prompts are recomputed on every device from settings; error
+   * messages describe a per-device runtime failure that is meaningless to
+   * other devices and gets rejected by the server's role validator.
    */
-  it('rejects tool and system messages, accepts user / assistant / error', () => {
+  it('accepts only user / assistant; rejects tool / system / error', () => {
     expect(isCloudSyncableMessage({ role: 'tool', content: 'x', tool_call_id: 't' } as ChatHistoryItem)).toBe(false)
     expect(isCloudSyncableMessage({ role: 'system', content: 'x' })).toBe(false)
+    expect(isCloudSyncableMessage({ role: 'error', content: 'x' })).toBe(false)
     expect(isCloudSyncableMessage({ role: 'user', content: 'x' })).toBe(true)
-    expect(isCloudSyncableMessage({ role: 'error', content: 'x' })).toBe(true)
+    expect(isCloudSyncableMessage({ role: 'assistant', content: 'x', slices: [], tool_results: [] })).toBe(true)
   })
 })
 
@@ -235,5 +238,30 @@ describe('mergeCloudMessagesIntoLocal', () => {
     const afterPull = mergeCloudMessagesIntoLocal(afterPush.messages, afterPush.maxSeq, { messages: wireMessages, toSeq: 6 })
     expect(afterPull.dirty).toBe(false)
     expect(afterPull.messages).toBe(afterPush.messages)
+  })
+
+  /**
+   * @example
+   * Server pagination boundaries (or pub/sub interleave) can deliver a
+   * payload whose messages are not in seq order. The merge must sort them
+   * before appending so the in-memory list stays monotonic — without the
+   * sort, a list reordered once stays permanently misordered because the
+   * cursor still advances and subsequent pulls do not re-fix it.
+   */
+  it('sorts incoming wire messages by seq before appending', () => {
+    const result = mergeCloudMessagesIntoLocal(
+      [],
+      0,
+      {
+        messages: [
+          makeWire({ id: 'm3', seq: 9 }),
+          makeWire({ id: 'm1', seq: 7 }),
+          makeWire({ id: 'm2', seq: 8 }),
+        ],
+        toSeq: 9,
+      },
+    )
+    expect(result.messages.map(m => m.id)).toEqual(['m1', 'm2', 'm3'])
+    expect(result.maxSeq).toBe(9)
   })
 })

@@ -82,6 +82,8 @@ describe('chat broadcast utils', () => {
       originInstanceId: 'instance-A',
     }))).toThrow('chat broadcast payload.messages must be an array')
 
+    // commit 88744602f — chat broadcast loopback echoes
+    //
     // ROOT CAUSE:
     //
     // Earlier broadcast messages did not carry originInstanceId, so the
