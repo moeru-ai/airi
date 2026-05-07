@@ -94,6 +94,14 @@ const EnvSchema = object({
   //          ASSETLINKS_SHA256_FINGERPRINTS=AB:CD:... ,EF:12:...
   ASSETLINKS_PACKAGE_NAME: optional(string(), 'ai.moeru.airi_pocket'),
   ASSETLINKS_SHA256_FINGERPRINTS: optional(string(), ''),
+
+  // Admin allowlist for /api/admin/* routes. Comma-separated email addresses.
+  // Match is case-insensitive, but the user must also have `email_verified = true`
+  // — otherwise an attacker could register a fresh account with the admin email
+  // before verification and slip past the check.
+  // Empty (default) = no one is admin — production safe by default.
+  // Example: ADMIN_EMAILS=alice@example.com,bob@example.com
+  ADMIN_EMAILS: optional(string(), ''),
 })
 
 export type Env = InferOutput<typeof EnvSchema>

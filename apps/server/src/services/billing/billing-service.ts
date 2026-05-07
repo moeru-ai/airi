@@ -165,8 +165,15 @@ export function createBillingService(
       requestId?: string
       description: string
       source: string
+      /**
+       * Ledger row `type`. Defaults to `'credit'` for backward compatibility
+       * with existing callers (Stripe top-up). Admin promo grants pass
+       * `'promo'` so reports / dashboards can distinguish them.
+       */
+      type?: 'credit' | 'promo'
       auditMetadata?: Record<string, unknown>
-    }): Promise<{ balanceBefore: number, balanceAfter: number }> {
+    }): Promise<{ balanceBefore: number, balanceAfter: number, fluxTransactionId: string }> {
+      const ledgerType = input.type ?? 'credit'
       const result = await db.transaction(async (tx) => {
         // Ensure user record exists
         await tx.insert(fluxSchema.userFlux)
@@ -189,18 +196,18 @@ export function createBillingService(
           .where(eq(fluxSchema.userFlux.userId, input.userId))
 
         // Transaction entry
-        await tx.insert(fluxTxSchema.fluxTransaction).values({
+        const [insertedTx] = await tx.insert(fluxTxSchema.fluxTransaction).values({
           userId: input.userId,
-          type: 'credit',
+          type: ledgerType,
           amount: input.amount,
           balanceBefore,
           balanceAfter,
           requestId: input.requestId,
           description: input.description,
           metadata: input.auditMetadata,
-        })
+        }).returning({ id: fluxTxSchema.fluxTransaction.id })
 
-        return { balanceBefore, balanceAfter }
+        return { balanceBefore, balanceAfter, fluxTransactionId: insertedTx!.id }
       })
 
       await updateRedisCache(input.userId, result.balanceAfter)

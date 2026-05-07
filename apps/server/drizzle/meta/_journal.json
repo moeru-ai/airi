@@ -71,6 +71,13 @@
       "when": 1777370103031,
       "tag": "0009_perpetual_lilandra",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1778171601523,
+      "tag": "0010_aspiring_power_man",
+      "breakpoints": true
     }
   ]
 }
