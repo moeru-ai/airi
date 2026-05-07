@@ -17,6 +17,7 @@
   },
   "exports": {
     ".": "./src/components/index.ts",
+    "./components/scenarios/chat": "./src/components/scenarios/chat/index.ts",
     "./components/scenarios/settings/model-settings": "./src/components/scenarios/settings/model-settings/index.ts",
     "./components/scenes": "./src/components/scenes/index.ts",
     "./components/*": "./src/components/*.ts",
@@ -82,6 +83,7 @@
     "@proj-airi/model-driver-lipsync": "workspace:^",
     "@proj-airi/pipelines-audio": "workspace:^",
     "@proj-airi/server-sdk": "workspace:^",
+    "@proj-airi/server-sdk-shared": "workspace:^",
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/stage-ui-live2d": "workspace:^",
     "@proj-airi/stage-ui-three": "workspace:^",

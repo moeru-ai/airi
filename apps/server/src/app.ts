@@ -63,6 +63,7 @@ import { createRequestLogService } from './services/request-log'
 import { createStripeService } from './services/stripe'
 import { createUserDeletionService } from './services/user-deletion'
 import { ApiError, createInternalError, createUnauthorizedError } from './utils/error'
+import { nanoid } from './utils/id'
 import { getTrustedOrigin } from './utils/origin'
 
 interface AppDeps {
@@ -113,7 +114,12 @@ export async function buildApp(deps: AppDeps) {
 
   // WebSocket setup — must be registered BEFORE bodyLimit middleware
   const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app })
-  const chatWsSetup = createChatWsHandlers(deps.chatService, deps.redis, deps.otel?.engagement ?? null)
+  // Per-process stable id used by the chat-ws sub callback to skip echoes of
+  // its own publishes. Falls back to a random nanoid when ops do not provide
+  // SERVER_INSTANCE_ID, which is fine because we only need uniqueness across
+  // simultaneously-running api instances, not across restarts.
+  const instanceId = process.env.SERVER_INSTANCE_ID || nanoid()
+  const chatWsSetup = createChatWsHandlers(deps.chatService, deps.redis, instanceId, deps.otel?.engagement ?? null)
 
   app.get('/ws/chat', upgradeWebSocket(async (c) => {
     const token = c.req.query('token')
