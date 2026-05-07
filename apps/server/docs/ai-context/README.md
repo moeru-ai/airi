@@ -33,6 +33,8 @@
   - Resend 接入、Better Auth 四个邮件 callback、范围 / 决策 / 不做项
 - `account-deletion.md`
   - 账号注销架构：auth 表 hard delete + 业务表软删，handler 协议、各业务行为、failure 模型
+- `admin-flux-grant-batch.md`
+  - Admin 批量发 FLUX（活动赠送）架构：`flux_grant_batch` + `_recipient` 表、worker 调度、`adminGuard` 邮箱白名单、failure / retry 模型
 - `verifications/email-auth.md`
   - 邮箱注册 / 忘记密码 / OIDC 桥接登录 三条用户路径的真实实测证据
 - `verifications/account-deletion.md`

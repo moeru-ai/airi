@@ -7,8 +7,11 @@ import { parseEnv } from '../libs/env'
 import { initializeExternalDependency } from '../libs/external-dependency'
 import { createMqWorker } from '../libs/mq'
 import { createRedis } from '../libs/redis'
+import { runFluxGrantBatchWorker } from '../services/admin-flux-grant-batch/flux-grant-batch-worker'
 import { createBillingConsumerHandler } from '../services/billing/billing-consumer-handler'
 import { createBillingMq } from '../services/billing/billing-events'
+import { createBillingService } from '../services/billing/billing-service'
+import { createConfigKVService } from '../services/config-kv'
 
 export async function runBillingConsumer(): Promise<void> {
   initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
@@ -73,17 +76,28 @@ export async function runBillingConsumer(): Promise<void> {
     })
 
     const handler = createBillingConsumerHandler(db)
-    const worker = createMqWorker(mq)
+    const mqWorker = createMqWorker(mq)
 
-    await worker.run({
-      group: 'billing-consumer',
-      consumer,
-      signal: abortController.signal,
-      batchSize: env.BILLING_EVENTS_BATCH_SIZE,
-      blockMs: env.BILLING_EVENTS_BLOCK_MS,
-      minIdleTimeMs: env.BILLING_EVENTS_MIN_IDLE_MS,
-      onMessage: message => handler.handleMessage(message),
-    })
+    // Build a BillingService for the flux grant batch worker. This
+    // consumer-side instance writes to the same DB / Redis / event stream as
+    // the API process — multi-instance Railway is the design assumption.
+    const configKV = createConfigKVService(redis)
+    const billingService = createBillingService(db, redis, mq, configKV, null)
+
+    // Run the Redis Stream consumer and the flux grant batch polling loop in
+    // parallel. Either rejection aborts both via the shared signal.
+    await Promise.all([
+      mqWorker.run({
+        group: 'billing-consumer',
+        consumer,
+        signal: abortController.signal,
+        batchSize: env.BILLING_EVENTS_BATCH_SIZE,
+        blockMs: env.BILLING_EVENTS_BLOCK_MS,
+        minIdleTimeMs: env.BILLING_EVENTS_MIN_IDLE_MS,
+        onMessage: message => handler.handleMessage(message),
+      }),
+      runFluxGrantBatchWorker({ db, billingService }, abortController.signal),
+    ])
   }
   finally {
     await redis.quit()
