@@ -16,6 +16,7 @@ import { runProcess } from './utils/process'
 vi.mock('node:fs/promises', () => ({
   mkdir: vi.fn().mockResolvedValue(undefined),
   mkdtemp: vi.fn().mockResolvedValue('/tmp/test/chrome-profile-abc123'),
+  rm: vi.fn().mockResolvedValue(undefined),
 }))
 vi.mock('./utils/process', () => ({
   runProcess: vi.fn(),
@@ -24,11 +25,12 @@ vi.mock('./utils/sleep', () => ({
   sleep: vi.fn().mockResolvedValue(undefined),
 }))
 
-import { mkdir, mkdtemp } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 
 const mockedRunProcess = vi.mocked(runProcess)
 const mockedMkdir = vi.mocked(mkdir)
 const mockedMkdtemp = vi.mocked(mkdtemp)
+const mockedRm = vi.mocked(rm)
 
 function makeConfig(): ComputerUseConfig {
   return {
@@ -67,6 +69,7 @@ function mockLaunchFlow(pid: number, userApp = 'Terminal', cdpPort = 9222) {
 function mockReuseFlow(pid: number) {
   mockedRunProcess
     .mockResolvedValueOnce(ok(`${pid}\n`)) // isProcessAlive
+    .mockResolvedValueOnce(ok('1\n')) // hasChromeWindow
 }
 
 describe('chromeSessionManager', () => {
@@ -130,6 +133,25 @@ describe('chromeSessionManager', () => {
       expect(second).not.toBeNull()
     })
 
+    it('recreates the session if the Chrome process is alive but the agent window is gone', async () => {
+      mockLaunchFlow(11111)
+      await manager.ensureAgentWindow()
+
+      vi.clearAllMocks()
+      mockedRunProcess
+        .mockResolvedValueOnce(ok('11111\n')) // isProcessAlive
+        .mockResolvedValueOnce(ok('0\n')) // hasChromeWindow
+      mockLaunchFlow(22222)
+
+      const second = await manager.ensureAgentWindow()
+
+      expect(second.pid).toBe(22222)
+      expect(mockedRunProcess).toHaveBeenNthCalledWith(2, '/usr/bin/osascript', [
+        '-e',
+        'tell application "System Events" to get count of windows of (first application process whose unix id is 11111)',
+      ], expect.any(Object))
+    })
+
     it('passes a custom CDP port and URL through', async () => {
       mockLaunchFlow(33333, 'Terminal', 9333)
 
@@ -143,6 +165,20 @@ describe('chromeSessionManager', () => {
       expect(mockedRunProcess.mock.calls[2]?.[1]).toContain('--user-data-dir=/tmp/test/chrome-profile-abc123')
       expect(mockedRunProcess.mock.calls[2]?.[1]).toContain('https://example.com')
     })
+
+    it('cleans up the active chrome profile directory on endSession', async () => {
+      mockLaunchFlow(11111)
+      await manager.ensureAgentWindow()
+
+      vi.clearAllMocks()
+      manager.endSession()
+
+      expect(mockedRm).toHaveBeenCalledWith('/tmp/test/chrome-profile-abc123', {
+        recursive: true,
+        force: true,
+      })
+      expect(manager.getSessionInfo()).toBeNull()
+    })
   })
 
   describe('bringToFront', () => {
@@ -152,12 +188,13 @@ describe('chromeSessionManager', () => {
 
       vi.clearAllMocks()
       mockedRunProcess.mockResolvedValueOnce(ok('11111\n'))
+      mockedRunProcess.mockResolvedValueOnce(ok('1\n'))
       mockedRunProcess.mockResolvedValueOnce(ok())
 
       const result = await manager.bringToFront()
 
       expect(result).toBe(true)
-      expect(mockedRunProcess).toHaveBeenCalledTimes(2)
+      expect(mockedRunProcess).toHaveBeenCalledTimes(3)
     })
 
     it('returns false when session is gone', async () => {
@@ -166,6 +203,21 @@ describe('chromeSessionManager', () => {
 
       vi.clearAllMocks()
       mockedRunProcess.mockRejectedValueOnce(new Error('no match'))
+
+      const result = await manager.bringToFront()
+
+      expect(result).toBe(false)
+      expect(manager.getSessionInfo()).toBeNull()
+    })
+
+    it('returns false when the agent window is gone even if the process still exists', async () => {
+      mockLaunchFlow(11111)
+      await manager.ensureAgentWindow()
+
+      vi.clearAllMocks()
+      mockedRunProcess
+        .mockResolvedValueOnce(ok('11111\n')) // isProcessAlive
+        .mockResolvedValueOnce(ok('0\n')) // hasChromeWindow
 
       const result = await manager.bringToFront()
 

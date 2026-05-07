@@ -12,7 +12,7 @@
 import type { ChromeSessionInfo, ComputerUseConfig } from './types'
 
 import { join } from 'node:path'
-import { mkdir, mkdtemp } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 
 import { runProcess } from './utils/process'
 import { sleep } from './utils/sleep'
@@ -96,6 +96,19 @@ export function createChromeSessionManager(
         timeoutMs: config.timeoutMs,
       })
       return stdout.trim().length > 0
+    }
+    catch {
+      return false
+    }
+  }
+
+  async function hasChromeWindow(pid: number): Promise<boolean> {
+    try {
+      const { stdout } = await runProcess(config.binaries.osascript, [
+        '-e',
+        `tell application "System Events" to get count of windows of (first application process whose unix id is ${pid})`,
+      ], { timeoutMs: config.timeoutMs })
+      return Number.parseInt(stdout.trim(), 10) > 0
     }
     catch {
       return false
@@ -189,10 +202,11 @@ export function createChromeSessionManager(
     async ensureAgentWindow(options) {
       if (session) {
         const stillRunning = await isProcessAlive(session.pid)
-        if (stillRunning) {
+        const stillHasWindow = stillRunning && await hasChromeWindow(session.pid)
+        if (stillHasWindow) {
           return session
         }
-        if (!stillRunning) {
+        if (!stillRunning || !stillHasWindow) {
           // Chrome died — clear stale session.
           onSessionLost?.()
         }
@@ -246,7 +260,8 @@ export function createChromeSessionManager(
       if (!session)
         return false
       const stillRunning = await isProcessAlive(session.pid)
-      if (!stillRunning) {
+      const stillHasWindow = stillRunning && await hasChromeWindow(session.pid)
+      if (!stillHasWindow) {
         session = null
         activeProfileDir = undefined
         onSessionLost?.()
@@ -268,9 +283,13 @@ export function createChromeSessionManager(
 
     endSession() {
       const hadSession = session !== null
+      const profileDir = activeProfileDir
       session = null
       activeProfileDir = undefined
       previousForegroundApp = undefined
+      if (profileDir) {
+        void rm(profileDir, { recursive: true, force: true })
+      }
       if (hadSession) {
         onSessionLost?.()
       }
