@@ -4,7 +4,6 @@ import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { StorageSerializers, useLocalStorage, useTimeoutFn, whenever } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
 
 import { client } from '../composables/api'
 import { useBreakpoints } from '../composables/use-breakpoints'
@@ -40,19 +39,28 @@ export const useAuthStore = defineStore('auth', () => {
 
   const credits = useLocalStorage<number>('user/v1/flux', 0)
 
-  // Cross-app "user must log in" flag. Setting this to true routes users to
-  // the local sign-in page so provider choice stays explicit. Electron skips
-  // this path because controls-island-auth-button listens for IPC and handles
+  // Cross-app "user must log in" flag. Setting this to true starts the OIDC
+  // flow (`triggerSignIn`) so the browser hits `/api/auth/oauth2/authorize`
+  // and the server-hosted login UI (`/auth/sign-in`). Electron skips this
+  // path because controls-island-auth-button listens for IPC and handles
   // sign-in in the main process.
   const needsLogin = ref(false)
   const { isMobile } = useBreakpoints()
-  const router = useRouter()
 
   whenever(needsLogin, async () => {
-    const isTamagotchi = isStageTamagotchi()
-    if (isTamagotchi)
+    if (isStageTamagotchi())
       return
-    await router.push('/auth/sign-in')
+    try {
+      // Dynamic import avoids a circular dependency: `libs/auth` imports this store.
+      const { triggerSignIn } = await import('../libs/auth')
+      await triggerSignIn()
+    }
+    catch {
+      // User cancelled native sheet or transient network failure; flag cleared in `finally`.
+    }
+    finally {
+      needsLogin.value = false
+    }
   })
 
   // Reset the flag if the viewport class flips, so a stale needsLogin from a
