@@ -48,7 +48,7 @@ function createTestDeps() {
     billingService: {} as any,
     adminFluxGrantsService: {} as any,
     ttsMeter: {} as any,
-    billingMq: {} as any,
+    requestLogService: {} as any,
     configKV: {
       getOrThrow: vi.fn(async (key: string) => {
         switch (key) {

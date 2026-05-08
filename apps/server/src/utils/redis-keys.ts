@@ -15,8 +15,6 @@ export function createRedisKey(...parts: RedisKeyPart[]): string {
   return parts.map(normalizeRedisKeyPart).join(':')
 }
 
-export const DEFAULT_BILLING_EVENTS_STREAM = createRedisKey('billing', 'events')
-
 export function configRedisKey(key: string): string {
   return createRedisKey('config', key)
 }

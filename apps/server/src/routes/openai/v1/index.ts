@@ -2,14 +2,13 @@ import type { Context } from 'hono'
 import type Redis from 'ioredis'
 
 import type { Env } from '../../../libs/env'
-import type { MqService } from '../../../libs/mq'
 import type { GenAiMetrics } from '../../../libs/otel'
 import type { UsageInfo } from '../../../services/billing/billing'
-import type { BillingEvent } from '../../../services/billing/billing-events'
 import type { BillingService } from '../../../services/billing/billing-service'
 import type { FluxMeter } from '../../../services/billing/flux-meter'
 import type { ConfigKVService } from '../../../services/config-kv'
 import type { FluxService } from '../../../services/flux'
+import type { RequestLogService } from '../../../services/request-log'
 import type { HonoEnv } from '../../../types/hono'
 
 import { useLogger } from '@guiiai/logg'
@@ -82,7 +81,7 @@ function getLlmMetricAttributes(opts: { model: string, type: string, status: num
   }
 }
 
-export function createV1CompletionsRoutes(fluxService: FluxService, billingService: BillingService, configKV: ConfigKVService, billingMq: MqService<BillingEvent>, ttsMeter: FluxMeter, redis: Redis, env: Env, genAi?: GenAiMetrics | null) {
+export function createV1CompletionsRoutes(fluxService: FluxService, billingService: BillingService, configKV: ConfigKVService, requestLogService: RequestLogService, ttsMeter: FluxMeter, redis: Redis, env: Env, genAi?: GenAiMetrics | null) {
   const logger = useLogger('v1-completions').useGlobalConfig()
   // TODO: Extract this compat route into smaller facades/modules.
   // It currently mixes auth, rate limiting, proxying, billing, telemetry, and event publishing in one transport layer entrypoint.
@@ -100,23 +99,11 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
       genAi.tokenUsageOutput.add(opts.completionTokens, attrs)
   }
 
-  function publishRequestLog(entry: { userId: string, model: string, status: number, durationMs: number, fluxConsumed: number, promptTokens?: number, completionTokens?: number }) {
-    billingMq.publish({
-      eventId: nanoid(),
-      eventType: 'llm.request.log' as const,
-      aggregateId: entry.userId,
-      userId: entry.userId,
-      occurredAt: new Date().toISOString(),
-      schemaVersion: 1,
-      payload: {
-        model: entry.model,
-        status: entry.status,
-        durationMs: entry.durationMs,
-        fluxConsumed: entry.fluxConsumed,
-        promptTokens: entry.promptTokens,
-        completionTokens: entry.completionTokens,
-      },
-    }).catch(err => logger.withError(err).warn('Failed to publish request log event'))
+  function recordRequestLog(entry: { userId: string, model: string, status: number, durationMs: number, fluxConsumed: number, promptTokens?: number, completionTokens?: number }) {
+    // Best-effort: a failed request log must not surface to the user — the
+    // upstream LLM response has already been delivered (or is mid-stream) by
+    // the time we get here. Log loss is observability-only.
+    requestLogService.logRequest(entry).catch(err => logger.withError(err).warn('Failed to write llm_request_log row'))
   }
 
   // NOTICE: Billing is best-effort — flux is debited AFTER the LLM response is sent.
@@ -270,7 +257,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
             }
             catch (err) { logger.withError(err).withFields({ userId: user.id, fluxConsumed, requestId }).error('Failed to debit flux after streaming — unpaid usage') }
 
-            publishRequestLog({
+            recordRequestLog({
               userId: user.id,
               model: requestModel,
               status: response.status,
@@ -315,7 +302,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
       completionTokens: usage.completionTokens,
     })
 
-    publishRequestLog({
+    recordRequestLog({
       userId: user.id,
       model: requestModel,
       status: response.status,
@@ -397,7 +384,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
     span.end()
     recordMetrics({ model: requestModel, status: response.status, type: 'tts', durationMs, fluxConsumed })
 
-    publishRequestLog({
+    recordRequestLog({
       userId: user.id,
       model: requestModel,
       status: response.status,

@@ -27,10 +27,9 @@
   - 注入 WebSocket
   - 绑定 `uncaughtException` / `unhandledRejection`
 
-CLI 入口在 `src/bin/run.ts`，支持两种角色：
+CLI 入口在 `src/bin/run.ts`，只有一种角色：
 
-- `api`
-- `worker`（部署里所有非 API 的后台任务都跑在这个 role 里）
+- `api`（HTTP/WS；没有常驻后台 loop，也没有 fire-and-forget 异步任务。admin flux grant 在 POST 请求线程内同步处理完返回；详见 `workers-and-runtime.md`）
 
 ## 依赖注入结构
 
@@ -131,7 +130,7 @@ CLI 入口在 `src/bin/run.ts`，支持两种角色：
   - 新用户首次读取时初始化余额
 - `BillingService`
   - 面向写入
-  - debitFlux：事务内更新余额，事务后 XADD Redis Stream；credit 方法：事务内同步写流水和审计
+  - debitFlux / credit 方法：事务内同步更新余额并写 `flux_transaction` ledger；事务提交后 best-effort 刷 Redis 余额缓存
 
 这是服务端最重要的边界之一，尽量不要把写余额逻辑重新塞回 `flux.ts`。
 

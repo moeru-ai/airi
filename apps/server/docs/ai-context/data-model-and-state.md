@@ -171,8 +171,7 @@
 
 - 所有余额写操作
 - DB 事务
-- debitFlux：事务内仅更新余额；事务后 XADD Redis Stream，transaction log 由 worker role 中的 billing event consumer 异步写入
-- credit 方法：事务内同步写 transaction
+- debitFlux / credit 方法：事务内 lock → check → update `user_flux` → insert `flux_transaction` ledger
 - 事务提交后 best-effort `redis.set` 更新 Flux 余额缓存
 
 这是所有 Flux 写路径应收敛到的中心。
@@ -215,22 +214,19 @@
 
 - channel: `chat:broadcast:<userId>`
 
-### 计费事件流
-
-- stream: 默认 `billing-events`
-
 ## 幂等与并发控制
 
 ### 余额并发
 
 `billingService` 在事务中：
 
-1. `SELECT user_flux FOR UPDATE`
-2. 计算新余额
-3. 写余额（debitFlux 事务内仅此一步；credit 方法同步写 transaction）
-4. 事务提交后 XADD Redis Stream（debitFlux）或直接返回（credit）
+1. （可选）按 `(userId, requestId)` 命中 ledger → 命中即返回，跳过余下步骤
+2. `SELECT user_flux FOR UPDATE`
+3. 计算新余额
+4. 写 `user_flux` + 写 `flux_transaction` ledger
+5. 事务提交后 best-effort `redis.set`
 
-这保证同一用户余额更新是串行化的。
+这保证同一用户余额更新是串行化的，并且 ledger 行与余额变更在同一原子提交里。
 
 ### Stripe 幂等
 
@@ -242,5 +238,4 @@
 
 ## 现有代码中的结构信号
 
-- `request-log.ts` 与 `llm-request-log.ts` 完全重叠，后者更像旧名残留。
-- `accounts.ts` 与 `auth.ts` 也是重复 schema，后续如果做整理，应先统一真实使用入口再删副本。
+- `accounts.ts` 与 `auth.ts` 是重复 schema，后续如果做整理，应先统一真实使用入口再删副本。

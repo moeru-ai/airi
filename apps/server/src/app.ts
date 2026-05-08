@@ -3,10 +3,8 @@ import type Redis from 'ioredis'
 import type { AuthInstance } from './libs/auth'
 import type { Database } from './libs/db'
 import type { Env } from './libs/env'
-import type { MqService } from './libs/mq'
 import type { OtelInstance } from './libs/otel'
 import type { AdminFluxGrantsService } from './services/admin-flux-grants'
-import type { BillingEvent } from './services/billing/billing-events'
 import type { BillingService } from './services/billing/billing-service'
 import type { FluxMeter } from './services/billing/flux-meter'
 import type { CharacterService } from './services/characters'
@@ -15,6 +13,7 @@ import type { ConfigKVService } from './services/config-kv'
 import type { FluxService } from './services/flux'
 import type { FluxTransactionService } from './services/flux-transaction'
 import type { ProviderService } from './services/providers'
+import type { RequestLogService } from './services/request-log'
 import type { StripeService } from './services/stripe'
 import type { UserDeletionService } from './services/user-deletion'
 import type { HonoEnv } from './types/hono'
@@ -52,7 +51,6 @@ import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
 import { createWellKnownRoutes } from './routes/well-known'
 import { createAdminFluxGrantsService } from './services/admin-flux-grants'
-import { createBillingMq } from './services/billing/billing-events'
 import { createBillingService } from './services/billing/billing-service'
 import { createFluxMeter } from './services/billing/flux-meter'
 import { createCharacterService } from './services/characters'
@@ -81,7 +79,7 @@ interface AppDeps {
   billingService: BillingService
   adminFluxGrantsService: AdminFluxGrantsService
   ttsMeter: FluxMeter
-  billingMq: MqService<BillingEvent>
+  requestLogService: RequestLogService
   configKV: ConfigKVService
   redis: Redis
   env: Env
@@ -215,7 +213,7 @@ export async function buildApp(deps: AppDeps) {
     /**
      * V1 routes for official provider.
      */
-    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.billingMq, deps.ttsMeter, deps.redis, deps.env, deps.otel?.genAi))
+    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.requestLogService, deps.ttsMeter, deps.redis, deps.env, deps.otel?.genAi))
 
     /**
      * Flux routes.
@@ -332,13 +330,6 @@ export async function createApp() {
     build: ({ dependsOn }) => createConfigKVService(dependsOn.redis),
   })
 
-  const billingMq = injeca.provide('services:billingMq', {
-    dependsOn: { redis, env: parsedEnv },
-    build: ({ dependsOn }) => createBillingMq(dependsOn.redis, {
-      stream: dependsOn.env.BILLING_EVENTS_STREAM,
-    }),
-  })
-
   const emailService = injeca.provide('services:email', {
     dependsOn: { env: parsedEnv },
     build: ({ dependsOn }) => createEmailService({
@@ -431,8 +422,8 @@ export async function createApp() {
   })
 
   const billingService = injeca.provide('services:billing', {
-    dependsOn: { db, redis, billingMq, configKV, otel },
-    build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.billingMq, dependsOn.configKV, dependsOn.otel?.revenue),
+    dependsOn: { db, redis, configKV, otel },
+    build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.configKV, dependsOn.otel?.revenue),
   })
 
   const adminFluxGrantsService = injeca.provide('services:adminFluxGrants', {
@@ -475,7 +466,6 @@ export async function createApp() {
     billingService,
     adminFluxGrantsService,
     ttsMeter,
-    billingMq,
     configKV,
     redis,
     env: parsedEnv,
@@ -494,7 +484,7 @@ export async function createApp() {
     billingService: resolved.billingService,
     adminFluxGrantsService: resolved.adminFluxGrantsService,
     ttsMeter: resolved.ttsMeter,
-    billingMq: resolved.billingMq,
+    requestLogService: resolved.requestLogService,
     configKV: resolved.configKV,
     redis: resolved.redis,
     env: resolved.env,

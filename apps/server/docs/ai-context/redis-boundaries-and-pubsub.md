@@ -29,8 +29,6 @@
   - 例如 `config:{key}`
 - Pub/Sub
   - 例如聊天跨实例广播 `chat:{userId}:broadcast`
-- Streams
-  - 例如 `billing-events`
 - 计量债务账本（atomic counter + TTL）
   - 例如 TTS 累计字符 `user:{userId}:flux-meter:tts:debt`
   - 见 [flux-meter.md](flux-meter.md)
@@ -39,7 +37,8 @@
 
 - Postgres 是余额、账本、订单、聊天消息等持久状态的唯一真相源
 - Redis Pub/Sub 只负责降低跨实例通知延迟，不提供持久化、回放、补偿
-- Redis Streams 用于异步事件消费，但也必须在边界层做输入输出校验
+
+> NOTICE: Redis Streams（曾经的 `billing-events`）已被移除。现在没有任何业务依赖 Stream 抽象，未来如果要再上 Stream，请先重新评估是否真的需要异步副作用，而不是把它作为默认选项。
 
 ## Key / Channel 收口规则
 
@@ -128,21 +127,6 @@ const data = JSON.parse(message) as BroadcastMessage
 - `fromSeq` / `toSeq` 是数字
 
 如果消息不合法，应该记录错误并丢弃，而不是继续广播到本地连接。
-
-## Streams 边界规则
-
-Redis Streams 的参考实现已经在 `src/libs/mq/stream.ts` 里。
-
-这层模式值得复用的点有两个：
-
-- 输入通过 `serialize()` 收口
-- 输出通过 `deserialize()` 和运行时检查收口
-
-也就是说：
-
-- 不要在业务代码里裸写 `XADD` / `XREADGROUP`
-- 不要相信 Redis 返回值一定符合你期望的 shape
-- 边界校验失败时应该尽早抛错，而不是继续传播脏数据
 
 ## Chat WS 当前约束
 
