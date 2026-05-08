@@ -51,6 +51,7 @@ function setAsBackground(id: string) {
 }
 
 function removeBackground(id: string) {
+  // eslint-disable-next-line no-alert -- Native confirmation preserves the existing destructive-action flow.
   if (confirm(t('settings.pages.scene.gallery.delete_confirm', 'Are you sure you want to delete this background?'))) {
     backgroundStore.removeBackground(id)
   }

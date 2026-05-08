@@ -1,0 +1,59 @@
+{
+  "name": "@proj-airi/singing",
+  "type": "module",
+  "version": "0.9.0-alpha.31",
+  "private": true,
+  "description": "AI singing voice conversion pipeline for AIRI",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/singing"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./contracts": {
+      "types": "./dist/contracts/index.d.mts",
+      "default": "./dist/contracts/index.mjs"
+    },
+    "./pipeline": {
+      "types": "./dist/pipeline/index.d.mts",
+      "default": "./dist/pipeline/index.mjs"
+    },
+    "./presets": {
+      "types": "./dist/presets/index.d.mts",
+      "default": "./dist/presets/index.mjs"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.mts",
+      "default": "./dist/types/index.mjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsc --noEmit && tsdown",
+    "typecheck": "tsc --noEmit",
+    "setup": "tsx scripts/validate-runtime.ts && tsx scripts/sync-python-env.ts && tsx scripts/download-models.ts",
+    "validate": "tsx scripts/validate-runtime.ts",
+    "download-models": "tsx scripts/download-models.ts",
+    "sync-python": "tsx scripts/sync-python-env.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@moeru/std": "catalog:"
+  }
+}

@@ -83,7 +83,7 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
 
       // 1. Compose the "Director" prompt based on target
       const systemPrompt = target === 'assistant'
-        ? `You are the Cinematic Director for AIRI. 
+        ? `You are the Cinematic Director for AIRI.
 Your job is to analyze the character's response and reaction to the user, and decide if it warrants a visual manifestation (a generative image).
 Manifestation is warranted for:
 - Descriptions of beautiful scenery or environment changes in the response
@@ -101,7 +101,7 @@ Output EXACTLY this JSON format and nothing else:
   "prompt": "Highly detailed, illustrative prompt for the image generator capturing the character's reaction and scene. Use Mori's style (masterpiece, high quality, manga style, intricate details)",
   "title": "Short descriptive title for the scene"
 }`
-        : `You are the Cinematic Director for AIRI. 
+        : `You are the Cinematic Director for AIRI.
 Your job is to analyze the user's input and decide if it warrants a visual manifestation (a generative image).
 Manifestation is warranted for:
 - Descriptions of beautiful scenery or environment changes
@@ -125,7 +125,7 @@ Output EXACTLY this JSON format and nothing else:
 
       const analysisPrompt = `Consider the recent history between the user and the character for context and inspiration, then analyze the latest ${target === 'assistant' ? 'response from the companion' : 'input from the user'} to decide if a visual manifestation is needed.
 
---- 
+---
 CONTEXT HISTORY:
 ${historyText || '(No previous history)'}
 
@@ -182,9 +182,12 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
       // 3. Parse and analyze
       // Handle potential markdown fences: ```json ... ```
       let jsonContent = rawContent
-      const fenceMatch = rawContent.match(/```(?:json)?\s*([\s\S]*?)```/)
-      if (fenceMatch) {
-        jsonContent = fenceMatch[1].trim()
+      const fenceMatch = rawContent.match(/```(?:json)?[ \t\r\n]*/)
+      if (fenceMatch && fenceMatch.index !== undefined) {
+        const contentStart = fenceMatch.index + fenceMatch[0].length
+        const closingFenceIndex = rawContent.indexOf('```', contentStart)
+        if (closingFenceIndex !== -1)
+          jsonContent = rawContent.slice(contentStart, closingFenceIndex).trim()
         artistLog('Extracted JSON from fences:', jsonContent)
       }
 

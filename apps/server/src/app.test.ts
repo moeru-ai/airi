@@ -48,6 +48,7 @@ function createTestDeps() {
     billingService: {} as any,
     ttsMeter: {} as any,
     billingMq: {} as any,
+    singingService: {} as any,
     configKV: {
       getOrThrow: vi.fn(async (key: string) => {
         switch (key) {

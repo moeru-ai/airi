@@ -24,6 +24,7 @@ import type { ServerChannel } from '../../services/airi/channel-server'
 import type { McpStdioManager } from '../../services/airi/mcp-servers'
 
 import { join, resolve } from 'node:path'
+import { env } from 'node:process'
 
 import { BrowserWindow, screen } from 'electron'
 
@@ -37,7 +38,7 @@ import {
 
 /** Whether the desktop overlay feature is enabled */
 export function isDesktopOverlayEnabled(): boolean {
-  return process.env.AIRI_DESKTOP_OVERLAY === '1'
+  return env.AIRI_DESKTOP_OVERLAY === '1'
 }
 
 let overlayWindow: BrowserWindow | null = null

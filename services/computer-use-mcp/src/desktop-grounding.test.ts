@@ -130,7 +130,7 @@ describe('buildTargetCandidates', () => {
 
     // Should have the chrome candidate (preferred) and the AX should be deduped
     const chromeCount = candidates.filter(c => c.source === 'chrome_dom').length
-    const axCount = candidates.filter(c => c.source === 'ax').length
+    const _axCount = candidates.filter(c => c.source === 'ax').length
     expect(chromeCount).toBe(1)
     // AX candidate may or may not be deduped depending on exact IoU
   })

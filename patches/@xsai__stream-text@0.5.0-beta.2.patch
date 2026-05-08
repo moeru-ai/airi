@@ -6,7 +6,7 @@ index e184d851f8f0dec7456bab129ed90eaad8944125..e363d3d15261fa57831cf4d6fee38464
  import { WithUnknown } from '@xsai/shared';
 -import { CompletionToolCall, CompletionToolResult, FinishReason, Usage, ChatOptions, CompletionStep, PrepareStep, StopCondition, Message } from '@xsai/shared-chat';
 +import { CompletionToolCall, CompletionToolResult, FinishReason, OnToolCallFinishCallback, OnToolCallStartCallback, RepairToolCallFunction, Usage, ChatOptions, CompletionStep, PrepareStep, StopCondition, Message } from '@xsai/shared-chat';
- 
+
  type StreamTextEvent = (CompletionToolCall & {
      type: 'tool-call';
 +}) | (CompletionToolResult & {

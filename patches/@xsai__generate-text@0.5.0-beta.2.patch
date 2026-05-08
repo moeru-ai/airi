@@ -6,7 +6,7 @@ index bfa8434ddad32d08af9d9aedaf6a1f1caa21cac8..db248a93025a37d2c0d11d7a6bb31aa9
  import { WithUnknown } from '@xsai/shared';
 -import { ChatOptions, CompletionStep, PrepareStep, StopCondition, FinishReason, AssistantMessage, Usage, Message, CompletionToolCall, CompletionToolResult } from '@xsai/shared-chat';
 +import { ChatOptions, CompletionStep, OnToolCallFinishCallback, OnToolCallStartCallback, PrepareStep, RepairToolCallFunction, StopCondition, FinishReason, AssistantMessage, Usage, Message, CompletionToolCall, CompletionToolResult } from '@xsai/shared-chat';
- 
+
  interface GenerateTextOptions extends ChatOptions {
      onStepFinish?: (step: CompletionStep<true>) => Promise<unknown> | unknown;
 +    captureToolErrors?: boolean;

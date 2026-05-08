@@ -416,7 +416,10 @@ export interface ProtocolEventaInvokeMetadata {
 }
 
 export type ProtocolEventa<P = undefined>
-  = Eventa<P, ProtocolEventaMetadata, ProtocolEventaInvokeMetadata>
+  = Eventa<P> & {
+    metadata?: ProtocolEventaMetadata
+    invokeMetadata?: ProtocolEventaInvokeMetadata
+  }
 
 function defineProtocolEventa<P = undefined>(
   id: string,
@@ -426,7 +429,26 @@ function defineProtocolEventa<P = undefined>(
     invokeMetadata?: ProtocolEventaInvokeMetadata
   },
 ): ProtocolEventa<P> {
-  return defineEventa<P, ProtocolEventaMetadata, ProtocolEventaInvokeMetadata>(id, options)
+  const event = defineEventa<P>(id) as ProtocolEventa<P>
+
+  const metadata = {
+    ...options?.inheritFrom?.metadata,
+    ...options?.metadata,
+  }
+  const invokeMetadata = {
+    ...options?.inheritFrom?.invokeMetadata,
+    ...options?.invokeMetadata,
+  }
+
+  if (Object.keys(metadata).length > 0) {
+    event.metadata = metadata
+  }
+
+  if (Object.keys(invokeMetadata).length > 0) {
+    event.invokeMetadata = invokeMetadata
+  }
+
+  return event
 }
 
 export type RouteTargetExpression
@@ -1150,7 +1172,7 @@ export const protocolEventMetadataByType = {
 } satisfies Partial<Record<keyof ProtocolEvents, ProtocolEventaMetadata | undefined>>
 
 export function getProtocolEventMetadata(eventType: keyof ProtocolEvents | string) {
-  return protocolEventMetadataByType[eventType as keyof typeof protocolEventMetadataByType]
+  return protocolEventMetadataByType[eventType as unknown as keyof typeof protocolEventMetadataByType]
 }
 
 // Thanks to:

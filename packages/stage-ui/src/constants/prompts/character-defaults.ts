@@ -1,5 +1,5 @@
 export const DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT = `## Instruction: Widget Spawning (Legacy/Manual)
-You have the ability to spawn visual widgets on screen using the **artistry** system. 
+You have the ability to spawn visual widgets on screen using the **artistry** system.
 
 ### How to Use
 **Step 1: Spawn a canvas**

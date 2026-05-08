@@ -345,6 +345,9 @@ catalogs:
     vue-sonner:
       specifier: 2.0.9
       version: 2.0.9
+    wavesurfer.js:
+      specifier: ^7.12.5
+      version: 7.12.6
     web-haptics:
       specifier: ^0.0.6
       version: 0.0.6
@@ -683,6 +686,9 @@ importers:
       '@proj-airi/server-sdk-shared':
         specifier: workspace:*
         version: link:../../packages/server-sdk-shared
+      '@proj-airi/singing':
+        specifier: workspace:*
+        version: link:../../packages/singing
       better-auth:
         specifier: 'catalog:'
         version: 1.6.5(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))(pg@8.20.0)(react@19.2.3)(vitest@4.1.4)(vue@3.5.32(typescript@5.9.3))
@@ -1165,6 +1171,9 @@ importers:
       '@guiiai/logg':
         specifier: 'catalog:'
         version: 1.2.11
+      '@hono/node-server':
+        specifier: ^1.19.11
+        version: 1.19.14(hono@4.11.3)
       '@huggingface/transformers':
         specifier: ^3.8.1
         version: 3.8.1
@@ -1204,6 +1213,9 @@ importers:
       '@proj-airi/server-sdk':
         specifier: workspace:*
         version: link:../../packages/server-sdk
+      '@proj-airi/singing':
+        specifier: workspace:*
+        version: link:../../packages/singing
       '@proj-airi/stage-layouts':
         specifier: workspace:^
         version: link:../../packages/stage-layouts
@@ -1321,6 +1333,9 @@ importers:
       es-toolkit:
         specifier: ^1.45.1
         version: 1.45.1
+      hono:
+        specifier: 'catalog:'
+        version: 4.11.3
       injeca:
         specifier: 'catalog:'
         version: 0.2.0(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.9)
@@ -2829,6 +2844,12 @@ importers:
         specifier: workspace:*
         version: link:../plugin-protocol
 
+  packages/singing:
+    dependencies:
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
+
   packages/stage-layouts:
     dependencies:
       '@moeru/eventa':
@@ -3161,6 +3182,9 @@ importers:
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../server-sdk
+      '@proj-airi/singing':
+        specifier: workspace:*
+        version: link:../singing
       '@proj-airi/stage-shared':
         specifier: workspace:^
         version: link:../stage-shared
@@ -3359,6 +3383,9 @@ importers:
       vue-sonner:
         specifier: ^2.0.9
         version: 2.0.9(vue@3.5.32(typescript@5.9.3))
+      wavesurfer.js:
+        specifier: 'catalog:'
+        version: 7.12.6
       web-haptics:
         specifier: 'catalog:'
         version: 0.0.6(react@19.2.3)(vue@3.5.32(typescript@5.9.3))
@@ -17923,6 +17950,9 @@ packages:
     resolution: {integrity: sha512-/OBiAALgWU24IG7sC84cDO/KfFuvajWc5Uec0oV2zrpOOZZDgGdOwHwgEzOrwh8jkubBk7PtZfQBIcI1OaE5Ng==}
     engines: {node: '>=8'}
     hasBin: true
+
+  wavesurfer.js@7.12.6:
+    resolution: {integrity: sha512-zSxPgOFprtyJ31ppHQF0+E9jAmjAhi1rR36yIW6h1GOYdpRxDe6mbkYtlChqLK0Iz8ROBweiEFw2zus7tDFibA==}
 
   wcwidth@1.0.1:
     resolution: {integrity: sha512-XHPEwS0q6TaxcvG85+8EYkbiCux2XtWG2mkc47Ng2A77BQu9+DqIOJldST4HgPkuea7dvKSj5VgX3P1d4rW8Tg==}
@@ -33647,6 +33677,8 @@ snapshots:
       graceful-fs: 4.2.11
 
   wavefile@11.0.0: {}
+
+  wavesurfer.js@7.12.6: {}
 
   wcwidth@1.0.1:
     dependencies:

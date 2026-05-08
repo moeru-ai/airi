@@ -163,6 +163,15 @@ export function useModulesList() {
       configured: beatSyncState.value?.isActive ?? false,
       category: 'essential',
     },
+    {
+      id: 'singing',
+      name: t('settings.pages.modules.singing.title'),
+      description: t('settings.pages.modules.singing.description'),
+      icon: 'i-solar:music-note-slider-2-bold-duotone',
+      to: '/settings/modules/singing',
+      configured: false,
+      category: 'essential',
+    },
   ])
 
   const categorizedModules = computed(() => {

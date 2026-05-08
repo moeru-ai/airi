@@ -10,17 +10,16 @@ const resolveAnimation = ref<() => void>()
 const { t } = useI18n()
 const settingsStore = useSettings()
 
-const removeBeforeEach = router.beforeEach(async (_, __, next) => {
+const removeBeforeEach = router.beforeEach(async () => {
   if (!settingsStore.usePageSpecificTransitions || settingsStore.disableTransitions) {
-    next()
-    return
+    return true
   }
 
   await new Promise<void>((resolve) => {
     resolveAnimation.value = resolve
   })
   removeBeforeEach()
-  next()
+  return true
 })
 
 const settings = computed(() => {

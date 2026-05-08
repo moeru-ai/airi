@@ -1,0 +1,44 @@
+[build-system]
+requires = [ "hatchling" ]
+build-backend = "hatchling.build"
+
+[project]
+name = "airi-singing-worker"
+version = "0.1.0"
+description = "Python model runtime for AIRI singing voice conversion pipeline"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+  "numpy>=1.24",
+  "soundfile>=0.12",
+]
+
+# NOTE: torch / torchaudio are NOT declared here because the correct
+# variant (CPU vs CUDA 11.8 / 12.1 / 12.4) depends on the user's GPU
+# and must be installed with a platform-specific --extra-index-url.
+# The setup script (sync-python-env.ts) handles this automatically.
+
+[project.optional-dependencies]
+pitch = [ "librosa>=0.10", ]
+pitch-crepe = [ "torchcrepe>=0.0.20", ]
+pitch-pyworld = [ "pyworld>=0.3", ]
+separator = [ "melband-roformer-infer>=0.1", ]
+rvc = [ "rvc-python>=0.1", ]
+eval = [
+  "resemblyzer>=0.1",
+  "faster-whisper>=1.0",
+  "pyloudnorm>=0.1",
+  "jiwer>=3.0",
+  "librosa>=0.10",
+]
+dev = [
+  "ruff>=0.4",
+  "librosa>=0.10",
+  "pytest>=8.0",
+]
+
+[project.scripts]
+airi-singing = "airi_singing_worker.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = [ "src/airi_singing_worker" ]
