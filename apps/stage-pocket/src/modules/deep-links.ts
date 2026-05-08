@@ -12,7 +12,7 @@ export function installDeepLinks(router: Router): void {
 
     try {
       const url = new URL(event.url)
-      if (url.host === 'localhost' && url.pathname === '/auth/callback') {
+      if (url.host === 'links' && url.pathname === '/auth/callback') {
         const code = url.searchParams.get('code')
         const state = url.searchParams.get('state')
         if (!code || !state) {
