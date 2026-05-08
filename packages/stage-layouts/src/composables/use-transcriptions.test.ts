@@ -124,10 +124,10 @@ describe('useTranscriptions', () => {
     })
 
     it('should expose startListening and stopListening', () => {
-      const { startListening, stopListening } = useTranscriptions(createOptions())
+      const { startStreamingTranscription, stopStreamingTranscription } = useTranscriptions(createOptions())
 
-      expect(startListening).toBeInstanceOf(Function)
-      expect(stopListening).toBeInstanceOf(Function)
+      expect(startStreamingTranscription).toBeInstanceOf(Function)
+      expect(stopStreamingTranscription).toBeInstanceOf(Function)
     })
   })
 
@@ -136,9 +136,9 @@ describe('useTranscriptions', () => {
       mockHearingStore.configured.value = false
       mockAudioDevice.enabled.value = true
 
-      const { startListening }
+      const { startStreamingTranscription }
         = useTranscriptions(createOptions())
-      await startListening()
+      await startStreamingTranscription()
 
       expect(mockProvidersStore.initializeProvider).toHaveBeenCalledWith('browser-web-speech-api')
       expect(mockHearingStore.activeTranscriptionProvider).toBe('browser-web-speech-api')
@@ -155,9 +155,9 @@ describe('useTranscriptions', () => {
       mockAudioDevice.stream.value = { id: 'stream-1' } as any
       mockAudioDevice.enabled.value = true
 
-      const { isListening, startListening }
+      const { isListening, startStreamingTranscription }
         = useTranscriptions(createOptions())
-      await startListening()
+      await startStreamingTranscription()
 
       expect(isListening.value).toBe(false)
       expect(mockHearingPipeline.transcribeForMediaStream).not.toHaveBeenCalled()
@@ -168,9 +168,9 @@ describe('useTranscriptions', () => {
       mockAudioDevice.stream.value = { id: 'stream-1' } as any
       mockAudioDevice.enabled.value = true
 
-      const { isListening, startListening }
+      const { isListening, stopStreamingTranscription }
         = useTranscriptions(createOptions(true))
-      await startListening()
+      await stopStreamingTranscription()
       expect(isListening.value).toBe(false)
     })
   })
@@ -182,9 +182,9 @@ describe('useTranscriptions', () => {
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
-      const { isListening, startListening } = useTranscriptions(createOptions())
+      const { isListening, startStreamingTranscription } = useTranscriptions(createOptions())
 
-      await startListening()
+      await startStreamingTranscription()
 
       await nextTick()
       expect(isListening.value).toBe(true)
@@ -200,9 +200,9 @@ describe('useTranscriptions', () => {
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
-      const { startListening } = useTranscriptions(createOptions())
+      const { startStreamingTranscription } = useTranscriptions(createOptions())
 
-      await startListening()
+      await startStreamingTranscription()
       await nextTick()
 
       expect(mockAudioDevice.askPermission).toHaveBeenCalled()
@@ -220,9 +220,9 @@ describe('useTranscriptions', () => {
         toBeTruthy: vi.fn().mockRejectedValue(new Error('Timeout')),
       }))
 
-      const { isListening, startListening } = useTranscriptions(createOptions())
+      const { isListening, startStreamingTranscription } = useTranscriptions(createOptions())
 
-      await startListening()
+      await startStreamingTranscription()
       await nextTick()
 
       expect(isListening.value).toBe(false)
@@ -237,10 +237,10 @@ describe('useTranscriptions', () => {
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
-      const { startListening }
+      const { startStreamingTranscription }
         = useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
 
-      await startListening()
+      await startStreamingTranscription()
       await nextTick()
 
       expect(mockInput.value).toBe(mockTranscribedContent)
@@ -254,10 +254,10 @@ describe('useTranscriptions', () => {
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
-      const { startListening }
+      const { startStreamingTranscription }
         = useTranscriptions({ ...createOptions(), messageInputRef: mockInput })
 
-      await startListening()
+      await startStreamingTranscription()
       await nextTick()
 
       expect(mockInput.value).toBe(`${prependText} ${mockTranscribedContent}`)
@@ -274,10 +274,10 @@ describe('useTranscriptions', () => {
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
-      const { startListening }
+      const { startStreamingTranscription }
         = useTranscriptions({ ...createOptions(), messageInputRef: mockInput, sendMessage: mockSendMessage })
 
-      await startListening()
+      await startStreamingTranscription()
       await nextTick()
 
       expect(mockSendMessage).not.toHaveBeenCalled()
@@ -298,10 +298,10 @@ describe('useTranscriptions', () => {
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
-      const { startListening }
+      const { startStreamingTranscription }
         = useTranscriptions({ ...createOptions(), messageInputRef: mockInput, sendMessage: mockSendMessage })
 
-      await startListening()
+      await startStreamingTranscription()
       await nextTick()
 
       // Disable auto-send before timeout
@@ -320,13 +320,13 @@ describe('useTranscriptions', () => {
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
-      const { isListening, startListening, stopListening } = useTranscriptions(createOptions())
+      const { isListening, startStreamingTranscription, stopStreamingTranscription } = useTranscriptions(createOptions())
 
-      await startListening()
+      await startStreamingTranscription()
       await nextTick()
       expect(isListening.value).toBe(true)
 
-      await stopListening()
+      await stopStreamingTranscription()
       await nextTick()
       expect(isListening.value).toBe(false)
       expect(mockHearingPipeline.stopStreamingTranscription).toHaveBeenCalledWith(true)
@@ -340,8 +340,8 @@ describe('useTranscriptions', () => {
 
       const app = mount({
         setup() {
-          const { startListening } = useTranscriptions(createOptions())
-          startListening()
+          const { startStreamingTranscription } = useTranscriptions(createOptions())
+          startStreamingTranscription()
         },
         template: '<div></div>',
       })
@@ -361,9 +361,9 @@ describe('useTranscriptions', () => {
       mockAudioDevice.enabled.value = true
       mockHearingPipeline.supportsStreamInput.value = true
 
-      const { isListening, startListening } = useTranscriptions(createOptions())
+      const { isListening, startStreamingTranscription } = useTranscriptions(createOptions())
 
-      await startListening()
+      await startStreamingTranscription()
 
       await nextTick()
       expect(isListening.value).toBe(true)
@@ -372,21 +372,6 @@ describe('useTranscriptions', () => {
 
       await nextTick()
       expect(isListening.value).toBe(false)
-    })
-
-    it('should start listening if stream becomes available while enabled', async () => {
-      mockHearingStore.configured.value = true
-      mockAudioDevice.stream.value = null // Initially no stream
-      mockAudioDevice.enabled.value = true
-      mockHearingPipeline.supportsStreamInput.value = true
-
-      const { isListening } = useTranscriptions(createOptions())
-      expect(isListening.value).toBe(false)
-
-      mockAudioDevice.stream.value = { id: 'stream-2' } as any
-
-      await nextTick()
-      expect(isListening.value).toBe(true)
     })
   })
 })

@@ -21,7 +21,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
   const { transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
   const { supportsStreamInput } = storeToRefs(hearingPipeline)
   const { configured: hearingConfigured, autoSendEnabled, autoSendDelay } = storeToRefs(hearingStore)
-  const { enabled, stream } = storeToRefs(useSettingsAudioDevice())
+  const { enabled: hearingEnabled, stream } = storeToRefs(useSettingsAudioDevice())
   const providersStore = useProvidersStore()
   const { askPermission, startStream } = useSettingsAudioDevice()
 
@@ -75,7 +75,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
 
   const startStreaming = async () => {
     console.info('Starting streaming transcription', {
-      enabled: enabled.value,
+      enabled: hearingEnabled.value,
       hasStream: !!stream.value,
       supportsStreamInput: supportsStreamInput.value,
       hearingConfigured: hearingConfigured.value,
@@ -141,7 +141,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
         await askPermission()
 
         // If still no stream, try starting it manually
-        if (!stream.value && enabled.value) {
+        if (!stream.value && hearingEnabled.value) {
           console.info('Attempting to start stream manually', { source: 'useTranscriptions' })
           startStream()
           // Wait for the stream to become available with a timeout.
@@ -204,6 +204,14 @@ export function useTranscriptions(options: TranscriptionOptions) {
     if (!enabled) {
       clearPendingAutoSend()
       console.info('Auto-send disabled', { source: 'useTranscriptions' })
+    }
+  })
+
+  // Watch for auto-send setting changes and clear pending sends if disabled
+  watch(hearingEnabled, async (enabled) => {
+    if (!enabled) {
+      await stopStreaming()
+      console.info('Stopping streaming transcription because hearing is disabled.', { source: 'useTranscriptions' })
     }
   })
 
