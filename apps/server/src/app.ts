@@ -432,11 +432,6 @@ export async function createApp() {
     }),
   })
 
-  const fluxGrantBatchService = injeca.provide('services:adminFluxGrantBatch', {
-    dependsOn: { db },
-    build: ({ dependsOn }) => createFluxGrantBatchService(dependsOn.db),
-  })
-
   const ttsMeter = injeca.provide('services:ttsMeter', {
     dependsOn: { redis, billingService, configKV },
     build: ({ dependsOn }) => createFluxMeter(dependsOn.redis, dependsOn.billingService, {
