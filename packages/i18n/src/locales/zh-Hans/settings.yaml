@@ -685,7 +685,7 @@ pages:
         empty: 这里什么都还没有哦，在下面添加一个！
       add:
         title: 新建
-        description: '填写新的服务器配置，然后点击「保存并重启」，完成后将会更新至上方的「已配置」'
+        description: "填写新的服务器配置，然后点击「保存并重启」，完成后将会更新至上方的「已配置」"
         pending-badge: 未保存
       status:
         unknown: 未加载

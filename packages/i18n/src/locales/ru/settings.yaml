@@ -10,7 +10,7 @@ animations:
 dialogs:
   onboarding:
     official:
-      title: AIRI Official Provider
+      title: Официальный провайдер AIRI
     title: Добро пожаловать в AIRI!
     description: Давайте настроим вашего первого AI-провайдера, чтобы начать работу.
     selectProvider: Выберите AI-провайдера
@@ -307,7 +307,7 @@ pages:
         systemprompt: 'Ошибка: укажите системный промпт.'
         posthistoryinstructions: 'Ошибка: требуется post-history промпт.'
         invalid_artistry_json: 'Ошибка: Параметры провайдера Artistry содержат недопустимые JSON.'
-      none: None
+      none: Отсутствует
     modules: Модули
     name_asc: Имя (А-Я)
     name_desc: Имя (Я-А)
@@ -672,88 +672,88 @@ pages:
       access-token-secret-placeholder: Введите ваш секрет токена доступа X / Twitter
       configured: X / Twitter настроен правильно!
     mcp-server:
-      title: MCP servers
-      description: Configure MCP servers and bring their tools into AIRI.
-      config-path: Config file
+      title: MCP Сервера
+      description: Настройка MCP серверов и перевод их инструментов в AIRI.
+      config-path: Конфигурационный файл
       runtime-title: Статус рабочего времени
-      empty: No MCP servers yet — click "Add server" below to create one, or paste a config via "Edit JSON".
-      error-title: Oops
-      success-title: Done!
+      empty: Пока нет MCP серверов — нажмите "Добавить сервер" ниже, чтобы создать его или вставьте конфигурацию через "Редактировать JSON".
+      error-title: Упс
+      success-title: Готово!
       existing:
-        title: Configured
-        description: Servers recorded in mcp.json. Click any row to expand and edit it.
-        empty: Nothing here yet. Add one below!
+        title: Настроено
+        description: Сервера записаны в mcp.json. Нажмите на любую строку, чтобы развернуть и редактировать его.
+        empty: Здесь пока ничего нет. Добавьте одно ниже!
       add:
-        title: New
-        description: "Fill in a new server, then click \"Save and restart\" — it'll move into \"Configured\" above."
-        pending-badge: Unsaved
+        title: Новый
+        description: "Заполните новый сервер, затем нажмите кнопку «Сохранить и перезапустить» — он будет перемещен в «Конфигурация» выше."
+        pending-badge: Не сохранено
       status:
-        unknown: not loaded
+        unknown: Не загружен
       actions:
-        open-config: Reveal in file manager
-        apply-and-restart: Save and restart
-        restart: Restart MCP
-        add-server: Add server
-        add-env: Add var
-        remove: Remove
-        test: Test
-        edit-json: Edit JSON
-        close-json: Close
-        format-json: Format
-        reset-draft: Reset
-        apply-json: Apply
-        cancel: Cancel
-        expand: Expand
-        collapse: Collapse
+        open-config: Показать в файловом менеджере
+        apply-and-restart: Сохранить и перезагрузить
+        restart: Перезапустить MCP
+        add-server: Добавить сервер
+        add-env: Добавить переменную
+        remove: Убрать
+        test: Проверка
+        edit-json: Редактировать JSON
+        close-json: Закрыть
+        format-json: Формат
+        reset-draft: Сброс
+        apply-json: Применить
+        cancel: Отменить
+        expand: Развернуть
+        collapse: Свернуть
       fields:
         identifier:
-          label: Identifier
-          description: Unique name; becomes the key in mcp.json.
-          placeholder: e.g. filesystem
+          label: Идентификатор
+          description: Уникальное имя; становится ключом в mcp.json.
+          placeholder: Напр. filesystem
         command:
-          label: Command
-          description: Executable spawned over stdio.
-          placeholder: e.g. npx
+          label: Команда
+          description: Исполняемый файл создан поверх stdio.
+          placeholder: Напр. npx
         args:
-          label: Arguments
-          description: One per line, in order.
+          label: Аргументы
+          description: По одному на строку, по порядку.
           placeholder: "-y\nsome-package-name\n/tmp"
         cwd:
-          label: Working directory
-          description: Optional directory used as the process working directory.
-          placeholder: e.g. /Users/you/project
+          label: Рабочая папка
+          description: Необязательный каталог, используемый в качестве рабочего каталога процесса.
+          placeholder: Напр. /Users/you/project
         env:
-          label: Environment
-          description: Vars passed to the child process.
-          key-placeholder: KEY
-          value-placeholder: value
+          label: Окружение
+          description: Переменные переданы дочернему процессу.
+          key-placeholder: КЛЮЧ
+          value-placeholder: значение
         enabled:
-          label: Enabled
+          label: Включено
       json:
-        title: Edit mcp.json
-        description: 'Edit the raw JSON directly. Click "Apply" to load it into the form, then "Save and restart" to write it to disk.'
-        placeholder: Paste mcp.json here…
+        title: Редактировать mcp.json
+        description: 'Отредактируйте сырые JSON напрямую. Нажмите «Применить», чтобы загрузить их в форму, затем «Сохранить и перезапустить», чтобы записать их на диск.'
+        placeholder: Вставьте mcp.json здесь…
       test:
-        title: Test connection
-        description: We'll spawn the server briefly to check the command works and see what tools it exposes.
-        pick-server-label: Server
-        no-servers: Nothing to test yet
-        no-server-selected: Pick a server first.
-        server-disabled: '"{name}" is disabled — enable it on the card first.'
-        disabled-suffix: disabled
-        untitled: untitled
-        running: Testing…
-        success: Connected! Found {count} tools in {ms}ms.
-        failure: Connection failed after {ms}ms
+        title: Проверить подключение
+        description: Мы недолго создадим сервер, чтобы проверить работу команды и увидеть, какие инструменты она раскрывает.
+        pick-server-label: Сервер
+        no-servers: Пока нечего проверять
+        no-server-selected: Сначала выберите сервер.
+        server-disabled: '"{name}" отключён — включите его сначала на карте.'
+        disabled-suffix: отключено
+        untitled: безымянный
+        running: Тестирование
+        success: Подключено! Найдено {count} инструментов за {ms}мс.
+        failure: Сбой соединения после {ms}мс
       errors:
         empty-identifier: Server # {index} is missing an identifier.
-        duplicate-identifier: Identifier "{name}" is used more than once — names need to be unique.
-        empty-command: '"{name}" is missing a command.'
-        invalid-shape: That doesn't look like a valid mcp.json — the root needs an "mcpServers" field.
+        duplicate-identifier: Идентификатор "{name}" используется более одного раза — имена должны быть уникальными.
+        empty-command: '"{name}" отсутствует команда.'
+        invalid-shape: Это не похоже на mcp.json — для root требуется поле "mcpServers".
       messages:
-        opened: Opened {path} in your file manager
-        json-applied: JSON applied to the form. Click "Save and restart" to persist it to disk.
-        restarted: All restarted! {started} started, {failed} failed, {skipped} skipped.
+        opened: В файловом менеджере открыта {path}
+        json-applied: JSON применен к форме. Нажмите «Сохранить и перезапустить», чтобы сохранить его на диск.
+        restarted: Все перезапущено! {started} запущен, {failed} не удалось, {skipped} пропущен.
   flux:
     title: Flux
     buy: Пополнить
@@ -901,7 +901,7 @@ pages:
         description: >-
           Провайдеры транскрипции (speech-to-text): Whisper.cpp, OpenAI, Azure Speech
       artistry:
-        title: Artistry
+        title: Artistry 
         description: Поставщики моделей генерации и создания изображений, например ComfyUI, Replicate.
         items:
           comfyui:
@@ -1253,14 +1253,14 @@ pages:
               label: Идентификатор приложения (App ID)
         title: Volcano Engine
       volcengine-coding-plan:
-        description: Volcengine Coding Plan
-        title: Volcengine Coding Plan
+        description: План кодирования Volcengine
+        title: План кодирования Volcengine
       byteplus:
         description: byteplus.com
         title: BytePlus
       byteplus-coding-plan:
-        description: BytePlus Coding Plan
-        title: BytePlus Coding Plan
+        description: План кодирования BytePlus
+        title: План кодирования BytePlus
       xai:
         description: x.ai
         title: xAI
