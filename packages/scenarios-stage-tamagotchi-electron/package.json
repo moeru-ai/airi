@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/scenarios-stage-tamagotchi-electron",
   "type": "module",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "private": true,
   "description": "Product-owned Electron scenarios for stage-tamagotchi raw screenshot capture",
   "author": {

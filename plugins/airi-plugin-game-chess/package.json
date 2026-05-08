@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/airi-plugin-game-chess",
   "type": "module",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "private": true,
   "description": "Chess plugin for AIRI gamelet/widget runtime",
   "scripts": {

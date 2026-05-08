@@ -130,6 +130,32 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return cards.value.get(id)
   }
 
+  function updateActiveCardDisplayModel(displayModelId: string | undefined) {
+    const cardId = activeCardId.value
+    const card = cards.value.get(cardId)
+    if (!card)
+      return false
+
+    const extension = resolveAiriExtension(card)
+    const modules: AiriExtension['modules'] = {
+      ...extension.modules,
+      displayModelId,
+    }
+
+    cards.value.set(cardId, {
+      ...card,
+      extensions: {
+        ...card.extensions,
+        airi: {
+          ...extension,
+          modules,
+        },
+      },
+    })
+
+    return true
+  }
+
   function resolveAiriExtension(card: Card | ccv3.CharacterCardV3): AiriExtension {
     // Get existing extension if available
     const existingExtension = ('data' in card
@@ -320,6 +346,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     addCard,
     removeCard,
     updateCard,
+    updateActiveCardDisplayModel,
     getCard,
     resetState,
     initialize,

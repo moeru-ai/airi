@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/vishot-runtime",
   "type": "module",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "private": true,
   "description": "Runtime capture contracts and Vue bindings for Vishot",
   "author": {

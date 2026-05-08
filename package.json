@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/root",
   "type": "module",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "description": "LLM powered virtual character",
@@ -33,7 +33,9 @@
     "build:packages": "turbo run build -F=\"./packages/*\"",
     "build:engines": "turbo run build -F=\"./engines/*\"",
     "test": "vitest --coverage",
-    "test:run": "vitest run",
+    "test:run": "vitest run && pnpm run test-vishot:run && pnpm run test-ui:run",
+    "test-vishot:run": "vitest run --config packages/vishot-runtime/vitest.config.ts",
+    "test-ui:run": "vitest run --config packages/stage-ui/vitest.config.ts",
     "lint": "moeru-lint .",
     "lint:fix": "moeru-lint --fix .",
     "lint:swift": "pnpm -rF @proj-airi/stage-pocket run lint:swift",
@@ -88,7 +90,7 @@
     "unplugin-unused": "^0.5.7",
     "vite": "^8.0.8",
     "vite-plugin-inspect": "catalog:",
-    "vitest": "^4.1.4",
+    "vitest": "catalog:vitest",
     "vitest-browser-vue": "catalog:",
     "yaml": "^2.8.3"
   },

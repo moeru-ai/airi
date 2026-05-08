@@ -312,14 +312,14 @@ export function setupWidgetsWindowManager(params: {
     window.on('move', persist)
 
     const initialRoute = pendingRoute ?? defaultRoute
-    await loadWithRoute(window, initialRoute)
-
     await setupWidgetsWindowInvokes({
       widgetWindow: window,
       widgetsManager: widgetsManager!,
       i18n: params.i18n,
       serverChannel: params.serverChannel,
     })
+
+    await loadWithRoute(window, initialRoute)
 
     pendingRoute = undefined
 

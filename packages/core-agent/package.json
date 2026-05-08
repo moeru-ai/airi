@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/core-agent",
   "type": "module",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "private": true,
   "description": "Core agent runtime orchestration for AIRI",
   "author": {

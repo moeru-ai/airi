@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/stage-tamagotchi-godot",
   "type": "module",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "private": true,
   "description": "Godot-native desktop stage runtime workspace engine for stage-tamagotchi",
   "author": {

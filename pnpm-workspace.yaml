@@ -125,6 +125,7 @@ catalog:
   std-env: ^4.1.0
   stockfish: ^18.0.7
   superjson: ^2.2.6
+  tinyexec: ^1.1.1
   tsdown: ^0.21.9
   tsx: ^4.21.0
   uncrypto: ^0.1.3

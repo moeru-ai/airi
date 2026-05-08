@@ -64,7 +64,6 @@ export function setupSettingsWindowReusableFunc(params: {
       return { action: 'deny' }
     })
 
-    await load(window, withHashRoute(rendererBase, currentRoute))
     settingsContext = await setupSettingsWindowInvokes({
       settingsWindow: window,
       widgetsManager: params.widgetsManager,
@@ -76,6 +75,8 @@ export function setupSettingsWindowReusableFunc(params: {
       i18n: params.i18n,
       windowAuthManager: params.windowAuthManager,
     })
+
+    await load(window, withHashRoute(rendererBase, currentRoute))
 
     window.on('closed', () => {
       if (settingsContext)

@@ -146,7 +146,7 @@ describe('capVitePlugin', () => {
 
     await vi.waitFor(() => {
       expect(firstRun.kill).toHaveBeenCalledWith('SIGINT')
-      expect(server.config.logger.info).toHaveBeenCalledWith('[cap-vite] manual restart requested. Re-running cap run ios.')
+      expect(server.config.logger.info).toHaveBeenCalledWith('[cap-vite] manual restart requested. Re-running "cap run ios --scheme AIRI".')
       expect(x).toHaveBeenNthCalledWith(2, 'cap', ['run', 'ios', '--scheme', 'AIRI'], {
         nodeOptions: {
           cwd: '/repo/app',

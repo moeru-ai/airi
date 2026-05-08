@@ -28,6 +28,11 @@ import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
 
+// updateUI structuredClones the whole message, which can stall the main thread
+// when streams emit token-per-event. Shared by the parser's literal threshold and
+// the reasoning-delta throttle so both refresh at the same cadence.
+const STREAMING_UI_FLUSH_CHUNK_SIZE = 24
+
 // Prepends a literal text fragment to a message's content. Handles both the
 // shorthand string form and the array-of-parts form. When the first part is
 // already text, it merges into that part to keep the part count stable for
@@ -303,13 +308,14 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
           const finalCategorization = categorizeResponse(fullText, activeProvider.value)
 
+          const reasoningContentField = buildingMessage.categorization?.reasoning?.trim()
           buildingMessage.categorization = {
             speech: finalCategorization.speech,
-            reasoning: finalCategorization.reasoning,
+            reasoning: reasoningContentField || finalCategorization.reasoning,
           }
           updateUI()
         },
-        minLiteralEmitLength: 24,
+        minLiteralEmitLength: STREAMING_UI_FLUSH_CHUNK_SIZE,
       })
 
       const toolCallQueue = createQueue<ChatSlices>({
@@ -475,6 +481,25 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
                 fullText += event.text
                 await parser.consume(event.text)
                 break
+              case 'reasoning-delta': {
+                if (shouldAbort())
+                  return
+
+                const { reasoning = '' } = buildingMessage.categorization ?? {}
+                const nextReasoning = reasoning + event.text
+                buildingMessage.categorization = {
+                  // Mirror in-flight text content so categorization stays shape-consistent with onEnd.
+                  speech: typeof buildingMessage.content === 'string' ? buildingMessage.content : '',
+                  reasoning: nextReasoning,
+                }
+                // Match text-delta's batching cadence; first chunk fires so the panel appears immediately.
+                const crossesBoundary
+                  = Math.floor(nextReasoning.length / STREAMING_UI_FLUSH_CHUNK_SIZE)
+                    > Math.floor(reasoning.length / STREAMING_UI_FLUSH_CHUNK_SIZE)
+                if (!reasoning || crossesBoundary)
+                  updateUI()
+                break
+              }
               case 'finish':
                 break
               case 'error':

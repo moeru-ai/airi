@@ -49,18 +49,25 @@ async function handleAddLive2DModel(file: FileList | null) {
   pendingFile.value = file[0]
 
   if (report.status === 'VALID' && report.errors.length === 0) {
-    confirmImport()
+    await confirmImport()
     return
   }
 
   showReportModal.value = true
 }
 
-function confirmImport() {
+async function confirmImport() {
   if (pendingFile.value === null)
     return
 
-  displayModelStore.addDisplayModel(DisplayModelFormat.Live2dZip, pendingFile.value)
+  // NOTICE:
+  // Keep this await. Model picking can happen immediately after import from this dialog.
+  // If addDisplayModel is fire-and-forget, updateStageModel may read the new display-model id
+  // before IndexedDB or the in-memory displayModels list is ready and fall back to the default model.
+  // Source/context: model selector import flow -> settings model pick -> settings-stage-model.getDisplayModel().
+  // Removal condition: addDisplayModel becomes a synchronous transaction or pick is blocked by explicit import state.
+  const displayModel = await displayModelStore.addDisplayModel(DisplayModelFormat.Live2dZip, pendingFile.value)
+  highlightDisplayModelCard.value = displayModel.id
   pendingFile.value = null
 }
 
@@ -79,13 +86,19 @@ function handleMobilePick() {
   emits('close', undefined)
 }
 
-function handleAddVRMModel(file: FileList | null) {
+async function handleAddVRMModel(file: FileList | null) {
   if (file === null || file.length === 0)
     return
   if (!file[0].name.endsWith('.vrm'))
     return
 
-  displayModelStore.addDisplayModel(DisplayModelFormat.VRM, file[0])
+  // NOTICE:
+  // Keep this await for the same import-then-pick race as Live2D imports above.
+  // The returned model id is only safe to highlight after addDisplayModel has updated the store.
+  // Source/context: model selector import flow -> settings model pick -> settings-stage-model.getDisplayModel().
+  // Removal condition: addDisplayModel becomes a synchronous transaction or pick is blocked by explicit import state.
+  const displayModel = await displayModelStore.addDisplayModel(DisplayModelFormat.VRM, file[0])
+  highlightDisplayModelCard.value = displayModel.id
 }
 
 const mapFormatRenderer: Record<DisplayModelFormat, string> = {

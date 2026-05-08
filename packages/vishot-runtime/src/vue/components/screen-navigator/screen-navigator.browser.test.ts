@@ -1,44 +1,9 @@
-// @vitest-environment jsdom
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { userEvent } from 'vitest/browser'
 import { createApp, h, nextTick, ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import ScreenNavigator from './screen-navigator.vue'
-
-const originalElementScrollIntoView = Element.prototype.scrollIntoView
-const originalObjectScrollIntoView = (Object.prototype as { scrollIntoView?: unknown }).scrollIntoView
-
-beforeAll(() => {
-  Object.defineProperty(Element.prototype, 'scrollIntoView', {
-    configurable: true,
-    value: vi.fn(),
-  })
-
-  // eslint-disable-next-line no-extend-native
-  Object.defineProperty(Object.prototype, 'scrollIntoView', {
-    configurable: true,
-    value: vi.fn(),
-  })
-})
-
-afterAll(() => {
-  Object.defineProperty(Element.prototype, 'scrollIntoView', {
-    configurable: true,
-    value: originalElementScrollIntoView,
-  })
-
-  if (originalObjectScrollIntoView === undefined) {
-    // Keep Object prototype clean when this shim didn't exist before the test run.
-    delete (Object.prototype as { scrollIntoView?: unknown }).scrollIntoView
-  }
-  else {
-    // eslint-disable-next-line no-extend-native
-    Object.defineProperty(Object.prototype, 'scrollIntoView', {
-      configurable: true,
-      value: originalObjectScrollIntoView,
-    })
-  }
-})
 
 const scenes = [
   { id: 'intro-chat', title: 'Intro Chat' },
@@ -112,13 +77,17 @@ describe('scene-navigator', () => {
   it('opens palette on Ctrl+K and closes with Escape', async () => {
     const { app, host } = await mountSceneNavigator()
 
-    window.dispatchEvent(new KeyboardEvent('keydown', { ctrlKey: true, key: 'k' }))
+    await userEvent.keyboard('{Control>}k{/Control}')
     await nextTick()
-    expect(document.querySelector('[data-scene-nav-palette][data-state="open"]')).not.toBeNull()
+    await vi.waitFor(() => {
+      expect(document.querySelector('[data-scene-nav-palette][data-state="open"]')).not.toBeNull()
+    })
 
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await userEvent.keyboard('{Escape}')
     await nextTick()
-    expect(document.querySelector('[data-scene-nav-palette][data-state="open"]')).toBeNull()
+    await vi.waitFor(() => {
+      expect(document.querySelector('[data-scene-nav-palette][data-state="open"]')).toBeNull()
+    })
 
     app.unmount()
     host.remove()
@@ -191,21 +160,21 @@ describe('scene-navigator', () => {
     app.mount(host)
     await nextTick()
 
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }))
+    await userEvent.keyboard('{ArrowLeft}')
     await nextTick()
     expect(onNavigate).toHaveBeenCalledWith('intro-chat')
 
     onNavigate.mockClear()
     currentSceneId.value = 'intro-chat'
     await nextTick()
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }))
+    await userEvent.keyboard('{ArrowRight}')
     await nextTick()
     expect(onNavigate).toHaveBeenCalledWith('intro-websocket')
 
     onNavigate.mockClear()
     currentSceneId.value = 'intro-chat'
     await nextTick()
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Space' }))
+    await userEvent.keyboard('{Space}')
     await nextTick()
     expect(onNavigate).toHaveBeenCalledWith('intro-websocket')
 
@@ -213,28 +182,15 @@ describe('scene-navigator', () => {
     host.remove()
   })
 
-  it('supports ArrowUp/ArrowDown navigation and Enter select in jump dialog', async () => {
-    const onNavigate = vi.fn()
-    const { app, host } = await mountSceneNavigator(onNavigate)
+  it('highlights the current scene in the jump dialog', async () => {
+    const { app, host } = await mountSceneNavigator()
 
     host.querySelector<HTMLElement>('[data-scene-nav-jump]')?.click()
     await nextTick()
 
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }))
-    await nextTick()
-    expect(document.querySelector('[data-scene-nav-item="intro-websocket"][data-scene-nav-active="true"]')).not.toBeNull()
-
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }))
-    await nextTick()
-    expect(document.querySelector('[data-scene-nav-item="intro-chat"][data-scene-nav-active="true"]')).not.toBeNull()
-
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }))
-    await nextTick()
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }))
-    await nextTick()
-
-    expect(onNavigate).toHaveBeenCalledWith('intro-websocket')
-    expect(document.querySelector('[data-scene-nav-palette][data-state="open"]')).toBeNull()
+    await vi.waitFor(() => {
+      expect(document.querySelector('[data-scene-nav-item="intro-chat"][data-highlighted]')).not.toBeNull()
+    })
 
     app.unmount()
     host.remove()

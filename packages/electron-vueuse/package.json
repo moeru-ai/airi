@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/electron-vueuse",
   "type": "module",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "private": true,
   "description": "VueUse-like composables and helpers for Electron apps",
   "author": {

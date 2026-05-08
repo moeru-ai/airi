@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/vishot-runner-browser",
   "type": "module",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "private": true,
   "description": "Browser capture runner for Vishot scenes",
   "author": {

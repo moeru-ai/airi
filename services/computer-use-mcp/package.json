@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/computer-use-mcp",
   "type": "module",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "private": true,
   "description": "AIRI-specific macOS desktop orchestration MCP service",
   "author": {

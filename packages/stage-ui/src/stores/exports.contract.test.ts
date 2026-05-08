@@ -40,6 +40,7 @@ describe('stage-ui exports contract', () => {
       './stores/analytics/privacy-policy',
       './stores/character',
       './stores/character/orchestrator/spark-notify-agent',
+      './stores/mcp-tool-bridge',
       './stores/modules/vision',
       './stores/providers/aliyun',
       './stores/settings',

@@ -127,4 +127,22 @@ describe('createOpenAICompatibleValidators', () => {
     expect(ids).toContain('openai-compatible:check-model-list')
     expect(ids).not.toContain('openai-compatible:check-chat-completions')
   })
+
+  it('normalizes the selected model id before chat probing', async () => {
+    listModelsMock.mockResolvedValue([
+      { id: 'byteplus/seed-2-0-pro-260328' },
+    ])
+
+    const [, chatValidator] = getProviderValidators({
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ChatCompletions],
+      normalizeModelId: modelId => modelId.replace(/^byteplus\//, ''),
+    })
+
+    const result = await chatValidator.validator(config, provider, providerExtra, { t: mockT })
+
+    expect(result.valid).toBe(true)
+    expect(generateTextMock).toHaveBeenCalledWith(expect.objectContaining({
+      model: 'seed-2-0-pro-260328',
+    }))
+  })
 })

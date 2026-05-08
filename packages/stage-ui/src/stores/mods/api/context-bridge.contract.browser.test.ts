@@ -1,10 +1,11 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { nextTick, ref } from 'vue'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ref } from 'vue'
 
-import { useContextBridgeStore } from './context-bridge'
+import { CHAT_STREAM_CHANNEL_NAME } from '../../chat/constants'
 
 type HookCallback = (...args: any[]) => Promise<void> | void
+type UseContextBridgeStore = typeof import('./context-bridge')['useContextBridgeStore']
 
 const chatContextIngestMock = vi.fn()
 const beginStreamMock = vi.fn()
@@ -20,10 +21,6 @@ const getProviderInstanceMock = vi.fn()
 
 const activeProviderRef = ref<string | null>(null)
 const activeModelRef = ref<string | null>(null)
-const incomingContextRef = ref<any>(null)
-const incomingStreamRef = ref<any>(null)
-const broadcastContextMock = vi.fn()
-const broadcastStreamMock = vi.fn()
 
 const beforeComposeHooks: HookCallback[] = []
 const afterComposeHooks: HookCallback[] = []
@@ -38,6 +35,8 @@ const turnCompleteHooks: HookCallback[] = []
 
 const activeSessionIdRef = ref('session-1')
 let currentGeneration = 7
+const testChannels: BroadcastChannel[] = []
+let useContextBridgeStore: UseContextBridgeStore
 
 function registerHook(target: HookCallback[], callback: HookCallback) {
   target.push(callback)
@@ -46,6 +45,32 @@ function registerHook(target: HookCallback[], callback: HookCallback) {
     if (index >= 0)
       target.splice(index, 1)
   }
+}
+
+function createTestChannel(name: string) {
+  const channel = new BroadcastChannel(name)
+  testChannels.push(channel)
+  return channel
+}
+
+function collectChannelMessages<T>(name: string) {
+  const messages: T[] = []
+  const channel = createTestChannel(name)
+  channel.addEventListener('message', (event) => {
+    messages.push((event as MessageEvent<T>).data)
+  })
+  return messages
+}
+
+function closeTestChannels() {
+  for (const channel of testChannels) {
+    channel.close()
+  }
+  testChannels.length = 0
+}
+
+async function waitForBroadcastDelivery() {
+  await new Promise(resolve => setTimeout(resolve, 50))
 }
 
 async function emitHooks(target: HookCallback[], ...args: any[]) {
@@ -92,27 +117,27 @@ vi.mock('@proj-airi/stage-shared', () => ({
   isStageTamagotchi: () => false,
 }))
 
-vi.mock('es-toolkit', () => ({
-  Mutex: class {
-    async acquire() {}
-    release() {}
-  },
+vi.mock('es-toolkit', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('es-toolkit')>()
+  return {
+    ...actual,
+    Mutex: class {
+      async acquire() {}
+      release() {}
+    },
+  }
+})
+
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({
+    t: (key: string) => key,
+  }),
 }))
 
-vi.mock('@vueuse/core', () => ({
-  useBroadcastChannel: ({ name }: { name: string }) => {
-    if (name === 'airi-context-update') {
-      return {
-        post: broadcastContextMock,
-        data: incomingContextRef,
-      }
-    }
-
-    return {
-      post: broadcastStreamMock,
-      data: incomingStreamRef,
-    }
-  },
+vi.mock('../../character', () => ({
+  useCharacterOrchestratorStore: () => ({
+    handleSparkNotifyWithReaction: vi.fn(async (_event: unknown, options: { fallbackText: string }) => options.fallbackText),
+  }),
 }))
 
 vi.mock('../../chat', () => ({
@@ -143,6 +168,12 @@ vi.mock('../../chat/stream-store', () => ({
   }),
 }))
 
+vi.mock('../../devtools/context-observability', () => ({
+  useContextObservabilityStore: () => ({
+    recordLifecycle: vi.fn(),
+  }),
+}))
+
 vi.mock('../../modules/consciousness', () => ({
   useConsciousnessStore: () => ({
     activeProvider: activeProviderRef,
@@ -152,7 +183,13 @@ vi.mock('../../modules/consciousness', () => ({
 
 vi.mock('../../providers', () => ({
   useProvidersStore: () => ({
+    configuredSpeechProvidersMetadata: [],
+    getProviderConfig: vi.fn(() => ({})),
     getProviderInstance: getProviderInstanceMock,
+    getProviderMetadata: vi.fn(() => ({
+      capabilities: {},
+    })),
+    providerRuntimeState: {},
   }),
 }))
 
@@ -167,8 +204,9 @@ vi.mock('./channel-server', () => ({
 }))
 
 describe('context bridge contract', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     setActivePinia(createPinia())
+    ;({ useContextBridgeStore } = await import('./context-bridge'))
 
     chatContextIngestMock.mockReset()
     beginStreamMock.mockReset()
@@ -183,11 +221,7 @@ describe('context bridge contract', () => {
     onEventMock.mockClear()
     getProviderInstanceMock.mockReset()
     chatOrchestratorMock.ingest.mockReset()
-    broadcastContextMock.mockReset()
-    broadcastStreamMock.mockReset()
 
-    incomingContextRef.value = null
-    incomingStreamRef.value = null
     activeProviderRef.value = null
     activeModelRef.value = null
     activeSessionIdRef.value = 'session-1'
@@ -206,9 +240,14 @@ describe('context bridge contract', () => {
     turnCompleteHooks.length = 0
   })
 
+  afterEach(() => {
+    closeTestChannels()
+  })
+
   it('replays remote stream lifecycle into sending and stream store APIs', async () => {
     const store = useContextBridgeStore()
     await store.initialize()
+    const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
 
     const context = {
       message: { role: 'user', content: 'ping' },
@@ -216,34 +255,35 @@ describe('context bridge contract', () => {
       composedMessage: [],
     }
 
-    incomingStreamRef.value = { type: 'before-send', message: 'ping', sessionId: 'remote-session', context }
-    await nextTick()
-    await Promise.resolve()
+    streamSender.postMessage({ type: 'before-send', message: 'ping', sessionId: 'remote-session', context })
+    await vi.waitFor(() => {
+      expect(chatOrchestratorMock.sending).toBe(true)
+      expect(beginStreamMock).toHaveBeenCalledTimes(1)
+    })
 
-    expect(chatOrchestratorMock.sending).toBe(true)
-    expect(beginStreamMock).toHaveBeenCalledTimes(1)
+    streamSender.postMessage({ type: 'token-literal', literal: 'hello', sessionId: 'remote-session', context })
+    await vi.waitFor(() => {
+      expect(appendStreamLiteralMock).toHaveBeenCalledWith('hello')
+    })
 
-    incomingStreamRef.value = { type: 'token-literal', literal: 'hello', sessionId: 'remote-session', context }
-    await nextTick()
-    await Promise.resolve()
-    expect(appendStreamLiteralMock).toHaveBeenCalledWith('hello')
-
-    incomingStreamRef.value = { type: 'assistant-end', message: 'final answer', sessionId: 'remote-session', context }
-    await nextTick()
-    await Promise.resolve()
+    streamSender.postMessage({ type: 'assistant-end', message: 'final answer', sessionId: 'remote-session', context })
+    await vi.waitFor(() => {
+      expect(resetStreamMock).toHaveBeenCalledTimes(1)
+    })
 
     // The bridge should call resetStream on follower tabs, not finalizeStream,
     // to avoid corrupting history by persisting a duplicate assistant message.
     expect(finalizeStreamMock).not.toHaveBeenCalled()
-    expect(resetStreamMock).toHaveBeenCalledTimes(1)
     expect(chatOrchestratorMock.sending).toBe(false)
 
     await store.dispose()
   })
 
   it('suppresses outbound broadcast while processing remote stream events', async () => {
+    const outgoingStreamMessages = collectChannelMessages<{ sessionId: string }>(CHAT_STREAM_CHANNEL_NAME)
     const store = useContextBridgeStore()
     await store.initialize()
+    const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
 
     const context = {
       message: { role: 'user', content: 'ping' },
@@ -252,14 +292,14 @@ describe('context bridge contract', () => {
     }
 
     await chatOrchestratorMock.emitTokenSpecialHooks('manual-special', context)
-    expect(broadcastStreamMock).toHaveBeenCalledTimes(1)
-    broadcastStreamMock.mockClear()
+    await vi.waitFor(() => {
+      expect(outgoingStreamMessages).toHaveLength(1)
+    })
 
-    incomingStreamRef.value = { type: 'token-special', special: 'remote-special', sessionId: 'remote-session', context }
-    await nextTick()
-    await Promise.resolve()
+    streamSender.postMessage({ type: 'token-special', special: 'remote-special', sessionId: 'remote-session', context })
+    await waitForBroadcastDelivery()
 
-    expect(broadcastStreamMock).not.toHaveBeenCalled()
+    expect(outgoingStreamMessages.filter(message => message.sessionId === 'session-1')).toHaveLength(1)
 
     await store.dispose()
   })
@@ -267,6 +307,7 @@ describe('context bridge contract', () => {
   it('ignores remote literal and end events when generation guard is stale', async () => {
     const store = useContextBridgeStore()
     await store.initialize()
+    const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
 
     const context = {
       message: { role: 'user', content: 'ping' },
@@ -274,22 +315,21 @@ describe('context bridge contract', () => {
       composedMessage: [],
     }
 
-    incomingStreamRef.value = { type: 'before-send', message: 'ping', sessionId: 'remote-session', context }
-    await nextTick()
-    await Promise.resolve()
-    expect(beginStreamMock).toHaveBeenCalledTimes(1)
+    streamSender.postMessage({ type: 'before-send', message: 'ping', sessionId: 'remote-session', context })
+    await vi.waitFor(() => {
+      expect(beginStreamMock).toHaveBeenCalledTimes(1)
+    })
 
     currentGeneration = 8
-    incomingStreamRef.value = { type: 'token-literal', literal: 'stale-literal', sessionId: 'remote-session', context }
-    await nextTick()
-    await Promise.resolve()
+    streamSender.postMessage({ type: 'token-literal', literal: 'stale-literal', sessionId: 'remote-session', context })
+    await waitForBroadcastDelivery()
 
-    incomingStreamRef.value = { type: 'stream-end', sessionId: 'remote-session', context }
-    await nextTick()
-    await Promise.resolve()
+    streamSender.postMessage({ type: 'stream-end', sessionId: 'remote-session', context })
+    await waitForBroadcastDelivery()
 
     expect(appendStreamLiteralMock).not.toHaveBeenCalledWith('stale-literal')
     expect(finalizeStreamMock).not.toHaveBeenCalled()
+    expect(chatOrchestratorMock.sending).toBe(true)
 
     await store.dispose()
   })

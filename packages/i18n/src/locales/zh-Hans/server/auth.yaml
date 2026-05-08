@@ -193,7 +193,7 @@ webCallback:
     loading: 正在登录...
   message:
     missingCodeOrState: Missing authorization code or state
-    missingFlowState: Missing OIDC flow state - please try logging in again
+    missingFlowState: 缺少OIDC 流状态-请重新登录
     tokenExchangeFailed: 令牌交换失败
     finalizing: AIRI登录完成
   action:
