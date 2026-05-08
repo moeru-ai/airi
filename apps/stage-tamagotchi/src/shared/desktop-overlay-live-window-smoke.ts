@@ -12,7 +12,8 @@ export function selectDesktopOverlaySmokeCandidateId(runState: Record<string, un
     : []
 
   const selected = candidates.find((candidate) => {
-    return String(candidate.label || '').includes('AIRI Desktop Overlay Smoke Button')
+    return candidate.source === 'chrome_dom'
+      && String(candidate.label || '').includes('AIRI Desktop Overlay Smoke Button')
   })
 
   const id = typeof selected?.id === 'string' ? selected.id : ''

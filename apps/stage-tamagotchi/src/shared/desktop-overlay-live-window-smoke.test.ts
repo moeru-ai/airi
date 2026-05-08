@@ -7,13 +7,25 @@ describe('selectDesktopOverlaySmokeCandidateId', () => {
     const candidateId = selectDesktopOverlaySmokeCandidateId({
       lastGroundingSnapshot: {
         targetCandidates: [
-          { id: 'first', label: 'Something else', role: 'link' },
-          { id: 'smoke', label: 'AIRI Desktop Overlay Smoke Button', role: 'button' },
+          { id: 'first', label: 'Something else', role: 'link', source: 'chrome_dom' },
+          { id: 'smoke', label: 'AIRI Desktop Overlay Smoke Button', role: 'button', source: 'chrome_dom' },
         ],
       },
     })
 
     expect(candidateId).toBe('smoke')
+  })
+
+  it('requires the smoke button to come from chrome_dom', () => {
+    expect(() => {
+      selectDesktopOverlaySmokeCandidateId({
+        lastGroundingSnapshot: {
+          targetCandidates: [
+            { id: 'ax-smoke', label: 'AIRI Desktop Overlay Smoke Button', role: 'button', source: 'ax' },
+          ],
+        },
+      })
+    }).toThrow('desktop_observe did not return the AIRI Desktop Overlay Smoke Button chrome_dom candidate')
   })
 
   it('fails when the smoke label is missing', () => {

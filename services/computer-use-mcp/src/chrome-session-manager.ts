@@ -132,6 +132,15 @@ export function createChromeSessionManager(
     }
   }
 
+  async function findAndTerminateChromeByProfile(profileDir: string, cdpPort: number): Promise<void> {
+    const pid = await getChromePidForProfile(profileDir, cdpPort)
+    if (!pid) {
+      return
+    }
+
+    await terminateChromeProcess(pid)
+  }
+
   async function clearSessionState(): Promise<void> {
     session = null
     previousForegroundApp = undefined
@@ -292,6 +301,7 @@ export function createChromeSessionManager(
         return session
       }
       catch (error) {
+        await findAndTerminateChromeByProfile(activeProfileDir, cdpPort)
         await clearSessionState()
         throw error
       }

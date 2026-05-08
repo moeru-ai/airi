@@ -206,6 +206,26 @@ describe('chromeSessionManager', () => {
         force: true,
       })
     })
+
+    it('terminates a launched Chrome process and cleans up the profile if launch fails before PID lookup completes', async () => {
+      mockedRunProcess
+        .mockResolvedValueOnce(ok('Terminal')) // foreground app
+        .mockRejectedValueOnce(new Error('no match')) // wasAlreadyRunning → false
+        .mockResolvedValueOnce(ok()) // open
+        .mockRejectedValueOnce(new Error('activate failed')) // activateChrome
+        .mockResolvedValueOnce(ok(
+          '11111 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --user-data-dir=/tmp/test/chrome-profile-abc123 --remote-debugging-port=9222\n',
+        )) // findAndTerminateChromeByProfile
+        .mockResolvedValueOnce(ok()) // findAndTerminateChromeByProfile: kill -TERM
+        .mockResolvedValueOnce(ok()) // findAndTerminateChromeByProfile: post-TERM liveness check
+
+      await expect(manager.ensureAgentWindow()).rejects.toThrow('activate failed')
+      expect(mockedRunProcess).toHaveBeenCalledWith('kill', ['-TERM', '11111'], expect.any(Object))
+      expect(mockedRm).toHaveBeenCalledWith('/tmp/test/chrome-profile-abc123', {
+        recursive: true,
+        force: true,
+      })
+    })
   })
 
   describe('bringToFront', () => {
