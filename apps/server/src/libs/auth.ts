@@ -173,6 +173,7 @@ function buildTrustedClientSeeds(env: Env): TrustedClientSeed[] {
     public: true,
     redirectUris: [
       'capacitor://localhost/auth/callback',
+      'ai.moeru.airi-pocket://links/auth/callback',
     ],
     scopes: [...OIDC_SCOPES],
     grantTypes: [...OIDC_GRANT_TYPES],
