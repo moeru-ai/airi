@@ -30,7 +30,7 @@ function getRedirectOrigin() {
 
   // 2. Handle Android Native (Capacitor) environment
   if (isAndroidNative) {
-    return 'ai.moeru.airi_pocket://links'
+    return 'ai.moeru.airi-pocket://links'
   }
 
   // 3. Handle standard browser environment
