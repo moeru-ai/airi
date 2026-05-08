@@ -18,6 +18,15 @@ catalogs:
     '@moeru/std':
       specifier: 0.1.0-beta.17
       version: 0.1.0-beta.17
+    '@napi-rs/image':
+      specifier: ^1.12.0
+      version: 1.12.0
+    '@nekopaw/tempora':
+      specifier: 0.4.0-alpha.1
+      version: 0.4.0-alpha.1
+    '@pinia/colada':
+      specifier: ^1.2.1
+      version: 1.2.1
     '@pinia/testing':
       specifier: ^1.0.3
       version: 1.0.3
@@ -948,6 +957,9 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@pinia/colada':
+        specifier: 'catalog:'
+        version: 1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../../packages/audio
@@ -1414,6 +1426,9 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@pinia/colada':
+        specifier: 'catalog:'
+        version: 1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../../packages/audio
@@ -2893,6 +2908,9 @@ importers:
       '@opentelemetry/sdk-trace-base':
         specifier: ^2.7.0
         version: 2.7.0(@opentelemetry/api@1.9.1)
+      '@pinia/colada':
+        specifier: 'catalog:'
+        version: 1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../audio
@@ -7857,6 +7875,12 @@ packages:
     resolution: {integrity: sha512-g+qR49GNdI1Z8rZxKrQC3GN+LfnGTNf5Kk8Nz5Cz6mIGva5WRS+ffPXQfzhA0nu6TveWzPNYTjGl4nJqd3Cu9Q==}
     peerDependencies:
       pinia: '>=3.0.4'
+
+  '@pinia/colada@1.2.1':
+    resolution: {integrity: sha512-bld1LhCtct0TdYYyy8tEHFEeW0AZGRfdCMOLwdTD/Usqg7aGvDLj+GKsl9QcK4ZrFAL2HulbhLEHTy9ESZs12Q==}
+    peerDependencies:
+      pinia: ^2.2.6 || ^3.0.0
+      vue: ^3.5.17
 
   '@pixi/app@6.5.10':
     resolution: {integrity: sha512-VsNHLajZ5Dbc/Zrj7iWmIl3eu6Fec+afjW/NXXezD8Sp3nTDF0bv5F+GDgN/zSc2gqIvPHyundImT7hQGBDghg==}
@@ -21989,6 +22013,11 @@ snapshots:
   '@pinia/testing@1.0.3(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))':
     dependencies:
       pinia: 3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3))
+
+  '@pinia/colada@1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))':
+    dependencies:
+      pinia: 3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3))
+      vue: 3.5.32(typescript@5.9.3)
 
   '@pixi/app@6.5.10(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/display@6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/math@6.5.10)(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))':
     dependencies:

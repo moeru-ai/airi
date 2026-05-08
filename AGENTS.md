@@ -123,12 +123,19 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - When writing tests, prefer line-by-line `expect` or assertion statements.
 - Avoid writing tests for impossible runtime states, such as `expect` against constants that never change, or asserting object mutations that can only happen inside the same Vitest case setup.
 - Avoid mocking `globalThis` or built-in modules by directly using `Object.defineProperty(...)`. If needed, use `node:worker_threads` to load another worker and simulate that situation, or build a mini CLI to reproduce and verify behavior. For DOM and Web Platform APIs, prefer Vitest browser mode instead of hard-mocking platform internals. If tests already use those patterns, progressively refactor them.
+- Do not use Vitest mocks, hoisting, dynamic imports, `as unknown as`, or test-only alternate import paths to maliciously bypass real import problems. If a test cannot import a module, investigate the actual compile/runtime boundary: package exports, side effects, mixed Node/browser type dependencies, circular imports, and whether the public module shape is wrong. Fix the boundary instead of hiding the failure in the test.
 
 ## TypeScript / IPC / Tools
 
 - Keep JSON Schemas provider-compliant (explicit `type: object`, required fields; avoid unbounded records).
 - Favor functional patterns + DI (`injeca`); avoid new class hierarchies unless extending browser APIs (classes are harder to mock/test).
 - Centralize Eventa contracts; use `@moeru/eventa` for all events.
+- Import types from the module or package that owns the contract. Do not redeclare external/public contracts locally just to use a narrower subset, and do not route type imports through local runtime assembly modules when the original side-effect-free type source is available.
+- Do not use inline type imports such as `typeof import('...').x` or `import('...').Type` to avoid normal module boundaries. Export explicit shared types from the owning module, import external contract types from their owning package, or split a dedicated side-effect-free type module when runtime imports would pull in the wrong environment.
+- Do not directly modify or override `tsconfig.json` to make an import/type error disappear. First investigate compilation behavior, `package.json` `exports` declarations, type declarations, and whether the dependency exposes the intended browser/node entrypoints.
+- When Node-only and browser-only types are mixed through one import chain, split the type declarations into a neutral type file and keep runtime modules environment-specific. Avoid importing values from modules that carry side effects just to obtain types.
+- If a wrong export or missing export causes an error, trace the full import chain and side-effect chain before changing imports at the leaf. Prefer fixing package/module exports and the owning boundary over adding local workaround imports.
+- Treat circular imports as a design problem. If a cycle appears, first reconsider ownership, module boundaries, and whether shared types or pure helpers need to move. If the cycle cannot be resolved confidently, ask the user for direction before continuing.
 - When a user asks to use a specific tool or dependency, first check Context7 docs with the search tool, then inspect actual usage of the dependency in this repo.
 - If multiple names are returned from Context7 without a clear distinction, ask the user to choose or confirm the desired one.
 - If docs conflict with typecheck results, inspect the dependency source under `node_modules` to diagnose root cause and fix types/bugs.
