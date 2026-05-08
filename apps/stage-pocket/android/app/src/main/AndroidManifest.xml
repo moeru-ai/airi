@@ -22,9 +22,9 @@
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" /> <!-- 允许从浏览器唤起 -->
+                <category android:name="android.intent.category.BROWSABLE" /> <!-- Allow to launch from browser -->
 
-                <!-- 自定义协议配置 -->
+                <!-- Custom Protocol Configuration -->
                 <data
                     android:scheme="ai.moeru.airi_pocket"
                     android:host="links" />

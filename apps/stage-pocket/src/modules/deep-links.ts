@@ -20,7 +20,7 @@ export function installDeepLinks(router: Router): void {
         }
         const persisted = consumeFlowState()
         if (!persisted) {
-          console.error('OIDC 流程状态已失效或不存在')
+          console.error('OIDC flow status has expired or is no longer valid.')
           return
         }
         const tokens = await exchangeCodeForTokens(code, persisted.flowState, persisted.params, state)
