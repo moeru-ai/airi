@@ -46,6 +46,8 @@ Product-facing sections can be nested by surface:
 
 Do not force every release into these exact headings. Pick headings that make the release easy to scan.
 
+Use a dedicated bug-fix section when fixes include critical regressions, blocked primary workflows, or issues users may scan the notes to confirm. Critical bugs deserve plain, concrete language because users may be checking whether their blocker was fixed. Minor visual, wording, and low-impact cleanup can stay grouped as polish, but do not bury important fixes inside broad product updates.
+
 Use `To developers` for external developer impact:
 
 - Plugin SDK, plugin manifest, gamelet, widget, extension, public package API, self-host deployment behavior, server-runtime, Docker image behavior, integration contracts.
@@ -69,6 +71,10 @@ Use patterns like:
 - "Some ... cases could ... . We cleaned this up so ..."
 
 Avoid exposing implementation names unless they are user-visible product names or provider names. Keep technical terms out of end-user sections when a plain description works.
+
+Release notes should speak from the user's experience, not from the implementation. For fixes, write what the user saw, what workflow was blocked or degraded, and what now works. Do not describe internal causes such as lifecycle order, handler registration, IPC timing, stale stores, or runtime plumbing unless the term is part of the user-facing product. Critical fixes should be plain and concrete, not softened into vague polish.
+
+If commit titles, diffs, tests, and surrounding files do not make the user-facing effect clear, do not invent one. Ask the user one concise question about what happened and how it affected users before drafting that bullet.
 
 Good:
 
@@ -153,6 +159,22 @@ Then propose a concise abstract rule and ask before editing the skill.
 4. Write bullets in the user's voice: what changed, why it matters, what the reader can do now.
 5. Keep commit links out of the main draft unless the user asks for a traceable version.
 6. End with upgrade notes only when there is required action.
+
+## Traceable Footnotes
+
+When the user asks for commit traceability, prefer Markdown footnotes over inline commit links. Put footnote markers next to the release-note bullet they support, then list the commit link and author attribution below the notes.
+
+Use footnotes to preserve readable release prose while still declaring where each claim came from and who contributed it. Multiple commits may support one bullet; attach multiple footnotes to that bullet only when each commit adds distinct context.
+
+Format:
+
+```markdown
+- User-facing release note sentence.[^1]
+
+[^1]: Commit [`abcdef123`](https://github.com/moeru-ai/airi/commit/abcdef123) by @contributor.
+```
+
+Use GitHub handles from changelogithub, PR metadata, or commit metadata when available. If the commit author name differs from the GitHub handle and the handle is not known, use the available author name without inventing a handle.
 
 ## Output
 
