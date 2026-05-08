@@ -27,6 +27,7 @@ import { join, resolve } from 'node:path'
 
 import { BrowserWindow, screen } from 'electron'
 
+import { desktopOverlayPollHeartbeatMarker, desktopOverlayPollHeartbeatQueryParam } from '../../../shared/desktop-overlay-heartbeat'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { setupDesktopOverlayElectronInvokes } from './rpc/index.electron'
 import {
@@ -34,7 +35,6 @@ import {
   createDesktopOverlayWindowOptions,
   showDesktopOverlayWithoutFocus,
 } from './window-contract'
-import { desktopOverlayPollHeartbeatMarker, desktopOverlayPollHeartbeatQueryParam } from '../../../shared/desktop-overlay-heartbeat'
 
 /** Whether the desktop overlay feature is enabled */
 export function isDesktopOverlayEnabled(): boolean {

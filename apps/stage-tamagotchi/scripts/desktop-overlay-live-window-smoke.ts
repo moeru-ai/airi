@@ -279,7 +279,7 @@ async function prepareMcpConfig() {
 
 async function ensureSmokePrerequisites() {
   if (typeof WebSocket !== 'function') {
-    throw new Error('APP_START_FAILED: WebSocket is unavailable in this Node runtime. Run through the package script or set NODE_OPTIONS=--experimental-websocket.')
+    throw new TypeError('APP_START_FAILED: WebSocket is unavailable in this Node runtime. Run through the package script or set NODE_OPTIONS=--experimental-websocket.')
   }
 
   const missingOutputs: string[] = []

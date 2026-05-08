@@ -11,8 +11,8 @@
 
 import type { ChromeSessionInfo, ComputerUseConfig } from './types'
 
-import { join } from 'node:path'
 import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { join } from 'node:path'
 
 import { runProcess } from './utils/process'
 import { sleep } from './utils/sleep'

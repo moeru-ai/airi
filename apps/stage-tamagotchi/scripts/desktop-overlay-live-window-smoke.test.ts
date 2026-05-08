@@ -24,7 +24,7 @@ function createMockSocket() {
   return socket
 }
 
-describe('CdpClient', () => {
+describe('cdpClient', () => {
   it('rejects pending requests when the socket closes', async () => {
     const socket = createMockSocket()
     const client = new CdpClient(socket as never)
