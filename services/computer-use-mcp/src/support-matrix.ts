@@ -173,6 +173,16 @@ export const supportMatrix: SupportMatrixEntry[] = [
   },
   {
     lane: 'desktop-native',
+    id: 'desktop_browser_dom_route_contract',
+    label: 'Browser-dom route contract (left single-click, fail-closed bridge responses)',
+    level: 'covered',
+    unitTests: [
+      'src/browser-action-router.test.ts',
+      'src/browser-dom/extension-bridge.test.ts',
+    ],
+  },
+  {
+    lane: 'desktop-native',
     id: 'desktop_click_type_press',
     label: 'Native mouse click / keyboard type / key press',
     level: 'implemented',
