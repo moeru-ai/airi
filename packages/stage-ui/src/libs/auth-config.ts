@@ -63,8 +63,10 @@ const { isNative } = getEnvStatus()
 const origin = getRedirectOrigin()
 const capacitorPlatform = getCapacitorPlatform()
 
+const usesNativeOidcClient = capacitorPlatform !== 'web' || isNative
+
 export const OIDC_CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID
-  || (isNative ? 'airi-stage-pocket' : 'airi-stage-web')
+  || (usesNativeOidcClient ? 'airi-stage-pocket' : 'airi-stage-web')
 
 export const OIDC_REDIRECT_URI = import.meta.env.VITE_OIDC_REDIRECT_URI
   ? `${origin}/auth/callback`
