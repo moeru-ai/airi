@@ -8,7 +8,7 @@ description: Project AIRI デスクトップ版の使い方
 AIRI をインストールして起動したら、まずはオンボーディングを進めると会話を始めやすくなります。
 
 1. AIRI に求められた場合は言語を選択します。
-2. **setup with your provider** を選びます。既に AIRI アカウントを使っている場合は、ログインしてもかまいません。
+2. **プロバイダーでセットアップ** を選びます。既に AIRI アカウントを使っている場合は、**サインイン** を選んでもかまいません。
 3. OpenRouter、OpenAI Compatible API、DeepSeek、Ollama、Qwen、Gemini、Claude などのチャットプロバイダーを選びます。
 4. API キー、またはローカルエンドポイントなど必要な情報を入力します。
 5. チャットモデルを選び、保存して続行します。
