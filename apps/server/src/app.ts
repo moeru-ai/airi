@@ -50,7 +50,6 @@ import { createFluxRoutes } from './routes/flux'
 import { createV1CompletionsRoutes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
-import { createWellKnownRoutes } from './routes/well-known'
 import { createFluxGrantBatchService } from './services/admin-flux-grant-batch/flux-grant-batch-service'
 import { createBillingMq } from './services/billing/billing-events'
 import { createBillingService } from './services/billing/billing-service'
@@ -195,7 +194,6 @@ export async function buildApp(deps: AppDeps) {
       env: deps.env,
       configKV: deps.configKV,
     }))
-    .route('/.well-known', createWellKnownRoutes({ env: deps.env }))
 
     /**
      * Character routes are handled by the character service.
