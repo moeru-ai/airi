@@ -14,18 +14,19 @@ import { BasicTextarea } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.vue'
 
 import { useChatSyncStore } from '../stores/chat-sync'
+import { recreateAttachmentObjectUrls, revokeAttachmentObjectUrls, type ChatImageAttachment } from '../utils/chat-attachments'
 
 const router = useRouter()
 const messageInput = ref('')
 const lastEnterTime = ref(0)
-const attachments = ref<{ type: 'image', data: string, mimeType: string, url: string }[]>([])
+const attachments = ref<ChatImageAttachment[]>([])
 
 const chatOrchestrator = useChatOrchestratorStore()
 const chatSession = useChatSessionStore()
@@ -92,12 +93,14 @@ async function handleSend() {
       toolset: 'artistry',
     })
 
-    attachmentsToSend.forEach(att => URL.revokeObjectURL(att.url))
+    revokeAttachmentObjectUrls(attachmentsToSend)
   }
   catch (error) {
-    // restore on failure
+    // restore on failure with fresh preview URLs, then release the original optimistic-send URLs
+    const restoredAttachments = recreateAttachmentObjectUrls(attachmentsToSend)
+    revokeAttachmentObjectUrls(attachmentsToSend)
     messageInput.value = textToSend
-    attachments.value = attachmentsToSend
+    attachments.value = restoredAttachments
     chatSession.setSessionMessages(chatSession.activeSessionId, [
       ...messages.value,
       {
@@ -184,7 +187,7 @@ async function handleFilePaste(files: File[]) {
 function removeAttachment(index: number) {
   const attachment = attachments.value[index]
   if (attachment) {
-    URL.revokeObjectURL(attachment.url)
+    revokeAttachmentObjectUrls([attachment])
     attachments.value.splice(index, 1)
   }
 }
@@ -201,6 +204,10 @@ async function handleDeleteMessage(index: number) {
 
 onMounted(() => {
   backgroundStore.initializeStore()
+})
+
+onUnmounted(() => {
+  revokeAttachmentObjectUrls(attachments.value)
 })
 
 async function handleRetryMessage(index: number) {
