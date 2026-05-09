@@ -4,11 +4,13 @@ import type {
   PointerIntent,
   TargetSource,
 } from '../desktop-grounding-types'
+import type { ComputerUseServerRuntime } from './runtime'
 
 import { describe, expect, it, vi } from 'vitest'
 
 import { getUnsupportedBrowserDomActions, isBrowserDomActionSupported } from '../browser-dom/capabilities'
 import { RunStateManager } from '../state'
+import { createTestConfig } from '../test-fixtures'
 
 // ---------------------------------------------------------------------------
 // Test grounding state management through RunStateManager

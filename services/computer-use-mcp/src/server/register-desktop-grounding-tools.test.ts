@@ -165,4 +165,31 @@ describe('registerDesktopGroundingTools', () => {
       }),
     ])
   })
+
+  it('does not refocus before desktop_observe', async () => {
+    const { runtime, executeAction } = createRuntime()
+    const { server, invoke } = createMockServer()
+    registerDesktopGroundingTools({ server, runtime, executeAction })
+
+    captureDesktopGroundingMock.mockResolvedValueOnce({
+      snapshotId: 'dg_bg',
+      capturedAt: new Date().toISOString(),
+      foregroundApp: 'Google Chrome',
+      windows: [],
+      screenshot: {
+        dataBase64: '',
+        mimeType: 'image/png',
+        path: '/tmp/shot.png',
+        capturedAt: new Date().toISOString(),
+      },
+      targetCandidates: [],
+      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
+    } as any)
+
+    const result = await invoke('desktop_observe', { includeChrome: true })
+
+    expect(result.isError).not.toBe(true)
+    expect(runtime.desktopSessionController.ensureControlledAppInForeground).not.toHaveBeenCalled()
+    expect(captureDesktopGroundingMock).toHaveBeenCalledOnce()
+  })
 })
