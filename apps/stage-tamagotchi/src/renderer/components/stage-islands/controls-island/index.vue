@@ -57,6 +57,10 @@ function isWithinExpandGracePeriod() {
   return expandedAt.value > 0 && Date.now() - expandedAt.value < EXPAND_AUTO_COLLAPSE_GRACE_MS
 }
 
+function canAutoCollapse() {
+  return expanded.value && !isBlocked.value && !isWithinExpandGracePeriod()
+}
+
 // Expose for parent (e.g. to disable click-through when a dialog is open)
 defineExpose({
   get hearingDialogOpen() { return blockingOverlays.has('hearing') },
@@ -67,7 +71,7 @@ const { isOutside } = useElectronMouseInElement(islandRef)
 const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
 
 watch(isOutsideAfter2seconds, (outside) => {
-  if (outside && expanded.value && !isBlocked.value && !isWithinExpandGracePeriod()) {
+  if (outside && canAutoCollapse()) {
     expanded.value = false
   }
 })
@@ -83,7 +87,7 @@ watch(expanded, (isExpanded) => {
 })
 
 useIntervalFn(() => {
-  if (expanded.value && isOutside.value && !isBlocked.value && !isWithinExpandGracePeriod()) {
+  if (isOutside.value && canAutoCollapse()) {
     expanded.value = false
   }
 }, 1500)
