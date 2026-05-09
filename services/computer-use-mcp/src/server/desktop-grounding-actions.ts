@@ -6,8 +6,8 @@ import { errorMessageFrom } from '@moeru/std'
 import { decideBrowserAction } from '../browser-action-router'
 import { getUnsupportedBrowserDomActions, isBrowserDomActionSupported } from '../browser-dom/capabilities'
 import { resolveSnapByCandidate } from '../snap-resolver'
-import { decideDesktopExecutionMode } from './desktop-scheduler'
 import { sleep } from '../utils/sleep'
+import { decideDesktopExecutionMode } from './desktop-scheduler'
 
 const DESKTOP_CLICK_SNAPSHOT_MAX_AGE_MS = 5000
 
