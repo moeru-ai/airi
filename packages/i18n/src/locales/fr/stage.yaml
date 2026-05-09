@@ -7,6 +7,13 @@ chat:
       core-system: Système central
       you: Vous
   reasoning: Raisonnement
+  sessions:
+    title: Conversations
+    new: + New
+    empty: No conversations yet
+    cloud-badge: Synced to cloud
+    new-chat-fallback: New chat
+    delete: Delete conversation
 message: Dites quelque chose...
 send-mode:
   title: Send key

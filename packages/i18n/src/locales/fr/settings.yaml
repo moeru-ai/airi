@@ -773,7 +773,7 @@ pages:
       typeAddition: Recharge
       typeConsumption: Utilisation
       typeInitial: Allocation initiale
-      typePromo: Allocation promo
+      typePromo: Promo Grant
       loading: Chargement de l'historique...
       empty: Aucune transaction pour l'instant.
       loadMore: Charger plus

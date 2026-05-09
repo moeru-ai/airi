@@ -685,7 +685,7 @@ pages:
         empty: 这里什么都还没有哦，在下面添加一个！
       add:
         title: 新建
-        description: '填写新的服务器配置，然后点击「保存并重启」，完成后将会更新至上方的「已配置」'
+        description: "填写新的服务器配置，然后点击「保存并重启」，完成后将会更新至上方的「已配置」"
         pending-badge: 未保存
       status:
         unknown: 未加载
@@ -773,7 +773,7 @@ pages:
       typeAddition: 充电
       typeConsumption: 用量
       typeInitial: 初始额度
-      typePromo: 活动赠送
+      typePromo: Promo Grant
       loading: 加载历史...
       empty: 暂无消耗记录
       loadMore: 更多信息

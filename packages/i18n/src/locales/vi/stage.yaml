@@ -7,6 +7,13 @@ chat:
       core-system: Hệ thống lõi
       you: Bạn
   reasoning: Đang suy nghĩ
+  sessions:
+    title: Conversations
+    new: + New
+    empty: No conversations yet
+    cloud-badge: Synced to cloud
+    new-chat-fallback: New chat
+    delete: Delete conversation
 message: Nói gì đó...
 send-mode:
   title: Gửi key
