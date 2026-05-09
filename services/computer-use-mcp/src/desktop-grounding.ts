@@ -3,8 +3,8 @@
  *
  * This is the main entry point for the `desktop_observe` tool.
  * It captures screenshot, window observation, AX tree, and Chrome semantics
- * in parallel, then merges everything into a single `DesktopGroundingSnapshot`
- * with deduplicated, ranked target candidates.
+ * in parallel when available, then merges everything into a single
+ * `DesktopGroundingSnapshot` with deduplicated, ranked target candidates.
  */
 
 import type { AXNode, AXSnapshot } from './accessibility/types'
@@ -36,21 +36,13 @@ import { boundsIoU } from './snap-resolver'
  */
 const STALENESS_THRESHOLD_MS = 2000
 
-/** Known Chrome-like browser app names (lowercase, no .app suffix) */
-const CHROME_APPS = new Set([
-  'google chrome',
-  'chrome',
-  'google chrome canary',
-  'chromium',
-])
-
 let nextSnapshotId = 1
 
 /**
  * Capture a unified desktop grounding snapshot.
  *
  * Runs screenshot, window observation, and AX tree capture in parallel.
- * If the foreground app is Chrome (and `includeChrome` is not false),
+ * If Chrome browser surfaces are available (and `includeChrome` is not false),
  * also captures Chrome semantic data.
  *
  * @param params - Capture parameters (config, executor, input, bridges)
@@ -79,21 +71,21 @@ export async function captureDesktopGrounding(params: {
 
   // Determine foreground app
   const foregroundApp = windowObs.frontmostAppName || axSnapshot?.appName || 'unknown'
-  const isChromeInFront = isChromeApp(foregroundApp)
+  const shouldCaptureChrome = input?.includeChrome !== false
 
-  // If Chrome is foreground, ask the executor for a Chrome-filtered window list.
-  // The generic top-N window snapshot is often dominated by system UI and can
-  // miss Chrome entirely, which would prevent chrome_dom candidates from being
-  // mapped to screen coordinates.
-  let chromeWindowBounds = findChromeWindowBounds(windowObs, foregroundApp)
+  // Ask the executor for a Chrome-filtered window list when Chrome semantics
+  // are requested. The generic top-N window snapshot is often dominated by
+  // system UI and can miss Chrome entirely, which would prevent chrome_dom
+  // candidates from being mapped to screen coordinates.
+  let chromeWindowBounds = findChromeWindowBounds(windowObs)
   let chromeWindowObservation: WindowObservation | undefined
-  if (isChromeInFront && !chromeWindowBounds) {
+  if (shouldCaptureChrome && !chromeWindowBounds) {
     try {
       chromeWindowObservation = await executor.observeWindows({
-        app: foregroundApp,
+        app: 'Google Chrome',
         limit: 12,
       })
-      chromeWindowBounds = findChromeWindowBounds(chromeWindowObservation, foregroundApp)
+      chromeWindowBounds = findChromeWindowBounds(chromeWindowObservation)
     }
     catch {
       // Best-effort only. Fall back to AX-only candidates if filtered window
@@ -103,12 +95,11 @@ export async function captureDesktopGrounding(params: {
 
   // Phase 2: Chrome semantic data (only if Chrome is foreground and allowed)
   let chromeSemanticSnapshot: ChromeSemanticSnapshot | null = null
-  if (isChromeInFront && input?.includeChrome !== false) {
+  if (shouldCaptureChrome) {
     chromeSemanticSnapshot = await captureChromeSemantics(extensionBridge, cdpBridge)
     if (!chromeWindowBounds && chromeSemanticSnapshot?.pageTitle) {
       chromeWindowBounds = findChromeWindowBounds(
         chromeWindowObservation ?? windowObs,
-        foregroundApp,
         chromeSemanticSnapshot.pageTitle,
       )
     }
@@ -128,7 +119,7 @@ export async function captureDesktopGrounding(params: {
     screenshot,
     axSnapshot,
     chromeSemanticSnapshot: chromeSemanticSnapshot ?? undefined,
-    isChromeInFront,
+    chromeSemanticEnabled: shouldCaptureChrome,
     assemblyTimestamp: now,
   })
 
@@ -337,16 +328,8 @@ function axNodesToTargetCandidates(
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Compiled regex for stripping .app suffix from macOS app names */
-const APP_SUFFIX_RE = /\.app$/u
-
-function isChromeApp(appName: string): boolean {
-  return CHROME_APPS.has(appName.trim().toLowerCase().replace(APP_SUFFIX_RE, ''))
-}
-
 function findChromeWindowBounds(
   observation: WindowObservation,
-  _foregroundApp: string,
   titleHint?: string,
 ): Bounds | undefined {
   const normalizedTitleHint = titleHint?.trim().toLowerCase()
@@ -381,10 +364,10 @@ function computeStaleness(params: {
   screenshot: ScreenshotArtifact
   axSnapshot?: AXSnapshot
   chromeSemanticSnapshot?: ChromeSemanticSnapshot
-  isChromeInFront: boolean
+  chromeSemanticEnabled: boolean
   assemblyTimestamp: number
 }): GroundingStalenessFlags {
-  const { screenshot, axSnapshot, chromeSemanticSnapshot, isChromeInFront, assemblyTimestamp } = params
+  const { screenshot, axSnapshot, chromeSemanticSnapshot, chromeSemanticEnabled, assemblyTimestamp } = params
 
   const screenshotStale = !screenshot.capturedAt
     || (assemblyTimestamp - new Date(screenshot.capturedAt).getTime()) > STALENESS_THRESHOLD_MS
@@ -394,7 +377,7 @@ function computeStaleness(params: {
     || !axSnapshot.capturedAt
     || (assemblyTimestamp - new Date(axSnapshot.capturedAt).getTime()) > STALENESS_THRESHOLD_MS
 
-  const chromeStale = !isChromeInFront
+  const chromeStale = !chromeSemanticEnabled
     || !chromeSemanticSnapshot
     || !chromeSemanticSnapshot.capturedAt
     || (assemblyTimestamp - new Date(chromeSemanticSnapshot.capturedAt).getTime()) > STALENESS_THRESHOLD_MS

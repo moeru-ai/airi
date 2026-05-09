@@ -23,7 +23,6 @@ import process from 'node:process'
 import { z } from 'zod'
 
 import { captureDesktopGrounding, formatGroundingForAgent } from '../desktop-grounding'
-import { sleep } from '../utils/sleep'
 import { textContent } from './content'
 import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptors/register-helper'
 
@@ -50,47 +49,11 @@ export function registerDesktopGroundingTools(params: {
     descriptor: requireDescriptor('desktop_observe'),
 
     schema: {
-      includeChrome: z.boolean().optional().describe('Whether to include Chrome semantic data. Default: auto-detect based on foreground app.'),
+      includeChrome: z.boolean().optional().describe('Whether to include Chrome semantic data. Default: best-effort when browser surfaces are available.'),
     },
 
     handler: async ({ includeChrome }) => {
       try {
-        // If the agent has a desktop session with a controlled app,
-        // ensure that app is in the foreground before observing.
-        // Falls back to Chrome session check for backward compatibility.
-        const sessionCtrl = runtime.desktopSessionController
-        const activeSession = sessionCtrl.getSession()
-        if (activeSession?.controlledApp) {
-          const currentForeground = await runtime.executor.getForegroundContext()
-          const wasAlreadyInFront = await sessionCtrl.ensureControlledAppInForeground({
-            currentForeground,
-            chromeSessionManager: runtime.chromeSessionManager,
-            activateApp: async (appName) => {
-              await runtime.executor.focusApp({ app: appName })
-            },
-          })
-          if (!wasAlreadyInFront) {
-            await sleep(300)
-          }
-        }
-        else {
-          // Fallback: Chrome session without desktop session
-          const chromeSession = runtime.chromeSessionManager.getSessionInfo()
-          if (chromeSession) {
-            const currentForeground = await runtime.executor.getForegroundContext()
-            if (currentForeground.available && currentForeground.appName !== 'Google Chrome') {
-              if (currentForeground.appName) {
-                runtime.stateManager.savePreviousUserForeground(currentForeground.appName)
-              }
-              const activated = await runtime.chromeSessionManager.bringToFront()
-              if (!activated) {
-                throw new Error('Chrome session is unavailable; call desktop_ensure_chrome before observing Chrome.')
-              }
-              await sleep(300)
-            }
-          }
-        }
-
         // Try to get or reconnect a CDP bridge.
         // NOTICE: `desktop_ensure_chrome` can launch Chrome before its DevTools
         // endpoint is fully ready. When observe runs later, reconnect from the

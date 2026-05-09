@@ -71,6 +71,9 @@ function createRuntimeForActionTest(configOverrides: Partial<ComputerUseConfig> 
       connected: true,
       pendingRequests: 0,
     }),
+    supportsAction: vi.fn().mockReturnValue(true),
+    clickSelector: vi.fn().mockResolvedValue(undefined),
+    checkCheckbox: vi.fn().mockResolvedValue(undefined),
   }
   const cdpBridgeManager = {
     probeAvailability: vi.fn().mockResolvedValue({
@@ -321,6 +324,113 @@ describe('createExecuteAction', () => {
         actualForegroundContext: expect.objectContaining({ appName: 'AIRI' }),
       }),
     }))
+  })
+
+  it('does not refocus when desktop_click_target stays on browser_dom', async () => {
+    const { runtime, executor, stateManager, desktopSessionController } = createRuntimeForActionTest()
+    stateManager.updateGroundingSnapshot({
+      snapshotId: 'dg_1',
+      capturedAt: new Date().toISOString(),
+      foregroundApp: 'Google Chrome',
+      windows: [],
+      screenshot: {
+        dataBase64: '',
+        mimeType: 'image/png',
+        path: '',
+        capturedAt: new Date().toISOString(),
+      },
+      targetCandidates: [
+        {
+          id: 't_0',
+          source: 'chrome_dom',
+          appName: 'Google Chrome',
+          role: 'button',
+          label: 'Submit',
+          bounds: { x: 100, y: 200, width: 80, height: 30 },
+          confidence: 0.95,
+          interactable: true,
+          selector: '#submit',
+          frameId: 0,
+          isPageContent: true,
+        },
+      ],
+      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
+    } as any)
+    desktopSessionController.getSession.mockReturnValue({
+      id: 'ds_1',
+      controlledApp: 'Google Chrome',
+      ownedWindows: [],
+      createdAt: new Date().toISOString(),
+      lastActiveAt: new Date().toISOString(),
+    })
+    executor.getForegroundContext.mockResolvedValue({
+      available: true,
+      appName: 'AIRI',
+      platform: 'darwin',
+    })
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'desktop_click_target', input: { candidateId: 't_0' } }, 'desktop_click_target')
+
+    expect(result.isError).not.toBe(true)
+    expect(desktopSessionController.ensureControlledAppInForeground).not.toHaveBeenCalled()
+    expect(executor.focusApp).not.toHaveBeenCalled()
+    expect(executor.click).not.toHaveBeenCalled()
+    expect(result.structuredContent).toMatchObject({
+      status: 'executed',
+      backendResult: expect.objectContaining({
+        executionMode: 'browser_surface',
+      }),
+    })
+  })
+
+  it('refocuses when desktop_click_target falls back to OS input', async () => {
+    const { runtime, executor, stateManager, desktopSessionController } = createRuntimeForActionTest()
+    stateManager.updateGroundingSnapshot({
+      snapshotId: 'dg_1',
+      capturedAt: new Date().toISOString(),
+      foregroundApp: 'Google Chrome',
+      windows: [],
+      screenshot: {
+        dataBase64: '',
+        mimeType: 'image/png',
+        path: '',
+        capturedAt: new Date().toISOString(),
+      },
+      targetCandidates: [
+        {
+          id: 't_0',
+          source: 'ax',
+          appName: 'Google Chrome',
+          role: 'AXButton',
+          label: 'Submit',
+          bounds: { x: 100, y: 200, width: 80, height: 30 },
+          confidence: 0.95,
+          interactable: true,
+        },
+      ],
+      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
+    } as any)
+    desktopSessionController.getSession.mockReturnValue({
+      id: 'ds_1',
+      controlledApp: 'Google Chrome',
+      ownedWindows: [],
+      createdAt: new Date().toISOString(),
+      lastActiveAt: new Date().toISOString(),
+    })
+    desktopSessionController.ensureControlledAppInForeground.mockResolvedValue(true)
+    executor.getForegroundContext.mockResolvedValue({
+      available: true,
+      appName: 'AIRI',
+      platform: 'darwin',
+    })
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'desktop_click_target', input: { candidateId: 't_0' } }, 'desktop_click_target')
+
+    expect(result.isError).not.toBe(true)
+    expect(desktopSessionController.ensureControlledAppInForeground).toHaveBeenCalled()
+    expect(executor.click).toHaveBeenCalledOnce()
   })
 
   it('returns a structured failure when controlled-app refocus fails during desktop_click_target execution', async () => {
