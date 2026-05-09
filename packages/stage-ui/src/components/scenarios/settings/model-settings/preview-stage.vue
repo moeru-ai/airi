@@ -2,6 +2,7 @@
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
 
 import { Live2DScene } from '@proj-airi/stage-ui-live2d'
+import { SpineScene } from '@proj-airi/stage-ui-spine'
 import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
 import { useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -16,6 +17,7 @@ import {
 const props = defineProps<{
   live2dSceneClass?: string | string[]
   vrmSceneClass?: string | string[]
+  spineSceneClass?: string | string[]
 }>()
 
 const emit = defineEmits<{
@@ -27,7 +29,9 @@ const settingsStore = useSettings()
 const modelStore = useModelStore()
 const live2dSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
 const vrmSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
+const spineSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
 const live2dComponentState = ref<'pending' | 'loading' | 'mounted'>('pending')
+const spineComponentState = ref<'pending' | 'loading' | 'mounted'>('pending')
 const vrmPreviewStageInstanceId = `model-settings-preview-stage:${Math.random().toString(36).slice(2, 10)}`
 
 const {
@@ -43,11 +47,17 @@ const {
   live2dShadowEnabled,
   live2dMaxFps,
   live2dRenderScale,
+  spinePremultipliedAlpha,
+  spineDefaultMixDuration,
+  spineIdleAnimationEnabled,
+  spineMaxFps,
+  spineRenderScale,
 } = storeToRefs(settingsStore)
 const { sceneMutationLocked, scenePhase } = storeToRefs(modelStore)
 
 const live2dSceneClassList = computed(() => normalizeClassList(props.live2dSceneClass))
 const vrmSceneClassList = computed(() => normalizeClassList(props.vrmSceneClass))
+const spineSceneClassList = computed(() => normalizeClassList(props.spineSceneClass))
 
 function normalizeClassList(value?: string | string[]) {
   if (!value)
@@ -71,6 +81,9 @@ async function capturePreviewFrame() {
 
   if (stageModelRenderer.value === 'vrm')
     return captureCanvasFrame(vrmSceneRef.value?.canvasElement())
+
+  if (stageModelRenderer.value === 'spine')
+    return captureCanvasFrame(spineSceneRef.value?.canvasElement())
 
   return undefined
 }
@@ -100,6 +113,20 @@ const runtimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() => {
       controlsLocked: hasModel ? sceneMutationLocked.value : false,
       previewAvailable: hasModel,
       canCapturePreview: !!vrmSceneRef.value?.canvasElement(),
+      updatedAt: Date.now(),
+    })
+  }
+
+  if (stageModelRenderer.value === 'spine') {
+    const phase = resolveComponentStateToRuntimePhase(spineComponentState.value, { hasModel })
+
+    return createEmptyModelSettingsRuntimeSnapshot({
+      ownerInstanceId: vrmPreviewStageInstanceId,
+      renderer: 'spine',
+      phase,
+      controlsLocked: hasModel ? phase !== 'mounted' : false,
+      previewAvailable: hasModel,
+      canCapturePreview: !!spineSceneRef.value?.canvasElement(),
       updatedAt: Date.now(),
     })
   }
@@ -153,6 +180,21 @@ defineExpose({
   <template v-if="stageModelRenderer === 'vrm'">
     <div :class="vrmSceneClassList">
       <ThreeScene ref="vrmSceneRef" :model-src="stageModelSelectedUrl" />
+    </div>
+  </template>
+  <template v-if="stageModelRenderer === 'spine'">
+    <div :class="spineSceneClassList">
+      <SpineScene
+        ref="spineSceneRef"
+        v-model:state="spineComponentState"
+        :model-src="stageModelSelectedUrl"
+        :model-id="stageModelSelected"
+        :premultiplied-alpha="spinePremultipliedAlpha"
+        :default-mix-duration="spineDefaultMixDuration"
+        :idle-animation-enabled="spineIdleAnimationEnabled"
+        :max-fps="spineMaxFps"
+        :render-scale="spineRenderScale"
+      />
     </div>
   </template>
 </template>
