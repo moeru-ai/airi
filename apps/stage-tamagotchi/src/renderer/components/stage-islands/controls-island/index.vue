@@ -40,7 +40,10 @@ const closeWindow = useElectronEventaInvoke(electronAppQuit)
 const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
 
 const expanded = ref(false)
+const expandedAt = ref(0)
 const islandRef = ref<HTMLElement>()
+
+const EXPAND_AUTO_COLLAPSE_GRACE_MS = 1500
 
 // Tracks open overlays/dialogs that should prevent auto-collapse (e.g. 'hearing', 'profile-picker')
 const blockingOverlays = reactive(new Set<string>())
@@ -48,6 +51,10 @@ const isBlocked = computed(() => blockingOverlays.size > 0)
 
 function setOverlay(key: string, active: boolean) {
   active ? blockingOverlays.add(key) : blockingOverlays.delete(key)
+}
+
+function isWithinExpandGracePeriod() {
+  return expandedAt.value > 0 && Date.now() - expandedAt.value < EXPAND_AUTO_COLLAPSE_GRACE_MS
 }
 
 // Expose for parent (e.g. to disable click-through when a dialog is open)
@@ -60,19 +67,23 @@ const { isOutside } = useElectronMouseInElement(islandRef)
 const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
 
 watch(isOutsideAfter2seconds, (outside) => {
-  if (outside && expanded.value && !isBlocked.value) {
+  if (outside && expanded.value && !isBlocked.value && !isWithinExpandGracePeriod()) {
     expanded.value = false
   }
 })
 
 watch(expanded, (isExpanded) => {
-  if (!isExpanded) {
+  if (isExpanded) {
+    expandedAt.value = Date.now()
+  }
+  else {
+    expandedAt.value = 0
     blockingOverlays.clear()
   }
 })
 
 useIntervalFn(() => {
-  if (expanded.value && isOutside.value && !isBlocked.value) {
+  if (expanded.value && isOutside.value && !isBlocked.value && !isWithinExpandGracePeriod()) {
     expanded.value = false
   }
 }, 1500)
