@@ -312,6 +312,7 @@ words:
   - tolist
   - tresjs
   - Triggerable
+  - truncatable
   - tsdown
   - ttft
   - turborepo

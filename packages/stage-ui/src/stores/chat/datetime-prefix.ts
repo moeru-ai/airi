@@ -6,14 +6,16 @@
  * invalidated KV-cache prefixes on every send).
  *
  * Strategy:
- * - Each user/assistant message is prefixed with `[YYYY-MM-DD HH:MM]` derived
- *   from its persisted `createdAt`. Stored timestamps never change, so the
- *   prefixed history stays byte-stable across turns and accumulates KV-cache
- *   prefix matches.
- * - The full date is included on every message so the model can infer "today"
- *   from the most recent message — there is no separate system-prompt date
- *   anchor, which keeps the system prompt 100% static and permanently
- *   cacheable across turns and across day boundaries.
+ * - Only user messages are prefixed with `[YYYY-MM-DD HH:MM]` derived from
+ *   their persisted `createdAt`. Assistant messages stay clean — prefixing
+ *   them caused models to learn the format and emit `[date] > ...` in their
+ *   own replies.
+ * - Stored timestamps never change, so the prefixed user history stays
+ *   byte-stable across turns and accumulates KV-cache prefix matches.
+ * - The full date is included on every user message so the model can infer
+ *   "today" from the most recent user turn — there is no separate
+ *   system-prompt date anchor, which keeps the system prompt 100% static and
+ *   permanently cacheable across turns and across day boundaries.
  *
  * Format choice:
  * - `[YYYY-MM-DD HH:MM]` is ISO-like, structurally compact (~17 chars), and
@@ -26,23 +28,18 @@
  *   correlates with verbatim copy-back.
  */
 
-const DATE_TIME = new Intl.DateTimeFormat('en-CA', {
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-})
+import { format } from 'date-fns'
 
 /**
  * Formats a timestamp as `[YYYY-MM-DD HH:MM] ` in the user's local timezone.
  *
  * Use when:
- * - Annotating user/assistant messages so the model has a concrete time
- *   anchor on every turn — historic and current alike use the same shape so
- *   that prefix-cache stays valid when a "current" turn becomes "historic" on
+ * - Annotating user messages so the model has a concrete time anchor on
+ *   every turn — historic and current user turns use the same shape so that
+ *   prefix-cache stays valid when a "current" turn becomes "historic" on
  *   the next send.
+ * - Not used for assistant messages — that caused the model to mirror the
+ *   prefix into its own output.
  *
  * Returns:
  * - String including a trailing space, e.g. `"[2026-04-25 18:47] "`.
@@ -54,8 +51,5 @@ const DATE_TIME = new Intl.DateTimeFormat('en-CA', {
  * - "[2026-04-25 18:47] "
  */
 export function formatTimePrefix(createdAt: number): string {
-  // Intl en-CA locale uses ISO-style `YYYY-MM-DD, HH:MM`. Strip the comma to
-  // produce the bracketed `YYYY-MM-DD HH:MM` form.
-  const formatted = DATE_TIME.format(new Date(createdAt)).replace(', ', ' ')
-  return `[${formatted}] `
+  return `[${format(createdAt, 'yyyy-MM-dd HH:mm')}] `
 }

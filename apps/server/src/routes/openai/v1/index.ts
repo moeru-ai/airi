@@ -2,14 +2,13 @@ import type { Context } from 'hono'
 import type Redis from 'ioredis'
 
 import type { Env } from '../../../libs/env'
-import type { MqService } from '../../../libs/mq'
-import type { GenAiMetrics } from '../../../libs/otel'
+import type { GenAiMetrics, RateLimitMetrics, RevenueMetrics } from '../../../libs/otel'
 import type { UsageInfo } from '../../../services/billing/billing'
-import type { BillingEvent } from '../../../services/billing/billing-events'
 import type { BillingService } from '../../../services/billing/billing-service'
 import type { FluxMeter } from '../../../services/billing/flux-meter'
 import type { ConfigKVService } from '../../../services/config-kv'
 import type { FluxService } from '../../../services/flux'
+import type { RequestLogService } from '../../../services/request-log'
 import type { HonoEnv } from '../../../types/hono'
 
 import { useLogger } from '@guiiai/logg'
@@ -82,7 +81,18 @@ function getLlmMetricAttributes(opts: { model: string, type: string, status: num
   }
 }
 
-export function createV1CompletionsRoutes(fluxService: FluxService, billingService: BillingService, configKV: ConfigKVService, billingMq: MqService<BillingEvent>, ttsMeter: FluxMeter, redis: Redis, env: Env, genAi?: GenAiMetrics | null) {
+export function createV1CompletionsRoutes(
+  fluxService: FluxService,
+  billingService: BillingService,
+  configKV: ConfigKVService,
+  requestLogService: RequestLogService,
+  ttsMeter: FluxMeter,
+  redis: Redis,
+  env: Env,
+  genAi?: GenAiMetrics | null,
+  revenue?: RevenueMetrics | null,
+  rateLimitMetrics?: RateLimitMetrics | null,
+) {
   const logger = useLogger('v1-completions').useGlobalConfig()
   // TODO: Extract this compat route into smaller facades/modules.
   // It currently mixes auth, rate limiting, proxying, billing, telemetry, and event publishing in one transport layer entrypoint.
@@ -100,23 +110,11 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
       genAi.tokenUsageOutput.add(opts.completionTokens, attrs)
   }
 
-  function publishRequestLog(entry: { userId: string, model: string, status: number, durationMs: number, fluxConsumed: number, promptTokens?: number, completionTokens?: number }) {
-    billingMq.publish({
-      eventId: nanoid(),
-      eventType: 'llm.request.log' as const,
-      aggregateId: entry.userId,
-      userId: entry.userId,
-      occurredAt: new Date().toISOString(),
-      schemaVersion: 1,
-      payload: {
-        model: entry.model,
-        status: entry.status,
-        durationMs: entry.durationMs,
-        fluxConsumed: entry.fluxConsumed,
-        promptTokens: entry.promptTokens,
-        completionTokens: entry.completionTokens,
-      },
-    }).catch(err => logger.withError(err).warn('Failed to publish request log event'))
+  function recordRequestLog(entry: { userId: string, model: string, status: number, durationMs: number, fluxConsumed: number, promptTokens?: number, completionTokens?: number }) {
+    // Best-effort: a failed request log must not surface to the user — the
+    // upstream LLM response has already been delivered (or is mid-stream) by
+    // the time we get here. Log loss is observability-only.
+    requestLogService.logRequest(entry).catch(err => logger.withError(err).warn('Failed to write llm_request_log row'))
   }
 
   // NOTICE: Billing is best-effort — flux is debited AFTER the LLM response is sent.
@@ -186,6 +184,11 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
       let tailBuffer = ''
       let streamCompleted = false
       let streamInterrupted = false
+      // First-chunk timestamp for gen_ai.client.first_token.duration. Latched
+      // on the first byte from upstream — captures perceived "time to first
+      // token" for streaming clients. NaN until the first chunk lands so
+      // `Number.isFinite` gates the histogram record.
+      let firstChunkAt = Number.NaN
 
       // Process stream in background
       ;(async () => {
@@ -196,6 +199,13 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
               streamCompleted = true
               break
             }
+            if (!Number.isFinite(firstChunkAt)) {
+              firstChunkAt = Date.now()
+              genAi?.firstTokenDuration.record((firstChunkAt - startedAt) / 1000, {
+                [GEN_AI_ATTR_REQUEST_MODEL]: requestModel,
+                [GEN_AI_ATTR_OPERATION_NAME]: 'chat',
+              })
+            }
             await writer.write(value)
             const text = decoder.decode(value, { stream: true })
             tailBuffer = (tailBuffer + text).slice(-2048)
@@ -205,6 +215,12 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
           streamInterrupted = true
           span.setStatus({ code: SpanStatusCode.ERROR, message: 'Gateway stream interrupted' })
           span.setAttribute(AIRI_ATTR_GEN_AI_STREAM_INTERRUPTED, true)
+          // Counter so alerts/dashboards can fire on interrupted streams; the
+          // span attribute alone only shows up in trace search, not metrics.
+          genAi?.streamInterrupted.add(1, {
+            [GEN_AI_ATTR_REQUEST_MODEL]: requestModel,
+            stage: Number.isFinite(firstChunkAt) ? 'mid_stream' : 'before_first_chunk',
+          })
 
           try {
             await writer.abort(err)
@@ -268,9 +284,18 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
               })
               actualCharged = fluxConsumed
             }
-            catch (err) { logger.withError(err).withFields({ userId: user.id, fluxConsumed, requestId }).error('Failed to debit flux after streaming — unpaid usage') }
+            catch (err) {
+              // Flux that should have been collected but wasn't. Real revenue leak —
+              // counter so on-call can alert and reconcile.
+              revenue?.fluxUnbilled.add(fluxConsumed, {
+                [GEN_AI_ATTR_REQUEST_MODEL]: requestModel,
+                reason: 'debit_failed',
+                stage: 'streaming',
+              })
+              logger.withError(err).withFields({ userId: user.id, fluxConsumed, requestId }).error('Failed to debit flux after streaming — unpaid usage')
+            }
 
-            publishRequestLog({
+            recordRequestLog({
               userId: user.id,
               model: requestModel,
               status: response.status,
@@ -315,7 +340,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
       completionTokens: usage.completionTokens,
     })
 
-    publishRequestLog({
+    recordRequestLog({
       userId: user.id,
       model: requestModel,
       status: response.status,
@@ -397,7 +422,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
     span.end()
     recordMetrics({ model: requestModel, status: response.status, type: 'tts', durationMs, fluxConsumed })
 
-    publishRequestLog({
+    recordRequestLog({
       userId: user.id,
       model: requestModel,
       status: response.status,
@@ -462,7 +487,7 @@ export function createV1CompletionsRoutes(fluxService: FluxService, billingServi
   const ttsGuard = configGuard(configKV, ['FLUX_PER_1K_CHARS_TTS'], 'TTS service is not available yet')
 
   // 60 requests per minute per user for LLM completions
-  const completionsRateLimit = rateLimiter({ max: 60, windowSec: 60 })
+  const completionsRateLimit = rateLimiter({ max: 60, windowSec: 60, metrics: rateLimitMetrics, routeLabel: 'openai.completions' })
 
   return new Hono<HonoEnv>()
     .use('*', authGuard)

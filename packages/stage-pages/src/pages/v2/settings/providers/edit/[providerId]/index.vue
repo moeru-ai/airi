@@ -159,6 +159,16 @@ function setFieldValue(key: string, value: unknown) {
   providerConfigEdit.value.config[key] = value
 }
 
+// NOTICE: Bridges the polymorphic `Record<string, unknown>` config store and typed
+// string inputs (ProviderApiKeyInput / ProviderBaseUrlInput / ProviderAccountIdInput /
+// FieldCombobox). The schema layer (createProviderConfig) already guarantees these
+// fields are strings; this is the single boundary point where we coerce. Removable
+// once `InferenceServiceProvider.config` is narrowed per-provider via the schema.
+function getStringField(key: string): string {
+  const value = providerConfigEdit.value?.config?.[key]
+  return typeof value === 'string' ? value : ''
+}
+
 const headerRows = ref<Array<{ key: string, value: string }>>([{ key: '', value: '' }])
 const isSyncingHeaders = ref(false)
 
@@ -401,28 +411,31 @@ function handleDeleteProvider() {
               <div v-for="field in basicFields" :key="field.key">
                 <ProviderApiKeyInput
                   v-if="field.key === 'apiKey'"
-                  v-model="providerConfigEdit.config[field.key]"
+                  :model-value="getStringField(field.key)"
                   :provider-name="providerDefinition?.nameLocalize({ t }) || providerDefinition?.name || ''"
                   :label="field.label"
                   :description="field.description"
                   :placeholder="field.placeholder"
                   :required="field.required"
+                  @update:model-value="setFieldValue(field.key, $event)"
                 />
                 <ProviderBaseUrlInput
                   v-else-if="field.key === 'baseUrl'"
-                  v-model="providerConfigEdit.config[field.key]"
+                  :model-value="getStringField(field.key)"
                   :label="field.label"
                   :description="field.description"
                   :placeholder="field.placeholder"
                   :required="field.required"
+                  @update:model-value="setFieldValue(field.key, $event)"
                 />
                 <ProviderAccountIdInput
                   v-else-if="field.key === 'accountId'"
-                  v-model="providerConfigEdit.config[field.key]"
+                  :model-value="getStringField(field.key)"
                   :label="field.label"
                   :description="field.description"
                   :placeholder="field.placeholder"
                   :required="field.required"
+                  @update:model-value="setFieldValue(field.key, $event)"
                 />
                 <FieldInput
                   v-else
@@ -456,19 +469,21 @@ function handleDeleteProvider() {
                 />
                 <ProviderBaseUrlInput
                   v-else-if="field.key === 'baseUrl'"
-                  v-model="providerConfigEdit.config[field.key]"
+                  :model-value="getStringField(field.key)"
                   :label="field.label"
                   :description="field.description"
                   :placeholder="field.placeholder"
                   :required="field.required"
+                  @update:model-value="setFieldValue(field.key, $event)"
                 />
                 <FieldCombobox
                   v-else-if="field.type === 'select'"
-                  v-model="providerConfigEdit.config[field.key]"
+                  :model-value="getStringField(field.key)"
                   :label="field.label"
                   :description="field.description"
                   :placeholder="field.placeholder"
                   :options="field.options"
+                  @update:model-value="setFieldValue(field.key, $event)"
                 />
                 <FieldInput
                   v-else

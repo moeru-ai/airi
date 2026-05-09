@@ -773,6 +773,7 @@ pages:
       typeAddition: Top-up
       typeConsumption: Usage
       typeInitial: Initial Grant
+      typePromo: Promo Grant
       loading: Loading history...
       empty: No transaction records yet.
       loadMore: Load More

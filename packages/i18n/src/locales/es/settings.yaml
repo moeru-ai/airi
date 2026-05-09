@@ -773,6 +773,7 @@ pages:
       typeAddition: Recargar
       typeConsumption: Uso
       typeInitial: Oferta inicial
+      typePromo: Bono promocional
       loading: Cargando historial...
       empty: No hay registros de transacción todavía.
       loadMore: Cargar más

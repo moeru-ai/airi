@@ -773,6 +773,7 @@ pages:
       typeAddition: 充电
       typeConsumption: 用量
       typeInitial: 初始额度
+      typePromo: 活动赠送
       loading: 加载历史...
       empty: 暂无消耗记录
       loadMore: 更多信息

@@ -17,6 +17,7 @@
   },
   "exports": {
     ".": "./src/components/index.ts",
+    "./components/scenarios/chat": "./src/components/scenarios/chat/index.ts",
     "./components/scenarios/settings/model-settings": "./src/components/scenarios/settings/model-settings/index.ts",
     "./components/scenes": "./src/components/scenes/index.ts",
     "./components/*": "./src/components/*.ts",
@@ -69,6 +70,7 @@
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/core": "^2.7.0",
     "@opentelemetry/sdk-trace-base": "^2.7.0",
+    "@pinia/colada": "catalog:",
     "@proj-airi/audio": "workspace:^",
     "@proj-airi/ccc": "workspace:^",
     "@proj-airi/chromatic": "^1.1.1",
@@ -82,6 +84,7 @@
     "@proj-airi/model-driver-lipsync": "workspace:^",
     "@proj-airi/pipelines-audio": "workspace:^",
     "@proj-airi/server-sdk": "workspace:^",
+    "@proj-airi/server-sdk-shared": "workspace:^",
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/stage-ui-live2d": "workspace:^",
     "@proj-airi/stage-ui-three": "workspace:^",
