@@ -16,7 +16,9 @@ export type PixiLive2DInternalModel = InternalModel & {
 
 export interface MotionManagerUpdateContext {
   model: CubismModel
+  // in seconds
   now: number
+  // in seconds
   timeDelta: number
   hookedUpdate?: (model: CubismModel, now: number) => boolean
 }
@@ -128,15 +130,6 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
 }
 
 // -- Plugins ---------------------------------------------------------------
-
-// pixi-live2d-display passes timeDelta in seconds (e.g. 0.016 at 60 fps) on most
-// paths, but some callers in this codebase pass it already in ms. The < 5 threshold
-// distinguishes them: a 5 ms frame would imply ~200 fps which never happens, so
-// any value below 5 must be seconds and gets multiplied to ms.
-function normalizeTimeDeltaMs(timeDelta: number | undefined): number {
-  const raw = Math.max(timeDelta ?? 0, 0)
-  return raw < 5 ? raw * 1000 : raw
-}
 
 export function useMotionUpdatePluginBeatSync(beatSync: BeatSyncController): MotionManagerPlugin {
   return (ctx) => {
@@ -339,7 +332,7 @@ export function useMotionUpdatePluginAutoEyeBlink(
 
       // Force ON or eyeBlink null: timer blink + markHandled.
       if (ctx.live2dForceAutoBlinkEnabled.value || !ctx.internalModel.eyeBlink) {
-        const safeDt = normalizeTimeDeltaMs(ctx.timeDelta) || 16
+        const safeDt = ctx.timeDelta * 1000 || 16
         const { eyeLOpen, eyeROpen } = updateForcedBlink(safeDt, baseLeft, baseRight)
         ctx.model.setParameterValueById('ParamEyeLOpen', eyeLOpen)
         ctx.model.setParameterValueById('ParamEyeROpen', eyeROpen)
@@ -406,7 +399,7 @@ export function useMotionUpdatePluginAutoEyeBlink(
 
     // Advance blink timer.
     const wasActive = blinkState.phase !== 'idle'
-    const safeDt = normalizeTimeDeltaMs(ctx.timeDelta) || 16
+    const safeDt = ctx.timeDelta * 1000 || 16
     const { eyeLOpen: blinkFactorL, eyeROpen: blinkFactorR } = updateForcedBlink(safeDt, 1.0, 1.0)
 
     // Blink cycle complete: restore exact pre-blink values.
@@ -474,7 +467,7 @@ export function useMotionUpdatePluginLipSync(
     if (releaseRemainingMs <= 0)
       return
 
-    releaseRemainingMs = Math.max(0, releaseRemainingMs - normalizeTimeDeltaMs(ctx.timeDelta))
+    releaseRemainingMs = Math.max(0, releaseRemainingMs - ctx.timeDelta * 1000)
     const blend = smoothstep(1 - releaseRemainingMs / RELEASE_DURATION_MS)
 
     // ParamMouthOpenY was already written by motion + expression plugins this frame.
