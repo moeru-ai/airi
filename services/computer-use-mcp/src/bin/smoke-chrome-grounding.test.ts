@@ -3,17 +3,17 @@ import { describe, expect, it } from 'vitest'
 import {
   extractOverlaySmokeState,
   findDesktopV3SmokeCandidate,
-  requireChromeDomSmokeCandidate,
   parseCommandArgs,
   parseNumber,
   parseOptionalString,
+  requireChromeDomSmokeCandidate,
   requirePostClickOverlayState,
   requireRunState,
   requireStructuredContent,
   requireTextContent,
-  shouldExpectBrowserDomRoute,
-  selectPendingActionForTool,
   selectDesktopV3SmokeCandidate,
+  selectPendingActionForTool,
+  shouldExpectBrowserDomRoute,
 } from './smoke-chrome-grounding'
 
 describe('smoke-chrome-grounding helpers', () => {

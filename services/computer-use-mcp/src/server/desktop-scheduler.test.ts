@@ -1,7 +1,8 @@
+import type { BrowserSurfaceAvailability } from '../types'
+
 import { describe, expect, it } from 'vitest'
 
 import { decideDesktopExecutionMode } from './desktop-scheduler'
-import type { BrowserSurfaceAvailability } from '../types'
 
 function makeBrowserSurfaceAvailability(): BrowserSurfaceAvailability {
   return {

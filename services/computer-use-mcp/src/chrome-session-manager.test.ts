@@ -8,6 +8,9 @@
 import type { ChromeSessionManager } from './chrome-session-manager'
 import type { ComputerUseConfig } from './types'
 
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { createServer } from 'node:net'
+
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createChromeSessionManager } from './chrome-session-manager'
@@ -28,9 +31,6 @@ vi.mock('./utils/sleep', () => ({
 vi.mock('node:net', () => ({
   createServer: vi.fn(),
 }))
-
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { createServer } from 'node:net'
 
 const mockedRunProcess = vi.mocked(runProcess)
 const mockedMkdir = vi.mocked(mkdir)

@@ -6,6 +6,8 @@ import type { McpStdioManager } from '../../../services/airi/mcp-servers'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { setupDesktopOverlayElectronInvokes } from './index.electron'
+
 const defineInvokeHandlerMock = vi.hoisted(() => vi.fn())
 const createContextMock = vi.hoisted(() => vi.fn(() => ({ context: { id: 'desktop-overlay-test' } })))
 const setupBaseWindowElectronInvokesMock = vi.hoisted(() => vi.fn())
@@ -39,8 +41,6 @@ vi.mock('../../shared/window', () => ({
 vi.mock('../../../services/airi/mcp-servers', () => ({
   createMcpServersService: createMcpServersServiceMock,
 }))
-
-import { setupDesktopOverlayElectronInvokes } from './index.electron'
 
 describe('setupDesktopOverlayElectronInvokes', () => {
   const window = {} as BrowserWindow

@@ -11,9 +11,9 @@
 
 import type { ChromeSessionInfo, ComputerUseConfig } from './types'
 
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { join } from 'node:path'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 
 import { runProcess } from './utils/process'
 import { sleep } from './utils/sleep'
