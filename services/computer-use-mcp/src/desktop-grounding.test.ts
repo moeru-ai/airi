@@ -253,6 +253,95 @@ describe('captureDesktopGrounding', () => {
     expect(executor.observeWindows).toHaveBeenNthCalledWith(2, { app: 'Google Chrome', limit: 12 })
     expect(snapshot.targetCandidates.some(candidate => candidate.source === 'chrome_dom')).toBe(true)
   })
+
+  it('uses the Chrome page title to recover window bounds when the filtered window list has no Chrome app name', async () => {
+    const chromeWindow = { x: 320, y: 140, width: 1440, height: 900 }
+    const chromeElements = [
+      { tag: 'button', text: 'Submit', rect: { x: 10, y: 10, w: 80, h: 30 } },
+    ]
+
+    const executor = {
+      takeScreenshot: vi.fn().mockResolvedValue({
+        dataBase64: '',
+        mimeType: 'image/png',
+        path: '/tmp/screenshot.png',
+        capturedAt: new Date().toISOString(),
+      }),
+      observeWindows: vi.fn()
+        .mockResolvedValueOnce({
+          frontmostAppName: 'Google Chrome',
+          frontmostWindowTitle: 'AIRI Desktop V3 Smoke',
+          windows: [
+            {
+              appName: 'Control Center',
+              title: 'Clock',
+              bounds: { x: 0, y: 0, width: 100, height: 30 },
+            },
+          ],
+          observedAt: new Date().toISOString(),
+        })
+        .mockResolvedValueOnce({
+          frontmostAppName: 'Google Chrome',
+          frontmostWindowTitle: 'AIRI Desktop V3 Smoke',
+          windows: [
+            {
+              appName: 'Utility Panel',
+              title: 'AIRI Desktop V3 Smoke',
+              bounds: chromeWindow,
+              ownerPid: 1234,
+              id: '1234:0:Utility Panel',
+              layer: 0,
+              isOnScreen: true,
+            },
+          ],
+          observedAt: new Date().toISOString(),
+        }),
+      focusApp: vi.fn(),
+      openApp: vi.fn(),
+      click: vi.fn(),
+      typeText: vi.fn(),
+      pressKeys: vi.fn(),
+      scroll: vi.fn(),
+      getForegroundContext: vi.fn().mockResolvedValue({
+        available: true,
+        appName: 'Google Chrome',
+        platform: 'darwin',
+      }),
+      getDisplayInfo: vi.fn(),
+      getExecutionTarget: vi.fn(),
+      describe: vi.fn(),
+    } as any
+
+    const cdpBridge = {
+      getStatus: vi.fn().mockReturnValue({
+        connected: true,
+        pageUrl: 'https://example.com',
+        pageTitle: 'AIRI Desktop V3 Smoke',
+      }),
+      collectInteractiveElements: vi.fn().mockResolvedValue(chromeElements),
+    } as any
+
+    const config = {
+      timeoutMs: 5000,
+    } as any
+
+    const snapshot = await captureDesktopGrounding({
+      config,
+      executor,
+      input: { includeChrome: true },
+      cdpBridge,
+    })
+
+    expect(executor.observeWindows).toHaveBeenNthCalledWith(1, { limit: 12 })
+    expect(executor.observeWindows).toHaveBeenNthCalledWith(2, { app: 'Google Chrome', limit: 12 })
+    expect(snapshot.targetCandidates.some(candidate => candidate.source === 'chrome_dom')).toBe(true)
+    expect(snapshot.targetCandidates[0].bounds).toEqual({
+      x: chromeWindow.x + 10,
+      y: chromeWindow.y + 88 + 10,
+      width: 80,
+      height: 30,
+    })
+  })
 })
 
 // ---------------------------------------------------------------------------

@@ -124,12 +124,14 @@ describe('browserDomExtensionBridge', () => {
     expect(bridge.supportsAction('findElements')).toBe(true)
     expect(bridge.supportsAction('getElementAttributes')).toBe(true)
 
-    // Mutating actions should NOT be supported
+    // Write-capable action used by browser_dom click routing should be supported.
+    expect(bridge.supportsAction('clickAt')).toBe(true)
+
+    // Other mutating actions should NOT be supported
     expect(bridge.supportsAction('setInputValue')).toBe(false)
     expect(bridge.supportsAction('checkCheckbox')).toBe(false)
     expect(bridge.supportsAction('selectOption')).toBe(false)
     expect(bridge.supportsAction('triggerEvent')).toBe(false)
-    expect(bridge.supportsAction('clickAt')).toBe(false)
   })
 
   it('readInputValue round-trips through the bridge', async () => {

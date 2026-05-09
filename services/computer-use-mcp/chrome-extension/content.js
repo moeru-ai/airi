@@ -4,15 +4,14 @@
  * Injected into every frame (including cross-origin iframes) in the MAIN world.
  * Namespace: window.__AIRI_DG__
  *
- * IMPORTANT: This script is READ-ONLY. It does NOT perform any DOM mutations,
- * clicks, typing, or navigation. All execution is done via real macOS OS-level
- * input events through the desktop grounding executor.
+ * IMPORTANT: This script is observation-first. It keeps the DOM inspection
+ * helpers plus the minimal click dispatcher used by browser_dom click routing.
  *
  * Adapted from the repository's Chrome extension source.
- * Stripped: clickAt, typeAt, hoverAt, scrollAt, simulateDragDrop, readStorage,
+ * Stripped: typeAt, hoverAt, scrollAt, simulateDragDrop, readStorage,
  * setStorage, readCanvasData, injectCSS, and all other DOM-mutating methods.
  * Kept: collectFrameDOM, _describeElement, _collectInteractiveElements,
- * findElement, findElements, getClickTarget.
+ * findElement, findElements, getClickTarget, waitForElement, clickAt.
  */
 (function () {
   'use strict'
@@ -335,12 +334,59 @@
         return { success: false, error: e.message }
       }
     },
+
+    /**
+     * Wait for an element matching the selector to appear in the DOM.
+     */
+    waitForElement(selector, timeoutMs) {
+      timeoutMs = timeoutMs || 5000
+      const existing = document.querySelector(selector)
+      if (existing)
+        return { success: true, found: true }
+
+      return new Promise((resolve) => {
+        let timer
+        const observer = new MutationObserver(() => {
+          if (document.querySelector(selector)) {
+            observer.disconnect()
+            clearTimeout(timer)
+            resolve({ success: true, found: true })
+          }
+        })
+        observer.observe(document.documentElement, { childList: true, subtree: true })
+        timer = setTimeout(() => {
+          observer.disconnect()
+          resolve({ success: false, error: 'timeout' })
+        }, timeoutMs)
+      })
+    },
+
+    /**
+     * Dispatch a click event at viewport coordinates (x, y).
+     */
+    clickAt(x, y) {
+      try {
+        const el = document.elementFromPoint(x, y)
+        if (!el)
+          return { success: false, error: 'no element at point' }
+        el.dispatchEvent(new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+          clientX: x,
+          clientY: y,
+        }))
+        return { success: true, tagName: el.tagName.toLowerCase() }
+      }
+      catch (e) {
+        return { success: false, error: e.message }
+      }
+    },
   }
 
   window.__AIRI_DG__ = __AIRI_DG__
 
   // ---- Message handler: ISOLATED world bridge → MAIN world ----
-  window.addEventListener('message', (evt) => {
+  window.addEventListener('message', async (evt) => {
     if (evt.source !== window)
       return
     const data = evt.data
@@ -353,7 +399,10 @@
 
     if (typeof fn === 'function') {
       try {
-        result = { success: true, data: fn.apply(__AIRI_DG__, args || []) }
+        const value = fn.apply(__AIRI_DG__, args || [])
+        result = value instanceof Promise
+          ? { success: true, data: await value }
+          : { success: true, data: value }
       }
       catch (e) {
         result = { success: false, error: e.message || String(e) }

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   extractOverlaySmokeState,
+  findDesktopV3SmokeCandidate,
   requireChromeDomSmokeCandidate,
   parseCommandArgs,
   parseNumber,
@@ -10,6 +11,7 @@ import {
   requireRunState,
   requireStructuredContent,
   requireTextContent,
+  shouldExpectBrowserDomRoute,
   selectPendingActionForTool,
   selectDesktopV3SmokeCandidate,
 } from './smoke-chrome-grounding'
@@ -99,6 +101,7 @@ describe('smoke-chrome-grounding helpers', () => {
     }
 
     expect(selectDesktopV3SmokeCandidate(runState).id).toBe('t_2')
+    expect(findDesktopV3SmokeCandidate(runState)?.id).toBe('t_2')
     expect(selectDesktopV3SmokeCandidate(runState, 't_0').id).toBe('t_0')
     expect(() => selectDesktopV3SmokeCandidate(runState, 'missing')).toThrow('did not return requested candidate')
   })
@@ -132,6 +135,7 @@ describe('smoke-chrome-grounding helpers', () => {
       },
     }
 
+    expect(findDesktopV3SmokeCandidate(runState)).toBeUndefined()
     expect(() => selectDesktopV3SmokeCandidate(runState)).toThrow('desktop_observe did not return the AIRI Desktop V3 Smoke Button chrome_dom candidate')
   })
 
@@ -187,6 +191,37 @@ describe('smoke-chrome-grounding helpers', () => {
     const structured = requireStructuredContent(clickResult, 'desktop_click_target')
     expect(typeof structured.backendResult).toBe('object')
     expect((structured.backendResult as Record<string, unknown>).executionRoute).toContain('browser_dom')
+  })
+
+  it('expects desktop_ensure_chrome structured content to expose ensureOutcome', () => {
+    const structured = requireStructuredContent({
+      structuredContent: {
+        status: 'ok',
+        ensureOutcome: 'reused',
+      },
+    }, 'desktop_ensure_chrome')
+
+    expect(structured.ensureOutcome).toBe('reused')
+  })
+
+  it('expects browser-dom routing only when browser_dom surface is available', () => {
+    expect(shouldExpectBrowserDomRoute({
+      browserSurfaceAvailability: {
+        availableSurfaces: ['browser_dom'],
+        preferredSurface: 'browser_dom',
+        selectedToolName: 'browser_dom_read_page',
+      },
+    })).toBe(true)
+
+    expect(shouldExpectBrowserDomRoute({
+      browserSurfaceAvailability: {
+        availableSurfaces: ['browser_cdp'],
+        preferredSurface: 'browser_cdp',
+        selectedToolName: 'browser_cdp_collect_elements',
+      },
+    })).toBe(false)
+
+    expect(shouldExpectBrowserDomRoute({})).toBe(false)
   })
 
   it('selects pending actions by tool name and fails with a useful message when missing', () => {

@@ -134,6 +134,8 @@ export interface ForegroundContext {
  * `RunState.chromeSession` for the lifetime of the agent session.
  */
 export interface ChromeSessionInfo {
+  /** Outcome of the most recent ensureAgentWindow() call for this session. */
+  ensureOutcome: 'launched' | 'reused' | 'recreated_after_process_exit' | 'recreated_after_missing_window'
   /** Whether Chrome was already running before the agent launched it. */
   wasAlreadyRunning: boolean
   /** Window identity string from observe-windows (ownerPid:layer:title). */

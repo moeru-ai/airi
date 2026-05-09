@@ -124,6 +124,22 @@ export function selectDesktopV3SmokeCandidate(
   runState: Record<string, unknown>,
   requestedCandidateId?: string,
 ): DesktopV3SmokeCandidate {
+  const selected = findDesktopV3SmokeCandidate(runState, requestedCandidateId)
+  if (selected) {
+    return selected
+  }
+
+  const requested = requestedCandidateId?.trim()
+  if (!requested) {
+    throw new Error('desktop_observe did not return the AIRI Desktop V3 Smoke Button chrome_dom candidate')
+  }
+  throw new Error(`desktop_observe did not return requested candidate "${requested}"`)
+}
+
+export function findDesktopV3SmokeCandidate(
+  runState: Record<string, unknown>,
+  requestedCandidateId?: string,
+): DesktopV3SmokeCandidate | undefined {
   const snapshot = runState.lastGroundingSnapshot
   if (!isRecord(snapshot))
     throw new Error('desktop_get_state missing lastGroundingSnapshot after desktop_observe')
@@ -145,10 +161,7 @@ export function selectDesktopV3SmokeCandidate(
     : selectDefaultChromeDomCandidate(chromeDomCandidates)
 
   if (!selected) {
-    if (!requested) {
-      throw new Error('desktop_observe did not return the AIRI Desktop V3 Smoke Button chrome_dom candidate')
-    }
-    throw new Error(`desktop_observe did not return requested candidate "${requested}"`)
+    return undefined
   }
 
   return {
@@ -229,6 +242,28 @@ export function requireChromeDomSmokeCandidate(candidate: DesktopV3SmokeCandidat
   if (candidate.source !== 'chrome_dom') {
     throw new Error(`smoke target button was not captured as a chrome_dom candidate (got: ${candidate.source ?? 'unknown'}). Verify extension is connected.`)
   }
+}
+
+export function shouldExpectBrowserDomRoute(runState: Record<string, unknown>): boolean {
+  const browserSurfaceAvailability = isRecord(runState.browserSurfaceAvailability)
+    ? runState.browserSurfaceAvailability
+    : undefined
+
+  const preferredSurface = typeof browserSurfaceAvailability?.preferredSurface === 'string'
+    ? browserSurfaceAvailability.preferredSurface
+    : undefined
+
+  const selectedToolName = typeof browserSurfaceAvailability?.selectedToolName === 'string'
+    ? browserSurfaceAvailability.selectedToolName
+    : undefined
+
+  const availableSurfaces = Array.isArray(browserSurfaceAvailability?.availableSurfaces)
+    ? browserSurfaceAvailability.availableSurfaces.filter((surface): surface is string => typeof surface === 'string')
+    : []
+
+  return preferredSurface === 'browser_dom'
+    || selectedToolName === 'browser_dom_read_page'
+    || availableSurfaces.includes('browser_dom')
 }
 
 export function selectPendingActionForTool(
@@ -323,6 +358,83 @@ function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
+async function waitForChromeDomSmokeCandidate(
+  client: Client,
+  requestedCandidateId: string | undefined,
+  timeoutMs: number,
+  retryIntervalMs: number,
+): Promise<{
+  observationText: string
+  runState: Record<string, unknown>
+  overlayState: OverlaySmokeState
+  candidate: DesktopV3SmokeCandidate
+}> {
+  const deadline = Date.now() + timeoutMs
+  let lastRunState: Record<string, unknown> | undefined
+  let lastObservationText = ''
+  let lastCandidateSummary = ''
+
+  while (Date.now() <= deadline) {
+    const observation = await client.callTool({
+      name: 'desktop_observe',
+      arguments: { includeChrome: true },
+    })
+    lastObservationText = requireTextContent(observation, 'desktop_observe')
+
+    const runState = requireRunState(await client.callTool({
+      name: 'desktop_get_state',
+      arguments: {},
+    }), 'desktop_get_state')
+    lastRunState = runState
+    const snapshot = isRecord(runState.lastGroundingSnapshot)
+      ? runState.lastGroundingSnapshot
+      : undefined
+    const candidates = Array.isArray(snapshot?.targetCandidates)
+      ? snapshot.targetCandidates.filter(isRecord)
+      : []
+    lastCandidateSummary = JSON.stringify(candidates.map(candidate => ({
+      id: candidate.id,
+      source: candidate.source,
+      role: candidate.role,
+      label: candidate.label,
+    })).slice(0, 12))
+
+    const candidate = findDesktopV3SmokeCandidate(runState, requestedCandidateId)
+    if (candidate) {
+      return {
+        observationText: lastObservationText,
+        runState,
+        overlayState: extractOverlaySmokeState(runState),
+        candidate,
+      }
+    }
+
+    await delay(retryIntervalMs)
+  }
+
+  if (lastRunState) {
+    const browserSurfaceAvailability = isRecord(lastRunState.browserSurfaceAvailability)
+      ? JSON.stringify(lastRunState.browserSurfaceAvailability)
+      : 'missing'
+    const chromeSession = isRecord(lastRunState.chromeSession)
+      ? JSON.stringify({
+          ensureOutcome: lastRunState.chromeSession.ensureOutcome,
+          pid: lastRunState.chromeSession.pid,
+          cdpUrl: lastRunState.chromeSession.cdpUrl,
+        })
+      : 'missing'
+    throw new Error(
+      `desktop_observe did not return the AIRI Desktop V3 Smoke Button chrome_dom candidate; `
+      + `browserSurfaceAvailability=${browserSurfaceAvailability}; `
+      + `chromeSession=${chromeSession}; `
+      + `observeSummary=${JSON.stringify(lastObservationText.split('\n').slice(0, 12))}; `
+      + `candidates=${lastCandidateSummary}`,
+    )
+  }
+
+  throw new Error(`desktop_v3 chrome_dom candidate did not become ready within ${timeoutMs}ms`)
+}
+
 export async function runDesktopV3Smoke(): Promise<Record<string, unknown>> {
   const command = env.COMPUTER_USE_SMOKE_SERVER_COMMAND?.trim() || 'pnpm'
   const args = parseCommandArgs(env.COMPUTER_USE_SMOKE_SERVER_ARGS, ['start'])
@@ -330,6 +442,8 @@ export async function runDesktopV3Smoke(): Promise<Record<string, unknown>> {
   const smokeUrl = env.COMPUTER_USE_DESKTOP_V3_SMOKE_URL?.trim() || DEFAULT_SMOKE_URL
   const requestedCandidateId = parseOptionalString(env.COMPUTER_USE_DESKTOP_V3_SMOKE_CANDIDATE_ID)
   const settleMs = parseNumber(env.COMPUTER_USE_DESKTOP_V3_SMOKE_SETTLE_MS, 750)
+  const chromeDomTimeoutMs = parseNumber(env.COMPUTER_USE_DESKTOP_V3_CHROME_DOM_TIMEOUT_MS, 15_000)
+  const chromeDomRetryIntervalMs = parseNumber(env.COMPUTER_USE_DESKTOP_V3_CHROME_DOM_RETRY_INTERVAL_MS, 500)
 
   const transport = new StdioClientTransport({
     command,
@@ -385,27 +499,50 @@ export async function runDesktopV3Smoke(): Promise<Record<string, unknown>> {
       approvalEvents,
     )
     const ensureChromeData = requireStructuredContent(ensureChrome, 'desktop_ensure_chrome')
+    const initialEnsureOutcome = typeof ensureChromeData.ensureOutcome === 'string'
+      ? ensureChromeData.ensureOutcome
+      : undefined
+    if (!initialEnsureOutcome) {
+      throw new Error('desktop_ensure_chrome missing structuredContent.ensureOutcome')
+    }
+
+    console.info('=== Phase 1b: desktop_ensure_chrome reuse check ===')
+    const ensureChromeReuse = await resolveApprovalIfNeeded(
+      client,
+      'desktop_ensure_chrome',
+      await client.callTool({
+        name: 'desktop_ensure_chrome',
+        arguments: { url: smokeUrl },
+      }),
+      approvalEvents,
+    )
+    const ensureChromeReuseData = requireStructuredContent(ensureChromeReuse, 'desktop_ensure_chrome reuse')
+    const reuseEnsureOutcome = typeof ensureChromeReuseData.ensureOutcome === 'string'
+      ? ensureChromeReuseData.ensureOutcome
+      : undefined
+    if (reuseEnsureOutcome !== 'reused') {
+      throw new Error(`desktop_ensure_chrome reuse check expected ensureOutcome=reused, got ${reuseEnsureOutcome ?? 'missing'}`)
+    }
 
     if (settleMs > 0)
       await delay(settleMs)
 
-    console.info('=== Phase 2: desktop_observe ===')
-    const observation = await client.callTool({
-      name: 'desktop_observe',
-      arguments: { includeChrome: true },
-    })
-    const observeText = requireTextContent(observation, 'desktop_observe')
-
-    console.info('=== Phase 3: desktop_get_state before click ===')
-    const preClickState = requireRunState(await client.callTool({
-      name: 'desktop_get_state',
-      arguments: {},
-    }), 'desktop_get_state')
-    const preClickOverlayState = extractOverlaySmokeState(preClickState)
-    const selectedCandidate = selectDesktopV3SmokeCandidate(preClickState, requestedCandidateId)
+    console.info('=== Phase 2: desktop_observe until chrome_dom is ready ===')
+    const {
+      observationText: observeText,
+      runState: preClickState,
+      overlayState: preClickOverlayState,
+      candidate: selectedCandidate,
+    } = await waitForChromeDomSmokeCandidate(
+      client,
+      requestedCandidateId,
+      chromeDomTimeoutMs,
+      chromeDomRetryIntervalMs,
+    )
     requireChromeDomSmokeCandidate(selectedCandidate)
+    const browserDomRouteExpected = shouldExpectBrowserDomRoute(preClickState)
 
-    console.info('=== Phase 4: desktop_click_target ===')
+    console.info('=== Phase 3: desktop_click_target ===')
     const clickTarget = await resolveApprovalIfNeeded(
       client,
       'desktop_click_target',
@@ -421,7 +558,7 @@ export async function runDesktopV3Smoke(): Promise<Record<string, unknown>> {
     )
     requireTextContent(clickTarget, 'desktop_click_target')
 
-    console.info('=== Phase 5: desktop_get_state after click ===')
+    console.info('=== Phase 4: desktop_get_state after click ===')
     const postClickState = requireRunState(await client.callTool({
       name: 'desktop_get_state',
       arguments: {},
@@ -442,7 +579,7 @@ export async function runDesktopV3Smoke(): Promise<Record<string, unknown>> {
       throw new Error('desktop_click_target missing backendResult.executionRoute')
     }
 
-    if (selectedCandidate.source === 'chrome_dom' && !clickExecutionRoute.startsWith('browser_dom')) {
+    if (browserDomRouteExpected && selectedCandidate.source === 'chrome_dom' && !clickExecutionRoute.startsWith('browser_dom')) {
       throw new Error(`expected chrome_dom candidate to route through browser_dom, got ${clickExecutionRoute}`)
     }
 
@@ -456,9 +593,13 @@ export async function runDesktopV3Smoke(): Promise<Record<string, unknown>> {
         'desktop_get_state',
       ],
       ensureChrome: ensureChromeData,
+      ensureChromeReuse: ensureChromeReuseData,
+      initialEnsureOutcome,
+      reuseEnsureOutcome,
       observeSummary: observeText.split('\n').slice(0, 8),
       selectedCandidate,
       preClickOverlayState,
+      browserDomRouteExpected,
       postClickOverlayState,
       clickExecutionRoute,
       clickRouteReason,
@@ -481,6 +622,8 @@ Environment:
   COMPUTER_USE_DESKTOP_V3_SMOKE_URL            Target URL. Defaults to an inline data: smoke page.
   COMPUTER_USE_DESKTOP_V3_SMOKE_CANDIDATE_ID   Optional candidate id override from desktop_observe.
   COMPUTER_USE_DESKTOP_V3_SMOKE_SETTLE_MS      Delay after desktop_ensure_chrome. Default: 750.
+  COMPUTER_USE_DESKTOP_V3_CHROME_DOM_TIMEOUT_MS Wait for chrome_dom candidate readiness. Default: 15000.
+  COMPUTER_USE_DESKTOP_V3_CHROME_DOM_RETRY_INTERVAL_MS Retry interval for observe/get_state while waiting for chrome_dom. Default: 500.
   COMPUTER_USE_SMOKE_EXECUTOR                  Executor override. Default: macos-local.
   COMPUTER_USE_SMOKE_APPROVAL_MODE             Approval mode override. Default: actions.
 `)

@@ -433,7 +433,7 @@ describe('desktop_click_target handler integration', () => {
   }
 
   // -----------------------------------------------------------------------
-  // browser_dom routing: calls clickSelector
+  // browser_dom routing: calls clickSelector when clickAt is available
   // -----------------------------------------------------------------------
 
   it('routes chrome_dom candidate through clickSelector when bridge is connected', async () => {
@@ -468,7 +468,7 @@ describe('desktop_click_target handler integration', () => {
     expect(result.text).toContain('Route: browser_dom')
   })
 
-  it('falls back to OS click when the connected extension transport is read-only', async () => {
+  it('falls back to OS click when the connected extension transport lacks clickAt', async () => {
     const sm = new RunStateManager()
     const iframeAbsoluteBounds = { x: 456, y: 390, width: 90, height: 32 }
     const candidate = makeCandidate({

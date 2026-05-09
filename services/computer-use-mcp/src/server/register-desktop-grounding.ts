@@ -97,14 +97,14 @@ export function registerDesktopGroundingTools(params: {
         // recorded session URL instead of staying stuck in AX-only mode.
         let cdpBridge: import('../browser-dom/cdp-bridge').CdpBridge | undefined
         try {
-          const cdpStatus = runtime.cdpBridgeManager.getStatus()
-          if (cdpStatus.connected) {
-            cdpBridge = await runtime.cdpBridgeManager.ensureBridge()
+          const chromeSession = runtime.chromeSessionManager.getSessionInfo()
+          if (chromeSession?.cdpUrl) {
+            cdpBridge = await runtime.cdpBridgeManager.ensureBridge(chromeSession.cdpUrl)
           }
           else {
-            const chromeSession = runtime.chromeSessionManager.getSessionInfo()
-            if (chromeSession?.cdpUrl) {
-              cdpBridge = await runtime.cdpBridgeManager.ensureBridge(chromeSession.cdpUrl)
+            const cdpStatus = runtime.cdpBridgeManager.getStatus()
+            if (cdpStatus.connected) {
+              cdpBridge = await runtime.cdpBridgeManager.ensureBridge(cdpStatus.cdpUrl)
             }
           }
         }

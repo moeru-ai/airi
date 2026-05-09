@@ -8,13 +8,12 @@
  * It receives commands directly from the existing BrowserDomExtensionBridge
  * WebSocket connection in the AIRI computer-use-mcp service.
  *
- * Only read-only observation commands are supported.
- * All DOM-mutating actions (click, type, hover, scroll) have been removed
- * because the desktop lane uses real macOS OS-level input events.
+ * Read-only observation commands are supported, plus clickAt for DOM-level
+ * browser click routing.
  *
  * Adapted from /Users/liuziheng/computer_use/chrome-extension/background.js.
- * Stripped: offscreen management, Python bridge, all DOM-action commands
- * (clickAt, typeAt, hoverAt, scrollAt, simulateDragDrop, readStorage,
+ * Stripped: offscreen management, Python bridge, most DOM-action commands
+ * (typeAt, hoverAt, scrollAt, simulateDragDrop, readStorage,
  * setStorage, readCanvasData, injectCSS, executeScript, etc.)
  */
 
@@ -394,7 +393,7 @@ async function readAllFramesDOMWithOffsets(tabId, frameIds, opts) {
 /**
  * Handle a command from the AIRI BrowserDomExtensionBridge.
  *
- * Only read-only observation commands are supported:
+ * Supported commands:
  * - getActiveTab: get the active tab info
  * - getAllFrames: list all frames in the active tab
  * - readAllFramesDOM: collect interactive elements from all frames
@@ -405,6 +404,7 @@ async function readAllFramesDOMWithOffsets(tabId, frameIds, opts) {
  * - readInputValue: read the current value of an input/textarea/select
  * - getComputedStyles: read computed CSS styles of an element
  * - waitForElement: poll until a CSS selector matches in any frame
+ * - clickAt: dispatch a click event at viewport coordinates
  */
 async function handleCommand(cmd) {
   const { action, id } = cmd
@@ -530,6 +530,13 @@ async function handleCommand(cmd) {
         })
         break
       }
+
+      case 'clickAt':
+        result = await runCUAction(tabId, cmd.frameIds || null, 'clickAt', [
+          cmd.x ?? 0,
+          cmd.y ?? 0,
+        ])
+        break
 
       default:
         return { id, ok: false, error: `unknown action: ${action}` }

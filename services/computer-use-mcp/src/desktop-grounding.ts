@@ -86,13 +86,14 @@ export async function captureDesktopGrounding(params: {
   // miss Chrome entirely, which would prevent chrome_dom candidates from being
   // mapped to screen coordinates.
   let chromeWindowBounds = findChromeWindowBounds(windowObs, foregroundApp)
+  let chromeWindowObservation: WindowObservation | undefined
   if (isChromeInFront && !chromeWindowBounds) {
     try {
-      const chromeWindows = await executor.observeWindows({
+      chromeWindowObservation = await executor.observeWindows({
         app: foregroundApp,
         limit: 12,
       })
-      chromeWindowBounds = findChromeWindowBounds(chromeWindows, foregroundApp)
+      chromeWindowBounds = findChromeWindowBounds(chromeWindowObservation, foregroundApp)
     }
     catch {
       // Best-effort only. Fall back to AX-only candidates if filtered window
@@ -104,6 +105,13 @@ export async function captureDesktopGrounding(params: {
   let chromeSemanticSnapshot: ChromeSemanticSnapshot | null = null
   if (isChromeInFront && input?.includeChrome !== false) {
     chromeSemanticSnapshot = await captureChromeSemantics(extensionBridge, cdpBridge)
+    if (!chromeWindowBounds && chromeSemanticSnapshot?.pageTitle) {
+      chromeWindowBounds = findChromeWindowBounds(
+        chromeWindowObservation ?? windowObs,
+        foregroundApp,
+        chromeSemanticSnapshot.pageTitle,
+      )
+    }
   }
 
   // Phase 3: Build target candidates
@@ -339,7 +347,30 @@ function isChromeApp(appName: string): boolean {
 function findChromeWindowBounds(
   observation: WindowObservation,
   _foregroundApp: string,
+  titleHint?: string,
 ): Bounds | undefined {
+  const normalizedTitleHint = titleHint?.trim().toLowerCase()
+  if (normalizedTitleHint) {
+    const titleMatchedWindow = observation.windows.find((window) => {
+      if (!window.bounds) {
+        return false
+      }
+
+      const normalizedWindowTitle = window.title?.trim().toLowerCase()
+      if (!normalizedWindowTitle) {
+        return false
+      }
+
+      return normalizedWindowTitle === normalizedTitleHint
+        || normalizedWindowTitle.includes(normalizedTitleHint)
+        || normalizedTitleHint.includes(normalizedWindowTitle)
+    })
+
+    if (titleMatchedWindow?.bounds) {
+      return titleMatchedWindow.bounds
+    }
+  }
+
   const chromeWindow = observation.windows.find(w =>
     w.appName.toLowerCase().includes('chrome') && w.bounds,
   )

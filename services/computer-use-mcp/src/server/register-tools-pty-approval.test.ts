@@ -258,7 +258,7 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
     expect((runtime.browserDomBridge.triggerEvent as any)).not.toHaveBeenCalled()
   })
 
-  it('rejects browser_dom_click when the connected extension transport is read-only', async () => {
+  it('rejects browser_dom_click when the connected extension transport lacks clickAt', async () => {
     ;(runtime.browserDomBridge.getStatus as any).mockReturnValue({
       enabled: true,
       connected: true,

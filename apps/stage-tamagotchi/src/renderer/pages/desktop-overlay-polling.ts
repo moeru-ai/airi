@@ -214,7 +214,25 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
 
   function scheduleNext(nextInterval: number) {
     if (running) {
-      timer = setTimeout(poll, nextInterval)
+      if (timer !== null) {
+        clearTimeout(timer)
+      }
+      timer = setTimeout(() => {
+        timer = null
+        void poll()
+      }, nextInterval)
+    }
+  }
+
+  function scheduleBootstrap(nextInterval: number) {
+    if (running) {
+      if (bootstrapTimer !== null) {
+        clearTimeout(bootstrapTimer)
+      }
+      bootstrapTimer = setTimeout(() => {
+        bootstrapTimer = null
+        void bootstrapPoll()
+      }, nextInterval)
     }
   }
 
@@ -230,6 +248,13 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
     if (backgroundHungCalls.length < MAX_BACKGROUND_HUNG_CALLS) {
       lastHungRecoveryProbeAt = null
     }
+  }
+
+  function restartBootstrap(error?: unknown) {
+    currentBootstrapState = 'booting'
+    currentBootstrapError = error instanceof Error ? error.message : typeof error === 'string' ? error : undefined
+    emitEmptyState()
+    scheduleBootstrap(fallbackInterval)
   }
 
   function canStartPoll(now: number) {
@@ -273,11 +298,11 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
 
     if (currentBootstrapState === 'ready') {
       emitEmptyState()
-      poll()
+      void poll()
     }
     else {
       emitEmptyState()
-      bootstrapTimer = setTimeout(bootstrapPoll, fallbackInterval)
+      scheduleBootstrap(fallbackInterval)
     }
   }
 
@@ -287,7 +312,6 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
       return
     }
 
-    let nextInterval = normalInterval
     let timeoutId: ReturnType<typeof setTimeout> | undefined
 
     try {
@@ -344,22 +368,22 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
         if (heartbeat && config.onHeartbeat) {
           config.onHeartbeat(heartbeat)
         }
+        scheduleNext(normalInterval)
       }
       else {
-        nextInterval = fallbackInterval
+        restartBootstrap('desktop_get_state returned no runState')
       }
     }
-    catch {
-      // MCP server not running, bridge disconnected, or timeout — graceful degradation
-      nextInterval = fallbackInterval
+    catch (error) {
+      // MCP server not running, bridge disconnected, or timeout — re-handshake
+      // readiness before resuming the main poll loop.
+      restartBootstrap(error)
     }
     finally {
       if (timeoutId !== undefined) {
         clearTimeout(timeoutId)
       }
     }
-
-    scheduleNext(nextInterval)
   }
 
   return {

@@ -18,6 +18,7 @@ const SUPPORTED_ACTIONS = new Set([
   'findElement',
   'findElements',
   'getClickTarget',
+  'clickAt',
   'getElementAttributes',
   'readInputValue',
   'getComputedStyles',

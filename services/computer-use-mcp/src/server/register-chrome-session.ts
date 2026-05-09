@@ -98,6 +98,7 @@ export async function executeChromeEnsure(
 
   const lines = [
     'Chrome session launched:',
+    `  Ensure outcome: ${sessionInfo.ensureOutcome}`,
     `  PID: ${sessionInfo.pid}`,
     `  Window: ${sessionInfo.windowId}`,
     `  Agent-owned: ${sessionInfo.agentOwned}`,
@@ -121,6 +122,7 @@ export async function executeChromeEnsure(
     content: [textContent(lines.join('\n'))],
     structuredContent: {
       status: 'ok',
+      ensureOutcome: sessionInfo.ensureOutcome,
       pid: sessionInfo.pid,
       windowId: sessionInfo.windowId,
       agentOwned: sessionInfo.agentOwned,

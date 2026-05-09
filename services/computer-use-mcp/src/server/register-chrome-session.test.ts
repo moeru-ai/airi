@@ -152,6 +152,7 @@ describe('registerChromeSessionTools', () => {
 
   it('consumes operation budget and persists chrome session when approvals are disabled', async () => {
     vi.mocked(runtime.chromeSessionManager.ensureAgentWindow).mockResolvedValue({
+      ensureOutcome: 'launched',
       wasAlreadyRunning: false,
       windowId: 'chrome-window-1',
       pid: 4242,
@@ -169,6 +170,8 @@ describe('registerChromeSessionTools', () => {
 
     expect(result.isError).not.toBe(true)
     expect((result.content?.[0] as Record<string, unknown>)?.text).toContain('Chrome session launched')
+    expect((result.content?.[0] as Record<string, unknown>)?.text).toContain('Ensure outcome: launched')
+    expect((result.structuredContent as Record<string, unknown>).ensureOutcome).toBe('launched')
     expect(runtime.session.consumeOperation).toHaveBeenCalledWith(2)
     expect(runtime.stateManager.getState().chromeSession).toMatchObject({
       windowId: 'chrome-window-1',
@@ -186,6 +189,7 @@ describe('registerChromeSessionTools', () => {
       approvalMode: 'all',
     })
     vi.mocked(runtime.chromeSessionManager.getSessionInfo).mockReturnValue({
+      ensureOutcome: 'reused',
       wasAlreadyRunning: false,
       windowId: 'chrome-window-existing',
       pid: 9999,
