@@ -1,7 +1,7 @@
 import { useLocalStorage } from '@vueuse/core'
 import { ref } from 'vue'
 
-import { useThreeCamera } from './camera'
+import { DEFAULT_CAMERA_DISTANCE, DEFAULT_CAMERA_FOV, useThreeCamera } from './camera'
 
 export const supportedControl = ['x', 'y', 'z', 'cameraDistance', 'cameraFOV'] as const
 export type SupportedControl = typeof supportedControl[number]
@@ -39,7 +39,7 @@ export const controlConfig: Record<SupportedControl, ControlConfig> = {
     min: 0,
     max: 10,
     step: 0.01,
-    default: 1,
+    default: DEFAULT_CAMERA_DISTANCE,
     buttonText: 'Dis',
     format: formatDecimal2Meters,
   },
@@ -47,7 +47,7 @@ export const controlConfig: Record<SupportedControl, ControlConfig> = {
     min: 10,
     max: 120,
     step: 1,
-    default: 40,
+    default: DEFAULT_CAMERA_FOV,
     buttonText: 'FOV',
     format: (val: number) => `${val.toFixed(0)}°`,
   },
@@ -55,7 +55,7 @@ export const controlConfig: Record<SupportedControl, ControlConfig> = {
 
 const { cameraDistance, cameraFOV } = useThreeCamera()
 /** model position from the scene origin, in meters. */
-const modelOffset = useLocalStorage('settings/stage-ui-three/modelOffset', { x: 0, y: 0, z: 0 })
+const modelOffset = useLocalStorage('settings/stage-ui-three/modelOffset', { x: controlConfig.x.default, y: controlConfig.y.default, z: controlConfig.z.default })
 /** show or hide the control element(slider) on HUD. */
 const viewControlsEnabled = ref(false)
 /** what value to control for the control element */

@@ -6,7 +6,7 @@ import { computed, ref, watch } from 'vue'
 
 import defaultSkyBoxSrc from '../components/Environment/assets/sky_linekotsi_23_HDRI.hdr?url'
 
-import { useThreeCamera } from './camera'
+import { DEFAULT_CAMERA_POSITION, useThreeCamera } from './camera'
 import { supportedControl, useThreeViewControl } from './view-control'
 
 // TODO: this is for future type injection features
@@ -162,7 +162,7 @@ export const useModelStore = defineStore('modelStore', () => {
     modelOrigin.value = { x: 0, y: 0, z: 0 }
     modelRotationY.value = 0
 
-    cameraPosition.value = { x: 0, y: 0, z: 0 }
+    cameraPosition.value = { ...DEFAULT_CAMERA_POSITION }
     supportedControl.forEach(c => setViewControl(c))
 
     lookAtTarget.value = { x: 0, y: 0, z: 0 }
