@@ -3,7 +3,7 @@ import { ref } from 'vue'
 
 export const supportedControl = ['x', 'y', 'scale'] as const
 type SupportedControl = typeof supportedControl[number]
-interface ControlConfig { min: number, max: number, step: number, default: number, format: (val: number) => string }
+interface ControlConfig { min: number, max: number, step: number, default: number, buttonText: string, format: (val: number) => string }
 
 /** show or hide the control element(slider) on stage */
 const viewControlsEnabled = ref(false)
@@ -24,6 +24,7 @@ export const controlConfig: Record<SupportedControl, ControlConfig> = {
     max: 500,
     step: 0.1,
     default: 0,
+    buttonText: 'X',
     format: formatPercentD1,
   },
   y: {
@@ -31,6 +32,7 @@ export const controlConfig: Record<SupportedControl, ControlConfig> = {
     max: 500,
     step: 0.1,
     default: 0,
+    buttonText: 'Y',
     format: formatPercentD1,
   },
   scale: {
@@ -38,6 +40,7 @@ export const controlConfig: Record<SupportedControl, ControlConfig> = {
     max: 3,
     step: 0.01,
     default: 1,
+    buttonText: 'Scale',
     format: formatToPercent,
   },
 }
@@ -46,17 +49,18 @@ export function useL2dViewControl() {
   /**
    * reset the given control to its default value.
    *  @param key the control to reset
+   *  @param value optional, will reset the value to its default if not provided
    */
-  function reset(key: SupportedControl) {
+  function set(key: SupportedControl, value?: number) {
     switch (key) {
       case 'x':
-        position.value.x = controlConfig.x.default
+        position.value.x = value ?? controlConfig.x.default
         break
       case 'y':
-        position.value.y = controlConfig.y.default
+        position.value.y = value ?? controlConfig.y.default
         break
       case 'scale':
-        scale.value = controlConfig.scale.default
+        scale.value = value ?? controlConfig.scale.default
         break
     }
   }
@@ -67,7 +71,7 @@ export function useL2dViewControl() {
     /** model scaling in percentages. `100` means no scaling. */
     scale,
     /** reset the given control to its default value. */
-    reset,
+    set,
     /** show or hide the control element(slider) on stage */
     viewControlsEnabled,
     /** what value to control for the control element */

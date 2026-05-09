@@ -1,9 +1,11 @@
 import { useLocalStorage } from '@vueuse/core'
 import { ref } from 'vue'
 
+import { useThreeCamera } from './camera'
+
 export const supportedControl = ['x', 'y', 'z', 'cameraDistance', 'cameraFOV'] as const
-type SupportedControl = typeof supportedControl[number]
-interface ControlConfig { min: number, max: number, step: number, default: number, format: (val: number) => string }
+export type SupportedControl = typeof supportedControl[number]
+interface ControlConfig { min: number, max: number, step: number, default: number, buttonText: string, format: (val: number) => string }
 
 const formatDecimal2Meters = (val: number) => `${val.toFixed(2)}m`
 
@@ -14,6 +16,7 @@ export const controlConfig: Record<SupportedControl, ControlConfig> = {
     max: 10,
     step: 0.01,
     default: 0,
+    buttonText: 'X',
     format: formatDecimal2Meters,
   },
   y: {
@@ -21,6 +24,7 @@ export const controlConfig: Record<SupportedControl, ControlConfig> = {
     max: 10,
     step: 0.01,
     default: 0,
+    buttonText: 'Y',
     format: formatDecimal2Meters,
   },
   z: {
@@ -28,6 +32,7 @@ export const controlConfig: Record<SupportedControl, ControlConfig> = {
     max: 10,
     step: 0.01,
     default: 0,
+    buttonText: 'Z',
     format: formatDecimal2Meters,
   },
   cameraDistance: {
@@ -35,6 +40,7 @@ export const controlConfig: Record<SupportedControl, ControlConfig> = {
     max: 10,
     step: 0.01,
     default: 1,
+    buttonText: 'Dis',
     format: formatDecimal2Meters,
   },
   cameraFOV: {
@@ -42,17 +48,12 @@ export const controlConfig: Record<SupportedControl, ControlConfig> = {
     max: 120,
     step: 1,
     default: 40,
+    buttonText: 'FOV',
     format: (val: number) => `${val.toFixed(0)}°`,
   },
 }
 
-/** camera field of view, in degrees. */
-const cameraFOV = useLocalStorage('settings/stage-ui-three/cameraFOV', 40)
-/**
- * euclidean distance between the model center and the camera center, in meters.
- * setting this value will move the camera along the axis.
- */
-const cameraDistance = useLocalStorage('settings/stage-ui-three/cameraDistance', 1)
+const { cameraDistance, cameraFOV } = useThreeCamera()
 /** model position from the scene origin, in meters. */
 const modelOffset = useLocalStorage('settings/stage-ui-three/modelOffset', { x: 0, y: 0, z: 0 })
 /** show or hide the control element(slider) on HUD. */
@@ -61,25 +62,26 @@ const viewControlsEnabled = ref(false)
 const viewControlMode = ref<SupportedControl>('cameraDistance')
 
 /**
- * reset the given control to its default value.
- *  @param key the control to reset
+ * set the given control to the given value.
+ *  @param key the control to set
+ *  @param value optional, will reset the value to its default if not provided
  */
-function reset(key: SupportedControl) {
+function set(key: SupportedControl, value?: number) {
   switch (key) {
     case 'x':
-      modelOffset.value.x = controlConfig.x.default
+      modelOffset.value.x = value ?? controlConfig.x.default
       break
     case 'y':
-      modelOffset.value.y = controlConfig.y.default
+      modelOffset.value.y = value ?? controlConfig.y.default
       break
     case 'z':
-      modelOffset.value.z = controlConfig.z.default
+      modelOffset.value.z = value ?? controlConfig.z.default
       break
     case 'cameraDistance':
-      cameraDistance.value = controlConfig.cameraDistance.default
+      cameraDistance.value = value ?? controlConfig.cameraDistance.default
       break
     case 'cameraFOV':
-      cameraFOV.value = controlConfig.cameraFOV.default
+      cameraFOV.value = value ?? controlConfig.cameraFOV.default
       break
   }
 }
@@ -98,6 +100,6 @@ export function useThreeViewControl() {
     viewControlMode,
 
     /** reset the given control to its default value. */
-    reset,
+    set,
   }
 }
