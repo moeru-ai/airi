@@ -260,6 +260,7 @@ export function createBillingService(
       }
 
       await updateRedisCache(input.userId, txResult.balanceAfter)
+      metrics?.fluxCredited.add(input.amount, { source: input.source, type: ledgerType })
 
       logger.withFields({ userId: input.userId, amount: input.amount, balance: txResult.balanceAfter }).log('Credited flux')
       return txResult
@@ -336,6 +337,7 @@ export function createBillingService(
 
       if (txResult.applied && txResult.balanceAfter != null) {
         await updateRedisCache(input.userId, txResult.balanceAfter)
+        metrics?.fluxCredited.add(input.fluxAmount, { source: 'stripe.checkout', type: 'credit' })
       }
 
       return txResult
@@ -410,6 +412,7 @@ export function createBillingService(
 
       if (txResult.applied && txResult.balanceAfter != null) {
         await updateRedisCache(input.userId, txResult.balanceAfter)
+        metrics?.fluxCredited.add(input.fluxAmount, { source: 'stripe.invoice', type: 'credit' })
       }
 
       return txResult

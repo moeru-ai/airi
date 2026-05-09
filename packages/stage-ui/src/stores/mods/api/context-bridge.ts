@@ -1,9 +1,9 @@
-import type { SparkNotifyMessageOverride } from '@proj-airi/core-agent/agents/spark-notify'
 import type { WebSocketEventOf } from '@proj-airi/server-sdk'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { UserMessage } from '@xsai/shared-chat'
 
 import type { ChatStreamEvent, ChatStreamEventContext, ContextMessage } from '../../../types/chat'
+import type { SparkNotifyReactionOptions } from './spark-notify-reaction'
 
 import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
 import { useBroadcastChannel } from '@vueuse/core'
@@ -59,24 +59,6 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
   const { post: broadcastContext, data: incomingContext } = useBroadcastChannel<ContextMessage, ContextMessage>({ name: CONTEXT_CHANNEL_NAME })
   const { post: broadcastStreamEvent, data: incomingStreamEvent } = useBroadcastChannel<ChatStreamEvent, ChatStreamEvent>({ name: CHAT_STREAM_CHANNEL_NAME })
-  interface SparkNotifyReactionOptions {
-    headline: string
-    fallbackText: string
-    note?: string
-    payload?: Record<string, unknown>
-    metadata?: Record<string, unknown>
-    lane?: string
-    kind?: 'alarm' | 'ping' | 'reminder'
-    urgency?: 'immediate' | 'soon' | 'later'
-    destinations?: string[]
-    source?: string
-    ttlMs?: number
-    requiresAck?: boolean
-    forceResponse?: boolean
-    forceTextResponse?: boolean
-    forceSparkCommandResponse?: boolean
-    messageOverride?: SparkNotifyMessageOverride
-  }
   type SparkNotifyBridgeMessage
     = | {
       type: 'request'
@@ -125,7 +107,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
     try {
       return await characterOrchestratorStore.handleSparkNotifyWithReaction(event, {
-        fallbackText: options.fallbackText,
+        fallbackText: options.fallbackResponseText,
         forceResponse: options.forceResponse,
         forceTextResponse: options.forceTextResponse,
         forceSparkCommandResponse: options.forceSparkCommandResponse,
@@ -134,7 +116,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     }
     catch (error) {
       console.warn('[context-bridge] spark:notify handling failed; using fallback', error)
-      return options.fallbackText
+      return options.fallbackResponseText
     }
   }
 
@@ -151,13 +133,13 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     return await new Promise<string>((resolve) => {
       const timeout = setTimeout(() => {
         sparkNotifyBridgeWaiters.delete(requestId)
-        resolve(options.fallbackText)
+        resolve(options.fallbackResponseText)
       }, 5000)
 
       sparkNotifyBridgeWaiters.set(requestId, {
         resolve: (reaction) => {
           clearTimeout(timeout)
-          resolve(reaction || options.fallbackText)
+          resolve(reaction || options.fallbackResponseText)
         },
         timeout,
       })

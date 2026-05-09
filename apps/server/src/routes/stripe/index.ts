@@ -1,7 +1,7 @@
 import type Redis from 'ioredis'
 
 import type { Env } from '../../libs/env'
-import type { RevenueMetrics } from '../../libs/otel'
+import type { RateLimitMetrics, RevenueMetrics } from '../../libs/otel'
 import type { BillingService } from '../../services/billing/billing-service'
 import type { ConfigKVService } from '../../services/config-kv'
 import type { FluxService } from '../../services/flux'
@@ -49,6 +49,7 @@ export function createStripeRoutes(
   env: Env,
   redis: Redis,
   metrics?: RevenueMetrics | null,
+  rateLimitMetrics?: RateLimitMetrics | null,
 ) {
   const stripe = env.STRIPE_SECRET_KEY ? new Stripe(env.STRIPE_SECRET_KEY) : null
 
@@ -116,7 +117,7 @@ export function createStripeRoutes(
         }
       }))
     })
-    .post('/checkout', authGuard, rateLimiter({ max: 10, windowSec: 60 }), async (c) => {
+    .post('/checkout', authGuard, rateLimiter({ max: 10, windowSec: 60, metrics: rateLimitMetrics, routeLabel: 'stripe.checkout' }), async (c) => {
       const fluxProductId = await configKV.getOptional('STRIPE_FLUX_PRODUCT_ID')
       if (!stripe || !fluxProductId)
         throw createServiceUnavailableError('Stripe is not configured', 'STRIPE_NOT_CONFIGURED')
@@ -286,6 +287,14 @@ export function createStripeRoutes(
         case 'checkout.session.completed': {
           await handleCheckoutSessionCompleted(event.id, event.data.object, fluxService, stripeService, billingService)
           metrics?.stripeCheckoutCompleted.add(1)
+          // Revenue capture in smallest currency unit (e.g. cents).
+          // Cross-currency aggregation is meaningless, so always group by `currency` in queries.
+          if (event.data.object.amount_total != null && event.data.object.currency) {
+            metrics?.stripeRevenue.add(event.data.object.amount_total, {
+              currency: event.data.object.currency,
+              source: 'checkout',
+            })
+          }
           break
         }
         case 'customer.created':
@@ -307,6 +316,12 @@ export function createStripeRoutes(
           await handleInvoiceEvent(event.data.object, stripeService)
           if (event.type === 'invoice.payment_failed') {
             metrics?.stripePaymentFailed.add(1)
+          }
+          if (event.type === 'invoice.paid' && event.data.object.amount_paid && event.data.object.currency) {
+            metrics?.stripeRevenue.add(event.data.object.amount_paid, {
+              currency: event.data.object.currency,
+              source: 'invoice',
+            })
           }
           break
         }

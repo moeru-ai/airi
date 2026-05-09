@@ -28,7 +28,9 @@
 - `flux-meter.md`
   - Sub-Flux 计量服务（TTS/STT 等）的债务账本机制与复用指南
 - `observability-conventions.md`
-  - traces / metrics 命名规则，标准 OTel 字段与 `airi.*` 自定义字段边界
+  - traces / metrics 命名规则，标准 OTel 字段与 `airi.*` 自定义字段边界，SemconvStability 迁移、Counter priming、Dashboard 变量陷阱
+- `observability-metrics.md`
+  - 全量 metric 目录（按域分组：HTTP / Auth / Engagement / Revenue / GenAI / Email / Rate limit / Runtime），含名字、类型、Labels、落点
 - `auth-and-oidc.md`
   - 认证与 OIDC Provider 架构、登录流程、trusted clients、踩坑记录
 - `email-auth-resend.md`
@@ -64,6 +66,7 @@
 - 改扣费、充值、Stripe：先看 `billing-architecture.md`
 - 改 Flux 充值价格 / 多币种 / Stripe Product/Price：先看 `stripe-pricing.md`
 - 改 trace / metric attributes、OTel 命名：先看 `observability-conventions.md`
+- 加新 metric / 找当前 metric 全量列表：先看 `observability-metrics.md`
 - 改认证、OIDC、登录流程：先看 `auth-and-oidc.md`
 - 改邮件 service / Better Auth 邮件 callback：先看 `email-auth-resend.md`
 - 改账号注销 / 业务 service 的 `deleteAllForUser`：先看 `account-deletion.md`

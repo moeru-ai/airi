@@ -56,7 +56,7 @@ Redis 相关优先复用 instrumentation 自动产生的标准属性，不要重
 - 仅 AIRI 内部存在的流式控制字段
 - 临时调试但仍需要进入可观测系统的业务字段
 
-当前示例：
+当前 attribute 示例：
 
 - `AIRI_ATTR_BILLING_FLUX_CONSUMED`
 - `AIRI_ATTR_GEN_AI_STREAM`
@@ -65,6 +65,14 @@ Redis 相关优先复用 instrumentation 自动产生的标准属性，不要重
 - `AIRI_ATTR_GEN_AI_INPUT_MESSAGES`
 - `AIRI_ATTR_GEN_AI_INPUT_TEXT`
 - `AIRI_ATTR_GEN_AI_OUTPUT_TEXT`
+
+当前 `airi.*` metric 命名空间（Prom 系列名见 [`observability-metrics.md`](./observability-metrics.md)）：
+
+- 计费：`airi.billing.flux.consumed` / `.credited` / `.unbilled` / `.tts.chars` / `.tts.preflight_rejections`
+- 收入：`airi.stripe.revenue`
+- 邮件：`airi.email.send` / `.failures` / `.duration`
+- 限流：`airi.rate_limit.blocked`
+- GenAI：`airi.gen_ai.stream.interrupted`
 
 ## Metric Name 策略
 
@@ -157,3 +165,65 @@ span name 目前允许保留业务可读格式，例如：
 - [apps/server/src/libs/otel.ts](/apps/server/src/libs/otel.ts)
 - [services/telegram-bot/src/llm/actions.ts](/services/telegram-bot/src/llm/actions.ts)
 - [services/telegram-bot/src/bots/telegram/agent/actions/read-message.ts](/services/telegram-bot/src/bots/telegram/agent/actions/read-message.ts)
+
+## SemconvStability 迁移说明
+
+`@opentelemetry/instrumentation-http` 0.215+ 默认 OLD semconv（`http.server.duration` in ms），不是 STABLE 名。AIRI 在 [apps/server/instrumentation.mjs](/apps/server/instrumentation.mjs) 顶部强制 `OTEL_SEMCONV_STABILITY_OPT_IN=http`（仅 STABLE）。
+
+| Semconv 模式 | 发哪些 series | 我们用 |
+|---|---|---|
+| OLD（默认）| `http.server.duration` (ms)、`http.client.duration` (ms)、attr 用 `http.method` / `http.status_code` | ❌ |
+| STABLE（`=http`）| `http.server.request.duration` (s)、`http.client.request.duration` (s)、attr 用 `http.request.method` / `http.response.status_code` | ✅ |
+| 双发（`=http/dup`）| 上面两套都发 | 仅在有外部 OLD-name 消费者待迁移时启用 |
+
+**为什么直接 STABLE-only**：
+
+- grep 整仓库零 OLD-name 引用
+- Dashboard 与服务代码 checked in 在一起，无外部 dashboard
+- 迁移没有自然终点，OLD 系列不显式清理就一直占 storage
+- 双发会让每条 HTTP 请求 cardinality 翻倍
+
+**何时切回 `dup`**：将来如果有别的 service 主动 scrape 本 server 的 OLD-name 系列，临时切几周完成迁移即可。
+
+## Counter priming 注意事项
+
+OTel SDK 的 Counter / UpDownCounter 在第一次 `.add()` 之前**完全不出现在 Prometheus 抓取里**。Histogram 同理（要等第一次 `.record()`）。
+
+后果：低流量 metric 在 dashboard 上看起来像「埋点丢了」，告警里 `absent()` 也无法工作。
+
+[apps/server/src/libs/otel.ts](/apps/server/src/libs/otel.ts) 的 `primeCounter` 在 SDK 启动后给每个 Counter 调一次 `.add(0)`，把 series 注册出来；`0` 不影响 rate / sum 计算。
+
+加新 Counter 时**记得加进 prime 列表**，否则未触发的指标在 Grafana 里就是空的。
+
+验证脚本：[apps/server/src/scripts/otel-smoke.mjs](/apps/server/src/scripts/otel-smoke.mjs)
+
+```sh
+pnpm -F @proj-airi/server exec node --import tsx ./src/scripts/otel-smoke.mjs
+```
+
+打印 SDK 启动后立即可见的所有 instrument 名字。
+
+## Dashboard 变量陷阱
+
+**变量定义里不要引用业务 metric**。早期 [airi-server-overview-cloud.json](/apps/server/otel/grafana/dashboards/airi-server-overview-cloud.json) 的 `$env` / `$service` 都从 `http_server_request_duration_seconds_count` 取 label values —— 升级 instrumentation-http 后这个系列没了，导致：
+
+1. 两个变量解析为空字符串
+2. 所有 panel 的 `{service_name=~"$service", deployment_environment=~"$env"}` 匹配零 series
+3. 整个 dashboard 全 No Data，**包括那些 metric 还活着的 panel**
+
+修法：变量改用 `target_info`。这是 OTel SDK 启动就发的 resource-only series，永远存在，且天然自带 `service_name` / `deployment_environment` / `service_version` 这套 resource attributes。
+
+```promql
+# Good
+label_values(target_info, deployment_environment)
+label_values(target_info{deployment_environment=~"$env"}, service_name)
+
+# Bad — 任何业务 metric 改名/迁移就全盘崩
+label_values(http_server_request_duration_seconds_count, deployment_environment)
+```
+
+后续新增 dashboard 默认沿用 `target_info` 这条惯例。
+
+## 完整 metric 目录
+
+按域分组的全量 metric 清单（名字、类型、单位、labels、落点）见 [`observability-metrics.md`](./observability-metrics.md)。每加一个新 metric 时同步更新该文档。

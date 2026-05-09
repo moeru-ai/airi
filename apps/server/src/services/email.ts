@@ -1,5 +1,7 @@
 import type { Logger } from '@guiiai/logg'
 
+import type { EmailMetrics } from '../libs/otel'
+
 import { useLogger } from '@guiiai/logg'
 import { errorMessageFrom } from '@moeru/std'
 import { Resend } from 'resend'
@@ -92,7 +94,7 @@ function formatFrom(config: EmailConfig): string {
  *   instead of silently dropping mail — Better Auth surfaces it back to the
  *   caller so frontend can show a clear "email service not configured" error.
  */
-export function createEmailService(config: EmailConfig, logger: Logger = useLogger('email')): EmailService {
+export function createEmailService(config: EmailConfig, logger: Logger = useLogger('email'), metrics?: EmailMetrics | null): EmailService {
   // NOTICE:
   // Construct Resend lazily so the server can boot in environments where the
   // RESEND_API_KEY is intentionally empty (e.g. local dev that never exercises
@@ -118,7 +120,8 @@ export function createEmailService(config: EmailConfig, logger: Logger = useLogg
 
   const from = formatFrom(config)
 
-  async function send(payload: EmailPayload): Promise<void> {
+  async function send(payload: EmailPayload, template: string = 'unknown'): Promise<void> {
+    const startedAt = Date.now()
     try {
       const { error } = await getClient().emails.send({
         from,
@@ -130,8 +133,12 @@ export function createEmailService(config: EmailConfig, logger: Logger = useLogg
 
       if (error) {
         logger.withFields({ to: payload.to, subject: payload.subject, errorName: error.name }).error(error.message)
+        metrics?.failures.add(1, { template, error_name: error.name })
+        metrics?.duration.record((Date.now() - startedAt) / 1000, { template, outcome: 'error' })
         throw new ApiError(502, 'email/send_failed', error.message, { providerError: error.name })
       }
+      metrics?.send.add(1, { template })
+      metrics?.duration.record((Date.now() - startedAt) / 1000, { template, outcome: 'ok' })
     }
     catch (error) {
       if (error instanceof ApiError)
@@ -139,6 +146,8 @@ export function createEmailService(config: EmailConfig, logger: Logger = useLogg
 
       const message = errorMessageFrom(error) ?? 'Unknown email send error'
       logger.withFields({ to: payload.to, subject: payload.subject }).error(message)
+      metrics?.failures.add(1, { template, error_name: 'unhandled' })
+      metrics?.duration.record((Date.now() - startedAt) / 1000, { template, outcome: 'error' })
       throw new ApiError(502, 'email/send_failed', message)
     }
   }
@@ -151,7 +160,7 @@ export function createEmailService(config: EmailConfig, logger: Logger = useLogg
         subject: 'Verify your email for Project AIRI',
         html: renderVerificationHtml(url),
         text: renderVerificationText(url),
-      })
+      }, 'verification')
     },
     async sendPasswordReset({ to, url }) {
       await send({
@@ -159,7 +168,7 @@ export function createEmailService(config: EmailConfig, logger: Logger = useLogg
         subject: 'Reset your Project AIRI password',
         html: renderPasswordResetHtml(url),
         text: renderPasswordResetText(url),
-      })
+      }, 'password_reset')
     },
     async sendMagicLink({ to, url }) {
       await send({
@@ -167,7 +176,7 @@ export function createEmailService(config: EmailConfig, logger: Logger = useLogg
         subject: 'Your Project AIRI sign-in link',
         html: renderMagicLinkHtml(url),
         text: renderMagicLinkText(url),
-      })
+      }, 'magic_link')
     },
     async sendChangeEmailConfirmation({ to, newEmail, url }) {
       await send({
@@ -175,7 +184,7 @@ export function createEmailService(config: EmailConfig, logger: Logger = useLogg
         subject: 'Confirm your new email address for Project AIRI',
         html: renderChangeEmailHtml(url, newEmail),
         text: renderChangeEmailText(url, newEmail),
-      })
+      }, 'change_email')
     },
     async sendDeleteAccountVerification({ to, url }) {
       await send({
@@ -183,7 +192,7 @@ export function createEmailService(config: EmailConfig, logger: Logger = useLogg
         subject: 'Confirm account deletion for Project AIRI',
         html: renderDeleteAccountHtml(url),
         text: renderDeleteAccountText(url),
-      })
+      }, 'delete_account')
     },
   }
 }

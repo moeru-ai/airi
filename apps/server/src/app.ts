@@ -191,6 +191,7 @@ export async function buildApp(deps: AppDeps) {
       db: deps.db,
       env: deps.env,
       configKV: deps.configKV,
+      rateLimitMetrics: deps.otel?.rateLimit,
     }))
 
     /**
@@ -211,7 +212,7 @@ export async function buildApp(deps: AppDeps) {
     /**
      * V1 routes for official provider.
      */
-    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.requestLogService, deps.ttsMeter, deps.redis, deps.env, deps.otel?.genAi))
+    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.requestLogService, deps.ttsMeter, deps.redis, deps.env, deps.otel?.genAi, deps.otel?.revenue, deps.otel?.rateLimit))
 
     /**
      * Flux routes.
@@ -221,7 +222,7 @@ export async function buildApp(deps: AppDeps) {
     /**
      * Stripe routes.
      */
-    .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue))
+    .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue, deps.otel?.rateLimit))
 
     /**
      * Admin routes — guarded by `ADMIN_EMAILS` allowlist + verified email.
@@ -329,12 +330,12 @@ export async function createApp() {
   })
 
   const emailService = injeca.provide('services:email', {
-    dependsOn: { env: parsedEnv },
+    dependsOn: { env: parsedEnv, otel },
     build: ({ dependsOn }) => createEmailService({
       apiKey: dependsOn.env.RESEND_API_KEY,
       fromEmail: dependsOn.env.RESEND_FROM_EMAIL,
       fromName: dependsOn.env.RESEND_FROM_NAME,
-    }),
+    }, undefined, dependsOn.otel?.email),
   })
 
   const characterService = injeca.provide('services:characters', {
@@ -433,7 +434,7 @@ export async function createApp() {
   })
 
   const ttsMeter = injeca.provide('services:ttsMeter', {
-    dependsOn: { redis, billingService, configKV },
+    dependsOn: { redis, billingService, configKV, otel },
     build: ({ dependsOn }) => createFluxMeter(dependsOn.redis, dependsOn.billingService, {
       name: 'tts',
       // Lazy config read: missing FLUX_PER_1K_CHARS_TTS surfaces as a
@@ -447,7 +448,7 @@ export async function createApp() {
           debtTtlSeconds: ttl,
         }
       },
-    }),
+    }, dependsOn.otel?.revenue),
   })
 
   await injeca.start()

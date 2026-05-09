@@ -62,6 +62,27 @@ export const METRIC_GEN_AI_CLIENT_TOKEN_USAGE_INPUT = 'gen_ai.client.token.usage
 export const METRIC_GEN_AI_CLIENT_TOKEN_USAGE_OUTPUT = 'gen_ai.client.token.usage.output'
 export const METRIC_FLUX_CONSUMED = 'airi.billing.flux.consumed'
 
+// AIRI billing — credit/debit visibility beyond raw consumption
+export const METRIC_AIRI_FLUX_CREDITED = 'airi.billing.flux.credited'
+export const METRIC_AIRI_FLUX_UNBILLED = 'airi.billing.flux.unbilled'
+export const METRIC_AIRI_TTS_CHARS = 'airi.billing.tts.chars'
+export const METRIC_AIRI_TTS_PREFLIGHT_REJECTIONS = 'airi.billing.tts.preflight_rejections'
+
+// AIRI revenue — actual money in (smallest currency unit, e.g. cents)
+export const METRIC_AIRI_STRIPE_REVENUE = 'airi.stripe.revenue'
+
+// AIRI email — transactional delivery health
+export const METRIC_AIRI_EMAIL_SEND = 'airi.email.send'
+export const METRIC_AIRI_EMAIL_FAILURES = 'airi.email.failures'
+export const METRIC_AIRI_EMAIL_DURATION = 'airi.email.duration'
+
+// AIRI rate limiting — abuse / attack visibility
+export const METRIC_AIRI_RATE_LIMIT_BLOCKED = 'airi.rate_limit.blocked'
+
+// AIRI GenAI — stream quality
+export const METRIC_AIRI_GEN_AI_STREAM_INTERRUPTED = 'airi.gen_ai.stream.interrupted'
+export const METRIC_GEN_AI_CLIENT_FIRST_TOKEN_DURATION = 'gen_ai.client.first_token.duration'
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

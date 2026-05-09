@@ -1,4 +1,4 @@
-import type { Counter, Histogram, UpDownCounter } from '@opentelemetry/api'
+import type { Counter, Histogram, ObservableGauge, UpDownCounter } from '@opentelemetry/api'
 
 import type { Env } from './env'
 
@@ -10,6 +10,7 @@ import { logs, SeverityNumber } from '@opentelemetry/api-logs'
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-proto'
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-proto'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto'
+import { HttpInstrumentation } from '@opentelemetry/instrumentation-http'
 import { RuntimeNodeInstrumentation } from '@opentelemetry/instrumentation-runtime-node'
 import { resourceFromAttributes } from '@opentelemetry/resources'
 import { BatchLogRecordProcessor } from '@opentelemetry/sdk-logs'
@@ -19,6 +20,16 @@ import { BatchSpanProcessor, ParentBasedSampler, TraceIdRatioBasedSampler } from
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions'
 
 import {
+  METRIC_AIRI_EMAIL_DURATION,
+  METRIC_AIRI_EMAIL_FAILURES,
+  METRIC_AIRI_EMAIL_SEND,
+  METRIC_AIRI_FLUX_CREDITED,
+  METRIC_AIRI_FLUX_UNBILLED,
+  METRIC_AIRI_GEN_AI_STREAM_INTERRUPTED,
+  METRIC_AIRI_RATE_LIMIT_BLOCKED,
+  METRIC_AIRI_STRIPE_REVENUE,
+  METRIC_AIRI_TTS_CHARS,
+  METRIC_AIRI_TTS_PREFLIGHT_REJECTIONS,
   METRIC_AUTH_ATTEMPTS,
   METRIC_AUTH_FAILURES,
   METRIC_CHARACTER_CREATED,
@@ -27,6 +38,7 @@ import {
   METRIC_CHAT_MESSAGES,
   METRIC_FLUX_CONSUMED,
   METRIC_FLUX_INSUFFICIENT_BALANCE,
+  METRIC_GEN_AI_CLIENT_FIRST_TOKEN_DURATION,
   METRIC_GEN_AI_CLIENT_OPERATION_COUNT,
   METRIC_GEN_AI_CLIENT_OPERATION_DURATION,
   METRIC_GEN_AI_CLIENT_TOKEN_USAGE_INPUT,
@@ -66,7 +78,24 @@ export interface EngagementMetrics {
   characterCreated: Counter
   characterDeleted: Counter
   characterEngagement: Counter
-  wsConnectionsActive: UpDownCounter
+  /**
+   * Pull-based gauge for active WebSocket connections.
+   *
+   * Use when:
+   * - Querying current concurrent WS connections in Grafana / alerts.
+   *
+   * Why ObservableGauge instead of UpDownCounter:
+   * - UpDownCounter is delta-based (+1 / -1) and drifts when disconnect
+   *   handlers miss (process crash, SIGKILL, TCP RST, network blackhole).
+   * - ObservableGauge runs a callback at every export interval and reports
+   *   the live registry size, so a missed -1 self-corrects on the next
+   *   scrape instead of leaking forever.
+   *
+   * Expects:
+   * - Caller (`createChatWsHandlers`) registers exactly one callback via
+   *   `addCallback`. Multiple callbacks would double-count.
+   */
+  wsConnectionsActive: ObservableGauge
   wsMessagesSent: Counter
   wsMessagesReceived: Counter
 }
@@ -77,7 +106,12 @@ export interface RevenueMetrics {
   stripePaymentFailed: Counter
   stripeSubscriptionEvent: Counter
   stripeEvents: Counter
+  stripeRevenue: Counter
   fluxInsufficientBalance: Counter
+  fluxCredited: Counter
+  fluxUnbilled: Counter
+  ttsChars: Counter
+  ttsPreflightRejections: Counter
 }
 
 export interface GenAiMetrics {
@@ -86,6 +120,18 @@ export interface GenAiMetrics {
   tokenUsageInput: Counter
   tokenUsageOutput: Counter
   fluxConsumed: Counter
+  firstTokenDuration: Histogram
+  streamInterrupted: Counter
+}
+
+export interface EmailMetrics {
+  send: Counter
+  failures: Counter
+  duration: Histogram
+}
+
+export interface RateLimitMetrics {
+  blocked: Counter
 }
 
 // NOTICE: Database metrics (db.client.operation.duration, redis.client.command.duration) were
@@ -100,6 +146,8 @@ export interface OtelInstance {
   engagement: EngagementMetrics
   revenue: RevenueMetrics
   genAi: GenAiMetrics
+  email: EmailMetrics
+  rateLimit: RateLimitMetrics
   shutdown: () => Promise<void>
 }
 
@@ -167,11 +215,36 @@ export function initOtel(env: Env): OtelInstance | undefined {
       exportTimeoutMillis: 10_000,
     })],
     logRecordProcessors: [new BatchLogRecordProcessor(logExporter)],
-    // NOTICE: HttpInstrumentation, PgInstrumentation, and IORedisInstrumentation
-    // are registered in instrumentation.cjs (loaded via --require) so that
-    // require-in-the-middle can patch the CJS modules before tsx's ESM loader
-    // imports them. Only non-patching instrumentations belong here.
+    // NOTICE: PgInstrumentation and IORedisInstrumentation are registered in
+    // instrumentation.mjs (loaded via --import) so require-in-the-middle can
+    // patch their CJS modules before tsx's ESM loader caches them. They only
+    // emit spans (not metrics), and the trace API has a proxy that upgrades
+    // a noop tracer to the real one when the SDK starts — so registering
+    // early is safe for them.
+    //
+    // HttpInstrumentation MUST be here (NodeSDK config) and NOT in the
+    // preload, because:
+    // - It records `http.server.request.duration` to a Histogram instrument
+    //   created against `this.meter`.
+    // - The OTel metrics API does NOT have a proxy mechanism (see comment
+    //   below at sdk.start()). A meter obtained before the real
+    //   MeterProvider is installed becomes a permanent NoopMeter, and the
+    //   histogram inside it silently swallows every record() call.
+    // - NodeSDK calls setMeterProvider on its config-passed instrumentations
+    //   AT start time, after the real provider is installed. That path
+    //   re-runs `_updateMetricInstruments()` and gives the instrumentation
+    //   a real histogram.
+    // - The patch HttpInstrumentation installs is `Server.prototype.emit`
+    //   (incoming) — prototype-level, race-immune. Patching at SDK-start
+    //   time instead of preload time still catches every Server instance
+    //   created later.
+    // Source: node_modules/.../@opentelemetry+api/.../api/metrics.js
+    // (`getMeterProvider()` returns NoopMeterProvider until setGlobalMeterProvider
+    // is called; cached meters are not retroactively upgraded.)
     instrumentations: [
+      new HttpInstrumentation({
+        ignoreIncomingRequestHook: req => req.url === '/health',
+      }),
       new RuntimeNodeInstrumentation(),
     ],
   })
@@ -228,8 +301,15 @@ export function initOtel(env: Env): OtelInstance | undefined {
     characterEngagement: meter.createCounter(METRIC_CHARACTER_ENGAGEMENT, {
       description: 'Number of character engagement actions (like/bookmark)',
     }),
-    wsConnectionsActive: meter.createUpDownCounter(METRIC_WS_CONNECTIONS_ACTIVE, {
-      description: 'Active WebSocket connections',
+    // NOTICE:
+    // ObservableGauge — caller (chat-ws factory) registers a callback that
+    // reads the live connection registry on each export interval. UpDownCounter
+    // was previously used but drifted: missed `-1` on process crash / SIGKILL /
+    // TCP RST left the counter stuck high until Prom staleness expired the
+    // dead instance's series (~5 min). The pull-based gauge self-corrects on
+    // the next scrape because there is no delta state to leak.
+    wsConnectionsActive: meter.createObservableGauge(METRIC_WS_CONNECTIONS_ACTIVE, {
+      description: 'Active WebSocket connections (live registry size, scraped per export interval)',
     }),
     wsMessagesSent: meter.createCounter(METRIC_WS_MESSAGES_SENT, {
       description: 'Messages sent via WebSocket',
@@ -256,8 +336,24 @@ export function initOtel(env: Env): OtelInstance | undefined {
     stripeEvents: meter.createCounter(METRIC_STRIPE_EVENTS, {
       description: 'Number of Stripe webhook events processed',
     }),
+    stripeRevenue: meter.createCounter(METRIC_AIRI_STRIPE_REVENUE, {
+      description: 'Stripe revenue in smallest currency unit (e.g. cents)',
+      unit: 'minor_unit',
+    }),
     fluxInsufficientBalance: meter.createCounter(METRIC_FLUX_INSUFFICIENT_BALANCE, {
       description: 'Number of insufficient flux balance errors',
+    }),
+    fluxCredited: meter.createCounter(METRIC_AIRI_FLUX_CREDITED, {
+      description: 'Total flux credited to user balances, by source',
+    }),
+    fluxUnbilled: meter.createCounter(METRIC_AIRI_FLUX_UNBILLED, {
+      description: 'Flux that should have been debited but was not (revenue leak)',
+    }),
+    ttsChars: meter.createCounter(METRIC_AIRI_TTS_CHARS, {
+      description: 'TTS input characters processed (billing base unit)',
+    }),
+    ttsPreflightRejections: meter.createCounter(METRIC_AIRI_TTS_PREFLIGHT_REJECTIONS, {
+      description: 'Pre-flight rejections from flux-meter assertCanAfford',
     }),
   }
 
@@ -279,7 +375,75 @@ export function initOtel(env: Env): OtelInstance | undefined {
     fluxConsumed: meter.createCounter(METRIC_FLUX_CONSUMED, {
       description: 'Total flux consumed',
     }),
+    firstTokenDuration: meter.createHistogram(METRIC_GEN_AI_CLIENT_FIRST_TOKEN_DURATION, {
+      description: 'Time from request start to first streamed token (TTFB for streaming)',
+      unit: 's',
+    }),
+    streamInterrupted: meter.createCounter(METRIC_AIRI_GEN_AI_STREAM_INTERRUPTED, {
+      description: 'Streaming responses interrupted before completion',
+    }),
   }
+
+  const email: EmailMetrics = {
+    send: meter.createCounter(METRIC_AIRI_EMAIL_SEND, {
+      description: 'Transactional emails accepted by Resend',
+    }),
+    failures: meter.createCounter(METRIC_AIRI_EMAIL_FAILURES, {
+      description: 'Transactional email send failures',
+    }),
+    duration: meter.createHistogram(METRIC_AIRI_EMAIL_DURATION, {
+      description: 'Email provider call duration',
+      unit: 's',
+    }),
+  }
+
+  const rateLimit: RateLimitMetrics = {
+    blocked: meter.createCounter(METRIC_AIRI_RATE_LIMIT_BLOCKED, {
+      description: 'Requests blocked by rate limiter',
+    }),
+  }
+
+  // NOTICE:
+  // OTel SDK only emits a Counter time series after .add() runs the first time.
+  // Without this priming step, low-traffic counters (auth_failures_total,
+  // stripe_*_total, payment_failed, ...) never appear in Prometheus / Grafana
+  // until an event happens — making panels look broken on fresh deploys and
+  // making absence-based alerts impossible to author. add(0) registers the
+  // series with a baseline of 0 without distorting any rates.
+  // Removal condition: OTel SDK changes default to register Counters at create
+  // time (https://github.com/open-telemetry/opentelemetry-specification/issues/2298).
+  function primeCounter(counter: Counter): void {
+    counter.add(0)
+  }
+  primeCounter(auth.attempts)
+  primeCounter(auth.failures)
+  primeCounter(auth.userRegistered)
+  primeCounter(auth.userLogin)
+  primeCounter(engagement.chatMessages)
+  primeCounter(engagement.characterCreated)
+  primeCounter(engagement.characterDeleted)
+  primeCounter(engagement.characterEngagement)
+  primeCounter(engagement.wsMessagesSent)
+  primeCounter(engagement.wsMessagesReceived)
+  primeCounter(revenue.stripeCheckoutCreated)
+  primeCounter(revenue.stripeCheckoutCompleted)
+  primeCounter(revenue.stripePaymentFailed)
+  primeCounter(revenue.stripeSubscriptionEvent)
+  primeCounter(revenue.stripeEvents)
+  primeCounter(revenue.stripeRevenue)
+  primeCounter(revenue.fluxInsufficientBalance)
+  primeCounter(revenue.fluxCredited)
+  primeCounter(revenue.fluxUnbilled)
+  primeCounter(revenue.ttsChars)
+  primeCounter(revenue.ttsPreflightRejections)
+  primeCounter(genAi.operationCount)
+  primeCounter(genAi.tokenUsageInput)
+  primeCounter(genAi.tokenUsageOutput)
+  primeCounter(genAi.fluxConsumed)
+  primeCounter(genAi.streamInterrupted)
+  primeCounter(email.send)
+  primeCounter(email.failures)
+  primeCounter(rateLimit.blocked)
 
   // Graceful shutdown
   const shutdown = async () => {
@@ -299,6 +463,8 @@ export function initOtel(env: Env): OtelInstance | undefined {
     engagement,
     revenue,
     genAi,
+    email,
+    rateLimit,
     shutdown,
   }
 }

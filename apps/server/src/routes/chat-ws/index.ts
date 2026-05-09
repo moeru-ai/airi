@@ -60,6 +60,17 @@ export function createChatWsHandlers(
   // Dedicated subscriber connection (ioredis requires a separate connection for subscribe mode)
   const sub = redis.duplicate()
 
+  // Pull-based active-connection gauge: walk the local registry on each
+  // export interval and report the actual live count. Registered exactly
+  // once per process here (factory runs once via injeca); duplicate
+  // registration would double-count.
+  metrics?.wsConnectionsActive.addCallback((result) => {
+    let total = 0
+    for (const conns of userConnections.values())
+      total += conns.size
+    result.observe(total)
+  })
+
   sub.on('message', (_channel: string, message: string) => {
     try {
       const data = parseChatBroadcastMessage(message)
@@ -113,13 +124,11 @@ export function createChatWsHandlers(
         addConnection(userId, ctx)
         ensureSubscribed(userId)
         log.withFields({ userId }).log('WS connected')
-        metrics?.wsConnectionsActive.add(1)
 
         ctx.on(wsDisconnectedEvent, () => {
           removeConnection(userId, ctx)
           maybeUnsubscribe(userId)
           log.withFields({ userId }).log('WS disconnected')
-          metrics?.wsConnectionsActive.add(-1)
         })
 
         // RPC: send messages

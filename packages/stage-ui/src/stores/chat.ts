@@ -350,28 +350,28 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         ],
       })
 
-      // Per-message datetime injection (replaces the old `<context>` XML block):
-      // every user/assistant message gets a `[YYYY-MM-DD HH:MM]` prefix
-      // derived from its persisted `createdAt`. The full date appears on every
-      // turn so the model can read "today" from the most recent message; the
-      // system prompt itself stays 100% static for permanent KV-cache reuse.
-      // Legacy entries without a persisted `createdAt` fall back to "now"
-      // rather than a fabricated older timestamp.
+      // Inject `[YYYY-MM-DD HH:MM]` prefix only into user messages, derived
+      // from their persisted `createdAt`. Assistant messages stay clean —
+      // otherwise the model learns the format and mirrors it back into its
+      // own replies (e.g. `[2026-05-09 00:23] > ...`). The model still reads
+      // "today" from the latest user message, and the system prompt stays
+      // 100% static for permanent KV-cache reuse. Legacy entries without a
+      // persisted `createdAt` fall back to "now" rather than a fabricated
+      // older timestamp.
       // See `./chat/datetime-prefix.ts` for the rationale.
       const nowTs = Date.now()
 
       const newMessages = sessionMessagesForSend.map((msg) => {
         const { context: _context, id: _id, createdAt, ...withoutContext } = msg
         const rawMessage = toRaw(withoutContext)
-        const ts = createdAt ?? nowTs
 
         if (rawMessage.role === 'user') {
-          return prependTextToContent(rawMessage, formatTimePrefix(ts))
+          return prependTextToContent(rawMessage, formatTimePrefix(createdAt ?? nowTs))
         }
 
         if (rawMessage.role === 'assistant') {
           const { slices: _slices, tool_results: _toolResults, categorization: _categorization, ...rest } = rawMessage as ChatAssistantMessage
-          return prependTextToContent(toRaw(rest), formatTimePrefix(ts))
+          return toRaw(rest)
         }
 
         return rawMessage
