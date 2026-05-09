@@ -10,6 +10,46 @@ import type {
 import { spawn } from 'node:child_process'
 import { env, cwd as processCwd } from 'node:process'
 
+export const TERMINAL_OUTPUT_MAX_CHARS = 16_384
+
+interface OutputCapture {
+  value: string
+  originalLength: number
+  truncated: boolean
+}
+
+function createOutputCapture(): OutputCapture {
+  return {
+    value: '',
+    originalLength: 0,
+    truncated: false,
+  }
+}
+
+function appendOutput(capture: OutputCapture, chunk: string) {
+  capture.originalLength += chunk.length
+
+  const remaining = TERMINAL_OUTPUT_MAX_CHARS - capture.value.length
+  if (remaining > 0)
+    capture.value += chunk.slice(0, remaining)
+
+  if (chunk.length > remaining || capture.originalLength > TERMINAL_OUTPUT_MAX_CHARS)
+    capture.truncated = true
+}
+
+function appendTimeoutMessage(capture: OutputCapture, timeoutMs: number): OutputCapture {
+  const message = `process timeout after ${timeoutMs}ms`
+  const separator = capture.value ? '\n' : ''
+  const combined = `${capture.value}${separator}${message}`.trim()
+  const combinedOriginalLength = capture.originalLength + separator.length + message.length
+
+  return {
+    value: combined.slice(0, TERMINAL_OUTPUT_MAX_CHARS),
+    originalLength: combinedOriginalLength,
+    truncated: capture.truncated || combined.length > TERMINAL_OUTPUT_MAX_CHARS,
+  }
+}
+
 function summarizeCommand(command: string) {
   const compact = command.replace(/\s+/g, ' ').trim()
   return compact.length > 160 ? `${compact.slice(0, 157)}...` : compact
@@ -50,8 +90,8 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
           stdio: ['ignore', 'pipe', 'pipe'],
         })
 
-        let stdout = ''
-        let stderr = ''
+        const stdout = createOutputCapture()
+        const stderr = createOutputCapture()
         let finished = false
         let timedOut = false
 
@@ -62,10 +102,15 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
           timedOut = true
           finished = true
           child.kill('SIGTERM')
+          const timeoutStderr = appendTimeoutMessage(stderr, timeoutMs)
           resolve({
             command: input.command,
-            stdout,
-            stderr: `${stderr}${stderr ? '\n' : ''}process timeout after ${timeoutMs}ms`.trim(),
+            stdout: stdout.value,
+            stderr: timeoutStderr.value,
+            stdoutTruncated: stdout.truncated,
+            stderrTruncated: timeoutStderr.truncated,
+            stdoutOriginalLength: stdout.originalLength,
+            stderrOriginalLength: timeoutStderr.originalLength,
             exitCode: 124,
             effectiveCwd,
             durationMs: Date.now() - startedAt,
@@ -76,11 +121,11 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
         const cleanup = () => clearTimeout(stopTimer)
 
         child.stdout.on('data', (chunk) => {
-          stdout += chunk.toString('utf-8')
+          appendOutput(stdout, chunk.toString('utf-8'))
         })
 
         child.stderr.on('data', (chunk) => {
-          stderr += chunk.toString('utf-8')
+          appendOutput(stderr, chunk.toString('utf-8'))
         })
 
         child.on('error', (error) => {
@@ -100,8 +145,12 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
           cleanup()
           resolve({
             command: input.command,
-            stdout,
-            stderr,
+            stdout: stdout.value,
+            stderr: stderr.value,
+            stdoutTruncated: stdout.truncated,
+            stderrTruncated: stderr.truncated,
+            stdoutOriginalLength: stdout.originalLength,
+            stderrOriginalLength: stderr.originalLength,
             exitCode: typeof code === 'number' ? code : 1,
             effectiveCwd,
             durationMs: Date.now() - startedAt,
