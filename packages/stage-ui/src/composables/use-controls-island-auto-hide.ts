@@ -35,96 +35,90 @@ export interface UseControlsIslandAutoHideReturn {
 
 /**
  * Composable for controls island auto-hide/show behavior.
- * Handles delayed hide/show based on mouse position and configurable delays.
+ *
+ * Uses timeout-based delays (not debounce) because:
+ * - We want a single delayed action when mouse enters/leaves
+ * - Intermediate movements should reset the countdown, not extend it
+ * - useTimeoutFn allows stopping/restarting the timer cleanly
+ *
+ * Flow:
+ * 1. Mouse enter → start show timer → after autoShowDelay, isInsideDelayed=true → isHidden=false
+ * 2. Mouse leave → start hide timer → after autoHideDelay, isOutsideDelayed=true → isHidden=true
+ * 3. If mouse re-enters before timer fires, timer is stopped and reset
  */
 export function useControlsIslandAutoHide(options: UseControlsIslandAutoHideOptions): UseControlsIslandAutoHideReturn {
   const { autoHideControlsIsland, autoHideDelay, autoShowDelay, autoHideOpacity, isOutside, isBlocked, expanded } = options
 
-  // Delayed states that respond to both value AND delay configuration changes
   const isOutsideDelayed = ref(isOutside.value)
   const isInsideDelayed = ref(!isOutside.value)
 
-  // --- Auto-hide island (only works when autoHideControlsIsland = true) ---
-  const { start: startOutside, stop: stopOutside } = useTimeoutFn(() => {
+  const hideDelayMs = computed(() => autoHideDelay.value * 1000)
+  const showDelayMs = computed(() => autoShowDelay.value * 1000)
+
+  const { start: startHideTimer, stop: stopHideTimer } = useTimeoutFn(() => {
     isOutsideDelayed.value = true
-  }, () => autoHideDelay.value * 1000, { immediate: false })
+  }, hideDelayMs, { immediate: false })
 
-  const { start: startInside, stop: stopInside } = useTimeoutFn(() => {
+  const { start: startShowTimer, stop: stopShowTimer } = useTimeoutFn(() => {
     isInsideDelayed.value = true
-  }, () => autoShowDelay.value * 1000, { immediate: false })
+  }, showDelayMs, { immediate: false })
 
-  // Watch mouse position changes
-  watch(isOutside, (val) => {
-    if (!autoHideControlsIsland.value) {
-      // Not in auto-hide mode, reset states
-      stopOutside()
-      stopInside()
-      isOutsideDelayed.value = val
-      isInsideDelayed.value = !val
-      return
-    }
-    // Stop any pending timers
-    stopOutside()
-    stopInside()
-    if (val) {
-      // Mouse left - start hide delay timer
-      // Only update state when delay is met (or delay is 0)
-      if (autoHideDelay.value <= 0) {
-        isOutsideDelayed.value = true
-      }
-      else {
-        startOutside()
-      }
-    }
-    else {
-      // Mouse entered - start show delay timer
-      // Only update state when delay is met (or delay is 0)
-      if (autoShowDelay.value <= 0) {
-        isInsideDelayed.value = true
-      }
-      else {
-        startInside()
-      }
-    }
-  })
+  const stopAll = () => {
+    stopHideTimer()
+    stopShowTimer()
+  }
 
-  // Reset all states when autoHideControlsIsland toggles
-  watch(autoHideControlsIsland, () => {
-    stopOutside()
-    stopInside()
+  const syncDelayedStates = () => {
     isOutsideDelayed.value = isOutside.value
     isInsideDelayed.value = !isOutside.value
+  }
+
+  watch(isOutside, (val) => {
+    if (!autoHideControlsIsland.value) {
+      stopAll()
+      syncDelayedStates()
+      return
+    }
+
+    stopAll()
+
+    if (val) {
+      // Mouse leave: reset inside state, start hide timer
+      isInsideDelayed.value = false
+      if (autoHideDelay.value <= 0)
+        isOutsideDelayed.value = true
+      else
+        startHideTimer()
+    }
+    else {
+      // Mouse enter: reset outside state, start show timer
+      isOutsideDelayed.value = false
+      if (autoShowDelay.value <= 0)
+        isInsideDelayed.value = true
+      else
+        startShowTimer()
+    }
   })
 
-  // Calculate opacity when hidden (0-100 range converted to 0-1)
+  watch(autoHideControlsIsland, (enabled) => {
+    stopAll()
+    syncDelayedStates()
+  })
+
   const hiddenOpacity = computed(() => autoHideOpacity.value / 100)
 
-  // Determine if island should be hidden
   const isHidden = computed(() => {
     if (!autoHideControlsIsland.value)
       return false
 
-    // Don't hide if there's a blocking overlay or expanded panel should stay
     if (isBlocked.value || expanded.value)
       return false
 
-    // When mouse is inside, wait for show delay before fully showing
-    if (!isOutside.value) {
-      if (autoShowDelay.value > 0) {
-        // Wait for mouse to be inside for the configured delay before showing
-        return !isInsideDelayed.value
-      }
-      return false
-    }
+    if (!isOutside.value)
+      return autoShowDelay.value > 0 ? !isInsideDelayed.value : false
 
-    // When mouse is outside, hide after delay
     return isOutsideDelayed.value
   })
-
-  const stopAll = () => {
-    stopOutside()
-    stopInside()
-  }
 
   return {
     isOutsideDelayed,

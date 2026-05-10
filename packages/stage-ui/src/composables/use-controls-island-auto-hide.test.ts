@@ -439,6 +439,95 @@ describe('useControlsIslandAutoHide', () => {
   })
 
   // =============================================================================
+  // Reset State on Mouse Enter/Exit
+  // =============================================================================
+
+  describe('reset state on mouse enter/exit', () => {
+    it('should reset delayed states when mouse enters then quickly leaves', async () => {
+      const autoHideControlsIsland = ref(true)
+      const autoHideDelay = ref(0.3) // 300ms
+      const autoShowDelay = ref(0.3) // 300ms
+      const isOutside = ref(false) // Mouse inside initially
+      const isBlocked = ref(false)
+      const expanded = ref(false)
+
+      const { isOutsideDelayed, isInsideDelayed, isHidden, stopAll } = useControlsIslandAutoHide({
+        autoHideControlsIsland,
+        autoHideDelay,
+        autoShowDelay,
+        autoHideOpacity: ref(30),
+        isOutside,
+        isBlocked,
+        expanded,
+      })
+
+      // Initially visible
+      expect(isHidden.value).toBe(false)
+      expect(isOutsideDelayed.value).toBe(false)
+      expect(isInsideDelayed.value).toBe(true)
+
+      // Mouse leaves - hide timer starts
+      isOutside.value = true
+      // Wait less than hide delay
+      await wait(100)
+      expect(isOutsideDelayed.value).toBe(false) // Hide timer hasn't fired yet
+
+      // Mouse re-enters before hide timer fires - should reset state
+      isOutside.value = false
+      // Show timer starts, outside delayed should be reset
+      expect(isOutsideDelayed.value).toBe(false)
+
+      // Wait less than show delay
+      await wait(100)
+      expect(isInsideDelayed.value).toBe(false) // Show timer hasn't fired yet
+
+      // Now mouse leaves again - hide timer restarts
+      isOutside.value = true
+
+      // Wait for hide delay to complete (300ms from last change)
+      await wait(350)
+      expect(isOutsideDelayed.value).toBe(true)
+
+      stopAll()
+    })
+
+    it('should cancel pending timers when switching between enter and leave', async () => {
+      const autoHideControlsIsland = ref(true)
+      const autoHideDelay = ref(0.4) // 400ms
+      const autoShowDelay = ref(0.4) // 400ms
+      const isOutside = ref(false)
+      const isBlocked = ref(false)
+      const expanded = ref(false)
+
+      const { isOutsideDelayed, isInsideDelayed } = useControlsIslandAutoHide({
+        autoHideControlsIsland,
+        autoHideDelay,
+        autoShowDelay,
+        autoHideOpacity: ref(30),
+        isOutside,
+        isBlocked,
+        expanded,
+      })
+
+      // Mouse leaves - start hide timer
+      isOutside.value = true
+      isInsideDelayed.value = false
+
+      // Quickly mouse enters before hide timer fires
+      await wait(200) // Less than 400ms
+      isOutside.value = false
+
+      // Hide timer should NOT fire after the original 400ms
+      await wait(250) // Past original 400ms
+      expect(isOutsideDelayed.value).toBe(false) // Should still be false
+
+      // Show timer should fire at 400ms from the enter event
+      await wait(250)
+      expect(isInsideDelayed.value).toBe(true)
+    })
+  })
+
+  // =============================================================================
   // stopAll Function
   // =============================================================================
 
