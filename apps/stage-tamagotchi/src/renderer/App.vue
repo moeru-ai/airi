@@ -32,6 +32,7 @@ import {
   electronGodotStageStatusChanged,
   electronSettingsNavigate,
   electronStartTrackMousePosition,
+  i18nGetLocale,
   i18nSetLocale,
 } from '../shared/eventa'
 import {
@@ -92,6 +93,7 @@ const unloadPlugin = useElectronEventaInvoke(electronPluginUnload)
 const inspectPluginHost = useElectronEventaInvoke(electronPluginInspect)
 const startTrackingCursorPoint = useElectronEventaInvoke(electronStartTrackMousePosition)
 const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapability)
+const getMainLocale = useElectronEventaInvoke(i18nGetLocale)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
 const getGodotStageStatus = useElectronEventaInvoke(electronGodotStageGetStatus)
 const syncArtistryConfig = useElectronEventaInvoke(artistrySyncConfig)
@@ -198,6 +200,18 @@ context.value.on(electronGodotStageStatusChanged, (event) => {
 })
 
 onMounted(async () => {
+  // NOTICE: Issue #1658
+  // When Electron restarts, renderer localStorage may not be flushed to disk.
+  // If no persisted language is found, fallback to the main process config
+  // which is stored in a file and survives full restarts.
+  // https://github.com/moeru-ai/airi/issues/1658
+  if (!settingsStore.language) {
+    const mainLocale = await getMainLocale()
+    if (typeof mainLocale === 'string' && mainLocale) {
+      settingsStore.language = mainLocale
+    }
+  }
+
   analyticsStore.initialize()
   await displayModelsStore.initialize()
   cardStore.initialize()
