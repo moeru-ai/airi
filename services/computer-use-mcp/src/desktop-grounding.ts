@@ -161,10 +161,6 @@ export function buildTargetCandidates(params: {
       chromeSnapshot.interactiveElements,
       chromeWindowBounds,
     )
-    // Set appName on all chrome candidates
-    for (const c of chromeCandidates) {
-      c.appName = foregroundApp
-    }
   }
 
   // 2. Build AX candidates
@@ -335,7 +331,7 @@ function findChromeWindowBounds(
   const normalizedTitleHint = titleHint?.trim().toLowerCase()
   if (normalizedTitleHint) {
     const titleMatchedWindow = observation.windows.find((window) => {
-      if (!window.bounds) {
+      if (!window.bounds || !window.appName.toLowerCase().includes('chrome')) {
         return false
       }
 
