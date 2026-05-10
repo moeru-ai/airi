@@ -56,6 +56,10 @@ import { useTamagotchiPluginToolsStore } from './stores/plugin-tools'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 
+// Check localStorage before store initialization so we know whether the
+// renderer actually had a persisted language or is falling back.
+const hasPersistedLanguage = !!localStorage.getItem('settings/language')
+
 const { isDark: dark } = useTheme()
 const contextBridgeStore = useContextBridgeStore()
 const displayModelsStore = useDisplayModelsStore()
@@ -157,7 +161,7 @@ void mcpToolsStore.refresh().catch((error) => {
 })
 void refreshPluginRuntimeTools()
 
-const { restore: restoreLocale } = useLocaleRestore(language, getMainLocale, setLocale)
+const { restore: restoreLocale } = useLocaleRestore(language, getMainLocale, setLocale, hasPersistedLanguage)
 
 watch([activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions], () => {
   if (activeProvider.value) {

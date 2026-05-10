@@ -22,6 +22,7 @@ export function useLocaleRestore(
   language: Ref<string>,
   getMainLocale: () => Promise<unknown>,
   setLocale: (locale: string) => Promise<unknown> | unknown,
+  hasPersistedLanguage: boolean,
 ) {
   const i18n = useI18n()
   let isLocaleSynced = false
@@ -36,9 +37,20 @@ export function useLocaleRestore(
   })
 
   async function restore() {
-    const mainLocale = await getMainLocale()
-    if (typeof mainLocale === 'string' && mainLocale && mainLocale !== language.value) {
-      language.value = mainLocale
+    // Only trust main-process locale when renderer has lost its own setting.
+    // When main returns undefined, no language has ever been explicitly saved
+    // (true first launch), so we keep the renderer's OS-detected fallback.
+    // When main returns a string, that is the user's explicit choice.
+    if (!hasPersistedLanguage) {
+      try {
+        const mainLocale = await getMainLocale()
+        if (typeof mainLocale === 'string' && mainLocale && mainLocale !== language.value) {
+          language.value = mainLocale
+        }
+      }
+      catch (error) {
+        console.warn('[useLocaleRestore] Failed to get locale from main process, using fallback:', error)
+      }
     }
     isLocaleSynced = true
     void setLocale(language.value || 'en')
