@@ -201,6 +201,7 @@ words:
   - msvc
   - multisampling
   - Myriam
+  - napi
   - ndarray
   - Neko
   - nekomeowww
@@ -316,7 +317,7 @@ words:
   - tsdown
   - ttft
   - turborepo
-  - uiohook-napi
+  - uiohook
   - unbird
   - unbundle
   - unconfig

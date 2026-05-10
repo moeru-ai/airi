@@ -47,7 +47,12 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
 
   function broadcastTriggered(id: string, phase: 'down' | 'up') {
     for (const context of contexts) {
-      context.emit(electronShortcutTriggered, { id, phase })
+      try {
+        context.emit(electronShortcutTriggered, { id, phase })
+      }
+      catch (error) {
+        log.withError(error).warn(`Failed to emit shortcut trigger for "${id}"`)
+      }
     }
   }
 
@@ -69,9 +74,12 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
     const ok = globalShortcut.register(electronAccelerator, () => broadcastTriggered(binding.id, 'down'))
 
     if (!ok) {
-      // `globalShortcut.register` returns false when the accelerator
-      // is held by another app or another binding here under a
-      // different id.
+      // `globalShortcut.register` returns false for several distinct
+      // causes (held by another app, or denied by the OS for media
+      // keys / Accessibility-gated combos on macOS). Electron does not
+      // expose which case applied, so this driver reports `Conflict`
+      // for both. A future driver path (XDG portal, native macOS) can
+      // emit `Denied` directly.
       return { id: binding.id, ok: false, reason: ShortcutFailureReasons.Conflict }
     }
 
@@ -93,11 +101,13 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
   }
 
   function unregisterAll(): void {
-    try {
-      globalShortcut.unregisterAll()
-    }
-    catch (error) {
-      log.withError(error).warn('Failed to unregisterAll global shortcuts')
+    for (const [id, entry] of active) {
+      try {
+        globalShortcut.unregister(entry.electronAccelerator)
+      }
+      catch (error) {
+        log.withError(error).warn(`Failed to unregister accelerator for "${id}"`)
+      }
     }
     active.clear()
   }
@@ -109,14 +119,14 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
     })
 
     defineInvokeHandler(context, electronShortcutRegister, (binding) => {
-      if (!binding) {
-        throw new TypeError('electronShortcutRegister called without a binding payload')
+      if (!binding.id) {
+        throw new TypeError('electronShortcutRegister called with invalid binding payload')
       }
       return tryRegister(binding)
     })
 
     defineInvokeHandler(context, electronShortcutUnregister, (payload) => {
-      if (!payload)
+      if (!payload.id)
         return
       unregisterById(payload.id)
     })

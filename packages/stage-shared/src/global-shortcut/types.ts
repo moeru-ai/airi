@@ -59,15 +59,52 @@ export interface ShortcutBinding {
   accelerator: ShortcutAccelerator
   /** When the shortcut is active. */
   scope: ShortcutScope
-  /** Whether the driver should also emit key-release events. */
+  /**
+   * Whether the driver should also emit key-release events.
+   *
+   * Drivers that cannot deliver release events refuse the registration
+   * with `{ ok: false, reason: ShortcutFailureReasons.Unsupported }`. The Electron
+   * `globalShortcut` driver currently refuses; a uiohook-based driver
+   * path is planned to honour this flag.
+   *
+   * @default false
+   */
   receiveKeyUps?: boolean
   /** Human-readable description, surfaced in settings UI. */
   description?: string
 }
 
+/**
+ * Closed set of failure reasons returned by drivers.
+ *
+ * Drivers translate platform-specific failures into one of these
+ * values at the boundary; raw underlying errors stay in driver logs,
+ * not on the wire. Add a new value here before any driver may emit it.
+ */
 export const ShortcutFailureReasons = {
+  /**
+   * The accelerator is held by another app or by another binding here
+   * under a different id.
+   */
   Conflict: 'conflict',
+  /**
+   * An active binding already uses this id; callers must `unregister`
+   * first to rebind.
+   */
   DuplicateId: 'duplicate-id',
+  /**
+   * The OS or portal refused the registration (e.g. user declined a
+   * Wayland portal dialog, macOS denied Accessibility for a media-key
+   * combo). Drivers that can distinguish denial from conflict report
+   * this; the Electron `globalShortcut` driver cannot distinguish and
+   * reports `Conflict` for both.
+   */
+  Denied: 'denied',
+  /**
+   * The driver cannot satisfy the request (e.g. a binding asks for
+   * `receiveKeyUps: true` on a driver path that only delivers
+   * presses).
+   */
   Unsupported: 'unsupported',
 } as const
 

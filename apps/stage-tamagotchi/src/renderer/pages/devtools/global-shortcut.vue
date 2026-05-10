@@ -23,7 +23,7 @@ import {
 
 interface FormState {
   id: string
-  acceleratorIR: string
+  acceleratorText: string
   receiveKeyUps: boolean
   description: string
 }
@@ -38,7 +38,7 @@ const TRIGGER_LOG_LIMIT = 50
 
 const form = reactive<FormState>({
   id: '',
-  acceleratorIR: 'Mod+Shift+K',
+  acceleratorText: 'Mod+Shift+K',
   receiveKeyUps: false,
   description: '',
 })
@@ -65,7 +65,7 @@ async function refreshList() {
 
 function tryParseAccelerator(): ShortcutAccelerator | null {
   try {
-    return parseAccelerator(form.acceleratorIR)
+    return parseAccelerator(form.acceleratorText)
   }
   catch (error) {
     lastError.value = errorMessageFrom(error) ?? 'Invalid accelerator'
@@ -179,9 +179,9 @@ onUnmounted(() => {
           placeholder="my-shortcut"
         />
         <FieldInput
-          v-model="form.acceleratorIR"
+          v-model="form.acceleratorText"
           label="Accelerator"
-          description="IR like Mod+Shift+K, Cmd+Shift+1, Ctrl+Alt+F12"
+          description="e.g. Mod+Shift+K, Cmd+Shift+1, Ctrl+Alt+F12"
           placeholder="Mod+Shift+K"
         />
       </div>

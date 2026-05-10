@@ -281,18 +281,25 @@ describe('setupGlobalShortcutService', () => {
     expect(result.map(b => b.id).sort()).toEqual(['a', 'b'])
   })
 
-  it('unregisterAll calls globalShortcut.unregisterAll', async () => {
+  it('unregisterAll only unregisters bindings owned by this service', async () => {
     const m = await setupMocks()
     const service = m.setupGlobalShortcutService()
     const ctx = createMockContext()
     registerMockWindow(service, ctx)
 
     const reg = ctx.invokeHandlers.get('eventa:invoke:electron:shortcut:register')!
-    reg(exampleBinding('a'))
+    reg(exampleBinding('a', 'KeyA'))
+    reg(exampleBinding('b', 'KeyB'))
     const unregAll = ctx.invokeHandlers.get('eventa:invoke:electron:shortcut:unregister-all')!
     unregAll(undefined)
 
-    expect(m.unregisterAllMock).toHaveBeenCalledTimes(1)
+    expect(m.unregisterAllMock).not.toHaveBeenCalled()
+    expect(m.unregisterMock).toHaveBeenCalledTimes(2)
+    expect(m.unregisterMock).toHaveBeenCalledWith('CmdOrCtrl+Shift+A')
+    expect(m.unregisterMock).toHaveBeenCalledWith('CmdOrCtrl+Shift+B')
+
+    const list = ctx.invokeHandlers.get('eventa:invoke:electron:shortcut:list')!
+    expect(list(undefined)).toEqual([])
   })
 
   it('removes a context from broadcast set when its window closes', async () => {
@@ -330,11 +337,40 @@ describe('setupGlobalShortcutService', () => {
     reg(exampleBinding('a'))
 
     service.dispose()
-    expect(m.unregisterAllMock).toHaveBeenCalledTimes(1)
+    expect(m.unregisterMock).toHaveBeenCalledWith('CmdOrCtrl+Shift+K')
 
     // After dispose, a fresh trigger callback should not reach contexts
     const callback = m.triggerCallbacks.get('CmdOrCtrl+Shift+K')
     callback?.()
     expect(ctx.emit).not.toHaveBeenCalled()
+  })
+
+  it('rejects malformed register payloads at the IPC boundary', async () => {
+    const m = await setupMocks()
+    const service = m.setupGlobalShortcutService()
+    const ctx = createMockContext()
+    registerMockWindow(service, ctx)
+
+    const reg = ctx.invokeHandlers.get('eventa:invoke:electron:shortcut:register')!
+    expect(() => reg({})).toThrow(TypeError)
+    expect(() => reg({ id: 'no-accel' })).toThrow(TypeError)
+    expect(() => reg({ accelerator: { modifiers: [], key: 'KeyK' } })).toThrow(TypeError)
+    expect(m.registerMock).not.toHaveBeenCalled()
+  })
+
+  it('ignores unregister payloads with missing id and skips unknown ids', async () => {
+    // The Eventa contract types `payload` as `{ id: string }`, so a
+    // `null`/`undefined` payload is a programmer error and surfaces as
+    // a thrown TypeError. A well-shaped payload with an empty or
+    // unknown id is a no-op.
+    const m = await setupMocks()
+    const service = m.setupGlobalShortcutService()
+    const ctx = createMockContext()
+    registerMockWindow(service, ctx)
+
+    const unreg = ctx.invokeHandlers.get('eventa:invoke:electron:shortcut:unregister')!
+    expect(() => unreg({ id: '' })).not.toThrow()
+    expect(() => unreg({ id: 'never-registered' })).not.toThrow()
+    expect(m.unregisterMock).not.toHaveBeenCalled()
   })
 })
