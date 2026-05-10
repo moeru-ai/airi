@@ -3,6 +3,7 @@ import type { ComputerUseServerRuntime } from './runtime'
 
 import { errorMessageFrom } from '@moeru/std'
 
+import { appNamesMatch } from '../app-aliases'
 import { decideBrowserAction } from '../browser-action-router'
 import { getUnsupportedBrowserDomActions, isBrowserDomActionSupported } from '../browser-dom/capabilities'
 import { resolveSnapByCandidate } from '../snap-resolver'
@@ -102,6 +103,10 @@ export async function executeDesktopClickTarget(
       fallbackForegroundApp = candidateApp
       await sleep(200)
       return
+    }
+
+    if (!appNamesMatch(candidate?.appName, activeSession.controlledApp)) {
+      throw new Error(`desktop_click_target rejected cross-app fallback: candidate "${candidate?.appName ?? 'unknown'}" does not match controlled app "${activeSession.controlledApp}".`)
     }
 
     const currentForeground = await runtime.executor.getForegroundContext()

@@ -488,6 +488,56 @@ describe('createExecuteAction', () => {
     })
   })
 
+  it('rejects cross-app desktop_click_target fallback under a controlled session', async () => {
+    const { runtime, executor, stateManager, desktopSessionController } = createRuntimeForActionTest()
+    stateManager.updateGroundingSnapshot({
+      snapshotId: 'dg_1',
+      capturedAt: new Date().toISOString(),
+      foregroundApp: 'AIRI',
+      windows: [],
+      screenshot: {
+        dataBase64: '',
+        mimeType: 'image/png',
+        path: '',
+        capturedAt: new Date().toISOString(),
+      },
+      targetCandidates: [
+        {
+          id: 't_0',
+          source: 'ax',
+          appName: 'AIRI',
+          role: 'AXButton',
+          label: 'Submit',
+          bounds: { x: 100, y: 200, width: 80, height: 30 },
+          confidence: 0.95,
+          interactable: true,
+        },
+      ],
+      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
+    } as any)
+    desktopSessionController.getSession.mockReturnValue({
+      id: 'ds_1',
+      controlledApp: 'Google Chrome',
+      ownedWindows: [],
+      createdAt: new Date().toISOString(),
+      lastActiveAt: new Date().toISOString(),
+    })
+    executor.getForegroundContext.mockResolvedValue({
+      available: true,
+      appName: 'AIRI',
+      platform: 'darwin',
+    })
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'desktop_click_target', input: { candidateId: 't_0' } }, 'desktop_click_target')
+
+    expect(result.isError).toBe(true)
+    expect(result.content.find(item => item.type === 'text')?.text).toContain('cross-app fallback')
+    expect(desktopSessionController.ensureControlledAppInForeground).not.toHaveBeenCalled()
+    expect(executor.focusApp).not.toHaveBeenCalled()
+    expect(executor.click).not.toHaveBeenCalled()
+  })
+
   it('returns a structured failure when controlled-app refocus fails during desktop_click_target execution', async () => {
     const { runtime, executor, session, stateManager, desktopSessionController } = createRuntimeForActionTest()
     stateManager.updateGroundingSnapshot({
