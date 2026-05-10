@@ -3,6 +3,8 @@ import type { DesktopExecutor, WindowObservation } from './types'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { captureDesktopGrounding } from './desktop-grounding'
+
 const { captureAXTreeMock, captureChromeSemanticsMock } = vi.hoisted(() => ({
   captureAXTreeMock: vi.fn(),
   captureChromeSemanticsMock: vi.fn(),
@@ -19,8 +21,6 @@ vi.mock('./chrome-semantic-adapter', async () => {
     captureChromeSemantics: captureChromeSemanticsMock,
   }
 })
-
-import { captureDesktopGrounding } from './desktop-grounding'
 
 function makeAxSnapshot(): AXSnapshot {
   const root = {
