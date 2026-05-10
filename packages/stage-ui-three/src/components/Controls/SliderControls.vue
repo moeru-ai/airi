@@ -22,6 +22,7 @@ const controlledValue = computed({
         return cameraDistance.value
       case 'cameraFOV':
         return cameraFOV.value
+      default: throw new Error(`Unexpected control key: ${viewControlMode.value}`)
     }
   },
   set(value) {

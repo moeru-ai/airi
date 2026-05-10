@@ -15,6 +15,7 @@ const controlledValue = computed({
         return position.value.y
       case 'scale':
         return scale.value
+      default: throw new Error(`Unexpected control key: ${viewControlMode.value}`)
     }
   },
   set(value) {
