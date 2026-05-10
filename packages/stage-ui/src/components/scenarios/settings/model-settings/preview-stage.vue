@@ -5,7 +5,7 @@ import { Live2DScene } from '@proj-airi/stage-ui-live2d'
 import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
 import { useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, provide, ref, watch } from 'vue'
 
 import { useSettings } from '../../../../stores/settings'
 import {
@@ -29,6 +29,8 @@ const live2dSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined 
 const vrmSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
 const live2dComponentState = ref<'pending' | 'loading' | 'mounted'>('pending')
 const vrmPreviewStageInstanceId = `model-settings-preview-stage:${Math.random().toString(36).slice(2, 10)}`
+
+provide('previewStage', true)
 
 const {
   live2dDisableFocus,
