@@ -63,7 +63,7 @@ const { enabled, stream } = storeToRefs(settingsAudioDevice)
 const { ingest, onAfterMessageComposed } = chatOrchestrator
 const { t } = useI18n()
 const { audioContext } = useAudioContext()
-const { startAnalyzer, stopAnalyzer, volumeLevel } = useAudioAnalyzer()
+const { startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
 let analyzerSource: MediaStreamAudioSourceNode | undefined
 
 function isMobileDevice() {
@@ -201,7 +201,6 @@ onMounted(() => {
             v-model:enabled="enabled"
             :transcription="isListening"
             :toggle-transcription="toggleTranscription"
-            :volume-level="volumeLevel"
             :granted="true"
           >
             <button

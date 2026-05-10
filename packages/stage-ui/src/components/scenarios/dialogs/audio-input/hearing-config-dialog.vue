@@ -13,7 +13,6 @@ const props = defineProps<{
   overlayBlur?: boolean
   granted?: boolean
   transcription?: boolean
-  volumeLevel?: number
   toggleTranscription?: () => void
 }>()
 
@@ -45,7 +44,6 @@ onMounted(() => screenSafeArea.update())
         </VisuallyHidden>
         <HearingConfig
           :granted="props.granted"
-          :volume-level="props.volumeLevel"
           :transcription="props.transcription"
           @toggle-transcription="() => toggleTranscription?.()"
         />
@@ -77,7 +75,6 @@ onMounted(() => screenSafeArea.update())
         />
         <HearingConfig
           :granted="props.granted"
-          :volume-level="props.volumeLevel"
           :transcription="props.transcription"
           @toggle-transcription="() => toggleTranscription?.()"
         />
