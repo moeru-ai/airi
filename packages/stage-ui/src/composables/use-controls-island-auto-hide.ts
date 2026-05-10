@@ -100,7 +100,7 @@ export function useControlsIslandAutoHide(options: UseControlsIslandAutoHideOpti
     }
   })
 
-  watch(autoHideControlsIsland, (enabled) => {
+  watch(autoHideControlsIsland, () => {
     stopAll()
     syncDelayedStates()
   })
