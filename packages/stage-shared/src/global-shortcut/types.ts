@@ -59,18 +59,19 @@ export interface ShortcutBinding {
   accelerator: ShortcutAccelerator
   /** When the shortcut is active. */
   scope: ShortcutScope
-  /**
-   * Whether the driver should also emit key-release events.
-   *
-   * Drivers that cannot deliver release events refuse the
-   * registration with `{ ok: false, reason: 'unsupported' }`.
-   *
-   * @default false
-   */
+  /** Whether the driver should also emit key-release events. */
   receiveKeyUps?: boolean
   /** Human-readable description, surfaced in settings UI. */
   description?: string
 }
+
+export const ShortcutFailureReasons = {
+  Conflict: 'conflict',
+  DuplicateId: 'duplicate-id',
+  Unsupported: 'unsupported',
+} as const
+
+export type ShortcutFailureReason = typeof ShortcutFailureReasons[keyof typeof ShortcutFailureReasons]
 
 /**
  * Outcome of a registration request.
@@ -79,21 +80,10 @@ export interface ShortcutBinding {
  * `actualAccelerator` is populated when the host had to substitute the
  * requested accelerator (e.g. user choice via a Wayland portal dialog).
  */
-export interface ShortcutRegistrationResult {
-  id: string
-  ok: boolean
-  /**
-   * The accelerator the host actually bound. Absent when the request
-   * was honoured verbatim.
-   */
-  actualAccelerator?: ShortcutAccelerator
-  /**
-   * Failure reason. Known values: `'conflict'`, `'denied'`,
-   * `'unsupported'`. Drivers may emit other strings; treat unknown
-   * values as opaque.
-   */
-  reason?: 'conflict' | 'denied' | 'unsupported' | string
-}
+export type ShortcutRegistrationResult
+  = { id: string }
+    & ({ ok: true, actualAccelerator?: ShortcutAccelerator }
+      | { ok: false, reason: ShortcutFailureReason })
 
 /**
  * In-memory shortcut config. Bump `version` on any breaking schema
