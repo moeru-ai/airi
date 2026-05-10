@@ -4,7 +4,7 @@ import { storeToRefs } from 'pinia'
 import { computed, onUnmounted } from 'vue'
 
 import { useModelStore } from '../../stores/model-store'
-import { controlConfig as conf, useThreeViewControl } from '../../stores/view-control'
+import { defaultControlConfig as conf, formatter, useThreeViewControl } from '../../stores/view-control'
 
 const { cameraDistance, cameraFOV, modelOffset, viewControlsEnabled, viewControlMode, set: setValue } = useThreeViewControl()
 const { sceneMutationLocked } = storeToRefs(useModelStore())
@@ -32,7 +32,7 @@ const controlledValue = computed({
 })
 
 const formattedValue = computed(() => {
-  return conf[viewControlMode.value].format(controlledValue.value)
+  return formatter[viewControlMode.value](controlledValue.value)
 })
 
 onUnmounted(() => {

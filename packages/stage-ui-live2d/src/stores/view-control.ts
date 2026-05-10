@@ -3,7 +3,7 @@ import { ref } from 'vue'
 
 export const supportedControl = ['x', 'y', 'scale'] as const
 type SupportedControl = typeof supportedControl[number]
-interface ControlConfig { min: number, max: number, step: number, default: number, buttonText: string, format: (val: number) => string }
+interface ControlConfig { min: number, max: number, step: number, default: number, buttonText: string }
 
 /** show or hide the control element(slider) on stage */
 const viewControlsEnabled = ref(false)
@@ -17,7 +17,7 @@ const scale = useLocalStorage('settings/live2d/scale', 1)
 const formatPercentD1 = (val: number) => `${val.toFixed(1)}%`
 const formatToPercent = (val: number) => `${(val * 100).toFixed(0)}%`
 
-export const controlConfig: Record<SupportedControl, ControlConfig> = {
+export const defaultControlConfig: Record<SupportedControl, ControlConfig> = {
   // TODO: calculate the min and max value dynamically according to window height/width, or allow user to set it
   x: {
     min: -500,
@@ -25,7 +25,6 @@ export const controlConfig: Record<SupportedControl, ControlConfig> = {
     step: 0.1,
     default: 0,
     buttonText: 'X',
-    format: formatPercentD1,
   },
   y: {
     min: -500,
@@ -33,7 +32,6 @@ export const controlConfig: Record<SupportedControl, ControlConfig> = {
     step: 0.1,
     default: 0,
     buttonText: 'Y',
-    format: formatPercentD1,
   },
   scale: {
     min: 0.01,
@@ -41,10 +39,15 @@ export const controlConfig: Record<SupportedControl, ControlConfig> = {
     step: 0.01,
     default: 1,
     buttonText: 'Scale',
-    format: formatToPercent,
   },
 }
 
+export const formatter: Record<SupportedControl, (val: number) => string> = {
+  x: formatPercentD1,
+  y: formatPercentD1,
+  scale: formatToPercent,
+}
+const clampMinMax = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max)
 export function useL2dViewControl() {
   /**
    * reset the given control to its default value.
@@ -52,15 +55,16 @@ export function useL2dViewControl() {
    *  @param value optional, will reset the value to its default if not provided
    */
   function set(key: SupportedControl, value?: number) {
+    const clamped = value ? clampMinMax(value, defaultControlConfig[key].min, defaultControlConfig[key].max) : null
     switch (key) {
       case 'x':
-        position.value.x = value ?? controlConfig.x.default
+        position.value.x = clamped ?? defaultControlConfig.x.default
         break
       case 'y':
-        position.value.y = value ?? controlConfig.y.default
+        position.value.y = clamped ?? defaultControlConfig.y.default
         break
       case 'scale':
-        scale.value = value ?? controlConfig.scale.default
+        scale.value = clamped ?? defaultControlConfig.scale.default
         break
     }
   }

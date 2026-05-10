@@ -2,7 +2,7 @@
 import { RoundRange } from '@proj-airi/ui'
 import { computed, onUnmounted } from 'vue'
 
-import { controlConfig as conf, useL2dViewControl } from '../../stores'
+import { defaultControlConfig as conf, formatter, useL2dViewControl } from '../../stores'
 
 const { scale, position, viewControlsEnabled, viewControlMode, set: setValue } = useL2dViewControl()
 
@@ -23,7 +23,7 @@ const controlledValue = computed({
 })
 
 const formattedValue = computed(() => {
-  return conf[viewControlMode.value].format(controlledValue.value)
+  return formatter[viewControlMode.value](controlledValue.value)
 })
 
 onUnmounted(() => {

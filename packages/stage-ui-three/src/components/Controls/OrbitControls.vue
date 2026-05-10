@@ -24,10 +24,7 @@ import { useThreeViewControl } from '../../stores/view-control'
 /*
   * Props:
   * - model size
-  * - camera position
   * - camera target: camera looking at target
-  * - camera fov angle
-  * - camera distance: camera position - camera target
 */
 const props = defineProps<{
   controlEnable: boolean
