@@ -59,7 +59,7 @@ const { themeColorsHueDynamic } = storeToRefs(useSettings())
 const { viewControlsEnabled: l2dViewCtrlEnabled } = useL2dViewControl()
 const { viewControlsEnabled: threeViewCtrlEnabled } = useThreeViewControl()
 const settingsAudioDevice = useSettingsAudioDevice()
-const { enabled, selectedAudioInput, stream, audioInputs } = storeToRefs(settingsAudioDevice)
+const { enabled, stream } = storeToRefs(settingsAudioDevice)
 const { ingest, onAfterMessageComposed } = chatOrchestrator
 const { t } = useI18n()
 const { audioContext } = useAudioContext()
@@ -70,13 +70,14 @@ function isMobileDevice() {
   return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 }
 
-const { isListening } = useTranscriptions(
+const { isListening, startStreamingTranscription, stopStreamingTranscription } = useTranscriptions(
   {
     messageInputRef: messageInput,
     sendMessage: handleSend,
     isStageTamagotchi,
   },
 )
+const toggleTranscription = () => isListening.value ? stopStreamingTranscription() : startStreamingTranscription()
 
 async function handleSubmit() {
   if (!isMobileDevice()) {
@@ -115,7 +116,7 @@ function teardownAnalyzer() {
   try {
     analyzerSource?.disconnect()
   }
-  catch {}
+  catch { }
   analyzerSource = undefined
   stopAnalyzer()
 }
@@ -198,8 +199,8 @@ onMounted(() => {
           <HearingConfigDialog
             v-model:show="hearingDialogOpen"
             v-model:enabled="enabled"
-            v-model:selected-audio-input="selectedAudioInput"
-            :audio-inputs="audioInputs"
+            :transcription="isListening"
+            :toggle-transcription="toggleTranscription"
             :volume-level="volumeLevel"
             :granted="true"
           >

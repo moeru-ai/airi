@@ -12,7 +12,9 @@ const props = defineProps<{
   overlayDim?: boolean
   overlayBlur?: boolean
   granted?: boolean
+  transcription?: boolean
   volumeLevel?: number
+  toggleTranscription?: () => void
 }>()
 
 const showDialog = defineModel('show', { type: Boolean, default: false, required: false })
@@ -44,6 +46,8 @@ onMounted(() => screenSafeArea.update())
         <HearingConfig
           :granted="props.granted"
           :volume-level="props.volumeLevel"
+          :transcription="props.transcription"
+          @toggle-transcription="() => toggleTranscription?.()"
         />
         <slot name="extra" />
       </DialogContent>
@@ -74,6 +78,8 @@ onMounted(() => screenSafeArea.update())
         <HearingConfig
           :granted="props.granted"
           :volume-level="props.volumeLevel"
+          :transcription="props.transcription"
+          @toggle-transcription="() => toggleTranscription?.()"
         />
         <slot name="extra" />
       </DrawerContent>
