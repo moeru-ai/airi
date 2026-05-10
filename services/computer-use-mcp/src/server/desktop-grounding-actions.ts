@@ -69,6 +69,7 @@ export async function executeDesktopClickTarget(
   let osInputResult: ExecutorActionResult | undefined
   let executionMode: 'background' | 'browser_surface' | 'foreground' = 'foreground'
   let executionModeReason = 'desktop_click_target uses native input and needs foreground access'
+  let fallbackForegroundApp: string | undefined
 
   const executeOsClick = async () => {
     const result = await runtime.executor.click({
@@ -86,6 +87,20 @@ export async function executeDesktopClickTarget(
     const sessionCtrl = runtime.desktopSessionController
     const activeSession = sessionCtrl.getSession()
     if (!activeSession?.controlledApp) {
+      const candidateApp = candidate?.appName?.trim()
+      if (!candidateApp || candidateApp === 'unknown') {
+        throw new Error('desktop_click_target cannot fall back to OS input without a controlled app session or a concrete target app.')
+      }
+
+      const currentForeground = await runtime.executor.getForegroundContext()
+      if (currentForeground.available && currentForeground.appName === candidateApp) {
+        fallbackForegroundApp = candidateApp
+        return
+      }
+
+      await runtime.executor.focusApp({ app: candidateApp })
+      fallbackForegroundApp = candidateApp
+      await sleep(200)
       return
     }
 
@@ -97,6 +112,7 @@ export async function executeDesktopClickTarget(
         await runtime.executor.focusApp({ app: appName })
       },
     })
+    fallbackForegroundApp = activeSession.controlledApp
     if (!wasAlreadyInFront) {
       await sleep(200)
     }
@@ -134,6 +150,9 @@ export async function executeDesktopClickTarget(
         executionMode = 'foreground'
         executionModeReason = 'browser_dom is unavailable, so native input fallback needs foreground access'
         await ensureForegroundForOsInput()
+        routeNote = routeNote
+          ? `${routeNote}; focused ${fallbackForegroundApp ?? 'target app'} before OS input fallback`
+          : `focused ${fallbackForegroundApp ?? 'target app'} before OS input fallback`
         osInputResult = await executeOsClick()
       }
       else {
@@ -158,6 +177,7 @@ export async function executeDesktopClickTarget(
           executionMode = 'foreground'
           executionModeReason = 'browser_dom failed, so native input fallback needs foreground access'
           await ensureForegroundForOsInput()
+          routeNote = `${routeNote}; focused ${fallbackForegroundApp ?? 'target app'} before OS input fallback`
           osInputResult = await executeOsClick()
         }
       }

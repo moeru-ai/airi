@@ -62,4 +62,22 @@ describe('decideDesktopExecutionMode', () => {
       foregroundRequired: false,
     })
   })
+
+  it('treats clipboard and wait actions as background-safe', () => {
+    const waitDecision = decideDesktopExecutionMode({
+      action: { kind: 'wait', input: { durationMs: 250 } },
+    })
+    const clipboardDecision = decideDesktopExecutionMode({
+      action: { kind: 'clipboard_read_text', input: {} },
+    })
+
+    expect(waitDecision).toMatchObject({
+      executionMode: 'background',
+      foregroundRequired: false,
+    })
+    expect(clipboardDecision).toMatchObject({
+      executionMode: 'background',
+      foregroundRequired: false,
+    })
+  })
 })

@@ -14,9 +14,12 @@ function hasBrowserDomSurface(browserSurface?: BrowserSurfaceAvailability): bool
 }
 
 function isBackgroundReadAction(action: ActionInvocation): boolean {
-  return action.kind === 'desktop_observe'
-    || action.kind === 'observe_windows'
+  return action.kind === 'observe_windows'
     || action.kind === 'screenshot'
+    || action.kind === 'wait'
+    || action.kind === 'clipboard_read_text'
+    || action.kind === 'clipboard_write_text'
+    || action.kind === 'secret_read_env_value'
 }
 
 function isBrowserDomCapableAction(action: ActionInvocation): boolean {
@@ -27,14 +30,10 @@ function isNativeForegroundAction(action: ActionInvocation): boolean {
   return action.kind === 'click'
     || action.kind === 'press_keys'
     || action.kind === 'scroll'
-    || action.kind === 'wait'
     || action.kind === 'open_app'
     || action.kind === 'focus_app'
     || action.kind === 'terminal_exec'
     || action.kind === 'terminal_reset'
-    || action.kind === 'clipboard_write_text'
-    || action.kind === 'clipboard_read_text'
-    || action.kind === 'secret_read_env_value'
 }
 
 export function decideDesktopExecutionMode(params: {

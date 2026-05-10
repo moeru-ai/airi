@@ -433,6 +433,61 @@ describe('createExecuteAction', () => {
     expect(executor.click).toHaveBeenCalledOnce()
   })
 
+  it('focuses the candidate app before OS fallback when no controlled session exists', async () => {
+    const { runtime, executor, stateManager, desktopSessionController } = createRuntimeForActionTest()
+    stateManager.updateGroundingSnapshot({
+      snapshotId: 'dg_1',
+      capturedAt: new Date().toISOString(),
+      foregroundApp: 'Google Chrome',
+      windows: [],
+      screenshot: {
+        dataBase64: '',
+        mimeType: 'image/png',
+        path: '',
+        capturedAt: new Date().toISOString(),
+      },
+      targetCandidates: [
+        {
+          id: 't_0',
+          source: 'chrome_dom',
+          appName: 'Google Chrome',
+          role: 'button',
+          label: 'Submit',
+          bounds: { x: 100, y: 200, width: 80, height: 30 },
+          confidence: 0.95,
+          interactable: true,
+          selector: '#submit',
+          frameId: 0,
+          isPageContent: true,
+        },
+      ],
+      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
+    } as any)
+    desktopSessionController.getSession.mockReturnValue(null)
+    executor.getForegroundContext.mockResolvedValue({
+      available: true,
+      appName: 'Finder',
+      platform: 'darwin',
+    })
+    ;(runtime.browserDomBridge.supportsAction as any).mockReturnValue(false)
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'desktop_click_target', input: { candidateId: 't_0' } }, 'desktop_click_target')
+
+    expect(result.isError).not.toBe(true)
+    expect(desktopSessionController.ensureControlledAppInForeground).not.toHaveBeenCalled()
+    expect(executor.focusApp).toHaveBeenCalledWith({ app: 'Google Chrome' })
+    expect(executor.click).toHaveBeenCalledOnce()
+    expect(result.structuredContent).toMatchObject({
+      status: 'executed',
+      backendResult: expect.objectContaining({
+        executionRoute: 'os_input',
+        executionMode: 'foreground',
+        routeNote: expect.stringContaining('focused Google Chrome before OS input fallback'),
+      }),
+    })
+  })
+
   it('returns a structured failure when controlled-app refocus fails during desktop_click_target execution', async () => {
     const { runtime, executor, session, stateManager, desktopSessionController } = createRuntimeForActionTest()
     stateManager.updateGroundingSnapshot({
