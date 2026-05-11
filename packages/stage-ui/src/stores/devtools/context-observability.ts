@@ -15,6 +15,7 @@ export type ContextLifecyclePhase
     | 'broadcast-posted'
     | 'broadcast-received'
     | 'store-ingested'
+    | 'store-ingest-rejected'
     | 'before-compose'
     | 'prompt-context-built'
     | 'after-compose'
