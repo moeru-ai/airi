@@ -38,6 +38,8 @@ const emit = defineEmits<{
 const chatHistoryRef = ref<HTMLDivElement>()
 provide(chatScrollContainerKey, chatHistoryRef)
 
+const collapsed = ref(false)
+
 const { t } = useI18n()
 const labels = computed(() => ({
   assistant: props.assistantLabel ?? t('stage.chat.message.character-name.airi'),
@@ -103,44 +105,68 @@ function emitRetryMessage(message: ChatHistoryItem, index: number) {
 </script>
 
 <template>
-  <div ref="chatHistoryRef" v-auto-animate flex="~ col" relative h-full w-full overflow-y-auto rounded-xl px="<sm:2" py="<sm:2" :class="variant === 'mobile' ? 'gap-1' : 'gap-2'">
-    <template v-for="(message, index) in renderMessages" :key="getChatHistoryItemKey(message, index)">
-      <div
-        :data-chat-message-index="index"
-        :data-chat-message-key="String(getChatHistoryItemKey(message, index))"
-        :data-chat-message-role="message.role"
+  <div ref="chatHistoryRef" v-auto-animate flex="~ col" relative w-full rounded-xl px="<sm:2" py="<sm:2" :class="[variant === 'mobile' ? 'gap-1' : 'gap-2', collapsed ? 'h-auto overflow-hidden' : 'h-full overflow-y-auto']">
+    <div v-if="variant === 'mobile'" sticky top-0 z-10 flex shrink-0 justify-end pb-1>
+      <button
+        border="2 solid neutral-100/60 dark:neutral-800/30"
+        bg="neutral-50/70 dark:neutral-800/70"
+        flex items-center justify-center rounded-xl p-1 backdrop-blur-md
+        :title="collapsed ? 'Expand chat history' : 'Collapse chat history'"
+        @click="collapsed = !collapsed"
       >
-        <ChatErrorItem
-          v-if="message.role === 'error'"
-          :message="message"
-          :label="labels.error"
-          :retry-label="labels.retry"
-          :can-retry="renderMessages[index - 1]?.role === 'user'"
-          :show-placeholder="sending && index === renderMessages.length - 1"
-          :variant="variant"
-          @copy="emitCopyMessage(message, index)"
-          @retry="emitRetryMessage(message, index)"
-          @delete="emitDeleteMessage(message, index)"
+        <div
+          v-if="collapsed"
+          i-solar:alt-arrow-up-bold-duotone
+          size-4
+          text="neutral-500 dark:neutral-400"
         />
-        <ChatAssistantItem
-          v-else-if="message.role === 'assistant'"
-          :message="message"
-          :label="labels.assistant"
-          :show-placeholder="shouldShowPlaceholder(message) && showStreamingPlaceholder"
-          :variant="variant"
-          :tool-call-renderers="toolCallRenderers"
-          @copy="emitCopyMessage(message, index)"
-          @delete="emitDeleteMessage(message, index)"
+        <div
+          v-else
+          i-solar:alt-arrow-down-bold-duotone
+          size-4
+          text="neutral-500 dark:neutral-400"
         />
-        <ChatUserItem
-          v-else-if="message.role === 'user'"
-          :message="message"
-          :label="labels.user"
-          :variant="variant"
-          @copy="emitCopyMessage(message, index)"
-          @delete="emitDeleteMessage(message, index)"
-        />
-      </div>
+      </button>
+    </div>
+    <template v-if="!collapsed">
+      <template v-for="(message, index) in renderMessages" :key="getChatHistoryItemKey(message, index)">
+        <div
+          :data-chat-message-index="index"
+          :data-chat-message-key="String(getChatHistoryItemKey(message, index))"
+          :data-chat-message-role="message.role"
+        >
+          <ChatErrorItem
+            v-if="message.role === 'error'"
+            :message="message"
+            :label="labels.error"
+            :retry-label="labels.retry"
+            :can-retry="renderMessages[index - 1]?.role === 'user'"
+            :show-placeholder="sending && index === renderMessages.length - 1"
+            :variant="variant"
+            @copy="emitCopyMessage(message, index)"
+            @retry="emitRetryMessage(message, index)"
+            @delete="emitDeleteMessage(message, index)"
+          />
+          <ChatAssistantItem
+            v-else-if="message.role === 'assistant'"
+            :message="message"
+            :label="labels.assistant"
+            :show-placeholder="shouldShowPlaceholder(message) && showStreamingPlaceholder"
+            :variant="variant"
+            :tool-call-renderers="toolCallRenderers"
+            @copy="emitCopyMessage(message, index)"
+            @delete="emitDeleteMessage(message, index)"
+          />
+          <ChatUserItem
+            v-else-if="message.role === 'user'"
+            :message="message"
+            :label="labels.user"
+            :variant="variant"
+            @copy="emitCopyMessage(message, index)"
+            @delete="emitDeleteMessage(message, index)"
+          />
+        </div>
+      </template>
     </template>
   </div>
 </template>
