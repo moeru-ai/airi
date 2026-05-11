@@ -139,7 +139,6 @@
     "csstype": "^3.2.3",
     "hfup": "^1.0.4",
     "less": "^4.6.4",
-    "unplugin-basemove": "0.0.1",
     "unplugin-info": "^1.3.2",
     "unplugin-yaml": "^4.1.0",
     "vite": "catalog:",
