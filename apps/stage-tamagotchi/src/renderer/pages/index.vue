@@ -406,7 +406,6 @@ watch(enabled, async (val) => {
 }, { immediate: true })
 
 onMounted(() => {
-  chatSyncStore.initialize('authority')
   if (onboardingStore.needsOnboarding) {
     openOnboarding()
   }
@@ -418,7 +417,6 @@ onUnmounted(() => {
     ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
   })
   stopAudioInteraction()
-  chatSyncStore.dispose()
 })
 
 watch(stream, async (currentStream) => {
