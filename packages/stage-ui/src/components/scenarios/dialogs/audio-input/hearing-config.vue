@@ -31,7 +31,7 @@ function toggleHearingEnabled() {
   if (selectedAudioInput.value !== '' && permissionGranted.value)
     return enabled.value = true
   if (!permissionGranted.value)
-    return askPermission().then(() => { enabled.value = true })
+    return askPermission().then(() => { enabled.value = permissionGranted.value })
 }
 </script>
 

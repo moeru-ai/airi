@@ -24,7 +24,7 @@ const { askPermission } = useAudioDevice()
 const screenSafeArea = useScreenSafeArea()
 
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
-watch([showDialog], (show) => {
+watch(showDialog, (show) => {
   if (show)
     askPermission()
 })
