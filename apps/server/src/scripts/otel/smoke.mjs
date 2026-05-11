@@ -43,8 +43,8 @@ env.DEFAULT_CHAT_MODEL ??= 'test'
 env.DEFAULT_TTS_MODEL ??= 'test'
 env.OTEL_EXPORTER_OTLP_ENDPOINT ??= 'http://localhost:4318'
 
-const { initOtel } = await import('../libs/otel.ts')
-const { parseEnv } = await import('../libs/env.ts')
+const { initOtel } = await import('../../libs/otel.ts')
+const { parseEnv } = await import('../../libs/env.ts')
 
 const parsed = parseEnv(env)
 const inst = initOtel(parsed)

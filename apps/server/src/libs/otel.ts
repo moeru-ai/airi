@@ -1,4 +1,11 @@
 import type { Counter, Histogram, ObservableGauge, UpDownCounter } from '@opentelemetry/api'
+// NOTICE:
+// HTTP server metrics (request duration, active requests) are emitted by
+// `@hono/otel`'s `httpInstrumentationMiddleware` registered in `app.ts`. It
+// records the standard semconv names with the matched Hono route pattern,
+// so we don't create those handles here. We keep the auto HttpInstrumentation
+// for OUTBOUND requests only (LLM gateway, Stripe, Resend) — see
+// `instrumentation.mjs`.
 
 import type { Env } from './env'
 
@@ -11,7 +18,6 @@ import {
   METRIC_AIRI_EMAIL_FAILURES,
   METRIC_AIRI_EMAIL_SEND,
   METRIC_AIRI_FLUX_CREDITED,
-  METRIC_AIRI_FLUX_UNBILLED,
   METRIC_AIRI_GEN_AI_STREAM_INTERRUPTED,
   METRIC_AIRI_RATE_LIMIT_BLOCKED,
   METRIC_AIRI_STRIPE_REVENUE,
@@ -30,8 +36,6 @@ import {
   METRIC_GEN_AI_CLIENT_OPERATION_DURATION,
   METRIC_GEN_AI_CLIENT_TOKEN_USAGE_INPUT,
   METRIC_GEN_AI_CLIENT_TOKEN_USAGE_OUTPUT,
-  METRIC_HTTP_SERVER_ACTIVE_REQUESTS,
-  METRIC_HTTP_SERVER_REQUEST_DURATION,
   METRIC_STRIPE_CHECKOUT_COMPLETED,
   METRIC_STRIPE_CHECKOUT_CREATED,
   METRIC_STRIPE_EVENTS,
@@ -46,11 +50,6 @@ import {
 } from '../utils/observability'
 
 const logger = useLogger('otel')
-
-export interface HttpMetrics {
-  requestDuration: Histogram
-  activeRequests: UpDownCounter
-}
 
 export interface AuthMetrics {
   attempts: Counter
@@ -96,7 +95,6 @@ export interface RevenueMetrics {
   stripeRevenue: Counter
   fluxInsufficientBalance: Counter
   fluxCredited: Counter
-  fluxUnbilled: Counter
   ttsChars: Counter
   ttsPreflightRejections: Counter
 }
@@ -122,7 +120,6 @@ export interface RateLimitMetrics {
 }
 
 export interface OtelInstance {
-  http: HttpMetrics
   auth: AuthMetrics
   engagement: EngagementMetrics
   revenue: RevenueMetrics
@@ -155,17 +152,6 @@ export function initOtel(env: Env): OtelInstance | null {
   }
 
   const meter = metrics.getMeter(env.OTEL_SERVICE_NAME)
-
-  // HTTP metrics (semconv: unit MUST be seconds)
-  const http: HttpMetrics = {
-    requestDuration: meter.createHistogram(METRIC_HTTP_SERVER_REQUEST_DURATION, {
-      description: 'HTTP server request duration',
-      unit: 's',
-    }),
-    activeRequests: meter.createUpDownCounter(METRIC_HTTP_SERVER_ACTIVE_REQUESTS, {
-      description: 'Number of active HTTP requests',
-    }),
-  }
 
   // Auth & User metrics
   const auth: AuthMetrics = {
@@ -237,9 +223,6 @@ export function initOtel(env: Env): OtelInstance | null {
     }),
     fluxCredited: meter.createCounter(METRIC_AIRI_FLUX_CREDITED, {
       description: 'Total flux credited to user balances, by source',
-    }),
-    fluxUnbilled: meter.createCounter(METRIC_AIRI_FLUX_UNBILLED, {
-      description: 'Flux that should have been debited but was not (revenue leak)',
     }),
     ttsChars: meter.createCounter(METRIC_AIRI_TTS_CHARS, {
       description: 'TTS input characters processed (billing base unit)',
@@ -323,7 +306,6 @@ export function initOtel(env: Env): OtelInstance | null {
     revenue.stripeRevenue,
     revenue.fluxInsufficientBalance,
     revenue.fluxCredited,
-    revenue.fluxUnbilled,
     revenue.ttsChars,
     revenue.ttsPreflightRejections,
     genAi.operationCount,
@@ -337,7 +319,7 @@ export function initOtel(env: Env): OtelInstance | null {
   ]
   for (const counter of counters) counter.add(0)
 
-  return { http, auth, engagement, revenue, genAi, email, rateLimit }
+  return { auth, engagement, revenue, genAi, email, rateLimit }
 }
 
 const severityMap: Record<string, SeverityNumber> = {

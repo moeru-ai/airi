@@ -25,6 +25,7 @@ import Stripe from 'stripe'
 import { initLogger, LoggerFormat, LoggerLevel, setGlobalHookPostLog, useLogger } from '@guiiai/logg'
 import { serve } from '@hono/node-server'
 import { createNodeWebSocket } from '@hono/node-ws'
+import { httpInstrumentationMiddleware } from '@hono/otel'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
@@ -39,7 +40,6 @@ import { emitOtelLog, initOtel } from './libs/otel'
 import { createRedis } from './libs/redis'
 import { resolveRequestAuth } from './libs/request-auth'
 import { sessionMiddleware } from './middlewares/auth'
-import { otelMiddleware } from './middlewares/otel'
 import { createAdminFluxGrantsRoutes } from './routes/admin/flux-grants'
 import { createAuthRoutes } from './routes/auth'
 import { createCharacterRoutes } from './routes/characters'
@@ -110,7 +110,22 @@ export async function buildApp(deps: AppDeps) {
     .use(honoLogger())
 
   if (deps.otel) {
-    app.use('*', otelMiddleware(deps.otel.http))
+    // @hono/otel records `http.server.request.duration` and
+    // `http.server.active_requests` with the matched Hono route pattern
+    // (auto-instrumentation can't see Hono's router, so it would emit empty
+    // `http.route` and concrete URLs — the previous Latency-by-Route bug).
+    //
+    // /health is Railway's healthcheck pinger — high frequency, zero signal,
+    // skip outright.
+    const otelMw = httpInstrumentationMiddleware({
+      serviceName: deps.env.OTEL_SERVICE_NAME,
+      serviceVersion: process.env.npm_package_version || '0.0.0',
+    })
+    app.use('*', async (c, next) => {
+      if (c.req.path === '/health')
+        return next()
+      return otelMw(c, next)
+    })
   }
 
   // WebSocket setup — must be registered BEFORE bodyLimit middleware
@@ -212,7 +227,7 @@ export async function buildApp(deps: AppDeps) {
     /**
      * V1 routes for official provider.
      */
-    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.requestLogService, deps.ttsMeter, deps.redis, deps.env, deps.otel?.genAi, deps.otel?.revenue, deps.otel?.rateLimit))
+    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.requestLogService, deps.ttsMeter, deps.redis, deps.env, deps.otel?.genAi, deps.otel?.rateLimit))
 
     /**
      * Flux routes.

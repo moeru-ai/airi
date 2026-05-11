@@ -64,7 +64,6 @@ export const METRIC_FLUX_CONSUMED = 'airi.billing.flux.consumed'
 
 // AIRI billing — credit/debit visibility beyond raw consumption
 export const METRIC_AIRI_FLUX_CREDITED = 'airi.billing.flux.credited'
-export const METRIC_AIRI_FLUX_UNBILLED = 'airi.billing.flux.unbilled'
 export const METRIC_AIRI_TTS_CHARS = 'airi.billing.tts.chars'
 export const METRIC_AIRI_TTS_PREFLIGHT_REJECTIONS = 'airi.billing.tts.preflight_rejections'
 

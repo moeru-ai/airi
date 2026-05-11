@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
 
-import { useLocaleRestore } from './use-locale-restore'
+import { useLanguage } from './use-language'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -9,9 +9,31 @@ vi.mock('vue-i18n', () => ({
   }),
 }))
 
-describe('useLocaleRestore', () => {
+const localStorageMock = (() => {
+  let store: Record<string, string> = {}
+  return {
+    getItem: (key: string) => store[key] ?? null,
+    setItem: (key: string, value: string) => { store[key] = value },
+    removeItem: (key: string) => { delete store[key] },
+    clear: () => { store = {} },
+  }
+})()
+
+Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock })
+
+vi.mock('@proj-airi/stage-shared/composables', () => ({
+  useLocalStorageManualReset: vi.fn((key: string, initialValue: string) => {
+    // Tests control persisted state by pre-seeding localStorage before each case
+    const stored = localStorageMock.getItem(key)
+    const value = stored !== null ? stored : initialValue
+    return ref(value)
+  }),
+}))
+
+describe('useLanguage', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    localStorageMock.clear()
   })
 
   // ROOT CAUSE:
@@ -19,7 +41,7 @@ describe('useLocaleRestore', () => {
   // When Electron restarts, renderer localStorage may not be flushed.
   // The store's onMounted hook falls back to navigator.language, then
   // watch(language) propagates that wrong locale back to main config.
-  // useLocaleRestore prevents this by guarding sync until the correct
+  // useLanguage prevents this by guarding sync until the correct
   // locale is restored from the main-process config.
   it('issue #1658: restores correct locale from main process when store fallback is wrong', async () => {
     const language = ref('zh-Hans') // simulate store fallback to OS locale
@@ -27,7 +49,7 @@ describe('useLocaleRestore', () => {
     const setLocale = vi.fn(async () => {})
 
     // No persisted language in localStorage → renderer lost its setting
-    const { restore } = useLocaleRestore(language, getMainLocale, setLocale, false)
+    const { restore } = useLanguage(language, getMainLocale, setLocale)
     await restore()
 
     expect(getMainLocale).toHaveBeenCalledTimes(1)
@@ -40,7 +62,7 @@ describe('useLocaleRestore', () => {
     const getMainLocale = vi.fn(async () => 'zh-Hant')
     const setLocale = vi.fn(async () => {})
 
-    const { restore } = useLocaleRestore(language, getMainLocale, setLocale, false)
+    const { restore } = useLanguage(language, getMainLocale, setLocale)
     await restore()
 
     expect(language.value).toBe('zh-Hant')
@@ -48,11 +70,13 @@ describe('useLocaleRestore', () => {
   })
 
   it('does not overwrite valid renderer locale when persisted language exists', async () => {
+    localStorage.setItem('settings/language', 'ja')
+
     const language = ref('ja') // user explicitly set this before
     const getMainLocale = vi.fn(async () => 'en')
     const setLocale = vi.fn(async () => {})
 
-    const { restore } = useLocaleRestore(language, getMainLocale, setLocale, true)
+    const { restore } = useLanguage(language, getMainLocale, setLocale)
     await restore()
 
     // Should NOT call getMainLocale because renderer has persisted value
@@ -66,7 +90,7 @@ describe('useLocaleRestore', () => {
     const getMainLocale = vi.fn(async () => undefined) // no config file yet
     const setLocale = vi.fn(async () => {})
 
-    const { restore } = useLocaleRestore(language, getMainLocale, setLocale, false)
+    const { restore } = useLanguage(language, getMainLocale, setLocale)
     await restore()
 
     expect(getMainLocale).toHaveBeenCalledTimes(1)
@@ -79,7 +103,7 @@ describe('useLocaleRestore', () => {
     const getMainLocale = vi.fn(async () => 'en') // user explicitly chose English
     const setLocale = vi.fn(async () => {})
 
-    const { restore } = useLocaleRestore(language, getMainLocale, setLocale, false)
+    const { restore } = useLanguage(language, getMainLocale, setLocale)
     await restore()
 
     expect(getMainLocale).toHaveBeenCalledTimes(1)
@@ -95,14 +119,14 @@ describe('useLocaleRestore', () => {
     })
     const setLocale = vi.fn(async () => {})
 
-    const { restore } = useLocaleRestore(language, getMainLocale, setLocale, false)
+    const { restore } = useLanguage(language, getMainLocale, setLocale)
     await restore()
 
     // Should not throw; should still enable sync and use current value
     expect(language.value).toBe('zh-Hans')
     expect(setLocale).toHaveBeenCalledWith('zh-Hans')
     expect(consoleSpy).toHaveBeenCalledWith(
-      '[useLocaleRestore] Failed to get locale from main process, using fallback:',
+      '[useLanguage] Failed to get locale from main process, using fallback:',
       expect.any(Error),
     )
 
@@ -114,7 +138,7 @@ describe('useLocaleRestore', () => {
     const getMainLocale = vi.fn(async () => 'en')
     const setLocale = vi.fn(async () => {})
 
-    useLocaleRestore(language, getMainLocale, setLocale, false)
+    useLanguage(language, getMainLocale, setLocale)
 
     // Simulate the store's onMounted fallback changing language
     language.value = 'zh-Hans'
@@ -127,7 +151,7 @@ describe('useLocaleRestore', () => {
     const getMainLocale = vi.fn(async () => 'en')
     const setLocale = vi.fn(async () => {})
 
-    const { restore } = useLocaleRestore(language, getMainLocale, setLocale, false)
+    const { restore } = useLanguage(language, getMainLocale, setLocale)
     await restore()
 
     // Clear the restore() call so we only assert the post-restore sync

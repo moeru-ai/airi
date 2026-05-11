@@ -50,15 +50,11 @@ import {
 } from '../shared/eventa/plugin/host'
 import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-callback'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
-import { useLocaleRestore } from './composables/use-locale-restore'
+import { useLanguage } from './composables/use-language'
 import { useTamagotchiMcpToolsStore } from './stores/mcp-tools'
 import { useTamagotchiPluginToolsStore } from './stores/plugin-tools'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
-
-// Check localStorage before store initialization so we know whether the
-// renderer actually had a persisted language or is falling back.
-const hasPersistedLanguage = !!localStorage.getItem('settings/language')
 
 const { isDark: dark } = useTheme()
 const contextBridgeStore = useContextBridgeStore()
@@ -161,7 +157,7 @@ void mcpToolsStore.refresh().catch((error) => {
 })
 void refreshPluginRuntimeTools()
 
-const { restore: restoreLocale } = useLocaleRestore(language, getMainLocale, setLocale, hasPersistedLanguage)
+const { restore: restoreLocale } = useLanguage(language, getMainLocale, setLocale)
 
 watch([activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions], () => {
   if (activeProvider.value) {

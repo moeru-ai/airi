@@ -22,6 +22,7 @@
     "@guiiai/logg": "catalog:",
     "@hono/node-server": "^1.19.14",
     "@hono/node-ws": "catalog:",
+    "@hono/otel": "^1.1.2",
     "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
     "@opentelemetry/api": "^1.9.1",

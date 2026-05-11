@@ -1,30 +1,33 @@
 import type { Ref } from 'vue'
 
+import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 /**
- * Restores the renderer locale from the main-process config when the
- * renderer's localStorage has lost the user's language setting.
+ * Manages language sync between renderer and main process, guarding
+ * against Electron localStorage flush issues on restart.
  *
  * Use when:
  * - Electron restarts and renderer localStorage may not have been flushed
  *
  * Expects:
  * - `language` is the reactive language ref from the settings store
- * - `getMainLocale` returns the locale persisted in main-process config
+ * - `getMainLocale` returns the raw locale persisted in main-process config
+ *   (`undefined` when no config exists yet, a string when user saved one)
  * - `setLocale` syncs the renderer locale back to main process
  *
  * Returns:
  * - `restore()` to be called during component onMounted
  */
-export function useLocaleRestore(
+export function useLanguage(
   language: Ref<string>,
   getMainLocale: () => Promise<unknown>,
   setLocale: (locale: string) => Promise<unknown> | unknown,
-  hasPersistedLanguage: boolean,
 ) {
   const i18n = useI18n()
+  const persistedLanguage = useLocalStorageManualReset<string>('settings/language', '')
+  const hasPersistedLanguage = persistedLanguage.value !== ''
   let isLocaleSynced = false
 
   // Guard: do not propagate the store's navigator.language fallback back
@@ -49,7 +52,7 @@ export function useLocaleRestore(
         }
       }
       catch (error) {
-        console.warn('[useLocaleRestore] Failed to get locale from main process, using fallback:', error)
+        console.warn('[useLanguage] Failed to get locale from main process, using fallback:', error)
       }
     }
     isLocaleSynced = true
