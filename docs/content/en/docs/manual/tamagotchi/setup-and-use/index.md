@@ -148,7 +148,7 @@ STT stands for Speech-to-Text, also known as automatic speech recognition (ASR).
 Its goal is to enable computers to understand human speech and convert it into text.
 :::
 
-Click "Expand" to reveal nine options:**(Login button & Eight small buttons)**
+Click "Expand" to reveal nine options: **(Login button & Eight small buttons)**
 
 - "Login" – You can log in to your own Airi account.
 - "Open settings" – opens the settings window.
