@@ -94,6 +94,6 @@ promo-banner:
       cta: 查看主题
 waiting: 等待中
 websocket-status:
-  connected: WebSocket 已连接
-  disconnected: WebSocket 已断开
-  open-settings: 打开 WebSocket 设置
+  connected: 已连接
+  disconnected: 未连接
+  open-settings: 打开连接设置

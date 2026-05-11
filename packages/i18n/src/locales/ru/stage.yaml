@@ -94,6 +94,6 @@ promo-banner:
       cta: Просмотр тем
 waiting: Ожидание
 websocket-status:
-  connected: WebSocket подключен
-  disconnected: WebSocket отключен
-  open-settings: Открыть настройки WebSocket
+  connected: Подключено
+  disconnected: Нет подключения
+  open-settings: Открыть настройки подключения
