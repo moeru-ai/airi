@@ -109,8 +109,12 @@ else {
       headers,
     }))],
     instrumentations: [
+      // Inbound HTTP is instrumented by @hono/otel inside the Hono pipeline
+      // (it sees Hono's matched route pattern; auto-instrumentation can't).
+      // Keep HttpInstrumentation for OUTBOUND traces only — LLM gateway,
+      // Stripe, Resend, OIDC discovery — so we still get spans on egress.
       new HttpInstrumentation({
-        ignoreIncomingRequestHook: req => req.url === '/health',
+        ignoreIncomingRequestHook: () => true,
       }),
       new PgInstrumentation({
         enhancedDatabaseReporting: true,
