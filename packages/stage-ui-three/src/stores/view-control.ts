@@ -75,7 +75,7 @@ const viewControlMode = ref<SupportedControl>('cameraDistance')
  *  @param value optional, will reset the value to its default if not provided
  */
 function set(key: SupportedControl, value?: number) {
-  const clamped = value ? clampMinMax(value, defaultControlConfig[key].min, defaultControlConfig[key].max) : null
+  const clamped = value !== undefined ? clampMinMax(value, defaultControlConfig[key].min, defaultControlConfig[key].max) : undefined
   switch (key) {
     case 'x':
       modelOffset.value.x = clamped ?? defaultControlConfig.x.default
