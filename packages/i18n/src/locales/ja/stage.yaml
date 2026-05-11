@@ -7,6 +7,13 @@ chat:
       core-system: コアシステム
       you: あなた
   reasoning: 推論
+  sessions:
+    title: Conversations
+    new: + New
+    empty: No conversations yet
+    cloud-badge: Synced to cloud
+    new-chat-fallback: New chat
+    delete: Delete conversation
 message: 何か話しかけてみましょう…
 send-mode:
   title: キーを送信

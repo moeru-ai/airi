@@ -7,7 +7,7 @@
 - 路由层负责参数校验、鉴权、错误映射
 - 服务层负责业务逻辑和数据库事务
 - `Postgres` 负责持久化与账本真相
-- `Redis` 负责缓存、配置 KV、Pub/Sub、Streams
+- `Redis` 负责缓存、配置 KV、Pub/Sub（不再使用 Streams）
 - `injeca` 负责把这些依赖组装成一个可启动应用
 
 ## 入口与装配
@@ -27,10 +27,9 @@
   - 注入 WebSocket
   - 绑定 `uncaughtException` / `unhandledRejection`
 
-CLI 入口在 `src/bin/run.ts`，支持两种角色：
+CLI 入口在 `src/bin/run.ts`，只有一种角色：
 
-- `api`
-- `billing-consumer`
+- `api`（HTTP/WS；没有常驻后台 loop，也没有 fire-and-forget 异步任务。admin flux grant 在 POST 请求线程内同步处理完返回；详见 `workers-and-runtime.md`）
 
 ## 依赖注入结构
 
@@ -52,6 +51,10 @@ CLI 入口在 `src/bin/run.ts`，支持两种角色：
   - `fluxService`
   - `requestLogService`
   - `billingService`
+  - `adminFluxGrantsService`
+  - `ttsMeter`
+  - `userDeletionService`
+  - `emailService`
 
 这个装配顺序说明了几个事实：
 
@@ -131,7 +134,7 @@ CLI 入口在 `src/bin/run.ts`，支持两种角色：
   - 新用户首次读取时初始化余额
 - `BillingService`
   - 面向写入
-  - debitFlux：事务内更新余额，事务后 XADD Redis Stream；credit 方法：事务内同步写流水和审计
+  - debitFlux / credit 方法：事务内同步更新余额并写 `flux_transaction` ledger；事务提交后 best-effort 刷 Redis 余额缓存
 
 这是服务端最重要的边界之一，尽量不要把写余额逻辑重新塞回 `flux.ts`。
 
@@ -149,12 +152,12 @@ Redis 在这里同时承担：
 - Flux 余额缓存
 - 运行时配置 KV
 - WebSocket 跨实例广播 Pub/Sub
-- 计费事件 Streams
+- Sub-Flux 计量债务账本（TTS 字符等，TTL 抹零，详见 `flux-meter.md`）
+- TTS voices 上游响应缓存
 
-但余额真相仍然在 Postgres。
+但余额真相仍然在 Postgres。Redis Streams 已全部移除，详见 `redis-boundaries-and-pubsub.md` 的 NOTICE。
 
 ## 当前值得注意的实现信号
 
-- `src/services/request-log.ts` 和 `src/services/llm-request-log.ts` 职责重复，当前实际注入的是前者。
-- `src/schemas/accounts.ts` 和 `src/schemas/auth.ts` 内容重复，`createAuth()` 使用的是 `accounts.ts`。
-- `src/routes/openai/v1/index.ts` 已实现 `handleTTS` / `handleTranscription`，但路由仍被注释掉，当前只开放 chat completions。
+- `/api/v1/openai` 当前开放：`POST /chat/completions`、`POST /chat/completion`、`POST /audio/speech`、`GET /audio/voices`。`handleTranscription` 路由尚未挂载。
+- `flux_grant_batch` schema / service / route 已被简化版 `admin-flux-grants` 取代，但旧的 `src/schemas/flux-grant-batch.ts`、`src/services/admin-flux-grant-batch/`、`src/routes/admin/flux-grant-batches/` 仍以 dead code 形态残留在仓库里，没有在 `app.ts` 装配。改这块前直接删旧文件，不要继续往里面加东西。

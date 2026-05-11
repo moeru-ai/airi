@@ -2,14 +2,13 @@
 
 ## 进程角色
 
-统一入口在 `src/bin/run.ts`：
+入口：`src/bin/run.ts`。
 
 - `api`
   - 启动 Hono HTTP + WebSocket 服务
-- `billing-consumer`
-  - 消费 Redis Stream `billing-events`，异步将 ledger、audit log、LLM 请求日志写入 DB
+  - 没有任何"常驻后台 loop"，也没有"POST 触发的 fire-and-forget"。所有写路径都在请求线程里同步完成
 
-这两个角色是当前服务端部署拆分的基本单位。
+不再有独立的 `worker` / `billing-consumer` 进程。原先的 Redis Stream billing event 链路、advisory-lock poller、admin flux grant batch 异步处理全部移除。
 
 ## API 角色
 
@@ -30,84 +29,13 @@
 - 启动 HTTP server
 - 注入 WebSocket
 
-## Billing Consumer
+## Admin flux grant：同步执行
 
-实现位置：
+详见 [`admin-flux-grants.md`](admin-flux-grants.md)。简要：admin 调 `POST /api/admin/flux-grants`，路由 handler 在请求线程内顺序对每个 recipient 调 `BillingService.creditFlux`，HTTP 响应里直接返回每条的 outcome（granted / skipped / failed）。失败由 admin 看响应自行重发，可选 `idempotencyKey` 让重发安全。
 
-- 入口：`src/bin/run-billing-consumer.ts`
-- worker：`src/services/billing-mq-worker.ts`
-- stream adapter：`src/services/billing-mq.ts`
+## 失败 / 崩溃恢复
 
-工作流程：
-
-1. 以 consumer group 模式消费 Redis Stream `billing-events`
-2. 根据事件类型分发处理：
-   - `flux.debited` — 写 `flux_transaction` 和 `flux_transaction`
-   - `llm.request.log` — 写 `llm_request_log`
-3. 处理成功后 ACK；handler 抛错时不 ACK，消息保持 pending 等待重试
-
-相关环境变量：
-
-- `BILLING_EVENTS_STREAM`
-- `BILLING_EVENTS_CONSUMER_NAME`
-- `BILLING_EVENTS_BATCH_SIZE`
-- `BILLING_EVENTS_BLOCK_MS`
-- `BILLING_EVENTS_MIN_IDLE_MS`
-
-## Redis Streams 语义
-
-`billing-mq.ts` 把 Redis Streams 抽象成：
-
-- `publish()`
-- `ensureConsumerGroup()`
-- `consume()`
-- `claimIdleMessages()`
-- `ack()`
-
-这层约束了消息处理语义：
-
-- 使用 consumer group
-- 使用 pending reclaim
-- handler 抛错时不 ack，消息保持 pending
-
-因此新增新的 stream consumer 时，最安全的方式通常是复用这层，不要自己裸写 `XREADGROUP`。
-
-## 聊天 WebSocket 运行时
-
-`src/routes/chat-ws.ts` 还有一套独立于 Redis Streams 的运行时机制：
-
-- 同实例连接保存在进程内 `Map`
-- 跨实例 fan-out 通过 Redis Pub/Sub
-
-这意味着：
-
-- WS 广播不具备持久化和重放能力
-- 真正补齐消息还是靠 `pullMessages`
-- 广播只是为了降低拉取延迟，不代表存在旧式 `sync` 端点
-
-如果要改 Redis key / channel 构造、Pub/Sub payload 或 Streams 边界，先看 `redis-boundaries-and-pubsub.md`。
-
-## OpenTelemetry
-
-初始化在 `src/libs/otel.ts`。
-
-启用条件：
-
-- `OTEL_EXPORTER_OTLP_ENDPOINT` 存在
-
-覆盖面：
-
-- HTTP
-- Auth
-- Chat engagement
-- Revenue
-- LLM
-- DB / Redis instrumentation
-
-重要实现细节：
-
-- `sdk.start()` 必须发生在 `metrics.getMeter()` 之前
-- `/health` 会被 HTTP instrumentation 忽略
+服务端没有需要恢复的"中间状态"。每次 `creditFlux` 自己是一个 DB 事务；要么写进 `flux_transaction` ledger 要么没写，没有第三态。`(user_id, request_id)` partial unique index 保证带 `idempotencyKey` 的重发不会双发。
 
 ## 环境变量分层
 
@@ -131,14 +59,6 @@
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
 
-### Billing MQ
-
-- `BILLING_EVENTS_STREAM`
-- `BILLING_EVENTS_CONSUMER_NAME`
-- `BILLING_EVENTS_BATCH_SIZE`
-- `BILLING_EVENTS_BLOCK_MS`
-- `BILLING_EVENTS_MIN_IDLE_MS`
-
 ### OTel
 
 - `OTEL_SERVICE_NAMESPACE`
@@ -148,15 +68,49 @@
 - `OTEL_EXPORTER_OTLP_HEADERS`
 - `OTEL_DEBUG`
 
+> NOTICE: `BILLING_EVENTS_*` 已全部移除。
+
+## 聊天 WebSocket 运行时
+
+`src/routes/chat-ws/index.ts` 是另一种独立运行时：
+
+- 同实例连接保存在进程内 `Map`
+- 跨实例 fan-out 通过 Redis Pub/Sub
+
+这意味着：
+
+- WS 广播不具备持久化和重放能力
+- 真正补齐消息还是靠 `pullMessages`
+- 广播只是为了降低拉取延迟，不代表存在旧式 `sync` 端点
+
+如果要改 Redis key / channel 构造、Pub/Sub payload，先看 `redis-boundaries-and-pubsub.md`。
+
+## OpenTelemetry
+
+初始化在 `src/libs/otel.ts`。
+
+启用条件：
+
+- `OTEL_EXPORTER_OTLP_ENDPOINT` 存在
+
+覆盖面：
+
+- HTTP
+- Auth
+- Chat engagement
+- Revenue
+- LLM
+- DB / Redis instrumentation
+
+重要实现细节：
+
+- `sdk.start()` 必须发生在 `metrics.getMeter()` 之前
+- `/health` 会被 HTTP instrumentation 忽略
+
 ## 运行时修改建议
 
-如果你要改：
-
-- 新增 worker
-  - 先看 `run.ts` 的角色模型和 `billing-mq-worker.ts`
-- 改事件分发
-  - 先看 billing-consumer handler，在 `billing-mq-worker.ts` 中增加新的事件处理分支
-- 改聊天同步
-  - 先区分“持久化消息”与“广播通知”两层
-- 改部署限流
-  - 注意当前 `rate-limit.ts` 仍是单实例内存模型
+- **新增异步工作**：先问三遍"为什么不能在请求线程里同步做完"。绝大多数 admin / webhook / 短 batch 都可以；实在不行也优先 fire-and-forget per-request，而不是引入常驻 loop。
+- **真的需要 idle-driven 的活**（清理过期 token、定时聚合等）：先评估是否值得。如果是，开 Postgres `pg_cron` 或外部 cron service 调专门的 internal API endpoint，比"进程内常驻 loop"更可观察、更易停。
+- **改 Stripe / Flux 写路径**：看 `billing-architecture.md`，所有 ledger 写入都在事务内同步完成
+- **改聊天同步**：先区分"持久化消息"与"广播通知"两层
+- **改部署限流**：注意当前 `rate-limit.ts` 仍是单实例内存模型

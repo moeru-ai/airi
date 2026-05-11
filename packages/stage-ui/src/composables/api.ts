@@ -8,3 +8,5 @@ import { SERVER_URL } from '../libs/server'
 export const client = hc<AppType>(SERVER_URL, {
   fetch: authedFetch,
 })
+
+export type StageApiClient = typeof client

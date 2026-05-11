@@ -2,6 +2,8 @@ import type { SystemMessage } from '@xsai/shared-chat'
 
 import type { ChatHistoryItem } from '../../types/chat'
 
+import { cloneDeep } from 'es-toolkit'
+
 export interface ChatDataAccess {
   getActiveSessionId: () => string
   setActiveSessionId: (sessionId: string) => void
@@ -28,15 +30,6 @@ export interface ChatDataStore {
 }
 
 export function createChatDataStore(access: ChatDataAccess): ChatDataStore {
-  function cloneDeep<T>(value: T): T {
-    try {
-      return structuredClone(value)
-    }
-    catch {
-      return JSON.parse(JSON.stringify(value)) as T
-    }
-  }
-
   function ensureGeneration(sessionId: string) {
     const generations = access.getGenerations()
     if (generations[sessionId] === undefined)

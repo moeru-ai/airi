@@ -46,8 +46,9 @@ function createTestDeps() {
     fluxTransactionService: {} as any,
     stripeService: {} as any,
     billingService: {} as any,
+    adminFluxGrantsService: {} as any,
     ttsMeter: {} as any,
-    billingMq: {} as any,
+    requestLogService: {} as any,
     configKV: {
       getOrThrow: vi.fn(async (key: string) => {
         switch (key) {
@@ -63,6 +64,7 @@ function createTestDeps() {
     redis: redis as any,
     env: {
       API_SERVER_URL: 'http://localhost:3000',
+      ADMIN_EMAILS: '',
     } as any,
     otel: null,
     userDeletionService: {} as any,

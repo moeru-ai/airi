@@ -1,6 +1,7 @@
 import type { AuthInstance } from '../../libs/auth'
 import type { Database } from '../../libs/db'
 import type { Env } from '../../libs/env'
+import type { RateLimitMetrics } from '../../libs/otel'
 import type { ConfigKVService } from '../../services/config-kv'
 import type { HonoEnv } from '../../types/hono'
 
@@ -31,6 +32,7 @@ export interface AuthRoutesDeps {
   db: Database
   env: Env
   configKV: ConfigKVService
+  rateLimitMetrics?: RateLimitMetrics | null
 }
 
 /**
@@ -129,6 +131,8 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
       max: await deps.configKV.getOrThrow('AUTH_RATE_LIMIT_MAX'),
       windowSec: await deps.configKV.getOrThrow('AUTH_RATE_LIMIT_WINDOW_SEC'),
       keyGenerator: c => c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'unknown',
+      metrics: deps.rateLimitMetrics,
+      routeLabel: 'auth.api',
     }))
     .use('/api/auth/oauth2/authorize', async (c, next) => {
       await ensureDynamicFirstPartyRedirectUri(deps.db, c.req.raw)

@@ -53,6 +53,7 @@
     "@intlify/core": "catalog:",
     "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
+    "@pinia/colada": "catalog:",
     "@proj-airi/audio": "workspace:^",
     "@proj-airi/ccc": "workspace:^",
     "@proj-airi/drizzle-duckdb-wasm": "catalog:",

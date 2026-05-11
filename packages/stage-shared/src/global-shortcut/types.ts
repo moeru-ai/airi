@@ -62,8 +62,10 @@ export interface ShortcutBinding {
   /**
    * Whether the driver should also emit key-release events.
    *
-   * Drivers that cannot deliver release events refuse the
-   * registration with `{ ok: false, reason: 'unsupported' }`.
+   * Drivers that cannot deliver release events refuse the registration
+   * with `{ ok: false, reason: ShortcutFailureReasons.Unsupported }`. The Electron
+   * `globalShortcut` driver currently refuses; a uiohook-based driver
+   * path is planned to honour this flag.
    *
    * @default false
    */
@@ -73,27 +75,52 @@ export interface ShortcutBinding {
 }
 
 /**
+ * Closed set of failure reasons returned by drivers.
+ *
+ * Drivers translate platform-specific failures into one of these
+ * values at the boundary; raw underlying errors stay in driver logs,
+ * not on the wire. Add a new value here before any driver may emit it.
+ */
+export const ShortcutFailureReasons = {
+  /**
+   * The accelerator is held by another app or by another binding here
+   * under a different id.
+   */
+  Conflict: 'conflict',
+  /**
+   * An active binding already uses this id; callers must `unregister`
+   * first to rebind.
+   */
+  DuplicateId: 'duplicate-id',
+  /**
+   * The OS or portal refused the registration (e.g. user declined a
+   * Wayland portal dialog, macOS denied Accessibility for a media-key
+   * combo). Drivers that can distinguish denial from conflict report
+   * this; the Electron `globalShortcut` driver cannot distinguish and
+   * reports `Conflict` for both.
+   */
+  Denied: 'denied',
+  /**
+   * The driver cannot satisfy the request (e.g. a binding asks for
+   * `receiveKeyUps: true` on a driver path that only delivers
+   * presses).
+   */
+  Unsupported: 'unsupported',
+} as const
+
+export type ShortcutFailureReason = typeof ShortcutFailureReasons[keyof typeof ShortcutFailureReasons]
+
+/**
  * Outcome of a registration request.
  *
  * `ok: true` means the binding is live. `ok: false` carries `reason`.
  * `actualAccelerator` is populated when the host had to substitute the
  * requested accelerator (e.g. user choice via a Wayland portal dialog).
  */
-export interface ShortcutRegistrationResult {
-  id: string
-  ok: boolean
-  /**
-   * The accelerator the host actually bound. Absent when the request
-   * was honoured verbatim.
-   */
-  actualAccelerator?: ShortcutAccelerator
-  /**
-   * Failure reason. Known values: `'conflict'`, `'denied'`,
-   * `'unsupported'`. Drivers may emit other strings; treat unknown
-   * values as opaque.
-   */
-  reason?: 'conflict' | 'denied' | 'unsupported' | string
-}
+export type ShortcutRegistrationResult
+  = { id: string }
+    & ({ ok: true, actualAccelerator?: ShortcutAccelerator }
+      | { ok: false, reason: ShortcutFailureReason })
 
 /**
  * In-memory shortcut config. Bump `version` on any breaking schema

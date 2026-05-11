@@ -134,3 +134,5 @@ apps/stage-tamagotchi/electron.vite.config.*.mjs
 
 # Tools - Obsidian
 .obsidian/
+
+docs/ai/context/verifications/

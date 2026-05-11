@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import {
   configRedisKey,
   createRedisKey,
-  DEFAULT_BILLING_EVENTS_STREAM,
   lockRedisKey,
   userChatBroadcastRedisKey,
   userFluxRedisKey,
@@ -21,7 +20,6 @@ describe('redis key utils', () => {
   })
 
   it('exposes stable helpers for config, user, and lock namespaces', () => {
-    expect(DEFAULT_BILLING_EVENTS_STREAM).toBe('billing:events')
     expect(configRedisKey('FLUX_PER_REQUEST')).toBe('config:FLUX_PER_REQUEST')
     expect(userFluxRedisKey('user-1')).toBe('user:user-1:flux')
     expect(userChatBroadcastRedisKey('user-1')).toBe('user:user-1:chat:broadcast')

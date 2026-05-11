@@ -345,9 +345,9 @@ export const electronGodotStageStatusChanged = defineEventa<ElectronGodotStageSt
 /**
  * Phase of a shortcut trigger event.
  *
- * - `down` — key-combination pressed
- * - `up`   — key-combination released; only emitted by drivers that set
- *            `ok: true` for bindings with `receiveKeyUps: true`
+ * - `down` — key combination pressed
+ * - `up`   — key combination released; only emitted by drivers that
+ *            accepted a binding with `receiveKeyUps: true`
  */
 export type ElectronShortcutTriggerPhase = 'down' | 'up'
 

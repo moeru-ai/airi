@@ -1,5 +1,6 @@
 import type Redis from 'ioredis'
 
+import type { RevenueMetrics } from '../../libs/otel'
 import type { BillingService } from './billing-service'
 
 import { useLogger } from '@guiiai/logg'
@@ -80,6 +81,7 @@ export function createFluxMeter(
   redis: Redis,
   billingService: BillingService,
   config: FluxMeterConfig,
+  metrics?: RevenueMetrics | null,
 ) {
   async function getRuntime(): Promise<FluxMeterRuntime> {
     const runtime = await config.resolveRuntime()
@@ -119,8 +121,10 @@ export function createFluxMeter(
     // At minimum require the user can cover a single Flux crossing; avoids
     // letting zero-balance users accumulate indefinitely on the boundary.
     const required = Math.max(projectedFlux, currentBalance <= 0 ? 1 : 0)
-    if (currentBalance < required)
+    if (currentBalance < required) {
+      metrics?.ttsPreflightRejections.add(1, { meter: config.name, reason: 'insufficient_balance' })
       throw createPaymentRequiredError('Insufficient flux')
+    }
   }
 
   /**
@@ -131,6 +135,9 @@ export function createFluxMeter(
   async function accumulate(input: AccumulateInput): Promise<AccumulateResult> {
     if (!Number.isFinite(input.units) || input.units <= 0)
       return { fluxDebited: 0, debtAfter: await readDebt(input.userId), balanceAfter: input.currentBalance }
+
+    const modelLabel = typeof input.metadata?.model === 'string' ? input.metadata.model : 'unknown'
+    metrics?.ttsChars.add(input.units, { meter: config.name, model: modelLabel })
 
     const runtime = await getRuntime()
     const key = userFluxMeterDebtRedisKey(input.userId, config.name)
