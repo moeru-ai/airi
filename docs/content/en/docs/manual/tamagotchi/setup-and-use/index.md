@@ -129,7 +129,7 @@ Congratulations! You have completed the initial configuration of Airi.
 
 [Introduction to the Main Interface of the Web Version](#chapter-3-main-web)
 
-This window displays the virtual character. There are three buttons:[Historical characteristics](#h3-1-1)
+This window displays the virtual character. There are three buttons: [Historical characteristics](#h3-1-1)
 
 - "Expand" – bottom right, click to reveal more options (see below).
 - "Open hearing control" – bottom right, allows you to speak to Airi. Requires an STT service.
