@@ -3,19 +3,20 @@ import { Button, Callout, FieldCombobox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 
-import { useAudioAnalyzer } from '../../../../composables'
+import { useAudioAnalyzer, useAudioDevice } from '../../../../composables'
 import { useSettingsAudioDevice } from '../../../../stores'
 
 const props = withDefaults(defineProps<{
-  granted?: boolean
+  granted?: boolean // permission status on OS level
   transcription?: boolean
 }>(), {
   granted: false,
 })
 
 const emit = defineEmits(['toggleTranscription'])
-
-const { enabled, selectedAudioInput, audioInputs } = storeToRefs(useSettingsAudioDevice())
+const deviceStore = useSettingsAudioDevice()
+const { enabled, selectedAudioInput } = storeToRefs(deviceStore)
+const { audioInputs, permissionGranted, askPermission } = useAudioDevice()
 const { volumeLevel } = useAudioAnalyzer()
 
 const autoSend = defineModel<boolean>('autoSend')
@@ -27,8 +28,10 @@ const ringEnabledClass = computed(() => enabled.value
 function toggleHearingEnabled() {
   if (enabled.value)
     return enabled.value = false
-  if (!enabled.value && selectedAudioInput.value !== '')
-    enabled.value = true
+  if (selectedAudioInput.value !== '' && permissionGranted.value)
+    return enabled.value = true
+  if (!permissionGranted.value)
+    return askPermission().then(() => { enabled.value = true })
 }
 </script>
 

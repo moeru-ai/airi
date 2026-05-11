@@ -31,7 +31,6 @@ import { useTranscriptions } from '../../composables/use-transcriptions'
 import { BackgroundDialogPicker } from '../Backgrounds'
 
 const { isDark, toggleDark } = useTheme()
-const hearingDialogOpen = ref(false)
 const chatOrchestrator = useChatOrchestratorStore()
 const chatSession = useChatSessionStore()
 const chatStream = useChatStreamStore()
@@ -123,7 +122,7 @@ function teardownAnalyzer() {
 
 async function setupAnalyzer() {
   teardownAnalyzer()
-  if (!hearingDialogOpen.value || !enabled.value || !stream.value)
+  if (!enabled.value || !stream.value)
     return
   if (audioContext.state === 'suspended')
     await audioContext.resume()
@@ -137,12 +136,6 @@ async function setupAnalyzer() {
 watch([enabled, stream], () => {
   setupAnalyzer()
 }, { immediate: true })
-
-watch(hearingDialogOpen, (value) => {
-  if (value) {
-    settingsAudioDevice.askPermission()
-  }
-})
 
 onAfterMessageComposed(async () => {
 })
@@ -197,7 +190,6 @@ onMounted(() => {
           </button>
           <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
           <HearingConfigDialog
-            v-model:show="hearingDialogOpen"
             v-model:enabled="enabled"
             :transcription="isListening"
             :toggle-transcription="toggleTranscription"
