@@ -458,7 +458,6 @@ flowchart TD
 
 ## 謝辞
 
-- [AtomGit](https://gitcode.com/moeru-ai/airi): 中国本土で AIRI をホストし、現地ユーザーがプロジェクトや Release のダウンロードへより速くアクセスできるよう支援してくれています。
 - [Reka UI](https://github.com/unovue/reka-ui): ドキュメントサイトのデザイン。新しいランディングページもここをベースに、膨大な UI コンポーネントに感謝。（shadcn-vue は headless として Reka UI を採用、ぜひチェックを）
 - [pixiv/ChatVRM](https://github.com/pixiv/ChatVRM)
 - [josephrocca/ChatVRM-js: A JS conversion/adaptation of parts of the ChatVRM (TypeScript) code for standalone use in OpenCharacters and elsewhere](https://github.com/josephrocca/ChatVRM-js)

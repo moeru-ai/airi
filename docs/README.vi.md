@@ -452,7 +452,6 @@ flowchart TD
 
 ## Lời cảm ơn
 
-- [AtomGit](https://gitcode.com/moeru-ai/airi): đã lưu trữ AIRI tại Trung Quốc đại lục, giúp người dùng địa phương truy cập dự án và tải Release nhanh hơn.
 - [Reka UI](https://github.com/unovue/reka-ui): Đã thiết kế trang tài liệu, trang chủ mới cũng dựa trên dự án này, đồng thời triển khai rất nhiều thành phần trong giao diện. (shadcn-vue sử dụng Reka UI làm headless, bạn nên xem qua!)
 - [pixiv/ChatVRM](https://github.com/pixiv/ChatVRM)
 - [josephrocca/ChatVRM-js: A JS conversion/adaptation of parts of the ChatVRM (TypeScript) code for standalone use in OpenCharacters and elsewhere](https://github.com/josephrocca/ChatVRM-js)
