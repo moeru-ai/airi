@@ -2,7 +2,7 @@
 import type { ChatAssistantMessage, ChatHistoryItem, ContextMessage } from '../../../../types/chat'
 import type { ChatToolCallRendererRegistry } from './tool-call-renderer'
 
-import { computed, provide, ref } from 'vue'
+import { computed, nextTick, provide, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ChatAssistantItem from './assistant-item.vue'
@@ -39,6 +39,28 @@ const chatHistoryRef = ref<HTMLDivElement>()
 provide(chatScrollContainerKey, chatHistoryRef)
 
 const collapsed = ref(false)
+let savedScrollTop = 0
+
+async function toggleCollapsed() {
+  if (!collapsed.value) {
+    savedScrollTop = chatHistoryRef.value?.scrollTop ?? 0
+  }
+  collapsed.value = !collapsed.value
+  if (!collapsed.value) {
+    await nextTick()
+    requestAnimationFrame(() => {
+      if (chatHistoryRef.value) {
+        chatHistoryRef.value.scrollTop = savedScrollTop
+      }
+    })
+  }
+}
+
+watch(() => props.variant, (variant) => {
+  if (variant !== 'mobile') {
+    collapsed.value = false
+  }
+})
 
 const { t } = useI18n()
 const labels = computed(() => ({
@@ -110,9 +132,10 @@ function emitRetryMessage(message: ChatHistoryItem, index: number) {
       <button
         border="2 solid neutral-100/60 dark:neutral-800/30"
         bg="neutral-50/70 dark:neutral-800/70"
-        flex items-center justify-center rounded-xl p-1 backdrop-blur-md
-        :title="collapsed ? 'Expand chat history' : 'Collapse chat history'"
-        @click="collapsed = !collapsed"
+        flex items-center justify-center rounded-xl p-1
+        :title="collapsed ? t('stage.chat.history.expand') : t('stage.chat.history.collapse')"
+        :aria-expanded="!collapsed"
+        @click="toggleCollapsed"
       >
         <div
           v-if="collapsed"

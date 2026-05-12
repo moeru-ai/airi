@@ -14,6 +14,9 @@ chat:
     cloud-badge: Synced to cloud
     new-chat-fallback: New chat
     delete: Delete conversation
+  history:
+    expand: 展开聊天记录
+    collapse: 收起聊天记录
 message: 说点什么...
 send-mode:
   title: 发送键值

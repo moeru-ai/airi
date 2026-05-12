@@ -14,6 +14,9 @@ chat:
     cloud-badge: Synced to cloud
     new-chat-fallback: New chat
     delete: Delete conversation
+  history:
+    expand: 展開聊天記錄
+    collapse: 收起聊天記錄
 message: 說點什麼...
 send-mode:
   title: 傳送按鍵
