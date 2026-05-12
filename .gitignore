@@ -135,4 +135,7 @@ apps/stage-tamagotchi/electron.vite.config.*.mjs
 # Tools - Obsidian
 .obsidian/
 
+# Tools - openspec
+openspec/
+
 docs/ai/context/verifications/

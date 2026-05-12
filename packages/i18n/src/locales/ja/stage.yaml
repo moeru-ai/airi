@@ -14,6 +14,9 @@ chat:
     cloud-badge: Synced to cloud
     new-chat-fallback: New chat
     delete: Delete conversation
+  history:
+    expand: チャット履歴を展開
+    collapse: チャット履歴を折りたたむ
 message: 何か話しかけてみましょう…
 send-mode:
   title: キーを送信

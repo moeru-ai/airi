@@ -14,6 +14,9 @@ chat:
     cloud-badge: Synced to cloud
     new-chat-fallback: New chat
     delete: Delete conversation
+  history:
+    expand: Expand chat history
+    collapse: Collapse chat history
 message: Say something...
 send-mode:
   title: Send key
