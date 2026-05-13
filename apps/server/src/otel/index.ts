@@ -1,13 +1,13 @@
-import type { Counter, Histogram, ObservableGauge, UpDownCounter } from '@opentelemetry/api'
+import type { Counter, Histogram, ObservableGauge } from '@opentelemetry/api'
 // NOTICE:
 // HTTP server metrics (request duration, active requests) are emitted by
 // `@hono/otel`'s `httpInstrumentationMiddleware` registered in `app.ts`. It
 // records the standard semconv names with the matched Hono route pattern,
 // so we don't create those handles here. We keep the auto HttpInstrumentation
 // for OUTBOUND requests only (LLM gateway, Stripe, Resend) — see
-// `instrumentation.mjs`.
+// `instrumentation.ts`.
 
-import type { Env } from './env'
+import type { Env } from '../libs/env'
 
 import { useLogger } from '@guiiai/logg'
 import { metrics, trace } from '@opentelemetry/api'
@@ -18,7 +18,9 @@ import {
   METRIC_AIRI_EMAIL_FAILURES,
   METRIC_AIRI_EMAIL_SEND,
   METRIC_AIRI_FLUX_CREDITED,
+  METRIC_AIRI_FLUX_UNBILLED,
   METRIC_AIRI_GEN_AI_STREAM_INTERRUPTED,
+  METRIC_AIRI_OBSERVABILITY_READ_ERRORS,
   METRIC_AIRI_RATE_LIMIT_BLOCKED,
   METRIC_AIRI_STRIPE_REVENUE,
   METRIC_AIRI_TTS_CHARS,
@@ -56,7 +58,25 @@ export interface AuthMetrics {
   failures: Counter
   userRegistered: Counter
   userLogin: Counter
-  activeSessions: UpDownCounter
+  /**
+   * Cluster-wide active session count, sourced from Postgres (Better Auth
+   * `session` table where `expires_at > NOW()`).
+   *
+   * Why ObservableGauge instead of UpDownCounter:
+   * - UpDownCounter drifts: TTL expiration never fires a -1, and multi-
+   *   replica deploys split +1 / -1 across instances (signin on A, signout
+   *   on B). The previous implementation went unboundedly positive.
+   * - Reading from the source-of-truth DB at scrape time makes the metric
+   *   self-correcting.
+   *
+   * Multi-replica note:
+   * - Every replica reads the same DB and reports the same value, so the
+   *   dashboard MUST aggregate with `max()` (or `avg()`), NOT `sum()`.
+   *   Using sum() would multiply the real count by the replica count.
+   * - See `apps/server/docs/ai-context/observability-conventions.md`,
+   *   "Multi-Replica Considerations".
+   */
+  activeSessions: ObservableGauge
 }
 
 export interface EngagementMetrics {
@@ -95,6 +115,22 @@ export interface RevenueMetrics {
   stripeRevenue: Counter
   fluxInsufficientBalance: Counter
   fluxCredited: Counter
+  /**
+   * Streaming-only: Flux consumed by a request whose post-stream debit failed.
+   *
+   * Use when:
+   * - Tracking real revenue leak in the LLM streaming proxy.
+   *
+   * Why this needs its own metric:
+   * - The streaming response is already sent (HTTP 200, tokens delivered) by
+   *   the time the catch around `billingService.consumeFluxForLLM` runs.
+   *   DB latency / HTTP 5xx alerts do NOT fire on this path — the failure is
+   *   silent at the transport layer. This counter is the only signal that
+   *   ties Flux value owed to a failed debit.
+   * - Recommended alert: `increase(airi_billing_flux_unbilled_total[5m]) > 0`
+   *   pages on-call immediately on any sustained leak.
+   */
+  fluxUnbilled: Counter
   ttsChars: Counter
   ttsPreflightRejections: Counter
 }
@@ -119,6 +155,18 @@ export interface RateLimitMetrics {
   blocked: Counter
 }
 
+export interface ObservabilityMetrics {
+  /**
+   * Counts failures inside metric-pipeline callbacks (e.g. a DB-backed
+   * ObservableGauge that couldn't read from Postgres). Use for self-monitoring
+   * — when this is rising, treat the affected gauge's reported value as
+   * potentially stale.
+   *
+   * Labels: `metric` (the failing gauge's logical name).
+   */
+  metricReadErrors: Counter
+}
+
 export interface OtelInstance {
   auth: AuthMetrics
   engagement: EngagementMetrics
@@ -126,6 +174,7 @@ export interface OtelInstance {
   genAi: GenAiMetrics
   email: EmailMetrics
   rateLimit: RateLimitMetrics
+  observability: ObservabilityMetrics
 }
 
 /**
@@ -136,8 +185,8 @@ export interface OtelInstance {
  *   disabled (no OTLP endpoint), so callers can skip wiring `metrics?.…`.
  *
  * Expects:
- * - `instrumentation.mjs` has already started NodeSDK (loaded via
- *   `tsx --import ./instrumentation.mjs`). This function does NOT start the
+ * - `instrumentation.ts` has already started NodeSDK (loaded via
+ *   `tsx --import ./instrumentation.ts`). This function does NOT start the
  *   SDK — it only consumes the global MeterProvider that the preload set up.
  *   Calling it before the preload runs would yield NoopMeter for everything.
  *
@@ -167,8 +216,8 @@ export function initOtel(env: Env): OtelInstance | null {
     userLogin: meter.createCounter(METRIC_USER_LOGIN, {
       description: 'Number of user sign-ins',
     }),
-    activeSessions: meter.createUpDownCounter(METRIC_USER_ACTIVE_SESSIONS, {
-      description: 'Number of active user sessions',
+    activeSessions: meter.createObservableGauge(METRIC_USER_ACTIVE_SESSIONS, {
+      description: 'Active user sessions sourced from Postgres (cluster-wide; dashboard must use max(), not sum())',
     }),
   }
 
@@ -224,6 +273,9 @@ export function initOtel(env: Env): OtelInstance | null {
     fluxCredited: meter.createCounter(METRIC_AIRI_FLUX_CREDITED, {
       description: 'Total flux credited to user balances, by source',
     }),
+    fluxUnbilled: meter.createCounter(METRIC_AIRI_FLUX_UNBILLED, {
+      description: 'Flux owed but unbilled (post-stream debit failed). Real revenue leak.',
+    }),
     ttsChars: meter.createCounter(METRIC_AIRI_TTS_CHARS, {
       description: 'TTS input characters processed (billing base unit)',
     }),
@@ -278,6 +330,12 @@ export function initOtel(env: Env): OtelInstance | null {
     }),
   }
 
+  const observability: ObservabilityMetrics = {
+    metricReadErrors: meter.createCounter(METRIC_AIRI_OBSERVABILITY_READ_ERRORS, {
+      description: 'Failures reading metric values inside gauge callbacks',
+    }),
+  }
+
   // NOTICE:
   // OTel SDK only emits a Counter time series after .add() runs the first time.
   // Without this priming step, low-traffic counters (auth_failures_total,
@@ -306,6 +364,7 @@ export function initOtel(env: Env): OtelInstance | null {
     revenue.stripeRevenue,
     revenue.fluxInsufficientBalance,
     revenue.fluxCredited,
+    revenue.fluxUnbilled,
     revenue.ttsChars,
     revenue.ttsPreflightRejections,
     genAi.operationCount,
@@ -316,10 +375,11 @@ export function initOtel(env: Env): OtelInstance | null {
     email.send,
     email.failures,
     rateLimit.blocked,
+    observability.metricReadErrors,
   ]
   for (const counter of counters) counter.add(0)
 
-  return { auth, engagement, revenue, genAi, email, rateLimit }
+  return { auth, engagement, revenue, genAi, email, rateLimit, observability }
 }
 
 const severityMap: Record<string, SeverityNumber> = {

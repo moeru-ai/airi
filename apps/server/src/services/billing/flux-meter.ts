@@ -1,6 +1,6 @@
 import type Redis from 'ioredis'
 
-import type { RevenueMetrics } from '../../libs/otel'
+import type { RevenueMetrics } from '../../otel'
 import type { BillingService } from './billing-service'
 
 import { useLogger } from '@guiiai/logg'

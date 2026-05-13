@@ -1,7 +1,8 @@
 /**
  * Dashboard generator for `airi-server-overview-cloud.json`.
  *
- * Run: `node apps/server/otel/grafana/dashboards/build.mjs`
+ * Run: `pnpm -F @proj-airi/server otel:dashboards`
+ *  (or directly: `pnpm exec tsx apps/server/otel/grafana/dashboards/build.ts`)
  *
  * Why a generator instead of hand-edited JSON: the dashboard's Grafana v2
  * schema is verbose (~50 lines per panel). Rebuilding the file by hand every
@@ -35,7 +36,14 @@ const SCHEMA_VERSION = '13.0.0-23630096546'
 // the variable name only appears once.
 const SERVICE_FILTER = 'service_name=~"$service", deployment_environment=~"$env"'
 
-function query(expr, legend, refId = 'A', datasource = PROM) {
+// Build-script local types. Kept loose — Grafana owns the schema, and we
+// validate the rendered JSON by re-importing it into Grafana, not by typing.
+type DataSource = typeof PROM | typeof LOKI
+interface ThresholdStep { color: string, value: number }
+type PanelQuery = ReturnType<typeof query>
+type LegendCalc = 'lastNotNull' | 'max' | 'min' | 'mean' | 'sum'
+
+function query(expr: string, legend: string, refId = 'A', datasource: DataSource = PROM) {
   return {
     kind: 'PanelQuery',
     spec: {
@@ -52,14 +60,52 @@ function query(expr, legend, refId = 'A', datasource = PROM) {
   }
 }
 
-function thresholds(steps) {
+function thresholds(steps: ThresholdStep[]) {
   return { mode: 'absolute', steps }
+}
+
+interface DefaultsBlockOpts {
+  unit: string
+  steps: ThresholdStep[]
+  decimals?: number
+  noValue?: string
+  min?: number
+  max?: number
+}
+
+interface StatPanelOpts {
+  unit?: string
+  steps?: ThresholdStep[]
+  decimals?: number
+  noValue?: string
+  graphMode?: 'area' | 'none'
+}
+
+interface GaugePanelOpts {
+  unit?: string
+  steps: ThresholdStep[]
+  decimals?: number
+  min?: number
+  max?: number
+  noValue?: string
+}
+
+interface PiePanelOpts {
+  unit?: string
+  noValue?: string
+}
+
+interface TimeseriesPanelOpts {
+  unit?: string
+  stack?: boolean
+  fillOpacity?: number
+  legendCalcs?: LegendCalc[]
 }
 
 // `noValue` shows a friendly placeholder instead of "No data" red text when
 // the env genuinely has zero traffic (e.g. dev, fresh deploy). Empty-string
 // fields are omitted from the JSON to keep diffs tidy.
-function defaultsBlock({ unit, steps, decimals, noValue, min, max }) {
+function defaultsBlock({ unit, steps, decimals, noValue, min, max }: DefaultsBlockOpts) {
   return {
     color: { mode: 'thresholds' },
     thresholds: thresholds(steps),
@@ -71,7 +117,7 @@ function defaultsBlock({ unit, steps, decimals, noValue, min, max }) {
   }
 }
 
-function statPanel(id, title, description, queries, opts = {}) {
+function statPanel(id: number, title: string, description: string, queries: PanelQuery[], opts: StatPanelOpts = {}) {
   const { unit = 'short', steps = [{ color: 'green', value: 0 }], decimals, noValue, graphMode = 'area' } = opts
   return {
     kind: 'Panel',
@@ -107,7 +153,7 @@ function statPanel(id, title, description, queries, opts = {}) {
 // Bounded ratio with traffic-light thresholds. Use for percent or capacity
 // metrics; the radial fill instantly conveys "OK / warn / critical" without
 // reading the number.
-function gaugePanel(id, title, description, queries, opts = {}) {
+function gaugePanel(id: number, title: string, description: string, queries: PanelQuery[], opts: GaugePanelOpts) {
   const { unit = 'percent', steps, decimals = 1, min = 0, max = 100, noValue } = opts
   return {
     kind: 'Panel',
@@ -141,7 +187,7 @@ function gaugePanel(id, title, description, queries, opts = {}) {
 // Donut for distribution-at-a-glance. Each query result becomes a slice;
 // percentages render automatically. Use over stacked-area when the question
 // is "what's the current breakdown" rather than "how is it changing".
-function piePanel(id, title, description, queries, opts = {}) {
+function piePanel(id: number, title: string, description: string, queries: PanelQuery[], opts: PiePanelOpts = {}) {
   const { unit = 'short', noValue = 'no traffic' } = opts
   return {
     kind: 'Panel',
@@ -184,7 +230,7 @@ function piePanel(id, title, description, queries, opts = {}) {
   }
 }
 
-function timeseriesPanel(id, title, description, queries, opts = {}) {
+function timeseriesPanel(id: number, title: string, description: string, queries: PanelQuery[], opts: TimeseriesPanelOpts = {}) {
   const { unit = 'short', stack = false, fillOpacity = 20, legendCalcs = ['lastNotNull', 'max'] } = opts
   return {
     kind: 'Panel',
@@ -244,7 +290,7 @@ function timeseriesPanel(id, title, description, queries, opts = {}) {
   }
 }
 
-function logsPanel(id, title, description, expr) {
+function logsPanel(id: number, title: string, description: string, expr: string) {
   return {
     kind: 'Panel',
     spec: {
@@ -282,11 +328,11 @@ function logsPanel(id, title, description, expr) {
   }
 }
 
-function item(name, x, y, width, height) {
+function item(name: string, x: number, y: number, width: number, height: number) {
   return { kind: 'GridLayoutItem', spec: { element: { kind: 'ElementReference', name }, height, width, x, y } }
 }
 
-function row(title, items, { collapse = false } = {}) {
+function row(title: string, items: ReturnType<typeof item>[], { collapse = false }: { collapse?: boolean } = {}) {
   return {
     kind: 'RowsLayoutRow',
     spec: {
@@ -301,15 +347,21 @@ function row(title, items, { collapse = false } = {}) {
 // Panels
 // ---------------------------------------------------------------------------
 
-const elements = {}
+// Grafana v2 element entries are opaque to us — each helper returns a Panel
+// shape with deeply-nested fieldConfig/options that we don't statically type
+// (Grafana owns that schema, and any drift would surface at dashboard import
+// time, not compile time). Treat `elements` as a string-keyed bag of
+// `unknown`-shaped panel JSON; the cross-check below catches mismatches
+// between defined panel ids and layout references.
+const elements: Record<string, unknown> = {}
 
 // Row 1: Service Health — answers "is anything broken right now?"
 // Mix of stats (absolute counts) and gauges (bounded ratios with thresholds).
 elements['panel-1'] = statPanel(
   1,
   'Active Users',
-  'Currently authenticated user sessions across all instances. Stale sessions expire by Better Auth TTL.',
-  [query(`sum(user_active_sessions{${SERVICE_FILTER}})`, 'sessions')],
+  'Currently active sessions in Postgres (Better Auth `session.expires_at > now()`). Cluster-wide gauge — every replica polls the same DB on a 10s cache. We aggregate with `avg()` (not `sum()`, which would multiply by replica count; not `max()`, which biases high when one replica\'s cache is fresher than another\'s after a logout).',
+  [query(`avg(user_active_sessions{${SERVICE_FILTER}})`, 'sessions')],
   { unit: 'short', steps: [{ color: 'green', value: 0 }, { color: 'yellow', value: 1000 }] },
 )
 
@@ -473,10 +525,21 @@ elements['panel-41'] = statPanel(
   { unit: 'short', steps: [{ color: 'green', value: 0 }, { color: 'yellow', value: 1 }, { color: 'red', value: 10 }], noValue: '0', graphMode: 'none' },
 )
 
+elements['panel-43'] = statPanel(
+  43,
+  '⚠ Flux Unbilled (range)',
+  'Flux value owed by users but never debited (post-stream debit failed AFTER the LLM response was already sent). Real revenue leak — DB latency and HTTP 5xx alerts do NOT cover this, because the response was 2xx and the catch path is silent. Any sustained >0 should page on-call.',
+  [query(
+    `sum(increase(airi_billing_flux_unbilled_total{${SERVICE_FILTER}}[$__range]))`,
+    'flux',
+  )],
+  { unit: 'short', steps: [{ color: 'green', value: 0 }, { color: 'red', value: 1 }], noValue: '0', graphMode: 'none' },
+)
+
 elements['panel-42'] = timeseriesPanel(
   42,
   'Rate-Limit Blocks',
-  'Requests blocked by the in-memory rate limiter, by route + key type. Sustained activity here is either an attack or a misconfigured client.',
+  'Requests blocked by the in-memory rate limiter, by route + key type. NOTE: limiter is in-memory per replica (`apps/server/src/middlewares/rate-limit.ts`), so the configured limit applies independently on each pod — effective cluster-wide allowance is roughly `limit × replica_count`. The values here are absolute blocks summed across replicas, not a percentage of capacity. Sustained activity = attack, misconfigured client, or limit-too-low for current traffic.',
   [query(
     `sum by (route, key_type) (rate(airi_rate_limit_blocked_total{${SERVICE_FILTER}}[$__rate_interval]))`,
     '{{route}} ({{key_type}})',
@@ -530,31 +593,37 @@ elements['panel-50'] = statPanel(
   { unit: 's', steps: [{ color: 'green', value: 0 }, { color: 'yellow', value: 0.05 }, { color: 'red', value: 0.5 }], decimals: 3 },
 )
 
-elements['panel-51'] = statPanel(
+elements['panel-51'] = timeseriesPanel(
   51,
-  'DB Pool Connections',
-  'Open PostgreSQL connections across all instances. Compare to env DB_POOL_MAX × instance count.',
-  [query(`sum(db_client_connection_count{${SERVICE_FILTER}})`, 'open')],
+  'DB Pool Connections by Instance',
+  'Open PostgreSQL connections, broken down per replica (`service_instance_id`). Each instance has its own pool sized by env `DB_POOL_MAX`. One instance with a permanently-high count = pool leak on that pod.',
+  [query(
+    `sum by (service_instance_id) (db_client_connection_count{${SERVICE_FILTER}})`,
+    '{{service_instance_id}}',
+  )],
   { unit: 'short' },
 )
 
-elements['panel-52'] = gaugePanel(
+elements['panel-52'] = timeseriesPanel(
   52,
-  'Heap Used %',
-  'V8 heap used ÷ heap limit. Sustained >85% = consider raising memory or hunting a leak.',
+  'Heap Used % by Instance',
+  'V8 heap used ÷ heap limit, per replica (`service_instance_id`). A single replica trending up while others stay flat = leak on that pod. Cluster-wide average masks that — show by instance.',
   [query(
-    `100 * sum(v8js_memory_heap_used_bytes{${SERVICE_FILTER}}) / clamp_min(sum(v8js_memory_heap_limit_bytes{${SERVICE_FILTER}}), 1)`,
-    'used %',
+    `100 * sum by (service_instance_id) (v8js_memory_heap_used_bytes{${SERVICE_FILTER}}) / clamp_min(sum by (service_instance_id) (v8js_memory_heap_limit_bytes{${SERVICE_FILTER}}), 1)`,
+    '{{service_instance_id}}',
   )],
-  { steps: [{ color: 'green', value: 0 }, { color: 'yellow', value: 70 }, { color: 'red', value: 90 }], decimals: 1 },
+  { unit: 'percent' },
 )
 
-elements['panel-53'] = statPanel(
+elements['panel-53'] = timeseriesPanel(
   53,
-  'Event Loop Delay P99',
-  'P99 event-loop delay. >50ms means CPU-bound work (sync JSON parsing, CPU-heavy regex) is blocking the loop.',
-  [query(`max(nodejs_eventloop_delay_p99_seconds{${SERVICE_FILTER}})`, 'p99')],
-  { unit: 's', steps: [{ color: 'green', value: 0 }, { color: 'yellow', value: 0.05 }, { color: 'red', value: 0.2 }], decimals: 3 },
+  'Event Loop Delay P99 by Instance',
+  'P99 event-loop delay per replica. One replica climbing while others stay flat = CPU-bound work pinning that pod. >50ms sustained is bad anywhere.',
+  [query(
+    `max by (service_instance_id) (nodejs_eventloop_delay_p99_seconds{${SERVICE_FILTER}})`,
+    '{{service_instance_id}}',
+  )],
+  { unit: 's' },
 )
 
 // Row 8: Logs
@@ -596,11 +665,15 @@ const rows = [
     item('panel-20', 0, 0, 12, 8),
     item('panel-21', 12, 0, 12, 8),
   ]),
-  // Row 5: 1 stacked area + 1 stat + 1 timeseries × 8 high
+  // Row 5: 1 stacked area + 2 stats + 1 timeseries × 7 high
+  // Stream Interruptions and ⚠ Flux Unbilled sit next to the 4xx/5xx trend
+  // so revenue-leak signal (which doesn't show up in 5xx) gets the same
+  // glance-weight as transport-layer errors.
   row('Errors / Quality', [
     item('panel-40', 0, 0, 10, 7),
-    item('panel-41', 10, 0, 6, 7),
-    item('panel-42', 16, 0, 8, 7),
+    item('panel-41', 10, 0, 4, 7),
+    item('panel-43', 14, 0, 4, 7),
+    item('panel-42', 18, 0, 6, 7),
   ]),
   // Row 6: 1 stat + 1 gauge + 1 donut × 8 wide × 7 high
   row('Business', [
@@ -608,12 +681,14 @@ const rows = [
     item('panel-31', 8, 0, 8, 7),
     item('panel-32', 16, 0, 8, 7),
   ]),
-  // Row 7: 4 panels × 6 wide × 4 high (collapsed by default — only relevant when troubleshooting)
+  // Row 7: 1 stat + 3 by-instance timeseries × 6 wide × 6 high (collapsed by
+  // default — only relevant when triaging. By-instance breakdowns catch
+  // single-replica issues that cluster aggregates would average away.)
   row('Infrastructure', [
-    item('panel-50', 0, 0, 6, 4),
-    item('panel-51', 6, 0, 6, 4),
-    item('panel-52', 12, 0, 6, 4),
-    item('panel-53', 18, 0, 6, 4),
+    item('panel-50', 0, 0, 6, 6),
+    item('panel-51', 6, 0, 6, 6),
+    item('panel-52', 12, 0, 6, 6),
+    item('panel-53', 18, 0, 6, 6),
   ], { collapse: true }),
   // Row 8: full-width logs
   row('Logs', [
@@ -752,12 +827,13 @@ console.info(`wrote ${outPath}`)
 
 // Cross-check elements ↔ layout references
 const elementNames = new Set(Object.keys(dashboard.elements))
-const refs = new Set()
-function walk(o) {
+const refs = new Set<string>()
+function walk(o: unknown): void {
   if (!o || typeof o !== 'object')
     return
-  if (o.kind === 'ElementReference' && o.name)
-    refs.add(o.name)
+  const node = o as { kind?: unknown, name?: unknown }
+  if (node.kind === 'ElementReference' && typeof node.name === 'string')
+    refs.add(node.name)
   for (const v of Object.values(o)) walk(v)
 }
 walk(dashboard.layout)

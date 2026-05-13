@@ -3,7 +3,7 @@ import type Redis from 'ioredis'
 import type { AuthInstance } from './libs/auth'
 import type { Database } from './libs/db'
 import type { Env } from './libs/env'
-import type { OtelInstance } from './libs/otel'
+import type { OtelInstance } from './otel'
 import type { AdminFluxGrantsService } from './services/admin-flux-grants'
 import type { BillingService } from './services/billing/billing-service'
 import type { FluxMeter } from './services/billing/flux-meter'
@@ -36,10 +36,11 @@ import { createAuth, getTrustedClientSeedSummaries, seedTrustedClients } from '.
 import { createDrizzle, migrateDatabase } from './libs/db'
 import { parsedEnv } from './libs/env'
 import { initializeExternalDependency } from './libs/external-dependency'
-import { emitOtelLog, initOtel } from './libs/otel'
 import { createRedis } from './libs/redis'
 import { resolveRequestAuth } from './libs/request-auth'
 import { sessionMiddleware } from './middlewares/auth'
+import { emitOtelLog, initOtel } from './otel'
+import { registerActiveSessionsGauge } from './otel/gauges/active-sessions'
 import { createAdminFluxGrantsRoutes } from './routes/admin/flux-grants'
 import { createAuthRoutes } from './routes/auth'
 import { createCharacterRoutes } from './routes/characters'
@@ -227,7 +228,7 @@ export async function buildApp(deps: AppDeps) {
     /**
      * V1 routes for official provider.
      */
-    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.requestLogService, deps.ttsMeter, deps.redis, deps.env, deps.otel?.genAi, deps.otel?.rateLimit))
+    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.requestLogService, deps.ttsMeter, deps.redis, deps.env, deps.otel?.genAi, deps.otel?.revenue, deps.otel?.rateLimit))
 
     /**
      * Flux routes.
@@ -272,7 +273,7 @@ export async function createApp() {
   })
 
   // NOTICE: OTel SDK lifecycle (start/shutdown) is owned entirely by
-  // instrumentation.mjs (preload). This factory only consumes the global
+  // instrumentation.ts (preload). This factory only consumes the global
   // MeterProvider that the preload set up, builds metric handles, and primes
   // counters. No `lifecycle.onStop(shutdown)` here — preload registers SIGTERM
   // / SIGINT to flush exporters on its own.
@@ -484,6 +485,12 @@ export async function createApp() {
     otel,
     userDeletionService,
   })
+  // Register the cluster-wide ObservableGauge for active sessions. Each
+  // replica polls the same DB (cached 10s, in-flight coalesced) and the
+  // dashboard aggregates with avg(), not sum(). See observability-conventions.md.
+  if (resolved.otel)
+    registerActiveSessionsGauge(resolved.otel.auth.activeSessions, resolved.db, resolved.otel.observability.metricReadErrors)
+
   const { app, injectWebSocket } = await buildApp({
     auth: resolved.auth,
     db: resolved.db,

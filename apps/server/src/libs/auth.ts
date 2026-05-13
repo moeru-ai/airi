@@ -1,8 +1,8 @@
+import type { AuthMetrics } from '../otel'
 import type { EmailService } from '../services/email'
 import type { UserDeletionService } from '../services/user-deletion'
 import type { Database } from './db'
 import type { Env } from './env'
-import type { AuthMetrics } from './otel'
 
 import { Buffer } from 'node:buffer'
 
@@ -644,12 +644,6 @@ export function createAuth(
         create: {
           after: async () => {
             metrics?.userLogin.add(1)
-            metrics?.activeSessions.add(1)
-          },
-        },
-        delete: {
-          after: async () => {
-            metrics?.activeSessions.add(-1)
           },
         },
       },

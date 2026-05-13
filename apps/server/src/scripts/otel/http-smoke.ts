@@ -6,12 +6,12 @@
  *   - Auto `HttpInstrumentation` is disabled for incoming, so it does NOT
  *     double-record the same histogram.
  *
- * STANDALONE simulation — does NOT use `--import ./instrumentation.mjs`. It
+ * STANDALONE simulation — does NOT use `--import ./instrumentation.ts`. It
  * mirrors the preload's NodeSDK setup but swaps the OTLP exporter for an
  * InMemoryMetricExporter so the smoke can read back what was recorded.
  *
  * Usage:
- *   pnpm -F @proj-airi/server exec node --import tsx ./src/scripts/otel-http-smoke.mjs
+ *   pnpm -F @proj-airi/server exec node --import tsx ./src/scripts/otel/http-smoke.ts
  */
 import { env, exit } from 'node:process'
 
@@ -54,9 +54,13 @@ app.get('/health-test', c => c.text('ok'))
 
 // `serve` returns the http.Server synchronously but binding is async — wait
 // for the listen callback to capture the port (port: 0 = auto-assigned).
-let server
-const { port } = await new Promise((resolve) => {
-  server = serve({ fetch: app.fetch, port: 0, hostname: '127.0.0.1' }, info => resolve(info))
+const server = serve({ fetch: app.fetch, port: 0, hostname: '127.0.0.1' })
+const port = await new Promise<number>((resolve) => {
+  server.once('listening', () => {
+    const addr = server.address()
+    if (addr && typeof addr === 'object')
+      resolve(addr.port)
+  })
 })
 console.info(`[smoke] hono server listening on 127.0.0.1:${port}`)
 

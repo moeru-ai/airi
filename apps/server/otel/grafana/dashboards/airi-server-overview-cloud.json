@@ -41,7 +41,7 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum(user_active_sessions{service_name=~\"$service\", deployment_environment=~\"$env\"})",
+                      "expr": "avg(user_active_sessions{service_name=~\"$service\", deployment_environment=~\"$env\"})",
                       "legendFormat": "sessions"
                     },
                     "version": "v0"
@@ -54,7 +54,7 @@
             "transformations": []
           }
         },
-        "description": "Currently authenticated user sessions across all instances. Stale sessions expire by Better Auth TTL.",
+        "description": "Currently active sessions in Postgres (Better Auth `session.expires_at > now()`). Cluster-wide gauge — every replica polls the same DB on a 10s cache. We aggregate with `avg()` (not `sum()`, which would multiply by replica count; not `max()`, which biases high when one replica's cache is fresher than another's after a logout).",
         "id": 1,
         "links": [],
         "title": "Active Users",
@@ -1606,6 +1606,90 @@
         }
       }
     },
+    "panel-43": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "expr": "sum(increase(airi_billing_flux_unbilled_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__range]))",
+                      "legendFormat": "flux"
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Flux value owed by users but never debited (post-stream debit failed AFTER the LLM response was already sent). Real revenue leak — DB latency and HTTP 5xx alerts do NOT cover this, because the response was 2xx and the catch path is silent. Any sustained >0 should page on-call.",
+        "id": 43,
+        "links": [],
+        "title": "⚠ Flux Unbilled (range)",
+        "vizConfig": {
+          "group": "stat",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                },
+                "unit": "short",
+                "noValue": "0"
+              },
+              "overrides": []
+            },
+            "options": {
+              "colorMode": "value",
+              "graphMode": "none",
+              "justifyMode": "auto",
+              "orientation": "auto",
+              "percentChangeColorMode": "standard",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "showPercentChange": false,
+              "textMode": "auto",
+              "wideLayout": true
+            }
+          },
+          "version": "13.0.0-23630096546"
+        }
+      }
+    },
     "panel-42": {
       "kind": "Panel",
       "spec": {
@@ -1637,7 +1721,7 @@
             "transformations": []
           }
         },
-        "description": "Requests blocked by the in-memory rate limiter, by route + key type. Sustained activity here is either an attack or a misconfigured client.",
+        "description": "Requests blocked by the in-memory rate limiter, by route + key type. NOTE: limiter is in-memory per replica (`apps/server/src/middlewares/rate-limit.ts`), so the configured limit applies independently on each pod — effective cluster-wide allowance is roughly `limit × replica_count`. The values here are absolute blocks summed across replicas, not a percentage of capacity. Sustained activity = attack, misconfigured client, or limit-too-low for current traffic.",
         "id": 42,
         "links": [],
         "title": "Rate-Limit Blocks",
@@ -2089,8 +2173,8 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum(db_client_connection_count{service_name=~\"$service\", deployment_environment=~\"$env\"})",
-                      "legendFormat": "open"
+                      "expr": "sum by (service_instance_id) (db_client_connection_count{service_name=~\"$service\", deployment_environment=~\"$env\"})",
+                      "legendFormat": "{{service_instance_id}}"
                     },
                     "version": "v0"
                   },
@@ -2102,18 +2186,52 @@
             "transformations": []
           }
         },
-        "description": "Open PostgreSQL connections across all instances. Compare to env DB_POOL_MAX × instance count.",
+        "description": "Open PostgreSQL connections, broken down per replica (`service_instance_id`). Each instance has its own pool sized by env `DB_POOL_MAX`. One instance with a permanently-high count = pool leak on that pod.",
         "id": 51,
         "links": [],
-        "title": "DB Pool Connections",
+        "title": "DB Pool Connections by Instance",
         "vizConfig": {
-          "group": "stat",
+          "group": "timeseries",
           "kind": "VizConfig",
           "spec": {
             "fieldConfig": {
               "defaults": {
                 "color": {
-                  "mode": "thresholds"
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 20,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
                 },
                 "thresholds": {
                   "mode": "absolute",
@@ -2129,21 +2247,24 @@
               "overrides": []
             },
             "options": {
-              "colorMode": "value",
-              "graphMode": "area",
-              "justifyMode": "auto",
-              "orientation": "auto",
-              "percentChangeColorMode": "standard",
-              "reduceOptions": {
-                "calcs": [
-                  "lastNotNull"
-                ],
-                "fields": "",
-                "values": false
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
               },
-              "showPercentChange": false,
-              "textMode": "auto",
-              "wideLayout": true
+              "legend": {
+                "calcs": [
+                  "lastNotNull",
+                  "max"
+                ],
+                "displayMode": "table",
+                "placement": "right",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
             }
           },
           "version": "13.0.0-23630096546"
@@ -2168,8 +2289,8 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "100 * sum(v8js_memory_heap_used_bytes{service_name=~\"$service\", deployment_environment=~\"$env\"}) / clamp_min(sum(v8js_memory_heap_limit_bytes{service_name=~\"$service\", deployment_environment=~\"$env\"}), 1)",
-                      "legendFormat": "used %"
+                      "expr": "100 * sum by (service_instance_id) (v8js_memory_heap_used_bytes{service_name=~\"$service\", deployment_environment=~\"$env\"}) / clamp_min(sum by (service_instance_id) (v8js_memory_heap_limit_bytes{service_name=~\"$service\", deployment_environment=~\"$env\"}), 1)",
+                      "legendFormat": "{{service_instance_id}}"
                     },
                     "version": "v0"
                   },
@@ -2181,18 +2302,52 @@
             "transformations": []
           }
         },
-        "description": "V8 heap used ÷ heap limit. Sustained >85% = consider raising memory or hunting a leak.",
+        "description": "V8 heap used ÷ heap limit, per replica (`service_instance_id`). A single replica trending up while others stay flat = leak on that pod. Cluster-wide average masks that — show by instance.",
         "id": 52,
         "links": [],
-        "title": "Heap Used %",
+        "title": "Heap Used % by Instance",
         "vizConfig": {
-          "group": "gauge",
+          "group": "timeseries",
           "kind": "VizConfig",
           "spec": {
             "fieldConfig": {
               "defaults": {
                 "color": {
-                  "mode": "thresholds"
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 20,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
                 },
                 "thresholds": {
                   "mode": "absolute",
@@ -2200,38 +2355,32 @@
                     {
                       "color": "green",
                       "value": 0
-                    },
-                    {
-                      "color": "yellow",
-                      "value": 70
-                    },
-                    {
-                      "color": "red",
-                      "value": 90
                     }
                   ]
                 },
-                "unit": "percent",
-                "decimals": 1,
-                "min": 0,
-                "max": 100
+                "unit": "percent"
               },
               "overrides": []
             },
             "options": {
-              "minVizHeight": 75,
-              "minVizWidth": 75,
-              "orientation": "auto",
-              "reduceOptions": {
-                "calcs": [
-                  "lastNotNull"
-                ],
-                "fields": "",
-                "values": false
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
               },
-              "showThresholdLabels": false,
-              "showThresholdMarkers": true,
-              "sizing": "auto"
+              "legend": {
+                "calcs": [
+                  "lastNotNull",
+                  "max"
+                ],
+                "displayMode": "table",
+                "placement": "right",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
             }
           },
           "version": "13.0.0-23630096546"
@@ -2256,8 +2405,8 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "max(nodejs_eventloop_delay_p99_seconds{service_name=~\"$service\", deployment_environment=~\"$env\"})",
-                      "legendFormat": "p99"
+                      "expr": "max by (service_instance_id) (nodejs_eventloop_delay_p99_seconds{service_name=~\"$service\", deployment_environment=~\"$env\"})",
+                      "legendFormat": "{{service_instance_id}}"
                     },
                     "version": "v0"
                   },
@@ -2269,18 +2418,52 @@
             "transformations": []
           }
         },
-        "description": "P99 event-loop delay. >50ms means CPU-bound work (sync JSON parsing, CPU-heavy regex) is blocking the loop.",
+        "description": "P99 event-loop delay per replica. One replica climbing while others stay flat = CPU-bound work pinning that pod. >50ms sustained is bad anywhere.",
         "id": 53,
         "links": [],
-        "title": "Event Loop Delay P99",
+        "title": "Event Loop Delay P99 by Instance",
         "vizConfig": {
-          "group": "stat",
+          "group": "timeseries",
           "kind": "VizConfig",
           "spec": {
             "fieldConfig": {
               "defaults": {
                 "color": {
-                  "mode": "thresholds"
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 20,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
                 },
                 "thresholds": {
                   "mode": "absolute",
@@ -2288,38 +2471,32 @@
                     {
                       "color": "green",
                       "value": 0
-                    },
-                    {
-                      "color": "yellow",
-                      "value": 0.05
-                    },
-                    {
-                      "color": "red",
-                      "value": 0.2
                     }
                   ]
                 },
-                "unit": "s",
-                "decimals": 3
+                "unit": "s"
               },
               "overrides": []
             },
             "options": {
-              "colorMode": "value",
-              "graphMode": "area",
-              "justifyMode": "auto",
-              "orientation": "auto",
-              "percentChangeColorMode": "standard",
-              "reduceOptions": {
-                "calcs": [
-                  "lastNotNull"
-                ],
-                "fields": "",
-                "values": false
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
               },
-              "showPercentChange": false,
-              "textMode": "auto",
-              "wideLayout": true
+              "legend": {
+                "calcs": [
+                  "lastNotNull",
+                  "max"
+                ],
+                "displayMode": "table",
+                "placement": "right",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
             }
           },
           "version": "13.0.0-23630096546"
@@ -2663,8 +2840,21 @@
                         "name": "panel-41"
                       },
                       "height": 7,
-                      "width": 6,
+                      "width": 4,
                       "x": 10,
+                      "y": 0
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-43"
+                      },
+                      "height": 7,
+                      "width": 4,
+                      "x": 14,
                       "y": 0
                     }
                   },
@@ -2676,8 +2866,8 @@
                         "name": "panel-42"
                       },
                       "height": 7,
-                      "width": 8,
-                      "x": 16,
+                      "width": 6,
+                      "x": 18,
                       "y": 0
                     }
                   }
@@ -2755,7 +2945,7 @@
                         "kind": "ElementReference",
                         "name": "panel-50"
                       },
-                      "height": 4,
+                      "height": 6,
                       "width": 6,
                       "x": 0,
                       "y": 0
@@ -2768,7 +2958,7 @@
                         "kind": "ElementReference",
                         "name": "panel-51"
                       },
-                      "height": 4,
+                      "height": 6,
                       "width": 6,
                       "x": 6,
                       "y": 0
@@ -2781,7 +2971,7 @@
                         "kind": "ElementReference",
                         "name": "panel-52"
                       },
-                      "height": 4,
+                      "height": 6,
                       "width": 6,
                       "x": 12,
                       "y": 0
@@ -2794,7 +2984,7 @@
                         "kind": "ElementReference",
                         "name": "panel-53"
                       },
-                      "height": 4,
+                      "height": 6,
                       "width": 6,
                       "x": 18,
                       "y": 0

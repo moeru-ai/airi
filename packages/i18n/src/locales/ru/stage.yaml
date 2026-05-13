@@ -8,12 +8,12 @@ chat:
       you: Ты
   reasoning: Причина
   sessions:
-    title: Conversations
-    new: + New
-    empty: No conversations yet
-    cloud-badge: Synced to cloud
-    new-chat-fallback: New chat
-    delete: Delete conversation
+    title: Диалоги
+    new: + Новый
+    empty: Диалогов пока нет
+    cloud-badge: Синхронизировано с облаком
+    new-chat-fallback: Новый чат
+    delete: Удалить диалог
 message: Спроси что-нибудь
 send-mode:
   title: Отправить ключ

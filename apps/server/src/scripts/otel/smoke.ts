@@ -11,12 +11,12 @@
  * Histograms (gen_ai.client.first_token.duration, airi.email.duration, ...)
  * are intentionally NOT in the output — they only register on first .record().
  *
- * NOTE: Run WITHOUT `--import ./instrumentation.mjs`. The preload would start
+ * NOTE: Run WITHOUT `--import ./instrumentation.ts`. The preload would start
  * a real NodeSDK with OTLP exporter and override the InMemoryMetricExporter
  * this smoke installs as the global MeterProvider.
  *
  * Usage:
- *   pnpm -F @proj-airi/server exec node --import tsx ./src/scripts/otel-smoke.mjs
+ *   pnpm -F @proj-airi/server exec node --import tsx ./src/scripts/otel/smoke.ts
  */
 import { env, exit } from 'node:process'
 
@@ -43,8 +43,8 @@ env.DEFAULT_CHAT_MODEL ??= 'test'
 env.DEFAULT_TTS_MODEL ??= 'test'
 env.OTEL_EXPORTER_OTLP_ENDPOINT ??= 'http://localhost:4318'
 
-const { initOtel } = await import('../../libs/otel.ts')
-const { parseEnv } = await import('../../libs/env.ts')
+const { initOtel } = await import('../../otel/index')
+const { parseEnv } = await import('../../libs/env')
 
 const parsed = parseEnv(env)
 const inst = initOtel(parsed)

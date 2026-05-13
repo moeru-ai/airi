@@ -1,7 +1,7 @@
 import type Redis from 'ioredis'
 
 import type { Database } from '../../libs/db'
-import type { RevenueMetrics } from '../../libs/otel'
+import type { RevenueMetrics } from '../../otel'
 import type { ConfigKVService } from '../config-kv'
 
 import { useLogger } from '@guiiai/logg'

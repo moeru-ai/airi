@@ -1,7 +1,7 @@
 /**
  * OpenTelemetry preload — single entry point for SDK setup.
  *
- * Loaded via `tsx --import ./instrumentation.mjs`, runs BEFORE any application
+ * Loaded via `tsx --import ./instrumentation.ts`, runs BEFORE any application
  * module is evaluated. By starting NodeSDK here:
  *   - require-in-the-middle hooks for http / pg / ioredis install before app
  *     code does `require('pg')` etc. (fixes the original commit-9451cd7c race).
@@ -23,6 +23,8 @@
  */
 
 import process, { env, exit } from 'node:process'
+
+import { randomUUID } from 'node:crypto'
 
 import { diag, DiagConsoleLogger, DiagLogLevel } from '@opentelemetry/api'
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-proto'
@@ -65,7 +67,7 @@ else {
     diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG)
 
   // OTEL_EXPORTER_OTLP_HEADERS format: "key=value,key2=value2"
-  const headers = {}
+  const headers: Record<string, string> = {}
   for (const pair of (env.OTEL_EXPORTER_OTLP_HEADERS ?? '').split(',')) {
     const idx = pair.indexOf('=')
     if (idx > 0)
@@ -80,10 +82,35 @@ else {
     ? samplingRatioRaw
     : 1
 
+  // service.instance.id MUST be unique per replica. Without it, two replicas
+  // emit the same (service_name, deployment_environment) label tuple — when
+  // an OTel collector / Prometheus receives both, it can either drop one
+  // sample as a "duplicate timestamp" or collapse the series outright,
+  // making per-replica `sum()` aggregates undercount.
+  //
+  // Source preference, strongest → weakest:
+  //  1. RAILWAY_REPLICA_ID — Railway-managed, guaranteed unique per replica.
+  //  2. SERVER_INSTANCE_ID — operator-supplied override.
+  //  3. randomUUID() — per-process fallback. Logged as a warning so ops
+  //     know we're relying on a value that doesn't survive restarts (i.e.
+  //     metric series cardinality climbs every deploy until staleness
+  //     evicts old instance ids).
+  //
+  // HOSTNAME was previously used as a fallback but Railway's HOSTNAME
+  // semantics aren't documented as per-replica unique, so we no longer
+  // trust it. If you need to pin instance id to something stable across
+  // restarts, set SERVER_INSTANCE_ID explicitly.
+  let instanceId = env.RAILWAY_REPLICA_ID || env.SERVER_INSTANCE_ID
+  if (!instanceId) {
+    instanceId = randomUUID()
+    console.warn(`[otel-preload] No RAILWAY_REPLICA_ID or SERVER_INSTANCE_ID set — falling back to randomUUID() ${instanceId}. Multi-replica metric series will churn on every restart.`)
+  }
+
   const resource = resourceFromAttributes({
     [ATTR_SERVICE_NAME]: serviceName,
     [ATTR_SERVICE_VERSION]: env.npm_package_version || '0.0.0',
     'service.namespace': serviceNamespace,
+    'service.instance.id': instanceId,
     'deployment.environment': env.NODE_ENV || 'development',
   })
 

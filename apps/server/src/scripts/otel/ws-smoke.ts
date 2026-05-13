@@ -10,10 +10,10 @@
  * deployment/lifecycle issue, not a code bug.
  *
  * Usage:
- *   pnpm -F @proj-airi/server exec node --import tsx ./src/scripts/otel-ws-smoke.mjs
+ *   pnpm -F @proj-airi/server exec node --import tsx ./src/scripts/otel/ws-smoke.ts
  *
  * With OTel diagnostic logs (verbose, includes export cycles):
- *   OTEL_DEBUG=true pnpm -F @proj-airi/server exec node --import tsx ./src/scripts/otel-ws-smoke.mjs
+ *   OTEL_DEBUG=true pnpm -F @proj-airi/server exec node --import tsx ./src/scripts/otel/ws-smoke.ts
  */
 import { env, exit } from 'node:process'
 import { setTimeout as sleep } from 'node:timers/promises'
@@ -94,36 +94,45 @@ app.get('/ws', upgradeWebSocket((c) => {
   }
 }))
 
-let server
-const { port } = await new Promise((resolve) => {
-  server = serve({ fetch: app.fetch, port: 0, hostname: '127.0.0.1' }, info => resolve(info))
+const server = serve({ fetch: app.fetch, port: 0, hostname: '127.0.0.1' })
+const port = await new Promise<number>((resolve) => {
+  server.once('listening', () => {
+    const addr = server.address()
+    if (addr && typeof addr === 'object')
+      resolve(addr.port)
+  })
 })
 injectWebSocket(server)
 console.info(`[ws-smoke] listening on 127.0.0.1:${port}\n`)
 
-async function readGaugeNow() {
+async function readGaugeNow(): Promise<number | null> {
   await reader.forceFlush()
   const all = exporter.getMetrics()
   const last = all.at(-1)
   for (const sm of last?.scopeMetrics ?? []) {
     for (const m of sm.metrics) {
-      if (m.descriptor.name === 'ws.connections.active')
-        return m.dataPoints.at(-1)?.value ?? null
+      if (m.descriptor.name === 'ws.connections.active') {
+        // ObservableGauge always carries `value: number` (Histogram /
+        // ExponentialHistogram are different DataPointType). The generic
+        // `value` union is what the SDK type exposes; narrow it explicitly.
+        const value = m.dataPoints.at(-1)?.value
+        return typeof value === 'number' ? value : null
+      }
     }
   }
   return null
 }
 
-const results = []
-function assert(label, expected, actual) {
+const results: boolean[] = []
+function assert(label: string, expected: number, actual: number | null) {
   const ok = actual === expected
   console.info(`[ws-smoke] ${ok ? '✅' : '❌'} ${label}: expected=${expected}, observed=${actual}\n`)
   results.push(ok)
 }
 
-async function openClient(user) {
+async function openClient(user: string): Promise<WebSocket> {
   const ws = new WebSocket(`ws://127.0.0.1:${port}/ws?user=${encodeURIComponent(user)}`)
-  await new Promise((res, rej) => {
+  await new Promise<void>((res, rej) => {
     ws.addEventListener('open', () => res(), { once: true })
     ws.addEventListener('error', e => rej(e), { once: true })
   })
@@ -132,7 +141,7 @@ async function openClient(user) {
   return ws
 }
 
-async function closeClient(ws) {
+async function closeClient(ws: WebSocket) {
   ws.close()
   await sleep(150)
 }

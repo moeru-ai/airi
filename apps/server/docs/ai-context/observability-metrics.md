@@ -14,7 +14,7 @@ OTel SDK 在导出到 Prometheus 时做两件事：
    - `http_server_request_duration_seconds_bucket`（含 `le` label）
    - `http_server_request_duration_seconds_count`
    - `http_server_request_duration_seconds_sum`
-4. UpDownCounter 不加 `_total`：`ws.connections.active` → `ws_connections_active`
+4. UpDownCounter / ObservableGauge 不加 `_total`：`ws.connections.active` → `ws_connections_active`、`user.active_sessions` → `user_active_sessions`
 5. 带单位的 instrument 在 SDK 导出时把单位插进名字：`airi.stripe.revenue`（unit `minor_unit`）→ `airi_stripe_revenue_minor_unit_total`
 
 > 查询面板若拼名字时不确定后缀，先用 `{__name__=~"airi_billing_flux.*"}` 之类正则探一下。
@@ -23,10 +23,14 @@ OTel SDK 在导出到 Prometheus 时做两件事：
 
 | Metric | 类型 | Unit | 来源 | 关键 attributes |
 |---|---|---|---|---|
-| `http.server.request.duration` | Histogram | s | `instrumentation-http`（STABLE semconv） | `http.request.method`、`http.route`、`http.response.status_code` |
-| `http.server.active_requests` | UpDownCounter | — | [middlewares/otel.ts](../../src/middlewares/otel.ts) `otelMiddleware` | `http.request.method`、`http.route` |
+| `http.server.request.duration` | Histogram | s | [`@hono/otel`](https://www.npmjs.com/package/@hono/otel) `httpInstrumentationMiddleware` in [app.ts](../../src/app.ts) | `http.request.method`、`http.route`、`http.response.status_code` |
+| `http.server.active_requests` | UpDownCounter | — | 同上 | `http.request.method` |
 
-> **STABLE-only**：[instrumentation.mjs:25](../../instrumentation.mjs) 把 `OTEL_SEMCONV_STABILITY_OPT_IN=http` 提前注入。OLD 系列（`http.server.duration` in ms）不再发射。详见 [`observability-conventions.md` 的 SemconvStability 章节](./observability-conventions.md#semconvstability-迁移说明)。
+> **入站走 @hono/otel，出站走 auto HttpInstrumentation**：auto instrumentation 在 Node http 层抓数据时 Hono 还没匹配路由，`http.route` label 永远为空。`@hono/otel` 在 Hono middleware 链里跑，能拿到匹配后的路由 pattern（`/api/v1/users/:id` 而非具体 URL），所以入站 metric 由它产生。auto HttpInstrumentation 在 [instrumentation.ts](../../instrumentation.ts) 里通过 `ignoreIncomingRequestHook: () => true` 仅保留**出站**（LLM gateway、Stripe、Resend），那部分还是要它来跟踪。
+>
+> **STABLE-only**：[instrumentation.ts](../../instrumentation.ts) 把 `OTEL_SEMCONV_STABILITY_OPT_IN=http` 提前注入。OLD 系列（`http.server.duration` in ms）不再发射。详见 [`observability-conventions.md` 的 SemconvStability 章节](./observability-conventions.md#semconvstability-迁移说明)。
+>
+> `/health` 路径在 [app.ts](../../src/app.ts) 的 @hono/otel 包装层被显式 skip，Railway 健康检查不进 metric。
 
 ## Auth & Users
 
@@ -38,7 +42,11 @@ OTel SDK 在导出到 Prometheus 时做两件事：
 | `auth.failures` | Counter | `after` hook，`ctx.context.returned` 含 `error` | `auth.method` |
 | `user.registered` | Counter | `databaseHooks.user.create.after` | — |
 | `user.login` | Counter | `databaseHooks.session.create.after` | — |
-| `user.active_sessions` | UpDownCounter | session create / delete | — |
+| `user.active_sessions` | ObservableGauge | [app.ts](../../src/app.ts) `registerActiveSessionsGauge`，scrape 时查 `SELECT COUNT(*) FROM session WHERE expires_at > NOW()`（10s 内存缓存） | — |
+
+> **`user.active_sessions` 是 cluster-wide gauge，dashboard 必须用 `max()` / `avg()`，不能用 `sum()`**。所有副本读同一份 DB 报同一个值，sum 会乘以副本数。详见 [observability-conventions.md 的 Multi-Replica 章节](./observability-conventions.md#multi-replica-注意事项)。
+>
+> 历史：之前是 UpDownCounter（+1 on login, -1 on logout），但 Better Auth session TTL 过期不会调 delete hook，counter 单实例就漂；多副本下登录在 A、登出在 B 会直接撕裂正负数。所以改成 DB-backed gauge。
 
 ## Engagement
 
@@ -48,7 +56,7 @@ OTel SDK 在导出到 Prometheus 时做两件事：
 | `character.created` | Counter | [services/characters.ts](../../src/services/characters.ts) | — |
 | `character.deleted` | Counter | 同上 | — |
 | `character.engagement` | Counter | 同上（like/bookmark） | `action`（`like` / `unlike` / `bookmark` / `unbookmark`） |
-| `ws.connections.active` | UpDownCounter | [routes/chat-ws/index.ts](../../src/routes/chat-ws/index.ts) | — |
+| `ws.connections.active` | ObservableGauge | [routes/chat-ws/index.ts](../../src/routes/chat-ws/index.ts) `addCallback` walks `userConnections` Map | — |
 | `ws.messages.sent` | Counter | 同上 | — |
 | `ws.messages.received` | Counter | [services/chats.ts](../../src/services/chats.ts) | — |
 
@@ -73,12 +81,12 @@ OTel SDK 在导出到 Prometheus 时做两件事：
 |---|---|---|---|
 | `airi.billing.flux.consumed` | Counter | [routes/openai/v1/index.ts](../../src/routes/openai/v1/index.ts) `recordMetrics`（chat / tts） | `gen_ai.request.model`、`gen_ai.operation.name`/`airi.gen_ai.operation.kind`、`http.response.status_code` |
 | `airi.billing.flux.credited` | Counter | [services/billing/billing-service.ts](../../src/services/billing/billing-service.ts) 三条入账路径 | `source`（`stripe.checkout`/`stripe.invoice`/`promo`/`admin_grant`/...）、`type`（`credit`/`promo`） |
-| `airi.billing.flux.unbilled` | Counter | `routes/openai/v1/index.ts` 流式 debit 失败 catch | `gen_ai.request.model`、`reason`（`debit_failed`）、`stage`（`streaming`） |
+| `airi.billing.flux.unbilled` | Counter | [routes/openai/v1/index.ts](../../src/routes/openai/v1/index.ts) streaming 路径里 `consumeFluxForLLM` 失败的 catch | `gen_ai.request.model`、`reason`（`debit_failed`）、`stage`（`streaming`） |
 | `flux.insufficient_balance` | Counter | [services/billing/billing-service.ts](../../src/services/billing/billing-service.ts) `debitFlux` | — |
 | `airi.billing.tts.chars` | Counter | [services/billing/flux-meter.ts](../../src/services/billing/flux-meter.ts) `accumulate` | `meter`（`tts`）、`model` |
 | `airi.billing.tts.preflight_rejections` | Counter | `flux-meter.ts` `assertCanAfford` | `meter`、`reason`（`insufficient_balance`） |
 
-> **`airi.billing.flux.unbilled` 是 P0 告警金线**：任何持续 > 0 都意味着真实收入泄漏，应当 page。语义上等于"流式响应已经发给用户但 DB debit 失败的 Flux 量"。
+> **`airi.billing.flux.unbilled` 是 P0 告警金线**：流式响应已经发给用户（HTTP 200，token 已经流出），但 post-stream debit 抛错——response 路径不会因此 5xx，DB latency 也只在 catch 那一瞬间显著。HTTP / DB 告警**覆盖不到**这条静默 revenue leak。推荐 alert：`increase(airi_billing_flux_unbilled_total[5m]) > 0` 持续 > 0 立刻 page。
 
 ## GenAI
 
@@ -122,36 +130,37 @@ OTel SDK 在导出到 Prometheus 时做两件事：
 
 ## 已落地的 dashboard 行映射
 
-[airi-server-overview-cloud.json](../../otel/grafana/dashboards/airi-server-overview-cloud.json)，从上到下：
+[airi-server-overview-cloud.json](../../otel/grafana/dashboards/airi-server-overview-cloud.json) 由 [`build.ts`](../../otel/grafana/dashboards/build.ts) 生成（**直接改 JSON 会在下次 regenerate 时被覆盖；改 build.ts**），跑 `pnpm -F @proj-airi/server otel:dashboards` 重新生成。从上到下：
 
-| Row | 关键 metric |
-|---|---|
-| HTTP Overview | `http.server.request.duration`（rate / P95 / by route / 5xx 率） |
-| Auth & Users | `auth.attempts` / `auth.failures` / `user.{login,registered,active_sessions}` + 失败率 |
-| Engagement | `ws.connections.active` / `ws.messages.{sent,received}` / `chat.messages` / `character.{created,deleted,engagement}` |
-| Business Metrics | `airi.billing.flux.consumed` / `flux.insufficient_balance` / `gen_ai.client.token.usage.*` / `stripe.checkout.completed` / `airi.billing.flux.credited` |
-| Stripe Detail | `stripe.{events,subscription.event,payment.failed}` / checkout funnel / `airi.stripe.revenue` |
-| Node.js Runtime | runtime instrumentation 那一批 |
-| LLM Gateway | `gen_ai.client.{operation.count,operation.duration,token.usage.*,first_token.duration}` / `airi.billing.flux.consumed` / `airi.billing.flux.unbilled` / `airi.gen_ai.stream.interrupted` / `airi.billing.tts.chars` |
-| Reliability | `airi.email.{send,failures}` 失败率 / `airi.rate_limit.blocked` / `airi.billing.tts.preflight_rejections` |
-| Application Logs | Loki，不是 Prometheus |
+| Row | viz | 关键 metric |
+|---|---|---|
+| Service Health | stat / gauge | `user.active_sessions`（`max()`）、`ws.connections.active`（`sum()`）、`http.server.request.duration_count`（req/s + 5xx%）、`gen_ai.client.operation.count`、`airi.email.{send,failures}` 失败率 |
+| Distribution (now) | donut | HTTP methods / LLM models / HTTP status codes — `increase([5m])` |
+| Traffic Trends | timeseries | 同 distribution 的数据 over time |
+| Latency | timeseries | `http.server.request.duration_bucket`（P95 by route）、`gen_ai.client.first_token.duration_bucket`（P95 by model） |
+| Errors / Quality | mix | 4xx/5xx stacked area、`airi.gen_ai.stream.interrupted`、`airi.rate_limit.blocked` |
+| Business | stat / gauge / donut | `airi.stripe.revenue`（by currency）、checkout conversion %、`stripe.events` 分布 |
+| Infrastructure (collapsed, **by `service_instance_id`**) | timeseries | `db_client_operation_duration` P95（cluster）、`db_client_connection_count`、`v8js_memory_heap_used_bytes` %、`nodejs_eventloop_delay_p99_seconds` |
+| Logs | logs | Loki，不是 Prometheus |
+
+> **Multi-replica 聚合方式**：所有 panel 在 `build.ts` 里都已经按 `observability-conventions.md` 的副本安全表选择了正确的 aggregator（Counter 用 `sum(rate)`、cluster-wide gauge 用 `max()`、per-process gauge 用 `sum()`、infra 排查面板用 `by (service_instance_id)`）。加新 panel 时按那张表对照一遍。
 
 ## 验证 metric 是否已注册
 
-[`src/scripts/otel-smoke.mjs`](../../src/scripts/otel-smoke.mjs) 跑一遍：
+[`src/scripts/otel/smoke.ts`](../../src/scripts/otel/smoke.ts) 跑一遍：
 
 ```sh
-pnpm -F @proj-airi/server exec node --import tsx ./src/scripts/otel-smoke.mjs
+pnpm -F @proj-airi/server exec node --import tsx ./src/scripts/otel/smoke.ts
 ```
 
-会打印 SDK 启动时立即 export 的所有 instrument 名字。**Counter 通过 `.add(0)` priming**（[libs/otel.ts](../../src/libs/otel.ts) `primeCounter`）后会出现在这里 —— Histogram 不会，要等真实 `.record()` 才出现。
+会打印 SDK 启动时立即 export 的所有 instrument 名字。**Counter 通过 `.add(0)` priming**（[otel/index.ts](../../src/otel/index.ts) `primeCounter`）后会出现在这里 —— Histogram 不会，要等真实 `.record()` 才出现。
 
 ## 加新 metric 时的 checklist
 
 1. 决定命名空间：能映射到 OTel semconv 就用标准名，否则放 `airi.*`（不要造新顶级前缀）
 2. 在 [utils/observability.ts](../../src/utils/observability.ts) 加常量
-3. 在 [libs/otel.ts](../../src/libs/otel.ts) 的对应 metric group 接口（`HttpMetrics`/`AuthMetrics`/...）加字段，并在 `initOtel` 里 `meter.create*` 创建
+3. 在 [otel/index.ts](../../src/otel/index.ts) 的对应 metric group 接口（`HttpMetrics`/`AuthMetrics`/...）加字段，并在 `initOtel` 里 `meter.create*` 创建
 4. **如果是 Counter，在 `primeCounter` 调用列表里加一行** —— 否则低流量时 panel 看起来"没数据"
 5. 在 callsite 通过 DI 拿到 metrics 对象后调 `.add()` / `.record()`
-6. 跑 `pnpm -F @proj-airi/server exec node --import tsx ./src/scripts/otel-smoke.mjs` 确认注册
+6. 跑 `pnpm -F @proj-airi/server exec node --import tsx ./src/scripts/otel/smoke.ts` 确认注册
 7. 更新本文档对应章节

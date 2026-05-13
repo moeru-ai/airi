@@ -1,7 +1,7 @@
 import type Redis from 'ioredis'
 
 import type { Env } from '../../libs/env'
-import type { RateLimitMetrics, RevenueMetrics } from '../../libs/otel'
+import type { RateLimitMetrics, RevenueMetrics } from '../../otel'
 import type { BillingService } from '../../services/billing/billing-service'
 import type { ConfigKVService } from '../../services/config-kv'
 import type { FluxService } from '../../services/flux'
