@@ -32,19 +32,10 @@ public sealed class StageBridge
     private bool _closedAnnounced;
     private bool _readyAnnounced;
 
-    /// <summary>
-    /// Raised once the WebSocket reaches the open state for the first time.
-    /// </summary>
     public event Action Opened;
 
-    /// <summary>
-    /// Raised for each text message received from Electron main.
-    /// </summary>
     public event Action<string> MessageReceived;
 
-    /// <summary>
-    /// Raised once the WebSocket reaches the closed state.
-    /// </summary>
     public event Action<string> Closed;
 
     /// <summary>

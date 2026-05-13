@@ -3,6 +3,7 @@ import type { Readable } from 'node:stream'
 
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { BrowserWindow } from 'electron'
+import type { InferOutput } from 'valibot'
 
 import type {
   ElectronGodotStageSceneInputPayload,
@@ -21,9 +22,11 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
 import { Mutex } from 'async-mutex'
 import { plugin as ws } from 'crossws/server'
+import { safeDestr } from 'destr'
 import { app } from 'electron'
 import { getRandomPort } from 'get-port-please'
 import { defineWebSocketHandler, H3, serve } from 'h3'
+import { instance, literal, object, optional, safeParse, string, unknown as unknownSchema } from 'valibot'
 
 import {
   electronGodotStageApplySceneInput,
@@ -55,11 +58,6 @@ interface GodotStageSocketRuntime {
   token: string
 }
 
-interface GodotStageDebugLaunchOptions {
-  engineArgs: string[]
-  remoteDebugUri?: string
-}
-
 interface GodotStageSceneApplyPayload {
   format: 'vrm'
   modelId: string
@@ -67,10 +65,24 @@ interface GodotStageSceneApplyPayload {
   path: string
 }
 
-interface GodotStageSocketEnvelope {
-  payload?: unknown
-  type: string
-}
+const godotStageSceneInputPayloadSchema = object({
+  modelId: string(),
+  format: literal('vrm'),
+  name: string(),
+  fileName: string(),
+  data: instance(Uint8Array),
+})
+
+const godotStageSocketEnvelopeSchema = object({
+  payload: optional(unknownSchema()),
+  type: string(),
+})
+
+const godotStagePayloadMessageSchema = object({
+  message: string(),
+})
+
+type GodotStageSocketEnvelope = InferOutput<typeof godotStageSocketEnvelopeSchema>
 
 /**
  * Godot sidecar lifecycle controller owned by Electron main.
@@ -129,42 +141,29 @@ function normalizeFileName(fileName: string) {
 }
 
 function parseSocketMessage(message: GodotStageMessage): GodotStageSocketEnvelope {
-  const text = message.text()
-  return JSON.parse(text) as GodotStageSocketEnvelope
+  const parsed = safeDestr<unknown>(message.text(), { strict: true })
+  const result = safeParse(godotStageSocketEnvelopeSchema, parsed)
+  if (!result.success)
+    throw new Error('Invalid Godot stage WebSocket envelope.')
+
+  return result.output
 }
 
 function getPayloadMessage(payload: unknown) {
-  if (!payload || typeof payload !== 'object') {
+  const result = safeParse(godotStagePayloadMessageSchema, payload)
+  if (!result.success) {
     return undefined
   }
 
-  const message = (payload as Record<string, unknown>).message
-  return typeof message === 'string' ? message : undefined
+  return result.output.message
 }
 
-function assertSupportedSceneInputFormat(format: string) {
-  if (format !== 'vrm')
-    throw new Error('Godot stage currently supports VRM models only.')
-}
+function parseSceneInputPayload(payload: unknown): ElectronGodotStageSceneInputPayload {
+  const result = safeParse(godotStageSceneInputPayloadSchema, payload)
+  if (!result.success)
+    throw new Error('Invalid Godot stage scene input payload.')
 
-/**
- * Checks whether a process environment flag should be treated as enabled.
- *
- * Before:
- * - "1"
- * - "true"
- * - "off"
- *
- * After:
- * - true
- * - true
- * - false
- */
-function isEnabledEnvironmentFlag(value: string | undefined): boolean {
-  if (!value)
-    return false
-
-  return ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase())
+  return result.output
 }
 
 /**
@@ -181,19 +180,18 @@ function isEnabledEnvironmentFlag(value: string | undefined): boolean {
  * Returns:
  * - Engine arguments that must appear before Godot's `--` separator.
  */
-function resolveGodotStageDebugLaunchOptions(): GodotStageDebugLaunchOptions {
-  if (!isEnabledEnvironmentFlag(process.env.GODOT_STAGE_REMOTE_DEBUG)) {
-    return {
-      engineArgs: [],
-    }
-  }
-
-  const remoteDebugUri = process.env.GODOT_STAGE_REMOTE_DEBUG_URI?.trim() || DEFAULT_GODOT_REMOTE_DEBUG_URI
+function resolveGodotStageDebugLaunchOptions() {
+  const remoteDebugEnabled = ['1', 'true', 'yes', 'on'].includes(
+    (process.env.GODOT_STAGE_REMOTE_DEBUG ?? '').trim().toLowerCase(),
+  )
+  const remoteDebugUri = remoteDebugEnabled
+    ? process.env.GODOT_STAGE_REMOTE_DEBUG_URI?.trim() || DEFAULT_GODOT_REMOTE_DEBUG_URI
+    : undefined
 
   // Godot engine/debugger flags must stay before `--`; StageRoot arguments stay
   // after it and are assembled next to the WebSocket URL.
   return {
-    engineArgs: ['--remote-debug', remoteDebugUri],
+    engineArgs: remoteDebugUri ? ['--remote-debug', remoteDebugUri] : [],
     remoteDebugUri,
   }
 }
@@ -689,21 +687,15 @@ export function createGodotStageManager(): GodotStageManager {
           let spawnArgs: string[]
           let spawnCwd: string | undefined
           const debugLaunchOptions = resolveGodotStageDebugLaunchOptions()
-          const stageRuntimeArgs = [`--airi-ws-url=${websocketUrl}`]
+          const sidecarArgs = [...debugLaunchOptions.engineArgs, '--', `--airi-ws-url=${websocketUrl}`]
 
           if (godotBinary.mode === 'engine') {
             const godotProjectPath = await resolveGodotProjectPath()
-            spawnArgs = [
-              '--path',
-              godotProjectPath,
-              ...debugLaunchOptions.engineArgs,
-              '--',
-              ...stageRuntimeArgs,
-            ]
+            spawnArgs = ['--path', godotProjectPath, ...sidecarArgs]
             spawnCwd = godotProjectPath
           }
           else {
-            spawnArgs = [...debugLaunchOptions.engineArgs, '--', ...stageRuntimeArgs]
+            spawnArgs = sidecarArgs
           }
 
           log.withFields({
@@ -819,19 +811,19 @@ export function createGodotStageManager(): GodotStageManager {
           throw new Error('Godot stage is not running.')
         }
 
-        assertSupportedSceneInputFormat(payload.format)
+        const sceneInputPayload = parseSceneInputPayload(payload)
 
-        const fileName = normalizeFileName(payload.fileName)
-        const modelDirectory = join(app.getPath('userData'), 'godot-stage', 'models', payload.modelId)
+        const fileName = normalizeFileName(sceneInputPayload.fileName)
+        const modelDirectory = join(app.getPath('userData'), 'godot-stage', 'models', sceneInputPayload.modelId)
         const materializedPath = join(modelDirectory, fileName)
 
         await mkdir(modelDirectory, { recursive: true })
-        await writeFile(materializedPath, payload.data)
+        await writeFile(materializedPath, sceneInputPayload.data)
 
         await sendSceneInputToGodot({
-          modelId: payload.modelId,
-          format: 'vrm',
-          name: payload.name,
+          modelId: sceneInputPayload.modelId,
+          format: sceneInputPayload.format,
+          name: sceneInputPayload.name,
           path: materializedPath,
         })
       })

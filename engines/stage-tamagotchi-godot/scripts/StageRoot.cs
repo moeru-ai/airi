@@ -172,10 +172,7 @@ public partial class StageRoot : Node3D
         {
             var message = $"Failed to parse Electron message: {error.Message}";
             UpdateStatus(message);
-            _bridge.SendEnvelope("scene.error", new
-            {
-                message,
-            });
+            SendSceneError(message);
         }
     }
 
@@ -183,10 +180,7 @@ public partial class StageRoot : Node3D
     {
         if (payloadElement == null)
         {
-            _bridge.SendEnvelope("scene.error", new
-            {
-                message = "Scene input payload was empty.",
-            });
+            SendSceneError("Scene input payload was empty.");
             return;
         }
 
@@ -211,44 +205,37 @@ public partial class StageRoot : Node3D
         {
             var message = $"Failed to apply scene input: {error.Message}";
             UpdateStatus(message);
-            _bridge.SendEnvelope("scene.error", new
-            {
-                message,
-            });
+            SendSceneError(message);
         }
     }
 
     private static string ResolveWebSocketUrl()
     {
-        return ResolveArgumentValue(WebSocketUrlArgumentPrefix);
-    }
-
-    private static string ResolveArgumentValue(string prefix)
-    {
-        foreach (var argument in GetStartupArguments())
+        string[] arguments = OS.GetCmdlineUserArgs();
+        if (arguments.Length == 0)
         {
-            if (argument.StartsWith(prefix, StringComparison.Ordinal))
+            arguments = OS.GetCmdlineArgs();
+        }
+
+        foreach (var argument in arguments)
+        {
+            if (argument.StartsWith(WebSocketUrlArgumentPrefix, StringComparison.Ordinal))
             {
-                return argument[prefix.Length..];
+                return argument[WebSocketUrlArgumentPrefix.Length..];
             }
         }
 
         return string.Empty;
     }
 
-    private static string[] GetStartupArguments()
+    private void SendSceneError(string message)
     {
-        var userArgs = OS.GetCmdlineUserArgs();
-        if (userArgs.Length > 0)
+        _bridge.SendEnvelope("scene.error", new
         {
-            return userArgs;
-        }
-
-        return OS.GetCmdlineArgs();
+            message,
+        });
     }
 
-    private void UpdateStatus(string message)
-    {
+    private void UpdateStatus(string message) =>
         _statusLabel.Text = $"Godot Stage (experimental)\n{message}";
-    }
 }

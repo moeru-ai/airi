@@ -19,8 +19,8 @@ Godot-native desktop stage runtime project for `stage-tamagotchi`.
 - Desktop-only Godot sidecar runtime exploration for `stage-tamagotchi`.
 - Godot C# project structure and minimal runtime skeleton.
 - Early-stage scene and runtime validation work.
-- G1.1 VRM-only scene input baseline: Electron materializes the selected VRM,
-  sends its native file path, and Godot imports it at runtime.
+- G1.1 VRM-only scene input baseline: Electron materializes the selected `.vrm`
+  file, sends its native file path, and Godot imports it at runtime.
 
 ## Directory Layout
 
@@ -112,17 +112,22 @@ for importer and materialized-path bugs.
 
 ## VRM Runtime Import
 
-G1.1 vendors the V-Sekai VRM add-on at commit
-`9fae4049f20954e70d9d7de6f3ed2695a6870e04`:
+G1.1 vendors V-Sekai Godot add-ons through `git-subrepo` metadata:
 
-- `addons/vrm`: VRM importer add-on, plugin version `2.0.1`.
-- `addons/Godot-MToon-Shader`: MToon shader add-on, plugin version `3.4.0`.
+- `addons/vrm`: VRM importer add-on, plugin version `2.0.1`,
+  `only-addon` commit `651205484c35f5cd7ba56475ff636e10db8ad674`.
+- `addons/Godot-MToon-Shader`: MToon shader add-on, plugin version `3.4.0`,
+  `main` commit `268c0d3b19c0885698b7bd39e21a16c9c2af448f`.
 
 Runtime import is routed through `scripts/vrm/VrmRuntimeImporter.gd` because the
 Godot editor import plugin is not active when the exported sidecar receives a
-model path from Electron. Godot owns the active avatar node lifetime: a newly
-imported avatar is added under `AvatarRoot` first, then the previous avatar is
-removed and queued for freeing. Failed imports keep the previous avatar visible.
+model path from Electron. The current runtime bridge covers the VRM 0.x path by
+wrapping the vendored `addons/vrm/vrm_extension.gd`; it does not yet register the
+vendored VRM 1.0 `addons/vrm/1.0/VRMC_*.gd` extension set.
+
+Godot owns the active avatar node lifetime: a newly imported avatar is added
+under `AvatarRoot` first, then the previous avatar is removed and queued for
+freeing. Failed imports keep the previous avatar visible.
 
 Runtime import details live in [`docs/vrm-runtime-import.md`](docs/vrm-runtime-import.md).
 Vendored add-on local patches and generated metadata differences are tracked in

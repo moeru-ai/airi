@@ -80,3 +80,10 @@ If the imported model is distorted, first verify that the runtime importer uses
 the same named-skin-bind flag as the V-Sekai editor importer. The AIRI runtime
 import path defines this as `IMPORT_USE_NAMED_SKIN_BINDS := 16` in
 `scripts/vrm/VrmRuntimeImporter.gd`.
+
+If a `.vrm` file imports correctly in the Godot editor but does not appear
+through the sidecar runtime path, check the file's glTF extension keys. The
+current AIRI runtime bridge covers the VRM 0.x `extensions.VRM` path. VRM 1.0
+files use `extensions.VRMC_vrm` and require the vendored `addons/vrm/1.0/VRMC_*`
+extensions to be registered in the runtime importer before support can be
+claimed.

@@ -4,13 +4,16 @@ This project vendors Godot add-ons under `addons/` because Godot plugins are
 installed as project-local source and asset folders. Keep this file in sync
 whenever vendored add-on files differ from their upstream source.
 
-## Upstream Baseline
+## Upstream Baselines
 
-- Repository: `https://github.com/V-Sekai/godot-vrm`
-- Commit: `9fae4049f20954e70d9d7de6f3ed2695a6870e04`
-- Vendored paths:
-  - `addons/vrm`
-  - `addons/Godot-MToon-Shader`
+- `addons/vrm`
+  - Repository: `https://github.com/V-Sekai/godot-vrm`
+  - Branch: `only-addon`
+  - Commit: `651205484c35f5cd7ba56475ff636e10db8ad674`
+- `addons/Godot-MToon-Shader`
+  - Repository: `https://github.com/V-Sekai/Godot-MToon-Shader`
+  - Branch: `main`
+  - Commit: `268c0d3b19c0885698b7bd39e21a16c9c2af448f`
 
 ## Source Patches
 
@@ -22,7 +25,7 @@ whenever vendored add-on files differ from their upstream source.
   scene node named `secondary`. The upstream `get_node()` call throws before
   the existing null fallback can create the node.
 - Validation: comparing vendored source files against upstream commit
-  `9fae4049f20954e70d9d7de6f3ed2695a6870e04` shows this as the only changed
+  `651205484c35f5cd7ba56475ff636e10db8ad674` shows this as the only changed
   `.gd`/`.shader`/`.cfg`/`.cs` file under `addons/`. Runtime import then
   completes without the `Node not found: "secondary"` importer error.
 - Removal condition: remove this patch after the upstream add-on ships the same

@@ -30,18 +30,6 @@ public sealed class VrmAvatarLoader
     private static readonly StringName ImportVrmMethod = new("import_vrm");
     private static readonly StringName GetLastErrorMethod = new("get_last_error");
 
-    /// <summary>
-    /// Loads a materialized VRM file into a detached Godot node.
-    ///
-    /// Use when:
-    /// - Scene input has already passed the G1.1 VRM-only format gate.
-    ///
-    /// Expects:
-    /// - <paramref name="payload"/> contains a native absolute file path readable by the Godot process.
-    ///
-    /// Returns:
-    /// - A node ready to be added to the active scene tree.
-    /// </summary>
     public Node Load(StageSceneApplyPayload payload)
     {
         if (string.IsNullOrWhiteSpace(payload.Path))

@@ -32,38 +32,12 @@ public sealed class StageSceneController
 
     private Node _currentAvatar;
 
-    /// <summary>
-    /// Creates a scene controller for the stage avatar root.
-    ///
-    /// Use when:
-    /// - StageRoot has created or resolved the avatar root node.
-    ///
-    /// Expects:
-    /// - <paramref name="avatarRoot"/> is part of the active scene tree.
-    /// - <paramref name="vrmAvatarLoader"/> can import VRM files at runtime.
-    ///
-    /// Returns:
-    /// - A controller ready to apply scene input payloads.
-    /// </summary>
     public StageSceneController(Node3D avatarRoot, VrmAvatarLoader vrmAvatarLoader)
     {
         _avatarRoot = avatarRoot;
         _vrmAvatarLoader = vrmAvatarLoader;
     }
 
-    /// <summary>
-    /// Loads and displays a new avatar from a materialized VRM file path.
-    ///
-    /// Use when:
-    /// - A <c>host.scene.apply</c> message arrives.
-    ///
-    /// Expects:
-    /// - <paramref name="payload"/> uses the <c>vrm</c> format.
-    /// - <paramref name="payload"/> points to a file visible to the Godot process.
-    ///
-    /// Returns:
-    /// - The committed avatar node.
-    /// </summary>
     public Node Apply(StageSceneApplyPayload payload)
     {
         if (!string.Equals(payload.Format, SupportedFormat, StringComparison.Ordinal))
