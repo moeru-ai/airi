@@ -345,9 +345,9 @@ export const electronGodotStageStatusChanged = defineEventa<ElectronGodotStageSt
 /**
  * Phase of a shortcut trigger event.
  *
- * - `down` — key-combination pressed
- * - `up`   — key-combination released; only emitted by drivers that set
- *            `ok: true` for bindings with `receiveKeyUps: true`
+ * - `down` — key combination pressed
+ * - `up`   — key combination released; only emitted by drivers that
+ *            accepted a binding with `receiveKeyUps: true`
  */
 export type ElectronShortcutTriggerPhase = 'down' | 'up'
 
@@ -414,7 +414,7 @@ export const electronAuthCallbackError = defineEventa<{ error: string }>('eventa
 export const electronAuthLogout = defineInvokeEventa<void>('eventa:invoke:electron:auth:logout')
 
 export const i18nSetLocale = defineInvokeEventa<void, Locale>('eventa:invoke:electron:i18n:set-locale')
-export const i18nGetLocale = defineInvokeEventa<Locale>('eventa:invoke:electron:i18n:get-locale')
+export const i18nGetLocale = defineInvokeEventa<string | undefined>('eventa:invoke:electron:i18n:get-locale')
 
 export { electron } from '@proj-airi/electron-eventa'
 export * from '@proj-airi/electron-eventa/electron-updater'

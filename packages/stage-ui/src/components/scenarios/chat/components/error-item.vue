@@ -83,7 +83,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
     <div
       v-if="canRetry && !showPlaceholder"
       :class="[
-        'self-end mt-1',
+        'self-end mt-1 w-fit',
       ]"
     >
       <Button

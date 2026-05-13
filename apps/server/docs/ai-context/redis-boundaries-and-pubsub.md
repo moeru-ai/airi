@@ -29,8 +29,6 @@
   - 例如 `config:{key}`
 - Pub/Sub
   - 例如聊天跨实例广播 `chat:{userId}:broadcast`
-- Streams
-  - 例如 `billing-events`
 - 计量债务账本（atomic counter + TTL）
   - 例如 TTS 累计字符 `user:{userId}:flux-meter:tts:debt`
   - 见 [flux-meter.md](flux-meter.md)
@@ -39,7 +37,8 @@
 
 - Postgres 是余额、账本、订单、聊天消息等持久状态的唯一真相源
 - Redis Pub/Sub 只负责降低跨实例通知延迟，不提供持久化、回放、补偿
-- Redis Streams 用于异步事件消费，但也必须在边界层做输入输出校验
+
+> NOTICE: Redis Streams（曾经的 `billing-events`）已被移除。现在没有任何业务依赖 Stream 抽象，未来如果要再上 Stream，请先重新评估是否真的需要异步副作用，而不是把它作为默认选项。
 
 ## Key / Channel 收口规则
 
@@ -129,24 +128,9 @@ const data = JSON.parse(message) as BroadcastMessage
 
 如果消息不合法，应该记录错误并丢弃，而不是继续广播到本地连接。
 
-## Streams 边界规则
-
-Redis Streams 的参考实现已经在 `src/libs/mq/stream.ts` 里。
-
-这层模式值得复用的点有两个：
-
-- 输入通过 `serialize()` 收口
-- 输出通过 `deserialize()` 和运行时检查收口
-
-也就是说：
-
-- 不要在业务代码里裸写 `XADD` / `XREADGROUP`
-- 不要相信 Redis 返回值一定符合你期望的 shape
-- 边界校验失败时应该尽早抛错，而不是继续传播脏数据
-
 ## Chat WS 当前约束
 
-`src/routes/chat-ws.ts` 当前采用：
+`src/routes/chat-ws/index.ts` 当前采用：
 
 - 同实例内存连接表
 - 跨实例 Redis Pub/Sub
@@ -159,9 +143,9 @@ Redis Streams 的参考实现已经在 `src/libs/mq/stream.ts` 里。
 
 因此后续如果改聊天同步：
 
-- 需要“可重放”时，不要继续堆在 Pub/Sub 上
-- 需要“跨实例即时通知”时，可以继续用 Pub/Sub
-- 需要“持久事件消费”时，应优先考虑 Streams
+- 需要”可重放”时，不要继续堆在 Pub/Sub 上
+- 需要”跨实例即时通知”时，可以继续用 Pub/Sub
+- 需要”持久事件消费”时，先回到 NOTICE 评估是否真的需要异步副作用，再考虑引入 Streams 这类抽象
 
 ## 修改 Redis 代码时的检查清单
 
@@ -175,12 +159,16 @@ Redis Streams 的参考实现已经在 `src/libs/mq/stream.ts` 里。
 
 ## 当前代码可直接参考的位置
 
-- key helper
+- key helper 集中点
+  - `src/utils/redis-keys.ts`
+- 余额读 cache-aside
   - `src/services/flux.ts`
-- Streams 边界封装
-  - `src/libs/mq/stream.ts`
+- Sub-Flux 计量债务账本
+  - `src/services/billing/flux-meter.ts`
+- TTS voices 上游响应缓存
+  - `src/routes/openai/v1/index.ts::handleListVoices`
 - Pub/Sub 聊天广播
-  - `src/routes/chat-ws.ts`
+  - `src/routes/chat-ws/index.ts`
 - 命名规范和待迁移事项
   - `config-and-naming-conventions.md`
 

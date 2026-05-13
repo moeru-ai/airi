@@ -35,10 +35,12 @@ const props = withDefaults(defineProps<{
   options: ComboboxOptionItem<T>[] | ComboboxOptionGroupItem<T>[]
   placeholder?: string
   disabled?: boolean
+  openOnClick?: boolean
   contentMinWidth?: string | number
   contentWidth?: string | number
 }>(), {
   disabled: false,
+  openOnClick: true,
 })
 
 const modelValue = defineModel<T>({ required: false })
@@ -83,6 +85,7 @@ function toCssSize(value?: string | number): string | undefined {
   <ComboboxRoot
     v-model="modelValue"
     :disabled="props.disabled"
+    :open-on-click="props.openOnClick"
     :class="['relative', 'w-full', 'h-fit']"
   >
     <ComboboxAnchor
