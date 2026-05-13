@@ -94,8 +94,8 @@ function normalizeBaseUrl(value: unknown): string {
   let base = typeof value === 'string' ? value.trim() : ''
   if (!base)
     base = DEFAULT_BASE_URL
-  if (base.endsWith('/'))
-    base = base.slice(0, -1)
+  if (!base.endsWith('/'))
+    base += '/'
   return base
 }
 
@@ -136,7 +136,7 @@ function createAudioFetch(apiKey: string, baseUrl: string) {
       }
     }
 
-    const response = await globalThis.fetch(`${baseUrl}/models/${model}:generateContent`, {
+    const response = await globalThis.fetch(`${baseUrl}models/${model}:generateContent`, {
       method: 'POST',
       headers: {
         'x-goog-api-key': apiKey,
@@ -184,7 +184,7 @@ function createAudioFetch(apiKey: string, baseUrl: string) {
 function createSpeechProvider(apiKey: string, baseUrl: string): SpeechProviderWithExtraOptions<string, Record<string, unknown>> {
   return {
     speech: (model?: string, options?: Record<string, unknown>) => ({
-      baseURL: `${baseUrl}/`,
+      baseURL: `${baseUrl}`,
       fetch: createAudioFetch(apiKey, baseUrl),
       ...options,
       model: model || (options?.model as string | undefined) || DEFAULT_MODEL,
