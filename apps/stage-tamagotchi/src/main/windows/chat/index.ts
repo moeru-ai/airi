@@ -38,8 +38,6 @@ export function setupChatWindowReusableFunc(params: {
       return { action: 'deny' }
     })
 
-    await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/chat'))
-
     await setupChatWindowElectronInvokes({
       window,
       widgetsManager: params.widgetsManager,
@@ -47,6 +45,8 @@ export function setupChatWindowReusableFunc(params: {
       mcpStdioManager: params.mcpStdioManager,
       i18n: params.i18n,
     })
+
+    await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/chat'))
 
     return window
   }).getWindow

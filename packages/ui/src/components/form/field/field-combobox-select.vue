@@ -13,12 +13,15 @@ const props = withDefaults(defineProps<{
   }[]
   placeholder?: string
   disabled?: boolean
+  openOnClick?: boolean
   layout?: 'horizontal' | 'vertical'
   selectClass?: string | string[]
   contentMinWidth?: string | number
   contentWidth?: string | number
 }>(), {
   layout: 'horizontal',
+  disabled: false,
+  openOnClick: true,
 })
 
 const modelValue = defineModel<string>({ required: false })
@@ -55,6 +58,7 @@ const modelValue = defineModel<string>({ required: false })
           :options="props.options?.filter(option => option.label && option.value) || []"
           :placeholder="props.placeholder"
           :disabled="props.disabled"
+          :open-on-click="props.openOnClick"
           :content-min-width="props.contentMinWidth"
           :content-width="props.contentWidth"
           :title="label"

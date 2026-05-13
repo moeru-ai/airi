@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Combobox } from '../combobox'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   options?: {
     label: string
     value: string | number
@@ -11,11 +11,15 @@ const props = defineProps<{
   }[]
   placeholder?: string
   disabled?: boolean
+  openOnClick?: boolean
   title?: string
   layout?: 'horizontal' | 'vertical'
   contentMinWidth?: string | number
   contentWidth?: string | number
-}>()
+}>(), {
+  disabled: false,
+  openOnClick: true,
+})
 
 const modelValue = defineModel<string | number>({ required: false })
 </script>
@@ -25,6 +29,7 @@ const modelValue = defineModel<string | number>({ required: false })
     v-model="modelValue"
     :options="[{ groupLabel: '', children: props.options }]"
     :disabled="props.disabled"
+    :open-on-click="props.openOnClick"
     :content-min-width="props.contentMinWidth"
     :content-width="props.contentWidth"
     :placeholder="props.placeholder"

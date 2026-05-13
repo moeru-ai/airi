@@ -7,6 +7,13 @@ chat:
       core-system: Sistema Central
       you: Tu
   reasoning: Razonamiento
+  sessions:
+    title: Conversations
+    new: + New
+    empty: No conversations yet
+    cloud-badge: Synced to cloud
+    new-chat-fallback: New chat
+    delete: Delete conversation
 message: Dile algo...
 send-mode:
   title: Enviar tecla

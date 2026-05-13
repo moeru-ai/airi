@@ -10,6 +10,12 @@ import { getAuthToken } from './auth'
  * suspended tabs, and the post-reload race (fetchSession firing before
  * restoreRefreshSchedule resolves) can all leak an expired Bearer through.
  * The reactive 401 path is the safety net.
+ *
+ * When refresh cannot succeed — missing state (refreshToken/oidcClientId),
+ * refresh endpoint errors, or a retried request that still returns 401 —
+ * clear local auth state and flip `needsLogin` so the user is prompted to
+ * sign in immediately, instead of letting the dead session linger until the
+ * next fetchSession call on the home page.
  */
 export async function authedFetch(
   input: RequestInfo | URL,
@@ -33,9 +39,20 @@ export async function authedFetch(
   if (url.includes('/oauth2/token'))
     return response
 
-  const newToken = await useAuthStore().refreshTokenNow()
-  if (!newToken)
+  const authStore = useAuthStore()
+  const newToken = await authStore.refreshTokenNow()
+  if (!newToken) {
+    promptReLogin(authStore)
     return response
+  }
 
-  return doFetch(newToken)
+  const retried = await doFetch(newToken)
+  if (retried.status === 401)
+    promptReLogin(authStore)
+  return retried
+}
+
+function promptReLogin(authStore: ReturnType<typeof useAuthStore>): void {
+  authStore.clearAllAuthState()
+  authStore.needsLogin = true
 }

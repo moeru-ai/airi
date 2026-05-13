@@ -201,6 +201,7 @@ words:
   - msvc
   - multisampling
   - Myriam
+  - napi
   - ndarray
   - Neko
   - nekomeowww
@@ -312,9 +313,11 @@ words:
   - tolist
   - tresjs
   - Triggerable
+  - truncatable
   - tsdown
   - ttft
   - turborepo
+  - uiohook
   - unbird
   - unbundle
   - unconfig

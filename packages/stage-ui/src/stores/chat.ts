@@ -15,6 +15,7 @@ import { useAnalytics } from '../composables'
 import { useLlmmarkerParser } from '../composables/llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from '../composables/response-categoriser'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
+import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
 import { formatContextPromptText } from './chat/context-prompt'
 import { createMinecraftContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
@@ -27,6 +28,11 @@ import { useLLM } from './llm'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
+
+// updateUI structuredClones the whole message, which can stall the main thread
+// when streams emit token-per-event. Shared by the parser's literal threshold and
+// the reasoning-delta throttle so both refresh at the same cadence.
+const STREAMING_UI_FLUSH_CHUNK_SIZE = 24
 
 // Prepends a literal text fragment to a message's content. Handles both the
 // shorthand string form and the array-of-parts form. When the first part is
@@ -243,12 +249,24 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       if (shouldAbort())
         return
 
-      chatSession.appendSessionMessage(sessionId, {
-        role: 'user',
+      const userMessageId = nanoid()
+      const userMessage = {
+        role: 'user' as const,
         content: finalContent,
         createdAt: sendingCreatedAt,
-        id: nanoid(),
-      })
+        id: userMessageId,
+      }
+      chatSession.appendSessionMessage(sessionId, userMessage)
+      // Cloud sync v1: only the raw text part round-trips; image attachments
+      // and other non-text parts stay local. The session-store guard handles
+      // anonymous / unmapped sessions and offline state.
+      if (isCloudSyncableMessage(userMessage)) {
+        void chatSession.pushMessageToCloud(sessionId, {
+          id: userMessageId,
+          role: 'user',
+          content: sendingMessage,
+        })
+      }
       const sessionMessagesForSend = chatSession.getSessionMessages(sessionId)
 
       // --------------------------------
@@ -303,13 +321,14 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
           const finalCategorization = categorizeResponse(fullText, activeProvider.value)
 
+          const reasoningContentField = buildingMessage.categorization?.reasoning?.trim()
           buildingMessage.categorization = {
             speech: finalCategorization.speech,
-            reasoning: finalCategorization.reasoning,
+            reasoning: reasoningContentField || finalCategorization.reasoning,
           }
           updateUI()
         },
-        minLiteralEmitLength: 24,
+        minLiteralEmitLength: STREAMING_UI_FLUSH_CHUNK_SIZE,
       })
 
       const toolCallQueue = createQueue<ChatSlices>({
@@ -331,28 +350,28 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         ],
       })
 
-      // Per-message datetime injection (replaces the old `<context>` XML block):
-      // every user/assistant message gets a `[YYYY-MM-DD HH:MM]` prefix
-      // derived from its persisted `createdAt`. The full date appears on every
-      // turn so the model can read "today" from the most recent message; the
-      // system prompt itself stays 100% static for permanent KV-cache reuse.
-      // Legacy entries without a persisted `createdAt` fall back to "now"
-      // rather than a fabricated older timestamp.
+      // Inject `[YYYY-MM-DD HH:MM]` prefix only into user messages, derived
+      // from their persisted `createdAt`. Assistant messages stay clean —
+      // otherwise the model learns the format and mirrors it back into its
+      // own replies (e.g. `[2026-05-09 00:23] > ...`). The model still reads
+      // "today" from the latest user message, and the system prompt stays
+      // 100% static for permanent KV-cache reuse. Legacy entries without a
+      // persisted `createdAt` fall back to "now" rather than a fabricated
+      // older timestamp.
       // See `./chat/datetime-prefix.ts` for the rationale.
       const nowTs = Date.now()
 
       const newMessages = sessionMessagesForSend.map((msg) => {
         const { context: _context, id: _id, createdAt, ...withoutContext } = msg
         const rawMessage = toRaw(withoutContext)
-        const ts = createdAt ?? nowTs
 
         if (rawMessage.role === 'user') {
-          return prependTextToContent(rawMessage, formatTimePrefix(ts))
+          return prependTextToContent(rawMessage, formatTimePrefix(createdAt ?? nowTs))
         }
 
         if (rawMessage.role === 'assistant') {
           const { slices: _slices, tool_results: _toolResults, categorization: _categorization, ...rest } = rawMessage as ChatAssistantMessage
-          return prependTextToContent(toRaw(rest), formatTimePrefix(ts))
+          return toRaw(rest)
         }
 
         return rawMessage
@@ -475,6 +494,25 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
                 fullText += event.text
                 await parser.consume(event.text)
                 break
+              case 'reasoning-delta': {
+                if (shouldAbort())
+                  return
+
+                const { reasoning = '' } = buildingMessage.categorization ?? {}
+                const nextReasoning = reasoning + event.text
+                buildingMessage.categorization = {
+                  // Mirror in-flight text content so categorization stays shape-consistent with onEnd.
+                  speech: typeof buildingMessage.content === 'string' ? buildingMessage.content : '',
+                  reasoning: nextReasoning,
+                }
+                // Match text-delta's batching cadence; first chunk fires so the panel appears immediately.
+                const crossesBoundary
+                  = Math.floor(nextReasoning.length / STREAMING_UI_FLUSH_CHUNK_SIZE)
+                    > Math.floor(reasoning.length / STREAMING_UI_FLUSH_CHUNK_SIZE)
+                if (!reasoning || crossesBoundary)
+                  updateUI()
+                break
+              }
               case 'finish':
                 break
               case 'error':
@@ -493,7 +531,15 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       await parser.end()
 
       if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
-        chatSession.appendSessionMessage(sessionId, toRaw(buildingMessage))
+        const finalAssistant = toRaw(buildingMessage)
+        chatSession.appendSessionMessage(sessionId, finalAssistant)
+        if (isCloudSyncableMessage(finalAssistant) && finalAssistant.id) {
+          void chatSession.pushMessageToCloud(sessionId, {
+            id: finalAssistant.id,
+            role: 'assistant',
+            content: extractMessageText(finalAssistant),
+          })
+        }
       }
 
       await hooks.emitStreamEndHooks(streamingMessageContext)

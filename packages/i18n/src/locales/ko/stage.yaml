@@ -7,6 +7,13 @@ chat:
       core-system: 코어
       you: 당신
   reasoning: 추론
+  sessions:
+    title: Conversations
+    new: + New
+    empty: No conversations yet
+    cloud-badge: Synced to cloud
+    new-chat-fallback: New chat
+    delete: Delete conversation
 message: 듣고 있어요...
 send-mode:
   title: Send key

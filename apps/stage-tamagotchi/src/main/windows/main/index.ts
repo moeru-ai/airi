@@ -176,8 +176,6 @@ export async function setupMainWindow(params: {
     return { action: 'deny' }
   })
 
-  await load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')))
-
   await setupMainWindowElectronInvokes({
     window,
     settingsWindow: params.settingsWindow,
@@ -192,6 +190,8 @@ export async function setupMainWindow(params: {
     onboardingWindowManager: params.onboardingWindowManager,
     windowAuthManager: params.windowAuthManager,
   })
+
+  await load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')))
 
   /**
    * This is a know issue (or expected behavior maybe) to Electron.

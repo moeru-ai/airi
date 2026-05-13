@@ -7,6 +7,13 @@ chat:
       core-system: 核心系統
       you: 你
   reasoning: 推理
+  sessions:
+    title: Conversations
+    new: + New
+    empty: No conversations yet
+    cloud-badge: Synced to cloud
+    new-chat-fallback: New chat
+    delete: Delete conversation
 message: 說點什麼...
 send-mode:
   title: 傳送按鍵

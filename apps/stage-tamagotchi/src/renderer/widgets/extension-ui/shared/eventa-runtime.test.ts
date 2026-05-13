@@ -109,7 +109,7 @@ describe('createContext', () => {
     })
 
     iframe.context.emit(widgetsIframePublishEvent, {
-      topic: {
+      route: {
         namespace: 'plugin.chess',
         name: 'request',
       },

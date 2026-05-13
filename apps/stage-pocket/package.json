@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@capacitor/android": "catalog:",
+    "@capacitor/app": "catalog:",
     "@capacitor/barcode-scanner": "catalog:",
     "@capacitor/core": "catalog:",
     "@capacitor/ios": "catalog:",

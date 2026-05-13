@@ -30,12 +30,12 @@ docs:
   'account': 账号
   'logout': 退出登录
 widgets:
-  close: Close widget
+  close: 关闭小部件
   empty:
-    title: No widget active
-    description: Widgets will appear here when a tool or plugin spawns one.
-  loading: Loading widget…
-  waiting: Waiting for widget data for "{id}"…
+    title: 未激活小部件
+    description: 工具或插件生成的小部件将会出现在这里。
+  loading: 正在加载小部件…
+  waiting: 正在等待小部件 "{id}" 的数据…
 notice:
   'fade-on-hover':
     title: 悬停淡出

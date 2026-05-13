@@ -8,10 +8,12 @@ export { createChatHooks } from './runtime/agent-hooks'
 export type { ContextHistoryEntry, ContextRegistry } from './runtime/context-registry'
 export { createContextRegistry } from './runtime/context-registry'
 export {
+  isContentArrayRelatedError,
   isToolRelatedError,
   modelKey,
   sanitizeMessages,
   streamFrom,
+  streamOptionsContentArrayCompatibilityOk,
   streamOptionsToolsCompatibilityOk,
 } from './runtime/llm-service'
 export { mergeLoadedSessionMessages } from './session/merge-loaded-session-messages'

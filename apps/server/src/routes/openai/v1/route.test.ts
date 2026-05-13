@@ -1,9 +1,8 @@
 import type { Env } from '../../../libs/env'
-import type { MqService } from '../../../libs/mq'
-import type { BillingEvent } from '../../../services/billing/billing-events'
 import type { BillingService } from '../../../services/billing/billing-service'
 import type { ConfigKVService } from '../../../services/config-kv'
 import type { FluxService } from '../../../services/flux'
+import type { RequestLogService } from '../../../services/request-log'
 import type { HonoEnv } from '../../../types/hono'
 
 import { Buffer } from 'node:buffer'
@@ -13,7 +12,6 @@ import { afterAll, describe, expect, it, vi } from 'vitest'
 
 import { createV1CompletionsRoutes } from '.'
 import { ApiError } from '../../../utils/error'
-import { DEFAULT_BILLING_EVENTS_STREAM } from '../../../utils/redis-keys'
 
 // --- Mock helpers ---
 
@@ -65,15 +63,10 @@ function createMockConfigKV(overrides: Record<string, any> = {}): ConfigKVServic
   } as any
 }
 
-function createMockBillingMq(): MqService<BillingEvent> {
+function createMockRequestLogService(): RequestLogService {
   return {
-    stream: DEFAULT_BILLING_EVENTS_STREAM,
-    publish: vi.fn(async () => '1-0'),
-    ensureConsumerGroup: vi.fn(async () => true),
-    consume: vi.fn(async () => []),
-    claimIdleMessages: vi.fn(async () => []),
-    ack: vi.fn(async () => 1),
-  } as any
+    logRequest: vi.fn(async () => undefined),
+  }
 }
 
 function createMockRedis() {
@@ -111,7 +104,7 @@ function createTestApp(
   fluxService: FluxService,
   configKV: ConfigKVService,
   billingService?: BillingService,
-  billingMq?: MqService<BillingEvent>,
+  requestLogService?: RequestLogService,
   ttsMeter?: ReturnType<typeof createMockTtsMeter>,
   env?: Env,
   redis?: ReturnType<typeof createMockRedis>,
@@ -120,7 +113,7 @@ function createTestApp(
     fluxService,
     billingService ?? createMockBillingService(),
     configKV,
-    billingMq ?? createMockBillingMq(),
+    requestLogService ?? createMockRequestLogService(),
     ttsMeter ?? createMockTtsMeter(),
     (redis ?? createMockRedis()) as any,
     env ?? createMockEnv(),
@@ -333,14 +326,14 @@ describe('v1CompletionsRoutes', () => {
       expect(res.status).toBe(503)
     })
 
-    it('should publish request log event via billingMq', async () => {
+    it('writes a synchronous llm_request_log entry after a successful debit', async () => {
       globalThis.fetch = vi.fn(async () => new Response('{}', {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       }))
 
-      const billingMq = createMockBillingMq()
-      const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, billingMq)
+      const requestLogService = createMockRequestLogService()
+      const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, requestLogService)
 
       await app.fetch(
         new Request('http://localhost/api/v1/openai/chat/completions', {
@@ -351,16 +344,12 @@ describe('v1CompletionsRoutes', () => {
         { user: testUser } as any,
       )
 
-      expect(billingMq.publish).toHaveBeenCalledWith(
+      expect(requestLogService.logRequest).toHaveBeenCalledWith(
         expect.objectContaining({
-          eventType: 'llm.request.log',
-          aggregateId: 'user-1',
           userId: 'user-1',
-          payload: expect.objectContaining({
-            model: 'gpt-4',
-            status: 200,
-            fluxConsumed: 1,
-          }),
+          model: 'gpt-4',
+          status: 200,
+          fluxConsumed: 1,
         }),
       )
     })
@@ -385,8 +374,8 @@ describe('v1CompletionsRoutes', () => {
       }))
 
       const billingService = createMockBillingService(100)
-      const billingMq = createMockBillingMq()
-      const app = createTestApp(createMockFluxService(100), createMockConfigKV(), billingService, billingMq)
+      const requestLogService = createMockRequestLogService()
+      const app = createTestApp(createMockFluxService(100), createMockConfigKV(), billingService, requestLogService)
 
       const res = await app.fetch(
         new Request('http://localhost/api/v1/openai/chat/completions', {
@@ -403,7 +392,7 @@ describe('v1CompletionsRoutes', () => {
       await Promise.resolve()
 
       expect(billingService.consumeFluxForLLM).not.toHaveBeenCalled()
-      expect(billingMq.publish).not.toHaveBeenCalled()
+      expect(requestLogService.logRequest).not.toHaveBeenCalled()
     })
   })
 

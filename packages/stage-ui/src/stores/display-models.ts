@@ -84,6 +84,16 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
 
   async function getDisplayModel(id: string) {
     await until(displayModelsFromIndexedDBLoading).toBe(false)
+    // NOTICE:
+    // Newly imported file models are inserted into displayModels before callers pick them.
+    // Reading memory first keeps updateStageModel from racing an IndexedDB write and treating
+    // a just-imported display-model id as missing, which used to fall back to the default model.
+    // Source/context: model-selector confirmImport/handleAddVRMModel -> model-settings handleModelPick.
+    // Removal condition: custom model imports and selection are handled by a single transactional API.
+    const modelFromMemory = displayModels.value.find(model => model.id === id)
+    if (modelFromMemory)
+      return modelFromMemory
+
     const modelFromFile = await localforage.getItem<DisplayModelFile>(id)
     if (modelFromFile) {
       return modelFromFile
@@ -111,8 +121,17 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
 
     displayModels.value.unshift(newDisplayModel)
 
-    localforage.setItem<DisplayModelFile>(newDisplayModel.id, newDisplayModel)
+    // NOTICE:
+    // Keep this awaited. The settings model pick flow can call getDisplayModel immediately
+    // after import; fire-and-forget persistence creates a race where the selected custom model
+    // exists in the UI but is not yet readable from IndexedDB in a later route/render pass.
+    // Source/context: model-selector import flow -> settings-stage-model.updateStageModel().
+    // Removal condition: imported display models are persisted through a transactional queue
+    // that blocks pick/navigation until the write is durably complete.
+    await localforage.setItem<DisplayModelFile>(newDisplayModel.id, newDisplayModel)
       .catch(err => console.error(err))
+
+    return newDisplayModel
   }
 
   async function renameDisplayModel(id: string, name: string) {

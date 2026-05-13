@@ -44,7 +44,7 @@
             inputsFrom = [ self.packages.${system}.airi ];
             packages = [
               nixd
-              nixfmt-rfc-style
+              nixfmt
               nixfmt-tree
               pnpm
               python314
