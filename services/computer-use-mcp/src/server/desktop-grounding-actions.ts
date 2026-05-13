@@ -3,10 +3,12 @@ import type { ComputerUseServerRuntime } from './runtime'
 
 import { errorMessageFrom } from '@moeru/std'
 
+import { appNamesMatch } from '../app-aliases'
 import { decideBrowserAction } from '../browser-action-router'
 import { getUnsupportedBrowserDomActions, isBrowserDomActionSupported } from '../browser-dom/capabilities'
 import { resolveSnapByCandidate } from '../snap-resolver'
 import { sleep } from '../utils/sleep'
+import { decideDesktopExecutionMode } from './desktop-scheduler'
 
 const DESKTOP_CLICK_SNAPSHOT_MAX_AGE_MS = 5000
 
@@ -46,23 +48,6 @@ export async function executeDesktopClickTarget(
     throw new Error(`Candidate "${candidateId}" not found in snapshot "${snapshot.snapshotId}". Available candidates: ${snapshot.targetCandidates.map(c => c.id).join(', ')}`)
   }
 
-  const sessionCtrl = runtime.desktopSessionController
-  const activeSession = sessionCtrl.getSession()
-  if (activeSession?.controlledApp) {
-    const currentForeground = await runtime.executor.getForegroundContext()
-    const wasAlreadyInFront = await sessionCtrl.ensureControlledAppInForeground({
-      currentForeground,
-      chromeSessionManager: runtime.chromeSessionManager,
-      activateApp: async (appName) => {
-        await runtime.executor.focusApp({ app: appName })
-      },
-    })
-    if (!wasAlreadyInFront) {
-      await sleep(200)
-    }
-    sessionCtrl.touch()
-  }
-
   const candidate = snapshot.targetCandidates.find(c => c.id === candidateId)
   const intent = {
     mode: 'execute' as const,
@@ -83,6 +68,9 @@ export async function executeDesktopClickTarget(
   let routeNote = ''
   let routeReason = 'candidate not found'
   let osInputResult: ExecutorActionResult | undefined
+  let executionMode: 'background' | 'browser_surface' | 'foreground' = 'foreground'
+  let executionModeReason = 'desktop_click_target uses native input and needs foreground access'
+  let fallbackForegroundApp: string | undefined
 
   const executeOsClick = async () => {
     const result = await runtime.executor.click({
@@ -96,11 +84,61 @@ export async function executeDesktopClickTarget(
     return result
   }
 
+  const ensureForegroundForOsInput = async () => {
+    const sessionCtrl = runtime.desktopSessionController
+    const activeSession = sessionCtrl.getSession()
+    if (!activeSession?.controlledApp) {
+      const candidateApp = candidate?.appName?.trim()
+      if (!candidateApp || candidateApp === 'unknown') {
+        throw new Error('desktop_click_target cannot fall back to OS input without a controlled app session or a concrete target app.')
+      }
+
+      const currentForeground = await runtime.executor.getForegroundContext()
+      if (currentForeground.available && currentForeground.appName === candidateApp) {
+        fallbackForegroundApp = candidateApp
+        return
+      }
+
+      await runtime.executor.focusApp({ app: candidateApp })
+      fallbackForegroundApp = candidateApp
+      await sleep(200)
+      return
+    }
+
+    if (!appNamesMatch(candidate?.appName, activeSession.controlledApp)) {
+      throw new Error(`desktop_click_target rejected cross-app fallback: candidate "${candidate?.appName ?? 'unknown'}" does not match controlled app "${activeSession.controlledApp}".`)
+    }
+
+    const currentForeground = await runtime.executor.getForegroundContext()
+    const wasAlreadyInFront = await sessionCtrl.ensureControlledAppInForeground({
+      currentForeground,
+      chromeSessionManager: runtime.chromeSessionManager,
+      activateApp: async (appName) => {
+        await runtime.executor.focusApp({ app: appName })
+      },
+    })
+    fallbackForegroundApp = activeSession.controlledApp
+    if (!wasAlreadyInFront) {
+      await sleep(200)
+    }
+    sessionCtrl.touch()
+  }
+
   try {
     const bridgeConnected = runtime.browserDomBridge?.getStatus().connected ?? false
     const routeDecision = candidate
       ? decideBrowserAction(candidate, bridgeConnected, button, clickCount)
       : { route: 'os_input' as const, reason: 'candidate not found' }
+
+    const schedulingDecision = decideDesktopExecutionMode({
+      action: { kind: 'desktop_click_target', input },
+      browserSurface: runtime.stateManager.getState().browserSurfaceAvailability,
+      browserDomRoute: routeDecision.route === 'browser_dom',
+    })
+    if (routeDecision.route === 'browser_dom') {
+      executionMode = schedulingDecision.executionMode
+      executionModeReason = schedulingDecision.executionReason
+    }
 
     executionRoute = routeDecision.route
     routeReason = routeDecision.reason
@@ -114,6 +152,12 @@ export async function executeDesktopClickTarget(
         executionRoute = 'os_input'
         routeReason = `browser-dom extension transport does not support ${requiredActions.join(' + ')}`
         routeNote = `browser-dom ${routeDecision.bridgeMethod ?? 'click'} is unavailable on the connected extension transport (${getUnsupportedBrowserDomActions(runtime.browserDomBridge, ...requiredActions).join(', ')} unsupported), fell back to OS input`
+        executionMode = 'foreground'
+        executionModeReason = 'browser_dom is unavailable, so native input fallback needs foreground access'
+        await ensureForegroundForOsInput()
+        routeNote = routeNote
+          ? `${routeNote}; focused ${fallbackForegroundApp ?? 'target app'} before OS input fallback`
+          : `focused ${fallbackForegroundApp ?? 'target app'} before OS input fallback`
         osInputResult = await executeOsClick()
       }
       else {
@@ -135,11 +179,18 @@ export async function executeDesktopClickTarget(
         catch (browserError) {
           executionRoute = 'os_input'
           routeNote = `browser-dom ${routeDecision.bridgeMethod ?? 'click'} failed (${errorMessageFrom(browserError) ?? 'unknown error'}), fell back to OS input`
+          executionMode = 'foreground'
+          executionModeReason = 'browser_dom failed, so native input fallback needs foreground access'
+          await ensureForegroundForOsInput()
+          routeNote = `${routeNote}; focused ${fallbackForegroundApp ?? 'target app'} before OS input fallback`
           osInputResult = await executeOsClick()
         }
       }
     }
     else {
+      executionMode = schedulingDecision.executionMode
+      executionModeReason = schedulingDecision.executionReason
+      await ensureForegroundForOsInput()
       osInputResult = await executeOsClick()
     }
 
@@ -157,6 +208,7 @@ export async function executeDesktopClickTarget(
       `  Snap: ${snap.reason}`,
       `  Point: (${snap.snappedPoint.x}, ${snap.snappedPoint.y})`,
       `  Route: ${executionRoute} (${routeReason})`,
+      `  Execution mode: ${executionMode} (${executionModeReason})`,
       `  Button: ${button || 'left'}, clicks: ${clickCount ?? 1}`,
     ]
 
@@ -177,6 +229,8 @@ export async function executeDesktopClickTarget(
         candidate,
         executionRoute,
         routeReason,
+        executionMode,
+        executionModeReason,
         routeNote: routeNote || undefined,
         osInputResult,
       },

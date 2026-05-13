@@ -147,7 +147,7 @@ export interface DesktopGroundingSnapshot {
   screenshot: ScreenshotArtifact
   /** macOS AX tree snapshot (if captured successfully) */
   axSnapshot?: AXSnapshot
-  /** Chrome semantic snapshot (only when Chrome is foreground) */
+  /** Chrome semantic snapshot (best effort when browser surfaces are available) */
   chromeSemanticSnapshot?: ChromeSemanticSnapshot
   /** Merged, deduplicated, ranked target candidates */
   targetCandidates: DesktopTargetCandidate[]

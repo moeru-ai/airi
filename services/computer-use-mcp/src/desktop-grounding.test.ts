@@ -104,6 +104,7 @@ describe('buildTargetCandidates', () => {
     expect(candidates.length).toBe(2)
     expect(candidates[0].source).toBe('chrome_dom')
     expect(candidates[0].tag).toBe('button')
+    expect(candidates[0].appName).toBe('Google Chrome')
   })
 
   it('chrome + AX: deduplicates overlapping candidates', () => {
@@ -167,6 +168,22 @@ describe('buildTargetCandidates', () => {
     ])
     const candidates = buildTargetCandidates({ axSnapshot: ax, foregroundApp: 'Finder' })
     expect(candidates[0].interactable).toBe(false)
+  })
+
+  it('keeps chrome_dom candidates attached to Google Chrome even when another app is foreground', () => {
+    const chrome = makeChromeSnapshot([
+      { tag: 'button', text: 'Submit', rect: { x: 10, y: 10, w: 80, h: 30 } },
+    ])
+
+    const candidates = buildTargetCandidates({
+      chromeSnapshot: chrome,
+      chromeWindowBounds: { x: 0, y: 0, width: 1920, height: 1080 },
+      foregroundApp: 'Finder',
+    })
+
+    expect(candidates).toHaveLength(1)
+    expect(candidates[0].source).toBe('chrome_dom')
+    expect(candidates[0].appName).toBe('Google Chrome')
   })
 })
 
