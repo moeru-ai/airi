@@ -1,7 +1,7 @@
 import type { MessageRole, WireMessage } from '@proj-airi/server-sdk-shared'
 
 import type { Database } from '../libs/db'
-import type { EngagementMetrics } from '../libs/otel'
+import type { EngagementMetrics } from '../otel'
 
 import { useLogger } from '@guiiai/logg'
 import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'

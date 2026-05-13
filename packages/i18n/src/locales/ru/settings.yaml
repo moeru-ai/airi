@@ -773,7 +773,7 @@ pages:
       typeAddition: Пополнение
       typeConsumption: Использование
       typeInitial: Начальный грант
-      typePromo: Промо-грант
+      typePromo: Promo Grant
       loading: Загрузка истории...
       empty: Пока нет записей транзакций.
       loadMore: Загрузить ещё

@@ -8,12 +8,12 @@ chat:
       you: 你
   reasoning: 思考
   sessions:
-    title: 会话
-    new: + 新建
-    empty: 还没有会话
-    cloud-badge: 已同步到云端
-    new-chat-fallback: 新会话
-    delete: 删除会话
+    title: Conversations
+    new: + New
+    empty: No conversations yet
+    cloud-badge: Synced to cloud
+    new-chat-fallback: New chat
+    delete: Delete conversation
 message: 说点什么...
 send-mode:
   title: 发送键值
@@ -94,6 +94,6 @@ promo-banner:
       cta: 查看主题
 waiting: 等待中
 websocket-status:
-  connected: WebSocket 已连接
-  disconnected: WebSocket 已断开
-  open-settings: 打开 WebSocket 设置
+  connected: 已连接
+  disconnected: 未连接
+  open-settings: 打开连接设置

@@ -59,6 +59,8 @@ export interface PtySessionState {
   pid: number
   /** Working directory at creation time. */
   cwd?: string
+  /** Last cwd observed from terminal prompt heuristics. */
+  observedCwd?: string
   /** Stable workflow step id that created this session (if any). */
   boundStepId?: string
   /**
@@ -534,6 +536,15 @@ export class RunStateManager {
     if (entry) {
       entry.lastInteractionAt = new Date().toISOString()
       this.state.activePtySessionId = sessionId
+      this.touch()
+    }
+  }
+
+  /** Update the last observed cwd of a PTY session from terminal prompt heuristics. */
+  updatePtySessionObservedCwd(sessionId: string, cwd: string): void {
+    const entry = this.state.ptySessions.find(s => s.id === sessionId)
+    if (entry && entry.observedCwd !== cwd) {
+      entry.observedCwd = cwd
       this.touch()
     }
   }

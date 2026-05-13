@@ -8,20 +8,35 @@
 import type { ChromeSessionManager } from './chrome-session-manager'
 import type { ComputerUseConfig } from './types'
 
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { createServer } from 'node:net'
+
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createChromeSessionManager } from './chrome-session-manager'
 import { runProcess } from './utils/process'
 
-// Mock runProcess and sleep before importing the module under test
+vi.mock('node:fs/promises', () => ({
+  mkdir: vi.fn().mockResolvedValue(undefined),
+  mkdtemp: vi.fn().mockResolvedValue('/tmp/test/chrome-profile-abc123'),
+  rm: vi.fn().mockResolvedValue(undefined),
+  writeFile: vi.fn().mockResolvedValue(undefined),
+}))
 vi.mock('./utils/process', () => ({
   runProcess: vi.fn(),
 }))
 vi.mock('./utils/sleep', () => ({
   sleep: vi.fn().mockResolvedValue(undefined),
 }))
-
+vi.mock('node:net', () => ({
+  createServer: vi.fn(),
+}))
 const mockedRunProcess = vi.mocked(runProcess)
+const mockedMkdir = vi.mocked(mkdir)
+const mockedMkdtemp = vi.mocked(mkdtemp)
+const mockedRm = vi.mocked(rm)
+const mockedWriteFile = vi.mocked(writeFile)
+const mockedCreateServer = vi.mocked(createServer)
 
 function makeConfig(): ComputerUseConfig {
   return {
@@ -46,42 +61,83 @@ function ok(stdout = ''): any {
   return { stdout, stderr: '' }
 }
 
-/**
- * Mock for "chrome not running → launch" flow (first call, no existing session).
- *
- * Call sequence when `session` is null:
- * 1. osascript (getCurrentForegroundApp)
- * 2. pgrep (isChromeRunning for wasAlreadyRunning) → reject (not running)
- * 3. open (launchChromeWithCdp)
- * 4. osascript (activateChrome)
- * 5. pgrep (getChromeMainPid) → ok with pid
- */
-function mockLaunchFlow(pid: number, userApp = '') {
-  mockedRunProcess
-    .mockResolvedValueOnce(ok(userApp)) // 1. getCurrentForegroundApp
-    .mockRejectedValueOnce(new Error('no match')) // 2. isChromeRunning → false
-    .mockResolvedValueOnce(ok()) // 3. open command
-    .mockResolvedValueOnce(ok()) // 4. activateChrome
-    .mockResolvedValueOnce(ok(`${pid}\n`)) // 5. getChromeMainPid
+function mockPortAvailability(...results: boolean[]) {
+  for (const result of results) {
+    mockedCreateServer.mockImplementationOnce(() => {
+      const handlers = new Map<string, (...args: any[]) => void>()
+      return {
+        once(event: string, handler: (...args: any[]) => void) {
+          handlers.set(event, handler)
+          return this
+        },
+        listen(_port: number, _host: string, callback: () => void) {
+          if (result) {
+            callback()
+          }
+          else {
+            handlers.get('error')?.(new Error('EADDRINUSE'))
+          }
+          return this
+        },
+        close(callback: () => void) {
+          callback()
+          return this
+        },
+      } as any
+    })
+  }
 }
 
-/**
- * Mock for "chrome already running → new window" flow (first call, no existing session).
- *
- * Call sequence when `session` is null:
- * 1. osascript (getCurrentForegroundApp)
- * 2. pgrep (isChromeRunning for wasAlreadyRunning) → ok (running)
- * 3. osascript (createNewWindow)
- * 4. osascript (activateChrome)
- * 5. pgrep (getChromeMainPid)
- */
-function mockJoinFlow(pid: number, userApp = 'Terminal') {
+function mockLaunchFlow(pid: number, userApp = 'Terminal', cdpPort = 9222, pidLookupAttempts = 4) {
+  const chromeProcessListing = ok(
+    `${pid} /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --user-data-dir=/tmp/test/chrome-profile-abc123 --remote-debugging-port=${cdpPort}\n`,
+  )
+
   mockedRunProcess
-    .mockResolvedValueOnce(ok(userApp)) // 1. getCurrentForegroundApp
-    .mockResolvedValueOnce(ok(`${pid}\n`)) // 2. isChromeRunning → true
-    .mockResolvedValueOnce(ok()) // 3. createNewWindow
-    .mockResolvedValueOnce(ok()) // 4. activateChrome
-    .mockResolvedValueOnce(ok(`${pid}\n`)) // 5. getChromeMainPid
+    .mockResolvedValueOnce(ok(userApp)) // foreground app
+    .mockRejectedValueOnce(new Error('no match')) // wasAlreadyRunning → false
+    .mockResolvedValueOnce(ok()) // open
+    .mockResolvedValueOnce(ok()) // activateChrome
+
+  for (let index = 0; index < pidLookupAttempts; index += 1) {
+    mockedRunProcess.mockResolvedValueOnce(chromeProcessListing) // getChromePidForProfile
+  }
+}
+
+function primeDefaultPortAvailability() {
+  if (mockedCreateServer.mock.calls.length === 0 && mockedCreateServer.mock.results.length === 0) {
+    mockPortAvailability(true)
+  }
+}
+
+function resetLaunchMocks() {
+  mockedRunProcess.mockReset()
+  mockedCreateServer.mockReset()
+}
+
+function mockReuseFlow(pid: number) {
+  mockedRunProcess
+    .mockResolvedValueOnce(ok(`${pid} /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --user-data-dir=/tmp/test/chrome-profile-abc123 --remote-debugging-port=9222\n`)) // getTrackedChromePid
+    .mockResolvedValueOnce(ok(`${pid}\n`)) // isProcessAlive
+    .mockResolvedValueOnce(ok('1\n')) // hasChromeWindow
+}
+
+function mockWindowMissingFlow(pid: number) {
+  mockedRunProcess
+    .mockResolvedValueOnce(ok(`${pid}\n`)) // isProcessAlive
+    .mockResolvedValueOnce(ok('0\n')) // hasChromeWindow
+}
+
+function mockEnsureWindowMissingFlow(pid: number) {
+  mockedRunProcess
+    .mockResolvedValueOnce(ok(`${pid} /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --user-data-dir=/tmp/test/chrome-profile-abc123 --remote-debugging-port=9222\n`)) // getTrackedChromePid
+    .mockResolvedValueOnce(ok(`${pid}\n`)) // isProcessAlive
+    .mockResolvedValueOnce(ok('0\n')) // hasChromeWindow
+}
+
+function mockStalePidFlow(pid: number) {
+  mockedRunProcess
+    .mockResolvedValueOnce(ok(`${pid} /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --user-data-dir=/tmp/test/chrome-profile-abc123 --remote-debugging-port=9222\n`)) // getTrackedChromePid
 }
 
 describe('chromeSessionManager', () => {
@@ -89,251 +145,234 @@ describe('chromeSessionManager', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mockedRunProcess.mockReset()
+    mockedCreateServer.mockReset()
+    mockPortAvailability(true)
     manager = createChromeSessionManager(makeConfig())
   })
 
-  // -----------------------------------------------------------------------
-  // ensureAgentWindow
-  // -----------------------------------------------------------------------
-
   describe('ensureAgentWindow', () => {
-    it('should launch Chrome when not running', async () => {
+    it('launches a dedicated Chrome profile with CDP', async () => {
       mockLaunchFlow(12345)
 
       const info = await manager.ensureAgentWindow()
 
+      expect(info.ensureOutcome).toBe('launched')
       expect(info.wasAlreadyRunning).toBe(false)
       expect(info.agentOwned).toBe(true)
       expect(info.pid).toBe(12345)
       expect(info.cdpUrl).toBe('http://127.0.0.1:9222')
       expect(info.windowId).toBe('12345:0:Google Chrome')
-      expect(info.createdAt).toBeTruthy()
+      expect(mockedMkdir).toHaveBeenCalledWith('/tmp/test', { recursive: true })
+      expect(mockedMkdtemp).toHaveBeenCalledWith('/tmp/test/chrome-profile-')
+      expect(mockedWriteFile).toHaveBeenCalledWith('/tmp/test/chrome-profile-abc123/First Run', '')
+      expect(mockedRunProcess.mock.calls[2]).toEqual([
+        '/usr/bin/open',
+        [
+          '-na',
+          'Google Chrome',
+          '--args',
+          '--new-window',
+          '--no-first-run',
+          '--no-default-browser-check',
+          '--disable-default-apps',
+          '--disable-features=ChromeWhatsNewUI',
+          '--remote-debugging-port=9222',
+          '--user-data-dir=/tmp/test/chrome-profile-abc123',
+        ],
+        expect.any(Object),
+      ])
     })
 
-    it('should create new window when Chrome is already running', async () => {
-      mockJoinFlow(99999, 'Terminal')
-
-      const info = await manager.ensureAgentWindow()
-
-      expect(info.wasAlreadyRunning).toBe(true)
-      expect(info.agentOwned).toBe(false)
-      expect(info.pid).toBe(99999)
-      // No CDP URL when joining existing Chrome
-      expect(info.cdpUrl).toBeUndefined()
-    })
-
-    it('should reuse an existing session when the agent launched a dedicated Chrome instance', async () => {
+    it('reuses an alive agent session', async () => {
       mockLaunchFlow(11111)
       const first = await manager.ensureAgentWindow()
 
-      // Second call: session exists → isChromeRunning check (1 call)
-      mockedRunProcess.mockResolvedValueOnce(ok('11111\n')) // isChromeRunning → still alive
+      resetLaunchMocks()
+      mockReuseFlow(11111)
+
       const second = await manager.ensureAgentWindow()
 
+      expect(second.ensureOutcome).toBe('reused')
       expect(second).toBe(first)
     })
 
-    it('should create a fresh agent window on repeated calls when joining an existing Chrome instance', async () => {
-      mockJoinFlow(99999, 'Terminal')
-      const first = await manager.ensureAgentWindow()
-
-      vi.clearAllMocks()
-
-      mockedRunProcess
-        .mockResolvedValueOnce(ok('99999\n')) // session reuse check → Chrome still running
-      mockJoinFlow(99999, 'Terminal')
-
-      const second = await manager.ensureAgentWindow()
-
-      expect(second).not.toBe(first)
-      expect(second.wasAlreadyRunning).toBe(true)
-      expect(second.pid).toBe(99999)
-      expect(mockedRunProcess.mock.calls[3]?.[0]).toBe('/usr/bin/osascript')
-      expect(mockedRunProcess.mock.calls[3]?.[1]).toEqual(['-e', 'tell application "Google Chrome" to make new window'])
-    })
-
-    it('should recreate session if Chrome crashed between calls', async () => {
+    it('recreates the session if the tracked process is gone', async () => {
       mockLaunchFlow(11111)
-      const first = await manager.ensureAgentWindow()
-      expect(first.pid).toBe(11111)
+      await manager.ensureAgentWindow()
 
-      // Second call: session exists → isChromeRunning fails (Chrome crashed)
+      resetLaunchMocks()
+      primeDefaultPortAvailability()
       mockedRunProcess.mockRejectedValueOnce(new Error('no match'))
-      // session=null now, goes through full launch flow (5 calls)
       mockLaunchFlow(22222)
 
       const second = await manager.ensureAgentWindow()
+
+      expect(second.ensureOutcome).toBe('recreated_after_process_exit')
       expect(second.pid).toBe(22222)
-      expect(second).not.toBe(first)
+      expect(second).not.toBeNull()
     })
 
-    it('should pass custom URL to Chrome', async () => {
-      mockLaunchFlow(33333)
-
-      const info = await manager.ensureAgentWindow({ url: 'https://example.com' })
-      expect(info.initialUrl).toBe('https://example.com')
-    })
-
-    it('should pass URL to osascript as argv instead of interpolating it into script source', async () => {
-      const maliciousUrl = 'https://example.com/" & do shell script "touch /tmp/pwned" & "'
-      mockJoinFlow(33333, 'Terminal')
-
-      await manager.ensureAgentWindow({ url: maliciousUrl })
-
-      const createWindowCall = mockedRunProcess.mock.calls[2]
-      expect(createWindowCall?.[0]).toBe('/usr/bin/osascript')
-      expect(createWindowCall?.[1]).toEqual([
-        '-e',
-        expect.stringContaining('item 1 of argv'),
-        '--',
-        maliciousUrl,
-      ])
-      expect(createWindowCall?.[1]?.[1]).not.toContain(maliciousUrl)
-    })
-
-    it('should use custom CDP port', async () => {
-      mockLaunchFlow(44444)
-
-      const info = await manager.ensureAgentWindow({ cdpPort: 9333 })
-      expect(info.cdpUrl).toBe('http://127.0.0.1:9333')
-    })
-
-    it('should throw if Chrome PID cannot be obtained after launch', async () => {
-      mockedRunProcess
-        .mockResolvedValueOnce(ok()) // 1. foreground
-        .mockRejectedValueOnce(new Error('no match')) // 2. wasAlreadyRunning → false
-        .mockResolvedValueOnce(ok()) // 3. launch
-        .mockResolvedValueOnce(ok()) // 4. activate
-        .mockRejectedValueOnce(new Error('no match')) // 5. getChromeMainPid → fails
-
-      await expect(manager.ensureAgentWindow()).rejects.toThrow('Failed to get Chrome PID')
-    })
-
-    it('should record the user\'s previous foreground app', async () => {
-      mockLaunchFlow(55555, 'Finder')
-
+    it('does not terminate a reused pid after verifying it no longer belongs to the tracked Chrome profile', async () => {
+      mockLaunchFlow(11111)
       await manager.ensureAgentWindow()
 
-      // First call should have been getCurrentForegroundApp
-      const firstCall = mockedRunProcess.mock.calls[0]
-      expect(firstCall[1]).toContainEqual(expect.stringContaining('first application process'))
+      resetLaunchMocks()
+      primeDefaultPortAvailability()
+      mockStalePidFlow(33333)
+      mockLaunchFlow(22222)
+
+      const second = await manager.ensureAgentWindow()
+
+      expect(second.ensureOutcome).toBe('recreated_after_process_exit')
+      expect(second.pid).toBe(22222)
+      expect(mockedRunProcess).not.toHaveBeenCalledWith('kill', ['-TERM', '11111'], expect.any(Object))
+      expect(mockedRunProcess).not.toHaveBeenCalledWith('kill', ['-KILL', '11111'], expect.any(Object))
+    })
+
+    it('recreates the session if the Chrome process is alive but the agent window is gone', async () => {
+      mockLaunchFlow(11111)
+      await manager.ensureAgentWindow()
+
+      resetLaunchMocks()
+      primeDefaultPortAvailability()
+      mockEnsureWindowMissingFlow(11111)
+      mockedRunProcess.mockResolvedValueOnce(ok()) // terminateChromeProcess: kill -TERM
+      mockedRunProcess.mockResolvedValueOnce(ok()) // terminateChromeProcess: post-TERM liveness check
+      mockLaunchFlow(22222)
+
+      const second = await manager.ensureAgentWindow()
+
+      expect(second.ensureOutcome).toBe('recreated_after_missing_window')
+      expect(second.pid).toBe(22222)
+      expect(mockedRunProcess).toHaveBeenCalledWith('kill', ['-TERM', '11111'], expect.any(Object))
+      expect(mockedRunProcess).not.toHaveBeenCalledWith('kill', ['-KILL', '11111'], expect.any(Object))
+      expect(mockedRunProcess).toHaveBeenCalledWith('/usr/bin/osascript', [
+        '-e',
+        'tell application "System Events" to get count of windows of (first application process whose unix id is 11111)',
+      ], expect.any(Object))
+    })
+
+    it('passes a custom CDP port and URL through', async () => {
+      mockLaunchFlow(33333, 'Terminal', 9333)
+
+      const info = await manager.ensureAgentWindow({
+        cdpPort: 9333,
+        url: 'https://example.com',
+      })
+
+      expect(info.cdpUrl).toBe('http://127.0.0.1:9333')
+      expect(info.initialUrl).toBe('https://example.com')
+      expect(mockedRunProcess.mock.calls[2]?.[1]).toContain('--user-data-dir=/tmp/test/chrome-profile-abc123')
+      expect(mockedRunProcess.mock.calls[2]?.[1]).toContain('https://example.com')
+    })
+
+    it('falls forward to the next available default CDP port when 9222 is occupied', async () => {
+      resetLaunchMocks()
+      mockPortAvailability(false, true)
+      mockLaunchFlow(12345, 'Terminal', 9223)
+
+      const info = await manager.ensureAgentWindow()
+
+      expect(info.cdpUrl).toBe('http://127.0.0.1:9223')
+      expect(mockedRunProcess.mock.calls[2]?.[1]).toContain('--remote-debugging-port=9223')
+    })
+
+    it('cleans up the active chrome profile directory on endSession', async () => {
+      mockLaunchFlow(11111)
+      await manager.ensureAgentWindow()
+
+      resetLaunchMocks()
+      manager.endSession()
+
+      expect(mockedRm).toHaveBeenCalledWith('/tmp/test/chrome-profile-abc123', {
+        recursive: true,
+        force: true,
+      })
+      expect(manager.getSessionInfo()).toBeNull()
+    })
+
+    it('cleans up the active chrome profile when relaunching after a missing window', async () => {
+      mockLaunchFlow(11111)
+      await manager.ensureAgentWindow()
+
+      resetLaunchMocks()
+      primeDefaultPortAvailability()
+      mockWindowMissingFlow(11111)
+      mockedRunProcess.mockResolvedValueOnce(ok()) // terminateChromeProcess: kill -TERM
+      mockedRunProcess.mockResolvedValueOnce(ok()) // terminateChromeProcess: post-TERM liveness check
+      mockLaunchFlow(22222)
+
+      const second = await manager.ensureAgentWindow()
+
+      expect(second.pid).toBe(22222)
+      expect(mockedRm).toHaveBeenCalledWith('/tmp/test/chrome-profile-abc123', {
+        recursive: true,
+        force: true,
+      })
+    })
+
+    it('terminates a launched Chrome process and cleans up the profile if launch fails before PID lookup completes', async () => {
+      mockedRunProcess
+        .mockResolvedValueOnce(ok('Terminal')) // foreground app
+        .mockRejectedValueOnce(new Error('no match')) // wasAlreadyRunning → false
+        .mockResolvedValueOnce(ok()) // open
+        .mockRejectedValueOnce(new Error('activate failed')) // activateChrome
+        .mockResolvedValueOnce(ok(
+          '11111 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --user-data-dir=/tmp/test/chrome-profile-abc123 --remote-debugging-port=9222\n',
+        )) // findAndTerminateChromeByProfile
+        .mockResolvedValueOnce(ok()) // findAndTerminateChromeByProfile: kill -TERM
+        .mockResolvedValueOnce(ok()) // findAndTerminateChromeByProfile: post-TERM liveness check
+
+      await expect(manager.ensureAgentWindow()).rejects.toThrow('activate failed')
+      expect(mockedRunProcess).toHaveBeenCalledWith('kill', ['-TERM', '11111'], expect.any(Object))
+      expect(mockedRm).toHaveBeenCalledWith('/tmp/test/chrome-profile-abc123', {
+        recursive: true,
+        force: true,
+      })
     })
   })
 
-  // -----------------------------------------------------------------------
-  // bringToFront
-  // -----------------------------------------------------------------------
-
   describe('bringToFront', () => {
-    it('should activate Chrome when session exists', async () => {
+    it('activates Chrome when session exists', async () => {
       mockLaunchFlow(11111)
       await manager.ensureAgentWindow()
-      vi.clearAllMocks()
 
-      mockedRunProcess
-        .mockResolvedValueOnce(ok('11111\n')) // isChromeRunning
-        .mockResolvedValueOnce(ok()) // activateChrome
+      resetLaunchMocks()
+      mockedRunProcess.mockResolvedValueOnce(ok('11111\n'))
+      mockedRunProcess.mockResolvedValueOnce(ok('1\n'))
+      mockedRunProcess.mockResolvedValueOnce(ok())
 
       const result = await manager.bringToFront()
 
       expect(result).toBe(true)
-      expect(mockedRunProcess).toHaveBeenCalledTimes(2)
-      const activateCall = mockedRunProcess.mock.calls[1]
-      expect(activateCall[1]).toEqual(['-e', 'tell application "Google Chrome" to activate'])
+      expect(mockedRunProcess).toHaveBeenCalledTimes(3)
     })
 
-    it('should be no-op when no session exists', async () => {
-      const result = await manager.bringToFront()
-      expect(result).toBe(false)
-      expect(mockedRunProcess).not.toHaveBeenCalled()
-    })
-
-    it('should clear session if Chrome crashed', async () => {
+    it('returns false when session is gone', async () => {
       mockLaunchFlow(11111)
       await manager.ensureAgentWindow()
-      vi.clearAllMocks()
 
-      // Chrome crashed
+      resetLaunchMocks()
       mockedRunProcess.mockRejectedValueOnce(new Error('no match'))
 
       const result = await manager.bringToFront()
+
       expect(result).toBe(false)
       expect(manager.getSessionInfo()).toBeNull()
     })
-  })
 
-  // -----------------------------------------------------------------------
-  // restorePreviousForeground
-  // -----------------------------------------------------------------------
-
-  describe('restorePreviousForeground', () => {
-    it('should activate the user\'s previous app', async () => {
-      mockLaunchFlow(11111, 'Terminal')
-      await manager.ensureAgentWindow()
-      vi.clearAllMocks()
-
-      mockedRunProcess.mockResolvedValueOnce(ok())
-
-      await manager.restorePreviousForeground()
-
-      expect(mockedRunProcess).toHaveBeenCalledWith(
-        '/usr/bin/osascript',
-        ['-e', 'tell application "Terminal" to activate'],
-        expect.any(Object),
-      )
-    })
-
-    it('should be no-op if user was already in Chrome', async () => {
-      mockLaunchFlow(11111, 'Google Chrome')
-      await manager.ensureAgentWindow()
-      vi.clearAllMocks()
-
-      await manager.restorePreviousForeground()
-      expect(mockedRunProcess).not.toHaveBeenCalled()
-    })
-
-    it('should be no-op if no session was created', async () => {
-      await manager.restorePreviousForeground()
-      expect(mockedRunProcess).not.toHaveBeenCalled()
-    })
-  })
-
-  // -----------------------------------------------------------------------
-  // session lifecycle
-  // -----------------------------------------------------------------------
-
-  describe('session lifecycle', () => {
-    it('should return null before any session', () => {
-      expect(manager.getSessionInfo()).toBeNull()
-    })
-
-    it('should return session info after ensureAgentWindow', async () => {
-      mockLaunchFlow(55555)
-
-      await manager.ensureAgentWindow()
-      const info = manager.getSessionInfo()
-      expect(info).not.toBeNull()
-      expect(info!.pid).toBe(55555)
-      expect(info!.agentOwned).toBe(true)
-    })
-
-    it('should clear session on endSession', async () => {
-      mockLaunchFlow(55555)
-      await manager.ensureAgentWindow()
-      expect(manager.getSessionInfo()).not.toBeNull()
-
-      manager.endSession()
-      expect(manager.getSessionInfo()).toBeNull()
-    })
-
-    it('should restore fully after endSession and re-ensureAgentWindow', async () => {
+    it('returns false when the agent window is gone even if the process still exists', async () => {
       mockLaunchFlow(11111)
       await manager.ensureAgentWindow()
-      manager.endSession()
 
-      mockLaunchFlow(22222)
-      const info = await manager.ensureAgentWindow()
-      expect(info.pid).toBe(22222)
+      resetLaunchMocks()
+      mockWindowMissingFlow(11111)
+
+      const result = await manager.bringToFront()
+
+      expect(result).toBe(false)
+      expect(manager.getSessionInfo()).toBeNull()
     })
   })
 })

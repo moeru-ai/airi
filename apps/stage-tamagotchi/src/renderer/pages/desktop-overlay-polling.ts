@@ -7,6 +7,8 @@
 
 import type { McpCallToolResult } from '@proj-airi/stage-ui/stores/mcp-tool-bridge'
 
+import { desktopOverlayPollHeartbeatMarker, desktopOverlayPollHeartbeatQueryParam } from '../../shared/desktop-overlay-heartbeat'
+
 // ---------------------------------------------------------------------------
 // Types — minimal shapes matching RunState fields the overlay consumes
 // ---------------------------------------------------------------------------
@@ -44,6 +46,12 @@ export interface OverlayState {
   pointerIntent: OverlayPointerIntent | null
   bootstrapState: 'booting' | 'ready' | 'degraded'
   lastBootstrapError?: string
+}
+
+export interface OverlayPollHeartbeat {
+  snapshotId: string
+  candidateCount: number
+  hasPointerIntent: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -111,6 +119,37 @@ export function extractRunStateFromResult(result: McpCallToolResult): Record<str
   return sc as Record<string, unknown>
 }
 
+export function createOverlayPollHeartbeat(state: OverlayState): OverlayPollHeartbeat | undefined {
+  if (!state.hasSnapshot || !state.snapshotId)
+    return undefined
+
+  return {
+    snapshotId: state.snapshotId,
+    candidateCount: state.candidates.length,
+    hasPointerIntent: state.pointerIntent !== null,
+  }
+}
+
+export function formatOverlayPollHeartbeat(heartbeat: OverlayPollHeartbeat): string {
+  return [
+    desktopOverlayPollHeartbeatMarker,
+    `snapshotId=${heartbeat.snapshotId}`,
+    `candidates=${heartbeat.candidateCount}`,
+    `pointerIntent=${heartbeat.hasPointerIntent ? 'yes' : 'no'}`,
+  ].join(' ')
+}
+
+export function isOverlayPollHeartbeatEnabled(locationLike: Pick<Location, 'hash' | 'search'> = window.location): boolean {
+  const hashQuery = locationLike.hash.includes('?')
+    ? locationLike.hash.slice(locationLike.hash.indexOf('?') + 1)
+    : ''
+  const hashParams = new URLSearchParams(hashQuery)
+  const searchParams = new URLSearchParams(locationLike.search)
+
+  return hashParams.get(desktopOverlayPollHeartbeatQueryParam) === '1'
+    || searchParams.get(desktopOverlayPollHeartbeatQueryParam) === '1'
+}
+
 // ---------------------------------------------------------------------------
 // Polling controller (framework-agnostic)
 // ---------------------------------------------------------------------------
@@ -129,6 +168,8 @@ export interface OverlayPollConfig {
   callTool: (name: string) => Promise<McpCallToolResult>
   /** Callback with extracted state on each successful poll. */
   onState: (state: OverlayState) => void
+  /** Optional debug-only callback with a small heartbeat marker. */
+  onHeartbeat?: (heartbeat: OverlayPollHeartbeat) => void
   /** Function to ping main process readiness contract via Eventa. */
   getReadiness: () => Promise<{ state: 'booting' | 'ready' | 'degraded', error?: string }>
   /** Normal poll interval in ms. Default: 250. */
@@ -299,6 +340,10 @@ export function createOverlayPollController(config: OverlayPollConfig): OverlayP
         state.bootstrapState = currentBootstrapState
         state.lastBootstrapError = currentBootstrapError
         config.onState(state)
+        const heartbeat = createOverlayPollHeartbeat(state)
+        if (heartbeat && config.onHeartbeat) {
+          config.onHeartbeat(heartbeat)
+        }
       }
       else {
         nextInterval = fallbackInterval

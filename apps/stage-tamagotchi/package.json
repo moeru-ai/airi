@@ -30,6 +30,7 @@
     "merge-latest-mac": "tsx scripts/merge-latest-mac.ts",
     "regenerate-windows-latest": "tsx scripts/regenerate-windows-latest.ts",
     "artifacts-metadata": "tsx scripts/artifacts-metadata.ts",
+    "smoke:desktop-overlay-live-window": "NODE_OPTIONS='--experimental-websocket' tsx scripts/desktop-overlay-live-window-smoke.ts",
     "update-test:generate": "tsx scripts/update-test/generate-manifest.ts",
     "update-test:server": "tsx scripts/update-test/start-server.ts",
     "update-test:matrix": "bash scripts/update-test/run-matrix.sh"

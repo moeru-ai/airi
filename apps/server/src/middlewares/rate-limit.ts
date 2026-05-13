@@ -1,6 +1,6 @@
 import type { Context } from 'hono'
 
-import type { RateLimitMetrics } from '../libs/otel'
+import type { RateLimitMetrics } from '../otel'
 import type { HonoEnv } from '../types/hono'
 
 import { getConnInfo } from '@hono/node-server/conninfo'

@@ -81,6 +81,25 @@ export async function captureDesktopGrounding(params: {
   const foregroundApp = windowObs.frontmostAppName || axSnapshot?.appName || 'unknown'
   const isChromeInFront = isChromeApp(foregroundApp)
 
+  // If Chrome is foreground, ask the executor for a Chrome-filtered window list.
+  // The generic top-N window snapshot is often dominated by system UI and can
+  // miss Chrome entirely, which would prevent chrome_dom candidates from being
+  // mapped to screen coordinates.
+  let chromeWindowBounds = findChromeWindowBounds(windowObs, foregroundApp)
+  if (isChromeInFront && !chromeWindowBounds) {
+    try {
+      const chromeWindows = await executor.observeWindows({
+        app: foregroundApp,
+        limit: 12,
+      })
+      chromeWindowBounds = findChromeWindowBounds(chromeWindows, foregroundApp)
+    }
+    catch {
+      // Best-effort only. Fall back to AX-only candidates if filtered window
+      // enumeration fails.
+    }
+  }
+
   // Phase 2: Chrome semantic data (only if Chrome is foreground and allowed)
   let chromeSemanticSnapshot: ChromeSemanticSnapshot | null = null
   if (isChromeInFront && input?.includeChrome !== false) {
@@ -88,7 +107,6 @@ export async function captureDesktopGrounding(params: {
   }
 
   // Phase 3: Build target candidates
-  const chromeWindowBounds = findChromeWindowBounds(windowObs, foregroundApp)
   const candidates = buildTargetCandidates({
     axSnapshot,
     chromeSnapshot: chromeSemanticSnapshot ?? undefined,

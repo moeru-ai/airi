@@ -16,7 +16,9 @@ export type PixiLive2DInternalModel = InternalModel & {
 
 export interface MotionManagerUpdateContext {
   model: CubismModel
+  // in seconds
   now: number
+  // in seconds
   timeDelta: number
   hookedUpdate?: (model: CubismModel, now: number) => boolean
 }
@@ -330,9 +332,7 @@ export function useMotionUpdatePluginAutoEyeBlink(
 
       // Force ON or eyeBlink null: timer blink + markHandled.
       if (ctx.live2dForceAutoBlinkEnabled.value || !ctx.internalModel.eyeBlink) {
-        const rawDelta = Math.max(ctx.timeDelta ?? 0, 0)
-        const dt = rawDelta < 5 ? rawDelta * 1000 : rawDelta
-        const safeDt = dt || 16
+        const safeDt = ctx.timeDelta * 1000 || 16
         const { eyeLOpen, eyeROpen } = updateForcedBlink(safeDt, baseLeft, baseRight)
         ctx.model.setParameterValueById('ParamEyeLOpen', eyeLOpen)
         ctx.model.setParameterValueById('ParamEyeROpen', eyeROpen)
@@ -399,9 +399,7 @@ export function useMotionUpdatePluginAutoEyeBlink(
 
     // Advance blink timer.
     const wasActive = blinkState.phase !== 'idle'
-    const rawDelta = Math.max(ctx.timeDelta ?? 0, 0)
-    const dt = rawDelta < 5 ? rawDelta * 1000 : rawDelta
-    const safeDt = dt || 16
+    const safeDt = ctx.timeDelta * 1000 || 16
     const { eyeLOpen: blinkFactorL, eyeROpen: blinkFactorR } = updateForcedBlink(safeDt, 1.0, 1.0)
 
     // Blink cycle complete: restore exact pre-blink values.
@@ -435,5 +433,47 @@ export function useMotionUpdatePluginExpression(
   return (ctx) => {
     // Always apply regardless of handled state – expressions layer on top.
     controller.applyExpressions(ctx.model)
+  }
+}
+
+/**
+ * Final-phase plugin that owns ParamMouthOpenY while speech is active and
+ * smoothly cross-fades back to the motion-driven value when speech ends.
+ *
+ * `nowSpeaking` (not `mouthOpenSize > 0`) is the speech boundary, so silent
+ * gaps between phonemes write 0 directly instead of triggering the release.
+ */
+export function useMotionUpdatePluginLipSync(
+  mouthOpenSize: Ref<number>,
+  nowSpeaking: Ref<boolean>,
+): MotionManagerPlugin {
+  // 200 ms covers a typical phoneme tail without lagging behind the next utterance.
+  const RELEASE_DURATION_MS = 200
+
+  let releaseRemainingMs = 0
+  let lastForcedValue = 0
+
+  // Smoothstep: 3t^2 - 2t^3, eases in/out with zero slope at endpoints.
+  const smoothstep = (t: number) => t * t * (3 - 2 * t)
+
+  return (ctx) => {
+    if (nowSpeaking.value) {
+      lastForcedValue = mouthOpenSize.value
+      releaseRemainingMs = RELEASE_DURATION_MS
+      ctx.model.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
+      return
+    }
+
+    if (releaseRemainingMs <= 0)
+      return
+
+    releaseRemainingMs = Math.max(0, releaseRemainingMs - ctx.timeDelta * 1000)
+    const blend = smoothstep(1 - releaseRemainingMs / RELEASE_DURATION_MS)
+
+    // ParamMouthOpenY was already written by motion + expression plugins this frame.
+    const motionValue = ctx.model.getParameterValueById('ParamMouthOpenY') as number
+    const blended = lastForcedValue * (1 - blend) + motionValue * blend
+
+    ctx.model.setParameterValueById('ParamMouthOpenY', blended)
   }
 }

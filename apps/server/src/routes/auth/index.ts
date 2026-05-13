@@ -1,7 +1,7 @@
 import type { AuthInstance } from '../../libs/auth'
 import type { Database } from '../../libs/db'
 import type { Env } from '../../libs/env'
-import type { RateLimitMetrics } from '../../libs/otel'
+import type { RateLimitMetrics } from '../../otel'
 import type { ConfigKVService } from '../../services/config-kv'
 import type { HonoEnv } from '../../types/hono'
 

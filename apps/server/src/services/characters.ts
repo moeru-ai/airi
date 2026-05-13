@@ -1,5 +1,5 @@
 import type { Database } from '../libs/db'
-import type { EngagementMetrics } from '../libs/otel'
+import type { EngagementMetrics } from '../otel'
 
 import { useLogger } from '@guiiai/logg'
 import { and, eq, isNull, or, sql } from 'drizzle-orm'

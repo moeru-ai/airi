@@ -287,6 +287,29 @@ describe('browserDomExtensionBridge', () => {
     expect(bridge.getStatus().pendingRequests).toBe(0)
   })
 
+  it('rejects bridge calls when the extension responds with ok:false', async () => {
+    const result = await createConnectedBridge()
+    bridge = result.bridge
+    client = result.client
+
+    client.on('message', (raw) => {
+      const data = JSON.parse(String(raw)) as Record<string, unknown>
+      if (typeof data.id !== 'string')
+        return
+      if (data.action !== 'getActiveTab')
+        return
+
+      client.send(JSON.stringify({
+        id: data.id,
+        ok: false,
+        error: 'unknown action: getActiveTab',
+      }))
+    })
+
+    await expect(bridge.getActiveTab()).rejects.toThrow('unknown action: getActiveTab')
+    expect(bridge.getStatus().pendingRequests).toBe(0)
+  })
+
   it('can retry startup after an initial bind failure', async () => {
     blocker = new WebSocketServer({
       host: '127.0.0.1',

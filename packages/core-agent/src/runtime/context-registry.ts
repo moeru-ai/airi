@@ -10,20 +10,54 @@ interface EventSourcePayload {
   metadata?: { source?: MetadataEventSource }
 }
 
+/**
+ * Stored context event with the registry bucket key resolved at ingest time.
+ */
 export interface ContextHistoryEntry extends ContextMessage {
+  /** Stable source bucket key derived from metadata, source, or fallback. */
   sourceKey: string
 }
 
+/**
+ * Observable result emitted when a context update mutates an active bucket.
+ */
+export interface ContextIngestResult {
+  /** Stable source bucket key affected by the ingest. */
+  sourceKey: string
+  /** Registry mutation applied to the active bucket. */
+  mutation: 'replace' | 'append'
+  /** Number of active entries in the affected bucket after mutation. */
+  entryCount: number
+}
+
+/**
+ * Mutable runtime registry for active context buckets and bounded ingest history.
+ */
 export interface ContextRegistry {
-  ingest: (envelope: ContextMessage) => void
+  /** Stores a context message and returns a mutation summary for known strategies. */
+  ingest: (envelope: ContextMessage) => ContextIngestResult | undefined
+  /** Clears active context buckets and ingest history. */
   reset: () => void
+  /** Returns a cloned active context bucket snapshot. */
   snapshot: () => Record<string, ContextMessage[]>
+  /** Returns cloned active context buckets for callers that prefer explicit naming. */
   activeContexts: () => Record<string, ContextMessage[]>
+  /** Returns cloned ingest history entries in chronological order. */
   contextHistory: () => ContextHistoryEntry[]
 }
 
 interface CreateContextRegistryOptions {
+  /**
+   * Maximum number of history records retained by the registry.
+   *
+   * @default 400
+   */
   historyLimit?: number
+  /**
+   * Resolves a context message into a stable source bucket key.
+   *
+   * @default metadata plugin/instance key, then event source, then "unknown"
+   */
   getSourceKey?: (event: EventSourcePayload, fallback?: string) => string
 }
 
@@ -45,26 +79,52 @@ function defaultGetSourceKey(event: EventSourcePayload, fallback = 'unknown') {
   )
 }
 
+/**
+ * Creates a context registry that owns active buckets and bounded ingest history.
+ *
+ * Use when:
+ * - Runtime contexts need replace-self or append-self bucket semantics.
+ * - UI or transport layers need cloned snapshots without owning mutation policy.
+ *
+ * Expects:
+ * - Context messages are structured-cloneable before they enter the registry.
+ * - Unknown strategies should still be recorded in history for observability.
+ *
+ * Returns:
+ * - A registry whose snapshots cannot mutate internal active bucket state.
+ */
 export function createContextRegistry(options: CreateContextRegistryOptions = {}): ContextRegistry {
   const historyLimit = options.historyLimit ?? 400
   const getSourceKey = options.getSourceKey ?? defaultGetSourceKey
 
-  let currentActiveContexts: Record<string, ContextMessage[]> = {}
+  let currentActiveContexts = new Map<string, ContextMessage[]>()
   let currentContextHistory: ContextHistoryEntry[] = []
 
-  function ingest(envelope: ContextMessage) {
+  function ingest(envelope: ContextMessage): ContextIngestResult | undefined {
     const sourceKey = getSourceKey(envelope)
-    if (!currentActiveContexts[sourceKey]) {
-      currentActiveContexts[sourceKey] = []
-    }
-
     const safeEnvelopeToStore = structuredClone(envelope)
 
+    if (!currentActiveContexts.has(sourceKey)) {
+      currentActiveContexts.set(sourceKey, [])
+    }
+
+    let result: ContextIngestResult | undefined
+
     if (envelope.strategy === CONTEXT_UPDATE_REPLACE_SELF) {
-      currentActiveContexts[sourceKey] = [safeEnvelopeToStore]
+      currentActiveContexts.set(sourceKey, [safeEnvelopeToStore])
+      result = {
+        sourceKey,
+        mutation: 'replace',
+        entryCount: currentActiveContexts.get(sourceKey)?.length ?? 0,
+      }
     }
     else if (envelope.strategy === CONTEXT_UPDATE_APPEND_SELF) {
-      currentActiveContexts[sourceKey].push(safeEnvelopeToStore)
+      currentActiveContexts.get(sourceKey)?.push(safeEnvelopeToStore)
+      result = {
+        sourceKey,
+        mutation: 'append',
+        entryCount: currentActiveContexts.get(sourceKey)?.length ?? 0,
+      }
     }
 
     currentContextHistory = [
@@ -74,22 +134,29 @@ export function createContextRegistry(options: CreateContextRegistryOptions = {}
         sourceKey,
       },
     ].slice(-historyLimit)
+
+    return result
   }
 
   function reset() {
-    currentActiveContexts = {}
+    currentActiveContexts = new Map<string, ContextMessage[]>()
     currentContextHistory = []
   }
 
   function snapshot() {
-    return structuredClone(currentActiveContexts)
+    return Object.fromEntries(
+      Array.from(currentActiveContexts, ([sourceKey, messages]) => [
+        sourceKey,
+        structuredClone(messages),
+      ]),
+    )
   }
 
   return {
     ingest,
     reset,
     snapshot,
-    activeContexts: () => structuredClone(currentActiveContexts),
-    contextHistory: () => [...currentContextHistory],
+    activeContexts: snapshot,
+    contextHistory: () => structuredClone(currentContextHistory),
   }
 }

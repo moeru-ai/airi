@@ -2,7 +2,7 @@ import type { Context } from 'hono'
 import type Redis from 'ioredis'
 
 import type { Env } from '../../../libs/env'
-import type { GenAiMetrics, RateLimitMetrics, RevenueMetrics } from '../../../libs/otel'
+import type { GenAiMetrics, RateLimitMetrics, RevenueMetrics } from '../../../otel'
 import type { UsageInfo } from '../../../services/billing/billing'
 import type { BillingService } from '../../../services/billing/billing-service'
 import type { FluxMeter } from '../../../services/billing/flux-meter'
@@ -285,8 +285,10 @@ export function createV1CompletionsRoutes(
               actualCharged = fluxConsumed
             }
             catch (err) {
-              // Flux that should have been collected but wasn't. Real revenue leak —
-              // counter so on-call can alert and reconcile.
+              // Real revenue leak: streaming response already sent (HTTP 200,
+              // tokens delivered), so this catch produces no 5xx and no DB
+              // latency spike on the request path. Without a dedicated counter,
+              // the failure is silent. Page on any sustained `increase()`.
               revenue?.fluxUnbilled.add(fluxConsumed, {
                 [GEN_AI_ATTR_REQUEST_MODEL]: requestModel,
                 reason: 'debit_failed',

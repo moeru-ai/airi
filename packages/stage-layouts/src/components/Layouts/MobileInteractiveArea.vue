@@ -2,6 +2,7 @@
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components/scenarios/chat'
@@ -26,6 +27,7 @@ import ViewControls from '../Layouts/InteractiveArea/Actions/ViewControls.vue'
 import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
 import ActionAbout from './InteractiveArea/Actions/About.vue'
 
+import { useTranscriptions } from '../../composables/use-transcriptions'
 import { BackgroundDialogPicker } from '../Backgrounds'
 
 const { isDark, toggleDark } = useTheme()
@@ -67,6 +69,14 @@ let analyzerSource: MediaStreamAudioSourceNode | undefined
 function isMobileDevice() {
   return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 }
+
+const { isListening } = useTranscriptions(
+  {
+    messageInputRef: messageInput,
+    sendMessage: handleSend,
+    isStageTamagotchi,
+  },
+)
 
 async function handleSubmit() {
   if (!isMobileDevice()) {
@@ -123,7 +133,7 @@ async function setupAnalyzer() {
   analyzerSource.connect(analyser)
 }
 
-watch([hearingDialogOpen, enabled, stream], () => {
+watch([enabled, stream], () => {
   setupAnalyzer()
 }, { immediate: true })
 
@@ -200,7 +210,7 @@ onMounted(() => {
               title="Hearing"
             >
               <Transition name="fade" mode="out-in">
-                <IndicatorMicVolume v-if="enabled" size-5 color-class="text-neutral-500 dark:text-neutral-400" />
+                <IndicatorMicVolume v-if="enabled" size-5 :color-class="isListening ? undefined : 'text-neutral-500 dark:text-neutral-400'" />
                 <div v-else i-solar:microphone-3-outline size-5 text="neutral-500 dark:neutral-400" />
               </Transition>
             </button>

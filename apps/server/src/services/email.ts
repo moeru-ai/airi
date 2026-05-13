@@ -1,6 +1,6 @@
 import type { Logger } from '@guiiai/logg'
 
-import type { EmailMetrics } from '../libs/otel'
+import type { EmailMetrics } from '../otel'
 
 import { useLogger } from '@guiiai/logg'
 import { errorMessageFrom } from '@moeru/std'

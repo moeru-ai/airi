@@ -1,9 +1,9 @@
 import type { AXNode, AXSnapshot } from './accessibility/types'
 import type { ChromeSemanticSnapshot, DesktopGroundingSnapshot } from './desktop-grounding-types'
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
-import { buildTargetCandidates, formatGroundingForAgent } from './desktop-grounding'
+import { buildTargetCandidates, captureDesktopGrounding, formatGroundingForAgent } from './desktop-grounding'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -167,6 +167,91 @@ describe('buildTargetCandidates', () => {
     ])
     const candidates = buildTargetCandidates({ axSnapshot: ax, foregroundApp: 'Finder' })
     expect(candidates[0].interactable).toBe(false)
+  })
+})
+
+describe('captureDesktopGrounding', () => {
+  it('retries window observation with app filter when Chrome is foreground and the generic list misses it', async () => {
+    const chromeWindow = { x: 0, y: 0, width: 1920, height: 1080 }
+    const chromeElements = [
+      { tag: 'button', text: 'Submit', rect: { x: 10, y: 10, w: 80, h: 30 } },
+    ]
+
+    const executor = {
+      takeScreenshot: vi.fn().mockResolvedValue({
+        dataBase64: '',
+        mimeType: 'image/png',
+        path: '/tmp/screenshot.png',
+        capturedAt: new Date().toISOString(),
+      }),
+      observeWindows: vi.fn()
+        .mockResolvedValueOnce({
+          frontmostAppName: 'Google Chrome',
+          frontmostWindowTitle: 'Chrome',
+          windows: [
+            {
+              appName: 'Control Center',
+              title: 'Clock',
+              bounds: { x: 0, y: 0, width: 100, height: 30 },
+            },
+          ],
+          observedAt: new Date().toISOString(),
+        })
+        .mockResolvedValueOnce({
+          frontmostAppName: 'Google Chrome',
+          frontmostWindowTitle: 'Chrome',
+          windows: [
+            {
+              appName: 'Google Chrome',
+              title: 'Chrome',
+              bounds: chromeWindow,
+              ownerPid: 1234,
+              id: '1234:0:Chrome',
+              layer: 0,
+              isOnScreen: true,
+            },
+          ],
+          observedAt: new Date().toISOString(),
+        }),
+      focusApp: vi.fn(),
+      openApp: vi.fn(),
+      click: vi.fn(),
+      typeText: vi.fn(),
+      pressKeys: vi.fn(),
+      scroll: vi.fn(),
+      getForegroundContext: vi.fn().mockResolvedValue({
+        available: true,
+        appName: 'Google Chrome',
+        platform: 'darwin',
+      }),
+      getDisplayInfo: vi.fn(),
+      getExecutionTarget: vi.fn(),
+      describe: vi.fn(),
+    } as any
+
+    const cdpBridge = {
+      getStatus: vi.fn().mockReturnValue({
+        connected: true,
+        pageUrl: 'https://example.com',
+        pageTitle: 'Example Page',
+      }),
+      collectInteractiveElements: vi.fn().mockResolvedValue(chromeElements),
+    } as any
+
+    const config = {
+      timeoutMs: 5000,
+    } as any
+
+    const snapshot = await captureDesktopGrounding({
+      config,
+      executor,
+      input: { includeChrome: true },
+      cdpBridge,
+    })
+
+    expect(executor.observeWindows).toHaveBeenNthCalledWith(1, { limit: 12 })
+    expect(executor.observeWindows).toHaveBeenNthCalledWith(2, { app: 'Google Chrome', limit: 12 })
+    expect(snapshot.targetCandidates.some(candidate => candidate.source === 'chrome_dom')).toBe(true)
   })
 })
 

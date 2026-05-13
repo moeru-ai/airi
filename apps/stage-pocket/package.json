@@ -124,7 +124,6 @@
     "@proj-airi/lobe-icons": "^1.0.19",
     "@proj-airi/unplugin-fetch": "catalog:",
     "@proj-airi/unplugin-live2d-sdk": "^0.1.7",
-    "@proj-airi/vite-plugin-warpdrive": "workspace:*",
     "@shikijs/markdown-it": "^4.0.2",
     "@types/audioworklet": "catalog:",
     "@types/culori": "^4.0.1",
