@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
 
-import { Live2DScene, useLive2d } from '@proj-airi/stage-ui-live2d'
+import { Live2DScene } from '@proj-airi/stage-ui-live2d'
 import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
 import { useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -24,7 +24,6 @@ const emit = defineEmits<{
 
 const positionCursor = useMouse()
 const settingsStore = useSettings()
-const live2dStore = useLive2d()
 const modelStore = useModelStore()
 const live2dSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
 const vrmSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
@@ -45,7 +44,6 @@ const {
   live2dMaxFps,
   live2dRenderScale,
 } = storeToRefs(settingsStore)
-const { scale: live2dScale } = storeToRefs(live2dStore)
 const { sceneMutationLocked, scenePhase } = storeToRefs(modelStore)
 
 const live2dSceneClassList = computed(() => normalizeClassList(props.live2dSceneClass))
@@ -141,7 +139,6 @@ defineExpose({
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
         :disable-focus-at="live2dDisableFocus"
-        :scale="live2dScale"
         :theme-colors-hue="themeColorsHue"
         :theme-colors-hue-dynamic="themeColorsHueDynamic"
         :live2d-idle-animation-enabled="live2dIdleAnimationEnabled"

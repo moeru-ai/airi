@@ -75,6 +75,12 @@ const menu = computed(() => [
     to: '/devtools/websocket-inspector',
   },
   {
+    title: 'Web Haptics',
+    description: 'Trigger built-in haptic presets and custom pulse patterns',
+    icon: 'i-solar:bolt-circle-bold-duotone',
+    to: '/devtools/web-haptics',
+  },
+  {
     title: 'Plugin Host Debug',
     description: 'Inspect plugin host registry and capability state (desktop runtime)',
     icon: 'i-solar:bug-bold-duotone',

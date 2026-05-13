@@ -1,5 +1,9 @@
 import type { Locale } from '@intlify/core'
 import type { ServerOptions } from '@proj-airi/server-runtime/server'
+import type {
+  ShortcutBinding,
+  ShortcutRegistrationResult,
+} from '@proj-airi/stage-shared/global-shortcut'
 import type { ServerChannelQrPayload } from '@proj-airi/stage-shared/server-channel-qr'
 import type {
   ThreeHitTestReadTracePayload,
@@ -225,11 +229,31 @@ export interface ElectronMcpCallToolResult {
   isError?: boolean
 }
 
+export interface ElectronMcpStdioConfigText {
+  path: string
+  text: string
+}
+
+export interface ElectronMcpStdioTestResult {
+  ok: boolean
+  error?: string
+  tools?: string[]
+  durationMs: number
+}
+
+export interface ElectronMcpStdioTestPayload {
+  name: string
+  config: ElectronMcpStdioServerConfig
+}
+
 export const electronMcpOpenConfigFile = defineInvokeEventa<{ path: string }>('eventa:invoke:electron:mcp:open-config-file')
 export const electronMcpApplyAndRestart = defineInvokeEventa<ElectronMcpStdioApplyResult>('eventa:invoke:electron:mcp:apply-and-restart')
 export const electronMcpGetRuntimeStatus = defineInvokeEventa<ElectronMcpStdioRuntimeStatus>('eventa:invoke:electron:mcp:get-runtime-status')
 export const electronMcpListTools = defineInvokeEventa<ElectronMcpToolDescriptor[]>('eventa:invoke:electron:mcp:list-tools')
 export const electronMcpCallTool = defineInvokeEventa<ElectronMcpCallToolResult, ElectronMcpCallToolPayload>('eventa:invoke:electron:mcp:call-tool')
+export const electronMcpReadConfigText = defineInvokeEventa<ElectronMcpStdioConfigText>('eventa:invoke:electron:mcp:read-config-text')
+export const electronMcpWriteConfigText = defineInvokeEventa<ElectronMcpStdioConfigText, { text: string }>('eventa:invoke:electron:mcp:write-config-text')
+export const electronMcpTestServer = defineInvokeEventa<ElectronMcpStdioTestResult, ElectronMcpStdioTestPayload>('eventa:invoke:electron:mcp:test-server')
 
 export const widgetsOpenWindow = defineInvokeEventa<void, { id?: string }>('eventa:invoke:electron:windows:widgets:open')
 export const widgetsHideWindow = defineInvokeEventa<void, { id?: string }>('eventa:invoke:electron:windows:widgets:hide')
@@ -239,6 +263,7 @@ export const widgetsClear = defineInvokeEventa('eventa:invoke:electron:windows:w
 export const widgetsUpdate = defineInvokeEventa<void, WidgetsUpdatePayload>('eventa:invoke:electron:windows:widgets:update')
 export const widgetsFetch = defineInvokeEventa<WidgetSnapshot | void, { id: string }>('eventa:invoke:electron:windows:widgets:fetch')
 export const widgetsPrepareWindow = defineInvokeEventa<string | undefined, { id?: string }>('eventa:invoke:electron:windows:widgets:prepare')
+export const widgetsIframePublish = defineInvokeEventa<void, { id: string, event: Record<string, unknown> }>('eventa:invoke:electron:windows:widgets:iframe-publish')
 
 export const electronWindowClose = defineInvokeEventa<void>('eventa:invoke:electron:window:close')
 export type ElectronWindowLifecycleReason
@@ -315,6 +340,34 @@ export const electronGodotStageGetStatus = defineInvokeEventa<ElectronGodotStage
 export const electronGodotStageApplySceneInput = defineInvokeEventa<void, ElectronGodotStageSceneInputPayload>('eventa:invoke:electron:godot-stage:apply-scene-input')
 export const electronGodotStageStatusChanged = defineEventa<ElectronGodotStageStatus>('eventa:event:electron:godot-stage:status-changed')
 
+// Global shortcut ->
+
+/**
+ * Phase of a shortcut trigger event.
+ *
+ * - `down` — key combination pressed
+ * - `up`   — key combination released; only emitted by drivers that
+ *            accepted a binding with `receiveKeyUps: true`
+ */
+export type ElectronShortcutTriggerPhase = 'down' | 'up'
+
+/**
+ * Payload broadcast to all subscribed windows when a registered shortcut
+ * fires. Renderer composables filter by `id` to dispatch local handlers.
+ */
+export interface ElectronShortcutTriggerPayload {
+  id: string
+  phase: ElectronShortcutTriggerPhase
+}
+
+export const electronShortcutRegister = defineInvokeEventa<ShortcutRegistrationResult, ShortcutBinding>('eventa:invoke:electron:shortcut:register')
+export const electronShortcutUnregister = defineInvokeEventa<void, { id: string }>('eventa:invoke:electron:shortcut:unregister')
+export const electronShortcutUnregisterAll = defineInvokeEventa<void>('eventa:invoke:electron:shortcut:unregister-all')
+export const electronShortcutList = defineInvokeEventa<ShortcutBinding[]>('eventa:invoke:electron:shortcut:list')
+export const electronShortcutTriggered = defineEventa<ElectronShortcutTriggerPayload>('eventa:event:electron:shortcut:triggered')
+
+// <- Global shortcut
+
 export type StageThreeRuntimeTraceEnvelope
   = | { type: 'three-render-info', payload: ThreeSceneRenderInfoTracePayload }
     | { type: 'three-hit-test-read', payload: ThreeHitTestReadTracePayload }
@@ -361,7 +414,7 @@ export const electronAuthCallbackError = defineEventa<{ error: string }>('eventa
 export const electronAuthLogout = defineInvokeEventa<void>('eventa:invoke:electron:auth:logout')
 
 export const i18nSetLocale = defineInvokeEventa<void, Locale>('eventa:invoke:electron:i18n:set-locale')
-export const i18nGetLocale = defineInvokeEventa<Locale>('eventa:invoke:electron:i18n:get-locale')
+export const i18nGetLocale = defineInvokeEventa<string | undefined>('eventa:invoke:electron:i18n:get-locale')
 
 export { electron } from '@proj-airi/electron-eventa'
 export * from '@proj-airi/electron-eventa/electron-updater'

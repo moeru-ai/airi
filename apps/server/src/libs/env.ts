@@ -6,8 +6,6 @@ import { useLogger } from '@guiiai/logg'
 import { injeca } from 'injeca'
 import { integer, maxValue, minValue, nonEmpty, object, optional, parse, pipe, string, transform } from 'valibot'
 
-import { DEFAULT_BILLING_EVENTS_STREAM } from '../utils/redis-keys'
-
 function optionalIntegerFromString(defaultValue: number, envKey: string, minimum: number) {
   return optional(
     pipe(
@@ -53,6 +51,15 @@ const EnvSchema = object({
   AUTH_GITHUB_CLIENT_ID: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_ID is required')),
   AUTH_GITHUB_CLIENT_SECRET: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_SECRET is required')),
 
+  // Resend transactional email. RESEND_API_KEY required when emailAndPassword
+  // sign-up / forgot-password / change-email / magic-link is exercised. Service
+  // boots without it but those flows will throw at send-time.
+  RESEND_API_KEY: optional(string(), ''),
+  // From address must be a verified Resend sender (e.g. `noreply@your-domain`).
+  RESEND_FROM_EMAIL: optional(string(), 'noreply@airi.moeru.ai'),
+  // Optional friendly name; rendered as `Name <email>` per Resend's RFC 5322 display-name format.
+  RESEND_FROM_NAME: optional(string(), 'Project AIRI'),
+
   STRIPE_SECRET_KEY: optional(string()),
   STRIPE_WEBHOOK_SECRET: optional(string()),
 
@@ -60,12 +67,6 @@ const EnvSchema = object({
   GATEWAY_BASE_URL: pipe(string(), nonEmpty('GATEWAY_BASE_URL is required')),
   DEFAULT_CHAT_MODEL: pipe(string(), nonEmpty('DEFAULT_CHAT_MODEL is required')),
   DEFAULT_TTS_MODEL: pipe(string(), nonEmpty('DEFAULT_TTS_MODEL is required')),
-
-  BILLING_EVENTS_STREAM: optional(string(), DEFAULT_BILLING_EVENTS_STREAM),
-  BILLING_EVENTS_CONSUMER_NAME: optional(string()),
-  BILLING_EVENTS_BATCH_SIZE: optionalIntegerFromString(10, 'BILLING_EVENTS_BATCH_SIZE', 1),
-  BILLING_EVENTS_BLOCK_MS: optionalIntegerFromString(5000, 'BILLING_EVENTS_BLOCK_MS', 1),
-  BILLING_EVENTS_MIN_IDLE_MS: optionalIntegerFromString(30000, 'BILLING_EVENTS_MIN_IDLE_MS', 1),
 
   // Database pool
   DB_POOL_MAX: optionalIntegerFromString(20, 'DB_POOL_MAX', 1),
@@ -80,6 +81,13 @@ const EnvSchema = object({
   OTEL_EXPORTER_OTLP_ENDPOINT: optional(string()),
   OTEL_EXPORTER_OTLP_HEADERS: optional(string()),
   OTEL_DEBUG: optional(string()),
+  // Admin allowlist for /api/admin/* routes. Comma-separated email addresses.
+  // Match is case-insensitive, but the user must also have `email_verified = true`
+  // — otherwise an attacker could register a fresh account with the admin email
+  // before verification and slip past the check.
+  // Empty (default) = no one is admin — production safe by default.
+  // Example: ADMIN_EMAILS=alice@example.com,bob@example.com
+  ADMIN_EMAILS: optional(string(), ''),
 })
 
 export type Env = InferOutput<typeof EnvSchema>

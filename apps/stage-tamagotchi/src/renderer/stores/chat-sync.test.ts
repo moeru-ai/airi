@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 import type { Ref } from 'vue'
 
 import { createPinia, setActivePinia } from 'pinia'
@@ -142,6 +144,7 @@ describe('useChatSyncStore authority ingest failures', async () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     MockBroadcastChannel.reset()
+    vi.restoreAllMocks()
 
     const activeSessionId = ref('session-1')
     const sessionMessages = ref<Record<string, Array<{ role: string, content: string }>>>({
@@ -194,6 +197,7 @@ describe('useChatSyncStore authority ingest failures', async () => {
    * })
    */
   it('stores command ingest errors in authority session history', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
     const store = useChatSyncStore()
     store.initialize('authority')
 
@@ -218,9 +222,53 @@ describe('useChatSyncStore authority ingest failures', async () => {
     expect(persistedMessages).toHaveLength(2)
     expect(persistedMessages[1]?.role).toBe('error')
     expect(persistedMessages[1]?.content).toContain('This model is not available in your region')
+    expect(consoleError).toHaveBeenCalledWith('[chat-sync] command failed', expect.objectContaining({
+      command: 'ingest',
+      requestId: 'req-1',
+      errorMessage: expect.stringContaining('This model is not available in your region'),
+      payload: expect.objectContaining({
+        text: 'hello',
+        sessionId: 'session-1',
+      }),
+    }))
 
     peer.close()
     store.dispose()
+  })
+
+  /**
+   * @example
+   * await expect(store.requestIngest({ text: 'hello' })).rejects.toThrow(/timed out/i)
+   * expect(console.error).toHaveBeenCalledWith('[chat-sync] command timed out waiting for authority response', expect.any(Object))
+   */
+  it('logs follower command timeouts with request metadata', async () => {
+    vi.useFakeTimers()
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const store = useChatSyncStore()
+    store.initialize('follower')
+
+    const pending = store.requestIngest({
+      text: 'hello timeout',
+      sessionId: 'session-1',
+    })
+    const expectedRejection = expect(pending).rejects.toThrow('Timed out waiting for chat authority response')
+
+    await vi.advanceTimersByTimeAsync(30000)
+
+    await expectedRejection
+    expect(consoleError).toHaveBeenCalledWith('[chat-sync] command timed out waiting for authority response', expect.objectContaining({
+      command: 'ingest',
+      mode: 'follower',
+      requestId: expect.any(String),
+      errorMessage: 'Timed out waiting for chat authority response',
+      payload: expect.objectContaining({
+        text: 'hello timeout',
+        sessionId: 'session-1',
+      }),
+    }))
+
+    store.dispose()
+    vi.useRealTimers()
   })
 
   /**

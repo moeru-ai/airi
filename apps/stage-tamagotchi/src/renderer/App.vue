@@ -20,7 +20,6 @@ import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/
 import { useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
 
@@ -32,6 +31,7 @@ import {
   electronGodotStageStatusChanged,
   electronSettingsNavigate,
   electronStartTrackMousePosition,
+  i18nGetLocale,
   i18nSetLocale,
 } from '../shared/eventa'
 import {
@@ -50,13 +50,13 @@ import {
 } from '../shared/eventa/plugin/host'
 import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-callback'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
+import { useLanguage } from './composables/use-language'
 import { useTamagotchiMcpToolsStore } from './stores/mcp-tools'
 import { useTamagotchiPluginToolsStore } from './stores/plugin-tools'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 
 const { isDark: dark } = useTheme()
-const i18n = useI18n()
 const contextBridgeStore = useContextBridgeStore()
 const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
@@ -92,6 +92,7 @@ const unloadPlugin = useElectronEventaInvoke(electronPluginUnload)
 const inspectPluginHost = useElectronEventaInvoke(electronPluginInspect)
 const startTrackingCursorPoint = useElectronEventaInvoke(electronStartTrackMousePosition)
 const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapability)
+const getMainLocale = useElectronEventaInvoke(i18nGetLocale)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
 const getGodotStageStatus = useElectronEventaInvoke(electronGodotStageGetStatus)
 const syncArtistryConfig = useElectronEventaInvoke(artistrySyncConfig)
@@ -156,10 +157,7 @@ void mcpToolsStore.refresh().catch((error) => {
 })
 void refreshPluginRuntimeTools()
 
-watch(language, () => {
-  i18n.locale.value = language.value || 'en'
-  setLocale(language.value || 'en')
-})
+const { restore: restoreLocale } = useLanguage(language, getMainLocale, setLocale)
 
 watch([activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions], () => {
   if (activeProvider.value) {
@@ -198,6 +196,14 @@ context.value.on(electronGodotStageStatusChanged, (event) => {
 })
 
 onMounted(async () => {
+  // NOTICE: Issue #1658
+  // When Electron restarts, renderer localStorage may not be flushed to disk.
+  // The store's onMounted hook falls back to navigator.language, which triggers
+  // watch(language) and overwrites the main-process config with the OS locale.
+  // We must restore the correct locale from main process before allowing sync.
+  // https://github.com/moeru-ai/airi/issues/1658
+  await restoreLocale()
+
   analyticsStore.initialize()
   await displayModelsStore.initialize()
   cardStore.initialize()

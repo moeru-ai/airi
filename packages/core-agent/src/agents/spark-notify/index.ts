@@ -3,6 +3,7 @@ export type {
   SparkNotifyCommandEvent,
   SparkNotifyHandleResult,
   SparkNotifyResponse,
+  SparkTraceCapture,
 } from './handler'
 export {
   getSparkNotifyHandlingAgentInstruction,
@@ -18,3 +19,10 @@ export type {
   SparkNotifyCommandDraft,
 } from './tools'
 export { createSparkNotifyTools } from './tools'
+export type {
+  SparkNotifyMessageOverride,
+  SparkNotifyResponseControl,
+  SparkNotifyRuntimePolicy,
+  SparkNotifyTracingHooks,
+  SparkTraceEvent,
+} from './types'

@@ -1,12 +1,19 @@
 chat:
   actions:
-    retry: 再試行
+    retry: Retry
   message:
     character-name:
       airi: AIRI
       core-system: コアシステム
       you: あなた
   reasoning: 推論
+  sessions:
+    title: Conversations
+    new: + New
+    empty: No conversations yet
+    cloud-badge: Synced to cloud
+    new-chat-fallback: New chat
+    delete: Delete conversation
 message: 何か話しかけてみましょう…
 send-mode:
   title: キーを送信
@@ -87,6 +94,6 @@ promo-banner:
       cta: テーマを表示
 waiting: 待機中
 websocket-status:
-  connected: WebSocketが接続されました
-  disconnected: WebSocketが切断されました
-  open-settings: WebSocketの設定を開く
+  connected: 接続済み
+  disconnected: 未接続
+  open-settings: 接続設定を開く

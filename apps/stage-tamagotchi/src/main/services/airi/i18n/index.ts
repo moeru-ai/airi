@@ -1,4 +1,3 @@
-import type { LocaleDetector } from '@intlify/core'
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { BrowserWindow } from 'electron'
 import type { ProvidedBy } from 'injeca'
@@ -18,14 +17,11 @@ export async function createI18nService(params: { context: ReturnType<typeof cre
 
   defineInvokeHandler(params.context, i18nSetLocale, (locale) => {
     const current = config.get()
-    if (current) {
-      config.update({ ...current, language: locale as string })
-    }
+    config.update({ ...current, language: locale as string })
     params.i18n.locale(locale)
   })
 
   defineInvokeHandler(params.context, i18nGetLocale, () => {
-    const locale = params.i18n.locale as () => string | LocaleDetector<any[]> | undefined
-    return locale()
+    return config.get()?.language
   })
 }

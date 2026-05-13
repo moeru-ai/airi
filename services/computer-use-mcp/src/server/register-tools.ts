@@ -242,8 +242,8 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
   server.tool(
     'desktop_click',
     {
-      x: z.number().describe('Absolute screen X coordinate in pixels'),
-      y: z.number().describe('Absolute screen Y coordinate in pixels'),
+      x: z.number().describe('Global logical screen X coordinate, not Retina backing pixels'),
+      y: z.number().describe('Global logical screen Y coordinate, not Retina backing pixels'),
       button: z.enum(['left', 'right', 'middle']).optional().describe('Mouse button, default left'),
       clickCount: z.number().int().min(1).max(2).optional().describe('Number of clicks, default 1'),
       captureAfter: z.boolean().optional().describe('Whether to return a fresh screenshot after the action'),
@@ -255,8 +255,8 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     'desktop_type_text',
     {
       text: z.string().min(1).describe('Text to type into the focused UI element'),
-      x: z.number().optional().describe('Optional X coordinate to click before typing'),
-      y: z.number().optional().describe('Optional Y coordinate to click before typing'),
+      x: z.number().optional().describe('Optional global logical screen X coordinate to click before typing'),
+      y: z.number().optional().describe('Optional global logical screen Y coordinate to click before typing'),
       pressEnter: z.boolean().optional().describe('Whether to press Enter after typing'),
       captureAfter: z.boolean().optional().describe('Whether to return a fresh screenshot after the action'),
     },
@@ -275,8 +275,8 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
   server.tool(
     'desktop_scroll',
     {
-      x: z.number().optional().describe('Optional X coordinate to move to before scrolling'),
-      y: z.number().optional().describe('Optional Y coordinate to move to before scrolling'),
+      x: z.number().optional().describe('Optional global logical screen X coordinate to move to before scrolling'),
+      y: z.number().optional().describe('Optional global logical screen Y coordinate to move to before scrolling'),
       deltaX: z.number().optional().describe('Horizontal scroll delta in pixels'),
       deltaY: z.number().describe('Vertical scroll delta in pixels'),
       captureAfter: z.boolean().optional().describe('Whether to return a fresh screenshot after the action'),

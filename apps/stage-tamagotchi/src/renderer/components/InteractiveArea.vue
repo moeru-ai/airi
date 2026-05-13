@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ChatToolCallRendererRegistry } from '@proj-airi/stage-ui/components'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { errorMessageFrom } from '@moeru/std'
@@ -16,6 +17,8 @@ import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenu
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+
+import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.vue'
 
 import { useChatSyncStore } from '../stores/chat-sync'
 
@@ -44,6 +47,10 @@ const TRAILING_NEWLINES_REGEX = /[\r\n]+$/
 const SEND_MODES = ['enter', 'ctrl-enter', 'double-enter'] as const
 type SendMode = (typeof SEND_MODES)[number]
 const sendMode = useLocalStorage<SendMode>('ui/chat/settings/send-mode', 'enter')
+const toolCallRenderers = {
+  image_journal: JournalToolCallBlock,
+  text_journal: JournalToolCallBlock,
+} satisfies ChatToolCallRendererRegistry
 const sendModeLabels = computed<Record<SendMode, string>>(() => ({
   'enter': t('stage.send-mode.enter'),
   'ctrl-enter': t('stage.send-mode.ctrl-enter'),
@@ -211,6 +218,7 @@ async function handleRetryMessage(index: number) {
         :messages="historyMessages"
         :sending="sending"
         :streaming-message="streamingMessage"
+        :tool-call-renderers="toolCallRenderers"
         @delete-message="handleDeleteMessage($event.index)"
         @retry-message="handleRetryMessage($event.index)"
       />

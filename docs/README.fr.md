@@ -161,6 +161,9 @@ Ainsi, ce projet AIRI offre une autre possibilité : **vous permettre de posséd
 
 ## Journaux de développement et mises à jour récentes
 
+- [DevLog @ 23.03.2026](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.23/) du 23 mars 2026
+- [DevLog @ 14.03.2026](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.14/) du 14 mars 2026
+- [DevLog @ 16.02.2026](https://airi.moeru.ai/docs/en/blog/DevLog-2026.02.16/) du 16 février 2026
 - [DevLog @ 01.01.2026](https://airi.moeru.ai/docs/en/blog/DevLog-2026.01.01/) du 1er janvier 2026
 - [DevLog @ 20.10.2025](https://airi.moeru.ai/docs/en/blog/DevLog-2025.10.20/) du 20 octobre 2025
 - [DevLog @ 05.08.2025](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.05/) du 5 août 2025
@@ -316,6 +319,7 @@ npx bumpp --no-commit --no-tag
 - [x] [Tencent Cloud](https://cloud.tencent.com/document/product/1729)
 - [ ] [Sparks](https://www.xfyun.cn/doc/spark/Web.html) (PR bienvenue)
 - [ ] [Volcano Engine](https://www.volcengine.com/experience/ark?utm_term=202502dsinvite&ac=DSASUQY5&rc=2QXCA1VI) (PR bienvenue)
+- [x] [Xiaomi Mimo](https://platform.xiaomimimo.com)
 
 ## Sous-projets issus de ce projet
 

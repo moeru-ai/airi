@@ -132,8 +132,6 @@ export async function setupDashboardWindow(params: {
     return { action: 'deny' }
   })
 
-  await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/dashboard'))
-
   await setupDashboardWindowElectronInvokes({
     window,
     settingsWindow: params.settingsWindow,
@@ -142,6 +140,8 @@ export async function setupDashboardWindow(params: {
     i18n: params.i18n,
     serverChannel: params.serverChannel,
   })
+
+  await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/dashboard'))
 
   /**
    * This is a know issue (or expected behavior maybe) to Electron.

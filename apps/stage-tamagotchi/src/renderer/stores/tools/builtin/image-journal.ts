@@ -1,5 +1,6 @@
 import type { ResolvedArtistryConfig } from '@proj-airi/stage-ui/stores/modules/artistry'
 import type { Tool } from '@xsai/shared-chat'
+import type { JsonSchema } from 'xsschema'
 
 import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
@@ -7,8 +8,7 @@ import { artistryGenerateHeadless } from '@proj-airi/stage-shared'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { resolveArtistryConfigFromStore, useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
-import { tool } from '@xsai/tool'
-import { z } from 'zod'
+import { rawTool } from '@xsai/tool'
 
 import { widgetsAdd } from '../../../../shared/eventa'
 
@@ -33,13 +33,41 @@ function getInvokers(): Invokers {
   return invokeCache
 }
 
-const imageJournalParams = z.object({
-  action: z.enum(['create', 'apply']).describe('Choose "create" to generate a new image, or "apply" to use an existing one.'),
-  prompt: z.string().optional().describe('Description for the image (required for "create").'),
-  title: z.string().optional().describe('Label for the entry (optional).'),
-  query: z.string().optional().describe('Search term for existing images (required for "apply").'),
-  mode: z.enum(['inline', 'widget', 'bg', 'bg_widget']).optional().describe('Display mode: "inline" (in chat), "widget" (overlay), "bg" (environment), or "bg_widget" (both). Defaults to character preference.'),
-})
+const imageJournalParams = {
+  type: 'object',
+  properties: {
+    action: {
+      type: 'string',
+      enum: ['create', 'apply'],
+      description: 'Choose "create" to generate a new image, or "apply" to use an existing one.',
+    },
+    prompt: {
+      type: ['string', 'null'],
+      description: 'Description for the image (required for "create").',
+    },
+    title: {
+      type: ['string', 'null'],
+      description: 'Label for the entry (optional).',
+    },
+    query: {
+      type: ['string', 'null'],
+      description: 'Search term for existing images (required for "apply").',
+    },
+    mode: {
+      type: ['string', 'null'],
+      enum: ['inline', 'widget', 'bg', 'bg_widget', null],
+      description: 'Display mode: "inline" (in chat), "widget" (overlay), "bg" (environment), or "bg_widget" (both). Defaults to character preference.',
+    },
+  },
+  required: [
+    'action',
+    'prompt',
+    'title',
+    'query',
+    'mode',
+  ],
+  additionalProperties: false,
+} satisfies JsonSchema
 
 async function executeCreateImageJournalEntry(params: { prompt?: string, title?: string, mode?: 'inline' | 'widget' | 'bg' | 'bg_widget' }) {
   if (!params.prompt?.trim())
@@ -199,12 +227,12 @@ async function executeImageJournalAction(params: any) {
 }
 
 const tools: Promise<Tool>[] = [
-  tool({
+  Promise.resolve(rawTool({
     name: 'image_journal',
     description: 'Manage AI-generated images. Use "create" to generate and display images. An optional "mode" (inline, widget, bg, bg_widget) can override the default character routing preference. Use "apply" to switch to an existing image from the journal.',
     execute: params => executeImageJournalAction(params),
     parameters: imageJournalParams,
-  }),
+  })),
 ]
 
 export const imageJournalTools = async () => Promise.all(tools)

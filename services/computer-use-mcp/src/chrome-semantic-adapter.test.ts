@@ -332,6 +332,36 @@ describe('chromeElementsToTargetCandidates', () => {
     expect(candidates[0].bounds.y).toBe(50 + 88 + 140 + 24)
   })
 
+  it('uses cumulative nested iframe offsets before converting to screen coordinates', () => {
+    const parentFrameOffset = { x: 320, y: 180 }
+    const childFrameOffset = { x: 24, y: 48 }
+    const nestedFrameOffset = {
+      x: parentFrameOffset.x + childFrameOffset.x,
+      y: parentFrameOffset.y + childFrameOffset.y,
+    }
+    const taggedEl = {
+      tag: 'button',
+      text: 'Nested iframe CTA',
+      rect: { x: 12, y: 24, w: 90, h: 32 },
+      _frameId: 9,
+      _frameOffsetX: nestedFrameOffset.x,
+      _frameOffsetY: nestedFrameOffset.y,
+    } as any
+
+    const candidates = chromeElementsToTargetCandidates(
+      [taggedEl],
+      windowBounds,
+      88,
+      0,
+    )
+
+    expect(candidates[0].frameId).toBe(9)
+    expect(candidates[0].bounds.x).toBe(100 + 320 + 24 + 12)
+    expect(candidates[0].bounds.y).toBe(50 + 88 + 180 + 48 + 24)
+    expect(candidates[0].bounds.width).toBe(90)
+    expect(candidates[0].bounds.height).toBe(32)
+  })
+
   it('falls back to function-level frameId when _frameId is absent', () => {
     const el = {
       tag: 'button',

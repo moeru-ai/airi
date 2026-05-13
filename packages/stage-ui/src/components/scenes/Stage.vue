@@ -42,9 +42,6 @@ import { shouldRunLive2dLipSyncLoop } from './runtime'
 const props = withDefaults(defineProps<{
   paused?: boolean
   focusAt: { x: number, y: number }
-  xOffset?: number | string
-  yOffset?: number | string
-  scale?: number
 }>(), { paused: false, scale: 1 })
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
@@ -72,7 +69,7 @@ const {
   live2dMaxFps,
   live2dRenderScale,
 } = storeToRefs(settingsStore)
-const { mouthOpenSize } = storeToRefs(useSpeakingStore())
+const { mouthOpenSize, nowSpeaking } = storeToRefs(useSpeakingStore())
 const { audioContext } = useAudioContext()
 const currentAudioSource = ref<AudioBufferSourceNode>()
 
@@ -109,7 +106,6 @@ viewUpdateCleanups.push(live2dStore.onShouldUpdateView(async () => {
 }))
 
 const audioAnalyser = ref<AnalyserNode>()
-const nowSpeaking = ref(false)
 const lipSyncStarted = ref(false)
 const lipSyncLoopId = ref<number>()
 const live2dLipSync = ref<Live2DLipSync>()
@@ -651,10 +647,8 @@ defineExpose({
         :model-id="stageModelSelected"
         :focus-at="focusAt"
         :mouth-open-size="mouthOpenSize"
+        :now-speaking="nowSpeaking"
         :paused="paused"
-        :x-offset="xOffset"
-        :y-offset="yOffset"
-        :scale="scale"
         :disable-focus-at="live2dDisableFocus"
         :theme-colors-hue="themeColorsHue"
         :theme-colors-hue-dynamic="themeColorsHueDynamic"

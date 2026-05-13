@@ -2,7 +2,11 @@ import type {
   PluginHostDebugSnapshot,
   PluginRegistrySnapshot,
 } from '../../../../../shared/eventa/plugin/host'
-import type { PluginAssetSnapshotService } from '../assets'
+import type {
+  PluginAssetCookie,
+  PluginAssetSession,
+  PluginAssetSnapshotService,
+} from '../features/static-assets'
 import type {
   PluginHostService,
   SetupPluginHostOptions,
@@ -12,10 +16,10 @@ import { dirname, join } from 'node:path'
 
 import { useLogg } from '@guiiai/logg'
 import { PluginHost } from '@proj-airi/plugin-sdk/plugin-host'
-import { app } from 'electron'
+import { app, session as electronSession } from 'electron'
 
-import { createPluginAssetService } from '../assets'
 import { createPluginAutoReloadFeature } from '../features/auto-reload'
+import { createPluginAssetService } from '../features/static-assets'
 import { createBuiltInPluginKitRuntime } from '../kits'
 import { createPluginHostConfigStore } from './config'
 import { buildPluginHostDebugSnapshot } from './debug'
@@ -26,7 +30,27 @@ import {
   resolvePluginRuntimeEntrypointPath,
 } from './registry'
 
-const extensionAssetTokenTtlMs = 30 * 24 * 60 * 60 * 1000
+const extensionAssetSessionTtlMs = 30 * 24 * 60 * 60 * 1000
+
+function createElectronPluginAssetCookieAdapter() {
+  return {
+    async setCookie(cookie: PluginAssetCookie) {
+      await electronSession.defaultSession.cookies.set({
+        url: cookie.url,
+        name: cookie.name,
+        value: cookie.value,
+        path: cookie.path,
+        httpOnly: true,
+        sameSite: 'no_restriction',
+        secure: true,
+        expirationDate: Math.floor(cookie.expiresAt / 1000),
+      })
+    },
+    async removeCookie(cookie: PluginAssetCookie) {
+      await electronSession.defaultSession.cookies.remove(cookie.url, cookie.name)
+    },
+  }
+}
 
 /**
  * Internal plugin host bootstrap service used by the public `setupPluginHost(...)` facade.
@@ -132,7 +156,7 @@ export interface PluginHostHostService extends PluginHostService {
    * Returns:
    * - The plugin registry snapshot after unload bookkeeping completes
    */
-  unload: (name: string) => PluginRegistrySnapshot
+  unload: (name: string) => Promise<PluginRegistrySnapshot>
 
   /**
    * Builds the full plugin host debug snapshot.
@@ -224,12 +248,30 @@ export async function setupPluginHostHostService(
   // Plugin feature: Static Assets serving
   const pluginAssetService = createPluginAssetService({
     getManifestEntryByName: () => pluginRegistry.getManifestEntryByName(),
+    cookieAdapter: createElectronPluginAssetCookieAdapter(),
   })
   await pluginAssetService.start()
 
   const loaded = new Set<string>()
   const loadedSessionIds = new Map<string, string>()
-  const moduleAssetTokenCache = new Map<string, string>()
+  const moduleAssetSessionCache = new Map<string, PluginAssetSession>()
+
+  const clearModuleAssetSessionCacheByPluginId = (pluginId: string) => {
+    for (const key of moduleAssetSessionCache.keys()) {
+      if (key.startsWith(`${pluginId}:`)) {
+        moduleAssetSessionCache.delete(key)
+      }
+    }
+  }
+
+  const clearModuleAssetSessionCacheByOwnerSessionId = (ownerSessionId: string) => {
+    for (const key of moduleAssetSessionCache.keys()) {
+      const segments = key.split(':')
+      if (segments[2] === ownerSessionId) {
+        moduleAssetSessionCache.delete(key)
+      }
+    }
+  }
 
   const refreshManifests = async () => {
     await pluginRegistry.refresh()
@@ -246,46 +288,47 @@ export async function setupPluginHostHostService(
     })
   }
 
-  const issueModuleAssetToken = (input: {
+  const createModuleAssetSession = async (input: {
     pluginId: string
     version: string
-    sessionId: string
+    ownerSessionId: string
     routeAssetPath: string
     pathPrefix: string
   }) => {
-    const { pluginId, version, sessionId, routeAssetPath, pathPrefix } = input
-    const cacheKey = `${pluginId}:${version}:${sessionId}:${routeAssetPath}`
-    const cachedToken = moduleAssetTokenCache.get(cacheKey)
-    if (cachedToken) {
-      return cachedToken
+    const { pluginId, version, ownerSessionId, routeAssetPath, pathPrefix } = input
+    const cacheKey = `${pluginId}:${version}:${ownerSessionId}:${routeAssetPath}:${pathPrefix}`
+    const cachedSession = moduleAssetSessionCache.get(cacheKey)
+    if (cachedSession) {
+      return cachedSession
     }
 
-    const token = pluginAssetService.issueAccessToken({
+    const session = await pluginAssetService.createAssetSession({
       pluginId,
       version,
-      sessionId,
+      ownerSessionId,
+      routeAssetPath,
       pathPrefix,
-      ttlMs: extensionAssetTokenTtlMs,
+      ttlMs: extensionAssetSessionTtlMs,
     })
-    moduleAssetTokenCache.set(cacheKey, token)
-    return token
+    moduleAssetSessionCache.set(cacheKey, session)
+    return session
   }
 
   const pluginAssetSnapshotService: PluginAssetSnapshotService = {
     getBaseUrl: pluginAssetService.getBaseUrl,
-    issueAccessToken: ({ pluginId, version, sessionId, routeAssetPath, pathPrefix }) => {
-      return issueModuleAssetToken({
+    createAssetSession: ({ pluginId, version, ownerSessionId, routeAssetPath, pathPrefix }) => {
+      return createModuleAssetSession({
         pluginId,
         version,
-        sessionId,
+        ownerSessionId,
         routeAssetPath,
         pathPrefix,
       })
     },
   }
 
-  const inspectSnapshot = (): PluginHostDebugSnapshot => {
-    return buildPluginHostDebugSnapshot({
+  const inspectSnapshot = async (): Promise<PluginHostDebugSnapshot> => {
+    return await buildPluginHostDebugSnapshot({
       host,
       pluginsRoot,
       entries: pluginRegistry.listEntries(),
@@ -316,7 +359,7 @@ export async function setupPluginHostHostService(
     log.log('plugin loaded', { plugin: name, sessionId: session.id })
   }
 
-  const stopLoadedPluginByName = (name: string) => {
+  const stopLoadedPluginByName = async (name: string) => {
     const sessionId = loadedSessionIds.get(name)
     if (!sessionId) {
       loaded.delete(name)
@@ -327,11 +370,8 @@ export async function setupPluginHostHostService(
     loadedSessionIds.delete(name)
     loaded.delete(name)
 
-    for (const key of moduleAssetTokenCache.keys()) {
-      if (key.startsWith(`${name}:`)) {
-        moduleAssetTokenCache.delete(key)
-      }
-    }
+    clearModuleAssetSessionCacheByOwnerSessionId(sessionId)
+    await pluginAssetService.revokeByOwnerSessionId(sessionId)
 
     log.log('plugin unloaded', { plugin: name, sessionId })
   }
@@ -354,15 +394,15 @@ export async function setupPluginHostHostService(
     isLoaded: name => loaded.has(name),
     resolveWatchPaths: resolveAutoReloadWatchPaths,
     reload: async (name) => {
-      stopLoadedPluginByName(name)
+      await stopLoadedPluginByName(name)
       await refreshManifests()
       await loadPluginByName(name, { cacheBustKey: `auto-reload-${Date.now()}` })
     },
   })
 
-  const unloadPluginByName = (name: string) => {
+  const unloadPluginByName = async (name: string) => {
     autoReloadFeature.clearPlugin(name)
-    stopLoadedPluginByName(name)
+    await stopLoadedPluginByName(name)
   }
 
   const loadEnabledPlugins = async () => {
@@ -409,7 +449,8 @@ export async function setupPluginHostHostService(
       }
       else {
         enabled.delete(payload.name)
-        pluginAssetService.revokeByPluginId(payload.name)
+        clearModuleAssetSessionCacheByPluginId(payload.name)
+        await pluginAssetService.revokeByPluginId(payload.name)
       }
 
       const entry = pluginRegistry.findManifestEntry(payload.name)
@@ -458,15 +499,15 @@ export async function setupPluginHostHostService(
       autoReloadFeature.sync()
       return listSnapshot()
     },
-    unload(name) {
-      unloadPluginByName(name)
+    async unload(name) {
+      await unloadPluginByName(name)
       autoReloadFeature.sync()
       return listSnapshot()
     },
     async inspect() {
       await refreshManifests()
       autoReloadFeature.sync()
-      return inspectSnapshot()
+      return await inspectSnapshot()
     },
     getAssetBaseUrl() {
       return pluginAssetService.getBaseUrl() ?? ''
@@ -474,7 +515,8 @@ export async function setupPluginHostHostService(
     async dispose() {
       autoReloadFeature.dispose()
 
-      pluginAssetService.revokeAll()
+      moduleAssetSessionCache.clear()
+      await pluginAssetService.revokeAll()
       await pluginAssetService.stop()
     },
   }

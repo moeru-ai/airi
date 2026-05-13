@@ -5,13 +5,15 @@ export type { AgentSessionPort } from './contracts/session-port'
 export type { AgentForegroundStreamPort } from './contracts/stream-port'
 
 export { createChatHooks } from './runtime/agent-hooks'
-export type { ContextHistoryEntry, ContextRegistry } from './runtime/context-registry'
+export type { ContextHistoryEntry, ContextIngestResult, ContextRegistry } from './runtime/context-registry'
 export { createContextRegistry } from './runtime/context-registry'
 export {
+  isContentArrayRelatedError,
   isToolRelatedError,
   modelKey,
   sanitizeMessages,
   streamFrom,
+  streamOptionsContentArrayCompatibilityOk,
   streamOptionsToolsCompatibilityOk,
 } from './runtime/llm-service'
 export { mergeLoadedSessionMessages } from './session/merge-loaded-session-messages'

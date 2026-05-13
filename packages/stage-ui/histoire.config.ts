@@ -71,6 +71,19 @@ export default defineConfig({
   plugins: [
     HstVue(),
   ],
+  // NOTICE:
+  // Histoire force-overrides `vite.build.rollupOptions.output.manualChunks` to lump every
+  // `node_modules` module into a single `vendor-*.js`. On this project that produces a
+  // 28+ MiB chunk that breaks Cloudflare Workers' 25 MiB per-asset limit.
+  //
+  // Source: node_modules/histoire/dist/node/build.js:122-132 (manualChunks() => 'vendor').
+  // Escape hatch: histoire whitelists `build.excludeFromVendorsChunk` against every id
+  // before assigning 'vendor', so matched modules fall back to Rollup's default graph
+  // chunking. We exclude all `node_modules` so chunks are sized by import graph instead
+  // of one mega vendor — no per-dep maintenance needed.
+  build: {
+    excludeFromVendorsChunk: [/\/node_modules\//],
+  },
   vite: {
     base: '/ui/',
     plugins: [

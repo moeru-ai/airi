@@ -1,12 +1,19 @@
 chat:
   actions:
-    retry: Réessayer
+    retry: Retry
   message:
     character-name:
       airi: AIRI
       core-system: Système central
       you: Vous
   reasoning: Raisonnement
+  sessions:
+    title: Conversations
+    new: + New
+    empty: No conversations yet
+    cloud-badge: Synced to cloud
+    new-chat-fallback: New chat
+    delete: Delete conversation
 message: Dites quelque chose...
 send-mode:
   title: Send key
@@ -87,6 +94,6 @@ promo-banner:
       cta: Voir le thème
 waiting: En attente
 websocket-status:
-  connected: WebSocket connected
-  disconnected: WebSocket disconnected
-  open-settings: Open WebSocket settings
+  connected: Connecté
+  disconnected: Pas de connexion
+  open-settings: Ouvrir les réglages de connexion

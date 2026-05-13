@@ -15,6 +15,7 @@ import { routes } from 'vue-router/auto-routes'
 
 import App from './App.vue'
 
+import { installDeepLinks } from './modules/deep-links'
 import { i18n } from './modules/i18n'
 
 import '@proj-airi/font-cjkfonts-allseto/index.css'
@@ -48,6 +49,8 @@ router.afterEach(() => {
 window.addEventListener('unhandledrejection', (event) => {
   console.warn('Unhandled rejection:', event.reason)
 })
+
+installDeepLinks(router)
 
 createApp(App)
   .use(MotionPlugin)

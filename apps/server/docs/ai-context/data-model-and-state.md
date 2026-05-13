@@ -13,10 +13,11 @@
 - `Redis`
   - Flux 余额缓存
   - 服务配置 KV
-  - 聊天跨实例广播
-  - 计费事件队列
+  - 聊天跨实例广播 (Pub/Sub)
+  - Sub-Flux 计量债务账本（TTS 字符等，详见 `flux-meter.md`）
+  - TTS voices 上游响应缓存
 
-如果要判断“改哪个地方才算真的改成功”，大多数场景答案都是 Postgres。
+如果要判断”改哪个地方才算真的改成功”，大多数场景答案都是 Postgres。Redis Streams 已全部移除，没有”计费事件队列”这层抽象。
 
 ## 主要表分组
 
@@ -34,7 +35,7 @@
 说明：
 
 - `better-auth` 直接用这组表
-- `src/schemas/auth.ts` 基本是重复副本，目前不是主要依赖入口
+- 由 `pnpm -F @proj-airi/server auth:generate` 自动产物，手改会被覆盖
 
 ### 角色与用户交互
 
@@ -91,33 +92,28 @@
 - 运行时查询时会把系统配置和用户配置拼接成一个结果集
 - `config` 是 `jsonb`
 
-### Flux / 账本 / 审计
+### Flux / 账本
 
 - `user_flux`
-- `flux_transaction`
 - `flux_transaction`
 
 来源文件：
 
 - `src/schemas/flux.ts`
 - `src/schemas/flux-transaction.ts`
-- `src/schemas/flux-transaction.ts`
 
 职责边界：
 
 - `user_flux`
-  - 当前余额快照
+  - 当前余额快照（单行/用户）
 - `flux_transaction`
-  - append-only 账本流水
-  - 偏系统真相源
-- `flux_transaction`
-  - 用户可见历史
-  - 偏产品展示
+  - append-only 账本流水（type: credit / debit / initial / promo）
+  - 同时承担系统真相源和用户可见历史，`/api/v1/flux/history` 直接读这张表
 
 关键约束：
 
-- `flux_transaction` 对 `(userId, requestId)` 有部分唯一索引
-- 用来做扣费 / 充值幂等
+- `flux_transaction` 对 `(userId, requestId) WHERE requestId IS NOT NULL` 有部分唯一索引
+- 用来做扣费 / 充值幂等（含 admin promo grant 的 `idempotencyKey`）
 
 ### Stripe 业务镜像
 
@@ -171,8 +167,7 @@
 
 - 所有余额写操作
 - DB 事务
-- debitFlux：事务内仅更新余额；事务后 XADD Redis Stream，transaction log 由 billing-consumer 异步写入
-- credit 方法：事务内同步写 transaction
+- debitFlux / credit 方法：事务内 lock → check → update `user_flux` → insert `flux_transaction` ledger
 - 事务提交后 best-effort `redis.set` 更新 Flux 余额缓存
 
 这是所有 Flux 写路径应收敛到的中心。
@@ -215,22 +210,19 @@
 
 - channel: `chat:broadcast:<userId>`
 
-### 计费事件流
-
-- stream: 默认 `billing-events`
-
 ## 幂等与并发控制
 
 ### 余额并发
 
 `billingService` 在事务中：
 
-1. `SELECT user_flux FOR UPDATE`
-2. 计算新余额
-3. 写余额（debitFlux 事务内仅此一步；credit 方法同步写 transaction）
-4. 事务提交后 XADD Redis Stream（debitFlux）或直接返回（credit）
+1. （可选）按 `(userId, requestId)` 命中 ledger → 命中即返回，跳过余下步骤
+2. `SELECT user_flux FOR UPDATE`
+3. 计算新余额
+4. 写 `user_flux` + 写 `flux_transaction` ledger
+5. 事务提交后 best-effort `redis.set`
 
-这保证同一用户余额更新是串行化的。
+这保证同一用户余额更新是串行化的，并且 ledger 行与余额变更在同一原子提交里。
 
 ### Stripe 幂等
 
@@ -242,5 +234,4 @@
 
 ## 现有代码中的结构信号
 
-- `request-log.ts` 与 `llm-request-log.ts` 完全重叠，后者更像旧名残留。
-- `accounts.ts` 与 `auth.ts` 也是重复 schema，后续如果做整理，应先统一真实使用入口再删副本。
+- `src/schemas/flux-grant-batch.ts` 是已废弃的旧 admin batch 设计 schema，没有被 `app.ts` 装配也没有 migration 在用，是 dead code，改这块前直接删除。当前 admin 发 FLUX 走 `/api/admin/flux-grants` 同步路径，不写新表。

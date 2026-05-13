@@ -19,7 +19,11 @@ const SUPPORTED_ACTIONS = new Set([
   'findElements',
   'getClickTarget',
   'getElementAttributes',
+  'readInputValue',
+  'getComputedStyles',
+  'waitForElement',
 ])
+const WAIT_FOR_ELEMENT_BRIDGE_TIMEOUT_BUFFER_MS = 9_500
 
 interface PendingBridgeRequest {
   reject: (error: Error) => void
@@ -176,7 +180,11 @@ export class BrowserDomExtensionBridge {
     }
   }
 
-  async callAction<TResult = unknown>(action: string, payload: Record<string, unknown> = {}): Promise<TResult> {
+  async callAction<TResult = unknown>(
+    action: string,
+    payload: Record<string, unknown> = {},
+    options?: { timeoutMs?: number },
+  ): Promise<TResult> {
     if (!this.config.enabled) {
       throw new Error('browser dom bridge is disabled')
     }
@@ -196,12 +204,14 @@ export class BrowserDomExtensionBridge {
       ...payload,
     }
 
+    const effectiveTimeoutMs = options?.timeoutMs ?? this.config.requestTimeoutMs
+
     const result = await new Promise<TResult>((resolve, reject) => {
       const timeoutId = setTimeout(() => {
         this.pending.delete(id)
         this.status.pendingRequests = this.pending.size
         reject(new Error(`browser dom bridge timed out waiting for ${action}`))
-      }, this.config.requestTimeoutMs)
+      }, effectiveTimeoutMs)
 
       this.pending.set(id, {
         resolve: value => resolve(value as TResult),
@@ -364,11 +374,18 @@ export class BrowserDomExtensionBridge {
     tabId?: number
     frameIds?: number[]
   }) {
+    const effectiveTimeout = params.timeoutMs ?? this.config.requestTimeoutMs
+    // NOTICE: The bridge-level timeout must exceed the background-level polling
+    // timeout, otherwise the bridge rejects before the extension finishes polling.
+    // The extension can overrun by one full frame send timeout (8s) plus the
+    // polling interval (500ms), so keep headroom for slow or unresponsive frames.
     return await this.callAction<Array<BrowserDomFrameResult<Record<string, unknown>>>>('waitForElement', {
       selector: params.selector,
-      timeoutMs: params.timeoutMs ?? this.config.requestTimeoutMs,
+      timeoutMs: effectiveTimeout,
       tabId: params.tabId,
       frameIds: params.frameIds,
+    }, {
+      timeoutMs: effectiveTimeout + WAIT_FOR_ELEMENT_BRIDGE_TIMEOUT_BUFFER_MS,
     })
   }
 

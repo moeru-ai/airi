@@ -3,7 +3,7 @@
  * and maps it to DesktopTargetCandidate format.
  *
  * Uses the extension bridge as primary source and CDP bridge as fallback.
- * Only active when Chrome is the foreground app.
+ * Best effort when browser surfaces are available.
  *
  * The adapter handles coordinate transformation from page-relative
  * (CSS viewport) coordinates to screen-absolute coordinates using

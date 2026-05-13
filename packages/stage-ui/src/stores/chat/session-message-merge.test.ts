@@ -1,8 +1,6 @@
 import type { ChatHistoryItem } from '../../types/chat'
 
-import assert from 'node:assert/strict'
-
-import { describe, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import { mergeLoadedSessionMessages } from './session-message-merge'
 
@@ -16,7 +14,7 @@ describe('mergeLoadedSessionMessages', () => {
       { role: 'system', content: 'system', createdAt: 3, id: 'system-current' },
     ]
 
-    assert.equal(mergeLoadedSessionMessages(storedMessages, currentMessages), storedMessages)
+    expect(mergeLoadedSessionMessages(storedMessages, currentMessages)).toBe(storedMessages)
   })
 
   it('appends in-flight messages when IndexedDB finishes loading after a new send starts', () => {
@@ -29,7 +27,7 @@ describe('mergeLoadedSessionMessages', () => {
       { role: 'user', content: 'latest prompt', createdAt: 4, id: 'user-2' },
     ]
 
-    assert.deepEqual(mergeLoadedSessionMessages(storedMessages, currentMessages), [
+    expect(mergeLoadedSessionMessages(storedMessages, currentMessages)).toEqual([
       ...storedMessages,
       currentMessages[1],
     ])
@@ -45,7 +43,7 @@ describe('mergeLoadedSessionMessages', () => {
       { role: 'user', content: 'latest prompt', createdAt: 4 },
     ]
 
-    assert.equal(mergeLoadedSessionMessages(storedMessages, currentMessages), storedMessages)
+    expect(mergeLoadedSessionMessages(storedMessages, currentMessages)).toBe(storedMessages)
   })
 
   it('keeps a system message when storage is empty and current has in-flight user messages', () => {
@@ -55,7 +53,7 @@ describe('mergeLoadedSessionMessages', () => {
       { role: 'user', content: 'in-flight prompt', createdAt: 2, id: 'user-1' },
     ]
 
-    assert.deepEqual(mergeLoadedSessionMessages(storedMessages, currentMessages), [
+    expect(mergeLoadedSessionMessages(storedMessages, currentMessages)).toEqual([
       currentMessages[0],
       currentMessages[1],
     ])
@@ -85,6 +83,6 @@ describe('mergeLoadedSessionMessages', () => {
       },
     ]
 
-    assert.equal(mergeLoadedSessionMessages(storedMessages, currentMessages), storedMessages)
+    expect(mergeLoadedSessionMessages(storedMessages, currentMessages)).toBe(storedMessages)
   })
 })

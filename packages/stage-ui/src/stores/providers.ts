@@ -1555,6 +1555,173 @@ export const useProvidersStore = defineStore('providers', () => {
       },
     },
     'openrouter-audio-speech': buildOpenRouterAudioSpeechProvider(v => baseUrlValidator.value(v)),
+    'mimo-audio-speech': {
+      id: 'mimo-audio-speech',
+      category: 'speech',
+      tasks: ['text-to-speech'],
+      nameKey: 'settings.pages.providers.provider.mimo.title',
+      name: 'Xiaomi MiMo',
+      descriptionKey: 'settings.pages.providers.provider.mimo.description',
+      description: 'api.xiaomimimo.com',
+      icon: 'i-simple-icons:xiaomi',
+      defaultOptions: () => ({
+        baseUrl: 'https://api.xiaomimimo.com/v1/',
+        model: 'mimo-v2.5-tts',
+        voice: 'mimo_default',
+        format: 'wav',
+      }),
+      createProvider: async (config) => {
+        const apiKey = (config.apiKey as string)?.trim() ?? ''
+        const baseUrl = ((config.baseUrl as string) || 'https://api.xiaomimimo.com/v1/').replace(/\/+$/, '')
+        const defaultModel = (config.model as string) || 'mimo-v2.5-tts'
+        const defaultVoice = (config.voice as string) || 'mimo_default'
+        const defaultFormat = (config.format as string) || 'wav'
+
+        const provider: SpeechProvider = {
+          speech: () => ({
+            baseURL: `${baseUrl}/`,
+            model: defaultModel,
+            fetch: async (_input: RequestInfo | URL, init?: RequestInit) => {
+              if (!init?.body || typeof init.body !== 'string') {
+                throw new Error('Invalid request body')
+              }
+
+              const body = JSON.parse(init.body)
+              const text = body.input as string
+              const modelId = (body.model as string) || defaultModel
+              const format = (body.response_format as string) || defaultFormat
+              const stylePrompt = typeof body.style_prompt === 'string'
+                ? body.style_prompt.trim()
+                : typeof config.stylePrompt === 'string'
+                  ? config.stylePrompt.trim()
+                  : ''
+              const voiceSample = typeof body.voice_sample === 'string'
+                ? body.voice_sample.trim()
+                : typeof config.voiceSample === 'string'
+                  ? config.voiceSample.trim()
+                  : ''
+
+              const userPrompt = modelId === 'mimo-v2.5-tts-voiceclone'
+                ? stylePrompt
+                : stylePrompt || 'Use a natural, clear speaking style.'
+
+              const audio: Record<string, string> = { format }
+              if (modelId === 'mimo-v2.5-tts-voiceclone') {
+                if (!voiceSample) {
+                  throw new Error('MiMo voice clone requires a base64 audio sample in data URI format.')
+                }
+                audio.voice = voiceSample
+              }
+              else if (modelId === 'mimo-v2.5-tts') {
+                audio.voice = (body.voice as string) || defaultVoice
+              }
+
+              if (modelId === 'mimo-v2.5-tts-voicedesign' && !stylePrompt) {
+                throw new Error('MiMo voice design requires a style prompt in the user message.')
+              }
+
+              const response = await fetch(`${baseUrl}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'api-key': apiKey,
+                },
+                body: JSON.stringify({
+                  model: modelId,
+                  messages: [
+                    { role: 'user', content: userPrompt },
+                    { role: 'assistant', content: text },
+                  ],
+                  audio,
+                }),
+              })
+
+              if (!response.ok || !response.body) {
+                throw new Error(`MiMo TTS request failed: ${response.status} ${response.statusText}`)
+              }
+
+              const data = await response.json()
+              const audioBase64 = data?.choices?.[0]?.message?.audio?.data
+              if (!audioBase64) {
+                throw new Error('MiMo TTS response missing audio data')
+              }
+
+              const binaryString = atob(audioBase64)
+              const bytes = new Uint8Array(binaryString.length)
+              for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i)
+              }
+
+              const contentType = format === 'wav' ? 'audio/wav' : format === 'mp3' ? 'audio/mpeg' : `audio/${format}`
+              return new Response(bytes.buffer, {
+                status: 200,
+                headers: { 'Content-Type': contentType },
+              })
+            },
+          }),
+        }
+        return provider
+      },
+      capabilities: {
+        listModels: async () => [
+          {
+            id: 'mimo-v2.5-tts',
+            name: 'MiMo v2.5 TTS',
+            provider: 'mimo-audio-speech',
+            description: 'Preset voice synthesis with the built-in MiMo voice list',
+            contextLength: 0,
+            deprecated: false,
+          },
+          {
+            id: 'mimo-v2.5-tts-voicedesign',
+            name: 'MiMo v2.5 TTS Voice Design',
+            provider: 'mimo-audio-speech',
+            description: 'Design a new voice from a natural language description',
+            contextLength: 0,
+            deprecated: false,
+          },
+          {
+            id: 'mimo-v2.5-tts-voiceclone',
+            name: 'MiMo v2.5 TTS Voice Clone',
+            provider: 'mimo-audio-speech',
+            description: 'Clone a voice from a base64-encoded audio sample',
+            contextLength: 0,
+            deprecated: false,
+          },
+        ],
+        listVoices: async () => [
+          { id: 'mimo_default', name: 'MiMo-默认', provider: 'mimo-audio-speech', gender: 'female', languages: [{ code: 'en', title: 'English' }, { code: 'zh', title: 'Chinese' }] },
+          { id: '冰糖', name: '冰糖', provider: 'mimo-audio-speech', gender: 'female', languages: [{ code: 'zh', title: 'Chinese' }] },
+          { id: '茉莉', name: '茉莉', provider: 'mimo-audio-speech', gender: 'female', languages: [{ code: 'zh', title: 'Chinese' }] },
+          { id: '苏打', name: '苏打', provider: 'mimo-audio-speech', gender: 'male', languages: [{ code: 'zh', title: 'Chinese' }] },
+          { id: '白桦', name: '白桦', provider: 'mimo-audio-speech', gender: 'male', languages: [{ code: 'zh', title: 'Chinese' }] },
+          { id: 'Mia', name: 'Mia', provider: 'mimo-audio-speech', gender: 'female', languages: [{ code: 'en', title: 'English' }] },
+          { id: 'Chloe', name: 'Chloe', provider: 'mimo-audio-speech', gender: 'female', languages: [{ code: 'en', title: 'English' }] },
+          { id: 'Milo', name: 'Milo', provider: 'mimo-audio-speech', gender: 'male', languages: [{ code: 'en', title: 'English' }] },
+          { id: 'Dean', name: 'Dean', provider: 'mimo-audio-speech', gender: 'male', languages: [{ code: 'en', title: 'English' }] },
+        ],
+      },
+      validators: {
+        chatPingCheckAvailable: false,
+        validateProviderConfig: (config) => {
+          const errors = [
+            !config.apiKey && new Error('API key is required.'),
+            !config.baseUrl && new Error('Base URL is required.'),
+          ].filter(Boolean)
+
+          const res = baseUrlValidator.value(config.baseUrl)
+          if (res) {
+            return res
+          }
+
+          return {
+            errors,
+            reason: errors.map(e => (e as Error).message).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
+        },
+      },
+    },
     'comet-api-speech': buildOpenAICompatibleProvider({
       id: 'comet-api-speech',
       name: 'CometAPI Speech',
@@ -1587,6 +1754,156 @@ export const useProvidersStore = defineStore('providers', () => {
       ),
       validation: [ProviderValidationCheck.ModelList],
     }),
+    'mimo-audio-transcription': {
+      id: 'mimo-audio-transcription',
+      category: 'transcription',
+      tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+      nameKey: 'settings.pages.providers.provider.mimo.title',
+      name: 'Xiaomi MiMo',
+      descriptionKey: 'settings.pages.providers.provider.mimo.description',
+      description: 'api.xiaomimimo.com',
+      icon: 'i-simple-icons:xiaomi',
+      defaultOptions: () => ({
+        baseUrl: 'https://api.xiaomimimo.com/v1/',
+        model: 'mimo-v2-omni',
+      }),
+      createProvider: async (config) => {
+        const apiKey = (config.apiKey as string)?.trim() ?? ''
+        const rawBaseUrl = `${((config.baseUrl as string) || 'https://api.xiaomimimo.com/v1/').replace(/\/+$/, '')}/`
+        const defaultModel = (config.model as string) || 'mimo-v2-omni'
+
+        const provider: TranscriptionProvider = {
+          transcription: model => ({
+            baseURL: rawBaseUrl,
+            model: model || defaultModel,
+            headers: {},
+            fetch: async (_input: RequestInfo | URL, init?: RequestInit) => {
+              const formData = init?.body as FormData
+              const file = formData?.get('file') as Blob | null
+              const modelName = (formData?.get('model') as string) || defaultModel
+
+              if (!file) {
+                throw new Error('No audio file provided for transcription.')
+              }
+
+              // Read the file as base64 data URI (works with both Blob and File)
+              const base64DataUri: string = await new Promise((resolve, reject) => {
+                const reader = new FileReader()
+                reader.onload = () => resolve(reader.result as string)
+                reader.onerror = () => reject(new Error('Failed to read audio file'))
+                reader.readAsDataURL(file)
+              })
+
+              // Extract format and base64 data from data URI
+              // data:audio/wav;base64,UklGR...
+              const mimeType = base64DataUri.split(';')[0]?.split(':')[1] || 'audio/wav'
+              const formatFromMime = mimeType.split('/')[1] || 'wav'
+              const base64Data = base64DataUri.split(',')[1]
+
+              // Map MIME sub-type to MiMo supported audio format
+              const audioFormat = formatFromMime === 'webm'
+                ? 'webm'
+                : formatFromMime === 'mp4'
+                  ? 'mp4'
+                  : formatFromMime === 'mpeg' || formatFromMime === 'mp3'
+                    ? 'mp3'
+                    : 'wav'
+
+              // MiMo audio understanding uses chat completions with input_audio,
+              // not a dedicated transcription endpoint
+              const response = await fetch(`${rawBaseUrl}chat/completions`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'api-key': apiKey,
+                },
+                body: JSON.stringify({
+                  model: modelName,
+                  messages: [
+                    {
+                      role: 'user',
+                      content: [
+                        { type: 'text', text: 'Transcribe the audio content.' },
+                        {
+                          type: 'input_audio',
+                          input_audio: {
+                            data: base64Data,
+                            format: audioFormat,
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                }),
+              })
+
+              if (!response.ok) {
+                const errorBody = await response.text().catch(() => '')
+                throw new Error(
+                  `MiMo transcription failed: ${response.status} ${response.statusText}${errorBody ? ` — ${errorBody}` : ''}`,
+                )
+              }
+
+              const data = await response.json()
+              const text = data?.choices?.[0]?.message?.content || ''
+
+              // Return in OpenAI transcription response format { text: "..." }
+              return new Response(JSON.stringify({ text }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+              })
+            },
+          }),
+        }
+
+        return provider
+      },
+      capabilities: {
+        listModels: async () => [
+          {
+            id: 'mimo-v2-omni',
+            name: 'MiMo V2 Omni',
+            provider: 'mimo-audio-transcription',
+            description: 'Omni-modal model with native audio understanding and speech-to-text',
+            contextLength: 256000,
+            deprecated: false,
+          },
+          {
+            id: 'mimo-v2.5',
+            name: 'MiMo V2.5',
+            provider: 'mimo-audio-transcription',
+            description: 'Latest omni-modal model with audio understanding, 1M context',
+            contextLength: 1_000_000,
+            deprecated: false,
+          },
+        ],
+      },
+      transcriptionFeatures: {
+        supportsGenerate: true,
+        supportsStreamOutput: false,
+        supportsStreamInput: false,
+      },
+      validators: {
+        chatPingCheckAvailable: false,
+        validateProviderConfig: (config) => {
+          const errors = [
+            !config.apiKey && new Error('API key is required.'),
+            !config.baseUrl && new Error('Base URL is required.'),
+          ].filter(Boolean)
+
+          const res = baseUrlValidator.value(config.baseUrl)
+          if (res) {
+            return res
+          }
+
+          return {
+            errors,
+            reason: errors.map(e => (e as Error).message).join(', ') || '',
+            valid: !!config.apiKey && !!config.baseUrl,
+          }
+        },
+      },
+    },
     'player2-speech': {
       id: 'player2-speech',
       category: 'speech',

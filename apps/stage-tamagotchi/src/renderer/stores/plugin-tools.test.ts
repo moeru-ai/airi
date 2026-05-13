@@ -2,7 +2,7 @@ import type { Tool } from '@xsai/shared-chat'
 
 import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/llm-tools'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const invokeMocks = vi.hoisted(() => ({
   invokePluginTool: vi.fn(async (payload: unknown) => payload),
@@ -37,6 +37,11 @@ describe('useTamagotchiPluginToolsStore', async () => {
     setActivePinia(createPinia())
     invokeMocks.listPluginXsaiTools.mockClear()
     invokeMocks.invokePluginTool.mockClear()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
   })
 
   /**
@@ -80,5 +85,55 @@ describe('useTamagotchiPluginToolsStore', async () => {
     store.dispose()
 
     expect(llmToolsStore.toolsByProvider['plugin-tools']).toBeUndefined()
+  })
+
+  /**
+   * @example
+   * await store.refresh()
+   * await vi.advanceTimersByTimeAsync(5_000)
+   * await llmToolsStore.awaitPendingRegistrations()
+   */
+  it('falls back to empty plugin tools when listing xsai tools never resolves during cold start', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    invokeMocks.listPluginXsaiTools.mockImplementationOnce((_req?: undefined, options?: { signal?: AbortSignal }) => new Promise((_, reject) => {
+      options?.signal?.addEventListener('abort', () => {
+        reject(options.signal?.reason)
+      }, { once: true })
+    }))
+
+    const llmToolsStore = useLlmToolsStore()
+    const store = useTamagotchiPluginToolsStore()
+    const onSettled = vi.fn()
+
+    // ROOT CAUSE:
+    //
+    // If the renderer asks the main process for plugin xsai tools before the
+    // Eventa handler is ready, the invoke promise can remain pending forever.
+    // The shared LLM store then waits in awaitPendingRegistrations() before
+    // building chat tools, so no model HTTP request is sent and chat sync
+    // eventually times out.
+    //
+    // Before the fix, this wait never settled.
+    //
+    // We fixed this by letting optional plugin tool listing time out and
+    // complete registration with an empty tool list.
+    store.refresh()
+    const pendingRegistrations = llmToolsStore.awaitPendingRegistrations().then(() => {
+      onSettled()
+    })
+
+    await Promise.resolve()
+
+    expect(onSettled).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(5_000)
+    await pendingRegistrations
+
+    expect(onSettled).toHaveBeenCalledTimes(1)
+    expect(llmToolsStore.toolsByProvider['plugin-tools']).toEqual([])
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining('[plugin-tools] Failed to list plugin xsai tools'),
+    )
   })
 })

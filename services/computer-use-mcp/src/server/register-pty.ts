@@ -24,6 +24,7 @@ import {
 } from '../terminal/pty-runner'
 import { textContent } from './content'
 import { buildApprovalResponse } from './responses'
+import { detectPagination, extractCwdFromPrompt } from './terminal-heuristics'
 
 export interface RegisterPtyToolsOptions {
   server: McpServer
@@ -430,24 +431,53 @@ export function registerPtyTools({ server, runtime }: RegisterPtyToolsOptions) {
           alive: session.alive,
         })
 
-        return {
-          content: [textContent(session.screenContent || '(empty)')],
-          structuredContent: {
-            status: 'ok',
-            session: {
-              id: session.id,
-              alive: session.alive,
-              pid: session.pid,
-              rows: session.rows,
-              cols: session.cols,
-            },
-            sessionId: session.id,
+        const structuredContent: Record<string, unknown> = {
+          status: 'ok',
+          session: {
+            id: session.id,
             alive: session.alive,
+            pid: session.pid,
             rows: session.rows,
             cols: session.cols,
-            screenContent: session.screenContent,
           },
+          sessionId: session.id,
+          alive: session.alive,
+          rows: session.rows,
+          cols: session.cols,
+          screenContent: session.screenContent,
         }
+
+        const response: CallToolResult = {
+          content: [textContent(session.screenContent || '(empty)')],
+          structuredContent,
+        }
+
+        // --- Hygiene Heuristics ---
+        const content = session.screenContent || ''
+        const lines = content.split('\n')
+        let lastLine = ''
+        for (let index = lines.length - 1; index >= 0; index -= 1) {
+          if (lines[index].trim().length > 0) {
+            lastLine = lines[index]
+            break
+          }
+        }
+
+        // 1. Pagination Nudge
+        const pagination = detectPagination(content)
+        if (pagination) {
+          response.content.push(textContent(`\n[NUDGE] ${pagination.reason}. You may need to press ${pagination.suggestedAction === 'press_space' ? 'Space' : 'q'}.`))
+          structuredContent.suggestedInteraction = pagination.suggestedAction
+        }
+
+        // 2. Best-effort CWD Recovery
+        const extractedCwd = extractCwdFromPrompt(lastLine)
+        if (extractedCwd) {
+          runtime.stateManager.updatePtySessionObservedCwd(sessionId, extractedCwd)
+          structuredContent.observedCwd = extractedCwd
+        }
+
+        return response
       }
       catch (error) {
         return {

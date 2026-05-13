@@ -51,7 +51,7 @@ export async function createComputerUseMcpServer(config = resolveComputerUseConf
     },
   })
   const cdpCleanup = registerCdpTools({ server, runtime })
-  registerDesktopGroundingTools({ server, runtime })
+  registerDesktopGroundingTools({ server, runtime, executeAction })
   registerChromeSessionTools({ server, runtime })
 
   return {

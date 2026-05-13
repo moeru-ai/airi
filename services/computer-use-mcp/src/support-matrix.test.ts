@@ -53,4 +53,23 @@ describe('support matrix', () => {
     const ps = getProductSupported()
     expect(ps.length).toBeGreaterThanOrEqual(4)
   })
+
+  it('includes desktop v3 smoke coverage as covered, not product-supported', () => {
+    const entry = supportMatrix.find(item => item.id === 'desktop_v3_chrome_grounding')
+    expect(entry).toBeDefined()
+    expect(entry?.lane).toBe('desktop-native')
+    expect(entry?.level).toBe('covered')
+    expect(entry?.smokeCommand).toBe('pnpm -F @proj-airi/computer-use-mcp smoke:desktop-v3')
+  })
+
+  it('includes browser-dom route contract as covered, not product-supported', () => {
+    const entry = supportMatrix.find(item => item.id === 'desktop_browser_dom_route_contract')
+    expect(entry).toBeDefined()
+    expect(entry?.lane).toBe('desktop-native')
+    expect(entry?.level).toBe('covered')
+    expect(entry?.unitTests).toEqual([
+      'src/browser-action-router.test.ts',
+      'src/browser-dom/extension-bridge.test.ts',
+    ])
+  })
 })

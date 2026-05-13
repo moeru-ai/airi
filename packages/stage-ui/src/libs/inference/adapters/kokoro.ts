@@ -419,10 +419,12 @@ export function createKokoroAdapter(): KokoroAdapter {
     options?: { signal?: AbortSignal },
   ): Promise<ArrayBuffer> {
     throwIfAborted(options?.signal)
+    const notReadyError = new Error('Model not loaded. Call loadModel() first.')
+
     return defaultPerfTracer.withMeasure('inference', 'kokoro-generate', () => operationMutex.runExclusive(async () => {
       throwIfAborted(options?.signal)
-      if (!worker)
-        throw new Error('Worker not initialized. Call loadModel() first.')
+      if (!worker || state !== 'ready')
+        throw notReadyError
 
       // Update LRU timestamp for memory pressure tracking
       if (allocationToken)
@@ -458,6 +460,9 @@ export function createKokoroAdapter(): KokoroAdapter {
       const errorCode = classifyError(new Error('Unexpected output action'))
       throw new Error(`[${errorCode}] Unexpected output action: ${output.action}`)
     }), { text: text.slice(0, 50), voice }).catch((error) => {
+      if (error === notReadyError)
+        throw error
+
       handleWorkerError(error instanceof Error ? error : new Error(String(error)))
       throw error
     })

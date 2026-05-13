@@ -1,11 +1,16 @@
 <script setup lang="ts">
+import type { Live2DValidationReport } from '@proj-airi/stage-ui-live2d'
+
 import type { DisplayModel } from '../../../../stores/display-models'
 
+import { validateLive2DZip } from '@proj-airi/stage-ui-live2d'
 import { Button } from '@proj-airi/ui'
 import { useFileDialog } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger, EditableArea, EditableEditTrigger, EditableInput, EditablePreview, EditableRoot, EditableSubmitTrigger } from 'reka-ui'
 import { ref, watch } from 'vue'
+
+import Live2DReportModal from './Live2DReportModal.vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../../../../stores/display-models'
 
@@ -25,18 +30,49 @@ function handleRemoveModel(model: DisplayModel) {
 }
 
 const highlightDisplayModelCard = ref<string | undefined>(props.selectedModel?.id)
+const showReportModal = ref(false)
+const pendingFile = ref<File | null>(null)
+const validationReport = ref<Live2DValidationReport | null>(null)
 
 watch(() => props.selectedModel?.id, (modelId) => {
   highlightDisplayModelCard.value = modelId
 }, { immediate: true })
 
-function handleAddLive2DModel(file: FileList | null) {
+async function handleAddLive2DModel(file: FileList | null) {
   if (file === null || file.length === 0)
     return
   if (!file[0].name.endsWith('.zip'))
     return
 
-  displayModelStore.addDisplayModel(DisplayModelFormat.Live2dZip, file[0])
+  const report = await validateLive2DZip(file[0])
+  validationReport.value = report
+  pendingFile.value = file[0]
+
+  if (report.status === 'VALID' && report.errors.length === 0) {
+    await confirmImport()
+    return
+  }
+
+  showReportModal.value = true
+}
+
+async function confirmImport() {
+  if (pendingFile.value === null)
+    return
+
+  // NOTICE:
+  // Keep this await. Model picking can happen immediately after import from this dialog.
+  // If addDisplayModel is fire-and-forget, updateStageModel may read the new display-model id
+  // before IndexedDB or the in-memory displayModels list is ready and fall back to the default model.
+  // Source/context: model selector import flow -> settings model pick -> settings-stage-model.getDisplayModel().
+  // Removal condition: addDisplayModel becomes a synchronous transaction or pick is blocked by explicit import state.
+  const displayModel = await displayModelStore.addDisplayModel(DisplayModelFormat.Live2dZip, pendingFile.value)
+  highlightDisplayModelCard.value = displayModel.id
+  pendingFile.value = null
+}
+
+function handleFixError(error: string) {
+  void error
 }
 
 function handlePick(m: DisplayModel) {
@@ -50,13 +86,19 @@ function handleMobilePick() {
   emits('close', undefined)
 }
 
-function handleAddVRMModel(file: FileList | null) {
+async function handleAddVRMModel(file: FileList | null) {
   if (file === null || file.length === 0)
     return
   if (!file[0].name.endsWith('.vrm'))
     return
 
-  displayModelStore.addDisplayModel(DisplayModelFormat.VRM, file[0])
+  // NOTICE:
+  // Keep this await for the same import-then-pick race as Live2D imports above.
+  // The returned model id is only safe to highlight after addDisplayModel has updated the store.
+  // Source/context: model selector import flow -> settings model pick -> settings-stage-model.getDisplayModel().
+  // Removal condition: addDisplayModel becomes a synchronous transaction or pick is blocked by explicit import state.
+  const displayModel = await displayModelStore.addDisplayModel(DisplayModelFormat.VRM, file[0])
+  highlightDisplayModelCard.value = displayModel.id
 }
 
 const mapFormatRenderer: Record<DisplayModelFormat, string> = {
@@ -77,6 +119,13 @@ vrmDialog.onChange(handleAddVRMModel)
 
 <template>
   <div pt="4 sm:0" gap="4 sm:6" h-full flex flex-col>
+    <Live2DReportModal
+      v-model:open="showReportModal"
+      :report="validationReport"
+      @confirm="confirmImport"
+      @fix-error="handleFixError"
+    />
+
     <div flex items-center>
       <div w-full flex-1 text-xl>
         Model Selector
@@ -190,7 +239,15 @@ vrmDialog.onChange(handleAddVRMModel)
             aspect="12/16"
             px-1 py-2
           >
-            <img v-if="model.previewImage" :src="model.previewImage" h-full w-full rounded-xl object-cover :class="[highlightDisplayModelCard && highlightDisplayModelCard === model.id ? 'ring-3 ring-primary-400' : 'ring-0 ring-transparent']" transition="all duration-200 ease-in-out">
+            <img
+              v-if="model.previewImage"
+              :src="model.previewImage"
+              :class="[
+                'h-full w-full rounded-xl object-cover',
+                'transition-all duration-200 ease-in-out',
+                highlightDisplayModelCard && highlightDisplayModelCard === model.id ? 'ring-3 ring-primary-400' : 'ring-0 ring-transparent',
+              ]"
+            >
             <div v-else bg="neutral-100 dark:neutral-900" relative h-full w-full flex flex-col items-center justify-center gap-2 overflow-hidden rounded-xl :class="[highlightDisplayModelCard && highlightDisplayModelCard === model.id ? 'ring-3 ring-primary-400' : 'ring-0 ring-transparent']" transition="all duration-200 ease-in-out">
               <div i-solar:question-square-bold-duotone text-4xl opacity-75 />
               <div translate-y="100%" absolute top-0 flex flex-col translate-x--7 rotate-45 scale-250 gap-0 opacity-5>

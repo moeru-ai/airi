@@ -10,7 +10,7 @@ import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/conte
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { useTheme } from '@proj-airi/ui'
+import { ErrorBoundary, useTheme } from '@proj-airi/ui'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, watch } from 'vue'
@@ -128,7 +128,12 @@ function handleSetupSkipped() {
     :use-page-specific-transitions="settings.usePageSpecificTransitions.value"
   >
     <RouterView v-slot="{ Component }">
-      <component :is="Component" />
+      <ErrorBoundary
+        title="Something went wrong while rendering this page."
+        @error="(err, _, info) => console.error('[ErrorBoundary]', info, err)"
+      >
+        <component :is="Component" />
+      </ErrorBoundary>
     </RouterView>
   </StageTransitionGroup>
 

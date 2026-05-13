@@ -77,8 +77,13 @@ const testStatusMessage = ref<string>('')
 const testStreamWasStarted = ref(false) // Track if we started the stream for testing
 
 const useVADThreshold = ref(0.6) // 0.1 - 0.9
+const useVADMinSilenceDurationMs = ref(800)
 const useVADModel = ref(true) // Toggle between VAD and volume-based detection
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
+
+function formatVADThreshold(value: number) {
+  return value.toFixed(2)
+}
 
 async function handleSpeechStart() {
   if (shouldUseStreamInput.value && stream.value) {
@@ -119,6 +124,7 @@ const {
   loading: loadingVAD,
 } = useVAD(workletUrl, {
   threshold: useVADThreshold,
+  minSilenceDurationMs: useVADMinSilenceDurationMs,
   onSpeechStart: () => {
     void handleSpeechStart()
   },
@@ -528,8 +534,7 @@ onUnmounted(() => {
             <fieldset
               v-if="configuredTranscriptionProvidersMetadata.length > 0"
               flex="~ row gap-4"
-              :style="{ 'scrollbar-width': 'none' }"
-              min-w-0 of-x-scroll scroll-smooth
+              min-w-0 of-x-auto scroll-smooth
               role="radiogroup"
             >
               <RadioCardSimple
@@ -772,7 +777,17 @@ onUnmounted(() => {
                   :min="0.1"
                   :max="0.9"
                   :step="0.05"
-                  :format-value="value => `${(value * 100).toFixed(0)}%`"
+                  :format-value="formatVADThreshold"
+                />
+
+                <FieldRange
+                  v-model="useVADMinSilenceDurationMs"
+                  label="Pause Before Stop"
+                  description="How long silence must last before speech is considered finished"
+                  :min="200"
+                  :max="1500"
+                  :step="50"
+                  :format-value="value => `${value} ms`"
                 />
               </div>
 
@@ -846,6 +861,7 @@ onUnmounted(() => {
                 active-legend-label="Voice detected"
                 inactive-legend-label="Silence"
                 threshold-label="Speech threshold"
+                :format-threshold="formatVADThreshold"
               />
             </div>
           </div>

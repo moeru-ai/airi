@@ -345,9 +345,10 @@ export function setupCaptionWindowManager(params: {
     window.on('show', emitVisibilityChanged)
     window.on('hide', emitVisibilityChanged)
 
+    const cleanupGetAttached = defineInvokeHandler(context, captionGetIsFollowingWindow, async () => isFollowing)
+
     await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/caption'))
 
-    const cleanupGetAttached = defineInvokeHandler(context, captionGetIsFollowingWindow, async () => isFollowing)
     try {
       context.emit(captionIsFollowingWindowChanged, isFollowing)
     }

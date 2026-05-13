@@ -9,7 +9,10 @@ import { promisify } from 'node:util'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { canRenderExtensionUi, sanitizeExtensionUiRenderProps } from '../../../widgets/extension-ui/host'
+import { installStrictToolSchemaMatchers } from '../testing/strict-tool-schema'
 import { executeWidgetAction, normalizeComponentProps, widgetsTools } from './widgets'
+
+installStrictToolSchemaMatchers()
 
 const execFile = promisify(execFileCallback)
 const aihubmixApiKey = process.env.AIHUBMIX_API_KEY?.trim() || ''
@@ -210,6 +213,7 @@ describe('widgets tool helpers', () => {
       const stageWidgetsTool = await getStageWidgetsTool()
       const schema = stageWidgetsTool.function.parameters as JsonSchema
       const windowSize = getObjectSchema(schema.properties?.windowSize as JsonSchema | undefined)
+      const windowSizeProperties = windowSize?.properties ?? {}
 
       // ROOT CAUSE:
       //
@@ -221,6 +225,7 @@ describe('widgets tool helpers', () => {
       // nullable, then requires every nested key while allowing optional constraints to
       // be expressed as `number | null`. That preserves the runtime behavior while
       // satisfying strict tool validators that compare `required` against `properties`.
+      expect(stageWidgetsTool).toSatisfyStrictToolSchema()
       expect(windowSize).toBeDefined()
       expect(windowSize?.additionalProperties).toBe(false)
       expect(Object.keys(windowSize?.properties ?? {})).toEqual([
@@ -240,7 +245,15 @@ describe('widgets tool helpers', () => {
         'maxWidth',
         'maxHeight',
       ])
-      expect(windowSize?.required).toEqual(Object.keys(windowSize?.properties ?? {}))
+      expect(windowSize?.required).toEqual(Object.keys(windowSizeProperties))
+      expect((windowSizeProperties.minWidth as JsonSchema).type).toEqual(['number', 'null'])
+      expect((windowSizeProperties.minHeight as JsonSchema).type).toEqual(['number', 'null'])
+      expect((windowSizeProperties.maxWidth as JsonSchema).type).toEqual(['number', 'null'])
+      expect((windowSizeProperties.maxHeight as JsonSchema).type).toEqual(['number', 'null'])
+      expect((windowSizeProperties.minWidth as JsonSchema).exclusiveMinimum).toBe(0)
+      expect((windowSizeProperties.minHeight as JsonSchema).exclusiveMinimum).toBe(0)
+      expect((windowSizeProperties.maxWidth as JsonSchema).exclusiveMinimum).toBe(0)
+      expect((windowSizeProperties.maxHeight as JsonSchema).exclusiveMinimum).toBe(0)
     })
 
     describe('live AIHubMix repro', () => {

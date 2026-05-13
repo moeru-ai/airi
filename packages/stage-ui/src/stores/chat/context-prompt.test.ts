@@ -7,18 +7,18 @@ import { buildContextPromptMessage, formatContextPromptText } from './context-pr
 
 function makeContext(overrides: Record<string, unknown> = {}): ContextSnapshot {
   return {
-    'system:datetime': [
+    'system:minecraft-integration': [
       {
         id: 'volatile-random-id',
-        contextId: 'system:datetime',
+        contextId: 'system:minecraft-integration',
         strategy: ContextUpdateStrategy.ReplaceSelf,
-        text: 'Current datetime: 2026-04-07T12:34:00.000Z',
+        text: 'Bot is online in forest biome',
         createdAt: 1743940440000,
         metadata: {
           source: {
-            id: 'system:datetime',
+            id: 'system:minecraft-integration',
             kind: 'plugin' as const,
-            plugin: { id: 'airi:system:datetime' },
+            plugin: { id: 'airi:minecraft' },
           },
         },
         ...overrides,
@@ -38,44 +38,42 @@ describe('formatContextPromptText', () => {
 
     expect(text).not.toContain('volatile-random-id')
     expect(text).not.toContain('1743940440000')
-    expect(text).not.toContain('airi:system:datetime')
+    expect(text).not.toContain('airi:minecraft')
   })
 
-  // https://github.com/moeru-ai/airi/issues/1539
-  it('issue #1539: only includes text content in XML format', () => {
+  it('emits a flat [Context] bullet list (no XML wrapper)', () => {
     const text = formatContextPromptText(makeContext())
 
-    expect(text).toContain('<context>')
-    expect(text).toContain('</context>')
-    expect(text).toContain('<module name="system:datetime">')
-    expect(text).toContain('Current datetime: 2026-04-07T12:34:00.000Z')
+    expect(text).not.toContain('<context>')
+    expect(text).not.toContain('<module')
+    expect(text.startsWith('[Context]')).toBe(true)
+    expect(text).toContain('- system:minecraft-integration: Bot is online in forest biome')
   })
 
-  // https://github.com/moeru-ai/airi/issues/1539
-  it('issue #1539: produces identical output regardless of volatile fields', () => {
+  it('produces identical output regardless of volatile fields', () => {
     const a = formatContextPromptText(makeContext({ id: 'aaa', createdAt: 1 }))
     const b = formatContextPromptText(makeContext({ id: 'bbb', createdAt: 2 }))
 
     expect(a).toBe(b)
   })
 
-  it('formats multiple modules', () => {
+  it('formats multiple modules as bullets under one [Context] header', () => {
     const snapshot: ContextSnapshot = {
-      'system:datetime': [
+      'system:minecraft-integration': [
         {
           id: 'a',
-          contextId: 'system:datetime',
+          contextId: 'system:minecraft-integration',
           strategy: ContextUpdateStrategy.ReplaceSelf,
-          text: 'Current datetime: 2026-04-07T12:34:00.000Z',
+          text: 'Bot is online',
           createdAt: 0,
         },
       ],
-      'system:minecraft': [
+      'system:weather': [
         {
           id: 'b',
-          contextId: 'system:minecraft',
+          contextId: 'system:weather',
           strategy: ContextUpdateStrategy.ReplaceSelf,
-          text: 'Bot is online',
+          text: 'Sunny, 22C',
           createdAt: 0,
         },
       ],
@@ -83,9 +81,10 @@ describe('formatContextPromptText', () => {
 
     const text = formatContextPromptText(snapshot)
 
-    expect(text).toContain('<module name="system:datetime">')
-    expect(text).toContain('<module name="system:minecraft">')
-    expect(text).toContain('Bot is online')
+    const lines = text.split('\n')
+    expect(lines[0]).toBe('[Context]')
+    expect(lines).toContain('- system:minecraft-integration: Bot is online')
+    expect(lines).toContain('- system:weather: Sunny, 22C')
   })
 })
 

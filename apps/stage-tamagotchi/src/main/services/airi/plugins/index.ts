@@ -80,7 +80,7 @@ export async function setupPluginHost(options: SetupPluginHostOptions): Promise<
   })
 
   defineInvokeHandler(context, electronPluginUnload, async (payload) => {
-    return hostService.unload(payload.name)
+    return await hostService.unload(payload.name)
   })
 
   defineInvokeHandler(context, electronPluginInspect, async () => {

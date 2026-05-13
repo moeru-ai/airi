@@ -1,26 +1,35 @@
 <script setup lang="ts">
-import { Callout, FieldCombobox } from '@proj-airi/ui'
+import { Button, Callout, FieldCombobox } from '@proj-airi/ui'
+import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 
+import { useSettingsAudioDevice } from '../../../../stores'
+
 const props = withDefaults(defineProps<{
-  enabled?: boolean
   granted?: boolean
-  audioInputs?: MediaDeviceInfo[]
   volumeLevel?: number
+  transcription?: boolean
 }>(), {
-  enabled: false,
   granted: false,
-  audioInputs: () => [],
   volumeLevel: 0,
 })
 
-const enabled = defineModel<boolean>('enabled')
-const selectedAudioInput = defineModel<string>('selectedAudioInput')
+const emit = defineEmits(['toggleTranscription'])
 
+const { enabled, selectedAudioInput, audioInputs } = storeToRefs(useSettingsAudioDevice())
+
+const autoSend = defineModel<boolean>('autoSend')
 const ringEnabledClass = computed(() => enabled.value
   ? 'bg-primary-500/15 dark:bg-primary-600/20'
   : 'bg-neutral-300/20 dark:bg-neutral-700/20',
 )
+
+function toggleHearingEnabled() {
+  if (enabled.value)
+    return enabled.value = false
+  if (!enabled.value && selectedAudioInput.value !== '')
+    enabled.value = true
+}
 </script>
 
 <template>
@@ -37,21 +46,21 @@ const ringEnabledClass = computed(() => enabled.value
         <div
           class="absolute left-1/2 top-1/2 h-24 w-24 rounded-full transition-all duration-200 -translate-x-1/2 -translate-y-1/2"
           :style="{ transform: `translate(-50%, -50%) scale(${1.2 + (props.volumeLevel / 100) * 0.55})`, opacity: String(0.15 + (props.volumeLevel / 100) * 0.2) }"
-          :class="props.enabled ? 'bg-primary-500/10 dark:bg-primary-600/15' : 'bg-neutral-300/10 dark:bg-neutral-700/10'"
+          :class="enabled ? 'bg-primary-500/10 dark:bg-primary-600/15' : 'bg-neutral-300/10 dark:bg-neutral-700/10'"
         />
         <div
           class="absolute left-1/2 top-1/2 h-28 w-28 rounded-full transition-all duration-300 -translate-x-1/2 -translate-y-1/2"
           :style="{ transform: `translate(-50%, -50%) scale(${1.5 + (props.volumeLevel / 100) * 0.8})`, opacity: String(0.08 + (props.volumeLevel / 100) * 0.15) }"
-          :class="props.enabled ? 'bg-primary-500/5 dark:bg-primary-600/10' : 'bg-neutral-300/5 dark:bg-neutral-700/5'"
+          :class="enabled ? 'bg-primary-500/5 dark:bg-primary-600/10' : 'bg-neutral-300/5 dark:bg-neutral-700/5'"
         />
 
         <!-- Mic icon button -->
         <button
           class="absolute left-1/2 top-1/2 grid h-16 w-16 place-items-center rounded-full shadow-md outline-none transition-all duration-200 -translate-x-1/2 -translate-y-1/2"
           :class="[
-            props.enabled ? 'bg-primary-500 text-white hover:bg-primary-600 active:scale-95' : 'bg-neutral-200 text-neutral-600 hover:bg-neutral-300 active:scale-95 dark:bg-neutral-700 dark:text-neutral-200',
+            enabled ? 'bg-primary-500 text-white hover:bg-primary-600 active:scale-95' : 'bg-neutral-200 text-neutral-600 hover:bg-neutral-300 active:scale-95 dark:bg-neutral-700 dark:text-neutral-200',
           ]"
-          @click="() => enabled = !enabled"
+          @click="toggleHearingEnabled"
         >
           <div :class="enabled ? 'i-ph:microphone' : 'i-ph:microphone-slash'" class="h-6 w-6" />
         </button>
@@ -70,13 +79,30 @@ const ringEnabledClass = computed(() => enabled.value
       </div>
     </div>
 
+    <div class="flex flex-wrap gap-2">
+      <Button
+        v-if="props.transcription !== undefined"
+        label="Transcription"
+        :variant="props.transcription ? 'primary' : 'secondary'"
+        flex-1
+        @click="() => emit('toggleTranscription')"
+      />
+      <Button
+        v-if="autoSend !== undefined"
+        label="Auto send"
+        :variant="autoSend ? 'primary' : 'secondary'"
+        flex-1
+        @click="autoSend = !autoSend"
+      />
+    </div>
+
     <!-- Always-visible device selector -->
     <div class="mt-3 w-full">
       <FieldCombobox
         v-model="selectedAudioInput"
         label="Input device"
         description="Select the microphone you want to use."
-        :options="props.audioInputs.map(device => ({ label: device.label || 'Unknown Device', value: device.deviceId }))"
+        :options="audioInputs.map(device => ({ label: device.label || 'Unknown Device', value: device.deviceId }))"
         placeholder="Select microphone"
         layout="vertical"
       />

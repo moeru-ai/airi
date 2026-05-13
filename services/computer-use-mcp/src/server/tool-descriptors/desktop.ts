@@ -117,7 +117,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
   {
     canonicalName: 'desktop_click',
     displayName: 'Desktop Click',
-    summary: 'Click at screen coordinates. Supports left/right/middle buttons and click count for double-click.',
+    summary: 'Click at global logical screen coordinates, not Retina backing pixels. Supports left/right/middle buttons and click count for double-click.',
     lane: 'desktop',
     kind: 'write',
     readOnly: false,
@@ -130,7 +130,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
   {
     canonicalName: 'desktop_type_text',
     displayName: 'Desktop Type Text',
-    summary: 'Type text into the focused element. Optionally click at coordinates first. Long text (>160 chars) requires approval.',
+    summary: 'Type text into the focused element. Optionally click at global logical screen coordinates first. Long text (>160 chars) requires approval.',
     lane: 'desktop',
     kind: 'write',
     readOnly: false,
@@ -156,7 +156,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
   {
     canonicalName: 'desktop_scroll',
     displayName: 'Desktop Scroll',
-    summary: 'Scroll the screen at optional coordinates. Supports both vertical and horizontal scrolling.',
+    summary: 'Scroll the screen at optional global logical screen coordinates. Supports both vertical and horizontal scrolling.',
     lane: 'desktop',
     kind: 'write',
     readOnly: false,
