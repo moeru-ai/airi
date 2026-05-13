@@ -90,6 +90,19 @@ describe('createServer', async () => {
     await retryStart
   })
 
+  it('treats EADDRINUSE as an existing listener instead of failing startup', async () => {
+    const server = createServer({ hostname: '127.0.0.1', port: 6121 })
+
+    const startTask = server.start()
+    const error = new Error('listen EADDRINUSE: address already in use 127.0.0.1:6121') as NodeJS.ErrnoException
+    error.code = 'EADDRINUSE'
+    serveMocks.rejectServe(error)
+
+    await expect(startTask).resolves.toBeUndefined()
+    expect(serveMocks.disposeCall).toHaveBeenCalledTimes(1)
+    expect(serveMocks.closeCall).toHaveBeenCalledWith(true)
+  })
+
   it('merges nested config updates instead of replacing sibling logger settings', async () => {
     const server = createServer({
       hostname: '127.0.0.1',
