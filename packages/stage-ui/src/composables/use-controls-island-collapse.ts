@@ -3,6 +3,9 @@ import type { Ref } from 'vue'
 import { useTimeoutFn } from '@vueuse/core'
 import { computed } from 'vue'
 
+/** Fallback collapse delay when autoHideControlsIsland is disabled (ms) */
+const DEFAULT_COLLAPSE_DELAY_MS = 1500
+
 export interface UseControlsIslandCollapseOptions {
   /** Delay in seconds before collapsing */
   autoHideDelay: Ref<number>
@@ -30,7 +33,7 @@ export function useControlsIslandCollapse(options: UseControlsIslandCollapseOpti
   const { autoHideDelay, autoHideControlsIsland, expanded, isBlocked } = options
 
   const collapseDelayMs = computed(() =>
-    autoHideControlsIsland.value ? autoHideDelay.value * 1000 : 1500,
+    autoHideControlsIsland.value ? autoHideDelay.value * 1000 : DEFAULT_COLLAPSE_DELAY_MS,
   )
 
   const { start: startCollapse, stop: stopCollapse } = useTimeoutFn(() => {

@@ -4,12 +4,9 @@ import { computed, ref, watch } from 'vue'
 
 import { useControlsIslandAutoHide } from './use-controls-island-auto-hide'
 
-// Helper to wait for a duration
-const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-
 describe('useControlsIslandAutoHide', () => {
   beforeEach(() => {
-    vi.useRealTimers()
+    vi.useFakeTimers({ shouldAdvanceTime: true })
   })
 
   // =============================================================================
@@ -203,17 +200,17 @@ describe('useControlsIslandAutoHide', () => {
       start()
 
       // Before timer fires, change delay
-      await wait(100)
+      await vi.advanceTimersByTimeAsync(100)
       autoHideDelay.value = 0.5 // Change to 500ms
       stop()
       start()
 
       // At 400ms (old delay 200ms) - should still be false
-      await wait(300)
+      await vi.advanceTimersByTimeAsync(300)
       expect(timeoutFlag.value).toBe(false)
 
       // At 600ms total (new delay 500ms from change) - should be true
-      await wait(300)
+      await vi.advanceTimersByTimeAsync(300)
       expect(timeoutFlag.value).toBe(true)
     })
 
@@ -258,7 +255,7 @@ describe('useControlsIslandAutoHide', () => {
       startOutside()
 
       // Before timer fires, mouse enters - switch timers
-      await wait(100)
+      await vi.advanceTimersByTimeAsync(100)
       isOutside.value = false
       isOutsideDel.value = false
       stopOutside()
@@ -266,11 +263,11 @@ describe('useControlsIslandAutoHide', () => {
       startInside()
 
       // At 200ms - outside timer should not have fired
-      await wait(200)
+      await vi.advanceTimersByTimeAsync(200)
       expect(isOutsideDel.value).toBe(false)
 
       // At 300ms - inside timer should have fired
-      await wait(100)
+      await vi.advanceTimersByTimeAsync(100)
       expect(isInsideDel.value).toBe(true)
     })
   })
@@ -326,12 +323,12 @@ describe('useControlsIslandAutoHide', () => {
       startOutside()
 
       // Before delay - should still be visible
-      await wait(250)
+      await vi.advanceTimersByTimeAsync(250)
       expect(isOutsideDelayed.value).toBe(false)
       expect(isHidden.value).toBe(false)
 
       // After delay (300ms) - should be hidden
-      await wait(100)
+      await vi.advanceTimersByTimeAsync(100)
       expect(isOutsideDelayed.value).toBe(true)
       expect(isHidden.value).toBe(true)
     })
@@ -384,7 +381,7 @@ describe('useControlsIslandAutoHide', () => {
       isOutside.value = false
 
       // Before delay - should still be hidden (waiting for show delay)
-      await wait(250)
+      await vi.advanceTimersByTimeAsync(250)
       expect(isInsideDelayed.value).toBe(false)
       expect(isHidden.value).toBe(true)
 
@@ -392,7 +389,7 @@ describe('useControlsIslandAutoHide', () => {
       startInside()
 
       // After delay (300ms) - should be shown
-      await wait(100)
+      await vi.advanceTimersByTimeAsync(100)
       expect(isInsideDelayed.value).toBe(true)
       expect(isHidden.value).toBe(false)
     })
@@ -469,7 +466,7 @@ describe('useControlsIslandAutoHide', () => {
       // Mouse leaves - hide timer starts
       isOutside.value = true
       // Wait less than hide delay
-      await wait(100)
+      await vi.advanceTimersByTimeAsync(100)
       expect(isOutsideDelayed.value).toBe(false) // Hide timer hasn't fired yet
 
       // Mouse re-enters before hide timer fires - should reset state
@@ -478,14 +475,14 @@ describe('useControlsIslandAutoHide', () => {
       expect(isOutsideDelayed.value).toBe(false)
 
       // Wait less than show delay
-      await wait(100)
+      await vi.advanceTimersByTimeAsync(100)
       expect(isInsideDelayed.value).toBe(false) // Show timer hasn't fired yet
 
       // Now mouse leaves again - hide timer restarts
       isOutside.value = true
 
       // Wait for hide delay to complete (300ms from last change)
-      await wait(350)
+      await vi.advanceTimersByTimeAsync(350)
       expect(isOutsideDelayed.value).toBe(true)
 
       stopAll()
@@ -514,15 +511,15 @@ describe('useControlsIslandAutoHide', () => {
       isInsideDelayed.value = false
 
       // Quickly mouse enters before hide timer fires
-      await wait(200) // Less than 400ms
+      await vi.advanceTimersByTimeAsync(200) // Less than 400ms
       isOutside.value = false
 
       // Hide timer should NOT fire after the original 400ms
-      await wait(250) // Past original 400ms
+      await vi.advanceTimersByTimeAsync(250) // Past original 400ms
       expect(isOutsideDelayed.value).toBe(false) // Should still be false
 
       // Show timer should fire at 400ms from the enter event
-      await wait(250)
+      await vi.advanceTimersByTimeAsync(250)
       expect(isInsideDelayed.value).toBe(true)
     })
   })

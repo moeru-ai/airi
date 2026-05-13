@@ -82,10 +82,13 @@ const { startCollapse, stopCollapse } = useControlsIslandCollapse({
   isBlocked,
 })
 
-// Watch mouse position to trigger collapse
-watch(isOutside, (val) => {
+// Watch mouse position and overlay state to trigger collapse.
+// Watching `isBlocked` as well re-arms the timer when an overlay closes
+// while the cursor is still outside; otherwise the previous run is
+// consumed during the blocked window and the panel stays expanded.
+watch([isOutside, isBlocked], ([outside, blocked]) => {
   stopCollapse()
-  if (val)
+  if (outside && !blocked)
     startCollapse()
 })
 
