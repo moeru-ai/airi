@@ -174,6 +174,42 @@ async function base64ToFeatures(base64Audio: string): Promise<Float32Array> {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * RequestIds the main thread has asked us to cancel. When an in-flight
+ * operation resolves, we check this set before posting the result; if
+ * the id is present, we send a `CANCELLED` error instead so the adapter
+ * rejects the caller's promise deterministically.
+ *
+ * We cannot synchronously interrupt a transformers.js call already running
+ * on this thread (no abort primitive is exposed) — cancellation here is
+ * about not leaking the stale result, not about stopping GPU work.
+ */
+const cancelledRequestIds = new Set<string>()
+
+function markCancelled(targetRequestId: string): void {
+  cancelledRequestIds.add(targetRequestId)
+  // Emit the error now so the adapter can resolve immediately even if
+  // the inference keeps running in the background.
+  const msg: ErrorResponse = {
+    type: 'error',
+    requestId: targetRequestId,
+    payload: {
+      code: 'CANCELLED',
+      message: 'Operation cancelled by caller',
+      recoverable: false,
+    },
+  }
+  globalThis.postMessage(msg)
+}
+
+function isCancelled(requestId: string): boolean {
+  return cancelledRequestIds.has(requestId)
+}
+
+function clearCancelled(requestId: string): void {
+  cancelledRequestIds.delete(requestId)
+}
+
 function sendProgress(requestId: string, phase: 'download' | 'compile' | 'warmup' | 'inference', percent: number, message?: string, extra?: Record<string, unknown>): void {
   const msg: ProgressResponse = {
     type: 'progress',
@@ -243,16 +279,25 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
       max_new_tokens: 1,
     } as Record<string, unknown>)
 
-    const ready: ModelReadyResponse = {
-      type: 'model-ready',
-      requestId,
-      modelId: MODEL_NAMES.WHISPER,
-      device: resolvedDevice,
+    if (isCancelled(requestId)) {
+      // Adapter already received a CANCELLED error; drop the stale result.
+      clearCancelled(requestId)
     }
-    globalThis.postMessage(ready)
+    else {
+      const ready: ModelReadyResponse = {
+        type: 'model-ready',
+        requestId,
+        modelId: MODEL_NAMES.WHISPER,
+        device: resolvedDevice,
+      }
+      globalThis.postMessage(ready)
+    }
   }
   catch (error) {
-    sendError(requestId, error, 'load')
+    if (isCancelled(requestId))
+      clearCancelled(requestId)
+    else
+      sendError(requestId, error, 'load')
   }
   finally {
     currentLoadRequestId = null
@@ -311,15 +356,23 @@ async function runInference(request: RunInferenceRequest<WhisperInput>): Promise
 
     const outputText = tokenizer.batch_decode(outputs as Tensor, { skip_special_tokens: true })
 
-    const result: InferenceResultResponse<WhisperOutput> = {
-      type: 'inference-result',
-      requestId,
-      output: { text: outputText },
+    if (isCancelled(requestId)) {
+      clearCancelled(requestId)
     }
-    globalThis.postMessage(result)
+    else {
+      const result: InferenceResultResponse<WhisperOutput> = {
+        type: 'inference-result',
+        requestId,
+        output: { text: outputText },
+      }
+      globalThis.postMessage(result)
+    }
   }
   catch (error) {
-    sendError(requestId, error, 'inference')
+    if (isCancelled(requestId))
+      clearCancelled(requestId)
+    else
+      sendError(requestId, error, 'inference')
   }
   finally {
     processing = false
@@ -343,6 +396,9 @@ globalThis.addEventListener('message', async (event: MessageEvent<WorkerInboundM
     case 'unload-model':
       // Whisper uses singleton pattern — can't fully unload, but acknowledge
       globalThis.postMessage({ type: 'model-unloaded', requestId: message.requestId })
+      break
+    case 'cancel':
+      markCancelled(message.targetRequestId)
       break
   }
 })

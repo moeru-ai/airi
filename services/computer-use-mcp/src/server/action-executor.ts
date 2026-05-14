@@ -1,9 +1,12 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
+import type { DisplayPointResolution, MultiDisplaySnapshot } from '../display'
 import type {
   ActionInvocation,
   ComputerUseConfig,
   DesktopExecutor,
+  DisplayInfo,
+  ForegroundContext,
   PolicyDecision,
   ScreenshotArtifact,
   TerminalCommandResult,
@@ -12,6 +15,9 @@ import type {
 import type { ComputerUseServerRuntime } from './runtime'
 
 import { normalizeConfiguredAppAction } from '../app-aliases'
+import { decideBrowserTypeAction } from '../browser-action-router'
+import { isBrowserDomActionSupported } from '../browser-dom/capabilities'
+import { resolveDisplayPoint } from '../display'
 import { evaluateActionPolicy } from '../policy'
 import { getRuntimePreflight } from '../preflight'
 import { buildCoordinateSpaceInfo } from '../runtime-probes'
@@ -31,6 +37,7 @@ import {
   maskEnvValuePreview,
   readEnvValue,
 } from '../utils/env-file'
+import { executeDesktopClickTarget } from './desktop-grounding-actions'
 import { describeExecutionTarget } from './formatters'
 import { refreshRuntimeRunState } from './refresh-run-state'
 import {
@@ -115,10 +122,126 @@ function toTerminalStateContent(state: TerminalState) {
   }
 }
 
+function displaySnapshotFromDisplayInfo(displayInfo: DisplayInfo): MultiDisplaySnapshot | undefined {
+  if (!displayInfo.displays?.length) {
+    return undefined
+  }
+
+  return {
+    displays: displayInfo.displays.map(display => ({
+      displayId: display.displayId,
+      isMain: display.isMain,
+      isBuiltIn: display.isBuiltIn,
+      bounds: display.bounds,
+      visibleBounds: display.visibleBounds,
+      scaleFactor: display.scaleFactor,
+      pixelWidth: display.pixelWidth,
+      pixelHeight: display.pixelHeight,
+    })),
+    combinedBounds: displayInfo.combinedBounds ?? {
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0,
+    },
+    capturedAt: displayInfo.capturedAt ?? new Date(0).toISOString(),
+  }
+}
+
+function getCoordinateMutationTarget(action: ActionInvocation): { x: number, y: number } | undefined {
+  switch (action.kind) {
+    case 'click':
+      return { x: action.input.x, y: action.input.y }
+    case 'type_text':
+      if (typeof action.input.x === 'number' && typeof action.input.y === 'number') {
+        return { x: action.input.x, y: action.input.y }
+      }
+      return undefined
+    case 'scroll':
+      if (typeof action.input.x === 'number' && typeof action.input.y === 'number') {
+        return { x: action.input.x, y: action.input.y }
+      }
+      return undefined
+    default:
+      return undefined
+  }
+}
+
+function toStructuredDisplayPoint(resolution: DisplayPointResolution) {
+  return {
+    coordinateSpace: 'global-logical',
+    global: resolution.global,
+    displayId: resolution.display.displayId,
+    displayBounds: resolution.display.bounds,
+    local: resolution.local,
+    backingPixel: resolution.backingPixel,
+    scaleFactor: resolution.display.scaleFactor,
+  }
+}
+
+function resolveActionDisplayPoint(action: ActionInvocation, displayInfo: DisplayInfo) {
+  const target = getCoordinateMutationTarget(action)
+  const snapshot = displaySnapshotFromDisplayInfo(displayInfo)
+
+  if (!target || !snapshot) {
+    return undefined
+  }
+
+  const resolution = resolveDisplayPoint(snapshot, target.x, target.y)
+  if (!resolution) {
+    const combined = displayInfo.combinedBounds
+    return {
+      status: 'outside' as const,
+      target,
+      reason: combined
+        ? `target point (${target.x}, ${target.y}) is outside connected display bounds ${combined.width}x${combined.height} @ (${combined.x},${combined.y})`
+        : `target point (${target.x}, ${target.y}) is outside connected display bounds`,
+    }
+  }
+
+  return {
+    status: 'ok' as const,
+    target,
+    resolution,
+    structured: toStructuredDisplayPoint(resolution),
+  }
+}
+
+function getPolicyEvaluationContext(params: {
+  action: ActionInvocation
+  actualContext: ForegroundContext
+  runtime: ComputerUseServerRuntime
+}): ForegroundContext {
+  if (params.action.kind !== 'desktop_click_target') {
+    return params.actualContext
+  }
+
+  const activeSession = params.runtime.desktopSessionController.getSession()
+  if (!activeSession?.controlledApp) {
+    return params.actualContext
+  }
+
+  if (params.actualContext.available && params.actualContext.appName === activeSession.controlledApp) {
+    return params.actualContext
+  }
+
+  return {
+    available: true,
+    appName: activeSession.controlledApp,
+    platform: params.actualContext.platform,
+  }
+}
+
 export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteAction {
   return async (action, toolName, options = {}) => {
     const normalizedAction = normalizeConfiguredAppAction(action, runtime.config.openableApps)
-    const { executionTarget, context, displayInfo } = await refreshRuntimeRunState(runtime)
+    const { executionTarget, context: actualContext, displayInfo } = await refreshRuntimeRunState(runtime)
+    const context = getPolicyEvaluationContext({
+      action: normalizedAction,
+      actualContext,
+      runtime,
+    })
+    const actualForegroundContext = context === actualContext ? undefined : actualContext
 
     const budget = runtime.session.getBudgetState()
     const preflight = getRuntimePreflight({
@@ -157,6 +280,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         executionTarget,
         displayInfo,
         coordinateSpace: preflight.coordinateSpace,
+        actualForegroundContext,
       },
     })
 
@@ -219,6 +343,33 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       return buildDeniedResponse(decision, context, executionTarget)
     }
 
+    const actionDisplayPoint = resolveActionDisplayPoint(normalizedAction, displayInfo)
+    if (actionDisplayPoint?.status === 'outside') {
+      const deniedDecision = buildDeniedDecision({
+        decision,
+        issues: [actionDisplayPoint.reason],
+      })
+
+      await runtime.session.record({
+        event: 'denied',
+        toolName,
+        action: normalizedAction,
+        context,
+        policy: deniedDecision,
+        result: {
+          executionTarget,
+          displayInfo,
+          coordinateSpace: preflight.coordinateSpace,
+          targetPoint: actionDisplayPoint.target,
+        },
+      })
+
+      return buildDeniedResponse(deniedDecision, context, executionTarget)
+    }
+    const structuredDisplayPoint = actionDisplayPoint?.status === 'ok'
+      ? actionDisplayPoint.structured
+      : undefined
+
     if (decision.requiresApproval && !options.skipApprovalQueue) {
       const pending = runtime.session.createPendingAction({
         toolName,
@@ -253,6 +404,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       let backendResult: Record<string, unknown> = {}
       let clipboardStructuredContent: Record<string, unknown> | undefined
       let secretStructuredContent: Record<string, unknown> | undefined
+      let summaryOverride: string | undefined
 
       switch (normalizedAction.kind) {
         case 'screenshot': {
@@ -343,11 +495,16 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           backendResult = {
             ...result,
             pointerTrace,
+            displayPoint: structuredDisplayPoint,
           }
           break
         }
         case 'type_text': {
-          if (typeof normalizedAction.input.x === 'number' && typeof normalizedAction.input.y === 'number') {
+          const hasExplicitCoordinates
+            = typeof normalizedAction.input.x === 'number'
+              && typeof normalizedAction.input.y === 'number'
+
+          if (hasExplicitCoordinates) {
             const pointerTrace = buildPointerTrace({
               from: runtime.session.getPointerPosition(),
               to: { x: normalizedAction.input.x, y: normalizedAction.input.y },
@@ -365,16 +522,67 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
               })
               runtime.session.setPointerPosition({ x: normalizedAction.input.x, y: normalizedAction.input.y })
               backendResult.focusPointerTrace = pointerTrace
+              backendResult.focusDisplayPoint = structuredDisplayPoint
             }
             catch (clickError) {
               const msg = clickError instanceof Error ? clickError.message : String(clickError)
               throw new Error(`Preparatory click at (${normalizedAction.input.x}, ${normalizedAction.input.y}) failed before typing: ${msg}`)
             }
           }
-          const result = await runtime.executor.typeText(normalizedAction.input)
-          backendResult = {
-            ...backendResult,
-            ...result,
+
+          // Browser-dom type routing: if the last clicked grounding candidate
+          // is a chrome_dom text input, use setInputValue for DOM precision
+          let usedBrowserDom = false
+          const runState = runtime.stateManager.getState()
+          const lastSnapshot = runState.lastGroundingSnapshot
+          const lastClickedId = runState.lastClickedCandidateId
+          if (!hasExplicitCoordinates && lastClickedId && lastSnapshot) {
+            const lastCandidate = lastSnapshot.targetCandidates.find(
+              c => c.id === lastClickedId,
+            )
+            if (lastCandidate) {
+              const bridgeConnected = runtime.browserDomBridge?.getStatus().connected ?? false
+              const typeDecision = decideBrowserTypeAction(lastCandidate, bridgeConnected)
+              if (
+                typeDecision.route === 'browser_dom'
+                && typeDecision.selector
+                && isBrowserDomActionSupported(runtime.browserDomBridge, 'setInputValue')
+              ) {
+                try {
+                  await runtime.browserDomBridge!.setInputValue({
+                    selector: typeDecision.selector,
+                    value: normalizedAction.input.text,
+                    simulateKeystrokes: false,
+                    blur: !normalizedAction.input.pressEnter,
+                    frameIds: typeDecision.frameId !== undefined
+                      ? [typeDecision.frameId]
+                      : undefined,
+                  })
+                  usedBrowserDom = true
+                  backendResult.browserDomRoute = {
+                    method: 'setInputValue',
+                    selector: typeDecision.selector,
+                    reason: typeDecision.reason,
+                  }
+                }
+                catch {
+                  // Fallback to OS typeText below
+                }
+              }
+            }
+          }
+
+          if (!usedBrowserDom) {
+            const result = await runtime.executor.typeText(normalizedAction.input)
+            backendResult = {
+              ...backendResult,
+              ...result,
+            }
+          }
+
+          // Handle pressEnter even when browser-dom was used
+          if (usedBrowserDom && normalizedAction.input.pressEnter) {
+            await runtime.executor.pressKeys({ keys: ['Return'] })
           }
           break
         }
@@ -388,7 +596,10 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           if (typeof normalizedAction.input.x === 'number' && typeof normalizedAction.input.y === 'number') {
             runtime.session.setPointerPosition({ x: normalizedAction.input.x, y: normalizedAction.input.y })
           }
-          backendResult = { ...result }
+          backendResult = {
+            ...result,
+            displayPoint: structuredDisplayPoint,
+          }
           break
         }
         case 'wait': {
@@ -459,6 +670,12 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           }
           break
         }
+        case 'desktop_click_target': {
+          const result = await executeDesktopClickTarget(runtime, normalizedAction.input)
+          backendResult = result.backendResult
+          summaryOverride = result.summary
+          break
+        }
       }
 
       runtime.session.consumeOperation(decision.estimatedOperationUnits)
@@ -506,7 +723,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       })
 
       return buildSuccessResponse({
-        summary: `${intent} ${outcome}${advisorySummary ? ` Strategy: ${advisorySummary}` : ''}`,
+        summary: summaryOverride ?? `${intent} ${outcome}${advisorySummary ? ` Strategy: ${advisorySummary}` : ''}`,
         screenshot,
         structuredContent: {
           status: 'executed',

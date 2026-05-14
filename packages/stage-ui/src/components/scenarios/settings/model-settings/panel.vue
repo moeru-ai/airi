@@ -7,10 +7,12 @@ import { Button, Callout } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 
+import Godot from './godot.vue'
 import Live2D from './live2d.vue'
 import VRM from './vrm.vue'
 
 import { DisplayModelFormat } from '../../../../stores/display-models'
+import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useSettings } from '../../../../stores/settings'
 import { ModelSelectorDialog } from '../../dialogs/model-selector'
 
@@ -29,6 +31,7 @@ defineEmits<{
 
 const modelSelectorOpen = ref(false)
 const settingsStore = useSettings()
+const airiCardStore = useAiriCardStore()
 const { stageModelSelected, stageModelSelectedDisplayModel } = storeToRefs(settingsStore)
 
 const currentSelectedDisplayModel = computed<DisplayModel | undefined>(() => stageModelSelectedDisplayModel.value)
@@ -42,6 +45,7 @@ const settingsClassList = computed(() => {
 
 async function handleModelPick(selectedModel: DisplayModel | undefined) {
   stageModelSelected.value = selectedModel?.id ?? ''
+  airiCardStore.updateActiveCardDisplayModel(selectedModel?.id)
   await settingsStore.updateStageModel()
 
   if (selectedModel?.format === DisplayModelFormat.Live2dZip)
@@ -68,12 +72,13 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
         uses 3D model that is driven by VRM / MMD open formats.
       </p>
     </Callout>
-    <div :class="['flex flex-wrap gap-2']">
+    <div :class="['flex flex-wrap items-center gap-2']">
       <ModelSelectorDialog v-model:show="modelSelectorOpen" :selected-model="currentSelectedDisplayModel" @pick="handleModelPick">
         <Button variant="secondary">
           Select Model
         </Button>
       </ModelSelectorDialog>
+      <slot name="actions" />
     </div>
     <Live2D
       v-if="effectiveRenderer === 'live2d'"
@@ -88,6 +93,10 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
       :palette="palette"
       :runtime-snapshot="runtimeSnapshot"
       @extract-colors-from-model="$emit('extractColorsFromModel')"
+    />
+    <Godot
+      v-if="effectiveRenderer === 'godot'"
+      :runtime-snapshot="runtimeSnapshot"
     />
   </div>
 </template>

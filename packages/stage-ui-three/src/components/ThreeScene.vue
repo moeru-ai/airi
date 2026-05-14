@@ -43,7 +43,7 @@ import {
   stageThreeTraceThreeSceneSubtreeEvent,
   stageThreeTraceThreeSceneTransactionEvent,
 } from '../trace'
-import { OrbitControls } from './Controls'
+import { OrbitControls, SliderControls } from './Controls'
 import { SkyBox } from './Environment'
 import { VRMModel } from './Model'
 
@@ -693,11 +693,25 @@ defineExpose({
   renderer: () => tresCanvasRef.value?.renderer.instance,
   scene: () => modelRef.value?.scene,
   readRenderTargetRegionAtClientPoint,
+  captureFrame: async () => {
+    if (!tresCanvasRef.value)
+      return null
+
+    const { renderer, scene } = tresCanvasRef.value
+    renderer.instance.render(scene.value, camera.value)
+
+    return new Promise<Blob | null>((resolve) => {
+      renderer.instance.domElement.toBlob(resolve)
+    })
+  },
 })
 </script>
 
 <template>
-  <Screen v-slot="{ width, height }">
+  <Screen v-slot="{ width, height }" relative>
+    <div top="50%" translate-y="[-50%]" fixed z-15 px-3>
+      <SliderControls />
+    </div>
     <TresCanvas
       :width="width"
       :height="height"

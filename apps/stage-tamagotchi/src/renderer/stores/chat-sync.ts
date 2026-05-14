@@ -13,11 +13,12 @@ import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref, watch } from 'vue'
 
+import { imageJournalTools } from './tools/builtin/image-journal'
 import { weatherTools } from './tools/builtin/weather'
 import { widgetsTools } from './tools/builtin/widgets'
 
 type ChatSyncMode = 'inactive' | 'authority' | 'follower'
-type ToolsetId = 'widgets'
+type ToolsetId = 'widgets' | 'artistry'
 
 interface AttachmentPayload {
   type: 'image'
@@ -116,6 +117,44 @@ function resolveRetrySourceIndex(messages: ChatHistoryItem[], index: number): nu
   }
 
   return -1
+}
+
+function previewChatSyncPayload(payload: unknown): unknown {
+  if (!payload || typeof payload !== 'object') {
+    return payload
+  }
+
+  const record = payload as Record<string, unknown>
+  const text = typeof record.text === 'string' ? record.text : undefined
+
+  return {
+    ...record,
+    text: text && text.length > 160 ? `${text.slice(0, 160)}...` : text,
+    attachments: Array.isArray(record.attachments)
+      ? `[${record.attachments.length} attachment(s)]`
+      : record.attachments,
+  }
+}
+
+/**
+ * Logs chat-sync failures at the BroadcastChannel boundary.
+ *
+ * Use when:
+ * - A follower window times out waiting for the authority window
+ * - The authority window fails while executing a forwarded chat command
+ *
+ * Expects:
+ * - `details` only contains structured-clone-friendly diagnostic metadata
+ *
+ * Returns:
+ * - Writes an error entry to the renderer console for postmortem debugging
+ */
+function logChatSyncError(message: string, error: unknown, details: Record<string, unknown>) {
+  console.error(`[chat-sync] ${message}`, {
+    ...details,
+    error,
+    errorMessage: errorMessageFrom(error) ?? String(error),
+  })
 }
 
 export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => {
@@ -238,18 +277,23 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
   }
 
   function resolveTools(toolset?: ToolsetId) {
-    if (toolset === 'widgets') {
-      return async () => {
-        const [widgetTools, weatherToolset] = await Promise.all([
+    const toolsetRegistry: Record<string, () => Promise<any[]>> = {
+      widgets: async () => {
+        const [w, we] = await Promise.all([widgetsTools(), weatherTools()])
+        return [...w, ...we]
+      },
+      artistry: async () => {
+        const [ai, wi, we] = await Promise.all([
+          imageJournalTools(),
           widgetsTools(),
           weatherTools(),
         ])
+        return [...ai, ...wi, ...we]
+      },
+    }
 
-        return [
-          ...widgetTools,
-          ...weatherToolset,
-        ]
-      }
+    if (toolset && toolsetRegistry[toolset]) {
+      return toolsetRegistry[toolset]
     }
 
     return undefined
@@ -357,6 +401,15 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     catch (error) {
       const errorMessage = errorMessageFrom(error) ?? 'Unknown chat sync command failure'
 
+      logChatSyncError('command failed', error, {
+        mode: mode.value,
+        authorityId: authorityId.value,
+        requestId: message.requestId,
+        senderId: message.senderId,
+        command: message.command,
+        payload: previewChatSyncPayload(message.payload),
+      })
+
       if (message.command === 'ingest')
         appendIngestErrorMessage(message.payload, errorMessage)
 
@@ -463,7 +516,16 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     return new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
         pendingRequests.delete(message.requestId)
-        reject(new Error('Timed out waiting for chat authority response'))
+        const error = new Error('Timed out waiting for chat authority response')
+        logChatSyncError('command timed out waiting for authority response', error, {
+          mode: mode.value,
+          authorityId: authorityId.value,
+          requestId: message.requestId,
+          senderId: message.senderId,
+          command: message.command,
+          payload: previewChatSyncPayload(message.payload),
+        })
+        reject(error)
       }, REQUEST_TIMEOUT_MS)
 
       pendingRequests.set(message.requestId, { resolve, reject, timeout })

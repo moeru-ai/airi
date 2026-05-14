@@ -2,32 +2,45 @@ import type { UserMessage } from '@xsai/shared-chat'
 
 import type { ContextMessage } from '../../types/chat'
 
-import { toXml } from 'xast-util-to-xml'
-import { x } from 'xastscript'
-
 export type ContextSnapshot = Record<string, ContextMessage[]>
 
 /**
- * Build an xast tree from context snapshot.
- * Only the `text` field is included — volatile metadata (random IDs,
- * millisecond timestamps) is excluded to keep the output deterministic
- * and friendly to LLM KV-cache prefix matching.
- * See: https://github.com/moeru-ai/airi/issues/1539
+ * Render runtime context modules into a compact, readable text block.
+ *
+ * Use when:
+ * - Composing chat prompts that need to attach side-channel runtime context
+ *   (e.g. game state, system status) to the latest user message.
+ *
+ * Expects:
+ * - A snapshot keyed by `contextId`. Only the per-message `text` field is
+ *   included; volatile metadata (random IDs, ms timestamps) is excluded so
+ *   the output stays deterministic and KV-cache-friendly.
+ *
+ * Returns:
+ * - Empty string when the snapshot is empty.
+ * - Otherwise a `[Context]` block with one bullet per module, e.g.
+ *   `[Context]\n- system:minecraft-integration: Bot is online ...`
+ *
+ * Why this shape (not XML):
+ * - Weak local models (8B/14B) tend to mirror conspicuous structured
+ *   wrappers (`<context>...</context>`) back into their replies, treating
+ *   them as data to be quoted. A flat bullet list looks like ordinary
+ *   narrative, which suppresses that mirroring tendency.
+ * - See: https://github.com/moeru-ai/airi/issues/1539
  */
-function buildContextTree(contextsSnapshot: ContextSnapshot) {
-  const modules = Object.entries(contextsSnapshot).map(([key, messages]) =>
-    x('module', { name: key }, messages.map(m => x(null, m.text))),
-  )
-
-  return x('context', modules)
-}
-
 export function formatContextPromptText(contextsSnapshot: ContextSnapshot) {
   const entries = Object.entries(contextsSnapshot)
   if (entries.length === 0)
     return ''
 
-  return toXml(buildContextTree(contextsSnapshot))
+  const lines = entries.flatMap(([contextId, messages]) =>
+    messages.map(m => `- ${contextId}: ${m.text}`),
+  )
+
+  if (lines.length === 0)
+    return ''
+
+  return ['[Context]', ...lines].join('\n')
 }
 
 export function buildContextPromptMessage(contextsSnapshot: ContextSnapshot): UserMessage | null {

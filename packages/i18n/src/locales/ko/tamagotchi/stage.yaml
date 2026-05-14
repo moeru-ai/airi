@@ -29,6 +29,13 @@ docs:
   'logging-in': 로그인 중...
   'account': 계정
   'logout': 로그아웃
+widgets:
+  close: Close widget
+  empty:
+    title: No widget active
+    description: Widgets will appear here when a tool or plugin spawns one.
+  loading: Loading widget…
+  waiting: Waiting for widget data for "{id}"…
 notice:
   'fade-on-hover':
     title: 호버 시 페이드

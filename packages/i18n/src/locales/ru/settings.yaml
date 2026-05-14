@@ -9,6 +9,8 @@ animations:
     title: Использовать переходы для страниц
 dialogs:
   onboarding:
+    official:
+      title: Официальный провайдер AIRI
     title: Добро пожаловать в AIRI!
     description: Давайте настроим вашего первого AI-провайдера, чтобы начать работу.
     selectProvider: Выберите AI-провайдера
@@ -152,6 +154,89 @@ pages:
     fluxBalance: Баланс Flux
     viewFluxDetails: Подробнее
     signedInAs: Вы вошли как
+    profile:
+      tab: Профиль
+      title: Профиль
+      description: Управление вашим публичным именем.
+      name:
+        label: Отображаемое имя
+        placeholder: Как видят вас другие
+      avatar:
+        gravatarNotice: Аватар из Gravatar.
+        gravatarLink: Управление на gravatar.com
+      action:
+        save: Сохранить изменения
+      message:
+        saved: Профиль обновлен.
+      error:
+        fallback: Мы не смогли сохранить ваши изменения.
+    connections:
+      tab: Подключенные аккаунты
+      title: Подключенные аккаунты
+      description: Войдите в AIRI через этих поставщиков. Отмените связь, чтобы отозвать доступ, затем установите связь снова, чтобы переключиться на другую учетную запись.
+      status:
+        linked: Связанно
+        notLinked: Не привязано
+        linkedSince: Связанно в {date}
+      action:
+        link: Связать
+        unlink: Отвязать
+      message:
+        loading: Загрузка подключенных аккаунтов...
+        unlinked: '{provider} отключен.'
+        linked: '{provider} подключен.'
+        linkStarted: Перенаправление на {provider}…
+      error:
+        listFailed: Не удалось загрузить подключенные учетные записи.
+        unlinkFailed: Не удалось отвязать эту учетную запись.
+        linkFailed: Не удалось запустить поток ссылок.
+        lastAccount: Это единственный способ входа в систему. Установите пароль перед отсоединением.
+    security:
+      tab: Безопасность
+      title: Безопасность
+      description: Измените пароль. Остальные устройства будут отключены.
+      setDescription: Вы вошли через социального провайдера, так что текущего пароля пока нет. Мы отправим по электронной почте ссылку, чтобы установить его.
+      currentPassword:
+        label: Текущий пароль
+        placeholder: Введите ваш текущий пароль
+      newPassword:
+        label: Новый пароль
+        placeholder: Как минимум 8 символов
+      confirmPassword:
+        label: Подтвердить новый пароль
+        placeholder: Повторите новый пароль
+      action:
+        changePassword: Изменить пароль
+        sendSetLink: Прислать мне ссылку для установки пароля
+      message:
+        changed: Пароль изменен. Другие сессии были отключены.
+        setLinkSent: Проверьте {email} на наличие ссылки для установки пароля.
+      error:
+        fallback: Мы не смогли изменить ваш пароль.
+        setLinkFailed: Не удалось отправить ссылку для установки пароля.
+        passwordMismatch: Пароли не совпадают.
+        passwordSameAsCurrent: Новый пароль должен отличаться от текущего.
+    danger:
+      tab: Опасная зона
+      title: Опасная зона
+      description: Необратимые действия учётных записей здесь.
+      deleteAccount:
+        title: Удалить аккаунт
+        description: Окончательно удалить учетную запись, сеансы и личные данные.
+        action: Удалить аккаунт
+        modal:
+          title: Удалить аккаунт?
+          warning: Это не может быть отменено. Активная подписка будет отменена, Flux баланс сброшен.
+          confirmEmail:
+            label: Введите ваш адрес электронной почты для подтверждения
+            placeholder: ''
+            mismatch: Адрес электронной почты не совпадает.
+          confirm: Отправить письмо с подтверждением
+          cancel: Отмена
+        message:
+          emailSent: Проверьте {email} на наличие ссылки на удаление.
+        error:
+          fallback: Не удалось начать удаление. Повторите попытку позже.
   card:
     activate: Активировать
     active: Активно
@@ -221,6 +306,8 @@ pages:
         scenario: 'Ошибка: требуется сценарий.'
         systemprompt: 'Ошибка: укажите системный промпт.'
         posthistoryinstructions: 'Ошибка: требуется post-history промпт.'
+        invalid_artistry_json: 'Ошибка: Параметры провайдера Artistry содержат недопустимые JSON.'
+      none: Отсутствует
     modules: Модули
     name_asc: Имя (А-Я)
     name_desc: Имя (Я-А)
@@ -355,6 +442,67 @@ pages:
             warmup:
               description: Прогреть ли перед обнаружением ударов для лучшей точности.
               label: Разминка
+    artistry:
+      title: Artistry
+      description: Генерация изображения, фон сцены и рисование.
+      page:
+        title: Конфигурация поставщика Artistry
+        description: Выберите активный бэкэнд провайдер для создания изображений. Персонажи могут переопределить это в настройках карты.
+      providers:
+        none:
+          name: Отсутствует
+          description: Обход и отключение модуля генерации изображений глобально.
+        comfyui:
+          name: ComfyUI (локальный)
+          description: Используйте локальный экземпляр ComfyUI через WSL для генерации изображений.
+        replicate:
+          name: Replicate.ai (Облачный)
+          description: Использовать облачные модели через Replicate API.
+        nanobanana:
+          name: Nano Banana (Предпросмотр)
+          description: Используйте Google AI Studio для предварительного просмотра изображений и реакций.
+      card:
+        description: Настройте то, как AIRI генерирует изображения и визуальный контент.
+        comfyui_empty: Не настроены процессы ComfyUI. Перейдите в Настройки → Поставщики → ComfyUI для загрузки шаблона рабочего процесса.
+        exposed_fields: '{count} открытых полей'
+        open_on_replicate: Открыть на Replicate
+        instruction_sync:
+          title: Синхронизация инструкций ComfyUI
+          description: Специализированная подсказка готова для вашего рабочего процесса {workflowName}. Применение этого перезапишет инструкции виджета так, чтоб ИИ знал, как использовать этот конкретный шаблон.
+          apply: Применить рекомендованный промпт
+          keep: Сохранить существующий
+      provider: Поставщик Artistry
+      spawn_mode:
+        label: Режим манифеста (Spawn Mode)
+        description: Выберите способ доставки изображений в интерфейс.
+        options:
+          bg: Фоновое окружение
+          inline: Встроенный чат
+          widget: Виджет оверлея
+          bg_widget: Двойной (Background + Widget)
+      autonomous:
+        title: Кинематическая Автономия (Autonomous Artist)
+        description: Если включено, то "Продюсер" будет выполняться параллельно с персонажем, чтобы решить, требуется ли визуальное изображение. Это мешает персонажу забывать о сцене манифеста.
+        threshold: Порог манифестации
+        threshold_description: Используйте {min} для создания агрессивных сцен или {max}, чтобы получить более сильные доказательства перед генерацией.
+        threshold_min: Всегда генерировать (0%)
+        threshold_max: Строгий (100%)
+      model:
+        label: Модель Artistry (опционально)
+        description: Идентификатор модели при необходимости поставщика
+      prompt-prefix:
+        label: Стандартный префикс Artistry по умолчанию
+        description: Приготовиться к каждому запросу, посланному генератору изображений.
+      options:
+        label: Опции поставщика Artistry (JSON)
+      widget-instructions:
+        label: Системный запрос виджета
+        description: Инструкции для ИИ по использованию возможностей генерации.
+    categories:
+      essential: Основные
+      messaging: Сообщения
+      gaming: Игры
+      artistry: Artistry
     consciousness:
       description: Личность, модель сознания и др.
       sections:
@@ -524,17 +672,88 @@ pages:
       access-token-secret-placeholder: Введите ваш секрет токена доступа X / Twitter
       configured: X / Twitter настроен правильно!
     mcp-server:
-      description: Подключение и управление MCP-сервером и инструментами
-      title: MCP-сервер
-      config-path: Путь к файлу конфигурации
+      title: MCP Сервера
+      description: Настройка MCP серверов и перевод их инструментов в AIRI.
+      config-path: Конфигурационный файл
       runtime-title: Статус рабочего времени
+      empty: Пока нет MCP серверов — нажмите "Добавить сервер" ниже, чтобы создать его или вставьте конфигурацию через "Редактировать JSON".
+      error-title: Упс
+      success-title: Готово!
+      existing:
+        title: Настроено
+        description: Сервера записаны в mcp.json. Нажмите на любую строку, чтобы развернуть и редактировать его.
+        empty: Здесь пока ничего нет. Добавьте одно ниже!
+      add:
+        title: Новый
+        description: 'Заполните новый сервер, затем нажмите кнопку «Сохранить и перезапустить» — он будет перемещен в «Конфигурация» выше.'
+        pending-badge: Не сохранено
+      status:
+        unknown: Не загружен
       actions:
-        open-config: Открыть mcp.json
-        apply-and-restart: Сохранить и перезапустить MCP
+        open-config: Показать в файловом менеджере
+        apply-and-restart: Сохранить и перезагрузить
+        restart: Перезапустить MCP
+        add-server: Добавить сервер
+        add-env: Добавить переменную
+        remove: Убрать
+        test: Проверка
+        edit-json: Редактировать JSON
+        close-json: Закрыть
+        format-json: Формат
+        reset-draft: Сброс
+        apply-json: Применить
+        cancel: Отменить
+        expand: Развернуть
+        collapse: Свернуть
+      fields:
+        identifier:
+          label: Идентификатор
+          description: Уникальное имя; становится ключом в mcp.json.
+          placeholder: Напр. filesystem
+        command:
+          label: Команда
+          description: Исполняемый файл создан поверх stdio.
+          placeholder: Напр. npx
+        args:
+          label: Аргументы
+          description: По одному на строку, по порядку.
+          placeholder: "-y\nsome-package-name\n/tmp"
+        cwd:
+          label: Рабочая папка
+          description: Необязательный каталог, используемый в качестве рабочего каталога процесса.
+          placeholder: Напр. /Users/you/project
+        env:
+          label: Окружение
+          description: Переменные переданы дочернему процессу.
+          key-placeholder: КЛЮЧ
+          value-placeholder: значение
+        enabled:
+          label: Включено
+      json:
+        title: Редактировать mcp.json
+        description: 'Отредактируйте сырые JSON напрямую. Нажмите «Применить», чтобы загрузить их в форму, затем «Сохранить и перезапустить», чтобы записать их на диск.'
+        placeholder: Вставьте mcp.json здесь…
+      test:
+        title: Проверить подключение
+        description: Мы недолго создадим сервер, чтобы проверить работу команды и увидеть, какие инструменты она раскрывает.
+        pick-server-label: Сервер
+        no-servers: Пока нечего проверять
+        no-server-selected: Сначала выберите сервер.
+        server-disabled: '"{name}" отключён — включите его сначала на карте.'
+        disabled-suffix: отключено
+        untitled: безымянный
+        running: Тестирование
+        success: Подключено! Найдено {count} инструментов за {ms}мс.
+        failure: Сбой соединения после {ms}мс
+      errors:
+        empty-identifier: Server # {index} is missing an identifier.
+        duplicate-identifier: Идентификатор "{name}" используется более одного раза — имена должны быть уникальными.
+        empty-command: '"{name}" отсутствует команда.'
+        invalid-shape: Это не похоже на mcp.json — для root требуется поле "mcpServers".
       messages:
-        opened: Файл конфигурации открыт {path}
-        restarted: >-
-          MCP серверы перезапущены. Запущен {started}, не удалось {failed}, пропущено {skipped}
+        opened: В файловом менеджере открыта {path}
+        json-applied: JSON применен к форме. Нажмите «Сохранить и перезапустить», чтобы сохранить его на диск.
+        restarted: Все перезапущено! {started} запущен, {failed} не удалось, {skipped} пропущен.
   flux:
     title: Flux
     buy: Пополнить
@@ -554,6 +773,7 @@ pages:
       typeAddition: Пополнение
       typeConsumption: Использование
       typeInitial: Начальный грант
+      typePromo: Promo Grant
       loading: Загрузка истории...
       empty: Пока нет записей транзакций.
       loadMore: Загрузить ещё
@@ -564,15 +784,6 @@ pages:
       buy: Пополнить
       description: Пакеты Flux на выбор.
   providers:
-    explained:
-      chat: Провайдеры текстогенерации, напр. OpenRouter, OpenAI, Ollama.
-      Speech: Провайдеры речи (TTS), напр. ElevenLabs, Azure Speech.
-      Transcription: >-
-        Провайдеры транскрипции (STT): Whisper.cpp, OpenAI, Azure Speech.
-    helpinfo:
-      title: Впервые здесь?
-      description: >
-        AIRI требует как минимум одного {chat}-провайдера для корректной работы. Можно считать его "мозгом" персонажей в системе AIRI.
     catalog:
       edit:
         config-id-not-found: Конфигурация провайдера не найдена.
@@ -668,6 +879,47 @@ pages:
           title: Базовые
         voice:
           title: Настройки голоса
+    labels:
+      recommended: Рекомендуется
+    filters:
+      pricing: Цены
+      deployment: Развертывание
+      all: Все
+      free: Бесплатно
+      paid: Платно
+      internal: Встроенное
+      local: Локальное
+      cloud: Облачное
+    categories:
+      chat:
+        title: Чат
+        description: Провайдеры текстовых моделей, напр. OpenRouter, OpenAI, Ollama.
+      speech:
+        title: Речь
+        description: Провайдеры речи (text-to-speech), напр. ElevenLabs, Azure Speech.
+      transcription:
+        title: Транскрипция
+        description: >-
+          Провайдеры транскрипции (speech-to-text): Whisper.cpp, OpenAI, Azure Speech
+      artistry:
+        title: Artistry
+        description: Поставщики моделей генерации и создания изображений, например ComfyUI, Replicate.
+        items:
+          comfyui:
+            description: Генерирование локального изображения.
+          replicate:
+            description: Облачный сервис моделей
+          nanobanana:
+            description: Google AI Studio Image Preview.
+    helpinfo:
+      title: Впервые здесь?
+      description: >
+        AIRI требует как минимум одного {chat}-провайдера для корректной работы. Можно считать его "мозгом" персонажей в системе AIRI.
+    explained:
+      chat: Провайдеры текстогенерации, напр. OpenRouter, OpenAI, Ollama.
+      Speech: Провайдеры речи (TTS), напр. ElevenLabs, Azure Speech.
+      Transcription: >-
+        Провайдеры транскрипции (STT): Whisper.cpp, OpenAI, Azure Speech.
     description: LLM-модели, провайдеры речи и др.
     provider:
       app-local-audio-transcription:
@@ -685,6 +937,17 @@ pages:
       alibaba-cloud-model-studio:
         description: Bailian.console.aliyun.com
         title: Alibaba Cloud Model Studio
+      amazon-bedrock:
+        title: Amazon Bedrock
+        description: aws.amazon.com/bedrock
+        config:
+          api-key:
+            label: Ключ API Bedrock
+            description: Ключ Amazon Bedrock API (создать в консоли AWS → Bedrock → API Keys)
+            placeholder: bedrock-...
+          region:
+            label: Регион AWS
+            description: Регион AWS, где включен Bedrock (например, us-east-1, us-west-2)
       anthropic:
         description: Anthropic.com
         title: Anthropic | Claude
@@ -732,6 +995,98 @@ pages:
       speech-noop:
         title: Отсутствует
         description: Вывод речи отсутствует.
+      comfyui:
+        settings:
+          title: ComfyUI (локальный)
+          heading: ComfyUI нативный API
+          description: Подключитесь к локальному ComfyUI и приносите свои собственные рабочие процессы.
+          info:
+            what_you_need:
+              label: Что вам нужно
+              value: ComfyUI работает локально или в вашей сети.
+            how_to_export:
+              label: Как Экспортировать
+              value: Включить режим Разработчика → "Сохранить (формат API)".
+            scope_boundary:
+              label: Сфера охвата
+              value: Загрузка моделей и установка узлов ваша работа.
+          connection:
+            title: Подключение
+            connected: Подключен
+            failed: Подключиться не удалось
+            error_prefix: Ошибка
+            test: Проверка
+            testing: Тестирование...
+            unknown_error: Неизвестная ошибка соединения
+            unknown_gpu: Неизвестный GPU
+            server_url:
+              label: URL сервера
+              description: Адрес, в котором запущен ComfyUI
+              placeholder: http://localhost:8188
+          cors:
+            title: Обнаружен блок CORS
+            description: ComfyUI по умолчанию блокирует запросы от других приложений. Чтобы разрешить подключение AIRI, вы должны запустить ComfyUI с флагом `--enable-cors-header "*"`.
+            command: python main.py --enable-cors-header "*"
+          workflows:
+            title: Шаблоны рабочего процесса
+            upload: Загрузить рабочий процесс
+            cancel_upload: Отменить
+            empty: Пока нет загруженных рабочих процессов. Нажмите "Загрузить рабочий процесс", чтобы импортировать workflow_api.json из ComfyUI.
+            exposed_parameters: Открытые параметры
+            summary: '{nodes} узлы · {fields} открытые поля'
+            remove: Убрать
+            config_snippet: Фрагмент конфигурации Artistry
+            copy_json: Копировать JSON
+            paste_hint: Вставьте это в конфигурацию AIRI карт для переопределения этих узлов.
+          upload:
+            prompt: Перетащите или выберите файл workflow_api.json
+            invalid_json: Неверный JSON
+            workflow_name:
+              label: Название рабочего процесса
+              description: Дайте этому процессу узнаваемое название
+              placeholder: напр. Anime Text2Img
+            select_fields: 'Выберите поля, чтобы открыть агенту ИИ:'
+            fields_exposed: '{count} Файл(ов) выбрано'
+            save: Сохранить рабочий процесс
+      replicate:
+        settings:
+          title: Replicate.ai
+          heading: Конфигурация Replicate.ai
+          description: Настройте параметры генерации изображений в облаке.
+          api_key:
+            label: API ключ
+            description: Ваш Replicate API токен (начинается с r8_)
+            placeholder: r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+          default_model:
+            label: Модель по умолчанию
+            description: Резервная строка владельца/модели используется, если карта персонажа не указана
+            placeholder: black-forest-labs/flux-schnell
+          aspect_ratio:
+            label: Соотношение сторон
+            description: Соотношение сторон по умолчанию (например, 16:9, 1:1, 9:16)
+            placeholder: '16:9'
+          inference_steps:
+            label: Шаги осмотра
+            description: Количество шагов для процесса распространения (ниже - быстрее, выше - качество)
+      nanobanana:
+        settings:
+          title: Nano Banana
+          heading: Nano Banana (Google AI Studio)
+          description: Настроить возможности генерации изображений Google Gemini.
+          api_key:
+            label: API ключ
+            description: Ваш API ключ Google AI Studio
+            placeholder: AIpk...
+          preferred_model:
+            label: Предпочитаемая модель
+            description: Конкретная модель Gemini image preview для использования
+          default_resolution:
+            label: Разрешение по умолчанию
+            description: Целевое разрешение для сгенерированных изображений
+          model_options:
+            nano_banana_2: Nano Banana 2 (Gemini 3.1 Flash Image)
+            nano_banana_pro: Nano Banana Pro (Gemini 3 Pro Image)
+            nano_banana: Nano Banana (Gemini 2.5 Flash Image)
       deepseek:
         description: Deepseek.com
         title: DeepSeek
@@ -827,6 +1182,9 @@ pages:
       minimax-speech:
         description: Minimax.io
         title: MiniMax речь
+      mimo:
+        description: api.xiaomimimo.com
+        title: Xiaomi MiMo
       mistral:
         description: Mistral.ai
         title: Mistral
@@ -895,6 +1253,15 @@ pages:
               description: App ID проекта (получается в Console)
               label: Идентификатор приложения (App ID)
         title: Volcano Engine
+      volcengine-coding-plan:
+        description: План кодирования Volcengine
+        title: План кодирования Volcengine
+      byteplus:
+        description: byteplus.com
+        title: BytePlus
+      byteplus-coding-plan:
+        description: План кодирования BytePlus
+        title: План кодирования BytePlus
       xai:
         description: x.ai
         title: xAI
@@ -976,9 +1343,6 @@ pages:
       errors:
         title: Ошибка сканирования QR-кода
         failed: Не удалось отсканировать или подключиться с помощью QR-коду.
-  scene:
-    description: Настройте окружение, в котором живёт персонаж
-    title: Сцена
   system:
     color-scheme:
       description: Изменить цветовую схему сцены
@@ -1127,6 +1491,28 @@ pages:
         button: Открыть
   credits:
     buy: Купить
+  scene:
+    title: Сцены
+    description: Настройте виртуальную среду для персонажей.
+    beta_label: Система сцен
+    beta_description: Каждая карта персонажа указывает свой собственный фон из этой галереи. Установка её здесь будет означать значение по умолчанию для текущего активного персонажа.
+    background_image:
+      title: Активный фон персонажа
+      no_background: Для этого персонажа не активен фон. Загрузите квадрат или альбомное изображение, чтобы получить наилучший результат.
+      upload: Загрузить в галерею
+      change: Изменить фон
+      clear: Сбросить по умолчанию
+    gallery:
+      title: Галерея сцен
+      empty: В галерее пока нет изображений. Загрузите одно выше!
+      set_as_global: Установить как персонаж по умолчанию
+      delete: Удалить из галереи
+      global_badge: Персонаж по умолчанию
+      active_badge: Текущая сцена
+      delete_confirm: Вы уверены, что хотите удалить этот фон?
+    tip:
+      label: Совет!
+      description: Использование квадратного изображения позволит использовать <b>обрезку обложки</b> в портретном режиме, фокусируясь на центре сцены.
 sections:
   section:
     general:

@@ -53,3 +53,15 @@ export const MAX_RESTARTS = 3
 
 /** Base delay in ms between restart attempts (multiplied by attempt number) */
 export const RESTART_DELAY_MS = 1_000
+
+// ---------------------------------------------------------------------------
+// Device loss resilience
+// ---------------------------------------------------------------------------
+
+/**
+ * Number of WebGPU device-loss events an adapter tolerates before proactively
+ * promoting subsequent loads to WASM. A single device loss may be transient
+ * (driver reset, GPU process crash), but repeated losses indicate the WebGPU
+ * path is unreliable on this device and WASM is safer.
+ */
+export const DEVICE_LOSS_WASM_THRESHOLD = 2

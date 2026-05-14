@@ -9,6 +9,8 @@ animations:
     title: 是否使用页面特定过场动画
 dialogs:
   onboarding:
+    official:
+      title: AIRI 官方提供商
     title: 欢迎来到 AIRI！
     description: 让我们设置您的第一个服务来源来开始使用。
     selectProvider: 选择服务来源
@@ -147,11 +149,94 @@ pages:
     title: 账号
     description: 查看您的个人资料并管理您的帐户
     notLoggedIn: 登录以查看您的帐户并访问所有功能
-    login: Sign in
-    logout: Sign out
+    login: 登录
+    logout: 登出
     fluxBalance: 剩余通量
     viewFluxDetails: 查看详情
     signedInAs: 登录 为
+    profile:
+      tab: 个人资料
+      title: 个人资料
+      description: 管理您的昵称
+      name:
+        label: 昵称
+        placeholder: 别人如何看到你
+      avatar:
+        gravatarNotice: Gravatar头像。
+        gravatarLink: 在 gravatar.com 上管理
+      action:
+        save: 保存更改
+      message:
+        saved: 个人资料已更新
+      error:
+        fallback: 保存失败了，之后再试试？
+    connections:
+      tab: 已关联的帐户
+      title: 已关联的账户
+      description: 可以通过第三方帐户登录至 AIRI。解除关联即可撤回对第三方帐户的授权，也可以通过解除关联来关联至另一个帐户。
+      status:
+        linked: 已关联
+        notLinked: 未关联
+        linkedSince: 关联于 {date}
+      action:
+        link: 关联
+        unlink: 取消关联
+      message:
+        loading: 正在加载已关联的帐户...
+        unlinked: '解除了 {provider} 的关联'
+        linked: '关联到了 {provider}'
+        linkStarted: 正在重定向到 {provider}...
+      error:
+        listFailed: 暂时无法加载已关联的帐户
+        unlinkFailed: 无法解除此帐户的关联
+        linkFailed: 暂时无法开始关联的流程，要之后再试试吗？
+        lastAccount: 这是你当前唯一的登录方式，请务必先设置密码再解除关联哦
+    security:
+      tab: 安全
+      title: 安全
+      description: 更新密码后，其他已登入的设备将会被自动登出
+      setDescription: 由于先前是通过其他的第三方平台登录的，暂时没有设置的密码，我们将会发送一个安全的重设链接来帮助你设定一个
+      currentPassword:
+        label: 当前密码
+        placeholder: 输入你当前的密码
+      newPassword:
+        label: 新密码
+        placeholder: 最少 8 个字符
+      confirmPassword:
+        label: Confirm new password
+        placeholder: 再次输入新密码
+      action:
+        changePassword: 更新密码
+        sendSetLink: 发送密码重设链接到邮箱
+      message:
+        changed: 密码已更新，其他的设备会话都会自动登出。
+        setLinkSent: 检查 {email} 的收件箱以寻找用于重设密码的链接
+      error:
+        fallback: 暂时无法更新密码
+        setLinkFailed: 暂时无法发送用于重设密码的链接
+        passwordMismatch: 新密码和确认密码不匹配
+        passwordSameAsCurrent: 新密码和当前密码应当是不同的
+    danger:
+      tab: 危险操作
+      title: 危险操作
+      description: Irreversible account actions live here.
+      deleteAccount:
+        title: 删除帐户
+        description: 永久删除您的帐户和所有个人数据。
+        action: 删除帐户
+        modal:
+          title: Delete account?
+          warning: 此操作无法撤销。已经激活的订阅将被取消，现存的 Flux 余额均会被清除。
+          confirmEmail:
+            label: 请再次输入电子邮箱以确认删除
+            placeholder: ''
+            mismatch: Email does not match.
+          confirm: Send confirmation email
+          cancel: Cancel
+        message:
+          emailSent: Check {email} for the deletion link.
+        error:
+          fallback: Could not start deletion. Try again later.
   card:
     activate: 激活
     active: 已激活
@@ -221,6 +306,8 @@ pages:
         scenario: '错误：必须提供一个情境。'
         systemprompt: '错误：请提供系统提示。'
         posthistoryinstructions: '错误：必须提供消息历史后的提示。'
+        invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
+      none: None
     modules: 模块
     name_asc: 名称 (A-Z)
     name_desc: 名称 (Z-A)
@@ -355,6 +442,67 @@ pages:
             warmup:
               description: 在检测节拍之前进行预热，以提高准确性
               label: 预热
+    artistry:
+      title: Artistry
+      description: Image generation, scene background and drawing.
+      page:
+        title: Artistry Provider Configuration
+        description: Select the active backend provider for image generation. Characters can override this in their Card settings.
+      providers:
+        none:
+          name: None
+          description: Bypass and disable the image generation module globally.
+        comfyui:
+          name: ComfyUI (Local)
+          description: Use a local ComfyUI instance via WSL for image generation.
+        replicate:
+          name: Replicate.ai (Cloud)
+          description: Use cloud-based models via the Replicate API.
+        nanobanana:
+          name: Nano Banana (Preview)
+          description: Use Google AI Studio for image preview and reactions.
+      card:
+        description: Configure how AIRI generates images and visual content.
+        comfyui_empty: No ComfyUI workflows configured. Go to Settings → Providers → ComfyUI to upload a workflow template.
+        exposed_fields: '{count} exposed fields'
+        open_on_replicate: Open on Replicate
+        instruction_sync:
+          title: ComfyUI Instruction Sync
+          description: A specialized prompt is ready for your {workflowName} workflow. Applying this will overwrite current widget instructions so the AI knows how to use this specific template.
+          apply: Apply Recommended Prompt
+          keep: Keep Existing
+      provider: Artistry Provider
+      spawn_mode:
+        label: Manifestation Mode (Spawn Mode)
+        description: Choose how images are delivered to the interface.
+        options:
+          bg: Background Environment
+          inline: Inline Chat
+          widget: Overlay Widget
+          bg_widget: Dual (Background + Widget)
+      autonomous:
+        title: Cinematic Autonomy (Autonomous Artist)
+        description: When enabled, the "Producer" runs in parallel to the character to decide if a visual is needed. This prevents the character from forgetting to manifest scenes.
+        threshold: Manifestation Threshold
+        threshold_description: Use {min} for aggressive scene creation or {max} to require stronger evidence before generating.
+        threshold_min: Always Generate (0%)
+        threshold_max: Strict (100%)
+      model:
+        label: Artistry Model (Optional Override)
+        description: Model identifier if needed by provider
+      prompt-prefix:
+        label: Artistry Prompt Default Prefix
+        description: Pre-pended to every prompt sent to the image generator.
+      options:
+        label: Artistry Provider Options (JSON)
+      widget-instructions:
+        label: Widget System Prompt
+        description: Custom instructions for the AI on how to use the generation capabilities.
+    categories:
+      essential: 基础
+      messaging: Messaging
+      gaming: Gaming
+      artistry: Artistry
     consciousness:
       description: 人格设定、使用的模型等配置
       sections:
@@ -524,21 +672,92 @@ pages:
       access-token-secret-placeholder: 输入您的X / Twitter访问令牌密文
       configured: X / Twitter已正确配置！
     mcp-server:
-      description: 连接和管理 MCP 服务器及工具
-      title: MCP 服务器
-      config-path: 配置文件路径
+      title: MCP 集成
+      description: 配置其他 MCP 服务器并将能力拓展至 AIRI
+      config-path: 配置文件
       runtime-title: 运行状态
+      empty: 尚无已配置的 MCP 集成 - 点击「添加服务器」来创建一个，或者通过「编辑 JSON」直接粘贴配置
+      error-title: 坏了
+      success-title: 完成！
+      existing:
+        title: 配置完成
+        description: 在配置文件中记录了 MCP 服务器。点击展开后可以编辑它。
+        empty: 这里什么都还没有哦，在下面添加一个！
+      add:
+        title: 新建
+        description: '填写新的服务器配置，然后点击「保存并重启」，完成后将会更新至上方的「已配置」'
+        pending-badge: 未保存
+      status:
+        unknown: 未加载
       actions:
-        open-config: 打开 mcp.json
-        apply-and-restart: 保存并重启 Stdio 协议的 MCP
+        open-config: 在文件管理器中查看
+        apply-and-restart: 保存并重启
+        restart: 刷新 MCP 状态
+        add-server: 添加
+        add-env: 添加变量
+        remove: 移除
+        test: 测试
+        edit-json: 编辑 JSON
+        close-json: 关闭
+        format-json: 格式化
+        reset-draft: 重置
+        apply-json: 应用
+        cancel: 取消
+        expand: 展开
+        collapse: 收起
+      fields:
+        identifier:
+          label: 唯一标识符
+          description: 唯一名称，作为 mcp.json 中的键。
+          placeholder: 例如：filesystem
+        command:
+          label: 命令
+          description: 通过 stdio 启动的可执行程序。
+          placeholder: 例如：npx
+        args:
+          label: 命令参数
+          description: 每行一个，按顺序传入。
+          placeholder: "-y\nsome-package-name\n/tmp"
+        cwd:
+          label: 工作目录
+          description: 可选，作为启动进程时使用的当前工作目录。
+          placeholder: 例如 /Users/you/project
+        env:
+          label: 环境变量
+          description: 注入到子进程的环境变量。
+          key-placeholder: 名称
+          value-placeholder: 值
+        enabled:
+          label: 启用
+      json:
+        title: 编辑 mcp.json
+        description: '可以直接修改 JSON，点击「应用」时会自动解析，此时再次点击「保存并重启」就能写到磁盘上啦～'
+        placeholder: 在这里粘贴 mcp.json...
+      test:
+        title: 测试连接
+        description: 我们会临时把它启动一次，看看命令能不能跑、能列出哪些工具
+        pick-server-label: 服务器
+        no-servers: 还没有可以测试的服务器
+        no-server-selected: 先选一个服务器吧
+        server-disabled: '"{name}" 还是禁用状态哦，先在卡片上启用再测试吧'
+        disabled-suffix: 已禁用
+        untitled: 未命名
+        running: 正在测试…
+        success: 连接成功！发现 {count} 个工具，耗时 {ms}ms
+        failure: 连接失败了，耗时 {ms}ms
+      errors:
+        empty-identifier: 服务器 # {index} is missing an identifier.
+        duplicate-identifier: 标识符 "{name}" 重复了，每个服务器要用不同的名字。
+        empty-command: '"{name}" 还没填启动命令。'
+        invalid-shape: mcp.json 结构不对，最外层得有 "mcpServers" 这个字段。
       messages:
-        opened: 配置文件已于 {path} 打开
-        restarted: >-
-          MCP 服务已重新启动，启动了 {started}，未启动 {failed}，跳过 {skipped}
+        opened: 已经在文件管理器里打开 {path} 啦
+        json-applied: JSON 已经解析完成了，点「保存并重启」就写到磁盘上啦。
+        restarted: 重启好啦！启动了 {started} 个，失败 {failed} 个，跳过 {skipped} 个
   flux:
     title: Flux
     buy: 充值
-    currency: Currency
+    currency: 币种
     description: 充值 Flux
     packagesError: 暂时无法获取可用的 Flux 电量包。可以之后再试试吗？
     checkout:
@@ -554,25 +773,17 @@ pages:
       typeAddition: 充电
       typeConsumption: 用量
       typeInitial: 初始额度
+      typePromo: Promo Grant
       loading: 加载历史...
       empty: 暂无消耗记录
       loadMore: 更多信息
       delayHint: Flux 电量历史记录是缓慢更新的，可能有延迟
-      ttsRequests: requests
+      ttsRequests: 请求
     packages:
       title: Flux 电池包
       buy: 充值
       description: 可以选择购入的 Flux 电池包
   providers:
-    explained:
-      chat: 文本生成模型服务来源，例如 OpenRouter, OpenAI, Ollama
-      Speech: 语音（文本转语音）模型服务来源，例如 ElevenLabs, Azure Speech
-      Transcription: >-
-        转录（语音转文本）模型服务来源，例如 Whisper.cpp, OpenAI, Azure Speech
-    helpinfo:
-      title: 第一次使用？
-      description: >
-        AIRI 需要配置至少一个 {chat} 服务来源，才能正常思考和运作。你可以把它看作是 AIRI 系统中角色的大脑。
     catalog:
       edit:
         config-id-not-found: 未找到服务来源配置。
@@ -668,6 +879,47 @@ pages:
           title: 基础配置
         voice:
           title: 声音配置
+    labels:
+      recommended: 推荐
+    filters:
+      pricing: 价格
+      deployment: 部署
+      all: 全部
+      free: 免费
+      paid: 付费
+      internal: 内部
+      local: 本地
+      cloud: 云端
+    categories:
+      chat:
+        title: 聊天
+        description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+      speech:
+        title: Speech
+        description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
+      transcription:
+        title: Transcription
+        description: >-
+          Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech
+      artistry:
+        title: Artistry
+        description: Image generation and design model providers. e.g. ComfyUI, Replicate.
+        items:
+          comfyui:
+            description: Local image generation runner.
+          replicate:
+            description: Cloud-based model inference service.
+          nanobanana:
+            description: Google AI Studio Image Preview.
+    helpinfo:
+      title: 第一次使用？
+      description: >
+        AIRI 需要配置至少一个 {chat} 服务来源，才能正常思考和运作。你可以把它看作是 AIRI 系统中角色的大脑。
+    explained:
+      chat: 文本生成模型服务来源，例如 OpenRouter, OpenAI, Ollama
+      Speech: 语音（文本转语音）模型服务来源，例如 ElevenLabs, Azure Speech
+      Transcription: >-
+        转录（语音转文本）模型服务来源，例如 Whisper.cpp, OpenAI, Azure Speech
     description: LLM，语音合成，语音识别服务来源等
     provider:
       app-local-audio-transcription:
@@ -685,6 +937,17 @@ pages:
       alibaba-cloud-model-studio:
         description: bailian.console.aliyun.com
         title: 阿里百炼
+      amazon-bedrock:
+        title: Amazon Bedrock
+        description: aws.amazon.com/bedrock
+        config:
+          api-key:
+            label: Bedrock API Key
+            description: Amazon Bedrock API key (generate in AWS Console → Bedrock → API Keys)
+            placeholder: bedrock-...
+          region:
+            label: AWS 区域
+            description: Bedrock 激活的 AWS 区域（例如：us-east-1，us-west-2）
       anthropic:
         description: anthropic.com
         title: Anthropic | Claude
@@ -732,6 +995,98 @@ pages:
       speech-noop:
         title: 无
         description: 不使用语音合成
+      comfyui:
+        settings:
+          title: ComfyUI（本地）
+          heading: ComfyUI 原生 API
+          description: Connect to your local ComfyUI and bring your own workflows.
+          info:
+            what_you_need:
+              label: What You Need
+              value: ComfyUI running locally or on your network.
+            how_to_export:
+              label: How To Export
+              value: Enable Dev Mode → "Save (API Format)".
+            scope_boundary:
+              label: Scope Boundary
+              value: Model downloads & node installs are your job.
+          connection:
+            title: Connection
+            connected: Connected
+            failed: Connection failed
+            error_prefix: Error
+            test: Test
+            testing: Testing...
+            unknown_error: Unknown connection error
+            unknown_gpu: Unknown GPU
+            server_url:
+              label: Server URL
+              description: The address where ComfyUI is running
+              placeholder: http://localhost:8188
+          cors:
+            title: CORS Block Detected
+            description: ComfyUI blocks requests from other applications by default. To allow AIRI to connect, you must start ComfyUI with the `--enable-cors-header "*"` flag.
+            command: python main.py --enable-cors-header "*"
+          workflows:
+            title: Workflow Templates
+            upload: Upload Workflow
+            cancel_upload: Cancel
+            empty: No workflows uploaded yet. Click "Upload Workflow" to import a workflow_api.json from ComfyUI.
+            exposed_parameters: Exposed Parameters
+            summary: '{nodes} nodes · {fields} exposed fields'
+            remove: Remove
+            config_snippet: Artistry Config Snippet
+            copy_json: Copy JSON
+            paste_hint: Paste this into your AIRI Card artistry config to override these nodes.
+          upload:
+            prompt: Drop or select a workflow_api.json file
+            invalid_json: Invalid JSON
+            workflow_name:
+              label: Workflow Name
+              description: Give this workflow a recognizable name
+              placeholder: e.g. Anime Text2Img
+            select_fields: 'Select fields to expose to the AI agent:'
+            fields_exposed: '{count} field(s) exposed'
+            save: Save Workflow
+      replicate:
+        settings:
+          title: Replicate.ai
+          heading: Replicate.ai Configuration
+          description: Configure your cloud image generation settings.
+          api_key:
+            label: API Key
+            description: Your Replicate API token (starts with r8_)
+            placeholder: r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+          default_model:
+            label: Default Model
+            description: Fallback owner/model string to use if the character card doesn't specify one
+            placeholder: black-forest-labs/flux-schnell
+          aspect_ratio:
+            label: Aspect Ratio
+            description: Default image aspect ratio (e.g. 16:9, 1:1, 9:16)
+            placeholder: '16:9'
+          inference_steps:
+            label: Inference Steps
+            description: Number of steps for the diffusion process (lower is faster, higher is better quality)
+      nanobanana:
+        settings:
+          title: Nano Banana
+          heading: Nano Banana (Google AI Studio)
+          description: Configure Google Gemini's native image generation capabilities.
+          api_key:
+            label: API Key
+            description: Your Google AI Studio API Key
+            placeholder: AIpk...
+          preferred_model:
+            label: Preferred Model
+            description: The specific Gemini image preview model to use
+          default_resolution:
+            label: Default Resolution
+            description: The target resolution for generated images
+          model_options:
+            nano_banana_2: Nano Banana 2 (Gemini 3.1 Flash Image)
+            nano_banana_pro: Nano Banana Pro (Gemini 3 Pro Image)
+            nano_banana: Nano Banana (Gemini 2.5 Flash Image)
       deepseek:
         description: DeepSeek.com
         title: 深度求索 DeepSeek
@@ -827,6 +1182,9 @@ pages:
       minimax-speech:
         description: minimax.io
         title: MiniMax Speech
+      mimo:
+        description: api.xiaomimimo.com
+        title: Xiaomi MiMo
       mistral:
         description: mistral.ai
         title: Mistral
@@ -895,6 +1253,15 @@ pages:
               description: 可在控制台获取的 App ID
               label: App ID
         title: 火山引擎
+      volcengine-coding-plan:
+        description: Volcengine Coding Plan
+        title: Volcengine Coding Plan
+      byteplus:
+        description: byteplus.com
+        title: BytePlus
+      byteplus-coding-plan:
+        description: BytePlus Coding Plan
+        title: BytePlus Coding Plan
       xai:
         description: X.AI
         title: xAI
@@ -976,9 +1343,6 @@ pages:
       errors:
         title: 二维码扫描失败
         failed: 扫描或连接二维码失败。
-  scene:
-    description: 配置角色所在环境
-    title: 场景
   system:
     color-scheme:
       description: 更改舞台的配色方案
@@ -1127,6 +1491,28 @@ pages:
         button: 打开
   credits:
     buy: 购买
+  scene:
+    title: 场景
+    description: 自定义角色的虚拟环境。
+    beta_label: 场景系统
+    beta_description: 每个角色卡可以从场景库中指定自己偏好的背景。在此设置将作为当前活跃角色的默认背景。
+    background_image:
+      title: 活跃角色背景
+      no_background: 此角色没有活跃背景。上传正方形或横向图片以获得最佳效果。
+      upload: 上传到场景库
+      change: 更换背景
+      clear: 清除默认
+    gallery:
+      title: 场景库
+      empty: 场景库中还没有图片，从上方上传一张吧！
+      set_as_global: 设为角色默认
+      delete: 从场景库删除
+      global_badge: 角色默认
+      active_badge: 当前场景
+      delete_confirm: 确定要删除这张背景吗？
+    tip:
+      label: 提示！
+      description: 使用正方形图片将在竖屏模式下应用<b>封面</b>裁剪，聚焦场景中心。
 sections:
   section:
     general:

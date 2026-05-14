@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Select } from '@proj-airi/ui'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import Alert from '../misc/alert.vue'
@@ -8,9 +7,6 @@ import VoiceCard from './voice-card.vue'
 const props = withDefaults(defineProps<Props>(), {
   columns: 2,
   searchable: true,
-  filterableByLanguage: false,
-  languageFilterPlaceholder: 'Filter by language',
-  languageFilterAllLabel: 'All languages',
   searchPlaceholder: 'Search voices...',
   searchNoResultsTitle: 'No voices found',
   searchNoResultsDescription: 'Try a different search term',
@@ -25,11 +21,6 @@ const props = withDefaults(defineProps<Props>(), {
   showVisualizer: true,
   listClass: '',
 })
-
-// NOTICE: reka-ui's SelectItem rejects empty-string values (they represent
-// "no value" in Radix primitives). Use a sentinel for the "All languages"
-// option and map back to '' externally.
-const ALL_LANGUAGES_SENTINEL = '__all__'
 
 interface VoiceLanguage {
   name: string
@@ -58,9 +49,6 @@ interface Props {
   voices: Voice[]
   columns?: number
   searchable?: boolean
-  filterableByLanguage?: boolean
-  languageFilterPlaceholder?: string
-  languageFilterAllLabel?: string
   searchPlaceholder?: string
   searchNoResultsTitle?: string
   searchNoResultsDescription?: string
@@ -96,47 +84,14 @@ function initAudioContext() {
 
 const searchQuery = defineModel<string>('search-query', { required: false, default: '' })
 const voiceId = defineModel<string>('voice-id', { required: false, default: '' })
-const languageFilter = defineModel<string>('language-filter', { required: false, default: '' })
-
-// Unique language codes across voices, stable-sorted. Used to populate the
-// optional language filter selector.
-const availableLanguages = computed(() => {
-  const codes = new Set<string>()
-  for (const v of props.voices) {
-    for (const l of v.languages || []) {
-      if (l.code)
-        codes.add(l.code)
-    }
-  }
-  return Array.from(codes).sort()
-})
-
-const languageOptions = computed(() => [
-  { label: props.languageFilterAllLabel, value: ALL_LANGUAGES_SENTINEL },
-  ...availableLanguages.value.map(code => ({ label: code, value: code })),
-])
-
-const languageFilterModel = computed<string>({
-  get: () => languageFilter.value || ALL_LANGUAGES_SENTINEL,
-  set: (v) => {
-    languageFilter.value = v === ALL_LANGUAGES_SENTINEL ? '' : v
-  },
-})
-
-const languageFilteredVoices = computed(() => {
-  if (!props.filterableByLanguage || !languageFilter.value)
-    return props.voices
-  return props.voices.filter(v => (v.languages || []).some(l => l.code === languageFilter.value))
-})
 
 // Filter voices based on search query
 const filteredVoices = computed(() => {
-  const base = languageFilteredVoices.value
   if (!searchQuery.value)
-    return base
+    return props.voices
 
   const query = searchQuery.value.toLowerCase()
-  return base.filter((voice) => {
+  return props.voices.filter((voice) => {
     // Search in name and description
     const nameMatch = voice.name.toLowerCase().includes(query)
     const descMatch = voice.description && voice.description.toLowerCase().includes(query)
@@ -361,15 +316,6 @@ const customVoiceName = ref('')
 
 <template>
   <div class="voice-preview-player">
-    <!-- Language filter -->
-    <div v-if="filterableByLanguage && availableLanguages.length > 1" class="mb-2">
-      <Select
-        v-model="languageFilterModel"
-        :options="languageOptions"
-        :placeholder="languageFilterPlaceholder"
-      />
-    </div>
-
     <!-- Search bar -->
     <div v-if="searchable" class="relative" inline-flex="~" w-full items-center>
       <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">

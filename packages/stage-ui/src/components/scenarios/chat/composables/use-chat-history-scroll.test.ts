@@ -2,8 +2,6 @@
 
 import type { ChatHistoryItem } from '../../../../types/chat'
 
-import assert from 'node:assert/strict'
-
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { effectScope, nextTick, ref } from 'vue'
 
@@ -253,7 +251,9 @@ describe('useChatHistoryScroll', () => {
     scrollIntoView.mockClear()
 
     const firstNode = container.querySelector('[data-chat-message-key="user-1"]')
-    assert.ok(firstNode)
+    expect(firstNode).not.toBeNull()
+    if (!firstNode)
+      throw new Error('Expected first chat node to exist.')
     firstNode.dispatchEvent(new PointerEvent('pointerover', { bubbles: true }))
     await flushDom()
 

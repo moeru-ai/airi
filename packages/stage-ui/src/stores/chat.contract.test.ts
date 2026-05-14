@@ -7,11 +7,18 @@ import { ref } from 'vue'
 
 import { useChatOrchestratorStore } from './chat'
 
+vi.hoisted(() => {
+  ;(globalThis as any).window = {
+    location: {
+      origin: 'http://localhost',
+    },
+  }
+})
+
 const llmStreamMock = vi.fn()
 const trackFirstMessageMock = vi.fn()
 const ingestContextMessageMock = vi.fn()
 const getContextsSnapshotMock = vi.fn()
-const createDatetimeContextMock = vi.fn()
 const createMinecraftContextMock = vi.fn()
 const persistSessionMessagesMock = vi.fn()
 const forkSessionMock = vi.fn()
@@ -101,7 +108,6 @@ vi.mock('../composables/response-categoriser', () => ({
 }))
 
 vi.mock('./chat/context-providers', () => ({
-  createDatetimeContext: () => createDatetimeContextMock(),
   createMinecraftContext: () => createMinecraftContextMock(),
 }))
 
@@ -128,6 +134,9 @@ vi.mock('./chat/session-store', () => ({
     persistSessionMessages: persistSessionMessagesMock,
     getSessionGeneration: () => currentGeneration,
     forkSession: forkSessionMock,
+    // Cloud sync surface used by `chat.ts performSend`. Mocked as a no-op so
+    // the orchestrator contract tests do not need a real WS / cloud mapper.
+    pushMessageToCloud: vi.fn().mockResolvedValue(undefined),
   }),
 }))
 
@@ -149,6 +158,18 @@ vi.mock('./modules/consciousness', () => ({
   }),
 }))
 
+vi.mock('./modules/airi-card', () => ({
+  useAiriCardStore: () => ({
+    activeCard: undefined,
+  }),
+}))
+
+vi.mock('./modules/artistry-autonomous', () => ({
+  useAutonomousArtistryStore: () => ({
+    runArtistTask: vi.fn(),
+  }),
+}))
+
 const provider = {
   chat: () => ({ baseURL: 'https://example.com/' }),
 } as unknown as ChatProvider
@@ -160,7 +181,6 @@ describe('chat orchestrator contract', () => {
     trackFirstMessageMock.mockReset()
     ingestContextMessageMock.mockReset()
     getContextsSnapshotMock.mockReset()
-    createDatetimeContextMock.mockReset()
     createMinecraftContextMock.mockReset()
     createMinecraftContextMock.mockReturnValue(undefined)
     persistSessionMessagesMock.mockReset()
@@ -180,32 +200,25 @@ describe('chat orchestrator contract', () => {
   })
 
   it('keeps hook order and composes context prompt after system message', async () => {
-    const datetimeContext = {
-      id: 'datetime',
-      contextId: 'datetime',
-      source: 'ReplaceSelf',
-      content: 'now',
-      createdAt: 123,
-    }
     const contextsSnapshot = {
-      weather: [
+      'system:weather': [
         {
           id: 'weather',
-          contextId: 'weather',
+          contextId: 'system:weather',
           source: 'ReplaceSelf',
-          content: 'sunny',
+          text: 'sunny',
           createdAt: 456,
         },
       ],
     }
 
-    createDatetimeContextMock.mockReturnValue(datetimeContext)
     getContextsSnapshotMock.mockReturnValue(contextsSnapshot)
 
     let composedMessages: Message[] = []
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, messages: Message[], options: any) => {
       composedMessages = messages
       expect(options.waitForTools).toBe(true)
+      expect(options.captureToolErrors).toBe(true)
 
       await options.onStreamEvent({ type: 'text-delta', text: 'hello' })
       await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
@@ -249,7 +262,12 @@ describe('chat orchestrator contract', () => {
 
     expect(store.sending).toBe(false)
     expect(trackFirstMessageMock).toHaveBeenCalledTimes(1)
-    expect(ingestContextMessageMock).toHaveBeenCalledWith(datetimeContext)
+    // Datetime is no longer pushed through ingestContextMessage; it is now
+    // applied at message-assembly time as a system-prompt anchor + per-message
+    // [HH:MM] prefix. ingestContextMessage should still be called for other
+    // context providers (e.g. minecraft) when they are configured, but not
+    // for datetime in this test (minecraft is mocked to return undefined).
+    expect(ingestContextMessageMock).not.toHaveBeenCalled()
     expect(persistSessionMessagesMock).not.toHaveBeenCalled()
     expect(parserConsumeMock).toHaveBeenCalledWith('hello')
     expect(parserEndMock).toHaveBeenCalledTimes(1)
@@ -268,13 +286,28 @@ describe('chat orchestrator contract', () => {
     expect(composedMessages).toHaveLength(2)
     expect(composedMessages[0]).toMatchObject({ role: 'system' })
     expect(composedMessages[1]).toMatchObject({ role: 'user' })
-    const userMessageContent = (composedMessages[1] as any).content
 
-    expect(userMessageContent[0].text).toBe('hello from user')
+    // System message stays untouched: keeping it 100% static is what makes
+    // the prefix permanently KV-cache friendly across turns and across day
+    // boundaries (the date now lives inside per-message timestamp prefixes
+    // instead of a system anchor).
+    const systemContent = (composedMessages[0] as any).content
+    const systemText = typeof systemContent === 'string' ? systemContent : systemContent.map((p: any) => p.text).join('')
+    expect(systemText).toBe('system prompt')
+
+    // The user turn is prefixed with [YYYY-MM-DD HH:MM]. Both historic and
+    // current turns share the same shape so prefix-cache stays valid when a
+    // "current" turn becomes "historic" on the next send. Side-channel context
+    // (weather) is appended as a separate text part so providers don't see
+    // consecutive same-role messages.
+    const userMessageContent = (composedMessages[1] as any).content
+    expect(userMessageContent[0].text).toMatch(/^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}\] hello from user$/)
 
     const syntheticContextText = userMessageContent[1].text
-    expect(syntheticContextText).toContain('<context>')
-    expect(syntheticContextText).toContain('<module name="weather">')
+    expect(syntheticContextText).not.toContain('<context>')
+    expect(syntheticContextText).not.toContain('<module ')
+    expect(syntheticContextText).toContain('[Context]')
+    expect(syntheticContextText).toContain('- system:weather: sunny')
   })
 
   it('rejects cancelled queued sends before they start', async () => {

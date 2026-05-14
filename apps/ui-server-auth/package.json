@@ -34,6 +34,7 @@
     "@vueuse/core": "^14.2.1",
     "@vueuse/shared": "^14.2.1",
     "animejs": "^4.3.6",
+    "better-auth": "catalog:",
     "colorjs.io": "^0.6.1",
     "culori": "^4.0.2",
     "date-fns": "^4.1.0",

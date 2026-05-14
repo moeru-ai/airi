@@ -5,10 +5,21 @@ import type { WidgetsWindowManager } from '../../../windows/widgets'
 
 import { defineInvokeHandlers } from '@moeru/eventa'
 
-import { widgetsAdd, widgetsClear, widgetsFetch, widgetsOpenWindow, widgetsPrepareWindow, widgetsRemove, widgetsUpdate } from '../../../../shared/eventa'
+import {
+  widgetsAdd,
+  widgetsClear,
+  widgetsFetch,
+  widgetsHideWindow,
+  widgetsIframePublish,
+  widgetsOpenWindow,
+  widgetsPrepareWindow,
+  widgetsRemove,
+  widgetsUpdate,
+} from '../../../../shared/eventa'
 import {
   normalizeOptionalWidgetId,
   normalizeRequiredWidgetId,
+  validateWidgetIframeEvent,
   validateWidgetsAddPayload,
   validateWidgetsUpdatePayload,
 } from './validation'
@@ -49,11 +60,13 @@ export function createWidgetsService(params: { context: ReturnType<typeof create
   defineInvokeHandlers(params.context, {
     widgetsPrepareWindow,
     widgetsOpenWindow,
+    widgetsHideWindow,
     widgetsAdd,
     widgetsUpdate,
     widgetsRemove,
     widgetsClear,
     widgetsFetch,
+    widgetsIframePublish,
   }, {
     widgetsPrepareWindow: async (payload, options) => {
       if (!isFromWindow(options as InvokeOptions, params.window))
@@ -66,6 +79,11 @@ export function createWidgetsService(params: { context: ReturnType<typeof create
         return undefined
       const id = normalizeOptionalWidgetId(payload?.id)
       return params.widgetsManager.openWindow(id ? { id } : undefined)
+    },
+    widgetsHideWindow: async (payload, options) => {
+      if (!isFromWindow(options as InvokeOptions, params.window))
+        return undefined
+      return params.widgetsManager!.hideWindow(payload ?? undefined)
     },
     widgetsAdd: async (payload, options) => {
       if (!isFromWindow(options as InvokeOptions, params.window))
@@ -95,6 +113,12 @@ export function createWidgetsService(params: { context: ReturnType<typeof create
       return params.widgetsManager.getWidgetSnapshot(
         normalizeRequiredWidgetId(payload?.id, 'id is required to fetch a widget snapshot.'),
       )
+    },
+    widgetsIframePublish: async (payload, options) => {
+      if (!isFromWindow(options as InvokeOptions, params.window))
+        return undefined
+      const id = normalizeRequiredWidgetId(payload?.id, 'id is required to publish a widget iframe event.')
+      params.widgetsManager.publishWidgetEvent(id, validateWidgetIframeEvent(payload?.event))
     },
   })
 }

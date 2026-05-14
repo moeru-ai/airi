@@ -3,9 +3,8 @@ import type Redis from 'ioredis'
 import type { AuthInstance } from './libs/auth'
 import type { Database } from './libs/db'
 import type { Env } from './libs/env'
-import type { MqService } from './libs/mq'
-import type { OtelInstance } from './libs/otel'
-import type { BillingEvent } from './services/billing/billing-events'
+import type { OtelInstance } from './otel'
+import type { AdminFluxGrantsService } from './services/admin-flux-grants'
 import type { BillingService } from './services/billing/billing-service'
 import type { FluxMeter } from './services/billing/flux-meter'
 import type { CharacterService } from './services/characters'
@@ -14,14 +13,19 @@ import type { ConfigKVService } from './services/config-kv'
 import type { FluxService } from './services/flux'
 import type { FluxTransactionService } from './services/flux-transaction'
 import type { ProviderService } from './services/providers'
+import type { RequestLogService } from './services/request-log'
 import type { StripeService } from './services/stripe'
+import type { UserDeletionService } from './services/user-deletion'
 import type { HonoEnv } from './types/hono'
 
 import process from 'node:process'
 
+import Stripe from 'stripe'
+
 import { initLogger, LoggerFormat, LoggerLevel, setGlobalHookPostLog, useLogger } from '@guiiai/logg'
 import { serve } from '@hono/node-server'
 import { createNodeWebSocket } from '@hono/node-ws'
+import { httpInstrumentationMiddleware } from '@hono/otel'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
@@ -32,11 +36,12 @@ import { createAuth, getTrustedClientSeedSummaries, seedTrustedClients } from '.
 import { createDrizzle, migrateDatabase } from './libs/db'
 import { parsedEnv } from './libs/env'
 import { initializeExternalDependency } from './libs/external-dependency'
-import { emitOtelLog, initOtel } from './libs/otel'
 import { createRedis } from './libs/redis'
 import { resolveRequestAuth } from './libs/request-auth'
 import { sessionMiddleware } from './middlewares/auth'
-import { otelMiddleware } from './middlewares/otel'
+import { emitOtelLog, initOtel } from './otel'
+import { registerActiveSessionsGauge } from './otel/gauges/active-sessions'
+import { createAdminFluxGrantsRoutes } from './routes/admin/flux-grants'
 import { createAuthRoutes } from './routes/auth'
 import { createCharacterRoutes } from './routes/characters'
 import { createChatWsHandlers } from './routes/chat-ws'
@@ -45,18 +50,21 @@ import { createFluxRoutes } from './routes/flux'
 import { createV1CompletionsRoutes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
-import { createBillingMq } from './services/billing/billing-events'
+import { createAdminFluxGrantsService } from './services/admin-flux-grants'
 import { createBillingService } from './services/billing/billing-service'
 import { createFluxMeter } from './services/billing/flux-meter'
 import { createCharacterService } from './services/characters'
 import { createChatService } from './services/chats'
 import { createConfigKVService } from './services/config-kv'
+import { createEmailService } from './services/email'
 import { createFluxService } from './services/flux'
 import { createFluxTransactionService } from './services/flux-transaction'
 import { createProviderService } from './services/providers'
 import { createRequestLogService } from './services/request-log'
 import { createStripeService } from './services/stripe'
+import { createUserDeletionService } from './services/user-deletion'
 import { ApiError, createInternalError, createUnauthorizedError } from './utils/error'
+import { nanoid } from './utils/id'
 import { getTrustedOrigin } from './utils/origin'
 
 interface AppDeps {
@@ -69,12 +77,14 @@ interface AppDeps {
   fluxTransactionService: FluxTransactionService
   stripeService: StripeService
   billingService: BillingService
+  adminFluxGrantsService: AdminFluxGrantsService
   ttsMeter: FluxMeter
-  billingMq: MqService<BillingEvent>
+  requestLogService: RequestLogService
   configKV: ConfigKVService
   redis: Redis
   env: Env
   otel: OtelInstance | null
+  userDeletionService: UserDeletionService
 }
 
 export async function buildApp(deps: AppDeps) {
@@ -94,19 +104,39 @@ export async function buildApp(deps: AppDeps) {
     .use(
       '/api/*',
       cors({
-        origin: origin => getTrustedOrigin(origin),
+        origin: origin => getTrustedOrigin(origin, deps.env.ADDITIONAL_TRUSTED_ORIGINS),
         credentials: true,
       }),
     )
     .use(honoLogger())
 
   if (deps.otel) {
-    app.use('*', otelMiddleware(deps.otel.http))
+    // @hono/otel records `http.server.request.duration` and
+    // `http.server.active_requests` with the matched Hono route pattern
+    // (auto-instrumentation can't see Hono's router, so it would emit empty
+    // `http.route` and concrete URLs — the previous Latency-by-Route bug).
+    //
+    // /health is Railway's healthcheck pinger — high frequency, zero signal,
+    // skip outright.
+    const otelMw = httpInstrumentationMiddleware({
+      serviceName: deps.env.OTEL_SERVICE_NAME,
+      serviceVersion: process.env.npm_package_version || '0.0.0',
+    })
+    app.use('*', async (c, next) => {
+      if (c.req.path === '/health')
+        return next()
+      return otelMw(c, next)
+    })
   }
 
   // WebSocket setup — must be registered BEFORE bodyLimit middleware
   const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app })
-  const chatWsSetup = createChatWsHandlers(deps.chatService, deps.redis, deps.otel?.engagement ?? null)
+  // Per-process stable id used by the chat-ws sub callback to skip echoes of
+  // its own publishes. Falls back to a random nanoid when ops do not provide
+  // SERVER_INSTANCE_ID, which is fine because we only need uniqueness across
+  // simultaneously-running api instances, not across restarts.
+  const instanceId = process.env.SERVER_INSTANCE_ID || nanoid()
+  const chatWsSetup = createChatWsHandlers(deps.chatService, deps.redis, instanceId, deps.otel?.engagement ?? null)
 
   app.get('/ws/chat', upgradeWebSocket(async (c) => {
     const token = c.req.query('token')
@@ -157,6 +187,18 @@ export async function buildApp(deps: AppDeps) {
     .on('GET', '/health', c => c.json({ status: 'ok' }))
 
     /**
+     * Service identity at the API root. Visitors who land here from a stray
+     * email link, search engine, or copy-pasted URL get a clear pointer to
+     * the actual product UI instead of the framework's default "404 Not Found".
+     */
+    .on('GET', '/', c => c.json({
+      service: 'airi-api',
+      message: 'This is the Project AIRI API server. Visit https://airi.moeru.ai to use the product, or see the docs at https://airi.moeru.ai/docs.',
+      docs: 'https://airi.moeru.ai/docs',
+      ui: 'https://airi.moeru.ai',
+    }))
+
+    /**
      * Auth routes: sign-in page, token auth helpers, electron callback
      * relay, well-known metadata, and better-auth catch-all.
      */
@@ -165,6 +207,7 @@ export async function buildApp(deps: AppDeps) {
       db: deps.db,
       env: deps.env,
       configKV: deps.configKV,
+      rateLimitMetrics: deps.otel?.rateLimit,
     }))
 
     /**
@@ -185,7 +228,7 @@ export async function buildApp(deps: AppDeps) {
     /**
      * V1 routes for official provider.
      */
-    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.billingMq, deps.ttsMeter, deps.redis, deps.env, deps.otel?.genAi))
+    .route('/api/v1/openai', createV1CompletionsRoutes(deps.fluxService, deps.billingService, deps.configKV, deps.requestLogService, deps.ttsMeter, deps.redis, deps.env, deps.otel?.genAi, deps.otel?.revenue, deps.otel?.rateLimit))
 
     /**
      * Flux routes.
@@ -195,7 +238,24 @@ export async function buildApp(deps: AppDeps) {
     /**
      * Stripe routes.
      */
-    .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue))
+    .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue, deps.otel?.rateLimit))
+
+    /**
+     * Admin routes — guarded by `ADMIN_EMAILS` allowlist + verified email.
+     * v1 only includes synchronous one-shot promo flux grants.
+     */
+    .route('/api/admin/flux-grants', createAdminFluxGrantsRoutes(deps.adminFluxGrantsService, deps.env))
+
+    /**
+     * Catch-all 404 in JSON. Replaces hono's default `text/html` "404 Not
+     * Found" so unmatched routes (typos, stale email links, scanners) get a
+     * structured response and a hint at where to go for the real product UI.
+     */
+    .notFound(c => c.json({
+      error: 'NOT_FOUND',
+      message: `No route matched ${c.req.method} ${new URL(c.req.url).pathname}. This is the airi-api server; the product UI lives at https://airi.moeru.ai.`,
+      ui: 'https://airi.moeru.ai',
+    }, 404))
 
   return { app: builtApp, injectWebSocket }
 }
@@ -212,16 +272,14 @@ export async function createApp() {
     emitOtelLog(log.level, log.context, log.message, log.fields as Record<string, string | number | boolean>)
   })
 
+  // NOTICE: OTel SDK lifecycle (start/shutdown) is owned entirely by
+  // instrumentation.ts (preload). This factory only consumes the global
+  // MeterProvider that the preload set up, builds metric handles, and primes
+  // counters. No `lifecycle.onStop(shutdown)` here — preload registers SIGTERM
+  // / SIGINT to flush exporters on its own.
   const otel = injeca.provide('libs:otel', {
-    dependsOn: { env: parsedEnv, lifecycle },
-    build: ({ dependsOn }) => {
-      const o = initOtel(dependsOn.env)
-      if (!o)
-        return null
-
-      dependsOn.lifecycle.appHooks.onStop(() => o.shutdown())
-      return o
-    },
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn }) => initOtel(dependsOn.env),
   })
 
   const db = injeca.provide('datastore:db', {
@@ -285,29 +343,13 @@ export async function createApp() {
     build: ({ dependsOn }) => createConfigKVService(dependsOn.redis),
   })
 
-  const billingMq = injeca.provide('services:billingMq', {
-    dependsOn: { redis, env: parsedEnv },
-    build: ({ dependsOn }) => createBillingMq(dependsOn.redis, {
-      stream: dependsOn.env.BILLING_EVENTS_STREAM,
-    }),
-  })
-
-  const auth = injeca.provide('services:auth', {
-    dependsOn: { db, env: parsedEnv, otel },
-    build: async ({ dependsOn }) => {
-      // Seed trusted OIDC clients into DB so FK constraints on oauth_access_token are satisfied
-      await seedTrustedClients(dependsOn.db, dependsOn.env)
-      const trustedClients = getTrustedClientSeedSummaries(dependsOn.env)
-      logger.withField('apiServerUrl', dependsOn.env.API_SERVER_URL).log('OIDC startup configuration')
-      for (const client of trustedClients) {
-        logger.withFields({
-          clientId: client.clientId,
-          clientName: client.name,
-          redirectUris: client.redirectUris.join(', '),
-        }).log('OIDC trusted client ready')
-      }
-      return createAuth(dependsOn.db, dependsOn.env, dependsOn.otel?.auth)
-    },
+  const emailService = injeca.provide('services:email', {
+    dependsOn: { env: parsedEnv, otel },
+    build: ({ dependsOn }) => createEmailService({
+      apiKey: dependsOn.env.RESEND_API_KEY,
+      fromEmail: dependsOn.env.RESEND_FROM_EMAIL,
+      fromName: dependsOn.env.RESEND_FROM_NAME,
+    }, undefined, dependsOn.otel?.email),
   })
 
   const characterService = injeca.provide('services:characters', {
@@ -326,8 +368,14 @@ export async function createApp() {
   })
 
   const stripeService = injeca.provide('services:stripe', {
-    dependsOn: { db },
-    build: ({ dependsOn }) => createStripeService(dependsOn.db),
+    dependsOn: { db, env: parsedEnv },
+    build: ({ dependsOn }) => {
+      // Stripe SDK is optional — when STRIPE_SECRET_KEY is unset (dev/CI)
+      // billing routes degrade gracefully and the user-deletion pipeline
+      // skips the API cancel call.
+      const stripe = dependsOn.env.STRIPE_SECRET_KEY ? new Stripe(dependsOn.env.STRIPE_SECRET_KEY) : null
+      return createStripeService(dependsOn.db, stripe)
+    },
   })
 
   const fluxTransactionService = injeca.provide('services:fluxTransaction', {
@@ -340,18 +388,67 @@ export async function createApp() {
     build: ({ dependsOn }) => createFluxService(dependsOn.db, dependsOn.redis, dependsOn.configKV),
   })
 
+  // NOTICE:
+  // The deletion service is a thin scheduler that delegates to each business
+  // service's own `deleteAllForUser` method. Adding a new business module:
+  //   1. give it a `deleteAllForUser(userId)` method
+  //   2. add one `service.register(...)` line below
+  // Domain knowledge stays inside each service instead of being copied into
+  // a parallel handler file. See `apps/server/docs/ai-context/account-deletion.md`.
+  const userDeletionService = injeca.provide('services:userDeletion', {
+    dependsOn: { stripeService, fluxService, providerService, characterService, chatService },
+    build: ({ dependsOn }) => {
+      const service = createUserDeletionService()
+      // priority: 10 = external side-effects (Stripe API cancel — unrollable),
+      //           20 = financial / cache state (Flux balance + Redis),
+      //           30 = pure DB soft-delete (no external touch).
+      service.register({ name: 'stripe', priority: 10, softDelete: ({ userId }) => dependsOn.stripeService.deleteAllForUser(userId) })
+      service.register({ name: 'flux', priority: 20, softDelete: ({ userId }) => dependsOn.fluxService.deleteAllForUser(userId) })
+      service.register({ name: 'providers', priority: 30, softDelete: ({ userId }) => dependsOn.providerService.deleteAllForUser(userId) })
+      service.register({ name: 'characters', priority: 30, softDelete: ({ userId }) => dependsOn.characterService.deleteAllForUser(userId) })
+      service.register({ name: 'chats', priority: 30, softDelete: ({ userId }) => dependsOn.chatService.deleteAllForUser(userId) })
+      return service
+    },
+  })
+
+  const auth = injeca.provide('services:auth', {
+    dependsOn: { db, env: parsedEnv, otel, email: emailService, userDeletionService },
+    build: async ({ dependsOn }) => {
+      // Seed trusted OIDC clients into DB so FK constraints on oauth_access_token are satisfied
+      await seedTrustedClients(dependsOn.db, dependsOn.env)
+      const trustedClients = getTrustedClientSeedSummaries(dependsOn.env)
+      logger.withField('apiServerUrl', dependsOn.env.API_SERVER_URL).log('OIDC startup configuration')
+      for (const client of trustedClients) {
+        logger.withFields({
+          clientId: client.clientId,
+          clientName: client.name,
+          redirectUris: client.redirectUris.join(', '),
+        }).log('OIDC trusted client ready')
+      }
+      return createAuth(dependsOn.db, dependsOn.env, dependsOn.email, dependsOn.otel?.auth, dependsOn.userDeletionService)
+    },
+  })
+
   const requestLogService = injeca.provide('services:requestLog', {
     dependsOn: { db },
     build: ({ dependsOn }) => createRequestLogService(dependsOn.db),
   })
 
   const billingService = injeca.provide('services:billing', {
-    dependsOn: { db, redis, billingMq, configKV, otel },
-    build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.billingMq, dependsOn.configKV, dependsOn.otel?.revenue),
+    dependsOn: { db, redis, configKV, otel },
+    build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.configKV, dependsOn.otel?.revenue),
+  })
+
+  const adminFluxGrantsService = injeca.provide('services:adminFluxGrants', {
+    dependsOn: { db, billingService },
+    build: ({ dependsOn }) => createAdminFluxGrantsService({
+      db: dependsOn.db,
+      billingService: dependsOn.billingService,
+    }),
   })
 
   const ttsMeter = injeca.provide('services:ttsMeter', {
-    dependsOn: { redis, billingService, configKV },
+    dependsOn: { redis, billingService, configKV, otel },
     build: ({ dependsOn }) => createFluxMeter(dependsOn.redis, dependsOn.billingService, {
       name: 'tts',
       // Lazy config read: missing FLUX_PER_1K_CHARS_TTS surfaces as a
@@ -365,7 +462,7 @@ export async function createApp() {
           debtTtlSeconds: ttl,
         }
       },
-    }),
+    }, dependsOn.otel?.revenue),
   })
 
   await injeca.start()
@@ -380,13 +477,20 @@ export async function createApp() {
     requestLogService,
     stripeService,
     billingService,
+    adminFluxGrantsService,
     ttsMeter,
-    billingMq,
     configKV,
     redis,
     env: parsedEnv,
     otel,
+    userDeletionService,
   })
+  // Register the cluster-wide ObservableGauge for active sessions. Each
+  // replica polls the same DB (cached 10s, in-flight coalesced) and the
+  // dashboard aggregates with avg(), not sum(). See observability-conventions.md.
+  if (resolved.otel)
+    registerActiveSessionsGauge(resolved.otel.auth.activeSessions, resolved.db, resolved.otel.observability.metricReadErrors)
+
   const { app, injectWebSocket } = await buildApp({
     auth: resolved.auth,
     db: resolved.db,
@@ -397,12 +501,14 @@ export async function createApp() {
     fluxTransactionService: resolved.fluxTransactionService,
     stripeService: resolved.stripeService,
     billingService: resolved.billingService,
+    adminFluxGrantsService: resolved.adminFluxGrantsService,
     ttsMeter: resolved.ttsMeter,
-    billingMq: resolved.billingMq,
+    requestLogService: resolved.requestLogService,
     configKV: resolved.configKV,
     redis: resolved.redis,
     env: resolved.env,
     otel: resolved.otel,
+    userDeletionService: resolved.userDeletionService,
   })
 
   logger.withFields({ hostname: resolved.env.HOST, port: resolved.env.PORT }).log('Server started')

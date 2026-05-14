@@ -97,6 +97,13 @@ export default {
   asarUnpack: [
     '**/*.node',
   ],
+  extraResources: [
+    {
+      from: '../../engines/stage-tamagotchi-godot/build/${os}',
+      to: 'godot-stage',
+      filter: ['**/*'],
+    },
+  ],
   extraMetadata: {
     name: 'ai.moeru.airi',
     main: 'out/main/index.js',

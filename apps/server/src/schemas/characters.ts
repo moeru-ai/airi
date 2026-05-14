@@ -19,8 +19,12 @@ export const character = pgTable(
 
     // TODO: json patch?
 
-    creatorId: text('creator_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
-    ownerId: text('owner_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+    // NOTICE: bare creatorId / ownerId is intentional — no FK to user.id.
+    // better-auth hard-deletes the user row; a cascade would wipe these
+    // soft-delete archive rows.
+    // See `apps/server/docs/ai-context/account-deletion.md`.
+    creatorId: text('creator_id').notNull(),
+    ownerId: text('owner_id').notNull(),
     characterId: text('character_id').notNull(),
     avatarUrl: text('avatar_url'),
     creatorRole: text('creator_role'),

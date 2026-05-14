@@ -2,11 +2,14 @@ import { sql } from 'drizzle-orm'
 import { bigint, index, jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
-import { user } from './accounts'
 
+// NOTICE: ledger is permanent — bare userId (no FK) and no `deletedAt` column,
+// both intentional. Entries must outlive the user row, and better-auth's
+// hard-delete of user.id must not cascade-wipe the ledger.
+// See `apps/server/docs/ai-context/account-deletion.md`.
 export const fluxTransaction = pgTable('flux_transaction', {
   id: text('id').primaryKey().$defaultFn(() => nanoid()),
-  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull(),
   type: text('type').notNull(), // 'credit' | 'debit' | 'initial'
   amount: bigint('amount', { mode: 'number' }).notNull(), // always positive
   balanceBefore: bigint('balance_before', { mode: 'number' }).notNull(),

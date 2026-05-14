@@ -1,10 +1,14 @@
+import type { ChromeSessionManager } from '../chrome-session-manager'
+import type { DesktopSessionController } from '../desktop-session'
 import type { ComputerUseConfig, DesktopExecutor, TerminalRunner } from '../types'
 import type { CdpBridgeManager } from './cdp-manager'
 
 import { platform } from 'node:process'
 
 import { BrowserDomExtensionBridge } from '../browser-dom/extension-bridge'
+import { createChromeSessionManager } from '../chrome-session-manager'
 import { resolveComputerUseConfig } from '../config'
+import { createDesktopSessionController } from '../desktop-session'
 import { createDryRunExecutor } from '../executors/dry-run'
 import { createLinuxX11Executor } from '../executors/linux-x11'
 import { createMacOSLocalExecutor } from '../executors/macos-local'
@@ -30,6 +34,10 @@ export interface ComputerUseServerRuntime {
   stateManager: RunStateManager
   /** High-level task memory for the current session. */
   taskMemory: TaskMemoryManager
+  /** Agent-owned Chrome session lifecycle manager. */
+  chromeSessionManager: ChromeSessionManager
+  /** Desktop session ownership controller. */
+  desktopSessionController: DesktopSessionController
 }
 
 function createExecutor(config: ComputerUseConfig, options: ComputerUseServerOptions = {}): DesktopExecutor {
@@ -77,5 +85,13 @@ export async function createRuntime(config = resolveComputerUseConfig(), options
     cdpBridgeManager,
     stateManager,
     taskMemory,
+    chromeSessionManager: createChromeSessionManager(config, {
+      onSessionLost: () => {
+        // NOTICE: Chrome session loss invalidates the agent-owned CDP endpoint.
+        // Close the bridge proactively so later observe/ensure flows reconnect cleanly.
+        cdpBridgeManager.close().catch(() => {})
+      },
+    }),
+    desktopSessionController: createDesktopSessionController(stateManager),
   } satisfies ComputerUseServerRuntime
 }

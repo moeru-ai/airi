@@ -4,12 +4,8 @@ import type { createAuth } from '../libs/auth'
 import type { Env } from '../libs/env'
 import type { HonoEnv } from '../types/hono'
 
-import { useLogger } from '@guiiai/logg'
-
 import { resolveRequestAuth } from '../libs/request-auth'
 import { createUnauthorizedError } from '../utils/error'
-
-const logger = useLogger('auth')
 
 type AuthInstance = ReturnType<typeof createAuth>
 
@@ -19,12 +15,18 @@ type AuthInstance = ReturnType<typeof createAuth>
  */
 export function sessionMiddleware(auth: AuthInstance, env: Env): MiddlewareHandler<HonoEnv> {
   return async (c, next) => {
-    // NOTICE: auth routes handle session lookup inside better-auth itself.
-    // Running the global session middleware on `/api/auth/*`, `/sign-in`, and
-    // the auth discovery endpoints duplicates the same session read and slows
-    // the OIDC login path (`authorize` → `token` → `get-session`) noticeably.
+    // NOTICE: auth routes handle session lookup inside better-auth itself,
+    // and the ui-server-auth SPA bundle (HTML/JS/CSS + SPA routes like
+    // `/auth/sign-in`, `/auth/verify-email`, …) doesn't need a session
+    // attached either. Running the global session middleware on `/api/auth/*`,
+    // `/auth/*`, and the auth discovery endpoints duplicates the same session
+    // read and slows the OIDC login path (`authorize` → `token` →
+    // `get-session`) noticeably.
+    //
+    // `/auth/` and `/api/auth/` are distinct prefixes — `/api/auth/...`
+    // starts with `/api` and won't be matched by the `/auth/` startsWith.
     if (
-      c.req.path === '/sign-in'
+      c.req.path.startsWith('/auth/')
       || c.req.path.startsWith('/api/auth/')
       || c.req.path === '/.well-known/oauth-authorization-server/api/auth'
     ) {
@@ -54,7 +56,6 @@ export function sessionMiddleware(auth: AuthInstance, env: Env): MiddlewareHandl
 export const authGuard: MiddlewareHandler<HonoEnv> = async (c, next) => {
   const user = c.get('user')
   if (!user) {
-    logger.withFields({ path: c.req.path, method: c.req.method }).debug('Unauthorized request blocked')
     throw createUnauthorizedError()
   }
   await next()

@@ -94,8 +94,7 @@ function formatRelativeTime(timestamp: number | null) {
         <div :class="['max-w-full']">
           <fieldset
             v-if="persistedChatProvidersMetadata.length > 0"
-            :class="['flex', 'min-w-0', 'flex-row', 'gap-4', 'of-x-scroll', 'scroll-smooth']"
-            :style="{ 'scrollbar-width': 'none' }"
+            :class="['flex', 'min-w-0', 'flex-row', 'gap-4', 'of-x-auto', 'scroll-smooth']"
             role="radiogroup"
           >
             <RadioCardSimple

@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/plugin-sdk-tamagotchi",
   "type": "module",
-  "version": "0.9.0",
+  "version": "0.10.2",
   "private": true,
   "description": "Tamagotchi-specific DX helpers for Project AIRI plugins",
   "author": {
@@ -19,6 +19,10 @@
     ".": {
       "types": "./dist/index.d.mts",
       "default": "./dist/index.mjs"
+    },
+    "./widgets": {
+      "types": "./dist/widgets/index.d.mts",
+      "default": "./dist/widgets/index.mjs"
     },
     "./gamelet": {
       "types": "./dist/gamelet/index.d.mts",
@@ -42,6 +46,7 @@
     "build": "tsdown"
   },
   "dependencies": {
+    "@moeru/eventa": "catalog:",
     "@proj-airi/plugin-sdk": "workspace:*",
     "valibot": "catalog:",
     "xsschema": "catalog:"

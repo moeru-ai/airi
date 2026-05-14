@@ -4,29 +4,27 @@ import type { ManifestEntry } from '../../types'
 import { isPlainObject } from 'es-toolkit'
 
 import {
-  buildMountedPluginAssetPath,
-  normalizePluginAssetPath,
-} from '../../asset-mount'
-
-const trailingSlashesPattern = /\/+$/
+  buildMountedStaticAssetPath,
+  normalizeStaticAssetPath,
+} from '../../../http-server/static-assets/paths'
 
 /**
  * Describes one widget iframe asset as seen from the mounted `/ui` route.
  *
  * Use when:
  * - Converting plugin config asset paths into mounted extension asset URLs
- * - Issuing tokens that must validate against route-relative asset paths
+ * - Creating sessions that must validate against route-relative asset paths
  *
  * Expects:
- * - `routeAssetPath` is relative to `/_airi/extensions/:extensionId/ui/`
- * - `tokenPathPrefix` is a directory prefix under that same route, or empty for root
+ * - `routeAssetPath` is relative to `/_airi/extensions/:extensionId/sessions/:assetSessionId/ui/`
+ * - `sessionPathPrefix` is a directory prefix under that same route, or empty for root
  *
  * Returns:
  * - N/A
  */
 export interface WidgetAssetRoute {
   routeAssetPath: string
-  tokenPathPrefix: string
+  sessionPathPrefix: string
 }
 
 function normalizeWidgetAssetPath(assetPath: string): string | undefined {
@@ -39,15 +37,7 @@ function normalizeWidgetAssetPath(assetPath: string): string | undefined {
     ? trimmed.slice(2)
     : trimmed
 
-  return normalizePluginAssetPath(withoutRelativePrefix)
-}
-
-function withSearchParams(url: string, query: Record<string, string>) {
-  const next = new URL(url)
-  for (const [key, value] of Object.entries(query)) {
-    next.searchParams.set(key, value)
-  }
-  return next.toString()
+  return normalizeStaticAssetPath(withoutRelativePrefix)
 }
 
 /**
@@ -55,14 +45,14 @@ function withSearchParams(url: string, query: Record<string, string>) {
  *
  * Use when:
  * - Building mounted widget iframe URLs
- * - Issuing asset tokens that must validate against the `/ui` static asset route
+ * - Creating asset sessions that must validate against the `/ui` static asset route
  * - Keeping widget route semantics owned by the widget kit module
  *
  * Expects:
  * - `assetPath` points to a file-like path under plugin static assets
  *
  * Returns:
- * - The route-relative asset path and the allowed token prefix for that route
+ * - The route-relative asset path and the allowed session prefix for that route
  */
 export function resolveWidgetAssetRoute(assetPath: string): WidgetAssetRoute | undefined {
   const normalized = normalizeWidgetAssetPath(assetPath)
@@ -81,13 +71,13 @@ export function resolveWidgetAssetRoute(assetPath: string): WidgetAssetRoute | u
   if (segments.length <= 1) {
     return {
       routeAssetPath,
-      tokenPathPrefix: routeAssetPath,
+      sessionPathPrefix: normalized.startsWith('ui/') ? '' : routeAssetPath,
     }
   }
 
   return {
     routeAssetPath,
-    tokenPathPrefix: `${segments.slice(0, -1).join('/')}/`,
+    sessionPathPrefix: `${segments.slice(0, -1).join('/')}/`,
   }
 }
 
@@ -96,7 +86,7 @@ export function resolveWidgetAssetRoute(assetPath: string): WidgetAssetRoute | u
  *
  * Use when:
  * - Building plugin inspect snapshots with renderer-consumable widget iframe URLs
- * - Issuing temporary asset tokens for widget-owned iframe assets
+ * - Creating temporary asset sessions for widget-owned iframe assets
  *
  * Expects:
  * - Module config may contain widget iframe `src` or `assetPath` fields
@@ -111,15 +101,15 @@ export function rewriteWidgetModuleAssetUrl(
   manifestEntryByName: Map<string, ManifestEntry>,
   options?: {
     pluginAssetBaseUrl?: string
-    issueAssetToken?: (input: {
+    createAssetSession?: (input: {
       extensionId: string
       version: string
       sessionId: string
       routeAssetPath: string
-      tokenPathPrefix: string
-    }) => string
+      sessionPathPrefix: string
+    }) => Promise<{ assetSessionId: string, url?: string }>
   },
-): PluginHostModuleSummary {
+): Promise<PluginHostModuleSummary> | PluginHostModuleSummary {
   const entry = manifestEntryByName.get(module.ownerPluginId)
   if (!entry) {
     return module
@@ -151,39 +141,39 @@ export function rewriteWidgetModuleAssetUrl(
     return module
   }
 
-  const mountedPath = buildMountedPluginAssetPath({
-    extensionId: entry.manifest.name,
-    assetPath: widgetAssetRoute.routeAssetPath,
-  })
-  if (!mountedPath) {
+  if (!options?.pluginAssetBaseUrl || !options.createAssetSession) {
     return module
   }
 
-  const mountedAbsoluteUrl = options?.pluginAssetBaseUrl
-    ? new URL(mountedPath, `${options.pluginAssetBaseUrl.replace(trailingSlashesPattern, '')}/`).toString()
-    : mountedPath
-  const assetToken = options?.issueAssetToken?.({
-    extensionId: entry.manifest.name,
+  return options.createAssetSession({
+    extensionId: module.ownerPluginId,
     version: entry.version,
     sessionId: module.ownerSessionId,
     routeAssetPath: widgetAssetRoute.routeAssetPath,
-    tokenPathPrefix: widgetAssetRoute.tokenPathPrefix,
-  })
-  const iframeSourceUrl = assetToken
-    ? withSearchParams(mountedAbsoluteUrl, { t: assetToken })
-    : mountedAbsoluteUrl
+    sessionPathPrefix: widgetAssetRoute.sessionPathPrefix,
+  }).then((session) => {
+    const mountedPath = buildMountedStaticAssetPath({
+      extensionId: module.ownerPluginId,
+      assetSessionId: session.assetSessionId,
+      assetPath: widgetAssetRoute.routeAssetPath,
+    })
+    const iframeUrl = session.url ?? (mountedPath ? new URL(mountedPath, options.pluginAssetBaseUrl).toString() : '')
+    if (!iframeUrl) {
+      return module
+    }
 
-  return {
-    ...module,
-    config: {
-      ...config,
-      widget: {
-        ...widgetConfig,
-        iframe: {
-          ...iframeConfig,
-          src: iframeSourceUrl,
+    return {
+      ...module,
+      config: {
+        ...config,
+        widget: {
+          ...widgetConfig,
+          iframe: {
+            ...iframeConfig,
+            src: iframeUrl,
+          },
         },
       },
-    },
-  }
+    }
+  })
 }

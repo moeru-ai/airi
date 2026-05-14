@@ -16,11 +16,11 @@ import './theme-media.css'
 import './theme-kbd.css'
 import './theme-animations.css'
 import './custom-nixie.css'
-import '@fontsource-variable/quicksand'
-import '@fontsource-variable/dm-sans'
-import '@fontsource/dm-mono'
-import '@fontsource/dm-serif-display'
-import '@fontsource-variable/comfortaa'
+import '@fontsource-variable/quicksand/index.css'
+import '@fontsource-variable/dm-sans/index.css'
+import '@fontsource/dm-mono/index.css'
+import '@fontsource/dm-serif-display/index.css'
+import '@fontsource-variable/comfortaa/index.css'
 
 export default {
   Layout,

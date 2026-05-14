@@ -39,14 +39,14 @@ export function setupAboutWindowReusable(params: {
       return { action: 'deny' }
     })
 
-    await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/about'))
-
     await setupAboutWindowElectronInvokes({
       window,
       autoUpdater: params.autoUpdater,
       i18n: params.i18n,
       serverChannel: params.serverChannel,
     })
+
+    await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/about'))
 
     return window
   }).getWindow

@@ -29,6 +29,13 @@ docs:
   'logging-in': Выполняется вход...
   'account': Аккаунт
   'logout': Выйти
+widgets:
+  close: Закрыть виджет
+  empty:
+    title: Нет активных виджетов
+    description: Виджеты появятся здесь, когда появится инструмент или плагин.
+  loading: Загрузка виджета…
+  waiting: Ожидание данных виджета "{id}"…
 notice:
   'fade-on-hover':
     title: Исчезать при наведении

@@ -99,22 +99,6 @@ describe('route middleware', () => {
 
     expect(collectDestinations(event)).toEqual(['label:env=prod'])
   })
-  it('respects explicit empty destinations as an override', () => {
-    const event = createSparkNotifyEvent({
-      data: {
-        id: 'evt-3',
-        eventId: 'spark-3',
-        kind: 'ping',
-        urgency: 'soon',
-        headline: 'hello',
-        destinations: ['module:character'],
-      },
-      route: { destinations: [] },
-    })
-
-    expect(collectDestinations(event)).toEqual([])
-  })
-
   it('treats an explicit empty route destination list as the override', () => {
     const event = createSparkNotifyEvent({
       data: {
@@ -129,6 +113,36 @@ describe('route middleware', () => {
     })
 
     expect(collectDestinations(event)).toEqual([])
+  })
+
+  it('treats an explicit empty data destination list as the override', () => {
+    const event = createSparkNotifyEvent({
+      data: {
+        id: 'evt-data-empty',
+        eventId: 'spark-data-empty',
+        kind: 'ping',
+        urgency: 'soon',
+        headline: 'hello',
+        destinations: [],
+      },
+      route: undefined,
+    })
+
+    expect(collectDestinations(event)).toEqual([])
+  })
+
+  it('ignores primitive data payloads when checking destinations', () => {
+    const event = {
+      type: 'spark:notify',
+      data: 'not-an-object',
+      metadata: {
+        source: { kind: 'plugin', plugin: { id: 'server-runtime' }, id: 'test' },
+        event: { id: 'evt-primitive' },
+      },
+      route: undefined,
+    } as unknown as WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify'], any>
+
+    expect(collectDestinations(event)).toBeUndefined()
   })
 
   it('matches destinations by label selector', () => {

@@ -241,20 +241,146 @@ export async function chunkEmitter(
   }
 }
 
-export function processNarrative(text: string, options?: TtsInputChunkOptions) {
+const BRACKET_MAP: Record<string, string> = {
+  '[': ']',
+  '(': ')',
+  '（': '）',
+  '【': '】',
+  '<': '>',
+}
+
+const OPENERS = Object.keys(BRACKET_MAP)
+const CLOSERS = Object.values(BRACKET_MAP)
+const isUnicodeLetter = (char: string) => /\p{L}/u.test(char)
+
+const NARRATIVE_KEYWORDS = [
+  'laugh',
+  'sigh',
+  'action',
+  'note',
+  'breath',
+  'giggle',
+  'whisper',
+  'cry',
+  'smile',
+  'thought',
+]
+
+export function isProbablyAngleTag(index: number, text: string): boolean {
+  if (text[index] !== '<')
+    return false
+
+  if (text[index + 1] === '/')
+    return true
+
+  const remainder = text.slice(index + 1).toLowerCase()
+  const nextChar = remainder[0]
+  const prevChar = index > 0 ? text[index - 1] : ''
+
+  // 1. 闭合标签 </... 永远判定为标签
+  if (nextChar === '/')
+    return true
+
+  // Lookahead: if followed by num, space or equals, not a label
+  if (nextChar && /[0-9\s=]/.test(nextChar))
+    return false
+
+  if (prevChar && (isUnicodeLetter(prevChar) || /\d/.test(prevChar))) {
+    // fix: check whether remainder is piefix with any keywords, or contains the whole keyword
+    const isLikelyNarrative = NARRATIVE_KEYWORDS.some(kw =>
+      (remainder.length > 1 && kw.startsWith(remainder)) || remainder.startsWith(kw),
+    )
+    return isLikelyNarrative
+  }
+
+  // Lookbehind: if before is non-empty/non-bracket character, then determine as code or any instead of a label
+  if (prevChar && /[^\s([{（【<\])}>）】.,!?;:，。！？；：'"\-_]/.test(prevChar))
+    return false
+
+  return true
+}
+
+export function processNarrative(text: string, options?: TtsInputChunkOptions): string {
   if (!options?.stripNarrative)
     return text
 
-  const regex = /\*(.*?)\*|\[(.*?)\]|\((.*?)\)|（(.*?)）|【(.*?)】|<([^>0-9\s][^>]*)>/g
+  const rangesToRemove: [number, number][] = []
+  const charsToRemove = new Set<number>()
 
-  return text.replace(regex, (match, g1, g2, g3, g4, g5, g6) => {
-    if (options?.keepNarrativeText) {
-      const innerWord = g1 || g2 || g3 || g4 || g5 || g6 || ''
-      return innerWord
+  const stack: { char: string, index: number }[] = []
+  let starOpenIndex = -1
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i]
+
+    if (char === '*') {
+      if (starOpenIndex !== -1) {
+        if (options?.keepNarrativeText) {
+          charsToRemove.add(starOpenIndex)
+          charsToRemove.add(i)
+        }
+        else {
+          rangesToRemove.push([starOpenIndex, i])
+        }
+        starOpenIndex = -1
+      }
+      else {
+        if (!/\s/.test(text[i + 1] || '')) {
+          starOpenIndex = i
+        }
+      }
+      continue
     }
-    return ''
-  })
+
+    if (OPENERS.includes(char)) {
+      if (char === '<' && !isProbablyAngleTag(i, text))
+        continue
+      stack.push({ char, index: i })
+      continue
+    }
+
+    if (CLOSERS.includes(char)) {
+      const last = stack[stack.length - 1]
+      if (last && BRACKET_MAP[last.char] === char) {
+        stack.pop()
+        if (options?.keepNarrativeText) {
+          charsToRemove.add(last.index)
+          charsToRemove.add(i)
+        }
+        else {
+          rangesToRemove.push([last.index, i])
+        }
+      }
+    }
+  }
+
+  let result = ''
+  for (let i = 0; i < text.length; i++) {
+    if (options?.keepNarrativeText) {
+      if (!charsToRemove.has(i)) {
+        result += text[i]
+      }
+    }
+    else {
+      let inRange = false
+      for (const [start, end] of rangesToRemove) {
+        if (i >= start && i <= end) {
+          inRange = true
+          break
+        }
+      }
+      if (!inRange) {
+        result += text[i]
+      }
+    }
+  }
+
+  return result
 }
+
+// ------------------------------------------------------------------
+// Data flow processor
+// ------------------------------------------------------------------
 
 export function createTtsSegmentStream(
   tokens: ReadableStream<TextToken>,
@@ -287,47 +413,32 @@ export function createTtsSegmentStream(
 
             pendingText += value.value
             const stack: string[] = []
-            const pairs: Record<string, string> = {
-              '[': ']',
-              '(': ')',
-              '（': '）',
-              '【': '】',
-              '<': '>',
-            }
-            const openers = Object.keys(pairs)
-            const closers = Object.values(pairs)
 
             for (let i = 0; i < pendingText.length; i++) {
               const char = pendingText[i]
-              if (openers.includes(char)) {
-                // 尖括号启发式过滤：如果是 <3 或 1 < 2，不入栈
-                if (char === '<') {
-                  const nextChar = pendingText[i + 1]
-                  if (nextChar && /[0-9\s]/.test(nextChar))
-                    continue
+              if (OPENERS.includes(char)) {
+                if (char === '<' && !isProbablyAngleTag(i, pendingText)) {
+                  continue
                 }
                 stack.push(char)
               }
-              else if (closers.includes(char)) {
-                // 尝试匹配并弹出栈顶
+              else if (CLOSERS.includes(char)) {
                 const lastOpen = stack[stack.length - 1]
-                if (pairs[lastOpen] === char) {
+                if (lastOpen && BRACKET_MAP[lastOpen] === char) {
                   stack.pop()
                 }
               }
             }
 
-            // 括号是否未闭合：看栈里是否还有剩
             const bracketsUnclosed = stack.length > 0
-
-            // 星号奇偶校验（保留你之前写好的启发式逻辑）
             const starMatch = pendingText.match(/\*([^*]*)$/)
             const starsUnclosed = (pendingText.match(/\*/g) || []).length % 2 !== 0
               && starMatch !== null && !starMatch[1].startsWith(' ')
-
             const hasUnclosed = bracketsUnclosed || starsUnclosed
+            const hasNarrativeUnclosed = stack.some(char => ['[', '【', '<', '（'].includes(char))
+            const fallbackLimit = (options?.stripNarrative && hasNarrativeUnclosed) ? 800 : 200
 
-            if (!hasUnclosed || pendingText.length > 200) {
+            if (!hasUnclosed || pendingText.length > fallbackLimit) {
               const textToEmit = processNarrative(pendingText, options)
               writeBytes(encoder.encode(textToEmit))
               pendingText = ''

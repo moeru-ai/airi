@@ -24,9 +24,10 @@ import {
   useMotionUpdatePluginExpression,
   useMotionUpdatePluginIdleDisable,
   useMotionUpdatePluginIdleFocus,
+  useMotionUpdatePluginLipSync,
 } from '../../../composables/live2d'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
-import { useLive2d } from '../../../stores/live2d'
+import { useL2dViewControl, useLive2d } from '../../../stores/live2d'
 
 const props = withDefaults(defineProps<{
   modelSrc?: string
@@ -34,14 +35,12 @@ const props = withDefaults(defineProps<{
 
   app?: Application
   mouthOpenSize?: number
+  nowSpeaking?: boolean
   width: number
   height: number
   paused?: boolean
   focusAt?: { x: number, y: number }
   disableFocusAt?: boolean
-  xOffset?: number | string
-  yOffset?: number | string
-  scale?: number
   themeColorsHue?: number
   themeColorsHueDynamic?: boolean
   live2dIdleAnimationEnabled?: boolean
@@ -51,6 +50,7 @@ const props = withDefaults(defineProps<{
   live2dShadowEnabled?: boolean
 }>(), {
   mouthOpenSize: 0,
+  nowSpeaking: false,
   paused: false,
   focusAt: () => ({ x: 0, y: 0 }),
   disableFocusAt: false,
@@ -70,17 +70,11 @@ const emits = defineEmits<{
 }>()
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
+const { position, scale } = useL2dViewControl()
 
 function parsePropsOffset() {
-  let xOffset = Number.parseFloat(String(props.xOffset)) || 0
-  let yOffset = Number.parseFloat(String(props.yOffset)) || 0
-
-  if (String(props.xOffset).endsWith('%')) {
-    xOffset = (Number.parseFloat(String(props.xOffset).replace('%', '')) / 100) * props.width
-  }
-  if (String(props.yOffset).endsWith('%')) {
-    yOffset = (Number.parseFloat(String(props.yOffset).replace('%', '')) / 100) * props.height
-  }
+  const xOffset = (position.value.x / 100) * props.width
+  const yOffset = -(position.value.y / 100) * props.height
 
   return {
     xOffset,
@@ -105,6 +99,7 @@ const model = ref<Live2DModel<PixiLive2DInternalModel>>()
 const initialModelWidth = ref<number>(0)
 const initialModelHeight = ref<number>(0)
 const mouthOpenSize = computed(() => Math.max(0, Math.min(100, props.mouthOpenSize)))
+const nowSpeaking = toRef(() => props.nowSpeaking)
 const lastUpdateTime = ref(0)
 
 const { isDark: dark } = useTheme()
@@ -117,10 +112,6 @@ const dropShadowFilter = shallowRef(new DropShadowFilter({
   rotation: 45,
 }))
 
-function getCoreModel() {
-  return model.value!.internalModel.coreModel as any
-}
-
 let resizeAnimation: ReturnType<typeof animate> | undefined
 
 function computeScaleAndPosition() {
@@ -131,14 +122,14 @@ function computeScaleAndPosition() {
 
   const heightScale = (props.height * 0.95 / initialModelHeight.value * offsetFactor)
   const widthScale = (props.width * 0.95 / initialModelWidth.value * offsetFactor)
-  let scale = Math.min(heightScale, widthScale)
+  let minScale = Math.min(heightScale, widthScale)
 
-  if (Number.isNaN(scale) || scale <= 0) {
-    scale = 1e-6
+  if (Number.isNaN(minScale) || minScale <= 0) {
+    minScale = 1e-6
   }
 
   return {
-    scale: scale * props.scale,
+    scale: minScale * scale.value,
     x: (props.width / 2) + offset.value.xOffset,
     y: props.height + offset.value.yOffset,
   }
@@ -378,6 +369,7 @@ async function loadModel() {
     // This ensures blink respects expression state (0 × blinkFactor = 0).
     motionManagerUpdate.register(useMotionUpdatePluginExpression(expressionController), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled), 'final')
+    motionManagerUpdate.register(useMotionUpdatePluginLipSync(mouthOpenSize, nowSpeaking), 'final')
 
     const hookedUpdate = motionManager.update as (model: PixiLive2DInternalModel['coreModel'], now: number) => boolean
     motionManager.update = function (model: PixiLive2DInternalModel['coreModel'], now: number) {
@@ -549,8 +541,7 @@ watch(modelSrcRef, async () => await loadModel(), { immediate: true })
 watch(dark, updateDropShadowFilter, { immediate: true })
 watch([model, themeColorsHue], updateDropShadowFilter)
 watch(live2dShadowEnabled, updateDropShadowFilter)
-watch(offset, () => setScaleAndPosition())
-watch(() => props.scale, () => setScaleAndPosition())
+watch([offset, scale], () => setScaleAndPosition())
 
 // TODO: This is hacky!
 function updateDropShadowFilterLoop() {
@@ -573,7 +564,6 @@ watch([themeColorsHueDynamic, live2dShadowEnabled], ([dynamic, shadowEnabled]) =
   }
 }, { immediate: true })
 
-watch(mouthOpenSize, value => getCoreModel().setParameterValueById('ParamMouthOpenY', value))
 watch(currentMotion, value => setMotion(value.group, value.index))
 watch(paused, value => value ? pixiApp.value?.stop() : pixiApp.value?.start())
 

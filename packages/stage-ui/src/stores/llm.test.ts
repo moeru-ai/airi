@@ -16,12 +16,12 @@ const {
   streamTextMock: vi.fn(),
   mcpMock: vi.fn(async (): Promise<Tool[]> => []),
   debugMock: vi.fn(async (): Promise<Tool[]> => []),
-  createSparkCommandToolMock: vi.fn(async (): Promise<unknown> => ({
+  createSparkCommandToolMock: vi.fn(async (): Promise<unknown> => [{
     name: 'spark',
     description: '',
     parameters: {},
     execute: vi.fn(),
-  })),
+  }]),
 }))
 
 vi.mock('@xsai/model', () => ({
@@ -124,7 +124,7 @@ describe('isToolRelatedError', () => {
     })
   }
 
-  it('keeps stream pending on tool_calls finish when waitForTools is true', async () => {
+  it('resolves from steps while still forwarding tool_calls finish events', async () => {
     let onEvent: ((event: unknown) => Promise<void>) | undefined
     streamTextMock.mockImplementation((options: { onEvent: (event: unknown) => Promise<void> }) => {
       onEvent = options.onEvent
@@ -145,7 +145,7 @@ describe('isToolRelatedError', () => {
     await vi.waitFor(() => expect(onEvent).toBeTypeOf('function'))
     await onEvent!({ type: 'finish', finishReason: 'tool_calls' })
     await Promise.resolve()
-    expect(resolved).toBe(false)
+    expect(resolved).toBe(true)
 
     await onEvent!({ type: 'finish', finishReason: 'stop' })
     await pending
@@ -153,7 +153,7 @@ describe('isToolRelatedError', () => {
     expect(onStreamEvent).toHaveBeenCalledTimes(2)
   })
 
-  it('rejects stream on error event after waitForTools hold', async () => {
+  it('ignores later error events after steps have resolved', async () => {
     let onEvent: ((event: unknown) => Promise<void>) | undefined
     streamTextMock.mockImplementation((options: { onEvent: (event: unknown) => Promise<void> }) => {
       onEvent = options.onEvent
@@ -168,10 +168,10 @@ describe('isToolRelatedError', () => {
     await vi.waitFor(() => expect(onEvent).toBeTypeOf('function'))
     await onEvent!({ type: 'finish', finishReason: 'tool_calls' })
     await onEvent!({ type: 'error', error: new Error('stream failed') })
-    await expect(pending).rejects.toThrow('stream failed')
+    await expect(pending).resolves.toBeUndefined()
   })
 
-  it('keeps builtin tools and auto-disables tools after tool-related errors', async () => {
+  it('keeps builtin tools when stream steps resolve before a tool-related error event', async () => {
     const store = useLLM()
     const llmToolsStore = useLlmToolsStore()
     const customTool = { name: 'custom-tool' } as any
@@ -195,7 +195,7 @@ describe('isToolRelatedError', () => {
 
     await expect(store.stream('model-a', provider, [{ role: 'user', content: 'hello' }] as Message[], {
       tools: [customTool],
-    })).rejects.toThrow('does not support tools')
+    })).resolves.toBeUndefined()
 
     const firstCallTools = streamTextMock.mock.calls[0]?.[0]?.tools
     expect(Array.isArray(firstCallTools)).toBe(true)
@@ -216,7 +216,8 @@ describe('isToolRelatedError', () => {
     })
 
     const secondCallTools = streamTextMock.mock.calls[1]?.[0]?.tools
-    expect(secondCallTools).toBeUndefined()
+    expect(Array.isArray(secondCallTools)).toBe(true)
+    expect(secondCallTools?.map(toolNameFrom)).toContain('runtime_play_chess_match')
   })
 
   it('merges runtime-registered tools from the llm-tools store into the builtin tool resolver', async () => {

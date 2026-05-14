@@ -1,12 +1,19 @@
 chat:
   actions:
-    retry: Volver a intentar
+    retry: Reintentar
   message:
     character-name:
       airi: AIRI
       core-system: Sistema Central
       you: Tu
   reasoning: Razonamiento
+  sessions:
+    title: Conversations
+    new: + New
+    empty: No conversations yet
+    cloud-badge: Synced to cloud
+    new-chat-fallback: New chat
+    delete: Delete conversation
 message: Dile algo...
 send-mode:
   title: Enviar tecla
@@ -49,7 +56,7 @@ promo-banner:
       watermark: Luna
       fallbackLabel: Regalo lunar
       title: 7 días de inicio de sesión
-      eventName: Sign in to claim stardust, avatar frames, and launch gifts.
+      eventName: Inicia sesión para reclamar stardust, marcos de avatar y regalos de lanzamiento.
       date: 03/28 - 04/10
       reward: Hasta 120 Stardust
       cta: Iniciar sesión
@@ -83,10 +90,10 @@ promo-banner:
       title: Actualización del tema primavera
       eventName: Desbloquea los temas de ventana, escritorio y lámparas nocturnas para actualizar tu habitación.
       date: 04/05 - 04/22
-      reward: Free Theme Draw Ticket on Sign-in
+      reward: Ticket de Dibujo de Tema gratis al iniciar sesión
       cta: Ver temas
 waiting: Esperando...
 websocket-status:
-  connected: WebSocket conectado
-  disconnected: WebSocket desconectado
-  open-settings: Abrir ajustes de WebSocket
+  connected: Conectado
+  disconnected: Sin conexión
+  open-settings: Abrir ajustes de conexión

@@ -91,4 +91,107 @@ describe('loadQueue', () => {
     await p
     expect(queue.active).toBeNull()
   })
+
+  describe('cancellation', () => {
+    it('should reject immediately if signal is already aborted', async () => {
+      const queue = createLoadQueue()
+      const controller = new AbortController()
+      controller.abort()
+
+      let loaderCalled = false
+      const promise = queue.enqueue(
+        'already-aborted',
+        1,
+        async () => {
+          loaderCalled = true
+          return 'x'
+        },
+        { signal: controller.signal },
+      )
+
+      await expect(promise).rejects.toMatchObject({ name: 'AbortError' })
+      expect(loaderCalled).toBe(false)
+    })
+
+    it('should remove a pending entry from the queue when its signal aborts', async () => {
+      const queue = createLoadQueue()
+
+      // Hold the queue with a slow loader
+      let releaseHold!: () => void
+      const hold = queue.enqueue('hold', 10, () => new Promise<void>(r => releaseHold = r))
+
+      const controller = new AbortController()
+      let loaderCalled = false
+      const pending = queue.enqueue(
+        'pending',
+        1,
+        async () => {
+          loaderCalled = true
+        },
+        { signal: controller.signal },
+      )
+
+      expect(queue.pending).toContain('pending')
+
+      controller.abort(new Error('cancelled by test'))
+      await expect(pending).rejects.toThrow('cancelled by test')
+      expect(queue.pending).not.toContain('pending')
+      expect(loaderCalled).toBe(false)
+
+      releaseHold()
+      await hold
+    })
+
+    it('should not interrupt an active loader — that is the loader\'s responsibility', async () => {
+      const queue = createLoadQueue()
+      const controller = new AbortController()
+
+      // Loader that honors its own signal
+      const activePromise = queue.enqueue(
+        'active',
+        1,
+        async () => {
+          await new Promise((resolve, reject) => {
+            controller.signal.addEventListener('abort', () => {
+              reject(new Error('loader aborted'))
+            })
+          })
+        },
+        { signal: controller.signal },
+      )
+
+      // Give the loader a tick to start
+      await new Promise(r => setTimeout(r, 5))
+      expect(queue.active).toBe('active')
+
+      controller.abort()
+      await expect(activePromise).rejects.toThrow('loader aborted')
+    })
+
+    it('should recover after a cancelled entry and continue processing subsequent items', async () => {
+      const queue = createLoadQueue()
+
+      // Hold the queue
+      let releaseHold!: () => void
+      const hold = queue.enqueue('hold', 10, () => new Promise<void>(r => releaseHold = r))
+
+      const controller = new AbortController()
+      const cancelled = queue.enqueue(
+        'cancelled',
+        5,
+        async () => 'should-not-run',
+        { signal: controller.signal },
+      )
+
+      const later = queue.enqueue('later', 5, async () => 'later-result')
+
+      controller.abort()
+      await expect(cancelled).rejects.toMatchObject({ name: 'AbortError' })
+
+      releaseHold()
+      await hold
+
+      expect(await later).toBe('later-result')
+    })
+  })
 })

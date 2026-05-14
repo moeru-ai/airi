@@ -2,6 +2,7 @@
 import { defineInvokeHandler } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
+import { artistrySyncConfig } from '@proj-airi/stage-shared'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useInferencePreload } from '@proj-airi/stage-ui/composables'
 import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
@@ -12,13 +13,13 @@ import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { usePerfTracerBridgeStore } from '@proj-airi/stage-ui/stores/perf-tracer-bridge'
 import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from '@proj-airi/stage-ui/stores/plugin-host-capabilities'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
 
@@ -26,8 +27,11 @@ import ResizeHandler from './components/ResizeHandler.vue'
 
 import {
   electronGetServerChannelConfig,
+  electronGodotStageGetStatus,
+  electronGodotStageStatusChanged,
   electronSettingsNavigate,
   electronStartTrackMousePosition,
+  i18nGetLocale,
   i18nSetLocale,
 } from '../shared/eventa'
 import {
@@ -46,13 +50,13 @@ import {
 } from '../shared/eventa/plugin/host'
 import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-callback'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
+import { useLanguage } from './composables/use-language'
 import { useTamagotchiMcpToolsStore } from './stores/mcp-tools'
 import { useTamagotchiPluginToolsStore } from './stores/plugin-tools'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 
 const { isDark: dark } = useTheme()
-const i18n = useI18n()
 const contextBridgeStore = useContextBridgeStore()
 const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
@@ -71,6 +75,8 @@ const mcpToolsStore = useTamagotchiMcpToolsStore()
 const pluginToolsStore = useTamagotchiPluginToolsStore()
 const stageWindowLifecycleStore = useStageWindowLifecycleStore()
 const settingsAudioDeviceStore = useSettingsAudioDevice()
+const artistryStore = useArtistryStore()
+const { activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions } = storeToRefs(artistryStore)
 const context = useElectronEventaContext()
 usePerfTracerBridgeStore()
 initializeStageThreeRuntimeTraceBridge()
@@ -86,9 +92,23 @@ const unloadPlugin = useElectronEventaInvoke(electronPluginUnload)
 const inspectPluginHost = useElectronEventaInvoke(electronPluginInspect)
 const startTrackingCursorPoint = useElectronEventaInvoke(electronStartTrackMousePosition)
 const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapability)
+const getMainLocale = useElectronEventaInvoke(i18nGetLocale)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
+const getGodotStageStatus = useElectronEventaInvoke(electronGodotStageGetStatus)
+const syncArtistryConfig = useElectronEventaInvoke(artistrySyncConfig)
 const isChatWindowRoute = () => route.path === '/chat'
+const isGodotStageRoute = () => route.path === '/' || route.path.startsWith('/settings')
 const isWidgetsWindowRoute = () => route.path === '/widgets'
+
+function syncGodotStageRenderer(state: { state: 'stopped' | 'starting' | 'running' | 'stopping' | 'error' }) {
+  if (state.state === 'running') {
+    settingsStore.setStageModelRenderer('godot')
+    return
+  }
+
+  if ((state.state === 'stopped' || state.state === 'error') && settingsStore.stageModelRenderer === 'godot')
+    settingsStore.restoreBuiltInStageModelRenderer()
+}
 
 async function refreshPluginRuntimeTools() {
   try {
@@ -137,10 +157,19 @@ void mcpToolsStore.refresh().catch((error) => {
 })
 void refreshPluginRuntimeTools()
 
-watch(language, () => {
-  i18n.locale.value = language.value
-  setLocale(language.value)
-})
+const { restore: restoreLocale } = useLanguage(language, getMainLocale, setLocale)
+
+watch([activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions], () => {
+  if (activeProvider.value) {
+    void syncArtistryConfig({
+      provider: activeProvider.value as string,
+      globals: JSON.parse(JSON.stringify(artistryGlobals.value)),
+      model: activeModel.value,
+      promptPrefix: defaultPromptPrefix.value,
+      options: providerOptions.value,
+    })
+  }
+}, { deep: true, immediate: true })
 
 const { updateThemeColor } = useThemeColor(themeColorFromValue({ light: 'rgb(255 255 255)', dark: 'rgb(18 18 18)' }))
 watch(dark, () => updateThemeColor(), { immediate: true })
@@ -158,7 +187,23 @@ context.value.on(electronSettingsNavigate, (event) => {
   })
 })
 
+context.value.on(electronGodotStageStatusChanged, (event) => {
+  if (!event.body) {
+    return
+  }
+
+  syncGodotStageRenderer(event.body)
+})
+
 onMounted(async () => {
+  // NOTICE: Issue #1658
+  // When Electron restarts, renderer localStorage may not be flushed to disk.
+  // The store's onMounted hook falls back to navigator.language, which triggers
+  // watch(language) and overwrites the main-process config with the OS locale.
+  // We must restore the correct locale from main process before allowing sync.
+  // https://github.com/moeru-ai/airi/issues/1658
+  await restoreLocale()
+
   analyticsStore.initialize()
   await displayModelsStore.initialize()
   cardStore.initialize()
@@ -167,6 +212,15 @@ onMounted(async () => {
   await displayModelsStore.loadDisplayModelsFromIndexedDB()
   await settingsStore.initializeStageModel()
   await settingsAudioDeviceStore.initialize()
+
+  if (isGodotStageRoute()) {
+    try {
+      syncGodotStageRenderer(await getGodotStageStatus())
+    }
+    catch (error) {
+      console.warn('[App] Failed to fetch Godot stage status:', error)
+    }
+  }
 
   const serverChannelConfig = await getServerChannelConfig()
   serverChannelSettingsStore.tlsConfig = serverChannelConfig.tlsConfig ?? null

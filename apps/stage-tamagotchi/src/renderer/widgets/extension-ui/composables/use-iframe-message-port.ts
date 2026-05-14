@@ -1,17 +1,78 @@
+import type { WidgetsIframeInitPayload } from '@proj-airi/plugin-sdk-tamagotchi/widgets'
 import type { MaybeElementRef } from '@vueuse/core'
 import type { ComputedRef } from 'vue'
 
 import type { PluginHostModuleSummary } from '../../../../shared/eventa/plugin/host'
 
-import { unrefElement } from '@vueuse/core'
-import { onBeforeUnmount, shallowRef, watch } from 'vue'
-
+import { createContext } from '@moeru/eventa/adapters/window-message'
+import { errorMessageFrom } from '@moeru/std'
 import {
-  extensionUiBridgeEventaChannel,
-  extensionUiBridgeInitEvent,
-  extensionUiBridgeReadyEvent,
-} from '../shared/eventa'
-import { createWindowMessageEventaContext } from '../shared/eventa-runtime'
+  widgetsIframeChannel,
+  widgetsIframeInitEvent,
+  widgetsIframePublishEvent,
+  widgetsIframeReadyEvent,
+} from '@proj-airi/plugin-sdk-tamagotchi/widgets'
+import { unrefElement } from '@vueuse/core'
+import { onBeforeUnmount, shallowRef, toRaw, watch } from 'vue'
+
+function toWidgetsIframePostMessageValue(value: unknown, seen = new WeakSet<object>()): unknown {
+  if (value == null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return value
+  }
+
+  if (typeof value === 'bigint') {
+    return value
+  }
+
+  if (typeof value === 'function' || typeof value === 'symbol') {
+    return undefined
+  }
+
+  const raw = toRaw(value)
+  if (!raw || typeof raw !== 'object') {
+    return raw
+  }
+
+  if (seen.has(raw)) {
+    return undefined
+  }
+  seen.add(raw)
+
+  if (Array.isArray(raw)) {
+    const arrayValue = raw.map(item => toWidgetsIframePostMessageValue(item, seen))
+    seen.delete(raw)
+    return arrayValue
+  }
+
+  if (raw instanceof Date) {
+    seen.delete(raw)
+    return raw.toISOString()
+  }
+
+  const recordValue = Object.fromEntries(
+    Object.entries(raw as Record<string, unknown>)
+      .map(([key, entry]) => [key, toWidgetsIframePostMessageValue(entry, seen)])
+      .filter(([, entry]) => entry !== undefined),
+  )
+  seen.delete(raw)
+  return recordValue
+}
+
+/**
+ * Normalizes extension iframe payload records into structured-clone-safe data.
+ *
+ * Before:
+ * - Vue reactive proxy records containing nested proxies or callback fields
+ *
+ * After:
+ * - Plain records that can be passed to `window.postMessage`
+ */
+export function toWidgetsIframePostMessageRecord(value: unknown): Record<string, unknown> {
+  const normalized = toWidgetsIframePostMessageValue(value)
+  return normalized && typeof normalized === 'object' && !Array.isArray(normalized)
+    ? normalized as Record<string, unknown>
+    : {}
+}
 
 /**
  * Manages typed parent-to-iframe messaging for one extension UI iframe.
@@ -37,12 +98,13 @@ export function useIframeMessagePort(
     moduleSnapshot: ComputedRef<PluginHostModuleSummary | undefined>
     moduleConfig: ComputedRef<Record<string, unknown>>
     propsPayload: ComputedRef<Record<string, unknown>>
+    onPublish?: (event: Record<string, unknown>) => void | Promise<void>
   },
 ) {
   const iframeLoadError = shallowRef<string>()
 
-  const iframeRuntime = createWindowMessageEventaContext({
-    channel: extensionUiBridgeEventaChannel,
+  const iframeRuntime = createContext({
+    channel: widgetsIframeChannel,
     currentWindow: window,
     expectedSource: () => {
       const iframeElement = unrefElement(target)
@@ -54,17 +116,29 @@ export function useIframeMessagePort(
     },
   })
 
-  function createInitPayload() {
+  function createInitPayload(): WidgetsIframeInitPayload {
+    const module = options.moduleSnapshot.value
     return {
-      moduleId: options.moduleSnapshot.value?.moduleId,
-      module: options.moduleSnapshot.value,
-      config: options.moduleConfig.value,
-      props: options.propsPayload.value,
+      moduleId: module?.moduleId,
+      module: module ? toWidgetsIframePostMessageRecord(module) : undefined,
+      config: toWidgetsIframePostMessageRecord(options.moduleConfig.value),
+      props: toWidgetsIframePostMessageRecord(options.propsPayload.value),
     }
   }
 
   function emitInitPayload() {
-    iframeRuntime.context.emit(extensionUiBridgeInitEvent, createInitPayload())
+    try {
+      iframeRuntime.context.emit(widgetsIframeInitEvent, createInitPayload())
+    }
+    catch (error) {
+      const message = errorMessageFrom(error) ?? 'Failed to send extension UI iframe init payload.'
+      iframeLoadError.value = message
+      console.error('[extension-ui] Failed to emit iframe init payload', {
+        error,
+        errorMessage: message,
+        moduleId: options.moduleId.value,
+      })
+    }
   }
 
   function onIframeLoad() {
@@ -76,8 +150,16 @@ export function useIframeMessagePort(
     iframeLoadError.value = 'Failed to load extension UI iframe source.'
   }
 
-  iframeRuntime.context.on(extensionUiBridgeReadyEvent, () => {
+  iframeRuntime.context.on(widgetsIframeReadyEvent, () => {
     emitInitPayload()
+  })
+
+  iframeRuntime.context.on(widgetsIframePublishEvent, (event) => {
+    if (!event.body || typeof event.body !== 'object' || Array.isArray(event.body)) {
+      return
+    }
+
+    void options.onPublish?.(event.body as Record<string, unknown>)
   })
 
   watch(options.moduleId, () => {

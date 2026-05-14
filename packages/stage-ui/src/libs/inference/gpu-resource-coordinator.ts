@@ -7,7 +7,12 @@
  *
  * Emits memory pressure events when allocation nears the budget
  * so consumers can decide to unload LRU models or fall back to WASM.
+ *
+ * Also records device-loss telemetry so adapters can coordinate
+ * cross-model WASM fallback decisions.
  */
+
+import type { DeviceLossReason } from './protocol'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -29,6 +34,21 @@ export interface GPUResourceUsage {
   budget: number
   /** Currently loaded model IDs */
   models: string[]
+}
+
+export interface DeviceLossEvent {
+  modelId: string
+  reason: DeviceLossReason
+  occurredAt: number
+}
+
+export interface DeviceLossMetrics {
+  /** Total device-loss events recorded across all models */
+  totalCount: number
+  /** Per-model device-loss counts */
+  byModel: Record<string, number>
+  /** Most recent event, or null if none recorded */
+  lastEvent: DeviceLossEvent | null
 }
 
 export interface GPUResourceCoordinator {
@@ -58,6 +78,22 @@ export interface GPUResourceCoordinator {
    * Returns an unsubscribe function.
    */
   onMemoryPressure: (handler: (level: MemoryPressureLevel) => void) => () => void
+
+  /**
+   * Record a WebGPU device-loss event. Adapters call this from their error
+   * handlers when they detect a DEVICE_LOST error so the coordinator can
+   * maintain cross-model telemetry.
+   */
+  recordDeviceLoss: (event: DeviceLossEvent) => void
+
+  /** Get current device-loss telemetry across all models */
+  getDeviceLossMetrics: () => DeviceLossMetrics
+
+  /**
+   * Subscribe to device-loss events. Fired after `recordDeviceLoss()`.
+   * Returns an unsubscribe function.
+   */
+  onDeviceLoss: (handler: (event: DeviceLossEvent) => void) => () => void
 }
 
 // ---------------------------------------------------------------------------
@@ -78,6 +114,10 @@ export function createGPUResourceCoordinator(
   const budget = estimatedVRAM > 0 ? estimatedVRAM * BUDGET_SAFETY_FACTOR : Number.POSITIVE_INFINITY
   const allocations = new Map<string, AllocationToken>()
   const pressureHandlers = new Set<(level: MemoryPressureLevel) => void>()
+  const deviceLossHandlers = new Set<(event: DeviceLossEvent) => void>()
+  const deviceLossByModel = new Map<string, number>()
+  let deviceLossTotal = 0
+  let lastDeviceLossEvent: DeviceLossEvent | null = null
 
   function getAllocated(): number {
     let total = 0
@@ -154,6 +194,27 @@ export function createGPUResourceCoordinator(
     return () => pressureHandlers.delete(handler)
   }
 
+  function recordDeviceLoss(event: DeviceLossEvent): void {
+    deviceLossTotal++
+    deviceLossByModel.set(event.modelId, (deviceLossByModel.get(event.modelId) ?? 0) + 1)
+    lastDeviceLossEvent = event
+    for (const handler of deviceLossHandlers)
+      handler(event)
+  }
+
+  function getDeviceLossMetrics(): DeviceLossMetrics {
+    return {
+      totalCount: deviceLossTotal,
+      byModel: Object.fromEntries(deviceLossByModel),
+      lastEvent: lastDeviceLossEvent,
+    }
+  }
+
+  function onDeviceLoss(handler: (event: DeviceLossEvent) => void): () => void {
+    deviceLossHandlers.add(handler)
+    return () => deviceLossHandlers.delete(handler)
+  }
+
   return {
     requestAllocation,
     release,
@@ -161,5 +222,8 @@ export function createGPUResourceCoordinator(
     getUsage,
     getLRUModel,
     onMemoryPressure,
+    recordDeviceLoss,
+    getDeviceLossMetrics,
+    onDeviceLoss,
   }
 }

@@ -1,3 +1,4 @@
+import type { MultiDisplaySnapshot } from './display'
 import type {
   ComputerUseConfig,
   CoordinateSpaceInfo,
@@ -12,6 +13,7 @@ import { hostname } from 'node:os'
 import { basename } from 'node:path'
 import { argv, pid, platform, ppid, title } from 'node:process'
 
+import { enumerateDisplays } from './display'
 import { runProcess } from './utils/process'
 import { runSwiftScript } from './utils/swift'
 
@@ -43,6 +45,53 @@ export function resolveLaunchContext(config: ComputerUseConfig): LaunchContext {
   }
 }
 
+/**
+ * Builds the public runtime display facts from the native display snapshot.
+ *
+ * Use when:
+ * - Publishing display facts through desktop capabilities/state
+ * - Preserving legacy main-display fields while exposing multi-display bounds
+ *
+ * Expects:
+ * - `snapshot` uses AIRI's top-left global logical coordinate space
+ *
+ * Returns:
+ * - DisplayInfo with legacy main-display fields and complete display list
+ */
+export function buildDisplayInfoFromSnapshot(
+  snapshot: MultiDisplaySnapshot,
+  targetPlatform: NodeJS.Platform = platform,
+): DisplayInfo {
+  const mainDisplay = snapshot.displays.find(display => display.isMain) ?? snapshot.displays[0]
+
+  if (!mainDisplay) {
+    return {
+      available: false,
+      platform: targetPlatform,
+      displayCount: 0,
+      displays: [],
+      combinedBounds: snapshot.combinedBounds,
+      capturedAt: snapshot.capturedAt,
+      note: 'display enumeration returned no connected displays',
+    }
+  }
+
+  return {
+    available: true,
+    platform: targetPlatform,
+    logicalWidth: mainDisplay.bounds.width,
+    logicalHeight: mainDisplay.bounds.height,
+    pixelWidth: mainDisplay.pixelWidth,
+    pixelHeight: mainDisplay.pixelHeight,
+    scaleFactor: mainDisplay.scaleFactor,
+    isRetina: mainDisplay.scaleFactor > 1,
+    displayCount: snapshot.displays.length,
+    displays: snapshot.displays,
+    combinedBounds: snapshot.combinedBounds,
+    capturedAt: snapshot.capturedAt,
+  }
+}
+
 export async function probeDisplayInfo(config: ComputerUseConfig): Promise<DisplayInfo> {
   if (platform !== 'darwin') {
     return {
@@ -52,43 +101,8 @@ export async function probeDisplayInfo(config: ComputerUseConfig): Promise<Displ
     }
   }
 
-  const script = `
-import AppKit
-import Foundation
-
-guard let screen = NSScreen.main else {
-  print("{\\"available\\":false,\\"note\\":\\"NSScreen.main unavailable\\"}")
-  exit(0)
-}
-
-let frame = screen.frame
-let scale = screen.backingScaleFactor
-let payload: [String: Any] = [
-  "available": true,
-  "logicalWidth": Int(frame.width),
-  "logicalHeight": Int(frame.height),
-  "pixelWidth": Int(frame.width * scale),
-  "pixelHeight": Int(frame.height * scale),
-  "scaleFactor": scale,
-  "isRetina": scale > 1.0
-]
-
-let data = try JSONSerialization.data(withJSONObject: payload, options: [])
-print(String(data: data, encoding: .utf8)!)
-`
-
   try {
-    const { stdout } = await runSwiftScript({
-      swiftBinary: config.binaries.swift,
-      timeoutMs: config.timeoutMs,
-      source: script,
-    })
-    const parsed = JSON.parse(stdout.trim()) as Omit<DisplayInfo, 'platform'>
-
-    return {
-      platform,
-      ...parsed,
-    }
+    return buildDisplayInfoFromSnapshot(await enumerateDisplays(config), platform)
   }
   catch (error) {
     return {

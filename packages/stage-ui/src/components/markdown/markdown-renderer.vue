@@ -7,7 +7,7 @@ import { useMarkdown } from '../../composables/markdown'
 
 interface Props {
   content: string
-  class?: string
+  class?: string | string[]
 }
 
 const props = defineProps<Props>()

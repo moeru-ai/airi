@@ -26,6 +26,7 @@ describe('plugin-sdk-tamagotchi', () => {
         gamelets: {
           open: openGamelet,
           configure: configureGamelet,
+          request: vi.fn(async () => ({})),
           close: closeGamelet,
           isOpen: isGameletOpen,
         },
@@ -127,9 +128,10 @@ describe('plugin-sdk-tamagotchi', () => {
           type: 'object',
           properties: expect.objectContaining({
             opening: expect.objectContaining({
-              type: 'string',
+              type: ['string', 'null'],
             }),
           }),
+          required: ['opening'],
         }),
       }),
     }))
@@ -159,6 +161,7 @@ describe('plugin-sdk-tamagotchi', () => {
         gamelets: {
           open: openGamelet,
           configure: configureGamelet,
+          request: vi.fn(async () => ({ ready: true })),
           close: closeGamelet,
           isOpen: isGameletOpen,
         },
@@ -181,6 +184,7 @@ describe('plugin-sdk-tamagotchi', () => {
           async execute(_input, context) {
             await context.gamelets.open('chess', { opening: 'sicilian' })
             await context.gamelets.configure('chess', { side: 'black' })
+            await context.gamelets.request('chess', { action: 'snapshot' })
             await context.gamelets.close('chess')
 
             return { ok: true }
@@ -195,9 +199,53 @@ describe('plugin-sdk-tamagotchi', () => {
     await expect(registration?.execute({})).resolves.toEqual({ ok: true })
 
     expect(isGameletOpen).toHaveBeenCalledWith('chess')
+    expect(registration.availability).toBeTypeOf('function')
     expect(openGamelet).toHaveBeenCalledWith('chess', { opening: 'sicilian' })
     expect(configureGamelet).toHaveBeenCalledWith('chess', { side: 'black' })
+    expect(ctx.apis.gamelets.request).toHaveBeenCalledWith('chess', { action: 'snapshot' })
     expect(closeGamelet).toHaveBeenCalledWith('chess')
+  })
+
+  /**
+   * @example
+   * expect(tool.parameters.required).toEqual(Object.keys(tool.parameters.properties))
+   */
+  it('serializes optional tool fields as required nullable properties for strict OpenAI-compatible schemas', async () => {
+    const registerTool = vi.fn()
+    const ctx: TamagotchiToolContext = {
+      apis: {
+        gamelets: {
+          open: vi.fn(),
+          configure: vi.fn(),
+          request: vi.fn(async () => ({})),
+          close: vi.fn(),
+          isOpen: vi.fn(() => true),
+        },
+        tools: {
+          register: registerTool,
+        },
+      },
+    }
+
+    await defineToolset(ctx, {
+      tools: [
+        {
+          id: 'play_chess',
+          title: 'Play Chess',
+          description: 'Open chess.',
+          inputSchema: object({
+            mode: string(),
+            opening: optional(string()),
+          }),
+          execute: async () => ({ ok: true }),
+        },
+      ],
+    })
+
+    const parameters = registerTool.mock.calls[0]?.[0].tool.parameters
+
+    expect(parameters.required).toEqual(['mode', 'opening'])
+    expect(parameters.properties.opening.type).toEqual(['string', 'null'])
   })
 
   /**

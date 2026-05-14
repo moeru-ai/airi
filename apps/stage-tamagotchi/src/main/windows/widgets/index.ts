@@ -124,6 +124,7 @@ export interface WidgetsWindowManager {
    * - Resolves after the registry, renderer, and child windows have been cleared
    */
   clearWidgets: () => Promise<void>
+  hideWindow: (params?: { id?: string }) => Promise<void>
   /**
    * Reads the current snapshot for a single widget id.
    *
@@ -137,6 +138,8 @@ export interface WidgetsWindowManager {
    * - The current snapshot, or `undefined` when the widget is unknown
    */
   getWidgetSnapshot: (id: string) => WidgetSnapshot | undefined
+  publishWidgetEvent: (id: string, event: Record<string, unknown>) => void
+  onWidgetEvent: (listener: (event: { id: string, event: Record<string, unknown> }) => void) => () => void
   /**
    * Reserves a widget id before content is pushed into the widgets window.
    *
@@ -261,6 +264,7 @@ export function setupWidgetsWindowManager(params: {
 
   let eventaContext: ReturnType<typeof createContext>['context'] | undefined
   const widgetRecords = new Map<string, WidgetRecord>()
+  const widgetEventListeners = new Set<(event: { id: string, event: Record<string, unknown> }) => void>()
   const windowContexts = new Map<string, WidgetWindowContext>()
 
   const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
@@ -308,14 +312,14 @@ export function setupWidgetsWindowManager(params: {
     window.on('move', persist)
 
     const initialRoute = pendingRoute ?? defaultRoute
-    await loadWithRoute(window, initialRoute)
-
     await setupWidgetsWindowInvokes({
       widgetWindow: window,
       widgetsManager: widgetsManager!,
       i18n: params.i18n,
       serverChannel: params.serverChannel,
     })
+
+    await loadWithRoute(window, initialRoute)
 
     pendingRoute = undefined
 
@@ -434,8 +438,8 @@ export function setupWidgetsWindowManager(params: {
     const minHeight = clamp(windowSize.minHeight ?? 160, 1, work.height)
     const maxWidth = clamp(windowSize.maxWidth ?? work.width, minWidth, work.width)
     const maxHeight = clamp(windowSize.maxHeight ?? work.height, minHeight, work.height)
-    const width = clamp(windowSize.width, minWidth, maxWidth)
-    const height = clamp(windowSize.height, minHeight, maxHeight)
+    const width = clamp(windowSize.width ?? minWidth, minWidth, maxWidth)
+    const height = clamp(windowSize.height ?? minHeight, minHeight, maxHeight)
     const currentBounds = window.getBounds()
 
     window.setMinimumSize(minWidth, minHeight)
@@ -654,6 +658,27 @@ export function setupWidgetsWindowManager(params: {
     return toSnapshot(record)
   }
 
+  function publishWidgetEvent(id: string, event: Record<string, unknown>) {
+    for (const listener of widgetEventListeners) {
+      listener({ id, event })
+    }
+  }
+
+  function onWidgetEvent(listener: (event: { id: string, event: Record<string, unknown> }) => void) {
+    widgetEventListeners.add(listener)
+    return () => {
+      widgetEventListeners.delete(listener)
+    }
+  }
+
+  async function hideWindow(params?: { id?: string }) {
+    const id = params?.id
+    const context = id ? windowContexts.get(id) : undefined
+    const window = context?.window || activeWidgetsWindow
+    if (window && !window.isDestroyed())
+      window.hide()
+  }
+
   widgetsManager = {
     getWindow,
     openWindow,
@@ -661,7 +686,10 @@ export function setupWidgetsWindowManager(params: {
     updateWidget,
     removeWidget,
     clearWidgets,
+    hideWindow,
     getWidgetSnapshot,
+    publishWidgetEvent,
+    onWidgetEvent,
     prepareWidgetWindow,
   }
 

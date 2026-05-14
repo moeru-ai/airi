@@ -9,12 +9,50 @@ ZipLoader.zipReader = (data: Blob, _url: string) => JSZip.loadAsync(data)
 const defaultCreateSettings = ZipLoader.createSettings
 ZipLoader.createSettings = async (reader: JSZip) => {
   const filePaths = Object.keys(reader.files)
+  const settings = await (async () => {
+    if (!filePaths.some(file => isSettingsFile(file))) {
+      return createFakeSettings(filePaths)
+    }
+    return defaultCreateSettings(reader)
+  })()
 
-  if (!filePaths.some(file => isSettingsFile(file))) {
-    return createFakeSettings(filePaths)
+  // Extract CDI data from the zip if available
+  try {
+    const metadataSettings = settings as ModelSettings & {
+      _cdiData?: unknown
+      _expFiles?: Array<{ name: string, fileName: string, data: unknown }>
+    }
+
+    // Find and parse CDI file
+    const cdiPath = filePaths.find(f => f.toLowerCase().endsWith('.cdi3.json'))
+    if (cdiPath) {
+      const cdiText = await reader.file(cdiPath)!.async('text')
+      metadataSettings._cdiData = JSON.parse(cdiText)
+      console.info('[ZipLoader] Extracted CDI data from:', cdiPath)
+    }
+
+    // Find and collect expression files
+    const expPaths = filePaths.filter(f => f.toLowerCase().endsWith('.exp3.json'))
+    if (expPaths.length > 0) {
+      const expFiles: Array<{ name: string, fileName: string, data: unknown }> = []
+      for (const expPath of expPaths) {
+        const expText = await reader.file(expPath)!.async('text')
+        const baseName = expPath.split('/').pop()?.replace('.exp3.json', '') || expPath
+        expFiles.push({
+          name: baseName,
+          fileName: expPath,
+          data: JSON.parse(expText),
+        })
+      }
+      metadataSettings._expFiles = expFiles
+      console.info('[ZipLoader] Extracted', expFiles.length, 'expression files')
+    }
+  }
+  catch (e) {
+    console.warn('[ZipLoader] Failed to extract CDI/EXP metadata:', e)
   }
 
-  return defaultCreateSettings(reader)
+  return settings
 }
 
 export function isSettingsFile(file: string) {
@@ -69,10 +107,10 @@ function createFakeSettings(files: string[]): ModelSettings {
     },
   })
 
-  settings.name = modelName;
+  settings.name = modelName
 
   // provide this property for FileLoader
-  (settings as any)._objectURL = `example://${settings.url}`
+  Object.assign(settings, { _objectURL: `example://${settings.url}` })
 
   return settings
 }
@@ -90,7 +128,11 @@ ZipLoader.readText = (jsZip: JSZip, path: string) => {
 ZipLoader.getFilePaths = (jsZip: JSZip) => {
   const paths: string[] = []
 
-  jsZip.forEach(relativePath => paths.push(relativePath))
+  jsZip.forEach((relativePath, file) => {
+    if (!file.dir) {
+      paths.push(relativePath)
+    }
+  })
 
   return Promise.resolve(paths)
 }

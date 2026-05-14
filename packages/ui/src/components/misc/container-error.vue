@@ -157,11 +157,10 @@ async function copyContent() {
 <template>
   <div
     :class="[
-      'relative w-full rounded-xl border-2 border-red-200/70 bg-red-50/60 backdrop-blur-md p-1',
-      'dark:border-red-900/50 dark:bg-red-950/25',
+      'relative w-full rounded-lg bg-red-50/60 dark:bg-red-950/25 backdrop-blur-md p-1',
     ]"
   >
-    <div :class="['absolute right-4 -translate-x-full top-2 z-10']">
+    <div :class="['absolute right-2 -translate-x-full top-2 z-10']">
       <Button
         v-if="showCopyButton"
         size="sm"
@@ -172,9 +171,7 @@ async function copyContent() {
         :aria-label="copied ? copiedButtonLabel : copyButtonLabel"
         @click="copyContent"
       />
-    </div>
 
-    <div :class="['absolute right-2 top-2 z-10']">
       <Button
         v-if="showFeedbackButton"
         size="sm"
@@ -191,13 +188,12 @@ async function copyContent() {
       type="auto"
       :class="[
         'relative w-full overflow-hidden rounded-xl',
-        'bg-neutral-50/80 dark:bg-neutral-950/80',
         ...heightPresetClasses[heightPreset],
       ]"
     >
       <ScrollAreaViewport :class="['h-full w-full']">
         <div :class="['flex flex-col gap-2 p-3 text-xs']">
-          <div v-if="resolvedErrorName || resolvedMessage" :class="['font-mono font-semibold text-red-700 leading-relaxed dark:text-red-300']">
+          <div v-if="resolvedErrorName || resolvedMessage" :class="['font-mono text-red-700 leading-relaxed dark:text-red-300']">
             {{ resolvedErrorName || 'Error' }}
             <span v-if="resolvedMessage">
               : {{ resolvedMessage }}

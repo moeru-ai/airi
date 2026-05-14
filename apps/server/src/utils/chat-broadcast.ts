@@ -8,6 +8,16 @@ export interface ChatBroadcastPayload {
 export interface ChatBroadcastMessage {
   userId: string
   payload: ChatBroadcastPayload
+  /**
+   * Stable identifier of the api instance that published this broadcast.
+   *
+   * The subscribing instance compares it with its own instance id and skips
+   * delivery to local peers when they match — the publisher already
+   * delivered locally via `broadcastToLocalDevices` and re-delivering would
+   * echo every message twice on the originating instance (and once extra on
+   * the sender's own ctx).
+   */
+  originInstanceId: string
 }
 
 function assertNonEmptyString(value: unknown, fieldName: string): string {
@@ -24,9 +34,26 @@ function assertFiniteNumber(value: unknown, fieldName: string): number {
   return value
 }
 
+/**
+ * Build a normalized chat broadcast message ready for `redis.publish`.
+ *
+ * Use when:
+ * - The chat-ws route has just persisted new messages and needs to fan them
+ *   out to other api instances over the user's pub/sub channel.
+ *
+ * Expects:
+ * - `originInstanceId` is the publisher's stable instance id (env or nanoid
+ *   fallback). It must be non-empty so the echo-skip filter on the
+ *   subscriber side is reliable.
+ *
+ * Returns:
+ * - The validated message object; callers `JSON.stringify` it before
+ *   `redis.publish`.
+ */
 export function createChatBroadcastMessage(
   userId: string,
   payload: ChatBroadcastPayload,
+  originInstanceId: string,
 ): ChatBroadcastMessage {
   return {
     userId: assertNonEmptyString(userId, 'chat broadcast userId'),
@@ -36,9 +63,24 @@ export function createChatBroadcastMessage(
       fromSeq: assertFiniteNumber(payload.fromSeq, 'chat broadcast payload.fromSeq'),
       toSeq: assertFiniteNumber(payload.toSeq, 'chat broadcast payload.toSeq'),
     },
+    originInstanceId: assertNonEmptyString(originInstanceId, 'chat broadcast originInstanceId'),
   }
 }
 
+/**
+ * Parse a raw redis pub/sub message back into a validated broadcast message.
+ *
+ * Use when:
+ * - A subscribing api instance received a message and needs to decide
+ *   whether to deliver it to local peers.
+ *
+ * Expects:
+ * - The raw message is JSON produced by `createChatBroadcastMessage`.
+ *
+ * Returns:
+ * - A fully validated `ChatBroadcastMessage`. Throws on schema violations so
+ *   bad messages do not silently corrupt the local registry.
+ */
 export function parseChatBroadcastMessage(raw: string): ChatBroadcastMessage {
   let parsed: unknown
   try {
@@ -67,6 +109,7 @@ export function parseChatBroadcastMessage(raw: string): ChatBroadcastMessage {
       fromSeq: assertFiniteNumber(payloadRecord.fromSeq, 'chat broadcast payload.fromSeq'),
       toSeq: assertFiniteNumber(payloadRecord.toSeq, 'chat broadcast payload.toSeq'),
     },
+    assertNonEmptyString(message.originInstanceId, 'chat broadcast originInstanceId'),
   )
 }
 

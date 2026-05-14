@@ -1,8 +1,10 @@
 {
   lib,
   stdenvNoCC,
+  fetchPnpmDeps,
 
-  pnpm,
+  pnpm_10,
+  pnpmConfigHook,
 
   cacert,
   gitMinimal,
@@ -24,9 +26,9 @@ stdenvNoCC.mkDerivation (final: {
       !isEditorMetadataDirectory;
   };
 
-  pnpmDeps = pnpm.fetchDeps {
+  pnpmDeps = fetchPnpmDeps {
     inherit (final) pname version src;
-    fetcherVersion = 2;
+    fetcherVersion = 3;
     hash = builtins.readFile ./pnpm-deps-hash.txt;
   };
 
@@ -39,7 +41,8 @@ stdenvNoCC.mkDerivation (final: {
       cacert # For network request
       gitMinimal # For unplugin-info
       nodejs
-      pnpm.configHook
+      pnpm_10
+      pnpmConfigHook
     ];
 
     buildPhase = ''

@@ -36,6 +36,10 @@ export function explainActionIntent(action: ActionInvocation, runState: RunState
       return `Taking a screenshot to observe the current state of the desktop${taskContext}.`
     case 'observe_windows':
       return `Listing visible windows to understand what applications are open${taskContext}.`
+    case 'desktop_observe':
+      return `Capturing unified desktop observation (screenshot + AX tree + Chrome semantics)${taskContext}.`
+    case 'desktop_click_target':
+      return `Clicking target candidate "${action.input.candidateId}" using snap-resolved coordinates${taskContext}.`
     case 'open_app':
       return `Opening "${action.input.app}" because the task requires this application${taskContext}.`
     case 'focus_app':
@@ -137,6 +141,10 @@ export function explainActionOutcome(params: {
       return 'Screenshot captured successfully. The model can now analyze the current desktop state.'
     case 'observe_windows':
       return 'Window list retrieved. The model can now understand which applications are running.'
+    case 'desktop_observe':
+      return 'Desktop observation captured successfully. Target candidates have been identified.'
+    case 'desktop_click_target':
+      return `Clicked target candidate "${action.input.candidateId}" at snap-resolved coordinates.`
     case 'open_app':
       return `"${action.input.app}" has been opened. It should now be available for interaction.`
     case 'focus_app':
@@ -181,6 +189,7 @@ function buildFailureExplanation(
     case 'type_text':
     case 'press_keys':
     case 'scroll':
+    case 'desktop_click_target':
       parts.push('Consider taking a screenshot to verify the current UI state before retrying.')
       break
     case 'terminal_exec':
@@ -352,6 +361,27 @@ export function summarizeRunState(state: RunState): string {
   }
   if (state.lastApprovalRejected) {
     parts.push(`Last approval was REJECTED${state.lastRejectionReason ? ` (${state.lastRejectionReason})` : ''}`)
+  }
+
+  // Desktop grounding
+  if (state.lastGroundingSnapshot) {
+    const grounding = state.lastGroundingSnapshot
+    const staleMarks: string[] = []
+    if (grounding.staleFlags.screenshot)
+      staleMarks.push('screenshot')
+    if (grounding.staleFlags.ax)
+      staleMarks.push('AX')
+    if (grounding.staleFlags.chromeSemantic)
+      staleMarks.push('Chrome')
+    const staleNote = staleMarks.length > 0 ? ` [stale: ${staleMarks.join(', ')}]` : ''
+    parts.push(`Grounding: ${grounding.snapshotId} (${grounding.targetCandidates.length} candidates)${staleNote}`)
+    if (grounding.chromeSemanticSnapshot) {
+      parts.push(`  Chrome page: ${grounding.chromeSemanticSnapshot.pageTitle}`)
+    }
+  }
+  if (state.lastPointerIntent) {
+    const pointer = state.lastPointerIntent
+    parts.push(`Last pointer: ${pointer.source} → (${pointer.snappedPoint.x}, ${pointer.snappedPoint.y}) candidate=${pointer.candidateId ?? 'none'} conf=${pointer.confidence.toFixed(2)}`)
   }
 
   // Task

@@ -1,5 +1,7 @@
 import type { OAuthProvider } from '@proj-airi/stage-ui/libs/auth'
 
+import { extractAuthError } from './auth-fetch'
+
 export interface ServerSignInContext {
   callbackURL: string
   requestedProvider: string | null
@@ -20,7 +22,19 @@ export function createServerSignInContext(currentUrl: string, apiServerUrl: stri
   oidcParams.delete('provider')
   oidcParams.delete('prompt')
 
-  if (!oidcParams.size) {
+  // NOTICE:
+  // Only synthesize an OIDC authorize callback when the page query genuinely
+  // looks like an OIDC handoff. Without this guard, a stray `?token=...` —
+  // e.g. the 24-char password-reset token better-auth appends when it
+  // redirects through redirectTo (better-auth/dist/api/routes/password.mjs L65, L118)
+  // back into /auth/sign-in — would synthesize
+  // `/api/auth/oauth2/authorize?token=...` as the callback. The OIDC zod
+  // schema then rejects it for missing client_id / response_type
+  // (oauth-provider/dist/index.mjs L2808-2826) and the user sees a
+  // VALIDATION_ERROR instead of the sign-in form.
+  // Removal condition: redirectTo origins are exhaustively scoped so reset /
+  // verification redirects can never land on /auth/sign-in carrying a `token`.
+  if (!oidcParams.has('client_id') || !oidcParams.has('response_type')) {
     return {
       callbackURL: '/',
       requestedProvider,
@@ -54,23 +68,10 @@ export async function requestSocialSignInRedirect(params: SocialSignInRedirectPa
     return response.headers.get('location') || '/'
   }
 
-  const data = await response.json() as {
-    url?: unknown
-    error?: unknown
-  }
+  const data = await response.json() as { url?: unknown }
 
   if (typeof data.url === 'string')
     return data.url
 
-  throw new Error(getSignInErrorMessage(data.error))
-}
-
-function getSignInErrorMessage(error: unknown): string {
-  if (typeof error === 'string')
-    return error
-
-  if (typeof error === 'object' && error && 'message' in error && typeof error.message === 'string')
-    return error.message
-
-  return 'Unexpected response'
+  throw new Error(extractAuthError(data) ?? 'Unexpected response')
 }
