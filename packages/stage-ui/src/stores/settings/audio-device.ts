@@ -35,7 +35,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
         audioInputEnabled.value = false
     }
   }).catch(e => console.info(`Unable to track microphone permission: ${e}`))
-  microphonePermissionStatus // suppress unused variable lint
+  void microphonePermissionStatus // suppress unused variable lint
   function initialize() {
     const hasSelectedInput = selectedAudioInputPersist.value
       && audioInputs.value.some(device => device.deviceId === selectedAudioInputPersist.value)
